@@ -548,7 +548,7 @@ GLR::GLR(UserActions *user, ParseTables *t)
     stackNodePool(NULL),
     pathQueue(t),
     trParse(tracingSys("parse")),
-    trsParse(trace("parse")),
+    trsParse(trace("parse") << "parse tracing enabled\n"),
     detShift(0),
     detReduce(0),
     nondetShift(0),
@@ -752,6 +752,11 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
     // they specified that
     trace("action") << "warning: ACTION_TRACE is currently disabled by a\n";
     trace("action") << "compile-time switch, so you won't see parser actions.\n";
+  #endif
+                 
+  #ifdef NDEBUG
+    trace("parse") << "warning: Because NDEBUG was specified when elkhound was\n";
+    trace("parse") << "         compiled, the 'parse' tracing flag does nothing.\n";
   #endif
 
   // get ready..

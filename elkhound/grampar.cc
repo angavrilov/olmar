@@ -259,7 +259,12 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
       astParseNonterm(newEnv, nt);
     }
   }
-  
+
+  if (!g.actionClassName.str) {
+    astParseError("you must specify a context class; for example:\n"
+                  "  context_class Context : public UserActions {};\n");
+  }
+
   if (env.errors) {
     astParseError("halting due to previously reported errors");
   }

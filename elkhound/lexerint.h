@@ -15,6 +15,9 @@
 // here will be in the inner loop of the parser.
 class LexerInterface {
 public:     // data
+  // NOTE: All of these fields are *written* by the lexer, and
+  // *read* by the parser.
+
   // token classification; this is what the parser will use to
   // make parsing decisions; this code must correspond to something
   // declared in the 'terminals' section of the grammar; when this
