@@ -4180,6 +4180,14 @@ Variable *Env::lookupPQ_one(PQName *name, LookupFlags flags)
 }
 
 
+Variable *Env::unqualifiedLookup_one(StringRef name, LookupFlags flags)
+{
+  LookupSet set;
+  unqualifiedLookup(set, NULL /*scope*/, name, flags);
+  return set.isEmpty()? NULL : set.first();
+}
+
+
 // ----------------------- makeQualifiedName -----------------------
 // prepend to 'name' all possible qualifiers, starting with 's'
 PQName *Env::makeFullyQualifiedName(Scope *s, PQName *name)

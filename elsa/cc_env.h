@@ -713,6 +713,7 @@ public:      // funcs
   // context is going to reject a function name anyway (so it does
   // not matter if there is more than one)
   Variable *lookupPQ_one(PQName *name, LookupFlags flags);
+  Variable *unqualifiedLookup_one(StringRef name, LookupFlags flags);
 
 
   // ------------ template instantiation stuff ------------

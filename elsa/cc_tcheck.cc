@@ -5977,14 +5977,18 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 {
   obj->tcheck(env, obj);
 
-  // Note: must delay tchecking 'fieldName' until we decide
-  // what scope to do its qualifier lookups in
+  // Note: must delay tchecking 'fieldName' until we decide how to do
+  // its lookup.  See doc/lookup.txt, E_fieldAcc section.
 
-  bool isPseudoDestructor = fieldName->getName()[0] == '~';
+  StringRef rhsFinalTypeName = fieldName->getName();
+  bool isDestructor = rhsFinalTypeName[0] == '~';
+  if (isDestructor) {
+    rhsFinalTypeName = env.str(rhsFinalTypeName+1);    // skip '~'
+  }
 
   // dependent?
   if (obj->type->containsGeneralizedDependent()) {
-    if (isPseudoDestructor) {
+    if (isDestructor) {
       // 14.6.2.2 para 4
       return env.getSimpleType(SL_UNKNOWN, ST_VOID);
     }
@@ -5995,40 +5999,119 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
   }
 
   // get the type of 'obj', and make sure it's a compound
-  Type *rt = obj->type->asRval();
-  CompoundType *ct = rt->ifCompoundType();
+  Type *lhsType = obj->type->asRval();
+  CompoundType *ct = lhsType->ifCompoundType();
   if (!ct) {
-    // strange case, just lookup qualifiers globally
-    fieldName->tcheck(env);
-
-    // maybe it's a type variable because we're accessing a field
-    // of a template parameter?
-    if (rt->isTypeVariable()) {
-      // call it a reference to the 'dependent' variable instead of
-      // leaving it NULL; this helps the Cqual++ type checker a little
-      field = env.dependentTypeVar;
-      return field->type;
+    // 5.2.4: pseudo-destructor
+    if (!isDestructor ||
+        !fieldName->getUnqualifiedName()->isPQ_name()) {
+      return env.error(fieldName->loc, stringc
+        << "RHS of . or -> must be of the form \"~ identifier\" if the LHS "
+        << "is not a class; the LHS is `" << lhsType->toString() << "'");
     }
 
-    if (isPseudoDestructor) {
-      // invoking destructor explicitly, which is allowed for all
-      // types; most of the time, the rewrite in E_funCall::itcheck
-      // will replace this, but in the case of a type which is an
-      // array of objects, this will leave the E_fieldAcc's 'field'
-      // member NULL ...
-      return env.makeDestructorFunctionType(SL_UNKNOWN, NULL /*ct*/);
+    // this will be set to the type of the RHS
+    Type *rhsType = NULL;
+
+    if (fieldName->hasQualifiers()) {
+      // get pointers to the last three elements in the name
+      PQ_qualifier *thirdLast=NULL, *secondLast=NULL;
+      PQName *last = fieldName;
+      while (last->isPQ_qualifier()) {
+        // shift
+        thirdLast = secondLast;
+        secondLast = last->asPQ_qualifier();
+        last = secondLast->rest;
+      }
+      xassert(secondLast);
+
+      if (secondLast->targs.isNotEmpty()) {
+        return env.error(fieldName->loc, "cannot have templatized qualifier as "
+          "second-to-last element of RHS of . or -> when LHS is not a class");
+      }
+
+      // these will be set to the lookup results of secondLast and last, resp.
+      Variable *secondVar = NULL;
+      Variable *lastVar = NULL;
+
+      if (!thirdLast) {
+        // 'fieldName' must be of form type-name :: ~ type-name, so
+        // we do unqualified lookups
+        xassert(secondLast->qualifier);   // grammar should ensure this
+        secondVar = env.unqualifiedLookup_one(secondLast->qualifier, LF_NONE);
+        lastVar = env.unqualifiedLookup_one(rhsFinalTypeName, LF_NONE);
+      }
+
+      else {
+        // 'fieldName' of form Q :: type-name1 :: ~ type-name2, and so
+        // *both* lookups are to be done as if qualified by
+        // 'thirdLast'; to accomplish this, temporarily modify
+        // 'thirdLast' to construct the needed names
+
+        // fieldName := Q :: type-name1
+        PQ_name fakeLast(secondLast->loc, secondLast->qualifier);
+        thirdLast->rest = &fakeLast;
+        secondVar = env.lookupPQ_one(fieldName, LF_NONE);
+
+        // fieldName := Q :: type-name2
+        fakeLast.loc = last->loc;
+        fakeLast.name = rhsFinalTypeName;
+        lastVar = env.lookupPQ_one(fieldName, LF_NONE);
+
+        // fieldName := original fieldName
+        thirdLast->rest = secondLast;
+      }
+
+      if (!secondVar || !secondVar->hasFlag(DF_TYPEDEF)) {
+        return env.error(secondLast->loc,
+          stringc << "no such type: `" << secondLast->qualifier << "'");
+      }
+      if (!lastVar || !lastVar->hasFlag(DF_TYPEDEF)) {
+        return env.error(last->loc,
+          stringc << "no such type: `" << rhsFinalTypeName << "'");
+      }
+      if (!lastVar->type->equals(secondVar->type)) {
+        return env.error(fieldName->loc, stringc
+          << "in . or -> expression, when LHS is non-class type "
+          << "(its type is `" << lhsType->toString() << "'), a qualified RHS "
+          << "must be of the form Q :: t1 :: ~t2 where t1 and t2 are "
+          << "the same type, but t1 is `" << secondVar->type->toString()
+          << "' and t2 is `" << lastVar->type->toString() << "'");
+      }
+      rhsType = lastVar->type;
     }
 
-    // TODO: 3.4.5 para 2 suggests 'rt' might be a pointer to scalar
-    // type... but how could that possibly be legal?
+    else {
+      // RHS of form ~ type-name
+      Variable *v = env.unqualifiedLookup_one(rhsFinalTypeName, LF_NONE);
+      if (!v || !v->hasFlag(DF_TYPEDEF)) {
+        return env.error(fieldName->loc,
+          stringc << "no such type: `" << rhsFinalTypeName << "'");
+      }
+      rhsType = v->type;
+    }
 
-    return env.error(rt, stringc
-      << "non-compound `" << rt->toString()
-      << "' doesn't have fields to access");
+    if (!lhsType->equals(rhsType, Type::EF_IGNORE_TOP_CV)) {
+      return env.error(fieldName->loc, stringc
+        << "in . or -> expression, when LHS is non-class type, its type "
+        << "must be the same (modulo cv qualifiers) as the RHS; but the "
+        << "LHS type is `" << lhsType->toString() << "' and the RHS type is `"
+        << rhsType->toString() << "'");
+    }
+
+    // pseudo-destructor invocation
+    //
+    // an older comment read:
+    //   invoking destructor explicitly, which is allowed for all
+    //   types; most of the time, the rewrite in E_funCall::itcheck
+    //   will replace this, but in the case of a type which is an
+    //   array of objects, this will leave the E_fieldAcc's 'field'
+    //   member NULL ...
+    return env.makeDestructorFunctionType(SL_UNKNOWN, NULL /*ct*/);
   }
 
   // make sure the type has been completed
-  if (!env.ensureCompleteType("access a member of", rt)) {
+  if (!env.ensureCompleteType("access a member of", lhsType)) {
     return env.errorType();
   }
 
@@ -6099,14 +6182,14 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
   }
 
   if (!f) {
-    return env.error(rt, stringc
+    return env.error(lhsType, stringc
       << "there is no member called `" << *fieldName
-      << "' in " << rt->toString());
+      << "' in " << lhsType->toString());
   }
 
   // should not be a type
   if (f->hasFlag(DF_TYPEDEF)) {
-    return env.error(rt, stringc
+    return env.error(lhsType, stringc
       << "member `" << *fieldName << "' is a typedef!");
   }
        

@@ -314,22 +314,25 @@ Other relevant sections:
 I am going to ignore the possibility of '->' and concentrate only on
 the '.' option.  (Perhaps I will ammend this later to discuss '->'.)
 
-The structure of an arbitrary E_fieldAcc can be dissected:
+The structure of an arbitrary E_fieldAcc can be dissected as follows:
 
   LHS           ICC QUAL          FIELD
   -----------   --- ------------- -------------------------------
-  object-expr . ::  qualifiers :: identifier
-                                  ~ identifier
-                                  operator (op)
-                                  operator (type-id)
-                                  identifier < targs >
-                                  'template' identifier < targs >
+  object-expr . ::  qualifiers :: identifier            (FIELD case 1)
+                                  ~ identifier                     (2)
+                                  operator (op)                    (3)
+                                  operator (type-id)               (4)
+                                  identifier < targs >             (5)
+                                  'template' identifier < targs >  (6)
 
 with components:
   LHS, "left-hand side": the object being accessed.
   ICC, "initial colon-colon": A leading "::".  Optional.
   QUAL, "qualifiers": Qualifiers before FIELD.  Optional.
   FIELD: The field being accessed.  There are six possibilities.
+  
+Note that the presence of ICC implies that either QUAL is also
+present, or that FIELD is case 1, 3 or 5.
 
 I will divide this space along four dimensions:
   - Whether the LHS is a class type or a scalar (non-class) type.
@@ -338,46 +341,103 @@ I will divide this space along four dimensions:
   - Which of the six options for FIELD is used.
 The notation "X" means "don't care".
 
-For each case, I say which paragraphs of section 3.4.5 of the standard
-are applicable.  With the space so analyzed, the standard's
-descriptions can be applied relatively easily, so I won't restate the
-rules of each section.
+For each case, this table says which paragraphs of section 3.4.5 of
+the standard are applicable:
 
   LHS:  X   class class scalar scalar
   ICC:  yes no    no    no     no
   QUAL: X   yes   no    yes    no
         --- ----- ----- ------ ------
-        5   4     1,2   E      E      identifier
-        5   4     2,3   **     2,3    ~ identifier
-        5   4     2     E      E      operator (op)
-        5   4     2,7   E      E      operator (type-id)
-        5   4     1,2   E      E      identifier < targs >
-        5   4     *     E      E      'template' identifier < targs >
+        5   4     1,2   E      E      identifier            (FIELD case 1)
+        5   4     2,3   **     2,3    ~ identifier                     (2)
+        5   4     2     E      E      operator (op)                    (3)
+        5   4     2,7   E      E      operator (type-id)               (4)
+        5   4     1,2   E      E      identifier < targs >             (5)
+        5   4     2*    E      E      'template' identifier < targs >  (6)
 
 The code 'E' means it is a syntax error.
 
-The codes '*' and '**' are cases that are not covered by the standard.
+The code '**' is a case that is not covered by the standard.  Below,
+I give my best guess as to the intention.
 
-It is probably intended that case '*' is covered by paragraph 2, but a
-leading 'template' keyword precludes FIELD from being an
-unqualified-id (only the first 5 cases of FIELD are unqualified-ids).
+Note: The cell marked '2*' *is* covered by paragraph 2, because the
+leading 'template' is not considered part of the id-expression, so it
+does not prevent it from being an unqualified-id.
 
-For case '**', it is probably intended that the qualifier be looked up
-using nominal rules, expecting it to name the same type as the LHS, and
-that the 'identifier' in FIELD will be looked up in the same scope as
-the final component of QUAL, again expecting it to name the same type as
-the LHS.  I am less sure of this intention than in the '*' case.
+Note: The rules of paragraph 1 are used to decide between cases 1 and
+5 of FIELD, so I show paragraph 1 in both cells without qualifiers.
+The standard does not explicitly state how to distinguish between
+cases 1 and 5 if qualifiers are present; I assume the intent is to
+generalize paragraph 1 in the obvious way, respecting which paragraph
+specifies how to lookup the qualified name.
 
-Note that the rules of paragraph 1 are used to decide between cases 1
-and 5 of FIELD, so I show paragraph 1 in both cells without
-qualifiers.  The standard does not explicitly state how to distinguish
-between cases 1 and 5 if qualifiers are present; I assume the intent
-is to generalize paragraph 1 in the obvious way, respecting which
-paragraph specifies how to lookup the qualified name.
+Note: Paragraph 6 (type checking template arguments in the scope where
+the E_fieldAcc occurs) potentially applies to all columns with a
+qualifier, and the last two rows.
 
-Finally, note that paragraph 6 (type checking template arguments in
-the scope where the E_fieldAcc occurs) potentially applies to all
-columns with a qualifier, and the last two rows.
+So, given all of the above, the procedure for resolving the RHS of
+an E_fieldAcc is:
+
+  1. Type-check the LHS.
+
+  2. If the LHS type is not a class, check that the FIELD is case 2,
+     then:
+
+     2a. If QUAL is present (code '**'), divide the RHS as follows:
+
+           true-qualifiers :: identifier1 :: ~ identifier2
+
+         Do qualified lookups of true-qualifiers::identifier1 and
+         true-qualifiers::identifier2.  Both lookups should yield the
+         same type as the LHS (5.2.4).
+
+     2b. If QUAL is not present, lookup the identifier in the current
+         scope, and check that it is the same type as the LHS 
+         (3.4.5p2,3).
+
+     Stop.  
+     
+  The remaining procedure is for class-typed LHSs.  Call the class C.
+
+  3. If ICC is present (3.4.5p5), perform qualified lookup of the RHS.
+
+  4. If ICC is not present but QUAL is present (3.4.5p4), call the
+     first qualifier in the sequence Q.  (Does this apply if Q is
+     a template-id?  I am going to assume so, but a strict reading
+     would say no.)
+
+     4a. Perform unqualified lookup of Q.  If found, this must be
+         a class or namespace.
+     4b. Lookup Q in C.  If found, this must be a class.
+     4c. If lookups 4a and 4b both succeed, they must name the same
+         class N.  If only one succeeds, call its result N.  If neither
+         succeeds, report error.
+     4d. Do qualified lookup of the remainder of the RHS, with Q already
+         resolved to mean N.
+
+  5. If neither ICC nor QUAL are present (3.4.5p1,2,3):
+
+     5a. If FIELD is case 1, 3, 5 or 6 (3.4.5p2), lookup FIELD in C.
+
+     5b. If FIELD is case 2 (3.4.5p3):
+           - Perform unqualified lookup of the identifier.
+           - Lookup the identifier in C.
+         The lookups must yield a class, the same class if they both
+         succeed.
+         
+     5c. If FIELD is case 4 (3.4.5p7):
+           - Perform unqualified lookup of the type.
+           - Lookup the type in C.
+         *Both* must succeed, and name the same type.
+
+  6. Having looked up the FIELD, it must name a nonempty set of members
+     of C, or a nonempty set of members of one of C's base classes.  If
+     the set contains more than one element, overload resolution will
+     happen later, depending on the local syntactic context of this
+     E_fieldAcc.
+
+
+
 
 
 

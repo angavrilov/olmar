@@ -308,15 +308,16 @@ nonterm(PQName*) UnqualifiedId {
   -> on:OperatorFunctionId        { return new PQ_operator(loc, on, str(on->getOperatorName())); }
   -> on:ConversionFunctionId      { return new PQ_operator(loc, on, str(on->getOperatorName())); }
 
-  // std has `"~" ClassName' here, but I've chosen to separate out
-  // the places that a destructor name can occur, since it avoids
-  // an ambiguity with the "~" unary operator
+  // std has `"~" ClassName' here, but I've chosen to separate out the
+  // places that a destructor name can occur, since it avoids an
+  // ambiguity with the "~" unary operator
 
   -> id:TemplateId                { return id; }
 }
 
 // optional qualifier sequence (with no bare "::"), then an
-// UnqualifiedId
+// UnqualifiedId; there is no option here that uses "~", since that
+// is handled by PQDtorName
 nonterm(PQName*) PQualifiedId {
   -> id:UnqualifiedId
        { return id; }
@@ -399,24 +400,18 @@ nonterm(Expression*) PostfixExpression {
   -> spec:CtorExpressionType a:ArgumentList
        { return new E_constructor(spec, a); }
 
-  // field access
-  -> p:PostfixExpression "." n:IdExpression
+  // field access (includes pseudo-destructor)
+  -> p:PostfixExpression "." n:NameAfterDot
        { return new E_fieldAcc(p, n); }
 
   // deref + field access
-  -> p:PostfixExpression "->" n:IdExpression
+  -> p:PostfixExpression "->" n:NameAfterDot
        { return new E_arrow(p, n); }
 
   -> p:PostfixExpression "++"
        { return new E_effect(EFF_POSTINC, p); }
   -> p:PostfixExpression "--"
        { return new E_effect(EFF_POSTDEC, p); }
-
-  // explicit dtor call
-  -> p:PostfixExpression "." n:PQDtorName
-       { return new E_fieldAcc(p, n); }
-  -> p:PostfixExpression "->" n:PQDtorName
-       { return new E_arrow(p, n); }
 
   -> k:CastKeyword "<" t:TypeId ">" "(" e:Expression ")"
        { return new E_keywordCast(k, t, e); }
@@ -581,6 +576,66 @@ nonterm(Expression*) DeleteExpression {
        { return new E_delete(c, true /*array*/, e); }
 }
 // ------------ end of "new" and "delete" expressions -------------
+
+
+// -------------- BEGIN: syntax after "." or "->" -------------------
+// The standard calls this part
+//
+//   template_opt id-expression
+//
+// but there are some more restrictions I want to add, and I need to
+// build my AST in a certain way (bottom-up), so I redesigned this
+// part of the grammar.
+                     
+nonterm(PQName*) NameAfterDot {
+  -> n:NAD1     
+       { return n; }
+
+  // cannot say ":: ~", nor ":: template"
+  -> "::" n:NAD2
+       { return new PQ_qualifier(loc, NULL /*qualifier*/, NULL /*targs*/, n); }
+}
+
+// can begin with "~" or "template" or Identifier or "operator"
+nonterm(PQName*) NAD1 {
+  -> n:NAD2
+       { return n; }
+
+  // final names
+  -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
+       { list->prepend(new TA_templateUsed());
+         return new PQ_template(loc, n, list); }
+  -> "~" n:Identifier
+       { return new PQ_name(loc, str(stringc << "~" << n)); }
+  -> "~" n:Identifier "<" list:TemplateArgumentListOpt ">"
+       { return new PQ_template(loc, str(stringc << "~" << n), list); }
+  -> on:ConversionFunctionId      
+       { return new PQ_operator(loc, on, str(on->getOperatorName())); }
+
+  // qualifier name
+  -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">" "::" rest:NAD1
+       { list->prepend(new TA_templateUsed());
+         return new PQ_qualifier(loc, n, list, rest); }
+}
+
+// can only begin with Identifier or "operator"; this is essentially
+// what follows "::" in cppstd's qualified-id
+nonterm(PQName*) NAD2 {
+  // final names
+  -> n:Identifier "<" list:TemplateArgumentListOpt ">"
+       { return new PQ_template(loc, n, list); }
+  -> n:Identifier
+       { return new PQ_name(loc, n); }
+  -> on:OperatorFunctionId
+       { return new PQ_operator(loc, on, str(on->getOperatorName())); }
+
+  // qualifier names
+  -> n:Identifier "<" list:TemplateArgumentListOpt ">" "::" rest:NAD1
+       { return new PQ_qualifier(loc, n, list, rest); }
+  -> n:Identifier "::" rest:NAD1
+       { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
+}
+// -------------- END: syntax after "." or "->" -------------------
 
 
 nonterm(Expression*) CastExpression {
