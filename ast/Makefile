@@ -21,7 +21,7 @@ CXXFLAGS += -Werror
 CXXFLAGS += -Wno-deprecated
 
 # to turn on optimizer
-#CXXFLAGS += -O2 -DNDEBUG
+CXXFLAGS += -O2 -DNDEBUG
 
 COMPILE  := $(CXX) -c $(CXXFLAGS)
 
