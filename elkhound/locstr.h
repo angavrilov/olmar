@@ -13,12 +13,13 @@ public:    // data
   StringRef str;
 
 public:    // funcs
+  LocString();
   LocString(LocString const &obj);
   LocString(SourceLocation const &loc, StringRef str);
   LocString(FileLocation const &floc, SourceFile *f, StringRef str);
 
   // deallocates its argument; intended for convenient use in bison grammar files
-  LocString(LocString *obj);
+  EXPLICIT LocString(LocString *obj);
 
   LocString& operator= (LocString const &obj)
     { SourceLocation::operator=(obj); str = obj.str; return *this; }
@@ -26,6 +27,17 @@ public:    // funcs
   // (read-only) string-like behavior
   ostream& operator<< (ostream &os) const
     { return os << str; }
+  StringRef strref() const { return str; }
+  operator StringRef () const { return str; }
+  char operator [] (int index) const { return str[index]; }
+  bool equals(char const *other) const;
+
+  // experimenting with allowing 'str' to be null, which is convenient
+  // when the string table isn't available
+  bool isNull() const { return str == NULL; }
 };
+
+// yields simply the string, no location info
+string toString(LocString const &s);
 
 #endif // LOCSTR_H

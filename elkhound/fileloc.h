@@ -31,6 +31,8 @@ public:
 
   bool isValid() const { return line != invalid; }
 
+  void reset() { line=firstLine; col=firstColumn; }
+
   // "line %d, col %d"
   string toString() const;
 

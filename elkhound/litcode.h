@@ -4,6 +4,8 @@
 #ifndef __LITCODE_H
 #define __LITCODE_H
 
+#error This is obsolete; use LocString instead.
+
 #include "fileloc.h"      // SourceLocation, string
 #include "strobjdict.h"   // StringObjDict
 #include "sobjlist.h"     // SObjList

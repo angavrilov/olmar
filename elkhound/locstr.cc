@@ -3,6 +3,11 @@
 
 #include "locstr.h"     // this module
 
+LocString::LocString()
+  : SourceLocation(),
+    str(NULL)           // problem with "" is we don't have the string table here..
+{}
+
 LocString::LocString(LocString const &obj)
   : SourceLocation(obj),
     str(obj.str)
@@ -25,3 +30,17 @@ LocString::LocString(LocString *obj)
   delete obj;
 }
 
+bool LocString::equals(char const *other) const
+{
+  if (!str) {
+    return !other;                            // equal if both null
+  }
+  else {
+    return other && 0==strcmp(str, other);    // or same contents
+  }
+}
+
+string toString(LocString const &s)
+{
+  return string(s.str);
+}

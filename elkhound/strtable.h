@@ -78,6 +78,11 @@ public:     // funcs
   // if 'src' is in the table, return its representative; if not,
   // return NULL
   StringRef get(char const *src) const;
+  
+  // similar functions for strings with specified lengths
+  // this doesn't work because the underlying hash table interface needs null terminators..
+  //StringRef add(char const *src, int len);
+  //StringRef get(char const *src, int len) const;
 };
 
 

@@ -46,21 +46,13 @@ extern int yydebug;
 
 
 // ---------- Bison's view of the rest of the program --------
-// type of Bison semantic values
-//#define YYSTYPE ASTNode*
-
-// name of extra parameter to yylex; is of type ParseParams also
-#define YYLEX_PARAM parseParam
-
 // Bison calls this to get each token; returns token code,
 // or 0 for eof; semantic value for returned token can be
 // put into '*lvalp'
-int grampar_yylex(union YYSTYPE *lvalp, void *YYLEX_PARAM);
+int grampar_yylex(union YYSTYPE *lvalp, void *parseParam);
 
-// Bison calls yyerror(msg) on error; we need the extra
-// parameter too, so the macro shoehorns it in there
-#define yyerror(msg) grampar_yyerror(msg, YYPARSE_PARAM)
-void grampar_yyerror(char const *message, void *YYPARSE_PARAM);
+// error printer
+void grampar_yyerror(char const *message, void *parseParam);
 
 
 // ---------------- grampar's parsing structures ---------------

@@ -1,6 +1,7 @@
 // litcode.cc
 // code for litcode.h
 
+#error This module is obsolete; use LocString instead.
 #include "litcode.h"      // this module
 
 

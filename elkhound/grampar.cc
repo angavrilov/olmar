@@ -6,7 +6,7 @@
 #include "grampar.h"     // this module
 #include "gramlex.h"     // GrammarLexer
 #include "trace.h"       // tracing debug functions
-#include "gramast.h"     // grammar AST nodes
+#include "gramast.gen.h" // grammar AST nodes
 #include "grammar.h"     // Grammar, Production, etc.
 #include "owner.h"       // Owner
 #include "syserr.h"      // xsyserror
@@ -65,28 +65,27 @@ bool TreesContext::dummyContext() const
 
 // -------------------- XASTParse --------------------
 STATICDEF string XASTParse::
-  constructMsg(ASTNode const *node, char const *msg)
+  constructMsg(LocString const &tok, char const *msg)
 {
-  if (node->hasLeftmostLoc()) {
-    return stringc << "near " << node->getLeftmostLoc().toString()
-                   << ", at " << node->toString() << ": " << msg;
+  if (tok.isValid()) {
+    return stringc << "near " << tok
+                   << ", at " << tok.toString() << ": " << msg;
   }
   else {
-    return stringc << "(?loc) at "
-                   << node->toString() << ": " << msg;
+    return stringc << "(?loc): " << msg;
   }
 }
 
-XASTParse::XASTParse(ASTNode const *n, char const *m)
-  : xBase(constructMsg(n, m)),
-    node(n),
+XASTParse::XASTParse(LocString const &tok, char const *m)
+  : xBase(constructMsg(tok, m)),
+    failToken(tok),
     message(m)
 {}
 
 
 XASTParse::XASTParse(XASTParse const &obj)
   : xBase(obj),
-    DMEMB(node),
+    DMEMB(failToken),
     DMEMB(message)
 {}
 
@@ -96,264 +95,161 @@ XASTParse::~XASTParse()
 
 // -------------------- AST parser support ---------------------
 // fwd-decl of parsing fns
-void astParseGrammar(Grammar &g, ASTNode const *treeTop);
-void astParseNonterm(Environment &env, ASTNode const *node,
+void astParseGrammar(Grammar &g, GrammarAST const *treeTop);
+void astParseNonterm(Environment &env, TF_nonterminal const *nt,
                      Nonterminal *nonterm);
 void astParseNonterminalBody(Environment &env, Nonterminal *nt,
-                             ObjList<ASTNode> const &bodyList);
+                             ASTList<NTBodyElt> const &bodyList);
 void astParseFormgroup(Environment &env, Nonterminal *nt,
-                       ObjList<ASTNode> const &groupList);
-void astParseGroupBody(Environment &env, Nonterminal *nt,
-                       ObjList<ASTNode> const &bodyList,
-                       bool attrDeclAllowed);
+                       ASTList<GroupElement> const &groupList);
+void astParseGroupElement(Environment &env, Nonterminal *nt,
+                          GroupElement const *grpElt);
 void astParseForm(Environment &env, Nonterminal *nt,
-                  ASTNode const *formNode);
+                  GE_form const *formNode);
 void astParseFormBodyElt(Environment &env, Production *prod,
-                         ASTNode const *n, bool dupsOk);
+                         FormBodyElt const *n, bool dupsOk);
 void astParseAction(Environment &env, Production *prod,
-                    ASTNode const *act, bool dupsOk);
+                    FB_action const *act, bool dupsOk);
 ExprCondition *astParseCondition(Environment &env, Production *prod,
-                                 ASTNode const *cond);
+                                 FB_condition const *cond);
 void astParseTreeCompare(Environment &env, Production *prod,
-                         ASTNode const *node);
+                         FB_treeCompare const *tc);
 void astParseFunction(Environment &env, Production *prod,
-                      ASTNode const *func, bool dupsOk);
+                      FB_funDefn const *func, bool dupsOk);
 AExprNode *astParseExpr(Environment &env, Production *prod,
-                        ASTNode const *node);
+                        ExprAST const *node);
 AExprNode *astParseExpr(Environment &env, Production *prod,
-                        ASTNode const *node, TreesContext const &trees);
+                        ExprAST const *node, TreesContext const &trees);
 AExprNode *checkSpecial(Environment &env, Production *prod,
-                        ASTNode const *node);
-
+                        E_funCall const *call);
 
 
 // really a static semantic error, more than a parse error..
-void astParseError(ASTNode const *node, char const *msg)
+void astParseError(LocString const &failToken, char const *msg)
 {
-  THROW(XASTParse(node, msg));
+  THROW(XASTParse(failToken, msg));
 }
 
-void checkType(ASTNode const *node, int type)
-{ 
-  if (node->type != type) {
-    astParseError(node,
-                  stringc << "wrong type; expected " 
-                          << astTypeToString(type));
-  }
-}
-
-
-ASTIntLeaf const *asIntLeafC(ASTNode const *n)
+void astParseError(char const *msg)
 {
-  checkType(n, AST_INTEGER);
-  return (ASTIntLeaf const *)n;
+  LocString ls;   // no location info
+  THROW(XASTParse(ls, msg));
 }
-
-ASTStringLeaf const *asStringLeafC(ASTNode const *n)
-{
-  checkType(n, AST_STRING);
-  return (ASTStringLeaf const *)n;
-}
-
-ASTNameLeaf const *asNameLeafC(ASTNode const *n)
-{
-  checkType(n, AST_NAME);
-  return (ASTNameLeaf const *)n;
-}
-
-
-ASTNode const *nthChild(ASTNode const *n, int c)
-{
-  return n->asInternalC().children.nthC(c);
-}
-
-ASTNode const *nthChildt(ASTNode const *n, int c, int type)
-{
-  ASTNode const *ret = nthChild(n, c);
-  checkType(ret, type);
-  return ret;
-}
-
-
-int numChildren(ASTNode const *n)
-{
-  return n->asInternalC().numChildren();
-}
-
-
-int nodeInt(ASTNode const *n)
-  { return asIntLeafC(n)->data; }
-string nodeName(ASTNode const *n)
-  { return asNameLeafC(n)->data; }
-string nodeString(ASTNode const *n)
-  { return asStringLeafC(n)->data; }
-
-ObjList<ASTNode> const &nodeList(ASTNode const *n, int type)
-{
-  checkType(n, type);
-  return n->asInternalC().children;
-}
-
-SourceLocation nodeSrcLoc(ASTNode const *n)
-{
-  SourceLocation ret;
-  if (!n->leftmostLoc(ret)) {
-    astParseError(n, "no source location");
-  }
-  return ret;
-}
-
-LiteralCode * /*owner*/ nodeLitCode(ASTNode const *n)
-{
-  return new LiteralCode(nodeSrcLoc(n), nodeString(n));
-}
-
-
-int childInt(ASTNode const *n, int c)
-  { return nodeInt(nthChild(n, c)); }
-string childName(ASTNode const *n, int c)
-  { return nodeName(nthChild(n, c)); }
-string childString(ASTNode const *n, int c)
-  { return nodeString(nthChild(n, c)); }
-ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
-  { return nodeList(nthChild(n, c), type); }
-SourceLocation childSrcLoc(ASTNode const *n, int c)
-  { return nodeSrcLoc(nthChild(n, c)); }
-LiteralCode * /*owner*/ childLitCode(ASTNode const *n, int c)
-  { return nodeLitCode(nthChild(n, c)); }
-
-
-// to put at the end of a switch statement after all the
-// legal types have been handled
-#define END_TYPE_SWITCH(node) default: astParseError(node, "bad type") /* user ; */
 
 
 // to put as the catch block; so far it's kind of ad-hoc where
 // I actually put 'try' blocks..
-#define CATCH_APPLY_CONTEXT(node)       \
+#define CATCH_APPLY_CONTEXT(tok)        \
   catch (XASTParse &x) {                \
     /* leave unchanged */               \
     throw x;                            \
   }                                     \
   catch (xBase &x) {                    \
     /* add context */                   \
-    astParseError(node, x.why());       \
+    astParseError(tok, x.why());        \
     throw 0;     /* silence warning */  \
   }
 
 
 // ---------------------- AST "parser" --------------------------
-void astParseGrammar(Grammar &g, ASTNode const *treeTop)
+// map the grammar definition AST into a Grammar data structure
+void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
 {
-  checkType(treeTop, AST_TOPLEVEL);
-
   // default, empty environment
   Environment env(g);
 
   // process each toplevel form
-  FOREACH_OBJLIST(ASTNode, nodeList(treeTop, AST_TOPLEVEL), iter) {
-    // at this level it's always an internal node
-    ASTInternal const *node = &(iter.data()->asInternalC());
-    try {
-
-      switch (node->type) {
-        case AST_TERMINALS: {
+  FOREACH_ASTLIST(ToplevelForm, treeTop->forms, iter) {
+    //try {
+                                 
+      ASTSWITCHC(ToplevelForm, iter.data()) {
+        ASTCASEC(TF_terminals, terms) {
           // loop over the terminal declarations
-          FOREACH_OBJLIST(ASTNode, node->children, termIter) {
-            try {
-              ASTInternal const *term = &( termIter.data()->asInternalC() );
-              checkType(term, AST_TERMDECL);
+          FOREACH_ASTLIST(TermDecl, terms->terms, termIter) {
+            //try {
+              TermDecl const &term = *(termIter.data());
 
               // process the terminal declaration
-              int code = childInt(term, 0);
-              string name = childName(term, 1);
+              int code = term.code;
+              StringRef name = term.name;
               bool ok;
-              if (numChildren(term) == 3) {
-                ok = env.g.declareToken(name, code, quoted(childString(term, 2)));
+              if (term.alias[0]) {
+                ok = env.g.declareToken(name, code, quoted(term.alias));
               }
               else {
                 ok = env.g.declareToken(name, code, NULL /*alias*/);
               }
 
               if (!ok) {
-                astParseError(node, "token already declared");
+                astParseError(term.name, "token already declared");
               }
-            } // try
-            CATCH_APPLY_CONTEXT(termIter.data())
+            //} // try
+            //CATCH_APPLY_CONTEXT(termIter.data())
           } // for(terminal)
-          break;
         }
 
-        case AST_TREENODEBASE:
-          g.treeNodeBaseClass = childString(node, 0);
-          break;
-
-        case AST_LITERALCODE: {
+        ASTNEXTC(TF_treeNodeBase, tn) {
+          g.treeNodeBaseClass = string(tn->baseClassName);
+        }
+        
+        ASTNEXTC(TF_lit, lit) {
           // extract AST fields
-          string tag = childString(node, 0);
-          LiteralCode *code = childLitCode(node, 1);    // (owner)
+          LocString const &tag = lit->lit->codeKindTag;
+          LiteralCode code = lit->lit->codeBody;
 
           if (tag.equals("prologue")) {
-            if (g.semanticsPrologue != NULL) {
-              astParseError(node, "prologue already defined");
+            if (!g.semanticsPrologue.isNull()) {
+              astParseError(tag, "prologue already defined");
             }
             g.semanticsPrologue = code;
           }
 
           else if (tag.equals("epilogue")) {
-            if (g.semanticsEpilogue != NULL) {
-              astParseError(node, "epilogue already defined");
+            if (!g.semanticsEpilogue.isNull()) {
+              astParseError(tag, "epilogue already defined");
             }
             g.semanticsEpilogue = code;
           }
 
           else {
-            astParseError(node, stringc << "unknown litcode tag: " << tag);
+            astParseError(tag, stringc << "unknown litcode tag: " << tag);
           }
-
-          break;
         }
 
-        case AST_NONTERM: {
+        ASTNEXTC(TF_nonterminal, nt) {
           {
             // new environment since it can contain a grouping construct
             Environment newEnv(env);
 
             // parse it
-            astParseNonterm(newEnv, node, NULL /*means original decl*/);
+            astParseNonterm(newEnv, nt, NULL /*means original decl*/);
           }
 
           // add this decl to our running list (in the original environment)
-          string name = childName(nthChildt(node, 0, AST_NTNAME), 0);
-          env.nontermDecls.add(name, const_cast<ASTInternal*>(node));
-
-          break;
+          env.nontermDecls.add(nt->name, const_cast<TF_nonterminal*>(nt));
         }
 
-        END_TYPE_SWITCH(node);
+        ASTENDCASEC
       } // switch
-    } // try
-    CATCH_APPLY_CONTEXT(node)
+    //} // try
+    //CATCH_APPLY_CONTEXT(node)
   } // for(toplevel form)
 }
 
 
-void astParseNonterm(Environment &env, ASTNode const *node,
+void astParseNonterm(Environment &env, TF_nonterminal const *nt,
                      Nonterminal *nonterm)
 {
-  checkType(node, AST_NONTERM);
   bool originalDecl = !nonterm;
 
-  ASTNode const *ntName = nthChildt(node, 0, AST_NTNAME);
-  string name = childName(ntName, 0);
+  LocString const &name = nt->name;
 
   if (originalDecl) {
     // check for already declared; don't add to the list
     // yet, though, as a safeguard against the base class
     // list referring to itself
     if (env.nontermDecls.isMapped(name)) {
-      astParseError(nthChild(node, 0),    // to avoid error spew
-                    "nonterminal already declared");
+      astParseError(name, "nonterminal already declared");
     }
   }
 
@@ -367,41 +263,35 @@ void astParseNonterm(Environment &env, ASTNode const *node,
     nonterm = env.g.getOrMakeNonterminal(name);
   }
 
-  // are there any base classes?  (possibly a recursive question)
-  if (numChildren(ntName) == 2) {
-    ASTNode const *classes = nthChildt(ntName, 1, AST_BASECLASSES);
+  // for each base class..
+  FOREACH_ASTLIST(LocString, nt->baseClasses, iter) {
+    // get its name
+    LocString const &baseClassName = *(iter.data());
 
-    // for each base class..
-    loopi(numChildren(classes)) {
-      // get its name
-      string baseClassName = childName(classes, i);
-                     
-      // get its AST node
-      if (!env.nontermDecls.isMapped(baseClassName)) {
-        astParseError(nthChild(classes, i),
-                      "undeclared base class");
-      }
-      ASTNode const *base = env.nontermDecls.queryf(baseClassName);
-                         
-      // map the name to a Nonterminal
-      Nonterminal *baseNT = env.g.findNonterminal(baseClassName);
-      xassert(baseNT);
-      
-      // record the inheritance in the grammar
-      nonterm->superclasses.append(baseNT);
+    // get its AST node
+    if (!env.nontermDecls.isMapped(baseClassName)) {
+      astParseError(baseClassName, "undeclared base class");
+    }
+    TF_nonterminal const *base = env.nontermDecls.queryf(baseClassName);
 
-      // primary inheritance implementation mechanism: simply re-parse
-      // the definition of the base classes, but in the context of the
-      // new nonterminal
-      try {
-        astParseNonterm(env, base, nonterm);
-      }
-      catch (XASTParse &x) {
-        // add additional context; parse errors in the base classes
-        // are usually actually caused by errors in the place where
-        // they're referenced, e.g. including a base class twice
-        THROW(XASTParse(classes, x.why()));
-      }
+    // map the name to a Nonterminal (part of a Grammar)
+    Nonterminal *baseNT = env.g.findNonterminal(baseClassName);
+    xassert(baseNT);
+
+    // record the inheritance in the grammar
+    nonterm->superclasses.append(baseNT);
+
+    // primary inheritance implementation mechanism: simply re-parse
+    // the definition of the base classes, but in the context of the
+    // new nonterminal
+    try {
+      astParseNonterm(env, base, nonterm);
+    }
+    catch (XASTParse &x) {
+      // add additional context; parse errors in the base classes
+      // are usually actually caused by errors in the place where
+      // they're referenced, e.g. including a base class twice
+      THROW(XASTParse(baseClassName, x.why()));
     }
   }
 
@@ -409,21 +299,16 @@ void astParseNonterm(Environment &env, ASTNode const *node,
   // base classes because base classes generally supply things
   // like fun{} implementations which must be put into the
   // environment before the productions are analyzed
-  if (nthChild(node, 1)->type == AST_FORM) {
-    // simple "nonterm A -> B C D" form
-    astParseForm(env, nonterm, nthChild(node, 1));
-  }
-  else {
-    astParseNonterminalBody(env, nonterm, childList(node, 1, AST_NTBODY));
-  }
+  astParseNonterminalBody(env, nonterm, nt->elts);
 
   if (originalDecl) {
     // add this decl to our running list
-    env.nontermDecls.add(name, const_cast<ASTNode*>(node));
+    env.nontermDecls.add(name, const_cast<TF_nonterminal*>(nt));
   }
 }
 
 
+#if 0       // this has been reorganized
 // this is for parsing NonterminalBody (attrDeclAllowed=true) or
 // FormGroupBody (attrDeclAllowed=false) lists
 void astParseGroupBody(Environment &env, Nonterminal *nt,
@@ -521,7 +406,7 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
 
           else {
             astParseError(node, stringc << "unknown litcode tag: " << tag);
-          }     
+          }
 
           break;
         }
@@ -554,72 +439,179 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
     CATCH_APPLY_CONTEXT(node)
   } // for(body elt)
 }
+#endif // 0
 
 
 void astParseNonterminalBody(Environment &env, Nonterminal *nt,
-                             ObjList<ASTNode> const &bodyList)
+                             ASTList<NTBodyElt> const &bodyList)
 {
-  astParseGroupBody(env, nt, bodyList, true /*attrDeclAllowed*/);
+  FOREACH_ASTLIST(NTBodyElt, bodyList, iter) {
+    ASTSWITCHC(NTBodyElt, iter.data()) {
+      ASTCASEC(NT_attr, attr) {
+        nt->attributes.append(new string(attr->name));
+      }
+
+      ASTNEXTC(NT_decl, decl) {
+        nt->declarations.append(new LocString(decl->declBody));
+      }
+
+      ASTNEXTC(NT_elt, grpElt) {
+        astParseGroupElement(env, nt, grpElt->elt);
+      }
+
+      ASTNEXTC(NT_lit, llit) {
+        // extract AST fields
+        LiteralCodeAST *lit = llit->lit;
+        LocString const &tag = lit->codeKindTag;
+        LiteralCode const &code = lit->codeBody;
+
+        // if it's an LC_modifier, get the name of the function it modifies
+        LocString name;          // assume it's not a modifier
+        LC_modifier const *mod = lit->ifLC_modifierC();
+        if (mod) {
+          name = mod->funcToModify;
+        }
+
+        // look at the tag to figure out what the code means
+        if (tag.equals("disamb")) {
+          if (name.isNull()) {
+            astParseError(tag, "disamb must have a name");
+          }
+          if (!nt->funDecls.isMapped(name)) {
+            astParseError(name, "undeclared function");
+          }
+          nt->disambFuns.add(name, new LiteralCode(code));
+        }
+
+        else if (tag.equals("prefix")) {
+          if (name.isNull()) {
+            astParseError(tag, "prefix must have a name");
+          }
+          if (!nt->funDecls.isMapped(name)) {
+            astParseError(name, "undeclared function");
+          }
+          nt->funPrefixes.add(name, new LiteralCode(code));
+        }
+
+        else if (tag.equals("constructor")) {
+          if (nt->constructor) {
+            //astParseError(node, "constructor already defined");
+            // hack: allow overriding ...
+          }
+          nt->constructor = code;
+        }
+
+        else if (tag.equals("destructor")) {
+          if (nt->destructor) {
+            astParseError(tag, "destructor already defined");
+          }
+          nt->destructor = code;
+        }
+
+        else {
+          astParseError(tag, stringc << "unknown litcode tag: " << tag);
+        }
+      }
+
+      ASTENDCASEC
+    } // switch
+  } // foreach
 }
 
 void astParseFormgroup(Environment &env, Nonterminal *nt,
-                       ObjList<ASTNode> const &groupList)
+                       ASTList<GroupElement> const &groupList)
 {
-  astParseGroupBody(env, nt, groupList, false /*attrDeclAllowed*/);
+  Environment newEnv(env);     // new environment
+  FOREACH_ASTLIST(GroupElement, groupList, iter) {
+    astParseGroupElement(newEnv, nt, iter.data());
+  }
+}
+
+void astParseGroupElement(Environment &env, Nonterminal *nt,
+                          GroupElement const *grpElt)
+{
+  ASTSWITCHC(GroupElement, grpElt) {
+    ASTCASEC(GE_form, form) {
+      astParseForm(env, nt, form);
+    }
+
+    ASTNEXTC(GE_formGroup, formGrp) {
+      astParseFormgroup(env, nt, formGrp->elts);
+    }
+
+    ASTNEXTC(GE_fbe, elt) {
+      // just grab a pointer; will parse for real when a production
+      // uses this inherited action
+      // NOTE: must prepend here because the list is walked in order
+      // when adding inherited items to productions, and later
+      // additions must shadow earlier ones
+      env.inherited.prepend(const_cast<FormBodyElt*>(elt->e));
+    }
+
+    ASTENDCASEC
+  }
 }
 
 
 void astParseForm(Environment &env, Nonterminal *nt,
-                  ASTNode const *formNode)
+                  GE_form const *formNode)
 {
-  try {
-    checkType(formNode, AST_FORM);
-
+  //try {
     // every alternative separated by "|" requires the entire treatment
-    FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHSALTS), altIter) {
-      ASTNode const *rhsListNode = altIter.data();
+    FOREACH_ASTLIST(RHS, formNode->rhsides, altIter) {
+      RHS const *rhsListNode = altIter.data();
 
       // build a production; use 'this' as the tag for LHS elements
       Production *prod = new Production(nt, "this");
 
       // first, deal with RHS elements
-      FOREACH_OBJLIST(ASTNode, nodeList(rhsListNode, AST_RHS), iter) {
-        ASTNode const *n = iter.data();
-        string symName;
-        string symTag;
+      FOREACH_ASTLIST(RHSElt, rhsListNode->rhs, iter) {
+        RHSElt const *n = iter.data();
+        LocString symName;
+        LocString symTag;
         bool tagValid = false;
-        switch (n->type) {
-          case AST_NAME:
-            symName = nodeName(n);
-            break;
+        bool isString = false;
 
-          case AST_TAGGEDNAME:
-            symName = childName(n, 1);
-            symTag = childName(n, 0);
+        ASTSWITCHC(RHSElt, n) {
+          ASTCASEC(RH_name, name) {
+            symName = name->name;
+          }
+
+          ASTNEXTC(RH_taggedName, tname) {
+            symName = tname->name;
+            symTag = tname->tag;
             tagValid = true;
-            break;
+          }
 
-          case AST_STRING:
-            symName = quoted(nodeString(n));
-            break;
+          ASTNEXTC(RH_string, s) {
+            symName = s->str;
+            isString = true;
+          }
 
-          case AST_TAGGEDSTRING:
-            symName = quoted(childString(n, 1));
-            symTag = childName(n, 0);
+          ASTNEXTC(RH_taggedString, ts) {
+            symName = ts->str;
+            symTag = ts->tag;
             tagValid = true;
-            break;
+            isString = true;
+          }
 
-          END_TYPE_SWITCH(n);
+          ASTENDCASEC
+        }
+
+        // quote the string if it was quoted in syntax
+        string quotSymName(symName);
+        if (isString) {
+          quotSymName = quoted(symName);
         }
 
         // see which (if either) thing this name already is
-        Terminal *term = env.g.findTerminal(symName);
-        Nonterminal *nonterm = env.g.findNonterminal(symName);
+        Terminal *term = env.g.findTerminal(quotSymName);
+        Nonterminal *nonterm = env.g.findNonterminal(quotSymName);
         xassert(!( term && nonterm ));     // better not be both!
 
         // some syntax rules
-        if (n->type == AST_STRING  &&  !term) {
-          astParseError(n, "terminals must be declared");
+        if (isString  &&  !term) {
+          astParseError(symName, "terminals must be declared");
         }
 
         // I eliminated this rule because I need the tags to
@@ -653,23 +645,18 @@ void astParseForm(Environment &env, Nonterminal *nt,
       }
 
       // after constructing the production we need to do this
-      // no we don't -- GrammarAnalysis takes care of it (and
+      // update: no we don't -- GrammarAnalysis takes care of it (and
       // complains if we do)
       //prod->finished();
 
-      // deal with formBody (we evaluate it once for each alternative form)
-      if (numChildren(formNode) == 2) {
-        // iterate over form body elements
-        FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
-          astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
-        }
-      }
-      else {
-        // no form body
+      // deal with formBody (we evaluate it once for each alternative form):
+      // iterate over form body elements
+      FOREACH_ASTLIST(FormBodyElt, formNode->elts, iter) {
+        astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
       }
 
       // grab stuff inherited from the environment
-      SFOREACH_OBJLIST(ASTNode, env.inherited, iter) {
+      SFOREACH_OBJLIST(FormBodyElt, env.inherited, iter) {
         astParseFormBodyElt(env, prod, iter.data(), true /*dupsOk*/);
       }
 
@@ -677,7 +664,7 @@ void astParseForm(Environment &env, Nonterminal *nt,
       FOREACH_OBJLIST(string, nt->attributes, attrIter) {
         char const *attr = attrIter.data()->pcharc();
         if (!prod->actions.getAttrActionFor(attr)) {
-          astParseError(formNode,
+          astParseError(
             stringc << "rule " << prod->toString()
                     << " has no action for `" << attr << "'");
         }
@@ -688,7 +675,7 @@ void astParseForm(Environment &env, Nonterminal *nt,
            !iter.isDone(); iter.next()) {
         char const *name = iter.key();
         if (!prod->hasFunction(name)) {
-          astParseError(formNode,
+          astParseError(
             stringc << "rule " << prod->toString()
                     << " has no implementation for `" << name << "'");
         }
@@ -698,64 +685,65 @@ void astParseForm(Environment &env, Nonterminal *nt,
       env.g.addProduction(prod);
 
     } // end of for-each alternative
-  } // try
-  CATCH_APPLY_CONTEXT(formNode)
+  //} // try
+  //CATCH_APPLY_CONTEXT(formNode)
 }
 
 
 void astParseFormBodyElt(Environment &env, Production *prod,
-                         ASTNode const *n, bool dupsOk)
+                         FormBodyElt const *n, bool dupsOk)
 {
-  try {
-    switch (n->type) {
-      case AST_ACTION:
-        astParseAction(env, prod, n, dupsOk);
-        break;
-
-      case AST_CONDITION:
-        prod->conditions.conditions.append(
-          astParseCondition(env, prod, n));
-        break;
-
-      case AST_TREECOMPARE:
-        astParseTreeCompare(env, prod, n);
-        break;
-
-      case AST_FUNDECL: {
-        // allow function declarations in form bodies because it's
-        // convenient for nonterminals that only have one form..
-        string name = childName(n, 0);
-        if (!prod->left->funDecls.isMapped(name)) {
-          prod->left->funDecls.add(
-            name,                  // declared name
-            childLitCode(n, 1));   // declaration body
-        }
-        else {
-          astParseError(n, "duplicate function declaration");
-        }
-        break;
+  //try {
+    ASTSWITCHC(FormBodyElt, n) {
+      ASTCASEC(FB_action, act) {
+        astParseAction(env, prod, act, dupsOk);
       }
 
-      case AST_FUNCTION:
-      case AST_FUNEXPR:
-        astParseFunction(env, prod, n, dupsOk);
-        break;
+      ASTNEXTC(FB_condition, cond) {
+        prod->conditions.conditions.append(
+          astParseCondition(env, prod, cond));
+      }
+       
+      ASTNEXTC(FB_treeCompare, tc) {
+        astParseTreeCompare(env, prod, tc);
+      }
+       
+      ASTNEXTC(FB_funDecl, fd) {
+        // allow function declarations in form bodies because it's
+        // convenient for nonterminals that only have one form..
+        LocString name = fd->declName;
+        if (!prod->left->funDecls.isMapped(name)) {
+          prod->left->funDecls.add(
+            name,                             // declared name
+            new LiteralCode(fd->declBody));   // declaration body
+        }
+        else {
+          astParseError(name, "duplicate function declaration");
+        }
+      }
 
-      END_TYPE_SWITCH(n);
+      ASTNEXTC(FB_funDefn, fd) {
+        astParseFunction(env, prod, fd, dupsOk);
+      }
+      
+      ASTNEXTC(FB_dataDecl, dd) {
+        // old code didn't have a case here ... ?
+        astParseError(dd->declBody, "data decl not allowed here (?)");
+      }
+
+      ASTENDCASEC
     }
-  }
-  CATCH_APPLY_CONTEXT(n)
+  //}
+  //CATCH_APPLY_CONTEXT(n)
 }
 
 
 void astParseAction(Environment &env, Production *prod,
-                    ASTNode const *act, bool dupsOk)
+                    FB_action const *act, bool dupsOk)
 {
-  checkType(act, AST_ACTION);
-
-  string attrName = childName(act, 0);
+  LocString attrName = act->name;
   if (!prod->left->hasAttribute(attrName)) {
-    astParseError(act, stringc << "undeclared attribute: " << attrName);
+    astParseError(attrName, stringc << "undeclared attribute: " << attrName);
   }
   if (prod->actions.getAttrActionFor(attrName)) {
     // there is already an action for this attribute
@@ -763,46 +751,42 @@ void astParseAction(Environment &env, Production *prod,
       return;     // fine; just ignore it
     }
     else {
-      astParseError(act, stringc << "duplicate action for " << attrName);
+      astParseError(attrName, stringc << "duplicate action for " << attrName);
     }
   }
 
-  AExprNode *expr = astParseExpr(env, prod, nthChild(act, 1));
+  AExprNode *expr = astParseExpr(env, prod, act->expr);
 
   prod->actions.actions.append(
-    new AttrAction(AttrLvalue(0 /*whichTree*/, 0 /*LHS*/, attrName),
+    new AttrAction(AttrLvalue(0 /*whichTree*/, 0 /*LHS*/, AttrName(attrName)),
                    expr));
 }
 
 
 ExprCondition *astParseCondition(Environment &env, Production *prod,
-                                 ASTNode const *cond)
+                                 FB_condition const *cond)
 {
-  checkType(cond, AST_CONDITION);
-
-  AExprNode *expr = astParseExpr(env, prod, nthChild(cond, 0));
+  AExprNode *expr = astParseExpr(env, prod, cond->condExpr);
 
   return new ExprCondition(expr);
 }
 
 
 void astParseTreeCompare(Environment &env, Production *prod,
-                         ASTNode const *node)
+                         FB_treeCompare const *tc)
 {
-  checkType(node, AST_TREECOMPARE);
-
   if (prod->treeCompare != NULL) {
-    astParseError(node, "duplicate treeCompare definition");
+    astParseError(tc->leftName, "duplicate treeCompare definition");
   }
 
   // get tree names to use
-  string t1Name = childName(node, 0);
-  string t2Name = childName(node, 1);
+  LocString t1Name = tc->leftName;
+  LocString t2Name = tc->rightName;
 
   // parse the expression with those names in context
   TreesContext trees(t1Name, t2Name);
   AExprNode *expr = astParseExpr(env, prod,
-                                 nthChild(node, 2), trees);
+                                 tc->decideExpr, trees);
 
   // put it into the production
   prod->treeCompare = expr;
@@ -810,133 +794,133 @@ void astParseTreeCompare(Environment &env, Production *prod,
 
 
 void astParseFunction(Environment &env, Production *prod,
-                      ASTNode const *func, bool dupsOk)
+                      FB_funDefn const *func, bool dupsOk)
 {
-  try {
-    xassert(func->type == AST_FUNCTION ||
-            func->type == AST_FUNEXPR);
+  //try {
+    //xassert(func->type == AST_FUNCTION ||
+    //        func->type == AST_FUNEXPR);
 
-    string name = childName(func, 0);
+    LocString name = func->name;
     if (!prod->left->hasFunDecl(name)) {
-      astParseError(nthChild(func, 0),
-        stringc << "undeclared function: " << name);
+      astParseError(name, stringc << "undeclared function: " << name);
     }
     if (prod->hasFunction(name)) {
       if (!dupsOk) {
-        astParseError(nthChild(func, 0),
-          stringc << "duplicate function implementation: " << name);
+        astParseError(name, stringc << "duplicate function implementation: " << name);
       }
       else {
         return;    // ignore duplicates
       }
     }
 
-    prod->functions.add(name, childLitCode(func, 1));
-  }
-  CATCH_APPLY_CONTEXT(func)
+    prod->functions.add(name, new LiteralCode(func->defnBody));
+  //}
+  //CATCH_APPLY_CONTEXT(func)
 }
 
 
 // parse an expression AST (action or condition), in the context
 // of the production where that expression will be eval'd
 AExprNode *astParseExpr(Environment &env, Production *prod,
-                        ASTNode const *node)
+                        ExprAST const *node)
 {
   TreesContext dummy;
   return astParseExpr(env, prod, node, dummy);
 }
 
 AExprNode *astParseExpr(Environment &env, Production *prod,
-                        ASTNode const *node, TreesContext const &trees)
+                        ExprAST const *node, TreesContext const &trees)
 {
-  switch (node->type) {
-    case AST_INTEGER:
-      return new AExprLiteral(nodeInt(node));
-
-    case EXP_ATTRREF: {
-      // which of two trees we refer to
-      int whichTree;
-
-      // names the RHS symbol we're referring to
-      int whichRHS = 0;        // tag missing means LHS symbol
-
-      // process AST children right to left
-      int child = numChildren(node)-1;
-      string attrName = childName(node, child--);
-
-      if (child >= 0) {        // tag is present
-        string tag = childName(node, child--);
-        whichRHS = prod->findTag(tag);
-        if (whichRHS == -1) {
-          astParseError(node, "invalid tag");
-        }
-      }
-
-      if (child >= 0) {        // tree specifier is present
-        string treeName = childName(node, child--);
-        whichTree = trees.lookupTreeName(treeName);
-        if (whichTree == -1) {
-          astParseError(node, "invalid tree specifier");
-        }
-      }
-      else {                   // tree specifier not present
-        if (!trees.dummyContext()) {
-          // but one is required, because we're in a context
-          // where there are multiple trees to refer to
-          astParseError(node, "tree specifier required");
-        }
-        else {
-          // the context only has one tree to name
-          whichTree = 0;
-        }
-      }
-
-      xassert(child == -1);        // otherwise my AST is bad..
-
-      return new AExprAttrRef(AttrLvalue(whichTree, whichRHS, attrName));
+  ASTSWITCHC(ExprAST, node) {
+    ASTCASEC(E_intLit, i) {
+      return new AExprLiteral(i->val);
     }
 
-    case EXP_FNCALL: {
+    ASTNEXTC(E_attrRef, ar) {
+      if (!trees.dummyContext()) {
+        // a tree specifier is required, because we're in a context
+        // where there are multiple trees to refer to
+        astParseError(ar->tag, "tree specifier required");
+      }
+
+      int whichRHS = prod->findTag(ar->tag);      // which RHS elt
+      if (whichRHS == -1) {
+        astParseError(ar->tag, "invalid tag");
+      }
+
+      return new AExprAttrRef(AttrLvalue(0 /*tree*/, whichRHS, AttrName(ar->attr)));
+    }
+
+    ASTNEXTC(E_treeAttrRef, ar) {
+      int whichRHS = prod->findTag(ar->tag);      // which RHS elt
+      if (whichRHS == -1) {
+        astParseError(ar->tag, "invalid tag");
+      }
+
+      int whichTree = trees.lookupTreeName(ar->tree);
+      if (whichTree == -1) {
+        astParseError(ar->tree, "invalid tree specifier");
+      }
+
+      return new AExprAttrRef(AttrLvalue(whichTree, whichRHS, AttrName(ar->attr)));
+    }
+
+    ASTNEXTC(E_funCall, call) {
       // handle any eval-at-grammar-parse functions
-      AExprNode *special = checkSpecial(env, prod, node);
+      AExprNode *special = checkSpecial(env, prod, call);
       if (special) {
         return special;
       }
 
       // function name
-      AExprFunc *fn = new AExprFunc(childName(node, 0));
+      AExprFunc *fn = new AExprFunc(call->funcName);
 
       // and arguments
-      FOREACH_OBJLIST(ASTNode, childList(node, 1, EXP_LIST), iter) {
+      FOREACH_ASTLIST(ExprAST, call->args, iter) {
         fn->args.append(astParseExpr(env, prod, iter.data(), trees));
       }
 
       return fn;
     }
-  }
 
-  // what's left is the arithmetic operators; we just need to get the
-  // function name, then handle args
-  loopi(AExprFunc::numFuncEntries) {
-    AExprFunc::FuncEntry const *entry = &AExprFunc::funcEntries[i];
-
-    if (entry->astTypeCode == node->type) {
-      // function name
-      AExprFunc *fn = new AExprFunc(entry->name);
-
-      // arguments
-      ObjList<ASTNode> const &children = node->asInternalC().children;
-      xassert(entry->numArgs == children.count());
-      FOREACH_OBJLIST(ASTNode, children, iter) {
-        fn->args.append(astParseExpr(env, prod, iter.data(), trees));
+    ASTNEXTC(E_unary, u) {
+      char const *funcName = AExprFunc::lookupFunc(u->op);
+      if (!funcName) {
+        astParseError(stringc << "unknown function code " << u->op);
       }
+
+      AExprFunc *fn = new AExprFunc(funcName);
+      fn->args.append(astParseExpr(env, prod, u->exp, trees));
 
       return fn;
     }
+
+    ASTNEXTC(E_binary, b) {
+      char const *funcName = AExprFunc::lookupFunc(b->op);
+      if (!funcName) {
+        astParseError(stringc << "unknown function code " << b->op);
+      }
+
+      AExprFunc *fn = new AExprFunc(funcName);
+      fn->args.append(astParseExpr(env, prod, b->left,  trees));
+      fn->args.append(astParseExpr(env, prod, b->right, trees));
+
+      return fn;
+    }
+
+    ASTNEXTC(E_cond, c) {
+      AExprFunc *fn = new AExprFunc("if");
+      fn->args.append(astParseExpr(env, prod, c->test,    trees));
+      fn->args.append(astParseExpr(env, prod, c->thenExp, trees));
+      fn->args.append(astParseExpr(env, prod, c->elseExp, trees));
+
+      return fn;
+    }
+
+    ASTENDCASEC
   }
 
-  // wasn't an ast expression node type we recongnize
-  astParseError(node, "bad type");
+  xfailure("bad type code");
   return NULL;    // silence warning
 }
 
@@ -944,13 +928,18 @@ AExprNode *astParseExpr(Environment &env, Production *prod,
 // 'node' is a function node; if the function is one we recognize
 // as special, handle it; otherwise return NULL
 AExprNode *checkSpecial(Environment &env, Production *prod,
-                        ASTNode const *node)
+                        E_funCall const *call)
 {
+  // I'm removing this entirely because it's a little difficult to
+  // translate to my new AST format (the argument has to be a literal
+  // int, but my AST allows any expr), and I have no uses of it
+  // (currently) in cc.gr
+  #if 0
   // for now, this is only special
-  if (childName(node, 0) == string("sequence")) {
+  if (call->fundName.equals("sequence")) {
     // convenience
     int &seq = env.sequenceVal;
-    ASTNode const *args = nthChild(node, 1);
+    ASTList<ExprAST> const &args = call->args;
 
     // this is a rather flaky implementation.. it's unclear (to the
     // user) what resets the counter, and that there's only one in
@@ -978,6 +967,7 @@ AExprNode *checkSpecial(Environment &env, Production *prod,
     // install the sequence value as the expression value
     return new AExprLiteral(seq);
   }
+  #endif // 0
 
   // nothing else is special
   return NULL;
@@ -995,20 +985,28 @@ int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
 
   try {
     // yield semantic values for some things
+    // note that the yielded semantic value must be consistent with
+    // what is declared for these token types in grampar.y
     switch (code) {
       case TOK_INTEGER:
         lvalp->num = lexer.integerLiteral;
         break;
 
       case TOK_STRING:
-        lvalp->str = new LocString(lexer.curLoc());
+        lvalp->str = new LocString(lexer.curLoc(), lexer.stringLiteral);
         break;
 
       case TOK_NAME:
-        *lvalp = new ASTNameLeaf(lexer.curToken(), lexer.curLoc());
+      case TOK_FUN_BODY:
+      case TOK_DECL_BODY:
+        lvalp->str = new LocString(lexer.curLoc(), lexer.curToken());
         break;
 
       case TOK_FUNDECL_BODY: {
+        lvalp->funDecl = new FB_funDecl(new LocString(lexer.curLoc(), lexer.curDeclName()),
+                                        new LocString(lexer.curLoc(), lexer.curToken()));
+
+        #if 0
         // grab the declaration body and put it into a leaf
         ASTNode *declBody =
           new ASTStringLeaf(lexer.curDeclBody(), lexer.curLoc());
@@ -1019,16 +1017,13 @@ int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
 
         // wrap them into another ast node
         *lvalp = AST2(AST_FUNDECL, declName, declBody);
+        #endif // 0
+
         break;
       }
 
-      case TOK_FUN_BODY:
-      case TOK_DECL_BODY:
-        *lvalp = new ASTStringLeaf(lexer.curFuncBody(), lexer.curLoc());
-        break;
-
       default:
-        *lvalp = NULL;
+        lvalp->str = NULL;        // any attempt to use will segfault
     }
   }
   catch (xBase &x) {
@@ -1036,7 +1031,7 @@ int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
     cout << lexer.curLocStr() << ": " << x << endl;
     
     // optimistically try just skipping the bad token
-    return yylex(lvalp, parseParam);
+    return grampar_yylex(lvalp, parseParam);
   }
 
   return code;
@@ -1053,9 +1048,12 @@ void grampar_yyerror(char const *message, void *parseParam)
 // ---------------- external interface -------------------
 bool isGramlexEmbed(int code);     // defined in gramlex.lex
 
+StringTable stringTable;
+
 void readGrammarFile(Grammar &g, char const *fname)
 {
-  ASTNode::typeToString = astTypeToString;
+  // no idea what this is ..
+  //ASTNode::typeToString = astTypeToString;
 
   if (tracingSys("yydebug")) {
     yydebug = true;
@@ -1065,7 +1063,7 @@ void readGrammarFile(Grammar &g, char const *fname)
   Owner<ifstream> in;
   if (fname == NULL) {
     // stdin
-    lexer = new GrammarLexer(isGramlexEmbed);
+    lexer = new GrammarLexer(isGramlexEmbed, stringTable);
   }
   else {
     // file
@@ -1073,7 +1071,7 @@ void readGrammarFile(Grammar &g, char const *fname)
     if (!*in) {
       xsyserror("open", stringc << "error opening input file " << fname);
     }
-    lexer = new GrammarLexer(isGramlexEmbed, fname, in.xfr());
+    lexer = new GrammarLexer(isGramlexEmbed, stringTable, fname, in.xfr());
   }
 
   ParseParams params(*lexer);
@@ -1082,7 +1080,7 @@ void readGrammarFile(Grammar &g, char const *fname)
   int retval = yyparse(&params);
   if (retval == 0) {
     // make sure the tree gets deleted
-    Owner<ASTNode> treeTop(params.treeTop);
+    Owner<GrammarAST> treeTop(params.treeTop);
 
     if (tracingSys("ast")) {
       // print AST
@@ -1100,9 +1098,11 @@ void readGrammarFile(Grammar &g, char const *fname)
     g.checkWellFormed();
 
     treeTop.del();
-    if (ASTNode::nodeCount > 0) {
-      cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
-    }
+    
+    // hmm.. I'd like to restore this functionality...
+    //if (ASTNode::nodeCount > 0) {
+    //  cout << "leaked " << ASTNode::nodeCount << " AST nodes\n";
+    //} 
   }
   else {
     xbase("parsing finished with an error");

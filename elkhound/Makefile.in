@@ -50,18 +50,31 @@ OCAMLINCL cflags += -DWES_OCAML_LINKAGE
 include ${SMBASE}/Makefile.base.mk
 
 # sets of related object files
-grammar-set = grammar.o action.o cond.o attr.o attrexpr.o litcode.o
+# files needed to represent a grammar in memory
+grammar-set = grammar.o action.o cond.o attr.o attrexpr.o locstr.o
+
+# in addition to grammar-set, files needed to parse a grammar description
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
-              ast.o fileloc.o gramast.o ccsstr.o ../ast/embedded.o
+              ast.o fileloc.o ccsstr.o ../ast/embedded.o \
+              gramast.gen.o strtable.o ../ast/asthelp.o
+
+# in addition to grammar-set, file needed to do GLR parsing
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
-          lexer2.o parssppt.o strtable.o
+          lexer2.o parssppt.o
+
+# files involved in translating parsed C/C++ code
 cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
          stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
+
+# stuff needed everywhere
 common = 
 
 # how to compile a .o in an adjacent directory
 $(AST)/%.o: $(AST)/%.cc
 	make -C $(AST) $*.o
+
+# some random dependencies
+attrexpr.o: grampar.codes.h
 
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
@@ -102,12 +115,12 @@ gramlex: gramlex.h ${gramlex-dep}
 	${link} -o gramlex -DTEST_GRAMLEX ${gramlex-dep} ${linkend}
 
 # grammar syntax ast definition
-gramast.gen.h gramast.gen.cc: gramast.ast
+gramast.gen.h gramast.gen.cc: gramast.ast ../ast/astgen
 	../ast/astgen gramast.ast
 
 # grammar parser
 grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.gen.h
-	bison -d -v $^
+	bison -d -v grampar.y
 	mv -f grampar.tab.c tmp
 	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > grampar.tab.cc
 	mv -f grampar.tab.h tmp

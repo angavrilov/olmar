@@ -13,7 +13,7 @@
 
 // prototypes
 void emitDisambiguationFun(EmitCode &os, Nonterminal const *nonterm,
-                           char const *name, LiteralCode const *decl);
+                           char const *name, LiteralCode const &decl);
 
 
 // ------------- name constructors -------------
@@ -35,7 +35,7 @@ string nodeCtorName(Symbol const *sym)
 // return a declaration but with some characters
 // prepended to the name part of 'decl'; 'name' is the
 // name that is somewhere in 'decl'
-string prefixNameInDecl(string prefix, string name, string decl)
+string prefixNameInDecl(char const *prefix, char const *name, char const *decl)
 {
   // find where the name appears in 'decl'; assumes that
   // first such occurrance is the right place....
@@ -54,7 +54,7 @@ string prefixNameInDecl(string prefix, string name, string decl)
 //   name: extracted function name from 'decl'
 //   nonterm: symbol the function will be associated with
 //   unamb: if true, make this the "unambiguous" version
-string semFuncDecl(string name, string decl,
+string semFuncDecl(char const *name, char const *decl,
                    Nonterminal const *nonterm, bool unamb)
 {
   stringBuilder sb;
@@ -115,10 +115,10 @@ string getTraceCode(char const *functionDecl)
 }
 
 
-void insertLiteralCode(EmitCode &os, LiteralCode const *code)
+void insertLiteralCode(EmitCode &os, LiteralCode const &code)
 {
-  os << lineDirective(code->loc)
-     << code->code << "\n"
+  os << lineDirective(code)
+     << code << "\n"
      << restoreLine
      ;
 }
@@ -167,20 +167,20 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
   for (LitCodeDict::Iter declaration(nonterm->funDecls);
        !declaration.isDone(); declaration.next()) {
     string name = declaration.key();
-    LiteralCode const *decl = declaration.value();
+    LiteralCode const &decl = *(declaration.value());
 
     // if there is a disambiguation function, emit it
     bool hasDisamb = nonterm->disambFuns.isMapped(name);
     if (hasDisamb) {
       emitDisambiguationFun(os, nonterm, name, decl);
     }
-  
+
     // function name and arguments
-    string functionDecl = semFuncDecl(name, decl->code, nonterm, hasDisamb);
+    string functionDecl = semFuncDecl(name, decl, nonterm, hasDisamb);
 
     // write the function prologue for the unambiguous version
     // (or the only version, if there is no disambiguator)
-    os << lineDirective(decl->loc)
+    os << lineDirective(decl)
        << functionDecl << "\n"
        << restoreLine
        << "{\n"
@@ -189,7 +189,7 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
                                               
     // prefix code
     if (nonterm->funPrefixes.isMapped(name)) {
-      insertLiteralCode(os, nonterm->funPrefixes.queryfC(name));
+      insertLiteralCode(os, *nonterm->funPrefixes.queryfC(name));
     }
 
     // start of switch block
@@ -204,7 +204,7 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
       Production const *prod = prodIter.data();
       if (prod->left != nonterm) { continue; }
 
-      LiteralCode const *body = prod->functions.queryfC(name);
+      LiteralCode const &body = *(prod->functions.queryfC(name));
 
       // write the header for this production's action
       xassert(prod->prodIndex != -1);    // otherwise we forgot to set it
@@ -263,16 +263,16 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
 
 
 void emitDisambiguationFun(EmitCode &os, Nonterminal const *nonterm, 
-                           char const *name, LiteralCode const *decl)
+                           char const *name, LiteralCode const &decl)
 {
   // user's code
-  LiteralCode const *code = nonterm->disambFuns.queryfC(name);
+  LiteralCode const &code = *(nonterm->disambFuns.queryfC(name));
 
   // full function name and arguments
-  string functionDecl = semFuncDecl(name, decl->code, nonterm, false /*unamb*/);
+  string functionDecl = semFuncDecl(name, decl, nonterm, false /*unamb*/);
 
   // emit whole thing
-  os << lineDirective(decl->loc)
+  os << lineDirective(decl)
      << functionDecl << "\n"
      << restoreLine
      << "{\n"
@@ -303,19 +303,19 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
   for (LitCodeDict::Iter declaration(nonterm->funDecls);
        !declaration.isDone(); declaration.next()) {
     string name = declaration.key();
-    LiteralCode const *decl = declaration.value();
+    LiteralCode const &decl = *(declaration.value());
 
     // emit declaration
-    os << lineDirective(decl->loc)
-       << "  " << decl->code << ";    // " << name << "\n"
+    os << lineDirective(decl)
+       << "  " << decl << ";    // " << name << "\n"
        << restoreLine
        ;
 
     // if there is a disambiguator, the above declaration is
     // for it; so we need one for the unamb version
     if (nonterm->disambFuns.isMapped(name)) {
-      os << lineDirective(decl->loc)
-         << "  " << prefixNameInDecl("unamb_", name, decl->code) << ";\n"
+      os << lineDirective(decl)
+         << "  " << prefixNameInDecl("unamb_", name, decl) << ";\n"
          << restoreLine
          ;
     }
@@ -323,7 +323,7 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
 
   // loop over other declarations
   FOREACH_OBJLIST(LiteralCode, nonterm->declarations, iter) {
-    insertLiteralCode(os, iter.data());
+    insertLiteralCode(os, *(iter.data()));
   }
 
   // type declaration epilogue

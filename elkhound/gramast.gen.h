@@ -45,9 +45,12 @@ class E_funCall;
 class E_unary;
 class E_binary;
 class E_cond;
-class LiteralCode;
+class LiteralCodeAST;
 class LC_modifier;
 class LC_standAlone;
+
+
+  #include "locstr.h"       // LocString
 
 // *** DO NOT EDIT ***
 class GrammarAST {
@@ -90,7 +93,7 @@ public:      // data
   ASTList <TermDecl > terms;
 
 public:      // funcs
-  TF_terminals(ASTList <TermDecl > *_terms) : terms(_terms) {}
+  TF_terminals(ASTList <TermDecl > *_terms) : ToplevelForm(), terms(_terms) {}
   virtual ~TF_terminals();
 
   virtual Kind kind() const { return TF_TERMINALS; }
@@ -107,7 +110,7 @@ public:      // data
   ASTList <NTBodyElt > elts;
 
 public:      // funcs
-  TF_nonterminal(LocString *_name, ASTList <LocString > *_baseClasses, ASTList <NTBodyElt > *_elts) : name(_name), baseClasses(_baseClasses), elts(_elts) {}
+  TF_nonterminal(LocString *_name, ASTList <LocString > *_baseClasses, ASTList <NTBodyElt > *_elts) : ToplevelForm(), name(_name), baseClasses(_baseClasses), elts(_elts) {}
   virtual ~TF_nonterminal();
 
   virtual Kind kind() const { return TF_NONTERMINAL; }
@@ -119,10 +122,10 @@ public:      // funcs
 
 class TF_lit : public ToplevelForm {
 public:      // data
-  LiteralCode * lit;
+  LC_standAlone *lit;
 
 public:      // funcs
-  TF_lit(LiteralCode * _lit) : lit(_lit) {}
+  TF_lit(LC_standAlone *_lit) : ToplevelForm(), lit(_lit) {}
   virtual ~TF_lit();
 
   virtual Kind kind() const { return TF_LIT; }
@@ -137,7 +140,7 @@ public:      // data
   LocString baseClassName;
 
 public:      // funcs
-  TF_treeNodeBase(LocString *_baseClassName) : baseClassName(_baseClassName) {}
+  TF_treeNodeBase(LocString *_baseClassName) : ToplevelForm(), baseClassName(_baseClassName) {}
   virtual ~TF_treeNodeBase();
 
   virtual Kind kind() const { return TF_TREENODEBASE; }
@@ -192,7 +195,7 @@ public:      // data
   LocString name;
 
 public:      // funcs
-  NT_attr(LocString *_name) : name(_name) {}
+  NT_attr(LocString *_name) : NTBodyElt(), name(_name) {}
   virtual ~NT_attr();
 
   virtual Kind kind() const { return NT_ATTR; }
@@ -207,7 +210,7 @@ public:      // data
   LocString declBody;
 
 public:      // funcs
-  NT_decl(LocString *_declBody) : declBody(_declBody) {}
+  NT_decl(LocString *_declBody) : NTBodyElt(), declBody(_declBody) {}
   virtual ~NT_decl();
 
   virtual Kind kind() const { return NT_DECL; }
@@ -222,7 +225,7 @@ public:      // data
   GroupElement * elt;
 
 public:      // funcs
-  NT_elt(GroupElement * _elt) : elt(_elt) {}
+  NT_elt(GroupElement * _elt) : NTBodyElt(), elt(_elt) {}
   virtual ~NT_elt();
 
   virtual Kind kind() const { return NT_ELT; }
@@ -234,10 +237,10 @@ public:      // funcs
 
 class NT_lit : public NTBodyElt {
 public:      // data
-  LiteralCode * lit;
+  LiteralCodeAST * lit;
 
 public:      // funcs
-  NT_lit(LiteralCode * _lit) : lit(_lit) {}
+  NT_lit(LiteralCodeAST * _lit) : NTBodyElt(), lit(_lit) {}
   virtual ~NT_lit();
 
   virtual Kind kind() const { return NT_LIT; }
@@ -274,7 +277,7 @@ public:      // data
   ASTList <FormBodyElt > elts;
 
 public:      // funcs
-  GE_form(ASTList <RHS > *_rhsides, ASTList <FormBodyElt > *_elts) : rhsides(_rhsides), elts(_elts) {}
+  GE_form(ASTList <RHS > *_rhsides, ASTList <FormBodyElt > *_elts) : GroupElement(), rhsides(_rhsides), elts(_elts) {}
   virtual ~GE_form();
 
   virtual Kind kind() const { return GE_FORM; }
@@ -289,7 +292,7 @@ public:      // data
   ASTList <GroupElement > elts;
 
 public:      // funcs
-  GE_formGroup(ASTList <GroupElement > *_elts) : elts(_elts) {}
+  GE_formGroup(ASTList <GroupElement > *_elts) : GroupElement(), elts(_elts) {}
   virtual ~GE_formGroup();
 
   virtual Kind kind() const { return GE_FORMGROUP; }
@@ -304,7 +307,7 @@ public:      // data
   FormBodyElt * e;
 
 public:      // funcs
-  GE_fbe(FormBodyElt * _e) : e(_e) {}
+  GE_fbe(FormBodyElt * _e) : GroupElement(), e(_e) {}
   virtual ~GE_fbe();
 
   virtual Kind kind() const { return GE_FBE; }
@@ -344,7 +347,7 @@ public:      // data
   ExprAST *expr;
 
 public:      // funcs
-  FB_action(LocString *_name, ExprAST *_expr) : name(_name), expr(_expr) {}
+  FB_action(LocString *_name, ExprAST *_expr) : FormBodyElt(), name(_name), expr(_expr) {}
   virtual ~FB_action();
 
   virtual Kind kind() const { return FB_ACTION; }
@@ -359,7 +362,7 @@ public:      // data
   ExprAST * condExpr;
 
 public:      // funcs
-  FB_condition(ExprAST * _condExpr) : condExpr(_condExpr) {}
+  FB_condition(ExprAST * _condExpr) : FormBodyElt(), condExpr(_condExpr) {}
   virtual ~FB_condition();
 
   virtual Kind kind() const { return FB_CONDITION; }
@@ -376,7 +379,7 @@ public:      // data
   ExprAST * decideExpr;
 
 public:      // funcs
-  FB_treeCompare(LocString *_leftName, LocString *_rightName, ExprAST * _decideExpr) : leftName(_leftName), rightName(_rightName), decideExpr(_decideExpr) {}
+  FB_treeCompare(LocString *_leftName, LocString *_rightName, ExprAST * _decideExpr) : FormBodyElt(), leftName(_leftName), rightName(_rightName), decideExpr(_decideExpr) {}
   virtual ~FB_treeCompare();
 
   virtual Kind kind() const { return FB_TREECOMPARE; }
@@ -388,10 +391,11 @@ public:      // funcs
 
 class FB_funDecl : public FormBodyElt {
 public:      // data
+  LocString declName;
   LocString declBody;
 
 public:      // funcs
-  FB_funDecl(LocString *_declBody) : declBody(_declBody) {}
+  FB_funDecl(LocString *_declName, LocString *_declBody) : FormBodyElt(), declName(_declName), declBody(_declBody) {}
   virtual ~FB_funDecl();
 
   virtual Kind kind() const { return FB_FUNDECL; }
@@ -407,7 +411,7 @@ public:      // data
   LocString defnBody;
 
 public:      // funcs
-  FB_funDefn(LocString *_name, LocString *_defnBody) : name(_name), defnBody(_defnBody) {}
+  FB_funDefn(LocString *_name, LocString *_defnBody) : FormBodyElt(), name(_name), defnBody(_defnBody) {}
   virtual ~FB_funDefn();
 
   virtual Kind kind() const { return FB_FUNDEFN; }
@@ -422,7 +426,7 @@ public:      // data
   LocString declBody;
 
 public:      // funcs
-  FB_dataDecl(LocString *_declBody) : declBody(_declBody) {}
+  FB_dataDecl(LocString *_declBody) : FormBodyElt(), declBody(_declBody) {}
   virtual ~FB_dataDecl();
 
   virtual Kind kind() const { return FB_DATADECL; }
@@ -475,7 +479,7 @@ public:      // data
   LocString name;
 
 public:      // funcs
-  RH_name(LocString *_name) : name(_name) {}
+  RH_name(LocString *_name) : RHSElt(), name(_name) {}
   virtual ~RH_name();
 
   virtual Kind kind() const { return RH_NAME; }
@@ -491,7 +495,7 @@ public:      // data
   LocString name;
 
 public:      // funcs
-  RH_taggedName(LocString *_tag, LocString *_name) : tag(_tag), name(_name) {}
+  RH_taggedName(LocString *_tag, LocString *_name) : RHSElt(), tag(_tag), name(_name) {}
   virtual ~RH_taggedName();
 
   virtual Kind kind() const { return RH_TAGGEDNAME; }
@@ -506,7 +510,7 @@ public:      // data
   LocString str;
 
 public:      // funcs
-  RH_string(LocString *_str) : str(_str) {}
+  RH_string(LocString *_str) : RHSElt(), str(_str) {}
   virtual ~RH_string();
 
   virtual Kind kind() const { return RH_STRING; }
@@ -522,7 +526,7 @@ public:      // data
   LocString str;
 
 public:      // funcs
-  RH_taggedString(LocString *_tag, LocString *_str) : tag(_tag), str(_str) {}
+  RH_taggedString(LocString *_tag, LocString *_str) : RHSElt(), tag(_tag), str(_str) {}
   virtual ~RH_taggedString();
 
   virtual Kind kind() const { return RH_TAGGEDSTRING; }
@@ -563,7 +567,7 @@ public:      // data
   LocString attr;
 
 public:      // funcs
-  E_attrRef(LocString *_tag, LocString *_attr) : tag(_tag), attr(_attr) {}
+  E_attrRef(LocString *_tag, LocString *_attr) : ExprAST(), tag(_tag), attr(_attr) {}
   virtual ~E_attrRef();
 
   virtual Kind kind() const { return E_ATTRREF; }
@@ -580,7 +584,7 @@ public:      // data
   LocString attr;
 
 public:      // funcs
-  E_treeAttrRef(LocString *_tree, LocString *_tag, LocString *_attr) : tree(_tree), tag(_tag), attr(_attr) {}
+  E_treeAttrRef(LocString *_tree, LocString *_tag, LocString *_attr) : ExprAST(), tree(_tree), tag(_tag), attr(_attr) {}
   virtual ~E_treeAttrRef();
 
   virtual Kind kind() const { return E_TREEATTRREF; }
@@ -595,7 +599,7 @@ public:      // data
   int val;
 
 public:      // funcs
-  E_intLit(int _val) : val(_val) {}
+  E_intLit(int _val) : ExprAST(), val(_val) {}
   virtual ~E_intLit();
 
   virtual Kind kind() const { return E_INTLIT; }
@@ -611,7 +615,7 @@ public:      // data
   ASTList <ExprAST > args;
 
 public:      // funcs
-  E_funCall(LocString *_funcName, ASTList <ExprAST > *_args) : funcName(_funcName), args(_args) {}
+  E_funCall(LocString *_funcName, ASTList <ExprAST > *_args) : ExprAST(), funcName(_funcName), args(_args) {}
   virtual ~E_funCall();
 
   virtual Kind kind() const { return E_FUNCALL; }
@@ -627,7 +631,7 @@ public:      // data
   ExprAST * exp;
 
 public:      // funcs
-  E_unary(int _op, ExprAST * _exp) : op(_op), exp(_exp) {}
+  E_unary(int _op, ExprAST * _exp) : ExprAST(), op(_op), exp(_exp) {}
   virtual ~E_unary();
 
   virtual Kind kind() const { return E_UNARY; }
@@ -644,7 +648,7 @@ public:      // data
   ExprAST * right;
 
 public:      // funcs
-  E_binary(int _op, ExprAST * _left, ExprAST * _right) : op(_op), left(_left), right(_right) {}
+  E_binary(int _op, ExprAST * _left, ExprAST * _right) : ExprAST(), op(_op), left(_left), right(_right) {}
   virtual ~E_binary();
 
   virtual Kind kind() const { return E_BINARY; }
@@ -661,7 +665,7 @@ public:      // data
   ExprAST *elseExp;
 
 public:      // funcs
-  E_cond(ExprAST *_test, ExprAST *_thenExp, ExprAST *_elseExp) : test(_test), thenExp(_thenExp), elseExp(_elseExp) {}
+  E_cond(ExprAST *_test, ExprAST *_thenExp, ExprAST *_elseExp) : ExprAST(), test(_test), thenExp(_thenExp), elseExp(_elseExp) {}
   virtual ~E_cond();
 
   virtual Kind kind() const { return E_COND; }
@@ -674,12 +678,14 @@ public:      // funcs
 
 
 // *** DO NOT EDIT ***
-class LiteralCode {
+class LiteralCodeAST {
 public:      // data
+  LocString codeKindTag;
+  LocString codeBody;
 
 public:      // funcs
-  LiteralCode() {}
-  virtual ~LiteralCode();
+  LiteralCodeAST(LocString *_codeKindTag, LocString *_codeBody) : codeKindTag(_codeKindTag), codeBody(_codeBody) {}
+  virtual ~LiteralCodeAST();
 
   enum Kind { LC_MODIFIER, LC_STANDALONE, NUM_KINDS };
   virtual Kind kind() const = 0;
@@ -691,14 +697,12 @@ public:      // funcs
 
 };
 
-class LC_modifier : public LiteralCode {
+class LC_modifier : public LiteralCodeAST {
 public:      // data
-  LocString codeKindTag;
   LocString funcToModify;
-  LocString codeBody;
 
 public:      // funcs
-  LC_modifier(LocString *_codeKindTag, LocString *_funcToModify, LocString *_codeBody) : codeKindTag(_codeKindTag), funcToModify(_funcToModify), codeBody(_codeBody) {}
+  LC_modifier(LocString *_codeKindTag, LocString *_codeBody, LocString *_funcToModify) : LiteralCodeAST(_codeKindTag, _codeBody), funcToModify(_funcToModify) {}
   virtual ~LC_modifier();
 
   virtual Kind kind() const { return LC_MODIFIER; }
@@ -708,13 +712,11 @@ public:      // funcs
 
 };
 
-class LC_standAlone : public LiteralCode {
+class LC_standAlone : public LiteralCodeAST {
 public:      // data
-  LocString codeKindTag;
-  LocString codeBody;
 
 public:      // funcs
-  LC_standAlone(LocString *_codeKindTag, LocString *_codeBody) : codeKindTag(_codeKindTag), codeBody(_codeBody) {}
+  LC_standAlone(LocString *_codeKindTag, LocString *_codeBody) : LiteralCodeAST(_codeKindTag, _codeBody) {}
   virtual ~LC_standAlone();
 
   virtual Kind kind() const { return LC_STANDALONE; }

@@ -6,12 +6,20 @@
 // -------------------- FileLocation -----------------------------
 string FileLocation::toString() const
 {
-  return stringc << "line " << line << ", col " << col;
+  if (isValid()) {
+    return stringc << "line " << line << ", col " << col;
+  }
+  else {
+    return string("(unknown loc)");
+  }
 }
 
 
 void FileLocation::advance(char const *text, int length)
-{
+{ 
+  // can't advance an invalid location
+  xassert(isValid());
+
   char const *p = text;
   char const *endp = text + length;
   for (; p < endp; p++) {
@@ -28,6 +36,9 @@ void FileLocation::advance(char const *text, int length)
 
 void FileLocation::newLine()
 {
+  // can't advance an invalid location
+  xassert(isValid());
+
   line++;
   col = firstColumn;
 }
@@ -58,7 +69,7 @@ SourceLocation::SourceLocation(FileLocation const &floc, SourceFile *f)
 {}
 
 
-char const *SourceLocation::fname() const 
+char const *SourceLocation::fname() const
 { 
   if (file) {
     return file->filename;

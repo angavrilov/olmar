@@ -25,8 +25,7 @@
 #include "objlist.h"          // ObjList
 #include "fileloc.h"          // SourceLocation
 #include "embedded.h"         // EmbeddedLang
-
-class StringTable;            // strtable.h
+#include "strtable.h"         // StringTable, StringRef
 
 
 // this class just holds the lexer state so it is properly encapsulated
@@ -45,10 +44,10 @@ private:     // data
   // error reporter that uses fileState instead of tokenStartLoc
   class AltReportError : public ReportError {
     GrammarLexer &lexer;
-  
+
   public:
     AltReportError(GrammarLexer &L) : lexer(L) {}
-    
+
     virtual void reportError(char const *msg);
     virtual void reportWarning(char const *msg);
   };
@@ -83,10 +82,10 @@ private:     // data
 
 public:      // data
   // todo: can eliminate commentStartLine in favor of tokenStartLoc?
-  int commentStartLine;            // for reporting unterminated C comments
+  //int commentStartLine;            // for reporting unterminated C comments
   int integerLiteral;              // to store number literal value
-  string stringLiteral;            // string in quotes, minus the quotes
-  string includeFileName;          // name in an #include directive
+  StringRef stringLiteral;         // string in quotes, minus the quotes
+  StringRef includeFileName;       // name in an #include directive
 
   // defined in the base class, FlexLexer:
   //   const char *YYText();           // start of matched text
@@ -95,11 +94,15 @@ public:      // data
   StringTable &strtable;           // string table
 
 private:     // funcs
-  // called when a newline is encountered
-  void newLine() { fileState.newLine(); }
-
   // disallowed
   GrammarLexer(GrammarLexer const &);
+
+  // called when a newline is encountered
+  void newLine() { fileState.newLine(); }
+  
+  // adds a string with only the specified # of chars; writes (but
+  // then restores) a null terminator if necessary, so 'str' isn't const
+  StringRef addString(char *str, int len) const;
 
 public:      // funcs
   // create a new lexer that will read from to named stream,
@@ -113,13 +116,13 @@ public:      // funcs
   ~GrammarLexer();
 
   // get current token as a string
-  string curToken() const;
+  StringRef curToken() const;
   int curLen() const { return const_cast<GrammarLexer*>(this)->YYLeng(); }
 
   // current token's embedded text
-  string curFuncBody() const;
-  string curDeclBody() const { return curFuncBody(); }    // implementation artifact
-  string curDeclName() const;
+  StringRef curFuncBody() const;
+  StringRef curDeclBody() const { return curFuncBody(); }    // implementation artifact
+  StringRef curDeclName() const;
 
   // read the next token and return its code; returns TOK_EOF for end of file;
   // this function is defined in flex's output source code; this one

@@ -1,6 +1,7 @@
 // gramast.cc
 // code for gramast.h
 
+#error This module is obsolete; use gramast.gen.{cc,h} instead.
 #include "gramast.h"      // this module
 #include "macros.h"       // STATIC_ASSERT
 

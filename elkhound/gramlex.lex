@@ -55,7 +55,7 @@ DQUOTE    "\""
 
 /* character that can appear in a quoted string */
 /* (I currently don't have any backslash codes, but I want to
- * leave open that possibility, for now backslashes are illegal) */
+ * leave open that possibility, so for now backslashes are illegal) */
 STRCHR    [^\n\\\"]
 
 /* whitespace that doesn't cross line a boundary */
@@ -83,11 +83,11 @@ SLWHITE   [ \t]
 }
 
   /* -------- comments -------- */
-"/*" {
+"/""*" {
   /* C-style comments */
   TOKEN_START;
   UPD_COL;
-  commentStartLine = fileState.line;
+  //commentStartLine = fileState.line;
   BEGIN(C_COMMENT);
 }
 
@@ -274,12 +274,12 @@ SLWHITE   [ \t]
     UPD_COL;
 
     /* find quotes */
-    char const *leftq = strchr(yytext, '"');
-    char const *rightq = strchr(leftq+1, '"');
+    char *leftq = strchr(yytext, '"');
+    char *rightq = strchr(leftq+1, '"');
     xassert(leftq && rightq);
 
     /* extract filename string */
-    includeFileName = string(leftq+1, rightq-leftq-1);
+    includeFileName = addString(leftq+1, rightq-leftq-1);
 
     /* go back to normal processing */
     BEGIN(INITIAL);
@@ -326,7 +326,7 @@ SLWHITE   [ \t]
   /* ----------- string literal ----- */
 {DQUOTE}{STRCHR}*{DQUOTE} {
   TOK_UPD_COL;
-  stringLiteral = string(yytext+1, yyleng-2);        // strip quotes
+  stringLiteral = addString(yytext+1, yyleng-2);        // strip quotes
   return TOK_STRING;
 }
 

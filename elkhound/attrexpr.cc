@@ -6,7 +6,7 @@
 #include "glrtree.h"      // Reduction, AttrContext
 #include "grammar.h"      // Production
 #include "attr.h"         // Attributes
-#include "gramast.h"      // ast type constants
+#include "grampar.codes.h"// operator token codes
 #include "exc.h"          // xBase
 #include "flatutil.h"     // Flatten, xfer helpers
 
@@ -277,21 +277,34 @@ int ifFunc(int cond, int thenExp, int elseExp)
   };
 */
 AExprFunc::FuncEntry const AExprFunc::funcEntries[] = {
-  { "+",  EXP_PLUS,  2, (AExprFunc::Func)plus },
-  { "-",  EXP_MINUS, 2, (AExprFunc::Func)minus },
-  { "*",  EXP_MULT,  2, (AExprFunc::Func)times },
-  { "/",  EXP_DIV,   2, (AExprFunc::Func)dividedBy },
-  { "==", EXP_EQ,    2, (AExprFunc::Func)equals },
-  { "!=", EXP_NEQ,   2, (AExprFunc::Func)nequals },
-  { "<",  EXP_LT,    2, (AExprFunc::Func)less },
-  { "<=", EXP_LTE,   2, (AExprFunc::Func)lesseq },
-  { "||", EXP_OR,    2, (AExprFunc::Func)oror },
-  { "if", EXP_COND,  3, (AExprFunc::Func)ifFunc },
+  { "+",  TOK_PLUS,       2, (AExprFunc::Func)plus },
+  { "-",  TOK_MINUS,      2, (AExprFunc::Func)minus },
+  { "*",  TOK_ASTERISK,   2, (AExprFunc::Func)times },
+  { "/",  TOK_SLASH,      2, (AExprFunc::Func)dividedBy },
+  { "==", TOK_EQUALEQUAL, 2, (AExprFunc::Func)equals },
+  { "!=", TOK_NOTEQUAL,   2, (AExprFunc::Func)nequals },
+  { "<",  TOK_LESS,       2, (AExprFunc::Func)less },
+  { "<=", TOK_LESSEQ,     2, (AExprFunc::Func)lesseq },
+  { "||", TOK_OROR,       2, (AExprFunc::Func)oror },
+  { "if", TOK_IF,         3, (AExprFunc::Func)ifFunc },
 };
 
 
 int const AExprFunc::numFuncEntries =
   TABLESIZE(AExprFunc::funcEntries);
+
+
+STATICDEF char const *AExprFunc::lookupFunc(int code)
+{
+  loopi(numFuncEntries) {
+    FuncEntry const *entry = &funcEntries[i];
+
+    if (entry->astTypeCode == code) {
+      return entry->name;
+    }
+  }
+  return NULL;     // not found
+}
 
 
 int AExprFunc::eval(AttrContext const &actx) const

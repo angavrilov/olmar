@@ -2274,7 +2274,7 @@ int main(int argc, char **argv)
   }
 
   if (argc != 2) {
-    cout << "usage: " << progName << " [--testRW] prefix\n"
+    cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
             "  processes prefix.gr to make prefix.{h,cc,bin}\n";
     return 0;
   }

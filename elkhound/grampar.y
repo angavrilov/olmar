@@ -18,6 +18,17 @@
   #define YYDEBUG 1
 #endif
 
+// name of extra parameter to yylex
+#define YYLEX_PARAM parseParam
+
+// make it call my yylex
+#define yylex(lv, param) grampar_yylex(lv, param)
+
+// Bison calls yyerror(msg) on error; we need the extra
+// parameter too, so the macro shoehorns it in there
+#define yyerror(msg) grampar_yyerror(msg, YYPARSE_PARAM)
+
+
 // return contents of 's', which is then deallocated
 //LocString unbox(LocString *s);
 
@@ -41,7 +52,7 @@
 %token <num> TOK_INTEGER
 %token <str> TOK_NAME
 %token <str> TOK_STRING
-%token <str> TOK_FUNDECL_BODY
+%token <funDecl> TOK_FUNDECL_BODY
 %token <str> TOK_FUN_BODY
 %token <str> TOK_DECL_BODY
 
@@ -89,6 +100,8 @@
 %token TOK_ASTERISK "*"
 %token TOK_QUESTION "?"
 %token TOK_BANG "!"
+%token TOK_IF "if"
+  /* this last one is just to define TOK_IF uniquely, because attrexpr.cc uses it */
 
 /* operator precedence; same line means same precedence */
 /*   lowest precedence */
@@ -113,16 +126,16 @@
   TF_treeNodeBase *tnBase;
   TF_nonterminal *nonterm;
   ASTList<LocString> *stringList;
-  ASTList<NTBodyElt> *ntBodyElts; 
-  GroupElement *grpElt;    
+  ASTList<NTBodyElt> *ntBodyElts;
+  GroupElement *grpElt;
   NT_attr *attr;
-  GE_form *form; 
+  GE_form *form;
   ASTList<FormBodyElt> *fbElts;
-  FormBodyElt *fbElt;        
-  GE_formGroup *formGrp; 
+  FormBodyElt *fbElt;
+  GE_formGroup *formGrp;
   ASTList<GroupElement> *grpElts;
   ASTList<RHS> *rhsList;
-  ASTList<RHSElt> *rhsElts;  
+  ASTList<RHSElt> *rhsElts;
   FB_action *action;
   FB_condition *condition;
   FB_treeCompare *treeCompare;
@@ -131,7 +144,8 @@
   FB_funDecl *funDecl;
   FB_funDefn *funDefn;
   FB_dataDecl *dataDecl;
-  LiteralCode *litCode;
+  LiteralCodeAST *litCode;
+  LC_standAlone *simpleLitCode;
 }
 
 %type <num> StartSymbol
@@ -161,6 +175,7 @@
 %type <funDefn> Function
 %type <dataDecl> Declaration
 %type <litCode> LiteralCode
+%type <simpleLitCode> SimpleLiteralCode
 
 
 
@@ -184,11 +199,11 @@ StartSymbol: Input
 
 /* sequence of toplevel forms */
 /* yields: ASTList<ToplevelForm> */
-Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
-     | Input Terminals       { ($$=$1)->append($2); }
-     | Input TreeNodeBase    { ($$=$1)->append($2); }
-     | Input Nonterminal     { ($$=$1)->append($2); }
-     | Input LiteralCode     { ($$=$1)->append(new TF_lit($2)); }
+Input: /* empty */              { $$ = new ASTList<ToplevelForm>; }
+     | Input Terminals          { ($$=$1)->append($2); }
+     | Input TreeNodeBase       { ($$=$1)->append($2); }
+     | Input Nonterminal        { ($$=$1)->append($2); }
+     | Input SimpleLiteralCode  { ($$=$1)->append(new TF_lit($2)); }
      ;
 
 /* ------ terminals ------ */
@@ -475,9 +490,9 @@ AttrExpr: CondExpr                               { $$ = $1; }
  * the substrate interface must be able to pull out the name to
  * match it with the corresponding 'fun' */
 /* yields: FB_funDecl */
-FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = new FB_funDecl($2); }
-       ;     /* note: $2 here is an AST_FUNDECL node already */
-             /* todo: make this not true */
+FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = $2; }
+       ;     /* note: $2 here is an FB_funDecl node already */
+             /* todo: make this true */
 
 /* fun is a semantic function; the TOK_FUNCTION is substrate language
  * code that will be emitted into a file for later compilation;
@@ -496,12 +511,17 @@ Declaration: "datadecl" TOK_DECL_BODY ";"        { $$ = new FB_dataDecl($2); }
 
 /* generic literalCode mechanism so I can add new syntax without
  * modifying this file */
-/* yields: LiteralCode */
-LiteralCode: "literalCode" TOK_STRING "{" TOK_FUN_BODY "}"
-               { $$ = new LC_standAlone($2, $4); }
+/* yields: LiteralCodeAST */
+LiteralCode: SimpleLiteralCode
+               { $$ = $1; }
            | "literalCode" TOK_STRING TOK_NAME "{" TOK_FUN_BODY "}"
                { $$ = new LC_modifier($2, $3, $5); }
            ;
+      
+/* yields: LC_standAlone */
+SimpleLiteralCode: "literalCode" TOK_STRING "{" TOK_FUN_BODY "}"
+                     { $$ = new LC_standAlone($2, $4); }
+                 ;
 
 %%
 /* ================== extra C code ============== */

@@ -508,7 +508,7 @@ string Production::toStringMore(bool printActions, bool printCode) const
     for (LitCodeDict::Iter iter(functions);
          !iter.isDone(); iter.next()) {
       sb << "  fun " << iter.key() << "{ "
-         << iter.value()->code << " }\n";
+         << iter.value()->strref() << " }\n";
     }
   }
 
@@ -564,21 +564,14 @@ void DottedProduction::print(ostream &os) const
 Grammar::Grammar()
   : startSymbol(NULL),
     emptyString("empty", true /*isEmptyString*/),
-    semanticsPrologue(NULL),
-    semanticsEpilogue(NULL),
+    semanticsPrologue(),     // initially invalid, meaning not defined
+    semanticsEpilogue(),
     treeNodeBaseClass("NonterminalNode")
 {}
 
 
 Grammar::~Grammar()
-{
-  if (semanticsPrologue) {
-    delete semanticsPrologue;
-  }
-  if (semanticsEpilogue) {
-    delete semanticsEpilogue;
-  }
-}
+{}
 
 
 void Grammar::xfer(Flatten &flat)

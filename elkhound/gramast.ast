@@ -2,6 +2,10 @@
 // grammar AST, in a new experimental format
 // todo: replace owner* with simple subtree reference
 
+verbatim {
+  #include "locstr.h"       // LocString
+}
+
 // the entire grammar spec
 class GrammarAST (ASTList<ToplevelForm> forms);
 
@@ -9,7 +13,7 @@ class GrammarAST (ASTList<ToplevelForm> forms);
 class ToplevelForm {
   -> TF_terminals(ASTList<TermDecl> terms);
   -> TF_nonterminal(LocString name, ASTList<LocString> baseClasses, ASTList<NTBodyElt> elts);
-  -> TF_lit(owner LiteralCode *lit);
+  -> TF_lit(LC_standAlone lit);
   -> TF_treeNodeBase(LocString baseClassName);
 }
 
@@ -21,7 +25,7 @@ class NTBodyElt {
   -> NT_attr(LocString name);
   -> NT_decl(LocString declBody);
   -> NT_elt(owner GroupElement *elt);
-  -> NT_lit(owner LiteralCode *lit);
+  -> NT_lit(owner LiteralCodeAST *lit);
 }
 
 // elements of nonterms or form groups
@@ -36,7 +40,7 @@ class FormBodyElt {
   -> FB_action(LocString name, ExprAST expr);
   -> FB_condition(owner ExprAST *condExpr);
   -> FB_treeCompare(LocString leftName, LocString rightName, owner ExprAST *decideExpr);
-  -> FB_funDecl(LocString declBody);
+  -> FB_funDecl(LocString declName, LocString declBody);
   -> FB_funDefn(LocString name, LocString defnBody);
   -> FB_dataDecl(LocString declBody);
 }
@@ -70,11 +74,11 @@ class ExprAST {
 }
 
 // some literal C++ code to be copied verbatim somewhere
-class LiteralCode {
+class LiteralCodeAST(LocString codeKindTag, LocString codeBody) {
   // code that gets associated with some existing semantic function
-  -> LC_modifier(LocString codeKindTag, LocString funcToModify, LocString codeBody);
+  -> LC_modifier(LocString funcToModify);
 
   // code that lives on its own, its use entirely determined by
   // the codeKindTag
-  -> LC_standAlone(LocString codeKindTag, LocString codeBody);
+  -> LC_standAlone();
 }

@@ -26,7 +26,9 @@ GrammarLexer::FileState::FileState(SourceFile *file, istream *src)
   : SourceLocation(file),
     source(src),
     bufstate(NULL)
-{}
+{
+  FileLocation::reset();
+}
 
 
 GrammarLexer::FileState::~FileState()
@@ -68,7 +70,7 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedMode(0),
     embedded(new CCSubstrate(altReporter)),
     embedTokTest(test),
-    commentStartLine(0),
+    //commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
     includeFileName(""),
@@ -131,7 +133,8 @@ int GrammarLexer::yylexInc()
     return yylexInc();
   }
 
-
+  #if 1
+  // possible performance problem
   if (embedTokTest(code)) {
     trace("lex") << "yielding embedded (" << code << ") at "
                  << curLocStr() << ": "
@@ -142,30 +145,43 @@ int GrammarLexer::yylexInc()
                  << curToken() << " at "
                  << curLocStr() << endl;
   }
+  #endif // 0/1
 
   // nothing special
   return code;
 }
 
 
-string GrammarLexer::curToken() const
+StringRef GrammarLexer::curToken() const
 {
-  // hack around bad decl in FlexLexer.h
-  GrammarLexer *ths = const_cast<GrammarLexer*>(this);
+  return addString(yytext, yyleng);
+}
 
-  return string(ths->YYText(), ths->YYLeng());
+StringRef GrammarLexer::addString(char *str, int len) const
+{
+  // write a null terminator temporarily
+  char wasThere = str[len];
+  if (wasThere) {
+    str[len] = 0;
+    StringRef ret = strtable.add(str);
+    str[len] = wasThere;
+    return ret;
+  }
+  else {
+    return strtable.add(str);
+  }
 }
 
 
-string GrammarLexer::curFuncBody() const
+StringRef GrammarLexer::curFuncBody() const
 {
-  return embedded->getFuncBody();
+  return strtable.add(embedded->getFuncBody());
 }
 
 
-string GrammarLexer::curDeclName() const
+StringRef GrammarLexer::curDeclName() const
 {
-  return embedded->getDeclName();
+  return strtable.add(embedded->getDeclName());
 }
 
 
@@ -199,7 +215,8 @@ void GrammarLexer::printWarning(SourceLocation const &loc, char const *msg)
 
 void GrammarLexer::errorUnterminatedComment()
 {
-  err(stringc << "unterminated comment, beginning on line " << commentStartLine);
+  err(stringc << "unterminated comment, beginning on line " //<< commentStartLine);
+              << tokenStartLoc.line);
 }
 
 void GrammarLexer::errorMalformedInclude()

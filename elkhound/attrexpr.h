@@ -150,6 +150,8 @@ public:
   AExprFunc(Flatten&);
   virtual void xfer(Flatten &flat);
 
+  static char const *lookupFunc(int code);
+
   // AExprNode stuff
   virtual Tag getTag() const { return T_FUNC; }
   virtual int eval(AttrContext const &actx) const;

@@ -29,7 +29,8 @@
 #include "util.h"        // OSTREAM_OPERATOR, INTLOOP
 #include "action.h"      // Actions
 #include "cond.h"        // Conditions
-#include "litcode.h"     // LitCodeDict
+#include "locstr.h"      // LocString
+#include "strobjdict.h"  // StringObjDict
 #include "owner.h"       // Owner
 
 class StrtokParse;       // strtokp.h
@@ -41,6 +42,10 @@ class Nonterminal;
 class Production;
 class DottedProduction;
 class Grammar;
+
+// transitional definitions
+typedef StringObjDict<LocString> LitCodeDict;
+typedef LocString LiteralCode;
 
 
 // ---------------- Symbol --------------------
@@ -171,14 +176,14 @@ public:     // data
 
   // declarations of things (data and fns) that are *not* implemented
   // in generated code
-  ObjList<LiteralCode> declarations;
+  ObjList<LocString> declarations;
 
   // definitions of disambiguation routines
   LitCodeDict disambFuns;
 
   // con/destructor functions
-  Owner<LiteralCode> constructor;
-  Owner<LiteralCode> destructor;
+  LocString constructor;
+  LocString destructor;
 
 public:     // funcs
   Nonterminal(char const *name, bool isEmptyString=false);
@@ -402,12 +407,12 @@ public:	    // data
   // motivated by things like the derivability relation, where it's
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
-  
+
   // ---- stuff for emitting treewalk code ----
   // extra user-supplied source in the embedded language,
   // meant to appear in the generated semantic-functions files
-  LiteralCode *semanticsPrologue;      // (owner) top of .h file
-  LiteralCode *semanticsEpilogue;      // (owner) bottom of .cc file
+  LocString semanticsPrologue;          // top of .h file
+  LocString semanticsEpilogue;          // bottom of .cc file
 
   // name of base class for tree nodes; defaults to "NonterminalNode"
   string treeNodeBaseClass;
