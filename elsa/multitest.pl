@@ -82,6 +82,12 @@ foreach $selcode (@allkeys) {
     if (defined($code) && $selcode == $code) {
       print OUT ($rest, "\n");   # uncomment
     }
+    elsif ($line =~ m|collectLookupResults|) {
+      # comment-out this line in the error cases because if I do not
+      # then it will often lead to its own error, which would mask the
+      # one I am trying to verify
+      print OUT ("// $line");
+    }
     else {
       print OUT ($line);         # emit as-is
     }

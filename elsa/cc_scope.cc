@@ -569,7 +569,7 @@ Variable const *Scope::searchUsingEdges
 
     // push the "using" edges' targets
     for (int i=0; i < s->usingEdges.length(); i++) {
-      pushIfWhite(black, gray, usingEdges[i]);
+      pushIfWhite(black, gray, s->usingEdges[i]);
     }
   }
 
@@ -580,7 +580,8 @@ Variable const *Scope::searchUsingEdges
 // true if this scope is a member of the global scope
 bool Scope::immediateGlobalScopeChild() 
 {
-  return curCompound && curCompound->typedefVar->hasFlag(DF_GLOBAL);
+  Variable *v = getTypedefName();
+  return v && v->hasFlag(DF_GLOBAL);
 }
 
 // are we in a scope where the parent chain terminates in a global?
