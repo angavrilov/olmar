@@ -11,6 +11,15 @@
 
 class CCLang {
 public:
+  // catch-call for behaviors that are unique to C++ but aren't
+  // enumerated above; these behaviors are candidates for being split
+  // out as separate flags, but there currently is no need
+  bool isCplusplus;
+
+  // declare the various GNU __builtin functions; see
+  // Env::addGNUBuiltins in gnu.cc
+  bool declareGNUBuiltins;
+
   // when this is true, and the parser sees "struct Foo { ... }",
   // it will pretend it also saw "typedef struct Foo Foo;" -- i.e.,
   // the structure (or class) tag name is treated as a type name
@@ -135,27 +144,20 @@ public:
   // string literals arrays of (nonconst) chars.
   bool stringLitCharsAreConst;
 
-  // declare the various GNU __builtin functions; see
-  // Env::addGNUBuiltins in gnu.cc
-  bool declareGNUBuiltins;
-
-  // in C mode, if the argument to a cast is an lvalue, make the cast
-  // expression have lvalue type; this should never be done in C++
-  // mode, so I check that independently, even though that is
-  // redundant; inelegant, but sure to work
-  bool lvalueFlowsThroughCastInC;
-
-  // gcc allows ?: to have void types other than throw as the values
-  // of the 'then' and 'else' clauses
-  bool condMayHaveNonThrowVoidValues;
-
-  // catch-call for behaviors that are unique to C++ but aren't
-  // enumerated above; these behaviors are candidates for being split
-  // out as separate flags, but there currently is no need
-  bool isCplusplus;
+  // if the argument to a cast is an lvalue, make the cast expression
+  // have lvalue type
+  bool lvalueFlowsThroughCast;
 
 public:
   CCLang() { ANSI_C89(); }
+
+  // these are additive incremental
+
+  // enable gcc C features
+  void GNU_C_extensions();
+
+  // enable C99 features
+  void ANSI_C99_extensions();
 
   // The predefined settings below are something of a best-effort at
   // reasonable starting configurations.  Every function below sets

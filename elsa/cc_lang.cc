@@ -6,10 +6,14 @@
 #include <string.h>      // memset
 
 
+// ---------------------- ANSI and K&R C ----------------------
 void CCLang::ANSI_C89()
 {
   // just in case I forget to initialize something....
   memset(this, 0, sizeof(*this));
+
+  isCplusplus = false;
+  declareGNUBuiltins = false;
 
   tagsAreTypes = false;
   recognizeCppKeywords = false;
@@ -31,15 +35,14 @@ void CCLang::ANSI_C89()
   nonstandardAssignmentOperator = false;
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = false;
-  declareGNUBuiltins = false;
-  lvalueFlowsThroughCastInC = false;
-  condMayHaveNonThrowVoidValues = false;
+  predefined_Bool = false;
+
   treatExternInlineAsPrototype = false;
   allowNewlinesInStringLits = false;
   stringLitCharsAreConst = false; // Didn't check C89; C99 says they are non-const
 
-  isCplusplus = false;
-  predefined_Bool = false;
+  // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
+  lvalueFlowsThroughCast = false;
 }
 
 void CCLang::KandR_C()
@@ -49,58 +52,55 @@ void CCLang::KandR_C()
   allowImplicitInt = true;
 }
 
+void CCLang::ANSI_C99_extensions()
+{
+  implicitFuncVariable = true;
+  predefined_Bool = true;
+}
+
 void CCLang::ANSI_C99()
 {
   ANSI_C89();
 
   // new features
-  implicitFuncVariable = true;
-  predefined_Bool = true;
+  ANSI_C99_extensions();
 
   // removed C89 features
   allowImplicitInt = false;
   allowImplicitFunctionDecls = false;
 }
 
-void CCLang::GNU_C()
+
+// ------------------------ GNU C ------------------------
+void CCLang::GNU_C_extensions()
 {
-  ANSI_C89();
-
-  // C99 features
-  implicitFuncVariable = true;
-  predefined_Bool = true;
-
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   assumeNoSizeArrayHasSizeOne = true;
   treatExternInlineAsPrototype = true;
   allowNewlinesInStringLits = true;
   declareGNUBuiltins = true;
-  lvalueFlowsThroughCastInC = true;
-  condMayHaveNonThrowVoidValues = true;
 
-  // I'm just guessing this is GNU only.... yep:
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Lvalues.html
+  lvalueFlowsThroughCast = true;
+
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Incomplete-Enums.html
   allowIncompleteEnums = true;
+}
+
+void CCLang::GNU_C()
+{
+  ANSI_C89();
+
+  ANSI_C99_extensions();
+  GNU_C_extensions();
 }
 
 void CCLang::GNU_KandR_C()
 {
   KandR_C();
 
-  implicitFuncVariable = true;
-  gccFuncBehavior = GFB_string;
-  allowDynamicallySizedArrays = true;
-  assumeNoSizeArrayHasSizeOne = true;
-  allowIncompleteEnums = true;  // gnu according to Scott, above
-  treatExternInlineAsPrototype = true;
-  allowNewlinesInStringLits = true;
-  declareGNUBuiltins = true;
-  lvalueFlowsThroughCastInC = true;
-  condMayHaveNonThrowVoidValues = true;
-
-  // this seems wrong, but Oink's tests want it this way...
-  predefined_Bool = true;
+  GNU_C_extensions();
 }
 
 void CCLang::GNU2_KandR_C()
@@ -112,10 +112,14 @@ void CCLang::GNU2_KandR_C()
 }
 
 
+// ---------------------------- C++ ----------------------------
 void CCLang::ANSI_Cplusplus()
 {
   // just in case...
   memset(this, 0, sizeof(*this));
+
+  isCplusplus = true;
+  declareGNUBuiltins = false;
 
   tagsAreTypes = true;
   recognizeCppKeywords = true;
@@ -142,6 +146,7 @@ void CCLang::ANSI_Cplusplus()
 
   // indeed this is nonstandard but everyone seems to do it this way ...
   nonstandardAssignmentOperator = true;
+
   allowExternCThrowMismatch = false;
   allowImplicitIntForMain = false;
 
@@ -149,9 +154,7 @@ void CCLang::ANSI_Cplusplus()
   treatExternInlineAsPrototype = false;
   allowNewlinesInStringLits = false;
   stringLitCharsAreConst = true; // Cppstd says they are const.
-  declareGNUBuiltins = false;
-
-  isCplusplus = true;
+  lvalueFlowsThroughCast = false;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -168,8 +171,6 @@ void CCLang::GNU_Cplusplus()
   allowImplicitIntForMain = true;
 
   declareGNUBuiltins = true;
-  lvalueFlowsThroughCastInC = false; // not for C++
-  condMayHaveNonThrowVoidValues = false; // not for C++
 }
 
 

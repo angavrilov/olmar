@@ -6526,16 +6526,19 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
   
   // TODO: check that the cast makes sense
 
+  Type *ret = ctype->getType();
+
   // This is a gnu extension: in C mode, if the expr is an lvalue,
   // make the returned type an lvalue.  This is in direct
   // contradiction to the C99 spec: Section 6.5.4, footnote 85: "A
   // cast does not yield an lvalue".
-  Type *ret = ctype->getType();
-  if (env.lang.lvalueFlowsThroughCastInC && !env.lang.isCplusplus) {
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Lvalues.html
+  if (env.lang.lvalueFlowsThroughCast) {
     if (expr->getType()->isReference() && !ret->isReference()) {
       ret = env.makeReferenceType(env.loc(), ret);
     }
   }
+
   return ret;
 }
 
@@ -6705,13 +6708,13 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
       // parenthesized?  a strict reading of the standard would say
       // no..), and the whole ?: has the non-void type
       if (thVoid) {
-        if (!env.lang.condMayHaveNonThrowVoidValues && !th->isE_throw()) {
+        if (!th->isE_throw()) {
           env.error("void-typed expression in ?: must be a throw-expression");
         }
         return arrAndFuncToPtr(env, elRval);
       }
       if (elVoid) {
-        if (!env.lang.condMayHaveNonThrowVoidValues && !el->isE_throw()) {
+        if (!el->isE_throw()) {
           env.error("void-typed expression in ?: must be a throw-expression");
         }
         return arrAndFuncToPtr(env, thRval);
