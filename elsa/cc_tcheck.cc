@@ -1109,8 +1109,10 @@ void maybeNondependent(Env &env, SourceLoc loc, Variable *&nondependentVar,
       !var->type->isSimple(ST_DEPENDENT) &&   // lookup was non-dependent
       !var->type->isError() &&                // and not erroneous
       !var->isMemberOfTemplate()) {           // will be in scope in instantiation
-    TRACE("dependent", toString(loc) << ": remembering non-dependent lookup of `" <<
-                       var->name << "' found var at " << toString(var->loc));    
+    TRACE("dependent", toString(loc) << ": " <<
+                       (nondependentVar? "replacing" : "remembering") <<
+                       " non-dependent lookup of `" << var->name <<
+                       "' found var at " << toString(var->loc));
     nondependentVar = var;
   }
 }
@@ -5456,9 +5458,13 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       chosen = env.storeVar(chosen);
       if (fevar) {
         fevar->var = chosen;
+        maybeNondependent(env, pqname->loc, fevar->nondependentVar, chosen);   // in/t0385.cc
       }
       else {
         feacc->field = chosen;
+        
+        // TODO: I'm pretty sure I need nondependent names for E_fieldAcc too
+        //maybeNondependent(env, pqname->loc, feacc->nondependentVar, chosen);
       }
       func->type = env.tfac.cloneType(chosen->type);
     }
