@@ -115,6 +115,9 @@ public:
   // function is extern "C" (TODO: provide more documentation)
   bool allowExternCThrowMismatch;
 
+  // allow main() to be declared/defined with an implicit 'int'
+  bool allowImplicitIntForMain;
+
   // when true, "_Bool" is a built-in type keyword (C99)
   bool predefined_Bool;
 

@@ -3241,23 +3241,33 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
         // constructor
         else {
-          // I'm not sure if either of the following two error conditions
-          // can occur, because I don't parse something as a ctor unless
-          // some very similar conditions hold
           if (!inClass) {
-            breaker();
-            env.error("constructors must be class members");
-            return;    // otherwise would segfault below..
-          }
-          else if (nameString != inClass->name) {
-            env.error(stringc
-              << "constructor name `" << nameString
-              << "' must match the class name `" << inClass->name << "'");
-          }
+            if (!env.lang.allowImplicitInt &&
+                env.lang.allowImplicitIntForMain &&
+                nameString == env.str("main")) {
+              // example: g0018.cc
+              env.warning("obsolete use of implicit int in declaration of main()");
 
-          // return type is same as class type
-          dt.type = env.makeType(dname->loc, inClass);
-          specialFunc = FF_CTOR;
+              // change type to 'int'
+              dt.type = env.getSimpleType(loc, ST_INT);
+            }
+            else {
+              env.error("constructors must be class members (and implicit int is not supported)");
+              return;    // otherwise would segfault below..
+            }
+          }
+          else {
+            if (nameString != inClass->name) {
+              // I'm not sure if this can occur...
+              env.error(stringc
+                << "constructor name `" << nameString
+                << "' must match the class name `" << inClass->name << "'");
+            }
+
+            // return type is same as class type
+            dt.type = env.makeType(dname->loc, inClass);
+            specialFunc = FF_CTOR;
+          }
         }
       }
     }

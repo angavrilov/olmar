@@ -30,6 +30,7 @@ void CCLang::ANSI_C89()
   allowMemberWithClassName = true;
   nonstandardAssignmentOperator = false;
   allowExternCThrowMismatch = true;
+  allowImplicitIntForMain = false;
   declareGNUBuiltins = false;
 
   isCplusplus = false;
@@ -129,6 +130,7 @@ void CCLang::ANSI_Cplusplus()
   // indeed this is nonstandard but everyone seems to do it this way ...
   nonstandardAssignmentOperator = true;
   allowExternCThrowMismatch = false;
+  allowImplicitIntForMain = false;
 
   predefined_Bool = false;
   declareGNUBuiltins = false;
@@ -147,6 +149,7 @@ void CCLang::GNU_Cplusplus()
 
   allowMemberWithClassName = true;
   allowExternCThrowMismatch = true;
+  allowImplicitIntForMain = true;
   declareGNUBuiltins = true;
 }
 

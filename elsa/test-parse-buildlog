@@ -88,6 +88,14 @@ else {
 %parseok   = %ppfail;                      # parse success
 
 
+sub timeStamp {
+  $curDate = `date`;
+  chomp($curDate);
+  print("time: $curDate\n");
+}           
+
+timeStamp();
+
 open(IN,"<$buildlog") or die("can't open $buildlog: $!\n");
 while (defined($line = <IN>)) {
   chomp($line);
@@ -167,8 +175,9 @@ sub bail {
   printf("  parseok     %4d  %4d\n", $parseok{'gcc'}, $parseok{'g++'});
   print("  ----------------------\n");
   printf("  total       %4d  %4d\n",
-         $ppfail{'gcc'}+$parsefail{'gcc'}+$parseok{'gcc'}, 
+         $ppfail{'gcc'}+$parsefail{'gcc'}+$parseok{'gcc'},
          $ppfail{'g++'}+$parsefail{'g++'}+$parseok{'g++'});
+  timeStamp();
   exit(0);
 }
 
@@ -180,7 +189,7 @@ sub run {
   #  print("cd $cwd\n");
   #  $lastRunDir = $cwd;
   #}
-  
+
   print("cwd: $cwd\n");
 
   print("$runCount: $cmd\n");
