@@ -511,6 +511,7 @@ testparse t0279.cc
 failparse t0280.cc "overloading + template arg application"
 failparse t0281.cc "STA_REFERENCE hack problem"
 testparse t0282.cc
+failparse t0283.cc "no viable candidate (not minimized)"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -764,6 +765,40 @@ if $use_gnu; then
   # FIX: I think this is K&R specific, not gnu specific, so should be
   # in a different K&R section
   testparse_KandR gnu/d0096.c
+
+  # tests (primarily for __attribute__) from CIL
+  testcil() {
+    runTest ./ccparse -tr c_lang in/gnu/cil/$1
+  }
+  failcil() {
+    failTest "$2" ./ccparse -tr c_lang in/gnu/cil/$1
+  }
+
+  testcil align1.i
+  failcil align2.i "(unknown)"
+  testcil attr2.i
+  failcil attr3.i "(unknown)"
+  failcil attr4.i "(unknown)"
+  testcil attr5.i
+  testcil attr6.i
+  failcil bind-zero.i "(unknown)"
+  testcil combine_samefn_1.i
+  failcil decl1.i "(unknown)"
+  failcil enumattr.i "(unknown)"
+  testcil globalprob.i
+  testcil init8.i
+  testcil invalredef.i
+  testcil mode_sizes.i
+  testcil regparm0.i
+  testcil rmtmps-attr.i
+  testcil rmtmps2.i
+  testcil sockaddr.i
+  failcil structattr.i "(unknown)"
+  failcil structattr2.i "(unknown)"
+  testcil structattr3.i
+  testcil transpunion.i
+  failcil typeof1.i "(unknown)"
+  testcil warnings-noreturn.i
 fi
 
 
