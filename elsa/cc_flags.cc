@@ -155,6 +155,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
 
   { "<prom_int>",             0,    S(STF_NONE)                 },
   { "<prom_arith>",           0,    S(STF_NONE)                 },
+  { "<integral>",             0,    S(STF_NONE)                 },
   { "<arith>",                0,    S(STF_NONE)                 },
   { "<arith_nobool>",         0,    S(STF_NONE)                 },
   { "<any_obj>",              0,    S(STF_NONE)                 },

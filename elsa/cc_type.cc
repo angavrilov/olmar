@@ -89,6 +89,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   
   SimpleType(ST_PROMOTED_INTEGRAL),
   SimpleType(ST_PROMOTED_ARITHMETIC),
+  SimpleType(ST_INTEGRAL),
   SimpleType(ST_ARITHMETIC),
   SimpleType(ST_ARITHMETIC_NON_BOOL),
   SimpleType(ST_ANY_OBJ_TYPE),
@@ -695,6 +696,10 @@ bool BaseType::equals(BaseType const *obj, EqFlags flags) const
         if (objId == ST_PROMOTED_ARITHMETIC) {
           return (flags & (STF_INTEGER | STF_PROM)) == (STF_INTEGER | STF_PROM) ||
                  (flags & STF_FLOAT);      // need not be promoted!
+        }
+
+        if (objId == ST_INTEGRAL) {
+          return (flags & STF_INTEGER) != 0;
         }
 
         if (objId == ST_ARITHMETIC) {
@@ -1869,6 +1874,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 
   CVAT(ST_PROMOTED_INTEGRAL)
   CVAT(ST_PROMOTED_ARITHMETIC)
+  CVAT(ST_INTEGRAL)
   CVAT(ST_ARITHMETIC)
   CVAT(ST_ARITHMETIC_NON_BOOL)
   CVAT(ST_ANY_OBJ_TYPE)

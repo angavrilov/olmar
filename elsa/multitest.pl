@@ -62,8 +62,16 @@ foreach $line (@lines) {
   }
 }
 
+# get sorted keys
+@allkeys = (sort {$a <=> $b} (keys %codes));
+$numkeys = @allkeys;
+if ($numkeys == 0) {
+  # no error tags
+  exit(0);
+}
+
 # consider each in turn
-foreach $selcode (sort {$a <=> $b} (keys %codes)) {
+foreach $selcode (@allkeys) {
   print("-- selecting ERROR($selcode) --\n");
 
   # run through the lines in the file, generating a new file
@@ -92,11 +100,14 @@ foreach $selcode (sort {$a <=> $b} (keys %codes)) {
     exit(4);
   }
   else {
-    print("failed as expected\n");
+    print("$selcode: failed as expected\n");
   }
 }
 
 unlink("multitest.tmp");
+
+print("\nmultitest: all $numkeys variations failed as expected\n");
+
 exit(0);
 
 

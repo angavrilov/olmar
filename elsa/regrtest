@@ -206,7 +206,7 @@ for fn in                                                                 \
   t0124.cc   t0125.cc            t0127.cc   t0128.cc   t0129.cc  t0130.cc \
   t0131.cc   t0132.cc  t0133.cc  t0134.cc   t0135.cc   t0136.cc  t0137.cc \
   t0138.cc   t0139.cc  t0140.cc  t0141.cc   t0142.cc   t0143.cc  t0144.cc \
-  t0145.cc   t0146.cc                                                     \
+  t0145.cc   t0146.cc            t0148.cc   t0149.cc                      \
     ; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
