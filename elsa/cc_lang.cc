@@ -32,6 +32,8 @@ void CCLang::ANSI_C89()
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = false;
   declareGNUBuiltins = false;
+  lvalueFlowsThroughCastInC = false;
+  condMayHaveNonThrowVoidValues = false;
   treatExternInlineAsPrototype = false;
   allowNewlinesInStringLits = false;
 
@@ -73,6 +75,8 @@ void CCLang::GNU_C()
   treatExternInlineAsPrototype = true;
   allowNewlinesInStringLits = true;
   declareGNUBuiltins = true;
+  lvalueFlowsThroughCastInC = true;
+  condMayHaveNonThrowVoidValues = true;
 
   // I'm just guessing this is GNU only.... yep:
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Incomplete-Enums.html
@@ -91,6 +95,8 @@ void CCLang::GNU_KandR_C()
   treatExternInlineAsPrototype = true;
   allowNewlinesInStringLits = true;
   declareGNUBuiltins = true;
+  lvalueFlowsThroughCastInC = true;
+  condMayHaveNonThrowVoidValues = true;
 
   // this seems wrong, but Oink's tests want it this way...
   predefined_Bool = true;
@@ -159,6 +165,8 @@ void CCLang::GNU_Cplusplus()
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = true;
   declareGNUBuiltins = true;
+  lvalueFlowsThroughCastInC = false; // not for C++
+  condMayHaveNonThrowVoidValues = false; // not for C++
 }
 
 

@@ -912,6 +912,7 @@ if $use_gnu; then
   testCparse gnu/dC0009.c # UCHAR8 SampleResolution:2 __attribute__ ((packed));
   testCparse gnu/dC0014.c # "'u32 long off' doesn't parse"
   testCparse gnu/dC0015.c # function scope structs can contain arrays of dynamic size
+  testCparse gnu/dC0016.c
 
   # attribute tests
   testCparse gnu/attr01.c

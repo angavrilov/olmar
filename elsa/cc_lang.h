@@ -132,6 +132,16 @@ public:
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;
 
+  // in C mode, if the argument to a cast is an lvalue, make the cast
+  // expression have lvalue type; this should never be done in C++
+  // mode, so I check that independently, even though that is
+  // redundant; inelegant, but sure to work
+  bool lvalueFlowsThroughCastInC;
+
+  // gcc allows ?: to have void types other than throw as the values
+  // of the 'then' and 'else' clauses
+  bool condMayHaveNonThrowVoidValues;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need
