@@ -39,7 +39,8 @@ public:      // funcs
 
   // do the declaration, and report an error if it happens
   void declareVariable(Env *env, char const *name,
-                       DeclFlags flags, Type const *type) const;
+                       DeclFlags flags, Type const *type,
+                       bool initialized) const;
 
   // attempt at a general disambiguator...
   typedef CilExpr * (CCTreeNode::*DisambFn)(Env *env, CilInstructions &inst);
@@ -56,11 +57,11 @@ public:      // funcs
   void internalError(char const *msg) const NORETURN;
 
   // if the value is null, complain about void rvalue
-  CilExpr * /*owner*/ asRval(CilExpr * /*owner*/ expr, 
+  CilExpr * /*owner*/ asRval(CilExpr * /*owner*/ expr,
                              CCTreeNode const &exprSyntax) const;
 
   // convert to lval if it is, otherwise complain
-  CilLval * /*owner*/ asLval(CilExpr * /*owner*/ expr, 
+  CilLval * /*owner*/ asLval(CilExpr * /*owner*/ expr,
                              CCTreeNode const &exprSyntax) const;
 
   // set the "just an int" value

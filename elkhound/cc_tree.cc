@@ -12,9 +12,10 @@ CCTreeNode::~CCTreeNode()
 
 
 void CCTreeNode::declareVariable(Env *env, char const *name,
-                                 DeclFlags flags, Type const *type) const
+                                 DeclFlags flags, Type const *type,
+                                 bool initialized) const
 {
-  env->declareVariable(this, name, flags, type);
+  env->declareVariable(this, name, flags, type, initialized);
 }
 
 

@@ -53,7 +53,8 @@ Env::Env(DataflowEnv *d)
       makeFunctionType_1arg(
         getSimpleType(ST_INT),                          // return type
         CV_NONE,
-        getSimpleType(ST_INT), "potentialConstant"));   // arg type
+        getSimpleType(ST_INT), "potentialConstant"),    // arg type
+        true /*initialized*/);
 
     // I'm not sure what this is.. let's try not defining it here..
     //declareVariable(NULL, "__end_of_fixed_addresses", DF_NONE,
@@ -385,7 +386,8 @@ EnumType *Env::makeEnumType(char const *name)
 void Env::addEnumValue(CCTreeNode const *node, char const *name, 
                        EnumType const *type, int value)
 {
-  Variable *val = declareVariable(node, name, DF_ENUMVAL, makeType(type));
+  Variable *val = declareVariable(node, name, DF_ENUMVAL, makeType(type),
+                                  true /*initialized*/);
   xassert(val->isEnumValue());
   val->enumValue = value;
 }
@@ -448,7 +450,8 @@ ostream &Env::indent(ostream &os) const
 
 
 Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
-                               DeclFlags flags, Type const *type)
+                               DeclFlags flags, Type const *type,
+                               bool initialized)
 {
   Variable *ret = NULL;
   if (!( flags & DF_TYPEDEF )) {
@@ -466,10 +469,14 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
       }
 
       // but it's ok if both were functions
-      // and/or both were extern (TODO: what are the
-      // real rules??)
-      if (type->isFunctionType() ||
-          ((flags & DF_EXTERN) && (prev->declFlags & DF_EXTERN))) {
+      // and/or both were extern or static (TODO: what are the
+      // real rules??); and, there can be at most one initializer
+      if ( ( type->isFunctionType() ||
+             ((flags & DF_EXTERN) && (prev->declFlags & DF_EXTERN)) ||
+             ((flags & DF_STATIC) && (prev->declFlags & DF_STATIC))
+           )
+           && (!prev->initialized || !initialized)
+         ) {
         // ok
         ret = prev;
       }
@@ -483,6 +490,8 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
     else /*not already mapped*/ {
       ret = addVariable(name, flags, type);
     }
+
+    ret->initialized = ret->initialized || initialized;
   }
 
   else {
@@ -501,7 +510,7 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
     cout << ((flags&DF_TYPEDEF) ? "typedef: " : "variable: ");
     cout << type->toString(name) << endl;
   }
-  
+
   return ret;
 }
 

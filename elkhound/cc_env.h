@@ -38,10 +38,11 @@ public:     // data
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
   int enumValue;             // if isEnumValue(), its numerical value
+  bool initialized;          // true if has been declared with an initializer (or, for functions, with code)
 
 public:     // funcs
   Variable(char const *n, DeclFlags d, Type const *t)
-    : name(n), declFlags(d), type(t), enumValue(0) {}
+    : name(n), declFlags(d), type(t), enumValue(0), initialized(false) {}
 
   string toString() const;
 
@@ -179,7 +180,8 @@ public:     // funcs
   // if ok, return the Variable created (or already existant,
   // if it's allowed); returns NULL for typedefs
   Variable *declareVariable(CCTreeNode const *node, char const *name,
-                            DeclFlags flags, Type const *type);
+                            DeclFlags flags, Type const *type,
+                            bool initialized);
 
   // return true if the named variable is declared as something
   bool isLocalDeclaredVar(char const *name);

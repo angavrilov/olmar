@@ -362,6 +362,7 @@ public:    // funcs
 
   void append(CilInst *inst);
   void printTreeNoBraces(int indent, ostream &os) const;
+  bool isEmpty() const { return insts.isEmpty(); }
 };
 
 

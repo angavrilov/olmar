@@ -315,6 +315,7 @@ nonterm HasType {
   }
 }
 
+
 // base class for expressions
 nonterm ExprBase : Checkable, HasType {
   // return the integer this expression evaluates to at compile time
@@ -1188,6 +1189,20 @@ nonterm ConditionalExpression : ExprBase {
     }
 
     fun typeCheck {
+      // since it occurs frequently in the linux kernel, and because without
+      // this optimization ?; in ConstantExpression will cause problems
+      // due to apparent side effects, start by checking if the condition
+      // is evaluable at compile time
+      try {
+        int c = cond.intEval(env);
+        
+        // it is -- so just statically evaluate the correct operand
+        return c? th.typeCheck(env, inst) : el.typeCheck(env, inst);
+      }
+      catch (...)
+        {}     // fine; go ahead with the usual stuff
+
+
       // grab guard expression
       Owner<CilExpr> condExpr;
                      condExpr = cond.rvalueTypeCheck(env, inst);
@@ -1385,16 +1400,21 @@ nonterm ExpressionOpt : Checkable {
 
 // this is an expression with the additional requirement that
 // it be entirely evaluable to an int at compile time
-// (which is essentially a type property)
-nonterm ConstantExpression : ExprBase -> e:ConditionalExpression {
+nonterm ConstantExpression -> e:ConditionalExpression {
+  fundecl int intEval(Env *passedEnv);
   fun intEval {
+    env = passedEnv;
+
+    // typeCheck before intEval to eliminate any ambiguities
+    CilInstructions dummy;
+    delete e.typeCheck(env, dummy);
+    if (!dummy.isEmpty()) {
+      throwError("constant exprs can't have side effects");
+    }
+
     int val = e.intEval(env);
-    setTheInt(val);      
+    setTheInt(val);
     return val;
-  }
-  fun typeCheck {
-    // collapse it down to a single integer
-    return newIntLit(intEval(env));
   }
 }
 
@@ -1986,7 +2006,7 @@ nonterm Condition : Checkable {
       // basic declaration handling
       Type const *declType = decl.getDeclType(env, spec.getType(env));
       VarName name = decl.getDeclName();
-      declareVariable(env, name, DF_NONE, declType);
+      declareVariable(env, name, DF_NONE, declType, true /*initialzed*/);
 
       // declare a new intermediate variable
       Variable *var = env->getVariable(name);
@@ -2463,6 +2483,8 @@ nonterm InitDeclaratorListOpt : HasDeclare {
 }
 
 nonterm InitDeclarator : HasDeclare {
+  fundecl bool hasInit();
+
   fun declare {
     // get the full type from the declarator
     Type const *fullType = d.getDeclType(env, type);
@@ -2471,7 +2493,7 @@ nonterm InitDeclarator : HasDeclare {
     string name = d.getDeclName();
 
     // put that pair into the environment
-    declareVariable(env, name, flags, fullType);
+    declareVariable(env, name, flags, fullType, hasInit());
 
     // and add an intermediate form declaration too (but
     // we don't have typedefs in Cil, so pass over them)
@@ -2481,9 +2503,14 @@ nonterm InitDeclarator : HasDeclare {
     }
   }
 
+  -> d:Declarator {                   // (int)  x
+    fun hasInit = false;
+  }
+
   // don't know what to do with the initializer at this point.. (TODO)
-  -> d:Declarator |                   // (int)  x
-     d:Declarator Initializer ;       // (int)  x = 5
+  -> d:Declarator Initializer {       // (int)  x = 5
+    fun hasInit = true;
+  }
 }
 
 nonterm Initializer {
@@ -2638,7 +2665,7 @@ nonterm DirectDeclarator : DeclaratorBase {
     }
   }
 
-  // function type declarator; the return type comes from the type
+  // function  declarator; the return type comes from the type
   // specifier that preceeds this
   -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt  {
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^^ const? ^^^^^^
@@ -2837,6 +2864,12 @@ nonterm ParameterDeclarationClause : HasPrintSig, HasArgTypes {
   }
   -> empty {                                 // no args
     fun printSig {}
+    
+    // it's here I'd implement the notion that
+    // "foo();" means "foo(...);", but doing so requires
+    // one more parameter (bool: whether I'm in a fn
+    // decl or defn), and that's annoying, so I'll leave
+    // it as-is for now
     fun getArgTypes {}
   }
   -> "..." {                                 // all args are optional
@@ -2891,6 +2924,15 @@ nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
     DeclFlags flags = s.getDeclFlags();
     if (flags != DF_NONE) {
       reportError(env, "modifiers not allowed in parameter declarations");
+    }
+
+    // handle the C's quirky way of saying a function
+    // takes no arguments
+    if (fullType->isVoid()) {
+      if (hasName()) {
+        reportError(env, "you can't name the no-args `void' parameter");
+      }
+      return;     // don't add it as an actual parameter
     }
 
     Parameter *param = new Parameter(fullType);
@@ -2958,7 +3000,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       // add the function decl to the original environment
       DeclFlags flags = r.getDeclFlags();   // inline, virtual, etc.
       string name = d.getDeclName();
-      declareVariable(env, name, flags, fnType);
+      declareVariable(env, name, flags, fnType, true /*initialized*/);
 
       // then grab it
       Variable *funcVar = env->getVariable(name);
@@ -2980,7 +3022,8 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
           if (!param->name.isempty()) {
             // would really like to be doing this in the context
             // of the tree node that actually defined the name...
-            declareVariable(localEnv, param->name, DF_NONE, param->type);
+            declareVariable(localEnv, param->name, DF_NONE, param->type,
+                            false /*initialized*/);
           }
         }
 
@@ -3158,21 +3201,24 @@ nonterm MemberDeclaratorList : HasDeclareNoSE {
 nonterm MemberDeclarator : HasDeclareNoSE {
   -> d:Declarator {
     fun declare {
-      // this code is same as InitDeclarator
       Type const *fullType = d.getDeclType(env, type);
-      declareVariable(destEnv, d.getDeclName(), flags, fullType);
+      declareVariable(destEnv, d.getDeclName(), flags, fullType,
+                      false /*initialized*/);
     }
   }
 
   // other cases unhandled as yet
   fun declare {}
   -> Declarator "=" ConstantExpression ;   // pure; and member inits??
-  -> L2_NAME ":" ConstantExpression ;      // named bitfield
   -> ":" ConstantExpression ;              // unnamed bitfield
-  
-  // more crap
-  -> L2_NAME ":" ConstantExpression GNUAttribute ;
   -> ":" ConstantExpression GNUAttribute ;
+
+  -> n:L2_NAME ":" e:ConstantExpression GNUAttribute
+   | n:L2_NAME ":" e:ConstantExpression {      // named bitfield
+    fun declare {
+      declareVariable(destEnv, n.nameValue, DF_NONE, type, false /*initialized*/);
+    }
+  }
 }
 
 
@@ -3285,7 +3331,7 @@ nonterm ExceptionDeclaration : Checkable {
     fun typeCheck {
       Type const *type = d.getDeclType(env, s.getType(env));
       string name = d.getDeclName();
-      declareVariable(env, name, DF_NONE, type);
+      declareVariable(env, name, DF_NONE, type, false /*initialized*/);
 
       return noCilValue();
     }
