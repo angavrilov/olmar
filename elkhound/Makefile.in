@@ -57,7 +57,7 @@ ranlib      := ranlib
 OPTIMIZATION_FLAGS :=
 ifdef ALLOW_DEBUG
   # enable action trace in glr parser
-  OPTIMIZATION_FLAGS += -DACTION_TRACE
+  OPTIMIZATION_FLAGS += -DACTION_TRACE=1
 else
   # turn on the optimizer
   OPTIMIZATION_FLAGS += -O2 -DNDEBUG
@@ -65,7 +65,7 @@ endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
 # uncomment to turn off source location info
-#ccflags += -DNO_GLR_SOURCELOC
+#ccflags += -DGLR_SOURCELOC=0
 
 # even fewer debugging checks
 #ccflags += -DNDEBUG_NO_ASSERTIONS

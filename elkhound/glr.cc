@@ -141,8 +141,10 @@
 #include <stdlib.h>      // getenv
 
 // ACTION(..) is code to execute for action trace diagnostics, i.e. "-tr action"
-//#define ACTION_TRACE
-#ifdef ACTION_TRACE
+#ifndef ACTION_TRACE
+  #define ACTION_TRACE 0
+#endif
+#if ACTION_TRACE
   #define ACTION(stmt) stmt
   #define TRSACTION(stuff) if (tracingSys("action")) { cout << stuff << endl; }
 #else
@@ -166,11 +168,10 @@
 #define USE_RECLASSIFY 1
 #define USE_KEEP 1
 
-// enables the mini-LR altogether
-#define USE_MINI_LR 0
-
 // enables tracking of some statistics useful for debugging and profiling
-#define DO_ACCOUNTING 1
+#ifndef DO_ACCOUNTING
+  #define DO_ACCOUNTING 1
+#endif
 #if DO_ACCOUNTING
   #define ACCOUNTING(stuff) stuff
 #else
@@ -682,7 +683,7 @@ bool parserListContains(StackNodeWorklist &list, StackNode *node)
 void priorityWorklistInsert(
   GLR &glr, StackNodeWorklist &list, StackNode *node)
 {
-  #if 1
+  #if USE_DELAYED_STATES
     if (glr.tables->isDelayed(node->state)) {
       list.delayed.push(node);
     }
@@ -798,9 +799,18 @@ void GLR::printConfig() const
 
   printf("  token reclassification: %s\n",
          USE_RECLASSIFY? "enabled" : "disabled *");
-         
+
   printf("  reduction cancellation: %s\n",
          USE_KEEP? "enabled" : "disabled *");
+
+  printf("  SWL parser core: %s\n",
+         USE_SWL_CORE? "enabled *" : "disabled");
+
+  printf("  delayed states heuristic: %s\n",
+         USE_DELAYED_STATES? "enabled" : "disabled *");
+
+  printf("  RWL parser core: %s\n",
+         USE_RWL_CORE? "enabled" : "disabled");   // not sure about performance here
 
   printf("  mini-LR parser core: %s\n",
          USE_MINI_LR? "enabled *" : "disabled");
@@ -909,7 +919,7 @@ void GLR::buildParserIndex()
 
 bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 {
-  #ifndef ACTION_TRACE
+  #if !ACTION_TRACE
     // tell the user why "-tr action" doesn't do anything, if 
     // they specified that
     trace("action") << "warning: ACTION_TRACE is currently disabled by a\n";
@@ -992,10 +1002,6 @@ STATICDEF bool GLR
   UserActions::ReclassifyFunc reclassifyToken =
     userAct->getReclassifier();
 
-  // reduction action function
-  UserActions::ReductionActionFunc reductionAction =
-    userAct->getReductionAction();
-
   // the stack node pool is a local variable of this function for
   // fastest access by the mini-LR core; other parts of the algorihthm
   // can access it using a pointer stored in the GLR class (caller
@@ -1012,6 +1018,10 @@ STATICDEF bool GLR
   }
 
   #if USE_MINI_LR
+    // reduction action function
+    UserActions::ReductionActionFunc reductionAction =
+      userAct->getReductionAction();
+
     // this is *not* a reference to the 'glr' member because it
     // doesn't need to be shared with the rest of the algorithm (it's
     // only used in the Mini-LR core), and by having it directly on
@@ -1021,7 +1031,6 @@ STATICDEF bool GLR
     // (this saves 10% in end-to-end performance!)
     //GrowArray<SemanticValue> toPass(TYPICAL_MAX_RHSLEN);
     SemanticValue toPass[MAX_RHSLEN];
-    
   #endif
                    
   // count # of times we use mini LR
@@ -1355,7 +1364,7 @@ STATICDEF bool GLR
                  ", (unambig) shift token " << lexer.tokenDesc() <<
                  ", to state " << newState);
 
-        NODE_COLUMN( globalNodeColumn++; )
+        NODE_COLUMN( glr.globalNodeColumn++; )
 
         StackNode *rightSibling;
         MAKE_STACK_NODE(rightSibling, newState, &glr, stackNodePool);
@@ -1397,7 +1406,9 @@ STATICDEF bool GLR
       return false;
     }
 
+  #if USE_MINI_LR    // silence a warning when it's not enabled
   getNextToken:
+  #endif
     // was that the last token?
     if (lexer.type == 0) {
       break;
@@ -1434,10 +1445,10 @@ string stackTraceString(StackNode *parser)
 
 inline bool StackNodeWorklist::isEmpty_prime() const
 {
-  #if YTM_FIX
-    // for the YTM fix, we stop extracting from the worklist
-    // when there are no more eager states, and either there
-    // are no delayed states *or* there is more than one
+  #if USE_SWL_CORE && USE_RWL_CORE
+    // when using both the SWL and RWL cores, we stop extracting from
+    // the worklist when there are no more eager states, and either
+    // there are no delayed states *or* there is more than one
     return eager.isEmpty() && (delayed.length() != 1);
   #else
     return isEmpty();
@@ -1492,7 +1503,7 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
   // work through the worklist
   StateId lastToDie = STATE_INVALID;
   
-  #if !YTM_FIX      // disable the other GLR core
+  #if USE_SWL_CORE
   while (parserWorklist.isNotEmpty_prime()) {
     RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
     parser->decRefCt();     // no longer on worklist
@@ -1547,13 +1558,13 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
                " split into " << actions << " parsers");
     }
   }
-  #endif // 0
+  #endif // USE_SWL_CORE
 
-  #if YTM_FIX
-    // we might have gotten here because the number of delayed
-    // states is greater than 1
+  #if USE_RWL_CORE
+    // even with the SWL core, we might get here because the number of
+    // delayed states is greater than 1
     if (parserWorklist.isNotEmpty()) {
-      ytmReductionAlgorithm(pendingShifts, lastToDie);
+      rwlReductionAlgorithm(pendingShifts, lastToDie);
     }
   #endif
 
@@ -2116,7 +2127,7 @@ SiblingLink *GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
       YIELD_COUNT(
         if (sibLink->yieldCount > 0) {
-          // yield-then-merge happened
+          // yield-then-merge (YTM) happened
           yieldThenMergeCt++;
           trace("ytm") << "at " << loc.toString() << endl;
 
@@ -2403,7 +2414,7 @@ SemanticValue GLR::getParseResult()
 #endif // 0
 
 
-// ----------------- yield-then-merge (YTM) fix stuff -----------------
+// -------------- reduction worklist (RWL) algorithm --------------
 // This algorithm is an attempt to avoid the problem where a semantic
 // value is yielded to a reduction action, but then merged with
 // another semantic value, such that the original one yielded is now
@@ -2553,7 +2564,7 @@ void ReductionPathQueue::deletePath(Path *p)
 // and second by the nonterminal derivability relation on the
 // nonterminal to which the path reduces (if A ->+ B then we will
 // reduce to B before reducing to A, if terminal spans are equal).
-void GLR::ytmReductionAlgorithm(
+void GLR::rwlReductionAlgorithm(
   ArrayStack<PendingShift> &pendingShifts, StateId &lastToDie)
 {
   for (;;) {
@@ -2564,7 +2575,7 @@ void GLR::ytmReductionAlgorithm(
       // process this parser
       ActionEntry action =      // consult the 'action' table
         tables->actionEntry(parser->state, lexerPtr->type);
-      int actions = ytmParseAction(parser, action, pendingShifts);
+      int actions = rwlParseAction(parser, action, pendingShifts);
 
       // ---- BEGIN: copied from nondeterministicParseToken ----
       if (actions == 0) {
@@ -2677,7 +2688,7 @@ void GLR::ytmReductionAlgorithm(
           // ... do any reduce actions that are now enabled
           ActionEntry action =
             tables->actionEntry(parser->state, lexerPtr->type);
-          ytmLimitedReductions(parser, action, newLink);
+          rwlLimitedReductions(parser, action, newLink);
         }
       }
     }
@@ -2688,7 +2699,7 @@ void GLR::ytmReductionAlgorithm(
 
 
 // essentially a copy of 'doLimitedReductions'
-void GLR::ytmLimitedReductions(StackNode *parser, ActionEntry action,
+void GLR::rwlLimitedReductions(StackNode *parser, ActionEntry action,
                                SiblingLink *sibLink)
 {
   parser->checkLocalInvariants();
@@ -2699,7 +2710,7 @@ void GLR::ytmLimitedReductions(StackNode *parser, ActionEntry action,
   else if (tables->isReduceAction(action)) {
     // reduce
     int prodIndex = tables->decodeReduce(action);
-    ytmEnqueueReductions(parser, sibLink, prodIndex);
+    rwlEnqueueReductions(parser, sibLink, prodIndex);
   }
   else if (tables->isErrorAction(action)) {
     // don't think this can happen
@@ -2710,13 +2721,13 @@ void GLR::ytmLimitedReductions(StackNode *parser, ActionEntry action,
     int ambigId = tables->decodeAmbigAction(action);
     ActionEntry *entry = tables->ambigAction[ambigId];
     for (int i=0; i<entry[0]; i++) {
-      ytmLimitedReductions(parser, entry[i+1], sibLink);
+      rwlLimitedReductions(parser, entry[i+1], sibLink);
     }
   }
 }
 
 
-int GLR::ytmParseAction(StackNode *parser, ActionEntry action,
+int GLR::rwlParseAction(StackNode *parser, ActionEntry action,
                         ArrayStack<PendingShift> &pendingShifts)
 {
   // ---- BEGIN: copied from glrParseAction ----
@@ -2738,7 +2749,7 @@ int GLR::ytmParseAction(StackNode *parser, ActionEntry action,
     int prodIndex = tables->decodeReduce(action);
 
     // ---- this line is different from glrParseAction ----
-    ytmEnqueueReductions(parser, NULL /*mustUseLink*/, prodIndex);
+    rwlEnqueueReductions(parser, NULL /*mustUseLink*/, prodIndex);
     // ---- end of different line ----
 
     return 1;
@@ -2758,7 +2769,7 @@ int GLR::ytmParseAction(StackNode *parser, ActionEntry action,
     // do each one
     for (int i=0; i<entry[0]; i++) {
       // ---- this line is different from glrParseAction ----
-      ytmParseAction(parser, entry[i+1], pendingShifts);
+      rwlParseAction(parser, entry[i+1], pendingShifts);
       // ---- end of different line ----
     }
 
@@ -2771,7 +2782,7 @@ int GLR::ytmParseAction(StackNode *parser, ActionEntry action,
 // add to the reduction path queue all reductions that start
 // at 'parser', go through 'mustUseLink' (if not NULL), and
 // are of the proper length to reduce via 'prodIndex'
-void GLR::ytmEnqueueReductions(
+void GLR::rwlEnqueueReductions(
   StackNode *parser, SiblingLink *mustUseLink, int prodIndex)
 {
   ParseTables::ProdInfo const &info = tables->prodInfo[prodIndex];
@@ -2784,12 +2795,12 @@ void GLR::ytmEnqueueReductions(
     pathQueue.newPath(parser->state, prodIndex, rhsLen);
 
   // kick off the recursion
-  ytmRecursiveEnqueue(proto, rhsLen, parser, mustUseLink);
+  rwlRecursiveEnqueue(proto, rhsLen, parser, mustUseLink);
 }
 
 
-// essentially same arguments as ytmRecursiveEnqueue
-inline void GLR::ytmCollectPathLink(
+// essentially same arguments as rwlRecursiveEnqueue
+inline void GLR::rwlCollectPathLink(
   ReductionPathQueue::Path *proto, int popsRemaining,
   StackNode *currentNode, SiblingLink *mustUseLink, SiblingLink *linkToAdd)
 {
@@ -2797,17 +2808,17 @@ inline void GLR::ytmCollectPathLink(
   proto->symbols[popsRemaining] = currentNode->getSymbolC();
   
   if (linkToAdd == mustUseLink) {
-    ytmRecursiveEnqueue(proto, popsRemaining, linkToAdd->sib, 
+    rwlRecursiveEnqueue(proto, popsRemaining, linkToAdd->sib, 
                         NULL /*mustUseLink*/);
   }
   else {
-    ytmRecursiveEnqueue(proto, popsRemaining, linkToAdd->sib,
+    rwlRecursiveEnqueue(proto, popsRemaining, linkToAdd->sib,
                         mustUseLink);
   }
 }
 
 // recursive depth-first enumeration of paths
-void GLR::ytmRecursiveEnqueue(
+void GLR::rwlRecursiveEnqueue(
   ReductionPathQueue::Path *proto,  // prototype path, with path so far
   int popsRemaining,                // # of links yet to traverse to find a full path
   StackNode *currentNode,           // node we're at in the path
@@ -2831,14 +2842,14 @@ void GLR::ytmRecursiveEnqueue(
 
   else {
     // explore 'currentNode's siblings
-    ytmCollectPathLink(proto, popsRemaining-1, currentNode, mustUseLink,
+    rwlCollectPathLink(proto, popsRemaining-1, currentNode, mustUseLink,
                        &(currentNode->firstSib));
 
     // test before dropping into the loop, since profiler reported
     // some time spent calling VoidListMutator::reset ..
     if (currentNode->leftSiblings.isNotEmpty()) {
       FOREACH_OBJLIST_NC(SiblingLink, currentNode->leftSiblings, sibling) {
-        ytmCollectPathLink(proto, popsRemaining-1, currentNode, mustUseLink,
+        rwlCollectPathLink(proto, popsRemaining-1, currentNode, mustUseLink,
                            sibling.data());
       }
     }

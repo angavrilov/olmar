@@ -363,7 +363,7 @@ public:
 };
 
 
-// for YTM_FIX: This is a priority queue of stack node paths that are
+// for RWL core: This is a priority queue of stack node paths that are
 // candidates to reduce, maintained such that we can select paths in
 // an order which will avoid yield-then-merge.  There is some overlap
 // between ReductionPathQueue and PathCollectionState, but they're
@@ -521,7 +521,7 @@ public:
   // this is a pointer to the same-named local variable in innerGlrParse
   ObjectPool<StackNode> *stackNodePool;
                                
-  // pool and list for the YTM implementation
+  // pool and list for the RWL implementation
   ReductionPathQueue pathQueue;
 
   // ---- debugging trace ----
@@ -582,21 +582,21 @@ private:    // funcs
     int productionId, SemanticValue const *svals
     SOURCELOCARG( SourceLocation const &loc ) );
 
-  void ytmReductionAlgorithm(
+  void rwlReductionAlgorithm(
     ArrayStack<PendingShift> &pendingShifts, StateId &lastToDie);
-  int ytmParseAction(StackNode *parser, ActionEntry action,
+  int rwlParseAction(StackNode *parser, ActionEntry action,
                      ArrayStack<PendingShift> &pendingShifts);
-  void ytmEnqueueReductions(
+  void rwlEnqueueReductions(
     StackNode *parser, SiblingLink *mustUseLink, int prodIndex);
-  void ytmCollectPathLink(
+  void rwlCollectPathLink(
     ReductionPathQueue::Path *proto, int popsRemaining,
     StackNode *currentNode, SiblingLink *mustUseLink, SiblingLink *linkToAdd);
-  void ytmRecursiveEnqueue(
+  void rwlRecursiveEnqueue(
     ReductionPathQueue::Path *proto,
     int popsRemaining,
     StackNode *currentNode,
     SiblingLink *mustUseLink);
-  void ytmLimitedReductions(StackNode *parser, ActionEntry action,
+  void rwlLimitedReductions(StackNode *parser, ActionEntry action,
                             SiblingLink *sibLink);
 
 public:     // funcs
