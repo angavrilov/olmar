@@ -21,6 +21,7 @@ class Annotation;
 class UserDecl;
 class CustomCode;
 class CtorArg;
+class BaseClass;
 
 
 // *** DO NOT EDIT ***
@@ -179,10 +180,11 @@ class ASTClass {
 public:      // data
   string name;
   ASTList <CtorArg > args;
+  ASTList <BaseClass > bases;
   ASTList <Annotation > decls;
 
 public:      // funcs
-  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <Annotation > *_decls) : name(_name), args(_args), decls(_decls) {
+  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <BaseClass > *_bases, ASTList <Annotation > *_decls) : name(_name), args(_args), bases(_bases), decls(_decls) {
   }
   ~ASTClass();
 
@@ -321,6 +323,27 @@ public:      // funcs
   char const *kindName() const { return "CtorArg"; }
 
   CtorArg *clone() const;
+
+  void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
+
+};
+
+
+
+// *** DO NOT EDIT ***
+class BaseClass {
+public:      // data
+  AccessCtl access;
+  string name;
+
+public:      // funcs
+  BaseClass(AccessCtl _access, string _name) : access(_access), name(_name) {
+  }
+  ~BaseClass();
+
+  char const *kindName() const { return "BaseClass"; }
+
+  BaseClass *clone() const;
 
   void debugPrint(ostream &os, int indent, char const *subtreeName = "tree") const;
 

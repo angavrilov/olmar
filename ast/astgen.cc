@@ -253,6 +253,7 @@ class HGen : public Gen {
 private:        // funcs
   void emitVerbatim(TF_verbatim const &v);
   void emitTFClass(TF_class const &cls);
+  void emitBaseClassDecls(ASTClass const &cls, int ct);
   static char const *virtualIfChildren(TF_class const &cls);
   void emitCtorFields(ASTList<CtorArg> const &args);
   void emitCtorFormal(int &ct, CtorArg const *arg);
@@ -381,7 +382,9 @@ STATICDEF char const *HGen::virtualIfChildren(TF_class const &cls)
 void HGen::emitTFClass(TF_class const &cls)
 {
   doNotEdit();
-  out << "class " << cls.super->name << " {\n";
+  out << "class " << cls.super->name;
+  emitBaseClassDecls(*(cls.super), 0 /*ct*/);
+  out << " {\n";
 
   emitCtorFields(cls.super->args);
   emitCtorDefn(*(cls.super), NULL /*parent*/);
@@ -433,7 +436,7 @@ void HGen::emitTFClass(TF_class const &cls)
   out << "\n";
 
   emitCommonFuncs(virt);
-  
+
   if (wantGDB) {
     out << "  void gdb() const;\n\n";
   }
@@ -452,6 +455,17 @@ void HGen::emitTFClass(TF_class const &cls)
   }
 
   out << "\n";
+}
+
+
+void HGen::emitBaseClassDecls(ASTClass const &cls, int ct)
+{
+  FOREACH_ASTLIST(BaseClass, cls.bases, iter) {
+    out << ((ct++ > 0)? ", " : " : ")
+        << toString(iter.data()->access) << " "
+        << iter.data()->name
+        ;
+  }
 }
 
 
@@ -648,7 +662,9 @@ void HGen::emitUserDecls(ASTList<Annotation> const &decls)
 // emit declaration for a specific class instance constructor
 void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
 {
-  out << "class " << ctor.name << " : public " << parent.name << " {\n";
+  out << "class " << ctor.name << " : public " << parent.name;
+  emitBaseClassDecls(ctor, 1 /*ct*/);
+  out << " {\n";
 
   emitCtorFields(ctor.args);
   emitCtorDefn(ctor, &parent);

@@ -181,6 +181,7 @@ TF_enum *TF_enum::clone() const
 ASTClass::~ASTClass()
 {
   args.deleteAll();
+  bases.deleteAll();
   decls.deleteAll();
 }
 
@@ -190,6 +191,7 @@ void ASTClass::debugPrint(ostream &os, int indent, char const *subtreeName) cons
 
   PRINT_STRING(name);
   PRINT_LIST(CtorArg, args);
+  PRINT_LIST(BaseClass, bases);
   PRINT_LIST(Annotation, decls);
 }
 
@@ -198,6 +200,7 @@ ASTClass *ASTClass::clone() const
   ASTClass *ret = new ASTClass(
     name,
     cloneASTList(args),
+    cloneASTList(bases),
     cloneASTList(decls)
   );
   return ret;
@@ -323,6 +326,30 @@ CtorArg *CtorArg::clone() const
     type,
     name,
     defaultValue
+  );
+  return ret;
+}
+
+
+// ------------------ BaseClass -------------------
+// *** DO NOT EDIT ***
+BaseClass::~BaseClass()
+{
+}
+
+void BaseClass::debugPrint(ostream &os, int indent, char const *subtreeName) const
+{
+  PRINT_HEADER(subtreeName, BaseClass);
+
+  PRINT_GENERIC(access);
+  PRINT_STRING(name);
+}
+
+BaseClass *BaseClass::clone() const
+{
+  BaseClass *ret = new BaseClass(
+    access,
+    name
   );
   return ret;
 }

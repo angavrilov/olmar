@@ -87,6 +87,8 @@ private:     // data
   bool allowInit;                  // true if embedded can have an initializer
 
   int prevState;                   // so /**/ doesn't change start state
+  
+  int prevToken;                   // last token code yielded (ugly hack)
 
 public:      // data
   // todo: can eliminate commentStartLine in favor of tokenStartLoc?

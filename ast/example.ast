@@ -42,7 +42,7 @@ class Super (int x) {
   protected(virtual) int foo();
 
   public(owner) int *p = NULL;
-  
+
   public(virtual) int onlyInSubclasses() = 0;
   public(virtual) int everywhere();
 
@@ -50,7 +50,6 @@ class Super (int x) {
   -> Sub2(int z);
   -> SubWithDefault(int q = 5);
 }
-
 
 enum AnEnum { AE_ONE, AE_TWO };
 
@@ -64,6 +63,19 @@ enum AnotherEnum {
 class UsesEnum {
   -> UE_a(AnEnum x);
   -> UE_b(int y);
+}
+
+verbatim {
+  class Base1 {};
+  class Base2 {};
+  class Base3 {};
+}
+
+class InheritsSomething : public Base1 {
+  -> IS_a(int z) : public Base2 ;
+  -> IS_b(int q) : public Base3 {
+       public float f;
+     }
 }
 
 

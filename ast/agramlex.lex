@@ -132,6 +132,7 @@ SLWHITE   [ \t]
 "*"                TOK_UPD_COL;  return TOK_STAR;
 "&"                TOK_UPD_COL;  return TOK_AMPERSAND;
 "="                TOK_UPD_COL;  return TOK_EQUALS;
+":"                TOK_UPD_COL;  return TOK_COLON;
 
 "class"            TOK_UPD_COL;  return TOK_CLASS;
 "option"           TOK_UPD_COL;  return TOK_OPTION;
@@ -141,22 +142,50 @@ SLWHITE   [ \t]
   /* --------- embedded text --------- */
 ("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual")("(")? {
   TOK_UPD_COL;
-  
-  // is a paren included?
-  if (yytext[yyleng-1] == '(') {
-    // don't drop into embedded just yet; wait for the ')'
-    embedStart = ')';
-    yyless(yyleng-1);
-    advCol(-1);
+
+  if (prevToken==TOK_COLON || prevToken==TOK_COMMA) {
+    // FREAKING UGLY HACK: Normally, access control keywords introduce
+    // a verbatim section.  But I want to also use them in the syntax
+    // for base classes, to be similar to C++.  But that means that I
+    // have to somehow distinguish those contexts.  As it happens, the
+    // previous token can be used to make the distinction.  So, here
+    // we are in that context, so don't do verbatim stuff.
+    //
+    // Of course, this is an awfully fragile approach.  I'd like to
+    // redesign the verbatim-field syntax at some point to eliminate
+    // this problem, but since I don't know what a good syntax might
+    // be, I'll leave things alone for now.
+    
+    // better not have used a paren..
+    if (yytext[yyleng-1] == '(') {
+      // I'm tempted to make a smart-ass error message... resisting...... *phew*!
+      err("don't put a paren after a base class access control keyword");
+      
+      // now I'm tempted to change the error reporting so that all
+      // error messages are prefixed with "(SNL donatella versaci
+      // voice) you crazy bitch!"  hmm.. maybe too much sugar today?
+    }
   }
   else {
-    BEGIN(EMBED);
+    // the keyword introduces a verbatim section
+
+    // is a paren included?
+    if (yytext[yyleng-1] == '(') {
+      // don't drop into embedded just yet; wait for the ')'
+      embedStart = ')';
+      yyless(yyleng-1);
+      advCol(-1);
+    }
+    else {
+      BEGIN(EMBED);
+    }
+
+    embedded->reset();
+    embedFinish = ';';
+    allowInit = yytext[0]=='p';
+    embedMode = TOK_EMBEDDED_CODE;
   }
 
-  embedded->reset();
-  embedFinish = ';';
-  allowInit = yytext[0]=='p';
-  embedMode = TOK_EMBEDDED_CODE;
   return yytext[0]=='c'?   TOK_CTOR :
          yytext[0]=='d'?   TOK_DTOR :
          yytext[2] == 'b'? TOK_PUBLIC :
@@ -259,6 +288,7 @@ SLWHITE   [ \t]
 <INITVAL>{
   "=" {
     // yield the '=', switch back into embedded
+    TOK_UPD_COL;
     BEGIN(EMBED);
     embedded->reset();
     allowInit = false;

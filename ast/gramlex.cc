@@ -83,6 +83,7 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedTokTest(test),
     allowInit(false),
     prevState(0),       // same as INITIAL, but this value isn't used
+    prevToken(0),       // hack..
     integerLiteral(0),
     stringLiteral(""),
     includeFileName(""),
@@ -123,6 +124,11 @@ int GrammarLexer::yylexInc()
 {
   // get raw token
   int code = yylex();
+  
+  // save this code for next time; part of what makes this hack
+  // problematic is that this assignment is only performed if the
+  // client calls 'yylexInc'..
+  prevToken = code;
 
   // include processing
   if (code == TOK_INCLUDE) {

@@ -38,6 +38,7 @@ class ToplevelForm {
 // a definition of a grammar terminal or nonterminal
 class ASTClass (string name,
                 ASTList<CtorArg> args,
+                ASTList<BaseClass> bases,
                 ASTList<Annotation> decls) {
   // the name of the enum constant denoting this ctor, as distinguished
   // from its sibling ctors
@@ -81,12 +82,17 @@ class Annotation {
   // on the qualifier string
   -> CustomCode (string qualifier, string code) {
        // keep track of whether it gets used
-       public bool used;  ctor used=false;         
+       public bool used;  ctor used=false;
      }
 }
 
 // something that has to be passed to create a constructor
 class CtorArg (bool isOwner, string type, string name, string defaultValue);
+
+// designate a class that one of the ASTClasses should inherit; for
+// AST subclasses, this inheritance is in addition to inheriting the
+// corresponding AST superclass
+class BaseClass (AccessCtl access, string name);
 
 
 // ------------------- extra implementation helpers ------------------

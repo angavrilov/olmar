@@ -18,6 +18,8 @@ typedef union YYSTYPE {
   TF_enum *tfEnum;
   ASTList<string> *enumeratorList;
   string *enumerator;
+  ASTList<BaseClass> *baseClassList;
+  BaseClass *baseClass;
 } yystype;
 # define YYSTYPE yystype
 # define YYSTYPE_IS_TRIVIAL 1
@@ -37,19 +39,20 @@ typedef union YYSTYPE {
 # define	TOK_AMPERSAND	269
 # define	TOK_COMMA	270
 # define	TOK_EQUALS	271
-# define	TOK_CLASS	272
-# define	TOK_PUBLIC	273
-# define	TOK_PRIVATE	274
-# define	TOK_PROTECTED	275
-# define	TOK_VERBATIM	276
-# define	TOK_IMPL_VERBATIM	277
-# define	TOK_CTOR	278
-# define	TOK_DTOR	279
-# define	TOK_PURE_VIRTUAL	280
-# define	TOK_CUSTOM	281
-# define	TOK_OPTION	282
-# define	TOK_NEW	283
-# define	TOK_ENUM	284
+# define	TOK_COLON	272
+# define	TOK_CLASS	273
+# define	TOK_PUBLIC	274
+# define	TOK_PRIVATE	275
+# define	TOK_PROTECTED	276
+# define	TOK_VERBATIM	277
+# define	TOK_IMPL_VERBATIM	278
+# define	TOK_CTOR	279
+# define	TOK_DTOR	280
+# define	TOK_PURE_VIRTUAL	281
+# define	TOK_CUSTOM	282
+# define	TOK_OPTION	283
+# define	TOK_NEW	284
+# define	TOK_ENUM	285
 
 
 #endif /* not BISON_AGRAMPAR_TAB_H */

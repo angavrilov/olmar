@@ -45,6 +45,7 @@
 %token TOK_AMPERSAND "&"
 %token TOK_COMMA ","
 %token TOK_EQUALS "="
+%token TOK_COLON ":"
 
 /* keywords */
 %token TOK_CLASS "class"
@@ -80,6 +81,8 @@
   TF_enum *tfEnum;
   ASTList<string> *enumeratorList;
   string *enumerator;
+  ASTList<BaseClass> *baseClassList;
+  BaseClass *baseClass;
 }
 
 %type <file> StartSymbol
@@ -97,6 +100,9 @@
 %type <tfEnum> Enum
 %type <enumeratorList> EnumeratorSeq
 %type <enumerator> Enumerator
+%type <baseClassList> BaseClassesOpt BaseClassSeq
+%type <accessCtl> BaseAccess
+%type <baseClass> BaseClass
 
 
 /* ===================== productions ======================= */
@@ -120,8 +126,10 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
 
 /* a class is a nonterminal in the abstract grammar */
 /* yields TF_class */
-Class: NewOpt "class" TOK_NAME CtorArgsOpt ClassBody
-         { ($$=$5)->super->name = unbox($3); $$->super->args.steal($4); }
+Class: NewOpt "class" TOK_NAME CtorArgsOpt BaseClassesOpt ClassBody
+         { ($$=$6)->super->name = unbox($3); 
+           $$->super->args.steal($4); 
+           $$->super->bases.steal($5); }
      ;
 
 /* for now, just allow "new" but don't interpret it */
@@ -141,18 +149,18 @@ NewOpt: /* empty */          {}
 ClassBody: "{" ClassMembersOpt "}" /* no ";", see above */
              { $$=$2; }
          | ";"
-             { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL), NULL); }
+             { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL), NULL); }
          ;
 
 /* yields TF_class */
 /* does this by making an empty one initially, and then adding to it */
 ClassMembersOpt
   : /* empty */
-      { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL), NULL); }
-  | ClassMembersOpt "->" TOK_NAME CtorArgsOpt ";"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, NULL)); }
-  | ClassMembersOpt "->" TOK_NAME CtorArgsOpt "{" CtorMembersOpt "}"
-      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, $6)); }
+      { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL, NULL), NULL); }
+  | ClassMembersOpt "->" TOK_NAME CtorArgsOpt BaseClassesOpt ";"
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, $5, NULL)); }
+  | ClassMembersOpt "->" TOK_NAME CtorArgsOpt BaseClassesOpt "{" CtorMembersOpt "}"
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $4, $5, $7)); }
   | ClassMembersOpt Annotation
       { ($$=$1)->super->decls.append($2); }
   ;
@@ -293,6 +301,31 @@ Enumerator: TOK_NAME
               { $$ = $1; }
           ;
 
+/* yields ASTList<BaseClass> */
+BaseClassesOpt: /* empty */
+                  { $$ = new ASTList<BaseClass>; }
+              | ":" BaseClassSeq
+                  { $$ = $2; }
+              ;
+
+/* yields ASTList<BaseClass> */
+BaseClassSeq: BaseClass
+                { $$ = new ASTList<BaseClass>($1); }
+            | BaseClassSeq "," BaseClass
+                { ($$=$1)->append($3); }
+            ;
+
+/* yields AccessCtl */
+BaseAccess
+  : "public"        { $$ = AC_PUBLIC; }
+  | "private"       { $$ = AC_PRIVATE; }
+  | "protected"     { $$ = AC_PROTECTED; }
+  ;
+
+/* yields BaseClass */
+BaseClass: BaseAccess TOK_NAME
+             { $$ = new BaseClass($1, unbox($2)); }
+         ;
 
 %%
 
