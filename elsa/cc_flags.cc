@@ -296,3 +296,15 @@ string toString(UberModifiers m)
   xassert(uberModifierNames[UM_NUM_FLAGS-1] != NULL);
   return bitmapString(m, uberModifierNames, UM_NUM_FLAGS);
 }
+
+
+// ---------------------- SpecialExpr -----------------
+char const *toString(SpecialExpr se)
+{
+  switch (se) {       
+    default: xfailure("bad se code");
+    case SE_NONE:       return "SE_NONE";
+    case SE_ZERO:       return "SE_ZERO";
+    case SE_STRINGLIT:  return "SE_STRINGLIT";
+  }
+}

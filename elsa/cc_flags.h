@@ -327,4 +327,18 @@ inline CVFlags uberCVFlags(UberModifiers m)
 // functions like 'uberDeclFlags'
 
 
+// ------------------ special literal expressions ----------------
+// some literal expressions get special treatment; this enum
+// can be used to identify which kind of special expression
+// something is, or that it is not special
+enum SpecialExpr {
+  SE_NONE,          // not special
+  SE_ZERO,          // integer literal 0
+  SE_STRINGLIT,     // a string literal
+  NUM_SPECIAL_EXPRS
+};
+
+char const *toString(SpecialExpr se);
+
+
 #endif // CC_FLAGS_H

@@ -29,7 +29,31 @@ enum StandardConversion {
   SC_ERROR           = 0xFFFF, // cannot convert
 };
 
+class Foo {};
+class Incomplete;
+
 void f()
 {
-  __getStandardConversion((int)3, (int)4, SC_IDENTITY);
+  // identity
+  __getStandardConversion((int)0, (int)0, SC_IDENTITY);
+
+  // lval to rval
+  __getStandardConversion((int &)0, (int)0, SC_LVAL_TO_RVAL);
+  __getStandardConversion((int const &)0, (int)0, SC_LVAL_TO_RVAL);
+  __getStandardConversion((Foo &)0, (Foo)0, SC_LVAL_TO_RVAL);
+  __getStandardConversion((Foo const &)0, (Foo const)0, SC_LVAL_TO_RVAL);
+
+  __getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
+  __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
+
+  // array to pointer
+  __getStandardConversion((int [3])0, (int*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion((int [])0, (int*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion("abc", (char const*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion(L"abc", (wchar_t const*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion("abc", (char*)0, SC_ARRAY_TO_PTR|SC_QUAL_CONV);
+  
+  __getStandardConversion((int const [])0, (int*)0, SC_ERROR);
+
+
 }

@@ -162,6 +162,10 @@ StandardConversion Conversion::error(char const *why)
 // to the error code to return
 bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv)
 {
+  if (scv != dcv) {
+    ret |= SC_QUAL_CONV;
+  }
+
   if (scv & ~dcv) {
     error("the source has some cv flag that the dest does not");
     return true;
@@ -186,7 +190,7 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv)
 // without allocating, and if I can then that avoids interaction
 // problems with Type annotation systems
 StandardConversion getStandardConversion
-  (Env *env, bool srcIsZero, Type const *src, Type const *dest)
+  (Env *env, SpecialExpr srcSpecial, Type const *src, Type const *dest)
 {
   Conversion conv(env, src, dest);
 
@@ -194,6 +198,12 @@ StandardConversion getStandardConversion
   if (src->isReference() && !dest->isReference()) {
     conv.ret |= SC_LVAL_TO_RVAL;
     src = src->asPointerTypeC()->atType;
+
+    // the src type must be complete for this conversion
+    if (src->isCompoundType() &&
+        src->asCompoundTypeC()->forward) {
+      return conv.error("type must be complete to strip '&'");
+    }
   }
   else if (src->isArrayType() && dest->isPointer()) {
     conv.ret |= SC_ARRAY_TO_PTR;
@@ -337,11 +347,13 @@ StandardConversion getStandardConversion
     }
 
     // exception: 0 -> (null) pointer
-    if (srcIsZero && dest->isPointerType()) {
-      return conv.ret | SC_PTR_CONV;
-    }
-    if (srcIsZero && dest->isPointerToMemberType()) {
-      return conv.ret | SC_PTR_MEMB_CONV;
+    if (srcSpecial == SE_ZERO) {
+      if (dest->isPointerType()) {
+        return conv.ret | SC_PTR_CONV;
+      }
+      if (dest->isPointerToMemberType()) {
+        return conv.ret | SC_PTR_MEMB_CONV;
+      }    
     }
 
     if (env) {
@@ -369,15 +381,6 @@ StandardConversion getStandardConversion
   CVFlags dcv = d->cv;
 
   if (conv.ptrCtorsStripped > 0) {
-    // I'm not perfectly clear on the checking I should do for
-    // the cv flags here.  lval-to-rval says that 'int const &'
-    // becomes 'int' whereas 'Foo const &' becomes 'Foo const'
-    if ((conv.ret & SC_LVAL_TO_RVAL) &&     // did we do lval-to-rval?
-        s->atomic->isSimpleType()) {        // were we a ref to simple?
-      // clear any 'const' on the source
-      scv &= ~CV_CONST;
-    }
-
     if (conv.ptrCtorsStripped == 1 &&
         scv == dcv) {
       if (dest->isSimple(ST_VOID)) {
@@ -390,6 +393,17 @@ StandardConversion getStandardConversion
             dest->asCompoundTypeC())) {
         return conv.ret | SC_PTR_CONV;      // converting Derived* to Base*
       }
+    }
+
+    if (conv.ptrCtorsStripped == 1 &&
+        srcSpecial == SE_STRINGLIT &&
+        scv == CV_CONST &&
+        dcv == CV_NONE) {
+      // special exception of 4.2 para 2: string literals can be
+      // converted to 'char*' (w/o 'const'); we'll already have
+      // converted 'char const[]' to 'char const *', so this just
+      // adds the qualification conversion
+      return conv.ret | SC_QUAL_CONV;
     }
 
     // now treat the remaining cv flag like consuming one more
@@ -416,19 +430,30 @@ StandardConversion getStandardConversion
     }
   }
   else {
-    // I don't know if cv needs to be checked at all.. ?
+    // I'm not perfectly clear on the checking I should do for
+    // the cv flags here.  lval-to-rval says that 'int const &'
+    // becomes 'int' whereas 'Foo const &' becomes 'Foo const'
+    if ((conv.ret & SC_LVAL_TO_RVAL) &&     // did we do lval-to-rval?
+        s->atomic->isSimpleType()) {        // were we a ref to simple?
+      // clear any 'const' on the source
+      scv &= ~CV_CONST;
+    }
+
+    if (scv != dcv) {
+      return conv.error("different cv flags (is this right?)");
+    }
   }
 
-  SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
-  SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
-
-  if (srcSimple && destSimple && srcSimple->equals(destSimple)) {
+  if (s->atomic->equals(d->atomic)) {
     return conv.ret;    // identical now
   }
 
   if (isIntegerPromotion(s->atomic, d->atomic)) {
     return conv.ret | SC_INT_PROM;
   }
+
+  SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
+  SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
 
   if (srcSimple && srcSimple->type == ST_FLOAT &&
       destSimple && destSimple->type == ST_DOUBLE) {
@@ -515,7 +540,7 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
 
 
 void test_getStandardConversion(
-  Env &env, bool srcIsZero, Type const *src, Type const *dest,
+  Env &env, SpecialExpr special, Type const *src, Type const *dest,
   int expected) 
 {
   // grab existing error messages
@@ -523,7 +548,7 @@ void test_getStandardConversion(
   existing.concat(env.errors);
   
   // run our function
-  StandardConversion actual = getStandardConversion(&env, srcIsZero, src, dest);
+  StandardConversion actual = getStandardConversion(&env, special, src, dest);
   
   // turn any resulting messags into warnings, so I can see their
   // results without causing the final exit status to be nonzero
@@ -539,7 +564,7 @@ void test_getStandardConversion(
     // no, explain the situation
     env.error(stringc
       << "getStandardConversion("
-      << (srcIsZero? "true" : "false") << " /*srcIsZero*/, `"
+      << toString(special) << ", `"
       << src->toString() << "', `"
       << dest->toString() << "') yielded "
       << toString(actual) << ", but I expected "
@@ -549,7 +574,7 @@ void test_getStandardConversion(
     // make a warning to show what happened anyway
     env.warning(stringc
       << "getStandardConversion("
-      << (srcIsZero? "true" : "false") << " /*srcIsZero*/, `"
+      << toString(special) << ", `"
       << src->toString() << "', `"
       << dest->toString() << "') yielded "
       << toString(actual));

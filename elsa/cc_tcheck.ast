@@ -329,6 +329,9 @@ class Expression {
   // that are not buried under an E_grouping
   public bool hasUnparenthesizedGT() const;
 
+  // return what kind of special expression this is, if any
+  public SpecialExpr getSpecial() const;
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 

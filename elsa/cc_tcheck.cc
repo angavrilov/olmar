@@ -2999,7 +2999,9 @@ Type *E_floatLit::itcheck(Env &env)
 Type *E_stringLit::itcheck(Env &env)
 {
   // cppstd 2.13.4 para 1
-  // TODO: wide character strings
+
+  // wide character?
+  SimpleTypeId id = text[0]=='L'? ST_WCHAR_T : ST_CHAR;
 
   // TODO: this is wrong because I'm not properly tracking the string
   // size if it has escape sequences
@@ -3007,10 +3009,11 @@ Type *E_stringLit::itcheck(Env &env)
   E_stringLit *p = this;
   while (p) {
     len += strlen(p->text) - 2;   // don't include surrounding quotes
+    if (id==ST_WCHAR_T) len--;    // don't count 'L' if present
     p = p->continuation;
   }
 
-  Type *charConst = env.getSimpleType(SL_UNKNOWN, ST_CHAR, CV_CONST);
+  Type *charConst = env.getSimpleType(SL_UNKNOWN, id, CV_CONST);
   return env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
 }
 
@@ -3093,15 +3096,6 @@ Type *E_variable::itcheck(Env &env)
 }
 
 
-bool isZeroLiteral(Expression *e)
-{
-  if (e->isE_intLit()) {
-    StringRef text = e->asE_intLit()->text;
-    return text[0]=='0' && text[1]==0;
-  }
-  return false;
-}
-
 FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 {
   if (!list) {
@@ -3161,13 +3155,12 @@ Type *E_funCall::itcheck(Env &env)
       func->asE_variable()->name->getName() == env.special_getStandardConversion) {
     // test vector for 'getStandardConversion'
     if (args->count() != 3) {
-      // I'm in the mood to insult the user, but I'll refrain..
       return env.error("this special function wants three arguments");
     }
     int expect;
     if (args->nth(2)->constEval(env, expect)) {
       test_getStandardConversion(env,
-        isZeroLiteral(args->nth(0)),    // true of 0 literal
+        args->nth(0)->getSpecial(),     // is it special?
         args->nth(0)->type,             // source type
         args->nth(1)->type,             // dest type
         expect);                        // expected result
@@ -3807,7 +3800,25 @@ bool Expression::hasUnparenthesizedGT() const
     ASTDEFAULTC
       // everything else, esp. E_grouping, is false
       return false;
+
+    ASTENDCASEC
+  }
+}
+
+
+SpecialExpr Expression::getSpecial() const
+{
+  ASTSWITCHC(Expression, this) {
+    ASTCASEC(E_intLit, i)
+      return i->i==0? SE_ZERO : SE_NONE;
+     
+    ASTNEXTC(E_stringLit, s)
+      PRETEND_USED(s);
+      return SE_STRINGLIT;
       
+    ASTDEFAULTC
+      return SE_NONE;
+
     ASTENDCASEC
   }
 }

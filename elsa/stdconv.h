@@ -14,6 +14,7 @@
 
 #include "macros.h"    // ENUM_BITWISE_AND,OR
 #include "str.h"       // string
+#include "cc_type.h"   // SpecialExpr
 
 // fwd
 class Type;            // cc_type.h
@@ -64,16 +65,16 @@ string toString(StandardConversion c);
 // given two types, determine the Standard Conversion Sequence,
 // if any, that will convert 'src' into 'dest'
 StandardConversion getStandardConversion(
-  Env *env,         // if non-null, failed conversion inserts error message
-  bool srcIsZero,   // true if src's expression is the literal "0"
-  Type const *src,  // source type
-  Type const *dest  // destination type
+  Env *env,            // if non-null, failed conversion inserts error message
+  SpecialExpr special, // properties of the source expression
+  Type const *src,     // source type
+  Type const *dest     // destination type
 );
 
 
 // testing interface, for use by the type checker
 void test_getStandardConversion(
-  Env &env, bool srcIsZero, Type const *src, Type const *dest,
+  Env &env, SpecialExpr special, Type const *src, Type const *dest,
   int expected     // expected return value
 );
 
