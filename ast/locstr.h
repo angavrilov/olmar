@@ -24,7 +24,8 @@ public:    // funcs
   void xfer(Flatten &flat);
 
   // deallocates its argument; intended for convenient use in bison grammar files
-  EXPLICIT LocString(LocString *obj);
+  EXPLICIT LocString(LocString *obj) { copyAndDel(obj); }
+  void copyAndDel(LocString *obj);
 
   // sometimes useful for generating arguments to the above ctor
   LocString *clone() const;

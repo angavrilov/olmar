@@ -57,6 +57,7 @@
 %token TOK_PURE_VIRTUAL "pure_virtual"
 %token TOK_CUSTOM "custom"
 %token TOK_OPTION "option"
+%token TOK_NEW "new"
 
 
 /* ======================== types ========================== */
@@ -107,9 +108,14 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
 
 /* a class is a nonterminal in the abstract grammar */
 /* yields TF_class */
-Class: "class" TOK_NAME CtorArgsOpt ClassBody
-         { ($$=$4)->super->name = unbox($2); $$->super->args.steal($3); }
+Class: NewOpt "class" TOK_NAME CtorArgsOpt ClassBody
+         { ($$=$5)->super->name = unbox($3); $$->super->args.steal($4); }
      ;
+
+/* for now, just allow "new" but don't interpret it */
+NewOpt: /* empty */          {}
+      | "new"                {}
+      ;
 
 /*
  * I contemplated making both kinds of forms end in semicolon, but then

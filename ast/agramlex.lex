@@ -135,6 +135,7 @@ SLWHITE   [ \t]
 
 "class"            TOK_UPD_COL;  return TOK_CLASS;
 "option"           TOK_UPD_COL;  return TOK_OPTION;
+"new"              TOK_UPD_COL;  return TOK_NEW;
 
   /* --------- embedded text --------- */
 ("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual") {

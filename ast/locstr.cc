@@ -37,10 +37,10 @@ void LocString::xfer(Flatten &flat)
 }
 
 
-LocString::LocString(LocString *obj)
-  : loc(obj->loc),
-    str(obj->str)
+void LocString::copyAndDel(LocString *obj)
 {
+  loc = obj->loc;
+  str = obj->str;
   delete obj;
 }
 

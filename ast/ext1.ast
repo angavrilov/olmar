@@ -26,4 +26,4 @@ verbatim {
   // verbatim before ANewClass
 }
 
-class ANewClass(int foo);
+new class ANewClass(int foo);
