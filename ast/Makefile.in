@@ -23,6 +23,7 @@ LDFLAGS := -g -Wall $(LIBSMBASE)
 # some other tools
 AR     := ar
 RANLIB := ranlib
+ETAGS  := @ETAGS@
 
 
 # compile .cc to .o
@@ -138,7 +139,7 @@ doc: gendoc gendoc/configure.txt gendoc/demo.h
 	@echo "built documentation"
 
 TAGS:
-	etags --members --typedefs *.cc *.h
+	$(ETAGS) --members --typedefs *.cc *.h
 
 
 # ------------------------ misc ---------------------

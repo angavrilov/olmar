@@ -111,6 +111,19 @@ if (defined($smbase_flags)) {
 }
 
 
+# ---------------------- etags? ---------------------
+print("checking for etags... ");
+if (system("type etags >/dev/null 2>&1")) {
+  # doesn't have etags; cygwin is an example of such a system
+  print("not found\n");
+  $ETAGS = "true";
+}
+else {
+  print("etags\n");
+  $ETAGS = "etags";
+}
+
+
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
@@ -166,6 +179,7 @@ EOF
 # substitute variables
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@SMBASE\@|$SMBASE|g" \\
+    -e "s|\@ETAGS\@|$ETAGS|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing ..
