@@ -117,7 +117,6 @@
 #include "owner.h"       // Owner
 
 #include <stdio.h>       // FILE
-#include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
 
 // ACTION(..) is code to execute for action trace diagnostics, i.e. "-tr action"
@@ -238,6 +237,9 @@ string symbolDescription(SymbolId sym, UserActions *user,
 SemanticValue GLR::duplicateSemanticValue(SymbolId sym, SemanticValue sval)
 {
   xassert(sym != 0);
+  
+  // 6/23/04: Why did I do this?  Some kind of optimization?  It should
+  // at least be documented... and probably removed altogether.
   if (!sval) return sval;
 
   SemanticValue ret;
@@ -440,7 +442,7 @@ SiblingLink *StackNode::
   determinDepth = 0;
 
   SiblingLink *link = new SiblingLink(leftSib, sval  SOURCELOCARG( loc ) );
-  leftSiblings.prepend(link);   // don't append; it becomes quadratic!
+  leftSiblings.prepend(link);   // dsw: don't append; it becomes quadratic!
   return link;
 }
 

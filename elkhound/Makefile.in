@@ -5,7 +5,7 @@
 #tmp: mlsstr
 
 # main targets: elkhound, and some examples
-all: elkhound libelkhound.a TAGS arith c cc2/cc2.exe
+all: elkhound libelkhound.a arith c cc2/cc2.exe
 	@echo BUILD FINISHED
 
 
@@ -46,7 +46,6 @@ LDFLAGS := -g -Wall $(libraries)
 # some other tools
 AR     := ar
 RANLIB := ranlib
-ETAGS  := @ETAGS@
 
 
 # compile .cc to .o
@@ -520,9 +519,6 @@ gendoc/configure.txt: configure
 doc: gendoc gendoc/elkhound_dep.png gendoc/glr.png gendoc/configure.txt
 	@echo "built documentation"
 
-TAGS:
-	$(ETAGS) *.cc *.h
-
 # some other random phony targets (I hate this clutter..)
 .PHONY: clean distclean check
 
@@ -552,7 +548,6 @@ clean: gcom-clean
 	  (cd examples/$$dir; $(MAKE) clean); \
 	done
 	$(MAKE) -C c clean
-	rm -f TAGS
 
 distclean: clean
 	rm -f Makefile config.status config.summary glrconfig.h *.tmp
