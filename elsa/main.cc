@@ -2,7 +2,7 @@
 // entry-point module for a program that parses C++
 
 #include <iostream.h>     // cout
-#include <stdlib.h>       // exit
+#include <stdlib.h>       // exit, getenv
 
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
@@ -17,6 +17,35 @@
 #include "nonport.h"      // getMilliseconds
 #include "ptreenode.h"    // PTreeNode
 #include "ptreeact.h"     // ParseTreeLexer, ParseTreeActions
+
+
+// little check: is it true that only global declarators
+// ever have Declarator::type != Declarator::var->type?
+// .. no, because it's true for class members too ..
+// .. it's also true of arrays declared [] but then inited ..
+// .. finally, it's true of parameters whose types get
+//    normalized as per cppstd 8.3.5 para 3; I didn't include
+//    that case below because there's no easy way to test for it ..
+class DeclTypeChecker : public ASTVisitor {
+public:
+  int instances;
+
+public:
+  DeclTypeChecker() : instances(0) {}
+  virtual bool visitDeclarator(Declarator *obj);
+};
+
+bool DeclTypeChecker::visitDeclarator(Declarator *obj)
+{
+  if (obj->type != obj->var->type &&
+      !(obj->var->flags & (DF_GLOBAL | DF_MEMBER)) &&
+      !obj->type->isArrayType()) {
+    instances++;
+    cout << toString(obj->var->loc) << ": " << obj->var->name
+         << " has type != var->type, but is not global or member or array\n";
+  }
+  return true;
+}
 
 
 void if_malloc_stats()
@@ -203,7 +232,14 @@ void doit(int argc, char **argv)
     if (tracingSys("printTypedAST")) {
       unit->debugPrint(cout, 0);
     }
-                                  
+                                      
+    // check an expected property of the annotated AST
+    if (tracingSys("declTypeCheck") || getenv("declTypeCheck")) {
+      DeclTypeChecker vis;
+      unit->traverse(vis);
+      cout << "instances of type != var->type: " << vis.instances << endl;
+    }
+
 //      if (tracingSys("flattenTemplates")) {
 //        traceProgress() << "dsw flatten...\n";
 //        FlattenEnv env(cout);
