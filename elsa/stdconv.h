@@ -6,6 +6,10 @@
 // is up to three Standard Conversions, drawn from particular
 // subsets of such conversions, to be applied in sequence.
 
+// Standard Conversions are the kinds of conversions that can be
+// done implicitly (no explicit conversion or cast syntax), short
+// of user-defined constructors and conversions.
+
 // Note that in my system, there is nothing directly called an
 // "lvalue", rather there are simply references and non-references.
 
@@ -38,14 +42,14 @@ enum StandardConversion {
   SC_GROUP_3_MASK    = 0x0F0,
 
   // conversion group 2 (goes in the middle)
-  SC_INT_PROM        = 0x200,  // 4.5: int... -> int..., no info loss possible
-  SC_FLOAT_PROM      = 0x300,  // 4.6: float -> double, no info loss possible
-  SC_INT_CONV        = 0x400,  // 4.7: int... -> int..., info loss possible
-  SC_FLOAT_CONV      = 0x500,  // 4.8: float... -> float..., info loss possible
-  SC_FLOAT_INT_CONV  = 0x600,  // 4.9: int... <-> float..., info loss possible
-  SC_PTR_CONV        = 0x700,  // 4.10: 0 -> Foo*, Child* -> Parent*
-  SC_PTR_MEMB_CONV   = 0x800,  // 4.11: int Child::* -> int Parent::*
-  SC_BOOL_CONV       = 0x900,  // 4.12: various types <-> bool
+  SC_INT_PROM        = 0x100,  // 4.5: int... -> int..., no info loss possible
+  SC_FLOAT_PROM      = 0x200,  // 4.6: float -> double, no info loss possible
+  SC_INT_CONV        = 0x300,  // 4.7: int... -> int..., info loss possible
+  SC_FLOAT_CONV      = 0x400,  // 4.8: float... -> float..., info loss possible
+  SC_FLOAT_INT_CONV  = 0x500,  // 4.9: int... <-> float..., info loss possible
+  SC_PTR_CONV        = 0x600,  // 4.10: 0 -> Foo*, Child* -> Parent*
+  SC_PTR_MEMB_CONV   = 0x700,  // 4.11: int Child::* -> int Parent::*
+  SC_BOOL_CONV       = 0x800,  // 4.12: various types <-> bool
   SC_GROUP_2_MASK    = 0xF00,
 
   SC_ERROR           = 0xFFFF, // cannot convert
@@ -57,9 +61,28 @@ ENUM_BITWISE_AND(StandardConversion)
 // for '|', some care should be taken to ensure you're not
 // ORing together nonzero elements from the same group
 ENUM_BITWISE_OR(StandardConversion)
-
+                                               
 // render in C++ syntax as bitwise OR of the constants above
 string toString(StandardConversion c);
+
+
+// remove SC_LVAL_TO_RVAL from a conversion sequence
+StandardConversion removeLval(StandardConversion scs);
+
+// true if 'left' is a subsequence of 'right'
+bool isSubsequenceOf(StandardConversion left, StandardConversion right);
+
+
+// standard conversion rank, as classified by cppstd Table 9
+// (section 13.3.3.1.1 para 3)
+enum SCRank {
+  SCR_EXACT,
+  SCR_PROMOTION,
+  SCR_CONVERSION,
+  NUM_SCRANKS
+};
+
+SCRank getRank(StandardConversion scs);
 
 
 // given two types, determine the Standard Conversion Sequence,

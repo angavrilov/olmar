@@ -713,12 +713,12 @@ bool Type::isReference() const
   return isPointerType() && asPointerTypeC()->op == PO_REFERENCE;
 }
 
-Type *Type::asRval()
+Type const *Type::asRvalC() const
 {
   if (isReference()) {
     // note that due to the restriction about stacking reference
     // types, unrolling more than once is never necessary
-    return asPointerType()->atType;
+    return asPointerTypeC()->atType;
   }
   else {
     return this;

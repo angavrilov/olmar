@@ -52,7 +52,8 @@ public:    // data
   // the 'setFlagsTo' method
   const DeclFlags flags;
 
-  // associated value for constant literals, e.g. "const int five = 5;"
+  // associated value for constant literals, e.g. "const int five = 5;",
+  // or default value for function parameters
   Expression *value;      // (nullable serf)
 
   // associated function definition; if NULL, either this thing isn't

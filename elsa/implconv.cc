@@ -79,8 +79,8 @@ ImplicitConversion getImplicitConversion
     else {
       if (ctor->overload) {
         // multiple ctors, resolve overloading
-        ArrayStack<ArgumentInfo> argTypes(1);
-        argTypes.push(ArgumentInfo(special, src));
+        GrowArray<ArgumentInfo> argTypes(1);
+        argTypes[0] = ArgumentInfo(special, src);
         ctor = resolveOverload(env, ctorSet->overload->set, argTypes);
       }
       

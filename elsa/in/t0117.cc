@@ -16,14 +16,14 @@ enum StandardConversion {
   SC_GROUP_3_MASK    = 0x0F0,
 
   // conversion group 2 (goes in the middle)
-  SC_INT_PROM        = 0x200,  // 4.5: int... -> int..., no info loss possible
-  SC_FLOAT_PROM      = 0x300,  // 4.6: float -> double, no info loss possible
-  SC_INT_CONV        = 0x400,  // 4.7: int... -> int..., info loss possible
-  SC_FLOAT_CONV      = 0x500,  // 4.8: float... -> float..., info loss possible
-  SC_FLOAT_INT_CONV  = 0x600,  // 4.9: int... <-> float..., info loss possible
-  SC_PTR_CONV        = 0x700,  // 4.10: 0 -> Foo*, Child* -> Parent*
-  SC_PTR_MEMB_CONV   = 0x800,  // 4.11: int Child::* -> int Parent::*
-  SC_BOOL_CONV       = 0x900,  // 4.12: various types <-> bool
+  SC_INT_PROM        = 0x100,  // 4.5: int... -> int..., no info loss possible
+  SC_FLOAT_PROM      = 0x200,  // 4.6: float -> double, no info loss possible
+  SC_INT_CONV        = 0x300,  // 4.7: int... -> int..., info loss possible
+  SC_FLOAT_CONV      = 0x400,  // 4.8: float... -> float..., info loss possible
+  SC_FLOAT_INT_CONV  = 0x500,  // 4.9: int... <-> float..., info loss possible
+  SC_PTR_CONV        = 0x600,  // 4.10: 0 -> Foo*, Child* -> Parent*
+  SC_PTR_MEMB_CONV   = 0x700,  // 4.11: int Child::* -> int Parent::*
+  SC_BOOL_CONV       = 0x800,  // 4.12: various types <-> bool
   SC_GROUP_2_MASK    = 0xF00,
 
   SC_ERROR           = 0xFFFF, // cannot convert
@@ -54,6 +54,8 @@ void f()
   // for now my implementation doesn't classify it as such
   //__getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
 
+  __getStandardConversion((int)0, (int &)0, SC_ERROR);
+  __getStandardConversion((int*)0, (int *&)0, SC_ERROR);
   __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
 
   // array to pointer
@@ -124,6 +126,7 @@ void f()
   __getStandardConversion(0, (int const *)0, SC_PTR_CONV);
   __getStandardConversion(0, (Foo *)0, SC_PTR_CONV);
   __getStandardConversion(0, (Foo const * const *)0, SC_PTR_CONV);
+  __getStandardConversion(1, (int *)0, SC_ERROR);
 
   __getStandardConversion((int *)0, (void *)0, SC_PTR_CONV);
   __getStandardConversion((int const *)0, (void const *)0, SC_PTR_CONV);

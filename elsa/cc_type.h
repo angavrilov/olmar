@@ -385,6 +385,7 @@ public:     // funcs
   // return the cv flags that apply to this type, if any;
   // default returns CV_NONE
   virtual CVFlags getCVFlags() const;
+  bool isConst() const { return !!(getCVFlags() & CV_CONST); }
 
   // some common queries
   bool isSimpleType() const;
@@ -396,6 +397,7 @@ public:     // funcs
   bool isStructType() const { return isCompoundTypeOf(CompoundType::K_STRUCT); }
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
+  bool isBool() const { return isSimple(ST_BOOL); }
   bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const { return isSimple(ST_DEPENDENT); }
@@ -408,7 +410,8 @@ public:     // funcs
   bool isPointer() const;                // as opposed to reference or non-pointer
   bool isReference() const;
   bool isLval() const { return isReference(); }    // C terminology
-  Type *asRval();                        // if I am a reference, return referrent type
+  Type const *asRvalC() const;           // if I am a reference, return referrent type
+  Type *asRval() { return const_cast<Type*>(asRvalC()); }
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }

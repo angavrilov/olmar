@@ -7,6 +7,7 @@
 #include "trace.h"        // tracingSys
 
 
+// ----------------------- StandardConversion -------------------
 string toString(StandardConversion c)
 {
   stringBuilder sb;
@@ -62,6 +63,61 @@ string toString(StandardConversion c)
 }
 
 
+StandardConversion removeLval(StandardConversion scs)
+{
+  if ((scs & SC_GROUP_1_MASK) == SC_LVAL_TO_RVAL) {
+    // remove this transformation
+    return scs & (SC_GROUP_2_MASK | SC_GROUP_3_MASK);
+  }
+  else {
+    return scs;
+  }
+}
+
+
+bool isSubsequenceOf(StandardConversion left, StandardConversion right)
+{
+  StandardConversion L, R;
+  
+  L = left & SC_GROUP_1_MASK;                                   
+  R = right & SC_GROUP_1_MASK;
+  if (!( L == SC_IDENTITY || L == R )) {
+    return false;
+  }
+
+  L = left & SC_GROUP_2_MASK;
+  R = right & SC_GROUP_2_MASK;
+  if (!( L == SC_IDENTITY || L == R )) {
+    return false;
+  }
+
+  L = left & SC_GROUP_3_MASK;
+  R = right & SC_GROUP_3_MASK;
+  if (!( L == SC_IDENTITY || L == R )) {
+    return false;
+  }
+
+  return true;
+}
+
+
+// ---------------------------- SCRank ----------------------------
+// table 9
+SCRank getRank(StandardConversion scs)
+{
+  if ((scs & SC_GROUP_2_MASK) >= SC_INT_CONV) {
+    return SCR_CONVERSION;
+  }
+  
+  if (scs & SC_GROUP_2_MASK) {
+    return SCR_PROMOTION;
+  }
+  
+  return SCR_EXACT;
+}
+
+
+// --------------------- getStandardConversion --------------------
 bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest);
 
 // int (including bitfield), bool, or enum
@@ -387,6 +443,10 @@ StandardConversion getStandardConversion
       // if reporting, I go out of my way a bit here since I expect
       // this to be a relatively common error and I'd like to provide
       // as much information as will be useful
+      if (dest->isReference()) {
+        return conv.error("cannot convert rvalue to lvalue");
+      }
+
       return conv.error(stringc
         << "different type constructors, "
         << ctorName(src->getTag()) << " vs. "
@@ -431,6 +491,11 @@ StandardConversion getStandardConversion
     }
   }
   else {
+    // further info on this: 13.3.3.1 para 6, excerpt:
+    //   "Any difference in top-level cv-qualification is
+    //    subsumed by the initialization and does not
+    //    constitute a conversion."
+
     #if 0    // need anything?
     // I'm not perfectly clear on the checking I should do for
     // the cv flags here.  lval-to-rval says that 'int const &'
