@@ -63,6 +63,11 @@ private:     // funcs
     { xassert((unsigned)i < (unsigned)sz); }
   void eidLoop(int index);
 
+private:     // disallowed
+  GrowArray(GrowArray&);
+  void operator=(GrowArray&);
+  void operator==(GrowArray&);
+
 public:      // funcs
   GrowArray(int initSz);
   ~GrowArray();
