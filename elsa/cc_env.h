@@ -16,6 +16,7 @@
 #include "variable.h"     // Variable (r)
 #include "cc_scope.h"     // Scope
 #include "cc_err.h"       // ErrorList
+#include "array.h"        // ArrayStack
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
