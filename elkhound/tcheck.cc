@@ -1233,9 +1233,42 @@ Type const *E_effect::itcheck(Env &env)
 }
 
 
+// given 't' an array type, yield the type of a pointer to t's
+// first element; also, construct a cast node and replace 'nodePtr'
+// with it; 'nodePtr' should already have been typechecked
+Type const *coerceArrayToPointer(Env &env, Type const *t, Expression *&nodePtr)
+{
+  ArrayType const &at = t->asArrayTypeC();
+
+  // make the proper type
+  t = env.makePtrType(at.eltType);
+
+  // stick it into an ASTTypeId node; rather than construct the
+  // proper syntax, I'll just set the 'type' field and leave the
+  // syntax parts blank
+  ASTTypeId *typeId = new ASTTypeId(NULL, NULL);
+  typeId->type = t;
+
+  // construct the cast node, and fill in its fields manually
+  // instead of calling tcheck, because 'ptr' has already been
+  // checked and I don't want to repeat that (I think I assume
+  // it happens only once somewhere...)
+  E_cast *newNode = new E_cast(typeId, nodePtr);
+  newNode->type = t;
+  newNode->numPaths = nodePtr->numPaths;
+  nodePtr = newNode;
+  
+  return t;
+}
+
+
 Type const *E_binary::itcheck(Env &env)
 {
   Type const *t1 = e1->tcheck(env)->asRval();
+  if (t1->isArrayType()) {
+    t1 = coerceArrayToPointer(env, t1, e1);
+  }
+
   Type const *t2 = e2->tcheck(env)->asRval();
 
   if (!env.inPredicate && op >= BIN_IMPLIES) {
@@ -1284,26 +1317,14 @@ Type const *E_addrOf::itcheck(Env &env)
 
   return env.makePtrOperType(PO_POINTER, CV_NONE, t);
 }
+
                               
-
-// if 't' is an array type, return a type corresponding to a
-// pointer to its first element
-Type const *coerceArrayToPointer(Env &env, Type const *t)
-{
-  if (t->isArrayType()) {
-    ArrayType const &at = t->asArrayTypeC();
-    return env.makePtrType(at.eltType);
-  }
-  else {
-    return t;
-  }
-}
-
-
 Type const *E_deref::itcheck(Env &env)
 {
   Type const *t = ptr->tcheck(env)->asRval();
-  t = coerceArrayToPointer(env, t);
+  if (t->isArrayType()) {
+    t = coerceArrayToPointer(env, t, ptr);
+  }
 
   if (!t->isPointer()) {
     env.err(stringc << "can only dereference pointers, not " << t->toCString());

@@ -1,5 +1,98 @@
 ; indegree.sx    -*- Lisp -*-
 ; experiments relating to in-degree
+               
+; theory transferred from bgpred.sx
+bg_push (
+  ; ------------- tuple: "pointer" ---------------
+  ; how to take apart a pointer
+  (FORALL (b f)
+    (EQ
+      (object (pointer b f))
+      b
+    ))
+
+  (FORALL (b f)
+    (EQ
+      (offset (pointer b f))
+      f
+    ))
+
+  ; arithmetic does not change the object
+  (FORALL (ptr ofs)           (PATS (object (+ ptr ofs)))
+    (EQ
+      (object (+ ptr ofs))
+      (object ptr)
+    ))
+  (FORALL (ptr ofs)           (PATS (object (- ptr ofs)))
+    (EQ
+      (object (- ptr ofs))
+      (object ptr)
+    ))
+
+  ; arithmetic changes the offset in the obvious way
+  (FORALL (ptr ofs)           (PATS (offset (+ ptr ofs)))
+    (EQ
+      (offset (+ ptr ofs))
+      (+ (offset ptr) ofs)
+    ))
+  (FORALL (ptr ofs)           (PATS (offset (- ptr ofs)))
+    (EQ
+      (offset (- ptr ofs))
+      (- (offset ptr) ofs)
+    ))
+
+  ; fact that construction and deconstruction is identity
+  ; pattern means this applies whenever both (object p) and
+  ; (offset p) are around, for the same p
+  (FORALL (p)                 (PATS (MPAT (object p) (offset p)))
+    (EQ
+      p
+      (pointer (object p) (offset p))
+    ))
+
+  ; pointer disequality can be shown by showing either component
+  ; is unequal
+  (FORALL (obj1 obj2 ofs1 ofs2)
+    (IMPLIES
+      (OR
+        (NEQ obj1 obj2)      ; different objects
+        (NEQ ofs1 ofs2)      ; different offsets
+      )
+      (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+    ))
+
+  ; --------------- theory: select/update ------------------
+  ; reading from the same location as was last written
+  (FORALL (mem obj ofs value)
+    (EQ
+      (select (update mem obj ofs value) obj ofs)
+      value
+    ))
+
+  ; reading from a different location from last written
+  (FORALL (mem obj1 obj2 ofs1 ofs2 value)
+    (IMPLIES
+      (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+;       (OR
+;         (NEQ obj1 obj2)      ; different objects
+;         (NEQ ofs1 ofs2)      ; different offsets
+;       )
+      (EQ
+        (select (update mem obj1 ofs1 value) obj2 ofs2)
+        (select mem obj2 ofs2)
+      )))
+
+  ; you can read past a 'changed' marker, but only if you're
+  ; reading from a different object
+  (FORALL (mem obj1 obj2 ofs2)
+    (IMPLIES
+      (NEQ obj1 obj2)
+      (EQ
+        (select (changed mem obj1) obj2 ofs2)
+        (select mem obj2 ofs2)
+      )
+    ))
+)  
 
 ; -------------------- inDegree0 -----------------------
 bg_push (

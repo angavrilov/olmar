@@ -69,6 +69,12 @@ while (defined($line = <EXPER>)) {
     next;
   }
 
+  if ($line =~ /^\s*stop\s*$/) {
+    # this is convenient when I insert some new proof obligations
+    # into the middle of a file
+    last;
+  }
+
   print("not understood: $line\n");
   pretendUsed($dummy2);
 }

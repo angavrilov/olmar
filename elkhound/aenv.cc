@@ -851,10 +851,12 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
       cout << print << ": " << context << endl;
       // print facts surrounded by Simplify syntax to facilitate
       // copy+paste from xterm into Simplify interactive session
-      cout << "  facts: (BG_PUSH (AND\n";
+      cout << "  bg_push (\n";
       printFact(vp, &allFacts);
-      cout << "  ))\n";
-      cout << "  goal: " << goal->toSexpString() << "\n";
+      cout << "  )\n"
+           << "  valid \"goal\" (\n"
+           << "    " << goal->toSexpString() << "\n"
+           << "  )\n";
       walkValuePredicate(vp, goal);
 
       // print out variable map

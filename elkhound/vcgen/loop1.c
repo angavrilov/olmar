@@ -16,6 +16,8 @@ int main()
   int x;
   int arr[10];
 
+  arr[3] = 5;    // make sure I can write to the array..
+
   for (x=0; x<5; x=x+1) {
     thmprv_invariant
       0 <= x && x < 5 &&
@@ -25,7 +27,7 @@ int main()
     arr[x] = x;
   }
 
-  thmprv_assert
+  thmprv_invariant
     thmprv_forall(int i;
       (0 <= i && i < 5) ==> arr[i] == i);
 

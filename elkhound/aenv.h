@@ -276,8 +276,8 @@ public:      // funcs
   // for char* strings
   AbsValue *avLength(AbsValue *obj)
     { return avFunc1("length", obj); }
-  AbsValue *avFirstZero(AbsValue *mem, AbsValue *obj)
-    { return avFunc2("firstZero", mem, obj); }
+  AbsValue *avFirstZero(AbsValue *obj)
+    { return avFunc1("firstZero", obj); }
 
 //    AbsValue *avSetElt(AbsValue *fieldIndex, AbsValue *obj, AbsValue *newValue)
 //      { return avFunc3("setElt", fieldIndex, obj, newValue); }

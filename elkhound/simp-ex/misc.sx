@@ -68,3 +68,35 @@ valid "goal2" (
 ;                   ))
 ;         2)))
 ; )
+
+bg_pop
+
+
+; --------------------------------------------------
+bg_push (
+  (EQ (length (sel mem_35 addr_arr_14)) 10)
+  (DISTINCT addr_arr_15 0)
+  (uncheckedAccess mem_36)
+  (EQ (length (sel mem_36 addr_arr_15)) 10)
+  (EQ mem_37 (upd mem_36 addr_arr_15 arr_1))
+  (EQ (length (sel mem_37 addr_arr_15)) 10)
+)
+valid "goal" (
+  (okSelOffset mem_37 (addOffset (sub addr_arr_15 (sub 0 whole)) 3))
+)
+bg_pop
+
+
+; -----------------------------------------
+bg_push (
+  (EQ a_12 (sub a_index_13 a_rest_13))
+  (DISTINCT 0)
+  (uncheckedAccess mem_25)
+  (EQ a_13 (sub a_index_14 a_rest_14))
+  (okSelOffsetRange mem_25 a_13 5)
+  (EQ mem_26 (updOffset mem_25 (addOffset a_13 0) 0))
+)
+valid "goal" (
+  (okSelOffset mem_26 (addOffset a_13 1))
+)
+bg_pop

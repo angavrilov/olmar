@@ -573,20 +573,23 @@ AbsValue *E_stringLit::vcgen(AEnv &env, int path) const
 {
   xassert(path==0);
 
-  // make a new variable to stand for this string's object (address)
-  AbsValue *object = env.freshVariable("str", stringc << "address of " << quoted(s));
-  env.addDistinct(object);
+  // make a new variable to stand for this string's address
+  AbsValue *addr = env.freshVariable("str", stringc << "address of " << quoted(s));
+  env.addDistinct(addr);
+
+  // expression which stands for the object as a whole
+  AbsValue *object = env.avSel(env.getMem(), addr);
 
   // assert the length of this object is the length of the string (w/ null)
   env.addFact(P_equal(env.avLength(object),
                       env.avInt(strlen(s)+1)), "string literal length");
 
-  // assert that the first zero is (currently?) at the end
-  env.addFact(P_equal(env.avFirstZero(env.getMem(), object),
-                      env.avInt(strlen(s)+1)), "string literal zero");
+  // assert that the offset of the first zero is the length - 1
+  env.addFact(P_equal(env.avFirstZero(object),
+                      env.avInt(strlen(s))), "string literal zero");
 
   // the result of this expression is a pointer to the string's start
-  return env.avSub(object, env.avSub(new AVint(0), env.avWhole()));
+  return env.avSub(addr, env.avSub(new AVint(0), env.avWhole()));
 }
 
 
@@ -867,11 +870,31 @@ AbsValue *E_effect::vcgen(AEnv &env, int path) const
 }
 
 
+AbsValue *coerceArrayToPointer(AEnv &env, AbsValue *v)
+{
+  xassert(v->isAVlval());     // must be a reference to the array
+  AVlval *lval = v->asAVlval();
+  return env.avAppendIndex(lval->offset, env.avInt(0));
+}
+
+
 // usually this is op(val1,val2), but it might be something else
-// depending on the type of 'e1' (the expression which yielded 'val1')
+// depending on the type of 'e1' (the expression which yielded 'val1');
+// both expression values may be rvals initially
 AbsValue *arithmeticCombinator(AEnv &env, AbsValue *val1, Expression *e1,
                                BinaryOp op, AbsValue *val2)
 {
+  #if 0
+  if (e1->type->asRval()->isArrayType()) {
+    // coerce to pointer
+    val1 = coerceArrayToPointer(env, val1);
+  }    
+  // make them rvals now, after the array coercion opportunity
+  #endif // 0
+
+  val1 = env.rval(val1);
+  val2 = env.rval(val2);
+
   if (e1->type->asRval()->isPointerType()) {
     if (op==BIN_PLUS) {
       // use the addOffset function
@@ -892,8 +915,8 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
 {
   if (e2->numPaths == 0) {
     // simple side-effect-free binary op
-    return arithmeticCombinator(env, env.rval(e1->vcgen(env, path)), e1,
-                                op, env.rval(e2->vcgen(env, 0)));  
+    return arithmeticCombinator(env, e1->vcgen(env, path), e1,
+                                op, e2->vcgen(env, 0));
   }
 
   // consider operator
@@ -926,11 +949,11 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
   else {
     // evaluate LHS
     int modulus = e1->numPaths1();
-    AbsValue *lhs = env.rval(e1->vcgen(env, path % modulus));
+    AbsValue *lhs = e1->vcgen(env, path % modulus);
     path = path / modulus;
 
     // non-short-circuit: always evaluate RHS
-    return arithmeticCombinator(env, lhs, e1, op, env.rval(e2->vcgen(env, path)));
+    return arithmeticCombinator(env, lhs, e1, op, e2->vcgen(env, path));
   }
 }
 
@@ -1045,9 +1068,7 @@ AbsValue *E_cast::vcgen(AEnv &env, int path) const
   // if casting from array to pointer, get pointer to element 0
   if (ctype->type->asRval()->isPointerType() &&
       expr->type->asRval()->isArrayType()) {
-    xassert(v->isAVlval());     // must be a reference to the array
-    AVlval *lval = v->asAVlval();
-    v = env.avAppendIndex(lval->offset, env.avInt(0));
+    v = coerceArrayToPointer(env, v);
   }
 
   return v;

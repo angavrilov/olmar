@@ -14,6 +14,9 @@
 ; true iff ok to (selOffset obj offset)
 (DEFPRED (okSelOffset obj offset))
 
+; true iff ok to (selOffset obj (addOffset offset i)) for all 0 <= i < len
+(DEFPRED (okSelOffsetRange obj offset len))
+
 ; true when 'okSel' is always true for an object (typically memory)
 (DEFPRED (uncheckedAccess obj))
 
@@ -27,114 +30,117 @@
   (FORALL (x)     ; not needed: (PATS (uMinus x))
     (EQ (uMinus x) (- 0 x)))
 
-  ; ------------- tuple: "pointer" ---------------
-  ; how to take apart a pointer
-  (FORALL (b f)
-    (EQ
-      (object (pointer b f))
-      b
-    ))
+;   ; ------------- tuple: "pointer" ---------------
+;   ; how to take apart a pointer
+;   (FORALL (b f)
+;     (EQ
+;       (object (pointer b f))
+;       b
+;     ))
 
-  (FORALL (b f)
-    (EQ
-      (offset (pointer b f))
-      f
-    ))
+;   (FORALL (b f)
+;     (EQ
+;       (offset (pointer b f))
+;       f
+;     ))
 
-  ; arithmetic does not change the object
-  (FORALL (ptr ofs)           (PATS (object (+ ptr ofs)))
-    (EQ
-      (object (+ ptr ofs))
-      (object ptr)
-    ))
-  (FORALL (ptr ofs)           (PATS (object (- ptr ofs)))
-    (EQ
-      (object (- ptr ofs))
-      (object ptr)
-    ))
+;   ; arithmetic does not change the object
+;   (FORALL (ptr ofs)           (PATS (object (+ ptr ofs)))
+;     (EQ
+;       (object (+ ptr ofs))
+;       (object ptr)
+;     ))
+;   (FORALL (ptr ofs)           (PATS (object (- ptr ofs)))
+;     (EQ
+;       (object (- ptr ofs))
+;       (object ptr)
+;     ))
 
-  ; arithmetic changes the offset in the obvious way
-  (FORALL (ptr ofs)           (PATS (offset (+ ptr ofs)))
-    (EQ
-      (offset (+ ptr ofs))
-      (+ (offset ptr) ofs)
-    ))
-  (FORALL (ptr ofs)           (PATS (offset (- ptr ofs)))
-    (EQ
-      (offset (- ptr ofs))
-      (- (offset ptr) ofs)
-    ))
+;   ; arithmetic changes the offset in the obvious way
+;   (FORALL (ptr ofs)           (PATS (offset (+ ptr ofs)))
+;     (EQ
+;       (offset (+ ptr ofs))
+;       (+ (offset ptr) ofs)
+;     ))
+;   (FORALL (ptr ofs)           (PATS (offset (- ptr ofs)))
+;     (EQ
+;       (offset (- ptr ofs))
+;       (- (offset ptr) ofs)
+;     ))
 
-  ; fact that construction and deconstruction is identity
-  ; pattern means this applies whenever both (object p) and
-  ; (offset p) are around, for the same p
-  (FORALL (p)                 (PATS (MPAT (object p) (offset p)))
-    (EQ
-      p
-      (pointer (object p) (offset p))
-    ))
+;   ; fact that construction and deconstruction is identity
+;   ; pattern means this applies whenever both (object p) and
+;   ; (offset p) are around, for the same p
+;   (FORALL (p)                 (PATS (MPAT (object p) (offset p)))
+;     (EQ
+;       p
+;       (pointer (object p) (offset p))
+;     ))
 
-  ; pointer disequality can be shown by showing either component
-  ; is unequal
-  (FORALL (obj1 obj2 ofs1 ofs2)
-    (IMPLIES
-      (OR
-        (NEQ obj1 obj2)      ; different objects
-        (NEQ ofs1 ofs2)      ; different offsets
-      )
-      (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
-    ))
-
-  ; --------------- theory: select/update ------------------
-  ; reading from the same location as was last written
-  (FORALL (mem obj ofs value)
-    (EQ
-      (select (update mem obj ofs value) obj ofs)
-      value
-    ))
-
-  ; reading from a different location from last written
-  (FORALL (mem obj1 obj2 ofs1 ofs2 value)
-    (IMPLIES
-      (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+;   ; pointer disequality can be shown by showing either component
+;   ; is unequal
+;   (FORALL (obj1 obj2 ofs1 ofs2)
+;     (IMPLIES
 ;       (OR
 ;         (NEQ obj1 obj2)      ; different objects
 ;         (NEQ ofs1 ofs2)      ; different offsets
 ;       )
-      (EQ
-        (select (update mem obj1 ofs1 value) obj2 ofs2)
-        (select mem obj2 ofs2)
-      )))
+;       (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+;     ))
 
-  ; you can read past a 'changed' marker, but only if you're
-  ; reading from a different object
-  (FORALL (mem obj1 obj2 ofs2)
-    (IMPLIES
-      (NEQ obj1 obj2)
-      (EQ
-        (select (changed mem obj1) obj2 ofs2)
-        (select mem obj2 ofs2)
-      )
-    ))
+;   ; --------------- theory: select/update ------------------
+;   ; reading from the same location as was last written
+;   (FORALL (mem obj ofs value)
+;     (EQ
+;       (select (update mem obj ofs value) obj ofs)
+;       value
+;     ))
+
+;   ; reading from a different location from last written
+;   (FORALL (mem obj1 obj2 ofs1 ofs2 value)
+;     (IMPLIES
+;       (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+; ;       (OR
+; ;         (NEQ obj1 obj2)      ; different objects
+; ;         (NEQ ofs1 ofs2)      ; different offsets
+; ;       )
+;       (EQ
+;         (select (update mem obj1 ofs1 value) obj2 ofs2)
+;         (select mem obj2 ofs2)
+;       )))
+
+;   ; you can read past a 'changed' marker, but only if you're
+;   ; reading from a different object
+;   (FORALL (mem obj1 obj2 ofs2)
+;     (IMPLIES
+;       (NEQ obj1 obj2)
+;       (EQ
+;         (select (changed mem obj1) obj2 ofs2)
+;         (select mem obj2 ofs2)
+;       )
+;     ))
 
   ; ------------- extension for strings: firstZero -----------------
   ; reading first zero from a memory where last changed obj is diff't
-  (FORALL (mem obj1 obj2 ofs1 value)
-    (IMPLIES
-      (NEQ obj1 obj2)
-      (EQ
-        (firstZero (update mem obj1 ofs1 value) obj2)
-        (firstZero mem obj2)
-      )
-    ))
-  (FORALL (mem obj1 obj2)
-    (IMPLIES
-      (NEQ obj1 obj2)
-      (EQ
-        (firstZero (changed mem obj1) obj2)
-        (firstZero mem obj2)
-      )
-    ))
+  
+  ; removed this because if firstZero is applied to the object, not
+  ; its address, then this stuff is not needed
+  ;   (FORALL (mem obj1 obj2 ofs1 value)
+  ;     (IMPLIES
+  ;       (NEQ obj1 obj2)
+  ;       (EQ
+  ;         (firstZero (update mem obj1 ofs1 value) obj2)
+  ;         (firstZero mem obj2)
+  ;       )
+  ;     ))
+  ;   (FORALL (mem obj1 obj2)
+  ;     (IMPLIES
+  ;       (NEQ obj1 obj2)
+  ;       (EQ
+  ;         (firstZero (changed mem obj1) obj2)
+  ;         (firstZero mem obj2)
+  ;       )
+  ;     ))
 
   ; validPointer: abstraction of a valid pointer
   ; causes Simplify to mess up?
@@ -360,7 +366,7 @@
       )
     ))
 
-  ; ok to access a field
+  ; okSel: ok to access a field
   (FORALL (obj index)
     (IMPLIES
       (AND
@@ -370,14 +376,14 @@
       (okSel obj index)
     ))
 
-  ; length survives updates to elements
+  ; length: survives updates to elements
   (FORALL (obj index val)
     (EQ
       (length obj)
       (length (upd obj index val))
     ))
 
-  ; ok to access survives updates to elements
+  ; okSel: ok to access survives updates to elements
   (FORALL (obj index1 index2 val)   (PATS (okSel (upd obj index1 val) index2))
     (IMPLIES
       (okSel obj index2)                     ; index2 was valid before
@@ -443,8 +449,8 @@
   ; -------------------- okSelOffset ----------------
   ; if the offset is 'whole', it's always ok
   (FORALL (obj)
-    (okSelOffset obj whole))                
-    
+    (okSelOffset obj whole))
+
   ; for non-whole offsets, check the first index, then recursively
   ; check the rest of the offset (will Simplify get lost??  I'll
   ; try to avoid that with a pattern that limits it to applications
@@ -458,6 +464,22 @@
         (okSelOffset (sel obj index) rest)
       )
       (okSelOffset obj (sub index rest))
+    ))
+
+  ; it survives all memory updates; this is true because I don't model
+  ; *pointer* dereferences with 'sel', I only model accesses within
+  ; objects, which doesn't change
+  (FORALL (mem obj1 obj2 val)
+    (IMPLIES
+      (okSelOffset mem obj1)
+      (okSelOffset (upd mem obj2 val) obj1)
+    ))
+
+  ; survives the other kind of update too..
+  (FORALL (mem obj1 ofs val)
+    (IMPLIES
+      (okSelOffset mem obj1)
+      (okSelOffset (updOffset mem ofs val) obj1)
     ))
 
   ; --------------------- addOffset -----------------
@@ -479,6 +501,45 @@
       (addOffset (sub i whole) j)
       (sub (+ i j) whole)
     ))
+
+  ; ------------------- okSelOffsetRange ----------------
+  ; prove okSelOffsetRange by proving a universal (easy)
+  (FORALL (obj offset len)    (PATS (okSelOffsetRange obj offset len))
+    (IMPLIES
+      (FORALL (i)     ; forall 0 <= i < len. okSelOffset(obj, offset+i)
+        (IMPLIES
+          (AND (<= 0 i) (< i len))
+          (okSelOffset obj (addOffset offset i))
+        ))
+      (okSelOffsetRange obj offset len)
+    ))
+
+  ; use okSelOffsetRange to prove okSelOffset
+  (FORALL (obj offset len i)   (PATS (MPAT (okSelOffsetRange obj offset len)
+                                           (okSelOffset obj (addOffset offset i))))
+    (IMPLIES
+      (AND
+        (okSelOffsetRange obj offset len)
+        (<= 0 i) (< i len)
+      )
+      (okSelOffset obj (addOffset offset i))
+    ))
+
+;   ; it survives all memory updates; this is true because I don't model
+;   ; *pointer* dereferences with 'sel', I only model accesses within
+;   ; objects, which doesn't change
+;   (FORALL (mem obj1 len obj2 val)
+;     (IMPLIES
+;       (okSelOffsetRange mem obj1 len)
+;       (okSelOffsetRange (upd mem obj2 val) obj1 len)
+;     ))
+
+;   ; survives the other kind of update too..
+;   (FORALL (mem obj1 len ofs val)
+;     (IMPLIES
+;       (okSelOffsetRange mem obj1 len)
+;       (okSelOffsetRange (updOffset mem ofs val) obj1 len)
+;     ))
 
   ; -------------------- appendIndex ----------------
   ; append an index specifier to an empty offset
@@ -519,5 +580,8 @@
       (isWhole x)
       (EQ whole x)
     ))
+
+  ; whatever..
+  (EQ whole 0)
 
 ))

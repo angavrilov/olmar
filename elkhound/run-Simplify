@@ -10,4 +10,5 @@ fi
 export AXIOMDIR="$here"
 
 exec /usr/local/escjava/bin/Simplify -ax empty "$@"
+#exec $HOME/bld/escjava/bin/Simplify -ax empty "$@"
 

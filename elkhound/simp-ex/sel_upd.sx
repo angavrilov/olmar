@@ -113,6 +113,49 @@ valid "okselofs2" (
 )
 
 
+; ---------------------- okSelOffsetRange -----------------
+bg_push (
+  (okSelOffsetRange obj offset 5)
+)
+
+valid "okSelOffsetRange1" (
+  (okSelOffset obj (addOffset offset 2))
+)
+
+notvalid "okSelOffsetRange1b" (
+  (okSelOffset obj (addOffset offset -1))
+)
+
+notvalid "okSelOffsetRange1c" (
+  (okSelOffset obj (addOffset offset 5))
+)
+
+bg_pop
+
+
+bg_push (
+  (EQ (length obj) 10)                 ; array of 10 things
+  (EQ mem2 (upd mem1 addr obj))        ; stored at address 'addr'
+  (EQ ptr1 (sub addr (sub 3 whole)))   ; offset 3 within obj
+)
+
+valid "check" (
+  (okSelOffset mem2 ptr1)
+)
+
+valid "okSelOffsetRange2" (
+  (okSelOffsetRange mem2 ptr1 7)
+)
+
+notvalid "okSelOffsetRange2b" (
+  (okSelOffsetRange mem2 ptr1 8)
+)
+
+bg_pop
+stop
+
+
+
 ; ------------------ appendIndex ---------------------
 valid "d" (
   (EQ p1 (appendIndex (appendIndex whole a) 6))
@@ -120,6 +163,15 @@ valid "d" (
 
 notvalid "!d" (
   (EQ p1 (appendIndex (appendIndex whole a) 7))
+)
+
+valid "take apart" (
+  (EXISTS (container last)
+    (AND
+      (EQ p1 (appendIndex container last))
+      (EQ container (sub a whole))
+      (EQ last 6)
+    ))
 )
 
 
@@ -333,3 +385,98 @@ valid "implications" (
 valid "access" (
   (okSelOffset mem_20 (addOffset a_7 0))
 )
+
+bg_pop
+
+
+; -------------------- str.c example ----------------
+; this one runs into a Simplify incompleteness
+
+; bg_push (
+;   (DISTINCT addr_buf_3 0 str_2)
+;   (uncheckedAccess mem_10)
+;   (EQ (length (sel mem_10 addr_buf_3)) 80)
+;   (EQ mem_11 (upd mem_10 addr_buf_3 buf_1))
+;   (EQ (length (sel mem_11 addr_buf_3)) 80)
+;   (EQ (sub addr_buf_3 (sub 0 whole)) (sub p_index_4 p_rest_4))
+;   (EQ (length (sel mem_11 str_2)) 12)
+;   (EQ (firstZero (sel mem_11 str_2)) 11)
+;   (EQ mem_11 (sub pre_mem_index_1 pre_mem_rest_1))
+; )
+
+; valid "goal" (
+;   (EXISTS (srcBase_1 srcIndex_1 srcLen_1 srcObj_1 destBase_1 destIndex_1 destObj_1 )
+;     (AND
+;       (EQ (sub str_2 (sub 0 whole)) (sub srcBase_1 (sub srcIndex_1 0)))
+;       (EQ srcObj_1 (sel mem_11 srcBase_1))
+;       (EQ srcLen_1 (firstZero srcObj_1))
+;       (EQ (sub addr_buf_3 (sub 0 whole)) (sub destBase_1 (sub destIndex_1 0)))
+;       (EQ destObj_1 (sel mem_11 destBase_1))
+
+;       ; implications
+;       (EQ srcIndex_1 0)
+;       (EQ srcBase_1 str_2)
+;       (EQ srcLen_1 11)
+;       (EQ (length srcObj_1) 12)
+
+;       (<= 0 srcIndex_1)
+;       (<= srcIndex_1 srcLen_1)
+;       (< srcLen_1 (length srcObj_1))
+;       (<= 0 destIndex_1)
+;       (< destIndex_1 (length destObj_1))
+;       (NEQ destBase_1 srcBase_1)
+      
+;       (EQ (length destObj_1) 80)
+;       (EQ destIndex_1 0)
+;       ;(EQ (- srcLen_1 srcIndex_1) 11)
+;       ;(EQ (- srcLen_1 0) 11)
+
+;       ;(< (- srcLen_1 srcIndex_1) (- (length destObj_1) destIndex_1))
+;     ))
+; )
+
+; bg_push (
+;   (FORALL (x)
+;     (EQ
+;       (- x 0)
+;       x
+;     ))
+; )
+
+; valid "tmp2" (  
+;   (IMPLIES
+;     (EQ len 5)
+;     (EQ (- len 0) 5)
+;   )
+; )
+
+; valid "tmp" (
+;   (EXISTS (len)
+;     (AND
+;       (EQ len 5)
+;       (EQ (- len 0) 5)     ; comment this out and it works, despite len == 5
+;     ))
+; )
+
+; valid "tmp3" (
+;   (EXISTS (len)
+;     (AND
+;       (EQ len 5)
+;       (IMPLIES
+;         (EQ len 5)
+;         (EQ (- len 0) 5)
+;       )
+;     ))
+; )
+
+; valid "tmp4" (
+;   (EXISTS (len)
+;     (AND
+;       (IMPLIES
+;         (EQ len 5)
+;         (EQ (- len 0) 5)
+;       )
+;     ))
+; )
+
+; bg_pop
