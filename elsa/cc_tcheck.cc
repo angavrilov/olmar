@@ -7709,65 +7709,101 @@ bool Expression::constEval(Env &env, int &result, bool &dependent) const
 }
 
 
-bool Expression::hasUnparenthesizedGT() const
+bool Expression::hasUnparenthesizedGT(Expression *&expr)
+{
+  if (expr->ambiguity) {
+    // We are asking whether an ambiguous expression has an
+    // unparenthesized greater-than operator (UGTO), because the
+    // parser wants to reject such things.  But this expression is
+    // ambiguous!  So, if some of the alternatives contain UGTO
+    // but others do not, simply remove the UGTO alternatives and
+    // then return false.  If they *all* have UGTO, return true.
+    Expression **alt = &expr;
+    while (*alt) {
+      if ((*alt)->ihasUnparenthesizedGT()) {
+        // remove this one from the list
+        TRACE("cancel", "removed an ambiguous UGTO alternative");
+        *alt = (*alt)->ambiguity;
+      }
+      else {
+        // move to the next element
+        alt = &( (*alt)->ambiguity );
+      }
+    }
+
+    if (expr) {
+      // at least one non-UGTO alternative remains
+      return false;
+    }
+    else {
+      // all have UGTO
+      return true;
+    }
+  }
+
+  // easy case
+  return expr->ihasUnparenthesizedGT();
+}
+
+bool Expression::ihasUnparenthesizedGT()
 {
   // recursively dig down into any subexpressions which syntactically
   // aren't enclosed in parentheses or brackets
-  ASTSWITCHC(Expression, this) {
-    ASTCASEC(E_funCall, f)
-      return f->func->hasUnparenthesizedGT();
+  ASTSWITCH(Expression, this) {
+    ASTCASE(E_funCall, f)
+      return hasUnparenthesizedGT(f->func);
 
-    ASTNEXTC(E_fieldAcc, f)
-      return f->obj->hasUnparenthesizedGT();
+    ASTNEXT(E_fieldAcc, f)
+      return hasUnparenthesizedGT(f->obj);
 
-    ASTNEXTC(E_unary, u)
-      return u->expr->hasUnparenthesizedGT();
+    ASTNEXT(E_unary, u)
+      return hasUnparenthesizedGT(u->expr);
 
-    ASTNEXTC(E_effect, e)
-      return e->expr->hasUnparenthesizedGT();
+    ASTNEXT(E_effect, e)
+      return hasUnparenthesizedGT(e->expr);
 
-    ASTNEXTC(E_binary, b)
+    ASTNEXT(E_binary, b)
       if (b->op == BIN_GREATER) {
         // all this just to find one little guy..
         return true;
       }
 
-      return b->e1->hasUnparenthesizedGT() ||
-             b->e2->hasUnparenthesizedGT();
+      return hasUnparenthesizedGT(b->e1) ||
+             hasUnparenthesizedGT(b->e2);
 
-    ASTNEXTC(E_addrOf, a)
-      return a->expr->hasUnparenthesizedGT();
+    ASTNEXT(E_addrOf, a)
+      return hasUnparenthesizedGT(a->expr);
 
-    ASTNEXTC(E_deref, d)
-      return d->ptr->hasUnparenthesizedGT();
-      
-    ASTNEXTC(E_cast, c)
-      return c->expr->hasUnparenthesizedGT();
-      
-    ASTNEXTC(E_cond, c)
-      return c->cond->hasUnparenthesizedGT() ||
-             c->th->hasUnparenthesizedGT() ||
-             c->el->hasUnparenthesizedGT();
+    ASTNEXT(E_deref, d)
+      return hasUnparenthesizedGT(d->ptr);
 
-    ASTNEXTC(E_assign, a)
-      return a->target->hasUnparenthesizedGT() ||
-             a->src->hasUnparenthesizedGT();
-             
-    ASTNEXTC(E_delete, d)
-      return d->expr->hasUnparenthesizedGT();
-      
-    ASTNEXTC(E_throw, t)
-      return t->expr && t->expr->hasUnparenthesizedGT();
+    ASTNEXT(E_cast, c)
+      return hasUnparenthesizedGT(c->expr);
 
-    ASTDEFAULTC
+    ASTNEXT(E_cond, c)
+      return hasUnparenthesizedGT(c->cond) ||
+             hasUnparenthesizedGT(c->th) ||
+             hasUnparenthesizedGT(c->el);
+
+    ASTNEXT(E_assign, a)
+      return hasUnparenthesizedGT(a->target) ||
+             hasUnparenthesizedGT(a->src);
+
+    ASTNEXT(E_delete, d)
+      return hasUnparenthesizedGT(d->expr);
+
+    ASTNEXT(E_throw, t)
+      return t->expr && hasUnparenthesizedGT(t->expr);
+
+    ASTDEFAULT
       // everything else, esp. E_grouping, is false
       return extHasUnparenthesizedGT();
 
-    ASTENDCASEC
+    ASTENDCASE
   }
 }
 
-bool Expression::extHasUnparenthesizedGT() const
+bool Expression::extHasUnparenthesizedGT()
 {
   return false;
 }

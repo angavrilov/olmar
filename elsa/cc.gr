@@ -2411,7 +2411,7 @@ nonterm(TemplateArgument*) TemplateArgument {
 
   -> e:AssignmentExpression tail:TemplateArgumentListTailOpt
      {
-       if (e->hasUnparenthesizedGT()) {
+       if (Expression::hasUnparenthesizedGT(e)) {
          // this is the wrong interpretation because template argument
          // expressions aren't allowed to have unparenthesized
          // greater-than operators [cppstd 14.1 para 15]

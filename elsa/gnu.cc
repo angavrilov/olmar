@@ -489,10 +489,10 @@ CValue E_gnuCond::extConstEval(ConstEval &env) const
   }
 }
 
-bool E_gnuCond::extHasUnparenthesizedGT() const
+bool E_gnuCond::extHasUnparenthesizedGT()
 {
-  return cond->hasUnparenthesizedGT() ||
-         el->hasUnparenthesizedGT();
+  return hasUnparenthesizedGT(cond) ||
+         hasUnparenthesizedGT(el);
 }
 
 
@@ -530,10 +530,10 @@ CValue E_gnuMinMax::extConstEval(ConstEval &env) const
   return v1;
 }
 
-bool E_gnuMinMax::extHasUnparenthesizedGT() const
+bool E_gnuMinMax::extHasUnparenthesizedGT()
 {
-  return e1->hasUnparenthesizedGT() ||
-         e2->hasUnparenthesizedGT();
+  return hasUnparenthesizedGT(e1) ||
+         hasUnparenthesizedGT(e2);
 }
 
 

@@ -15,3 +15,5 @@ template<bool f> struct B {};
 
 template<typename T1> struct C :
         public B<A<T1>::foo> {};
+        
+C<int> c;

@@ -492,9 +492,11 @@ class Expression {
   public CValue constEvalAddr(ConstEval &env) const;
 
   // return true if this expression has any greater-than operators
-  // that are not buried under an E_grouping
-  public bool hasUnparenthesizedGT() const;
-  public virtual bool extHasUnparenthesizedGT() const;
+  // that are not buried under an E_grouping; this may modify 'expr'
+  // if it filters out certain ambiguous alternatives
+  public static bool hasUnparenthesizedGT(Expression *&expr);
+  public bool ihasUnparenthesizedGT();
+  public virtual bool extHasUnparenthesizedGT();
 
   // return what kind of special expression this is, if any
   public SpecialExpr getSpecial(CCLang &lang) const;
@@ -623,8 +625,8 @@ class ArgExpression {
     { return expr->constEval(env); };
   public CValue iconstEval(ConstEval &env) const
     { return expr->iconstEval(env); };
-  public bool hasUnparenthesizedGT() const
-    { return expr->hasUnparenthesizedGT(); };
+  public bool hasUnparenthesizedGT()
+    { return Expression::hasUnparenthesizedGT(expr); };
   public SpecialExpr getSpecial(CCLang &lang) const
     { return expr->getSpecial(lang); };
 
