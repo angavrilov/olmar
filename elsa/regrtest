@@ -893,6 +893,7 @@ failparse k0028.cc "definition of member function declared in another namespace"
 failparse k0029.cc 'ambiguous overload "char* const*" vs "char const* const*"'
 failparse k0030.cc '"and" and "or" keywords'
 failparse k0031.cc "weird function typedefs used in a class"
+failparse k0032.cc "converting <integral>& to integral"
 
 # ---- END: lots of tests ----
 
