@@ -62,7 +62,10 @@ tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 # ------------------------- ccparse ---------------------
 # run flex on the lexer description
 lexer.yy.cc: lexer.lex lexer.h
-	flex lexer.lex
+	flex -o$@ lexer.lex
+	mv $@ lexer.tmp
+	sed -e 's/class istream;/#include <iostream.h>/' <lexer.tmp >$@
+	rm lexer.tmp
 
 # generate token lists
 TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
