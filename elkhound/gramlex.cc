@@ -187,7 +187,7 @@ StringRef GrammarLexer::curDeclName() const
 
 string GrammarLexer::curLocStr() const
 {
-  return curLoc().toString();
+  return curLoc().likeGccToString();
 }
 
 

@@ -78,4 +78,4 @@ adecl.gen.*
 adecl.bin
 adecl
 cexp3b*
-c.ast.gen.*
+*.ast.gen.*

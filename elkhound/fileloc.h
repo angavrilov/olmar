@@ -82,6 +82,9 @@ public:
 
   // "file %s, line %d, col %d"
   string toString() const;
+                                 
+  // "<file>:<line>: (col <col>) "
+  string likeGccToString() const;
 };
 
 

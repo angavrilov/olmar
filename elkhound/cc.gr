@@ -12,6 +12,7 @@ verbatim CCGr [
 #include "lexer2.h"       // lexer2's token ids for classify()
 #include "cparse.h"       // ParseEnv
 #include "trace.h"        // trace
+#include "c.ast.gen.h"    // C abstract syntax
 
 #define D(msg) \
   trace("cc") << msg << endl
@@ -31,7 +32,7 @@ UserActions *makeUserActions(StringTable &table)
 
 // when this is the last element in a parameter list, the function
 // is a vararg function
-ASTTypeId *ellpsisTypeId()
+ASTTypeId *ellipsisTypeId()
 {
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS), new D_name(NULL));
 }
@@ -161,7 +162,7 @@ nonterm[Expression*] PrimaryExpression {
        [ return e; ]
 
   -> e:PQVarName
-       [ return E_variable(e); ]
+       [ return new E_variable(e); ]
 
   // GNU extension
   //-> "(" s:CompoundStatement ")" ;
@@ -174,12 +175,12 @@ nonterm[Expression*] PrimaryExpression {
   //   myfoo = (struct Foo) { 4, 5 };        <-- here
   // which would assign x=4 and y=5 in 'myfoo'
   -> "(" t:TypeId ")" i:CompoundInitializer
-       [ return E_structLit(t, i); ]
+       [ return new E_structLit(t, i); ]
 }
 
 nonterm[Expression*] Literal {
   -> i:L2_INT_LITERAL    [ return new E_intLit(i); ]
-  -> f:L2_FLOAT_LITERAL  [ return new E_floatLit(f); ]
+  -> f:L2_FLOAT_LITERAL  [ E_floatLit *ret = new E_floatLit(*f); delete f; return ret; ]
   -> s:StringLiteral     [ return new E_stringLit(s); ]
   -> c:L2_CHAR_LITERAL   [ return new E_charLit(c); ]
 }
@@ -261,7 +262,7 @@ nonterm[ASTList<Expression>*] ExpressionList {
 }
 
 nonterm[ASTList<Expression>*] ExpressionListOpt {
-  -> empty               [ return new ASTList<Expression>(NULL); ]
+  -> empty               [ return new ASTList<Expression>(); ]
   -> e:ExpressionList    [ return e; ]
 }
 
@@ -338,7 +339,7 @@ nonterm[Expression*] CastExpression {
 // ++++ binary operator expression ++++
 // primary expressions
 nonterm[Expression*] BinaryExpression {
-  -> e:CastExpression                                    [ return new e; ]
+  -> e:CastExpression                                    [ return e; ]
 
   -> left:BinaryExpression "*"  right:BinaryExpression   [ return new E_binary(left, BIN_MULT, right); ]
   -> left:BinaryExpression "/"  right:BinaryExpression   [ return new E_binary(left, BIN_DIV, right); ]
@@ -385,13 +386,13 @@ nonterm[Expression*] AssignmentExpression {
        [ return e; ]
 
   -> e1:BinaryExpression "=" e2:AssignmentExpression 
-       [ return E_assign(e1, e2); ]
+       [ return new E_assign(e1, e2); ]
 
-  -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression 
-       [ return E_arithAssign(e1, op, e2); ]
+  -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression
+       [ return new E_arithAssign(e1, op, e2); ]
 }
 
-nonterm[BinaryOp] AssignmentOperator {
+nonterm[enum BinaryOp] AssignmentOperator {
   -> "*="  [ return BIN_MULT; ]
   -> "/="  [ return BIN_DIV; ]
   -> "%="  [ return BIN_MOD; ]
@@ -438,8 +439,9 @@ nonterm[Statement*] Statement {
   -> n:L2_VARIABLE_NAME ":" s:Statement 
        [ return new S_label(n, s); ]
 
-  -> "case" e:ConstantExpression ":" s:Statement 
-       [ return new S_case(e, s); ]
+  // I need a disambiguation here other than prec/assoc..
+  //-> "case" e:ConstantExpression ":" s:Statement
+  //     [ return new S_case(e, s); ]
 
   // had to add this variant because I found linux kernel
   // code that has "case:" immediately followed by "}"; I still
@@ -465,11 +467,11 @@ nonterm[Statement*] Statement {
   // selection-statement
   // (prefer to shift "else" over reducing by this rule)
   -> "if" "(" e:Condition ")" s:Statement precedence(L2_PREFER_SHIFT)
-       [ return S_if(e, s, new S_skip()); ]
+       [ return new S_if(e, s, new S_skip()); ]
 
   // if-then-else preferred over if-then when ambiguous
-  -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement 
-       [ return S_if(e, s1, s2); ]
+  -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement
+       [ return new S_if(e, s1, s2); ]
 
   -> "switch" "(" e:Condition ")" s:Statement
        [ return new S_switch(e, s); ]
@@ -491,7 +493,7 @@ nonterm[Statement*] Statement {
   // of buried in ForInitStatement.  this is also a good rule to use
   // inline alternatives
   -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement 
-       [ return S_for(s1, c, e, s2); ]
+       [ return new S_for(s1, c, e, s2); ]
 
   -> "break" ";"                        [ return new S_break(); ]
 
@@ -523,12 +525,12 @@ nonterm[S_compound*] CompoundStatement {
   // that if the first token of the first statement changes or queries
   // the scope, it's in the new one
   -> EnterScope "{" seq:StatementSeqOpt LeaveScope "}"
-       [ return S_compound(seq); ]
+       [ return new S_compound(seq); ]
 }
 
 nonterm[ASTList<Statement>*] StatementSeqOpt {
   -> empty
-       [ return new ASTList<Statement>(NULL); ]
+       [ return new ASTList<Statement>(); ]
   -> seq:StatementSeqOpt s:Statement
        [ seq->append(s); return seq; ]
 }
@@ -555,16 +557,16 @@ nonterm[Statement*] ForInitStatement {
 
 
 // ----- A.6 Declarations ------
-nonterm[ASTList<Declaration>*] DeclarationSeqOpt {
-  -> empty 
-       [ return new ASTList<Declaration>(NULL); ]
-  -> seq:DeclarationSeqOpt d:Declaration 
-       [ seq->append(d); return seq; ]
-}
+//nonterm[ASTList<Declaration>*] DeclarationSeqOpt {
+//  -> empty
+//       [ return new ASTList<Declaration>(); ]
+//  -> seq:DeclarationSeqOpt d:Declaration
+//       [ seq->append(d); return seq; ]
+//} 
 
 nonterm[TopForm*] Declaration {
-  -> d:BlockDeclaration      [ return TF_decl(d); ]
-  -> d:FunctionDefinition    [ return TF_func(d); ]
+  -> d:BlockDeclaration      [ return new TF_decl(d); ]
+  -> d:FunctionDefinition    [ return d; ]
   //-> TemplateDeclaration ;
   //-> d:LinkageSpecification ;
 }
@@ -582,10 +584,14 @@ nonterm[Declaration*] BlockDeclaration {
 nonterm[Declaration*] SimpleDeclaration {
   //e.g.: int                x                     ;
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";"
-       [ spec->steal(list); return spec; ]
+       [ spec->decllist.steal(list); return spec; ]
 
-  -> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";" ;
-       [ spec->dflags |= DF_TYPEDEF; spec->steal(list); return spec; ]
+  -> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";"
+       [
+         spec->dflags = (DeclFlags)(spec->dflags | DF_TYPEDEF);
+         spec->decllist.steal(list);
+         return spec;
+       ]
 
   // gnu; specifically for linux printk declaration
   //-> GNUAttribute decl:SimpleDeclaration ;
@@ -602,10 +608,10 @@ nonterm[Declaration*] SimpleDeclaration {
 // for returning dflags and spec as a pair
 nonterm[Declaration*] DeclSpecifier {
   -> "inline" m:DeclModifier s:TypeSpecifier
-       [ return new Declaration(DF_INLINE | m, s, NULL); ]
+       [ return new Declaration((DeclFlags)(DF_INLINE | m), s, NULL); ]
 
   -> m:DeclModifier "inline" s:TypeSpecifier
-       [ return new Declaration(DF_INLINE | m, s, NULL); ]
+       [ return new Declaration((DeclFlags)(DF_INLINE | m), s, NULL); ]
 
   -> m:DeclModifier s:TypeSpecifier
        [ return new Declaration(m, s, NULL); ]
@@ -613,7 +619,7 @@ nonterm[Declaration*] DeclSpecifier {
   -> "inline" s:TypeSpecifier
        [ return new Declaration(DF_INLINE, s, NULL); ]
 
-  -> s:TypeSpecifier ;
+  -> s:TypeSpecifier 
        [ return new Declaration(DF_NONE, s, NULL); ]
 }
 
@@ -621,7 +627,7 @@ nonterm[Declaration*] DeclSpecifier {
 // be used together; "inline" is pulled out because it can be used
 // with "virtual", "static", "friend", and possibly "extern"; I
 // consider all this preferable to just allowing a "word soup"
-nonterm[DeclFlags] DeclModifier {
+nonterm[enum DeclFlags] DeclModifier {
   -> "virtual"     [ return DF_VIRTUAL;  ]
   -> "friend"      [ return DF_FRIEND;   ]
   -> "mutable"     [ return DF_MUTABLE;  ]
@@ -635,18 +641,23 @@ nonterm[DeclFlags] DeclModifier {
 nonterm[TypeSpecifier*] TypeSpecifier {
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName 
-       [ return new TS_name(CV_NONE, n); ]
+       [ return new TS_name(n); ]
 
   -> s:SimpleTypeSpecifier            // int
-       [ return TS_simple(CV_NONE, s); ]
+       [ return new TS_simple(s); ]
 
   // pulled this because it causes shift/reduce conflicts; on input
   //   unsigned . const ...
   // I don't know whether to reduce the 'unsigned' as a type by itself,
   // or shift the 'const' in expectation of finding 'char' after it
   // 9/25/01 16:28: I'm putting it back in and we'll see if magic GLR will work
-  -> s:SimpleCVTypeSpecifier          // unsigned const char  (not good style, IMO)
-       [ return TS_simple((CVFlags)(s & CV_ALL), (SimpleTypeId)(s & ST_BITMASK)); ]
+  // 9/26/01 00:13: pulling again until I can find a good way to suppress the conflict report
+  //-> s:SimpleCVTypeSpecifier          // unsigned const char  (not good style, IMO)
+  //     [
+  //       TS_simple *ret = new TS_simple((SimpleTypeId)(s & ST_BITMASK));
+  //       ret->cv = (CVFlags)(s & CV_ALL);
+  //       return ret;
+  //     ]
 
   -> s:ElaboratedTypeSpecifier        // class foo  or  enum bar
        [ return s; ]
@@ -662,12 +673,12 @@ nonterm[TypeSpecifier*] TypeSpecifier {
   // so we'll just prefer reducing always
 
   -> q:CVQualifier s:TypeSpecifier  precedence(L2_PREFER_REDUCE)   // const int
-       [ s->cv |= q; return s; ]
-  -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE);  // int const
-       [ s->cv |= q; return s; ]
+       [ s->cv = (CVFlags)(s->cv | q); return s; ]
+  -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE)   // int const
+       [ s->cv = (CVFlags)(s->cv | q); return s; ]
 
   // yet another attempt to find a good place for this
-  -> s:TypeSpecifier GNUAttribute   precedence(L2_PREFER_REDUCE);
+  -> s:TypeSpecifier GNUAttribute   precedence(L2_PREFER_REDUCE)
        [ return s; ]      // drop attr for now
 }
 
@@ -681,7 +692,7 @@ nonterm[TS_elaborated*] ElaboratedTypeSpecifier {
 // this list comes from Table 7 (p.109) of the C++ standard
 // NOTE: this deviates from the language spec, which allows other
 // decl-specifiers to mix with the tokens here; I do not
-nonterm[SimpleTypeId] SimpleTypeSpecifier {
+nonterm[enum SimpleTypeId] SimpleTypeSpecifier {
   -> "char"                     [ return ST_CHAR; ]
   -> "unsigned" "char"          [ return ST_UNSIGNED_CHAR; ]
   -> "signed" "char"            [ return ST_SIGNED_CHAR; ]
@@ -772,14 +783,14 @@ nonterm[EnumSpecifier*] EnumSpecifier {
 
 nonterm[ASTList<Enumerator>*] EnumeratorList {
   -> def:EnumeratorDefinition
-       [ return ASTList<Enumerator>(def); ]
+       [ return new ASTList<Enumerator>(def); ]
   -> list:EnumeratorList "," def:EnumeratorDefinition
        [ list->append(def); return NULL; ]
 }
 
 nonterm[ASTList<Enumerator>*] EnumeratorListOpt {
   -> empty 
-       [ return new ASTList<Enumerator>(NULL); ]
+       [ return new ASTList<Enumerator>(); ]
 
   -> list:EnumeratorList CommaOpt   // CommaOpt is GNU extension (??)
        [ return list; ]
@@ -789,17 +800,17 @@ nonterm[ASTList<Enumerator>*] EnumeratorListOpt {
 nonterm[Enumerator*] EnumeratorDefinition {
   -> name:AnyName 
        [ return new Enumerator(name, NULL /*expr*/); ]
-  -> name:AnyName "=" expr:ConstantExpression ;
+  -> name:AnyName "=" expr:ConstantExpression 
        [ return new Enumerator(name, expr); ]
 }
 
 
 nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
-nonterm LinkageSpecification {
-  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" ;
-  -> "extern" L2_STRING_LITERAL d:Declaration ;
-}
+//nonterm LinkageSpecification {
+//  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" ;
+//  -> "extern" L2_STRING_LITERAL d:Declaration ;
+//} 
 
 // ------ A.7 Declarators ------
 // -- declarator --
@@ -814,7 +825,7 @@ nonterm[ASTList<Declarator>*] InitDeclaratorList {
 
 nonterm[ASTList<Declarator>*] InitDeclaratorListOpt {
   -> empty
-       [ return new ASTList<Declarator>(NULL); ]
+       [ return new ASTList<Declarator>(); ]
   -> list:InitDeclaratorList
        [ return list; ]
 }
@@ -824,7 +835,7 @@ nonterm[Declarator*] InitDeclarator {
   -> d:Declarator                       // (int)  x
        [ return d; ]
 
-  -> d:Declarator i:Initializer ;       // (int)  x = 5
+  -> d:Declarator i:Initializer         // (int)  x = 5
        [ d->init = i; return d; ]
 }
 
@@ -859,15 +870,15 @@ nonterm[Initializer*] LabeledInitializerClause {
 
   // initialize a range (inclusive) of elements of the array
   -> "[" lo:ConstantExpression "..." hi:ConstantExpression "]" "=" init:InitializerClause
-       [ init->label = new IL_range(lo, hi); return this; ]
+       [ init->label = new IL_range(lo, hi); return init; ]
 
   // intialize a named element of a structure
   -> "." field:PQVarName "=" init:InitializerClause
-       [ init->label = new IL_field(field); ]
+       [ init->label = new IL_field(field); return init; ]
 
   // initialize a field of a specific element of the array
   -> "[" index:ConstantExpression "]" "." field:PQVarName "=" init:InitializerClause
-       [ init->label = new elementField(index, field); ]
+       [ init->label = new IL_elementField(index, field); return init; ]
 }
 
 nonterm[ASTList<Initializer>*] CompoundInitializer {
@@ -875,7 +886,7 @@ nonterm[ASTList<Initializer>*] CompoundInitializer {
   -> "{" list:InitializerList CommaOpt "}"  [ return list; ]
 
   // zero whatever it is
-  -> "{" "}"  [ return new ASTList<Initializer>(NULL); ]
+  -> "{" "}"  [ return new ASTList<Initializer>(); ]
 }
 
 // useful syntactic quirk
@@ -887,7 +898,7 @@ nonterm CommaOpt {
 
 nonterm[ASTList<Initializer>*] InitializerList {
   -> init:LabeledInitializerClause
-       [ return ASTList<Initializer>(init); ]
+       [ return new ASTList<Initializer>(init); ]
   -> list:InitializerList "," init:LabeledInitializerClause
        [ list->append(init); return list; ]
 }
@@ -915,15 +926,15 @@ nonterm[Declarator*] DirectDeclarator {
   // specifier that preceeds this
   -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" //q:CVQualifierSeqOpt
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^^ const? ^^^^^^
-       [ return D_func(d, args); ]
+       [ return new D_func(d, args); ]
 
   // array of specified size
   -> d:DirectDeclarator "[" sz:ConstantExpression "]"
-       [ return D_array(d, sz); ]
+       [ return new D_array(d, sz); ]
 
   // array of unspecified size
   -> d:DirectDeclarator "[" "]"
-       [ return D_array(d, NULL); ]
+       [ return new D_array(d, NULL); ]
 
   // precedence grouping
   -> "(" d:Declarator ")"
@@ -939,17 +950,17 @@ nonterm[PtrOperator*] PtrOperator {
 }
 
 
-nonterm[CVFlags] CVQualifierSeqOpt {
+nonterm[enum CVFlags] CVQualifierSeqOpt {
   -> empty                       [ return CV_NONE; ]
   -> s:CVQualifierSeq            [ return s; ]
 }
 
-nonterm[CVFlags] CVQualifierSeq {
+nonterm[enum CVFlags] CVQualifierSeq {
   -> q:CVQualifier                       [ return q; ]
   -> q:CVQualifier s:CVQualifierSeq      [ return (CVFlags)(q | s); ]
 }
 
-nonterm[CVFlags] CVQualifier {
+nonterm[enum CVFlags] CVQualifier {
   -> "const"        [ return CV_CONST; ]
   -> "volatile"     [ return CV_VOLATILE; ]
 }
@@ -996,14 +1007,14 @@ nonterm[Declarator*] DirectTypedefDeclarator {
 // it is, for example, what appears inside the parens of a typecast
 nonterm[ASTTypeId*] TypeId {
   -> spec:TypeSpecifier decl:AbstractDeclaratorOpt
-       [ return ASTTypeId(spec, decl); ]
+       [ return new ASTTypeId(spec, decl); ]
 
   // gnu extension
   //-> "__typeof__" "(" e:Expression ")" ;
 }
 
 nonterm[Declarator*] AbstractDeclaratorOpt {
-  -> empty                 [ return D_name(NULL); ]
+  -> empty                 [ return new D_name(NULL); ]
   -> d:AbstractDeclarator  [ return d; ]
 }
 
@@ -1017,7 +1028,7 @@ nonterm[Declarator*] AbstractDeclarator {
 }
 
 nonterm[Declarator*] DirectAbstractDeclaratorOpt {
-  -> empty                       [ return D_name(NULL); ]
+  -> empty                       [ return new D_name(NULL); ]
   -> d:DirectAbstractDeclarator  [ return d; ]
 }
 
@@ -1031,7 +1042,7 @@ nonterm[Declarator*] DirectAbstractDeclarator {
 
   // function
   -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" //q:CVQualifierSeqOpt
-       [ return D_func(d, args); ]
+       [ return new D_func(d, args); ]
 
   // grammar hack: support missing function name part at this level, rather
   // than using DirectAbstractDeclaratorOpt, to effect one extra token
@@ -1045,10 +1056,10 @@ nonterm[Declarator*] DirectAbstractDeclarator {
   // status.. I'll sidestep the whole issue by accepting a smaller language
 
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpression "]"  // array of specified size
-       [ return D_array(d, sz); ]
+       [ return new D_array(d, sz); ]
 
   -> d:DirectAbstractDeclaratorOpt "[" "]"                        // array of unspecified size
-       [ return D_array(d, NULL); ]
+       [ return new D_array(d, NULL); ]
 
   -> "(" d:AbstractDeclarator ")"                                 // precedence grouping
        [ return d; ]
@@ -1059,7 +1070,7 @@ nonterm[ASTList<ASTTypeId>*] ParameterDeclarationClause {
   -> p:ParameterDeclarationList              // some args
        [ return p; ]
   -> empty                                   // no args
-       [ return new ASTList<ASTTypeId>(NULL); ]
+       [ return new ASTList<ASTTypeId>(); ]
   -> "..."                                   // all args are optional
        [ return new ASTList<ASTTypeId>(ellipsisTypeId()); ]
   -> p:ParameterDeclarationList "..."        // args plus optionally more
@@ -1076,14 +1087,22 @@ nonterm[ASTList<ASTTypeId>*] ParameterDeclarationList {
 }
 
 nonterm[ASTTypeId*] ParameterDeclaration {
-  -> s:DeclSpecifier d:Declarator 
+  -> RegisterOpt s:TypeSpecifier d:Declarator
        [ return new ASTTypeId(s, d); ]
-  -> s:DeclSpecifier d:AbstractDeclaratorOpt
+  -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt
        [ return new ASTTypeId(s, d); ]
 
   //-> s:DeclSpecifier d:Declarator "=" AssignmentExpression ;
   //-> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
 }
+
+// old code uses the keyword "register" in the parameter declarations, but I
+// will ignore it when that happens
+nonterm RegisterOpt {
+  -> empty;
+  -> "register";
+}
+
 
 // -- function definition --
 nonterm[TF_func*] FunctionDefinition {
@@ -1099,6 +1118,7 @@ nonterm[TF_func*] FunctionDefinition {
          TF_func *ret = new TF_func(r->dflags, r->spec, d, b);
          r->spec = NULL;    // stole it above
          delete r;          // was just a carrier of dflags/spec
+         return ret;
        ]
 
   // return type      name/params   body
@@ -1148,7 +1168,7 @@ nonterm[enum TypeIntr] ClassKeyword {
 
 nonterm[ASTList<Declaration>*] MemberDeclarationSeqOpt {
   -> empty
-       [ return new ASTList<Declaration>(NULL); ]
+       [ return new ASTList<Declaration>(); ]
 
   -> list:MemberDeclarationSeqOpt decl:MemberDeclaration
        [ list->append(decl); return NULL; ]
@@ -1164,7 +1184,7 @@ nonterm AccessSpecifier {
 
 nonterm[Declaration*] MemberDeclaration {
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"      // member fn or data
-       [ spec->steal(list); return spec; ]
+       [ spec->decllist.steal(list); return spec; ]
 
   //-> FunctionDefinition ";" ;                    // inline fn
   //-> FunctionDefinition ;                        // syntactic tweak
@@ -1190,18 +1210,16 @@ nonterm[Declarator*] MemberDeclarator {
   //-> Declarator "=" ConstantExpression ;   // pure; and member inits??
 
   // unnamed bitfield
-  -> ":" e:ConstantExpression ;
-       [ return new D_bitfield(NULL /*stars*/, NULL /*init*/,
-                               NULL /*name*/, e); ]
-  -> ":" e:ConstantExpression GNUAttribute ;
-       [ return new D_bitfield(NULL /*stars*/, NULL /*init*/,
-                               NULL /*name*/, e); ]
+  -> ":" e:ConstantExpression
+       [ return new D_bitfield(NULL /*name*/, e); ]
+  -> ":" e:ConstantExpression GNUAttribute
+       [ return new D_bitfield(NULL /*name*/, e); ]
 
   // named bitfield
-  -> n:AnyName ":" e:ConstantExpression GNUAttribute ;
-       [ return new D_bitfield(NULL /*stars*/, NULL /*init*/, n, e); ]
-  -> n:AnyName ":" e:ConstantExpression ;
-       [ return new D_bitfield(NULL /*stars*/, NULL /*init*/, n, e); ]
+  -> n:AnyName ":" e:ConstantExpression GNUAttribute
+       [ return new D_bitfield(n, e); ]
+  -> n:AnyName ":" e:ConstantExpression
+       [ return new D_bitfield(n, e); ]
 }
 
 

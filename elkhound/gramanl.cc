@@ -2175,6 +2175,9 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
     return false;      // no conflict
   }
 
+  // count how many warning suppressions we have
+  int dontWarns = 0;
+
   if (shiftDest != NULL) {
     // we have (at least) a shift/reduce conflict, which is the
     // situation in which prec/assoc specifications are used; consider
@@ -2184,8 +2187,8 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
     while (!mut.isDone() && shiftDest != NULL) {
       Production const *prod = mut.data();
 
-      bool keepShift=true, keepReduce=true;
-      handleShiftReduceConflict(keepShift, keepReduce, state, prod, sym);
+      bool keepShift=true, keepReduce=true, dontWarn=false;
+      handleShiftReduceConflict(keepShift, keepReduce, dontWarn, state, prod, sym);
 
       if (!keepShift) {
         state->removeShift(sym);
@@ -2201,6 +2204,10 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
       else {
         mut.adv();
       }
+      
+      if (dontWarn) {
+        dontWarns++;
+      }
     }
 
     // there is still a potential for misbehavior.. e.g., if there are two
@@ -2214,7 +2221,9 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
   }
 
   // after the disambiguation, maybe now there's no conflicts?
-  if (actions <= 1) {
+  // or, if conflicts remain, did we get at least that many warning
+  // suppressions?
+  if ((actions-dontWarns) <= 1) {
     return false;
   }
 
@@ -2252,7 +2261,7 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
 // decide what to do, and record the result into the two
 // boolean reference parameters
 void GrammarAnalysis::handleShiftReduceConflict(
-  bool &keepShift, bool &keepReduce,
+  bool &keepShift, bool &keepReduce, bool &dontWarn,
   ItemSet *state, Production const *prod, Terminal const *sym)
 {
   // say that we're considering this conflict
@@ -2312,6 +2321,7 @@ void GrammarAnalysis::handleShiftReduceConflict(
     case AK_SPLIT:
       // the user does not want disambiguation of this
       trace("pred") << "will SPLIT because user asked to\n";
+      dontWarn = true;
       return;
 
     default:
@@ -3093,6 +3103,13 @@ char const *typeString(char const *type, LocString const &tag)
 }
 
 
+// return true if the type starts with the word "enum"
+bool isEnumType(char const *type)
+{
+  return 0==strncmp(type, "enum", 4);
+}
+
+
 void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 {
   // iterate over productions, emitting inline action functions
@@ -3170,8 +3187,14 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
       }
 
       // cast SemanticValue to proper type
-      out << "(" << typeString(elt.sym->type, elt.tag) 
-          << ")(semanticValues[" << index << "])";
+      out << "(" << typeString(elt.sym->type, elt.tag) << ")";
+      if (isEnumType(elt.sym->type)) {
+        // egcs-1.1.2 complains when I cast from void* to enum, even
+        // when there is a cast!  so let's put an intermediate cast
+        // to int
+        out << "(int)";
+      }
+      out << "(semanticValues[" << index << "])";
     }
 
     out << ");\n";

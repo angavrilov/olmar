@@ -351,7 +351,8 @@ private:    // funcs
   void findSLRConflicts(int &sr, int &rr);
   bool checkSLRConflicts(ItemSet *state, Terminal const *sym,
                          bool conflictAlready, int &sr, int &rr);
-  void handleShiftReduceConflict(bool &keepShift, bool &keepReduce,
+  void handleShiftReduceConflict(
+    bool &keepShift, bool &keepReduce, bool &dontWarn,
     ItemSet *state, Production const *prod, Terminal const *sym);
 
   void computeBFSTree();

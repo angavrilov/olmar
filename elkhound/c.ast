@@ -56,7 +56,10 @@ class ASTTypeId (
 // a name of an "atomic" type -- one to which type constructors
 // (e.g. '*') can be applied, but which itself is not built with type
 // constructors
-class TypeSpecifier (enum CVFlags cv) {    // cv is const and/or volatile
+class TypeSpecifier {
+  public enum CVFlags cv;                               
+  ctor { cv=CV_NONE; };
+
   -> TS_name(StringRef name);                           // a typedef'd name
   -> TS_simple(SimpleTypeId id);                        // int or char or float or ..
   -> TS_elaborated(TypeIntr keyword, StringRef name);   // "class Foo"
@@ -176,7 +179,7 @@ class Expression {
   -> E_floatLit(float f);
   -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
   -> E_charLit(char c);
-  -> E_structLit(ASTTypeId type, IN_compound init);
+  -> E_structLit(ASTTypeId type, ASTList<Initializer> init);
 
   -> E_variable(StringRef name);
   -> E_arrayAcc(Expression arr, Expression index);
@@ -236,7 +239,7 @@ char const * const typeIntrNames[NUM_TYPEINTRS] = {
   string toString(T index)             \
   {                                    \
     xassert((unsigned)index < limit);  \
-    return new string(array[index]);   \
+    return string(array[index]);       \
   }
 
 MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)

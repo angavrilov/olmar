@@ -121,6 +121,11 @@ string SourceLocation::toString() const
   }
 }
 
+string SourceLocation::likeGccToString() const
+{
+  return stringc << fname() << ":" << line << ": (col " << col << ") ";
+}
+
 
 // ------------------- SourceFileList -----------------
 SourceFileList::SourceFileList()
