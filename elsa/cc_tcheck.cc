@@ -5695,9 +5695,13 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     // won't be doing overload resolution in this case
   }
 
+  if (t->isGeneralizedDependent()) {
+    return env.dependentType();      // in/k0021.cc
+  }
+
   if (!t->isFunctionType()) {
-    return env.error(func->type->asRval(), stringc
-      << "you can't use an expression of type `" << func->type->toString()
+    return env.error(t, stringc
+      << "you can't use an expression of type `" << t->toString()
       << "' as a function");
   }
 
