@@ -31,9 +31,9 @@ int hasTypeNode(Node *n);
 void foo()
 {
   struct Node *a = new Node;
+  thmprv_assume(hasTypeNode(a));
   thmprv_assert(!thmprv_exists(Node *n; n->next == a));
 
-  thmprv_assume(hasTypeNode(a));
   a->next = 0;
   thmprv_assert(isNode(a));
 
@@ -41,14 +41,15 @@ void foo()
   //thmprv_assert(isNode(a));
 
   struct Node *b = new Node;
+  thmprv_assume(hasTypeNode(b));
   thmprv_assert(!thmprv_exists(Node *n; n->next == a));
 
   b->next = a;
   thmprv_assert(!thmprv_exists(Node *n; n->next == b));
   thmprv_assert(thmprv_forall(Node *n; (n->next == a) ==> (n == b)));
 
-  //thmprv_assert(isNode(a));
-  //thmprv_assert(isNode(b));
+  thmprv_assert(isNode(a));
+  thmprv_assert(isNode(b));
 
 }
 
