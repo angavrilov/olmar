@@ -5,8 +5,8 @@
 #include <iostream.h>    // cout
 
 
-GrammarLexer::GrammarLexer()
-  : yyFlexLexer(),
+GrammarLexer::GrammarLexer(istream *source)
+  : yyFlexLexer(source),                        
     line(firstLine),
     column(firstColumn),
     commentStartLine(0),

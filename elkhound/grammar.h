@@ -141,8 +141,15 @@ string terminalSequenceToString(TerminalList const &list);
 // something that can appear on the left-hand side of a production
 // (or, emptyString, since we classify that as a nonterminal also)
 class Nonterminal : public Symbol {
+// ------ representation ------
+public:     // data          
+  // names of attributes that are associated with this nonterminal;
+  // every production with this NT on its LHS must specify values
+  // for all attributes
+  ObjList<string> attributes;
+
 // ------ annotation ------
-public:     // funcs
+public:     // data
   int ntIndex;           // nonterminal index; see Grammar::computeWhatCanDeriveWhat
   bool cyclic;           // true if this can derive itself in 1 or more steps
   TerminalList first;    // set of terminals that can be start of a string derived from 'this'
@@ -442,7 +449,6 @@ private:    // funcs
   bool parseAnAction(char const *keyword, char const *insideBraces,
                      Production *lastProduction);
 
-  bool declareToken(char const *symbolName, int code, char const *alias);
   bool parseTokSeqAmb(StrtokParse const &tok);
   Symbol *parseGrammarSymbol(char const *token, string &tag);
   bool parseProduction(ProductionList &prods, StrtokParse const &tok);
@@ -457,6 +463,10 @@ public:     // funcs
 
 
   // ---- building a grammar ----
+  // declare a new token exists, with name and optional alias;
+  // return false if it's already declared
+  bool declareToken(char const *symbolName, int code, char const *alias);
+
   // add a new production; the rhs arg list must be terminated with a NULL
   void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
 

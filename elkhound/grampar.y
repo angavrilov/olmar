@@ -110,21 +110,14 @@ TerminalSeqOpt: /* empty */                        { $$ = AST0(AST_TERMINALS); }
               ;
 
 /* each terminal has an integer code which is the integer value the
- * lexer uses to represent that terminal.  it is followed by at least
- * one alias, where it is the aliases that appear in the forms, rather
- * than the integer codes */
-TerminalDecl: TOK_INTEGER ":" AliasSeq ";"         { $$ = AST2(AST_TERMDECL, $1, $3); }
+ * lexer uses to represent that terminal.  it is followed by a
+ * canonical name, and an optional alias; the name/alias appears in
+ * the forms, rather than the integer code itself */
+TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"         
+                                            { $$ = AST2(AST_TERMDECL, $1, $3); }
+            | TOK_INTEGER ":" TOK_NAME TOK_STRING ";"         
+                                            { $$ = AST3(AST_TERMDECL, $1, $3, $4); }
             ;
-
-AliasSeq: Alias                                    { $$ = AST1(AST_ALIASES, $1); }
-        | AliasSeq Alias                           { $$ = iappend($1, $2); }
-        ;
-
-/* allow canonical names (e.g. TOK_COLON) and also mnemonic
- * strings (e.g. ":") for terminals */
-Alias: TOK_NAME                                    { $$ = $1; }
-     | TOK_STRING                                  { $$ = $1; }
-     ;
 
 
 /* ------ nonterminals ------ */

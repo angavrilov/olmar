@@ -88,6 +88,8 @@ public:         // funcs
   ASTInternal(int type);
   virtual ~ASTInternal();
 
+  // some syntactic sugar for accessing 'children'
+  int numChildren() const { return children.count(); }
 
   // tree constructor functions
   static ASTInternal *cons0(int type);

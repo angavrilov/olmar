@@ -52,8 +52,9 @@ private:     // funcs
   void newLine();              // called when a newline is encountered
 
 public:      // funcs
-  // create a new lexer that will read from stdin
-  GrammarLexer();
+  // create a new lexer that will read from to named stream,
+  // or stdin if it is NULL
+  GrammarLexer(istream *source = NULL);
 
   // clean up
   ~GrammarLexer();

@@ -50,7 +50,7 @@ grampar.tab.cc grampar.tab.h: grampar.y
 	mv -f grampar.tab.c grampar.tab.cc
 
 # grammar parser test program
-grampar: gramlex.yy.o grampar.tab.o gramlex.o grampar.cc trace.o ast.o gramast.o
+grampar: gramlex.yy.o grampar.tab.o gramlex.o grampar.cc trace.o ast.o gramast.o ${glr-dep}
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 clean:

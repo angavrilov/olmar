@@ -5,7 +5,7 @@
 // this list generated automatically by the lexer
 terminals {
   // form:
-  //   <code> ":" <alias> [<alias> ...] ";"
+  //   <code> ":" <name> [<alias>] ";"
   0:   L2_EOF                 ;
   1:   L2_NAME                ;
   //    ...
