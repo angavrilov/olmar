@@ -1,4 +1,3 @@
-
 // cc_tcheck.cc            see license.txt for copyright and terms of use
 // C++ typechecker, implemented as methods declared in cc.ast
 
@@ -2067,16 +2066,13 @@ Type const *E_funCall::itcheck(Env &env)
 
 Type const *E_constructor::itcheck(Env &env)
 {
-  Type const *t = type->tcheck(env);
+  type = spec->tcheck(env);
   args = tcheckFakeExprList(args, env);
 
   // TODO: make sure the argument types are compatible
   // with the constructor parameters
 
-  // TODO: prefer the "declaration" interpretation
-  // when that is possible
-
-  return t;
+  return type;
 }
 
 

@@ -208,8 +208,8 @@ class TypeSpecifier {
        MemberList members                    // field and methods of the class
      ) {
        private void tcheckFunctionBodies(Env &env);
-//         public void twalk(Env &env);
-  }
+       //public void twalk(Env &env);
+     }
 
   -> TS_enumSpec(                          // "enum { ... }"
        SourceLocation loc,
@@ -478,7 +478,6 @@ class Statement (SourceLocation loc) {
   public void twalk(Env &env);
 
   public void mid_tcheck(Env &env, int &) { itcheck(env); };
-  public void mid_twalk(Env &env) { itcheck(env); };
 
   pure_virtual void itcheck(Env &env);
   pure_virtual void itwalk(Env &env);
@@ -569,7 +568,6 @@ class Expression {
   public void twalk(Env &env);
 
   public void mid_tcheck(Env &env, int &);
-  public void mid_twalk(Env &env);
 
   // per-type checker; return type this expression eval's to
   pure_virtual Type const *itcheck(Env &env);
@@ -614,16 +612,16 @@ class Expression {
   -> E_funCall(Expression func, FakeList<Expression> *args);
 
   // call to constructor as an expression
-  -> E_constructor(TypeSpecifier type, FakeList<Expression> *args) {
-       public Type const *t;
-       ctor {t = NULL;};
+  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args) {
+       public Type const *type;   // type being constructed
+       ctor type=NULL;
   }
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
   -> E_fieldAcc(Expression obj, PQName fieldName) {
        public Variable const *field;
-       ctor field = NULL;
+       ctor field=NULL;
      }
 
   -> E_sizeof(Expression expr) {
