@@ -2456,6 +2456,9 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       }
     }
 
+    // dsw: You didn't implement adding DF_PARAMETER to variables that
+    // are parameters; This seems to be the best place to put it.
+    v->setFlag(DF_PARAMETER);
     ft->addParam(v);
   }
 
