@@ -10,7 +10,7 @@
 //
 // These references are all marked with the string "cppstd".
 
-#include "cc.ast.gen.h"     // C++ AST
+#include "cc_ast.h"         // C++ AST
 #include "cc_env.h"         // Env
 #include "trace.h"          // trace
 #include "cc_print.h"       // PrintEnv

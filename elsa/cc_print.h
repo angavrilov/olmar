@@ -5,7 +5,7 @@
 #ifndef CC_PRINT_H
 #define CC_PRINT_H
 
-#include "cc.ast.gen.h"         // C++ AST; this module
+#include "cc_ast.h"             // C++ AST; this module
 #include "str.h"                // stringBuilder
 
 #include <iostream.h>           // ostream

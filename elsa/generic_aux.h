@@ -2,7 +2,7 @@
 // some templatized routines that used to be in cc_ast_aux.cc,
 // but gnu.cc wants to use them too
 
-#include "cc.ast.gen.h"     // C++ AST
+#include "cc_ast.h"         // C++ AST
 
 
 template <class NODE>

@@ -9,7 +9,7 @@
 #include "srcloc.h"       // SourceLocManager
 #include "ckheap.h"       // malloc_stats
 #include "cc_env.h"       // Env
-#include "cc.ast.gen.h"   // C++ AST (r)
+#include "cc_ast.h"       // C++ AST (r)
 #include "cc_lang.h"      // CCLang
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv

@@ -2,7 +2,7 @@
 // code for ccparse.h
 
 #include "ccparse.h"      // this module
-#include "cc.ast.gen.h"   // ASTVisitor
+#include "cc_ast.h"       // ASTVisitor
 
 #include <iostream.h>     // cout
 

@@ -2,7 +2,7 @@
 // generic ambiguity resolution; was in cc_tcheck.cc, but gnu.cc
 // wants to use it too
 
-#include "cc.ast.gen.h"     // C++ AST
+#include "cc_ast.h"         // C++ AST
 #include "cc_env.h"         // Env
 #include "objlist.h"        // ObjList
 #include "trace.h"          // TRACE

@@ -2,7 +2,7 @@
 // code for cfg.h and cfg.ast
 
 #include "cfg.h"           // this module
-#include "cc.ast.gen.h"    // C++ AST, including cfg.ast's contributions
+#include "cc_ast.h"        // C++ AST, including cfg.ast's contributions
 #include "sobjset.h"       // SObjSet
 
 #include <iostream.h>      // cout

@@ -9,7 +9,7 @@
 #include "objlist.h"       // ObjList
 #include "array.h"         // ArrayStack
 #include "cc_flags.h"      // UberModifiers, SimpleTypeId
-#include "cc.ast.gen.h"    // C++ AST classes, needed for the action function signatures
+#include "cc_ast.h"        // C++ AST classes, needed for the action function signatures
 #include "srcloc.h"        // SourceLoc
 
 class CCLang;              // cc_lang.h
