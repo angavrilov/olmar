@@ -12,6 +12,9 @@ options:
   -h:                print this message
   -debug,-nodebug:   enable/disable debugging options [disabled]
   -loc,-noloc:       enable/disable source location tracking [enabled]
+  -fastest:          turn off all Elkhound features that are not present
+                     in Bison, for the purpose of performance comparison
+                     (note that the C++ parser will not work in this mode)
   <op>:              add a given option to the gcc command line,
                        including forms: -W*, -pg, -D*, -O*
 EOF
@@ -52,12 +55,30 @@ while [ "$1" != "" ]; do
 
     -noloc)
       loc=false
-      CCFLAGS="$CCFLAGS -DGLR_SOURCELOC=0"
+      ;;
+
+    -fastest)
+      # the idea is I can say
+      #   $ ./configure -fastest
+      #   $ make clean; make
+      #   $ ./perf -tests c -iters 5
+      # to verify that I'm still within 3% of Bison (at least
+      # when compiled with gcc-2.95.3)
+      loc=false
+      debug=false
+      CCFLAGS="$CCFLAGS -DUSE_RECLASSIFY=0 -DUSE_KEEP=0 -DNDEBUG_NO_ASSERTIONS"
+      CCFLAGS="$CCFLAGS -DDO_ACCOUNTING=0 -DENABLE_YIELD_COUNT=0"
       ;;
   esac
 
   shift
 done
+
+if $loc; then
+  true
+else
+  CCFLAGS="$CCFLAGS -DGLR_SOURCELOC=0"
+fi
 
 if $debug; then
   CCFLAGS="$CCFLAGS -DACTION_TRACE=1"
