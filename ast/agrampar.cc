@@ -44,7 +44,7 @@ CtorArg *parseCtorArg(rostring origStr)
   string str = trimWhitespace(origStr);
 
   // check for owner flag
-  if (str.equals("owner")) {
+  if (prefixEquals(str, "owner")) {
     ret->isOwner = true;
     str = str.substring(6, str.length() - 6);    // skip "owner "
   }
