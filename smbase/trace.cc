@@ -8,6 +8,7 @@
 #include "nonport.h"   // getMilliseconds()
 
 #include <fstream.h>   // ofstream
+#include <stdlib.h>    // getenv
 
 
 // auto-init
@@ -140,6 +141,8 @@ void traceAddMultiSys(char const *systemNames)
 
 bool traceProcessArg(int &argc, char **&argv)
 {
+  traceAddFromEnvVar();
+
   if (argc >= 3  &&  0==strcmp(argv[1], "-tr")) {
     traceAddMultiSys(argv[2]);
     argc -= 2;
@@ -150,3 +153,23 @@ bool traceProcessArg(int &argc, char **&argv)
     return false;
   }
 }
+
+
+bool ignoreTraceEnvVar = false;
+
+void traceAddFromEnvVar()
+{
+  if (ignoreTraceEnvVar) {
+    return;
+  }
+
+  char const *var = getenv("TRACE");
+  if (var) {
+    traceAddMultiSys(var);
+  }
+
+  ignoreTraceEnvVar = true;
+}
+
+
+// EOF

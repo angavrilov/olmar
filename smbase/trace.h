@@ -1,8 +1,8 @@
 // trace.h            see license.txt for copyright and terms of use
 // module for diagnostic tracing
 
-#ifndef __TRACE_H
-#define __TRACE_H
+#ifndef TRACE_H
+#define TRACE_H
 
 #include <iostream.h>     // ostream
 
@@ -50,7 +50,8 @@ void traceAddMultiSys(char const *systemNames);
 
 // if the first argument is a tracing directive, handle it, modify
 // argc and argv modified to effectively remove it, and return true
-// (argv[0] is assumed to be ignored by everything)
+// (argv[0] is assumed to be ignored by everything); this calls
+// 'traceAddFromEnvVar' too
 bool traceProcessArg(int &argc, char **&argv);
 
 // so here's a simple loop that will consume any leading
@@ -58,4 +59,11 @@ bool traceProcessArg(int &argc, char **&argv);
 #define TRACE_ARGS() while (traceProcessArg(argc, argv)) {}
 
 
-#endif // __TRACE_H
+// add tracing flags from the environment variable "TRACE",
+// unless 'ignoreTraceEnvVar' is true; this sets it to true,
+// so it's idempotent
+void traceAddFromEnvVar();
+extern bool ignoreTraceEnvVar;    // initially false
+
+
+#endif // TRACE_H
