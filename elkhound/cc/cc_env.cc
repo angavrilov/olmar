@@ -29,9 +29,11 @@ Scope::~Scope()
 
 
 // --------------------- Env -----------------
-Env::Env()
+Env::Env(StringTable &s, CCLang &L)
   : scopes(),
-    errors()
+    errors(),
+    str(s),
+    lang(L)
 {
   // create first scope
   scopes.prepend(new Scope(0 /*changeCount*/));
@@ -46,11 +48,13 @@ Env::~Env()
 
 void Env::enterScope()
 {
+  trace("env") << "entered scope\n";
   scopes.prepend(new Scope(getChangeCount()));
 }
 
 void Env::exitScope()
 {
+  trace("env") << "exited scope\n";
   delete scopes.removeFirst();
 }
 
@@ -70,16 +74,21 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value)
 
 bool Env::addVariable(Variable *v)
 {
+  trace("env") << "added variable `" << v->name
+               << "' of type `" << v->type->toString()
+               << "' at " << v->loc.toString() << endl;
   return insertUnique(scope()->variables, v->name, v);
 }
 
 bool Env::addCompound(CompoundType const *ct)
 {
+  trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
   return insertUnique(scope()->compounds, ct->name, ct);
 }
 
 bool Env::addEnum(EnumType const *et)
 {
+  trace("env") << "added enum " << et->name << endl;
   return insertUnique(scope()->enums, et->name, et);
 }
 
@@ -137,6 +146,7 @@ EnumType const *Env::lookupPQEnum(PQName const *name) const
 // -------- diagnostics --------
 Type const *Env::error(char const *msg)
 {
+  trace("error") << "error: " << msg << endl;
   errors.prepend(new ErrorMsg(stringc << "error: " << msg));
   return getSimpleType(ST_ERROR);
 }
@@ -144,6 +154,7 @@ Type const *Env::error(char const *msg)
 
 Type const *Env::warning(char const *msg)
 {
+  trace("error") << "warning: " << msg << endl;
   errors.prepend(new ErrorMsg(stringc << "warning: " << msg));
   return getSimpleType(ST_ERROR);
 }
@@ -151,6 +162,7 @@ Type const *Env::warning(char const *msg)
 
 Type const *Env::unimp(char const *msg)
 {
+  trace("error") << "unimplemented: " << msg << endl;
   errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg));
   return getSimpleType(ST_ERROR);
 }

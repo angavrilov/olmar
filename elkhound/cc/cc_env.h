@@ -83,8 +83,14 @@ public:      // data
   // stack with only the ones from one particular interpretation
   ObjList<ErrorMsg> errors;
 
+  // string table for making new strings
+  StringTable &str;
+
+  // language options in effect
+  CCLang &lang;
+
 public:      // function
-  Env();
+  Env(StringTable &str, CCLang &lang);
   ~Env();
 
   int getChangeCount() const { return scopeC()->changeCount; }
@@ -110,13 +116,6 @@ public:      // function
   Type const *error(char const *msg);
   Type const *warning(char const *msg);
   Type const *unimp(char const *msg);
-
-
-
-
-
-
-
 
 };
 

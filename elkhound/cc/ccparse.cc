@@ -100,38 +100,39 @@ void doit(int argc, char **argv)
   }
 
 
-  #if 0
-  // --------- declarations provided automatically -------
-  SourceLocation dummyLoc;
-  Variable mem(dummyLoc, strTable.add("mem"),
-               new PointerType(PO_POINTER, CV_NONE,
-                 &CVAtomicType::fixed[ST_INT]), DF_NONE);
-
   // ---------------- typecheck -----------------
   {
     traceProgress() << "type checking...\n";
     Env env(strTable, lang);
-    env.addVariable(mem.name, &mem);
     unit->tcheck(env);
     traceProgress(2) << "done type checking\n";
+
+    int n = env.errors.count();
+    if (n != 0) {
+      cout << "there " << plural(n, "was") << " " << n
+           << " typechecking " << plural(n, "error") << "\n";
+
+      // print them in reverse order
+      env.errors.reverse();
+      FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
+        cout << iter.data()->msg << "\n";
+      }
+
+      exit(4);
+    }
+    else {
+      cout << "there were no errors during typechecking\n";
+    }
 
     // print abstract syntax tree annotated with types
     if (tracingSys("printTypedAST")) {
       unit->debugPrint(cout, 0);
     }
-
-    if (env.getErrors() != 0) {
-      int n = env.getErrors();
-      cout << "there " << plural(n, "was") << " " << env.getErrors()
-           << " typechecking " << plural(n, "error") << "\n";
-      exit(4);
-    }
-
+                                  
     if (tracingSys("stopAfterTCheck")) {
       return;
     }
   }
-  #endif // 0
 
 
   //malloc_stats();
