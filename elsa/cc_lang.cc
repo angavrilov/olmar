@@ -26,7 +26,7 @@ void CCLang::ANSI_C()
   allow_KR_ParamOmit = false;
   allowImplicitIntRetType = true;
   allowDynamicallySizedArrays = false;
-  allowForwardEnums = false;
+  allowIncompleteEnums = false;
 
   isCplusplus = false;
   isC99 = false;
@@ -59,8 +59,9 @@ void CCLang::GNU_C()
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   
-  // I'm just guessing this is GNU only....
-  allowForwardEnums = true;
+  // I'm just guessing this is GNU only.... yep:
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Incomplete-Enums.html
+  allowIncompleteEnums = true;
 }
 
 void CCLang::GNU_KandR_C()
@@ -98,7 +99,7 @@ void CCLang::ANSI_Cplusplus()
   allow_KR_ParamOmit = false;
   allowImplicitIntRetType = false;
   allowDynamicallySizedArrays = false;
-  allowForwardEnums = false;
+  allowIncompleteEnums = false;
 
   isCplusplus = true;
   isC99 = false;

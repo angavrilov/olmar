@@ -1021,7 +1021,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   if (keyword == TI_ENUM) {
     EnumType *et = env.lookupPQEnum(name);
     if (!et) {
-      if (!env.lang.allowForwardEnums ||
+      if (!env.lang.allowIncompleteEnums ||
           name->hasQualifiers()) {
         return env.error(stringc << "there is no enum called `" << *name << "'",
                          EF_DISAMBIGUATES);
@@ -1546,7 +1546,7 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
   EnumType *et = NULL;
   Type *ret = NULL;
 
-  if (env.lang.allowForwardEnums && name) {
+  if (env.lang.allowIncompleteEnums && name) {
     // is this referring to an existing forward-declared enum?
     et = env.lookupEnum(name);
     if (et) {
