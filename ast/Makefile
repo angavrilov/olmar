@@ -76,15 +76,15 @@ astgen: $(agrampar-dep) agrampar.o astgen.o $(LIBSMBASE)
 
 # test code for ccsstr
 ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
-	$(link) -o ccsstr -DTEST_CCSSTR ccsstr.cc \
-                reporterr.o embedded.o $(linkend)
+	$(LINK) -o ccsstr -DTEST_CCSSTR ccsstr.cc \
+                reporterr.o embedded.o $(LINKEND)
 
 # simple ast spec file
 example.cc: astgen example.ast
 	./astgen example.ast
 
-exampletest: exampletest.cc example.o asthelp.o locstr.o fileloc.o strtable.o ../smbase/libsmbase.a
-	g++ -o $@ -I ../smbase $^
+exampletest: exampletest.o example.o asthelp.o locstr.o fileloc.o strtable.o $(LIBSMBASE)
+	$(LINK) -o $@ $^
 
 # If you want to regenerate astgen's own ast file, you do
 #   ./astgen -bname ast.ast
