@@ -680,7 +680,7 @@ void Function::tcheck_memberInits(Env &env)
 void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 {
   // resolve template arguments in 'name'
-  name->tcheck(env);
+  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // typecheck the arguments
   // dsw: I do not want to typecheck the args twice, as it is giving
@@ -692,8 +692,9 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   if (!name->hasQualifiers()) {
     // look for the given name in the class; should be an immediate
     // member, not one that was inherited
-    Variable *v =
-      enclosing->lookupVariable(name->getName(), env, LF_INNER_ONLY);
+    LookupSet set;
+    enclosing->lookup(set, name->getName(), env, LF_INNER_ONLY);
+    Variable *v = set.isEmpty()? NULL : set.first();
     if (v && !v->hasFlag(DF_TYPEDEF)) {     // typedef -> fall down to next area (in/t0390.cc)
       // only "nonstatic data member"
       if (v->hasFlag(DF_STATIC) ||
@@ -702,6 +703,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
                   "nor member functions in a ctor member init list");
         return;
       }
+      xassert(set.count() == 1);      // otherwise should have been function type
 
       // annotate the AST
       member = env.storeVar(v);
@@ -742,7 +744,9 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // since the base class initializer can use any name which
   // denotes the base class [para 2], first look up the name
   // in the environment generally
-  Variable *baseVar = env.lookupPQVariable(name);
+  LookupSet set;
+  env.lookupPQ(set, name, LF_NONE);
+  Variable *baseVar = set.isEmpty()? NULL : set.first();
   if (!baseVar ||
       !baseVar->hasFlag(DF_TYPEDEF) ||
       !baseVar->type->isCompoundType()) {
@@ -750,6 +754,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
               << "`" << *name << "' does not denote any class");
     return;
   }
+  xassert(set.count() == 1);        // otherwise cannot be compound type
   CompoundType *baseClass = baseVar->type->asCompoundType();
 
   // is this class a direct base, and/or an indirect virtual base?

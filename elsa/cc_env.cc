@@ -4041,7 +4041,7 @@ void Env::lookupPQ(LookupSet &set, PQName *name, LookupFlags flags)
   // if we are even considering applying template arguments, the
   // name must be unambiguous
   if (set.count() > 1) {
-    env.error(name->loc, stringc << "ambiguous lookup of `" << *name
+    env.error(name->loc, stringc << "ambiguous use of `" << *name
                                  << "' in non-overloadable context");
     set.removeAllButOne();    // error recovery
     return;
