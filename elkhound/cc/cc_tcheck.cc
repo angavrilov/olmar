@@ -1814,19 +1814,19 @@ realStart:
 
   // did we find something?
   if (prior) {
-    // check for violation of the One Definition Rule
-    if (prior->hasFlag(DF_DEFINITION) &&
-        (dt.dflags & DF_DEFINITION)) {
-      // check for exception given by [cppstd 7.1.3 para 2]:
-      //   "In a given scope, a typedef specifier can be used to redefine
-      //    the name of any type declared in that scope to refer to the
-      //    type to which it already refers."
-      if (prior->hasFlag(DF_TYPEDEF) &&
-          (dt.dflags & DF_TYPEDEF)) {
-        // let it go; the check below will ensure the types match
-      }
+    // check for exception given by [cppstd 7.1.3 para 2]:
+    //   "In a given scope, a typedef specifier can be used to redefine
+    //    the name of any type declared in that scope to refer to the
+    //    type to which it already refers."
+    if (prior->hasFlag(DF_TYPEDEF) &&
+        (dt.dflags & DF_TYPEDEF)) {
+      // let it go; the check below will ensure the types match
+    }
 
-      else {
+    else {
+      // check for violation of the One Definition Rule
+      if (prior->hasFlag(DF_DEFINITION) &&
+          (dt.dflags & DF_DEFINITION)) {
         // HACK: if the type refers to type variables, then let it slide
         // because it might be Foo<int> vs. Foo<float> but my simple-
         // minded template implementation doesn't know they're different
@@ -1837,26 +1837,26 @@ realStart:
           << "duplicate definition for `" << *name
           << "' of type `" << prior->type->toString()
           << "'; previous at " << prior->loc.toString());
+          goto makeDummyVar;
+      }
+
+      // check for violation of rule disallowing multiple
+      // declarations of the same class member; cppstd sec. 9.2:
+      //   "A member shall not be declared twice in the
+      //   member-specification, except that a nested class or member
+      //   class template can be declared and then later defined."
+      //
+      // I have a specific exception for this when I do the second pass
+      // of typechecking for inline members (the user's code doesn't
+      // violate the rule, it only appears to because of the second
+      // pass); this exception is indicated by DF_INLINE_DEFN.
+      if (enclosingClass && !(dt.dflags & DF_INLINE_DEFN)) {
+        env.error(stringc
+          << "duplicate member declaration of `" << *name
+          << "' in " << enclosingClass->keywordAndName()
+          << "; previous at " << prior->loc.toString());
         goto makeDummyVar;
       }
-    }
-
-    // check for violation of rule disallowing multiple
-    // declarations of the same class member; cppstd sec. 9.2:
-    //   "A member shall not be declared twice in the
-    //   member-specification, except that a nested class or member
-    //   class template can be declared and then later defined."
-    //
-    // I have a specific exception for this when I do the second pass
-    // of typechecking for inline members (the user's code doesn't
-    // violate the rule, it only appears to because of the second
-    // pass); this exception is indicated by DF_INLINE_DEFN.
-    if (enclosingClass && !(dt.dflags & DF_INLINE_DEFN)) {
-      env.error(stringc
-        << "duplicate member declaration of `" << *name
-        << "' in " << enclosingClass->keywordAndName()
-        << "; previous at " << prior->loc.toString());
-      goto makeDummyVar;
     }
 
     // check that the types match

@@ -1,0 +1,18 @@
+// cc.in72
+// declmodifiers after type specifier word
+
+const static int x = 4;
+
+//ERROR1: const const int q;    // duplicate 'const'
+
+unsigned int r;
+
+
+// some more hairy examples
+long unsigned y;
+const unsigned volatile long static int z;
+
+//ERROR2: long long LL;    // duplicate 'long' (no GNU for now)
+
+//ERROR3: long float g;    // malformed type
+

@@ -16,6 +16,8 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 
+// HACK
+class ParseEnv *globalParseEnv = NULL;
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
