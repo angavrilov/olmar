@@ -65,7 +65,10 @@ void getCycles(unsigned *lowp, unsigned *highp)
 
 // ------------------ unknown architecture -----------------
 #else
-#warn unknown architecture in cycles.c
+
+// some preprocessors choke on this..
+//#warn unknown architecture in cycles.c
+
 void getCycles(unsigned *lowp, unsigned *highp)
 {
   *lowp = 0;
