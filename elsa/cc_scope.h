@@ -50,7 +50,10 @@ private:     // data
   // note: this includes typedefs (DF_TYPEDEF is set), and it also
   // includes enumerators (DF_ENUMERATOR is set)
   StringSObjDict<Variable> variables;
-
+  // dsw: variables in the order they were added; I need this for
+  // struct initializers
+  SObjList<Variable> variables_in_order;
+  
   // compounds: map name -> CompoundType
   StringSObjDict<CompoundType> compounds;
 
@@ -108,6 +111,14 @@ public:      // funcs
   ~Scope();
 
   int getChangeCount() const { return changeCount; }
+
+  // dsw: I need to lookup variables and I don't have an Env to pass
+  // in; additionally, I'm not so sure that lookupVariable() really
+  // does what I want
+  StringSObjDict<Variable> &get_variables() {return variables;}
+  SObjList<Variable> &get_variables_in_order() {return variables_in_order;}
+  StringSObjDict<Variable> const &get_variablesC() const {return variables;}
+  SObjList<Variable> const &get_variables_in_orderC() const {return variables_in_order;}
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)

@@ -105,6 +105,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     v->setFlag(DF_GLOBAL);
   }
 
+  variables_in_order.append(v);
   return insertUnique(variables, v->name, v, changeCount, forceReplace);
 }
 
