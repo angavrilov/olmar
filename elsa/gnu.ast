@@ -62,6 +62,11 @@ enum DeclaratorContext {
 }
 
 
+class Statement {
+  // nested function definition
+  -> S_function(Function f);
+}  
+
 class Expression {
   -> E_compoundLit(ASTTypeId stype, IN_compound init);
 

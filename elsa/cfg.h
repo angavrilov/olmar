@@ -22,6 +22,15 @@ class Function;
 class TranslationUnit;
 
 
+// dsw: Design note: the graph that is built here is NOT the control
+// flow graph!  It is only information additional to what is inherent
+// in the AST that Statement::getSuccessors() needs to compute the
+// control flow graph when asked; See the comment at the top of
+// Statement::getSuccessors() in cfg.cc.  For example, an 'if'
+// statement (S_if) never has an edge added to the start of its 'else'
+// block because the fact that the 'else' follows the 'if' is inherent
+// in the meaning of the AST.
+
 // a 'next' pointer in the CFG, i.e. a pointer to a Statement
 class NextPtr {
 private:     // data

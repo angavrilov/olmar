@@ -91,6 +91,10 @@ nonterm(Expression*) ConditionalExpression {
 nonterm(Statement*) Statement {
   -> n:Identifier ":" attrspec:AttributeSpecifierList s:Statement
        { return new S_label(loc, n, s); }
+
+  // nested function definition
+  -> f:FunctionDefinition
+       { return new S_function(loc, f); }
 }
 
 nonterm(S_compound*) CompoundStatement {

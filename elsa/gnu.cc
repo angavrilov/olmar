@@ -53,6 +53,13 @@ Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 }
 
 
+void S_function::itcheck(Env &env)
+{
+  env.setLoc(loc);
+  f->tcheck(env, true /*checkBody*/, NULL /*prior*/);
+}
+
+
 Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_COMPOUNDLIT);
@@ -181,6 +188,13 @@ void ASTTypeof::addAmbiguity(ASTTypeof *alt)
 }
 
 
+void S_function::iprint(PrintEnv &env)
+{
+  olayer ol("S_function::iprint");
+  f->print(env);
+}
+
+
 void E_compoundLit::iprint(PrintEnv &env)
 {
   olayer ol("E_compoundLit::iprint");
@@ -274,3 +288,34 @@ void Designator::setNext(Designator *newNext)
   genericSetNext(this, newNext);
 }
 
+
+// ------------------------ cfg --------------------------
+
+// WARNING: The control flow graph will show that the statement before
+// the S_function flows into the S_function and that the S_function
+// flows into the next statement.  If you know that an S_function is
+// just a function definition and does nothing at run time, this is
+// harmless, but it is a little odd, as in reality control would jump
+// over the S_function.  The only way to prevent this that I can see
+// would be for cfg.cc:Statement::computeCFG() to know about
+// S_function which would eliminate the usefulness of having it in the
+// gnu extension, or for S_function::icfg to go up and do some surgery
+// on edges that have already been added, which I consider to be too
+// weird.
+void S_function::icfg(CFGEnv &env)
+{
+  // any pending 'next's should not be resolved as pointing into the
+  // function definition, but instead as pointing at whatever follows
+  // it
+  env.pushNexts();
+
+  computeFunctionCFG(env, f);
+  // dsw: I am tempted to do this but env.pendingNexts is private,
+  // which suggests that perhaps it is not what you want.  It seems
+  // that the meaning of 'nexts' is that there shouldn't be any here
+//    xassert(env.pendingNexts.isEmpty());
+
+  // merge current pending nexts (which should be empty) with those
+  // saved above
+  env.popNexts();
+}
