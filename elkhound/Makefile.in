@@ -209,7 +209,10 @@ cc-set := \
   cc/treeout.o \
   cc/variable.o \
   cc/ccparse.o \
-  cc/dswutil.o
+  cc/dswutil.o \
+  cc/qual_type.o \
+  cc/qual_var.o \
+  cc/qual_tcheck.o
 
 ifdef CC_QUAL
   cc-set += cc/cc_qual/cc_qualifiers.o

@@ -46,6 +46,11 @@ class Function {
   public FunctionType const *funcType;
   ctor funcType = NULL;
 
+  // since the body of the function (if a class member) may refer
+  // to the 'this' Variable, I need to write it down so client
+  // analyses can find it
+  public Variable *thisVar;  ctor thisVar=NULL;
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
@@ -113,8 +118,27 @@ class TypeSpecifier {
   public Type const *tcheck(Env &env, DeclFlags dflags);
   pure_virtual Type const *itcheck(Env &env, DeclFlags dflags);
 
+  // since several of the type specifiers use names, and names are
+  // scoped, but we don't want later analyses to have to know about
+  // scopes, for those specifiers that use names cc_tcheck writes down
+  // which type it refers to
+
+  -> TS_name {
+       // typedef Variable this name refers to
+       public Variable *var;  ctor var=NULL;
+     }
+
+  -> TS_elaborated {
+       public NamedAtomicType const *atype;  ctor atype=NULL;
+     }
+
   -> TS_classSpec {
+       public CompoundType const *ctype;  ctor ctype=NULL;
        private void tcheckFunctionBodies(Env &env);
+     }
+
+  -> TS_enumSpec {
+       public EnumType const *etype;  ctor etype=NULL;
      }
 }
 
@@ -229,10 +253,22 @@ class Declarator {
 
 
 class IDeclarator {
+  // write down the type denoted by this type constructor, in
+  // conjunction with the constructors that surround it, and the
+  // type specifier
+  public Type const *type;  ctor type=NULL;
+
   // external interface; add the type constructor represented by this
   // IDeclarator to 'dt.type' and then make a Variable to represent
   // it; put the variable into the environment if appropriate
   pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+  
+  -> D_array {
+       // client analyses find it difficult to know whether this
+       // D_array means "array" or "new[] size", so I'm going to
+       // write down in cc_tcheck which one this is
+       public bool isNewSize;  ctor isNewSize=false;
+     }
 }
 
 
@@ -338,6 +374,10 @@ class TemplateDeclaration {
 
 
 class TemplateParameter {
+  // stand-in for the type used when checking the body; it's
+  // always a CVAtomic wrapped around a TypeVariable
+  public CVAtomicType const *type;  ctor type=NULL;
+
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
 }
 

@@ -55,6 +55,12 @@ public:      // data
   // language options in effect
   CCLang &lang;
 
+  // client analyses may need to get ahold of all the Variables that I
+  // made up, so this is a list of them; these don't include Variables
+  // built for parameters of function types, but the functions
+  // themselves appear here so the parameters are reachable
+  SObjList<Variable> madeUpVariables;
+
   // type for typeid expression
   Type const *type_info_const_ref;      // (serf)
 

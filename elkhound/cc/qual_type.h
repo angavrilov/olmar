@@ -88,7 +88,11 @@ public:
   // pointers in the _Q world and in the non-_Q world; if this
   // check fails, an assertion fails
   virtual void checkHomomorphism() const=0;
-  
+                            
+  // apply some 'cv' flags to the underlying C++ type; usually
+  // just returns 'this'
+  Type_Q *applyCV(CVFlags cv);
+
   // type rendering, back to its C++Qual concrete syntax
   string toCString() const;
   string toCString(char const *name) const;
@@ -121,11 +125,14 @@ public:
   Type_Q *atType;
   Qualifiers *q;
 
+private:
+  void checkInvars() const;
+
 public:
   PointerType_Q(PointerType const *corresp, Type_Q *at)
-    : Type_Q(corresp), atType(at) {}
+    : Type_Q(corresp), atType(at) { checkInvars(); }
   PointerType_Q(PointerType_Q const &obj)
-    : Type_Q(obj), atType(obj.atType) {}
+    : Type_Q(obj), atType(obj.atType) { checkInvars(); }
 
   PointerType const *type() const
     { return static_cast<PointerType const*>(correspType); }
@@ -168,9 +175,12 @@ class ArrayType_Q : public Type_Q {
 public:
   Type_Q *eltType;
 
+private:
+  void checkInvars() const;
+
 public:
   ArrayType_Q(ArrayType const *corresp, Type_Q *elt)
-    : Type_Q(corresp), eltType(elt) {}
+    : Type_Q(corresp), eltType(elt) { checkInvars(); }
 
   ArrayType const *type() const
     { return static_cast<ArrayType const*>(correspType); }
@@ -186,7 +196,6 @@ public:
 
 
 // --------------------- type constructors ----------------
-// I'll probably need most of the others too...
 
 inline CVAtomicType_Q *makeType_Q(AtomicType const *atomic)
   { return new CVAtomicType_Q(makeType(atomic)); }
@@ -195,6 +204,16 @@ inline Type_Q *makeRefType_Q(Type_Q *type)
   { return type->getRefTypeTo(); }
 
 CVAtomicType_Q *getSimpleType_Q(SimpleTypeId id, CVFlags cv = CV_NONE);
+
+
+// This builds a Type_Q from an arbitrary Type by recursively copying
+// its structure.  Of course, the Type_Q will have no qualifiers
+// anywhere inside it, so this is not used for types the user
+// describes.  (In a pinch one might even use it for that purpose if
+// it's certain the user type doesn't have any interesting
+// qualifiers.)
+Type_Q *buildQualifierFreeType_Q(Type const *t);
+
 
 
 #endif // QUAL_TYPE_H

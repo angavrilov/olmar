@@ -333,6 +333,7 @@ public:     // funcs
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
+  bool isDependent() const { return isSimple(ST_DEPENDENT); }
   //bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
   CompoundType const *asCompoundType() const;     // fail assertion if not
@@ -474,6 +475,10 @@ public:     // funcs
   void addParam(Parameter *param);
 
   bool isTemplate() const { return templateParams!=NULL; }
+
+  // more specialized printing, for C++Qual syntax
+  string rightStringUpToQualifiers(bool innerParen) const;
+  string rightStringAfterQualifiers() const;
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }

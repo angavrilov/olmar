@@ -22,18 +22,19 @@
 #ifndef VARIABLE_H
 #define VARIABLE_H
 
-#include "fileloc.h"      // SourceLocation
-#include "strtable.h"     // StringRef
-#include "cc_flags.h"     // DeclFlags
-#include "sobjlist.h"     // SObjList
+#include "fileloc.h"           // SourceLocation
+#include "strtable.h"          // StringRef
+#include "cc_flags.h"          // DeclFlags
+#include "sobjlist.h"          // SObjList
+#include "variable_annot.h"    // VariableAnnot
 
-class Type;               // cc_type.h
-class OverloadSet;        // below
-class Scope;              // scope
-class Expression;         // cc.ast
-class Function;           // cc.ast
+class Type;                    // cc_type.h
+class OverloadSet;             // below
+class Scope;                   // scope
+class Expression;              // cc.ast
+class Function;                // cc.ast
 
-class Variable {
+class Variable : public VariableAnnot {
 #if CC_QUAL
 public:
   static SObjList<Variable> instances;
@@ -55,7 +56,7 @@ public:    // data
 
   // associated function definition; if NULL, either this thing isn't
   // a function or we never saw a definition
-  Function *funcDefn;
+  Function *funcDefn;     // (nullable serf)
 
   // if this name has been overloaded, then this will be a pointer
   // to the set of overloaded names; otherwise it's NULL

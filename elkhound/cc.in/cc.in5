@@ -10,7 +10,9 @@ typedef int q;
 
 int main()
 {
-  f( (a)&(b), c );
+  +f(a,2);                // unambiguous call
+
+  f( (a)&(b), c );        // ambiguous call
 
   {
     x(y);
