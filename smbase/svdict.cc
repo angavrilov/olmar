@@ -19,13 +19,21 @@
 #define MUTABLE_SORT(obj) (const_cast<StringVoidDict&>(obj)).sort()
 
 
+STATICDEF char const *StringVoidDict::Node::getKey(StringVoidDict::Node const *n)
+{
+  return n->key.pcharc();
+}
+
+
 StringVoidDict::StringVoidDict()
-  : top(NULL)
+  : top(NULL),
+    hash((StringHash::GetKeyFn)Node::getKey)
 {}
 
 
 StringVoidDict::StringVoidDict(StringVoidDict const &obj)
-  : top(NULL)
+  : top(NULL),
+    hash((StringHash::GetKeyFn)Node::getKey)
 {
   *this = obj;
 }
@@ -57,6 +65,7 @@ StringVoidDict& StringVoidDict::operator= (StringVoidDict const &obj)
       // adding to end of nonempty list
       end = end->next = newnode;
     }
+    hash.add(newnode->key, newnode);
   }
 
   SELFCHECK();
@@ -97,24 +106,19 @@ bool StringVoidDict::isEmpty() const
 
 int StringVoidDict::size() const
 {
-  int ret=0;
-  FOREACH_ITERC(*this, entry) {
-    ret++;
-  }
-  return ret;
+  return hash.getNumEntries();
 }
 
 
 bool StringVoidDict::query(char const *key, void *&value) const
 {
-  FOREACH_ITERC(*this, entry) {
-    if (0==strcmp(entry.key(), key)) {
-      value = entry.value();
-      return true;
-    }
+  Node *n = (Node*)hash.get(key);
+  if (!n) {
+    return false;
   }
 
-  return false;
+  value = n->value;
+  return true;
 }
 
 
@@ -140,6 +144,7 @@ void StringVoidDict::add(char const *key, void *value)
 
   // just prepend; we'll sort later (when an iterator is retrieved)
   top = new Node(key, value, top);
+  hash.add(key, top);
 
   SELFCHECK();
 }
@@ -149,7 +154,7 @@ void *StringVoidDict::modify(char const *key, void *newValue)
 {
   Iter entry = find(key);
   xassert(!entry.isDone());
-      
+
   void *ret = entry.value();
   entry.value() = newValue;
 
@@ -160,12 +165,8 @@ void *StringVoidDict::modify(char const *key, void *newValue)
 
 StringVoidDict::Iter StringVoidDict::find(char const *key)
 {
-  FOREACH_ITER(*this, entry) {
-    if (0==strcmp(entry.key(), key)) {
-      return entry;
-    }
-  }
-  return Iter(NULL);
+  Node *n = (Node*)hash.get(key);
+  return Iter(n);
 }
 
 
@@ -179,6 +180,7 @@ void *StringVoidDict::remove(char const *key)
     Node *temp = top;
     top = top->next;
     ret = temp->value;
+    hash.remove(temp->key);
     delete temp;
   }
 
@@ -198,6 +200,7 @@ void *StringVoidDict::remove(char const *key)
     Node *temp = p->next;
     p->next = p->next->next;
     ret = temp->value;
+    hash.remove(temp->key);
     delete temp;
   }
 
@@ -220,6 +223,7 @@ void StringVoidDict::emptyAndDel(DelFn func)
     if (func != NULL) {
       func(temp->value);
     }
+    hash.remove(temp->key);
     delete temp;
   }
 
@@ -245,7 +249,7 @@ StringVoidDict::IterC StringVoidDict::getIterC() const
 void StringVoidDict::foreach(ForeachFn func, void *extra) const
 {
   const_cast<StringVoidDict*>(this)->sort();    // mutable
-  
+
   for (Node *n = top; n != NULL; n = n->next) {
     if (func(n->key, n->value, extra)) {
       return;
@@ -325,14 +329,23 @@ void StringVoidDict::verifySorted() const
 // verify that the list is well structured
 void StringVoidDict::selfCheck() const
 {
-  Node *fast = top, *slow = top;
-  while (fast && fast->next) {
-    fast = fast->next->next;
-    slow = slow->next;
+  {
+    Node *fast = top, *slow = top;
+    while (fast && fast->next) {
+      fast = fast->next->next;
+      slow = slow->next;
 
-    xassert(fast != slow);
-      // if these become equal, the list is circular
+      xassert(fast != slow);
+        // if these become equal, the list is circular
+    }
   }
+
+  // check counts, mappings
+  int ct=0;
+  for (Node *n = top; n != NULL; n = n->next, ct++) {
+    xassert(hash.get(n->key) == n);
+  }
+  xassert(hash.getNumEntries() == ct);
 }
 
 

@@ -1,5 +1,5 @@
 
-file strhash
+file svdict
 
 break main
 break breaker

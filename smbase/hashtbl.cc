@@ -108,7 +108,8 @@ void HashTable::add(void const *key, void *value)
 
 void HashTable::remove(void const *key)
 {
-  if (numEntries-1 < tableSize/5) {
+  if (numEntries-1 < tableSize/5  &&
+      tableSize > initialTableSize) {
     // we're below threshold; reduce table size
     resizeTable(tableSize / 2);
   }
@@ -125,7 +126,7 @@ void HashTable::remove(void const *key)
   // mapping because the search stops as soon as a NULL entry is
   // discovered; so we must examine all entries that could have
   // collided, and re-insert them
-  int originalIndex;
+  int originalIndex = index;
   for(;;) {
     index = nextIndex(index);
     xassert(index != originalIndex);    // prevent infinite loops

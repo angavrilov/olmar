@@ -13,6 +13,7 @@
 #include "macros.h"     // DMEMB
 #include "xassert.h"    // xassert
 #include "typ.h"        // MUTABLE
+#include "strhash.h"    // StringHash
   
 
 // constness: for this class, 'const' means the *mapping* from string
@@ -31,6 +32,8 @@ private:    // types
     Node(char const *k, void *v, Node *n = NULL)
       : next(n), key(k), value(v) {}
     ~Node() {}
+    
+    static char const *getKey(Node const *n);
   };
 
   // function for general foreach; return false to continue,
@@ -84,8 +87,12 @@ private:    // data
   // first list node (possibly NULL)
   Node *top;
 
+  // hash table to improve lookup performance
+  StringHash hash;
+
   // invariants:
   //   list is well-formed structurally
+  //   every node is in the hash table, and vice versa
 
 protected:  // funcs
   void selfCheck() const;      // throw exception if invariants violated
