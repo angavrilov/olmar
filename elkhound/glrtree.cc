@@ -546,7 +546,8 @@ struct wes_ast_node * Reduction::camlAST() const
 
 	retval->name = wes_strdup(production->left->name.pcharc());
 	if (!strcmp(retval->name,"L2_SIZEOF")) {
-
+	    CCTreeNode * nt = (CCTreeNode *) (production->left);
+	    printf ("\nWES: %d\n", nt->theInt);
 	}
 	retval->num_children = nbr;
 	retval->children = new (struct wes_ast_node *) [nbr];

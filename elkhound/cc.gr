@@ -3569,15 +3569,16 @@ extern "C" {
 value c_to_ocaml(struct wes_ast_node *n, char *filename)
 {
     CAMLparam0();
-    CAMLlocal4(result,str,arr,child);
+    CAMLlocal5(result,nname,arr,fname,child);
     int i;
 
     result = alloc(5,0);
-    str = copy_string(n->name);
-    Store_field(result, 0, str);
+    nname = copy_string(n->name);
+    fname = copy_string(filename);
+    Store_field(result, 0, nname);
     Store_field(result, 2, Val_int(n->line));
     Store_field(result, 3, Val_int(n->col));
-    Store_field(result, 4, (int)(filename));
+    Store_field(result, 4, fname);
     if (n->num_children == 0) {
 	Store_field(result, 1, Atom(0));
 	CAMLreturn(result);
@@ -3611,8 +3612,8 @@ value wes_main(char *filename) {
     char *argv[5] = {
 	"cc.gr",
 	"-tr",
-	"parse-tree,sizeof",
-	"cc.gr",
+	"sizeof",	/* wes: was parse-tree,sizeof */
+	"cc.bin",	/* wes: was cc.gr */
 	filename};
     int argc = 5;
     int res;
