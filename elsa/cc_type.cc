@@ -2289,7 +2289,7 @@ PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c
 
 bool PointerToMemberType::innerEquals(PointerToMemberType const *obj, EqFlags flags) const
 {
-  return inClass() == obj->inClass() &&
+  return inClassNAT == obj->inClassNAT &&
          ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
          atType->equals(obj->atType, flags & EF_PTR_PROP);
 }
