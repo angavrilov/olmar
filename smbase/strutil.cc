@@ -558,6 +558,7 @@ void entry()
   decodeVector("abc\\0def", "abc\0def", 7);
   decodeVector("\\033", "\033", 1);
   decodeVector("\\x33", "\x33", 1);
+  decodeVector("\\?", "?", 1);
 
   basenameVector("a/b/c", "c");
   basenameVector("abc", "abc");
