@@ -1,5 +1,7 @@
 // gcc 3.4 __builtin_* math functions
 
+// ERR-MATCH: __builtin_f
+
 inline double
 abs(double __x)
 { return __builtin_fabs(__x); }
