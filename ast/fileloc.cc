@@ -3,7 +3,8 @@
 
 #include "fileloc.h"       // this module
 #include "flatten.h"       // Flatten
-#include <string.h>
+
+#include <string.h>        // strcmp
 
 // -------------------- FileLocation -----------------------------
 void FileLocation::xfer(Flatten &flat)
