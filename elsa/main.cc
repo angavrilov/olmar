@@ -103,6 +103,9 @@ void if_malloc_stats()
 
 void doit(int argc, char **argv)
 {
+  // I think this is more noise than signal at this point
+  xBase::logExceptions = false;
+
   traceAddSys("progress");
   //traceAddSys("parse-tree");
 
@@ -253,16 +256,16 @@ void doit(int argc, char **argv)
       env.errors.print(cout);
       cout << x << endl;
       cout << "Failure probably related to code near " << env.locStr() << endl;
-      if (tracingSys("locstack")) {
-        // print all the locations on the scope stack; this is sometimes
-        // useful when the env.locStr refers to some template code that
-        // was instantiated from somewhere else
-        //
-        // (unfortunately, env.instantiationLocStack isn't an option b/c
-        // it will have been cleared by the automatic invocation of
-        // destructors unwinding the stack...)
-        cout << env.locationStackString();
-      }
+      
+      // print all the locations on the scope stack; this is sometimes
+      // useful when the env.locStr refers to some template code that
+      // was instantiated from somewhere else
+      //
+      // (unfortunately, env.instantiationLocStack isn't an option b/c
+      // it will have been cleared by the automatic invocation of
+      // destructors unwinding the stack...)
+      cout << "current location stack:\n";
+      cout << env.locationStackString();
 
       // I changed from using exit(4) here to using abort() because
       // that way the multitest.pl script can distinguish them; the

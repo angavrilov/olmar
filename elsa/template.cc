@@ -1580,7 +1580,11 @@ Variable *Env::instantiateTemplate
         if (tcheckMode == TTM_1NORMAL) {
           xassert(copyFun);
           copyFun->funcType = instV->type->asFunctionType();
-          xassert(scope()->isGlobalTemplateScope());
+          
+          // sm: why assert this?  t0231.cc is an example of good
+          // code that causes it to fail
+          //xassert(scope()->isGlobalTemplateScope());
+
           // NOTE: again we do not add the variable to the namespace
           //
           // sm: all that is necessary is to check the body, not the
