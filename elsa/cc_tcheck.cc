@@ -4982,6 +4982,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   FunctionType *ft = t->asFunctionType();
+  env.instantiateTemplatesInParams(ft);
 
   // receiver object?
   if (env.doCompareArgsToParams && ft->isMethod()) {

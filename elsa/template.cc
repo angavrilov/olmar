@@ -2239,11 +2239,24 @@ void Env::instantiateClassBody(Variable *inst)
 }
 
 
-// this is for 14.7.1 para 4 only
+// this is for 14.7.1 para 4, among other things
 void Env::ensureClassBodyInstantiated(CompoundType *ct)
 {
   if (!ct->isComplete() && ct->isInstantiation()) {
     instantiateClassBody(ct->typedefVar);
+  }
+}
+
+// given a function type whose parameters are about to be considered
+// for various conversions, make sure that all relevant template
+// classes are instantiated
+void Env::instantiateTemplatesInParams(FunctionType *ft)
+{
+  SFOREACH_OBJLIST(Variable, ft->params, iter) {
+    Type *paramType = iter.data()->type;
+    if (paramType->asRval()->isCompoundType()) {
+      ensureClassBodyInstantiated(paramType->asRval()->asCompoundType());
+    }
   }
 }
 

@@ -561,6 +561,7 @@ testparse t0323.cc
 testparse t0324.cc
 # t0325.cc is a report from Daniel that I haven't looked at yet
 testparse t0326.cc
+testparse t0327.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

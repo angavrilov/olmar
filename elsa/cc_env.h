@@ -809,9 +809,11 @@ public:      // template funcs
 
   // instantiate the given class' body, *if* it is an instantiation
   // and that hasn't already been done; note that most of the time
-  // you want to call ensureCompleteType, not this functions; this
-  // is for 14.7.1 para 4 *only*
+  // you want to call ensureCompleteType, not this functions
   void ensureClassBodyInstantiated(CompoundType *ct);
+        
+  // do 'ensureClassBodyInstantiated' for all parameters
+  void instantiateTemplatesInParams(FunctionType *ft);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances

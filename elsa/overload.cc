@@ -280,7 +280,7 @@ void OverloadResolver::processCandidates(SObjList<Variable> &varList)
   }
 }
 
-
+ 
 void OverloadResolver::addCandidate(Variable *var0, Variable *instFrom)
 {
   xassert(var0);
@@ -288,16 +288,11 @@ void OverloadResolver::addCandidate(Variable *var0, Variable *instFrom)
   if (c) {
     IFDEBUG( c->conversionDescriptions(); )
     candidates.push(c);
-    
+
     // part of 14.7.1 para 4: If a candidate function parameter is
     // (a reference to) a template class instantiation, force its body
     // to be instantiated.
-    SFOREACH_OBJLIST(Variable, var0->type->asFunctionType()->params, iter) {
-      Type *paramType = iter.data()->type;
-      if (paramType->asRval()->isCompoundType()) {
-        env.ensureClassBodyInstantiated(paramType->asRval()->asCompoundType());
-      }
-    }
+    env.instantiateTemplatesInParams(var0->type->asFunctionType());
   }
   else {
     OVERLOADTRACE("(not viable)");
