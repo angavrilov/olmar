@@ -25,6 +25,7 @@
 #include "macros.h"         // Restorer
 
 #include <stdlib.h>         // strtoul, strtod
+#include <stdio.h>          // printf
 
 // D(): debug code
 #ifdef NDEBUG
@@ -305,10 +306,12 @@ void Function::tcheck(Env &env, bool checkBody)
     xassert(inClass);
     SourceLoc loc = nameAndParams->var->loc;
     Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, CV_NONE, NULL /*syntax*/);
+    xassert(!ctorThisLocalVar);
     ctorThisLocalVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
+    xassert(ctorThisLocalVar->type->isPointerType());
     env.addVariable(ctorThisLocalVar);
   }
-                          
+
   if (env.doElaboration) {
     // adds the "<retVal>" environment entry
     elaborateFunctionStart(env, funcType);
@@ -341,6 +344,7 @@ void Function::tcheck(Env &env, bool checkBody)
       !dtorStatement) {
     // FIX: turn this back on
     completeDtorCalls(env, this, inClass);
+    dtorStatement->tcheck(env);
 //      cout << "**** elaborated dtor" << endl;
 //      this->debugPrint(cout, 0);
 //      cout << "**** elaborated dtor done" << endl;
@@ -436,7 +440,9 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
   name->tcheck(env);
 
   // typecheck the arguments
-  tcheckArgExprList(args, env);
+  // dsw: I do not want to typecheck the args twice, as it is giving
+  // me problems, so I moved this
+//    tcheckArgExprList(args, env);
 
   // check for a member variable, since they have precedence over
   // base classes [para 2]; member inits cannot have qualifiers
@@ -458,13 +464,18 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
       // annotate the AST
       member = env.storeVar(v);
 
-      // decide which of v's possible constructors is being used
-      ctorVar = env.storeVar(
-        outerResolveOverload_ctor(env, env.loc(), v->type, args,
-                                  reallyDoOverload(env, args)));
-
       if (env.doElaboration && v->type->isCompoundType()) {
-        ctorStatement = makeCtorStatement(env, member, v->type->asCompoundType(), args);
+        ctorStatement = makeCtorStatement
+          (env, member, v->type->asCompoundType(),
+//               cloneFakeList_ArgExpression(args));
+           args);
+        args = NULL;            // keep the tree a tree
+      } else {
+        tcheckArgExprList(args, env);
+        // decide which of v's possible constructors is being used
+        ctorVar = env.storeVar(
+          outerResolveOverload_ctor(env, env.loc(), v->type, args,
+                                    reallyDoOverload(env, args)));
       }
 
       // TODO: check that the passed arguments are consistent
@@ -551,20 +562,24 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
   // in the initializer name and template arguments in the
   // base class list
 
-  // determine which constructor is being called
-  ctorVar = env.storeVar(
-    outerResolveOverload_ctor(env, env.loc(),
-                              baseVar->type,
-                              args,
-                              reallyDoOverload(env, args)));
-
   // TODO: check that the passed arguments are consistent
   // with the chosen constructor
 
   if (env.doElaboration) {
-    ctorStatement = makeCtorStatement(env, ctorThisLocalVar, base, args);
+    ctorStatement = makeCtorStatement
+      (env, ctorThisLocalVar, base,
+//         cloneFakeList_ArgExpression(args));
+       args);
+    args = NULL;
+  } else {
+    tcheckArgExprList(args, env);
+    // determine which constructor is being called
+    ctorVar = env.storeVar(
+      outerResolveOverload_ctor(env, env.loc(),
+                                baseVar->type,
+                                args,
+                                reallyDoOverload(env, args)));
   }
-
 }
 
 
@@ -2024,6 +2039,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   bool isE_new = (dt.context == Tcheck::CTX_E_NEW);
   if (env.doElaboration &&
       !inClassBody &&
+      // parameters get no elaboration, so the elaborateCDtors() just
+      // ignores them
 //        !isParameter &&
       !isE_new) {
     elaborateCDtors(env);
@@ -3328,6 +3345,10 @@ void S_continue::itcheck(Env &env)
 
 void S_return::itcheck(Env &env)
 {
+  if (env.doElaboration) {
+    elaborate(env);
+  }
+
   if (expr) {
     expr->tcheck(env);
     
@@ -3337,10 +3358,6 @@ void S_return::itcheck(Env &env)
 
   else {
     // TODO: check that the function is declared to return 'void'
-  }
-
-  if (env.doElaboration) {
-    elaborate(env);
   }
 }
 
@@ -3404,13 +3421,28 @@ void CN_decl::tcheck(Env &env)
 // ------------------- Handler ----------------------
 void Handler::tcheck(Env &env)
 {
+  // for catch by value, we need a FullExpressionAnnot for the
+  // temporary that the global is copy ctored into; I can't put this
+  // inside the "if (env.doElaboration)", because it would go away
+  // before I typechecked the body, even though it only applies if we
+  // are doing elaboration; I wouldn't want the temporary which is in
+  // scope during the body to be dtored before the body is typechecked
+  FullExpressionAnnot::StackBracket fea0(env, annot);
+
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
   // originally, I only did this for the non-isEllpsis() case, to
   // avoid creating a type with ST_ELLIPSIS in it.. but cc_qual
   // finds it convenient, so now we tcheck 'typeId' always
   ASTTypeId::Tcheck tc;
+  // we think of the handler as an anonymous inline function that is
+  // simultaneously defined and called in the same place
+  tc.dflags |= DF_PARAMETER;
   typeId = typeId->tcheck(env, tc);
+
+  if (env.doElaboration) {
+    elaborate(env);
+  }
 
   body->tcheck(env);
 
@@ -4175,7 +4207,10 @@ Type *E_funCall::inner2_itcheck(Env &env)
     // dsw: I think I can't assert this since typechecking can happen
     // more than once.
 //      xassert(!retObj);
-    retObj = elaborateCallSite(env, ft, args);
+    retObj = elaborateCallSite(env, ft, args, false /*artificial ctor*/);
+    if (retObj) {
+      retObj->tcheck(env, retObj);
+    }
   }
 
   // type of the expr is type of the return value
@@ -4354,10 +4389,18 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
       // twice, say if it were shared between two ambiguous trees,
       // then I think this should fail, but trying, I can't get it to
       // so I'll leave it for now.
-      xassert(!!retObj == artificial);
+      // UPDATE: nope: in/t0120.cc
+//        xassert(!!retObj == artificial);
       if (!artificial) {
-        retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args);
+        // this fails in/t0120.cc but we're commenting it anway for now
+        //xassert(!retObj);
+
+        retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args, artificial);
       }
+      xassert(retObj);
+      retObj->tcheck(env, retObj);
+    } else {
+      xassert(!retObj);
     }
   }
 
@@ -4942,7 +4985,10 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
     }
   }
 
-  Type *rt = ptr->type->asRval();
+  // clone the type as it's taken out of one AST node, so it
+  // can then be used as the type of another AST node (this one)
+  Type *rt = env.tfac.cloneType(ptr->type->asRval());
+
   if (rt->isFunctionType()) {
     return rt;                         // deref is idempotent on FunctionType-s
   }
@@ -5135,9 +5181,7 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
   if (!t->isPointer()) {
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
-  }
-
-  if (env.doElaboration) {
+  } else if (env.doElaboration) {
     elaborate(env, t);
   }
   
@@ -5446,9 +5490,10 @@ SpecialExpr Expression::getSpecial() const
 // ------------------- Full Expression tcheck -----------------------
 Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 {
-//    cout << "FullExpressionAnnot::tcheck_preorder " << ::toString(env.loc()) << endl;
   env.fullExpressionAnnotStack.push(this);
   Scope *scope = env.enterScope(SK_FUNCTION, "full expression annot");
+//    for (int i=0; i<env.fullExpressionAnnotStack.count(); ++i) printf("> ");
+//    printf("IN FEA scope %p, fea %p, %s\n", scope, this, ::toString(env.loc()).pcharc());
   // come to think of it, there shouldn't be any declarations yet;
   // they get constructed during the typechecking later
 //    cout << "FullExpressionAnnot::tcheck_preorder(Env &env)" << endl;
@@ -5469,9 +5514,10 @@ Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 
 void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
 {
+//    for (int i=0; i<env.fullExpressionAnnotStack.count(); ++i) printf("< ");
+//    printf("OU FEA scope %p, fea %p, %s\n", scope, this, ::toString(env.loc()).pcharc());
   env.exitScope(scope);
   env.fullExpressionAnnotStack.pop();
-//    cout << "FullExpressionAnnot::tcheck_postorder " << ::toString(env.loc()) << endl;
 }
 
 void FullExpression::tcheck(Env &env)

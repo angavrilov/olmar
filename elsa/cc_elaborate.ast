@@ -12,6 +12,8 @@
 
 verbatim {
   #include "cc_elaborate.h"      // FullExpressionAnnot
+
+  string refersTo(Variable *v);  // cc_ast_aux.cc
 }
 
 
@@ -23,12 +25,12 @@ class Function {
   // to be called when the function exits; should only be non-NULL for
   // dtor Functions: it is the superclass and member dtors that are
   // implicitly called
-  public Statement *dtorStatement = NULL;
+  public(field,owner) Statement *dtorStatement = NULL;
 
   // is this function implicitly defined?  dsw: I need to know so that
   // the linker imitator doesn't think there is a double-definition
   // when the same class occurs in two different translation units
-  public bool implicitlyDefined; ctor implicitlyDefined=false;
+  public(field) bool implicitlyDefined = false;
 }
 
 
@@ -38,7 +40,7 @@ class MemberInit {
   public FullExpressionAnnot annot;
 
   // a MemberInit calls a ctor
-  public Statement *ctorStatement; ctor ctorStatement=NULL;
+  public(field,owner) Statement *ctorStatement = NULL;
 }
 
 
@@ -47,8 +49,8 @@ class Declarator {
   // initialization, and a destruction statement, that calls any
   // needed destructors; the latter is to be evaluated when this
   // declarator goes out of scope
-  public Statement *ctorStatement = NULL;
-  public Statement *dtorStatement = NULL;
+  public(field,owner) Statement *ctorStatement = NULL;
+  public(field,owner) Statement *dtorStatement = NULL;
 
   public void elaborateCDtors(Env &env);
 }
@@ -67,15 +69,35 @@ class Statement {
     // This is for the copy ctor that is needed when you do a return
     // by value of a CompoundType.  It always will copy into the
     // *FunctionType::retVal for the function that it is in.
-
+    //
     // update: don't do this
 //      public Statement *ctorStatement = NULL;
     // an S_return already has a FullExpression, so do this:
-    public FullExpression *ctorExpr = NULL;
-    
-    // this function sets 'ctorExpr'
+    public(field,owner) Statement *ctorStatement = NULL;
+
+    // this function sets 'ctorStatement'
     public void elaborate(Env &env);
   }
+}
+
+
+class Handler {
+    // the global that the throw argument is copy-ctored into, if
+    // thrown by value; this should be linked to the globalVar in
+    // E_throw by a backend
+    public Variable *globalVar = NULL;
+    custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
+    // we need this so that the temporary that is made when an
+    // exception is caught by value has some place to go; that is, a
+    // Handler has to have all the necessary components of an
+    // E_funCall, as that's how it behaves
+    public FullExpressionAnnot annot;
+    // local temporary and ctor for it if we catch by value
+    public(field,owner) Expression *localArg=NULL;
+    // dtor for the globalVar if it is a CompoundType or ref to one
+    public(field,owner) Statement *globalDtorStatement = NULL;
+
+    public void elaborate(Env &env);
 }
 
 
@@ -90,38 +112,41 @@ class Expression {
     // is another function parameter, the 'return object'.  At the call site,
     // we specify an object (reference) that will be bound to that parameter,
     // and the function implementation is expected to write to that object.
-    public Expression *retObj = NULL;
+    public(field,owner) Expression *retObj = NULL;
   }
 
-  -> E_constructor {        
+  -> E_constructor {
     // did we manufacture it? needed during elaboration
-    public bool artificial = false;
+    public(field) bool artificial = false;
 
     // similar to E_funCall; object being constructed
-    public Expression *retObj = NULL;
+    public(field,owner) Expression *retObj = NULL;
   }
-  
+
   -> E_new {
     // this statement implements the 'new' operation in terms of more
     // primitive concepts like allocation and calling the constructor;
     // after elaboration, and analysis can just ignore the E_new and
     // look at the 'ctorStatement' instead
-    public Statement *ctorStatement = NULL;
+    public(field,owner) Statement *ctorStatement = NULL;
 
     // I need a place to put the variable being ctored because
-    // E_constructor needs to point at a variable; copied comment
-    // from Declarator::var:
-    // (serf) computed information: name, type, etc.
-    public Variable *var = NULL;
-                                      
+    // E_constructor needs to point at a variable.  Note that this var
+    // is really on the heap.
+    public Variable *heapVar = NULL;
+    custom debugPrint { ind(os,indent) << "heapVar: " << refersTo(heapVar) << "\n"; }
+
     // fill in the above; 't' is the type of object that is
     // being allocated
     public void elaborate(Env &env, Type *t);
   }
 
   -> E_delete {
-    // this implementes destruction and deallocation
-    public Statement *dtorStatement = NULL;
+    // this implements destruction and deallocation; NOTE: E_delete is
+    // already an expression and so will already be inside a
+    // FullExpression; to make it a dtorStatement adds an extra layer
+    // of FullExpression; we do it anyway
+    public(field,owner) Statement *dtorStatement = NULL;
 
     // 't' is the type of object that is being deallocated
     public void elaborate(Env &env, Type *t);
@@ -129,10 +154,11 @@ class Expression {
 
   -> E_throw {
     // the global that the throw argument is copy-ctored into, if
-    // thrown by value; copied comment from Declarator::var: (serf)
-    // computed information: name, type, etc.
+    // thrown by value
     public Variable *globalVar = NULL;
-    public Statement *ctorStatement; ctor ctorStatement=NULL;
+    custom debugPrint { ind(os,indent) << "globalVar: " << refersTo(globalVar) << "\n"; }
+
+    public(field,owner) Statement *globalCtorStatement=NULL;
 
     public void elaborate(Env &env);
   }

@@ -64,6 +64,11 @@ class ClassTemplateInfo;
 class TypeFactory;
 class BasicTypeFactory;
 
+#ifndef USE_TYPE_SERIAL_NUMBERS    
+  // default to off; can turn on via ./configure
+  #define USE_TYPE_SERIAL_NUMBERS 0
+#endif
+
 
 // --------------------- atomic types --------------------------
 // interface to types that are atomic in the sense that no
@@ -378,6 +383,7 @@ class BaseType {    // note: clients should refer to Type, not BaseType
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
 
+public:     // data
   // This is a list of typedef'd aliases for this type.  It may be
   // empty.  For compound types, there will be at least one, and it
   // (the first one) will be the same as the corresponding
@@ -394,6 +400,12 @@ public:     // types
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
+                  
+  #if USE_TYPE_SERIAL_NUMBERS
+  // for debugging
+  static int globalSerialNumber;
+  int serialNumber;
+  #endif // USE_TYPE_SERIAL_NUMBERS
 
 private:    // disallowed
   BaseType(BaseType&);

@@ -453,8 +453,10 @@ public:      // funcs
   virtual PQ_name *makeTempName();
   // make a unique name for a new E_new variable
   virtual StringRef makeE_newVarName();
-  // make a unique name for a new throw clause variable
+  // make a unique name for a new throw clause global
   virtual StringRef makeThrowClauseVarName();
+  // make a unique name for a new catch clause global
+  virtual StringRef makeCatchClauseVarName();
 
   // --- begin: syntax -> PQName ---
   // return a PQName that will typecheck in the current environment to

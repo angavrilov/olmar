@@ -14,6 +14,7 @@
 // just for debugging.)
 
 #include <assert.h>     // assert
+#include <stdlib.h>     // getenv
 
 
 // ------------------ AtomicType -----------------
@@ -697,10 +698,24 @@ int TypeVariable::reprSize() const
 
 
 // -------------------- BaseType ----------------------
+#if USE_TYPE_SERIAL_NUMBERS
+int BaseType::globalSerialNumber = 0;
+                   
+// semantically, just "++"; but here anyway to make it easier to put
+// in conditional breakpoints for specific type ids
+static int incSerialNumber()
+{
+  return BaseType::globalSerialNumber++;
+}
+#endif
+
 ALLOC_STATS_DEFINE(BaseType)
 
 BaseType::BaseType()
   : typedefAliases()     // initially empty
+  #if USE_TYPE_SERIAL_NUMBERS
+  , serialNumber(incSerialNumber())
+  #endif
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -816,6 +831,19 @@ string cvToString(CVFlags cv)
 }
 
 
+string printSerialNo(int serialNumber)
+{            
+  // it's kind of a hack to use an environment variable, but this
+  // whole thing is for debugging anyway...
+  if (!getenv("PRINT_TYPE_SERIAL_NUMBER")) {
+    return "";     // don't print them.. messes up idempotency among other things
+  }
+  else {
+    return stringc << "/""*t" << serialNumber << "*/";
+  }
+}
+
+
 string BaseType::toCString() const
 {
   if (isCVAtomicType()) {
@@ -824,10 +852,18 @@ string BaseType::toCString() const
     CVAtomicType const *atomic = asCVAtomicTypeC();
     return stringc
       << atomic->atomic->toCString()
+      #if USE_TYPE_SERIAL_NUMBERS
+        << printSerialNo(serialNumber)
+      #endif
       << cvToString(atomic->cv);
   }
   else {
-    return stringc << leftString() << rightString();
+    return stringc
+      << leftString()
+      #if USE_TYPE_SERIAL_NUMBERS && 0    // 'rightString' has got it
+        << printSerialNo(serialNumber)
+      #endif
+      << rightString();
   }
 }
 
@@ -842,19 +878,29 @@ string BaseType::toCString(char const *name) const
   // the name is missing
   if (isPointerType()) {
     innerParen = false;
-  }                
+  }
   #endif // 0
 
   stringBuilder s;
   s << leftString(innerParen);
   s << (name? name : "/*anon*/");
+  #if USE_TYPE_SERIAL_NUMBERS && 0    // 'rightString' has got it
+    s << printSerialNo(serialNumber);
+  #endif
   s << rightString(innerParen);
   return s;
 }
 
+// this is only used by CVAtomicType.. all others override it
 string BaseType::rightString(bool /*innerParen*/) const
 {
-  return "";
+  #if USE_TYPE_SERIAL_NUMBERS
+    // this now may print it too many times; trying to track down a
+    // problem where we're printing too few serial numbers
+    return printSerialNo(serialNumber);
+  #else
+    return "";
+  #endif
 }
 
 
@@ -1144,6 +1190,9 @@ string PointerType::leftString(bool /*innerParen*/) const
 string PointerType::rightString(bool /*innerParen*/) const
 {
   stringBuilder s;
+  #if USE_TYPE_SERIAL_NUMBERS
+    s << printSerialNo(serialNumber);
+  #endif
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << ")";
@@ -1503,6 +1552,10 @@ string FunctionType::rightStringAfterQualifiers() const
 {
   stringBuilder sb;
 
+  #if USE_TYPE_SERIAL_NUMBERS
+    sb << printSerialNo(serialNumber);
+  #endif
+
   CVFlags cv = getThisCV();
   if (cv) {
     sb << " " << ::toString(cv);
@@ -1761,6 +1814,10 @@ string ArrayType::rightString(bool /*innerParen*/) const
 {
   stringBuilder sb;
 
+  #if USE_TYPE_SERIAL_NUMBERS
+    sb << printSerialNo(serialNumber);
+  #endif
+
   if (hasSize()) {
     sb << "[" << size << "]";
   }
@@ -1837,6 +1894,9 @@ string PointerToMemberType::leftString(bool /*innerParen*/) const
 string PointerToMemberType::rightString(bool /*innerParen*/) const
 {
   stringBuilder s;
+  #if USE_TYPE_SERIAL_NUMBERS
+    s << printSerialNo(serialNumber);
+  #endif
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << ")";

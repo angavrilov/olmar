@@ -2532,6 +2532,11 @@ StringRef Env::makeThrowClauseVarName()
   return str(stringc << "throwClause-name-" << throwClauseSerialNumber++);
 }
 
+StringRef Env::makeCatchClauseVarName()
+{
+  return str(stringc << "catchClause-name-" << throwClauseSerialNumber++);
+}
+
 
 PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
 {

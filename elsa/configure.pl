@@ -28,6 +28,7 @@ options:
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
   -ast=<dir>:        specify where the ast system is [$AST]
   -elkhound=<dir>:   specify where the elkhound system is [$ELKHOUND]
+  -useTypeSerialNumbers: give serial numbers to types for debugging
 EOF
 }
 
@@ -82,6 +83,10 @@ while (@ARGV) {
   }
   elsif (($tmp) = ($arg =~ m/^-gnu=(.*)$/)) {
     $USE_GNU = $tmp;
+  }
+
+  elsif ($arg eq "-useTypeSerialNumbers") {
+    push @CCFLAGS, "-DUSE_TYPE_SERIAL_NUMBERS=1";
   }
 
   else {

@@ -16,6 +16,8 @@
 #include "ast_build.h"         // makeExprList1, etc.
 #include "trace.h"             // TRACE
 
+#include <stdio.h>             // printf
+
 
 // ---------------------- FullExpressionAnnot ---------------------
 FullExpressionAnnot::FullExpressionAnnot()
@@ -41,6 +43,9 @@ FullExpressionAnnot::StackBracket::~StackBracket()
 // ------------------------ misc ----------------------
 // (what follows could be better organized)
 
+// Note: the return value should be typechecked.  This is an asymmetry
+// with makeCtorStatement() where the returned statement has already
+// been typechecked.
 E_constructor *makeCtorExpr(Env &env,
                             Variable *target,
                             CompoundType *cpdType,
@@ -54,10 +59,31 @@ E_constructor *makeCtorExpr(Env &env,
     new E_constructor(new TS_name(env.loc(), name0, false),
                       args);
   ector0->artificial = true;
+
+  // FIX: this is probably organized wrong; I should probably take an
+  // expression rather than a Variable as the argument _target_.
   ector0->retObj = wrapVarWithE_variable(env, target);
+
+  // I need to deal with the possibility that the type of the variable
+  // may be a pointer.  A pointer would never have a user-defined ctor
+  // called on it, however when writing a ctor to call a superclass
+  // ctor, you have to call it on the "this" variable, which is a
+  // pointer.  There is no "*this" variable to pass down instead.
+  //
+  // 'target' has type 'C&' for class C.  But then it gets wrapped in
+  // an E_variable, and E_variable's tcheck turns it into a pointer
+  // when the name is "this".  (FIX that.)  So then we change it back
+  // into a reference by wrapping in E_deref.
+  if (ector0->retObj->getType()->isPointer()) {
+    xassert(0==strcmp("this", target->name)); // I think I only need it for "this"
+    ector0->retObj = new E_deref(ector0->retObj);
+  }
+
   return ector0;
 }
 
+// NOTE: the client should consider cloning the _args_ before passing
+// them in so that the AST remains a tree
 Statement *makeCtorStatement(Env &env,
                              Variable *target,
                              CompoundType *cpdType,
@@ -70,14 +96,32 @@ Statement *makeCtorStatement(Env &env,
   return ctorStmt0;
 }
 
-Statement *makeDtorStatement(Env &env, Type *type)
+// Note: the return value should be typechecked.  This is an asymmetry
+// with makeDtorStatement() where the returned statement has already
+// been typechecked.
+Expression *makeDtorExpr(Env &env, Expression *target, Type *type)
+{
+  xassert(env.doElaboration);
+  FakeList<ArgExpression> *args = FakeList<ArgExpression>::emptyList();
+//    PQName *dtorName = env.make_PQ_fullyQualifiedDtorName(type->asCompoundType());
+  PQName *dtorName = NULL;
+  {
+    CompoundType *cpdType = type->asCompoundType();
+    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(cpdType);
+    dtorName = env.make_PQ_possiblyTemplatizedName
+      (env.loc(), env.str(stringc << "~" << cpdType->name), targs);
+  }
+  E_fieldAcc *efieldacc = new E_fieldAcc(target, dtorName);
+  return new E_funCall(efieldacc, args);
+}
+
+// NOTE: consider cloning the target so that the AST remains a tree
+Statement *makeDtorStatement(Env &env, Expression *target, Type *type)
 {
   // hmm, can't say this because I don't have a var to say it about.
 //    xassert(!var->hasFlag(DF_TYPEDEF));
   xassert(env.doElaboration);
-  E_funCall *efc0 =
-    new E_funCall(new E_variable(env.make_PQ_fullyQualifiedDtorName(type->asCompoundType())),
-                  FakeList<ArgExpression>::emptyList());
+  Expression *efc0 = makeDtorExpr(env, target, type);
   Statement *dtorStmt0 = new S_expr(env.loc(), new FullExpression(efc0));
   dtorStmt0->tcheck(env);
   return dtorStmt0;
@@ -94,6 +138,16 @@ Statement *makeDtorStatement(Env &env, Type *type)
 //         DF_PARAMETER
 //         );
 //    }
+//  }
+
+
+//  FakeList<ArgExpression> *cloneFakeList_ArgExpression(FakeList<ArgExpression> *args0)
+//  {
+//    FakeList<ArgExpression> *ret = FakeList<ArgExpression>::emptyList();
+//    FAKELIST_FOREACH(ArgExpression, args0, iter) {
+//      ret = ret->prepend(iter->clone());
+//    }
+//    return ret->reverse();
 //  }
 
 
@@ -132,7 +186,9 @@ void Declarator::elaborateCDtors(Env &env)
         goto ifInitEnd;
       }
       
-      #if 0    // sm: not quite right b/c of my change to 'isMember' (fails in/t0012.cc), and not important
+      #if 0
+      // sm: not quite right b/c of my change to 'isMember' (fails
+      // in/t0012.cc), and not important
       if (isMember && isStatic && !type->isConst()) {
         env.error(env.loc(), "initializer not allowed for a non-const static member declaration");
         goto ifInitEnd;
@@ -160,31 +216,28 @@ void Declarator::elaborateCDtors(Env &env)
       xassert(!isTemporary);
       // make the call to the ctor; FIX: Are there other things to check
       // in the if clause, like whether this is a typedef?
-      if (init->isIN_ctor()) {
-        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-        // FIX: What should we do for non-CompoundTypes?
-        if (type->isCompoundType()) {
-          ctorStatement = makeCtorStatement(env, var, type->asCompoundType(),
-                                            init->asIN_ctor()->args);
-        }
-      } else if (type->isCompoundType()) {
-        if (init->isIN_expr()) {
-          // assert that it is not an abstract decl
-          xassert(!(decl->isD_name() && !decl->asD_name()->name));
+      xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+      if (type->isCompoundType()) {
+        FakeList<ArgExpression> *args0 = NULL;
+        if (init->isIN_ctor()) {
+//            args0 = cloneFakeList_ArgExpression(init->asIN_ctor()->args);
+          args0 = init->asIN_ctor()->args;
+          init->asIN_ctor()->args = NULL; // keep the tree a tree
+        } else if (init->isIN_expr()) {
           // just call the one-arg ctor; FIX: this is questionable; we
           // haven't decided what should really happen for an IN_expr;
           // update: dsw: I'm sure that is right
-          ctorStatement =
-            makeCtorStatement(env, var, type->asCompoundType(),
-                              makeExprList1(init->asIN_expr()->e));
+//            args0 = makeExprList1(init->asIN_expr()->e->clone());
+          args0 = makeExprList1(init->asIN_expr()->e);
+          init->asIN_expr()->e = NULL; // keep the tree a tree
+          // keep the tree a tree
         } else if (init->isIN_compound()) {
-          xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
           // just call the no-arg ctor; FIX: this is questionable; it
           // is undefined what should happen for an IN_compound since
           // it is a C99-ism.
-          ctorStatement = makeCtorStatement(env, var, type->asCompoundType(),
-                                            FakeList<ArgExpression>::emptyList());
+          args0 = FakeList<ArgExpression>::emptyList();
         }
+        ctorStatement = makeCtorStatement(env, var, type->asCompoundType(), args0);
       }
 
       // jump here if we find an error in the init code above and report
@@ -222,10 +275,6 @@ void Declarator::elaborateCDtors(Env &env)
                ) {
       xassert(ctorStatement);
     }
-//    } else {
-//      // isParameter
-//      // make the copy ctor
-//      ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
 
     // make the dtorStatement
     if (type->isCompoundType() &&
@@ -233,7 +282,9 @@ void Declarator::elaborateCDtors(Env &env)
         !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
         !( (dflags & DF_EXTERN)!=0 ) // not extern
         ) {
-      dtorStatement = makeDtorStatement(env, type);
+      // no need to clone the target as wrapVarWithE_variable() makes
+      // all new AST
+      dtorStatement = makeDtorStatement(env, wrapVarWithE_variable(env, var), type);
     } else {
       xassert(!dtorStatement);
     }
@@ -292,6 +343,8 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
   declaration0->tcheck(env);
 
   // FIX: what the heck am I doing here?  There should only be one.
+  // UPDATE: I think I meant "There should be only one, so why the
+  // loop?"
   xassert(declaration0->decllist->count() == 1);
   // leave it for now
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
@@ -378,8 +431,37 @@ E_variable *wrapVarWithE_variable(Env &env, Variable *var)
 }
 
 
+// NOTE: the client is expected to clone _argExpr_ before passing it
+// in here *if* needed, since we don't clone it below
+static Expression *elaborateCallByValue(Env &env, Type *paramType, Expression *argExpr)
+{
+  xassert(paramType->isCompoundType());
+
+  // E_variable that points to the temporary
+  Declaration *declaration0 = insertTempDeclaration(env, paramType);
+  xassert(declaration0->decllist->count() == 1);
+  Variable *tempVar = declaration0->decllist->first()->var;
+  E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
+
+  // E_constructor for the temporary that calls the copy ctor for the
+  // temporary taking the real argument as the copy ctor argument.
+  // NOTE: we do NOT clone argExpr here, as the client to this
+  // function is expected to do it
+  E_constructor *ector = makeCtorExpr(env, tempVar, paramType->asCompoundType(),
+                                      makeExprList1(argExpr));
+
+  // combine into a comma expression so we do both but return the
+  // value of the second
+  Expression *ret = new E_binary(ector, BIN_COMMA, byValueArg);
+  ret->tcheck(env, ret);
+  xassert(byValueArg->getType()->isReference()); // the whole point
+  return ret;
+}
+
+
 Expression *elaborateCallSite(Env &env, FunctionType *ft,
-                              FakeList<ArgExpression> *args)
+                              FakeList<ArgExpression> *args,
+                              bool artificalCtor)
 {
   Expression *retObj = NULL;
 
@@ -388,7 +470,12 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
   // a temporary for a dtor for a non-temporary object because the
   // retType for a dtor is void.  However, we do need to guard against
   // this possibility for ctors.
-  if (ft->retType->isCompoundType() && !ft->isConstructor()) {
+  if (artificalCtor) {
+    xassert(ft->isConstructor());
+  }
+  if (ft->retType->isCompoundType() &&
+      (!ft->isConstructor() || !artificalCtor)
+      ) {
     Declaration *declaration0 = insertTempDeclaration(env, ft->retType);
     xassert(declaration0->decllist->count() == 1);
     Variable *var0 = declaration0->decllist->first()->var;
@@ -419,22 +506,13 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
     Variable *param = paramsIter.data();
     Type *paramType = param->getType();
     if (paramType->isCompoundType()) {
-      // E_variable that points to the temporary
-      Declaration *declaration0 = insertTempDeclaration(env, paramType);
-      xassert(declaration0->decllist->count() == 1);
-      Variable *tempVar = declaration0->decllist->first()->var;
-      E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
-
-      // E_constructor for the temporary that calls the copy ctor for
-      // the temporary taking the real argument as the copy ctor
-      // argument.
-      E_constructor *ector = makeCtorExpr(env, tempVar, paramType->asCompoundType(),
-                                          makeExprList1(arg->expr));
-
-      // combine into a comma expression so we do both but return the
-      // value of the second
-      arg->expr = new E_binary(ector, BIN_COMMA, byValueArg);
-      arg->tcheck(env);
+      // NOTE: it seems like this is one of those places where I
+      // should NOT clone the "argument" argument to
+      // makeCtorExpr/Statement (which is called by
+      // elaborateCallByValue()) since it is being replaced by
+      // something wrapped around itself: that is the AST tree remains
+      // a tree
+      arg->expr = elaborateCallByValue(env, paramType, arg->expr);
     }
 
     paramsIter.adv();
@@ -457,8 +535,11 @@ void elaborateFunctionStart(Env &env, FunctionType *ft)
     // passing a hidden additional parameter of type C& for a
     // return value of type C.  For static semantics, that means
     // adding an environment entry for a special name, "<retVal>".
+    Type *retValType =
+      env.tfac.makePointerType(env.loc(), PO_REFERENCE, CV_NONE,
+                               env.tfac.cloneType(ft->retType));
     Variable *v = env.makeVariable(env.loc(), env.str("<retVal>"),
-                                   env.tfac.cloneType(ft->retType), DF_PARAMETER);
+                                   retValType, DF_PARAMETER);
     env.addVariable(v);
     ft->registerRetVal(v);
   }
@@ -1453,6 +1534,55 @@ MR_func *makeDtorBody(Env &env, CompoundType *ct)
 
 //  ****************
 
+void Handler::elaborate(Env &env)
+{
+  xassert(env.doElaboration);
+  // NOTE: don't do this if it is just a *ref* to a CompoundType.
+  // Those are dtored later since the reference captures the global
+  // and prevents it from being dtored now.  FIX: we have to deal with
+  // this reference-capture problem just as with "A &a = A();"
+  // UPDATE: Well, I at least need to make the variable if it is a
+  // ref, so I'll make the dtor also.
+  Type *typeIdType = typeId->getType();
+  if (typeIdType->asRval()->isCompoundType()) {
+    if (!globalVar) {
+      globalVar = env.makeVariable(env.loc(), env.makeCatchClauseVarName(),
+                                   env.tfac.cloneType(typeIdType->asRval()),
+                                   DF_STATIC // I think it is a static global
+                                   | DF_GLOBAL);
+      // These variables persist beyond the stack frame, so I hesitate
+      // to do anything but add them to the global scope.  FIX: Then
+      // again, this argument applies to the E_new variables as well.
+      Scope *gscope = env.globalScope();
+      gscope->registerVariable(globalVar);
+      gscope->addVariable(globalVar);
+
+      // if we catch by value, we need a copy ctor into a temporary
+      // which is passed into the handler; in other words, we treat
+      // passing the global exception to the handler as if it were a
+      // function call
+      if (typeIdType->isCompoundType()) {
+        localArg = elaborateCallByValue
+          (env, typeIdType,
+           wrapVarWithE_variable(env, globalVar) // NOTE: elaborateCallByValue() won't clone this
+           );
+      }
+
+      // Scott doesn't like the idea of this being here, but it has to
+      // go somewhere, and, just as we don't have a "global" space in
+      // which to put the globalVar, we don't have a "global" place to
+      // put its dtor, so I put them together.
+      globalDtorStatement =
+        makeDtorStatement(env,
+                          // no need to clone the target as
+                          // wrapVarWithE_variable() makes all new AST
+                          wrapVarWithE_variable(env, globalVar),
+                          // can only make a dtor for a CompoundType, not a ref to one
+                          typeIdType->asRval());
+    }
+  }
+}
+
 
 void E_new::elaborate(Env &env, Type *t)
 {
@@ -1460,22 +1590,28 @@ void E_new::elaborate(Env &env, Type *t)
 
   // TODO: this doesn't work for new[]
 
-  if (t->isCompoundType()) {
-    if (env.disambErrorsSuppressChanges()) {
-      TRACE("env", "not adding variable or ctorStatement to E_new `" << /*what?*/
-            "' because there are disambiguating errors");
+  if (env.disambErrorsSuppressChanges()) {
+    TRACE("env", "not adding variable or ctorStatement to E_new `" << /*what?*/
+          "' because there are disambiguating errors");
+  }
+  else {
+    heapVar = env.makeVariable(env.loc(), env.makeE_newVarName(),
+                               env.tfac.cloneType(t), DF_NONE);
+    // even though this is on the heap, Scott says put it into the
+    // local scope
+    // FIX: this creates extra temporaries if we are typechecked
+    // twice
+    env.addVariable(heapVar);
+    FakeList<ArgExpression> *args0 = FakeList<ArgExpression>::emptyList();
+    if (ctorArgs) {
+//        args0 = cloneFakeList_ArgExpression(ctorArgs->list);
+      args0 = ctorArgs->list;
+      ctorArgs = NULL;          // wipe out the whole list
     }
-    else {
-      var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
-      // even though this is on the heap, Scott says put it into the
-      // local scope
-      // FIX: this creates extra temporaries if we are typechecked
-      // twice
-      env.addVariable(var);
-      xassert(ctorArgs);
+    if (t->isCompoundType()) {
       // FIX: this creates a lot of extra junk if we are typechecked
       // twice
-      ctorStatement = makeCtorStatement(env, var, t->asCompoundType(), ctorArgs->list);
+      ctorStatement = makeCtorStatement(env, heapVar, t->asCompoundType(), args0);
     }
   }
 }
@@ -1487,8 +1623,19 @@ void E_delete::elaborate(Env &env, Type *t)
 
   // TODO: this doesn't work for delete[]
 
-  if (t->isCompoundType()) {
-    dtorStatement = makeDtorStatement(env, t);
+  // E_delete::itcheck_x() should have noticed that its not a pointer
+  // and aborted before calling us if it wasn't.
+  PointerType *to = t->asPointerType();
+  xassert(to->op == PO_POINTER);
+  if (to->atType->isCompoundType()) {
+    dtorStatement = makeDtorStatement
+      (env,
+       // NOTE: clone is necessary to keep the AST being a tree
+//         new E_deref(expr->clone()),
+       new E_deref(expr),
+       to->atType               // no need to clone this type; it is not stored
+       );
+    expr = NULL;                // keep the tree a tree
   }
 }
 
@@ -1516,7 +1663,8 @@ void E_throw::elaborate(Env &env)
   Type *exprType = expr->getType()->asRval();
   if (exprType->isCompoundType()) {
     if (!globalVar) {
-      globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
+      globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(),
+                                   env.tfac.cloneType(exprType),
                                    DF_STATIC // I think it is a static global
                                    | DF_GLOBAL);
       // These variables persist beyond the stack frame, so I
@@ -1527,8 +1675,15 @@ void E_throw::elaborate(Env &env)
       gscope->registerVariable(globalVar);
       gscope->addVariable(globalVar);
 
-      ctorStatement = makeCtorStatement(env, globalVar, exprType->asCompoundType(),
-                                        makeExprList1(expr));
+      // FIX: I don't like how this typechecks the expr twice.  Note
+      // how we don't have the problem that we do with S_return in
+      // dealing with the FullExpression: since E_throw is an
+      // Expression rather than a Statement, it is already contained
+      // within an FullExpression (usually an S_expr).
+      globalCtorStatement = makeCtorStatement(env, globalVar, exprType->asCompoundType(),
+//                                                makeExprList1(expr->clone()));
+                                              makeExprList1(expr));
+      expr = NULL;              // keep the tree a tree
     }
   }
 }
@@ -1552,22 +1707,25 @@ void S_return::elaborate(Env &env)
 
       // get the target of the constructor function
       Variable *retVal = env.lookupVariable(env.str("<retVal>"));
-      xassert(retVal && retVal->getType()->equals(ft->retType));
+      xassert(retVal && retVal->getType()->asRval()->equals(ft->retType));
 
-      // get the arguments of the constructor function
+      // get the arguments of the constructor function; NOTE: we dig
+      // down below the FullExpression to the raw Expression and then
+      // clone it; the makeCtorStatement made below will wrap another
+      // FullExpression around it and then re-typecheck it
+//        Expression *subExpr = expr->expr->clone();
+      // UPDATE: no, just steal it for now and don't clone
+      Expression *subExpr = expr->expr;
       FakeList<ArgExpression> *args0 =
-        FakeList<ArgExpression>::makeList(new ArgExpression(expr->expr));
+        FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
       xassert(args0->count() == 1);
 
       // make the constructor function
-      E_constructor *tmpE_ctor = makeCtorExpr(env, retVal, ft->retType->asCompoundType(), args0);
-      xassert(tmpE_ctor);       // FIX: what happens if there is no such compatable copy ctor?
+      ctorStatement = makeCtorStatement(env, retVal, ft->retType->asCompoundType(), args0);
+      xassert(ctorStatement);   // FIX: what happens if there is no such compatable copy ctor?
 
-      // Recall that expr is a FullExpression, so we re-use it,
-      // "floating" it above the ctorExpression made above
-      expr->expr = tmpE_ctor;
-      ctorExpr = expr;
-      expr = NULL;              // prevent two representations of the return value
+      // FIX: prevent problems with expr being typechecked twice.
+      expr = NULL;              // keep the tree a tree
     }
   }
 }

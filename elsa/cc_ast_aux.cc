@@ -17,12 +17,18 @@
 // like grepping through printTypedAST output for stray aliases.
 string refersTo(Variable *v)
 {
+  if (v) {
+    return "NULL";
+  }
+
   if (!v->usingAlias) {
-    return stringc << "refers to " << toString(v->loc);
+    return stringc << "refers to " << toString(v->loc) 
+                   << ", type is " << v->type->toString();
   }
   else {
     return stringc << "refers to " << toString(v->loc)
-                   << " (alias of " << toString(v->skipAlias()->loc) << ")";
+                   << " (alias of " << toString(v->skipAlias()->loc) << ")"
+                   << ", type is " << v->type->toString();
   }
 }
 

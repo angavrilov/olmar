@@ -6,6 +6,7 @@
 
 // NOTE: can't just #include cc.ast, b/c cc.ast #includes this
 
+#include "sobjlist.h"     // SObjList
 #include "astlist.h"      // ASTList
 #include "fakelist.h"     // FakeList
 
@@ -64,10 +65,15 @@ Statement *makeCtorStatement(Env &env,
                              Variable *target,
                              CompoundType *cpdType,
                              FakeList<ArgExpression> *args);
+Expression *makeDtorExpr(Env &env, Type *type);
 Statement *makeDtorStatement(Env &env, Type *type);
 
+//  FakeList<ArgExpression> *cloneFakeList_ArgExpression(FakeList<ArgExpression> *args0);
+
 E_variable *wrapVarWithE_variable(Env &env, Variable *var);
-Expression *elaborateCallSite(Env &env, FunctionType *ft, FakeList<ArgExpression> *args);
+Expression *elaborateCallSite(Env &env, FunctionType *ft,
+                              FakeList<ArgExpression> *args,
+                              bool artificalCtor);
 void elaborateFunctionStart(Env &env, FunctionType *ft);
 
 void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct);

@@ -55,6 +55,10 @@ class Function {
   // might be possible to combine it with the above thisVar, but I
   // won't do it now to prevent the possibility of creating a subtle
   // bug somewhere.
+  //
+  // UPDATE: I now rely on this to be different from "thisVar" so that
+  // I can tell in cc_qual when I'm in a function body and when I'm in
+  // a ctor body.
   public Variable *ctorThisLocalVar = NULL;
 
   public void printExtras(ostream &os, int indent) const;
