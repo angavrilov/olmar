@@ -4427,13 +4427,19 @@ static bool allMethods(SObjList<Variable> &set)
 // to reflect the chosen function.  Rationale: the caller is in a
 // better position to know what things need to be rewritten, since it
 // is fully aware of the syntactic context.
+//
+// The contract w.r.t. errors is: the caller must provide a non-NULL
+// 'var', and if I return NULL, I will also add an error message, so
+// the caller does not have to do so.
 static Variable *outerResolveOverload(Env &env,
                                       PQName * /*nullable*/ finalName,
                                       SourceLoc loc, Variable *var,
                                       Type *receiverType, FakeList<ArgExpression> *args)
 {
-  // are we even in a situation where we can do overloading?
-  if (!var->overload) return NULL;
+  // if no overload set, nothing to resolve
+  if (!var->overload) {
+    return var;
+  }
 
   // special case: does 'finalName' directly name a particular
   // conversion operator?  e.g. in/t0226.cc
@@ -4839,39 +4845,32 @@ Type *E_funCall::inner2_itcheck(Env &env)
   CompoundType *ct = t->ifCompoundType();
   if (ct) {
     Variable *funcVar = ct->getNamedField(env.functionOperatorName, env);
-    if (funcVar && funcVar->overload) {
+    if (funcVar) {
       // resolve overloading
       funcVar = outerResolveOverload(env, NULL /*finalName*/, env.loc(), funcVar,
                                      func->type, args);
+      if (funcVar) {
+        // rewrite AST to reflect use of 'operator()'
+        Expression *object = func;
+        E_fieldAcc *fa = new E_fieldAcc(object,
+          new PQ_operator(SL_UNKNOWN, new ON_operator(OP_PARENS), env.functionOperatorName));
+        fa->field = funcVar;
+        fa->type = funcVar->type;
+        func = fa;
+
+        return funcVar->type->asFunctionType()->retType;
+      }
+      else {
+        return env.errorType();
+      }
     }
-    if (funcVar) {
-      // rewrite AST to reflect use of 'operator()'
-      Expression *object = func;
-      E_fieldAcc *fa = new E_fieldAcc(object,
-        new PQ_operator(SL_UNKNOWN, new ON_operator(OP_PARENS), env.functionOperatorName));
-      fa->field = funcVar;
-      fa->type = funcVar->type;
-      func = fa;
-
-      return funcVar->type->asFunctionType()->retType;
+    else {
+      return env.error(stringc
+        << "object of type `" << t->toString() << "' used as a function, "
+        << "but it has no operator() declared");
     }
-
-    // fall through, error case below handles it
   }
 
-  // automatically coerce function pointers into functions
-  if (t->isPointerType()) {
-    t = t->asPointerTypeC()->atType;
-    // if it is an E_variable then its overload set will be NULL so we
-    // won't be doing overload resolution in this case
-  }
-
-  if (!t->isFunctionType()) {
-    return env.error(func->type->asRval(), stringc
-      << "you can't use an expression of type `" << func->type->toString()
-      << "' as a function");
-  }
-  
   // skip grouping parens (cppstd 13.3.1.1 para 1)
   Expression *func = this->func->skipGroups();
 
@@ -4908,6 +4907,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
       else {
         // dealias anyway
         evar->var = env.storeVar(evar->var);
+        return env.errorType();
       }
     }
 
@@ -4932,6 +4932,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
       }
       else {
         efld->field = env.storeVar(efld->field);
+        return env.errorType();
       }
     }
   }
@@ -4953,8 +4954,8 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
 
-  // TODO: make sure the argument types are compatible
-  // with the function parameters
+  // make sure the argument types are compatible with the function
+  // parameters
   //
   // dsw: doesn't overloading succeeding guarantee this?
   //
@@ -4966,6 +4967,19 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // overload resolution when necessary to pick the best function, but
   // then tcheck the arguments against it as if we had no reason to
   // suspect it was a good function to call.
+
+  // automatically coerce function pointers into functions
+  if (t->isPointerType()) {
+    t = t->asPointerTypeC()->atType;
+    // if it is an E_variable then its overload set will be NULL so we
+    // won't be doing overload resolution in this case
+  }
+
+  if (!t->isFunctionType()) {
+    return env.error(func->type->asRval(), stringc
+      << "you can't use an expression of type `" << func->type->toString()
+      << "' as a function");
+  }
 
   FunctionType *ft = t->asFunctionType();
 
