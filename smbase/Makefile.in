@@ -3,8 +3,7 @@
 
 # main target
 THIS := libsmbase.a
-all: gensrc $(THIS)
-all: TAGS
+all: gensrc $(THIS) TAGS
 
 
 # C preprocessor, compiler and linker
@@ -315,7 +314,8 @@ gendoc/configure.txt: configure
 doc: gendoc gendoc/dependencies.png gendoc/configure.txt
 	@echo "built documentation"
 
-TAGS:; etags --members --typedefs *.cc *.h
+TAGS:
+	etags --members --typedefs *.cc *.h
 
 
 # --------------------- clean --------------------
