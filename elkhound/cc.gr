@@ -22,7 +22,7 @@ public:
   CCGr(StringTable &table) : ParseEnv(table) {}
 
 private:
-  #include "cc.gen.h"
+  #include "cc.gr.gen.h"
 };
 
 UserActions *makeUserActions(StringTable &table)

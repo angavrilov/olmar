@@ -38,7 +38,7 @@ semimpl.cc
 cexp2.cc
 cexp2.h
 cexp2
-cc.gen.*
+cc.gr.gen.*
 ccgr
 rel
 trcptr

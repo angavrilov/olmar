@@ -11,5 +11,10 @@
 # then invoke sed:
 #   - remove any occurrances of system headers if they sneak in
 #   - make the .d file itself depend on the same things the .o does
+#   - replace dependencies on generated files with the dependencies
+#     on the sources of those generated fils
 gcc -MM -MG "$@" |
-  sed -e 's@ /[^ ]*@@g' -e 's@^\(.*\)\.o:@\1.d \1.o:@'
+  sed -e 's@ /[^ ]*@@g' -e 's@^\(.*\)\.o:@\1.d \1.o:@' \
+      -e 's@\.ast\.gen\.[^d][^ :]*@.ast@g' \
+      -e 's@\.gr\.gen\.[^d][^ :]*@.gr@g' \
+      -e 's@\.tab\.[^d][^ :]*@.y@g'

@@ -3425,7 +3425,7 @@ int main(int argc, char **argv)
 
   if (argc != 2) {
     cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
-            "  processes prefix.gr to make prefix.{gen.h,gen.cc,bin}\n"
+            "  processes prefix.gr to make prefix.{gr.{gen.h,gen.cc},bin}\n"
             "  useful tracing flags (separate with commas):\n"
             "    conflict    : print LALR(1) conflicts\n"
             "    closure     : details of item-set closure algorithm\n"
@@ -3444,7 +3444,7 @@ int main(int argc, char **argv)
   readGrammarFile(g, grammarFname);
   g.printProductions(trace("grammar") << endl);
 
-  string setsFname = stringc << prefix << ".gen.out";
+  string setsFname = stringc << prefix << ".gr.gen.out";
   g.runAnalyses(setsFname);
   if (g.errors) {
     return 2;
@@ -3461,8 +3461,8 @@ int main(int argc, char **argv)
   }
 
   // emit some C++ code
-  string hFname = stringc << prefix << ".gen.h";
-  string ccFname = stringc << prefix << ".gen.cc";
+  string hFname = stringc << prefix << ".gr.gen.h";
+  string ccFname = stringc << prefix << ".gr.gen.cc";
   traceProgress() << "emitting C++ code to " << ccFname
                   << " and " << hFname << " ...\n";
 
