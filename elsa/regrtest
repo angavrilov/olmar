@@ -214,7 +214,7 @@ runTest ./idemcheck -d outdir $list
 
 # test the parser in C mode
 for fn in                                                                   \
-  t0001.c t0002.c                                                           \
+  t0001.c t0002.c t0003.c t0004.c                                           \
     ; do
   runTest ./ccparse -tr c_lang in/c/$fn
 done

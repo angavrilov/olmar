@@ -10,10 +10,23 @@ public:
   // it will pretend it also saw "typedef struct Foo Foo;" -- i.e.,
   // the structure (or class) tag name is treated as a type name
   // by itself
+  //
+  // NOTE: right now I ignore this flag, and actually insert the
+  // implicit typedef in all cases
   bool tagsAreTypes;
 
   // when true, recognize C++ keywords in input stream
   bool recognizeCppKeywords;
+
+  // when true, every function body gets an implicit
+  //   static char const __func__[] = "function-name";
+  // declaration just inside the opening brace, where function-name is
+  // the name of the function; this is a C99 feature
+  bool implicitFuncVariable;
+                      
+  // when true, and we see a class declaration inside something,
+  // pretend it was at toplevel scope anyway
+  bool noInnerClasses;
 
 public:
   CCLang() { ANSI_C(); }

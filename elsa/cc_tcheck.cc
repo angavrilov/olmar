@@ -15,6 +15,7 @@
 #include "trace.h"          // trace
 #include "cc_print.h"       // PrintEnv
 #include "strutil.h"        // decodeEscapes
+#include "cc_lang.h"        // CCLang
 
 #include <stdlib.h>         // strtoul, strtod
 
@@ -403,6 +404,23 @@ void Function::tcheck(Env &env, bool checkBody)
   // can refer to the parameters
   if (inits) {
     tcheck_memberInits(env);
+  }
+  
+  // declare the __func__ variable
+  if (env.lang.implicitFuncVariable) {
+    // static char const __func__[] = "function-name";
+    SourceLoc loc = body->loc;
+    Type *charConst = env.getSimpleType(loc, ST_CHAR, CV_CONST);
+    Type *charConstArr = env.makeArrayType(loc, charConst);
+    Variable *funcVar = env.makeVariable(loc, env.str.add("__func__"),
+                                         charConstArr, DF_STATIC);
+                                         
+    // I'm not going to add the initializer, because I'd need to make
+    // an Expression AST node (which is no problem) but I don't have
+    // anything to hang it off of, so it would leak.. I could add
+    // a field to Function, but then I'd pay for that even when
+    // 'implicitFuncVariable' is false..
+    env.addVariable(funcVar);
   }
 
   // check the body in the new scope as well
@@ -968,6 +986,12 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   CompoundType *containingClass = env.acceptingScope()->curCompound;
   bool innerClass = !!containingClass;
 
+  if (env.lang.noInnerClasses) {
+    // nullify the above; act as if it's an outer class
+    containingClass = NULL;
+    innerClass = false;
+  }
+
   // check restrictions on the form of the name
   FakeList<TemplateArgument> *templateArgs = NULL;
   if (name) {
@@ -1080,7 +1104,12 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     }
 
     // no existing compound; make a new one
-    ret = env.makeNewCompound(ct, env.acceptingScope(), stringName,
+    Scope *destScope = env.acceptingScope();
+    if (env.lang.noInnerClasses) {
+      // put it in the outer scope always
+      destScope = env.outerScope();
+    }
+    ret = env.makeNewCompound(ct, destScope, stringName,
                               loc, keyword, false /*forward*/);
     this->ctype = ct;              // annotation
   }
@@ -2101,7 +2130,7 @@ noPriorDeclaration:
     dt.var->overload = overloadSet;
   }
   else if (!dt.type->isError()) {
-    if (env.hasDisambErrors()) {
+    if (env.disambErrorsSuppressChanges()) {
       TRACE("env", "not adding D_name `" << dt.var->name <<
                    "' because there are disambiguating errors");
     }
