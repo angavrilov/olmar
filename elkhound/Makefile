@@ -1,7 +1,7 @@
 # Makefile for parser generator project
 
 # main targets
-all: grampar
+all: gramanl
 
 everything: gramanl glr lexer1 lexer2 grampar
 
@@ -18,18 +18,20 @@ include ${SMBASE}/Makefile.base.mk
 
 # sets of related object files
 grammar-set = grammar.o action.o cond.o attr.o attrexpr.o
+grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
+              ast.o fileloc.o gramast.o ccsstr.o
 common = trace.o
 
 # ------ targets -------
-# SLR(1) parser
-gramanl-dep = gramanl.cc ${grammar-set} ${common}
+# reads the grammar and emits C++ code for semantic functions
+gramanl-dep = gramanl.cc ${grammar-set} ${common} ${grampar-set} \
+              ccwrite.o
 gramanl: ${gramanl-dep} grammar.h gramanl.h 
 	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 
 # GLR parser built on top of SLR(1) parser
-glr-dep = glr.cc ${grammar-set} ${common} gramanl.o glrtree.o \
-          lexer1.o lexer1yy.o lexer2.o grampar.tab.o gramlex.yy.o \
-          grampar.o gramlex.o ast.o fileloc.o gramast.o ccsstr.o
+glr-dep = glr.cc ${grammar-set} ${common} ${grampar-set} gramanl.o \
+          glrtree.o lexer1.o lexer1yy.o lexer2.o 
 glr: ${glr-dep} glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 

@@ -139,6 +139,10 @@ public:	    // funcs
   // the results in this object's data fields
   void runAnalyses();
 
+  // really should be in ccwrite.h, but it's here
+  // because the implementation needed private data..
+  void emitTypeCtorMap(ostream &os) const;
+
 
   // ---- grammar queries ----
   bool canDerive(Nonterminal const *lhs, Nonterminal const *rhs) const;

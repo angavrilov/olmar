@@ -6,7 +6,8 @@
 #include "strtokp.h"   // StrtokParse
 #include "trace.h"     // trace
 #include "crc.h"       // crc32
-#include "exc.h"          // xBase
+#include "exc.h"       // xBase
+#include "strutil.h"   // quoted, parseQuotedString
 
 #include <stdarg.h>    // variable-args stuff
 #include <stdio.h>     // FILE, etc.
@@ -122,30 +123,6 @@ bool Nonterminal::hasAttribute(char const *attr) const
 }
 
 
-// --------------------- quoted strings -------------------------
-// given a string that is surrounded by quotes, yield only the
-// characters inside the quotes.  eventually, I will support
-// using backslash escapes for special characters
-string parseQuotedString(char const *text)
-{
-  if (!( text[0] == '"' &&
-         text[strlen(text)-1] == '"' )) {
-    xfailure(stringc << "quoted string is missing quotes: " << text);
-  }
-
-  // just strip the quotes
-  return string(text+1, strlen(text)-2);
-}
-
-                  
-// take a string, and return a quoted version of it
-string quoteString(char const *text)
-{
-  // for now, simply surround it with quotes
-  return stringc << "\"" << text << "\"";
-}
-
-
 // -------------------- Production -------------------------
 Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
@@ -156,7 +133,8 @@ Production::Production(Nonterminal *L, char const *Ltag)
     actions(),
     functions(),
     numDotPlaces(-1),    // so the check in getDProd will fail
-    dprods(NULL)
+    dprods(NULL),
+    prodIndex(-1)
 {}
 
 Production::~Production()
@@ -828,6 +806,7 @@ void Grammar::addProduction(Production *prod)
   // I used to add emptyString if there were 0 RHS symbols,
   // but I've now switched to not explicitly saying that
 
+  prod->prodIndex = productions.count();
   productions.append(prod);
   
   // if the start symbol isn't defined yet, we can here
@@ -1059,6 +1038,14 @@ Symbol const *Grammar::
 }
 
 
+int Grammar::getProductionIndex(Production const *prod) const
+{
+  int ret = productions.indexOf(prod);
+  xassert(ret != -1);
+  return ret;
+}
+
+
 string symbolSequenceToString(SymbolList const &list)
 {
   stringBuilder sb;   // collects output
@@ -1088,6 +1075,35 @@ string terminalSequenceToString(TerminalList const &list)
   // this works because access is read-only
   return symbolSequenceToString(reinterpret_cast<SymbolList const&>(list));
 }
+
+
+// ------------------ emitting C++ code ---------------------
+#if 0     // not done
+void Grammar::emitSelfCC(ostream &os) const
+{
+  os << "void buildGrammar(Grammar *g)\n"
+        "{\n";
+
+  FOREACH_OBJLIST(Terminal, terminals, termIter) {
+    Terminal const *term = termIter.data();
+
+    os << "g->declareToken(" << term->name
+       << ", " << term->termIndex
+       << ", " << quoted(term->alias)
+       << ");\n";
+  }
+
+  FOREACH_OBJLIST(Nonterminal, nonterminals, ntIter) {
+    Nonterminal const *nt = ntIter.data();
+
+    os << ...
+  }
+
+  os << "}\n";
+
+  // todo: more
+}
+#endif // 0
 
 
 // -------------- obsolete parsing code ------------------

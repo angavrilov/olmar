@@ -1150,7 +1150,7 @@ void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
     printProductions(trace("grammar") << endl);
     runAnalyses();
 
-
+    
     // parse input
     glrParseNamedFile(lexer2, inputFname);
 

@@ -1630,12 +1630,39 @@ void GrammarAnalysis::runAnalyses()
 
 
 #ifdef GRAMANL_MAIN
+#if 0   // old
 int main()
 {
   GrammarAnalysis g;
   g.exampleGrammar();
   return 0;
 }
+#endif // 0
+
+#include "ccwrite.h"      // emitSemFun{Impl,Decl}File
+#include "grampar.h"      // readGrammarFile
+
+int main(int argc, char **argv)
+{
+  TRACE_ARGS();
+
+  traceAddSys("progress");
+  //traceAddSys("grammar");
+
+  GrammarAnalysis g;
+  readGrammarFile(g, argc>=2? argv[1] : NULL /*stdin*/);
+
+  g.runAnalyses();
+
+  // emit some C++ code (at least my filenames aren't
+  // all named with some nonsense like "yy" ...)
+  traceProgress() << "emitting C++ code...\n";
+  emitSemFunImplFile("semimpl.cc", &g);
+  emitSemFunDeclFile("semimpl.h", &g);
+
+  return 0;
+}
+
 #endif // GRAMANL_MAIN
 
 

@@ -142,6 +142,24 @@ Reduction const *NonterminalNode::only() const
 }
 
 
+int NonterminalNode::onlyProductionIndex() const
+{
+  return only()->production->prodIndex;
+}
+
+TreeNode const *NonterminalNode::getOnlyChild(int childNum) const
+{
+  return only()->children.nthC(childNum);
+}
+
+Lexer2Token const &NonterminalNode::getOnlyChildToken(int childNum) const
+{
+  Lexer2Token *ret = getOnlyChild(childNum)->asTermC().token;
+  xassert(ret);
+  return *ret;
+}
+
+
 Symbol const *NonterminalNode::getSymbolC() const
 {
   return getLHS();

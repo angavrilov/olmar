@@ -281,6 +281,9 @@ public:	    // funcs
 private:    // data
   int numDotPlaces;             // after finished(): equals rhsLength()+1
   DottedProduction *dprods;     // (owner) array of dotted productions
+  
+public:     // data
+  int prodIndex;                // unique production id
 };
 
 typedef SObjList<Production> ProductionList;
@@ -479,6 +482,10 @@ public:	    // data
   // tokSeqAmbList rule.. (there are problems here obviously)
   ObjList<Production> tokSeqAmbList;
 
+  // extra user-supplied source in the embedded language,
+  // meant to appear at the top of the semantic-functions file
+  string semanticsPrologue;
+
 private:    // funcs
   // obsolete parsing functions
   bool parseAnAction(char const *keyword, char const *insideBraces,
@@ -508,8 +515,12 @@ public:     // funcs
   // add a pre-constructed production
   void addProduction(Production *prod);
 
+  // ---------- outputting a grammar --------------
   // print the current list of productions
   void printProductions(ostream &os) const;
+
+  // emit C++ code to construct this grammar later
+  void emitSelfCC(ostream &os) const;
 
   // ---- whole-grammar stuff ----
   // after adding all rules, check that all nonterminals have
@@ -551,6 +562,9 @@ public:     // funcs
   // would transition to that state (from the given source state)
   Symbol const *inverseTransitionC(ItemSet const *source,
                                    ItemSet const *target) const;
+                                   
+  // map a production to a unique index
+  int getProductionIndex(Production const *prod) const;
 };
 
 

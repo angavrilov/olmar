@@ -8,6 +8,7 @@
 #include "grammar.h"     // Grammar, Production, etc.
 #include "owner.h"       // Owner
 #include "syserr.h"      // xsyserror
+#include "strutil.h"     // quoted
 
 #include <fstream.h>     // ifstream
 
@@ -89,12 +90,6 @@ ASTNode const *nthChildt(ASTNode const *n, int c, int type)
   ASTNode const *ret = nthChild(n, c);
   xassert(ret->type == type);
   return ret;
-}
-
-
-string quoted(char const *str)
-{
-  return stringc << "\"" << str << "\"";
 }
 
 

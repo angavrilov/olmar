@@ -33,3 +33,5 @@ cc.gr.ps
 grampar.output
 cexp2.sem
 ccsstr
+semimpl.h
+semimpl.cc

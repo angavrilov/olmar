@@ -123,6 +123,12 @@ public:
   // assuming there is no ambiguity, get the single Reduction;
   // if there is not 1 reduction, xassert
   Reduction const *only() const;
+  
+  // same assumption; nice pre-chewed calls for
+  // emitted code
+  int onlyProductionIndex() const;
+  TreeNode const *getOnlyChild(int childNum) const;
+  Lexer2Token const &getOnlyChildToken(int childNum) const;
 
   // TreeNode stuff
   virtual bool isTerm() const { return false; }
