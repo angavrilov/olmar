@@ -294,8 +294,7 @@ void GLR::doAllPossibleReductions(StackNode *parser,
     // failure to collapse and share somewhere)
 
     // so, the strategy will be to do a simple depth-first search
-    
-    #ifdef NEWSTUFF
+
     // during this search, we need some state
     StackSearchState sss(prod.data(), parser);
 
@@ -306,21 +305,15 @@ void GLR::doAllPossibleReductions(StackNode *parser,
     // (the common case is that it is not necessary)
     while (sss.revisit == true) {
       sss.revisit = false;    // clear the flag..
+      sss.passCount++;        // count passes; this is 1 during the first pass
 
       // do a DFS
       popStackSearch(sss, rhsLen, parser);
     }
 
-
-    #endif // NEWSTUFF
-
-    SObjList<TreeNode> poppedSymbols;     // state during recursion
-    popStackSearch(rhsLen, poppedSymbols, parser, prod.data(),
-                   mustUseLink, parser);
-
     // invariant: poppedSymbols' length is equal to the recursion
     // depth in 'popStackSearch'; thus, should be empty now
-    xassert(poppedSymbols.isEmpty());
+    xassert(sss.poppedSymbols.isEmpty());
   }
 }
 
@@ -331,96 +324,90 @@ void GLR::doAllPossibleReductions(StackNode *parser,
  *   sibling links) of a particular length, starting
  *   at currentNode
  *
+ * sss:
+ *   various search state elements; see glr.h
+ *
  * popsRemaining:
  *   number of links left to traverse before we've popped
  *   the correct number
- *
- * poppedSymbols:
- *   list of symbols popped so far; 0th is most-recently-
- *   popped
  *
  * currentNode:
  *   where we are in the search; this call will consider the
  *   siblings of currentNode
  *
- * production:
- *   the production being reduced
- *
- * mustUseLink:
- *   a particular sibling link that must appear in any path
- *   we consider for reducing (explained in 'glrStackRule');
- *   if it's NULL, there is no such restriction
- *
- * topOfSearch:
- *   stack node from which we started; useful for printing
- *   diagnostic messages
- *
  * ([GLR] called this 'do-reductions')
  */
-void GLR::popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
-                         StackNode *currentNode, Production const *production,
-                         SiblingLink *mustUseLink, StackNode const *topOfSearch)
+void GLR::popStackSearch(StackSearchState &sss, int popsRemaining,
+                         StackNode *currentNode)
 {
   // inefficiency: all this mechanism is somewhat overkill, given that
   // most of the time the reductions are unambiguous and unrestricted
 
   if (popsRemaining == 0) {
-    if (mustUseLink != NULL) {
-      // we are not going to traverse any more links, but none
-      // of the traversals so far have satisfied the restriction,
-      // so this path must be ignored
-      return;
+    // see if the state we've reached has already been hit before
+    if (sss.alreadyVisited(currentNode)) {
+      //xassert(sss.passCount > 1);    // can't have already seen it on first pass!
+      trace("parse")
+         << "skipping " << currentNode->state->id
+         << " on pass " << sss.passCount
+         << " because we've already processed it\n";
+      return;    // skip it if so
     }
 
-    trace("parse") 
-      << "in state " << topOfSearch->state->id
-      << ", reducing by " << *production
+    // we haven't visited it before, but we're doing so right now,
+    // so mark it as such
+    sss.visited.append(currentNode);
+
+    // a little diagnostic output...
+    trace("parse")
+      << "in state " << sss.topOfSearch->state->id
+      << ", reducing by " << *(sss.production)
       << ", to go to state " << currentNode->state->id
       << endl;
 
+    if (sss.passCount > 1) {
+      trace("parse") << "(^^^ this is a re-exploration hit; passCount is "
+                     << sss.passCount << ")\n";
+    }
+
     // we've popped the required number of symbols; collect the
     // popped symbols into a Reduction
-    Reduction *rn = new Reduction(production);
-    rn->children = poppedSymbols;
+    Reduction *rn = new Reduction(sss.production);
+    rn->children = sss.poppedSymbols;
 
     // previously, I had been reversing the children here; that
     // is wrong!  since the most recent symbol prepended is the
     // leftmost one in the input, the list is in the correct order
 
     // this is like shifting LHS onto 'currentNode'
-    glrShiftNonterminal(currentNode, rn);
+    if (glrShiftNonterminal(currentNode, rn)) {
+      // a true return here means we added a link that might make
+      // re-exploration necessary
+      sss.revisit = true;
+    }
   }
 
   else {
     // explore currentNode's siblings
     MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
       // the symbol on the sibling link is being popped
-      poppedSymbols.prepend(sibling.data()->treeNode);
+      sss.poppedSymbols.prepend(sibling.data()->treeNode);
 
-      // does this link satisfy the restriction?
-      if (mustUseLink != NULL &&
-          mustUseLink == sibling.data()) {
-        // yes!  lift the restriction for the rest of the path
-        popStackSearch(popsRemaining-1, poppedSymbols, sibling.data()->sib,
-                       production, NULL /*no restriction*/, topOfSearch);
-      }
-      else {
-        // either there is no restriction, or we didn't satisfy it; either
-        // way carry the restriction forward
-        popStackSearch(popsRemaining-1, poppedSymbols, sibling.data()->sib,
-                       production, mustUseLink /*same as before*/, topOfSearch);
-      }
+      // recurse one level deeper, having traversed this link
+      popStackSearch(sss, popsRemaining-1, sibling.data()->sib);
 
       // un-pop the tree node, so exploring another path will work
-      poppedSymbols.removeAt(0);
+      sss.poppedSymbols.removeAt(0);
     }
   }
 }
 
 
-// shift reduction onto 'leftSibling' parser
+// shift reduction onto 'leftSibling' parser; returns true if doing
+// so may create additional paths that need to be explored by
+// 'popStackSearch'
 // ([GLR] calls this 'reducer')
-void GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
+bool GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
 {
   // this is like a shift -- we need to know where to go
   ItemSet const *rightSiblingState =
@@ -443,6 +430,9 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
 
       // however, I do need to add a new reduction node to the link
       sibLink->treeNode->asNonterm().addReduction(reduction);
+
+      // didn't add a link, no potential for new paths
+      return false;
     }
 
     else {
@@ -467,14 +457,14 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
       // reductions, and process those that actually use the just-
       // added link
 
-      // for each 'finished' parser (i.e. those not still on
-      // the worklist)
-      SMUTATE_EACH_OBJLIST(StackNode, activeParsers, parser) {
-        if (parserWorklist.contains(parser.data())) continue;
-
-        // do any reduce actions that are now enabled
-        doAllPossibleReductions(parser.data(), sibLink);
-      }
+      // UPDATE I think [GLR] has a bug, in that it might traverse a
+      // path twice by doing so once here and again in the normal
+      // course of action.  So my plan is to simply report that
+      // re-exploration is necessary and prevent duplication using a
+      // different mechanism.  (I need to find a good place to
+      // document this...)
+      trace("parse") << "added a link that might require re-exploration\n";
+      return true;
     }
   }
 
@@ -488,14 +478,15 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
     rightSibling->addSiblingLink(leftSibling,
                                  makeNonterminalNode(reduction));
 
-    // (no need for the elaborate checking above, since we
-    // just created rightSibling, so no new opportunities
-    // for reduction could have arisen)
-
     // since this is a new parser top, it needs to become a
     // member of the frontier
     activeParsers.append(rightSibling);
     parserWorklist.append(rightSibling);
+
+    // no need for the elaborate checking above, since we
+    // just created rightSibling, so no new opportunities
+    // for reduction could have arisen
+    return false;
   }
 }
 

@@ -159,19 +159,25 @@ public:	   // data
   // the first iteration happens)
   bool revisit;
 
+  // we increment this for each DFS pass; it's good for diagnostics,
+  // and part of a planned performance optimization
+  int passCount;
+
   // ---- stuff constant across a series of DFSs ----
   // this is the production we're trying to reduce by
-  Production const *production const;
+  Production const * const production;
 
   // this is the parser at the top of the search; it's useful for
   // printing diagnostic messages
-  StackNode const *topOfSearch const;
+  StackNode const * const topOfSearch;
 
 public:	   // funcs
   StackSearchState(Production const *p, StackNode const *t)
     : poppedSymbols(), visited(),    // both empty, initially
-      revisit(false),
-      revisitproduction(p), topOfSearch(t)
+      revisit(true),   	       	     // so first iteration happens
+      passCount(0),	       	     // first ++ will set it to 1 on first pass
+      production(p),
+      topOfSearch(t)
   {}
 
   ~StackSearchState();
@@ -229,10 +235,9 @@ private:    // funcs
                      ObjList<PendingShift> &pendingShifts);
   void doAllPossibleReductions(StackNode *parser,
                                SiblingLink *mustUseLink);
-  void popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
-                      StackNode *currentNode, Production const *production,
-                      SiblingLink *mustUseLink, StackNode const *topOfSearch);
-  void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
+  void popStackSearch(StackSearchState &sss, int popsRemaining,
+                      StackNode *currentNode);
+  bool glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state);
