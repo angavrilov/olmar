@@ -7,51 +7,23 @@
 #include "cil.h"        // CilExpr
 
 
-bool isValid(SimpleTypeId id)
+MLValue mlStorage(DeclFlags df)
 {
-  return 0 <= id && id <= NUM_SIMPLE_TYPES;
-}
+  // storage = NoStorage | Static | Register | Extern
 
+  // not quite a perfect map .. but until it matters
+  // somewhere I'm leaving it as-is
 
-static SimpleTypeInfo const simpleTypeInfoArray[] = {
-  //name                   size  int?
-  { "char",                1,    true    },
-  { "unsigned char",       1,    true    },
-  { "signed char",         1,    true    },
-  { "bool",                4,    true    },
-  { "int",                 4,    true    },
-  { "unsigned int",        4,    true    },
-  { "long int",            4,    true    },
-  { "unsigned long int",   4,    true    },
-  { "long long",           8,    true    },
-  { "unsigned long long",  8,    true    },
-  { "short int",           2,    true    },
-  { "unsigned short int",  2,    true    },
-  { "wchar_t",             2,    true    },
-  { "float",               4,    false   },
-  { "double",              8,    false   },
-  { "long double",         10,   false   },
-  
-  // gnu: sizeof(void) is 1
-  { "void",                1,    false   },
-};
-
-SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
-{
-  STATIC_ASSERT(TABLESIZE(simpleTypeInfoArray) == NUM_SIMPLE_TYPES);
-  xassert(isValid(id));
-  return simpleTypeInfoArray[id];
-}
-
-
-string makeIdComment(int id)
-{
-  if (tracingSys("type-ids")) {
-    return stringc << "/""*" << id << "*/";
+  if (df & DF_STATIC) {
+    return mlTuple0(storage_Static);
   }
-  else {
-    return "";
+  if (df & DF_REGISTER) {
+    return mlTuple0(storage_Register);
   }
+  if (df & DF_EXTERN) {
+    return mlTuple0(storage_Extern);
+  }
+  return mlTuple0(storage_NoStorage);
 }
 
 
@@ -106,101 +78,6 @@ string AtomicType::toString(int depth) const
 {
   return stringc << recurseCilString(this, depth+1)
                  << " /""* " << toCString() << " */";
-}
-
-
-// ---------------- CVFlags -------------
-MAKE_ML_TAG(attribute, 0, AId)
-MAKE_ML_TAG(attribute, 1, ACons)
-
-MLValue cvToMLAttrs(CVFlags cv)
-{
-  // AId of string
-  
-  MLValue list = mlNil();
-  if (cv & CV_CONST) {
-    list = mlCons(mlTuple1(attribute_AId, mlString("const")), list);
-  }
-  if (cv & CV_VOLATILE) {
-    list = mlCons(mlTuple1(attribute_AId, mlString("volatile")), list);
-  }
-  if (cv & CV_OWNER) {
-    list = mlCons(mlTuple1(attribute_AId, mlString("owner")), list);
-  }
-  return list;
-}
-
-
-char const * const cvFlagNames[NUM_CVFLAGS] = {
-  "const",
-  "volatile",
-  "owner"
-};
-
-
-string bitmapString(int bitmap, char const * const *names, int numflags)
-{
-  stringBuilder sb;
-  int count=0;
-  for (int i=0; i<numflags; i++) {
-    if (bitmap & (1 << i)) {
-      if (ct++) {
-        sb << " ";
-      }
-      sb << names[i];
-    }
-  }
-
-  return sb;
-}
-
-string toString(CVFlags cv)
-{
-  return bitmapString(cv, cvFlagNames, NUM_CVFLAGS)
-}
-
-
-// ------------------- DeclFlags --------------
-MLValue mlStorage(DeclFlags df)
-{
-  // storage = NoStorage | Static | Register | Extern
-
-  // not quite a perfect map .. but until it matters
-  // somewhere I'm leaving it as-is
-
-  if (df & DF_STATIC) {
-    return mlTuple0(storage_Static);
-  }
-  if (df & DF_REGISTER) {
-    return mlTuple0(storage_Register);
-  }
-  if (df & DF_EXTERN) {
-    return mlTuple0(storage_Extern);
-  }
-  return mlTuple0(storage_NoStorage);
-}
-
-
-char const * const declFlagNames[NUM_DECLFLAGS] = {
-  "inline",       // 0
-  "virtual",
-  "friend",
-  "mutable",
-  "typedef",      // 4
-  "auto",
-  "register",
-  "static",
-  "extern",
-  "enumval",      // 9
-  "global",
-  "initialized",
-  "builtin"       // 12
-};
-
-
-string toString(DeclFlags df)
-{
-  return bitmapString(df, declFlagNames, NUM_DECLFLAGS)
 }
 
 

@@ -96,9 +96,14 @@ terminals {
 
 
 // dummy first rule
-nonterm StartSymbol -> File L2_EOF;
+nonterm[TranslationUnit*] StartSymbol -> f:File L2_EOF
+[          
+  f->debugPrint(cout, 0);
+  return f;
+]
 
-nonterm File -> EnterScope TranslationUnit LeaveScope ;
+nonterm[TranslationUnit*] File -> EnterScope t:TranslationUnit LeaveScope 
+  [ return t; ]
 
 // scoping
 nonterm EnterScope -> empty    [

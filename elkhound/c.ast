@@ -3,20 +3,7 @@
            
 verbatim {
 
-#include "cc_type.h"     // DeclFlags
-             
-// type introducer keyword
-// NOTE: keep consistent with CompoundType::Keyword (cc_type.h)
-enum TypeIntr {
-  TI_STRUCT,
-  TI_CLASS,
-  TI_UNION,
-  TI_ENUM,
-  NUM_TYPEINTRS
-};
-
-extern char const * const typeIntrNames[NUM_TYPEINTRS];    // "struct", ...
-string toString(TypeIntr tr);
+#include "cc_flags.h"      // CVFlags, DeclFlags, etc.
 
 } // end verbatim
 
@@ -130,49 +117,6 @@ class Statement {
 
 
 // ----------------- expressions -----------------
-verbatim {
-  enum UnaryOp {
-    UNY_POSTINC,   // ++ (postfix)
-    UNY_POSTDEC,   // -- (postfix)
-    UNY_PREINC,    // ++
-    UNY_PREDEC,    // --
-    UNY_SIZEOF,    // sizeof
-    UNY_PLUS,      // +
-    UNY_MINUS,     // -
-    UNY_NOT,       // !
-    UNY_BITNOT,    // ~
-    NUM_UNARYOPS
-  };
-
-  extern char const * const unaryOpNames[NUM_UNARYOPS];     // "++", ...
-  string toString(UnaryOp op);
-
-  enum BinaryOp {
-    BIN_MULT,      // *
-    BIN_DIV,       // /
-    BIN_MOD,       // %
-    BIN_PLUS,      // +
-    BIN_MINUS,     // -
-    BIN_LSHIFT,    // <<
-    BIN_RSHIFT,    // >>
-    BIN_LESS,      // <
-    BIN_GREATER,   // >
-    BIN_LESSEQ,    // <=
-    BIN_GREATEREQ, // >=
-    BIN_EQUAL,     // ==
-    BIN_NOTEQUAL,  // !=
-    BIN_BITAND,    // &
-    BIN_BITXOR,    // ^
-    BIN_BITOR,     // |
-    BIN_AND,       // &&
-    BIN_OR,        // ||
-    NUM_BINARYOPS
-  };
-
-  extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
-  string toString(BinaryOp op);
-} // end verbatim
-
 // general C expressions
 class Expression {
   -> E_intLit(int i);
@@ -223,64 +167,3 @@ class InitLabel {
   -> IL_field(StringRef name);
   -> IL_elementField(Expression index, StringRef name);
 }
-
-
-// ----------------- local implementation --------------------
-impl_verbatim {
-
-char const * const typeIntrNames[NUM_TYPEINTRS] = {
-  "struct",
-  "class",
-  "union",
-  "enum"
-};
-
-#define MAKE_TOSTRING(T, limit, array) \
-  string toString(T index)             \
-  {                                    \
-    xassert((unsigned)index < limit);  \
-    return string(array[index]);       \
-  }
-
-MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
-
-
-char const * const unaryOpNames[NUM_UNARYOPS] = {
-  "++/*postfix*/",
-  "--/*postfix*/",
-  "++/*prefix*/",
-  "--/*prefix*/",
-  "sizeof",
-  "+",
-  "-",
-  "!",
-  "~"
-};
-
-MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
-
-
-char const * const binaryOpNames[NUM_BINARYOPS] = {
-  "*",
-  "/",
-  "%",
-  "+",
-  "-",
-  "<<",
-  ">>",
-  "<",
-  ">",
-  "<=",
-  ">=",
-  "==",
-  "!=",
-  "&",
-  "^",
-  "|",
-  "&&",
-  "||"
-};
-
-MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
-
-} // end impl_verbatim
