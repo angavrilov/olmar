@@ -2,6 +2,7 @@
 # source for Makefile for parser generator project
 
 temp: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/ccparse cc/ccparset
+	@echo BUILD FINISHED
 
 all: cc/c.ast.gen.h glr.o cc/ccgr cc2/cc2.exe cc2/cc2t.exe cc/bccgr
 

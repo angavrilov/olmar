@@ -299,6 +299,20 @@ class OperatorDeclarator {
 
 // ------------------- statements -----------------
 class Statement (SourceLocation loc) {
+  // represent ambiguous statements by forming a linked list of alternatives
+  public Statement *ambiguity;
+  ctor ambiguity=NULL;
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;   // cc_tcheck.cc
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
+
   //public virtual void tcheck(Env &env);
   //pure_virtual void itcheck(Env &env);
 
@@ -348,6 +362,19 @@ class Handler (
 // ----------------- expressions -----------------
 // C expressions
 class Expression {
+  // same as we do for statements
+  public Expression *ambiguity;
+  ctor ambiguity=NULL;
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;   // cc_tcheck.cc
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
   // type check and yield the type of the expression; this type
   // gets automatically stored in the 'type' field
   //public Type const *tcheck(Env &env);
