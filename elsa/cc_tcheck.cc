@@ -1400,9 +1400,9 @@ void TS_classSpec::tcheckFunctionBodies
     else if (iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
-        // tcheck initializers
+        // initializers should have been tchecked by now
         if (decliter->init) {
-          decliter->tcheck_init(env);
+          xassert(decliter->type);
         }
       }
     }
@@ -1797,7 +1797,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // tcheck the initializer, unless we're inside a class, in which
   // case wait for pass two
-  if (init && !inClassBody) {
+  //
+  // UPDATE: dsw: why wait until pass 2?  I need to change it to pass
+  // 1 to get in/d0088.cc to work and all the other elsa and oink
+  // tests also work
+  if (init) {
     // TODO: check the initializer for compatibility with
     // the declared type
 
