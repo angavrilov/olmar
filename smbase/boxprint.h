@@ -47,6 +47,10 @@ public:
     sb.clear();
     return ret;
   }
+  
+  // take the tree out of a boxprint builder, convert it to a string,
+  // and delete the tree
+  string takeAndRender(BPBuilder &bld);
 };
 
 
@@ -153,8 +157,10 @@ class BPBuilder {
 public:      // types
   // additional command besides BPKind
   enum Cmd {
-    C_SPACE,       // insert disabled break
-    C_BREAK,       // insert enabled break
+    sp,          // insert disabled break
+    br,          // insert enabled break
+    ind,         // ibr(levelIndent)
+    und,         // ibr(-levelIndent) ("unindent")
   };
 
   // insert enabled break with indentation
@@ -163,7 +169,7 @@ public:      // types
     IBreak(int i) : indent(i) {}
     // use default copy ctor
   };
-  
+
   // operator sequence
   struct Op {
     char const *text;
@@ -182,9 +188,8 @@ public:      // data
   static BPKind const hv;         // = BP_correlated ("h/v")
   static BPKind const end;        // = NUM_BPKINDS
 
-  // names for additional commands
-  static Cmd const sp;            // = C_SPACE
-  static Cmd const br;            // = C_BREAK
+  // indentation amount for the ind/und commands; defaults to 2
+  int levelIndent;
 
 private:     // funcs
   // innermost box being built
@@ -208,11 +213,11 @@ public:      // funcs
   BPBuilder& operator<< (Cmd c);
 
   // insert break with indentation
-  IBreak ibr(int i) { return IBreak(i); }
+  static IBreak ibr(int i) { return IBreak(i); }
   BPBuilder& operator<< (IBreak b);
 
   // op(text) is equivalent to sp << text << br
-  Op op(char const *text) { return Op(text); }
+  static Op op(char const *text) { return Op(text); }
   BPBuilder &operator << (Op o);
 
   // take the accumulated box tree out; all opened boxes must have
