@@ -84,12 +84,14 @@ bool filterOutImplIntFirstParam
   (SourceLoc loc,
    IDeclarator *base,
    FakeList<ASTTypeId> *&params);
-}
 
 
-context_class CCParse : public UserActions, public ParseEnv {
+// this is the shareable fragment of CCParse, since the new
+// Elkhound behavior prevents extension modules from inheriting
+// directly from CCParse
+class CCParseShareable : public UserActions, public ParseEnv {
 public:
-  CCParse(StringTable &table, CCLang &lang)
+  CCParseShareable(StringTable &table, CCLang &lang)
     : ParseEnv(table, lang) {}
 
   // when this is the last element in a parameter list, the function
@@ -150,6 +152,15 @@ public:
     }
     return new D_array(loc, base, size);
   }
+};
+
+} // verbatim
+
+
+context_class CCParse : public CCParseShareable {
+public:
+  CCParse(StringTable &table, CCLang &lang)
+    : CCParseShareable(table, lang) {}
 };
 
 
