@@ -22,7 +22,7 @@ grammar: grammar.h grammar.cc gramanl.h gramanl.cc
 # GLR parser built on top of SLR(1) parser
 glr-dep = grammar.o gramanl.o glr.cc glrtree.o trace.o attr.o cond.o \
           attrexpr.o action.o lexer1.o lexer1yy.o lexer2.o
-glr: ${glr-dep}	glr.h ${SMBASE}/libsmbase.a
+glr: ${glr-dep} glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 
 lexer1yy.cc: lexer1.lex lexer1.h
@@ -36,7 +36,7 @@ lexer1: lexer1.cc lexer1yy.o trace.o ${SMBASE}/libsmbase.a
 lexer2: lexer2.cc lexer1.o lexer1yy.o trace.o lexer2.h
 	${link} -o lexer2 -DTEST_LEXER2 lexer2.cc lexer1.o lexer1yy.o trace.o ${linkend}
 
-# grammar lexer generated source
+# grammar lexer
 gramlex.yy.cc: gramlex.h gramlex.cc gramlex.lex grampar.tab.h
 	flex -ogramlex.yy.cc gramlex.lex                     
 
@@ -46,7 +46,12 @@ gramlex: gramlex.yy.cc gramlex.cc gramlex.h
 
 # grammar parser
 grampar.tab.c grampar.tab.h: grampar.y
-	bison -d grampar.y
+	bison -d $^
+
+# grammar parser test program
+grampar: gramlex.yy.cc grampar.tab.c gramlex.cc grampar.cc trace.o
+	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 clean:
 	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
+	rm -f grampar.tab.?

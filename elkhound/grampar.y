@@ -2,10 +2,25 @@
  * parser for grammar files */
 
 
+/* C declarations */
+%{
+
+#include "grampar.h"        // yylex, etc.
+#include "attrexpr.h"       // AExprNode, etc.
+
+#include <stdlib.h>         // malloc, free
+#include <iostream.h>       // cout
+
+typedef ObjList<AExprNode> ExprList;
+
+%}
+
+
 /* ===================== tokens ============================ */
 /* tokens that have many lexical spellings */
 %token TOK_INTEGER
 %token TOK_NAME
+%token TOK_STRING
 
 /* punctuators */
 %token TOK_LBRACE "{"
@@ -17,12 +32,15 @@
 %token TOK_COLONEQUALS ":="
 %token TOK_LPAREN "("
 %token TOK_RPAREN ")"
+%token TOK_DOT "."
+%token TOK_COMMA ","
 
 /* keywords */
 %token TOK_TERMINALS "terminals"
 %token TOK_NONTERM "nonterm"
 %token TOK_FORMGROUP "formGroup"
 %token TOK_FORM "form"
+%token TOK_ATTR "attr"
 %token TOK_ACTION "action"
 %token TOK_CONDITION "condition"
 
@@ -40,6 +58,7 @@
 %token TOK_PERCENT "%"
 %token TOK_SLASH "/"
 %token TOK_ASTERISK "*"
+%token TOK_QUESTION "?"
 
 /* operator precedence; same line means same precedence */
 /*   lowest precedence */
@@ -50,6 +69,24 @@
 %left "-" "+"
 %left "%" "/" "*"
 /*   highest precedence */
+
+
+/* ==================== semantic types ===================== */
+/* all the possible semantic types */
+%union {
+  int num;                       /* for int literals */
+  string *str;                   /* (serf) for string literals and names */
+  AExprNode *exprNode;           /* (owner) a node in an attribute expression */
+  ExprList *expList;             /* (owner, nullable) list of expressions */
+}
+
+/* mapping between terminals and their semantic types */
+%type <num>          TOK_INTEGER
+%type <str>          TOK_STRING TOK_NAME
+
+/* mapping between nonterminals and their semantic types */
+%type <exprNode>     AttrExpr CondExpr BinaryExpr UnaryExpr PrimaryExpr
+%type <AExprNode>    ExprListOpt ExprList
 
 
 /* ===================== productions ======================= */
@@ -74,21 +111,26 @@ TerminalSeqOpt: /* empty */
               | TerminalSeqOpt TerminalDecl
               ;
 
-/*
- * each terminal has an integer code which is the integer value the lexer uses
- * to represent that terminal.  it is followed by at least one alias, where it is
- * the aliases that appear in the forms, rather than the integer codes
- */
+/* each terminal has an integer code which is the integer value the
+ * lexer uses to represent that terminal.  it is followed by at least
+ * one alias, where it is the aliases that appear in the forms, rather
+ * than the integer codes */
 TerminalDecl: TOK_INTEGER ":" AliasSeq ";"
             ;
 
-AliasSeq: TOK_NAME
-        | AliasSeq TOK_NAME
+AliasSeq: Alias
+        | AliasSeq Alias
         ;
+
+/* allow canonical names (e.g. TOK_COLON) and also mnemonic
+ * strings (e.g. ":") for terminals */
+Alias: TOK_NAME
+     | TOK_STRING
+     ;
 
 
 /* ------ nonterminals ------ */
-/* 
+/*
  * a nonterminal is a grammar symbol that appears on the LHS of forms;
  * the body of the Nonterminal declaration specifies the the RHS forms,
  * attribute info, etc.
@@ -157,6 +199,7 @@ FormGroupBody: /* empty */
              | FormGroupBody Action
              | FormGroupBody Condition
              | FormGroupBody Form
+             | FormGroupBody FormGroup
              ;
 
 /* ------ form right-hand side ------ */
@@ -165,8 +208,8 @@ FormGroupBody: /* empty */
  * top level of a form; this is semantically equivalent to a formgroup
  * with the alternatives as alternative forms
  */
-FormRHS: TaggedNameSeqOpt
-       | FormRHS "|" TaggedNameSeqOpt
+FormRHS: RHSEltSeqOpt
+       | FormRHS "|" RHSEltSeqOpt
        ;
 
 /*
@@ -174,10 +217,11 @@ FormRHS: TaggedNameSeqOpt
  * colon (':') if present; the tag is required if that symbol's attributes
  * are to be referenced anywhere in the actions or conditions for the form
  */
-TaggedNameSeqOpt: /* empty */
-                | TaggedNameSeqOpt TOK_NAME                 /* name (only) */
-                | TaggedNameSeqOpt TOK_NAME ":" TOK_NAME    /* tag : name */
-                ;
+RHSEltSeqOpt: /* empty */
+            | RHSEltSeqOpt TOK_NAME                 /* name (only) */
+            | RHSEltSeqOpt TOK_NAME ":" TOK_NAME    /* tag : name */
+            | RHSEltSeqOpt TOK_STRING               /* mnemonic terminal */
+            ;
 
 /* ------ actions and conditions ------ */
 /*
@@ -197,40 +241,71 @@ Condition: "condition" AttrExpr ";"
 
 
 /* ------ attribute expressions, basically C expressions ------ */
-PrimaryExpr: TOK_NAME
-           | TOK_INTEGER
-           | "(" AttrExpr ")"
+PrimaryExpr: TOK_NAME "." TOK_NAME         /* tag . attr */
+               { return new ?? ($1, $3); }
+           | TOK_INTEGER                   /* literal */
+               { return new AExprLiteral($1); }
+           | "(" AttrExpr ")"              /* grouping */
+               { return $2; }
+           | TOK_NAME "(" ExprListOpt ")"  /* function call */
+               {
+                 AExprFunc *ret = new AExprFunc($1);
+                 if ($3) {
+                   ret->args.concat(*$3);
+                   delete $3;
+                 }
+               }
            ;
 
-UnaryExpr: PrimaryExpr
-         | "+" PrimaryExpr
-         | "-" PrimaryExpr
-         | "!" PrimaryExpr
+ExprListOpt: /* empty */       { return NULL; }
+           | ExprList          { return $1; }
+           ;
+
+ExprList: AttrExpr
+            {
+              ExprList *ret = new ExprList;
+              ret->append($1);
+              return ret;
+            }
+        | ExprList "," AttrExpr
+            {
+              $1.append($3);
+              return $1;
+            }
+        ;
+
+
+UnaryExpr: PrimaryExpr          { return $1; }
+         | "+" PrimaryExpr      { return $2; }    /* semantically ignored */
+         | "-" PrimaryExpr      { return new fnExpr1("-", $2); }
+         | "!" PrimaryExpr      { return new fnExpr1("!", $2); }
          ;
 
 /* this rule relies on Bison precedence and associativity declarations */
-BinaryExpr: UnaryExpr
-          | UnaryExpr "*" UnaryExpr
-          | UnaryExpr "/" UnaryExpr
-          | UnaryExpr "%" UnaryExpr
-          | UnaryExpr "+" UnaryExpr
-          | UnaryExpr "-" UnaryExpr
-          | UnaryExpr "<" UnaryExpr
-          | UnaryExpr ">" UnaryExpr
-          | UnaryExpr "<=" UnaryExpr
-          | UnaryExpr ">=" UnaryExpr
-          | UnaryExpr "==" UnaryExpr
-          | UnaryExpr "!=" UnaryExpr
-          | UnaryExpr "&&" UnaryExpr
-          | UnaryExpr "||" UnaryExpr
+BinaryExpr: UnaryExpr                   { return $1; }
+          | UnaryExpr "*" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "/" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "%" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "+" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "-" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "<" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr ">" UnaryExpr     { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "<=" UnaryExpr    { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr ">=" UnaryExpr    { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "==" UnaryExpr    { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "!=" UnaryExpr    { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "&&" UnaryExpr    { return new fnExpr2("*", $1, $3); }
+          | UnaryExpr "||" UnaryExpr    { return new fnExpr2("*", $1, $3); }
           ;
 
 /* the expression "a ? b : c" means "if (a) then b, else c" */
 CondExpr: BinaryExpr
+            { return $1; }
         | BinaryExpr "?" AttrExpr ":" AttrExpr
+            { return new fnExpr3("if", $1, $3, $5); }
         ;
 
-AttrExpr: CondExpr
+AttrExpr: CondExpr       { return $1; }
         ;
 
 

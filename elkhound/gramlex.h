@@ -23,7 +23,7 @@
 
 
 // other includes..
-#include "str.h"      // string
+#include "str.h"              // string
 
 
 // this class just holds the lexer state so it is properly encapsulated
@@ -41,6 +41,7 @@ private:     // data
 public:      // data
   int commentStartLine;        // for reporting unterminated C comments
   int integerLiteral;          // to store number literal value
+  string stringLiteral;        // string in quotes, minus the quotes
   string includeFileName;      // name in an #include directive
 
   // defined in the base class, FlexLexer:

@@ -41,10 +41,18 @@ ANY       (.|"\n")
 ANYBUTNL  .
 
 /* starting character in a name */
-LETTER    [a-zA-Z_"]
+LETTER    [a-zA-Z_]
 
 /* starting character in a numeric literal */
 DIGIT     [0-9]
+
+/* double-quote */
+DQUOTE    "\""
+
+/* character that can appear in a quoted string */
+/* (I currently don't have any backslash codes, but I want to
+ * leave open that possibility, for now backslashes are illegal) */
+STRCHR    [^\n\\"]
 
 
 /* --------------- start conditions ------------------- */
@@ -112,6 +120,8 @@ DIGIT     [0-9]
 ":="               UPD_COL  return TOK_COLONEQUALS;
 "("                UPD_COL  return TOK_LPAREN;
 ")"                UPD_COL  return TOK_RPAREN;
+"."                UPD_COL  return TOK_DOT;
+","                UPD_COL  return TOK_COMMA;
 
 "||"               UPD_COL  return TOK_OROR;
 "&&"               UPD_COL  return TOK_ANDAND;
@@ -126,11 +136,13 @@ DIGIT     [0-9]
 "%"                UPD_COL  return TOK_PERCENT;
 "/"                UPD_COL  return TOK_SLASH;
 "*"                UPD_COL  return TOK_ASTERISK;
+"?"                UPD_COL  return TOK_QUESTION;
 
 "terminals"        UPD_COL  return TOK_TERMINALS;
 "nonterm"          UPD_COL  return TOK_NONTERM;
 "formGroup"        UPD_COL  return TOK_FORMGROUP;
 "form"             UPD_COL  return TOK_FORM;
+"attr"             UPD_COL  return TOK_ATTR;
 "action"           UPD_COL  return TOK_ACTION;
 "condition"        UPD_COL  return TOK_CONDITION;
 
@@ -147,6 +159,13 @@ DIGIT     [0-9]
   UPD_COL
   integerLiteral = strtoul(yytext, NULL, 10 /*radix*/);
   return TOK_INTEGER;
+}
+
+  /* ----------- string literal ----- */
+{DQUOTE}{STRCHR}*{DQUOTE} {
+  UPD_COL
+  stringLiteral = string(yytext+1, yyleng-2);        // strip quotes
+  return TOK_STRING;
 }
 
   /* ---------- includes ----------- */

@@ -11,6 +11,7 @@ GrammarLexer::GrammarLexer()
     column(firstColumn),
     commentStartLine(0),
     integerLiteral(0),
+    stringLiteral(""),
     includeFileName("")
 {}
 

@@ -36,5 +36,9 @@ void traceAddMultiSys(char const *systemNames);
 // (argv[0] is assumed to be ignored by everything)
 bool traceProcessArg(int &argc, char **&argv);
 
+// so here's a simple loop that will consume any leading
+// trace arguments
+#define TRACE_ARGS() while (traceProcessArg(argc, argv)) {}
+
 
 #endif // __TRACE_H
