@@ -84,6 +84,9 @@ while (@ARGV) {
   elsif (($tmp) = ($arg =~ m/^-gnu=(.*)$/)) {
     $USE_GNU = $tmp;
   }
+  elsif (($tmp) = ($arg =~ m/^-gnu$/)) {
+    die "-gnu option must be followed by =yes or =no\n";
+  }
 
   elsif ($arg eq "-useSerialNumbers") {
     push @CCFLAGS, "-DUSE_SERIAL_NUMBERS=1";
