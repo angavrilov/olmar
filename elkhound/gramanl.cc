@@ -4171,10 +4171,11 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
     throw_XOpen(hFname);
   }
 
-  string latchName = replace(replace(
-                       stringToupper(hFname), 
+  string latchName = replace(replace(replace(
+                       stringToupper(hFname),
                          ".", "_"),
-                         "/", "_");
+                         "/", "_"),
+                         "-", "_");
       
   // prologue
   dcl << "// " << hFname << "\n"
