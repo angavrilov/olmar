@@ -14,8 +14,6 @@ verbatim [
   trace("cdecl") << msg << endl
 #define R0 return 0
 
-// temporary: simple way to get unique id for 'int'
-char const *intStr = "int";
 
 // parsing action state
 class ParseEnv {
@@ -32,6 +30,7 @@ public:
   void addType(StringRef type);
   bool isType(StringRef name);
 };
+
 
 ParseEnv::ParseEnv(ParseTreeAndTokens &ptree)
 {
