@@ -933,10 +933,18 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
     xassert(path==0);
     Variable const *var = target->asE_variable()->var;
 
+    if (op != BIN_ASSIGN) {
+      // extract old value
+      AbsValue *old = env.get(var);
+
+      // combine it
+      v = env.grab(new AVbinary(old, op, v));
+    }
+
     // properly handles memvars vs regular vars
     env.updateVar(var, v);
   }
-  else if (target->isE_deref()) {
+  else if (op == BIN_ASSIGN && target->isE_deref()) {
     // get an abstract value for the address being modified
     AbsValue *addr = target->asE_deref()->ptr->vcgen(env, path);
 
@@ -966,35 +974,6 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
   }
 
   return env.dup(v);
-}
-
-
-AbsValue *E_arithAssign::vcgen(AEnv &env, int path) const
-{
-  int modulus = src->numPaths1();
-  AbsValue *v = src->vcgen(env, path % modulus);
-  path = path / modulus;
-
-  // again, only support variables
-  if (target->isE_variable()) {
-    xassert(path==0);
-    Variable *var = target->asE_variable()->var;
-
-    // extract old value
-    AbsValue *old = env.get(var);
-
-    // combine it
-    v = env.grab(new AVbinary(old, op, v));
-
-    // replace in environment
-    env.set(var, v);
-
-    return env.dup(v);
-  }
-  else {
-    cout << "TODO: unhandled assignment: " << toString() << endl;
-    return v;
-  }
 }
 
 

@@ -104,9 +104,12 @@ impl_verbatim {
       "bAnd",
       "bOr",
 
+      "!!!BIN_ASSIGN!!!",    // shouldn't be sent to Simplify
+
       "bImplies"
     };
     STATIC_ASSERT(TABLESIZE(names) == NUM_BINARYOPS);
+    xassert(op != BIN_ASSIGN);
 
     sb << "(" << names[op] << " ";
     v1->toSexp(sb);

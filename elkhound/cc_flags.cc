@@ -189,7 +189,9 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "|",
   "&&",
   "||",
-  
+
+  "=",
+
   "==>"
 };
 

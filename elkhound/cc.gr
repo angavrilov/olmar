@@ -398,11 +398,8 @@ nonterm[Expression*] AssignmentExpression {
   -> e:ConditionalExpression 
        [ return e; ]
 
-  -> e1:BinaryExpression "=" e2:AssignmentExpression 
-       [ return new E_assign(e1, e2); ]
-
   -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression
-       [ return new E_arithAssign(e1, op, e2); ]
+       [ return new E_assign(e1, op, e2); ]
 }
 
 nonterm[enum BinaryOp] AssignmentOperator {
@@ -416,6 +413,7 @@ nonterm[enum BinaryOp] AssignmentOperator {
   -> "&="  [ return BIN_BITAND; ]
   -> "^="  [ return BIN_BITXOR; ]
   -> "|="  [ return BIN_BITOR; ]
+  -> "="   [ return BIN_ASSIGN; ]
 }
 
 

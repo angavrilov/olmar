@@ -579,13 +579,6 @@ int countPaths(Env &env, Expression *ths)
       }
     }
     ASTNEXT(E_assign, ths) {
-      // same as below
-      numPaths = ths->src->numPaths;              // start with paths through src
-      SIDE_EFFECT();                              // clearly this expr has a side effect
-      numPaths = mult(numPaths, ths->target->numPaths1());       // add paths through target
-    }
-    ASTNEXT(E_arithAssign, ths) {
-      // same as above
       numPaths = ths->src->numPaths;              // start with paths through src
       SIDE_EFFECT();                              // clearly this expr has a side effect
       numPaths = mult(numPaths, ths->target->numPaths1());       // add paths through target
@@ -704,12 +697,6 @@ void printPath(int index, Expression const *ths)
       printPath(index / modulus, ths->e2);
     }
     ASTNEXTC(E_assign, ths) {
-      cout << "    side effect: " << ths->toString() << endl;
-      int modulus = ths->src->numPaths1();
-      printPath(index % modulus, ths->src);
-      printPath(index / modulus, ths->target);
-    }
-    ASTNEXTC(E_arithAssign, ths) {
       cout << "    side effect: " << ths->toString() << endl;
       int modulus = ths->src->numPaths1();
       printPath(index % modulus, ths->src);

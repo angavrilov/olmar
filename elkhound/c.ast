@@ -307,7 +307,7 @@ class Statement (SourceLocation loc) {
 
 
 // ----------------- expressions -----------------
-// general C expressions
+// C expressions
 class Expression {
   // type check and yield the type of the expression; this type
   // gets automatically stored in the 'type' field
@@ -356,7 +356,6 @@ class Expression {
        public Variable *var;      // (serf) binding introduction of this name
        ctor var=NULL;
      }
-  //-> E_arrayAcc(Expression arr, Expression index);
   -> E_funCall(Expression func, ASTList<Expression> args);
   -> E_fieldAcc(Expression obj, StringRef field);
 
@@ -376,10 +375,11 @@ class Expression {
        ctor size=-1;
      }
 
-  // these are not ordinary binary because they too are special
-  -> E_assign(Expression target, Expression src);
-  -> E_arithAssign(Expression target, BinaryOp op, Expression src);   // e.g. "+="
+  // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
+  // incremental assignment, like a += 3
+  -> E_assign(Expression target, BinaryOp op, Expression src);
 }
+
 
 // animals which appear after declarations to assign initial values
 class Initializer {

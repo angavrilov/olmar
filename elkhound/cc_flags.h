@@ -160,7 +160,9 @@ enum BinaryOp {
   BIN_BITOR,     // |
   BIN_AND,       // &&
   BIN_OR,        // ||
-  
+
+  BIN_ASSIGN,    // = (used to denote simple assignmentments in AST)
+
   // theorem prover extension
   BIN_IMPLIES,   // ==>
 

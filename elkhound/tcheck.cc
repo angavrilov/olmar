@@ -1136,38 +1136,25 @@ Type const *E_assign::itcheck(Env &env)
   Type const *ttype = target->tcheck(env);
 
   // TODO: check that 'ttype' is an lvalue
-
-  if (env.inPredicate) {
-    env.err(stringc << "cannot have side effects in predicates: " << toString());
-  }
-
-  env.checkCoercible(stype, ttype);
-  return ttype;
-}
-
-
-Type const *E_arithAssign::itcheck(Env &env)
-{
-  Type const *stype = src->tcheck(env);
-  Type const *ttype = target->tcheck(env);
-
-  // TODO: check that 'ttype' is an lvalue
   // TODO: this isn't quite right.. I should first compute
   // the promotion of stype,ttype, then verify this can
   // in turn be coerced back to ttype.. (?)
 
   if (env.inPredicate) {
-    env.err("cannot have side effects in predicates");
+    env.err(stringc << "cannot have side effects in predicates: " << toString());
   }
 
-  // they both need to be integers
-  if (!stype->isIntegerType() ||
-      !ttype->isIntegerType()) {
-    env.err(stringc << "arguments to " << ::toString(op)
-                    << "= must both be integral");
+  if (op != BIN_ASSIGN) {
+    // they both need to be integers
+    if (!stype->isIntegerType() ||
+        !ttype->isIntegerType()) {
+      env.err(stringc << "arguments to " << ::toString(op)
+                      << "= must both be integral");
+    }
+    env.checkCoercible(stype, ttype);
   }
 
-  return ttype;
+  return stype;    // not sure whether to return ttype or stype here..
 }
 
 
@@ -1277,7 +1264,6 @@ int E_cond::constEval(Env &env) const { return xnonconst(); }
 int E_gnuCond::constEval(Env &env) const { return xnonconst(); }
 int E_comma::constEval(Env &env) const { return xnonconst(); }
 int E_assign::constEval(Env &env) const { return xnonconst(); }
-int E_arithAssign::constEval(Env &env) const { return xnonconst(); }
 
 
 // -------------------- Expression::toString --------------------
@@ -1335,10 +1321,17 @@ string E_comma::toString() const
   { return stringc << e1->toString() << ", " << e2->toString(); }
 string E_sizeofType::toString() const
   { return stringc << "sizeof(..some type..)"; }
+
 string E_assign::toString() const
-  { return stringc << target->toString() << " = " << src->toString(); }
-string E_arithAssign::toString() const
-  { return stringc << target->toString() << " " << ::toString(op) << "= " << src->toString(); }
+{
+  if (op == BIN_ASSIGN) {
+    return stringc << target->toString() << " = " << src->toString();
+  }
+  else {
+    return stringc << target->toString() << " " << ::toString(op) 
+                   << "= " << src->toString();
+  }
+}
 
 
 /*
@@ -1361,7 +1354,6 @@ string E_arithAssign::toString() const
   E_comma
   E_sizeofType
   E_assign
-  E_arithAssign
 */
 
 
