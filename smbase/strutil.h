@@ -28,7 +28,7 @@ string quoted(char const *src);
 // with the escape syntax; if 'delim' is specified, it will also
 // make sure there are no unescaped instances of that
 void decodeEscapes(string &dest, int &destLen, char const *src,
-                   char delim = 0);
+                   char delim = 0, bool allowNewlines=false);
 
 // given a string with quotes and escapes, yield just the string;
 // works if there are no escaped NULs

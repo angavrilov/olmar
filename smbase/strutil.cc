@@ -119,14 +119,14 @@ string quoted(char const *src)
 
 
 void decodeEscapes(string &dest, int &destLen, char const *src,
-                   char delim)
+                   char delim, bool allowNewlines)
 {
   // place to collect the string characters
   stringBuilder sb;
   destLen = 0;
 
   while (*src != '\0') {
-    if (*src == '\n') {
+    if (*src == '\n' && !allowNewlines) {
       xformat("unescaped newline (unterminated string)");
     }
     if (*src == delim) {

@@ -126,4 +126,13 @@ inline void pretendUsedFn(T const &) {}
     return (destType const&)(*this);                \
   }
 
+
+// keep track of a count and a high water mark
+#define INC_HIGH_WATER(count, highWater)  \
+  count++;                                \
+  if (count > highWater) {                \
+    highWater = count;                    \
+  }
+
+
 #endif // __MACROS_H
