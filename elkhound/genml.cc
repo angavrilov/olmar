@@ -514,7 +514,7 @@ void emitMLDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
 void emitMLFuncDecl(Grammar const &g, EmitCode &out, EmitCode &dcl,
                     char const *rettype, char const *params)
 {
-  out << "(*inline*) let " << params << ": " << rettype;
+  out << "(*inline*) let " << params << ": " << rettype << " =";
 }
 
 
@@ -529,6 +529,7 @@ void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
       stringc << "dup_" << sym.name
               << " (" << sym.dupParam << ": " << sym.type << ") ");
     emitMLUserCode(out, sym.dupCode);
+    out << "\n";
   }
 
   if (sym.delCode) {
@@ -537,6 +538,7 @@ void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
               << " (" << (sym.delParam? sym.delParam : "_")
               << ": " << sym.type << ") ");
     emitMLUserCode(out, sym.delCode);
+    out << "\n";
   }
 
   if (nonterm && nonterm->mergeCode) {
@@ -545,6 +547,7 @@ void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
               << " (" << nonterm->mergeParam1 << ": " << notVoid(sym.type) << ") "
               << " (" << nonterm->mergeParam2 << ": " << notVoid(sym.type) << ") ");
     emitMLUserCode(out, nonterm->mergeCode);
+    out << "\n";
   }
 
   if (nonterm && nonterm->keepCode) {
@@ -552,6 +555,7 @@ void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
       stringc << "keep_" << sym.name
               << " (" << nonterm->keepParam << ": " << sym.type << ") ");
     emitMLUserCode(out, nonterm->keepCode);
+    out << "\n";
   }
 
   if (term && term->classifyCode) {
@@ -559,6 +563,7 @@ void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
       stringc << "classify_" << sym.name
               << " (" << term->classifyParam << ": " << sym.type << ") ");
     emitMLUserCode(out, term->classifyCode);
+    out << "\n";
   }
 }
 

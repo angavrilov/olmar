@@ -227,21 +227,45 @@ end
 
 
 (* ----------------- front ends to user code --------------- *)
-let symbolDescription (sym: tSymbolId) (*user*) (sval: tSemanticValue) : string =
+let symbolDescription (sym: tSymbolId) (user: tUserActions) 
+                      (sval: tSemanticValue) : string =
 begin
-  "TODO"
+  if (symIsTerm sym) then (
+    (user.terminalDescription (symAsTerm sym) sval)
+  )
+  else (
+    (user.nonterminalDescription (symAsNonterm sym) sval)
+  )
 end
 
 let duplicateSemanticValue (glr: tGLR) (sym: tSymbolId) (sval: tSemanticValue)
   : tSemanticValue =
 begin
-  (* TODO *)
-  sval
+  xassertdb(sym <> 0);
+                                
+  (* the C++ implementation checks for NULL sval, but I don't think
+   * that can be here in the ML version, and I'm not convinced the
+   * check would even be safe *)
+
+  if (symIsTerm sym) then (
+    (glr.userAct.duplicateTerminalValue (symAsTerm sym) sval)
+  )
+  else (
+    (glr.userAct.duplicateNontermValue (symAsNonterm sym) sval)
+  )
 end
 
-let deallocateSemanticValue (sym: tSymbolId) (*user*) (sval: tSemanticValue) : unit =
+let deallocateSemanticValue (sym: tSymbolId) (user: tUserActions) 
+                            (sval: tSemanticValue) : unit =
 begin
-  (* TODO *)
+  xassertdb(sym <> 0);
+
+  if (symIsTerm sym) then (
+    (user.deallocateTerminalValue (symAsTerm sym) sval)
+  )
+  else (
+    (user.deallocateNontermValue (symAsNonterm sym) sval)
+  )
 end
 
 
@@ -274,11 +298,11 @@ end
 let deallocSemanticValues (ths: tStackNode) : unit =
 begin
   if (isSome ths.firstSib.sib) then (
-    (deallocateSemanticValue (getNodeSymbol ths) ths.firstSib.sval)
+    (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct ths.firstSib.sval)
   );
 
   (List.iter
-    (fun s -> (deallocateSemanticValue (getNodeSymbol ths) s.sval))
+    (fun s -> (deallocateSemanticValue (getNodeSymbol ths) ths.glr.userAct s.sval))
     ths.leftSiblings);
   ths.leftSiblings <- [];
 end
@@ -377,6 +401,9 @@ let addAdditionalSiblingLink (ths: tStackNode) (leftSib: tStackNode)
 begin
   (* now there is a second outgoing pointer *)
   ths.determinDepth <- 0;
+
+  (* this was implicit in the C++ verison *)
+  (incRefCt leftSib);
 
   let link:tSiblingLink = (makeSiblingLink (Some leftSib) sval) in
   ths.leftSiblings <- link :: ths.leftSiblings;
@@ -721,9 +748,11 @@ begin
     (Printf.printf "Parse succeeded!\n");
     (flush stdout);
   );
-  
+
   if (not ((glr.topmostParsers#length()) = 1)) then (
-    (Printf.printf "parsing finished with more than one active parser!\n");
+    (Printf.printf "parsing finished with %d active parsers!\n"
+                   (glr.topmostParsers#length()));
+    (flush stdout);
     false     (* return *)
   )
   else begin
@@ -1032,7 +1061,7 @@ begin
               (Printf.printf "avoided a merge by noticing the state was dead\n");
               (flush stdout);
             );
-            (deallocateSemanticValue (getNodeSymbol rightSibling) sval);
+            (deallocateSemanticValue (getNodeSymbol rightSibling) glr.userAct sval);
           )
           else (
             (* call user's merge code *)
@@ -1131,12 +1160,14 @@ begin
   )
   else (
     (* ambiguous; check for reductions in list of actions *)
-    (failwith "TODO: represent ambiguous action lists?");
-    (*
-      let entry:tActionEntry = (decodeAmbigAction (*tables*) action parsr.state) in
-      for i = 0 to
-    *)
-    0   (* not right *)
+    let firstEntry:int = (decodeAmbigAction glr.tables action parsr.state) in
+    let numEntries:int = glr.tables.ambigTable.(firstEntry) in
+    for i = 0 to numEntries-1 do
+      (* ignore return value because I know it will be 1 *)
+      ignore (rwlEnqueueReductions glr parsr glr.tables.ambigTable.(i+1) mustUseLink);
+    done;
+
+    numEntries
   )
 end
 
@@ -1211,27 +1242,31 @@ begin
   (xassert (glr.prevTopmost#isEmpty()));
   (glr.prevTopmost#swapWith glr.topmostParsers);
   (xassert (glr.topmostParsers#isEmpty()));
-  
+
+  (* grab current token since we'll need it and the access 
+   * isn't all that fast here in ML *)
+  let token:int = (curToken glr) in
+
   (* for token multi-yield.. *)
   let prev: tSiblingLink option ref = ref None in
-  
+
   while (glr.prevTopmost#isNotEmpty()) do
     (* take the node from 'prevTopmost'; the refcount transfers
      * from 'prevTopmost' to (local variable) 'leftSibling' *)
     let leftSibling:tStackNode = (glr.prevTopmost#pop()) in
     (xassert (leftSibling.referenceCount >= 1));   (* for the local *)
-    
+
     (* can this parser shift? *)
     let action:tActionEntry =
-      (getActionEntry glr.tables leftSibling.state (curToken glr)) in
-      
+      (getActionEntry glr.tables leftSibling.state token) in
+
     (* if we find a shift, this will be set to something valid *)
     let newState: tStateId ref = ref cSTATE_INVALID in
-    
+
     (* consult action table, looking for shifts *)
     if (isShiftAction glr.tables action) then (
       (* unambiguous shift *)
-      newState := (decodeShift (*tables*) action (curToken glr));
+      newState := (decodeShift (*tables*) action token);
     )
     else if ((isReduceAction (*tables*) action) ||
              (isErrorAction (*tables*) action)) then (
@@ -1239,8 +1274,18 @@ begin
     )
     else (
       (* nondeterministic *)
+      let firstEntry:int = (decodeAmbigAction glr.tables action leftSibling.state) in
+      let numEntries:int = glr.tables.ambigTable.(firstEntry) in
 
-      (failwith "TODO: encoding of ambiguous actions?")
+      for i=0 to numEntries-1 do
+        let action:tActionEntry = glr.tables.ambigTable.(i+1) in
+        if (isShiftAction glr.tables action) then (
+          (* a shift was among the conflicted actions *)
+          newState := (decodeShift (*tables*) action token);
+
+          (* would like to break out, but I can't, so just eat the wasted time.. *)
+        );
+      done;
     );
 
     if (!newState <> cSTATE_INVALID) then (
@@ -1279,7 +1324,7 @@ begin
         | Some(prev) -> (
             (* the 'sval' we just grabbed has already been claimed by
              * 'prev.sval'; get a fresh one by duplicating the latter *)
-            (glr.userAct.duplicateTerminalValue (curToken glr) prev.sval)
+            (glr.userAct.duplicateTerminalValue token prev.sval)
           )
       in
 

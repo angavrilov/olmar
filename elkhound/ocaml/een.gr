@@ -1,0 +1,26 @@
+// een.gr
+// test of ambiguous grammars in OCaml backend
+
+option lang_OCaml;
+
+context_class een {
+public:
+};
+
+
+terminals {
+  0 : TOK_EOF;
+  1 : TOK_NUMBER;
+  2 : TOK_PLUS     "+";
+}
+
+
+nonterm(int) Exp {
+  // I just want to count the total number of parses
+  fun merge(a,b)              { a + b }
+  -> e1:Exp "+" e2:Exp        { e1 * e2 }
+  -> TOK_NUMBER               { 1 }
+}
+
+
+// EOF

@@ -100,7 +100,7 @@ object (self)
     (* ug.. must use tail recursion just so I can break early... *)
     let rec loop (i: int) : 'a option =
     begin
-      if (i >= len-1) then (
+      if (i > len-1) then (
         None               (* not found *)
       )
       else if (f (arr.(i))) then (

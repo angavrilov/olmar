@@ -13,11 +13,11 @@ all: tobjpool main
 	ocamlc -c -g $*.ml
 	@ocamldep $*.ml > $*.d
 
-# run elkhound on the sample grammar spec
+# run elkhound on a grammar spec
 # (for now I don't want to use the interface stuff)
-arith.ml: arith.gr $(ELKHOUND)/elkhound
-	$(ELKHOUND)/elkhound -v arith.gr
-	rm -f arith.mli
+%.ml: %.gr $(ELKHOUND)/elkhound
+	$(ELKHOUND)/elkhound -v $*.gr
+	rm -f $*.mli
 
 # NOTE: Module order is important!  OCaml module dependencies cannot
 # be cyclic, and the order presented must respect the dependency order.
@@ -38,6 +38,7 @@ MAIN_MODULES = \
   objpool.cmo \
   glr.cmo \
   arith.cmo \
+  een.cmo \
   main.cmo
 main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^

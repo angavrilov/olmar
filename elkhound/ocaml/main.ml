@@ -1,5 +1,5 @@
 (* main.ml *)
-(* porting Elkhound to OCaml *)
+(* driver for an Elkhound parser written in OCaml *)
 
 open Lexerint      (* tLexerInterface *)
 open Lrparse       (* parse *)
@@ -8,14 +8,18 @@ open Useract       (* tSemanticValue *)
 open Parsetables   (* tParseTables *)
 open Useract       (* tUserActions *)
 open Arith         (* arithParseTables, arithUserActions *)
+open Een           (* eenParseTables, eenUserActions *)
+
 
 (* ------------------ lexer ------------------- *)
+let useHardcoded:bool = false
+
 class tLexer =
 object (self)
   inherit tLexerInterface
 
   (* hardcoded input *)
-  val mutable input: string = "2+3";
+  val mutable input: string = "2+3+4";
 
   method getToken() : unit =
   begin
@@ -23,7 +27,7 @@ object (self)
       (self#setIntSval 0);        (* clear previous *)
 
       let c:char =
-        if (true) then (
+        if (not useHardcoded) then (
           (* read from stdin *)
           (input_char stdin)
         )
@@ -106,29 +110,55 @@ end
 (* --------------------- main -------------------- *)
 let main() : unit =
 begin
-  (print_string "hello\n");
-  (flush stdout);
-  (*failwith "hi";*)
+  (* defaults *)
+  let useGLR: bool ref = ref true in
+  let useArith: bool ref = ref true in
+  let justTokens: bool ref = ref false in
 
+  (* process arguments *)
+  for i=1 to ((Array.length Sys.argv) - 1) do
+    match Sys.argv.(i) with
+    | "lr" ->         useGLR := false
+    | "glr" ->        useGLR := true
+    | "arith" ->      useArith := true
+    | "een" ->        useArith := false
+    | "tokens" ->     justTokens := true
+    | op -> (
+        (Printf.printf "unknown option: %s\n" op);
+        (flush stdout);
+        (failwith "bad command line syntax");
+      )
+  done;
+
+  (* create lexer *)
   let lex:tLexerInterface = ((new tLexer) :> tLexerInterface) in
-  (*(printTokens lex);*)
+  if (!justTokens) then (
+    (* just print tokens and bail *)
+    (printTokens lex);
+    (raise Exit);       (* close enough *)
+  );
 
   (* prime the lexer: get first token *)
   (lex#getToken());
 
-  (* get parse tables *)
-  let tables:tParseTables = arithParseTables in
+  (* get parse tables and user actions, depending on which
+   * grammar the user wants to use *)
+  let (tables:tParseTables), (actions:tUserActions) =
+    if (!useArith) then (
+      (arithParseTables, arithUserActions)
+    )
+    else (
+      (eenParseTables, eenUserActions)
+    )
+  in
 
-  (* get user actions *)
-  let actions:tUserActions = arithUserActions in
-
-  if ((Array.length Sys.argv) = 1) then (
-    (* no arguments, use LR *)
+  if (not !useGLR) then (
+    (* use LR *)
     let sval:int = (parse lex tables actions) in
     (Printf.printf "LR parse result: %d\n" sval);
   )
   else (
-    (* some arguments, use GLR *)
+    (* use GLR *)
     let glr:tGLR = (makeGLR tables actions) in
     let treeTop: tSemanticValue ref = ref cNULL_SVAL in
     

@@ -196,6 +196,15 @@ begin
   code = 0
 end
 
+                       
+(* this returns an index into the ambigTable *)
+(* needs tables for compression *)
+let decodeAmbigAction (tables: tParseTables) (code: tActionEntry) 
+                      (inState: tStateId) : int =
+begin
+  code - 1 - tables.numStates
+end
+
 
 let getGotoEntry (tables: tParseTables) (stateId: tStateId)
                  (nontermId: int) : tGotoEntry =
