@@ -74,6 +74,8 @@ verbatim CCGr [
 #else
   #include "cc_qualifiers_dummy.h"
 #endif
+#include <stdlib.h>
+
 
 #define D(msg) \
   trace("cc") << msg << endl
