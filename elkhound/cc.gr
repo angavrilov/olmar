@@ -17,6 +17,10 @@ literalCode "prologue" {
   #include "cc_tree.h"   // CCTreeNode
   #include "cc_cfg.h"    // CFG, etc.
   #include "dataflow.h"  // DataflowEnv
+  #include "ckheap.h"    // checkHeap
+  
+  // hack..
+  extern bool paranoid;
 }
 treeNodeBase "CCTreeNode";
 
@@ -134,9 +138,18 @@ nonterm TranslationUnit : Checkable {
     // clear the existing dataflow environment (effect is we
     // don't analyze globals ....)
     env->getDenv().reset();
+    
+    // debugging..
+    trace("typeCheck") << locString() << endl;
 
     // run the analysis on this piece of the tree
     typeCheck(env);
+
+    bool goSlow = (getLeftmostTerminalC()->token->loc.line == -1 /*5217*/);
+    if (goSlow) {
+      breaker();     // line where I'm having problems ..
+      checkHeap();
+    }
 
     // this is, more or less, the product of the analysis
     printTree();
@@ -144,27 +157,63 @@ nonterm TranslationUnit : Checkable {
     // ---- throw away most of the tree now ----
     // grab a pointer to the left child reduction, which should be
     // an instance of "TranslationUnit -> empty"
-    NonterminalNode &leftNT = red->children.nth(0)->asNonterm();
-    Reduction *leftReduction = leftNT.only();
+    NonterminalNode *leftNT = &( red->children.nth(0)->asNonterm() );
+    Reduction *leftReduction = leftNT->only();
 
-    // throw away the reduction in this node
-    reductions.deleteAll();
+    // the tree right now looks like this:
+    //             'this': NonterminalNode
+    //                         |
+    // 'red': TranslationUnit -> TranslationUnit Declaration
+    //                            /                   \           .
+    //      'leftNT': NonterminalNode      (code just analyzed)
+    //                           |
+    // 'leftReduction': TranslationUnit -> empty
+    //                      (no children)
 
-    // move the reduction in the left child to here
-    leftNT.reductions.removeItem(leftReduction);
-    reductions.append(leftReduction);
+    // of these, all the NonterminalNodes are in the 'treeNodes'
+    // list except for 'this'
 
-    // remove this node from the global list of tree nodes
-    // except, it hasn't been added yet..
-    //tree.treeNodes.removeItem(this);
+    // let's verify some of this
+    xassert(reductions.count() == 1);
+    xassert(red->children.count() == 2);
+    xassert(leftNT->reductions.count() == 1);
+    xassert(leftReduction->children.count() == 0);
 
-    // blow away all the other tree nodes
-    tree.treeNodes.deleteAll();
+    // the goal is to throw away everything except for
+    // 'leftNT' and below .. to maintain the invariant that
+    // all NonterminalNodes have at least one reduction,
+    // we'll simply swap 'red' and 'leftReduction'
 
-    // put back just the saved one
-    // don't need to because it hasn't been added yet; it will
-    // be once we return ...
-    //tree.treeNodes.append(this);
+    // first, remove from both..
+    this->reductions.removeItem(red);
+    leftNT->reductions.removeItem(leftReduction);
+
+    // .. now add back to opposite one
+    this->reductions.prepend(leftReduction);
+    leftNT->reductions.prepend(red);
+
+    // blow away all the other tree nodes; this deletes everything
+    // except 'this' and its newly-acquired 'leftReduction'
+    if (goSlow) {
+      cout << "going slowly!\n";
+      paranoid = true;
+      checkHeap();
+      //tree.treeNodes.deleteAll();
+      while (tree.treeNodes.isNotEmpty()) {
+        TreeNode *tn = tree.treeNodes.removeAt(0);
+        cout << "deleting tree node " << tn
+             //<< " at " << tn->locString()       // this refers to children too!
+             << ": " << tn->getSymbolC()->name
+             << endl;
+        checkHeap();
+        delete tn;
+        checkHeap();
+      }
+      checkHeap();
+    }
+    else {
+      tree.treeNodes.deleteAll();
+    }
   }
 }
 
@@ -535,6 +584,11 @@ nonterm DeleteExpression : HasVarsDecld {
 }
 
 nonterm CastExpression : ExprBase {
+
+  // added this to disambiguate fn calls and casts
+  literalCode "disamb" varsDecld {
+    disambiguate(passedEnv, (DisambFn)&CastExpression_Node::unamb_varsDecld);
+  }
 
   -> e:UnaryExpression {
     fun intEval = e.intEval(env);
@@ -2367,6 +2421,15 @@ bool processNode(TreeNode const *n, void*)
 
 int fakemain(int argc, char *argv[])
 {
+  // do this before creating the first environment
+  // (this messes up the usage string printed by treeMain
+  // but who cares)
+  while (traceProcessArg(argc, argv))
+    {}
+
+  // is heap valid now?
+  checkHeap();
+
   try {
     // this program's exception-handling structure is mature
     // enough that printing all thrown exceptions has crossed

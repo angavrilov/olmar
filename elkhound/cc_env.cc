@@ -45,6 +45,8 @@ Env::Env(DataflowEnv *d)
     }
     builtins = b;
   }
+  
+  trace("refct") << "created toplevel Env at " << this << "\n";
 }
 
 
@@ -62,6 +64,8 @@ Env::Env(Env *p)
     referenceCt(0)
 {
   p->referenceCt++;
+  trace("refct") << "created Env at " << this << "; parent is "
+                 << p << " with new refct=" << p->referenceCt << endl;
 }
 
 
@@ -71,18 +75,23 @@ Env::~Env()
     // if we're carrying any errors, deliver them to the
     // containing environment
     parent->errors.concat(errors);
-    
+
     // and decrement its refct
     parent->referenceCt--;
+    trace("refct") << "destroying Env at " << this << "; parent is "
+                   << parent << " with new refct=" << parent->referenceCt << endl;
   }
   else {
     // may as well print errors
     flushLocalErrors(cout);
   }
-  
+
   if (referenceCt != 0) {
-    // I have this now, but not the time to track it down
-    cout << "warning: deleting environment with refct " << referenceCt << endl;
+    // it turns out this happens, because I throw away trees by deleting
+    // nodes on a list, and that list might be in any order.. so as yet
+    // I'm undecided about whether to try to fix it
+    trace("refct") << "warning: destroying Env at " << this << " with refct="
+                   << referenceCt << endl;
   }
 }
 

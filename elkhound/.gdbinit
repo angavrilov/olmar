@@ -1,7 +1,7 @@
 # .gdbinit
 
 file ccgr
-set args cc.gr mem.in3
+set args cc.gr qpsmall.i
 
 break main
 break breaker

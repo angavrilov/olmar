@@ -69,6 +69,8 @@ public:     // funcs
   // debug printing
   void print(ostream &os) const;                   // format: { attr1=val1, attr2=val2, ... }
   OSTREAM_OPERATOR(Attributes)
+
+  void selfCheck() const;
 };
 
 

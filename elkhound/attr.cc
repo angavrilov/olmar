@@ -131,3 +131,13 @@ void Attributes::print(ostream &os) const
   }
   os << " }";
 }
+
+
+void Attributes::selfCheck() const
+{
+  dict.selfCheck();
+  
+  FOREACH_OBJLIST(Entry, dict, iter) {
+    iter.data()->name.selfCheck();
+  }
+}

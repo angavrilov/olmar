@@ -16,7 +16,7 @@ includes = -I${SMBASE}
 #ccflags = -pg
 
 # optimizer...
-ccflags = -O2
+#ccflags = -O2
 
 # pull in base stuff
 include ${SMBASE}/Makefile.base.mk

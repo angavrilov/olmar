@@ -27,7 +27,8 @@ tracing strings:
   tree-merge:    print when we don't merge trees because of attr mismatch
   disamb:        disambiguation mechanisms
   compounds:     print declarations of compounds
-  
+  typeCheck:     print something just before typechecking each toplevel form
+  refct:         environment reference count ops
   
 
 

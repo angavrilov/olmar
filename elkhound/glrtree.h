@@ -85,6 +85,11 @@ public:     // funcs
                               bool asSexp) const = 0;
   string locString() const;
   static void printAllocStats();
+  
+  // selfOnly: check this node's internal invariants
+  // !selfOnly: also check this node and its children for a valid tree
+  virtual void selfCheck(bool selfOnly) const = 0;
+  void treeCheck() const { selfCheck(false); }
 };
 
 
@@ -115,6 +120,7 @@ public:     // funcs
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
   virtual int numGroundTerms() const;
   virtual void printParseTree(ostream &os, int indent, bool asSexp) const;
+  virtual void selfCheck(bool selfOnly) const;
 };
 
 
@@ -164,6 +170,7 @@ public:
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
   virtual int numGroundTerms() const;
   virtual void printParseTree(ostream &os, int indent, bool asSexp) const;
+  virtual void selfCheck(bool selfOnly) const;
 };
 
 
@@ -190,7 +197,7 @@ public:      // funcs
 
   AttrValue getAttrValue(AttrName name) const;
   void setAttrValue(AttrName name, AttrValue value);
-  
+
   bool attrsAreEqual(Reduction const &obj) const
     { return attr == obj.attr; }
 
@@ -202,6 +209,7 @@ public:      // funcs
   TerminalNode const *getLeftmostTerminalC() const;
   void getGroundTerms(SObjList<TerminalNode> &dest) const;
   int numGroundTerms() const;
+  void selfCheck(bool selfOnly) const;
 };
 
 

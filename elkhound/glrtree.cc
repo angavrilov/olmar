@@ -2,6 +2,7 @@
 // code for glrtree.h
 
 #include "glrtree.h"     // this module
+#include "ckheap.h"      // checkHeap
 
 
 // convenient indented output
@@ -174,6 +175,10 @@ int TerminalNode::numGroundTerms() const
 }
 
 
+void TerminalNode::selfCheck(bool) const
+{}
+
+
 // ------------------ NonterminalNode -----------------------
 NonterminalNode::NonterminalNode(Reduction *red)
 {
@@ -182,8 +187,37 @@ NonterminalNode::NonterminalNode(Reduction *red)
 }
 
 
+bool paranoid=false;
+
 NonterminalNode::~NonterminalNode()
-{}
+{
+  if (paranoid) {
+    checkHeap();
+  }
+  
+  #ifndef NDEBUG
+  selfCheck(true /*selfOnly*/);
+  #endif
+
+  if (paranoid) {
+    checkHeap();
+  }
+  
+  // kill reductions one at a time so I can find a bug ...
+  while (reductions.isNotEmpty()) {
+    if (paranoid) {
+      checkHeap();
+    }
+    Reduction *r = reductions.removeAt(0);
+    if (paranoid) {
+      checkHeap();
+    }
+    delete r;
+    if (paranoid) {
+      checkHeap();
+    }
+  }
+}
 
 
 void NonterminalNode::addReduction(Reduction *red)
@@ -379,6 +413,23 @@ int NonterminalNode::numGroundTerms() const
 }
 
 
+void NonterminalNode::selfCheck(bool selfOnly) const
+{
+  // check integrity of the 'reductions' list itself
+  reductions.selfCheck();
+
+  // check each Reduction (even when 'selfOnly' is
+  // true; we check things we own)
+  FOREACH_OBJLIST(Reduction, reductions, iter) {
+    iter.data()->selfCheck(selfOnly);
+  }
+  
+  // if not 'selfOnly', also check that we have at least
+  // one child, so we have a valid tree
+  xassert(reductions.isNotEmpty());
+}
+
+
 // ---------------------- Reduction -------------------------
 Reduction::Reduction(Production const *prod)
   : production(prod)
@@ -386,7 +437,12 @@ Reduction::Reduction(Production const *prod)
 
 
 Reduction::~Reduction()
-{}
+{
+  // remove children one at a time to track a bug..
+  while (children.isNotEmpty()) {
+    children.removeAt(0);
+  }
+}
 
 
 AttrValue Reduction::getAttrValue(AttrName name) const
@@ -495,6 +551,33 @@ int Reduction::numGroundTerms() const
     sum += child.data()->numGroundTerms();
   }
   return sum;
+}
+
+
+void Reduction::selfCheck(bool selfOnly) const
+{
+  attr.selfCheck();
+  
+  // should be a list of unique heap objects
+  children.selfCheck();
+  children.checkUniqueDataPtrs();
+  if (!selfOnly) {
+    // but we only check that the things we point at
+    // are themselves valid if we're checking the 
+    // whole tree
+    children.checkHeapDataPtrs();
+  }
+
+  // the above just checks the 'children' list itself,
+  // not each child; the idea is we'll only follow
+  // owner pointers to find things to check
+
+  // unless selfOnly is false
+  if (!selfOnly) {
+    SFOREACH_OBJLIST(TreeNode, children, child) {
+      child.data()->selfCheck(selfOnly);
+    }
+  }
 }
 
 
