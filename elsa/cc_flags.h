@@ -213,7 +213,7 @@ enum BinaryOp {
 extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
 char const *toString(BinaryOp op);
 
-bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>
+bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
 bool isInequality(BinaryOp op);              // <, >, <=, >=
 
