@@ -226,7 +226,9 @@ string rightMangle(Type const *t, bool innerParen)
         if (ft->isMember() && ct==1) {
           // don't actually print the first parameter;
           // the 'm' stands for nonstatic member function
-          sb << "/""*m: " << iter.data()->type->toString() << " *""/ ";
+          // sb << "/""*m: " << iter.data()->type->toString() << " *""/ ";
+	  // jk: we need this in order to not have the class name
+	  sb << "/""*m*""/ ";
           continue;
         }
         if (ct >= 3 || (!ft->isMember() && ct>=2)) {
