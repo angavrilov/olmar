@@ -181,14 +181,14 @@ verbatim {
   // edge, and use void* as the abstract type
   typedef void *NextPtr;
 
-  inline NextPtr makeNextPtr(Statement *next, bool isContinue)
+  inline NextPtr makeNextPtr(Statement const *next, bool isContinue)
   {
     return (NextPtr)((long)next | !!isContinue);
   }
 
-  inline Statement *nextPtrStmt(NextPtr np)
+  inline Statement const *nextPtrStmt(NextPtr np)
   {
-    return (Statement*)((long)np & ~1L);
+    return (Statement const*)((long)np & ~1L);
   }
 
   // this is true when the 'next' edge points at a looping construct,
@@ -211,10 +211,14 @@ class Statement {
   public NextPtr next;
   ctor next=NULL;
 
+  // retrieve list of all successors of this node, given how we
+  // got to this node ('isContinue'); 'dest' should be empty beforehand
+  public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
+
+  public string successorsToString() const;
   custom debugPrint {
     ind(os, indent) << "this=" << (void*)this
-                    << ", next=" << (void*)nextPtrStmt(next)
-                    << ", cont=" << (nextPtrContinue(next)? "true" : "false")
+                    << ", succ=" << successorsToString()
                     << endl;
   }
 
@@ -225,17 +229,24 @@ class Statement {
   -> S_default(Statement s);
   -> S_expr(Expression expr);      // expression evaluated for side effect
   -> S_compound(ASTList<Statement> stmts);
-  -> S_if(Expression cond, Statement thenBranch, Statement elseBranch);
+  -> S_if(Expression cond, Statement thenBranch, Statement elseBranch) {
+       public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
+     }
   -> S_switch(Expression expr, Statement branches) {
        // pointers to all of the cases (& default) in this switch
        public SObjList<Statement> cases;
-       public string casesToString() const;
-       custom debugPrint { ind(os, indent) << casesToString() << endl; }
+       public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
      }
-  -> S_while(Expression cond, Statement body);
-  -> S_doWhile(Statement body, Expression cond);
+  -> S_while(Expression cond, Statement body) {
+       public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
+     }
+  -> S_doWhile(Statement body, Expression cond) {
+       public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
+     }
   -> S_for(Statement init, Expression cond,
-           Expression after, Statement body);
+           Expression after, Statement body) {
+       public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
+     }
   -> S_break();
   -> S_continue();
   -> S_return(Expression /*nullable*/ expr);
@@ -352,20 +363,3 @@ class FuncAnnotation {
   -> FA_precondition(ASTList<Declaration> decls, Expression expr);
   -> FA_postcondition(Expression expr);
 }
-
-
-// ------------- misc --------------
-impl_verbatim {
-  string S_switch::casesToString() const
-  {
-    stringBuilder sb;
-    sb << "cases:";
-
-    SFOREACH_OBJLIST(Statement, cases, iter) {
-      sb << " " << (void*)(iter.data());
-    }
-
-    return sb;
-  }
-}
-

@@ -673,6 +673,93 @@ void S_thmprv::itcheck(Env &env)
 }
 
 
+// ------------------ Statement::getSuccessors ----------------
+void Statement::getSuccessors(VoidList &dest, bool /*isContinue*/) const
+{
+  if (nextPtrStmt(next)) {
+    dest.append(next);
+  }
+}
+
+
+void S_if::getSuccessors(VoidList &dest, bool /*isContinue*/) const
+{
+  // the 'next' field is ignored since it always points at
+  // the 'then' branch anyway
+
+  dest.append(makeNextPtr(thenBranch, false));
+  dest.append(makeNextPtr(elseBranch, false));
+}
+
+
+void S_switch::getSuccessors(VoidList &dest, bool /*isContinue*/) const
+{
+  xassert(dest.isEmpty());
+  SFOREACH_OBJLIST(Statement, cases, iter) {
+    dest.prepend(makeNextPtr(iter.data(), false));
+  }
+  dest.reverse();
+}
+
+
+void S_while::getSuccessors(VoidList &dest, bool isContinue) const
+{
+  Statement::getSuccessors(dest, isContinue);
+  dest.append(makeNextPtr(body, false));
+}
+
+
+void S_doWhile::getSuccessors(VoidList &dest, bool isContinue) const
+{
+  if (isContinue) {
+    // continue jumps to conditional, and can either go back
+    // to the top (body) or past loop (next)
+    Statement::getSuccessors(dest, isContinue);
+  }
+
+  // either way, doing the body is an option
+  dest.append(makeNextPtr(body, false));
+}
+
+
+void S_for::getSuccessors(VoidList &dest, bool isContinue) const
+{
+  // though the semantics of which expressions get evaluated
+  // are different depending on 'isContinue', the statement-level
+  // control flow options are the same
+  Statement::getSuccessors(dest, isContinue);
+  dest.append(makeNextPtr(body, false));
+}
+
+
+string Statement::successorsToString() const
+{
+  VoidList succNoCont;
+  getSuccessors(succNoCont, false);
+
+  VoidList succYesCont;
+  getSuccessors(succYesCont, true);
+
+  stringBuilder sb;
+  sb << "{";
+
+  for (VoidListIter iter(succYesCont); !iter.isDone(); iter.adv()) {
+    NextPtr np = iter.data();
+    
+    // a leading "(c)" means the successor edge is only present when
+    // this node is reached via continue; a trailing "(c)" means that
+    // successor is itself a continue edge; the algorithm assumes
+    // that 'succYesCont' is a superset of 'succNoCont'
+    sb << (succNoCont.contains(np)? " " : " (c)")
+       << (void*)nextPtrStmt(np)
+       << (nextPtrContinue(np)? "(c)" : "");
+  }
+
+  sb << " }";
+  return sb;
+}
+
+
 
 // ------------------ Expression::tcheck --------------------
 Type const *Expression::tcheck(Env &env)
