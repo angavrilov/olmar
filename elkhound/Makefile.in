@@ -1,16 +1,11 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
-# temorary
-#CC_QUAL := 1
-
 ifdef CC_QUAL
   CC_QUAL_EXE := cc/cc_qual/cc_qual
 else
   CC_QUAL_EXE :=
 endif
-
-#tmp: cc/cc_qual/cc_qualifiers.o
 
 # the astgen-generated files need to come first because otherwise
 # the build doesn't go through properly.. I investigated a better
@@ -68,11 +63,6 @@ ranlib      := ranlib
 # sm: it makes no sense to profile while debugging is enabled, because
 # you're measuring entirely the wrong configuration...
 #ccflags += -pg
-
-ifdef CC_QUAL
-  ccflags += -DCC_QUAL
-  ccflags += -DDISTINCT_CVATOMIC_TYPES
-endif
 
 # enable action trace in glr parser
 #OPTIMIZATION_FLAGS += -DACTION_TRACE=1
@@ -215,9 +205,6 @@ ifdef CC_QUAL
   cc-set += cc/cc_qual/cc_qual_walk.o
   cc-set += cc/cc_qual/GlobalUnifierVisitor.o
   cc-set += cc/cc_qual/cqual_iface.o
-else
-  cc-set += cc/cc_qualifiers_dummy.o
-#  cc-set += cc/cc_qual_walk_dummy.o
 endif
 
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
@@ -362,9 +349,7 @@ cc/cc_qual/cc_qual: cc/cc_qual/cc_qual.o cc/cc.gr.gen.o $(cc-set) libelkhound.a 
 endif
 cc/ccparse: cc/main.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
-ifndef CC_QUAL
 	./$@ c.in/c.in1
-endif
 # dsw: Note on the above: I need to be able to build it without
 # running it, due to the directory where I have to build it.  This
 # will be fixed when I can pass in the lattice configuration file on
