@@ -341,9 +341,6 @@ int TypeVariable::reprSize() const
 ALLOC_STATS_DEFINE(Type)
 
 Type::Type()
-  #if BEFORE
-  : refType(NULL)
-  #endif
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -399,9 +396,6 @@ string Type::toCString() const
     CVAtomicType const &atomic = asCVAtomicTypeC();
     return stringc
       << atomic.atomic->toCString()
-      #if BEFORE
-      << ::toString(atomic.q)
-      #endif
       << cvToString(atomic.cv);
   }
   else {
@@ -577,9 +571,6 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
   stringBuilder s;
   s << atomic->toCString();
   s << cvToString(cv);
-  #if BEFORE
-  s << ::toString(q);
-  #endif
 
   // this is the only mandatory space in the entire syntax
   // for declarations; it separates the type specifier from
@@ -604,11 +595,7 @@ bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
-  : op(o),
-    #if BEFORE
-    q(NULL),  
-    #endif
-    cv(c), atType(a)
+  : op(o), cv(c), atType(a)
 {
   // since references are always immutable, it makes no sense to
   // apply const or volatile to them
@@ -637,9 +624,6 @@ string PointerType::leftString(bool /*innerParen*/) const
     s << "(";
   }
   s << (op==PO_POINTER? "*" : "&");
-  #if BEFORE
-  s << ::toString(q);
-  #endif
   s << cvToString(cv);
   return s;
 }
@@ -691,9 +675,6 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 // -------------------- FunctionType -----------------
 FunctionType::FunctionType(Type *r, CVFlags c)
   : retType(r),
-    #if BEFORE
-    q(NULL),  
-    #endif
     cv(c),
     params(),
     acceptsVarargs(false),
@@ -860,11 +841,6 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   }
 
   sb << ")";
-
-  // qualifiers
-  #if BEFORE
-  sb << ::toString(q);
-  #endif
 
   return sb;
 }
@@ -1153,10 +1129,6 @@ PointerType *TypeFactory::makeTypeOf_this(
   CompoundType *classType, FunctionType *methodType)
 {
   CVAtomicType *tmpcvat = makeCVAtomicType(classType, methodType->cv);
-  #if BEFORE
-  xassert(!tmpcvat->q);
-  tmpcvat->q = deepClone(funcType->q);
-  #endif
   return makePointerType(PO_POINTER, CV_CONST, tmpcvat);
 }
 
@@ -1164,18 +1136,7 @@ PointerType *TypeFactory::makeTypeOf_this(
 FunctionType *TypeFactory::makeSimilarFunctionType(
   Type *retType, FunctionType *similar)
 {
-  FunctionType *ft = makeFunctionType(retType, similar->cv);
-  #if BEFORE
-//    StringRef name = "__unamed_function";
-//    {
-//      PQName const * declaratorId = getDeclaratorId();
-//      if (declaratorId) name = declaratorId->getName();
-//    }
-  xassert(!ft->q);
-  ft->q = deepClone(similar->q);
-  #endif
-  
-  return ft;
+  return makeFunctionType(retType, similar->cv);
 }
 
 
@@ -1194,7 +1155,6 @@ ArrayType *TypeFactory::setArraySize(ArrayType *type, int size)
 
 // -------------------- BasicTypeFactory ----------------------
 // this is for when I split Type from Type_Q
-#if AFTER
 CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   #define CVAT(id) \
     CVAtomicType(&SimpleType::fixed[id], CV_NONE),
@@ -1221,20 +1181,18 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_DEPENDENT)
   #undef CVAT
 };
-#endif // AFTER
 
 
 CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
 {
-  #if AFTER
-    if (cv==CV_NONE && atomic->isSimpleType()) {
-      // since these are very common, and ordinary Types are immutable,
-      // share them
-      SimpleType &st = atomic->asSimpleType();
-      xassert((unsigned)(st.type) < (unsigned)NUM_SIMPLE_TYPES);
-      return &(unqualifiedSimple[st.type]);
-    }
-  #endif
+  if (cv==CV_NONE && atomic->isSimpleType()) {
+    // since these are very common, and ordinary Types are immutable,
+    // share them
+    SimpleType &st = atomic->asSimpleType();
+    xassert((unsigned)(st.type) < (unsigned)NUM_SIMPLE_TYPES);
+    return &(unqualifiedSimple[st.type]);
+  }
+  
   return new CVAtomicType(atomic, cv);
 }
 
@@ -1270,69 +1228,10 @@ Type *BasicTypeFactory::makeRefType(Type *underlying)
     return underlying;
   }
 
-  #if BEFORE
-    // use the 'refType' pointer so multiple requests for the
-    // "reference to" a given type always yield the same object
-    if (!underlying->refType) {
-      underlying->refType = makePointerType(PO_REFERENCE, CV_NONE, underlying);
-    }
-    return underlying->refType;
-  #else
-    return makePointerType(PO_REFERENCE, CV_NONE, underlying);
-  #endif
-}
- 
-
-#if BEFORE
-CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
-{
-  // NOTE: We don't clone the underlying AtomicType.
-  CVAtomicType *ret = new CVAtomicType(src->atomic, src->cv);
-  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-  return ret;
-}
-
-PointerType *BasicTypeFactory::clonePointerType(PointerType *src)
-{
-  PointerType *ret = new PointerType(src->op, src->cv, cloneType(src->atType));
-  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-  return ret;
-}
-
-FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
-{
-  FunctionType *ret = new FunctionType(cloneType(src->retType), src->cv);
-  for (SObjListIterNC<Variable> param_iter(src->params);
-       !param_iter.isDone(); param_iter.adv()) {
-    ret->addParam(cloneVariable(param_iter.data()));
-//      xassert(param_iter.data()->type ==
-//              param_iter.data()->decl->type // the variable
-//              );
-  }
-  ret->acceptsVarargs = src->acceptsVarargs;
-  // FIX: omit these for now.
-//    ret->exnSpec = exnSpec->deepClone();
-//    ret->templateParams = templateParams->deepClone();
-
-  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-  return ret;
-}
-
-ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
-{
-  ArrayType *ret;
-  if (src->hasSize) {
-    ret = new ArrayType(cloneType(src->eltType), src->size);
-  }
-  else {
-    ret = new ArrayType(cloneType(src->eltType));
-  }
-  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-  return ret;
+  return makePointerType(PO_REFERENCE, CV_NONE, underlying);
 }
 
 
-#else
 // Types are immutable, so cloning is pointless
 CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
   { return src; }
@@ -1342,7 +1241,6 @@ FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
   { return src; }
 ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
   { return src; }
-#endif
 
 
 Variable *BasicTypeFactory::makeVariable(
@@ -1353,21 +1251,8 @@ Variable *BasicTypeFactory::makeVariable(
 
 Variable *BasicTypeFactory::cloneVariable(Variable *src)
 {
-  #if BEFORE
-  Variable *ret = new Variable(src->loc
-                               ,src->name // don't see a reason to clone the name
-                               ,cloneType(src->type)
-                               ,src->flags // an enum, so nothing to clone
-                               );
-  // ret->overload left as NULL as set by the ctor; not cloned
-  ret->access = src->access;         // an enum, so nothing to clone
-  ret->scope = src->scope;           // don't see a reason to clone the scope
-  return ret;
-  
-  #else           
   // immutable => don't clone
-  return src;                
-  #endif
+  return src;
 }
 
 

@@ -13,6 +13,9 @@
 // put in VariableAnnot by replacing this skeleton file with one
 // that has useful fields and compiling such that this skeleton is
 // hidden.
+                             
+// we've replaced this with a simpler inheritance scheme
+#error This file is obsolete.
 
 #ifndef VARIABLE_ANNOT_H
 #define VARIABLE_ANNOT_H

@@ -26,9 +26,6 @@
 #include "strtable.h"          // StringRef
 #include "cc_flags.h"          // DeclFlags
 #include "sobjlist.h"          // SObjList
-#if BEFORE
-  #include "variable_annot.h"    // VariableAnnot
-#endif
 
 class Type;                    // cc_type.h
 class OverloadSet;             // below
@@ -37,16 +34,7 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 
-class Variable
-#if BEFORE
-  : public VariableAnnot
-#endif
-{
-#if BEFORE && CC_QUAL
-public:
-  static SObjList<Variable> instances;
-#endif
-
+class Variable {
 public:    // data
   // for now, there's only one location, and it's the definition
   // location if that exists, else the declaration location; there

@@ -24,11 +24,6 @@
 #ifndef CC_TYPE_H
 #define CC_TYPE_H
 
-// until the switch is complete, this would go back to the
-// situation where Type was annotated with Qualifiers directly
-#define BEFORE 0
-#define AFTER (!BEFORE)
-
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
 #include "sobjlist.h"     // SObjList
@@ -66,15 +61,6 @@ class BasicTypeFactory;
 
 // static data consistency checker
 void cc_type_checker();
-
-
-#if BEFORE
-// dsw: This is opaque here.
-class Qualifiers;
-string toString(Qualifiers *q);
-Qualifiers *deepClone(Qualifiers *q);
-Qualifiers *deepCloneLiterals(Qualifiers *q);
-#endif
 
 
 // --------------------- atomic types --------------------------
@@ -265,13 +251,6 @@ public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
   typedef bool (*TypePred)(Type const *t);
 
-#if BEFORE
-private:     // data
-  // the type which is the reference to this type, lazily constructed
-  friend class BasicTypeFactory;
-  PointerType *refType;
-#endif
-
 private:    // funcs
   string idComment() const;
 
@@ -323,10 +302,6 @@ public:     // funcs
   // true if any constructor satisfies 'pred'
   virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
-  #if BEFORE
-  virtual Qualifiers *&getQualifiersPtr() = 0;
-  #endif
-
   // some common queries
   bool isSimpleType() const;
   SimpleType const &asSimpleTypeC() const;
@@ -375,25 +350,16 @@ public:     // funcs
 class CVAtomicType : public Type {
 public:     // data
   AtomicType *atomic;          // (serf) underlying type
-  #if BEFORE
-  Qualifiers *q;
-  #endif
   CVFlags cv;                  // const/volatile
 
 protected:
   friend class BasicTypeFactory;
   CVAtomicType(AtomicType *a, CVFlags c)
-    : atomic(a),
-      #if BEFORE
-      q(NULL),  
-      #endif
-      cv(c) {}
-                                       
-  #if AFTER
+    : atomic(a), cv(c) {}
+
   // need this to make an array of them
   CVAtomicType(CVAtomicType const &obj)
     : atomic(obj.atomic), cv(obj.cv) {}
-  #endif
 
 public:
   bool innerEquals(CVAtomicType const *obj) const;
@@ -403,10 +369,6 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  #if BEFORE
-  Qualifiers *&getQualifiersPtr() {return q;}
-  #endif
 };
 
 
@@ -419,9 +381,6 @@ enum PtrOper {
 class PointerType : public Type {
 public:     // data
   PtrOper op;                  // "*" or "&"
-  #if BEFORE
-  Qualifiers *q;
-  #endif
   CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
   Type *atType;                // (serf) type of thing pointed-at
 
@@ -438,10 +397,6 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  #if BEFORE
-  Qualifiers *&getQualifiersPtr() {return q;}
-  #endif
 };
 
 
@@ -462,9 +417,6 @@ public:     // types
 
 public:     // data
   Type *retType;               // (serf) type of return value
-  #if BEFORE
-  Qualifiers *q;
-  #endif
   CVFlags cv;                  // const/volatile for class member fns
   SObjList<Variable> params;   // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
@@ -504,10 +456,6 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  #if BEFORE
-  Qualifiers *&getQualifiersPtr() {return q;}
-  #endif
 };
 
 
@@ -515,9 +463,6 @@ public:
 class ArrayType : public Type {
 public:
   Type *eltType;               // (serf) type of the elements
-  #if BEFORE
-  Qualifiers *q;
-  #endif
   bool hasSize;                // true if a size is specified
   int size;                    // specified size, if 'hasSize'
 
@@ -527,17 +472,9 @@ private:
 protected:
   friend class BasicTypeFactory;
   ArrayType(Type *e, int s)
-    : eltType(e),
-      #if BEFORE
-      q(NULL),  
-      #endif
-      hasSize(true), size(s) { checkWellFormedness(); }
+    : eltType(e), hasSize(true), size(s) { checkWellFormedness(); }
   ArrayType(Type *e)
-    : eltType(e),
-      #if BEFORE
-      q(NULL),  
-      #endif
-      hasSize(false), size(-1) { checkWellFormedness(); }
+    : eltType(e), hasSize(false), size(-1) { checkWellFormedness(); }
 
 public:
   bool innerEquals(ArrayType const *obj) const;
@@ -548,10 +485,6 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  #if BEFORE
-  Qualifiers *&getQualifiersPtr() {return q;}
-  #endif
 };
 
 
@@ -721,12 +654,10 @@ public:
 // to objects of further-derived classes
 class BasicTypeFactory : public TypeFactory {
 private:   // data
-  #if AFTER
   // global array of non-const, non-volatile built-ins; it's expected
   // to be treated as read-only, but enforcement (naive 'const' would
   // not work because Type* aren't const above)
   static CVAtomicType unqualifiedSimple[NUM_SIMPLE_TYPES];
-  #endif
 
 public:    // funcs
   // TypeFactory funcs
