@@ -14,5 +14,18 @@ namespace NS1 {
 using namespace NS1;
 
 namespace NS2 {
-    int S::foo() {}
+    int S::foo() { return 0; }
+}
+
+
+
+// ---- variant without the 'using' directive ----
+namespace NS3 {
+    struct S {
+        int foo();
+    };
+}
+
+namespace NS4 {
+    int NS3::S::foo() { return 0; }
 }
