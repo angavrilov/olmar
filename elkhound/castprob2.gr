@@ -1,5 +1,8 @@
-# castprob.gr
+# castprob2.gr
 # a simple grammar to exibit the C cast-vs-fn-call ambiguity
+
+# this one (as opposed to the orignal castprob) has some
+# experimentation to resolve the ambiguity
 
 # ------ tokens -------
 # this list generated automatically by the lexer
@@ -133,3 +136,9 @@ AtomExpr -> "(" Expr ")"
 AtomExpr -> AtomExpr "(" Expr ")"
 Type -> "int"
 Type -> L2_NAME
+
+
+# token sequence disambiguation (this is actually the wrong
+# interpretation most of the time, but I don't have a way at
+# the moment of saying to do it the other way)
+%tokSeqAmb AtomExpr -> "(" L2_NAME ")" "(" L2_NAME ")"

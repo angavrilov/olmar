@@ -1,6 +1,10 @@
 # cc.gr
 # my attempt to implement a grammar for C++
 
+# I'm actually trying to use this single file for both C and C++;
+# the C++ grammar should parse C ok, but also by filtering out all
+# the lines with "C++" on them, you should get just the C rules
+
 
 # ------ tokens -------
 # this list generated automatically by the lexer
@@ -246,6 +250,10 @@ BinaryExpression.result -> BinaryExpression.left BinaryOperator BinaryExpression
   %condition { (<= BinaryExpression.result.prec BinaryExpression.right.prec) }        # more precedence
   %condition { (if (== BinaryOperator.leftAssoc 1) (< BinaryExpression.result.prec BinaryExpression.right.prec) (< BinaryExpression.result.prec BinaryExpression.left.prec)) }
     # associativity
+  %condition { (|| (!= BinaryOperator.leftAssoc 2) (< BinaryExpression.result.prec BinaryExpression.right.prec)) }
+    # for nonassoc (2), the first associativity condition will make sure that
+    # result.prec < left.prec, so the 2nd associativity condition ensures
+    # result.prec < right.prec
 
 BinaryOperator -> ".*" | "->*"                                                            # C++
   %action { BinaryOperator.prec := 64 }                                                   # C++
@@ -265,7 +273,7 @@ BinaryOperator -> "<<" | ">>"
 
 BinaryOperator -> "<" | ">" | "<=" | ">="
   %action { BinaryOperator.prec := 48 }
-  %action { BinaryOperator.leftAssoc := 1 }
+  %action { BinaryOperator.leftAssoc := 2 }      # 2 means nonassociative
 
 BinaryOperator -> "==" | "!="
   %action { BinaryOperator.prec := 44 }
@@ -446,9 +454,10 @@ SimpleTypeSpecifier -> "double"                     # double
 SimpleTypeSpecifier -> "long" "double"              # long double
 SimpleTypeSpecifier -> "void"                       # void
 
-PQTypeName -> TypedefName
-PQTypeName -> ClassName
-PQTypeName -> EnumName
+# I had been separating these into typedef/enum/class names, but
+# the parser can never distinguish, so the grammar shouldn't suggest
+# that it can
+PQTypeName -> L2_NAME
 PQTypeName -> TemplateId                            # C++
 PQTypeName -> Qualifier PQTypeName                  # C++
 
@@ -511,8 +520,8 @@ InitDeclaratorListOpt -> empty | InitDeclaratorList
 InitDeclarator -> Declarator                    # (int)  x
 InitDeclarator -> Declarator Initializer        # (int)  x = 5
 
-# C++ has something here for constructors
 Initializer -> "=" InitializerClause
+Initializer -> "(" ExpressionList ")"           # ctor args                               # C++
 
 InitializerClause -> AssignmentExpression           # scalar
 InitializerClause -> "{" InitializerList "}"        # array initializer
@@ -670,7 +679,9 @@ ConversionDeclaratorOpt -> empty | PtrOperator ConversionDeclaratorOpt          
 MemInitializerList -> MemInitializer                                                      # C++
 MemInitializerList -> MemInitializer "," MemInitializerList                               # C++
 
-MemInitializer -> PQClassName "(" ExpressionListOpt ")"        # base ctor call           # C++
+# std has a separate rule for base class ctor call, but that's not
+# a useful parsing distinction, so it just creates gratuitous
+# ambiguities, and I've eliminated it
 MemInitializer -> L2_NAME "(" ExpressionListOpt ")"            # member init              # C++
 
 
@@ -718,3 +729,17 @@ ExceptionDeclaration -> "..."                              # anything           
 
 ThrowExpression -> "throw" AssignmentExpression                                           # C++
 ThrowExpression -> "throw"                                                                # C++
+
+
+# ---------------- token sequence ambiguity resolution ---------------------
+# this section contains token sequences that are known to produce
+# ambiguities, but where the correct interpretation is almost always
+# something in particular; this section is all heuristic, and therefore
+# should not be considered a definitive part of the language def (and
+# it can be disabled by a flag to the parser)
+                                    
+# this is one of the classic C ambiguities; but since no one would
+# declare a variable with syntax like "int (x);", it's pretty safe
+# to assume this is a fn call
+%tokSeqAmb  ExpressionStatement  ->  L2_NAME "(" L2_NAME ")" ";"
+

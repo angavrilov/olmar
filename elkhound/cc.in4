@@ -482,11 +482,11 @@ public:     // funcs
       { return const_cast<Thing*>(find##Thing##C(name)); }  \
                                                             \
     /* retrieve, or create it if not already there */       \
-    Thing *getOrMake##Thing(char const *name);
+    Thing *getOrMake##Thing(char const *name) /* user ; */
 
-  SYMBOL_ACCESS(Symbol)        // findSymbolC, findSymbol, getOrMakeSymbol
-  SYMBOL_ACCESS(Terminal)      //   likewise
-  SYMBOL_ACCESS(Nonterminal)   //   ..
+  SYMBOL_ACCESS(Symbol);       // findSymbolC, findSymbol, getOrMakeSymbol
+  SYMBOL_ACCESS(Terminal);     //   likewise
+  SYMBOL_ACCESS(Nonterminal);  //   ..
   #undef SYMBOL_ACCESS
 
   // the inverse of transition: map a target state to the symbol that

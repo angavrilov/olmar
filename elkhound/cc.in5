@@ -273,17 +273,7 @@ void GLR::glrParse(char const *inputFname)
     StackNode *lastToDie = NULL;
     while (parserWorklist.isNotEmpty()) {
       StackNode *parser = parserWorklist.removeAt(0);     // dequeue
-      
-      // to count actions, first record how many parsers we have
-      // before processing this one
-      int parsersBefore = parserWorklist.count() + pendingShifts.count();
-                               
-      // process this parser
-      glrParseAction(parser, pendingShifts);
-
-      // now observe change -- normal case is we now have one more
-      int actions = (parserWorklist.count() + pendingShifts.count()) -
-                      parsersBefore;
+      int actions = glrParseAction(parser, pendingShifts);
 
       if (actions == 0) {
         trace("parse") << "parser in state " << parser->state->id
@@ -412,6 +402,7 @@ int GLR::doAllPossibleReductions(StackNode *parser,
 
   // for each possible reduction, do it
   SFOREACH_PRODUCTION(reductions, prod) {
+    actions++;
     int rhsLen = prod.data()->rhsLength();
     xassert(rhsLen >= 0);    // paranoia before using this to control recursion
 
@@ -456,36 +447,19 @@ int GLR::doAllPossibleReductions(StackNode *parser,
     MUTATE_EACH_OBJLIST(PathCollectionState::ReductionPath, pcs.paths, pathIter) {
       PathCollectionState::ReductionPath *rpath = pathIter.data();
 
-      // this is like shifting the reduction's LHS onto 'finalParser'
-      bool success =
-        glrShiftNonterminal(rpath->finalState, transferOwnership(rpath->reduction));
-      if (success) {
-        // I'm not sure what is the best thing to call an 'action'; before,
-        // I had this at the start of the outer loop, but if we fail to reduce
-        // due to %condition, then that's wrong.  but it's not clear we'd want
-        // to count every path as an action.. I don't have a good definition in
-        // mind of what constitutes an action
-        actions++;
-      }
-
       if (tracingSys("parse")) {
         // profiling reported this used significant time even when not tracing
-        if (success) {
-          trace("parse")
-            << "in state " << parser->state->id
-            << ", reducing by " << *(prod.data())
-            << ", back to state " << rpath->finalState->state->id
-            << endl;
-        }
-        else {
-          trace("parse")
-            << "in state " << parser->state->id
-            << ", NOT reducing by " << *(prod.data())
-            << " because of failed %condition\n";
-        }
+        trace("parse")
+          << "in state " << parser->state->id
+          << ", reducing by " << *(prod.data())
+          << ", back to state " << rpath->finalState->state->id
+          << endl;
       }
-    } // for each path
-  } // for each possible reduction
+
+      // this is like shifting the reduction's LHS onto 'finalParser'
+      glrShiftNonterminal(rpath->finalState, transferOwnership(rpath->reduction));
+    }
+  }
   
   return actions;
 }
@@ -569,10 +543,9 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 }
 
 
-// shift reduction onto 'leftSibling' parser; return false if
-// we can't due to %condition directive
+// shift reduction onto 'leftSibling' parser
 // ([GLR] calls this 'reducer')
-bool GLR::glrShiftNonterminal(StackNode *leftSibling,
+void GLR::glrShiftNonterminal(StackNode *leftSibling,
                               Reduction * /*(owner)*/ reduction)
 {
   // package some things up
@@ -584,7 +557,7 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
   prod->actions.fire(actx);
   if (!prod->conditions.test(actx)) {
     // failed to satisfy conditions
-    return false;
+    return;
   }
 
   // this is like a shift -- we need to know where to go
@@ -670,8 +643,6 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
     // just created rightSibling, so no new opportunities
     // for reduction could have arisen
   }
-  
-  return true;
 }
 
 
@@ -679,7 +650,6 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
 {
   // we only get here if the single-tree tests have passed, but we
   // haven't applied the multi-tree comparisons; so do that now
-
   // TODO: figure out interface and specification for multi-tree
   // comparisons
 
@@ -700,99 +670,6 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
   // ok, they match; just add the reduction to the existing node
   // (and let 'parentAttr' drop on the floor since it was the same anyway)
   node.addReduction(actx.grabReduction());
-
-
-  // the first multi-tree comparison is the tokSeqAmbList; since it is
-  // only supposed to be a heuristic, the above attribute equality should
-  // hold, and by delaying the test until now, it is much easier to
-  // apply the test because I have a uniform list of alternatives
-
-  // first, I need the ground token sequence
-  SObjList<TerminalNode> groundTerms;
-  node.getGroundTerms(groundTerms);
-
-  // now, see which tokSeqAmb rule applies (if any)
-  FOREACH_PRODUCTION(tokSeqAmbList, iter) {
-    Production const *tokSeqAmb = iter.data();
-         
-    if (!tokSeqAmbRuleMatch(tokSeqAmb, groundTerms)) {
-      // they don't match
-      continue;
-    }
-
-    // ok, we have a match.  we need to throw away all trees in 'node' that
-    // don't satisfy the tokSeqAmb's match criteria
-    ObjListMutator<Reduction> redMut(node.reductions);
-    while (!redMut.isDone()) {
-      if (!tokSeqAmbConsequenceMatch(tokSeqAmb, redMut.data()->production)) {
-        trace("parse") << "removing alternative "
-                       << redMut.data()->production->rhsString()
-                       << " because it doesn't match tokSeqAmb\n";
-
-        // remove (and delete) it from the list, and advance to
-        // the next reduction
-        redMut.deleteIt();
-      }
-      else {
-        // it passes the test; advance without changing the list
-        redMut.adv();
-      }
-    }
-
-    if (node.reductions.count() == 0) {
-      // if this happens a lot I'll add more diagnostic info..
-      // ("-tr parse" gives it, though)
-      cout << "we threw away all the trees!  this leaves the parse\n"
-              "tree in an inconsistent state.  aborting.\n";
-      xfailure("aborting because we threw away all trees");
-    }
-
-    // since only one tokSeqAmb rule should match, let's stop iterating
-    break;
-  }
-}
-
-
-// does 'tokSeqAmb' rule apply when 'groundTerms' are terms?
-bool GLR::tokSeqAmbRuleMatch(Production const *tokSeqAmb,
-                             SObjList<TerminalNode> const &groundTerms)
-{
-  SObjListIter<Symbol> symIter(tokSeqAmb->right);
-  SObjListIter<TerminalNode> termIter(groundTerms);
-
-  while (!symIter.isDone() && !termIter.isDone()) {
-    xassert(symIter.data()->isTerminal());     // syntactic requirement of input
-
-    if (symIter.data() != termIter.data()->terminalClass) {
-      // no match
-      return false;
-    }
-
-    symIter.adv();
-    termIter.adv();
-  }
-
-  if (symIter.isDone() && termIter.isDone()) {
-    // exhausted both lists at same time: match
-    return true;
-  }
-  else {
-    return false;
-  }
-}
-
-
-// does 'tokSeqAmb' say that 'subjProd' is an allowed production?
-bool GLR::tokSeqAmbConsequenceMatch(Production const *tokSeqAmb,
-                                    Production const *subjProd)
-{
-  if (subjProd->right.count() == 1  &&
-      subjProd->right.firstC() == tokSeqAmb->left) {
-    return true;
-  }
-  else {
-    return false;
-  }
 }
 
 
@@ -1082,10 +959,7 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname,
 
   #if 1
     // read grammar
-    if (!readFile(grammarFname)) {
-      // error with grammar; message already printed
-      return;
-    }
+    readFile(grammarFname);
 
     // spit grammar out as something bison might be able to parse
     {
@@ -1156,30 +1030,3 @@ int main(int argc, char **argv)
   return 0;
 }
 #endif // GLR_MAIN
-
-
-
-// ------------------------- trash --------------------------
-#if 0
-    // work through input, throwing away comments
-    trace("progress") << "preprocessing...\n";
-
-    stringBuilder sb;
-    {
-      StrtokParse tok(input, "\n");
-      INTLOOP(i, 0, tok) {
-        if (tok[i][0] == '#') {
-          // throw it away
-        }
-        else {
-          // keep it
-          sb << tok[i] << "\n";
-        }
-      }
-    }
-
-    // parse input
-    trace("progress") << "parsing...\n";
-    glrParse(sb);
-
-#endif // 0

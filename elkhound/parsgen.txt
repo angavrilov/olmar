@@ -4,6 +4,7 @@ documentation for parsgen
 tracing strings:
   parse:         details of the parsing actions
   parse-tree:    the parse tree itself
+  parse-graph:   when set, print the parse graph to a .g file
   grammar:       echoing the grammar
   terminals:     list of terminals
   nonterminals:	 list of nonterminals
@@ -14,6 +15,13 @@ tracing strings:
   profiling:     slightly more detailed profiling info
   conflict:      SLR conflict printout
   debug:         general temporary-printf kinds of things, meant to be removed shortly
+  conditions:    results of processing %condition directives
+  follow-sym:    computing Follow of symbol-of-interest
+  rewrite:       details of rewriteSingleNTAsTerminals
+  ambiguities:   print ambiguities in present parse
+  lexer1:        results of L1 analysis
+  lexer2:        results of L2 analysis
+  
 
 
 

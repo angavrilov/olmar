@@ -62,8 +62,11 @@ public:	    // funcs
   virtual TerminalNode const *getLeftmostTerminalC() const = 0;
   virtual void ambiguityReport(ostream &os) const = 0;
 
+  // get list of tree leaves
+  virtual void getGroundTerms(SObjList<TerminalNode> &dest) const = 0;
+
   // simple unparse: yield string of tokens in this tree, separated by spaces
-  virtual string unparseString() const = 0;
+  string unparseString() const;
 
   // debugging
   virtual void printParseTree(ostream &os, int indent) const = 0;
@@ -91,7 +94,7 @@ public:     // funcs
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
 
-  virtual string unparseString() const;
+  virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
 
   virtual void printParseTree(ostream &os, int indent) const;
 };
@@ -127,7 +130,7 @@ public:
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
 
-  virtual string unparseString() const;
+  virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
 
   virtual void printParseTree(ostream &os, int indent) const;
 };
@@ -153,7 +156,7 @@ public:
   void printParseTree(Attributes const &attr, ostream &os, int indent) const;
   void ambiguityReport(ostream &os) const;
 
-  string unparseString() const;
+  void getGroundTerms(SObjList<TerminalNode> &dest) const;
 };
 
 

@@ -40,6 +40,28 @@ NonterminalNode const &TreeNode::asNontermC() const
 }
 
 
+string TreeNode::unparseString() const
+{              
+  // get terms
+  SObjList<TerminalNode> terms;
+  getGroundTerms(terms);
+  
+  // render as string
+  stringBuilder sb;
+
+  int ct=0;
+  SFOREACH_OBJLIST(TerminalNode, terms, term) {
+    if (ct++ > 0) {
+      sb << " ";      // token separator
+    }
+    sb << term.data()->token->unparseString();
+  }
+
+  return sb;
+}
+
+
+
 // ------------------- TerminalNode -------------------------
 TerminalNode::TerminalNode(Lexer2Token const *tk, Terminal const *tc)
   : TreeNode(TERMINAL),
@@ -78,9 +100,10 @@ TerminalNode const *TerminalNode::getLeftmostTerminalC() const
 }
 
 
-string TerminalNode::unparseString() const
+void TerminalNode::getGroundTerms(SObjList<TerminalNode> &dest) const
 {
-  return token->unparseString();
+  dest.append(const_cast<TerminalNode*>(this));
+    // highly nonideal constness...
 }
 
 
@@ -204,12 +227,11 @@ TerminalNode const *NonterminalNode::getLeftmostTerminalC() const
 }
 
 
-string NonterminalNode::unparseString() const
+void NonterminalNode::getGroundTerms(SObjList<TerminalNode> &dest) const
 {
-  // all reductions will yield same string (at least I think so!)
-  return reductions.firstC()->unparseString();
+  // all reductions will yield same sequence (at least I think so!)
+  return reductions.firstC()->getGroundTerms(dest);
 }
-
 
 
 // ---------------------- Reduction -------------------------
@@ -248,26 +270,11 @@ void Reduction::ambiguityReport(ostream &os) const
 }
 
 
-string Reduction::unparseString() const
+void Reduction::getGroundTerms(SObjList<TerminalNode> &dest) const
 {
-  stringBuilder sb;
-
-  int ct=0;
   SFOREACH_OBJLIST(TreeNode, children, child) {
-    string childString = child.data()->unparseString();
-    if (childString.length() == 0) {
-      // it was a nonterminal that derived empty
-      // (I'm being anal about extra spaces here and there... :)  )
-      continue;
-    }
-
-    if (ct++ > 0) {
-      sb << " ";
-    }
-    sb << childString;
+    child.data()->getGroundTerms(dest);
   }
-
-  return sb;
 }
 
 

@@ -139,6 +139,7 @@ MAKE_OP_FUNC(equals, ==)
 MAKE_OP_FUNC(nequals, !=)
 MAKE_OP_FUNC(less, <)
 MAKE_OP_FUNC(lesseq, <=)
+MAKE_OP_FUNC(oror, ||)
 
 int ifFunc(int cond, int thenExp, int elseExp)
 {
@@ -158,6 +159,7 @@ AExprFunc::FuncEntry const AExprFunc::funcEntries[] = {
   { "!=", 2, (AExprFunc::Func)nequals },
   { "<", 2, (AExprFunc::Func)less },
   { "<=", 2, (AExprFunc::Func)lesseq },
+  { "||", 2, (AExprFunc::Func)oror },
   { "if", 3, (AExprFunc::Func)ifFunc },
 };
 

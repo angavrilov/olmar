@@ -755,6 +755,13 @@ void Grammar::printProductions(ostream &os) const
        !iter.isDone(); iter.adv()) {
     os << " " << iter.data()->toStringWithActions();
   }
+
+  // also print the tokSeqAmbList ..
+  os << "Grammar tokSeqAmbList:\n";
+  for (ObjListIter<Production> iter(tokSeqAmbList);
+       !iter.isDone(); iter.adv()) {
+    os << " " << iter.data()->toStringWithActions();
+  }
 }
 
 
@@ -800,7 +807,7 @@ void Grammar::addProduction(Production *prod)
 // some point..
 
 
-void Grammar::readFile(char const *fname)
+bool Grammar::readFile(char const *fname)
 {
   FILE *fp = fopen(fname, "r");
   if (!fp) {
@@ -812,11 +819,13 @@ void Grammar::readFile(char const *fname)
 
   char buf[256];
   int line = 0;
+  bool ok = true;
   while (fgets(buf, 256, fp)) {
     line++;
 
     if (!parseLine(buf, lastProductions)) {
       cerr << "error parsing line " << line << endl;
+      ok = false;
       break;    // stop after first error
     }
   }
@@ -824,6 +833,8 @@ void Grammar::readFile(char const *fname)
   if (fclose(fp) != 0) {
     xsyserror("fclose");
   }
+  
+  return ok;
 }
 
 
@@ -886,8 +897,13 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
       return declareToken(tok[1], atoi(tok[2]), tok>3? tok[3] : NULL);
     }
 
+    // token sequence disambiguation
+    if (0==strcmp(tok[0], "%tokSeqAmb")) {
+      return parseTokSeqAmb(tok);
+    }
+
     // action or condition?
-    if (tok[0][0] == '%') {
+    if (0==strcmp(tok[0], "%action") || 0==strcmp(tok[0], "%condition")) {
       if (lastProductions.isEmpty()) {
         cout << "action or condition must be preceeded by a production\n";
         return false;
@@ -911,68 +927,23 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
       return true;
     }
 
-    // going to parse a production, so clear the list
-    lastProductions.removeAll();
-
-    // check that the 2nd token is the "rewrites-as" symbol
-    if (0!=strcmp(tok[1], "->")) {
-      cout << "2nd token of production must be `->'\n";
+    // some unknown directive
+    if (tok[0][0] == '%') {
+      cout << "unknown directive: " << tok[0] << endl;
       return false;
     }
 
-    // get LHS token
-    string name, tag;
-    parseTaggedName(name, tag, tok[0]);
-    string leftTag = tag;     // need to remember it in case we see '|'
-    Nonterminal *LHS = getOrMakeNonterminal(name);
+    // going to parse a production, so clear the list
+    lastProductions.removeAll();
 
-    // make a production
-    Production *prod = new Production(LHS, leftTag);
-
-    // process RHS symbols
-    for (int i=2; i<tok; i++) {
-      // alternatives -- syntactic sugar
-      if (0==strcmp(tok[i], "|")) {
-        // finish the current production
-        addProduction(prod);
-        lastProductions.append(prod);
-
-        // start another
-        prod = new Production(LHS, leftTag);
-      }
-
-      // terminal?
-      else if (findTerminalC(tok[i])) {
-        prod->append(findTerminal(tok[i]), NULL /*tag*/);
-      }
-
-      // empty string
-      else if (0==strcmp(tok[i], "empty")) {
-        // don't actually add a symbol for this
-      }
-
-      // nonterminal (has to start with an uppercase letter)
-      else if (isupper(tok[i][0])) {
-        parseTaggedName(name, tag, tok[i]);
-        Symbol *sym = getOrMakeNonterminal(name);
-        prod->append(sym, tag);
-      }
-
-      // old code for automatically defining new tokens
-      //if (tok[i][0] == '"') {
-      //  prod->append(getOrMakeTerminal(parseQuotedString(tok[i])), NULL /*tag*/);
-      //}
-
-      // error
-      else {
-        cout << "not a valid symbol (tokens must be declared): " << tok[i] << endl;
-        return false;
-      }
+    if (!parseProduction(lastProductions, tok)) {
+      return false;    // parse error, message already printed
     }
 
-    // done, so add the production
-    addProduction(prod);
-    lastProductions.append(prod);
+    // add the productions
+    SMUTATE_EACH_PRODUCTION(lastProductions, prod) {
+      addProduction(prod.data());
+    }
 
     // ok
     return true;
@@ -1005,6 +976,55 @@ bool Grammar::declareToken(char const *symbolName, int code, char const *alias)
 }
 
 
+// parse %tokSeqAmb
+bool Grammar::parseTokSeqAmb(StrtokParse const &tok)
+{
+  xassert(0==strcmp(tok[0], "%tokSeqAmb"));
+
+  if (tok < 4  ||  0!=strcmp(tok[2], "->")) {
+    // we require at least one terminal because it would be
+    // strange to have am ambiguity for emptyString (and I guess
+    // if you wanted that you could use 'empty')
+    cout << "directive should be: %tokSeqAmb Nonterminal -> Terminal [...]\n";
+    return false;
+  }
+    
+  // parseProduction expects the nonterminal to be first, instead
+  // of the directive symbol, so make a new StrtokParse with all
+  // the tokens shifted over one
+  StrtokParse adjustedTok(tok.join(1, tok-1, " "), " ");
+
+  // now parse it
+  ProductionList prods;
+  if (!parseProduction(prods, adjustedTok)) {
+    return false;
+  }
+
+  // make sure we didn't get any alternatives, and that at least one
+  // production was in fact parsed
+  xassert(prods.count() >= 1);
+  if (prods.count() > 1) {
+    cout << "%tokSeqAmb RHS can't have alternatives (`|')\n";
+    return false;
+  }
+
+  // make sure we only got terminals
+  Production *prod = prods.first();
+  SFOREACH_SYMBOL(prod->right, symIter) {
+    if (!symIter.data()->isTerminal()) {
+      cout << "%tokSeqAmb RHS must be terminals only, no nonterminals\n";
+      return false;
+    }
+  }
+
+  // add it to our list of token sequence disambiguators
+  tokSeqAmbList.append(prods.first());
+
+  return true;
+}
+
+
+// parse %action or %condition
 bool Grammar::parseAnAction(char const *keyword, char const *insideBraces,
                             Production *lastProduction)
 {
@@ -1019,9 +1039,101 @@ bool Grammar::parseAnAction(char const *keyword, char const *insideBraces,
   }
 
   else {
-    cout << "unknown action or condition keyword: " << keyword << endl;
+    xfailure("parseAnAction called with wrong directive!");
+    return false;      // silence warning
+  }
+}
+
+
+// given the name of a symbol (terminal or nonterminal) as it
+// appears in the grammar input file, return the symbol named,
+// and the tag (or NULL); returns NULL if there is an error
+Symbol *Grammar::parseGrammarSymbol(char const *token, string &tag)
+{
+  // assume there will be no tag
+  tag = NULL;
+
+  // terminal?
+  if (findTerminalC(token)) {
+    return findTerminal(token);
+  }
+
+  // empty string
+  else if (0==strcmp(token, "empty")) {
+    return &emptyString;
+  }
+
+  // nonterminal (has to start with an uppercase letter)
+  else if (isupper(token[0])) {
+    string name;
+    parseTaggedName(name, tag, token);
+    return getOrMakeNonterminal(name);
+  }
+
+  // old code for automatically defining new tokens
+  //if (token[0] == '"') {
+  //  return getOrMakeTerminal(parseQuotedString(token));
+  //}
+
+  // error
+  else {
+    cout << "not a valid symbol (tokens must be declared): " << token << endl;
+    return NULL;
+  }
+}
+
+
+// given a token sequence representing one or more productions, parse
+// them and put the productions into 'prods' (does NOT add them to
+// the Grammar's main 'productions' list); return false on parse error
+bool Grammar::parseProduction(ProductionList &prods, StrtokParse const &tok)
+{
+  // check that the 2nd token is the "rewrites-as" symbol
+  if (0!=strcmp(tok[1], "->")) {
+    cout << "2nd token of production must be `->'\n";
     return false;
   }
+
+  // get LHS token
+  string name, tag;
+  parseTaggedName(name, tag, tok[0]);
+  string leftTag = tag;     // need to remember it in case we see '|'
+  Nonterminal *LHS = getOrMakeNonterminal(name);
+
+  // make a production
+  Production *prod = new Production(LHS, leftTag);
+
+  // process RHS symbols
+  for (int i=2; i<tok; i++) {
+    // alternatives -- syntactic sugar
+    if (0==strcmp(tok[i], "|")) {
+      // finish the current production
+      prods.append(prod);
+
+      // start another
+      prod = new Production(LHS, leftTag);
+    }
+
+    else {
+      // terminal or nonterminal
+      Symbol *sym = parseGrammarSymbol(tok[i], tag /*out*/);
+      if (!sym) {
+        return false;
+      }
+
+      if (sym == &emptyString) {
+        // new policy is to not include it
+      }
+      else {
+        // add it to the production
+        prod->append(sym, tag);
+      }
+    }
+  }
+
+  // done, so add the production
+  prods.append(prod);
+  return true;
 }
 
 

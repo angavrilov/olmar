@@ -430,12 +430,22 @@ public:	    // data
   // motivated by things like the derivability relation, where it's
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
+  
+  // a list of disambiguation heuristics; if we have an ambiguity, and
+  // the ground token sequence of the ambiguous section matches the RHS
+  // of anything in 'tokSeqAmbList', then we only keep the interpretation
+  // whose RHS is the single nonterminal on the LHS of the matching 
+  // tokSeqAmbList rule.. (there are problems here obviously)
+  ObjList<Production> tokSeqAmbList;
 
 private:    // funcs
   bool parseAnAction(char const *keyword, char const *insideBraces,
                      Production *lastProduction);
 
   bool declareToken(char const *symbolName, int code, char const *alias);
+  bool parseTokSeqAmb(StrtokParse const &tok);
+  Symbol *parseGrammarSymbol(char const *token, string &tag);
+  bool parseProduction(ProductionList &prods, StrtokParse const &tok);
 
 public:     // funcs
   Grammar();                            // set everything manually
@@ -467,7 +477,7 @@ public:     // funcs
   void printAsBison(ostream &os) const;
 
   // ---- grammar parsing ----
-  void readFile(char const *fname);
+  bool readFile(char const *fname);
 
   // parse a line like "LHS -> R1 R2 R3", return false on parse error
   bool parseLine(char const *grammarLine);

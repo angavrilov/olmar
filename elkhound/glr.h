@@ -239,7 +239,7 @@ private:    // funcs
                               SiblingLink *mustUseLink);
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
-  void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
+  bool glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
   void mergeAlternativeParses(NonterminalNode &node, AttrContext &actx);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
@@ -249,6 +249,11 @@ private:    // funcs
   TerminalNode *makeTerminalNode(Lexer2Token const *tk, Terminal const *tc);
   NonterminalNode *makeNonterminalNode(AttrContext &actx);
 
+  // tokSeqAmb mechanism
+  bool tokSeqAmbRuleMatch(Production const *tokSeqAmb,
+                          SObjList<TerminalNode> const &groundTerms);
+  bool tokSeqAmbConsequenceMatch(Production const *tokSeqAmb,
+                                 Production const *subjProd);
 
 public:     // funcs
   GLR();
