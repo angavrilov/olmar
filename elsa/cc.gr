@@ -768,6 +768,14 @@ nonterm(S_compound*) CompoundStatement {
   // the scope, it's in the new one
   -> EnterScope seq:CompoundStmtSeq LeaveScope "}"
        { return seq; }
+  // special case for a block that ends in a label; Warning: no don't
+  // do this by making a label, case and/or default form not contain
+  // the statement that follows; It doesn't work in this case:
+  //   if (0) gronk: printf("hello\n");
+  // The then branch would only contain the gronk label, whereas, at
+  // least in gcc, it also includes the printf() call.
+  -> EnterScope seq:CompoundStmtSeq lesl:LabeledEmptyStatementList LeaveScope "}"
+       { seq->stmts.append(lesl); return seq; }
 }
 
 nonterm(S_compound*) CompoundStmtSeq {
@@ -779,6 +787,22 @@ nonterm(S_compound*) CompoundStmtSeq {
        { return new S_compound(loc, NULL); }
   -> c:CompoundStmtSeq s:Statement
        { c->stmts.append(s); return c; }
+}
+
+// a sequence of labels with no statement following, not even a skip
+nonterm(Statement*) LabeledEmptyStatementList {
+  -> n:Identifier ":" attrspec:AttributeSpecifierListOpt
+       { return new S_label(loc, n, new S_skip(loc)); }
+  -> "case" e:ConstantExpression ":"
+       { return new S_case(loc, e, new S_skip(loc)); }
+  -> "default" ":"
+       { return new S_default(loc, new S_skip(loc)); }
+  -> n:Identifier ":" attrspec:AttributeSpecifierListOpt lesl:LabeledEmptyStatementList
+       { return new S_label(loc, n, lesl); }
+  -> "case" e:ConstantExpression ":" lesl:LabeledEmptyStatementList
+       { return new S_case(loc, e, lesl); }
+  -> "default" ":" lesl:LabeledEmptyStatementList
+       { return new S_default(loc, lesl); }
 }
 
 // the guard of e.g. an 'if' statement
