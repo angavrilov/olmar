@@ -103,6 +103,7 @@ sub isCheckedIn {
   while (defined($line = <ENTRIES>)) {
     if ($line =~ m|^/$file/|) {
       # found the file, it's checked in
+      close(ENTRIES) or die;
       return 1;
     }
   }
