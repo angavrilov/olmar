@@ -68,6 +68,7 @@ verbatim CCGr [
 #include "trace.h"        // trace
 #include "cc.ast.gen.h"   // C++ abstract syntax
 #include "cc_lang.h"      // CCLang
+#include "dswutil.h"
 #ifdef CC_QUAL
   #include "cc_qual/cc_qualifiers.h"
 #else
@@ -99,10 +100,10 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
 
 // when this is the last element in a parameter list, the function
 // is a vararg function
-ASTTypeId *ellipsisTypeId()
+ASTTypeId *ellipsisTypeId(SourceLocation const &loc)
 {
-  return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                       new Declarator(new D_name(SourceLocation(), NULL /*name*/),
+  return new ASTTypeId(new TS_simple(new PQ_name("__ellipsis"), loc, ST_ELLIPSIS),
+                       new Declarator(new D_name(NULL /*name*/, SourceLocation()),
                                       NULL /*init*/));
 }
 
@@ -362,17 +363,22 @@ nonterm[Expression*] PostfixExpression {
 nonterm[TypeSpecifier*] CtorExpressionType {
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId;
 
-  -> n:PQTypeName        [ return new TS_name(n, false /*typename*/); ]
-  -> "char"              [ return new TS_simple(ST_CHAR); ]
-  -> "wchar_t"           [ return new TS_simple(ST_WCHAR_T); ]
-  -> "bool"              [ return new TS_simple(ST_BOOL); ]
-  -> "short"             [ return new TS_simple(ST_SHORT_INT); ]
-  -> "int"               [ return new TS_simple(ST_INT); ]
-  -> "long"              [ return new TS_simple(ST_LONG_INT); ]
-  -> "signed"            [ return new TS_simple(ST_INT); ]
-  -> "unsigned"          [ return new TS_simple(ST_UNSIGNED_INT); ]
-  -> "float"             [ return new TS_simple(ST_FLOAT); ]
-  -> "double"            [ return new TS_simple(ST_DOUBLE); ]
+  -> n:PQTypeName        [ return new TS_name(n, loc, false /*typename*/); ]
+  -> "char"              [ return new TS_simple(new PQ_name("__anonymous_char"), loc, ST_CHAR); ]
+  -> "wchar_t"           [ return new TS_simple(new PQ_name("__anonymous_wchar_t"), loc,
+                                                ST_WCHAR_T); ]
+  -> "bool"              [ return new TS_simple(new PQ_name("__anonymous_bool"), loc, ST_BOOL); ]
+  -> "short"             [ return new TS_simple(new PQ_name("__anonymous_short"), loc,
+                                                ST_SHORT_INT); ]
+  -> "int"               [ return new TS_simple(new PQ_name("__anonymous_int"), loc, ST_INT); ]
+  -> "long"              [ return new TS_simple(new PQ_name("__anonymous_long"), loc,
+                                                ST_LONG_INT); ]
+  -> "signed"            [ return new TS_simple(new PQ_name("__anonymous_signed"), loc, ST_INT); ]
+  -> "unsigned"          [ return new TS_simple(new PQ_name("__anonymous_unsigned"), loc,
+                                                ST_UNSIGNED_INT); ]
+  -> "float"             [ return new TS_simple(new PQ_name("__anonymous_float"), loc, ST_FLOAT); ]
+  -> "double"            [ return new TS_simple(new PQ_name("__anonymous_double"), loc,
+                                                ST_DOUBLE); ]
 
   // std has this, but I don't think it makes sense
   //-> "void"
@@ -474,24 +480,24 @@ nonterm[ASTTypeId*] NewTypeId {
 // (so I'll see the counterexample syntax if it exists)
 nonterm[IDeclarator*] NewDeclaratorOpt {
   -> empty
-       [ return new D_name(loc, NULL); ]
+       [ return new D_name(NULL, loc); ]
 
   // pointers
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:NewDeclaratorOpt
-       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
-         p->q->appendQualifierLiterals(ql);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
+                           true /*isPtr*/, cv, d);
+    ]
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               [ return d; ]
 }
 nonterm[IDeclarator*] DirectNewDeclarator {
   -> /*abstract declarator*/ "[" sz:Expression "]"
-       [ return new D_array(new D_name(loc, NULL), sz); ]
+       [ return new D_array(new PQ_name("array_abstract_declarator"), loc,
+                                        new D_name(NULL, loc), sz);
+       ]
   -> d:DirectNewDeclarator "[" sz:ConstantExpression "]"
-       [ return new D_array(d, sz); ]
+       [ return new D_array(appendToDeclaratorName(d, "_array"), loc, d, sz); ]
 }
 
 nonterm[ExpressionListOpt*] NewInitializerOpt {
@@ -856,14 +862,15 @@ nonterm[enum DeclFlags] DeclModifier {
 nonterm[TypeSpecifier*] TypeSpecifier {
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName
-       [ return new TS_name(n, false /*typename*/); ]
+       [ return new TS_name(n, loc, false /*typename*/); ]
 
   -> s:PrimitiveTypeSpecifier            // int
-       [ return new TS_simple(s); ]
+       [ return new TS_simple(new PQ_name("__anonymous_PrimitiveTypeSpecifier"), loc, s); ]
 
   -> s:PrimitiveCVTypeSpecifier          // unsigned const char  (not good style, IMO)
        [
-         TS_simple *ret = new TS_simple((SimpleTypeId)(s & ST_BITMASK));
+         TS_simple *ret = new TS_simple(new PQ_name("__anonymous_PrimitiveCVTypeSpecifier"), loc,
+             (SimpleTypeId)(s & ST_BITMASK));
          ret->cv = (CVFlags)(s & CV_ALL);
          return ret;
        ]
@@ -897,12 +904,12 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 
 
 nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
-  -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(loc, k, n); ]
-  -> "enum" n:PQTypeName        [ return new TS_elaborated(loc, TI_ENUM, n); ]
+  -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(n, loc, k); ]
+  -> "enum" n:PQTypeName        [ return new TS_elaborated(n, loc, TI_ENUM); ]
                             
   // cppstd grammar ensures "typename" is only applied to qualified
   // names, but I find that more natural to enforce during typechecking
-  -> "typename" n:PQTypeName    [ return new TS_name(n, true /*typename*/); ]
+  -> "typename" n:PQTypeName    [ return new TS_name(n, loc, true /*typename*/); ]
 }
 
 
@@ -1013,9 +1020,9 @@ nonterm[int] PrimitiveCVTypeSpecifier {
 
 nonterm[TS_enumSpec*] EnumSpecifier {
   -> "enum" "{" list:EnumeratorListOpt "}"
-       [ return new TS_enumSpec(loc, NULL /*name*/, list); ]
+       [ return new TS_enumSpec(NULL /*name*/, loc, list); ]
   -> "enum" n:Identifier "{" list:EnumeratorListOpt "}"
-       [ return new TS_enumSpec(loc, n, list); ]
+       [ return new TS_enumSpec(new PQ_name(n), loc, list); ]
 }
 
 
@@ -1148,16 +1155,13 @@ nonterm[IN_compound*] InitializerList {
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm[IDeclarator*] Declarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:Declarator
-       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
-         p->q->appendQualifierLiterals(ql);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
+                           true /*isPtr*/, cv, d);
+    ]
   -> "&" d:Declarator
-       [ D_pointer *p = new D_pointer(false /*isPtr*/, CV_NONE, d);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc, NULL,
+                           false /*isPtr*/, CV_NONE, d);
+    ]
 
   -> d:DirectDeclarator
        [ return d; ]
@@ -1169,11 +1173,11 @@ nonterm[IDeclarator*] DirectDeclarator {
   // note: this rule handles constructor names!
   // note: this also handles operator names!
   -> n:IdExpression_no_colon_colon
-       [ return new D_name(loc, n); ]
+       [ return new D_name(n, loc); ]
 
   // dtor
   -> n:PQDtorName
-       [ return new D_name(loc, n); ]
+       [ return new D_name(n, loc); ]
 
   // function declarator; the return type comes from the type
   // specifier that preceeds this
@@ -1182,15 +1186,13 @@ nonterm[IDeclarator*] DirectDeclarator {
      ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       [ D_func *f = new D_func(loc, d, params, cv, e);
-         f->q->appendQualifierLiterals(ql);
-         f->q->loc = loc;
-         return f;
+       [ return new D_func(appendToDeclaratorName(d, "_func"), loc, ql,
+                           d, params, cv, e);
        ]
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
-       [ return new D_array(d, sz); ]
+       [ return new D_array(appendToDeclaratorName(d, "_array"), loc, d, sz); ]
 
   // precedence grouping
   -> "(" d:Declarator ")"
@@ -1280,30 +1282,27 @@ nonterm[ASTTypeId*] TypeId {
 }
 
 nonterm[IDeclarator*] AbstractDeclaratorOpt {
-  -> empty                 [ return new D_name(loc, NULL); ]
+  -> empty                 [ return new D_name(NULL, loc); ]
   -> d:AbstractDeclarator  [ return d; ]
 }
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
-       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
-         p->q->appendQualifierLiterals(ql);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
+                           true /*isPtr*/, cv, d);
+    ]
   -> "&" d:AbstractDeclaratorOpt
-       [ D_pointer *p = new D_pointer(false /*isPtr*/, CV_NONE, d);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc, NULL,
+                           false /*isPtr*/, CV_NONE, d);
+    ]
 
   -> d:DirectAbstractDeclarator
        [ return d; ]
 }
 
 nonterm[IDeclarator*] DirectAbstractDeclaratorOpt {
-  -> empty                       [ return new D_name(loc, NULL /*name*/); ]
+  -> empty                       [ return new D_name(NULL /*name*/, loc); ]
   -> d:DirectAbstractDeclarator  [ return d; ]
 }
 
@@ -1328,15 +1327,13 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
      ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
-       [ D_func *f = new D_func(loc, d, args, cv, e);
-         f->q->appendQualifierLiterals(ql);
-         f->q->loc = loc;
-         return f;
+       [ return new D_func(appendToDeclaratorName(d, "_func"), loc, ql,
+                           d, args, cv, e);
        ]
 
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
-       [ return new D_array(d, sz); ]
+       [ return new D_array(appendToDeclaratorName(d, "_array"), loc, d, sz); ]
 
   // precedence grouping
   -> "(" d:AbstractDeclarator ")"
@@ -1355,13 +1352,13 @@ nonterm[FakeList<ASTTypeId>*] ParameterDeclarationClause {
 nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
   // last (and perhaps only) arg is "..."
   -> "..."
-       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId()); ]
+       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc)); ]
 
   // last arg is "...", and 2nd-to-last is not separated by
   // a comma from the "..."
   -> d:ParameterDeclaration "..."
        [ FakeList<ASTTypeId> *list =
-           FakeList<ASTTypeId>::makeList(ellipsisTypeId());
+           FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc));
          d->setNext(list->first());
          return FakeList<ASTTypeId>::makeList(d); ]
 
@@ -1475,7 +1472,9 @@ nonterm[Function*] FunctionDefinition {
        [
          return new Function(
            m,                        // decl flags: explicit, virtual, or none
-           new TS_simple(ST_CDTOR),  // type specifier: ctor or dtor
+           new TS_simple(appendToDeclaratorName(d, "_CDtorModifier"), loc,
+                                         ST_CDTOR),
+           // type specifier: ctor or dtor
            new Declarator(d, NULL),  // declarator with fn name, params
            c,                        // ctor member inits
            b,                        // function body statement
@@ -1489,7 +1488,9 @@ nonterm[Function*] FunctionDefinition {
        [
          return new Function(
            e,                        // decl flags: explicit is only possibility
-           new TS_simple(ST_CDTOR),  // type specifier: ctor or dtor
+           new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
+                                         ST_CDTOR),
+           // type specifier: ctor or dtor
            new Declarator(d, NULL),  // declarator with fn name, params
            c,                        // ctor member inits
            b,                        // function body statement
@@ -1518,7 +1519,7 @@ nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
 // ------ A.8 Classes ------
 nonterm[TS_classSpec*] ClassSpecifier {
   -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
-       [ popClassName(); return new TS_classSpec(loc, k, n, b, memb); ]
+       [ popClassName(); return new TS_classSpec(n, loc, k, b, memb); ]
 }
 
 // this is the name portion of what the standard calls "ClassHead"
@@ -1650,7 +1651,9 @@ nonterm[Member*] MemberDeclaration {
          return new MR_decl(loc,
            new Declaration(
              flags,
-             new TS_simple(ST_CDTOR),
+             new TS_simple(appendToDeclaratorName(d, "_MemberDeclarator"),
+                           loc,
+                           ST_CDTOR),
              FakeList<Declarator>::makeList(d)
            )
          );
@@ -1686,7 +1689,7 @@ nonterm[Declarator*] MemberDeclarator {
        [ return new Declarator(d, new IN_expr(e)); ]
 
   -> n:IdentifierOpt ":" e:ConstantExpression     // bitfield
-       [ return new Declarator(new D_bitfield(loc, n? new PQ_name(n) : NULL, e),
+       [ return new Declarator(new D_bitfield(n? new PQ_name(n) : NULL, loc, e),
                                NULL /*init*/); ]
 }
 
@@ -1762,19 +1765,16 @@ nonterm[ASTTypeId*] ConversionTypeId {
 // conversion function (for converting to pointer type)
 nonterm[IDeclarator*] ConversionDeclaratorOpt {
   -> empty                                    
-       [ return new D_name(loc, NULL /*name*/); ]
+       [ return new D_name(NULL /*name*/, loc); ]
        
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
-       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
-         p->q->appendQualifierLiterals(ql);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
+                           true /*isPtr*/, cv, d);
+    ]
   -> "&" d:ConversionDeclaratorOpt
-       [ D_pointer *p = new D_pointer(false /*isPtr*/, CV_NONE, d);
-         p->q->loc = loc;
-         return p;
-       ]
+    [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc, NULL,
+                           false /*isPtr*/, CV_NONE, d);
+    ]
 }
 
 

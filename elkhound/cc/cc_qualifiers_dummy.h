@@ -16,7 +16,8 @@ class Qualifiers {
   void *ql;
   SourceLocation loc;
 
-  Qualifiers() : ql(NULL), loc(new SourceFile("UNKNOWN")) {}
+  explicit Qualifiers(const char *name, const SourceLocation &loc, QualifierLiterals *ql0 = NULL)
+    : ql(NULL), loc(new SourceFile("UNKNOWN")) {}
 
   void prependLiteralString(StringRef s) {}
   void appendLiteralString(StringRef s) {}
@@ -28,6 +29,7 @@ class Qualifiers {
 };
 
 string toString(Qualifiers *q);
+string toString (QualifierLiterals *const &);
 Qualifiers *deepClone(Qualifiers *q);
 Type const *applyQualifierLiteralsToType(Qualifiers *q, Type const *baseType);
 

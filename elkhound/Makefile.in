@@ -202,7 +202,8 @@ cc-set := \
   cc/cc_print.o \
   cc/cc_ast_aux.o \
   cc/treeout.o \
-  cc/variable.o
+  cc/variable.o \
+  cc/dswutil.o
 
 ifdef CC_QUAL
   cc-set += cc/cc_qual/cc_qualifiers.o

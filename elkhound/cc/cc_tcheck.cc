@@ -490,7 +490,11 @@ void Declaration::tcheck(Env &env)
     if (spec->isTS_enumSpec()) {
       TS_enumSpec *es = spec->asTS_enumSpec();
       if (es->name == NULL) {
-        es->name = env.getAnonName(TI_ENUM);
+        // dsw: I homogenized all the names into PQNames in the
+        // syperclass, so you can't use a char* name for TS_enumSpec
+        // anymore.
+//          es->name = env.getAnonName(TI_ENUM);
+        es->name = new PQ_name(env.getAnonName(TI_ENUM));
       }
     }
   }
@@ -1132,7 +1136,7 @@ Type const *TS_enumSpec::itcheck(Env &env)
 {
   env.setLoc(loc);
 
-  EnumType *et = new EnumType(name);
+  EnumType *et = new EnumType(name?name->getName():NULL);
   Type *ret = makeType(et);
 
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
@@ -1143,7 +1147,7 @@ Type const *TS_enumSpec::itcheck(Env &env)
     env.addEnum(et);
 
     // make the implicit typedef
-    Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+    Variable *tv = new Variable(loc, name->getName(), ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
     et->typedefVar = tv;
     if (!env.addVariable(tv)) {
       // this isn't really an error, because in C it would have
