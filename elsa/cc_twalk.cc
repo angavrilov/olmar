@@ -150,6 +150,10 @@ string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
     s << var->type->asFunctionTypeC().retType->toString() << " ()";
   }
 
+  else if (var && var->name && 0==strcmp(var->name, "constructor-special")) {
+    s << var->type->toCString(var->scope->curCompound->name);
+  }
+
   else {
     s << toString( (DeclFlags) (var->flags & DF_SOURCEFLAGS) );
     s << " ";

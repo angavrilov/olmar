@@ -75,6 +75,7 @@ for my $name(@names) {
     }
 
     my $diff_command = "diff -u $name.out $name.out2 > $name.diff";
+    $outfile2command{"$name.diff"} = $diff_command;
     push @outfiles, "$name.diff";
 #    print "$diff_command\n";
     my $diff_res = system $diff_command;
