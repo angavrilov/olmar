@@ -17,3 +17,7 @@ mysig
 Makefile.base.mk
 testmalloc
 strutil
+*.csm
+*.DSW
+*.~DE
+*.LIB

@@ -216,5 +216,12 @@ public:
 #define stringc stringBuilder()
 
 
+// experimenting with using toString as a general method for datatypes
+string toString(int i);
+string toString(unsigned i);
+string toString(char c);
+string toString(long i);
+
+
 #endif // __STR_H
 

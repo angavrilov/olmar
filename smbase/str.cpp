@@ -320,6 +320,21 @@ void stringBuilder::readdelim(istream &is, char const *delim)
 }
 
 
+// ---------------------- toString ---------------------
+#define TOSTRING(type)        \
+  string toString(type val)   \
+  {                           \
+    return stringc << val;    \
+  }
+
+TOSTRING(int)
+TOSTRING(unsigned)
+TOSTRING(char)
+TOSTRING(long)
+
+#undef TOSTRING
+
+
 // ------------------ test code --------------------
 #ifdef TEST_STR
 

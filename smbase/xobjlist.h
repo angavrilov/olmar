@@ -225,7 +225,7 @@ outputCond(, [[[m4_dnl    // sobjlist
 
 ]]])m4_dnl
   // debugging
-  void selfCheck() const                { return mut.selfCheck(); }
+  void selfCheck() const                { mut.selfCheck(); }
 };
 
 #define makeName(MUTATE_EACH_OBJLIST)(T, list, iter) \

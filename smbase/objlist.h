@@ -176,7 +176,7 @@ public:
     // same as remove(), except item is deleted also
 
   // debugging
-  void selfCheck() const                { return mut.selfCheck(); }
+  void selfCheck() const                { mut.selfCheck(); }
 };
 
 #define MUTATE_EACH_OBJLIST(T, list, iter) \

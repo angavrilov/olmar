@@ -163,7 +163,7 @@ public:
     // next becomes the new 'current'
 
   // debugging
-  void selfCheck() const                { return mut.selfCheck(); }
+  void selfCheck() const                { mut.selfCheck(); }
 };
 
 #define SMUTATE_EACH_OBJLIST(T, list, iter) \
