@@ -83,6 +83,12 @@ end
 (* --------------------- main -------------------- *)
 let main() : unit =
 begin
+  (* random tests *)
+  (if false then (
+    (Printf.printf "Sys.max_array_length: %d\n" Sys.max_array_length);
+    (Printf.printf "Sys.max_string_length: %d\n" Sys.max_string_length);
+  ));
+
   (* defaults *)
   let useGLR: bool ref = ref true in
   let useArith: bool ref = ref true in

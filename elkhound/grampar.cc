@@ -17,7 +17,7 @@
 #include <fstream.h>         // ifstream
 #include <ctype.h>           // isspace, isalnum
 
-#define LIT_STR(s) LITERAL_LOCSTRING(grammarStringTable.add(s))
+#define LIT_STR(s) LocString(SL_INIT, grammarStringTable.add(s))
 
 
 // ------------------------- Environment ------------------------
@@ -482,6 +482,42 @@ void astParseDDM(Environment &env, Symbol *sym,
     else {
       astParseError(func.name,
         stringc << "unrecognized spec function \"" << func.name << "\"");
+    }
+  }
+}
+
+
+void addDefaultTypesActions(Grammar &g, GrammarAST *ast)
+{
+  // language defaults
+  StringRef defaultType, defaultAction;
+  if (g.targetLang.equals("OCaml")) {
+    defaultType = grammarStringTable.add("unit");
+    defaultAction = grammarStringTable.add("()");
+  }
+  else /*C*/ {
+    defaultType = grammarStringTable.add("void");
+    defaultAction = grammarStringTable.add("return;");
+  }
+
+  // iterate over nonterminals
+  FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
+    if (!iter.data()->isTF_nonterm()) { continue; }
+    TF_nonterm *nt = iter.data()->asTF_nonterm();
+
+    // default type
+    if (nt->type.isNull()) {
+      nt->type.str = defaultType;
+    }
+
+    // iterate over productions
+    FOREACH_ASTLIST_NC(ProdDecl, nt->productions, iter2) {
+      ProdDecl *pd = iter2.data();
+       
+      // default action
+      if (pd->actionCode.isNull()) {
+        pd->actionCode.str = defaultAction;
+      }                
     }
   }
 }
@@ -1032,6 +1068,9 @@ void parseGrammarAST(Grammar &g, GrammarAST *treeTop)
   // look at TF_options before synthesizing start rule,
   // so we can know what language is the target
   astParseOptions(g, treeTop);
+
+  // fill in default types and actions
+  addDefaultTypesActions(g, treeTop);
 
   // synthesize a rule "TrueStart -> Start EOF"
   synthesizeStartRule(g, treeTop);

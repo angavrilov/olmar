@@ -66,6 +66,10 @@
 #define noloc(str)                                                    \
   new LocString(SL_UNKNOWN,      /* unknown location */               \
                 PARAM->lexer.strtable.add(str))
+                
+// locstring for NULL, with no location
+#define nolocNULL()                                                   \
+  new LocString(SL_UNKNOWN, NULL)
 
 // return a locstring with same location info as something else
 // (passed as a pointer to a SourceLocation)
@@ -76,7 +80,7 @@
 AssocKind whichKind(LocString * /*owner*/ kind);
 
 
-#line 98 "grampar.y"
+#line 102 "grampar.y"
 #ifndef YYSTYPE
 typedef union YYSTYPE {
   int num;
@@ -186,12 +190,12 @@ static const short yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined. */
 static const short yyrline[] =
 {
-       0,   154,   159,   160,   164,   165,   166,   167,   168,   172,
-     177,   178,   183,   184,   195,   200,   201,   209,   211,   216,
-     217,   221,   222,   226,   228,   233,   234,   238,   240,   245,
-     246,   250,   251,   257,   258,   262,   267,   268,   272,   273,
-     284,   287,   292,   293,   297,   301,   302,   306,   307,   316,
-     318,   320,   322,   324,   329,   330
+       0,   158,   163,   164,   168,   169,   170,   171,   172,   176,
+     181,   182,   187,   188,   199,   204,   205,   213,   215,   220,
+     221,   225,   226,   230,   232,   237,   238,   242,   244,   249,
+     250,   254,   255,   261,   262,   266,   271,   272,   276,   277,
+     288,   291,   296,   297,   301,   305,   306,   310,   311,   320,
+     322,   324,   326,   328,   333,   334
 };
 #endif
 
@@ -1019,224 +1023,224 @@ yyreduce:
   switch (yyn) {
 
 case 1:
-#line 155 "grampar.y"
+#line 159 "grampar.y"
 { ((ParseParams*)parseParam)->treeTop = new GrammarAST(yyvsp[0].topFormList); yyval.num=0; ;
     break;}
 case 2:
-#line 159 "grampar.y"
+#line 163 "grampar.y"
 { yyval.topFormList = new ASTList<TopForm>; ;
     break;}
 case 3:
-#line 160 "grampar.y"
+#line 164 "grampar.y"
 { (yyval.topFormList=yyvsp[-1].topFormList)->append(yyvsp[0].topForm); ;
     break;}
 case 4:
-#line 164 "grampar.y"
-{ yyval.topForm = yyvsp[0].topForm; ;
-    break;}
-case 5:
-#line 165 "grampar.y"
-{ yyval.topForm = yyvsp[0].topForm; ;
-    break;}
-case 6:
-#line 166 "grampar.y"
-{ yyval.topForm = yyvsp[0].topForm; ;
-    break;}
-case 7:
-#line 167 "grampar.y"
-{ yyval.topForm = yyvsp[0].topForm; ;
-    break;}
-case 8:
 #line 168 "grampar.y"
 { yyval.topForm = yyvsp[0].topForm; ;
     break;}
+case 5:
+#line 169 "grampar.y"
+{ yyval.topForm = yyvsp[0].topForm; ;
+    break;}
+case 6:
+#line 170 "grampar.y"
+{ yyval.topForm = yyvsp[0].topForm; ;
+    break;}
+case 7:
+#line 171 "grampar.y"
+{ yyval.topForm = yyvsp[0].topForm; ;
+    break;}
+case 8:
+#line 172 "grampar.y"
+{ yyval.topForm = yyvsp[0].topForm; ;
+    break;}
 case 9:
-#line 173 "grampar.y"
+#line 177 "grampar.y"
 { yyval.topForm = new TF_context(yyvsp[-1].str); ;
     break;}
 case 10:
-#line 177 "grampar.y"
+#line 181 "grampar.y"
 { yyval.topForm = new TF_verbatim(false, yyvsp[0].str); ;
     break;}
 case 11:
-#line 178 "grampar.y"
+#line 182 "grampar.y"
 { yyval.topForm = new TF_verbatim(true, yyvsp[0].str); ;
     break;}
 case 12:
-#line 183 "grampar.y"
+#line 187 "grampar.y"
 { yyval.topForm = new TF_option(yyvsp[-1].str, 1); ;
     break;}
 case 13:
-#line 184 "grampar.y"
+#line 188 "grampar.y"
 { yyval.topForm = new TF_option(yyvsp[-2].str, yyvsp[-1].num); ;
     break;}
 case 14:
-#line 196 "grampar.y"
+#line 200 "grampar.y"
 { yyval.topForm = new TF_terminals(yyvsp[-3].termDecls, yyvsp[-2].termTypes, yyvsp[-1].precSpecs); ;
     break;}
 case 15:
-#line 200 "grampar.y"
+#line 204 "grampar.y"
 { yyval.termDecls = new ASTList<TermDecl>; ;
     break;}
 case 16:
-#line 201 "grampar.y"
+#line 205 "grampar.y"
 { (yyval.termDecls=yyvsp[-1].termDecls)->append(yyvsp[0].termDecl); ;
     break;}
 case 17:
-#line 210 "grampar.y"
+#line 214 "grampar.y"
 { yyval.termDecl = new TermDecl(yyvsp[-3].num, yyvsp[-1].str, sameloc(yyvsp[-1].str, "")); ;
     break;}
 case 18:
-#line 212 "grampar.y"
+#line 216 "grampar.y"
 { yyval.termDecl = new TermDecl(yyvsp[-4].num, yyvsp[-2].str, yyvsp[-1].str); ;
     break;}
 case 19:
-#line 216 "grampar.y"
+#line 220 "grampar.y"
 { yyval.str = yyvsp[0].str; ;
     break;}
 case 20:
-#line 217 "grampar.y"
-{ yyval.str = noloc("void"); ;
+#line 221 "grampar.y"
+{ yyval.str = nolocNULL(); ;
     break;}
 case 21:
-#line 221 "grampar.y"
+#line 225 "grampar.y"
 { yyval.termTypes = new ASTList<TermType>; ;
     break;}
 case 22:
-#line 222 "grampar.y"
+#line 226 "grampar.y"
 { (yyval.termTypes=yyvsp[-1].termTypes)->append(yyvsp[0].termType); ;
     break;}
 case 23:
-#line 227 "grampar.y"
+#line 231 "grampar.y"
 { yyval.termType = new TermType(yyvsp[-1].str, yyvsp[-2].str, new ASTList<SpecFunc>); ;
     break;}
 case 24:
-#line 229 "grampar.y"
+#line 233 "grampar.y"
 { yyval.termType = new TermType(yyvsp[-3].str, yyvsp[-4].str, yyvsp[-1].specFuncs); ;
     break;}
 case 25:
-#line 233 "grampar.y"
+#line 237 "grampar.y"
 { yyval.precSpecs = new ASTList<PrecSpec>; ;
     break;}
 case 26:
-#line 234 "grampar.y"
+#line 238 "grampar.y"
 { yyval.precSpecs = yyvsp[-1].precSpecs; ;
     break;}
 case 27:
-#line 239 "grampar.y"
+#line 243 "grampar.y"
 { yyval.precSpecs = new ASTList<PrecSpec>; ;
     break;}
 case 28:
-#line 241 "grampar.y"
+#line 245 "grampar.y"
 { (yyval.precSpecs=yyvsp[-4].precSpecs)->append(new PrecSpec(whichKind(yyvsp[-3].str), yyvsp[-2].num, yyvsp[-1].stringList)); ;
     break;}
 case 29:
-#line 245 "grampar.y"
+#line 249 "grampar.y"
 { yyval.stringList = new ASTList<LocString>; ;
     break;}
 case 30:
-#line 246 "grampar.y"
+#line 250 "grampar.y"
 { (yyval.stringList=yyvsp[-1].stringList)->append(yyvsp[0].str); ;
     break;}
 case 31:
-#line 250 "grampar.y"
+#line 254 "grampar.y"
 { yyval.str = yyvsp[0].str; ;
     break;}
 case 32:
-#line 251 "grampar.y"
+#line 255 "grampar.y"
 { yyval.str = yyvsp[0].str; ;
     break;}
 case 33:
-#line 257 "grampar.y"
+#line 261 "grampar.y"
 { yyval.specFuncs = new ASTList<SpecFunc>; ;
     break;}
 case 34:
-#line 258 "grampar.y"
+#line 262 "grampar.y"
 { (yyval.specFuncs=yyvsp[-1].specFuncs)->append(yyvsp[0].specFunc); ;
     break;}
 case 35:
-#line 263 "grampar.y"
+#line 267 "grampar.y"
 { yyval.specFunc = new SpecFunc(yyvsp[-4].str, yyvsp[-2].stringList, yyvsp[0].str); ;
     break;}
 case 36:
-#line 267 "grampar.y"
+#line 271 "grampar.y"
 { yyval.stringList = new ASTList<LocString>; ;
     break;}
 case 37:
-#line 268 "grampar.y"
+#line 272 "grampar.y"
 { yyval.stringList = yyvsp[0].stringList; ;
     break;}
 case 38:
-#line 272 "grampar.y"
+#line 276 "grampar.y"
 { yyval.stringList = new ASTList<LocString>(yyvsp[0].str); ;
     break;}
 case 39:
-#line 273 "grampar.y"
+#line 277 "grampar.y"
 { (yyval.stringList=yyvsp[-2].stringList)->append(yyvsp[0].str); ;
     break;}
 case 40:
-#line 285 "grampar.y"
+#line 289 "grampar.y"
 { yyval.topForm = new TF_nonterm(yyvsp[-1].str, yyvsp[-2].str, new ASTList<SpecFunc>,
                                      new ASTList<ProdDecl>(yyvsp[0].prodDecl), NULL); ;
     break;}
 case 41:
-#line 288 "grampar.y"
+#line 292 "grampar.y"
 { yyval.topForm = new TF_nonterm(yyvsp[-5].str, yyvsp[-6].str, yyvsp[-3].specFuncs, yyvsp[-2].prodDecls, yyvsp[-1].stringList); ;
     break;}
 case 42:
-#line 292 "grampar.y"
+#line 296 "grampar.y"
 { yyval.prodDecls = new ASTList<ProdDecl>; ;
     break;}
 case 43:
-#line 293 "grampar.y"
+#line 297 "grampar.y"
 { (yyval.prodDecls=yyvsp[-1].prodDecls)->append(yyvsp[0].prodDecl); ;
     break;}
 case 44:
-#line 297 "grampar.y"
+#line 301 "grampar.y"
 { yyval.prodDecl = new ProdDecl(yyvsp[-1].rhsList, yyvsp[0].str); ;
     break;}
 case 45:
-#line 301 "grampar.y"
+#line 305 "grampar.y"
 { yyval.str = yyvsp[0].str; ;
     break;}
 case 46:
-#line 302 "grampar.y"
-{ yyval.str = noloc("return;"); ;
+#line 306 "grampar.y"
+{ yyval.str = nolocNULL(); ;
     break;}
 case 47:
-#line 306 "grampar.y"
+#line 310 "grampar.y"
 { yyval.rhsList = new ASTList<RHSElt>; ;
     break;}
 case 48:
-#line 307 "grampar.y"
+#line 311 "grampar.y"
 { (yyval.rhsList=yyvsp[-1].rhsList)->append(yyvsp[0].rhsElt); ;
     break;}
 case 49:
-#line 316 "grampar.y"
+#line 320 "grampar.y"
 { yyval.rhsElt = new RH_name(sameloc(yyvsp[0].str, ""), yyvsp[0].str); ;
     break;}
 case 50:
-#line 318 "grampar.y"
+#line 322 "grampar.y"
 { yyval.rhsElt = new RH_name(yyvsp[-2].str, yyvsp[0].str); ;
     break;}
 case 51:
-#line 320 "grampar.y"
+#line 324 "grampar.y"
 { yyval.rhsElt = new RH_string(sameloc(yyvsp[0].str, ""), yyvsp[0].str); ;
     break;}
 case 52:
-#line 322 "grampar.y"
+#line 326 "grampar.y"
 { yyval.rhsElt = new RH_string(yyvsp[-2].str, yyvsp[0].str); ;
     break;}
 case 53:
-#line 325 "grampar.y"
+#line 329 "grampar.y"
 { yyval.rhsElt = new RH_prec(yyvsp[-1].str); ;
     break;}
 case 54:
-#line 329 "grampar.y"
+#line 333 "grampar.y"
 { yyval.stringList = NULL; ;
     break;}
 case 55:
-#line 330 "grampar.y"
+#line 334 "grampar.y"
 { yyval.stringList = yyvsp[-1].stringList; ;
     break;}
 }
@@ -1472,7 +1476,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 334 "grampar.y"
+#line 338 "grampar.y"
 
 /* ------------------ extra C code ------------------ */
 AssocKind whichKind(LocString * /*owner*/ kind)

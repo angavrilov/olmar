@@ -41,6 +41,10 @@
 #define noloc(str)                                                    \
   new LocString(SL_UNKNOWN,      /* unknown location */               \
                 PARAM->lexer.strtable.add(str))
+                
+// locstring for NULL, with no location
+#define nolocNULL()                                                   \
+  new LocString(SL_UNKNOWN, NULL)
 
 // return a locstring with same location info as something else
 // (passed as a pointer to a SourceLocation)
@@ -214,7 +218,7 @@ TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
 
 /* yields: LocString */
 Type: TOK_LIT_CODE                    { $$ = $1; }
-    | /* empty */                     { $$ = noloc("void"); }
+    | /* empty */                     { $$ = nolocNULL(); }
     ;
 
 /* yields: ASTList<TermType> */
@@ -299,7 +303,7 @@ Production: "->" RHS Action                { $$ = new ProdDecl($2, $3); }
 
 /* yields: LocString */
 Action: TOK_LIT_CODE                       { $$ = $1; }
-      | ";"                                { $$ = noloc("return;"); }
+      | ";"                                { $$ = nolocNULL(); }
       ;
 
 /* yields: ASTList<RHSElt> */
