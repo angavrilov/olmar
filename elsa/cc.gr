@@ -1365,7 +1365,6 @@ nonterm(Initializer*) InitializerClause {
     { init->designator_list = dl; return init; }
 }
 
-// C99 standard p.125
 nonterm(FakeList<Designator>*) DesignatorList {
   -> d:Designator
     { return FakeList<Designator>::makeList(d); }
@@ -1374,7 +1373,6 @@ nonterm(FakeList<Designator>*) DesignatorList {
     return FakeList<Designator>::makeList(d); }
 }
 
-// C99 standard p.125
 nonterm(Designator*) Designator {
   -> "." id:Identifier
     { return new FieldDesignator(id); }
@@ -1394,12 +1392,6 @@ nonterm(IN_compound*) CompoundInitializer {
   -> "{" "}"  { return new IN_compound(NULL); }
 }
 
-// useful syntactic quirk
-nonterm CommaOpt {
-  -> empty ;
-  -> "," ;
-}
-
 nonterm(IN_compound*) InitializerList {
   fun dup(i) { return NULL; }     // prevent multi-yield
 
@@ -1411,6 +1403,12 @@ nonterm(IN_compound*) InitializerList {
   // destructive action on 'list'
   -> list:InitializerList "," init:InitializerClause
        { list->inits.append(init); return list; }
+}
+
+// useful syntactic quirk
+nonterm CommaOpt {
+  -> empty ;
+  -> "," ;
 }
 
 
