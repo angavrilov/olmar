@@ -19,3 +19,6 @@ c.bin
 cparse
 ccparse_twalk.cc
 hide*
+
+# This is the interface between parsgen/cc and cqual
+cc_qual
