@@ -233,8 +233,6 @@ protected:
   friend class TypeFactory_Q;
   ArrayType_Q(Type_Q *elt, int sz)
     : Type_Q(this), ArrayType(elt->type(), sz) {}
-  ArrayType_Q(Type_Q *elt)
-    : Type_Q(this), ArrayType(elt->type()) {}
 
 public:
   ArrayType *type() { return this; }
@@ -242,7 +240,7 @@ public:
 
   // access to ArrayType members
   Type_Q *eltType() { return asType_Q(ArrayType::eltType); }
-  bool hasSize() { return ArrayType::hasSize; }
+  bool hasSize() { return ArrayType::hasSize(); }
   int size() { return ArrayType::size; }
 
   // Type_Q funcs
@@ -273,7 +271,7 @@ public:    // funcs
   virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
   virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
   virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
-  virtual ArrayType *makeArrayType(Type *eltType, int size);
+  virtual ArrayType *makeArrayType(Type *eltType, int size = ArrayType::NO_SIZE);
 
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
   virtual PointerType *clonePointerType(PointerType *src);

@@ -969,11 +969,11 @@ void ArrayType::checkWellFormedness() const
 bool ArrayType::innerEquals(ArrayType const *obj) const
 {
   if (!( eltType->equals(obj->eltType) &&
-         hasSize == obj->hasSize )) {
+         hasSize() == obj->hasSize() )) {
     return false;
   }
 
-  if (hasSize) {
+  if (hasSize()) {
     return size == obj->size;
   }
   else {
@@ -991,7 +991,7 @@ string ArrayType::rightString(bool /*innerParen*/) const
 {
   stringBuilder sb;
 
-  if (hasSize) {
+  if (hasSize()) {
     sb << "[" << size << "]";
   }
   else {
@@ -1006,7 +1006,7 @@ string ArrayType::rightString(bool /*innerParen*/) const
 
 int ArrayType::reprSize() const
 {
-  if (hasSize) {
+  if (hasSize()) {
     return eltType->reprSize() * size;
   }
   else {
@@ -1210,16 +1210,9 @@ FunctionType *BasicTypeFactory::makeFunctionType(Type *retType, CVFlags cv)
 
 
 ArrayType *BasicTypeFactory::makeArrayType(Type *eltType, int size)
-{                                     
-  if (size == -1) {
-    // unspecified size
-    return new ArrayType(eltType);
-  }
-  else {
-    return new ArrayType(eltType, size);
-  }
+{
+  return new ArrayType(eltType, size);
 }
-
 
 
 Type *BasicTypeFactory::makeRefType(Type *underlying)

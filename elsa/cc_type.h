@@ -461,23 +461,25 @@ public:
 
 // type of an array
 class ArrayType : public Type {
-public:
-  Type *eltType;               // (serf) type of the elements
-  bool hasSize;                // true if a size is specified
-  int size;                    // specified size, if 'hasSize'
+public:       // types
+  enum { NO_SIZE = -1 };
 
-private:
+public:       // data
+  Type *eltType;               // (serf) type of the elements
+  int size;                    // specified size, or NO_SIZE
+
+private:      // funcs
   void checkWellFormedness() const;
 
 protected:
   friend class BasicTypeFactory;
-  ArrayType(Type *e, int s)
-    : eltType(e), hasSize(true), size(s) { checkWellFormedness(); }
-  ArrayType(Type *e)
-    : eltType(e), hasSize(false), size(-1) { checkWellFormedness(); }
+  ArrayType(Type *e, int s = NO_SIZE)
+    : eltType(e), size(s) { checkWellFormedness(); }
 
 public:
   bool innerEquals(ArrayType const *obj) const;
+
+  bool hasSize() const { return size != NO_SIZE; }
 
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
@@ -568,7 +570,7 @@ public:
   virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)=0;
   virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType)=0;
   virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv)=0;
-  virtual ArrayType *makeArrayType(Type *eltType, int size = -1)=0;
+  virtual ArrayType *makeArrayType(Type *eltType, int size = ArrayType::NO_SIZE)=0;
 
   // ---- clone types ----
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src)=0;
@@ -665,7 +667,7 @@ public:    // funcs
   virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
   virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
   virtual ArrayType *makeArrayType(Type *eltType, int size);
-  
+
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
   virtual PointerType *clonePointerType(PointerType *src);
   virtual FunctionType *cloneFunctionType(FunctionType *src);
