@@ -59,6 +59,7 @@ public:
   void *removeLast();
   void *removeAt(int index);
   void removeAll();
+  VoidList::removeItem;
 
   // list-as-set: selectors
   VoidList::indexOf;

@@ -58,6 +58,7 @@ public:
   T *removeFirst()                      { return (T*)list.removeFirst(); }
   T *removeLast()                       { return (T*)list.removeLast(); }
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
+  void removeItem(T *item)              { list.removeItem((void*)item); }
   
   // this one is awkwardly named to remind the user that it's
   // contrary to the usual intent of this class
@@ -69,7 +70,7 @@ public:
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
-  int indexOfF(void *item) const        { return list.indexOfF((void*)item); }
+  int indexOfF(T const *item) const     { return list.indexOfF((void*)item); }
   bool contains(T const *item) const    { return list.contains((void*)item); }
 
   // list-as-set: mutators

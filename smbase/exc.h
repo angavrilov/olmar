@@ -72,7 +72,7 @@ public:
 };
 
 // equivalent to THROW(xBase(msg))
-void xbase(char const *msg);
+void xbase(char const *msg) NORETURN;
 
 
 // -------------------- x_assert -----------------------
