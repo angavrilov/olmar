@@ -1147,8 +1147,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   tcheckIntoCompound(env, dflags, ct, inTemplate,
                      true /*reallyTcheckFunctionBodies*/,
-                     NULL /*instCtxt*/,
-                     NULL /*foundScope*/,
                      containingClass);
 //    env.deMutantify(ct);             // we now just avoid them during specialization resolution
   
@@ -1170,8 +1168,6 @@ void TS_classSpec::tcheckIntoCompound(
   CompoundType *ct,              // compound into which we're putting declarations
   bool inTemplate,               // true if this is a template class (uninstantiated)
   bool reallyTcheckFunctionBodies, // in second pass really tcheck or just save the context
-  InstContext *instCtxt,         // the context in which this template was instantiated
-  Scope *foundScope,             // the foundScope from instantiateTemplate(), if any
   CompoundType *containingClass) // if non-NULL, ct is an inner class
 {
   // should have set the annotation by now
@@ -1306,7 +1302,7 @@ void TS_classSpec::tcheckIntoCompound(
   // second pass: check function bodies
   bool innerClass = !!containingClass;
   if (!innerClass) {
-    tcheckFunctionBodies(env, reallyTcheckFunctionBodies, foundScope, instCtxt);
+    tcheckFunctionBodies(env, reallyTcheckFunctionBodies);
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -1327,7 +1323,7 @@ void TS_classSpec::tcheckIntoCompound(
 
 // this is pass 2 of tchecking a class
 void TS_classSpec::tcheckFunctionBodies
-  (Env &env, bool reallyTcheckFunctionBodies, Scope *foundScope, InstContext *instCtxt)
+  (Env &env, bool reallyTcheckFunctionBodies)
 {
   CompoundType *ct = env.scope()->curCompound;
   xassert(ct);
@@ -1345,10 +1341,18 @@ void TS_classSpec::tcheckFunctionBodies
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
       if (reallyTcheckFunctionBodies) {
+        // check it now
         f->tcheck(env,
                   true /*checkBody*/,
                   NULL /*prior*/);
-      } else {
+
+        // remove DF_INLINE_DEFN so if I clone this later I can play the
+        // same trick again (TODO: what if we decide to clone while down
+        // in 'f->tcheck'?)
+        f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
+      }
+      else {
+        // check it later
         Variable *fvar = f->nameAndParams->var;
         xassert(fvar);
         if (fvar->funcDefn) {
@@ -1359,21 +1363,7 @@ void TS_classSpec::tcheckFunctionBodies
           // function body from the variable and instantiate it
           fvar->funcDefn = f;
         }
-      }
-
-      // preserve the instantiation context
-      xassert(!reallyTcheckFunctionBodies == !!instCtxt);
-      f->nameAndParams->var->setInstCtxts(instCtxt);
-
-      if (instCtxt) {
-        // leave DF_INLINE_DEFN because we've delayed actually
-        // tchecking 'f'
-      }
-      else {
-        // remove DF_INLINE_DEFN so if I clone this later I can play the
-        // same trick again (TODO: what if we decide to clone while down
-        // in 'f->tcheck'?)
-        f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
+        fvar->setFlag(DF_DELAYED_INST);
       }
     }
     else if (iter.data()->isMR_decl()) {
@@ -1417,7 +1407,7 @@ void TS_classSpec::tcheckFunctionBodies
 
     // check its function bodies (it's somewhat of a hack to
     // resort to inner's 'syntax' poiner)
-    inner->syntax->tcheckFunctionBodies(env, reallyTcheckFunctionBodies, foundScope, instCtxt);
+    inner->syntax->tcheckFunctionBodies(env, reallyTcheckFunctionBodies);
 
     // retract the inner scope
     env.retractScope(inner);

@@ -644,6 +644,8 @@ public:      // template funcs
   // primary by delegating to one of the two above
   void insertBindings
     (Variable *baseV, SObjList<STemplateArgument> &sargs);
+  void insertBindings      // a variant for an ObjList ...
+    (Variable *baseV, ObjList<STemplateArgument> &sargs);
 
   void templArgsASTtoSTA
     (ASTList<TemplateArgument> const &arguments,
@@ -847,31 +849,6 @@ class TemplCandidates {
   static int compareCandidatesStatic
     (TypeFactory &tfac, TemplateInfo const *lti, TemplateInfo const *rti);
   int compareCandidates(Variable const *left, Variable const *right);
-};
-
-
-// preserve a template instantiation context
-struct InstContext {
-  // the template (primary or partial specialization) that is being
-  // instantiated
-  Variable *baseV;
-  
-  // the particular instantiation of 'baseV'
-  Variable *instV;
-  
-  // the scope in which 'baseV' was found by lookup
-  Scope *foundScope;
-
-  // the template arguments being supplied to 'baseV' to create 'instV'
-  SObjList<STemplateArgument> *sargs;
-
-  InstContext
-    (Variable *baseV,
-     Variable *instV,
-     Scope *foundScope,
-     SObjList<STemplateArgument> &sargs);
-  // FIX: creates garbage when deleted; I don't want any dangling
-  // pointer bugs for now
 };
 
 

@@ -146,7 +146,7 @@ failTest() {
     if "$@"; then
       unexSuccess=`expr $unexSuccess + 1`
       echo ""
-      log  "[$curtest] A regression test that used to fail ($reason) now succeeds:"
+      log  "[$curtest] GOOD NEWS: A regression test that used to fail ($reason) now succeeds:"
       log  "  $*"
       if [ $contin = 0 ]; then
         exit 2

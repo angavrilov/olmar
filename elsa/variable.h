@@ -46,7 +46,6 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 class TemplateInfo;            // cc_type.h
-class InstContext;             // variable.h
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -77,10 +76,6 @@ public:    // data
   // associated function definition; if NULL, either this thing isn't
   // a function or we never saw a definition
   Function *funcDefn;     // (nullable serf)
-
-  // the template-related context of the instantiation of this
-  // variable
-  InstContext *instCtxt;
 
   // if this name has been overloaded, then this will be a pointer
   // to the set of overloaded names; otherwise it's NULL
@@ -156,9 +151,6 @@ public:
   // variable's type.. same as the public 'type' field..
   Type *getType() { return type; }
   Type const *getTypeC() const { return type; }
-
-  // instantiation and typechecking contexts
-  void setInstCtxts(InstContext *instCtxt);
 
   // create an overload set if it doesn't exist, and return it
   OverloadSet *getOverloadSet();

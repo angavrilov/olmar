@@ -44,6 +44,15 @@ nonterm(Expression*) PrimaryExpression {
 }
 
 
+nonterm(StringRef) PreprocString {
+  // slightly subtle: ordinary strings are yielded *with quotes*,
+  // whereas these special guys are not quoted; also note that
+  // yielding of these token codes depends on lang.gccFuncBehavior
+  -> TOK___FUNCTION__                       { return str("__FUNCTION__"); }
+  -> TOK___PRETTY_FUNCTION__                { return str("__PRETTY_FUNCTION__"); }
+}
+
+
 nonterm(Expression*) UnaryExpression {
   // GNU extension; dsw: Since the argument is an expression, I know
   // of no way to handle this other than putting it into the grammar

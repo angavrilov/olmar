@@ -172,14 +172,10 @@ class TypeSpecifier {
          Env &env, DeclFlags dflags, CompoundType *ct,
          bool inTemplate,
          bool reallyTcheckFunctionBodies,
-         InstContext *instCtxt,
-         Scope *foundScope,
          CompoundType *containingClass);
        private void tcheckFunctionBodies
          (Env &env,
-          bool reallyTcheckFunctionBodies,
-          Scope *foundScope,
-          InstContext *instCtxt);
+          bool reallyTcheckFunctionBodies);
      }
 
   -> TS_enumSpec {

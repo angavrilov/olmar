@@ -28,8 +28,8 @@ class TranslationUnit;
 // control flow graph when asked; See the comment at the top of
 // Statement::getSuccessors() in cfg.cc.  For example, an 'if'
 // statement (S_if) never has an edge added to the start of its 'else'
-// block because the fact that the 'else' follows the 'if' is inherent
-// in the meaning of the AST.
+// block because the fact that the 'else' (sometimes) follows the 'if'
+// is inherent in the meaning of the AST.
 
 // a 'next' pointer in the CFG, i.e. a pointer to a Statement
 class NextPtr {

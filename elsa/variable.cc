@@ -65,7 +65,6 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     value(NULL),
     defaultParamType(NULL),
     funcDefn(NULL),
-    instCtxt(NULL),
     overload(NULL),
     usingAlias(NULL),
     access(AK_PUBLIC),
@@ -235,21 +234,6 @@ string Variable::fullyQualifiedName() const
 string Variable::namePrintSuffix() const
 {
   return "";
-}
-
-
-void Variable::setInstCtxts(InstContext *instCtxt0)
-{
-  xassert(getType()->isFunctionType());
-
-  xassert(!instCtxt);
-  instCtxt = instCtxt0;
-
-  #warning still todo: remove instCtxt
-
-  if (instCtxt0) {
-    setFlag(DF_DELAYED_INST);
-  }
 }
 
 

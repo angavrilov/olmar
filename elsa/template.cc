@@ -167,20 +167,7 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 
   return compareCandidatesStatic(tfac, lti, rti);
 }
-
-// --------------------- InstContext -----------------
-
-InstContext::InstContext
-  (Variable *baseV0,
-   Variable *instV0,
-   Scope *foundScope0,
-   SObjList<STemplateArgument> &sargs0)
-    : baseV(baseV0)
-    , instV(instV0)
-    , foundScope(foundScope0)
-    , sargs(cloneSArgs(sargs0))
-{}
-
+     
 
 // ----------------------- Env ----------------------------
 
@@ -620,7 +607,7 @@ void Env::insertBindingsForPrimary
   SObjListIterNC<STemplateArgument> argIter(sargs);
   while (!paramIter.isDone()) {
     Variable const *param = paramIter.data();
-    
+
     // if we have exhaused the explicit arguments, use a NULL 'sarg'
     // to indicate that we need to use the default arguments from
     // 'param' (if available)
@@ -818,6 +805,12 @@ void Env::insertBindings(Variable *baseV, SObjList<STemplateArgument> &sargs)
   Scope *s = scope();
   xassert(s->scopeKind == SK_TEMPLATE);
   s->canAcceptNames = false;
+}
+
+void Env::insertBindings(Variable *baseV, ObjList<STemplateArgument> &sargs)
+{
+  // little hack...
+  insertBindings(baseV, reinterpret_cast< SObjList<STemplateArgument>& >(sargs));
 }
 
 
@@ -1458,7 +1451,6 @@ Variable *Env::instantiateTemplate
         copyCpd->ctype = instV->type->asCompoundType();
         // preserve the baseV and sargs so that when the member
         // function bodies are typechecked later we have them
-        InstContext *instCtxt = new InstContext(baseV, instV, foundScope, sargs);
         copyCpd->tcheckIntoCompound
           (*this,
            DF_NONE,
@@ -1470,8 +1462,6 @@ Variable *Env::instantiateTemplate
            // specialization, then the tcheck will be done later, say,
            // when the function is used
            sTemplArgsContainVars /*reallyTcheckFunctionBodies*/,
-           instCtxt,
-           foundScope,
            NULL /*containingClass*/);
         // this is turned off because it doesn't work: somewhere the
         // mutants are actually needed; Instead we just avoid them
@@ -1513,7 +1503,7 @@ Variable *Env::instantiateTemplate
              // a function template, we don't want it instantiated
              LF_TEMPL_PRIMARY);
           xassert(funcDefnInstV);
-          xassert(strcmp(funcDefnInstV->name, decltor->var->name)==0);
+          xassert(funcDefnInstV->name == decltor->var->name);
           if (funcDefnInstV->templateInfo()) {
             // FIX: I don't know what to do with function template
             // members of class templates just now, but what we do
@@ -1537,14 +1527,12 @@ Variable *Env::instantiateTemplate
           copyFuncDefn->tcheck(*this,
                                false /*checkBody*/,
                                funcDefnInstV /*prior*/);
-          // pase in the definition for later use
+          // paste in the definition for later use
           xassert(!funcDefnInstV->funcDefn);
           funcDefnInstV->funcDefn = copyFuncDefn;
-
-          // preserve the instantiation context
-          xassert(funcDefnInstV = copyFuncDefn->nameAndParams->var);
-          copyFuncDefn->nameAndParams->var->setInstCtxts(instCtxt);
-          xassert(instCtxt);
+          
+          // remember that this was a delayed instantiation
+          copyFuncDefn->nameAndParams->var->setFlag(DF_DELAYED_INST);
         }
       } else {
         xassert(instV->type->isFunctionType());
@@ -1660,14 +1648,8 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
 
   Function *funcDefn0 = v->funcDefn;
 
-  InstContext *instCtxt = v->instCtxt;
-  
-  // need to also correctly determine when 'instCtxt' is non-NULL ...
-  bool hasInstCtxt = v->hasFlag(DF_DELAYED_INST);
-  xassert(!!instCtxt == hasInstCtxt);
-
-  // anything that wasn't part of a template instantiation
-  if (!instCtxt) {
+  // anything that wasn't part of a delayed template instantiation
+  if (!v->hasFlag(DF_DELAYED_INST)) {
     // if this function is defined, it should have been typechecked by now;
     // UPDATE: unless it is defined later in the same class
 //      if (funcDefn0) {
@@ -1675,7 +1657,7 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
 //      }
     return;
   }
-  
+
   // if we are a member of a templatized class and we have not seen
   // the funcDefn, then it must come later, but this is not
   // implemented
@@ -1694,45 +1676,55 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
 
   // ****************
   // attempt to compute the members of instCtxt
+  //
+  // at this point, we're computing them from scratch since instCtxt is gone
+  
+  // instV: The variable whose instantiation gave rise to this
+  // sub-instantiation.  Walk up the parentScope chain until I find
+  // something which has TemplateInfo::instantiatedFrom.
+  Variable *instV;
   {
-    xassert(instCtxt->baseV ==
-            instCtxt->instV->templateInfo()->instantiatedFrom);
-
-    xassert(instCtxt->foundScope == instCtxt->baseV->scope);
-
-    // confirm that instCtxt->sargs and instV->templateInfo()->arguments
-    // are the same
-    SObjListIter<STemplateArgument> iter1(*(instCtxt->sargs));
-    ObjListIter<STemplateArgument> iter2(instCtxt->instV->templateInfo()->arguments);
-    while (!iter1.isDone() && !iter2.isDone()) {
-      xassert(iter1.data()->equals(iter2.data()));
-      iter1.adv();
-      iter2.adv();
+    Scope *s = v->scope;
+    while (s && 
+           !(s->curCompound->typedefVar->templateInfo() &&
+             s->curCompound->typedefVar->templateInfo()->instantiatedFrom)) {
+      s = s->parentScope;
     }
-    xassert(iter1.isDone() == iter2.isDone());
+    instV = s->curCompound->typedefVar;
+    xassert(instV);
   }
+
+  // baseV: The template that has been instantiated to get 'instV'.
+  Variable *baseV = instV->templateInfo()->instantiatedFrom;
+  xassert(baseV);     // the loop above in fact guaranteed this is non-NULL
+
+  // foundScope: The scope in which the declaration of 'baseV' was found.
+  Scope *foundScope = baseV->scope;
+
+  // sargs: The template arguments used to instantiate 'instV'.
+  ObjList<STemplateArgument> &sargs = instV->templateInfo()->arguments;
 
   // ****************
 
   // OK, seems it can be a partial specialization as well
-//    xassert(instCtxt->baseV->templateInfo()->isPrimary());
-  xassert(instCtxt->baseV->templateInfo()->isPrimary() ||
-          instCtxt->baseV->templateInfo()->isPartialSpec());
+//    xassert(baseV->templateInfo()->isPrimary());
+  xassert(baseV->templateInfo()->isPrimary() ||
+          baseV->templateInfo()->isPartialSpec());
   // this should only happen for complete specializations
-  xassert(instCtxt->instV->templateInfo()->isCompleteSpecOrInstantiation());
+  xassert(instV->templateInfo()->isCompleteSpecOrInstantiation());
 
   // set up the scopes the way instantiateTemplate() would
   ObjList<Scope> poppedScopes;
   SObjList<Scope> pushedScopes;
   Scope *argScope = prepArgScopeForTemlCloneTcheck
-    (poppedScopes, pushedScopes, instCtxt->foundScope);
-  insertBindings(instCtxt->baseV, *(instCtxt->sargs));
+    (poppedScopes, pushedScopes, foundScope);
+  insertBindings(baseV, sargs);
 
   // mess with the scopes the way typechecking would between when it
   // leaves instantiateTemplate() and when it arrives at the function
   // tcheck
   xassert(scopes.count() >= 3);
-  xassert(scopes.nth(2) == instCtxt->foundScope);
+  xassert(scopes.nth(2) == foundScope);
   xassert(scopes.nth(1)->scopeKind == SK_EAT_TEMPL_INST);
   xassert(scopes.nth(0)->scopeKind == SK_TEMPLATE);
 
@@ -1741,7 +1733,7 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   // mistake of the current implementation; eventually, we should
   // 'pushDeclarationScopes' regardless of DF_INLINE_DEFN)
   if (funcDefn0->dflags & DF_INLINE_DEFN) {
-    pushDeclarationScopes(v, instCtxt->foundScope);
+    pushDeclarationScopes(v, foundScope);
   }
 
   //xassert(funcDefn0 == tcheckCtxt->func);
@@ -1752,7 +1744,7 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   xassert(v->funcDefn == funcDefn0);
 
   if (funcDefn0->dflags & DF_INLINE_DEFN) {
-    popDeclarationScopes(v, instCtxt->foundScope);
+    popDeclarationScopes(v, foundScope);
   }
 
   if (argScope) {

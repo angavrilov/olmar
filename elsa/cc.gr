@@ -227,15 +227,10 @@ nonterm(Expression*) Literal {
   -> TOK_FALSE            { return new E_boolLit(false); }
 }
 
-// a single quoted sequence of characters
+// a single quoted sequence of characters; this nonterminal exists
+// so that gnu.gr can extend it
 nonterm(StringRef) PreprocString {
   -> s:TOK_STRING_LITERAL                   { return s; }
-
-  // slightly subtle: ordinary strings are yielded *with quotes*,
-  // whereas these special guys are not quoted; also note that
-  // yielding of these token codes depends on lang.gccFuncBehavior
-  -> TOK___FUNCTION__ 	                    { return str("__FUNCTION__"); }
-  -> TOK___PRETTY_FUNCTION__                { return str("__PRETTY_FUNCTION__"); }
 }
 
 // a string literal, with all concatenated parts
