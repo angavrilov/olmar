@@ -39,6 +39,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
     conversionOperatorName(NULL),
     constructorSpecialName(NULL),
     functionOperatorName(NULL),
+    thisName(NULL),
+
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
     special_testOverload(NULL),
@@ -77,6 +79,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   conversionOperatorName = str("conversion-operator");
   constructorSpecialName = str("constructor-special");
   functionOperatorName = str("operator()");
+  thisName = str("this");
 
   dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);

@@ -75,6 +75,8 @@ public:      // data
   StringRef conversionOperatorName;
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
+  StringRef thisName;
+
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
   StringRef special_testOverload;

@@ -395,8 +395,10 @@ int compareStandardConversions
   {
     StandardConversion L = removeLval(left);
     StandardConversion R = removeLval(right);
-    if (isSubsequenceOf(L, R)) return -1;
-    if (isSubsequenceOf(R, L)) return +1;
+    if (L != R) {
+      if (isSubsequenceOf(L, R)) return -1;
+      if (isSubsequenceOf(R, L)) return +1;
+    }
   }
 
   // compare ranks of conversions
@@ -494,12 +496,18 @@ int compareStandardConversions
 
     // if one is a reference and the other is not, I don't see a basis
     // for comparison in cppstd, so I skip the extra reference
+    //
+    // update: 13.3.3.2b.cc suggests that in fact cppstd intends
+    // 'int' and 'int const &' to be indistinguishable, so I *don't*
+    // strip extra references
+    #if 0   // I think this was wrong   
     if (L->isReference() && !R->isReference()) {
       L = L->asRvalC();
     }
     else if (!L->isReference() && R->isReference()) {
       R = R->asRvalC();
     }
+    #endif // 0
 
     // deconstruction loop
     while (!L->isCVAtomicType() && !R->isCVAtomicType()) {

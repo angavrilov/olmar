@@ -1568,7 +1568,7 @@ PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
   CompoundType *classType, CVFlags cv, D_func *syntax)
 {
   CVAtomicType *at = makeCVAtomicType(loc, classType, cv);
-  return makePointerType(loc, PO_POINTER, CV_CONST, at);
+  return makePointerType(loc, PO_REFERENCE, CV_NONE, at);
 }
 
 

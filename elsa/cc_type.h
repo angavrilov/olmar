@@ -822,6 +822,7 @@ public:
     CompoundType *inClass, CVFlags cv, Type *atType, D_ptrToMember *syntax);
 
   // given a class, build the type of the 'this' pointer
+  // 1/19/03: it should be a *reference* type
   virtual PointerType *makeTypeOf_this(SourceLoc loc,
     CompoundType *classType, CVFlags cv, D_func *syntax);
 

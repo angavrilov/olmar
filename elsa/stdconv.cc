@@ -199,7 +199,7 @@ public:
 
   StandardConversion error(char const *why);
 
-  bool stripPtrCtor(CVFlags scv, CVFlags dcv);
+  bool stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference=false);
 };
 
 
@@ -218,10 +218,21 @@ StandardConversion Conversion::error(char const *why)
 // strip pointer constructors, update local state; return true
 // if we've encountered an error, in which case 'ret' is set
 // to the error code to return
-bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv)
-{
+bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
+{    
   if (scv != dcv) {
-    ret |= SC_QUAL_CONV;
+    if (isReference) {
+      // Conversion from 'int&' to 'int const&' is equivalent to
+      // SC_LVAL_TO_RVAL, or so I'm led to believe by 13.3.3.2 para 2,
+      // second example.  13.3.3.1.4 para 5 talks about "reference-
+      // compatible with added qualification", but I don't then see
+      // a later discussion of what exactly this means.
+      xassert(ret == SC_IDENTITY);     // shouldn't have had anything added yet
+      ret |= SC_LVAL_TO_RVAL;
+    }
+    else {
+      ret |= SC_QUAL_CONV;
+    }
   }
 
   if (scv & ~dcv) {
@@ -336,11 +347,13 @@ StandardConversion getStandardConversion
         src = s->atType;
         dest = d->atType;
 
+        bool isReference = (s->op == PO_REFERENCE);
+
         // we look at the cv flags one level down because all of the
         // rules in cppstd talk about things like "pointer to cv T",
         // i.e. pairing the * with the cv one level down in their
         // descriptive patterns
-        if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
+        if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags(), isReference))
           { return conv.ret; }
 
         break;

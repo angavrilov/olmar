@@ -58,6 +58,13 @@ void f()
   __getStandardConversion((int*)0, (int *&)0, SC_ERROR);
   __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
 
+  // I'm inferring the following from the second example in
+  // section 13.3.3.2 para 3
+  __getStandardConversion((int&)0, (int const&)0, SC_LVAL_TO_RVAL);  // not SC_QUAL_CONV!
+  __getStandardConversion((int const&)0, (int&)0, SC_ERROR);
+  __getStandardConversion((int const&)0, (int const&)0, SC_IDENTITY);
+  __getStandardConversion((int &)0, (int &)0, SC_IDENTITY);
+
   // array to pointer
   __getStandardConversion((int [3])0, (int*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion((int [])0, (int*)0, SC_ARRAY_TO_PTR);

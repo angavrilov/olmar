@@ -2308,10 +2308,10 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // is this a nonstatic member function?
   if (env.scope()->curCompound &&
       !(dt.dflags & (DF_STATIC | DF_FRIEND))) {
-    // yes; make the implicit 'this' parameter
+    // yes; make the implicit "this" parameter
     CompoundType *inClass = env.scope()->curCompound;
     Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, cv, this);
-    Variable *thisVar = env.makeVariable(loc, env.str("this"), thisType, DF_NONE);
+    Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
 
     // make a nonstatic member function type
     ft = env.tfac.syntaxMemberFunctionType(loc, dt.type, thisVar, this);
@@ -3186,6 +3186,16 @@ Type *E_variable::itcheck(Env &env)
     return env.error(stringc
       << "`" << *name << "' used as a variable, but it's actually a typedef",
       true /*disambiguates*/);
+  }
+
+  // special case for "this": the parameter is declared as a reference
+  // (because the overload resolution procedure wants that, and because
+  // it more accurately reflects the calling convention), but the type
+  // of "this" is a pointer
+  if (name->getName() == env.thisName) {
+    // CV_NONE because this is an rvalue, so cv flags are not appropriate
+    return env.tfac.makePointerType(SL_UNKNOWN, PO_POINTER, CV_NONE,
+                                    var->type->asPointerType()->atType);
   }
 
   // return a reference because this is an lvalue
