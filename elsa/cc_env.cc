@@ -313,7 +313,12 @@ void Env::setupOperatorOverloading()
     addBuiltinUnaryOp(OP_BITNOT, T);
   }
 
-  // para 11: ->* (skipping for now)
+  // ------------ 13.6 para 11 ------------
+  // since it's an oddball, and has only one built-in pattern anyway,
+  // CandidateSet behaves specially for OP_ARROW_STAR, so it doesn't
+  // actually matter what we pass
+  addBuiltinBinaryOp(OP_ARROW_STAR, (CandidateSet::PreFilter)NULL /*pre*/, 
+                                    (CandidateSet::PostFilter)NULL /*post*/);
 
   // ------------ 13.6 para 12 ------------
   {
@@ -363,7 +368,7 @@ void Env::setupOperatorOverloading()
   addBuiltinBinaryOp(OP_MINUS, rvalIsPointer, pointerToObject);
 
   // summary of process:
-  //   - enumerate pairs (U,V) such that left arg can convert 
+  //   - enumerate pairs (U,V) such that left arg can convert
   //     (directly) to U, and right to V
   //   - pass U and V through 'rvalIsPointer': strip any reference,
   //     and insist the result be a pointer (otherwise discard pair);

@@ -45,6 +45,12 @@ public:      // data
   // if true, then this is a pattern rule for an assignment
   // operator; this affects how instantiation is done
   bool isAssignment;
+  
+private:     // funcs
+  void addAmbigCandidate(Env &env, OverloadResolver &resolver,
+    OverloadableOp op);
+  void instantiateArrowStar(Env &env,
+    OverloadResolver &resolver, Type *lhsType, Type *rhsType);
 
 public:      // funcs
   CandidateSet(Variable *v);

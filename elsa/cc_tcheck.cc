@@ -4216,7 +4216,9 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       if (op == BIN_ARROW_STAR) {
         // left side should be a pointer to a class
         if (!lhsType->isPointer()) {
-          return env.error("left side of ->* must be a pointer");
+          return env.error(stringc 
+            << "left side of ->* must be a pointer, not `"
+            << lhsType->toString() << "'");
         }
         lhsType = lhsType->asPointerType()->atType;
       }
@@ -4274,7 +4276,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   }
 
   // TODO: make sure 'expr' is compatible with given operator
-  // TODO: consider the possibility of operator overloading
+
   return env.tfac.cloneType(lhsType);
 }
 

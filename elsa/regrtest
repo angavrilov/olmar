@@ -183,7 +183,7 @@ TR_FLAGS=doOverload,mustBeUnambiguous$TR_EXTRA
 # the gaps below are for the tests that don't work
 #   0094: weird g++ iomanip.h "<>" syntax
 #   0126: work in progress
-#   0147: known bug
+#   0147,0151: known bug
 for fn in                                                                 \
   t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc \
   t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc \
@@ -217,6 +217,12 @@ done
 # known bugs
 failTest "conversion functions aren't inherited properly" \
   perl ./multitest.pl ./ccparse -tr doOperatorOverload in/t0147.cc
+  
+# this one works in all respects, except every valid use yields
+# "error: left side of ->* must be a pointer, not `struct Ap'"
+failTest "need to insert conversion functions" \
+  perl ./multitest.pl ./ccparse -tr doOperatorOverload in/t0151.cc
+
 
 # another set of tests, generally isolated by Daniel
 for fn in                                      \
