@@ -175,24 +175,6 @@ public:
 };
 
 
-// a self-contained parse tree (or parse DAG, as the case may be)
-struct ParseTree {
-public:
-  // we need a place to put the ground tokens
-  Owner<Lexer2> lexer2;
-
-  // and a list of tree nodes to own
-  ObjList<TreeNode> treeNodes;
-
-  // and one node designated as the top of the tree
-  TreeNode const *top;
-
-public:
-  ParseTree();
-  ~ParseTree();
-};
-
-
 // during attribution, a context for evaluation is provided by a
 // list of children (a Reduction) and the attributes for the parent;
 // this structure is created at that time to carry around that

@@ -275,9 +275,4 @@ public:     // funcs
 };
 
 
-// given grammar and input, yield a parse tree
-ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
-                                    char const *inputFname,
-                                    char const *symOfInterestName = NULL);
-
 #endif // __GLR_H

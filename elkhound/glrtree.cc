@@ -340,17 +340,6 @@ void Reduction::getGroundTerms(SObjList<TerminalNode> &dest) const
 }
 
 
-// ---------------------- ParseTree --------------------
-ParseTree::ParseTree()
-  : lexer2(),
-    treeNodes(),
-    top(NULL)
-{}
-
-ParseTree::~ParseTree()
-{}
-
-
 // --------------------- AttrContext -------------------
 AttrContext::~AttrContext()
 {

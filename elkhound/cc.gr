@@ -180,7 +180,7 @@ nonterm BinaryOperator {
   action  leftAssoc := 1;
 
   // highest precedence
-  formGroup { action.prec:=64;   -> ".*" | "->*"              ;   }  // C++
+  formGroup { action prec:=64;   -> ".*" | "->*"              ;   }  // C++
   formGroup { action prec:=60;   -> "*" | "/" | "%"           ;   }
   formGroup { action prec:=56;   -> "+" | "-"                 ;   }
   formGroup { action prec:=52;   -> "<<"| ">>"                ;   }
@@ -494,7 +494,11 @@ nonterm Declarator {
   fundecl ParameterDeclarationClause_Node const *getFnParams() const;
   fun getFnParams = NULL;
 
-  fundecl string typeName() const;
+  fundecl string typeName() const;   
+  
+  // the type of the declarator return value; only meaningful
+  // for function types
+  fundecl string retTypeName() const;
 
   // name of variable or function being declared
   fundecl string name() const;
@@ -504,12 +508,14 @@ nonterm Declarator {
   -> PtrOperator d:Declarator {
     action isFunction := 0;
     fun typeName = stringc << "*" << d.typeName();
+    fun retTypeName = stringc << "*" << d.retTypeName();
   }
 
   -> d:DirectDeclarator {
     action isFunction := d.isFunction;
     fun getFnParams = d.getFnParams();
     fun typeName = d.typeName();
+    fun retTypeName = d.retTypeName();
   }
 }
 
@@ -520,6 +526,9 @@ nonterm DirectDeclarator {
   fun getFnParams = NULL;
 
   fundecl string typeName() const;
+
+  fundecl string retTypeName() const;
+  fun retTypeName { xfailure("not a function type"); throw 0; /* silence warning */ }
 
   fundecl string name() const;
   fun name = d.name();
@@ -541,7 +550,8 @@ nonterm DirectDeclarator {
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^ const? ^^^^^
     action isFunction := 1;
     fun getFnParams = &args;
-    fun typeName = stringc << "(function returning " << d.typeName() << ")";
+    fun typeName = "(function)";
+    fun retTypeName = d.typeName();
   }
 
   // array of specified size
@@ -561,6 +571,7 @@ nonterm DirectDeclarator {
     action isFunction := d.isFunction;
     fun getFnParams = d.getFnParams();
     fun typeName = d.typeName();
+    fun retTypeName = d.retTypeName();
   }
 }
 
@@ -678,7 +689,7 @@ nonterm FunctionDefinition {
   -> r:DeclSpecifier  d:Declarator  FunctionBody {
     fun printSig {
       cout << d.name() << ": returns "
-           << r.typeName() << d.typeName() << ", arg types: ";
+           << r.typeName() << d.retTypeName() << ", arg types: ";
 
       ParameterDeclarationClause_Node const *pdc = d.getFnParams();
       xassert(pdc);    // otherwise isFunction had to be 0
@@ -828,7 +839,7 @@ int main(int argc, char *argv[])
 {
   Owner<ParseTree> tree(treeMain(argc, argv));
 
-  tree->top->walkTree(processNode);
+  tree->getTop()->walkTree(processNode);
 
   return 0;
 }

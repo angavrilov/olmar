@@ -5,6 +5,38 @@
 #include "glr.h"          // toplevelParse
 #include "trace.h"        // traceProcessArg
 
+
+// ---------------------- ParseTree --------------------
+ParseTree::ParseTree()
+  : lexer2(),
+    glr()
+{}
+
+ParseTree::~ParseTree()
+{}
+
+
+TreeNode const *ParseTree::getTop() const
+{
+  return glr.getParseTree();
+}
+
+
+// ---------------------- other support funcs ------------------
+ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
+                                    char const *inputFname,
+                                    char const *symOfInterestName)
+{
+  // parse
+  Owner<ParseTree> ptree(new ParseTree);
+  ptree->glr.glrParseFrontEnd(ptree->lexer2, grammarFname, 
+                              inputFname, symOfInterestName);
+
+  return ptree.xfr();
+}
+
+
+
 // useful for simple treewalkers
 ParseTree * /*owner*/ treeMain(int argc, char **argv)
 {

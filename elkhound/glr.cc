@@ -1159,24 +1159,6 @@ void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
 }
 
 
-ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
-                                    char const *inputFname,
-                                    char const *symOfInterestName)
-{ 
-  // parse
-  GLR g;
-  Owner<ParseTree> ptree(new ParseTree);
-  ptree->lexer2 = new Lexer2;
-  g.glrParseFrontEnd(*(ptree->lexer2), grammarFname, inputFname, symOfInterestName);
-
-  // transfer everything to 'ptree'
-  ptree->top = g.getParseTree();
-  ptree->treeNodes.concat(g.treeNodes);
-
-  return ptree.xfr();
-}
-
-
 #ifdef GLR_MAIN
 
 int main(int argc, char **argv)

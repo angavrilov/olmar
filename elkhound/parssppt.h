@@ -5,8 +5,32 @@
 #ifndef __PARSSPPT_H
 #define __PARSSPPT_H
                
-#include "glrtree.h"      // ParseTree, NonterminalNode, etc.
+#include "glrtree.h"      // NonterminalNode, etc.
+#include "glr.h"          // GLR
+#include "lexer2.h"       // Lexer2
 
+
+// a self-contained parse tree (or parse DAG, as the case may be)
+struct ParseTree {
+public:
+  // we need a place to put the ground tokens
+  Lexer2 lexer2;
+
+  // this holds the grammar and the parse tree
+  GLR glr;
+
+public:
+  ParseTree();
+  ~ParseTree();
+
+  // get the tree top
+  TreeNode const *getTop() const;
+};
+
+// given grammar and input, yield a parse tree
+ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
+                                    char const *inputFname,
+                                    char const *symOfInterestName = NULL);
 
 // useful for simple treewalkers
 ParseTree * /*owner*/ treeMain(int argc, char **argv);
