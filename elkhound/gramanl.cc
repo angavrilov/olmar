@@ -1705,41 +1705,48 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     itemSet.print(trs, *this);
   }
 
-  // while no changes
-  int changes = 1;
+  // a place to store the items just generated, and another
+  // for items ready to be closed; I used to do a simple iterate-
+  // until-change algorithm, but that is quadratic, so now I
+  // explicitly track the newly-added items and only close them
+  DProductionList justGenerated, readyToClose;
+
+  // first, close the kernel items -> justGenerated
+  FOREACH_DOTTEDPRODUCTION(itemSet.kernelItems, itemIter) {
+    singleItemClosure(itemSet, justGenerated, readyToClose, itemIter.data());
+  }
+
+  // as long as some items are in 'justGenerated' ...
+  //int changes = 1;
   int loopNum = 1;
-  while (changes > 0) {
+  while (justGenerated.isNotEmpty()) {
     if (tr) {
-      trs << "beginning loop " << (loopNum++)
-          << ", changes is " << changes << endl;
+      trs << "beginning loop " << (loopNum++) << endl;
     }
-    changes = 0;
+    //changes = 0;
 
-    // a place to store the items we plan to add
-    DProductionList newItems;
+    // move all the recently-generated items into the list of items
+    // we're ready to close
+    readyToClose.concat(justGenerated);
 
-    // for each item "A -> alpha . B beta, LA" in itemSet
-    FOREACH_DOTTEDPRODUCTION(itemSet.kernelItems, itemIter) {
-      singleItemClosure(itemSet, newItems, itemIter.data(), changes);
-    }
-    FOREACH_DOTTEDPRODUCTION(itemSet.nonkernelItems, itemIter) {
-      singleItemClosure(itemSet, newItems, itemIter.data(), changes);
+    // for each item "A -> alpha . B beta, LA" in 'readyToClose'
+    FOREACH_DOTTEDPRODUCTION(readyToClose, itemIter) {
+      // close it -> justGenerated
+      singleItemClosure(itemSet, justGenerated, readyToClose, itemIter.data());
     }
 
-    // add the new items (we don't do this while iterating because my
-    // iterator interface says not to, even though it would work with
-    // my current implementation)
-    while (newItems.isNotEmpty()) {
-      DottedProduction *dprod = newItems.removeAt(0);
+    // add the items just closed to 'nonkernelItems'
+    while (readyToClose.isNotEmpty()) {
+      DottedProduction *dprod = readyToClose.removeFirst();
       if (tr) {
         trs << "  (chg) dequeueing and adding ";
         dprod->print(trs, *this);
         trs << endl;
       }
       itemSet.addNonkernelItem(dprod);
-      changes++;
+      //changes++;
     }
-  } // while changes
+  }
 
   trs << "done with closure of state " << itemSet.id << endl;
 
@@ -1749,8 +1756,9 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
 
 void GrammarAnalysis::
-  singleItemClosure(ItemSet &itemSet, DProductionList &newItems,
-                    DottedProduction const *item, int &changes)
+  singleItemClosure(ItemSet &itemSet, DProductionList &justGenerated,
+                    DProductionList &readyToClose,
+                    DottedProduction const *item)
 {
   bool const tr = tracingSys("closure");
   ostream &trs = trace("closure");     // trace stream
@@ -1820,12 +1828,14 @@ void GrammarAnalysis::
     // is it already there?
     // check in kernel, nonkernel, and yet-to-add lists
     DottedProduction *already = NULL;
+    #if 0    // we can't possibly generate a kernel item..
     {MUTATE_EACH_DOTTEDPRODUCTION(itemSet.kernelItems, dprod) {
       if (dp->equalNoLA(*(dprod.data()))) {
         already = dprod.data();
         break;
       }
-    }}
+    }}                                                    
+    #endif // 0
 
     if (!already) {
       MUTATE_EACH_DOTTEDPRODUCTION(itemSet.nonkernelItems, dprod) {
@@ -1837,7 +1847,16 @@ void GrammarAnalysis::
     }
 
     if (!already) {
-      MUTATE_EACH_DOTTEDPRODUCTION(newItems, dprod) {
+      MUTATE_EACH_DOTTEDPRODUCTION(justGenerated, dprod) {
+        if (dp->equalNoLA(*(dprod.data()))) {
+          already = dprod.data();
+          break;
+        }
+      }
+    }
+
+    if (!already) {
+      MUTATE_EACH_DOTTEDPRODUCTION(readyToClose, dprod) {
         if (dp->equalNoLA(*(dprod.data()))) {
           already = dprod.data();
           break;
@@ -1856,7 +1875,7 @@ void GrammarAnalysis::
       // but the new item may have additional lookahead
       // components, so merge them with the old
       if (already->laMerge(*dp)) {
-        changes++;
+        //changes++;
 
         if (tr) {
           trs << "      (chg) merged it to make ";
@@ -1877,7 +1896,7 @@ void GrammarAnalysis::
       if (tr) {
         trs << "      this dprod is new, queueing it to add" << endl;
       }
-      newItems.append(dp.xfr());
+      justGenerated.append(dp.xfr());
     }
   } // for each production
 }

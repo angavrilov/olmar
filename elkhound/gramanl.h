@@ -391,8 +391,9 @@ private:    // funcs
   // let's try this .. it needs to access 'itemSets'
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
-  void singleItemClosure(ItemSet &itemSet, DProductionList &newItems,
-                         DottedProduction const *item, int &changes);
+  void singleItemClosure(ItemSet &itemSet, DProductionList &justGenerated,
+                         DProductionList &readyToClose,
+                         DottedProduction const *item);
 
 public:	    // funcs
   GrammarAnalysis();
