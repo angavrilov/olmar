@@ -5,6 +5,7 @@
 #include "cc_ast.h"            // Declaration
 #include "cc_env.h"            // Scope, Env
 #include "ast_build.h"         // makeExprList1, etc.
+#include "trace.h"             // TRACE
 
 FullExpressionAnnot::FullExpressionAnnot()
 {}
@@ -431,6 +432,80 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
   return retObj;
 }
 
+
+void E_new::elaborate(Env &env, Type *t)
+{
+  // TODO: this doesn't work for new[]
+
+  if (t->isCompoundType()) {
+    if (env.disambErrorsSuppressChanges()) {
+      TRACE("env", "not adding variable or ctorStatement to E_new `" << /*what?*/
+            "' because there are disambiguating errors");
+    }
+    else {
+      var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
+      // even though this is on the heap, Scott says put it into the
+      // local scope
+      // FIX: this creates extra temporaries if we are typechecked
+      // twice
+      env.addVariable(var);
+      xassert(ctorArgs);
+      // FIX: this creates a lot of extra junk if we are typechecked
+      // twice
+      ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
+    }
+  }
+}
+
+
+void E_delete::elaborate(Env &env, Type *t)
+{
+  // TODO: this doesn't work for delete[]
+
+  if (t->isCompoundType()) {
+    dtorStatement = makeDtorStatement(env, t);
+  }
+}
+
+
+void E_throw::elaborate(Env &env)
+{
+  // sm: I think what follows is wrong:
+  //   - 'globalVar' is created, but a declaration is not, so
+  //     an analysis might be confused by its sudden appearance
+  //   - the same object is used for all types, but makeCtorStatement
+  //     is invoked with different types.. it's weird
+  //   - the whole thing with throwClauseSerialNumber is bad.. it
+  //     *should* be a member of Env, and set from the outside after
+  //     construction if a wrapper analysis wants the numbers to not
+  //     be re-used
+
+  // If it is a throw by value, it gets copy ctored somewhere, which
+  // in an implementation is some anonymous global.  I can't think of
+  // where the heck to make these globals or how to organize them, so
+  // I just make it in the throw itself.  Some analysis can come
+  // through and figure out how to hook these up to their catch
+  // clauses.
+  Type *exprType = expr->getType()->asRval();
+  if (exprType->isCompoundType()) {
+    if (!globalVar) {
+      globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
+                                   DF_STATIC // I think it is a static global
+                                   | DF_GLOBAL);
+      // These variables persist beyond the stack frame, so I
+      // hesitate to do anything but add them to the global scope.
+      // FIX: Then again, this argument applies to the E_new
+      // variables as well.
+      Scope *gscope = env.globalScope();
+      gscope->registerVariable(globalVar);
+      gscope->addVariable(globalVar);
+
+      xassert(!ctorStatement);
+      ctorStatement = makeCtorStatement(env, globalVar, exprType,
+                                        makeExprList1(expr));
+    }
+  }
+}
 
 
 // EOF

@@ -1177,7 +1177,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // in 'f->tcheck'?)
       f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
     }
-    else if (env.doElaboration && iter.data()->isMR_decl()) {
+    else if (iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
         // tcheck initializers
@@ -1185,7 +1185,9 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
           decliter->tcheck_init(env);
         }
 
-        decliter->elaborateCDtors(env);
+        if (env.doElaboration) {
+          decliter->elaborateCDtors(env);
+        }
       }
     }
   }
@@ -5069,25 +5071,10 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   // (partially subsumed by overload resolution, above)
   // dsw: I suppose the ctor elaboration here is effectively the
   // paragraph above.
-  if (t->isCompoundType()) {
-    if (env.disambErrorsSuppressChanges()) {
-      TRACE("env", "not adding variable or ctorStatement to E_new `" <<
-            "' because there are disambiguating errors");
-    }
-    else {
-      var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
-      // even though this is on the heap, Scott says put it into the
-      // local scope
-      // FIX: this creates extra temporaries if we are typechecked
-      // twice
-      env.addVariable(var);
-      xassert(ctorArgs);
-      // FIX: this creates a lot of extra junk if we are typechecked
-      // twice
-      ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
-    }
+  if (env.doElaboration) {
+    elaborate(env, t);
   }
-
+  
   return env.makePtrType(SL_UNKNOWN, t);
 }
 
@@ -5102,10 +5089,10 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
       << "can only delete pointers, not `" << t->toString() << "'");
   }
 
-  if (t->isCompoundType()) {
-    dtorStatement = makeDtorStatement(env, t);
+  if (env.doElaboration) {
+    elaborate(env, t);
   }
-
+  
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 
@@ -5116,47 +5103,13 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
     expr->tcheck(env, expr);
 
     if (env.doElaboration) {
-      // sm: I think what follows is wrong:
-      //   - 'globalVar' is created, but a declaration is not, so
-      //     an analysis might be confused by its sudden appearance
-      //   - the same object is used for all types, but makeCtorStatement
-      //     is invoked with different types.. it's weird
-      //   - the whole thing with throwClauseSerialNumber is bad.. it
-      //     *should* be a member of Env, and set from the outside after
-      //     construction if a wrapper analysis wants the numbers to not
-      //     be re-used
-
-      // If it is a throw by value, it gets copy ctored somewhere, which
-      // in an implementation is some anonymous global.  I can't think of
-      // where the heck to make these globals or how to organize them, so
-      // I just make it in the throw itself.  Some analysis can come
-      // through and figure out how to hook these up to their catch
-      // clauses.
-      Type *exprType = expr->getType()->asRval();
-      if (exprType->isCompoundType()) {
-        if (!globalVar) {
-          globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
-                                       DF_STATIC // I think it is a static global
-                                       | DF_GLOBAL);
-          // These variables persist beyond the stack frame, so I
-          // hesitate to do anything but add them to the global scope.
-          // FIX: Then again, this argument applies to the E_new
-          // variables as well.
-          Scope *gscope = env.globalScope();
-          gscope->registerVariable(globalVar);
-          gscope->addVariable(globalVar);
-
-          xassert(!ctorStatement);
-          ctorStatement = makeCtorStatement(env, globalVar, exprType,
-                                            makeExprList1(expr));
-        }
-      }
+      elaborate(env);
     }
   }
   else {
     // TODO: make sure that we're inside a 'catch' clause
 
-    // TODO: also make the throws copy ctor as above
+    // TODO: elaboration for this case
   }
 
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);

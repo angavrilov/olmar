@@ -94,19 +94,28 @@ class Expression {
     // from Declarator::var:
     // (serf) computed information: name, type, etc.
     public Variable *var = NULL;
+                                      
+    // fill in the above; 't' is the type of object that is
+    // being allocated
+    public void elaborate(Env &env, Type *t);
   }
 
   -> E_delete {
     // this implementes destruction and deallocation
     public Statement *dtorStatement = NULL;
+
+    // 't' is the type of object that is being deallocated
+    public void elaborate(Env &env, Type *t);
   }
-  
+
   -> E_throw {
     // the global that the throw argument is copy-ctored into, if
     // thrown by value; copied comment from Declarator::var: (serf)
     // computed information: name, type, etc.
     public Variable *globalVar = NULL;
     public Statement *ctorStatement; ctor ctorStatement=NULL;
+
+    public void elaborate(Env &env);
   }
 }
 
