@@ -219,9 +219,6 @@ private:     // funcs
     return ret;
   }
   static int toInt(SourceLoc loc) { return (int)loc; }
-  public:                       // dsw: I need this so I have an object to annotate with a VoidVoidDict
-  static bool isStatic(SourceLoc loc) { return toInt(loc) <= 0; }
-  private:
 
   File *findFile(char const *name);
   File *getFile(char const *name);
@@ -245,7 +242,7 @@ public:      // funcs
   SourceLoc encodeBegin(char const *filename)
     { return encodeOffset(filename, 0 /*offset*/); }
   SourceLoc encodeLineCol(char const *filename, int line, int col);
-  
+
   // some care is required with 'encodeStatic', since each call makes
   // a new location with a new entry in the static array to back it
   // up, so the caller should ensure a given static location is not
@@ -253,6 +250,7 @@ public:      // funcs
   SourceLoc encodeStatic(StaticLoc const &obj);
   SourceLoc encodeStatic(char const *fname, int offset, int line, int col)
     { return encodeStatic(StaticLoc(fname, offset, line, col)); }
+  static bool isStatic(SourceLoc loc) { return toInt(loc) <= 0; }
 
   // encode incremental; these are the methods we expect are called
   // the most frequently; this interface is supposed to allow an
