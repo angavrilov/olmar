@@ -156,52 +156,110 @@ let nontermOrder = [|          (* 4 elements *)
 |]
 
 
+(* ---------------- reduction actions -------------- *)
+(* this is how ocamlyacc does it, so I assume it's fastest way *)
+let actionArray : (int array -> int) array = [|
+  (fun svals ->
+    let top = svals.(0) in
+    top
+  );
+  (fun svals ->
+    let e1 = svals.(0) in
+    let e2 = svals.(2) in
+    e1 + e2
+  );
+  (fun svals ->
+    let e1 = svals.(0) in
+    let e2 = svals.(2) in
+    e1 - e2
+  );
+  (fun svals ->
+    let e1 = svals.(0) in
+    let e2 = svals.(2) in
+    e1 * e2
+  );
+  (fun svals ->
+    let e1 = svals.(0) in
+    let e2 = svals.(2) in
+    e1 / e2
+  );
+  (fun svals ->
+    let n = svals.(0) in
+    n
+  );
+  (fun svals ->
+    let p = svals.(0) in
+    p
+  );
+  (fun svals ->     
+    let e = svals.(1) in
+    e
+  )
+|]
+
+let reductionAction (productionId:int) (svals:int array) : int =
+begin
+  (actionArray.(productionId) svals)
+end
+
+
 (* -------------------- parser ------------------- *)
 let stateStack : int array ref = ref (Array.make 10 0)
-let stateStackLen : int ref = ref 0
+let svalStack : int array ref = ref (Array.make 10 0)
+let stackLen : int ref = ref 0
 
-(* TODO: add sval stack of Obj.t *)
+(* TODO: make sval stack of Obj.t instead of int *)
 
-let pushState (v : int) : unit =
+let pushStateSval (state : int) (sval : int) : unit =
 begin
-  if ((Array.length !stateStack) = !stateStackLen) then (
+  if ((Array.length !stateStack) = !stackLen) then (
     (* must make it bigger *)
-    let newStack : int array = (Array.make (!stateStackLen * 2) 0) in
+    let newStateStack : int array = (Array.make (!stackLen * 2) 0) in
+    let newSvalStack : int array = (Array.make (!stackLen * 2) 0) in
 
     (* copy *)
     (Array.blit
       !stateStack           (* source array *)
       0                     (* source start position *)
-      newStack              (* dest array *)
+      newStateStack         (* dest array *)
       0                     (* dest start position *)
-      !stateStackLen         (* number of elements to copy *)
+      !stackLen             (* number of elements to copy *)
+    );
+    (Array.blit
+      !svalStack            (* source array *)
+      0                     (* source start position *)
+      newSvalStack          (* dest array *)
+      0                     (* dest start position *)
+      !stackLen             (* number of elements to copy *)
     );
 
     (* switch from old to new *)
-    stateStack := newStack;
+    stateStack := newStateStack;
+    svalStack := newSvalStack;
   );
 
   (* put new element into the stack at the end *)
-  (!stateStack).(!stateStackLen) <- v;
-  (incr stateStackLen);
+  (!stateStack).(!stackLen) <- state;
+  (!svalStack).(!stackLen) <- sval;
+  (incr stackLen);
 end
 
 let topState() : int =
 begin
-  (!stateStack).(!stateStackLen - 1)
+  (!stateStack).(!stackLen - 1)
 end
 
-let parse (lex:tLexerInterface) : unit =
+let parse (lex:tLexerInterface) : int =
 begin
   (* get first token *)
   (lex#getToken());
 
   (* initial state *)
-  (pushState 0);
+  (pushStateSval 0 0);
 
   (* loop over all tokens until EOF and stack has just start symbol *)
   while (not ((lex#getTokType()) = 0)) ||
-        (!stateStackLen > 2) do
+        (!stackLen > 2) do
     let tt:int = (lex#getTokType()) in        (* token type *)
     let state:int = (topState()) in           (* current state *)
 
@@ -219,7 +277,7 @@ begin
     (* shift? *)
     if (0 < act && act <= numStates) then (
       let dest:int = act-1 in                 (* destination state *)
-      (pushState dest);
+      (pushStateSval dest (lex#getSval()));
 
       (* next token *)
       (lex#getToken());
@@ -234,16 +292,31 @@ begin
       let ruleLen:int = prodInfo_rhsLen.(rule) in
       let lhs:int = prodInfo_lhsIndex.(rule) in
 
+      (* make an array of semantic values for the action rule; this does
+       * an extra copy if we're already using a linear stack, but will
+       * be needed for GLR so I'll do it this way *)
+      let svalArray : int array = (Array.make ruleLen 0) in
+      (Array.blit
+        !svalStack            (* source array *)
+        (!stackLen - ruleLen) (* source start position *)
+        svalArray             (* dest array *)
+        0                     (* dest start position *)
+        ruleLen               (* number of elements to copy *)
+      );
+
+      (* invoke user's reduction action *)
+      let sval = (reductionAction rule svalArray) in
+
       (* pop 'ruleLen' elements *)
-      stateStackLen := (!stateStackLen - ruleLen);
+      stackLen := (!stackLen - ruleLen);
       let newTopState:int = (topState()) in
 
       (* get new state *)
       let dest:int = gotoTable.(newTopState*gotoCols + lhs) in
-      (pushState dest);
+      (pushStateSval dest sval);
 
-      (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
-                     rule ruleLen lhs dest);
+      (Printf.printf "reduce by rule %d (len=%d, lhs=%d, sval=%d), goto state %d\n"
+                     rule ruleLen lhs sval dest);
       (flush stdout);
     )
 
@@ -261,12 +334,16 @@ begin
   done;
 
   (* print final parse stack *)
-  (Printf.printf "final parse stack (up is top):\n");
-  let i:int ref = ref (pred !stateStackLen) in
+  (Printf.printf "final parse stack (up is top, state then sval):\n");
+  let i:int ref = ref (pred !stackLen) in
   while (!i >= 0) do
-    (Printf.printf "  %d\n" (!stateStack).(!i));
+    (Printf.printf "  %d %d\n" (!stateStack).(!i) (!svalStack).(!i));
     (decr i);
   done;
+  (flush stdout);
+  
+  (* return value: sval of top element *)
+  (!svalStack).(!stackLen - 1)
 end
 
 
@@ -280,7 +357,8 @@ begin
   let lex:tLexerInterface = (new tLexerInterface) in
   (*(printTokens lex);*)
   
-  (parse lex);
+  let sval:int = (parse lex) in
+  (Printf.printf "parse result: %d\n" sval);
 
 end
 ;;
