@@ -90,6 +90,7 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_PROMOTED_INTEGRAL),
   SimpleType(ST_PROMOTED_ARITHMETIC),
   SimpleType(ST_ANY_OBJ_TYPE),
+  SimpleType(ST_ANY_TYPE),
 };
 
 string SimpleType::toCString() const
@@ -1813,6 +1814,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_PROMOTED_INTEGRAL)
   CVAT(ST_PROMOTED_ARITHMETIC)
   CVAT(ST_ANY_OBJ_TYPE)
+  CVAT(ST_ANY_TYPE)
   #undef CVAT
 };
 

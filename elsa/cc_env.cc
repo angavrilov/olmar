@@ -176,7 +176,9 @@ void Env::setupOperatorOverloading()
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
   // ---- 13.6 para 8 ----
-  // TODO: T* operator+ (T*);
+  // T* operator+ (T*);
+  addBuiltinUnaryOp(UNY_PLUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_TYPE)));
 
   // ---- 13.6 para 9 ----
   // T operator+ (T);

@@ -176,6 +176,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "<prom_arith>",           0,    false,  false, },
 
   { "<any_obj>",              0,    false,  false, },
+  { "<any_type>",             0,    false,  false, },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
