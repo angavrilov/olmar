@@ -146,6 +146,14 @@
 #endif
 
 
+// the transition to array-based implementations requires I specify
+// initial sizes (they all grow as needed though)
+enum {
+  TYPICAL_MAX_RHSLEN = 10,
+  TYPICAL_MAX_REDUCTION_PATHS = 5,
+};
+
+
 // ------------- front ends to user code ---------------
 SemanticValue GLR::duplicateSemanticValue(SymbolId sym, SemanticValue sval)
 {
@@ -280,9 +288,9 @@ void PendingShift::deinit()
 // ------------------ PathCollectionState -----------------
 PathCollectionState::PathCollectionState()
   : startStateId(STATE_INVALID),
-    siblings(10),
-    symbols(10),
-    paths(10)
+    siblings(TYPICAL_MAX_RHSLEN),
+    symbols(TYPICAL_MAX_RHSLEN),
+    paths(TYPICAL_MAX_REDUCTION_PATHS)
 {}
 
 PathCollectionState::~PathCollectionState()
@@ -389,6 +397,7 @@ GLR::GLR(UserActions *user)
     parserWorklist(),
     pcsStack(),
     pcsStackHeight(0),
+    toPass(TYPICAL_MAX_RHSLEN),
     trParse(tracingSys("parse")),
     trsParse(trace("parse")),
     trSval(tracingSys("sval")),
@@ -768,7 +777,7 @@ void GLR::doReduction(StackNode *parser,
   if (pcsStackHeight == pcsStack.length()) {
     // need a new pcs instance, since the existing ones are being
     // used by my (recursive) callers
-    pcsStack.push(new PathCollectionState);
+    pcsStack.push(new PathCollectionState);     // done very rarely
   }
   PathCollectionState &pcs = *( pcsStack[pcsStackHeight++] );
   try {
@@ -869,7 +878,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
     // before calling the user, duplicate any needed values
     int rhsLen = prodInfo.rhsLen;
-    SemanticValue *toPass = new SemanticValue[rhsLen];
+    //SemanticValue *toPass = new SemanticValue[rhsLen];
+    toPass.ensureIndexDoubler(rhsLen-1);
     for (int i=0; i < rhsLen; i++) {
       SiblingLink *sib = pcs.siblings[i];
 
@@ -896,10 +906,10 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
     SemanticValue sval = userAct->doReductionAction(
-                           pcs.prodIndex, toPass, leftEdge);
+                           pcs.prodIndex, toPass.getArray(), leftEdge);
     D(trsSval << "reduced via production " << pcs.prodIndex
               << ", yielding " << sval << endl);
-    delete[] toPass;
+    //delete[] toPass;
 
     // see if the user wants to keep this reduction
     if (!userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {

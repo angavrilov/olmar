@@ -301,6 +301,9 @@ public:
   // pcsStackHeight > pcsStack.length
   int pcsStackHeight;
 
+  // to be regarded as a local variable of GLR::collectReductionPaths
+  GrowArray<SemanticValue> toPass;
+
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports
   // there is significant expense to computing the debug strings

@@ -40,7 +40,7 @@ public:
   //  - this fn returns the semantic value for the reduction; this return
   //    value is an owner pointer
   virtual SemanticValue doReductionAction(
-    int productionId, SemanticValue *svals, SourceLocation const &loc)=0;
+    int productionId, SemanticValue const *svals, SourceLocation const &loc)=0;
 
   // duplication of semantic values:
   //  - the given 'sval' is about to be passed to a reduction action
@@ -98,7 +98,7 @@ public:
 // (this macro used by the generated code)
 #define USER_ACTION_FUNCTIONS                                          \
   virtual SemanticValue doReductionAction(                             \
-    int productionId, SemanticValue *svals, SourceLocation const &loc);\
+    int productionId, SemanticValue const *svals, SourceLocation const &loc);\
                                                                        \
   virtual SemanticValue duplicateTerminalValue(                        \
     int termId, SemanticValue sval);                                   \

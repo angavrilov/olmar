@@ -4170,7 +4170,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 
   // main action function; calls the inline functions emitted above
   out << "SemanticValue " << g.actionClassName << "::doReductionAction(\n"
-      << "  int productionId, SemanticValue *semanticValues,\n"
+      << "  int productionId, SemanticValue const *semanticValues,\n"
       << "  SourceLocation const &loc)\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
