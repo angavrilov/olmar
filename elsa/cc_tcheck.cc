@@ -1440,6 +1440,20 @@ void Expression::mid_tcheck(Env &env)
 
   // check it, and store the result
   Type const *t = itcheck(env);
+  
+  // elaborate the AST by storing the computed type, *unless*
+  // we're only disambiguating (because in that case many of
+  // the types will be ST_ERROR anyway)
+  //if (!env.onlyDisambiguating()) {
+  //  type = t;
+  //}
+  //
+  // update: made it unconditional again because after tcheck()
+  // the callers expect to be able to dig in and find the type;
+  // I guess I'll at some point have to write a visitor to
+  // clear the computed types if I want to actually check the
+  // template bodies after arguments are presented
+
   type = t;
 }
 
@@ -1600,7 +1614,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   }
 
   // look for the named field
-  Variable const *field = ct->getNamedFieldC(fieldName->getName(), env);
+  field = ct->getNamedFieldC(fieldName->getName(), env);
   if (!field) {
     return env.error(stringc
       << "there is no field called `" << fieldName->getName()

@@ -115,6 +115,7 @@ public:      // function
   
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
+  bool onlyDisambiguating() const { return disambiguateOnly; }
 };
 
 
