@@ -45,7 +45,6 @@ literalCode "prologue" {
         struct wes_ast_node * hd;
         struct wes_list * tl;
     };
-    struct wes_list * wes_result_list = NULL;
   #endif /* WES_OCAML_LINKAGE */
 }
 
@@ -222,6 +221,7 @@ nonterm TranslationUnit : Checkable {
       // sm: yeah, we're in a C++ constructor here so return
       // values are tricky ...
       {
+	extern struct wes_list * wes_result_list; // declared below 
         struct wes_list * new_cell = new struct wes_list;
         new_cell->hd = camlAST();
         new_cell->tl = wes_result_list;
@@ -229,8 +229,11 @@ nonterm TranslationUnit : Checkable {
       }
     #endif /* WES_OCAML_LINKAGE */
 
+    #ifndef WES_OCAML_LINKAGE
     // this is, more or less, the product of the analysis
+    // but ocaml users do not want to see it ...
     printTree();
+    #endif /* WES_OCMAL_LINKAGE */
 
     // or this
     if (tracingSys("cil-tree")) {
@@ -3177,6 +3180,10 @@ void wes_print(struct wes_ast_node * n)
     printf(")");
 }
 
+/* I am putting this here to avoid "multiple declaration" errors from the
+ * ocaml linker which is not quite as robust as g++ */
+struct wes_list * wes_result_list;
+
 value wes_main(char *filename) {
     CAMLparam0();
     CAMLlocal2(retval, c);
@@ -3190,6 +3197,8 @@ value wes_main(char *filename) {
     int res;
     struct wes_list * l;
 
+    wes_result_list = NULL; // declaring this NULL at the toplevel
+    			    // gives multiple definition errors on my machine
     res = fakemain(argc, argv);
     // examine wes_result_list
 
