@@ -290,7 +290,7 @@ nonterm(Statement*) Statement {
 nonterm(ASTTypeId*) ParameterDeclaration {
   fun keep(x) { return x!=NULL; }
 
-  -> /*implicit-int*/ d:Declarator
+  -> /*implicit-int*/ d:UnqualifiedDeclarator
     {
       // if this isn't K&R C, throw it out
       if (!lang.allowImplicitInt) {
@@ -303,7 +303,7 @@ nonterm(ASTTypeId*) ParameterDeclaration {
          new Declarator(d, NULL /*init*/));
     }
 
-  -> "register" /*implicit-int*/ d:Declarator
+  -> "register" /*implicit-int*/ d:UnqualifiedDeclarator
     {
       // if this isn't K&R C, throw it out
       if (!lang.allowImplicitInt) {

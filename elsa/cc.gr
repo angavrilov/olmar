@@ -1661,20 +1661,9 @@ nonterm(Declarator*) ParameterDeclarator {
   // see D_name_tcheck in tcheck.cc for resolution
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  // as part of the TYPENAME ::NAME disambiguation, do not allow
-  // qualified names in parameter declarators (in/t0384.cc)
-  fun keep(d) {
-    PQName const *n = d->decl->getDeclaratorIdC();
-    if (n && n->hasQualifiers()) {
-      TRACE("cancel", d->decl->loc << ": qualified parameter declarator");
-      return false;
-    }
-    return true;
-  }
-
-  -> d:Declarator
+  -> d:UnqualifiedDeclarator
        { return new Declarator(d, NULL /*init*/); }
-  -> d:Declarator "=" e:AssignmentExpression
+  -> d:UnqualifiedDeclarator "=" e:AssignmentExpression
        { return new Declarator(d, new IN_expr(loc, e)); }
 
   -> d:AbstractDeclaratorOpt
@@ -2470,11 +2459,31 @@ nonterm(Handler*) Handler {
 }
 
 nonterm(ASTTypeId*) HandlerParameter {
-  -> s:TypeSpecifier d:Declarator
+  -> s:TypeSpecifier d:UnqualifiedDeclarator
        { return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); }
   -> s:TypeSpecifier d:AbstractDeclaratorOpt
        { return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); }
 }
+
+
+// this nonterminal helps with the TYPENAME ::NAME ambiguity, and also
+// partially enforces 8.3.5p8, which says that a parameter name must
+// be an identifier (only), if present
+nonterm(IDeclarator*) UnqualifiedDeclarator {
+  fun keep(d) {
+    PQName const *n = d->getDeclaratorIdC();
+    if (n->hasQualifiers()) {    // 'n' is never NULL
+      TRACE("cancel", d->loc << ": qualified UnqualifiedDeclarator");
+      return false;
+    }
+    return true;
+  }
+
+  -> d:Declarator              { return d; }
+}
+
+// note: There is no such thing as an UnqualifiedAbstractDeclaratorOpt
+// because abstract declarators do not contain an id-expression.
 
 
 nonterm(E_throw*) ThrowExpression {
