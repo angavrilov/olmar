@@ -817,7 +817,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     //   - then "template <>" is *not* used (for that class)
     // t0248.cc tests a couple cases...
     if (!containsTypeVariables(sargs) &&
-        bareQualifierVar->templateInfo()->hasSpecialization(env.tfac, sargs)) {
+        bareQualifierVar->templateInfo()->getSpecialization(env.tfac, sargs)) {
       // do not associate 'bareQualifier' with any template scope
     }
     else {

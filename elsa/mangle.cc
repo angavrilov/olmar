@@ -190,7 +190,13 @@ string leftMangle(Type const *t, bool innerParen)
           ptm->atType->isArrayType()) {
         s << "(";
       }
-      s << ptm->inClass()->name << "::*";
+      
+      // sm: the following line fails when the 'inClass' is
+      // a type variable
+      //s << ptm->inClass()->name << "::*";
+      // why was it not always just done like this?
+      s << mangleAtomic(ptm->inClassNAT) << "::*";
+
       s << cvToString(ptm->cv);
       return s;
     }

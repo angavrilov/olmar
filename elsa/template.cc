@@ -434,16 +434,16 @@ bool TemplateInfo::hasMainOrInheritedParameters() const
 }
 
 
-bool TemplateInfo::hasSpecialization(
+Variable *TemplateInfo::getSpecialization(
   TypeFactory &tfac,
-  SObjList<STemplateArgument> const &sargs) const
+  SObjList<STemplateArgument> const &sargs)
 {
-  SFOREACH_OBJLIST(Variable, specializations, iter) {
+  SFOREACH_OBJLIST_NC(Variable, specializations, iter) {
     if (iter.data()->templateInfo()->equalArguments(tfac, sargs)) {
-      return true;
+      return iter.data();
     }
   }
-  return false;
+  return NULL;     // not found
 }
 
 
@@ -3136,11 +3136,20 @@ Variable *Env::makeExplicitFunctionSpecialization
       }
       best = primary;
 
-      // build a Variable to represent the specialization
-      ret = makeSpecializationVariable(loc, dflags, primary, ft, specArgs);
-      TRACE("template", "complete function specialization of " <<
-                        primary->type->toCString(primary->fullyQualifiedName()) <<
-                        ": " << ret->name << sargsToString(specArgs));
+      // do we already have a specialization like this?
+      ret = primary->templateInfo()->getSpecialization(tfac, specArgs);
+      if (ret) {
+        TRACE("template", "re-declaration of function specialization of " <<
+                          primary->type->toCString(primary->fullyQualifiedName()) <<
+                          ": " << ret->name << sargsToString(specArgs));
+      }
+      else {
+        // build a Variable to represent the specialization
+        ret = makeSpecializationVariable(loc, dflags, primary, ft, specArgs);
+        TRACE("template", "complete function specialization of " <<
+                          primary->type->toCString(primary->fullyQualifiedName()) <<
+                          ": " << ret->name << sargsToString(specArgs));
+      }
     } // initial candidate match check
   } // candidate loop
 
