@@ -628,7 +628,11 @@ doc/glr.dot:
 
 # dependencies for 'ccgr', the prototype C parser and typechecker
 doc/cc.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) -Nglr.h ccgrmain.h >$@
+	$(SMBASE)/scan-depends.pl -r -I$(AST) -Sglr.h ccgrmain.h >$@
+
+# dependencies for 'trivmain.cc', the trivial grammar driver
+doc/triv.dot:
+	$(SMBASE)/scan-depends.pl -r -I$(AST) -Sglr.h trivmain.cc >$@
 
 # use 'dot' to lay out the graph
 # http://www.research.att.com/sw/tools/graphviz/
@@ -644,7 +648,7 @@ doc/%.png: doc/%.ps
 
 # "make doc" should build whatever we have that needs building
 .PHONY: doc
-doc: doc/gramanl.png doc/glr.png doc/cc.png
+doc: doc/gramanl.png doc/glr.png doc/cc.png doc/triv.png
 
 doc-clean:
 	cd doc; rm -f {gramanl,glr}.{ps,dot,png}

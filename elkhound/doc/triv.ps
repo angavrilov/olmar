@@ -1,0 +1,900 @@
+%!PS-Adobe-2.0
+%%Creator: dot version 1.8.5 (Tue Sep  3 17:46:33 PDT 2002)
+%%For: (scott) ,,,
+%%Title: Dependencies
+%%Pages: (atend)
+%%BoundingBox: 35 35 692 521
+%%EndComments
+save
+%%BeginProlog
+/DotDict 200 dict def
+DotDict begin
+
+/setupLatin1 {
+mark
+/EncodingVector 256 array def
+ EncodingVector 0
+
+ISOLatin1Encoding 0 255 getinterval putinterval
+
+EncodingVector
+  dup 306 /AE
+  dup 301 /Aacute
+  dup 302 /Acircumflex
+  dup 304 /Adieresis
+  dup 300 /Agrave
+  dup 305 /Aring
+  dup 303 /Atilde
+  dup 307 /Ccedilla
+  dup 311 /Eacute
+  dup 312 /Ecircumflex
+  dup 313 /Edieresis
+  dup 310 /Egrave
+  dup 315 /Iacute
+  dup 316 /Icircumflex
+  dup 317 /Idieresis
+  dup 314 /Igrave
+  dup 334 /Udieresis
+  dup 335 /Yacute
+  dup 376 /thorn
+  dup 337 /germandbls
+  dup 341 /aacute
+  dup 342 /acircumflex
+  dup 344 /adieresis
+  dup 346 /ae
+  dup 340 /agrave
+  dup 345 /aring
+  dup 347 /ccedilla
+  dup 351 /eacute
+  dup 352 /ecircumflex
+  dup 353 /edieresis
+  dup 350 /egrave
+  dup 355 /iacute
+  dup 356 /icircumflex
+  dup 357 /idieresis
+  dup 354 /igrave
+  dup 360 /dcroat
+  dup 361 /ntilde
+  dup 363 /oacute
+  dup 364 /ocircumflex
+  dup 366 /odieresis
+  dup 362 /ograve
+  dup 365 /otilde
+  dup 370 /oslash
+  dup 372 /uacute
+  dup 373 /ucircumflex
+  dup 374 /udieresis
+  dup 371 /ugrave
+  dup 375 /yacute
+  dup 377 /ydieresis  
+
+% Set up ISO Latin 1 character encoding
+/starnetISO {
+        dup dup findfont dup length dict begin
+        { 1 index /FID ne { def }{ pop pop } ifelse
+        } forall
+        /Encoding EncodingVector def
+        currentdict end definefont
+} def
+/Times-Roman starnetISO def
+/Times-Italic starnetISO def
+/Times-Bold starnetISO def
+/Times-BoldItalic starnetISO def
+/Helvetica starnetISO def
+/Helvetica-Oblique starnetISO def
+/Helvetica-Bold starnetISO def
+/Helvetica-BoldOblique starnetISO def
+/Courier starnetISO def
+/Courier-Oblique starnetISO def
+/Courier-Bold starnetISO def
+/Courier-BoldOblique starnetISO def
+cleartomark
+} bind def
+
+%%BeginResource: procset
+/coord-font-family /Times-Roman def
+/default-font-family /Times-Roman def
+/coordfont coord-font-family findfont 8 scalefont def
+
+/InvScaleFactor 1.0 def
+/set_scale {
+	dup 1 exch div /InvScaleFactor exch def
+	dup scale
+} bind def
+
+% styles
+/solid { } bind def
+/dashed { [9 InvScaleFactor mul dup ] 0 setdash } bind def
+/dotted { [1 InvScaleFactor mul 6 InvScaleFactor mul] 0 setdash } bind def
+/invis {/fill {newpath} def /stroke {newpath} def /show {pop newpath} def} bind def
+/bold { 2 setlinewidth } bind def
+/filled { } bind def
+/unfilled { } bind def
+/rounded { } bind def
+/diagonals { } bind def
+
+% hooks for setting color 
+/nodecolor { sethsbcolor } bind def
+/edgecolor { sethsbcolor } bind def
+/graphcolor { sethsbcolor } bind def
+/nopcolor {pop pop pop} bind def
+
+/beginpage {	% i j npages
+	/npages exch def
+	/j exch def
+	/i exch def
+	/str 10 string def
+	npages 1 gt {
+		gsave
+			coordfont setfont
+			0 0 moveto
+			(\() show i str cvs show (,) show j str cvs show (\)) show
+		grestore
+	} if
+} bind def
+
+/set_font {
+	findfont exch
+	scalefont setfont
+} def
+
+% draw aligned label in bounding box aligned to current point
+/alignedtext {			% width adj text
+	/text exch def
+	/adj exch def
+	/width exch def
+	gsave
+		width 0 gt {
+			text stringwidth pop adj mul 0 rmoveto
+		} if
+		[] 0 setdash
+		text show
+	grestore
+} def
+
+/boxprim {				% xcorner ycorner xsize ysize
+		4 2 roll
+		moveto
+		2 copy
+		exch 0 rlineto
+		0 exch rlineto
+		pop neg 0 rlineto
+		closepath
+} bind def
+
+/ellipse_path {
+	/ry exch def
+	/rx exch def
+	/y exch def
+	/x exch def
+	matrix currentmatrix
+	newpath
+	x y translate
+	rx ry scale
+	0 0 1 0 360 arc
+	setmatrix
+} bind def
+
+/endpage { showpage } bind def
+
+/layercolorseq
+	[	% layer color sequence - darkest to lightest
+		[0 0 0]
+		[.2 .8 .8]
+		[.4 .8 .8]
+		[.6 .8 .8]
+		[.8 .8 .8]
+	]
+def
+
+/setlayer {/maxlayer exch def /curlayer exch def
+	layercolorseq curlayer get
+	aload pop sethsbcolor
+	/nodecolor {nopcolor} def
+	/edgecolor {nopcolor} def
+	/graphcolor {nopcolor} def
+} bind def
+
+/onlayer { curlayer ne {invis} if } def
+
+/onlayers {
+	/myupper exch def
+	/mylower exch def
+	curlayer mylower lt
+	curlayer myupper gt
+	or
+	{invis} if
+} def
+
+/curlayer 0 def
+
+%%EndResource
+%%EndProlog
+%%BeginSetup
+14 default-font-family set_font
+1 setmiterlimit
+% /arrowlength 10 def
+% /arrowwidth 5 def
+
+% make sure pdfmark is harmless for PS-interpreters other than Distiller
+/pdfmark where {pop} {userdict /pdfmark /cleartomark load put} ifelse
+% make '<<' and '>>' safe on PS Level 1 devices
+/languagelevel where {pop languagelevel}{1} ifelse
+2 lt {
+    userdict (<<) cvn ([) cvn load put
+    userdict (>>) cvn ([) cvn load put
+} if
+
+%%EndSetup
+%%Page: 1 1
+%%PageBoundingBox: 36 36 692 521
+%%PageOrientation: Portrait
+gsave
+35 35 657 486 boxprim clip newpath
+36 36 translate
+0 0 1 beginpage
+0 0 translate 0 rotate
+0.000 0.000 0.000 graphcolor
+14.00 /Times-Roman set_font
+
+%	trivmain.cc
+gsave 10 dict begin
+318 458 48 18 ellipse_path
+stroke
+gsave 10 dict begin
+318 453 moveto 75 -0.5 (trivmain.cc) alignedtext
+end grestore
+end grestore
+
+%	trivlex.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+318 386 38 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+318 381 moveto 55 -0.5 (trivlex.h) alignedtext
+end grestore
+end grestore
+
+%	trivmain.cc -> trivlex.h
+newpath 318 440 moveto
+318 432 318 423 318 414 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 316 414 moveto
+318 404 lineto
+321 414 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	useract.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+43 98 40 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+43 93 moveto 59 -0.5 (useract.h) alignedtext
+end grestore
+end grestore
+
+%	trivmain.cc -> useract.h
+newpath 271 454 moveto
+194 444 49 412 49 314 curveto
+49 314 49 314 49 242 curveto
+49 201 43 154 41 125 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 39 126 moveto
+40 116 lineto
+44 126 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	trivmain.cc -> useract.h
+newpath 272 453 moveto
+199 441 67 408 67 314 curveto
+67 314 67 314 67 242 curveto
+67 201 61 154 54 125 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 52 126 moveto
+52 116 lineto
+57 125 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer2.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+549 242 37 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+549 237 moveto 53 -0.5 (lexer2.h) alignedtext
+end grestore
+end grestore
+
+%	trivmain.cc -> lexer2.h
+newpath 299 441 moveto
+288 432 277 418 271 404 curveto
+254 359 238 333 268 296 curveto
+298 260 430 248 502 244 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 502 242 moveto
+512 243 lineto
+502 246 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	glr.h
+gsave 10 dict begin
+dashed
+newpath 468 404 moveto
+374 404 lineto
+374 368 lineto
+468 368 lineto
+closepath
+stroke
+gsave 10 dict begin
+421 389 moveto 30 -0.5 (glr.h) alignedtext
+421 373 moveto 81 -0.5 (\(subsystem\)) alignedtext
+end grestore
+end grestore
+
+%	trivmain.cc -> glr.h
+newpath 341 442 moveto
+355 433 372 420 387 410 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 385 408 moveto
+395 404 lineto
+389 412 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	ptreenode.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+536 386 50 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+536 381 moveto 79 -0.5 (ptreenode.h) alignedtext
+end grestore
+end grestore
+
+%	trivmain.cc -> ptreenode.h
+newpath 354 446 moveto
+392 433 450 414 491 401 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 489 399 moveto
+499 398 lineto
+491 404 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	cc_lang.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+610 98 43 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+610 93 moveto 64 -0.5 (cc_lang.h) alignedtext
+end grestore
+end grestore
+
+%	trivmain.cc -> cc_lang.h
+newpath 365 455 moveto
+466 444 519 477 595 404 curveto
+624 375 616 355 616 314 curveto
+616 314 616 314 616 242 curveto
+616 201 614 154 612 125 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 610 126 moveto
+611 116 lineto
+615 126 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	trivlex.cc
+gsave 10 dict begin
+318 314 41 18 ellipse_path
+stroke
+gsave 10 dict begin
+318 309 moveto 60 -0.5 (trivlex.cc) alignedtext
+end grestore
+end grestore
+
+%	trivlex.h -> trivlex.cc
+gsave 10 dict begin
+dashed
+newpath 318 368 moveto
+318 360 318 351 318 342 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 316 342 moveto
+318 332 lineto
+321 342 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	useract.cc
+gsave 10 dict begin
+43 26 43 18 ellipse_path
+stroke
+gsave 10 dict begin
+43 21 moveto 64 -0.5 (useract.cc) alignedtext
+end grestore
+end grestore
+
+%	useract.h -> useract.cc
+gsave 10 dict begin
+dashed
+newpath 37 80 moveto
+36 72 36 63 36 54 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 34 54 moveto
+37 44 lineto
+38 54 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	glrconfig.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+152 26 48 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+152 21 moveto 74 -0.5 (glrconfig.h) alignedtext
+end grestore
+end grestore
+
+%	useract.h -> glrconfig.h
+newpath 66 83 moveto
+82 73 103 58 120 47 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 118 45 moveto
+128 42 lineto
+121 49 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer2.h -> useract.h
+newpath 512 240 moveto
+358 224 310 246 167 188 curveto
+128 172 90 142 67 121 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 65 123 moveto
+60 114 lineto
+69 119 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer2.cc
+gsave 10 dict begin
+549 170 39 18 ellipse_path
+stroke
+gsave 10 dict begin
+549 165 moveto 57 -0.5 (lexer2.cc) alignedtext
+end grestore
+end grestore
+
+%	lexer2.h -> lexer2.cc
+gsave 10 dict begin
+dashed
+newpath 543 224 moveto
+542 216 542 207 542 198 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 540 198 moveto
+543 188 lineto
+544 198 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	lexer1.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+351 170 35 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+351 165 moveto 49 -0.5 (lexer1.h) alignedtext
+end grestore
+end grestore
+
+%	lexer2.h -> lexer1.h
+newpath 519 231 moveto
+484 218 426 197 388 183 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 388 186 moveto
+380 180 lineto
+390 181 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	fileloc.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+258 98 37 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+258 93 moveto 53 -0.5 (fileloc.h) alignedtext
+end grestore
+end grestore
+
+%	lexer2.h -> fileloc.h
+newpath 514 236 moveto
+510 235 507 234 501 232 curveto
+490 229 315 194 307 188 curveto
+286 172 273 144 266 124 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 264 126 moveto
+263 116 lineto
+269 124 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	strtable.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+451 170 41 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+451 165 moveto 61 -0.5 (strtable.h) alignedtext
+end grestore
+end grestore
+
+%	lexer2.h -> strtable.h
+newpath 528 227 moveto
+513 217 495 203 479 191 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 479 194 moveto
+472 186 lineto
+482 190 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexerint.h
+gsave 10 dict begin
+0.000 0.000 1.000 nodecolor
+218 170 42 18 ellipse_path
+stroke
+gsave 10 dict begin
+0.000 0.000 0.000 nodecolor
+218 165 moveto 63 -0.5 (lexerint.h) alignedtext
+end grestore
+end grestore
+
+%	lexer2.h -> lexerint.h
+newpath 513 236 moveto
+461 228 359 210 274 188 curveto
+269 187 263 185 258 183 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 260 186 moveto
+251 181 lineto
+261 181 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	ptreenode.cc
+gsave 10 dict begin
+536 314 52 18 ellipse_path
+stroke
+gsave 10 dict begin
+536 309 moveto 83 -0.5 (ptreenode.cc) alignedtext
+end grestore
+end grestore
+
+%	ptreenode.h -> ptreenode.cc
+gsave 10 dict begin
+dashed
+newpath 530 368 moveto
+529 360 529 351 529 342 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 527 342 moveto
+530 332 lineto
+531 342 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	cc_lang.cc
+gsave 10 dict begin
+610 26 45 18 ellipse_path
+stroke
+gsave 10 dict begin
+610 21 moveto 69 -0.5 (cc_lang.cc) alignedtext
+end grestore
+end grestore
+
+%	cc_lang.h -> cc_lang.cc
+gsave 10 dict begin
+dashed
+newpath 604 80 moveto
+603 72 603 63 603 54 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 601 54 moveto
+604 44 lineto
+605 54 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	trivlex.cc -> lexer2.h
+newpath 352 304 moveto
+395 291 467 268 512 254 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 508 253 moveto
+518 252 lineto
+509 258 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	useract.cc -> useract.h
+newpath 50 71 moveto
+50 62 50 52 49 44 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 53 70 moveto
+49 80 lineto
+48 70 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer2.cc -> lexer2.h
+newpath 556 214 moveto
+556 205 556 196 555 188 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 558 214 moveto
+555 224 lineto
+554 214 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer2.cc -> cc_lang.h
+newpath 563 153 moveto
+571 144 581 133 589 123 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 587 122 moveto
+595 115 lineto
+591 124 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer2.cc -> glrconfig.h
+newpath 545 152 moveto
+540 131 528 97 504 80 curveto
+450 41 274 58 209 44 curveto
+204 43 199 41 194 40 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 197 44 moveto
+188 38 lineto
+198 39 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer1.h -> fileloc.h
+newpath 331 155 moveto
+317 145 299 131 285 119 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 284 121 moveto
+278 113 lineto
+287 118 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer1.cc
+gsave 10 dict begin
+351 98 38 18 ellipse_path
+stroke
+gsave 10 dict begin
+351 93 moveto 54 -0.5 (lexer1.cc) alignedtext
+end grestore
+end grestore
+
+%	lexer1.h -> lexer1.cc
+gsave 10 dict begin
+dashed
+newpath 345 152 moveto
+344 144 344 135 344 126 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 342 126 moveto
+345 116 lineto
+346 126 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	fileloc.cc
+gsave 10 dict begin
+258 26 40 18 ellipse_path
+stroke
+gsave 10 dict begin
+258 21 moveto 58 -0.5 (fileloc.cc) alignedtext
+end grestore
+end grestore
+
+%	fileloc.h -> fileloc.cc
+gsave 10 dict begin
+dashed
+newpath 252 80 moveto
+251 72 251 63 251 54 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 249 54 moveto
+252 44 lineto
+253 54 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	strtable.cc
+gsave 10 dict begin
+451 98 44 18 ellipse_path
+stroke
+gsave 10 dict begin
+451 93 moveto 66 -0.5 (strtable.cc) alignedtext
+end grestore
+end grestore
+
+%	strtable.h -> strtable.cc
+gsave 10 dict begin
+dashed
+newpath 445 152 moveto
+444 144 444 135 444 126 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 442 126 moveto
+445 116 lineto
+446 126 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+end grestore
+
+%	lexerint.h -> useract.h
+newpath 188 157 moveto
+157 145 111 126 79 113 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 80 116 moveto
+72 110 lineto
+82 112 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexerint.h -> fileloc.h
+newpath 228 152 moveto
+233 144 238 134 243 124 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 241 123 moveto
+248 116 lineto
+245 126 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	ptreenode.cc -> ptreenode.h
+newpath 543 358 moveto
+543 349 543 340 542 332 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 545 358 moveto
+542 368 lineto
+541 358 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	cc_lang.cc -> cc_lang.h
+newpath 617 70 moveto
+617 61 617 52 616 44 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 619 70 moveto
+616 80 lineto
+615 70 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	lexer1.cc -> lexer1.h
+newpath 358 142 moveto
+358 133 358 124 357 116 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 360 142 moveto
+357 152 lineto
+356 142 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	fileloc.cc -> fileloc.h
+newpath 265 71 moveto
+265 62 265 52 264 44 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 268 70 moveto
+264 80 lineto
+263 70 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+
+%	strtable.cc -> strtable.h
+newpath 458 142 moveto
+458 133 458 124 457 116 curveto
+stroke
+0.000 0.000 0.000 edgecolor
+newpath 460 142 moveto
+457 152 lineto
+456 142 lineto
+closepath
+fill
+0.000 0.000 0.000 edgecolor
+endpage
+grestore
+%%PageTrailer
+%%EndPage: 1
+%%Trailer
+%%Pages: 1
+end
+restore
+%%EOF

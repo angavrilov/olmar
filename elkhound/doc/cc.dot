@@ -124,6 +124,7 @@ digraph "Dependencies" {
     weight = 10
   ]
   "glr.h" [
+    label = "glr.h\n(subsystem)"
     shape = box
     style = dashed
   ]
