@@ -146,8 +146,8 @@ TESTCXX := $(CXX) -g -Wall
 TESTFLAGS := $(CCFLAGS) $(LDFLAGS)
 
 # this one is explicitly *not* linked against $(THIS)
-nonport: nonport.cpp nonport.h
-	$(TESTCXX) -o nonport -DTEST_NONPORT nonport.cpp $(CCFLAGS)
+nonport: nonport.cpp nonport.h gprintf.o
+	$(TESTCXX) -o nonport -DTEST_NONPORT nonport.cpp gprintf.o $(CCFLAGS)
 
 voidlist: voidlist.cc voidlist.h $(THIS)
 	$(TESTCXX) -o voidlist -DTEST_VOIDLIST voidlist.cc $(TESTFLAGS)

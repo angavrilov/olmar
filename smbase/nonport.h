@@ -127,7 +127,7 @@ bool hasSystemCryptoRandom();
 unsigned getSystemCryptoRandom();
 
 
-// determine how many characters, including the final NUL, would
+// determine how many characters, *not* including the final NUL, would
 // be written by vsprintf; this is allowed to overestimate
 int vnprintf(char const *format, va_list args);
 

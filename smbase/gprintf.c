@@ -1,13 +1,32 @@
 /* gprintf.c */
 /* originally from: http://www.efgh.com/software/gprintf.htm */
+/* this file is in the public domain */
 
-/* modified by Scott McPeak, April 2003, to use va_list instead
- * of 'const int*' for the pointer-to-argument type (for portability) */
+/* modified by Scott McPeak, April 2003:
+ *   - use va_list instead of 'const int*' for the 
+ *     pointer-to-argument type (for portability)
+ *   - implement conservative estimates for unknown format
+ *     chars, particularly 'f' (CONSERVATIVE_ESTIMATE flag)
+ *   - add a few test vectors
+ */
+
+/* NOTE: There are quite a few differences among the *printf
+ * implementations running around in the various libcs.  The
+ * implementation in this module doesn't know about all of those
+ * variations and extensions.  So, if you're using this to estimate
+ * the # of chars your libc's printf will use, be sure to compare
+ * libc's printf's actual return value, to make sure something doesn't
+ * slip through the cracks. */
 
 /* Code for general_printf() */
 /* Change extension to .c before compiling */
 
 #include "gprintf.h"     /* this module */
+#include <assert.h>      /* assert */
+
+/* when this is true, unknown fields are filled with Xs, in an attempt
+ * to print at least as many characters as libc's sprintf */
+#define CONSERVATIVE_ESTIMATE 1
 
 #define BITS_PER_BYTE           8
 
@@ -36,7 +55,7 @@ static void output_and_count(struct parameters *p, int c)
   }
 }
 
-static void output_field(struct parameters *p, char *s)
+static void output_field(struct parameters *p, char const *s)
 {
   short justification_length =
     p->minimum_field_width - p->leading_zeros - p->edited_string_length;
@@ -158,7 +177,33 @@ int general_vprintf(Gprintf_output_function output_function,
       {
         if (control_char != '\0')
         {
-          output_and_count(&p, control_char);
+          #if !CONSERVATIVE_ESTIMATE
+            /* sm: this was the original code; it just prints the
+             * format character itself */
+            output_and_count(&p, control_char);
+
+          #else
+            /* since my goal is actually to compute a conservative
+             * upper bound on the # of chars output by sprintf, I want
+             * to fill unknown fields with Xs */
+            static char const * const XXX =
+              "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";  /* 50 Xs */
+            assert(precision <= 30);     /* otherwise I need more Xs */
+
+            /* I'm assuming that printing floating-point is the worst case.
+             * I further assume non-fractional parts (integer part,
+             * exponent, decimal, sign) won't exceed 20 chars.  Finally,
+             * up to 30 characters of decimal part are supported (this
+             * is checked with the assertion above). */
+            if (precision == -1) {
+              p.edited_string_length = 20 + 6;    /* 6 is default precision for 'f' */
+            }
+            else {
+              p.edited_string_length = 20 + precision;
+            }
+            output_field(&p, XXX);
+          #endif
+
           control_char = *control_string++;
         }
       }
@@ -230,6 +275,20 @@ int general_vprintf(Gprintf_output_function output_function,
 }
 
 
+int general_printf(Gprintf_output_function output,
+                   void *extra, const char *format, ...)
+{
+  va_list args;
+  int ret;
+
+  va_start(args, format);
+  ret = general_vprintf(output, extra, format, args);
+  va_end(args);
+  
+  return ret;
+}
+
+
 /* ------------------ test code --------------------- */
 #ifdef TEST_GPRINTF
 
@@ -262,8 +321,8 @@ int general_vsprintf(char *dest, char const *format, va_list args)
 }
 
 
-char output1[1024];    // for libc
-char output2[1024];    // for this module
+char output1[1024];    /* for libc */
+char output2[1024];    /* for this module */
 
 
 void expect_vector_len(int expect_len, char const *expect_output,
@@ -293,9 +352,12 @@ void expect_vector_len(int expect_len, char const *expect_output,
 
 
 void expect_vector(char const *expect_output,
-                   char const *format, va_list args)
+                   char const *format, ...)
 {
+  va_list args;
+  va_start(args, format);
   expect_vector_len(strlen(expect_output), expect_output, format, args);
+  va_end(args);
 }
 
 
@@ -320,11 +382,22 @@ int main()
 {
   printf("testing gprintf...\n");
 
+  /* test against libc */
   vector("simple");
   vector("a %s more", "little");
   vector("some %4d more %s complicated %c stuff",
          33, "yikes", 'f');
-  //vector("number %f floats", 3.4);
+                      
+  /* test unknown format chars */
+  expect_vector("XXXXXXXXXXXXXXXXXXXXXXXXXX", "%f", 3.4);
+  expect_vector("XXXXXXXXXXXXXXXXXXXXXXX", "%.3f", 3.4);
+  expect_vector("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "%.10f", 3.4);
+  expect_vector("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "%.30f", 3.4);
+
+  /* fails assertion, as it should */
+  /* expect_vector("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "%.31f", 3.4); */
+
+  /* TODO: add more tests */
 
   printf("gprintf works\n");
   return 0;

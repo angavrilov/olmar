@@ -3,7 +3,7 @@
 // Scott McPeak and Dan Bonachea, 1998-1999  This file is public domain.
 
 #include <stdio.h>       // printf
-#include <stdlib.h>      // abort
+#include <stdlib.h>      // abort, exit
 #include <string.h>      // strncpy
 
 #ifdef __WIN32__
@@ -544,21 +544,39 @@ int getProcessId()
 // do we have access to C99 vsnprintf?
 #if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
   #if __GLIBC__ >= 3 || (__GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1)
-    // glibc-2.1 or later: yes
+    // glibc-2.1 or later: yes (glibc-2.0.6 has a function called
+    // vsnprintf, but the interface is wrong)
     #define HAS_C99_VSNPRINTF
   #endif
 #endif
 
+// note to reader: if your system has C99 VSNPRINTF, feel free to add
+// appropriate detection code
+
+#ifndef HAS_C99_VSNPRINTF
+  // no vsnprintf, will use gprintf (which is slow, and overestimates sometimes)
+  #include "gprintf.h"        // general_vprintf
+  
+  static int counting_output_function(void *extra, int ch)
+  {
+    // 'extra' is a pointer to the count
+    int *ct = (int*)extra;
+    (*ct)++;
+    return 0;    // no failure
+  }
+#endif // !HAS_C99_VSNPRINTF
 
 int vnprintf(char const *format, va_list args)
 {
   #ifdef HAS_C99_VSNPRINTF
-    // can use this directly; it returns the count minus the final NUL
-    return vsnprintf(NULL, 0, format, args)+1;
+    // can use this directly
+    return vsnprintf(NULL, 0, format, args);
 
   #else
-    // conservatively interpret the format string
-    #error TODO
+    // conservatively interpret the format string using gprintf
+    int count = 0;
+    general_vprintf(counting_output_function, &count, format, args);
+    return count;
   #endif
 }
 
@@ -605,6 +623,45 @@ void testingFail(char const *call, char const *ctx)
 {
   printf("FAIL: call=%s, ctx=%s, errno=%d\n",
          call, (ctx? ctx : "(null)"), errno);
+}
+
+
+void nprintfVector(char const *format, ...)
+{
+  va_list args;
+
+  // run vnprintf to obtain estimate
+  va_start(args, format);
+  int est = vnprintf(format, args);
+  va_end(args);
+
+  // make that much space
+  char *buf = new char[est+1 + 50 /*safety margin*/];
+
+  // run the real vsprintf
+  va_start(args, format);
+  int len = vsprintf(buf, format, args);
+  va_end(args);
+  
+  if (len > est) {
+    printf("nprintf failed to conservatively estimate!\n");
+    printf("    format: %s\n", format);
+    printf("  estimate: %d\n", est);
+    printf("    actual: %d\n", len);
+    exit(2);
+  }
+
+  if (len != est) {
+    // print the overestimates; they shouldn't be much noise in the
+    // common case, but might hint at a problem earlier than I'd
+    // otherwise notice
+    printf("nprintf overestimate:\n");
+    printf("    format: %s\n", format);
+    printf("  estimate: %d\n", est);
+    printf("    actual: %d\n", len);
+  }
+
+  delete[] buf;
 }
 
 
@@ -731,6 +788,14 @@ int main(int argc, char **argv)
            getSystemCryptoRandom());
   }
 
+  printf("testing nprintf...\n");
+  nprintfVector("simple");
+  nprintfVector("a %s more", "little");
+  nprintfVector("some %4d more %s complicated %c stuff",
+                33, "yikes", 'f');
+  nprintfVector("%f", 3.4);
+
+  printf("nonport works\n");
   return 0;
 }
 
