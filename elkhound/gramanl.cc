@@ -1759,6 +1759,9 @@ void GrammarAnalysis::
     return;
   }
 
+  // in comments that follow, 'item' is broken down as
+  //   A -> alpha . B beta, LA
+
   // get the symbol B (the one right after the dot)
   Symbol const *B = item->symbolAfterDotC();
   if (B->isTerminal()) {
