@@ -174,7 +174,7 @@ static char const *ctorName(Type::Tag tag)
 class Conversion {
 public:
   // original parameters to 'getStandardConversion'
-  Env *env;
+  string *errorMsg;
   Type const *src;
   Type const *dest;
 
@@ -190,8 +190,8 @@ public:
   int ptrCtorsStripped;
 
 public:
-  Conversion(Env *e, Type const *s, Type const *d)
-    : env(e), src(s), dest(d),
+  Conversion(string *e, Type const *s, Type const *d)
+    : errorMsg(e), src(s), dest(d),
       ret(SC_IDENTITY),
       destConst(true),
       ptrCtorsStripped(0)
@@ -205,11 +205,11 @@ public:
 
 StandardConversion Conversion::error(char const *why)
 {
-  if (env) {
-    env->error(stringc
+  if (errorMsg) {
+    *errorMsg = stringc
       << "cannot convert `" << src->toString()
       << "' to `" << dest->toString()
-      << "': " << why);
+      << "': " << why;
   }
   return ret = SC_ERROR;
 }
@@ -259,9 +259,9 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 // without allocating, and if I can then that avoids interaction
 // problems with Type annotation systems
 StandardConversion getStandardConversion
-  (Env *env, SpecialExpr srcSpecial, Type const *src, Type const *dest)
+  (string *errorMsg, SpecialExpr srcSpecial, Type const *src, Type const *dest)
 {
-  Conversion conv(env, src, dest);
+  Conversion conv(errorMsg, src, dest);
 
   // --------------- group 1 ----------------
   if (src->isReference() && !dest->isReference()) {
@@ -465,7 +465,7 @@ StandardConversion getStandardConversion
       }
     }
 
-    if (env) {
+    if (errorMsg) {
       // if reporting, I go out of my way a bit here since I expect
       // this to be a relatively common error and I'd like to provide
       // as much information as will be useful
@@ -642,24 +642,18 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
 
 void test_getStandardConversion(
   Env &env, SpecialExpr special, Type const *src, Type const *dest,
-  int expected) 
+  int expected)
 {
-  // grab existing error messages
-  ObjList<ErrorMsg> existing;
-  existing.concat(env.errors);
-  
   // run our function
-  StandardConversion actual = getStandardConversion(&env, special, src, dest);
-  
+  string errorMsg;
+  StandardConversion actual = getStandardConversion(&errorMsg, special, src, dest);
+
   // turn any resulting messags into warnings, so I can see their
   // results without causing the final exit status to be nonzero
-  FOREACH_OBJLIST_NC(ErrorMsg, env.errors, iter) {
-    iter.data()->isWarning = true;
+  if (actual == SC_ERROR) {
+    env.warning(errorMsg);
   }
-  
-  // put the old messages back
-  env.errors.concat(existing);
-  
+
   // did the function do what we expected?
   if (actual != expected) {
     // no, explain the situation

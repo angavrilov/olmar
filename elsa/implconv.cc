@@ -91,7 +91,7 @@ ImplicitConversion getImplicitConversion
   // check for a standard sequence
   {
     StandardConversion scs = 
-      getStandardConversion(NULL /*env*/, special, src, dest);
+      getStandardConversion(NULL /*errorMsg*/, special, src, dest);
     if (scs != SC_ERROR) {
       ret.addStdConv(scs);
     }
@@ -176,7 +176,7 @@ StandardConversion tryCallCtor
   }
   
   Variable const *param = ft->params.firstC();
-  return getStandardConversion(NULL /*env*/, special, src, param->type);
+  return getStandardConversion(NULL /*errorMsg*/, special, src, param->type);
 }
 
 

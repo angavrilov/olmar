@@ -140,7 +140,8 @@ Candidate * /*owner*/ makeCandidate
     if (flags & OF_NO_USER) {  
       // only consider standard conversions
       StandardConversion scs =
-        getStandardConversion(NULL /*env*/, args[argIndex].special, args[argIndex].type,
+        getStandardConversion(NULL /*errorMsg*/, 
+                              args[argIndex].special, args[argIndex].type,
                               paramIter.data()->type);
       if (scs != SC_ERROR) {
         ImplicitConversion ics;
