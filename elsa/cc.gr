@@ -2097,10 +2097,14 @@ nonterm(FakeList<Handler>*) HandlerSeq {
 
 nonterm(Handler*) Handler {
   -> "catch" "(" d:HandlerParameter ")" s:CompoundStatement
-       { return new HR_type(s, d); }
+       { return new Handler(d, s); }
 
   -> "catch" "(" "..." ")" s:CompoundStatement
-       { return new HR_default(s); }
+       { return new Handler(
+           new ASTTypeId(new TS_simple(loc, ST_ELLIPSIS),
+                         new Declarator(new D_name(loc, NULL /*name*/),
+                                        NULL /*init*/)),
+           s); }
 }
 
 nonterm(ASTTypeId*) HandlerParameter {

@@ -423,13 +423,19 @@ class Condition {
 }
 
 // exception handler
-class Handler (
-  Statement body                    // code to run when handler selected
+class Handler (                     
+  // type of exception objects this handler catches; note that it
+  // might be ST_ELLIPSIS, which corresponds to the "..." syntax
+  ASTTypeId typeId,
+                                    
+  // code to run when handler catches an exception
+  Statement body
 ) {
   public Handler *next;  ctor next=NULL;      // FakeList link
-
-  -> HR_type(ASTTypeId typeId);     // handles given type of exception
-  -> HR_default();                  // handles any type; synactically "..."
+  
+  // test whether this is the "..." handler; when type, typeId does
+  // not get tcheck'd, so its decl->var and decl->type fields are NULL
+  public bool isEllipsis() const;
 }
 
 

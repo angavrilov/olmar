@@ -327,7 +327,7 @@ class Condition {
 
 
 class Handler {
-  pure_virtual void tcheck(Env &env);
+  public void tcheck(Env &env);
 }
 
 

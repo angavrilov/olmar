@@ -2870,21 +2870,17 @@ void CN_decl::tcheck(Env &env)
 
 
 // ------------------- Handler ----------------------
-void HR_type::tcheck(Env &env)
-{           
+void Handler::tcheck(Env &env)
+{
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
-  ASTTypeId::Tcheck tc;
-  typeId = typeId->tcheck(env, tc);
+  if (!isEllipsis()) {
+    ASTTypeId::Tcheck tc;
+    typeId = typeId->tcheck(env, tc);
+  }
   body->tcheck(env);
 
   env.exitScope(scope);
-}
-
-
-void HR_default::tcheck(Env &env)
-{
-  body->tcheck(env);
 }
 
 

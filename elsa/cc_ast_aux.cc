@@ -314,7 +314,14 @@ string Statement::kindLocString() const
 
 
 // Condition
-// Handler
+
+// ----------------------- Handler ----------------------
+bool Handler::isEllipsis() const
+{
+  return typeId->spec->isTS_simple() &&
+         typeId->spec->asTS_simple()->id == ST_ELLIPSIS;
+}
+
 
 // --------------------- Expression ---------------------
 void Expression::printAmbiguities(ostream &os, int indent) const

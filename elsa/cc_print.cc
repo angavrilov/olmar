@@ -648,22 +648,21 @@ void CN_decl::print(PrintEnv &env)
 
 // ------------------- Handler ----------------------
 // catch clause
-void HR_type::print(PrintEnv &env)
-{           
-  olayer ol("HR_type");
+void Handler::print(PrintEnv &env)
+{
+  olayer ol("Handler");
   {
     codeout co(env, "catch", "(", ")");
-    typeId->print(env);
+    if (isEllipsis()) {
+      env << "...";
+    }
+    else {
+      typeId->print(env);
+    }
   }
   body->print(env);
 }
 
-void HR_default::print(PrintEnv &env)
-{
-  olayer ol("HR_default");
-  env << "catch (...)";
-  body->print(env);
-}
 
 // ------------------- Expression print -----------------------
 void Expression::print(PrintEnv &env)
