@@ -439,6 +439,7 @@ failparse t0215.cc "(fill in a reason here)"
 testparse t0216.cc
 testparse t0217.cc
 testparse t0218.cc
+failparse t0219.cc "template argument inference fails for member template function"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
