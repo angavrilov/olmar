@@ -85,9 +85,6 @@ public:    // funcs
 
 private:
   #include "cc.gr.gen.h"
-
-  // retained for now in case I decide to try lexer hack with C++  
-  void declareClassTag(PQName const *tagName);
 };
 
 UserActions *makeUserActions(StringTable &table, CCLang &lang)
@@ -102,15 +99,6 @@ ASTTypeId *ellipsisTypeId()
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
                        new Declarator(new D_name(SourceLocation(), NULL /*name*/),
                                       NULL /*init*/));
-}
-
-void CCGr::declareClassTag(PQName const *tagName)
-{
-  // TYPE/NAME
-  if (lang.tagsAreTypes) {
-    D("defined new struct/class tag as type " << tagName->toString());
-    addType(tagName);
-  }
 }
 
 ]
@@ -131,23 +119,6 @@ terminals {
   token[char] L2_CHAR_LITERAL ;
 
   token[StringRef] L2_NAME {
-    // every time I pull an L2_NAME from the lexer, this code is
-    // run to possibly reclassify the token kind; the semantic
-    // value is passed (and ParseEnv is available as context), but
-    // the same semantic value will be used
-
-    // -- no lexer hack now --
-    // I mark this, and all places the deal with resolving the
-    // type-name vs variable-name ambiguity, with "TYPE/NAME"
-    //classify(s) [
-    //  if (isType(s)) {
-    //    return L2_TYPE_NAME;
-    //  }
-    //  else {
-    //    return L2_VARIABLE_NAME;
-    //  }
-    //]
-
     dup(n) [ return n; ]
     del(n) []
   }
@@ -160,7 +131,7 @@ terminals {
   precedence {
     // high precedence
     prec L2_PREFER_REDUCE;
-    prec "const" "volatile" "owner" "__attribute__" "else" "[";
+    prec "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else" "[";
 
     right ".*" "->*";
     left "*" "/" "%";
@@ -187,13 +158,13 @@ nonterm[TranslationUnit*] File -> EnterScope t:TranslationUnit LeaveScope
 // scoping
 nonterm EnterScope -> empty    [
   D("entering scope");
-  enterScope();
+  //enterScope();
   return 0;
 ]
 
 nonterm LeaveScope -> empty     [
   D("exiting scope");
-  leaveScope();
+  //leaveScope();
   return 0;
 ]
 
@@ -910,10 +881,7 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 
 
 nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
-  -> k:ClassKey n:PQTypeName   [
-       declareClassTag(n);
-       return new TS_elaborated(loc, k, n);
-     ]
+  -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(loc, k, n); ]
   -> "enum" n:PQTypeName        [ return new TS_elaborated(loc, TI_ENUM, n); ]
                             
   // cppstd grammar ensures "typename" is only applied to qualified
@@ -1255,9 +1223,9 @@ nonterm[enum CVFlags] CVQualifierSeq {
 }
 
 nonterm[enum CVFlags] CVQualifier {
-  -> "const"        [ return CV_CONST; ]
-  -> "volatile"     [ return CV_VOLATILE; ]
-  -> "owner"        [ return CV_OWNER; ]
+  -> "const"                 [ return CV_CONST; ]
+  -> "volatile"              [ return CV_VOLATILE; ]
+  -> "owner_ptr_qualifier"   [ return CV_OWNER; ]
 }
 
 
@@ -1499,13 +1467,13 @@ nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
 // ------ A.8 Classes ------
 nonterm[TS_classSpec*] ClassSpecifier {
   -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
-       [ return new TS_classSpec(loc, k, n, b, memb); ]
+       [ popClassName(); return new TS_classSpec(loc, k, n, b, memb); ]
 }
 
 // this is the name portion of what the standard calls "ClassHead"
 nonterm[PQName*] ClassHeadNameOpt {
-  -> empty               [ return NULL; ]
-  -> n:ClassHeadName     [ return n; ]
+  -> empty               [ pushClassName(NULL); return NULL; ]
+  -> n:ClassHeadName     [ pushClassName(n->getName()); return n; ]
 }
 
 // a possibly-qualified Identifier or TemplateId
@@ -1564,15 +1532,29 @@ nonterm[Member*] MemberDeclaration {
   // destructive action on 'spec'
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       [ spec->decllist = list;
-         return new MR_decl(loc, spec); ]
+       [ if (list->firstC()->decl->isD_name() &&
+             spec->spec->isTS_name()) {
+           PQName const *n = spec->spec->asTS_nameC()->name;
+           if (n->isPQ_name() &&
+               n->asPQ_nameC()->name == curClassName()) {
+             // you can't declare an embedded instance of your own class
+             // name, and this might be ambiguous with a constructor
+             // declaration, so cancel it
+             trace("cancel") << loc
+               << ": declaration of embedded self class instance\n";
+             return NULL;
+           }
+         }
+         spec->decllist = list;
+         return new MR_decl(loc, spec);
+       ]
 
   // inner class or enum with no instance defined
   -> spec:DeclSpecifier ";"
        [ // if the type specifier doesn't start with 'class'
          // or 'enum' then this is useless, and might be
          // ambiguous with superclass member publication, so
-         // cancel it
+         // cancel it [cppstd 9.2 para 7]
          if (spec->spec->isTS_elaborated() ||
              spec->spec->isTS_classSpec() ||
              spec->spec->isTS_enumSpec()) {

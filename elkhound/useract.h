@@ -100,7 +100,9 @@ public:
   // yielded to anything (this fact is critical to solving the general
   // yield-then-merge problem)
   virtual SemanticValue mergeAlternativeParses(
-    int ntIndex, SemanticValue left, SemanticValue right)=0;
+    int ntIndex, SemanticValue left, SemanticValue right
+    SOURCELOCARG( SourceLocation const &loc )
+  )=0;
 
   // after every reduction, the semantic value is passed to this function,
   // which returns 'false' if the reduction should be cancelled; if it
@@ -140,7 +142,9 @@ public:
     int nontermId, SemanticValue sval);                                \
                                                                        \
   virtual SemanticValue mergeAlternativeParses(                        \
-    int ntIndex, SemanticValue left, SemanticValue right);             \
+    int ntIndex, SemanticValue left, SemanticValue right               \
+    SOURCELOCARG( SourceLocation const &loc )                          \
+  );                                                                   \
                                                                        \
   virtual bool keepNontermValue(int nontermId, SemanticValue sval);    \
                                                                        \

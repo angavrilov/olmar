@@ -38,7 +38,8 @@ void TrivialUserActions::deallocateNontermValue(
   {}
 
 SemanticValue TrivialUserActions::mergeAlternativeParses(
-  int , SemanticValue left, SemanticValue )
+  int , SemanticValue left, SemanticValue
+  SOURCELOCARG( SourceLocation const & ) )
   { return left; }
 
 bool TrivialUserActions::keepNontermValue(int , SemanticValue )

@@ -173,7 +173,7 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2___TYPEOF__),           "__typeof__", true },
   
   // my own extension
-  { N(L2_OWNER),                "owner", true },
+  { N(L2_OWNER),                "owner_ptr_qualifier", true },
   
   // additional tokens to help in specifying disambiguation
   { N(L2_PREFER_REDUCE),        "PREFER_REDUCE", true },

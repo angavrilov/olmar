@@ -3947,6 +3947,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "#include <iostream.h>    // cout\n";
   out << "#include \"useract.h\"     // SemanticValue\n";
   out << "#include \"parsetables.h\" // ParseTables\n";
+  out << "#include \"fileloc.h\"     // SourceLocation\n";
   out << "\n";
 
   // insert user's verbatim code at top
@@ -4241,7 +4242,9 @@ void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
   // emit merge-nonterm
   emitSwitchCode(g, out,
     "SemanticValue $acn::mergeAlternativeParses(int nontermId, SemanticValue left,\n"
-    "                                           SemanticValue right)",
+    "                                           SemanticValue right"
+    SOURCELOC(",  SourceLocation const &loc")
+    ")",
     "nontermId",
     (ObjList<Symbol> const&)g.nonterminals,
     2 /*mergeCode*/,
@@ -4418,7 +4421,8 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
       break;
 
     case 2:    // unspecified merge: warn, but then use left (arbitrarily)
-      out << "      cout << \"WARNING: there is no action to merge nonterm \"\n"
+      out << "      cout << loc.toString() \n"
+          << "           << \": WARNING: there is no action to merge nonterm \"\n"
           << "           << nontermNames[" << switchVar << "] << endl;\n";
       if (g.defaultMergeAborts) {
         out << "      abort();\n";
@@ -4447,11 +4451,13 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
 #ifdef GRAMANL_MAIN
 
 #include "bflatten.h"     // BFlatten
+#include "test.h"         // ARGS_MAIN
+
 #include <stdio.h>        // remove
 #include <stdlib.h>       // system
 
 
-int main(int argc, char **argv)
+int entry(int argc, char **argv)
 {
   char const *progName = argv[0];
   TRACE_ARGS();
@@ -4495,7 +4501,14 @@ int main(int argc, char **argv)
 
   string grammarFname = stringc << prefix << ".gr";
   GrammarAnalysis g;
-  readGrammarFile(g, grammarFname);
+  try {
+    readGrammarFile(g, grammarFname);
+  }
+  catch (XASTParse &x) {
+    cout << x << endl;    // parse error, typically
+    return 4;
+  }
+
   if (tracingSys("treebuild")) {
     cout << "replacing given actions with treebuilding actions\n";
     g.addTreebuildingActions();
@@ -4591,5 +4604,7 @@ int main(int argc, char **argv)
 
   return 0;
 }
+
+ARGS_MAIN
 
 #endif // GRAMANL_MAIN

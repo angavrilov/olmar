@@ -2,6 +2,7 @@
 // starting over with a C++ grammar
 // working from ISO/IEC 14882:1998(E)
 
+option useGCDefaults;
 
 verbatim CC2 [
 

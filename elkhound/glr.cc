@@ -1983,8 +1983,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
       // call the user's code to merge, and replace what we have
       // now with the merged version
-      sibLink->sval = userAct->mergeAlternativeParses(lhsIndex,
-                                                      sibLink->sval, sval);
+      sibLink->sval = 
+        userAct->mergeAlternativeParses(lhsIndex, sibLink->sval, sval  SOURCELOCARG( loc ) );
 
       // emit tracing diagnostics for the merge
       TRSACTION("  " <<

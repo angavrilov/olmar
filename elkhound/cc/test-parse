@@ -17,7 +17,7 @@ while [ "$1" != "" ]; do
   echo "cc/ccparse $fname"
   if cc/ccparse "$fname"; then
     # ok
-    true
+    echo "$fname: ok"
   else
     code=$?
     echo "$fname: had errors"
