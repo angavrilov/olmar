@@ -4205,7 +4205,7 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           dqt = NULL;               // don't need a DQT
         }
 
-        else if (svar->isTemplateParam()) {
+        else if (svar->type->isTypeVariable()) {
           if (qual->targs.isNotEmpty()) {
             error(name->loc, stringc     // t0265.cc error 1
               << "template arguments applied to `" << qual->qualifier
@@ -4216,7 +4216,6 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           }
 
           // build DependentQType TypeVariable(svar)::...
-          xassert(svar->type->isTypeVariable());
           dqt = new DependentQType(svar->type->asTypeVariable());
         }
 
