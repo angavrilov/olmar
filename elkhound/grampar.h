@@ -4,9 +4,10 @@
 #ifndef __GRAMPAR_H
 #define __GRAMPAR_H
 
-#include "typ.h"        // NULL
-#include "sobjlist.h"   // SObjList
-#include "exc.h"        // xBase
+#include "typ.h"          // NULL
+#include "sobjlist.h"     // SObjList
+#include "exc.h"          // xBase
+#include "strsobjdict.h"  // StringSObjDict
 
 // fwd decl
 class ASTNode;
@@ -14,7 +15,9 @@ class GrammarLexer;
 
 
 // -------- rest of the program's view of Bison ------------
-// name of extra parameter to yyparse
+// name of extra parameter to yyparse (i.e. the context in
+// which the parser operates, instead of that being stored
+// in some collection of globals)
 #define YYPARSE_PARAM parseParam
 
 // type of thing extra param points at
@@ -52,7 +55,7 @@ extern int yydebug;
 int yylex(YYSTYPE *lvalp, void *YYLEX_PARAM);
 
 // Bison calls yyerror(msg) on error; we need the extra
-// parameter too
+// parameter too, so the macro shoehorns it in there
 #define yyerror(msg) my_yyerror(msg, YYPARSE_PARAM)
 void my_yyerror(char const *message, void *YYPARSE_PARAM);
 
@@ -65,11 +68,16 @@ class Grammar;    // fwd
 // (eval'd at grammar parse time) action expressions
 class Environment {
 public:      // data
-  // grammar we're playing with
+  // grammar we're playing with (stored here because it's
+  // more convenient than passing it to every fn separately)
   Grammar &g;
 
   // env in which we're nested, if any
   Environment *prevEnv;      // (serf)
+                                   
+  // maps from a nonterminal name to its declaration, if that
+  // nonterminal has in fact been declared already
+  StringSObjDict<ASTNode /*const*/> nontermDecls;
 
   // set of inherited actions and conditions; we simply
   // store pointers to the ASTs, and re-parse them in
@@ -78,7 +86,9 @@ public:      // data
   // conditions, so I don't really need 'prevEnv' ...
   SObjList<ASTNode /*const*/> inherited;
 
-  // current value of any sequence function
+  // current value of any sequence function (at this point,
+  // sequencing is pretty much obsolete, because I botched
+  // the first implementation and haven't fixed it)
   int sequenceVal;
 
 public:
@@ -89,7 +99,7 @@ public:
 
 
 // --------------- grampar's external interface -----------
-// parse file 'fname' into grammar 'g', throwing exceptions
+// parse grammar file 'fname' into grammar 'g', throwing exceptions
 // if there are problems
 void readGrammarFile(Grammar &g, char const *fname);
 
@@ -102,7 +112,7 @@ public:    // data
 
   // what is wrong
   string message;
-                   
+
 private:   // funcs
   static string constructMsg(ASTNode const *node, char const *msg);
 

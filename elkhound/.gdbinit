@@ -1,7 +1,7 @@
 # .gdbinit
 
-file ccgr
-set args -tr progress cc.gr cc.in1
+file grampar
+set args cc.gr
 
 break main
 break breaker

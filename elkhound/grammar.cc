@@ -853,6 +853,8 @@ bool Grammar::declareToken(char const *symbolName, int code, char const *alias)
 // well-formedness check
 void Grammar::checkWellFormed() const
 {
+  #if 0   // I no longer check this, because most of my 
+          // base classes are empty of productions
   // verify every nonterminal has at least one rule
   FOREACH_NONTERMINAL(nonterminals, nt) {
     // does this nonterminal have a rule?
@@ -869,6 +871,7 @@ void Grammar::checkWellFormed() const
                        << " has no rules");
     }
   }
+  #endif // 0
   
   // verify referential integrity in actions/conditions
   FOREACH_PRODUCTION(productions, prod) {

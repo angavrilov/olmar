@@ -24,8 +24,11 @@ enum ASTTypeCode {
   AST_TERMDECL,          // terminal: numeric-code, aliases
   AST_ALIASES,           // list of terminal aliases
   
-  AST_NONTERM,           // nonterminal: name, (form or ntbody)
+  AST_NONTERM,           // nonterminal: ntname, (form or ntbody)
   AST_NTBODY,            // list of nonterminal body elements
+  AST_NTNAME,            // name, [baseclasses]
+  AST_BASECLASSES,       // list of base class nonterminal names
+
   AST_ATTR,              // attribute decl: name
   AST_FORM,              // form: rhs, [formbody]
   AST_RHSALTS,           // list of ALT_RHSs

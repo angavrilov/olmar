@@ -17,6 +17,7 @@
 Environment::Environment(Grammar &G)
   : g(G),
     prevEnv(NULL),
+    nontermDecls(),
     inherited(),
     sequenceVal(0)
 {}
@@ -24,6 +25,7 @@ Environment::Environment(Grammar &G)
 Environment::Environment(Environment &prev)
   : g(prev.g),
     prevEnv(&prev),
+    nontermDecls(prev.nontermDecls),
     inherited(),
     sequenceVal(prev.sequenceVal)
 {
@@ -69,6 +71,8 @@ XASTParse::~XASTParse()
 // -------------------- AST parser support ---------------------
 // fwd-decl of parsing fns
 void astParseGrammar(Grammar &g, ASTNode const *treeTop);
+void astParseNonterm(Environment &env, ASTNode const *node,
+                     Nonterminal *nonterm);
 void astParseNonterminalBody(Environment &env, Nonterminal *nt,
                              ObjList<ASTNode> const &bodyList);
 void astParseFormgroup(Environment &env, Nonterminal *nt,
@@ -99,22 +103,31 @@ void astParseError(ASTNode const *node, char const *msg)
   THROW(XASTParse(node, msg));
 }
 
+void checkType(ASTNode const *node, int type)
+{ 
+  if (node->type != type) {
+    astParseError(node,
+                  stringc << "wrong type; expected " 
+                          << astTypeToString(type));
+  }
+}
+
 
 ASTIntLeaf const *asIntLeafC(ASTNode const *n)
 {
-  xassert(n->type == AST_INTEGER);
+  checkType(n, AST_INTEGER);
   return (ASTIntLeaf const *)n;
 }
 
 ASTStringLeaf const *asStringLeafC(ASTNode const *n)
 {
-  xassert(n->type == AST_STRING);
+  checkType(n, AST_STRING);
   return (ASTStringLeaf const *)n;
 }
 
 ASTNameLeaf const *asNameLeafC(ASTNode const *n)
 {
-  xassert(n->type == AST_NAME);
+  checkType(n, AST_NAME);
   return (ASTNameLeaf const *)n;
 }
 
@@ -127,8 +140,14 @@ ASTNode const *nthChild(ASTNode const *n, int c)
 ASTNode const *nthChildt(ASTNode const *n, int c, int type)
 {
   ASTNode const *ret = nthChild(n, c);
-  xassert(ret->type == type);
+  checkType(ret, type);
   return ret;
+}
+
+
+int numChildren(ASTNode const *n)
+{
+  return n->asInternalC().numChildren();
 }
 
 
@@ -141,7 +160,7 @@ string nodeString(ASTNode const *n)
 
 ObjList<ASTNode> const &nodeList(ASTNode const *n, int type)
 {
-  xassert(n->type == type);
+  checkType(n, type);
   return n->asInternalC().children;
 }
 
@@ -196,7 +215,7 @@ LiteralCode *childLitCode(ASTNode const *n, int c)
 // ---------------------- AST "parser" --------------------------
 void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 {
-  xassert(treeTop->type == AST_TOPLEVEL);
+  checkType(treeTop, AST_TOPLEVEL);
 
   // default, empty environment
   Environment env(g);
@@ -205,7 +224,7 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
   FOREACH_OBJLIST(ASTNode, nodeList(treeTop, AST_TOPLEVEL), iter) {
     // at this level it's always an internal node
     ASTInternal const *node = &(iter.data()->asInternalC());
-    try {     
+    try {
 
       switch (node->type) {
         case AST_TERMINALS: {
@@ -213,13 +232,13 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           FOREACH_OBJLIST(ASTNode, node->children, termIter) {
             try {
               ASTInternal const *term = &( termIter.data()->asInternalC() );
-              xassert(term->type == AST_TERMDECL);
+              checkType(term, AST_TERMDECL);
 
               // process the terminal declaration
               int code = childInt(term, 0);
               string name = childName(term, 1);
               bool ok;
-              if (term->numChildren() == 3) {
+              if (numChildren(term) == 3) {
                 ok = env.g.declareToken(name, code, quoted(childString(term, 2)));
               }
               else {
@@ -250,23 +269,18 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           break;
 
         case AST_NONTERM: {
-          string name = childName(node, 0);
+          {
+            // new environment since it can contain a grouping construct
+            Environment newEnv(env);
 
-          // TODO: need to check that this wasn't already declared; the code
-          // below doesn't work because another rule could simply have
-          // *referred* to this nonterminal
-          //if (g.findNonterminal(name)) {
-          //  astParseError(nthChild(node, 0), "nonterminal already declared");
-          //}
+            // parse it
+            astParseNonterm(newEnv, node, NULL /*means original decl*/);
+          }
 
-          Nonterminal *nt = g.getOrMakeNonterminal(name);
-          if (nthChild(node, 1)->type == AST_FORM) {
-            // simple "nonterm A -> B C D" form
-            astParseForm(env, nt, nthChild(node, 1));
-          }
-          else {
-            astParseNonterminalBody(env, nt, childList(node, 1, AST_NTBODY));
-          }
+          // add this decl to our running list (in the original environment)
+          string name = childName(nthChildt(node, 0, AST_NTNAME), 0);
+          env.nontermDecls.add(name, const_cast<ASTInternal*>(node));
+
           break;
         }
 
@@ -278,15 +292,82 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 }
 
 
+void astParseNonterm(Environment &env, ASTNode const *node,
+                     Nonterminal *nonterm)
+{
+  checkType(node, AST_NONTERM);
+  bool originalDecl = !nonterm;
+
+  ASTNode const *ntName = nthChildt(node, 0, AST_NTNAME);
+  string name = childName(ntName, 0);
+
+  if (originalDecl) {
+    // check for already declared; don't add to the list
+    // yet, though, as a safeguard against the base class
+    // list referring to itself
+    if (env.nontermDecls.isMapped(name)) {
+      astParseError(nthChild(node, 0),    // to avoid error spew
+                    "nonterminal already declared");
+    }
+  }
+
+  // decide which nonterminal's context to use
+  if (!originalDecl) {
+    // we're re-parsing a base class; stay in the derived
+    // class' (namely, 'nonterm') context
+  }
+  else {
+    // real, original declaration: new context
+    nonterm = env.g.getOrMakeNonterminal(name);
+  }
+
+  // are there any base classes?  (possibly a recursive question)
+  if (numChildren(ntName) == 2) {
+    ASTNode const *classes = nthChildt(ntName, 1, AST_BASECLASSES);
+
+    // for each base class..
+    loopi(numChildren(classes)) {
+      string baseClassName = childName(classes, i);
+
+      if (!env.nontermDecls.isMapped(baseClassName)) {
+        astParseError(nthChild(classes, i),
+                      "undeclared base class");
+      }
+      ASTNode const *base = env.nontermDecls.queryf(baseClassName);
+
+      // inheritance implementation: simply re-parse the
+      // definition of the base classes, but in the context
+      // of the new nonterminal (somewhat of a hack; perhaps
+      // it would be better to model it using C++ inheritance)
+      astParseNonterm(env, base, nonterm);
+    }
+  }
+
+  // parse the declaration itself; do this *after* re-parsing
+  // base classes because base classes generally supply things
+  // like fun{} implementations which must be put into the
+  // environment before the productions are analyzed
+  if (nthChild(node, 1)->type == AST_FORM) {
+    // simple "nonterm A -> B C D" form
+    astParseForm(env, nonterm, nthChild(node, 1));
+  }
+  else {
+    astParseNonterminalBody(env, nonterm, childList(node, 1, AST_NTBODY));
+  }
+
+  if (originalDecl) {
+    // add this decl to our running list
+    env.nontermDecls.add(name, const_cast<ASTNode*>(node));
+  }
+}
+
+
 // this is for parsing NonterminalBody (attrDeclAllowed=true) or
 // FormGroupBody (attrDeclAllowed=false) lists
-void astParseGroupBody(Environment &prevEnv, Nonterminal *nt,
+void astParseGroupBody(Environment &env, Nonterminal *nt,
                        ObjList<ASTNode> const &bodyList,
                        bool attrDeclAllowed)
 {
-  // make a new environment for this stuff
-  Environment env(prevEnv);
-
   // process each body element
   FOREACH_OBJLIST(ASTNode, bodyList, iter) {
     ASTNode const *node = iter.data();
@@ -332,7 +413,8 @@ void astParseGroupBody(Environment &prevEnv, Nonterminal *nt,
           break;
 
         case AST_FORMGROUPBODY: {
-          astParseFormgroup(env, nt, node->asInternalC().children);
+          Environment newEnv(env);     // new environment
+          astParseFormgroup(newEnv, nt, node->asInternalC().children);
           break;
         }
 
@@ -361,7 +443,7 @@ void astParseForm(Environment &env, Nonterminal *nt,
                   ASTNode const *formNode)
 {
   try {
-    xassert(formNode->type == AST_FORM);
+    checkType(formNode, AST_FORM);
 
     // every alternative separated by "|" requires the entire treatment
     FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHSALTS), altIter) {
@@ -440,7 +522,7 @@ void astParseForm(Environment &env, Nonterminal *nt,
       //prod->finished();
 
       // deal with formBody (we evaluate it once for each alternative form)
-      if (formNode->asInternalC().numChildren() == 2) {
+      if (numChildren(formNode) == 2) {
         // iterate over form body elements
         FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
           astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
@@ -529,7 +611,7 @@ void astParseFormBodyElt(Environment &env, Production *prod,
 void astParseAction(Environment &env, Production *prod,
                     ASTNode const *act, bool dupsOk)
 {
-  xassert(act->type == AST_ACTION);
+  checkType(act, AST_ACTION);
 
   string attrName = childName(act, 0);
   if (!prod->left->hasAttribute(attrName)) {
@@ -556,7 +638,7 @@ void astParseAction(Environment &env, Production *prod,
 Condition *astParseCondition(Environment &env, Production *prod,
                              ASTNode const *cond)
 {
-  xassert(cond->type == AST_CONDITION);
+  checkType(cond, AST_CONDITION);
 
   AExprNode *expr = astParseExpr(env, prod, nthChild(cond, 0));
 
@@ -567,25 +649,28 @@ Condition *astParseCondition(Environment &env, Production *prod,
 void astParseFunction(Environment &env, Production *prod,
                       ASTNode const *func, bool dupsOk)
 {
-  xassert(func->type == AST_FUNCTION || 
-          func->type == AST_FUNEXPR);
+  try {
+    xassert(func->type == AST_FUNCTION ||
+            func->type == AST_FUNEXPR);
 
-  string name = childName(func, 0);
-  if (!prod->left->hasFunDecl(name)) {
-    astParseError(func,
-      stringc << "undeclared function: " << name);
-  }
-  if (prod->hasFunction(name)) {
-    if (!dupsOk) {
+    string name = childName(func, 0);
+    if (!prod->left->hasFunDecl(name)) {
       astParseError(func,
-        stringc << "duplicate function implementation: " << name);
+        stringc << "undeclared function: " << name);
     }
-    else {
-      return;    // ignore duplicates
+    if (prod->hasFunction(name)) {
+      if (!dupsOk) {
+        astParseError(func,
+          stringc << "duplicate function implementation: " << name);
+      }
+      else {
+        return;    // ignore duplicates
+      }
     }
-  }
 
-  prod->functions.add(name, childLitCode(func, 1));
+    prod->functions.add(name, childLitCode(func, 1));
+  }
+  CATCH_APPLY_CONTEXT(func)
 }
 
 

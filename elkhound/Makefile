@@ -3,7 +3,7 @@
 # main targets
 all: gramanl
 
-everything: gramanl glr lexer1 lexer2 grampar cexp2
+everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
 # directories
 SMBASE = /home/scott/wrk/lib/smbase

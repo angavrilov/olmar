@@ -45,17 +45,26 @@ nonterm Literal -> L2_INT_LITERAL | L2_FLOAT_LITERAL |
                    L2_STRING_LITERAL | L2_CHAR_LITERAL ;
 
 
-// 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
-// the leftmost token in the tree matched; this is important because
-// declarators aren't allowed to have the bare "::" qualifier
+
+// base class for nonterminals that yield a part of a
+// string that describes a type
+nonterm HasTypeName {
+  // return either a complete type description, or part
+  // of one to be concatenated in context
+  fundecl string typeName() const;
+  
+  // default implementation: just yield the original input
+  fun typeName = unparseString();
+}
+
 
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
-nonterm PQVarName {
-  fundecl string typeName() const;
-  fun typeName = unparseString();
-
+nonterm PQVarName : HasTypeName {
+  // 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
+  // the leftmost token in the tree matched; this is important because
+  // declarators aren't allowed to have the bare "::" qualifier
   attr colonColon;        // true if a bare "::" is in front
 
   -> n:VariableName         { action colonColon := 0; }
@@ -303,8 +312,7 @@ nonterm SimpleDeclaration -> DeclSpecifier InitDeclaratorListOpt ";" ;
 // now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
 // the TypeId in a cast expression to contain a "const"
 
-nonterm DeclSpecifier {
-  fundecl string typeName() const;
+nonterm DeclSpecifier : HasTypeName {
   fun typeName = s.typeName();
 
   -> "inline" m:DeclModifierOpt s:TypeSpecifier |
@@ -318,8 +326,7 @@ nonterm DeclModifierOpt -> empty |
   "virtual" | "friend" | "mutable" |
   "typedef" | "auto" | "register" | "static" | "extern";
 
-nonterm TypeSpecifier {
-  fundecl string typeName() const;
+nonterm TypeSpecifier : HasTypeName {
   fun typeName = s.typeName();
 
   -> s:SimpleTypeSpecifier       ;  // int
@@ -338,10 +345,7 @@ nonterm TypeSpecifier {
   }
 }
 
-nonterm ElaboratedTypeSpecifier {
-  fundecl string typeName() const;
-  fun typeName = unparseString();
-
+nonterm ElaboratedTypeSpecifier : HasTypeName {
   -> ClassKeyword L2_NAME ;
   -> "enum" L2_NAME ;
 }
@@ -349,8 +353,7 @@ nonterm ElaboratedTypeSpecifier {
 // this list comes from Table 7 (p.109) of the C++ standard
 // NOTE: this deviates from the language spec, which allows other
 // decl-specifiers to mix with the tokens here; I do not
-nonterm SimpleTypeSpecifier {
-  fundecl string typeName() const;
+nonterm SimpleTypeSpecifier : HasTypeName {
 
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName              { fun typeName = n.typeName(); }
@@ -386,9 +389,7 @@ nonterm SimpleTypeSpecifier {
 // I had been separating these into typedef/enum/class names, but
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
-nonterm PQTypeName {
-  fundecl string typeName() const;
-
+nonterm PQTypeName : HasTypeName {
   -> n:L2_NAME                 { fun typeName = n.strValue; }
   -> TemplateId                { fun typeName = "(template-id)"; }
   -> Qualifier n:PQTypeName    { fun typeName = stringc << "(qualifier)" << n.typeName(); }
@@ -406,8 +407,7 @@ nonterm PQTypeName {
 // I really should just fold these into the above, but my dislike for
 // the interleaving thing makes me try to keep the above decls more
 // or less "pure".. but I'll merge them at some point
-nonterm SimpleCVTypeSpecifier {
-  fundecl string typeName() const;
+nonterm SimpleCVTypeSpecifier : HasTypeName {
   fun typeName = stringc << baseTypeName() << " " << q.typeName();
 
   // just for internal use, as a helper for typeName
@@ -475,28 +475,31 @@ nonterm InitializerList -> InitializerClause |
                            InitializerList "," InitializerClause ;
 
 
-nonterm Declarator {
-  // attribute 'isFunction' of Declarator and DirectDeclarator:
-  // if the type of the thing declared is a function (not a ptr to
-  // a function, or an array of fns...), this is 1, otherwise 0;
-  // it is used to do some disambiguation later on, where functions
-  // are allowed to not have return types (DeclSpecifiers), but
-  // other declarations must have types
-  attr isFunction;
-
+nonterm DeclaratorBase {
+  // get the node that has the function parameters, or NULL if this
+  // isn't a function declaration
   fundecl ParameterDeclarationClause_Node const *getFnParams() const;
   fun getFnParams = NULL;
 
-  fundecl string typeName() const;   
-  
-  // the type of the declarator return value; only meaningful
-  // for function types
+  // return the type name string for the return type, if this is
+  // a function declaration
   fundecl string retTypeName() const;
+  fun retTypeName { xfailure("not a function type"); throw 0; /* silence warning */ }
 
   // name of variable or function being declared
   fundecl string name() const;
   fun name = d.name();
 
+  // attribute 'isFunction' of Declarator and DirectDeclarator: if the
+  // type of the thing declared is a function (not a ptr to a
+  // function, or an array of fns...), this is 1, otherwise 0; it is
+  // used to do some disambiguation later on, where functions are
+  // allowed to not have return types (DeclSpecifiers) to allow for
+  // ctors and dtors, but other declarations must have types
+  attr isFunction;
+}
+
+nonterm Declarator : HasTypeName, DeclaratorBase {
   // (PtrOperator)* DirectDeclarator
   -> PtrOperator d:Declarator {
     action isFunction := 0;
@@ -512,20 +515,7 @@ nonterm Declarator {
   }
 }
 
-nonterm DirectDeclarator {
-  attr isFunction;    // see above
-
-  fundecl ParameterDeclarationClause_Node const *getFnParams() const;
-  fun getFnParams = NULL;
-
-  fundecl string typeName() const;
-
-  fundecl string retTypeName() const;
-  fun retTypeName { xfailure("not a function type"); throw 0; /* silence warning */ }
-
-  fundecl string name() const;
-  fun name = d.name();
-
+nonterm DirectDeclarator : HasTypeName, DeclaratorBase {
   -> n:PQVarName {
     action isFunction := 0;
 
@@ -577,15 +567,11 @@ nonterm PtrOperator {
 
 nonterm CVQualifierSeqOpt -> empty | CVQualifierSeq ;
 
-nonterm CVQualifierSeq {
-  fundecl string typeName() const;
-  fun typeName = unparseString();
+nonterm CVQualifierSeq : HasTypeName {
   -> CVQualifier | CVQualifier CVQualifierSeq ;
 }
 
-nonterm CVQualifier {
-  fundecl string typeName() const;
-  fun typeName = unparseString();
+nonterm CVQualifier : HasTypeName {
   -> "const" | "volatile" ;
 }
 
@@ -600,15 +586,12 @@ nonterm TypeSpecifierSeq -> TypeSpecifier | TypeSpecifier TypeSpecifierSeq ;
 
 // this introduces extra ambiguities (like "int (x)" -- integer or fn with
 // name omitted?), so I'm going to back to a duplicated structure
-nonterm AbstractDeclarator {
-  fundecl string typeName() const;
-
+nonterm AbstractDeclarator : HasTypeName {
   -> PtrOperator d:AbstractDeclarator  { fun typeName = stringc << "*" << d.typeName(); }
   -> d:DirectAbstractDeclarator        { fun typeName = d.typeName(); }
 }
 
-nonterm DirectAbstractDeclarator {
-  fundecl string typeName() const;
+nonterm DirectAbstractDeclarator : HasTypeName {
   fun typeName = d.typeName();
 
   // this is where abstract declarators differ from regular declarators;
@@ -622,10 +605,14 @@ nonterm DirectAbstractDeclarator {
 }
 
 
-// -- parameters in declarations --
-nonterm ParameterDeclarationClause {
+nonterm HasPrintSig {
+  // print to cout some part of the function signature
   fundecl void printSig() const;
+}
 
+
+// -- parameters in declarations --
+nonterm ParameterDeclarationClause : HasPrintSig {
   -> p:ParameterDeclarationList             // some args
        { fun printSig { p.printSig(); } }
   -> empty                                  // no args
@@ -638,9 +625,7 @@ nonterm ParameterDeclarationClause {
        { fun printSig { cout << "..."; } }
 }
 
-nonterm ParameterDeclarationList {
-  fundecl void printSig() const;
-
+nonterm ParameterDeclarationList : HasPrintSig {
   -> d:ParameterDeclaration
        { fun printSig { cout << d.typeName(); } }
 
@@ -652,8 +637,7 @@ nonterm ParameterDeclarationList {
   }
 }
 
-nonterm ParameterDeclaration {
-  fundecl string typeName() const;
+nonterm ParameterDeclaration : HasTypeName {
   fun typeName = stringc << s.typeName() << d.typeName();
 
   -> s:DeclSpecifier d:Declarator ;
@@ -663,7 +647,7 @@ nonterm ParameterDeclaration {
 }
 
 // -- function definition --
-nonterm FunctionDefinition {
+nonterm FunctionDefinition : HasPrintSig {
   // I am wary of letting the declspecifier be optional, because it seems
   // to me that may introduce more ambiguities.. but it truly is missing
   // in ctors and dtors; so my idea now is to only permit it when the
@@ -672,9 +656,6 @@ nonterm FunctionDefinition {
 
   // all declarators must be of function type
   condition d.isFunction == 1;
-
-  // fn to print the name and signature of this function
-  fundecl void printSig() const;
 
   // this works for all the productions
 

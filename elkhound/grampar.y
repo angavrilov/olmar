@@ -140,11 +140,20 @@ TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
  * the body of the Nonterminal declaration specifies the the RHS forms,
  * attribute info, etc.
  */
-Nonterminal: "nonterm" TOK_NAME "{" NonterminalBody "}"
+Nonterminal: "nonterm" NonterminalName "{" NonterminalBody "}"
                { $$ = AST2(AST_NONTERM, $2, $4); }
-           | "nonterm" TOK_NAME Form
+           | "nonterm" NonterminalName Form
                { $$ = AST2(AST_NONTERM, $2, $3); }
            ;
+
+/* a name, and possibly some base-class nonterminals */
+NonterminalName: TOK_NAME                     { $$ = AST1(AST_NTNAME, $1); }
+               | TOK_NAME ":" BaseClassList   { $$ = AST2(AST_NTNAME, $1, $3); }
+               ;
+
+BaseClassList: TOK_NAME                       { $$ = AST1(AST_BASECLASSES, $1); }
+             | BaseClassList "," TOK_NAME     { $$ = iappend($1, $3); }
+             ;
 
 NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
