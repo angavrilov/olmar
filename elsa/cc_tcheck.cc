@@ -5544,6 +5544,10 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
       << "can only delete pointers, not `" << t->toString() << "'");
   }
 
+  if (t->isCompoundType()) {
+    dtorStatement = makeDtorStatement(env, t);
+  }
+
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 
