@@ -57,7 +57,18 @@ string BPRender::takeAndRender(BoxPrint &bld)
 
 
 // ----------------------- BPElement ---------------------
+int BPElement::oneLineWidth()
+{
+  bool dummy;
+  return oneLineWidthEx(dummy);
+}
+
 bool BPElement::isBreak() const
+{
+  return false;
+}
+
+bool BPElement::isForcedBreak() const
 {
   return false;
 }
@@ -75,8 +86,9 @@ BPText::~BPText()
 {}
 
 
-int BPText::oneLineWidth()
+int BPText::oneLineWidthEx(bool &forced)
 {
+  forced = false;
   return text.length();
 }
 
@@ -93,7 +105,7 @@ void BPText::debugPrint(ostream &os, int /*ind*/) const
 
 
 // ------------------------ BPBreak ---------------------
-BPBreak::BPBreak(bool e, int i)
+BPBreak::BPBreak(BreakType e, int i)
   : enabled(e),
     indent(i)
 {}
@@ -101,20 +113,34 @@ BPBreak::BPBreak(bool e, int i)
 BPBreak::~BPBreak()
 {}
 
-int BPBreak::oneLineWidth()
+int BPBreak::oneLineWidthEx(bool &forced)
 {
-  return 1;
+  if (enabled >= BT_FORCED) {
+    forced = true;
+    return 0;
+  }
+  else {
+    forced = false;
+    return 1;
+  }
 }
 
 void BPBreak::render(BPRender &mgr)
 {
   // if we're being asked to render, then this break must not be taken
-  mgr.add(" ");
+  if (enabled != BT_LINE_START) {
+    mgr.add(" ");
+  }
 }
 
 bool BPBreak::isBreak() const
 {
   return enabled;
+}
+
+bool BPBreak::isForcedBreak() const
+{
+  return enabled == BT_FORCED;
 }
 
 void BPBreak::debugPrint(ostream &os, int /*ind*/) const
@@ -135,13 +161,32 @@ BPBox::~BPBox()
 {}
 
 
-int BPBox::oneLineWidth()
+int BPBox::oneLineWidthEx(bool &forced)
 {
+  forced = false;
   int sum = 0;
   FOREACH_ASTLIST_NC(BPElement, elts, iter) {
-    sum += iter.data()->oneLineWidth();
+    sum += iter.data()->oneLineWidthEx(forced);
+    if (forced) {
+      break;
+    }
   }
   return sum;
+}
+
+
+void takeBreak(BPRender &mgr, int &startCol, BPBreak *brk)
+{
+  startCol += brk->indent;
+
+  if (brk->enabled == BT_LINE_START && 
+      mgr.curCol == startCol) {
+    // do not add a line
+  }
+  else {
+    // add the newline
+    mgr.breakLine(startCol);
+  }
 }
 
 
@@ -150,14 +195,15 @@ void BPBox::render(BPRender &mgr)
 {
   int startCol = mgr.getCurCol();
 
+  bool fbreak = false;
   if (kind == BP_vertical ||
-      (kind == BP_correlated && oneLineWidth() > mgr.remainder())) {
+      (kind == BP_correlated && (oneLineWidthEx(/*OUT*/fbreak) > mgr.remainder() ||
+                                 fbreak))) {
     // take all of the breaks
     FOREACH_ASTLIST_NC(BPElement, elts, iter) {
       BPElement *elt = iter.data();
       if (elt->isBreak()) {
-        startCol += static_cast<BPBreak*>(elt)->indent;
-        mgr.breakLine(startCol);
+        takeBreak(mgr, startCol, static_cast<BPBreak*>(elt));
       }
       else {
         elt->render(mgr);
@@ -195,8 +241,7 @@ void BPBox::render(BPRender &mgr)
 
     if (pendingBreak && segmentWidth > mgr.remainder()) {
       // take the pending break
-      startCol += pendingBreak->indent;
-      mgr.breakLine(startCol);
+      takeBreak(mgr, startCol, pendingBreak);
       pendingBreak = NULL;
     }
 
@@ -218,6 +263,13 @@ void BPBox::render(BPRender &mgr)
     if (!cursor.isDone()) {
       // we stopped on a break
       pendingBreak = static_cast<BPBreak*>(cursor.data());
+
+      if (pendingBreak->isForcedBreak()) {
+        // take the forced break
+        takeBreak(mgr, startCol, pendingBreak);
+        pendingBreak = NULL;
+      }
+
       cursor.adv();
     }
   }
@@ -225,6 +277,10 @@ void BPBox::render(BPRender &mgr)
   if (pendingBreak) {
     // ended with a break.. strange, but harmless I suppose
     pendingBreak->render(mgr);
+
+    if (pendingBreak->isForcedBreak()) {
+      takeBreak(mgr, startCol, pendingBreak);
+    }
   }
 }
 
@@ -310,11 +366,14 @@ BoxPrint& BoxPrint::operator<< (BPKind k)
 
 BoxPrint& BoxPrint::operator<< (Cmd c)
 {
-  if (c == br || c == sp) {
-    append(new BPBreak(c==br /*enabled*/, 0 /*indent*/));
-  }
-  else {
-    append(new BPBreak(true /*enabled*/, c==ind? levelIndent : -levelIndent));
+  switch (c) {
+    default: xfailure("bad cmd");
+    case sp:        append(new BPBreak(BT_DISABLED, 0 /*indent*/)); break;
+    case br:        append(new BPBreak(BT_ENABLED, 0 /*indent*/)); break;
+    case fbr:       append(new BPBreak(BT_FORCED, 0 /*indent*/)); break;
+    case lineStart: append(new BPBreak(BT_LINE_START, 0 /*indent*/)); break;
+    case ind:       append(new BPBreak(BT_ENABLED, levelIndent)); break;
+    case und:       append(new BPBreak(BT_ENABLED, -levelIndent)); break;
   }
   return *this;
 }
@@ -322,7 +381,7 @@ BoxPrint& BoxPrint::operator<< (Cmd c)
 
 BoxPrint& BoxPrint::operator<< (IBreak b)
 {
-  append(new BPBreak(true /*enabled*/, b.indent /*indent*/));
+  append(new BPBreak(BT_ENABLED, b.indent /*indent*/));
   return *this;
 }
 
@@ -376,6 +435,10 @@ void doit(int argc, char *argv[])
   bp << "int foo()" << bp.br
      << "{" << bp.ind;
 
+  bp << bp.lineStart
+     << "// wazoo"
+     << bp.fbr;
+
   bp << "printf(" << bp.seq
         << "\"hello there %d!\\n\"," << bp.br
         << "123456789"
@@ -413,6 +476,38 @@ void doit(int argc, char *argv[])
      << bp.end << ")" << bp.br;
 
   bp << bp.hv
+        << "forall(" << bp.seq
+           << "x," << bp.br << "y," << bp.br << "z"
+        << bp.end << "). if {" << bp.ind
+        << bp.seq << "x" << bp.op("==") << "yooey_more" << bp.end << ";" << bp.br
+        << bp.seq << "yowza" << bp.op("!=") << "fooey" << bp.end << ";"
+        << bp.und << "} /*==>*/ {" << bp.ind
+        << bp.seq << "z(x,y,z)" << bp.op("==") << "3" << bp.end << ";" << bp.br
+        << "ay_caramba" << ";"
+        << bp.und << "};"
+     << bp.end << bp.br;
+
+  // here is a 'forall' with a comment surrounded by forced breaks
+  bp << bp.hv
+        << bp.lineStart
+        << "// forced break comment"
+        << bp.fbr
+        << "forall(" << bp.seq
+           << "x," << bp.br << "y," << bp.br << "z"
+        << bp.end << "). if {" << bp.ind
+        << bp.seq << "x" << bp.op("==") << "yooey_more" << bp.end << ";" << bp.br
+        << bp.seq << "yowza" << bp.op("!=") << "fooey" << bp.end << ";"
+        << bp.und << "} /*==>*/ {" << bp.ind
+        << bp.seq << "z(x,y,z)" << bp.op("==") << "3" << bp.end << ";" << bp.br
+        << "ay_caramba" << ";"
+        << bp.und << "};"
+     << bp.end << bp.br;
+
+  // here is a 'forall' with a comment surrounded by forced breaks
+  bp << bp.hv
+        << bp.lineStart
+        << "// forced break comment"
+        << bp.fbr
         << "forall(" << bp.seq
            << "x," << bp.br << "y," << bp.br << "z"
         << bp.end << "). if {" << bp.ind

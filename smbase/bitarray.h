@@ -50,6 +50,23 @@ public:     // funcs
 
   // clear all bits
   void clearAll();
+
+public:     // types
+  class Iter {
+  private:    // data
+    BitArray const &arr;    // array we are reading
+    int curBit;             // bit at 'data'; is >= 'numBits' when done
+
+  public:     // funcs
+    Iter(BitArray const &a)
+      : arr(a), curBit(-1) { adv(); }
+
+    bool isDone() const   { return curBit >= arr.numBits; }
+    int data() const      { return curBit; }
+
+    void adv();
+  };
+  friend class Iter;
 };
 
 

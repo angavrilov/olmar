@@ -69,8 +69,13 @@ public:
 // interface for elements in a boxprint tree
 class BPElement {
 public:
-  // if no breaks are taken, compute the # of columns
-  virtual int oneLineWidth()=0;
+  // if no breaks are taken, compute the # of columns;
+  // return with 'forcedBreak' true if we stopped because of
+  // a forced break
+  virtual int oneLineWidthEx(bool &forcedBreak)=0;
+
+  // as above, but without the forcedBreak info
+  int oneLineWidth();
 
   // render this element as a string with newlines, etc.
   virtual void render(BPRender &mgr)=0;
@@ -78,6 +83,9 @@ public:
   // true if this element is a BPBreak and is enabled; returns false
   // by default
   virtual bool isBreak() const;
+
+  // true if is BPBreak and BT_FORCED
+  virtual bool isForcedBreak() const;
 
   // print the boxprint tree; for debugging code that produces them;
   // these methods do not emit leading or trailing whitespace
@@ -98,11 +106,18 @@ public:
   ~BPText();
 
   // BPElement funcs
-  virtual int oneLineWidth();
+  virtual int oneLineWidthEx(bool &forcedBreak);
   virtual void render(BPRender &mgr);
   virtual void debugPrint(ostream &os, int ind) const;
 };
 
+
+enum BreakType {
+  BT_DISABLED = 0,       // never taken
+  BT_ENABLED = 1,        // might be taken
+  BT_FORCED = 2,         // always taken
+  BT_LINE_START = 3,     // taken if the cursor is not at line start
+};
 
 // leaf in the tree: a "break", which might end up being a
 // space or a newline+indentation
@@ -112,7 +127,7 @@ public:
   // or not depends on the prevailing break strategy of the box in
   // which it is located.  When false, the break is never taken, so
   // this is effectively just a space.
-  bool enabled;
+  BreakType enabled;
 
   // Nominally, when a break is taken, the indentation used is such
   // that the next char in the box is directly below the first char
@@ -122,13 +137,14 @@ public:
   int indent;
 
 public:
-  BPBreak(bool e, int i);
+  BPBreak(BreakType e, int i);
   ~BPBreak();
 
   // BPElement funcs
-  virtual int oneLineWidth();
+  virtual int oneLineWidthEx(bool &forcedBreak);
   virtual void render(BPRender &mgr);
   virtual bool isBreak() const;
+  virtual bool isForcedBreak() const;
   virtual void debugPrint(ostream &os, int ind) const;
 };
 
@@ -164,7 +180,7 @@ public:
   ~BPBox();
 
   // BPElement funcs
-  virtual int oneLineWidth();
+  virtual int oneLineWidthEx(bool &forcedBreak);
   virtual void render(BPRender &mgr);
   virtual void debugPrint(ostream &os, int ind) const;
 };
@@ -178,6 +194,8 @@ public:      // types
   enum Cmd {
     sp,          // insert disabled break
     br,          // insert enabled break
+    fbr,         // insert forced break
+    lineStart,   // insert lineStart break
     ind,         // ibr(levelIndent)
     und,         // ibr(-levelIndent) ("unindent")
   };

@@ -41,3 +41,35 @@ void BitArray::clearAll()
   memset(bits, 0, allocdBytes());
 }
 
+
+// ----------------------- BitArray::Iter ------------------------
+void BitArray::Iter::adv()
+{
+  // THIS CODE HAS NOT BEEN TESTED YET
+
+  curBit++;
+  
+  while (curBit < arr.numBits) {
+    if (curBit & 7 == 0) {
+      // beginning a new byte; is it entirely empty?
+      while (arr.bits[curBit >> 3] == 0) {
+        // yes, skip to next
+        curBit += 8;
+        
+        if (curBit >= arr.numBits) {
+          return;     // done iterating
+        }
+      }
+    }
+             
+    // this could be made a little faster by using the trick to scan
+    // for the first nonzero bit.. but since I am only going to scan
+    // within a single byte, it shouldn't make that much difference
+    if (arr.test(curBit)) {
+      return;         // found element
+    }
+
+    curBit++;
+  }
+}
+
