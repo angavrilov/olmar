@@ -1192,6 +1192,13 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     eflags |= EF_DISAMBIGUATES;
   }
 
+  if (!env.lang.isCplusplus) {
+    // in C, we never look at a class scope unless the name is
+    // preceded by "." or "->", which it certainly is not in a TS_name
+    // (in/c/dC0013.c)
+    lflags |= LF_SKIP_CLASSES;
+  }
+
   v = env.lookupPQVariable(name, lflags);
   if (!v) {
     // NOTE:  Since this is marked as disambiguating, but the same

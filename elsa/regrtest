@@ -874,7 +874,7 @@ testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"
 testCparse c/dC0011.c #"((size_t) &((struct scsi_cmnd *)0)->q) doesn't const eval"
 testCparse c/dC0012.c
-failCparse c/dC0013.c "in C, a member with the same name as a type doesn't shadow the type"
+testCparse c/dC0013.c #"in C, a member with the same name as a type doesn't shadow the type"
 
 
 # is K&R built?
