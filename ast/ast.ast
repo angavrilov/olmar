@@ -1,0 +1,50 @@
+// ast.ast
+// ast definition for an ast definition
+
+verbatim {
+  #include "astlist.h"     // ASTList
+}
+
+// the entire specification
+class ASTSpecFile {
+  public ASTList<ToplevelForm> forms;
+  -> ();
+}
+
+class ToplevelForm {
+  // code to be copied verbatim into the generated .h file
+  -> TF_verbatim(string code);
+
+  // a definition of a grammar nonterminal
+  -> ASTClass() {
+       public string name;
+       public ASTList<UserDecl> decls;
+       public ASTList<ASTCtor> ctors;
+     }
+}
+
+verbatim {
+  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED }
+}
+
+// verbatim declarations, plus an access qualifier, to be
+// copied into the a class declaration
+class UserDecl {
+  -> (AccessCtl access, string code);
+}
+
+// one of possibly several alternatives for the enclosing class
+class ASTCtor {
+  -> (string name,
+      owner ASTList<CtorArg> *args,
+      owner ASTList<UserDecl> *decls);
+}
+
+// something that has to be passed to create a constructor
+class CtorArg {
+  -> (bool owner, string type, string name);
+}
+
+
+
+
