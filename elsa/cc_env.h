@@ -191,10 +191,10 @@ public:      // data
   // when true, compare arguments to parameters at call sites
   bool doCompareArgsToParams;
 
-  // when non-NULL, the variable lookup results are collected and
+  // when non-empty, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via
   // an an 'asm' directive (see TF_asm::itcheck)
-  StringRef collectLookupResults;
+  string collectLookupResults;
 
   // template typechecking modes; see comment at the top of the
   // implementation of Env::instantiateTemplate()
@@ -687,6 +687,8 @@ public:      // funcs
   Variable *getOverloadedFunctionVar(Expression *e);
   void setOverloadedFunctionVar(Expression *e, Variable *selVar);
   Variable *pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type);
+  void possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
+                                        LookupSet &set);
 
   // support for 3.4.2
   void getAssociatedScopes(SObjList<Scope> &associated, Type *type);

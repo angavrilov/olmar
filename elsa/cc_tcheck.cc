@@ -41,18 +41,18 @@
 
 // forwards in this file
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, GrowArray<ArgumentInfo> &argInfo, bool really);
+  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo, bool really);
 
 static Variable *outerResolveOverload_explicitSet(
   Env &env,
   PQName * /*nullable*/ finalName,
   SourceLoc loc,
   StringRef varName,
-  GrowArray<ArgumentInfo> &argInfo,
+  ArgumentInfoArray &argInfo,
   SObjList<Variable> &candidates);
 
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env,
-                                           GrowArray<ArgumentInfo> &argInfo,
+                                           ArgumentInfoArray &argInfo,
                                            Type *receiverType = NULL);
 
 Type *resolveOverloadedUnaryOperator(
@@ -64,7 +64,7 @@ Type *resolveOverloadedUnaryOperator(
 
 void compareCtorArgsToParams(Env &env, Variable *ctor,
                              FakeList<ArgExpression> *args,
-                             GrowArray<ArgumentInfo> &argInfo);
+                             ArgumentInfoArray &argInfo);
 
 
 
@@ -217,6 +217,18 @@ void TF_one_linkage::itcheck(Env &env)
   form->tcheck(env);
 }
 
+string collectContinuations(E_stringLit *strLit)
+{
+  stringBuilder sb;
+  
+  while (strLit) {
+    sb << parseQuotedString(strLit->text);
+    strLit = strLit->continuation;
+  }
+  
+  return sb;
+}
+
 void TF_asm::itcheck(Env &env)
 {
   env.setLoc(loc);
@@ -226,7 +238,7 @@ void TF_asm::itcheck(Env &env)
     // this activates an internal diagnostic that will collect
     // the E_variable lookup results as warnings, then at the
     // end of the program, compare them to this string
-    env.collectLookupResults = t;
+    env.collectLookupResults = collectContinuations(text);
   }
 }
 
@@ -694,7 +706,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
       // annotate the AST
       member = env.storeVar(v);
 
-      GrowArray<ArgumentInfo> argInfo(args->count() + 1);
+      ArgumentInfoArray argInfo(args->count() + 1);
       args = tcheckArgExprList(args, env, argInfo);
       if (!hasDependentActualArgs(args)) {     // in/t0270.cc
         // decide which of v's possible constructors is being used
@@ -791,7 +803,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // TODO: check that the passed arguments are consistent
   // with the chosen constructor
 
-  GrowArray<ArgumentInfo> argInfo(args->count() + 1);
+  ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo);
   // determine which constructor is being called
   ctorVar = env.storeVar(
@@ -4845,7 +4857,7 @@ void getArgumentInfo(Env &env, ArgumentInfo &ai, Expression *e)
 static Variable *outerResolveOverload(Env &env,
                                       PQName * /*nullable*/ finalName,
                                       SourceLoc loc, Variable *var,
-                                      GrowArray<ArgumentInfo> &argInfo)
+                                      ArgumentInfoArray &argInfo)
 {
   // if no overload set, nothing to resolve
   if (!var->overload) {
@@ -4861,7 +4873,7 @@ static Variable *outerResolveOverload_explicitSet(
   PQName * /*nullable*/ finalName,
   SourceLoc loc,
   StringRef varName,
-  GrowArray<ArgumentInfo> &argInfo,
+  ArgumentInfoArray &argInfo,
   SObjList<Variable> &candidates)
 {
   // special case: does 'finalName' directly name a particular
@@ -4908,7 +4920,7 @@ static Variable *outerResolveOverload_explicitSet(
 // version of 'outerResolveOverload' for constructors; 'type' is the
 // type of the object being constructed
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, GrowArray<ArgumentInfo> &argInfo, bool really)
+  (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo, bool really)
 {
   Variable *ret = NULL;
   // dsw: FIX: should I be generating error messages if I get a weird
@@ -5003,7 +5015,7 @@ void tcheckExpression_set(Env &env, Expression *&expr,
 // argument names an overloaded function, in which case we have to
 // pass all the possibilities on to overload resolution.
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env,
-                                           GrowArray<ArgumentInfo> &argInfo,
+                                           ArgumentInfoArray &argInfo,
                                            Type *receiverType /*= NULL*/)
 {
   // always begin with the receiver, even if it is only a placeholder
@@ -5046,7 +5058,7 @@ static bool isFunctionTypeOr(Type *t)
   return false;
 }
 
-void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
+void tcheckArgumentExpression(Env &env, Expression *&expr, ArgumentInfo &info)
 {
   // if the expression is an E_variable, possibly with an E_addrOf,
   // then we could do address-of overloaded function resolution,
@@ -5066,37 +5078,9 @@ void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
   }
 }
 
-
-// given an expression that more or less begins with a name,
-// find the name
-PQName const *getExprName(Expression const *e)
+void ArgExpression::mid_tcheck(Env &env, ArgumentInfo &info)
 {
-  ASTSWITCHC(Expression, e) {
-    ASTCASEC(E_variable, v)
-      return v->name;
-
-    ASTNEXTC(E_fieldAcc, f)
-      return f->fieldName;
-
-    ASTNEXTC(E_addrOf, a)
-      return getExprName(a->expr);
-
-    ASTNEXTC(E_grouping, g)
-      return getExprName(g->expr);
-
-    ASTDEFAULTC
-      xfailure("getExprName: does not begin with a name");
-      return NULL;      // silence warning
-      
-    ASTENDCASEC
-  }
-}
-
-// given an expression that more or less begins with a name,
-// find its location
-SourceLoc getExprNameLoc(Expression const *e)
-{
-  return getExprName(e)->loc;
+  tcheckArgumentExpression(env, expr/*INOUT*/, info);
 }
 
 
@@ -5117,7 +5101,7 @@ SourceLoc getExprNameLoc(Expression const *e)
 //
 // It returns the # of default args used.
 int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args,
-                        GrowArray<ArgumentInfo> &argInfo)
+                        ArgumentInfoArray &argInfo)
 {
   int defaultArgsUsed = 0;
 
@@ -5148,23 +5132,8 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
             arg->getType() == argInfo[paramIndex].type);
 
     // is the argument the name of an overloaded function? [cppstd 13.4]
-    LookupSet &set = argInfo[paramIndex].overloadSet;
-    if (set.isNotEmpty()) {
-      // pick the one that matches the target type
-      Variable *ovlVar = env.pickMatchingOverloadedFunctionVar(set, param->type);
-      if (ovlVar) {
-        // modify 'arg' accordingly
-        env.setOverloadedFunctionVar(arg->expr, ovlVar);
-        continue;
-      }
-      else {
-        env.error(getExprNameLoc(arg->expr), stringc
-          << "failed to resolve address-of of overloaded function `"
-          << *(getExprName(arg->expr)) << "' passed to parameter "
-          << paramIndex << ", type `" << param->type->toString()
-          << "'; candidates:\n" << set.asString());
-      }
-    }
+    env.possiblySetOverloadedFunctionVar(arg->expr, param->type,
+                                         argInfo[paramIndex].overloadSet);
 
     // try to convert the argument to the parameter
     ImplicitConversion ic = getImplicitConversion(env,
@@ -5207,7 +5176,7 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
 
 void compareCtorArgsToParams(Env &env, Variable *ctor,
                              FakeList<ArgExpression> *args,
-                             GrowArray<ArgumentInfo> &argInfo)
+                             ArgumentInfoArray &argInfo)
 {
   env.ensureFuncBodyTChecked(ctor);
 
@@ -5406,7 +5375,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   Type *receiverType = feacc? feacc->obj->type : env.implicitReceiverType();
 
   // check the argument list
-  GrowArray<ArgumentInfo> argInfo(args->count() + 1);
+  ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo, receiverType);
 
   // do any of the arguments have types that are dependent on template params?
@@ -5964,7 +5933,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   }
 
   // check arguments
-  GrowArray<ArgumentInfo> argInfo(args->count() + 1);
+  ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo);
 
   if (!env.ensureCompleteType("construct", type)) {
@@ -6221,7 +6190,7 @@ Type *resolveOverloadedUnaryOperator(
     StringRef opName = env.operatorName[op];
 
     // argument information
-    GrowArray<ArgumentInfo> args(1);
+    ArgumentInfoArray args(1);
     getArgumentInfo(env, args[0], expr);
 
     // prepare resolver
@@ -6296,7 +6265,8 @@ Type *resolveOverloadedBinaryOperator(
   //Expression *ths,           // expression node that is being resolved (not used)
   Expression *e1,            // left subexpression of 'this' (already type-checked)
   Expression *e2,            // right subexpression, or NULL for postfix inc/dec
-  OverloadableOp op          // which operator this node is
+  OverloadableOp op,         // which operator this node is
+  ArgumentInfoArray &argInfo // carries info about overloaded func arg names
 ) {
   // 14.6.2.2 para 1
   if (e1->type->containsGeneralizedDependent() ||
@@ -6317,44 +6287,44 @@ Type *resolveOverloadedBinaryOperator(
                      " near " << env.locStr());
     StringRef opName = env.operatorName[op];
 
-    // collect argument information
-    GrowArray<ArgumentInfo> args(2);
-    getArgumentInfo(env, args[0], e1);
-    if (e2) {
-      getArgumentInfo(env, args[1], e2);
-    }
-    else {
-      // for postfix inc/dec, the second parameter is 'int'
-      args[1] = ArgumentInfo(SE_NONE, env.getSimpleType(SL_UNKNOWN, ST_INT));
+    // for postfix inc/dec, the second parameter is 'int'
+    if (!e2) {
+      argInfo[1] = ArgumentInfo(SE_NONE, env.getSimpleType(SL_UNKNOWN, ST_INT));
     }
 
     // prepare the overload resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE,
                               NULL, // I assume operators can't have explicit template arguments
-                              args, 10 /*numCand*/);
+                              argInfo, 10 /*numCand*/);
     if (op == OP_COMMA) {
       // 13.3.1.2 para 9: no viable -> use built-in
       resolver.emptyCandidatesIsOk = true;
     }
 
     // user-defined candidates
-    resolver.addUserOperatorCandidates(args[0].type, args[1].type, opName);
+    resolver.addUserOperatorCandidates(argInfo[0].type, argInfo[1].type, opName);
 
     // built-in candidates
-    resolver.addBuiltinBinaryCandidates(op, args[0], args[1]);
+    resolver.addBuiltinBinaryCandidates(op, argInfo[0], argInfo[1]);
 
     // pick one
     bool dummy;
     Candidate const *winnerCand = resolver.resolveCandidate(dummy);
     if (winnerCand) {
       Variable *winner = winnerCand->var;
+      FunctionType *winnerFt = winner->type->asFunctionType();
 
       if (!e2) {
         // synthesize and tcheck a 0 for the second argument to postfix inc/dec
         e2 = new E_intLit(env.str("0"));
         e2->tcheck(env, e2);
       }
+
+      env.possiblySetOverloadedFunctionVar(e1, winnerFt->params.nth(0)->type,
+                                           argInfo[0].overloadSet);
+      env.possiblySetOverloadedFunctionVar(e2, winnerFt->params.nth(1)->type,
+                                           argInfo[1].overloadSet);
 
       if (!winner->hasFlag(DF_BUILTIN)) {
         PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_operator(op), opName);
@@ -6491,14 +6461,19 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 {
-  expr->tcheck(env, expr);
+  ArgumentInfoArray argInfo(2);
+  tcheckArgumentExpression(env, expr, argInfo[0]);
+  
+  if (argInfo[0].overloadSet.isNotEmpty()) {
+    env.error(stringc << "cannot use overloaded function name with " << toString(op));
+  }
 
   // consider the possibility of operator overloading
   Type *ovlRet = isPrefix(op)?
     resolveOverloadedUnaryOperator(
       env, replacement, /*this,*/ expr, toOverloadableOp(op)) :
     resolveOverloadedBinaryOperator(
-      env, replacement, /*this,*/ expr, NULL, toOverloadableOp(op)) ;
+      env, replacement, /*this,*/ expr, NULL, toOverloadableOp(op), argInfo) ;
   if (ovlRet) {
     return ovlRet;
   }
@@ -6521,8 +6496,9 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 {
-  e1->tcheck(env, e1);
-  e2->tcheck(env, e2);
+  ArgumentInfoArray argInfo(2);
+  tcheckArgumentExpression(env, e1, argInfo[0]);
+  tcheckArgumentExpression(env, e2, argInfo[1]);
 
   // help disambiguate t0182.cc
   //
@@ -6538,7 +6514,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
   // check for operator overloading
   if (isOverloadable(op)) {
     Type *ovlRet = resolveOverloadedBinaryOperator(
-      env, replacement, /*this,*/ e1, e2, toOverloadableOp(op));
+      env, replacement, /*this,*/ e1, e2, toOverloadableOp(op), argInfo);
     if (ovlRet) {
       return ovlRet;
     }
@@ -7144,7 +7120,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   if (!thRval->equals(elRval) &&
       (thRval->isCompoundType() || elRval->isCompoundType())) {
     // collect argument info
-    GrowArray<ArgumentInfo> args(2);
+    ArgumentInfoArray args(2);
     args[0].special = th->getSpecial(env.lang);
     args[0].type = thType;
     args[1].special = el->getSpecial(env.lang);
@@ -7259,49 +7235,31 @@ void tcheckExpression_possibleAddrOfOverload
 {
   LookupSet set;
   tcheckExpression_set(env, expr, LF_TEMPL_PRIMARY, set);
-  if (set.count() >= 2) {
-    Variable *selVar =
-      env.pickMatchingOverloadedFunctionVar(set, target->asRval());
-    if (selVar) {
-      env.setOverloadedFunctionVar(expr, selVar);
-    }
-    else {
-      env.error(getExprNameLoc(expr), stringc
-        << "failed to resolve address-of of overloaded function `"
-        << *(getExprName(expr)) << "' assigned to type `"
-        << target->toString() << "'; candidates:\n" 
-        << chomp(set.asString()));
-    }
-  }
+  env.possiblySetOverloadedFunctionVar(expr, target, set);
 }
 
 
 Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 {
-  target->tcheck(env, target);
-
-  // 13.4p1b2: might be address-of overloaded function
-  tcheckExpression_possibleAddrOfOverload(env, src, target->type);
-
-  // TODO: To be completely correct, we should consider the
-  // possibility that we have to do overload resolution on *both*
-  // the operator and the function name.  This interaction is
-  // already implemented for E_funCall (etc.), so presumably that
-  // should be used as a model here.  In fact, most places that
-  // 'tcheckExpression_possibleAddrOfOverload' is used have this
-  // same defect.
+  ArgumentInfoArray argInfo(2);
+  tcheckArgumentExpression(env, target, argInfo[0]);
+  tcheckArgumentExpression(env, src, argInfo[1]);
 
   // check for operator overloading
   {
     Type *ovlRet = resolveOverloadedBinaryOperator(
-      env, replacement, /*this,*/ target, src, 
-      toOverloadableOp(op, true /*assignment*/));
+      env, replacement, /*this,*/ target, src,
+      toOverloadableOp(op, true /*assignment*/), argInfo);
     if (ovlRet) {
       return ovlRet;
     }
   }
 
   // TODO: make sure 'target' and 'src' make sense together with 'op'
+
+  // this finalizes an overloaded function name if the use
+  // of '=' was not overloadable
+  env.possiblySetOverloadedFunctionVar(src, target->type, argInfo[1].overloadSet);
 
   return target->type;
 }
@@ -7311,7 +7269,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 {
   // check the placement args
   {
-    GrowArray<ArgumentInfo> argInfo(placementArgs->count() + 1);
+    ArgumentInfoArray argInfo(placementArgs->count() + 1);
     placementArgs = tcheckArgExprList(placementArgs, env, argInfo);
 
     // TODO: check the environment for declaration of an operator 'new'
@@ -7343,7 +7301,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   }
 
   if (ctorArgs) {
-    GrowArray<ArgumentInfo> argInfo(ctorArgs->list->count() + 1);
+    ArgumentInfoArray argInfo(ctorArgs->list->count() + 1);
     ctorArgs->list = tcheckArgExprList(ctorArgs->list, env, argInfo);
     Variable *ctor0 =
       outerResolveOverload_ctor(env, env.loc(), t, argInfo,
@@ -7808,7 +7766,7 @@ void IN_compound::tcheck(Env &env, Type* type)
 
 void IN_ctor::tcheck(Env &env, Type *type)
 {
-  GrowArray<ArgumentInfo> argInfo(args->count() + 1);
+  ArgumentInfoArray argInfo(args->count() + 1);
   args = tcheckArgExprList(args, env, argInfo);
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, loc, type, argInfo, env.doOverload()));

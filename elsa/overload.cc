@@ -492,15 +492,17 @@ static bool parameterAcceptsDirectly(EnumType *et, FunctionType *ft, int param)
 }
 
 void OverloadResolver::addUserOperatorCandidates
-  (Type *lhsType, Type * /*nullable*/ rhsType, StringRef opName)
-{
-  lhsType = lhsType->asRval();
+  (Type * /*nullable*/ lhsType, Type * /*nullable*/ rhsType, StringRef opName)
+{                      
+  if (lhsType) {
+    lhsType = lhsType->asRval();
+  }
   if (rhsType) {
     rhsType = rhsType->asRval();
   }
 
   // member candidates
-  if (lhsType->isCompoundType()) {
+  if (lhsType && lhsType->isCompoundType()) {
     Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
     if (member) {
       processPossiblyOverloadedVar(member);
@@ -515,7 +517,9 @@ void OverloadResolver::addUserOperatorCandidates
 
     // associated scopes lookup
     ArrayStack<Type*> argTypes(2);
-    argTypes.push(lhsType);
+    if (lhsType) {
+      argTypes.push(lhsType);
+    }
     if (rhsType) {
       argTypes.push(rhsType);
     }
@@ -528,7 +532,7 @@ void OverloadResolver::addUserOperatorCandidates
     }
     
     // filter candidates if no class-typed args
-    if (lhsType->isCompoundType() ||
+    if ((lhsType && lhsType->isCompoundType()) ||
         (rhsType && rhsType->isCompoundType())) {
       // at least one arg is of class type; nothing special is done
     }

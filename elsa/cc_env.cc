@@ -361,7 +361,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // have not implemented any of the relaxed C rules)
     doCompareArgsToParams(!tracingSys("doNotCompareArgsToParams") && L.isCplusplus),
                                                               
-    collectLookupResults(NULL),
+    collectLookupResults(""),
     
     tcheckMode(TTM_1NORMAL)
 {
@@ -3748,6 +3748,63 @@ Variable *Env::pickMatchingOverloadedFunctionVar(LookupSet &set, Type *type)
 
   OVERLOADTRACE("13.4: no match for type `" << type->toString() << "'");
   return NULL;      // no matching element
+}
+
+
+// given an expression that more or less begins with a name,
+// find the name
+PQName const *getExprName(Expression const *e)
+{
+  ASTSWITCHC(Expression, e) {
+    ASTCASEC(E_variable, v)
+      return v->name;
+
+    ASTNEXTC(E_fieldAcc, f)
+      return f->fieldName;
+
+    ASTNEXTC(E_addrOf, a)
+      return getExprName(a->expr);
+
+    ASTNEXTC(E_grouping, g)
+      return getExprName(g->expr);
+
+    ASTDEFAULTC
+      xfailure("getExprName: does not begin with a name");
+      return NULL;      // silence warning
+      
+    ASTENDCASEC
+  }
+}
+
+// given an expression that more or less begins with a name,
+// find its location
+SourceLoc getExprNameLoc(Expression const *e)
+{
+  return getExprName(e)->loc;
+}
+
+
+// 'expr/info' is being passed to 'paramType'; if 'expr' is the
+// name of an overloaded function, resolve it
+void Env::possiblySetOverloadedFunctionVar(Expression *expr, Type *paramType,
+                                           LookupSet &set)
+{
+  if (set.count() >= 2) {
+    // pick the one that matches the target type
+    Variable *ovlVar =
+      env.pickMatchingOverloadedFunctionVar(set, paramType);
+    if (ovlVar) {
+      // modify 'arg' accordingly
+      env.setOverloadedFunctionVar(expr, ovlVar);
+    }
+    else {
+      env.error(getExprNameLoc(expr), stringc
+        << "failed to resolve address-of of overloaded function `"
+        << *(getExprName(expr)) << "' assigned to type `"
+        << paramType->toString() << "'; candidates:\n"
+        << chomp(set.asString()));
+    }
+  }
 }
 
 

@@ -376,12 +376,11 @@ void doit(int argc, char **argv)
     }
 
     // lookup diagnostic
-    if (env.collectLookupResults) {     
+    if (env.collectLookupResults.length()) {
       // scan AST
       NameChecker nc;
-      nc.sb << "\"collectLookupResults";
+      nc.sb << "collectLookupResults";
       unit->traverse(nc);
-      nc.sb << "\"";
 
       // compare to given text
       if (0==strcmp(env.collectLookupResults, nc.sb)) {

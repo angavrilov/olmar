@@ -58,10 +58,23 @@ PredicateCandidateSet::~PredicateCandidateSet()
 
 
 
-// get the set of types that 't' can be converted to via a
+// get the set of types that 'info.type' can be converted to via a
 // user-defined conversion operator, or by the identity conversion
-void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
+void getConversionOperatorResults(Env &env, SObjList<Type> &dest, 
+                                  ArgumentInfo &info)
 {
+  if (info.overloadSet.isNotEmpty()) {
+    // 2005-02-25: I am not sure if this will really work, but I am
+    // going to attempt to treat an overloaded function name as if
+    // it could "convert" to all of the types of the overloaded names.
+    SFOREACH_OBJLIST(Variable, info.overloadSet, iter) {
+      dest.prepend(iter.data()->type);
+    }
+    dest.reverse();
+    return;
+  }
+
+  Type *t = info.type;
   if (!t->asRval()->isCompoundType()) {
     // this is for when one of the arguments to an operator is not
     // of class type; we treat it similarly to a class that can only
@@ -94,7 +107,7 @@ void PredicateCandidateSet::instantiateBinary(Env &env,
   generation++;
 
   // pattern candidate with correlated parameter types,
-  // e.g. (13.6 para 4):
+  // e.g. (13.6 para 14):
   //
   //   For every T, where T is a pointer to object type, there exist
   //   candidate operator functions of the form
@@ -120,8 +133,8 @@ void PredicateCandidateSet::instantiateBinary(Env &env,
 
   // collect all of the operator functions rettypes from lhs and rhs
   SObjList<Type> lhsRets, rhsRets;
-  getConversionOperatorResults(env, lhsRets, lhsInfo.type);
-  getConversionOperatorResults(env, rhsRets, rhsInfo.type);
+  getConversionOperatorResults(env, lhsRets, lhsInfo);
+  getConversionOperatorResults(env, rhsRets, rhsInfo);
 
   // consider all pairs of conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
@@ -248,7 +261,7 @@ void AssignmentCandidateSet::instantiateBinary(Env &env,
 
   // collect all of the operator functions rettypes
   SObjList<Type> lhsRets;
-  getConversionOperatorResults(env, lhsRets, lhsInfo.type);
+  getConversionOperatorResults(env, lhsRets, lhsInfo);
 
   // consider conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
@@ -335,8 +348,8 @@ void ArrowStarCandidateSet::instantiateBinary(Env &env,
 
   // collect all of the operator functions rettypes from lhs and rhs
   SObjList<Type> lhsRets, rhsRets;
-  getConversionOperatorResults(env, lhsRets, lhsInfo.type);
-  getConversionOperatorResults(env, rhsRets, rhsInfo.type);
+  getConversionOperatorResults(env, lhsRets, lhsInfo);
+  getConversionOperatorResults(env, rhsRets, rhsInfo);
 
   // consider all pairs of conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {

@@ -23,7 +23,7 @@ void bar()
 {
   pf1 p1 = foo;    // refers to line 5
   pf2 p2 = foo;    // refers to line 6
-}   
+}
 
 asm("collectLookupResults p1=14 foo=5 p2=17 foo=6 foo=5 foo=6");
 

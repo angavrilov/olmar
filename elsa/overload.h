@@ -84,6 +84,10 @@ public:
 };
 
 
+// used to pass info about all arguments
+typedef GrowArray<ArgumentInfo> ArgumentInfoArray;
+
+
 // information about a single overload possibility
 class Candidate {
 public:
@@ -140,7 +144,7 @@ public:      // data
   ErrorList * /*nullable*/ errors;
   OverloadFlags flags;
   PQName * /*nullable*/ finalName;
-  GrowArray<ArgumentInfo> &args;
+  ArgumentInfoArray &args;
   
   // when non-NULL, this indicates the type of the expression
   // that is being copy-initialized, and plays a role in selecting
@@ -168,7 +172,7 @@ public:      // funcs
   OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
                    OverloadFlags f,
                    PQName *finalName0,
-                   GrowArray<ArgumentInfo> &a,
+                   ArgumentInfoArray &a,
                    int numCand = 10 /*estimate of # of candidates*/);
   ~OverloadResolver();
 
@@ -193,7 +197,7 @@ public:      // funcs
   // look up and process operator candidate functions, given the
   // types of the arguments and the name of the operator
   void addUserOperatorCandidates
-    (Type *lhsType, Type * /*nullable*/ rhsType, StringRef opName);
+    (Type * /*nullable*/ lhsType, Type * /*nullable*/ rhsType, StringRef opName);
 
   // instantiate built-in candidates
   void addBuiltinUnaryCandidates(OverloadableOp op);
@@ -230,7 +234,7 @@ Variable *resolveOverload(
   OverloadFlags flags,             // various options
   SObjList<Variable> &list,        // list of overloaded possibilities
   PQName * /*nullable*/ finalName, // for any explicit template arguments; NULL for ctors
-  GrowArray<ArgumentInfo> &args,   // list of argument types at the call site
+  ArgumentInfoArray &args,         // list of argument types at the call site
   bool &wasAmbig                   // returns as true if error due to ambiguity
 );
 
