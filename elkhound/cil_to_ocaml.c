@@ -34,7 +34,7 @@ value ocaml_location(int line, int col, const char *file)
     result = alloc(3,0);
     l = Val_int(line);
     c = Val_int(col);
-    f = copy_string(file);
+    f = my_copy_string(file);
     Store_field(result, 0, l);
     Store_field(result, 1, c);
     Store_field(result, 2, f);
@@ -51,7 +51,7 @@ value ocaml_varinfo(int id, const char * name, int global,
 
     result = alloc(5,0);
     i = Val_int(id);
-    n = copy_string(name);
+    n = my_copy_string(name);
     g = OCAML_FALSE;		/* FIXME */
     Store_field(result, 0, i);
     Store_field(result, 1, n);
@@ -82,8 +82,8 @@ value ocaml_fieldinfo(const char *s_name, const char *f_name, value type)
     CAMLlocal3(result, s, f);
 
     result = alloc(3,0);
-    f = copy_string(f_name);
-    s = copy_string(s_name);
+    f = my_copy_string(f_name);
+    s = my_copy_string(s_name);
     Store_field(result, 0, s);
     Store_field(result, 1, f);
     Store_field(result, 2, type);
@@ -98,7 +98,7 @@ value cil_thing_location(CilThing *thing)
     CAMLparam0();
     CAMLlocal1(result);
 
-    SourceLocation *loc = thing->treeNode->loc();
+    SourceLocation const *loc = thing->treeNode->loc();
     if (loc) {
         result = ocaml_location(loc->line, loc->col,
                                 !loc->fname()? "unknown" : loc->fname());
@@ -297,6 +297,7 @@ value cil_fncall_to_ocaml(CilFnCall *fnc)
 	c = d;
     }
     Store_field(result, 2, c);
+    CAMLreturn(result);       // sm: this was missing..
 }
 
 
@@ -384,13 +385,13 @@ value cil_stmt_to_ocaml(CilStmt *stmt)
 
 	case CilStmt::T_LABEL:
 	    result = alloc(1,3);
-	    a = copy_string(stmt->label.name->pcharc());
+	    a = my_copy_string(stmt->label.name->pcharc());
 	    Store_field(result, 0, a);
 	    break;
 
 	case CilStmt::T_JUMP:
 	    result = alloc(1,4);
-	    a = copy_string(stmt->jump.dest->pcharc());
+	    a = my_copy_string(stmt->jump.dest->pcharc());
 	    Store_field(result, 0, a);
 	    break;
 
@@ -439,7 +440,7 @@ value cil_fndefn_to_ocaml(CilFnDefn * f)
 
     result = alloc(5,0);
 
-    a = copy_string(f->var->name.pcharc());
+    a = my_copy_string(f->var->name.pcharc());
     Store_field(result, 0, a);
     b = OCAML_DUMMY_TYPE;	/* FIXME */
     Store_field(result, 1, b);

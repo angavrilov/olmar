@@ -11,8 +11,7 @@
     struct wes_ast_node ** children;
   };
 
-  // this was a problem ..
-  //#include "cc_tree.h"    // TODO: why did we need this?
+  #include <stdlib.h>     // malloc
 
   // in wes-world, using #include <string.h> to get strdup() leads
   // to far too many problems ...

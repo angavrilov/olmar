@@ -11,9 +11,7 @@
 
 // stuff related to exporting data to ocaml
 #ifdef WES_OCAML_LINKAGE
-  #include "caml/mlvalues.h"
-  #include "caml/alloc.h"
-  #include "caml/memory.h"
+  #include "my_caml.h"     // ML interface
   struct wes_ast_node {
       const char *name;
       int num_children;
@@ -302,8 +300,8 @@ value c_to_ocaml(struct wes_ast_node *n, char *filename)
     int i;
 
     result = alloc(5,0);
-    nname = copy_string(n->name);
-    fname = copy_string(filename);
+    nname = my_copy_string(n->name);
+    fname = my_copy_string(filename);
     Store_field(result, 0, nname);
     Store_field(result, 2, Val_int(n->line));
     Store_field(result, 3, Val_int(n->col));
@@ -390,7 +388,6 @@ value cil_main(char *filename) {
 	filename};
     int argc = 5;
     int res;
-    struct wes_list * l;
 
     wes_result_list = NULL; // declaring this NULL at the toplevel
     			    // gives multiple definition errors on my machine
