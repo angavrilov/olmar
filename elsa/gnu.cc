@@ -309,6 +309,18 @@ Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
+{
+  cond->tcheck(env, cond);
+  el->tcheck(env, el);
+  
+  // presumably the correct result type is some sort of intersection
+  // of the 'cond' and 'el' types?
+
+  return el->type;
+}
+
+
 static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
   e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
@@ -334,6 +346,26 @@ void IN_designated::tcheck(Env &env, Type *type)
 {
   init->tcheck(env, type);
   check_designator_list(env, designator_list);
+}
+
+
+// ------------------ const-eval, etc. -------------------
+bool E_gnuCond::extConstEval(string &msg, int &result) const
+{
+  if (!cond->constEval(msg, result)) return false;
+
+  if (result) {
+    return result;
+  }
+  else {
+    return el->constEval(msg, result);
+  }
+}
+
+bool E_gnuCond::extHasUnparenthesizedGT() const
+{
+  return cond->hasUnparenthesizedGT() ||
+         el->hasUnparenthesizedGT();
 }
 
 
@@ -410,6 +442,15 @@ void E_statement::iprint(PrintEnv &env)
   olayer ol("E_statement::iprint");
   codeout co(env, "", "(", ")");
   s->iprint(env);
+}
+
+void E_gnuCond::iprint(PrintEnv &env)
+{
+  olayer ol("E_gnuCond::iprint");
+  codeout co(env, "", "(", ")");
+  cond->print(env);
+  env << " ?: ";
+  el->print(env);
 }
 
 // prints designators in the new C99 style, not the obsolescent ":"

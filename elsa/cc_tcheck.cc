@@ -5569,40 +5569,31 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
-  // In gcc it is legal to omit the 'then' part;
-  // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
-  if (th) {
-    th->tcheck(env, th);
-  }
+  th->tcheck(env, th);
   el->tcheck(env, el);
-  
+
   // TODO: verify 'cond' makes sense in a boolean context
   // TODO: verify 'th' and 'el' return the same type
 
   // dsw: shouldn't the type of the expression should be the least
   // upper bound (lub) of the types?
+  //
   // sm: sort of.. the rules are spelled out in cppstd 5.16.  there's
   // no provision for computing the least common ancestor in the class
   // hierarchy, but the rules *are* nonetheless complex
 
-  Type *thType = NULL;
-  if (th) {
-    thType = th->type;
-  } else {
-    thType = cond->type;
-  }
-
-  // dsw: if one of them is NULL, use the other one; see in/d0095.cc;
+  // dsw: if one of them is NULL, use the other one; see in/gnu/d0095.c;
   // actually gcc only allows this if it is not just void* but also 0,
   // so this is too lenient
   #warning this should be a CCLang flag, not an ifdef
   #ifdef GNU_EXTENSION
-  if (thType->isPointerType() &&
-      thType->asPointerType()->atType->isVoid()) {
+  if (th->type->isPointerType() &&
+      th->type->asPointerType()->atType->isVoid()) {
     return el->type;
   }
   #endif // GNU_EXTENSION
-  return thType;
+
+  return th->type;
 }
 
 
@@ -5900,13 +5891,7 @@ bool Expression::constEval(string &msg, int &result) const
       if (!c->cond->constEval(msg, result)) return false;
 
       if (result) {
-        // In gcc it is legal to omit the 'then' part;
-        // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
-        if (c->th) {
-          return c->th->constEval(msg, result);
-        } else {
-          return result;
-        }
+        return c->th->constEval(msg, result);
       }
       else {
         return c->el->constEval(msg, result);
@@ -5920,11 +5905,20 @@ bool Expression::constEval(string &msg, int &result) const
       return e->expr->constEval(msg, result);
 
     ASTDEFAULTC
-      msg = stringc << kindName() << " is not constEval'able";
-      return false;
+      return extConstEval(msg, result);
 
     ASTENDCASEC
   }
+}
+
+// The intent of this function is to provide a hook where extensions
+// can handle the 'constEval' message for their own AST syntactic
+// forms, by overriding this function.  The non-extension nodes use
+// the switch statement above, which is more compact.
+bool Expression::extConstEval(string &msg, int &result) const
+{
+  msg = stringc << kindName() << " is not constEval'able";
+  return false;
 }
 
 
@@ -5965,11 +5959,9 @@ bool Expression::hasUnparenthesizedGT() const
       
     ASTNEXTC(E_cond, c)
       return c->cond->hasUnparenthesizedGT() ||
-      // In gcc it is legal to omit the 'then' part;
-      // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
-             (c->th ? c->th->hasUnparenthesizedGT() : false) ||
+             c->th->hasUnparenthesizedGT() ||
              c->el->hasUnparenthesizedGT();
-             
+
     ASTNEXTC(E_assign, a)
       return a->target->hasUnparenthesizedGT() ||
              a->src->hasUnparenthesizedGT();
@@ -5979,13 +5971,18 @@ bool Expression::hasUnparenthesizedGT() const
       
     ASTNEXTC(E_throw, t)
       return t->expr && t->expr->hasUnparenthesizedGT();
-      
+
     ASTDEFAULTC
       // everything else, esp. E_grouping, is false
-      return false;
+      return extHasUnparenthesizedGT();
 
     ASTENDCASEC
   }
+}
+
+bool Expression::extHasUnparenthesizedGT() const
+{
+  return false;
 }
 
 
@@ -5995,8 +5992,7 @@ SpecialExpr Expression::getSpecial() const
     ASTCASEC(E_intLit, i)
       return i->i==0? SE_ZERO : SE_NONE;
      
-    ASTNEXTC(E_stringLit, s)
-      PRETEND_USED(s);
+    ASTNEXTC1(E_stringLit)
       return SE_STRINGLIT;
       
     ASTDEFAULTC

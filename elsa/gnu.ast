@@ -68,18 +68,33 @@ class Statement {
 }  
 
 class Expression {
+  // C99 compound literal
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Compound-Literals.html
   -> E_compoundLit(ASTTypeId stype, IN_compound init) {
        // help for dealing with expressions being tchecked more than once
        public bool tcheckedType = false;
      }
 
+  // miscellanous builtins that for whatever reason find themselves
+  // as AST nodes instead of ordinary function calls (...)
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Other-Builtins.html
   -> E___builtin_constant_p(SourceLoc loc, Expression expr);
-
   -> E___builtin_va_arg(SourceLoc loc, Expression expr, ASTTypeId atype);
 
+  // alignment inquiry
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Alignment.html
   -> E_alignofType(ASTTypeId atype);
 
+  // statement-expression
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Statement-Exprs.html
   -> E_statement(S_compound s);
+
+  // conditional with no middle operand
+  // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Conditionals.html
+  -> E_gnuCond(Expression cond, Expression el) {
+       public virtual bool extConstEval(string &msg, int &result) const;
+       public virtual bool extHasUnparenthesizedGT() const;
+     }
 }
 
 

@@ -98,10 +98,8 @@ nonterm(Expression*) ParenthesizedExpression {
 }
 
 nonterm(Expression*) ConditionalExpression {
-  // In gcc it is legal to omit the 'then' part;
-  // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
   -> cond:BinaryExpression "?" /*th:Expression*/ ":" el:AssignmentExpression 
-       { return new E_cond(cond, NULL, el); }
+       { return new E_gnuCond(cond, el); }
 }
 
 
