@@ -433,8 +433,11 @@ class Handler (
 ) {
   public Handler *next;  ctor next=NULL;      // FakeList link
   
-  // test whether this is the "..." handler; when type, typeId does
-  // not get tcheck'd, so its decl->var and decl->type fields are NULL
+  // test whether this is the "..." handler; in this case, at the
+  // moment, the type checker will make a type with ST_ELLIPSIS in
+  // it, but ideally an analysis should not rely on this, and instead
+  // check and handle 'isEllipsis' directly without looking further
+  // at 'typeId' (because ST_ELLIPSIS is a hack)
   public bool isEllipsis() const;
 }
 
