@@ -208,7 +208,7 @@ for fn in                                                                 \
   t0131.cc   t0132.cc  t0133.cc  t0134.cc   t0135.cc   t0136.cc  t0137.cc \
   t0138.cc   t0139.cc  t0140.cc  t0141.cc   t0142.cc   t0143.cc  t0144.cc \
   t0145.cc   t0146.cc  t0147.cc  t0148.cc   t0149.cc   t0150.cc           \
-             t0153.cc                                                     \
+             t0153.cc  t0154.cc                                           \
     ; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
@@ -235,13 +235,11 @@ for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
   d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
-           d0017.cc                            \
+  d0016.cc d0017.cc                            \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
 done
 
-failTest 'no viable candidate for function call' \
-  perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/d0016.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
@@ -316,18 +314,12 @@ for fn in                                                                   \
 done
 
 
-# dsw: FIX: I turned these off per your suggestion; They all have one
-# thing in common, probably from a common header file that is causing
-# them all to fail; I attempted to minimized it with delta, but I
-# suspect that it may have been "overminimized"; see the results in
-# in/d0016.cc
-
 # final parser checks against the big files, since they've now become
 # my performance measurement files
-#  $MAKE in/big
-#  for fn in in/big/*.i; do
-#    runTest ./ccparse -tr $TR_FLAGS "$fn"
-#  done
+$MAKE in/big
+for fn in in/big/*.i; do
+  runTest ./ccparse -tr $TR_FLAGS "$fn"
+done
 
 
 # final arithmetic to report result

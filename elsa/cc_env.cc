@@ -1000,6 +1000,23 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
         else {
           // TODO: maybe put this back in
           //ct = checkTemplateArguments(ct, qualifier->targs);
+          
+          // for now, restricted form of specialization selection to
+          // get in/t0154.cc through
+          if (qualifier->targs->count() == 1) {
+            SFOREACH_OBJLIST_NC(CompoundType, ct->templateInfo->instantiations, iter) {
+              CompoundType *special = iter.data();
+              if (!special->templateInfo->arguments.count() == 1) continue;
+              
+              if (qualifier->targs->first()->sarg.equals(
+                    special->templateInfo->arguments.first())) {
+                // found the specialization or existing instantiation!
+                ct = special;
+                break;
+              }
+            }
+          }
+
         }
       }
 

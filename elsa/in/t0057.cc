@@ -22,10 +22,10 @@ class Foo<int> {
 public:
   static int x();
   typedef int y;
-  static int z;
+  static int z(int);
 };
 
-int j;
+int j,k;
 
 int main()
 {
@@ -42,5 +42,8 @@ int main()
   // correct interpretation: function call
   // my interpretation: declaration
   Foo<int>::z(k);
+  
+  // UPDATE 9/05/03: I now have a very restricted form of specialization
+  // implemented, and some of the above may now actually work right.
 }
 

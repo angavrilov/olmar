@@ -7,7 +7,10 @@
 // fixed it removed all failures
 
 struct nsACString;
-template <class CharT> struct nsStringTraits {};
+struct nsAString;
+template <class CharT> struct nsStringTraits {
+  typedef nsAString abstract_string_type;
+};
 template <> struct nsStringTraits<char> {
   typedef nsACString abstract_string_type;
 };
