@@ -643,9 +643,7 @@ nonterm AttributeList {
 }
 
 nonterm AttributeSpecifier {
-  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" {
-    breaker();
-  }
+  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
 }
 
 nonterm AttributeSpecifierList {
