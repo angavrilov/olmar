@@ -65,7 +65,7 @@ string Variable::toString() const
   // If more specialized printing is desired, do that specialized
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
-  return type->toCString(stringc << (name? name : "") << namePrintSuffix());
+  return type->toString(stringc << (name? name : "") << namePrintSuffix());
 }
 
 
@@ -77,7 +77,7 @@ string Variable::toStringAsParameter() const
     sb << type->asTypeVariable()->name << " " << name;
   }
   else {
-    sb << type->toCString(name);
+    sb << type->toString(name);
   }
 
   if (value) {
