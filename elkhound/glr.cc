@@ -134,6 +134,7 @@
 #include "grampar.h"     // readGrammarFile
 #include "parssppt.h"    // treeMain
 #include "bflatten.h"    // BFlatten
+#include "nonport.h"     // getMilliseconds
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -157,6 +158,7 @@
 // these disable featurs of mini-LR for performance testing
 #define USE_ACTIONS 1
 #define USE_RECLASSIFY 1
+#define USE_MINI_LR 1
 
 // can turn this on to experiment.. but right now it 
 // actually makes things slower.. (!)
@@ -246,13 +248,20 @@ inline void StackNode::init(StateId st, GLR *g)
   referenceCount = 0;
   determinDepth = 1;    // 0 siblings now, so this node is unambiguous
   glr = g;
-  
+
   #ifndef NDEBUG
     INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
   #endif
 }
 
-void StackNode::deinit()
+inline void StackNode::decrementAllocCounter()
+{
+  #ifndef NDEBUG
+    numStackNodesAllocd--;
+  #endif
+}
+
+inline void StackNode::deinit()
 {
   decrementAllocCounter();
 
@@ -269,12 +278,11 @@ void StackNode::deinit()
   firstSib.sib = NULL;
 }
 
-inline void StackNode::decrementAllocCounter()
+inline SymbolId StackNode::getSymbolC() const
 {
-  #ifndef NDEBUG
-    numStackNodesAllocd--;
-  #endif
+  return glr->tables->stateSymbol[state];
 }
+
 
 void StackNode::deallocSemanticValues()
 {
@@ -291,12 +299,6 @@ void StackNode::deallocSemanticValues()
     D(trace("sval") << "deleting sval " << sib->sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, sib->sval);
   }
-}
-
-
-SymbolId StackNode::getSymbolC() const
-{
-  return glr->tables->stateSymbol[state];
 }
 
 
@@ -322,7 +324,7 @@ inline void StackNode
 
 
 // add a new sibling by creating a new link
-SiblingLink *StackNode::
+inline SiblingLink *StackNode::
   addSiblingLink(StackNode *leftSib, SemanticValue sval
                  SOURCELOCARG( SourceLocation const &loc ) )
 {
@@ -364,7 +366,10 @@ SiblingLink *StackNode::
 }
 
 
-void StackNode::decRefCt()
+// inlined for the GLR part; mini-LR doesn't use this directly;
+// gcc will inline the first level, even though it's recursive,
+// and the effect is significant (~10%) for GLR-only parser
+inline void StackNode::decRefCt()
 {
   xassert(referenceCount > 0);
   if (--referenceCount == 0) {
@@ -410,7 +415,7 @@ STATICDEF void StackNode::printAllocStats()
 PendingShift::~PendingShift()
 {
   deinit();
-}          
+}
 
 PendingShift& PendingShift::operator=(PendingShift const &obj)
 {
@@ -422,7 +427,7 @@ PendingShift& PendingShift::operator=(PendingShift const &obj)
 }
 
 
-void PendingShift::deinit()
+inline void PendingShift::deinit()
 {
   parser = NULL;     // decrement reference count
   shiftDest = STATE_INVALID;
@@ -441,7 +446,7 @@ PathCollectionState::~PathCollectionState()
 {}
 
 
-void PathCollectionState::init(int pi, int len, StateId start)
+inline void PathCollectionState::init(int pi, int len, StateId start)
 {
   startStateId = start;
   xassert(paths.length()==0); // paths must start empty
@@ -453,7 +458,23 @@ void PathCollectionState::init(int pi, int len, StateId start)
 }
 
 
-void PathCollectionState::deinit()
+// pulled this up above PathCollectionState::deinit, so this
+// can be inlined into that
+inline void PathCollectionState::ReductionPath::deinit()
+{
+  if (sval) {
+    // this should be very unusual, since 'sval' is consumed
+    // (and nullified) soon after the ReductionPath is created;
+    // it can happen if an exception is thrown from certain places
+    cout << "interesting: using ReductionPath's deallocator on " << sval << endl;
+    deallocateSemanticValue(finalState->getSymbolC(), finalState->glr->userAct, sval);
+  }
+
+  finalState = NULL;     // decrement reference count
+}
+
+
+inline void PathCollectionState::deinit()
 {
   while (paths.isNotEmpty()) {
     paths.popAlt().deinit();
@@ -461,7 +482,7 @@ void PathCollectionState::deinit()
 }
 
 
-void PathCollectionState
+inline void PathCollectionState
   ::addReductionPath(StackNode *f, SemanticValue s
                      SOURCELOCARG( SourceLocation const &L ) )
 {
@@ -484,20 +505,6 @@ PathCollectionState::ReductionPath& PathCollectionState::ReductionPath
     SOURCELOC( loc = obj.loc; )
   }
   return *this;
-}
-
-
-void PathCollectionState::ReductionPath::deinit()
-{
-  if (sval) {
-    // this should be very unusual, since 'sval' is consumed
-    // (and nullified) soon after the ReductionPath is created;
-    // it can happen if an exception is thrown from certain places
-    cout << "interesting: using ReductionPath's deallocator on " << sval << endl;
-    deallocateSemanticValue(finalState->getSymbolC(), finalState->glr->userAct, sval);
-  }
-
-  finalState = NULL;     // decrement reference count
 }
 
 
@@ -618,10 +625,35 @@ inline StackNode *GLR::makeStackNode(StateId state)
 }
 
 
+// add a new parser to the 'activeParsers' list, maintaing
+// related invariants
+inline void GLR::addActiveParser(StackNode *parser)
+{
+  activeParsers.push(parser);
+  parser->incRefCt();
+
+  // I implemented this index, and then discovered it made no difference
+  // (actually, slight degradation) in performance; so for now it will
+  // be an optional design choice, off by default
+  #ifdef USE_PARSER_INDEX
+    // fill in the state id index; if the assertion here ever fails, it
+    // means there are more than 255 active parsers; either the grammer
+    // is highly ambiguous by mistake, or else ParserIndexEntry needs to
+    // be re-typedef'd to something bigger than 'char'
+    int index = activeParsers.length()-1;   // index just used
+    xassert(index < INDEX_NO_PARSER);
+
+    xassert(parserIndex[parser->state] == INDEX_NO_PARSER);
+    parserIndex[parser->state] = index;
+  #endif // USE_PARSER_INDEX
+}
+
+
 bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
   // get ready..
   traceProgress() << "parsing...\n";
+  long startParseTime = getMilliseconds();
   clearAllStackNodes();
 
   // build the parser index (I do this regardless of whether I'm going
@@ -677,7 +709,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     currentTokenValue = currentToken->sval;
     SOURCELOC( currentTokenLoc = currentToken->loc; )
 
-
+  #if USE_MINI_LR
   tryDeterministic:
     // --------------------- mini-LR parser -------------------------
     // optimization: if there's only one active parser, and the
@@ -881,10 +913,11 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       }
     }
     // ------------------ end of mini-LR parser ------------------
+  #endif // USE_MINI_LR
 
     // if we get here, we're dropping into the nondeterministic GLR
     // algorithm in its full glory
-    cout << "not deterministic\n";
+    //cout << "not deterministic\n";
 
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
@@ -961,7 +994,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     }
   }
 
-  traceProgress() << "done parsing\n";
+  traceProgress() << "done parsing (" 
+                  << (getMilliseconds() - startParseTime)
+                  << " ms)\n";
   trsParse << "Parse succeeded!\n";
 
 
@@ -1020,27 +1055,87 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 }
 
 
-// add a new parser to the 'activeParsers' list, maintaing
-// related invariants
-void GLR::addActiveParser(StackNode *parser)
+// mustUseLink: if non-NULL, then we only want to consider
+// reductions that use that link
+inline void GLR::doReduction(StackNode *parser,
+                             SiblingLink *mustUseLink,
+                             int prodIndex)
 {
-  activeParsers.push(parser);
-  parser->incRefCt();
+  ParseTables::ProdInfo const &info = tables->prodInfo[prodIndex];
+  int rhsLen = info.rhsLen;
+  xassert(rhsLen >= 0);    // paranoia before using this to control recursion
 
-  // I implemented this index, and then discovered it made no difference
-  // (actually, slight degradation) in performance; so for now it will 
-  // be an optional design choice, off by default
-  #ifdef USE_PARSER_INDEX
-    // fill in the state id index; if the assertion here ever fails, it
-    // means there are more than 255 active parsers; either the grammer
-    // is highly ambiguous by mistake, or else ParserIndexEntry needs to
-    // be re-typedef'd to something bigger than 'char'
-    int index = activeParsers.length()-1;   // index just used
-    xassert(index < INDEX_NO_PARSER);
+  // in ordinary LR parsing, at this point we would pop 'rhsLen'
+  // symbols off the stack, and push the LHS of this production.
+  // here, we search down the stack for the node 'sibling' that
+  // would be at the top after popping, and then tack on a new
+  // StackNode after 'sibling' as the new top of stack
 
-    xassert(parserIndex[parser->state] == INDEX_NO_PARSER);
-    parserIndex[parser->state] = index;
-  #endif // USE_PARSER_INDEX
+  // however, there might be more than one 'sibling' node, so we
+  // must process all candidates.  the strategy will be to do a
+  // simple depth-first search
+
+  // WRONG:
+    // (note that each such candidate defines a unique path -- all
+    // paths must be composed of the same symbol sequence (namely the
+    // RHS symbols), and if more than one such path existed it would
+    // indicate a failure to collapse and share somewhere)
+
+  // CORRECTION:
+    // there *can* be more than one path to a given candidate; see
+    // the comments at the top
+
+  // step 1: collect all paths of length 'rhsLen' that start at
+  // 'parser', via DFS
+  //PathCollectionState pcs(prodIndex, rhsLen, parser->state);
+  if (pcsStackHeight == pcsStack.length()) {
+    // need a new pcs instance, since the existing ones are being
+    // used by my (recursive) callers
+    pcsStack.push(new PathCollectionState);     // done very rarely
+  }
+  PathCollectionState &pcs = *( pcsStack[pcsStackHeight++] );
+  try {
+    pcs.init(prodIndex, rhsLen, parser->state);
+    collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
+
+    // invariant: poppedSymbols' length is equal to the recursion
+    // depth in 'popStackSearch'; thus, should be empty now
+    // update: since it's now an array, this is implicitly true
+    //xassert(pcs.poppedSymbols.isEmpty());
+
+    // terminology:
+    //   - a 'reduction' is a grammar rule plus the TreeNode children
+    //     that constitute the RHS
+    //   - a 'path' is a reduction plus the parser (StackNode) that is
+    //     at the end of the sibling link path (which is essentially the
+    //     parser we're left with after "popping" the reduced symbols)
+
+    // step 2: process those paths
+    // ("mutate" because need non-const access to rpath->finalState)
+    for (int i=0; i < pcs.paths.length(); i++) {
+      PathCollectionState::ReductionPath &rpath = pcs.paths[i];
+
+      // I'm not sure what is the best thing to call an 'action' ...
+      //actions++;
+
+      // this is like shifting the reduction's LHS onto 'finalParser'
+      glrShiftNonterminal(rpath.finalState, info.lhsIndex,
+                          rpath.sval  SOURCELOCARG( rpath.loc ) );
+
+      // nullify 'sval' to mark it as consumed
+      rpath.sval = NULL;
+    } // for each path
+  }
+  
+  // make sure the height gets propely decremented in any situation,
+  // and deinit the pcs; this is where reduction paths get removed
+  catch (...) {
+    pcsStackHeight--;
+    pcs.deinit();
+    throw;
+  }
+  pcsStackHeight--;
+  pcs.deinit();
 }
 
 
@@ -1134,90 +1229,6 @@ void GLR::doAllPossibleReductions(StackNode *parser, ActionEntry action,
       doAllPossibleReductions(parser, entry[i+1], sibLink);
     }
   }
-}
-
-
-// mustUseLink: if non-NULL, then we only want to consider
-// reductions that use that link
-void GLR::doReduction(StackNode *parser,
-                      SiblingLink *mustUseLink,
-                      int prodIndex)
-{
-  ParseTables::ProdInfo const &info = tables->prodInfo[prodIndex];
-  int rhsLen = info.rhsLen;
-  xassert(rhsLen >= 0);    // paranoia before using this to control recursion
-
-  // in ordinary LR parsing, at this point we would pop 'rhsLen'
-  // symbols off the stack, and push the LHS of this production.
-  // here, we search down the stack for the node 'sibling' that
-  // would be at the top after popping, and then tack on a new
-  // StackNode after 'sibling' as the new top of stack
-
-  // however, there might be more than one 'sibling' node, so we
-  // must process all candidates.  the strategy will be to do a
-  // simple depth-first search
-
-  // WRONG:
-    // (note that each such candidate defines a unique path -- all
-    // paths must be composed of the same symbol sequence (namely the
-    // RHS symbols), and if more than one such path existed it would
-    // indicate a failure to collapse and share somewhere)
-
-  // CORRECTION:
-    // there *can* be more than one path to a given candidate; see
-    // the comments at the top
-
-  // step 1: collect all paths of length 'rhsLen' that start at
-  // 'parser', via DFS
-  //PathCollectionState pcs(prodIndex, rhsLen, parser->state);
-  if (pcsStackHeight == pcsStack.length()) {
-    // need a new pcs instance, since the existing ones are being
-    // used by my (recursive) callers
-    pcsStack.push(new PathCollectionState);     // done very rarely
-  }
-  PathCollectionState &pcs = *( pcsStack[pcsStackHeight++] );
-  try {
-    pcs.init(prodIndex, rhsLen, parser->state);
-    collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
-
-    // invariant: poppedSymbols' length is equal to the recursion
-    // depth in 'popStackSearch'; thus, should be empty now
-    // update: since it's now an array, this is implicitly true
-    //xassert(pcs.poppedSymbols.isEmpty());
-
-    // terminology:
-    //   - a 'reduction' is a grammar rule plus the TreeNode children
-    //     that constitute the RHS
-    //   - a 'path' is a reduction plus the parser (StackNode) that is
-    //     at the end of the sibling link path (which is essentially the
-    //     parser we're left with after "popping" the reduced symbols)
-
-    // step 2: process those paths
-    // ("mutate" because need non-const access to rpath->finalState)
-    for (int i=0; i < pcs.paths.length(); i++) {
-      PathCollectionState::ReductionPath &rpath = pcs.paths[i];
-
-      // I'm not sure what is the best thing to call an 'action' ...
-      //actions++;
-
-      // this is like shifting the reduction's LHS onto 'finalParser'
-      glrShiftNonterminal(rpath.finalState, info.lhsIndex,
-                          rpath.sval  SOURCELOCARG( rpath.loc ) );
-
-      // nullify 'sval' to mark it as consumed
-      rpath.sval = NULL;
-    } // for each path
-  }
-  
-  // make sure the height gets propely decremented in any situation,
-  // and deinit the pcs; this is where reduction paths get removed
-  catch (...) {
-    pcsStackHeight--;
-    pcs.deinit();
-    throw;
-  }
-  pcsStackHeight--;
-  pcs.deinit();
 }
 
 
@@ -1323,9 +1334,14 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // explore currentNode's siblings
     collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
                     &(currentNode->firstSib));
-    MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
-      collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
-                      sibling.data());
+                    
+    // test before dropping into the loop, since profiler is reporting
+    // some time spent calling VoidListMutator::reset ..
+    if (currentNode->leftSiblings.isNotEmpty()) {
+      MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
+        collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
+                        sibling.data());
+      }
     }
   }
 }
