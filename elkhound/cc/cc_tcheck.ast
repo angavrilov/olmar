@@ -155,6 +155,8 @@ class Enumerator {
 class Declarator {
   public Variable *var;                // (serf) computed information: name, type, etc.
   ctor var=NULL;
+  public Type const *type;
+  ctor type=NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }

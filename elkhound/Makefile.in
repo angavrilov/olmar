@@ -214,6 +214,7 @@ cc-set := \
 ifdef CC_QUAL
   cc-set += cc/cc_qual/cc_qualifiers.o
   cc-set += cc/cc_qual/cc_qual_walk.o
+  cc-set += cc/cc_qual/GlobalUnifierVisitor.o
   cc-set += cc/cc_qual/cqual_iface.o
 else
   cc-set += cc/cc_qualifiers_dummy.o
