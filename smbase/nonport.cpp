@@ -206,7 +206,9 @@ void getCurrentDate(int &month, int &day, int &year)
 {
   // tzset is apparently required (recommended?) before
   // calling localtime()
+  #if !defined(__CYGWIN__)
   tzset();
+  #endif
 
   // retrieve standard UNIX time
   time_t unixTime;

@@ -7,6 +7,7 @@
 #include <unistd.h>     // sleep
 #include <stdio.h>      // printf
 
+#ifndef __CYGWIN__      // everything here is for *not* cygwin
 
 void setHandler(int signum, SignalHandler handler)
 {
@@ -93,3 +94,11 @@ int main()
 }
 
 #endif // TEST_MYSIG
+
+
+#else   // cygwin -- just stubs so it compiles
+void setHandler(int, SignalHandler) {}
+void printHandler(int) {}
+jmp_buf sane_state;
+void jmpHandler(int) {}
+#endif

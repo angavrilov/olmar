@@ -831,10 +831,15 @@ Void_t *(*__morecore)() = __default_morecore_init;
 
 #else /* INTERNAL_LINUX_C_LIB */
 
-#if __STD_C
-extern Void_t*     sbrk(ptrdiff_t);
+#ifndef __CYGWIN__
+  #if __STD_C
+  extern Void_t*     sbrk(ptrdiff_t);
+  #else
+  extern Void_t*     sbrk();
+  #endif
 #else
-extern Void_t*     sbrk();
+  // for cygwin, sbrk is already declared somewhere,
+  // and *differently* ...
 #endif
 
 #ifndef MORECORE
