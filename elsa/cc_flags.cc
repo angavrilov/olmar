@@ -288,6 +288,7 @@ char const * const uberModifierNames[UM_NUM_FLAGS] = {
   "float",
   "double",
   "void",
+  "long long"
 };
 
 string toString(UberModifiers m)
