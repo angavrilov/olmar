@@ -258,6 +258,7 @@ MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
 CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
     fields(),
+    fieldIndex(),
     forward(true),
     keyword(k)
 {}
@@ -289,7 +290,8 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 
 string CompoundType::toCString() const
 {
-  return stringc << keywordName(keyword) << " " << name;
+  return stringc << keywordName(keyword) << " " 
+                 << (name? name : "(anonymous)");
 }
 
 
@@ -409,6 +411,29 @@ CompoundType::Field const *CompoundType::getNthField(int index) const
   return fields.nthC(index);
 }
 
+CompoundType::Field const *CompoundType::getNamedField(StringRef name) const
+{
+  Field *f;
+  if (fieldIndex.query(name, f)) {
+    return f;
+  }
+  else {
+    return NULL;
+  }
+}
+
+
+CompoundType::Field *CompoundType::addField(StringRef name, Type const *type)
+{
+  xassert(!fieldIndex.isMapped(name));
+  
+  Field *f = new Field(name, type);
+  fields.append(f);
+  fieldIndex.add(name, f);
+
+  return f;
+}
+
 
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
@@ -417,7 +442,7 @@ EnumType::~EnumType()
 
 string EnumType::toCString() const
 {
-  return stringc << "enum " << name;
+  return stringc << "enum " << (name? name : "(anonymous)");
 }
 
 
@@ -446,6 +471,30 @@ int EnumType::reprSize() const
 {
   // this is the usual choice
   return simpleTypeReprSize(ST_INT);
+}
+
+
+EnumType::Value *EnumType::addValue(StringRef name, int value)
+{
+  xassert(!valueIndex.isMapped(name));
+  
+  Value *v = new Value(name, this, value);
+  values.append(v);
+  valueIndex.add(name, v);
+  
+  return v;
+}
+
+
+EnumType::Value const *EnumType::getValue(StringRef name) const
+{
+  Value *v;
+  if (valueIndex.query(name, v)) { 
+    return v;
+  }
+  else {
+    return NULL;
+  }
 }
 
 
@@ -512,7 +561,8 @@ string Type::toCString() const
 string Type::toCString(char const *name) const
 {
   return stringc << idComment()
-                 << leftString() << " " << name << rightString();
+                 << leftString() << " " << (name? name : "/*anon*/")
+                 << rightString();
 
   // removing the space causes wrong output:
   //   int (foo)(intz)
@@ -527,8 +577,9 @@ string Type::rightString() const
 
 string Type::toString(int depth) const
 {
-  return stringc << recurseCilString(this, depth+1)
-                 << " /""* " << toCString() << " */";
+  return toCString();  
+  //return stringc << recurseCilString(this, depth+1)
+  //               << " /""* " << toCString() << " */";
 }
 
 

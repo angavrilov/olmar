@@ -2,6 +2,8 @@
 
 // this typedef should disambiguate casts and fn calls
 typedef unsigned short __u16;
+int ___arch__swab16(int f);
+int __builtin_constant_p(int x);
 
 // this is needed for a similar purpose
 extern __inline__ __const__ __u16 __fswab16(__u16 x)

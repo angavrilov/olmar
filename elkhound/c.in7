@@ -89,7 +89,7 @@ myLabel: x=y;         // labeled statement
   //} 
 
   return 6;             // return with arg
-  return;               // return w/o arg
+  //return;               // return w/o arg
 
   goto myLabel;         // goto
 

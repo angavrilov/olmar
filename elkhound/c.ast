@@ -1,14 +1,18 @@
 // c.ast
 // C abstract syntax
-           
+
+// included in generated header
 verbatim {
+  #include "cc_flags.h"      // CVFlags, DeclFlags, etc.
 
-#include "cc_flags.h"      // CVFlags, DeclFlags, etc.
-
-class Env;                 // cc_env.h
-class Type;                // cc_type.h
-
+  class Env;                 // cc_env.h
+  class Type;                // cc_type.h
 } // end verbatim
+                 
+// included in generated source file
+impl_verbatim {
+  #include "cc_type.h"       // Type
+}
 
 
 // ---------------- file -------------
@@ -100,14 +104,17 @@ class Enumerator (
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
 class Declarator {
-  public ASTList<PtrOperator> stars;   // pointer constructors, right to left
+  public ASTList<PtrOperator> stars;   // pointer constructors, left to right
   public Initializer *init;            // (nullable) optional data initializer
   ctor { init=NULL; };
-    
+
+  // external interface; adds 'stars' before calling 'itcheck'
+  public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
+
   // returns the type denoted by the combination of 'base' and the
   // type constructors in this declarator (recursively)
   pure_virtual Type const *
-    tcheck(Env &env, Type const *base, DeclFlags dflags);
+    itcheck(Env &env, Type const *base, DeclFlags dflags);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual StringRef getName() const;
@@ -155,6 +162,15 @@ class Expression {
   public Type const *tcheck(Env &env);
   public Type const *type;
   ctor type=NULL;
+
+  custom debugPrint {
+    if (type) {
+      ind(os, indent) << "type: " << type->toCString() << "\n";
+    }
+    else {
+      ind(os, indent) << "type: (null)\n";
+    }
+  }
 
   // inner typechecker which does not have to store its result
   // in 'type'

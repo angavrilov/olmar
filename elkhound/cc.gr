@@ -912,7 +912,7 @@ nonterm[ASTList<Initializer>*] InitializerList {
 nonterm[Declarator*] Declarator {
   // (PtrOperator)* DirectDeclarator
   -> p:PtrOperator d:Declarator
-       [ d->stars.append(p); return d; ]
+       [ d->stars.prepend(p); return d; ]
 
   // I'm still looking for the right place to put GNUAttribute ...
   -> d:DirectDeclarator GNUAttribute         // GNU extension
@@ -1160,7 +1160,7 @@ nonterm[StringRef] ClassNameOpt {
          D("defined new struct " << n);
          addType(n);
        }
-       return 0;
+       return n;
      ]
 }
 

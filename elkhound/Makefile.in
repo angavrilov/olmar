@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles c.ast.gen.o cc.gen.o ccgr cc_type.o
+temporary: check-makefiles c.ast.gen.o cc.gen.o cc_type.o cc_env.o ccgr
 
 # main targets
 all: check-makefiles ccgr
@@ -67,7 +67,7 @@ glr-set = gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
 # files involved in translating parsed C/C++ code
 #cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
 #         stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
-cc-set = cparse.o
+cc-set = cparse.o cc_type.o cc_env.o
 
 # stuff needed everywhere
 common = 

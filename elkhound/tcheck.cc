@@ -25,8 +25,23 @@ void TF_decl::tcheck(Env &env)
 void TF_func::tcheck(Env &env)
 {
   Type const *r = retspec->tcheck(env);
-  nameParams->tcheck(env, r, dflags);
+  Type const *f = nameParams->tcheck(env, r, dflags);
+  xassert(f->isFunctionType());
+
+  // write down the expected return type
+  env.setCurrentRetType(r);
+
+  // put parameters into the environment
+  env.enterScope();
+
+  FOREACH_OBJLIST(FunctionType::Param, f->asFunctionTypeC().params, iter) {
+    FunctionType::Param const *p = iter.data();
+    env.addVariable(p->name, DF_NONE, p->type);
+  }
+
   body->tcheck(env);
+
+  env.leaveScope();
 }
 
 
@@ -77,7 +92,7 @@ Type const *TypeSpecifier::applyCV(Env &env, Type const *base)
 
 Type const *TS_name::tcheck(Env &env)
 {
-  Type const *base = env.lookupTypedef(name);
+  Type const *base = env.getTypedef(name);
   env.errIf(!base, stringc << "unknown typedef " << name);
 
   return applyCV(env, base);
@@ -94,11 +109,11 @@ Type const *TS_elaborated::tcheck(Env &env)
 {
   AtomicType *ret;
   if (keyword != TI_ENUM) {
-    ret = env.lookupOrMakeCompound(name, (CompoundType::Keyword)keyword);
+    ret = env.getOrAddCompound(name, (CompoundType::Keyword)keyword);
     env.errIf(!ret, stringc << name << " already declared differently");
   }
   else {
-    ret = env.lookupOrMakeEnum(name);
+    ret = env.getOrAddEnum(name);
   }
 
   return env.makeCVType(ret, cv);
@@ -107,9 +122,14 @@ Type const *TS_elaborated::tcheck(Env &env)
 
 Type const *TS_classSpec::tcheck(Env &env)
 {
-  CompoundType *ct = env.lookupOrMakeCompound(name, (CompoundType::Keyword)keyword);
-  env.errIf(!ct, stringc << name << " already declared differently");
-  env.errIf(ct->isComplete(), stringc << name << " already declared");
+  CompoundType *ct = env.getOrAddCompound(name, (CompoundType::Keyword)keyword);
+  if (name) {
+    env.errIf(!ct, stringc << name << " already declared differently");
+    env.errIf(ct->isComplete(), stringc << name << " already declared");
+  }
+  else {
+    xassert(ct);
+  }
 
   // fill in 'ct' with its fields
   env.pushStruct(ct);      // declarations will go into 'ct'
@@ -125,9 +145,16 @@ Type const *TS_classSpec::tcheck(Env &env)
 class XNonConst : public xBase {
 public:
   Expression const *subexpr;     // on which it fails to be const
+
 public:
-  XNonConst();
+  XNonConst() : xBase("non-const") {}
+  XNonConst(XNonConst const &obj) : xBase(obj), subexpr(obj.subexpr) {}
+  ~XNonConst();
 };
+
+XNonConst::~XNonConst()
+{}               
+
 
 int constEval(Env &env, Expression *expr)
 {
@@ -144,10 +171,12 @@ int constEval(Env &env, Expression *expr)
 
 Type const *TS_enumSpec::tcheck(Env &env)
 {
-  EnumType *et = env.lookupEnum(name);
-  env.errIf(et, stringc << name << " already declared");
+  if (name) {
+    EnumType *et = env.getEnum(name);
+    env.errIf(et, stringc << name << " already declared");
+  }
 
-  et = env.makeEnumType(name);
+  EnumType *et = env.addEnum(name);
 
   // fill in 'et' with enumerators
   int nextValue = 0;
@@ -170,29 +199,52 @@ Type const *TS_enumSpec::tcheck(Env &env)
 
 
 // -------------------- Declarator -------------------
-Type const *D_name::tcheck(Env &env, Type const *base, DeclFlags dflags)
+Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 {
-  cout << "tcheck: found declarator name: " << (name? name : "(null)") << endl;
+  FOREACH_ASTLIST(PtrOperator, stars, iter) {
+    // the list is left-to-right, so the first one we encounter is
+    // the one to be most immediately applied to the base type:
+    //   int  * const * volatile x;
+    //   ^^^  ^^^^^^^ ^^^^^^^^^^
+    //   base  first    second
+    base = env.makePtrOperType(PO_POINTER, iter.data()->cv, base);
+  }
 
-  // I think this cannot happen in C?
-  env.errIf(!name, "anonymous declarator?");
+  return itcheck(env, base, dflags);
+}
 
-  // ignoring initial values... what I want is to create an element
-  // of the abstract domain and insert that here
-  if (dflags & DF_TYPEDEF) {
-    env.addTypedef(name, base);
+
+Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags)
+{
+  cout << "tcheck: found declarator name: " << (name? name : "(null)")
+       << ", type is " << base->toCString() << endl;
+
+  // one way this happens is in prototypes with unnamed arguments
+  if (!name) {
+    // skip the following;
   }
   else {
-    env.declareVariable(name, dflags, base);
+    // ignoring initial values... what I want is to create an element
+    // of the abstract domain and insert that here
+    if (dflags & DF_TYPEDEF) {
+      env.addTypedef(name, base);
+    }
+    else {
+      env.addVariable(name, dflags, base);
+    }
   }
 
   return base;
 }
 
 
-Type const *D_func::tcheck(Env &env, Type const *rettype, DeclFlags dflags)
+Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags)
 {
   FunctionType *ft = env.makeFunctionType(rettype);
+
+  // push a scope so the argument names aren't seen as colliding
+  // with names already around
+  env.enterScope();
 
   // build the argument types
   FOREACH_ASTLIST_NC(ASTTypeId, params, iter) {
@@ -210,7 +262,7 @@ Type const *D_func::tcheck(Env &env, Type const *rettype, DeclFlags dflags)
 
     // extract the name too (second pass, but quick)
     StringRef /*nullable*/ paramName = ti->decl->getName();
-                             
+
     // add it to the type description
     FunctionType::Param *param =
       new FunctionType::Param(paramName, paramType);
@@ -220,13 +272,15 @@ Type const *D_func::tcheck(Env &env, Type const *rettype, DeclFlags dflags)
   // correct the argument order; this preserves linear performance
   ft->params.reverse();
 
+  env.leaveScope();
+
   // pass the constructed function type to base's tcheck so it can
   // further build upon the type
   return base->tcheck(env, ft, dflags);
 }
 
 
-Type const *D_array::tcheck(Env &env, Type const *elttype, DeclFlags dflags)
+Type const *D_array::itcheck(Env &env, Type const *elttype, DeclFlags dflags)
 {
   ArrayType *at;
   if (size) {
@@ -240,7 +294,7 @@ Type const *D_array::tcheck(Env &env, Type const *elttype, DeclFlags dflags)
 }
 
 
-Type const *D_bitfield::tcheck(Env &env, Type const *base, DeclFlags dflags)
+Type const *D_bitfield::itcheck(Env &env, Type const *base, DeclFlags dflags)
 {
   cout << "tcheck: found bitfield declarator name: "
        << (name? name : "(null)") << endl;
@@ -294,25 +348,30 @@ void S_expr::tcheck(Env &env)
 
 void S_compound::tcheck(Env &env)
 {
+  env.enterScope();
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     iter.data()->tcheck(env);
-  }
+  }                
+  env.leaveScope();
 }
 
-void checkBoolean(Env &env, Type const *c)
+void checkBoolean(Env &env, Type const *c, Expression const *e)
 {
   if (c->isIntegerType() ||
-      c->isPointerType()) {
+      c->isPointerType() ||
+      c->isArrayType()) {      // what the hey..
     // ok
   }
   else {
-    env.err(stringc << c->toString() << " should be a number or pointer");
+    env.err(stringc << "expression `" << e->toString() 
+                    << "', type `" << c->toString()
+                    << "' should be a number or pointer");
   }
 }
 
 void S_if::tcheck(Env &env)
 {
-  checkBoolean(env, cond->tcheck(env));
+  checkBoolean(env, cond->tcheck(env), cond);
   thenBranch->tcheck(env);
   elseBranch->tcheck(env);
 }
@@ -324,20 +383,20 @@ void S_switch::tcheck(Env &env)
 
 void S_while::tcheck(Env &env)
 {
-  checkBoolean(env, cond->tcheck(env));
+  checkBoolean(env, cond->tcheck(env), cond);
   body->tcheck(env);
 }
 
 void S_doWhile::tcheck(Env &env)
 {
   body->tcheck(env);
-  checkBoolean(env, cond->tcheck(env));
+  checkBoolean(env, cond->tcheck(env), cond);
 }
 
 void S_for::tcheck(Env &env)
 {
   init->tcheck(env);
-  checkBoolean(env, cond->tcheck(env));
+  checkBoolean(env, cond->tcheck(env), cond);
   after->tcheck(env);
   body->tcheck(env);
 }
@@ -415,7 +474,9 @@ Type const *E_structLit::itcheck(Env &env)
 
 Type const *E_variable::itcheck(Env &env)
 {
-  return env.getVariable(name)->type;
+  Variable *v = env.getVariable(name);
+  env.errIf(!v, stringc << "undeclared variable " << name);
+  return v->type;
 }
 
 
@@ -431,9 +492,22 @@ Type const *E_arrayAcc::itcheck(Env &env)
 }
 
 
+void fatal(Env &env, Expression const *expr, Type const *type, char const *msg)
+{
+  env.errThrow(
+    stringc << "expression `" << expr->toString()
+            << "', type `" << type->toString()
+            << "': " << msg);
+}
+
+
 Type const *E_funCall::itcheck(Env &env)
 {
-  FunctionType const *ftype = &( func->tcheck(env)->asFunctionTypeC() );
+  Type const *maybe = func->tcheck(env);
+  if (!maybe->isFunctionType()) {
+    fatal(env, func, maybe, "must be function type");
+  }
+  FunctionType const *ftype = &( maybe->asFunctionTypeC() );
 
   ObjListIter<FunctionType::Param> param(ftype->params);
 
@@ -451,7 +525,7 @@ Type const *E_funCall::itcheck(Env &env)
     else {
       // we can only portably pass built-in types across
       // a varargs boundary
-      checkBoolean(env, atype);
+      checkBoolean(env, atype, iter.data());
     }
   }
   if (!param.isDone()) {
@@ -482,10 +556,8 @@ Type const *E_unary::itcheck(Env &env)
     return fixed(ST_INT);
   }
 
-  if (!t->isIntegerType()) {
-    env.err(stringc << "operator " << ::toString(op)
-                    << " requires integer argument");
-  }
+  // just about any built-in will do...
+  checkBoolean(env, t, expr);
 
   // TODO: verify argument to ++/-- is an lvalue..
 
@@ -498,12 +570,9 @@ Type const *E_binary::itcheck(Env &env)
 {
   Type const *t1 = e1->tcheck(env);
   Type const *t2 = e2->tcheck(env);
-  
-  if (!t1->isIntegerType() ||
-      !t2->isIntegerType()) {
-    env.err(stringc << "operator " << ::toString(op)
-                    << " requires integer arguments");
-  }
+
+  checkBoolean(env, t1, e1);     // pointer is acceptable here..
+  checkBoolean(env, t2, e2);  
                                   
   // e.g. (short,long) -> long
   return env.promoteTypes(t1, t2);
@@ -523,9 +592,15 @@ Type const *E_addrOf::itcheck(Env &env)
 Type const *E_deref::itcheck(Env &env)
 {
   Type const *t = ptr->tcheck(env);
-  env.errIf(!t->isPointerType(), "can only dereference pointers");
-  
-  return t->asPointerTypeC().atType;
+  env.errIf(!t->isPointerType() && !t->isArrayType(), 
+            stringc << "can only dereference pointers, not " << t->toCString());
+
+  if (t->isPointerType()) {
+    return t->asPointerTypeC().atType;
+  }
+  else {
+    return t->asArrayTypeC().eltType;
+  }
 }
 
 
@@ -539,14 +614,14 @@ Type const *E_cast::itcheck(Env &env)
 
 Type const *E_cond::itcheck(Env &env)
 {
-  checkBoolean(env, cond->tcheck(env));
+  checkBoolean(env, cond->tcheck(env), cond);
 
   Type const *t = th->tcheck(env);
-  Type const *e = th->tcheck(env);
+  Type const *e = el->tcheck(env);
 
   // require both alternatives be primitive too..
-  checkBoolean(env, t);
-  checkBoolean(env, e);
+  checkBoolean(env, t, th);
+  checkBoolean(env, e, el);
 
   return env.promoteTypes(t, e);
 }
@@ -557,8 +632,8 @@ Type const *E_gnuCond::itcheck(Env &env)
   Type const *c = cond->tcheck(env);
   Type const *e = el->tcheck(env);
 
-  checkBoolean(env, c);
-  checkBoolean(env, e);
+  checkBoolean(env, c, cond);
+  checkBoolean(env, e, el);
 
   return env.promoteTypes(c, e);                   
 }

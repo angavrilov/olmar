@@ -5,11 +5,12 @@
 #ifndef CC_TYPE_H
 #define CC_TYPE_H
 
-#include "str.h"        // string
-#include "objlist.h"    // ObjList
-//#include "mlvalue.h"    // MLValue
-#include "cc_flags.h"   // CVFlags, DeclFlags, SimpleTypeId
-#include "strtable.h"   // StringRef
+#include "str.h"          // string
+#include "objlist.h"      // ObjList
+//#include "mlvalue.h"      // MLValue
+#include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
+#include "strtable.h"     // StringRef
+#include "strsobjdict.h"  // StrSObjDict
 
 #if 0
 // other files
@@ -151,23 +152,29 @@ enum AccessMode {
 
 // represent a user-defined compound type
 class CompoundType : public NamedAtomicType {
-public:     // types
+public:      // types
   // NOTE: keep these consistent with TypeIntr (in file c.ast)
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
-               
+
   // one of these for each field in the struct
   class Field {
   public:
     StringRef name;
     Type const *type;
+
+  public:
+    Field(StringRef n, Type const *t) : name(n), type(t) {}
   };
 
-public:     // data
-  ObjList<Field> fields;      // fields in this type
+private:     // data
+  ObjList<Field> fields;               // fields in this type
+  StringSObjDict<Field> fieldIndex;    // dictionary for name lookup
+
+public:      // data
   bool forward;               // true when it's only fwd-declared
   Keyword const keyword;      // keyword used to introduce the type
 
-public:     // funcs
+public:      // funcs
   // create an incomplete (forward-declared) compound
   CompoundType(Keyword keyword, StringRef name);
   ~CompoundType();
@@ -196,6 +203,8 @@ public:     // funcs
   int numFields() const;
   Field const *getNthField(int index) const;
   Field const *getNamedField(StringRef name) const;
+  
+  Field *addField(StringRef name, Type const *type);
 };
 
 
@@ -215,8 +224,9 @@ public:     // types
   };
 
 public:     // data
-  ObjList<Value> values;      // values in this enumeration
-  int nextValue;              // next value to assign to elements automatically
+  ObjList<Value> values;              // values in this enumeration
+  StringSObjDict<Value> valueIndex;   // name-based lookup
+  int nextValue;                      // next value to assign to elements automatically
 
 public:     // funcs
   EnumType(StringRef n) : NamedAtomicType(n), nextValue(0) {}
@@ -227,6 +237,9 @@ public:     // funcs
   virtual string toCilString(int depth) const;
   //virtual MLValue toMLContentsValue(int depth, CVFlags cv) const;
   virtual int reprSize() const;
+  
+  Value *addValue(StringRef name, int value);
+  Value const *getValue(StringRef name) const;
 };
 
 

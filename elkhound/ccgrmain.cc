@@ -59,6 +59,8 @@ void doit(int argc, char **argv)
   unit->tcheck(env);
   cout << "done type checking\n";
 
+  // print abstract syntax tree
+  unit->debugPrint(cout, 0);
 
   //malloc_stats();
 

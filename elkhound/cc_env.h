@@ -5,42 +5,30 @@
 #define CC_ENV_H
 
 #include "cc_type.h"      // Type, AtomicType, etc.
-#include "cc_err.h"       // SemanticError
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
-#include "arraymap.h"     // ArrayMap
-#include "mlvalue.h"      // MLValue
 #include "owner.h"        // Owner
-
-// fwds to other files
-class DataflowEnv;        // dataflow.h
-class CCTreeNode;         // cc_tree.h
-class CilExpr;            // cil.h
-
-// fwds for file
-class TypeEnv;
-class VariableEnv;
+#include "exc.h"          // xBase
+#include "sobjlist.h"     // SObjList
 
 
-// type of variable identifiers
-typedef int VariableId;
-enum { NULL_VARIABLEID = -1, FIRST_VARIABLEID = 0 };
+// thrown by some error functions
+class XError : public xBase {
+public:
+  XError(char const *msg) : xBase(msg) {}
+  XError(XError const &obj) : xBase(obj) {}
+};
 
 
-// thing to which a name is bound and for which runtime
-// storage is (usually) allocated
+// mapping from name to type, for purpose of storage instantiation
 class Variable {
 public:     // data
-  VariableId id;             // unique name (unique among .. ?)
-  string name;               // declared name
+  StringRef name;            // declared name
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
-  int enumValue;             // if isEnumValue(), its numerical value
-  //Owner<CilExpr> initVal;    // for global variables, the initial value
-  int fieldNum;              // orders fields in structs
 
 public:     // funcs
-  Variable(char const *n, DeclFlags d, Type const *t, int fieldNum);
+  Variable(StringRef n, DeclFlags d, Type const *t);
   ~Variable();
 
   // some ad-hoc thing
@@ -49,120 +37,142 @@ public:     // funcs
   // ML eval() format
   //MLValue toMLValue() const;
 
-  // when true:
-  //   - 'name' is the name of an enum constant value
-  //   - 'type' points to the enum itself
-  //   - 'enumValue' gives the constant value
-  bool isEnumValue() const { return declFlags & DF_ENUMVAL; }
-
   bool isGlobal() const { return declFlags & DF_GLOBAL; }
+  //bool isInitialized() const { return declFlags & DF_INITIALIZED; }
+  //void sayItsInitialized() { declFlags = (DeclFlags)(declFlags | DF_INITIALIZED); }
+};
 
-  bool isInitialized() const { return declFlags & DF_INITIALIZED; }
-  void sayItsInitialized() { declFlags = (DeclFlags)(declFlags | DF_INITIALIZED); }
+
+// elements of the environment which are scoped
+class ScopedEnv {
+public:
+  // variables: map name -> Type
+  StringObjDict<Variable> variables;
+  
+public:
+  ScopedEnv();
+  ~ScopedEnv();
 };
 
 
 // C++ compile-time binding environment
 class Env {
 private:    // data
-  // parent environment; failed lookups in this environment go
-  // to the parent before failing altogether
-  Env * const parent;               // (serf)
+  // ----------- fundamental maps ---------------
+  // list of active scopes; element 0 is the innermost scope
+  ObjList<ScopedEnv> scopes;
 
-  // type environment; points directly to the global
-  // type env, even if this is a nested-scope Env
-  TypeEnv * const typeEnv;          // (serf)
-
-  // variable environment; variable decls are stored there
-  VariableEnv * const varEnv;       // (serf)
-
-  // counter for synthesizing names; only the counter in the toplevel
-  // environment is used
-  int nameCounter;
-
-  // user-defined compounds
-  StringSObjDict<CompoundType> compounds;
-
-  // user-defined enums
-  StringSObjDict<EnumType> enums;
-
-  // user-defined typedefs
+  // typedefs: map name -> Type
   StringSObjDict<Type /*const*/> typedefs;
 
-  // variables
-  int numVariables;      // current size of 'variables'
-  StringSObjDict<Variable> variables;
+  // compounds: map name -> CompoundType
+  StringSObjDict<CompoundType> compounds;
 
-  // list of errors found so far
-  ObjList<SemanticError> errors;
+  // enums: map name -> EnumType
+  StringSObjDict<EnumType> enums;
 
-  // true during a disambiguation trial
-  bool trialBalloon;
+  // enumerators: map name -> EnumType::Value
+  StringSObjDict<EnumType::Value> enumerators;
 
-  // pointer to current dataflow environment
-  DataflowEnv *denv;                       // (serf)
+  // -------------- miscellaneous ---------------
+  // count of reported errors
+  int errors;
 
-  // (debugging) reference count of # of nested environments pointing at me
-  int referenceCt;
+  // stack of compounds being constructed
+  SObjList<CompoundType> compoundStack;
+
+  // current function's return type
+  Type const *currentRetType;
 
 private:    // funcs
-  void grab(Type *t);
-  void grabAtomic(AtomicType *t);
-  int makeFreshInteger();
-  ostream& indent(ostream &os) const;
-  Variable *addVariable(char const *name, DeclFlags flags, Type const *type);
+  void grab(Type const *t) {}
+  void grabAtomic(AtomicType const *t) {}
 
   Env(Env&);               // not allowed
 
 public:     // funcs
   // empty toplevel environment
-  Env(DataflowEnv *denv, TypeEnv *typeEnv, VariableEnv *varEnv);
-
-  // nested environment
-  Env(Env *parent, TypeEnv *typeEnv, VariableEnv *env);
-
+  Env();
   ~Env();
 
+  // scope manipulation
+  void enterScope();
+  void leaveScope();
 
-  // added or changed during most recent rewrite
-  void err(char const *str);
-  void errIf(bool condition, char const *str);
-  Type const *lookupTypedef(StringRef name);
-  EnumType *lookupOrMakeEnum(StringRef name);
-  void pushStruct(CompoundType *ct);
-  void popStruct();
-  void addEnumerator(StringRef name, EnumType *et, int value);
+  // ------------- variables -------------
+  // add a new variable to the innermost scope; it is an error
+  // if a variable by this name already exists
+  Variable *addVariable(StringRef name, DeclFlags flags, Type const *type);
+
+  // return the associated Variable structure for a variable;
+  // return NULL if no such variable; if 'innerOnly' is set, we
+  // only look in the innermost scope
+  Variable *getVariable(StringRef name, bool innerOnly=false);
+
+  // ----------- typedefs -------------
+  // add a new typedef; error to collide
   void addTypedef(StringRef name, Type const *type);
-  Variable *declareVariable(StringRef name,
-                            DeclFlags flags, Type const *type);
-  Type const *getCurrentRetType();
-  void checkCoercible(Type const *src, Type const *dest);
-  Type const *promoteTypes(Type const *t1, Type const *t2);
+  
+  // return named type or NULL if no mapping
+  Type const *getTypedef(StringRef name);
+
+  // -------------- compounds --------------
+  // add a new compound; error to collide
+  CompoundType *addCompound(StringRef name, CompoundType::Keyword keyword);
+
+  // add a new field to an existing compound; error to collide
+  void addCompoundField(CompoundType *ct, StringRef name, Type const *type);
+
+  // lookup, and return NULL if doesn't exist
+  CompoundType *getCompound(StringRef name);
+
+  // lookup a compound type; if it doesn't exist, declare a new
+  // incomplete type, using 'keyword'; if it does, but the keyword
+  // is different from its existing declaration, return NULL
+  CompoundType *getOrAddCompound(StringRef name, CompoundType::Keyword keyword);
+
+  // ----------------- enums -----------------------
+  // create a new enum type; error to collide
+  EnumType *addEnum(StringRef name);
+
+  // lookup an enum; return NULL if not declared
+  EnumType *getEnum(StringRef name);
+
+  EnumType *getOrAddEnum(StringRef name);
+
+  // ------------------ enumerators -------------------
+  // add an enum value
+  EnumType::Value *addEnumerator(StringRef name, EnumType *et, int value);
+
+  // lookup; return NULL if no such variable
+  EnumType::Value *getEnumerator(StringRef name);
 
 
+  // ------------------ error/warning reporting -----------------
+  // report an error
+  void err(char const *str);
 
-  // create a new environment based on the current one, purely for
-  // scoping purposes
-  Env *newScope();
+  // report and error, and throw an exception
+  void errThrow(char const *str);
 
-  // create a nested environment with a different
-  // place for storing variable declarations
-  Env *newVariableScope(VariableEnv *venv);
+  // if 'condition' is true, report error 'str' and also throw an exception
+  void errIf(bool condition, char const *str);
 
-  // close this environment's link with its parent; this must
-  // intended to be done before either is deallocated (it is
-  // automatically done in ~Env, but sometimes we need to
-  // deallocate the parent before the child)
-  void killParentLink();
+  // # reported errors
+  int getErrors() const { return errors; }
 
-  // naming helpers
-  string makeAnonName();
-  string makeFreshName(char const *prefix);
 
-  // there doesn't seem to be much rhyme or reason to why some return
-  // const and others don't .. but some definitely need to *not*
-  // return const (like makeFunctionType), so whatever
+  // ------------------- translation context ----------------
+  void pushStruct(CompoundType *ct)     { compoundStack.prepend(ct); }
+  void popStruct()                      { compoundStack.removeAt(0); }
 
+  void setCurrentRetType(Type const *t) { currentRetType = t; }
+  Type const *getCurrentRetType()       { return currentRetType; }
+
+  bool isGlobalEnv() const              { return scopes.count() <= 1; }
+
+
+  // --------------- type construction -----------------
   // given an AtomicType, wrap it in a CVAtomicType
   // with no const or volatile qualifiers
   CVAtomicType *makeType(AtomicType const *atomic);
@@ -185,106 +195,28 @@ public:     // funcs
   // make a function type; initially, its parameter list is
   // empty, but can be built up by modifying the returned object
   FunctionType *makeFunctionType(Type const *retType/*, CVFlags cv*/);
-  
+
+  #if 0
   // sometimes it's handy to specify all args at once
   FunctionType *makeFunctionType_1arg(
     Type const *retType, CVFlags cv,
     Type const *arg1Type, char const *arg1name);
+  #endif // 0
 
   // make an array type, either of known or unknown size
   ArrayType *makeArrayType(Type const *eltType, int size);
   ArrayType *makeArrayType(Type const *eltType);
 
-  // lookup a compound type; if it doesn't exist, declare a new
-  // incomplete type, using 'keyword'; if it does, but the keyword
-  // is different from its existing declaration, return NULL
-  CompoundType *lookupOrMakeCompound(StringRef name, CompoundType::Keyword keyword);
-
-  // just do lookup, and return NULL if doesn't exist or is
-  // declared as something other than a compound
-  CompoundType *lookupCompound(char const *name);
-
-  // lookup an enum; return NULL if not declared, or if the
-  // name is declared as something other than an enum
-  EnumType *lookupEnum(char const *name);
-
-  // create a new enum type
-  EnumType *makeEnumType(char const *name);
-
-  // add an enum value
-  void addEnumValue(CCTreeNode const *node, char const *name, 
-                    EnumType const *type, int value);
-
   // map a simple type into its CVAtomicType (with no const or
   // volatile) representative
   CVAtomicType const *getSimpleType(SimpleTypeId st);
 
-  // lookup an existing type; if it doesn't exist, return NULL
-  Type const *lookupLocalType(char const *name);
-  Type const *lookupType(char const *name);
+  // type manipulation arising from expression semantics
+  void checkCoercible(Type const *src, Type const *dest);
+  Type const *promoteTypes(Type const *t1, Type const *t2);
 
-  // install a new name->type binding in the environment;
-  // throw an XSemanticError exception if there is a problem;
-  // if ok, return the Variable created (or already existant,
-  // if it's allowed); returns NULL for typedefs
-  Variable *declareVariable(CCTreeNode const *node, char const *name,
-                            DeclFlags flags, Type const *type,
-                            bool initialized);
-
-  // return true if the named variable is declared as something
-  bool isLocalDeclaredVar(char const *name);
-  bool isDeclaredVar(char const *name);
-
-  // some enum junk
-  bool isEnumValue(char const *name);
-
-  // return the associated Variable structure for a variable;
-  // throws an exception if it doesn't exist
-  Variable *getVariable(char const *name);
-                                            
-  // same, but return NULL on failure instead
-  Variable *getVariableIf(char const *name);
-
-  // report an error
-  void report(SemanticError const &err);
-
-  // get errors accumulated, including parent environments
-  int numErrors() const;
-  void printErrors(ostream &os) const;
-
-  // just deal with errors in this environment
-  int numLocalErrors() const { return errors.count(); }
-  void printLocalErrors(ostream &os) const;
-  void forgetLocalErrors();
-
-  // print local errors and then throw them away
-  void flushLocalErrors(ostream &os);
-
-  // trial balloon flag
-  void setTrialBalloon(bool val) { trialBalloon = val; }
-  bool isTrialBalloon() const;
   
-  // support for analysis routines
-  StringSObjDict<Variable> &getVariables() { return variables; }
-  DataflowEnv &getDenv() { return *denv; }
-
-  // access to variables that's somewhat nicer syntactically,
-  // if also somewhat less efficient
-  int getNumVariables() const { return numVariables; }
-  Variable *getNthVariable(int n) const;
-
-  // support for translation
-  // make up a fresh variable name and install it into
-  // the environment with the given type
-  Variable *newTmpVar(Type const *type);
-
-  // true if this is the toplevel, global environment
-  bool isGlobalEnv() const { return parent==NULL; }
-
-  TypeEnv *getTypeEnv() { return typeEnv; }
-  VariableEnv *getVarEnv() { return varEnv; }
-
-  // debugging
+  // -------------- debugging -------------
   string toString() const;
   void selfCheck() const;
 };

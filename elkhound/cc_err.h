@@ -1,6 +1,8 @@
 // cc_err.h
 // objects for representing errors in C++ code
 
+#error I do not want to use this yet
+
 #ifndef CC_ERR_H
 #define CC_ERR_H
 
