@@ -19,6 +19,32 @@ StringHash::~StringHash()
 
 STATICDEF unsigned StringHash::coreHash(char const *key)
 {
+  // some more references:
+  
+  // http://www.cs.yorku.ca/~oz/hash.html
+  //
+  // Describes three well-known hashes: djb2, sdbm, and K&R ed. 1.
+
+  // http://burtleburtle.net/bob/hash/doobs.html
+  //
+  // Describes a particular hash function (called simply "My Hash")
+  // and provides justifications for preferring it to several others,
+  // including MD4.
+  
+  // http://www.isthe.com/chongo/tech/comp/fnv/
+  //
+  // Glen Fowler, Landon Curt Noll, and Phong Vo's hash function.
+
+  // http://mail.python.org/pipermail/python-dev/2004-April/044235.html
+  //
+  // Start of a discussion thread about changing the string hash
+  // in Python.
+
+
+
+
+
+
   #if 0
   // I pulled this out of my ass.. it's supposed to mimic
   // a linear congruential random number generator
@@ -43,12 +69,21 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
      "The Practice of Programming", section 2.9 */
   unsigned h = 0;
   for (; *key != '\0'; key += 1) {
-    // old
-//      h = ( h << 5 ) - h + *key;       // h*31 + *key
-    // this one is better because it does the multiply last; otherwise
-    // the last byte has no hope of modifying the high order bits
-    h += *key;
-    h = ( h << 5 ) - h;         // h *= 31
+    // original X31_HASH
+    h = ( h << 5 ) - h + *key;       // h*31 + *key
+
+    // dsw: this one is better because it does the multiply last;
+    // otherwise the last byte has no hope of modifying the high order
+    // bits
+    //
+    // sm: I'm not convinced it's better.  For short strings, say less
+    // than 6 characters, the arithmetic won't overflow a 32-bit
+    // register.  In that case, by multiplying last, the hash value is
+    // always a multiple of 31 and hence will suffer many more
+    // collisions.  I would like more justification in the form of
+    // experimental measurements before making a change.
+    //h += *key;
+    //h = ( h << 5 ) - h;         // h *= 31
   }
   return h;
 
