@@ -210,23 +210,23 @@ just builds the types defined in cc_type.h in the obvious way.
 <h2>6. BaseType and Type</h2>
 
 <p>
-While the TypeFactory mechanism makes it easy to annotate the leaf
+While the <b>TypeFactory</b> mechanism makes it easy to annotate the leaf
 types, like FunctionType and PointerType, it doesn't offer a way
 to effectively annotate Type itself, because that class is in the
 middle of the inheritance hierarchy.
 
 <p>
-So, Type is actually split into two classes, BaseType and Type.
+So, Type is actually split into two classes, <b>BaseType</b> and <b>Type</b>.
 Type inherits from BaseType, and by default, adds almost nothing
-to BaseType.  However, clients of Elsa are allowed/expected to 
+to BaseType.  However, clients of Elsa are allowed/expected to
 replace Type's definition with one that includes additional
-annotations. 
+annotations.
 
 <p>
 To replace Type's definition, make a header file that contains the
 new class definition (make a copy of the existing Type definition as a
 starting point).  Then arrange for the preprocessor symbol
-<code>TYPE_CLASS_FILE</code> to be set to the name (in quotes) of 
+<code>TYPE_CLASS_FILE</code> to be set to the name (in quotes) of
 the file containing the new definition.
 
 <p>
