@@ -315,8 +315,12 @@ void Scope::lookupPQVariableC_considerBase
                       << name->toString() << endl;
 
       if (v1) {
-        if (v1 == v2 && v1->hasFlag(DF_STATIC)) {
+        if (v1 == v2 && 
+            (v1->hasFlag(DF_STATIC) || v1->hasFlag(DF_TYPEDEF))) {
           // they both refer to the same static entity; that's ok
+          // (10.2 para 2); ALSO: we believe this exception should
+          // apply to types also (DF_TYPEDEF), though the standard
+          // does not explicitly say so (in/t0166.cc is testcase)
           return;
         }
 

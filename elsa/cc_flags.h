@@ -102,12 +102,13 @@ enum DeclFlags {
   DF_FORWARD     = 0x00800000,    // for syntax which only provides a forward declaration
   DF_TEMPORARY   = 0x01000000,    // temporary variable introduced by elaboration
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
+  DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x0FFFFFFF,
-  NUM_DECLFLAGS  = 28             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x1FFFFFFF,
+  NUM_DECLFLAGS  = 29             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

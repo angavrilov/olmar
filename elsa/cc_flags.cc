@@ -89,7 +89,8 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
 
   "<predicate>",
   "namespace",
-  "<extern \"C\">", // 27
+  "<extern \"C\">",
+  "<selfname>",     // 28
 };
 
 

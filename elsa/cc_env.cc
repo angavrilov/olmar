@@ -1323,13 +1323,20 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
     }
     else if (!var->isTemplate() &&
              final->isPQ_template()) {
-      // disambiguates the same example as above, but selects
-      // the opposite interpretation
-      error(stringc
-        << "`" << var->name << "' is not a template, but template "
-        << "arguments were supplied",
-        true /*disambiguating*/);
-      return NULL;
+      if (var->hasFlag(DF_SELFNAME)) {
+        // hack: in order to allow the client to use C<T> and C equivalently
+        // in the body of template C, do loose argument checking (in fact no
+        // checking for now) of template arguments.  i.e., no error here.
+      }
+      else {
+        // disambiguates the same example as above, but selects
+        // the opposite interpretation
+        error(stringc
+          << "`" << var->name << "' is not a template, but template "
+          << "arguments were supplied",
+          true /*disambiguating*/);
+        return NULL;
+      }
     }
   }
 
@@ -1541,6 +1548,19 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
     xassert(ok);     // already checked that it was ok
   }
 
+  // cppstd section 9, para 2: add to class' scope itself, too
+  #if 0      
+  // It turns out this causes infinite loops elsewhere, and is in
+  // fact unnecessary, because any lookup that would find 'ct' in
+  // 'ct' itself would *also* find it in 'scope', since in the
+  // space of compound types we can't get the kind of hiding that
+  // can occur in the variable namespace.
+  if (name) {
+    bool ok = ct->addCompound(ct);
+    xassert(ok);
+  }
+  #endif // 0
+
   // make the implicit typedef
   Type *ret = makeType(loc, ct);
   Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
@@ -1555,10 +1575,20 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
       //  << " conflicts with an existing typedef or variable",
       //  true /*disambiguating*/);
       makeShadowTypedef(scope, tv);
-    } 
+    }
     else {
       addedNewVariable(scope, tv);
     }
+  }
+
+  // also add the typedef to the class' scope
+  if (name) {
+    Variable *tv2 = makeVariable(loc, name, ret, 
+                                 DF_TYPEDEF | DF_IMPLICIT | DF_SELFNAME);
+    ct->registerVariable(tv2);
+    bool ok = ct->addVariable(tv2);
+    xassert(ok);
+    addedNewVariable(ct, tv2);
   }
 
   return ret;

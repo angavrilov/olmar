@@ -3132,10 +3132,13 @@ void S_case::itcheck(Env &env)
 {                    
   expr->tcheck(env, expr);
   s = s->tcheck(env);
-  
+
   // TODO: check that the expression is of a type that makes
-  // sense for a switch statement, and that this isn't a 
+  // sense for a switch statement, and that this isn't a
   // duplicate case
+                           
+  // compute case label value
+  expr->constEval(env, labelVal);
 }
 
 
