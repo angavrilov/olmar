@@ -67,25 +67,34 @@ Env::Env(StringTable &s, CCLang &L)
                           getSimpleType(ST_ERROR), DF_NONE);
 
   // create declarations for some built-in operators
+  Type const *t_void = getSimpleType(ST_VOID);
+  Type const *t_voidptr = makePtrType(t_void);
 
   // void operator delete (void *p);
   {
-    FunctionType *ft = new FunctionType(getSimpleType(ST_VOID), CV_NONE);
-    SourceLocation loc;
-    Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
+    FunctionType *ft = new FunctionType(t_void, CV_NONE);
+    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
     ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *del = new Variable(loc, str("operator delete"), ft, DF_NONE);
+    Variable *del = new Variable(HERE_SOURCELOC, str("operator delete"), ft, DF_NONE);
     addVariable(del);
   }
 
   // void operator delete[] (void *p);
   {
-    FunctionType *ft = new FunctionType(getSimpleType(ST_VOID), CV_NONE);
-    SourceLocation loc;
-    Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
+    FunctionType *ft = new FunctionType(t_void, CV_NONE);
+    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
     ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *del = new Variable(loc, str("operator delete[]"), ft, DF_NONE);
-    addVariable(del);
+    Variable *delArr = new Variable(HERE_SOURCELOC, str("operator delete[]"), ft, DF_NONE);
+    addVariable(delArr);
+  }
+
+  // void *__builtin_next_arg(void *p);
+  {
+    FunctionType *ft = new FunctionType(t_voidptr, CV_NONE);
+    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
+    ft->addParam(new Parameter(p->name, p->type, p));
+    Variable *bna = new Variable(HERE_SOURCELOC, str("__builtin_next_arg"), ft, DF_NONE);
+    addVariable(bna);
   }
 }
 
