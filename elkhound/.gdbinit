@@ -10,7 +10,7 @@ file ccgr
 
 #set args -tr factflow cc.bin vcgen/find2.c
 
-set args -tr stopAfterTCheck cc.bin c.in3
+#set args -tr stopAfterTCheck cc.bin c.in3
 
 #set args cc.bin c.in1
 
@@ -22,12 +22,12 @@ set args -tr stopAfterTCheck cc.bin c.in3
 
 #file gramanl
 #set args -tr parse cc
- 
+
 #file cexp3b
 #set args -tr refct,sval cexp3b.bin cexp3.in1
 
 #file ccgr
-#set args -tr trivialActions,stopAfterParse cc.bin c.in1
+set args -tr trivialActions,stopAfterParse cc.bin c.in4b
 
 #  file cexp2
 #  set args cexp2.bin cexp.in1

@@ -3985,7 +3985,25 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
       t->print(*setsOutput);
       *setsOutput << "\n";
     }
+
+    // and nonterminals
+    *setsOutput << "nonterminals:\n";
+    FOREACH_NONTERMINAL(nonterminals, ntIter) {
+      Nonterminal const *nt = ntIter.data();
+      *setsOutput << "  ";
+      nt->print(*setsOutput);
+      *setsOutput << "\n";
+    }
+
+    // and productions
+    *setsOutput << "productions:\n";
+    for (int p=0; p<numProds; p++) {
+      *setsOutput << "  ";
+      getProduction(p)->print(*setsOutput);
+      *setsOutput << "\n";
+    }
   }
+
 
   delete setsOutput;
 
@@ -4449,7 +4467,7 @@ int main(int argc, char **argv)
             "    closure       : details of item-set closure algorithm\n"
             "    prec          : show how prec/assoc are used to resolve conflicts\n"
             "    explore       : start the interactive grammar explorer at the end\n"
-            "    lrtable       : print entire LR parsing tables\n"
+            "    lrtable       : print entire LR parsing tables to prefix.gr.gen.out\n"
             ;
     return 0;
   }

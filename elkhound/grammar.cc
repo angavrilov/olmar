@@ -695,6 +695,8 @@ string Production::toString(bool printType) const
 {
   // LHS "->" RHS
   stringBuilder sb;
+  sb << "[" << prodIndex << "] ";
+
   sb << left->name;
   if (printType && left->type) {
     sb << "[" << left->type << "]";

@@ -145,6 +145,13 @@
   #define D(stmt) ((void)0)
 #endif
 
+// TRSPARSE(stuff) traces <stuff> during debugging with -tr parse
+#if !defined(NDEBUG)
+  #define TRSPARSE(stuff) if (trParse) { trsParse << stuff << endl; }
+#else
+  #define TRSPARSE(stuff)
+#endif
+
 // can turn this on to experiment.. but right now it 
 // actually makes things slower.. (!)
 //#define USE_PARSER_INDEX
@@ -528,14 +535,12 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     Lexer2Token const *currentToken = tokIter.data();
 
     // debugging
-    if (trParse) {
-      trsParse
-        << "------- "
+    TRSPARSE(
+           "------- "
         << "processing token " << currentToken->toString()
         << ", " << activeParsers.length() << " active parsers"
         << " -------"
-        << endl;
-    }
+    )
 
     // token reclassification
     int classifiedType = userAct->reclassifyToken(currentToken->type,
@@ -585,17 +590,12 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                       parsersBefore;
 
       if (actions == 0) {
-        if (trParse) {
-          trsParse << "parser in state " << parser->state
-                   << " died\n";
-        }
+        TRSPARSE("parser in state " << parser->state << " died");
         lastToDie = parser;          // for reporting the error later if necessary
       }
       else if (actions > 1) {
-        if (trParse) {
-          trsParse << "parser in state " << parser->state
-                   << " split into " << actions << " parsers\n";
-        }
+        TRSPARSE("parser in state " << parser->state <<
+                 " split into " << actions << " parsers");
       }
     }
 
@@ -925,13 +925,10 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       return;
     }
 
-    if (trParse) {
-      trsParse
-        << "state " << pcs.startStateId
-        << ", reducing by production " << pcs.prodIndex
-        << ", back to state " << currentNode->state
-        << endl;
-    }
+    TRSPARSE("state " << pcs.startStateId <<
+             ", reducing by production " << pcs.prodIndex <<
+             " (rhsLen=" << (int)(tables->prodInfo[pcs.prodIndex].rhsLen) <<
+             "), back to state " << currentNode->state);
 
     // info about the production
     ParseTables::ProdInfo const &prodInfo = tables->prodInfo[pcs.prodIndex];
@@ -1038,13 +1035,9 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     tables->gotoEntry(leftSibling->state, lhsIndex));
 
   // debugging
-  if (trParse) {
-    trsParse
-      << "state " << leftSibling->state
-      << ", shift nonterm " << lhsIndex
-      << ", to state " << rightSiblingState
-      << endl;
-  }
+  TRSPARSE("state " << leftSibling->state <<
+           ", shift nonterm " << lhsIndex <<
+           ", to state " << rightSiblingState);
 
   // is there already an active parser with this state?
   StackNode *rightSibling = findActiveParser(rightSiblingState);
@@ -1099,6 +1092,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     // added link
 
     // TODO: I think this code path is unusual; confirm by measurement
+    cout << "got here\n";
 
     // for each 'finished' parser (i.e. those not still on
     // the worklist)
@@ -1156,13 +1150,9 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
     pendingShifts.popAlt().deinit();
 
     // debugging
-    if (trParse) {
-      trsParse
-        << "state " << leftSibling->state
-        << ", shift token " << currentTokenClass->name
-        << ", to state " << newState
-        << endl;
-    }
+    TRSPARSE("state " << leftSibling->state <<
+             ", shift token " << currentTokenClass->name <<
+             ", to state " << newState);
 
     // if there's already a parser with this state
     StackNode *rightSibling = findActiveParser(newState);
