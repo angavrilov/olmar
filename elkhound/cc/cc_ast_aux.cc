@@ -89,7 +89,18 @@ void TypeSpecifier::printExtras(ostream &os, int indent) const
 // BaseClass
 // MemberList
 // Member
-// Enumerator
+
+// ---------------------- Enumerator ------------------
+void Enumerator::printExtras(ostream &os, int indent) const
+{
+  if (var) {
+    ind(os, indent) << "var: " 
+      << toString(var->flags) << (var->flags? " " : "")
+      << var->type->toCString(var->name) << "\n";
+    PRINT_GENERIC(enumValue);
+  }
+}
+
 
 // ---------------------- Declarator ---------------------------
 void Declarator::printExtras(ostream &os, int indent) const

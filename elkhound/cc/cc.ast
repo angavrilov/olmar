@@ -119,7 +119,7 @@ class ASTTypeId (
 ) {
   public ASTTypeId *next;  ctor next=NULL;     // FakeList link
 
-  public void tcheck(Env &env);
+  public void tcheck(Env &env, bool allowVarArraySize=false);
   
   public Type const *getType() const;      // can use after calling 'tcheck'
 }
@@ -234,7 +234,15 @@ class Enumerator (
 
   public Variable *var;                 // (serf) introduction record
   ctor var=NULL;
-                                                          
+
+  // when the enumerator values are computed, I store them here
+  // so I can see them in the AST printout; I only print this
+  // value if 'var' is non-NULL
+  public int enumValue;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
   // we pass both the base 'enum' and the Type wrapped around it,
   // since both are needed and it's slightly expensive to compute
   // one from the other for each enumerator
@@ -265,9 +273,13 @@ verbatim {
     // these are the declflags attached to the outer declaration
     DeclFlags dflags;
     
+    // when this is set to true, and we are checking a D_array, do not
+    // require the size to be a constant; this is for E_new
+    bool allowVarArraySize;
+
   public:
     DeclaratorTcheck(Type const *t, DeclFlags d)
-      : var(NULL), type(t), dflags(d) {}
+      : var(NULL), type(t), dflags(d), allowVarArraySize(false) {}
   };
 }
 
