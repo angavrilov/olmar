@@ -157,17 +157,40 @@ Type const *TS_classSpec::tcheck(Env &env)
 {
   return env.unimp("class specifier");
 }
+  
 
 Type const *TS_enumSpec::tcheck(Env &env)
 {
-  return env.unimp("enum specifier");
+  EnumType *et = new EnumType(name);
+  Type *ret = makeType(et);
+
+  FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
+    iter->tcheck(env, et, ret);
+  }
+
+  return ret;
 }
 
 
 // BaseClass
 // MemberList
 // Member
-// Enumerator
+
+// -------------------- Enumerator --------------------
+void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
+{
+  Variable *v = new Variable(loc, name, parentType, DF_ENUMERATOR);
+    
+  int enumValue = parentEnum->nextValue;
+  if (expr) {
+    // will either set 'enumValue', or print (add) an error message
+    expr->constEval(env, enumValue);
+  }
+
+  parentEnum->addValue(name, enumValue, v);
+  parentEnum->nextValue = enumValue + 1;
+}
+
 
 // -------------------- Declarator --------------------
 void Declarator::tcheck(Env &env, Type const *spec)
@@ -180,7 +203,8 @@ void Declarator::tcheck(Env &env, Type const *spec)
   // its initializer (if any), except as noted below.
   // (where "below" talks about enumerators, class members, and
   // class names)
-  if (var->name != NULL) {
+  if (var->name != NULL &&
+      !var->type->isError()) {
     env.addVariable(var);
   }
   else {
@@ -307,6 +331,7 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
   existingErrors.concat(env.errors);
 
   // grab location before checking the alternatives
+  SourceLocation loc = env.loc();
   string locStr = env.locStr();
 
   // how many alternatives?
@@ -357,6 +382,7 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
     for (int i=0; i<numAlts; i++) {
       env.errors.concat(altErrors[i]);
     }
+    env.errors.append(new ErrorMsg("following messages from an ambiguity", loc));
     env.errors.concat(existingErrors);
     env.error("previous messages from an ambiguity with bad alternatives");
     return ths;
@@ -637,7 +663,7 @@ void HR_default::tcheck(Env &env)
 }
 
 
-// ------------------- Expression -----------------------
+// ------------------- Expression tcheck -----------------------
 Expression *Expression::tcheck(Env &env)
 {
   if (!ambiguity) {
@@ -704,9 +730,15 @@ Type const *E_variable::itcheck(Env &env)
     return env.error(stringc
       << "`" << *name << "' used as a variable, but it's actually a typedef");
   }
-  
-  // return a reference because this is an lvalue
-  return makeRefType(var->type);
+
+  if (var->type->isFunctionType()) {
+    // no lvalue for functions
+    return var->type;
+  }
+  else {
+    // return a reference because this is an lvalue
+    return makeRefType(var->type);
+  }
 }
 
 
@@ -969,8 +1001,25 @@ Type const *E_typeidExpr::itcheck(Env &env)
 Type const *E_typeidType::itcheck(Env &env)
 {
   type->tcheck(env);
-  
+
   return env.unimp("RTTI typeid of a type");
+}
+
+
+// --------------------- Expression constEval ------------------
+bool Expression::constEval(Env &env, int &result) const
+{
+  xassert(!ambiguity);
+  
+  if (isE_intLit()) {
+    result = asE_intLitC()->i;
+    return true;
+  }
+  else {
+    env.error(stringc << 
+      "for now, " << kindName() << " is never constEval'able");
+    return false;
+  }
 }
 
 

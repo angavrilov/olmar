@@ -85,35 +85,40 @@ SourceLocation const &Env::loc() const
 
 // -------- insertion --------
 template <class T>
-bool insertUnique(StringSObjDict<T> &table, char const *key, T *value)
+bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
+                  int &changeCount)
 {
   if (table.isMapped(key)) {
     return false;
   }
   else {
     table.add(key, value);
+    changeCount++;
     return true;
   }
 }
 
 bool Env::addVariable(Variable *v)
 {
+  Scope *s = scope();
   trace("env") << "added variable `" << v->name
                << "' of type `" << v->type->toString()
                << "' at " << v->loc.toString() << endl;
-  return insertUnique(scope()->variables, v->name, v);
+  return insertUnique(s->variables, v->name, v, s->changeCount);
 }
 
 bool Env::addCompound(CompoundType const *ct)
 {
+  Scope *s = scope();
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
-  return insertUnique(scope()->compounds, ct->name, ct);
+  return insertUnique(s->compounds, ct->name, ct, s->changeCount);
 }
 
 bool Env::addEnum(EnumType const *et)
 {
+  Scope *s = scope();
   trace("env") << "added enum " << et->name << endl;
-  return insertUnique(scope()->enums, et->name, et);
+  return insertUnique(s->enums, et->name, et, s->changeCount);
 }
 
 

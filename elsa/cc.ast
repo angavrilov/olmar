@@ -212,9 +212,14 @@ class Enumerator (
 ) {
   public Enumerator *next;  ctor next=NULL;     // FakeList link
 
-  //public Variable *var;                 // (owner) introduction record
-  //ctor var=NULL;
-  //dtor delete var;
+  public Variable *var;                 // (owner) introduction record
+  ctor var=NULL;
+  dtor delete var;
+                                                          
+  // we pass both the base 'enum' and the Type wrapped around it,
+  // since both are needed and it's slightly expensive to compute
+  // one from the other for each enumerator
+  public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
 }
 
 
@@ -232,6 +237,9 @@ class Declarator (
   dtor delete var;
 
   public Declarator *next;  ctor next=NULL;     // FakeList link
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 
   // determine the type denoted by the combination of 'spec' and the
   // type constructors in this declarator, then make a Variable which
@@ -422,6 +430,7 @@ class Expression {
   ctor const_cast<Expression*&>(next) = NULL;
   public void setNext(Expression *newNext);
 
+
   // same as we do for statements
   public Expression * const ambiguity;
   ctor const_cast<Expression*&>(ambiguity) = NULL;
@@ -435,6 +444,7 @@ class Expression {
       return;     // skip the normal, unambiguous-node print code
     }
   }
+
 
   // type check and yield the type of the expression; this type
   // gets automatically stored in the 'type' field; the return
@@ -452,11 +462,19 @@ class Expression {
   public Type const *type;
   ctor type=NULL;
 
+
+  // const-eval; for now very simple; will add an error message to
+  // the environment if this expression is not a constant (and also
+  // return false); can only call this after tchecking
+  public bool constEval(Env &env, int &result) const;
+
+
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
   // unparse the expression
   //pure_virtual string toString() const;
+
 
   -> E_boolLit(bool b);
   -> E_intLit(int i);
