@@ -4,7 +4,9 @@
 #ifndef CKHEAP_H
 #define CKHEAP_H
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 
 
 // check heap integrity, and fail an assertion if it's bad
@@ -20,7 +22,7 @@ void malloc_stats();
 
 // actions the heap walk iterator might request
 enum HeapWalkOpts {
-  HW_GO = 0,           // keep going
+  HW_GO   = 0,         // keep going
   HW_STOP = 1,         // stop iteraing
   HW_FREE = 2,         // free the block I just examined
 };
@@ -30,12 +32,16 @@ enum HeapWalkOpts {
 //   size:    # of bytes in the block; possibly larger than
 //            what was requested
 //   returns: bitwise OR of HeapWalkOpts options
-typedef HeakWalkOpts (*HeakWalkFn)(void *block, int size);
+// NOTE: you cannot call malloc or free inside this function
+// (you can cause 'block' to be freed by returning HW_FREE)
+typedef enum HeapWalkOpts (*HeapWalkFn)(void *block, int size);
 
 // heap walk entry
-void walkMallocHeap(HealkWalkFn func);
+void walkMallocHeap(HeapWalkFn func);
 
 
+#ifdef __cplusplus
 } // extern "C"
+#endif
 
 #endif // CKHEAP_H

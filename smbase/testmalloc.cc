@@ -6,17 +6,33 @@
 #include <string.h>    // strlen
 #include <stdlib.h>    // malloc
 
-extern "C" {
-  void walk_malloc_heap();
-  void malloc_stats();
+#include "ckheap.h"    // malloc functions
+
+
+HeapWalkOpts myWalker(void *block, int size)
+{
+  printf("  block at %p, size %d\n", block, size);
+  return HW_GO;
 }
+
+
+void *toDealloc;
+HeapWalkOpts deallocWalker(void *block, int size)
+{
+  if (block == toDealloc) {
+    printf("deallocating block at %p, size %d\n", block, size);
+    return HW_FREE;
+  }
+  return HW_GO;
+}
+
 
 #define MSGOUT(str) write(1, str, strlen(str))
 
 void heapWalk(char const *context)
 {
-  printf("%s: ", context);
-  walk_malloc_heap();
+  printf("%s: heap contents:\n", context);
+  walkMallocHeap(myWalker);
 }
 
 #define TRACERET(expr)                      \
@@ -29,14 +45,14 @@ void heapWalk(char const *context)
   heapWalk(#expr);                          \
   malloc_stats()
 
-int main()
+
+void test1()
 {
+  printf("--------- test1 ---------\n");
+  
   void *p1, *p2, *p3, *p4, *p5, *p6;
 
-  MSGOUT("Before anything:\n");
-  walk_malloc_heap();
-
-  walk_malloc_heap("simple printf");
+  heapWalk("start");
 
   TRACERET(p1 = malloc(5));
   TRACERET(p2 = malloc(70));
@@ -45,12 +61,64 @@ int main()
   TRACERET(p5 = malloc(100000));
   TRACERET(p6 = malloc(1000000));
 
+  toDealloc = p3;
+  TRACE(walkMallocHeap(deallocWalker));
+
   TRACE(free(p1));
   TRACE(free(p5));
-  TRACE(free(p3));
+  //TRACE(free(p3));   // done by above
   TRACE(free(p6));
   TRACE(free(p2));
   TRACE(free(p4));
+}
+
+
+void test2()
+{
+  printf("--------- test2 ---------\n");
+
+  void *arr[100];
+  memset(arr, 0, sizeof(arr));
+
+  for (int i=0; i < 10000; i++) {
+    // pick a random slot
+    int slot = random() % 100;
+
+    if (arr[slot] == NULL) {
+      // allocate something
+      arr[slot] = malloc(random() % 1000);
+    }
+
+    else if (random()%4 != 0) {
+      // dealloc directly
+      free(arr[slot]);
+      arr[slot] = NULL;
+    }
+
+    else {
+      // dealloc by walk
+      toDealloc = arr[slot];
+      walkMallocHeap(deallocWalker);
+      arr[slot] = NULL;
+    }
+  }
+
+  // snapshot now
+  heapWalk("snapshot after test2");  
+
+  // free the rest
+  for (int j=0; j<100; j++) {
+    if (arr[j]) {
+      free(arr[j]);
+    }
+  }
+}
+
+
+int main()
+{
+  test1();
+  test2();
 
   MSGOUT("testmalloc finished\n");
   return 0;

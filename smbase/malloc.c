@@ -5329,15 +5329,15 @@ static int cpuinfo (int whole, unsigned long *kernel, unsigned long *user) {
     } else {
         __int64 creation64, exit64, kernel64, user64;
         int rc = GetThreadTimes (GetCurrentThread (), 
-                                 (FILETIME *) &creation64,  
-                                 (FILETIME *) &exit64, 
-                                 (FILETIME *) &kernel64, 
+                                 (FILETIME *) &creation64,
+                                 (FILETIME *) &exit64,
+                                 (FILETIME *) &kernel64,
                                  (FILETIME *) &user64);
         if (! rc) {
             *kernel = 0;
             *user = 0;
             return FALSE;
-        } 
+        }
         *kernel = (unsigned long) (kernel64 / 10000);
         *user = (unsigned long) (user64 / 10000);
         return TRUE;
@@ -5348,6 +5348,8 @@ static int cpuinfo (int whole, unsigned long *kernel, unsigned long *user) {
 
 
 /* sm: my stuff */
+#include "ckheap.h"     // declarations for this code
+
 void checkHeap()
 {
   /* 2.6.6: malloc_update_mallinfo(); */
@@ -5366,70 +5368,110 @@ void checkHeapNode(void *node)
 
 
 // sm: print information about all in-use blocks
-void walk_malloc_heap()
+void walkMallocHeap(HeapWalkFn func)
 {
-  // start from the first chunk and just walk...
   mstate av = get_malloc_state();
   mchunkptr p;
   int i;
 
-  printf("Contents of malloc heap:\n");
-
-  p = av->firstChunk;
-  if (!p) {
-    printf("  Malloc has not been initialized.\n");
-    return;
-  }
-  
   // rather than go hunting through the fastbins
   // on small blocks, let's empty the fastbins now
   malloc_consolidate(av);
 
-  for (;;) {
+  // start from the first chunk and just walk...
+  // (this could be null if we've only done mmaps so far)
+  p = av->firstChunk;
+
+  // iterate over all chunks, in physical order
+  if (p) while (p != av->top) {
     int size = chunksize(p);
-    if (p != av->top &&     // top is always free (and segfault for asking)
-        inuse(p)) {
-        
-      #if 0     // not needed now that I'm using malloc_consolidate, above
-      // it looks to be in use.. but it might be in a fastbin, so
-      // let's go check
-      mfastbinptr bin = NULL;
-      if (size <= av->max_fast) {      // extra bits ok due to 'size' alignment
-        bin = av->fastbins[fastbin_index(size)];
-        while (bin != NULL) {
-          if (bin == p) {
-            // here it is, it's really free
-            printf("  Free (fastbin) chunk at %p, size %d\n", p, size);
-          }
+
+    // guess where we're going next; this might get changed below
+    // if the client asks to free this block
+    mchunkptr next = next_chunk(p);
+
+    if (inuse(p)) {
+      // call user-supplied function
+      enum HeapWalkOpts opts = func(chunk2mem(p), size);               
+      
+      // what did the user want to do?
+      if (opts & HW_FREE) {
+        // what makes this tricky is that 'free' might consolidate
+        // the chunk; we must predict how 'free' is going to behave
+        // (which obviously makes this dependent on its implementation)
+
+        // is the next the top chunk?  then we're done iterating anyway
+        if (next == av->top) {
+          // just do the free
+          fREe(chunk2mem(p));
+
+          // and bail out of this loop
           break;
+        }
+
+        else {
+          // next is not top, so there's definitely a next next
+          mchunkptr nextNext = next_chunk(next);
+
+          // will it put it into a fastbin?
+          // (this conditional is a copy of what's in 'free')
+          if ((unsigned long)(size) <= (unsigned long)(av->max_fast)
+              #if TRIM_FASTBINS
+                && (chunk_at_offset(p, size) != av->top)
+              #endif
+              ) {
+            // it will go into a fastbin, so 'next' is accurate
+          }
+
+          // will it consolidate with next chunk?  only if
+          // the next chunk is not in use
+          else if (!prev_inuse(nextNext)) {
+            // it will consolidate with next
+            next = nextNext;
+          }
+
+          // do the 'free'
+          fREe(chunk2mem(p));
+
+          // conceptually, the one thing not accounted for is the
+          // possibility that the heap was trimmed; but as I understand
+          // the code, that can only happen when next==top
         }
       }
 
-      if (bin == NULL)
-      #endif // 0
-
-      // either the size is beyond what is put into fastbins, or else
-      // we looked but didn't find it in the fastbin -- it's really inuse
-      printf("  Block at %p, size %d\n", chunk2mem(p), size);
-    }
-    else {
-      printf("  Free chunk at %p, size %d\n", p, size);
+      if (opts & HW_STOP) {
+        return;
+      }
     }
 
-    // done?
-    if (p == av->top) {
-      break;
+    else { // not in use
+      //printf("  Free chunk at %p, size %d\n", p, size);
     }
 
-    // no, go to next chunk
-    assert(p < next_chunk(p));    // prevent inf loops
-    p = next_chunk(p);
+    // go to next chunk
+    assert(p < next);         // prevent inf loops
+    p = next;
   }
 
   // check the mmap regions
   for (i=0; i < av->n_mmaps; i++) {
+    enum HeapWalkOpts opts;
+
     p = av->mmapPtrs[i];
-    printf("  Block (mmap) at %p, size %d\n", p, chunksize(p));
+    //printf("  Block (mmap) at %p, size %d\n", p, chunksize(p));
+
+    opts = func(chunk2mem(p), chunksize(p));
+
+    if (opts & HW_FREE) {
+      // my array-management code fills the ith slot with
+      // another valid block; so we just cause this value
+      // of 'i' to be used again on the next iteration
+      i--;
+    }
+
+    if (opts & HW_STOP) {
+      return;
+    }
   }
 }
 

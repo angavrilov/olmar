@@ -2,7 +2,7 @@
 
 # main target
 THISLIBRARY = libsmbase.a
-all: gensrc ${THISLIBRARY} testmalloc
+all: gensrc ${THISLIBRARY}
 
 # when uncommented, the program emits profiling info
 #ccflags = -pg
@@ -41,7 +41,7 @@ objlist.h: xobjlist.h
 # testing a new malloc
 # add the -DDEBUG flag to turn on additional checks
 malloc.o: malloc.c
-	gcc -c -g -DDEBUG -DTRACE_MALLOC_CALLS malloc.c
+	gcc -c -g -O3 -DDEBUG malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc
@@ -59,7 +59,7 @@ ${THISLIBRARY}: ${library-objs}
 
 # ---------- module tests ----------------
 # test program targets
-tests-files = nonport voidlist tobjlist bit2d growbuf
+tests-files = nonport voidlist tobjlist bit2d growbuf testmalloc
 tests: ${tests-files}
 
 nonport: nonport.cpp nonport.h
@@ -96,10 +96,10 @@ bflatten: bflatten.cc bflatten.h ${THISLIBRARY}
 	${link} -o bflatten -DTEST_BFLATTEN bflatten.cc ${THISLIBRARY} ${linkend}
 
 mysig: mysig.cc mysig.h ${THISLIBRARY}
-	gcc -g -o mysig -DTEST_MYSIG mysig.cc ${THISLIBRARY} ${linkend}
+	gcc -Wall -g -o mysig -DTEST_MYSIG mysig.cc ${THISLIBRARY} ${linkend}
 
 testmalloc: testmalloc.cc ${THISLIBRARY}
-	gcc -g -o testmalloc testmalloc.cc ${THISLIBRARY} ${linkend}
+	gcc -Wall -g -o testmalloc testmalloc.cc ${THISLIBRARY} ${linkend}
 
 check: ${tests-files}
 	./nonport
@@ -114,6 +114,7 @@ check: ${tests-files}
 	./trdelete
 	./bflatten
 	./mysig
+	./testmalloc 2>&1 | tail
 	@echo
 	@echo "make check: all the tests PASSED"
 
