@@ -2027,7 +2027,7 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 
   if (env.lang.allowIncompleteEnums && name) {
     // is this referring to an existing forward-declared enum?
-    et = env.lookupEnum(name);
+    et = env.lookupEnum(name, LF_INNER_ONLY);
     if (et) {
       ret = env.makeType(loc, et);
       if (!et->valueIndex.isEmpty()) {
