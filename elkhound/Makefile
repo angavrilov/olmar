@@ -99,7 +99,7 @@ cexp2: ${cexp2-dep} cexp2.h
 	${link} -o cexp2 ${cexp2-dep} ${linkend}
 
 # intermediate files for ccgr
-cc.cc cc.h: cc.gr gramanl
+cc.cc cc.h: cc.gr cc.tok gramanl
 	rm -f cc.{h,cc}
 	./gramanl cc
 	chmod a-w cc.cc cc.h

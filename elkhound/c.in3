@@ -1,4 +1,4 @@
-# expressions
+// expressions
 
 int foo ( )
 {                   
@@ -6,5 +6,10 @@ int foo ( )
   printf("foo\n");
   sizeof(foo);
   return 1 + 2 * 3 ;
+  
+  int dest, a, b;
+  //( dest )  = ( a )  & ( b ) ;     // AMBIGUOUS
+
+  enum E { a,b,c };
 }
 

@@ -138,6 +138,9 @@ enum Lexer2TokenType {
   L2_LBRACE,
   L2_RBRACE,
 
+  // GNU extensions
+  L2___ATTRIBUTE__,
+
   L2_NUM_TYPES
 };
 

@@ -122,6 +122,9 @@ public:     // funcs
   // name is declared as something other than an enum
   EnumType *lookupEnum(char const *name);
 
+  // create a new enum type
+  EnumType *makeEnumType(char const *name);
+
   // map a simple type into its CVAtomicType (with no const or
   // volatile) representative
   CVAtomicType const *getSimpleType(SimpleTypeId st);

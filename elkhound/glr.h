@@ -81,13 +81,17 @@ public:
   // parse-time representation of ambiguity
   ObjList<SiblingLink> leftSiblings;           // this is a set
 
+  // count and high-water for stack nodes
+  static int numStackNodesAllocd;
+  static int maxStackNodesAllocd;
+
 public:     // funcs
   StackNode(int id, int tokenColumn, ItemSet const *state);
   ~StackNode();
-							      
+
   // add a new link with the given tree node; return the link
   SiblingLink *addSiblingLink(StackNode *leftSib, TreeNode *treeNode);
-  
+
   // if 'leftSib' is one of our siblings, return the link that
   // makes that true
   SiblingLink *findSiblingLink(StackNode *leftSib);
@@ -97,6 +101,9 @@ public:     // funcs
   // (this used to be a data member, but there are at least
   // two ways to compute it, so there's no need to store it)
   Symbol const *getSymbolC() const;
+  
+  // debugging 
+  static void printAllocStats();
 };
 
                    

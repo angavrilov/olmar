@@ -1,7 +1,7 @@
 # .gdbinit
 
-file ccgr
-set args cc.gr pc_keyb.i
+file gramanl
+set args cc
 
 break main
 break breaker

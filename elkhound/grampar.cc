@@ -825,40 +825,49 @@ int yylex(ASTNode **lvalp, void *parseParam)
 
   int code = lexer.yylexInc();
 
-  // yield semantic values for some things
-  switch (code) {
-    case TOK_INTEGER:
-      *lvalp = new ASTIntLeaf(lexer.integerLiteral, lexer.curLoc());
-      break;
+  try {
+    // yield semantic values for some things
+    switch (code) {
+      case TOK_INTEGER:
+        *lvalp = new ASTIntLeaf(lexer.integerLiteral, lexer.curLoc());
+        break;
 
-    case TOK_STRING:
-      *lvalp = new ASTStringLeaf(lexer.stringLiteral, lexer.curLoc());
-      break;
+      case TOK_STRING:
+        *lvalp = new ASTStringLeaf(lexer.stringLiteral, lexer.curLoc());
+        break;
 
-    case TOK_NAME:
-      *lvalp = new ASTNameLeaf(lexer.curToken(), lexer.curLoc());
-      break;
+      case TOK_NAME:
+        *lvalp = new ASTNameLeaf(lexer.curToken(), lexer.curLoc());
+        break;
 
-    case TOK_FUNDECL_BODY: {
-      // grab the declaration body and put it into a leaf
-      ASTNode *declBody =
-        new ASTStringLeaf(lexer.curDeclBody(), lexer.curLoc());
+      case TOK_FUNDECL_BODY: {
+        // grab the declaration body and put it into a leaf
+        ASTNode *declBody =
+          new ASTStringLeaf(lexer.curDeclBody(), lexer.curLoc());
 
-      // grab the declared function name and put it into another leaf
-      ASTNode *declName =
-        new ASTNameLeaf(lexer.curDeclName(), lexer.curLoc());
+        // grab the declared function name and put it into another leaf
+        ASTNode *declName =
+          new ASTNameLeaf(lexer.curDeclName(), lexer.curLoc());
 
-      // wrap them into another ast node
-      *lvalp = AST2(AST_FUNDECL, declName, declBody);
-      break;
+        // wrap them into another ast node
+        *lvalp = AST2(AST_FUNDECL, declName, declBody);
+        break;
+      }
+
+      case TOK_FUN_BODY:
+        *lvalp = new ASTStringLeaf(lexer.curFuncBody(), lexer.curLoc());
+        break;
+
+      default:
+        *lvalp = NULL;
     }
-
-    case TOK_FUN_BODY:
-      *lvalp = new ASTStringLeaf(lexer.curFuncBody(), lexer.curLoc());
-      break;
-
-    default:
-      *lvalp = NULL;
+  }
+  catch (xBase &x) {
+    // e.g. malformed fundecl
+    cout << lexer.curLocStr() << ": " << x << endl;
+    
+    // optimistically try just skipping the bad token
+    return yylex(lvalp, parseParam);
   }
 
   return code;

@@ -40,9 +40,13 @@ public:     // types
 public:	    // data
   // attributes associated with the node
   Attributes attr;
+  
+  // count and high-water for tree nodes
+  static int numTreeNodesAllocd;
+  static int maxTreeNodesAllocd;
 
 public:	    // funcs
-  TreeNode() {}
+  TreeNode();
   virtual ~TreeNode();
 
   // returns the representative symbol (terminal or nonterminal)
@@ -77,6 +81,7 @@ public:	    // funcs
   // debugging
   virtual void printParseTree(ostream &os, int indent) const = 0;
   string locString() const;
+  static void printAllocStats();
 };
 
 

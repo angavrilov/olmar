@@ -17,8 +17,20 @@ ostream &doIndent(ostream &os, int i)
 
 
 // ---------------------- TreeNode --------------------------
+int TreeNode::numTreeNodesAllocd=0;
+int TreeNode::maxTreeNodesAllocd=0;
+
+
+TreeNode::TreeNode()
+{
+  INC_HIGH_WATER(numTreeNodesAllocd, maxTreeNodesAllocd);
+}
+
+
 TreeNode::~TreeNode()
-{}
+{
+  numTreeNodesAllocd--;
+}
 
 
 TerminalNode const &TreeNode::asTermC() const
@@ -81,6 +93,14 @@ string TreeNode::locString() const
     return "(?loc)";
   }
 }
+
+
+STATICDEF void TreeNode::printAllocStats()
+{
+  cout << "tree nodes: " << numTreeNodesAllocd
+       << ", max tree nodes: " << maxTreeNodesAllocd
+       << endl;
+}     
 
 
 // ------------------- TerminalNode -------------------------

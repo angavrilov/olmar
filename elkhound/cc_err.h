@@ -26,6 +26,10 @@ enum SemanticErrorCode {
     // error not more precisely classified
     //   msg: describes the problem
 
+  SE_INTERNAL_ERROR,
+    // internal parser error
+    //   msg: describes problem
+
   NUM_CODES
 };
 

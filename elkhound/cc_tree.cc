@@ -32,6 +32,14 @@ void CCTreeNode::reportError(Env &env, char const *msg) const
 }
 
 
+void CCTreeNode::internalError(char const *msg) const
+{
+  SemanticError err(this, SE_INTERNAL_ERROR);
+  err.msg = msg;
+  THROW(XSemanticError(err));
+}
+
+
 void CCTreeNode::disambiguate(Env &env, DisambFn func) const
 {
   // if it's not ambiguous, or we've already disambiguated,

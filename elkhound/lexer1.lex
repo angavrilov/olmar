@@ -114,9 +114,9 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* integer literal; dec, oct, or hex */
-[1-9][0-9]*           |
-[0][0-7]*             |
-[0][xX][0-9A-Fa-f]+   {
+[1-9][0-9]*[uUlL]*           |
+[0][0-7]*[uUlL]*             |
+[0][xX][0-9A-Fa-f]+[uUlL]*   {
   lexer.emit(L1_INT_LITERAL, yytext, yyleng);
 }
 

@@ -154,21 +154,46 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_SEMICOLON),            ";", true },
   { N(L2_LBRACE),               "{", true },
   { N(L2_RBRACE),               "}", true },
+  { N(L2___ATTRIBUTE__),        "__attribute__", true },
 };
 
 #undef N
+
+
+// map of GNU keywords into ANSI keywords (I don't know and
+// don't care about whatever differences there may be)
+struct GNUKeywordMap {
+  char const *spelling;
+  Lexer2TokenType tokType;
+} gnuKeywordMap[] = {
+  { "__asm__", L2_ASM },
+  { "__const__", L2_CONST },
+  { "__inline__", L2_INLINE },
+  { "__signed__", L2_SIGNED },
+  { "__volatile__", L2_VOLATILE },
+  
+  // hack to make some things not appear to be keywords
+  { "new", L2_NAME },
+};
 
 
 Lexer2TokenType lookupKeyword(char const *keyword)
 {
   xassert(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
 
-  loopi(L2_NUM_TYPES) {
-    if (l2TokTypes[i].bisonSpelling && 
+  {loopi(TABLESIZE(gnuKeywordMap)) {
+    if (0==strcmp(gnuKeywordMap[i].spelling, keyword)) {
+      return gnuKeywordMap[i].tokType;
+    }
+  }}
+
+  {loopi(L2_NUM_TYPES) {
+    if (l2TokTypes[i].bisonSpelling &&
         0==strcmp(l2TokTypes[i].spelling, keyword)) {
       return l2TokTypes[i].tokType;
     }
-  }
+  }}
+
   return L2_NAME;     // not found, so is user-defined name
 }
 

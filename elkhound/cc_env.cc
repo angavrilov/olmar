@@ -261,6 +261,21 @@ EnumType *Env::lookupEnum(char const *name)
 }
 
 
+EnumType *Env::makeEnumType(char const *name)
+{                              
+  EnumType *ret = new EnumType(name);
+  enums.add(name, ret);
+  
+  // debugging: print it
+  if (tracingSys("env-declare")) {
+    indent(cout);
+    cout << "enum: " << name << endl;
+  }
+
+  return ret;
+}
+
+
 CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
 {                     
   xassert(isValid(st));

@@ -80,8 +80,10 @@ nonterm Checkable {
 
 nonterm TranslationUnit : Checkable {
   -> empty;
-  -> d:Declaration t:TranslationUnit {
-    fun typeCheck { 
+  -> t:TranslationUnit d:Declaration {
+    fun typeCheck {
+      t.typeCheck(env);
+
       try {
         d.typeCheck(env);
       }
@@ -90,9 +92,7 @@ nonterm TranslationUnit : Checkable {
         env.report(x.err);
       }
       env.flushLocalErrors(cout);
-
-      t.typeCheck(env); 
-    } 
+    }
   }
 }
 
@@ -121,6 +121,10 @@ nonterm PrimaryExpression : ExprBase {
     -> "(" e:Expression ")"       { fun intEval = e.intEval(env); }
     -> e:PQVarName                {}
   }
+  
+  // GNU extension
+  -> "(" s:CompoundStatement ")"
+    { fun varsDecld { s.typeCheck(env); } }
 }
 
 nonterm Literal : ExprBase {
@@ -537,8 +541,9 @@ nonterm Statement : Checkable, HasVarsDecld {
   fun typeCheck { s.typeCheck(env); }
 
   -> LabelName ":" s:Statement ;
-  -> "case" e:ConstantExpression ":" s:Statement
-    { fun varsDecld { e.varsDecld(env); } }
+  -> "case" e:ConstantExpression ":" //s:Statement
+    { fun varsDecld { e.varsDecld(env); } 
+      fun typeCheck {} }
   -> "default" ":" s:Statement ;
 
   // expression-statement
@@ -591,6 +596,9 @@ nonterm Statement : Checkable, HasVarsDecld {
 
   // try-block
   -> s:TryBlock ;
+  
+  // GNU extensions
+  -> GNUAsmStatement    { fun typeCheck {} }
 }
 
 nonterm ExpressionStatement : Checkable {
@@ -713,7 +721,8 @@ nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
   fun typeName = s.typeName();
   fun getType = s.getType(env);
 
-  -> "inline" m:DeclModifierOpt s:TypeSpecifier {
+  -> "inline" m:DeclModifierOpt s:TypeSpecifier
+   | m:DeclModifierOpt "inline" s:TypeSpecifier {
     fun getDeclFlags = (DeclFlags)(DF_INLINE | m.getDeclFlags());
   }
 
@@ -723,8 +732,9 @@ nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
 }
 
 // my analysis (informal and ad-hoc) indicates that none of these can
-// be used together; "inline" is pulled out because it can be used with
-// "virtual", "static", "friend", and possibly "extern"
+// be used together; "inline" is pulled out because it can be used
+// with "virtual", "static", "friend", and possibly "extern"; I
+// consider all this preferable to just allowing a "word soup"
 nonterm DeclModifierOpt : HasDeclFlags {
   -> empty         { fun getDeclFlags = DF_NONE; }
   -> "virtual"     { fun getDeclFlags = DF_VIRTUAL; }
@@ -777,8 +787,7 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
     -> s:ClassSpecifier                 // class { ... }
          { fun typeName = "class { ... }"; }
     -> s:EnumSpecifier                  // enum { ... }
-         { fun typeName = "enum { ... }";
-           fun getType { xfailure("not implemented"); } }
+         { fun typeName = "enum { ... }"; }
   }
 
   // these are: "CV* atomic-type" or "atomic-type CV*"
@@ -831,12 +840,13 @@ nonterm SimpleTypeBase : HasType {
   // helper to get the simple type spec, to cut down on
   // syntactic verbiage
   fundecl SimpleTypeId getst() const;
-  fun getst { xfailure("can't call me"); }
+  fun getst { internalError("can't call me"); }
 
   fun getType {
     return env.getSimpleType(getst());
   }
 }
+
 
 // this list comes from Table 7 (p.109) of the C++ standard
 // NOTE: this deviates from the language spec, which allows other
@@ -875,6 +885,7 @@ nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
   -> "signed" "long"            { fun getst = ST_LONG_INT; }
   -> "long" "int"               { fun getst = ST_LONG_INT; }
   -> "long"                     { fun getst = ST_LONG_INT; }
+  -> "signed" "long" "long"     { fun getst = ST_LONG_LONG; }
   -> "long" "long"              { fun getst = ST_LONG_LONG; }
   -> "unsigned" "long" "long"   { fun getst = ST_UNSIGNED_LONG_LONG; }
   -> "signed" "short" "int"     { fun getst = ST_SHORT_INT; }
@@ -931,6 +942,7 @@ nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasCVFlags {
   -> "signed" "long" q:CVQualifierSeq "int"     { fun getst = ST_LONG_INT; }
   -> "signed" q:CVQualifierSeq "long"           { fun getst = ST_LONG_INT; }
   -> "long" q:CVQualifierSeq "int"              { fun getst = ST_LONG_INT; }
+  -> "signed" q:CVQualifierSeq "long" "long"    { fun getst = ST_LONG_LONG; }
   -> "unsigned" q:CVQualifierSeq "long" "long"  { fun getst = ST_UNSIGNED_LONG_LONG; }
   -> "signed" q:CVQualifierSeq "short" "int"    { fun getst = ST_SHORT_INT; }
   -> "signed" "short" q:CVQualifierSeq "int"    { fun getst = ST_SHORT_INT; }
@@ -939,12 +951,41 @@ nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasCVFlags {
   -> "long" q:CVQualifierSeq "double"           { fun getst = ST_LONG_DOUBLE; }
 }
 
-nonterm EnumSpecifier -> "enum" "{" EnumeratorListOpt "}" |
-                         "enum" EnumName "{" EnumeratorListOpt "}" ;
+
+nonterm EnumSpecifier : HasType {
+  fundecl string getEnumName() const;
+
+  fun getType {
+    // get preliminary info
+    string name = getEnumName();    // could be ""
+
+    // construct the vessel to carry additional stuff
+    EnumType *type = env.lookupEnum(name);
+    if (type) {
+      // TODO: wrong because this prevents local redeclaration
+      throwError(stringc << "enum already declared: " << name);
+    }
+    if (!type) {
+      type = env.makeEnumType(name);
+      xassert(type);
+    }
+
+    // TODO: add the enum's elements to its definition
+
+    return env.makeType(type);
+  }
+
+  -> "enum" "{" list:EnumeratorListOpt "}"
+    { fun getEnumName = ""; }
+  -> "enum" n:EnumName "{" list:EnumeratorListOpt "}"
+    { fun getEnumName = n.getName(); }
+}
+                         
 
 nonterm EnumeratorList -> EnumeratorDefinition |
                           EnumeratorList "," EnumeratorDefinition ;
-nonterm EnumeratorListOpt -> empty | EnumeratorList ;
+nonterm EnumeratorListOpt -> empty | EnumeratorList |
+                             EnumeratorList "," ;     // GNU extension (??)
 
 nonterm EnumeratorDefinition -> EnumValueName |
                                 EnumValueName "=" ConstantExpression ;
@@ -1043,7 +1084,7 @@ nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
   // return the type name string for the return type, if this is
   // a function declaration
   fundecl string retTypeName() const;
-  fun retTypeName { xfailure("not a function type"); }
+  fun retTypeName { internalError("not a function type"); }
 
   // name of variable or function being declared
   fun getDeclName = d.getDeclName();
@@ -1107,9 +1148,10 @@ nonterm DirectDeclarator : DeclaratorBase {
   fundecl bool hasSize() const;             // true if a size is specified
   fun hasSize = false;
   fundecl int getSize(Env &env) const;      // get declared size
-  fun getSize { xfailure("can't call getSize"); }
+  fun getSize { internalError("can't call getSize"); }
 
-  -> n:PQVarName {
+  -> n:PQVarName GNUAttribute |       // GNU extension
+     n:PQVarName {
     action isFunction := 0;
     action isName := 1;
 
@@ -1226,6 +1268,7 @@ nonterm CVQualifierSeq : HasTypeName, HasCVFlags {
 nonterm CVQualifier : HasTypeName, HasCVFlags {
   -> "const"            { fun getCVFlags = CV_CONST; }
   -> "volatile"         { fun getCVFlags = CV_VOLATILE; }
+  -> GNUAttribute       { fun getCVFlags = CV_NONE; }     // GNU extension
 }
 
 
@@ -1388,7 +1431,7 @@ nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
 
   formGroup {
     fun hasName = false;
-    fun getDeclName { xfailure("can't call me"); }
+    fun getDeclName { internalError("can't call me"); }
 
     -> s:DeclSpecifier d:AbstractDeclarator ;
     -> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
@@ -1547,11 +1590,15 @@ nonterm MemberDeclaration : MemberDeclBase {
   // of processing will filter it out)
 }
 
-nonterm MemberDeclaratorList -> 
+nonterm MemberDeclaratorList ->
   MemberDeclarator | MemberDeclaratorList "," MemberDeclarator ;
 
-nonterm MemberDeclarator -> 
-  Declarator | Declarator "=" ConstantExpression ;   // pure; and member inits??
+nonterm MemberDeclarator {
+  -> Declarator ;
+  -> Declarator "=" ConstantExpression ;   // pure; and member inits??
+  -> L2_NAME ":" ConstantExpression ;      // named bitfield
+  -> ":" ConstantExpression ;              // unnamed bitfield
+}
 
 
 // ------ A.9 Derived classes ------
@@ -1660,10 +1707,47 @@ nonterm ThrowExpression : HasVarsDecld {
 }
 
 
+// ------------------- GNU extensions -------------------
+// just enough to get past them ..
+
+// all operators/punctuators except "(" and ")"
+nonterm GNUExprOp ->
+  "[" | "]" | "->" | "::" | "." | "!" | "~" | "+" | "-" | "++" | "--" |
+  "&" | "*" | ".*" | "->*" | "/" | "%" | "<<" | ">>" | "<" | "<=" | ">" |
+  ">=" | "==" | "!=" | "^" | "|" | "&&" | "||" | "?" | ":" | "=" | "*=" |
+  "/=" | "%=" | "+=" | "-=" | "&=" | "^=" | "|=" | "<<=" | ">>=" | "," |
+  "..." | ";" | "{" | "}" ;
+
+// all of them, I guess..
+nonterm GNUExprKeyword ->
+  "asm" | "auto" | "break" | "bool" | "case" | "catch" | "cdecl" | "char" |
+  "class" | "const" | "const_cast" | "continue" | "default" | "delete" |
+  "do" | "double" | "dynamic_cast" | "else" | "enum" | "explicit" | "extern" |
+  "float" | "for" | "friend" | "goto" | "if" | "inline" | "int" | "long" |
+  "mutable" | "new" | "operator" | "pascal" | "private" | "protected" |
+  "public" | "register" | "reinterpret_cast" | "return" | "short" |
+  "signed" | "sizeof" | "static" | "static_cast" | "struct" | "switch" |
+  "template" | "this" | "throw" | "try" | "typedef" | "typeid" | "union" |
+  "unsigned" | "virtual" | "void" | "volatile" | "wchar_t" | "while" ;
+
+
+nonterm GNUAttribute -> "__attribute__" "(" "(" GNUExprSeq ")" ")";
+
+// recognize grouping only
+nonterm GNUExprSeq -> empty | GNUExpr GNUExprSeq ;
+nonterm GNUExpr -> "(" GNUExprSeq ")"
+                 | L2_NAME | GNUExprOp | GNUExprKeyword
+                 | L2_INT_LITERAL | L2_STRING_LITERAL ;
+
+nonterm GNUAsmStatement -> "asm" "(" GNUExprSeq ")" ";"
+                         | "asm" "volatile" "(" GNUExprSeq ")" ";" ;
+
+
 // -------------------------------------------------------
 epilogue {
 
 #include "trace.h"    // traceAddSys
+#include "glr.h"      // StackNode::printAllocStats
 
 
 bool processNode(TreeNode const *n, void*)
@@ -1698,8 +1782,6 @@ int main(int argc, char *argv[])
       traceAddSys("env-declare");
       Env env;
       top->typeCheck(env);
-
-      return 0;
     }
     catch (XAmbiguity &x) {
       cout << x << endl;
@@ -1710,6 +1792,11 @@ int main(int argc, char *argv[])
     cout << "died on exception: " << x << endl;
     return 6;
   }
+
+  TreeNode::printAllocStats();
+  StackNode::printAllocStats();
+
+  return 0;
 }
 
 

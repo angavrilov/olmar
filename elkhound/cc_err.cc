@@ -58,6 +58,10 @@ string SemanticError::whyStr() const
     case SE_GENERAL:
       sb << msg;
       break;
+      
+    case SE_INTERNAL_ERROR:
+      sb << "internal error: " << msg;
+      break;
   }
   
   return sb;

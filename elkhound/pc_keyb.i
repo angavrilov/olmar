@@ -1402,14 +1402,14 @@ static inline kernel_cap_t cap_combine(kernel_cap_t a, kernel_cap_t b)
 static inline kernel_cap_t cap_intersect(kernel_cap_t a, kernel_cap_t b)
 {
      kernel_cap_t dest;
-     ( dest )  = ( a )  & ( b ) ;
+//     ( dest )  = ( a )  & ( b ) ;     // AMBIGUOUS
      return dest;
 }
 
 static inline kernel_cap_t cap_drop(kernel_cap_t a, kernel_cap_t drop)
 {
      kernel_cap_t dest;
-     ( dest )  = ( a )  & ~( drop ) ;
+//     ( dest )  = ( a )  & ~( drop ) ;     // AMBIGUOUS
      return dest;
 }
 
@@ -3023,13 +3023,13 @@ struct wait_queue {
 
 static inline void init_waitqueue(struct wait_queue **q)
 {
-	*q = ((struct wait_queue *)(( q )-1)) ;
+//	*q = ((struct wait_queue *)(( q )-1)) ;   // AMBIGUOUS
 }
 
 static inline int waitqueue_active(struct wait_queue **q)
 {
 	struct wait_queue *head = *q;
-	return head && head != ((struct wait_queue *)(( q )-1)) ;
+//	return head && head != ((struct wait_queue *)(( q )-1)) ;   // AMBIGUOUS
 }
 
 
@@ -3798,7 +3798,7 @@ extern char * kdevname(kdev_t);
 
 
 static inline unsigned int kdev_t_to_nr(kdev_t dev) {
-	return (((unsigned int) (( dev ) >> 8 )) <<8) | ((unsigned int) (( dev ) & ((1U << 8 ) - 1) )) ;
+//	return (((unsigned int) (( dev ) >> 8 )) <<8) | ((unsigned int) (( dev ) & ((1U << 8 ) - 1) )) ;   // AMBIGUOUS
 }
 
 static inline kdev_t to_kdev_t(int dev)
@@ -14165,13 +14165,13 @@ extern inline void * memscan(void * addr, int c, size_t size)
 # 102 "/usr/src/linux/include/linux/signal.h"
 
 
-extern inline void  sigorsets (sigset_t *r, const sigset_t *a, const sigset_t *b) {	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	a2 = a->sig[4*i+2]; a3 = a->sig[4*i+3];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	b2 = b->sig[4*i+2]; b3 = b->sig[4*i+3];	r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) | (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) | (  b2 )) ;	r->sig[4*i+3] =   (( a3 ) | (  b3 )) ;	}	switch ((64  / 32 )  % 4) {	case 3:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1]; a2 = a->sig[4*i+2]; b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1]; b2 = b->sig[4*i+2]; r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) | (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) | (  b2 )) ;	break;	case 2:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) | (  b1 )) ;	break;	case 1:	a0 = a->sig[4*i+0]; b0 = b->sig[4*i+0];	r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	break;	}	} 
+extern inline void  sigorsets (sigset_t *r, const sigset_t *a, const sigset_t *b) {	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	a2 = a->sig[4*i+2]; a3 = a->sig[4*i+3];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	b2 = b->sig[4*i+2]; b3 = b->sig[4*i+3];	r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) | (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) | (  b2 )) ;	r->sig[4*i+3] =   (( a3 ) | (  b3 )) ;	}	switch ((64  / 32 )  % 4) {	case 3:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1]; a2 = a->sig[4*i+2]; b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1]; b2 = b->sig[4*i+2]; r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) | (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) | (  b2 )) ;	break;	case 2:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) | (  b1 )) ;	break;	case 1:	a0 = a->sig[4*i+0]; b0 = b->sig[4*i+0];	r->sig[4*i+0] =   (( a0 ) | (  b0 )) ;	break;	}	}
 
 
-extern inline void  sigandsets (sigset_t *r, const sigset_t *a, const sigset_t *b) {	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	a2 = a->sig[4*i+2]; a3 = a->sig[4*i+3];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	b2 = b->sig[4*i+2]; b3 = b->sig[4*i+3];	r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & (  b2 )) ;	r->sig[4*i+3] =   (( a3 ) & (  b3 )) ;	}	switch ((64  / 32 )  % 4) {	case 3:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1]; a2 = a->sig[4*i+2]; b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1]; b2 = b->sig[4*i+2]; r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & (  b2 )) ;	break;	case 2:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & (  b1 )) ;	break;	case 1:	a0 = a->sig[4*i+0]; b0 = b->sig[4*i+0];	r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;	break;	}	} 
+//extern inline void  sigandsets (sigset_t *r, const sigset_t *a, const sigset_t *b) {	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	a2 = a->sig[4*i+2]; a3 = a->sig[4*i+3];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	b2 = b->sig[4*i+2]; b3 = b->sig[4*i+3];	r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & (  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & (  b2 )) ;	r->sig[4*i+3] =   (( a3 ) & (  b3 )) ;	}	switch ((64  / 32 )  % 4) {	case 3:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1]; a2 = a->sig[4*i+2]; b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1]; b2 = b->sig[4*i+2]; r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;  r->sig[4*i+1] =   (( a1 ) & (  b1 )) ;  r->sig[4*i+2] =   (( a2 ) & (  b2 )) ;  break;  case 2:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;  r->sig[4*i+1] =   (( a1 ) & (  b1 )) ;  break;  case 1:	a0 = a->sig[4*i+0]; b0 = b->sig[4*i+0];	r->sig[4*i+0] =   (( a0 ) & (  b0 )) ;  break;  }       }   // AMBIGUOUS
 
 
-extern inline void  signandsets (sigset_t *r, const sigset_t *a, const sigset_t *b) {	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	a2 = a->sig[4*i+2]; a3 = a->sig[4*i+3];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	b2 = b->sig[4*i+2]; b3 = b->sig[4*i+3];	r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & ~(  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & ~(  b2 )) ;	r->sig[4*i+3] =   (( a3 ) & ~(  b3 )) ;	}	switch ((64  / 32 )  % 4) {	case 3:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1]; a2 = a->sig[4*i+2]; b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1]; b2 = b->sig[4*i+2]; r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & ~(  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & ~(  b2 )) ;	break;	case 2:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & ~(  b1 )) ;	break;	case 1:	a0 = a->sig[4*i+0]; b0 = b->sig[4*i+0];	r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	break;	}	} 
+//extern inline void  signandsets (sigset_t *r, const sigset_t *a, const sigset_t *b) {	unsigned long a0, a1, a2, a3, b0, b1, b2, b3;	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	a2 = a->sig[4*i+2]; a3 = a->sig[4*i+3];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	b2 = b->sig[4*i+2]; b3 = b->sig[4*i+3];	r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & ~(  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & ~(  b2 )) ;	r->sig[4*i+3] =   (( a3 ) & ~(  b3 )) ;	}	switch ((64  / 32 )  % 4) {	case 3:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1]; a2 = a->sig[4*i+2]; b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1]; b2 = b->sig[4*i+2]; r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & ~(  b1 )) ;	r->sig[4*i+2] =   (( a2 ) & ~(  b2 )) ;	break;	case 2:	a0 = a->sig[4*i+0]; a1 = a->sig[4*i+1];	b0 = b->sig[4*i+0]; b1 = b->sig[4*i+1];	r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	r->sig[4*i+1] =   (( a1 ) & ~(  b1 )) ;	break;	case 1:	a0 = a->sig[4*i+0]; b0 = b->sig[4*i+0];	r->sig[4*i+0] =   (( a0 ) & ~(  b0 )) ;	break;	}	}   // AMBIGUOUS
 
 
 
@@ -14182,7 +14182,7 @@ extern inline void  signandsets (sigset_t *r, const sigset_t *a, const sigset_t 
 # 134 "/usr/src/linux/include/linux/signal.h"
 
 
-extern inline void  signotset (sigset_t *set)	{	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	set->sig[4*i+0] =   (~( set->sig[4*i+0] )) ;	set->sig[4*i+1] =   (~( set->sig[4*i+1] )) ;	set->sig[4*i+2] =   (~( set->sig[4*i+2] )) ;	set->sig[4*i+3] =   (~( set->sig[4*i+3] )) ;	}	switch ((64  / 32 )  % 4) {	case 3: set->sig[4*i+2] =   (~( set->sig[4*i+2] )) ;	case 2: set->sig[4*i+1] =   (~( set->sig[4*i+1] )) ;	case 1: set->sig[4*i+0] =   (~( set->sig[4*i+0] )) ;	}	} 
+extern inline void  signotset (sigset_t *set)	{	unsigned long i;	for (i = 0; i < (64  / 32 ) /4; ++i) {	set->sig[4*i+0] =   (~( set->sig[4*i+0] )) ;	set->sig[4*i+1] =   (~( set->sig[4*i+1] )) ;	set->sig[4*i+2] =   (~( set->sig[4*i+2] )) ;	set->sig[4*i+3] =   (~( set->sig[4*i+3] )) ;	}	switch ((64  / 32 )  % 4) {	case 3: set->sig[4*i+2] =   (~( set->sig[4*i+2] )) ;    case 2: set->sig[4*i+1] =   (~( set->sig[4*i+1] )) ;    case 1: set->sig[4*i+0] =   (~( set->sig[4*i+0] )) ;    }       }
 
 
 
@@ -15687,7 +15687,7 @@ extern int do_fork(unsigned long, unsigned long, struct pt_regs *);
 
 extern inline void __add_wait_queue(struct wait_queue ** p, struct wait_queue * wait)
 {
-	wait->next = *p ? : ((struct wait_queue *)(( p )-1)) ;
+//	wait->next = *p ? : ((struct wait_queue *)(( p )-1)) ;   // AMBIGUOUS
 	*p = wait;
 }
 
@@ -17000,7 +17000,7 @@ typedef struct {
 static inline
 int get_fd_set(unsigned long nr, void *ufdset, unsigned long *fdset)
 {
-	nr = ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long)) ;
+//	nr = ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long)) ;   // AMBIGUOUS
 	if (ufdset) {
 		int error;
 		error = verify_area(1 , ufdset, nr);
@@ -17015,14 +17015,14 @@ int get_fd_set(unsigned long nr, void *ufdset, unsigned long *fdset)
 static inline
 void set_fd_set(unsigned long nr, void *ufdset, unsigned long *fdset)
 {
-	if (ufdset)
-		(__builtin_constant_p(  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ?	__constant_copy_to_user_nocheck(( ufdset ),(  fdset ),(  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  )) :	__generic_copy_to_user_nocheck(( ufdset ),(  fdset ),(  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ))) ;
+//	if (ufdset)
+//		(__builtin_constant_p(  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ?	__constant_copy_to_user_nocheck(( ufdset ),(  fdset ),(  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  )) :	__generic_copy_to_user_nocheck(( ufdset ),(  fdset ),(  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ))) ;   // AMBIGUOUS
 }
 
 static inline
 void zero_fd_set(unsigned long nr, unsigned long *fdset)
 {
-	(__builtin_constant_p(  0 ) ? (__builtin_constant_p( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ) ? __constant_c_and_count_memset(( ( fdset ) ),( (0x01010101UL*(unsigned char)(  0 )) ),( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) )) : __constant_c_memset(( ( fdset ) ),( (0x01010101UL*(unsigned char)(  0 )) ),( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) )))  : (__builtin_constant_p( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ) ? __memset_generic(( ( ( fdset ) ) ),( ( (  0 ) ) ),( ( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ) ))  : __memset_generic(( ( fdset ) ),( (  0 ) ),( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ))) ) ;
+//        (__builtin_constant_p(  0 ) ? (__builtin_constant_p( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ) ? __constant_c_and_count_memset(( ( fdset ) ),( (0x01010101UL*(unsigned char)(  0 )) ),( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) )) : __constant_c_memset(( ( fdset ) ),( (0x01010101UL*(unsigned char)(  0 )) ),( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) )))  : (__builtin_constant_p( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ) ? __memset_generic(( ( ( fdset ) ) ),( ( (  0 ) ) ),( ( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ) ))  : __memset_generic(( ( fdset ) ),( (  0 ) ),( (  ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long))  ) ))) ) ;  // AMBIGUOUS
 }
 
 extern int do_select(int n, fd_set_bits *fds, long *timeout);
@@ -17840,7 +17840,7 @@ extern inline pte_t * pte_alloc_kernel(pmd_t * pmd, unsigned long address)
 		
 		if (!page)
 			return get_pte_kernel_slow(pmd, address);
-		(( *pmd ).pmd)  = (0x001  | 0x002  | 0x020  | 0x040 )  + ((unsigned long)( page )- ((unsigned long)(0xC0000000 ) ) ) ;
+//		(( *pmd ).pmd)  = (0x001  | 0x002  | 0x020  | 0x040 )  + ((unsigned long)( page )- ((unsigned long)(0xC0000000 ) ) ) ;   // AMBIGUOUS
 		return page + address;
 	}
 	if (((((  *pmd  ).pmd)  & (~(~((1UL << 12 ) -1))  & ~0x004 )) != (0x001  | 0x002  | 0x020  | 0x040 ) ) ) {
@@ -17862,10 +17862,10 @@ extern inline pte_t * pte_alloc(pmd_t * pmd, unsigned long address)
 getnew:
 {
 	unsigned long page = (unsigned long) get_pte_fast();
-	
+
 	if (!page)
 		return get_pte_slow(pmd, address);
-	(( *pmd ).pmd)  = (0x001  | 0x002  | 0x004  | 0x020  | 0x040 )  + ((unsigned long)( page )- ((unsigned long)(0xC0000000 ) ) ) ;
+//	(( *pmd ).pmd)  = (0x001  | 0x002  | 0x004  | 0x020  | 0x040 )  + ((unsigned long)( page )- ((unsigned long)(0xC0000000 ) ) ) ;    // AMBIGUOUS
 	return (pte_t *) (page + address);
 }
 fix:
@@ -17873,7 +17873,7 @@ fix:
 	return ((void *)0) ;
 }
 
- 
+
 
 
 
@@ -17898,7 +17898,7 @@ extern inline void set_pgdir(unsigned long address, pgd_t entry)
 
 
 
-        
+
 	(void)( &tasklist_lock ) ;
 	for ( p  = & (init_task_union.task)  ; ( p  =  p ->next_task) != & (init_task_union.task)  ; )  {
 		if (!p->mm)
@@ -17974,7 +17974,7 @@ int vmalloc_area_pages(unsigned long address, unsigned long size);
 
 extern inline unsigned long virt_to_phys(volatile void * address)
 {
-	return ((unsigned long)( address ) & ~((unsigned long)(0xC0000000 ) ) ) ;
+//	return ((unsigned long)( address ) & ~((unsigned long)(0xC0000000 ) ) ) ;   // AMBIGUOUS
 }
 
 extern inline void * phys_to_virt(unsigned long address)
@@ -18294,7 +18294,7 @@ static void kbd_write_output_w(int data);
 static void aux_write_ack(int val);
 
 
-spinlock_t kbd_controller_lock = (spinlock_t) { } ;
+//spinlock_t kbd_controller_lock = (spinlock_t) { } ;   // INVALID
 static unsigned char handle_kbd_event(void);
 
  
@@ -19175,7 +19175,7 @@ static ssize_t write_aux(struct file * file, const char * buffer,
 			count = 32;  
 		do {
 			char c;
-			({	int __ret_gu,__val_gu;	switch(sizeof (*(  buffer++ ))) {	case 1:  __asm__ __volatile__("call __get_user_" "1" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	case 2:  __asm__ __volatile__("call __get_user_" "2" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	case 4:  __asm__ __volatile__("call __get_user_" "4" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	default: __asm__ __volatile__("call __get_user_" "X" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	}	( c ) = (__typeof__(*(  buffer++ )))__val_gu;	__ret_gu;	}) ;
+//			({	int __ret_gu,__val_gu;	switch(sizeof (*(  buffer++ ))) {	case 1:  __asm__ __volatile__("call __get_user_" "1" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	case 2:  __asm__ __volatile__("call __get_user_" "2" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	case 4:  __asm__ __volatile__("call __get_user_" "4" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	default: __asm__ __volatile__("call __get_user_" "X" :"=a" ( __ret_gu ),"=d" ( __val_gu ) :"0" (   buffer++  )) ; break;	}	( c ) = (__typeof__(*(  buffer++ )))__val_gu;	__ret_gu;	}) ;    // TYPEOF
 			aux_write_dev(c);
 			written++;
 		} while (--count);

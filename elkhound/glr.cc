@@ -135,14 +135,22 @@
 
 
 // ----------------------- StackNode -----------------------
+int StackNode::numStackNodesAllocd=0;
+int StackNode::maxStackNodesAllocd=0;
+
+
 StackNode::StackNode(int id, int col, ItemSet const *st)
   : stackNodeId(id),
     tokenColumn(col),
     state(st)
-{}
+{
+  INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
+}
 
 StackNode::~StackNode()
-{}
+{
+  numStackNodesAllocd--;
+}
 
 
 Symbol const *StackNode::getSymbolC() const
@@ -170,6 +178,14 @@ SiblingLink *StackNode::
     }
   }
   return NULL;
+}
+
+
+STATICDEF void StackNode::printAllocStats()
+{
+  cout << "stack nodes: " << numStackNodesAllocd
+       << ", max stack nodes: " << maxStackNodesAllocd
+       << endl;
 }
 
 
@@ -751,14 +767,15 @@ void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
   // the parser that the parent attributes MUST match exactly
   if (actx.parentAttr() != node.attr) {
     // there is a bug in the parser
-    cout << "PARSER GRAMMAR BUG: alternative parses have different attributes\n";
+    cout << node.locString() << ": PARSER GRAMMAR BUG: alternative parses have different attributes\n";
     cout << "  existing parse(s) and attributes:\n";
     node.printParseTree(cout, 4 /*indent*/);
 
     cout << "  new parse and attributes:\n";
     actx.reduction().printParseTree(actx.parentAttr(), cout, 4 /*indent*/);
 
-    xfailure("parser bug: alternative parses with different attributes");
+    xfailure(stringc << node.locString() << 
+             ": parser bug: alternative parses with different attributes");
   }
 
   // ok, they match; just add the reduction to the existing node

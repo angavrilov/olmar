@@ -27,6 +27,8 @@ public:
   // make a general error but simply report it
   void reportError(Env &env, char const *msg) const;
 
+  // throw an internal error
+  void internalError(char const *msg) const NORETURN;
 };
 
 
