@@ -1,65 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
 <html>
-
 <head>
-<title>Elsa Design</title>
+  <title>Elsa Design</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+  <style type="text/css">
+    H1 { font-size: 150% }
+    H2 { font-size: 125% }
+    H3 { font-size: 100% }
+    P.title { font-size: 175% }
+    P.remark { font-size: 125%; color: red }
+    SPAN.todo { font-weight: bold }
+  </style>
 </head>
-
-<!-- <body bgcolor=white> -->
+<body>
 
 <center>
-<h2>Elsa Design</h2>
-<p><font size=+1 color=red>Initial Outline</font>
+<p class="title"><b>Elsa Design</b></p>
+<p class="remark">Initial Outline</p>
 <p>By Daniel Wilkerson and Scott McPeak
 </center>
 
-<h3>Introduction</h3>
+<h1>Introduction</h1>
 
-<p>This file is an attempt to articulate the design of 
-<a href="index.html">elsa</a>
+<p>This file is an attempt to articulate the design of
+<a href="index.html">Elsa</a>
 to someone who would like to work on it.
 
-<p>The goals of elsa are as follows.<ul>
+<p>The goals of Elsa are as follows.
+<ul>
 
 <li>Implement the C++98 spec, more formally known as "ISO/IEC
 14882:1998: Programming languages -- C++."  You will see it refereed to
 as "cppstd" in comments throughout the code.
 
-<li>Parse C; that is C89 and C99. <b>Give spec names</b>
+<li>Parse C; that is C89 and C99. <span class="todo">Give spec names</span>
 
 <li>Parse C and C++ as the are in the wild, including K&amp;R "Old
 Style" C, and Gcc.
 
 </ul>
 
-<p>To accommodate the multiple goals, elsa is extensible; that is one
-may arrange one's build process to build elsa and incorporate
+<p>To accommodate the multiple goals, Elsa is extensible; that is one
+may arrange one's build process to build Elsa and incorporate
 extensions to lexing, parsing, and to some extent typechecking without
-modifying the original elsa distribution files.  This
-"base-and-extension design pattern" occurs frequently in the elsa
-build process.  The ability to read C99 and GNU extensions to C++
-are implemented within elsa using these extension mechanisms.
+modifying the original Elsa distribution files.  This
+"base-and-extension design pattern" occurs frequently in the Elsa
+build process.  Support for C99 and GNU extensions to C++
+are implemented within Elsa using these extension mechanisms.
 
-<p>Processing of an input file proceeds in the following three stages. <ol>
-<li>Lexing
-<li>Parsing
-<li>Typechecking
+<p>Processing of an input file proceeds in the following three stages.
+<ol>
+<li><a href="#lexing">Lexing</a>
+<li><a href="#parsing">Parsing</a>
+<li><a href="#typechecking">Typechecking</a>
+<li><a href="#elaboration_cdtors">elaboration</a> (of constructors and destructors)
 </ol>
 
-<h3>Lexing</h3>
+<a name="lexing"></a>
+<h1>1. Lexing</h1>
 
-<p><a href="cc.lex"><tt>cc.lex</tt></a> is the base lexer file written in flex.  To extend elsa
-one may write a file containing a flex lexer fragment, say an
-"_ext.lex" file, and have it merged into cc.lex by
+<p><center><img src="lexer_build.png"></center>
+
+<p><a href="cc.lex"><tt>cc.lex</tt></a> is the base lexer file written in flex.  
+To extend Elsa one may write a file containing a flex lexer fragment, and have 
+it merged into cc.lex by
 <a href="merge-lexer-exts.pl">merge-lexer-exts.pl</a>
 to produce
 <a href="lexer.lex">lexer.lex</a>;
 <a href="gnu.lex">gnu.lex</a>
 is one such
-lexer extension file used to add the lexing of gnu token extensions.
+lexer extension file used to add the lexing of gnu and C99 token extensions.
 
-<p><tt>lexer.lex</tt> is subsequently compiled into 
-<a href="lexer.yy.cc">lexer.yy.cc</a>
-by
+<p><tt>lexer.lex</tt> is subsequently compiled into
+lexer.yy.cc by
 <a href="http://www.gnu.org/software/flex/manual/html_chapter/flex_toc.html">flex</a>;
 note that we make flex generate a C++ lexer.
 
@@ -98,9 +112,12 @@ and any extension
 ".tok" files can simply be all passed in at once or concatenated
 first.
 
-<h3>Parsing: grammar</h3>
+<a name="parsing"></a>
+<h1>2. Parsing</h1>
 
-<p>The elsa parser is written in <a href="../elkhound/index.html">elkhound</a>.  
+<h2>2.1 Parsing: grammar</h2>
+
+<p>The Elsa parser is written in <a href="../elkhound/index.html">elkhound</a>.
 Elkhound is a language
 reminiscent of yacc/bison and with the same purpose: to allow the
 client to declaratively describe a grammar with user actions at each
@@ -109,7 +126,7 @@ user actions generated automatically.  Elkhound is different in that
 it allows ambiguous grammars; it uses the GLR algorithm to handle
 this.  Elkhound was written and is maintained by Scott McPeak.
 
-<p>The elkhound source files in elsa end in ".gr".  The base file is
+<p>The elkhound source files in Elsa end in ".gr".  The base file is
 <a href="cc.gr">cc.gr</a> which is meant to be a manifestation of strict C++ 98.  The
 extension files for gcc are in <a href="gnu.gr">gnu.gr</a>.  If your favorite editor has
 a C++ mode it is likely to work well for ".gr" files.
@@ -124,11 +141,11 @@ precedence is represented.  sm: see elkhound/index.html, linked above</b>
 itself within the parser, but instead comes up with two valid parses
 of a substring of the input.  This results in calling the "merge"
 action on a non-terminal.  This merge action can do anything, but in
-elsa it always simply appends one subtree onto the 'ambiguity'
+Elsa it always simply appends one subtree onto the 'ambiguity'
 linked-list of the other.  These ambiguities will be resolved during
 the typechecking phase.
 
-<h3>Parsing: Abstract Syntax Tree</h3>
+<h2>2.2 Parsing: Abstract Syntax Tree</h2>
 
 <p>You will notice that most of the rules in the parsing user actions
 make Abstract Syntax Tree (AST) nodes on the heap; the general pattern
@@ -148,8 +165,8 @@ the nonterminal of the rule.
 </ol>
 
 <p>The AST classes so constructed are rather tedious to write as
-traditional C++, as one soon discovers upon attempting it.  In elsa
-they are built in elsa using Scott McPeak's AST description language
+traditional C++, as one soon discovers upon attempting it.  In Elsa
+they are built in Elsa using Scott McPeak's AST description language
 generator called <a href="../ast/index.html">astgen</a>; the input files are named ".ast".  If your
 favorite editor has a C++ mode it is likely to work well for ".ast"
 files as well.
@@ -160,7 +177,7 @@ files as well.
 in <a href="gnu.ast">gnu.ast</a>) and is <a href="cc.ast.html">documented separately</a>.
 <b>Talk about how .ast files merge together, how the argument lists
 concatenate and hierarchies merge, the purpose of each .ast file in
-elsa, such as how typechecking concerns are factored from raw parsing
+Elsa, such as how typechecking concerns are factored from raw parsing
 concerns; warn the user of the screwy feature that you can leave out
 the pointer and that is still legal and also means something else,
 point out how it will only generate a 2-level deep hierarchy.</b>
@@ -168,7 +185,8 @@ point out how it will only generate a 2-level deep hierarchy.</b>
 <P> Tracing flag "printAST" will print the (possibly ambiguous) AST
 before type checking.
 
-<h3>Typechecking</h3>
+<a name="typechecking"></a>
+<h1>3. Typechecking</h1>
 
 <p>The typechecking phase accomplishes five semantically independent
 results.
@@ -176,7 +194,7 @@ results.
 <p><b>Type annotation</b>: Some objects, such as expressions, have
 a well-defined type associated with them.  After typechecking, these
 objects have been annotated with type objects.  Type objects are
-declared in <a href="cc_type.h">cc_type.h</a> and are 
+declared in <a href="cc_type.h">cc_type.h</a> and are
 <a href="cc_type.html">documented
 separately</a>.  <b>The notion of identity for types is quite messy
 and subtle; mention that the type factory may be overloaded</b>.  The
@@ -199,18 +217,32 @@ is special-cased for efficiency of common ambiguities that tend to
 cause an exponential blowup <b>mention function call / ctor call
 ambiguity</b>.  The tracing flag "disamb" will print disambiguation
 activity as it occurs.  The tracing flag "mustBeUnambiguous" will
-cause elsa to verify after type checking that the AST to verify there
+cause Elsa to verify after type checking that the AST to verify there
 are no remaining ambiguities and if there are, abort.
 
 <p><b> There is a fifth thing but I can't remember what it is; it
 goes here.</b>
 
-<p><b>Elaboration</b>: Unlike in C, in C++, much syntax is implied. <ul>
+<p><b>Elaboration</b>: Unlike in C, in C++, much syntax is implied. 
+
+<ul>
 
 <li> Operator overloading: What look like simple built-in operators
 may in fact be function calls.
 
-<li> Constructors and destructors: <ul>
+<li> <b>What the heck else?</b>
+
+</ul>
+
+<p>The tracing flag "printTypedAST" will print the AST after type
+checking.
+
+
+<a name="elaboration_cdtors"></a>
+<h1>4. Elaboration of constructors and destructors</h1>
+
+Constructors and destructors: 
+<ul>
 
 <li> A struct/class with no ctor gets a no arg ctor that calls the no
 arg ctor of its members and superclasses.
@@ -227,20 +259,15 @@ its members and superclasses.
 
 </ul>
 
-<li> <b>What the heck else?</b>
 
-</ul>
 
-<p>The tracing flag "printTypedAST" will print the AST after type
-checking.
-
-<h3>Post-processing</h3>
+<h1>Post-processing</h1>
 
 <p>Elsa will perform various post-processing on request.
 
 <p> Tracing flag "printHierarchies" will print inheritance
 hierarchies in Dot format. Interesting in that virtual inheritance is
-represented properly; for example <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a> 
+represented properly; for example <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a>
 yields <a href="gendoc/3.4.5.png">3.4.5.png</a>.
 
 <p> Tracing flag "prettyPrint" will print out the AST as C++. This is
@@ -254,9 +281,9 @@ control flow graph as a dot file as well; oink will also soon contain
 a way to print the data flow graph at both the expression and the
 type-component granularities.</b>
 
-<h3>Extending</h3>
+<h1>Extending</h1>
 
-<p><b>Say something here about how to extend elsa.</b>
+<p><b>Say something here about how to extend Elsa.</b>
 
 <p>Elsa was designed to be extended with various backends, such as
 program analysis tools; One might easily extend it to be a compiler.

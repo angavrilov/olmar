@@ -20,7 +20,7 @@
  *
  * Nonseparating tokens are not allowed to be adjacent to each other.
  * They must be separated by either whitespace, or at least one
- * nonseparating token.  The nonseparating tokens are identifiers,
+ * separating token.  The nonseparating tokens are identifiers,
  * alphabetic keywords, and literals.  The lexer would of course never
  * yield two adjacent keywords, due to maximal munch, but classifying 
  * such an event as an error is harmless.
@@ -48,9 +48,9 @@
  * do not currently implement the "alternative tokens".
  *
  * Update: Mozilla includes things like "foo""bar", i.e. directly
- * adjacent string literals.  Therefore I'm going to interpret the
- * standard literally, and take char and string literals to be
- * separating.
+ * adjacent string literals.  Therefore I'm going to interpret (the
+ * note in) the standard literally, and take char and string literals
+ * to be separating.
  */
 
 

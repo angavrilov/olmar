@@ -39,7 +39,9 @@ Additional documentation:
     of the standard-convertibility relation, and its application to
     operator overload resolution.
 <li><a href="todo.txt">todo.txt</a>: Current list of planned but 
-    unimplemented features.
+    unimplemented features (out of date).
+<li><a href="design.html">design.html</a>: Nascent attempt to explain the  
+    internal design of Elsa.  Completing this is still a to-do.
 </ul>
 
 <p>
@@ -64,7 +66,7 @@ Build instructions:
 look at the <a href="Makefile.in">Makefile</a>.
 
 <p>
-Parsing some sample input:
+Parsing some sample (already preprocessed) input:
 <pre>
   $ ./ccparse in/t0001.cc
 </pre>
@@ -97,6 +99,16 @@ separated by commas (e.g. "<tt>-tr env,disamb,printAST</tt>").
 <a name="module_list">Module List</a>:
 <ul>
 
+<li><a href="ast_build.h">ast_build.h</a>, 
+    <a href="ast_build.cc">ast_build.cc</a>:
+Some utilities for constructing fragments of the C++ AST.
+
+<li><a href="baselexer.h">baselexer.h</a>, 
+    <a href="baselexer.cc">baselexer.cc</a>:
+Intermediate Lexer abstraction, built on top of yyFlexLexer and implementing
+LexerInferface (thus fitting between flex and Elkhound), but not specific to
+any set of tokens.  Lexer (<a href="lexer.h">lexer.h</a>) builds on top of this.
+
 <li><a href="builtinops.h">builtinops.h</a>,
     <a href="builtinops.cc">builtinops.cc</a>:
 Representation of built-in operators, for use during operator
@@ -117,6 +129,14 @@ to extract structure.
 
 <li><a href="cc_ast_aux.cc">cc_ast_aux.cc</a>:
 Some auxilliary functions for <a href="cc.ast">cc.ast</a>.
+
+<li><a href="cc_elaborate.ast">cc_elaborate.ast</a>,
+    <a href="cc_elaborate.h">cc_elaborate.h</a>,
+    <a href="cc_elaborate.cc">cc_elaborate.cc</a>,
+    <a href="fullexp.h">fullexp.h</a>:
+This module finds implicit function calls (like constructors) and creates
+an explicit representation of them.  An analysis can then ignore implicit
+calls and just use the constructed explicit AST.
 
 <li><a href="cc_env.h">cc_env.h</a>,
     <a href="cc_env.cc">cc_env.cc</a>:
@@ -192,12 +212,38 @@ minimally with parsing.
 This is type-checking extension that computes a statement-level
 control flow graph for each function.
 
+<li><a href="generic_amb.h">generic_amb.h</a>:
+This is the generic ambiguity resolution procedure.  It typechecks
+all of the alternatives, and selects the one that passes.  Note that
+there are other ambiguity resolution procedures in use, but this is
+the one used in the absence of a specialized procedure.
+
+<li><a href="gnu.lex">gnu.lex</a>,
+    <a href="gnu_ext.tok">gnu_ext.tok</a>,
+    <a href="gnu.gr">gnu.gr</a>,
+    <a href="gnu.ast">gnu.ast</a>,
+    <a href="gnu.cc">gnu.cc</a>:  
+These files comprise the "gnu" extension module, though in truth this contains
+extensions for both gcc and C99.  See <a href="gnu.gr">gnu.gr</a> for a complete
+list of the extensions implemented.
+
 <li><a href="implconv.h">implconv.h</a>,
     <a href="implconv.cc">implconv.cc</a>:
 This module represents and computes implicit conversions, as defined
 in sections 13.3.3.1 and 13.3.3.2 of the C++ standard.
 
-<li><a href="lexer.lex">lexer.lex</a>,
+<li><a href="implint.h">implint.h</a>,
+    <a href="implint.cc">implint.cc</a>:
+Support routines, including ambiguity resolution, for the implicit-int
+K&amp;R extension.
+
+<li><a href="kandr.gr">kandr.gr</a>,
+    <a href="kandr.ast">kandr.ast</a>,
+    <a href="kandr.cc">kandr.cc</a>:
+K&amp;R extensions, particular K&amp;R function definitions and the
+implicit-int rule.  Daniel Wilkerson implemented most of this.
+
+<li><a href="cc.lex">cc.lex</a>,
     <a href="lexer.h">lexer.h</a>,
     <a href="lexer.cc">lexer.cc</a>:
 This module chops up a given C++ source file into tokens.  It does
@@ -209,6 +255,18 @@ This module contains the main() function of the parser.  It's a simple
 driver around the other modules, and can be extended to invoke
 other tasks that come after parsing.
 
+<li><a href="mangle.h">mangle.h</a>,
+    <a href="mangle.cc">mangle.cc</a>:
+This is a very rudmentary name mangler.  It is a somewhat arbitrary injective
+map from Types to character strings, for use by the Oink linker imitator
+(identifying declarations of the same entity from different translation units).
+It does <em>not</em> implement any standard mangling scheme.
+
+<li><a href="matchtype.h">matchtype.h</a>,
+    <a href="matchtype.cc">matchtype.cc</a>:
+Type matching in the presence of type variables corresponding to template 
+parameters; sort of a generalized Type::equals.
+
 <li><a href="overload.h">overload.h</a>,
     <a href="overload.cc">overload.cc</a>:
 Does overload resolution of a given candidate set.
@@ -218,6 +276,17 @@ Does overload resolution of a given candidate set.
 This is a poorly-designed module intended to abstract some of the
 functionality otherwise common to main()-providing modules.  It
 needs to die.  alt.parssppt.die.die.die.
+
+<li><a href="semgrep.cc">semgrep.cc</a>:
+Sample application of Elsa, a "semantic grep".  This is part
+of the <a href="tutorial.html">tutorial</a>.
+
+<li><a href="serialno.h">serialno.h</a>,
+    <a href="serialno.cc">serialno.cc</a>:
+This is a simple module that can be used to attach object creation
+serial numbers when an appropriate compile-time switch is used.  This
+is sometimes more convenient than working with virtual addresses,
+while debugging.
 
 <li><a href="sprint.h">sprint.h</a>,
     <a href="sprint.cc">sprint.cc</a>:
@@ -229,8 +298,17 @@ Represents and computes standard conversions, as defined in section
 4 of the C++ standard.  See also
 <a href="convertibility.txt">convertibility.txt</a>.
 
+<li><a href="template.h">template.h</a>,
+    <a href="template.cc">template.cc</a>:
+Data structures and algorithms for the template instantiation implementation.
+
 <li><a href="tlexer.cc">tlexer.cc</a>:
 Simple test driver program for the lexer.
+
+<li><a href="typelistiter.h">typelistiter.h</a>,
+    <a href="typelistiter.cc">typelistiter.cc</a>:
+Generic interface, plus a couple of implementations, for iterating
+over sequences and examining their stored types.
 
 <li><a href="variable.h">variable.h</a>,
     <a href="variable.cc">variable.cc</a>:
@@ -274,6 +352,9 @@ I just use gcc's headers, but some of gcc's headers use syntax
 that Elsa doesn't (yet?) understand, so this directory contains
 my replacements.
 
+<li><a href="merge-lexer-exts.pl">merge-lexer-exts.pl</a>:
+Merge a base flex lexer with one or more extensions.
+
 <li><a href="multitest.pl">multitest.pl</a>:
 Used by the regression tester to test a given input file, plus
 several variations obtained by un-commenting certain lines.
@@ -289,6 +370,11 @@ Test for exhibition of a particular error; used by run-delta-loop.
 
 <li><a href="test-parse">test-parse</a>:
 Script to parse a file, making sure the parse is unambiguous.
+
+<li><a href="test-parse-buildlog">test-parse-buildlog</a>:
+This is a script that interprets the output of 'make' in order to
+find C++ inputs to test with Elsa.  I use it to make claims like
+"Elsa can parse Mozilla".
 
 </ul>
 
