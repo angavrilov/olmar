@@ -111,43 +111,6 @@ DottedProduction::~DottedProduction()
 {}
 
 
-#if 0
-DottedProduction::DottedProduction(GrammarAnalysis const &g)
-  : lookahead(g.numTerminals())
-{
-  init();
-}
-
-DottedProduction::DottedProduction(GrammarAnalysis const &g, Production *p, int d)
-  : lookahead(g.numTerminals())
-{
-  init();
-  setProdAndDot(p, d);
-}
-
-
-DottedProduction::DottedProduction(Flatten &flat)
-  : prod(NULL),
-    lookahead(flat)
-{}
-
-void DottedProduction::xfer(Flatten &flat)
-{
-  flat.xferInt(dot);
-  lookahead.xfer(flat);
-}
-
-
-void DottedProduction::xferSerfs(Flatten &flat, GrammarAnalysis &g)
-{
-  xferSerfPtrToList(flat, prod, g.productions);
-
-  // set 'afterDot'
-  setProdAndDot(prod, dot);
-}
-#endif // 0
-
-
 // arbitrary integer unique to every symbol and preserved
 // across read/write
 int symbolIndex(Symbol const *s)
@@ -268,49 +231,6 @@ STATICDEF int LRItem::diff(LRItem const *a, LRItem const *b, void*)
   // 'dot'
   ret = a->getDot() - b->getDot();
   return ret;
-  
-  #if 0    // old stuff
-  if (ret) { return ret; }
-
-  Production const *aProd = a->prod;
-  Production const *bProd = b->prod;
-  if (aProd == bProd) {
-    // equal dotted productions
-    return 0;
-  }
-
-  // LHS index
-  ret = aProd->left->ntIndex - bProd->left->ntIndex;
-  if (ret) { return ret; }
-
-  // RHS indices
-  RHSEltListIter aIter(aProd->right);
-  RHSEltListIter bIter(bProd->right);
-
-  while (!aIter.isDone() && !bIter.isDone()) {
-    ret = symbolIndex(aIter.data()->sym) - symbolIndex(bIter.data()->sym);
-    if (ret) { return ret; }
-
-    aIter.adv();
-    bIter.adv();
-  }
-
-  if (aIter.isDone() && !bIter.isDone()) {
-    return -1;
-  }
-  if (!aIter.isDone() && bIter.isDone()) {
-    return 1;
-  }
-
-  // needs a grammar to print them ...
-  //cout << "a: "; a->print(cout);
-  //cout << "\nb: "; b->print(cout);
-  //cout << endl;
-
-  // one way this can be caused is if the grammar input file actually
-  // has the same production listed twice
-  xfailure("two productions with diff addrs are equal!");
-  #endif // 0
 }
 
 
@@ -3063,15 +2983,8 @@ STATICDEF int GrammarAnalysis::renumberStatesDiff
                                                             
   // I suspect this will never be reached, since usually the
   // transition function will be sufficient
-  #if 0    // it happens often enough.. even in the arith grammar
-  cout << "using reductions to distinguish states\n";
-  cout << "left=" << left->id
-       << ", sym is " << left->getStateSymbolC()->toString() << "\n";
-  left->print(cout, *gramanl);
-  cout << "right=" << right->id
-       << ", sym is " << right->getStateSymbolC()->toString() << "\n";
-  right->print(cout, *gramanl);
-  #endif // 0
+  // update: it happens often enough.. even in the arith grammar
+  //cout << "using reductions to distinguish states\n";
 
   // finally, order by possible reductions
   FOREACH_OBJLIST(Terminal, gramanl->terminals, termIter) {
@@ -3122,84 +3035,6 @@ STATICDEF int GrammarAnalysis::arbitraryRHSEltOrder
   
   return left->sym->getTermOrNontermIndex() - right->sym->getTermOrNontermIndex();
 }
-
-
-#if 0     // old; delete me
-void GrammarAnalysis::renumberStates()
-{
-  // this function should not have already been called (it's not really
-  // a problem if it has been, but I don't expect it)
-  xassert(!firstWithTerminal && !firstWithNonterminal);
-
-  // allocate the maps
-  firstWithTerminal = new ItemSet* [numTerms];
-  memset(firstWithTerminal, 0, sizeof(ItemSet*) * numTerms);
-  firstWithNonterminal = new ItemSet* [numNonterms];
-  memset(firstWithNonterminal, 0, sizeof(ItemSet*) * numNonterms);
-
-  int numStates = itemSets.count();
-
-  // old state code -> new state code
-  Array<StateId> newCode(numStates);
-  newCode.setAll(STATE_INVALID, numStates);  // all are unassigned initially
-
-  // assume that state 0 is the start state; and it will keep its code
-  // (it's the unique state that has no incoming arcs)
-  xassert(startState->id == 0);              // if this isn't true, this code can be fixed to accomodate
-  newCode[0] = startState->id;
-
-  // will assign codes sequentially from here on out
-  int nextCode = 1;
-
-  // assign new codes to all states
-  assignStateCodes(true /*terminals*/, newCode, nextCode);
-  assignStateCodes(false /*terminals*/, newCode, nextCode);
-
-  xassert(nextCode == numStates);
-
-  // renumber the states
-  FOREACH_OBJLIST_NC(ItemSet, itemSets, iter) {
-    ItemSet *set = iter.data();
-    StateId nc = newCode[set->id];
-    xassert(nc != STATE_INVALID);       // verify this code got assigned
-    set->id = nc;
-  }
-}
-
-void GrammarAnalysis::assignStateCodes
-  (bool terminals, StateId *newCode, int &nextCode)
-{
-  // this algorithm takes time O(n*m) where n is # of states and m is
-  // # of symbols, which is the same time complexity as simply
-  // scanning all entries of the parse tables
-
-  int limit = terminals? numTerms : numNonterms;
-  ItemSet **firstWith = terminals? firstWithTerminal : firstWithNonterminal;
-
-  for (int t=0; t<limit; t++) {
-    bool first = true;
-    FOREACH_OBJLIST_NC(ItemSet, itemSets, iter) {
-      Symbol const *s = iter.data()->getStateSymbolC();
-      if (!s) {
-        xassert(iter.data() == startState);
-        continue;
-      }
-
-      if ((terminals? s->isTerminal() : s->isNonterminal()) &&
-          s->getTermOrNontermIndex() == t) {
-        int oldId = iter.data()->id;
-        xassert(newCode[oldId] == STATE_INVALID);
-        newCode[oldId] = (StateId)(nextCode++);
-
-        if (first) {
-          firstWith[t] = iter.data();
-        }
-        first = false;
-      }
-    }
-  }
-}
-#endif // 0
 
 
 void GrammarAnalysis::computeParseTables(bool allowAmbig)

@@ -514,7 +514,6 @@ private:    // funcs
     (Production const *left, Production const *right, void*);
   static int arbitraryRHSEltOrder
     (Production::RHSElt const *left, Production::RHSElt const *right, void*);
-  //void assignStateCodes(bool terminals, StateId *newCode, int &nextCode);
 
   void computeBFSTree();
 
