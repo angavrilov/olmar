@@ -248,10 +248,11 @@ void Declaration::tcheck(Env &env)
 
 
 //  -------------------- ASTTypeId -------------------
-void ASTTypeId::tcheck(Env &env)
+void ASTTypeId::tcheck(Env &env, bool allowVarArraySize)
 {
   Type const *specType = spec->tcheck(env);
   DeclaratorTcheck dt(specType, DF_NONE);
+  dt.allowVarArraySize = allowVarArraySize;
   decl->tcheck(env, dt);
 }
 
@@ -577,25 +578,27 @@ void MR_access::tcheck(Env &env)
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 {
-  Variable *v = new Variable(loc, name, parentType, DF_ENUMERATOR);
+  var = new Variable(loc, name, parentType, DF_ENUMERATOR);
 
-  int enumValue = parentEnum->nextValue;
+  enumValue = parentEnum->nextValue;
   if (expr) {
+    expr->tcheck(env);
+
     // will either set 'enumValue', or print (add) an error message
     expr->constEval(env, enumValue);
   }
 
-  parentEnum->addValue(name, enumValue, v);
+  parentEnum->addValue(name, enumValue, var);
   parentEnum->nextValue = enumValue + 1;
-  
-  // cppstd sec. 3.3.1: 
+
+  // cppstd sec. 3.3.1:
   //   "The point of declaration for an enumerator is immediately after
   //   its enumerator-definition. [Example:
   //     const int x = 12;
   //     { enum { x = x }; }
-  //   Here, the enumerator x is initialized with the value of the 
+  //   Here, the enumerator x is initialized with the value of the
   //   constant x, namely 12. ]"
-  if (!env.addVariable(v)) {
+  if (!env.addVariable(var)) {
     env.error(stringc
       << "enumerator " << name << " conflicts with an existing variable "
       << "or typedef by the same name");
@@ -1033,13 +1036,17 @@ void D_array::itcheck(Env &env, DeclaratorTcheck &dt)
     at = new ArrayType(dt.type);
   }
   else {
-    if (size->isE_intLit()) {
-      at = new ArrayType(dt.type, size->asE_intLitC()->i);
+    size->tcheck(env);
+
+    int sz;
+    if (!dt.allowVarArraySize && 
+        size->constEval(env, sz)) {
+      at = new ArrayType(dt.type, sz);
     }
     else {
-      // TODO: do a true const-eval of the expression
-      env.warning("array size isn't (obviously) a constant");
-      at = new ArrayType(dt.type);
+      // error has already been reported, this is a recovery action,
+      // *or* we're in E_new and don't look for a constant size
+      at = new ArrayType(dt.type  /*as if no size specified*/);
     }
   }
 
@@ -1764,6 +1771,10 @@ Type const *E_fieldAcc::itcheck(Env &env)
 Type const *E_sizeof::itcheck(Env &env)
 {
   expr = expr->tcheck(env);
+  
+  // TODO: this will fail an assertion if someone asks for the
+  // size of a variable of template-type-parameter type..
+  size = expr->type->reprSize();
 
   // TODO: is this right?
   return getSimpleType(ST_UNSIGNED_INT);
@@ -1879,6 +1890,7 @@ Type const *E_comma::itcheck(Env &env)
 Type const *E_sizeofType::itcheck(Env &env)
 {
   atype->tcheck(env);
+  size = atype->getType()->reprSize();
 
   return getSimpleType(ST_UNSIGNED_INT);
 }
@@ -1903,7 +1915,7 @@ Type const *E_new::itcheck(Env &env)
   // TODO: find an operator 'new' which accepts the set
   // of placement args
   
-  atype->tcheck(env);
+  atype->tcheck(env, true /*allowVarArraySize*/);
   Type const *t = atype->getType();
 
   if (ctorArgs) {
@@ -1972,16 +1984,128 @@ Type const *E_typeidType::itcheck(Env &env)
 bool Expression::constEval(Env &env, int &result) const
 {
   xassert(!ambiguity);
-  
-  if (isE_intLit()) {
-    result = asE_intLitC()->i;
-    return true;
-  }
-  else {
-    env.error(stringc <<
-      "for now, " << kindName() << " is never constEval'able",
-      false /*disambiguates*/);
-    return false;
+
+  ASTSWITCHC(Expression, this) {
+    ASTCASEC(E_boolLit, b)
+      result = b->b? 1 : 0;
+      return true;
+
+    ASTNEXTC(E_intLit, i)
+      result = i->i;
+      return true;
+      
+    ASTNEXTC(E_charLit, c)
+      result = c->c;
+      return true;
+
+    ASTNEXTC(E_variable, v)
+      if (v->var->hasFlag(DF_ENUMERATOR)) {
+        // this is an enumerator; find the corresponding
+        // enum type, and look up the name to find the value
+        EnumType const &et = v->var->type->asCVAtomicTypeC().atomic->asEnumTypeC();
+        EnumType::Value const *val = et.getValue(v->var->name);
+        xassert(val);    // otherwise the type information is wrong..
+        result = val->value;
+        return true;
+      }
+
+      // TODO: add capability to look up 'int const' variables
+      // (the problem for the moment is I don't have a way to
+      // navigate from a Variable to an initializing expression)
+
+      env.error(stringc
+        << "can't const-eval non-const variable `" << v->var->name << "'",
+        false /*disambiguates*/);
+      return false;
+
+    ASTNEXTC(E_sizeof, s)
+      result = s->size;
+      return true;
+
+    ASTNEXTC(E_unary, u)
+      if (!u->expr->constEval(env, result)) return false;
+      switch (u->op) {
+        default: xfailure("bad code");
+        case UNY_PLUS:   result = +result;  return true;
+        case UNY_MINUS:  result = -result;  return true;
+        case UNY_NOT:    result = !result;  return true;
+        case UNY_BITNOT: result = ~result;  return true;
+      }
+
+    ASTNEXTC(E_binary, b)
+      int v1, v2;
+      if (!b->e1->constEval(env, v1) ||
+          !b->e2->constEval(env, v2)) return false;
+
+      if (v2==0 && (b->op == BIN_DIV || b->op == BIN_MOD)) {
+        env.error("division by zero in constant expression",
+                  false /*disambiguates*/);
+        return false;
+      }
+
+      switch (b->op) {
+        default: xfailure("bad code");
+
+        case BIN_EQUAL:     result = (v1 == v2);  return true;
+        case BIN_NOTEQUAL:  result = (v1 != v2);  return true;
+        case BIN_LESS:      result = (v1 < v2);  return true;
+        case BIN_GREATER:   result = (v1 > v2);  return true;
+        case BIN_LESSEQ:    result = (v1 <= v2);  return true;
+        case BIN_GREATEREQ: result = (v1 >= v2);  return true;
+
+        case BIN_MULT:      result = (v1 * v2);  return true;
+        case BIN_DIV:       result = (v1 / v2);  return true;
+        case BIN_MOD:       result = (v1 % v2);  return true;
+        case BIN_PLUS:      result = (v1 + v2);  return true;
+        case BIN_MINUS:     result = (v1 - v2);  return true;
+        case BIN_LSHIFT:    result = (v1 << v2);  return true;
+        case BIN_RSHIFT:    result = (v1 >> v2);  return true;
+        case BIN_BITAND:    result = (v1 & v2);  return true;
+        case BIN_BITXOR:    result = (v1 ^ v2);  return true;
+        case BIN_BITOR:     result = (v1 | v2);  return true;
+        case BIN_AND:       result = (v1 && v2);  return true;
+        case BIN_OR:        result = (v1 || v2);  return true;
+      }
+
+    ASTNEXTC(E_cast, c)
+      if (!c->expr->constEval(env, result)) return false;
+
+      Type const *t = c->ctype->getType();
+      if (t->isIntegerType()) {
+        return true;       // ok
+      }
+      else {
+        // TODO: this is probably not the right rule..
+        env.error(stringc
+          << "in constant expression, can only cast to integer types, not `"
+          << t->toString() << "'");
+        return false;
+      }
+
+    ASTNEXTC(E_cond, c)
+      if (!c->cond->constEval(env, result)) return false;
+
+      if (result) {
+        return c->th->constEval(env, result);
+      }
+      else {
+        return c->el->constEval(env, result);
+      }
+
+    ASTNEXTC(E_comma, c)
+      return c->e2->constEval(env, result);
+
+    ASTNEXTC(E_sizeofType, s)
+      result = s->size;
+      return true;
+
+    ASTDEFAULTC
+      env.error(stringc <<
+        kindName() << " is not constEval'able",
+        false /*disambiguates*/);
+      return false;
+
+    ASTENDCASEC
   }
 }
 
