@@ -99,15 +99,13 @@ class ASTTypeId {
     // the number of elements for new[] to allocate
     Expression **newSizeExpr;
 
-    // when true, this ASTTypeId denotes a parameter; this knowledge
-    // is used for disambiguation
-    bool isParameter;
-
-    // additional declflags to attach to the resulting Variable
+    // additional declflags to attach to the resulting Variable;
+    // when this includes DF_PARAMETER, it's a function parameter,
+    // which knowledge can be applied towards disambiguation
     DeclFlags dflags;
 
   public:
-    Tcheck() : newSizeExpr(NULL), isParameter(false), dflags(DF_NONE) {}
+    Tcheck() : newSizeExpr(NULL), dflags(DF_NONE) {}
   };
 
   // the return value is the ASTTypeId* to store in place of the
@@ -232,10 +230,6 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
-    // dsw: copied from ASTTypeId::Tcheck::isParameter because I need
-    // to know and for some reason the dflags don't get a DF_PARAMETER
-    bool isParameter;
-
     // is this declarator that sorry little runt of a one that should
     // have been killed at birth down inside the ASTTypeId of an
     // E_new?  true iff ASTTypeId::Tcheck::newSizeExpr != NULL
@@ -252,14 +246,13 @@ class Declarator {
 
   public:
     Tcheck(Type *t, DeclFlags d,
-           bool isParameter0, bool isE_new0
+           bool isE_new0
            )
       : var         (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
-      , isParameter (isParameter0)
       , isE_new     (isE_new0)
       , context     (CTX_ORDINARY)
     {}
@@ -269,7 +262,6 @@ class Declarator {
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
-      , isParameter (obj.isParameter)
       , isE_new     (obj.isE_new)
       , context     (obj.context)
     {}
@@ -281,7 +273,6 @@ class Declarator {
       size_E_new  = obj.size_E_new;
       context     = obj.context;
       funcSyntax  = obj.funcSyntax;
-      isParameter = obj.isParameter;
       isE_new     = obj.isE_new;
       return *this;
     }
@@ -304,7 +295,6 @@ class Declarator {
   public void mid_tcheck(Env &env, Tcheck &dt);
   public void tcheck_init(Env &env);
   public void elaborateCDtors(Env &env,
-                              bool isParameter,
                               DeclFlags dflags);
 }
 

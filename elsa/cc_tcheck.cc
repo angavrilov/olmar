@@ -170,7 +170,6 @@ void Function::tcheck(Env &env, bool checkBody)
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)),
                         // The *function* is not a parameter
-                        false,  // isParameter
                         false   // isE_new
                         );
   nameAndParams = nameAndParams->tcheck(env, dt);
@@ -528,7 +527,6 @@ void Declaration::tcheck(Env &env)
     Declarator::Tcheck dt1(specType, dflags,
                            // Parameter Declarators are not within
                            // Declarations, but in ASTTypeIds
-                           false,// isParameter
                            false // isE_new
                            );
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
@@ -543,7 +541,6 @@ void Declaration::tcheck(Env &env)
       Declarator::Tcheck dt2(dupType, dflags,
                              // Parameter Declarators are not within
                              // Declarations, but in ASTTypeIds
-                             false,// isParameter
                              false // isE_new
                              );
       prev->next = prev->next->tcheck(env, dt2);
@@ -584,11 +581,11 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
                          
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags,
-                        tc.isParameter, // isParameter
                         tc.newSizeExpr // isE_new: are we in an E_new?
                         );
+  bool isParameter = !!(tc.dflags & DF_PARAMETER);
   dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
-               tc.isParameter? Declarator::Tcheck::CTX_PARAM :
+               isParameter?    Declarator::Tcheck::CTX_PARAM :
                                Declarator::Tcheck::CTX_ORDINARY;
 
   // check declarator
@@ -1273,7 +1270,6 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
         decliter->elaborateCDtors(env,
-                                  false, // FIX: can a TS_classSpec be a parameter?
                                   d0->dflags);
       }
     }
@@ -2007,7 +2003,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //        !dt.isParameter &&
       !dt.isE_new) {
     elaborateCDtors(env,
-                    dt.isParameter,
                     dt.dflags);
   }
 }
@@ -2018,7 +2013,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //    FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
 //      iter->decl->elaborateCDtors
 //        (env,
-//         true,                    // isParameter
 //         // Only Function and Declaration have any DeclFlags; the only
 //         // one that seems appropriate is this one
 //         DF_PARAMETER
@@ -2058,16 +2052,15 @@ FakeList<ArgExpression> *makeExprList2(Expression *e1, Expression *e2)
 }
 
 void Declarator::elaborateCDtors(Env &env,
-                                 bool isParameter,
                                  DeclFlags dflags)
 {
   // get this context from the 'var', don't make a mess passing
   // it down from above
   bool isMember = var->hasFlag(DF_MEMBER);
   bool isTemporary = var->hasFlag(DF_TEMPORARY);
+  bool isParameter = var->hasFlag(DF_PARAMETER);
 
-  // FIX: maybe this could never have worked
-//    bool isParameter  = (dflags & DF_PARAMETER)!=0;
+  // sm: I think this should look at var too.
   bool isStatic = (dflags & DF_STATIC)!=0;
 
   // dsw: Should this lookup be cached during mid_tcheck() above?
@@ -3047,7 +3040,9 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 
   // context for checking (ok to share these across multiple ASTTypeIds)
   ASTTypeId::Tcheck tc;
-  tc.isParameter = isParameter;
+  if (isParameter) {
+    dflags |= DF_PARAMETER;
+  }
   tc.dflags = dflags;
 
   // check first ASTTypeId
@@ -4497,7 +4492,6 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
   // leave it for now
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
     decliter->elaborateCDtors(env,
-                              false, // isParameter; temporaries are never parameters 
                               declaration0->dflags);
   }
   // don't do this for now:
@@ -6238,7 +6232,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
 {
   ASTTypeId::Tcheck tc;
-  tc.isParameter = true;
+  tc.dflags |= DF_PARAMETER;
   
   // check the parameter; this actually adds it to the
   // environment too, so we don't need to do so here
