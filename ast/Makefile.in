@@ -2,8 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # main targets
-all: astgen libast.a example.o ext1.o
-all: TAGS
+all: astgen libast.a TAGS example.o ext1.o
 
 
 # directories of other software
@@ -138,7 +137,8 @@ gendoc/demo.h gendoc/demo.cc: demo.ast astgen
 doc: gendoc gendoc/configure.txt gendoc/demo.h
 	@echo "built documentation"
 
-TAGS:; etags --members --typedefs *.cc *.h
+TAGS:
+	etags --members --typedefs *.cc *.h
 
 
 # ------------------------ misc ---------------------
