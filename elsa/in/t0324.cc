@@ -1,30 +1,25 @@
 // t0324.cc
-// isolated problem with nsCSSFrameConstructor.i
+// mix of abstract params requiring template argument deduction,
+// and concrete params where conversions are allowed
 
 template <class T>
-class nsDerivedSafe : public T {
+void f(T x, T *y);
+
+template <class T>
+void g(int x, T *y);
+
+
+struct A {
+  operator int ();
 };
-
-class nsIStyleContext {};
-
-template <class T>
-void
-GetStyleData(nsIStyleContext* aStyleContext, const T** aStyleStruct);
-
-template <class T>
-void
-GetStyleData(int, int);
-
-struct A {};
-
-template class nsDerivedSafe<nsIStyleContext>;
 
 void foo()
 {
-  const A *a;
-  nsDerivedSafe<nsIStyleContext> *ptr = 0;
+  A a;
+  int *p;
 
-  GetStyleData(ptr, &a);
+  //ERROR(1): f(a, p);   // does not work b/c first param uses template param
+  g(a, p);               // does work b/c first param is concrete
 }
 
 // EOF

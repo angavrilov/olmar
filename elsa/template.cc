@@ -1094,25 +1094,43 @@ bool Env::inferTemplArgsFromFuncArgs
   SFOREACH_OBJLIST_NC(Variable, var->type->asFunctionType()->params, paramIter) {
     Variable *param = paramIter.data();
     xassert(param);
-    // we could run out of args and it would be ok as long as we
-    // have default arguments for the rest of the parameters
-    if (!argListIter.isDone()) {
-      Type *curArgType = argListIter.data();
-      bool argUnifies = match.match_Type(curArgType, param->type);
-      if (!argUnifies) {
-        if (reportErrors) {
-          error(stringc << "during function template argument deduction: "
-                << "argument " << i << " `" << curArgType->toString() << "'"
-                << " is incompatable with parameter, `"
-                << param->type->toString() << "'");
-        }
-        return false;             // FIX: return a variable of type error?
-      }
-    } 
+    
+    // 9/26/04: if the parameter does not contain any template params,
+    // then strict matching is not required (I'm pretty sure I saw this
+    // somewhere in cppstd, and gcc agrees (in/t0324.cc), but now I can't
+    // find the proper reference...)
+    //
+    // TODO: Actually, this isn't quite right: if explicit template
+    // arguments are supplied, and after the substitution is applied
+    // this parameter's type *becomes* concrete, then we are supposed
+    // to treat it as if it always was concrete.  But the way the code
+    // is now, we will treat it as if it still was abstract and hence
+    // needed to match almost exactly.
+    if (!param->type->containsVariables()) {
+      // skip it; no deduction can occur, and any convertibility errors
+      // will be detected later
+    }
     else {
-      // sm: 9/26/04: there used to be code here that reported an error
-      // unless the parameter had a default argument, but that checking
-      // is better done elsewhere (for uniformity)
+      // we could run out of args and it would be ok as long as we
+      // have default arguments for the rest of the parameters
+      if (!argListIter.isDone()) {
+        Type *curArgType = argListIter.data();
+        bool argUnifies = match.match_Type(curArgType, param->type);
+        if (!argUnifies) {
+          if (reportErrors) {
+            error(stringc << "during function template argument deduction: "
+                  << "argument " << i << " `" << curArgType->toString() << "'"
+                  << " is incompatable with parameter, `"
+                  << param->type->toString() << "'");
+          }
+          return false;             // FIX: return a variable of type error?
+        }
+      }
+      else {
+        // sm: 9/26/04: there used to be code here that reported an error
+        // unless the parameter had a default argument, but that checking
+        // is better done elsewhere (for uniformity)
+      }
     }
 
     ++i;

@@ -1165,6 +1165,17 @@ bool BaseType::containsTypeVariables() const
 }
 
 
+bool atomicTypeHasVariable(AtomicType const *t)
+{
+  if (t->isTypeVariable()) return true;
+  if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
+    return t->asCompoundTypeC()->templateInfo()->argumentsContainVariables();
+  }
+  if (t->isPseudoInstantiation()) return true;
+
+  return false;
+}
+
 // TODO: sm: I think it's wrong to have both 'hasTypeVariable' and
 // 'hasVariable', since I think any use of the former actually wants
 // to be a use of the latter.  Moreover, assuming their functionality
@@ -1172,12 +1183,13 @@ bool BaseType::containsTypeVariables() const
 // use in templates (even if it would then be slightly inaccurate).
 bool hasVariable(Type const *t)
 {
-  if (t->isTypeVariable()) return true;
-  if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
-    return t->asCompoundTypeC()->templateInfo()->argumentsContainVariables();
+  if (t->isCVAtomicType()) {
+    return atomicTypeHasVariable(t->asCVAtomicTypeC()->atomic);
   }
-  if (t->isPseudoInstantiation()) return true;
-  // FIX: Extend for function types
+  else if (t->isPointerToMemberType()) {
+    return atomicTypeHasVariable(t->asPointerToMemberTypeC()->inClassNAT);
+  }
+  
   return false;
 }
 

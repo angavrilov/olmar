@@ -558,8 +558,8 @@ testparse t0320.cc
 testparse t0321.cc
 testparse t0322.cc
 testparse t0323.cc
-#
-#
+testparse t0324.cc
+# t0325.cc is a report from Daniel that I haven't looked at yet
 testparse t0326.cc
 
 # another set of tests, generally isolated by Daniel
