@@ -1,6 +1,12 @@
 // expressions
 
 typedef struct page { int x; } page;
+
+// interesting: g++ allows both of the following, 
+// but gcc allows neither
+//typedef struct page page;
+//typedef struct page page;
+
 typedef struct pte_t { int y; } pte_t;
 
 typedef struct Mystruct {

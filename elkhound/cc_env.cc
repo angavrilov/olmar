@@ -306,10 +306,25 @@ Variable *Env::getVariable(StringRef name, bool innerOnly)
 
 // ------------------- typedef -------------------------
 void Env::addTypedef(StringRef name, Type const *type)
-{
-  if (getTypedef(name)) {
-    errThrow(stringc
-      << "duplicate typedef for `" << name << "'");
+{       
+  Type const *prev = getTypedef(name);
+  if (prev) {
+    // in C++, saying 'struct Foo { ... }' implicitly creates
+    // "typedef struct Foo Foo;" -- but then in C programs
+    // it's typical to do this explicitly as well.  apparently g++
+    // does what I'm about to do: permit it when the typedef names
+    // the same type
+    if (prev->equals(type)) {
+      // allow it, like g++ does
+      return;
+    }
+    else {
+      errThrow(stringc <<
+        "conflicting typedef for `" << name <<
+        "' as type `" << type->toCString() <<
+        "'; previous type was `" << prev->toCString() <<
+        "'");
+    }
   }
   typedefs.add(name, const_cast<Type*>(type));
 }

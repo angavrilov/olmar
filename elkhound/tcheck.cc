@@ -300,6 +300,11 @@ Type const *TS_classSpec::tcheck(Env &env)
     xassert(ct);
   }
 
+  // C++: add an implicit typedef for the name
+  xassert(cv == CV_NONE);    // I think the syntax precludes any alternative
+  Type const *ret = env.makeCVType(ct, cv);
+  env.addTypedef(name, ret);
+
   // fill in 'ct' with its fields
   env.pushStruct(ct);      // declarations will go into 'ct'
   FOREACH_ASTLIST_NC(Declaration, members, iter) {
@@ -307,7 +312,7 @@ Type const *TS_classSpec::tcheck(Env &env)
   }
   env.popStruct();
 
-  return env.makeCVType(ct, cv);
+  return ret;
 }
 
 
