@@ -249,7 +249,7 @@ E_fieldAcc *ElabVisitor::makeE_fieldAcc
   (SourceLoc loc, Expression *obj, Variable *field)
 {
   E_fieldAcc *efieldacc = new E_fieldAcc(obj, new PQ_variable(loc, field));
-  efieldacc->type = makeLvalType(tfac, field->type);
+  efieldacc->type = makeLvalType(tfac, tfac.cloneType(field->type));
   efieldacc->field = field;
   return efieldacc;
 }
@@ -1085,7 +1085,7 @@ S_expr *ElabVisitor::make_S_expr_memberCopyAssign
 
     // "y = other.y"
     action = new E_assign(makeE_variable(loc, member), BIN_ASSIGN, otherDotY);
-    action->type = otherDotY->type;
+    action->type = tfac.cloneType(otherDotY->type);
   }
 
   // wrap up as a statement
