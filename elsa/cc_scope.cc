@@ -13,6 +13,8 @@ Scope::Scope(int cc, SourceLocation const &initLoc)
     enums(),
     changeCount(cc),
     canAcceptNames(true),
+    innerClasses(),
+    parentScope(),
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),
@@ -249,7 +251,17 @@ Variable const *Scope
   }
 
   PQ_name wrapperName(name);
-  return lookupPQVariableC(&wrapperName, env);
+  Variable const *ret = lookupPQVariableC(&wrapperName, env);
+  if (ret) return ret;
+
+  // no qualifiers and not found yet; look in parent scope
+  // [cppstd 3.4.1 para 8]
+  if (parentScope) {
+    return parentScope->lookupVariableC(name, innerOnly, env);
+  }
+  else {
+    return NULL;
+  }
 }
 
 
