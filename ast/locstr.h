@@ -26,6 +26,9 @@ public:    // funcs
   // deallocates its argument; intended for convenient use in bison grammar files
   EXPLICIT LocString(LocString *obj);
 
+  // sometimes useful for generating arguments to the above ctor
+  LocString *clone() const;
+
   LocString& operator= (LocString const &obj)
     { SourceLocation::operator=(obj); str = obj.str; return *this; }
 

@@ -23,13 +23,6 @@ LocString::LocString(FileLocation const &floc, SourceFile *f, StringRef s)
     str(s)
 {}
 
-LocString::LocString(LocString *obj)
-  : SourceLocation(*obj),
-    str(obj->str)
-{
-  delete obj;
-}
-
 
 LocString::LocString(Flatten&)
   : str(NULL)
@@ -39,6 +32,19 @@ void LocString::xfer(Flatten &flat)
 {
   xassert(flattenStrTable);
   flattenStrTable->xfer(flat, str);
+}
+
+
+LocString::LocString(LocString *obj)
+  : SourceLocation(*obj),
+    str(obj->str)
+{
+  delete obj;
+}
+
+LocString *LocString::clone() const
+{
+  return new LocString(*this);
 }
 
 
