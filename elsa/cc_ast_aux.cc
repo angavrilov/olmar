@@ -109,7 +109,19 @@ void Function::printExtras(ostream &os, int indent) const
 }
 
 
-// MemberInit
+// ---------------------- MemberInit ----------------------
+void MemberInit::printExtras(ostream &os, int indent) const
+{
+  if (member) {
+    ind(os, indent) << "member: refers to " << member->loc.toString() << "\n";
+  }       
+
+  if (base) {
+    ind(os, indent) << "base: " << base->toCString() << "\n";
+  }
+}
+
+
 // Declaration
 
 // ---------------------- ASTTypeId -----------------------

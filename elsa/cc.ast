@@ -120,6 +120,15 @@ class MemberInit (
   // standard way to make it possible to include something
   // in a FakeList; this line is repeated below in several places
   public MemberInit *next;  ctor next=NULL;     // FakeList link
+  
+  // if this is initializing a data member, tcheck will set this
+  public Variable *member;  ctor member=NULL;
+  
+  // if it's a base class ctor call, tcheck will set this instead
+  public CompoundType const *base;  ctor base=NULL;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 }
 
 

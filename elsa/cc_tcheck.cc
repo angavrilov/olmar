@@ -406,6 +406,7 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 // this is a prototype for a function down near E_funCall::itcheck
 FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
 
+// cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
 {
   CompoundType *enclosing = verifyIsCtor(env, "ctor member inits");
@@ -416,61 +417,115 @@ void Function::tcheck_memberInits(Env &env)
   // ok, so far so good; now go through and check the member
   // inits themselves
   FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
-    if (iter->name->hasQualifiers()) {
-      env.unimp("ctor member init with qualifiers");
-      continue;
-    }
+    PQName *name = iter->name;
 
     // resolve template arguments in 'name'
-    iter->name->tcheck(env);
+    name->tcheck(env);
 
-    // look for the given name in the class
-    Variable *v = enclosing->getNamedField(iter->name->getName(), env);
-    if (v) {
-      // typecheck the arguments
-      iter->args = tcheckFakeExprList(iter->args, env);
+    // check for a member variable, since they have precedence over
+    // base classes [para 2]; member inits cannot have qualifiers
+    if (!name->hasQualifiers()) {
+      // look for the given name in the class; should be an immediate
+      // member, not one that was inherited
+      Variable *v =
+        enclosing->lookupVariable(name->getName(), env, LF_INNER_ONLY);
+      if (v) {
+        // only "nonstatic data member"
+        if (v->hasFlag(DF_TYPEDEF) ||
+            v->hasFlag(DF_STATIC) ||
+            v->type->isFunctionType()) {
+          env.error("you can't initialize types, nor static data, "
+                    "nor member functions, in a ctor member init list");
+          continue;
+        }
 
-      // TODO: check that the passed arguments are consistent
-      // with at least one constructor of the variable's type
-
-      // TODO: make sure that we only initialize each member once
-
-      // TODO: provide a warning if the order in which the
-      // members are initialized is different from their
-      // declaration order, since the latter determines the
-      // order of side effects
-
-      continue;
-    }
-
-    // not a member name.. what about the name of base class?
-    // TODO: this doesn't handle virtual base classes correctly
-    bool found = false;
-    FOREACH_OBJLIST(BaseClass, enclosing->bases, baseIter) {
-      if (baseIter.data()->ct->name == iter->name->getName()) {
-        // found the right base class to initialize
-        found = true;
-
-        // TODO: verify correspondence between template arguments
-        // in the initializer name and template arguments in the
-        // base class list
+        // annotate the AST
+        iter->member = v;
 
         // typecheck the arguments
         iter->args = tcheckFakeExprList(iter->args, env);
 
         // TODO: check that the passed arguments are consistent
-        // with at least one constructor in the base class
-        
-        break;
+        // with at least one constructor of the variable's type
+
+        // TODO: make sure that we only initialize each member once
+
+        // TODO: provide a warning if the order in which the
+        // members are initialized is different from their
+        // declaration order, since the latter determines the
+        // order of side effects
+
+        continue;
       }
     }
 
-    if (!found) {
+    // not a member name.. what about the name of base class?
+    // since the base class initializer can use any name which
+    // denotes the base class [para 2], first look up the name
+    // in the environment generally
+    Variable *baseVar = env.lookupPQVariable(name);
+    if (!baseVar ||
+        !baseVar->hasFlag(DF_TYPEDEF) ||
+        !baseVar->type->isCompoundType()) {
       env.error(stringc
-        << "ctor member init name `" << *(iter->name)
-        << "' not found among class members or base classes",
-        true /*disambiguating*/);
+        << "`" << *name << "' does not denote any class");
+      continue;
     }
+    CompoundType const *baseClass = baseVar->type->asCompoundType();
+
+    // is this class a direct base, and/or an indirect virtual base?
+    bool directBase = false;
+    bool directVirtual = false;
+    bool indirectVirtual = false;
+    FOREACH_OBJLIST(BaseClass, enclosing->bases, baseIter) {
+      BaseClass const *b = baseIter.data();
+
+      // check for direct base
+      if (b->ct == baseClass) {
+        directBase = true;
+        directVirtual = b->isVirtual;
+      }
+
+      // check for indirect virtual base by looking for virtual
+      // base of a direct base class
+      if (b->ct->hasVirtualBase(baseClass)) {
+        indirectVirtual = true;
+      }
+    }
+
+    // did we find anything?
+    if (!directBase && !indirectVirtual) {
+      // if there are qualifiers, then it can't possibly be an
+      // attempt to initialize a data member
+      char const *norData = name->hasQualifiers()? "" : ", nor a data member,";
+      env.error(stringc
+        << "`" << *name << "' is not a base class" << norData
+        << " so it cannot be initialized here");
+      continue;
+    }
+
+    // check for ambiguity [para 2]
+    if (directBase && !directVirtual && indirectVirtual) {
+      env.error(stringc
+        << "`" << *name << "' is both a direct non-virtual base, "
+        << "and an indirect virtual base; therefore the initializer "
+        << "is ambiguous (there's no quick fix--you have to change "
+        << "your inheritance hierarchy or forego initialization)");
+      continue;
+    }
+
+    // annotate the AST
+    iter->base = baseClass;
+
+    // TODO: verify correspondence between template arguments
+    // in the initializer name and template arguments in the
+    // base class list
+
+    // typecheck the arguments
+    iter->args = tcheckFakeExprList(iter->args, env);
+
+    // TODO: check that the passed arguments are consistent
+    // with at least one constructor in the base class
   }
 }
 
