@@ -9,7 +9,7 @@
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "fileloc.h"      // sourceFileList (r)
 #include "ckheap.h"       // malloc_stats
-#include "cc_env.h"       // Env
+#include "c_env.h"        // Env
 #include "c.ast.gen.h"    // C AST (r)
 #include "strutil.h"      // plural
 #include "cc_lang.h"      // CCLang

@@ -8,7 +8,7 @@
 verbatim CCGr [
 
 #include "strtable.h"     // StringRef (r)
-#include "cc_type.h"      // type identifiers like ST_CHAR (r)
+#include "c_type.h"       // type identifiers like ST_CHAR (r)
 #include "lexer2.h"       // lexer2's token ids for classify()
 #include "cparse.h"       // ParseEnv
 #include "trace.h"        // trace
@@ -30,7 +30,7 @@ public:    // funcs
       lang(alang) {}
 
 private:
-  #include "cc.gr.gen.h"
+  #include "c.gr.gen.h"
   
   void declareClassTag(StringRef tagName);
 };

@@ -5,7 +5,7 @@
 
 #include "c.ast.gen.h"         // C AST stuff
 #include "ohashtbl.h"          // OwnerHashTable
-#include "cc_type.h"           // Type::equals
+#include "c_type.h"            // Type::equals
 
 // ------------------- VariablePair ---------------
 struct VariablePair {

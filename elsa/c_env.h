@@ -1,10 +1,10 @@
-// cc_env.h
-// Env class, which is the compile-time C++ environment
+// c_env.h
+// Env class, which is the compile-time C environment
 
-#ifndef CC_ENV_H
-#define CC_ENV_H
+#ifndef C_ENV_H
+#define C_ENV_H
 
-#include "cc_type.h"      // Type, AtomicType, etc. (r)
+#include "c_type.h"       // Type, AtomicType, etc. (r)
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
 #include "owner.h"        // Owner
@@ -381,4 +381,4 @@ public:
 #endif // 0
 
 
-#endif // CC_ENV_H
+#endif // C_ENV_H

@@ -2,8 +2,8 @@
 // implementation of typechecker over C ast
 
 #include "c.ast.gen.h"      // C ast
-#include "cc_type.h"        // Type, AtomicType, etc.
-#include "cc_env.h"         // Env
+#include "c_type.h"         // Type, AtomicType, etc.
+#include "c_env.h"          // Env
 #include "strutil.h"        // quoted
 #include "trace.h"          // trace
 #include "paths.h"          // printPaths
@@ -1313,8 +1313,13 @@ Type const *E_addrOf::itcheck(Env &env)
       // for globals, we require that DF_ADDRTAKEN be specified by
       // an attribute, for it to be legal to take that global's
       // address, so we have a consistent view across compilation
-      // units
-      if (!v->hasFlag(DF_ADDRTAKEN)) {
+      // units                                 
+      //
+      // I allow a tracing flag to suppress this error since I want
+      // to parse c.in4d with my C++ grammar, which doesn't have
+      // the thmprv_attr stuff...
+      if (!v->hasFlag(DF_ADDRTAKEN) &&
+          !tracingSys("suppressAddrOfError")) {
         env.err(stringc << "you have to mark the global " << v->name
                         << " as thmprv_attr(addrtaken) if you take its address");
       }
