@@ -143,6 +143,8 @@ void AEnv::makeFreshMemory(char const *why)
 void AEnv::set(Variable const *var, AbsValue *value)
 {
   value = rval(value);
+  trace("aenvSet") << "setting " << var->name 
+                   << " to " << value->toString() << endl;
   AbsVariable *avar = bindings.get(var);
   if (!avar) {
     avar = new AbsVariable(var, value, false /*memvar*/);

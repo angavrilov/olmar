@@ -5,31 +5,76 @@
 //#include <stdarg.h>     // varargs stuff
 //#include <stdlib.h>     // malloc
 
+
+
+// ------------- declarations for my predicates/functions -------
+thmprv_predicate int okSelOffsetRange(int mem, int offset, int len);
+thmprv_predicate int okSelOffset(int mem, int offset);
+thmprv_predicate int freshObj(int *obj, int *mem);
+int *sub(int index, int *rest);
+int firstIndexOf(int *ptr);
+int *appendIndex(int *ptr, int index);
+
+
+// -------- stuff from headers ------------
 struct FILE {
   int whatever;
 };
 
 extern struct FILE *stderr;
-int printf(char const *fmt, ...);
-int fprintf(struct FILE *dest, char const *fmt, ...);
 
-void *malloc(int size);
-void *calloc(int size, int nelts);
+
+int printf(char const *fmt, ...)
+  thmprv_pre(int pre_mem=mem;
+    okSelOffset(mem, fmt)
+  )
+  thmprv_post(pre_mem == mem)
+;
+
+
+int fprintf(struct FILE *dest, char const *fmt, ...)
+  thmprv_pre(int pre_mem=mem;
+    okSelOffset(mem, fmt)
+  )
+  thmprv_post(pre_mem == mem)
+;
+
+
+void *malloc(int size)
+  thmprv_pre(int *pre_mem = mem; size >= 0)
+  thmprv_post(
+    thmprv_exists(
+      int address;
+      // the returned pointer is a toplevel address only
+      address != 0 &&
+      result == sub(address, 0 /*whole*/) &&
+      // pointer points to new object
+      freshObj(address, mem) &&
+      // of at least 'size' bytes
+      okSelOffsetRange(mem, appendIndex(result, 0), size) &&
+      // and does not modify anything reachable from pre_mem
+      pre_mem == mem
+    )
+  );
+
+
 void free(void *block);
 
-extern int atoi(char const *src);
-void exit(int code);
+
+extern int atoi(char const *src)
+  thmprv_pre(
+    int pre_mem = mem;
+    okSelOffset(mem, src)     // just check that first char is readable..
+  )
+  thmprv_post(
+    pre_mem == mem            // no side effects
+  )
+;
 
 
-
-// ================= ssplain.h ======================
-void * ssplain_malloc(int size);
-void * ssplain_calloc(int nelems, int size);
-void ssplain_alloc_stats();
-
-/* All these functions */
-//#pragma boxvararg_printf("chatting", 1)
-//void chatting(char *s, ...);
+void exit(int code)
+  thmprv_post(false)
+;
 
 
 // ===================== tree.h ==========================
@@ -43,7 +88,7 @@ typedef struct tree {
     struct tree *left, *right;
 } tree_t;
 
-extern tree_t *TreeAlloc (int level);
+//extern tree_t *TreeAlloc (int level);
 
 extern int level;
 extern int iters;
@@ -51,12 +96,18 @@ extern int iters;
 
 // ======================== args.c =======================
 void filestuff()
+  thmprv_pre(int pre_mem=mem; true)
+  thmprv_post(pre_mem == mem)
 {}
 
 int level;
 int iters;
 
-int dealwithargs(int argc, char *argv[])
+int dealwithargs(int argc, char **argv)
+  thmprv_pre(
+    okSelOffsetRange(mem, argv, argc) &&
+    thmprv_forall(int i; 0<=i && i<argc ==> okSelOffset(mem, argv[i]))
+  )
 {
   if (argc > 2)
     iters = atoi(argv[2]);
@@ -72,17 +123,78 @@ int dealwithargs(int argc, char *argv[])
 }
 
 
-// ======================== node.c =======================
-int dealwithargs(int argc, char *argv[]);
+// ======================= par-alloc.c ======================
+// HACK: my vcgen has a bug if I call the same procedure I'm in,
+// and this prototype is enough separation to work around it
+tree_t *TreeAlloc (int level)
+  thmprv_pre(int pre_mem=mem;
+    level >= 0
+  )
+  thmprv_post(
+    // the returned pointer is a toplevel address only
+    result == sub(firstIndexOf(result), 0 /*whole*/) &&
+    // if we don't return NULL..
+    (result != (tree_t*)0 ==> (
+      // pointer points to new object
+      freshObj(firstIndexOf(result), mem) &&
+      // at least as big as a tree_t
+      okSelOffsetRange(mem, appendIndex(result, 0), sizeof(tree_t))
+    )) &&
+    // and does not modify anything reachable from pre_mem
+    pre_mem == mem
+  )
+;
 
+tree_t *TreeAlloc (int level)
+  thmprv_pre(int pre_mem=mem;
+    level >= 0
+  )
+  thmprv_post(
+    // the returned pointer is a toplevel address only
+    result == sub(firstIndexOf(result), 0 /*whole*/) &&
+    // if we don't return NULL..
+    (result != (tree_t*)0 ==> (
+      // pointer points to new object
+      freshObj(firstIndexOf(result), mem) &&
+      // at least as big as a tree_t
+      okSelOffsetRange(mem, appendIndex(result, 0), sizeof(tree_t))
+    )) &&
+    // and does not modify anything reachable from pre_mem
+    pre_mem == mem
+  )
+{
+
+  if (level == 0)
+    {
+      return (tree_t*)0;
+    }
+  else 
+    {
+      struct tree *newp, *right, *left;
+
+      newp = (struct tree *) malloc(0 /*sizeof(tree_t)*/);
+      left = TreeAlloc(level-1);
+      right = TreeAlloc(level-1);
+      newp->val = 1;
+      newp->left = left;
+      newp->right = right;
+      return newp;
+    }
+}
+
+
+// ======================== node.c =======================
 typedef struct {
     long 	level;
 } startmsg_t;
 
 int TreeAdd (tree_t *t);
-extern tree_t *TreeAlloc (int level);
 
-int main (int argc, char *argv[])
+int main (int argc, char **argv)
+  thmprv_pre(
+    okSelOffsetRange(mem, argv, argc) &&
+    thmprv_forall(int i; 0<=i && i<argc ==> okSelOffset(mem, argv[i]))
+  )
 {
     tree_t	*root;
     int i, result = 0;
@@ -92,11 +204,11 @@ int main (int argc, char *argv[])
 
     printf("Treeadd with %d levels\n", level);
 
-    printf("About to enter TreeAlloc\n"); 
+    printf("About to enter TreeAlloc\n");
     root = TreeAlloc (level);
-    printf("About to enter TreeAdd\n"); 
-    
-    for (i = 0; i < iters; i++) 
+    printf("About to enter TreeAdd\n");
+
+    for (i = 0; i < iters; i++)
       {
         thmprv_invariant(true);
 	fprintf(stderr, "Iteration %d...", i);
@@ -132,62 +244,5 @@ int TreeAdd (tree_t *t)
       return leftval + rightval + value;
     }
 } /* end of TreeAdd */
-
-
-// ======================= par-alloc.c ======================
-tree_t *TreeAlloc (int level)
-{
-
-  if (level == 0)
-    {
-      return (tree_t*)0;
-    }
-  else 
-    {
-      struct tree *newp, *right, *left;
-
-      newp = (struct tree *) malloc(sizeof(tree_t));
-      left = TreeAlloc(level-1);
-      right=TreeAlloc(level-1);
-      newp->val = 1;
-      newp->left = (struct tree *) left;
-      newp->right = (struct tree *) right;
-      return newp;
-    }
-}
-
-
-// ======================== ssplain.c ====================
-
-#ifndef BEFOREBOX
-static unsigned long bytes_allocated = 0;
-static unsigned long allocations = 0;
-
-void*
-ssplain_malloc(int size)
-{
-  allocations++;
-  bytes_allocated+=size;
-  return malloc(size);
-}
-
-void*
-ssplain_calloc(int nelems, int size)
-{
-  void *p;
-  allocations++;
-  bytes_allocated+= nelems * size;
-  p =  calloc(nelems, size);
-  if(! p) { printf("Cannot allocate\n"); exit(3); }
-  return p;
-}
-
-void
-ssplain_alloc_stats()
-{
-  printf("Allocation stats: %ld bytes allocated in %ld allocations\n",
-         bytes_allocated, allocations);
-}
-#endif
 
 

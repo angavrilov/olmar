@@ -37,3 +37,48 @@ valid "second" (
   ;(okSelOffset mem_24 (sel result_1 0))
 )
 
+
+
+
+; ---------------------- treeadd: TreeAlloc ---------------
+notvalid "i can't believe Simplify can't prove this" (
+  (EXISTS (addr)
+    (EQ (sub 0 0) (sub addr 0))
+  )
+)
+
+notvalid "more" (
+  (IMPLIES
+    (EQ (sub 0 0) (sub 0 0))
+    (EXISTS (addr)
+      (EQ (sub 0 0) (sub addr 0))
+    )
+  )
+)
+
+notvalid "it can't do this either.." (
+  (EXISTS (x)
+    (> x 2)
+  )
+)
+
+notvalid "another" (
+  (IMPLIES
+    (> 3 2)
+    (EXISTS (x)
+      (> x 2)
+    )
+  )
+)
+
+; valid "hmm" (
+;   (IMPLIES
+;     (AND
+;       (foo 4)
+;       (foo 5)
+;     )
+;     (EXISTS (x)
+;       (foo x)
+;     )
+;   )
+; )

@@ -646,4 +646,17 @@
   ; whatever..
   (EQ whole 0)
 
+  ; ------------------------ fresh -------------------------
+  ; two memories are (or at least can be) equal if the only
+  ; modification involves objects fresh in the older one
+  ; (this is unsound in the presence of divergent memory histories)
+  (FORALL (obj mem val)   (PATS (MPAT (freshObj obj mem)
+                                      (upd mem obj val) ))
+    (IMPLIES
+      (freshObj obj mem)    ; if mem0 never talked about obj
+      (EQ
+        (upd mem obj val)   ; then mem0 with obj changed
+        mem                 ; can be considered the same memory
+      )))
+
 ))

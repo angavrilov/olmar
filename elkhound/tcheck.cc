@@ -1103,12 +1103,18 @@ Type const *E_variable::itcheck(Env &env)
 }
 
 
-void fatal(Env &env, Expression const *expr, Type const *type, char const *msg)
+Type const *typeError(Env &env, Expression const *expr, 
+                      Type const *type, char const *msg)
 {
-  env.errThrow(
-    stringc << "expression `" << expr->toString()
-            << "', type `" << type->toString()
-            << "': " << msg);
+  if (type->isError()) {
+    return type;      // no need to report error twice
+  }
+  else {
+    return env.err(
+      stringc << "expression `" << expr->toString()
+              << "', type `" << type->toString()
+              << "': " << msg);
+  }
 }
 
 
@@ -1116,7 +1122,7 @@ Type const *E_funCall::itcheck(Env &env)
 {
   Type const *maybe = func->tcheck(env)->asRval();
   if (!maybe->isFunctionType()) {
-    fatal(env, func, maybe, "must be function type");
+    return typeError(env, func, maybe, "must be function type");
   }
   FunctionType const *ftype = &( maybe->asFunctionTypeC() );
 

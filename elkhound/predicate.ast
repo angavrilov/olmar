@@ -405,6 +405,11 @@ impl_verbatim {
           walkAbsValue(innerVis, iter.data());
         }
       }
+      ASTNEXTC(P_named, n) {
+        FOREACH_ASTLIST(AbsValue, n->args, iter) {
+          walkAbsValue(innerVis, iter.data());
+        }
+      }
       ASTENDCASECD
     }
 

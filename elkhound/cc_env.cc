@@ -217,7 +217,7 @@ void Env::leaveScope()
 // NOTE: the name lookup rules in this code have not been
 // carefully checked against what the standard requires,
 // so they are likely wrong; I intend to go through and
-// make the correct at some point
+// make them correct at some point
 
 
 // ---------------------------- variables ---------------------------
@@ -261,6 +261,10 @@ void Env::addVariable(StringRef name, Variable *decl)
         << "', this type is `" << type->toString() << "'");
     }
 
+    // TODO: this is all wrong.. I didn't want more than one Variable
+    // to exist for a given name, but this function allows more than
+    // one....
+
     // but it's ok if:
     //   - both were functions, or
     //   - one is extern, or
@@ -276,6 +280,30 @@ void Env::addVariable(StringRef name, Variable *decl)
       // ok
       // at some point I'm going to have to deal with merging the
       // information, but for now.. skip it
+
+      // merging for functions: pre/post
+      // disabled: there's a problem because the parameter names don't
+      // get symbolically evaluated right
+      if (type->isFunctionType()) {
+        FunctionType const *prevFn = &( prev->type->asFunctionTypeC() );
+        FunctionType const *curFn = &( type->asFunctionTypeC() );
+
+        // if a function has a prior declaration or definition, then
+        // I want all later occurrences to *not* have pre/post, but
+        // rather to inherit that of the prior definition.  this way
+        // nobody gets to use the function before a precondition is
+        // attached.  (may change this later, somehow)
+        // update: now just checking..
+        if (!curFn->precondition != !prevFn->precondition  || 
+            !curFn->postcondition != !prevFn->postcondition) {
+          warn("pre/post-condition different after first introduction");
+        }
+
+        // transfer the prior pre/post to the current one
+        // NOTE: this is a problem if the names of parameters are different
+        // in the previous declaration
+        //decl->type = prev->type;     // since 'curFn' is const, just point 'decl' elsewhere..
+      }
     }
     else {
       err(stringc << "duplicate variable decl: " << name);

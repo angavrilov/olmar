@@ -13,7 +13,7 @@
 #set args -tr stopAfterTCheck cc.bin c.in3
 
 file ccgr
-set args -tr predicates,owner,printAnalysisPath,addFact cc.bin vcgen/owner1.i
+set args -tr predicates,owner,printAnalysisPath,vcgen,aenvSet cc.bin vcgen/treeadd-merged.c
 
 #set args -tr factflow cc.bin vcgen/ff.c
 

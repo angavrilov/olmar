@@ -14,6 +14,7 @@ verbatim {
 
 class AbsValue {
   pure_virtual void toSexp(stringBuilder &sb) const;
+  public string toString() const;    // calls toSexp
   //private ~AbsValue();      // don't call me! (astgen doesn't quite work with this..)
 
   // ---------------- general-purpose ----------------
@@ -77,6 +78,13 @@ impl_verbatim {
   #include "str.h"          // stringBuilder
 
   //AbsValue::~AbsValue
+
+  string AbsValue::toString() const
+  {
+    stringBuilder sb;
+    toSexp(sb);
+    return sb;
+  }
 
   void AVvar::toSexp(stringBuilder &sb) const
   {

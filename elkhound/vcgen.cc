@@ -662,8 +662,19 @@ void deadenOwnerState(AEnv &env, AbsValue *value, char const *why)
 }
 
 
+// for debugger
+char *exprToString(Expression *e)
+{
+  static char buf[200];
+  strcpy(buf, e->toString());
+  return buf;
+}
+
+
 AbsValue *E_funCall::vcgen(AEnv &env, int path) const
 {
+  trace("vcgen") << "E_funCall::vcgen: " << toString() << endl;
+
   // get type of called function
   FunctionType const &ft = func->type->asRval()->asFunctionTypeC();
 
@@ -728,6 +739,8 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
   SObjListMutator<AbsValue> argExpIter(argExps);
   FOREACH_OBJLIST(FunctionType::Param, ft.params, paramIter) {
     // bind the names to the expressions that are passed
+    // BUG: if the function being called is the same one we're
+    // analyzing, this changes the local variables' bindings!
     env.set(paramIter.data()->decl,
             argExpIter.data());
 
