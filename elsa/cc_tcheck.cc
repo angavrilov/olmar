@@ -1481,7 +1481,7 @@ void TS_classSpec::tcheckFunctionBodies
       Function *f = iter.data()->asMR_func()->f;
 
       // ordinarily we'd complain about seeing two declarations
-      // of the same class member, so to tell D_name::itcheck not
+      // of the same class member, so to tell declareNewVariable not
       // to complain, this flag says we're in the second pass
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);

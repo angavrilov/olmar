@@ -358,12 +358,7 @@ class IDeclarator {
   // stored in Declarator::type.
 
   // external interface; add the type constructor represented by this
-  // IDeclarator to 'dt.type' and then make a Variable to represent
-  // it; put the variable into the environment if appropriate
-  //
-  // 'inGrouping' should be true if this IDeclarator is inside
-  // a D_grouping but not a D_pointer or D_ptrToMember (or the
-  // former is inside the latter)
+  // IDeclarator to 'dt.type'
   pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
 
   // returns true if there is a D_grouping that does not have
