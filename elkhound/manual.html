@@ -5,13 +5,19 @@
 <HEAD>
   <TITLE>Elkhound Manual</TITLE>
   <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+  <style type="text/css">
+    H1 { font-size: 150% }
+    H2 { font-size: 125% }
+    H3 { font-size: 100% }
+    P.title { font-size: 175% }
+  </style>
 </HEAD>
 
 <body>
 
-<center><h2>
-Elkhound Manual
-</h2></center>
+<center>
+<p class="title"><b>Elkhound Manual</b></p>
+</center>
 
 <p>
 This page describes the input format for grammars for the Elkhound
@@ -31,7 +37,7 @@ href="examples/arith/arith.gr">examples/arith/arith.gr</a>, a parser
 for simple arithmetic expressions.
 
 
-<h2>1. Lexical structure</h2>
+<h1>1. Lexical structure</h1>
 
 <p>
 The grammar file format is free-form, meaning that all whitespace is
@@ -47,7 +53,7 @@ include("other_file_name").
 Comments can use the C++ "//" syntax or the C "/**/" syntax.
 
 
-<h2>2. Context Class</h2>
+<h1>2. Context Class</h1>
 
 <p>
 The parser's action functions are all members of a C++ context
@@ -56,8 +62,9 @@ The class is introduced with the "<tt>context_class</tt>" keyword,
 followed by ordinary C++ syntax for classes (ending with "<tt>};</tt>");
 
 
-<h2>3. Terminals</h2>
+<h1>3. Terminals</h1>
 
+<p>
 The user must declare of all the tokens, also called terminals.  A
 block of terminal declarations looks like:
 <pre>
@@ -85,7 +92,7 @@ Normally it's expected the tokens will be described in their own
 file, and the <a href="make-tok">make-tok</a> script will create
 the token list seen above.
 
-<h3>3.1 Token Types</h3>
+<h2>3.1 Token Types</h2>
 
 <p>
 In addition to declaring the numeric codes and aliases of the tokens,
@@ -108,13 +115,13 @@ or, if specifying terminal functions,
 <p>
 The terminal functions are explained in the next sections.
 
-<h3>3.2 dup/del</h3>
+<h2>3.2 dup/del</h2>
 
 <p>
 Terminals can have <tt>dup</tt> and <tt>del</tt> functions, just like
 nonterminals.  See <a href="#dup">below</a> for more information.
 
-<h3>3.3 classify <font color="red">(advanced)</font></h3>
+<h2>3.3 classify <span style="color: red">(advanced)</span></h2>
 
 <p>
 In some situations, it is convenient to be able to alter the classification
@@ -136,54 +143,32 @@ As a representative example, here is the <tt>classify</tt> function from
 <a href="c/c.gr">c/c.gr</a>, used to implement the lexer hack for a C parser:
 <pre>
   token(StringRef) L2_NAME {
-    fun classify(s) [
+    fun classify(s) {
       if (isType(s)) {
         return L2_TYPE_NAME;
       }
       else {
         return L2_VARIABLE_NAME;
       }
-    ]
+    }
   }
 </pre>
 
-<h3>3.4 Precedence and Associativity</h3>
+<h2>3.4 Precedence/associativity specifications</h2>
 
 <p>
-[TODO: Write this.  For now, you can look at what
-<a href="http://www.gnu.org/software/bison/manual/html_node/Precedence.html">Bison has to say</a>,
-though that is pretty short.]
+Inside a block that begins with "<tt>precedence {</tt>" and ends with 
+"<tt>}</tt>", one may list directives of the form
+<blockquote>
+  <i>dir</i> &nbsp;&nbsp;&nbsp; <i>num</i> &nbsp;&nbsp;&nbsp; <i>tok...</i> &nbsp;&nbsp;&nbsp; <tt>;</tt>
+</blockquote>
+where <i>dir</i> is a precedence direction, <i>num</i> a precedence
+number, and <i>tok...</i> a sequence of tokens (either token names or
+aliases).  The effect is to associate <i>dir</i>/<i>num</i> with
+each listed token.  The meaning of such specifications is explained
+in Section&nbsp;7, below.
 
-<p>
-Ok, short version:
-
-<p>
-The user associates a precedence number and direction (left/right) with
-some tokens.  A rule gets a precedence number/direction from the rightmost
-terminal in that rule, or from an explicit 'precedence' declaration.
-
-<p>
-The resulting token and rule prec/assoc info is used during parser
-generation (only), to resolve shift/reduce and reduce/reduce conflicts.
-"Resolving" a conflict means removing one of the possible actions from the
-parse tables.  It is implemented in <tt>GrammarAnalysis::resolveConflicts()</tt>.
-
-<p>
-When a shift/reduce conflict is encountered between token and a rule, if
-the token has higher precedence, then a shift is used, otherwise a reduce
-is used.  If they have the same precedence, then the direction is
-consulted (a given precedence number is assumed to always have the same
-direction): 'left' associativity means to reduce, and 'right'
-associativity means to shift.
-
-<p>
-When a reduce/reduce conflict is encountered, the highest precedence rule
-is chosen.  (As I write this, I now realize that Bison doesn't do it, and
-wonder whether it's even a good idea.  Well anyway, it is what Elkhound
-does at the moment.)
-
-
-<h2>4. Nonterminals</h2>
+<h1>4. Nonterminals</h1>
 
 <p>
 Following the terminals, the bulk of the grammar is one or more
@@ -221,7 +206,7 @@ assigning to <tt>$$</tt>.
 <p>
 There are four kinds of nontermial functions, described below.
 
-<h3><a name="dup">4.1 dup</a></h3>
+<h2><a name="dup">4.1 dup</a></h2>
 
 <p>
 Because of the way the GLR algorithm operates, a semantic value
@@ -262,7 +247,7 @@ Common <tt>dup()</tt> strategies:
     management in use.
 </ul>
 
-<h3>4.2 del</h3>
+<h2>4.2 del</h2>
 
 <p>
 A natural counterpart to <tt>dup()</tt>, <tt>del()</tt> accepts values
@@ -283,7 +268,7 @@ Common <tt>del()</tt> strategies:
     value passed to <tt>del()</tt> can be treated appropriately.
 </ul>
 
-<h3>4.3 merge</h3>
+<h2>4.3 merge</h2>
 
 <p>
 An <em>ambiguity</em> is the condition when a single sequence of
@@ -327,7 +312,7 @@ Common <tt>merge()</tt> strategies:
     due to the type/variable ambiguity.
 </ul>
 
-<h3>4.4 keep</h3>
+<h2>4.4 keep</h2>
 
 <p>
 Sometimes, a potential ambiguity can be prevented if a semantic value
@@ -362,7 +347,7 @@ Common <tt>keep</tt> strategies:
 
 
 
-<h2>5. Options</h2>
+<h1>5. Options</h1>
 
 <p>
 A number of variations in parser generator behavior can be requested
@@ -376,7 +361,7 @@ or, for options that accept an argument:
 </blockquote>
 The various options are described in the following sections.
 
-<h3>5.1 useGCDefaults</h3>
+<h2>5.1 useGCDefaults</h2>
 
 <p>
 The command
@@ -394,7 +379,7 @@ of specification needed to get started.  The rationale for not making
 <tt>useGCDefaults</tt> the global default is that users should be aware
 that the issue of sharing management is being swept under the carpet.
 
-<h3>5.2 defaultMergeAborts</h3>
+<h2>5.2 defaultMergeAborts</h2>
 
 <p>
 The command
@@ -406,7 +391,7 @@ instructs the parser generator that if the grammar does not specify a
 and then abort the program.  This is a good idea once it is believed
 that all the ambiguities have been handleded by <tt>merge()</tt> functions.
 
-<h3>5.3 Expected conflicts, unreachable symbols</h3>
+<h2>5.3 Expected conflicts, unreachable symbols</h2>
 
 <p>
 Nominally, the parser generator expects there to be no shift/reduce
@@ -438,7 +423,7 @@ inaccessible):
   option unreachable_terminals 2;
 </pre>
 
-<h2>6. OCaml</h2>
+<h1>6. OCaml</h1>
 
 <p>
 By default, Elkhound generates a parser in C++.  By specifying
@@ -447,7 +432,113 @@ the user can request that instead the parser generate OCaml code.
 Please see <a href="ocaml/">ocaml/</a>, probably starting with
 the example driver <a href="ocaml/main.ml">ocaml/main.ml</a>.
 
+<h1>7. Precedence and Associativity</h1>
 
+<p>
+Precedence and associativity ("prec/assoc") declarations are a
+technique for statically resolving conflicts.  They are often
+convenient, but can also be confusing.
+
+<p>
+Precisely understanding prec/assoc requires some familiarity of the
+details of LR parsing, in particular the difference between "shift"
+and "reduce".  The following description assumes the reader is
+familiar with these concepts.  If you are not, Section&nbsp;2 of the
+<a href="http://www.cs.berkeley.edu/~smcpeak/elkhound/elkhound.ps">Elkhound
+technical report</a> contains a brief description.
+
+<h2>7.1 Meaning of prec/assoc specifications</h2>
+
+<p>
+A prec/assoc specification is a precedence number, and an associativity
+direction.  Precedence numbers are integers, where larger integers
+have "higher precedence".  An associativity direction is one of
+the following:
+<table border="2">
+  <tr>
+    <th>Name</th>
+    <th>Mnemonic</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>left</td>
+    <td>left associative</td>
+    <td>Resolve shift/reduce by reducing.</td>
+  </tr>
+  <tr>
+    <td>right</td>
+    <td>right associative</td>
+    <td>Resolve shift/reduce by shifting.</td>
+  </tr>
+  <tr>
+    <td>nonassoc</td>
+    <td>non associative</td>
+    <td>"Resolve" shift/reduce by deleting <em>both</em> possibilities,
+        consequently making associative uses into parse-time syntax errors.</td>
+  </tr>
+  <tr>
+    <td>prec</td>
+    <td>specify only precedence</td>
+    <td>This directive asserts that a grammar does not have a conflict that
+        would require using the associativity direction; if it does,
+        it is a parser-generation-time error.</td>
+   </tr>
+   <tr>
+     <td>assoc_split</td>
+     <td></td>
+     <td>Do not resolve the conflict; the GLR algorithm will split the
+         parse stack as necessary.</td>
+   </tr>
+</table>
+
+<h2>7.2 Attaching prec/assoc to tokens and productions</h2>
+
+<p>
+Each token can be associated with a prec/assoc specification.
+By default, a token has no prec/assoc specification.  However, a
+specification can be attached via the <tt>precedence</tt> block of the
+<tt>terminals</tt> section of the grammar file (see Section 3.4, above).
+
+<p>
+Each production can be associated with a precedence number.
+If a production includes any terminals among its RHS elements, then
+the production inherits the precedence number of the <em>rightmost</em>
+terminal in the RHS; if the rightmost terminal has no prec/assoc
+specification, then the rule has no precedence.  The precedence
+number can also be explicitly supplied by writing
+<blockquote>
+  <tt>precedence (</tt> <i>tok</i> <tt>)</tt>
+</blockquote>
+at the end of the RHS (just before the action).  This will use the 
+precedence of <i>tok</i> instead of the rightmost terminal.
+
+
+<h2>7.3 Conflict resolution with prec/assoc specifications</h2>
+
+<p>
+The resulting token and rule prec/assoc info is used during parser
+generation (only), to resolve shift/reduce and reduce/reduce conflicts.
+"Resolving" a conflict means removing one of the possible actions from the
+parse tables.  It is implemented in <tt>GrammarAnalysis::resolveConflicts()</tt>.
+
+<p>
+When a shift/reduce conflict is encountered between token and a rule, if
+the token has higher precedence, then a shift is used, otherwise a reduce
+is used.  If they have the same precedence, then the associativity direction
+of the token is consulted, using the resolution procedures described in
+the table above.
+
+<p>
+When a reduce/reduce conflict is encountered, the highest precedence rule
+is chosen.
+
+<p>
+In both cases, if either conflicting entity does not have any prec/assoc
+specification, then no resolution is done, and the GLR algorithm will
+split the parse stack at parse time as necessary.
+
+
+<!-- this is TODO ... <h2>7.4 Examples</h2> -->
 
 
 <p>
