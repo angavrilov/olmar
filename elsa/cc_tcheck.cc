@@ -3637,6 +3637,9 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
           at = env.makeArrayType(loc, dt.type);
         }
         else {
+          // TODO: If 'sz' is dependent, then we need to construct some
+          // kind of ArrayType whose size is an arbitrary expression.
+
           // constuct the type
           at = env.makeArrayType(loc, dt.type, sz);
         }
@@ -3651,8 +3654,8 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     if (size) {
       // try to evaluate the size to a constant
       int sz;
-      string errorMsg;
-      if (!size->constEval(errorMsg, sz)) {
+      ConstEval cenv;
+      if (!size->constEval(cenv, sz)) {
         // size didn't evaluate to a constant
         sz = ArrayType::NO_SIZE;
         if ((dt.context == DC_S_DECL ||
@@ -3663,21 +3666,21 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
           // allow it anyway
           sz = ArrayType::DYN_SIZE;
         }
-        else if (errorMsg.length() > 0) {
+        else if (cenv.msg.length() > 0) {
           // report the error
-          env.error(errorMsg);
+          env.error(cenv.msg);
         }
       }
       else {
         // check restrictions on array size (c.f. cppstd 8.3.4 para 1)
         if (env.lang.strictArraySizeRequirements) {
           if (sz <= 0) {
-            env.error(loc, "array size must be positive");
+            env.error(loc, stringc << "array size must be positive (it is " << sz << ")");
           }
         }
         else {
           if (sz < 0) {
-            env.error(loc, "array size must be nonnegative");
+            env.error(loc, stringc << "array size must be nonnegative (it is " << sz << ")");
           }
         }
       }
@@ -7680,226 +7683,24 @@ Type *E_grouping::itcheck_grouping_set(Env &env, Expression *&replacement,
 
 bool Expression::constEval(Env &env, int &result) const
 {
-  string msg;
-  if (constEval(msg, result)) {
+  bool dependent;
+  return constEval(env, result, dependent);
+}
+
+bool Expression::constEval(Env &env, int &result, bool &dependent) const
+{
+  dependent = false;
+
+  ConstEval cenv;
+  if (constEval(cenv, result)) {
+    dependent = cenv.dependent;
     return true;
   }
-  
-  if (msg.length() > 0) {
-    env.error(msg);
+
+  if (cenv.msg.length() > 0) {
+    env.error(cenv.msg);
   }
   return false;
-}
-
-
-bool Expression::constEval(string &msg, int &result) const
-{
-  xassert(!ambiguity);
-
-  if (type->isError()) {
-    // don't try to const-eval an expression that failed
-    // to typecheck
-    return false;
-  }
-
-  ASTSWITCHC(Expression, this) {
-    // Handle this idiom for finding a member offset:
-    // &((struct scsi_cmnd *)0)->b.q
-    ASTCASEC(E_addrOf, eaddr)
-      return eaddr->expr->constEvalAddr(msg, result);
-      
-    ASTNEXTC(E_boolLit, b)
-      result = b->b? 1 : 0;
-      return true;
-
-    ASTNEXTC(E_intLit, i)
-      result = i->i;
-      return true;
-
-    ASTNEXTC(E_charLit, c)
-      result = c->c;
-      return true;
-
-    ASTNEXTC(E_variable, v)
-      if (v->var->isEnumerator()) {
-        result = v->var->getEnumeratorValue();
-        return true;
-      }
-
-      if (v->var->type->isCVAtomicType() &&
-          (v->var->type->asCVAtomicTypeC()->cv & CV_CONST) &&
-          v->var->value) {
-        // const variable
-        return v->var->value->constEval(msg, result);
-      }
-
-      msg = stringc
-        << "can't const-eval non-const variable `" << v->var->name << "'";
-      return false;
-
-    ASTNEXTC(E_constructor, c)
-      if (type->isIntegerType()) {
-        // allow it; should only be 1 arg, and that will be value
-        return c->args->first()->constEval(msg, result);
-      }
-      else {
-        msg = "can only const-eval E_constructors for integer types";
-        return false;
-      }
-
-    ASTNEXTC(E_sizeof, s)
-      result = s->size;
-      return true;
-
-    ASTNEXTC(E_unary, u)
-      if (!u->expr->constEval(msg, result)) return false;
-      switch (u->op) {
-        default: xfailure("bad code");
-        case UNY_PLUS:   result = +result;  return true;
-        case UNY_MINUS:  result = -result;  return true;
-        case UNY_NOT:    result = !result;  return true;
-        case UNY_BITNOT: result = ~result;  return true;
-      }
-
-    ASTNEXTC(E_binary, b)
-      if (b->op == BIN_COMMA) {
-        // avoid trying to eval the LHS
-        return b->e2->constEval(msg, result);
-      }
-
-      int v1, v2;
-      if (!b->e1->constEval(msg, v1) ||
-          !b->e2->constEval(msg, v2)) return false;
-
-      if (v2==0 && (b->op == BIN_DIV || b->op == BIN_MOD)) {
-        msg = "division by zero in constant expression";
-        return false;
-      }
-
-      switch (b->op) {
-        case BIN_EQUAL:     result = (v1 == v2);  return true;
-        case BIN_NOTEQUAL:  result = (v1 != v2);  return true;
-        case BIN_LESS:      result = (v1 < v2);  return true;
-        case BIN_GREATER:   result = (v1 > v2);  return true;
-        case BIN_LESSEQ:    result = (v1 <= v2);  return true;
-        case BIN_GREATEREQ: result = (v1 >= v2);  return true;
-
-        case BIN_MULT:      result = (v1 * v2);  return true;
-        case BIN_DIV:       result = (v1 / v2);  return true;
-        case BIN_MOD:       result = (v1 % v2);  return true;
-        case BIN_PLUS:      result = (v1 + v2);  return true;
-        case BIN_MINUS:     result = (v1 - v2);  return true;
-        case BIN_LSHIFT:    result = (v1 << v2);  return true;
-        case BIN_RSHIFT:    result = (v1 >> v2);  return true;
-        case BIN_BITAND:    result = (v1 & v2);  return true;
-        case BIN_BITXOR:    result = (v1 ^ v2);  return true;
-        case BIN_BITOR:     result = (v1 | v2);  return true;
-        case BIN_AND:       result = (v1 && v2);  return true;
-        case BIN_OR:        result = (v1 || v2);  return true;
-        // BIN_COMMA handled above
-
-        default:         // BIN_BRACKETS, etc.
-          return false;
-      }
-
-    ASTNEXTC(E_cast, c)
-      if (!c->expr->constEval(msg, result)) return false;
-
-      Type *t = c->ctype->getType();
-      if (t->isIntegerType() ||
-          t->isPointer()) {             // for Linux kernel
-        return true;       // ok
-      }
-      else {
-        // TODO: this is probably not the right rule..
-        msg = stringc
-          << "in constant expression, can only cast to integer or pointer types, not `"
-          << t->toString() << "'";
-        return false;
-      }
-
-    ASTNEXTC(E_cond, c)
-      if (!c->cond->constEval(msg, result)) return false;
-
-      if (result) {
-        return c->th->constEval(msg, result);
-      }
-      else {
-        return c->el->constEval(msg, result);
-      }
-
-    ASTNEXTC(E_sizeofType, s)
-      result = s->size;
-      return true;
-
-    ASTNEXTC(E_grouping, e)
-      return e->expr->constEval(msg, result);
-
-    ASTDEFAULTC
-      return extConstEval(msg, result);
-
-    ASTENDCASEC
-  }
-}
-
-// The intent of this function is to provide a hook where extensions
-// can handle the 'constEval' message for their own AST syntactic
-// forms, by overriding this function.  The non-extension nodes use
-// the switch statement above, which is more compact.
-bool Expression::extConstEval(string &msg, int &result) const
-{
-  msg = stringc << kindName() << " is not constEval'able";
-  return false;
-}
-
-bool Expression::constEvalAddr(string &msg, int &result) const
-{
-  result = 0;                   // FIX: this is wrong
-  int result0;                  // dummy for use below
-  // FIX: I'm sure there are cases missing from this
-  ASTSWITCHC(Expression, this) {
-    // These two are dereferences, so they recurse back to constEval().
-    ASTCASEC(E_deref, e)
-      return e->ptr->constEval(msg, result0);
-      break;
-
-    ASTNEXTC(E_arrow, e)
-      return e->obj->constEval(msg, result0);
-      break;
-
-    // These just recurse on constEvalAddr().
-    ASTNEXTC(E_fieldAcc, e)
-      return e->obj->constEvalAddr(msg, result0);
-      break;
-
-    ASTNEXTC(E_cast, e)
-      return e->expr->constEvalAddr(msg, result0);
-      break;
-
-    ASTNEXTC(E_keywordCast, e)
-      // FIX: haven't really thought about these carefully
-      switch (e->key) {
-      default:
-        xfailure("bad CastKeyword");
-      case CK_DYNAMIC:
-        return false;
-        break;
-      case CK_STATIC: case CK_REINTERPRET: case CK_CONST:
-        return e->expr->constEvalAddr(msg, result0);
-        break;
-      }
-      break;
-
-    ASTNEXTC(E_grouping, e)
-      return e->expr->constEvalAddr(msg, result);
-      break;
-
-    ASTDEFAULTC
-      return false;
-      break;
-
-    ASTENDCASEC
-  }
 }
 
 
@@ -8267,110 +8068,10 @@ void TA_type::itcheck(Env &env)
   sarg.setType(t);
 }
 
-static void setSTemplArgFromExpr
-  (Env &env, STemplateArgument &sarg, Expression *expr, int recursionCount)
-{
-  // see cppstd 14.3.2 para 1
-
-  if (expr->type->isIntegerType() ||
-      expr->type->isBool() ||
-      expr->type->isEnumType()) {
-    int i;
-    string msg;   // discarded
-    if (expr->constEval(msg, i)) {
-      sarg.setInt(i);
-    }
-    else if (env.inUninstTemplate()) {
-      // assume that the cause is evaluating an expression that refers
-      // to a (non-type) template argument (TODO: confirm)
-      sarg.setDepExpr(expr);
-    }
-    else {
-      env.error(stringc
-        << "cannot evaluate `" << expr->exprToString()
-        << "' as a template integer argument");
-    }
-  }
-
-  else if (expr->type->isReference()) {
-    if (expr->isE_variable()) {
-      // see if it has a value and replace it with that
-      Env::TemplTcheckMode mode = env.getTemplTcheckMode();
-      if (mode == Env::TTM_2TEMPL_FUNC_DECL
-          || mode == Env::TTM_3TEMPL_DEF
-          || recursionCount > 0) {
-        sarg.setReference(expr->asE_variable()->var);
-      } else if (mode == Env::TTM_1NORMAL) {
-        Variable *var0 = expr->asE_variable()->var;
-        if (!var0) {
-          return;     // the error will already have been reported
-        }
-        if (var0->isEnumerator()) {      // in/t0394.cc
-          sarg.setInt(var0->getEnumeratorValue());
-          return;
-        }
-        if (!var0->value) {
-          env.error(stringc
-                    << "`" << expr->exprToString() << "' must lookup to a variable with a value "
-                    << "for it to be a variable template reference argument");
-          return;
-        }
-        // FIX: I suppose we should check here that the type of
-        // var0->value is what we expect from the expr
-        setSTemplArgFromExpr(env, sarg, var0->value, 1 /*recursionCount*/);
-      } else {
-        xfailure("bad");
-      }
-    }
-    else {
-      env.error(stringc
-        << "`" << expr->exprToString() << "' must be a simple variable "
-        << "for it to be a template reference argument");
-    }
-  }
-
-  else if (expr->type->isPointer()) {
-    if (expr->isE_addrOf() &&
-        expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setPointer(expr->asE_addrOf()->asE_variable()->var);
-    }
-    else {
-      env.error(stringc
-        << "`" << expr->exprToString() << " must be the address of a "
-        << "simple variable for it to be a template pointer argument");
-    }
-  }
-
-  else if (expr->type->isPointerToMemberType()) {
-    // this check is identical to the case above, but combined with
-    // the inferred type it checks for a different syntax
-    if (expr->isE_addrOf() &&
-        expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setMember(expr->asE_addrOf()->asE_variable()->var);
-    }
-    else {
-      env.error(stringc
-        << "`" << expr->exprToString() << " must be the address of a "
-        << "class member for it to be a template pointer argument");
-    }
-  }
-
-  // do I need an explicit exception for this?
-  //else if (expr->type->isTypeVariable()) {
-
-  else {
-    env.error(expr->type, stringc
-      << "`" << expr->exprToString() << "' has type `"
-      << expr->type->toString() << "' but that's not an allowable "
-      << "type for a template argument");
-  }
-}
-
-
 void TA_nontype::itcheck(Env &env)
 {
   expr->tcheck(env, expr);
-  setSTemplArgFromExpr(env, sarg, expr, 0 /*recursionCount*/);
+  env.setSTemplArgFromExpr(sarg, expr, 0 /*recursionCount*/);
 }
 
 

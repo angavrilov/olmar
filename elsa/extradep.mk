@@ -14,3 +14,4 @@ main.o: cc.ast.gen.h
 main.o: cc.gr.gen.h
 parssppt.o: cc_tokens.h
 tlexer.o: cc_tokens.h
+const_eval.o: cc.ast.gen.h

@@ -797,6 +797,9 @@ public:      // template funcs
     (TemplateInfo *tinfo,
      ASTList<TemplateArgument> const &templateArgs);
 
+  void setSTemplArgFromExpr
+    (STemplateArgument &sarg, Expression *expr, int recursionCount);
+  
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
                                      MatchTypes &match, InferArgFlags iflags);

@@ -1170,6 +1170,9 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
     else if (!param->hasFlag(DF_TYPEDEF) && arg->isTA_nontype()) {
       STemplateArgument *bound = new STemplateArgument;
       Expression *expr = arg->asTA_nontypeC()->expr;
+      setSTemplArgFromExpr(*bound, expr, 0 /*recursionCount*/);
+
+      #if 0   // old?
       if (expr->getType()->isIntegerType()) {
         int staticTimeValue;
         bool constEvalable = expr->constEval(*this, staticTimeValue);
@@ -1198,6 +1201,7 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
         unimp("unhandled kind of template argument");
         return false;
       }
+      #endif // 0
       match.bindings.putObjVar(param, bound);
     }
     else {
@@ -2839,33 +2843,113 @@ STemplateArgument *Env::makeDefaultTemplateArgument
   // non-type parameter?
   else if (!param->hasFlag(DF_TYPEDEF) &&
            param->value) {
-    // This was unimplemented in the old code, so I'm going to
-    // keep that behavior.  Back then I said, in reference to
-    // simply using 'param->value' directly:
-    //
-    // sm: the statement above seems reasonable, but I'm not at
-    // all convinced it's really right... has it been tcheck'd?
-    // has it been normalized?  are these things necessary?  so
-    // I'll wait for a testcase to remove this assertion... before
-    // this assertion *is* removed, someone should read over the
-    // applicable parts of cppstd
-    //xfailure("unimplemented: default non-type argument");
-    
-    // 8/21/04: attempting to implement w/o reading cppstd... :}
-    int val;
     STemplateArgument *ret = new STemplateArgument;
-    if (param->value->constEval(*this, val)) {
-      // I am just hoping it's an int ....
-      ret->setInt(val);
-    }
-    else {
-      // error already reported, but proceed anyway
-      ret->setInt(0);
-    }
+    env.setSTemplArgFromExpr(*ret, param->value, 0 /*recursionCount*/);
     return ret;
   }
-  
+
   return NULL;
+}
+
+
+// 2005-03-05: 'recursionCount' should be removed, or at least renamed
+void Env::setSTemplArgFromExpr
+  (STemplateArgument &sarg, Expression *expr, int recursionCount)
+{
+  // see cppstd 14.3.2 para 1
+
+  if (expr->type->isIntegerType() ||
+      expr->type->isBool() ||
+      expr->type->isEnumType()) {
+    int i;
+    ConstEval cenv;
+    if (expr->constEval(cenv, i)) {
+      if (cenv.dependent) {
+        sarg.setDepExpr(expr);
+      }
+      else {
+        sarg.setInt(i);
+      }
+    }
+    else {
+      env.error(stringc
+        << "cannot evaluate `" << expr->exprToString()
+        << "' as a template integer argument: " << cenv.msg);
+    }
+  }
+
+  else if (expr->type->isReference()) {
+    if (expr->isE_variable()) {
+      // see if it has a value and replace it with that
+      Env::TemplTcheckMode mode = env.getTemplTcheckMode();
+      if (mode == Env::TTM_2TEMPL_FUNC_DECL
+          || mode == Env::TTM_3TEMPL_DEF
+          || recursionCount > 0) {
+        sarg.setReference(expr->asE_variable()->var);
+      } else if (mode == Env::TTM_1NORMAL) {
+        Variable *var0 = expr->asE_variable()->var;
+        if (!var0) {
+          return;     // the error will already have been reported
+        }
+        if (var0->isEnumerator()) {      // in/t0394.cc
+          sarg.setInt(var0->getEnumeratorValue());
+          return;
+        }
+        if (!var0->value) {
+          env.error(stringc
+                    << "`" << expr->exprToString() << "' must lookup to a variable with a value "
+                    << "for it to be a variable template reference argument");
+          return;
+        }
+        // FIX: I suppose we should check here that the type of
+        // var0->value is what we expect from the expr
+        setSTemplArgFromExpr(sarg, var0->value, 1 /*recursionCount*/);
+      } else {
+        xfailure("bad");
+      }
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << "' must be a simple variable "
+        << "for it to be a template reference argument");
+    }
+  }
+
+  else if (expr->type->isPointer()) {
+    if (expr->isE_addrOf() &&
+        expr->asE_addrOf()->expr->isE_variable()) {
+      sarg.setPointer(expr->asE_addrOf()->asE_variable()->var);
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << " must be the address of a "
+        << "simple variable for it to be a template pointer argument");
+    }
+  }
+
+  else if (expr->type->isPointerToMemberType()) {
+    // this check is identical to the case above, but combined with
+    // the inferred type it checks for a different syntax
+    if (expr->isE_addrOf() &&
+        expr->asE_addrOf()->expr->isE_variable()) {
+      sarg.setMember(expr->asE_addrOf()->asE_variable()->var);
+    }
+    else {
+      env.error(stringc
+        << "`" << expr->exprToString() << " must be the address of a "
+        << "class member for it to be a template pointer argument");
+    }
+  }
+
+  // do I need an explicit exception for this?
+  //else if (expr->type->isTypeVariable()) {
+
+  else {
+    env.error(expr->type, stringc
+      << "`" << expr->exprToString() << "' has type `"
+      << expr->type->toString() << "' but that's not an allowable "
+      << "type for a template argument");
+  }
 }
 
 

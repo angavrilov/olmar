@@ -422,15 +422,15 @@ void IN_designated::tcheck(Env &env, Type *type)
 
 
 // ------------------ const-eval, etc. -------------------
-bool E_gnuCond::extConstEval(string &msg, int &result) const
+bool E_gnuCond::extConstEval(ConstEval &env, int &result) const
 {
-  if (!cond->constEval(msg, result)) return false;
+  if (!cond->constEval(env, result)) return false;
 
   if (result) {
     return true;
   }
   else {
-    return el->constEval(msg, result);
+    return el->constEval(env, result);
   }
 }
 
@@ -441,11 +441,11 @@ bool E_gnuCond::extHasUnparenthesizedGT() const
 }
 
 
-bool E_gnuMinMax::extConstEval(string &msg, int &result) const
+bool E_gnuMinMax::extConstEval(ConstEval &env, int &result) const
 {
   int r1, r2;
-  if (!e1->constEval(msg, r1)) return false;
-  if (!e2->constEval(msg, r2)) return false;
+  if (!e1->constEval(env, r1)) return false;
+  if (!e2->constEval(env, r2)) return false;
 
   if (isMin) {
     result = r1<r2? r1 : r2;

@@ -15,5 +15,19 @@ void f()
   x.arr;
   y.arr;
   z.arr;
+  
+  //ERROR(1): Foo<-5> w;    // negative array size not allowed
 }
 
+
+template <class T>
+class A {                    
+  // will be error if it thinks it knows the size of T
+  int arr[sizeof(T) - 10];
+};
+
+void g()
+{
+  typedef int blah[30];
+  A<blah> a;
+}

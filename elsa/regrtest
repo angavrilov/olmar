@@ -332,7 +332,7 @@ testparse t0108.cc
 testparse t0108b.cc
 testparse t0109.cc
 testparse t0110.cc
-testparse t0111.cc
+testparse_strict t0111.cc
 testparse t0112.cc
 testparse t0113.cc
 testparse t0114.cc
@@ -669,6 +669,7 @@ testparse t0431.cc
 testparse t0432.cc
 testparse_strict t0433.cc
 failparse t0434.cc "problems with quantified dependent return types"
+failparse_struct t0435.cc "need for ArrayType with dependent size"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
