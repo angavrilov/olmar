@@ -536,8 +536,7 @@ bool MatchTypes::match(Type *a, Type *b, MFlags mFlags)
   // Second, the semantics of this will change if hash-consing is ever
   // implemented, and would be different in client code (Oink) where
   // hash-consing is turned off.
-  if (typePairSet.in(a, b)) return true;
-  else typePairSet.put(a, b);
+  if (typePairSet.lookup(a, b, true /*insertIfMissing*/)) return true;
   // roll our own dynamic dispatch
   switch (a->getTag()) {
     default: xfailure("bad tag");

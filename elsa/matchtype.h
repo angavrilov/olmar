@@ -48,10 +48,9 @@ class VoidPairSet {
     unsigned int hashvalue() const    { return hash0(a, b); }
   };
 
+public:
   // return true if was already there
   bool lookup(void *a, void *b, bool insertIfMissing);
-
-public:
   // is this pair in the set?
   bool in(void *a, void *b)  { return lookup(a, b, false /*insertIfMissing*/); }
   // put this pair into the set
@@ -63,6 +62,9 @@ template<class T>
 class PairSet {
   VoidPairSet vPairSet;
   public:
+  bool lookup(void *a, void *b, bool insertIfMissing) {
+    return vPairSet.lookup(a, b, insertIfMissing);
+  }
   bool in(T *a, T *b) {
     return vPairSet.in(a, b);
   }
