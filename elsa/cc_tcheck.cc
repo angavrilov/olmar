@@ -1171,16 +1171,20 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 
   // a gcc-2.95.3 compiler bug is making this code segfault..
   // will disable it for now and try again when I have more time
-  #if 0
+  //
+  // update: I got this to work by fixing Scope::getCompoundIter(),
+  // which was returning an entire StrSObjDict instead of an iter..
+  // but that still should have worked (though it wasn't what I
+  // intended), so something still needs to be investigated
+  #if 1
   // check function bodies of any inner classes, too, since only
   // a non-inner class will call tcheckFunctionBodies directly
   StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
-  
+
   // if these print different answers, gcc has a bug
   trace("sm") << "compound top: " << ct->private_compoundTop() << "\n"
               << "iter current: " << innerIter.private_getCurrent() << endl;
 
-  // compiler bug..
   for (; !innerIter.isDone(); innerIter.next()) {
     CompoundType *inner = innerIter.value();
 
