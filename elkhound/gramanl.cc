@@ -1066,8 +1066,9 @@ void GrammarAnalysis::xfer(Flatten &flat)
 
   // don't bother xferring 'symOfInterest', since it's
   // only used for debugging
-
-  xferOwnerPtr(flat, tables);
+    
+  // 7/27/03: tables are no longer xferrable
+  //xferOwnerPtr(flat, tables);
 
   // now do the easily-computable stuff
   // NOTE: these functions are also called by initializeAuxData,
@@ -3059,9 +3060,17 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
                            startState->id,
                            0 /* slight hack: assume it's the first production */);
 
-  // temporary place to build the ambigTable before installing
-  // it into 'table'
-  ArrayStack<ActionEntry> ambigTable;
+  #if 0   // not finished
+  if (ENABLE_CRS_COMPRESSION) {
+    // copy the first-state info
+    for (int t=0; t<numTerms; t++) {
+      tables->firstWithTerminal[t] = firstWithTerminal[t]->id;
+    }
+    for (int nt=0; nt<numNonterms; nt++) {
+      tables->firstWithNonterminal[nt] = firstWithNonterminal[nt]->id;
+    }
+  }
+  #endif // 0
 
   // count total number of conflicts of each kind
   int sr=0, rr=0;
@@ -3097,18 +3106,17 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       int actions = (shiftDest? 1 : 0) + reductions.count();
       if (actions >= 2) {
         // make a new ambiguous-action entry-set
-        cellAction = tables->encodeAmbig(ambigTable.length());
-
-        // first element is the # of actions
-        ambigTable.push(actions);
+        cellAction = tables->beginAmbig(actions);
 
         // fill in the actions
         if (shiftDest) {
-          ambigTable.push(tables->encodeShift(shiftDest->id));
+          tables->addAmbig(cellAction, tables->encodeShift(shiftDest->id));
         }
         SFOREACH_PRODUCTION(reductions, prodIter) {
-          ambigTable.push(tables->encodeReduce(prodIter.data()->prodIndex));
+          tables->addAmbig(cellAction, tables->encodeReduce(prodIter.data()->prodIndex));
         }
+        
+        tables->finishAmbig(cellAction);
       }
 
       else {
@@ -3127,8 +3135,8 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       }
 
       // add this entry to the table
-      tables->actionEntry(state->id, termId) = cellAction;
-      
+      tables->setActionEntry(state->id, termId, cellAction);
+
       // based on the contents of 'reductions', decide whether this
       // state is delayed or not; to be delayed, the state must be
       // able to reduce by a production which:
@@ -3170,22 +3178,13 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       }
 
       // fill in entry
-      tables->gotoEntry(state->id, nontermId) = cellGoto;
+      tables->setGotoEntry(state->id, nontermId, cellGoto);
     }
 
     // get the state symbol
-    xassert((unsigned)(state->id) < (unsigned)(tables->numStates));
-    tables->stateSymbol[state->id] =
-      encodeSymbolId(state->getStateSymbolC());
-  }
-  
-  // copy the ambiguous actions               
-  {
-    int len = ambigTable.length();
-    tables->ambigTableSize = len;
-    tables->ambigTable = new ActionEntry[len];
-    memcpy(tables->ambigTable, ambigTable.getArray(), 
-           sizeof(ActionEntry) * len);
+    xassert((unsigned)(state->id) < (unsigned)(tables->getNumStates()));
+    tables->setStateSymbol(state->id,
+      encodeSymbolId(state->getStateSymbolC()));
   }
 
   // report on conflict counts
@@ -3203,9 +3202,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   // fill in 'prodInfo'
   for (int p=0; p<numProds; p++) {
     Production const *prod = getProduction(p);
-
-    tables->prodInfo[p].rhsLen = prod->rhsLength();
-    tables->prodInfo[p].lhsIndex = prod->left->ntIndex;
+    tables->setProdInfo(p, prod->rhsLength(), prod->left->ntIndex);
   }
   
   // use the derivability relation to compute a total order
@@ -3215,7 +3212,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   for (int nt=0; nt < numNonterms; nt++) {               
     // expand from 'nt' in case it's disconnected; this will be
     // a no-op if we've already 'seen' it
-    topologicalSort(tables->nontermOrder, nextOrdinal, nt, seen);
+    topologicalSort(tables->getWritableNontermOrder(), nextOrdinal, nt, seen);
   }
   xassert(nextOrdinal == -1);    // should have used them all
   
@@ -3537,8 +3534,8 @@ void GrammarAnalysis::lrParse(char const *input)
 
   // parser state
   int currentToken = 0;               // index of current token
-  int state = startState->id;         // current parser state
-  ArrayStack<int> stateStack;         // stack of parser states; top==state
+  StateId state = startState->id;     // current parser state
+  ArrayStack<StateId> stateStack;     // stack of parser states; top==state
   stateStack.push(state);
   ArrayStack<Symbol const*> symbolStack;    // stack of shifted symbols
 
@@ -3548,12 +3545,12 @@ void GrammarAnalysis::lrParse(char const *input)
     Terminal *symbol = findTerminal(tok[currentToken]);     // (constness)
 
     // consult action table
-    ActionEntry action = tables->actionEntry(state, symbol->termIndex);
+    ActionEntry action = tables->getActionEntry(state, symbol->termIndex);
 
     // see what kind of action it is
     if (tables->isShiftAction(action)) {
       // shift
-      int destState = tables->decodeShift(action);
+      StateId destState = tables->decodeShift(action);
 
       // push current state and symbol
       state = destState;
@@ -3572,7 +3569,7 @@ void GrammarAnalysis::lrParse(char const *input)
     else if (tables->isReduceAction(action)) {
       // reduce
       int prodIndex = tables->decodeReduce(action);
-      ParseTables::ProdInfo const &info = tables->prodInfo[prodIndex];
+      ParseTables::ProdInfo const &info = tables->getProdInfo(prodIndex);
 
       // it is here that an action or tree-building step would
       // take place
@@ -3584,8 +3581,8 @@ void GrammarAnalysis::lrParse(char const *input)
       symbolStack.popMany(info.rhsLen);
 
       // find out where to go
-      int destState = tables->decodeGoto(
-        tables->gotoEntry(state, info.lhsIndex));
+      StateId destState = tables->decodeGoto(
+        tables->getGotoEntry(state, info.lhsIndex));
 
       // go there
       state = destState;
@@ -4123,8 +4120,8 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "\n";
   out << "\n";
 
-  g.tables->emitConstructionCode(out,
-    stringc << g.actionClassName << "::makeTables");
+  g.tables->finishTables();
+  g.tables->emitConstructionCode(out, g.actionClassName, "makeTables");
 
   // I put this last in the context class, and make it public
   dcl << "\n"
@@ -4145,11 +4142,14 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
 
 void emitUserCode(EmitCode &out, LocString const &code, bool braces)
 {
+  out << "\n";
+  if (code.validLoc()) {
+    out << lineDirective(code.loc);
+  }
+  
+  // 7/27/03: swapped so that braces are inside the line directive
   if (braces) {
     out << "{";
-  }
-  if (code.validLoc()) {
-    out << "\n" << lineDirective(code.loc);
   }
 
   out << code;
@@ -4315,7 +4315,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
       dcl << " " << elt.tag;
     }
 
-    out << ")\n";
+    out << ")";
     dcl << ");\n";
 
     // now insert the user's code, to execute in this environment of
@@ -4655,9 +4655,6 @@ int inner_entry(int argc, char **argv)
   // the default naming scheme
   string prefix;
   
-  // debugging option
-  bool testRW = false;
-
   while (argv[0] && argv[0][0] == '-') {
     char const *op = argv[0]+1;
     if (0==strcmp(op, "tr")) {
@@ -4676,7 +4673,9 @@ int inner_entry(int argc, char **argv)
     }
     else if (0==strcmp(op, "testRW")) {
       SHIFT;
-      testRW = true;
+      cout << "The testRW option has been removed because I wasn't using\n"
+              "it, and the code that implements it has bit-rotted.\n";
+      exit(3);
     }
     else {
       cout << "unknown option: " << argv[0] << endl;
@@ -4707,8 +4706,6 @@ int inner_entry(int argc, char **argv)
     // default naming scheme
     prefix = replace(argv[0], ".gr", "");
   }
-
-  bool printCode = true;
 
   SourceLocManager mgr;
 
@@ -4744,16 +4741,6 @@ int inner_entry(int argc, char **argv)
     return 2;
   }
 
-  // print some stuff to a test file
-  char const g1Fname[] = "gramanl.g1.tmp";
-  if (testRW) {
-    traceProgress() << "printing ascii grammar " << g1Fname << endl;
-    {
-      ofstream out(g1Fname);
-      g.printProductionsAndItems(out, printCode);
-    }
-  }
-
   // emit some C++ code
   string hFname = stringc << prefix << ".h";
   string ccFname = stringc << prefix << ".cc";
@@ -4765,13 +4752,6 @@ int inner_entry(int argc, char **argv)
   // before using 'xfer' we have to tell it about the string table
   flattenStrTable = &grammarStringTable;
 
-  // write the analyzed grammar to a file
-  string binFname = stringc << prefix << ".bin";
-  if (testRW || tracingSys("binaryGrammar")) {
-    traceProgress() << "writing binary grammar file " << binFname << endl;
-    writeParseTablesFile(g.tables, binFname);
-  }
-
   // write it in a bison-compatible format as well
   if (tracingSys("bison")) {
     string bisonFname = stringc << prefix << ".y";
@@ -4780,45 +4760,7 @@ int inner_entry(int argc, char **argv)
     g.printAsBison(out);
   }
 
-  if (testRW) {
-    // to test what happens on a fresh read, blank the string table
-    grammarStringTable.clear();
-
-    // read in the binary file
-    traceProgress() << "reading binary grammar file " << binFname << endl;
-    BFlatten flatIn(binFname, true /*reading*/);
-    GrammarAnalysis g2;
-    g2.xfer(flatIn);
-
-    // print same stuff to another file
-    char const g2Fname[] = "gramanl.g2.tmp";
-    traceProgress() << "printing ascii grammar " << g2Fname << endl;
-    {
-      ofstream out(g2Fname);
-      g2.printProductionsAndItems(out, printCode);
-    }
-
-    // diff 'em
-    traceProgress() << "comparing ascii grammar\n";
-    if (system(stringc << "diff " << g1Fname << " " << g2Fname) != 0) {
-      cout << "the grammars differ!!\n";
-      return 4;
-    }
-
-    // remove the temps
-    if (!tracingSys("keep-tmp")) {
-      remove(g1Fname);
-      remove(g2Fname);
-    }
-
-    cout << "ticksComputeNonkernel: " << ticksComputeNonkernel << endl;
-    cout << "testRW SUCCESS!\n";
-  }
-
-  else {
-    // I want to know how long writing takes
-    traceProgress() << "done\n";
-  }
+  traceProgress() << "done\n";
 
   // this doesn't work
   if (tracingSys("explore")) {

@@ -2,10 +2,10 @@
 # see license.txt for copyright and terms of use
 
 # I uncomment this temporarily to just build certain modules
-#tmp: elkhound libelkhound.a
+#tmp: glr.o
 
-# main targets: two C parsers and one C++ parser
-all: elkhound libelkhound.a c cc2/cc2.exe
+# main targets: elkhound, a C parser and a C++ parser
+all: elkhound libelkhound.a arith c cc2/cc2.exe
 	@echo BUILD FINISHED
 
 # TODO: put these back, ideally in the same executable as the non-t versions
@@ -276,9 +276,11 @@ c.in/c.in4d: c.in/c.in4c
 	done
 
 # stuff in examples directory
-.PHONY: examples
-examples: all glrmain.o
+.PHONY: examples arith
+arith: elkhound libelkhound.a
 	$(MAKE) -C examples/arith
+
+examples: all glrmain.o arith
 	$(MAKE) -C examples/cexp
 	$(MAKE) -C examples/cdecl
 

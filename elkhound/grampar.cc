@@ -155,13 +155,17 @@ void setAnnotations(GrammarAST *ast)
 
 LocString extractActionClassName(LocString const &body)
 {
+  // find start of first token
+  char const *start = body.str;
+  while (isspace(*start)) start++;
+
   // find end of first token
-  char const *p = body.str;
+  char const *p = start;
   while (isspace(*p)) p++;
   while (isalnum(*p) || *p=='_') p++;
   
   // yield that, with the same source location
-  return LocString(body.loc, grammarStringTable.add(string(body.str, p-body.str)));
+  return LocString(body.loc, grammarStringTable.add(string(start, p-start)));
 }
 
 

@@ -21,6 +21,8 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 {
   owning = true;
 
+  temp = new TempData;
+
   numTerms = t;
   numNonterms = nt;
   numStates = s;
@@ -52,10 +54,28 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 
   nontermOrder = new NtIndex[nontermOrderSize()];
   memset(nontermOrder, 0, sizeof(nontermOrder[0]) * nontermOrderSize());
-            
+
+  if (ENABLE_CRS_COMPRESSION) {
+    firstWithTerminal = new StateId[numTerms];
+    memset(firstWithTerminal, 0, sizeof(firstWithTerminal[0]) * numTerms);
+
+    firstWithNonterminal = new StateId[numNonterms];
+    memset(firstWithNonterminal, 0, sizeof(firstWithNonterminal[0]) * numNonterms);
+  }
+  else {
+    firstWithTerminal = NULL;
+    firstWithNonterminal = NULL;
+  }
+
+  bigProductionList = NULL;
+  productionsForState = NULL;
+
+  bigAmbigPtrTable = NULL;
+  ambigStateTable = NULL;
+
   // # of bytes, but rounded up to nearest 32-bit boundary
   errorBitsRowSize = ((numTerms+31) >> 5) * 4;
-                                       
+
   // no compressed info
   uniqueErrorRows = 0;
   errorBits = NULL;
@@ -68,6 +88,10 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 
 ParseTables::~ParseTables()
 {
+  if (temp) {
+    delete temp;
+  }
+
   if (owning) {
     delete[] actionTable;
     delete[] gotoTable;
@@ -98,6 +122,15 @@ ParseTables::~ParseTables()
 }
 
 
+ParseTables::TempData::TempData()
+  : ambigTable(),
+    recentAmbig(0)
+{}
+
+ParseTables::TempData::~TempData()
+{}
+
+
 ActionEntry ParseTables::validateAction(int code) const
 {
   // make sure that 'code' is representable; if this fails, most likely
@@ -120,118 +153,54 @@ GotoEntry ParseTables::validateGoto(int code) const
 }
 
 
-ParseTables::ParseTables(Flatten &flat)
-{
-  actionTable = NULL;
-  gotoTable = NULL;
-  prodInfo = NULL;
-  stateSymbol = NULL;
-  nontermOrder = NULL;
-}
-
-
-template <class T>
-void xferSimpleArray(Flatten &flat, T *array, int numElements)
-{
-  int len = sizeof(array[0]) * numElements;
-  flat.xferSimple(array, len);
-  flat.checkpoint(crc32((unsigned char const *)array, len));
-}
-
-void ParseTables::xfer(Flatten &flat)
-{
-  xfailure("this code hasn't been maintained in a while, and probably doesn't work");
-
-  // arbitrary number which serves to make sure we're at the
-  // right point in the file
-  flat.checkpoint(0x1B2D2F16);
-
-  flat.xferInt(numTerms);
-  flat.xferInt(numNonterms);
-  flat.xferInt(numStates);
-  flat.xferInt(numProds);
-
-  flat.xferInt((int&)startState);
-  flat.xferInt(finalProductionIndex);
-
-  if (flat.reading()) {
-    alloc(numTerms, numNonterms, numStates, numProds,
-          startState, finalProductionIndex);
-  }
-
-  xferSimpleArray(flat, actionTable, actionTableSize());
-  xferSimpleArray(flat, gotoTable, gotoTableSize());
-  xferSimpleArray(flat, prodInfo, numProds);
-  xferSimpleArray(flat, stateSymbol, numStates);
-  xferSimpleArray(flat, nontermOrder, nontermOrderSize());
-
-  #if 0    // hasn't been updated since switch to 'ambigTable'
-  // ambigAction
-  if (flat.writing()) {
-    flat.writeInt(numAmbig());
-    for (int i=0; i<numAmbig(); i++) {
-      flat.writeInt(ambigAction[i][0]);    // length of this entry
-
-      for (int j=0; j<ambigAction[i][0]; j++) {
-        flat.writeInt(ambigAction[i][j+1]);
-      }
-    }
-  }
-
-  else {
-    int ambigs = flat.readInt();
-    for (int i=0; i<ambigs; i++) {
-      int len = flat.readInt();
-      ActionEntry *entry = new ActionEntry[len+1];
-      entry[0] = len;
-
-      for (int j=0; j<len; j++) {
-        entry[j+1] = flat.readInt();
-      }
-
-      ambigAction.push(entry);
-    }
-  }
-
-  // make sure reading and writing agree
-  flat.checkpoint(numAmbig());
-  #endif // 0
-}
-
-
-ParseTables *readParseTablesFile(char const *fname)
-{
-  // assume it's a binary grammar file and try to
-  // read it in directly
-  traceProgress() << "reading parse tables file " << fname << endl;
-  BFlatten flat(fname, true /*reading*/);
-
-  ParseTables *ret = new ParseTables(flat);
-  ret->xfer(flat);
-
-  return ret;
-}
-
-
-void writeParseTablesFile(ParseTables const *tables, char const *fname)
-{
-  BFlatten flatOut(fname, false /*reading*/);
-  
-  // must cast away constness because there's no way to tell
-  // the compiler that 'xfer' doesn't modify its argument
-  // when it writing mode
-  const_cast<ParseTables*>(tables)->xfer(flatOut);
-}
-
-
 // doesn't init anything; for use by emitConstructionCode's emitted code
 ParseTables::ParseTables(bool o)
-  : owning(o)
+  : owning(o),
+    temp(NULL)
 {
   xassert(owning == false);
 }
 
-      
+
+ActionEntry ParseTables::beginAmbig(int numActions)
+{
+  temp->recentAmbig = encodeAmbig(temp->ambigTable.length());
+
+  // first element is the # of actions
+  temp->ambigTable.push(numActions);
+
+  return temp->recentAmbig;
+}
+
+void ParseTables::addAmbig(ActionEntry ambigHeader, ActionEntry newAction)
+{
+  xassert(temp->recentAmbig == ambigHeader);
+  temp->ambigTable.push(newAction);
+}
+
+void ParseTables::finishAmbig(ActionEntry ambigHeader)
+{
+  xassert(temp->recentAmbig == ambigHeader);
+  temp->recentAmbig = 0;
+}
+
+
+void ParseTables::finishTables()
+{
+  // copy the ambiguous actions               
+  {
+    int len = temp->ambigTable.length();
+    ambigTableSize = len;
+    ambigTable = new ActionEntry[len];
+    memcpy(ambigTable, temp->ambigTable.getArray(),
+           sizeof(ActionEntry) * len);
+  }
+
+  delete temp;
+  temp = NULL;
+}
+
+
 // -------------------- table compression --------------------
 void ParseTables::computeErrorBits()
 {                     
@@ -303,7 +272,7 @@ void ParseTables::fillInErrorBits(bool setPointers)
     }
 
     for (int t=0; t < numTerms; t++) {
-      if (isErrorAction(actionEntry(s, t))) {
+      if (isErrorAction(actionEntry((StateId)s, t))) {
         ErrorBitsEntry &b = errorBitsPointers[s][t >> 3];
         b |= 1 << (t & 7);
       }
@@ -332,8 +301,8 @@ void ParseTables::mergeActionColumns()
     for (int t2=0; t2 < t1; t2++) {
       // does column 't1' conflict with column 't2'?
       for (int s=0; s < numStates; s++) {
-        ActionEntry a1 = actionEntry(s, t1);
-        ActionEntry a2 = actionEntry(s, t2);
+        ActionEntry a1 = actionEntry((StateId)s, t1);
+        ActionEntry a2 = actionEntry((StateId)s, t2);
 
         if (isErrorAction(a1) ||
             isErrorAction(a2) ||
@@ -368,7 +337,7 @@ void ParseTables::mergeActionColumns()
     for (int s=0; s<numStates; s++) {
       ActionEntry &dest = newTable[s*numColors + c];
 
-      ActionEntry src = actionEntry(s, t);
+      ActionEntry src = actionEntry((StateId)s, t);
       if (!isErrorAction(src)) {
         // make sure there's no conflict (otherwise the graph
         // coloring algorithm screwed up)
@@ -714,7 +683,7 @@ template <class EltType>
 void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
                      char const *typeName, char const *tableName, char const *baseName)
 {
-  out << "  ret->" << tableName << " = new " << typeName << " [" << size << "];\n";
+  out << "  " << tableName << " = new " << typeName << " [" << size << "];\n";
 
   // make the pointers persist by storing a table of offsets
   Array<int> offsets(size);
@@ -725,8 +694,8 @@ void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
 
   // at run time, interpret the offsets table
   out << "  for (int i=0; i < " << size << "; i++) {\n"
-      << "    ret->" << tableName << "[i] = ret->" << baseName
-      <<                                " + " << tableName << "_offsets[i];\n"
+      << "    " << tableName << "[i] = " 
+      << baseName << " + " << tableName << "_offsets[i];\n"
       << "  }\n";
 }
 
@@ -734,20 +703,28 @@ void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
 // emit code for a function which, when compiled and executed, will
 // construct this same table (except the constructed table won't own
 // the table data, since it will point to static program data)
-void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
-{
+void ParseTables::emitConstructionCode(EmitCode &out, 
+  char const *className, char const *funcName)
+{                
+  // must have already called 'finishTables'
+  xassert(!temp);
+
   out << "// this makes a ParseTables from some literal data;\n"
       << "// the code is written by ParseTables::emitConstructionCode()\n"
       << "// in " << __FILE__ << "\n"
-      << "ParseTables *" << funcName << "()\n"
-      << "{\n";
-
-  out << "  ParseTables *ret = new ParseTables(false /*owning*/);\n"
-      << "\n";
+      << "class " << className << "_ParseTables : public ParseTables {\n"
+      << "public:\n"
+      << "  " << className << "_ParseTables();\n"
+      << "};\n"
+      << "\n"
+      << className << "_ParseTables::" << className << "_ParseTables()\n"
+      << "  : ParseTables(false /*owning*/)\n"
+      << "{\n"
+      ;
 
   // set all the integer-like variables
   #define SET_VAR(var) \
-    out << "  ret->" #var " = " << var << ";\n";
+    out << "  " #var " = " << var << ";\n";
   SET_VAR(numTerms);
   SET_VAR(numNonterms);
   SET_VAR(numStates);
@@ -755,7 +732,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   SET_VAR(actionCols);
   SET_VAR(actionRows);
   SET_VAR(ambigTableSize);
-  out << "  ret->startState = (StateId)" << (int)startState << ";\n";
+  out << "  startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
   SET_VAR(errorBitsRowSize);
   SET_VAR(uniqueErrorRows);
@@ -764,78 +741,61 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
 
   // action table, one row per state
   emitTable(out, actionTable, actionTableSize(), actionCols,
-            "ActionEntry", "actionTable");
-  out << "  ret->actionTable = actionTable;\n\n";
+            "ActionEntry", "actionTable0");
+  out << "  actionTable = actionTable0;\n\n";
 
   // goto table, one row per state
   emitTable(out, gotoTable, gotoTableSize(), numNonterms,
-            "GotoEntry", "gotoTable");
-  out << "  ret->gotoTable = gotoTable;\n\n";
+            "GotoEntry", "gotoTable0");
+  out << "  gotoTable = gotoTable0;\n\n";
 
   // production info, arbitrarily 16 per row
-  emitTable(out, prodInfo, numProds, 16, "ParseTables::ProdInfo", "prodInfo");
-  out << "  ret->prodInfo = prodInfo;\n\n";
+  emitTable(out, prodInfo, numProds, 16, "ParseTables::ProdInfo", "prodInfo0");
+  out << "  prodInfo = prodInfo0;\n\n";
 
   // state symbol map, arbitrarily 16 per row
-  emitTable(out, stateSymbol, numStates, 16, "SymbolId", "stateSymbol");
-  out << "  ret->stateSymbol = stateSymbol;\n\n";
+  emitTable(out, stateSymbol, numStates, 16, "SymbolId", "stateSymbol0");
+  out << "  stateSymbol = stateSymbol0;\n\n";
 
   // ambigTable
-  emitTable(out, ambigTable, ambigTableSize, 16, "ActionEntry", "ambigTable");
-  out << "  ret->ambigTable = ambigTable;\n\n";
+  emitTable(out, ambigTable, ambigTableSize, 16, "ActionEntry", "ambigTable0");
+  out << "  ambigTable = ambigTable0;\n\n";
 
   // nonterminal order
   emitTable(out, nontermOrder, nontermOrderSize(), 16,
-            "NtIndex", "nontermOrder");
-  out << "  ret->nontermOrder = nontermOrder;\n\n";
+            "NtIndex", "nontermOrder0");
+  out << "  nontermOrder = nontermOrder0;\n\n";
 
   // errorBits
   if (!errorBits) {
-    out << "  ret->errorBits = NULL;\n";
-    out << "  ret->errorBitsPointers = NULL;\n";
+    out << "  errorBits = NULL;\n";
+    out << "  errorBitsPointers = NULL;\n";
   }
   else {
     emitTable(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
-              "ErrorBitsEntry", "errorBits");
-    out << "  ret->errorBits = errorBits;\n";
+              "ErrorBitsEntry", "errorBits0");
+    out << "  errorBits = errorBits0;\n";
     out << "\n";
 
     emitOffsetTable(out, errorBitsPointers, errorBits, numStates,
                     "ErrorBitsEntry*", "errorBitsPointers", "errorBits");
-
-    #if 0     // delete me
-    out << "  ret->errorBitsPointers = new ErrorBitsEntry* [" << numStates << "];\n";
-
-    // make the pointers persist by storing a table of offsets
-    int *offsets = new int[numStates];
-    for (int s=0; s < numStates; s++) {
-      offsets[s] = errorBitsPointers[s] - errorBits;
-    }
-    emitTable(out, offsets, numStates, 16, "int", "offsets");
-    delete[] offsets;
-
-    // at run time, interpret the offsets table
-    out << "  for (int s=0; s < " << numStates << "; s++) {\n"
-        << "    ret->errorBitsPointers[s] = ret->errorBits + offsets[s];\n"
-        << "  }\n";       
-    #endif // 0
   }
   out << "\n";
 
   // actionIndexMap
   if (!actionIndexMap) {
-    out << "  ret->actionIndexMap = NULL;\n";
+    out << "  actionIndexMap = NULL;\n";
   }
   else {
     emitTable(out, actionIndexMap, numTerms, 16,
-              "TermIndex", "actionIndexMap");
-    out << "  ret->actionIndexMap = actionIndexMap;\n";
+              "TermIndex", "actionIndexMap0");
+    out << "  actionIndexMap = actionIndexMap0;\n";
   }
   out << "\n";
 
   // actionRowPointers
   if (!actionRowPointers) {
-    out << "  ret->actionRowPointers = NULL;\n";
+    out << "  actionRowPointers = NULL;\n";
   }
   else {
     emitOffsetTable(out, actionRowPointers, actionTable, numStates,
@@ -843,8 +803,24 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   }
   out << "\n";
 
-  out << "  return ret;\n"
-      << "}\n";
+  // misc CRS-related things (all NULL for now)
+  out << "  firstWithTerminal = NULL;\n"
+      << "  firstWithNonterminal = NULL;\n"
+      << "  bigProductionList = NULL;\n"
+      << "  productionsForState = NULL;\n"
+      << "  bigAmbigPtrTable = NULL;\n"
+      << "  ambigStateTable = NULL;\n"
+      ;
+
+  out << "}\n"
+      << "\n"
+      << "\n"
+      << "ParseTables *" << className << "::" << funcName << "()\n"
+      << "{\n"
+      << "  return new " << className << "_ParseTables;\n"
+      << "}\n"
+      << "\n"
+      ;
 }
 
 

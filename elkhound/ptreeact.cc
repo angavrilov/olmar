@@ -62,7 +62,7 @@ STATICDEF SemanticValue ParseTreeActions::reduce(
   ParseTreeActions *ths = static_cast<ParseTreeActions*>(context);
 
   // get info about this production
-  ParseTables::ProdInfo const &info = ths->tables->prodInfo[productionId];
+  ParseTables::ProdInfo const &info = ths->tables->getProdInfo(productionId);
   xassert(info.rhsLen <= PTreeNode::MAXCHILDREN);
 
   // make a bare PTreeNode, labeled with the LHS nonterminal name

@@ -77,14 +77,36 @@ inline NtIndex symAsNonterm(SymbolId id) { return (NtIndex)(-(id+1)); }
 SymbolId encodeSymbolId(Symbol const *sym);       // gramanl.cc
 
 
+// assign, but check for truncation
+template <class DEST, class SRC>
+inline void checkAssign(DEST &d, SRC s)
+{
+  d = (DEST)s;
+  xassert(d == s);
+}
+
+
 // the parse tables are the traditional action/goto, plus the list
 // of ambiguous actions, plus any more auxilliary tables useful during
-// run-time parsing; the eventual goal is to be able to keep *only*
-// this structure around for run-time parsing; most things in this
-// class are public because it's a high-traffic access point, so I
-// expose interpretation information and the raw data itself instead
-// of an abstract interface
+// run-time parsing
 class ParseTables {
+private:    // types
+  // data about an intermediate state of parse table construction;
+  // once the table is finished, this data gets consolidated into the
+  // actual tables, and then thrown away
+  class TempData {
+  public:   // data
+    // nascent ambigTable
+    ArrayStack<ActionEntry> ambigTable;
+
+    // most recently created ambiguous action
+    ActionEntry recentAmbig;
+
+  public:   // funcs
+    TempData();
+    ~TempData();
+  };
+
 public:     // types
   // per-production info
   struct ProdInfo {
@@ -92,13 +114,15 @@ public:     // types
     NtIndex lhsIndex;                    // 'ntIndex' of LHS
   };
 
-private:    // data
+protected:  // data
   // when this is false, all of the below "(owner*)" annotations are
   // actually "(serf)", i.e. this object does *not* own any of the
   // tables (see emitConstructionCode())
   bool owning;
 
-public:     // data
+  // non-NULL during construction
+  TempData *temp;                        // (nullable owner)
+
   // # terminals, nonterminals in grammar
   int numTerms;
   int numNonterms;
@@ -133,16 +157,6 @@ public:     // data
   int ambigTableSize;
   ActionEntry *ambigTable;               // (nullable owner*)
 
-  //ArrayStack<ActionEntry*> ambigAction;  // (array of owner ptrs)
-  //int numAmbig() const { return ambigAction.length(); }
-
-  // start state id
-  StateId startState;
-
-  // index of the production which will finish a parse; it's the
-  // final reduction executed
-  int finalProductionIndex;
-
   // total order on nonterminals for use in choosing which to
   // reduce to in the RWL algorithm; index into this using a
   // nonterminal index, and it yields the ordinal for that
@@ -161,13 +175,12 @@ public:     // data
   // --------------------- table compression ----------------------
 
   // table compression techniques taken from:
-  //    [DDH] Peter Dencker, Karl Dürre, and Johannes Heuft.
-  //    Optimization of Parser Tables for Portable Compilers.
-  //    In ACM TOPLAS, 6, 4 (1984) 546-572.
-  //    http://citeseer.nj.nec.com/context/27540/0 (not in database)
-  //    ~/doc/papers/p546-dencker.pdf (from ACM DL)
+  //   [DDH] Peter Dencker, Karl Dürre, and Johannes Heuft.
+  //   Optimization of Parser Tables for Portable Compilers.
+  //   In ACM TOPLAS, 6, 4 (1984) 546-572.
+  //   http://citeseer.nj.nec.com/context/27540/0 (not in database)
+  //   ~/doc/papers/p546-dencker.pdf (from ACM DL)
 
-  #if 0    // still working
   // Code Reduction Scheme (CRS):
   //
   // Part (a):  The states are numbered such that all states that
@@ -184,11 +197,10 @@ public:     // data
   ProdIndex *bigProductionList;          // (nullable owner*) array into which 'productionsForState' points
   ProdIndex **productionsForState;       // (nullable owner to serf) state -> prod
   //
-  // Part (c):  The ambiguous actions are collected together in
-  // par-state lists as well.  But that's done regardless of whether
-  // other CRS activities are done.  The encoding is explained above.
-  // (THIS IS WRONG)
-  #endif // 0
+  // Part (c):  Pointers into 'ambigTable' are are collected together in
+  // per-state lists as well.
+  ActionEntry **bigAmbigPtrTable;        // (nullable owner)
+  ActionEntry ***ambigStateTable;        // (nullable owner) state -> (ambigStateTableIndex -> ActionEntry*)
 
   // Error Entry Factoring (EEF):
   //
@@ -221,67 +233,66 @@ public:     // data
   int actionRows;                        // rows in actionTable[]
   ActionEntry **actionRowPointers;       // (nullable owner ptr to serfs)
 
+public:     // data
+  // These are public because if they weren't, I'd just have a stupid
+  // getter/setter pattern that exposes them anyway.
+
+  // start state id
+  StateId startState;
+
+  // index of the production which will finish a parse; it's the
+  // final reduction executed
+  int finalProductionIndex;
+
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
              StateId start, int finalProd);
 
-  void fillInErrorBits(bool setPointers);
-  int colorTheGraph(int *color, Bit2d &graph);
-
-public:     // funcs
-  ParseTables(int numTerms, int numNonterms, int numStates, int numProds,
-              StateId start, int finalProd);
-  ParseTables(bool owning);    // only legal when owning==false
-  ~ParseTables();
-
-  ParseTables(Flatten&);
-  void xfer(Flatten &flat);
-  
-  // write the tables out as C++ source that can be compiled into
-  // the program that will ultimately do the parsing
-  void emitConstructionCode(EmitCode &out, char const *funcName);
-
   // index tables
-  ActionEntry &actionEntry(int stateId, int termId)
+  ActionEntry &actionEntry(StateId stateId, int termId)
     { return actionTable[stateId*actionCols + termId]; }
   int actionTableSize() const
     { return actionRows * actionCols; }
-  GotoEntry &gotoEntry(int stateId, int nontermId)
+  GotoEntry &gotoEntry(StateId stateId, int nontermId)
     { return gotoTable[stateId*numNonterms + nontermId]; }
   int gotoTableSize() const
     { return numStates * numNonterms; }
 
-  // return true if the action is an error
-  bool actionEntryIsError(int stateId, int termId) {
-    #if ENABLE_EEF_COMPRESSION
-      // check with the error table
-      return ( errorBitsPointers[stateId][termId >> 3]
-                 >> (termId & 7) ) & 1;
-    #else
-      return isErrorAction(actionEntry(stateId, termId));
-    #endif
-  }
+  void fillInErrorBits(bool setPointers);
+  int colorTheGraph(int *color, Bit2d &graph);
 
-  // query action table, without checking the error bitmap
-  ActionEntry getActionEntry_noError(int stateId, int termId) {
-    #if ENABLE_GCS_COMPRESSION
-      return actionRowPointers[stateId][actionIndexMap[termId]];
-    #else
-      return actionEntry(stateId, termId);
-    #endif
-  }
+protected:  // funcs
+  // the idea is that 'emitConstructionCode' will emit code that
+  // defines a subclass of 'ParseTables'; that's why so many of the
+  // data members are protected: the subclass can then access them
+  // directly, which is very convenient when trying to construct the
+  // tables from static data
+  ParseTables(bool owning);    // only legal when owning==false
 
-  // query the action table in a way compatible with various
-  // compression schemes
-  ActionEntry getActionEntry(int stateId, int termId) {
-    #if ENABLE_EEF_COMPRESSION
-      if (actionEntryIsError(stateId, termId)) {
-        return 0;       // error
-      }
-    #endif
+public:     // funcs
+  ParseTables(int numTerms, int numNonterms, int numStates, int numProds,
+              StateId start, int finalProd);
+  ~ParseTables();
 
-    return getActionEntry_noError(stateId, termId);
-  }
+  // simple queries
+  int getNumTerms() const { return numTerms; }
+  int getNumNonterms() const { return numNonterms; }
+  int getNumStates() const { return numStates; }
+  int getNumProds() const { return numProds; }
+
+  // finish construction; do this before emitting code
+  void finishTables();
+
+  // write the tables out as C++ source that can be compiled into
+  // the program that will ultimately do the parsing
+  void emitConstructionCode(EmitCode &out, char const *className, char const *funcName);
+
+
+  // -------------------- table construction ------------------------
+  void setActionEntry(StateId stateId, int termId, ActionEntry act)
+    { actionEntry(stateId, termId) = act; }
+  void setGotoEntry(StateId stateId, int nontermId, GotoEntry got)
+    { gotoEntry(stateId, nontermId) = got; }
 
   // encode actions
   ActionEntry encodeShift(StateId stateId) const
@@ -293,6 +304,71 @@ public:     // funcs
   ActionEntry encodeError() const
     { return validateAction(0); }
   ActionEntry validateAction(int code) const;
+
+  // encode ambiguous actions
+  ActionEntry beginAmbig(int numActions);
+  void addAmbig(ActionEntry ambigHeader, ActionEntry newAction);
+  void finishAmbig(ActionEntry ambigHeader);
+
+  // encode gotos
+  GotoEntry encodeGoto(StateId stateId) const
+    { return validateGoto(stateId); }
+  GotoEntry encodeGotoError() const
+    { return validateGoto(numStates); }
+  GotoEntry validateGoto(int code) const;
+
+  // misc
+  void setProdInfo(int prodId, int rhsLen, int ntIndex) {
+    checkAssign(prodInfo[prodId].rhsLen, rhsLen);
+    checkAssign(prodInfo[prodId].lhsIndex, ntIndex);
+  }
+  void setStateSymbol(StateId state, SymbolId sym) {
+    stateSymbol[state] = sym;
+  }
+  NtIndex *getWritableNontermOrder() {
+    // expose this directly, due to the way the algorithm that
+    // computes it is written
+    return nontermOrder;
+  }
+
+  // table compressors
+  void computeErrorBits();
+  void mergeActionColumns();
+  void mergeActionRows();
+
+
+  // -------------------- table queries ---------------------------
+  // return true if the action is an error
+  bool actionEntryIsError(StateId stateId, int termId) {
+    #if ENABLE_EEF_COMPRESSION
+      // check with the error table
+      return ( errorBitsPointers[stateId][termId >> 3]
+                 >> (termId & 7) ) & 1;
+    #else
+      return isErrorAction(actionEntry(stateId, termId));
+    #endif
+  }
+
+  // query action table, without checking the error bitmap
+  ActionEntry getActionEntry_noError(StateId stateId, int termId) {
+    #if ENABLE_GCS_COMPRESSION
+      return actionRowPointers[stateId][actionIndexMap[termId]];
+    #else
+      return actionEntry(stateId, termId);
+    #endif
+  }
+
+  // query the action table, yielding an action that might be
+  // an error action
+  ActionEntry getActionEntry(StateId stateId, int termId) {
+    #if ENABLE_EEF_COMPRESSION
+      if (actionEntryIsError(stateId, termId)) {
+        return 0;       // error
+      }
+    #endif
+
+    return getActionEntry_noError(stateId, termId);
+  }
 
   // decode actions
   bool isShiftAction(ActionEntry code) const
@@ -312,14 +388,9 @@ public:     // funcs
   ActionEntry *decodeAmbigAction(ActionEntry code) const
     { return ambigTable + (code-1-numStates); }
 
-  // encode gotos
-  GotoEntry encodeGoto(StateId stateId) const
-    { return validateGoto(stateId); }
-  GotoEntry encodeGotoError() const
-    { return validateGoto(numStates); }
-  GotoEntry validateGoto(int code) const;
-
   // decode gotos
+  GotoEntry getGotoEntry(StateId stateId, int nontermId)
+    { return gotoEntry(stateId, nontermId); }
   static StateId decodeGoto(GotoEntry code)
     { return (StateId)code; }
 
@@ -329,21 +400,30 @@ public:     // funcs
   NtIndex getNontermOrdinal(NtIndex idx) const
     { return nontermOrder[idx]; }
     
-    
-  // ----------- table compressors -------------
-  // scrape all the error entries from the action table into the
-  // 'errorBits' bitmap
-  void computeErrorBits();
-  void mergeActionColumns();
-  void mergeActionRows();
+  // misc
+  ProdInfo const &getProdInfo(int prodIndex) const
+    { return prodInfo[prodIndex]; }
+  int getStateSymbol(StateId id) const
+    { return stateSymbol[id]; }
+                           
+  // query compression options based on which fields are not NULL; do
+  // *not* use the compile-time flags, because we're trying to detect
+  // mismatch between compiler flags used at different times
+  bool eef_enabled() const
+    { return !!errorBits; }
+  bool gcs_enabled() const
+    { return !!actionIndexMap; }
+  bool crs_enabled() const
+    { return !!firstWithTerminal; }
 };
 
 
-// read a parse table from a file
-ParseTables *readParseTablesFile(char const *fname);
-
-// similarly for writing
-void writeParseTablesFile(ParseTables const *tables, char const *fname);
+// NOTE: At one point (before 7/27/03), I had the ability to read and
+// write parse tables to files, *not* using the C++ compiler to store
+// tables as static data.  I removed it because I wasn't using it, and
+// it was hindering table evolution.  But as the tables stabilize
+// again, if the need arises, one could go get (from CVS) the code
+// that did it and fix it up to work again.
 
 
 #endif // PARSETABLES_H

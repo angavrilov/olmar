@@ -430,6 +430,8 @@ private:    // funcs
     SiblingLink *mustUseLink);
   void rwlShiftTerminals();
 
+  void configCheck(char const *option, bool core, bool table);
+
 public:     // funcs
   GLR(UserActions *userAct, ParseTables *tables);
   ~GLR();
