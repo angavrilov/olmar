@@ -85,8 +85,6 @@ protected:    // funcs
 public:
   virtual ~Variable();
 
-  Type *getType() {return type;}
-
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { setFlagsTo(flags | f); }
   void addFlags(DeclFlags f) { setFlag(f); }
@@ -107,16 +105,20 @@ public:
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
 
+  // variable's type.. same as the public 'type' field..
+  Type *getType() { return type; }
+  Type const *getTypeC() const { return type; }
+
   // create an overload set if it doesn't exist, and return it
   OverloadSet *getOverloadSet();
-  
+
   // number of elements in the overload set, or 1 if there is no
   // overload set
   int overloadSetSize() const;
 
   // some ad-hoc thing
   string toString() const;
-  
+
   // syntax when used in a parameter list
   string toStringAsParameter() const;
 };

@@ -4,8 +4,7 @@
 #tmp: mangle.o
 
 # main target: a C++ parser
-all: cc.ast.gen.h tlexer ccparse quicktest
-all: TAGS
+all: cc.ast.gen.h tlexer ccparse quicktest TAGS
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -238,7 +237,8 @@ doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 	@echo "built documentation"
 
 TOCLEAN += TAGS
-TAGS:; etags --members --typedefs *.cc *.h
+TAGS:
+	etags --members --typedefs *.cc *.h
 
 
 # -------------------- clean, etc. -------------------
