@@ -2,8 +2,8 @@
 // C++ abstract syntax
 
 // note: wherever ASTList or FakeList is used, its elements are listed
-// in the order they appear lexically in the input file, i.e. right to
-// left and then top to bottom
+// in the order they appear lexically in the input file, i.e. left to
+// right and then top to bottom
 
 // How do I decide between ASTList and FakeList?  Creating ASTLists
 // can be done with left recursion, which saves stack space, whereas
