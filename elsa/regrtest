@@ -766,6 +766,9 @@ if $use_gnu; then
   # in a different K&R section
   testparse_KandR gnu/d0096.c
 
+  # attribute tests
+  runTest ./ccparse -tr c_lang in/gnu/attr01.c
+
   # tests (primarily for __attribute__) from CIL
   testcil() {
     runTest ./ccparse -tr c_lang in/gnu/cil/$1

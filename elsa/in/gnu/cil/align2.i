@@ -1,7 +1,7 @@
-# 1 "align2.c"
-# 1 "testharness.h" 1
+//# 1 "align2.c"
+//# 1 "testharness.h" 1
 extern int printf(const char * format, ...);
-#pragma ccuredvararg("printf", printf(1))
+//#pragma ccuredvararg("printf", printf(1))
 
 extern void exit(int);
 
@@ -9,7 +9,7 @@ extern void exit(int);
 
 
 
-# 1 "align2.c" 2
+//# 1 "align2.c" 2
 
 
 typedef unsigned int	__kernel_size_t;
