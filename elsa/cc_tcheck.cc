@@ -1145,12 +1145,30 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
       env.ensureCompleteType("use as qualifier", denotedScopeVar->type);
       
       if (hasParamsForMe) {
+        // in/t0461.cc: My delegation scheme has a flaw, in that I set
+        // a scope as 'delegated' before the thing that delegates to
+        // it is on the scope stack, making the template parameters
+        // effectively invisible for a short period.  This shows up in
+        // an out-of-line ctor definition like A<T>::A<T>(...){}.  So
+        // detect this, and as a hack, check the last bit of the name
+        // *before* setting up the delegation.
+        if (rest->isPQ_template() &&
+            rest->asPQ_template()->name == this->qualifier) {
+          tcheckPQName(rest, env, denotedScope, lflags);
+        }
+
         // cement the association now
         hasParamsForMe->setParameterizedEntity(denotedScope->curCompound->typedefVar);
 
         TRACE("templateParams",
           "associated " << hasParamsForMe->desc() <<
           " with " << denotedScope->curCompound->instName);
+          
+        // if we already tcheck'd the final component above, bail now
+        if (rest->isPQ_template() &&
+            rest->asPQ_template()->name == this->qualifier) {
+          return;
+        }
       }
     }
     else if (denotedScope->isGlobalScope()) {
@@ -3157,11 +3175,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // which might not be right.
     if (getDeclaratorId() &&
         getDeclaratorId()->isPQ_template()) {
-      copyTemplateArgs(var->templateInfo()->arguments, 
-                       getDeclaratorId()->asPQ_templateC()->sargs);
+      if (var->type->isFunctionType() &&
+          var->type->asFunctionType()->isConstructor()) {
+        // in/t0461.cc: template args on the name are simply naming the
+        // type that this function constructs, so should not be copied
+      }
+      else {
+        copyTemplateArgs(var->templateInfo()->arguments,
+                         getDeclaratorId()->asPQ_templateC()->sargs);
+      }
     }
   }
-  
+
   // cppstd, sec. 3.3.1:
   //   "The point of declaration for a name is immediately after
   //   its complete declarator (clause 8) and before its initializer
@@ -3486,7 +3511,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
       // constructor or destructor
       else {
-        StringRef nameString = name->asPQ_name()->name;
+        StringRef nameString = name->getName();
         CompoundType *inClass = env.acceptingScope()->curCompound;
 
         // destructor

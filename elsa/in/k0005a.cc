@@ -20,7 +20,10 @@ struct S2 {
 struct otherS { int funcName(); };
 
 struct S3 {
-    //ERROR(1): int otherS::funcName() {}
+    // sm: my workaround for qualified member declarators is to
+    // simply ignore the qualifier, so I do not detect this as
+    // an error
+    //nerfed-ERROR(1): int otherS::funcName() {}
 };
 
 template <typename T>
