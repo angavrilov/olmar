@@ -2103,7 +2103,7 @@ string CompoundType::toMLString() const
 //    }
 
   if (name) {
-    sb << "\"" << name << "\"";
+    sb << "'" << name << "'";
   } else {
     sb << "*anonymous*";
   }
@@ -2121,7 +2121,7 @@ string EnumType::toMLString() const
   stringBuilder sb;
   sb << "enum-";
   if (name) {
-    sb << "\"" << name << "\"";
+    sb << "'" << name << "'";
   } else {
     sb << "*anonymous*";
   }
@@ -2130,7 +2130,7 @@ string EnumType::toMLString() const
 
 string TypeVariable::toMLString() const
 {
-  return stringc << "typevar-\"" << string(name) << "\"";
+  return stringc << "typevar-'" << string(name) << "'";
 }
 
 //  Constructed
@@ -2200,7 +2200,7 @@ string FunctionType::toMLString() const
 //        continue;
 //      }
     v->toMLString();
-//      sb << "\"" << v->name << "\"->" << v->type->toMLString();
+//      sb << "'" << v->name << "'->" << v->type->toMLString();
   }
   sb << ")";
   return sb;

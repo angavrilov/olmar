@@ -110,7 +110,7 @@ string Variable::toMLString() const
   if (name) {
     name0 = name;
   }
-  sb << "\"" << name0 << "\"->" << type->toMLString();
+  sb << "'" << name0 << "'->" << type->toMLString();
   return sb;
 }
 
