@@ -20,7 +20,7 @@
   #include "cc_qual/cc_qual_walk.h"
   #include "cc_qual/cqual_iface.h"
 #else
-  #include "cc_qual_dummy.h"
+  #include "cc_qual_walk_dummy.h"
 #endif
 //  #include "cc_flatten.h"   // FlattenEnv
 
@@ -90,7 +90,9 @@ void doit(int argc, char **argv)
       // FIX: pass this in on the command line; wrote Scott
       init_cc_qual("cc_qual/cqual/config/lattice");
       cc_qual_flag = 1;
+#if CC_QUAL
       if (tracingSys("matt")) matt_flag = 1;
+#endif // CC_QUAL
     } else cc_qual_flag = 0;
 
     if (!toplevelParse(tree, positionalArg)) exit(2); // parse error
