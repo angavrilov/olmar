@@ -137,7 +137,7 @@ TypedefName -> L2_NAME
 EnumName -> L2_NAME
 EnumValueName -> L2_NAME      # called 'enumerator' in spec
 ClassName -> L2_NAME
-#ClassName -> TemplateId       # C++
+TemplateName -> L2_NAME                                                                   # C++
 VariableName -> L2_NAME
 LabelName -> L2_NAME
 
@@ -449,6 +449,7 @@ SimpleTypeSpecifier -> "void"                       # void
 PQTypeName -> TypedefName
 PQTypeName -> ClassName
 PQTypeName -> EnumName
+PQTypeName -> TemplateId                            # C++
 PQTypeName -> Qualifier PQTypeName                  # C++
 
 # the C++ standard allows "const" and "volatile" to be arbitrarily
@@ -635,8 +636,10 @@ AccessSpecifier -> "public" | "private" | "protected"                           
 MemberDeclaration -> DeclSpecifier MemberDeclaratorList ";"     # member fn or data       # C++
 MemberDeclaration -> FunctionDefinition ";"                     # inline fn               # C++
 MemberDeclaration -> FunctionDefinition                         # syntactic tweak         # C++
-MemberDeclaration -> ExplicitOpt Declarator ";"                 # ctor, dtor, conv op     # C++
+MemberDeclaration -> ExplicitOpt VirtualOpt Declarator ";"      # ctor, dtor, conv op     # C++
   %condition { (== Declarator.isFunction 1) }                                             # C++
+  # note above that "explicit" and "virtual" can't be mixed because the former
+  # is for ctors only and the latter can't be used with ctors
 
 
 MemberDeclaratorList -> MemberDeclarator | MemberDeclaratorList "," MemberDeclarator
@@ -684,7 +687,22 @@ Operator -> "(" ")" | "[" "]"                                                   
 
 
 # ------ A.12 Templates ------
-# not yet...
+#TemplateParameterList -> TemplateParameter                                               # C++
+#TemplateParameterList -> TemplateParameterList "," TemplateParameter                     # C++
+
+#TemplateParameter -> TypeParameter | ParameterDeclaration                                # C++
+
+
+TemplateId -> TemplateName "<" TemplateArgumentList ">"                                   # C++
+TemplateId -> TemplateName "<" ">"                                                        # C++
+
+TemplateArgumentList -> TemplateArgument                                                  # C++
+TemplateArgumentList -> TemplateArgumentList "," TemplateArgument                         # C++
+
+TemplateArgument -> Literal                                                               # C++
+TemplateArgument -> TypeId                                                                # C++
+# where I have Literal the std has AssignmentExpression...
+# std also mentions IdExpression here, which is my PQVarName.....
 
 
 # ------ A.13 Exception handling ------

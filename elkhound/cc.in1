@@ -59,6 +59,10 @@ Bar::Bar()
 }
 
 
+int foo()
+{
+  List<Apple> apples;
+}
 
 
 

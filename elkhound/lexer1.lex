@@ -94,9 +94,6 @@ SPTAB         [ \t]
 /* preprocessor "character" -- any but escaped newline */
 PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
-/* first preprocessor line */
-FPPLINE       {SPTAB}*"#"{PPCHAR}*
-
 
 /********************/
 /* start conditions */
@@ -186,7 +183,11 @@ FPPLINE       {SPTAB}*"#"{PPCHAR}*
 }
 
   /* preprocessor */
-{BOL}{FPPLINE}({BACKSL}{NL}{PPCHAR}*)*   {
+  /* technically, if this isn't at the start of a line (possibly after
+   * some whitespace, it should be an error.. I'm not sure right now how
+   * I want to deal with that (I originally was using '^', but that
+   * interacts badly with the whitespace rule) */
+"#"{PPCHAR}*({BACKSL}{NL}{PPCHAR}*)*   {
   lexer.emit(L1_PREPROCESSOR, yytext, yyleng);
 }
 
@@ -209,7 +210,7 @@ FPPLINE       {SPTAB}*"#"{PPCHAR}*
 }
 
   /* continuation */
-<ST_C_COMMENT>([^*]|"*"[^/])   {
+<ST_C_COMMENT>([^*]|"*"[^/])*   {
   collector.append(yytext, yyleng);
 }
 
