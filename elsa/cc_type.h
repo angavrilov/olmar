@@ -32,10 +32,10 @@
 #include "strsobjdict.h"  // StringSObjDict
 #include "strobjdict.h"   // StringObjDict
 #include "cc_scope.h"     // Scope
-#include "fakelist.h"     // FakeList
 #include "srcloc.h"       // SourceLoc
 #include "exc.h"          // xBase
 #include "serialno.h"     // INHERIT_SERIAL_BASE
+#include "astlist.h"      // ASTList (remove me when argumentSyntax is removed)
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
@@ -952,16 +952,19 @@ public:    // data
   StringRef baseName;
 
   // list of instantiations and specializations of this template
+  // (Q: this list is always empty for non-primary templates, right?)
   SObjList<CompoundType> instantiations;
 
   // if this is an instantiation or specialization, then this is the
-  // list of template arguments (Q: do the line up with 'params'?
+  // list of template arguments (Q: do they line up with 'params'?
   // what is the relationship between 'params' and 'arguments'?)
   ObjList<STemplateArgument> arguments;
 
   // keep the syntactic arguments around so we can deal with
-  // forward-declared templates
-  FakeList<TemplateArgument> *argumentSyntax;
+  // forward-declared templates                             
+  //
+  // TODO: remove me!
+  ASTList<TemplateArgument> const *argumentSyntax;
 
 public:    // funcs
   TemplateInfo(StringRef baseName);

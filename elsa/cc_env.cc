@@ -1011,7 +1011,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 
       // should be syntactically impossible to construct bare "::"
       // with template arguments
-      xassert(!qualifier->targs);
+      xassert(qualifier->targs.isEmpty());
     }
 
     else {
@@ -1079,7 +1079,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
         }
 
         // check template argument compatibility
-        else if (qualifier->targs) {
+        else if (qualifier->targs.isNotEmpty()) {
           if (!ct->isTemplate()) {
             error(stringc
               << "class `" << qual << "' isn't a template");
@@ -1092,12 +1092,12 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 
             // for now, restricted form of specialization selection to
             // get in/t0154.cc through
-            if (qualifier->targs->count() == 1) {
+            if (qualifier->targs.count() == 1) {
               SFOREACH_OBJLIST_NC(CompoundType, ct->templateInfo->instantiations, iter) {
                 CompoundType *special = iter.data();
                 if (!special->templateInfo->arguments.count() == 1) continue;
 
-                if (qualifier->targs->first()->sarg.equals(
+                if (qualifier->targs.firstC()->sarg.equals(
                       special->templateInfo->arguments.first())) {
                   // found the specialization or existing instantiation!
                   ct = special;
@@ -1125,7 +1125,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
       
       // case 2: qualifier refers to a namespace
       else /*DF_NAMESPACE*/ {
-        if (qualifier->targs) {
+        if (qualifier->targs.isNotEmpty()) {
           error(stringc << "namespace `" << qual << "' can't accept template args");
         }
         
@@ -1330,7 +1330,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
         // apply the template arguments to yield a new type based
         // on the template
         return instantiateClassTemplate(scope, var->type->asCompoundType(),
-                                        final->asPQ_templateC()->args);
+                                        final->asPQ_templateC()->args, NULL /*inst*/);
       }
     }
     else if (!var->isTemplate() &&
@@ -1601,17 +1601,24 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
 
 // ----------------- template instantiation -------------
+// see comments in cc_env.h
 Variable *Env::instantiateClassTemplate
   (Scope *foundScope, CompoundType *base, 
-   FakeList<TemplateArgument> *arguments, CompoundType *inst)
+   ASTList<TemplateArgument> const &arguments, CompoundType *inst)
 {
   // go over the list of arguments, and make a list of
   // semantic arguments
   SObjList<STemplateArgument> sargs;
   {
-    FAKELIST_FOREACH_NC(TemplateArgument, arguments, iter) {
-      if (iter->sarg.hasValue()) {
-        sargs.append(&iter->sarg);
+    FOREACH_ASTLIST(TemplateArgument, arguments, iter) {
+      // the caller wants be not to modify the list, and I am not going
+      // to, but I need to put non-const pointers into the 'sargs' list
+      // since that's what the interface to 'equalArguments' expects..
+      // this is a problem with const-polymorphism again
+      TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
+
+      if (ta->sarg.hasValue()) {
+        sargs.append(&ta->sarg);
       }
       else {
         // this happens frequently when processing the uninstantiated
@@ -1664,10 +1671,10 @@ Variable *Env::instantiateClassTemplate
     // simultaneously iterate over the parameters and arguments,
     // creating bindings from params to args
     SObjListIter<Variable> paramIter(base->templateInfo->params);
-    FakeList<TemplateArgument> *argIter(arguments);
-    while (!paramIter.isDone() && argIter) {
+    ASTListIter<TemplateArgument> argIter(arguments);
+    while (!paramIter.isDone() && !argIter.isDone()) {
       Variable const *param = paramIter.data();
-      TemplateArgument *arg = argIter->first();
+      TemplateArgument const *arg = argIter.data();
 
       if (param->hasFlag(DF_TYPEDEF) &&
           arg->isTA_type()) {
@@ -1675,7 +1682,7 @@ Variable *Env::instantiateClassTemplate
         // simply modifying 'param' but decided this would be cleaner
         // for now..
         Variable *binding = makeVariable(param->loc, param->name,
-                                         arg->asTA_type()->type->getType(),
+                                         arg->asTA_typeC()->type->getType(),
                                          DF_TYPEDEF);
         addVariable(binding);
       }
@@ -1692,7 +1699,7 @@ Variable *Env::instantiateClassTemplate
                                             param->type, NULL /*syntax*/);
         Variable *binding = makeVariable(param->loc, param->name,
                                          bindType, DF_NONE);
-        binding->value = arg->asTA_nontype()->expr;
+        binding->value = arg->asTA_nontypeC()->expr;
         addVariable(binding);
       }
       else {                 
@@ -1706,7 +1713,7 @@ Variable *Env::instantiateClassTemplate
       }
 
       paramIter.adv();
-      argIter = argIter->butFirst();
+      argIter.adv();
     }
 
     if (!paramIter.isDone()) {
@@ -1714,13 +1721,14 @@ Variable *Env::instantiateClassTemplate
         << "too few template arguments to `" << base->name
         << "' (and partial specialization is not implemented)");
     }
-    else if (argIter) {
+    else if (!argIter.isDone()) {
       error(stringc
         << "too many template arguments to `" << base->name << "'");
     }
   }
 
-  // make a copy of the template definition body AST
+  // make a copy of the template definition body AST (unless this
+  // is a forward declaration)
   TS_classSpec *copy = base->forward? NULL : base->syntax->clone();
   if (copy && tracingSys("cloneAST")) {
     cout << "--------- clone of " << base->name << " ------------\n";
@@ -1746,7 +1754,7 @@ Variable *Env::instantiateClassTemplate
 
       // remember the argument syntax too, in case this is a
       // forward declaration
-      inst->templateInfo->argumentSyntax = arguments;
+      inst->templateInfo->argumentSyntax = &arguments;
     }
 
     // tell the base template about this instantiation; this has to be
@@ -1831,7 +1839,7 @@ void Env::instantiateForwardClasses(Scope *scope, CompoundType *base)
     if (inst->forward) {
       trace("template") << "instantiating previously forward " << inst->name << "\n";
       inst->forward = false;
-      instantiateClassTemplate(scope, base, inst->templateInfo->argumentSyntax, 
+      instantiateClassTemplate(scope, base, *(inst->templateInfo->argumentSyntax),
                                inst /*use this one*/);
     }
     else {
@@ -2541,7 +2549,7 @@ PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
 
     // prepend what syntactically would be a leading "::"
     return new PQ_qualifier(loc(), NULL /*qualifier*/,
-                            FakeList<TemplateArgument>::emptyList(),
+                            new ASTList<TemplateArgument>,
                             name0);
   }
   else {
@@ -2562,7 +2570,7 @@ PQName *Env::make_PQ_qualifiedName(Scope *s, PQName *name0)
   // construct the list of template arguments; we must rebuild them
   // instead of using templateInfo->argumentSyntax directly, because the
   // TS_names that are used in the latter might not be in scope here
-  FakeList<TemplateArgument> *targs = make_PQ_templateArgs(s);
+  ASTList<TemplateArgument> *targs = make_PQ_templateArgs(s);
 
   // now build a PQName
   if (name0) {
@@ -2578,7 +2586,7 @@ PQName *Env::make_PQ_qualifiedName(Scope *s, PQName *name0)
 
 
 PQName *Env::make_PQ_possiblyTemplatizedName
-  (SourceLoc loc, StringRef name, FakeList<TemplateArgument> *targs)
+  (SourceLoc loc, StringRef name, ASTList<TemplateArgument> *targs)
 {
   // dsw: dang it Scott, why the templatization asymmetry between
   // PQ_name/template on one hand and PQ_qualifier on the other?
@@ -2593,28 +2601,28 @@ PQName *Env::make_PQ_possiblyTemplatizedName
 }
 
 // construct the list of template arguments
-FakeList<TemplateArgument> *Env::make_PQ_templateArgs(Scope *s)
+ASTList<TemplateArgument> *Env::make_PQ_templateArgs(Scope *s)
 {
-  FakeList<TemplateArgument> *targs = FakeList<TemplateArgument>::emptyList();
+  ASTList<TemplateArgument> *targs = new ASTList<TemplateArgument>;
   if (s->curCompound && s->curCompound->templateInfo) {
-    FAKELIST_FOREACH_NC(TemplateArgument, 
-                        s->curCompound->templateInfo->argumentSyntax, iter) {
-      ASTSWITCH(TemplateArgument, iter) {
+    FOREACH_ASTLIST(TemplateArgument,
+                    *(s->curCompound->templateInfo->argumentSyntax), iter) {
+      // hack..
+      TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
+
+      ASTSWITCH(TemplateArgument, ta) {
         ASTCASE(TA_type, t) {
           // pull out the Type, then build a new ASTTypeId for it
-          targs = targs->prepend(new TA_type(buildASTTypeId(t->type->getType())));
+          targs->append(new TA_type(buildASTTypeId(t->type->getType())));
         }
         ASTNEXT(TA_nontype, n) {
           // just use it directly.. someone could be evil and include
           // sizeof(TS_name(...)) in here to fool us, but oh well
-          targs = targs->prepend(n);
+          targs->append(n);
         }
         ASTENDCASED
       }
     }
-
-    // built them in reverse order for O(1) insertion, now fix that
-    targs->reverse();
   }
   return targs;
 }

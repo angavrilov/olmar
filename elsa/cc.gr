@@ -73,7 +73,6 @@ verbatim {
 #include "cc_lang.h"      // CCLang
 #include "ccparse.h"      // ParseEnv, the parser context class
 
-
 #define D(msg) \
   trace("cc") << msg << endl
 
@@ -2120,8 +2119,12 @@ nonterm(TP_type*) TemplateTypeParameter {
   //-> "template" "<" TemplateParameterList ">" "class" IdentifierOpt "=" IdExpression;
 }
 
-nonterm(FakeList<TemplateArgument>*) TemplateArgumentListOpt {
-  -> empty                       { return FakeList<TemplateArgument>::emptyList(); }
+nonterm(ASTList<TemplateArgument>*) TemplateArgumentListOpt {
+  // like below in TemplateArgumentList
+  fun dup(lst) { return shallowCopy(lst);                 }
+  fun del(lst) { lst->removeAll_dontDelete(); delete lst; }
+
+  -> empty                       { return new ASTList<TemplateArgument>; }
   -> list:TemplateArgumentList   { return list; }
 }
 
@@ -2130,12 +2133,17 @@ nonterm(PQName*) TemplateId {
        { return new PQ_template(loc, n, list); }
 }
 
-nonterm(FakeList<TemplateArgument>*) TemplateArgumentList {
+nonterm(ASTList<TemplateArgument>*) TemplateArgumentList {
+  // in some situations (e.g. in/t0179.cc) we might yield a template
+  // argument list more than once, and since yielding it deallocates
+  // the list backbone, this dup/del will compensate
+  fun dup(lst) { return shallowCopy(lst);                 /* duplicate the backbone */ }
+  fun del(lst) { lst->removeAll_dontDelete(); delete lst; /* deallocate the backbone */ }
+
   -> a:TemplateArgument
-       { return FakeList<TemplateArgument>::makeList(a); }
-  -> a:TemplateArgument "," list:TemplateArgumentList
-       { a->setNext(list->first());
-         return FakeList<TemplateArgument>::makeList(a); }
+       { return new ASTList<TemplateArgument>(a); }
+  -> list:TemplateArgumentList "," a:TemplateArgument
+       { list->append(a); return list; }
 }
 
 nonterm(TemplateArgument*) TemplateArgument {

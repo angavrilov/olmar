@@ -293,21 +293,21 @@ void ASTTypeId::print(PrintEnv &env)
 }
 
 // ---------------------- PQName -------------------
-void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args)
+void printTemplateArgumentList(PrintEnv &env, ASTList<TemplateArgument> &args)
 {
   int ct=0;
-  FAKELIST_FOREACH_NC(TemplateArgument, args, iter) {
+  FOREACH_ASTLIST_NC(TemplateArgument, args, iter) {
     if (ct++ > 0) {
       env << ", ";
     }
-    iter->print(env);
+    iter.data()->print(env);
   }
 }
 
 void PQ_qualifier::print(PrintEnv &env)
 {
   env << qualifier << "<";
-  printTemplateArgumentFakeList(env, targs);
+  printTemplateArgumentList(env, targs);
   env << ">::";
   rest->print(env);
 }
@@ -325,7 +325,7 @@ void PQ_operator::print(PrintEnv &env)
 void PQ_template::print(PrintEnv &env)
 {
   env << name << "<";
-  printTemplateArgumentFakeList(env, args);
+  printTemplateArgumentList(env, args);
   env << ">";
 }
 

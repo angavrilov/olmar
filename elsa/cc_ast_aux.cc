@@ -96,18 +96,18 @@ void ASTTypeId::setNext(ASTTypeId *newNext)
 
 
 // ------------------------ PQName ------------------------
-string targsToString(FakeList<TemplateArgument> const *list)
+string targsToString(ASTList<TemplateArgument> const &list)
 {
   stringBuilder sb;
   sb << "<";
   int ct=0;
-  FAKELIST_FOREACH(TemplateArgument, list, iter) {
+  FOREACH_ASTLIST(TemplateArgument, list, iter) {
     if (ct++ > 0) {
       sb << ", ";
     }
-    sb << iter->argString();
+    sb << iter.data()->argString();
   }
-  sb << ">";       
+  sb << ">";
   return sb;
 }
 
@@ -122,7 +122,7 @@ string PQName::qualifierString() const
     if (q->qualifier) {
       sb << q->qualifier;
 
-      if (q->targs) {
+      if (q->targs.isNotEmpty()) {
         sb << targsToString(q->targs);
       }
     }
@@ -544,23 +544,14 @@ void TD_class::printExtras(ostream &os, int indent) const
 void TemplateArgument::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "TemplateArgument", os, indent);
-
-  genericCheckNexts(this);
 }
 
 
 void TemplateArgument::addAmbiguity(TemplateArgument *alt)
 {
-  genericAddAmbiguity(this, alt);
-}
-
-void TemplateArgument::setNext(TemplateArgument *newNext)
-{
-  if (next == newNext) {
-    return;    // bail if it's already what we want..
-  }
-
-  genericSetNext(this, newNext);
+  xassert(alt->ambiguity == NULL);
+  alt->ambiguity = this->ambiguity;
+  this->ambiguity = alt;
 }
 
 

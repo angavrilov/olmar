@@ -308,7 +308,8 @@ public:      // funcs
   // (from a forward declaration), so use that one
   Variable *instantiateClassTemplate(
     Scope *scope, CompoundType *base,
-    FakeList<TemplateArgument> *arguments, CompoundType *inst = NULL);
+    ASTList<TemplateArgument> const &arguments, 
+    CompoundType *inst);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances
@@ -459,10 +460,10 @@ public:      // funcs
   PQName *make_PQ_qualifiedName(Scope *s, PQName *name0 = NULL);
 
   PQName *make_PQ_possiblyTemplatizedName
-    (SourceLoc loc, StringRef name, FakeList<TemplateArgument> *targs);
+    (SourceLoc loc, StringRef name, ASTList<TemplateArgument> *targs);
 
   // construct the list of template arguments
-  FakeList<TemplateArgument> *make_PQ_templateArgs(Scope *s);
+  ASTList<TemplateArgument> *make_PQ_templateArgs(Scope *s);
 
   // go from "A" to "A::~A"
   PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);

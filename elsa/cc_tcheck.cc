@@ -75,9 +75,7 @@ string ambiguousNodeName(ASTTypeId const *n)
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
 {
-//    static int numTopForms = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
-//      cout << "**** numTopForms " << ++numTopForms << endl;
     iter.data()->tcheck(env);
   }
 }
@@ -659,36 +657,18 @@ Type *ASTTypeId::getType() const
 
 
 // ---------------------- PQName -------------------
-// adapted from (the old) tcheckFakeExprList
-FakeList<TemplateArgument> *tcheckFakeTemplateArgumentList
-  (FakeList<TemplateArgument> *list, Env &env)
+void tcheckTemplateArgumentList(ASTList<TemplateArgument> &list, Env &env)
 {
-  if (!list) {
-    return list;
+  // loop copied/modified from S_compound::itcheck
+  FOREACH_ASTLIST_NC(TemplateArgument, list, iter) {
+    // have to potentially change the list nodes themselves
+    iter.setDataLink( iter.data()->tcheck(env) );
   }
-
-  // check first expression
-  TemplateArgument *first = list->first();
-  first = first->tcheck(env);
-  FakeList<TemplateArgument> *ret = FakeList<TemplateArgument>::makeList(first);
-
-  // check subsequent expressions, using a pointer that always
-  // points to the node just before the one we're checking
-  TemplateArgument *prev = ret->first();
-  while (prev->next) {
-    TemplateArgument *tmp = prev->next;
-    tmp = tmp->tcheck(env);
-    prev->next = tmp;
-
-    prev = prev->next;
-  }
-
-  return ret;
 }
 
 void PQ_qualifier::tcheck(Env &env)
 {
-  targs = tcheckFakeTemplateArgumentList(targs, env);
+  tcheckTemplateArgumentList(targs, env);
   rest->tcheck(env);
 }
 
@@ -700,7 +680,7 @@ void PQ_operator::tcheck(Env &env)
 
 void PQ_template::tcheck(Env &env)
 {
-  args = tcheckFakeTemplateArgumentList(args, env);
+  tcheckTemplateArgumentList(args, env);
 }
 
 
@@ -966,7 +946,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   // check restrictions on the form of the name
-  FakeList<TemplateArgument> *templateArgs = NULL;
+  ASTList<TemplateArgument> *templateArgs = NULL;
   if (name) {
     if (name->hasQualifiers()) {
       return env.unimp("qualified class specifier name");
@@ -982,8 +962,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
         PQ_template *t = unqual->asPQ_template();
 
         // typecheck the arguments
-        t->args = tcheckFakeTemplateArgumentList(t->args, env);
-        templateArgs = t->args;
+        tcheckTemplateArgumentList(t->args, env);
+        templateArgs = &(t->args);
       }
     }
   }
@@ -1066,7 +1046,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // into 'specialTI', but not the template arguments
     // TODO: this is copied from Env::instantiateClassTemplate; collapse it
     {
-      FAKELIST_FOREACH_NC(TemplateArgument, templateArgs, iter) {
+      FOREACH_ASTLIST_NC(TemplateArgument, *templateArgs, _iter) {
+        TemplateArgument *iter = _iter.data();
         // The check was bogus, as this would cause an error
         //          template<S> struct A<S> {};
         // but this would not because the "*" sheilds the typevar
@@ -5595,10 +5576,11 @@ void TA_type::itcheck(Env &env)
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();
-  // this is a gratuitious non-orthgonality
-//    if (!t->isTypeVariable()) {
+  
+  // dsw: it would be a gratuitious non-orthgonality to guard the
+  // following with a test such as
+  //   if (!t->isTypeVariable())
   sarg.setType(t);
-//    }
 }
 
 void TA_nontype::itcheck(Env &env)
