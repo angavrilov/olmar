@@ -1388,7 +1388,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   CompoundType *ct =
     checkClasskeyAndName(env, loc, dflags, keyword, name);
   if (!ct) {
-    return env.errorType();
+    ct = env.errorCompoundType;
   }
 
   this->atype = ct;              // annotation
@@ -1419,8 +1419,10 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // figure out which class the (keyword, name) pair refers to
   CompoundType *ct =
     checkClasskeyAndName(env, loc, dflags, keyword, name);
-  if (!ct) {
-    return env.errorType();   // error already reported
+  if (!ct) {                  
+    // error already reported
+    this->ctype = env.errorCompoundType;
+    return this->ctype->typedefVar->type;
   }
 
   this->ctype = ct;           // annotation

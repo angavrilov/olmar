@@ -150,6 +150,7 @@ public:      // data
   Variable *dependentVar;               // (serf)
   Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
+  CompoundType *errorCompoundType;      // (serf)
 
   // Variable that acts like the name of the global scope; used in a
   // place where I want to return the global scope, but the function
@@ -640,8 +641,8 @@ private:     // template funcs
     (SourceLoc instLoc, TS_classSpec *source,
      TS_classSpec *dest, ObjList<STemplateArgument> const &sargs);
   void transferTemplateMemberInfo_typeSpec
-    (SourceLoc instLoc, TypeSpecifier *srcTS, TypeSpecifier *destTS,
-     ObjList<STemplateArgument> const &sargs);
+    (SourceLoc instLoc, TypeSpecifier *srcTS, CompoundType *sourceCT,
+     TypeSpecifier *destTS, ObjList<STemplateArgument> const &sargs);
   void transferTemplateMemberInfo_one
     (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
      ObjList<STemplateArgument> const &sargs);

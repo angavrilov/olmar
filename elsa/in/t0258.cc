@@ -4,6 +4,10 @@
 
 template <class S>
 struct A {
+  // fwd decl of B
+  template <class T>
+  struct B;
+
   template <class T>
   struct B {
     int foo(S *s, T *t);

@@ -338,6 +338,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     dependentVar(NULL),
     errorTypeVar(NULL),
     errorVar(NULL),
+    errorCompoundType(NULL),
+
     globalScopeVar(NULL),
 
     var__builtin_constant_p(NULL),
@@ -395,6 +397,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // want something to be treated as a variable, not a type
   errorVar = makeVariable(SL_INIT, str("<errorVar>"),
                           getSimpleType(SL_INIT, ST_ERROR), DF_NONE);
+
+  errorCompoundType = tfac.makeCompoundType(CompoundType::K_CLASS, str("<errorCompoundType>"));
+  errorCompoundType->typedefVar = errorTypeVar;
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]

@@ -2333,7 +2333,7 @@ void Env::transferTemplateMemberInfo
       }
 
       // associate the type specifiers
-      transferTemplateMemberInfo_typeSpec(instLoc, srcDecl->spec,
+      transferTemplateMemberInfo_typeSpec(instLoc, srcDecl->spec, source->ctype,
                                           destDecl->spec, sargs);
 
       // simultanously iterate over the declarators
@@ -2415,7 +2415,7 @@ void Env::transferTemplateMemberInfo
 
       else if (srcTDecl->isTD_class()) {
         transferTemplateMemberInfo_typeSpec(instLoc,
-          srcTDecl->asTD_class()->spec,
+          srcTDecl->asTD_class()->spec, source->ctype,
           destTDecl->asTD_class()->spec, sargs);
       }
 
@@ -2443,15 +2443,22 @@ void Env::transferTemplateMemberInfo
 // transfer specifier info, particularly for nested class or
 // member template classes
 void Env::transferTemplateMemberInfo_typeSpec
-  (SourceLoc instLoc, TypeSpecifier *srcTS, TypeSpecifier *destTS,
-   ObjList<STemplateArgument> const &sargs)
+  (SourceLoc instLoc, TypeSpecifier *srcTS, CompoundType *sourceCT,
+   TypeSpecifier *destTS, ObjList<STemplateArgument> const &sargs)
 {
   if (srcTS->isTS_elaborated()) {
     Variable *srcVar = srcTS->asTS_elaborated()->atype->typedefVar;
     Variable *destVar = destTS->asTS_elaborated()->atype->typedefVar;
 
-    // just a forward decl, do the one element
-    transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
+    if (srcVar->scope == sourceCT) {
+      // just a forward decl, do the one element
+      transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
+    }
+    else {
+      // this isn't a declaration of a type that is a member of the
+      // relevant template, it is just a reference to some other type;
+      // ignore it
+    }
   }
 
   else if (srcTS->isTS_classSpec()) {
@@ -2471,7 +2478,7 @@ void Env::transferTemplateMemberInfo_typeSpec
     // other kinds of type specifiers: don't need to do anything
   }
 }
-      
+
 
 // transfer template information from primary 'srcVar' to
 // instantiation 'destVar'
@@ -2522,6 +2529,13 @@ void Env::transferTemplateMemberInfo_membert
   xassert(srcTI);
   TemplateInfo *destTI = destVar->templInfo;
   xassert(destTI);
+
+  if (destTI->isInstantiation() || destTI->isPartialInstantiation()) {
+    // The relevant info has already been transferred.  This happens
+    // for example when an inner class is declared and then defined,
+    // when we see it for the second time.
+    return;
+  }
 
   destTI->copyArguments(sargs);
 
