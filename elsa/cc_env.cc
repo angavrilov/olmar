@@ -1309,7 +1309,7 @@ Scope *Env::outerScope()
 {
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     Scope *s = iter.data();
-    if (s->isTemplateParamScope() ||         // skip template scopes
+    if (s->isTemplateScope() ||              // skip template scopes
         s->isClassScope() ||                 // skip class scopes
         s->isParameterScope()) {             // skip parameter list scopes
       continue;
