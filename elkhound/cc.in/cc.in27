@@ -11,16 +11,19 @@ class Foo {
 public:
   T x;
   
+  T put();
   T get();
 };
 
 //ERROR1: template <class TT> class Foo {};   // already defined
 
 template <class T>
-T Foo::get()
+T Foo<T>::put()
 {
   return 3;
 }
+
+//ERROR2: template <class T> T Foo::get() { return 3; }   // needs template args
 
 int main()
 {

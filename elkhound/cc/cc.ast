@@ -138,8 +138,10 @@ class PQName {
   // get the PQName at the bottom of any qualifiers
   public PQName const *getUnqualifiedName() const;
 
-  // outer qualifier applied to some inner PQName
-  -> PQ_qualifier(StringRef qualifier, PQName rest);
+  // outer qualifier applied to some inner PQName, plus an optional
+  // list of template arguments to the qualifier
+  -> PQ_qualifier(StringRef qualifier, FakeList<TemplateArgument> *targs,
+                  PQName rest);
 
   // final name, when it's an ordinary identifier
   // NOTE: 'name' here is *never* NULL--instead, I use NULL
