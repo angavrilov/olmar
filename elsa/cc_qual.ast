@@ -71,12 +71,28 @@ class TypeSpecifier {
   public Type_Q *qtype;  ctor qtype=NULL;
 
   public Qualifiers *q;
-//    ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
-  ctor { q = new Qualifiers((name ? strdup(name->getName()) : "anonymous_TypeSpecifier"),
-                            loc, 1 /*default to global*/, NULL); };
+
+  // this function is called from all of the derived-class ctors; we
+  // can't call it from the parent ctor because the derived vtable
+  // (and data) isn't available yet
+  protected void makeQualifiers() {
+    //q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc);
+    q = new Qualifiers(getTypeName(), loc, 1 /*default to global*/, NULL);
+  };
+
+  // get the unqualified name in the specifier; it's not a StringRef
+  // because TS_simple and anonymous types return a pointer to static
+  // data (lifetime is still StringRef-like)
+  pure_virtual char const *getTypeName() const;
 
   pure_virtual void qual(QualEnv &env);
   //  pure_virtual void flatten(FlattenEnv &env);
+  
+  -> TS_name             { ctor makeQualifiers(); }
+  -> TS_simple           { ctor makeQualifiers(); }
+  -> TS_elaborated       { ctor makeQualifiers(); }
+  -> TS_classSpec        { ctor makeQualifiers(); }
+  -> TS_enumSpec         { ctor makeQualifiers(); }
 }
 
 class BaseClassSpec {

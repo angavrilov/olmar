@@ -111,7 +111,7 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
 ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
 {
   ASTTypeId *tid = 
-    new ASTTypeId(new TS_simple(new PQ_name("__ellipsis"), loc, ST_ELLIPSIS),
+    new ASTTypeId(new TS_simple(loc, ST_ELLIPSIS),
                   new Declarator(new D_name(NULL /*name*/, SourceLocation()),
                                  NULL /*init*/));
   // FIX: creates garbage
@@ -120,10 +120,10 @@ ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
 }
 
 // make a TS_name, and supply CV flags
-TS_name *new_TS_name(SourceLocation const &loc, CVFlags cv, PQName *n, 
+TS_name *new_TS_name(SourceLocation const &loc, CVFlags cv, PQName *n,
                      bool typenameUsed)
 {
-  TS_name *ret = new TS_name(n, loc, typenameUsed);
+  TS_name *ret = new TS_name(loc, n, typenameUsed);
   ret->cv = cv;
   return ret;
 }
@@ -131,10 +131,7 @@ TS_name *new_TS_name(SourceLocation const &loc, CVFlags cv, PQName *n,
 // make a TS_simple, and supply CV flags
 TS_simple *new_TS_simple(SourceLocation const &loc, CVFlags cv, SimpleTypeId id)
 {
-  stringBuilder sb;
-  sb << "anonymous:" << toString(id);
-  TS_simple *ret = new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, id);
-  //TS_simple *ret = new TS_simple(new PQ_name("anonymous_PrimitiveTypeSpecifier"), loc, id);
+  TS_simple *ret = new TS_simple(loc, id);
   ret->cv = cv;
   return ret;
 }
@@ -401,22 +398,17 @@ nonterm[Expression*] PostfixExpression {
 nonterm[TypeSpecifier*] CtorExpressionType {
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId;
 
-  -> n:PQTypeName        [ return new TS_name(n, loc, false /*typename*/); ]
-  -> "char"              [ return new TS_simple(new PQ_name("anonymous_char"), loc, ST_CHAR); ]
-  -> "wchar_t"           [ return new TS_simple(new PQ_name("anonymous_wchar_t"), loc,
-                                                ST_WCHAR_T); ]
-  -> "bool"              [ return new TS_simple(new PQ_name("anonymous_bool"), loc, ST_BOOL); ]
-  -> "short"             [ return new TS_simple(new PQ_name("anonymous_short"), loc,
-                                                ST_SHORT_INT); ]
-  -> "int"               [ return new TS_simple(new PQ_name("anonymous_int"), loc, ST_INT); ]
-  -> "long"              [ return new TS_simple(new PQ_name("anonymous_long"), loc,
-                                                ST_LONG_INT); ]
-  -> "signed"            [ return new TS_simple(new PQ_name("anonymous_signed"), loc, ST_INT); ]
-  -> "unsigned"          [ return new TS_simple(new PQ_name("anonymous_unsigned"), loc,
-                                                ST_UNSIGNED_INT); ]
-  -> "float"             [ return new TS_simple(new PQ_name("anonymous_float"), loc, ST_FLOAT); ]
-  -> "double"            [ return new TS_simple(new PQ_name("anonymous_double"), loc,
-                                                ST_DOUBLE); ]
+  -> n:PQTypeName        [ return new TS_name(loc, n, false /*typename*/); ]
+  -> "char"              [ return new TS_simple(loc, ST_CHAR); ]
+  -> "wchar_t"           [ return new TS_simple(loc, ST_WCHAR_T); ]
+  -> "bool"              [ return new TS_simple(loc, ST_BOOL); ]
+  -> "short"             [ return new TS_simple(loc, ST_SHORT_INT); ]
+  -> "int"               [ return new TS_simple(loc, ST_INT); ]
+  -> "long"              [ return new TS_simple(loc, ST_LONG_INT); ]
+  -> "signed"            [ return new TS_simple(loc, ST_INT); ]
+  -> "unsigned"          [ return new TS_simple(loc, ST_UNSIGNED_INT); ]
+  -> "float"             [ return new TS_simple(loc, ST_FLOAT); ]
+  -> "double"            [ return new TS_simple(loc, ST_DOUBLE); ]
 
   // std has this, but I don't think it makes sense
   //-> "void"
@@ -1012,12 +1004,12 @@ nonterm[UberModifiers] UberTypeKeyword {
 
 
 nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
-  -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(n, loc, k); ]
-  -> "enum" n:PQTypeName        [ return new TS_elaborated(n, loc, TI_ENUM); ]
+  -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(loc, k, n); ]
+  -> "enum" n:PQTypeName        [ return new TS_elaborated(loc, TI_ENUM, n); ]
 
   // cppstd grammar ensures "typename" is only applied to qualified
   // names, but I find that more natural to enforce during typechecking
-  -> "typename" n:PQTypeName    [ return new TS_name(n, loc, true /*typename*/); ]
+  -> "typename" n:PQTypeName    [ return new TS_name(loc, n, true /*typename*/); ]
 }
 
 
@@ -1089,9 +1081,9 @@ nonterm[PQName*] PQTypeName_ncc {
 
 nonterm[TS_enumSpec*] EnumSpecifier {
   -> "enum" "{" list:EnumeratorListOpt "}"
-       [ return new TS_enumSpec(NULL /*name*/, loc, list); ]
+       [ return new TS_enumSpec(loc, NULL /*name*/, list); ]
   -> "enum" n:Identifier "{" list:EnumeratorListOpt "}"
-       [ return new TS_enumSpec(new PQ_name(n), loc, list); ]
+       [ return new TS_enumSpec(loc, n, list); ]
 }
 
 
@@ -1517,21 +1509,19 @@ nonterm[Function*] FunctionDefinition {
   -> m:CDtorModifierSeq  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        [
          return new Function(
-           m,                        // decl flags: explicit, virtual, or none
-           new TS_simple(appendToDeclaratorName(d, "_CDtorModifier"), loc,
-                         ST_CDTOR),  // type specifier: ctor or dtor
-           new Declarator(d, NULL),  // declarator with fn name, params
-           c,                        // ctor member inits
-           b,                        // function body statement
-           NULL                      // exception handlers
+           m,                             // decl flags: explicit, virtual, or none
+           new TS_simple(loc, ST_CDTOR),  // type specifier: ctor or dtor
+           new Declarator(d, NULL),       // declarator with fn name, params
+           c,                             // ctor member inits
+           b,                             // function body statement
+           NULL                           // exception handlers
          );
        ]
   -> /*no modifier*/     d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        [
          return new Function(
            DF_NONE,
-           new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
-                         ST_CDTOR),
+           new TS_simple(loc, ST_CDTOR),
            new Declarator(d, NULL),
            c,
            b,
@@ -1545,8 +1535,7 @@ nonterm[Function*] FunctionDefinition {
        [
          return new Function(
            e,                        // decl flags: explicit is only possibility
-           new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
-                         ST_CDTOR),
+           new TS_simple(loc, ST_CDTOR),
            new Declarator(d, NULL),
            c,
            b,
@@ -1557,8 +1546,7 @@ nonterm[Function*] FunctionDefinition {
        [
          return new Function(
            DF_NONE,
-           new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
-                         ST_CDTOR),
+           new TS_simple(loc, ST_CDTOR),
            new Declarator(d, NULL),
            c,
            b,
@@ -1579,7 +1567,7 @@ nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
 // ------ A.8 Classes ------
 nonterm[TS_classSpec*] ClassSpecifier {
   -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
-       [ popClassName(); return new TS_classSpec(n, loc, k, b, memb); ]
+       [ popClassName(); return new TS_classSpec(loc, k, n, b, memb); ]
 }
 
 // this is the name portion of what the standard calls "ClassHead"
@@ -1704,9 +1692,7 @@ nonterm[Member*] MemberDeclaration {
          return new MR_decl(loc,
            new Declaration(
              flags,
-             new TS_simple(appendToDeclaratorName(d, "_MemberDeclarator"),
-                           loc,
-                           ST_CDTOR),
+             new TS_simple(loc, ST_CDTOR),
              FakeList<Declarator>::makeList(d)
            )
          );
@@ -1724,9 +1710,7 @@ nonterm[Member*] MemberDeclaration {
          return new MR_decl(loc,
            new Declaration(
              DF_NONE,
-             new TS_simple(appendToDeclaratorName(d, "_MemberDeclarator"),
-                           loc,
-                           ST_CDTOR),
+             new TS_simple(loc, ST_CDTOR),
              FakeList<Declarator>::makeList(d)
            )
          );
