@@ -1013,7 +1013,20 @@ public:
 };
 
 
-// FIX: move this somewhere else
+// save env's error messages, then later restore them, as part of
+// disambiguation activities
+class DisambiguationErrorTrapper {
+public:      // data
+  Env &env;
+  ErrorList existingErrors;       // saved messages
+
+public:      // funcs
+  DisambiguationErrorTrapper(Env &env);
+  ~DisambiguationErrorTrapper();
+};
+
+
+// misc
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);

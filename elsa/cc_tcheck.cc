@@ -928,6 +928,73 @@ Type *ASTTypeId::getType() const
 
 
 // ---------------------- PQName -------------------
+#if 0    // work in progress
+void tcheckPQName(PQName *&name, Env &env, Scope *scope, LookupFlags lflags)
+{
+  if (!name->isPQ_qualifier()) {
+    // easy case 1
+    name->itcheck(env, scope, lflags);
+    return;
+  }
+
+  PQ_qualifier *qual = name->asPQ_qualifier();
+  if (!qual->ambiguity) {
+    // easy case
+    qual->itcheck(env, scope, lflags);
+    return;
+  }
+
+  // make sure nothing changes the environment...
+  int beforeChange = env.getChangeCount();
+
+  // all of the ambiguous alternatives must be PQ_qualifiers with
+  // template arguments, or PQ_templates; tcheck the first argument
+  // of each one, and use that to disambiguate
+  while (qual->ambiguity) {
+    // tcheck first arg of 'qual', mostly discarding errors
+    STemplateArgument sarg;
+    {
+      DisambiguationErrorTrapper trapper(env);
+      qual->templArgs->tcheck(env, sarg);
+
+      // discard errors (other than those saved in 'trapper')
+      ErrorList discard;
+      discard.takeMessages(env.errors);
+    }
+
+    // better not have changed the environment!
+    xassert(env.getChangeCount() == beforeChange);
+
+    if (sarg.hasValue()) {
+      // this is the chosen one
+      qual->ambiguity = NULL;
+      name = qual;
+      qual->itcheck(env, scope, lflags);
+      return;
+    }
+
+    // try next
+    if (qual->ambiguity->isPQ_qualifier()) {
+      qual = qual->ambiguity->asPQ_qualifier();
+    }
+    else {
+      xassert(qual->ambiguity->isPQ_template());
+
+      // since all preceding alternatives have failed, and PQ_template
+      // does not have an 'ambiguity' pointer, select it and tcheck it
+      name = qual->ambiguity;
+      name->itcheck(env, scope, lflags);
+      return;
+    }
+  }
+  
+  // got to the end of the list, select+tcheck the final one
+  name = qual;
+  qual->itcheck(env, scope, lflags);
+}
+#endif // 0
+
+
 // The given 'src' is a DAG of 'ambiguity' and 'next' links encoding
 // all possible ways to interpret some syntax as a list of template
 // arguments.  We must pick one such list and store the interpreted

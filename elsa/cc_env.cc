@@ -4815,6 +4815,41 @@ bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
 }
 
 
+// ----------------- DisambiguationErrorTrapper ---------------------
+DisambiguationErrorTrapper::DisambiguationErrorTrapper(Env &e)
+  : env(e),
+    existingErrors()
+{
+  // grab the existing list of error messages
+  existingErrors.takeMessages(env.errors);
+
+  // tell the environment about this hidden list of errors, so that
+  // if an error needs to be added that has nothing to do with this
+  // disambiguation, it can be
+  if (env.hiddenErrors == NULL) {     // no hidden yet, I'm the first
+    env.hiddenErrors = &existingErrors;
+  }
+
+  // having stolen the existing errors, we now tell the environment
+  // we're in a disambiguation pass so it knows that any disambiguating
+  // errors are participating in an active disambiguation
+  env.disambiguationNestingLevel++;
+}
+
+DisambiguationErrorTrapper::~DisambiguationErrorTrapper()
+{
+  // we're about to put the pre-existing errors back into env.errors
+  env.disambiguationNestingLevel--;
+
+  if (env.hiddenErrors == &existingErrors) {     // I'm the first
+    env.hiddenErrors = NULL;          // no more now
+  }
+
+  // put all the original errors in
+  env.errors.takeMessages(existingErrors);
+}
+
+
 // -------- diagnostics --------
 Type *Env::errorType()
 {
