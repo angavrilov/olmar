@@ -771,7 +771,7 @@ if $use_gnu; then
   runTest ./ccparse -tr c_lang in/gnu/attr02.c
                                            
   # asm tests
-  failTest "incomplete support for Asm Labels" ./ccparse -tr c_lang in/gnu/asm01.c
+  runTest ./ccparse -tr c_lang in/gnu/asm01.c
 
   # tests (primarily for __attribute__) from CIL
   testcil() {

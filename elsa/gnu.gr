@@ -366,7 +366,13 @@ nonterm(IDeclarator*) Declarator {
   // this is slightly more tolerant than gcc is, since it allows
   // attributes just inside the ")" of a D_grouping, whereas gcc
   // doesn't
-  -> d:DirectDeclarator attrspec:AttributeSpecifierList
+  -> d:DirectDeclarator AttributeSpecifierList
+       { return d; }
+
+  // Asm Labels after declarators; see in/gnu/asm01.c
+  -> d:DirectDeclarator "asm" "(" StringLiteral ")"
+       { return d; }
+  -> d:DirectDeclarator "asm" "(" StringLiteral ")" AttributeSpecifierList
        { return d; }
 }
 
@@ -375,14 +381,14 @@ nonterm(IDeclarator*) DirectDeclarator {
   -> "(" attrspec:AttributeSpecifierList d:Declarator ")"
        { return new D_grouping(loc, d); }
 
-  // function declarator with asm section identifier
-  -> d:DirectDeclarator                        // name of function
-     "(" params:ParameterDeclarationClause ")" // parameters
-     cv:CVQualifierSeqOpt                      // optional "const"
-     e:ExceptionSpecificationOpt               // optional "throw" clause
-     // sm: I doubt cv-flags can go after this "asm" ...
-     "asm" "(" s:StringLiteral ")"             // <---- this
-       { return new D_func(loc, d, params, cv, e); }
+//    // function declarator with asm section identifier
+//    -> d:DirectDeclarator                        // name of function
+//       "(" params:ParameterDeclarationClause ")" // parameters
+//       cv:CVQualifierSeqOpt                      // optional "const"
+//       e:ExceptionSpecificationOpt               // optional "throw" clause
+//       // sm: I doubt cv-flags can go after this "asm" ...
+//       "asm" "(" s:StringLiteral ")"             // <---- this
+//         { return new D_func(loc, d, params, cv, e); }
 
   // array with qualifier in the brackets; see the version for
   // DirectAbstractDeclarator for comments
@@ -665,7 +671,7 @@ nonterm AttributeSpecifierList {
 
       every place that (Abstract)Declarator occurs, other than in its recursive
       structure, add an alternative with attrs after the Declarator
-        - in fact, generalize that to let the "Asm Labels" go there too
+    ~   - in fact, generalize that to let the "Asm Labels" go there too
     *   - better: in Declarator after the Direct(Abstract)Declarator
 
   The two "/" above means I didn't end up putting them after the C++

@@ -13,6 +13,10 @@ int foo asm ("myfoo") = 2;
 // Asm Labels), at present the attribute must follow the asm
 // specification
 
-int foo2 asm ("myfoo2") __attribute((blah)) = 3;
+int foo2 asm ("myfoo2") __attribute__((blah)) = 3;
 
+// this also works for function decls
+
+int foo3(int, float) asm("myfoo3");
+int foo4(int, float) asm("myfoo4") __attribute__((blah));
 
