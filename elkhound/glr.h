@@ -227,7 +227,7 @@ public:
   // ultimately succeed to parse the input, or might reach a
   // point where it cannot proceed, and therefore dies.  (See
   // comments at top of glr.cc for more details.)
-  SObjList<StackNode> activeParsers;        // (refct list)
+  ArrayStack<StackNode*> activeParsers;     // (refct list)
 
   // this is for assigning unique ids to stack nodes
   int nextStackNodeId;
@@ -250,7 +250,7 @@ public:
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
-  SObjList<StackNode> parserWorklist;       // (refct list)
+  ArrayStack<StackNode*> parserWorklist;    // (refct list)
 
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports

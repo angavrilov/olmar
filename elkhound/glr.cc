@@ -291,18 +291,29 @@ PathCollectionState::ReductionPath::~ReductionPath()
 
 
 // ------------------------- GLR ---------------------------
-void decParserList(SObjList<StackNode> &list)
+void decParserList(ArrayStack<StackNode*> &list)
 {
-  SMUTATE_EACH_OBJLIST(StackNode, list, iter) {
-    iter.data()->decRefCt();
+  for (int i=0; i < list.length(); i++) {
+    list[i]->decRefCt();
   }
 }
 
-void incParserList(SObjList<StackNode> &list)
+void incParserList(ArrayStack<StackNode*> &list)
 {
-  SMUTATE_EACH_OBJLIST(StackNode, list, iter) {
-    iter.data()->incRefCt();
+  for (int i=0; i < list.length(); i++) {
+    list[i]->incRefCt();
   }
+}
+               
+// candidate for adding to ArrayStack.. but I'm hesitant for some reason
+bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
+{
+  for (int i=0; i < list.length(); i++) {
+    if (list[i] == node) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -393,7 +404,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
   StackNode *first = makeStackNode(startState->id);
-  activeParsers.append(first);
+  activeParsers.push(first);
   first->incRefCt();
 
   // we will queue up shifts and process them all at the end (pulled
@@ -411,7 +422,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       trsParse
         << "------- "
         << "processing token " << currentToken->toString()
-        << ", " << activeParsers.count() << " active parsers"
+        << ", " << activeParsers.length() << " active parsers"
         << " -------"
         << endl;
     }
@@ -434,19 +445,25 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     xassert(pendingShifts.length() == 0);
 
     // put active parser tops into a worklist
-    decParserList(parserWorklist);
-    parserWorklist = activeParsers;
+    decParserList(parserWorklist);      // about to empty the list
+    //parserWorklist = activeParsers;
+    {
+      parserWorklist.empty();
+      for (int i=0; i < activeParsers.length(); i++) {
+        parserWorklist.push(activeParsers[i]);
+      }
+    }
     incParserList(parserWorklist);
 
     // work through the worklist
     RCPtr<StackNode> lastToDie = NULL;
     while (parserWorklist.isNotEmpty()) {
-      RCPtr<StackNode> parser = parserWorklist.removeAt(0);     // dequeue
+      RCPtr<StackNode> parser = parserWorklist.pop();     // dequeue
       parser->decRefCt();     // no longer on worklist
 
       // to count actions, first record how many parsers we have
       // before processing this one
-      int parsersBefore = parserWorklist.count() + pendingShifts.length();
+      int parsersBefore = parserWorklist.length() + pendingShifts.length();
 
       // process this parser
       ActionEntry action =      // consult the 'action' table
@@ -454,7 +471,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       glrParseAction(parser, action, pendingShifts);
 
       // now observe change -- normal case is we now have one more
-      int actions = (parserWorklist.count() + pendingShifts.length()) -
+      int actions = (parserWorklist.length() + pendingShifts.length()) -
                       parsersBefore;
 
       if (actions == 0) {
@@ -506,11 +523,11 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
 
   // finish the parse by reducing to start symbol
-  if (activeParsers.count() != 1) {
+  if (activeParsers.length() != 1) {
     cout << "parsing finished with more than one active parser!\n";
     return false;
   }
-  StackNode *last = activeParsers.nth(0);
+  StackNode *last = activeParsers.top();
 
   // pull out the semantic values; this assumes the start symbol
   // always looks like "Start -> Something EOF"; it also assumes
@@ -938,11 +955,13 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     // reductions, and process those that actually use the just-
     // added link
 
+    // TODO: I think this code path is unusual; confirm by measurement
+
     // for each 'finished' parser (i.e. those not still on
     // the worklist)
-    SMUTATE_EACH_OBJLIST(StackNode, activeParsers, parserIter) {
-      StackNode *parser = parserIter.data();
-      if (parserWorklist.contains(parser)) continue;
+    for (int i=0; i < activeParsers.length(); i++) {
+      StackNode *parser = activeParsers[i];
+      if (parserListContains(parserWorklist, parser)) continue;
 
       // do any reduce actions that are now enabled
       ActionEntry action =
@@ -962,9 +981,9 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
-    activeParsers.append(rightSibling);
+    activeParsers.push(rightSibling);
     rightSibling->incRefCt();
-    parserWorklist.append(rightSibling);
+    parserWorklist.push(rightSibling);
     rightSibling->incRefCt();
 
     // no need for the elaborate re-checking above, since we
@@ -978,7 +997,7 @@ void GLR::glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts)
 {
   // clear the active-parsers list; we rebuild it in this fn
   decParserList(activeParsers);
-  activeParsers.removeAll();
+  activeParsers.empty();
 
   // foreach (leftSibling, newState) in pendingShifts
   while (pendingShifts.isNotEmpty()) {
@@ -1006,7 +1025,7 @@ void GLR::glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts)
       rightSibling = makeStackNode(newState);
 
       // and add it to the active parsers
-      activeParsers.append(rightSibling);
+      activeParsers.push(rightSibling);
       rightSibling->incRefCt();
     }
 
@@ -1021,10 +1040,11 @@ void GLR::glrShiftTerminals(ObjArrayStack<PendingShift> &pendingShifts)
 // if an active parser is at 'state', return it; otherwise
 // return NULL
 StackNode *GLR::findActiveParser(StateId state)
-{
-  SMUTATE_EACH_OBJLIST(StackNode, activeParsers, parser) {
-    if (parser.data()->state == state) {
-      return parser.data();
+{                                              
+  for (int i=0; i < activeParsers.length(); i++) {
+    StackNode *node = activeParsers[i];
+    if (node->state == state) {
+      return node;
     }
   }
   return NULL;
