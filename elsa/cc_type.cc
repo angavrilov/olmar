@@ -896,7 +896,6 @@ bool BaseType::printAsML = false;
 
 
 BaseType::BaseType()
-  : typedefAliases()     // initially empty
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -1287,12 +1286,6 @@ bool hasVariable(Type const *t)
 bool BaseType::containsVariables() const
 {
   return anyCtorSatisfiesF(hasVariable);
-}
-
-
-Variable *BaseType::typedefName()
-{
-  return typedefAliases.isEmpty()? NULL : typedefAliases.first();
 }
 
 

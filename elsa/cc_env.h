@@ -561,6 +561,9 @@ public:      // funcs
 
   // given a type, return an ASTTypeId AST node that denotes that
   // type in the current environment
+  //
+  // 7/27/04: This no longer works reliably; please avoid.  I'll
+  // remove it at some point.
   ASTTypeId *buildASTTypeId(Type *type);
   ASTTypeId *inner_buildASTTypeId     // effectively private to buildASTTypeId
     (Type *type, IDeclarator *surrounding);

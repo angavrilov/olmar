@@ -480,21 +480,6 @@ public:     // types
   };
 
 public:     // data
-  // This is a list of typedef'd aliases for this type.  It may be
-  // empty.  For compound types, there will be at least one, and it
-  // (the first one) will be the same as the corresponding
-  // NamedAtomicType::typedefVar (this is not so much an invariant to
-  // be relied upon as an explanation of the difference between them).
-  //
-  // The reason this was introduced is to make it easier to build an
-  // AST node referring to a given type (i.e. can just use TS_name
-  // instead of building the whole thing) during elaboration.  It also
-  // can be used to make error messages that use the programmer's
-  // names instead of their normal form.
-  //
-  // TODO: Now that elaboration doesn't need this, remove it.
-  SASTList<Variable> typedefAliases;
-
   // when true (the default is false), types are printed in ML-like
   // notation instead of C notation by AtomicType::toString and
   // Type::toString
@@ -739,9 +724,6 @@ public:     // funcs
   // (or at least int) variables look like.  Recurses down into
   // TemplateArguments.
   bool containsVariables() const;
-
-  // get the first typedef alias, if any
-  Variable *typedefName();
 
   ALLOC_STATS_DECLARE
 };

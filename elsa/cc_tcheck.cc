@@ -872,20 +872,8 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
   var = env.storeVar(v);    // annotation
 
-  // dsw: store the pointer to the variable in the type; Note that, as
-  // Scott points out, if it already has a name, we keep it because it
-  // doesn't matter.
-  //
-  // sm: update: I thought this might happen.  Using typedefs means
-  // dealing with scoping, so we need to keep all the typedefs (and
-  // make typedef shadow names) so that at least one will be in scope.
-  //
-  // dsw: per our discussion, this has been disabled
-  if (var->type->isEnumType() ||
-      var->type->containsVariables()
-      ) {
-    var->type->typedefAliases.append(var);
-  }
+  // 7/27/04: typedefAliases used to be maintained at this point, but
+  // now it is gone
 
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too
@@ -4390,8 +4378,12 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
         << args->count() << ")");
     }
     
-    // change it into a cast
-    ASTTypeId *typeSyntax = env.buildASTTypeId(type);
+    // change it into a cast; this code used to do some 'buildASTTypeId'
+    // contortions, but that's silly since the E_constructor already
+    // carries a perfectly good type specifier ('this->spec'), and so
+    // all we need to do is add an empty declarator
+    ASTTypeId *typeSyntax = new ASTTypeId(this->spec,
+      new Declarator(new D_name(this->spec->loc, NULL /*name*/), NULL /*init*/));
     if (args->count() == 1) {
       replacement =
         new E_cast(typeSyntax, args->first()->expr);

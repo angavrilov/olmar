@@ -3066,7 +3066,11 @@ PQName *Env::make_PQ_fullyQualifiedDtorName(CompoundType *ct)
 
 
 ASTTypeId *Env::buildASTTypeId(Type *type)
-{
+{                                       
+  // 7/27/04: This function doesn't work reliably because typedefAliases
+  // has gone away.  Using TS_type is one alternative.
+  xfailure("this function is obsolete");
+
   // kick off the recursive decomposition
   IDeclarator *surrounding = new D_name(loc(), NULL /*name*/);
   return inner_buildASTTypeId(type, surrounding);
@@ -3222,52 +3226,7 @@ ASTTypeId *Env::inner_buildASTTypeId(Type *type, IDeclarator *surrounding)
 
 TS_name *Env::buildTypedefSpecifier(Type *type)
 {
-  if (type->typedefAliases.isEmpty()) {
-    return NULL;    // no aliases to try
-  }
-
-  // since I'm going to be doing speculative lookups that shouldn't
-  // become user-visible error messages, arrange to throw away any
-  // that get generated
-  SuppressErrors suppress(*this);
-
-  // to make this work in some pathological cases (d0026.cc,
-  // t0156.cc), we need to iterate over the list of typedef aliases
-  // until we find the one that will tcheck to 'type'
-  FOREACH_SASTLIST_NC(Variable, type->typedefAliases, iter) {
-    Variable *alias = iter.data();
-
-    TRACE("buildTypedefSpecifier",
-      "`" << type->toString() << "': trying " << alias->name);
-
-    // first, the final component of the name
-    PQName *name = new PQ_name(loc(), alias->name);
-
-    // then the qualifier prefix, if any
-    if (alias->scope) {
-      // the code used pass 'alias->scope->curCompound', which I think is
-      // wrong, since all it does is cause a segfault in the case that
-      // 'alias->scope' is a namespace and not a class
-      name = make_PQ_fullyQualifiedName(alias->scope, name);
-    }
-
-    // did that work?  (this check uses 'equals' because of the possibility
-    // of non-trivial 'clone' operations in the type factory; in the default
-    // Elsa configuration, '==' would suffice)
-    Variable *found = lookupPQVariable(name);
-    if (found && found->type->equals(type)) {
-      // good to go; wrap it in a type specifier
-      return new TS_name(loc(), name, false /*typenameUsed*/);
-    }
-
-    // didn't work, try the next alias
-
-    // it's tempting to deallocate 'name', but since
-    // make_PQ_fullyQualifiedName might return something that shares
-    // subtrees with the original AST, we can't
-  }
-
-  return NULL;      // none of the aliases work
+  return NULL;    // no aliases to try
 }
 
 
