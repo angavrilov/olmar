@@ -219,6 +219,11 @@ ActionEntry makeAE(ActionEntryKind k, int index)
     cout << "error: index " << index << " truncated!\n";
     index = AE_MAXINDEX;
   }
+  
+  if (k == AE_ERROR) {
+    xassert(index == 0);
+  }
+
   return k | index;
 }
 #endif
