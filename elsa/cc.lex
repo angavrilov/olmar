@@ -245,7 +245,6 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
    * when there are two dots but not three */
 ".." {
   yyless(1);     /* put back all but 1; this is inexpensive */
-  #warning _Bool does not belong here; find the right place for it
   return tok(TOK_DOT);
 }
 
