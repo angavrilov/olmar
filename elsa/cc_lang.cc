@@ -15,6 +15,7 @@ void CCLang::KandR_C()
   strictArraySizeRequirements = false;
   allowOverloading = false;
   compoundSelfName = false;
+  allowCallToUndeclFunc = true;
   isCplusplus = false;
 }
 
@@ -30,6 +31,7 @@ void CCLang::ANSI_C()
   strictArraySizeRequirements = false;
   allowOverloading = false;
   compoundSelfName = false;
+  allowCallToUndeclFunc = false;
   isCplusplus = false;
 }
 
@@ -49,6 +51,8 @@ void CCLang::ANSI_Cplusplus()
 
   allowOverloading = true;
   compoundSelfName = true;
+
+  allowCallToUndeclFunc = false;
 
   isCplusplus = true;
 }

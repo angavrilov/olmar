@@ -66,6 +66,11 @@ public:
   // when true, to every compound type add the name of the type itself
   bool compoundSelfName;
 
+  // when true, allow a function call to a function that has never
+  // been declared.  This seems to be the case in K and R C and is how
+  // gcc works (though not g++).
+  bool allowCallToUndeclFunc;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need

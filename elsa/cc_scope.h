@@ -29,16 +29,17 @@ class TranslationUnit;    // cc.ast.gen.h
 // special cases, so I'm folding lookup options into one value
 enum LookupFlags {
   LF_NONE            = 0,
-  LF_INNER_ONLY      = 0x01,    // only look in the innermost scope
-  LF_ONLY_TYPES      = 0x02,    // ignore (skip over) non-type names
-  LF_TYPENAME        = 0x04,    // user used 'typename' keyword
-  LF_SKIP_CLASSES    = 0x08,    // skip class scopes
-  LF_ONLY_NAMESPACES = 0x10,    // ignore non-namespace names
-  LF_TYPES_NAMESPACES= 0x20,    // ignore non-type, non-namespace names
-  LF_QUALIFIED       = 0x40,    // context is a qualified lookup
-  LF_TEMPL_PRIMARY   = 0x80,    // return template primary rather than instantiating it
+  LF_INNER_ONLY      = 0x001,   // only look in the innermost scope
+  LF_ONLY_TYPES      = 0x002,   // ignore (skip over) non-type names
+  LF_TYPENAME        = 0x004,   // user used 'typename' keyword
+  LF_SKIP_CLASSES    = 0x008,   // skip class scopes
+  LF_ONLY_NAMESPACES = 0x010,   // ignore non-namespace names
+  LF_TYPES_NAMESPACES= 0x020,   // ignore non-type, non-namespace names
+  LF_QUALIFIED       = 0x040,   // context is a qualified lookup
+  LF_TEMPL_PRIMARY   = 0x080,   // return template primary rather than instantiating it
+  LF_IMPL_DECL_FUNC  = 0x100,   // K&R implicitly declare functions that are not found
 
-  LF_ALL_FLAGS       = 0xFF,    // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0x1FF,   // bitwise OR of all flags
 };
 
 // experiment: will this work?  yes

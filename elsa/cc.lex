@@ -122,6 +122,8 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "auto"             return tok(TOK_AUTO);
 "break"            return tok(TOK_BREAK);
 "bool"             return tok(TOK_BOOL);
+  /* dsw: don't know if this should go into gnu.lex */
+"_Bool"            return tok(TOK_BOOL);
 "case"             return tok(TOK_CASE);
 "catch"            return tok(TOK_CATCH);
 "cdecl"            return tok(TOK_CDECL);

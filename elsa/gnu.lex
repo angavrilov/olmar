@@ -7,14 +7,17 @@
 
 "__attribute"          return tok(TOK___ATTRIBUTE__);
 "__attribute__"        return tok(TOK___ATTRIBUTE__);
-"__FUNCTION__"         return tok(TOK___FUNCTION__);
 "__label__"            return tok(TOK___LABEL__);
-"__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
 "typeof"               return tok(TOK___TYPEOF__);
 "__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
 "__restrict__"         return tok(TOK___RESTRICT__);
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
+
+ /* dsw: these are actually the same as __func__; see note in cc_tcheck.cc
+ "__FUNCTION__"         return tok(TOK___FUNCTION__);
+ "__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
+ */
 
 "__extension__" {
   /* treat this like a token, in that nonseparating checks are done,

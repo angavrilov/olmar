@@ -41,6 +41,7 @@ gendoc
 lexer.lex
 delta*
 diff
+diff_current
 tmp.cc
 changes
 TAGS

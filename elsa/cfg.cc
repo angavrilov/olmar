@@ -103,7 +103,13 @@ void CFGEnv::addLabel(StringRef name, S_label *target)
 
 void CFGEnv::addPendingGoto(StringRef name, S_goto *source)
 {
-  gotos.add(name, source);
+  // dsw: FIX: this is fundamentally broken: the goto graph is not
+  // injective; that is, elsa can't handle two gotos to the same
+  // target.  Since this is non-critical functionality, I'm turning it
+  // off for now by skipping it if the name already maps to something
+  if (!gotos.isMapped(name)) {
+    gotos.add(name, source);
+  }
 }
 
 void CFGEnv::resolveGotos()

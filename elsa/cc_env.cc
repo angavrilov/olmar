@@ -635,6 +635,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
   #ifdef GNU_EXTENSION
     Type *t_int = getSimpleType(HERE, ST_INT);
+    Type *t_unsigned_int = getSimpleType(HERE, ST_UNSIGNED_INT);
     Type *t_char = getSimpleType(HERE, ST_CHAR);
     Type *t_charconst = getSimpleType(HERE, ST_CHAR, CV_CONST);
     Type *t_charptr = makePtrType(HERE, t_char);
@@ -671,6 +672,17 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     declareFunction2arg(t_charptr, "__builtin_strstr",
                         t_charconstptr, "haystack",
                         t_charconstptr, "needle",
+                        FF_NONE, NULL);
+
+    // dsw: I made up the signature to this one; FIX: should probably
+    // also be marked NORETURN.
+    // void __assert_fail(char const *__assertion, char const *__file,
+    // unsigned int __line, char const *__function);
+    declareFunction4arg(t_void, "__assert_fail",
+                        t_charconstptr, "__assertion",
+                        t_charconstptr, "__file",
+                        t_unsigned_int, "__line",
+                        t_charconstptr, "__function",
                         FF_NONE, NULL);
   #endif // GNU_EXTENSION
 
@@ -1180,6 +1192,49 @@ Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
   return declareFunctionNargs(retType, funcName,
                               types, names, 2 /*numArgs*/,
                               flags, exnType);
+}
+
+
+Variable *Env::declareFunction4arg(Type *retType, char const *funcName,
+                                   Type *arg1Type, char const *arg1Name,
+                                   Type *arg2Type, char const *arg2Name,
+                                   Type *arg3Type, char const *arg3Name,
+                                   Type *arg4Type, char const *arg4Name,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  Type *types[4] = { arg1Type, arg2Type, arg3Type, arg4Type };
+  char const *names[4] = { arg1Name, arg2Name, arg3Name, arg4Name };
+  return declareFunctionNargs(retType, funcName,
+                              types, names, 4 /*numArgs*/,
+                              flags, exnType);
+}
+
+
+FunctionType *Env::makeUndeclFuncType()
+{
+  // don't need a clone type here as getSimpleType() calls
+  // makeCVAtomicType() which in oink calls new.
+  Type *ftRet = tfac.getSimpleType(loc(), ST_INT, CV_NONE);
+  FunctionType *ft = makeFunctionType(loc(), ftRet);
+  Variable *p = makeVariable(loc(),
+                             NULL /*name*/,
+                             tfac.getSimpleType(loc(), ST_ELLIPSIS, CV_NONE),
+                             DF_PARAMETER);
+  ft->addParam(p);
+  ft->doneParams();
+  return ft;
+}
+
+
+Variable *Env::makeUndeclFuncVar(StringRef name)
+{
+  return createDeclaration
+    (loc(), name,
+     makeUndeclFuncType(), DF_FORWARD,
+     globalScope(), NULL /*enclosingClass*/,
+     NULL /*prior*/, NULL /*overloadSet*/,
+     true /*reallyAddVariable*/);
 }
 
 

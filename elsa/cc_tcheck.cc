@@ -302,6 +302,7 @@ void Function::tcheck(Env &env, bool checkBody,
 //    }
 
   // location for random purposes..
+  xassert(nameAndParams->var);
   SourceLoc loc = nameAndParams->var->loc;
 
   if (! dt.type->isFunctionType() ) {
@@ -419,6 +420,12 @@ void Function::tcheck(Env &env, bool checkBody,
     Type *charConstArr = env.makeArrayType(loc, charConst);
     Variable *funcVar = env.makeVariable(loc, env.str.add("__func__"),
                                          charConstArr, DF_STATIC);
+    // dsw: these two are also gcc; see
+    // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Function-Names.html#Function%20Names
+    Variable *funcVar1 = env.makeVariable(loc, env.str.add("__FUNCTION__"),
+                                          charConstArr, DF_STATIC);
+    Variable *funcVar2 = env.makeVariable(loc, env.str.add("__PRETTY_FUNCTION__"),
+                                          charConstArr, DF_STATIC);
                                          
     // I'm not going to add the initializer, because I'd need to make
     // an Expression AST node (which is no problem) but I don't have
@@ -426,6 +433,8 @@ void Function::tcheck(Env &env, bool checkBody,
     // a field to Function, but then I'd pay for that even when
     // 'implicitFuncVariable' is false..
     env.addVariable(funcVar);
+    env.addVariable(funcVar1);
+    env.addVariable(funcVar2);
   }
 
   // check the body in the new scope as well
@@ -3900,14 +3909,25 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
   name->tcheck(env);
   Variable *v = env.lookupPQVariable(name, flags);
   if (!v) {
-    // 10/23/02: I've now changed this to non-disambiguating, prompted
-    // by the need to allow template bodies to call undeclared
-    // functions in a "dependent" context [cppstd 14.6 para 8].
-    // See the note in TS_name::itcheck.
-    return env.error(name->loc, stringc
-      << "there is no variable called `" << *name << "'",
-      EF_NONE);
+    // dsw: In K and R C it seems to be legal to call a function
+    // variable that has never been declareed.  At this point we
+    // notice this fact and if we are in K and R C we insert a
+    // variable with signature "int (...)" which is what I recall as
+    // the correct signature for such an implicit variable.
+    if (env.lang.allowCallToUndeclFunc && (flags & LF_IMPL_DECL_FUNC)) {
+      // this should happen in C mode only so name must be a PQ_name
+      v = env.makeUndeclFuncVar(name->asPQ_name()->name);
+    } else {
+      // 10/23/02: I've now changed this to non-disambiguating,
+      // prompted by the need to allow template bodies to call
+      // undeclared functions in a "dependent" context [cppstd 14.6
+      // para 8].  See the note in TS_name::itcheck.
+      return env.error(name->loc, stringc
+                       << "there is no variable called `" << *name << "'",
+                       EF_NONE);
+    }
   }
+  xassert(v);
 
   if (v->hasFlag(DF_TYPEDEF)) {
     return env.error(name->loc, stringc
@@ -4224,7 +4244,7 @@ void E_funCall::inner1_itcheck(Env &env)
     E_variable *evar = f->asE_variable();
     xassert(!evar->ambiguity);
     func->type = evar->type = env.tfac.cloneType(
-      evar->itcheck_var(env, LF_TEMPL_PRIMARY));
+      evar->itcheck_var(env, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC));
   }
   // TODO: need similar handling for member function templates
   else {

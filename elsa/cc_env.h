@@ -365,6 +365,16 @@ private:     // funcs
                                 FunctionFlags flags = FF_NONE,
                                 Type * /*nullable*/ exnType = NULL);
 
+  // NOTE: 3 arg missing; goes here.
+
+  Variable *Env::declareFunction4arg(Type *retType, char const *funcName,
+                                     Type *arg1Type, char const *arg1Name,
+                                     Type *arg2Type, char const *arg2Name,
+                                     Type *arg3Type, char const *arg3Name,
+                                     Type *arg4Type, char const *arg4Name,
+                                     FunctionFlags flags,
+                                     Type * /*nullable*/ exnType);
+
   Variable *declareSpecialFunction(char const *name);
 
   CompoundType *findEnclosingTemplateCalled(StringRef name);
@@ -380,6 +390,14 @@ private:     // funcs
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
 public:      // funcs
+  // make a function type for an undeclared K and R function at its
+  // call site: "int (...)"
+  FunctionType *makeUndeclFuncType();
+
+  // make function variable for an undeclared K and R function at its
+  // call site with type makeUndeclFuncType() above
+  Variable *makeUndeclFuncVar(StringRef name);
+
   // find the template primary that matches the template args,
   // returning NULL if does not exist; calls xfailure() for now if it
   // is ambiguous
