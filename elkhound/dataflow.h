@@ -27,22 +27,22 @@ class Type;               // cc_type.h
 //        bottom: could be anything                          .
 //          uninit U init U null                             .
 
-enum FlowValue {
-  FV_TOP             = 0,
+enum AbsOwnerValue {
+  AOV_TOP             = 0,
   
   // basis elements
-  FV_NULL            = 1,
-  FV_INIT            = 2,
-  FV_UNINIT_NOT_NULL = 4,
+  AOV_NULL            = 1,
+  AOV_INIT            = 2,
+  AOV_UNINIT_NOT_NULL = 4,
 
-  FV_INITQ           = 3,    // FV_NULL | FV_INIT
-  FV_UNINIT          = 5,    // uninit; can be NULL
-  FV_NOT_NULL        = 6,    // init or uninit-null
-  FV_BOTTOM          = 7,    // FV_INIT | FV_UNINIT
+  AOV_INITQ           = 3,    // AOV_NULL | AOV_INIT
+  AOV_UNINIT          = 5,    // uninit; can be NULL
+  AOV_NOT_NULL        = 6,    // init or uninit-null
+  AOV_BOTTOM          = 7,    // AOV_INIT | AOV_UNINIT
 };                                     
 
-// e.g., fv_name(FV_TOP) = "FV_TOP"
-char const *fv_name(FlowValue v);
+// e.g., fv_name(AOV_TOP) = "AOV_TOP"
+char const *fv_name(AbsOwnerValue v);
 
 // is v1 >= v2?
 // i.e., is there a path from v1 down to v2 in the lattice?
@@ -52,15 +52,15 @@ char const *fv_name(FlowValue v);
 //   init >= init
 // but NOT:
 //   init >= uninit
-bool fv_geq(FlowValue v1, FlowValue v2);
+bool fv_geq(AbsOwnerValue v1, AbsOwnerValue v2);
 
 // combine info from two merging control branches
-FlowValue fv_meet(FlowValue v1, FlowValue v2);
+AbsOwnerValue fv_meet(AbsOwnerValue v1, AbsOwnerValue v2);
 
 // intersect info, e.g. intersect the values some variable
 // has now with the set of possible values for entering a
 // branch of an 'if' statement
-FlowValue fv_join(FlowValue v1, FlowValue v2);
+AbsOwnerValue fv_join(AbsOwnerValue v1, AbsOwnerValue v2);
 
 
 // dataflow info about a variable, at some program point
@@ -69,11 +69,11 @@ private:   // data
   Variable const *var;      // associated declaration
 
 public:    // data
-  FlowValue value;
+  AbsOwnerValue value;
 
 public:    // funcs
   DataflowVar(Variable const *v)
-    : var(v), value(FV_UNINIT) {}
+    : var(v), value(AOV_UNINIT) {}
   DataflowVar(DataflowVar const &obj)
     : DMEMB(var), DMEMB(value) {}
 

@@ -6,36 +6,36 @@
 #include "cc_tree.h"      // isOwnerPointer
 
 
-char const *fv_name(FlowValue v)
+char const *fv_name(AbsOwnerValue v)
 {
   switch (v) {
     default: xfailure("bad fv code");
     #define N(val) case val: return #val;
-    N(FV_TOP)
-    N(FV_NULL)
-    N(FV_INIT)
-    N(FV_UNINIT)
-    N(FV_INITQ)
-    N(FV_BOTTOM)
+    N(AOV_TOP)
+    N(AOV_NULL)
+    N(AOV_INIT)
+    N(AOV_UNINIT)
+    N(AOV_INITQ)
+    N(AOV_BOTTOM)
     #undef N
   }
 }
 
 
-bool fv_geq(FlowValue v1, FlowValue v2)
+bool fv_geq(AbsOwnerValue v1, AbsOwnerValue v2)
 {
   return (v1 & v2) == v1;
 }
 
 
-FlowValue fv_meet(FlowValue v1, FlowValue v2)
+AbsOwnerValue fv_meet(AbsOwnerValue v1, AbsOwnerValue v2)
 {
-  return (FlowValue)(v1 | v2);
+  return (AbsOwnerValue)(v1 | v2);
 }
 
-FlowValue fv_join(FlowValue v1, FlowValue v2)
+AbsOwnerValue fv_join(AbsOwnerValue v1, AbsOwnerValue v2)
 {
-  return (FlowValue)(v1 & v2);
+  return (AbsOwnerValue)(v1 & v2);
 }
 
 
@@ -89,7 +89,7 @@ void DataflowEnv::mergeWith(DataflowEnv const &obj)
     if (vars.isMapped(iter.key())) {
       // both environments have a value; merge it
       DataflowVar *myvar = vars.queryf(iter.key());
-      FlowValue tmp =
+      AbsOwnerValue tmp =
         fv_meet(myvar->value, iter.value()->value);
         
       trace("DataflowEnv") 
