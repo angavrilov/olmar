@@ -17,6 +17,7 @@
 //#include "factflow.h"     // factFlow
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
+#include "gramanl.h"      // ParseTables
 
 
 // globals that allow AEnv's to be created wherever ...
@@ -25,6 +26,9 @@ Variable const *globalMemVariable;
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
+
+// how to get the parse tables
+ParseTables *make_CCGr_tables();
 
 
 void if_malloc_stats()
@@ -39,7 +43,7 @@ void doit(int argc, char **argv)
 {
   traceAddSys("progress");
   //traceAddSys("parse-tree");
-                                    
+
   // this is useful for emacs' outline mode, because if the file
   // doesn't begin with a heading, it collapses the starting messages
   // and doesn't like to show them again
@@ -61,8 +65,14 @@ void doit(int argc, char **argv)
   {
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable);
+
     UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
     tree.userAct = user;
+
+    traceProgress() << "building parse tables from internal data\n";
+    ParseTables *tables = make_CCGr_tables();
+    tree.tables = tables;
+
     if (!treeMain(tree, argc, argv,
           "  additional flags for ccgr:\n"
           "    malloc_stats       print malloc stats every so often\n"
@@ -82,6 +92,7 @@ void doit(int argc, char **argv)
     //unit->debugPrint(cout, 0);
 
     delete user;
+    delete tables;
     grammarStringTable.clear();
   }
 

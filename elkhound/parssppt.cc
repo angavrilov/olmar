@@ -12,14 +12,16 @@
 ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top)
   : treeTop(top),
     lexer2(L),
-    userAct(NULL)
+    userAct(NULL),
+    tables(NULL)
 {}
 
 ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top,
                                        StringTable &extTable)
   : treeTop(top),
     lexer2(L, extTable),
-    userAct(NULL)
+    userAct(NULL),
+    tables(NULL)
 {}
 
 ParseTreeAndTokens::~ParseTreeAndTokens()
@@ -60,24 +62,19 @@ bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
 }
 
 
-bool glrParseFrontEnd(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
-                      char const *grammarFname, char const *inputFname)
-{
-  glr.readBinaryGrammar(grammarFname);
-
-  // parse input
-  return glrParseNamedFile(glr, lexer2, treeTop, inputFname);
-}
-
-
 bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname)
 {
   // parse
   xassert(ptree.userAct != NULL);    // must have been set by now
-  GLR glr(ptree.userAct);
-  return glrParseFrontEnd(glr, ptree.lexer2, ptree.treeTop,
-                          grammarFname, inputFname);
+  if (!ptree.tables) {
+    ptree.tables = readParseTablesFile(grammarFname);
+  }
+
+  GLR glr(ptree.userAct, ptree.tables);
+
+  // parse input
+  return glrParseNamedFile(glr, ptree.lexer2, ptree.treeTop, inputFname);
 }
 
 

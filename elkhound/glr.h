@@ -338,10 +338,10 @@ class GLR {
 public:                    
   // ---- grammar-wide data ----
   // user-specified actions
-  UserActions *userAct;
+  UserActions *userAct;                     // (serf)
 
   // parse tables derived from the grammar
-  ParseTables *tables;                      // (owner)
+  ParseTables *tables;                      // (serf)
 
   // ---- parser state between tokens ----
   // I keep a pointer to this so I can ask for token descriptions
@@ -449,7 +449,7 @@ private:    // funcs
   bool nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts);
 
 public:     // funcs
-  GLR(UserActions *userAct);
+  GLR(UserActions *userAct, ParseTables *tables);
   ~GLR();
 
   // ------- primary interface -------

@@ -12,6 +12,8 @@
 #include "lexer2.h"       // Lexer2
 #include "useract.h"      // SemanticValue, UserAction
 
+class ParseTables;
+
 
 // ----------------- helpers for analysis drivers ---------------
 // a self-contained parse tree (or parse DAG, as the case may be)
@@ -24,7 +26,10 @@ public:
   Lexer2 lexer2;
 
   // parse parameter
-  UserActions *userAct;
+  UserActions *userAct;            // (serf)
+
+  // parse tables (or NULL)
+  ParseTables *tables;             // (serf)
 
 public:
   ParseTreeAndTokens(CCLang &lang, SemanticValue &top);

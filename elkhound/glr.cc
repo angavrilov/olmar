@@ -131,10 +131,7 @@
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
 #include "strutil.h"     // replace
-//#include "lexer1.h"      // Lexer1
-//#include "lexer2.h"      // Lexer2
 #include "lexerint.h"    // LexerInterface
-#include "bflatten.h"    // BFlatten
 #include "test.h"        // PVAL
 #include "cyctimer.h"    // CycleTimer
 
@@ -602,9 +599,9 @@ bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
 }
 
 
-GLR::GLR(UserActions *user)
+GLR::GLR(UserActions *user, ParseTables *t)
   : userAct(user),
-    tables(NULL),
+    tables(t),
     lexerPtr(NULL),
     activeParsers(),
     parserIndex(NULL),
@@ -635,10 +632,9 @@ GLR::~GLR()
   if (parserIndex) {
     delete[] parserIndex;
   }
-  
-  // NOTE: must do this after the 'decParserList' calls above, because
-  // they refer to the tables!
-  delete tables;
+
+  // NOTE: must not delete 'tables' until after the 'decParserList'
+  // calls above, because they refer to the tables!
 }
 
 
@@ -2129,21 +2125,6 @@ string readFileIntoString(char const *fname)
 
   // return the new string
   return ret;
-}
-
-
-
-void GLR::readBinaryGrammar(char const *grammarFname)
-{
-  // before using 'xfer' we have to tell it about the string table
-  flattenStrTable = &grammarStringTable;
-
-  // assume it's a binary grammar file and try to
-  // read it in directly
-  traceProgress() << "reading binary grammar file " << grammarFname << endl;
-  BFlatten flat(grammarFname, true /*reading*/);
-  tables = new ParseTables(flat);
-  tables->xfer(flat);
 }
 
 

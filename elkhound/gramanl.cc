@@ -949,144 +949,6 @@ void ItemSet::writeGraph(ostream &os, GrammarAnalysis const &g) const
 }
 
 
-// ------------------------- ParseTables -----------------------
-ParseTables::ParseTables(int t, int nt, int s, int p, StateId start, int final)
-{
-  alloc(t, nt, s, p, start, final);
-}
-
-void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
-{
-  numTerms = t;
-  numNonterms = nt;
-  numStates = s;
-  numProds = p;
-
-  actionTable = new ActionEntry[actionTableSize()];
-  memset(actionTable, 0, sizeof(actionTable[0]) * actionTableSize());
-
-  gotoTable = new GotoEntry[gotoTableSize()];
-  memset(gotoTable, 0, sizeof(gotoTable[0]) * gotoTableSize());
-
-  prodInfo = new ProdInfo[numProds];
-  memset(prodInfo, 0, sizeof(prodInfo[0]) * numProds);
-
-  stateSymbol = new SymbolId[numStates];
-  memset(stateSymbol, 0, sizeof(stateSymbol[0]) * numStates);
-
-  startState = start;
-  finalProductionIndex = final;
-}
-
-
-ParseTables::~ParseTables()
-{
-  delete[] actionTable;
-  delete[] gotoTable;
-  delete[] prodInfo;
-  delete[] stateSymbol;
-
-  for (int i=0; i<numAmbig(); i++) {
-    delete[] ambigAction[i];
-  }
-}
-
-
-ActionEntry ParseTables::validateAction(int code) const
-{
-  // make sure that 'code' is representable; if this fails, most likely
-  // there are more than 32k states or productions; in turn, the most
-  // likely cause of *that* would be the grammar is being generated
-  // automatically from some other specification; you can change the
-  // typedefs of ActionEntry and GotoEntry in gramanl.h to get more
-  // capacity
-  ActionEntry ret = (ActionEntry)code;
-  xassert((int)ret == code);
-  return ret;
-}
-
-GotoEntry ParseTables::validateGoto(int code) const
-{
-  // see above
-  GotoEntry ret = (GotoEntry)code;
-  xassert((int)ret == code);
-  return ret;
-}
-
-
-ParseTables::ParseTables(Flatten&)
-{
-  actionTable = NULL;
-  gotoTable = NULL;
-  prodInfo = NULL;
-}
-
-     
-template <class T>
-void xferSimpleArray(Flatten &flat, T *array, int numElements)
-{
-  int len = sizeof(array[0]) * numElements;
-  flat.xferSimple(array, len);
-  flat.checkpoint(crc32((unsigned char const *)array, len));
-}
-
-void ParseTables::xfer(Flatten &flat)
-{
-  // arbitrary number which serves to make sure we're at the
-  // right point in the file
-  flat.checkpoint(0x1B2D2F16);
-
-  flat.xferInt(numTerms);
-  flat.xferInt(numNonterms);
-  flat.xferInt(numStates);
-  flat.xferInt(numProds);
-
-  flat.xferInt((int&)startState);
-  flat.xferInt(finalProductionIndex);
-
-  if (flat.reading()) {
-    alloc(numTerms, numNonterms, numStates, numProds,
-          startState, finalProductionIndex);
-  }
-           
-  xferSimpleArray(flat, actionTable, actionTableSize());
-  xferSimpleArray(flat, gotoTable, gotoTableSize());
-  xferSimpleArray(flat, prodInfo, numProds);
-  xferSimpleArray(flat, stateSymbol, numStates);
-
-  // ambigAction
-  if (flat.writing()) {
-    flat.writeInt(numAmbig());
-    for (int i=0; i<numAmbig(); i++) {
-      flat.writeInt(ambigAction[i][0]);    // length of this entry
-
-      for (int j=0; j<ambigAction[i][0]; j++) {
-        flat.writeInt(ambigAction[i][j+1]);
-      }
-    }
-  }
-
-  else {
-    int ambigs = flat.readInt();
-    for (int i=0; i<ambigs; i++) {
-      int len = flat.readInt();
-      ActionEntry *entry = new ActionEntry[len+1];
-      entry[0] = len;
-
-      for (int j=0; j<len; j++) {
-        entry[j+1] = flat.readInt();
-      }
-
-      ambigAction.push(entry);
-    }
-  }
-
-  // make sure reading and writing agree
-  flat.checkpoint(numAmbig());
-
-}
-
-
 // ------------------------ GrammarAnalysis --------------------
 GrammarAnalysis::GrammarAnalysis()
   : derivable(NULL),
@@ -4121,7 +3983,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
 // because that's all they need; there's no problem upgrading them
 // to GrammarAnalysis
 void emitActionCode(GrammarAnalysis const &g, char const *hFname,
-                   char const *ccFname, char const *srcFname);
+                    char const *ccFname, char const *srcFname);
 void emitUserCode(EmitCode &out, LocString const &code);
 void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl);
 void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl);
@@ -4174,6 +4036,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "\n";
   out << "#include <assert.h>      // assert\n";
   out << "#include \"useract.h\"     // SemanticValue\n";
+  out << "#include \"gramanl.h\"     // ParseTables\n";
   out << "\n";
 
   // insert user's verbatim code at top
@@ -4192,12 +4055,16 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
         << "\n\n";
   )
 
-  out << "// ------------------- actions ------------------\n";
   emitActions(g, out, dcl);
   out << "\n";
   out << "\n";
 
   emitDupDelMerge(g, out, dcl);
+  out << "\n";
+  out << "\n";
+
+  g.tables->emitConstructionCode(out, 
+    stringc << "make_" << g.actionClassName << "_tables");
 }
 
 
@@ -4243,6 +4110,8 @@ bool isEnumType(char const *type)
 
 void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 {
+  out << "// ------------------- actions ------------------\n";
+
   // iterate over productions, emitting inline action functions
   {FOREACH_OBJLIST(Production, g.productions, iter) {
     Production const &prod = *(iter.data());
@@ -4655,10 +4524,7 @@ int main(int argc, char **argv)
   // write the analyzed grammar to a file
   string binFname = stringc << prefix << ".bin";
   traceProgress() << "writing binary grammar file " << binFname << endl;
-  {
-    BFlatten flatOut(binFname, false /*reading*/);
-    g.tables->xfer(flatOut);
-  }
+  writeParseTablesFile(g.tables, binFname);
 
   // write it in a bison-compatible format as well
   {                     

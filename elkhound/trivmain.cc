@@ -136,8 +136,7 @@ int entry(int argc, char *argv[])
   else {
     user = makeUserActions();
   }
-  GLR glr(user);
-  glr.readBinaryGrammar(GRAMMAR_NAME);
+  GLR glr(user, readParseTablesFile(GRAMMAR_NAME));
 
   // parse input
   SemanticValue treeTop;

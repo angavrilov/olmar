@@ -105,7 +105,7 @@ grampar-set := grampar.tab.o gramlex.yy.o grampar.o $(AST)/gramlex.o \
 
 # in addition to grammar-set, file needed to do GLR parsing of C/C++ code
 glr-set := gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
-           useract.o cyctimer.o cc_lang.o
+           useract.o cyctimer.o cc_lang.o parsetables.o
 -include $(glr-set:.o=.d)
 
 # files involved in translating parsed C/C++ code
@@ -138,14 +138,14 @@ random-obj := lexer2stub.o glrtree.o parsstub.o cexp2.o cexp3.gen.o \
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(common) $(grampar-set) \
-               lexer2stub.o $(libraries)
+               lexer2stub.o parsetables.o $(libraries)
 gramanl: $(gramanl-dep) grammar.h gramanl.h
 	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)
 
 # (obsolete) GLR parser built on top of SLR(1) parser
 glr-dep := glr.cc $(grammar-set) $(common) $(grampar-set) gramanl.o \
            glrtree.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
-           parsstub.o $(AST)/strtable.o $(libraries)
+           parsstub.o $(AST)/strtable.o parsetables.o $(libraries)
 glr: $(glr-dep) glr.h
 	$(link) -o glr -DGLR_MAIN $(glr-dep)
 
