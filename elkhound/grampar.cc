@@ -451,7 +451,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
 
 // ----------------------- parser support ---------------------
 // Bison parser calls this to get a token
-int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
+int grampar_yylex(YYSTYPE *lvalp, void *parseParam)
 {
   ParseParams *par = (ParseParams*)parseParam;
   GrammarLexer &lexer = par->lexer;

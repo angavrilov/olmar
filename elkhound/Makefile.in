@@ -59,6 +59,7 @@ linkend := $(libraries)
 #   fmt -1: list words one per line
 #   sed:    strip leading spaces
 #   sed:    add trailing colons
+# see http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
 %.o: %.cc
 	$(compile) $< -o $@
 	@echo "dependencies for $< > $*.d"
@@ -160,7 +161,7 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 	mv -f grampar.tab.h tmp
 	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > grampar.tab.h
 	rm tmp
-	grep '#define' grampar.tab.h > grampar.codes.h
+	grep '# *define' grampar.tab.h > grampar.codes.h
 
 # grammar parser test program
 grampar: grampar.cc $(grammar-set) $(common) gramlex.yy.o grampar.tab.o \
@@ -182,7 +183,7 @@ cexp2.sem: $(cexp2-sem-dep)
 # intermediate files for cexp2
 # ('chmod a-w' is so I don't accidentally edit them)
 cexp2.cc cexp2.h: cexp2.gr gramanl
-	rm -f cexp2.{h,cc}
+	rm -f cexp2.h cexp2.cc
 	./gramanl cexp2
 	chmod a-w cexp2.cc cexp2.h
 
@@ -231,14 +232,14 @@ cexp3: $(cexp3-dep)
 %.gr.gen.cc %.gr.gen.h: %.gr cc.tok gramanl
 	rm -f $*.gr.gen.*
 	./gramanl -tr conflict $*
-	chmod a-w $*.gr.gen.{h,cc}
+	chmod a-w $*.gr.gen.h $*.gr.gen.cc
 
 # intermediate files for an ast spec
 .PRECIOUS: %.ast.gen.cc %.ast.gen.h
 %.ast.gen.cc %.ast.gen.h: %.ast $(AST)/astgen
 	rm -f $*.ast.gen.*
 	$(AST)/astgen -b$*.ast.gen $*.ast
-	chmod a-w $*.ast.gen.{h,cc}
+	chmod a-w $*.ast.gen.h $*.ast.gen.cc
 
 # don't delete these things
 .PRECIOUS: cexp3b cexp3

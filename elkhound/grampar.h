@@ -51,6 +51,10 @@ extern int yydebug;
 // Bison calls this to get each token; returns token code,
 // or 0 for eof; semantic value for returned token can be
 // put into '*lvalp'
+// TODO: Paul Hilfinger reports there's a problem saying "union
+// YYSTYPE"; he's using bison 1.34 I think, so I need to upgrade
+// and see what the problem is (suspect my 'sed' pattern isn't
+// matching, in the Makefile)
 int grampar_yylex(union YYSTYPE *lvalp, void *parseParam);
 
 // error printer
