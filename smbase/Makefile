@@ -22,7 +22,7 @@ ccflags += -Wno-deprecated
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 compile := g++ -c $(ccflags) $(includes)
 link    := g++ $(ccflags) $(includes)
@@ -69,7 +69,8 @@ objlist.h: xobjlist.h
 
 # -------------- main target --------------
 # testing a new malloc
-# add the -DDEBUG flag to turn on additional checks
+# add the -DDEBUG flag to turn on doug lea's additional checks
+# add the -DDEBUG_HEAP flag to turn on my zone-based protection
 # add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
 # normally -O3 is specified
 malloc.o: malloc.c

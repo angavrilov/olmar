@@ -1584,14 +1584,20 @@ Void_t* public_mALLOc(size_t bytes)
 
 void public_fREe(Void_t* m)
 { 
+  int i;
+
   // get back to the real start
   unsigned char *p = ((char*)m) - ZONE_SIZE - sizeof(size_t);
 
   // pull off the size
   size_t bytes = *((size_t*)p);
 
-  // check the zones
-  int i;
+  // check for one particularly common occurrence
+  if (p[sizeof(size_t)] == 0xBB) {
+    assert(!"double deallocation");
+  }
+
+  // check the zones; should be all 0xAA
   for (i=0; i<ZONE_SIZE; i++) {
     if (p[sizeof(size_t) + i] != 0xAA ||
         p[bytes - 1 - i] != 0xAA) {
@@ -1607,7 +1613,13 @@ void public_fREe(Void_t* m)
   if (MALLOC_PREACTION != 0) {
     return;
   }
-  fREe(p);
+  #ifdef DEBUG_HEAP
+    // don't free the memory; but not re-using memory, references
+    // to free'd memory become even more apparent
+  #else
+    // usual mode; free the memory
+    fREe(p);
+  #endif
   if (MALLOC_POSTACTION != 0) {
   }
 }
