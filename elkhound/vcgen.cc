@@ -86,7 +86,8 @@ void TF_func::vcgen(AEnv &env) const
             iter.data()->vcgen(env);
           }
 
-          env.addFact(ft.precondition->expr->vcgenPred(env, 0 /*path*/));
+          env.addFact(ft.precondition->expr->vcgenPred(env, 0 /*path*/),
+                      "precondition");
         }
       }
       else {
@@ -95,7 +96,7 @@ void TF_func::vcgen(AEnv &env) const
         S_invariant const *inv = root->asS_invariantC();
 
         IN_PREDICATE(env);
-        env.addFact(inv->expr->vcgenPred(env, 0 /*path*/));
+        env.addFact(inv->expr->vcgenPred(env, 0 /*path*/), "invariant");
       }
 
       // -------------- interpret the code ------------
@@ -271,12 +272,12 @@ void S_if::vcgen(STMT_VCGEN_PARAMS) const
 
   if (next == thenBranch) {
     // remember that the guard was true
-    env.addFact(pred);
+    env.addFact(pred, stringc << "true guard of 'if' at " << loc.toString());
   }
   else {
     // guard is false
     xassert(next == elseBranch);
-    env.addFalseFact(pred);
+    env.addFalseFact(pred, stringc << "false guard of 'if' at " << loc.toString());
   }
 }
 
@@ -296,11 +297,11 @@ void S_while::vcgen(STMT_VCGEN_PARAMS) const
   Predicate *pred = cond->vcgenPred(env, path);
 
   if (next == body) {
-    env.addFact(pred);
+    env.addFact(pred, stringc << "true guard of 'while' at " << loc.toString());
   }
   else {
     // 'next' is whatever follows the loop
-    env.addFalseFact(pred);
+    env.addFalseFact(pred, stringc << "false guard of 'while' at " << loc.toString());
   }
 }
 
@@ -314,10 +315,10 @@ void S_doWhile::vcgen(STMT_VCGEN_PARAMS) const
   else {
     Predicate *pred = cond->vcgenPred(env, path);
     if (next == body) {
-      env.addFact(pred);
+      env.addFact(pred, stringc << "true guard of 'do' at " << loc.toString());
     }
     else {
-      env.addFalseFact(pred);
+      env.addFalseFact(pred, stringc << "false guard of 'do' at " << loc.toString());
     }
   }
 }
@@ -341,10 +342,10 @@ void S_for::vcgen(STMT_VCGEN_PARAMS) const
 
   // body?
   if (next == body) {
-    env.addFact(pred);
+    env.addFact(pred, stringc << "true guard of 'for' at " << loc.toString());
   }
   else {
-    env.addFalseFact(pred);
+    env.addFalseFact(pred, stringc << "false guard of 'for' at " << loc.toString());
   }
 }
 
@@ -419,7 +420,7 @@ void S_assume::vcgen(STMT_VCGEN_PARAMS) const
   xassert(p);
 
   // remember it as a known fact
-  env.addFact(p);
+  env.addFact(p, stringc << "thmprv_assume at " << loc.toString());
 }
 
 void S_invariant::vcgen(STMT_VCGEN_PARAMS) const
@@ -458,11 +459,11 @@ AbsValue *E_stringLit::vcgen(AEnv &env, int path) const
 
   // assert the length of this object is the length of the string (w/ null)
   env.addFact(P_equal(env.avLength(object),
-                      env.avInt(strlen(s)+1)));
+                      env.avInt(strlen(s)+1)), "string literal length");
 
   // assert that the first zero is (currently?) at the end
   env.addFact(P_equal(env.avFirstZero(env.getMem(), object),
-                      env.avInt(strlen(s)+1)));
+                      env.avInt(strlen(s)+1)), "string literal zero");
 
   // the result of this expression is a pointer to the string's start
   return env.avPointer(object, new AVint(0));
@@ -598,7 +599,7 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
     xassert(predicate);
 
     // assume it
-    env.addFact(predicate);
+    env.addFact(predicate, stringc << "postcondition from call: " << toString());
   }
 
   // result of calling this function is the result variable
@@ -660,14 +661,16 @@ AbsValue *E_binary::vcgen(AEnv &env, int path) const
     if (path > 0) {
       // we follow rhs; this implies something about the value of lhs:
       // if it's &&, lhs had to be true; false for ||
-      env.addBoolFact(lhs, op==BIN_AND);
+      env.addBoolFact(lhs, op==BIN_AND, 
+        stringc << "LHS guard given RHS is eval'd " << toString());
 
       // the true/false value is now entirely determined by rhs
       return e2->vcgen(env, path-1);
     }
     else {
       // we do *not* follow rhs; this also implies something about lhs
-      env.addBoolFact(lhs, op==BIN_OR);
+      env.addBoolFact(lhs, op==BIN_OR,
+        stringc << "LHS guard given RHS is *not* eval'd " << toString());
 
       // it's a C boolean, yielding 1 or 0 (and we know which)
       return env.grab(new AVint(op==BIN_OR? 1 : 0));
@@ -750,12 +753,12 @@ AbsValue *E_cond::vcgen(AEnv &env, int path) const
 
     if (path < thenPaths) {
       // taking 'then' branch, so we can assume guard is true
-      env.addFact(guard);
+      env.addFact(guard, stringc << "true guard of '?:': " << toString());
       return th->vcgen(env, path);
     }
     else {
       // taking 'else' branch, so guard is false
-      env.addFalseFact(guard);
+      env.addFalseFact(guard, stringc << "false guard of '?:': " << toString());
       return el->vcgen(env, path - elsePaths);
     }
   }
@@ -985,14 +988,16 @@ Predicate *E_binary::vcgenPred(AEnv &env, int path) const
       if (rhsPath > 0) {
         // we follow rhs; this implies something about the value of lhs:
         // if it's &&, lhs had to be true; false for ||
-        env.addBoolFact(lhs, op==BIN_AND);
+        env.addBoolFact(lhs, op==BIN_AND,
+          stringc << "LHS guard given RHS is eval'd " << toString());
 
         // the true/false value is now entirely determined by rhs
         return e2->vcgenPred(env, rhsPath-1);
       }
       else {
         // we do *not* follow rhs; this also implies something about lhs
-        env.addBoolFact(lhs, op==BIN_OR);
+        env.addBoolFact(lhs, op==BIN_OR,
+          stringc << "LHS guard given RHS is *not* eval'd " << toString());
 
         // it's a C boolean, yielding 1 or 0 (and we know which)
         return new P_lit(op==BIN_OR? true : false);
@@ -1049,12 +1054,12 @@ Predicate *E_cond::vcgenPred(AEnv &env, int path) const
 
     if (path < thenPaths) {
       // taking 'then' branch, so we can assume guard is true
-      env.addFact(guard);
+      env.addFact(guard, stringc << "true guard of '?:': " << toString());
       return th->vcgenPred(env, path);
     }
     else {
       // taking 'else' branch, so guard is false
-      env.addFalseFact(guard);
+      env.addFalseFact(guard, stringc << "false guard of '?:': " << toString());
       return el->vcgenPred(env, path - elsePaths);
     }
   }

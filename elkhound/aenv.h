@@ -142,9 +142,10 @@ public:      // funcs
   void setMem(AbsValue *newMem) { set(mem, newMem); }
 
   // proof assumption
-  void addFact(Predicate * /*owner*/ pred);
-  void addBoolFact(Predicate *pred, bool istrue);
-  void addFalseFact(Predicate *falsePred) { addBoolFact(falsePred, false); }
+  void addFact(Predicate * /*owner*/ pred, char const *why);
+  void addBoolFact(Predicate *pred, bool istrue, char const *why);
+  void addFalseFact(Predicate *falsePred, char const *why) 
+    { addBoolFact(falsePred, false, why); }
 
   void pushFact(Predicate * /*serf*/ pred);
   void popFact();      // must pop before corresponding 'pred' is deleted

@@ -166,7 +166,8 @@ AbsValue *AEnv::get(Variable const *var)
     if (!type->isArrayType()) {
       // state that, right now, that memory location contains 'value'
       addFact(P_equal(value,
-                      avSelect(getMem(), addr, new AVint(0))));
+                      avSelect(getMem(), addr, new AVint(0))),
+              "initial value of memory variable");
     }
     else {
       // will model array contents as elements in memory, rather
@@ -184,7 +185,8 @@ AbsValue *AEnv::get(Variable const *var)
     }
 
     // remember the length, as a predicate in the set of known facts
-    addFact(P_equal(avLength(addr), new AVint(size)));
+    addFact(P_equal(avLength(addr), new AVint(size)),
+            "memory object size");
                          
     // caller knows that we're yielding the address, not the value,
     // since this is a memvar
@@ -368,18 +370,22 @@ Predicate *exprToPred(AbsValue const *expr)
 }
 
 
-void AEnv::addFact(Predicate *pred)
+void AEnv::addFact(Predicate *pred, char const *why)
 {
   pathFacts->conjuncts.append(pred);
+
+  if (tracingSys("addFact")) {
+    trace("addFact") << why << ": " << pred->toSexpString() << endl;
+  }
 }
 
-void AEnv::addBoolFact(Predicate *pred, bool istrue)
+void AEnv::addBoolFact(Predicate *pred, bool istrue, char const *why)
 {
   if (istrue) {
-    addFact(pred);
+    addFact(pred, why);
   }
   else {
-    addFact(P_negate(pred));    // strip outer P_not (if exists)
+    addFact(P_negate(pred), why);    // strip outer P_not (if exists)
   }
 }
 
