@@ -38,6 +38,7 @@ public:     // funcs
   T *remove(K const *key)                 { return (T*)table.remove(key); }
   void empty(int initSize = HashTable::defaultSize);
   void setEnableShrink(bool en)           { table.setEnableShrink(en); }
+  K const *callGetKeyFn(T *data)          { return (K const*)table.callGetKeyFn(data); }
   void selfCheck() const                  { table.selfCheck(); }
 
   // this simply drops all the entries without deleting them; it is

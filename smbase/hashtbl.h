@@ -103,6 +103,9 @@ public:     // funcs
   // disable this to avoid any allocation in certain situations
   void setEnableShrink(bool en) { enableShrink = en; }
 
+  // allow external access to an accessor function
+  void const *callGetKeyFn(void *data) { return getKey(data); }
+
   // check the data structure's invariants, and throw an exception
   // if there is a problem
   void selfCheck() const;

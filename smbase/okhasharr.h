@@ -36,6 +36,7 @@ public:     // funcs
 
   // access as a hashtable
   T *lookup(K const *key) const      { return hash.get(key); }
+  K const *callGetKeyFn(T *data)     { return hash.callGetKeyFn(data); }
 
   // TODO: make a new base-level implementation so I can support
   // removal of arbitrary objects efficiently
@@ -48,7 +49,7 @@ public:     // funcs
 
   T *pop() {
     T *ret = stack.pop();
-    hash.remove(ret);
+    hash.remove(hash.callGetKeyFn(ret));
     return ret;
   }
 };
