@@ -140,7 +140,7 @@ while (defined($line = <IN>)) {
     }
     else {
       # run Elsa to parse it
-      my $op = (($s eq "gcc")? "-tr c_lang " : "");
+      my $op = (($s eq "gcc")? "-tr gnu_kandr_c_lang " : "");
       if (run("$ccparse ${op}tmp.i")) {
         $parseok{$s}++;
       }
