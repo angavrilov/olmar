@@ -2,7 +2,7 @@
 
 // originally found in package battleball
 
-// Assertion failed: dt.funcSyntax, file cc_tcheck.cc line 2228
+//  Parse error (state 910) at <name>: and
 
 int main()
 {
