@@ -24,6 +24,17 @@
 #include <stdlib.h>     // getenv
 
 
+// ------------------- TypeVisitor ----------------
+bool TypeVisitor::visitType(Type *obj)
+  { return true; }
+bool TypeVisitor::visitAtomicType(AtomicType *obj)
+  { return true; }
+bool TypeVisitor::visitSTemplateArgument(STemplateArgument *obj)
+  { return true; }
+bool TypeVisitor::visitExpression(Expression *obj)
+  { return true; }
+
+
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
@@ -96,7 +107,30 @@ bool AtomicType::equals(AtomicType const *obj) const
   }
   #endif // 0
 
-  return this == obj;
+  if (this == obj) {
+    return true;
+  }
+  
+  // 2005-03-03: Let's try saying that TypeVariables are equal if they
+  // are the same ordinal parameter of the same template.
+  if (this->isTypeVariable() && obj->isTypeVariable()) {
+    Variable *param1 = this->asTypeVariableC()->typedefVar;
+    Variable *param2 = obj->asTypeVariableC()->typedefVar;
+
+    // don't let this rule kick in until the parameters have been
+    // annotated with which template they refer to
+    if (param1->getParameterizedEntity() == NULL) {
+      return false;
+    }
+
+    if (param1->getParameterOrdinal() == param2->getParameterOrdinal() &&
+        param1->getParameterizedEntity() == param2->getParameterizedEntity()) {
+      // same!
+      return true;
+    }
+  }
+
+  return false;
 }
 
 
@@ -154,6 +188,12 @@ string SimpleType::toCString() const
 int SimpleType::reprSize() const
 {
   return simpleTypeReprSize(type);
+}
+
+
+void SimpleType::traverse(TypeVisitor &vis)
+{
+  vis.visitAtomicType(this);
 }
 
 
@@ -380,18 +420,30 @@ int CompoundType::reprSize() const
 }
 
 
+void CompoundType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
+
+  if (isTemplate()) {
+    templateInfo()->traverseArguments(vis);
+  }
+}
+
+
 int CompoundType::numFields() const
-{                                                
+{
   int ct = 0;
   for (StringRefMap<Variable>::Iter iter(getVariableIter());
        !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();
-           
+
     // count nonstatic data members
     if (!v->type->isFunctionType() &&
         !v->hasFlag(DF_TYPEDEF) &&
         !v->hasFlag(DF_STATIC)) {
-      ct++;                        
+      ct++;
     }
   }
 
@@ -753,6 +805,12 @@ int EnumType::reprSize() const
 }
 
 
+void EnumType::traverse(TypeVisitor &vis)
+{
+  vis.visitAtomicType(this);
+}
+
+
 EnumType::Value *EnumType::addValue(StringRef name, int value, Variable *decl)
 {
   xassert(!valueIndex.isMapped(name));
@@ -788,6 +846,13 @@ EnumType::Value::Value(StringRef n, EnumType *t, int v, Variable *d)
 
 EnumType::Value::~Value()
 {}
+
+
+// -------------------- TypePred ----------------------
+bool StatelessTypePred::operator() (Type const *t)
+{
+  return f(t);
+}
 
 
 // -------------------- BaseType ----------------------
@@ -1220,7 +1285,7 @@ bool hasVariable(Type const *t)
   else if (t->isPointerToMemberType()) {
     return atomicTypeHasVariable(t->asPointerToMemberTypeC()->inClassNAT);
   }
-  
+
   return false;
 }
 
@@ -1289,6 +1354,16 @@ bool CVAtomicType::anyCtorSatisfies(TypePred &pred) const
 CVFlags CVAtomicType::getCVFlags() const
 {
   return cv;
+}
+
+
+void CVAtomicType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  atomic->traverse(vis);
 }
 
 
@@ -1389,6 +1464,16 @@ CVFlags PointerType::getCVFlags() const
 }
 
 
+void PointerType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  atType->traverse(vis);
+}
+
+
 // ------------------- ReferenceType ---------------
 ReferenceType::ReferenceType(Type *a)
   : atType(a)
@@ -1452,6 +1537,16 @@ bool ReferenceType::anyCtorSatisfies(TypePred &pred) const
 CVFlags ReferenceType::getCVFlags() const
 {
   return CV_NONE;
+}
+
+
+void ReferenceType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  atType->traverse(vis);
 }
 
 
@@ -1901,6 +1996,29 @@ bool FunctionType::anyCtorSatisfies(TypePred &pred) const
 }
 
 
+void FunctionType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  retType->traverse(vis);
+
+  SFOREACH_OBJLIST(Variable, params, iter) {
+    // I am choosing not to traverse into any of the other fields of
+    // the parameters, including default args.  For the application I
+    // have in mind right now (matching definitions to declarations),
+    // I do not need or want anything other than the parameter type.
+    // So, if this code is later extended to traverse into default
+    // args, there should be a flag to control that, and it should
+    // default to off (or change the existing call sites).
+    iter.data()->type->traverse(vis);
+  }
+
+  // similarly, I don't want traversal into exception specs right now
+}
+
+
 // -------------------- ArrayType ------------------
 void ArrayType::checkWellFormedness() const
 {
@@ -1978,6 +2096,17 @@ bool ArrayType::anyCtorSatisfies(TypePred &pred) const
 {
   return pred(this) ||
          eltType->anyCtorSatisfies(pred);
+}
+
+
+
+void ArrayType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  eltType->traverse(vis);
 }
 
 
@@ -2066,6 +2195,17 @@ bool PointerToMemberType::anyCtorSatisfies(TypePred &pred) const
 CVFlags PointerToMemberType::getCVFlags() const
 {
   return cv;
+}
+
+
+void PointerToMemberType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitType(this)) {
+    return;
+  }
+
+  inClassNAT->traverse(vis);
+  atType->traverse(vis);
 }
 
 

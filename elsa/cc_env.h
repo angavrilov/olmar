@@ -270,6 +270,7 @@ private:     // funcs
     (CompoundType *ct, SObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
+  bool equivalentTypes(Type *t1, Type *t2, Type::EqFlags eflags = Type::EF_EXACT);
 
   Variable *getPrimaryOrSpecialization
     (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs);
@@ -597,7 +598,8 @@ public:      // funcs
 
   // compare types for equality; see extensive comment at
   // implementation
-  bool almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2);
+  bool almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2,
+                        Type::EqFlags eqFlags = Type::EF_EXACT);
 
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);

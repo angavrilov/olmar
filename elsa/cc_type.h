@@ -49,6 +49,7 @@ class TypeSpecifier;      // cc.ast
 class Declaration;        // cc.ast
 
 // fwd in this file
+class AtomicType;
 class SimpleType;
 class NamedAtomicType;
 class CompoundType;
@@ -68,6 +69,25 @@ class STemplateArgument;
 class TypeFactory;
 class BasicTypeFactory;
 class TypePred;
+
+
+// --------------------- type visitor -----------------------        
+// Visitor that digs down into template arguments, among other things.
+// Like the AST visitors, the 'visit' functions return true to
+// continue digging into subtrees, or false to prune the search.
+class TypeVisitor {
+public:
+  virtual ~TypeVisitor() {}     // silence warning
+
+  virtual bool visitType(Type *obj);
+  virtual bool visitAtomicType(AtomicType *obj);
+  virtual bool visitSTemplateArgument(STemplateArgument *obj);
+
+  // note that this call is always a leaf in the traversal; the type
+  // visitor does *not* dig into Expressions (though of course you can
+  // write a 'visitExpression' method that does)
+  virtual bool visitExpression(Expression *obj);
+};
 
 
 // --------------------- atomic types --------------------------
@@ -115,12 +135,15 @@ public:     // funcs
   // print in ML notation
   virtual string toMLString() const = 0;
   
-  // toString()+newline to cout
-  void gdb() const;
-
   // size this type's representation occupies in memory; this
   // might throw XReprSize, see below
   virtual int reprSize() const = 0;
+
+  // invoke 'vis.visitAtomicType(this)', and then traverse subtrees
+  virtual void traverse(TypeVisitor &vis) = 0;
+
+  // toString()+newline to cout
+  void gdb() const;
 
   ALLOC_STATS_DECLARE
 };
@@ -146,6 +169,7 @@ public:     // funcs
   virtual string toCString() const;
   virtual string toMLString() const;
   virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 
@@ -311,6 +335,7 @@ public:      // funcs
   virtual string toCString() const;
   virtual string toMLString() const;
   virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
 
   string toStringWithFields() const;
   string keywordAndName() const { return toCString(); }
@@ -409,6 +434,7 @@ public:     // funcs
   virtual string toCString() const;
   virtual string toMLString() const;
   virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
   Value const *getValue(StringRef name) const;
@@ -418,13 +444,10 @@ public:     // funcs
 // moved PseudoInstantiation into template.h
 
 
-// ------------------- constructed types -------------------------
-
-// ---- Type predicates ----
-// dsw: It caused too much difficulty in the Oink build process to
-// have these as members of class Type.
-
-typedef bool (*TypePredFunc)(Type const *t);
+// ---------------------- TypePred ----------------------------
+// This visitor predates TypeVisitor, and is a little different
+// because it does not dig into atomic types or template args.
+// It would be good to merge them at some point.
 
 // abstract superclass
 class TypePred {
@@ -434,15 +457,17 @@ public:
 };
 
 // when you just want a stateless predicate
+typedef bool (*TypePredFunc)(Type const *t);
+
 class StatelessTypePred : public TypePred {
   TypePredFunc const f;
 public:
   StatelessTypePred(TypePredFunc f0) : f(f0) {}
-  virtual bool operator() (Type const *t) { return f(t); }
-  virtual ~StatelessTypePred() {}
+  virtual bool operator() (Type const *t);
 };
 
 
+// ------------------- constructed types -------------------------
 // generic constructed type; to allow client analyses to annotate the
 // description of types, this class is inherited by "Type", the class
 // that all of the rest of the parser regards as being a "type"
@@ -542,7 +567,12 @@ public:     // funcs
     // to deduce function template arguments, so the variations
     // allowed in 14.8.2.1 are in effect (for the moment I don't know
     // what propagation properties this flag should have)
-    EF_DEDUCTION       = 0x0200,
+    EF_DEDUCTION       = 0x0100,
+
+    // this is another flag for MatchTypes, and it means that template
+    // parameters should be regarded as unification variables only if
+    // they are *not* associated with a specific template
+    EF_UNASSOC_TPARAMS = 0x0200,
 
     // ----- combined behaviors -----
     // all flags set to 1
@@ -566,7 +596,7 @@ public:     // funcs
     // this is the set of flags that automatically propagate down
     // the type tree equality checker; others are suppressed once
     // the first type constructor looks at them
-    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC),
+    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC | EF_UNASSOC_TPARAMS),
 
     // these flags are propagated below ptr and ptr-to-member
     EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
@@ -621,11 +651,13 @@ public:     // funcs
   // overloading and overriding on the same name
   bool anyCtorSatisfiesF(TypePredFunc f) const;
 
-
   // return the cv flags that apply to this type, if any;
   // default returns CV_NONE
   virtual CVFlags getCVFlags() const;
   bool isConst() const { return !!(getCVFlags() & CV_CONST); }
+
+  // invoke 'vis.visitType(this)', and then traverse subtrees
+  virtual void traverse(TypeVisitor &vis) = 0;
 
   // some common queries
   bool isSimpleType() const;
@@ -767,6 +799,7 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
              
@@ -801,6 +834,7 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 
@@ -827,6 +861,7 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 
@@ -955,6 +990,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 
@@ -991,6 +1027,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 
@@ -1028,6 +1065,7 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred &pred) const;
   virtual CVFlags getCVFlags() const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 

@@ -108,7 +108,7 @@ private:      // data
   unsigned intData;
 
   // for most kinds of Variables, this is 'getUsingAlias()'; for
-  // template parameters (DF_TEMPL_PARAM), this is
+  // template parameters (isTemplateParam()), this is
   // 'getParameterizedEntity()'
   Variable *usingAlias_or_parameterizedEntity;   // (nullable serf)
 
@@ -221,10 +221,13 @@ public:
   // true if this is a member of a template (uninstantiated template)
   bool isMemberOfTemplate() const;
 
-  // true if this is a template parameter or arg or both
-  bool isTemplateParam() const { return hasFlag(DF_TEMPL_PARAM); }
-  bool isTemplateArg() const { return hasFlag(DF_BOUND_TARG); }
-  bool isTemplateParamOrArg() const { return isTemplateParam() || isTemplateArg(); }
+  // true if this is a template parameter or bound arg or both
+  bool isAbstractTemplateParam() const 
+    { return hasFlag(DF_TEMPL_PARAM) && !hasFlag(DF_BOUND_TPARAM); }
+  bool isBoundTemplateParam() const
+    { return hasAllFlags(DF_TEMPL_PARAM | DF_BOUND_TPARAM); }
+  bool isTemplateParam() const
+    { return hasFlag(DF_TEMPL_PARAM); }
 
   // generic print (C or ML depending on Type::printAsML)
   string toString() const;

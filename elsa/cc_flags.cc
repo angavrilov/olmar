@@ -76,7 +76,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<global>",
   "<initialized>",
   "<builtin>",
-  "<bound templ var>", // 14
+  "<bound tparam>", // 14
   "<addrtaken>",
   "<parameter>",
   "<universal>",

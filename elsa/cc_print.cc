@@ -911,7 +911,7 @@ void printTemplateArgs(PrintEnv &env, Variable *var)
 void E_variable::iprint(PrintEnv &env)
 {
   olayer ol("E_variable::iprint");
-  if (var && var->hasFlag(DF_BOUND_TARG)) {
+  if (var && var->isBoundTemplateParam()) {
     // this is a bound template variable, so print its value instead
     // of printing its name
     xassert(var->value);

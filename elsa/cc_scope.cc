@@ -1339,6 +1339,18 @@ void Scope::setParameterizedEntity(Variable *entity)
 
     TRACE("templateParams", desc() << " now delegated to " << ct->desc());
   }
+
+  // point all of the template parameters at the template
+  for (StringRefMap<Variable>::Iter iter(variables);
+       !iter.isDone(); iter.adv()) {
+    Variable *param = iter.value();
+
+    // should not already be parameterizing something
+    xassert(!param->getParameterizedEntity());
+
+    // this parameter parameterizes the template 'entity'
+    param->setParameterizedEntity(entity);
+  }
 }
 
 

@@ -2735,7 +2735,8 @@ Variable *Env::createBuiltinBinaryOp(Type *retType, OverloadableOp op,
 // 'normalizeParameterType()'
 //
 // Like 'equalOrIsomorphic', I've weakened constness ...
-bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2)
+bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2,
+                           Type::EqFlags eqFlags)
 {
   if (t1->isArrayType() &&
       t2->isArrayType()) {
@@ -2749,10 +2750,10 @@ bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2)
     }
   }
 
-  // no exception: strict equality (well, toplevel param cv can differ)
-  Type::EqFlags eqFlags = Type::EF_IGNORE_PARAM_CV;
-
-  return equalOrIsomorphic(tfac, t1, t2, eqFlags);
+  // strict equality (well, toplevel param cv can differ)
+  eqFlags |= Type::EF_IGNORE_PARAM_CV;
+    
+  return equivalentTypes(t1, t2, eqFlags);
 }
 
 
@@ -2959,8 +2960,8 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
     FunctionType *iterft = iter.data()->type->asFunctionType();
 
     // check the parameters other than '__receiver'
-    if (!equalOrIsomorphic(tfac, iterft, ft, 
-           Type::EF_STAT_EQ_NONSTAT | Type::EF_IGNORE_IMPLICIT)) {
+    if (!equivalentTypes(iterft, ft, Type::EF_STAT_EQ_NONSTAT |
+                                     Type::EF_IGNORE_IMPLICIT)) {
       continue;    // not the one we want
     }
 
@@ -2983,8 +2984,76 @@ Variable *Env::findInOverloadSet(OverloadSet *oset, FunctionType *ft)
 // if their names are the same then they refer to the same function,
 // not two overloaded instances  
 bool Env::equivalentSignatures(FunctionType *ft1, FunctionType *ft2)
+{   
+  return equivalentTypes(ft1, ft2, Type::EF_SIGNATURE);
+}
+
+
+#if 0     // not needed right now
+class ContainsUTP : public TypeVisitor {
+public:
+  bool anyUTP;
+
+public:
+  ContainsUTP() : anyUTP(false) {}
+  virtual bool visitAtomicType(AtomicType *obj);
+};
+
+bool ContainsUTP::visitAtomicType(AtomicType *obj)
 {
-  return equalOrIsomorphic(tfac, ft1, ft2, Type::EF_SIGNATURE);
+  if (obj->isTypeVariable() &&
+      !obj->asTypeVariableC()->isAssociated()) {
+    anyUTP = true;
+    return false;     // no need to check children
+  }
+  return true;
+}
+
+bool containsUnassociatedTemplateParams(Type *t)
+{
+  ContainsUTP cutp;
+  t->traverse(cutp);
+  return cutp.anyUTP;
+}
+#endif // 0
+
+// 2005-03-03: This function is taking over some of the duties of
+// 'equalOrIsomorphic', in particular those that involve checking
+// function signature equivalence for the purpose of matching
+// declarations and definitions.  It distinguishes template parameters
+// by whether they have been associated with a template: those that
+// have been associated are essentially regarded as concrete, while
+// those that have not are regarded as arbitrary type variables, and
+// therefore subject to unification by MatchTypes.
+bool Env::equivalentTypes(Type *a, Type *b, Type::EqFlags eflags)
+{        
+  // In the future, I may be able to restrict using MatchTypes to just
+  // those cases that have unassociated tparams; but right now, in
+  // addition to doing matching per se, MatchTypes is implementing
+  // somewhat more liberal equality rules (particularly for
+  // ST_DEPENDENT), which I need (e.g., for in/t0268.cc).  Therefore I
+  // will continue to use it whenever there are any tparams,
+  // regardless of whether they are associated or not.
+  #if 0
+    bool aVars = containsUnassociatedTemplateParams(a);
+    bool bVars = containsUnassociatedTemplateParams(b);
+  #else
+    bool aVars = a->containsVariables();
+    bool bVars = b->containsVariables();
+  #endif
+
+  if (!aVars && !bVars) {
+    // normal case
+    return a->equals(b, eflags);
+  }
+  else {
+    // the 'a' type refers to the already-existing function template
+    // declaration, wherein the parameters *have* been associated, and
+    // the 'b' type refers to the new declaration we are trying to
+    // match up, so its parameters have *not* been associated
+    MatchTypes match(tfac, MatchTypes::MM_ISO, eflags | Type::EF_UNASSOC_TPARAMS);
+    return match.match_Type(a, b);
+  }
 }
 
 
@@ -3032,8 +3101,8 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
     FunctionType *specFt = type->asFunctionType();
     bool sameType = 
       (prior->name == conversionOperatorName?
-        equalOrIsomorphic(tfac, priorFt, specFt) :   // conversion: equality check
-        equivalentSignatures(priorFt, specFt));      // non-conversion: signature check
+        equivalentTypes(priorFt, specFt) :       // conversion: equality check
+        equivalentSignatures(priorFt, specFt));  // non-conversion: signature check
 
     // figure out if either is (or will be) a template
     bool priorIsTemplate = prior->templateInfo() &&
@@ -3228,9 +3297,7 @@ Variable *Env::createDeclaration(
              prior->hasFlag(DF_EXTERN_C) &&
              (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF) &&
              prior->type->isFunctionType() &&
-             equalOrIsomorphic(tfac, prior->type, type,
-                               Type::EF_IGNORE_PARAM_CV |    // same as in almostEqualTypes
-                               Type::EF_IGNORE_EXN_SPEC)) {  // special to this call site
+             almostEqualTypes(prior->type, type, Type::EF_IGNORE_EXN_SPEC)) {
       // 10/01/04: allow the nonstandard variation in exception specs
       // for extern-C decls (since they usually don't throw exceptions
       // at all)

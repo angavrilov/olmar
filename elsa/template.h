@@ -25,6 +25,11 @@ public:
   virtual string toCString() const;
   virtual string toMLString() const;
   virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
+
+  // true if this template parameter has been associated with
+  // a specific template
+  bool isAssociated() const;
 };
 
 
@@ -53,6 +58,7 @@ public:      // funcs
   virtual string toCString() const;
   virtual string toMLString() const;
   virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
 };
 
 
@@ -297,6 +303,9 @@ public:      // funcs
   // debugging/error messages: print the fully qualified name,
   // plus arguments/parameters, to identify this template thing
   string templateName() const;
+                                           
+  // visit the template arguments with 'vis'
+  void traverseArguments(TypeVisitor &vis);
 
   // debugging
   void gdb();
@@ -390,6 +399,9 @@ public:
   // if it does contain variables, then 'equals' is inappropriate;
   // isomorphism is the right thing to check
   bool isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const;
+
+  // traverse argument
+  void traverse(TypeVisitor &vis);
 
   // debug print
   string toString() const;

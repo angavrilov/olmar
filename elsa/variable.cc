@@ -152,6 +152,11 @@ int Variable::getParameterOrdinal() const
 
 void Variable::setParameterOrdinal(int ord)
 {
+  // this imposes a limit of 0xFFFF template parameters; but that is
+  // probably ok, as the standard's recommended minimum limit is 1024
+  // (annex B, para 2, near the end of the list)
+  xassert(0 <= ord && ord <= 0xFFFF);
+
   intData = (intData & ~0xFFFF0000) | ((ord << 16) & 0xFFFF0000);
 }
 
@@ -382,7 +387,7 @@ bool Variable::isMemberOfTemplate() const
 
 Variable *Variable::getUsingAlias() const
 {
-  if (!hasFlag(DF_TEMPL_PARAM)) {
+  if (!isTemplateParam()) {
     return usingAlias_or_parameterizedEntity;
   }
   else {
@@ -392,14 +397,14 @@ Variable *Variable::getUsingAlias() const
 
 void Variable::setUsingAlias(Variable *target)
 {
-  xassert(!hasFlag(DF_TEMPL_PARAM));
+  xassert(!isTemplateParam());
   usingAlias_or_parameterizedEntity = target;
 }
 
 
 Variable *Variable::getParameterizedEntity() const
 {
-  if (hasFlag(DF_TEMPL_PARAM)) {
+  if (isTemplateParam()) {
     return usingAlias_or_parameterizedEntity;
   }
   else {
@@ -409,7 +414,7 @@ Variable *Variable::getParameterizedEntity() const
 
 void Variable::setParameterizedEntity(Variable *templ)
 {
-  xassert(hasFlag(DF_TEMPL_PARAM));
+  xassert(isTemplateParam());
   usingAlias_or_parameterizedEntity = templ;
 }
 

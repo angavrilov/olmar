@@ -1,4 +1,4 @@
-// Same as t0210.cc except that the body if the function member of the
+// Same as t0210.cc except that the body of the function member of the
 // templatized class is pulled out-of-line
 
 template <class T>

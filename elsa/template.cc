@@ -76,6 +76,18 @@ int TypeVariable::reprSize() const
 }
 
 
+void TypeVariable::traverse(TypeVisitor &vis)
+{
+  vis.visitAtomicType(this);
+}
+
+
+bool TypeVariable::isAssociated() const
+{
+  return typedefVar->getParameterizedEntity() != NULL;
+}
+
+
 // -------------------- PseudoInstantiation ------------------
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
   : NamedAtomicType(p->name),
@@ -97,6 +109,20 @@ int PseudoInstantiation::reprSize() const
   // be made in the context of checking (but not instantiating) a
   // template definition body
   return 4;
+}
+
+
+void PseudoInstantiation::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
+  
+  primary->traverse(vis);
+  
+  FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
+    iter.data()->traverse(vis);
+  }
 }
 
 
@@ -513,6 +539,14 @@ string TemplateInfo::templateName() const
 }
 
 
+void TemplateInfo::traverseArguments(TypeVisitor &vis)
+{
+  FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
+    iter.data()->traverse(vis);
+  }
+}
+
+
 void TemplateInfo::gdb()
 {
   debugPrint(0);
@@ -706,6 +740,28 @@ bool STemplateArgument::isomorphic(TypeFactory &tfac, STemplateArgument const *o
 }
 
 
+void STemplateArgument::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitSTemplateArgument(this)) {
+    return;
+  }
+
+  switch (kind) {
+    case STA_TYPE:
+      value.t->traverse(vis);
+      return;
+
+    case STA_DEPEXPR:
+      // TODO: at some point I will have to store actual expressions,
+      // and then I should traverse the expr
+      break;
+
+    default:
+      return;
+  }
+}
+
+
 string STemplateArgument::toString() const
 {
   switch (kind) {
@@ -716,8 +772,9 @@ string STemplateArgument::toString() const
     case STA_REFERENCE: return stringc << "/*ref*/ " << value.v->name;
     case STA_POINTER:   return stringc << "/*ptr*/ &" << value.v->name;
     case STA_MEMBER:    return stringc
-      << "/*member*/ &" << value.v->scope->curCompound->name 
+      << "/*member*/ &" << value.v->scope->curCompound->name
       << "::" << value.v->name;
+    case STA_DEPEXPR:   return string("<value-dep-expr>");
     case STA_TEMPLATE:  return string("template (?)");
   }
 }
@@ -1477,8 +1534,8 @@ bool Env::insertTemplateArgBindings_oneParamList
 
       // bind the type parameter to the type argument
       Type *t = sarg? sarg->getType() : param->defaultParamType;
-      Variable *binding = makeVariable(param->loc, param->name,
-                                       t, DF_TYPEDEF | DF_BOUND_TARG);
+      Variable *binding = makeVariable(param->loc, param->name, t, 
+                                       DF_TYPEDEF | DF_TEMPL_PARAM | DF_BOUND_TPARAM);
       addVariableToScope(scope, binding);
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
@@ -1499,7 +1556,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
                                           param->type, NULL /*syntax*/);
       Variable *binding = makeVariable(param->loc, param->name,
-                                       bindType, DF_BOUND_TARG);
+                                       bindType, DF_TEMPL_PARAM | DF_BOUND_TPARAM);
 
       // set 'bindings->value', in some cases creating AST
       if (!sarg) {

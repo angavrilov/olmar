@@ -1606,7 +1606,7 @@ CompoundType *checkClasskeyAndName(
       TemplateInfo *primaryTI = primary->templateInfo();
       primaryTI->addSpecialization(ct->getTypedefVar());
 
-      // the template parameters parameterize the primary
+      // the template parameters parameterize the specialization primary
       //
       // 8/09/04: moved this below 'makeNewCompound' so the params
       // aren't regarded as inherited
@@ -4819,12 +4819,12 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     maybeNondependent(env, name->loc, nondependentVar, var);
   }
 
-  if (var->isTemplateArg/*wrong*/()) {
+  if (var->isBoundTemplateParam/*wrong*/()) {
     // this variable is actually a bound meta-variable (template
     // argument), so it is *not* to be regarded as a reference
     // (14.1 para 6)
     //
-    // TODO: The correct query here is 'isTemplateParamOrArg', but
+    // TODO: The correct query here is 'isTemplateParam', but
     // when I put that in it runs smack into the STA_REFERENCE
     // problem, so I am leaving it wrong for now.
     return var->type;
@@ -8190,22 +8190,25 @@ void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
   // annotate this AST node with the type
   this->type = fullType;
 
-  // add this parameter to the list of them
+  // add this parameter to the list of them, marking its position
+  var->setParameterOrdinal(tparams.count());
   tparams.append(var);
 }
 
 
 void TP_nontype::tcheck(Env &env, SObjList<Variable> &tparams)
-{                                                   
+{
   // TODO: I believe I want to remove DF_PARAMETER.
   ASTTypeId::Tcheck tc(DF_PARAMETER | DF_TEMPL_PARAM, DC_TP_NONTYPE);
 
   // check the parameter; this actually adds it to the
   // environment too, so we don't need to do so here
   param = param->tcheck(env, tc);
+  Variable *var = param->decl->var;
 
   // add to the parameter list
-  tparams.append(param->decl->var);
+  var->setParameterOrdinal(tparams.count());
+  tparams.append(var);
 }
 
 

@@ -35,10 +35,8 @@ Variable *vfilter(Variable *v, LookupFlags flags)
     return NULL;
   }
                                                         
-  // I actually think it would be adequate to just check for
-  // DF_BOUND_TARG...
   if ((flags & LF_TEMPL_PARAM) &&
-      !v->hasAnyFlags(DF_BOUND_TARG | DF_TEMPL_PARAM)) {
+      !v->isTemplateParam()) {
     return NULL;
   }
 

@@ -73,7 +73,10 @@ inline bool operator>= (CVFlags cv1, CVFlags cv2)
 // TODO: These should be split up into two sets: flags that
 // exactly reflect the original syntax, and those that reflect
 // a semantic interpretation.  At the moment, the boundary is
-// a little blurrly in a few cases.
+// a little blurry in a few cases.
+//
+// NOTE: Changes to this enumeration must be accompanied by 
+// updates to 'declFlagNames' in cc_flags.cc.
 enum DeclFlags {
   DF_NONE        = 0x00000000,
 
@@ -109,8 +112,8 @@ enum DeclFlags {
   DF_TEMPORARY   = 0x01000000,    // temporary variable introduced by elaboration
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
-  DF_BOUND_TARG  = 0x00004000,    // Variable bound to a concrete template argument
-  DF_TEMPL_PARAM = 0x20000000,    // template parameter
+  DF_BOUND_TPARAM= 0x00004000,    // template parameter bound to a concrete argument
+  DF_TEMPL_PARAM = 0x20000000,    // template parameter (bound only to itself)
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)

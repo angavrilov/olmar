@@ -225,6 +225,14 @@ public:
   MatchMode getMode() const { return mode; }
   bool hasEFlag(Type::EqFlags f) const { return !!(eflags & f); }
 
+
+  // Throughout this module:
+  //
+  //   The LEFT argument ('a') is the concrete type.
+  //
+  //   The RIGHT argument ('b') is the pattern against which we match.
+
+
   // top level entry for checking if Type 'a' matches Type 'b'.
   bool match_Type(Type *a, Type *b, int matchDepth = 0);
   bool match_Atomic(AtomicType *a, AtomicType *b, int matchDepth);

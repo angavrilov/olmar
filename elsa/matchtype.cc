@@ -167,7 +167,17 @@ bool MatchTypes::subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags)
 bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
 {
   xassert(b->isTypeVariable());
-  
+
+  TypeVariable *btv = b->asTypeVariable();
+
+  if (mode==MM_ISO && 
+      hasEFlag(Type::EF_UNASSOC_TPARAMS) &&
+      btv->isAssociated()) {
+    // treat 'b' more like a concrete type; it should name the "same"
+    // template parameter as 'a'
+    return a->equals(b);
+  }
+
   // deal with CV qualifier strangness;
   // dsw: Const should be removed from the language because of things
   // like this!  I mean, look at it!
@@ -217,9 +227,8 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
 
   STemplateArgument *targa = new STemplateArgument;
   targa->setType(a);
-  bindings.putTypeVar(b->asTypeVariable(), targa);
-  TRACE("matchtype", "bound " << b->asTypeVariable()->name <<
-                     " to " << a->toString());
+  bindings.putTypeVar(btv, targa);
+  TRACE("matchtype", "bound " << btv->name << " to " << a->toString());
 
   return true;
 }
@@ -470,8 +479,11 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
       // was hacked to death.  Instead, I'm pulling out the
       // functionality (one line!) that was being used, and putting the
       // needed adjustments here.
-
-      if (aAT == bAT) {       // this is the line that was being used from AtomicType::equals
+      //
+      // 2005-03-03: AtomicType::equals has gotten a little more
+      // complicated, and I want that functionality to be used here,
+      // so now we call into it.
+      if (aAT->equals(bAT)) {
         return true;
       }
 
