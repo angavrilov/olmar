@@ -447,6 +447,11 @@ cc2t.exe: cc2main.o cc2/cc2t.gr.gen.o ptreenode.o libglr.a
 	g++ -o $@ $(ccflags) $^ $(linkend)
 
 
+# stuff in examples directory
+.PHONY: examples
+examples:
+	cd examples/arith; make clean && make
+
 
 # ----------------------------- EFa -----------------------
 # input for EFa

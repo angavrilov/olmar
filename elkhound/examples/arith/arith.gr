@@ -1,0 +1,107 @@
+// arith.gr
+// parser for a very simple language of arithmetic expressions
+
+// since this example is intended to be the user's first encounter
+// with Elkhound syntax, it includes comments that explain syntax
+// (whereas other examples typically won't)
+
+
+// syntax: The first section is always a 'verbatim' section.  By
+// "verbatim", I mean the code that appears here will be copied as-is
+// into the top of arith.gr.gen.cc.  
+//
+// The name "Arith" tells the parser generator which class the
+// generated action functions should be members of.
+verbatim Arith [
+
+  // this class contains all the action code
+  class Arith : public UserActions {
+  private:
+    // syntax: Here, we're pulling in a file that Elkhound made.
+    // It declares all of the grammar actions, such as the per-
+    // production reduction actions.
+    #include "arith.gr.gen.h"
+  };
+
+  // this function is used by the driver code to create an instance
+  // of the Arith class
+  UserActions *makeUserActions()
+  {
+    return new Arith;
+  }
+
+]
+
+
+// syntax: The second section is a list of tokens (terminals) that the
+// lexer will yield.  The primary purpose is simply to give
+// human-readable names to the numeric codes the lexer will actually
+// use.  
+//
+// Optionally, you can associate quoted aliases, which can help to
+// make the grammar more readable.  Don't be confused by the syntax:
+// Elkhound does *not* include a lexer component, and there is no
+// necessary connection between the alias you choose to give and the
+// actual token spellings the lexer might recognize.  (Obviously, for
+// readability's sake, they should correspond anyway.)
+//
+// The intent is this list will be generated automatically from some
+// other specification.  For example, the C grammar cc.gr uses the
+// list printed by the 'lexer2' module when compiled as a stand-alone
+// program.  Here, for simplicity, I'll just type it by hand the same
+// as is written in the ArithTokenCodes enumeration in arith.h.
+terminals {
+  // there's always an explicit EOF token
+  0 : TOK_EOF;
+  1 : TOK_NUMBER;              // no alias
+  2 : TOK_PLUS     "+";        // alias is "+" (including quotes)
+  3 : TOK_MINUS    "-";
+  4 : TOK_TIMES    "*";
+  5 : TOK_DIVIDE   "/";
+  6 : TOK_LPAREN   "(";
+  7 : TOK_RPAREN   ")";
+  
+  // syntax: Some terminals have useful semantic values, and those
+  // are declared here.
+  token[int] TOK_NUMBER;       // numbers have associated int-typed values
+  
+  // syntax: Precedence and associativity come next.
+  precedence {
+    // low precedence
+    left "+" "-";
+    left "*" "/";
+    // high precedence
+  }
+}
+
+
+// syntax: The third and final section is a sequence of nonterminal
+// ('nonterm') definitions.  The first nonterminal is always the start
+// symbol of the grammar, and should always have a single production
+// of the form "Start -> Something EOF", where Something is another
+// grammar nonterminal.  (This somewhat odd, if easily satisfied,
+// requirement arises from a detail in how the GLR algorithm
+// termiates.  See GLR::cleanupAfterParse() for more info.)
+
+// syntax: Nonterminal definitions can optionally include a semantic
+// value type in square brackets, then the nonterminal's name, then
+// an open-brace, productions, and finally a close-brace.
+nonterm[int] StartSymbol {
+  // syntax: Productons start with "->", then the list of right-hand
+  // side (RHS) symbols, then reduction action code.  The RHS symbols
+  // must be given tags (e.g. "e") if the action code wants to refer
+  // to their value.  The action code may be omitted, in which case
+  // it defaults to the equivalent of "return 0;".
+  -> e:Exp TOK_EOF            [ return e; ]
+}
+
+
+// in this grammar, there's only one nonterminal besides StartSymbol
+nonterm[int] Exp {
+  -> n:TOK_NUMBER             [ return n; ]
+  -> e1:Exp "+" e2:Exp        [ return e1 + e2; ]
+  -> e1:Exp "-" e2:Exp        [ return e1 - e2; ]
+  -> e1:Exp "*" e2:Exp        [ return e1 * e2; ]
+  -> e1:Exp "/" e2:Exp        [ return e1 / e2; ]
+  -> "(" e:Exp ")"            [ return e; ]
+}
