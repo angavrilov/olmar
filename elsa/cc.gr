@@ -872,10 +872,10 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 
   -> s:PrimitiveTypeSpecifier            // int
     [ // FIX: optimization: anonymous-typenames turn this back on
-      //stringBuilder sb;
-      // sb << "anonymous:" << toString(s);
-      //           return new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, s);
-         return new TS_simple(new PQ_name("anonymous_PrimitiveTypeSpecifier"), loc, s);
+      stringBuilder sb;
+      sb << "anonymous:" << toString(s);
+      return new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, s);
+//           return new TS_simple(new PQ_name("anonymous_PrimitiveTypeSpecifier"), loc, s);
     ]
 
   -> s:PrimitiveCVTypeSpecifier          // unsigned const char  (not good style, IMO)

@@ -20,7 +20,7 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
 {
   xassert(type);        // (just a stab in the dark debugging effort)
 #if CC_QUAL
-  instances.append(this);
+  instances.prepend(this);      // reverse order
 #endif
 }
 
