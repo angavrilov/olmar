@@ -746,7 +746,7 @@ nonterm DirectDeclarator {
 nonterm PtrOperator {
   -> "*" CvQualifierSeqOpt;
   -> "&";
-  -> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;     // what the heck is this?
+  -> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;     // pointer to member
 }
 
 nonterm CvQualifierSeq {
@@ -1014,12 +1014,14 @@ nonterm CtorInitializer {
   -> ":" MemInitializerList;
 }
 
+// Q: why right recursion?
 nonterm MemInitializerList {
   -> MemInitializer;
   -> MemInitializer "," MemInitializerList;
 }                                          
 
 // Q: what is a mem-initializer?
+// A: "member initializer", in constructors after the ":" but before "{"
 nonterm MemInitializer {
   -> MemInitializerId "(" ExpressionListOpt ")";
 }
