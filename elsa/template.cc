@@ -1560,7 +1560,8 @@ void Env::insertTemplateArgBindings
     // these inherited params' template
     Scope *mine = scope();
     xassert(mine->isTemplateArgScope());
-    mine->setParameterizedPrimary(iter.data()->enclosing->typedefVar);
+    mine->setParameterizedPrimary(
+      iter.data()->enclosing->templateInfo()->getPrimary()->var);
 
     if (!insertTemplateArgBindings_oneParamList(baseV, argIter, iter.data()->params)) {
       // error already reported
