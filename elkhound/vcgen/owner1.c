@@ -30,6 +30,7 @@ int main()
   int x = *p;
   //int x = *(p.ptr);       // now automatic to use 'ptr'
   thmprv_assert(x == 6);
+  thmprv_assert(p.state == OWNING);
 
   #if 1
   deallocFunc(p);

@@ -641,19 +641,21 @@ AbsValue *E_variable::vcgen(AEnv &env, int path) const
 }
 
 
-void deadenOwnerState(AEnv &env, AbsValue *value)
+void deadenOwnerState(AEnv &env, AbsValue *value, char const *why)
 {
   if (!value->isAVlval()) {
     // not an lval; probably either NULL, or the return value
     // from an owner-returning function; it will have to be up
     // to the type system to prevent me from losing a reference
     // this way
+    trace("owner") << "couldn't deaden rval: " << why << endl;
     return;
   }
 
   AVlval *lval = value->asAVlval();
 
   // modify source's 'state' field
+  trace("owner") << "deadening state: " << why << endl;
   env.setLval(lval->progVar,
               env.avAppendIndex(lval->offset, env.avOwnerField_state()),
               env.avOwnerState_dead());
@@ -683,16 +685,22 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
       subexpPaths = arg->numPaths1();
       AbsValue *val = arg->vcgen(env, path % subexpPaths);
       
+      // if 'val' is an lval, grab the current value, so that the
+      // owner modification below will not affect what the function
+      // precondition sees
+      AbsValue *valToPass = env.rval(val);
+
       if (arg->type->asRval()->isOwnerPtr() &&
           paramIter.data()->type->isOwnerPtr()) {
         // OWNER: when an owner pointer is passed to an owner param,
         // the argument becomes dead
-        deadenOwnerState(env, val);
+        deadenOwnerState(env, val,
+                         stringc << "passed to owner param: " << arg->toString());
       }
       // TODO: add typechecking rules to prevent passing a serf pointer
       // into an owner param
 
-      argExps.prepend(env.rval(val));
+      argExps.prepend(valToPass);
       path = path / subexpPaths;
 
     }
@@ -1223,7 +1231,8 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
 
   if (src->type->asRval()->isOwnerPtr()) {
     // OWNER: deaden state of source
-    deadenOwnerState(env, srcValue);
+    deadenOwnerState(env, srcValue,
+                     stringc << "source in assignment: " << toString());
   }
 
   return env.dup(srcValue);

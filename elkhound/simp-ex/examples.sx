@@ -1,0 +1,22 @@
+; examples.sx    -*- Lisp -*-
+; specific verification conditions that have arisen from
+; analyzing programs, and which should be provable
+
+; ----------------------- owner.i -------------------
+bg_push (
+  (EQ (sel (upd p_17 1 1) 0) (sub p_index_17 p_rest_17))
+  (EQ mem_22 (sub pre_mem_index_2 pre_mem_rest_2))
+  (EXISTS (address_1 ) 
+    (AND 
+      (NEQ address_1 0) 
+      (EQ (selOffset result_1 (sub 0 whole)) (sub address_1 0)) 
+      (EQ (selOffset result_1 (sub 1 whole)) 2) 
+      (freshObj address_1 mem_22) 
+      (EQ mem_22 mem_23)
+    ))
+  (EQ mem_24 (updOffset mem_23 (sel result_1 0) 6))
+  (EQ mem_24 (sub pre_mem_index_3 pre_mem_rest_3))
+)
+valid "owner.i" (
+  (EQ (selOffset (updOffset result_1 (sub 1 whole) 1) (sub 1 whole)) 1)
+)
