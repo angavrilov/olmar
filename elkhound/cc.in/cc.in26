@@ -4,9 +4,7 @@
 template <class T>
 int f(T &t)
 {
-  // what to do about typechecking?  certainly this won't
-  // check in an arbitrary context, but then if I can't
-  // check this, how can I disambiguate?  should I even
-  // attempt to do so without actual template arguments?
-  return t.x;
+  int y = t.x;
+  
+  T(z);
 }
