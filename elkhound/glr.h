@@ -88,6 +88,13 @@ public:
   // so we can deallocate stack nodes earlier
   int referenceCount;
 
+  // how many stack nodes can I pop before hitting a nondeterminism?
+  // if this node itself has >1 sibling link, determinDepth==0; if
+  // this node has 1 sibling, but that sibling has >1 sibling, then
+  // determinDepth==1, and so on; if this node has 0 siblings, then
+  // determinDepth==1
+  int determinDepth;
+
   union {
     // somewhat nonideal: I need access to the 'userActions' to
     // deallocate semantic values when refCt hits zero, and I need

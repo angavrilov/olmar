@@ -210,6 +210,7 @@ StackNode::StackNode()
     state(STATE_INVALID),
     leftSiblings(),
     referenceCount(0),
+    determinDepth(0),
     glr(NULL)
 {
   // the interesting stuff happens in init()
@@ -227,6 +228,7 @@ void StackNode::init(int nodeId, int col, StateId st, GLR *g)
   tokenColumn = col;
   state = st;
   referenceCount = 0;
+  determinDepth = 1;    // 0 siblings now, so this node is unambiguous
   glr = g;
   INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
 }
@@ -261,6 +263,18 @@ SiblingLink *StackNode::
   addSiblingLink(StackNode *leftSib, SemanticValue sval,
                  SourceLocation const &loc)
 {
+  if (leftSiblings.isNotEmpty()) {
+    // there's currently at least one sibling, and now we're adding another;
+    // right now, no other stack node should point at this one (if it does,
+    // most likely will catch that when we use the stale info)
+    determinDepth = 0;
+  }
+  else {
+    // we don't have any siblings yet, so my depth will be my new sibling's
+    // depth, plus 1
+    determinDepth = leftSib->determinDepth + 1;
+  }
+
   SiblingLink *link = new SiblingLink(leftSib, sval, loc);
   leftSiblings.append(link);
   return link;
@@ -552,6 +566,143 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     currentTokenColumn = tokenNumber;
     currentTokenValue = currentToken->sval;
     currentTokenLoc = currentToken->loc;
+
+
+  tryDeterministic:    
+    // optimization: if there's only one active parser, and the
+    // action is unambiguous, and it doesn't involve traversing
+    // parts of the stack which are nondeterministic, then do the
+    // parse action the way an ordinary LR parser would
+    //
+    // please note:  The code in this section is cobbled together
+    // from various other GLR functions.  Everything here appears in
+    // at least one other place, so modifications will usually have
+    // to be done in both places.
+    if (activeParsers.length() == 1) {
+      StackNode *parser = activeParsers[0];
+      xassert(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
+      ActionEntry action =
+        tables->actionEntry(parser->state, currentTokenClass->termIndex);
+
+      if (tables->isShiftAction(action)) {
+        // can shift unambiguously
+        StateId newState = tables->decodeShift(action);
+
+        TRSPARSE("state " << parser->state <<
+                 ", (unambig) shift token " << currentTokenClass->name <<
+                 ", to state " << newState);
+
+        StackNode *rightSibling = makeStackNode(newState);
+        rightSibling->addSiblingLink(parser, currentTokenValue, currentTokenLoc);
+
+        // replace 'parser' with 'rightSibling' in the activeParsers list
+        activeParsers[0] = rightSibling;
+        parser->decRefCt();
+        xassert(parser->referenceCount==1);         // rightSibling refers to it
+        rightSibling->incRefCt();
+        xassert(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
+
+        // get next token
+        continue;
+      }
+
+      else if (tables->isReduceAction(action)) {
+        int prodIndex = tables->decodeReduce(action);
+        ParseTables::ProdInfo const &prodInfo = tables->prodInfo[prodIndex];
+        int rhsLen = prodInfo.rhsLen;
+        if (rhsLen <= parser->determinDepth) {
+          // can reduce unambiguously
+          int startStateId = parser->state;
+
+          // record location of left edge
+          SourceLocation leftEdge;     // defaults to no location (used for epsilon rules)
+
+          // pop off 'rhsLen' stack nodes, collecting as many semantic
+          // values into 'toPass'
+          toPass.ensureIndexDoubler(rhsLen-1);
+          for (int i=rhsLen-1; i>=0; i--) {
+            // grab 'parser's only sibling link
+            xassert(parser->leftSiblings.count() == 1);
+            SiblingLink *sib = parser->leftSiblings.first();
+
+            // Store its semantic value it into array that will be
+            // passed to user's routine.  Note that there is no need to
+            // dup() this value, since it will never be passed to
+            // another action routine (avoiding that overhead is
+            // another advantage to the LR mode).
+            toPass[i] = sib->sval;
+            sib->sval = NULL;                  // link no longer owns the value
+
+            // if it has a valid source location, grab it
+            if (sib->loc.validLoc()) {
+              leftEdge = sib->loc;
+            }
+
+            // pop 'parser' and move to the next one
+            StackNode *next = sib->sib;           // grab before deallocating
+            next->incRefCt();                     // so 'next' survives deallocation of 'sib'
+            xassert(next->referenceCount==2);     // 'sib' and the fake one
+            xassert(parser->referenceCount==1);
+            parser->decRefCt();                   // deinit 'parser', dealloc 'sib'
+            parser = next;
+            xassert(parser->referenceCount==1);   // fake refct only
+          }
+
+          TRSPARSE("state " << startStateId <<
+                   ", (unambig) reducing by production " << prodIndex <<
+                   " (rhsLen=" << rhsLen <<
+                   "), back to state " << parser->state);
+
+          // call the user's action function (TREEBUILD)
+          SemanticValue sval = userAct->doReductionAction(
+                                 prodIndex, toPass.getArray(), leftEdge);
+          D(trsSval << "reduced via production " << pcs.prodIndex
+                    << ", yielding " << sval << endl);
+
+          // now, push a new state; essentially, shift prodInfo.lhsIndex.
+          // do "glrShiftNonterminal(parser, prodInfo.lhsIndex, sval, leftEdge);",
+          // except avoid interacting with the worklists
+
+          // this is like a shift -- we need to know where to go; the
+          // 'goto' table has this information
+          StateId newState = tables->decodeGoto(
+            tables->gotoEntry(parser->state, prodInfo.lhsIndex));
+
+          // debugging
+          TRSPARSE("state " << parser->state <<
+                   ", (unambig) shift nonterm " << (int)prodInfo.lhsIndex <<
+                   ", to state " << newState);
+          
+          // 'parser' has refct 1, reflecting the local variable only
+          xassert(parser->referenceCount==1);
+
+          // push new state
+          StackNode *newNode = makeStackNode(newState);
+          newNode->addSiblingLink(parser, sval, leftEdge);
+          xassert(parser->referenceCount==2);
+          parser->decRefCt();                      // local variable "parser" about to go out of scope
+
+          // replace whatever is in 'activeParsers[0]' with 'newNode'
+          activeParsers[0] = newNode;
+          newNode->incRefCt();
+          xassert(newNode->referenceCount == 1);   // activeParsers[0] is referrer
+
+          // after all this, we haven't shift any tokens, so the token
+          // context remains; let's go back and try to keep acting
+          // determinstically (if at some point we can't be deterministic,
+          // then we drop into full GLR)
+          goto tryDeterministic;
+        }
+      }
+
+      else {
+        // error or ambig; not deterministic
+      }
+    }   
+
+    // if we get here, we're dropping into the nondeterministic GLR
+    // algorithm in its full glory
+    cout << "not deterministic\n";
 
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
@@ -925,19 +1076,19 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       return;
     }
 
-    TRSPARSE("state " << pcs.startStateId <<
-             ", reducing by production " << pcs.prodIndex <<
-             " (rhsLen=" << (int)(tables->prodInfo[pcs.prodIndex].rhsLen) <<
-             "), back to state " << currentNode->state);
-
     // info about the production
     ParseTables::ProdInfo const &prodInfo = tables->prodInfo[pcs.prodIndex];
+    int rhsLen = prodInfo.rhsLen;
+
+    TRSPARSE("state " << pcs.startStateId <<
+             ", reducing by production " << pcs.prodIndex <<
+             " (rhsLen=" << rhsLen <<
+             "), back to state " << currentNode->state);
 
     // record location of left edge
     SourceLocation leftEdge;     // defaults to no location (used for epsilon rules)
 
     // before calling the user, duplicate any needed values
-    int rhsLen = prodInfo.rhsLen;
     //SemanticValue *toPass = new SemanticValue[rhsLen];
     toPass.ensureIndexDoubler(rhsLen-1);
     for (int i=0; i < rhsLen; i++) {
@@ -1092,7 +1243,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     // added link
 
     // TODO: I think this code path is unusual; confirm by measurement
-    cout << "got here\n";
+    // update: it's taken maybe 1 in 10 times through this function..
+    //cout << "got here\n";
 
     // for each 'finished' parser (i.e. those not still on
     // the worklist)

@@ -4,7 +4,7 @@
 #set width 0
 
 file ccgr
-#set args cc.bin c.in1
+set args cc.bin c.in1
 
 #set args -tr predicates cc.bin vcgen/owner1.i
 
@@ -27,10 +27,10 @@ file ccgr
 #set args -tr refct,sval cexp3b.bin cexp3.in1
 
 #file ccgr
-set args -tr trivialActions,stopAfterParse cc.bin c.in4b
+#set args -tr trivialActions,stopAfterParse cc.bin c.in4b
 
-#  file cexp2
-#  set args cexp2.bin cexp.in1
+#file cexp3b
+#set args cexp3b.bin cexp3.in1
 
 #file grampar
 #set args -tr cat-grammar cexp3.gr
