@@ -653,7 +653,8 @@ GLR::GLR(UserActions *user, ParseTables *t)
     detShift(0),
     detReduce(0),
     nondetShift(0),
-    nondetReduce(0)
+    nondetReduce(0),
+    yieldThenMergeCt(0)
   // some fields (re-)initialized by 'clearAllStackNodes'
 {
   // originally I had this inside glrParse() itself, but that
@@ -874,10 +875,10 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
     return ret;
   }
 
-  #if DO_ACCOUNTING
-    // sm: I like to always see these statistics, but dsw doesn't,
-    // so I'll just set ELKHOUND_DEBUG in my .bashrc
-    if (getenv("ELKHOUND_DEBUG")) {
+  // sm: I like to always see these statistics, but dsw doesn't,
+  // so I'll just set ELKHOUND_DEBUG in my .bashrc
+  if (getenv("ELKHOUND_DEBUG")) {
+    #if DO_ACCOUNTING
       StackNode::printAllocStats();
       cout << "detShift=" << detShift
            << ", detReduce=" << detReduce
@@ -886,8 +887,12 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
            << endl;
       //PVAL(parserMerges);
       //PVAL(computeDepthIters);
-    }
-  #endif
+      
+      if (yieldThenMergeCt) {
+        PVAL(yieldThenMergeCt);
+      }
+    #endif
+  }
 
   lexerPtr = NULL;
   return ret;
@@ -992,9 +997,9 @@ STATICDEF bool GLR
     #if USE_RECLASSIFY
       lexer.type = reclassifyToken(userAct, lexer.type, lexer.sval);
     #else     // this is what bccgr does
-      if (lexer.type == 1 /*L2_NAME*/) {
-        lexer.type = 3 /*L2_VARIABLE_NAME*/;
-      }
+      //if (lexer.type == 1 /*L2_NAME*/) {
+      //  lexer.type = 3 /*L2_VARIABLE_NAME*/;
+      //} 
     #endif
 
     // alternate debugging; print after reclassification
@@ -1992,13 +1997,21 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                 " is MERGE of " << leftDesc << " and " << rightDesc);
 
       YIELD_COUNT(
-        if (old2 != sibLink->sval &&
-            sibLink->yieldCount > 0) {
-          cout << "warning: incomplete parse forest: " << (void*)old2
-               << " has already been yielded, but it now has been "
-               << "merged with " << (void*)sval << " to make "
-               << (void*)(sibLink->sval) << " (lhsIndex="
-               << lhsIndex << ")" << endl;
+        if (sibLink->yieldCount > 0) {
+          // yield-then-merge happened
+          yieldThenMergeCt++;
+
+          // if merging yielded a new semantic value, then we most likely
+          // have a problem; if it yielded the *same* value, then most
+          // likely the user has implemented the 'ambiguity' link soln,
+          // so we're ok
+          if (old2 != sibLink->sval) {
+            cout << "warning: incomplete parse forest: " << (void*)old2
+                 << " has already been yielded, but it now has been "
+                 << "merged with " << (void*)sval << " to make "
+                 << (void*)(sibLink->sval) << " (lhsIndex="
+                 << lhsIndex << ")" << endl;
+          }
         }
       )
 

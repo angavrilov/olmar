@@ -2638,9 +2638,11 @@ void Expression::tcheck(Expression *&ptr, Env &env)
 }
 
 
+bool const CACHE_EXPR_TCHECK = false;
+
 void Expression::mid_tcheck(Env &env, int &)
 {
-  if (type && !type->isError()) {
+  if (CACHE_EXPR_TCHECK && type && !type->isError()) {
     // this expression has already been checked
     //
     // we also require that 'type' not be ST_ERROR, because if the

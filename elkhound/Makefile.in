@@ -65,7 +65,7 @@ endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
 # uncomment to turn off source location info
-#ccflags += -DNO_GLR_SOURCELOC
+ccflags += -DNO_GLR_SOURCELOC
 
 # even fewer debugging checks
 #ccflags += -DNDEBUG_NO_ASSERTIONS
@@ -300,7 +300,7 @@ libelkhound.a: $(glr-set)
 # stand-alone executable for parsing C
 cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
-	./$@ c.in/c.in1
+	./$@ -tr yieldVariableName c.in/c.in1
 
 .PRECIOUS: cc/ccgr
 

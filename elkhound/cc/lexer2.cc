@@ -455,6 +455,9 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
   // collapsing for string juxtaposition
   Lexer2Token *prevToken = NULL;
 
+  bool const yieldVarName = tracingSys("yieldVariableName");
+  bool const debugLexer2 = tracingSys("lexer2");
+
   // iterate over all the L1 tokens
   ObjListIter<Lexer1Token> L1_iter(src.tokens);
   for (; !L1_iter.isDone(); L1_iter.adv()) {
@@ -563,13 +566,19 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
       continue;
     }
 
+    // for testing the performance of the C parser against Bison, I
+    // want to disable the reclassifier, so I need to yield
+    // L2_VARIABLE_NAME directly
+    if (yieldVarName && (L2->type == L2_NAME)) {
+      L2->type = L2_VARIABLE_NAME;
+    }
 
     // append this token to the running list
     dest.addToken(L2);
     prevToken = L2;
 
     // (debugging) print it
-    if (tracingSys("lexer2")) {
+    if (debugLexer2) {
       L2->print();
     }
   }

@@ -410,6 +410,9 @@ public:
 
   // statistics on parser actions
   int detShift, detReduce, nondetShift, nondetReduce;
+  
+  // count of # of times yield-then-merge happens
+  int yieldThenMergeCt;
 
 private:    // funcs
   // comments in glr.cc

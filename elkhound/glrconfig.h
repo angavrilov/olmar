@@ -50,7 +50,7 @@
 // user when a merge is performed but one of the merged values has
 // already been yielded to another semantic action, which implies
 // that the induced parse forest is incomplete
-#define DISABLE_YIELD_COUNT
+//#define DISABLE_YIELD_COUNT
 #ifndef DISABLE_YIELD_COUNT
   #define YIELD_COUNT(stuff) stuff
 #else
