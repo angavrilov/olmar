@@ -345,8 +345,8 @@ void Function::tcheck(Env &env, bool checkBody)
   // function body and enter the parameters into that
   Scope *bodyScope = env.enterScope();
   bodyScope->curFunction = this;
-  FOREACH_OBJLIST(Parameter, funcType->params, iter) {
-    Variable *v = iter.data()->decl;
+  SFOREACH_OBJLIST_NC(Variable, funcType->params, iter) {
+    Variable *v = iter.data();
     if (v->name) {
       env.addVariable(v);
     }
@@ -2174,9 +2174,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       continue;
     }
 
-    Type *paramType = normalizeParameterType(env, v->type);
-    Parameter *p = new Parameter(v->name, paramType, v);
-    
+    v->type = normalizeParameterType(env, v->type);
+
     // get the default argument, if any
     if (iter->decl->init) {
       Initializer *i = iter->decl->init;
@@ -2192,7 +2191,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       }
     }
 
-    ft->addParam(p);
+    ft->addParam(v);
   }
 
   env.exitScope(paramScope);
@@ -3509,7 +3508,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   this->type = fullType;
 
   // add this parameter to the list of them
-  tparams->params.append(new Parameter(name, fullType, var));
+  tparams->params.append(var);
 }
 
 

@@ -96,6 +96,9 @@ public:
 
   // some ad-hoc thing
   string toString() const;
+  
+  // syntax when used in a parameter list
+  string toStringAsParameter() const;
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

@@ -141,7 +141,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
 
-  ft->addParam(new Parameter(p->name, p->type, p));
+  ft->addParam(p);
   if (exnType) {
     ft->exnSpec = new FunctionType::ExnSpec;
 
@@ -459,7 +459,7 @@ CompoundType *Env::
 
   // check argument list against parameter list
   TemplateArgument const *argIter = args->firstC();
-  FOREACH_OBJLIST(Parameter, tinfo->params, paramIter) {
+  SFOREACH_OBJLIST(Variable, tinfo->params, paramIter) {
     if (!argIter) {
       error("not enough arguments to template");
       return NULL;
@@ -775,13 +775,13 @@ CompoundType *Env::instantiateClass(
 
   // begin working through the template parameters so we know what
   // name to associated with the template arguments when we bind them
-  ObjListIter<Parameter> paramIter(tclass->templateInfo->params);
+  SObjListIter<Variable> paramIter(tclass->templateInfo->params);
 
   // create a new scope, and insert the template argument bindings
   Scope *argScope = enterScope();
   FAKELIST_FOREACH(TemplateArgument, args, iter) {
     TA_type const *arg = iter->asTA_typeC();
-    
+
     if (paramIter.isDone()) {
       env.error(stringc
         << instNameRef << " does not supply enough template arguments; "
@@ -791,7 +791,7 @@ CompoundType *Env::instantiateClass(
       exitScope(argScope);
       return NULL;   // leaves 'ret' half-baked.. should be ok
     }
-    Parameter const *param = paramIter.data();
+    Variable const *param = paramIter.data();
 
     if (!param->type->isTypeVariable()) {
       env.unimp("non-class template parameters");
@@ -801,7 +801,7 @@ CompoundType *Env::instantiateClass(
     // make a variable that typedef's the argument type to be
     // the parameter name
     Variable *argVar
-      = makeVariable(param->decl->loc, param->name,
+      = makeVariable(param->loc, param->name,
                      arg->type->getType(), DF_TYPEDEF);
     if (!argScope->addVariable(argVar)) {
       // I actually think this can't happen because I'd have

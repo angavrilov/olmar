@@ -741,8 +741,8 @@ bool FunctionType::equalParameterLists(FunctionType const *obj) const
     return false;
   }
 
-  ObjListIter<Parameter> iter1(params);
-  ObjListIter<Parameter> iter2(obj->params);
+  SObjListIter<Variable> iter1(params);
+  SObjListIter<Variable> iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
        iter1.adv(), iter2.adv()) {
     // parameter names do not have to match, but
@@ -785,7 +785,7 @@ bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
 }
 
 
-void FunctionType::addParam(Parameter *param)
+void FunctionType::addParam(Variable *param)
 {
   params.append(param);
 }
@@ -821,7 +821,6 @@ string FunctionType::rightString(bool innerParen) const
     << rightStringAfterQualifiers();
 }
 
-
 string FunctionType::rightStringUpToQualifiers(bool innerParen) const
 {
   // finish enclosing type
@@ -833,11 +832,11 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   // arguments
   sb << "(";
   int ct=0;
-  FOREACH_OBJLIST(Parameter, params, iter) {
+  SFOREACH_OBJLIST(Variable, params, iter) {
     if (ct++ > 0) {
       sb << ", ";
     }
-    sb << iter.data()->toString();
+    sb << iter.data()->toStringAsParameter();
   }
 
   if (acceptsVarargs) {
@@ -891,9 +890,9 @@ int FunctionType::reprSize() const
 
 
 bool parameterListCtorSatisfies(Type::TypePred pred, 
-                                ObjList<Parameter> const &params)
+                                SObjList<Variable> const &params)
 {
-  FOREACH_OBJLIST(Parameter, params, iter) {
+  SFOREACH_OBJLIST(Variable, params, iter) {
     if (iter.data()->type->anyCtorSatisfies(pred)) {
       return true;
     }
@@ -912,33 +911,9 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
 
 
 
-// -------------------- Parameter -----------------
-Parameter::~Parameter()
-{}
-
-
-string Parameter::toString() const
-{
-  stringBuilder sb;
-  if (type->isTypeVariable()) {
-    sb << "class " << name;
-  }
-  else {
-    sb << type->toCString(name);
-  }
-
-  if (decl && decl->value) {
-    sb << renderExpressionAsString(" = ", decl->value);
-  }
-  return sb;
-}
-
-
 // ----------------- TemplateParams --------------
 TemplateParams::~TemplateParams()
-{
-  params.deleteAll();
-}
+{}
 
 
 string TemplateParams::toString() const
@@ -946,11 +921,11 @@ string TemplateParams::toString() const
   stringBuilder sb;
   sb << "template <";
   int ct=0;
-  FOREACH_OBJLIST(Parameter, params, iter) {
+  SFOREACH_OBJLIST(Variable, params, iter) {
     if (ct++ > 0) {
       sb << ", ";
     }
-    sb << iter.data()->toString();
+    sb << iter.data()->toStringAsParameter();
   }
   sb << ">";
   return sb;
@@ -959,7 +934,7 @@ string TemplateParams::toString() const
 
 bool TemplateParams::equalTypes(TemplateParams const *obj) const
 {
-  ObjListIter<Parameter> iter1(params), iter2(obj->params);
+  SObjListIter<Variable> iter1(params), iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
        iter1.adv(), iter2.adv()) {
     if (iter1.data()->type->equals(iter2.data()->type)) {
@@ -1262,9 +1237,9 @@ Type *BasicTypeFactory::cloneType(Type *src1)
     case Type::T_FUNCTION: {
       FunctionType *src = &( src1->asFunctionType() );
       FunctionType *ret = new FunctionType(cloneType(src->retType), src->cv);
-      for (ObjListIterNC<Parameter> param_iter(src->params);
+      for (SObjListIterNC<Variable> param_iter(src->params);
            !param_iter.isDone(); param_iter.adv()) {
-        ret->addParam(cloneParam(param_iter.data()));
+        ret->addParam(cloneVariable(param_iter.data()));
     //      xassert(param_iter.data()->type ==
     //              param_iter.data()->decl->type // the variable
     //              );
@@ -1291,31 +1266,6 @@ Type *BasicTypeFactory::cloneType(Type *src1)
       return ret;
     }
   }
-}
-
-
-Parameter *BasicTypeFactory::cloneParam(Parameter *src)
-{
-  Parameter *ret =
-    new Parameter(
-                  // dsw: FIX: don't see a reason to clone the name
-//                    (name ? strdup(name) : (StringRef)NULL)
-                  src->name
-                  ,NULL // NOT: type->deepClone()
-                  // clone the variable and then copy the type below.
-                  ,cloneVariable(src->decl)
-                  );
-  // maintain the invariant that param->type == param->decl->type
-  ret->type = ret->decl->type;
-
-  // dsw: Cloning this involves cloning the whole expression language.
-  // FIX: does this matter?
-//    ret->defaultArgument = defaultArgument->deepClone();
-  //ret->defaultArgument = NULL;
-  // sm: I moved 'defaultArgument' into 'decl->value', so the issue
-  // is moot here; either they're cloned in Variable or not
-
-  return ret;
 }
 
 

@@ -43,6 +43,23 @@ string Variable::toString() const
 }
 
 
+string Variable::toStringAsParameter() const
+{
+  stringBuilder sb;
+  if (type->isTypeVariable()) {
+    sb << "class " << name;
+  }
+  else {
+    sb << type->toCString(name);
+  }
+
+  if (value) {
+    sb << renderExpressionAsString(" = ", value);
+  }
+  return sb;
+}
+
+
 OverloadSet *Variable::getOverloadSet()
 {
   if (!overload) {

@@ -49,7 +49,6 @@ class TypeVariable;
 class CVAtomicType;
 class PointerType;
 class FunctionType;
-class Parameter;
 class ArrayType;
 class Type;
 class TemplateParams;
@@ -438,7 +437,7 @@ public:     // data
   Type *retType;               // (serf) type of return value
   Qualifiers *q;
   CVFlags cv;                  // const/volatile for class member fns
-  ObjList<Parameter> params;   // list of function parameters
+  SObjList<Variable> params;   // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
   ExnSpec *exnSpec;            // (nullable owner) allowable exceptions if not NULL
 
@@ -457,7 +456,7 @@ public:
   bool equalExceptionSpecs(FunctionType const *obj) const;
 
   // append a parameter to the (ordinary) parameters list
-  void addParam(Parameter *param);
+  void addParam(Variable *param);
 
   bool isTemplate() const { return templateParams!=NULL; }
 
@@ -473,27 +472,6 @@ public:
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
   Qualifiers *&getQualifiersPtr() {return q;}
-};
-
-
-// formal parameter to a function or function type
-// TODO: replace all uses of Parameter with Variable
-class Parameter {
-public:
-  StringRef name;              // can be NULL to mean unnamed
-  Type *type;                  // (serf) type of the parameter
-
-  // syntactic introduction
-  Variable *decl;              // (serf)
-
-  // 'defaultArgument' has been moved into decl->value
-
-public:
-  Parameter(StringRef n, Type *t, Variable *d)
-    : name(n), type(t), decl(d) {}
-  ~Parameter();
-
-  string toString() const;
 };
 
 
@@ -545,7 +523,7 @@ public:
 
 class TemplateParams {
 public:
-  ObjList<Parameter> params;
+  SObjList<Variable> params;
 
 public:
   TemplateParams() {}
@@ -674,10 +652,7 @@ private:   // data
   // not work because Type* aren't const above)
   //static CVAtomicType unqualifiedSimple[NUM_SIMPLE_TYPES];
 
-private:   // funcs
-  Parameter *cloneParam(Parameter *src);
-
-public:
+public:    // funcs
   // TypeFactory funcs
   virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
   virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
