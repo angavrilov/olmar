@@ -52,6 +52,7 @@ public:
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
   void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
+  void concat(ASTList<T> &tail)         { list.concat(tail.list); }
 
   // removal
   T *removeFirst()                      { return (T*)list.removeFirst(); }

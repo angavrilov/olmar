@@ -168,5 +168,29 @@ inline void pretendUsedFn(T const &) {}
 #define ALLOC_STATS_IN_DTOR                     \
   numAllocd--;
 
+  
+// ----------- automatic data value restorer -------------
+// used when a value is to be set to one thing now, but restored
+// to its original value on return (even when the return is by
+// an exception being thrown)
+template <class T>
+class Restorer {
+  T &variable;
+  T prevValue;
+  
+public:
+  Restorer(T &var, T newValue)
+    : variable(var),
+      prevValue(var)
+  {
+    variable = newValue;
+  }
+
+  ~Restorer()
+  {
+    variable = prevValue;
+  }
+};
+
 
 #endif // __MACROS_H

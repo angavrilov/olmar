@@ -52,6 +52,7 @@ public:
   void prepend(void *newitem);
   void append(void *newitem);
   void insertAt(void *newitem, int index);
+  void concat(VoidTailList &tail)    { concat(tail); }
 
   // removal
   //void *removeAt(int index);
