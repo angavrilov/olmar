@@ -2820,7 +2820,10 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
 
     // then the qualifier prefix, if any
     if (alias->scope) {
-      name = make_PQ_fullyQualifiedName(alias->scope->curCompound, name);
+      // the code used pass 'alias->scope->curCompound', which I think is
+      // wrong, since all it does is cause a segfault in the case that
+      // 'alias->scope' is a namespace and not a class
+      name = make_PQ_fullyQualifiedName(alias->scope, name);
     }
 
     // did that work?  (this check uses 'equals' because of the possibility
