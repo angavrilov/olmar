@@ -1112,7 +1112,7 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ObjList<STemplateArgument
 
     // FIX: when it is possible to make a TA_template, add
     // check for it here.
-    //              xassert("Template template parameters are not implemented");
+    //              xfailure("Template template parameters are not implemented");
 
     if (param->hasFlag(DF_TYPEDEF) && arg->isType()) {
       STemplateArgument *bound = new STemplateArgument(*arg);
@@ -1514,7 +1514,7 @@ bool Env::insertTemplateArgBindings_oneParamList
     STemplateArgument *sarg = /*argIter.isDone()? NULL :*/ argIter.data();
 
     if (sarg && sarg->isTemplate()) {
-      xassert("Template template parameters are not implemented");
+      xfailure("Template template parameters are not implemented");
     }
 
 
@@ -2352,6 +2352,17 @@ void Env::instantiateForwardFunctions(Variable *primary)
 
 
 // ----------------- class template instantiation -------------
+bool contains_STA_NONE(SObjList<STemplateArgument> const &args)
+{
+  SFOREACH_OBJLIST(STemplateArgument, args, iter) {
+    if (iter.data()->kind == STemplateArgument::STA_NONE) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // Get or create an instantiation Variable for a class template.
 // Note that this does *not* instantiate the class body; instead,
 // instantiateClassBody() has that responsibility.
@@ -2362,6 +2373,10 @@ Variable *Env::instantiateClassTemplate
    Variable *primary,                         // template primary to instantiate
    SObjList<STemplateArgument> const &origPrimaryArgs)  // arguments to apply to 'primary'
 {
+  if (contains_STA_NONE(origPrimaryArgs)) {
+    return NULL;
+  }
+
   // I really don't know what's the best place to do this, but I
   // need it here so this is a start...
   primary = primary->skipAlias();
@@ -2752,7 +2767,7 @@ void Env::setSTemplArgFromExpr
   else if (expr->type->isPointer()) {
     if (expr->isE_addrOf() &&
         expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setPointer(expr->asE_addrOf()->asE_variable()->var);
+      sarg.setPointer(expr->asE_addrOf()->expr->asE_variable()->var);
     }
     else {
       env.error(stringc

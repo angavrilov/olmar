@@ -43,7 +43,7 @@ enum ErrorFlags {
 
   EF_ALL           = 0x0F
 };
-ENUM_BITWISE_OR(ErrorFlags)
+ENUM_BITWISE_OPS(ErrorFlags, EF_ALL)
 
 
 // an error message from the typechecker; I plan to expand

@@ -1249,6 +1249,16 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
   v = env.lookupPQ_one(name, lflags);
   if (!v) {
+    // a little diagnostic refinement: if the only problem is with the
+    // template arguments, but the name would be a type if the args
+    // were ok, don't call it disambiguating (in/t0454.cc, error 1)
+    if (name->isPQ_template()) {
+      Variable *primary = env.lookupPQ_one(name, lflags | LF_TEMPL_PRIMARY);
+      if (primary && primary->isType() && primary->isTemplate()) {
+        eflags &= ~EF_DISAMBIGUATES;
+      }
+    }
+
     // NOTE:  Since this is marked as disambiguating, but the same
     // error message in E_variable::itcheck is not marked as such, it
     // means we prefer to report the error as if the interpretation as

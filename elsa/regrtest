@@ -699,7 +699,7 @@ testparse t0450.cc
 testparse t0451.cc
 testparse t0452.cc
 testparse t0453.cc
-failparse t0454.cc "assertion failure on invalid code"
+testparse t0454.cc
 failparse t0455.cc "PQName ambiguity"
 
 # another set of tests, generally isolated by Daniel
