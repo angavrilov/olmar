@@ -235,6 +235,7 @@ enum DeclaratorContext {
   DC_FUNCTION,            // Function::nameAndParams
                           // inside Declaration
   DC_TF_DECL,             //   TF_decl::decl
+  DC_TF_EXPLICITINST,     //   TF_explicitInst::d
   DC_MR_DECL,             //   MR_decl::d
   DC_S_DECL,              //   S_decl::decl
   DC_TD_PROTO,            //   TD_proto::d

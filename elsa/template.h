@@ -371,6 +371,8 @@ public:
   // the point of boiling down the syntactic arguments into this
   // simpler semantic form is to make equality checking easy
   bool equals(STemplateArgument const *obj) const;
+  bool equals(STemplateArgument const &obj) const
+    { return equals(&obj); }
 
   // does it contain variables?
   bool containsVariables() const;

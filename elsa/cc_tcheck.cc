@@ -123,8 +123,7 @@ void TF_explicitInst::itcheck(Env &env)
 {
   env.setLoc(loc);
   
-  // one might argue I should create DC_TF_EXPLICITINST ...
-  d->tcheck(env, DC_TF_DECL);
+  d->tcheck(env, DC_TF_EXPLICITINST);
   
   // class instantiation?
   if (d->decllist->isEmpty()) {
@@ -149,16 +148,7 @@ void TF_explicitInst::itcheck(Env &env)
 
   // function instantiation?
   else if (d->decllist->count() == 1) {
-    Variable *var = d->decllist->first()->var;
-    if (!var) return;         // error recovery
-    
-    if (var->templateInfo() &&
-        var->templateInfo()->isInstantiation()) {
-      env.explicitlyInstantiate(var);
-    }
-    else {
-      env.error("explicit instantiation is only for template function instantiations");
-    }
+    // instantiation is handled by declarator::mid_tcheck
   }
   
   else {
@@ -2348,7 +2338,7 @@ realStart:
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
     env.getOverloadForDeclaration(prior, dt.type);
 
-  // 8/11/04: Big block of template code obviated by 
+  // 8/11/04: Big block of template code obviated by
   // Declarator::mid_tcheck.
 
   // make a new variable; see implementation for details
@@ -2617,6 +2607,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       // does not have (and cannot have) any declarators
       env.error("can only specialize functions", EF_STRONG);
     }
+  }
+
+  // explicit instantiation?
+  if (dt.context == DC_TF_EXPLICITINST) {
+    dt.existingVar = env.explicitFunctionInstantiation(name, dt.type);
   }
 
   bool callerPassedInstV = false;

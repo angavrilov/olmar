@@ -686,7 +686,7 @@ public:      // template funcs
 
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
-                                     MatchTypes &match);
+                                     MatchTypes &match, bool reportErrors);
   // infer template arguments from the function arguments; return true if successful
   bool inferTemplArgsFromFuncArgs(Variable *var,
                                   TypeListIter &argsListIter,
@@ -808,6 +808,8 @@ public:      // template funcs
      SObjList<STemplateArgument> const &args);
 
   bool verifyCompatibleTemplateParameters(CompoundType *prior);
+
+  Variable *explicitFunctionInstantiation(PQName *name, Type *type);
 };
 
 

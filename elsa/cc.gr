@@ -59,8 +59,8 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 60;
-option reduce_reduce_conflicts 100;
+option shift_reduce_conflicts 54;
+option reduce_reduce_conflicts 80;
 option unreachable_nonterminals 0;
 option unreachable_terminals 6;
 
@@ -2126,10 +2126,6 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
 nonterm(FakeList<TemplateParameter>*) TemplatePreamble {
   // 8/15/04: substituted 'ExportOpt' inline since it gives rise to
   // easily-removed S/R conflicts (continuing to ignore it though)
-  // 
-  // actually, it seems to *add* two S/R conflicts!  oh well, it is
-  // still the right thing to do b/c the explicit specialization
-  // syntax doesn't have "export" ...
 
   // template declaration
   -> "template" "<" plist:TemplateParameterList ">"
@@ -2197,10 +2193,13 @@ nonterm(PQName*) TemplateId {
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, n, list); }
 
-  // version with the word "template" in front, i.e.
-  -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
-       { list->prepend(new TA_templateUsed());
-         return new PQ_template(loc, n, list); }
+  // version with the word "template" in front
+  // 
+  // arg.. this causes some extra ambiguities, see t0255.cc.  since I
+  // don't have a testcase that requires this yet, I'll just remove it
+  //-> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
+  //     { list->prepend(new TA_templateUsed());
+  //       return new PQ_template(loc, n, list); }
 }
 
 nonterm(ASTList<TemplateArgument>*) TemplateArgumentList {

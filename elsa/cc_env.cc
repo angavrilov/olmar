@@ -2450,78 +2450,6 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 }
 
 
-// -------- diagnostics --------
-Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
-{
-  string instLoc = instLocStackString();
-  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " : "")
-              << toString(L) << ": " << msg << instLoc);
-
-  bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
-  if (report) {
-    errors.addError(new ErrorMsg(L, msg, eflags, instLoc));
-  }
-
-  return errorType();
-}
-
-Type *Env::errorType()
-{
-  return getSimpleType(SL_UNKNOWN, ST_ERROR);
-}
-
-Type *Env::error(char const *msg, ErrorFlags eflags)
-{
-  return error(loc(), msg, eflags);
-}
-
-
-Type *Env::warning(char const *msg)
-{
-  string instLoc = instLocStackString();
-  TRACE("error", "warning: " << msg << instLoc);
-  if (!disambiguateOnly) {
-    errors.addError(new ErrorMsg(loc(), msg, EF_WARNING, instLoc));
-  }
-  return getSimpleType(SL_UNKNOWN, ST_ERROR);
-}
-
-
-Type *Env::unimp(char const *msg)
-{
-  string instLoc = instLocStackString();
-
-  // always print this immediately, because in some cases I will
-  // segfault (typically deref'ing NULL) right after printing this
-  cout << toString(loc()) << ": unimplemented: " << msg << instLoc << endl;
-
-  breaker();
-  errors.addError(new ErrorMsg(
-    loc(), stringc << "unimplemented: " << msg, EF_NONE, instLoc));
-  return getSimpleType(SL_UNKNOWN, ST_ERROR);
-}
-
-
-Type *Env::error(Type *t, char const *msg)
-{
-  if (t->isSimple(ST_DEPENDENT)) {
-    // no report, propagate dependentness
-    return t;
-  }
-
-  // TODO: remove containsTypeVariables() from this..
-  if (t->containsErrors() ||
-      t->containsTypeVariables()) {   // hack until template stuff fully working
-    // no report
-    return getSimpleType(SL_UNKNOWN, ST_ERROR);
-  }
-  else {
-    // report; clashes never disambiguate
-    return error(msg, EF_NONE);
-  }
-}
-
-
 bool Env::setDisambiguateOnly(bool newVal)
 {
   bool ret = disambiguateOnly;
@@ -3456,5 +3384,83 @@ bool Env::ensureCompleteType(char const *action, Type *type)
   return true;
 }
 
+
+// -------- diagnostics --------
+Type *Env::errorType()
+{
+  return getSimpleType(SL_UNKNOWN, ST_ERROR);
+}
+
+Type *Env::error(char const *msg, ErrorFlags eflags)
+{
+  return error(loc(), msg, eflags);
+}
+
+
+Type *Env::warning(char const *msg)
+{
+  string instLoc = instLocStackString();
+  TRACE("error", "warning: " << msg << instLoc);
+  if (!disambiguateOnly) {
+    errors.addError(new ErrorMsg(loc(), msg, EF_WARNING, instLoc));
+  }
+  return getSimpleType(SL_UNKNOWN, ST_ERROR);
+}
+
+
+Type *Env::unimp(char const *msg)
+{
+  string instLoc = instLocStackString();
+
+  // always print this immediately, because in some cases I will
+  // segfault (typically deref'ing NULL) right after printing this
+  cout << toString(loc()) << ": unimplemented: " << msg << instLoc << endl;
+
+  breaker();
+  errors.addError(new ErrorMsg(
+    loc(), stringc << "unimplemented: " << msg, EF_NONE, instLoc));
+  return getSimpleType(SL_UNKNOWN, ST_ERROR);
+}
+
+
+Type *Env::error(Type *t, char const *msg)
+{
+  if (t->isSimple(ST_DEPENDENT)) {
+    // no report, propagate dependentness
+    return t;
+  }
+
+  // TODO: remove containsTypeVariables() from this..
+  if (t->containsErrors() ||
+      t->containsTypeVariables()) {   // hack until template stuff fully working
+    // no report
+    return getSimpleType(SL_UNKNOWN, ST_ERROR);
+  }
+  else {
+    // report; clashes never disambiguate
+    return error(msg, EF_NONE);
+  }
+}
+
+
+// I want this function to always be last in this file, so I can easily
+// find it to put a breakpoint in it.
+Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
+{
+  string instLoc = instLocStackString();
+  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " : "")
+              << toString(L) << ": " << msg << instLoc);
+
+  bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
+  if (report) {
+    errors.addError(new ErrorMsg(L, msg, eflags, instLoc));
+  }
+
+  return errorType();
+}
+
+
+// Don't add any more functions below 'Env::error'.  Instead, put them
+// above the divider line that says "diagnostics".
 
 // EOF

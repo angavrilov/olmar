@@ -960,10 +960,11 @@ void Env::initArgumentsFromASTTemplArgs
 
 
 bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
-                                        MatchTypes &match)
+                                        MatchTypes &match, bool reportErrors)
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
+  xassert(match.getMode() == MatchTypes::MM_BIND);
 
   ASTListIter<TemplateArgument> argIter(args);
   if (!argIter.isDone() && argIter.data()->isTA_templateUsed()) {
@@ -971,21 +972,39 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
   }
 
   SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
-  while (!paramIter.isDone() && !argIter.isDone()) {
+  for (; !paramIter.isDone() && !argIter.isDone();
+       paramIter.adv(), argIter.adv()) {
     Variable *param = paramIter.data();
+    TemplateArgument const *arg = argIter.data();
 
-    // no bindings yet and param names unique
-    //
-    // FIX: maybe I shouldn't assume that param names are
-    // unique; then this would be a user error
+    // is the parameter already bound?  this happens e.g. during
+    // explicit function instantiation, when the type of the function
+    // can be used to infer some/all of the template parameters
+    STemplateArgument const *existing = NULL;
     if (param->type->isTypeVariable()) {
-      xassert(!match.bindings.getTypeVar(param->type->asTypeVariable()));
+      existing = match.bindings.getTypeVar(param->type->asTypeVariable());
     } else {
       // for, say, int template parameters
-      xassert(!match.bindings.getObjVar(param));
+      existing = match.bindings.getObjVar(param);
     }
 
-    TemplateArgument const *arg = argIter.data();
+    // if so, it should agree with the explicitly provided argument
+    if (existing) {
+      if (!existing->equals(arg->sarg)) {
+        if (reportErrors) {
+          error(stringc << "for parameter `" << param->name
+                        << "', inferred argument `" << existing->toString()
+                        << "' does not match supplied argument `" << arg->sarg.toString()
+                        << "'");
+        }
+        return false;
+      }
+      else {     
+        // no need to get down into the (rather messy...) binding code
+        // below
+        continue;
+      }
+    }
 
     // FIX: when it is possible to make a TA_template, add
     // check for it here.
@@ -1046,8 +1065,6 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
             EF_STRONG);
       return false;
     }
-    paramIter.adv();
-    argIter.adv();
   }
   return true;
 }
@@ -1133,7 +1150,8 @@ bool Env::getFuncTemplArgs
   // for templatized ctors (that is, the ctor is templatized, but not
   // necessarily the class)
   if (final && final->isPQ_template()) {
-    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match)) {
+    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match,
+                                       reportErrors)) {
       return false;
     }
   }
@@ -3264,6 +3282,94 @@ void Env::explicitlyInstantiate(Variable *var)
   }
 }
 
+
+// This is called in response to syntax like (t0256.cc)
+//
+//   template
+//   int foo(int t);
+//
+// for which 'name' would be "foo" and 'type' would be "int ()(int)".
+// This function then finds a function template called "foo" that
+// matches the given type, and instantiates its body.  Finally, that
+// instantiation is returned.
+//
+// On error, an error message is emitted and NULL is returned.
+Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
+{
+  if (!type->isFunctionType()) {
+    error("explicit instantiation of non-function type");
+    return NULL;
+  }
+
+  Variable *ovlHeader = lookupPQVariable(name, LF_TEMPL_PRIMARY);
+  if (!ovlHeader || !ovlHeader->type->isFunctionType()) {
+    error(stringc << "no such function `" << *name << "'");
+    return NULL;
+  }
+
+  // did the user attach arguments to the name?
+  ASTList<TemplateArgument> *nameArgs = NULL;
+  if (name->getUnqualifiedName()->isPQ_template()) {
+    nameArgs = &( name->getUnqualifiedName()->asPQ_template()->args );
+  }
+
+  // instantiation to eventually return
+  Variable *ret = NULL;
+
+  // examine all overloaded versions of the function
+  SObjList<Variable> set;
+  ovlHeader->getOverloadList(set);
+  SFOREACH_OBJLIST_NC(Variable, set, iter) {
+    Variable *primary = iter.data();
+    if (!primary->isTemplate()) continue;
+    TemplateInfo *primaryTI = primary->templateInfo();
+
+    // does the type we have match the type of this template?
+    MatchTypes match(tfac, MatchTypes::MM_BIND);
+    if (!match.match_Type(type, primary->type)) {
+      continue;   // no match
+    }
+
+    // use user's arguments (if any) to fill in missing bindings
+    if (nameArgs) {
+      if (!loadBindingsWithExplTemplArgs(primary, *nameArgs, match, 
+                                         false /*reportErrors*/)) {
+        continue;      // no match
+      }
+    }
+
+    // convert the bindings into a sequential argument list
+    // (I am ignoring the inherited params b/c I'm not sure if it
+    // is correct to use them here...)
+    ObjList<STemplateArgument> sargs;
+    bool haveAllArgs = true;
+    getFuncTemplArgs_oneParamList(match, sargs, false /*reportErrors*/,
+                                  haveAllArgs, primaryTI->params);
+    if (!haveAllArgs) {
+      continue;   // no match
+    }
+
+    // at this point, the match is a success
+    if (ret) {
+      error("ambiguous function template instantiation");
+      return ret;        // stop looking
+    }
+
+    // apply the arguments to the primary
+    ret = instantiateFunctionTemplate(name->loc, primary, sargs);
+
+    // instantiate the body
+    explicitlyInstantiate(ret);
+  }
+
+  if (!ret) {
+    error(stringc << "type `" << type->toString() 
+                  << "' does not match any template function `" << *name << "'");
+  }
+
+  return ret;
+}
+  
 
 // ------------------- InstantiationContextIsolator -----------------------
 InstantiationContextIsolator::InstantiationContextIsolator(Env &e, SourceLoc loc)

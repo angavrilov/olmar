@@ -10,8 +10,8 @@
 // that are provided by both, so the split wouldn't be 100% clean.)
 
 // expected statistics
-option shift_reduce_conflicts 149;
-option reduce_reduce_conflicts 125;
+option shift_reduce_conflicts 142;
+option reduce_reduce_conflicts 104;
 
 
 verbatim {
@@ -150,15 +150,18 @@ nonterm(Declaration*) SimpleDeclaration {
   -> attrspec:AttributeSpecifier decl:SimpleDeclaration
        { return decl; }
 
-  // NOTE: while apparently unambiguous, this production nearly doubles
-  // the number of S/R conflicts, presumably because it's inheriting the
-  // conflicts from 'SimpleDeclaration'; a possible TODO is to make
-  // the production more specific to remove those conflicts
-  
+  // NOTE: while apparently unambiguous, the above production nearly
+  // doubles the number of S/R conflicts, presumably because it's
+  // inheriting the conflicts from 'SimpleDeclaration'; a possible
+  // TODO is to make the production more specific to remove those
+  // conflicts
+}
+
+nonterm(TopForm*) ExplicitInstantiation {
   // here's one for things like (in/gnu/g0002.cc)
   //   extern template class allocator<char>;
-  -> "extern" "template" decl:SimpleDeclaration
-       { return decl; }      // ?
+  -> "extern" "template" d:BlockDeclaration
+       { return new TF_explicitInst(loc, d); }
 }
 
 
