@@ -327,11 +327,13 @@ libccgr.a: $(ccgr-dep) libglr.a
 	ar -r libccgr.a $(ccgr-dep)
 	ranlib libccgr.a
 
-# stand-alone executable
+# stand-alone executable; sync is to prevent annoying interactive
+# delay caused by sync few seconds later
 ifeq ($(ocaml), no)
 ccgr: libccgr.a ccgrmain.o $(SMBASE)/libsmbase.a
 	$(link) -o ccgr ccgrmain.o libccgr.a $(linkend)
 	./ccgr cc.bin c.in1
+	sync
 else
 ccgr:
 	@echo "we don't build ccgr in ocaml mode"

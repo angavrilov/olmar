@@ -35,13 +35,14 @@ void const *nodeFactsKey(NodeFacts *nf)
   return nf->stmtPtr;
 }
 
-string factListString(SObjList<Expression> const &facts)
+string factListString(SObjList<Expression> const &facts,
+                      char const *separator = ", ")
 {
   stringBuilder sb;
   int ct=0;
   SFOREACH_OBJLIST(Expression, facts, fact) {
     if (ct++ > 0) {
-      sb << ", ";
+      sb << separator;
     }
     sb << fact.data()->toString();
   }       
@@ -162,9 +163,10 @@ void factFlow(TF_func &func)
     // create a NodeFacts if necessary
     xassert(nodeFacts);
 
+    char const *sep = "\n                    ";
     trace("factflow")
       << "  working on " << nextPtrString(stmtPtr)
-      << ", nodeFacts: " << factListString(nodeFacts->facts)
+      << ", nodeFacts:" << sep << factListString(nodeFacts->facts, sep)
       << endl;
 
     // consider each successor
@@ -181,7 +183,7 @@ void factFlow(TF_func &func)
       //   - add facts implied by the path used to exit the stmt
       SObjList<Expression /*const*/> afterFacts;
       afterFacts = nodeFacts->facts;                   // copy the list contents
-      stmt->factFlow(afterFacts, stmtCont, succPtr);   // TODO
+      stmt->factFlow(afterFacts, stmtCont, succPtr);
 
       // is anything known about this successor?
       bool changed = false;
@@ -276,15 +278,9 @@ Expression *HACK_not(Expression *expr)
 // on 'positive'
 void addFactsBool(SObjList<Expression /*const*/> &facts, Expression *expr, bool positive)
 {
-  trace("factflow") << "      added " << (positive? "positive" : "negative")
-                    << " fact: " << expr->toString() << endl;
-
-  if (positive) {
-    addFacts(facts, expr);
-  }
-  else {
-    addFacts(facts, HACK_not(expr));
-  }
+  Expression *toAdd = positive? expr : HACK_not(expr);
+  trace("factflow") << "      added fact: " << toAdd->toString() << endl;
+  addFacts(facts, toAdd);
 }
 
 
@@ -527,24 +523,22 @@ bool isRelational(Expression const *expr, Variable const *var, int &dir)
     default:            return false;
   }
 
-  // see which side is which
-  E_variable const *varExp;
+  // var on left?
   if (bin->e1->isE_variable() &&
-      bin->e2->isE_intLit()) {
-    varExp = bin->e1->asE_variableC();
+      bin->e1->asE_variableC()->var == var) {
+    return true;
   }
-  else if (bin->e2->isE_variable() &&
-           bin->e1->isE_intLit()) {
-    varExp = bin->e2->asE_variableC();
+                 
+  // var on right?
+  if (bin->e2->isE_variable() &&
+      bin->e2->asE_variableC()->var == var) {
+    // reverse dir
+    dir = -dir;
+    return true;
   }
-  else { 
-    return false;
-  }
-  
-  // check the variable
-  if (varExp->var != var) return false;
-  
-  return dir;
+
+  // var not involved
+  return false;
 }
 
 // given that 'lval' is modified, decide whether to remove 'fact'

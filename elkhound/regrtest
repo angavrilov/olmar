@@ -192,6 +192,9 @@ vcgentb npktsmall.c
 vcgen cutpt.c
 runTest ./ccgr -tr printAnalysisPath cc.bin vcgen/nestwhile.c
 vcgen memswap.c
+vcgen ff.c
+vcgen find.c
+vcgen find2.c
 
 
 # final arithmetic to report result

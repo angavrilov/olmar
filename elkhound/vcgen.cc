@@ -736,12 +736,17 @@ AbsValue *E_addrOf::vcgen(AEnv &env, int path) const
 
 void verifyPointerAccess(AEnv &env, Expression const *expr, AbsValue *addr)
 {
-  env.prove(new P_relation(env.avOffset(addr), RE_GREATEREQ,
-                           env.avInt(0)),
-                           stringc << "pointer lower bound: " << expr->toString());
-  env.prove(new P_relation(env.avOffset(addr), RE_LESS,
-                           env.avLength(env.avObject(addr))),
-                           stringc << "pointer upper bound: " << expr->toString());
+  // for a while I was doing ok checking these even inside predicates,
+  // but it induces an ordering constraint on the conjuncts in invariants,
+  // and that is hard to respect during automatic strengthening
+  if (!env.inPredicate) {
+    env.prove(new P_relation(env.avOffset(addr), RE_GREATEREQ,
+                             env.avInt(0)),
+                             stringc << "pointer lower bound: " << expr->toString());
+    env.prove(new P_relation(env.avOffset(addr), RE_LESS,
+                             env.avLength(env.avObject(addr))),
+                             stringc << "pointer upper bound: " << expr->toString());
+  }
 }
 
 AbsValue *E_deref::vcgen(AEnv &env, int path) const
