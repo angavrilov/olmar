@@ -227,7 +227,7 @@ StringRef PQ_template::getName() const
 }
 
 
-PQName const *PQName::getUnqualifiedName() const
+PQName const *PQName::getUnqualifiedNameC() const
 {                   
   PQName const *p = this;
   while (p->isPQ_qualifier()) {

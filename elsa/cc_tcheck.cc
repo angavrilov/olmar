@@ -723,11 +723,36 @@ Type *ASTTypeId::getType() const
 
 
 // ---------------------- PQName -------------------
+// adapted from tcheckFakeExprList
+FakeList<TemplateArgument> *tcheckFakeTemplateArgumentList
+  (FakeList<TemplateArgument> *list, Env &env)
+{
+  if (!list) {
+    return list;
+  }
+
+  // check first expression
+  TemplateArgument *first = list->first();
+  first = first->tcheck(env);
+  FakeList<TemplateArgument> *ret = FakeList<TemplateArgument>::makeList(first);
+
+  // check subsequent expressions, using a pointer that always
+  // points to the node just before the one we're checking
+  TemplateArgument *prev = ret->first();
+  while (prev->next) {
+    TemplateArgument *tmp = prev->next;
+    tmp = tmp->tcheck(env);
+    prev->next = tmp;
+
+    prev = prev->next;
+  }
+
+  return ret;
+}
+
 void PQ_qualifier::tcheck(Env &env)
 {
-  FAKELIST_FOREACH_NC(TemplateArgument, targs, iter) {
-    iter->tcheck(env);
-  }
+  targs = tcheckFakeTemplateArgumentList(targs, env);
   rest->tcheck(env);
 }
 
@@ -739,9 +764,7 @@ void PQ_operator::tcheck(Env &env)
 
 void PQ_template::tcheck(Env &env)
 {
-  FAKELIST_FOREACH_NC(TemplateArgument, args, iter) {
-    iter->tcheck(env);
-  }
+  args = tcheckFakeTemplateArgumentList(args, env);
 }
 
 
@@ -999,19 +1022,18 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       return env.unimp("qualified class specifier name");
     }
 
-    PQName const *unqual = name->getUnqualifiedName();
+    PQName *unqual = name->getUnqualifiedName();
     if (unqual->isPQ_template()) {
       if (!inTemplate) {
         return env.error("class specifier name can have template arguments "
                          "only in a templatized declaration");
       }
       else {
-        templateArgs = unqual->asPQ_templateC()->args;
+        PQ_template *t = unqual->asPQ_template();
 
         // typecheck the arguments
-        FAKELIST_FOREACH_NC(TemplateArgument, templateArgs, iter) {
-          iter->tcheck(env);
-        }
+        t->args = tcheckFakeTemplateArgumentList(t->args, env);
+        templateArgs = t->args;
       }
     }
   }
@@ -1808,7 +1830,7 @@ realStart:
     scope = env.enclosingScope();
   }
 
-  if (name->getUnqualifiedName()->isPQ_operator()) {
+  if (name->getUnqualifiedNameC()->isPQ_operator()) {
     // conversion operators require that I play some games
     // with the type
     //
@@ -1816,7 +1838,7 @@ realStart:
     // the set of candidate conversion functions difficult
     // (you have to explicitly iterate through the base classes)
     dt.type = makeConversionOperType(
-      env, loc, name->getUnqualifiedName()->asPQ_operatorC()->o, dt.type);
+      env, loc, name->getUnqualifiedNameC()->asPQ_operatorC()->o, dt.type);
   }
 
   else if (dt.type->isCDtorFunction()) {

@@ -139,7 +139,9 @@ class PQName {
   pure_virtual StringRef getName() const;
 
   // get the PQName at the bottom of any qualifiers
-  public PQName const *getUnqualifiedName() const;
+  public PQName const *getUnqualifiedNameC() const;
+  public PQName *getUnqualifiedName()
+    { return const_cast<PQName*>(getUnqualifiedNameC()); };
 
 
   // outer qualifier applied to some inner PQName, plus an optional

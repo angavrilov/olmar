@@ -630,7 +630,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
   }
 
   if (var &&
-      name->getUnqualifiedName()->isPQ_template()) {
+      name->getUnqualifiedNameC()->isPQ_template()) {
     // make sure the name in question is a template
     if (var->type->isTemplateFunction() &&
         !var->hasFlag(DF_TYPEDEF)) {

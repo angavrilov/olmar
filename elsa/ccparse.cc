@@ -99,6 +99,7 @@ public:
   bool visitDeclarator(Declarator *obj);
   bool visitStatement(Statement *obj);
   bool visitExpression(Expression *obj);
+  bool visitTemplateArgument(TemplateArgument *obj);
 };
 
 
@@ -115,6 +116,7 @@ VISIT(ASTTypeId)
 VISIT(Declarator)
 VISIT(Statement)
 VISIT(Expression)
+VISIT(TemplateArgument)
 
 #undef VISIT
 
