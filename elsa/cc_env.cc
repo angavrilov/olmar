@@ -49,8 +49,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     var__builtin_constant_p(NULL),
 
-    // binaryOperatorName[] initialized below
-    // builtinBinaryOperator[] is initialized below
+    // {un,bin}aryOperatorName[] initialized below
+
+    // builtin{Un,Bin}aryOperator[] start as arrays of empty
+    // arrays, and then have things added to them below
 
     tunit(tunit0),
 
@@ -152,8 +154,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
 void Env::setupOperatorOverloading()
 {
-  // fill in binaryOperatorName[]
+  // fill in {un,bin}aryOperatorName[]
   int i;
+  for (i=0; i < NUM_UNARYOPS; i++) {
+    unaryOperatorName[i] = str(stringc << "operator" << toString((UnaryOp)i));
+  }
   for (i=0; i < NUM_BINARYOPS; i++) {
     binaryOperatorName[i] = str(binaryOperatorFunctionNames[i]);
   }
@@ -169,6 +174,11 @@ void Env::setupOperatorOverloading()
 
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
+
+  // ---- 13.6 para 10 ----
+  // T operator~ (T);
+  addBuiltinUnaryOp(UNY_BITNOT,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
 
   // ---- 13.6 para 12 ----
   // LR operator* (L, R);
@@ -320,25 +330,12 @@ void Env::setupOperatorOverloading()
   // the default constructor for ArrayStack will have allocated 10
   // items in each array; go back and resize them to their current
   // length (since that won't change after this point)
+  for (i=0; i < NUM_UNARYOPS; i++) {
+    builtinUnaryOperator[i].consolidate();
+  }
   for (i=0; i < NUM_BINARYOPS; i++) {
     builtinBinaryOperator[i].consolidate();
   }
-}
-
-void Env::addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
-{
-  addBuiltinBinaryOp(op, new CandidateSet(createBuiltinBinaryOp(op, x, y)));
-}
-
-void Env::addBuiltinBinaryOp(BinaryOp op, CandidateSet::PreFilter pre,
-                                          CandidateSet::PostFilter post)
-{
-  addBuiltinBinaryOp(op, new CandidateSet(pre, post));
-}
-
-void Env::addBuiltinBinaryOp(BinaryOp op, CandidateSet * /*owner*/ cset)
-{
-  builtinBinaryOperator[op].push(cset);
 }
 
 
@@ -1524,7 +1521,36 @@ Type *Env::implicitReceiverType()
 }
 
 
-// mostly copied from addBuiltinBinaryOp
+void Env::addBuiltinUnaryOp(UnaryOp op, Type *x)
+{
+  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+
+  Variable *v = declareFunction1arg(
+    t_void /*irrelevant*/, unaryOperatorName[op],
+    x, "x");
+  v->setFlag(DF_BUILTIN);
+
+  builtinUnaryOperator[op].push(v);
+}
+
+
+void Env::addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
+{
+  addBuiltinBinaryOp(op, new CandidateSet(createBuiltinBinaryOp(op, x, y)));
+}
+
+void Env::addBuiltinBinaryOp(BinaryOp op, CandidateSet::PreFilter pre,
+                                          CandidateSet::PostFilter post)
+{
+  addBuiltinBinaryOp(op, new CandidateSet(pre, post));
+}
+
+void Env::addBuiltinBinaryOp(BinaryOp op, CandidateSet * /*owner*/ cset)
+{
+  builtinBinaryOperator[op].push(cset);
+}
+
+
 Variable *Env::createBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
 {
   // PLAN:  Right now, I just leak a bunch of things.  To fix

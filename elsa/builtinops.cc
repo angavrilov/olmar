@@ -67,13 +67,13 @@ void addTypeUniquely(SObjList<Type> &instTypes, Type *t)
   instTypes.append(t);
 }
 
-bool CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
+void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
   BinaryOp op, Type *lhsType, Type *rhsType)
 {
   if (poly) {
     // polymorphic candidates are easy
     resolver.processCandidate(poly);
-    return true;    // no problem
+    return;
   }
 
   // pattern candidate with correlated parameter types,
@@ -98,6 +98,8 @@ bool CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
   // instantiations the LUB dominates, in the final overload
   // analysis.  Thus we populate S with the LUBs of all pairs
   // of types the arguments' con-ops can yield.
+  //
+  // See also: convertibility.txt
 
   // set of types with which to instantiate T
   SObjList<Type> instTypes;      // called 'S' in the comments above
@@ -159,10 +161,6 @@ bool CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
     Variable *v = instantiatePattern(env, op, iter.data());
     resolver.processCandidate(v);
   }
-
-  // TODO: make this return void if it really can only
-  // return true
-  return true;
 }
 
 

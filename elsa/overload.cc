@@ -151,6 +151,27 @@ void OverloadResolver::addAmbiguousBinaryCandidate(Variable *v)
 }
 
 
+void OverloadResolver::
+  addUserOperatorCandidates(Type *lhsType, StringRef opName)
+{
+  lhsType = lhsType->asRval();
+
+  // member candidates
+  if (lhsType->isCompoundType()) {
+    Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
+    if (member) {
+      processPossiblyOverloadedVar(member);
+    }
+  }
+
+  // non-member candidates; this lookup ignores member functions
+  Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
+  if (nonmember) {
+    processPossiblyOverloadedVar(nonmember);
+  }
+}
+
+
 // this is a simple tournament, as suggested in footnote 123,
 // cppstd 13.3.3 para 2
 template <class RESOLVER, class CANDIDATE>

@@ -3830,12 +3830,71 @@ Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
 }
 
 
+inline ArgumentInfo argInfo(Expression *e)
+{
+  return ArgumentInfo(e->getSpecial(), e->type);
+}
+
 Type *E_unary::itcheck(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
+  // consider the possibility of operator overloading
+  if (env.doOperatorOverload &&
+      op == UNY_BITNOT &&
+      (expr->type->asRval()->isCompoundType() ||
+       expr->type->asRval()->isEnumType())) {
+    OVERLOADINDTRACE("found overloadable unary " << toString(op) <<
+                     " near " << env.locStr());
+    StringRef opName = env.unaryOperatorName[op];
+
+    // argument information
+    GrowArray<ArgumentInfo> args(1);
+    args[0] = argInfo(expr);
+
+    // prepare resolver
+    OverloadResolver resolver(env, env.loc(), &env.errors,
+                              OF_NONE, args);
+
+    // user-defined candidates
+    resolver.addUserOperatorCandidates(expr->type, opName);
+
+    // built-in candidates
+    ArrayStack<Variable*> &builtins = env.builtinUnaryOperator[op];
+    for (int i=0; i < builtins.length(); i++) {
+      resolver.processCandidate(builtins[i]);
+    }
+    
+    // pick the best candidate
+    Variable *winner = resolver.resolve();
+    if (winner && !winner->hasFlag(DF_BUILTIN)) {
+      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_unary(op), opName);
+      if (winner->hasFlag(DF_MEMBER)) {
+        // replace '~a' with 'a.operator~()'
+        replacement = new E_funCall(
+          new E_fieldAcc(expr, pqo),               // function
+          FakeList<ICExpression>::emptyList()      // arguments
+        );
+      }
+      else {
+        // replace '~a' with '::operator~(a)'
+        // TODO: that is wrong if namespaces exist
+        replacement = new E_funCall(
+          // function to invoke
+          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+                                          NULL /*targs*/, pqo)),
+          // arguments
+          FakeList<ICExpression>::makeList(new ICExpression(expr))
+        );
+      }
+      
+      // for now, just re-check the whole thing
+      replacement->tcheck(env, replacement);
+      return replacement->type;
+    }
+  }
+
   // TODO: make sure 'expr' is compatible with given operator
-  // TODO: consider the possibility of operator overloading
   return env.getSimpleType(SL_UNKNOWN, ST_INT);
 }
 
@@ -3851,16 +3910,13 @@ Type *E_effect::itcheck(Env &env, Expression *&replacement)
 }
 
 
-inline ArgumentInfo argInfo(Expression *e)
-{
-  return ArgumentInfo(e->getSpecial(), e->type);
-}
-
 Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
   e2->tcheck(env, e2);
 
+  // TODO: this is wrong; I should not be converting to rval until
+  // after ruling out the possibility of operator overloading
   Type *lhsType = e1->type->asRval();
   Type *rhsType = e2->type->asRval();
 
@@ -3869,7 +3925,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       isOverloadable(op) &&
       (lhsType->isCompoundType() || lhsType->isEnumType() ||
        rhsType->isCompoundType() || rhsType->isEnumType())) {
-    OVERLOADINDTRACE("found overloadable " << toString(op) <<
+    OVERLOADINDTRACE("found overloadable binary " << toString(op) <<
                      " near " << env.locStr());
     StringRef opName = env.binaryOperatorName[op];
 
@@ -3888,27 +3944,13 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
 
     // collect candidates: cppstd 13.3.1.2 para 3
     {
-      // member candidates
-      if (lhsType->isCompoundType()) {
-        Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
-        if (member) {
-          resolver.processPossiblyOverloadedVar(member);
-        }
-      }
-
-      // non-member candidates; this lookup ignores member functions
-      Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
-      if (nonmember) {
-        resolver.processPossiblyOverloadedVar(nonmember);
-      }
+      // user-defined candidates
+      resolver.addUserOperatorCandidates(lhsType, opName);
 
       // built-in candidates
       ObjArrayStack<CandidateSet> &builtins = env.builtinBinaryOperator[op];
       for (int i=0; i < builtins.length(); i++) {
-        if (!builtins[i]->instantiateBinary(env, resolver, op, lhsType, rhsType)) {
-          // there was a problem; abort overload resolution
-          goto after_overload_resolution;
-        }
+        builtins[i]->instantiateBinary(env, resolver, op, lhsType, rhsType);
       }
     }
 
@@ -3952,8 +3994,6 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       }
     }
   }
-
-after_overload_resolution:
 
   if (op == BIN_BRACKETS) {
     // built-in a[b] is equivalent to *(a+b)

@@ -153,7 +153,7 @@ public:      // funcs
   }
   ~OverloadResolver();
 
-  // public for 'tournament'
+  // public so 'tournament' can use it
   int compareCandidates(Candidate const *left, Candidate const *right);
 
   // process a batch of candidate functions, adding the viable
@@ -168,6 +168,11 @@ public:      // funcs
   // add a candidate that has two ambiguous user-defined conversions
   // for its arguments to 'v'
   void addAmbiguousBinaryCandidate(Variable *v);
+
+  // look up and process operator candidate functions, given the
+  // type of the first argument and the name of the operator
+  void addUserOperatorCandidates(Type *lhsType, StringRef opName);
+
 
   // run the tournament to decide among the candidates; returns
   // NULL if there is no clear winner

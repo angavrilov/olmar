@@ -99,9 +99,11 @@ public:      // data
   Variable *var__builtin_constant_p;
 
   // operator function names, indexed by the operators they overload
+  StringRef unaryOperatorName[NUM_UNARYOPS];
   StringRef binaryOperatorName[NUM_BINARYOPS];
 
   // built-in operator function sets, indexed by operator
+  ArrayStack<Variable*> builtinUnaryOperator[NUM_UNARYOPS];
   ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_BINARYOPS];
 
   TranslationUnit *tunit;
@@ -149,6 +151,8 @@ private:     // funcs
   CompoundType *findEnclosingTemplateCalled(StringRef name);
 
   void setupOperatorOverloading();
+
+  void addBuiltinUnaryOp(UnaryOp op, Type *x);
 
   void addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
   void addBuiltinBinaryOp(BinaryOp op, CandidateSet::PreFilter pre,

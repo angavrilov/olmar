@@ -48,10 +48,8 @@ public:      // funcs
   CandidateSet(PreFilter pre, PostFilter post);
 
   // instantiate the pattern as many times as necessary, given the
-  // argument types 'lhsType' and 'rhsType'; if this returns false,
-  // then the context is necessarily ambiguous, and an error message
-  // has already been inserted into 'env'
-  bool instantiateBinary(Env &env, OverloadResolver &resolver,
+  // argument types 'lhsType' and 'rhsType'
+  void instantiateBinary(Env &env, OverloadResolver &resolver,
     BinaryOp op, Type *lhsType, Type *rhsType);
 };
    
