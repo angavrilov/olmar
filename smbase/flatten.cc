@@ -6,6 +6,7 @@
 
 #include "flatten.h"     // this module
 #include "exc.h"         // formatAssert
+#include <string.h>      // strlen
 
 Flatten::Flatten()
 {}
