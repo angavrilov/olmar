@@ -91,7 +91,9 @@ $(THISLIBRARY): $(library-objs)
 
 # ---------- module tests ----------------
 # test program targets
-tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen
+tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
+               strdict svdict str strutil trdelete bflatten mysig \
+               testmalloc mypopen tobjpool strhash
 tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h
