@@ -16,9 +16,10 @@ LIBSMBASE   := $(SMBASE)/libsmbase.a
 LIBAST      := $(AST)/libast.a
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 
-# list of files to clean in 'clean' and 'distclean' targets
+# list of files to clean in 'clean' (etc.) targets
 # (these get added to below)
 TOCLEAN =
+TOTOOLCLEAN =
 TODISTCLEAN =
 
 # re-create the Makefile if Makefile.in has changed
@@ -101,18 +102,20 @@ tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 
 # ------------------------- ccparse ---------------------
 # combine base lexer description and extensions
-TOCLEAN += lexer.lex
+TOTOOLCLEAN += lexer.lex
 lexer.lex: $(LEXER_MODS) merge-lexer-exts.pl
 	rm -f $@
 	perl merge-lexer-exts.pl $(LEXER_MODS) >$@
 	chmod a-w $@
 
 # run flex on the lexer description
-TOCLEAN += lexer.yy.cc
+TOTOOLCLEAN += lexer.yy.cc
 lexer.yy.cc: lexer.lex lexer.h
 	flex -o$@ lexer.lex
 	mv $@ lexer.tmp
-	sed -e 's/class istream;/#include <iostream.h>/' <lexer.tmp >$@
+	sed -e 's/class istream;/#include <iostream.h>/' \
+            -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
+	  <lexer.tmp >$@
 	rm lexer.tmp
 
 
@@ -259,6 +262,9 @@ distclean: clean
 	rm -f $(TODISTCLEAN)
 	rm -f config.status config.summary
 	rm -rf gendoc
+
+toolclean: clean
+	rm -f $(TOTOOLCLEAN)
 
 check: all
 	MAKE=$(MAKE) ./regrtest

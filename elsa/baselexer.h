@@ -10,12 +10,7 @@
 #ifndef BASELEXER_H
 #define BASELEXER_H
 
-// work around an apparent bug in flex-2.5.31
-#undef yyFlexLexer
-
-// This included file is part of the Flex distribution.  It defines
-// the base class yyFlexLexer.
-#include <FlexLexer.h>
+#include "sm_flexlexer.h"   // yyFlexLexer
 
 #include <iostream.h>       // istream
 #include "lexerint.h"       // LexerInterface
