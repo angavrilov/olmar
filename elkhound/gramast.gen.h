@@ -26,11 +26,12 @@ class RH_taggedString;
 // *** DO NOT EDIT ***
 class GrammarAST {
 public:      // data
+  LocString verbatimCode;
   Terminals *terms;
   ASTList <NontermDecl > nonterms;
 
 public:      // funcs
-  GrammarAST(Terminals *_terms, ASTList <NontermDecl > *_nonterms) : terms(_terms), nonterms(_nonterms) {}
+  GrammarAST(LocString *_verbatimCode, Terminals *_terms, ASTList <NontermDecl > *_nonterms) : verbatimCode(_verbatimCode), terms(_terms), nonterms(_nonterms) {}
   ~GrammarAST();
 
 

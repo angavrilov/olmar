@@ -2291,6 +2291,14 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
   out << "#include \"useract.h\"     // SemanticValue\n";
   out << "\n";
 
+  // insert user's verbatim code at top
+  if (g.verbatim[0]) {
+    out << lineDirective(g.verbatim);
+    out << g.verbatim << "\n";
+    out << restoreLine;
+    out << "\n";
+  }
+
   // iterate over productions, emitting inline action functions
   {FOREACH_OBJLIST(Production, g.productions, iter) {
     Production const &prod = *(iter.data());

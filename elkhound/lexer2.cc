@@ -305,7 +305,6 @@ void printMyTokenDecls()
 // ----------------------- Lexer2Token -------------------------------
 Lexer2Token::Lexer2Token(Lexer2TokenType aType, SourceLocation const &aLoc)
   : type(aType),
-    strLitValue(),   // null initially
     intValue(0),     // legal? apparently..
     loc(aLoc),
     sourceMacro(NULL)
@@ -329,11 +328,8 @@ string Lexer2Token::toString(bool asSexp) const
   string litVal;
   switch (type) {
     case L2_NAME:
-      litVal = stringc << nameValue;
-      break;
-
     case L2_STRING_LITERAL:
-      litVal = stringc << strLitValue;
+      litVal = stringc << strValue;
       break;
 
     case L2_INT_LITERAL:
@@ -357,12 +353,10 @@ string Lexer2Token::unparseString() const
 {
   switch (type) {
     case L2_NAME:
-      return nameValue;
+      return string(strValue);
 
     case L2_STRING_LITERAL:
-      return stringc << "\""
-                     << encodeWithEscapes(strLitValue, strLitLength)
-                     << "\"";
+      return stringc << quoted(strValue);
 
     case L2_INT_LITERAL:
       return stringc << intValue;
@@ -421,9 +415,9 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
     if (L1->type == L1_STRING_LITERAL         &&
         prevToken != NULL                     &&
         prevToken->type == L2_STRING_LITERAL) {
-      // coalesce adjacent strings (this is not good code..)
+      // coalesce adjacent strings (this is not efficient code..)
       stringBuilder sb;
-      sb.append(prevToken->strLitValue, prevToken->strLitLength);
+      sb << prevToken->strValue;
 
       string tempString;
       int tempLength;
@@ -431,9 +425,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
                      src.allowMultilineStrings);
       sb.append(tempString, tempLength);
 
-      prevToken->strLitValue.setlength(sb.length());
-      memcpy(prevToken->strLitValue.pchar(), sb, sb.length()+1);
-      prevToken->strLitLength = sb.length();
+      prevToken->strValue = dest.idTable.add(sb);
       continue;
     }
 
@@ -447,9 +439,9 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
       switch (L1->type) {
         case L1_IDENTIFIER:
           L2->type = lookupKeyword(L1->text);      // keyword's type or L2_NAME
-          if (L2->type == L2_NAME) {               
+          if (L2->type == L2_NAME) {
             // save name's text
-            L2->nameValue = dest.idTable.add(L1->text);
+            L2->strValue = dest.idTable.add(L1->text);
           }
           break;
 
@@ -463,17 +455,25 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
           L2->floatValue = atof(L1->text);
           break;
 
-        case L1_STRING_LITERAL:
+        case L1_STRING_LITERAL: {
           L2->type = L2_STRING_LITERAL;
-          quotedUnescape(L2->strLitValue, L2->strLitLength, L1->text, '"',
+          string tmp;
+          int tmpLen;
+          quotedUnescape(tmp, tmpLen, L1->text, '"',
                          src.allowMultilineStrings);
+          if (tmpLen != tmp.length()) {
+            cout << "warning: literal string with embedded nulls not handled properly\n";
+          }
+
+          L2->strValue = dest.idTable.add(tmp);
           break;
+        }
 
         case L1_CHAR_LITERAL: {
           L2->type = L2_CHAR_LITERAL;
           int tempLen;
           string temp;
-          quotedUnescape(temp, tempLen, L1->text, '\'', 
+          quotedUnescape(temp, tempLen, L1->text, '\'',
                          false /*allowNewlines*/);
 
           if (tempLen != 1) {

@@ -326,7 +326,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     xassert(currentToken->type < numTerms);
     currentTokenClass = indexedTerms[currentToken->type];
     currentTokenColumn = tokenNumber;
-    currentTokenValue = (SemanticValue)currentToken;      // TODO: fix this
+    currentTokenValue = currentToken->sval;
 
 
     // ([GLR] called the code from here to the end of

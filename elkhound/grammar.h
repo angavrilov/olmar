@@ -425,16 +425,8 @@ public:	    // data
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
 
-  #if 0
-    // ---- stuff for emitting treewalk code ----
-    // extra user-supplied source in the embedded language,
-    // meant to appear in the generated semantic-functions files
-    LocString semanticsPrologue;          // top of .h file
-    LocString semanticsEpilogue;          // bottom of .cc file
-
-    // name of base class for tree nodes; defaults to "NonterminalNode"
-    string treeNodeBaseClass;
-  #endif // 0
+  // extra verbatim code to be inserted at top of impl file
+  LocString verbatim;
 
 private:    // funcs
   #if 0

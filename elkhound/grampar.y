@@ -71,6 +71,7 @@
 %token TOK_TERMINALS "terminals"
 %token TOK_TOKEN "token"
 %token TOK_NONTERM "nonterm"
+%token TOK_VERBATIM "verbatim"
 
 
 /* ===================== types ============================ */
@@ -93,7 +94,7 @@
 }
 
 %type <num> StartSymbol
-%type <str> Type
+%type <str> Type Verbatim
 
 %type <terminals> Terminals
 %type <termDecls> TermDecls
@@ -118,14 +119,19 @@
 
 /* start symbol */
 /* yields: int (dummy value) */
-StartSymbol: Terminals Nonterminals
+StartSymbol: Verbatim Terminals Nonterminals
                {
                  // return the AST tree top to the caller
-                 ((ParseParams*)parseParam)->treeTop = new GrammarAST($1, $2);
+                 ((ParseParams*)parseParam)->treeTop = new GrammarAST($1, $2, $3);
                  $$ = 0;
                }
            ;
-          
+
+/* yields: LocString */
+Verbatim: /* empty */                    { $$ = noloc(""); }
+        | "verbatim" TOK_LIT_CODE        { $$ = $2; }
+        ;
+
 /* ------ terminals ------ */
 /*
  * the terminals are the grammar symbols that appear only on the RHS of

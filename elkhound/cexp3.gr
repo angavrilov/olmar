@@ -1,10 +1,14 @@
 // cexp3.gr
 // another go at C expressions, with user-supplied actions
 
+verbatim [
+  #include <iostream.h>      // cout
+]
+
 terminals {
   // grab the lexer's token list
   include("cc.tok")
-  
+
   // annotate some with semantic types
   token[int] L2_INT_LITERAL;
 }
@@ -12,7 +16,7 @@ terminals {
 nonterm[int] Start -> e:Exp L2_EOF [ return e; ]
 
 nonterm[int] Exp {
-  -> i:L2_INT_LITERAL  [ return i; ]
+  -> i:L2_INT_LITERAL  [ cout << "literal: " << i << endl; return i; ]
   -> e1:Exp "+" e2:Exp [ return e1 + e2; ]
   -> e1:Exp "*" e2:Exp [ return e1 * e2; ]
 }

@@ -6,7 +6,9 @@ verbatim {
 }
 
 // the entire grammar spec
-class GrammarAST (Terminals terms, ASTList<NontermDecl> nonterms);
+class GrammarAST (LocString verbatimCode,
+                  Terminals terms, 
+                  ASTList<NontermDecl> nonterms);
 
 
 // definition of tokens: first the ids and aliases, then types

@@ -133,6 +133,7 @@ SLWHITE   [ \t]
 "terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
 "token"            TOK_UPD_COL;  return TOK_TOKEN;
 "nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
+"verbatim"         TOK_UPD_COL;  return TOK_VERBATIM;
 
   /* --------- embedded literal code --------- */
 "[" {

@@ -7,6 +7,7 @@
 #include "lexer1.h"       // Lexer1
 #include "fileloc.h"      // SourceLocation
 #include "strtable.h"     // StringRef, StringTable
+#include "useract.h"      // SemanticValue
 
 // this enumeration defines the terminal symbols that the parser
 // deals with
@@ -162,15 +163,16 @@ public:
   // kind of token
   Lexer2TokenType type;
 
-  // value, where appropriate
-  string strLitValue;            // for L2_STRING_LITERALs
+  // semantic value
   union {
     int intValue;      	       	 // for L2_INT_LITERALs
     float floatValue;		 // for L2_FLOAT_LITERALs
     char charValue;		 // for L2_CHAR_LITERALs
-    int strLitLength;            // for L2_STRING_LITERALs (to handle embedded nuls)
-    StringRef nameValue;         // for L2_NAMEs; refers to Lexer2::idTable
+    StringRef strValue;          // for L2_NAMEs and L2_STRING_LITERALs; refers to Lexer2::idTable
+    SemanticValue sval;          // union with above means we can extract from this
   };
+
+  // TODO: handle strings with embedded nulls
 
   // where token appears, or where macro reference which produced it appears
   SourceLocation loc;            // line/col/file

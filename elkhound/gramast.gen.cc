@@ -17,6 +17,7 @@ void GrammarAST::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(GrammarAST);
 
+  PRINT_GENERIC(verbatimCode);
   PRINT_SUBTREE(terms);
   PRINT_LIST(NontermDecl, nonterms);
 }

@@ -106,6 +106,9 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
   // default, empty environment
   Environment env(g);
 
+  // stash verbatim code in the grammar
+  g.verbatim = treeTop->verbatimCode;
+
   // process token declarations
   astParseTerminals(env, *(treeTop->terms));
 
