@@ -17,6 +17,9 @@
 ; true when 'okSel' is always true for an object (typically memory)
 (DEFPRED (uncheckedAccess obj))
 
+; x == whole
+(DEFPRED (isWhole x))
+
 (BG_PUSH (AND
 
   ; ---------------- misc -----------------
@@ -374,6 +377,13 @@
       (length (upd obj index val))
     ))
 
+  ; ok to access survives updates to elements
+  (FORALL (obj index1 index2 val)   (PATS (okSel (upd obj index1 val) index2))
+    (IMPLIES
+      (okSel obj index2)                     ; index2 was valid before
+      (okSel (upd obj index1 val) index2)    ; and it's still valid
+    ))
+
   ; ---------------------- uncheckedAccess ------------------
   ; ok to access any field in an unchecked-access object (like memory itself)
   (FORALL (mem index)
@@ -439,8 +449,10 @@
   ; check the rest of the offset (will Simplify get lost??  I'll
   ; try to avoid that with a pattern that limits it to applications
   ; when the goal is desired)
-  (FORALL (obj index rest)   (PATS (okSelOffset obj (sub index rest)))
-    (IMPLIES
+  ; update: vcgen/swap1.c wants to use the rule in reverse, so I've
+  ; gone ahead and removed the pattern and changed "implies" to "iff"
+  (FORALL (obj index rest)   ;(PATS (okSelOffset obj (sub index rest)))
+    (IFF       ;IMPLIES
       (AND
         (okSel obj index)
         (okSelOffset (sel obj index) rest)
@@ -498,6 +510,14 @@
     (EQ
       (restOf (sub index rest))
       rest
+    ))
+
+  ; isWhole: equal to 'whole'; can't just say that though because
+  ; I make up new variables ...
+  (FORALL (x)
+    (IFF
+      (isWhole x)
+      (EQ whole x)
     ))
 
 ))

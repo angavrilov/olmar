@@ -205,3 +205,131 @@ valid "unchanged" (
       (selOffset mem_35 (sub addr_y_8 whole)))
 )
 
+
+; ------------------ okSelOffset after two updates --------------
+bg_push (
+  (DISTINCT 0)
+  (uncheckedAccess mem_23)
+  (EQ ptr_4 (sub ptr_index_4 ptr_rest_4))
+  (EQ x_10 (sub x_index_4 x_rest_4))
+  (okSelOffset mem_23 ptr_4)
+  (okSelOffset mem_23 x_10)
+  (NEQ (firstIndexOf ptr_4) (firstIndexOf x_10))
+  (EQ mem_24 (updOffset mem_23 ptr_4 5))
+
+  ; currently my axioms only go the other way..
+  ;(okSelOffset (sel mem_23 x_index_4) x_rest_4)
+
+  ; try reversing it.. I added this to bgpred.sx ..
+  ;   (FORALL (obj index rest)  ; (PATS (okSelOffset obj (sub index rest)))
+  ;     (IMPLIES
+  ;       (okSelOffset obj (sub index rest))
+  ;       (AND
+  ;         (okSel obj index)
+  ;         (okSelOffset (sel obj index) rest)
+  ;       )
+  ;     ))
+)
+
+valid "implications" (
+  (AND
+    (okSelOffset (sel mem_23 x_index_4) x_rest_4)
+    (NEQ ptr_index_4 x_index_4)
+    (EQ mem_24 (upd mem_23 ptr_index_4
+                 (updOffset (sel mem_23 ptr_index_4) ptr_rest_4 5)))
+    (IMPLIES
+      (okSelOffset (sel mem_24 x_index_4) x_rest_4)
+      (okSelOffset mem_24 x_10)
+    )
+  )
+)
+
+valid "still ok" (
+  ;(okSelOffset mem_24 x_10)
+  (okSelOffset (sel mem_24 x_index_4) x_rest_4)
+)
+
+
+; ---------------------- okSelOffset after array ops -----------------
+bg_push (
+  (DISTINCT 0)
+  (uncheckedAccess mem_20)
+  (EQ a_7 (sub a_index_7 a_rest_7))
+  (EQ a_rest_7 (sub 0 whole))     ; will this help?  no..
+;   (FORALL (i_7 )
+;     (IMPLIES
+;       (AND (<= 0 i_7) (< i_7 5))
+;       (okSelOffset mem_20 (addOffset a_7 i_7))
+;     ))
+;   (FORALL (i_7 )
+;     (IMPLIES
+;       (AND (<= 0 i_7) (< i_7 5))
+;       (okSelOffset mem_20 (sub a_index_7 (sub i_7 whole)))
+;     ))                                  
+
+  ; explicitly instantiating was the key..
+  (okSelOffset mem_20 (sub a_index_7 (sub 1 whole)))
+  
+  (EQ mem_21 (updOffset mem_20 (addOffset a_7 0) 0))
+  (EQ prevArray (sel mem_20 a_index_7))
+)
+
+valid "implications" (
+  (AND
+    (okSelOffset mem_20 (addOffset a_7 1))
+    (EQ (addOffset a_7 1) (sub a_index_7 (sub 1 whole)))
+
+    (okSelOffset mem_20 (sub a_index_7 (sub 1 whole)))
+    (EQ mem_21 (upd mem_20 a_index_7 (upd prevArray 0 0)))
+    (EQ (sel (sel mem_21 a_index_7) 0) 0)   ; a[0] is known
+    (EQ (sel (sel mem_21 a_index_7) 1)
+        (sel (sel mem_20 a_index_7) 1))     ; a[1] hasn't changed
+        
+    (EQ (sel mem_21 a_index_7)
+        (upd prevArray 0 0))      ; new array is a[0 := 0]
+
+    (okSel mem_21 a_index_7)
+
+    (okSel prevArray 1)
+  )
+)
+
+valid "access after mod" (
+  ;(okSelOffset mem_21 (addOffset a_7 1))
+  ;(okSelOffset mem_21 (sub a_index_7 (sub 1 whole)))
+  ;(AND
+    ;(okSel prevArray 1)
+    ;(EQ (sel mem_21 a_index_7)
+    ;    (upd prevArray 0 0))      ; new array is a[0 := 0]
+    (okSel (upd prevArray 0 0) 1)
+  ;)
+)
+
+
+bg_pop
+
+; ----------------- length>=5 example ------------
+bg_push (
+  (DISTINCT 0)
+  (uncheckedAccess mem_20)
+  (EQ a_7 (sub a_index_7 a_rest_7))
+
+  (>= (length (sel mem_20 (firstIndexOf a_7))) 5)
+  ;(EQ (length (sel mem_20 (firstIndexOf a_7))) 5)
+
+  (EQ (firstIndexOf (restOf a_7)) 0)
+  
+  (EQ a_rest_7 (sub index w_h_o_l_e))   ; I added this
+  ;(EQ w_h_o_l_e whole)                  ; had to add this too
+  (isWhole w_h_o_l_e)                   ; had to add this too
+)
+
+valid "implications" (
+  (AND
+    (EQ index 0)
+  )
+)
+
+valid "access" (
+  (okSelOffset mem_20 (addOffset a_7 0))
+)

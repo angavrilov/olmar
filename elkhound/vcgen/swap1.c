@@ -3,25 +3,33 @@
 // NUMERRORS 1
 
 // function symbols used
-int *object(int *ptr);
-int offset(int *ptr);
-int length(int *obj);
-int select(int *mem, int *obj, int offset);
-int update(int *mem, int *obj, int offset, int value);
+//  int *object(int *ptr);
+//  int offset(int *ptr);
+//  int length(int *obj);
+//  int select(int *mem, int *obj, int offset);
+//  int update(int *mem, int *obj, int offset, int value);
 //int validPointer(int *ptr);
+
+thmprv_predicate int okSelOffset(int mem, int *offset);
+int updOffset(int mem, int *offset, int value);
+int selOffset(int mem, int *offset);
+int firstIndexOf(int *offset);
+int *sub(int *index, int *rest);
+
 
 void foo(int *ptr, int *x)
   thmprv_pre (
-    int *pre_mem = mem;
-    //validPointer(ptr) && validPointer(x) &&
-    offset(ptr) >= 0 && offset(ptr) < length(object(ptr)) &&
-    offset(x) >= 0 && offset(x) < length(object(x)) &&
-    ptr != x 
+    int pre_mem = mem;
+    okSelOffset(mem, ptr) && 
+    okSelOffset(mem, x) &&
+    //offset(ptr) >= 0 && offset(ptr) < length(object(ptr)) &&
+    //offset(x) >= 0 && offset(x) < length(object(x)) &&
+    firstIndexOf(ptr) != firstIndexOf(x)
   )
   thmprv_post (
-    mem == update(update(pre_mem,
-             object(ptr), offset(ptr), 5),
-             object(x), offset(x), 7)
+    mem == updOffset(updOffset(pre_mem,
+             ptr, 5),
+             x, 7)
   )
 {
   *ptr = 5;
