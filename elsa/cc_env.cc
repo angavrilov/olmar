@@ -333,7 +333,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     errorTypeVar(NULL),
     errorVar(NULL),
 
-    anonE_compoundLitName(str("anonE_compoundLitName")),
     var__builtin_constant_p(NULL),
 
     // operatorName[] initialized below

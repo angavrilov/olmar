@@ -136,11 +136,6 @@ public:      // data
   Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
 
-  // dsw: anonymous unions in E_compoundLit::stype behave as if they
-  // had a name, unlike other kinds of anonymous unions.  A simple way
-  // to implement this is to just give such types a name.
-  StringRef anonE_compoundLitName;
-
   // dsw: Can't think of a better way to do this, sorry.
   // sm: Do what?  Who uses this?  I don't see any uses in Elsa.
   Variable *var__builtin_constant_p;

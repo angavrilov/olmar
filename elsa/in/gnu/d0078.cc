@@ -5,4 +5,8 @@ int main() {
   (
    (union {int c;}) {c:0}
   ) .c ;
+
+  (
+   (union {int d;}) {d:0}
+  ) .d ;
 }

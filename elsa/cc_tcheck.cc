@@ -764,7 +764,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
       // the more general thing just for simplicity
 //        && spec->asTS_classSpec()->keyword == TI_UNION
       && !spec->asTS_classSpec()->name) {
-    spec->asTS_classSpec()->name = new PQ_name(env.loc(), env.anonE_compoundLitName);
+    spec->asTS_classSpec()->name = new PQ_name(env.loc(), env.getAnonName(TI_UNION));
   }
 
   // check type specifier
