@@ -32,12 +32,12 @@ verbatim {
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 
-// emit gdb() methods
+// emit gdb() methods for debugging
 option gdb;
 
 
 // ---------------- file -------------
-// an entire file (with included stuff) of toplevel forms; I use
+// an entire file (with #included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and
 // there's never a multiple-yield problem with toplevel forms
 class TranslationUnit (ASTList<TopForm> topForms);
@@ -301,10 +301,8 @@ class Declarator (
 
 
 // inner declarator; things *recursively* buried inside declarators;
-// cannot have initializers; the internal structure is not analyzed
-// once typechecking determines what type is denoted;
-// type constructors are encoded as a (possibly empty) list of pointer
-// constructors, then maybe a function or array type, recursively
+// cannot have initializers; the internal structure can be ignored
+// once typechecking determines what type is denoted
 class IDeclarator(SourceLoc loc) {
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorIdC() const;
@@ -531,7 +529,7 @@ class Expression {
   -> E_sizeofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
-  // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
+  // incremental assignment, like a += 3 (e.g. for op==BIN_PLUS)
   -> E_assign(Expression target, BinaryOp op, Expression src);
 
   -> E_new(bool colonColon,                        // true if "::" preceeds "new"
@@ -615,7 +613,7 @@ class ArgExpressionListOpt (
 );
 
 
-// animals which appear after declarations to assign initial values
+// things that appear after declarations to assign initial values
 class Initializer (SourceLoc loc) {
   public Initializer *next = NULL;       // FakeList link
 

@@ -24,10 +24,6 @@ class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 class TypeListIter;       // typelistiter.h
 
-// fwd in this file, for helpers
-class FuncDeclThing;
-class PartialScopeStack;
-
 
 // type of collection to hold a sequence of scopes
 // for nested qualifiers; it can hold up to 2 scopes
@@ -384,6 +380,10 @@ public:      // funcs
   // extend/retract entire scope sequences
   void extendScopeSeq(ScopeSeq const &scopes);
   void retractScopeSeq(ScopeSeq const &scopes);
+  
+  // push/pop scopes that contain v's declaration (see implementation)
+  void pushDeclarationScopes(Variable *v, Scope *stop);
+  void popDeclarationScopes(Variable *v, Scope *stop);
 
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL; this is for
@@ -574,12 +574,6 @@ private:     // template funcs
   CompoundType *findEnclosingTemplateCalled(StringRef name);
 
 public:      // template funcs
-  // clone the part of the scope stack from the current up to the foundScope
-  PartialScopeStack *shallowClonePartialScopeStack(Scope *foundScope);
-  // so I can put methods on PartialScopeStack which seems more natural to me
-  friend struct PartialScopeStack;
-
-
   // return the current mode
   TemplTcheckMode getTemplTcheckMode() const;
   TemplTcheckMode old_getTemplTcheckMode() const;
@@ -878,30 +872,6 @@ struct InstContext {
      SObjList<STemplateArgument> &sargs);
   // FIX: creates garbage when deleted; I don't want any dangling
   // pointer bugs for now
-};
-
-
-struct PartialScopeStack {
-  SObjList<Scope> scopes;
-  void stackIntoEnv(Env &env);
-  void unStackOutOfEnv(Env &env);
-};
-
-
-// preserve the function typechecking context
-struct FuncTCheckContext {
-  // the cloned body of the function to instantiate; clone corresponds
-  // to 'instV'
-  Function *func;
-  
-  // once again, scope in which 'baseV' was found
-  Scope *foundScope;
-
-  // sequence of scopes from 'foundScope' to the scope immediately
-  // containing the definition of 'func'
-  PartialScopeStack *pss;
-
-  FuncTCheckContext(Function *func, Scope *foundScope, PartialScopeStack *pss);
 };
 
 

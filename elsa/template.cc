@@ -182,69 +182,10 @@ InstContext::InstContext
 {}
 
 
-// --------------------- PartialScopeStack -----------------
-
-void PartialScopeStack::stackIntoEnv(Env &env)
-{
-  for (int i=scopes.count()-1; i>=0; --i) {
-    Scope *s = this->scopes.nth(i);
-    env.scopes.prepend(s);
-  }
-}
-
-
-void PartialScopeStack::unStackOutOfEnv(Env &env)
-{
-  for (int i=0; i<scopes.count(); ++i) {
-    Scope *s = this->scopes.nth(i);
-    Scope *removed = env.scopes.removeFirst();
-    xassert(s == removed);
-  }
-}
-
-
-// --------------------- FuncTCheckContext -----------------
-
-FuncTCheckContext::FuncTCheckContext
-  (Function *func0,
-   Scope *foundScope0,
-   PartialScopeStack *pss0)
-    : func(func0)
-    , foundScope(foundScope0)
-    , pss(pss0)
-{}
-
-
-
 // ----------------------- Env ----------------------------
 
-PartialScopeStack *Env::shallowClonePartialScopeStack(Scope *foundScope)
+Env::TemplTcheckMode Env::getTemplTcheckMode() const
 {
-  xassert(foundScope);
-  PartialScopeStack *pss = new PartialScopeStack();
-  int scopesCount = scopes.count();
-  xassert(scopesCount>=3);
-  for (int i=0; i<scopesCount; ++i) {
-    Scope *s0 = scopes.nth(i);
-    Scope *s1 = scopes.nth(i+1);
-    Scope *s2 = scopes.nth(i+2);
-    // NOTE: omit foundScope itself AND the template scope below it
-    // AND the dummy scope that is between them
-    if (s2 == foundScope) {
-      xassert(s1->scopeKind == SK_EAT_TEMPL_INST);
-      xassert(s0->scopeKind == SK_TEMPLATE);
-      return pss;
-    }
-    xassert(s0->scopeKind != SK_TEMPLATE);
-    xassert(s0->scopeKind != SK_EAT_TEMPL_INST);
-    pss->scopes.append(s0);
-  }
-  xfailure("failed to find foundScope in the scope stack");
-  return NULL;
-}
-
-
-Env::TemplTcheckMode Env::getTemplTcheckMode() const {
   return tcheckMode;
 }
 
@@ -1588,18 +1529,6 @@ Variable *Env::instantiateTemplate
           // this.  The extra scopes are probably harmless, but
           // shouldn't be there.
 
-          // save all the scopes from the foundScope down to the
-          // current scope; Scott: I think you are right that I didn't
-          // need to save them all, but I can't see how to avoid
-          // saving these.  How else would I re-create them?  Note
-          // that this is idependent of the note above about fixing
-          // the scope stack: we save whatever is there before
-          // entering Function::tcheck()
-          xassert(instCtxt);
-          xassert(foundScope);
-          FuncTCheckContext *tcheckCtxt = new FuncTCheckContext
-            (copyFuncDefn, foundScope, shallowClonePartialScopeStack(foundScope));
-
           // urk, there's nothing to do here.  The declaration has
           // already been tchecked, and we don't want to tcheck the
           // definition yet, so we can just point the var at the
@@ -1614,7 +1543,7 @@ Variable *Env::instantiateTemplate
 
           // preserve the instantiation context
           xassert(funcDefnInstV = copyFuncDefn->nameAndParams->var);
-          copyFuncDefn->nameAndParams->var->setInstCtxts(instCtxt, tcheckCtxt);
+          copyFuncDefn->nameAndParams->var->setInstCtxts(instCtxt);
         }
       } else {
         xassert(instV->type->isFunctionType());
@@ -1740,10 +1669,7 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
 //      }
     return;
   }
-
-  FuncTCheckContext *tcheckCtxt = v->tcheckCtxt;
-  xassert(tcheckCtxt);
-
+  
   // if we are a member of a templatized class and we have not seen
   // the funcDefn, then it must come later, but this is not
   // implemented
@@ -1778,27 +1704,6 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
       iter2.adv();
     }
     xassert(iter1.isDone() == iter2.isDone());
-
-    //xassert( ((SObjList<STemplateArgument>&) instCtxt->instV->templateInfo()->arguments)
-    //         .equalAsPointerLists(*(instCtxt->sargs)));
-
-    xassert(tcheckCtxt->func == funcDefn0);
-    xassert(tcheckCtxt->foundScope == instCtxt->foundScope);
-
-    if (funcDefn0->dflags & DF_INLINE_DEFN) {
-      // confirm that tcheckCtxt->pss is just v->scope->parentScope sequence
-      Scope *s = v->scope;
-      SFOREACH_OBJLIST(Scope, tcheckCtxt->pss->scopes, iter) {
-        // maybe this is reversed?
-        xassert(iter.data() == s);
-        s = s->parentScope;
-      }
-      xassert(s == NULL || s == instCtxt->foundScope);   // end of parentScope sequence
-    }
-    else {
-      // for out-of-line functions, pss is always empty
-      xassert(tcheckCtxt->pss->scopes.isEmpty());
-    }
   }
 
   // ****************
@@ -1821,19 +1726,28 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   // leaves instantiateTemplate() and when it arrives at the function
   // tcheck
   xassert(scopes.count() >= 3);
-  xassert(scopes.nth(2) == tcheckCtxt->foundScope);
+  xassert(scopes.nth(2) == instCtxt->foundScope);
   xassert(scopes.nth(1)->scopeKind == SK_EAT_TEMPL_INST);
   xassert(scopes.nth(0)->scopeKind == SK_TEMPLATE);
-  tcheckCtxt->pss->stackIntoEnv(*this);
 
-  xassert(funcDefn0 == tcheckCtxt->func);
+  // push the declaration scopes for inline definitions, since
+  // we don't get those from the declarator (that is in fact a
+  // mistake of the current implementation; eventually, we should
+  // 'pushDeclarationScopes' regardless of DF_INLINE_DEFN)
+  if (funcDefn0->dflags & DF_INLINE_DEFN) {
+    pushDeclarationScopes(v, instCtxt->foundScope);
+  }
+
+  //xassert(funcDefn0 == tcheckCtxt->func);
   funcDefn0->tcheck(*this,
                     true /*checkBody*/,
                     v /*prior*/);
   // should still be true
   xassert(v->funcDefn == funcDefn0);
 
-  tcheckCtxt->pss->unStackOutOfEnv(*this);
+  if (funcDefn0->dflags & DF_INLINE_DEFN) {
+    popDeclarationScopes(v, instCtxt->foundScope);
+  }
 
   if (argScope) {
     unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);

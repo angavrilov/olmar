@@ -1344,13 +1344,6 @@ void TS_classSpec::tcheckFunctionBodies
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
-      FuncTCheckContext *tcheckCtxt = NULL;
-      if (instCtxt) {
-        xassert(foundScope);
-        tcheckCtxt = new FuncTCheckContext
-          (f, foundScope, env.shallowClonePartialScopeStack(foundScope));
-      }
-
       if (reallyTcheckFunctionBodies) {
         f->tcheck(env,
                   true /*checkBody*/,
@@ -1369,7 +1362,7 @@ void TS_classSpec::tcheckFunctionBodies
       }
 
       // preserve the instantiation context
-      f->nameAndParams->var->setInstCtxts(instCtxt, tcheckCtxt);
+      f->nameAndParams->var->setInstCtxts(instCtxt);
 
       if (instCtxt) {
         // leave DF_INLINE_DEFN because we've delayed actually

@@ -2993,4 +2993,37 @@ PseudoInstantiation *Env::createPseudoInstantiation
 }
 
 
+// Push onto the scope stack the scopes that contain the declaration
+// of 'v', stopping (as we progress to outer scopes) at 'stop' (do
+// not push 'stop').
+//
+// Currently, this is only used by template instantiation code, but
+// I want to eventually replace uses of 'getQualifierScopes' with this.
+void Env::pushDeclarationScopes(Variable *v, Scope *stop)
+{
+  ObjListMutator<Scope> mut(scopes);
+  Scope *s = v->scope;
+
+  while (s && s != stop) {
+    mut.insertBefore(s);     // insert 's' before where 'mut' points
+    mut.adv();               // advance 'mut' past 's', so it points at orig obj
+    s = s->parentScope;
+  }
+
+  // do I really need the test for s!=NULL?
+  xassert(s);
+}
+
+// undo the effects of 'pushDeclarationScopes'
+void Env::popDeclarationScopes(Variable *v, Scope *stop)
+{
+  Scope *s = v->scope;
+  while (s && s != stop) {
+    Scope *tmp = scopes.removeFirst();
+    xassert(tmp == s);
+    s = s->parentScope;
+  }
+}
+
+
 // EOF

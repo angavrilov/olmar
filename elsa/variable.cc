@@ -66,7 +66,6 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     defaultParamType(NULL),
     funcDefn(NULL),
     instCtxt(NULL),
-    tcheckCtxt(NULL),
     overload(NULL),
     usingAlias(NULL),
     access(AK_PUBLIC),
@@ -239,19 +238,14 @@ string Variable::namePrintSuffix() const
 }
 
 
-void Variable::setInstCtxts(InstContext *instCtxt0, FuncTCheckContext *tcheckCtxt0)
+void Variable::setInstCtxts(InstContext *instCtxt0)
 {
   xassert(getType()->isFunctionType());
 
   xassert(!instCtxt);
   instCtxt = instCtxt0;
 
-  xassert(!tcheckCtxt);
-  tcheckCtxt = tcheckCtxt0;
-  
-  // sm: I still think it is a mistake to be saving any instantiation
-  // context, especially scope information.
-  #warning I think saving scopes is a mistake.
+  #warning still todo: remove instCtxt
 }
 
 
