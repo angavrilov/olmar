@@ -717,7 +717,7 @@ public:      // funcs
   // denoted 'scope' and 'name' is the last element of the chain
   void unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
                                   PQName *name, LookupFlags flags);
-                                     
+
   // yield just the first element of the lookup set, if any; the
   // context is going to reject a function name anyway (so it does
   // not matter if there is more than one)
@@ -729,7 +729,13 @@ public:      // funcs
   // lookup "~ct->name" in 'ct'
   void lookupClassDestructor(LookupSet &set, CompoundType *ct,
                              LookupFlags flags);
-                                
+  
+  // handling of DQTs in type specifiers
+  Type *resolveDQTs(SourceLoc loc, Type *t);
+  Type *resolveDQTs_atomic(SourceLoc loc, AtomicType *t);
+  CompoundType *getMatchingTemplateInScope
+    (CompoundType *primary, SObjList<STemplateArgument> const &sargs);
+
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
 private:     // template funcs
@@ -1049,5 +1055,13 @@ void instantiateRemainingMethods(Env &env, TranslationUnit *tunit);
 // and I want to call this in places where I only have the former
 bool equalOrIsomorphic(TypeFactory &tfac, Type *a, Type *b,
                        Type::EqFlags eflags = Type::EF_EXACT);
+
+
+// this one should be completely safe
+template <class T>
+inline SObjList<T> const & objToSObjListC(ObjList<T> const &list)
+{
+  return reinterpret_cast<SObjList<T> const &>(list);
+}
 
 #endif // CC_ENV_H

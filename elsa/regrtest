@@ -530,7 +530,8 @@ testparse t0287.cc
 failparse t0288.cc "ambiguous function template instantiation (not minimized)"
 testparse t0289.cc # "repeated using declarations"
 testparse t0290.cc
-failparse_strict t0290.cc "dependent qualified return type, decl/defn"
+testparse_strict t0290a.cc
+testparse_strict t0290.cc
 testparse t0291.cc
 testparse t0292.cc
 testparse t0293.cc
@@ -675,8 +676,14 @@ testparse t0430.cc
 testparse t0431.cc
 testparse t0432.cc
 testparse_strict t0433.cc
-failparse t0434.cc "problems with quantified dependent return types"
-failparse_struct t0435.cc "need for ArrayType with dependent size"
+testparse_strict t0434.cc
+failparse_strict t0435.cc "need for ArrayType with dependent size"
+failparse t0436.cc "pointer-to-member names processed in wrong order"
+testparse_strict t0437.cc
+failparse t0438a.cc "triply-nested templates don't work"
+testparse_strict t0438.cc
+failparse t0439.cc "default args in explicit spec"
+failparse t0440.cc "default args in explicit spec + DQTs"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

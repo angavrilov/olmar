@@ -1836,6 +1836,16 @@ Scope *Env::lookupOneQualifier_useArgs(
         // if the template arguments are not concrete, then this is
         // a dependent name, e.g. "C<T>::foo"
         if (containsVariables(targs)) {
+          // 2005-03-07: I think this little mechanism might obviate
+          // a number of DF_SELFNAME hacks running around... but I am
+          // not going to try removing them just yet.
+          CompoundType *t = getMatchingTemplateInScope(ct, sargs);
+          if (t) {
+            // this C<T> is referring to a known C<T>
+            return t;
+          }
+
+          // some unknown dependent type
           dependent = true;
           return NULL;
         }
@@ -4135,6 +4145,172 @@ void Env::addCandidates(LookupSet &candidates, Variable *var)
 }
 
 
+// This could be parameterized on the kind of AtomicType
+// transformation being done, though we do not process the parameters
+// of a FunctionType.
+//
+// If 't' includes any function or array types, and 't' contains DQTs
+// that need to be resolved, they must be in the partially-built state
+// that arises during declarator parsing.
+//
+// Returns NULL if no change is needed.
+Type *Env::resolveDQTs(SourceLoc loc, Type *t)
+{
+  switch (t->getTag()) {
+    default: xfailure("bad tag");
+
+    case Type::T_ATOMIC: {
+      CVAtomicType *at = t->asCVAtomicType();
+      if (at->atomic->isNamedAtomicType()) {
+        Type *resolved = resolveDQTs_atomic(loc, at->atomic);
+        if (resolved) {
+          // must combine the 'resolved' type with 'at->cv'
+          return tfac.applyCVToType(loc, at->cv, resolved, NULL /*syntax*/);
+        }
+      }
+      return NULL;
+    }
+
+    case Type::T_POINTER: {
+      PointerType *pt = t->asPointerType();
+      Type *resolved = resolveDQTs(loc, pt->atType);
+      if (resolved) {
+        return tfac.makePointerType(loc, pt->cv, resolved);
+      }
+      return NULL;
+    }
+
+    case Type::T_REFERENCE: {
+      ReferenceType *rt = t->asReferenceType();
+      Type *resolved = resolveDQTs(loc, rt->atType);
+      if (resolved) {
+        return tfac.makeReferenceType(loc, resolved);
+      }
+      return NULL;
+    }
+
+    case Type::T_FUNCTION: {
+      FunctionType *ft = t->asFunctionType();
+      Type *resolved = resolveDQTs(loc, ft->retType);
+      if (resolved) {
+        // 'finish' ft, since we are about to discard it
+        xassert(ft->params.isEmpty());    // partially built
+        tfac.doneParams(ft);
+
+        // return a new unfinished function type
+        return tfac.makeFunctionType(loc, resolved);
+      }
+      return NULL;
+    }
+
+    case Type::T_ARRAY: {
+      ArrayType *at = t->asArrayType();
+      Type *resolved = resolveDQTs(loc, at->eltType);
+      if (resolved) {
+        return tfac.makeArrayType(loc, resolved, at->size);
+      }
+      return NULL;
+    }
+
+    case Type::T_POINTERTOMEMBER: {
+      PointerToMemberType *ptm = t->asPointerToMemberType();
+      Type *resolvedAtType = resolveDQTs(loc, ptm->atType);
+      Type *resolvedNAT = resolveDQTs_atomic(loc, ptm->inClassNAT);
+      if (resolvedAtType || resolvedNAT) {
+        if (!resolvedAtType) {
+          resolvedAtType = ptm->atType;
+        }
+
+        // map 'resolvedNAT' down to a true NamedAtomicType
+        NamedAtomicType *nat;
+        if (!resolvedNAT) {
+          nat = ptm->inClassNAT;
+        }
+        else {
+          breaker();      // need to test
+          if (!resolvedNAT->isCVAtomicType() ||
+              !resolvedNAT->asCVAtomicType()->atomic->isNamedAtomicType()) {
+            error(loc, stringc << "`" << t->toString() << "' is `"
+                               << resolvedNAT->toString() << "', but that "
+                               << "is not allowed as a ptm-qualifier");
+            return NULL;
+          }
+          nat = resolvedNAT->asCVAtomicType()->atomic->asNamedAtomicType();
+          
+          // TODO: there are still more conditions; essentially, 'nat'
+          // should be a class, or some dependent type that might be a
+          // class in the right circumstances
+        }
+
+        return tfac.makePointerToMemberType(loc, nat, ptm->cv, resolvedAtType);
+      }
+      return NULL;
+    }
+  }
+}
+
+
+Type *Env::resolveDQTs_atomic(SourceLoc loc, AtomicType *t)
+{
+  if (!t->isDependentQType()) {
+    return NULL;
+  }
+  DependentQType *dqt = t->asDependentQType();
+
+  if (!dqt->first->isPseudoInstantiation()) {
+    return NULL;
+  }
+  PseudoInstantiation *firstPI = dqt->first->asPseudoInstantiation();
+
+  // Is there a template definition whose primary is
+  // 'firstPI->primary' somewhere on the scope stack?
+  CompoundType *scopeCt = 
+    getMatchingTemplateInScope(firstPI->primary, objToSObjListC(firstPI->args));
+  if (scopeCt) {
+    // re-start lookup from 'scopeCt'
+    LookupSet set;
+    lookupPQ_withScope(set, dqt->rest, LF_QUALIFIED, scopeCt);
+    Variable *v = set.isEmpty()? NULL : set.first();
+
+    if (!v || !v->isType()) {
+      error(loc, stringc << "no such type `" << t->toCString()
+                         << "' (while resolving DQTs)");
+      return NULL;     // just keep using what we already have
+    }
+
+    return v->type;
+  }
+
+  // negative, just keep using what we have
+  return NULL;
+}
+
+
+// given 'C' and '<T>', check if it 'C<T>' is already in scope
+CompoundType *Env::getMatchingTemplateInScope
+  (CompoundType *primary, SObjList<STemplateArgument> const &sargs)
+{
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    // filter for scopes that are template definitions
+    if (!iter.data()->curCompound) continue;
+    CompoundType *scopeCt = iter.data()->curCompound;
+    TemplateInfo *scopeTI = scopeCt->templateInfo();
+    if (!scopeTI) continue;
+
+    // same template+arguments?
+    if (!scopeTI->matchesPI(tfac, primary, sargs)) {
+      continue;
+    }
+
+    // found it!
+    return scopeCt;
+  }
+
+  // not found
+  return NULL;
+}
+
+
 // ---------------- new lookup mechanism --------------------
 bool sameArguments(ASTList<TemplateArgument> const &args1,
                    ObjList<STemplateArgument> const &args2)
@@ -4499,44 +4675,24 @@ Variable *Env::unqualifiedFinalNameLookup_one(Scope *scope, PQName *name,
 void Env::finishDependentQType(LookupSet &set, DependentQType * /*nullable*/ dqt,
                                PQName *name)
 {
+  PQName *origName = name;
+
+  // finish checking for proper use of 'template' keyword
   while (name->isPQ_qualifier()) {
     PQ_qualifier *qual = name->asPQ_qualifier();
     checkTemplateKeyword(qual);
-  
-    if (dqt) {
-      // The idea here is we simply record the textual name of the type,
-      // and any template arguments too; this is simply a guess, as the
-      // standard does not seem to specify how dependent-qualified types
-      // are supposed to be used when matching declarations with
-      // definitions.
-      //
-      // The whole thing is wrapped up as a PseudoInstantiation simply
-      // because that object has the right components; it's something of
-      // an abuse.  (No CompoundType, no typedefVar.)
-      PseudoInstantiation *pi = new PseudoInstantiation(NULL /*ct*/);
-      pi->name = qual->qualifier;
-      copyTemplateArgs(pi->args, qual->targs);
-      dqt->rest.append(pi);
-    }
-
     name = qual->rest;
   }
-
   checkTemplateKeyword(name);
 
+  // finish building the DQT
   if (dqt) {
-    // put on the last component
-    StringRef finalName = name->getName();
-    PseudoInstantiation *pi = new PseudoInstantiation(NULL /*ct*/);
-    pi->name = finalName;
-    if (name->isPQ_template()) {
-      copyTemplateArgs(pi->args, name->asPQ_template()->args);
-    }
-    dqt->rest.append(pi);
+    // attach the remainder of the name to the DQT
+    dqt->rest = origName;
 
     // slap a typedefVar on 'dqt' so we can put it into 'set'
-    dqt->name = finalName;
-    dqt->typedefVar = makeVariable(name->loc, finalName,
+    dqt->name = name->getName();
+    dqt->typedefVar = makeVariable(name->loc, dqt->name,
                                    makeType(name->loc, dqt),
                                    DF_TYPEDEF | DF_IMPLICIT);
     set.add(dqt->typedefVar);

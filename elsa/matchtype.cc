@@ -811,17 +811,12 @@ bool MatchTypes::match_TInfo_with_PI(TemplateInfo *a, PseudoInstantiation *b,
 bool MatchTypes::match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
                           int matchDepth)
 {
+  // these are no longer used as components in a DependentQType
+  xassert(a->primary != NULL);
+
   // same primary?
   if (a->primary != b->primary) {
     return false;
-  }
-                           
-  // component in a DependentQType?
-  if (a->primary == NULL) {        
-    // compare the *names*
-    if (a->name != b->name) {
-      return false;
-    }
   }
 
   // compare arguments
@@ -837,17 +832,78 @@ bool MatchTypes::match_DQT(DependentQType *a, DependentQType *b,
   }
 
   // compare subsequent components
-  ObjListIterNC<PseudoInstantiation> aIter(a->rest);
-  ObjListIterNC<PseudoInstantiation> bIter(b->rest);
-  for(; !aIter.isDone() && !bIter.isDone(); aIter.adv(), bIter.adv()) {
-    if (!match_PI(aIter.data(), bIter.data(), matchDepth)) {
+  PQName *aName = a->rest;
+  PQName *bName = b->rest;
+
+  while (aName->isPQ_qualifier() && bName->isPQ_qualifier()) {
+    PQ_qualifier *aQual = aName->asPQ_qualifier();
+    PQ_qualifier *bQual = bName->asPQ_qualifier();
+
+    // compare names
+    if (aQual->qualifier != bQual->qualifier) {
       return false;
     }
+
+    // compare arguments
+    if (!match_TargLists(aQual->targs, bQual->targs, matchDepth)) {
+      return false;
+    }
+
+    // next name component
+    aName = aQual->rest;
+    bName = bQual->rest;
+  }                     
+  
+  if (aName->kind() != bName->kind()) {
+    return false;
+  }
+  
+  if (aName->isPQ_name()) {
+    return aName->asPQ_name()->name == bName->asPQ_name()->name;
+  }
+                                    
+  // must be a PQ_template
+  PQ_template *aTempl = aName->asPQ_template();
+  PQ_template *bTempl = bName->asPQ_template();
+  
+  if (aTempl->name != bTempl->name) {
+    return false;
+  }
+  
+  return match_TargLists(aTempl->args, bTempl->args, matchDepth);
+}
+
+
+bool MatchTypes::match_TargLists(ASTList<TemplateArgument> &aList,
+                                 ASTList<TemplateArgument> &bList,
+                                 int matchDepth)
+{
+  ASTListIterNC<TemplateArgument> aIter(aList);
+  ASTListIterNC<TemplateArgument> bIter(bList);
+
+  while (!aIter.isDone() && !bIter.isDone()) {
+    TemplateArgument *sA = aIter.data();
+    if (sA->isTA_templateUsed()) {
+      aIter.adv();
+      continue;
+    }
+
+    TemplateArgument *sB = bIter.data();
+    if (sB->isTA_templateUsed()) {
+      bIter.adv();
+      continue;
+    }
+
+    if (!match_STA(&(sA->sarg), &(sB->sarg), matchDepth)) {
+      return false;
+    }
+
+    aIter.adv();
+    bIter.adv();
   }
 
   return aIter.isDone() && bIter.isDone();
 }
-
 
 // helper function for when we find an int
 bool MatchTypes::unifyIntToVar(int i0, Variable *v1)

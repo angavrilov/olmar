@@ -22,13 +22,6 @@ inline SObjList<T>& objToSObjList(ObjList<T> &list)
   return reinterpret_cast<SObjList<T>&>(list);
 }
 
-// this one should be completely safe
-template <class T>
-inline SObjList<T> const & objToSObjListC(ObjList<T> const &list)
-{
-  return reinterpret_cast<SObjList<T> const &>(list);
-}
-
 
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src)
@@ -133,12 +126,7 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
     return;
   }
 
-  if (primary) {
-    primary->traverse(vis);
-  }
-  else {
-    // this is a component of a DependentQType
-  }
+  primary->traverse(vis);
   
   FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
     iter.data()->traverse(vis);
@@ -158,23 +146,12 @@ DependentQType::~DependentQType()
 
 string DependentQType::toCString() const
 {
-  stringBuilder sb;
-  sb << first->toCString();
-  
-  FOREACH_OBJLIST(PseudoInstantiation, rest, iter) {
-    PseudoInstantiation const *pi = iter.data();
-    sb << "::" << pi->name;
-    if (pi->args.isNotEmpty()) {
-      sb << sargsToString(pi->args);
-    }
-  }
-
-  return sb;
+  return stringc << first->toCString() << "::" << rest->toString();
 }
 
 string DependentQType::toMLString() const
 {
-  return stringc << "punt!" << toCString();
+  return stringc << "dependentqtype-" << toCString();
 }
 
 int DependentQType::reprSize() const
@@ -182,6 +159,15 @@ int DependentQType::reprSize() const
   return 4;    // should not matter
 }
 
+  
+void traverseTargs(TypeVisitor &vis, ASTList<TemplateArgument> &list)
+{
+  FOREACH_ASTLIST_NC(TemplateArgument, list, iter) {
+    if (iter.data()->isTA_templateUsed()) continue;
+    
+    iter.data()->sarg.traverse(vis);
+  }
+}
 
 void DependentQType::traverse(TypeVisitor &vis)
 {
@@ -191,8 +177,16 @@ void DependentQType::traverse(TypeVisitor &vis)
 
   first->traverse(vis);
 
-  FOREACH_OBJLIST_NC(PseudoInstantiation, rest, iter) {
-    iter.data()->traverse(vis);
+  PQName *name = rest;
+  while (name->isPQ_qualifier()) {
+    PQ_qualifier *qual = name->asPQ_qualifier();
+
+    traverseTargs(vis, qual->targs);
+    name = qual->rest;
+  }
+
+  if (name->isPQ_template()) {
+    traverseTargs(vis, name->asPQ_template()->args);
   }
 }
 
@@ -470,6 +464,15 @@ bool equalArgumentLists(TypeFactory &tfac,
   }
 
   return iter1.isDone() && iter2.isDone();
+}
+
+bool equalArgumentLists(TypeFactory &tfac,
+                        ObjList<STemplateArgument> const &list1,
+                        ObjList<STemplateArgument> const &list2)
+{
+  return equalArgumentLists(tfac,
+           reinterpret_cast<SObjList<STemplateArgument>const&>(list1),
+           reinterpret_cast<SObjList<STemplateArgument>const&>(list2));
 }
 
 bool TemplateInfo::equalArguments
@@ -2647,6 +2650,7 @@ void Env::instantiateClassBody(Variable *inst)
 {
   TemplateInfo *instTI = inst->templateInfo();
   CompoundType *instCT = inst->type->asCompoundType();
+  xassert(instCT->forward);     // otherwise already instantiated!
 
   Variable *spec = instTI->instantiationOf;
   TemplateInfo *specTI = spec->templateInfo();
@@ -2700,9 +2704,14 @@ void Env::instantiateClassBody(Variable *inst)
   ObjList<SavedScopePair> poppedScopes;
   SObjList<Scope> pushedScopes;
   prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, defnScope);
-  
+
   // bind the template arguments *again* because I am hacking this to death...
   insertTemplateArgBindings(spec, instTI->arguments);
+
+  // the instantiation is will be complete; I think we must do this
+  // before checking into the compound to avoid repeatedly attempting
+  // to instantiate this class
+  instCT->forward = false;
 
   // check the class body, forcing it to use 'instCT'; don't check
   // method bodies
@@ -2723,9 +2732,6 @@ void Env::instantiateClassBody(Variable *inst)
   // both member lists, transferring information as necessary.
   transferTemplateMemberInfo(loc(), specCT->syntax, instCT->syntax,
                              instTI->arguments);
-
-  // the instantiation is now complete
-  instCT->forward = false;
 
   // restore the scopes
   deleteTemplateArgBindings();
@@ -4161,6 +4167,79 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
   }
 
   return ret;
+}
+
+
+// This returns true if 'otherPrimary/otherArgs' names the same
+// template that I am.  For example, if 'this' template is
+//
+//   template <class T, int n>
+//   struct A { ... };
+//
+// and we see a definition like
+//
+//   template <class S, int m>
+//   A<S,m>::some_type *A<S,m>::foo(...) {}
+//   ^^^^^^
+//
+// then we need to recognize that "A<S,m>" means this template.  Note
+// that for this to work the parameters S and m must already have been
+// associated with a specific (i.e., this) template.
+bool TemplateInfo::matchesPI(TypeFactory &tfac, CompoundType *otherPrimary,
+                             SObjList<STemplateArgument> const &otherArgs)
+{
+  // same template?
+  if (getPrimary()->var != otherPrimary->typedefVar) {
+    return false;
+  }
+  
+  // if I am a primary, then 'pi->args' should be a list of
+  // type variables that correspond to my parameters
+  if (isPrimary()) {
+    int ct = -1;
+    SFOREACH_OBJLIST(STemplateArgument, otherArgs, iter) {
+      ct++;
+      Variable *argVar = NULL;
+
+      // type parameter?
+      if (iter.data()->isType() &&
+          iter.data()->getType()->isTypeVariable()) {
+        argVar = iter.data()->getType()->asTypeVariable()->typedefVar;
+      }
+
+      // non-type paramter?
+      else if (iter.data()->isDepExpr() &&
+               iter.data()->getDepExpr()->isE_variable()) {
+        argVar = iter.data()->getDepExpr()->asE_variable()->var;
+      }
+      
+      // TODO: template template parameter
+      
+      if (argVar &&
+          argVar->isTemplateParam() &&
+          argVar->getParameterizedEntity() == this->var &&
+          argVar->getParameterOrdinal() == ct) {
+        // good to go
+      }  
+      else {
+        return false;     // no match
+      }
+    }
+    
+    // should be right # of args
+    if (ct+1 != params.count()) {
+      return false;
+    }
+
+    // TODO: Take default arguments into account. (in/t0440.cc)
+
+    // match!
+    return true;
+  }
+
+  // not a primary; we are a specialization; check against arguments
+  // to primary
+  return equalArgumentLists(tfac, objToSObjListC(argumentsToPrimary), otherArgs);
 }
   
      

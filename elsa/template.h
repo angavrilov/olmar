@@ -74,12 +74,10 @@ public:      // data
   // have already been resolved (e.g., ::C<T>::foo)
   AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
 
-  // After the first component comes a chain of PseudoInstantiations,
-  // which are really just containers for a name and some optional
-  // template arguments.  These PseudoInstantiation objects have NULL
-  // 'primary' and 'typedefVar' fields.  This list always contains
-  // at least one element.
-  ObjList<PseudoInstantiation> rest;
+  // After the first component comes whatever name components followed
+  // in the original syntax.  All template arguments have been
+  // tcheck'd.
+  PQName *rest;
 
 public:      // data
   DependentQType(AtomicType *f);
@@ -338,6 +336,10 @@ public:      // funcs
                                            
   // visit the template arguments with 'vis'
   void traverseArguments(TypeVisitor &vis);
+                                                             
+  // see comments at implementation
+  bool matchesPI(TypeFactory &tfac, CompoundType *primary,
+                 SObjList<STemplateArgument> const &args);
 
   // debugging
   void gdb();
@@ -413,6 +415,7 @@ public:
   bool isObject() const;         // "non-type non-template" in the spec
   bool isType() const            { return kind==STA_TYPE;         }
   bool isTemplate() const        { return kind==STA_TEMPLATE;     }
+  bool isDepExpr() const         { return kind==STA_DEPEXPR;      }
 
   bool hasValue() const { return kind!=STA_NONE; }
 
@@ -456,6 +459,13 @@ void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       SObjList<STemplateArgument> const &src);
 void copyTemplateArgs(ObjList<STemplateArgument> &dest,
                       ASTList<TemplateArgument> const &src);
+
+bool equalArgumentLists(TypeFactory &tfac,
+                        SObjList<STemplateArgument> const &list1,
+                        SObjList<STemplateArgument> const &list2);
+bool equalArgumentLists(TypeFactory &tfac,
+                        ObjList<STemplateArgument> const &list1,
+                        ObjList<STemplateArgument> const &list2);
 
 
 // holder for the CompoundType template candidates

@@ -2442,6 +2442,10 @@ static Variable *declareNewVariable(
       possiblyConsumeFunctionType(env, dt);
     }
 
+    // 2005-03-07: though there is only one call site, and that call
+    // site (apparently?) can handle NULL returns, the returned value
+    // gets stored in the AST and then would break other things..
+
     // the purpose of this is to allow the caller to have a workable
     // object, so we can continue making progress diagnosing errors
     // in the program; this won't be entered in the environment, even
@@ -2921,6 +2925,14 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // PQName be tchecked, so we can use the template arguments (if
   // any).  Hence, down in D_name::tcheck, we no longer tcheck the
   // name since it's now always done out here.
+  //
+  // TODO: BUG: We only push the sequence of scopes syntactically
+  // present, but if there are typedefs among them then we could be
+  // missing some scopes.  (t0379.cc)
+  //
+  // TODO: BUG: The names appearing in pointer-to-member constructors
+  // must be looked up *before* pushing the declarator scopes.
+  // (t0436.cc)
   ScopeSeq qualifierScopes;
   PQName *name = decl->getDeclaratorId();
   if (name) {
@@ -2928,6 +2940,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   }
   env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);
+
+  // the type constructed so far might refer to
+  // DependentQTypes that now can (and must) be resolved more
+  // precisely (t0290a.cc, t0438.cc, t0440.cc)
+  if (name) {
+    Type *t = env.resolveDQTs(name->loc, dt.type);
+    if (t) {
+      TRACE("dqt", "resolved " << dt.type->toString() << " to " << t->toString());
+      dt.type = t;
+    }
+  }
 
   if (init) dt.dflags |= DF_INITIALIZED;
 

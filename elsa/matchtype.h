@@ -212,6 +212,9 @@ private:                        // funcs
                 int matchDepth);
   bool match_DQT(DependentQType *a, DependentQType *b,
                  int matchDepth);
+  bool match_TargLists(ASTList<TemplateArgument> &aList,
+                       ASTList<TemplateArgument> &bList,
+                       int matchDepth);
 
   bool match_variables(Type *a, TypeVariable *b, int matchDepth);
 
