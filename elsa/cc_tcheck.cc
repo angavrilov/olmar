@@ -21,6 +21,7 @@
 #include "implconv.h"       // test_getImplicitConversion
 #include "overload.h"       // resolveOverload
 #include "generic_amb.h"    // resolveAmbiguity, etc.
+#include "implint.h"        // resolveImplIntAmbig
 #include "ast_build.h"      // makeExprList1, etc.
 #include "strutil.h"        // prefixEquals, pluraln
 #include "macros.h"         // Restorer
@@ -88,80 +89,6 @@ void TranslationUnit::tcheck(Env &env)
 
 
 // --------------------- TopForm ---------------------
-template<class NODE>
-NODE *resolveImplIntAmbig(Env &env, NODE *node)
-{
-  // find any of the ambiguities that are ST_IMPLINT and decide if we
-  // want them or not
-  for(NODE *s0 = node; s0; s0 = s0->ambiguity) {
-    // Note that this loop does not continue once this 'if' tests as
-    // true.
-    TS_simple *simpSpec = NULL;
-    Declarator *d0 = NULL;
-    if(s0->hasImplicitInt(simpSpec, d0)) {
-      xassert(env.lang.allowImplicitInt);
-      xassert(simpSpec);
-      xassert(d0);
-
-      // if this is an implicit int declaration, then we allow it
-      // *only if* the name of the declarator does not look up to a
-      // type, even if the type interpretation is also wrong!  This
-      // matches the gcc failure on this example for which both
-      // interpretations (implicit int or not) fail:
-      //   typedef int y;
-      //   int main() {
-      //     static *y;  // both interpretations fail here
-      //     ++(*y);
-      //   }
-
-      // assert that all the declarators have the same name; NOTE: we
-      // ignore any subsequent declarators for the purposes of
-      // determining if we want the implicit-int interpretation
-      //
-      // We check that all the ambiguous Declarators (the various
-      // parses of the *first* *user*-visible Declarator) all have the
-      // same name; again we ignore the subsequent *user*-visible
-      // Declarators
-      //
-      // NOTE: the name (and name1 below) should not be qualified but
-      // we don't check that, trusting in the goodness of Odin
-      StringRef name0 = d0->decl->getDeclaratorId()->getName();
-      xassert(name0);
-      for(Declarator *d1 = d0->ambiguity; d1; d1 = d1->ambiguity) {
-        StringRef name1 = d1->decl->getDeclaratorId()->getName();
-        xassert(name0 == name1);
-      }
-      // does this look up to a type?
-      Variable *var = env.lookupVariable(name0);
-      if (var && var->hasFlag(DF_TYPEDEF)) {
-        // we reject the implicit-int interpretation
-        if (s0 == node) {
-          // by doing this the caller will re-write the ast node that
-          // points to us
-          return s0->ambiguity;
-        } else {
-          // chop s0 out of the list and repeat
-          NODE *s2 = NULL;
-          for(s2 = node; s2->ambiguity != s0; s2 = s2->ambiguity)
-            {}
-          xassert(s2->ambiguity == s0);
-          s2->ambiguity = s2->ambiguity->ambiguity;
-          // we do the whole thing over again in case there are two
-          // implicit-int interpretations even thought we think that
-          // is not possible
-          return node;
-        }
-      } else {
-        // we keep the implicit-int interpretation
-        s0->ambiguity = NULL;
-        simpSpec->id = ST_INT /*NOTE: was ST_IMPLINT*/;
-        return s0;
-      }
-    }
-  }
-  return NULL;
-}
-
 TopForm *TopForm::tcheck(Env &env)
 {
   if (!ambiguity) {
@@ -1095,10 +1022,15 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
 
 Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
-{
+{ 
+  // This is the one aspect of the implicit-int solution that cannot
+  // be confined to implint.h: having selected an interpretation that
+  // uses implicit int, change it to ST_INT so that analyses don't
+  // have to know about any of this parsing nonsense.
   if (id == ST_IMPLINT) {
     id = ST_INT;
   }
+
   return env.getSimpleType(loc, id, cv);
 }
 
@@ -2442,6 +2374,77 @@ bool isVariableDC(DeclaratorContext dc)
          dc==DC_CN_DECL;      // local in a Condition
 }
 
+// determine if a complete type is required, and if so, check that it is
+void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
+{
+  // TODO: According to 15.4 para 1, not only must the type in
+  // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
+  // it is a pointer or reference type, the pointed-to thing must be
+  // complete too!
+
+  if (dt.context == DC_D_FUNC) {
+    // 8.3.5 para 6: ok to be incomplete unless this is a definition;
+    // I'll just allow it (here) in all cases (t0048.cc)
+    return;
+  }
+
+  if (dt.context == DC_TA_TYPE) {
+    // mere appearance of a type in an argument list is not enough to
+    // require that it be complete; maybe the function definition will
+    // need it, but that is detected later
+    return;
+  }
+
+  if (dt.dflags & (DF_TYPEDEF | DF_EXTERN)) {
+    // 7.1.3 does not say that the type named by a typedef must be
+    // complete, so I will allow it to be incomplete (t0079.cc)
+    //
+    // I'm not sure where the exception for 'extern' is specified, but
+    // it clearly exists.... (t0170.cc)
+    return;
+  }        
+
+  if (dt.type->isArrayType()) {
+    if (init) {
+      // The array type might be incomplete now, but the initializer
+      // will take care of it.  (If I instead moved this entire block
+      // below where the init is tchecked, I think I would run into
+      // problems when tchecking the initializer wants a ctor to exist.)
+      // (t0077.cc)
+      return;
+    }
+                                       
+    if (dt.context == DC_MR_DECL &&
+        !env.lang.strictArraySizeRequirements) {
+      // Allow incomplete array types, so-called "open arrays".
+      // Usually, such things only go at the *end* of a structure, but
+      // we do not check that.
+      return;
+    }
+
+    #ifdef GNU_EXTENSION
+    if (dt.context == DC_E_COMPOUNDLIT) {
+      // dsw: arrays in ASTTypeId's of compound literals are
+      // allowed to not have a size and not have an initializer:
+      // (gnu/g0014.cc)
+      return;
+    }
+    #endif // GNU_EXTENSION
+  }
+
+  // ok, we're not in an exceptional circumstance, so the type
+  // must be complete; if we have an error, what will we say?
+  char const *action =
+    dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
+    dt.context==DC_E_CAST?        "cast to" :
+           /* catch-all */        "create an object of" ;
+
+  // check it
+  if (!env.ensureCompleteType(action, dt.type)) {
+    dt.type = env.errorType();        // recovery
+  }
+}
+
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
   // true if we're immediately in a class body
@@ -2487,53 +2490,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the type from the IDeclarator
   decl->tcheck(env, dt);
 
-  // declarators usually require complete types; but are there exceptions
-  //
-  // TODO: According to 15.4 para 1, not only must the type in
-  // DC_EXCEPTIONSPEC be complete (which this code enforces), but if
-  // it is a pointer or reference type, the pointed-to thing must be
-  // complete too!
-  if (dt.context == DC_D_FUNC) {
-    // 8.3.5 para 6: ok to be incomplete unless this is a definition;
-    // I'll just allow it (here) in all cases (t0048.cc)
-  }
-  else if (dt.context == DC_TA_TYPE) {
-    // mere appearance of a type in an argument list is not enough
-    // to require that it be complete; maybe the instantiation will
-    // need it, but that is detected later
-  }
-  else if (dt.dflags & (DF_TYPEDEF | DF_EXTERN)) {
-    // 7.1.3 does not say that the type named by a typedef must be
-    // complete, so I will allow it to be incomplete (t0079.cc)
-    //
-    // I'm not sure where the exception for 'extern' is specified, but
-    // it clearly exists.... (t0170.cc)
-  }
-  else if (dt.type->isArrayType()
-           // dsw: arrays in ASTTypeId's of compound literals are
-           // allowed to not have a size and not have an initializer:
-           // '(int[]) {1, 2}'
-           && (init || dt.context == DC_E_COMPOUNDLIT)
-           ) {
-    // The array type might be incomplete now, but the initializer
-    // will take care of it.  (If I instead moved this entire block
-    // below where the init is tchecked, I think I would run into
-    // problems when tchecking the initializer wants a ctor to exist.)
-    // (t0077.cc)
-  }
-  else if (dt.context == DC_MR_DECL && 
-           dt.type->isArrayType() &&
-           !env.lang.strictArraySizeRequirements) {
-    // Allow incomplete array types, so-called "open arrays".
-  }
-  else if (!env.ensureCompleteType(
-              // context-specific action text
-              dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
-              dt.context==DC_E_CAST?        "cast to" :
-                     /* catch-all */        "create an object of",
-              dt.type)) {
-    dt.type = env.errorType();        // recovery
-  }
+  // declarators usually require complete types
+  checkCompleteTypeRules(env, dt, init);
 
   // this this a specialization?
   if (templatizableContext &&                      // e.g. toplevel

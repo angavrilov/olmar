@@ -152,7 +152,6 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "long double",           10,    S(STF_FLOAT)                },
   { "void",                   1,    S(STF_NONE)                 },    // gnu: sizeof(void) is 1
 
-
   // these should go away early on in typechecking
   { "...",                    0,    S(STF_NONE)                 },
   { "/*cdtor*/",              0,    S(STF_NONE)                 },    // dsw: don't want to print <cdtor>

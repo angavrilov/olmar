@@ -116,7 +116,8 @@ public:
   }
 
   // make a D_func but not if it attempts to be the return value of
-  // another function
+  // another function (this helps resolve an ambiguity in the presence
+  // of implicit int.. is it needed even without implicit int?)
   D_func *new_D_func
     (SourceLoc loc,
      IDeclarator *base,
@@ -132,7 +133,7 @@ public:
   }
 
   D_array *new_D_array
-    (SourceLoc loc, IDeclarator *base, Expression /*nullable*/ *size)
+    (SourceLoc loc, IDeclarator *base, Expression * /*nullable*/ size)
   {
     if (base->isD_func()) {
       trace("cancel") << loc << ": function returning an array\n";

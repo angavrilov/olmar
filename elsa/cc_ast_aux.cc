@@ -173,15 +173,6 @@ void TopForm::addAmbiguity(TopForm *alt)
 }
 
 
-bool TopForm::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
-{
-  if (isTF_decl()) {
-    return asTF_decl()->decl->hasImplicitInt(implIntSpec, declarator);
-  }
-  return false;
-}
-
-
 // ---------------------- Function --------------------
 void Function::printExtras(ostream &os, int indent) const
 {
@@ -215,18 +206,7 @@ void MemberInit::printExtras(ostream &os, int indent) const
 }
 
 
-// ----------------------- Declaration ----------------------
-bool Declaration::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
-{
-  if (spec->isTS_simple() && spec->asTS_simple()->id == ST_IMPLINT) {
-    implIntSpec = spec->asTS_simple();
-    declarator = decllist->first();
-    xassert(declarator);
-    return true;
-  }
-  return false;
-}
-
+// Declaration
 
 // ---------------------- ASTTypeId -----------------------
 void ASTTypeId::printAmbiguities(ostream &os, int indent) const
@@ -244,18 +224,6 @@ void ASTTypeId::addAmbiguity(ASTTypeId *alt)
 void ASTTypeId::setNext(ASTTypeId *newNext)
 {
   genericSetNext(this, newNext);
-}
-
-
-bool ASTTypeId::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
-{
-  if (spec->isTS_simple() && spec->asTS_simple()->id == ST_IMPLINT) {
-    implIntSpec = spec->asTS_simple();
-    declarator = decl;
-    xassert(declarator);
-    return true;
-  }
-  return false;
 }
 
 
@@ -544,15 +512,6 @@ string Statement::lineColString() const
 string Statement::kindLocString() const
 {
   return stringc << kindName() << "@" << lineColString();
-}
-
-
-bool Statement::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
-{
-  if (isS_decl()) {
-    return asS_decl()->decl->hasImplicitInt(implIntSpec, declarator);
-  }
-  return false;
 }
 
 

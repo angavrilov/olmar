@@ -2,6 +2,9 @@
 // generic ambiguity resolution; was in cc_tcheck.cc, but gnu.cc
 // wants to use it too
 
+#ifndef GENERIC_AMB_H
+#define GENERIC_AMB_H
+
 #include "cc_ast.h"         // C++ AST
 #include "cc_env.h"         // Env
 #include "objlist.h"        // ObjList
@@ -246,3 +249,4 @@ NODE *resolveAmbiguity(
 }
 
 
+#endif // GENERIC_AMB_H

@@ -44,7 +44,9 @@ class TranslationUnit (ASTList<TopForm> topForms);
 
 // a toplevel form
 class TopForm (SourceLoc loc) {
-  // represent ambiguous statements by forming a linked list of alternatives
+  // represent ambiguous topforms by forming a linked list of
+  // alternatives; the only reason topforms might be ambiguous is
+  // because of implicit int (for old-style C)
   public TopForm * ambiguity = NULL;
   public void addAmbiguity(TopForm *alt);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
