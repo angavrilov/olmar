@@ -898,6 +898,7 @@ failparse k0033.cc "casting function pointer with throw() to/from no throw"
 failparse k0034.cc "undefined instanceless unions repeating members"
 failparse k0035.cc "ambiguous int+sizeof(struct{})"
 failparse k0036.cc "taking the address of a string (?!)"
+failparse k0037.cc "new array of pointers"
 
 # ---- END: lots of tests ----
 
