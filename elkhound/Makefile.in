@@ -99,13 +99,13 @@ linkend := $(libraries)
 # script.
 cc/ccparse_twalk.o: cc/ccparse.cc
 	$(compile) -DTWALK $< -o $@
-	@echo "dependencies for $< > $*.d"
-	@$(depend) $< > $*.d
-	@mv -f $*.d $*.d.tmp
-	@sed -e 's|.*:|$@:|' < $*.d.tmp > $*.d
-	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
-          sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
-	@rm -f $*.d.tmp
+	@echo "dependencies for $< > cc/ccparse_twalk.d"
+	@$(depend) $< > cc/ccparse_twalk.d
+	@mv -f cc/ccparse_twalk.d cc/ccparse_twalk.d.tmp
+	@sed -e 's|.*:|$@:|' < cc/ccparse_twalk.d.tmp > cc/ccparse_twalk.d
+	@sed -e 's/.*://' -e 's/\\$$//' < cc/ccparse_twalk.d.tmp | fmt -1 | \
+          sed -e 's/^ *//' -e 's/$$/:/' >> cc/ccparse_twalk.d
+	@rm -f cc/ccparse_twalk.d.tmp
 
 # sets of related object files
 # files needed to represent a grammar in memory
