@@ -5,8 +5,7 @@
 
 verbatim CC2 [
 
-#define D(msg) \
-  trace("cc") << msg << endl
+#include "ptreenode.h"    // PTreeNode
 
 class CC2 : public UserActions {
 public:    // funcs

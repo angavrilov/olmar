@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: ccgr cc2.exe
+all: ccgr cc2.exe cc2t.exe
 
 temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -52,7 +52,7 @@ endif
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -429,7 +429,18 @@ trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
 
 # new C++ parser
-cc2.exe: cc2main.o cc2/cc2.gr.gen.o libglr.a
+cc2.exe: cc2main.o cc2/cc2.gr.gen.o ptreenode.o libglr.a
+	g++ -o $@ $^ $(linkend)
+
+# new C++ grammar with treebuilding actions
+cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok gramanl
+	rm -f cc2/cc2t*
+	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
+	./gramanl -tr treebuild$(TRGRAMANL) cc2/cc2t
+	chmod a-w cc2/cc2t.gr*
+
+# new C++ parser with treebuilding
+cc2t.exe: cc2main.o cc2/cc2t.gr.gen.o ptreenode.o libglr.a
 	g++ -o $@ $^ $(linkend)
 
 

@@ -694,6 +694,13 @@ public:	    // funcs
   // print the item sets to a stream
   void printItemSets(ostream &os) const;
 
+  // given a grammar, replace all of its actions with actions that
+  // will build a straightforward parse tree using the facilities
+  // of ptreenode.h; the rules will need the user to already have
+  // done some necessary work in the verbatim preamble, such as
+  // #including ptreenode.h
+  void addTreebuildingActions();
+
   // ---- grammar queries ----
   bool canDerive(Nonterminal const *lhs, Nonterminal const *rhs) const;
   bool canDeriveEmpty(Nonterminal const *lhs) const;

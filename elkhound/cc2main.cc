@@ -7,6 +7,7 @@
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "cc_lang.h"      // CCLang
+#include "ptreenode.h"    // PTreeNode
 
 
 // no bison-parser present, so need to define this
@@ -35,7 +36,7 @@ void doit(int argc, char **argv)
     if (!treeMain(tree, argc, argv,
           "  additional flags for cc2 (none of these work right now):\n"
           "    stopAfterParse     stop after parsing\n"
-          "    printAST           print AST after parsing\n"
+          "    printTree          print tree after parsing (if avail.)\n"
           "")) {
       // parse error
       exit(2);
@@ -43,7 +44,11 @@ void doit(int argc, char **argv)
 
     traceProgress(2) << "final parse result: " << treeTop << endl;
 
-    //unit->debugPrint(cout, 0);
+    if (treeTop && tracingSys("printTree")) {
+      PTreeNode *node = (PTreeNode*)treeTop;
+      cout << "local ambiguities: " << PTreeNode::alternativeCount << endl;
+      cout << "number of parses: " << node->countTrees() << endl;
+    }
 
     delete user;
   }

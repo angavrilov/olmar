@@ -4,6 +4,7 @@
 #include "ptreenode.h"      // this module
 
 int PTreeNode::allocCount = 0;
+int PTreeNode::alternativeCount = 0;
 
 
 void PTreeNode::init()
@@ -53,4 +54,6 @@ void PTreeNode::addAlternative(PTreeNode *alt)
   // insert as 2nd element
   alt->merged = this->merged;
   this->merged = alt;
+  
+  alternativeCount++;
 }

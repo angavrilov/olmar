@@ -203,10 +203,15 @@ bool Terminal::anyDDM() const
 }
 
 
-string Terminal::toString() const
+string Terminal::toString(bool quoteAliases) const
 {
   if (alias.length() > 0) {
-    return ::toString(alias);
+    if (quoteAliases) {
+      return stringc << "\"" << ::toString(alias) << "\"";
+    }
+    else {
+      return ::toString(alias);
+    }
   }
   else {
     return ::toString(name);
@@ -691,11 +696,13 @@ void Production::print(ostream &os) const
 }
 
 
-string Production::toString(bool printType) const
+string Production::toString(bool printType, bool printIndex) const
 {
   // LHS "->" RHS
   stringBuilder sb;
-  sb << "[" << prodIndex << "] ";
+  if (printIndex) {
+    sb << "[" << prodIndex << "] ";
+  }
 
   sb << left->name;
   if (printType && left->type) {
@@ -711,7 +718,7 @@ string Production::toString(bool printType) const
 }
 
 
-string Production::rhsString() const
+string Production::rhsString(bool printTags, bool quoteAliases) const
 {
   stringBuilder sb;
 
@@ -731,11 +738,16 @@ string Production::rhsString() const
       }
       else {
         // print terminals as aliases if possible
-        symName = elt.sym->asTerminalC().toString();
+        symName = elt.sym->asTerminalC().toString(quoteAliases);
       }
 
-      // print tag if present
-      sb << taggedName(symName, elt.tag);
+      if (printTags) {
+        // print tag if present
+        sb << taggedName(symName, elt.tag);
+      }
+      else {
+        sb << symName;
+      }
     }
   }
 

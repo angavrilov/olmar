@@ -194,7 +194,7 @@ public:     // funcs
   virtual bool anyDDM() const;
 
   // return alias if defined, name otherwise
-  virtual string toString() const;
+  virtual string toString(bool quoteAliases = false) const;
 };
 
 typedef SObjList<Terminal> TerminalList;
@@ -402,8 +402,11 @@ public:	    // funcs
   #endif // 0
 
   // print 'A -> B c D' (no newline)
-  string toString(bool printType = true) const;
-  string rhsString() const;       // 'B c D' for above example rule
+  string toString(bool printType = true, bool printIndex = true) const;
+
+  // this one prints 'B c D' for above example rule
+  string rhsString(bool printTags = true, bool quoteAliases = false) const;
+
   void print(ostream &os) const;
   OSTREAM_OPERATOR(Production)
 

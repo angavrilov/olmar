@@ -3658,6 +3658,75 @@ void GrammarAnalysis::lrParse(char const *input)
 }
 
 
+// ------------------- grammar transformations ------------------
+void GrammarAnalysis::addTreebuildingActions()
+{
+  #define STR(s) LITERAL_LOCSTRING(grammarStringTable.add(s))
+
+  // get handles to the strings we want to emit
+  LocString param = STR("n");
+  LocString dupCode = STR("return n;");    // dup is identity
+  LocString delCode = STR("");             // del is no-op
+  LocString svalType = STR("PTreeNode*");
+
+  // merge relies on chaining scheme for alternatives
+  LocString mergeParam1 = STR("L");
+  LocString mergeParam2 = STR("R");
+  LocString mergeCode = STR("L->addAlternative(R); return L;");
+
+  // write dup/del/merge for nonterminals
+  MUTATE_EACH_OBJLIST(Nonterminal, nonterminals, ntIter) {
+    Nonterminal *nt = ntIter.data();
+
+    nt->dupParam = param;
+    nt->dupCode = dupCode;
+
+    nt->delParam = param;
+    nt->delCode = delCode;
+
+    nt->type = svalType;
+
+    nt->mergeParam1 = mergeParam1;
+    nt->mergeParam2 = mergeParam2;
+    nt->mergeCode = mergeCode;
+  }
+
+  // write treebuilding actions for productions
+  MUTATE_EACH_OBJLIST(Production, productions, prodIter) {
+    Production *p = prodIter.data();
+
+    // build up the code
+    stringBuilder code;
+    code << "return new PTreeNode(\"" << p->left->name << " -> "
+         << encodeWithEscapes(p->rhsString(false /*printTags*/, 
+                                           true /*quoteAliases*/))
+         << "\"";
+
+    int ct=1;
+    MUTATE_EACH_OBJLIST(Production::RHSElt, p->right, rIter) {
+      Production::RHSElt *elt = rIter.data();
+
+      // connect nonterminal subtrees; drop lexemes on the floor
+      if (elt->sym->isNonterminal()) {
+        // use a generic tag
+        string tag = stringc << "t" << ct++;
+        elt->tag = STR(tag);
+
+        code << ", " << tag;
+      }
+    }
+
+    code << ");";
+
+    // insert the code into the production    
+    p->action = LocString(SourceLocation(/*no loc*/), 
+                          grammarStringTable.add(code));
+  }
+
+  #undef STR
+}
+
+
 // ---------------------------- main --------------------------------
 void pretendUsed(...)
 {}
@@ -4274,7 +4343,7 @@ void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
   out << "static char const *nontermNames[] = {\n";
   for (int code=0; code < g.numNonterminals(); code++) {
     Nonterminal const *nt = g.getNonterminal(code);
-    if (!nt) {                                                   
+    if (!nt) {
       // no nonterminal for that code
       out << "  \"(no nonterminal)\",  // " << code << "\n";
     }
@@ -4513,12 +4582,14 @@ int main(int argc, char **argv)
     cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
             "  processes prefix.gr to make prefix.{gr.{gen.h,gen.cc},bin}\n"
             "  useful tracing flags (separate with commas):\n"
+            "    grammar       : echo the grammar after parsing\n"
             "    conflict      : print LALR(1) conflicts\n"
             "    deterministic : force a deterministic parser\n"
             "    closure       : details of item-set closure algorithm\n"
             "    prec          : show how prec/assoc are used to resolve conflicts\n"
             "    explore       : start the interactive grammar explorer at the end\n"
             "    lrtable       : print entire LR parsing tables to prefix.gr.gen.out\n"
+            "    treebuild     : replace given actions with treebuilding actions\n"
             ;
     return 0;
   }
@@ -4530,6 +4601,10 @@ int main(int argc, char **argv)
   string grammarFname = stringc << prefix << ".gr";
   GrammarAnalysis g;
   readGrammarFile(g, grammarFname);
+  if (tracingSys("treebuild")) {
+    cout << "replacing given actions with treebuilding actions\n";
+    g.addTreebuildingActions();
+  }
   g.printProductions(trace("grammar") << endl);
 
   string setsFname = stringc << prefix << ".gr.gen.out";

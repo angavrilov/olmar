@@ -15,7 +15,7 @@
 typedef double TreeCount;
 
 // max # of children
-enum { MAXCHILDREN = 4 };
+enum { MAXCHILDREN = 5 };
 
 class PTreeNode {
 public:
@@ -47,6 +47,10 @@ public:
   // we're making too many
   static int allocCount;
   
+  // count # of times addAlternative is called; this will tell
+  // the total number of local ambiguities that need to be resolved
+  static int alternativeCount;
+  
 private:     // funcs
   // init fields which don't depend on ctor args
   void init();
@@ -54,7 +58,8 @@ private:     // funcs
 public:      // funcs
   // now lots of constructors so we have one for each possible
   // number of children; the calls are automatically inserted
-  // by a perl script ('make-trivparser.pl')
+  // by a perl script ('make-trivparser.pl') or by the grammar
+  // transformation GrammarAnalysis::addTreebuildingActions()
   PTreeNode(char const *t)
     : type(t), numChildren(0), count(0) { init(); }
   PTreeNode(char const *t, PTreeNode *ch0)
@@ -65,13 +70,17 @@ public:      // funcs
     : type(t), numChildren(3), count(0) { init(); children[0] = ch0; children[1] = ch1; children[2] = ch2; }
   PTreeNode(char const *t, PTreeNode *ch0, PTreeNode *ch1, PTreeNode *ch2, PTreeNode *ch3)
     : type(t), numChildren(4), count(0) { init(); children[0] = ch0; children[1] = ch1; children[2] = ch2; children[3] = ch3; }
+  PTreeNode(char const *t, PTreeNode *ch0, PTreeNode *ch1, PTreeNode *ch2, PTreeNode *ch3, PTreeNode *ch4)
+    : type(t), numChildren(5), count(0) { init(); children[0] = ch0; children[1] = ch1; children[2] = ch2; children[3] = ch3; children[4] = ch4; }
+  // be sure to update MAXCHILDREN, above, if you add constructors
+  // which accept more children
 
   ~PTreeNode() { allocCount--; }
 
   // count the number of trees encoded (taking merge nodes into
   // account) in the tree rooted at 'this'
   TreeCount countTrees();
-  
+
   // add an alternative to the current 'merged' list
   void addAlternative(PTreeNode *alt);
 };
