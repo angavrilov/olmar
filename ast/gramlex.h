@@ -142,6 +142,14 @@ public:      // funcs
   // similar to yylex, but process TOK_INCLUDE internally
   int yylexInc();
 
+  // begin an embedded sequence
+  void beginEmbed(char finish, int mode, int initNest = 0)
+  {
+    embedded->reset(initNest);
+    embedFinish = finish;
+    embedMode = mode;
+  }
+
   // info about location of current token
   char const *curFname() const 
     { return sourceLocManager->getFile(tokenStartLoc); }
