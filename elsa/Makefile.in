@@ -174,7 +174,7 @@ clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
 	rm -f lexer.yy.cc cc_tokens.{h,cc,ids}
 	rm -f outdir/[a-z]*
-	rm -f ccparse
+	rm -f ccparse tlexer
 
 distclean: clean
 	rm -f Makefile config.status config.summary
