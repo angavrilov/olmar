@@ -18,10 +18,8 @@ CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/cc -I$(AST) -I$(SMBASE)
 # C++ compilation flags
 CCFLAGS := -g -Wall
 
-# linking flags; I'm cheating a bit here by pulling in all of
-# libccgr.a (thereby borrowing much of the C/C++ infrastructure)
-# instead of just libglr.a
-LDFLAGS := $(ELKHOUND)/cc/libccgr.a $(SMBASE)/libsmbase.a
+# linking flags
+LDFLAGS := $(ELKHOUND)/libglr.a $(SMBASE)/libsmbase.a
 
 
 # -------- generic rules --------
@@ -42,6 +40,16 @@ LDFLAGS := $(ELKHOUND)/cc/libccgr.a $(SMBASE)/libsmbase.a
 # main target
 all: cexp3ast.ast.gen.h cexp3 cexp3b
 
+# extra object files
+extras := \
+  $(ELKHOUND)/cc/parssppt.o \
+  $(ELKHOUND)/cc/lexer2.o \
+  $(ELKHOUND)/cc/lexer1.o \
+  $(ELKHOUND)/cc/lexer1yy.o \
+  $(ELKHOUND)/cc/cc_lang.o \
+  $(AST)/asthelp.o \
+  $(AST)/strtable.o
+
 # cexp3b: disambiguation using 'merge'
 cexp3b.gr: cexp3.gr
 	rm -f $@
@@ -49,14 +57,14 @@ cexp3b.gr: cexp3.gr
 	chmod a-w $@
 
 cexp3: $(ELKHOUND)/glrmain.o cexp3.gr.gen.o cexp3mrg.o cexp3ast.ast.gen.o 
-	g++ -g -o $@ $^ $(LDFLAGS)
-	./$@ cexp3.bin $(ELKHOUND)/in/cexp3.in1 | tee tmp.out
+	g++ -g -o $@ $^ $(extras) $(LDFLAGS)
+	./$@ $(ELKHOUND)/in/cexp3.in1 | tee tmp.out
 	grep 'result: 7' tmp.out
 	rm tmp.out
 
 cexp3b: $(ELKHOUND)/glrmain.o cexp3b.gr.gen.o cexp3mrg.o cexp3ast.ast.gen.o
-	g++ -g -o $@ $^ $(LDFLAGS)
-	./$@ cexp3b.bin $(ELKHOUND)/in/cexp3.in1 | tee tmp.out
+	g++ -g -o $@ $^ $(extras) $(LDFLAGS)
+	./$@ $(ELKHOUND)/in/cexp3.in1 | tee tmp.out
 	grep 'result: 7' tmp.out
 	rm tmp.out
 

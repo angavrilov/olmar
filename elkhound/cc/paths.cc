@@ -6,7 +6,7 @@
 #include "c.ast.gen.h"   // C AST
 #include "sobjlist.h"    // SObjList
 #include "objlist.h"     // ObjList
-#include "cc_env.h"      // Env
+#include "c_env.h"       // Env
 #include "trace.h"       // tracingSys
 #include "treeout.h"     // treeOut
 

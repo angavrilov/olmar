@@ -1,7 +1,7 @@
-// cc_env.cc
-// code for cc_env.h
+// c_env.cc
+// code for c_env.h
 
-#include "cc_env.h"      // this module
+#include "c_env.h"       // this module
 #include "trace.h"       // tracingSys
 #include "ckheap.h"      // heapCheck
 #include "strtable.h"    // StringTable

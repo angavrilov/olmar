@@ -40,9 +40,8 @@ public:
   static void nextToken(ArithLexer *ths);
 
   // LexerInterface functions
-  virtual NextTokenFunc getTokenFunc();
-  virtual string tokenDesc();
-  virtual string tokenDescType(int newType);
+  virtual NextTokenFunc getTokenFunc() const;
+  virtual string tokenDesc() const;
 };
 
 // there will be only one

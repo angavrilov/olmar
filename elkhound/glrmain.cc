@@ -12,9 +12,13 @@
 #include "fileloc.h"      // sourceFileList
 #include "ccgrmain.h"     // makeUserActions
 #include "cc_lang.h"      // CCLang
+#include "parsetables.h"  // ParseTables
 
 // no bison-parser present, so define it myself
 Lexer2Token const *yylval = NULL;
+
+// what a mess..
+ParseTables *makeParseTables();
 
 void doit(int argc, char **argv)
 {
@@ -25,7 +29,9 @@ void doit(int argc, char **argv)
   CCLang lang;
   ParseTreeAndTokens tree(lang, treeTop);
   UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
+  ParseTables *tables = makeParseTables();
   tree.userAct = user;
+  tree.tables = tables;
   if (!treeMain(tree, argc, argv)) {
     // parse error
     exit(2);
@@ -35,6 +41,7 @@ void doit(int argc, char **argv)
 
   // global cleanup
   delete user;
+  delete tables;
   sourceFileList.clear();
   traceRemoveAll();
 }

@@ -1,10 +1,9 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temp: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/ccparse cc/ccparset
+all: cc/c.ast.gen.h glr.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
+     cc/cc.gr.gen.h cc/cc.ast.gen.h cc/ccparse cc/ccparset glrmain.o
 	@echo BUILD FINISHED
-
-all: cc/c.ast.gen.h glr.o cc/ccgr cc2/cc2.exe cc2/cc2t.exe cc/bccgr
 
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -303,11 +302,11 @@ cc/ccparset: cc/ccparset.o cc/cct.gr.gen.o $(cc-set) ptreenode.o \
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
-cc/bccgr.y: cc/cc.gr.gen.y
+cc/bccgr.y: cc/c.gr.gen.y
 	echo '%{' >$@
 	echo '#include "bccgr.h"' >>$@
 	echo '%}' >>$@
-	sed 's/File "L2_EOF"/File/' <cc/cc.gr.gen.y >>$@
+	sed 's/File "L2_EOF"/File/' <cc/c.gr.gen.y >>$@
 
 # bison parser from the a given grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly

@@ -138,7 +138,7 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
             "    itemsets        print the sets-of-items DFA\n"
             "    ... the complete list is in parsgen.txt ...\n"
          << (additionalInfo? additionalInfo : "");
-    exit(0);
+    exit(argc==1? 0 : 2);    // error if any args supplied
   }
 
   if (tracingSys("trivialActions")) {

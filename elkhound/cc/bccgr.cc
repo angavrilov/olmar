@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
   CycleTimer timer;
   if (yyparse() != 0) {
     cout << "yyparse returned with an error\n";
+    return 4;
   }
   traceProgress() << "finished parse (" << timer.elapsed() << ")\n";
 

@@ -42,6 +42,13 @@ UserActions *makeUserActions(StringTable &table, CCLang &lang)
   return new ParseEnv(table);
 }
 
+ParseTables *make_ParseEnv_tables();
+ParseTables *makeParseTables()
+{
+  return make_ParseEnv_tables();
+}
+
+
 ParseEnv::ParseEnv(StringTable &table)
 {
   intType = table.add("int");

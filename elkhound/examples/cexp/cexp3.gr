@@ -19,6 +19,12 @@ verbatim Cexp3 [
   {
     return new Cexp3;
   }
+
+  ParseTables *make_Cexp3_tables();
+  ParseTables *makeParseTables()
+  {
+    return make_Cexp3_tables();
+  }
 ]
 
 /*
