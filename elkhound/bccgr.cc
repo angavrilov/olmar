@@ -12,6 +12,7 @@
 
 // global list of L2 tokens for yielding to Bison
 Lexer2 lexer2;
+Lexer2Token const *lastTokenYielded = NULL;
 
 // parsing entry point
 int yyparse();
@@ -28,6 +29,7 @@ int yylex()
 
   if (!iter->isDone()) {
     // grab type to return
+    lastTokenYielded = iter->data();
     Lexer2TokenType ret = iter->data()->type;
 
     // advance to next token
@@ -45,6 +47,7 @@ int yylex()
   }
   else {
     // done; don't bother freeing things
+    lastTokenYielded = NULL;
     return L2_EOF;
   }
 }
@@ -52,7 +55,13 @@ int yylex()
 
 void yyerror(char const *s)
 {
-  cerr << s << endl;
+  if (lastTokenYielded) {
+    printf("%s: ", lastTokenYielded->loc.toString().pcharc());
+  }
+  else {
+    printf("<eof>: ");
+  }
+  printf("%s\n", s);
 }
 
 
