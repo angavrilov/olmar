@@ -14,6 +14,7 @@ class Env;
 class Variable;
 class Type;
 class ErrorList;
+class TemplCompoundType;
 
 
 // debugging output support
@@ -183,6 +184,11 @@ public:      // funcs
   Variable *resolve(bool &wasAmbig);
   Variable *resolve();     // ignore ambiguity info
 };
+
+
+// dsw: not sure where this should go, but for now I'll put it here;
+// see the implementation for more notes
+CompoundType *selectBestCandidate_templCompoundType(TemplCompoundType &resolver);
 
 
 // resolve the overloading, return the selected candidate; if nothing

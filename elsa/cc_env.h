@@ -22,6 +22,49 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
+// holder for the CompoundType template candidates
+class TemplCompoundType {
+  public:
+  ObjArrayStack<CompoundType> candidates;
+
+  TemplCompoundType() {}
+
+  private:
+  TemplCompoundType(TemplCompoundType const &); // forbid copying
+
+  public:
+  ~TemplCompoundType() {
+    // IMPORTANT: Since ObjArrayStack seems to be an owner container,
+    // I have to empty it out before it dtors.
+    while (candidates.isNotEmpty()) {
+      candidates.pop();
+    }
+  }
+
+  private:
+  // Compare two STemplateArgument-s; There are four possible answers:
+  // leftGreater, rightGreater, equal, and incomparable.
+  enum STemplateArgsCmp {
+    STAC_LEFT_MORE_SPEC,
+    STAC_RIGHT_MORE_SPEC,
+    STAC_EQUAL,
+    STAC_INCOMPARABLE,
+  };
+  STemplateArgsCmp compareSTemplateArgs
+    (STemplateArgument *larg, STemplateArgument *rarg);
+
+  public:
+  // compare two different templates (primary / specialization /
+  // instantiation) to see which is more specific; used by
+  // instantiateClassTemplate() to decide which to use for a given
+  // instantiation request
+  // return:
+  //   -1 if left is better
+  //    0 if they are indistinguishable
+  //   +1 if right is better
+  int compareCandidates(CompoundType const *left, CompoundType const *right);
+};
+
 // the entire semantic analysis state
 class Env {
 protected:   // data
@@ -300,6 +343,18 @@ public:      // funcs
   Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
+
+  // for the instantiation of a primary template, simultaneously
+  // iterate over the parameters and arguments, creating bindings from
+  // params to args
+  void insertBindingsForPrimary
+    (CompoundType *base, ASTList<TemplateArgument> const &arguments);
+
+  // for the instantiation of a partial specialization, iterate over
+  // the parameters and retrieve their bindings; insert these into the
+  // scope
+  void insertBindingsForPartialSpec
+    (CompoundType *base, StringSObjDict<STemplateArgument> &bindings);
 
   // instantate 'base' with 'arguments', and return the implicit
   // typedef Variable associated with the resulting type; 'scope'

@@ -196,6 +196,8 @@ void OverloadResolver::addBuiltinBinaryCandidates(OverloadableOp op,
 template <class RESOLVER, class CANDIDATE>
 CANDIDATE *tournament(RESOLVER &resolver, int low, int high, CANDIDATE *dummy)
 {
+  xassert(low <= high);         // Scott, you should catch this!
+
   if (low == high) {
     // only one candidate
     return resolver.candidates[low];
@@ -225,6 +227,13 @@ CANDIDATE *tournament(RESOLVER &resolver, int low, int high, CANDIDATE *dummy)
 template <class RESOLVER, class CANDIDATE>
 CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
 {
+  // dsw: I need this to be the semantics of this function, rather
+  // than an error; If you change it, change the class specialization
+  // resolution code also.
+  if (resolver.candidates.length() <= 0) {
+    return NULL;
+  }
+
   // use a tournament to select a candidate that is not worse
   // than any of those it faced
   CANDIDATE *winner = tournament(resolver, 0, resolver.candidates.length()-1, dummy);
@@ -248,6 +257,15 @@ CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
 
   // 'winner' is indeed the winner
   return winner;
+}
+
+
+// dsw: I put this here so that I didn't have to put the whole
+// selectBestCandidate() templatized function into overload.h
+CompoundType *selectBestCandidate_templCompoundType(TemplCompoundType &resolver)
+{
+  CompoundType *dummy = NULL; // dsw: this dummy idiom is dumb
+  return selectBestCandidate(resolver, dummy);
 }
 
 

@@ -1864,6 +1864,172 @@ bool TemplateInfo::equalArguments
 }
 
 
+/* static */
+bool TemplateInfo::atLeastAsSpecificAs
+  (SObjList<STemplateArgument> &list1,
+   ObjList<STemplateArgument> &list2, // NOTE: assymetry in the list serf/ownerness
+   StringSObjDict<STemplateArgument> &bindings)
+{
+  SObjListIterNC<STemplateArgument> iter1(list1);
+  ObjListIterNC<STemplateArgument> iter2(list2);
+
+  while (!iter1.isDone() && !iter2.isDone()) {
+    STemplateArgument *sta1 = iter1.data();
+    STemplateArgument *sta2 = iter2.data();
+    if (!sta1->atLeastAsSpecificAs(sta2, bindings)) {
+      return false;
+    }
+
+    iter1.adv();
+    iter2.adv();
+  }
+
+  return iter1.isDone() && iter2.isDone();
+}
+
+
+bool TemplateInfo::argumentsContainTypeVariables() const
+{
+  FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
+    STemplateArgument const *sta = iter.data();
+    if (sta->kind == STemplateArgument::STA_TYPE) {
+      if (sta->value.t->containsTypeVariables()) return true;
+    }
+    // FIX: do other kinds
+  }
+  return false;
+}
+
+
+bool TemplateInfo::argumentsContainVariables() const
+{
+  FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
+    STemplateArgument const *sta = iter.data();
+    if (sta->kind == STemplateArgument::STA_TYPE) {
+      if (sta->value.t->containsTypeVariables()) return true;
+    }
+    // FIX: I am not at all sure that my interpretation of what
+    // STemplateArgument::kind == STA_REFERENCE means; I think it
+    // means it is a non-type non-template (object) variable in an
+    // argument list
+    if (sta->kind == STemplateArgument::STA_REFERENCE) {
+      return true;
+    }
+    // FIX: do other kinds
+  }
+  return false;
+}
+
+
+bool TemplateInfo::argumentsAllVariables() const
+{
+  FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
+    STemplateArgument const *sta = iter.data();
+    if (sta->kind == STemplateArgument::STA_TYPE) {
+      if (!sta->value.t->containsTypeVariables()) return false;
+    }
+    // FIX: I am not at all sure that my interpretation of what
+    // STemplateArgument::kind == STA_REFERENCE means; I think it
+    // means it is a non-type non-template (object) variable in an
+    // argument list
+    if (!sta->kind == STemplateArgument::STA_REFERENCE) {
+      return false;
+    }
+    // FIX: do other kinds
+  }
+  return true;
+}
+
+
+// You may ask why I don't implement isMutant() as simply "return
+// isPrimary() || isPartialSpec() || isCompleteSpecOrInstantiation()".
+// I don't because I want the assertions in the three other methods,
+// as they are used directly and always in cases where there should
+// never be a mutant, and I have to avoid circularity, therefore
+// isMutant() does not depend on them.  I have also avoided references
+// to the instantiations list, as that is somehow a different
+// consideration from mutantness
+bool TemplateInfo::isMutant() const {
+  // primary
+  if (params.isNotEmpty() && arguments.isEmpty()) return false;
+  // partial specialization
+  if (params.isNotEmpty() && argumentsContainVariables()) return false;
+  // complete specialization / instantiation
+  if (params.isEmpty() && !argumentsContainVariables()) return false;
+  // mutant!
+  xassert(params.isEmpty());
+  xassert(instantiations.isEmpty());
+  xassert(arguments.isNotEmpty());
+
+  // FIX: this assertion should be valid, and the fact it checks is needed
+  // elsewhere, but t0180.cc is a counterexample; we need to extend
+  // 'argumentsContainsVariables' so that it looks into the arguments of
+  // template class instantiations
+  //xassert(argumentsAllVariables());
+
+  return true;
+}
+
+
+bool TemplateInfo::isPrimary() const {
+  xassert(!isMutant());
+  return params.isNotEmpty() && arguments.isEmpty();
+}
+
+
+bool TemplateInfo::isPartialSpec() const {
+  xassert(!isMutant());
+  bool ret = params.isNotEmpty() && arguments.isNotEmpty();
+  if (ret) {
+    xassert(instantiations.isEmpty());
+    xassert(argumentsContainVariables());
+  }
+  return ret;
+}
+
+
+bool TemplateInfo::isCompleteSpecOrInstantiation() const {
+  xassert(!isMutant());
+  bool ret = params.isEmpty() && arguments.isNotEmpty();
+  if (ret) {
+    xassert(instantiations.isEmpty());
+    xassert(!argumentsContainVariables());
+  }
+  return ret;
+}
+
+
+void TemplateInfo::gdb(int depth)
+{
+  for (int i=0; i<depth; ++i) cout << "  ";
+  cout << "TemplateInfo, baseName: " << baseName << endl;
+  for (int i=0; i<depth; ++i) cout << "  ";
+  cout << "params:" << endl;
+  SFOREACH_OBJLIST(Variable, params, iter) {
+    iter.data()->gdb();
+  }
+  for (int i=0; i<depth; ++i) cout << "  ";
+  cout << "instantiations:" << endl;
+  SFOREACH_OBJLIST_NC(CompoundType, instantiations, iter) {
+    CompoundType *ct = iter.data();
+    for (int i=0; i<depth; ++i) cout << "  ";
+    ct->gdb();
+    ct->templateInfo->gdb(depth+1);
+  }
+  for (int i=0; i<depth; ++i) cout << "  ";
+  cout << "arguments:" << endl;
+  FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
+    iter.data()->gdb(depth+1);
+  }
+//    cout << "argumentSyntax:" << endl;
+//    FAKELIST_FOREACH(TemplateArgument, argumentSyntax, iter) {
+//      iter->gdb();
+//    }
+  for (int i=0; i<depth; ++i) cout << "  ";
+  cout << "TemplateInfo end" << endl;
+}
+
+
 // ------------------- STemplateArgument ---------------
 STemplateArgument::STemplateArgument(STemplateArgument const &obj)
   : kind(obj.kind)
@@ -1872,6 +2038,27 @@ STemplateArgument::STemplateArgument(STemplateArgument const &obj)
   value.i = obj.value.i;
   value.v = obj.value.v;    // just in case ptrs and ints are diff't size
 }
+
+
+bool STemplateArgument::isObject() {
+  switch (kind) {
+  default:
+    xfailure("illegal STemplateArgument kind"); break;
+
+  case STA_TYPE:                // type argument
+    return false; break;
+
+  case STA_INT:                 // int or enum argument
+  case STA_REFERENCE:           // reference to global object
+  case STA_POINTER:             // pointer to global object
+  case STA_MEMBER:              // pointer to class member
+    return true; break;
+
+  case STA_TEMPLATE:            // template argument (not implemented)
+    return false; break;
+  }
+}
+
 
 bool STemplateArgument::equals(STemplateArgument const *obj) const
 {
@@ -1892,6 +2079,66 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
 }
 
 
+// helper function for when we find an int
+static bool unifyIntToVar(int i0, Variable *v1, StringSObjDict<STemplateArgument> &bindings)
+{
+  STemplateArgument *v1old = bindings.queryif(v1->name);
+  // is this variable already bound?
+  if (v1old) {
+    // check that the current value matches the bound value
+    if (v1old->kind==STemplateArgument::STA_INT) {
+      return v1old->value.i == i0;
+    } else if (v1old->kind==STemplateArgument::STA_TYPE) {
+      return false;             // types don't match objects
+    } else {
+      xfailure("illegal template unification binding");
+    }
+  }
+  // otherwise, bind it
+  STemplateArgument *a1new = new STemplateArgument;
+  a1new->setInt(i0);
+  bindings.add(v1->name, a1new);
+  return true;
+}
+
+
+bool STemplateArgument::atLeastAsSpecificAs
+  (STemplateArgument const *obj,
+   StringSObjDict<STemplateArgument> &bindings)
+{
+  switch (kind) {
+  case STA_TYPE:                // type argument
+    if (STA_TYPE != obj->kind) return false;
+    return value.t->atLeastAsSpecificAs(obj->value.t, bindings);
+    break;
+
+  case STA_INT:                 // int or enum argument
+    if (STA_INT == obj->kind) {
+      return value.i == obj->value.i;
+    } else if (STA_REFERENCE == obj->kind) {
+      return unifyIntToVar(value.i, obj->value.v, bindings);
+    } else {
+      return false;
+    }
+    break;
+
+  case STA_POINTER:             // pointer to global object
+  case STA_MEMBER:              // pointer to class member
+  case STA_REFERENCE:           // reference to global object
+    xfailure("pointer, pointer to member, and reference arguments unimplemented");
+    break;
+
+  case STA_TEMPLATE:            // template argument (not implemented)
+    xfailure("STA_TEMPLATE non implemented");
+    break;
+
+  default:
+    xfailure("illegal STemplateArgument::kind");
+    break;
+  }
+}
+
+
 string STemplateArgument::toString() const
 {
   switch (kind) {
@@ -1906,6 +2153,13 @@ string STemplateArgument::toString() const
       << "::" << value.v->name;
     case STA_TEMPLATE:  return string("template (?)");
   }
+}
+
+
+void STemplateArgument::gdb(int depth)
+{
+  for (int i=0; i<depth; ++i) cout << "  ";
+  cout << "STemplateArgument: " << toString() << endl;
 }
 
 
@@ -2262,6 +2516,110 @@ string TemplateParams::paramsToMLString() const
 #endif
   sb << ">";
   return sb;
+}
+
+
+// ---------------------- atLeastAsSpecificAs ---------------------
+
+// helper function for when we find a type var
+static bool unifyToTypeVar(Type *t0, Type *t1, StringSObjDict<STemplateArgument> &bindings)
+{
+  TypeVariable *tv = t1->asTypeVariable();
+  STemplateArgument *targ1 = bindings.queryif(tv->name);
+  // is this type variable already bound?
+  if (targ1) {
+    // check that the current value matches the bound value
+    return targ1->kind==STemplateArgument::STA_TYPE && t0->equals(targ1->value.t);
+  }
+  // otherwise, bind it
+  STemplateArgument *targ0 = new STemplateArgument;
+  targ0->setType(t0);
+  bindings.add(tv->name, targ0);
+  return true;
+}
+
+bool CVAtomicType::atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)
+{
+  if (t->isTypeVariable()) {
+    return unifyToTypeVar(this, t, bindings);
+  }
+  if (t->isCVAtomicType()) {
+    return equals(t);
+  }
+  return false;
+}
+
+bool PointerType::atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)
+{
+  if (t->isTypeVariable()) {
+    return unifyToTypeVar(this, t, bindings);
+  }
+  if (t->isPointerType()) {
+    return atType->atLeastAsSpecificAs(t->asPointerType()->atType, bindings);
+  }
+  return false;
+}
+
+bool FunctionType::atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)
+{
+  if (t->isTypeVariable()) {
+    return unifyToTypeVar(this, t, bindings);
+  }
+  if (t->isFunctionType()) {
+    FunctionType *ft = t->asFunctionType();
+    xassert(!ft->isMethod());   // should not be possible
+
+    // check all the parameters
+    if (params.count() != ft->params.count()) {
+      return false;
+    }
+    SObjListIterNC<Variable> iter0(params);
+    SObjListIterNC<Variable> iter1(ft->params);
+    for(;
+        !iter0.isDone();
+        iter0.adv(), iter1.adv()) {
+      Variable *var0 = iter0.data();
+      Variable *var1 = iter1.data();
+      xassert(!var0->hasFlag(DF_TYPEDEF)); // should not be possible
+      xassert(!var1->hasFlag(DF_TYPEDEF)); // should not be possible
+      if (!var0->type->atLeastAsSpecificAs(var1->type, bindings)) return false; // conjunction
+    }
+    xassert(iter1.isDone());
+
+    // check the return type
+    return retType->atLeastAsSpecificAs(ft->retType, bindings);
+  }
+  return false;
+}
+
+bool ArrayType::atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)
+{
+  if (t->isTypeVariable()) {
+    return unifyToTypeVar(this, t, bindings);
+  }
+  if (t->isArrayType()) {
+    return eltType->atLeastAsSpecificAs(t->asArrayType()->eltType, bindings);
+  }
+  return false;
+}
+
+bool PointerToMemberType::atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)
+{
+  if (t->isTypeVariable()) {
+    return unifyToTypeVar(this, t, bindings);
+  }
+  if (t->isPointerToMemberType()) {
+    // FIX: should there be some subtyping polymorphism here?
+
+//      // This is too weird; I have to wrap the CompoundType in a
+//      // CVAtomicType just so I can do the unfication; FIX: do it later
+//      if (!inClass->atLeastAsSpecificAs(t->asPointerToMemberType()->inClass, bindings)) {
+//        return false;
+//      }
+
+    return atType->atLeastAsSpecificAs(t->asPointerToMemberType()->atType, bindings);
+  }
+  return false;
 }
 
 

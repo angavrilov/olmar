@@ -1049,15 +1049,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
         // but this would not because the "*" sheilds the typevar
         //          template<S> struct A<S*> {};
         xassert(iter->sarg.hasValue());
-//          if (iter->sarg.hasValue()) {
         ct->templateInfo->arguments.append(new STemplateArgument(iter->sarg));
-//          }
-//          else {
-//            // This is not really an error; This is what happens when
-//            // you have a partial specialization.
-//            return env.error(
-//              "attempt to use unresolved arguments to specialize a class");
-//          }
       }
 
       // dsw: I need to have the argumentSyntax around so that if I
@@ -1078,6 +1070,11 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       // won't hurt either.
       ct->templateInfo->argumentSyntax = templateArgs;
     }
+
+//      cout << "TS_classSpec::itcheck: "
+//           << "template typechecked, appending to instantiations of primary"
+//           << endl;
+//      primaryTI->gdb();
   }
 
   else {      // !ct
@@ -1094,6 +1091,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   tcheckIntoCompound(env, dflags, ct, inTemplate, containingClass);
+//    env.deMutantify(ct);             // we now just avoid them during specialization resolution
   
   if (prevWasForward && ct->isTemplate()) {
     // we might have had forward declarations of template
@@ -5696,7 +5694,7 @@ void TA_nontype::itcheck(Env &env)
     }
     else {
       env.error(stringc
-        << "`" << expr->exprToString() << " must be a simple variable "
+        << "`" << expr->exprToString() << "' must be a simple variable "
         << "for it to be a template reference argument");
     }
   }

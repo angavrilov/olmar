@@ -7,10 +7,170 @@
 #include "strtable.h"    // StringTable
 #include "cc_lang.h"     // CCLang
 #include "strutil.h"     // suffixEquals
+#include "overload.h"    // selectBestCandidate_templCompoundType
 
 
 inline ostream& operator<< (ostream &os, SourceLoc sl)
   { return os << toString(sl); }
+
+
+// for debugging purposes
+void printBindings(StringSObjDict<STemplateArgument> &bindings)
+{
+  cout << "bindings: " << endl;
+  for(StringSObjDict<STemplateArgument>::Iter iter(bindings);
+      !iter.isDone();
+      iter.next()) {
+    string key = iter.key();
+    STemplateArgument *value = iter.value();
+    cout << "\t" << key << ":" << value->toString() << endl;
+  }
+  cout << "end bindings" << endl;
+}
+
+
+TemplCompoundType::STemplateArgsCmp TemplCompoundType::compareSTemplateArgs
+  (STemplateArgument *larg, STemplateArgument *rarg)
+{
+  xassert(larg->kind == rarg->kind);
+
+  switch(larg->kind) {
+  default:
+    xfailure("illegal TemplateArgument kind");
+    break;
+
+  case STemplateArgument::STA_NONE: // not yet resolved into a valid template argument
+    xfailure("STA_NONE TemplateArgument kind");
+    break;
+
+  case STemplateArgument::STA_TYPE: // type argument
+    {
+    // check if left is at least as specific as right
+    bool leftAtLeastAsSpec;
+    {
+      StringSObjDict<STemplateArgument> bindings;
+      if (larg->value.t->atLeastAsSpecificAs(rarg->value.t, bindings)) {
+        leftAtLeastAsSpec = true;
+      } else {
+        leftAtLeastAsSpec = false;
+      }
+    }
+    // check if right is at least as specific as left
+    bool rightAtLeastAsSpec;
+    {
+      StringSObjDict<STemplateArgument> bindings;
+      if (rarg->value.t->atLeastAsSpecificAs(larg->value.t, bindings)) {
+        rightAtLeastAsSpec = true;
+      } else {
+        rightAtLeastAsSpec = false;
+      }
+    }
+
+    // change of basis matrix
+    if (leftAtLeastAsSpec) {
+      if (rightAtLeastAsSpec) {
+        return STAC_EQUAL;
+      } else {
+        return STAC_LEFT_MORE_SPEC;
+      }
+    } else {
+      if (rightAtLeastAsSpec) {
+        return STAC_RIGHT_MORE_SPEC;
+      } else {
+        return STAC_INCOMPARABLE;
+      }
+    }
+
+    }
+    break;
+
+  case STemplateArgument::STA_INT: // int or enum argument
+    if (larg->value.i == rarg->value.i) {
+      return STAC_EQUAL;
+    }
+    return STAC_INCOMPARABLE;
+    break;
+
+  case STemplateArgument::STA_REFERENCE: // reference to global object
+  case STemplateArgument::STA_POINTER: // pointer to global object
+  case STemplateArgument::STA_MEMBER: // pointer to class member
+    if (larg->value.v == rarg->value.v) {
+      return STAC_EQUAL;
+    }
+    return STAC_INCOMPARABLE;
+    break;
+
+  case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
+    xfailure("STA_TEMPLATE TemplateArgument kind; not implemented");
+    break;
+  }
+}
+
+
+int TemplCompoundType::compareCandidates(CompoundType const *left, CompoundType const *right)
+{
+  TemplateInfo *lti = left->templateInfo;
+  xassert(lti);
+  TemplateInfo *rti = right->templateInfo;
+  xassert(rti);
+
+  // I do not even put the primary into the set so it should never
+  // show up.
+  xassert(!lti->isPrimary());
+  xassert(!rti->isPrimary());
+
+  // they should always have the same number of arguments; the number
+  // of parameters is irrelevant
+  xassert(lti->arguments.count() == rti->arguments.count());
+
+  STemplateArgsCmp leaning = STAC_EQUAL;// which direction are we leaning?
+  // for each argument pairwise
+  ObjListIterNC<STemplateArgument> lIter(lti->arguments);
+  ObjListIterNC<STemplateArgument> rIter(rti->arguments);
+  for(;
+      !lIter.isDone();
+      lIter.adv(), rIter.adv()) {
+    STemplateArgument *larg = lIter.data();
+    STemplateArgument *rarg = rIter.data();
+    STemplateArgsCmp cmp = compareSTemplateArgs(larg, rarg);
+    switch(cmp) {
+    default: xfailure("illegal STemplateArgsCmp"); break;
+    case STAC_LEFT_MORE_SPEC:
+      if (leaning == STAC_EQUAL) {
+        leaning = STAC_LEFT_MORE_SPEC;
+      } else if (leaning == STAC_RIGHT_MORE_SPEC) {
+        leaning = STAC_INCOMPARABLE;
+      }
+      // left stays left and incomparable stays incomparable
+      break;
+    case STAC_RIGHT_MORE_SPEC:
+      if (leaning == STAC_EQUAL) {
+        leaning = STAC_RIGHT_MORE_SPEC;
+      } else if (leaning == STAC_LEFT_MORE_SPEC) {
+        leaning = STAC_INCOMPARABLE;
+      }
+      // right stays right and incomparable stays incomparable
+      break;
+    case STAC_EQUAL:
+      // all stay same
+      break;
+    case STAC_INCOMPARABLE:
+      leaning = STAC_INCOMPARABLE; // incomparable is an absorbing state
+    }
+  }
+  xassert(rIter.isDone());      // we checked they had the same number of arguments earlier
+
+  switch(leaning) {
+  default: xfailure("illegal STemplateArgsCmp"); break;
+  case STAC_LEFT_MORE_SPEC: return -1; break;
+  case STAC_RIGHT_MORE_SPEC: return 1; break;
+  case STAC_EQUAL:
+    // FIX: perhaps this should be a user error?
+    xfailure("Two template argument tuples are identical");
+    break;
+  case STAC_INCOMPARABLE: return 0; break;
+  }
+}
 
 
 // --------------------- Env -----------------
@@ -1143,99 +1303,6 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 }
 
 
-#if 0     // aborted implementation for now
-// verify correspondence between template arguments and
-// template parameters; return selected specialization of 'ct'
-CompoundType *Env::
-  checkTemplateArguments(CompoundType *ct, FakeList<TempalteArgument> const *args)
-{
-  TemplateInfo *tinfo = ct->templateInfo;
-  xassert(tinfo);
-
-  // check argument list against parameter list
-  TemplateArgument const *argIter = args->firstC();
-  SFOREACH_OBJLIST(Variable, tinfo->params, paramIter) {
-    if (!argIter) {
-      error("not enough arguments to template");
-      return NULL;
-    }
-
-    // for now, since I only have type-valued parameters
-    // and type-valued arguments, correspondence is automatic
-
-    argIter = argIter->next;
-  }
-  if (argIter) {
-    error("too many arguments to template");
-    return NULL;
-  }
-
-  // check for specializations
-  CompoundType *special = selectSpecialization(tinfo, args);
-  if (!special) {
-    return ct;         // no specialization
-  }
-  else {
-    return special;    // specialization found
-  }
-}
-
-// check the list of specializations in 'tinfo' for one that
-// matches the given arguments in 'args'; return the matching
-// specialization, or NULL if none matches
-CompoundType *Env::
-  selectSpecialization(TemplateInfo *tinfo, FakeList<TempalteArgument> const *args)
-{
-  SFOREACH_OBJLIST_NC(CompoundType, tinfo->specializations, iter) {
-    CompoundType *special = iter.data();
-
-    // create an empty unification environment
-    TypeUnificationEnv tuEnv;
-    bool matchFailure = false;
-
-    // check supplied argument list against specialized argument list
-    TemplateArgument const *userArg = args->firstC();
-    FAKELIST_FOREACH(TemplateArgument,
-                     special->templateInfo->specialArguments,
-                     specialArg) {
-      // the specialization cannot have more arguments than
-      // the client code supplies; TODO: make sure that the
-      // code which accepts specializations enforces this
-      xassert(argIter);
-
-      // get the types for each
-      Type *userType = userArg->asTA_typeC()->getType();
-      Type *specialType = specialArg->asTA_typeC()->getType();
-
-      // unify them
-      if (!tuEnv.unify(userType, specialType)) {
-        matchFailure = true;
-        break;
-      }
-
-      userArg = userArg->next;
-    }
-
-    if (userArg) {
-      // we didn't use all of the user's arguments.. I guess this
-      // is a partial specialization of some sort, and it matches
-    }
-
-    if (!matchFailure) {
-      // success
-      return special;
-
-      // TODO: try all the specializations, and complain if more
-      // than once succeeds
-    }
-  }
-
-  // no matching specialization
-  return NULL;
-}
-#endif // 0, aborted implementation
-
-
 Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
   Variable *var;
@@ -1601,11 +1668,150 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
 
 // ----------------- template instantiation -------------
+static bool doesUnificationRequireBindings
+  (SObjList<STemplateArgument> &sargs,
+   ObjList<STemplateArgument> &arguments)
+{
+  // re-unify and check that no bindings get added
+  StringSObjDict<STemplateArgument> bindings;
+  bool unifies = TemplateInfo::atLeastAsSpecificAs(sargs, arguments, bindings);
+  xassert(unifies);             // should of course still unify
+  // bindings should be trivial for a complete specialization
+  // or instantiation
+  return !bindings.isEmpty();
+}
+
+
+void Env::insertBindingsForPrimary
+  (CompoundType *base, ASTList<TemplateArgument> const &arguments)
+{
+  SObjListIter<Variable> paramIter(base->templateInfo->params);
+  ASTListIter<TemplateArgument> argIter(arguments);
+  while (!paramIter.isDone() && !argIter.isDone()) {
+    Variable const *param = paramIter.data();
+    TemplateArgument const *arg = argIter.data();
+
+    if (param->hasFlag(DF_TYPEDEF) &&
+        arg->isTA_type()) {
+      // bind the type parameter to the type argument; I considered
+      // simply modifying 'param' but decided this would be cleaner
+      // for now..
+      Variable *binding = makeVariable(param->loc, param->name,
+                                       arg->asTA_typeC()->type->getType(),
+                                       DF_TYPEDEF);
+      addVariable(binding);
+    }
+    else if (!param->hasFlag(DF_TYPEDEF) &&
+             arg->isTA_nontype()) {
+      // TODO: verify that the argument in fact matches the parameter type
+
+      // bind the nontype parameter directly to the nontype expression;
+      // this will suffice for checking the template body, because I
+      // can const-eval the expression whenever it participates in
+      // type determination; the type must be made 'const' so that
+      // E_variable::constEval will believe it can evaluate it
+      Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
+                                          param->type, NULL /*syntax*/);
+      Variable *binding = makeVariable(param->loc, param->name,
+                                       bindType, DF_NONE);
+      binding->value = arg->asTA_nontypeC()->expr;
+      addVariable(binding);
+    }
+    else {                 
+      // mismatch between argument kind and parameter kind
+      char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
+      char const *argKind = arg->isTA_type()? "type" : "non-type";
+      error(stringc
+            << "`" << param->name << "' is a " << paramKind
+            << " parameter, but `" << arg->argString() << "' is a "
+            << argKind << " argument");
+    }
+
+    paramIter.adv();
+    argIter.adv();
+  }
+
+  if (!paramIter.isDone()) {
+    error(stringc
+          << "too few template arguments to `" << base->name << "'");
+  }
+  else if (!argIter.isDone()) {
+    error(stringc
+          << "too many template arguments to `" << base->name << "'");
+  }
+}
+
+
+void Env::insertBindingsForPartialSpec
+  (CompoundType *base, StringSObjDict<STemplateArgument> &bindings)
+{
+  for(SObjListIter<Variable> paramIter(base->templateInfo->params);
+      !paramIter.isDone();
+      paramIter.adv()) {
+    Variable const *param = paramIter.data();
+    STemplateArgument *arg = bindings.queryif(param->name);
+    if (!arg) {
+      error(stringc
+            << "during partial specialization parameter `" << param->name
+            << "' not bound in inferred bindings");
+      return;
+    }
+
+    if (param->hasFlag(DF_TYPEDEF) &&
+        arg->isType()) {
+      // bind the type parameter to the type argument
+      Variable *binding = makeVariable(param->loc, param->name,
+                                       arg->value.t,
+                                       DF_TYPEDEF);
+      addVariable(binding);
+    }
+    else if (!param->hasFlag(DF_TYPEDEF) &&
+             arg->isObject()) {
+      if (param->type->isIntegerType() && arg->kind == STemplateArgument::STA_INT) {
+        // bind the int parameter directly to the int expression; this
+        // will suffice for checking the template body, because I can
+        // const-eval the expression whenever it participates in type
+        // determination; the type must be made 'const' so that
+        // E_variable::constEval will believe it can evaluate it
+        Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
+                                            param->type, NULL /*syntax*/);
+        Variable *binding = makeVariable(param->loc, param->name,
+                                         bindType, DF_NONE);
+        // we omit the text as irrelevant and expensive to reconstruct
+        binding->value = new E_intLit(NULL);
+        binding->value->asE_intLit()->i = arg->value.i;
+        addVariable(binding);
+      } else {
+        error(stringc
+              << "non-integer non-type non-template template arguments not implemented");
+      }
+    }
+    else {                 
+      // mismatch between argument kind and parameter kind
+      char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
+      char const *argKind = arg->isType()? "type" : "non-type";
+      error(stringc
+            << "`" << param->name << "' is a " << paramKind
+            // FIX: might do better than what toString() gives
+            << " parameter, but `" << arg->toString() << "' is a "
+            << argKind << " argument");
+    }
+  }
+
+  // Note that it is not necessary here to attempt to detect too few
+  // or too many arguments for the given parameters.  If the number
+  // doesn't match then the unification will fail and we will attempt
+  // to instantiate the primary, which will then report this error.
+}
+
+
 // see comments in cc_env.h
 Variable *Env::instantiateClassTemplate
   (Scope *foundScope, CompoundType *base, 
    ASTList<TemplateArgument> const &arguments, CompoundType *inst)
 {
+  CompoundType *oldBase = base; // save this for other uses later
+
   // go over the list of arguments, and make a list of
   // semantic arguments
   SObjList<STemplateArgument> sargs;
@@ -1617,30 +1823,73 @@ Variable *Env::instantiateClassTemplate
       // this is a problem with const-polymorphism again
       TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
 
-      if (ta->sarg.hasValue()) {
-        sargs.append(&ta->sarg);
-      }
-      else {
-        // this happens frequently when processing the uninstantiated
-        // template, but should then be suppressed in that case
-        error("attempt to use unresolved arguments to instantiate a class");
-        return dependentTypeVar;
-      }
+      xassert(ta->sarg.hasValue());
+      sargs.append(&(ta->sarg));
     }
   }
 
   // has this class already been instantiated?
   if (!inst) {
-    SFOREACH_OBJLIST(CompoundType, base->templateInfo->instantiations, iter) {
-      if (iter.data()->templateInfo->equalArguments(sargs)) {
-        // found it
-        Variable *ret = iter.data()->typedefVar;
-        xassert(ret);    // I've had a few instances of failing to make this,
-                         // and if it looks like lookup failed if it's NULL
-        return ret;
+    // Search through the instantiations of this primary and do an
+    // argument/specialization pattern match.
+
+    // base should be a template primary
+    xassert(base->templateInfo->isPrimary());
+//      cout << "Env::instantiateClassTemplate: "
+//           << "template instantiation, searching instantiations of primary"
+//           << endl;
+//      base->templateInfo->gdb();
+
+    // iterate through all of the instantiations and build up an
+    // ObjArrayStack<Candidate> of candidates
+    TemplCompoundType tct;
+    SFOREACH_OBJLIST_NC(CompoundType, base->templateInfo->instantiations, iter) {
+      CompoundType *inst0 = iter.data();
+      // Sledgehammer time.
+      if (inst0->templateInfo->isMutant()) continue;
+      // FIX: I think I should change this to StringObjDict, as the
+      // values (but not the keys) should get deleted when bindings
+      // goes out of scope
+      StringSObjDict<STemplateArgument> bindings;
+      if (TemplateInfo::atLeastAsSpecificAs(sargs, inst0->templateInfo->arguments, bindings)) {
+        tct.candidates.push(inst0);
       }
     }
+
+    // if there are any candidates to try, select the best; otherwise
+    // there are no candidates so we just use the primary, which is
+    // already the default
+    if (!tct.candidates.isEmpty()) {
+      CompoundType *best = selectBestCandidate_templCompoundType(tct);
+
+      // if there is not best candidiate, then the call is ambiguous
+      // and we should deal with that error; otherwise, use the best
+      // one
+      if (best) {
+        // if the best is an instantiation, return it
+        if (best->templateInfo->isCompleteSpecOrInstantiation()) {
+          xassert(!doesUnificationRequireBindings(sargs, best->templateInfo->arguments));
+          return best->typedefVar;
+        }
+
+        // otherwise it is a partial specialization; we instantiate it
+        // below
+        base = best;            // base is saved in oldBase above
+      } else {
+        // FIX: what is the right thing to do here?
+        error(stringc << "ambiguous attempt to instantiate template");
+        return NULL;
+      }
+    }
+    // otherwise, if the candidates list is empty, we just go with the primary
   }
+
+  // there should be something non-trivial to instantiate
+  xassert(base->templateInfo->argumentsContainVariables()
+          // or the special case of a primary, which doesn't have
+          // arguments but acts as if it did
+          || base->templateInfo->isPrimary()
+          );
 
   // render the template arguments into a string that we can use
   // as the name of the instantiated class; my plan is *not* that
@@ -1674,62 +1923,16 @@ Variable *Env::instantiateClassTemplate
     // make a new scope for the template arguments
     argScope = enterScope(SK_TEMPLATE, "template argument bindings");
 
-    // simultaneously iterate over the parameters and arguments,
-    // creating bindings from params to args
-    SObjListIter<Variable> paramIter(base->templateInfo->params);
-    ASTListIter<TemplateArgument> argIter(arguments);
-    while (!paramIter.isDone() && !argIter.isDone()) {
-      Variable const *param = paramIter.data();
-      TemplateArgument const *arg = argIter.data();
-
-      if (param->hasFlag(DF_TYPEDEF) &&
-          arg->isTA_type()) {
-        // bind the type parameter to the type argument; I considered
-        // simply modifying 'param' but decided this would be cleaner
-        // for now..
-        Variable *binding = makeVariable(param->loc, param->name,
-                                         arg->asTA_typeC()->type->getType(),
-                                         DF_TYPEDEF);
-        addVariable(binding);
-      }
-      else if (!param->hasFlag(DF_TYPEDEF) &&
-               arg->isTA_nontype()) {
-        // TODO: verify that the argument in fact matches the parameter type
-
-        // bind the nontype parameter directly to the nontype expression;
-        // this will suffice for checking the template body, because I
-        // can const-eval the expression whenever it participates in
-        // type determination; the type must be made 'const' so that
-        // E_variable::constEval will believe it can evaluate it
-        Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
-                                            param->type, NULL /*syntax*/);
-        Variable *binding = makeVariable(param->loc, param->name,
-                                         bindType, DF_NONE);
-        binding->value = arg->asTA_nontypeC()->expr;
-        addVariable(binding);
-      }
-      else {                 
-        // mismatch between argument kind and parameter kind
-        char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
-        char const *argKind = arg->isTA_type()? "type" : "non-type";
-        error(stringc
-          << "`" << param->name << "' is a " << paramKind
-          << " parameter, but `" << arg->argString() << "' is a "
-          << argKind << " argument");
-      }
-
-      paramIter.adv();
-      argIter.adv();
-    }
-
-    if (!paramIter.isDone()) {
-      error(stringc
-        << "too few template arguments to `" << base->name
-        << "' (and partial specialization is not implemented)");
-    }
-    else if (!argIter.isDone()) {
-      error(stringc
-        << "too many template arguments to `" << base->name << "'");
+    if (base->templateInfo->isPartialSpec()) {
+      // unify again to compute the bindings again since we forgot
+      // them already
+      StringSObjDict<STemplateArgument> bindings;
+      TemplateInfo::atLeastAsSpecificAs(sargs, base->templateInfo->arguments, bindings);
+//        printBindings(bindings);
+      insertBindingsForPartialSpec(base, bindings);
+    } else {
+      xassert(base->templateInfo->isPrimary());
+      insertBindingsForPrimary(base, arguments);
     }
   }
 
@@ -1766,7 +1969,12 @@ Variable *Env::instantiateClassTemplate
     // tell the base template about this instantiation; this has to be
     // done before invoking the type checker, to handle cases where the
     // template refers to itself recursively (which is very common)
-    base->templateInfo->instantiations.append(inst);
+    //
+    // dsw: this is the one place where I use oldBase instead of base;
+    // looking at the other code above, I think it is the only one
+    // where I should, but I'm not sure.
+    xassert(oldBase->templateInfo && oldBase->templateInfo->isPrimary());
+    oldBase->templateInfo->instantiations.append(inst);
 
     // wrap the compound in a regular type
     SourceLoc copyLoc = copy? copy->loc : SL_UNKNOWN;
@@ -1799,6 +2007,9 @@ Variable *Env::instantiateClassTemplate
     copy->ctype = inst;
     copy->tcheckIntoCompound(*this, DF_NONE, inst, false /*inTemplate*/,
                              NULL /*containingClass*/);
+    // this is turned off because it doesn't work: somewhere the
+    // mutants are actually needed; Instead we just avoid them above.
+//      deMutantify(base);
 
     if (tracingSys("cloneTypedAST")) {
       cout << "--------- typed clone of " << base->name << " ------------\n";

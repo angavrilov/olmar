@@ -754,14 +754,32 @@ string Scope::fullyQualifiedName()
       else sb << ", ";
       switch(iter.data()->kind) {
       default:
-        xfailure("can't handle this kind of STemplateArgument");
+        xfailure("Illegal STemplateArgument::kind");
         break;
-      case STemplateArgument::STA_NONE: sb << "-NONE"; break;
-        // FIX: I don't understand what this is doing for
-        // CompoundTypes: it doesn't ever seem to use the name of the
-        // type anywhere.
-      case STemplateArgument::STA_TYPE: sb << mangle(iter.data()->value.t); break;
-      case STemplateArgument::STA_INT: sb << iter.data()->value.i; break;
+        
+      case STemplateArgument::STA_NONE:
+        xfailure("STA_NONE should never occur here");
+//          sb << "-NONE"; break;
+        break;
+
+      case STemplateArgument::STA_TYPE:
+        sb << "TYPE-" << mangle(iter.data()->value.t);
+        break;
+
+      case STemplateArgument::STA_INT:
+        sb << "INT-" << iter.data()->value.i;
+        break;
+
+    case STemplateArgument::STA_REFERENCE: // reference to global object
+    case STemplateArgument::STA_POINTER: // pointer to global object
+    case STemplateArgument::STA_MEMBER: // pointer to class member
+        sb << "OBJECT-" << mangle(iter.data()->value.v->type);
+        break;
+
+    case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
+      xfailure("STA_TEMPLATE is not implemented");
+      break;
+
       }
     }
     sb << ">";

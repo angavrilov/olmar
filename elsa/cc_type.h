@@ -528,6 +528,12 @@ public:     // funcs
   // objects, once their tags have been established to be equal
   bool equals(BaseType const *obj, EqFlags flags = EF_EXACT) const;
 
+  // true if we are at least as specific as the argument type, which
+  // is a specialization pattern if it contains any type variables.
+  // If it succeeds, creates the bindings that allow the unification
+  // and returns true; if not returns false
+  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings)=0;
+
   // compute a hash value: equal types (EF_EXACT) have the same hash
   // value, and unequal types are likely to have different values
   unsigned hashValue() const;
@@ -685,6 +691,7 @@ public:
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
   virtual CVFlags getCVFlags() const;
 };
 
@@ -718,6 +725,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
   virtual CVFlags getCVFlags() const;
 };
 
@@ -841,6 +849,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
 };
 
 
@@ -874,12 +883,15 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
 };
 
 
 // pointer to member; at least for now, this is not unified with
 // PointerType because that would make it too easy to have silent bugs
 // in code that fails to explicitly deal with ptr-to-member
+// UPDATE dsw: This class should never be unified with pointer because
+// it is a completely different kind of thing.
 class PointerToMemberType : public Type {
 public:
   CompoundType *inClass;        // class whose member is being pointed at
@@ -902,6 +914,7 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+  virtual bool atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument> &bindings);
   virtual CVFlags getCVFlags() const;
 };
 
@@ -951,13 +964,102 @@ public:    // data
   // (this is NULL for TemplateInfos attached to FunctionTypes)
   StringRef baseName;
 
-  // list of instantiations and specializations of this template
-  // (Q: this list is always empty for non-primary templates, right?)
+  // NOTE: There is an over-orthogonalization here.  The semantics of
+  // instantiations and arguments are as follows; all other
+  // combinations are illegal.  The astute reader will note that there
+  // is no circumstance under which both instantiations and arguments
+  // are non-empty.
+  //
+  // parameters | instantiations     | arguments            : role
+  // -----------+--------------------+----------------------:------------------------
+  // non-empty  | possibly non-empty | empty                : primary template
+  // non-empty  | empty              | containVariables     : partial specialization
+  // empty      | empty              | not containVariables : complete specialization or
+  //                                                          instantiation
+  // empty      | empty              | allVariables         : mutant, see below
+  //
+  // NOTE: during the typechecking of a primary, a mutant
+  // instantiation is created; It has no parameters (like an
+  // instantiation or complete specialization) but *does* have a
+  // non-empty arguments list containing type variables.  This mutant
+  // cannot be immediately destroyed, as some templates refer to
+  // themselves; finding a place where it can be has proven
+  // prohibitively difficult and so we simply filter them out before
+  // template specialization resolution is done.
+
+  // list of instantiations and specializations of this template IF it
+  // is a PRIMARY; the specializations or instantiations of a
+  // specialization, S, go under the instantiations of S's primary, P,
+  // NOT under S's instantiations
   SObjList<CompoundType> instantiations;
 
   // if this is an instantiation or specialization, then this is the
-  // list of template arguments (Q: do they line up with 'params'?
-  // what is the relationship between 'params' and 'arguments'?)
+  // list of template arguments; note that an argument for a
+  // specialization is known as as "specialization pattern" and may
+  // contain typevars.
+  //
+  // Q: do they line up with 'params'?  what is the relationship
+  // between 'params' and 'arguments'?
+  //
+  // A: The relationship between arguments and params seems to be as
+  // follows.  A primary has params and no arguments and any
+  // instantiation of it must supply values for those params.
+  //
+  // An instantiation of the primary does that, and therefore the
+  // number of arguments to an instantiation is the same as the number
+  // of params of the primary.
+  //
+  // A complete specialization is an alternate implementation for the
+  // body of the primary that should be used when an instantiation of
+  // the primary is requested with a particular set of arguments.  The
+  // syntax indicates this by prefixing with "template <>" which adds
+  // no parameters, and suffixing the name with "<(args_here)>" where
+  // "args_here" is the list of arguments such that when an
+  // instantiation of the primary is requested that *exactly* matches
+  // that list, the body of the complete specialization is used
+  // instead of that of the primary.  Note that the number of
+  // arguments again must match the number of parameters in the
+  // primary, and that the number of parameters is zero.  [That
+  // paragraph could be more efficient.]
+  //
+  // A partial specialization is like a complete specialization except
+  // that the arguments may contains variables, such as type variables
+  // for type arguments [FIX: how does this work for other types of
+  // arguments?] and are therefore known as "specialization patterns".
+  // Exactly the union of these free variables in the patterns *must*
+  // be listed in a "template<(vars_here)>" prefix to the partial
+  // specialization and the *may* be used in the body just as in a
+  // primary template.  When an instantiation of the primary is
+  // requested and the arguments "fit the pattern" when type
+  // unification is requested, the partial specialization *may* [more
+  // below] be used.  Bindings of the variables to parts of the actual
+  // arguments are created when unification with the actual arguments
+  // is performed, such that if those bindings were substituted in for
+  // the variables in the specialization patterns, the would match the
+  // actual arguments exactly.  The partial specialization is then
+  // instantiated just as a primary and this is used in place of
+  // instantiating the primary.  Therefore, for a partial
+  // specialization, the number of arguments again must match the
+  // number of parameters of the primary, and the number of parameters
+  // is the number of free variables in the arguments (specialization
+  // patterns), which can be more or less than the number of
+  // parameters to the primary.
+  //
+  // A note on ambiguity and its resolution: the astute reader will
+  // note that partial specializations make this process ambiguous;
+  // often there are more than one partial specialization that could
+  // apply.  Note that specialization patterns form a partial order
+  // under the "is more specific than" relation.  For class templates,
+  // there must be a unique "most specific" pattern that matches the
+  // arguments or the call is ambiguous and illegal.  For function
+  // templates, all the elements in the partial order that can unify
+  // with the arguments are thrown into the overload set for that
+  // function along with any other non-template functions and normal
+  // function overloading resolution is done.  During this process a
+  // template instantiation always looses to a normal function, but if
+  // it comes down to two template functions, then they are
+  // disambiguated according to "is more specific than", as with class
+  // templates.
   ObjList<STemplateArgument> arguments;
 
   // keep the syntactic arguments around so we can deal with
@@ -973,6 +1075,33 @@ public:    // funcs
 
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;
+
+  // true iff list1 is at least as specific as list2; creates any
+  // bindings necessary to effect the unification; NOTE: assymetry in
+  // the list serf/ownerness of the first and second arguments.
+  static bool TemplateInfo::atLeastAsSpecificAs
+    (SObjList<STemplateArgument> &list1,
+     ObjList<STemplateArgument> &list2,
+     StringSObjDict<STemplateArgument> &bindings);
+
+  // check the arguments contain type variables
+  bool argumentsContainTypeVariables() const;
+
+  // dsw: check the arguments contain type or object (say, int)
+  // variables; FIX: I'm not sure this is implemented right; see
+  // comments in implementation
+  bool argumentsContainVariables() const;
+
+  // all arguments are variables
+  bool argumentsAllVariables() const;
+
+  bool isMutant() const;
+  bool isPrimary() const;
+  bool isPartialSpec() const;
+  bool isCompleteSpecOrInstantiation() const;
+
+  // debugging
+  void gdb(int depth = 0);
 };
 
 
@@ -1010,14 +1139,28 @@ public:
   void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
   void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
 
+  bool isObject();              // "non-type non-template" in the spec
+  bool isType()                  { return kind==STA_TYPE;         }
+  bool isTemplate()              { return kind==STA_TEMPLATE;     }
+
   bool hasValue() const { return kind!=STA_NONE; }
 
   // the point of boiling down the syntactic arguments into this
   // simpler semantic form is to make equality checking easy
   bool equals(STemplateArgument const *obj) const;
-  
+
+
+  // return true if we are at least as specific as the argument
+  // STemplateArgument; if successful, any bindings necessary to
+  // effect unification with the argument have been added to bindings
+  bool atLeastAsSpecificAs(STemplateArgument const *obj,
+                           StringSObjDict<STemplateArgument> &bindings);
+
   // debug print
   string toString() const;
+
+  // debugging
+  void gdb(int depth = 0);
 };
 
 string sargsToString(SObjList<STemplateArgument> const &list);
