@@ -259,6 +259,7 @@ vcgen ptrptr.c
 vcgen simple.c
 vcgen fact1.c
 vcgen fact2.c
+vcgen fact3.c
 
 # fails because I can't seem to capture the notion of
 # a string in my new sel/upd model

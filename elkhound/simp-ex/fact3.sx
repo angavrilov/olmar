@@ -1,0 +1,51 @@
+; fact3.sx    -*- Lisp -*-
+; problem with predicate which is provable with BG_PUSH
+; but not with IMPLIES
+
+(PROMPT_OFF)
+
+(BG_PUSH
+  (EQ (factorial 1) 1)
+
+  (FORALL (n)
+    (IMPLIES
+      (> n 0)
+      (EQ
+        (factorial n)
+        (* n (factorial (- n 1)))
+      )))
+   
+  ; adding this axiom will let the proof go through in the
+  ; IMPLIES case too   
+  ;(FORALL (n)
+  ;  (EQ (* n 1) n)
+  ;)
+)
+
+
+; introduce assumptions with BG_PUSH
+(BG_PUSH (AND
+  (EQ (* (factorial i) r) (factorial n))
+  (>= n 0)
+  (> i 0)
+  (NOT (> (- i 1) 0))
+))
+
+; goal with BG_PUSH
+(EQ (* r i) (factorial n))
+
+; remove assumptions
+(BG_POP)
+
+
+; introduce assumptions with IMPLIES, then try to prove goal
+(IMPLIES
+  (AND
+    (EQ (* (factorial i) r) (factorial n))
+    (>= n 0)
+    (> i 0)
+    (NOT (> (- i 1) 0))
+  )
+  (EQ (* r i) (factorial n))
+)
+

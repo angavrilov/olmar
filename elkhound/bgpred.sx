@@ -38,6 +38,18 @@
   ; how to simplify a few expression kinds
   (FORALL (x)     ; not needed: (PATS (uMinus x))
     (EQ (uMinus x) (- 0 x)))
+    
+  ; strangely, this is needed for fact3.sx, if the assumptions
+  ; are introduced using IMPLIES (as opposed to BG_PUSH)
+  (FORALL (n)
+    (EQ (* n 1) n)
+  )
+
+  ; more simple arithmetic..
+  (FORALL (i j k)
+    (EQ (* (* i j) k)
+        (* j (* k i))
+    ))
 
 ;   ; ------------- tuple: "pointer" ---------------
 ;   ; how to take apart a pointer
@@ -742,6 +754,7 @@
 
   ; --------------- factorial --------------
   (EQ (factorial 0) 1)
+  (EQ (factorial 1) 1)
   
   (FORALL (n)
     (IMPLIES
@@ -750,4 +763,5 @@
         (factorial n)
         (* n (factorial (- n 1)))
       )))
+
 ))

@@ -216,7 +216,42 @@ bg_push (
 valid "implications" (
   (EQ mem_25 (updOffset mem_24 r_16 (factorial a_12)))
 )
-valid "goal" (
+valid "fact2" (
   (EQ mem_25 (updOffset mem_23 r_16 (factorial a_12)))
+)
+bg_pop
+
+
+; ---------------------- fact3.c --------------
+valid "fact3" (
+  (IMPLIES
+    (AND
+      (EQ (* (factorial i_15) r_2) (factorial n_17))
+      (>= n_17 0)
+      (> i_15 0)
+      (NOT (> (- i_15 1) 0))
+    )
+    (EQ (* r_2 i_15) (factorial n_17))
+  )
+)
+
+
+bg_push (
+  (EQ (* (factorial i_16) r_3) (factorial n_18))
+  (>= n_18 0)
+  (> i_16 0)
+  (> (- i_16 1) 0)
+)
+valid "implications" (
+  (EQ (* i_16 (factorial (- i_16 1))) (factorial i_16))
+  (EQ (* (* i_16 (factorial (- i_16 1))) r_3) (* (factorial i_16) r_3))
+  (EQ (* (* i_16 (factorial (- i_16 1))) r_3) (factorial n_18))
+)
+valid "implications2" (
+  (EQ (* (* i_16 (factorial (- i_16 1))) r_3)
+      (* (factorial (- i_16 1)) (* r_3 i_16)))
+)
+valid "fact3b" (
+  (EQ (* (factorial (- i_16 1)) (* r_3 i_16)) (factorial n_18))
 )
 bg_pop
