@@ -72,8 +72,8 @@ SPACE [ \t\r\n\f\v]
 <INITIAL,CURLY>")" { fprintf(stderr, "unexpected '%s' at line %d\n", yytext, yylineno); exit(1); }
 
   /* attributes */
-<ATTRIBUTE>"("  {BEGIN(ATTROPEN1); emit();}
-<ATTROPEN1>"("  {BEGIN(ATTROPEN2); emit();}
+<ATTRIBUTE>"("  {BEGIN ATTROPEN1; emit();}
+<ATTROPEN1>"("  {BEGIN ATTROPEN2; emit();}
 <ATTROPEN2>")"  {BEGIN ATTRCLOSE1; emit();}
 <ATTRCLOSE1>")" {pop(); emit(); --attr_nesting; diag("</ATTR>"); }
 
@@ -101,7 +101,7 @@ SPACE [ \t\r\n\f\v]
   "__attribute__" {diag("<ATTR>"); push(ATTRIBUTE); ++attr_nesting; emit();}
 
   /* anything else */
-  [^})] { emit(); }
+  [^\"\'{}()] { emit(); }
 }
 
 <*>(.|\n) { fprintf(stderr, "unexpected character at line %d\n", yylineno); exit(1); }
