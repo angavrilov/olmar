@@ -11,7 +11,10 @@ public:
   // the structure (or class) tag name is treated as a type name
   // by itself
   bool tagsAreTypes;
-  
+
+  // when true, recognize C++ keywords in input stream
+  bool recognizeCppKeywords;
+
 public:
   CCLang() { ANSI_C(); }
 

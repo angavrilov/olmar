@@ -102,7 +102,7 @@ grampar-set := grampar.tab.o gramlex.yy.o grampar.o $(AST)/gramlex.o \
 
 # in addition to grammar-set, file needed to do GLR parsing of C/C++ code
 glr-set := gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
-           useract.o cyctimer.o
+           useract.o cyctimer.o cc_lang.o
 -include $(glr-set:.o=.d)
 
 # files involved in translating parsed C/C++ code
@@ -156,7 +156,7 @@ lexer1: $(lexer1-dep)
 
 # second pass lexer
 lexer2-dep := lexer2.cc $(common) lexer1.o lexer1yy.o $(AST)/fileloc.o \
-              $(AST)/strtable.o $(libraries)
+              $(AST)/strtable.o cc_lang.o $(libraries)
 lexer2: $(lexer2-dep) lexer2.h
 	$(link) -o lexer2 -DTEST_LEXER2 $(lexer2-dep)
 

@@ -21,8 +21,8 @@ void doit(int argc, char **argv)
   //traceAddSys("parse-tree");
 
   SemanticValue treeTop;
-  ParseTreeAndTokens tree(treeTop);
   CCLang lang;
+  ParseTreeAndTokens tree(lang, treeTop);
   UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
   tree.userAct = user;
   if (!treeMain(tree, argc, argv)) {

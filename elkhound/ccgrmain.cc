@@ -60,7 +60,7 @@ void doit(int argc, char **argv)
   TranslationUnit *unit;
   {
     SemanticValue treeTop;
-    ParseTreeAndTokens tree(treeTop, strTable);
+    ParseTreeAndTokens tree(lang, treeTop, strTable);
     UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
     tree.userAct = user;
     if (!treeMain(tree, argc, argv,

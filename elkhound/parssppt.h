@@ -23,8 +23,8 @@ public:
   UserActions *userAct;
 
 public:
-  ParseTreeAndTokens(SemanticValue &top);
-  ParseTreeAndTokens(SemanticValue &top, StringTable &extTable);
+  ParseTreeAndTokens(CCLang &lang, SemanticValue &top);
+  ParseTreeAndTokens(CCLang &lang, SemanticValue &top, StringTable &extTable);
   ~ParseTreeAndTokens();
 };
 

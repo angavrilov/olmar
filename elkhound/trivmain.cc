@@ -15,6 +15,7 @@
 #include "glr.h"       // GLR
 #include "useract.h"   // UserActions
 #include "ptreenode.h" // PTreeNode
+#include "cc_lang.h"   // CCLang
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
@@ -120,7 +121,8 @@ int entry(int argc, char *argv[])
   }
 
   // lex input
-  Lexer2 lexer;
+  CCLang lang;
+  Lexer2 lexer(lang);
   traceProgress() << "lexing...\n";
   trivialLexer(inputFname, lexer);
 

@@ -9,6 +9,8 @@
 #include "strtable.h"     // StringRef, StringTable
 #include "useract.h"      // SemanticValue
 
+class CCLang;             // cc_lang.h
+
 // this enumeration defines the terminal symbols that the parser
 // deals with
 enum Lexer2TokenType {
@@ -53,6 +55,7 @@ enum Lexer2TokenType {
   L2_ELSE,
   L2_ENUM,
   L2_EXPLICIT,
+  L2_EXPORT,
   L2_EXTERN,
   L2_FALSE,
   L2_FLOAT,
@@ -64,6 +67,7 @@ enum Lexer2TokenType {
   L2_INT,
   L2_LONG,
   L2_MUTABLE,
+  L2_NAMESPACE,
   L2_NEW,
   L2_OPERATOR,
   L2_PASCAL,
@@ -87,8 +91,10 @@ enum Lexer2TokenType {
   L2_TRY,
   L2_TYPEDEF,
   L2_TYPEID,
+  L2_TYPENAME,
   L2_UNION,
   L2_UNSIGNED,
+  L2_USING,
   L2_VIRTUAL,
   L2_VOID,
   L2_VOLATILE,
@@ -230,6 +236,9 @@ private:
   StringTable *myIdTable;
 
 public:
+  // language options
+  CCLang &lang;
+
   // storage of all the identifiers we encounter
   StringTable &idTable;
 
@@ -240,8 +249,8 @@ public:
   ObjListMutator<Lexer2Token> tokensMut;
 
 public:
-  Lexer2();                              // table is created locally
-  Lexer2(StringTable &externalTable);    // table given externally
+  Lexer2(CCLang &lang);                                // table is created locally
+  Lexer2(CCLang &lang, StringTable &externalTable);    // table given externally
   ~Lexer2();
   
   SourceLocation startLoc() const;

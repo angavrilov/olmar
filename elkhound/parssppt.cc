@@ -7,16 +7,16 @@
 
 
 // ---------------------- ParseTree --------------------
-ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top)
+ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top)
   : treeTop(top),
-    lexer2(),
+    lexer2(L),
     userAct(NULL)
 {}
 
-ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top,
+ParseTreeAndTokens::ParseTreeAndTokens(CCLang &L, SemanticValue &top,
                                        StringTable &extTable)
   : treeTop(top),
-    lexer2(extTable),
+    lexer2(L, extTable),
     userAct(NULL)
 {}
 

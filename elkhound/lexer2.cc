@@ -5,6 +5,7 @@
 #include "trace.h"       // tracingSys
 #include "strutil.h"     // encodeWithEscapes
 #include "exc.h"         // xformat
+#include "cc_lang.h"     // CCLang
 
 #include <stdlib.h>      // strtoul
 
@@ -66,6 +67,7 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_ELSE),                 "else", true },
   { N(L2_ENUM),                 "enum", true },
   { N(L2_EXPLICIT),             "explicit", true },
+  { N(L2_EXPORT),               "export", true },
   { N(L2_EXTERN),               "extern", true },
   { N(L2_FALSE),                "false", true },
   { N(L2_FLOAT),                "float", true },
@@ -77,6 +79,7 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_INT),                  "int", true },
   { N(L2_LONG),                 "long", true },
   { N(L2_MUTABLE),              "mutable", true },
+  { N(L2_NAMESPACE),            "namespace", true },
   { N(L2_NEW),                  "new", true },
   { N(L2_OPERATOR),             "operator", true },
   { N(L2_PASCAL),               "pascal", true },
@@ -100,8 +103,10 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_TRY),                  "try", true },
   { N(L2_TYPEDEF),              "typedef", true },
   { N(L2_TYPEID),               "typeid", true },
+  { N(L2_TYPENAME),             "typename", true },
   { N(L2_UNION),                "union", true },
   { N(L2_UNSIGNED),             "unsigned", true },
+  { N(L2_USING),                "using", true },
   { N(L2_VIRTUAL),              "virtual", true },
   { N(L2_VOID),                 "void", true },
   { N(L2_VOLATILE),             "volatile", true },
@@ -193,12 +198,14 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
 #undef N
 
 
+struct KeywordMap {
+  char const *spelling;     // token source value
+  Lexer2TokenType tokType;  // destination classification
+};
+
 // map of GNU keywords into ANSI keywords (I don't know and
 // don't care about whatever differences there may be)
-struct GNUKeywordMap {
-  char const *spelling;
-  Lexer2TokenType tokType;
-} gnuKeywordMap[] = {
+KeywordMap gnuKeywordMap[] = {
   { "__asm__", L2_ASM },
   { "__const__", L2_CONST },
   { "__label__", L2___LABEL__ },
@@ -208,8 +215,13 @@ struct GNUKeywordMap {
   { "__FUNCTION__", L2___FUNCTION__ },
   { "__PRETTY_FUNCTION__", L2___PRETTY_FUNCTION__ },
 
-  // hack to make C++ keywords not appear to be keywords;
-  // need to make this dependent on some flag somewhere ..
+  // ones that GNU c has
+  //{ "inline", L2_NAME },
+};
+
+// make C++ keywords not appear to be keywords; need to make this
+// dependent on some flag somewhere ..
+KeywordMap c_KeywordMap[] = {
   { "bool", L2_NAME },
   { "catch", L2_NAME },
   { "class", L2_NAME },
@@ -222,7 +234,7 @@ struct GNUKeywordMap {
   { "friend", L2_NAME },
   { "mutable", L2_NAME },
   { "namespace", L2_NAME },
-  //{ "new", L2_NAME },     // back to recognizing 'new'
+  { "new", L2_NAME },     // back to recognizing 'new'
   { "operator", L2_NAME },
   { "private", L2_NAME },
   { "protected", L2_NAME },
@@ -236,13 +248,10 @@ struct GNUKeywordMap {
   { "typename", L2_NAME },
   { "using", L2_NAME },
   { "virtual", L2_NAME },
-
-  // ones that GNU c has
-  //{ "inline", L2_NAME },
 };
 
 
-Lexer2TokenType lookupKeyword(char const *keyword)
+Lexer2TokenType lookupKeyword(CCLang &lang, char const *keyword)
 {
   // works?
   STATIC_ASSERT(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
@@ -254,6 +263,14 @@ Lexer2TokenType lookupKeyword(char const *keyword)
       return gnuKeywordMap[i].tokType;
     }
   }}
+
+  if (!lang.recognizeCppKeywords) {
+    {loopi(TABLESIZE(c_KeywordMap)) {
+      if (0==strcmp(c_KeywordMap[i].spelling, keyword)) {
+        return c_KeywordMap[i].tokType;
+      }
+    }}
+  }
 
   {loopi(L2_NUM_TYPES) {
     if (l2TokTypes[i].bisonSpelling &&
@@ -475,8 +492,9 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 
     try {
       switch (L1->type) {
-        case L1_IDENTIFIER:
-          L2->type = lookupKeyword(L1->text);      // keyword's type or L2_NAME
+        case L1_IDENTIFIER:                                   
+          // get either keyword's type, or L2_NAME
+          L2->type = lookupKeyword(dest.lang, L1->text);
           if (L2->type == L2_NAME) {
             // save name's text
             L2->strValue = dest.idTable.add(L1->text);
@@ -523,7 +541,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
         }
 
         case L1_OPERATOR:
-          L2->type = lookupKeyword(L1->text);      // operator's type
+          L2->type = lookupKeyword(dest.lang, L1->text);      // operator's type
           xassert(L2->type != L2_NAME);            // otherwise invalid operator text..
           break;
 
@@ -553,15 +571,17 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 
 
 // --------------------- Lexer2 ------------------
-Lexer2::Lexer2()
+Lexer2::Lexer2(CCLang &L)
   : myIdTable(new StringTable()),
+    lang(L),
     idTable(*myIdTable),      // hope this works..
     tokens(),
     tokensMut(tokens)
 {}
 
-Lexer2::Lexer2(StringTable &extTable)
+Lexer2::Lexer2(CCLang &L, StringTable &extTable)
   : myIdTable(NULL),
+    lang(L),
     idTable(extTable),
     tokens(),
     tokensMut(tokens)
@@ -608,7 +628,7 @@ Lexer2TokenType lexer2_gettoken()
     }
 
     // do second phase
-    lexer2 = new Lexer2;
+    lexer2 = new Lexer2(*new CCLang);
     lexer2_lex(*lexer2, *lexer1, "<stdin>");
 
     // prepare to return tokens
