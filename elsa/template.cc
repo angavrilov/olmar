@@ -1755,6 +1755,18 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
     return;
   }
 
+//    // ****************
+//    // attempt to compute the members of instCtxt
+//    {
+//      xassert(instCtxt->instV->templateInfo()->getMyPrimaryIdem()
+//              == instCtxt->baseV->templateInfo());
+//      // FIX: turn this back on
+//  //      xassert( ((SObjList<STemplateArgument>&) instCtxt->instV->templateInfo()->arguments)
+//  //               .equalAsPointerLists(*(instCtxt->sargs)));
+//    }
+  
+//    // ****************
+
   // OK, seems it can be a partial specialization as well
 //    xassert(instCtxt->baseV->templateInfo()->isPrimary());
   xassert(instCtxt->baseV->templateInfo()->isPrimary() ||
