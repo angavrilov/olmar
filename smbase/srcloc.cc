@@ -879,7 +879,7 @@ void testHashMap()
       // break into tokens at whitespace (this isn't exactly
       // right, because the file names can have quoted spaces,
       // but it will do for testing purposes)
-      StrtokParse tok(buf, " \n");
+      StrtokParse tok(buf, " \r\n");
       if (tok < 3) continue;
 
       int origLine = atoi(tok[1]);
