@@ -246,7 +246,7 @@ void Function::print(PrintEnv &env)
                          nameAndParams->getDeclaratorId(),
                          nameAndParams->var);
 
-  if (uninstTemplatePlaceholder()) {
+  if (instButNotTchecked()) {
     // this is an unchecked instantiation
     env << "; // not instantiated\n";
     return;

@@ -220,7 +220,7 @@ bool LoweredASTVisitor::visitFunction(Function *func)
   // SPECIAL CASE: due to the way that member functions of template
   // classes are handled, sometimes Functions exist that have not been
   // tchecked; avoid them
-  if (!func->hasBodyBeenTChecked) {
+  if (func->instButNotTchecked()) {
     return false;
   }
 
@@ -430,6 +430,40 @@ void Function::printExtras(ostream &os, int indent) const
 SourceLoc Function::getLoc() const
 {
   return nameAndParams->getLoc();
+}
+
+
+Function *Function::shallowClone() const
+{
+  Function *ret = new Function(
+    dflags,
+    retspec? retspec->clone() : NULL,
+    nameAndParams? nameAndParams->clone() : NULL,
+
+    // leave the init/body/handlers empty
+    NULL, NULL, NULL
+  );
+
+  ret->cloneThunkSource = this;
+  
+  return ret;
+}
+
+void Function::finishClone()
+{
+  if (cloneThunkSource) {
+    // follow the chain of thunk sources (in/t0258.cc)
+    Function const *src = cloneThunkSource;
+    while (src->cloneThunkSource) {
+      src = src->cloneThunkSource;
+    }
+
+    inits = cloneFakeList(src->inits);
+    body = src->body->clone();
+    handlers = cloneFakeList(src->handlers);
+
+    cloneThunkSource = NULL;
+  }
 }
 
 

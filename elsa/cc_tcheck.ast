@@ -43,9 +43,6 @@ class TopForm {
 
 
 class Function {
-  // has this function been typechecked with checkBody=true?
-  public bool hasBodyBeenTChecked = false;
-
   // since 'nameAndParams->var' might refer to a previous declaration,
   // and therefore might have differently-named parameters, I'll add
   // another field specifically for a version of the FunctionType
@@ -62,21 +59,35 @@ class Function {
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 
+  // if this Function is intended to be a clone of a template body,
+  // but we have not actually cloned the init/body/handlers, then
+  // this is a pointer to the Function to eventually clone, acting
+  // as a thunk; otherwise it is NULL
+  public Function const *cloneThunkSource = NULL;
+
+  // return a copy of this Function, but with just a clone thunk
+  public Function *shallowClone() const;
+  custom substituteClone { return shallowClone(); }
+
+  // if 'cloneThunkSource' is not NULL, clone its body elements
+  // to fill out 'this' object; otherwise, do nothing
+  public void finishClone();
+
   // if 'instV' is not NULL, then force the declarator 'nameAndParams'
   // to refer to it instead of using the usual lookup/creation
   // mechanism
   public void tcheck(Env &env, Variable *instV = NULL);
-  
+
   // this is where we end up if 'env.checkFunctionBodies' is true
   public void tcheckBody(Env &env);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
   private void tcheck_handlers(Env &env);
-  
-  // this returns true if this is just a placeholder for an
-  // uninstantiated template function
-  public bool uninstTemplatePlaceholder() const;
+
+  // this returns true if this is an instantiation of a template 
+  // function that has not yet been tcheck'd
+  public bool instButNotTchecked() const;
 }
 
 

@@ -387,9 +387,9 @@ void Function::tcheck(Env &env, Variable *instV)
 
 void Function::tcheckBody(Env &env)
 {
-  // FIX: not sure if this should be set first or last, but I don't
-  // want it done twice, so we do it first for now
-  hasBodyBeenTChecked = true;
+  // if this is an instantiation, finish cloning before
+  // trying to tcheck
+  finishClone();
 
   // once we get into the body of a function, if we end up triggering
   // additional instantiations, they should *not* see any prevailing
@@ -778,11 +778,9 @@ void Function::tcheck_handlers(Env &env)
 }
 
 
-bool Function::uninstTemplatePlaceholder() const
-{
-  return !hasBodyBeenTChecked &&
-         nameAndParams->var &&
-         nameAndParams->var->templateInfo();
+bool Function::instButNotTchecked() const
+{            
+  return !!cloneThunkSource;
 }
 
 

@@ -53,21 +53,6 @@ FullExpressionAnnot::~FullExpressionAnnot()
 {}
 
 
-#if 0    // delete me
-FullExpressionAnnot::StackBracket::StackBracket
-  (Env &env0, FullExpressionAnnot &fea0)
-  : env(env0)
-  , fea(fea0)
-  , s(fea.tcheck_preorder(env))
-{}
-
-FullExpressionAnnot::StackBracket::~StackBracket()
-{
-  fea.tcheck_postorder(env, s);
-}
-#endif // 0
-
-
 // --------------------- ElabVisitor misc. ----------------------
 ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
                          TranslationUnit *tu)
@@ -218,10 +203,6 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
     NULL /*handlers*/
   );
   f->funcType = env.tfac.cloneType(var->type)->asFunctionType();
-
-  // it hasn't strictly been tchecked, but we are going to manually
-  // annotate it with types, which is manually tchecking it
-  f->hasBodyBeenTChecked = true;
 
   if (ft->isMethod()) {
     // f's receiver should match that of its funcType
@@ -1674,7 +1655,7 @@ bool ElabVisitor::visitTopForm(TopForm *tf)
 bool ElabVisitor::visitFunction(Function *f)
 {
   // don't elaborate function bodies that were never typechecked
-  if (!f->hasBodyBeenTChecked) {
+  if (f->instButNotTchecked()) {
     return false;               // prune
   }
 
