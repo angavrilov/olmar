@@ -16,6 +16,7 @@ static void enableWarning(Bool3 &b)
 void CCLang::enableAllWarnings()
 {
   enableWarning(allowImplicitFunctionDecls);
+  enableWarning(allowQualifiedMemberDeclarations);
 }
 
 
@@ -57,6 +58,7 @@ void CCLang::ANSI_C89()
   lvalueFlowsThroughCast = false;
   
   allowImplicitIntForOperators = false;
+  allowQualifiedMemberDeclarations = B3_FALSE;
 }
 
 void CCLang::KandR_C()
@@ -170,6 +172,7 @@ void CCLang::ANSI_Cplusplus()
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
   allowImplicitIntForOperators = false;
+  allowQualifiedMemberDeclarations = B3_FALSE;
 }
 
 void CCLang::GNU_Cplusplus()
@@ -187,6 +190,8 @@ void CCLang::GNU_Cplusplus()
   allowImplicitIntForMain = true;
 
   declareGNUBuiltins = true;
+
+  allowQualifiedMemberDeclarations = B3_TRUE;
 }
 
 

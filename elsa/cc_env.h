@@ -684,6 +684,8 @@ public:      // funcs
                              ArrayStack<Type*> const &argTypes, LookupFlags flags);
   void addCandidates(LookupSet &candidates, Variable *var);
 
+  // see comments at implementation
+  void checkForQualifiedMemberDeclarator(Declarator *decl);
 
   // ------------ new lookup mechanism ---------------
 private:     // funcs

@@ -22,3 +22,5 @@ S2::S2(int x) {}
 template<class T> struct S3 {
     S3<T>::S3() {}
 };
+
+S3<int> s3;

@@ -2072,6 +2072,12 @@ void MR_decl::tcheck(Env &env)
 {
   env.setLoc(loc);
 
+  if (!( d->dflags & DF_FRIEND )) {
+    FAKELIST_FOREACH_NC(Declarator, d->decllist, iter) {
+      env.checkForQualifiedMemberDeclarator(iter);
+    }
+  }
+
   if (env.secondPassTcheck) {
     // TS_classSpec is only thing of interest
     if (d->spec->isTS_classSpec()) {
@@ -2097,6 +2103,10 @@ void MR_func::tcheck(Env &env)
     // a definitive answer
     //env.error("unions cannot have member functions");
     //return;
+  }
+
+  if (!( f->dflags & DF_FRIEND )) {
+    env.checkForQualifiedMemberDeclarator(f->nameAndParams);
   }
 
   // mark the function as inline, whether or not the
@@ -2594,24 +2604,8 @@ realStart:
 
   // are we in a class member list?  we can't be in a member
   // list if the name is qualified (and if it's qualified then
-  // a class scope has been pushed, so we'd be fooled)
-  //
-  // TODO: this is wrong because qualified names *can* appear in
-  // class member lists.. (according to gcc)
-  //
-  // 8/13/04: Actually, 8.3 para 1 says (in part):
-  //   "A declarator-id shall not be qualified except for the
-  //    definition of a member function [etc.] ... *outside* of
-  //    its class, ..." (emphasis mine)
-  // So maybe what I do is actually right?
-  //
-  // Essentially, what I'm doing is saying that if you have
-  // qualifiers then you're a definition outside the class body,
-  // otherwise you're inside it.  But of course that is not the
-  // way to tell if you're outside a class body!  But the fix is
-  // still not perfectly clear to me, so it remains a TODO.
-  // (When I fix this, I may be able to remove the 'enclosingClass'
-  // argument from 'createDeclaration'.)
+  // a class scope has been pushed, so we'd be fooled); see
+  // also Env::checkForQualifiedMemberDeclarator().
   CompoundType *enclosingClass =
     name->hasQualifiers()? NULL : scope->curCompound;
 

@@ -4800,6 +4800,55 @@ Variable *Env::lookupErrorObject(LookupFlags flags)
   }
 }
 
+                                                            
+// 'decl' is a declarator in a class member declaration (and not a
+// friend).  Handle the case where it declares a qualified name.
+void Env::checkForQualifiedMemberDeclarator(Declarator *decl)
+{
+  // dig down to the D_name
+  IDeclarator *idecl = decl->decl;
+  while (idecl->getBase()) {
+    idecl = idecl->getBase();
+  }
+  
+  // look at the name
+  PQName *name = idecl->getDeclaratorId();
+  if (!name || !name->hasQualifiers()) {
+    return;    // nothing to do
+  }
+
+  // 8.3 para 1 says (in part):
+  //   "A declarator-id shall not be qualified except for the
+  //    definition of a member function [etc.] ... *outside* of
+  //    its class, ..." (emphasis mine)
+
+  // complain
+  if (lang.allowQualifiedMemberDeclarations == B3_WARN) {
+    warning(name->loc, "qualified name is not allowed in member declaration");
+  }
+  else if (lang.allowQualifiedMemberDeclarations == B3_FALSE) {
+    error(name->loc, "qualified name is not allowed in member declaration");
+  }
+  
+  // skip the qualifiers
+  do {
+    name = name->asPQ_qualifier()->rest;
+  } while (name->hasQualifiers());
+
+  // put the unqualified name back into 'idecl' to pacify the tcheck
+  // code that comes after this check, as it expects member
+  // declarators to never be qualified
+  if (idecl->isD_name()) {
+    idecl->asD_name()->name = name;
+  }
+  else if (idecl->isD_bitfield()) {
+    idecl->asD_bitfield()->name = name;
+  }
+  else {
+    xfailure("unknown leaf IDeclarator");
+  }
+}
+
 
 // ----------------------- makeQualifiedName -----------------------
 // prepend to 'name' all possible qualifiers, starting with 's'
@@ -5008,9 +5057,7 @@ Type *Env::warning(SourceLoc loc, rostring msg)
 {
   string instLoc = instLocStackString();
   TRACE("error", "warning: " << msg << instLoc);
-  if (!disambiguateOnly) {
-    errors.addError(new ErrorMsg(loc, msg, EF_WARNING, instLoc));
-  }
+  errors.addError(new ErrorMsg(loc, msg, EF_WARNING, instLoc));
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 

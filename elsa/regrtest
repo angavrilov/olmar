@@ -249,6 +249,9 @@ testparse_strict() {
   # I will leave "testparse_strict", but not use it anymore.
   runTest perl ./multitest.pl ./ccparse -tr strict,$TR_FLAGS in/$1
 }
+testparse_ansi() {
+  runTest perl ./multitest.pl ./ccparse -tr ansi,$TR_FLAGS in/$1
+}
 
 failparse() {
   if [ "$2" = "" ]; then
@@ -640,7 +643,11 @@ testparse t0357.cc
 testparse t0358.cc
 testparse t0359.cc
 testparse t0360.cc
-testparse t0361.cc
+
+# this tests that Elsa diagnoses erroneous input, but gcc accepts it,
+# so Elsa only rejects in ANSI mode
+testparse_ansi t0361.cc
+
 testparse t0362.cc
 testparse t0363.cc
 testparse t0364.cc
@@ -865,7 +872,7 @@ testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
 testparse k0003.cc #"template argument from static const member of template class"
 failparse k0004.cc "non-typename template argument"
-failparse k0005.cc "declaring a constructor with class name"
+testparse k0005.cc #"declaring a constructor with class name"
 failparse k0005a.cc "declaring variables and member functions with class name"
 failparse k0006.cc "error: E_alignofType is not constEval'able"
 testparse k0007.cc

@@ -162,6 +162,9 @@ public:
   
   // MSVC bug compatibility: allow implicit int for operator functions
   bool allowImplicitIntForOperators;
+  
+  // gcc bug compatibility: allow qualified member declarations
+  Bool3 allowQualifiedMemberDeclarations;
 
 public:
   CCLang() { ANSI_C89(); }
