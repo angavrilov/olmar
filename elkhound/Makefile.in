@@ -305,6 +305,7 @@ gcom-clean:
 	$(MAKE) -C examples/gcom5 clean
 	$(MAKE) -C examples/gcom clean
 	$(MAKE) -C examples/gcom7 clean
+	$(MAKE) -C examples/scannerless clean
 
 
 # ----------------------------- EFa -----------------------
