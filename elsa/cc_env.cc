@@ -6,6 +6,11 @@
 #include "ckheap.h"      // heapCheck
 #include "strtable.h"    // StringTable
 #include "cc_lang.h"     // CCLang
+#include "strutil.h"     // suffixEquals
+
+
+inline ostream& operator<< (ostream &os, SourceLoc sl)
+  { return os << toString(sl); }
 
 
 // --------------------- Env -----------------
@@ -1469,7 +1474,7 @@ void Env::makeShadowTypedef(Scope *scope, Variable *tv)   // "tv" = typedef var
   StringRef shadowName = str(stringc << tv->name << "-shadow");
   TRACE("env", "making shadow typedef variable `" << shadowName <<
         "' for `" << tv->name <<
-        "' to `" << shadowName << "' because a non-typedef var is masking it");
+        "' because a non-typedef var is masking it");
 
   // shadow shouldn't exist
   xassert(!scope->lookupVariable(shadowName, *this, LF_INNER_ONLY));
@@ -1480,6 +1485,13 @@ void Env::makeShadowTypedef(Scope *scope, Variable *tv)   // "tv" = typedef var
   
   // at least for now, don't call registerVariable or addedNewVariable,
   // since it's a weird situation
+}
+
+
+bool Env::isShadowTypedef(Variable *tv)
+{
+  // this isn't a common query, so it's ok if it's a little slow
+  return suffixEquals(tv->name, "-shadow");
 }
 
 
@@ -2048,14 +2060,14 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   if (newVar == prior) {
     // found that 'newVar' named an equivalent entity already in this
     // scope, so do nothing
+    return;
   }
-  else {
-    // hook 'newVar' up as an alias for 'origVar'
-    newVar->usingAlias = origVar->skipAlias();    // don't make long chains
 
-    TRACE("env", "made alias `" << name <<
-                 "' for origVar at " << toString(origVar->loc));
-  }
+  // hook 'newVar' up as an alias for 'origVar'
+  newVar->usingAlias = origVar->skipAlias();    // don't make long chains
+
+  TRACE("env", "made alias `" << name <<
+               "' for origVar at " << toString(origVar->loc));
 }
 
 
@@ -2362,26 +2374,21 @@ StringRef Env::makeThrowClauseVarName()
 }
 
 
-// see comments for the SK_FUNCTION case, below
-PQName *Env::make_PQ_fullyQualifiedName(CompoundType *ct, PQName *name0)
+PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
 {
-  xassert(ct->curCompound);
-  xassert(ct->typedefVar);
+  // should only be called for named scopes
+  Variable *typedefVar = s->getTypedefName();
+  xassert(typedefVar);
 
+  // prepend to 'name0' information about 's'
   {
-    StringRef typedefVarName = ct->typedefVar->name;
-//      cout
-//        << "curCompound->name '" << curCompound->name
-//        << "' typedefVar->name '" << typedefVar->name << "'"
-//        << "' typedefVarName '" << typedefVarName << "'"
-//        << endl;
-
     // construct the list of template arguments; we must rebuild them
     // instead of using templateInfo->argumentSyntax directly, because the
     // TS_names that are used in the latter might not be in scope here
     FakeList<TemplateArgument> *targs = FakeList<TemplateArgument>::emptyList();
-    if (ct->templateInfo) {
-      FAKELIST_FOREACH_NC(TemplateArgument, ct->templateInfo->argumentSyntax, iter) {
+    if (s->curCompound && s->curCompound->templateInfo) {
+      FAKELIST_FOREACH_NC(TemplateArgument, 
+                          s->curCompound->templateInfo->argumentSyntax, iter) {
         ASTSWITCH(TemplateArgument, iter) {
           ASTCASE(TA_type, t) {
             // pull out the Type, then build a new ASTTypeId for it
@@ -2403,72 +2410,36 @@ PQName *Env::make_PQ_fullyQualifiedName(CompoundType *ct, PQName *name0)
     // now build a PQName
     if (name0) {
       // cons a qualifier on to the front
-      name0 = new PQ_qualifier(loc(), typedefVarName, targs, name0);
-    } 
+      name0 = new PQ_qualifier(loc(), typedefVar->name, targs, name0);
+    }
     else {
       // dsw: dang it Scott, why the templatization asymmetry between
       // PQ_name/template on one hand and PQ_qualifier on the other?
       //
       // sm: to save space in the common PQ_name case
       if (targs) {
-        name0 = new PQ_template(loc(), typedefVarName, targs);
+        name0 = new PQ_template(loc(), typedefVar->name, targs);
       }
       else {
-        name0 = new PQ_name(loc(), typedefVarName);
+        name0 = new PQ_name(loc(), typedefVar->name);
       }
     }
   }
 
-  if (ct->parentScope) {
-    xassert(ct->parentScope->curCompound);
-    return make_PQ_fullyQualifiedName(ct->parentScope->curCompound, name0);
-  } 
+  // now find additional qualifiers needed to name 's' itself
+  if (s->parentScope) {
+    return make_PQ_fullyQualifiedName(s->parentScope, name0);
+  }
+  else if (s->scopeKind == SK_GLOBAL) {
+    // prepend what syntactically would be a leading "::"
+    return new PQ_qualifier(loc(), NULL /*qualifier*/,
+                            FakeList<TemplateArgument>::emptyList(),
+                            name0);
+  }
   else {
-    xassert(ct->scopeKind == SK_CLASS);
-    switch(ct->typedefVar->scopeKind) {
-      default:
-      case SK_UNKNOWN:
-        xfailure("shouldn't get here: top scope kind is SK_UNKNOWN");
-        break;
-
-      case SK_TEMPLATE:
-        xfailure("unimplemented: don't handle template scopes yet");
-        break;
-
-      case SK_PARAMETER:
-        // FIX: Is it possible to declare a type in a parameter?
-        // sm: Yes, but it's always a mistake to do so.
-        xfailure("shouldn't be getting a parameter scope here");
-        break;
-
-      case SK_GLOBAL:
-        return new PQ_qualifier(loc(), NULL /*qualifier*/,
-                                FakeList<TemplateArgument>::emptyList(),
-                                name0);
-        break;
-
-      case SK_CLASS:
-        // FIX: is that right?
-        // sm: At least if every class has a name, then whenever scopeKind
-        // is SK_CLASS, parentScope will be non-NULL, so this isn't possible.
-        // But for an anonymous class it's conceivable...
-        xfailure("I don't think this is possible.");
-        break;
-
-      case SK_FUNCTION:
-        // sm: This case reveals a subtle, misleading aspect to the
-        // behavior of this function.  A local name cannot be "fully
-        // qualified", since its scope is anonymous.  What this
-        // function *really* does is "make me a name that will
-        // typecheck to this compound type I give you, in this
-        // environment".  Sometimes that entails qualifying it (to
-        // avoid colliding with an inner name), but not always.  In my
-        // opinion the name should be changed (and perhaps its
-        // overzealous qualification behavior reduced) to reflect this
-        // intent.
-        return name0;
-        break;
-    }
+    // no further qualification is possible, so we cross our fingers
+    // and hope it isn't necessary either
+    return name0;
   }
 }
 

@@ -4213,6 +4213,12 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   // TODO: make sure the argument types are compatible
   // with the constructor parameters
 
+  if (type->isCompoundType() &&
+      !type->asCompoundType()->isComplete()) {
+    return env.error(stringc
+      << "attempt to construct incomplete type `" << type->toString() << "'");
+  }
+
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
                                              reallyDoOverload(env, args));
   if (ctor) {
@@ -5645,6 +5651,12 @@ void ND_alias::tcheck(Env &env)
 
 void ND_usingDecl::tcheck(Env &env)
 {
+  if (!name->hasQualifiers()) {
+    env.error(stringc
+      << "a using-declaration requires a qualified name");
+    return;
+  }
+
   // find what we're referring to
   Variable *origVar = env.lookupPQVariable(name);
   if (!origVar) {
@@ -5652,13 +5664,40 @@ void ND_usingDecl::tcheck(Env &env)
       << "undeclared identifier: `" << *name << "'");
     return;
   }
-  
+
   if (!origVar->overload) {
     env.makeUsingAliasFor(name->loc, origVar);
   }
   else {
     SFOREACH_OBJLIST_NC(Variable, origVar->overload->set, iter) {
       env.makeUsingAliasFor(name->loc, iter.data());
+    }
+  }
+
+  // the eighth example in 7.3.3 implies that the structure and enum
+  // tags come along for the ride too
+  {
+    Scope *origScope = origVar->scope? origVar->scope : env.globalScope();
+
+    CompoundType *origCt = origScope->lookupCompound(origVar->name);
+    if (origCt) {
+      // alias the structure tag
+      env.addCompound(origCt);
+      
+      // if it has been shadowed, we need that too
+      if (env.isShadowTypedef(origCt->typedefVar)) {
+        env.makeUsingAliasFor(name->loc, origCt->typedefVar);
+      }
+    }
+
+    EnumType *origEnum = origScope->lookupEnum(origVar->name);
+    if (origEnum) {
+      // alias the enum tag
+      env.addEnum(origEnum);
+
+      if (env.isShadowTypedef(origEnum->typedefVar)) {
+        env.makeUsingAliasFor(name->loc, origEnum->typedefVar);
+      }
     }
   }
 }

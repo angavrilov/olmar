@@ -131,6 +131,11 @@ bool Scope::addCompound(CompoundType *ct)
 
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
 
+  // set up ct's parent scope if appropriate
+  if (getTypedefName()) {
+    ct->parentScope = this;
+  }
+
   ct->access = curAccess;
   return insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/);
 }
@@ -360,6 +365,18 @@ EnumType const *Scope::lookupEnumC(StringRef name, LookupFlags /*flags*/) const
   // TODO: implement base class lookup for EnumTypes
 
   return enums.queryif(name);
+}
+
+
+Variable *Scope::getTypedefName()
+{
+  if (scopeKind == SK_CLASS) {
+    return curCompound->typedefVar;
+  }
+  if (scopeKind == SK_NAMESPACE) {
+    return namespaceVar;
+  }
+  return NULL;
 }
 
 

@@ -170,6 +170,10 @@ public:      // funcs
   int private_compoundTop() const
     { return compounds.private_getTopAddr(); }
 
+  // if this scope has a name, return the typedef variable that
+  // names it; otherwise, return NULL
+  Variable *getTypedefName();
+
   // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();

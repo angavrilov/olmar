@@ -423,6 +423,9 @@ public:      // funcs
   // -------------- stuff for elaboration support ---------------
   // change 'tv' into a shadow typedef var
   void makeShadowTypedef(Scope *scope, Variable *tv);
+  
+  // true if 'tv' is a shadow typedef made by the above function
+  bool isShadowTypedef(Variable *tv);
 
   // make a unique name for a new temporary variable
   virtual PQ_name *makeTempName();
@@ -432,9 +435,10 @@ public:      // funcs
   virtual StringRef makeThrowClauseVarName();
 
   // return a PQName that will typecheck in the current environment to
-  // find (the typedef for) the 'ct' type; it's also maximally
+  // find (the typedef for) the 'name0' member of the 's' scope, or
+  // 's' itself if 'name0 is NULL; the return value is maximally
   // qualified
-  PQName *make_PQ_fullyQualifiedName(CompoundType *ct, PQName *name0 = NULL);
+  PQName *make_PQ_fullyQualifiedName(Scope *s, PQName *name0 = NULL);
         
   // go from "A" to "A::~A"
   PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);
