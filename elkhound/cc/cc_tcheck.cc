@@ -431,6 +431,25 @@ void Function::tcheck_handlers(Env &env)
 // -------------------- Declaration -------------------
 void Declaration::tcheck(Env &env)
 {
+  // if we're declaring an anonymous type, and there are
+  // some declarators, then give the type a name; we don't
+  // give names to anonymous types with no declarators as
+  // a special exception to allow anonymous unions
+  if (decllist->isNotEmpty()) {
+    if (spec->isTS_classSpec()) {
+      TS_classSpec *cs = spec->asTS_classSpec();
+      if (cs->name == NULL) {
+        cs->name = env.getAnonName(cs->keyword);
+      }
+    }
+    if (spec->isTS_enumSpec()) {
+      TS_enumSpec *es = spec->asTS_enumSpec();
+      if (es->name == NULL) {
+        es->name = env.getAnonName(TI_ENUM);
+      }
+    }
+  }
+
   Type const *specType = spec->tcheck(env);
 
   // ---- the following code is adopted from tcheckFakeExprList ----
@@ -641,7 +660,7 @@ Type const *TS_elaborated::tcheck(Env &env)
     EnumType const *et = env.lookupPQEnum(name);
     if (!et) {
       return env.error(stringc
-        << "there is no enum called `" << name << "'",
+        << "there is no enum called `" << *name << "'",
         true /*disambiguating*/);
     }
 
@@ -670,7 +689,7 @@ Type const *TS_elaborated::tcheck(Env &env)
     if ((int)keyword != (int)ct->keyword) {
       return env.error(stringc
         << "you asked for a " << toString(keyword) << " called `"
-        << name << "', but that's actually a " << toString(ct->keyword));
+        << *name << "', but that's actually a " << toString(ct->keyword));
     }
 
     if (name->getUnqualifiedName()->isPQ_template()) {

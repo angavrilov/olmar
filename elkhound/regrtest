@@ -214,7 +214,7 @@ runTest cc/cparse -tr printAnalysisPath tcheck/morepaths.c
 # ---------- test C++ parser using my grammar ------------
 for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \
          21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 \
-         38 39 40 41 42; do
+         38 39 40 41 42 43; do
   runTest cc/ccparse cc.in/cc.in$n
 done
 
@@ -229,6 +229,17 @@ done
 for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
   runTest cc/ccparse c.in/c.in$n
 done
+
+
+# --------- test C++ pretty-printer ---------
+# test files in cc.in
+runTest make -C cc idem/check
+
+# test files in cure_cpp; this doesn't work now, because
+# the directory structure isn't the same.. move small examples
+# into cc.in if they contain new syntax
+#runTest make -C cc idem/check2
+
 
 # --------- test C++ parser using standard grammar ------------
 # no '4' because that uses thmprv_attr ...

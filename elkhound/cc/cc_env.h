@@ -39,6 +39,9 @@ private:     // data
   // parameters
   bool disambiguateOnly;
 
+  // counter for constructing names for anonymous types
+  int anonTypeCounter;
+
 public:      // data
   // stack of error messages; the first one is the latest
   // one inserted; during disambiguation, I'll remember where
@@ -120,6 +123,10 @@ public:      // funcs
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL
   TemplateParams * /*owner*/ takeTemplateParams();
+
+  // return a new name for an anonymous type; 'keyword' says
+  // which kind of type we're naming
+  StringRef getAnonName(TypeIntr keyword);
 
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg, bool disambiguates=true);

@@ -23,6 +23,7 @@ string ErrorMsg::toString() const
 Env::Env(StringTable &s, CCLang &L)
   : scopes(),
     disambiguateOnly(false),
+    anonTypeCounter(1),
     errors(),
     str(s),
     lang(L),                      
@@ -600,6 +601,25 @@ CompoundType *Env::instantiateClass(
                    makeType(ret), DF_TYPEDEF);
 
   return ret;
+}
+
+
+StringRef Env::getAnonName(TypeIntr keyword)
+{
+  // construct a name
+  string name = stringc << "Anon_" << toString(keyword) 
+                        << "_" << anonTypeCounter++;
+                     
+  // map to a stringref
+  StringRef sr = str(name);
+
+  // any chance this name already exists?
+  if (lookupVariable(sr, false /*innerOnly*/)) {
+    return getAnonName(keyword);    // try again
+  }
+  else {
+    return sr;
+  }
 }
 
 
