@@ -86,6 +86,9 @@ public:      // funcs
   // innermost scope that can accept names
   Scope *acceptingScope();
 
+  // innermost non-class, non-template scope
+  Scope *outerScope();
+
   // get the innermost CompoundType (aka class) scope, or NULL
   // if we're not in the scope of any class
   //CompoundType *getEnclosingCompound();

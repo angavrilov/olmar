@@ -1,0 +1,11 @@
+// cc.in49
+// friend decls
+
+class Foo {
+  friend int f();
+};
+
+int main()
+{
+  return f();
+}

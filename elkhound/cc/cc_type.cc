@@ -358,7 +358,7 @@ string CompoundType::toStringWithFields() const
 
 string CompoundType::toCilString(int depth) const
 {
-  return "(todo)";
+  return toCString();
 
   #if 0
   if (!isComplete()) {
@@ -574,8 +574,12 @@ string TypeVariable::toCilString(int /*depth*/) const
 
 int TypeVariable::reprSize() const
 {
-  xfailure("you can't ask a type variable for its size");
-  return 0;     // silence warning
+  //xfailure("you can't ask a type variable for its size");
+
+  // this happens when we're typechecking a template class, without
+  // instantiating it, and we want to verify that some size expression
+  // is constant.. so make up a number
+  return 4;
 }
 
 
@@ -625,9 +629,28 @@ string Type::idComment() const
 }
 
 
+string cvToString(CVFlags cv)
+{
+  if (cv != CV_NONE) {
+    return stringc << " " << toString(cv);
+  }
+  else {
+    return string("");
+  }
+}
+
+
 string Type::toCString() const
 {
-  return stringc << idComment() << leftString() << rightString();
+  if (isCVAtomicType()) {
+    // special case a single atomic type, so as to avoid
+    // printing an extra space
+    CVAtomicType const &atomic = asCVAtomicTypeC();
+    return stringc << atomic.atomic->toCString() << cvToString(atomic.cv);
+  }
+  else {
+    return stringc << idComment() << leftString() << rightString();
+  }
 }
 
 string Type::toCString(char const *name) const
@@ -635,17 +658,21 @@ string Type::toCString(char const *name) const
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
 
+  #if 0    // wrong
+  // except, if this type is a pointer, then omit the parens anyway;
+  // we only need parens when the type is a function or array and
+  // the name is missing
+  if (isPointerType()) {
+    innerParen = false;
+  }                
+  #endif // 0
+
   stringBuilder s;
   s << idComment();
   s << leftString(innerParen);
-  s << " ";
   s << (name? name : "/*anon*/");
   s << rightString(innerParen);
   return s;
-
-  // removing the space causes wrong output:
-  //   int (foo)(intz)
-  //               ^^
 }
 
 string Type::rightString(bool /*innerParen*/) const
@@ -817,17 +844,6 @@ bool CVAtomicType::innerEquals(CVAtomicType const *obj) const
 }
 
 
-string cvToString(CVFlags cv)
-{
-  if (cv != CV_NONE) {
-    return stringc << " " << toString(cv);
-  }
-  else {
-    return string("");
-  }
-}
-
-
 string CVAtomicType::atomicIdComment() const
 {
   return makeIdComment(atomic->getId());
@@ -840,6 +856,12 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
   s << atomicIdComment();
   s << atomic->toCString();
   s << cvToString(cv);
+  
+  // this is the only mandatory space in the entire syntax
+  // for declarations; it separates the type specifier from
+  // the declarator(s)
+  s << " ";
+
   return s;
 }
 
@@ -895,9 +917,12 @@ bool PointerType::innerEquals(PointerType const *obj) const
 string PointerType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;
-  s << atType->leftString();
-  s << "(";
-  s << (op==PO_POINTER? " *" : " &");
+  s << atType->leftString(false /*innerParen*/);
+  if (atType->isFunctionType() ||
+      atType->isArrayType()) {
+    s << "(";
+  }
+  s << (op==PO_POINTER? "*" : "&");
   s << cvToString(cv);
   return s;
 }
@@ -905,8 +930,11 @@ string PointerType::leftString(bool /*innerParen*/) const
 string PointerType::rightString(bool /*innerParen*/) const
 {
   stringBuilder s;
-  s << ")";
-  s << atType->rightString();
+  if (atType->isFunctionType() ||
+      atType->isArrayType()) {
+    s << ")";
+  }
+  s << atType->rightString(false /*innerParen*/);
   return s;
 }
 
@@ -1070,9 +1098,9 @@ string FunctionType::leftString(bool innerParen) const
   }
 
   // return type and start of enclosing type's description
-  // NOTE: we do *not* propagate 'innerParen'!
+
+  // NOTE: we do *not* propagate 'innerParen'!  
   sb << retType->leftString();
-  sb << " ";
   if (innerParen) {
     sb << "(";
   }
@@ -1286,6 +1314,13 @@ bool TemplateParams::anyCtorSatisfies(Type::TypePred pred) const
 
 
 // -------------------- ArrayType ------------------
+void ArrayType::checkWellFormedness() const
+{
+  // you can't have an array of references
+  xassert(!eltType->isReference());
+}
+
+
 bool ArrayType::innerEquals(ArrayType const *obj) const
 {
   if (!( eltType->equals(obj->eltType) &&
@@ -1509,14 +1544,26 @@ void cc_type_checker()
 
 
 // --------------- debugging ---------------
-char type_toString_buf[80];
-
-int type_toString(Type const *t)
+static char *staticBuffer(char const *s)
 {
-  string s = t->toString();                         
-  int len = s.length();
+  static char buf[200];
+
+  int len = strlen(s);
   if (len > 79) len=79;
-  memcpy(type_toString_buf, s.pcharc(), len);
-  type_toString_buf[len] = 0;
-  return len;   // might help user notice a truncated type desc..
+  memcpy(buf, s, len);
+  buf[len] = 0;
+  
+  return buf;
+}
+
+
+char *type_toString(Type const *t)
+{
+  return staticBuffer(t->toString());
+}
+
+
+char *type_toCilString(Type const *t)
+{
+  return staticBuffer(t->toCilString(20 /*depth*/));
 }

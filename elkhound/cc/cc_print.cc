@@ -611,6 +611,25 @@ string Expression::exprToString() const
   return sb;
 }
 
+// todo: move this someplace better
+static char *staticBuffer(char const *s)
+{
+  static char buf[200];
+
+  int len = strlen(s);
+  if (len > 79) len=79;
+  memcpy(buf, s, len);
+  buf[len] = 0;
+
+  return buf;
+}
+
+char *expr_toString(Expression *e)
+{
+  return staticBuffer(e->exprToString());
+}
+
+
 void E_boolLit::iprint(PrintEnv &env)
 {
   olayer ol("E_boolLit::itprint");

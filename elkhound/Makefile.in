@@ -58,7 +58,7 @@ ifdef ALLOW_DEBUG
   OPTIMIZATION_FLAGS += -DACTION_TRACE
 else
   # turn on the optimizer
-  OPTIMIZATION_FLAGS += -O2 -DNDEBUG
+  #OPTIMIZATION_FLAGS += -O2 -DNDEBUG
 endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
