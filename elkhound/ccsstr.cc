@@ -147,14 +147,14 @@ bool CCSubstrate::zeroNesting() const
 
 string CCSubstrate::getFuncBody() const
 {
-  if (!exprOnly) {
-    // easy case
-    return text;
+  if (isDeclaration) {
+    return stringc << text << ";";
+  }
+  else if (exprOnly) {
+    return stringc << "return " << text << ";";
   }
   else {
-    // slightly harder
-    // NOTE: this contradicts goal of a strict input partition..
-    return stringc << "return " << text << ";";
+    return text;
   }
 }
 

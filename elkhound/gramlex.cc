@@ -11,7 +11,8 @@
 // ------------------- EmbeddedLang -------------------
 EmbeddedLang::EmbeddedLang()
   : text(),
-    exprOnly(false)
+    exprOnly(false),
+    isDeclaration(false)
 {}
 
 EmbeddedLang::~EmbeddedLang()
@@ -120,7 +121,7 @@ int GrammarLexer::yylexInc()
   }
 
 
-  if (code == TOK_FUNDECL_BODY || code == TOK_FUN_BODY) {
+  if (code == TOK_FUNDECL_BODY || code == TOK_FUN_BODY || code == TOK_DECL_BODY) {
     trace("lex") << "yielding embedded (" << code << ") at "
                  << curLocStr() << ": "
                  << curFuncBody() << endl;
@@ -265,6 +266,7 @@ int main(int argc)
 
       case TOK_FUNDECL_BODY:
       case TOK_FUN_BODY:
+      case TOK_DECL_BODY:
         cout << "embedded code at " << lexer.curLocStr()
              << ": " << lexer.curFuncBody()
              << endl;

@@ -6,7 +6,7 @@ all: ccgr
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
 # directories
-SMBASE = /home/scott/wrk/lib/smbase
+SMBASE = ${HOME}/wrk/lib/smbase
 
 # dependencies
 libraries = ${SMBASE}/libsmbase.a

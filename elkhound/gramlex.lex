@@ -169,12 +169,12 @@ SLWHITE   [ \t]
   return TOK_FUNDECL;
 }
 
-"declare" {
+"datadecl" {
   TOK_UPD_COL;
   BEGIN(FUNDECL);
   embedded->reset();
   embedFinish = ';';
-  embedMode = TOK_FUN_BODY;
+  embedMode = TOK_DECL_BODY;
   return TOK_DECLARE;
 }
 
@@ -254,6 +254,9 @@ SLWHITE   [ \t]
       embedded->exprOnly =
         (embedMode == TOK_FUN_BODY &&
          embedFinish == ';');
+                                                             
+      // and similarly for the other flag
+      embedded->isDeclaration = (embedMode == TOK_DECL_BODY);
 
       // caller can get text from embedded->text
       return embedMode;

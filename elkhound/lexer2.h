@@ -180,7 +180,7 @@ public:
 
   // debugging
   void print() const;
-  string toString() const;
+  string toString(bool asSexp=false) const;
   string unparseString() const;  // return the source text that generated this token
 };
 

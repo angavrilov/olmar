@@ -977,6 +977,7 @@ int yylex(ASTNode **lvalp, void *parseParam)
       }
 
       case TOK_FUN_BODY:
+      case TOK_DECL_BODY:
         *lvalp = new ASTStringLeaf(lexer.curFuncBody(), lexer.curLoc());
         break;
 

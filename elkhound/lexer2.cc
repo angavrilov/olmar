@@ -206,6 +206,18 @@ char const *l2Tok2String(Lexer2TokenType type)
   return l2TokTypes[type].spelling;
 }
 
+char const *l2Tok2SexpString(Lexer2TokenType type)
+{
+  xassert(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
+  xassert(type < L2_NUM_TYPES);
+
+  // for sexps let's use the L2_XXX names; among other things,
+  // that will prevent syntactic parentheses from being interpreted
+  // by the sexp reader (which probably wouldn't be all that
+  // terrible, but not what I want...)
+  return l2TokTypes[type].typeName;
+}
+
 
 // list of "%token" declarations for Bison
 void printBisonTokenDecls(bool spellings)
@@ -267,29 +279,41 @@ Lexer2Token::~Lexer2Token()
 {}
 
 
-string Lexer2Token::toString() const
+string Lexer2Token::toString(bool asSexp) const
 {
-  string ret = l2Tok2String(type);
+  string tokType;
+  if (!asSexp) {
+    tokType = l2Tok2String(type);
+  }
+  else {
+    tokType = l2Tok2SexpString(type);
+  }
 
-  // add the literal value, if any
+  // get the literal value, if any
+  string litVal;
   switch (type) {
     case L2_NAME:
-      ret &= stringc << "(" << nameValue << ")";
+      litVal = stringc << nameValue;
       break;
 
     case L2_STRING_LITERAL:
-      ret &= stringc << "(" << strLitValue << ")";
+      litVal = stringc << strLitValue;
       break;
 
     case L2_INT_LITERAL:
-      ret &= stringc << "(" << intValue << ")";
+      litVal = stringc << intValue;
       break;
 
-    default:     // silence warning -- what is this, ML??!
-      break;
+    default:
+      return tokType;
   }
 
-  return ret;
+  if (!asSexp) {
+    return stringc << tokType << "(" << litVal << ")";
+  }
+  else {
+    return stringc << "(" << tokType << " " << litVal << ")";
+  }
 }
 
 

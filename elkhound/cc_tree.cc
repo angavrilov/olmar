@@ -5,13 +5,13 @@
 
 
 // --------------------- CCTreeNode ----------------------
-void CCTreeNode::declareVariable(Env &env, char const *name,
+void CCTreeNode::declareVariable(Env *env, char const *name,
                                  DeclFlags flags, Type const *type) const
 {
-  if (!env.declareVariable(name, flags, type)) {
+  if (!env->declareVariable(name, flags, type)) {
     SemanticError err(this, SE_DUPLICATE_VAR_DECL);
     err.varName = name;
-    env.report(err);
+    env->report(err);
   }
 }
 
@@ -24,11 +24,11 @@ void CCTreeNode::throwError(char const *msg) const
 }
 
 
-void CCTreeNode::reportError(Env &env, char const *msg) const
+void CCTreeNode::reportError(Env *env, char const *msg) const
 {
   SemanticError err(this, SE_GENERAL);
   err.msg = msg;
-  env.report(err);
+  env->report(err);
 }
 
 
@@ -40,7 +40,7 @@ void CCTreeNode::internalError(char const *msg) const
 }
 
 
-void CCTreeNode::disambiguate(Env &env, DisambFn func) const
+void CCTreeNode::disambiguate(Env *env, DisambFn func) const
 {
   // if it's not ambiguous, or we've already disambiguated,
   // go straight to the real deal
@@ -70,9 +70,9 @@ void CCTreeNode::disambiguate(Env &env, DisambFn func) const
 
     // attempt type-check in a new environment so it can't
     // corrupt the main one we're working on
-    Env newEnv(&env);
+    Env newEnv(env);
     try {
-      (this->*func)(newEnv);
+      (this->*func)(&newEnv);
     }
     catch (XSemanticError &x) {
       newEnv.report(x.err);

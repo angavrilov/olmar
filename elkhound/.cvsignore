@@ -44,3 +44,5 @@ ccgr
 rel
 trcptr
 ccgr.gprof*
+fsyncd.log
+.fsync-save

@@ -6,5 +6,5 @@
 
 string Lexer2Token::unparseString() const
   { xfailure("no!"); }
-string Lexer2Token::toString() const
+string Lexer2Token::toString(bool) const
   { xfailure("no!"); }

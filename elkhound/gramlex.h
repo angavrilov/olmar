@@ -42,6 +42,10 @@ public:
   // complete function body; this affects what 
   // getFuncBody() returns
   bool exprOnly;
+  
+  // when true the text is a declaration, so we have to
+  // add a single semicolon
+  bool isDeclaration;
 
 public:
   EmbeddedLang();

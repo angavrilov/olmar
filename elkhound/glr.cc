@@ -411,7 +411,7 @@ void GLR::glrParse(Lexer2 const &lexer2)
   // print parse tree in ascii
   TreeNode const *tn = getParseTree();
   if (tracingSys("parse-tree")) {
-    tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/);
+    tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/, false /*asSexp*/);
   }
 
 

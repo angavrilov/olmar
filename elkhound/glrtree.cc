@@ -136,10 +136,16 @@ void TerminalNode::setAttrValue(AttrName name, AttrValue value)
 }
 
 
-void TerminalNode::printParseTree(ostream &os, int indent) const
+void TerminalNode::printParseTree(ostream &os, int indent,  
+                                  bool asSexp) const
 {
-  // I am a leaf
-  IND << token->toString() << endl;
+  // I am a leaf                  
+  if (!asSexp) {
+    IND << token->toString(asSexp) << endl;
+  }
+  else {
+    os << token->toString(asSexp) << " ";
+  }
 }
 
 
@@ -278,25 +284,36 @@ TreeNode const *NonterminalNode::walkTree(WalkFn func, void *extra) const
 }
 
 
-void NonterminalNode::printParseTree(ostream &os, int indent) const
+void NonterminalNode::printParseTree(ostream &os, int indent, bool asSexp) const
 {
   int parses = reductions.count();
   if (parses == 1) {
     // I am unambiguous
-    reductions.firstC()->printParseTree(os, indent);
+    reductions.firstC()->printParseTree(os, indent, asSexp);
   }
 
   else {
     // I am ambiguous
-    IND << parses << " ALTERNATIVE PARSES for nonterminal "
-        << getLHS()->name << ":\n";
-    indent += 2;
+    if (!asSexp) {
+      IND << parses << " ALTERNATIVE PARSES for nonterminal "
+          << getLHS()->name << ":\n";
+      indent += 2;
+    }
+    else {
+      os << "(ambiguities ";
+    }
 
     int ct=0;
     FOREACH_OBJLIST(Reduction, reductions, red) {
       ct++;
-      IND << "---- alternative " << ct << " ----\n";
-      red.data()->printParseTree(os, indent);
+      if (!asSexp) {
+        IND << "---- alternative " << ct << " ----\n";
+      }
+      red.data()->printParseTree(os, indent, asSexp);
+    }
+
+    if (asSexp) {
+      os << ") ";
     }
   }
 }
@@ -399,19 +416,37 @@ TreeNode const *Reduction::walkTree(TreeNode::WalkFn func, void *extra) const
 }
 
 
-void Reduction::printParseTree(ostream &os, int indent) const
+void Reduction::printParseTree(ostream &os, int indent, bool asSexp) const
 {
-  // print the production that was used to reduce
-  // debugging: print address too, as a clumsy uniqueness identifier
-  IND << *(production)
-      << "   %attr " << attr
-      //<< " [" << (void*)production << "]"
-      << endl;
+  if (!asSexp) {
+    // print the production that was used to reduce
+    // debugging: print address too, as a clumsy uniqueness identifier
+    IND << *(production)
+        << "   %attr " << attr
+        //<< " [" << (void*)production << "]"
+        << endl;
 
-  // print children
-  indent += 2;
-  SFOREACH_OBJLIST(TreeNode, children, child) {
-    child.data()->printParseTree(os, indent);
+    // print children
+    indent += 2;
+    SFOREACH_OBJLIST(TreeNode, children, child) {
+      child.data()->printParseTree(os, indent, asSexp);
+    }
+  }
+
+  else {   // sexp
+    // tree simplification heuristic: if there is only one child,
+    // i.e. this is a chain reduction, don't include it
+    if (children.count() == 1) {
+      children.firstC()->printParseTree(os, indent, asSexp);
+    }
+
+    else {   // multiple children; LHS name, then children
+      os << "(" << production->left->name << " ";
+      SFOREACH_OBJLIST(TreeNode, children, child) {
+        child.data()->printParseTree(os, indent, asSexp);
+      }
+      os << ") ";
+    }
   }
 }
 

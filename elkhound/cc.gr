@@ -63,7 +63,7 @@ nonterm Checkable {
 
   // store a pointer to the environment in which this node's
   // names are to be interpreted
-  declare Env *env;           // (serf)
+  datadecl Env *env;           // (serf)
 
   constructor {
     env = NULL;
@@ -94,8 +94,14 @@ nonterm Checkable {
   fun typeCheck {}
 }
 
-nonterm TranslationUnit : Checkable {
-  -> empty;
+nonterm TranslationUnit : Checkable { 
+  // simple indirection so I can print just the d's
+  fundecl void printTree();
+
+  -> empty {
+    fun printTree {}      // NOP; never called
+  }
+  
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
       t.callTypeCheck(env);
@@ -109,8 +115,17 @@ nonterm TranslationUnit : Checkable {
       }
       env->flushLocalErrors(cout);
     }
+
+    fun printTree {
+      if (tracingSys("parse-tree")) {
+        // I really just want a sequence of declarations, so just
+        // print d's tree
+        d.printParseTree(cout, 2 /*indent*/, true /*asSexp*/);
+        cout << endl;
+      }
+    }
   }
-  
+
   constructor {
     // inherited ctor ... (hack!)
     env = NULL;
@@ -126,6 +141,9 @@ nonterm TranslationUnit : Checkable {
 
     // run the analysis on this piece of the tree
     callTypeCheck(env);
+
+    // this is, more or less, the product of the analysis
+    printTree();
 
     // ---- throw away most of the tree now ----
     // grab a pointer to the left child reduction, which should be
@@ -607,9 +625,9 @@ nonterm HasCFG {
 
 // labeled-statement
 nonterm Statement : Checkable, HasVarsDecld, HasCFG {
-  disamb typeCheck {
+  disamb callTypeCheck {
     // try the general mechanism...
-    disambiguate(env, (DisambFn)&unamb_typeCheck);
+    disambiguate(env, (DisambFn)&unamb_callTypeCheck);
   }
 
   fun typeCheck { s.callTypeCheck(env); }
@@ -888,7 +906,7 @@ nonterm ExpressionStatement : Checkable, HasCFG {
                  
 // base class for nodes that establish a new scope
 nonterm ScopeNode {
-  declare Owner<Env> localEnv;
+  datadecl Owner<Env> localEnv;
 }
 
 nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {

@@ -31,6 +31,7 @@
 %token TOK_STRING
 %token TOK_FUNDECL_BODY
 %token TOK_FUN_BODY
+%token TOK_DECL_BODY
 
 /* punctuators */
 %token TOK_LBRACE "{"
@@ -392,7 +393,7 @@ Constructor: "constructor" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_CONSTRU
 
 /* declarations; can declare data fields, or functions whose
  * implementation is provided externally */
-Declaration: "declare" TOK_FUN_BODY ";"                  { $$ = AST1(AST_DECLARATION, $3); }
+Declaration: "declare" TOK_DECL_BODY ";"                 { $$ = AST1(AST_DECLARATION, $2); }
            ;
 
 

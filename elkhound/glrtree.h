@@ -81,7 +81,8 @@ public:     // funcs
   string unparseString() const;
 
   // debugging
-  virtual void printParseTree(ostream &os, int indent) const = 0;
+  virtual void printParseTree(ostream &os, int indent, 
+                              bool asSexp) const = 0;
   string locString() const;
   static void printAllocStats();
 };
@@ -113,7 +114,7 @@ public:     // funcs
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
   virtual int numGroundTerms() const;
-  virtual void printParseTree(ostream &os, int indent) const;
+  virtual void printParseTree(ostream &os, int indent, bool asSexp) const;
 };
 
 
@@ -162,7 +163,7 @@ public:
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
   virtual int numGroundTerms() const;
-  virtual void printParseTree(ostream &os, int indent) const;
+  virtual void printParseTree(ostream &os, int indent, bool asSexp) const;
 };
 
 
@@ -193,7 +194,7 @@ public:      // funcs
   bool attrsAreEqual(Reduction const &obj) const
     { return attr == obj.attr; }
 
-  void printParseTree(ostream &os, int indent) const;
+  void printParseTree(ostream &os, int indent, bool asSexp) const;
   TreeNode const *walkTree(TreeNode::WalkFn func, void *extra=NULL) const;
   void ambiguityReport(ostream &os) const;
 
