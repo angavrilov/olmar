@@ -15,10 +15,13 @@ char const * const typeIntrNames[NUM_TYPEINTRS] = {
   "enum"
 };
 
+// the check for array[limit-1] is meant to ensure that there
+// are as many specified entries as there are total entries
 #define MAKE_TOSTRING(T, limit, array)        \
   char const *toString(T index)               \
   {                                           \
     xassert((unsigned)index < limit);         \
+    xassert(array[limit-1] != NULL);          \
     return array[index];                      \
   }
 
@@ -294,6 +297,7 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
   "^",
   "|",
 
+  "=",
   "+=",
   "-=",
   "*=",

@@ -4507,9 +4507,18 @@ Type *E_assign::itcheck(Env &env, Expression *&replacement)
   target->tcheck(env, target);
   src->tcheck(env);
   
+  // check for operator overloading
+  {
+    Type *ovlRet = resolveOverloadedBinaryOperator(
+      env, replacement, /*this,*/ target, src->expr, 
+      toOverloadableOp(op, true /*assignment*/));
+    if (ovlRet) {
+      return ovlRet;
+    }
+  }
+
   // TODO: make sure 'target' and 'src' make sense together with 'op'
-  // TODO: take operator overloading into consideration
-  
+
   return env.tfac.cloneType(target->type);
 }
 

@@ -174,6 +174,13 @@ void Env::setupOperatorOverloading()
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
+  // Below, whenever the standard calls for 'VQ' (volatile or
+  // nothing), I use two copies of the rule, one with volatile and one
+  // without.  It would be nice to have a way of encoding this choice
+  // unobtrusively, but all of the ways I've considered so far would
+  // do more damage to the type system than I'm prepared to do for
+  // that feature.
+
   // ---- 13.6 para 3 ----
   // VQ T& operator++ (VQ T&);
   addBuiltinUnaryOp(OP_PLUSPLUS,
@@ -272,6 +279,8 @@ void Env::setupOperatorOverloading()
   // T operator~ (T);
   addBuiltinUnaryOp(OP_BITNOT,
     getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
+  // para 11: ->* (skipping for now)
 
   // ---- 13.6 para 12 ----
   // LR operator* (L, R);
@@ -405,6 +414,29 @@ void Env::setupOperatorOverloading()
     getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
     getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
 
+  // ---- 13.6 para 18 ----
+  // 18: assignment/arith to arithmetic types
+
+  // VQ L& operator= (VQ L&, R);
+  addBuiltinBinaryOp(OP_ASSIGN,
+    tfac.makeRefType(SL_INIT,
+      getSimpleType(SL_INIT, ST_ARITHMETIC)),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
+  // TODO: plus the volatile version
+
+  // TODO: VQ L& operator*= (VQ L&, R);
+  // TODO: VQ L& operator/= (VQ L&, R);
+  // TODO: VQ L& operator+= (VQ L&, R);
+  // TODO: VQ L& operator-= (VQ L&, R);
+
+  // 19: assignment to pointer type
+
+  // 20: assignment to enumeration and ptr-to-member
+
+  // 21: +=, -= for pointer type
+
+  // 22: assignment/arith to integral type
+
   // ---- 13.6 para 23 ----
   // bool operator! (bool);
   addBuiltinUnaryOp(OP_NOT,
@@ -419,6 +451,10 @@ void Env::setupOperatorOverloading()
   addBuiltinBinaryOp(OP_OR,
     getSimpleType(SL_INIT, ST_BOOL),
     getSimpleType(SL_INIT, ST_BOOL));
+
+  // 24: ?: on arithmetic types
+  
+  // 25: ?: on pointer and ptr-to-member types
 
   exitScope(dummyScope);
 
