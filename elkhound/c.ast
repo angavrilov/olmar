@@ -52,7 +52,9 @@ class TopForm (SourceLocation loc) {
        public SObjList<Variable> params;
        public SObjList<Variable> locals;
 
-       // list of all global variables referenced in this function
+       // list of all global variables referenced in this function;
+       // also all the struct fields referenced, since they get
+       // modeled sort of like global variables too
        public SObjList<Variable> globalRefs;
 
        // list of all the path starting points

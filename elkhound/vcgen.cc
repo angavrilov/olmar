@@ -52,6 +52,21 @@ bool shouldSkipFunc(char const *name, char const *stage)
   }
 }
 
+  
+// reference every variable in 'vars'
+void instantiateVariables(AEnv &env, SObjList<Variable> const &vars)
+{                                    
+  SFOREACH_OBJLIST(Variable, vars, iter) {
+    // avoid instantiating logic variables.. I think there may
+    // be unsoundness lurking if any path visits the same
+    // quantifier more than once.. might facts from the previous
+    // quantification survive to the next one?
+    if (!iter.data()->hasFlag(DF_LOGIC)) {
+      env.get(iter.data());
+    }
+  }
+}
+
 
 void TF_func::vcgen(AEnv &env) const
 {
@@ -61,6 +76,17 @@ void TF_func::vcgen(AEnv &env) const
 
   env.newFunction(this);
   FunctionType const &ft = *(ftype());
+
+  // for every local variable, and every global variable referenced,
+  // make up logic variables and introduce type-based facts; the
+  // purpose of this is to make sure these things get introduced now,
+  // now in the middle of some quantified expression where the
+  // quantifier will want to capture new facts..
+  env.pushPathFactsFrame();
+  instantiateVariables(env, params);
+  instantiateVariables(env, locals);
+  instantiateVariables(env, globalRefs);
+  env.setFuncFacts(env.popPathFactsFrame());
 
   int numRoots = roots.count();
   traceProgress() << "analyzing " << name()

@@ -1046,7 +1046,7 @@ Type const *E_variable::itcheck(Env &env)
 
   // if this is a global, annotate the current function to say
   // it is referenced
-  if (v->hasFlag(DF_GLOBAL)) {
+  if (v->hasFlag(DF_GLOBAL) || v->hasFlag(DF_FIELD)) {
     TF_func *f = env.getCurrentFunction();
     if (f) {                          // might not be in a function 
       f->globalRefs.appendUnique(v);    // append if not already present

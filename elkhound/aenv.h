@@ -171,10 +171,10 @@ public:      // funcs
   AbsValue *getMem() { return get(mem); }
   void setMem(AbsValue *newMem); // { set(mem, newMem); }
 
-  // proof assumption
+  // proof assumption; these things add to the *path* facts
   void addFact(Predicate * /*owner*/ pred, char const *why);
   void addBoolFact(Predicate *pred, bool istrue, char const *why);
-  void addFalseFact(Predicate *falsePred, char const *why) 
+  void addFalseFact(Predicate *falsePred, char const *why)
     { addBoolFact(falsePred, false, why); }
 
   // fact stack manipulation; this is a bit of a hack for now; better would
@@ -185,9 +185,13 @@ public:      // funcs
 
   // push a new frame of path facts
   void pushPathFactsFrame();
-  
+
   // pop the most recent frame; yields an owner pointer
   ObjList<Predicate> *popPathFactsFrame();
+
+  // move a whole bunch of predicates into funcFacts, and deallocate
+  // the list itself too
+  void setFuncFacts(ObjList<Predicate> * /*owner*/ newFuncFacts);
 
   // transfer to 'newFacts' any facts in 'pathFacts' that refer to anything
   // in 'variables'; only look at facts whose index in 'pathFacts' is

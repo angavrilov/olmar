@@ -536,6 +536,12 @@ ObjList<Predicate> *AEnv::popPathFactsFrame()
 }
 
 
+void AEnv::setFuncFacts(ObjList<Predicate> * /*owner*/ newFuncFacts)
+{
+  funcFacts.concat(*newFuncFacts);    // empties 'newFuncFacts'
+  delete newFuncFacts;
+}
+
 
 void AEnv::pushExprFact(Predicate *pred)
 {
