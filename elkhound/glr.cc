@@ -1251,6 +1251,8 @@ STATICDEF bool GLR
           #if USE_KEEP
             // see if the user wants to keep this reduction
             if (!userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
+              ACTION( string lhsDesc =
+                        userAct->nonterminalDescription(prodInfo.lhsIndex, sval); )
               TRSACTION("    CANCELLED " << lhsDesc);
               glr.printParseErrorMessage(newNode->state);
               ACCOUNTING(
@@ -2025,23 +2027,28 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     // TODO: I think this code path is unusual; confirm by measurement
     // update: it's taken maybe 1 in 10 times through this function..
     parserMerges++;
-
-    // since we added a new link *all* determinDepths might
-    // be compromised; iterating more than once should be very
-    // rare (and this code path should already be unusual)
-    int changes=1, iters=0;
-    while (changes) {
-      changes = 0;
-      for (int i=0; i < activeParsers.length(); i++) {
-        StackNode *parser = activeParsers[i];
-        int newDepth = parser->computeDeterminDepth();
-        if (newDepth != parser->determinDepth) {
-          changes++;
-          parser->determinDepth = newDepth;
+                                         
+    // we don't have to recompute if nothing else points at
+    // 'rightSibling'; the refct is always at least 1 because we found
+    // it on the "active parsers" worklist
+    if (rightSibling->referenceCount > 1) {
+      // since we added a new link *all* determinDepths might
+      // be compromised; iterating more than once should be very
+      // rare (and this code path should already be unusual)
+      int changes=1, iters=0;
+      while (changes) {
+        changes = 0;
+        for (int i=0; i < activeParsers.length(); i++) {
+          StackNode *parser = activeParsers[i];
+          int newDepth = parser->computeDeterminDepth();
+          if (newDepth != parser->determinDepth) {
+            changes++;
+            parser->determinDepth = newDepth;
+          }
         }
+        xassert(++iters < 1000);    // protect against infinite loop
+        computeDepthIters++;
       }
-      xassert(++iters < 1000);    // protect against infinite loop
-      computeDepthIters++;
     }
 
     // for each 'finished' parser (i.e. those not still on

@@ -94,19 +94,6 @@ linkend := $(libraries)
           sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $*.d.tmp
 
-# dsw: Not sure of a better way to do this yet.  Would be nice to
-# factor out the dependency generation stuff.  Maybe into a shell
-# script.
-cc/ccparse_twalk.o: cc/ccparse.cc
-	$(compile) -DTWALK $< -o $@
-	@echo "dependencies for $< > cc/ccparse_twalk.d"
-	@$(depend) $< > cc/ccparse_twalk.d
-	@mv -f cc/ccparse_twalk.d cc/ccparse_twalk.d.tmp
-	@sed -e 's|.*:|$@:|' < cc/ccparse_twalk.d.tmp > cc/ccparse_twalk.d
-	@sed -e 's/.*://' -e 's/\\$$//' < cc/ccparse_twalk.d.tmp | fmt -1 | \
-          sed -e 's/^ *//' -e 's/$$/:/' >> cc/ccparse_twalk.d
-	@rm -f cc/ccparse_twalk.d.tmp
-
 # sets of related object files
 # files needed to represent a grammar in memory
 grammar-set := \
@@ -304,6 +291,11 @@ cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbas
 cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
+
+cc/ccparse_twalk.cc: cc/ccparse.cc
+	rm -f $@
+	grep -v REMOVE_FOR_TWALK <$^ >$@
+	chmod a-w $@
 
 # dsw:stand-alone executable for parsing C++ and dumping the tree back out
 cc/ccparse_twalk: cc/ccparse_twalk.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
@@ -614,7 +606,8 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/ccparse_twalk cc/libccgr.a libelkhound.a
+	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/libccgr.a libelkhound.a
+	rm -f cc/ccparse_twalk.cc cc/ccparse_twalk
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c

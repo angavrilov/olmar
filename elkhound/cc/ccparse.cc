@@ -142,7 +142,7 @@ void doit(int argc, char **argv)
   }
 
   // dsw: Tree walk ****************
-#ifdef TWALK
+#if 0    /* REMOVE_FOR_TWALK */
   {
       cout << endl;
       traceProgress() << "dsw tree walk...\n";
@@ -154,7 +154,7 @@ void doit(int argc, char **argv)
       traceProgress() << "dsw tree walk... done\n";
       cout << endl;
   }
-#endif
+#endif   /* REMOVE_FOR_TWALK */
   
   // test AST cloning
   if (tracingSys("testClone")) {

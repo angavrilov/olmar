@@ -611,7 +611,7 @@ void E_funCall::itwalk(Env &env)
 void E_constructor::itwalk(Env &env)
 {
   olayer ol("E_constructor::itwalk");
-  global_code_out << t->toString();
+  global_code_out << type->toString();
   codeout co("", "(", ")");
   twalkFakeExprList(args, env);
 }
