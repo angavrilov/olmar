@@ -232,6 +232,9 @@ void Declarator::printExtras(ostream &os, int indent) const
 
 
 // --------------------- IDeclarator ---------------------------
+
+// getDeclaratorId ****
+
 PQName const *D_name::getDeclaratorId() const
 {
   return name;
@@ -268,6 +271,46 @@ PQName const *D_grouping::getDeclaratorId() const
 {
   return base->getDeclaratorId();
 }
+
+
+// getD_func ****
+
+D_func *D_name::getD_func()
+{
+  return NULL;
+}
+
+D_func *D_pointer::getD_func()
+{
+  return base->getD_func();
+}
+
+D_func *D_func::getD_func()
+{
+  return this;                  // found it
+}
+
+D_func *D_array::getD_func()
+{
+  return base->getD_func();
+}
+
+D_func *D_bitfield::getD_func()
+{
+  return NULL;
+}
+
+D_func *D_ptrToMember::getD_func()
+{
+  return base->getD_func();
+}
+
+D_func *D_grouping::getD_func()
+{
+  return base->getD_func();
+}
+
+// ****
 
 
 IDeclarator *IDeclarator::skipGroups()

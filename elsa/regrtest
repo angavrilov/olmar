@@ -399,6 +399,13 @@ testparse d0026.cc
 testparse d0027.cc
 testparse d0028.cc
 testparse d0029.cc
+# break
+testparse d0032.cc
+# break
+testparse d0034.cc
+testparse d0035.cc
+testparse d0036.cc
+testparse d0037.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do

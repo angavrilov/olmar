@@ -310,6 +310,8 @@ class Declarator (
 class IDeclarator(SourceLoc loc) {
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
+  // dig down and get the D_func or return NULL
+  pure_virtual D_func *getD_func();
 
   // skip any toplevel grouping operators
   public IDeclarator *skipGroups();
