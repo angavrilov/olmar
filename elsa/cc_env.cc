@@ -3064,15 +3064,7 @@ Variable *Env::createDeclaration(
       if (enclosingClass &&
           !secondPassTcheck &&
           !prior->isImplicitTypedef()) {    // allow implicit typedef to be hidden
-        if (!prior->usingAlias) {
-          error(stringc
-            << "duplicate member declaration of `" << name
-            << "' in " << enclosingClass->keywordAndName()
-            << "; previous at " << toString(prior->loc),
-            maybeEF_STRONG());    // weakened for t0266.cc
-          goto makeDummyVar;
-        }
-        else {
+        if (prior->usingAlias) {
           // The declaration we're trying to make conflicts with an alias
           // imported from a base class.  7.3.3 para 12 says that's ok,
           // that the new declaration effectively replaces the old.
@@ -3092,6 +3084,23 @@ Variable *Env::createDeclaration(
           prior->usingAlias = NULL;
           scope->registerVariable(prior);
           return prior;
+        }
+        else if (lang.allowMemberWithClassName &&
+                 prior->hasAllFlags(DF_SELFNAME | DF_TYPEDEF)) {
+          // 9/22/04: Special case for 'struct ip_opts': allow the member
+          // to replace the class name, despite 9.2 para 13.
+          TRACE("env", "allowing member `" << prior->name <<
+                       "' with same name as class");
+          forceReplace = true;
+          goto noPriorDeclaration;
+        }
+        else {
+          error(stringc
+            << "duplicate member declaration of `" << name
+            << "' in " << enclosingClass->keywordAndName()
+            << "; previous at " << toString(prior->loc),
+            maybeEF_STRONG());    // weakened for t0266.cc
+          goto makeDummyVar;
         }
       }
     }

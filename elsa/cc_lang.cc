@@ -27,6 +27,7 @@ void CCLang::ANSI_C()
   allowImplicitInt = true;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
+  allowMemberWithClassName = true;
   declareGNUBuiltins = false;
 
   isCplusplus = false;
@@ -41,7 +42,7 @@ void CCLang::KandR_C()
   allowCallToUndeclFunc = true;
   allow_KR_ParamOmit = true;
   allowImplicitInt = true;
-  
+
   // our K&R is really GNU K&R ...
   declareGNUBuiltins = true;
 }
@@ -80,7 +81,7 @@ void CCLang::GNU_KandR_C()
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   allowIncompleteEnums = true;  // gnu according to Scott, above
-  
+
   // this seems wrong, but Oink's tests want it this way...
   isC99 = true;
 }
@@ -116,6 +117,7 @@ void CCLang::ANSI_Cplusplus()
   allowImplicitInt = false;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
+  allowMemberWithClassName = false;
   declareGNUBuiltins = false;
 
   isCplusplus = true;
@@ -131,6 +133,7 @@ void CCLang::GNU_Cplusplus()
   // is this really right?  Oink tests it like it is ...
   allowDynamicallySizedArrays = true;
 
+  allowMemberWithClassName = true;
   declareGNUBuiltins = true;
 }
 

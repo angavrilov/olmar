@@ -608,7 +608,7 @@ testparse d0061.cc
 #  testparse d0065.cc
 testparse d0066.cc
 testparse d0067.cc
-# this one passes, but I'm not sure its right; I think it is
+# this one passes, but I'm not sure it's right; I think it is
 # instantiating the class template A twice since it is a mutant,
 # thought perhaps it shouldn't
 testparse d0068.cc
@@ -622,7 +622,7 @@ testparse d0075.cc
 testparse d0079.cc
 failparse d0080.cc "important: inheriting from dependent type"
 testparse d0084.cc
-testparse d0087.cc
+testparse_strict d0087.cc
 testparse d0088.cc
 testparse d0089.cc
 testparse d0090.cc
@@ -638,7 +638,7 @@ testparse d0104.cc
 testparse d0105.cc
 failparse d0106.cc "can't define static member of a specialization of a class template"
 failparse d0107.cc "assertion failure in MatchTypes"
-failparse d0108.cc "struct member with the same name as the struct"
+testparse d0108.cc
 failparse d0109.cc "'using' same namespace twice causes error"
 failparse d0110.cc "class specialization without 'template' prefix?"
 failparse d0111.cc "templatized member type not accessible?"

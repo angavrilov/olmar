@@ -9,5 +9,5 @@ fi
 echo source /opt/intel/bin/iccvars.sh
 source /opt/intel/bin/iccvars.sh
 
-echo /opt/intel/bin/icc -o /dev/null -c -w "$*"
-exec /opt/intel/bin/icc -o /dev/null -c -w "$*"
+echo /opt/intel/bin/icpc -o /dev/null -c "$@"
+exec /opt/intel/bin/icpc -o /dev/null -c "$@"

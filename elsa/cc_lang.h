@@ -104,6 +104,11 @@ public:
   // it declares that an enum called Foo will be defined later
   bool allowIncompleteEnums;
 
+  // C language, and GNU extension for C++: allow a class to have a
+  // member (other than the constructor) that has the same as the
+  // class
+  bool allowMemberWithClassName;
+
   // declare the various GNU __builtin functions; see
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;

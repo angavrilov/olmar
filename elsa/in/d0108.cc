@@ -7,3 +7,9 @@ struct ip_opts
 {
   char ip_opts[40];
 };
+
+char f()
+{
+  ip_opts i;
+  return i.ip_opts[1];
+}

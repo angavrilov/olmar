@@ -160,6 +160,10 @@ void doit(int argc, char **argv)
     sourceLocManager->useHashLines = false;
   }
 
+  if (tracingSys("strict")) {
+    lang.ANSI_Cplusplus();
+  }
+
   if (tracingSys("c_lang")) {
     lang.GNU_C();
   }
