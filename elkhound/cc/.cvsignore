@@ -17,8 +17,8 @@ cct.bin
 cct.gr
 c.bin
 cparse
-ccparse_twalk.cc
 hide*
+gmon.out
 
 # This is the interface between parsgen/cc and cqual
 cc_qual
