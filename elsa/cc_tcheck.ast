@@ -56,12 +56,6 @@ class Function {
   // 7/29/04: combined this with the old 'ctorReceiver'
   public Variable *receiver = NULL;
 
-  // for template functions, I need to know the scope where the
-  // definition appeared; but this need not be the same as
-  // nameAndParams->var->scope, in the case of out-of-line defns of
-  // member funcs of classes
-  public Scope *defnScope = NULL;
-
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
 

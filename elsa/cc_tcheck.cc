@@ -218,14 +218,6 @@ void Function::tcheck(Env &env, bool checkBody, Variable *instV)
   // are we in a template function?
   bool inTemplate = env.scope()->hasTemplateParams();
 
-  // remember what scope this definition appears in (skipping
-  // any intervening template scopes)
-  {
-    Scope *s = env.nonTemplateScope();
-    xassert(!defnScope || defnScope == s);     // shouldn't be changing it...
-    defnScope = s;
-  }
-
   // only disambiguate, if template
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
 
@@ -286,8 +278,6 @@ void Function::tcheck(Env &env, bool checkBody, Variable *instV)
 
   // record the definition scope for this template, since this
   // information is needed to instantiate it
-  //
-  // different place for defnScope; TODO: remove the one above
   if (nameAndParams->var->templateInfo()) {
     Scope *s = env.nonTemplateScope();
     if (s->isPermanentScope()) {

@@ -3287,15 +3287,11 @@ void Env::instantiateFunctionBody(Variable *instV)
   if (instV->funcDefn) {
     // inline definition
     defnScope = instTI->defnScope;
-
-    // temporary, until we remove it: check with Function::defnScope
-    xassert(defnScope == instV->funcDefn->defnScope);
   }
   else {
     // out-of-line definition; must clone the primary's definition
     instV->funcDefn = baseV->funcDefn->clone();
     defnScope = baseV->templateInfo()->defnScope;
-    xassert(defnScope == baseV->funcDefn->defnScope);
   }
 
   // set up the scopes in a way similar to how it was when the
