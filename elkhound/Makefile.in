@@ -45,6 +45,9 @@ ranlib      := ranlib
 # optimizer...
 #ccflags += -O2 -DNDEBUG
 
+# enable action trace in glr parser
+ccflags += -DACTION_TRACE
+
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
 
@@ -275,14 +278,14 @@ libglr.a: $(glr-set)
 # stand-alone executable for parsing C
 cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libglr.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
-	./$@ cc/c.bin c.in/c.in1
+	./$@ c.in/c.in1
 
 .PRECIOUS: cc/ccgr
 
 # stand-alone executable for parsing C++
 cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libglr.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
-	./$@ cc/cc.bin c.in/c.in1
+	./$@ c.in/c.in1
 
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly

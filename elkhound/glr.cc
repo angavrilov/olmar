@@ -139,12 +139,14 @@
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
 
-// D(..) is code to execute for extra debugging info
-//#define EXTRA_CHECKS
-#ifdef EXTRA_CHECKS
-  #define D(stmt) stmt
+// ACTION(..) is code to execute for action trace diagnostics, i.e. "-tr action"
+//#define ACTION_TRACE
+#ifdef ACTION_TRACE
+  #define ACTION(stmt) stmt
+  #define TRSACTION(stuff) if (tracingSys("action")) { cout << stuff << endl; }
 #else
-  #define D(stmt)
+  #define ACTION(stmt)
+  #define TRSACTION(stuff)
 #endif
 
 // TRSPARSE(stuff) traces <stuff> during debugging with -tr parse
@@ -208,23 +210,45 @@ enum {
 
 
 // ------------- front ends to user code ---------------
+// given a symbol id (terminal or nonterminal), and its associated
+// semantic value, yield a description string
+string symbolDescription(SymbolId sym, UserActions *user, 
+                         SemanticValue sval)
+{
+  if (symIsTerm(sym)) {
+    return user->terminalDescription(symAsTerm(sym), sval);
+  }
+  else {
+    return user->nonterminalDescription(symAsNonterm(sym), sval);
+  }
+}
+
 SemanticValue GLR::duplicateSemanticValue(SymbolId sym, SemanticValue sval)
 {
   xassert(sym != 0);
   if (!sval) return sval;
 
+  SemanticValue ret;
   if (symIsTerm(sym)) {
-    return userAct->duplicateTerminalValue(symAsTerm(sym), sval);
+    ret = userAct->duplicateTerminalValue(symAsTerm(sym), sval);
   }
   else {
-    return userAct->duplicateNontermValue(symAsNonterm(sym), sval);
+    ret = userAct->duplicateNontermValue(symAsNonterm(sym), sval);
   }
+
+  TRSACTION("  " << symbolDescription(sym, userAct, ret) <<
+            " is DUP of " <<
+            symbolDescription(sym, userAct, sval));
+
+  return ret;
 }
 
 void deallocateSemanticValue(SymbolId sym, UserActions *user,
                              SemanticValue sval)
 {
   xassert(sym != 0);
+  TRSACTION("  DEL " << symbolDescription(sym, user, sval));
+
   if (!sval) return;
 
   if (symIsTerm(sym)) {
@@ -321,19 +345,18 @@ inline SymbolId StackNode::getSymbolC() const
 }
 
 
+
 void StackNode::deallocSemanticValues()
 {
   // explicitly deallocate siblings, so I can deallocate their
   // semantic values if necessary (this requires knowing the
-  // associated symbol, which the SiblinkLinks don't know)
+  // associated symbol, which the SiblingLinks don't know)
   if (firstSib.sib != NULL) {
-    D(trace("sval") << "deleting sval " << firstSib.sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, firstSib.sval);
   }
 
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
-    D(trace("sval") << "deleting sval " << sib->sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, sib->sval);
   }
 }
@@ -619,9 +642,7 @@ GLR::GLR(UserActions *user, ParseTables *t)
     toPass(MAX_RHSLEN),
     stackNodePool(NULL),
     trParse(tracingSys("parse")),
-    trsParse(trace("parse")),
-    trSval(tracingSys("sval")),
-    trsSval(trace("sval"))
+    trsParse(trace("parse"))
   // some fields (re-)initialized by 'clearAllStackNodes'
 {
   // originally I had this inside glrParse() itself, but that
@@ -669,7 +690,8 @@ void GLR::clearAllStackNodes()
 }
 
   
-// print compile-time configuration
+// print compile-time configuration; this is useful for making
+// sure a given binary has been compiled the way you think
 void GLR::printConfig() const
 {
   printf("GLR configuration follows.  Settings marked with an\n"
@@ -684,8 +706,8 @@ void GLR::printConfig() const
   printf("  semantic value yield count: %s\n",
          YIELD_COUNT(1+)0? "enabled" : "disabled *");
 
-  printf("  EXTRA_CHECKS (for debugging): %s\n",
-         D(1+)0? "enabled" : "disabled *");
+  printf("  ACTION_TRACE (for debugging): %s\n",
+         ACTION(1+)0? "enabled" : "disabled *");
 
   printf("  NDEBUG: %s\n",
          IF_NDEBUG(1+)0? "set *" : "not set");
@@ -743,8 +765,7 @@ SemanticValue GLR::grabTopSval(StackNode *node)
   SemanticValue ret = sib->sval;
   sib->sval = duplicateSemanticValue(node->getSymbolC(), sib->sval);
 
-  trsSval << "dup'd " << ret << " for top sval, yielded "
-          << sib->sval << endl;
+  TRSACTION("dup'd " << ret << " for top sval, yielded " << sib->sval);
 
   return ret;
 }
@@ -812,6 +833,13 @@ void GLR::buildParserIndex()
 
 bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 {
+  #ifndef ACTION_TRACE
+    // tell the user why "-tr action" doesn't do anything, if 
+    // they specified that
+    trace("action") << "warning: ACTION_TRACE is currently disabled by a\n";
+    trace("action") << "compile-time switch, so you won't see parser actions.\n";
+  #endif
+
   // get ready..
   traceProgress() << "parsing...\n";
   clearAllStackNodes();
@@ -942,6 +970,10 @@ STATICDEF bool GLR
       }
     #endif
 
+    // alternate debugging; print after reclassification
+    TRSACTION("lookahead token: " << lexer.tokenDesc() <<
+              " aka " << userAct->terminalDescription(lexer.type, lexer.sval));
+
   #if USE_MINI_LR
     // try to cache a few values in locals (this didn't help any..)
     //ActionEntry const * const actionTable = this->tables->actionTable;
@@ -982,6 +1014,16 @@ STATICDEF bool GLR
           // I need to hide this declaration when debugging is off and
           // optimizer and -Werror are on, because it provokes a warning
           TRSPARSE_DECL( int startStateId = parser->state; )
+          
+          // if we're tracing actions, I'm going to build a string 
+          // that describes all of the RHS symbols
+          ACTION( 
+            string rhsDescription("");
+            if (rhsLen == 0) {
+              // print something anyway
+              rhsDescription = " empty";
+            }
+          )
 
           // record location of left edge; defaults to no location
           // (used for epsilon rules)
@@ -998,6 +1040,7 @@ STATICDEF bool GLR
           StackNode *prev = stackNodePool.private_getHead();
 
           #if USE_UNROLLED_REDUCE
+            #error this code is out of date; unroll the general loop again
             // What follows is three unrollings of the loop below,
             // labeled "loop for arbitrary rhsLen".  Read that loop
             // before the unrollings here, since I omit the comments
@@ -1009,63 +1052,6 @@ STATICDEF bool GLR
             // occurrence of 'i' with the value of one less than the 'case'
             // label number.
             switch ((unsigned)rhsLen) {    // gcc produces slightly better code if I cast to unsigned first
-              case 4: {
-                SiblingLink &sib = parser->firstSib;
-                toPass[3] = sib.sval;
-                SOURCELOC(
-                  if (sib.loc.validLoc()) {
-                    leftEdge = sib.loc;
-                  }
-                )
-                parser->nextInFreeList = prev;
-                prev = parser;
-                parser = sib.sib;
-                xassertdb(parser->referenceCount==1);
-                xassertdb(prev->referenceCount==1);
-                prev->decrementAllocCounter();
-                prev->firstSib.sib.setWithoutUpdateRefct(NULL);
-                xassertdb(parser->referenceCount==1);
-                // drop through into next case
-              }
-
-              case 3: {
-                SiblingLink &sib = parser->firstSib;
-                toPass[2] = sib.sval;
-                SOURCELOC(
-                  if (sib.loc.validLoc()) {
-                    leftEdge = sib.loc;
-                  }
-                )
-                parser->nextInFreeList = prev;
-                prev = parser;
-                parser = sib.sib;
-                xassertdb(parser->referenceCount==1);
-                xassertdb(prev->referenceCount==1);
-                prev->decrementAllocCounter();
-                prev->firstSib.sib.setWithoutUpdateRefct(NULL);
-                xassertdb(parser->referenceCount==1);
-                // drop through into next case
-              }
-
-              case 2: {
-                SiblingLink &sib = parser->firstSib;
-                toPass[1] = sib.sval;
-                SOURCELOC(
-                  if (sib.loc.validLoc()) {
-                    leftEdge = sib.loc;
-                  }
-                )
-                parser->nextInFreeList = prev;
-                prev = parser;
-                parser = sib.sib;
-                xassertdb(parser->referenceCount==1);
-                xassertdb(prev->referenceCount==1);
-                prev->decrementAllocCounter();
-                prev->firstSib.sib.setWithoutUpdateRefct(NULL);
-                xassertdb(parser->referenceCount==1);
-                // drop through into next case
-              }
-
               case 1: {
                 SiblingLink &sib = parser->firstSib;
                 toPass[0] = sib.sval;
@@ -1108,6 +1094,12 @@ STATICDEF bool GLR
             // another action routine (avoiding that overhead is
             // another advantage to the LR mode).
             toPass[i] = sib.sval;
+
+            // when tracing actions, continue building rhs desc
+            ACTION( rhsDescription = 
+              stringc << " "
+                      << symbolDescription(parser->getSymbolC(), userAct, sib.sval)
+                      << rhsDescription; )
 
             // not necessary:
             //   sib.sval = NULL;                  // link no longer owns the value
@@ -1192,8 +1184,6 @@ STATICDEF bool GLR
           #else
             NULL;
           #endif
-          D(trsSval << "[miniLR] reduced via production " << prodIndex
-                    << ", user returned " << sval << endl);
 
           // now, push a new state; essentially, shift prodInfo.lhsIndex.
           // do "glrShiftNonterminal(parser, prodInfo.lhsIndex, sval, leftEdge);",
@@ -1232,6 +1222,11 @@ STATICDEF bool GLR
           activeParsers[0] = newNode;
           newNode->incRefCt();
           xassertdb(newNode->referenceCount == 1);   // activeParsers[0] is referrer
+
+          // emit some trace output
+          TRSACTION("  " << 
+                    symbolDescription(newNode->getSymbolC(), userAct, sval) <<
+                    " ->" << rhsDescription);
 
           // after all this, we haven't shifted any tokens, so the token
           // context remains; let's go back and try to keep acting
@@ -1466,9 +1461,9 @@ bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
   arr[1] = grabTopSval(last);         // eof's sval
 
   // reduce
-  trsSval << "handing toplevel sval " << arr[0]
-          << " and " << arr[1]
-          << " to top start's reducer\n";
+  TRSACTION("handing toplevel sval " << arr[0] <<
+            " and " << arr[1] <<
+            " to top start's reducer");
   treeTop = doReductionAction(
               //getItemSet(last->state)->getFirstReduction()->prodIndex,
               tables->finalProductionIndex,
@@ -1743,6 +1738,15 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // epsilon rules)
     SOURCELOC( SourceLocation leftEdge; )
 
+    // build description of rhs for tracing
+    ACTION( 
+      string rhsDescription(""); 
+      if (rhsLen == 0) {
+        // print something anyway
+        rhsDescription = " empty";
+      }
+    )
+
     // before calling the user, duplicate any needed values
     //SemanticValue *toPass = new SemanticValue[rhsLen];
     toPass.ensureIndexDoubler(rhsLen-1);
@@ -1751,6 +1755,12 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
       // we're about to yield sib's 'sval' to the reduction action
       toPass[i] = sib->sval;
+
+      // continue building rhs desc
+      ACTION( rhsDescription =
+        stringc << " " 
+                << symbolDescription(pcs.symbols[i], userAct, sib->sval)
+                << rhsDescription; )
 
       // left edge?  or, have all previous tokens failed to yield
       // information?
@@ -1766,8 +1776,6 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       // be this replacement
       sib->sval = duplicateSemanticValue(pcs.symbols[i], sib->sval);
 
-      D(trsSval << "dup'd " << toPass[i] << " to pass, yielding "
-                << sib->sval << " to store" << endl);
       YIELD_COUNT( sib->yieldCount++; )
     }
 
@@ -1777,13 +1785,16 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     SemanticValue sval = 
       doReductionAction(pcs.prodIndex, toPass.getArray()
                         SOURCELOCARG( leftEdge ) );
-    D(trsSval << "reduced via production " << pcs.prodIndex
-              << ", user returned " << sval << endl);
     //delete[] toPass;
+
+    // emit tracing diagnostics for this reduction
+    ACTION( string lhsDesc = 
+              userAct->nonterminalDescription(prodInfo.lhsIndex, sval); )
+    TRSACTION("  " << lhsDesc << " -> " << rhsDescription);
 
     // see if the user wants to keep this reduction
     if (!userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
-      D(trsSval << "but the user decided not to keep it" << endl);
+      TRSACTION("    CANCELLED " << lhsDesc);
       return;
     }
 
@@ -1895,18 +1906,24 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
         return;
       }
         
-      // remember previous value, for debugging printout or yield
-      // count warning; optimizer will merge them if both are enabled
-      D(SemanticValue old = sibLink->sval);
+      // remember previous value, for yield count warning
       YIELD_COUNT(SemanticValue old2 = sibLink->sval);
+
+      // remember descriptions of the values before they are merged
+      ACTION( 
+        string leftDesc = userAct->nonterminalDescription(lhsIndex, sibLink->sval);
+        string rightDesc = userAct->nonterminalDescription(lhsIndex, sval);
+      )
 
       // call the user's code to merge, and replace what we have
       // now with the merged version
       sibLink->sval = userAct->mergeAlternativeParses(lhsIndex,
                                                       sibLink->sval, sval);
 
-      D(trsSval << "merged " << old << " and " << sval
-                << ", yielding " << sibLink->sval << endl);
+      // emit tracing diagnostics for the merge
+      TRSACTION("  " <<
+                userAct->nonterminalDescription(lhsIndex, sibLink->sval) <<
+                " is MERGE of " << leftDesc << " and " << rightDesc);
 
       YIELD_COUNT(
         if (old2 != sibLink->sval &&
@@ -2062,8 +2079,15 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
       addActiveParser(rightSibling);
     }
 
+    // TODO: BUG: I am not duplicating semantic values of tokens here,
+    // even though there's a possibility that multiple states could
+    // shift.  For the moment I will ignore it since I'm working on
+    // something else and I can't completely assure myself that adding
+    // the dup() couldn't break something.. also I'm not yet sure
+    // when/if a del() should accompany the dup()s.
+
     // either way, add the sibling link now
-    D(trsSval << "grabbed token sval " << lexerPtr->sval << endl);
+    //TRSACTION("grabbed token sval " << lexerPtr->sval);
     rightSibling->addSiblingLink(leftSibling, lexerPtr->sval
                                  SOURCELOCARG( lexerPtr->loc ) );
                                  

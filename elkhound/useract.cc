@@ -4,7 +4,6 @@
 #include "useract.h"     // this module
 #include "typ.h"         // STATICDEF
 
-#include <stdlib.h>      // NULL
 
 UserActions::~UserActions()
 {}
@@ -54,3 +53,9 @@ UserActions::ReclassifyFunc TrivialUserActions::getReclassifier()
 STATICDEF int TrivialUserActions::reclassifyToken(UserActions *,
   int oldTokenType, SemanticValue )
   { return oldTokenType; }
+
+string TrivialUserActions::terminalDescription(int, SemanticValue)
+  { return string(""); }
+
+string TrivialUserActions::nonterminalDescription(int, SemanticValue)
+  { return string(""); }

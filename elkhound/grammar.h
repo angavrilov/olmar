@@ -84,7 +84,7 @@ public:      // funcs
   Symbol(Flatten&);
   void xfer(Flatten &flat);
 
-  // uniform selectors
+  // symmetric selectors
   bool isTerminal() const { return isTerm; }
   bool isNonterminal() const { return !isTerm; }
 

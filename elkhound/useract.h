@@ -12,6 +12,7 @@
 #define USERACT_H
 
 #include "glrconfig.h"     // SOURCELOC
+#include "str.h"           // string
 
 class SourceLocation;      // fileloc.h
 
@@ -113,6 +114,11 @@ public:
 
   // get the reclassifier
   virtual ReclassifyFunc getReclassifier()=0;
+  
+  // descriptions of symbols with their semantic values; this is useful
+  // for the ACTION_TRACE function of the parser
+  virtual string terminalDescription(int termId, SemanticValue sval)=0;
+  virtual string nonterminalDescription(int nontermId, SemanticValue sval)=0;
 };
 
 
@@ -136,7 +142,10 @@ public:
                                                                        \
   virtual bool keepNontermValue(int nontermId, SemanticValue sval);    \
                                                                        \
-  virtual ReclassifyFunc getReclassifier();
+  virtual ReclassifyFunc getReclassifier();                            \
+                                                                       \
+  virtual string terminalDescription(int termId, SemanticValue sval);  \
+  virtual string nonterminalDescription(int nontermId, SemanticValue sval);
 
 
 // a useraction class which has only trivial actions

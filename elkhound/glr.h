@@ -404,8 +404,6 @@ public:
   // (that are then usually not printed)
   bool trParse;                             // tracingSys("parse")
   ostream &trsParse;                        // trace("parse")
-  bool trSval;                              // tracingSys("sval")
-  ostream &trsSval;                         // trace("sval")
 
   // track column for new nodes
   NODE_COLUMN( int globalNodeColumn; )

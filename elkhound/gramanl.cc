@@ -3856,6 +3856,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
 // prototypes for this section; some of them accept Grammar simply
 // because that's all they need; there's no problem upgrading them
 // to GrammarAnalysis
+void emitDescriptions(GrammarAnalysis const &g, EmitCode &out);
 void emitActionCode(GrammarAnalysis const &g, char const *hFname,
                     char const *ccFname, char const *srcFname);
 void emitUserCode(EmitCode &out, LocString const &code);
@@ -3953,6 +3954,9 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
         << "\n\n";
   )
 
+  emitDescriptions(g, out);
+  // 'emitDescriptions' prints two newlines itself..
+
   emitActions(g, out, dcl);
   out << "\n";
   out << "\n";
@@ -3961,7 +3965,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "\n";
   out << "\n";
 
-  g.tables->emitConstructionCode(out, 
+  g.tables->emitConstructionCode(out,
     stringc << "make_" << g.actionClassName << "_tables");
 }
 
@@ -4003,6 +4007,71 @@ char const *typeString(char const *type, LocString const &tag)
 bool isEnumType(char const *type)
 {
   return 0==strncmp(type, "enum", 4);
+}
+
+
+void emitDescriptions(GrammarAnalysis const &g, EmitCode &out)
+{
+  // emit a map of terminal ids to their names
+  {
+    out << "static char const *termNames[] = {\n";
+    for (int code=0; code < g.numTerminals(); code++) {
+      Terminal const *t = g.getTerminal(code);
+      if (!t) {
+        // no terminal for that code
+        out << "  \"(no terminal)\",  // " << code << "\n";
+      }
+      else {
+        out << "  \"" << t->name << "\",  // " << code << "\n";
+      }
+    }
+    out << "};\n"
+        << "\n";
+  }
+
+  // emit a function to describe terminals; at some point I'd like to
+  // extend my grammar format to allow the user to supply
+  // token-specific description functions, but for now I will just
+  // use the information easily available the synthesize one;
+  // I print "sval % 100000" so I get a 5-digit number, which is
+  // easy for me to compare for equality without adding much clutter
+  out << "string " << g.actionClassName
+      << "::terminalDescription(int termId, SemanticValue sval)\n"
+      << "{\n"
+      << "  return stringc << termNames[termId]\n"
+      << "                 << \"(\" << (sval % 100000) << \")\";\n"
+      << "}\n"
+      << "\n"
+      << "\n"
+      ;
+
+  // emit a map of nonterminal ids to their names
+  {
+    out << "static char const *nontermNames[] = {\n";
+    for (int code=0; code < g.numNonterminals(); code++) {
+      Nonterminal const *nt = g.getNonterminal(code);
+      if (!nt) {
+        // no nonterminal for that code
+        out << "  \"(no nonterminal)\",  // " << code << "\n";
+      }
+      else {
+        out << "  \"" << nt->name << "\",  // " << code << "\n";
+      }
+    }
+    out << "};\n"
+        << "\n";
+  }
+
+  // and a function to describe nonterminals also
+  out << "string " << g.actionClassName
+      << "::nonterminalDescription(int nontermId, SemanticValue sval)\n"
+      << "{\n"
+      << "  return stringc << nontermNames[nontermId]\n"
+      << "                 << \"(\" << (sval % 100000) << \")\";\n"
+      << "}\n"
+      << "\n"
+      << "\n"
+      ;
 }
 
 
@@ -4132,22 +4201,6 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl)
 {
   out << "// ---------------- dup/del/merge/keep nonterminals ---------------\n"
-      << "\n";
-
-  // emit a map of nonterm ids to their names, to greatly improves the
-  // information value of the "no action to (deallocate|merge)" messages
-  out << "static char const *nontermNames[] = {\n";
-  for (int code=0; code < g.numNonterminals(); code++) {
-    Nonterminal const *nt = g.getNonterminal(code);
-    if (!nt) {
-      // no nonterminal for that code
-      out << "  \"(no nonterminal)\",  // " << code << "\n";
-    }
-    else {
-      out << "  \"" << nt->name << "\",  // " << code << "\n";
-    }
-  }
-  out << "};\n"
       << "\n";
 
   // emit inlines for dup/del/merge of nonterminals
@@ -4331,9 +4384,20 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
     out << "      return oldTokenType;\n";
   }
   else {
-    out << "      cout << \"WARNING: there is no action to " << actUpon << " \"\n"
-           "           << nontermNames[" << switchVar << "] << endl;\n";
-    if (whichFunc == 2) {    
+    if (syms.firstC()->isNonterminal()) {
+      // use the nonterminal map
+      out << "      cout << \"WARNING: there is no action to " << actUpon << " \"\n"
+             "           << nontermNames[" << switchVar << "] << endl;\n";
+    }
+    else {
+      // there currently is no terminal map, and since the user was
+      // at least partially involved in deciding the codes it might
+      // not be so bad to just use the code, at least for now..
+      out << "      cout << \"WARNING: there is no action to " << actUpon << " \"\n"
+             "           << " << switchVar << " << endl;\n";
+    }
+
+    if (whichFunc == 2) {
       // merge; arbitrarily choose to keep first one
       //out << "      abort();\n";
       out << "      return left;\n";
