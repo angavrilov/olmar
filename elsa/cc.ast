@@ -412,8 +412,8 @@ class Statement (SourceLoc loc) {
     }
   }
 
-  // e.g. "S_if@4:5" -- kind, line, col
-  //public string kindLocString() const;
+  public string lineColString() const;      // e.g. "4:5"
+  public string kindLocString() const;      // e.g. "S_if@4:5"
 
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);

@@ -4,7 +4,7 @@
 #tmp: cc_tcheck.o cc_type.o
 
 # main target: a C++ parser
-all: tlexer ccparse quicktest
+all: cc.ast.gen.h tlexer ccparse quicktest
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -76,7 +76,7 @@ $(TOK_FILES): cc_tokens.tok $(ELKHOUND)/make-token-files
 
 
 # run astgen to generate the AST implementation
-CC_AST_MODS := cc.ast cc_tcheck.ast cc_print.ast
+CC_AST_MODS := cc.ast cc_tcheck.ast cc_print.ast cfg.ast
 cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
 	$(AST)/astgen -occ.ast.gen $(CC_AST_MODS)
 
@@ -90,6 +90,7 @@ cc.gr.gen.h cc.gr.gen.cc: cc.gr cc_tokens.ids $(ELKHOUND)/elkhound
 # that finds serious compilation problems earliest
 CCPARSE_OBJS := \
   $(LEXER_OBJS) \
+  cfg.o \
   cc_env.o \
   cc_type.o \
   cc_tcheck.o \
