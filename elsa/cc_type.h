@@ -752,10 +752,8 @@ public:     // funcs
   // similar for TypeVariable
   bool containsTypeVariables() const;
 
-  // returns true if contains type variables or STemplateArgument-s
-  // with the tag STA_REFERENCE, since these are what template object
-  // (or at least int) variables look like.  Recurses down into
-  // TemplateArguments.
+  // returns true if contains type or object variables (template
+  // parameters); recurses down into TemplateArguments
   bool containsVariables() const;
 
   ALLOC_STATS_DECLARE

@@ -6,8 +6,8 @@
 #include "cc_env.h"         // Env
 
 
-ConstEval::ConstEval(Env &e)
-  : ccenv(e),
+ConstEval::ConstEval(Variable *d)
+  : dependentVar(d),
     msg(),
     dependent(false)
 {}
@@ -85,7 +85,7 @@ bool Expression::iconstEval(ConstEval &env, int &result) const
         return env.setDependent(result);
       }
       
-      if (v->var == env.ccenv.dependentVar) {
+      if (v->var == env.dependentVar) {
         // value-dependent expression (Q: is it always guaranteed to
         // be exactly 'dependentVar'?)
         return env.setDependent(result);

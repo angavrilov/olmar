@@ -713,17 +713,17 @@ bool STemplateArgument::isObject() const
     xfailure("illegal STemplateArgument kind"); break;
 
   case STA_TYPE:                // type argument
-    return false; break;
+    return false;
 
   case STA_INT:                 // int or enum argument
   case STA_REFERENCE:           // reference to global object
   case STA_POINTER:             // pointer to global object
   case STA_MEMBER:              // pointer to class member
   case STA_DEPEXPR:             // value-dependent expr
-    return true; break;
+    return true;
 
   case STA_TEMPLATE:            // template argument (not implemented)
-    return false; break;
+    return false;
   }
 }
     
@@ -776,16 +776,7 @@ bool STemplateArgument::containsVariables() const
       return true;
     }
   } 
-  else if (kind == STemplateArgument::STA_REFERENCE) {
-    // FIX: I am not at all sure that my interpretation of what
-    // STemplateArgument::kind == STA_REFERENCE means; I think it
-    // means it is a non-type non-template (object) variable in an
-    // argument list
-    return true;
-  }
   else if (kind == STA_DEPEXPR) {
-    // well, this one is *supposed* to be for object variables; 
-    // the STA_REFERENCE stuff is a bug
     return true;
   }
 
@@ -1174,37 +1165,6 @@ bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument>
       STemplateArgument *bound = new STemplateArgument;
       Expression *expr = arg->asTA_nontypeC()->expr;
       setSTemplArgFromExpr(*bound, expr, 0 /*recursionCount*/);
-
-      #if 0   // old?
-      if (expr->getType()->isIntegerType()) {
-        int staticTimeValue;
-        bool constEvalable = expr->constEval(*this, staticTimeValue);
-        if (!constEvalable) {
-          // error already added to the environment
-          return false;
-        }
-        bound->setInt(staticTimeValue);
-      } else if (expr->getType()->isReference()) {
-        // Subject: Re: why does STemplateArgument hold Variables?
-        // From: Scott McPeak <smcpeak@eecs.berkeley.edu>
-        // To: "Daniel S. Wilkerson" <dsw@eecs.berkeley.edu>
-        // The Variable is there because STA_REFERENCE (etc.)
-        // refer to (linker-visible) symbols.  You shouldn't
-        // be making an STemplateArgument out of an expression
-        // directly; if the template parameter is
-        // STA_REFERENCE (etc.) then dig down to find the
-        // Variable the programmer wants to use.
-        //
-        // haven't tried to exhaustively enumerate what kinds
-        // of expressions this could be; handle other types as
-        // they come up
-        xassert(expr->isE_variable());
-        bound->setReference(expr->asE_variable()->var);
-      } else {
-        unimp("unhandled kind of template argument");
-        return false;
-      }
-      #endif // 0
       match.bindings.putObjVar(param, bound);
     }
     else {
@@ -1667,15 +1627,12 @@ bool Env::insertTemplateArgBindings_oneParamList
         value0->type = tfac.getSimpleType(SL_UNKNOWN, ST_INT, CV_CONST);
         binding->value = value0;
       }
-      else if (sarg->kind == STemplateArgument::STA_REFERENCE) {
-        E_variable *value0 = new E_variable(NULL /*PQName*/);
-        value0->var = sarg->getReference();
-        binding->value = value0;
+      else if (sarg->kind == STemplateArgument::STA_DEPEXPR) {
+        binding->value = sarg->getDepExpr();
       }
       else {
-        unimp(stringc << "STemplateArgument objects that are of kind other than "
-              "STA_INT are not implemented: " << sarg->toString());
-        return false;
+        xunimp(stringc << "STemplateArgument objects that are of kind other than "
+               "STA_INT are not implemented: " << sarg->toString());
       }
       xassert(binding->value);
       addVariableToScope(scope, binding);
@@ -2870,7 +2827,7 @@ void Env::setSTemplArgFromExpr
       expr->type->isBool() ||
       expr->type->isEnumType()) {
     int i;
-    ConstEval cenv(env);
+    ConstEval cenv(env.dependentVar);
     if (expr->constEval(cenv, i)) {
       if (cenv.dependent) {
         sarg.setDepExpr(expr);
@@ -3677,33 +3634,38 @@ Type *Env::applyArgumentMapToAtomicType
         rta->setType(applyArgumentMapToType(map, sta->getType()));
         args.append(rta);
       }
-      else {
-        // handle the one case that sort of works; STA_REFERENCE is (for
-        // the moment; this is a bug) used as a catch-call
-        if (sta->kind == STemplateArgument::STA_REFERENCE) {
-          StringRef varName = sta->value.v->name;
-          STemplateArgument const *replacement = map.get(varName);
-          if (!replacement) {
-            // TODO: I think these should be user errors ...
-            //
-            // TODO: it is possible this really is a concrete
-            // reference argument, instead of being an abstract
-            // parameter, but we have no way of telling the difference
-            // in the current (broken) design
-            xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
-                             << varName << "' is not bound");
-          }
-          else if (replacement->isType()) {
-            xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
-                             << varName << "' is bound to a type argument");
-          }
+      else if (sta->isDepExpr()) {
+        Expression *e = sta->getDepExpr();
+        if (!e->isE_variable()) {                                
+          // what would cause this?  a partial spec?
+          xunimp("applyArgumentMap: dep-expr is not E_variable");
+        }
 
-          args.append(replacement->shallowClone());
+        StringRef varName = e->asE_variable()->var->name;
+        STemplateArgument const *replacement = map.get(varName);
+        if (!replacement) {
+          // TODO: I think these should be user errors ...
+          //
+          // TODO: it is possible this really is a concrete
+          // reference argument, instead of being an abstract
+          // parameter, but we have no way of telling the difference
+          // in the current (broken) design
+          xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
+                           << varName << "' is not bound");
         }
-        else {
-          // the argument is already concrete
-          args.append(sta->shallowClone());
+        else if (replacement->isType()) {
+          xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
+                           << varName << "' is bound to a type argument");
         }
+
+        args.append(replacement->shallowClone());
+      }
+      else {
+        xunimp("applyArgumentMap: unexpected argument kind");
+         
+        // older code said:
+        // the argument is already concrete
+        args.append(sta->shallowClone());
       }
     }
 
@@ -3839,10 +3801,13 @@ Type *Env::pseudoSelfInstantiation(CompoundType *ct, CVFlags cv)
       if (param->type->isTypeVariable()) {
         sta->setType(param->type);
       }
-      else {
-        // TODO: this is wrong, like it is basically everywhere else
-        // we use STA_REFERENCE ...
-        sta->setReference(param);
+      else {        
+        // perhaps there should be an STemplateArgument variant that
+        // is like STA_DEPEXPR but can only hold a single Variable?
+        PQ_name *name = new PQ_name(param->loc, param->name);
+        E_variable *evar = new E_variable(name);
+        evar->var = param;
+        sta->setDepExpr(evar);
       }
 
       pi->args.append(sta);

@@ -6,15 +6,15 @@
 
 #include "str.h"         // string
 
-class Env;               // cc_env.h
+class Variable;          // variable.h
 
 // this is a container for the evaluation state; the actual
 // evaluation methods are associated with the AST nodes,
 // and declared in cc_tcheck.ast
 class ConstEval {
 public:      // data
-  // tcheck env; needed to tell when an expression is value-dependent...
-  Env &ccenv;
+  // needed to tell when an expression is value-dependent...
+  Variable * /*nullable*/ dependentVar;
 
   // error message if failed to evaluate
   string msg;
@@ -23,7 +23,7 @@ public:      // data
   bool dependent;
 
 public:
-  ConstEval(Env &ccenv);
+  ConstEval(Variable * /*nullable*/ dependentVar);
   ~ConstEval();
                                  
   // use this to set 'dependent' to true

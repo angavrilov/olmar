@@ -408,19 +408,6 @@ void Function::tcheck(Env &env, Variable *instV)
     SFOREACH_OBJLIST(Variable, funcType->params, iter) {
       env.ensureCompleteType("use as parameter type", iter.data()->type);
     }
-
-    // NASTY (expletive) (expletive) HACK: Our STA_REFERENCE thing is
-    // causing a problem for d0053.cc, because 'dt.type' is A2<17>
-    // whereas 'nameAndParams->var->type' is A2<I>, 'I' being a
-    // reference (to the param itself...).  So, do the same
-    // force-complete to the nameAndParams->var->type.....
-    {
-      FunctionType *declFuncType = nameAndParams->var->type->asFunctionType();
-      env.ensureCompleteType("use (in declFuncType) as return type", declFuncType->retType);
-      SFOREACH_OBJLIST(Variable, declFuncType->params, iter) {
-        env.ensureCompleteType("use (in declFuncType) as parameter type", iter.data()->type);
-      }
-    }
   }
 
   // record the definition scope for this template, since this
@@ -3688,7 +3675,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     if (size) {
       // try to evaluate the size to a constant
       int sz;
-      ConstEval cenv(env);
+      ConstEval cenv(env.dependentVar);
       if (!size->constEval(cenv, sz)) {
         // size didn't evaluate to a constant
         sz = ArrayType::NO_SIZE;
@@ -4864,14 +4851,10 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
     maybeNondependent(env, name->loc, nondependentVar, var);
   }
 
-  if (var->isBoundTemplateParam/*wrong*/()) {
+  if (var->isTemplateParam()) {
     // this variable is actually a bound meta-variable (template
     // argument), so it is *not* to be regarded as a reference
     // (14.1 para 6)
-    //
-    // TODO: The correct query here is 'isTemplateParam', but
-    // when I put that in it runs smack into the STA_REFERENCE
-    // problem, so I am leaving it wrong for now.
     return var->type;
   }
 
@@ -7725,7 +7708,7 @@ bool Expression::constEval(Env &env, int &result, bool &dependent) const
 {
   dependent = false;
 
-  ConstEval cenv(env);
+  ConstEval cenv(env.dependentVar);
   if (constEval(cenv, result)) {
     dependent = cenv.dependent;
     return true;

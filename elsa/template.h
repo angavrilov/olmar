@@ -353,30 +353,14 @@ public:      // funcs
 // equivalence classes as implied by cppstd 14.4 para 1
 class STemplateArgument {
 public:
-  // FIX: make these data members private
   enum Kind {
     STA_NONE,        // not yet resolved into a valid template argument
     STA_TYPE,        // type argument
     STA_INT,         // int or enum argument
-
-    // dsw: this may not be a ref to a global object, but instead a
-    // template parameter; in this example from in/t0180.cc, note the
-    // use of 'C' here is an argument, where it is brought into
-    // existence as a template parameter in the outer scope:
-    //   template <typename A, typename B, int C>
-    //   struct Traits<A, Helper1<B, Helper2<C> > >
-    //
-    // sm: STA_REFERENCE is being abused here; note how it would not
-    // work if the code said "C+2".  We need something like STA_EXPR
-    // that means "integer argument, but not evaluatable to a constant
-    // in this context".
     STA_REFERENCE,   // reference to global object
-
     STA_POINTER,     // pointer to global object
     STA_MEMBER,      // pointer to class member
-
     STA_DEPEXPR,     // value-dependent expression
-
     STA_TEMPLATE,    // template argument (not implemented)
     NUM_STA_KINDS
   } kind;

@@ -942,43 +942,33 @@ bool MatchTypes::match_STA(STemplateArgument *a, STemplateArgument const *b, int
   case STemplateArgument::STA_INT: // int or enum argument
     if (STemplateArgument::STA_INT == b->kind) {
       return a->value.i == b->value.i;
-    } else if (STemplateArgument::STA_REFERENCE == b->kind) {
-      return unifyIntToVar(a->value.i, b->value.v);
-    } else {
+    } 
+    else if (STemplateArgument::STA_DEPEXPR == b->kind) {
+      if (b->getDepExpr()->isE_variable()) {
+        return unifyIntToVar(a->value.i, b->getDepExpr()->asE_variable()->var);
+      }
+      else {
+        return false;      // int vs arbitrary expression..
+      }
+    }
+    else {
       return false;
     }
     break;
 
   case STemplateArgument::STA_REFERENCE: // reference to global object
-    if (STemplateArgument::STA_INT == b->kind) {
-      // you can't unify a reference with an int
-      return false;
-    }
-    if (STemplateArgument::STA_REFERENCE == b->kind) {
-      if (mode == MM_WILD ||
-          // FIX: THIS IS WRONG.  We should save the binding and
-          // lookup and check if they match just as we would do for
-          // type variables.
-          mode == MM_ISO) {
-        return true;
-      }
-    }
-    // FIX: do MM_BIND mode also
-    xfailure("reference arguments unimplemented");
+    xunimp("reference template argument");
     break;
 
   case STemplateArgument::STA_POINTER: // pointer to global object
-    // FIX:
-    xfailure("pointer arguments unimplemented");
+    xunimp("pointer template argument");
 
   case STemplateArgument::STA_MEMBER: // pointer to class member
-    // FIX:
-    xfailure("pointer to member arguments unimplemented");
+    xunimp("pointer to member template argument");
     break;
 
   case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
-    // FIX:
-    xfailure("STemplateArgument::STA_TEMPLATE non implemented");
+    xunimp("template template argument");
     break;
 
   case STemplateArgument::STA_DEPEXPR:
@@ -1028,7 +1018,64 @@ bool MatchTypes::match0(Type *a, Type *b, int matchDepth)
 // -------------- matching expressions ----------------
 bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
 {
-  // for now, only allow exact structural matching
+  // var on right?
+  if (b->isE_variable() &&
+      b->asE_variableC()->var->isTemplateParam()) {
+    if (mode == MM_WILD) {
+      return true;      // var on right matches anything
+    }
+
+    // bound?
+    Variable *bVar = b->asE_variableC()->var;
+    STemplateArgument const *bValue = bindings.getVar(bVar->name);
+    if (bValue) {
+      switch (bValue->kind) {
+        default:
+          xunimp("unhandled template argument kind");
+
+        case STemplateArgument::STA_INT: {
+          // synthesize an integer expression for comparison
+          E_intLit lit(NULL /*text*/);
+          lit.i = bValue->getInt();
+          return matchExpr(a, &lit);
+        }
+
+        case STemplateArgument::STA_TYPE:
+          return false;      // expr vs. type: no match
+
+        case STemplateArgument::STA_DEPEXPR:
+          return matchExpr(a, bValue->getDepExpr());
+      }
+    }
+
+    // I *think* this will not put 'a' in a position to be modified,
+    // but I'm not 100% sure.  Statically, STemplateArgument::value.e
+    // does flow into Variable::value, which gets tcheck'd in some
+    // circumstances.  But I think those are entirely different uses
+    // of values...
+    //
+    // TODO: Rather than binding 'arg' to 'a' as a "dependent" expr, I
+    // think this code should call into Env::setSTemplArgFromExpr.
+    // That way it should evaluate 'a' as much as possible, for
+    // example boiling it down to a simple int.  One reason that would
+    // be good is that STemplateArgument::containsVariables generally
+    // assumes that STA_DEPEXPR only is used when the expression
+    // contains variables, but as this code stands, it can make
+    // STA_DEXEXPRs with expressions that are entirely concrete.
+    //
+    // Unfortunately, Env::setSTemplArgFromExpr uses the Env in
+    // several ways that would need to be factored out, as this module
+    // does not have access to the Env (by design).
+    Expression *aNonConst = const_cast<Expression*>(a);
+
+    // bind it to the LHS expression
+    STemplateArgument *arg = new STemplateArgument;
+    arg->setDepExpr(aNonConst);
+    bindings.putObjVar(bVar, arg);
+    return true;
+  }
+
+  // exact structural matching from here down
   if (a->kind() != b->kind()) {
     return false;
   }
@@ -1046,15 +1093,15 @@ bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
 
     ASTNEXT2C(E_intLit, aLit, bLit)
       return aLit->i == bLit->i;
-      
+
     ASTNEXT2C(E_variable, aVar, bVar)
       if (aVar->var == bVar->var) {
-        return true;      // literally the same
+        return true;     // exactly the same
       }
       if (aVar->var->isTemplateParam() &&
           bVar->var->isTemplateParam() &&
           aVar->var->sameTemplateParameter(bVar->var)) {
-        return true;      // same logical parameter
+        return true;     // logically the same
       }
       return false;
 
@@ -1116,9 +1163,7 @@ bool MatchTypes::match_Lists
    SObjList<STemplateArgument> &listB,
    int matchDepth)
 {
-  // using the cast is a bit of a hack; the "right" solution is to
-  // use a template with a template parameter, but that's a bit over
-  // the top (and may jeopardize portability)
+  // as above
   return match_Lists(listA,
                      reinterpret_cast<ObjList<STemplateArgument>&>(listB),
                      matchDepth);

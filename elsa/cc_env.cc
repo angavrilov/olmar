@@ -1606,12 +1606,8 @@ Variable *Env::getPrimaryOrSpecialization
         allToplevelVars = false;
       }
     }
-    else {
-      // we do not (yet) have a proper way of distinguishing object
-      // placeholders from true concrete objects in template
-      // arguments..... but our hacky approach is that STA_REFERENCE
-      // is abstract and others are concrete...
-      if (arg->kind != STemplateArgument::STA_REFERENCE) {
+    else if (arg->isDepExpr()) {
+      if (!arg->getDepExpr()->isE_variable()) {
         allToplevelVars = false;
       }
     }
