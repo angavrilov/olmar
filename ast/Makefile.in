@@ -133,7 +133,7 @@ LIB_OBJS := \
 
 libast.a: $(LIB_OBJS)
 	$(AR) -r $@ $(LIB_OBJS)
-	$(RANLIB) $@
+	-$(RANLIB) $@
 
 
 # ------------------ documentation ------------------

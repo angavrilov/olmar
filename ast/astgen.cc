@@ -56,7 +56,7 @@ public:           // funcs
 
   // type queries
   TreeNodeKind getTreeNodeKind(char const *type);
-  TreeNodeKind Gen::getTreeNodePtrKind(char const *type);
+  TreeNodeKind getTreeNodePtrKind(char const *type);
 
   bool isTreeNode(char const *type)
     { return getTreeNodeKind(type) != TKN_NONE; }
