@@ -194,25 +194,47 @@ BlockDeclaration -> SimpleDeclaration      # C++ has other alternatives..
 #   all of which are C++ only, so the DeclSpecifierSeq is now mandatory
 # ok, why is the InitDeclaratorList optional?
 #   for declaring classes and enums
-SimpleDeclaration -> DeclSpecifierSeq InitDeclaratorListOpt ";"
+SimpleDeclaration -> DeclSpecifier InitDeclaratorListOpt ";"
+  # e.g.:            int           x                     ;
 
-# specifier: the "int" in a declaration like "int x"
-DeclSpecifier -> StorageClassSpecifier
-DeclSpecifier -> TypeSpecifier
-DeclSpecifier -> "typedef"
+DeclSpecifier -> StorageClassOpt CVQualifiersOpt TypeSpecifier
+StorageClassOpt -> "typedef" | "auto" | "register" | "static" | "extern" | empty
+CVQualifiersOpt -> "const" CVQualifiersOpt | "volatile" CVQualifiersOpt | empty
 
-DeclSpecifierSeq -> DeclSpecifier | DeclSpecifierSeq DeclSpecifier
+TypeSpecifier -> SimpleTypeSpecifier       # int
+TypeSpecifier -> ClassSpecifier            # class { ... }
+TypeSpecifier -> EnumSpecifier             # enum { ... }
 
-StorageClassSpecifier -> "auto" | "register" | "static" | "extern"
-
-TypeSpecifier -> SimpleTypeSpecifier
-TypeSpecifier -> ClassSpecifier
-TypeSpecifier -> EnumSpecifier
-TypeSpecifier -> CVQualifier
-
-SimpleTypeSpecifier -> "char" | "wchar_t" | "short" | "int" | "long" | "signed"
-SimpleTypeSpecifier -> "unsigned" | "float" | "double" | "void"
-SimpleTypeSpecifier -> TypedefName    # this is the tough one!
+# this list comes from Table 7 (p.109) of the C++ standard
+# NOTE: this deviates from the language spec, which allows other
+# decl-specifiers to mix with the tokens here; I do not
+SimpleTypeSpecifier -> TypedefName                  # <-- this is part of why parsing C is hard
+SimpleTypeSpecifier -> "char"			    # char
+SimpleTypeSpecifier -> "unsigned" "char"	    # unsigned char
+SimpleTypeSpecifier -> "signed" "char"		    # signed char
+SimpleTypeSpecifier -> "bool"			    # bool
+SimpleTypeSpecifier -> "unsigned"		    # unsigned int
+SimpleTypeSpecifier -> "unsigned" "int"		    # unsigned int
+SimpleTypeSpecifier -> "signed"			    # int
+SimpleTypeSpecifier -> "signed" "int"		    # int
+SimpleTypeSpecifier -> "int"			    # int
+SimpleTypeSpecifier -> "unsigned" "short" "int"	    # unsigned short int
+SimpleTypeSpecifier -> "unsigned" "short"	    # unsigned short int
+SimpleTypeSpecifier -> "unsigned" "long" "int"	    # unsigned long int
+SimpleTypeSpecifier -> "unsigned" "long"	    # unsigned long int
+SimpleTypeSpecifier -> "signed" "long" "int"	    # long int
+SimpleTypeSpecifier -> "signed" "long"		    # long int
+SimpleTypeSpecifier -> "long" "int"		    # long int
+SimpleTypeSpecifier -> "long"			    # long int
+SimpleTypeSpecifier -> "signed" "short" "int"	    # short int
+SimpleTypeSpecifier -> "signed" "short"		    # short int
+SimpleTypeSpecifier -> "short" "int"		    # short int
+SimpleTypeSpecifier -> "short"			    # short int
+SimpleTypeSpecifier -> "wchar_t"		    # wchar_t
+SimpleTypeSpecifier -> "float"			    # float
+SimpleTypeSpecifier -> "double"			    # double
+SimpleTypeSpecifier -> "long" "double"		    # long double
+SimpleTypeSpecifier -> "void"			    # void
 
 EnumSpecifier -> "enum" "{" EnumeratorListOpt "}"
 EnumSpecifier -> "enum" EnumName "{" EnumeratorListOpt "}"
@@ -309,15 +331,15 @@ ParameterDeclarationList -> ParameterDeclarationList "," ParameterDeclaration
 # original spec had four alternatives, since parameters don't have to be
 # named
 # UPDATE: but now I've split them...
-ParameterDeclaration -> DeclSpecifierSeq Declarator
-ParameterDeclaration -> DeclSpecifierSeq Declarator "=" AssignmentExpression
-ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator
-ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator "=" AssignmentExpression
+ParameterDeclaration -> DeclSpecifier Declarator
+ParameterDeclaration -> DeclSpecifier Declarator "=" AssignmentExpression
+ParameterDeclaration -> DeclSpecifier AbstractDeclarator
+ParameterDeclaration -> DeclSpecifier AbstractDeclarator "=" AssignmentExpression
 
 
 # -- function definition --
-FunctionDefinition -> DeclSpecifierSeq Declarator  FunctionBody
-  #                   return type      name/params body
+FunctionDefinition -> DeclSpecifier Declarator  FunctionBody
+  #                   return type   name/params body
 
 FunctionBody -> CompoundStatement
 
@@ -334,7 +356,7 @@ ClassKeyword -> "class" | "struct" | "union"
 
 MemberSpecificationSeqOpt -> empty | MemberSpecification MemberSpecificationSeqOpt
 
-MemberSpecification -> DeclSpecifierSeq MemberDeclaratorListOpt ";"    # why opt?
+MemberSpecification -> DeclSpecifier MemberDeclaratorListOpt ";"    # why opt?
 MemberSpecification -> FunctionDefinition ";"
 MemberSpecification -> FunctionDefinition      # syntactic tweak
 

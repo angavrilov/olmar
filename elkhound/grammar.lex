@@ -1,16 +1,30 @@
 /* grammar.lex
- * lexical anayzer for grammar files
- *  basically, this is C lexical structure
+ * lexical analyzer for C code
+ *
+ * strips C and C++ comments
+ *
+ * TOK_STRING and TOK_CHARACTER:
+ *   recognizes string and character literals, and translates
+ *     backslash codes within
+ *
+ * TOK_IDENTIFIER, TOK_OPERATOR:
+ *   identifiers and operators
+ *
+ * TOK_INTEGER:
+ *   integer literal
+ *
+ * TOK_FLOAT:
+ *   floating-point literal
  */
 
 /* ----------------- C definitions -------------------- */
 %{
 
 struct BackslashCode {
-  char code;         // the char that follows a backslash
-  char meaning;      // its meaning
+  char code;          // the char that follows a backslash
+  char meaning;       // its meaning
 };
-static BackslashCode backslashCodes[] = {
+static BackslashCode const backslashCodes[] = {
   { 'a', '\a' },      // bell
   { 'b', '\b' },      // backspace
   { 'f', '\f' },      // formfeed
@@ -20,6 +34,15 @@ static BackslashCode backslashCodes[] = {
   { 'v', '\v' },      // vertical tab
 };
 
+// my lexer state
+int commentStartLine;        // for reporting unterminated C comments
+string stringLiteral;        // to collect string and character literals
+int numberLiteral;           // to store number literal value
+
+// lexer state automatically supplied by flex
+//   yytext      - contents of matched string, for identifiers and operators
+//   yyleng      - # of characters in yytext
+//   yylineno    - current line number in file
 
 %}
 
@@ -58,12 +81,12 @@ ANY       (.|"\n")
 }
 
 
-"//"."\n" {
+"//".*"\n" {
   /* C++-style comment -- eat it */
 }
 
 
-  /* -------- strings -------- */
+  /* -------- string and character literals -------- */
 "\"" {
   /* string literal */
   stringLiteral = "";
@@ -74,9 +97,40 @@ ANY       (.|"\n")
   "\"" {
     /* end of string */
     /* caller can retrieve string text as stringLiteral */
+    BEGIN(INITIAL);
     return TOK_STRING;
   }
 
+  "\n" {
+    /* unescaped newline */
+    printf("unterminated string literal on line %d\n", yylineno);
+    BEGIN(INITIAL);
+    return TOK_STRING;
+  }
+}
+
+"\'" {
+  /* character literal */
+  stringLiteral = "";       /* I use 'stringLiteral' for both */
+  BEGIN(CHARACTER);
+}
+
+<CHARACTER>{
+  "\'" {
+    /* end of character literal */
+    BEGIN(INITIAL);
+    return TOK_CHARACTER;
+  }
+
+  "\n" {
+    /* unescaped newline */
+    printf("unterminated character literal on line %d\n", yylineno);
+    BEGIN(INITIAL);
+    return TOK_CHARACTER;
+  }
+}
+
+<STRING,CHARACTER>{
   "\\\n"(WHITESP)* {
     /* escaped newline: eat it, and all the leading whitespace on the
      * next line */
@@ -105,26 +159,26 @@ ANY       (.|"\n")
     }
   }
 
-  "\n" {
-    /* unescaped newline */
-    printf("unterminated string literal on line %d\n", yylineno);
-    BEGIN(INITIAL);
-    return TOK_STRING;
-  }
-
   . {
     /* ordinary text character */
     stringLiteral << yytext[0];
   }
 }
 
-  /* -------- identifiers, numbers, etc. -------- */
+  /* -------- identifiers and keywords -------- */
 (LETTER)(LETTER|DIGIT)* {
   /* identifier (or keyword) */
   return TOK_IDENTIFIER;
 }
 
-(DIGIT)+ { 
+  /* ---------- numbers ----------------------- */
+(NONZERODIGIT)(DIGIT)+[uUlU]* {
+  /* decimal literal */
+  integerLiteral = stroul(yytext);
+  integerLiteralUnsigned =   
+
+
+(DIGIT)+ {
   /* number literal */
   return TOK_NUMBER;
 }

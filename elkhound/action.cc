@@ -63,8 +63,8 @@ string Actions::toString(Production const *prod) const
 void Actions::parse(Production const *prod, char const *actionsText)
 {
   // parse as <lvalue> := <expr>
-  char const *colon = strchr(actionsText, ':');
-  if (!colon || (colon[1] != '=')) {
+  char const *colon = strstr(actionsText, ":=");
+  if (!colon) {
     xfailure("action must contain the `:=' sequence\n");
   }
 
