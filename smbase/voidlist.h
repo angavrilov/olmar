@@ -153,6 +153,7 @@ public:
   bool isDone() const              { return current == NULL; }
   void adv()                       { prev = current;  current = current->next; }
   void *data()                     { return current->data; }
+  void *&dataRef()                 { return current->data; }
 
   // insertion
   void insertBefore(void *item);

@@ -198,6 +198,7 @@ public:
   bool isDone() const                   { return mut.isDone(); }
   void adv()                            { mut.adv(); }
   T *data()                             { return (T*)mut.data(); }
+  T *&dataRef()                         { return (T*&)mut.dataRef(); }
 
   // insertion
   void insertBefore(T *item)            { mut.insertBefore(item); }
