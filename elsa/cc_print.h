@@ -119,9 +119,9 @@ class TreeWalkDebug {
 class TypePrinter {
   public:
   // this method does the work
-  virtual void print(Type *, stringBuilder &);
+  virtual void print(Type *, stringBuilder &, char const *name = NULL);
   // convenience method
-  virtual string print(Type *);
+  virtual string print(Type *, char const *name = NULL);
 };
 
 // global context for a pretty-print

@@ -235,15 +235,15 @@ TreeWalkDebug::~TreeWalkDebug()
 
 // **** class TypePrinter
 
-void TypePrinter::print(Type *type, stringBuilder &sb)
+void TypePrinter::print(Type *type, stringBuilder &sb, char const *name)
 {
-  sb << type->toString();
+  sb << type->toCString(name);
 }
 
-string TypePrinter::print(Type *type)
+string TypePrinter::print(Type *type, char const *name)
 {
   stringBuilder sb;
-  print(type, sb);
+  print(type, sb, name);
   return sb;
 }
 
@@ -256,7 +256,9 @@ string TypePrinter::print(Type *type)
 //   C()                    // ctor inside class C
 //   operator delete[]()
 //   char operator()        // conversion operator to 'char'
-string declaration_toString (
+string declaration_toString
+  (PrintEnv &env,
+                             
   // declflags present in source; not same as 'var->flags' because
   // the latter is a mixture of flags present in different
   // declarations
@@ -295,7 +297,8 @@ string declaration_toString (
     s << "operator ";
 
     // then the return type and the function designator
-    s << type->asFunctionTypeC()->retType->toString() << " ()";
+    env.typePrinter.print(type->asFunctionTypeC()->retType, s);
+    s << " ()";
   }
 
   else if (finalName && 0==strcmp(finalName, "constructor-special")) {
@@ -336,10 +339,10 @@ string declaration_toString (
 
 
 // more specialized version of the previous function
-string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
+string var_toString(PrintEnv &env, Variable *var, PQName const * /*nullable*/ pqname)
 {
   TreeWalkDebug treeDebug("var_toString");
-  return declaration_toString(var->flags, var->type, pqname, var);
+  return declaration_toString(env, var->flags, var->type, pqname, var);
 }
 
 
@@ -436,7 +439,7 @@ void Function::print(PrintEnv &env)
   TreeWalkDebug treeDebug("Function");
 
   env.out <<
-    declaration_toString(dflags, funcType,
+    declaration_toString(env, dflags, funcType,
                          nameAndParams->getDeclaratorId(),
                          nameAndParams->var);
 
@@ -703,7 +706,7 @@ void Declarator::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Declarator");
 
-  env.out << var_toString(var, decl->getDeclaratorId());
+  env.out << var_toString(env, var, decl->getDeclaratorId());
   D_bitfield *b = dynamic_cast<D_bitfield*>(decl);
   if (b) {
     env.out << ":";
@@ -1058,6 +1061,40 @@ void E_this::iprint(PrintEnv &env)
   env.out << "this";
 }
 
+// modified from STemplateArgument::toString()
+void printSTemplateArgument(PrintEnv &env, STemplateArgument const *sta)
+{
+  switch (sta->kind) {
+    default: xfailure("bad kind");
+    case STemplateArgument::STA_NONE:
+      env.out << string("STA_NONE");
+      break;
+    case STemplateArgument::STA_TYPE:
+      env.out << env.typePrinter.print(sta->value.t); // assume 'type' if no comment
+      break;
+    case STemplateArgument::STA_INT:
+      env.out << stringc << "/*int*/ " << sta->value.i;
+      break;
+    case STemplateArgument::STA_REFERENCE:
+      env.out << stringc << "/*ref*/ " << sta->value.v->name;
+      break;
+    case STemplateArgument::STA_POINTER:
+      env.out << stringc << "/*ptr*/ &" << sta->value.v->name;
+      break;
+    case STemplateArgument::STA_MEMBER:
+      env.out << stringc
+              << "/*member*/ &" << sta->value.v->scope->curCompound->name
+              << "::" << sta->value.v->name;
+      break;
+    case STemplateArgument::STA_DEPEXPR:
+      sta->getDepExpr()->print(env);
+      break;
+    case STemplateArgument::STA_TEMPLATE:
+      env.out << string("template (?)");
+      break;
+  }
+}
+
 // print template args, if any
 void printTemplateArgs(PrintEnv &env, Variable *var)
 {
@@ -1091,7 +1128,7 @@ void printTemplateArgs(PrintEnv &env, Variable *var)
     if (ct++ > 0) {
       env.out << ", ";
     }
-    env.out << iter.data()->toString();
+    printSTemplateArgument(env, iter.data());
   }
   env.out << ">";
 }
@@ -1457,7 +1494,9 @@ void TD_func::iprint(PrintEnv &env)
   Variable *var = f->nameAndParams->var;
   if (var->isTemplate() &&      // for complete specializations, don't print
       !var->templateInfo()->isPartialInstantiation()) {     // nor partial inst
-    env.out << "#if 0    // instantiations of " << var->toString() << "\n";
+    env.out << "#if 0    // instantiations of ";
+    env.typePrinter.print(var->type, (var->name? var->name : "/*anon*/"));
+    env.out << "\n";
     printFuncInstantiations(env, var);
 
     TemplateInfo *varTI = var->templateInfo();

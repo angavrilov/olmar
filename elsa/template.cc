@@ -809,6 +809,8 @@ void STemplateArgument::traverse(TypeVisitor &vis)
 }
 
 
+// NOTE: if you change this function, also change
+// printSTemplateArgument() in cc_print.cc
 string STemplateArgument::toString() const
 {
   switch (kind) {
