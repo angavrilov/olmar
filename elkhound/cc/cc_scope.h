@@ -85,6 +85,13 @@ public:      // funcs
   // for iterating over the variables
   StringSObjDict<Variable> getVariableIter() const
     { return StringSObjDict<Variable>(variables); }
+
+  // and the inner classes
+  StringSObjDict<CompoundType> getCompoundIter() const
+    { return StringSObjDict<CompoundType>(compounds); }
+    
+  int private_compoundTop() const
+    { return compounds.private_getTopAddr(); }
 };
 
 

@@ -1,0 +1,11 @@
+// cc.in38
+// problem with order of processing inner class inline members
+
+class StringDict {
+  class Iter {
+  public:
+    Iter(StringDict &dict) { dict.getIter(); }
+  };
+  Iter getIter();
+};
+     
