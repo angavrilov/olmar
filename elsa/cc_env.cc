@@ -68,8 +68,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     currentLinkage(quote_C_plus_plus_quote),
 
-    doOverload(tracingSys("doOverload")),
-    doOperatorOverload(tracingSys("doOperatorOverload")),
+    doOverload(tracingSys("doOverload") && lang.allowOverloading),
+    doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
     collectLookupResults(NULL),
     doElaboration(false),       // is turned on later if lang.hasImplicitStuff
 
@@ -1599,7 +1599,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   }
 
   // also add the typedef to the class' scope
-  if (name) {
+  if (name && lang.compoundSelfName) {
     Variable *tv2 = makeVariable(loc, name, ret, DF_TYPEDEF | DF_SELFNAME);
     ct->addUniqueVariable(tv2);
     addedNewVariable(ct, tv2);
@@ -1776,13 +1776,15 @@ Variable *Env::instantiateClassTemplate
                                  DF_TYPEDEF | DF_IMPLICIT);
     inst->typedefVar = var;
     foundScope->registerVariable(var);
-    
-    // also make the self-name, which *does* go into the scope
-    // (testcase: t0167.cc)
-    Variable *var2 = makeVariable(copyLoc, instName, type,
-                                  DF_TYPEDEF | DF_SELFNAME);
-    inst->addUniqueVariable(var2);
-    addedNewVariable(inst, var2);
+
+    if (lang.compoundSelfName) {
+      // also make the self-name, which *does* go into the scope
+      // (testcase: t0167.cc)
+      Variable *var2 = makeVariable(copyLoc, instName, type,
+                                    DF_TYPEDEF | DF_SELFNAME);
+      inst->addUniqueVariable(var2);
+      addedNewVariable(inst, var2);
+    }
   }
 
   if (copy) {

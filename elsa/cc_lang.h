@@ -69,6 +69,9 @@ public:
   // refined at some point, once elaboration stabilizes)
   bool hasImplicitStuff;
 
+  // when true, to every compound type add the name of the type itself
+  bool compoundSelfName;
+
 public:
   CCLang() { ANSI_C(); }
 

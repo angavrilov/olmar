@@ -245,6 +245,8 @@ public:      // funcs
   // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
+  // This is just a unique and possibly human readable string; it is
+  // used in the Oink linker imitator.
   string fullyQualifiedName();
   
   // for debugging, a quick description of this scope

@@ -3896,7 +3896,9 @@ static Variable *outerResolveOverload_ctor
 }
 
 
-// dsw: this function should eventually be the constant function "true"
+// dsw: this function should eventually be the constant function
+// "true" except for any references to env.doOverload (and possibly
+// env.lang.allowOverloading, though that's handled elsewhere for now)
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args) {
   return env.doOverload         // user wants overloading
     && !env.inTemplate()        // don't do any of this in a template context
@@ -5288,14 +5290,19 @@ bool Expression::constEval(string &msg, int &result) const
       Type *t = c->ctype->getType();
       if (t->isIntegerType()) {
         return true;       // ok
+      } else if (t->isPointerType()) {
+        PointerType *pt = t->asPointerType();
+        // also allow casting to pointers, as it occurs in the Linux kernel
+        if (pt->op==PO_POINTER) return true;
+        // but not to references
       }
-      else {
-        // TODO: this is probably not the right rule..
-        msg = stringc
-          << "in constant expression, can only cast to integer types, not `"
-          << t->toString() << "'";
-        return false;
-      }
+      // took out the "else" so that reference types would fall
+      // through to here
+      // TODO: this is probably not the right rule..
+      msg = stringc
+        << "in constant expression, can only cast to integer types, not `"
+        << t->toString() << "'";
+      return false;
 
     ASTNEXTC(E_cond, c)
       if (!c->cond->constEval(msg, result)) return false;

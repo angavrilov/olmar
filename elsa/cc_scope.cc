@@ -6,6 +6,7 @@
 #include "variable.h"     // Variable
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
+#include "mangle.h"
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
@@ -717,6 +718,8 @@ bool Scope::linkerVisible()
 
 // FIX: Would be cleaner to implement this as a call to
 // PQ_fullyQualifiedName() below and then to a toString() method.
+// UPDATE: After long discussion with Scott, we determine that that
+// idea is not practical.
 // FIX: This is wrong as it does not take into account template
 // arguments; Should be moved into CompoundType and done right.
 string Scope::fullyQualifiedName() 
@@ -733,8 +736,29 @@ string Scope::fullyQualifiedName()
     }
   }          
 
+  xassert(hasName());
   Variable *v = getTypedefName();
   xassert(v);
   sb << "::" << v->name;
+  if (curCompound && curCompound->templateInfo) {
+    sb << "<";
+    bool firstTime = true;
+    FOREACH_OBJLIST(STemplateArgument, curCompound->templateInfo->arguments, iter) {
+      if (firstTime) firstTime = false;
+      else sb << ", ";
+      switch(iter.data()->kind) {
+      default:
+        xfailure("can't handle this kind of STemplateArgument");
+        break;
+      case STemplateArgument::STA_NONE: sb << "-NONE"; break;
+        // FIX: I don't understand what this is doing for
+        // CompoundTypes: it doesn't ever seem to use the name of the
+        // type anywhere.
+      case STemplateArgument::STA_TYPE: sb << mangle(iter.data()->value.t); break;
+      case STemplateArgument::STA_INT: sb << iter.data()->value.i; break;
+      }
+    }
+    sb << ">";
+  }
   return sb;
 }

@@ -15,6 +15,7 @@ void CCLang::KandR_C()
   strictArraySizeRequirements = false;
   allowOverloading = false;
   hasImplicitStuff = false;
+  compoundSelfName = false;
 }
 
 void CCLang::ANSI_C()
@@ -29,6 +30,7 @@ void CCLang::ANSI_C()
   strictArraySizeRequirements = false;
   allowOverloading = false;
   hasImplicitStuff = false;
+  compoundSelfName = false;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -47,4 +49,5 @@ void CCLang::ANSI_Cplusplus()
 
   allowOverloading = true;
   hasImplicitStuff = true;
+  compoundSelfName = true;
 }
