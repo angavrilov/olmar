@@ -1730,7 +1730,8 @@ Scope *Env::lookupOneQualifier_useArgs(
   if (qualVar->hasFlag(DF_TYPEDEF)) {
     // check for a special case: a qualifier that refers to
     // a template parameter
-    if (qualVar->type->isTypeVariable()) {
+    if (qualVar->type->isTypeVariable() ||
+        qualVar->type->isPseudoInstantiation()) {    // in/t0426.cc
       // we're looking inside an uninstantiated template parameter
       // type; the lookup fails, but no error is generated here
       dependent = true;     // tell the caller what happened
