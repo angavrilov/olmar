@@ -1,6 +1,37 @@
 #!/bin/sh
 # regression tests
 
+# This file contains a list of tests that should be run in Elsa (via
+# ./ccparse) before each commit.  With the exception of a few stored
+# in the elsa/in/big directory, they should be short tests that can be
+# parsed and typechecked quickly.  When a big test fails (either one
+# that is in elsa/in/big, or some other external package), the failing
+# syntax should be isolated and added to this file.
+#
+# The basic procedure for adding tests is to find the section that has
+# tests for the language (C++, C, GNU extensions, etc.) the test uses, 
+# and append a line of the form
+#
+#   testparse foo.cc
+#
+# where the name 'testparse' will depend on the section the test
+# appears in (because it selects the language).
+#
+# If the test is currently failing, but is intended to be fixed and
+# therefore eventually succeed, use
+#
+#   failparse foo.cc "give reason here"
+#
+# If the test includes deliberately invalid syntax that elsa is
+# supposed to detect and reject, then include lines in the test case
+# of the form
+#
+#   //ERROR(n): some bad code;
+#
+# where 'n' is some number (like 1).  See multitest.pl for more
+# details.
+
+
 # default values for user parameters
 skip=0
 big=0
