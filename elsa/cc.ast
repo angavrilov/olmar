@@ -523,7 +523,7 @@ class Expression {
   -> E_deref(Expression ptr);
 
   -> E_cast(ASTTypeId ctype, Expression expr);
-  -> E_cond(Expression cond, Expression th, Expression el);
+  -> E_cond(Expression cond, Expression /*nullable in gcc C*/ th, Expression el);
   -> E_sizeofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
