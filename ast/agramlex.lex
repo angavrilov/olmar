@@ -175,12 +175,12 @@ SLWHITE   [ \t]
   /* no special significance to lexer */
   [^;}\n]+ {
     UPD_COL;
-    embedded->handle(yytext, yyleng);
+    embedded->handle(yytext, yyleng, embedFinish);
   }
 
   "\n" {
     newLine();
-    embedded->handle(yytext, yyleng);
+    embedded->handle(yytext, yyleng, embedFinish);
   }
 
   /* possibly closing delimiter */
@@ -206,7 +206,7 @@ SLWHITE   [ \t]
     }
     else {
       // embedded delimeter, mostly ignore it
-      embedded->handle(yytext, yyleng);
+      embedded->handle(yytext, yyleng, embedFinish);
     }
   }
 }

@@ -39,6 +39,14 @@ public:
   enum Kind { TF_VERBATIM, ASTCLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
+  TF_verbatim const *asTF_verbatimC() const;
+  TF_verbatim *asTF_verbatim() 
+    { return const_cast<TF_verbatim*>(asTF_verbatimC()); }
+
+  ASTClass const *asASTClassC() const;
+  ASTClass *asASTClass()
+    { return const_cast<ASTClass*>(asASTClass()); }
+
   virtual void debugPrint(ostream &os, int indent) const;
 };
 
@@ -76,6 +84,8 @@ public:
   enum { TYPE_TAG = ASTCLASS };
 
   virtual void debugPrint(ostream &os, int indent) const;
+  
+  public: bool hasChildren() const { return ctors.isNotEmpty(); }
 };
 
 
@@ -111,6 +121,8 @@ public:
   ~ASTCtor() {}
 
   void debugPrint(ostream &os, int indent) const;
+  
+  public: string kindName() const;
 };
 
 

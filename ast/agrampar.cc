@@ -119,6 +119,7 @@ ASTSpecFile *readAbstractGrammar(char const *fname)
     if (!*in) {
       throw_XOpen(fname);
     }
+    trace("tmp") << "in is " << in.get() << endl;
     lexer = new GrammarLexer(isAGramlexEmbed, fname, in.xfr());
   }
 

@@ -12,7 +12,7 @@ LINK = $(CXX) $(LDFLAGS)
 LINKEND = $(SMBASE)/libsmbase.a
 
 # default target
-all: agrampar
+all: agrampar astgen
 
 # unfortunately, the way bison.simple declares YYSTYPE precludes a proper
 # declaration of yylex(), unless I modify it as below; the 'grep' is so
@@ -31,7 +31,7 @@ agramlex.yy.cc: $(PARSGEN)/gramlex.h agramlex.lex agrampar.codes.h
 	flex -oagramlex.yy.cc agramlex.lex
 
 $(PARSGEN)/%.o: $(PARSGEN)/%.cc
-	make -C $(PARSGEN) check-makefiles $(PARSGEN)/$*.o
+	make -C $(PARSGEN) check-makefiles $*.o
 
 %.o: %.cc
 	$(COMPILE) $*.cc
@@ -40,7 +40,10 @@ $(PARSGEN)/%.o: $(PARSGEN)/%.cc
 	$(COMPILE) $*.c
 
 agrampar-dep = $(PARSGEN)/gramlex.o agrampar.tab.o $(PARSGEN)/ccsstr.o \
-               $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.o ast.hand.cc
+               $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.o ast.hand.o
 agrampar: $(agrampar-dep) agrampar.cc
 	$(LINK) -o agrampar $(CXXFLAGS) $(agrampar-dep) \
                 -DTEST_AGRAMPAR agrampar.cc $(LINKEND)
+
+astgen: $(agrampar-dep) agrampar.o astgen.o
+	$(LINK) -o astgen $(agrampar-dep) agrampar.o astgen.o $(LINKEND)

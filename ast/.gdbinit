@@ -1,7 +1,8 @@
 # .gdbinit
 
+#file astgen
 file agrampar
 break main
 break breaker
-set args ast.ast 
+set args -tr tmp tiny.ast 
 run

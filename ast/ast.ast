@@ -17,7 +17,9 @@ class ToplevelForm {
   -> ASTClass(string name,
               ASTList<CtorArg> superCtor,
               ASTList<UserDecl> decls,
-              ASTList<ASTCtor> ctors);
+              ASTList<ASTCtor> ctors) {
+       public bool hasChildren() const { return ctors.isNotEmpty(); };
+     }
 }
 
 verbatim {
@@ -32,7 +34,11 @@ class UserDecl (AccessCtl access, string code);
 // one of possibly several alternatives for the enclosing class
 class ASTCtor (string name,
                ASTList<CtorArg> args,
-               ASTList<UserDecl> decls);
+               ASTList<UserDecl> decls) {
+  // the name of the enum constant denoting this ctor, as distinguished
+  // from its sibling ctors
+  public string kindName() const;
+}
 
 // something that has to be passed to create a constructor
 class CtorArg (bool owner, string type, string name);

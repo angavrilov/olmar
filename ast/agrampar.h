@@ -8,7 +8,7 @@
 
 class GrammarLexer;
 
-// -------- rest of the program's view of the parser ------------
+// ---------------- agrampar's view of the parser --------------------
 // name of extra parameter to yyparse (i.e. the context in
 // which the parser operates, instead of that being stored
 // in some collection of globals)
@@ -61,6 +61,10 @@ int agrampar_yylex(union YYSTYPE *lvalp, void *parseParam);
 
 // classify token codes
 bool isAGramlexEmbed(int code);
+
+
+// --------------- external interface to agrampar ---------------
+ASTSpecFile *readAbstractGrammar(char const *fname);
 
 
 #endif // AGRAMPAR_H

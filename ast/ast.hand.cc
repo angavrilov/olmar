@@ -67,11 +67,19 @@ void ASTSpecFile::debugPrint(ostream &os, int indent) const
 void ToplevelForm::debugPrint(ostream &os, int indent) const
 {}
 
-#if 0
-TF_verbatim::TF_verbatim(string _code)
-  : code(_code)
-{}
-#endif // 0
+
+TF_verbatim const *ToplevelForm::asTF_verbatimC() const
+{
+  xassert(kind() == TF_VERBATIM);
+  return (TF_verbatim const*)this;
+}
+
+ASTClass const *ToplevelForm::asASTClassC() const
+{
+  xassert(kind() == ASTCLASS);
+  return (ASTClass const*)this;
+}
+
 
 void TF_verbatim::debugPrint(ostream &os, int indent) const
 {

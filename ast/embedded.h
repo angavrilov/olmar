@@ -36,9 +36,9 @@ public:
   virtual void reset() = 0;
 
   // process the given string of characters, as source text in
-  // the embedded language; 'loc' is provided for printing error
-  // messages, if desired
-  virtual void handle(char const *str, int len) = 0;
+  // the embedded language; 'finalDelim' is provided for printing
+  // informative error messages
+  virtual void handle(char const *str, int len, char finalDelim) = 0;
 
   // return true if we're at a nesting level of zero
   // and not in a string, etc. -- characters at this
