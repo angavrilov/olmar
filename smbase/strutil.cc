@@ -344,6 +344,23 @@ string dirname(char const *src)
 }
 
 
+// I will expand this definition as I go to get more knowledge about
+// English irregularities as I need it
+string plural(int n, char const *prefix)
+{
+  if (n==1) {
+    return string(prefix);
+  }
+  
+  if (prefix[strlen(prefix)-1] == 'y') {
+    return stringc << string(prefix, strlen(prefix)-1) << "ies";
+  }
+  else {
+    return stringc << prefix << "s";
+  }
+}
+
+
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
 
@@ -378,6 +395,13 @@ void dirnameVector(char const *in, char const *out)
   xassert(result.equals(out));
 }
 
+void pluralVector(int n, char const *in, char const *out)
+{
+  printf("pluralVector(%d, %s, %s)\n", n, in, out);
+  string result = plural(n, in);
+  xassert(result.equals(out));
+}
+
 
 void entry()
 {
@@ -400,6 +424,11 @@ void entry()
   dirnameVector("/a", "/");
   dirnameVector("abc", ".");
   dirnameVector("/", "/");
+
+  pluralVector(1, "path", "path");
+  pluralVector(2, "path", "paths");
+  pluralVector(1, "fly", "fly");
+  pluralVector(2, "fly", "flies");
 }
 
 

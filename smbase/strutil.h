@@ -59,4 +59,8 @@ string basename(char const *src);
 string dirname(char const *src);
 
 
+// return 'prefix', pluralized if n!=1
+string plural(int n, char const *prefix);
+
+
 #endif // __STRUTIL_H
