@@ -71,7 +71,6 @@ agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 CCSSTR_OBJS := \
   reporterr.o \
   embedded.o
--include $(CCSSTR_OBJS:.o=.d)
 
 ccsstr: ccsstr.cc ccsstr.h $(CCSSTR_OBJS)
 	$(CXX) -o $@ -DTEST_CCSSTR $(CCFLAGS) ccsstr.cc $(CCSSTR_OBJS) $(LDFLAGS)
@@ -83,6 +82,7 @@ ASTGEN_OBJS := \
   agrampar.tab.o \
   ccsstr.o \
   agramlex.yy.o \
+  reporterr.o \
   embedded.o \
   ast.hand.o \
   asthelp.o \
@@ -125,6 +125,7 @@ ext1.cc: astgen example.ast ext1.ast
 LIB_OBJS := \
   gramlex.o \
   ccsstr.o \
+  reporterr.o \
   embedded.o \
   asthelp.o \
   strtable.o \

@@ -44,7 +44,6 @@ public:      // types
   // embedded text
   typedef bool (*isEmbedTok)(int tokCode);
 
-private:     // data
   // error reporter that uses fileState instead of tokenStartLoc
   class AltReportError : public ReportError {
     GrammarLexer &lexer;
@@ -56,8 +55,12 @@ private:     // data
     virtual void reportWarning(char const *msg);
   };
   friend class AltReportError;
+  
+public:      // data
+  // exposed so a user-provided 'embedded' can use it
   AltReportError altReporter;
 
+private:     // data
   // state of a file we were or are lexing
   struct FileState {
     SourceLoc loc;                 // location in the file
@@ -131,7 +134,8 @@ public:      // funcs
   GrammarLexer(isEmbedTok embedTokTest,
                StringTable &strtable,
                char const *fname = "<stdin>",
-               istream * /*owner*/ source = NULL);
+               istream * /*owner*/ source = NULL,
+               EmbeddedLang * /*owner*/ embedded = NULL /*i.e. assume C lexics*/);
 
   // clean up
   ~GrammarLexer();

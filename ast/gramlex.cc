@@ -70,7 +70,8 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 
 // ---------------------- GrammarLexer --------------------------
 GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
-                           char const *fname, istream *source)
+                           char const *fname, istream *source,
+                           EmbeddedLang *userEmb)
   : yyFlexLexer(source),
     altReporter(*this),
     fileState(fname, source),
@@ -79,7 +80,7 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedStart(0),
     embedFinish(0),
     embedMode(0),
-    embedded(new CCSubstrate(altReporter)),
+    embedded(userEmb? userEmb : new CCSubstrate(&altReporter)),
     embedTokTest(test),
     allowInit(false),
     prevState(0),       // same as INITIAL, but this value isn't used

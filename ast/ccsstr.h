@@ -27,7 +27,7 @@ private:
   friend class CCSubstrateTest;
 
 public:
-  CCSubstrate(ReportError &err);
+  CCSubstrate(ReportError *err = NULL);
   virtual ~CCSubstrate();
 
   // EmbeddedLang entry points (see gramlex.h for description

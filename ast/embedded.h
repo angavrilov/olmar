@@ -10,7 +10,7 @@
 class EmbeddedLang {
 public:
   // for reporting errors
-  ReportError &err;
+  ReportError *err;
 
   // all text processed so far; it collects the
   // embedded code; clients will call 'handle' a
@@ -29,7 +29,7 @@ public:
   bool isDeclaration;
 
 public:
-  EmbeddedLang(ReportError &err);
+  EmbeddedLang(ReportError *err = NULL /*print to stdout*/);
   virtual ~EmbeddedLang();    // silence warning
 
   // start from scratch

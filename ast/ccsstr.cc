@@ -10,7 +10,7 @@
 #include <ctype.h>       // isspace
 
 
-CCSubstrate::CCSubstrate(ReportError &err)
+CCSubstrate::CCSubstrate(ReportError *err)
   : EmbeddedLang(err)
 {
   reset();
@@ -48,7 +48,7 @@ void CCSubstrate::handle(char const *str, int len, char finalDelim)
           case ')':
           case ']':
             if (nesting == 0) {
-              err.reportError(stringc
+              err->reportError(stringc
                 << "unexpected closing delimiter `" << *str
                 << "' -- probably due to missing `" << finalDelim << "'");
             }
@@ -82,7 +82,7 @@ void CCSubstrate::handle(char const *str, int len, char finalDelim)
             backslash = true;
           }
           else if (*str == '\n') {
-            err.reportError("unterminated string or char literal");
+            err->reportError("unterminated string or char literal");
           }
         }
         else {
@@ -228,7 +228,7 @@ void Test::feed(CC &cc, char const *src)
 
 void Test::test(char const *src, CC::State state, int nesting, bool flag)
 {
-  CC cc(simpleReportError);
+  CC cc;
   feed(cc, src);
 
   if (!( cc.state == state &&
@@ -257,7 +257,7 @@ void Test::str(char const *src, int nesting, bool bs)
 
 void Test::yes(char const *src)
 {
-  CC cc(simpleReportError);
+  CC cc;
   feed(cc, src);
 
   xassert(cc.zeroNesting());
@@ -265,7 +265,7 @@ void Test::yes(char const *src)
 
 void Test::no(char const *src)
 {
-  CC cc(simpleReportError);
+  CC cc;
   feed(cc, src);
 
   xassert(!cc.zeroNesting());
@@ -273,14 +273,14 @@ void Test::no(char const *src)
 
 void Test::name(char const *body, char const *n)
 {
-  CC cc(simpleReportError);
+  CC cc;
   feed(cc, body);
   xassert(cc.getDeclName().equals(n));
 }
 
 void Test::badname(char const *body)
 {
-  CC cc(simpleReportError);
+  CC cc;
   feed(cc, body);
   try {
     cc.getDeclName();
