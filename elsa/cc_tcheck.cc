@@ -2906,11 +2906,13 @@ Type *E_funCall::itcheck(Env &env)
   // with the function parameters
 
   // type of the expr is type of the return value
-#ifdef DISTINCT_CVATOMIC_TYPES
-  return t->asFunctionTypeC().retType->deepClone();
-#else
+
+  // This is off because Scott removed my ability to clone types.
+//  #ifdef DISTINCT_CVATOMIC_TYPES
+//    return t->asFunctionTypeC().retType->deepClone();
+//  #else
   return t->asFunctionTypeC().retType;
-#endif
+//  #endif
 }
 
 
