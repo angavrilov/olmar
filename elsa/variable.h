@@ -25,8 +25,10 @@
 #include "fileloc.h"      // SourceLocation
 #include "strtable.h"     // StringRef
 #include "cc_flags.h"     // DeclFlags
+#include "sobjlist.h"     // SObjList
 
 class Type;               // cc_type.h
+class OverloadSet;        // below
 
 class Variable {
 public:    // data
@@ -39,9 +41,13 @@ public:    // data
   StringRef name;         // name introduced (possibly NULL for abstract declarators)
   Type const *type;       // type of the variable
   DeclFlags flags;        // various flags
+  
+  // if this name has been overloaded, then this will be a pointer
+  // to the set of overloaded names; otherwise it's NULL
+  OverloadSet *overload;  // (serf)
 
 public:    // funcs
-  Variable(SourceLocation const &L, StringRef n, 
+  Variable(SourceLocation const &L, StringRef n,
            Type const *t, DeclFlags f);
   ~Variable();
 
@@ -54,10 +60,28 @@ public:    // funcs
   bool hasAddrTaken() const { return flags & DF_ADDRTAKEN; }
   bool isGlobal() const { return flags & DF_GLOBAL; }
 
+  // create an overload set if it doesn't exist, and return it
+  OverloadSet *getOverloadSet();
+
   // some ad-hoc thing
   string toString() const;
 };
 
 inline string toString(Variable const *v) { return v->toString(); }
+
+
+class OverloadSet {
+public:
+  // list-as-set
+  SObjList<Variable> set;
+  
+public:
+  OverloadSet();
+  ~OverloadSet();
+  
+  void addMember(Variable *v);
+  int count() const { return set.count(); }
+};
+
 
 #endif // VARIABLE_H
