@@ -4,5 +4,6 @@
 struct BF {
   int x : 2;
   unsigned y : 4;
-  /*anon*/ : 7;
+  int /*anon*/ : 7;
+  //ERROR1:  /*anon*/ : 7;  // missing type--parse error
 };

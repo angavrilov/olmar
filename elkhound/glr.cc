@@ -163,6 +163,7 @@
 // these disable featurs of mini-LR for performance testing
 #define USE_ACTIONS 1
 #define USE_RECLASSIFY 1
+#define USE_KEEP 1
 
 // enables the mini-LR altogether
 #define USE_MINI_LR 1
@@ -735,6 +736,9 @@ void GLR::printConfig() const
   printf("  token reclassification: %s\n",
          USE_RECLASSIFY? "enabled" : "disabled *");
          
+  printf("  reduction cancellation: %s\n",
+         USE_KEEP? "enabled" : "disabled *");
+
   printf("  mini-LR parser core: %s\n",
          USE_MINI_LR? "enabled *" : "disabled");
          
@@ -1244,7 +1248,21 @@ STATICDEF bool GLR
                     symbolDescription(newNode->getSymbolC(), userAct, sval) <<
                     " ->" << rhsDescription);
 
-          // BUG: (?) I'm not calling the user's keep() function here..
+          #if USE_KEEP
+            // see if the user wants to keep this reduction
+            if (!userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
+              TRSACTION("    CANCELLED " << lhsDesc);
+              glr.printParseErrorMessage(newNode->state);
+              ACCOUNTING(
+                glr.detShift += localDetShift;
+                glr.detReduce += localDetReduce;
+              )
+              
+              // TODO: I'm pretty sure I'm not properly cleaning
+              // up all of my state here..
+              return false;
+            }
+          #endif // USE_KEEP
 
           // after all this, we haven't shifted any tokens, so the token
           // context remains; let's go back and try to keep acting
@@ -1833,7 +1851,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     TRSACTION("  " << lhsDesc << " ->" << rhsDescription);
 
     // see if the user wants to keep this reduction
-    if (!userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
+    if (USE_KEEP &&
+        !userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
       TRSACTION("    CANCELLED " << lhsDesc);
       return;
     }

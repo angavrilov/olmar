@@ -882,6 +882,17 @@ void MR_access::tcheck(Env &env)
   env.scope()->curAccess = k;
 }
 
+void MR_publish::tcheck(Env &env)
+{
+  if (!name->hasQualifiers()) {
+    env.error(stringc
+      << "in superclass publication, you have to specify the superclass");
+  }
+  else {
+    // TODO: actually verify the superclass has such a member..
+  }
+}
+
 
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
