@@ -33,11 +33,7 @@ TOCHECK += cc.in7
 TOCHECK += cc.in8
 TOCHECK += cc.in9
 TOCHECK += cc.in10
-
-# SCOTT: Using different parameter var from prototype fails.
-# sm: should be fixed
 TOCHECK += cc.in11
-
 TOCHECK += cc.in12
 TOCHECK += cc.in13
 TOCHECK += cc.in14
@@ -66,27 +62,43 @@ TOCHECK += cc.in24
 # int ( func)(class B & b) {
 # TOCHECK += cc.in25
 
-# DSW: Templates not being printed.
+# DSW: Templates not being printed correctly when the template
+# arguments are used within the template.
 #TOCHECK += cc.in26
 #TOCHECK += cc.in27
 #TOCHECK += cc.in28
 
 TOCHECK += cc.in29
 
-# SCOTT: default arguments not being printed; unimplemented feature.
-#   inline Foo(int *x); ->
-# inline <cdtor> ( constructor-special)(int * x);
-# TOCHECK += cc.in30
+# Anonymous classes and enums being printed incorrectly in different
+# ways.  Wrote Scott if this is the parser or the printer.
+#TOCHECK += cc.in30
+# Smaller example of same problem.
+#TOCHECK += cc.in30a
 
-# SCOTT:
-# ( (operator-delete) ( (x)));
-# sm: should be fixed now
 TOCHECK += cc.in31
-
 TOCHECK += cc.in32
 TOCHECK += cc.in33
+TOCHECK += cc.in34
 
-# Stopping here as there are too many errors.
+# template <class num>
+# class TPoint {
+# becomes:
+# class TPoint {
+# Plus has other template printing problems mentioned above.
+#TOCHECK += cc.in35
+
+# Same template printing problems.
+#TOCHECK += cc.in36
+
+TOCHECK += cc.in37
+TOCHECK += cc.in38
+TOCHECK += cc.in39
+TOCHECK += cc.in40
+TOCHECK += cc.in41
+TOCHECK += cc.in42
+
+# That's all.
 
 .PHONY: idem/check
 idem/check: idem/clean

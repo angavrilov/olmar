@@ -327,7 +327,7 @@ string CompoundType::toCString() const
   }
 
   sb << keywordName(keyword) << " "
-     << (name? name : "(anonymous)");
+     << (name? name : "/*(anonymous)*/");
    
   return sb;
 }
