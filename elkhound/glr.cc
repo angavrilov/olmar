@@ -454,7 +454,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       }
       else {
         // print out the context of that parser
-        cout << "last parser to die had:\n"
+        cout << "last parser (state " << lastToDie->state->id << ") to die had:\n"
                 "  sample input: " << sampleInput(lastToDie->state) << "\n"
                 "  left context: " << leftContextString(lastToDie->state) << "\n";
       }

@@ -326,20 +326,6 @@ public:	    // funcs
   // retrieve the RHS as a list of symbols, rather than as a list of RHSElts
   void getRHSSymbols(SymbolList &output) const;
 
-  #if 0
-    // find an action that sets the named attribute; return
-    // NULL if none do
-    Action const *getAttrActionFor(char const *attr) const
-      { return actions.getAttrActionFor(attr); }
-
-    // true if the named function has an implementation here
-    bool hasFunction(char const *name) const
-      { return functions.isMapped(name); }
-
-    // check for referential integrity in actions and conditions
-    void checkRefs() const;
-  #endif // 0
-
   // append a RHS symbol
   void append(Symbol *sym, char const *tag);
 
@@ -362,10 +348,12 @@ public:	    // funcs
   Symbol *symbolByIndex(int symbolIndex)
     { return const_cast<Symbol*>(symbolByIndexC(symbolIndex)); }
 
+  #if 0
   // retrieve an item
   DottedProduction const *getDProdC(int dotPlace) const;
   DottedProduction *getDProd(int dotPlace)
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
+  #endif // 0
 
   // print 'A -> B c D' (no newline)
   string toString(bool printType = true) const;
@@ -378,9 +366,11 @@ public:	    // funcs
   string toStringMore(bool printCode) const;
 
 // ------ annotation ------
+#if 0
 private:    // data
   int numDotPlaces;             // after finished(): equals rhsLength()+1
   DottedProduction *dprods;     // (owner) array of dotted productions
+#endif // 0
 
 public:     // data
   int prodIndex;                // unique production id
@@ -397,55 +387,6 @@ typedef SObjListIter<Production> ProductionListIter;
 typedef ObjList<Production::RHSElt> RHSEltList;
 typedef ObjListIter<Production::RHSElt> RHSEltListIter;
 typedef ObjListMutator<Production::RHSElt> RHSEltListMutator;
-
-// ---------------- DottedProduction --------------------
-// a production, with an indicator that says how much of this
-// production has been matched by some part of the input string
-// (exactly which part of the input depends on where this appears
-// in the algorithm's data structures)
-class DottedProduction {
-// ------ representation ------
-public:	    // data
-  Production * const prod;       // (serf) the base production
-  int const dot;                 // 0 means it's before all RHS symbols, 1 means after first, etc.
-  bool const dotAtEnd;           // performance optimization
-
-public:	    // funcs
-  DottedProduction()       // for later filling-in
-    : prod(NULL), dot(-1), dotAtEnd(false) {}
-  DottedProduction(Production *p, int d)
-    : prod(NULL), dot(-1), dotAtEnd(false)     // silence warning about const init
-    { setProdAndDot(p, d); }
-
-  bool isDotAtStart() const { return dot==0; }
-  bool isDotAtEnd() const { return dotAtEnd; }
-
-  // call this to change prod and dot; don't change them directly
-  // (I didn't make them private because of the syntactic hassle
-  // of accessing them.  Instead I hacked them as 'const'.)
-  void setProdAndDot(Production *p, int d) /*mutable*/;
-
-  // dot must not be at the start (left edge)
-  Symbol const *symbolBeforeDotC() const;
-  Symbol *symbolBeforeDot() { return const_cast<Symbol*>(symbolBeforeDotC()); }
-
-  // dot must not be at the end (right edge)
-  Symbol const *symbolAfterDotC() const;
-  Symbol *symbolAfterDot() { return const_cast<Symbol*>(symbolAfterDotC()); }
-
-  // print to cout as 'A -> B . c D' (no newline)
-  void print(ostream &os) const;
-  OSTREAM_OPERATOR(DottedProduction)
-};
-
-// (serf) lists of dotted productions
-typedef SObjList<DottedProduction> DProductionList;
-typedef SObjListIter<DottedProduction> DProductionListIter;
-
-#define FOREACH_DOTTEDPRODUCTION(list, iter) FOREACH_OBJLIST(DottedProduction, list, iter)
-#define MUTATE_EACH_DOTTEDPRODUCTION(list, iter) MUTATE_EACH_OBJLIST(DottedProduction, list, iter)
-#define SFOREACH_DOTTEDPRODUCTION(list, iter) SFOREACH_OBJLIST(DottedProduction, list, iter)
-#define SMUTATE_EACH_DOTTEDPRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(DottedProduction, list, iter)
 
 
 // ---------------- Grammar --------------------

@@ -36,4 +36,6 @@ tracing strings:
   print-tree-before:   parse tree print before type checking
   type-ids:      print the type ids when types are printed
   initializer:   print details of declaration initializer processing  
+  closure:       details of item-set closure algorithm
+
 

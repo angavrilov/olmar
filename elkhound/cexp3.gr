@@ -4,9 +4,10 @@
 verbatim [
   #include <iostream.h>      // cout
   #include "cexp3ast.gen.h"  // Exp
-  
+  #include "trace.h"         // trace
+
   #define D(msg) \
-    cout << msg << endl
+    trace("exptree") << msg << endl
 ]
 
 /*
@@ -49,7 +50,7 @@ nonterm[Exp*] Exp {
   del(p) [ D("del " << p); p->decRefCt(); ]
   merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
 
-  -> i:L2_INT_LITERAL  [ cout << "literal: " << i << endl;
+  -> i:L2_INT_LITERAL  [ D("literal: " << i);
                          return new E_int(i); ]
   -> e1:Exp "+" e2:Exp [ return new E_op('+', e1, e2); ]
   -> e1:Exp "*" e2:Exp [ return new E_op('*', e1, e2); ]

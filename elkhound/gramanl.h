@@ -26,6 +26,88 @@ class EmitCode;         // emitcode.h
 class GrammarAnalysis;
 
 
+// ---------------- DottedProduction --------------------
+// a production, with an indicator that says how much of this
+// production has been matched by some part of the input string
+// (exactly which part of the input depends on where this appears
+// in the algorithm's data structures)
+class DottedProduction {
+// ------ representation ------
+private:    // data
+  // TODO: why is 'prod' not const?
+  Production *prod;              // (serf) the base production
+  int dot;                       // 0 means it's before all RHS symbols, 1 means after first, etc.
+  bool dotAtEnd;                 // performance optimization
+
+  unsigned char *lookahead;      // bitmap of lookahead, indexed by terminal id
+                                 // lsb of byte 0 is index 0
+  int lookaheadLen;              // # of bytes in 'lookahead'
+
+private:    // funcs
+  void init(int numTerms);
+  unsigned char *laGetByte(int terminalId) const;
+  int laGetBit(int terminalId) const
+    { return ((unsigned)terminalId % 8); }
+
+public:	    // funcs
+  DottedProduction(DottedProduction const &obj);
+
+  // need the grammar passed during creation so we know how big
+  // to make 'lookahead'
+  DottedProduction(Grammar const &g);       // for later filling-in
+  DottedProduction(Grammar const &g, Production *p, int d);
+  ~DottedProduction();
+
+  DottedProduction(Flatten&);
+  void xfer(Flatten &flat);
+  void xferSerfs(Flatten &flat, Grammar &g);
+
+  // simple queries
+  Production *getProd() const { return prod; }
+  int getDot() const { return dot; }
+  bool isDotAtStart() const { return dot==0; }
+  bool isDotAtEnd() const { return dotAtEnd; }
+
+  // manipulate the lookahead set
+  bool laContains(int terminalId) const;
+  void laAdd(int terminalId);
+  void laRemove(int terminalId);
+  void laCopy(DottedProduction const &obj);
+  bool laMerge(DottedProduction const &obj);     // returns true if merging changed lookahead
+  bool laIsEqual(DottedProduction const &obj) const;
+
+  // comparison, equality (ignores lookahead set for purposes of comparison)
+  static int diff(DottedProduction const *a, DottedProduction const *b, void*);
+  bool operator== (DottedProduction const &obj) const;
+
+  // call this to change prod and dot
+  void setProdAndDot(Production *p, int d);
+
+  // dot must not be at the start (left edge)
+  Symbol const *symbolBeforeDotC() const;
+  Symbol *symbolBeforeDot() { return const_cast<Symbol*>(symbolBeforeDotC()); }
+
+  // dot must not be at the end (right edge)
+  Symbol const *symbolAfterDotC() const;
+  Symbol *symbolAfterDot() { return const_cast<Symbol*>(symbolAfterDotC()); }
+
+  // print to cout as 'A -> B . c D' (no newline)
+  void print(ostream &os, GrammarAnalysis const &g) const;
+  //OSTREAM_OPERATOR(DottedProduction)
+};
+
+// lists of dotted productions
+typedef ObjList<DottedProduction> DProductionList;
+typedef ObjListIter<DottedProduction> DProductionListIter;
+typedef SObjList<DottedProduction> SDProductionList;
+typedef SObjListIter<DottedProduction> SDProductionListIter;
+
+#define FOREACH_DOTTEDPRODUCTION(list, iter) FOREACH_OBJLIST(DottedProduction, list, iter)
+#define MUTATE_EACH_DOTTEDPRODUCTION(list, iter) MUTATE_EACH_OBJLIST(DottedProduction, list, iter)
+#define SFOREACH_DOTTEDPRODUCTION(list, iter) SFOREACH_OBJLIST(DottedProduction, list, iter)
+#define SMUTATE_EACH_DOTTEDPRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(DottedProduction, list, iter)
+
+
 // ---------------- ItemSet -------------------
 // a set of dotted productions, and the transitions between
 // item sets, as in LR(0) set-of-items construction
@@ -86,12 +168,10 @@ private:    // funcs
   int bcheckNonterm(int index);
   ItemSet *&refTransition(Symbol const *sym);
 
-  // computes things derived from the item set lists:
-  // dotsAtEnd, numDotsAtEnd, kernelItemsCRC, stateSymbol
-  void changedItems();
-
   void allocateTransitionFunction();
   Symbol const *computeStateSymbolC() const;
+
+  void deleteNonReductions(DProductionList &list);
 
 public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);
@@ -114,7 +194,7 @@ public:     // funcs
 
   // sometimes it's convenient to have all items mixed together
   // (CONSTNESS: allows modification of items...)
-  void getAllItems(DProductionList &dest) const;
+  void getAllItems(SDProductionList &dest) const;
 
   // ---- transition queries ----
   // query transition fn for an arbitrary symbol; returns
@@ -138,11 +218,16 @@ public:     // funcs
 
   // ---- item mutations ----
   // add a kernel item; used while constructing the state
-  void addKernelItem(DottedProduction *item);
+  void addKernelItem(DottedProduction * /*owner*/ item);
 
   // add a nonkernel item; used while computing closure; this
   // item must not already be in the item set
-  void addNonkernelItem(DottedProduction *item);
+  void addNonkernelItem(DottedProduction * /*owner*/ item);
+
+  // computes things derived from the item set lists:
+  // dotsAtEnd, numDotsAtEnd, kernelItemsCRC, stateSymbol;
+  // do this after adding things to the items lists
+  void changedItems();
 
   // experiment: do I need them during parsing?
   void throwAwayItems();
@@ -152,7 +237,7 @@ public:     // funcs
   void setTransition(Symbol const *sym, ItemSet *dest);
 
   // ---- debugging ----
-  void writeGraph(ostream &os) const;
+  void writeGraph(ostream &os, GrammarAnalysis const &g) const;
   void print(ostream &os, GrammarAnalysis const &g) const;
 };
 
@@ -225,8 +310,8 @@ private:    // funcs
   // ---- First ----
   void computeFirst();
   bool addFirst(Nonterminal *NT, Terminal *term);
-  void firstOfSequence(TerminalList &destList, RHSEltList &sequence);
-  void firstOfIterSeq(TerminalList &destList, RHSEltListMutator sym);
+  void firstOfSequence(TerminalList &destList, RHSEltList const &sequence);
+  void firstOfIterSeq(TerminalList &destList, RHSEltListIter sym);
 
   // ---- Follow ----
   void computeFollow();

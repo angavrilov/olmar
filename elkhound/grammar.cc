@@ -283,23 +283,18 @@ Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
     leftTag(Ltag),
     right(),
-    numDotPlaces(-1),    // so the check in getDProd will fail
-    dprods(NULL),
     prodIndex(-1)
 {}
 
 Production::~Production()
-{
-  if (dprods) {
-    delete[] dprods;
-  }
-}
+{}
 
 
 Production::Production(Flatten &flat)
   : left(NULL),
-    action(flat),
-    dprods(NULL)
+    leftTag(flat),
+    right(),
+    action(flat)
 {}
 
 void Production::xfer(Flatten &flat)
@@ -323,21 +318,16 @@ void Production::xferSerfs(Flatten &flat, Grammar &g)
     iter.data()->xferSerfs(flat, g);
   }
 
-  // compute 'numDotPlaces' and 'dprods'
+  // compute derived data
   if (flat.reading()) {
     finished();
-  }
-
-  // to allow pointers to 'dprods', register them
-  loopi(numDotPlaces) {
-    flat.noteOwner(dprods+i);
   }
 }
 
 
 int Production::rhsLength() const
 {
-  if (!right.isEmpty()) {                  
+  if (!right.isEmpty()) {
     // I used to have code here which handled this situation by returning 0;
     // since it should now never happen, I'll check that here instead
     xassert(!right.nthC(0)->sym->isEmptyString);
@@ -391,31 +381,8 @@ void Production::append(Symbol *sym, char const *tag)
 
 void Production::finished()
 {
-  xassert(dprods == NULL);    // otherwise we leak
-
-  // compute 'dprods'
-  numDotPlaces = rhsLength()+1;
-  dprods = new DottedProduction[numDotPlaces];
-
-  INTLOOP(dotPosn, 0, numDotPlaces) {
-    dprods[dotPosn].setProdAndDot(this, dotPosn);
-  }
-
-  // The decision to represent dotted productions this way is driven
-  // by a couple factors.  Note that the principal alternative is to
-  // store (prod,dotPosn) pairs explicitly (presumably because two
-  // 16-bit values are sufficient, so it fits in a word), or even
-  // to try to store only dotPosn, and infer prod from context.
-  //
-  // First, letting each dotted production have a unique representation
-  // and therefore a unique address means that pointers to these can
-  // easily be stored in my list-as-set classes, with equality checks
-  // being simple pointer comparisons.  (This could be supported fairly
-  // easily, though, using list-as-set of word.)
-  //
-  // Second, should there ever arise the desire to store additional
-  // info with each dotted production, that option is easy to support.
-  // (So I guess this is the real reason.)
+  // this used to precompute dotted productions, but they're
+  // now stored by the item sets in gramanl
 }
 
                                                
@@ -491,11 +458,13 @@ Symbol const *Production::symbolByIndexC(int index) const
 }
 
 
+#if 0
 DottedProduction const *Production::getDProdC(int dotPlace) const
 {
   xassert(0 <= dotPlace && dotPlace < numDotPlaces);
   return &dprods[dotPlace];
-}
+}    
+#endif // 0
 
 
 void Production::print(ostream &os) const
@@ -567,52 +536,6 @@ string Production::toStringMore(bool printCode) const
   sb << "\n";
 
   return sb;
-}
-
-
-// ----------------- DottedProduction ------------------
-void DottedProduction::setProdAndDot(Production *p, int d) /*mutable*/
-{
-  // I prefer this hack to either:
-  //   - letting the members be exposed
-  //   - protecting them with clumsy accessor functions
-  const_cast<Production*&>(prod) = p;
-  const_cast<int&>(dot) = d;
-  const_cast<bool&>(dotAtEnd) = (dot == prod->rhsLength());
-
-  // it's worth mentioning: the reason for all of this is to be
-  // able to compute 'dotAtEnd', which it turns out was a
-  // significant time consumer according to the profiler
-}
-
-Symbol const *DottedProduction::symbolBeforeDotC() const
-{
-  xassert(!isDotAtStart());
-  return prod->right.nthC(dot-1)->sym;      // this used to say nthC(0) .. ?
-}
-
-Symbol const *DottedProduction::symbolAfterDotC() const
-{
-  xassert(!isDotAtEnd());
-  return prod->right.nthC(dot)->sym;
-}
-
-
-void DottedProduction::print(ostream &os) const
-{
-  os << prod->left->name << " ->";
-
-  int position = 0;
-  for (ObjListIter<Production::RHSElt> iter(prod->right);
-       !iter.isDone(); iter.adv(), position++) {
-    if (position == dot) {
-      os << " .";
-    }
-    os << " " << iter.data()->sym->name;
-  }
-  if (position == dot) {
-    os << " .";
-  }
 }
 
 

@@ -3,19 +3,20 @@
 
 #include "cexp3ast.gen.h"     // Exp
 #include "xassert.h"          // xfailure
+#include "trace.h"            // trace
 
 
 void Exp::incRefCt()
 {
   refCt++;
-  cout << "incremented refct of " << this << " to " << refCt << endl;
+  trace("refct") << "incremented refct of " << this << " to " << refCt << endl;
 }
 
 void Exp::decRefCt()
 {
   xassert(refCt > 0);
   --refCt;
-  cout << "decremented refct of " << this << " to " << refCt << endl;
+  trace("refct") << "decremented refct of " << this << " to " << refCt << endl;
   if (refCt == 0) {
     delete this;
   }

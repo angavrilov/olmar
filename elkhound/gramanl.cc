@@ -17,7 +17,290 @@
 #include <fstream.h>     // ofstream
 
 
-int itemDiff(DottedProduction const *left, DottedProduction const *right, void*);
+// for now, we'll just have these be global variables; if I later
+// decide I actually want more than one at a time, I can move these
+// into GrammarAnalysis and push the interfaces to accomodate
+
+// LR(0) does all reductions, regardless of what the next token is
+static bool const LR0 = false;
+
+// SLR(1) looks at a production's LHS's Follow
+static bool const SLR1 = false;
+
+// LR(1) computes context-sensitive follow for each item,
+// depending on how that item arises in the item-set DFA
+static bool const LR1 = false;
+
+// LALR(1) is like LR(1), except two states are merged if
+// they only differ in their items' lookaheads (so it has
+// the same # of states as SLR(1), while having some of the
+// context-sensitivity of LR(1))
+static bool const LALR1 = true;
+
+
+// ----------------- DottedProduction ------------------
+DottedProduction::DottedProduction(DottedProduction const &obj)
+{
+  init(obj.lookaheadLen * 8);    // close enough
+
+  prod = obj.prod;
+  dot = obj.dot;
+  dotAtEnd = obj.dotAtEnd;
+
+  laCopy(obj);
+}
+
+
+DottedProduction::DottedProduction(Grammar const &g)
+{
+  init(g.numTerminals());
+}
+
+void DottedProduction::init(int numTerms)
+{
+  prod = NULL;
+  dot = -1;
+  dotAtEnd = false;
+
+  // allocate enough space for one bit per terminal; I assume
+  // 8 bits per byte
+  lookaheadLen = (numTerms + 7) / 8;
+  lookahead = new unsigned char[lookaheadLen];
+
+  // initially the lookahead set will be empty
+  memset(lookahead, 0, lookaheadLen);
+}
+
+
+DottedProduction::DottedProduction(Grammar const &g, Production *p, int d)
+{
+  init(g.numTerminals());
+  setProdAndDot(p, d);
+}
+
+
+DottedProduction::~DottedProduction()
+{
+  delete[] lookahead;
+}
+
+
+DottedProduction::DottedProduction(Flatten &flat)
+  : prod(NULL),
+    lookahead(NULL)
+{}
+
+void DottedProduction::xfer(Flatten &flat)
+{
+  flat.xferInt(dot);
+  flat.xferBool(dotAtEnd);   
+
+  flat.xferInt(lookaheadLen);
+
+  if (flat.reading()) {
+    lookahead = new unsigned char[lookaheadLen];
+  }
+  flat.xferSimple(lookahead, lookaheadLen);
+}
+
+
+void DottedProduction::xferSerfs(Flatten &flat, Grammar &g)
+{
+  xferSerfPtrToList(flat, prod, g.productions);
+}
+
+
+unsigned char *DottedProduction::laGetByte(int id) const
+{
+  int offset = (unsigned)id / 8;
+  xassert(offset < lookaheadLen);
+
+  return lookahead + offset;
+}
+
+bool DottedProduction::laContains(int id) const
+{
+  unsigned char *p = laGetByte(id);
+  return (*p >> laGetBit(id)) & 1 == 1;
+}
+
+void DottedProduction::laAdd(int id)
+{
+  unsigned char *p = laGetByte(id);
+  *p |= (unsigned char)(1 << laGetBit(id));
+}
+
+void DottedProduction::laRemove(int id)
+{
+  unsigned char *p = laGetByte(id);
+  *p &= (unsigned char)(~(1 << laGetBit(id)));
+}
+
+void DottedProduction::laCopy(DottedProduction const &obj)
+{
+  memcpy(lookahead, obj.lookahead, lookaheadLen);
+}
+
+bool DottedProduction::laMerge(DottedProduction const &obj)
+{   
+  bool changed = false;
+  for (int i=0; i<lookaheadLen; i++) {
+    unsigned before = lookahead[i];
+    unsigned after = before | obj.lookahead[i];
+    if (after != before) {
+      changed = true;
+      lookahead[i] = after;
+    }
+  }
+  return changed;
+}
+
+bool DottedProduction::laIsEqual(DottedProduction const &obj) const
+{
+  xassert(obj.lookaheadLen == lookaheadLen);
+  return 0==memcmp(lookahead, obj.lookahead, lookaheadLen);
+}
+
+
+// arbitrary integer unique to every symbol and preserved
+// across read/write
+int symbolIndex(Symbol const *s)
+{
+  if (s->isTerminal()) {
+    // make terminals negative since otherwise they'd
+    // collide with nonterminals
+    return -( s->asTerminalC().termIndex );
+  }
+  else {
+    return s->asNonterminalC().ntIndex;
+  }
+}
+
+
+// compare two items in an arbitrary (but deterministic) way so that
+// sorting will always put a list of items into the same order, for
+// comparison purposes
+STATICDEF int DottedProduction::
+  diff(DottedProduction const *a, DottedProduction const *b, void*)
+{
+  // check for simple equality..
+  if (a == b) {
+    return 0;
+  }
+
+  // I want the sorting order to be preserved across read/write,
+  // so I do a real compare now, not just address diff
+
+  // 'dot'
+  int ret = a->dot - b->dot;
+  if (ret) { return ret; }
+
+  Production const *aProd = a->prod;
+  Production const *bProd = b->prod;
+  if (aProd == bProd) {
+    // equal dotted productions
+    return 0;
+  }
+
+  // LHS index
+  ret = aProd->left->ntIndex - bProd->left->ntIndex;
+  if (ret) { return ret; }
+
+  // RHS indices
+  RHSEltListIter aIter(aProd->right);
+  RHSEltListIter bIter(bProd->right);
+
+  while (!aIter.isDone() && !bIter.isDone()) {
+    ret = symbolIndex(aIter.data()->sym) - symbolIndex(bIter.data()->sym);
+    if (ret) { return ret; }
+
+    aIter.adv();
+    bIter.adv();
+  }
+
+  if (aIter.isDone() && !bIter.isDone()) {
+    return -1;
+  }
+  if (!aIter.isDone() && bIter.isDone()) {
+    return 1;
+  }
+    
+  // needs a grammar to print them ...
+  //cout << "a: "; a->print(cout);
+  //cout << "\nb: "; b->print(cout);
+  //cout << endl;
+
+  // one way this can be caused is if the grammar input file actually
+  // has the same production listed twice
+  xfailure("two productions with diff addrs are equal!\n");
+}
+
+
+bool DottedProduction::operator== (DottedProduction const &obj) const
+{
+  return diff(this, &obj, NULL) == 0;
+}
+
+
+void DottedProduction::setProdAndDot(Production *p, int d)
+{
+  prod = p;
+  dot = d;
+
+  // computing this each time turned out to be significant
+  // according to the profiler, so we store it instead
+  dotAtEnd = (dot == prod->rhsLength());
+}
+
+Symbol const *DottedProduction::symbolBeforeDotC() const
+{
+  xassert(!isDotAtStart());
+  return prod->right.nthC(dot-1)->sym;
+}
+
+Symbol const *DottedProduction::symbolAfterDotC() const
+{
+  xassert(!isDotAtEnd());
+  return prod->right.nthC(dot)->sym;
+}
+
+
+void DottedProduction::print(ostream &os, GrammarAnalysis const &g) const
+{
+  os << prod->left->name << " ->";
+
+  int position = 0;
+  for (ObjListIter<Production::RHSElt> iter(prod->right);
+       !iter.isDone(); iter.adv(), position++) {
+    if (position == dot) {
+      os << " .";
+    }
+    os << " " << iter.data()->sym->name;
+  }
+  if (position == dot) {
+    os << " .";
+  }
+                                       
+  int numTerms = g.numTerminals();
+  int ct=0;
+  for (int id=0; id < numTerms; id++) {
+    if (!laContains(id)) continue;
+
+    Terminal const *t = g.getTerminal(id);
+    if (ct++ == 0) {
+      // by waiting until now to print this, if the production has
+      // no lookahead symbols (e.g. we're in SLR(1) mode), then
+      // the comma won't be printed either
+      os << ", ";
+    }
+    else {
+      os << "/";
+    }
+
+    os << t->toString();
+  }
+}
+
 
 // ----------------- ItemSet -------------------
 ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
@@ -89,6 +372,7 @@ Production *getNthProduction(Grammar *g, int n)
   }
 }
 
+#if 0    // not needed, doesn't work
 DottedProduction *getNthDottedProduction(Production *p, int n)
 {
   if (0 <= n && n < (p->rhsLength() + 1)) {
@@ -96,12 +380,16 @@ DottedProduction *getNthDottedProduction(Production *p, int n)
   }
   else {
     return NULL;
-  }
+  }                                 
 }
+#endif // 0
 
 
 void ItemSet::xfer(Flatten &flat)
 {
+  xferObjList(flat, kernelItems);
+  xferObjList(flat, nonkernelItems);
+
   flat.xferInt(terms);
   flat.xferInt(nonterms);
 
@@ -120,7 +408,18 @@ int ticksComputeNonkernel = 0;
 
 void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
 {
-  #if 1
+  // xfer the 'prod' fields of the items
+  {
+    MUTATE_EACH_DOTTEDPRODUCTION(kernelItems, k) {
+      k.data()->xferSerfs(flat, g);
+    }
+    MUTATE_EACH_DOTTEDPRODUCTION(nonkernelItems, n) {
+      n.data()->xferSerfs(flat, g);
+    }
+  }
+
+
+  #if 0
     // 'kernelItems' and 'nonkernelItems': each one accessed as
     //   g.productions.nth(???)->getDProd(???)
     xferSObjList_twoLevelAccess(
@@ -151,7 +450,7 @@ void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
   // we're sorting by *address*, that's not necessarily
   // preserved across read/write
   // NEW: it should be stable now
-  //kernelItems.insertionSort(itemDiff);
+  //kernelItems.insertionSort(DottedProduction::diff);
 
 
   // transition functions
@@ -172,7 +471,7 @@ void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g)
   //if (flat.reading()) {
   //  changedItems();
   //}
-
+                         
   if (flat.reading()) {
     dotsAtEnd = new DottedProduction const * [numDotsAtEnd];
   }
@@ -198,7 +497,7 @@ Symbol const *ItemSet::computeStateSymbolC() const
 {
   // need only check kernel items since all nonkernel items
   // have their dots at the left side
-  SFOREACH_DOTTEDPRODUCTION(kernelItems, item) {
+  FOREACH_DOTTEDPRODUCTION(kernelItems, item) {
     if (! item.data()->isDotAtStart() ) {
       return item.data()->symbolBeforeDotC();
     }
@@ -244,97 +543,31 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
 }
 
                                            
-// arbitrary integer unique to every symbol and preserved
-// across read/write
-int symbolIndex(Symbol const *s)
-{
-  if (s->isTerminal()) {
-    // make terminals negative since otherwise they'd
-    // collide with nonterminals
-    return -( s->asTerminalC().termIndex );
-  }
-  else {
-    return s->asNonterminalC().ntIndex;
-  }
-}
-
-
-// compare two items in an arbitrary (but deterministic) way so that
-// sorting will always put a list of items into the same order, for
-// comparison purposes
-int itemDiff(DottedProduction const *a, DottedProduction const *b, void*)
-{
-  // since I don't make copies of dotted productions, we
-  // can detect equality immediately
-  if (a == b) {
-    return 0;
-  }
-
-  // I want the sorting order to be preserved across read/write,
-  // so I do a real compare now, not just address diff
-
-  // 'dot'
-  int ret = a->dot - b->dot;
-  if (ret) { return ret; }
-
-  Production const *aProd = a->prod;
-  Production const *bProd = b->prod;
-
-  // LHS index
-  ret = aProd->left->ntIndex - bProd->left->ntIndex;
-  if (ret) { return ret; }
-
-  // RHS indices
-  RHSEltListIter aIter(aProd->right);
-  RHSEltListIter bIter(bProd->right);
-
-  while (!aIter.isDone() && !bIter.isDone()) {
-    ret = symbolIndex(aIter.data()->sym) - symbolIndex(bIter.data()->sym);
-    if (ret) { return ret; }
-    
-    aIter.adv();
-    bIter.adv();
-  }
-
-  if (aIter.isDone() && !bIter.isDone()) {
-    return -1;
-  }
-  if (!aIter.isDone() && bIter.isDone()) {
-    return 1;
-  }
-
-  cout << "a: "; a->print(cout);
-  cout << "\nb: "; b->print(cout);
-  cout << endl;
-
-  // this can be caused if the grammar input file actually
-  // has the same production listed twice
-  xfailure("two dotted productions with diff addrs are equal!\n");
-}
-
-
 void ItemSet::addKernelItem(DottedProduction *item)
 {
   // add it
   kernelItems.appendUnique(item);
 
   // sort the items to facilitate equality checks
-  kernelItems.insertionSort(itemDiff);
-  
-  changedItems();
+  kernelItems.insertionSort(DottedProduction::diff);
+
+  // note: the caller must call changedItems
 }
 
 
 bool ItemSet::operator==(ItemSet const &obj) const
-{                                          
-  // since common case is disequality, check the 
+{
+  // since common case is disequality, check the
   // CRCs first, and only do full check if they
   // match
-  if (kernelItemsCRC == obj.kernelItemsCRC) {
+  if (kernelItemsCRC == obj.kernelItemsCRC) {                 
     // since nonkernel items are entirely determined by kernel
     // items, and kernel items are sorted, it's sufficient to
     // check for kernel list equality
-    return kernelItems.equalAsPointerLists(obj.kernelItems);
+    // OLD: when pointer equality was sufficient
+    //   return kernelItems.equalAsPointerLists(obj.kernelItems);
+    // NEW: use deep equality check
+    return kernelItems.equalAsLists(obj.kernelItems, DottedProduction::diff);
   }
   else {
     // can't possibly be equal if CRCs differ
@@ -346,21 +579,45 @@ bool ItemSet::operator==(ItemSet const &obj) const
 void ItemSet::addNonkernelItem(DottedProduction *item)
 {
   nonkernelItems.appendUnique(item);
-  changedItems();
+  
+  // note: the caller is supposed to call changedItems
 }
 
 
-void ItemSet::getAllItems(DProductionList &dest) const
+void ItemSet::getAllItems(SDProductionList &dest) const
 {
-  dest = kernelItems;
-  dest.appendAll(nonkernelItems);
+  SObjListMutator<DottedProduction> mut(dest);
+
+  FOREACH_DOTTEDPRODUCTION(kernelItems, k) {
+    mut.append(const_cast<DottedProduction*>(k.data()));
+  }
+  FOREACH_DOTTEDPRODUCTION(nonkernelItems, n) {
+    mut.append(const_cast<DottedProduction*>(n.data()));
+  }
 }
 
 
 void ItemSet::throwAwayItems()
 {
-  kernelItems.removeAll();
-  nonkernelItems.removeAll();
+  // can't delete the whole lists because I need the
+  // reductions; among other things, 'dotsAtEnd' refers to them
+  deleteNonReductions(kernelItems);
+  deleteNonReductions(nonkernelItems);
+}
+
+void ItemSet::deleteNonReductions(DProductionList &list)
+{
+  ObjListMutator<DottedProduction> mut(list);
+  while (!mut.isDone()) {
+    if (mut.data()->isDotAtEnd()) {
+      // keep it
+      mut.adv();
+    }
+    else {
+      // trash it
+      mut.deleteIt();     // also advances
+    }
+  }
 }
 
 
@@ -374,21 +631,39 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
   loopi(numDotsAtEnd) {
     DottedProduction const *item = dotsAtEnd[i];
 
-    // the follow of its LHS must include 'lookahead'
-    // NOTE: this is the difference between LR(0) and SLR(1) --
-    //       LR(0) would not do this check, while SLR(1) does
-    if (!item->prod->left->follow.contains(lookahead)) {    // (constness)
-      if (parsing && tracingSys("parse")) {
-	trace("parse") << "not reducing by " << *(item->prod)
-       	       	       << " because `" << lookahead->name
-		       << "' is not in follow of "
-		       << item->prod->left->name << endl;
+    if (LR0) {
+      // don't check the lookahead
+    }
+    else if (SLR1) {
+      // the follow of its LHS must include 'lookahead'
+      if (!item->getProd()->left->follow.contains(lookahead)) {    // (constness)
+        if (parsing && tracingSys("parse")) {
+          trace("parse") << "not reducing by " << *(item->getProd())
+                         << " because `" << lookahead->name
+                         << "' is not in follow of "
+                         << item->getProd()->left->name << endl;
+        }
+        continue;
       }
-      continue;
+    }
+    else if (LALR1 || LR1) {
+      // the item's lookahead must include 'lookahead'
+      if (!item->laContains(lookahead->termIndex)) {
+        if (parsing && tracingSys("parse")) {
+          trace("parse") << "not reducing by " << *(item->getProd())
+                         << " because `" << lookahead->name
+                         << "' is not in lookahead in state "
+                         << id << endl;
+        }
+        continue;
+      }
+    }
+    else {
+      xfailure("no LR variant specified?");
     }
 
     // ok, this one's ready
-    reductions.append(item->prod);                          // (constness)
+    reductions.append(item->getProd());                          // (constness)
   }
 }
 
@@ -396,7 +671,7 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
 Production const *ItemSet::getFirstReduction() const
 {
   xassert(numDotsAtEnd >= 1);
-  return dotsAtEnd[0]->prod;
+  return dotsAtEnd[0]->getProd();
 }
 
 
@@ -404,7 +679,7 @@ void ItemSet::changedItems()
 {
   // -- recompute dotsAtEnd --
   // collect all items
-  DProductionList items;
+  SDProductionList items;      // (constness) 'items' shouldn't be used to modify the elements
   getAllItems(items);
 
   // count number with dots at end
@@ -450,33 +725,40 @@ void ItemSet::changedItems()
 
 
   // -- compute CRC of kernel items --
-  // put all pointers into a single buffer
-  // (assumes they've already been sorted!)
+  // we will crc the prod/dot fields, using the pointer representation
+  // of 'prod'; assumes the items already been sorted!
   int numKernelItems = kernelItems.count();
-  DottedProduction const **array = 
-    new DottedProduction const * [numKernelItems];      // (owner ptr to array of serf ptrs)
+  struct PD {
+    Production *prod;     // serf
+    int dot;
+  };
+  PD *array = new PD[numKernelItems];
   index = 0;
-  SFOREACH_DOTTEDPRODUCTION(kernelItems, kitem) {
-    array[index] = kitem.data();
+  FOREACH_DOTTEDPRODUCTION(kernelItems, kitem) {
+    array[index].prod = kitem.data()->getProd();
+    array[index].dot = kitem.data()->getDot();
 
+    #if 0     // not entirely convenient to correct ..
     if (index > 0) {
       // may as well check sortedness and
       // uniqueness
-      xassert(itemDiff(array[index], array[index-1], NULL) > 0);
-    }
+      xassert(DottedProduction::
+                diff(array[index].prod, array[index-1].prod, NULL) > 0);
+    }                                                 
+    #endif // 0
 
     index++;
   }
 
   // CRC the buffer
-  kernelItemsCRC = crc32((unsigned char const*)array, 
+  kernelItemsCRC = crc32((unsigned char const*)array,
                          sizeof(array[0]) * numKernelItems);
 
   // trash the array
   delete[] array;
-  
 
-  // compute this so we can throw away items later if we want to  
+
+  // compute this so we can throw away items later if we want to
   stateSymbol = computeStateSymbolC();
 }
 
@@ -486,7 +768,7 @@ void ItemSet::print(ostream &os, GrammarAnalysis const &g) const
   os << "ItemSet " << id << ":\n";
 
   // collect all items
-  DProductionList items;
+  SDProductionList items;     // (constness) don't use 'item' to modify elements
   getAllItems(items);
 
   // for each item
@@ -495,14 +777,14 @@ void ItemSet::print(ostream &os, GrammarAnalysis const &g) const
 
     // print its text
     os << "  ";
-    dprod->print(os);
+    dprod->print(os, g);
     os << "      ";
 
     // print any transitions on its after-dot symbol
     if (!dprod->isDotAtEnd()) {
       ItemSet const *is = transitionC(dprod->symbolAfterDotC());
       if (is == NULL) {
-        os << "(no transition?!?!)";
+        os << "(no transition)";     // happens during closure debugging printfs
       }
       else {
         os << "--> " << is->id;
@@ -528,19 +810,19 @@ void ItemSet::print(ostream &os, GrammarAnalysis const &g) const
   }
   
   for (int p=0; p<numDotsAtEnd; p++) {
-    os << "  can reduce by " << dotsAtEnd[p]->prod->toString() << endl;
+    os << "  can reduce by " << dotsAtEnd[p]->getProd()->toString() << endl;
   }
 }
 
 
-void ItemSet::writeGraph(ostream &os) const
+void ItemSet::writeGraph(ostream &os, GrammarAnalysis const &g) const
 {
   // node: n <name> <desc>
   os << "\nn ItemSet" << id << " ItemSet" << id << "/";
     // rest of desc will follow
 
   // collect all items
-  DProductionList items;
+  SDProductionList items;         // (constness) don't use 'items' to modify elements
   getAllItems(items);
 
   // for each item, print the item text
@@ -549,7 +831,10 @@ void ItemSet::writeGraph(ostream &os) const
 
     // print its text
     os << "   ";
-    dprod->print(os);
+    dprod->print(os, g);
+
+    // THIS IS A PROBLEM!  the dprod's output will include
+    // slashes too, if it has >1 lookahead token ... !
     os << "/";      // line separator in my node format
   }
   os << endl;
@@ -1088,15 +1373,15 @@ void GrammarAnalysis::computeFirst()
 // (what I'd like here is to say that 'sequence' and 'this' are const
 // if 'destList' can't modify the things it contains)
 void GrammarAnalysis::firstOfSequence(TerminalList &destList, 
-                                      RHSEltList &sequence)
+                                      RHSEltList const &sequence)
 {
-  RHSEltListMutator iter(sequence);
+  RHSEltListIter iter(sequence);
   firstOfIterSeq(destList, iter);
 }
 
 // similar to above, 'sym' needs to be a mutator
 void GrammarAnalysis::firstOfIterSeq(TerminalList &destList,
-                                     RHSEltListMutator sym)
+                                     RHSEltListIter sym)
 {
   int numTerms = numTerminals();     // loop invariant
 
@@ -1278,40 +1563,133 @@ void GrammarAnalysis::computePredictiveParsingTable()
 }
 
 
-// [ASU] figure 4.33, p.223
+// based on [ASU] figure 4.33, p.223
 void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 {
+  bool const tr = tracingSys("closure");
+  ostream &trs = trace("closure");     // trace stream
+  if (tr) {
+    trs << "computing closure of ";
+    itemSet.print(trs, *this);
+  }
+
   // while no changes
   int changes = 1;
+  int loopNum = 1;
   while (changes > 0) {
+    if (tr) {
+      trs << "beginning loop " << (loopNum++)
+          << ", changes is " << changes << endl;
+    }
     changes = 0;
 
     // a place to store the items we plan to add
     DProductionList newItems;
 
     // grab the current set of items
-    DProductionList items;
+    SDProductionList items;
     itemSet.getAllItems(items);
 
-    // for each item A -> alpha . B beta in itemSet
+    // for each item "A -> alpha . B beta, LA" in itemSet
     SFOREACH_DOTTEDPRODUCTION(items, itemIter) {            // (constness ok)
       DottedProduction const *item = itemIter.data();
+      if (tr) {
+        trs << "  considering item ";
+        item->print(trs, *this);
+        trs << endl;
+      }
+
+      if (item->isDotAtEnd()) {
+        if (tr) {
+          trs << "    dot is at the end" << endl;
+        }
+        continue;
+      }
 
       // get the symbol B (the one right after the dot)
-      if (item->isDotAtEnd()) continue;
       Symbol const *B = item->symbolAfterDotC();
-      if (B->isTerminal()) continue;
+      if (B->isTerminal()) {
+        if (tr) {
+          trs << "    symbol after the dot is a terminal" << endl;
+        }
+        continue;
+      }
       int nontermIndex = B->asNonterminalC().ntIndex;
 
-      // for each production B -> gamma
-      SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prod) {           // (constness)
-        // invariant of the indexed productions list
-        xassert(prod.data()->left == B);
+      // for each production "B -> gamma"
+      SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prodIter) {    // (constness)
+        Production &prod = *(prodIter.data());
+        if (tr) {
+          trs << "    considering production " << prod << endl;
+        }
 
-        // plan to add B -> . gamma to the itemSet, if not already there
-        DottedProduction *dp = prod.data()->getDProd(0 /*dot placement*/);     // (constness)
-        if (!items.contains(dp)) {
-          newItems.append(dp);
+        // invariant of the indexed productions list
+        xassert(prod.left == B);
+
+        // construct "B -> . gamma, First(beta LA)"
+        Owner<DottedProduction> dp;
+        {
+          dp = new DottedProduction(*this, &prod, 0 /*dot at left*/);
+
+          // get beta (what follows B in 'item')
+          RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
+
+          // get First(beta)
+          TerminalList firstBeta;
+          firstOfIterSeq(firstBeta, beta);
+
+          // add those elements to dp's lookahead
+          SFOREACH_TERMINAL(firstBeta, fb) {
+            dp->laAdd(fb.data()->termIndex);
+          }
+
+          // if beta ->* epsilon, add LA
+          if (iterSeqCanDeriveEmpty(beta)) {
+            dp->laMerge(*item);
+          }
+
+          if (tr) {
+            trs << "      built dprod ";
+            dp->print(trs, *this);
+            trs << endl;
+          }
+        }
+
+        // is it already there?
+        SMUTATE_EACH_DOTTEDPRODUCTION(items, dprod) {
+          if (*dp == *(dprod.data())) {
+            // yes, it's already there
+            if (tr) {
+              trs << "      looks similar to ";
+              dprod.data()->print(trs, *this);
+              trs << endl;
+            }
+
+            // but the new item may have additional lookahead
+            // components, so merge them with the old
+            if (dprod.data()->laMerge(*dp)) {
+              changes++;
+
+              if (tr) {
+                trs << "      (chg) merged it to make ";
+                dprod.data()->print(trs, *this);
+                trs << endl;
+              }
+            }
+            else {
+              trs << "      this dprod already existed" << endl;
+            }
+            dp.del();     // signal for after the loop
+            break;
+          }
+        }
+
+        if (dp) {
+          // it's not already there, so (plan to) add it
+          if (tr) {
+            trs << "      this dprod is new, queueing it to add" << endl;
+          }
+          newItems.append(dp.xfr());
         }
       } // for each production
     } // for each item
@@ -1319,11 +1697,22 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     // add the new items (we don't do this while iterating because my
     // iterator interface says not to, even though it would work with
     // my current implementation)
-    SMUTATE_EACH_DOTTEDPRODUCTION(newItems, item) {
-      itemSet.addNonkernelItem(item.data());	            // (constness)
+    while (newItems.isNotEmpty()) {
+      DottedProduction *dprod = newItems.removeAt(0);
+      if (tr) {
+        trs << "  (chg) dequeueing and adding ";
+        dprod->print(trs, *this);
+        trs << endl;
+      }
+      itemSet.addNonkernelItem(dprod);
       changes++;
     }
   } // while changes
+
+  trs << "done with closure of state " << itemSet.id << endl;
+
+  // we potentially added a bunch of things
+  itemSet.changedItems();
 }
 
 
@@ -1350,7 +1739,7 @@ ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *
 {
   ItemSet *ret = makeItemSet();
 
-  DProductionList items;
+  SDProductionList items;
   source->getAllItems(items);
 
   // for each item
@@ -1364,8 +1753,8 @@ ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *
     }
 
     // move the dot
-    DottedProduction *dotMoved =
-      dprod->prod->getDProd(dprod->dot + 1);      // (constness!)
+    DottedProduction *dotMoved = new DottedProduction(*dprod);
+    dotMoved->setProdAndDot(dotMoved->getProd(), dotMoved->getDot() + 1);
 
     // add the new item to the itemset I'm building
     ret->addKernelItem(dotMoved);
@@ -1376,13 +1765,16 @@ ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *
   // be easy to simply return null (after dealloc'ing ret)
   xassert(appendCt > 0);
 
+  // we added stuff
+  ret->changedItems();
+
   // return built itemset
   return ret;
 }
 
 
-// if 'list' contains 'itemSet', return the equivalent copy
-// in 'list'; otherwise, return NULL
+// if 'list' contains something equal to 'itemSet', return that
+// equal object; otherwise, return NULL
 // 'list' is non-const because might return an element of it
 ItemSet *GrammarAnalysis::findItemSetInList(ObjList<ItemSet> &list,
                                             ItemSet const *itemSet)
@@ -1400,6 +1792,7 @@ ItemSet *GrammarAnalysis::findItemSetInList(ObjList<ItemSet> &list,
 
 STATICDEF bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const *is2)
 {
+  // checks for equality of the kernel items
   return *is1 == *is2;
 }
 
@@ -1421,12 +1814,14 @@ void GrammarAnalysis::constructLRItemSets()
   {
     ItemSet *is = makeItemSet();              // (owner)
     startState = is;
-    is->addKernelItem(productions.nth(0)->    // first production's ..
-                        getDProd(0));         //   .. first dot placement
-    itemSetClosure(*is);
+    DottedProduction *firstDP
+      = new DottedProduction(*this, productions.first(), 0 /*dot at left*/);
+    //firstDP->laAdd(0 /*eof token id*/);  
+    is->addKernelItem(firstDP);
+    itemSetClosure(*is);                      // calls changedItems internally
 
     // this makes the initial pending itemSet
-    itemSetsPending.append(is);              // (ownership transfer)
+    itemSetsPending.append(is);               // (ownership transfer)
   }
 
   // for each pending item set
@@ -1437,7 +1832,7 @@ void GrammarAnalysis::constructLRItemSets()
     // the processing below, to properly handle self-loops
     itemSetsDone.append(itemSet);                      // (ownership transfer; 'itemSet' becomes serf)
 
-    DProductionList items;
+    SDProductionList items;
     itemSet->getAllItems(items);
 
     // for each production in the item set where the
@@ -1454,10 +1849,6 @@ void GrammarAnalysis::constructLRItemSets()
       if (itemSet->transitionC(sym) != NULL) {
         continue;
       }
-
-      // fixed: adding transition functions fixes this:
-	// inefficiency: if several productions have X to the
-	// left of the dot, then we will 'moveDot' each time
 
       // compute the itemSet produced by moving the dot
       // across 'sym'; but don't take closure yet since
@@ -1523,7 +1914,7 @@ void GrammarAnalysis::constructLRItemSets()
   out << "# lr sets in graph form\n";
 
   FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
-    itemSet.data()->writeGraph(out);
+    itemSet.data()->writeGraph(out, *this);
   }
 }
 
@@ -2589,7 +2980,8 @@ int main(int argc, char **argv)
     cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
             "  processes prefix.gr to make prefix.{h,cc,bin}\n"
             "  useful tracing flags:\n"
-            "    conflict    : print SLR(1) conflicts\n";
+            "    conflict    : print SLR(1) conflicts\n"
+            "    closure     : details of item-set closure algorithm\n";
     return 0;
   }
   string prefix = argv[1];
