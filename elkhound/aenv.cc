@@ -737,6 +737,8 @@ AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent
     return PR_INCONSISTENT;
   }
 
+  traceProgress() << "      " << context << endl;
+
   char const *proved =
     tracingSys("predicates")? "------------ predicate proved ------------" : NULL;
   char const *notProved = "--- !!! ------- predicate NOT proved ------- !!! ---";

@@ -41,7 +41,7 @@ endif
 
 # make warnings into errors so I always get a chance to fix them
 # (otherwise they scroll by and I might miss them)
-ccflags += -Werror
+#ccflags += -Werror
 
 # when uncommented, we get profiling info
 #ccflags += -pg

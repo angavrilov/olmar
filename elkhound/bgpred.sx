@@ -31,6 +31,7 @@
 ; an address is a tree node object, for treeadd
 (DEFPRED (treeNode mem addr))
 
+(DEFPRED (equalMemory mem1 mem2))
 
 (BG_PUSH (AND
 
@@ -390,6 +391,26 @@
         (sel obj index2)                       ; obj.index2
       )
     ))
+
+  ; when overwriting, can forget intervening writes
+;   (FORALL (obj index lostVal newVal)  (PATS (upd (upd obj index lostVal) index newVal))
+;     (EQ
+;       (upd (upd obj index lostVal) index newVal)
+;       (upd obj index newVal)
+;     ))
+
+  (FORALL (mem1 mem2)    ;(PATS (EQ mem1 mem2))
+    (IMPLIES
+      (FORALL (index)
+        (EQ (sel mem1 index) (sel mem2 index)))
+      (equalMemory mem1 mem2)
+    ))
+
+  (FORALL (mem1 mem2)
+    (IMPLIES
+      (equalMemory mem1 mem2)
+      (EQ mem1 mem2)
+    ))  
 
   ; okSel: ok to access a field
   (FORALL (obj index)

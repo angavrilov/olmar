@@ -2,6 +2,99 @@
 
 
 bg_push (
+  (EQ result_1 (sub (firstIndexOf result_1) 0))
+  (NEQ (firstIndexOf result_1) 0)
+  (okSel mem_12 (firstIndexOf result_1))
+  (EQ address_1 (firstIndexOf result_1))
+  (NOT (okSel mem_11 address_1))
+  (okSelOffsetRange mem_12 (appendIndex result_1 0) 8)
+  (EQ mem_12 (upd mem_11 address_1 initVal_1))
+  (EQ (typeOf (firstIndexOf result_1)) 1)
+  (EQ mem_13 (updOffset mem_12 (appendIndex result_1 0) x_3))
+  (EQ mem_14 (updOffset mem_13 (appendIndex result_1 1) (- x_3 1)))
+)
+valid "implications" (
+  (EQ mem_12 (upd mem_11 address_1 initVal_1))
+  (EQ mem_13 (upd mem_12 address_1 
+                  (upd (sel mem_12 address_1) 0 x_3)))
+                  
+  (IMPLIES
+    (NEQ addr2 address_1)
+    (EQ 
+      (sel mem_13 addr2)
+      (sel mem_11 addr2)
+    ))
+)
+valid "goal" (
+;  (equalMemory mem_13 (upd mem_11 address_1
+;                           (sel mem_13 address_1)))
+  (EQ mem_13 (upd mem_11 address_1
+                  (sel mem_13 address_1)))
+)
+bg_pop
+stop
+
+
+
+bg_push (
+  (EQ g1_17 (sub g1_index_17 g1_rest_17))
+  (EQ g2_6 (sub g2_index_6 g2_rest_6))
+  (EQ g3_11 (sub g3_index_11 g3_rest_11))
+  (DISTINCT 0)
+  (uncheckedAccess mem_29)
+  (FORALL (addr_13 ) 
+    (IMPLIES 
+      (EQ (typeOf addr_13) 1) 
+      (> (sel (sel mem_29 addr_13) 0) 
+         (sel (sel mem_29 addr_13) 1)
+    )))
+  (EQ g1_18 (sub g1_index_18 g1_rest_18))
+  (EQ g2_7 (sub g2_index_7 g2_rest_7))
+  (EQ g3_12 (sub g3_index_12 g3_rest_12))
+  (EQ mem_29 (sub pre_mem_index_2 pre_mem_rest_2))
+  (uncheckedAccess mem_30)
+  (EXISTS (address_2 initVal_3 )
+    (AND
+      (NEQ address_2 0)
+      (EQ result_3 (sub address_2 0))
+      (NOT (okSel mem_29 address_2))
+      (okSel mem_30 address_2)
+      (okSelOffsetRange mem_30 (appendIndex result_3 0) 8)
+      (EQ mem_30 (upd mem_29 address_2 initVal_3))
+    ))
+  (EQ (typeOf (firstIndexOf result_3)) 1)
+  (EQ mem_31 (updOffset mem_30 (appendIndex result_3 0) 5))
+  (EQ mem_32 (updOffset mem_31 (appendIndex result_3 1) 4))
+  (uncheckedAccess mem_33)
+  (FORALL (addr_17 )
+    (IMPLIES
+      (EQ (typeOf addr_17) 1)
+      (> (sel (sel mem_33 addr_17) 0)
+         (sel (sel mem_33 addr_17) 1))
+    ))
+  (EQ result_4 (sub (firstIndexOf result_4) 0))
+  (NOT (okSel mem_32 (firstIndexOf result_4)))
+  (okSel mem_33 (firstIndexOf result_4))
+  (okSelOffsetRange mem_33 (appendIndex result_4 0) 2)
+  (EXISTS (initVal_4 )
+    (EQ mem_33 (upd mem_32 (firstIndexOf result_4) initVal_4)))
+  (EQ (selOffset mem_33 (appendIndex result_4 0)) 7)
+  (EQ mem_34 (updOffset mem_33 (appendIndex result_4 1) 30))
+  (EQ (typeOf (firstIndexOf result_4)) 2)
+)
+valid "goal" (
+  (FORALL (addr_18 )
+    (IMPLIES
+      (EQ (typeOf addr_18) 1)
+      (> (sel (sel mem_34 addr_18) 0)
+         (sel (sel mem_34 addr_18) 1))))
+)
+bg_pop
+stop
+
+
+
+bg_push (
   (EQ g1_7 (sub g1_index_7 g1_rest_7))
   (EQ g2_1 (sub g2_index_1 g2_rest_1))
   (DISTINCT 0)
