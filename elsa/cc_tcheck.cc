@@ -3923,18 +3923,23 @@ inline ArgumentInfo argInfo(Expression *e)
   return ArgumentInfo(e->getSpecial(), e->type);
 }
 
-Type *E_unary::itcheck(Env &env, Expression *&replacement)
-{
-  expr->tcheck(env, expr);
-
+// do operator overload resolution for a unary operator; return
+// non-NULL if we've replaced this node, and want the caller to
+// return that value
+Type *resolveOverloadedUnaryOperator(
+  Env &env,                  // environment
+  Expression *&replacement,  // OUT: replacement node
+  //Expression *ths,           // expression node that is being resolved (not used)
+  Expression *expr,          // the subexpression of 'this' (already type-checked)
+  OverloadableOp op          // which operator this node is
+) {
   // consider the possibility of operator overloading
   if (env.doOperatorOverload &&
       (expr->type->asRval()->isCompoundType() ||
        expr->type->asRval()->isEnumType())) {
     OVERLOADINDTRACE("found overloadable unary " << toString(op) <<
                      " near " << env.locStr());
-    OverloadableOp oop = toOverloadableOp(op);
-    StringRef opName = env.operatorName[oop];
+    StringRef opName = env.operatorName[op];
 
     // argument information
     GrowArray<ArgumentInfo> args(1);
@@ -3948,12 +3953,12 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
     resolver.addUserOperatorCandidates(expr->type, opName);
 
     // built-in candidates
-    resolver.addBuiltinUnaryCandidates(oop);
+    resolver.addBuiltinUnaryCandidates(op);
 
     // pick the best candidate
     Variable *winner = resolver.resolve();
     if (winner && !winner->hasFlag(DF_BUILTIN)) {
-      OperatorName *oname = new ON_operator(oop);
+      OperatorName *oname = new ON_operator(op);
       PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
 
       if (winner->hasFlag(DF_MEMBER)) {
@@ -3974,11 +3979,28 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
           FakeList<ICExpression>::makeList(new ICExpression(expr))
         );
       }
-      
+
       // for now, just re-check the whole thing
       replacement->tcheck(env, replacement);
       return replacement->type;
     }
+  }
+
+  // not replaced
+  return NULL;
+}
+
+
+
+Type *E_unary::itcheck(Env &env, Expression *&replacement)
+{
+  expr->tcheck(env, expr);
+
+  // consider the possibility of operator overloading
+  Type *ovlRet = resolveOverloadedUnaryOperator(
+    env, replacement, /*this,*/ expr, toOverloadableOp(op));
+  if (ovlRet) {
+    return ovlRet;
   }
 
   // TODO: make sure 'expr' is compatible with given operator
@@ -4317,60 +4339,14 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
   
-  // TODO: collapse with E_unary           
-
   // check for overloading
-  if (env.doOperatorOverload &&
-      (ptr->type->asRval()->isCompoundType() ||
-       ptr->type->asRval()->isEnumType())) {
-    OVERLOADINDTRACE("found overloadable unary operator* near " << env.locStr());
-    StringRef opName = env.operatorName[OP_STAR];
-
-    // argument information
-    GrowArray<ArgumentInfo> args(1);
-    args[0] = argInfo(ptr);
-
-    // prepare resolver
-    OverloadResolver resolver(env, env.loc(), &env.errors,
-                              OF_NONE, args);
-
-    // user-defined candidates
-    resolver.addUserOperatorCandidates(ptr->type, opName);
-
-    // built-in candidates
-    resolver.addBuiltinUnaryCandidates(OP_STAR);
-
-    // pick the best candidate
-    Variable *winner = resolver.resolve();
-    if (winner && !winner->hasFlag(DF_BUILTIN)) {
-      OperatorName *oname = new ON_operator(OP_STAR);
-      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
-
-      if (winner->hasFlag(DF_MEMBER)) {
-        // replace '*a' with 'a.operator*()'
-        replacement = new E_funCall(
-          new E_fieldAcc(ptr, pqo),                // function
-          FakeList<ICExpression>::emptyList()      // arguments
-        );
-      }
-      else {
-        // replace '*a' with '::operator*(a)'
-        // TODO: that is wrong if namespaces exist
-        replacement = new E_funCall(
-          // function to invoke
-          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
-                                          NULL /*targs*/, pqo)),
-          // arguments
-          FakeList<ICExpression>::makeList(new ICExpression(ptr))
-        );
-      }
-
-      // for now, just re-check the whole thing
-      replacement->tcheck(env, replacement);
-      return replacement->type;
+  {
+    Type *ovlRet = resolveOverloadedUnaryOperator(
+      env, replacement, /*this,*/ ptr, OP_STAR);
+    if (ovlRet) {
+      return ovlRet;
     }
   }
-
 
   Type *rt = ptr->type->asRval();
   if (rt->isFunctionType()) {
@@ -4390,9 +4366,8 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
     return makeLvalType(env, rt->asArrayType()->eltType);
   }
 
-  // check for "operator*" (and "operator[]" since I unfortunately
-  // currently map 'x[y]' into '*(x+y)' during parsing)
-  // TODO: actually, operator[] is no longer translated away..
+  // check for "operator*" (and "operator[]" since I currently map
+  // 'x[y]' into '*(x+y)')
   if (rt->isCompoundType()) {
     CompoundType *ct = rt->asCompoundType();
     if (ct->lookupVariableC(env.operatorName[OP_STAR], env)) {
