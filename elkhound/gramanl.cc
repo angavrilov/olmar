@@ -2315,7 +2315,7 @@ void GrammarAnalysis::constructLRItemSets()
           else {
             // we thought we were done with this
             #ifdef EXTRA_CHECKS
-              xassert(itemSetsDone.contains(already));
+              xassert(itemSetsDone.get(already));
             #endif
 
             // but we're not: move it back to the 'pending' list
@@ -2355,7 +2355,7 @@ void GrammarAnalysis::constructLRItemSets()
 
       #ifdef EXTRA_CHECKS
         // make sure the link restoration process works as expected
-        xassert(scratchState->kernelItemList.count() >= INIT_LIST_LEN);
+        xassert(scratchState->kernelItems.count() >= INIT_LIST_LEN);
       #endif
 
     } // for each item

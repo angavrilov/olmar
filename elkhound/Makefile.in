@@ -45,6 +45,9 @@ ccflags += -Werror
 # optimizer...
 ccflags += -O2
 
+# flags on command line
+ccflags+= $(EXTRA)
+
 compile := g++ -c $(ccflags) $(includes)
 depend  := g++ -MM $(ccflags) $(includes)
 link    := g++ $(ccflags) $(includes)
