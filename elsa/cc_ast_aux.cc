@@ -368,8 +368,6 @@ bool Handler::isEllipsis() const
 }
 
 
-// FullExpression
-
 // --------------------- Expression ---------------------
 void Expression::printAmbiguities(ostream &os, int indent) const
 {
@@ -476,6 +474,8 @@ Expression *Expression::skipGroups()
   return ret;
 }
 
+
+// FullExpression
 
 // ------------------- ArgExpression -------------------------
 void ArgExpression::setNext(ArgExpression *newNext)

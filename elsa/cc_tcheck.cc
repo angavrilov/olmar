@@ -3574,7 +3574,7 @@ void S_default::itcheck(Env &env)
 
 void S_expr::itcheck(Env &env)
 {
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
 }
 
 
@@ -3630,7 +3630,7 @@ void S_while::itcheck(Env &env)
 void S_doWhile::itcheck(Env &env)
 {
   body = body->tcheck(env);
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
 
   // TODO: verify that 'expr' makes sense in a boolean context
 }
@@ -3642,7 +3642,7 @@ void S_for::itcheck(Env &env)
 
   init = init->tcheck(env);
   cond->tcheck(env);
-  after->tcheck(env, after);
+  after->tcheck(env);
   body = body->tcheck(env);
 
   env.exitScope(scope);
@@ -3664,7 +3664,7 @@ void S_continue::itcheck(Env &env)
 void S_return::itcheck(Env &env)
 {
   if (expr) {
-    expr->tcheck(env, expr);
+    expr->tcheck(env);
     
     // TODO: verify that 'expr' is compatible with the current
     // function's declared return type
@@ -3710,7 +3710,7 @@ void S_asm::itcheck(Env &)
 // ------------------- Condition --------------------
 void CN_expr::tcheck(Env &env)
 {
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
 
   // TODO: verify 'expr' makes sense in a boolean or switch context
 }
@@ -3740,61 +3740,6 @@ void Handler::tcheck(Env &env)
   body->tcheck(env);
 
   env.exitScope(scope);
-}
-
-
-// ------------------- Full Expression tcheck -----------------------
-Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
-{
-//    cout << "FullExpressionAnnot::tcheck_preorder " << ::toString(env.loc()) << endl;
-  env.fullExpressionAnnotStack.push(this);
-  Scope *scope = env.enterScope(SK_FUNCTION, "full expression annot");
-  // come to think of it, there shouldn't be any declarations yet;
-  // they get constructed during the typechecking later
-//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env)" << endl;
-//    PrintEnv penv(cout);
-//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
-//      iter.data()->print(penv);
-//    }
-//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env) END" << endl;
-  // FIX: I think this fails if you typecheck the FullExpressionAnnot
-  // twice and it contains a temporary.
-  xassert(declarations.isEmpty());
-//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
-//      iter.data()->tcheck(env,
-//                          );
-//    }
-  return scope;
-}
-
-void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
-{
-  env.exitScope(scope);
-  env.fullExpressionAnnotStack.pop();
-//    cout << "FullExpressionAnnot::tcheck_postorder " << ::toString(env.loc()) << endl;
-}
-
-void FullExpression::tcheck(Env &env,
-                            FullExpression *& // ignored; see cc_tcheck.ast
-                            )
-{
-  FullExpressionAnnot_StackBracket fea0(env, annot);
-  expr->tcheck(env, expr);
-}
-
-Type *FullExpression::getType()
-{
-  return expr->getType();
-}
-
-bool FullExpression::constEval(Env &env, int &result) const
-{
-  return expr->constEval(env, result);
-}
-
-bool FullExpression::constEval(string &msg, int &result) const
-{
-  return expr->constEval(msg, result);
 }
 
 
@@ -6045,6 +5990,44 @@ SpecialExpr Expression::getSpecial() const
 
     ASTENDCASEC
   }
+}
+
+
+// ------------------- Full Expression tcheck -----------------------
+Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
+{
+//    cout << "FullExpressionAnnot::tcheck_preorder " << ::toString(env.loc()) << endl;
+  env.fullExpressionAnnotStack.push(this);
+  Scope *scope = env.enterScope(SK_FUNCTION, "full expression annot");
+  // come to think of it, there shouldn't be any declarations yet;
+  // they get constructed during the typechecking later
+//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env)" << endl;
+//    PrintEnv penv(cout);
+//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
+//      iter.data()->print(penv);
+//    }
+//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env) END" << endl;
+  // FIX: I think this fails if you typecheck the FullExpressionAnnot
+  // twice and it contains a temporary.
+  xassert(declarations.isEmpty());
+//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
+//      iter.data()->tcheck(env,
+//                          );
+//    }
+  return scope;
+}
+
+void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
+{
+  env.exitScope(scope);
+  env.fullExpressionAnnotStack.pop();
+//    cout << "FullExpressionAnnot::tcheck_postorder " << ::toString(env.loc()) << endl;
+}
+
+void FullExpression::tcheck(Env &env)
+{
+  FullExpressionAnnot_StackBracket fea0(env, annot);
+  expr->tcheck(env, expr);
 }
 
 

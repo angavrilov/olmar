@@ -27,7 +27,7 @@ void ASTTypeof::mid_tcheck(Env &env, DeclFlags &dflags)
 Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 {
   // FIX: dflags discarded?
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
   // FIX: check the asRval(); A use in kernel suggests it should be
   // there as otherwise you get "error: cannot create a pointer to a
   // reference" when used to specify the type in a declarator that

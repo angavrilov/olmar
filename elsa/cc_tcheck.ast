@@ -343,19 +343,6 @@ class Handler {
 }
 
 
-class FullExpression {
-  // duplicate the API of Expression and delegate all the calls down
-  // to the Expression *expr member
-  public void tcheck(Env &env,
-                     // dsw: this is just here so I don't change the
-                     // API from that of Expression; I don't use it.
-                     FullExpression *&replacement
-                     );
-  public Type *getType();       // can use after calling 'tcheck'
-  public bool constEval(Env &env, int &result) const;
-  public bool constEval(string &msg, int &result) const;
-}
-
 class Expression {
   // type check and yield the type of the expression; this type
   // gets automatically stored in the 'type' field; the return
@@ -478,10 +465,24 @@ class Expression {
 }
 
 
+class FullExpression {
+  public void tcheck(Env &env);
+
+  // duplicate the API of Expression and delegate all the calls down
+  // to the Expression *expr member
+  public Type *getType() const
+    { return expr->type; };
+  public bool constEval(Env &env, int &result) const
+    { return expr->constEval(env, result); };
+  public bool constEval(string &msg, int &result) const
+    { return expr->constEval(msg, result); };
+}
+
+
 class ArgExpression {
   // repeat some of Expression's interface so I can avoid adding
   // lots of annoying "expr->expr" clutter
-  public Type *getType() const 
+  public Type *getType() const
     { return expr->type; };
   public bool constEval(Env &env, int &result) const
     { return expr->constEval(env, result); };
