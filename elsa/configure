@@ -9,7 +9,7 @@ $CCFLAGS = ();
 $debug = 0;
 $SMBASE = "../smbase";
 $AST = "../ast";
-$ELKHOUND = "../parsgen";
+$ELKHOUND = "../elkhound";
 
 
 sub usage {
