@@ -228,17 +228,110 @@ end
 
 
 (* -------------------- parser ------------------- *)
-let stateStack : int array ref = ref (Array.make 10 0)
+(* NOTE: in some cases, more detailed comments can be found in
+ * elkhound/glr.h, as these data structures mirror the ones
+ * defined there *)
+type tStateId = int
+
+(* link from one stack node to another *)
+type tSiblingLink = {
+  (* stack node we're pointing at *)
+  sib: tStackNode;
+
+  (* semantic value on this link *)
+  sval: Obj.t;
+
+  (* TODO: source location *)
+
+  (* possible TODO: yield count *)
+}
+
+(* node in the GLR graph-structured stack; all fields are
+ * mutable because these are stored in a pool for explicit re-use *)
+and tStackNode = {
+  (* LR parser state when this node is at the top *)
+  mutable state: tStateId;
+
+  (* pointers to adjacent (to the left) stack nodes *)
+  (* possible TODO: put links into a pool so I can deallocate them *)
+  mutable leftSiblings: tSiblingLink list;
+
+  (* logically first sibling in the sibling list; separated out
+   * from 'leftSiblings' for performance reasons *)
+  mutable firstSib: tSiblingLink;
+  
+  (* number of sibling links pointing at this node, plus the
+   * number of worklists this node appears in *)
+  mutable referenceCount: int;
+  
+  (* number of links we can follow to the left before hitting a node
+   * that has more than one sibling *)
+  mutable determinDepth: int;
+
+  (* TODO: add the 'glr' context pointer when I encapsulate parsing
+   * state for re-entrancy among other things *)
+
+  (* position of token that was active when this node was created
+   * (or pulled from pool); used in yield-then-merge calculations *)
+  mutable column: int;
+}
+
+(* this is a path that has been queued for reduction;
+ * all fields mutable to support pooling *)
+type tPath = {
+  (* rightmost state's id *)
+  mutable startStateId: tStateId;
+
+  (* production we're going to reduce with *)
+  mutable prodIndex: int;
+
+  (* column from leftmost stack node *)
+  mutable startColumn: int;
+
+  (* the leftmost stack node itself *)
+  mutable leftEdgeNode: tStackNode;
+
+  (* array of sibling links, i.e. the path; 0th element is
+   * leftmost link *)
+  sibLinks: tSiblingLink array ref;
+
+  (* corresponding array of symbol ids to interpret svals *)
+  symbols: tSymbolId array ref;
+
+  (* when this path is in the queue, this link points to the
+   * next path in dequeueing order *)
+  mutable next: tPath;
+}
+
+(* priority queue of reduction paths *)
+type tReductionPathQueue = {
+  (* head of the list, first to dequeue *)
+  mutable top: tPath;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let stateStack : tStateId array ref = ref (Array.make 10 0)
 let svalStack : Obj.t array ref = ref (Array.make 10 (Obj.repr 0))
 let stackLen : int ref = ref 0
 
-(* TODO: make sval stack of Obj.t instead of int *)
-
-let pushStateSval (state : int) (sval : Obj.t) : unit =
+let pushStateSval (state : tStateId) (sval : Obj.t) : unit =
 begin
   if ((Array.length !stateStack) = !stackLen) then (
     (* must make it bigger *)
-    let newStateStack : int array = (Array.make (!stackLen * 2) 0) in
+    let newStateStack : tStateId array = (Array.make (!stackLen * 2) 0) in
     let newSvalStack : Obj.t array = (Array.make (!stackLen * 2) (Obj.repr 0)) in
 
     (* copy *)
@@ -268,7 +361,7 @@ begin
   (incr stackLen);
 end
 
-let topState() : int =
+let topState() : tStateId =
 begin
   (!stateStack).(!stackLen - 1)
 end
@@ -285,7 +378,7 @@ begin
   while (not ((lex#getTokType()) = 0)) ||
         (!stackLen > 2) do
     let tt:int = (lex#getTokType()) in        (* token type *)
-    let state:int = (topState()) in           (* current state *)
+    let state:tStateId = (topState()) in      (* current state *)
 
     (Printf.printf "state=%d tokType=%d sval=%d desc=\"%s\"\n"
                    state
@@ -300,7 +393,7 @@ begin
 
     (* shift? *)
     if (0 < act && act <= numStates) then (
-      let dest:int = act-1 in                 (* destination state *)
+      let dest:tStateId = act-1 in            (* destination state *)
       (pushStateSval dest (lex#getSval()));
 
       (* next token *)
@@ -336,7 +429,7 @@ begin
       let newTopState:int = (topState()) in
 
       (* get new state *)
-      let dest:int = gotoTable.(newTopState*gotoCols + lhs) in
+      let dest:tStateId = gotoTable.(newTopState*gotoCols + lhs) in
       (pushStateSval dest sval);
 
       (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
@@ -368,7 +461,7 @@ begin
 
   (* return value: sval of top element *)
   let topSval:Obj.t = (!svalStack).(!stackLen - 1) in
-  
+
   (* assume is int for now *)
   (Obj.obj topSval : int)
 end
