@@ -1034,7 +1034,7 @@ void CGen::emitTraverse(ASTClass const *c, ASTClass const * /*nullable*/ super,
     if (isTreeNode(arg->type) || isTreeNodePtr(arg->type)) {
       // traverse it directly
       string type = extractNodeType(arg->type);
-      out << "  " << arg->name << "->traverse(vis);\n";
+      out << "  if (" << arg->name << ") { " << arg->name << "->traverse(vis); }\n";
     }
 
     else if ((isListType(arg->type) || isFakeListType(arg->type)) &&
