@@ -271,9 +271,11 @@ class IDeclarator {
   // add the type constructor represented by this IDeclarator to
   // 'spec' and then make a Variable to represent it; put the
   // variable into the environment if appropriate
-  public Variable * /*owner*/ tcheck(Env &env, Type const *spec, DeclFlags dflags);
+  public Variable * /*owner*/
+    tcheck(Env &env, Type const *spec, DeclFlags dflags);
 
-  pure_virtual Variable * /*owner*/ itcheck(Env &env, Type const *spec, DeclFlags dflags);
+  pure_virtual Variable * /*owner*/
+    itcheck(Env &env, Type const *spec, DeclFlags dflags);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
