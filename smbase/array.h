@@ -203,6 +203,11 @@ public:
     {}
   ~ArrayStack();
 
+  // I seem to need these for g++-3.4.0
+  T const& operator[] (int i) const { return GrowArray<T>::operator[](i); }
+  T      & operator[] (int i)       { return GrowArray<T>::operator[](i); }
+  void ensureIndexDoubler(int index) { return GrowArray<T>::ensureIndexDoubler(index); }
+
   void push(T const &val)
     { setIndexDoubler(len++, val); }
   T pop()

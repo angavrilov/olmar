@@ -681,6 +681,12 @@ string SourceLocManager::getLCString(SourceLoc loc)
 }
 
 
+string locToStr(SourceLoc sl)
+{
+  return sourceLocManager->getString(sl);
+}
+
+
 // -------------------------- test code ----------------------
 #ifdef TEST_SRCLOC
 

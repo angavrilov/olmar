@@ -294,9 +294,14 @@ public:      // funcs
 // singleton pointer, set automatically by the constructor
 extern SourceLocManager *sourceLocManager;
 
+// dsw: So that gdb can find it please DO NOT inline this; also the
+// unique public name is intensional: I don't want gdb doing
+// overloading and sometimes getting it wrong, which it does
+string locToStr(SourceLoc sl);
+
 // take advantage of singleton
 inline string toString(SourceLoc sl)
-  { return sourceLocManager->getString(sl); }
+  { return locToStr(sl); }
 
 inline stringBuilder& operator<< (stringBuilder &sb, SourceLoc sl)
   { return sb << toString(sl); }
