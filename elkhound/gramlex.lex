@@ -65,11 +65,8 @@ DQUOTE    "\""
  * leave open that possibility, so for now backslashes are illegal) */
 STRCHR    [^\n\\\"]
 
-/* horizontal whitespace */
-HWHITE    [ \t\f\v]
-
-/* whitespace that doesn't cross line a boundary */
-SLWHITE   [ \t]
+/* non-newline whitespace */
+HWHITE    [ \t\f\v\r]
 
 
 /* --------------- start conditions ------------------- */
@@ -319,7 +316,7 @@ SLWHITE   [ \t]
 }
 
 <INCLUDE>{
-  {SLWHITE}*"("{SLWHITE}*{DQUOTE}{STRCHR}+{DQUOTE}{SLWHITE}*")" {
+  {HWHITE}*"("{HWHITE}*{DQUOTE}{STRCHR}+{DQUOTE}{HWHITE}*")" {
     /* e.g.: ("filename") */
     /* file name to include */
     UPD_COL;
