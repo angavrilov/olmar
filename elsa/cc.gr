@@ -133,7 +133,7 @@ TS_simple *new_TS_simple(SourceLocation const &loc, CVFlags cv, SimpleTypeId id)
 {
   stringBuilder sb;
   sb << "anonymous:" << toString(id);
-  TS_simple *ret = new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, s);
+  TS_simple *ret = new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, id);
   //TS_simple *ret = new TS_simple(new PQ_name("anonymous_PrimitiveTypeSpecifier"), loc, id);
   ret->cv = cv;
   return ret;
