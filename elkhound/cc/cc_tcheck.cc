@@ -1558,12 +1558,40 @@ bool ctorNameMatches(char const *ctorName, char const *className)
 }
 
 
+// comparing types for equality, *except* we allow array types
+// to match even when one of them is missing a bound and the
+// other is not; I cannot find where in the C++ standard this
+// exception is specified, so I'm just guessing about where to
+// apply it and exactly what the rule should be
+//
+// note that this is *not* the same rule that allows array types in
+// function parameters to vary similarly, see
+// 'normalizeParameterType()'
+static bool almostEqualTypes(Type const *t1, Type const *t2)
+{
+  if (t1->isArrayType() &&
+      t2->isArrayType()) {
+    ArrayType const &at1 = t1->asArrayTypeC();
+    ArrayType const &at2 = t2->asArrayTypeC();
+
+    if ((at1.hasSize && !at2.hasSize) ||
+        (at2.hasSize && !at1.hasSize)) {
+      // the exception kicks in
+      return at1.eltType->equals(at2.eltType);
+    }
+  }
+
+  // no exception: strict equality
+  return t1->equals(t2);
+}
+
+
 // This function is perhaps the most complicated in this entire
 // module.  It has the responsibility of adding a variable called
 // 'name' to the environment.  But to do this it has to implement the
 // various rules for when declarations conflict, overloading,
 // qualified name lookup, etc.
-void D_name_tcheck(
+static void D_name_tcheck(
   // environment in which to do general lookups
   Env &env,
 
@@ -1888,7 +1916,7 @@ realStart:
     }
 
     // check that the types match
-    if (!prior->type->equals(dt.type)) {
+    if (!almostEqualTypes(prior->type, dt.type)) {
       // if the previous guy was an implicit typedef, then as a
       // special case allow it, and arrange for the environment
       // to replace the implicit typedef with the variable being
@@ -2009,6 +2037,21 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(FakeList<ASTTypeId> *list, Env &env
 
   return ret;
 }
+ 
+// implement cppstd 8.3.5 para 3:
+//   "array of T" -> "pointer to T"
+//   "function returning T" -> "pointer to function returning T"
+static Type const *normalizeParameterType(Type const *t)
+{
+  if (t->isArrayType()) {
+    return makePtrType(t->asArrayTypeC().eltType);
+  }
+  if (t->isFunctionType()) {
+    return makePtrType(t);
+  }
+  return t;
+}
+
 
 void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
 {
@@ -2045,7 +2088,8 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
       continue;
     }
 
-    Parameter *p = new Parameter(v->name, v->type, v);
+    Type const *paramType = normalizeParameterType(v->type);
+    Parameter *p = new Parameter(v->name, paramType, v);
     
     // get the default argument, if any
     if (iter->decl->init) {
@@ -2082,10 +2126,25 @@ void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
 {                     
   ArrayType *at;
 
+  // check restrictions in cppstd 8.3.4 para 1
   if (dt.type->isReference()) {
     env.error("cannot create an array of references");
     return;
   }
+  if (dt.type->isSimple(ST_VOID)) {
+    env.error("cannot create an array of void");
+    return;
+  }
+  if (dt.type->isFunctionType()) {
+    env.error("cannot create an array of functions");
+    return;
+  }
+  // TODO: check for abstract classes
+
+  // cppstd 8.3.4 para 1:
+  //   "cv-qualifier array of T" -> "array of cv-qualifier T"
+  // hmmm.. I don't know what syntax would give rise to
+  // the former, or at least my AST can't represent it.. oh well
 
   if (size) {
     // typecheck the 'size' expression
