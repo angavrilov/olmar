@@ -3075,7 +3075,8 @@ Variable *Env::createDeclaration(
       // first definition is being inlined; however that is not how
       // gcc 3.4.0 actually behaves: the second definition is what is
       // called at all call sites.
-      if (prior->hasFlag(DF_DEFINITION) &&
+      if (lang.allowGnuExternInlineFuncReplacement &&
+          prior->hasFlag(DF_DEFINITION) &&
           (dflags & DF_DEFINITION) &&
           prior->type->isFunctionType() &&
           type->isFunctionType() &&

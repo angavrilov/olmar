@@ -125,6 +125,11 @@ public:
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;
 
+  // allow bizarre extern-inline function behavior where a function
+  // can be defined twice and the first will simply be ignored if it
+  // is declared to be extern inline
+  bool allowGnuExternInlineFuncReplacement;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need

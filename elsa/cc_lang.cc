@@ -32,6 +32,7 @@ void CCLang::ANSI_C89()
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = false;
   declareGNUBuiltins = false;
+  allowGnuExternInlineFuncReplacement = false;
 
   isCplusplus = false;
   predefined_Bool = false;
@@ -69,6 +70,7 @@ void CCLang::GNU_C()
   allowDynamicallySizedArrays = true;
   assumeNoSizeArrayHasSizeOne = true;
   declareGNUBuiltins = true;
+  allowGnuExternInlineFuncReplacement = true;
 
   // I'm just guessing this is GNU only.... yep:
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Incomplete-Enums.html
@@ -85,6 +87,7 @@ void CCLang::GNU_KandR_C()
   assumeNoSizeArrayHasSizeOne = true;
   allowIncompleteEnums = true;  // gnu according to Scott, above
   declareGNUBuiltins = true;
+  allowGnuExternInlineFuncReplacement = true;
 
   // this seems wrong, but Oink's tests want it this way...
   predefined_Bool = true;
@@ -134,6 +137,7 @@ void CCLang::ANSI_Cplusplus()
 
   predefined_Bool = false;
   declareGNUBuiltins = false;
+  allowGnuExternInlineFuncReplacement = false;
 
   isCplusplus = true;
 }
@@ -151,6 +155,7 @@ void CCLang::GNU_Cplusplus()
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = true;
   declareGNUBuiltins = true;
+  allowGnuExternInlineFuncReplacement = true;
 }
 
 
