@@ -5,7 +5,7 @@ use strict 'subs';
 
 sub usage {
   print(<<"EOF");
-usage: $0 [-o outname] file.tok
+usage: $0 [-o outname] file.tok [extension.tok [...]]
 
 This script processes a master token description and produces several files:
   - a .h file with the enumeration listing all the tokens
@@ -34,7 +34,7 @@ while (@ARGV != 0 && $ARGV[0] =~ m/^-/) {
   }
 }
 
-if (@ARGV != 1) {
+if (@ARGV < 1) {
   usage();
   exit(0);
 }
@@ -45,10 +45,6 @@ if (!$baseName) {
   $baseName = $fname;
   $baseName =~ s|\.[^.]*$||;    # strip extension
 }
-
-
-# open the input file
-open(IN, "<$fname") or die("cannot open $fname: $!\n");
 
 # open the output files
 open(H, ">$baseName.h") or die("cannot open $baseName.h: $!\n");
@@ -106,66 +102,78 @@ print IDS (<<"EOF");
 EOF
 
 
-# process the input file
+# process the input file(s), effectively a concatenation of all the
+# files supplied on the command line
 $lineNum = 0;
 $nextId = 0;
-while (defined($line = <IN>)) {
-  $lineNum++;
+while (@ARGV > 0) {
+  $fname = $ARGV[0];
+  shift @ARGV;
 
-  # blank lines and comment lines are copied to the output verbatim,
-  # once we've seen the first line which is neither
-  if ($line =~ m|^\s*$| or
-      $line =~ m|^\s*//|) {
-    if ($nextId) {
-      # indent unindented comments
-      if ($line =~ m|^//|) {
-        $line = "  " . $line;
+  # open the input file
+  open(IN, "<$fname") or die("cannot open $fname: $!\n");
+
+  # process it
+  while (defined($line = <IN>)) {
+    $lineNum++;
+
+    # blank lines and comment lines are copied to the output verbatim,
+    # once we've seen the first line which is neither
+    if ($line =~ m|^\s*$| or
+        $line =~ m|^\s*//|) {
+      if ($nextId) {
+        # indent unindented comments
+        if ($line =~ m|^//|) {
+          $line = "  " . $line;
+        }
+
+        print H ($line);
+        print CC ($line);
+        push @flagsList, $line;
+        print IDS ($line);
       }
-
-      print H ($line);
-      print CC ($line);
-      push @flagsList, $line;
-      print IDS ($line);
+      next;
     }
-    next;
+
+    # parse the line
+    chomp($line);
+    my ($enumerator, $spelling, $flags) =
+      ($line =~ m|^\s*([a-zA-Z_0-9]+),\s*(\"[^\"]*\")\s*,\s*:(.*)$|);
+
+    #print("enumerator: $enumerator\n");
+    #print("spelling:   $spelling\n");
+    #print("flags:      $flags\n");
+    #exit(0);
+
+    if (!defined($flags)) {
+      die("$fname:$lineNum: malformed line\n");
+    }
+
+    # parse the flags
+    $multiSpell = ($flags =~ m|m|);
+    $nonsep = ($flags =~ m|n|);
+    $cpp = ($flags =~ m|p|);
+
+    # emit to each file
+    print H ("  $enumerator,\n");
+    printf CC ("  %-40s // $enumerator\n", "$spelling,");
+
+    my @f = ("0");
+    if ($multiSpell) { push @f, "TF_MULTISPELL"; }
+    if ($nonsep)     { push @f, "TF_NONSEPARATOR"; }
+    if ($cpp)        { push @f, "TF_CPLUSPLUS"; }
+    push @flagsList, sprintf("  %-40s // $enumerator\n",
+                             join(' | ', @f) . ",");
+
+    printf IDS ("  %3d : %-30s %s;\n",
+                $nextId,
+                $enumerator,
+                ($multiSpell? "" : $spelling));
+
+    $nextId++;
   }
-
-  # parse the line
-  chomp($line);
-  my ($enumerator, $spelling, $flags) =
-    ($line =~ m|^\s*([a-zA-Z_0-9]+),\s*(\"[^\"]*\")\s*,\s*:(.*)$|);
-
-  #print("enumerator: $enumerator\n");
-  #print("spelling:   $spelling\n");
-  #print("flags:      $flags\n");
-  #exit(0);
-
-  if (!defined($flags)) {
-    die("$fname:$lineNum: malformed line\n");
-  }
-
-  # parse the flags
-  $multiSpell = ($flags =~ m|m|);
-  $nonsep = ($flags =~ m|n|);
-  $cpp = ($flags =~ m|p|);
-
-  # emit to each file
-  print H ("  $enumerator,\n");
-  printf CC ("  %-40s // $enumerator\n", "$spelling,");
-
-  my @f = ("0");
-  if ($multiSpell) { push @f, "TF_MULTISPELL"; }
-  if ($nonsep)     { push @f, "TF_NONSEPARATOR"; }
-  if ($cpp)        { push @f, "TF_CPLUSPLUS"; }
-  push @flagsList, sprintf("  %-40s // $enumerator\n",
-                           join(' | ', @f) . ",");
-
-  printf IDS ("  %3d : %-30s %s;\n",
-              $nextId,
-              $enumerator,
-              ($multiSpell? "" : $spelling));
-
-  $nextId++;
+  
+  close(IN) or die;
 }
 
 
@@ -208,7 +216,6 @@ EOF
 
 
 # close the files
-close(IN) or die;
 close(H) or die;
 close(CC) or die;
 close(IDS) or die;
