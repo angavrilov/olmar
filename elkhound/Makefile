@@ -13,7 +13,7 @@ libraries = ${SMBASE}/libsmbase.a
 includes = -I${SMBASE}
 
 # when uncommented, we get profiling info
-ccflags = -pg
+#ccflags = -pg
 
 # pull in base stuff
 include ${SMBASE}/Makefile.base.mk
@@ -23,7 +23,7 @@ grammar-set = grammar.o action.o cond.o attr.o attrexpr.o litcode.o
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o gramast.o ccsstr.o
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
-          lexer2.o parssppt.o
+          lexer2.o parssppt.o strtable.o
 cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o
 common = trace.o
 
@@ -50,7 +50,8 @@ lexer1: ${lexer1-dep} ${SMBASE}/libsmbase.a
 	${link} -o lexer1 -DTEST_LEXER1 ${lexer1-dep} ${linkend}
 
 # second pass lexer
-lexer2-dep = lexer2.cc ${common} lexer1.o lexer1yy.o fileloc.o
+lexer2-dep = lexer2.cc ${common} lexer1.o lexer1yy.o fileloc.o \
+             strtable.o
 lexer2: ${lexer2-dep} lexer2.h
 	${link} -o lexer2 -DTEST_LEXER2 ${lexer2-dep} ${linkend}
 

@@ -30,7 +30,7 @@ nonterm StartSymbol -> TranslationUnit L2_EOF;
 // an object that exists at runtime)
 nonterm HasName {
   fundecl string getName() const;
-  fun getName = n.strValue;
+  fun getName = n.nameValue;
 }
 nonterm TypedefName : HasName -> n:L2_NAME   ;
 nonterm EnumName : HasName -> n:L2_NAME      ;
@@ -859,7 +859,7 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
   -> k:ClassKeyword n:L2_NAME {
     fun getType {
       CompoundType::Keyword keyword = k.getKeyword();
-      CompoundType const *type = env.lookupOrMakeCompound(n.strValue, keyword);
+      CompoundType const *type = env.lookupOrMakeCompound(n.nameValue, keyword);
       if (!type) {
         // e.g.:
         //   class Foo;
@@ -873,7 +873,7 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
 
   -> "enum" n:L2_NAME {
     fun getType {
-      EnumType const *type = env.lookupEnum(n.strValue);
+      EnumType const *type = env.lookupEnum(n.nameValue);
       if (!type) {
         throwError("undeclared enum");
       }
@@ -951,7 +951,7 @@ nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm PQTypeName : HasTypeName {
-  -> n:L2_NAME                 { fun typeName = n.strValue; }
+  -> n:L2_NAME                 { fun typeName = n.nameValue; }
   -> TemplateId                { fun typeName = "(template-id)"; }
   -> Qualifier n:PQTypeName    { fun typeName = stringc << "(qualifier)" << n.typeName(); }
 }

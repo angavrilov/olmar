@@ -6,6 +6,7 @@
 
 #include "lexer1.h"       // Lexer1
 #include "fileloc.h"      // SourceLocation
+#include "strtable.h"     // StringRef, StringTable
 
 // this enumeration defines the terminal symbols that the parser
 // deals with
@@ -155,19 +156,20 @@ public:
   Lexer2TokenType type;
 
   // value, where appropriate
-  string strValue;               // for L2_NAMEs and L2_STRING_LITERALs
+  string strLitValue;            // for L2_STRING_LITERALs
   union {
     int intValue;      	       	 // for L2_INT_LITERALs
     float floatValue;		 // for L2_FLOAT_LITERALs
     char charValue;		 // for L2_CHAR_LITERALs
-    int strLength;               // for L2_STRING_LITERALs with embedded NULs
+    int strLitLength;            // for L2_STRING_LITERALs (to handle embedded nuls)
+    StringRef nameValue;         // for L2_NAMEs; refers to Lexer2::idTable
   };
 
   // where token appears, or where macro reference which produced it appears
   SourceLocation loc;            // line/col/file
 
   // macro definition that produced this token, or NULL
-  Lexer1Token *sourceMacro;	 // (serf)
+  Lexer1Token *sourceMacro;      // (serf)
 
 public:
   Lexer2Token(Lexer2TokenType type, SourceLocation const &loc);
@@ -183,9 +185,14 @@ public:
 // lexing state
 class Lexer2 {
 public:
-  // output state
-  ObjList<Lexer2Token> tokens;		     // output token stream
-  ObjListMutator<Lexer2Token> tokensMut;     // for appending
+  // storage of all the identifiers we encounter
+  StringTable idTable;
+
+  // output token stream
+  ObjList<Lexer2Token> tokens;
+
+  // for appending
+  ObjListMutator<Lexer2Token> tokensMut;
 
 public:
   Lexer2();

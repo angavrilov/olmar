@@ -34,7 +34,7 @@ StringRef StringTable::add(char const *src)
   // see if it's already here
   StringRef ret = get(src);
   if (ret) {
-    return NULL;
+    return ret;
   }
 
   // see if we need a new rack
@@ -49,13 +49,13 @@ StringRef StringTable::add(char const *src)
     // just casting around the type system)
   }
   
-  // enter the intended location into the indexing structures
-  ret = lastRack->nextByte();
-  hash.add(ret, (void*)ret);
-
   // add the string to the last rack
+  ret = lastRack->nextByte();
   memcpy(lastRack->nextByte(), src, len);
   lastRack->usedBytes += len;
+
+  // enter the intended location into the indexing structures
+  hash.add(ret, (void*)ret);
 
   return ret;
 }

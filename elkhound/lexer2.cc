@@ -256,7 +256,7 @@ void printMyTokenDecls()
 // ----------------------- Lexer2Token -------------------------------
 Lexer2Token::Lexer2Token(Lexer2TokenType aType, SourceLocation const &aLoc)
   : type(aType),
-    strValue(),      // null initially
+    strLitValue(),   // null initially
     intValue(0),     // legal? apparently..
     loc(aLoc),
     sourceMacro(NULL)
@@ -273,15 +273,18 @@ string Lexer2Token::toString() const
   // add the literal value, if any
   switch (type) {
     case L2_NAME:
+      ret &= stringc << "(" << nameValue << ")";
+      break;
+
     case L2_STRING_LITERAL:
-      ret &= stringc << "(" << strValue << ")";
+      ret &= stringc << "(" << strLitValue << ")";
       break;
 
     case L2_INT_LITERAL:
       ret &= stringc << "(" << intValue << ")";
       break;
 
-    default:     // silence warning -- what is this, ML??
+    default:     // silence warning -- what is this, ML??!
       break;
   }
 
@@ -293,13 +296,13 @@ string Lexer2Token::unparseString() const
 {
   switch (type) {
     case L2_NAME:
-      return strValue;
-      
+      return nameValue;
+
     case L2_STRING_LITERAL:
-      return stringc << "\"" 
-                     << encodeWithEscapes(strValue, strLength)
+      return stringc << "\""
+                     << encodeWithEscapes(strLitValue, strLitLength)
                      << "\"";
-                    
+
     case L2_INT_LITERAL:
       return stringc << intValue;
 
@@ -320,7 +323,7 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
                     char delim, bool allowNewlines)
 {
   // strip quotes or ticks
-  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2), 
+  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2),
                 delim, allowNewlines);
 }
 
@@ -354,23 +357,35 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
     if (L1->type == L1_STRING_LITERAL         &&
         prevToken != NULL                     &&
         prevToken->type == L2_STRING_LITERAL) {
-      // coalesce adjacent strings
-      prevToken->strValue &= L1->text;
+      // coalesce adjacent strings (this is not good code..)
+      stringBuilder sb;
+      sb.append(prevToken->strLitValue, prevToken->strLitLength);
+
+      string tempString;
+      int tempLength;
+      quotedUnescape(tempString, tempLength, L1->text, '"',
+                     src.allowMultilineStrings);
+      sb.append(tempString, tempLength);
+
+      prevToken->strLitValue.setlength(sb.length());
+      memcpy(prevToken->strLitValue.pchar(), sb, sb.length()+1);
+      prevToken->strLitLength = sb.length();
       continue;
     }
 
     // create the object for the yielded token; don't know the type
     // yet at this point, so I use L2_NAME as a placeholder
-    Lexer2Token *L2 = 
-      new Lexer2Token(L2_NAME, 
+    Lexer2Token *L2 =
+      new Lexer2Token(L2_NAME,
                       SourceLocation(L1->loc, NULL /*file (for now)*/));
 
     try {
       switch (L1->type) {
         case L1_IDENTIFIER:
           L2->type = lookupKeyword(L1->text);      // keyword's type or L2_NAME
-          if (L2->type == L2_NAME) {
-            L2->strValue = L1->text;               // save name's text
+          if (L2->type == L2_NAME) {               
+            // save name's text
+            L2->nameValue = dest.idTable.add(L1->text);
           }
           break;
 
@@ -386,7 +401,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
         case L1_STRING_LITERAL:
           L2->type = L2_STRING_LITERAL;
-          quotedUnescape(L2->strValue, L2->strLength, L1->text, '"', 
+          quotedUnescape(L2->strLitValue, L2->strLitLength, L1->text, '"',
                          src.allowMultilineStrings);
           break;
 
@@ -438,7 +453,8 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
 // --------------------- Lexer2 ------------------
 Lexer2::Lexer2()
-  : tokens(),
+  : idTable(),
+    tokens(),
     tokensMut(tokens)
 {}
 
