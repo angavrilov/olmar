@@ -242,7 +242,7 @@ mlsstr: mlsstr.cc mlsstr.h
 libelkhound.a: $(glr-set) $(util-set)
 	rm -f $@
 	$(AR) -r $@ $(glr-set) $(util-set)
-	$(RANLIB) $@
+	-$(RANLIB) $@
 
 
 # --------------------- executables ---------------------
