@@ -188,6 +188,7 @@ vcgentb str.c
 vcgentb struct.c
 vcgen loop1.c
 vcgen corrcond.c
+vcgentb npktsmall.c
 
 
 # final arithmetic to report result

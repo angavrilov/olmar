@@ -1,6 +1,3 @@
-#define STATUS_SUCCESS 1
-#define STATUS_UNSUCCESSFUL 0
-
 struct Irp {
 	int Status;
 	int Information;
@@ -9,11 +6,11 @@ struct Irp {
 struct Requests {
 	int Status;
 	struct Irp *irp;
-	struct Requests *Next;	
+	struct Requests *Next;
 };
 
 struct Device {
-	struct Requests *WriteListHeadVa; 
+	struct Requests *WriteListHeadVa;
 	int writeListLock;
 };
 
@@ -25,11 +22,8 @@ void Unlock() {
 }
 
 // stubs
-void SmartDevFreeBlock(struct Requests *r) {
-}
-
-void IoCompleteRequest(struct Irp *irp, int status) {
-}
+void SmartDevFreeBlock(struct Requests *r) {}
+void IoCompleteRequest(struct Irp *irp, int status) {}
 
 struct Device devE;
 
@@ -43,21 +37,21 @@ int main () {
     do {
         Lock();
 
-        nPacketsOld = nPackets; 
+        nPacketsOld = nPackets;
 
         request = (*devExt).WriteListHeadVa;
         if(request!=0 && (*request).Status!=0){
-            (*devExt).WriteListHeadVa = (*request).Next;	
+            (*devExt).WriteListHeadVa = (*request).Next;
 
             Unlock();
             irp = (*request).irp;
             if((*request).Status >0) {
-                (*irp).Status = STATUS_SUCCESS;
+                (*irp).Status = 1; //STATUS_SUCCESS;
                 (*irp).Information = (*request).Status;
             } else {
-                (*irp).Status = STATUS_UNSUCCESSFUL;
+                (*irp).Status = 0; //STATUS_UNSUCCESSFUL;
                 (*irp).Information = (*request).Status;
-            }	
+            }
             SmartDevFreeBlock(request);
             IO_NO_INCREMENT = 3;
             IoCompleteRequest(irp, IO_NO_INCREMENT);
