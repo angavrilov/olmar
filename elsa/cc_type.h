@@ -620,6 +620,12 @@ public:     // funcs
   // similar for TypeVariable
   bool containsTypeVariables() const;
 
+  // returns true if contains type variables or STemplateArgument-s
+  // with the tag STA_REFERENCE, since these are what template object
+  // (or at least int) variables look like.  Recurses down into
+  // TemplateArguments.
+  bool containsVariables() const;
+
   // get the first typedef alias, if any
   Variable *typedefName();
 
@@ -976,7 +982,7 @@ public:    // data
   // non-empty  | empty              | containVariables     : partial specialization
   // empty      | empty              | not containVariables : complete specialization or
   //                                                          instantiation
-  // empty      | empty              | allVariables         : mutant, see below
+  // empty      | empty              | containVariables     : mutant, see below
   //
   // NOTE: during the typechecking of a primary, a mutant
   // instantiation is created; It has no parameters (like an
@@ -1091,9 +1097,6 @@ public:    // funcs
   // variables; FIX: I'm not sure this is implemented right; see
   // comments in implementation
   bool argumentsContainVariables() const;
-
-  // all arguments are variables
-  bool argumentsAllVariables() const;
 
   bool isMutant() const;
   bool isPrimary() const;

@@ -1151,6 +1151,23 @@ bool BaseType::containsTypeVariables() const
 }
 
 
+bool hasVariable(Type const *t)
+{
+  if (t->isTypeVariable()) return true;
+  if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
+    return t->asCompoundTypeC()->templateInfo->argumentsContainVariables();
+  }
+  // FIX: Extend for function types
+  return false;
+}
+
+bool BaseType::containsVariables() const
+{
+  return static_cast<Type const *>(this)->
+    anyCtorSatisfies(hasVariable);
+}
+
+
 Variable *BaseType::typedefName()
 {
   return typedefAliases.isEmpty()? NULL : typedefAliases.first();
@@ -1906,38 +1923,17 @@ bool TemplateInfo::argumentsContainVariables() const
   FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
     STemplateArgument const *sta = iter.data();
     if (sta->kind == STemplateArgument::STA_TYPE) {
-      if (sta->value.t->containsTypeVariables()) return true;
-    }
-    // FIX: I am not at all sure that my interpretation of what
-    // STemplateArgument::kind == STA_REFERENCE means; I think it
-    // means it is a non-type non-template (object) variable in an
-    // argument list
-    if (sta->kind == STemplateArgument::STA_REFERENCE) {
+      return sta->value.t->containsVariables();
+    } else if (sta->kind == STemplateArgument::STA_REFERENCE) {
+      // FIX: I am not at all sure that my interpretation of what
+      // STemplateArgument::kind == STA_REFERENCE means; I think it
+      // means it is a non-type non-template (object) variable in an
+      // argument list
       return true;
     }
     // FIX: do other kinds
   }
   return false;
-}
-
-
-bool TemplateInfo::argumentsAllVariables() const
-{
-  FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
-    STemplateArgument const *sta = iter.data();
-    if (sta->kind == STemplateArgument::STA_TYPE) {
-      if (!sta->value.t->containsTypeVariables()) return false;
-    }
-    // FIX: I am not at all sure that my interpretation of what
-    // STemplateArgument::kind == STA_REFERENCE means; I think it
-    // means it is a non-type non-template (object) variable in an
-    // argument list
-    if (!sta->kind == STemplateArgument::STA_REFERENCE) {
-      return false;
-    }
-    // FIX: do other kinds
-  }
-  return true;
 }
 
 
@@ -1960,12 +1956,7 @@ bool TemplateInfo::isMutant() const {
   xassert(params.isEmpty());
   xassert(instantiations.isEmpty());
   xassert(arguments.isNotEmpty());
-
-  // FIX: this assertion should be valid, and the fact it checks is needed
-  // elsewhere, but t0180.cc is a counterexample; we need to extend
-  // 'argumentsContainsVariables' so that it looks into the arguments of
-  // template class instantiations
-  //xassert(argumentsAllVariables());
+  xassert(argumentsContainVariables());
 
   return true;
 }
