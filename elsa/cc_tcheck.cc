@@ -322,6 +322,12 @@ void Function::tcheck(Env &env, Variable *instV)
     // from the ordinary (external) definition has undefined behavior.
     // A possible future extension is to check that such definitions
     // agree.
+    //
+    // Ah, but I can't just say 'checkBody = false' here because if
+    // there are ambiguities in the body then lots of things don't
+    // like it.  And anyway, tchecking the body is a good idea.  So I
+    // do something a little more subtle, I claim this isn't a
+    // "definition".
     dfDefn = DF_NONE;
   }
 
@@ -552,29 +558,29 @@ void Function::tcheckBody(Env &env)
   if (env.lang.treatExternInlineAsPrototype &&
       dflags >= (DF_EXTERN | DF_INLINE)) {
     // more extern-inline nonsense; skip 'funcDefn' setting
+    return;
   }
-  else {
-    // this is a function definition; add a pointer from the
-    // associated Variable
-    //
-    // WARNING: Due to the way function templates are instantiated it is
-    // important to NOT move this line ABOVE this other line which is
-    // above.
-    //    if (!checkBody) {
-    //      return;
-    //    }
-    // That is, it is important for the var of a function Declarator to
-    // not have a funcDefn until after its whole body has been
-    // typechecked.  See comment after 'if (!baseSyntax)' in
-    // Env::instantiateTemplate()
-    //
-    // UPDATE: I've changed this invariant, as I need to point the
-    // funcDefn at the definition even if the body has not been tchecked.
-    if (nameAndParams->var->funcDefn) {
-      xassert(nameAndParams->var->funcDefn == this);
-    } else {
-      nameAndParams->var->funcDefn = this;
-    }
+
+  // this is a function definition; add a pointer from the
+  // associated Variable
+  //
+  // WARNING: Due to the way function templates are instantiated it is
+  // important to NOT move this line ABOVE this other line which is
+  // above.
+  //    if (!checkBody) {
+  //      return;
+  //    }
+  // That is, it is important for the var of a function Declarator to
+  // not have a funcDefn until after its whole body has been
+  // typechecked.  See comment after 'if (!baseSyntax)' in
+  // Env::instantiateTemplate()
+  //
+  // UPDATE: I've changed this invariant, as I need to point the
+  // funcDefn at the definition even if the body has not been tchecked.
+  if (nameAndParams->var->funcDefn) {
+    xassert(nameAndParams->var->funcDefn == this);
+  } else {
+    nameAndParams->var->funcDefn = this;
   }
 }
 
