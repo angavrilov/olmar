@@ -135,6 +135,7 @@
 #include "parssppt.h"    // treeMain
 #include "bflatten.h"    // BFlatten
 #include "nonport.h"     // getMilliseconds
+#include "test.h"        // PVAL
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -158,9 +159,18 @@
 // these disable featurs of mini-LR for performance testing
 #define USE_ACTIONS 1
 #define USE_RECLASSIFY 1
+
+// enables the mini-LR altogether
 #define USE_MINI_LR 1
 
-// can turn this on to experiment.. but right now it 
+// enables tracking of some statistics useful for debugging and profiling
+#define DO_ACCOUNTING 1
+
+// some things we track..
+int parserMerges = 0;
+int computeDepthIters = 0;
+
+// can turn this on to experiment.. but right now it
 // actually makes things slower.. (!)
 //#define USE_PARSER_INDEX
 
@@ -264,14 +274,14 @@ inline void StackNode::init(StateId st, GLR *g)
   determinDepth = 1;    // 0 siblings now, so this node is unambiguous
   glr = g;
 
-  #ifndef NDEBUG
+  #if DO_ACCOUNTING
     INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
   #endif
 }
 
 inline void StackNode::decrementAllocCounter()
 {
-  #ifndef NDEBUG
+  #if DO_ACCOUNTING
     numStackNodesAllocd--;
   #endif
 }
@@ -423,6 +433,30 @@ STATICDEF void StackNode::printAllocStats()
   cout << "stack nodes: " << numStackNodesAllocd
        << ", max stack nodes: " << maxStackNodesAllocd
        << endl;
+}
+
+
+int StackNode::computeDeterminDepth() const
+{
+  if (hasZeroSiblings()) {
+    return 1;
+  }
+  else if (hasOneSibling()) {
+    // it must be equal to sibling's, plus one
+    return firstSib.sib->determinDepth + 1;
+  }
+  else {
+    xassert(hasMultipleSiblings());
+    return 0;
+  }
+}
+
+
+// I sprinkle calls to this here and there; in NDEBUG mode
+// they'll all disappear
+inline void StackNode::checkLocalInvariants() const
+{
+  xassertdb(computeDeterminDepth() == determinDepth);
 }
 
 
@@ -644,6 +678,8 @@ inline StackNode *GLR::makeStackNode(StateId state)
 // related invariants
 inline void GLR::addActiveParser(StackNode *parser)
 {
+  parser->checkLocalInvariants();
+
   activeParsers.push(parser);
   parser->incRefCt();
 
@@ -1067,7 +1103,11 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   }
   #endif // 0
 
-  StackNode::printAllocStats();
+  #if DO_ACCOUNTING
+    StackNode::printAllocStats();
+    //PVAL(parserMerges);
+    //PVAL(computeDepthIters);
+  #endif
 
   return true;
 }
@@ -1164,6 +1204,8 @@ inline void GLR::doReduction(StackNode *parser,
 int GLR::glrParseAction(StackNode *parser, ActionEntry action,
                         ArrayStack<PendingShift> &pendingShifts)
 {
+  parser->checkLocalInvariants();
+
   if (tables->isShiftAction(action)) {
     // shift
     StateId destState = tables->decodeShift(action);
@@ -1227,6 +1269,8 @@ int GLR::glrParseAction(StackNode *parser, ActionEntry action,
 void GLR::doAllPossibleReductions(StackNode *parser, ActionEntry action,
                                   SiblingLink *sibLink)
 {
+  parser->checkLocalInvariants();
+
   if (tables->isShiftAction(action)) {
     // do nothing
   }
@@ -1474,7 +1518,25 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
     // TODO: I think this code path is unusual; confirm by measurement
     // update: it's taken maybe 1 in 10 times through this function..
-    //cout << "got here\n";
+    parserMerges++;
+
+    // since we added a new link *all* determinDepths might
+    // be compromised; iterating more than once should be very
+    // rare (and this code path should already be unusual)
+    int changes=1, iters=0;
+    while (changes) {
+      changes = 0;
+      for (int i=0; i < activeParsers.length(); i++) {
+        StackNode *parser = activeParsers[i];
+        int newDepth = parser->computeDeterminDepth();
+        if (newDepth != parser->determinDepth) {
+          changes++;
+          parser->determinDepth = newDepth;
+        }
+      }
+      xassert(++iters < 1000);    // protect against infinite loop
+      computeDepthIters++;
+    }
 
     // for each 'finished' parser (i.e. those not still on
     // the worklist)
@@ -1838,21 +1900,25 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
     }
 
     else {
-      // before using 'xfer' we have to tell it about the string table
-      flattenStrTable = &grammarStringTable;
-
-      // assume it's a binary grammar file and try to
-      // read it in directly
-      traceProgress() << "reading binary grammar file " << grammarFname << endl;
-      BFlatten flat(grammarFname, true /*reading*/);
-      xfer(flat);
+      readBinaryGrammar(grammarFname);
     }
-
 
     // parse input
     return glrParseNamedFile(lexer2, treeTop, inputFname);
 
   #endif // 0/1
+}
+
+void GLR::readBinaryGrammar(char const *grammarFname)
+{
+  // before using 'xfer' we have to tell it about the string table
+  flattenStrTable = &grammarStringTable;
+
+  // assume it's a binary grammar file and try to
+  // read it in directly
+  traceProgress() << "reading binary grammar file " << grammarFname << endl;
+  BFlatten flat(grammarFname, true /*reading*/);
+  xfer(flat);
 }
 
 

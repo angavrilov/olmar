@@ -245,6 +245,11 @@ public:
   ~Lexer2();
   
   SourceLocation startLoc() const;
+  
+  void addToken(Lexer2Token *tok)
+    { tokensMut.append(tok); }
+  void addEOFToken()
+    { addToken(new Lexer2Token(L2_EOF, SourceLocation() /*dummy*/)); }
 };
 
 

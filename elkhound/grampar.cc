@@ -3,17 +3,18 @@
 // build the grammar internal representation out of what
 // the user supplies in a .gr file
 
-#include "grampar.h"     // this module
-#include "gramlex.h"     // GrammarLexer
-#include "trace.h"       // tracing debug functions
+#include "grampar.h"         // this module
+#include "gramlex.h"         // GrammarLexer
+#include "trace.h"           // tracing debug functions
 #include "gramast.ast.gen.h" // grammar AST nodes
-#include "grammar.h"     // Grammar, Production, etc.
-#include "owner.h"       // Owner
-#include "syserr.h"      // xsyserror
-#include "strutil.h"     // quoted
-#include "grampar.tab.h" // token constant codes, union YYSTYPE
+#include "grammar.h"         // Grammar, Production, etc.
+#include "owner.h"           // Owner
+#include "syserr.h"          // xsyserror
+#include "strutil.h"         // quoted
+#include "grampar.tab.h"     // token constant codes, union YYSTYPE
+#include "array.h"           // GrowArray
 
-#include <fstream.h>     // ifstream
+#include <fstream.h>         // ifstream
 
 
 // ------------------------- Environment ------------------------
@@ -167,11 +168,23 @@ Terminal *astParseToken(Environment &env, LocString const &name)
   return t;
 }
 
+  
+// needed to ensure the GrowArray below has its values initialized
+// to false when the array expands
+class InitFalseBool {
+public:
+  bool b;
+public:
+  InitFalseBool() : b(false) {}
+};
+
 
 void astParseTerminals(Environment &env, Terminals const &terms)
 {
   // basic declarations
   {
+    int maxCode = 0;
+    GrowArray<InitFalseBool> codeHasTerm(200);
     FOREACH_ASTLIST(TermDecl, terms.decls, iter) {
       TermDecl const &term = *(iter.data());
 
@@ -183,6 +196,22 @@ void astParseTerminals(Environment &env, Terminals const &terms)
 
       if (!env.g.declareToken(term.name, code, term.alias)) {
         astParseError(term.name, "token already declared");
+      }
+
+      // track what terminals have codes
+      maxCode = max(code, maxCode);
+      codeHasTerm.ensureIndexDoubler(code);
+      codeHasTerm[code].b = true;
+    }
+
+    // fill in any gaps in the code space; this is required because
+    // later analyses assume the terminal code space is dense
+    SourceLocation dummyLoc;     // can't put directly in arg list b/c looks like an extern function decl!  C++ language parsing problem
+    for (int i=0; i<maxCode; i++) {
+      if (!codeHasTerm[i].b) {
+        LocString dummy(dummyLoc, grammarStringTable.add(
+          stringc << "__dummy_filler_token" << i));
+        env.g.declareToken(dummy, i, dummy);
       }
     }
   }

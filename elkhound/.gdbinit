@@ -3,8 +3,8 @@
 # needed for Squish
 #set width 0
 
-file ccgr
-set args cc.bin c.in1
+#file ccgr
+#set args cc.bin c.in1
 
 #set args -tr predicates cc.bin vcgen/owner1.i
 
@@ -21,7 +21,11 @@ set args cc.bin c.in1
 #  run
 
 #file gramanl
-#set args -tr parse cc
+#set args aSEb
+
+file aSEb.gr.exe
+set args aSEb.in1
+
 
 #file cexp3b
 #set args -tr refct,sval cexp3b.bin cexp3.in1

@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: ccgr bccgr
+temporary: ccgr bccgr aSEb.gr.exe
 
 # main targets
 all: ccgr
@@ -19,8 +19,11 @@ Makefile: Makefile.in
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
 # directories
-SMBASE := smbase
+SMBASE := ../smbase
 AST    := ../ast
+
+# turn off implicit rules
+.SUFFIXES:
 
 # translation process variables
 libraries   := $(SMBASE)/libsmbase.a
@@ -37,6 +40,7 @@ ifeq ($(ocaml), yes)
 endif
 
 # make warnings into errors so I always get a chance to fix them
+# (otherwise they scroll by and I might miss them)
 ccflags += -Werror
 
 # when uncommented, we get profiling info
@@ -67,6 +71,7 @@ linkend := $(libraries)
 #   sed:    strip leading spaces
 #   sed:    add trailing colons
 # see http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
+.PRECIOUS: %.o
 %.o: %.cc
 	$(compile) $< -o $@
 	@echo "dependencies for $< > $*.d"
@@ -105,6 +110,7 @@ common :=
 
 # how to compile a .o in an adjacent directory (looser dependency
 # tracking across directories...)
+.PRECIOUS: $(AST)/%.o
 $(AST)/%.o: $(AST)/%.cc
 	make -C $(AST) $*.o
 
@@ -368,6 +374,19 @@ bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
        $(AST)/strtable.o $(SMBASE)/libsmbase.a
 	g++ -o bccgr $(ccflags) $(includes) $(YYDEBUG) $^
 	./bccgr c.in1
+
+# run the trivial-grammar helper
+.PRECIOUS: %.gr
+%.gr: %.gr.in make-trivparser.pl
+	rm -f $@
+	./make-trivparser.pl $* <$*.gr.in >$@
+	chmod a-w $@
+
+# make a parser for testing some grammar, using trivial lexer
+trivparse-deps = trivmain.cc trivlex.o lexer2.o libglr.a
+%.gr.exe: %.gr.gen.o $(trivparse-deps)
+	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
+	  $^ $(linkend)
 
 clean:
 	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~

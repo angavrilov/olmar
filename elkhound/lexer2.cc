@@ -538,7 +538,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 
 
     // append this token to the running list
-    dest.tokensMut.append(L2);
+    dest.addToken(L2);
     prevToken = L2;
 
     // (debugging) print it
@@ -548,8 +548,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
   }
 
   // final token
-  dest.tokensMut.append(
-    new Lexer2Token(L2_EOF, SourceLocation() /*dummy*/));
+  dest.addEOFToken();
 }
 
 

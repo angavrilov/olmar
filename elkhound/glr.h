@@ -187,8 +187,13 @@ public:     // funcs
   // retrieve pointer to the sibling link to a given node, or NULL if none
   SiblingLink *getLinkTo(StackNode *another);
 
+  // recompute my determinDepth based on siblings, 
+  // but don't actually change the state
+  int computeDeterminDepth() const;
+
   // debugging
   static void printAllocStats();
+  void checkLocalInvariants() const;
 };
 
 
@@ -398,14 +403,19 @@ public:     // funcs
   GLR(UserActions *userAct);
   ~GLR();
 
-  // 'main' for testing this class; returns false on error;
-  // yielded 'treeTop' is an owner (if a pointer)
-  bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
-                        char const *grammarFname, char const *inputFname);
+  // ------- primary interface -------
+  // read the named grammar file (.bin extension, typically)
+  void readBinaryGrammar(char const *grammarFname);
 
   // parse, using the token stream in 'lexer2', and store the final
   // semantic value in 'treeTop'
   bool glrParse(Lexer2 const &lexer2, SemanticValue &treeTop);
+
+  // ------ oddball interfaces, mostly for testing -------
+  // 'main' for testing this class; returns false on error;
+  // yielded 'treeTop' is an owner (if a pointer)
+  bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
+                        char const *grammarFname, char const *inputFname);
 
   // parse a given input file, using the passed lexer to lex it,
   // and store the result in 'treeTop'
