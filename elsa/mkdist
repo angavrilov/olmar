@@ -12,6 +12,7 @@ mkdir $distname || exit
 cd $distname || exit
 
 # main stuff
+export CVSROOT=":ext:scott@manju.cs.berkeley.edu:/home/cvs-repository"
 cvs export -D now smbase || exit
 cvs export -D now ast || exit
 cvs export -D now elkhound || exit
@@ -20,6 +21,10 @@ cvs export -D now elsa || exit
 # toplevel files
 cp elsa/toplevel/* .
 
+# remove some files I don't want going into the external distribution
+rm elsa/mkdist
+rm -rf elsa/toplevel
+rm elsa/test-parse-*
 
 # package it up
 cd ..
