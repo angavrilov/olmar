@@ -92,6 +92,9 @@ $CCFLAGS = join(' ', @CCFLAGS);
 
 
 # -------------- does the C++ compiler work? --------------
+$wd = `pwd`;
+chomp($wd);
+
 print("Testing C++ compiler ...\n");
 $cmd = "g++ -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
 if (system($cmd)) {
@@ -103,6 +106,7 @@ if (system($cmd)) {
     print(<<"EOF");
 
 I was unable to compile a really simple C++ program.  I tried:
+  cd $wd
   $cmd
 
 Please double-check your compiler installation.
@@ -118,6 +122,7 @@ if (system("./testcout")) {
   print(<<"EOF");
 
 I was able to compile testcout.cc, but it did not run.  I tried:
+  cd $wd
   $cmd
 
 and then
