@@ -5808,6 +5808,15 @@ Type *resolveOverloadedBinaryOperator(
 }
 
 
+bool isArithmeticOrEnumType(Type *t)
+{
+  if (t->isSimpleType()) {
+    return isArithmeticType(t->asSimpleTypeC()->type);
+  }
+  return t->isEnumType();
+}
+
+
 Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
@@ -5819,9 +5828,59 @@ Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
     return ovlRet;
   }
 
-  // TODO: make sure 'expr' is compatible with given operator
+  Type *t = expr->type->asRval();
 
-  return env.getSimpleType(SL_UNKNOWN, ST_INT);
+  // make sure 'expr' is compatible with given operator
+  switch (op) {
+    default:
+      xfailure("bad operator kind");
+
+    case UNY_PLUS:
+      // 5.3.1 para 6
+      if (isArithmeticOrEnumType(t)) {
+        return env.getSimpleType(SL_UNKNOWN, applyIntegralPromotions(t));
+      }
+      if (t->isPointerType()) {
+        return t;
+      }
+      return env.error(t, stringc
+        << "argument to unary + must be of arithmetic, enumeration, or pointer type, not `"
+        << t->toString() << "'");
+
+    case UNY_MINUS:
+      // 5.3.1 para 7
+      if (isArithmeticOrEnumType(t)) {
+        return env.getSimpleType(SL_UNKNOWN, applyIntegralPromotions(t));
+      }
+      return env.error(t, stringc
+        << "argument to unary - must be of arithmetic or enumeration type, not `"
+        << t->toString() << "'");
+
+    case UNY_NOT: {
+      // 5.3.1 para 8
+      Type *t_bool = env.getSimpleType(SL_UNKNOWN, ST_BOOL);
+      if (!getImplicitConversion(env, expr->getSpecial(env.lang), t, t_bool)) {
+        env.error(t, stringc
+          << "argument to unary ! must be convertible to bool; `"
+          << t->toString() << "' is not");
+      }
+      return t_bool;
+    }
+
+    case UNY_BITNOT:
+      // 5.3.1 para 9
+      if (t->isIntegerType() || t->isEnumType()) {
+        return env.getSimpleType(SL_UNKNOWN, applyIntegralPromotions(t));
+      }
+      return env.error(t, stringc
+        << "argument to unary ~ must be of integer or enumeration type, not `"
+        << t->toString() << "'");
+        
+      // 5.3.1 para 9 also mentions an ambiguity with "~X()", which I
+      // tried to exercise in in/t0343.cc, but I can't seem to get it;
+      // so either Elsa already does what is necessary, or I do not
+      // understand the syntax adequately ....
+  }
 }
 
 
@@ -6266,15 +6325,6 @@ Type *arrAndFuncToPtr(Env &env, Type *t)
     return env.makePtrType(SL_UNKNOWN, t);
   }
   return t;
-}
-
-
-bool isArithmeticOrEnumType(Type *t)
-{
-  if (t->isSimpleType()) {
-    return isArithmeticType(t->asSimpleTypeC()->type);
-  }
-  return t->isEnumType();
 }
 
 

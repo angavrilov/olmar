@@ -3,7 +3,7 @@
 
 enum MyEnum { e8, e4=4, e5 };
 
-void f(int, int);
+int f(int, int);
 int a, b, c, y, p;
 void x(int);
 typedef int q;

@@ -102,14 +102,14 @@ while (defined($line = <IN>)) {
   my $s;
 
   # "Entering directory ..."
-  ($s) = ($line =~ m|^make.*: Entering directory \`(.*)\'$|);
+  ($s) = ($line =~ m|^g?make.*: Entering directory \`(.*)\'$|);
   if (defined($s)) {
     pushdir($s);
     next;
   }
 
   # "Leaving directory ..."
-  ($s) = ($line =~ m|^make.*: Leaving directory \`(.*)\'$|);
+  ($s) = ($line =~ m|^g?make.*: Leaving directory \`(.*)\'$|);
   if (defined($s)) {
     if ($s ne $cwd) {
       warning("I think cwd is $cwd, but make thinks it is $s");
