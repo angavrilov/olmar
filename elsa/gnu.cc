@@ -251,13 +251,11 @@ Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 
   init->tcheck(env, NULL);
 
-  // If it is a const E_compoundLit then you can take its address, and
-  // so it has to be an Lvalue, but as long as it is an lvalue to
-  // const it is ok.
-  Type *t0 = stype->getType();
-  if (t0->isConst()) {
-    t0 = env.makeReferenceType(SL_UNKNOWN, t0);
-  }
+  // dsw: Scott says: "The gcc manual says nothing about whether a
+  // compound literal is an lvalue.  But, compound literals are now
+  // part of C99 (6.5.2.5), which says they are indeed lvalues (but
+  // says nothing about being const)."
+  Type *t0 = env.makeReferenceType(SL_UNKNOWN, stype->getType());
   return env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
   // TODO: check that the cast (literal) makes sense
 }
