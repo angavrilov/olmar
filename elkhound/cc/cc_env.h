@@ -15,35 +15,10 @@
 #include "cc.ast.gen.h"   // C++ ast components
 #include "variable.h"     // Variable (r)
 #include "cc_scope.h"     // Scope
+#include "cc_err.h"       // ErrorMsg
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
-
-
-// an error message from the typechecker; I plan to expand
-// this to contain lots of information about the error, but
-// for now it's just a string like every other typechecker
-// produces
-class ErrorMsg {
-public:
-  string msg;
-  SourceLocation loc;
-
-  // when this is true, the error message should be considered
-  // when disambiguation; when it's false, it's not a sufficiently
-  // severe error to warrant discarding an ambiguous alternative;
-  // for the most part, only environment lookup failures are
-  // considered to disambiguate
-  bool disambiguates;
-
-public:
-  ErrorMsg(char const *m, SourceLocation const &L, bool d=false)
-    : msg(m), loc(L), disambiguates(d) {}
-  ~ErrorMsg();
-
-  string toString() const;
-};
-
 
 // the entire semantic analysis state
 class Env {
@@ -86,7 +61,7 @@ public:      // function
 
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
-  
+
   // get the innermost CompoundType (aka class) scope, or NULL
   // if we're not in the scope of any class
   //CompoundType *getEnclosingCompound();
@@ -101,7 +76,7 @@ public:      // function
   bool addVariable(Variable *v);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
-  
+
   // like 'addVariable' in that the 'scope' field gets set, but
   // nothing is added to the maps
   void registerVariable(Variable *v);
@@ -117,7 +92,6 @@ public:      // function
   Type const *error(char const *msg, bool disambiguates=false);
   Type const *warning(char const *msg);
   Type const *unimp(char const *msg);
-
 };
 
 

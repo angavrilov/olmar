@@ -1,16 +1,60 @@
 // cc_err.h            see license.txt for copyright and terms of use
 // objects for representing errors in C++ code
 
-#error I do not want to use this yet
-
 #ifndef CC_ERR_H
 #define CC_ERR_H
 
 #include "str.h"       // string
-#include "exc.h"       // xBase
+#include "fileloc.h"   // SourceLocation
 
-class CCTreeNode;      // cc_tree.h
 
+// an error message from the typechecker; I plan to expand
+// this to contain lots of information about the error, but
+// for now it's just a string like every other typechecker
+// produces
+class ErrorMsg {
+public:
+  string msg;
+  SourceLocation loc;
+
+  // when this is true, the error message should be considered
+  // when disambiguation; when it's false, it's not a sufficiently
+  // severe error to warrant discarding an ambiguous alternative;
+  // for the most part, only environment lookup failures are
+  // considered to disambiguate
+  bool disambiguates;
+
+public:
+  ErrorMsg(char const *m, SourceLocation const &L, bool d=false)
+    : msg(m), loc(L), disambiguates(d) {}
+  ~ErrorMsg();
+
+  string toString() const;
+};
+
+
+// simple interface for reporting errors, so I can break a dependency
+// cycle
+#if 0
+class ErrorReporter {
+public:
+  virtual void reportError(char const *msg)=0;
+};
+#endif // 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
 
 // each kind of semantic error has its own code; this enum is
 // declared outside SemanticError to reduce verbosity of naming
@@ -77,5 +121,6 @@ public:     // funcs
   ~XSemanticError();
 };
 
+#endif // 0
 
 #endif // CC_ERR_H

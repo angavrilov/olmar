@@ -44,8 +44,11 @@ public:      // data
   AccessKeyword curAccess;       // access disposition in effect
   Function *curFunction;         // (serf) Function we're analyzing
   SourceLocation curLoc;         // latest AST location marker seen
+  
+private:     // funcs
+  Variable const *lookupVariableC(StringRef name, bool &crossVirtual, Env &env) const;
 
-public:
+public:      // funcs
   Scope(int changeCount, SourceLocation const &initLoc);
   ~Scope();
 
@@ -56,15 +59,15 @@ public:
   bool addVariable(Variable *v);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
-  
+
   // lookup; these return NULL if the name isn't found
-  Variable const *lookupVariableC(StringRef name) const;
+  Variable const *lookupVariableC(StringRef name, Env &env) const;
   CompoundType const *lookupCompoundC(StringRef name) const;
   EnumType const *lookupEnumC(StringRef name) const;
 
   // non-const versions..
-  Variable *lookupVariable(StringRef name)
-    { return const_cast<Variable*>(lookupVariableC(name)); }
+  Variable *lookupVariable(StringRef name, Env &env)
+    { return const_cast<Variable*>(lookupVariableC(name, env)); }
   CompoundType *lookupCompound(StringRef name)
     { return const_cast<CompoundType*>(lookupCompoundC(name)); }
   EnumType *lookupEnum(StringRef name)
