@@ -92,6 +92,10 @@ Predicate *exprToPred(IntValue const *expr)
       if (b->op == BIN_OR) {
         return P_or2(exprToPred(b->v1), exprToPred(b->v2));
       }
+      
+      if (b->op == BIN_IMPLIES) {
+        return new P_impl(exprToPred(b->v1), exprToPred(b->v2));
+      }
     }
 
     ASTNEXTC(IVcond, c) {
@@ -99,7 +103,7 @@ Predicate *exprToPred(IntValue const *expr)
       return P_and2(new P_impl(exprToPred(c->cond),
                                exprToPred(c->th)),
                     new P_impl(new P_not(exprToPred(c->cond)),
-                               exprToPred(c->th)));
+                               exprToPred(c->el)));
     }
     
     ASTENDCASEC
@@ -123,7 +127,7 @@ void AEnv::prove(IntValue const *expr)
   
   // run the prover
   if (runProver(sb)) {
-    cout << "predicate proved!\n";
+    cout << "proved:\n";
   }
   else {
     cout << "predicate NOT proved:\n";

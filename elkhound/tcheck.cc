@@ -601,7 +601,7 @@ Type const *E_binary::itcheck(Env &env)
   checkBoolean(env, t2, e2);  
                                   
   // e.g. (short,long) -> long
-  return env.promoteTypes(t1, t2);
+  return env.promoteTypes(op, t1, t2);
 }
 
 
@@ -649,19 +649,19 @@ Type const *E_cond::itcheck(Env &env)
   checkBoolean(env, t, th);
   checkBoolean(env, e, el);
 
-  return env.promoteTypes(t, e);
+  return env.promoteTypes(BIN_PLUS, t, e);
 }
 
 
 Type const *E_gnuCond::itcheck(Env &env)
-{ 
+{
   Type const *c = cond->tcheck(env);
   Type const *e = el->tcheck(env);
 
   checkBoolean(env, c, cond);
   checkBoolean(env, e, el);
 
-  return env.promoteTypes(c, e);                   
+  return env.promoteTypes(BIN_PLUS, c, e);                   
 }
 
 
@@ -772,6 +772,7 @@ int E_binary::constEval(Env &env) const
     case BIN_BITOR:     return v1 |  v2;
     case BIN_AND:       return v1 && v2;
     case BIN_OR:        return v1 || v2;
+    case BIN_IMPLIES:   return (!v1) || v2;
 
     default:            xfailure("bad operator");
                         return 0;   // silence warning

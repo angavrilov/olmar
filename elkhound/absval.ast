@@ -82,7 +82,9 @@ impl_verbatim {
       "bBitXor",
       "bBitOr",
       "bAnd",
-      "bOr"
+      "bOr",
+
+      "bImplies"
     };
     STATIC_ASSERT(TABLESIZE(names) == NUM_BINARYOPS);
 

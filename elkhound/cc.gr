@@ -78,6 +78,7 @@ terminals {
     // low precedence
     prec L2_PREFER_SHIFT;
 
+    right "==>";    // ESC's user manual specifies a precedence but not an associativity for "==>"
     left "||";
     left "&&";
     left "|";
@@ -366,6 +367,9 @@ nonterm[Expression*] BinaryExpression {
 
   -> left:BinaryExpression "&&" right:BinaryExpression   [ return new E_binary(left, BIN_AND, right); ]
   -> left:BinaryExpression "||" right:BinaryExpression   [ return new E_binary(left, BIN_OR, right); ]
+  
+  // theorem prove extensions
+  -> left:BinaryExpression "==>" right:BinaryExpression  [ return new E_binary(left, BIN_IMPLIES, right); ]
 }
 
 

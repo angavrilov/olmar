@@ -480,7 +480,7 @@ void Env::checkCoercible(Type const *src, Type const *dest)
   // just say yes
 }
 
-Type const *Env::promoteTypes(Type const *t1, Type const *t2)
+Type const *Env::promoteTypes(BinaryOp op, Type const *t1, Type const *t2)
 {
   // yes yes yes
   return t1;

@@ -177,7 +177,9 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "^",
   "|",
   "&&",
-  "||"
+  "||",
+  
+  "==>"
 };
 
 MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)

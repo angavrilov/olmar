@@ -215,7 +215,7 @@ public:     // funcs
   // --------------- type checking ----------------
   // type manipulation arising from expression semantics
   void checkCoercible(Type const *src, Type const *dest);
-  Type const *promoteTypes(Type const *t1, Type const *t2);
+  Type const *promoteTypes(BinaryOp op, Type const *t1, Type const *t2);
 
   
   // -------------- debugging -------------

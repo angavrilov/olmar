@@ -33,7 +33,7 @@ bool runProver(char const *str)
   
   
   // run Simplify on that file
-  int code = system(stringc << "Simplify < " << fname << " | grep Valid");
+  int code = system(stringc << "Simplify < " << fname << " | grep Valid >/dev/null");
   
   
   // clean up the temp file

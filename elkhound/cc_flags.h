@@ -152,6 +152,10 @@ enum BinaryOp {
   BIN_BITOR,     // |
   BIN_AND,       // &&
   BIN_OR,        // ||
+  
+  // theorem prover extension
+  BIN_IMPLIES,   // ==>
+
   NUM_BINARYOPS
 };
 
