@@ -358,14 +358,6 @@ public:      // funcs
   // return NULL if no LUB ("least" means most-derived)
   static CompoundType *lub(CompoundType *t1, CompoundType *t2, bool &wasAmbig);
 
-  // some special member functions; these might be NULL at early
-  // stages of processing, but the type checker fills them in at some
-  // point (addCompilerSuppliedDecls)
-  Variable *getDefaultCtor(StringTable &str);    // C(); might be NULL at any time
-  Variable *getCopyCtor(StringTable &str);       // C(C const &);
-  Variable *getAssignOperator(StringTable &str); // C& operator= (C const &);
-  Variable *getDtor(StringTable &str);           // ~C();
-
   // call this when we're finished adding base classes and member
   // fields; it builds 'conversionOperators'; 'specialName' is the
   // name under which the conversion operators have been filed in

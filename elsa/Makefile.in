@@ -1,7 +1,7 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
-#tmp: cc.ast.gen.h cc_elaborate.o cc.ast.gen.o all
+#temporary: all semgrep
 
 # main target: a C++ parser
 all: cc.ast.gen.h tlexer ccparse quicktest
@@ -171,14 +171,13 @@ CCPARSE_OBJS := \
   cc_print.o \
   cc_ast_aux.o \
   variable.o \
-  ccparse.o \
-  main.o
--include $(CCPARSE_OBJS:.o=.d)
+  ccparse.o
+-include $(CCPARSE_OBJS:.o=.d) main.d
 
 # parser binary
 TOCLEAN += ccparse
-ccparse: $(CCPARSE_OBJS) $(libraries)
-	$(CXX) -o $@ $(CCPARSE_OBJS) $(LDFLAGS)
+ccparse: $(CCPARSE_OBJS) main.o $(libraries)
+	$(CXX) -o $@ $(CCPARSE_OBJS) main.o $(LDFLAGS)
 
 
 # run the binary; the 'quicktest' file is so we don't run it if
@@ -188,6 +187,12 @@ quicktest: ccparse
 	./ccparse in/t0001.cc
 	@touch quicktest
 	@echo BUILD FINISHED
+
+
+# -------------------- semgrep --------------------
+TOCLEAN += semgrep
+semgrep: $(CCPARSE_OBJS) semgrep.o $(libraries)
+	$(CXX) -o $@ $(CCPARSE_OBJS) semgrep.o $(LDFLAGS)
 
 
 # ---------------------- misc ---------------------
@@ -297,7 +302,7 @@ distclean: clean
 toolclean: clean
 	rm -f $(TOTOOLCLEAN)
 
-check: all
+check: semgrep all
 	MAKE=$(MAKE) ./regrtest
 	@echo ""
 	@echo "Regression tests passed."

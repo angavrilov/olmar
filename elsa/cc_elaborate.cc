@@ -360,7 +360,7 @@ Statement *ElabVisitor::makeCtorStatement(
 Expression *ElabVisitor::makeDtorExpr(SourceLoc loc, Expression *target,
                                       Type *type)
 {
-  Variable *dtor = type->asCompoundType()->getDtor(str);
+  Variable *dtor = getDtor(type->asCompoundType());
 
   // question of whether to elaborate returned value is moot, as
   // elaboration would do nothin anyway
@@ -497,7 +497,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env)
         inexpr->e = env.cloneExpr(inexpr->e);
 
         fullexp = &inexpr->annot;
-        ctor = ct->getCopyCtor(env.str);
+        ctor = env.getCopyCtor(ct);
       }
       ASTNEXT(IN_compound, incpd) {
         // just call the no-arg ctor; FIX: this is questionable; it
@@ -509,7 +509,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env)
         args0 = env.emptyArgs();
 
         fullexp = &incpd->annot;       // sm: not sure about this..
-        ctor = ct->getDefaultCtor(env.str);
+        ctor = env.getDefaultCtor(ct);
         
         // NOTE: 'getDefaultCtor' can return NULL, corresponding to a class
         // that has no default ctor.  However, it is the responsibility of
@@ -541,7 +541,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env)
       // call the no-arg ctor; for temporaries do nothing since this is
       // a temporary, it will be initialized later
       ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, var),
-                                            type, ct->getDefaultCtor(env.str),
+                                            type, env.getDefaultCtor(ct),
                                             env.emptyArgs());
     }
   }
@@ -637,7 +637,7 @@ Expression *ElabVisitor::elaborateCallByValue
   // function is expected to do it
   E_constructor *ector =
     env.makeCtorExpr(loc, makeE_variable(loc, tempVar), tfac.cloneType(paramType),
-                     paramCt->getCopyCtor(str), makeExprList1(argExpr));
+                     getCopyCtor(paramCt), makeExprList1(argExpr));
 
   // combine into a comma expression so we do both but return the
   // value of the second
@@ -860,7 +860,7 @@ void ElabVisitor::completeNoArgMemberInits(Function *ctor, CompoundType *ct)
         PQName *name = new PQ_variable(loc, base->ct->typedefVar);
         mi = new MemberInit(name, emptyArgs());
         mi->base = base->ct;
-        mi->ctorVar = base->ct->getDefaultCtor(str);
+        mi->ctorVar = getDefaultCtor(base->ct);
       }
       newInits.prepend(mi);
     } else {
@@ -891,7 +891,7 @@ void ElabVisitor::completeNoArgMemberInits(Function *ctor, CompoundType *ct)
     if (!mi && var->type->isCompoundType()) {
       mi = new MemberInit(new PQ_name(loc, var->name), emptyArgs());
       mi->member = var;
-      mi->ctorVar = var->type->asCompoundType()->getDefaultCtor(str);
+      mi->ctorVar = getDefaultCtor(var->type->asCompoundType());
     }
     if (mi) newInits.prepend(mi);
   }
@@ -975,7 +975,7 @@ MemberInit *ElabVisitor::makeCopyCtorMemberInit(
   else {
     mi->base = targetCt;
   }
-  mi->ctorVar = targetCt? targetCt->getCopyCtor(str) : NULL;
+  mi->ctorVar = targetCt? getCopyCtor(targetCt) : NULL;
   if (mi->ctorVar) {
     mi->ctorStatement = makeCtorStatement
       (loc,
@@ -1083,7 +1083,7 @@ S_expr *ElabVisitor::make_S_expr_memberCopyAssign
     CompoundType *ct = member->type->asCompoundType();
 
     // use a call to the assignment operator
-    Variable *assign = ct->getAssignOperator(str);
+    Variable *assign = getAssignOperator(ct);
 
     // "y.operator=(__other.y)"
     action = makeMemberCall(loc, makeE_variable(loc, member) /*y*/, assign,
@@ -1106,7 +1106,7 @@ S_expr *ElabVisitor::make_S_expr_superclassCopyAssign
   (SourceLoc loc, CompoundType *w, Variable *other)
 {
   // "W::operator="
-  Variable *assign = w->getAssignOperator(str);
+  Variable *assign = getAssignOperator(w);
 
   // "this->W::operator=(__other)"
   E_funCall *call = makeMemberCall(loc, makeThisRef(loc), assign,
@@ -1207,7 +1207,7 @@ S_expr *ElabVisitor::make_S_expr_memberDtor
   (SourceLoc loc, Expression *member, CompoundType *memberType)
 {
   // "~A"
-  Variable *dtor = memberType->getDtor(str);
+  Variable *dtor = getDtor(memberType);
 
   // "a.~A()"
   E_funCall *funcall = makeMemberCall(loc, member, dtor, emptyArgs());
@@ -1279,6 +1279,102 @@ MR_func *ElabVisitor::makeDtorBody(CompoundType *ct, Variable *dtor)
                              makeS_compound(loc));
 
   return new MR_func(loc, f);
+}
+
+
+// -------------------- special function queries -----------------------
+// a filter on elements of an overload set of members in 'ct'
+typedef bool (*OverloadFilter)(CompoundType *ct, FunctionType *ft);
+
+Variable *overloadSetFilter(CompoundType *ct, Variable *start, OverloadFilter func)
+{
+  if (!start || !start->type->isFunctionType()) {
+    return NULL;               // name maps to no function
+  }
+
+  if (!start->overload) {
+    if (func(ct, start->type->asFunctionType())) {
+      return start;            // name maps to one thing, it passes
+    }
+    else {
+      return NULL;             // name maps to one thing, it fails
+    }
+  }
+
+  // name maps to multiple things, consider each
+  SFOREACH_OBJLIST_NC(Variable, start->overload->set, iter) {
+    if (func(ct, iter.data()->type->asFunctionType())) {
+      return iter.data();      // the first one that passes
+    }
+  }
+
+  return NULL;                 // none pass
+}
+
+
+static bool defaultCtorTest(CompoundType *ct, FunctionType *ft)
+{
+  // every parameter must have a default value
+  return ft->paramsHaveDefaultsPast(0);
+}
+
+Variable *ElabVisitor::getDefaultCtor(CompoundType *ct)
+{
+  return overloadSetFilter(ct, ct->rawLookupVariable(str("constructor-special")),
+                           defaultCtorTest);
+}
+
+
+// true if parameter 'n' is a reference to 'ct'
+static bool nthIsCtReference(CompoundType *ct, FunctionType *ft, int n)
+{
+  if (ft->params.count() <= n) {
+    return false;
+  }
+  Type *t = ft->params.nth(n)->type;
+  if (t->isReference() &&
+      t->asRval()->ifCompoundType() == ct) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+static bool copyCtorTest(CompoundType *ct, FunctionType *ft)
+{
+  return
+    nthIsCtReference(ct, ft, 0) &&   // first param must be a reference to 'ct'
+    ft->paramsHaveDefaultsPast(1);   // subsequent have defaults
+}
+
+Variable *ElabVisitor::getCopyCtor(CompoundType *ct)
+{
+  return overloadSetFilter(ct, ct->rawLookupVariable(str("constructor-special")),
+                           copyCtorTest);
+}
+
+
+static bool assignOperatorTest(CompoundType *ct, FunctionType *ft)
+{
+  return
+    ft->isMethod() &&                // first param is receiver object
+    nthIsCtReference(ct, ft, 1) &&   // second param must be a reference to 'ct'
+    ft->paramsHaveDefaultsPast(2);   // subsequent have defaults
+}
+
+Variable *ElabVisitor::getAssignOperator(CompoundType *ct)
+{
+  return overloadSetFilter(ct, ct->rawLookupVariable(str("operator=")),
+                           assignOperatorTest);
+}
+
+
+Variable *ElabVisitor::getDtor(CompoundType *ct)
+{
+  // synthesize the dtor name... maybe I should be using
+  // "destructor-special" or something
+  return ct->rawLookupVariable(str(stringc << "~" << ct->name));
 }
 
 
@@ -1376,7 +1472,7 @@ bool E_throw::elaborate(ElabVisitor &env)
 
       globalCtorStatement =
         env.makeCtorStatement(loc, env.makeE_variable(loc, globalVar), exprType,
-                              exprType->asCompoundType()->getCopyCtor(env.str),
+                              env.getCopyCtor(exprType->asCompoundType()),
                               makeExprList1(origExpr));
                               
       return false;     // SES
@@ -1494,7 +1590,7 @@ bool S_return::elaborate(ElabVisitor &env)
       // make the constructor function
       env.push(expr->annot);             // e.g. in/d0049.cc breaks w/o this
       ctorStatement = env.makeCtorStatement(loc, retVal, ft->retType,
-                                            retTypeCt->getCopyCtor(env.str), args0);
+                                            env.getCopyCtor(retTypeCt), args0);
       env.pop(expr->annot);
 
       // make the original expression a clone
@@ -1639,7 +1735,7 @@ bool ElabVisitor::visitTypeSpecifier(TypeSpecifier *ts)
     // default ctor
     {
       // is there an implicit decl?
-      Variable *var = ct->getDefaultCtor(str);
+      Variable *var = getDefaultCtor(ct);
       if (var && var->isImplicitMemberFunc()) {
         spec->members->list.append(makeNoArgCtorBody(ct, var));
       }
@@ -1648,7 +1744,7 @@ bool ElabVisitor::visitTypeSpecifier(TypeSpecifier *ts)
     // copy ctor
     {
       // is there an implicit decl?
-      Variable *var = ct->getCopyCtor(str);
+      Variable *var = getCopyCtor(ct);
       if (var && var->isImplicitMemberFunc()) {
         spec->members->list.append(makeCopyCtorBody(ct, var));
       }
@@ -1657,7 +1753,7 @@ bool ElabVisitor::visitTypeSpecifier(TypeSpecifier *ts)
     // assignment operator
     {
       // is there an implicit decl?
-      Variable *var = ct->getAssignOperator(str);
+      Variable *var = getAssignOperator(ct);
       if (var && var->isImplicitMemberFunc()) {
         spec->members->list.append(makeCopyAssignBody(loc, ct, var));
       }
@@ -1666,7 +1762,7 @@ bool ElabVisitor::visitTypeSpecifier(TypeSpecifier *ts)
     // dtor
     {
       // is there an implicit decl?
-      Variable *var = ct->getDtor(str);
+      Variable *var = getDtor(ct);
       if (var && var->isImplicitMemberFunc()) {
         spec->members->list.append(makeDtorBody(ct, var));
       }

@@ -261,6 +261,12 @@ public:      // funcs
     CompoundType *ct);
   MR_func *makeDtorBody(CompoundType *ct, Variable *dtor);
 
+  // some special member functions
+  Variable *getDefaultCtor(CompoundType *ct);    // C(); might be NULL at any time
+  Variable *getCopyCtor(CompoundType *ct);       // C(C const &);
+  Variable *getAssignOperator(CompoundType *ct); // C& operator= (C const &);
+  Variable *getDtor(CompoundType *ct);           // ~C();     
+
 public:
   ElabVisitor(StringTable &str, TypeFactory &tfac, TranslationUnit *tunit);
   virtual ~ElabVisitor();
