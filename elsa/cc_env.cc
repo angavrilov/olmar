@@ -2759,9 +2759,9 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
 }
 
 
-// is this function of the type that would be created as an implicit
+// dsw: is this function of the type that would be created as an implicit
 // type in K and R C at the call site to a function that has not been
-// declared; this seems to weird to make a method on FunctionType, but
+// declared; this seems too weird to make a method on FunctionType, but
 // feel free to move it
 static bool isImplicitKandRFuncType(FunctionType *ft)
 {
@@ -2775,6 +2775,9 @@ static bool isImplicitKandRFuncType(FunctionType *ft)
   if (params.count() != 1) return false;
   if (!params.first()->type->isEllipsis()) return false;
   return true;
+  
+  // sm: A true FunctionType should never have an ST_ELLIPSIS parameter.
+  // Instead, mark the FunctionType as FF_VARARGS.
 }
 
 
@@ -2915,7 +2918,7 @@ Variable *Env::createDeclaration(
         // dsw: in K&R C sometimes what happens is that a function is
         // called and then later declared; at the function call site a
         // declaration is invented with type 'int (...)' but the real
-        // declaration is likely to collie with that here.  We don't
+        // declaration is likely to collide with that here.  We don't
         // try to back-patch and do anything clever or sound, we just
         // turn the error into a warning so that the file can go
         // through; this is an unsoundness

@@ -87,6 +87,14 @@ void Variable::setFlagsTo(DeclFlags f)
 }
 
 
+bool Variable::isImplicitTypedef() const 
+{  
+  #warning C lossage ...
+  return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF)
+      || hasAllFlags(DF_SELFNAME | DF_TYPEDEF);
+}
+
+
 bool Variable::isUninstTemplateMember() const
 {
   if (isTemplate() &&

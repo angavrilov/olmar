@@ -108,6 +108,8 @@ void TF_explicitInst::tcheck(Env &env)
 {
   env.setLoc(loc);
   d->tcheck(env);
+  
+  #warning this is not right
 }
 
 void TF_linkage::tcheck(Env &env)
@@ -184,6 +186,7 @@ void TF_namespaceDefn::tcheck(Env &env)
   }
   // dsw: I predicated this on name so that you don't try to add a
   // variable with a NULL name to the namespace
+  #warning anonymous namespaces are now broken
   else if (name) {
     // make an entry in the surrounding scope to refer to the new namespace
     Variable *v = env.makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
@@ -766,6 +769,7 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 
 void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
+  #ifdef GNU_EXTENSION
   if (tc.context == DC_E_COMPOUNDLIT
       && spec->isTS_classSpec()
       // dsw: I really only need this for unions, but I think I'll do
@@ -774,6 +778,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
       && !spec->asTS_classSpec()->name) {
     spec->asTS_classSpec()->tcheckAsIfNamed = true;
   }
+  #endif // GNU_EXTENSION
 
   // check type specifier
   Type *specType = spec->tcheck(env, DF_NONE);
@@ -912,8 +917,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
                          << "there is no enum called `" << *name << "'",
                          EF_DISAMBIGUATES);
       } else {
-        // gcc allows you in C mode to make a typedef to an enum that
-        // doesn't exist yet; this code copied from
+        // dsw: gcc allows you in C mode to make a typedef to an enum
+        // that doesn't exist yet; this code copied from
         // TS_enumSpec::itcheck(), but I'm not sure if it warrants
         // factoring out as I had to modify it a bit.
         StringRef name0 = name->asPQ_name()->name;
@@ -1001,8 +1006,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   // check that the keywords match; these 'keyword's are different
   // types, but they agree for the three relevant values
   if ((int)keyword != (int)ct->keyword) {
-    // I made the struct/class confusion only be a warning because gcc
-    // allows it
+    // dsw: I made the struct/class confusion only be a warning
+    // because gcc allows it
     if ( (keyword==TI_STRUCT && ct->keyword==CompoundType::K_CLASS)
          || (keyword==TI_CLASS && ct->keyword==CompoundType::K_STRUCT) ) {
       env.warning(stringc
@@ -1452,6 +1457,8 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
+  #warning this lossage should only be allowed in C mode
+
   EnumType *et = NULL;
   Type *ret = NULL;
   if (name) {
@@ -1803,6 +1810,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // UPDATE: dsw: why wait until pass 2?  I need to change it to pass
   // 1 to get in/d0088.cc to work and all the other elsa and oink
   // tests also work
+  #warning investigate this
   if (init) {
     // TODO: check the initializer for compatibility with
     // the declared type
@@ -1817,6 +1825,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // exact rule is; let's try this...
   //
   // UPDATE: dsw: the problem is that gcc allows it
+  #warning this should be a CCLang flag, not an ifdef
   #ifndef GNU_EXTENSION
   if (isVariableDC(dt.context) &&
       !dt.hasFlag(DF_EXTERN) &&
@@ -1952,6 +1961,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
   // what an operator can be allows only non-static members, if it
   // allows members at all
   // UPDATE: dsw: operator new() has to be static
+  #warning so make it specific to new
 //    if (scope->curCompound && (dt.dflags & DF_STATIC)) {
 //      env.error(loc, "operator member functions cannot be static");
 //    }
@@ -3768,16 +3778,10 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
     // variable with signature "int (...)" which is what I recall as
     // the correct signature for such an implicit variable.
     if (env.lang.allowCallToUndeclFunc && (flags & LF_IMPL_DECL_FUNC)) {
-      // sm: I believe this approach is wrong because:
-      //   - Since a declaration is added, if a proper declaration 
-      //     occurs later (in the same scope!) it will cause an error.
-      //   - This made-up decl will not be connected to the function's
-      //     real implementation, nor to other call sites.
-      // But I myself don't care about K&R so I'm not going to fix it.
-
       // this should happen in C mode only so name must be a PQ_name
       v = env.makeUndeclFuncVar(name->asPQ_name()->name);
     } else {
+      #warning this should be a CCLang flag, not an ifdef
       #ifdef GNU_EXTENSION
       // dsw: I need a way of handling builtins; there are too many to
       // add manually
@@ -4606,25 +4610,30 @@ Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
-  // TODO: this will fail an assertion if someone asks for the
-  // size of a variable of template-type-parameter type..
   try {
     size = expr->type->asRval()->reprSize();
-  } 
+    TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+                    ") is " << size);
+  }
   catch (XReprSize &e) {
-    // You are allowed to take the size of an array that has dynamic
+    // dsw: You are allowed to take the size of an array that has dynamic
     // size; FIX: is this the right place to handle it?  Perhaps
     // ArrayType::reprSize() would be better.
+    //
+    // sm: This seems like an ok place to me.  
     if (expr->type->asRval()->isArrayType()
         && expr->type->asRval()->asArrayType()->size == ArrayType::DYN_SIZE) {
-      size = ArrayType::DYN_SIZE;
+      // sm: don't do this; 'size' is interpreted as an integer and
+      // no one expects to interpret it as an ArrayType::size, so this
+      // just sets the size to -2!
+      //size = ArrayType::DYN_SIZE;
       env.warning("taking the sizeof a dynamically-sized array");
+      TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+                      ") is dynamic..");
     } else {
       return env.error(e.why());  // jump out with an error
     }
   }
-  TRACE("sizeof", "sizeof(" << expr->exprToString() <<
-                  ") is " << size);
 
   // TODO: is this right?
   return expr->type->isError()?
@@ -5228,6 +5237,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // dsw: if one of them is NULL, use the other one; see in/d0095.cc;
   // actually gcc only allows this if it is not just void* but also 0,
   // so this is too lenient
+  #warning this should be a CCLang flag, not an ifdef
   #ifdef GNU_EXTENSION
   if (thType->isPointerType() &&
       thType->asPointerType()->atType->isVoid()) {
