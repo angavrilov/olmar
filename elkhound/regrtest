@@ -197,19 +197,19 @@ testTrivGrammar EEb 1 2 3
 
 # ------------ test the C grammar and parser -------------
 for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  runTest cc/cparse -tr stopAfterTCheck,suppressAddrOfError c.in/c.in$n
+  runTest c/cparse -tr stopAfterTCheck,suppressAddrOfError c.in/c.in$n
 done
 
 
 tcheck() {
-  runTest ./test-bad cc/cparse tcheck/$1 -tr stopAfterTCheck
+  runTest ./test-bad c/cparse tcheck/$1 -tr stopAfterTCheck
 }
 
 tcheck init.c
 tcheck addrglob.c
 tcheck loops.c
 tcheck exprpath.c
-runTest cc/cparse -tr printAnalysisPath tcheck/morepaths.c
+runTest c/cparse -tr printAnalysisPath tcheck/morepaths.c
 
 
 # ---------- test C++ parser using my grammar ------------
@@ -260,14 +260,14 @@ runTest make examples
 
 
 # print config info
-runTest cc/cparse -tr trivialActions,stopAfterParse,glrConfig,yieldVariableName \
+runTest c/cparse -tr trivialActions,stopAfterParse,glrConfig,yieldVariableName \
   c.in/c.in4b
 
 # bison performance test
-runTest cc/bccgr c.in/c.in4d
+runTest c/bcparse c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison
-runTest cc/cparse -tr trivialActions,stopAfterParse,yieldVariableName \
+runTest c/cparse -tr trivialActions,stopAfterParse,yieldVariableName \
   c.in/c.in4d
 
 # and similar for C++

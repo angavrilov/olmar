@@ -131,7 +131,7 @@ cat <<EOF
 ./configure command:
   $0 $originalArgs
 
-Elsa configuration summary:
+C parser configuration summary:
   debug:       $debug
 
 Compile flags:

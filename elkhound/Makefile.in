@@ -5,7 +5,7 @@
 #tmp: cc/cc_type.o cc/cc_env.o cc/cc_tcheck.o
 
 # main targets: two C++ parsers and two C parsers
-all: cc/ccparse cc2/cc2.exe cc/cparse cc/bccgr
+all: elkhound libelkhound.a cc/ccparse cc2/cc2.exe c
 	@echo BUILD FINISHED
 
 # TODO: put these back, ideally in the same executable as the non-t versions
@@ -369,6 +369,10 @@ cc2/cc2t.exe: $(cc2t-deps) $(libraries)
 
 
 # ---------------------- Elkhound examples ------------------
+.PHONY: c
+c: elkhound libelkhound.a
+	$(MAKE) -C c
+
 # stuff in examples directory
 .PHONY: examples
 examples: all
@@ -615,11 +619,13 @@ clean:
 	for dir in arith cdecl cexp; do \
 	  (cd examples/$$dir; make clean); \
 	done
+	$(MAKE) -C c clean
 
 distclean: clean
-	rm -f Makefile config.status config.summary glrconfig.h
+	rm -f Makefile config.status config.summary glrconfig.h *.tmp
 	rm -f cc.in/big/*.i
 	cd triv; rm -rf sssx.in ssx.in eeb.in
+	$(MAKE) -C c distclean
 
 check: all
 	./regrtest
