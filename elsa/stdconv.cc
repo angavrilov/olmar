@@ -175,8 +175,10 @@ class Conversion {
 public:
   // original parameters to 'getStandardConversion'
   string *errorMsg;
+  SpecialExpr srcSpecial;
   Type const *src;
   Type const *dest;
+  bool destIsReceiver;
 
   // eventual return value
   StandardConversion ret;
@@ -190,8 +192,13 @@ public:
   int ptrCtorsStripped;
 
 public:
-  Conversion(string *e, Type const *s, Type const *d)
-    : errorMsg(e), src(s), dest(d),
+  Conversion(string *e, SpecialExpr sp, Type const *s, Type const *d, bool dir)
+    : errorMsg(e),
+      srcSpecial(sp),
+      src(s),
+      dest(d),
+      destIsReceiver(dir),
+
       ret(SC_IDENTITY),
       destConst(true),
       ptrCtorsStripped(0)
@@ -205,6 +212,21 @@ public:
 
 StandardConversion Conversion::error(char const *why)
 {
+  // 10/02/04: This is probably not the best way to handle this, but one
+  // problem with 'getStandardConversion' is if the source and destination
+  // are both references, it wants to pair those references up, but it is
+  // also possible to implicitly convert away the source reference and bind
+  // the dest reference, *if* the dest reference is a reference to const.
+  //
+  // So, if we are about to report an error (which is why we are in
+  // this function), and the dest is 'T const &', try again with a
+  // dest of just 'T'.
+  if (dest->isReference() &&
+      dest->getAtType()->isConst()) {
+    return getStandardConversion(errorMsg, srcSpecial, src, dest->getAtType(),
+                                 destIsReceiver);
+  }
+
   if (errorMsg) {
     *errorMsg = stringc
       << "cannot convert `" << src->toString()
@@ -219,7 +241,7 @@ StandardConversion Conversion::error(char const *why)
 // if we've encountered an error, in which case 'ret' is set
 // to the error code to return
 bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
-{    
+{
   if (scv != dcv) {
     if (isReference) {
       // Conversion from 'int &' to 'int const &' is equivalent to
@@ -298,7 +320,7 @@ StandardConversion getStandardConversion
   (string *errorMsg, SpecialExpr srcSpecial, Type const *src, Type const *dest,
    bool destIsReceiver)
 {
-  Conversion conv(errorMsg, src, dest);
+  Conversion conv(errorMsg, srcSpecial, src, dest, destIsReceiver);
 
   // --------------- group 1 ----------------
   if (src->isReference() &&
