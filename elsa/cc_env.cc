@@ -2857,15 +2857,24 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
       prior &&
       prior->type->isFunctionType() &&
       type->isFunctionType()) {
-    // potential overloading situation; get the two function types
+    // potential overloading situation
+    
+    // get the two function types
     FunctionType *priorFt = prior->type->asFunctionType();
     FunctionType *specFt = type->asFunctionType();
+    bool sameType = 
+      (prior->name == conversionOperatorName?
+        equalOrIsomorphic(priorFt, specFt) :         // conversion: equality check
+        equivalentSignatures(priorFt, specFt));      // non-conversion: signature check
 
-    // can only be an overloading if their signatures differ,
-    // or it's a conversion operator and they differ at all
-    if (prior->name == conversionOperatorName?
-          !equalOrIsomorphic(priorFt, specFt) :         // conversion: equality check
-          !equivalentSignatures(priorFt, specFt)) {     // non-conversion: signature check
+    // figure out if either is (or will be) a template
+    bool priorIsTemplate = prior->templateInfo() &&
+                           prior->templateInfo()->hasParameters();
+    bool thisIsTemplate = scope()->isTemplateParamScope();
+    bool sameTemplateNess = (priorIsTemplate == thisIsTemplate);
+
+    // can only be an overloading if their signatures differ
+    if (!sameType || !sameTemplateNess) {
       // ok, allow the overload
       TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
@@ -2988,7 +2997,8 @@ Variable *Env::createDeclaration(
           error(stringc
             << "duplicate member declaration of `" << name
             << "' in " << enclosingClass->keywordAndName()
-            << "; previous at " << toString(prior->loc));
+            << "; previous at " << toString(prior->loc),
+            EF_STRONG);
           goto makeDummyVar;
         }
         else {
@@ -3151,6 +3161,8 @@ noPriorDeclaration:
     // is already in the environment), instead add it to the overload set
     overloadSet->addMember(newVar);
     newVar->overload = overloadSet;
+    TRACE("ovl", "overload set for " << name << " now has " <<
+                 overloadSet->count() << " elements");
   }
   else if (!type->isError()) {       
     // 8/09/04: add error-typed vars anyway?            

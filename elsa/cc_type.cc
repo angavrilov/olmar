@@ -1759,6 +1759,11 @@ CompoundType *FunctionType::getClassOfMember()
   return getReceiver()->type->asReferenceType()->atType->asCompoundType();
 }
 
+NamedAtomicType *FunctionType::getNATOfMember()
+{
+  return getReceiver()->type->asReferenceType()->atType->asNamedAtomicType();
+}
+
 
 string FunctionType::leftString(bool innerParen) const
 {

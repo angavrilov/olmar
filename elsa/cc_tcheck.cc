@@ -279,6 +279,18 @@ void Function::tcheck(Env &env, Variable *instV)
 {                               
   bool checkBody = env.checkFunctionBodies;
 
+  if (env.secondPassTcheck) {
+    // for the second pass, just force the use of the
+    // variable computed in the first pass
+    xassert(!instV);
+    xassert(nameAndParams->var);
+    instV = nameAndParams->var;
+    
+    if (checkBody) {
+      instV->setFlag(DF_DEFINITION);
+    }
+  }
+
   // are we in a template function?
   bool inTemplate = env.scope()->hasTemplateParams();
 
@@ -2699,7 +2711,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
       // add the implicit 'this' parameter
       makeMemberFunctionType(env, dt,
-        var->type->asFunctionType()->getClassOfMember(), decl->loc);
+        var->type->asFunctionType()->getNATOfMember(), decl->loc);
     }
     else {
       TRACE("memberFunc", "static or non-member function: " << var->name);
@@ -6252,6 +6264,14 @@ void TD_func::itcheck(Env &env)
 
 void TD_proto::itcheck(Env &env)
 {
+  if (env.secondPassTcheck) {
+    // TS_classSpec is only thing of interest
+    if (d->spec->isTS_classSpec()) {
+      d->spec->asTS_classSpec()->tcheck(env, d->dflags);
+    }
+    return;
+  }
+
   // cppstd 14 para 3: there can be at most one declarator
   // in a template declaration
   if (d->decllist->count() > 1) {

@@ -932,6 +932,10 @@ public:
 
   CVFlags getReceiverCV() const;         // dig down; or CV_NONE if !isMember
   CompoundType *getClassOfMember();      // 'isMember' must be true
+  
+  // the above only works if the function is a member of a concrete
+  // class; if it's a member of a template class, this must be used
+  NamedAtomicType *getNATOfMember();
 
   // more specialized printing, for Cqual++ syntax
   virtual string rightStringUpToQualifiers(bool innerParen) const;
