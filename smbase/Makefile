@@ -28,16 +28,11 @@ linkend := $(libraries)
 # compile .cc to .o
 %.o : %.cc
 	$(compile) $< -o $@
+	@./depend.sh $(ccflags) $(includes) $< > $*.d
 
 %.o : %.cpp
 	$(compile) $< -o $@
-
-# generate compile dependency information for a .cc file
-%.d : %.cc
-	./depend.sh $(ccflags) $(includes) $< > $@
-
-%.d : %.cpp
-	./depend.sh $(ccflags) $(includes) $< > $@
+	@./depend.sh $(ccflags) $(includes) $< > $*.d
 
 # delete compiling/editing byproducts
 clean:

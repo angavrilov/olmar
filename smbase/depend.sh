@@ -7,9 +7,12 @@
 # invoke gcc's preprocessor to discover dependencies:
 #   -MM   output Makefile rule, ignoring "#include <...>" lines
 #         (so as to avoid dependencies on system headers)
-#   -MG   treat missing headers as present and in cwd
+#   -MG   (removed) treat missing headers as present and in cwd
 # then invoke sed:
 #   - remove any occurrances of system headers if they sneak in
+gcc -MM "$@" |
+  sed -e 's@ /[^ ]*@@g'
+
+# obsolete:
 #   - make the .d file itself depend on the same things the .o does
-gcc -MM -MG "$@" |
-  sed -e 's@ /[^ ]*@@g' -e 's@^\(.*\)\.o:@\1.d \1.o:@'
+#  -e 's@^\(.*\)\.o:@\1.d \1.o:@'
