@@ -2233,8 +2233,8 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
 // various rules for when declarations conflict, overloading,
 // qualified name lookup, etc.
 //
-// TODO: I've now broken some of this mechanism apart and implemented
-// the pieces in Env, switch this implementation over to using them.
+// Update: I've now broken some of this mechanism apart and implemented
+// the pieces in Env, so it's perhaps a bit less complicated now.
 static void D_name_tcheck(
   // environment in which to do general lookups
   Env &env,
@@ -2297,21 +2297,6 @@ static void D_name_tcheck(
 
     return;
   }
-
-  #if 0      // old; delete me
-  declarationTypeMismatch:
-  {
-    // this message reports two declarations which declare the same
-    // name, but their types are different; we only jump here *after*
-    // ruling out the possibility of function overloading
-    env.error(dt.type, stringc
-      << "prior declaration of `" << *name
-      << "' at " << prior->loc
-      << " had type `" << prior->type->toString()
-      << "', but this one uses `" << dt.type->toString() << "'");
-    goto makeDummyVar;
-  }
-  #endif // 0
 
 realStart:
   if (!name) {
@@ -2485,21 +2470,6 @@ realStart:
     // has this name already been declared in the innermost scope?
     prior = env.lookupVariableForDeclaration(scope, unqualifiedName, dt.type,
       dt.funcSyntax? dt.funcSyntax->cv : CV_NONE);
-    #if 0     // old; delete me
-    prior = scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY);
-
-    if (prior &&
-        prior->overload &&
-        dt.type->isFunctionType()) {
-      // set 'prior' to the previously-declared member that has
-      // the same signature, if one exists
-      Variable *match = prior->overload->findByType(dt.type->asFunctionTypeC(),
-                                                    dt.funcSyntax->cv);
-      if (match) {
-        prior = match;
-      }
-    }
-    #endif // 0
   }
 
   // is this a nonstatic member function?
@@ -2528,179 +2498,13 @@ realStart:
   }
 
   // check for overloading
-  OverloadSet *overloadSet = 
+  OverloadSet *overloadSet =
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
     env.getOverloadForDeclaration(prior, dt.type);
-  #if 0     // old; delete me
-  OverloadSet *overloadSet = NULL;    // null until valid overload seen
-  if (env.lang.allowOverloading &&
-      !name->hasQualifiers() &&
-      prior &&
-      prior->type->isFunctionType() &&
-      dt.type->isFunctionType()) {
-    // potential overloading situation; get the two function types
-    FunctionType *priorFt = prior->type->asFunctionType();
-    FunctionType *specFt = dt.type->asFunctionType();
-
-    // can only be an overloading if their signatures differ,
-    // or it's a conversion operator
-    if (!equivalentSignatures(priorFt, specFt) ||
-        (unqualifiedName == env.conversionOperatorName &&
-         !priorFt->equals(specFt))) {
-      // ok, allow the overload
-      TRACE("ovl",    "overloaded `" << prior->name
-                   << "': `" << prior->type->toString()
-                   << "' and `" << dt.type->toString() << "'");
-      overloadSet = prior->getOverloadSet();
-      prior = NULL;    // so we don't consider this to be the same
-    }
-  }
-  #endif // 0
 
   // make a new variable; see implementation for details
-  dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags, 
+  dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
                                  scope, enclosingClass, prior, overloadSet);
-  #if 0    // old; delete me
-  // if this gets set, we'll replace a conflicting variable
-  // when we go to do the insertion
-  bool forceReplace = false;
-
-  // did we find something?
-  if (prior) {
-    // check for exception given by [cppstd 7.1.3 para 2]:
-    //   "In a given scope, a typedef specifier can be used to redefine
-    //    the name of any type declared in that scope to refer to the
-    //    type to which it already refers."
-    if (prior->hasFlag(DF_TYPEDEF) &&
-        (dt.dflags & DF_TYPEDEF)) {
-      // let it go; the check below will ensure the types match
-    }
-
-    else {
-      // check for violation of the One Definition Rule
-      if (prior->hasFlag(DF_DEFINITION) &&
-          (dt.dflags & DF_DEFINITION) &&
-          !multipleDefinitionsOK(env, prior, dt.dflags)) {
-        // HACK: if the type refers to type variables, then let it slide
-        // because it might be Foo<int> vs. Foo<float> but my simple-
-        // minded template implementation doesn't know they're different
-        //
-        // actually, I just added TypeVariables to 'Type::containsErrors',
-        // so the error message will be suppressed automatically
-        env.error(prior->type, stringc
-          << "duplicate definition for `" << *name
-          << "' of type `" << prior->type->toString()
-          << "'; previous at " << toString(prior->loc));
-        goto makeDummyVar;
-      }
-
-      // check for violation of rule disallowing multiple
-      // declarations of the same class member; cppstd sec. 9.2:
-      //   "A member shall not be declared twice in the
-      //   member-specification, except that a nested class or member
-      //   class template can be declared and then later defined."
-      //
-      // I have a specific exception for this when I do the second pass
-      // of typechecking for inline members (the user's code doesn't
-      // violate the rule, it only appears to because of the second
-      // pass); this exception is indicated by DF_INLINE_DEFN.
-      if (enclosingClass &&
-          !(dt.dflags & DF_INLINE_DEFN) &&
-          !prior->hasFlag(DF_IMPLICIT)) {   // allow implicit typedef override here too
-        env.error(stringc
-          << "duplicate member declaration of `" << *name
-          << "' in " << enclosingClass->keywordAndName()
-          << "; previous at " << toString(prior->loc));
-        goto makeDummyVar;
-      }
-    }
-
-    // check that the types match, and either both are typedefs
-    // or neither is a typedef
-    if (!( almostEqualTypes(prior->type, dt.type) &&
-           (prior->flags & DF_TYPEDEF) == (dt.dflags & DF_TYPEDEF) )) {
-      // if the previous guy was an implicit typedef, then as a
-      // special case allow it, and arrange for the environment
-      // to replace the implicit typedef with the variable being
-      // declared here
-      if (prior->hasFlag(DF_IMPLICIT)) {
-        TRACE("env",    "replacing implicit typedef of " << prior->name
-                     << " at " << prior->loc << " with new decl at "
-                     << loc);
-        forceReplace = true;
-         
-        // for support of the elaboration module, we don't want to lose
-        // the previous name altogether; make a shadow
-        env.makeShadowTypedef(scope, prior);
-
-        goto noPriorDeclaration;
-      }
-      else {
-        goto declarationTypeMismatch;
-      }
-    }
-
-    // ok, use the prior declaration, but update the 'loc'
-    // if this is the definition
-    if (dt.dflags & DF_DEFINITION) {
-      TRACE("odr",    "def'n of " << unqualifiedName 
-                   << " at " << toString(loc)
-                   << " overrides decl at " << toString(prior->loc));
-      prior->loc = loc;
-      prior->setFlag(DF_DEFINITION);
-      prior->clearFlag(DF_EXTERN);
-    }
-
-    // prior is a ptr to the previous decl/def var; dt.type is the
-    // type that was constructed for the current decl/def prior->type
-    // deeply accumulates the qualifiers of dt.type
-    
-    // TODO: if 'dt.type' refers to a function type, and it has
-    // some default arguments supplied, then:
-    //   - it should only be adding new defaults, not overriding
-    //     any from a previous declaration
-    //   - the new defaults should be merged into the type retained
-    //     in 'dt.var->type', so that further uses in this translation
-    //     unit will have the benefit of the default arguments
-    //   - the resulting type should have all the default arguments
-    //     contiguous, and at the end of the parameter list
-    // reference: cppstd, 8.3.6
-
-    // TODO: enforce restrictions on successive declarations'
-    // DeclFlags; see cppstd 7.1.1, around para 7
-
-    dt.var = prior;
-    return;
-  }
-
-noPriorDeclaration:
-  // no prior declaration, make a new variable and put it
-  // into the environment (see comments in Declarator::tcheck
-  // regarding point of declaration)
-  dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
-
-  // set up the variable's 'scope' field
-  scope->registerVariable(dt.var);
-
-  if (overloadSet) {
-    // don't add it to the environment (another overloaded version
-    // is already in the environment), instead add it to the overload set
-    overloadSet->addMember(dt.var);
-    dt.var->overload = overloadSet;
-  }
-  else if (!dt.type->isError()) {
-    if (env.disambErrorsSuppressChanges()) {
-      TRACE("env", "not adding D_name `" << dt.var->name <<
-                   "' because there are disambiguating errors");
-    }
-    else {
-      scope->addVariable(dt.var, forceReplace);
-      env.addedNewVariable(scope, dt.var);
-    }
-  }
-
-  return;
-  #endif // 0
 }
 
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
@@ -3795,13 +3599,6 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 
   var = env.storeVarIfNotOvl(v);
 
-  if (env.collectLookupResults) {
-    // gcc bug?: if '*name' is first argument to '<<', then
-    // it complains about rval initializing a reference?
-    env.warning(stringc << "collect: " << *name << " "
-                        << toLCString(var->loc));
-  }
-
   // special case for "this": the parameter is declared as a reference
   // (because the overload resolution procedure wants that, and because
   // it more accurately reflects the calling convention), but the type
@@ -4206,6 +4003,10 @@ Type *E_funCall::inner2_itcheck(Env &env)
         evar->type = chosen->type;
         t = chosen->type;    // for eventual return value
       }
+      else {
+        // dealias anyway
+        evar->var = env.storeVar(evar->var);
+      }
     }
 
     // method call to a named function
@@ -4227,9 +4028,12 @@ Type *E_funCall::inner2_itcheck(Env &env)
         efld->type = chosen->type;
         t = chosen->type;
       }
+      else {
+        efld->field = env.storeVar(efld->field);
+      }
     }
   }
-
+  
   // TODO: make sure the argument types are compatible
   // with the function parameters
 

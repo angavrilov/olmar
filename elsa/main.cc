@@ -51,6 +51,28 @@ bool DeclTypeChecker::visitDeclarator(Declarator *obj)
 }
 
 
+// this scans the AST for E_variables, and writes down the locations
+// to which they resolved; it's helpful for writing tests of name and
+// overload resolution
+class NameChecker : public ASTVisitor {
+public:            
+  // accumulates the results
+  stringBuilder sb;
+  
+public:
+  NameChecker() {}
+  virtual ~NameChecker() {}    // idiocy
+  virtual bool visitExpression(Expression *obj) 
+  {
+    if (obj->isE_variable()) {
+      E_variable *e = obj->asE_variable();
+      sb << " " << e->var->name << " " << toLCString(e->var->loc);
+    }
+    return true;
+  }
+};
+
+
 void if_malloc_stats()
 {
   if (tracingSys("malloc_stats")) {
@@ -247,35 +269,21 @@ void doit(int argc, char **argv)
     }
 
     // lookup diagnostic
-    if (env.collectLookupResults) {
-      // will build expected string here
-      stringBuilder expected;
-      expected << "\"collectLookupResults";
-
-      // get all messages
-      string warns = env.errors.printToString();
-
-      // break into lines
-      StrtokParse lines(warns, "\n");
-      for (int line=0; line<lines; line++) {
-        if (!regexpMatch(lines[line], "collect:")) continue;
-
-        // break into words
-        StrtokParse words(lines[line], " ");
-
-        // make expected text from the last two words
-        expected << " " << words[words-2] << " " << words[words-1];
-      }
-      expected << "\"";
+    if (env.collectLookupResults) {     
+      // scan AST
+      NameChecker nc;
+      nc.sb << "\"collectLookupResults";
+      unit->traverse(nc);
+      nc.sb << "\"";
 
       // compare to given text
-      if (0==strcmp(env.collectLookupResults, expected)) {
+      if (0==strcmp(env.collectLookupResults, nc.sb)) {
         // ok
       }
       else {
         cout << "collectLookupResults do not match:\n"
              << "  source: " << env.collectLookupResults << "\n"
-             << "  tcheck: " << expected << "\n"
+             << "  tcheck: " << nc.sb << "\n"
              ;
         exit(4);
       }

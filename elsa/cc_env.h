@@ -32,12 +32,10 @@ extern int throwClauseSerialNumber;
 class Env {
 protected:   // data
   // stack of lexical scopes; first is innermost
-  // NOTE: if a scope has curCompound!=NULL, then this list does *not* own
-  // it.  otherwise it does own it.
+  //
+  // NOTE: If a scope has a non-NULL curCompound or namespaceVar,
+  // then this list does *not* own it.  Otherwise it does own it.
   ObjList<Scope> scopes;
-
-  // list of named scopes (i.e. namespaces)
-  //StringObjDict<Scope> namespaces;    // not implemented yet
 
   // when true, all errors are ignored (dropped on floor) except:
   //   - errors with the 'disambiguates' flag set
@@ -397,9 +395,10 @@ public:      // funcs
   // that the AST only has de-aliased pointers (if desired)
   Variable *storeVar(Variable *var);
 
-  // this version will do pass-through if 'var' has an overload
-  // set; it's for those cases where subsequent overload resolution
-  // needs to pick from the set, before de-aliasing happens
+  // this version will do pass-through if 'var' or the thing to which
+  // it is aliased has an overload set; it's for those cases where
+  // subsequent overload resolution needs to pick from the set, before
+  // de-aliasing happens
   Variable *storeVarIfNotOvl(Variable *var);
 
   // points of extension: These functions do nothing in the base

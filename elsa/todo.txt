@@ -77,6 +77,11 @@ a flag to diagnose use of deprecated features.
 
 No checking is done w.r.t. of exception specs.
 
+** Globals without initializers
+
+At least according to the sixth example in section 7.3.3, C++ allows
+"int i; int i;" at toplevel.  We currently reject this.
+
 * Types of literals
 
 A few literals get the wrong type.  For example, 1U should be
@@ -188,7 +193,8 @@ is performed.
 
 The standard grammar has a number of places where the keyword
 "template" is allowed, and has some meaning, but currently our grammar
-(cc.gr) does not allow it.
+(cc.gr) does not allow it.  At least one of those places is probably
+why we can't handle member templates (e.g. 7.3.3c.cc) at all.
 
 * Single-pass design
 

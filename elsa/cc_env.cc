@@ -552,7 +552,7 @@ Env::~Env()
   // which are in fact not owned
   while (scopes.isNotEmpty()) {
     Scope *s = scopes.removeFirst();
-    if (s->curCompound) {
+    if (s->curCompound || s->namespaceVar) {
       // this isn't one we own
     }
     else {
@@ -1992,37 +1992,46 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   if (scope->isClassScope() !=
       (origVar->scope? origVar->scope->isClassScope() : false)) {
     error(stringc << "bad alias `" << name
-                  << "; alias and original must both be class members or both not members");
+                  << "': alias and original must both be class members or both not members");
     return;
   }
 
-  // 7.3.3 para 13: overload resolution for imported class members
-  // needs to treat them as accepting a derived-class receiver argument,
-  // so we'll make the alias have a type consistent with its new home
-  if (scope->isClassScope() &&
-      type->isMethod()) {
-    FunctionType *oldFt = type->asFunctionType();
+  if (scope->isClassScope()) {
+    // 7.3.3 para 13: overload resolution for imported class members
+    // needs to treat them as accepting a derived-class receiver argument,
+    // so we'll make the alias have a type consistent with its new home
+    if (type->isMethod()) {
+      FunctionType *oldFt = type->asFunctionType();
 
-    // everything the same but empty parameter list
-    FunctionType *newFt =
-      tfac.makeSimilarFunctionType(SL_UNKNOWN, oldFt->retType, oldFt);
+      // everything the same but empty parameter list
+      FunctionType *newFt =
+        tfac.makeSimilarFunctionType(SL_UNKNOWN, oldFt->retType, oldFt);
 
-    // add the receiver parameter
-    CompoundType *ct = scope->curCompound;
-    Type *thisType = tfac.makeTypeOf_this(SL_UNKNOWN, ct, oldFt->getThisCV(), NULL /*syntax*/);
-    Variable *thisVar = makeVariable(loc, thisName, thisType, DF_PARAMETER);
-    newFt->addThisParam(thisVar);
+      // add the receiver parameter
+      CompoundType *ct = scope->curCompound;
+      Type *thisType = tfac.makeTypeOf_this(SL_UNKNOWN, ct, oldFt->getThisCV(), NULL /*syntax*/);
+      Variable *thisVar = makeVariable(loc, thisName, thisType, DF_PARAMETER);
+      newFt->addThisParam(thisVar);
 
-    // copy the other parameters
-    SObjListIterNC<Variable> iter(oldFt->params);
-    iter.adv();     // skip oldFt's receiver
-    for (; !iter.isDone(); iter.adv()) {
-      newFt->addParam(iter.data());    // share parameter objects
+      // copy the other parameters
+      SObjListIterNC<Variable> iter(oldFt->params);
+      iter.adv();     // skip oldFt's receiver
+      for (; !iter.isDone(); iter.adv()) {
+        newFt->addParam(iter.data());    // share parameter objects
+      }
+      newFt->doneParams();
+
+      // treat this new type as the one to declare from here out
+      type = newFt;
     }
-    newFt->doneParams();
 
-    // treat this new type as the one to declare from here out
-    type = newFt;
+    // 7.3.3 para 4: the original member must be in a base class of
+    // the class where the alias is put
+    if (!enclosingClass->hasBaseClass(origVar->scope->curCompound)) {
+      error(stringc << "bad alias `" << name
+                    << "': original must be in a base class of alias' scope");
+      return;
+    }
   }
 
   // check for existing declarations
@@ -2300,16 +2309,22 @@ Variable *Env::storeVar(Variable *var)
 
 Variable *Env::storeVarIfNotOvl(Variable *var)
 {
-  if (!var->overload) {
-    // not overloaded, can skip aliases now
-    return storeVar(var);
-  }
-  else {
-    // since 'var' is overloaded, we'll need to wait for overload
-    // resolution, which must act on the aliases; when it is finished
-    // it will skip remaining aliases
+  // NULL and non-aliases go through fine
+  if (!var ||
+      !var->usingAlias) {
     return var;
   }
+
+  if (!var->overload && !var->usingAlias->overload) {
+    // neither the alias nor the aliased entity are overloaded, can
+    // safely skip aliases now
+    return storeVar(var);
+  }
+
+  // since 'var' or its alias is overloaded, we'll need to wait for
+  // overload resolution, which must act on the aliases; when it is
+  // finished it will skip remaining aliases
+  return var;
 }
 
 
