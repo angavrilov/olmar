@@ -44,7 +44,7 @@ bit2d: bit2d.cc ${THISLIBRARY}
 growbuf: growbuf.cc ${THISLIBRARY}
 	${link} -o growbuf -DTEST_GROWBUF growbuf.cc ${THISLIBRARY} ${linkend}
 
-check: ${test-files}
+check: ${tests-files}
 	nonport
 	voidlist
 	tobjlist
