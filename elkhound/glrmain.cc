@@ -12,6 +12,9 @@
 #include "ccgrmain.h"     // makeUserActions
 #include "cc_lang.h"      // CCLang
 
+// no bison-parser present, so define it myself
+Lexer2Token const *yylval = NULL;
+
 void doit(int argc, char **argv)
 {
   traceAddSys("progress");

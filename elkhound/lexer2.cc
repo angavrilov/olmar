@@ -587,7 +587,8 @@ SourceLocation Lexer2::startLoc() const
 
 
 // ------------- experimental interface for (e.g.) bison ------------
-Lexer2Token const *yylval = NULL;
+// this is defined by the bison-parser
+extern Lexer2Token const *yylval;
 
 // returns token types until EOF, at which point L2_EOF is returned
 Lexer2TokenType lexer2_gettoken()
@@ -635,6 +636,9 @@ Lexer2TokenType lexer2_gettoken()
 
 // ----------------------- testing --------------------
 #ifdef TEST_LEXER2
+
+// no bison-parser present, so define it myself
+Lexer2Token const *yylval = NULL;
 
 int main(int argc, char **argv)
 {

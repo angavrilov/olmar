@@ -51,8 +51,11 @@
 #file cdecl2
 #set args -tr cdecl cdecl2.bin cdecl.in1
 
-file ssxmain.exe
-set args -tr parse x7.in
+#file ssxmain.exe
+#set args -tr parse x7.in
+
+file EFa.tree.gr.exe
+set args -tr glrConfig,progress -count efa.in/0010000.in
 
 break main
 break breaker

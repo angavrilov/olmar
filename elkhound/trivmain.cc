@@ -16,6 +16,9 @@
 #include "useract.h"   // UserActions
 #include "ptreenode.h" // PTreeNode
 
+// no bison-parser present, so need to define this
+Lexer2Token const *yylval = NULL;
+
 
 // compute the sum at the top of SSx.gr.in
 TreeCount ssxCount(int n)
@@ -118,6 +121,7 @@ int entry(int argc, char *argv[])
 
   // lex input
   Lexer2 lexer;
+  traceProgress() << "lexing...\n";
   trivialLexer(inputFname, lexer);
 
   // set up parser

@@ -23,6 +23,9 @@
 StringTable *globalStringTable;
 Variable const *globalMemVariable;
 
+// no bison-parser present, so need to define this
+Lexer2Token const *yylval = NULL;
+
 
 void if_malloc_stats()
 {

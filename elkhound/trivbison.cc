@@ -1,11 +1,13 @@
-// bccgr.cc
-// driver for bison parser for cc.gr
+// trivbison.cc
+// driver file for a Bison-parser with the trivial lexer
 
-#include "bccgr.h"      // this module
+#include "trivbison.h"  // this module
 #include "lexer2.h"     // Lexer2
-#include "lexer1.h"     // Lexer1
+#include "trivlex.h"    // trivialLexer
 #include "trace.h"      // traceProgress
 #include "syserr.h"     // xsyserror
+#include "ptreenode.h"  // PTreeNode
+#include "cyctimer.h"   // CycleTimer
 
 #include <stdio.h>      // printf
 #include <iostream.h>   // cout, etc.
@@ -34,13 +36,6 @@ int yylex()
 
     // advance to next token
     iter->adv();
-
-    // since my token reclassifier is hard to translate to
-    // Bison, I'll just yield variable names always, and only
-    // parse typedef-less C programs
-    if (ret == L2_NAME) {
-      ret = L2_VARIABLE_NAME;
-    }
 
     // return one we just advanced past
     return ret;
@@ -74,7 +69,7 @@ int main(int argc, char *argv[])
     #ifdef YYDEBUG
       yydebug = 1;
     #else
-      printf("debugging is disabled by NDEBUG\n");
+      printf("debugging is disabled because YYDEBUG isn't set\n");
       return 2;
     #endif
 
@@ -83,7 +78,7 @@ int main(int argc, char *argv[])
   }
 
   if (argc < 2) {
-    printf("usage: %s [-d] input.c\n", progname);
+    printf("usage: %s [-d] inputfile\n", progname);
     printf("  -d: turn on yydebug, so it prints shift/reduce actions\n");
     return 0;
   }
@@ -92,33 +87,22 @@ int main(int argc, char *argv[])
 
   traceAddSys("progress");
 
-  traceProgress() << "lexical analysis stage 1...\n";
-  Lexer1 lexer1;
-  {
-    FILE *input = fopen(inputFname, "r");
-    if (!input) {
-      xsyserror("fopen", inputFname);
-    }
-
-    lexer1_lex(lexer1, input);
-    fclose(input);
-
-    if (lexer1.errors > 0) {
-      printf("L1: %d error(s)\n", lexer1.errors);
-      return 2;
-    }
-  }
-
-  // do second phase lexer
-  traceProgress() << "lexical analysis stage 2...\n";
-  lexer2_lex(lexer2, lexer1, inputFname);
+  // run lexer
+  traceProgress() << "lexical analysis...\n";
+  trivialLexer(inputFname, lexer2);
 
   // start Bison-parser
   traceProgress() << "starting parse..." << endl;
+  CycleTimer timer;
+
   if (yyparse() != 0) {
     cout << "yyparse returned with an error\n";
   }
-  traceProgress() << "finished parse" << endl;
+
+  traceProgress() << "finished parse (" << timer.elapsed() << ")" << endl;
+
+  cout << "tree nodes: " << PTreeNode::allocCount
+       << endl;
 
   return 0;
 }

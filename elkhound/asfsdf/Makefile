@@ -36,3 +36,22 @@ sssx.notree.perf.txt:
 	  sglr -n -p SSSx.trm.tbl -i ../sssx.in/$$n.in; \
 	done &>$@
 
+efa.perf.txt:
+	for fn in ../efa.in/*; do \
+	  for count in 1 2 3 4 5; do \
+	    echo -n "$$fn: "; \
+	    sglr -p EFa.trm.tbl -i $$fn >/dev/null || echo "failed"; \
+	  done; \
+	done &>$@
+
+efa.notree.perf.txt:
+	for fn in ../efa.in/*; do \
+	  for count in 1 2 3 4 5; do \
+	    echo -n "$$fn: "; \
+	    sglr -n -p EFa.trm.tbl -i $$fn; \
+	  done; \
+	done &>$@
+
+%.csv: %.txt
+	cat $^ | grep cycles | \
+	perl -p -e 's/^[^:]*\D(\d+)\D.*: cycles: (\d+)$$/$$1, $$2/' >$@

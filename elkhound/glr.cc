@@ -134,9 +134,8 @@
 #include "grampar.h"     // readGrammarFile
 #include "parssppt.h"    // treeMain
 #include "bflatten.h"    // BFlatten
-#include "nonport.h"     // getMilliseconds
 #include "test.h"        // PVAL
-#include "cycles.h"      // getCycles_ll
+#include "cyctimer.h"    // CycleTimer
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -617,7 +616,13 @@ GLR::GLR(UserActions *user)
     trSval(tracingSys("sval")),
     trsSval(trace("sval"))
   // some fields (re-)initialized by 'clearAllStackNodes'
-{}
+{
+  // originally I had this inside glrParse() itself, but that
+  // made it 25% slower!  gcc register allocator again!
+  if (tracingSys("glrConfig")) {
+    printConfig();
+  }
+}
 
 GLR::~GLR()
 {
@@ -726,12 +731,6 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
   traceProgress(2) << "lexical analysis stage 2...\n";
   lexer2_lex(lexer2, lexer1, inputFname);
 
-  // originally I had this inside glrParse() itself, but that
-  // made it 25% slower!  gcc register allocator again!
-  if (tracingSys("glrConfig")) {
-    printConfig();
-  }
-
   // parsing itself
   return glrParse(lexer2, treeTop);
 }
@@ -813,8 +812,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
   // get ready..
   traceProgress() << "parsing...\n";
-  long startParseTime = getMilliseconds();
-  unsigned long long startParseCycles = getCycles_ll();
+  CycleTimer timer;
   clearAllStackNodes();
   #ifndef NDEBUG
     bool doDumpGSS = tracingSys("dumpGSS");
@@ -1170,7 +1168,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     }
   }
 
-  bool ret = cleanupAfterParse(startParseTime, startParseCycles, treeTop);
+  bool ret = cleanupAfterParse(timer, treeTop);
 
   #if 0
   if (ret) {
@@ -1237,14 +1235,10 @@ void GLR::printParseErrorMessage(Lexer2Token const *currentToken,
 
 
 // pulled from glrParse() to reduce register pressure
-bool GLR::cleanupAfterParse(long startParseTime,
-                            unsigned long long startParseCycles,
+bool GLR::cleanupAfterParse(CycleTimer &timer,
                             SemanticValue &treeTop)
 {
-  traceProgress() << "done parsing ("
-                  << (getMilliseconds() - startParseTime)
-                  << " ms) (" << (getCycles_ll() - startParseCycles)
-                  << " cycles)\n";
+  traceProgress() << "done parsing (" << timer.elapsed() << ")\n";
   trsParse << "Parse succeeded!\n";
 
 

@@ -51,6 +51,7 @@
 // fwds from other files
 class Lexer2Token;       // lexer2.h
 class Lexer2;            // lexer2.h
+class CycleTimer;        // cyctimer.h
 
 // forward decls for things declared below
 class StackNode;         // unit of parse state
@@ -434,8 +435,7 @@ private:    // funcs
   void buildParserIndex();
   void printParseErrorMessage(Lexer2Token const *currentToken,
                               StateId lastToDie, int classifiedType);
-  bool cleanupAfterParse(long startParseTime,
-                         unsigned long long startParseCycles,
+  bool cleanupAfterParse(CycleTimer &timer,
                          SemanticValue &treeTop);
 
 public:     // funcs

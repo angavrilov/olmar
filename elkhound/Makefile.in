@@ -3,7 +3,8 @@
 
 temporary: sexp ccgr bccgr aSEb.gr.exe SSx.tree.gr.exe ssx.in \
            EEb.tree.gr.exe eeb.in SSSx.tree.gr.exe sssx.in \
-           EFa.tree.gr.exe efa.in
+           EFa.tree.gr.exe efa.in \
+	   EFa.notree.bison.exe EFa.tree.bison.exe
 
 # main targets
 all: ccgr
@@ -55,7 +56,8 @@ ccflags += -O2 -DNDEBUG
 #ccflags += -DNO_GLR_SOURCELOC
 
 # turn on to enable bison's debugging features
-#YYDEBUG=-DYYDEBUG=1
+#YYDEBUG := -DYYDEBUG=1
+#ccflags += $(YYDEBUG)
 
 
 # flags on command line
@@ -97,7 +99,7 @@ grampar-set := grampar.tab.o gramlex.yy.o grampar.o $(AST)/gramlex.o \
 
 # in addition to grammar-set, file needed to do GLR parsing of C/C++ code
 glr-set := gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
-           useract.o
+           useract.o cyctimer.o
 -include $(glr-set:.o=.d)
 
 # files involved in translating parsed C/C++ code
@@ -184,6 +186,10 @@ grampar: grampar.cc $(grammar-set) $(common) gramlex.yy.o grampar.tab.o \
          lexer2stub.o $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
          $(libraries)
 	$(link) -o grampar -DTEST_GRAMPAR $^
+
+# cycle timer test
+cyctimer: cyctimer.cc cyctimer.h
+	g++ -o $@ $(ccflags) $(includes) -DTEST_CYCTIMER cyctimer.cc $(linkend)
 
 # token list for my grammar
 cc.tok: lexer2
@@ -368,15 +374,25 @@ endif
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
-bccgr.tab.o: cc.gr.gen.cc bccgr.h bccgr.y
-	bison -d -v bccgr.y
-	gcc -c -g -O2 -DNDEBUG $(YYDEBUG) -Wall bccgr.tab.c
-
 bccgr.y: cc.gr.gen.y
 	echo '%{' > bccgr.y
 	echo '#include "bccgr.h"' >> bccgr.y
 	echo '%}' >> bccgr.y
 	sed 's/File "L2_EOF"/File/' <cc.gr.gen.y >>bccgr.y
+
+# run Bison; the 'sed' command is to silence a spurious warning about
+# 'yyval' being used uninitialized; I also compile here (instead of
+# relying on another pattern rule) because I want to control exactly
+# how the compilation happens (to ensure the Bison-parser is compiled
+# with flags to make it a fair performance test with my own stuff)
+%.tab.c %.tab.o %.tab.h: %.y
+	bison -d -v $*.y
+	mv $*.tab.c $*.tab.c.orig
+	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
+	rm $*.tab.c.orig
+	g++ -c -g -Wall -O2 -DNDEBUG $(YYDEBUG) $*.tab.c
+
+bccgr.tab.o: bccgr.h
 
 bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
        $(AST)/strtable.o $(SMBASE)/libsmbase.a
@@ -402,6 +418,12 @@ trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 	  $^ $(linkend)
 
 
+# similar, for Bison as the parser-generator
+%.bison.exe: %.tab.o trivbison.o trivlex.o lexer2.o ptreenode.o \
+             libglr.a
+	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
+
+
 # ----------------------------- EFa -----------------------
 # input for EFa
 efa.in:
@@ -415,20 +437,57 @@ efa.in:
 	           }                                         \
 	           close(OUT);                               \
 	         }'
+
+EFA_TESTS := efa.perf.txt efa.notree.perf.txt efa.bison.tree.perf.txt efa.bison.notree.perf.txt
+
+#.PHONY: $(EFA_TESTS) all-efa
+
+# run all the EFa tests; the whole batch runs in less than a minute
+# (well, they did before I put in the loop from 1 to 5 ...)
+all-efa: $(EFA_TESTS)
+
 # performance test for EFa
 efa.perf.txt:
 	rm -f $@
 	for fn in efa.in/*; do \
-	  ./EFa.tree.gr.exe -tr progress -count $$fn 2>&1 | \
-	    sed "s,^,$$fn: ," >> $@ ; \
+	  for count in 1 2 3 4 5; do \
+	    ./EFa.tree.gr.exe -tr progress -count $$fn 2>&1 | \
+	      sed "s,^,$$fn: ," >> $@ ; \
+	  done; \
 	done
 
 efa.notree.perf.txt:
 	rm -f $@
 	for fn in efa.in/*; do \
-	  ./EFa.tree.gr.exe -tr progress,trivialActions $$fn 2>&1 | \
-	    sed "s,^,$$fn: ," >> $@ ; \
+	  for count in 1 2 3 4 5; do \
+	    ./EFa.tree.gr.exe -tr progress,trivialActions $$fn 2>&1 | \
+	      sed "s,^,$$fn: ," >> $@ ; \
+	  done; \
 	done
+
+efa.bison.tree.perf.txt:
+	rm -f $@
+	for fn in efa.in/*; do \
+	  for count in 1 2 3 4 5; do \
+	    ./EFa.tree.bison.exe $$fn 2>&1 | \
+	      sed "s,^,$$fn: ," >> $@ ; \
+	  done; \
+	done
+
+efa.bison.notree.perf.txt:
+	rm -f $@
+	for fn in efa.in/*; do \
+	  for count in 1 2 3 4 5; do \
+	    ./EFa.notree.bison.exe $$fn 2>&1 | \
+	      sed "s,^,$$fn: ," >> $@ ; \
+	  done; \
+	done
+
+%.csv: %.txt
+	cat $^ | grep cycles | \
+	perl -p -e 's/^[^:]*\D(\d+)\D.*:.*\D(\d+)_(\d+) cycles.*$$/$$1, $$2$$3/' >$@
+
+all-efa-csv: $(EFA_TESTS:.txt=.csv)
 
 
 # --------------------------- EEb -----------------------
