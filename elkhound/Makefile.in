@@ -40,10 +40,10 @@ endif
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-#ccflags += -pg
+ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 ccflags += -DNO_GLR_SOURCELOC
@@ -358,7 +358,7 @@ bccgr.tab.o: cc.gr.gen.cc bccgr.h
 	echo "%}" >> bccgr.y
 	cat cc.gr.gen.y | sed 's/File "L2_EOF"/File/' >> bccgr.y
 	bison -d -v bccgr.y
-	gcc -c -g -DYYDEBUG=1 -Wall bccgr.tab.c
+	gcc -c -g -O2 -DNDEBUG `true -DYYDEBUG=1` -Wall bccgr.tab.c
 
 bccgr: bccgr.o bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
        $(AST)/strtable.o $(SMBASE)/libsmbase.a

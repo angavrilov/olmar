@@ -70,7 +70,13 @@ int main(int argc, char *argv[])
   char const *progname = argv[0];
 
   if (0==strcmp(argv[1], "-d")) {
-    yydebug = 1;
+    #ifndef NDEBUG
+      yydebug = 1;
+    #else
+      printf("debugging is disabled by NDEBUG\n");
+      return 2;
+    #endif
+
     argc--;
     argv++;
   }

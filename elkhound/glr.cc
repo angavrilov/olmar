@@ -148,8 +148,10 @@
 // TRSPARSE(stuff) traces <stuff> during debugging with -tr parse
 #if !defined(NDEBUG)
   #define TRSPARSE(stuff) if (trParse) { trsParse << stuff << endl; }
+  #define TRSPARSE_DECL(stuff) stuff
 #else
   #define TRSPARSE(stuff)
+  #define TRSPARSE_DECL(stuff)
 #endif
 
 // can turn this on to experiment.. but right now it 
@@ -232,32 +234,52 @@ StackNode::~StackNode()
 }
 
 
-void StackNode::init(StateId st, GLR *g)
+inline void StackNode::init(StateId st, GLR *g)
 {
   state = st;
-  xassert(leftSiblings.isEmpty());
-  xassert(hasZeroSiblings());
+  xassertdb(leftSiblings.isEmpty());
+  xassertdb(hasZeroSiblings());
   referenceCount = 0;
   determinDepth = 1;    // 0 siblings now, so this node is unambiguous
   glr = g;
-  INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
+  
+  #ifndef NDEBUG
+    INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
+  #endif
 }
 
 void StackNode::deinit()
 {
-  numStackNodesAllocd--;
+  decrementAllocCounter();
+
   if (!unwinding()) {
     xassert(numStackNodesAllocd >= 0);
     xassert(referenceCount == 0);
   }
 
+  deallocSemanticValues();
+
+  // this is pulled out of 'deallocSemanticValues' since dSV gets
+  // called from the mini-LR parser, which sets this to NULL itself
+  // (and circumvents the refct decrement)
+  firstSib.sib = NULL;
+}
+
+inline void StackNode::decrementAllocCounter()
+{
+  #ifndef NDEBUG
+    numStackNodesAllocd--;
+  #endif
+}
+
+void StackNode::deallocSemanticValues()
+{
   // explicitly deallocate siblings, so I can deallocate their
   // semantic values if necessary (this requires knowing the
   // associated symbol, which the SiblinkLinks don't know)
   if (firstSib.sib != NULL) {
     D(trace("sval") << "deleting sval " << firstSib.sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, firstSib.sval);
-    firstSib.sib = NULL;
   }
 
   while (leftSiblings.isNotEmpty()) {
@@ -265,7 +287,6 @@ void StackNode::deinit()
     D(trace("sval") << "deleting sval " << sib->sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, sib->sval);
   }
-
 }
 
 
@@ -275,19 +296,37 @@ SymbolId StackNode::getSymbolC() const
 }
 
 
+// add the very first sibling
+inline void StackNode
+  ::addFirstSiblingLink_noRefCt(StackNode *leftSib, SemanticValue sval
+                                SOURCELOCARG( SourceLocation const &loc ) )
+{
+  xassertdb(hasZeroSiblings());
+
+  // my depth will be my new sibling's depth, plus 1
+  determinDepth = leftSib->determinDepth + 1;
+
+  // we don't have any siblings yet; use embedded
+  // don't update reference count of 'leftSib', instead caller must do so
+  //firstSib.sib = leftSib;
+  xassertdb(firstSib.sib == NULL);      // otherwise we'd miss a decRefCt
+  firstSib.sib.setWithoutUpdateRefct(leftSib);
+
+  firstSib.sval = sval;
+  SOURCELOC( firstSib.loc = loc; )
+}
+
+
 // add a new sibling by creating a new link
 SiblingLink *StackNode::
   addSiblingLink(StackNode *leftSib, SemanticValue sval
                  SOURCELOCARG( SourceLocation const &loc ) )
 {
   if (hasZeroSiblings()) {
-    // my depth will be my new sibling's depth, plus 1
-    determinDepth = leftSib->determinDepth + 1;
+    addFirstSiblingLink_noRefCt(leftSib, sval  SOURCELOCARG( loc ) );
 
-    // we don't have any siblings yet; use embedded
-    firstSib.sib = leftSib;
-    firstSib.sval = sval;
-    SOURCELOC( firstSib.loc = loc; )
+    // manually increment leftSib's refct
+    leftSib->incRefCt();
 
     // sibling link pointers are used to control the reduction
     // process in certain corner cases; an interior pointer
@@ -295,15 +334,29 @@ SiblingLink *StackNode::
     return &firstSib;
   }
   else {
-    // there's currently at least one sibling, and now we're adding another;
-    // right now, no other stack node should point at this one (if it does,
-    // most likely will catch that when we use the stale info)
-    determinDepth = 0;
-
-    SiblingLink *link = new SiblingLink(leftSib, sval  SOURCELOCARG( loc ) );
-    leftSiblings.append(link);
-    return link;
+    // as best I can tell, x86 static branch prediction is simply
+    // "conditional forward branches are assumed not taken", hence
+    // the uncommon case belongs in the 'else' branch
+    return addAdditionalSiblingLink(leftSib, sval  SOURCELOCARG( loc ) );
   }
+}
+
+
+// pulled out of 'addSiblingLink' so I can inline addSiblingLink
+// without excessive object code bloat; the branch represented by
+// the code in this function is much less common
+SiblingLink *StackNode::
+  addAdditionalSiblingLink(StackNode *leftSib, SemanticValue sval
+                           SOURCELOCARG( SourceLocation const &loc ) )
+{
+  // there's currently at least one sibling, and now we're adding another;
+  // right now, no other stack node should point at this one (if it does,
+  // most likely will catch that when we use the stale info)
+  determinDepth = 0;
+
+  SiblingLink *link = new SiblingLink(leftSib, sval  SOURCELOCARG( loc ) );
+  leftSiblings.append(link);
+  return link;
 }
 
 
@@ -552,6 +605,15 @@ SemanticValue GLR::grabTopSval(StackNode *node)
   return ret;
 }
 
+
+inline StackNode *GLR::makeStackNode(StateId state)
+{
+  StackNode *sn = stackNodePool.alloc();
+  sn->init(state, this);
+  return sn;
+}
+
+
 bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
   // get ready..
@@ -631,14 +693,24 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                  ", to state " << newState);
 
         StackNode *rightSibling = makeStackNode(newState);
-        rightSibling->addSiblingLink(parser, currentTokenValue 
-                                     SOURCELOCARG( currentTokenLoc ) );
+        rightSibling->addFirstSiblingLink_noRefCt(
+          parser, currentTokenValue  SOURCELOCARG( currentTokenLoc ) );
+        // cancelled(2) effect: parser->incRefCt();
 
         // replace 'parser' with 'rightSibling' in the activeParsers list
         activeParsers[0] = rightSibling;
-        parser->decRefCt();
-        xassertdb(parser->referenceCount==1);         // rightSibling refers to it
-        rightSibling->incRefCt();
+        // cancelled(2) effect: xassertdb(parser->referenceCount==2);         // rightSibling & activeParsers[0]
+        // expand "parser->decRefCt();"
+        {
+          // cancelled(2) effect: parser->referenceCount = 1;
+        }
+        xassertdb(parser->referenceCount==1);         // rightSibling
+
+        xassertdb(rightSibling->referenceCount==0);   // just created
+        // expand "rightSibling->incRefCt();"
+        {
+          rightSibling->referenceCount = 1;
+        }
         xassertdb(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
 
         // get next token
@@ -651,7 +723,10 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
         int rhsLen = prodInfo.rhsLen;
         if (rhsLen <= parser->determinDepth) {
           // can reduce unambiguously
-          int startStateId = parser->state;
+
+          // I need to hide this declaration when debugging is off and
+          // optimizer and -Werror are on, because it provokes a warning
+          TRSPARSE_DECL( int startStateId = parser->state; )
 
           // record location of left edge; defaults to no location
           // (used for epsilon rules)
@@ -677,17 +752,35 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
             SOURCELOC(
               if (sib.loc.validLoc()) {
                 leftEdge = sib.loc;
-              }                    
+              }
             )
 
             // pop 'parser' and move to the next one
-            StackNode *next = sib.sib;           // grab before deallocating
-            next->incRefCt();                     // so 'next' survives deallocation of 'sib'
-            xassertdb(next->referenceCount==2);     // 'sib' and the fake one
+            StackNode *next = sib.sib;              // grab before deallocating
+
+            // don't actually increment, since I now no longer actually decrement
+            // cancelled(1) effect: next->incRefCt();    // so 'next' survives deallocation of 'sib'
+            // cancelled(1) observable: xassertdb(next->referenceCount==1);       // 'sib' and the fake one
+
+            // so now it's just the one
+            xassertdb(next->referenceCount==1);       // just 'sib'
+
             xassertdb(parser->referenceCount==1);
-            parser->decRefCt();                   // deinit 'parser', dealloc 'sib'
+            // expand "parser->decRefCt();"           // deinit 'parser', dealloc 'sib'
+            {
+              parser->decrementAllocCounter();
+              if (parser->firstSib.sval != NULL) {
+                // this is uncommon (in fact, usually an error in input or grammar)
+                parser->deallocSemanticValues();
+              }
+              // cancelled(1) effect: next->decRefCt();
+              parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+
+              stackNodePool.deallocNoDeinit(parser);
+            }
+
             parser = next;
-            xassertdb(parser->referenceCount==1);   // fake refct only
+            xassertdb(parser->referenceCount==1);     // fake refct only
           }
 
           TRSPARSE("state " << startStateId <<
@@ -696,7 +789,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                    "), back to state " << parser->state);
 
           // call the user's action function (TREEBUILD)
-          SemanticValue sval = 
+          SemanticValue sval =
             userAct->doReductionAction(prodIndex, toPass.getArray()
                                        SOURCELOCARG( leftEdge ) );
           D(trsSval << "reduced via production " << pcs.prodIndex
@@ -721,9 +814,17 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
           // push new state
           StackNode *newNode = makeStackNode(newState);
-          newNode->addSiblingLink(parser, sval  SOURCELOCARG( leftEdge ) );
-          xassertdb(parser->referenceCount==2);
-          parser->decRefCt();                        // local variable "parser" about to go out of scope
+          newNode->addFirstSiblingLink_noRefCt(
+            parser, sval  SOURCELOCARG( leftEdge ) );
+          // cancelled(3) effect: parser->incRefCt();
+
+          // cancelled(3) effect: xassertdb(parser->referenceCount==2);
+          // expand:
+          //   "parser->decRefCt();"                 // local variable "parser" about to go out of scope
+          {
+            // cancelled(3) effect: parser->referenceCount = 1;
+          }
+          xassertdb(parser->referenceCount==1);
 
           // replace whatever is in 'activeParsers[0]' with 'newNode'
           activeParsers[0] = newNode;
@@ -1407,14 +1508,6 @@ StackNode *GLR::findActiveParser(StateId state)
     }
     return NULL;
   #endif
-}
-
-
-StackNode *GLR::makeStackNode(StateId state)
-{
-  StackNode *sn = stackNodePool.alloc();
-  sn->init(state, this);
-  return sn;
 }
 
 

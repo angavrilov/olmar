@@ -137,6 +137,12 @@ public:
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
   static int maxStackNodesAllocd;
+                           
+  
+private:    // funcs
+  SiblingLink *
+    addAdditionalSiblingLink(StackNode *leftSib, SemanticValue sval
+                             SOURCELOCARG( SourceLocation const &loc ) );
 
 public:     // funcs
   StackNode();
@@ -146,9 +152,18 @@ public:     // funcs
   void init(StateId state, GLR *glr);
   void deinit();
 
+  // internal workings of 'deinit', exposed for performance reasons
+  inline void decrementAllocCounter();
+  void deallocSemanticValues();
+
   // add a new link with the given tree node; return the link
   SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval
                               SOURCELOCARG( SourceLocation const &loc ) );
+                                
+  // specialized version for performance-critical sections
+  inline void
+    addFirstSiblingLink_noRefCt(StackNode *leftSib, SemanticValue sval
+                                SOURCELOCARG( SourceLocation const &loc ) );
 
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
