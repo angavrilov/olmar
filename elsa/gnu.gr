@@ -41,9 +41,8 @@ terminals {
     prec  190 "__attribute__" "restrict";
     
     // the experimentation I did in in/gnu/g0019.cc suggests that
-    // these operators go between "<<"/">>" and "<"/">" in precedence,
-    // and are left associative
-    left   85 "<?" ">?";
+    // these operators have the same prec/assoc as "<" and ">"
+    //left   80 "<?" ">?";
   }
 }
 
@@ -255,10 +254,10 @@ nonterm(ASTTypeId*) TypeofType {
 
 // ----------- gcc C++ min and max operators -----------
 // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Min-and-Max.html
-nonterm(Expression*) BinExp_high {
-  -> left:BinExp_high "<?" right:BinExp_high
+nonterm(Expression*) BinExp_mid {
+  -> left:BinExp_mid "<?" right:BinExp_high
        { return new E_gnuMinMax(left, true /*isMin*/, right); }
-  -> left:BinExp_high ">?" right:BinExp_high
+  -> left:BinExp_mid ">?" right:BinExp_high
        { return new E_gnuMinMax(left, false /*isMin*/, right); }
 }
 

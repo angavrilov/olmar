@@ -75,12 +75,20 @@ void bar()
   one(a7);
 
 
+  // gcc-3: same precedence as '<' and '>', left associating with them
+  // gcc-2: between "</>" and "<</>>"
+  // Elsa implements the gcc-3 rules ...
 
-  // higher than '<'
-  //   if '<' is higher, this is -1
-  //   if '<?' is higher, this is 1    (yes)
+  // (      )                 0        (yes)
+  A<( -1 < 1 <? 0 )> a8;
+  //      (      )            1
+  zero(a8);
+
+  // (       )                1        (yes)
   A<( -1 <? 1 < 0 )> a4;
+  //       (     )           -1        (actually, gcc-2 is here...)
   one(a4);
+
 
   // higher than '||'
   //   if '||' is higher, this is 0
