@@ -177,6 +177,7 @@ int main()
   query(hl, 102, 102, "foo.i");
   // ...
 
+  printf("unique filenames: %d\n", hl.numUniqueFilenames());
   printf("hashline seems to work\n");
 
   return 0;

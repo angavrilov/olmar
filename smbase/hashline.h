@@ -69,6 +69,10 @@ public:     // funcs
   void map(int ppLine, int &origLine, char const *&origFname) const;
   int mapLine(int ppLine) const;           // returns 'origLine'
   char const *mapFile(int ppLine) const;   // returns 'origFname'
+  
+  // for curiosity, find out how many unique filenames are recorded in
+  // the 'filenames' dictionary
+  int numUniqueFilenames() { return filenames.size(); }
 };
 
 #endif // HASHLINE_H
