@@ -285,7 +285,7 @@ nonterm[PQName*] IdExpression {
   // a bare "::" qualifier can only appear at the start of a qualifier
   // sequence; I'm enforcing it a little bit differently than the std
   // does
-  -> "::" id:PQualifiedId         
+  -> "::" id:PQualifiedId
        [ return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, id); ]
 }
 
@@ -1498,26 +1498,61 @@ nonterm SemicolonOpt {
 }
 
 nonterm[Member*] MemberDeclaration {
+  keep(m) [ return m!=NULL; ]
+
   // destructive action on 'spec'
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       [ spec->decllist = list; 
+       [ spec->decllist = list;
          return new MR_decl(spec); ]
-         
+
   // inner class or enum with no instance defined
   -> spec:DeclSpecifier ";"
-       [ return new MR_decl(spec); ]
+       [ // if the type specifier doesn't start with 'class'
+         // or 'enum' then this is useless, and might be
+         // ambiguous with superclass member publication, so
+         // cancel it
+         if (spec->spec->isTS_elaborated() ||
+             spec->spec->isTS_classSpec() ||
+             spec->spec->isTS_enumSpec()) {
+           // ok
+           return new MR_decl(spec);
+         }
+         else {
+           trace("cancel") << loc 
+             << ": bare DeclSpecifier not starting with type keyword\n";
+           return NULL;
+         }
+       ]
+
+  // publishing a superclass member; ambiguous with inner class
+  // declaration (above) and ctor declaration (below), hence the
+  // need for cancellation in both of those two
+  -> n:PQualifiedId ";"                              
+       [ return new MR_publish(n); ]
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt
        [ return new MR_func(f); ]
-  
+
   // declaration (with no definition) of a c/dtor or conversion
-  // operator function                                         
+  // operator function
   // Q: what about pure virtual?
   // A: it's part of the MemberDeclarator
   -> e:ExplicitOpt v:VirtualOpt d:MemberDeclarator ";"
        [ // 'd' is a Declarator
+
+         //cout << "------ MemberDeclarator ----\n";
+         //d->debugPrint(cout, 0);
+
+         // does the declarator construct a function type?
+         // if not, this might be ambiguous (superclass
+         // member publication), so cancel the entire reduction
+         if (!d->decl->isD_func()) {
+           trace("cancel") << loc << ": non-function c/dtor\n";
+           return NULL;
+         }
+
          DeclFlags flags = (DeclFlags)( e | (v? DF_VIRTUAL : DF_NONE) );
          return new MR_decl(
            new Declaration(
