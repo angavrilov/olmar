@@ -20,5 +20,15 @@ void foo()
 }
 
 
+typedef int INT;
+typedef int h;
+
+void bar()
+{
+  // ambiguity between statement and declaration b/c of implint
+  extern h(INT);
+}
+
+
 
 

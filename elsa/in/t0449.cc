@@ -186,6 +186,26 @@ int *makeSomeInts(int x)
 }
 
 
+// ------------------
+int x;
+
+struct G {
+  int bitfield1 : 3;
+  //ERROR(39): int bitfield2 : x;
+};
+
+
+// ------------------
+void makePtrsToMembers()
+{
+  //ERROR(40): void G::*ptr_to_void;
+
+  //ERROR(41): int Nonexist::*ptr_to_nonexist;
+  
+  typedef int INT;
+  //ERROR(42): int INT::*ptr_to_int;
+}
+
 
 
 // EOF

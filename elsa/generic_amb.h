@@ -259,4 +259,28 @@ return_ths:
 }
 
 
+// swap the order of the first two elements of the ambiguity link
+// list before passing to 'resolveAmbiguity'
+template <class NODE, class EXTRA>
+NODE *swap_then_resolveAmbiguity(
+  NODE *ths,
+  Env &env,
+  char const *nodeTypeName,
+  bool priority,
+  EXTRA &callerExtra)
+{                          
+  // original configuration: a b rest
+  NODE *a = ths;
+  NODE *b = ths->ambiguity;
+
+  // new configuration: b a rest
+  a->ambiguity = b->ambiguity;
+  b->ambiguity = a;
+
+  // run with priority
+  return resolveAmbiguity(b, env, nodeTypeName, priority, callerExtra);
+}
+
+
+
 #endif // GENERIC_AMB_H

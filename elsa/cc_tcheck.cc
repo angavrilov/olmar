@@ -2670,14 +2670,7 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
            ambiguity->init == NULL &&
            ambiguity->ambiguity == NULL) {
     // reverse priority order; swap them
-    Declarator *withInit = this;
-    Declarator *noInit = ambiguity;
-
-    noInit->ambiguity = withInit;    // 'noInit' is first
-    withInit->ambiguity = NULL;      // 'withInit' is second
-
-    // run with priority
-    return resolveAmbiguity(noInit, env, "Declarator", true /*priority*/, dt);
+    return swap_then_resolveAmbiguity(this, env, "Declarator", true /*priority*/, dt);
   }
   else {
     // if both have an initialzer or both lack an initializer, then
@@ -3728,17 +3721,6 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
     return;
   }
 
-  // NOTE dsw: don't do this; if it is a typevar, we handle it below
-  // if (ctVar->type->isDependent())
-  if (ctVar->type->isSimple(ST_DEPENDENT)) {
-    // e.g. t0186.cc; propagate the dependentness
-    TRACE("dependent", "ptr-to-member: propagating dependentness of " <<
-                       nestedName->toString());
-    dt.type = env.getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
-    base->tcheck(env, dt);
-    return;
-  }
-
   // allow the pointer to point to a member of a class (CompoundType),
   // *or* a TypeVariable (for templates)
   NamedAtomicType *nat = ctVar->type->ifNamedAtomicType();
@@ -3897,20 +3879,12 @@ Statement *Statement::tcheck(Env &env)
   else if (this->isS_expr() && ambiguity->isS_decl() &&
            ambiguity->ambiguity == NULL) {
     // swap the expr and decl
-    S_expr *expr = this->asS_expr();
-    S_decl *decl = ambiguity->asS_decl();
-
-    expr->ambiguity = NULL;
-    decl->ambiguity = expr;
-
-    // now run it with priority
-    return resolveAmbiguity(static_cast<Statement*>(decl), env,
-                            "Statement", true /*priority*/, dummy);
+    return swap_then_resolveAmbiguity(this, env, "Statement", true /*priority*/, dummy);
   }
   
   // unknown ambiguity situation
-  env.error("unknown statement ambiguity", EF_NONE);
-  return this;
+  xfailure("unknown statement ambiguity");
+  return this;        // silence warning
 }
 
 
