@@ -297,6 +297,21 @@ CilLval::~CilLval()
 }
 
 
+Type const *CilLval::getType(Env *env) const
+{
+  switch (ltag) {
+    default: xfailure("bad tag");
+    case T_VARREF:    return varref.var->type;
+    case T_DEREF:     return deref.addr->getType(env)
+                                       ->asPointerTypeC().atType;
+    case T_FIELDREF:  return fieldref.field->type;
+    case T_CASTL:     return castl.type;
+    case T_ARRAYELT:  return arrayelt.array->getType(env)
+                                           ->asArrayTypeC().eltType;
+  }
+}
+
+
 STATICDEF void CilLval::validate(LTag ltag)
 {
   xassert(0 <= ltag && ltag < NUM_LTAGS);
@@ -435,10 +450,6 @@ CilInst::~CilInst()
       }
       break;
 
-    case T_FREE:
-      delete free.addr;
-      break;
-
     case T_COMPOUND:
       if (comp) {
         CilCompound *ths = comp;
@@ -521,9 +532,6 @@ CilInst *CilInst::clone() const
     case T_CALL:
       return call->clone();
 
-    case T_FREE:
-      return newFreeInst(free.addr->clone());
-
     case T_COMPOUND:
       return comp->clone();
 
@@ -588,10 +596,6 @@ void CilInst::printTree(int ind, ostream &os) const
          << " := " << assign.expr->toString() << " ;\n";
       break;
 
-    case T_FREE:
-      os << "free " << free.addr->toString() << " ;\n";
-      break;
-      
     case T_LOOP:
       os << "while ( " << loop.cond->toString() << " ) {\n";
       loop.body->printTree(ind+2, os);
@@ -649,13 +653,6 @@ CilInst *newAssign(CilLval *lval, CilExpr *expr)
   xassert(lval->isLval());    // stab in the dark ..
   ret->assign.lval = lval;
   ret->assign.expr = expr;
-  return ret;
-}
-
-CilInst *newFreeInst(CilExpr *ptr)
-{
-  CilInst *ret = new CilInst(CilInst::T_FREE);
-  ret->free.addr = ptr;
   return ret;
 }
 
@@ -731,15 +728,16 @@ CilFnCall *CilFnCall::clone() const
 void CilFnCall::printTree(int ind, ostream &os) const
 {
   indent(ind, os);
-  os << "call " << func->toString()
+  os << "call " << result->toString()
+     << " := " << func->toString()
      << " withargs";
 
   int ct=0;
   FOREACH_OBJLIST(CilExpr, args, iter) {
     if (++ct > 1) {
-      os << " , ";
+      os << " ,";
     }
-    os << iter.data()->toString();
+    os << " " << iter.data()->toString();
   }
 
   os << " ;\n";
@@ -780,7 +778,12 @@ void CilInstructions::append(CilInst *inst)
 void CilInstructions::printTreeNoBraces(int ind, ostream &os) const
 {
   FOREACH_OBJLIST(CilInst, insts, iter) {
-    iter.data()->printTree(ind, os);
+    try {
+      iter.data()->printTree(ind, os);
+    }
+    catch (xBase &x) {
+      os << "$$$ // error printing: " << x << endl;
+    }
   }
 }
 

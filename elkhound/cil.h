@@ -182,6 +182,8 @@ public:      // funcs
   CilLval(LTag tag);       // caller must fill in right fields
   ~CilLval();
 
+  Type const *getType(Env *env) const;
+  
   static void validate(LTag ltag);
 
   CilLval *clone() const;
@@ -209,8 +211,8 @@ public:      // types
     // a separate thing
     T_VARDECL, T_FUNDECL,
 
-    // simple imperatives (not liking T_FREE ..)
-    T_ASSIGN, T_CALL, T_FREE,
+    // simple imperatives
+    T_ASSIGN, T_CALL,
 
     // control flow constructs ("loop"="while", "jump"="goto")
     T_COMPOUND, T_LOOP, T_IFTHENELSE, T_LABEL, T_JUMP, T_RET,
@@ -245,11 +247,6 @@ public:      // data
 
     // T_CALL
     CilFnCall *call;        // (serf) equals 'this'
-
-    // T_FREE
-    struct {
-      CilExpr *addr;        // (owner) value being freed
-    } free;
 
     // T_COMPOUND
     CilCompound *comp;      // (serf) equals 'this'
@@ -303,7 +300,6 @@ public:      // funcs
 CilInst *newVarDecl(Variable *var);
 CilInst *newFunDecl(Variable *func, CilInst *body);
 CilInst *newAssign(CilLval *lval, CilExpr *expr);
-CilInst *newFreeInst(CilExpr *ptr);
 CilInst *newWhileLoop(CilExpr *expr, CilInst *body);
 CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch);
 CilInst *newLabel(LabelName label);

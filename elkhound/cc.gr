@@ -708,8 +708,8 @@ nonterm NewInitializerOpt -> empty | "(" ExpressionListOpt ")" ;
 // omitting possibility of initial "::"
 nonterm DeleteExpression : Checkable {
   fun typeCheck {
-    Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
-    inst.append(newFreeInst(expr.xfr()));
+    /*Owner<CilExpr> expr; expr =*/ delete e.typeCheck(env, inst);
+    //inst.append(newFreeInst(expr.xfr()));
     return noCilValue();     // TODO3: is this correct according to C++ std?
   }
 
@@ -766,7 +766,7 @@ nonterm BinaryExpression : ExprBase {
     fun getType = e.getType(env);
   }
 
-  -> left:BinaryExpression op:BinaryOperator right:BinaryExpression {
+  formGroup {
     action  prec := op.prec;
 
     condition  this.prec <= left.prec;             // precedence
@@ -775,22 +775,71 @@ nonterm BinaryExpression : ExprBase {
                  this.prec < right.prec :          // left associative
                  this.prec < left.prec;            // right associative
 
-    fun intEval = op.intEval(left.intEval(env), right.intEval(env));
-    fun typeCheck {
-      Owner<CilExpr> L; L = left.typeCheck(env, inst);
-      Owner<CilExpr> R; R = right.typeCheck(env, inst);
-      BinOp bop = op.getOp();
-      return newBinExpr(bop, L.xfr(), R.xfr());
-    }
-
     fun getType {
       return left.getType(env);      // more omitted consistency checks ...
+    }
+
+    fun intEval = op.intEval(left.intEval(env), right.intEval(env));
+
+    -> left:BinaryExpression op:BinaryOperator right:BinaryExpression {
+      fun typeCheck {
+        Owner<CilExpr> L; L = left.typeCheck(env, inst);
+        Owner<CilExpr> R; R = right.typeCheck(env, inst);
+        BinOp bop = op.getOp();
+        return newBinExpr(bop, L.xfr(), R.xfr());
+      }
+    }
+
+    -> left:BinaryExpression op:ShortCircuitLogical right:BinaryExpression {
+      fun typeCheck {
+        // the code is written as if we're doing "||"; "&&" differs only
+        // at the end
+
+        // TODO2: are these operators guaranteed to return 0 or 1?
+        // the code emitted now doesn't necessarily do that..
+
+        // need a temprary for the result of this computation
+        Variable *result = env->newTmpVar(env->getSimpleType(ST_INT));
+        inst.append(newVarDecl(result));
+
+        // evaluate left operand, and give the result a name
+        Owner<CilExpr> L; L = left.typeCheck(env, inst);
+
+        // create the code to execute if 'L' is true
+        Owner<CilInst> leftTrue;
+                       leftTrue = newAssign(newVarRef(result), L->clone());
+
+        // create the code to execute if 'L' is false
+        Owner<CilCompound> evalRight; evalRight = newCompound();
+        {
+          // evaluate right operand, putting code into 'evalRight'
+          Owner<CilExpr> R; R = right.typeCheck(env, *evalRight);
+
+          // store R into the result
+          evalRight->append(newAssign(newVarRef(result), R.xfr()));
+        }
+
+        // combine the test and both branches
+        if (op.unparseString().equals("||")) {     // TODO2: HACK!
+          inst.append(newIfThenElse(L.xfr(),              // if (left)
+                                    leftTrue.xfr(),       //   tmp = left;   <-- no side effects
+                                    evalRight.xfr()));    // else tmp = right;
+        }
+        else {
+          // to handle "&&", just reverse the sense of the 'if'
+          inst.append(newIfThenElse(L.xfr(),              // if (left)
+                                    evalRight.xfr(),      //   tmp = right;
+                                    leftTrue.xfr()));     // else tmp = left;   <-- no side effects
+        }
+
+        // finally, the result of all this is the new temporary
+        return newVarRef(result);
+      }
     }
   }
 }
 
-// an operator in a binary expression
-nonterm BinaryOperator {
+nonterm BinOpBase {
   attr prec;             // precedence of operator; higher value binds more tightly
   attr leftAssoc;        // 1 means left-associative, 0 means right-associative
 
@@ -802,7 +851,10 @@ nonterm BinaryOperator {
 
   // return this operator's intermediate repr
   fundecl BinOp getOp();
+}
 
+// an operator in a binary expression
+nonterm BinaryOperator : BinOpBase {
   // highest precedence
   // (don't need .* and ->* right now...)
   //formGroup {
@@ -854,14 +906,16 @@ nonterm BinaryOperator {
   -> "|" {
     action prec:=32;      fun intEval = left | right;    fun getOp = OP_BITOR;
   }
+}
 
-  // TODO: implement short-circuit evaluation for booleans
+// pulled these out to implement short-circuit evaluation for booleans
+nonterm ShortCircuitLogical : BinOpBase {
   -> "&&" {
-    action prec:=28;      fun intEval = left && right;   fun getOp = OP_AND;
+    action prec:=28;        fun intEval = left && right;   fun getOp = OP_AND;
   }
 
   -> "||" {
-    action prec:=24;      fun intEval = left || right;   fun getOp = OP_OR;
+    action prec:=24;        fun intEval = left || right;   fun getOp = OP_OR;
   }
   // lowest precedence
 }
@@ -2035,8 +2089,12 @@ nonterm InitDeclarator : HasDeclare {
     // put that pair into the environment
     declareVariable(env, name, flags, fullType);
 
-    // and add an intermediate form declaration too
-    inst.append(newVarDecl(env->getVariable(name)));
+    // and add an intermediate form declaration too (but
+    // we don't have typedefs in Cil, so pass over them)
+    // TODO2: are other DeclFlags relevant?  e.g. static??
+    if (!( flags & DF_TYPEDEF )) {
+      inst.append(newVarDecl(env->getVariable(name)));
+    }
   }
 
   // don't know what to do with the initializer at this point.. (TODO)
