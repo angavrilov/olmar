@@ -1001,7 +1001,6 @@ public:    // funcs
   // queries on parameters
   string paramsToCString() const;
   string paramsToMLString() const;
-  bool equalParamTypes(TemplateParams const *obj) const;
   bool anyParamCtorSatisfies(Type::TypePred pred) const;
 };
 

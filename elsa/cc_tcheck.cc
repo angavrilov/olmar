@@ -21,7 +21,7 @@
 #include "overload.h"       // resolveOverload
 #include "generic_amb.h"    // resolveAmbiguity, etc.
 #include "ast_build.h"      // makeExprList1, etc.
-#include "strutil.h"        // prefixEquals
+#include "strutil.h"        // prefixEquals, pluraln
 #include "macros.h"         // Restorer
 
 #include <stdlib.h>         // strtoul, strtod
@@ -770,17 +770,24 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 }
 
 
+// this is defined just below, but I want it there (not here)
+bool mergeParameterLists(Env &env, CompoundType *prior,
+                         TemplateParams *dest, TemplateParams const *src);
+
 // we (may) have just encountered some syntax which declares
 // some template parameters, but found that the declaration
 // matches a prior declaration with (possibly) some other template
 // parameters; verify that they match (or complain), and then
 // discard the ones stored in the environment (if any)
-void verifyCompatibleTemplates(Env &env, CompoundType *prior)
+//
+// return false if there is some problem, true if it's all ok
+// (however, this value is ignored at the moment)
+bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
 {
   Scope *scope = env.scope();
   if (!scope->curTemplateParams && !prior->isTemplate()) {
     // neither talks about templates, forget the whole thing
-    return;
+    return true;
   }
 
   if (!scope->curTemplateParams && prior->isTemplate()) {
@@ -791,7 +798,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << prior->templateInfo()->paramsToCString()
       << " but the this one is not templatized",
       true /*disambiguating*/);
-    return;
+    return false;
   }
 
   if (scope->curTemplateParams && !prior->isTemplate()) {
@@ -803,30 +810,121 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       true /*disambiguating*/);
     delete scope->curTemplateParams;
     scope->curTemplateParams = NULL;
-    return;
+    return false;
   }
 
   // now we know both declarations have template parameters;
-  // check them for naming equivalent types (the actual names
-  // given to the parameters don't matter; the current
-  // declaration's names have already been entered into the
-  // template-parameter scope)
-  if (scope->curTemplateParams->equalParamTypes(prior->templateInfo())) {
-    // ok
+  // check them for naming equivalent types
+  //
+  // furthermore, fix the names in 'prior' in case they differ
+  // with those of 'scope->curTemplateParams'
+  //
+  // even more, merge their default arguments
+  bool ret = mergeParameterLists(
+    env, prior,
+    prior->templateInfo(),       // dest
+    scope->curTemplateParams);   // src
+
+  // clean up 'curTemplateParams' regardless
+  delete scope->curTemplateParams;
+  scope->curTemplateParams = NULL;
+
+  return ret;
+}
+
+
+// context: I have previously seen a (forward) template
+// declaration, such as
+//   template <class S> class C;             // dest
+//                   ^
+// and I want to modify it to use the same names as another
+// declaration later on, e.g.
+//   template <class T> class C { ... };     // src
+//                   ^
+// since in fact I am about to discard the parameters that
+// come from 'src' and simply keep using the ones from
+// 'dest' for future operations, including processing the
+// template definition associated with 'src'
+bool mergeParameterLists(Env &env, CompoundType *prior,
+                         TemplateParams *dest, TemplateParams const *src)
+{
+  TRACE("template", "mergeParameterLists: prior=" << prior->name
+    << ", dest=" << dest->paramsToCString()
+    << ", src=" << src->paramsToCString());
+
+  // keep track of whether I've made any naming changes
+  // (alpha conversions)
+  bool anyNameChanges = false;
+
+  SObjListIterNC<Variable> destIter(dest->params);
+  SObjListIter<Variable> srcIter(src->params);
+  for (; !destIter.isDone() && !srcIter.isDone();
+       destIter.adv(), srcIter.adv()) {
+    Variable *dest = destIter.data();
+    Variable const *src = srcIter.data();
+
+    // are the types equivalent?
+    if (!dest->type->equals(src->type)) {
+      env.error(stringc
+        << "prior declaration of " << prior->keywordAndName()
+        << " at " << prior->typedefVar->loc
+        << " was templatized with parameter `"
+        << dest->name << "' of type `" << dest->type->toString()
+        << "' but this one has parameter `"
+        << src->name << "' of type `" << src->type->toString()
+        << "', and these are not equivalent",
+        true /*disambiguating*/);
+      return false;
+    }
+
+    // what's up with their default arguments?
+    if (dest->value && src->value) {
+      // this message could be expanded...
+      env.error("cannot specify default value of template parameter more than once");
+      return false;
+    }
+
+    // there is a subtle problem if the prior declaration has a
+    // default value which refers to an earlier template parameter,
+    // but the name of that parameter has been changed
+    if (anyNameChanges &&              // earlier param changed
+        dest->value) {                 // prior has a value
+      // leave it as a to-do for now; a proper implementation should
+      // remember the name substitutions done so far, and apply them
+      // inside the expression for 'dest->value'
+      xfailure("unimplemented: alpha conversion inside default values"
+               " (workaround: use consistent names in template parameter lists)");
+    }
+
+    // merge their default values
+    if (src->value && !dest->value) {
+      dest->value = src->value;
+    }
+
+    // do they use the same name?
+    if (dest->name != src->name) {
+      // make the names the same
+      TRACE("template", "changing parameter " << dest->name
+        << " to " << src->name);
+      anyNameChanges = true;
+      dest->name = src->name;
+    }
+  }
+
+  if (srcIter.isDone() && destIter.isDone()) {
+    return true;   // ok
   }
   else {
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
-      << " was templatized with parameters "
-      << prior->templateInfo()->paramsToCString()
-      << " but this one has parameters "
-      << scope->curTemplateParams->paramsToCString()
-      << ", and these are not equivalent",
+      << " was templatized with " 
+      << pluraln(dest->params.count(), "parameter")
+      << ", but this one has "
+      << pluraln(src->params.count(), "parameter"),
       true /*disambiguating*/);
+    return false;
   }
-  delete scope->curTemplateParams;
-  scope->curTemplateParams = NULL;
 }
 
 

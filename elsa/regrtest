@@ -397,6 +397,10 @@ testparse t0193.cc
 testparse t0194.cc
 testparse t0195.cc
 testparse t0196.cc
+testparse t0197.cc
+testparse t0198.cc
+failparse t0199.cc "unimplemented: alpha conv + default arg"
+failparse t0200.cc "unimplemented: default type args"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -586,8 +590,8 @@ testnsparse in/big/nsCLiveconnectFactory.i
 # final arithmetic to report result
 echo ""
 echo "use_gnu: $use_gnu"
-echo "Successful tests:      $success"
-echo "Failed as expected:    $failure"    
+echo "Successful tests               :    $success"
+echo "Failed as expected (known bugs):    $failure"
 if [ $contin = 1 ]; then
   echo "Unexpected success:    $unexSuccess"
   echo "Unexpected failure:    $unexFailure"

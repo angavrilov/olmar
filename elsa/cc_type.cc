@@ -1909,23 +1909,6 @@ string TemplateParams::paramsToCString() const
 }
 
 
-bool TemplateParams::equalParamTypes(TemplateParams const *obj) const
-{
-  SObjListIter<Variable> iter1(params), iter2(obj->params);
-  for (; !iter1.isDone() && !iter2.isDone();
-       iter1.adv(), iter2.adv()) {
-    if (iter1.data()->type->equals(iter2.data()->type)) {
-      // ok
-    }
-    else {
-      return false;
-    }
-  }
-
-  return iter1.isDone() == iter2.isDone();
-}
-
-
 bool TemplateParams::anyParamCtorSatisfies(Type::TypePred pred) const
 {
   return parameterListCtorSatisfies(pred, params);
