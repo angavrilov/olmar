@@ -36,8 +36,10 @@ enum Enum2 {};
 
 class Base {};
 class Ambiguous {};
+class Amb1 : public Ambiguous {};     // workaround for inherent ambiguity
+class Amb2 : public Ambiguous {};     // of directly inheriting same class twice
 class Virtual {};
-class Derived : public Base, public Ambiguous, public Ambiguous,
+class Derived : public Base, public Amb1, public Amb2,
                 virtual public Virtual {};
 
 void f()

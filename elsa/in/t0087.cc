@@ -6,13 +6,18 @@ public:
   int x;
 };
 class B {};
+                            
+// just let me inherit from A in a way that all subobjects
+// can still be unambiguously named; g++ has a warning for this,
+// "warning: direct base `A' inaccessible in `D' due to ambiguity"
+class A_prime : public A {};
 
 class C : public A {};
-class D : public C, public A {};
+class D : public C, public A_prime {};
 
 class E : virtual public A {};
 class F : public E, virtual public A {};
-class G : public E, public A {};
+class G : public E, public A_prime {};
 
 void foo()
 {
@@ -27,13 +32,13 @@ void foo()
   F f;
   G g;
 
-  a.*p = 7;       // ok, obviously
-  //b.*p = 7;     // ERROR(1): not derived
-  c.*p = 7;       // ok, A is a base of C
-  //d.*p = 7;     // ERROR(2): ambiguous derivation
-  e.*p = 7;       // ok, A is a virtual base of E
-  f.*p = 7;       // ok, A is a virtual base twice (E and F)
-  //g.*p = 7;     // ERROR(3): ambiguous derivation
+  a.*p = 7;                 // ok, obviously
+  //ERROR(1): b.*p = 7;     // not derived
+  c.*p = 7;                 // ok, A is a base of C
+  //ERROR(2): d.*p = 7;     // ambiguous derivation
+  e.*p = 7;                 // ok, A is a virtual base of E
+  f.*p = 7;                 // ok, A is a virtual base twice (E and F)
+  //ERROR(3): g.*p = 7;     // ambiguous derivation
 
   // same things with ->*
   A *ap;
@@ -44,13 +49,13 @@ void foo()
   F *fp;
   G *gp;
 
-  ap->*p = 7;       // ok, obviously
-  //bp->*p = 7;     // ERROR(1): not derived
-  cp->*p = 7;       // ok, A is a base of C
-  //dp->*p = 7;     // ERROR(2): ambiguous derivation
-  ep->*p = 7;       // ok, A is a virtual base of E
-  fp->*p = 7;       // ok, A is a virtual base twice (E and F)
-  //gp->*p = 7;     // ERROR(3): ambiguous derivation
+  ap->*p = 7;               // ok, obviously
+  //ERROR(4): bp->*p = 7;   // not derived
+  cp->*p = 7;               // ok, A is a base of C
+  //ERROR(5): dp->*p = 7;   // ambiguous derivation
+  ep->*p = 7;               // ok, A is a virtual base of E
+  fp->*p = 7;               // ok, A is a virtual base twice (E and F)
+  //ERROR(6): gp->*p = 7;   // ambiguous derivation
 }
 
 

@@ -77,7 +77,8 @@ public:
     // changes to unrelated details
     if (v &&
         0!=strcmp("__testOverload", v->name) &&
-        0!=strcmp("dummy", v->name)) {
+        0!=strcmp("dummy", v->name) &&
+        0!=strcmp("other", v->name)) {    // "other": for inserted elaboration code
       sb << " " << v->name << "=" << sourceLocManager->getLine(v->loc);
     }
 
