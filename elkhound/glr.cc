@@ -585,7 +585,8 @@ int GLR::glrParseAction(StackNode *parser, ActionEntry action,
   if (tables->isShiftAction(action)) {
     // shift
     StateId destState = tables->decodeShift(action);
-    postponeShift(parser, pendingShifts, destState);
+    // add (parser, shiftDest) to pending-shifts
+    pendingShifts.push(new PendingShift(parser, destState));
 
     // debugging
     //trace("parse")
@@ -667,19 +668,6 @@ void GLR::doAllPossibleReductions(StackNode *parser, ActionEntry action,
 }
 
 
-// TODO: inline this into caller
-void GLR::postponeShift(StackNode *parser,
-                        ObjArrayStack<PendingShift> &pendingShifts,
-                        StateId shiftDest)
-{
-  // postpone until later; save necessary state (the
-  // parser and the state to transition to)
-
-  // add (parser, shiftDest) to pending-shifts
-  pendingShifts.push(new PendingShift(parser, shiftDest));
-}
-
-
 // mustUseLink: if non-NULL, then we only want to consider
 // reductions that use that link
 void GLR::doReduction(StackNode *parser,
@@ -729,8 +717,8 @@ void GLR::doReduction(StackNode *parser,
 
   // step 2: process those paths
   // ("mutate" because need non-const access to rpath->finalState)
-  MUTATE_EACH_OBJLIST(PathCollectionState::ReductionPath, pcs.paths, pathIter) {
-    PathCollectionState::ReductionPath *rpath = pathIter.data();
+  for (int i=0; i < pcs.paths.length(); i++) {
+    PathCollectionState::ReductionPath *rpath = pcs.paths[i];
 
     // I'm not sure what is the best thing to call an 'action' ...
     //actions++;
@@ -838,7 +826,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
     // and just collect this reduction, and the final state, in our
     // running list
-    pcs.paths.append(new PathCollectionState::
+    pcs.paths.push(new PathCollectionState::
       ReductionPath(currentNode, sval, leftEdge));
   }
 

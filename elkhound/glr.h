@@ -202,7 +202,7 @@ public:	   // data
   SymbolId *symbols;             // (owner ptr to array)
 
   // as reduction possibilities are encountered, we record them here
-  ObjList<ReductionPath> paths;
+  ObjArrayStack<ReductionPath> paths;
 
   // ---- stuff constant across a series of DFSs ----
   // this is the (index of the) production we're trying to reduce by
@@ -269,9 +269,6 @@ private:    // funcs
 
   int glrParseAction(StackNode *parser, ActionEntry action,
                      ObjArrayStack<PendingShift> &pendingShifts);
-  void postponeShift(StackNode *parser,
-                     ObjArrayStack<PendingShift> &pendingShifts,
-                     StateId shiftDest);
   void doAllPossibleReductions(StackNode *parser, ActionEntry action,
                                SiblingLink *sibLink);
   void doReduction(StackNode *parser,
