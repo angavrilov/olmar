@@ -119,6 +119,61 @@
 #define ASTENDCASE ASTENDCASEC
 
 
+// ------------------- const parallel typecase --------------------
+// (candidate for adding to ast/asthelp.h)
+
+// nodeptr1 and nodeptr2 should already be known to have the same kind
+#define ASTSWITCH2C(supertype, nodeptr1, nodeptr2)      \
+{                                                       \
+  supertype const *switch_nodeptr1 = (nodeptr1);        \
+  supertype const *switch_nodeptr2 = (nodeptr2);        \
+  switch (switch_nodeptr1->kind())
+
+#define ASTCASE2C(type, var1, var2)                     \
+  case type::TYPE_TAG: {                                \
+    type const *var1 = switch_nodeptr1->as##type##C();  \
+    type const *var2 = switch_nodeptr2->as##type##C();
+
+#define ASTCASE2C1(type)                                \
+  case type::TYPE_TAG: {
+
+#define ASTNEXT2C(type, var1, var2)                     \
+    break;                                              \
+  } /* end previous case */                             \
+  case type::TYPE_TAG: {                                \
+    type const *var1 = switch_nodeptr1->as##type##C();  \
+    type const *var2 = switch_nodeptr2->as##type##C();
+
+#define ASTNEXT2C1(type)                                \
+    break;                                              \
+  } /* end previous case */                             \
+  case type::TYPE_TAG: {
+
+// same invocation syntax as ASTNEXT2C but without actually
+// declaring the variables because they are unused
+#define ASTNEXT2CU(type, var1, var2)                    \
+    break;                                              \
+  } /* end previous case */                             \
+  case type::TYPE_TAG: {
+
+#define ASTENDCASE2CD                                   \
+    break;                                              \
+  } /* end final case */                                \
+  default: ;    /* silence warning */                   \
+} /* end scope started before switch */
+
+#define ASTDEFAULT2C                                    \
+    break;                                              \
+  } /* end final case */                                \
+  default: {
+
+#define ASTENDCASE2C                                    \
+    break;                                              \
+  } /* end final case */                                \
+} /* end scope started before switch */
+
+
+
 // ------------------- debug print helpers -----------------
 ostream &ind(ostream &os, int indent);
 
