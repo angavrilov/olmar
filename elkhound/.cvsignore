@@ -103,3 +103,4 @@ gss.*.g
 gprof2.out
 cyctimer
 diff*
+config.status

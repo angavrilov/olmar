@@ -34,7 +34,7 @@ temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
 
 # this target ensures the Makefile is in synch with Makefile.in
 Makefile: Makefile.in
-	./configure $(mode)
+	./config.status $(mode)
 
 # directories
 SMBASE := ../smbase
@@ -77,16 +77,12 @@ ifdef CC_QUAL
   ccflags += -DDISTINCT_CVATOMIC_TYPES
 endif
 
-OPTIMIZATION_FLAGS :=
-ifdef ALLOW_DEBUG
-  # enable action trace in glr parser
-  OPTIMIZATION_FLAGS += -DACTION_TRACE=1
-else
-  # turn on the optimizer
-  OPTIMIZATION_FLAGS += -O2
-#  OPTIMIZATION_FLAGS += -DNDEBUG
-endif
-ccflags += $(OPTIMIZATION_FLAGS)
+# enable action trace in glr parser
+#OPTIMIZATION_FLAGS += -DACTION_TRACE=1
+
+# turn on the optimizer
+#OPTIMIZATION_FLAGS += -O2
+#OPTIMIZATION_FLAGS += -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DGLR_SOURCELOC=0
@@ -95,7 +91,7 @@ ccflags += $(OPTIMIZATION_FLAGS)
 #ccflags += -DNDEBUG_NO_ASSERTIONS
 
 # for gcc-3
-ccflags += -Wno-deprecated
+#ccflags += -Wno-deprecated
 
 # turn on to enable bison's debugging features
 #YYDEBUG := -DYYDEBUG=1
@@ -703,7 +699,7 @@ clean:
 	done
 
 distclean:
-	rm -f Makefile
+	rm -f Makefile config.status
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 
 check: all
