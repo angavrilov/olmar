@@ -136,8 +136,8 @@ terminals {
   include("../../c/c.tok")
 
   token[StringRef] L2_NAME {
-    dup(s) [ return s; ]
-    del()  []
+    fun dup(s) [ return s; ]
+    fun del()  []
   }
 }
 
@@ -174,13 +174,13 @@ nonterm[int] Stmt {
 }
 
 nonterm[StringRef] VarName {
-  keep(n)          [ return !isType(n); ]
+  fun keep(n)      [ return !isType(n); ]
 
   -> n:L2_NAME     [ return n; ]
 }
 
 nonterm[StringRef] TypeName {
-  keep(n)          [ return isType(n); ]
+  fun keep(n)      [ return isType(n); ]
 
   -> n:L2_NAME     [ return n; ]
 

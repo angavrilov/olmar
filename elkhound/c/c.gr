@@ -53,7 +53,7 @@ terminals {
 
     // I mark this, and all places the deal with resolving the
     // type-name vs variable-name ambiguity, with "TYPE/NAME"
-    classify(s) [
+    fun classify(s) [
       if (isType(s)) {
         return L2_TYPE_NAME;
       }
@@ -1572,7 +1572,7 @@ nonterm[ASTList<Declaration>*] FADeclList {
   // ambiguity will result in a cancelled reduction here when the
   // parser speculates a leading TypeName is for a qualified variable;
   // note that no sharing will have been introduced
-  del(list) [ delete list; ]
+  fun del(list) [ delete list; ]
 
   -> /*"thmprv_bind"*/ d:SimpleDeclaration
        [ return new ASTList<Declaration>(d); ]

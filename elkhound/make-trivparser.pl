@@ -92,14 +92,14 @@ while (defined($line = <STDIN>)) {
 
     # add a rule for merging
     if ($ptree) {
-      print(#"  merge(t1, t2)   [ return new PTreeNode(PTREENODE_MERGE, t1, t2); ]\n",
-            "  merge(t1, t2)   [ t1->addAlternative(t2); return t1; ]\n",
-            "  del(t)          []\n",
-            "  dup(t)          [ return t; ]\n",
+      print(#"  fun merge(t1, t2)   [ return new PTreeNode(PTREENODE_MERGE, t1, t2); ]\n",
+            "  fun merge(t1, t2)   [ t1->addAlternative(t2); return t1; ]\n",
+            "  fun del(t)          []\n",
+            "  fun dup(t)          [ return t; ]\n",
             "\n");
     }
     else {
-      #print("  merge(t1, t2)          [ cout << \"merged $nonterm\\n\"; return t1; ]\n\n");
+      #print("  fun merge(t1, t2)          [ cout << \"merged $nonterm\\n\"; return t1; ]\n\n");
     }
 
     next;

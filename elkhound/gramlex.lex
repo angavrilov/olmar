@@ -1,5 +1,10 @@
 /* grammar.lex
  * lexical analyzer for my grammar input format
+ *
+ * The variety of syntaxes for embedded literal code cause this lexer
+ * to have some of the context sensitivity usually associated with a
+ * parser.  This context never nests, so the language recognized is
+ * still regular, but clearly there's some design tension.
  */
 
 /* ----------------- C definitions -------------------- */
@@ -60,33 +65,50 @@ DQUOTE    "\""
 STRCHR    [^\n\\\"]
 
 /* horizontal whitespace */
-HWHITE     [ \t\f\v]
+HWHITE    [ \t\f\v]
 
 /* whitespace that doesn't cross line a boundary */
 SLWHITE   [ \t]
 
 
 /* --------------- start conditions ------------------- */
+/* eating a comment delimited by slash-star and star-slash */
 %x C_COMMENT
+
+/* looking for the file name in an "include" directive */
 %x INCLUDE
+
+/* recovering from an error by skipping to the next newline */
 %x EAT_TO_NEWLINE
+
+/* gathering literal embedded code; the delimiter is specified
+ * in the 'embedFinish' variable */
 %x LITCODE
+
+/* tokenizing the right-hand side of a production; this one is not
+ * exclusive because tokenization is virtually the same in RHS
+ * mode as in INITIAL mode */
+%s RHS
+
+/* tokenizing parameter list of a function, leading into the
+ * embedded code that is its body */
+%s FUN
+
+/* looking for the start of a type that follows "token" or "nonterm",
+ * or the TOK_NAME meaning the type has been omitted */
+%s OPTIONAL_TYPE
 
 
 /* ---------------------- rules ----------------------- */
 %%
 
   /* -------- whitespace ------ */
-  /* this means I eat whitespace in the same way in the normal
-   * "INITIAL" state, and when looking for a class name */
-<INITIAL>{
-  "\n" {
-    newLine();
-  }
+"\n" {
+  newLine();
+}
 
-  {HWHITE}+ {
-    UPD_COL;
-  }
+{HWHITE}+ {
+  UPD_COL;
 }
 
   /* -------- comments -------- */
@@ -130,37 +152,99 @@ SLWHITE   [ \t]
 
 
   /* -------- punctuators, operators, keywords --------- */
-"{"                TOK_UPD_COL;  return TOK_LBRACE;
 "}"                TOK_UPD_COL;  return TOK_RBRACE;
 ":"                TOK_UPD_COL;  return TOK_COLON;
-";"                TOK_UPD_COL;  return TOK_SEMICOLON;
-"->"               TOK_UPD_COL;  return TOK_ARROW;
-"("                TOK_UPD_COL;  return TOK_LPAREN;
 ")"                TOK_UPD_COL;  return TOK_RPAREN;
 ","                TOK_UPD_COL;  return TOK_COMMA;
 
 "terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
-"token"            TOK_UPD_COL;  return TOK_TOKEN;
-"nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
-"verbatim"         TOK_UPD_COL;  return TOK_VERBATIM;
-"impl_verbatim"    TOK_UPD_COL;  return TOK_IMPL_VERBATIM;
 "precedence"       TOK_UPD_COL;  return TOK_PRECEDENCE;
 "option"           TOK_UPD_COL;  return TOK_OPTION;
 "expect"           TOK_UPD_COL;  return TOK_EXPECT;
 
-  /* --------- embedded literal code --------- */
+
+  /* ----------- sequences that begin literal code ------------ */
+  /* for the time being, a "[" will always start an embedded sequence;
+   * eventually, I'll remove this in favor of the brace- and paren-
+   * delimited embedded sequences */
 "[" {
   TOK_UPD_COL;
   BEGIN(LITCODE);
-  embedded->reset();
-  embedFinish = ']';
-  embedMode = TOK_LIT_CODE;
+  beginEmbed(']', TOK_LIT_CODE);
 }
 
+  /* the "->" operator moves us into RHS mode, which is special because
+   * in this mode any "{" is interpreted as the beginning of an embedded
+   * section of literal code */
+"->" {
+  TOK_UPD_COL;
+  BEGIN(RHS);
+  return TOK_ARROW;
+}
+
+  /* "{" in a RHS begins embedded */
+<RHS,FUN>"{" {
+  TOK_UPD_COL;
+  BEGIN(LITCODE);
+  beginEmbed('}', TOK_LIT_CODE);
+}
+
+  /* otherwise it's just a "{" */
+<INITIAL>"{" {
+  TOK_UPD_COL;
+  return TOK_LBRACE;
+}
+
+  /* since right-hand-sides can end with either embedded code or a simple
+   * ";", the semicolon gets out of RHS mode */
+<INITIAL,RHS>";" {
+  TOK_UPD_COL;
+  BEGIN(INITIAL);     // if in RHS, reset to INITIAL
+  return TOK_SEMICOLON;
+}
+
+  /* "token" and "nonterm" are always followed by an optional type,
+   * and then a TOK_NAME.  So, until we see a TOK_NAME, "(" will mean
+   * the start of an embedded sequence. */
+"token"|"nonterm" {
+  TOK_UPD_COL;
+  BEGIN(OPTIONAL_TYPE);
+  return yytext[0]=='t'? TOK_TOKEN : TOK_NONTERM;
+}
+
+  /* so now this begins embedded */
+<OPTIONAL_TYPE>"(" {
+  TOK_UPD_COL;
+  BEGIN(LITCODE);
+  beginEmbed(')', TOK_LIT_CODE);
+}
+
+  /* otherwise it's just itself */
+<INITIAL,RHS,FUN>"(" {
+  TOK_UPD_COL;
+  return TOK_LPAREN;
+}
+
+  /* function beginning */
+"fun" {
+  TOK_UPD_COL;
+  BEGIN(FUN);            // treat "{" as beginning literal code
+  return TOK_FUN;
+}
+
+  /* verbatim beginning */
+"verbatim"|"impl_verbatim" {
+  TOK_UPD_COL;
+  BEGIN(FUN);            // close enough
+  return yytext[0]=='v'? TOK_VERBATIM : TOK_IMPL_VERBATIM;
+}
+
+
+  /* --------- embedded literal code --------- */
   /* no TOKEN_START here; we'll use the tokenStartLoc that
    * was computed in the opening punctuation */
 <LITCODE>{
-  [^\]\}\n]+ {
+  [^\]\})\n]+ {
     UPD_COL;
     embedded->handle(yytext, yyleng, embedFinish);
   }
@@ -170,7 +254,7 @@ SLWHITE   [ \t]
     embedded->handle(yytext, yyleng, embedFinish);
   }
 
-  ("]"|"}") {
+  ("]"|"}"|")") {
     UPD_COL;
     if (embedded->zeroNesting()) {
       // done
@@ -215,9 +299,7 @@ SLWHITE   [ \t]
   /* I reset the initial nesting to -1 so that the '{' at the
    * beginning of the class body sets nesting to 0, thus when
    * I see the final '}' I'll see that at level 0 and stop */
-  embedded->reset(-1);
-  embedFinish = '}';
-  embedMode = TOK_LIT_CODE;
+  beginEmbed('}', TOK_LIT_CODE, -1);
 
   return TOK_CONTEXT_CLASS;
 }
@@ -275,6 +357,9 @@ SLWHITE   [ \t]
 {LETTER}({LETTER}|{DIGIT})* {
   /* get text from yytext and yyleng */
   TOK_UPD_COL;
+  if (YY_START == OPTIONAL_TYPE) {
+    BEGIN(INITIAL);      // bail out of OPTIONAL_TYPE mode
+  }
   return TOK_NAME;
 }
 

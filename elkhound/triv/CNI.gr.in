@@ -16,7 +16,7 @@ terminals {
 }
 
 nonterm C {
-  merge(p1, p2) [ return p1; ]
+  fun merge(p1, p2) [ return p1; ]
 
   -> N I;
 }

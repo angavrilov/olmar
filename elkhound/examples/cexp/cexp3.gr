@@ -1,7 +1,7 @@
 // cexp3.gr
 // another go at C expressions, with user-supplied actions
 
-verbatim [
+verbatim {
   #include <iostream.h>            // cout
   #include "cexp3ast.ast.gen.h"    // Exp
   #include "trace.h"               // trace
@@ -9,12 +9,12 @@ verbatim [
 
   #define D(msg) \
     trace("exptree") << msg << endl
-]
+}
 
 context_class Cexp3 : public UserActions {
 };
 
-impl_verbatim [
+impl_verbatim {
   class CCLang;
   UserActions *makeUserActions(StringTable &, CCLang &)
   {
@@ -26,7 +26,7 @@ impl_verbatim [
   {
     return (new Cexp3 /*leaked..*/)->makeTables();
   }
-]
+}
 
 /*
   // this says that anyplace below where I say "[int]", the dup
@@ -50,8 +50,8 @@ terminals {
 
   // annotate some with semantic types
   token[int] L2_INT_LITERAL {
-    dup(i) [ return i; ]
-    del()  []
+    fun dup(i) [ return i; ]
+    fun del()  []
     // no merge provided, it should never be needed
   }
   
@@ -74,10 +74,10 @@ nonterm[int] Start {
 }
 
 nonterm[Exp*] Exp {
-  dup(p) [ D("dup " << p); p->incRefCt(); return p; ]
-  del(p) [ D("del " << p); p->decRefCt(); ]
-  merge(p1, p2) [ D("merge " << p1 << " and " << p2);
-                  return Exp::mergeAlts(p1, p2); ]
+  fun dup(p) [ D("dup " << p); p->incRefCt(); return p; ]
+  fun del(p) [ D("del " << p); p->decRefCt(); ]
+  fun merge(p1, p2) [ D("merge " << p1 << " and " << p2);
+                      return Exp::mergeAlts(p1, p2); ]
 
   -> i:L2_INT_LITERAL  [ D("literal: " << i);
                          return new E_int(i); ]

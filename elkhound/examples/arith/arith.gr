@@ -53,7 +53,7 @@ terminals {
   
   // syntax: Some terminals have useful semantic values, and those
   // are declared here.
-  token[int] TOK_NUMBER;       // numbers have associated int-typed values
+  token(int) TOK_NUMBER;       // numbers have associated int-typed values
 
   // syntax: Precedence and associativity come next.  Precedence levels
   // are specified by explicit integers, instead of by their relative
@@ -85,7 +85,7 @@ terminals {
 // wider than that representation.  [TODO: Move this explanation to
 // someplace more global, like a user manual, and refer the user to
 // that explanation.]
-nonterm[int] Exp {
+nonterm(int) Exp {
   // syntax: Productons start with "->", then the list of right-hand
   // side (RHS) symbols, then reduction action code.  The RHS symbols
   // must be given tags (e.g. "e") if the action code wants to refer
@@ -103,7 +103,7 @@ nonterm[int] Exp {
   // compiled in a context where the semantic value names have the
   // type that you associated with the nonterminal (in square brackets
   // after the keyword "nonterm").
-  -> e1:Exp "+" e2:Exp        [ return e1 + e2; ]
+  -> e1:Exp "+" e2:Exp        { return e1 + e2; }
 
   -> e1:Exp "-" e2:Exp        [ return e1 - e2; ]
   -> e1:Exp "*" e2:Exp        [ return e1 * e2; ]

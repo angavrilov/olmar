@@ -79,6 +79,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_TERMINALS "terminals"
 %token TOK_TOKEN "token"
 %token TOK_NONTERM "nonterm"
+%token TOK_FUN "fun"
 %token TOK_VERBATIM "verbatim"
 %token TOK_IMPL_VERBATIM "impl_verbatim"
 %token TOK_PRECEDENCE "precedence"
@@ -257,8 +258,8 @@ SpecFuncs: /* empty */                { $$ = new ASTList<SpecFunc>; }
          ;
 
 /* yields: SpecFunc */
-SpecFunc: TOK_NAME "(" FormalsOpt ")" TOK_LIT_CODE
-            { $$ = new SpecFunc($1, $3, $5); }
+SpecFunc: TOK_FUN TOK_NAME "(" FormalsOpt ")" TOK_LIT_CODE
+            { $$ = new SpecFunc($2, $4, $6); }
         ;
 
 /* yields: ASTList<LocString> */

@@ -168,7 +168,7 @@ nonterm ExpressionListOpt {
 }
 
 nonterm PostfixExpression {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> PrimaryExpression;
   -> PostfixExpression "[" Expression "]";
@@ -202,7 +202,7 @@ nonterm PseudoDestructorName {
 }
 
 nonterm UnaryExpression {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> PostfixExpression;
   -> "++" CastExpression;
@@ -271,7 +271,7 @@ nonterm DeleteExpression {
 }
 
 nonterm CastExpression {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> UnaryExpression;
   -> "(" TypeId ")" CastExpression;
@@ -291,7 +291,7 @@ nonterm MultiplicativeExpression {
 }
 
 nonterm AdditiveExpression {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> MultiplicativeExpression;
   -> AdditiveExpression "+" MultiplicativeExpression;
@@ -319,7 +319,7 @@ nonterm EqualityExpression {
 }
 
 nonterm AndExpression {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> EqualityExpression;
   -> AndExpression "&" EqualityExpression;
@@ -383,7 +383,7 @@ nonterm ConstantExpression {
 // -------------------- A.5 Statements --------------------
 
 nonterm Statement {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> LabeledStatement;
   -> ExpressionStatement;
@@ -447,7 +447,7 @@ nonterm IterationStatement {
 }
 
 nonterm ForInitStatement {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> ExpressionStatement;
   -> SimpleDeclaration;
@@ -504,7 +504,7 @@ nonterm InitDeclaratorListOpt {
 // Q: for that matter, why is the DeclSpecifierSeq optional?  ";" is
 // not a valid declaration (it's a statement)
 nonterm SimpleDeclaration {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> DeclSpecifierSeqOpt InitDeclaratorListOpt ";";
 }
@@ -565,7 +565,7 @@ nonterm SimpleTypeSpecifier {
 }
 
 nonterm TypeName {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> ClassName;
   -> EnumName;
@@ -704,7 +704,7 @@ nonterm InitializerOpt {
 }
 
 nonterm InitDeclarator {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> Declarator InitializerOpt;
 }
@@ -752,7 +752,7 @@ nonterm CvQualifier {
 }
 
 nonterm DeclaratorId {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> IdExpression;
   -> ColonColonOpt NestedNameSpecifierOpt TypeName;
@@ -813,7 +813,7 @@ nonterm ParameterDeclarationList {
 }
 
 nonterm ParameterDeclaration {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> DeclSpecifierSeq Declarator;
   -> DeclSpecifierSeq Declarator "=" AssignmentExpression;
@@ -907,7 +907,7 @@ nonterm SemicolonOpt {
 }
 
 nonterm MemberDeclaration {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> DeclSpecifierSeqOpt MemberDeclaratorListOpt ";";
   -> FunctionDefinition SemicolonOpt;
@@ -932,7 +932,7 @@ nonterm ConstantInitializerOpt {
 }
 
 nonterm MemberDeclarator {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> Declarator PureSpecifierOpt;           // for when declarator is a function type
   -> Declarator ConstantInitializerOpt;     // for when it is any other type
@@ -1127,7 +1127,7 @@ nonterm TemplateArgumentList {
 }
 
 nonterm TemplateArgument {
-  merge(l,r) [ return l; ]
+  fun merge(l,r) [ return l; ]
 
   -> AssignmentExpression;
   -> TypeId;
