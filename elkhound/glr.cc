@@ -216,9 +216,7 @@ int StackNode::maxStackNodesAllocd=0;
 
 
 StackNode::StackNode()
-  : stackNodeId(-1),
-    tokenColumn(-1),
-    state(STATE_INVALID),
+  : state(STATE_INVALID),
     leftSiblings(),
     firstSib(NULL, NULL  SOURCELOCARG( SourceLocation() ) ),
     referenceCount(0),
@@ -234,10 +232,8 @@ StackNode::~StackNode()
 }
 
 
-void StackNode::init(int nodeId, int col, StateId st, GLR *g)
+void StackNode::init(StateId st, GLR *g)
 {
-  stackNodeId = nodeId;
-  tokenColumn = col;
   state = st;
   xassert(leftSiblings.isEmpty());
   xassert(hasZeroSiblings());
@@ -479,8 +475,6 @@ GLR::GLR(UserActions *user)
   : userAct(user),
     activeParsers(),
     parserIndex(NULL),
-    nextStackNodeId(initialStackNodeId),
-    currentTokenColumn(0),
     currentTokenClass(NULL),
     currentTokenValue(NULL),
     parserWorklist(),
@@ -507,9 +501,6 @@ GLR::~GLR()
 
 void GLR::clearAllStackNodes()
 {
-  nextStackNodeId = initialStackNodeId;
-  currentTokenColumn = 0;
-
   // the stack nodes themselves are now reference counted, so they
   // should already be cleared if we're between parses
 }
@@ -610,7 +601,6 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     // convert the token to a symbol
     xassert((unsigned)classifiedType < (unsigned)numTerms);
     currentTokenClass = indexedTerms[classifiedType];
-    currentTokenColumn = tokenNumber;
     currentTokenValue = currentToken->sval;
     SOURCELOC( currentTokenLoc = currentToken->loc; )
 
@@ -1423,7 +1413,7 @@ StackNode *GLR::findActiveParser(StateId state)
 StackNode *GLR::makeStackNode(StateId state)
 {
   StackNode *sn = stackNodePool.alloc();
-  sn->init(nextStackNodeId++, currentTokenColumn, state, this);
+  sn->init(state, this);
   return sn;
 }
 

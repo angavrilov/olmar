@@ -91,16 +91,6 @@ public:
 // are represented as multiple left-siblings
 class StackNode {
 public:
-  // it's convenient when printing diagnostic info to have
-  // a unique integer id for these
-  int stackNodeId;
-
-  // node layout is also important; I think this info will
-  // be useful; it's the number of the input token that was
-  // being processed when this node was created (first token
-  // is column 1; initial stack node is column 0)
-  int tokenColumn;
-
   // the LR state the parser is in when this node is at the
   // top ("at the top" means that nothing, besides perhaps itself,
   // is pointing to it)
@@ -153,7 +143,7 @@ public:     // funcs
   ~StackNode();
 
   // ctor/dtor from point of view of the object pool user
-  void init(int nodeId, int tokenColumn, StateId state, GLR *glr);
+  void init(StateId state, GLR *glr);
   void deinit();
 
   // add a new link with the given tree node; return the link
@@ -317,9 +307,6 @@ public:
   // this is for assigning unique ids to stack nodes
   int nextStackNodeId;
   enum { initialStackNodeId = 1 };
-
-  // this is maintained for labeling stack nodes
-  int currentTokenColumn;
 
   // ---- parser state during each token ----
   // the token we're trying to shift; any parser that fails to
