@@ -160,12 +160,6 @@ public:      // data
   char const * const throwClauseNamePrefix;
   int const throwClauseNamePrefixLen;
 
-  // the suffix used to generate shadow names; NOTE: it is important
-  // that this string contain at least one character that is not
-  // allowed in an user-identifier.
-  char const * const shadowSuffix;
-  int const shadowSuffixLen;
-
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -414,8 +408,8 @@ public:      // funcs
   virtual void addedNewVariable(Scope *s, Variable *v);
 
   // -------------- stuff for elaboration support ---------------
-  // make a shadow typedef var for the given var in the given scope
-  void makeShadowTypedef(Variable *tv, Scope *scope);
+  // change 'tv' into a shadow typedef var
+  void makeShadowTypedef(Scope *scope, Variable *tv);
 
   // make a unique name for a new temporary variable
   virtual PQ_name *makeTempName();

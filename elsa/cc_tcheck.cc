@@ -2872,31 +2872,12 @@ realStart:
         TRACE("env",    "replacing implicit typedef of " << prior->name
                      << " at " << prior->loc << " with new decl at "
                      << loc);
-
-        // Make the shadow name
-        {
-          xassert(strcmp(unqualifiedName, prior->name) == 0);
-          xassert(!overloadSet);  // typedefs shouldn't be subject to overloading
-          // The above code is so complicated that I don't know what
-          // the scope is where I should enter the new name; it seems
-          // that for a typedef it is always here.
-          xassert(prior == scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY));
-
-          // FIX: I don't know if I'm skipping the right code here in
-          // the presence of errors; this is copied from the insertion
-          // code later in this method.
-          if (!dt.type->isError()) {
-            if (env.disambErrorsSuppressChanges()) {
-              TRACE("env", "not actually making shadow typedef variable for `"
-                    << prior->name << "' because there are disambiguating errors (1)");
-            } else {
-              env.makeShadowTypedef(prior, scope);
-            }
-          }
-        }
-
-        // now finish adding the new variable
         forceReplace = true;
+         
+        // for support of the elaboration module, we don't want to lose
+        // the previous name altogether; make a shadow
+        env.makeShadowTypedef(scope, prior);
+
         goto noPriorDeclaration;
       }
       else {

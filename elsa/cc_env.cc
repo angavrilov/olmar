@@ -74,10 +74,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // made this global
 //      throwClauseSerialNumber(0),
     throwClauseNamePrefix("throwClause-name-"),
-    throwClauseNamePrefixLen(strlen(throwClauseNamePrefix)),
-
-    shadowSuffix("-shadow"),
-    shadowSuffixLen(strlen(shadowSuffix))
+    throwClauseNamePrefixLen(strlen(throwClauseNamePrefix))
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
@@ -1424,24 +1421,33 @@ ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 }
 
 
-void Env::makeShadowTypedef(Variable *tv, // typedef var
-                            Scope *scope)
+void Env::makeShadowTypedef(Scope *scope, Variable *tv)   // "tv" = typedef var
 {
   xassert(tv->hasFlag(DF_TYPEDEF));
-  char *shadowName0 = strdup(stringc << tv->name << shadowSuffix);
-  TRACE("env", "making shadow typedef variable `" << shadowName0 <<
+
+  if (disambErrorsSuppressChanges()) {
+    // we're in a situation where environment changes are bad.. so let
+    // the type be silently masked
+    TRACE("env", "not actually making shadow typedef variable for `"
+          << tv->name << "' because there are disambiguating errors");
+    return;
+  }
+
+  // make a name that can't collide with a user identifier
+  StringRef shadowName = str(stringc << tv->name << "-shadow");
+  TRACE("env", "making shadow typedef variable `" << shadowName <<
         "' for `" << tv->name <<
-        "' to `" << shadowName0 << "' because a non-typedef var is masking it");
+        "' to `" << shadowName << "' because a non-typedef var is masking it");
+
   // shadow shouldn't exist
-  xassert(!scope->lookupVariable(shadowName0, *this, LF_INNER_ONLY));
-  tv->name = shadowName0;
-  // I think this should always do nothing since done before
-  scope->registerVariable(tv);  // FIX: dupliation OK?
-  bool actuallyAdded = scope->addVariable(tv, false);
-  xassert(actuallyAdded);       // should have gotten added even with no force replace
-  xassert(tv == scope->lookupVariable(shadowName0, *this, LF_INNER_ONLY));
-  // FIX: do this? it is a no-op but has some intended semantics
-  addedNewVariable(scope, tv);  // FIX: duplication OK?
+  xassert(!scope->lookupVariable(shadowName, *this, LF_INNER_ONLY));
+  
+  // modify the variable to get the new name, and add it to the scope
+  tv->name = shadowName;
+  scope->addVariable(tv);
+  
+  // at least for now, don't call registerVariable or addedNewVariable,
+  // since it's a weird situation
 }
 
 
@@ -1473,13 +1479,9 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
       //  << "implicit typedef associated with " << ct->keywordAndName()
       //  << " conflicts with an existing typedef or variable",
       //  true /*disambiguating*/);
-      if (disambErrorsSuppressChanges()) {
-        TRACE("env", "not actually making shadow typedef variable for `"
-              << tv->name << "' because there are disambiguating errors (2)");
-      } else {
-        makeShadowTypedef(tv, scope);
-      }
-    } else {
+      makeShadowTypedef(scope, tv);
+    } 
+    else {
       addedNewVariable(scope, tv);
     }
   }
