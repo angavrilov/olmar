@@ -168,13 +168,11 @@ nonterm(TranslationUnit*) File -> EnterScope t:TranslationUnit LeaveScope
 nonterm EnterScope -> empty    {
   D("entering scope");
   //enterScope();
-  return 0;
 }
 
 nonterm LeaveScope -> empty     {
   D("exiting scope");
   //leaveScope();
-  return 0;
 }
 
 
