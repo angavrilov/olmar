@@ -320,137 +320,6 @@ void astParseNonterm(Environment &env, TF_nonterminal const *nt,
 }
 
 
-#if 0       // this has been reorganized
-// this is for parsing NonterminalBody (attrDeclAllowed=true) or
-// FormGroupBody (attrDeclAllowed=false) lists
-void astParseGroupBody(Environment &env, Nonterminal *nt,
-                       ObjList<ASTNode> const &bodyList,
-                       bool attrDeclAllowed)
-{
-  // process each body element
-  FOREACH_OBJLIST(ASTNode, bodyList, iter) {
-    ASTNode const *node = iter.data();
-    try {
-      switch (node->type) {
-        case AST_ATTR:
-          if (attrDeclAllowed) {
-            nt->attributes.append(new string(childName(node, 0)));
-          }
-          else {
-            // should never happen with current grammar, but if I collapse
-            // the grammar then it might..
-            astParseError(node, "can only declare attributes in nonterminals");
-          }
-          break;
-
-        case AST_FUNDECL:
-          if (attrDeclAllowed) {
-            nt->funDecls.add(
-              childName(node, 0),         // declared name
-              childLitCode(node, 1));     // declaration body
-          }
-          else {
-            // cannot happen with current grammar
-            astParseError(node, "can only declare functions in nonterminals");
-          }
-          break;
-
-        case AST_DECLARATION:
-          if (attrDeclAllowed) {
-            nt->declarations.append(
-              childLitCode(node, 0));     // declaration body
-          }
-          else {
-            // cannot happen with current grammar
-            astParseError(node, "can only have declarations in nonterminals");
-          }
-          break;
-
-        case AST_LITERALCODE:
-        case AST_NAMEDLITERALCODE: {
-          if (!attrDeclAllowed) {
-            astParseError(node, "can't define literal code here");
-          }
-
-          // extract AST fields
-          string tag = childString(node, 0);
-          LiteralCode *code = childLitCode(node, 1);      // (owner)
-          string name;
-          if (node->type == AST_NAMEDLITERALCODE) {
-            name = childName(node, 2);
-          }
-
-          // look at the tag to figure out what the code means
-          if (tag.equals("disamb")) {
-            if (!name[0]) {
-              astParseError(node, "disamb must have a name");
-            }
-            if (!nt->funDecls.isMapped(name)) {
-              astParseError(node, "undeclared function");
-            }
-            nt->disambFuns.add(name, code);
-          }
-
-          else if (tag.equals("prefix")) {
-            if (!name[0]) {
-              astParseError(node, "prefix must have a name");
-            }
-            if (!nt->funDecls.isMapped(name)) {
-              astParseError(node, "undeclared function");
-            }
-            nt->funPrefixes.add(name, code);
-          }
-
-          else if (tag.equals("constructor")) {
-            if (nt->constructor) {
-              //astParseError(node, "constructor already defined");
-              // hack: allow overriding ...
-            }
-            nt->constructor = code;
-          }
-
-          else if (tag.equals("destructor")) {
-            if (nt->destructor) {
-              astParseError(node, "destructor already defined");
-            }
-            nt->destructor = code;
-          }
-
-          else {
-            astParseError(node, stringc << "unknown litcode tag: " << tag);
-          }
-
-          break;
-        }
-
-        case AST_ACTION:
-        case AST_CONDITION:
-        case AST_FUNCTION:
-        case AST_FUNEXPR:
-          // just grab a pointer; will parse for real when a production
-          // uses this inherited action
-          env.addInherited(node);
-          break;
-
-        case AST_FORM:
-          astParseForm(env, nt, node);
-          break;
-
-        case AST_FORMGROUPBODY: {
-          Environment newEnv(env);     // new environment
-          astParseFormgroup(newEnv, nt, node->asInternalC().children);
-          break;
-        }
-
-        END_TYPE_SWITCH(node);
-      }
-    } // try
-    CATCH_APPLY_CONTEXT(node)
-  } // for(body elt)
-}
-#endif // 0
-
-
 void astParseNonterminalBody(Environment &env, Nonterminal *nt,
                              ASTList<NTBodyElt> const &bodyList)
 {
@@ -462,6 +331,19 @@ void astParseNonterminalBody(Environment &env, Nonterminal *nt,
 
       ASTNEXTC(NT_decl, decl) {
         nt->declarations.append(new LocString(decl->declBody));
+      }
+
+      ASTNEXTC(NT_funDecl, fd) {
+        LocString name = fd->declName;
+        trace("semant") << "[" << nt->name << "] funDecl " << name << endl;
+        if (!nt->funDecls.isMapped(name)) {
+          nt->funDecls.add(
+            name,                             // declared name
+            new LiteralCode(fd->declBody));   // declaration body
+        }
+        else {
+          astParseError(name, "duplicate function declaration");
+        }
       }
 
       ASTNEXTC(NT_elt, grpElt) {
@@ -550,34 +432,9 @@ void astParseGroupElement(Environment &env, Nonterminal *nt,
     }
 
     ASTNEXTC(GE_fbe, elt) {
-      FB_funDecl const *funDecl = elt->e->ifFB_funDeclC();
-      FB_dataDecl const *dataDecl = elt->e->ifFB_dataDeclC();
-      if (funDecl) {
-        // we process declarations immediately, since they're associated
-        // with the nonterminal (as opposed to the production); in fact
-        // it's somewhat odd to call a funDecl a formBodyElt, but I did
-        // that in the previous version so I'll keep it for now
-
-        // even more suggestive that there's a design flaw: I have to
-        // synthesize a fake production, and rely on knowledge that
-        // the function I'm calling only looks at prod->left ...
-        Production dummy(nt, "dummy tag");
-        astParseFormBodyElt(env, &dummy, funDecl, false /*dupsOk*/);
-        
-        // put it in here too?  I'm kinda flailing at this point..
-        env.addInherited(elt->e);
-      }
-      else if (dataDecl) {
-        // here we handle it directly, and don't have a case for handling
-        // it inside astParseFormBodyElt, which is at least closer to the
-        // right design...
-        nt->declarations.append(new LocString(dataDecl->declBody));
-      }
-      else {
-        // just grab a pointer; will parse for real when a production
-        // uses this inherited action
-        env.addInherited(elt->e);
-      }
+      // just grab a pointer; will parse for real when a production
+      // uses this inherited action
+      env.addInherited(elt->e);
     }
 
     ASTENDCASEC
@@ -681,14 +538,16 @@ void astParseForm(Environment &env, Nonterminal *nt,
       // complains if we do)
       //prod->finished();
 
+      // grab stuff inherited from the environment; do this before
+      // looking at the form body itself, as the form body will
+      // therefore override things from the environment
+      SFOREACH_OBJLIST(FormBodyElt, env.inherited, iter) {
+        astParseFormBodyElt(env, prod, iter.data(), true /*dupsOk*/);
+      }
+
       // deal with formBody (we evaluate it once for each alternative form):
       // iterate over form body elements
       FOREACH_ASTLIST(FormBodyElt, formNode->elts, iter) {
-        astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
-      }
-
-      // grab stuff inherited from the environment
-      SFOREACH_OBJLIST(FormBodyElt, env.inherited, iter) {
         astParseFormBodyElt(env, prod, iter.data(), true /*dupsOk*/);
       }
 
@@ -740,30 +599,8 @@ void astParseFormBodyElt(Environment &env, Production *prod,
         astParseTreeCompare(env, prod, tc);
       }
        
-      ASTNEXTC(FB_funDecl, fd) {
-        // allow function declarations in form bodies because it's
-        // convenient for nonterminals that only have one form..
-        LocString name = fd->declName;
-        trace("semant") << "[" << prod->left->name << "] funDecl " << name << endl;
-        if (!prod->left->funDecls.isMapped(name)) {
-          prod->left->funDecls.add(
-            name,                             // declared name
-            new LiteralCode(fd->declBody));   // declaration body
-        }
-        else {
-          // the fundecl design is rather broken, and I end up multiply
-          // declaring things even when the .gr file didn't ..
-          //astParseError(name, "duplicate function declaration");
-        }
-      }
-
       ASTNEXTC(FB_funDefn, fd) {
         astParseFunction(env, prod, fd, dupsOk);
-      }
-      
-      ASTNEXTC(FB_dataDecl, dd) {
-        // old code didn't have a case here ... ?
-        astParseError(dd->declBody, "data decl not allowed here (?)");
       }
 
       ASTENDCASEC
@@ -836,7 +673,8 @@ void astParseFunction(Environment &env, Production *prod,
     //        func->type == AST_FUNEXPR);
 
     LocString name = func->name;
-    trace("semant") << "[" << prod->left->name << "] funDefn " << name << endl;
+    trace("semant") << "[" << prod->toString() << "] funDefn " << name 
+                    << " at " << name.locString() << endl;
 
     if (!prod->left->hasFunDecl(name)) {
       astParseError(name, stringc << "undeclared function: " << name);
@@ -848,6 +686,7 @@ void astParseFunction(Environment &env, Production *prod,
       else {
         // duplicates replace previous versions: this is the mechanism
         // of overriding inherited definitions
+        trace("semant") << "[" << prod->toString() << "] (deleting prior funDefn)" << endl;
         prod->functions.deleteAt(name);
       }
     }
@@ -1048,7 +887,7 @@ int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
         break;
 
       case TOK_FUNDECL_BODY: {
-        lvalp->funDecl = new FB_funDecl(new LocString(lexer.curLoc(), lexer.curDeclName()),
+        lvalp->funDecl = new NT_funDecl(new LocString(lexer.curLoc(), lexer.curDeclName()),
                                         new LocString(lexer.curLoc(), lexer.curDeclBody()));
 
         #if 0
@@ -1224,3 +1063,137 @@ int main(int argc, char **argv)
 }
 
 #endif // TEST_GRAMPAR
+
+
+// ---------------------------- trash ----------------------------
+#if 0       // this has been reorganized
+// this is for parsing NonterminalBody (attrDeclAllowed=true) or
+// FormGroupBody (attrDeclAllowed=false) lists
+void astParseGroupBody(Environment &env, Nonterminal *nt,
+                       ObjList<ASTNode> const &bodyList,
+                       bool attrDeclAllowed)
+{
+  // process each body element
+  FOREACH_OBJLIST(ASTNode, bodyList, iter) {
+    ASTNode const *node = iter.data();
+    try {
+      switch (node->type) {
+        case AST_ATTR:
+          if (attrDeclAllowed) {
+            nt->attributes.append(new string(childName(node, 0)));
+          }
+          else {
+            // should never happen with current grammar, but if I collapse
+            // the grammar then it might..
+            astParseError(node, "can only declare attributes in nonterminals");
+          }
+          break;
+
+        case AST_FUNDECL:
+          if (attrDeclAllowed) {
+            nt->funDecls.add(
+              childName(node, 0),         // declared name
+              childLitCode(node, 1));     // declaration body
+          }
+          else {
+            // cannot happen with current grammar
+            astParseError(node, "can only declare functions in nonterminals");
+          }
+          break;
+
+        case AST_DECLARATION:
+          if (attrDeclAllowed) {
+            nt->declarations.append(
+              childLitCode(node, 0));     // declaration body
+          }
+          else {
+            // cannot happen with current grammar
+            astParseError(node, "can only have declarations in nonterminals");
+          }
+          break;
+
+        case AST_LITERALCODE:
+        case AST_NAMEDLITERALCODE: {
+          if (!attrDeclAllowed) {
+            astParseError(node, "can't define literal code here");
+          }
+
+          // extract AST fields
+          string tag = childString(node, 0);
+          LiteralCode *code = childLitCode(node, 1);      // (owner)
+          string name;
+          if (node->type == AST_NAMEDLITERALCODE) {
+            name = childName(node, 2);
+          }
+
+          // look at the tag to figure out what the code means
+          if (tag.equals("disamb")) {
+            if (!name[0]) {
+              astParseError(node, "disamb must have a name");
+            }
+            if (!nt->funDecls.isMapped(name)) {
+              astParseError(node, "undeclared function");
+            }
+            nt->disambFuns.add(name, code);
+          }
+
+          else if (tag.equals("prefix")) {
+            if (!name[0]) {
+              astParseError(node, "prefix must have a name");
+            }
+            if (!nt->funDecls.isMapped(name)) {
+              astParseError(node, "undeclared function");
+            }
+            nt->funPrefixes.add(name, code);
+          }
+
+          else if (tag.equals("constructor")) {
+            if (nt->constructor) {
+              //astParseError(node, "constructor already defined");
+              // hack: allow overriding ...
+            }
+            nt->constructor = code;
+          }
+
+          else if (tag.equals("destructor")) {
+            if (nt->destructor) {
+              astParseError(node, "destructor already defined");
+            }
+            nt->destructor = code;
+          }
+
+          else {
+            astParseError(node, stringc << "unknown litcode tag: " << tag);
+          }
+
+          break;
+        }
+
+        case AST_ACTION:
+        case AST_CONDITION:
+        case AST_FUNCTION:
+        case AST_FUNEXPR:
+          // just grab a pointer; will parse for real when a production
+          // uses this inherited action
+          env.addInherited(node);
+          break;
+
+        case AST_FORM:
+          astParseForm(env, nt, node);
+          break;
+
+        case AST_FORMGROUPBODY: {
+          Environment newEnv(env);     // new environment
+          astParseFormgroup(newEnv, nt, node->asInternalC().children);
+          break;
+        }
+
+        END_TYPE_SWITCH(node);
+      }
+    } // try
+    CATCH_APPLY_CONTEXT(node)
+  } // for(body elt)
+}
+#endif // 0
+
+

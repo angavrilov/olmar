@@ -185,6 +185,22 @@ void NT_lit::debugPrint(ostream &os, int indent) const
   PRINT_SUBTREE(lit);
 }
 
+DEFN_AST_DOWNCASTS(NTBodyElt, NT_funDecl, NT_FUNDECL)
+
+NT_funDecl::~NT_funDecl()
+{
+}
+
+void NT_funDecl::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(NT_funDecl);
+
+  NTBodyElt::debugPrint(os, indent);
+
+  PRINT_GENERIC(declName);
+  PRINT_GENERIC(declBody);
+}
+
 
 // ------------------ GroupElement -------------------
 // *** DO NOT EDIT ***
@@ -308,22 +324,6 @@ void FB_treeCompare::debugPrint(ostream &os, int indent) const
   PRINT_SUBTREE(decideExpr);
 }
 
-DEFN_AST_DOWNCASTS(FormBodyElt, FB_funDecl, FB_FUNDECL)
-
-FB_funDecl::~FB_funDecl()
-{
-}
-
-void FB_funDecl::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(FB_funDecl);
-
-  FormBodyElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(declName);
-  PRINT_GENERIC(declBody);
-}
-
 DEFN_AST_DOWNCASTS(FormBodyElt, FB_funDefn, FB_FUNDEFN)
 
 FB_funDefn::~FB_funDefn()
@@ -338,21 +338,6 @@ void FB_funDefn::debugPrint(ostream &os, int indent) const
 
   PRINT_GENERIC(name);
   PRINT_GENERIC(defnBody);
-}
-
-DEFN_AST_DOWNCASTS(FormBodyElt, FB_dataDecl, FB_DATADECL)
-
-FB_dataDecl::~FB_dataDecl()
-{
-}
-
-void FB_dataDecl::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(FB_dataDecl);
-
-  FormBodyElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(declBody);
 }
 
 

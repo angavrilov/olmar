@@ -1305,21 +1305,23 @@ nonterm ExpressionOpt : Checkable {
 
 // this is an expression with the additional requirement that
 // it be entirely evaluable to an int at compile time
-nonterm ConstantExpression -> e:ConditionalExpression {
+nonterm ConstantExpression {
   fundecl int intEval(Env *passedEnv);
-  fun intEval {
-    env = passedEnv;
+  -> e:ConditionalExpression {
+    fun intEval {
+      env = passedEnv;
 
-    // typeCheck before intEval to eliminate any ambiguities
-    CilFnDefn dummy(cilExtra(), NULL);
-    delete e.typeCheck(env, CilContext(dummy, 1 /*explicit*/));
-    if (!dummy.bodyStmt.isEmpty()) {
-      throwError("constant exprs can't have side effects");
+      // typeCheck before intEval to eliminate any ambiguities
+      CilFnDefn dummy(cilExtra(), NULL);
+      delete e.typeCheck(env, CilContext(dummy, 1 /*explicit*/));
+      if (!dummy.bodyStmt.isEmpty()) {
+        throwError("constant exprs can't have side effects");
+      }
+
+      int val = e.intEval(env);
+      setTheInt(val);
+      return val;
     }
-
-    int val = e.intEval(env);
-    setTheInt(val);
-    return val;
   }
 }
 

@@ -24,6 +24,9 @@ public:    // funcs
   LocString& operator= (LocString const &obj)
     { SourceLocation::operator=(obj); str = obj.str; return *this; }
 
+  // string with location info
+  string locString() const { return SourceLocation::toString(); }
+
   // (read-only) string-like behavior
   ostream& operator<< (ostream &os) const
     { return os << str; }

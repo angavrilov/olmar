@@ -20,6 +20,7 @@ class NT_attr;
 class NT_decl;
 class NT_elt;
 class NT_lit;
+class NT_funDecl;
 class GroupElement;
 class GE_form;
 class GE_formGroup;
@@ -28,9 +29,7 @@ class FormBodyElt;
 class FB_action;
 class FB_condition;
 class FB_treeCompare;
-class FB_funDecl;
 class FB_funDefn;
-class FB_dataDecl;
 class RHS;
 class RHSElt;
 class RH_name;
@@ -178,13 +177,14 @@ public:      // funcs
   NTBodyElt() {}
   virtual ~NTBodyElt();
 
-  enum Kind { NT_ATTR, NT_DECL, NT_ELT, NT_LIT, NUM_KINDS };
+  enum Kind { NT_ATTR, NT_DECL, NT_ELT, NT_LIT, NT_FUNDECL, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   DECL_AST_DOWNCASTS(NT_attr)
   DECL_AST_DOWNCASTS(NT_decl)
   DECL_AST_DOWNCASTS(NT_elt)
   DECL_AST_DOWNCASTS(NT_lit)
+  DECL_AST_DOWNCASTS(NT_funDecl)
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -245,6 +245,22 @@ public:      // funcs
 
   virtual Kind kind() const { return NT_LIT; }
   enum { TYPE_TAG = NT_LIT };
+
+  virtual void debugPrint(ostream &os, int indent) const;
+
+};
+
+class NT_funDecl : public NTBodyElt {
+public:      // data
+  LocString declName;
+  LocString declBody;
+
+public:      // funcs
+  NT_funDecl(LocString *_declName, LocString *_declBody) : NTBodyElt(), declName(_declName), declBody(_declBody) {}
+  virtual ~NT_funDecl();
+
+  virtual Kind kind() const { return NT_FUNDECL; }
+  enum { TYPE_TAG = NT_FUNDECL };
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -327,15 +343,13 @@ public:      // funcs
   FormBodyElt() {}
   virtual ~FormBodyElt();
 
-  enum Kind { FB_ACTION, FB_CONDITION, FB_TREECOMPARE, FB_FUNDECL, FB_FUNDEFN, FB_DATADECL, NUM_KINDS };
+  enum Kind { FB_ACTION, FB_CONDITION, FB_TREECOMPARE, FB_FUNDEFN, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   DECL_AST_DOWNCASTS(FB_action)
   DECL_AST_DOWNCASTS(FB_condition)
   DECL_AST_DOWNCASTS(FB_treeCompare)
-  DECL_AST_DOWNCASTS(FB_funDecl)
   DECL_AST_DOWNCASTS(FB_funDefn)
-  DECL_AST_DOWNCASTS(FB_dataDecl)
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -389,22 +403,6 @@ public:      // funcs
 
 };
 
-class FB_funDecl : public FormBodyElt {
-public:      // data
-  LocString declName;
-  LocString declBody;
-
-public:      // funcs
-  FB_funDecl(LocString *_declName, LocString *_declBody) : FormBodyElt(), declName(_declName), declBody(_declBody) {}
-  virtual ~FB_funDecl();
-
-  virtual Kind kind() const { return FB_FUNDECL; }
-  enum { TYPE_TAG = FB_FUNDECL };
-
-  virtual void debugPrint(ostream &os, int indent) const;
-
-};
-
 class FB_funDefn : public FormBodyElt {
 public:      // data
   LocString name;
@@ -416,21 +414,6 @@ public:      // funcs
 
   virtual Kind kind() const { return FB_FUNDEFN; }
   enum { TYPE_TAG = FB_FUNDEFN };
-
-  virtual void debugPrint(ostream &os, int indent) const;
-
-};
-
-class FB_dataDecl : public FormBodyElt {
-public:      // data
-  LocString declBody;
-
-public:      // funcs
-  FB_dataDecl(LocString *_declBody) : FormBodyElt(), declBody(_declBody) {}
-  virtual ~FB_dataDecl();
-
-  virtual Kind kind() const { return FB_DATADECL; }
-  enum { TYPE_TAG = FB_DATADECL };
 
   virtual void debugPrint(ostream &os, int indent) const;
 

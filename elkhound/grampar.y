@@ -129,6 +129,7 @@
   ASTList<NTBodyElt> *ntBodyElts;
   GroupElement *grpElt;
   NT_attr *attr;
+  NT_decl *ntDecl;
   GE_form *form;
   ASTList<FormBodyElt> *fbElts;
   FormBodyElt *fbElt;
@@ -141,9 +142,9 @@
   FB_treeCompare *treeCompare;
   ExprAST *expr;
   ASTList<ExprAST> *exprList;
-  FB_funDecl *funDecl;
+  NT_funDecl *funDecl;       // was: FB_funDecl
   FB_funDefn *funDefn;
-  FB_dataDecl *dataDecl;
+  //FB_dataDecl *dataDecl;
   LiteralCodeAST *litCode;
   LC_standAlone *simpleLitCode;
 }
@@ -173,7 +174,7 @@
 %type <exprList> ExprListOpt ExprList
 %type <funDecl> FunDecl
 %type <funDefn> Function
-%type <dataDecl> Declaration
+%type <ntDecl> Declaration
 %type <litCode> LiteralCode
 %type <simpleLitCode> SimpleLiteralCode
 
@@ -269,8 +270,9 @@ BaseClassList: TOK_NAME                       { $$ = new ASTList<LocString>($1);
 NonterminalBody: /* empty */                       { $$ = new ASTList<NTBodyElt>; }
                | NonterminalBody AttributeDecl     { ($$=$1)->append($2); }
                | NonterminalBody GroupElement      { ($$=$1)->append(new NT_elt($2)); }
-               | NonterminalBody Declaration       { ($$=$1)->append(new NT_elt(new GE_fbe($2))); }
+               | NonterminalBody Declaration       { ($$=$1)->append($2); }
                | NonterminalBody LiteralCode       { ($$=$1)->append(new NT_lit($2)); }
+               | NonterminalBody FunDecl           { ($$=$1)->append($2); }
                ;
 
 /* things that can appear in any grouping construct; specifically,
@@ -317,7 +319,6 @@ FormBody: /* empty */                              { $$ = new ASTList<FormBodyEl
 FormBodyElement: Action            { $$ = $1; }
                | Condition         { $$ = $1; }
                | TreeCompare       { $$ = $1; }
-               | FunDecl           { $$ = $1; }
                | Function          { $$ = $1; }
                ;
 
@@ -489,9 +490,9 @@ AttrExpr: CondExpr                               { $$ = $1; }
  * substrate language, the TOK_FUNDECL is a function prototype;
  * the substrate interface must be able to pull out the name to
  * match it with the corresponding 'fun' */
-/* yields: FB_funDecl */
+/* yields: NT_funDecl */
 FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = $2; }
-       ;     /* note: $2 here is an FB_funDecl node already */
+       ;     /* note: $2 here is an NT_funDecl node already */
 
 /* fun is a semantic function; the TOK_FUNCTION is substrate language
  * code that will be emitted into a file for later compilation;
@@ -503,8 +504,8 @@ Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = new FB_funDefn($2, $4); 
 
 /* declarations; can declare data fields, or functions whose
  * implementation is provided externally */
-/* yields: FB_dataDecl */
-Declaration: "datadecl" TOK_DECL_BODY ";"        { $$ = new FB_dataDecl($2); }
+/* yields: NT_decl */
+Declaration: "datadecl" TOK_DECL_BODY ";"        { $$ = new NT_decl($2); }
            ;
 
 
