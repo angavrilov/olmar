@@ -53,11 +53,21 @@
   case type::TYPE_TAG: {                              \
     type const *var = switch_nodeptr->as##type##C();
 
+// the "1" versions mean "one argument", i.e. they
+// do not bind a variable of the specified type
+#define ASTCASEC1(type)                               \
+  case type::TYPE_TAG: {
+
 #define ASTNEXTC(type, var)                           \
     break;                                            \
   } /* end previous case */                           \
   case type::TYPE_TAG: {                              \
     type const *var = switch_nodeptr->as##type##C();
+
+#define ASTNEXTC1(type)                               \
+    break;                                            \
+  } /* end previous case */                           \
+  case type::TYPE_TAG: {
 
 // end a case, and add an empty 'default' construct
 #define ASTENDCASECD                                  \
@@ -89,12 +99,20 @@
   case type::TYPE_TAG: {                              \
     type *var = switch_nodeptr->as##type();
 
+#define ASTCASE1(type)                                \
+  case type::TYPE_TAG: {
+
 #define ASTNEXT(type, var)                            \
     break;                                            \
   } /* end previous case */                           \
   case type::TYPE_TAG: {                              \
     type *var = switch_nodeptr->as##type();
-                              
+
+#define ASTNEXT1(typec)                               \
+    break;                                            \
+  } /* end previous case */                           \
+  case type::TYPE_TAG: {
+
 // end-of-switch behavior is same as in const case
 #define ASTENDCASED ASTENDCASECD
 #define ASTDEFAULT ASTDEFAULTC
