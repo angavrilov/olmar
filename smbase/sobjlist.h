@@ -168,7 +168,7 @@ public:
 };
 
 #define SMUTATE_EACH_OBJLIST(T, list, iter) \
-  for(SObjListMutator<T> iter(list); !iter.isDone(); iter.adv())
+  for(SObjListMutator< T > iter(list); !iter.isDone(); iter.adv())
 
 
 // for traversing the list without modifying it (neither nodes nor structure)
@@ -200,7 +200,7 @@ public:
 };
 
 #define SFOREACH_OBJLIST(T, list, iter) \
-  for(SObjListIter<T> iter(list); !iter.isDone(); iter.adv())
+  for(SObjListIter< T > iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // SOBJLIST_H

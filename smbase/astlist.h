@@ -58,6 +58,12 @@ public:
   T *removeFirst()                      { return (T*)list.removeFirst(); }
   T *removeLast()                       { return (T*)list.removeLast(); }
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
+  
+  // this one is awkwardly named to remind the user that it's
+  // contrary to the usual intent of this class
+  void removeAll_dontDelete()           { return list.removeAll(); }
+
+  // deletion
   void deleteFirst()                    { delete (T*)list.removeFirst(); }
   void deleteAll();
 

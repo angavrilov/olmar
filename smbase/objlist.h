@@ -181,7 +181,7 @@ public:
 };
 
 #define MUTATE_EACH_OBJLIST(T, list, iter) \
-  for(ObjListMutator<T> iter(list); !iter.isDone(); iter.adv())
+  for(ObjListMutator< T > iter(list); !iter.isDone(); iter.adv())
 
 
 // for traversing the list without modifying it (neither nodes nor structure)
@@ -213,7 +213,7 @@ public:
 };
 
 #define FOREACH_OBJLIST(T, list, iter) \
-  for(ObjListIter<T> iter(list); !iter.isDone(); iter.adv())
+  for(ObjListIter< T > iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // OBJLIST_H

@@ -26,6 +26,7 @@ public:       // funcs
   T * /*owner*/ pop()                   { return list.removeAt(0); }
   void delPop()                         { list.deleteAt(0); }
   void push(T *item)                    { list.prepend(item); }
+  void clear()                          { list.deleteAll(); }
 
   bool contains(T const *item) const    { return list.contains((void*)item); }
 };

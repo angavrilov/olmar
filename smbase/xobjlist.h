@@ -230,7 +230,7 @@ outputCond(, [[[m4_dnl    // sobjlist
 };
 
 #define makeName(MUTATE_EACH_OBJLIST)(T, list, iter) \
-  for(mutatorName<T> iter(list); !iter.isDone(); iter.adv())
+  for(mutatorName< T > iter(list); !iter.isDone(); iter.adv())
 
 
 // for traversing the list without modifying it (neither nodes nor structure)
@@ -262,7 +262,7 @@ public:
 };
 
 #define makeName(FOREACH_OBJLIST)(T, list, iter) \
-  for(iterName<T> iter(list); !iter.isDone(); iter.adv())
+  for(iterName< T > iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // includeLatch
