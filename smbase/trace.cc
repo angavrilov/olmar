@@ -16,10 +16,8 @@ static bool inited = false;
 // list of active tracers, initially empty
 static ObjList<string> tracers;
 
-// this will probably work; I just need a sink
-ostream devNullObj;
-
 // stream connected to /dev/null
+ofstream devNullObj("/dev/null");
 static ostream *devNull = &devNullObj;
 
 
