@@ -3,11 +3,11 @@
 // nominal author: dsw
 
 // this is as extension module to cc.gr, to add support for
-// parsing extensions to the grammar
+// K&R extensions to the grammar
 
 
 // expected statistics
-option shift_reduce_conflicts 137;
+option shift_reduce_conflicts 136;
 option reduce_reduce_conflicts 147;
 
 

@@ -862,6 +862,7 @@ testCparse c/t0014.c
 testCparse c/t0015.c
 testCparse c/t0016.c
 testCparse c/t0017.c
+testCparse c/t0018.c
 testCparse gnu/d0096.c
 testCparse c/dC0010.c #"f(u8 register) doesn't parse"
 testCparse c/dC0011.c #"((size_t) &((struct scsi_cmnd *)0)->q) doesn't const eval"
