@@ -82,7 +82,7 @@ void Function::tcheck(Env &env, bool checkBody)
   xassert(sel == body);     // compounds are never ambiguous
 
   if (handlers) {
-    env.unimp("exception handlers attached to function bodies");
+    tcheck_handlers(env);
   }
 
   // close the new scope
@@ -96,10 +96,7 @@ void Function::tcheck(Env &env, bool checkBody)
 }
 
 
-// this is a prototype for a function down near E_funCall::itcheck
-FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
-
-void Function::tcheck_memberInits(Env &env)
+CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 {
   // make sure this function is a class member
   CompoundType *enclosing = NULL;
@@ -107,18 +104,33 @@ void Function::tcheck_memberInits(Env &env)
     enclosing = nameParams->var->scope->curCompound;
   }
   if (!enclosing) {
-    env.error("ctor member inits are only valid for class "
-              "member functions (constructors in particular)");
-    return;
+    env.error(stringc
+      << context << " are only valid for class member "
+      << "functions (constructors in particular)");
+    return NULL;
   }
 
   // make sure this function is a constructor
   if (nameParams->var->name != enclosing->name) {
     env.error(stringc
-      << "ctor member inits are only valid for constructors; "
+      << context << " are only valid for constructors; "
       << "the name of the enclosing class is `" << enclosing->name
       << "' but the function name is `" << nameParams->var->name
       << "', and these are not the same");
+    return NULL;
+  }
+
+  return enclosing;
+}
+
+
+// this is a prototype for a function down near E_funCall::itcheck
+FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
+
+void Function::tcheck_memberInits(Env &env)
+{
+  CompoundType *enclosing = verifyIsCtor(env, "ctor member inits");
+  if (!enclosing) {
     return;
   }
 
@@ -149,6 +161,18 @@ void Function::tcheck_memberInits(Env &env)
     env.error(stringc
       << "ctor member init name `" << *(iter->name)
       << "' not found among class members or base classes");
+  }
+}
+
+
+void Function::tcheck_handlers(Env &env)
+{
+  if (!verifyIsCtor(env, "ctor exception handlers")) {
+    return;
+  }
+  
+  FAKELIST_FOREACH_NC(Handler, handlers, iter) {
+    iter->tcheck(env);
   }
 }
 
