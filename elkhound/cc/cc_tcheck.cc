@@ -360,19 +360,22 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
   ct->templateParams = env.takeTemplateParams();
   ct->forward = forward;
-  bool ok = env.addCompound(ct);
-  xassert(ok);     // already checked that it was ok
+  if (name) {
+    bool ok = env.addCompound(ct);
+    xassert(ok);     // already checked that it was ok
+  }
 
   // make the implicit typedef
   Type const *ret = makeType(ct);
   Variable *tv = new Variable(loc, name, ret, DF_TYPEDEF);
   ct->typedefVar = tv;
-  ok = env.addVariable(tv);
-  if (!ok) {
-    return env.error(stringc
-      << "implicit typedef associated with " << ct->keywordAndName()
-      << " conflicts with an existing typedef or variable",
-      true /*disambiguating*/);
+  if (name) {
+    if (!env.addVariable(tv)) {
+      return env.error(stringc
+        << "implicit typedef associated with " << ct->keywordAndName()
+        << " conflicts with an existing typedef or variable",
+        true /*disambiguating*/);
+    }
   }
 
   return ret;
@@ -430,7 +433,7 @@ Type const *TS_classSpec::tcheck(Env &env)
   bool inTemplate = env.scope()->templateParams != NULL;
 
   // see if the environment already has this name
-  CompoundType *ct = env.lookupCompound(name, true /*innerOnly*/);
+  CompoundType *ct = name? env.lookupCompound(name, true /*innerOnly*/) : NULL;
   Type const *ret;
   if (ct) {
     // check that the keywords match
@@ -533,7 +536,9 @@ Type const *TS_enumSpec::tcheck(Env &env)
     iter->tcheck(env, et, ret);
   }
 
-  env.addEnum(et);
+  if (name) {
+    env.addEnum(et);
+  }
 
   return ret;
 }

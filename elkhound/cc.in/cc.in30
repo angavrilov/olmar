@@ -1,5 +1,5 @@
 // cc.in30
-// default arguments
+// misc
 
 int f(int x = 3);
 
@@ -8,6 +8,18 @@ public:
   // this doesn't work right now..
   //int g(int x = y);    // refers to static member Foo::y
   //static int y;
-  
+
   int h(int j=9);
+  
+  // ctor with "inline"
+  inline Foo(int *x);
 };
+
+// anonymous class
+class {
+  int x;
+} xx;
+
+// anonymous enum
+enum { whazza, whozza, howza } futza;
+
