@@ -1245,6 +1245,10 @@ public:
   // where I don't have an AST node to pass
 
   // ---- create a type based on another one ----
+  // NOTE: The functions in this section do *not* modify their argument
+  // Types, rather they return a new object if the desired Type is different
+  // from the one passed-in.  (That is, they behave functionally.)
+
   // given a type, set its cv-qualifiers to 'cv'; return NULL if the
   // base type cannot be so qualified; I pass the syntax from which
   // the 'cv' flags were derived, when I have it, for the benefit of
