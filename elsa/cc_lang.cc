@@ -41,6 +41,9 @@ void CCLang::KandR_C()
   allowCallToUndeclFunc = true;
   allow_KR_ParamOmit = true;
   allowImplicitInt = true;
+  
+  // our K&R is really GNU K&R ...
+  declareGNUBuiltins = true;
 }
 
 void CCLang::ANSI_C99()
