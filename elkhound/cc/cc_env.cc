@@ -67,37 +67,46 @@ Env::Env(StringTable &s, CCLang &L)
                           getSimpleType(ST_ERROR), DF_NONE);
 
   // create declarations for some built-in operators
+  // [cppstd 3.7.3 para 2]
   Type const *t_void = getSimpleType(ST_VOID);
   Type const *t_voidptr = makePtrType(t_void);
+  
+  // note: my stddef.h typedef's size_t to be 'int', so I use
+  // 'int' directly here instead of size_t
+  Type const *t_int = getSimpleType(ST_INT);
+
+  // but I do need a class called 'bad_alloc'..
+  //   class bad_alloc;                     
+  CompoundType *dummyCt;
+  Type const *t_bad_alloc = 
+    makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE_SOURCELOC,
+                    TI_CLASS, true /*forward*/);
+
+  // void* operator new(std::size_t sz) throw(std::bad_alloc);
+  declareFunction1arg(t_voidptr, "operator new",
+                      t_int, "sz",
+                      t_bad_alloc);
+
+  // void* operator new[](std::size_t sz) throw(std::bad_alloc);
+  declareFunction1arg(t_voidptr, "operator new[]",
+                      t_int, "sz",
+                      t_bad_alloc);
 
   // void operator delete (void *p) throw();
-  {
-    FunctionType *ft = new FunctionType(t_void, CV_NONE);
-    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
-    ft->addParam(new Parameter(p->name, p->type, p));
-    ft->exnSpec = new FunctionType::ExnSpec;
-    Variable *del = new Variable(HERE_SOURCELOC, str("operator delete"), ft, DF_NONE);
-    addVariable(del);
-  }
+  declareFunction1arg(t_void, "operator delete",
+                      t_voidptr, "p",
+                      t_void);
 
   // void operator delete[] (void *p) throw();
-  {
-    FunctionType *ft = new FunctionType(t_void, CV_NONE);
-    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
-    ft->addParam(new Parameter(p->name, p->type, p));
-    ft->exnSpec = new FunctionType::ExnSpec;
-    Variable *delArr = new Variable(HERE_SOURCELOC, str("operator delete[]"), ft, DF_NONE);
-    addVariable(delArr);
-  }
+  declareFunction1arg(t_void, "operator delete[]",
+                      t_voidptr, "p",
+                      t_void);
 
+  // for GNU compatibility
   // void *__builtin_next_arg(void *p);
-  {
-    FunctionType *ft = new FunctionType(t_voidptr, CV_NONE);
-    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
-    ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *bna = new Variable(HERE_SOURCELOC, str("__builtin_next_arg"), ft, DF_NONE);
-    addVariable(bna);
-  }
+  declareFunction1arg(t_voidptr, "__builtin_next_arg",
+                      t_voidptr, "p",
+                      NULL /*exnType*/);
 }
 
 Env::~Env()
@@ -116,6 +125,26 @@ Env::~Env()
   }
 
   errors.deleteAll();
+}
+
+
+void Env::declareFunction1arg(Type const *retType, char const *funcName,
+                              Type const *arg1Type, char const *arg1Name,
+                              Type const *exnType)
+{
+  FunctionType *ft = new FunctionType(retType, CV_NONE);
+  Variable *p = new Variable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
+  ft->addParam(new Parameter(p->name, p->type, p));
+  if (exnType) {
+    ft->exnSpec = new FunctionType::ExnSpec;
+
+    // slightly clever hack: say "throw()" by saying "throw(void)"
+    if (!exnType->isSimple(ST_VOID)) {
+      ft->exnSpec->types.append(exnType);
+    }
+  }
+  Variable *var = new Variable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  addVariable(var);
 }
 
 
@@ -821,6 +850,55 @@ StringRef Env::getAnonName(TypeIntr keyword)
   else {
     return sr;
   }
+}
+
+
+ClassTemplateInfo *Env::takeTemplateClassInfo()
+{
+  ClassTemplateInfo *ret = NULL;
+
+  Scope *s = scope();
+  if (s->curTemplateParams) {
+    ret = new ClassTemplateInfo;
+    ret->params.concat(s->curTemplateParams->params);
+    delete takeTemplateParams();
+  }
+
+  return ret;
+}
+
+
+Type const *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
+                                 StringRef name, SourceLocation const &loc,
+                                 TypeIntr keyword, bool forward)
+{
+  ct = new CompoundType((CompoundType::Keyword)keyword, name);
+
+  // transfer template parameters
+  ct->templateInfo = takeTemplateClassInfo();
+
+  ct->forward = forward;
+  if (name) {
+    bool ok = scope->addCompound(ct);
+    xassert(ok);     // already checked that it was ok
+  }
+
+  // make the implicit typedef
+  Type const *ret = makeType(ct);
+  Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+  ct->typedefVar = tv;
+  if (name) {
+    if (!scope->addVariable(tv)) {
+      // this isn't really an error, because in C it would have
+      // been allowed, so C++ does too [ref?]
+      //return env.error(stringc
+      //  << "implicit typedef associated with " << ct->keywordAndName()
+      //  << " conflicts with an existing typedef or variable",
+      //  true /*disambiguating*/);
+    }
+  }
+
+  return ret;
 }
 
 
