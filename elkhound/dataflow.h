@@ -41,8 +41,8 @@ enum AbsOwnerValue {
   AOV_BOTTOM          = 7,    // AOV_INIT | AOV_UNINIT
 };                                     
 
-// e.g., fv_name(AOV_TOP) = "AOV_TOP"
-char const *fv_name(AbsOwnerValue v);
+// e.g., aov_name(AOV_TOP) = "AOV_TOP"
+char const *aov_name(AbsOwnerValue v);
 
 // is v1 >= v2?
 // i.e., is there a path from v1 down to v2 in the lattice?
@@ -52,15 +52,15 @@ char const *fv_name(AbsOwnerValue v);
 //   init >= init
 // but NOT:
 //   init >= uninit
-bool fv_geq(AbsOwnerValue v1, AbsOwnerValue v2);
+bool aov_geq(AbsOwnerValue v1, AbsOwnerValue v2);
 
 // combine info from two merging control branches
-AbsOwnerValue fv_meet(AbsOwnerValue v1, AbsOwnerValue v2);
+AbsOwnerValue aov_meet(AbsOwnerValue v1, AbsOwnerValue v2);
 
 // intersect info, e.g. intersect the values some variable
 // has now with the set of possible values for entering a
 // branch of an 'if' statement
-AbsOwnerValue fv_join(AbsOwnerValue v1, AbsOwnerValue v2);
+AbsOwnerValue aov_join(AbsOwnerValue v1, AbsOwnerValue v2);
 
 
 // dataflow info about a variable, at some program point

@@ -133,7 +133,7 @@ void printVar(DataflowVar const *var)
 {
   cout << "  " << var->getName()
        << " : "<< var->getType()->toString()
-       << ", fv=" << fv_name(var->value) << endl;
+       << ", fv=" << aov_name(var->value) << endl;
 }
 
 bool isOwnerPointer(Type const *t)
@@ -175,7 +175,7 @@ void CCTreeNode::ana_free(string name)
   printVar(var);
 
   // check dataflow
-  if (!fv_geq(var->value, AOV_INIT)) {
+  if (!aov_geq(var->value, AOV_INIT)) {
     cout << "  ERROR: can only free inited owner pointers\n";
     //return;    // compute resulting flow value anyway
   }
@@ -199,7 +199,7 @@ void CCTreeNode::ana_malloc(string name)
   printVar(var);
 
   // check dataflow
-  if (!fv_geq(var->value, AOV_UNINIT) ) {
+  if (!aov_geq(var->value, AOV_UNINIT) ) {
     cout << "  ERROR: can only assign malloc to uninited owner pointers\n";
     return;
   }
@@ -221,7 +221,7 @@ void CCTreeNode::ana_endScope(Env *localEnv)
     printVar(var);
 
     if (isOwnerPointer(var->getType())) {
-      if (!fv_geq(var->value, AOV_UNINIT)) {
+      if (!aov_geq(var->value, AOV_UNINIT)) {
         cout << "  ERROR: `" << var->getName()
              << "': owners must die uninited\n";
       }
@@ -260,7 +260,7 @@ void CCTreeNode::ana_applyConstraint(bool negated)
 
       // now intersect this with the set of values we do
       // in fact have
-      var->value = fv_join(var->value, branchReqt);
+      var->value = aov_join(var->value, branchReqt);
     }
   }
 }
