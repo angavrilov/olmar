@@ -337,7 +337,6 @@ class TemplateDeclaration {
 
 class TemplateParameter {
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
-
 }
 
 
