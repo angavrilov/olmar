@@ -59,12 +59,7 @@ TOCHECK += cc.in18
 TOCHECK += cc.in19
 TOCHECK += cc.in20
 TOCHECK += cc.in21
-
-# DSW: Bitfields not being printed correctly.
-# int x : 2; ->
-# int x;
-#TOCHECK += cc.in22
-
+TOCHECK += cc.in22
 TOCHECK += cc.in23
 TOCHECK += cc.in24
 
