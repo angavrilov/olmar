@@ -428,7 +428,11 @@ void Function::tcheck_memberInits(Env &env)
       if (baseIter.data()->ct->name == iter->name->getName()) {
         // found the right base class to initialize
         found = true;
-        
+
+        // TODO: verify correspondence between template arguments
+        // in the initializer name and template arguments in the
+        // base class list
+
         // typecheck the arguments
         iter->args = tcheckFakeExprList(iter->args, env);
 
