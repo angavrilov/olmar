@@ -645,7 +645,7 @@ nonterm[Expression*] ConstantExpression -> e:ConditionalExpression
 nonterm[Statement*] Statement {
   // ambiguous:
   //   x(y);
-  // can either be an Expression statement (function call)
+  // can either be an Expression statement (constructor call)
   // or a BlockDeclaration (declare variable y, of type x)
   merge(L,R) [ L->addAmbiguity(R); return L; ]
 
