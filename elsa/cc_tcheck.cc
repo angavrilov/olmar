@@ -35,9 +35,8 @@
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
-
-// this is a prototype for a function down near E_funCall::itcheck
 void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
 
 
 // Why is there not a "finally" in C++!?!  I cannot figure out how to
@@ -1051,9 +1050,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 }
 
                                                           
-// fwd
-void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
 // type check once we know what 'ct' is; this is also called
 // to check newly-cloned AST fragments for template instantiation
 void TS_classSpec::tcheckIntoCompound(
@@ -1147,25 +1143,16 @@ void TS_classSpec::tcheckIntoCompound(
     iter.data()->tcheck(env);
   }
 
-  // second pass: check function bodies
-  bool innerClass = !!containingClass;
-
-  if (!innerClass) {
-    // default ctor, copy ctor, operator=
-    xassert(ct == env.scope()->curCompound);
-    // now a method call that recurses on the nested classes
-    addCompilerSuppliedDecls(env);
-  }
+  // default ctor, copy ctor, operator=
+  addCompilerSuppliedDecls(env, loc, ct);
 
   // let the CompoundType build additional indexes if it wants
   ct->finishedClassDefinition(env.conversionOperatorName);
 
-//    cout << "**** ct->name " << ct->name << ": ";
+  // second pass: check function bodies
+  bool innerClass = !!containingClass;
   if (!innerClass) {
-//      cout << "This is the second pass; checking function bodies" << endl;
     tcheckFunctionBodies(env);
-  } else {
-//      cout << "This is the first pass; NOT checking function bodies" << endl;
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -1181,32 +1168,6 @@ void TS_classSpec::tcheckIntoCompound(
   }
   
   env.addedNewCompound(ct);
-}
-
-
-void TS_classSpec::addCompilerSuppliedDecls(Env &env)
-{
-  CompoundType *ct = env.scope()->curCompound;
-  xassert(ct);
-
-  ::addCompilerSuppliedDecls(env, loc, ct);
-
-  // recursively add decls for inner classes, like the code
-  // for 'tcheckFunctionBodies'
-  StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
-  for (; !innerIter.isDone(); innerIter.next()) {
-    CompoundType *inner = innerIter.value();
-    if (!inner->syntax) {
-      // this happens when all we have is a forward decl
-      continue;
-    }
-
-    TRACE("inner", "making default cdtor bodies for " << inner->name);
-
-    env.extendScope(inner);
-    inner->syntax->addCompilerSuppliedDecls(env);
-    env.retractScope(inner);
-  }
 }
 
 
