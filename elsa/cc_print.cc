@@ -713,7 +713,12 @@ void E_intLit::iprint(PrintEnv &env)
 void E_floatLit::iprint(PrintEnv &env)
 {                                
   olayer ol("E_floatLit::iprint");
-  env << d;
+  // this fails to print ".0" for a float/double that happens to lie
+  // on an integer boundary
+//    env << d;
+  // doing it this way also preserves the trailing "f" for float
+  // literals
+  env << text;
 }
 
 void E_stringLit::iprint(PrintEnv &env)
