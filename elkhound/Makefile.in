@@ -335,8 +335,7 @@ libelkhound.a: $(glr-set)
 # specific instructions for cc.ast, so I can add extension modules
 CC_AST_MODS := cc/cc_tcheck.ast cc/cc_print.ast
 ifdef CC_QUAL
-#   CC_AST_MODS += cc/cc_qual/cc_qual.ast
-  CC_AST_MODS += cc/cc_qual.ast
+  CC_AST_MODS += cc/cc_qual/cc_qual.ast
 endif
 cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast $(CC_AST_MODS) $(AST)/astgen
 	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
