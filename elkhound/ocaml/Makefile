@@ -76,4 +76,4 @@ check:
 	echo "2+3+4" | ./main een glr ptree
 
 clean:
-	rm -f *.cmo *.cmi arith.ml* een.ml* lexer.ml main tobjpool
+	rm -f *.cmo *.cmi *.d arith.ml* een.ml* lexer.ml main tobjpool
