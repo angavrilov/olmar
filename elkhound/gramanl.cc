@@ -3816,7 +3816,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   if (setsOutput) {
     traceProgress() << "printing item sets to " << setsFname << " ..." << endl;
     *setsOutput << "NOTE: Item set numbers can change depending on what flags\n"
-                << "are passed to 'gramanl'!\n";
+                << "are passed to 'elkhound'!\n";
     // only print the nonkernel items if they're explicitly requested,
     // since they are more noise than signal, usually
     printItemSets(*setsOutput, tracingSys("nonkernel"));

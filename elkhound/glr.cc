@@ -1331,7 +1331,7 @@ bool GLR::nondeterministicParseToken()
 void GLR::printParseErrorMessage(StateId lastToDie)
 {
   cout << toString(lexerPtr->loc)
-       << ": Parse error at "
+       << ": Parse error (state " << lastToDie << ") at "
        << lexerPtr->tokenDesc()
        << endl;
 
