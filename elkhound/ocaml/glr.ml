@@ -197,7 +197,7 @@ end
 let duplicateSemanticValue (glr: tGLR) (sym: tSymbolId) (sval: tSemanticValue)
   : tSemanticValue =
 begin
-  xassertdb(sym <> 0);
+  (assert (sym <> 0));
                                 
   (* the C++ implementation checks for NULL sval, but I don't think
    * that can be here in the ML version, and I'm not convinced the
@@ -214,7 +214,7 @@ end
 let deallocateSemanticValue (sym: tSymbolId) (user: tUserActions) 
                             (sval: tSemanticValue) : unit =
 begin
-  xassertdb(sym <> 0);
+  (assert (sym <> 0));
 
   if (symIsTerm sym) then (
     (user.deallocateTerminalValue (symAsTerm sym) sval)
@@ -231,20 +231,25 @@ begin
   { sib=s; sval=sv; }
 end
 
+let dummyLink:tSiblingLink = (makeSiblingLink None cNULL_SVAL)
+
 
 (* --------------------- StackNode -------------------------- *)
 let emptyStackNode(g : tGLR) : tStackNode =
 begin
-  { 
+  {
     state = cSTATE_INVALID;
     leftSiblings = [];
-    firstSib = (makeSiblingLink None (Obj.repr 0));
+    firstSib = (makeSiblingLink None cNULL_SVAL);
     referenceCount = 0;
     determinDepth = 0;
     glr = g;
     column = 0
   }
 end
+
+let dummyNode:tStackNode = (emptyStackNode (Obj.magic []))
+
 
 let getNodeSymbol (ths: tStackNode) : tSymbolId =
 begin
@@ -271,8 +276,8 @@ end
 and initStackNode (ths: tStackNode) (st: tStateId) : unit =
 begin
   ths.state <- st;
-  (xassertdb (isEmpty ths.leftSiblings));
-  (xassertdb (isNone ths.firstSib.sib));
+  (assert (isEmpty ths.leftSiblings));
+  (assert (isNone ths.firstSib.sib));
   ths.referenceCount <- 0;
   ths.determinDepth <- 1;
 
@@ -320,7 +325,7 @@ end
 
 and decRefCt (ths: tStackNode) : unit =
 begin
-  (xassert (ths.referenceCount > 0));
+  (assert (ths.referenceCount > 0));
 
   ths.referenceCount <- ths.referenceCount - 1;
 
@@ -351,11 +356,11 @@ end
 let addFirstSiblingLink_noRefCt (ths: tStackNode) (leftSib: tStackNode)
                                 (sval: tSemanticValue) : unit =
 begin
-  (xassertdb (hasZeroSiblings ths));
+  (assert (hasZeroSiblings ths));
 
   ths.determinDepth <- leftSib.determinDepth + 1;
 
-  (xassertdb (isNone ths.firstSib.sib));
+  (assert (isNone ths.firstSib.sib));
   ths.firstSib.sib <- (Some leftSib);     (* update w/o refct *)
 
   ths.firstSib.sval <- sval;
@@ -394,7 +399,7 @@ end
 
 let getUniqueLink (ths: tStackNode) : tSiblingLink =
 begin
-  (xassert (hasOneSibling ths));
+  (assert (hasOneSibling ths));
   ths.firstSib
 end
 
@@ -430,14 +435,14 @@ begin
     (getSome ths.firstSib.sib).determinDepth + 1
   )
   else (
-    (xassert (hasMultipleSiblings ths));
+    (assert (hasMultipleSiblings ths));
     0
   )
 end
 
-let checkLocalInvariants (ths: tStackNode) : unit =
+let checkLocalInvariants (ths: tStackNode) : bool =
 begin
-  (xassertdb ((computeDeterminDepth ths) = ths.determinDepth));
+  (computeDeterminDepth ths) = ths.determinDepth;
 end
 
 
@@ -465,11 +470,11 @@ begin
     userAct = actions;
     tables = tablesIn;
     lexerPtr = None;
-    topmostParsers = ((Obj.magic 0) : tStackNode tArrayStack);  (* HACK!! *)
+    topmostParsers = ((Obj.magic []) : tStackNode tArrayStack);  (* HACK!! *)
     toPass = (Array.make cMAX_RHSLEN cNULL_SVAL);
-    prevTopmost = ((Obj.magic 0) : tStackNode tArrayStack);     (* HACK!! *)
-    stackNodePool = ((Obj.magic 0) : tStackNode tObjectPool);   (* HACK!! *)
-    pathQueue = ((Obj.magic 0) : tReductionPathQueue);          (* HACK!! *)
+    prevTopmost = ((Obj.magic []) : tStackNode tArrayStack);     (* HACK!! *)
+    stackNodePool = ((Obj.magic []) : tStackNode tObjectPool);   (* HACK!! *)
+    pathQueue = ((Obj.magic []) : tReductionPathQueue);          (* HACK!! *)
     noisyFailedParse = true;
     globalNodeColumn = 0;
     detShift = 0;
@@ -492,9 +497,6 @@ begin
    * In fact, I *did* use the 'option' approach for tSiblingLink.sib,
    * and it is indeed a pain.
    *)
-
-  let dummyNode:tStackNode = (emptyStackNode glr) in
-  let dummyLink:tSiblingLink = (makeSiblingLink None cNULL_SVAL) in
 
   glr.topmostParsers <- (new tArrayStack dummyNode);
   glr.prevTopmost <- (new tArrayStack dummyNode);
@@ -550,7 +552,7 @@ end
 
 and addTopmostParser (glr: tGLR) (parsr: tStackNode) : unit =
 begin
-  (checkLocalInvariants parsr);
+  (assert (checkLocalInvariants parsr));
 
   (glr.topmostParsers#push parsr);
   (incRefCt parsr);
@@ -647,7 +649,7 @@ begin
       if (use_mini_lr &&
           (topmostParsers#length()) = 1) then (
         let parsr: tStackNode ref = ref (topmostParsers#top()) in
-        (xassertdb (!parsr.referenceCount = 1));
+        (assert (!parsr.referenceCount = 1));
 
         let tok:int = (lexer#getTokType()) in
         let action:tActionEntry = (getActionEntry_noError tables !parsr.state tok) in
@@ -664,7 +666,7 @@ begin
 
             let startStateId:int = !parsr.state in
 
-            (xassertdb (rhsLen <= cMAX_RHSLEN));
+            (assert (rhsLen <= cMAX_RHSLEN));
 
             (* loop for arbitrary rhsLen *)
             for i = rhsLen-1 downto 0 do
@@ -679,15 +681,15 @@ begin
               let prev:tStackNode = !parsr in
               parsr := (getSome sib.sib);
 
-              (xassertdb (!parsr.referenceCount = 1));
-              (xassertdb (prev.referenceCount = 1));
+              (assert (!parsr.referenceCount = 1));
+              (assert (prev.referenceCount = 1));
 
               (* adjust a couple things about 'prev' reflecting
                * that it has been deallocated *)
               (decr numStackNodesAllocd);
               prev.firstSib.sib <- None;
 
-              (xassertdb (!parsr.referenceCount = 1));
+              (assert (!parsr.referenceCount = 1));
             done;
 
             (* call the user's action function (TREEBUILD) *)
@@ -710,7 +712,7 @@ begin
             );
 
             (* the sole reference is the 'parsr' variable *)
-            (xassertdb (!parsr.referenceCount = 1));
+            (assert (!parsr.referenceCount = 1));
 
             (* push new state *)
             let newNode:tStackNode =
@@ -718,12 +720,12 @@ begin
 
             (addFirstSiblingLink_noRefCt newNode !parsr sval);
 
-            (xassertdb (!parsr.referenceCount = 1));
+            (assert (!parsr.referenceCount = 1));
 
             (* replace old topmost parser with 'newNode' *)
             (topmostParsers#setElt 0 newNode);
             (incRefCt newNode);
-            (xassertdb (newNode.referenceCount = 1));
+            (assert (newNode.referenceCount = 1));
 
             (* does the user want to keep it? *)
             if (use_keep &&
@@ -774,8 +776,8 @@ begin
           (* replace 'parsr' with 'rightSibling' *)
           (topmostParsers#setElt 0 rightSibling);
 
-          (xassertdb (!parsr.referenceCount = 1));
-          (xassertdb (rightSibling.referenceCount = 0));
+          (assert (!parsr.referenceCount = 1));
+          (assert (rightSibling.referenceCount = 0));
 
           rightSibling.referenceCount <- 1;
 
@@ -1325,7 +1327,7 @@ begin
                   );
                 )));
               (incr iters);
-              (xassert (!iters < 1000));     (* protect against infinite loop *)
+              (assert (!iters < 1000));     (* protect against infinite loop *)
               (* computeDepthIters++; *)
             done;
           );
@@ -1360,7 +1362,7 @@ end
 and rwlEnqueueReductions (glr: tGLR) (parsr: tStackNode) (action: tActionEntry)
                          (mustUseLink: tSiblingLink option) : int =
 begin
-  (checkLocalInvariants parsr);
+  (assert (checkLocalInvariants parsr));
 
   if (isShiftAction glr.tables action) then (
     (* do nothing, only looking for reductions *)
@@ -1371,7 +1373,7 @@ begin
 
     (* production info *)
     let rhsLen:int = (getProdInfo_rhsLen glr.tables prodIndex) in
-    (xassert (rhsLen >= 0));       (* paranoia *)
+    (assert (rhsLen >= 0));       (* paranoia *)
 
     (* make a prototype path; used to control recursion *)
     let proto:tPath =
@@ -1470,9 +1472,9 @@ begin
   glr.globalNodeColumn <- glr.globalNodeColumn + 1;
   
   (* move all parsers from 'topmostParsers' to 'prevTopmost' *)
-  (xassert (glr.prevTopmost#isEmpty()));
+  (assert (glr.prevTopmost#isEmpty()));
   (glr.prevTopmost#swapWith glr.topmostParsers);
-  (xassert (glr.topmostParsers#isEmpty()));
+  (assert (glr.topmostParsers#isEmpty()));
 
   (* grab current token since we'll need it and the access 
    * isn't all that fast here in ML *)
@@ -1485,7 +1487,7 @@ begin
     (* take the node from 'prevTopmost'; the refcount transfers
      * from 'prevTopmost' to (local variable) 'leftSibling' *)
     let leftSibling:tStackNode = (glr.prevTopmost#pop()) in
-    (xassert (leftSibling.referenceCount >= 1));   (* for the local *)
+    (assert (leftSibling.referenceCount >= 1));   (* for the local *)
 
     (* can this parser shift? *)
     let action:tActionEntry =
@@ -1563,7 +1565,7 @@ begin
       prev := (Some (addSiblingLink rightSibling leftSibling sval));
 
       (* see comments in glr.cc for explanation *)
-      (xassert (rightSibling.referenceCount = 1));
+      (assert (rightSibling.referenceCount = 1));
     );
     
     (* pending decrement of leftSibling, which is about to go out of scope *)

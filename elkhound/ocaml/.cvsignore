@@ -7,3 +7,8 @@ tmp
 arith.ml*
 een.ml*
 lexer.ml
+*.cmx
+*.dx
+oc_arith.ml
+tobjpool.opt
+main.opt

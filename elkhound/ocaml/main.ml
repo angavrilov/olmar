@@ -12,6 +12,7 @@ open Een           (* eenParseTables, eenUserActions *)
 open Ptreeact      (* tParseTreeLexer, makeParseTreeActions *)
 open Ptreenode     (* tPTreeNode, printTree *)
 open Lexer         (* tToken, readToken *)
+(* also uses Oc_arith, but with explicit qualification *)
 
 
 (* ------------------ lexer ------------------- *)
@@ -29,6 +30,13 @@ object (self)
     else (
       (Lexing.from_channel stdin)
     );
+
+  (* this method exists so that I can give the lexbuf directly to an
+   * ocamlyacc parser, for performance/testing purposes *)
+  method getLexbuf() : Lexing.lexbuf =
+  begin
+    lexbuf
+  end
 
   method getToken() : unit =
   begin
@@ -80,6 +88,26 @@ begin
 end
 
 
+(* Substitute readToken; I need to translate between the tokens
+ * that my lexer yields and the tokens that the ocamlyacc parser
+ * expects.  I *could* have just used the ocamlyacc tokens
+ * throughout, but then this example would be more dependent on
+ * ocamlyacc than I want. *)
+let ocReadToken (lexbuf: Lexing.lexbuf) : Oc_arith.token =
+begin
+  let t: tToken = (Lexer.readToken lexbuf) in
+  match t with
+  | EOF ->       Oc_arith.EOF
+  | INT(n) ->    Oc_arith.TOK_NUMBER(n)
+  | PLUS ->      Oc_arith.TOK_PLUS
+  | MINUS ->     Oc_arith.TOK_MINUS
+  | TIMES ->     Oc_arith.TOK_TIMES
+  | DIV ->       Oc_arith.TOK_DIVIDE
+  | LPAREN ->    Oc_arith.TOK_LPAREN
+  | RPAREN ->    Oc_arith.TOK_RPAREN
+end
+
+
 (* --------------------- main -------------------- *)
 let main() : unit =
 begin
@@ -94,6 +122,7 @@ begin
   let useArith: bool ref = ref true in
   let justTokens: bool ref = ref false in
   let usePTree: bool ref = ref false in
+  let useOcamlyacc: bool ref = ref false in
 
   (* process arguments *)
   for i=1 to ((Array.length Sys.argv) - 1) do
@@ -104,6 +133,7 @@ begin
     | "een" ->        useArith := false
     | "tokens" ->     justTokens := true
     | "ptree" ->      usePTree := true
+    | "ocamlyacc" ->  useOcamlyacc := true
     | op -> (
         (Printf.printf "unknown option: %s\n" op);
         (flush stdout);
@@ -112,11 +142,19 @@ begin
   done;
 
   (* create the lexer *)
-  let lex:tLexerInterface = ((new tLexer) :> tLexerInterface) in
+  let lex_orig:tLexer = (new tLexer) in
+  let lex:tLexerInterface = (lex_orig :> tLexerInterface) in
   if (!justTokens) then (
     (* just print all the tokens and bail *)
     (printTokens lex);
     (raise Exit);       (* close enough *)
+  );
+
+  if (!useOcamlyacc) then (
+    let lexbuf: Lexing.lexbuf = (lex_orig#getLexbuf ()) in
+    let result: int = (Oc_arith.main ocReadToken lexbuf) in
+    (Printf.printf "ocamlyacc result: %d\n" result);
+    (raise Exit);
   );
 
   (* prime the lexer: get first token *)
@@ -187,5 +225,14 @@ begin
 end
 ;;
 
-Printexc.catch main()
+let outerMain() : unit =
+begin
+  try
+    (main())
+  with
+  | Exit -> ()
+end
+;;
+
+Printexc.catch outerMain()
 ;;

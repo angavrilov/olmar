@@ -1,17 +1,26 @@
 # Makefile
 
+#tmp: lexer.cmo
+
+all: tobjpool main main.opt
+
 # directories
 ELKHOUND := ..
 
-#tmp: lexer.cmo
-
-all: tobjpool main
+# compiler options
+#OCAMLCFLAGS := -noassert
+OCAMLCFLAGS :=
 
 # using dependency strategy from 
 # http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
 %.cmo: %.ml
-	ocamlc -c -g $*.ml
+	ocamlc -c -g $(OCAMLCFLAGS) $*.ml
 	@ocamldep $*.ml > $*.d
+
+# I'll try maintaining separate dependency info for .cmo and .cmx
+%.cmx: %.ml
+	ocamlopt -c $(OCAMLCFLAGS) $*.ml
+	@ocamldep $*.ml > $*.dx
 
 # run elkhound on a grammar spec
 # (for now I don't want to use the interface stuff)
@@ -26,6 +35,11 @@ all: tobjpool main
 %.ml: %.mll
 	ocamllex $*.mll
 
+# run ocamlyacc on a parser spec
+%.ml: %.mly
+	ocamlyacc $*.mly
+	rm -f $*.mli
+
 # NOTE: Module order is important!  OCaml module dependencies cannot
 # be cyclic, and the order presented must respect the dependency order.
 
@@ -36,6 +50,9 @@ TOBJPOOL_MODULES = \
   tobjpool.cmo
 tobjpool: $(TOBJPOOL_MODULES)
 	ocamlc -o $@ -g $^
+
+tobjpool.opt: $(TOBJPOOL_MODULES:.cmo=.cmx)
+	ocamlopt -o $@ $^
 
 # these are the minimal set of modules needed for an elkhound parser
 MINIMAL_MODULES = \
@@ -58,15 +75,20 @@ MAIN_MODULES = \
   ptreenode.cmo \
   ptreeact.cmo \
   lexer.cmo \
+  oc_arith.cmo \
   main.cmo
 main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^
+
+main.opt: $(MAIN_MODULES:.cmo=.cmx)
+	ocamlopt -o $@ $^
 
 # dependencies
 ALL_MODULES = \
   $(MAIN_MODULES) \
   tobjpool.cmo
 -include $(ALL_MODULES:.cmo=.d)
+-include $(ALL_MODULES:.cmo=.dx)
 
 # run it a bunch of ways
 check:
@@ -76,4 +98,5 @@ check:
 	echo "2+3+4" | ./main een glr ptree
 
 clean:
-	rm -f *.cmo *.cmi *.d arith.ml* een.ml* lexer.ml main tobjpool
+	rm -f *.cmo *.cmi *.d *.cmx *.dx
+	rm -f arith.ml* een.ml* lexer.ml main tobjpool
