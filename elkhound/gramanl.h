@@ -20,6 +20,7 @@
 #include "grammar.h"    // Grammar and friends
 #include "ohashtbl.h"   // OwnerHashTable
 #include "okhashtbl.h"  // OwnerKHashTable
+#include "array.h"      // GrowArray
 
 // forward decls
 class Bit2d;            // bit2d.h
@@ -301,6 +302,12 @@ public:     // funcs
   // do this after adding things to the items lists
   void changedItems();
 
+  // a part of 'changedItems', this is used in a specialized way
+  // during LR item set construction; it leaves 'this' in a somewhat
+  // half-baked state (if changedItems is not also called), so some
+  // care needs to be taken when using this directly
+  void computeKernelCRC(GrowArray<DottedProduction const*> &array);
+
   // remove the reduce using 'prod' on lookahead 'sym;
   // calls 'changedItems' internally
   void removeReduce(Production const *prod, Terminal const *sym);
@@ -439,7 +446,8 @@ private:    // funcs
   ItemSet *makeItemSet();
   void disposeItemSet(ItemSet *is);
   void moveDotNoClosure(ItemSet const *source, Symbol const *symbol,
-                        ItemSet *dest, ObjList<LRItem> &unusedTail);
+                        ItemSet *dest, ObjList<LRItem> &unusedTail,
+                        GrowArray<DottedProduction const*> &array);
   ItemSet *findItemSetInList(ObjList<ItemSet> &list,
                              ItemSet const *itemSet);
   static bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);

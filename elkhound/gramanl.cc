@@ -781,43 +781,34 @@ void ItemSet::changedItems()
   // verify both loops executed same number of times
   xassert(index == count);
 
+  // compute CRC; in this function, I just allocate here since this
+  // function is already allocation-happy
+  GrowArray<DottedProduction const*> array(0 /*allocate later*/);
+  computeKernelCRC(array);
 
-  // -- compute CRC of kernel items --
-  // we will crc the prod/dot fields, using the pointer representation
-  // of 'prod'; assumes the items have already been sorted!
+  // compute this so we can throw away items later if we want to
+  stateSymbol = computeStateSymbolC();
+}
+
+
+void ItemSet::computeKernelCRC(GrowArray<DottedProduction const*> &array)
+{
   int numKernelItems = kernelItems.count();
-  struct PD {
-    Production const *prod;     // serf
-    int dot;
-  };
-  PD *array = new PD[numKernelItems];
-  index = 0;        
+  
+  // expand as necessary, but don't get smaller
+  array.ensureAtLeast(numKernelItems);
+
+  // we will crc the prod/dot fields, using the pointer representation
+  // of 'dprod'; assumes the items have already been sorted!
+  int index = 0;
   FOREACH_OBJLIST(LRItem, kernelItems, kitem) {
-    array[index].prod = kitem.data()->getProd();
-    array[index].dot = kitem.data()->getDot();
-
-    #if 0     // not entirely convenient to correct ..
-    if (index > 0) {
-      // may as well check sortedness and
-      // uniqueness
-      xassert(LRItem::
-                diff(array[index].prod, array[index-1].prod, NULL) > 0);
-    }                                                 
-    #endif // 0
-
+    array[index] = kitem.data()->dprod;
     index++;
   }
 
   // CRC the buffer
-  kernelItemsCRC = crc32((unsigned char const*)array,
+  kernelItemsCRC = crc32((unsigned char const*)(array.getArray()),
                          sizeof(array[0]) * numKernelItems);
-
-  // trash the array
-  delete[] array;
-
-
-  // compute this so we can throw away items later if we want to
-  stateSymbol = computeStateSymbolC();
 }
 
 
@@ -2054,11 +2045,18 @@ void GrammarAnalysis::disposeItemSet(ItemSet *is)
 
 // yield (by filling 'dest') a new itemset by moving the dot across
 // the productions in 'source' that have 'symbol' to the right of the
-// dot; do *not* compute the closure; since 'dest' comes with a bunch
-// of kernel items, some of which we most likely won't need, put the
-// unused ones into 'unusedTail'
+// dot; do *not* compute the closure
+//
+// unusedTail:
+//   since 'dest' comes with a bunch of kernel items, some of which we
+//   most likely won't need, put the unused ones into 'unusedTail'
+//
+// array:
+//   since I don't want to allocate anything in here, we need scratch
+//   space for computing kernel CRCs
 void GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symbol,
-                                       ItemSet *dest, ObjList<LRItem> &unusedTail)
+                                       ItemSet *dest, ObjList<LRItem> &unusedTail,
+                                       GrowArray<DottedProduction const*> &array)
 {
   //ItemSet *ret = makeItemSet();
 
@@ -2115,12 +2113,16 @@ void GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symb
   // verify we actually got something
   xassert(appendCt > 0);
 
-  // we added stuff
+  // we added stuff; sorting is needed both for the CRC below, and also
+  // for the lookahead merge step that follows a successful lookup
   dest->sortKernelItems();
 
   // TODO: changedItems allocates a lot; need to reduce the allocations
   // TODO: in there, but moreover avoid the call at all here (just need crc)
-  dest->changedItems();
+  //dest->changedItems();  
+  
+  // recompute the one thing I need to do hashing
+  dest->computeKernelCRC(array);
 }
 
 
@@ -2201,7 +2203,7 @@ void GrammarAnalysis::constructLRItemSets()
   // since these items will be re-used over and over, filling it now
   // ensures good locality on those accesses (assuming malloc returns
   // objects close together)
-  enum { INIT_LIST_LEN = 5 };   // TODO: increase count to 100 (5 for testing)
+  enum { INIT_LIST_LEN = 100 };
   for (int i=0; i<INIT_LIST_LEN; i++) {
     // this is a dummy item; it allocates the bitmap for 'lookahead',
     // but those bits and the 'dprod' pointer will be overwritten
@@ -2209,6 +2211,10 @@ void GrammarAnalysis::constructLRItemSets()
     LRItem *item = new LRItem(numTerms, NULL /*dottedprod*/);
     scratchState->addKernelItem(item);
   }
+
+  // similar to the scratch state, make a scratch array for the
+  // kernel CRC computation
+  GrowArray<DottedProduction const*> kernelCRCArray(100);
 
   // start by constructing closure of first production
   // (basically assumes first production has start symbol
@@ -2281,7 +2287,8 @@ void GrammarAnalysis::constructLRItemSets()
       // this call also yields the unused remainder of the kernel items,
       // so we can add them back in at the end
       ObjList<LRItem> unusedTail;
-      moveDotNoClosure(itemSet, sym, scratchState, unusedTail);
+      moveDotNoClosure(itemSet, sym, scratchState,
+                       unusedTail, kernelCRCArray);
       ItemSet *withDotMoved = scratchState;    // clarify role from here down
 
       // see if we already have it, in either set
