@@ -396,8 +396,11 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
 //  - meaning is extracted, e.g. for integer literals
 // not performed yet:
 //  - preprocessor actions are performed: inclusion and macro expansion
-void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
+void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 {
+  // get the SourceFile
+  SourceFile *sourceFile = sourceFileList.open(fname);
+
   // keep track of previous L2 token emitted so we can do token
   // collapsing for string juxtaposition
   Lexer2Token *prevToken = NULL;
@@ -438,7 +441,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
     // yet at this point, so I use L2_NAME as a placeholder
     Lexer2Token *L2 =
       new Lexer2Token(L2_NAME,
-                      SourceLocation(L1->loc, NULL /*file (for now)*/));
+                      SourceLocation(L1->loc, sourceFile));
 
     try {
       switch (L1->type) {
@@ -545,7 +548,7 @@ Lexer2TokenType lexer2_gettoken()
 
     // do second phase
     lexer2 = new Lexer2;
-    lexer2_lex(*lexer2, *lexer1);
+    lexer2_lex(*lexer2, *lexer1, "<stdin>");
 
     // prepare to return tokens
     iter = new ObjListIter<Lexer2Token>(lexer2->tokens);

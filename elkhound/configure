@@ -6,7 +6,12 @@ usage() {
   echo "usage: $0 --ocaml"
   echo "  OR"
   echo "       $0 --nocaml"
-  echo "  depending on whether you are Wes or Scott.  :)"
+  echo "  depending on whether you want Ocaml stuff or not"
+  echo ""
+  echo "another possible usage is"
+  echo "  $0 (--ocaml|--nocaml) --setupMakefile"
+  echo "which will simply rengerate Makefile from Makefile.in"
+  echo ""
   exit
 }
 

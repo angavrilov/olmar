@@ -91,13 +91,36 @@ value ocaml_fieldinfo(const char *s_name, const char *f_name, value type)
     CAMLreturn(result);
 }
 
+
+// get the source location for a Cil thing
+value cil_thing_location(CilThing *thing)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    SourceLocation *loc = thing->treeNode->loc();
+    if (loc) {
+        result = ocaml_location(loc->line, loc->col,
+                                !loc->fname()? "unknown" : loc->fname());
+    }
+    else {
+        // this shouldn't ever happen for CilLval, but in
+        // general, it's possible for parse subtrees to not
+        // have location information, if they have no terminals
+        result = OCAML_DUMMY_LOCATION;
+    }
+
+    CAMLreturn(result);
+}
+
+
 /* convert a CIL lvalue to OCAML */
 value cil_lval_to_ocaml(CilLval *lval)
 {
     CAMLparam0();
     CAMLlocal4(result,a,b,l);
 
-    l = OCAML_DUMMY_LOCATION;	/* FIXME: lval locations? */ 
+    l = cil_thing_location(lval);
 
     switch (lval->ltag) {
 	case CilLval::T_VARREF:
@@ -161,17 +184,17 @@ value cil_exp_to_ocaml(CilExpr *exp)
     CAMLlocal5(result,a,b,c,l);
     int code;
 
-    l = OCAML_DUMMY_LOCATION;	/* FIXME: exp locations? */ 
+    l = cil_thing_location(exp);
 
     switch (exp->etag) {
-	case CilExpr::T_LITERAL: 
+	case CilExpr::T_LITERAL:
 	    result = alloc(2,0);
 	    a = ocaml_const_int(exp->lit.value);
 	    Store_field(result, 0, a);
 	    Store_field(result, 1, l);
 	    break;
 
-	case CilExpr::T_LVAL: 
+	case CilExpr::T_LVAL:
 	    result = alloc(1,1);
 	    a = cil_lval_to_ocaml(exp->lval);
 	    Store_field(result, 0, a);
@@ -283,7 +306,7 @@ value cil_inst_to_ocaml(CilInst *inst)
     CAMLparam0();
     CAMLlocal5(result,a,b,c,l);
 
-    l = OCAML_DUMMY_LOCATION;	/* FIXME: exp locations? */ 
+    l = cil_thing_location(inst);
 
     switch (inst->itag) {
 	case CilInst::T_ASSIGN:

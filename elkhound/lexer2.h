@@ -209,7 +209,7 @@ public:
 
 // interface to 2nd phase lexical analysis
 // (will change; for now I'm only going to process single files)
-void lexer2_lex(Lexer2 &dest, Lexer1 const &src);
+void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname);
 
 
 // parser's interface to lexer2 (experimental)

@@ -283,7 +283,7 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
 
   // do second phase lexer
   traceProgress(2) << "lexical analysis stage 2...\n";
-  lexer2_lex(lexer2, lexer1);
+  lexer2_lex(lexer2, lexer1, inputFname);
 
   // parsing itself
   return glrParse(lexer2);
