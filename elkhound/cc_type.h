@@ -93,12 +93,20 @@ public:     // funcs
   // we say "extern type1 x" and then "extern type2 x" we
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
-
-  virtual string toString() const = 0;
+                                         
+  // print in C notation
+  virtual string toCString() const = 0;
+  
+  // print in a Cil notation, using integer ids
+  // for all references to other types
+  virtual string toCilString(int depth=1) const = 0;
+                 
+  // print in Cil with C notation in comments
+  string toString(int depth=1) const;
 
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
-  
+
   ALLOC_STATS_DECLARE
 };
 
@@ -115,7 +123,8 @@ public:     // funcs
   SimpleType() : type(NUM_SIMPLE_TYPES /*invalid*/) {}
 
   virtual Tag getTag() const { return T_SIMPLE; }
-  virtual string toString() const;
+  virtual string toCString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -149,7 +158,8 @@ public:     // funcs
   static char const *keywordName(Keyword k);
 
   virtual Tag getTag() const { return T_COMPOUND; }
-  virtual string toString() const;
+  virtual string toCString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 
   string toStringWithFields() const;
@@ -167,7 +177,8 @@ public:     // funcs
   ~EnumType();
 
   virtual Tag getTag() const { return T_ENUM; }
-  virtual string toString() const;
+  virtual string toCString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -222,13 +233,19 @@ public:     // funcs
 
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
-  string toString() const;
-  string toString(char const *name) const;
+  string toCString() const;
+  string toCString(char const *name) const;
 
   // the left/right business is to allow us to print function
   // and array types in C's syntax
   virtual string leftString() const = 0;
   virtual string rightString() const;    // default: returns ""
+
+  // Cil ascii output
+  virtual string toCilString(int depth=1) const = 0;
+
+  // print in Cil with C notation in comments
+  string toString(int depth=1) const;
 
   // size of representation
   virtual int reprSize() const = 0;
@@ -277,6 +294,7 @@ public:
 
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -304,6 +322,7 @@ public:
   virtual Tag getTag() const { return T_POINTER; }
   virtual string leftString() const;
   virtual string rightString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -345,6 +364,7 @@ public:
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString() const;
   virtual string rightString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -367,6 +387,7 @@ public:
   virtual Tag getTag() const { return T_ARRAY; }
   virtual string leftString() const;
   virtual string rightString() const;
+  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 

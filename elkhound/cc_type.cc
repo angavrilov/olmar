@@ -43,6 +43,16 @@ SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
 }
 
 
+string makeIdComment(int id)
+{
+  if (tracingSys("type-ids")) {
+    return stringc << "/""*" << id << "*/";
+  }
+  else {
+    return "";
+  }
+}
+
 
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
@@ -73,10 +83,41 @@ bool AtomicType::equals(AtomicType const *obj) const
 }
 
 
+template <class T>
+string recurseCilString(T const *type, int depth)
+{
+  depth--;
+  xassert(depth >= 0);     // otherwise we started < 1
+  if (depth == 0) {
+    // just print the id
+    return stringc << "id " << type->id;
+  }
+  else {
+    // print id in a comment but go on to print the
+    // type one level deeper
+    return stringc << makeIdComment(type->id) << " "
+                   << type->toCilString(depth);
+  }
+}
+
+
+string AtomicType::toString(int depth) const
+{
+  return stringc << recurseCilString(this, depth+1)
+                 << " /""* " << toCString() << " */";
+}
+
+
 // ------------------ SimpleType -----------------
-string SimpleType::toString() const
+string SimpleType::toCString() const
 {
   return simpleTypeName(type);
+}
+
+
+string SimpleType::toCilString(int) const
+{
+  return toCString();
 }
 
 
@@ -119,24 +160,51 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 }
 
 
-string CompoundType::toString() const
+string CompoundType::toCString() const
 {
   return stringc << keywordName(keyword) << " " << name;
 }
-  
+
 
 // watch out for circular pointers (recursive types) here!
 // (already bitten once ..)
 string CompoundType::toStringWithFields() const
 {
   stringBuilder sb;
-  sb << toString();
+  sb << toCString();
   if (isComplete()) {
     sb << " { " << env->toString() << "};";
   }
   else {
     sb << ";";
   }
+  return sb;
+}
+
+
+string CompoundType::toCilString(int depth) const
+{
+  if (!isComplete()) {
+    // this is a problem for my current type-printing
+    // strategy, since I'm likely to print this even
+    // when later I will get complete type info ..
+    return "incomplete";
+  }
+
+  stringBuilder sb;
+  sb << keywordName(keyword) << " " << name << " {\n";
+
+  // iterate over fields
+  // TODO2: this is not in the declared order ..
+  StringObjDict<Variable> &vars = env->getVariables();
+  StringObjDict<Variable>::Iter iter(vars);
+  for (; !iter.isDone(); iter.next()) {
+    Variable const *var = iter.value();
+    sb << "  " << var->name << ": "
+       << var->type->toString(depth-1) << ";\n";
+  }
+
+  sb << "}";
   return sb;
 }
 
@@ -165,9 +233,16 @@ EnumType::~EnumType()
 {}
 
 
-string EnumType::toString() const
+string EnumType::toCString() const
 {
   return stringc << "enum " << name;
+}
+
+
+string EnumType::toCilString(int depth) const
+{       
+  // TODO2: get fields
+  return toCString();
 }
 
 
@@ -213,7 +288,7 @@ bool Type::equals(Type const *obj) const
   if (getTag() != obj->getTag()) {
     return false;
   }
-  
+
   switch (getTag()) {
     default: xfailure("bad tag");
     #define C(tag,type) \
@@ -222,17 +297,7 @@ bool Type::equals(Type const *obj) const
     C(T_POINTER, PointerType)
     C(T_FUNCTION, FunctionType)
     C(T_ARRAY, ArrayType)
-  }
-}
-
-
-string makeIdComment(int id)
-{
-  if (tracingSys("type-ids")) {
-    return stringc << "/""*" << id << "*/";
-  }
-  else {
-    return "";
+    #undef C
   }
 }
 
@@ -243,20 +308,27 @@ string Type::idComment() const
 }
 
 
-string Type::toString() const
+string Type::toCString() const
 {
   return stringc << idComment() << leftString() << rightString();
 }
 
-string Type::toString(char const *name) const
+string Type::toCString(char const *name) const
 {
-  return stringc << idComment() 
+  return stringc << idComment()
                  << leftString() << " " << name << rightString();
 }
 
 string Type::rightString() const
 {
   return "";
+}
+
+
+string Type::toString(int depth) const
+{                              
+  return stringc << recurseCilString(this, depth+1)
+                 << " /""* " << toCString() << " */";
 }
 
 
@@ -333,7 +405,14 @@ string CVAtomicType::atomicIdComment() const
 string CVAtomicType::leftString() const
 {
   return stringc << atomicIdComment()
-                 << atomic->toString() << cvToString(cv);
+                 << atomic->toCString() << cvToString(cv);
+}
+
+
+string CVAtomicType::toCilString(int depth) const
+{
+  return stringc << cvToString(cv) << " atomic "
+                 << recurseCilString(atomic, depth);
 }
 
 
@@ -349,7 +428,7 @@ bool PointerType::innerEquals(PointerType const *obj) const
   return op == obj->op &&
          cv == obj->cv &&
          atType->equals(obj->atType);
-}         
+}
 
 
 string PointerType::leftString() const
@@ -365,6 +444,14 @@ string PointerType::rightString() const
 }
 
 
+string PointerType::toCilString(int depth) const
+{
+  return stringc << cvToString(cv)
+                 << (op==PO_POINTER? "ptrto " : "refto ")
+                 << recurseCilString(atType, depth);
+}
+
+
 int PointerType::reprSize() const
 {
   // a typical value ..
@@ -375,11 +462,11 @@ int PointerType::reprSize() const
 // -------------------- Parameter -----------------
 Parameter::~Parameter()
 {}
-                  
+
 
 string Parameter::toString() const
 {
-  return type->toString(name);
+  return type->toCString(name);
 }
 
 
@@ -471,10 +558,34 @@ string FunctionType::rightString() const
 }
 
 
+string FunctionType::toCilString(int depth) const
+{
+  stringBuilder sb;
+  sb << "func " << cvToString(cv) << " ";
+  if (acceptsVarargs) {
+    sb << "varargs ";
+  }
+  sb << "(";
+
+  int ct=0;
+  FOREACH_OBJLIST(Parameter, params, iter) {
+    if (++ct > 1) {
+      sb << ", ";
+    }
+    sb << iter.data()->name << ": "
+       << recurseCilString(iter.data()->type, depth);
+  }
+  
+  sb << ") -> " << recurseCilString(retType, depth);
+  
+  return sb;
+}
+
+
 int FunctionType::reprSize() const
 {
   // thinking here about how this works when we're summing
-  // the fields of a class ...
+  // the fields of a class with member functions ..
   return 0;
 }
 
@@ -514,6 +625,18 @@ string ArrayType::rightString() const
 
   sb << eltType->rightString();
 
+  return sb;
+}
+
+
+string ArrayType::toCilString(int depth) const
+{
+  stringBuilder sb;
+  sb << "array [";
+  if (hasSize) {
+    sb << size;
+  }
+  sb << "] of " << recurseCilString(eltType, depth);
   return sb;
 }
 

@@ -231,7 +231,7 @@ string CilExpr::toString() const
                      << binOpText(binop.op) << " "
                      << binop.right->toString() << ")";
     case T_CASTE:
-      return stringc << "([" << caste.type->toString()
+      return stringc << "([" << caste.type->toString(0)
                      << "] " << caste.exp->toString() << ")";
     case T_ADDROF:
       return stringc << "(& " << addrof.lval->toString() << ")";
@@ -385,7 +385,7 @@ string CilLval::toString() const
                      << " /""*" << fieldref.recType->name << "*/"    // odd syntax to avoid irritating emacs' highlighting
                      << " . " << fieldref.field->name << ")";
     case T_CASTL:
-      return stringc << "(@[" << castl.type->toString()
+      return stringc << "(@[" << castl.type->toString(0)
                      << "] " << castl.lval->toString() << ")";
     case T_ARRAYELT:
       return stringc << "(" << arrayelt.array->toString()
@@ -1241,14 +1241,14 @@ CilFnDefn::~CilFnDefn()
 void CilFnDefn::printTree(int ind, ostream &os, bool stmts) const
 {
   os << "fundecl " << var->name
-     << " : " << var->type->toString();
+     << " : " << var->type->toString(0);
   indent(ind, os) << " {" << locComment();
 
   // print locals
   SFOREACH_OBJLIST(Variable, locals, iter) {
     indent(ind+2, os)
        << "local " << iter.data()->name
-       << " : " << iter.data()->type->toString() << " ;\n";
+       << " : " << iter.data()->type->toString(0 /*depth*/) << " ;\n";
   }
   os << endl;
 
@@ -1281,7 +1281,7 @@ void CilProgram::printTree(int ind, ostream &os) const
   SFOREACH_OBJLIST(Variable, globals, iter) {
     indent(ind, os)
        << "global " << iter.data()->name
-       << " : " << iter.data()->type->toString() << " ;\n";
+       << " : " << iter.data()->type->toString(0 /*depth*/) << " ;\n";
   }
   
   FOREACH_OBJLIST(CilFnDefn, funcs, iter) {

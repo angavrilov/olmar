@@ -13,6 +13,18 @@
 int lastLineChecked = -1;
 
 
+// where to start emitting types
+enum {                   
+  // this makes us print everything
+  //FIRST_EMITTED_TYPE = 0
+
+  // with this one, we don't emit info about the simple types; we'll
+  // take that as implicit (and it clutters the output for small
+  // examples)
+  FIRST_EMITTED_TYPE = NUM_SIMPLE_TYPES
+};
+
+
 // global translation state; initialized before we start
 // processing the file, and updated as we process each
 // toplevel declaration
@@ -27,13 +39,8 @@ public:
 public:
   TranslationState(Env *e, wes_state *w)
     : globalEnv(e),
-
-      // don't emit info about the simple types; we'll
-      // take that as implicit (and it clutters the output
-      // for small examples)
-      nextType(NUM_SIMPLE_TYPES),
-      nextAtomic(NUM_SIMPLE_TYPES),
-
+      nextType(FIRST_EMITTED_TYPE),
+      nextAtomic(FIRST_EMITTED_TYPE),
       wes(w)
   {}
 };
@@ -136,6 +143,23 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
 
   // print Cil if we want that
   if (tracingSys("cil-tree")) {
+    // emit types that are new since the last type we did this
+    TypeEnv *te = env->getTypeEnv();
+
+    while (state.nextType < te->numTypes()) {
+      Type *t = te->lookup(state.nextType);
+      cout << "type " << state.nextType << ": "
+           << t->toString() << ";\n";
+      state.nextType++;
+    }
+
+    while (state.nextAtomic < te->numAtomicTypes()) {
+      AtomicType *at = te->lookupAtomic(state.nextAtomic);
+      cout << "atomicType " << state.nextAtomic << ": "
+           << at->toString() << ";\n";
+      state.nextAtomic++;
+    }
+
     prog.printTree(0 /*indent*/, cout);
   }
 

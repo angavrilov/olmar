@@ -12,7 +12,7 @@
 string Variable::toString() const
 {
   // don't care about printing the declflags right now
-  return type->toString(name);
+  return type->toCString(name);
 }
 
 
@@ -535,7 +535,7 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
     // print declaration
     indent(cout);
     cout << ((flags&DF_TYPEDEF) ? "typedef: " : "variable: ");
-    cout << type->toString(name) << endl;
+    cout << type->toCString(name) << endl;
   }
 
   return ret;
