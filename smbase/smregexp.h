@@ -41,6 +41,7 @@ public:      // types
 
 private:     // data
   void *impl;                  // implementation data
+  //int numLParens;              // # of left-parens in the pattern
 
 private:     // funcs
   // not allowed
@@ -59,6 +60,13 @@ public:      // funcs
 // allow '|' to be used on the flags
 ENUM_BITWISE_OR(Regexp::CFlags)
 ENUM_BITWISE_OR(Regexp::EFlags)
+
+
+// TODO: Add support for substring matches by building a class to
+// remember the substring offsets (enable 'numLParens' above)
+// efficiently.  Major question: do I always make an internal copy of
+// the string in which we searched?  Leaning towards yes...
+
 
 
 // --------------- convenience functions ---------------
