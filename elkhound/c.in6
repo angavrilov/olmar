@@ -42,6 +42,7 @@ void exprs()
 
 
 struct S { int m; };
+S global_s;
 
 void lvals()
 {
@@ -61,7 +62,7 @@ void lvals()
 }
 
 
-void twoArgFn(int a, int b);
+int twoArgFn(int a, int b);
 
 void insts()
 {

@@ -24,7 +24,7 @@ literalCode "prologue" {
   // provide easy-to-grep-for (and easy-to-put-a-breakpt) names for
   // places I haven't implemented the Cil translation
   CilExpr *todoCilExpr();
-  CilInst *todoCilInst();
+  CilStmt *todoCilStmt();
 
   // this is for places where there is no value
   // for a construct
@@ -95,7 +95,7 @@ nonterm Checkable {
   //   - return an expression ptr for the value of the
   //     language construct, when evaluated as an expression
   //     (deliberately vague here, for now..)
-  fundecl CilExpr *typeCheck(Env *passedEnv, CilInstructions &inst);
+  fundecl CilExpr *typeCheck(Env *passedEnv, CilContext const &ctxt);
 
   // first thing in every typeCheck function
   literalCode "prefix" typeCheck {
@@ -107,9 +107,9 @@ nonterm Checkable {
   
   // but of syntactic sugar: typeCheck, and be sure the
   // type of the result isn't void
-  fundecl CilExpr *rvalueTypeCheck(Env *passedEnv, CilInstructions &inst);
+  fundecl CilExpr *rvalueTypeCheck(Env *passedEnv, CilContext const &ctxt);
   fun rvalueTypeCheck {
-    return asRval(typeCheck(passedEnv, inst), *this);
+    return asRval(typeCheck(passedEnv, ctxt), *this);
   }
 }
 
@@ -141,10 +141,10 @@ nonterm TranslationUnit : Checkable {
 
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
-      delete t.typeCheck(env, inst);
+      delete t.typeCheck(env, ctxt);
 
       try {
-        delete d.typeCheck(env, inst);
+        delete d.typeCheck(env, ctxt);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
@@ -176,7 +176,7 @@ nonterm TranslationUnit : Checkable {
   // allow assembly at toplevel for gnu compatibility
   -> t:TranslationUnit a:GNUAsmStatement {
     fun typeCheck {
-      return t.typeCheck(env, inst);
+      return t.typeCheck(env, ctxt);
     }
     
     fun camlAST {
@@ -191,7 +191,7 @@ nonterm TranslationUnit : Checkable {
   // gnu extension: allow random semicolons at toplevel
   -> t:TranslationUnit ";" {
     fun typeCheck {
-      return t.typeCheck(env, inst);
+      return t.typeCheck(env, ctxt);
     }
     
     // sm: wes, is this right?
@@ -218,9 +218,11 @@ nonterm TranslationUnit : Checkable {
     trace("typeCheck") << locString() << endl;
     lastLineChecked = loc()->line;
 
-    // run the analysis on this piece of the tree
-    CilCompound *cil = newCompound();
-    delete typeCheck(env, *cil);
+    // run the analysis on this piece of the tree; right
+    // now, I don't handle globals well because I'm doing
+    // fn-at-a-time ....
+    CilProgram prog;
+    delete typeCheck(env, CilContext(prog));
 
     #ifdef WES_OCAML_LINKAGE
       // this is a hideous hack, but I cannot actually pass return values
@@ -228,7 +230,7 @@ nonterm TranslationUnit : Checkable {
       // sm: yeah, we're in a C++ constructor here so return
       // values are tricky ...
       {
-	extern struct wes_list * wes_result_list; // declared below 
+	extern struct wes_list * wes_result_list; // declared below
         struct wes_list * new_cell = new struct wes_list;
         new_cell->hd = camlAST();
         new_cell->tl = wes_result_list;
@@ -244,9 +246,21 @@ nonterm TranslationUnit : Checkable {
 
     // or this
     if (tracingSys("cil-tree")) {
-      cil->printTreeNoBraces(0 /*indent*/, cout);
+      prog.printTree(0 /*indent*/, cout);
     }
-    delete cil;
+
+    // deallocate now .. no good reason why .. (we can't
+    // keep this info beyond the end of this fn because
+    // we're about to delete e.g. all the environments
+    // into which 'prog' points (indirectly))
+    prog.empty();
+
+    #if 0      // for tracking down leaks
+    CilExpr::printAllocStats(false /*anyway*/);
+    CilInst::printAllocStats(false /*anyway*/);
+    CilStmt::printAllocStats(false /*anyway*/);
+    #endif // 0
+
 
     // ---- throw away most of the tree now ----
     // grab a pointer to the left child reduction, which should be
@@ -349,7 +363,7 @@ nonterm PrimaryExpression : ExprBase {
 
     -> "(" e:Expression ")" {
       fun intEval = e.intEval(env);
-      fun typeCheck = e.typeCheck(env, inst);
+      fun typeCheck = e.typeCheck(env, ctxt);
     }
 
     -> e:PQVarName {
@@ -369,11 +383,11 @@ nonterm PrimaryExpression : ExprBase {
 
   // GNU extension
   -> "(" s:CompoundStatement ")"
-    { fun typeCheck = s.typeCheck(env, inst); }
+    { fun typeCheck = s.typeCheck(env, ctxt); }
     
   // more gnu bs
   -> e:ConstructorExpression
-    { fun typeCheck = e.typeCheck(env, inst); }
+    { fun typeCheck = e.typeCheck(env, ctxt); }
 }
 
 nonterm Literal : ExprBase {
@@ -511,14 +525,14 @@ nonterm PostfixExpression : ExprBase {
   -> e:PrimaryExpression {
     fun intEval = e.intEval(env);
     fun getType = e.getType(env);
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
   }
                                                          
   // array access
   -> a:PostfixExpression "[" e:Expression "]" {
     fun typeCheck {
-      Owner<CilExpr> array; array = a.rvalueTypeCheck(env, inst);
-      Owner<CilExpr> index; index = e.rvalueTypeCheck(env, inst);
+      Owner<CilExpr> array; array = a.rvalueTypeCheck(env, ctxt);
+      Owner<CilExpr> index; index = e.rvalueTypeCheck(env, ctxt);
 
       // don't check array index; could be many types
       // (int, long, unsigned long...); TODO -- fix this
@@ -551,7 +565,7 @@ nonterm PostfixExpression : ExprBase {
   -> f:PostfixExpression "(" e:ExpressionListOpt ")" {
     fun typeCheck {
       // check the fn name
-      Owner<CilExpr> fn; fn = f.rvalueTypeCheck(env, inst);
+      Owner<CilExpr> fn; fn = f.rvalueTypeCheck(env, ctxt);
 
       Type const *origFnType = typeOf(fn, env);
       Type const *fnType = origFnType;
@@ -578,7 +592,7 @@ nonterm PostfixExpression : ExprBase {
       }
       else {
         result = env->newTmpVar(retType);
-        inst.append(newVarDecl(result));
+        ctxt.addVarDecl(result);
       }
 
       // make a CIL object to hold the call
@@ -588,10 +602,10 @@ nonterm PostfixExpression : ExprBase {
 
       // check the arglist, adding the arguments to the
       // 'call' object
-      e.typeCheck(env, inst, call);
+      e.typeCheck(env, CilContext(ctxt, *call));
 
       // insert the call into the list of instructions
-      inst.append(call.xfr());
+      ctxt.append(newInst(call.xfr()));
 
       if (!env->isTrialBalloon() &&
           f.getLeftmostTerminalC()->token->unparseString().equals("free")) {
@@ -615,7 +629,7 @@ nonterm PostfixExpression : ExprBase {
   -> p:PostfixExpression op:FieldAccessOp n:PQVarName {
     fun typeCheck {
       // check the left side
-      Owner<CilExpr> record; record = p.rvalueTypeCheck(env, inst);
+      Owner<CilExpr> record; record = p.rvalueTypeCheck(env, ctxt);
 
       // look up its type
       Type const *type = record->getType(env);
@@ -657,26 +671,26 @@ nonterm PostfixExpression : ExprBase {
 
       // check the right side in the context of the
       // struct we just found
-      Owner<Variable> field; field = n.typeCheck(ctype.env);
+      Variable *field; field = n.typeCheck(ctype.env);
 
-      return newFieldRef(recordLval.xfr(), field.xfr());
+      return newFieldRef(recordLval.xfr(), field);
     }
   }
 
   -> p:PostfixExpression op:IncOp {
     fun typeCheck {
       // get expression being incremented
-      Owner<CilLval> lval; lval = asLval(p.typeCheck(env, inst), p);
+      Owner<CilLval> lval; lval = asLval(p.typeCheck(env, ctxt), p);
 
       // save old value
       Variable *tmp = env->newTmpVar(typeOf(lval, env));
-      inst.append(newVarDecl(tmp));
-      inst.append(newAssign(newVarRef(tmp), lval->clone()));
+      ctxt.addVarDecl(tmp);
+      ctxt.append(newAssign(newVarRef(tmp), lval->clone()));
 
       // increment the expression
       BinOp bop = (op.unparseString()[0]=='+')? OP_PLUS : OP_MINUS;     // hack
       Owner<CilLval> lhs; lhs = lval->clone();
-      inst.append(newAssign(lhs.xfr(), newBinExpr(bop, lval.xfr(), newIntLit(1))));
+      ctxt.append(newAssign(lhs.xfr(), newBinExpr(bop, lval.xfr(), newIntLit(1))));
 
       // return a reference to the old value
       return newVarRefExpr(tmp);
@@ -688,7 +702,7 @@ nonterm PostfixExpression : ExprBase {
   //-> PostfixExpression "->" PseudoDestructorName          ;
 
   formGroup {
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
 
     -> "dynamic_cast"     "<" TypeId ">" "(" e:Expression ")" ;   // casts
     -> "static_cast"      "<" TypeId ">" "(" e:Expression ")" ;
@@ -706,36 +720,28 @@ nonterm PostfixExpression : ExprBase {
 nonterm IncOp -> "++" | "--";                  
 nonterm FieldAccessOp -> "." | "->";
 
-nonterm ExpressionList {
-  fundecl void typeCheck(Env *passedEnv, CilInstructions &inst, CilFnCall *call);
-  literalCode "prefix" typeCheck {
-    env = passedEnv;
-  }
-
+nonterm ExpressionList : Checkable {
   -> a:AssignmentExpression {
     fun typeCheck {
-      call->appendArg(a.typeCheck(env, inst));
+      ctxt.call->appendArg(a.typeCheck(env, ctxt));
+      return noCilValue();
     }
   }
 
   -> e:ExpressionList "," a:AssignmentExpression {
     fun typeCheck {
-      e.typeCheck(env, inst, call);
-      call->appendArg(a.typeCheck(env, inst));
+      e.typeCheck(env, ctxt);
+      ctxt.call->appendArg(a.typeCheck(env, ctxt));
+      return noCilValue();
     }
   }
 }
 
-nonterm ExpressionListOpt {
-  fundecl void typeCheck(Env *passedEnv, CilInstructions &inst, CilFnCall *call);
-  literalCode "prefix" typeCheck {
-    env = passedEnv;
-  }
-
+nonterm ExpressionListOpt : Checkable {
   -> empty
-    { fun typeCheck {} }
+    { fun typeCheck = noCilValue(); }
   -> e:ExpressionList
-    { fun typeCheck { e.typeCheck(env, inst, call); } }
+    { fun typeCheck = e.typeCheck(env, ctxt); }
 }
 
 // I am pulling these out since PQVarName can be ~class
@@ -745,11 +751,11 @@ nonterm ExpressionListOpt {
 nonterm UnaryExpression : ExprBase {
   // TODO: better abstraction of this mechanism
   literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, inst, (DisambFn)&UnaryExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, ctxt, (DisambFn)&UnaryExpression_Node::unamb_typeCheck);
   }
 
   formGroup {
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
 
     -> e:PostfixExpression {
       fun intEval = e.intEval(env);
@@ -758,13 +764,13 @@ nonterm UnaryExpression : ExprBase {
 
     -> op:IncOp e:CastExpression {
       fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, inst), e);
+        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, ctxt), e);
 
         // increment the expression
         BinOp bop = op.unparseString()[0]=='+'? OP_PLUS : OP_MINUS;     // hack
         Owner<CilLval> lhs; lhs = lval->clone();
         Owner<CilLval> rhs; rhs = lval->clone();
-        inst.append(newAssign(lhs.xfr(), newBinExpr(bop, rhs.xfr(), newIntLit(1))));
+        ctxt.append(newAssign(lhs.xfr(), newBinExpr(bop, rhs.xfr(), newIntLit(1))));
 
         // return a reference to the incremented lval
         return lval.xfr();
@@ -780,7 +786,7 @@ nonterm UnaryExpression : ExprBase {
       }
 
       fun typeCheck {
-        Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
+        Owner<CilExpr> expr; expr = e.typeCheck(env, ctxt);
 
         ostream &os = trace("sizeof") << locString() << ": sizeof(expr) is ";
         int s=0;
@@ -808,7 +814,7 @@ nonterm UnaryExpression : ExprBase {
 
     fun typeCheck {
       // check arg
-      Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, inst);
+      Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, ctxt);
       
       // check that it's a pointer type
       Type const *type = typeOf(expr, env);
@@ -845,7 +851,7 @@ nonterm UnaryExpression : ExprBase {
       fun intEval { throwError("can't apply this operator to an integer"); }
 
       fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, inst), e);
+        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, ctxt), e);
         return newAddrOfExpr(lval.xfr());
       }
     }
@@ -853,25 +859,25 @@ nonterm UnaryExpression : ExprBase {
     -> "+" e:CastExpression {
       fun intEval = e.intEval(env);
       fun typeCheck = 
-        e.rvalueTypeCheck(env, inst);
+        e.rvalueTypeCheck(env, ctxt);
     }
 
     -> "-" e:CastExpression {
       fun intEval = -e.intEval(env);
       fun typeCheck =
-        newUnaryExpr(OP_NEGATE, e.rvalueTypeCheck(env, inst));
+        newUnaryExpr(OP_NEGATE, e.rvalueTypeCheck(env, ctxt));
     }
 
     -> "!" e:CastExpression {
       fun intEval = !e.intEval(env);
       fun typeCheck =
-        newUnaryExpr(OP_NOT, e.rvalueTypeCheck(env, inst));
+        newUnaryExpr(OP_NOT, e.rvalueTypeCheck(env, ctxt));
     }
 
     -> "~" e:CastExpression {
       fun intEval = ~e.intEval(env);
       fun typeCheck =
-        newUnaryExpr(OP_BITNOT, e.rvalueTypeCheck(env, inst));
+        newUnaryExpr(OP_BITNOT, e.rvalueTypeCheck(env, ctxt));
     }
   }
 
@@ -929,8 +935,8 @@ nonterm NewInitializerOpt -> empty | "(" ExpressionListOpt ")" ;
 // omitting possibility of initial "::"
 nonterm DeleteExpression : Checkable {
   fun typeCheck {
-    /*Owner<CilExpr> expr; expr =*/ delete e.typeCheck(env, inst);
-    //inst.append(newFreeInst(expr.xfr()));
+    /*Owner<CilExpr> expr; expr =*/ delete e.typeCheck(env, ctxt);
+    //ctxt.append(newFreeInst(expr.xfr()));
     return noCilValue();     // TODO3: is this correct according to C++ std?
   }
 
@@ -939,22 +945,21 @@ nonterm DeleteExpression : Checkable {
 }
 
 nonterm CastExpression : ExprBase {
-
   // added this to disambiguate fn calls and casts
   literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, inst, (DisambFn)&CastExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, ctxt, (DisambFn)&CastExpression_Node::unamb_typeCheck);
   }
 
   -> e:UnaryExpression {
     fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
     fun getType = e.getType(env);
   }
 
   -> "(" t:TypeId ")" e:CastExpression {
     fun typeCheck {
       Type const *type = t.getType(env);
-      Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
+      Owner<CilExpr> expr; expr = e.typeCheck(env, ctxt);
             
       // if we're casting to void, drop the expression;
       // implicitly, that means it could be void too
@@ -989,14 +994,14 @@ nonterm BinaryExpression : ExprBase {
   attr prec;                  // precedence of binding (topmost) operator in expression
 
   literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, inst, (DisambFn)&BinaryExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, ctxt, (DisambFn)&BinaryExpression_Node::unamb_typeCheck);
   }
 
   -> e:CastExpression {
     action  prec := 100;      // higher precedence than anything else
 
     fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
     fun getType = e.getType(env);
   }
 
@@ -1017,8 +1022,8 @@ nonterm BinaryExpression : ExprBase {
 
     -> left:BinaryExpression op:BinaryOperator right:BinaryExpression {
       fun typeCheck {
-        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, inst);
-        Owner<CilExpr> R; R = right.rvalueTypeCheck(env, inst);
+        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, ctxt);
+        Owner<CilExpr> R; R = right.rvalueTypeCheck(env, ctxt);
 
         // something of a hack: my Cil type-checking code only looks
         // at left operands, but int+pointer has type pointer; so let's
@@ -1043,20 +1048,21 @@ nonterm BinaryExpression : ExprBase {
 
         // need a temprary for the result of this computation
         Variable *result = env->newTmpVar(env->getSimpleType(ST_INT));
-        inst.append(newVarDecl(result));
+        ctxt.addVarDecl(result);
 
         // evaluate left operand, and give the result a name
-        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, inst);
+        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, ctxt);
 
         // create the code to execute if 'L' is true
-        Owner<CilInst> leftTrue;
+        Owner<CilStmt> leftTrue;
                        leftTrue = newAssign(newVarRef(result), L->clone());
 
         // create the code to execute if 'L' is false
         Owner<CilCompound> evalRight; evalRight = newCompound();
         {
           // evaluate right operand, putting code into 'evalRight'
-          Owner<CilExpr> R; R = right.rvalueTypeCheck(env, *evalRight);
+          Owner<CilExpr> R; 
+          R = right.rvalueTypeCheck(env, CilContext(ctxt, *evalRight));
 
           // store R into the result
           evalRight->append(newAssign(newVarRef(result), R.xfr()));
@@ -1064,13 +1070,13 @@ nonterm BinaryExpression : ExprBase {
 
         // combine the test and both branches
         if (op.unparseString().equals("||")) {     // TODO2: HACK!
-          inst.append(newIfThenElse(L.xfr(),              // if (left)
+          ctxt.append(newIfThenElse(L.xfr(),              // if (left)
                                     leftTrue.xfr(),       //   tmp = left;   <-- no side effects
                                     evalRight.xfr()));    // else tmp = right;
         }
         else {
           // to handle "&&", just reverse the sense of the 'if'
-          inst.append(newIfThenElse(L.xfr(),              // if (left)
+          ctxt.append(newIfThenElse(L.xfr(),              // if (left)
                                     evalRight.xfr(),      //   tmp = right;
                                     leftTrue.xfr()));     // else tmp = left;   <-- no side effects
         }
@@ -1167,12 +1173,12 @@ nonterm ShortCircuitLogical : BinOpBase {
 
 nonterm ConditionalExpression : ExprBase {
   literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, inst, (DisambFn)&ConditionalExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, ctxt, (DisambFn)&ConditionalExpression_Node::unamb_typeCheck);
   }
 
   -> e:BinaryExpression {
     fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
     fun getType = e.getType(env);
   }
 
@@ -1197,7 +1203,7 @@ nonterm ConditionalExpression : ExprBase {
         int c = cond.intEval(env);
         
         // it is -- so just statically evaluate the correct operand
-        return c? th.typeCheck(env, inst) : el.typeCheck(env, inst);
+        return c? th.typeCheck(env, ctxt) : el.typeCheck(env, ctxt);
       }
       catch (...)
         {}     // fine; go ahead with the usual stuff
@@ -1205,17 +1211,17 @@ nonterm ConditionalExpression : ExprBase {
 
       // grab guard expression
       Owner<CilExpr> condExpr;
-                     condExpr = cond.rvalueTypeCheck(env, inst);
+                     condExpr = cond.rvalueTypeCheck(env, ctxt);
 
       // figure out what it will take to evaluate the 'then'
       Owner<CilCompound> thenInsts; thenInsts = newCompound();
       Owner<CilExpr> thenExpr;
-                     thenExpr = th.typeCheck(env, *thenInsts);
+                     thenExpr = th.typeCheck(env, CilContext(ctxt, *thenInsts));
 
       // simiarly for 'else'
       Owner<CilCompound> elseInsts; elseInsts = newCompound();
       Owner<CilExpr> elseExpr;
-                     elseExpr = el.typeCheck(env, *elseInsts);
+                     elseExpr = el.typeCheck(env, CilContext(ctxt, *elseInsts));
 
       // check that both expressions yield values
       if (thenExpr && elseExpr) {
@@ -1236,7 +1242,7 @@ nonterm ConditionalExpression : ExprBase {
       // TODO: check that the expression types match
       Variable *tmp = thenExpr? env->newTmpVar(typeOf(thenExpr, env)) : NULL;
       if (tmp) {
-        inst.append(newVarDecl(tmp));
+        ctxt.addVarDecl(tmp);
 
         // append to each sequence an assignment from the
         // computed expression to the temporary
@@ -1245,7 +1251,7 @@ nonterm ConditionalExpression : ExprBase {
       }
 
       // finally, append an if-then-else instruction
-      inst.append(newIfThenElse(
+      ctxt.append(newIfThenElse(
         condExpr.xfr(), thenInsts.xfr(), elseInsts.xfr()));
 
       // return a ref to the temporary, which can be used
@@ -1278,8 +1284,8 @@ nonterm ConditionalExpression : ExprBase {
 
     fun typeCheck {
       // ??
-      delete cond.typeCheck(env, inst);
-      return el.typeCheck(env, inst);
+      delete cond.typeCheck(env, ctxt);
+      return el.typeCheck(env, ctxt);
     }
 
     fun getType {
@@ -1296,7 +1302,7 @@ nonterm ConditionalExpression : ExprBase {
 // to be like-typed lvalues, but...
 nonterm AssignmentExpression : ExprBase {
   formGroup {
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
     fun getType = e.getType(env);
 
     -> e:ConditionalExpression   { fun intEval = e.intEval(env); }
@@ -1312,8 +1318,8 @@ nonterm AssignmentExpression : ExprBase {
 
     -> e1:BinaryExpression "=" e2:AssignmentExpression {
       fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, inst), e1);
-        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, inst);
+        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, ctxt), e1);
+        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, ctxt);
 
         if (!env->isTrialBalloon() &&
             e2.unparseString().equals("malloc ( )")) {
@@ -1327,7 +1333,7 @@ nonterm AssignmentExpression : ExprBase {
         }
 
         Owner<CilLval> lval2; lval2 = lval->clone();
-        inst.append(newAssign(lval2.xfr(), expr.xfr()));
+        ctxt.append(newAssign(lval2.xfr(), expr.xfr()));
         return lval.xfr();
       }
 
@@ -1336,13 +1342,13 @@ nonterm AssignmentExpression : ExprBase {
     -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression {
       fun typeCheck {
         // evaluation order?
-        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, inst), e1);
-        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, inst);
+        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, ctxt), e1);
+        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, ctxt);
 
         BinOp bop = op.getOp();
         Owner<CilLval> lhs; lhs = lval->clone();
         Owner<CilLval> rhs; rhs = lval->clone();
-        inst.append(newAssign(lhs.xfr(),
+        ctxt.append(newAssign(lhs.xfr(),
                               newBinExpr(bop, rhs.xfr(), expr.xfr())));
         return lval.xfr();
       }
@@ -1375,7 +1381,7 @@ nonterm AssignmentOperator {
 nonterm Expression : ExprBase {
   -> ae:AssignmentExpression {
     fun intEval = ae.intEval(env);
-    fun typeCheck = ae.typeCheck(env, inst);
+    fun typeCheck = ae.typeCheck(env, ctxt);
     fun getType = ae.getType(env);
   }
 
@@ -1384,8 +1390,8 @@ nonterm Expression : ExprBase {
     fun intEval = e.intEval(env), ae.intEval(env);
 
     fun typeCheck {
-      delete e.typeCheck(env, inst);     // throw away all but last
-      return ae.typeCheck(env, inst);    // keep last value
+      delete e.typeCheck(env, ctxt);     // throw away all but last
+      return ae.typeCheck(env, ctxt);    // keep last value
     }
 
     // type of ',' is last one in sequence ..
@@ -1395,7 +1401,7 @@ nonterm Expression : ExprBase {
 
 nonterm ExpressionOpt : Checkable {
   -> empty ;
-  -> e:Expression  { fun typeCheck = e.typeCheck(env, inst); }
+  -> e:Expression  { fun typeCheck = e.typeCheck(env, ctxt); }
 }
 
 // this is an expression with the additional requirement that
@@ -1406,9 +1412,9 @@ nonterm ConstantExpression -> e:ConditionalExpression {
     env = passedEnv;
 
     // typeCheck before intEval to eliminate any ambiguities
-    CilInstructions dummy;
-    delete e.typeCheck(env, dummy);
-    if (!dummy.isEmpty()) {
+    CilFnDefn dummy(NULL);
+    delete e.typeCheck(env, CilContext(dummy, 1 /*explicit*/));
+    if (!dummy.bodyStmt.isEmpty()) {
       throwError("constant exprs can't have side effects");
     }
 
@@ -1430,10 +1436,10 @@ nonterm HasCFG {
 // labeled-statement
 nonterm Statement : Checkable, HasCFG {
   literalCode "disamb" typeCheck {
-    return disambiguate(passedEnv, inst, (DisambFn)&Statement_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, ctxt, (DisambFn)&Statement_Node::unamb_typeCheck);
   }
 
-  fun typeCheck = s.typeCheck(env, inst);
+  fun typeCheck = s.typeCheck(env, ctxt);
 
   fundecl bool isWhileLoop() const;
   fun isWhileLoop = false;
@@ -1448,8 +1454,8 @@ nonterm Statement : Checkable, HasCFG {
     }
 
     fun typeCheck {
-      inst.append(newLabel(n.getName()));
-      return s.typeCheck(env, inst);
+      ctxt.append(newLabel(n.getName()));
+      return s.typeCheck(env, ctxt);
     }
   }
 
@@ -1460,7 +1466,7 @@ nonterm Statement : Checkable, HasCFG {
   -> "case" e:ConstantExpression ":" /*s:Statement*/ {
     fun typeCheck {
       int val = e.intEval(env);
-      inst.append(newCase(val));
+      ctxt.append(newCase(val));
       return noCilValue();
     }
     fun getCFG {
@@ -1481,7 +1487,7 @@ nonterm Statement : Checkable, HasCFG {
                                           
       // just make lots of separate case labels
       for (int i=lowVal; i<=highVal; i++) {
-        inst.append(newCase(i));
+        ctxt.append(newCase(i));
       }
 
       return noCilValue();
@@ -1490,8 +1496,8 @@ nonterm Statement : Checkable, HasCFG {
 
   -> "default" ":" s:Statement {
     fun typeCheck {
-      inst.append(newDefault());
-      return s.typeCheck(env, inst);
+      ctxt.append(newDefault());
+      return s.typeCheck(env, ctxt);
     }
     fun getCFG {
       cfg.addDefaultLabel(edge);
@@ -1506,7 +1512,7 @@ nonterm Statement : Checkable, HasCFG {
   -> s:CompoundStatement ;
 
   formGroup {
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
 
     // selection-statement
     -> "if" "(" e:Condition ")" s:Statement {
@@ -1529,7 +1535,7 @@ nonterm Statement : Checkable, HasCFG {
         DataflowEnv initialDenv(env->getDenv());
 
         // check the expression first; this sets its 'env' pointer
-        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, inst);
+        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, ctxt);
 
         // apply the constraints implied by the condition to
         // the current dataflow environment
@@ -1537,7 +1543,7 @@ nonterm Statement : Checkable, HasCFG {
 
         // flow through 'then' branch
         Owner<CilCompound> thenInst; thenInst = newCompound();
-        delete s.typeCheck(env, *thenInst);
+        delete s.typeCheck(env, CilContext(ctxt, *thenInst));
 
         // grab resulting dataflow env
         DataflowEnv afterThen(env->getDenv());
@@ -1554,7 +1560,7 @@ nonterm Statement : Checkable, HasCFG {
 
         // add the intermediate form of if-then-else, where
         // the else branch is empty
-        inst.append(newIfThenElse(
+        ctxt.append(newIfThenElse(
           cond.xfr(), thenInst.xfr(), newCompound()));
 
         return noCilValue();      // can't treat an if-then-else as a value
@@ -1569,7 +1575,7 @@ nonterm Statement : Checkable, HasCFG {
         DataflowEnv initialDenv(env->getDenv());
 
         // check the expression first; this sets its 'env' pointer
-        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, inst);
+        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, ctxt);
 
         // apply the constraints implied by the condition to
         // the current dataflow environment
@@ -1577,7 +1583,7 @@ nonterm Statement : Checkable, HasCFG {
 
         // flow through 'then' branch
         Owner<CilCompound> thenInst; thenInst = newCompound();
-        delete s1.typeCheck(env, *thenInst);
+        delete s1.typeCheck(env, CilContext(ctxt, *thenInst));
 
         // grab resulting dataflow env
         DataflowEnv afterThen(env->getDenv());
@@ -1591,13 +1597,13 @@ nonterm Statement : Checkable, HasCFG {
 
         // flow through 'else' branch
         Owner<CilCompound> elseInst; elseInst = newCompound();
-        delete s2.typeCheck(env, *elseInst);
+        delete s2.typeCheck(env, CilContext(ctxt, *elseInst));
 
         // merge the branches
         env->getDenv().mergeWith(afterThen);
 
         // append if-then-else
-        inst.append(newIfThenElse(
+        ctxt.append(newIfThenElse(
           cond.xfr(), thenInst.xfr(), elseInst.xfr()));
 
         return noCilValue();      // no value
@@ -1619,12 +1625,12 @@ nonterm Statement : Checkable, HasCFG {
 
     -> "switch" "(" e:Condition ")" s:Statement {
       fun typeCheck {
-        Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, inst);
+        Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, ctxt);
 
         Owner<CilCompound> body; body = newCompound();
-        delete s.typeCheck(env, *body);
+        delete s.typeCheck(env, CilContext(ctxt, *body));
         
-        inst.append(newSwitch(expr.xfr(), body.xfr()));
+        ctxt.append(newSwitch(expr.xfr(), body.xfr()));
         return noCilValue();
       }
 
@@ -1694,11 +1700,12 @@ nonterm Statement : Checkable, HasCFG {
         fun typeCheck {
           // get condition's imperative and non-imperative elements
           Owner<CilCompound> condInst; condInst = newCompound();
-          Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, *condInst);
+          Owner<CilExpr> cond; 
+          cond = e.rvalueTypeCheck(env, CilContext(ctxt, *condInst));
 
           // get statement's imperatives
           Owner<CilCompound> body; body = newCompound();
-          delete s.typeCheck(env, *body);
+          delete s.typeCheck(env, CilContext(ctxt, *body));
 
           // TODO: break and continue
 
@@ -1706,10 +1713,10 @@ nonterm Statement : Checkable, HasCFG {
           body->append(condInst->clone());
 
           // also put condition's imperative just before loop ...
-          inst.append(condInst.xfr());
+          ctxt.append(condInst.xfr());
 
           // then the loop body itself
-          inst.append(newWhileLoop(cond.xfr(), body.xfr()));
+          ctxt.append(newWhileLoop(cond.xfr(), body.xfr()));
 
           // no value
           return noCilValue();
@@ -1727,19 +1734,20 @@ nonterm Statement : Checkable, HasCFG {
           body->append(newLabel(topOfBody));
 
           // get statement's imperatives
-          delete s.typeCheck(env, *body);
+          delete s.typeCheck(env, CilContext(ctxt, *body));
 
           // get condition, putting its imperative at the end
           // of the body
-          Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, *body);
+          Owner<CilExpr> cond; 
+          cond = e.rvalueTypeCheck(env, CilContext(ctxt, *body));
 
           // TODO: break and continue
 
           // just before loop we jump into it, past test
-          inst.append(newGoto(topOfBody));
+          ctxt.append(newGoto(topOfBody));
 
           // then the loop body itself
-          inst.append(newWhileLoop(cond.xfr(), body.xfr()));
+          ctxt.append(newWhileLoop(cond.xfr(), body.xfr()));
 
           // no value
           return noCilValue();
@@ -1762,30 +1770,31 @@ nonterm Statement : Checkable, HasCFG {
     fun typeCheck {
       // initializer is just as if it were before the loop (except
       // declared variables are supposed to have loop scope .. TODO)
-      delete s1.typeCheck(env, inst);
+      delete s1.typeCheck(env, ctxt);
 
       // grab condition and its imperative elements
       Owner<CilCompound> condInst; condInst = newCompound();
-      Owner<CilExpr> cond; cond = c.rvalueTypeCheck(env, *condInst);
+      Owner<CilExpr> cond; 
+      cond = c.rvalueTypeCheck(env, CilContext(ctxt, *condInst));
 
       // TODO: break and continue
 
       // loop body
       Owner<CilCompound> body; body = newCompound();
-      delete s2.typeCheck(env, *body);
+      delete s2.typeCheck(env, CilContext(ctxt, *body));
 
       // increment expression; as if at end of body (except
       // for "continue" ..)
-      delete e.typeCheck(env, *body);
+      delete e.typeCheck(env, CilContext(ctxt, *body));
 
       // stick test at end of body too
       body->append(condInst->clone());
 
       // test imperative goes before loop body
-      inst.append(condInst.xfr());
+      ctxt.append(condInst.xfr());
 
       // then the loop body
-      inst.append(newWhileLoop(cond.xfr(), body.xfr()));
+      ctxt.append(newWhileLoop(cond.xfr(), body.xfr()));
 
       return noCilValue();
     }
@@ -1853,8 +1862,8 @@ nonterm Statement : Checkable, HasCFG {
         //   return <void expr>;
         // since it makes certain C++ template code possible,
         // so I will *not* enforce the usual C rule here
-        Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
-        inst.append(newReturn(expr.xfr()));
+        Owner<CilExpr> expr; expr = e.typeCheck(env, ctxt);
+        ctxt.append(newReturn(expr.xfr()));
         return noCilValue();
       }
 
@@ -1868,7 +1877,7 @@ nonterm Statement : Checkable, HasCFG {
 
     -> "return" ";" {
       fun typeCheck {
-        inst.append(newReturn(NULL));
+        ctxt.append(newReturn(NULL));
         return noCilValue();
       }
 
@@ -1882,7 +1891,7 @@ nonterm Statement : Checkable, HasCFG {
 
     -> "goto" n:LabelName ";" {
       fun typeCheck {
-        inst.append(newGoto(n.getName()));
+        ctxt.append(newGoto(n.getName()));
         return noCilValue();
       }
 
@@ -1909,7 +1918,7 @@ nonterm Statement : Checkable, HasCFG {
 nonterm ExpressionStatement : Checkable, HasCFG {
   -> ";" ;
   -> e:Expression ";" {
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
 
     fun getCFG {
       CFGExprNode *node = cfg.makeExprNode(&e);
@@ -1938,7 +1947,7 @@ nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
       localEnv = new Env(env);    // scope
 
       try {
-        Owner<CilExpr> ret; ret = seq.typeCheck(localEnv, inst);
+        Owner<CilExpr> ret; ret = seq.typeCheck(localEnv, ctxt);
 
         ana_endScope(localEnv);
 
@@ -1973,7 +1982,7 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
   -> seq:StatementSeqOpt s:Statement {
     fun typeCheck {
       try {
-        delete seq.typeCheck(env, inst);
+        delete seq.typeCheck(env, ctxt);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
@@ -1982,7 +1991,7 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
       env->flushLocalErrors(cout);
 
       try {
-        return s.typeCheck(env, inst);
+        return s.typeCheck(env, ctxt);
       }
       catch (XSemanticError &x) {
         env->report(x.err);
@@ -1998,7 +2007,7 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
 }
 
 nonterm Condition : Checkable {
-  fun typeCheck = e.typeCheck(env, inst);
+  fun typeCheck = e.typeCheck(env, ctxt);
 
   -> e:Expression ;
   -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression {
@@ -2010,11 +2019,11 @@ nonterm Condition : Checkable {
 
       // declare a new intermediate variable
       Variable *var = env->getVariable(name);
-      inst.append(newVarDecl(var));
+      ctxt.addVarDecl(var);
 
       // initialize it
-      Owner<CilExpr> initVal; initVal = e.rvalueTypeCheck(env, inst);
-      inst.append(newAssign(newVarRef(var), initVal.xfr()));
+      Owner<CilExpr> initVal; initVal = e.rvalueTypeCheck(env, ctxt);
+      ctxt.append(newAssign(newVarRef(var), initVal.xfr()));
 
       return noCilValue();
     }
@@ -2031,13 +2040,13 @@ nonterm ConditionOpt : Checkable {
   }
 
   -> c:Condition {
-    fun typeCheck = c.typeCheck(env, inst);
+    fun typeCheck = c.typeCheck(env, ctxt);
   }
 }
 
 nonterm ForInitStatement : Checkable, HasCFG {
   -> s:ExpressionStatement | s:SimpleDeclaration {
-    fun typeCheck = s.typeCheck(env, inst);
+    fun typeCheck = s.typeCheck(env, ctxt);
   }
 }
 
@@ -2051,14 +2060,14 @@ nonterm DeclarationSeqOpt : Checkable {
   }
   -> seq:DeclarationSeqOpt d:Declaration {
     fun typeCheck {
-      delete seq.typeCheck(env, inst);
-      return d.typeCheck(env, inst);
+      delete seq.typeCheck(env, ctxt);
+      return d.typeCheck(env, ctxt);
     }
   }
 }
 
 nonterm Declaration : Checkable {
-  fun typeCheck = d.typeCheck(env, inst);
+  fun typeCheck = d.typeCheck(env, ctxt);
 
   -> d:BlockDeclaration ;
   -> d:FunctionDefinition ;
@@ -2069,7 +2078,7 @@ nonterm Declaration : Checkable {
 // C++ has other alternatives..
 nonterm BlockDeclaration : Checkable, HasCFG {
   -> d:SimpleDeclaration {
-    fun typeCheck = d.typeCheck(env, inst);
+    fun typeCheck = d.typeCheck(env, ctxt);
   }
 }
 
@@ -2084,14 +2093,14 @@ nonterm SimpleDeclaration : Checkable {
     fun typeCheck {
       Type const *type = spec.getType(env);    // a complete type
       DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
-      list.declare(env, inst, flags, type);
+      list.declare(env, ctxt, flags, type);
       return noCilValue();
     }
   }
                  
   // gnu; specifically for linux printk declaration
   -> GNUAttribute decl:SimpleDeclaration {
-    fun typeCheck = decl.typeCheck(env, inst);
+    fun typeCheck = decl.typeCheck(env, ctxt);
   }
 }
 
@@ -2444,7 +2453,7 @@ nonterm LinkageSpecification : Checkable {
   // todo: actually record the linkage spec
   -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" |
      "extern" L2_STRING_LITERAL d:Declaration {
-    fun typeCheck = d.typeCheck(env, inst);
+    fun typeCheck = d.typeCheck(env, ctxt);
   }
 }
 
@@ -2457,7 +2466,7 @@ nonterm HasDeclare {
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env *passedEnv, CilInstructions &inst, 
+  fundecl void declare(Env *passedEnv, CilContext const &ctxt, 
                        DeclFlags flags, Type const *type);
   literalCode "prefix" declare {
     env = passedEnv;
@@ -2466,20 +2475,20 @@ nonterm HasDeclare {
 
 nonterm InitDeclaratorList : HasDeclare {
   -> d:InitDeclarator {
-    fun declare { d.declare(env, inst, flags, type); }
+    fun declare { d.declare(env, ctxt, flags, type); }
   }
 
   -> list:InitDeclaratorList "," d:InitDeclarator {
     fun declare {
-      list.declare(env, inst, flags, type);
-      d.declare(env, inst, flags, type);
+      list.declare(env, ctxt, flags, type);
+      d.declare(env, ctxt, flags, type);
     }
   }
 }
 
 nonterm InitDeclaratorListOpt : HasDeclare {
   -> empty                      { fun declare {} }
-  -> list:InitDeclaratorList    { fun declare { list.declare(env, inst, flags, type); } }
+  -> list:InitDeclaratorList    { fun declare { list.declare(env, ctxt, flags, type); } }
 }
 
 
@@ -2530,7 +2539,7 @@ nonterm InitDeclarator : HasDeclare, InitializerBase {
     // we don't have typedefs in Cil, so pass over them)
     // TODO2: are other DeclFlags relevant?  e.g. static??
     if (!( flags & DF_TYPEDEF )) {
-      inst.append(newVarDecl(env->getVariable(name)));
+      ctxt.addVarDecl(env->getVariable(name));
     }
   }
 
@@ -2833,8 +2842,9 @@ nonterm TypeId : HasType {
   // gnu extension
   -> "__typeof__" "(" e:Expression ")" {
     fun getType {                                      
-      CilInstructions dummyList;        // will simply discard
-      Owner<CilExpr> expr; expr = e.typeCheck(env, dummyList);
+      CilFnDefn dummy(NULL);        // will simply discard
+      Owner<CilExpr> expr;
+      expr = e.typeCheck(env, CilContext(dummy, 1 /*explicit*/));
       return typeOf(expr, env);
     }
   }
@@ -3055,7 +3065,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 
       // then grab it
       Variable *funcVar = env->getVariable(name);
-      
+
       // 'fnType' might not equal to funcVar->type if this is a
       // definition of a function that's already had a prototype
       // declared; I proceed with 'fnType' because it has the
@@ -3077,16 +3087,18 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
                             false /*initialized*/);
           }
         }
+        
+        // make the shell to hold the function definition, and
+        // immediately add it to the context (we don't do name
+        // lookups in the context right now, but if we did, we'd
+        // need the name to be defined before we process the body)
+        CilFnDefn *defn = new CilFnDefn(funcVar);
+        ctxt.prog->funcs.append(defn);     // ownership transfer ..
 
         // typecheck the body
-        Owner<CilCompound> body; body = newCompound();
-        delete b.typeCheck(localEnv, *body);
+        delete b.typeCheck(localEnv, CilContext(ctxt, *defn));
 
         ana_endScope(localEnv);
-
-        // intermediate form: for now, just another instruction ...
-        // perhaps I should separate out a language of declarations?
-        inst.append(newFunDecl(funcVar, body.xfr()));
 
         return noCilValue();
       }       
@@ -3109,7 +3121,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 }
 
 nonterm FunctionBody : Checkable -> s:CompoundStatement {
-  fun typeCheck = s.typeCheck(env, inst);
+  fun typeCheck = s.typeCheck(env, ctxt);
 }
 
 nonterm ExplicitOpt -> "explicit" | empty ;
@@ -3339,17 +3351,17 @@ nonterm TemplateArgument -> Literal | TypeId ;
 nonterm TryBlock : Checkable, HasCFG
   -> "try" s:CompoundStatement h:HandlerSeq {
   fun typeCheck {
-    delete s.typeCheck(env, inst);
-    return h.typeCheck(env, inst);
+    delete s.typeCheck(env, ctxt);
+    return h.typeCheck(env, ctxt);
   }
 }
 
 nonterm HandlerSeq : Checkable {
-  -> h:Handler { fun typeCheck = h.typeCheck(env, inst); }
+  -> h:Handler { fun typeCheck = h.typeCheck(env, ctxt); }
   -> h:Handler seq:HandlerSeq {
     fun typeCheck {
-      delete h.typeCheck(env, inst);
-      return seq.typeCheck(env, inst);
+      delete h.typeCheck(env, ctxt);
+      return seq.typeCheck(env, ctxt);
     }
   }
 }
@@ -3361,8 +3373,8 @@ nonterm Handler : Checkable, ScopeNode {
       localEnv = new Env(env);    // scope
 
       try {
-        delete d.typeCheck(localEnv, inst);
-        return s.typeCheck(localEnv, inst);
+        delete d.typeCheck(localEnv, ctxt);
+        return s.typeCheck(localEnv, ctxt);
 
         ana_endScope(localEnv);
 
@@ -3395,7 +3407,7 @@ nonterm ExceptionDeclaration : Checkable {
 nonterm ThrowExpression : Checkable, HasType {
   -> "throw" ;
   -> "throw" e:AssignmentExpression {
-    fun typeCheck = e.typeCheck(env, inst);
+    fun typeCheck = e.typeCheck(env, ctxt);
     fun getType = e.getType(env);
   }
 }
@@ -3467,9 +3479,9 @@ CilExpr *todoCilExpr()
   return newIntLit(12345678);    // hopefully recognizable
 }
 
-CilInst *todoCilInst()
+CilStmt *todoCilStmt()
 {
-  return newLabel("unimplementedInst");
+  return newLabel("unimplementedStmt");
 }
 
 
@@ -3551,12 +3563,9 @@ int fakemain(int argc, char *argv[])
   if (anyway || StackNode::numStackNodesAllocd != 0) {
     StackNode::printAllocStats();
   }
-  if (anyway || CilExpr::numAllocd != 0) {
-    CilExpr::printAllocStats();
-  }
-  if (anyway || CilInst::numAllocd != 0) {
-    CilInst::printAllocStats();
-  }
+  CilExpr::printAllocStats(anyway);
+  CilInst::printAllocStats(anyway);
+  CilStmt::printAllocStats(anyway);
 
   return 0;
 }

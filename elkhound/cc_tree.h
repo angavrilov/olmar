@@ -11,7 +11,7 @@
 class Condition_Node;
 class DataflowVar;
 class CilExpr;
-class CilInstructions;
+class CilContext;
 class CilLval;
 
 class CCTreeNode : public NonterminalNode {
@@ -43,8 +43,8 @@ public:      // funcs
                        bool initialized) const;
 
   // attempt at a general disambiguator...
-  typedef CilExpr * (CCTreeNode::*DisambFn)(Env *env, CilInstructions &inst);
-  CilExpr *disambiguate(Env *passedEnv, CilInstructions &inst, DisambFn func);
+  typedef CilExpr * (CCTreeNode::*DisambFn)(Env *env, CilContext const &ctxt);
+  CilExpr *disambiguate(Env *passedEnv, CilContext const &ctxt, DisambFn func);
 
   // construct a general error, and throw it
   void throwError(char const *msg) const NORETURN;

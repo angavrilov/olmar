@@ -6,6 +6,7 @@
 
 #include "str.h"       // string
 #include "objlist.h"   // ObjList
+#include "sobjlist.h"  // SObjList
 
 // other files
 class Type;            // cc_type.h
@@ -115,7 +116,7 @@ public:      // funcs
   // throw an exception if 'tag' is out of range
   static void validate(ETag tag);
   
-  static void printAllocStats();
+  static void printAllocStats(bool anyway);
 
   CilExpr *clone() const;     // deep copy
 
@@ -211,16 +212,8 @@ CilExpr *newVarRefExpr(Variable *var);
 class CilInst {
 public:      // types
   enum ITag {
-    // declarations; another candidate for pulling out into
-    // a separate thing
-    T_VARDECL, T_FUNDECL,
-
     // simple imperatives
     T_ASSIGN, T_CALL,
-
-    // control flow constructs ("loop"="while", "jump"="goto")
-    T_COMPOUND, T_LOOP, T_IFTHENELSE, T_LABEL, T_JUMP, T_RET,
-    T_SWITCH, T_CASE, T_DEFAULT,
 
     NUM_ITAGS
   };
@@ -229,21 +222,6 @@ public:      // data
   ITag const itag;          // which kind of instruction
 
   union {
-    // T_VARDECL: at the moment, we have exactly one variable
-    // declaration in the Cil code for every declaration in the
-    // original C code, and for every temporary introduced by
-    // the translator
-    struct {
-      Variable *var;        // (serf) variable being declared
-    } vardecl;
-
-    // T_FUNDECL: the whole program is a CilCompound sequence
-    // of these things ..
-    struct {
-      Variable *func;       // (serf) record of this fn in an environment
-      CilInst *body;        // (owner) function body
-    } fundecl;
-
     // T_ASSIGN
     struct {
       CilLval *lval;        // (owner) value being modified
@@ -252,52 +230,6 @@ public:      // data
 
     // T_CALL
     CilFnCall *call;        // (serf) equals 'this'
-
-    // T_COMPOUND
-    CilCompound *comp;      // (serf) equals 'this'
-
-    // T_LOOP
-    struct {
-      CilExpr *cond;        // (owner) guard expr
-      CilInst *body;        // (owner) loop body
-    } loop;
-
-    // T_IFTHENELSE
-    struct {
-      CilExpr *cond;        // (owner) guard expr
-      CilInst *thenBr;      // (owner) "then" branch
-      CilInst *elseBr;      // (owner) "else" branch
-    } ifthenelse;
-
-    // T_LABEL
-    struct {
-      LabelName *name;      // (owner) name of label
-    } label;
-
-    // T_JUMP
-    struct {
-      LabelName *dest;      // (owner) name of destination label
-    } jump;
-
-    // T_RET
-    struct {
-      CilExpr *expr;        // (owner, nullable) expr to return
-    } ret;
-
-    // T_SWITCH
-    struct {
-      CilExpr *expr;        // (owner) switch expression
-      CilInst *body;        // (owner) instruction block with case/default labels
-    } switchInst;
-
-    // T_CASE
-    struct {
-      int value;            // case expr value
-    } caseInst;
-
-    // T_DEFAULT
-    struct {                // no fields
-    } defaultInst;
   };
 
   // count and high-water allocated nodes
@@ -309,7 +241,7 @@ public:      // funcs
   ~CilInst();
 
   static void validate(ITag tag);
-  static void printAllocStats();
+  static void printAllocStats(bool anyway);
 
   // deep copy
   CilInst *clone() const;
@@ -317,17 +249,7 @@ public:      // funcs
   void printTree(int indent, ostream &os) const;
 };
 
-CilInst *newVarDecl(Variable *var);
-CilInst *newFunDecl(Variable *func, CilInst *body);
-CilInst *newAssign(CilLval *lval, CilExpr *expr);
-CilInst *newWhileLoop(CilExpr *expr, CilInst *body);
-CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch);
-CilInst *newLabel(LabelName label);
-CilInst *newGoto(LabelName label);
-CilInst *newReturn(CilExpr *expr /*nullable*/);
-CilInst *newSwitch(CilExpr *expr, CilInst *body);
-CilInst *newCase(int val);
-CilInst *newDefault();
+CilInst *newAssignInst(CilLval *lval, CilExpr *expr);
 
 
 class CilFnCall : public CilInst {
@@ -350,25 +272,130 @@ public:     // funcs
 CilFnCall *newFnCall(CilLval *result, CilExpr *fn);    // args appended later
 
 
-// I am considering replacing this with simple a rule like
-// "i1 ; i2" and build all lists out of it ....
-class CilInstructions {
+// ---------------- CilStmt ----------------------
+// the statement language is a tree of statements and
+// instructions; instructions are leaves, and statements
+// are both internal nodes and leaves; statements encode
+// flow of control
+class CilStmt {
+public:      // types
+  enum STag {
+    // control flow constructs ("loop"="while", "jump"="goto")
+    T_COMPOUND, T_LOOP, T_IFTHENELSE, T_LABEL, T_JUMP, T_RET,
+    T_SWITCH, T_CASE, T_DEFAULT,
+
+    // simple imperative
+    T_INST,
+
+    NUM_STAGS
+  };
+
+public:      // data
+  STag const stag;          // which kind of statement
+
+  union {
+    // T_COMPOUND
+    CilCompound *comp;      // (serf) equals 'this'
+
+    // T_LOOP
+    struct {
+      CilExpr *cond;        // (owner) guard expr
+      CilStmt *body;        // (owner) loop body
+    } loop;
+
+    // T_IFTHENELSE
+    struct {
+      CilExpr *cond;        // (owner) guard expr
+      CilStmt *thenBr;      // (owner) "then" branch
+      CilStmt *elseBr;      // (owner) "else" branch
+    } ifthenelse;
+
+    // T_LABEL
+    struct {
+      LabelName *name;      // (owner) name of label
+    } label;
+
+    // T_JUMP
+    struct {
+      LabelName *dest;      // (owner) name of destination label
+    } jump;
+
+    // T_RET
+    struct {
+      CilExpr *expr;        // (owner, nullable) expr to return
+    } ret;
+
+    // T_SWITCH
+    struct {
+      CilExpr *expr;        // (owner) switch expression
+      CilStmt *body;        // (owner) instruction block with case/default labels
+    } switchStmt;
+
+    // T_CASE
+    struct {
+      int value;            // case expr value
+    } caseStmt;
+
+    // T_DEFAULT
+    struct {                // no fields
+    } defaultStmt;
+
+    // T_INST
+    struct {
+      CilInst *inst;        // simple instruction
+    } inst;
+  };
+
+  // count and high-water allocated nodes
+  static int numAllocd;
+  static int maxAllocd;
+
+public:      // funcs
+  CilStmt(STag stag);        // caller fills in fields
+  ~CilStmt();
+
+  static void validate(STag stag);
+  static void printAllocStats(bool anyway=true);
+
+  // deep copy
+  CilStmt *clone() const;
+
+  void printTree(int indent, ostream &os) const;
+};
+
+CilStmt *newWhileLoop(CilExpr *expr, CilStmt *body);
+CilStmt *newIfThenElse(CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch);
+CilStmt *newLabel(LabelName label);
+CilStmt *newGoto(LabelName label);
+CilStmt *newReturn(CilExpr *expr /*nullable*/);
+CilStmt *newSwitch(CilExpr *expr, CilStmt *body);
+CilStmt *newCase(int val);
+CilStmt *newDefault();
+CilStmt *newInst(CilInst *inst);
+
+// since it's common, here's an assign that wraps
+// up its arguments into a CilStmt
+CilStmt *newAssign(CilLval *lval, CilExpr *expr);
+
+
+// sequential list of statements
+class CilStatements {
 public:    // data
-  ObjList<CilInst> insts;    // list of instructions
+  ObjList<CilStmt> stmts;    // list of statements
 
 public:    // funcs
-  CilInstructions();
-  ~CilInstructions();
+  CilStatements();
+  ~CilStatements();
 
-  void append(CilInst *inst);
+  void append(CilStmt *inst);
   void printTreeNoBraces(int indent, ostream &os) const;
-  bool isEmpty() const { return insts.isEmpty(); }
+  bool isEmpty() const { return stmts.isEmpty(); }
 };
 
 
-// CilInst must be the first base class, because I cast
+// CilStmt must be the first base class, because I cast
 // from CilInst to CilCompound
-class CilCompound : public CilInst, public CilInstructions {
+class CilCompound : public CilStmt, public CilStatements {
 public:    // funcs
   CilCompound();
   ~CilCompound();
@@ -378,5 +405,94 @@ public:    // funcs
 };
 
 CilCompound *newCompound();
+
+
+// ---------------------- CilFnDefn -----------------
+// a function definition -- name, type, and code
+class CilFnDefn {
+public:
+  Variable *var;               // (serf) name, type
+  CilCompound bodyStmt;        // fn body code as statements
+  SObjList<Variable> locals;   // local variables
+
+  #if 0
+  Owner<CilBB> bodyBB;         // body code as basic blocks
+  CilBB *startBB;              // (serf) starting basic block
+  #endif // 0
+
+public:
+  CilFnDefn(Variable *v)
+    : var(v) {}
+  ~CilFnDefn();
+
+  void printTree(int indent, ostream &os) const;
+};
+
+
+// ------------------ CilProgram ------------------
+// an entire Cil program
+class CilProgram {
+public:
+  SObjList<Variable> globals;  // global variables
+  ObjList<CilFnDefn> funcs;    // function definitions
+
+public:
+  CilProgram();
+  ~CilProgram();
+
+  void printTree(int indent, ostream &os) const;
+  void empty();
+};
+
+
+// ------------------ CilContext --------------
+// context to carry during translation from
+// C/C++ to CilStmt
+class CilContext {
+public:
+  // program we're translating
+  CilProgram *prog;           // (serf)
+
+  // function we're translating, if any
+  CilFnDefn *fn;              // (nullable serf)
+
+  // statements to execute before the current expression's
+  // value can be returned; when we translate an expression
+  // with a side effect, it puts its side effects here
+  CilStatements *stmts;       // (nullable serf)
+
+  // function call being constructed
+  CilFnCall *call;            // (nullable serf)
+
+  // true if we're only doing a trial analysis, and
+  // therefore should avoid doing things that have
+  // side effects
+  bool isTrial;
+
+public:
+  CilContext(CilProgram &p)
+    : prog(&p), fn(NULL), stmts(NULL), call(NULL), isTrial(false) {}
+    
+  // this is used in places where, because of C syntax, I can be sure
+  // there are no global declarations, so 'prog' is not used (and I
+  // don't have easy access to a proper context -- no point in doing
+  // this if I don't have to)
+  CilContext(CilFnDefn &f, int)     // the 'int' is to avoid implicit calls
+    : prog(NULL), fn(&f), stmts(&f.bodyStmt), call(NULL), isTrial(false) {}
+
+  CilContext(CilContext const &ctxt, CilFnDefn &f)
+    : prog(ctxt.prog), fn(&f), stmts(&f.bodyStmt), call(NULL), isTrial(ctxt.isTrial) {}
+  CilContext(CilContext const &ctxt, CilStatements &s)
+    : prog(ctxt.prog), fn(ctxt.fn), stmts(&s), call(NULL), isTrial(ctxt.isTrial) {}
+  CilContext(CilContext const &ctxt, CilFnCall &c)
+    : prog(ctxt.prog), fn(ctxt.fn), stmts(ctxt.stmts), call(&c), isTrial(ctxt.isTrial) {}
+
+  // constness here is just a syntactic tweak so that
+  // egcs won't compilain when I construct CilContexts
+  // in-place ..
+  void append(CilStmt * /*owner*/ s) const;
+  void addVarDecl(Variable *var) const;
+};
+
 
 #endif // CIL_H

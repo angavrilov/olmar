@@ -23,11 +23,11 @@ setupMakefile() {
   echo "" >> $mf
 
   if [ "$ocaml" = "yes" ]; then
-    # just strip the leading tags
-    sed 's/^OCAMLINCL //' < $mf.in >> $mf
+    # just strip the leading OCAML tags, and remove NOCAML lines
+    cat $mf.in | sed 's/^OCAMLINCL//' | grep -v '^NOCAMLINCL' >> $mf
   else
-    # remove lines containing the tags
-    grep -v '^OCAMLINCL ' < $mf.in >> $mf
+    # strip NOCAML, remove OCAML lines
+    cat $mf.in | sed 's/^NOCAMLINCL//' | grep -v '^OCAMLINCL' >> $mf
   fi
 
   # discourage editing ..

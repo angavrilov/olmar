@@ -75,7 +75,7 @@ CilLval * /*owner*/ CCTreeNode::asLval(CilExpr * /*owner*/ expr,
 }
 
 
-CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilInstructions &inst, 
+CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
                                   DisambFn func)
 {
   // not perfectly ideal to be doing this here, it seems, but
@@ -87,7 +87,7 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilInstructions &inst,
   // if it's not ambiguous, or we've already disambiguated,
   // go straight to the real deal
   if (reductions.count() == 1) {
-    return (this->*func)(env, inst);
+    return (this->*func)(env, ctxt);
   }
 
   // pull all the competing reductions out into a private list
@@ -108,9 +108,11 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilInstructions &inst,
     // corrupt the main one we're working on
     Env newEnv(passedEnv);
     newEnv.setTrialBalloon(true);
-    CilInstructions newInst;
+    CilFnDefn dummyDefn(NULL);
+    CilContext newCtxt(ctxt, dummyDefn);
+    newCtxt.isTrial = true;
     try {
-      delete (this->*func)(&newEnv, newInst);
+      delete (this->*func)(&newEnv, newCtxt);
     }
     catch (XSemanticError &x) {
       newEnv.report(x.err);
@@ -159,7 +161,7 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilInstructions &inst,
   // now, we have exactly one reduction -- typecheck it
   // in the current environment
   xassert(reductions.count() == 1);
-  return (this->*func)(passedEnv, inst);
+  return (this->*func)(passedEnv, ctxt);
 }
 
 

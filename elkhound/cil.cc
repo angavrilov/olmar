@@ -8,6 +8,7 @@
 #include "cil.h"        // this module
 #include "cc_type.h"    // Type, etc.
 #include "cc_env.h"     // Env
+#include "macros.h"     // STATICASSERT
 
 #include <stdlib.h>     // rand
 #include <string.h>     // memset
@@ -159,11 +160,13 @@ STATICDEF void CilExpr::validate(ETag tag)
 }
 
 
-STATICDEF void CilExpr::printAllocStats()
+STATICDEF void CilExpr::printAllocStats(bool anyway)
 {
-  cout << "cil expr nodes: " << numAllocd
-       << ", max  nodes: " << maxAllocd
-       << endl;
+  if (anyway || numAllocd != 0) {
+    cout << "cil expr nodes: " << numAllocd
+         << ", max  nodes: " << maxAllocd
+         << endl;
+  }
 }
 
 
@@ -435,16 +438,12 @@ CilInst::CilInst(ITag tag)
   validate(itag);
 
   // clear fields
-  memset(&ifthenelse, 0, sizeof(ifthenelse));
+  memset(&assign, 0, sizeof(assign));
 
   // init some fields
   switch (itag) {
     case T_CALL:
       call = (CilFnCall*)this;
-      break;
-
-    case T_COMPOUND:
-      comp = (CilCompound*)this;
       break;
 
     INCL_SWITCH
@@ -455,13 +454,6 @@ CilInst::CilInst(ITag tag)
 CilInst::~CilInst()
 {
   switch (itag) {
-    case T_VARDECL:
-      break;
-
-    case T_FUNDECL:
-      delete fundecl.body;
-      break;
-
     case T_ASSIGN:
       delete assign.lval;
       delete assign.expr;
@@ -473,53 +465,6 @@ CilInst::~CilInst()
         ths->CilFnCall::~CilFnCall();
         numAllocd++;          // counteract double-call
       }
-      break;
-
-    case T_COMPOUND:
-      if (comp) {
-        CilCompound *ths = comp;
-        ths->CilCompound::~CilCompound();
-        numAllocd++;          // counteract double-call
-      }
-      break;
-
-    case T_LOOP:
-      delete loop.cond;
-      delete loop.body;
-      break;
-
-    case T_IFTHENELSE:
-      delete ifthenelse.cond;
-      delete ifthenelse.thenBr;
-      delete ifthenelse.elseBr;
-      break;
-
-    case T_LABEL:
-      delete label.name;
-      break;
-
-    case T_JUMP:
-      delete jump.dest;
-      break;
-
-    case T_RET:
-      if (ret.expr) {
-        // I know 'delete' accepts NULL (and I rely on that
-        // in other modules); I just like to emphasize when
-        // something is nullable
-        delete ret.expr;
-      }
-      break;
-
-    case T_SWITCH:
-      delete switchInst.expr;
-      delete switchInst.body;
-      break;
-
-    case T_CASE:
-      break;
-
-    case T_DEFAULT:
       break;
 
     case NUM_ITAGS:
@@ -536,11 +481,13 @@ STATICDEF void CilInst::validate(ITag tag)
 }
 
 
-STATICDEF void CilInst::printAllocStats()
-{
-  cout << "cil inst nodes: " << numAllocd
-       << ", max  nodes: " << maxAllocd
-       << endl;
+STATICDEF void CilInst::printAllocStats(bool anyway)
+{                                                  
+  if (anyway || numAllocd != 0) {
+    cout << "cil inst nodes: " << numAllocd
+         << ", max  nodes: " << maxAllocd
+         << endl;
+  }
 }
 
 
@@ -557,50 +504,14 @@ CilInst *CilInst::clone() const
   switch (itag) {
     case NUM_ITAGS:
       xfailure("bad tag");
-      
-    case T_VARDECL:
-      return newVarDecl(vardecl.var);
-
-    case T_FUNDECL:
-      return newFunDecl(fundecl.func, fundecl.body->clone());
 
     case T_ASSIGN:
-      return newAssign(assign.lval->clone(), assign.expr->clone());
+      return newAssignInst(assign.lval->clone(), assign.expr->clone());
 
     case T_CALL:
       return call->clone();
-
-    case T_COMPOUND:
-      return comp->clone();
-
-    case T_LOOP:
-      return newWhileLoop(loop.cond->clone(), loop.body->clone());
-
-    case T_IFTHENELSE:
-      return newIfThenElse(ifthenelse.cond->clone(),
-                           ifthenelse.thenBr->clone(),
-                           ifthenelse.elseBr->clone());
-
-    case T_LABEL:
-      return newLabel(*(label.name));
-
-    case T_JUMP:
-      return newGoto(*(jump.dest));
-
-    case T_RET:
-      return newReturn(nullableCloneExpr(ret.expr));
-
-    case T_SWITCH:
-      return newSwitch(switchInst.expr->clone(),
-                       switchInst.body->clone());
-                       
-    case T_CASE:
-      return newCase(caseInst.value);
-      
-    case T_DEFAULT:
-      return newDefault();
   }
-                                    
+
   xfailure("bad tag");
 }
 
@@ -615,12 +526,8 @@ static ostream &indent(int ind, ostream &os)
 
 
 void CilInst::printTree(int ind, ostream &os) const
-{ 
-  if (itag == T_COMPOUND) {
-    comp->printTree(ind, os);
-    return;
-  }
-  else if (itag == T_CALL) {
+{
+  if (itag == T_CALL) {
     call->printTree(ind, os);
     return;
   }
@@ -628,71 +535,12 @@ void CilInst::printTree(int ind, ostream &os) const
   indent(ind, os);
 
   switch (itag) {
-    case T_COMPOUND:
     case T_CALL:
-      // handled above already
-
-    case T_VARDECL:
-      os << "vardecl " << vardecl.var->name
-         << " : " << vardecl.var->type->toString() << " ;\n";
-      break;
-
-    case T_FUNDECL:
-      os << "fundecl " << fundecl.func->name
-         << " : " << fundecl.func->type->toString();
-      indent(ind, os) << " {\n";
-      fundecl.body->printTree(ind+2, os);
-      indent(ind, os) << "}\n";
-      break;
+      // handled above already; not reached
 
     case T_ASSIGN:
       os << "assign " << assign.lval->toString()
          << " := " << assign.expr->toString() << " ;\n";
-      break;
-
-    case T_LOOP:
-      os << "while ( " << loop.cond->toString() << " ) {\n";
-      loop.body->printTree(ind+2, os);
-      indent(ind, os) << "}\n";
-      break;
-
-    case T_IFTHENELSE:
-      os << "if ( " << ifthenelse.cond->toString() << ") {\n";
-      ifthenelse.thenBr->printTree(ind+2, os);
-      indent(ind, os) << "}\n";
-      indent(ind, os) << "else {\n";
-      ifthenelse.elseBr->printTree(ind+2, os);
-      indent(ind, os) << "}\n";
-      break;
-      
-    case T_LABEL:
-      os << "label " << *(label.name) << " :\n";
-      break;
-
-    case T_JUMP:
-      os << "goto " << *(jump.dest) << " ;\n";
-      break;
-
-    case T_RET:
-      os << "return";
-      if (ret.expr) {
-        os << " " << ret.expr->toString();
-      }
-      os << " ;\n";
-      break;
-
-    case T_SWITCH:
-      os << "switch (" << switchInst.expr->toString() << ") {\n";
-      switchInst.body->printTree(ind+2, os);
-      indent(ind, os) << "}\n";
-      break;
-      
-    case T_CASE:
-      os << "case " << caseInst.value << ":\n";
-      break;
-
-    case T_DEFAULT:
-      os << "default:\n";
       break;
 
     case NUM_ITAGS:
@@ -701,92 +549,13 @@ void CilInst::printTree(int ind, ostream &os) const
 }
 
 
-CilInst *newVarDecl(Variable *var)
-{
-  xassert(var);
-  CilInst *ret = new CilInst(CilInst::T_VARDECL);
-  ret->vardecl.var = var;
-  return ret;
-}
-
-CilInst *newFunDecl(Variable *func, CilInst *body)
-{
-  xassert(func && body);
-  CilInst *ret = new CilInst(CilInst::T_FUNDECL);
-  ret->fundecl.func = func;
-  ret->fundecl.body = body;
-  return ret;
-}
-
-CilInst *newAssign(CilLval *lval, CilExpr *expr)
+CilInst *newAssignInst(CilLval *lval, CilExpr *expr)
 {
   xassert(lval && expr);
   CilInst *ret = new CilInst(CilInst::T_ASSIGN);
   xassert(lval->isLval());    // stab in the dark ..
   ret->assign.lval = lval;
   ret->assign.expr = expr;
-  return ret;
-}
-
-CilInst *newWhileLoop(CilExpr *expr, CilInst *body)
-{
-  xassert(expr && body);
-  CilInst *ret = new CilInst(CilInst::T_LOOP);
-  ret->loop.cond = expr;
-  ret->loop.body = body;
-  return ret;
-}
-
-CilInst *newIfThenElse(CilExpr *cond, CilInst *thenBranch, CilInst *elseBranch)
-{
-  xassert(cond && thenBranch && elseBranch);
-  CilInst *ret = new CilInst(CilInst::T_IFTHENELSE);
-  ret->ifthenelse.cond = cond;
-  ret->ifthenelse.thenBr = thenBranch;
-  ret->ifthenelse.elseBr = elseBranch;
-  return ret;
-}
-
-CilInst *newLabel(LabelName label)
-{
-  CilInst *ret = new CilInst(CilInst::T_LABEL);
-  ret->label.name = new LabelName(label);
-  return ret;
-}
-
-CilInst *newGoto(LabelName label)
-{
-  CilInst *ret = new CilInst(CilInst::T_JUMP);
-  ret->jump.dest = new LabelName(label);
-  return ret;
-}
-
-CilInst *newReturn(CilExpr *expr /*nullable*/)
-{
-  CilInst *ret = new CilInst(CilInst::T_RET);
-  ret->ret.expr = expr;
-  return ret;
-}
-
-CilInst *newSwitch(CilExpr *expr, CilInst *body)
-{
-  xassert(expr && body);
-  CilInst *ret = new CilInst(CilInst::T_SWITCH);
-  ret->switchInst.expr = expr;
-  ret->switchInst.body = body;
-  return ret;
-}
-
-CilInst *newCase(int val)
-{
-  CilInst *ret = new CilInst(CilInst::T_CASE);
-  ret->caseInst.value = val;
-  return ret;
-}
-
-CilInst *newDefault()
-{
-  CilInst *ret = new CilInst(CilInst::T_DEFAULT);
   return ret;
 }
 
@@ -824,7 +593,7 @@ CilLval *nullableCloneLval(CilLval *src)
 
 CilFnCall *CilFnCall::clone() const
 {
-  CilFnCall *ret = new CilFnCall(nullableCloneLval(result), 
+  CilFnCall *ret = new CilFnCall(nullableCloneLval(result),
                                  func->clone());
 
   FOREACH_OBJLIST(CilExpr, args, iter) {
@@ -869,17 +638,316 @@ CilFnCall *newFnCall(CilLval *result, CilExpr *fn)
 }
 
 
-// ------------------- CilInstructions ---------------------
-CilInstructions::CilInstructions()
-{}
+// ------------------ CilStmt ---------------
+int CilStmt::numAllocd = 0;
+int CilStmt::maxAllocd = 0;
 
-CilInstructions::~CilInstructions()
-{}
-
-
-void CilInstructions::append(CilInst *inst)
+CilStmt::CilStmt(STag tag)
+  : stag(tag)
 {
-  insts.append(inst);
+  INC_HIGH_WATER(numAllocd, maxAllocd);
+
+  validate(stag);
+
+  // clear fields; 'ifthenelse' is the largest in
+  // the union
+  memset(&ifthenelse, 0, sizeof(ifthenelse));
+
+  // experiment ... statically verify the assumption
+  // that 'ifthenelse' is really the biggest
+  STATIC_ASSERT((char*)(this + 1) - (char*)&ifthenelse == sizeof(ifthenelse));
+
+  // init some fields
+  switch (stag) {
+    case T_COMPOUND:
+      comp = (CilCompound*)this;
+      break;
+
+    INCL_SWITCH
+  }
+}
+
+
+CilStmt::~CilStmt()
+{
+  switch (stag) {
+    case T_COMPOUND:
+      if (comp) {
+        CilCompound *ths = comp;
+        ths->CilCompound::~CilCompound();
+        numAllocd++;          // counteract double-call
+      }
+      break;
+
+    case T_LOOP:
+      delete loop.cond;
+      delete loop.body;
+      break;
+
+    case T_IFTHENELSE:
+      delete ifthenelse.cond;
+      delete ifthenelse.thenBr;
+      delete ifthenelse.elseBr;
+      break;
+
+    case T_LABEL:
+      delete label.name;
+      break;
+
+    case T_JUMP:
+      delete jump.dest;
+      break;
+
+    case T_RET:
+      if (ret.expr) {
+        // I know 'delete' accepts NULL (and I rely on that
+        // in other modules); I just like to emphasize when
+        // something is nullable
+        delete ret.expr;
+      }
+      break;
+
+    case T_SWITCH:
+      delete switchStmt.expr;
+      delete switchStmt.body;
+      break;
+
+    case T_CASE:
+      break;
+
+    case T_DEFAULT:
+      break;
+
+    case T_INST:
+      delete inst.inst;
+      break;  
+
+    case NUM_STAGS:
+      xfailure("bad tag");
+  }
+
+  numAllocd--;
+}
+
+
+STATICDEF void CilStmt::validate(STag tag)
+{
+  xassert(0 <= tag && tag < NUM_STAGS);
+}
+
+
+STATICDEF void CilStmt::printAllocStats(bool anyway)
+{
+  if (anyway || numAllocd != 0) {
+    cout << "cil stmt nodes: " << numAllocd
+         << ", max  nodes: " << maxAllocd
+         << endl;
+  }
+}
+
+
+CilStmt *CilStmt::clone() const
+{
+  // note: every owner pointer must be cloned, not
+  // merely copied!
+  switch (stag) {
+    case NUM_STAGS:
+      xfailure("bad tag");
+
+    case T_COMPOUND:
+      return comp->clone();
+
+    case T_LOOP:
+      return newWhileLoop(loop.cond->clone(), loop.body->clone());
+
+    case T_IFTHENELSE:
+      return newIfThenElse(ifthenelse.cond->clone(),
+                           ifthenelse.thenBr->clone(),
+                           ifthenelse.elseBr->clone());
+
+    case T_LABEL:
+      return newLabel(*(label.name));
+
+    case T_JUMP:
+      return newGoto(*(jump.dest));
+
+    case T_RET:
+      return newReturn(nullableCloneExpr(ret.expr));
+
+    case T_SWITCH:
+      return newSwitch(switchStmt.expr->clone(),
+                       switchStmt.body->clone());
+
+    case T_CASE:
+      return newCase(caseStmt.value);
+
+    case T_INST:
+      return newInst(inst.inst->clone());  
+
+    case T_DEFAULT:
+      return newDefault();
+  }
+
+  xfailure("bad tag");
+}
+
+
+void CilStmt::printTree(int ind, ostream &os) const
+{
+  if (stag == T_COMPOUND) {
+    comp->printTree(ind, os);
+    return;
+  }
+  else if (stag == T_INST) {
+    inst.inst->printTree(ind, os);
+    return;
+  }
+
+  indent(ind, os);
+
+  switch (stag) {
+    case T_COMPOUND:
+    case T_INST:
+      // handled above already; not reached
+
+    case T_LOOP:
+      os << "while ( " << loop.cond->toString() << " ) {\n";
+      loop.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_IFTHENELSE:
+      os << "if ( " << ifthenelse.cond->toString() << ") {\n";
+      ifthenelse.thenBr->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      indent(ind, os) << "else {\n";
+      ifthenelse.elseBr->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_LABEL:
+      os << "label " << *(label.name) << " :\n";
+      break;
+
+    case T_JUMP:
+      os << "goto " << *(jump.dest) << " ;\n";
+      break;
+
+    case T_RET:
+      os << "return";
+      if (ret.expr) {
+        os << " " << ret.expr->toString();
+      }
+      os << " ;\n";
+      break;
+
+    case T_SWITCH:
+      os << "switch (" << switchStmt.expr->toString() << ") {\n";
+      switchStmt.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_CASE:
+      os << "case " << caseStmt.value << ":\n";
+      break;
+
+    case T_DEFAULT:
+      os << "default:\n";
+      break;
+
+    case NUM_STAGS:
+      xfailure("bad tag");
+  }
+}
+
+
+CilStmt *newWhileLoop(CilExpr *expr, CilStmt *body)
+{
+  xassert(expr && body);
+  CilStmt *ret = new CilStmt(CilStmt::T_LOOP);
+  ret->loop.cond = expr;
+  ret->loop.body = body;
+  return ret;
+}
+
+CilStmt *newIfThenElse(CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch)
+{
+  xassert(cond && thenBranch && elseBranch);
+  CilStmt *ret = new CilStmt(CilStmt::T_IFTHENELSE);
+  ret->ifthenelse.cond = cond;
+  ret->ifthenelse.thenBr = thenBranch;
+  ret->ifthenelse.elseBr = elseBranch;
+  return ret;
+}
+
+CilStmt *newLabel(LabelName label)
+{
+  CilStmt *ret = new CilStmt(CilStmt::T_LABEL);
+  ret->label.name = new LabelName(label);
+  return ret;
+}
+
+CilStmt *newGoto(LabelName label)
+{
+  CilStmt *ret = new CilStmt(CilStmt::T_JUMP);
+  ret->jump.dest = new LabelName(label);
+  return ret;
+}
+
+CilStmt *newReturn(CilExpr *expr /*nullable*/)
+{
+  CilStmt *ret = new CilStmt(CilStmt::T_RET);
+  ret->ret.expr = expr;
+  return ret;
+}
+
+CilStmt *newSwitch(CilExpr *expr, CilStmt *body)
+{
+  xassert(expr && body);
+  CilStmt *ret = new CilStmt(CilStmt::T_SWITCH);
+  ret->switchStmt.expr = expr;
+  ret->switchStmt.body = body;
+  return ret;
+}
+
+CilStmt *newCase(int val)
+{
+  CilStmt *ret = new CilStmt(CilStmt::T_CASE);
+  ret->caseStmt.value = val;
+  return ret;
+}
+
+CilStmt *newDefault()
+{
+  CilStmt *ret = new CilStmt(CilStmt::T_DEFAULT);
+  return ret;
+}
+
+CilStmt *newInst(CilInst *inst)
+{  
+  xassert(inst);
+  CilStmt *ret = new CilStmt(CilStmt::T_INST);
+  ret->inst.inst = inst;
+  return ret;
+}
+
+CilStmt *newAssign(CilLval *lval, CilExpr *expr)
+{
+  return newInst(newAssignInst(lval, expr));
+}
+
+
+// ------------------- CilStatements ---------------------
+CilStatements::CilStatements()
+{}
+
+CilStatements::~CilStatements()
+{}
+
+
+void CilStatements::append(CilStmt *inst)
+{
+  stmts.append(inst);
 }
 
 
@@ -888,9 +956,9 @@ void CilInstructions::append(CilInst *inst)
 // code; this is useful in cc.gr where I am artificially
 // creating compounds but they're all really at the same scope
 // (namely toplevel)
-void CilInstructions::printTreeNoBraces(int ind, ostream &os) const
+void CilStatements::printTreeNoBraces(int ind, ostream &os) const
 {
-  FOREACH_OBJLIST(CilInst, insts, iter) {
+  FOREACH_OBJLIST(CilStmt, stmts, iter) {
     try {
       iter.data()->printTree(ind, os);
     }
@@ -903,7 +971,7 @@ void CilInstructions::printTreeNoBraces(int ind, ostream &os) const
 
 // ----------------- CilCompound ---------------------
 CilCompound::CilCompound()
-  : CilInst(CilInst::T_COMPOUND)
+  : CilStmt(CilStmt::T_COMPOUND)
 {}
 
 CilCompound::~CilCompound()
@@ -916,7 +984,7 @@ CilCompound *CilCompound::clone() const
 {
   CilCompound *ret = new CilCompound();
 
-  FOREACH_OBJLIST(CilInst, insts, iter) {
+  FOREACH_OBJLIST(CilStmt, stmts, iter) {
     ret->append(iter.data()->clone());
   }
 
@@ -938,5 +1006,87 @@ void CilCompound::printTree(int ind, ostream &os) const
 CilCompound *newCompound()
 {
   return new CilCompound();
+}
+
+
+// -------------------- CilFnDefn -----------------
+CilFnDefn::~CilFnDefn()
+{}
+
+
+void CilFnDefn::printTree(int ind, ostream &os) const
+{
+  os << "fundecl " << var->name
+     << " : " << var->type->toString();
+  indent(ind, os) << " {\n";
+
+  // print locals
+  SFOREACH_OBJLIST(Variable, locals, iter) {
+    indent(ind+2, os)
+       << "local " << iter.data()->name
+       << " : " << iter.data()->type->toString() << " ;\n";
+  }
+  os << endl;
+
+  // print statements
+  bodyStmt.printTree(ind+2, os);
+
+  indent(ind, os) << "}\n";
+}
+
+
+// ------------------ CilProgram ---------------
+CilProgram::CilProgram()
+{}
+
+CilProgram::~CilProgram()
+{}
+
+
+void CilProgram::printTree(int ind, ostream &os) const
+{
+  SFOREACH_OBJLIST(Variable, globals, iter) {
+    indent(ind, os)
+       << "global " << iter.data()->name
+       << " : " << iter.data()->type->toString() << " ;\n";
+  }
+  
+  FOREACH_OBJLIST(CilFnDefn, funcs, iter) {
+    iter.data()->printTree(ind, os);
+  }
+}
+
+
+void CilProgram::empty()
+{
+  globals.removeAll();
+  funcs.deleteAll();
+}
+
+
+// --------------------- CilContext -----------------
+void CilContext::append(CilStmt * /*owner*/ s) const
+{
+  if (!isTrial) {
+    stmts->append(s);
+  }
+  else {
+    delete s;
+  }
+}
+
+
+void CilContext::addVarDecl(Variable *var) const
+{
+  if (!isTrial) {
+    if (fn) {
+      fn->locals.append(var);
+    }
+    else {
+      // it's a global if we're not in the context
+      // of any function definition
+      prog->globals.append(var);
+    }
+  }
 }
 
