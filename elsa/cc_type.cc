@@ -232,7 +232,7 @@ string CompoundType::toCString() const
       
   bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
   if (hasParams) {
-    sb << templateInfo->toCString() << " ";
+    sb << templateInfo->paramsToCString() << " ";
   }
 
   if (!templateInfo || hasParams) {   
@@ -1344,7 +1344,7 @@ FunctionType::FunctionType(Type *r)
     retType(r),
     params(),
     exnSpec(NULL),
-    templateParams(NULL)
+    templateInfo(NULL)
 {}
 
 
@@ -1353,8 +1353,8 @@ FunctionType::~FunctionType()
   if (exnSpec) {
     delete exnSpec;
   }
-  if (templateParams) {
-    delete templateParams;
+  if (templateInfo) {
+    delete templateInfo;
   }
 }
 
@@ -1533,9 +1533,9 @@ unsigned FunctionType::innerHashValue() const
     val *= p;
   }          
   
-  // don't consider exnSpec or templateParams; I don't think I'll
-  // be encountering situations where I want the hash to be
-  // sensitive to those
+  // don't consider exnSpec or templateInfo; I don't think I'll be
+  // encountering situations where I want the hash to be sensitive to
+  // those
   
   // the 'flags' information is mostly redundant with the parameter
   // list, so don't bother folding that in
@@ -1599,8 +1599,8 @@ string FunctionType::leftString(bool innerParen) const
   stringBuilder sb;
 
   // template parameters
-  if (templateParams) {
-    sb << templateParams->toCString() << " ";
+  if (templateInfo) {
+    sb << templateInfo->paramsToCString() << " ";
   }
 
   // return type and start of enclosing type's description
@@ -1729,24 +1729,32 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
          retType->anyCtorSatisfies(pred) ||
          parameterListCtorSatisfies(pred, params) ||
          (exnSpec && exnSpec->anyCtorSatisfies(pred)) ||
-         (templateParams && templateParams->anyCtorSatisfies(pred));
+         (templateInfo && templateInfo->anyCtorSatisfies(pred));
 }
 
 
+// ------------------ TemplateInfo -------------
+TemplateInfo::TemplateInfo(StringRef name)
+  : baseName(name),
+    instantiations(),         // empty list
+    arguments(),              // empty list
+    argumentSyntax(NULL)
+{}
 
-// ----------------- TemplateParams --------------
-TemplateParams::TemplateParams(TemplateParams const &obj)
+
+// this is copied from TemplateParams, but I think it is unnecessary
+TemplateInfo::TemplateInfo(TemplateInfo const &obj)
 {
   // copy list contents
   params = obj.params;
 }
 
 
-TemplateParams::~TemplateParams()
+TemplateInfo::~TemplateInfo()
 {}
 
 
-string TemplateParams::toCString() const
+string TemplateInfo::paramsToCString() const
 {
   stringBuilder sb;
   sb << "template <";
@@ -1770,7 +1778,7 @@ string TemplateParams::toCString() const
 }
 
 
-bool TemplateParams::equalTypes(TemplateParams const *obj) const
+bool TemplateInfo::equalTypes(TemplateInfo const *obj) const
 {
   SObjListIter<Variable> iter1(params), iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
@@ -1787,9 +1795,30 @@ bool TemplateParams::equalTypes(TemplateParams const *obj) const
 }
 
 
-bool TemplateParams::anyCtorSatisfies(Type::TypePred pred) const
+bool TemplateInfo::anyCtorSatisfies(Type::TypePred pred) const
 {
   return parameterListCtorSatisfies(pred, params);
+}
+
+
+bool TemplateInfo::equalArguments
+  (SObjList<STemplateArgument> const &list) const
+{
+  ObjListIter<STemplateArgument> iter1(arguments);
+  SObjListIter<STemplateArgument> iter2(list);
+  
+  while (!iter1.isDone() && !iter2.isDone()) {
+    STemplateArgument const *sta1 = iter1.data();
+    STemplateArgument const *sta2 = iter2.data();
+    if (!sta1->equals(sta2)) {
+      return false;
+    }
+    
+    iter1.adv();
+    iter2.adv();
+  }
+  
+  return iter1.isDone() && iter2.isDone();
 }
 
 
@@ -1853,39 +1882,6 @@ string sargsToString(SObjList<STemplateArgument> const &list)
 
   sb << ">";
   return sb;
-}
-
-
-// ------------------ ClassTemplateInfo -------------
-ClassTemplateInfo::ClassTemplateInfo(StringRef name)
-  : baseName(name),
-    instantiations(),         // empty list
-    arguments(),              // empty list
-    argumentSyntax(NULL)
-{}
-
-ClassTemplateInfo::~ClassTemplateInfo()
-{}
-
-
-bool ClassTemplateInfo::equalArguments
-  (SObjList<STemplateArgument> const &list) const
-{
-  ObjListIter<STemplateArgument> iter1(arguments);
-  SObjListIter<STemplateArgument> iter2(list);
-  
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument const *sta1 = iter1.data();
-    STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->equals(sta2)) {
-      return false;
-    }
-    
-    iter1.adv();
-    iter2.adv();
-  }
-  
-  return iter1.isDone() && iter2.isDone();
 }
 
 
@@ -2128,8 +2124,8 @@ string PointerType::toMLString() const
 string FunctionType::toMLString() const
 {
   stringBuilder sb;
-  if (templateParams) {
-    sb << templateParams->toMLString();
+  if (templateInfo) {
+    sb << templateInfo->toMLString();
   }
   putSerialNo(sb);
   if (flags & FF_CTOR) {
@@ -2198,7 +2194,7 @@ string PointerToMemberType::toMLString() const
   return sb;
 }
 
-string TemplateParams::toMLString() const
+string TemplateInfo::toMLString() const
 {
   stringBuilder sb;
   sb << "template <";
@@ -2365,8 +2361,8 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   if (similar->exnSpec) {
     ret->exnSpec = new FunctionType::ExnSpec(*similar->exnSpec);
   }
-  if (similar->templateParams) {
-    ret->templateParams = new TemplateParams(*similar->templateParams);
+  if (similar->templateInfo) {
+    ret->templateInfo = new TemplateInfo(*similar->templateInfo);
   }
   return ret;
 }

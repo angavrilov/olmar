@@ -791,7 +791,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateInfo->toCString()
+      << prior->templateInfo->paramsToCString()
       << " but the this one is not templatized",
       true /*disambiguating*/);
     return;
@@ -802,7 +802,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
-      << scope->curTemplateParams->toCString(),
+      << scope->curTemplateParams->paramsToCString(),
       true /*disambiguating*/);
     delete scope->curTemplateParams;
     scope->curTemplateParams = NULL;
@@ -822,9 +822,9 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateInfo->toCString()
+      << prior->templateInfo->paramsToCString()
       << " but this one has parameters "
-      << scope->curTemplateParams->toCString()
+      << scope->curTemplateParams->paramsToCString()
       << ", and these are not equivalent",
       true /*disambiguating*/);
   }
@@ -1036,7 +1036,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   else if (ct && templateArgs) {
     CompoundType *primary = ct;
-    ClassTemplateInfo *primaryTI = primary->templateInfo;
+    TemplateInfo *primaryTI = primary->templateInfo;
 
     // this is supposed to be a specialization
     if (!primaryTI) {
@@ -1078,9 +1078,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       // call PQ_fullyQualifiedName() on this type I get a
       // PQ_qualifier that has template arguments; If I don't do it
       // this way, then I have to reconstruct them from the
-      // ClassTemplateInfo::arguments, and then I'm back to
-      // manufacturing ASTTypeId-s from Type-s which I want to avoid
-      // if I can.
+      // TemplateInfo::arguments, and then I'm back to manufacturing
+      // ASTTypeId-s from Type-s which I want to avoid if I can.
       //
       // FIX: I'm worried that there is some corner condition where
       // the same syntax doesn't work because the location has changed
@@ -2709,7 +2708,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   // grab the template parameters before entering the parameter scope
-  TemplateParams *templateParams = env.takeTemplateParams();
+  TemplateInfo *templateInfo = env.takeTemplateInfo();
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
@@ -2724,7 +2723,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this, env.tunit);
   ft->flags = specialFunc;
   dt.funcSyntax = this;
-  ft->templateParams = templateParams;
+  ft->templateInfo = templateInfo;
 
   // add them, now that the list has been disambiguated
   int ct=0;
@@ -5441,11 +5440,11 @@ void TemplateDeclaration::tcheck(Env &env)
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
 
   // make a list of template parameters
-  TemplateParams *tparams = new TemplateParams;
+  TemplateInfo *tinfo = new TemplateInfo(NULL);// dsw: FIX: put a name here
 
   // check each of the parameters, i.e. enter them into the scope
   FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    iter->tcheck(env, tparams);
+    iter->tcheck(env, tinfo);
   }
 
   // mark the new scope as unable to accept new names, so
@@ -5454,7 +5453,7 @@ void TemplateDeclaration::tcheck(Env &env)
   paramScope->canAcceptNames = false;
 
   // put the template parameters in a place the D_func will find them
-  paramScope->curTemplateParams = tparams;
+  paramScope->curTemplateParams = tinfo;
 
   // in what follows, ignore errors that are not disambiguating
   //bool prev = env.setDisambiguateOnly(true);
@@ -5500,7 +5499,7 @@ void TD_class::itcheck(Env &env)
 
 
 // ------------------- TemplateParameter ------------------
-void TP_type::tcheck(Env &env, TemplateParams *tparams)
+void TP_type::tcheck(Env &env, TemplateInfo *tinfo)
 {
   // cppstd 14.1 is a little unclear about whether the type
   // name is visible to its own default argument; but that
@@ -5541,11 +5540,11 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   this->type = fullType;
 
   // add this parameter to the list of them
-  tparams->params.append(var);
+  tinfo->params.append(var);
 }
 
 
-void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
+void TP_nontype::tcheck(Env &env, TemplateInfo *tinfo)
 {
   ASTTypeId::Tcheck tc(DF_PARAMETER, DC_TP_NONTYPE);
   
@@ -5554,7 +5553,7 @@ void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
   param = param->tcheck(env, tc);
 
   // add to the parameter list
-  tparams->params.append(param->decl->var);
+  tinfo->params.append(param->decl->var);
 }
 
 

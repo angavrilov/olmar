@@ -59,9 +59,8 @@ class FunctionType;
 class ArrayType;
 class PointerToMemberType;
 class Type;
-class TemplateParams;
+class TemplateInfo;
 class STemplateArgument;
-class ClassTemplateInfo;
 class TypeFactory;
 class BasicTypeFactory;
 
@@ -221,7 +220,7 @@ public:      // data
 
   // for template classes, this is the list of template parameters,
   // and a list of already-instantiated versions
-  ClassTemplateInfo *templateInfo;    // (owner)
+  TemplateInfo *templateInfo;         // (owner)
 
   // if this class is a template instantiation, 'instName' is
   // the class name plus a rendering of the arguments; otherwise
@@ -767,8 +766,8 @@ public:     // data
   // allowable exceptions, if not NULL
   ExnSpec *exnSpec;                  // (nullable owner)
 
-  // for template functions, this is the list of template parameters
-  TemplateParams *templateParams;    // (owner)
+  // for template functions
+  TemplateInfo *templateInfo;        // (owner)
 
 protected:  // funcs
   friend class BasicTypeFactory;
@@ -819,7 +818,7 @@ public:
   // to.
   virtual void registerRetVal(Variable *retVal);
 
-  bool isTemplate() const { return templateParams!=NULL; }
+  bool isTemplate() const { return templateInfo!=NULL; }
 
   Variable const *getReceiverC() const;  // 'isMember' must be true
   Variable *getReceiver() { return const_cast<Variable*>(getReceiverC()); }
@@ -922,19 +921,47 @@ public:
 };
 
 
-class TemplateParams {
-public:
+// dsw: This class is a merge of the old TemplateParams and
+// ClassTemplateInfo
+
+// for a template class, including instantiations thereof, this is the
+// template-related info
+class TemplateInfo {
+public:    // data
+  // dsw: from TemplateParams
+
   SObjList<Variable> params;
 
-public:
-  TemplateParams() {}
-  TemplateParams(TemplateParams const &obj);
-  ~TemplateParams();
+  // dsw: from ClassTemplateInfo
 
-  string toCString() const;
+  // name of the least-specialized template; this is used to detect
+  // when a name is the name of the template we're inside
+  StringRef baseName;
+
+  // list of instantiations and specializations of this template class
+  SObjList<CompoundType> instantiations;
+
+  // if this is an instantiation or specialization, then this is the
+  // list of template arguments
+  ObjList<STemplateArgument> arguments;
+                                            
+  // keep the syntactic arguments around so we can deal with
+  // forward-declared templates
+  FakeList<TemplateArgument> *argumentSyntax;
+
+public:    // funcs
+  TemplateInfo(StringRef baseName);
+  TemplateInfo(TemplateInfo const &obj);
+  ~TemplateInfo();
+
+  // dsw: from TemplateParams
+  string paramsToCString() const;// dsw: renamed to be more specific
   string toMLString() const;
-  bool equalTypes(TemplateParams const *obj) const;
+  bool equalTypes(TemplateInfo const *obj) const;
   bool anyCtorSatisfies(Type::TypePred pred) const;
+
+  // dsw: from ClassTemplateInfo
+  bool equalArguments(SObjList<STemplateArgument> const &list) const;
 };
 
 
@@ -985,33 +1012,6 @@ public:
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
-
-
-// for a template class, including instantiations thereof, this is the
-// template-related info
-class ClassTemplateInfo : public TemplateParams {
-public:    // data
-  // name of the least-specialized template; this is used to detect
-  // when a name is the name of the template we're inside
-  StringRef baseName;
-
-  // list of instantiations and specializations of this template class
-  SObjList<CompoundType> instantiations;
-
-  // if this is an instantiation or specialization, then this is the
-  // list of template arguments
-  ObjList<STemplateArgument> arguments;
-                                            
-  // keep the syntactic arguments around so we can deal with
-  // forward-declared templates
-  FakeList<TemplateArgument> *argumentSyntax;
-
-public:    // funcs
-  ClassTemplateInfo(StringRef baseName);
-  ~ClassTemplateInfo();
-  
-  bool equalArguments(SObjList<STemplateArgument> const &list) const;
-};
 
 
 // ------------------- type factory -------------------

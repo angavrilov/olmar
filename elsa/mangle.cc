@@ -131,8 +131,8 @@ string leftMangle(Type const *t, bool innerParen)
       stringBuilder sb;
 
       // template parameters
-      if (ft->templateParams) {
-        sb << mangleTemplateParams(ft->templateParams) << " ";
+      if (ft->templateInfo) {
+        sb << mangleTemplateParams(ft->templateInfo) << " ";
       }
 
       // return type and start of enclosing type's description
@@ -336,7 +336,7 @@ string mangleVariable(Variable const *v)
 }
 
 
-string mangleTemplateParams(TemplateParams const *tp)
+string mangleTemplateParams(TemplateInfo const *tp)
 {
   stringBuilder sb;
   sb << "template <";

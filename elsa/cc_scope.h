@@ -18,7 +18,7 @@ class CompoundType;       // cc_type.h
 class BaseClassSubobj;    // cc_type.h
 class EnumType;           // cc_type.h
 class Function;           // cc.ast
-class TemplateParams;     // cc_type.h
+class TemplateInfo;       // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
 
@@ -135,7 +135,7 @@ public:      // data
   CompoundType *curCompound;          // (serf) CompoundType we're building
   AccessKeyword curAccess;            // access disposition in effect
   Function *curFunction;              // (serf) Function we're analyzing
-  TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
+  TemplateInfo *curTemplateParams;    // (owner) params to attach to next function or class
   SourceLoc curLoc;                   // latest AST location marker seen
 
 private:     // funcs

@@ -19,7 +19,7 @@
 class Type;
 class AtomicType;
 class Variable;
-class TemplateParams;
+class TemplateInfo;
 
 
 // main entry point
@@ -31,7 +31,7 @@ string mangleAtomic(AtomicType const *t);
 string leftMangle(Type const *t, bool innerParen = true);
 string rightMangle(Type const *t, bool innerParen = true);
 string mangleVariable(Variable const *v);
-string mangleTemplateParams(TemplateParams const *tp);
+string mangleTemplateParams(TemplateInfo const *tp);
 
 
 #endif // MANGLE_H

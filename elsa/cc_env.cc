@@ -1149,7 +1149,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 CompoundType *Env::
   checkTemplateArguments(CompoundType *ct, FakeList<TempalteArgument> const *args)
 {
-  ClassTemplateInfo *tinfo = ct->templateInfo;
+  TemplateInfo *tinfo = ct->templateInfo;
   xassert(tinfo);
 
   // check argument list against parameter list
@@ -1184,7 +1184,7 @@ CompoundType *Env::
 // matches the given arguments in 'args'; return the matching
 // specialization, or NULL if none matches
 CompoundType *Env::
-  selectSpecialization(ClassTemplateInfo *tinfo, FakeList<TempalteArgument> const *args)
+  selectSpecialization(TemplateInfo *tinfo, FakeList<TempalteArgument> const *args)
 {
   SFOREACH_OBJLIST_NC(CompoundType, tinfo->specializations, iter) {
     CompoundType *special = iter.data();
@@ -1458,15 +1458,6 @@ EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 }
 
 
-TemplateParams * /*owner*/ Env::takeTemplateParams()
-{
-  Scope *s = scope();
-  TemplateParams *ret = s->curTemplateParams;
-  s->curTemplateParams = NULL;
-  return ret;
-}
-
-
 StringRef Env::getAnonName(TypeIntr keyword)
 {
   // construct a name
@@ -1486,15 +1477,17 @@ StringRef Env::getAnonName(TypeIntr keyword)
 }
 
 
-ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
+TemplateInfo *Env::takeTemplateInfo(StringRef baseName)
 {
-  ClassTemplateInfo *ret = NULL;
+  TemplateInfo *ret = NULL;
 
   Scope *s = scope();
   if (s->curTemplateParams) {
-    ret = new ClassTemplateInfo(baseName);
+    ret = new TemplateInfo(baseName);
     ret->params.concat(s->curTemplateParams->params);
-    delete takeTemplateParams();
+//      delete takeTemplateParams();
+    delete s->curTemplateParams;
+    s->curTemplateParams = NULL;
   }
 
   return ret;
@@ -1549,7 +1542,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
   // transfer template parameters
-  ct->templateInfo = takeTemplateClassInfo(name);
+  ct->templateInfo = takeTemplateInfo(name);
 
   ct->forward = forward;
   if (name && scope) {
@@ -1739,7 +1732,7 @@ Variable *Env::instantiateClassTemplate
 
     // copy over the template arguments so we can recognize this
     // instantiation later
-    inst->templateInfo = new ClassTemplateInfo(base->name);
+    inst->templateInfo = new TemplateInfo(base->name);
     {
       SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
         inst->templateInfo->arguments.append(new STemplateArgument(*iter.data()));

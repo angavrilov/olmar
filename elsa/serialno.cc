@@ -15,7 +15,7 @@ SerialBase::SerialBase()
 
 // I define this function so that even the copy ctor will get
 // and use a unique serial number
-SerialBase(SerialBase const &obj)
+SerialBase::SerialBase(SerialBase const &obj)
   : serialNumber(incSerialNumber())
 {}
 

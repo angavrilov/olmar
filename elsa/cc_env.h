@@ -284,10 +284,11 @@ public:      // funcs
 
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL
-  TemplateParams * /*owner*/ takeTemplateParams();
+//    TemplateParams * /*owner*/ takeTemplateParams();
   
-  // like the above, but wrap it in a ClassTemplateInfo
-  ClassTemplateInfo * /*owner*/ takeTemplateClassInfo(StringRef baseName);
+  // like the above, but wrap it in a TemplateInfo
+  // dsw: FIX: do something with the NULL argument here
+  TemplateInfo * /*owner*/ takeTemplateInfo(StringRef baseName = NULL);
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
