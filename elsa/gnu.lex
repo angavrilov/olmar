@@ -11,6 +11,7 @@
 "typeof"               return tok(TOK___TYPEOF__);
 "__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
+"__restrict"           return tok(TOK___RESTRICT__);
 "__restrict__"         return tok(TOK___RESTRICT__);
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
 
