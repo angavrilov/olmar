@@ -102,6 +102,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<predicate>",    // 19
   "explicit",
   "<definition>",
+  "<inline_defn>",
 };
 
 
