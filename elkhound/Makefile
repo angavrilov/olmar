@@ -137,3 +137,6 @@ cc.gr.ps:
 towner: owner.h towner.cc
 	${link} -o towner towner.cc
 
+# test for rcptr
+trcptr: rcptr.h trcptr.cc
+	${link} -o trcptr trcptr.cc
