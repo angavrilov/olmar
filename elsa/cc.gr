@@ -59,8 +59,8 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 54;
-option reduce_reduce_conflicts 80;
+option shift_reduce_conflicts 55;
+option reduce_reduce_conflicts 82;
 option unreachable_nonterminals 0;
 option unreachable_terminals 6;
 
@@ -290,8 +290,8 @@ nonterm(PQName*) IdExpression {
 // names that are not qualified
 nonterm(PQName*) UnqualifiedId {
   -> id:Identifier                { return new PQ_name(loc, id); }
-  -> id:OperatorFunctionId        { return new PQ_operator(loc, id, str(id->getOperatorName())); }
-  -> id:ConversionFunctionId      { return new PQ_operator(loc, id, str(id->getOperatorName())); }
+  -> on:OperatorFunctionId        { return new PQ_operator(loc, on, str(on->getOperatorName())); }
+  -> on:ConversionFunctionId      { return new PQ_operator(loc, on, str(on->getOperatorName())); }
 
   // std has `"~" ClassName' here, but I've chosen to separate out
   // the places that a destructor name can occur, since it avoids
@@ -2206,6 +2206,21 @@ nonterm(ASTList<TemplateArgument>*) TemplateArgumentListOpt {
 nonterm(PQName*) TemplateId {
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, n, list); }
+
+  // 9/21/04: Added this possibility (e.g. d0103.cc).
+  -> on:OperatorFunctionId "<" list:TemplateArgumentListOpt ">"
+       // Note: This leaks 'on', and isn't quite as operator-like
+       // as PQ_operator, so I'm not convinced it behaves perfectly...
+       { return new PQ_template(loc, str(on->getOperatorName()), list); }
+
+  // I suspect this one is needed too, but the problem is that
+  // 'getOperatorName' loses information for conversion operators
+  // (they all map to the same string).  So, I'll leave it commented-out.
+  // One solution would be to make a PQ_operatorTemplate with an
+  // OperatorName first argument...
+  //-> on:ConversionFunctionId "<" list:TemplateArgumentListOpt ">"
+  //     { return new PQ_template(loc, str(on->getOperatorName()), list); }
+
 
   // version with the word "template" in front
   // 

@@ -10,8 +10,8 @@
 // that are provided by both, so the split wouldn't be 100% clean.)
 
 // expected statistics
-option shift_reduce_conflicts 82;
-option reduce_reduce_conflicts 108;
+option shift_reduce_conflicts 83;
+option reduce_reduce_conflicts 111;
 
 
 verbatim {

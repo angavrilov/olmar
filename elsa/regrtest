@@ -633,7 +633,7 @@ testparse d0099.cc
 testparse d0100.cc
 testparse d0101.cc
 testparse d0102.cc
-failparse d0103.cc "Parse error"
+testparse d0103.cc
 failparse d0104.cc "name lookup ambiguity"
 testparse d0105.cc
 failparse d0106.cc "can't define static member of a specialization of a class template"

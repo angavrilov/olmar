@@ -49,5 +49,6 @@ namespace std
 					    __streambuf_type * __sbin,
 					    __streambuf_type * __sbout);
   };
-  extern template class basic_streambuf < char >;
+  //extern    // let it go through in non-gnu mode
+  template class basic_streambuf < char >;
 }
