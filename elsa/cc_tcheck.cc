@@ -2572,31 +2572,8 @@ char const *ON_newDel::getOperatorName() const
 
 char const *ON_binary::getOperatorName() const
 {
-  switch (op) {
-    default:              xfailure("bad code");
-    case BIN_EQUAL:       return "operator==";
-    case BIN_NOTEQUAL:    return "operator!=";
-    case BIN_LESS:        return "operator<";
-    case BIN_GREATER:     return "operator>";
-    case BIN_LESSEQ:      return "operator<=";
-    case BIN_GREATEREQ:   return "operator>=";
-    case BIN_MULT:        return "operator*";
-    case BIN_DIV:         return "operator/";
-    case BIN_MOD:         return "operator%";
-    case BIN_PLUS:        return "operator+";
-    case BIN_MINUS:       return "operator-";
-    case BIN_LSHIFT:      return "operator<<";
-    case BIN_RSHIFT:      return "operator>>";
-    case BIN_BITAND:      return "operator&";
-    case BIN_BITXOR:      return "operator^";
-    case BIN_BITOR:       return "operator|";
-    case BIN_AND:         return "operator&&";
-    case BIN_OR:          return "operator||";
-    case BIN_ASSIGN:      return "operator=";
-    case BIN_DOT_STAR:    return "operator.*";
-    case BIN_ARROW_STAR:  return "operator->*";
-    case BIN_IMPLIES:     return "operator==>";
-  };
+  xassert(validCode(op));
+  return binaryOperatorFunctionNames[op];
 }
 
 char const *ON_unary::getOperatorName() const
@@ -3606,9 +3583,10 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   // check for operator overloading; only limited cases for now
   // (TODO: lhs or rhs enum triggers overload resolution)
   if (env.doOverload &&
-      (op==BIN_PLUS || op==BIN_MINUS) &&
+      isOverloadable(op) &&
       (lhsType->isCompoundType() || rhsType->isCompoundType())) {
     TRACE("overload", "found overloadable " << toString(op));
+    StringRef opName = env.binaryOperatorName[op];
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
@@ -3619,37 +3597,27 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE, args, 10 /*numCand*/);
 
-    StringRef opName = 
-      op==BIN_PLUS? env.operatorPlusName : env.operatorMinusName;
-
     // collect candidates: cppstd 13.3.1.2 para 3
-
-    // member candidates
-    if (lhsType->isCompoundType()) {
-      Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
-      if (member) {
-        //TRACE("opovl", member->overloadSetSize() << " member candidates");
-        resolver.processPossiblyOverloadedVar(member);
+    {
+      // member candidates
+      if (lhsType->isCompoundType()) {
+        Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
+        if (member) {
+          resolver.processPossiblyOverloadedVar(member);
+        }
       }
-    }
 
-    // non-member candidates; this lookup ignores member functions
-    Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
-    if (nonmember) {
-      //TRACE("opovl", nonmember->overloadSetSize() << " non-member candidates");
-      resolver.processPossiblyOverloadedVar(nonmember);
-    }
+      // non-member candidates; this lookup ignores member functions
+      Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
+      if (nonmember) {
+        resolver.processPossiblyOverloadedVar(nonmember);
+      }
 
-    // built-in candidates
-    if (op==BIN_PLUS) {
-      resolver.processCandidate(env.operatorPlusVar);
-      resolver.processCandidate(env.operatorPlusVar2);
-      resolver.processCandidate(env.operatorPlusVar3);
-    }
-    else {
-      resolver.processCandidate(env.operatorMinusVar);
-      resolver.processCandidate(env.operatorMinusVar2);
-      resolver.processCandidate(env.operatorMinusVar3);
+      // built-in candidates
+      ArrayStack<Variable*> &builtins = env.builtinBinaryOperator[op];
+      for (int i=0; i < builtins.length(); i++) {
+        resolver.processCandidate(builtins[i]);
+      }
     }
 
     // pick one

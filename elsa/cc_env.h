@@ -81,8 +81,6 @@ public:      // data
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
   StringRef thisName;
-  StringRef operatorPlusName;
-  StringRef operatorMinusName;
 
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
@@ -97,13 +95,12 @@ public:      // data
   // dsw: Can't think of a better way to do this, sorry.
   Variable *var__builtin_constant_p;
 
-  // polymorphic built-in operator functions (all serfs)
-  Variable *operatorPlusVar;
-  Variable *operatorPlusVar2;
-  Variable *operatorPlusVar3;
-  Variable *operatorMinusVar;
-  Variable *operatorMinusVar2;
-  Variable *operatorMinusVar3;
+  // operator function names, indexed by the operators they overload
+  StringRef binaryOperatorName[NUM_BINARYOPS];
+
+  // polymorphic built-in operator functions (all serfs), indexed
+  // by operator
+  ArrayStack<Variable*> builtinBinaryOperator[NUM_BINARYOPS];
 
   TranslationUnit *tunit;
   
@@ -144,6 +141,9 @@ private:     // funcs
   Variable *declareSpecialFunction(char const *name);
 
   CompoundType *findEnclosingTemplateCalled(StringRef name);
+
+  void setupOperatorOverloading();
+  void addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);

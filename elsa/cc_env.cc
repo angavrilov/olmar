@@ -35,8 +35,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
     thisName(str("this")),
-    operatorPlusName(str("operator+")),
-    operatorMinusName(str("operator-")),
 
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
@@ -49,12 +47,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     var__builtin_constant_p(NULL),
 
-    operatorPlusVar(NULL),
-    operatorPlusVar2(NULL),
-    operatorPlusVar3(NULL),
-    operatorMinusVar(NULL),
-    operatorMinusVar2(NULL),
-    operatorMinusVar3(NULL),
+    // binaryOperatorName[] initialized below
+    // builtinBinaryOperator[] is initialized below
 
     tunit(tunit0),
 
@@ -145,62 +139,81 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
   special_testOverload = declareSpecialFunction("__testOverload")->name;
 
+  setupOperatorOverloading();
+
+  #undef HERE
+
+  ctorFinished = true;
+}
+
+void Env::setupOperatorOverloading()
+{
+  // fill in binaryOperatorName[]
+  int i;
+  for (i=0; i < NUM_BINARYOPS; i++) {
+    binaryOperatorName[i] = str(binaryOperatorFunctionNames[i]);
+  }
+
   // I want to declare some functions, but I don't want them entered
   // into the environment for name lookup; so I'll make a throwaway
   // Scope for them to go into; NOTE that this assumes that Scopes do
   // not delete the Variables they contain (if at some point they
   // acquire that behavior, I can have a method in Scope to clear
   // the Variables without deleting them)
-  Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/, 
+  Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/,
     "dummy scope for built-in operator functions");
-  
+
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
   // 13.6 para 12
-  operatorPlusVar = declareFunction2arg(
-    t_void /*irrelevant*/, "operator +",
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "x",
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "y");
-  operatorPlusVar->setFlag(DF_BUILTIN);
+  addBuiltinBinaryOp(BIN_PLUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
-  operatorMinusVar = declareFunction2arg(
-    t_void /*irrelevant*/, "operator -",
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "x",
-    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "y");
-  operatorMinusVar->setFlag(DF_BUILTIN);
+  addBuiltinBinaryOp(BIN_MINUS,
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
   // 13.6 para 13
-  operatorPlusVar2 = declareFunction2arg(
-    t_void, "operator +",
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
-    t_ptrdiff_t, "y");
-  operatorPlusVar2->setFlag(DF_BUILTIN);
+  addBuiltinBinaryOp(BIN_PLUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    t_ptrdiff_t);
 
-  operatorPlusVar3 = declareFunction2arg(
-    t_void, "operator +",
-    t_ptrdiff_t, "x",
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "y");
-  operatorPlusVar3->setFlag(DF_BUILTIN);
+  addBuiltinBinaryOp(BIN_PLUS,
+    t_ptrdiff_t,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
 
-  operatorMinusVar2 = declareFunction2arg(
-    t_void, "operator -",
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
-    t_ptrdiff_t, "y");
-  operatorMinusVar2->setFlag(DF_BUILTIN);
+  addBuiltinBinaryOp(BIN_MINUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    t_ptrdiff_t);
 
-  operatorMinusVar3 = declareFunction2arg(
-    t_void, "operator -",
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "y");
-  operatorMinusVar3->setFlag(DF_BUILTIN);
+  addBuiltinBinaryOp(BIN_MINUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
 
   exitScope(dummyScope);
-
-  #undef HERE
-
-  ctorFinished = true;
+  
+  // the default constructor for ArrayStack will have allocated 10
+  // items in each array; go back and resize them to their current
+  // length (since that won't change after this point)
+  for (i=0; i < NUM_BINARYOPS; i++) {
+    builtinBinaryOperator[i].setSize(builtinBinaryOperator[i].length());
+  }
 }
+
+void Env::addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
+{
+  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+
+  Variable *v = declareFunction2arg(
+    t_void /*irrelevant*/, binaryOperatorName[op],
+    x, "x", y, "y");
+  v->setFlag(DF_BUILTIN);
+
+  builtinBinaryOperator[op].push(v);
+}
+
 
 Env::~Env()
 {

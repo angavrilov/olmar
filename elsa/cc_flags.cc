@@ -267,6 +267,40 @@ bool isOverloadable(BinaryOp op)
 }
 
 
+// some of these names can't be used in C++ because of restrictions
+// on what operators can be overloaded, but I'll define the names
+// anyway for uniformity
+char const * const binaryOperatorFunctionNames[NUM_BINARYOPS] = {
+  "operator==",
+  "operator!=",
+  "operator<",
+  "operator>",
+  "operator<=",
+  "operator>=",
+
+  "operator*",
+  "operator/",
+  "operator%",
+  "operator+",
+  "operator-",
+  "operator<<",
+  "operator>>",
+  "operator&",
+  "operator^",
+  "operator|",
+  "operator&&",
+  "operator||",
+
+  "operator=",
+
+  "operator.*",
+  "operator->*",
+
+  "operator==>",
+  "operator<==>"
+};
+
+
 // ------------------- AccessKeyword -------------------
 char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {
   "public",

@@ -239,6 +239,9 @@ enum BinaryOp {
   NUM_BINARYOPS
 };
 
+inline bool validCode(BinaryOp op)
+  { return (unsigned)op < NUM_BINARYOPS; }
+
 extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
 char const *toString(BinaryOp op);
 
@@ -246,6 +249,9 @@ bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
 bool isInequality(BinaryOp op);              // <, >, <=, >=
 bool isOverloadable(BinaryOp op);
+                                                                     
+// yields things like "operator+"
+extern char const * const binaryOperatorFunctionNames[NUM_BINARYOPS];
 
 
 // ---------------- access control ------------
