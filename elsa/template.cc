@@ -3902,6 +3902,20 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
   ovlHeader->getOverloadList(set);
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
     Variable *primary = iter.data();
+
+    if (!nameArgs &&                      // no arguments attached to final name
+        primary->isInstantiation() &&     // member of an instantiated template
+        type->equals(primary->type, Type::EF_IGNORE_IMPLICIT |     // right type
+                                    Type::EF_STAT_EQ_NONSTAT)) {
+      // an instantiation request like (in/k0016.cc)
+      //   template
+      //   void S<int>::foo();
+      // where 'foo' is *not* a member template, but is a member of
+      // a class template
+      explicitlyInstantiate(primary);
+      return primary;
+    }
+
     if (!primary->isTemplate()) continue;
     TemplateInfo *primaryTI = primary->templateInfo();
 

@@ -1059,6 +1059,7 @@ void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
   Scope *hasParamsForMe = NULL;
 
   if ((lflags & LF_DECLARATOR) &&                // declarator context
+      !(lflags & LF_EXPLICIT_INST) &&            // not explicit inst request
       bareQualifierVar &&                        // lookup succeeded
       bareQualifierVar->isTemplate() &&          // names a template
       sargs.isNotEmpty()) {                      // arguments supplied
@@ -2961,6 +2962,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.context == DC_TD_DECL ||
     dt.context == DC_MR_DECL;
 
+  LookupFlags lflags = LF_DECLARATOR;
+  if (dt.context == DC_TF_EXPLICITINST) {
+    // this tells the qualifier lookup code that there are no
+    // template<> parameter lists to worry about
+    lflags |= LF_EXPLICIT_INST;
+  }
+
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
   //    qualified-id, names used before the qualified-id
@@ -2990,7 +2998,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   ScopeSeq qualifierScopes;
   PQName *name = decl->getDeclaratorId();
   if (name) {
-    tcheckPQName(name, env, NULL /*scope*/, LF_DECLARATOR);
+    tcheckPQName(name, env, NULL /*scope*/, lflags);
   }
   env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);

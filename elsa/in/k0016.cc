@@ -7,6 +7,12 @@
 // ERR-MATCH: no template parameter list supplied
 
 template <typename T> struct S {
-    void foo() {}
+    void foo() {  
+      // the following line of code contains an error that
+      // is only found if S<int>::foo is instantiated; this
+      // ensures the instantiation request below is not simply
+      // being ignored
+      //ERROR(1): typename T::foo x;
+    }
 };
 template void S<int>::foo();

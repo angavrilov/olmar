@@ -35,12 +35,13 @@ enum LookupFlags {
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
   LF_NO_DENOTED_SCOPE  = 0x00080000,   // temporary: disable denoted-scope computation in PQ_qualifier::tcheck
   LF_EXPECTING_TYPE    = 0x00100000,   // do not apply template args to a non-type
+  LF_EXPLICIT_INST     = 0x00200000,   // the context is a TF_explicitInst
 
   // flag combination for looking up names that precede "::" (3.4.3p1);
   // this is used for the new lookup mechanism (Env::lookupPQ, etc.)
   LF_QUALIFIER_LOOKUP  = LF_TYPES_NAMESPACES | LF_SELFNAME,
 
-  LF_ALL_FLAGS         = 0x001FFFFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS         = 0x003FFFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
