@@ -3,47 +3,41 @@
 
 verbatim {
   #include "astlist.h"     // ASTList
+  #include "str.h"         // string
 }
 
 // the entire specification
-class ASTSpecFile {
-  public ASTList<ToplevelForm> forms;
-  -> ();
-}
+class ASTSpecFile (ASTList<ToplevelForm> forms);
 
 class ToplevelForm {
   // code to be copied verbatim into the generated .h file
   -> TF_verbatim(string code);
 
   // a definition of a grammar nonterminal
-  -> ASTClass() {
-       public string name;
-       public ASTList<UserDecl> decls;
-       public ASTList<ASTCtor> ctors;
-     }
+  -> ASTClass(string name,
+              ASTList<CtorArg> superCtor,
+              ASTList<UserDecl> decls,
+              ASTList<ASTCtor> ctors);
 }
 
 verbatim {
-  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED }
+  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED };
+  string toString(AccessCtl acc);      // defined in ast.cc
 }
 
 // verbatim declarations, plus an access qualifier, to be
 // copied into the a class declaration
-class UserDecl {
-  -> (AccessCtl access, string code);
-}
+class UserDecl (AccessCtl access, string code);
 
 // one of possibly several alternatives for the enclosing class
 class ASTCtor {
   -> (string name,
-      owner ASTList<CtorArg> *args,
-      owner ASTList<UserDecl> *decls);
+      ASTList<CtorArg> args,
+      ASTList<UserDecl> decls);
 }
 
 // something that has to be passed to create a constructor
-class CtorArg {
-  -> (bool owner, string type, string name);
-}
+class CtorArg (bool owner, string type, string name);
 
 
 

@@ -1,19 +1,19 @@
-/* grammar.lex
- * lexical analyzer for my grammar input format
+/* agrammar.lex
+ * lexical analyzer for my AST input format
  */
 
 /* ----------------- C definitions -------------------- */
 %{
-
-// pull in the bison-generated token codes
-#include "agrampar.tab.h"
 
 // pull in my declaration of the lexer class -- this defines
 // the additional lexer state, some of which is used in the
 // action rules below
 #include "gramlex.h"
 
-#include <string.h>     // strchr, strrchr
+// pull in the bison-generated token codes
+#include "agrampar.codes.h"
+
+#include <string.h>         // strchr, strrchr
 
 // for maintaining column count
 #define TOKEN_START  tokenStartLoc = fileState /* user ; */
@@ -64,10 +64,7 @@ SLWHITE   [ \t]
 
 /* --------------- start conditions ------------------- */
 %x C_COMMENT
-%x INCLUDE
-%x EAT_TO_NEWLINE
-%x FUNDECL
-%x FUN
+%x EMBED
 
 
 /* ---------------------- rules ----------------------- */
@@ -124,88 +121,58 @@ SLWHITE   [ \t]
 
   /* -------- punctuators, operators, keywords --------- */
 "}"                TOK_UPD_COL;  return TOK_RBRACE;
-":"                TOK_UPD_COL;  return TOK_COLON;
 ";"                TOK_UPD_COL;  return TOK_SEMICOLON;
 "->"               TOK_UPD_COL;  return TOK_ARROW;
-"|"                TOK_UPD_COL;  return TOK_VERTBAR;
-":="               TOK_UPD_COL;  return TOK_COLONEQUALS;
 "("                TOK_UPD_COL;  return TOK_LPAREN;
 ")"                TOK_UPD_COL;  return TOK_RPAREN;
-"."                TOK_UPD_COL;  return TOK_DOT;
 ","                TOK_UPD_COL;  return TOK_COMMA;
 
-"||"               TOK_UPD_COL;  return TOK_OROR;
-"&&"               TOK_UPD_COL;  return TOK_ANDAND;
-"!="               TOK_UPD_COL;  return TOK_NOTEQUAL;
-"=="               TOK_UPD_COL;  return TOK_EQUALEQUAL;
-">="               TOK_UPD_COL;  return TOK_GREATEREQ;
-"<="               TOK_UPD_COL;  return TOK_LESSEQ;
-">"                TOK_UPD_COL;  return TOK_GREATER;
-"<"                TOK_UPD_COL;  return TOK_LESS;
-"-"                TOK_UPD_COL;  return TOK_MINUS;
-"+"                TOK_UPD_COL;  return TOK_PLUS;
-"%"                TOK_UPD_COL;  return TOK_PERCENT;
-"/"                TOK_UPD_COL;  return TOK_SLASH;
-"*"                TOK_UPD_COL;  return TOK_ASTERISK;
-"?"                TOK_UPD_COL;  return TOK_QUESTION;
+">"                TOK_UPD_COL;  return TOK_LANGLE;
+"<"                TOK_UPD_COL;  return TOK_RANGLE;
+"*"                TOK_UPD_COL;  return TOK_STAR;
+"&"                TOK_UPD_COL;  return TOK_AMPERSAND;
 
-"terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
-"nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
-"formGroup"        TOK_UPD_COL;  return TOK_FORMGROUP;
-"attr"             TOK_UPD_COL;  return TOK_ATTR;
-"action"           TOK_UPD_COL;  return TOK_ACTION;
-"condition"        TOK_UPD_COL;  return TOK_CONDITION;
-"treeNodeBase"     TOK_UPD_COL;  return TOK_TREENODEBASE;
-"treeCompare"      TOK_UPD_COL;  return TOK_TREECOMPARE;
+"class"            TOK_UPD_COL;  return TOK_CLASS;
 
-  /* --------- embedded semantic functions --------- */
-"fundecl" {
+  /* --------- embedded text --------- */
+("public"|"protected"|"private") {
   TOK_UPD_COL;
-  BEGIN(FUNDECL);
+  BEGIN(EMBED);
   embedded->reset();
   embedFinish = ';';
-  embedMode = TOK_FUNDECL_BODY;
-  return TOK_FUNDECL;
+  embedMode = TOK_EMBEDDED_CODE;
+  return yytext[2] == 'b'? TOK_PUBLIC :
+         yytext[2] == 'o'? TOK_PROTECTED :
+                           TOK_PRIVATE ;
 }
 
-"datadecl" {
-  TOK_UPD_COL;
-  BEGIN(FUNDECL);
-  embedded->reset();
-  embedFinish = ';';
-  embedMode = TOK_DECL_BODY;
-  return TOK_DECLARE;
-}
-
-("fun"|"literalCode") {
+"verbatim" {
   TOK_UPD_COL;
 
-  // one or two tokens must be processed before we start the embedded
-  // stuff; the parser will ensure they are there, and then this flag
-  // will get us into embedded processing; rules for "{" and "=" deal
-  // with 'expectedEmbedded' and transitioning into FUN state
+  // need to see one more token ("{") before we begin embedded processing
   expectingEmbedded = true;
 
   embedded->reset();
-  embedMode = TOK_FUN_BODY;
-  return yytext[0]=='f'? TOK_FUN : TOK_LITERALCODE;
+  embedMode = TOK_EMBEDDED_CODE;
+  return TOK_VERBATIM;
 }
 
   /* punctuation that can start embedded code */
-("{"|"=") {
+"{" {
   TOK_UPD_COL;
   if (expectingEmbedded) {
     expectingEmbedded = false;
-    embedFinish = (yytext[0] == '{' ? '}' : ';');
-    BEGIN(FUN);
+    embedFinish = '}';
+    BEGIN(EMBED);
   }
-  return yytext[0] == '{' ? TOK_LBRACE : TOK_EQUAL;
+  return TOK_LBRACE;
 }
 
 
   /* no TOKEN_START here; we'll use the tokenStartLoc that
    * was computed in the opening punctuation */
-<FUNDECL,FUN>{
+<EMBED>{
+  /* no special significance to lexer */
   [^;}\n]+ {
     UPD_COL;
     embedded->handle(yytext, yyleng);
@@ -216,6 +183,7 @@ SLWHITE   [ \t]
     embedded->handle(yytext, yyleng);
   }
 
+  /* possibly closing delimiter */
   ("}"|";") {
     UPD_COL;
     if (yytext[0] == embedFinish &&
@@ -223,32 +191,15 @@ SLWHITE   [ \t]
       // done
       BEGIN(INITIAL);
 
-      // adjust tokenStartLoc
-      if (embedMode == TOK_FUN_BODY) {
-        // we get into embedded mode from a single-char token ('{' or
-        // '='), and tokenStartLoc currently has that token's location;
-        // since lexer 1 is supposed to partition the input, I want it
-        // right
-        tokenStartLoc.col++;
-      }
-      else {
-        // here we get into embedded from 'fundecl'
-        tokenStartLoc.col += 7;
-      }
-
-      // put back delimeter
+      // put back delimeter so parser will see it
       yyless(yyleng-1);
       fileState.col--;
 
-      // tell the 'embedded' object whether the text just
-      // added is to be considered an expression or a
-      // complete function body
-      embedded->exprOnly =
-        (embedMode == TOK_FUN_BODY &&
-         embedFinish == ';');
-                                                             
+      // in the abstract grammar we don't have embedded expressions
+      embedded->exprOnly = false;
+
       // and similarly for the other flag
-      embedded->isDeclaration = (embedMode == TOK_DECL_BODY);
+      embedded->isDeclaration = (embedFinish == ';');
 
       // caller can get text from embedded->text
       return embedMode;
@@ -261,73 +212,11 @@ SLWHITE   [ \t]
 }
 
 
-  /* ---------- includes ----------- */
-"include" {
-  TOK_UPD_COL;    /* hence no TOKEN_START in INCLUDE area */
-  BEGIN(INCLUDE);
-}
-
-<INCLUDE>{
-  {SLWHITE}*"("{SLWHITE}*{DQUOTE}{STRCHR}+{DQUOTE}{SLWHITE}*")" {
-    /* e.g.: ("filename") */
-    /* file name to include */
-    UPD_COL;
-
-    /* find quotes */
-    char const *leftq = strchr(yytext, '"');
-    char const *rightq = strchr(leftq+1, '"');
-    xassert(leftq && rightq);
-
-    /* extract filename string */
-    includeFileName = string(leftq+1, rightq-leftq-1);
-
-    /* go back to normal processing */
-    BEGIN(INITIAL);
-    return TOK_INCLUDE;
-  }
-
-  {ANY}      {
-    /* anything else: malformed */
-    UPD_COL;
-    errorMalformedInclude();
-
-    /* rudimentary error recovery.. */
-    BEGIN(EAT_TO_NEWLINE);
-  }
-}
-
-<EAT_TO_NEWLINE>{
-  .+ {
-    UPD_COL;
-    /* not newline, eat it */
-  }
-
-  "\n" {
-    /* get out of here */
-    newLine();
-    BEGIN(INITIAL);
-  }
-}
-
   /* -------- name literal --------- */
 {LETTER}({LETTER}|{DIGIT})* {
   /* get text from yytext and yyleng */
   TOK_UPD_COL;
   return TOK_NAME;
-}
-
-  /* -------- numeric literal ------ */
-{DIGIT}+ {
-  TOK_UPD_COL;
-  integerLiteral = strtoul(yytext, NULL, 10 /*radix*/);
-  return TOK_INTEGER;
-}
-
-  /* ----------- string literal ----- */
-{DQUOTE}{STRCHR}*{DQUOTE} {
-  TOK_UPD_COL;
-  stringLiteral = string(yytext+1, yyleng-2);        // strip quotes
-  return TOK_STRING;
 }
 
   /* --------- illegal ------------- */
@@ -339,3 +228,8 @@ SLWHITE   [ \t]
 
 %%
 /* -------------------- additional C code -------------------- */
+
+bool isAGramlexEmbed(int code)
+{
+  return code == TOK_EMBEDDED_CODE;
+}

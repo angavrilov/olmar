@@ -5,8 +5,7 @@
 /* C declarations */
 %{
 
-//#include "grampar.h"        // yylex, etc.
-//#include "gramast.h"        // ASTNode, etc.
+#include "agrampar.h"       // agrampar_yylex, etc.
 
 #include <stdlib.h>         // malloc, free
 #include <iostream.h>       // cout
@@ -15,6 +14,9 @@
 #ifndef NDEBUG
   #define YYDEBUG 1
 #endif
+
+// permit having other parser's codes in the same program
+#define yyparse agrampar_yyparse
 
 %}
 
@@ -40,6 +42,7 @@
 %token TOK_RANGLE ">"
 %token TOK_STAR "*"
 %token TOK_AMPERSAND "&"
+%token TOK_COMMA ","
 
 /* keywords */
 %token TOK_CLASS "class"
@@ -53,19 +56,21 @@
 /* all pointers are interpreted as owner pointers */
 %union {
   ASTSpecFile *file;
+  ASTList<ToplevelForm> *formList;
   ASTClass *astClass;
-  ASTList<CtorArg> *ctorArgList
-  ASTList<UserDecl> *userDeclList
+  ASTList<CtorArg> *ctorArgList;
+  ASTList<UserDecl> *userDeclList;
   string *str;
   enum AccessCtl accessCtl;
   TF_verbatim *verbatim;
 }
 
-%type <file> StartSymbol Input
-%type <astClass> Class ClassMembersOpt
+%type <file> StartSymbol
+%type <formList> Input
+%type <astClass> Class ClassBody ClassMembersOpt
 %type <ctorArgList> CtorArgsOpt CtorArgs
 %type <userDeclList> CtorMembersOpt
-%type <str> Arg ArgWord Embedded
+%type <str> Arg ArgWord Embedded ArgList
 %type <accessCtl> Public
 %type <verbatim> Verbatim
 
@@ -76,28 +81,38 @@
 /* start symbol */
 /* yields ASTSpecFile, though really $$ isn't used.. */
 StartSymbol: Input
-               { $$ = ((ParseParams*)parseParam)->treeTop = $1; }
+               { $$ = *((ASTSpecFile**)parseParam) = new ASTSpecFile($1); }
            ;
 
 /* sequence of toplevel forms */
-/* yields ASTSpecFile */
-Input: /* empty */           { $$ = new ASTSpecFile; }
-     | Input Class           { ($$=$1)->forms.append($2); }
-     | Input Verbatim        { ($$=$1)->forms.append($2); }
+/* yields ASTList<ToplevelForm> */
+Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
+     | Input Class           { ($$=$1)->append($2); }
+     | Input Verbatim        { ($$=$1)->append($2); }
      ;
 
 /* a class is a nonterminal in the abstract grammar */
 /* yields ASTClass */
-Class: "class" TOK_NAME "{" ClassMembersOpt "}"
-         { ($$=$4)->name = $2; }
+Class: "class" TOK_NAME ClassBody
+         { ($$=$3)->name = unbox($2); }
+     | "class" TOK_NAME "(" CtorArgsOpt ")" ClassBody
+         { ($$=$6)->name = unbox($2); $$->superCtor.steal($4); }
      ;
 
 /* yields ASTClass */
+ClassBody: "{" ClassMembersOpt "}"
+             { $$=$2; }
+         | ";"
+             { $$ = new ASTClass("(placeholder)", NULL, NULL, NULL); }
+         ;
+
+/* yields ASTClass */
+/* does this by making an empty one initially, and then adding to it */
 ClassMembersOpt
   : /* empty */
-      { $$ = new ASTClass; }
+      { $$ = new ASTClass("(placeholder)", NULL, NULL, NULL); }
   | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" ";"
-      { ($$=$1)->ctors.append(new ASTCtor(unbox($3), $5, new ASTList<UserDecl>())); }
+      { ($$=$1)->ctors.append(new ASTCtor(unbox($3), $5, NULL)); }
   | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" "{" CtorMembersOpt "}"
       { ($$=$1)->ctors.append(new ASTCtor(unbox($3), $5, $8)); }
   | ClassMembersOpt Public Embedded
@@ -114,9 +129,9 @@ CtorArgsOpt
 
 /* yields ASTList<CtorArg> */
 CtorArgs: Arg
-            { $$ = new ASTList<CtorArg>; $$->append(parseCtorArg($1)); }
+            { $$ = new ASTList<CtorArg>; $$->append(parseCtorArg(unbox($1))); }
         | CtorArgs "," Arg
-            { ($$=$1)->append(parseCtorArg($3)); }
+            { ($$=$1)->append(parseCtorArg(unbox($3))); }
         ;
 
 /* yields string */
@@ -128,13 +143,19 @@ Arg: ArgWord
 
 /* yields string */
 ArgWord
-  : TOK_NAME     { $$ = $1; }
-  | "<"          { $$ = new string("<"); }
-  | ">"          { $$ = new string(">"); }
-  | "*"          { $$ = new string("*"); }
-  | "&"          { $$ = new string("&"); }
-  | TOK_CLASS    { $$ = new string("class"); }
+  : TOK_NAME         { $$ = appendStr($1, box(" ")); }
+  | "<" ArgList ">"  { $$ = appendStr(box("<"), appendStr($2, box(">"))); }
+  | "*"              { $$ = box("*"); }
+  | "&"              { $$ = box("&"); }
+  | TOK_CLASS        { $$ = box("class "); }    /* special b/c is ast spec keyword */
   ;
+
+/* yields string, and may have commas inside */
+ArgList: Arg
+           { $$ = $1 }
+       | Arg "," ArgList
+           { $$ = appendStr($1, appendStr(box(","), $3)); }
+       ;
 
 /* yields ASTList<UserDecl> */
 CtorMembersOpt
@@ -165,3 +186,6 @@ Verbatim: TOK_VERBATIM Embedded
         ;
 
 %%
+
+/* ----------------- extra C code ------------------- */
+

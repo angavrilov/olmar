@@ -1,7 +1,13 @@
 // ast.hand.h
 // generated (by hand) from ast.ast
 
+#ifndef AST_HAND_H
+#define AST_HAND_H
+
+#include <iostream.h>    // ostream
+
   #include "astlist.h"     // ASTList
+  #include "str.h"         // string
 
 // fwd decls
 class ASTSpecFile;
@@ -12,14 +18,18 @@ class UserDecl;
 class ASTCtor;
 class CtorArg;
 
+
 class ASTSpecFile {
 public:
   ASTList<ToplevelForm> forms;
-  
+
 public:
-  ASTSpecFile() {}
+  ASTSpecFile(ASTList<ToplevelForm> *_forms) : forms(_forms) {}
   ~ASTSpecFile() {}
+
+  void debugPrint(ostream &os, int indent) const;
 };
+
 
 class ToplevelForm {
 public:
@@ -28,6 +38,8 @@ public:
 
   enum Kind { TF_VERBATIM, ASTCLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
+
+  virtual void debugPrint(ostream &os, int indent) const;
 };
 
 class TF_verbatim : public ToplevelForm {
@@ -36,41 +48,55 @@ public:
 
 public:
   TF_verbatim(string _code)
-    : code(_code)
+    : code(_code) 
   {}
   virtual ~TF_verbatim() {}
-  
+
   virtual Kind kind() const { return TF_VERBATIM; }
   enum { TYPE_TAG = TF_VERBATIM };
+
+  virtual void debugPrint(ostream &os, int indent) const;
 };
 
 class ASTClass : public ToplevelForm {
 public:
   string name;
-  ASTList<UserDcl> decls;
+  ASTList<CtorArg> superCtor;
+  ASTList<UserDecl> decls;
   ASTList<ASTCtor> ctors;
 
 public:
-  ASTClass(string _name) :
-    name(_name)
+  ASTClass(string _name, ASTList<CtorArg> *_superCtor,
+           ASTList<UserDecl> *_decls, ASTList<ASTCtor> *_ctors) :
+    name(_name), superCtor(_superCtor), decls(_decls), ctors(_ctors)
   {}
   ~ASTClass() {}
-  
+
   virtual Kind kind() const { return ASTCLASS; }
   enum { TYPE_TAG = ASTCLASS };
+
+  virtual void debugPrint(ostream &os, int indent) const;
 };
+
+
+  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED };
+  string toString(AccessCtl acc);      // defined in ast.cc
+
 
 class UserDecl {
 public:
-  string access;
+  AccessCtl access;
   string code;
 
 public:
-  UserDecl(string _access, string _code) 
+  UserDecl(AccessCtl _access, string _code)
     : access(_access), code(_code)
   {}
   ~UserDecl() {}
+
+  void debugPrint(ostream &os, int indent) const;
 };
+
 
 class ASTCtor {
 public:
@@ -79,18 +105,21 @@ public:
   ASTList<UserDecl> decls;
 
 public:
-  ASTCtor(string _name)
-    : name(_name)
+  ASTCtor(string _name, ASTList<CtorArg> *_args, ASTList<UserDecl> *_decls)
+    : name(_name), args(_args), decls(_decls)
   {}
   ~ASTCtor() {}
+
+  void debugPrint(ostream &os, int indent) const;
 };
+
 
 class CtorArg {
 public:
   bool owner;
   string type;
   string name;
- 
+
 public:
   CtorArg(bool _owner, string _type, string _name)
     : owner(owner),
@@ -98,12 +127,9 @@ public:
       name(_name)
   {}
   ~CtorArg() {}
+
+  void debugPrint(ostream &os, int indent) const;
 };
 
 
-
-
-
-
-
-
+#endif // AST_HAND_H
