@@ -23,11 +23,13 @@ public:      // funcs
   PtrMap()                         : map() {}
   ~PtrMap()                        {}
 
-  // return # of mapped entries
+  // query # of mapped entries
   int getNumEntries() const        { return map.getNumEntries(); }
+  bool isEmpty() const             { return getNumEntries() == 0; }
+  bool isNotEmpty() const          { return !isEmpty(); }
 
   // if this key has a mapping, return it; otherwise, return NULL
-  VALUE *get(KEY *key) const       { return (VALUE*)map.get((void const*)key); }
+  VALUE *get(KEY const *key) const { return (VALUE*)map.get((void const*)key); }
 
   // add a mapping from 'key' to 'value'; replaces existing
   // mapping, if any

@@ -51,7 +51,12 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
 {
   // dsw: not sure if this is the best place for it, but an assertion
   // failure is better than a segfault
-  xassert(key);
+  //
+  // sm: I don't agree; segfaults arising from NULL derefs are
+  // quite friendly (deref'ing random address is another story).
+  // Anyway, this is fine, but I'd like it to go away in NDEBUG
+  // mode so I'm changing it to use 'xassertdb'.
+  xassertdb(key);
 
   // some more references:
   

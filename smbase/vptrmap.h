@@ -68,10 +68,10 @@ private:     // funcs
   // that new table
   void expand();
 
-  // not allowed
-  VoidPtrMap(VoidPtrMap&);
-  void operator=(VoidPtrMap&);
-  void operator==(VoidPtrMap&);
+  // disallowed
+  VoidPtrMap(VoidPtrMap &obj);
+  void operator=(VoidPtrMap &obj);
+  void operator==(VoidPtrMap &obj);
 
 public:      // funcs
   VoidPtrMap();              // empty map
