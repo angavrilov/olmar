@@ -6,11 +6,11 @@ use strict;
 
 # Daniel S. Wilkerson dsw@cs.berkeley.edu
 
-my $start = "---- START ----\n";
+my $start = "---- START ----";  # NOTE: a filename can come after
 my $stop  = "---- STOP ----\n";
 
 while(<STDIN>) {
-    last if $_ eq $start;
+    last if /^${start}/;
 }
 
 while(<STDIN>) {
