@@ -146,14 +146,16 @@
 #ifdef EXTRA_CHECKS
   #define D(stmt) stmt
 #else
-  #define D(stmt) ((void)0)
+  #define D(stmt)
 #endif
 
 // TRSPARSE(stuff) traces <stuff> during debugging with -tr parse
 #if !defined(NDEBUG)
+  #define IF_NDEBUG(stuff)
   #define TRSPARSE(stuff) if (trParse) { trsParse << stuff << endl; }
   #define TRSPARSE_DECL(stuff) stuff
 #else
+  #define IF_NDEBUG(stuff) stuff
   #define TRSPARSE(stuff)
   #define TRSPARSE_DECL(stuff)
 #endif
@@ -633,6 +635,69 @@ void GLR::clearAllStackNodes()
   // should already be cleared if we're between parses
 }
 
+  
+// print compile-time configuration
+void GLR::printConfig() const
+{
+  printf("GLR configuration follows.  Settings marked with an\n"
+         "asterisk (*) are the higher-performance settings.\n");
+
+  printf("  source location information: %s\n",
+         SOURCELOC(1+)0? "enabled" : "disabled *");
+
+  printf("  stack node columns: %s\n",
+         NODE_COLUMN(1+)0? "enabled" : "disabled *");
+
+  printf("  semantic value yield count: %s\n",
+         YIELD_COUNT(1+)0? "enabled" : "disabled *");
+
+  printf("  EXTRA_CHECKS (for debugging): %s\n",
+         D(1+)0? "enabled" : "disabled *");
+
+  printf("  NDEBUG: %s\n",
+         IF_NDEBUG(1+)0? "set *" : "not set");
+
+  printf("  xassert-style assertions: %s\n",
+         #ifdef NDEBUG_NO_ASSERTIONS
+           "disabled *"
+         #else
+           "enabled"
+         #endif
+         );
+
+  printf("  user actions: %s\n",
+         USE_ACTIONS? "respected" : "ignored *");
+
+  printf("  token reclassification: %s\n",
+         USE_RECLASSIFY? "enabled" : "disabled *");
+         
+  printf("  mini-LR parser core: %s\n",
+         USE_MINI_LR? "enabled *" : "disabled");
+         
+  printf("  allocated-node accounting: %s\n",
+         DO_ACCOUNTING? "enabled" : "disabled *");
+
+  printf("  parser index: %s\n",
+         #ifdef USE_PARSER_INDEX
+           "enabled"
+         #else
+           "disabled *"
+         #endif
+         );
+
+  // checking __OPTIMIZE__ is misleading if preprocessing is entirely
+  // divorced from compilation proper, but I still think this printout
+  // is useful; also, gcc does not provide a way to tell what level of
+  // optimization was applied (as far as I know)
+  printf("  C++ compiler's optimizer: %s\n",
+         #ifdef __OPTIMIZE__
+           "enabled *"
+         #else
+           "disabled"
+         #endif
+         );
+}
+
 
 // process the input file, and yield a parse graph
 bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
@@ -660,6 +725,12 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
   // do second phase lexer
   traceProgress(2) << "lexical analysis stage 2...\n";
   lexer2_lex(lexer2, lexer1, inputFname);
+
+  // originally I had this inside glrParse() itself, but that
+  // made it 25% slower!  gcc register allocator again!
+  if (tracingSys("glrConfig")) {
+    printConfig();
+  }
 
   // parsing itself
   return glrParse(lexer2, treeTop);
@@ -718,6 +789,26 @@ inline void GLR::addActiveParser(StackNode *parser)
 }
 
 
+void GLR::buildParserIndex()
+{
+  if (parserIndex) {
+    delete[] parserIndex;
+  }
+  parserIndex = new ParserIndexEntry[numItemSets()];
+  {
+    for (int i=0; i<numItemSets(); i++) {
+      parserIndex[i] = INDEX_NO_PARSER;
+    }
+  }
+}
+
+
+// NOTE: this function's complexity and/or size is *right* at the
+// limit of what gcc-2.95.3 is capable of optimizing well; I've already
+// pulled quite a bit of functionality into separate functions to try
+// to reduce the register pressure, but it's still near the limit;
+// if you do something to cross a pressure, threshold, performance drops
+// 25% so watch out!
 bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
   // get ready..
@@ -732,15 +823,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   // build the parser index (I do this regardless of whether I'm going
   // to use it, because up here it makes no performance difference,
   // and I'd like as little code as possible being #ifdef'd)
-  if (parserIndex) {
-    delete[] parserIndex;
-  }
-  parserIndex = new ParserIndexEntry[numItemSets()];
-  {
-    for (int i=0; i<numItemSets(); i++) {
-      parserIndex[i] = INDEX_NO_PARSER;
-    }
-  }
+  buildParserIndex();
 
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
@@ -1082,30 +1165,82 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
     // if all active parsers have died, there was an error
     if (activeParsers.isEmpty()) {
-      cout << "Line " << currentToken->loc.line
-           << ", col " << currentToken->loc.col
-           << ": Parse error at " 
-           << currentToken->toStringType(false /*sexp*/, 
-                                         (Lexer2TokenType)classifiedType) 
-           << endl;
-
-      if (lastToDie == STATE_INVALID) {
-        // I'm not entirely confident it has to be nonnull..
-        cout << "what the?  lastToDie is STATE_INVALID??\n";
-      }
-      else {
-        // print out the context of that parser
-        cout << "last parser (state " << lastToDie << ") to die had:\n"
-             << "  sample input: "
-             << sampleInput(getItemSet(lastToDie)) << "\n"
-             << "  left context: "
-             << leftContextString(getItemSet(lastToDie)) << "\n";
-      }
-
+      printParseErrorMessage(currentToken, lastToDie, classifiedType);
       return false;
     }
   }
 
+  bool ret = cleanupAfterParse(startParseTime, startParseCycles, treeTop);
+
+  #if 0
+  if (ret) {
+    // print the parse as a graph for my graph viewer
+    // (the slight advantage to printing the graph first is that
+    // if there is circularity in the parse tree, the graph
+    // printer will handle it ok, whereas thet tree printer will
+    // get into an infinite loop (so at least the graph will be
+    // available in a file after I kill the process))
+    if (tracingSys("parse-graph")) {      // profiling says this is slow
+      traceProgress() << "writing parse graph...\n";
+      writeParseGraph("parse.g");
+    }
+
+
+    // print parse tree in ascii
+    TreeNode const *tn = getParseTree();
+    if (tracingSys("parse-tree")) {
+      tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/, false /*asSexp*/);
+    }
+
+
+    // generate an ambiguity report
+    if (tracingSys("ambiguities")) {
+      tn->ambiguityReport(trace("ambiguities") << endl);
+    }
+  }
+  #endif // 0
+
+  #if DO_ACCOUNTING
+    StackNode::printAllocStats();
+    //PVAL(parserMerges);
+    //PVAL(computeDepthIters);
+  #endif
+
+  return ret;
+}
+
+ 
+// pulled out of glrParse() to reduce register pressure
+void GLR::printParseErrorMessage(Lexer2Token const *currentToken,
+                                 StateId lastToDie, int classifiedType)
+{
+  cout << "Line " << currentToken->loc.line
+       << ", col " << currentToken->loc.col
+       << ": Parse error at "
+       << currentToken->toStringType(false /*sexp*/,
+                                     (Lexer2TokenType)classifiedType)
+       << endl;
+
+  if (lastToDie == STATE_INVALID) {
+    // I'm not entirely confident it has to be nonnull..
+    cout << "what the?  lastToDie is STATE_INVALID??\n";
+  }
+  else {
+    // print out the context of that parser
+    cout << "last parser (state " << lastToDie << ") to die had:\n"
+         << "  sample input: "
+         << sampleInput(getItemSet(lastToDie)) << "\n"
+         << "  left context: "
+         << leftContextString(getItemSet(lastToDie)) << "\n";
+  }
+}
+
+
+// pulled from glrParse() to reduce register pressure
+bool GLR::cleanupAfterParse(long startParseTime,
+                            unsigned long long startParseCycles,
+                            SemanticValue &treeTop)
+{
   traceProgress() << "done parsing ("
                   << (getMilliseconds() - startParseTime)
                   << " ms) (" << (getCycles_ll() - startParseCycles)
@@ -1134,39 +1269,6 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   treeTop = userAct->doReductionAction(
               getItemSet(last->state)->getFirstReduction()->prodIndex, arr
               SOURCELOCARG( last->getUniqueLinkC()->loc ) );
-
-
-  #if 0
-  // print the parse as a graph for my graph viewer
-  // (the slight advantage to printing the graph first is that
-  // if there is circularity in the parse tree, the graph
-  // printer will handle it ok, whereas thet tree printer will
-  // get into an infinite loop (so at least the graph will be
-  // available in a file after I kill the process))
-  if (tracingSys("parse-graph")) {      // profiling says this is slow
-    traceProgress() << "writing parse graph...\n";
-    writeParseGraph("parse.g");
-  }
-
-
-  // print parse tree in ascii
-  TreeNode const *tn = getParseTree();
-  if (tracingSys("parse-tree")) {
-    tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/, false /*asSexp*/);
-  }
-
-
-  // generate an ambiguity report
-  if (tracingSys("ambiguities")) {
-    tn->ambiguityReport(trace("ambiguities") << endl);
-  }
-  #endif // 0
-
-  #if DO_ACCOUNTING
-    StackNode::printAllocStats();
-    //PVAL(parserMerges);
-    //PVAL(computeDepthIters);
-  #endif
 
   return true;
 }

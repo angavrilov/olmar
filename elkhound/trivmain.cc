@@ -17,7 +17,7 @@
 #include "ptreenode.h" // PTreeNode
 
 
-// compute the sum at the top of SSx.tree.gr
+// compute the sum at the top of SSx.gr.in
 TreeCount ssxCount(int n)
 {
   static TreeCount *memoized = NULL;
@@ -38,6 +38,42 @@ TreeCount ssxCount(int n)
   TreeCount sum = 0;
   for (int m=0; m<n; m++) {
     sum += ssxCount(m) * ssxCount(n-1-m);
+  }
+
+  memoized[n] = sum;
+  return sum;
+}
+
+
+// compute the sum at the top of SSSx.gr.in
+TreeCount sssxCount(int n)
+{
+  static TreeCount *memoized = NULL;
+  if (!memoized) {
+    memoized = new TreeCount[n+1];
+
+    memoized[1] = 1;      // seed value: sssxCount(1)=1
+
+    for (int i=2; i<n+1; i++) {
+      memoized[i] = 0;    // entry hasn't been computed yet
+    }
+  }
+
+  xassert(n > 0);
+
+  if (memoized[n]) {
+    return memoized[n];
+  }
+
+  TreeCount sum = sssxCount(n-1);
+
+  for (int m = 1; m <= n-3; m++) {
+    for (int p = 1; m+p <= n-2; p++) {
+      int q = n-1 - m - p;
+      xassert(q > 0);
+
+      sum += sssxCount(m) * sssxCount(p) * sssxCount(q);
+    }
   }
 
   memoized[n] = sum;
@@ -109,8 +145,19 @@ int entry(int argc, char *argv[])
     TreeCount numParses = top->countTrees();
     cout << "num parses: " << numParses << endl;
 
+    TreeCount should = 0;    // meaning unknown
     if (0==strcmp(GRAMMAR_NAME, "SSx.tree.bin")) {
-      cout << "should be: " << ssxCount((inputLen-1) / 2) << endl;
+      should = ssxCount((inputLen-1) / 2);
+    }
+    if (0==strcmp(GRAMMAR_NAME, "SSSx.tree.bin")) {
+      should = sssxCount(inputLen);
+    }
+    
+    if (should != 0) {
+      cout << "should be: " << should << endl;
+      if (should != numParses) {
+        cout << "MISMATCH in number of parse trees\n";
+      }
     }
   }
   cout << "tree nodes: " << PTreeNode::allocCount

@@ -1,0 +1,65 @@
+efa.in/0000500.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0000500.in: %%% progress: 2ms: parsing...
+efa.in/0000500.in: %%% progress: 3ms: done parsing (1 ms) (223599 cycles)
+efa.in/0000500.in: stack nodes: 3, max stack nodes: 4
+efa.in/0000500.in: tree nodes: 0
+efa.in/0001000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0001000.in: %%% progress: 2ms: parsing...
+efa.in/0001000.in: %%% progress: 2ms: done parsing (0 ms) (746109 cycles)
+efa.in/0001000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0001000.in: tree nodes: 0
+efa.in/0001500.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0001500.in: %%% progress: 2ms: parsing...
+efa.in/0001500.in: %%% progress: 3ms: done parsing (1 ms) (624763 cycles)
+efa.in/0001500.in: stack nodes: 3, max stack nodes: 4
+efa.in/0001500.in: tree nodes: 0
+efa.in/0002000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0002000.in: %%% progress: 2ms: parsing...
+efa.in/0002000.in: %%% progress: 3ms: done parsing (1 ms) (1317914 cycles)
+efa.in/0002000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0002000.in: tree nodes: 0
+efa.in/0002500.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0002500.in: %%% progress: 2ms: parsing...
+efa.in/0002500.in: %%% progress: 4ms: done parsing (2 ms) (1972928 cycles)
+efa.in/0002500.in: stack nodes: 3, max stack nodes: 4
+efa.in/0002500.in: tree nodes: 0
+efa.in/0005000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0005000.in: %%% progress: 5ms: parsing...
+efa.in/0005000.in: %%% progress: 8ms: done parsing (3 ms) (3117032 cycles)
+efa.in/0005000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0005000.in: tree nodes: 0
+efa.in/0010000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0010000.in: %%% progress: 2ms: parsing...
+efa.in/0010000.in: %%% progress: 13ms: done parsing (11 ms) (10771869 cycles)
+efa.in/0010000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0010000.in: tree nodes: 0
+efa.in/0020000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0020000.in: %%% progress: 2ms: parsing...
+efa.in/0020000.in: %%% progress: 14ms: done parsing (12 ms) (12593393 cycles)
+efa.in/0020000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0020000.in: tree nodes: 0
+efa.in/0050000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0050000.in: %%% progress: 2ms: parsing...
+efa.in/0050000.in: %%% progress: 36ms: done parsing (33 ms) (32997922 cycles)
+efa.in/0050000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0050000.in: tree nodes: 0
+efa.in/0100000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0100000.in: %%% progress: 2ms: parsing...
+efa.in/0100000.in: %%% progress: 66ms: done parsing (64 ms) (63442350 cycles)
+efa.in/0100000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0100000.in: tree nodes: 0
+efa.in/0200000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0200000.in: %%% progress: 2ms: parsing...
+efa.in/0200000.in: %%% progress: 220ms: done parsing (218 ms) (217154355 cycles)
+efa.in/0200000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0200000.in: tree nodes: 0
+efa.in/0500000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/0500000.in: %%% progress: 2ms: parsing...
+efa.in/0500000.in: %%% progress: 324ms: done parsing (322 ms) (321503235 cycles)
+efa.in/0500000.in: stack nodes: 3, max stack nodes: 4
+efa.in/0500000.in: tree nodes: 0
+efa.in/1000000.in: %%% progress: 0ms: reading binary grammar file EFa.tree.bin
+efa.in/1000000.in: %%% progress: 3ms: parsing...
+efa.in/1000000.in: %%% progress: 1085ms: done parsing (1082 ms) (1080277042 cycles)
+efa.in/1000000.in: stack nodes: 3, max stack nodes: 4
+efa.in/1000000.in: tree nodes: 0

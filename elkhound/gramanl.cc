@@ -4098,6 +4098,7 @@ void emitActionCode(Grammar const &g, char const *hFname,
   NOSOURCELOC(
     out << "// parser-originated location information is disabled by\n"
         << "// NO_GLR_SOURCELOC; any rule which refers to 'loc' will get this one\n"
+        << "#include \"fileloc.h\"     // SourceLocation\n"
         << "SourceLocation loc;      // defaults to no-location\n"
         << "\n\n";
   )

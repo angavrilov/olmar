@@ -11,10 +11,15 @@
 #define GLRCONFIG_H
 
 
+// disable even xassert-style assertions
+//#define NDEBUG_NO_ASSERTIONS
+
+
 // when NO_GLR_SOURCELOC is #defined, we disable all support for
 // automatically propagating source location information in the
 // parser; user actions can still refer to 'loc', but they just get
 // a dummy no-location value
+#define NO_GLR_SOURCELOC
 #ifdef NO_GLR_SOURCELOC
   #define SOURCELOC(stuff)
   #define SOURCELOCARG(stuff)

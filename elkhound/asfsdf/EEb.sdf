@@ -4,4 +4,4 @@ exports
   sorts E
   context-free syntax
     "B" -> E
-    E "+" E -> E
+    E "P" E -> E

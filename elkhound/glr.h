@@ -38,8 +38,8 @@
 #ifndef __GLR_H
 #define __GLR_H
 
-#include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
 #include "glrconfig.h"   // SOURCELOC
+#include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
 #include "owner.h"       // Owner
 #include "rcptr.h"       // RCPtr
 #include "useract.h"     // UserActions, SemanticValue
@@ -430,6 +430,13 @@ private:    // funcs
   void dumpGSS(int tokenNumber) const;
   void dumpGSSEdge(FILE *dest, StackNode const *src,
                                StackNode const *target) const;
+  void printConfig() const;
+  void buildParserIndex();
+  void printParseErrorMessage(Lexer2Token const *currentToken,
+                              StateId lastToDie, int classifiedType);
+  bool cleanupAfterParse(long startParseTime,
+                         unsigned long long startParseCycles,
+                         SemanticValue &treeTop);
 
 public:     // funcs
   GLR(UserActions *userAct);
