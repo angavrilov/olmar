@@ -367,6 +367,11 @@ void Expression::printExtras(ostream &os, int indent) const
     ASTNEXTC(E_new, n)
       PRINT_SUBTREE(n->arraySize);
 
+    ASTNEXTC(E_fieldAcc, f)
+      if (f->field) {
+        ind(os, indent) << "field: refers to " << f->field->loc.toString() << "\n";
+      }
+
     ASTDEFAULTC
       /* do nothing */
 

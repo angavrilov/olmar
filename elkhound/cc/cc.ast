@@ -670,11 +670,9 @@ class Expression {
 
   -> E_funCall(Expression func, FakeList<Expression> *args);
 
-  // call to constructor as an expression
-  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args) {
-       public Type const *type;   // type being constructed
-       ctor type=NULL;
-  }
+  // call to constructor as an expression; the expression's overall
+  // type says which type is being constructed
+  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args);
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor

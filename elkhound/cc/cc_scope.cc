@@ -144,14 +144,18 @@ void Scope::registerVariable(Variable *v)
 // virtual inheritance boundary to find the name; otherwise
 // it leaves 'crossVirtual' unchanged
 Variable const *Scope
-  ::lookupVariableC(StringRef name, bool &crossVirtual, 
-                    bool innerOnly, Env &env) const
+  ::lookupPQVariableC(PQName const *name, bool &crossVirtual,
+                      Env &env) const
 {
+  Variable const *v1 = NULL;
+
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
-  Variable const *v1 = variables.queryif(name);
-  if (v1 || innerOnly) {
-    return v1;
+  if (!name->hasQualifiers()) {
+    v1 = variables.queryif(name->getName());
+    if (v1) {
+      return v1;
+    }
   }
 
   if (!curCompound) {
@@ -171,11 +175,20 @@ Variable const *Scope
   FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {
     CompoundType const *v2Base = iter.data()->ct;
     bool v2CrossVirtual = iter.data()->isVirtual;
-    Variable const *v2 = 
-      v2Base->lookupVariableC(name, v2CrossVirtual, innerOnly, env);
+
+    // if we're looking for a qualified name, and the outermost
+    // qualifier matches this base class, then consume it
+    PQName const *innerName = name;
+    if (name->hasQualifiers() &&
+        name->asPQ_qualifierC()->qualifier == v2Base->name) {
+      innerName = name->asPQ_qualifierC()->rest;
+    }
+
+    Variable const *v2 =
+      v2Base->lookupPQVariableC(innerName, v2CrossVirtual, env);
 
     if (v2) {
-      trace("lookup") << "found " << v2Base->name << "::" << name 
+      trace("lookup") << "found " << v2Base->name << "::" << name
                       << ", crossed virtual: " << v2CrossVirtual << endl;
     }
 
@@ -195,10 +208,10 @@ Variable const *Scope
 
       // ambiguity
       env.error(stringc
-        << "reference to `" << name << "' is ambiguous, because "
+        << "reference to `" << *name << "' is ambiguous, because "
         << "it could either refer to "
-        << v1Base->name << "::" << name << " or "
-        << v2Base->name << "::" << name);
+        << v1Base->name << "::" << *name << " or "
+        << v2Base->name << "::" << *name);
       continue;
     }
 
@@ -221,10 +234,22 @@ Variable const *Scope
 
 
 Variable const *Scope
-  ::lookupVariableC(StringRef name, bool innerOnly, Env &env) const
+  ::lookupPQVariableC(PQName const *name, Env &env) const
 {
   bool dummy;
-  return lookupVariableC(name, dummy, innerOnly, env);
+  return lookupPQVariableC(name, dummy, env);
+}
+
+
+Variable const *Scope
+  ::lookupVariableC(StringRef name, bool innerOnly, Env &env) const
+{
+  if (innerOnly) {
+    return variables.queryif(name);
+  }
+
+  PQ_name wrapperName(name);
+  return lookupPQVariableC(&wrapperName, env);
 }
 
 
@@ -245,3 +270,5 @@ EnumType const *Scope::lookupEnumC(StringRef name, bool /*innerOnly*/) const
 
   return enums.queryif(name);
 }
+
+

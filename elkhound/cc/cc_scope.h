@@ -17,6 +17,7 @@ class CompoundType;       // cc_type.h
 class EnumType;           // cc_type.h
 class Function;           // cc.ast
 class TemplateParams;     // cc_type.h
+class PQName;             // cc.ast
 
 
 // information about a single scope: the names defined in it,
@@ -58,10 +59,10 @@ public:      // data
   Function *curFunction;              // (serf) Function we're analyzing
   TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
   SourceLocation curLoc;              // latest AST location marker seen
-
+                                    
 private:     // funcs
-  Variable const *lookupVariableC(StringRef name, bool &crossVirtual,
-                                  bool innerOnly, Env &env) const;
+  Variable const *lookupPQVariableC(PQName const *name, bool &crossVirtual,
+                                    Env &env) const;
 
 public:      // funcs
   Scope(int changeCount, SourceLocation const &initLoc);
@@ -74,13 +75,17 @@ public:      // funcs
   bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
-  
+
   void registerVariable(Variable *v);
 
   // lookup; these return NULL if the name isn't found
   Variable const *lookupVariableC(StringRef name, bool innerOnly, Env &env) const;
   CompoundType const *lookupCompoundC(StringRef name, bool innerOnly) const;
   EnumType const *lookupEnumC(StringRef name, bool innerOnly) const;
+
+  // lookup of a possibly-qualified name; used for member access
+  // like "a.B::f()"
+  Variable const *lookupPQVariableC(PQName const *name, Env &env) const;
 
   // non-const versions..
   Variable *lookupVariable(StringRef name, bool innerOnly, Env &env)
