@@ -1157,6 +1157,7 @@ nonterm OpConstraintList {
 nonterm OpConstraints {
   -> empty { return 0; }
   -> ocs:OpConstraints ":" ocl:OpConstraintList { return 0; }
+  -> ocs:OpConstraints "::" ocl:OpConstraintList { return 0; }
 }
 
   
