@@ -197,18 +197,34 @@ int StackNode::numStackNodesAllocd=0;
 int StackNode::maxStackNodesAllocd=0;
 
 
-StackNode::StackNode(int nodeId, int col, StateId st, GLR *g)
-  : stackNodeId(nodeId),
-    tokenColumn(col),
-    state(st),
+StackNode::StackNode()
+  : stackNodeId(-1),
+    tokenColumn(-1),
+    state(STATE_INVALID),
     leftSiblings(),
     referenceCount(0),
-    glr(g)
+    glr(NULL)
 {
-  INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
+  // the interesting stuff happens in init()
 }
 
 StackNode::~StackNode()
+{
+  // the interesting stuff happens in deinit()
+}
+
+
+void StackNode::init(int nodeId, int col, StateId st, GLR *g)
+{
+  stackNodeId = nodeId;
+  tokenColumn = col;
+  state = st;
+  referenceCount = 0;
+  glr = g;
+  INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
+}
+
+void StackNode::deinit()
 {
   numStackNodesAllocd--;
   if (!unwinding()) {
@@ -235,7 +251,7 @@ SymbolId StackNode::getSymbolC() const
 
 // add a new sibling by creating a new link
 SiblingLink *StackNode::
-  addSiblingLink(StackNode *leftSib, SemanticValue sval, 
+  addSiblingLink(StackNode *leftSib, SemanticValue sval,
                  SourceLocation const &loc)
 {
   SiblingLink *link = new SiblingLink(leftSib, sval, loc);
@@ -248,7 +264,7 @@ void StackNode::decRefCt()
 {
   xassert(referenceCount > 0);
   if (--referenceCount == 0) {
-    delete this;
+    glr->stackNodePool.dealloc(this);
   }
 }
 
@@ -403,6 +419,7 @@ GLR::GLR(UserActions *user)
     pcsStack(),
     pcsStackHeight(0),
     toPass(TYPICAL_MAX_RHSLEN),
+    stackNodePool(30),
     trParse(tracingSys("parse")),
     trsParse(trace("parse")),
     trSval(tracingSys("sval")),
@@ -663,6 +680,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     tn->ambiguityReport(trace("ambiguities") << endl);
   }
   #endif // 0
+
+  StackNode::printAllocStats();
 
   return true;
 }
@@ -1193,8 +1212,8 @@ StackNode *GLR::findActiveParser(StateId state)
 
 StackNode *GLR::makeStackNode(StateId state)
 {
-  StackNode *sn = new StackNode(nextStackNodeId++, currentTokenColumn,
-                                state, this);
+  StackNode *sn = stackNodePool.alloc();
+  sn->init(nextStackNodeId++, currentTokenColumn, state, this);
   return sn;
 }
 

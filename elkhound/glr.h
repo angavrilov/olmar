@@ -42,6 +42,7 @@
 #include "owner.h"       // Owner
 #include "rcptr.h"       // RCPtr
 #include "useract.h"     // UserActions, SemanticValue
+#include "objpool.h"     // ObjectPool
 
 
 // fwds from other files
@@ -64,13 +65,13 @@ class StackNode {
 public:
   // it's convenient when printing diagnostic info to have
   // a unique integer id for these
-  int const stackNodeId;
+  int stackNodeId;
 
   // node layout is also important; I think this info will
   // be useful; it's the number of the input token that was
   // being processed when this node was created (first token
   // is column 1; initial stack node is column 0)
-  int const tokenColumn;
+  int tokenColumn;
 
   // the LR state the parser is in when this node is at the
   // top ("at the top" means that nothing, besides perhaps itself,
@@ -87,18 +88,30 @@ public:
   // so we can deallocate stack nodes earlier
   int referenceCount;
 
-  // somewhat nonideal: I need access to the 'userActions' to
-  // deallocate semantic values when refCt hits zero, and I need
-  // to map states to state-symbols for the same reason
-  GLR *glr;
+  union {
+    // somewhat nonideal: I need access to the 'userActions' to
+    // deallocate semantic values when refCt hits zero, and I need
+    // to map states to state-symbols for the same reason.
+    // update: now I'm also using this to support pool-based
+    // deallocation in decRefCt()
+    GLR *glr;
+
+    // this is used by the ObjectPool which handles allocation of
+    // StackNodes
+    StackNode *nextInFreeList;
+  };
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
   static int maxStackNodesAllocd;
 
 public:     // funcs
-  StackNode(int nodeId, int tokenColumn, StateId state, GLR *glr);
+  StackNode();
   ~StackNode();
+
+  // ctor/dtor from point of view of the object pool user
+  void init(int nodeId, int tokenColumn, StateId state, GLR *glr);
+  void deinit();
 
   // add a new link with the given tree node; return the link
   SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval,
@@ -309,6 +322,9 @@ public:
 
   // to be regarded as a local variable of GLR::collectReductionPaths
   GrowArray<SemanticValue> toPass;
+
+  // ---- allocation pools ----
+  ObjectPool<StackNode> stackNodePool;
 
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports
