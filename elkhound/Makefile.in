@@ -30,7 +30,7 @@ temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
 
 # this target ensures the Makefile is in synch with Makefile.in
 Makefile: Makefile.in
-	./config.status $(mode)
+	./config.status
 
 # directories
 SMBASE := ../smbase
@@ -88,29 +88,14 @@ TRGRAMANL := ,lrtable
 ccflags += $(EXTRA)
 
 compile := g++ -c $(ccflags) $(includes)
-depend  := g++ -MM $(ccflags) $(includes)
 link    := g++ $(ccflags) $(includes)
 linkend := $(libraries)
 
-# compile .cc to .o; dependency manipulation involves:
-#   sed:    replace gcc's target with $@; this is needed because
-#           "gcc -M" strips any path component...
-#   sed:    strip the target (everything before colon)
-#   sed:    remove any continuation backslashes
-#   fmt -1: list words one per line
-#   sed:    strip leading spaces
-#   sed:    add trailing colons
-# see http://www.cs.berkeley.edu/~smcpeak/autodepend/autodepend.html
+# compile .cc to .o, with dependency generation
 .PRECIOUS: %.o
 %.o: %.cc
-	$(compile) $< -o $@
-	@echo "dependencies for $< > $*.d"
-	@$(depend) $< > $*.d
-	@mv -f $*.d $*.d.tmp
-	@sed -e 's|.*:|$@:|' < $*.d.tmp > $*.d
-	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
-          sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
-	@rm -f $*.d.tmp
+	$(compile) -o $@ $<
+	$(SMBASE)/depend.pl -o $@ $< $(ccflags) $(includes) > $*.d
 
 # compile things in $(AST) but putting their .o files here; applies to:
 #   locstr.cc
@@ -120,13 +105,8 @@ linkend := $(libraries)
 #   gramlex.cc
 #   strtable.cc
 %.o: $(AST)/%.cc
-	$(compile) $< -o $@
-	@echo "dependencies for $< > $*.d"
-	@$(depend) $< > $*.d.tmp
-	@sed -e 's|.*:|$@:|' < $*.d.tmp > $*.d
-	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
-          sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
-	@rm -f $*.d.tmp
+	$(compile) -o $@ $<
+	$(SMBASE)/depend.pl -o $@ $< $(ccflags) $(includes) > $*.d
 
 # sets of related object files
 # files needed to represent a grammar in memory
