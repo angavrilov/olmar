@@ -39,20 +39,30 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 
 bool Scope::addVariable(Variable *v)
 {
+  // classify the variable for debugging purposes
+  char const *classification =
+    v->hasFlag(DF_TYPEDEF)? "typedef" :
+    v->type->isFunctionType()? "function" :
+                               "variable" ;
+
   if (!curCompound) {
     // variable outside a class
-    trace("env") << "added variable `" << v->name
+    trace("env") << "added " << classification 
+                 << " `" << v->name
                  << "' of type `" << v->type->toString()
-                 << "' at " << v->loc.toString() << endl;
+                 << "' at " << v->loc.toString() 
+                 << endl;
   }
   else {
     // class member
     v->access = curAccess;
     trace("env") << "added " << toString(v->access)
-                 << " field `" << v->name
+                 << " member " << classification
+                 << " `" << v->name
                  << "' of type `" << v->type->toString()
                  << "' at " << v->loc.toString()
-                 << " to " << curCompound->keywordAndName() << endl;
+                 << " to " << curCompound->keywordAndName()
+                 << endl;
   }
 
   return insertUnique(variables, v->name, v, changeCount);
@@ -82,12 +92,13 @@ bool Scope::addEnum(EnumType *et)
 // virtual inheritance boundary to find the name; otherwise
 // it leaves 'crossVirtual' unchanged
 Variable const *Scope
-  ::lookupVariableC(StringRef name, bool &crossVirtual, Env &env) const
+  ::lookupVariableC(StringRef name, bool &crossVirtual, 
+                    bool innerOnly, Env &env) const
 {
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
   Variable const *v1 = variables.queryif(name);
-  if (v1) {
+  if (v1 || innerOnly) {
     return v1;
   }
 
@@ -108,7 +119,8 @@ Variable const *Scope
   FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {
     CompoundType const *v2Base = iter.data()->ct;
     bool v2CrossVirtual = iter.data()->isVirtual;
-    Variable const *v2 = v2Base->lookupVariableC(name, v2CrossVirtual, env);
+    Variable const *v2 = 
+      v2Base->lookupVariableC(name, v2CrossVirtual, innerOnly, env);
 
     if (v2) {
       trace("lookup") << "found " << v2Base->name << "::" << name 
@@ -157,14 +169,14 @@ Variable const *Scope
 
 
 Variable const *Scope
-  ::lookupVariableC(StringRef name, Env &env) const
+  ::lookupVariableC(StringRef name, bool innerOnly, Env &env) const
 {
   bool dummy;
-  return lookupVariableC(name, dummy, env);
+  return lookupVariableC(name, dummy, innerOnly, env);
 }
 
 
-CompoundType const *Scope::lookupCompoundC(StringRef name) const
+CompoundType const *Scope::lookupCompoundC(StringRef name, bool /*innerOnly*/) const
 {
   // TODO: implement base class lookup for CompoundTypes
   // (rather obscure, since most uses of types defined in the
@@ -175,7 +187,7 @@ CompoundType const *Scope::lookupCompoundC(StringRef name) const
   return compounds.queryif(name);
 }
 
-EnumType const *Scope::lookupEnumC(StringRef name) const
+EnumType const *Scope::lookupEnumC(StringRef name, bool /*innerOnly*/) const
 {
   // TODO: implement base class lookup for EnumTypes
 

@@ -275,7 +275,8 @@ class IDeclarator {
             PQName /*nullable*/ name);
 
   // C++ operator declarator
-  -> D_operator(OperatorDeclarator o);
+  -> D_operator(SourceLocation loc,
+                OperatorDeclarator o);
 
   // "f(int)"
   -> D_func(SourceLocation loc,
@@ -310,6 +311,8 @@ class ExceptionSpec (
 
 // declarators for operator and conversion functions
 class OperatorDeclarator {
+  pure_virtual char const *getOperatorName() const;
+
   // operator new & delete (see note at end about SpecialDeclarator)
   -> OD_newDel(bool isNew, bool isArray);
 

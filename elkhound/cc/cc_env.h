@@ -47,6 +47,9 @@ public:      // data
   // type for typeid expression
   Type const *type_info_const_ref;      // (serf)
 
+  // special name for conversion operators
+  StringRef conversionOperatorName;
+
 public:      // function
   Env(StringTable &str, CCLang &lang);
   ~Env();

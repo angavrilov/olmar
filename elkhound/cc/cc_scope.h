@@ -46,7 +46,8 @@ public:      // data
   SourceLocation curLoc;         // latest AST location marker seen
   
 private:     // funcs
-  Variable const *lookupVariableC(StringRef name, bool &crossVirtual, Env &env) const;
+  Variable const *lookupVariableC(StringRef name, bool &crossVirtual, 
+                                  bool innerOnly, Env &env) const;
 
 public:      // funcs
   Scope(int changeCount, SourceLocation const &initLoc);
@@ -61,17 +62,17 @@ public:      // funcs
   bool addEnum(EnumType *et);
 
   // lookup; these return NULL if the name isn't found
-  Variable const *lookupVariableC(StringRef name, Env &env) const;
-  CompoundType const *lookupCompoundC(StringRef name) const;
-  EnumType const *lookupEnumC(StringRef name) const;
+  Variable const *lookupVariableC(StringRef name, bool innerOnly, Env &env) const;
+  CompoundType const *lookupCompoundC(StringRef name, bool innerOnly) const;
+  EnumType const *lookupEnumC(StringRef name, bool innerOnly) const;
 
   // non-const versions..
-  Variable *lookupVariable(StringRef name, Env &env)
-    { return const_cast<Variable*>(lookupVariableC(name, env)); }
-  CompoundType *lookupCompound(StringRef name)
-    { return const_cast<CompoundType*>(lookupCompoundC(name)); }
-  EnumType *lookupEnum(StringRef name)
-    { return const_cast<EnumType*>(lookupEnumC(name)); }
+  Variable *lookupVariable(StringRef name, bool innerOnly, Env &env)
+    { return const_cast<Variable*>(lookupVariableC(name, innerOnly, env)); }
+  CompoundType *lookupCompound(StringRef name, bool innerOnly)
+    { return const_cast<CompoundType*>(lookupCompoundC(name, innerOnly)); }
+  EnumType *lookupEnum(StringRef name, bool innerOnly)
+    { return const_cast<EnumType*>(lookupEnumC(name, innerOnly)); }
     
   // for iterating over the variables
   StringSObjDict<Variable> getVariableIter() const

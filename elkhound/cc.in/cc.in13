@@ -18,3 +18,9 @@ public:
 
   int x;
 };
+
+int main()
+{
+  Foo x;
+  x.func();
+}

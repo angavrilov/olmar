@@ -1040,19 +1040,19 @@ nonterm[IDeclarator*] DirectDeclarator {
 
   // conversion function
   -> d:ConversionFunctionId
-       [ return new D_operator(d); ]
+       [ return new D_operator(loc, d); ]
 
   // operator function
   -> d:OperatorFunctionId
-       [ return new D_operator(d); ]
+       [ return new D_operator(loc, d); ]
 
   // function declarator; the return type comes from the type
   // specifier that preceeds this
   -> d:DirectDeclarator                        // name of function
-     "(" args:ParameterDeclarationClause ")"   // arguments
+     "(" params:ParameterDeclarationClause ")" // parameters
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       [ return new D_func(loc, d, args, cv, e); ]
+       [ return new D_func(loc, d, params, cv, e); ]
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
