@@ -27,11 +27,11 @@ RANLIB := ranlib
 # compile .cc to .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@./depend.pl -o $@ $< $(CCFLAGS) > $*.d
+	@perl ./depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 %.o: %.cpp
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@./depend.pl -o $@ $< $(CCFLAGS) > $*.d
+	@perl ./depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CCFLAGS)
@@ -234,7 +234,7 @@ gendoc:
 # trying to understand the library's structure
 .PHONY: gendoc/dependencies.dot
 gendoc/dependencies.dot:
-	./scan-depends.pl -r -Xxassert.h -Xtest.h -Xtyp.h -Xmacros.h -Xstr.h \
+	perl ./scan-depends.pl -r -Xxassert.h -Xtest.h -Xtyp.h -Xmacros.h -Xstr.h \
 		-Xbreaker.h \
 		growbuf.h objpool.h strhash.h voidlist.h svdict.h str.h \
 		warn.cpp mysig.h srcloc.cc hashline.cc astlist.h \
