@@ -299,7 +299,7 @@ stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
   // final simple name
   PQName const *final = obj.getUnqualifiedNameC();
   sb << final->getName();
-                      
+
   // template arguments applied to final name
   if (final->isPQ_template()) {
     sb << targsToString(final->asPQ_templateC()->args);
@@ -313,6 +313,11 @@ string PQName::toString() const
   stringBuilder sb;
   sb << *this;
   return sb;
+}
+
+string PQName::toString_noTemplArgs() const
+{
+  return stringc << qualifierString() << getName();
 }
 
 

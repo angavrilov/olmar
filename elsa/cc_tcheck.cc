@@ -4664,6 +4664,45 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
   else {
     // do lookup normally
     v = env.lookupPQVariable(name, flags);
+    
+    if (v && v->hasFlag(DF_TYPEDEF)) {
+      return env.error(name->loc, stringc
+        << "`" << *name << "' used as a variable, but it's actually a type",
+        EF_DISAMBIGUATES);
+    }
+
+    // 2005-02-18: cppstd 14.2 para 2: if template arguments are
+    // supplied, then the name must look up to a template name
+    if (name->getUnqualifiedName()->isPQ_template()) {
+      bool const considerInherited = false;
+      bool foundTemplate = false;
+      if (v) {
+        if (v->isOverloaded()) {
+          // check amonst all overloaded names; 14.2 is not terribly
+          // clear about that, but 14.8.1 para 2 example 2 seems to
+          // imply this behavior
+          SFOREACH_OBJLIST(Variable, v->overload->set, iter) {
+            if (iter.data()->isTemplate(considerInherited)) {
+              foundTemplate = true;
+              break;
+            }
+          }
+        }
+        else if (v->isTemplate(considerInherited)) {
+          foundTemplate = true;
+        }
+      }
+
+      if (!foundTemplate) {
+        // would disambiguate use of '<' as less-than
+        env.error(name->loc, stringc
+          << "explicit template arguments were provided after `"
+          << name->toString_noTemplArgs()
+          << "', but that is not the name of a template function",
+          EF_DISAMBIGUATES);
+      }
+    }
+
     if (!v) {
       // dsw: In K and R C it seems to be legal to call a function
       // variable that has never been declareed.  At this point we
@@ -4699,12 +4738,6 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
       }
     }
     xassert(v);
-
-    if (v->hasFlag(DF_TYPEDEF)) {
-      return env.error(name->loc, stringc
-        << "`" << *name << "' used as a variable, but it's actually a type",
-        EF_DISAMBIGUATES);
-    }
 
     // TODO: access control check
 

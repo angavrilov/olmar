@@ -169,6 +169,7 @@ class PQName(SourceLoc loc) {
 
   public string qualifierString() const;
   public string toString() const;
+  public string toString_noTemplArgs() const;
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
   public friend ostream& operator<< (ostream &os, PQName const &obj) { return os << obj.toString(); };
 

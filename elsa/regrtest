@@ -505,7 +505,7 @@ testparse t0276.cc
 testparse t0277.cc
 testparse t0278.cc
 testparse t0279.cc
-failparse t0280.cc "overloading + template arg application"
+testparse t0280.cc
 
 # This test was intended to fail as long as STA_REFERENCE hadn't been
 # adequately solved.  However, a recent change has caused this test to
@@ -604,6 +604,7 @@ testparse t0368.cc
 testparse t0369.cc
 testparse t0370.cc
 testparse t0371.cc
+testparse t0372.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

@@ -2067,17 +2067,18 @@ Variable *Env::applyPQNameTemplateArguments
     return var;
   }
 
+  // 2005-02-18: Do this regardless of whether 'var->isTemplate()',
+  // since it could be overloaded, making that test meaningless.
+  // See, e.g., in/t0372.cc.
+  if (flags & LF_TEMPL_PRIMARY) {
+    return var;
+  }
+
   // compare the name's template status to whether template
   // arguments were supplied; note that you're only *required*
   // to pass arguments for template classes, since template
   // functions can infer their arguments
   if (var->isTemplate(false /*considerInherited*/)) {
-    // dsw: I need a way to get the template without instantiating
-    // it.
-    if (flags & LF_TEMPL_PRIMARY) {
-      return var;
-    }
-
     if (!final->isPQ_template()
         && var->isTemplateClass() // can be inferred for template functions, so we duck
         ) {
