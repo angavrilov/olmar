@@ -135,7 +135,7 @@ SLWHITE   [ \t]
 "class"            TOK_UPD_COL;  return TOK_CLASS;
 
   /* --------- embedded text --------- */
-("public"|"protected"|"private"|"ctor"|"dtor") {
+("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual") {
   TOK_UPD_COL;
   BEGIN(EMBED);
   embedded->reset();
@@ -145,7 +145,8 @@ SLWHITE   [ \t]
          yytext[0]=='d'?   TOK_DTOR :
          yytext[2] == 'b'? TOK_PUBLIC :
          yytext[2] == 'o'? TOK_PROTECTED :
-                           TOK_PRIVATE ;
+         yytext[2] == 'i'? TOK_PRIVATE :
+             /*[2] == 'r'*/TOK_PURE_VIRTUAL ;
 }
 
 ("verbatim"|"impl_verbatim") {

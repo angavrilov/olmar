@@ -411,7 +411,11 @@ void HGen::emitUserDecls(ASTList<UserDecl> const &decls)
     if (decl.access == AC_PUBLIC ||
         decl.access == AC_PRIVATE ||
         decl.access == AC_PROTECTED) {
-      out << "  " << toString(decl.access) << ": " << decl.code << "\n";
+      out << "  " << toString(decl.access) << ": " << decl.code << ";\n";
+    }
+    if (decl.access == AC_PUREVIRT) {
+      // this is the parent class: declare it pure virtual
+      out << "  public: virtual " << decl.code << "=0;\n";
     }
   }
 }
@@ -437,6 +441,13 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   emitCommonFuncs("virtual ");
 
   emitUserDecls(ctor.decls);
+  
+  // emit implementation declarations for parent's pure virtuals
+  FOREACH_ASTLIST(UserDecl, parent.decls, iter) {
+    if (iter.data()->access == AC_PUREVIRT) {
+      out << "  public: virtual " << iter.data()->code << ";\n";
+    }
+  }
 
   // close the decl
   out << "};\n";

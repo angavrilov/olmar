@@ -7,8 +7,16 @@
 
 string toString(AccessCtl acc)
 {
-  char const *arr[] = { "public", "private", "protected" };
-  xassert((unsigned)acc < 3);
+  char const *arr[] = { 
+    "public", 
+    "private", 
+    "protected",
+    "ctor",
+    "dtor",
+    "pure_virtual"
+  };              
+  STATIC_ASSERT(TABLESIZE(arr) == NUM_ACCESSCTLS);
+  xassert((unsigned)acc < NUM_ACCESSCTLS);
   return string(arr[acc]);
 }
 

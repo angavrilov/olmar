@@ -53,6 +53,7 @@
 %token TOK_IMPL_VERBATIM "impl_verbatim"
 %token TOK_CTOR "ctor"
 %token TOK_DTOR "dtor"
+%token TOK_PURE_VIRTUAL "pure_virtual"
 
 
 /* ======================== types ========================== */
@@ -188,6 +189,7 @@ Public
   | "protected"     { $$ = AC_PROTECTED; }
   | "ctor"          { $$ = AC_CTOR; }
   | "dtor"          { $$ = AC_DTOR; }
+  | "pure_virtual"  { $$ = AC_PUREVIRT; }
   ;
 
 /* yields TF_verbatim */

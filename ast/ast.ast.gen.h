@@ -1,9 +1,9 @@
-// ast.gen.h
+// ast.ast.gen.h
 // *** DO NOT EDIT ***
 // generated automatically by astgen, from ast.ast
 
-#ifndef AST_GEN_H
-#define AST_GEN_H
+#ifndef AST_AST_GEN_H
+#define AST_AST_GEN_H
 
 #include "asthelp.h"        // helpers for generated code
 
@@ -11,6 +11,7 @@
 class ASTSpecFile;
 class ToplevelForm;
 class TF_verbatim;
+class TF_impl_verbatim;
 class TF_class;
 class ASTClass;
 class UserDecl;
@@ -45,10 +46,11 @@ public:      // funcs
   }
   virtual ~ToplevelForm();
 
-  enum Kind { TF_VERBATIM, TF_CLASS, NUM_KINDS };
+  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   DECL_AST_DOWNCASTS(TF_verbatim)
+  DECL_AST_DOWNCASTS(TF_impl_verbatim)
   DECL_AST_DOWNCASTS(TF_class)
 
   virtual void debugPrint(ostream &os, int indent) const;
@@ -66,6 +68,22 @@ public:      // funcs
 
   virtual Kind kind() const { return TF_VERBATIM; }
   enum { TYPE_TAG = TF_VERBATIM };
+
+  virtual void debugPrint(ostream &os, int indent) const;
+
+};
+
+class TF_impl_verbatim : public ToplevelForm {
+public:      // data
+  string code;
+
+public:      // funcs
+  TF_impl_verbatim(string _code) : ToplevelForm(), code(_code) {
+  }
+  virtual ~TF_impl_verbatim();
+
+  virtual Kind kind() const { return TF_IMPL_VERBATIM; }
+  enum { TYPE_TAG = TF_IMPL_VERBATIM };
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -115,7 +133,7 @@ public:      // funcs
   // specifies what kind of userdecl this is; pub/priv/prot are uninterpreted
   // class members with the associated access control; ctor and dtor are
   // code to be inserted into the ctor or dtor, respectively
-  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED, AC_CTOR, AC_DTOR };
+  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED, AC_CTOR, AC_DTOR, AC_PUREVIRT, NUM_ACCESSCTLS };
 
   // map the enum value to a string like "AC_PUBLIC"
   string toString(AccessCtl acc);      // defined in ast.cc
@@ -157,4 +175,4 @@ public:      // funcs
 
 
 
-#endif // AST_GEN_H
+#endif // AST_AST_GEN_H
