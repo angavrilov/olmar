@@ -609,6 +609,9 @@ public:
   virtual string rightStringUpToQualifiers(bool innerParen) const;
   virtual string rightStringAfterQualifiers() const;
 
+  // a hook for the verifier's printer
+  virtual void extraRightmostSyntax(stringBuilder &sb) const;
+
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString(bool innerParen=true) const;

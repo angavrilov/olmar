@@ -1227,3 +1227,10 @@ STATICDEF bool Env::listHasDisambErrors(ObjList<ErrorMsg> const &list)
   }
   return false;        // no disambiguating errors
 }
+
+
+void Env::checkFuncAnnotations(FunctionType *, D_func *)
+{}
+
+
+// EOF

@@ -2318,7 +2318,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   Scope *paramScope = env.enterScope("D_func parameter list scope");
   paramScope->isParameterListScope = true;
 
-  // typecheck the parameters; this disambiguates any ambiguous type-ids
+  // typecheck the parameters; this disambiguates any ambiguous type-ids,
+  // and adds them to the environment
   params = tcheckFakeASTTypeIdList(params, env, true /*isParameter*/);
 
   // build the function type; I do this after type checking the parameters
@@ -2376,6 +2377,9 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
     ft->addParam(v);
   }
+
+  // the verifier will type-check the pre/post at this point
+  env.checkFuncAnnotations(ft, this);
 
   env.exitScope(paramScope);
 

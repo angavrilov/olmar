@@ -1162,11 +1162,17 @@ string FunctionType::rightStringAfterQualifiers() const
     sb << ")";
   }
 
+  // hook for verifier syntax
+  extraRightmostSyntax(sb);
+
   // finish up the return type
   sb << retType->rightString();
 
   return sb;
 }
+
+void FunctionType::extraRightmostSyntax(stringBuilder &) const
+{}
 
 
 int FunctionType::reprSize() const
