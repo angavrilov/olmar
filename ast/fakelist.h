@@ -78,6 +78,10 @@ public:
     newHead->next = first();
     return makeList(newHead);
   }
+              
+  // random access (linear time of course)
+  T const *nthC(int n) const;
+  T *nth(int n) { return const_cast<T*>(nthC(n)); }
 
   // don't add an 'append' method; I think if you're trying to append
   // with FakeLists then you're probably misusing them
@@ -132,5 +136,18 @@ int FakeList<T>::count() const
   }
   return ct;
 }
+
+
+template <class T>
+T const *FakeList<T>::nthC(int n) const
+{
+  const FakeList<T> *p = this;
+  while (n > 0) {
+    p = p->butFirstC();  // segfaults if n is too small
+    n--;
+  }
+  return p->firstC();
+}
+
 
 #endif // FAKELIST_H
