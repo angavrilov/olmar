@@ -236,7 +236,6 @@ class Declarator {
       CTX_E_NEW     = 0x1,     // inside an E_new (array)
       CTX_PARAM     = 0x2,     // in a parameter declarator
       CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
-      //CTX_MEMBER    = 0x8,     // toplevel member declarator
     } context;
 
   public:
@@ -256,7 +255,6 @@ class Declarator {
       , funcSyntax  (obj.funcSyntax)
       , context     (obj.context)
     {}
-
     Tcheck& operator= (Tcheck const &obj) {
       var         = obj.var;
       type        = obj.type;
@@ -284,8 +282,7 @@ class Declarator {
   public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
   public void mid_tcheck(Env &env, Tcheck &dt);
   public void tcheck_init(Env &env);
-  public void elaborateCDtors(Env &env,
-                              DeclFlags dflags);
+  public void elaborateCDtors(Env &env);
 }
 
 

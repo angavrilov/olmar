@@ -1255,8 +1255,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
     } else if (iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
-        decliter->elaborateCDtors(env,
-                                  d0->dflags);
+        decliter->elaborateCDtors(env);
       }
     }
   }
@@ -1989,8 +1988,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (!var->isMember() &&
 //        !isParameter &&
       !isE_new) {
-    elaborateCDtors(env,
-                    dt.dflags);
+    elaborateCDtors(env);
   }
 }
 
@@ -2038,8 +2036,7 @@ FakeList<ArgExpression> *makeExprList2(Expression *e1, Expression *e2)
   return makeExprList1(e2)->prepend(new ArgExpression(e1));
 }
 
-void Declarator::elaborateCDtors(Env &env,
-                                 DeclFlags dflags)
+void Declarator::elaborateCDtors(Env &env)
 {
   // get this context from the 'var', don't make a mess passing
   // it down from above
@@ -2047,7 +2044,10 @@ void Declarator::elaborateCDtors(Env &env,
   bool isTemporary = var->hasFlag(DF_TEMPORARY);
   bool isParameter = var->hasFlag(DF_PARAMETER);
 
-  // sm: I think this should look at var too.
+  // the code originally got this from syntactic context, but that's
+  // not always correct, and this is much easier
+  DeclFlags dflags = var->flags;
+
   bool isStatic = (dflags & DF_STATIC)!=0;
 
   // dsw: Should this lookup be cached during mid_tcheck() above?
@@ -4478,8 +4478,7 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
   xassert(declaration0->decllist->count() == 1);
   // leave it for now
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
-    decliter->elaborateCDtors(env,
-                              declaration0->dflags);
+    decliter->elaborateCDtors(env);
   }
   // don't do this for now:
 //    xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
