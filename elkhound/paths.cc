@@ -315,7 +315,9 @@ int countExprPaths(Statement const *stmt, bool isContinue)
       }
       else {
         // enter at init, immediately apply guard
-        return mult(countExprPaths(f->init, false), f->cond->numPaths1());
+        //return mult(countExprPaths(f->init, false), f->cond->numPaths1());
+        // UPDATE: my CFG does the init before the 'for'
+        return f->cond->numPaths1();
       }
     }
     ASTNEXTC(S_return, r) {
@@ -383,8 +385,10 @@ void printExprPath(int index, Statement const *stmt, bool isContinue)
       }
       else {
         // enter at init, immediately apply guard
-        printExprPath(index / modulus, f->init, false);
-        printPath(index % modulus, f->cond);
+        //printExprPath(index / modulus, f->init, false);
+        // UPDATE: CFG does 'init' before 'for'
+        xassert(index < modulus);
+        printPath(index /* % modulus*/, f->cond);
       }
     }
     ASTNEXTC(S_return, r) {
