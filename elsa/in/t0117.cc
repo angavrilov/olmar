@@ -1,5 +1,5 @@
 // t0117.cc
-// experiments with __getStandardConversion
+// test 'getStandardConversion' in stdconv.cc
 
 // copied from stdconv.h
 enum StandardConversion {
@@ -31,6 +31,13 @@ enum StandardConversion {
 
 class Foo {};
 class Incomplete;
+enum Enum {};
+
+class Base {};
+class Ambiguous {};
+class Virtual {};
+class Derived : public Base, public Ambiguous, public Ambiguous, 
+                virtual public Virtual {};
 
 void f()
 {
@@ -65,6 +72,97 @@ void f()
 
   // qualification conversions
   __getStandardConversion((int *)0, (int const *)0, SC_QUAL_CONV);
+  __getStandardConversion((int **)0, (int const * const *)0, SC_QUAL_CONV);
+  __getStandardConversion((int * const *)0, (int const * const *)0, SC_QUAL_CONV);
+  __getStandardConversion((int const **)0, (int const * const *)0, SC_QUAL_CONV);
 
+  __getStandardConversion((int **)0, (int const **)0, SC_ERROR);
+  __getStandardConversion((int const * const *)0, (int const **)0, SC_ERROR);
+  __getStandardConversion((int const * const *)0, (int * const *)0, SC_ERROR);
+  __getStandardConversion((int const * const *)0, (int **)0, SC_ERROR);
+
+  __getStandardConversion((int Foo::*)0, (int const Foo::*)0, SC_QUAL_CONV);
+  __getStandardConversion((int Foo::* *)0, (int const Foo::* const *)0, SC_QUAL_CONV);
+  __getStandardConversion((int * Foo::*)0, (int const * const Foo::*)0, SC_QUAL_CONV);
+  __getStandardConversion((int * Foo::*)0, (int const * Foo::*)0, SC_ERROR);
+
+  // integral promotions
+  __getStandardConversion((char)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((signed char)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((unsigned char)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((short)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((unsigned short)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((wchar_t)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((Enum)0, (int)0, SC_INT_PROM);
+  __getStandardConversion((bool)0, (int)0, SC_INT_PROM);
+
+  // TODO: test bitfields once they're implemented as distinct types
+
+  // floating point promotion
+  __getStandardConversion((float)0, (double)0, SC_FLOAT_PROM);
+
+  // integral conversions
+  __getStandardConversion((short)0, (unsigned)0, SC_INT_CONV);
+  __getStandardConversion((short)0, (long)0, SC_INT_CONV);
+  __getStandardConversion((long)0, (int)0, SC_INT_CONV);
+  __getStandardConversion((short)0, (char)0, SC_INT_CONV);
+  __getStandardConversion((short)0, (unsigned short)0, SC_INT_CONV);
+  __getStandardConversion((char)0, (signed char)0, SC_INT_CONV);
+  __getStandardConversion((bool)0, (char)0, SC_INT_CONV);
+
+  // floating point conversions
+  __getStandardConversion((float)0, (long double)0, SC_FLOAT_CONV);
+  __getStandardConversion((double)0, (float)0, SC_FLOAT_CONV);
+
+  // floating-integral conversions
+  __getStandardConversion((short)0, (float)0, SC_FLOAT_INT_CONV);
+  __getStandardConversion((float)0, (short)0, SC_FLOAT_INT_CONV);
+  __getStandardConversion((bool)0, (float)0, SC_FLOAT_INT_CONV);
+
+  // pointer conversions
+  __getStandardConversion(0, (int *)0, SC_PTR_CONV);
+  __getStandardConversion(0, (int const *)0, SC_PTR_CONV);
+  __getStandardConversion(0, (Foo *)0, SC_PTR_CONV);
+  __getStandardConversion(0, (Foo const * const *)0, SC_PTR_CONV);
+
+  __getStandardConversion((int *)0, (void *)0, SC_PTR_CONV);
+  __getStandardConversion((int const *)0, (void const *)0, SC_PTR_CONV);
+  __getStandardConversion((Foo *)0, (void *)0, SC_PTR_CONV);
+  __getStandardConversion((Foo const *)0, (void const *)0, SC_PTR_CONV);
+
+  __getStandardConversion((int const *)0, (void *)0, SC_ERROR);
+  __getStandardConversion((void *)0, (int *)0, SC_ERROR);
+  __getStandardConversion((Foo *)0, (int *)0, SC_ERROR);
+  __getStandardConversion((float *)0, (int *)0, SC_ERROR);
+
+  __getStandardConversion((Derived *)0, (Base *)0, SC_PTR_CONV);
+  __getStandardConversion((Derived const *)0, (Base const *)0, SC_PTR_CONV);
+  __getStandardConversion((Derived *)0, (Base const *)0, SC_PTR_CONV|SC_QUAL_CONV);
+  __getStandardConversion((Derived *)0, (Virtual *)0, SC_PTR_CONV);
+
+  __getStandardConversion((Base *)0, (Derived *)0, SC_ERROR);
+  __getStandardConversion((Derived *)0, (Ambiguous *)0, SC_ERROR);
+
+  // pointer to member conversions
+  __getStandardConversion(0, (int Foo::*)0, SC_PTR_MEMB_CONV);
+  __getStandardConversion(0, (int const Foo::*)0, SC_PTR_MEMB_CONV);
+
+  __getStandardConversion((int Base::*)0, (int Derived::*)0, SC_PTR_MEMB_CONV);
+  __getStandardConversion((int Base::*)0, (int const Derived::*)0, SC_PTR_MEMB_CONV|SC_QUAL_CONV);
+
+  __getStandardConversion((int Base::* *)0, (int Derived::* *)0, SC_ERROR);
+  __getStandardConversion((int Base::*)0, (float Derived::*)0, SC_ERROR);
+  __getStandardConversion((int Derived::*)0, (int Base::*)0, SC_ERROR);
+  __getStandardConversion((int Ambiguous::*)0, (int Derived::*)0, SC_ERROR);
+  __getStandardConversion((int Virtual::*)0, (int Derived::*)0, SC_ERROR);
+
+  // boolean conversions
+  __getStandardConversion((int)0, (bool)0, SC_BOOL_CONV);
+  __getStandardConversion((float)0, (bool)0, SC_BOOL_CONV);
+  __getStandardConversion((Enum)0, (bool)0, SC_BOOL_CONV);
+  __getStandardConversion((int *)0, (bool)0, SC_BOOL_CONV);
+  __getStandardConversion((int Foo::*)0, (bool)0, SC_BOOL_CONV);
+
+  __getStandardConversion((Foo)0, (bool)0, SC_ERROR);
 
 }

@@ -276,10 +276,10 @@ public:      // funcs
   // returns 1 if ct==this
   int countBaseClassSubobjects(CompoundType const *ct) const;
                                                             
-  // does this class inherit from 'ct' in a way that allows an
-  // unambiguous conversion, etc.?
   bool hasUnambiguousBaseClass(CompoundType const *ct) const
     { return countBaseClassSubobjects(ct)==1; }
+  bool hasBaseClass(CompoundType const *ct) const
+    { return countBaseClassSubobjects(ct)>=1; }
 };
 
 string toString(CompoundType::Keyword k);

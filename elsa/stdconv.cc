@@ -86,6 +86,7 @@ bool isNumeric(Type const *t, SimpleType const *tSimple)
 }
 
 
+#if 0   // unused
 static char const *atomicName(AtomicType::Tag tag)
 {
   switch (tag) {
@@ -96,6 +97,7 @@ static char const *atomicName(AtomicType::Tag tag)
     case AtomicType::T_TYPEVAR:  return "type variable";
   }
 }
+#endif // 0
 
 static char const *ctorName(Type::Tag tag)
 {
@@ -334,14 +336,11 @@ StandardConversion getStandardConversion
                                 "dest member's class");
             }
             else {
-              // ok, if the subsequent types are identical
-              if (s->atType->equals(d->atType)) {
-                // this is actually a group 2 conversion
-                return conv.ret | SC_PTR_MEMB_CONV;
-              }
-              else {
-                return conv.error("unequal member types in ptr-to-member");
-              }
+              // TODO: check accessibility.. this depends on the access privileges
+              // of the code we're in now..
+
+              // this is actually a group 2 conversion
+              conv.ret |= SC_PTR_MEMB_CONV;
             }
           }
           else {
@@ -412,8 +411,13 @@ StandardConversion getStandardConversion
 
       if (src->isCompoundType() &&
           dest->isCompoundType() &&
-          src->asCompoundTypeC()->hasUnambiguousBaseClass(
-            dest->asCompoundTypeC())) {
+          src->asCompoundTypeC()->hasBaseClass(dest->asCompoundTypeC())) {
+        if (!src->asCompoundTypeC()->
+              hasUnambiguousBaseClass(dest->asCompoundTypeC())) {
+          return conv.error("base class is ambiguous");
+        }
+        // TODO: check accessibility.. this depends on the access privileges
+        // of the code we're in now..
         return conv.ret | SC_PTR_CONV;      // converting Derived* to Base*
       }
     }
@@ -423,16 +427,7 @@ StandardConversion getStandardConversion
       return conv.ret;
     }
     else {
-      if (env) {
-        // similar to diff't type ctors, this might be common
-        return conv.error(stringc
-          << "different kinds of atomic types: "
-          << atomicName(s->atomic->getTag()) << " vs. "
-          << atomicName(d->atomic->getTag()));
-      }
-      else {
-        return SC_ERROR;
-      }
+      return conv.error("incompatible atomic types");
     }
   }
   else {
