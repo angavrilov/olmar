@@ -180,9 +180,7 @@ doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
 	rm -f lexer.yy.cc
-# remove all files in outdir except .cvsignore and for in the CVS subdir
-	find outdir \( -type d -regex '.*/CVS' -prune \) -o -type f | grep -v '\.cvsignore\|CVS' \
-          | xargs -l1 rm -f
+	rm -f outdir/*.cc*
 	rm -f ccparse tlexer
 
 distclean: clean

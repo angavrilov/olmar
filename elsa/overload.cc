@@ -68,7 +68,7 @@ Variable *resolveOverload(
   GrowArray<ArgumentInfo> &args)
 {                   
   // for debug printing
-  char const *indent = (flags & OF_NO_USER)? "    " : "  ";
+  IFDEBUG( char const *indent = (flags & OF_NO_USER)? "    " : "  "; )
 
   // generate a sequence of candidates ("viable functions"), in an
   // array

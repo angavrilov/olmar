@@ -2996,7 +2996,7 @@ void Expression::tcheck(Expression *&ptr, Env &env)
     // The code that follows is essentially resolveAmbiguity(),
     // specialized to two particular kinds of nodes, but only
     // tchecking the first part of each node to disambiguate.
-    SourceLoc loc = env.loc();
+    IFDEBUG( SourceLoc loc = env.loc(); )
     TRACE("disamb", toString(loc) << ": ambiguous: E_funCall vs. E_constructor");
 
     // grab errors
@@ -3698,11 +3698,15 @@ Type *E_cond::itcheck(Env &env)
   
   // TODO: verify 'cond' makes sense in a boolean context
   // TODO: verify 'th' and 'el' return the same type
+
   // dsw: shouldn't the type of the expression should be the least
   // upper bound (lub) of the types?
+  // sm: sort of.. the rules are spelled out in cppstd 5.16.  there's
+  // no provision for computing the least common ancestor in the class
+  // hierarchy, but the rules *are* nonetheless complex
+
   // dsw: I need the type to be distinct here.
   return env.tfac.cloneType(th->type);
-//    return th->type;
 }
 
 
@@ -3711,7 +3715,7 @@ Type *E_comma::itcheck(Env &env)
   e1->tcheck(e1, env);
   e2->tcheck(e2, env);
   
-  return e2->type;
+  return env.tfac.cloneType(e2->type);
 }
 
 
@@ -3737,7 +3741,7 @@ Type *E_assign::itcheck(Env &env)
   // TODO: make sure 'target' and 'src' make sense together with 'op'
   // TODO: take operator overloading into consideration
   
-  return target->type;
+  return env.tfac.cloneType(target->type);
 }
 
 
@@ -3777,7 +3781,6 @@ Type *E_delete::itcheck(Env &env)
       << "can only delete pointers, not `" << t->toString() << "'");
   }
 
-  // dsw: const?
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 
@@ -3790,7 +3793,6 @@ Type *E_throw::itcheck(Env &env)
   else {
     // TODO: make sure that we're inside a 'catch' clause
   }
-  // dsw: const?
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 
