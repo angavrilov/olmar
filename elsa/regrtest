@@ -868,6 +868,7 @@ testparse k0009.cc
 testparse k0010.cc
 testparse k0011.cc
 testparse k0012.cc
+testparse k0013.cc
 
 # ---- END: lots of tests ----
 
