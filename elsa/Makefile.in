@@ -23,7 +23,7 @@ Makefile: Makefile.in
 
 # dependencies upon automatically-generated files
 extradep.mk:
-	$(ELKHOUND)/find-extra-deps *.d >$@
+	perl $(ELKHOUND)/find-extra-deps *.d >$@
 
 -include extradep.mk
 
@@ -43,7 +43,7 @@ LDFLAGS := @LDFLAGS@ $(libraries)
 # compile .cc in this directory to a .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
 # ------------------------ tlexer -------------------
@@ -68,7 +68,7 @@ lexer.yy.cc: lexer.lex lexer.h
 TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
 $(TOK_FILES): cc_tokens.tok $(ELKHOUND)/make-token-files
 	rm -f $(TOK_FILES)
-	$(ELKHOUND)/make-token-files cc_tokens.tok
+	perl $(ELKHOUND)/make-token-files cc_tokens.tok
 	chmod a-w $(TOK_FILES)
 
 
@@ -134,11 +134,11 @@ gendoc/configure.txt: configure
 
 .PHONY: gendoc/dependencies.dot
 gendoc/dependencies.dot:
-	$(SMBASE)/scan-depends.pl -r main.cc >$@
+	perl $(SMBASE)/scan-depends.pl -r main.cc >$@
 
 gendoc/3.4.5.dot: ccparse in/std/3.4.5.cc
 	./ccparse -tr printHierarchies in/std/3.4.5.cc | \
-	./chop_out "--- E ---" "--- F ---" >$@
+	perl ./chop_out "--- E ---" "--- F ---" >$@
 
 # check to see if they have dot
 .PHONY: dot
