@@ -2,7 +2,7 @@
 // a weird "typename" thing
 
 class A {
-  static int foo();
+  typedef int foo;
 };
 
 void bar()

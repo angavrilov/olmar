@@ -396,6 +396,7 @@ failparse t0192.cc "forward template function"
 testparse t0193.cc
 testparse t0194.cc
 testparse t0195.cc
+testparse t0196.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

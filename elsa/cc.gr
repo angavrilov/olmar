@@ -62,7 +62,7 @@ option defaultMergeAborts;
 option shift_reduce_conflicts 56;
 option reduce_reduce_conflicts 67;
 option unreachable_nonterminals 0;
-option unreachable_terminals 6;
+option unreachable_terminals 8;
 
 verbatim {
 
@@ -334,11 +334,20 @@ nonterm(Expression*) PostfixExpression {
   -> f:PostfixExpression a:ArgumentList
        { return new E_funCall(f, a); }
        
-  // cppstd has two things with "typename".. I don't know what
-  // it means and don't really want to find out..
-  // (this adds 7 R/R conflicts, so it's probably not right)
-  -> "typename" f:PostfixExpression a:ArgumentList
-       { return new E_funCall(f, a); }
+  // cppstd has two things with "typename", but I can't find anyplace
+  // where their semantics are spelled out.. I have some code from
+  // a gcc header which seems to be using them to mean E_constructor,
+  // so I will assume that is the right interpretation
+  //
+  // Note 1: The two "typename" rules are folded into one, with the
+  // variation (planned to be) captured down inside 'IdExpression'.
+  //
+  // Note 2: cppstd uses the grammar to enforce the restriction that
+  // "typename" can only be used with a qualified name, whereas I
+  // enforce that in the type checker (more informative message).
+  -> "typename" t:IdExpression a:ArgumentList
+       { return new E_constructor(new TS_name(loc, t, true /*typenameUsed*/), 
+                                  a); }
 
   // function-style cast, or (equivalently) call to constructor; will
   // almost always be ambiguous with function call, so the distinction
@@ -2143,6 +2152,10 @@ nonterm(ASTList<TemplateArgument>*) TemplateArgumentListOpt {
 nonterm(PQName*) TemplateId {
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, n, list); }
+
+  // I think I should also have here a version with the word
+  // "template" in front, i.e.
+  // -> "template" n:Identifier "<" list:TemplateArgumentListOpt ">"
 }
 
 nonterm(ASTList<TemplateArgument>*) TemplateArgumentList {

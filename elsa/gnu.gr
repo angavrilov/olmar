@@ -3,7 +3,7 @@
 
 // expected statistics
 option shift_reduce_conflicts 135;
-option reduce_reduce_conflicts 72;
+option reduce_reduce_conflicts 65;
 
 
 verbatim {
