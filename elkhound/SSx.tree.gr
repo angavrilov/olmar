@@ -1,0 +1,41 @@
+// SSx.tree.gr   -*- c++ -*-
+// first nondeterministic grammar from even-faster
+// builds a tree
+
+// S -> S S x | x
+
+// WRONG: number of parses of input "x"^(2n+3) is 2^n
+
+
+verbatim SSx [
+  #include <iostream.h>     // cout is used by some auto-gen'd warning messages..
+  #include "ssxnode.h"      // Node
+
+  class SSx : public UserActions {
+    #include "SSx.tree.gr.gen.h"
+  };
+
+  UserActions *makeUserActions()
+  {
+    return new SSx;
+  }
+
+]
+
+
+terminals {
+  0 : EOF ;
+  88 : x   ;
+}
+
+// dummy first rule
+nonterm[Node*] DummyStart -> tree:S EOF     [ return tree; ]
+
+nonterm[Node*] S {
+  merge(p1, p2)    [ return new Node(Node::MERGE, p1, p2); ]
+  del(p)           []
+  dup(p)           [ return p; ]
+
+  -> a:S b:S x     [ return new Node(Node::SSX, a, b); ]
+  -> x             [ return new Node(Node::X, NULL, NULL); ]
+}

@@ -546,14 +546,22 @@ PathCollectionState::ReductionPath::~ReductionPath()
 }
 
 
+// transfer state from 'obj' to 'this'
 PathCollectionState::ReductionPath& PathCollectionState::ReductionPath
-  ::operator=(PathCollectionState::ReductionPath const &obj)
+  ::operator=(PathCollectionState::ReductionPath &obj)
 {
-  if (&obj != this) {
-    finalState = obj.finalState;
-    sval = obj.sval;
-    SOURCELOC( loc = obj.loc; )
-  }
+  xassert(&obj != this);
+
+  // I could circumvent the refct ++ and --, but this happens
+  // very rarely so it's not worth it
+  finalState = obj.finalState;
+  obj.finalState = NULL;
+
+  sval = obj.sval;
+  obj.sval = NULL;
+
+  SOURCELOC( loc = obj.loc; )
+
   return *this;
 }
 
@@ -666,11 +674,17 @@ SemanticValue GLR::grabTopSval(StackNode *node)
   return ret;
 }
 
-
+                     
 inline StackNode *GLR::makeStackNode(StateId state)
 {
   StackNode *sn = stackNodePool.alloc();
   sn->init(state, this);
+
+  #ifdef STACK_NODE_COLUMNS
+    // only do this when we need to, since it's in the inner loop
+    sn->column = globalNodeColumn;
+  #endif
+
   return sn;
 }
 
@@ -708,6 +722,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   long startParseTime = getMilliseconds();
   unsigned long long startParseCycles = getCycles_ll();
   clearAllStackNodes();
+  bool doDumpGSS = tracingSys("dumpGSS");
 
   // build the parser index (I do this regardless of whether I'm going
   // to use it, because up here it makes no performance difference,
@@ -724,9 +739,10 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
+  globalNodeColumn = 0;
   StackNode *first = makeStackNode(startState->id);
   addActiveParser(first);
-  
+
   // we will queue up shifts and process them all at the end (pulled
   // out of loop so I don't deallocate the array between tokens)
   ArrayStack<PendingShift> pendingShifts;                  // starts empty
@@ -744,6 +760,12 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
         << ", " << activeParsers.length() << " active parsers"
         << " -------"
     )
+
+    #ifndef NDEBUG
+      if (doDumpGSS) {
+        dumpGSS(tokenNumber);
+      }
+    #endif
 
     // token reclassification
     #if USE_RECLASSIFY
@@ -939,6 +961,10 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                  ", (unambig) shift token " << currentTokenClass->name <<
                  ", to state " << newState);
 
+        #ifdef STACK_NODE_COLUMNS
+          globalNodeColumn++;
+        #endif
+
         StackNode *rightSibling = makeStackNode(newState);
         rightSibling->addFirstSiblingLink_noRefCt(
           parser, currentTokenValue  SOURCELOCARG( currentTokenLoc ) );
@@ -995,7 +1021,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     // work through the worklist
     StateId lastToDie = STATE_INVALID;
     while (parserWorklist.isNotEmpty()) {
-      RCPtr<StackNode> parser = parserWorklist.pop();     // dequeue
+      RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
       parser->decRefCt();     // no longer on worklist
 
       // to count actions, first record how many parsers we have
@@ -1661,6 +1687,10 @@ bool GLR::canMakeProgress(StackNode *parser)
 
 void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 {
+  #ifdef STACK_NODE_COLUMNS
+    globalNodeColumn++;
+  #endif
+
   // clear the active-parsers list; we rebuild it in this fn
   for (int i=0; i < activeParsers.length(); i++) {
     StackNode *parser = activeParsers[i];
@@ -1674,7 +1704,7 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 
   // foreach (leftSibling, newState) in pendingShifts
   while (pendingShifts.isNotEmpty()) {
-    RCPtr<StackNode> leftSibling = pendingShifts.top().parser;
+    RCPtr<StackNode> leftSibling(pendingShifts.top().parser);
     StateId newState = pendingShifts.top().shiftDest;
     pendingShifts.popAlt().deinit();
 
@@ -1734,6 +1764,61 @@ StackNode *GLR::findActiveParser(StateId state)
     }
     return NULL;
   #endif
+}
+
+
+// print the graph-structured stack to a file, named according
+// to the current token number, in a format suitable for a
+// graph visualization tool of some sort
+void GLR::dumpGSS(int tokenNumber) const
+{
+  FILE *dest = fopen(stringc << "gss." << tokenNumber << ".g", "w");
+
+  // list of nodes we've already printed, to avoid printing any
+  // node more than once
+  SObjList<StackNode> printed;
+
+  // list of nodes to print; might intersect 'printed', in which case
+  // such nodes should be discarded; initially contains all the active
+  // parsers (tops of stacks)
+  SObjList<StackNode> queue;
+  for (int i=0; i < activeParsers.length(); i++) {
+    queue.append(activeParsers[i]);
+  }
+
+  // keep printing nodes while there are still some to print
+  while (queue.isNotEmpty()) {
+    StackNode *node = queue.removeFirst();
+    if (printed.contains(node)) {
+      continue;
+    }
+    printed.append(node);
+
+    // only edges actually get printed (since the node names
+    // encode all the important information); so iterate over
+    // the sibling links now; while iterating, add the discovered
+    // nodes to the queue so we'll print them too
+    if (node->firstSib.sib != NULL) {
+      dumpGSSEdge(dest, node, node->firstSib.sib);
+      queue.append(node->firstSib.sib);
+
+      FOREACH_OBJLIST(SiblingLink, node->leftSiblings, iter) {
+        dumpGSSEdge(dest, node, iter.data()->sib);
+        queue.append(const_cast<StackNode*>( iter.data()->sib.getC() ));
+      }
+    }
+  }
+  
+  fclose(dest);
+}
+
+
+void GLR::dumpGSSEdge(FILE *dest, StackNode const *src, 
+                                  StackNode const *target) const
+{
+  fprintf(dest, "e %d_%p_%d %d_%p_%d\n",
+                src->column, src, src->state,
+                target->column, target, target->state);
 }
 
 

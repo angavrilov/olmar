@@ -396,6 +396,9 @@ trivparse-deps = trivmain.cc trivlex.o lexer2.o libglr.a
 	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
 	  $^ $(linkend)
 
+ssxmain.exe: SSx.tree.gr.gen.o ssxmain.o trivlex.o lexer2.o libglr.a
+	g++ -o $@ $(ccflags) $^ $(linkend)
+
 # test program for 'sexp' module
 sexp: sexp.ast.gen.o sexp.cc $(AST)/fileloc.o $(AST)/asthelp.o
 	g++ -o $@ $(ccflags) $(includes) -DTEST_SEXP $^ $(linkend)

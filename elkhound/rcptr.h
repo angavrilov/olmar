@@ -30,8 +30,8 @@ private:    // funcs
   void dec() { DBG("dec"); if (ptr) { ptr->decRefCt(); ptr=NULL; } }
 
 public:     // funcs
-  RCPtr(T *p = NULL) : ptr(p) { DBG("ctor"); inc(); }
-  RCPtr(RCPtr const &obj) : ptr(obj.ptr) { DBG("cctor"); inc(); }
+  explicit RCPtr(T *p = NULL) : ptr(p) { DBG("ctor"); inc(); }
+  explicit RCPtr(RCPtr const &obj) : ptr(obj.ptr) { DBG("cctor"); inc(); }
   ~RCPtr() { DBG("dtor"); dec(); }
 
   // point at something new (setting to NULL is an option)
@@ -40,18 +40,21 @@ public:     // funcs
     { DBG("op=obj"); dec(); ptr=obj.ptr; inc(); }
 
   // some operators that make Owner behave more or less like
-  // a native C++ pointer.. note that some compilers to really
-  // bad handling the "ambiguity", so the non-const versions
-  // can be disabled at compile time
+  // a native C++ pointer
   operator T const * () const { DBG("opcT*"); return ptr; }
   T const & operator* () const { DBG("opc*"); return *ptr; }
   T const * operator-> () const { DBG("opc->"); return ptr; }
 
-  #ifndef NO_REFCT_NONCONST
+  bool operator==(T *p) const { return ptr == p; }
+  bool operator!=(T *p) const { return !this->operator==(p); }
+
+  bool operator==(RCPtr<T> const &obj) const { return ptr == obj.ptr; }
+  bool operator!=(RCPtr<T> const &obj) const { return !this->operator==(obj); }
+
   operator T* () { DBG("opT*"); return ptr; }
+  operator T const * () { DBG("opcT*"); return ptr; }
   T& operator* () { DBG("op*"); return *ptr; }
   T* operator-> () { DBG("op->"); return ptr; }
-  #endif
 
   // escape hatch for when operators flake out on us
   T *get() { DBG("get"); return ptr; }

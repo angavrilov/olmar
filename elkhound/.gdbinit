@@ -12,7 +12,7 @@
 
 #set args -tr stopAfterTCheck cc.bin c.in3
  
-file sexp
+#file sexp
 
 #file ccgr
 #set args -tr predicates,owner,printAnalysisPath,vcgen,aenvSet cc.bin vcgen/treeadd-merged.c
@@ -50,6 +50,9 @@ file sexp
 
 #file cdecl2
 #set args -tr cdecl cdecl2.bin cdecl.in1
+
+file ssxmain.exe
+set args -tr parse x7.in
 
 break main
 break breaker

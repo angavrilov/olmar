@@ -350,23 +350,6 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
       addFact(P_equal(avLength(object), avInt(at.size)),
               "known array length");
     }
-
-    if (at.eltType->isOwnerPtr()) {
-      // OWNER: arrays of owners get initialized to the dead state
-      trace("owner") << "initializing array of owners to dead\n";
-
-      // thmprv_forall(int j; 0<=j && j<length(*addr) ==> addr[j].state==DEAD)
-      AVvar *j = freshVariable("j", "quantifier for array index");
-      addFact(P_forall(new ASTList<AVvar>(j),
-                       new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
-                                         new P_relation(j, RE_LESS, avLength(object))),
-                                  P_equal(avSel(avSel(object, j),
-                                                avOwnerField_state()),
-                                          avOwnerState_dead())
-                                 )
-                      ),
-              "initial dead state of array of owners");
-    }
   }
 
   if (modeledInMemory(var)) {
@@ -397,14 +380,19 @@ void AEnv::initializeUninitVariable(Variable *var)
                     avOwnerState_dead());        // field value
   }
 
+  // used to be "d->vcgen(var, initVal)" in S_decl::vcgen... seems to
+  // do the right things
+  updateVar(var, initVal);                // bind name to value
+  addDeclarationFacts(var, initVal);      // add yet more facts
+
   if (type->isArrayType()) {
     ArrayType const &at = type->asArrayTypeC();
-    AbsValue *addr = get(var);      // need the object's address; 'value' isn't it
-    AbsValue *object = avSel(getMem(), addr);
+    //AbsValue *addr = get(var);      // need the object's address; 'value' isn't it
+    //AbsValue *object = avSel(getMem(), addr);
 
     // length
     if (at.hasSize) {
-      addFact(P_equal(avLength(object), avInt(at.size)),
+      addFact(P_equal(avLength(initVal), avInt(at.size)),
               "known array length");
     }
 
@@ -416,8 +404,8 @@ void AEnv::initializeUninitVariable(Variable *var)
       AVvar *j = freshVariable("j", "quantifier for array index");
       addFact(P_forall(new ASTList<AVvar>(j),
                        new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
-                                         new P_relation(j, RE_LESS, avLength(object))),
-                                  P_equal(avSel(avSel(object, j),
+                                         new P_relation(j, RE_LESS, avLength(initVal))),
+                                  P_equal(avSel(avSel(initVal, j),
                                                 avOwnerField_state()),
                                           avOwnerState_dead())
                                  )
@@ -425,11 +413,6 @@ void AEnv::initializeUninitVariable(Variable *var)
               "initial dead state of array of owners");
     }
   }
-
-  // used to be "d->vcgen(var, initVal)" in S_decl::vcgen... seems to
-  // do the right things
-  updateVar(var, initVal);                // bind name to value
-  addDeclarationFacts(var, initVal);      // add yet more facts
 }
 
 

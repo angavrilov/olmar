@@ -2,6 +2,83 @@
 
 
 bg_push (
+  (EQ (length (sel mem_1 addr_arr_0)) 5)
+  (okSel mem_1 addr_arr_0)
+  (EQ tmp_0 (sub tmp_index_0 tmp_rest_0))
+  (EQ (sel tmpOwner_0 0) (sub tmpOwner_index_0 tmpOwner_rest_0))
+  (DISTINCT addr_arr_12 0)
+  (EQ (length (sel mem_20 addr_arr_12)) 5)
+  (okSel mem_20 addr_arr_12)
+  (>= i_12 0)
+  (< i_12 5)
+  (FORALL (j_35)
+    (IMPLIES
+      (AND (<= 0 j_35) (< j_35 5))
+      (AND
+        (NEQ (selOffset
+              mem_20
+              (appendIndex
+                (addOffset (sub addr_arr_12 (sub 0 whole)) j_35)
+                0
+              ))
+            (sub 0 whole))
+        (okSelOffset
+          mem_20
+          (selOffset
+            mem_20
+            (appendIndex (addOffset (sub addr_arr_12 (sub 0 whole)) j_35) 0)
+          )))))
+  (FORALL (j_36)
+    (IMPLIES
+      (AND (<= 0 j_36) (< j_36 5))
+      (EQ (selOffset
+            mem_20
+            (appendIndex (addOffset (sub addr_arr_12 (sub 0 whole)) j_36) 1)
+          )
+          2)
+      ))
+  (EQ tmp_2 (sub tmp_index_2 tmp_rest_2))
+  (EQ mem_21
+      (updOffset
+        mem_20
+        (sel
+          (selOffset mem_20 (addOffset (sub addr_arr_12 (sub 0 whole)) i_12))
+          0
+        )
+        i_12
+      ))
+  (NOT (< (+ i_12 1) 5))
+  
+  ; my names
+  (EQ ptr (sel
+            (selOffset mem_20 (addOffset (sub addr_arr_12 (sub 0 whole)) i_12))
+            0
+          ))
+  (EQ addr addr_arr_12)
+
+  ; additional assumptions
+  (NEQ (firstIndexOf ptr) addr)
+
+)
+valid "implications" (
+  (EQ (sel mem_20 addr) (sel mem_21 addr))
+)
+valid "goal" (
+  (FORALL (j_37)
+    (IMPLIES
+      (AND (<= 0 j_37) (< j_37 5))
+      (EQ (selOffset
+            mem_21
+            (appendIndex (addOffset (sub addr_arr_12 (sub 0 whole)) j_37) 1)
+          )
+          2)
+      ))
+)
+bg_pop
+stop
+
+
+bg_push (
 ;  (EQ (length (sel mem_1 addr_arr_0)) 5)
 ;  (FORALL (j_0 ) (IMPLIES (AND (<= 0 j_0) (< j_0 (length (sel mem_1 addr_arr_0)))) (EQ (sel (sel (sel mem_1 addr_arr_0) j_0) 1) 1)))
 ;  (okSel mem_1 addr_arr_0)

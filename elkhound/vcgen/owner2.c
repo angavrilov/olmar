@@ -27,46 +27,49 @@ int main()
 
   thmprv_invariant(ARRAYSTATE(0, 5, NULLOWNER));
 
+  #define ARRAYPOINTER(j) (VALID_INTPTR(arr[j].ptr) &&       \
+                           firstIndexOf(arr[j].ptr) != firstIndexOf(&arr))
+
   for (i=0; i<5; i=i+1) {
     thmprv_invariant(i>=0 && i<5 &&
                      ARRAYSTATE(0, i, OWNING) &&
-                     ARRAYPREDJ(0, i, VALID_INTPTR(arr[j].ptr)) &&
+                     ARRAYPREDJ(0, i, ARRAYPOINTER(j)) && 
                      ARRAYSTATE(i, 5, NULLOWNER));
     arr[i] = allocFunc();
   }
 
   thmprv_invariant(ARRAYSTATE(0, 5, OWNING) &&
-                   ARRAYPREDJ(0, 5, VALID_INTPTR(arr[j].ptr)));
+                   ARRAYPREDJ(0, 5, ARRAYPOINTER(j)));
 
   for (i=0; i<5; i=i+1) {
     thmprv_invariant(i>=0 && i<5 &&
-                     ARRAYPREDJ(0, 5, VALID_INTPTR(arr[j].ptr)) &&
+                     ARRAYPREDJ(0, 5, ARRAYPOINTER(j)) &&
                      ARRAYSTATE(0, 5, OWNING));
     tmp = (int*)(arr[i]);      // cast owner to nonowner
     *tmp = i;
   }
 
   thmprv_invariant(ARRAYSTATE(0, 5, OWNING) &&
-                   ARRAYPREDJ(0, 5, VALID_INTPTR(arr[j].ptr)));
+                   ARRAYPREDJ(0, 5, ARRAYPOINTER(j)));
 
   sum = 0;
   for (i=0; i<5; i=i+1) {
     thmprv_invariant(i>=0 && i<5 &&
-                     ARRAYPREDJ(0, 5, VALID_INTPTR(arr[j].ptr)) &&
+                     ARRAYPREDJ(0, 5, ARRAYPOINTER(j)) &&
                      ARRAYSTATE(0, 5, OWNING));
     tmp = (int*)arr[i];        // cast owner to nonowner
     sum = sum + *tmp;
   }
 
   thmprv_invariant(ARRAYSTATE(0, 5, OWNING) &&
-                   ARRAYPREDJ(0, 5, VALID_INTPTR(arr[j].ptr)));
+                   ARRAYPREDJ(0, 5, ARRAYPOINTER(j)));
 
   int * owner tmpOwner;
   for (i=0; i<5; i=i+1) {
     thmprv_invariant(i>=0 && i<5 &&
                      ARRAYSTATE(0, i, DEAD) &&
                      ARRAYSTATE(i, 5, OWNING) &&
-                     ARRAYPREDJ(i, 5, VALID_INTPTR(arr[j].ptr)) &&
+                     ARRAYPREDJ(i, 5, ARRAYPOINTER(j)) &&
                      tmpOwner.state == DEAD);
     tmpOwner = arr[i];
     deallocFunc(tmpOwner);

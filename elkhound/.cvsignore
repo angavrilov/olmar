@@ -116,3 +116,9 @@ CAdB.gr
 CAdB.gr.gen.*
 sexp
 sexp.ast.gen.*
+SSx.bin
+SSx.gr
+SSx.gr.gen.*
+SSx.tree.bin
+SSx.tree.gr.gen.*
+gss.*.g

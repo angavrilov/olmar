@@ -42,7 +42,9 @@
 #include "owner.h"       // Owner
 #include "rcptr.h"       // RCPtr
 #include "useract.h"     // UserActions, SemanticValue
-#include "objpool.h"     // ObjectPool
+#include "objpool.h"     // ObjectPool, GrowArray
+
+#include <stdio.h>       // FILE
 
 
 // fwds from other files
@@ -134,6 +136,15 @@ public:
     // StackNodes
     StackNode *nextInFreeList;
   };
+
+  #define STACK_NODE_COLUMNS
+  #ifdef STACK_NODE_COLUMNS
+    // ordinal position of the token that was being processed
+    // when this stack node was created; this information is useful
+    // for laying out the nodes when visualizing the GSS, but is
+    // not used by the parsing algorithm itself
+    int column;
+  #endif
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
@@ -246,12 +257,18 @@ public:    // types
     // location of left edge of this subtree
     SOURCELOC( SourceLocation loc; )
 
+  private:
+    // this is only for use by the GrowArray; it transfers all
+    // state from 'obj' to 'this', on the expectation that 'obj'
+    // is about to be deallocated (since we transfer state, 'obj'
+    // is *not* const)
+    ReductionPath& operator=(ReductionPath &obj);
+    friend class GrowArray<ReductionPath>;
+
   public:
     ReductionPath()
       : finalState(NULL), sval(NULL)  SOURCELOCARG( loc() ) {}
     ~ReductionPath();
-
-    ReductionPath& operator=(ReductionPath const &obj);
 
     // begin using this
     void init(StackNode *f, SemanticValue s 
@@ -350,7 +367,7 @@ public:
   // doReduction can call itself recursively (to handle new reductions
   // enabled by adding a sibling link), this is a stack
   ObjArrayStack<PathCollectionState> pcsStack;
-  
+
   // pushing and popping using the ObjArrayStack interface would
   // defeat the purpose of pulling this out; pcsStackHeight gives the
   // next entry to use, and we only push a new entry onto pcsStack if
@@ -371,6 +388,9 @@ public:
   ostream &trsParse;                        // trace("parse")
   bool trSval;                              // tracingSys("sval")
   ostream &trsSval;                         // trace("sval")
+
+  // used when STACK_NODE_COLUMNS is true
+  int globalNodeColumn;
 
 private:    // funcs
   // comments in glr.cc
@@ -401,6 +421,9 @@ private:    // funcs
   void addActiveParser(StackNode *parser);
   void pullFromActiveParsers(StackNode *parser);
   bool canMakeProgress(StackNode *parser);
+  void dumpGSS(int tokenNumber) const;
+  void dumpGSSEdge(FILE *dest, StackNode const *src,
+                               StackNode const *target) const;
 
 public:     // funcs
   GLR(UserActions *userAct);

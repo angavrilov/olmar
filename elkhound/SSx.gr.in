@@ -1,0 +1,15 @@
+// SSx.gr.in   -*- c++ -*-
+// first nondeterministic grammar from even-faster
+
+// S -> S S x | x
+
+terminals {
+  88 : x   ;
+}
+
+nonterm S {
+  merge(p1, p2) [ cout << "merging nonterminal S\n"; return p1; ]
+
+  -> S S x;
+  -> x;
+}

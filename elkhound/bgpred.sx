@@ -703,6 +703,15 @@
       (EQ whole (restOf ptr))
       (EQ ptr (sub (firstIndexOf ptr) whole))
     ))
+    
+  ; when a recent update is to a different toplevel object than
+  ; we're reading, can skip it
+  (FORALL (mem ptr addr val)
+    (IMPLIES
+      (NEQ (firstIndexOf ptr) addr)
+      (EQ (sel (updOffset mem ptr val) addr)
+          (sel mem addr))
+    ))
 
   ; ------------------------ fresh -------------------------
   ; two memories are (or at least can be) equal if the only

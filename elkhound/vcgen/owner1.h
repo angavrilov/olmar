@@ -29,6 +29,7 @@ thmprv_predicate int okSelOffset(int mem, int offset);
 thmprv_predicate int okSel(int mem, int index);
 int *sub(int index, int *rest);
 int upd(int mem, int index, int value);
+int firstIndexOf(int *ptr);
 
 #define VALID_INTPTR(ptr)        \
   (ptr != (int*)0 &&             \
