@@ -617,7 +617,7 @@ class TemplateDeclaration (
 class TemplateParameter (SourceLocation loc) {
   public TemplateParameter *next;  ctor next=NULL;   // FakeList link
 
-  pure_virtual void tcheck(Env &env);
+  pure_virtual void tcheck(Env &env, TemplateParams *tparams);
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,

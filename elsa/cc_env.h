@@ -108,6 +108,10 @@ public:      // function
   // qualified in 'name'
   Scope *lookupQualifiedScope(PQName const *name);
 
+  // if the innermost scope has some template parameters, take
+  // them out and return them; otherwise return NULL
+  TemplateParams * /*owner*/ takeTemplateParams();
+
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg, bool disambiguates=false);
   Type const *warning(char const *msg);

@@ -606,6 +606,7 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
     // in particular, fill in the conversion destination type as
     // the function's return type
     FunctionType *ft = new FunctionType(destType, specFunc->cv);
+    ft->templateParams = env.takeTemplateParams();
 
     return ft;
   }
@@ -880,6 +881,7 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
   env.setLoc(loc);
 
   FunctionType *ft = new FunctionType(retSpec, cv);
+  ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope();
@@ -1880,16 +1882,22 @@ void TemplateDeclaration::tcheck(Env &env)
 {
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope();
+    
+  // make a list of template parameters
+  TemplateParams *tparams = new TemplateParams;
 
   // check each of the parameters, i.e. enter them into the scope
   FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    iter->tcheck(env);
+    iter->tcheck(env, tparams);
   }
 
   // mark the new scope as unable to accept new names, so
   // that the function or class being declared will be entered
   // into the scope above us
   paramScope->canAcceptNames = false;
+
+  // put the template parameters in a place the D_func will find them
+  paramScope->templateParams = tparams;
 
   // in what follows, ignore errors that are not disambiguating
   bool prev = env.setDisambiguateOnly(true);
@@ -1907,15 +1915,13 @@ void TemplateDeclaration::tcheck(Env &env)
 
 void TD_func::itcheck(Env &env)
 {
-  // check the function definition
+  // check the function definition; internally this will get
+  // the template parameters attached to the function type
   f->tcheck(env, true /*checkBody*/);
-
-  // TODO: attach these parameters to the function type
-  // so later references to it can be checked
 }
 
 
-void TP_type::tcheck(Env &env)
+void TP_type::tcheck(Env &env, TemplateParams *tparams)
 {
   // std 14.1 is a little unclear about whether the type
   // name is visible to its own default argument; but that
@@ -1944,12 +1950,16 @@ void TP_type::tcheck(Env &env)
 
   // introduce 'name' into the environment as a typedef for the
   // type variable
-  Variable *var = new Variable(loc, name, makeType(type), DF_TYPEDEF);
+  Type const *fullType = makeType(type);
+  Variable *var = new Variable(loc, name, fullType, DF_TYPEDEF);
   type->typedefVar = var;
   if (!env.addVariable(var)) {
     env.error(stringc
       << "duplicate template parameter `" << name << "'");
   }
+
+  // add this parameter to the list of them
+  tparams->params.append(new FunctionType::Param(name, fullType, var));
 }
 
 

@@ -15,6 +15,7 @@ Scope::Scope(int cc, SourceLocation const &initLoc)
     canAcceptNames(true),
     curCompound(NULL),
     curFunction(NULL),
+    templateParams(NULL),
     curLoc(initLoc)
 {}
 

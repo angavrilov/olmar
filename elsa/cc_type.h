@@ -24,6 +24,7 @@ class TypeVariable;
 class CVAtomicType;
 class PointerType;
 class FunctionType;
+class TemplateParams;
 class ArrayType;
 class Type;
 class Env;
@@ -286,6 +287,9 @@ public:     // funcs
   bool isError() const { return isSimple(ST_ERROR); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
   bool isOwnerPtr() const;
+  
+  bool isCVAtomicType(AtomicType::Tag tag) const;
+  bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
 
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer
@@ -389,6 +393,9 @@ public:     // data
   bool acceptsVarargs;         // true if add'l args are allowed
   ExnSpec *exnSpec;            // (nullable owner) allowable exceptions if not NULL
 
+  // for template functions, this is the list of template parameters
+  TemplateParams *templateParams;    // (owner)
+
 public:     // funcs
   FunctionType(Type const *retType, CVFlags cv);
   virtual ~FunctionType();
@@ -397,14 +404,26 @@ public:     // funcs
   bool equalParameterLists(FunctionType const *obj) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
 
-  // append a parameter to the parameters list
+  // append a parameter to the (ordinary) parameters list
   void addParam(Param *param);
+
+  bool isTemplate() const { return templateParams!=NULL; }
 
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
+};
+
+
+class TemplateParams {
+public:
+  ObjList<FunctionType::Param> params;
+
+public:
+  TemplateParams() {};
+  ~TemplateParams();
 };
 
 
