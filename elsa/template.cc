@@ -1090,7 +1090,6 @@ bool Env::inferTemplArgsFromFuncArgs
   // The hard part about this is we can't easily tell whether the
   // caller actually passed a receiver object...
 
-  // FIX: make this work for vararg functions
   int i = 1;            // for error messages
   SFOREACH_OBJLIST_NC(Variable, var->type->asFunctionType()->params, paramIter) {
     Variable *param = paramIter.data();
@@ -1109,28 +1108,22 @@ bool Env::inferTemplArgsFromFuncArgs
         }
         return false;             // FIX: return a variable of type error?
       }
-    } else {
-      // we don't use the default arugments for template arugment
-      // inference, but there should be one anyway.
-      if (!param->value) {
-        if (reportErrors) {
-          error(stringc << "during function template argument deduction: too few arguments to " <<
-                var->name);
-        }
-        return false;
-      }
+    } 
+    else {
+      // sm: 9/26/04: there used to be code here that reported an error
+      // unless the parameter had a default argument, but that checking
+      // is better done elsewhere (for uniformity)
     }
+
     ++i;
     // advance the argIterCur if there is one
     if (!argListIter.isDone()) argListIter.adv();
   }
-  if (!argListIter.isDone()) {
-    if (reportErrors) {
-      error(stringc << "during function template argument deduction: too many arguments to " <<
-            var->name);
-    }
-    return false;
-  }
+  
+  // sm: 9/26/04: similarly, there used to be code that complained if there
+  // were too many args; that is also checked elsewhere (t0026.cc ensures
+  // that both conditions are caught)
+
   return true;
 }
 
@@ -1202,7 +1195,8 @@ void Env::getFuncTemplArgs_oneParamList
 
     if (!sta) {
       if (reportErrors) {
-        error(stringc << "No argument for parameter `" << templPIter.data()->name << "'");
+        error(stringc << "arguments do not bind template parameter `" 
+                      << templPIter.data()->name << "'");
       }
       haveAllArgs = false;
     }

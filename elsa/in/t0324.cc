@@ -17,6 +17,8 @@ GetStyleData(int, int);
 
 struct A {};
 
+template class nsDerivedSafe<nsIStyleContext>;
+
 void foo()
 {
   const A *a;
