@@ -84,6 +84,7 @@ TOCLEAN += *.o *.d
 # ------------------------ tlexer -------------------
 LEXER_OBJS := \
   cc_lang.o \
+  baselexer.o \
   lexer.o \
   lexer.yy.o \
   cc_tokens.o

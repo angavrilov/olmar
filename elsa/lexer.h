@@ -4,13 +4,8 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-// This included file is part of the Flex distribution.  It defines
-// the base class yyFlexLexer.
-#include <FlexLexer.h>
-
-#include "lexerint.h"       // LexerInterface
+#include "baselexer.h"      // BaseLexer
 #include "cc_tokens.h"      // TokenType
-#include "strtable.h"       // StringRef, StringTable
 
 // fwd decls
 class CCLang;               // cc_lang.h
@@ -22,35 +17,15 @@ TokenFlag tokenFlags(TokenType type);
 
 
 // lexer object
-class Lexer : public yyFlexLexer, public LexerInterface {
+class Lexer : public BaseLexer {
 private:    // data
-  istream *inputStream;            // (owner) file from which we're reading
-  SourceLocManager::File *srcFile; // (serf) contains the hash map we update
-
-  SourceLoc nextLoc;               // location of *next* token
-  int curLine;                     // current line number; needed for #line directives
-
   bool prevIsNonsep;               // true if last-yielded token was nonseparating
   StringRef prevHashLineFile;      // previously-seen #line directive filename
 
 public:     // data
-  StringTable &strtable;           // string table
   CCLang &lang;                    // language options
-  int errors;                      // count of errors encountered
 
-private:    // funcs
-  Lexer(Lexer&);                   // disallowed
-
-  // advance source location
-  void updLoc() {
-    loc = nextLoc;                 // location of *this* token
-    nextLoc = advText(nextLoc, yytext, yyleng);
-  }
-  
-  // adds a string with only the specified # of chars; writes (but
-  // then restores) a null terminator if necessary, so 'str' isn't const
-  StringRef addString(char *str, int len);
-
+protected:  // funcs
   // see comments at top of lexer.cc
   void checkForNonsep(TokenType t) {
     if (tokenFlags(t) & TF_NONSEPARATOR) {
@@ -76,16 +51,10 @@ private:    // funcs
   // handle a #line directive
   void parseHashLine(char *directive, int len);
 
-  // report an error
-  void err(char const *msg);
-
   // report an error in a preprocessing task
   void pp_err(char const *msg);
 
-  // part of the constructor
-  istream *openFile(char const *fname);
-
-  // read the next token and return its code; returns TOK_EOF for end of file;
+  // read the next token and return its code; returns 0 for end of file;
   // this function is defined in flex's output source code
   virtual int yylex();
 

@@ -2,11 +2,8 @@
 // code for lexer.h
 
 #include "lexer.h"       // this module
-#include "strtable.h"    // StringTable
 #include "cc_lang.h"     // CCLang
-#include "exc.h"         // throw_XOpen
 
-#include <fstream.h>     // ifstream
 #include <ctype.h>       // isdigit
 #include <stdlib.h>      // atoi
 
@@ -75,81 +72,29 @@ TokenFlag tokenFlags(TokenType type)
 
 
 // ------------------------ Lexer -------------------
-// this function effectively lets me initialize one of the
-// members before initing a base class
-istream *Lexer::openFile(char const *fname)
-{
-  this->inputStream = new ifstream(fname);
-  if (!*inputStream) {
-    throw_XOpen(fname);
-  }
-  return inputStream;
-}
-
 Lexer::Lexer(StringTable &s, CCLang &L, char const *fname)
-  : yyFlexLexer(openFile(fname)),
-
-    // 'inputStream' is initialized by 'openFile'
-    srcFile(NULL),           // changed below
-
-    nextLoc(SL_UNKNOWN),     // changed below
-    curLine(1),
+  : BaseLexer(s, fname),
 
     prevIsNonsep(false),
     prevHashLineFile(s.add(fname)),
 
-    strtable(s),
-    lang(L),
-    errors(0)
+    lang(L)
 {
-  srcFile = sourceLocManager->getInternalFile(fname);
-
-  loc = sourceLocManager->encodeBegin(fname);
-  nextLoc = loc;
-
-  // prime this with the first token
+  // prime this lexer with the first token
   tokenFunc(this);
 }
 
 
 Lexer::~Lexer()
-{
-  delete inputStream;
-}
-
-
-StringRef Lexer::addString(char *str, int len)
-{
-  // (copied from gramlex.cc, GrammarLexer::addString)
-
-  // write a null terminator temporarily
-  char wasThere = str[len];
-  if (wasThere) {
-    str[len] = 0;
-    StringRef ret = strtable.add(str);
-    str[len] = wasThere;
-    return ret;
-  }
-  else {
-    return strtable.add(str);
-  }
-}
+{}
 
 
 void Lexer::whitespace()
 {
-  updLoc();
-  
+  BaseLexer::whitespace();
+
   // various forms of whitespace can separate nonseparating tokens
   prevIsNonsep = false;
-
-  // scan for newlines
-  char *p = yytext, *endp = yytext+yyleng;
-  for (; p < endp; p++) {
-    if (*p == '\n') {
-      curLine++;
-    }
-  }
 }
 
 
@@ -252,13 +197,6 @@ void Lexer::pp_err(char const *msg)
   // for whitespace (including the final newline) before processing it
   errors++;
   cerr << srcFile->name << ":" << (curLine-1) << ": error: " << msg << endl;
-}
-
-
-void Lexer::err(char const *msg)
-{
-  errors++;
-  cerr << toString(loc) << ": error: " << msg << endl;
 }
 
 

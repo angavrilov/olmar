@@ -1,4 +1,4 @@
-/* cc.lex
+/* cc.lex            see license.txt for copyright and terms of use
  * flex description of scanner for C and C++ souce
  */
  
@@ -35,12 +35,13 @@
 /* the scanner is never interactive */
 %option never-interactive
 
-/* and I will define the class */
+/* and I will define the class (lexer.h) */
 %option yyclass="Lexer"
 
 /* output file name */
   /* dsw: Arg!  Don't do this, since it is not overrideable from the
      command line with -o, which I consider to be a flex bug. */
+  /* sm: fair enough; agreed */
   /* %option outfile="lexer.yy.cc" */
 
 /* ------------------- definitions -------------------- */
@@ -351,7 +352,10 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* whitespace */
-  /* 10/20/02: added '\r' to accomodate files coming from Windows */
+  /* 10/20/02: added '\r' to accomodate files coming from Windows; this
+   * could be seen as part of the mapping from physical source file
+   * characters to the basic character set (cppstd 2.1 para 1 phase 1),
+   * except that it doesn't happen for chars in string/char literals... */
 [ \t\n\f\v\r]+  {
   whitespace();
 }
@@ -379,6 +383,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* illegal */
 .  {
+  updLoc();
   err(stringc << "illegal character: `" << yytext[0] << "'");
 }
 

@@ -40,3 +40,5 @@ gendoc
 lexer.lex
 delta*
 diff
+tmp.cc
+changes
