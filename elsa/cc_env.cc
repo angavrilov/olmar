@@ -1505,14 +1505,15 @@ Type *Env::declareEnum(SourceLoc loc /*...*/, EnumType *et)
 {
   Type *ret = makeType(loc, et);
   if (et->name) {
+    // make the implicit typedef
+    Variable *tv = makeVariable(loc, et->name, ret, DF_TYPEDEF | DF_IMPLICIT);
+    et->typedefVar = tv;
+
     if (!addEnum(et)) {
       error(stringc << "multiply defined enum `" << et->name << "'");
     }
 
-    // make the implicit typedef
-    Variable *tv = makeVariable(loc, et->name, ret, DF_TYPEDEF | DF_IMPLICIT);
-    et->typedefVar = tv;
-    if (!addVariable(tv)) {
+    if (lang.tagsAreTypes && !addVariable(tv)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]
       //return env.error(stringc
@@ -2236,7 +2237,7 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    ret = scope->lookupCompound(name->getName(), flags);
+    ret = scope->lookupCompound(name->getName(), env, flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
@@ -2266,12 +2267,12 @@ CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
   if (flags & LF_INNER_ONLY) {
     // 10/17/04: dsw/sm: Pass DF_TYPEDEF here so that in C mode we
     // will be looking at 'outerScope'.
-    return acceptingScope(DF_TYPEDEF)->lookupCompound(name, flags);
+    return acceptingScope(DF_TYPEDEF)->lookupCompound(name, env, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    CompoundType *ct = iter.data()->lookupCompound(name, flags);
+    CompoundType *ct = iter.data()->lookupCompound(name, env, flags);
     if (ct) {
       return ct;
     }
@@ -2472,11 +2473,18 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
 {
+  // make the type itself
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
   if (scope) {
     setParentScope(ct, scope);
   }
 
+  // make the implicit typedef
+  Type *ret = makeType(loc, ct);
+  Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
+  ct->typedefVar = tv;
+
+  // add the tag to the scope
   ct->forward = forward;
   if (name && scope) {
     bool ok = scope->addCompound(ct);
@@ -2484,7 +2492,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   }
 
   // cppstd section 9, para 2: add to class' scope itself, too
-  #if 0      
+  #if 0
   // It turns out this causes infinite loops elsewhere, and is in
   // fact unnecessary, because any lookup that would find 'ct' in
   // 'ct' itself would *also* find it in 'scope', since in the
@@ -2495,11 +2503,6 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
     xassert(ok);
   }
   #endif // 0
-
-  // make the implicit typedef
-  Type *ret = makeType(loc, ct);
-  Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
-  ct->typedefVar = tv;
 
   // transfer template parameters
   { 

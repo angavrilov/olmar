@@ -53,11 +53,18 @@ private:     // data
   // includes enumerators (DF_ENUMERATOR is set)
   StringRefMap<Variable> variables;
 
+  // 2005-02-24: Rather than keeping separate maps for compounds
+  // and enums, I am now going to keep them in a unified map of
+  // type tags to typedef variables.
+  StringRefMap<Variable> typeTags;
+
+  #if 0     // old
   // compounds: map name -> CompoundType
   StringRefMap<CompoundType> compounds;
 
   // enums: map name -> EnumType
   StringRefMap<EnumType> enums;
+  #endif // 0
 
   // per-scope change count
   int changeCount;
@@ -233,8 +240,11 @@ public:      // funcs
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
   Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE);
-  CompoundType const *lookupCompoundC(StringRef name, LookupFlags f=LF_NONE) const;
+  CompoundType const *lookupCompoundC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
   EnumType const *lookupEnumC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
+  
+  // compounds/enums
+  Variable *lookupTypeTag(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
 
   // lookup of a possibly-qualified name; used for member access
   // like "a.B::f()"
@@ -242,8 +252,8 @@ public:      // funcs
   EnumType const *lookupPQEnumC(PQName const *name, Env &env, LookupFlags flags) const;
 
   // non-const versions..
-  CompoundType *lookupCompound(StringRef name, LookupFlags f=LF_NONE)
-    { return const_cast<CompoundType*>(lookupCompoundC(name, f)); }
+  CompoundType *lookupCompound(StringRef name, Env &env, LookupFlags f=LF_NONE)
+    { return const_cast<CompoundType*>(lookupCompoundC(name, env, f)); }
   EnumType *lookupEnum(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<EnumType*>(lookupEnumC(name, env, f)); }
 
@@ -251,9 +261,9 @@ public:      // funcs
   StringRefMap<Variable>::Iter getVariableIter() const
     { return StringRefMap<Variable>::Iter(variables); }
 
-  // and the inner classes
-  StringRefMap<CompoundType>::Iter getCompoundIter() const
-    { return StringRefMap<CompoundType>::Iter(compounds); }
+  // and the type tags
+  StringRefMap<Variable>::Iter getTypeTagIter() const
+    { return StringRefMap<Variable>::Iter(typeTags); }
 
   // lookup within the 'variables' map, without consulting base
   // classes, etc.; returns NULL if not found

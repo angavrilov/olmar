@@ -3828,11 +3828,13 @@ void Env::explicitlyInstantiate(Variable *var)
   }
 
   // inner classes
-  for (PtrMap<const char, CompoundType>::Iter innerIter(ct->getCompoundIter());
+  for (PtrMap<const char, Variable>::Iter innerIter(ct->getTypeTagIter());
        !innerIter.isDone(); innerIter.adv()) {
-    CompoundType *inner = innerIter.value();
-
-    explicitlyInstantiate(inner->typedefVar);
+    Variable *inner = innerIter.value();
+              
+    if (inner->type->isCompoundType()) {
+      explicitlyInstantiate(inner);
+    }
   }
 }
 

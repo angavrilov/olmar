@@ -11,8 +11,7 @@
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),
-    compounds(),
-    enums(),
+    typeTags(),
     changeCount(cc),
     canAcceptNames(true),
     parentScope(),
@@ -210,22 +209,24 @@ void Scope::afterAddVariable(Variable *v)
 bool Scope::addCompound(CompoundType *ct)
 {
   xassert(canAcceptNames);
+  xassert(ct->typedefVar);
 
   TRACE("env", "added " << toString(ct->keyword) << " " << ct->name);
 
   ct->access = curAccess;
-  return insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/);
+  return insertUnique(typeTags, ct->name, ct->typedefVar, changeCount, false /*forceReplace*/);
 }
 
 
 bool Scope::addEnum(EnumType *et)
 {
   xassert(canAcceptNames);
+  xassert(et->typedefVar);
 
   TRACE("env", "added enum " << et->name);
 
   et->access = curAccess;
-  return insertUnique(enums, et->name, et, changeCount, false /*forceReplace*/);
+  return insertUnique(typeTags, et->name, et->typedefVar, changeCount, false /*forceReplace*/);
 }
 
 
@@ -507,30 +508,69 @@ Variable *Scope::lookupVariable_set
 }
 
 
-CompoundType const *Scope::lookupCompoundC(StringRef name, LookupFlags /*flags*/) const
+CompoundType const *Scope::lookupCompoundC(StringRef name, Env &env,
+                                           LookupFlags flags) const
 {
-  // TODO: implement base class lookup for CompoundTypes
-  // (rather obscure, since most uses of types defined in the
-  // base classes will be without the elaborated type specifier
-  // (e.g. "class"), so the typedefs will be used and that's
-  // covered by the above case for Variables)
-
-  return compounds.get(name);
+  Variable *v = lookupTypeTag(name, env, flags);
+  if (!v) {
+    return NULL;
+  }
+  else if (!v->type->isCompoundType()) {
+    // TODO: further distinguish between struct/class and union
+    if (!(flags & LF_SUPPRESS_ERROR)) {
+      env.error(stringc << "`" << name << "' is not a struct/class/union");
+    }
+    return NULL;
+  }
+  else {
+    return v->type->asCompoundType();
+  }
 }
 
 
-EnumType const *Scope::lookupEnumC(StringRef name, Env &env, LookupFlags flags) const
+EnumType const *Scope::lookupEnumC(StringRef name, Env &env,
+                                   LookupFlags flags) const
 {
-  if (flags & LF_INNER_ONLY) {
-    xfailure("what the heck?");
-//      return vfilterC(enums.queryif(name), flags);
+  Variable *v = lookupTypeTag(name, env, flags);
+  if (!v) {
+    return NULL;
+  }
+  else if (!v->type->isEnumType()) {
+    if (!(flags & LF_SUPPRESS_ERROR)) {
+      env.error(stringc << "`" << name << "' is not an enum");
+    }
+    return NULL;
+  }
+  else {
+    return v->type->asCVAtomicType()->atomic->asEnumType();
+  }
+}
+
+
+Variable *Scope::lookupTypeTag(StringRef name, Env &env, LookupFlags flags) const
+{
+  Variable *v = vfilter(typeTags.get(name), flags);
+  if (v || (flags & LF_INNER_ONLY)) {
+    return v;
   }
 
-  PQ_name wrapperName(SL_UNKNOWN, name);
-  EnumType const *ret = lookupPQEnumC(&wrapperName, env, flags);
-  if (ret) return ret;
+  // consider bases
+  if (curCompound) {
+    FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {
+      Variable *v2 = iter.data()->ct->lookupTypeTag(name, env, flags);
+      if (v2) {
+        if (!v) {
+          v = v2;
+        }
+        else if (v != v2) {
+          env.error(stringc << "ambiguous type tag: `" << v->fullyQualifiedName()
+                            << "' vs. `" << v2->fullyQualifiedName() << "'");
+        }
+      }
+    }
+  }
 
-  return NULL;
+  return v;
 }
 
 
@@ -553,7 +593,7 @@ EnumType const *Scope
 
     // FIX: some kind of filter required?
 //      v1 = vfilterC(enums.queryif(name->getName()), flags);
-    v1 = enums.get(name->getName());
+    v1 = lookupEnumC(name->getName(), env);
 
     // FIX: do this for enums?
 //      if (!(flags & LF_QUALIFIED)) {
@@ -624,7 +664,7 @@ void Scope::lookupPQEnumC_considerBase
     // look in 'v2Base' for the field
     // FIX: filter for enums?
 //      EnumType const *v2 = vfilterC(v2Base->enums.queryif(name->getName()), flags);
-    EnumType const *v2 = v2Base->enums.get(name->getName());
+    EnumType const *v2 = v2Base->lookupEnumC(name->getName(), env);
     if (v2) {
       TRACE("lookup",    "found " << v2Base->name << "::"
                       << name->toString());
