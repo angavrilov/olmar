@@ -719,12 +719,16 @@ void E_boolLit::iprint(PrintEnv &env)
 void E_intLit::iprint(PrintEnv &env)
 {
   olayer ol("E_intLit::iprint");
-  env << i;
+  // FIX: do this correctly from the internal representation
+  // fails to print the trailing U for an unsigned int.
+//    env << i;
+  env << text;
 }
 
 void E_floatLit::iprint(PrintEnv &env)
 {                                
   olayer ol("E_floatLit::iprint");
+  // FIX: do this correctly from the internal representation
   // this fails to print ".0" for a float/double that happens to lie
   // on an integer boundary
 //    env << d;
