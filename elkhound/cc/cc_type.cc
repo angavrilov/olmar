@@ -913,8 +913,8 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
   stringBuilder s;
   s << atomicIdComment();
   s << atomic->toCString();
-  s << ::toString(q);
   s << cvToString(cv);
+  s << ::toString(q);
   
   // this is the only mandatory space in the entire syntax
   // for declarations; it separates the type specifier from
