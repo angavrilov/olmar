@@ -67,9 +67,10 @@ AEnv::AEnv(StringTable &table, Variable const *m)
   : bindings(&AbsVariable::getAbsVariableKey,
              &HashTable::lcprngHashFn,
              &HashTable::pointerEqualKeyFn),
-    facts(new P_and(NULL)),
+    pathFacts(new P_and(NULL)),
+    exprFacts(),
     distinct(),
-    typeFacts(new P_and(NULL)),
+    //typeFacts(new P_and(NULL)),
     mem(m),
     result(NULL),
     currentFunc(NULL),
@@ -83,19 +84,22 @@ AEnv::AEnv(StringTable &table, Variable const *m)
 
 AEnv::~AEnv()
 {
-  delete facts;
+  delete pathFacts;
+
+  //delete typeFacts;
 }
 
 
 void AEnv::clear()
 {
   bindings.empty();
-  facts->conjuncts.deleteAll();
+  pathFacts->conjuncts.deleteAll();
+  exprFacts.removeAll();
   distinct.removeAll();
 
   // initialize the environment with a fresh variable for memory
   set(mem, freshVariable("mem", "initial contents of memory"));
-  
+
   // part of the deal with type facts is I don't clear them..
 }
 
@@ -128,15 +132,32 @@ AbsValue *AEnv::get(Variable const *var)
   xassert(name);    // otherwise how did it get referred-to?
   Type const *type = var->type;
 
-  // give a name to its current value (unless it's a big thing in memory)
   AbsValue *value;
+
+  // first reference to a quantified variable
+  if (var->hasFlag(DF_LOGIC)) {
+    // make sure I understand how this happens
+    xassert(var->hasFlag(DF_UNIVERSAL) || var->hasFlag(DF_EXISTENTIAL));
+
+    // make sure weird things aren't happening
+    xassert(!( var->hasFlag(DF_UNIVERSAL) && var->hasFlag(DF_EXISTENTIAL) ));
+
+    value = freshVariable(var->name,
+      stringc << (var->hasFlag(DF_UNIVERSAL)? "universally" : "existentially")
+              << " quantified: " << var->name );
+
+    set(var, value);
+    return value;
+  }
+
+  // give a name to its current value (unless it's a big thing in memory)
   if (!type->isArrayType()) {
     value = freshVariable(name,
       stringc << "starting value of "
               << (var->hasFlag(DF_PARAMETER)? "parameter " : "variable ")
-              << name);
+              << name );
   }
-  
+
   if (var->hasAddrTaken() || type->isArrayType()) {
     // model this variable as a location in memory; make up a name
     // for its address
@@ -349,7 +370,7 @@ Predicate *exprToPred(AbsValue const *expr)
 
 void AEnv::addFact(Predicate *pred)
 {
-  facts->conjuncts.append(pred);
+  pathFacts->conjuncts.append(pred);
 }
 
 void AEnv::addBoolFact(Predicate *pred, bool istrue)
@@ -360,6 +381,17 @@ void AEnv::addBoolFact(Predicate *pred, bool istrue)
   else {
     addFact(P_negate(pred));    // strip outer P_not (if exists)
   }
+}
+
+
+void AEnv::pushFact(Predicate *pred)
+{
+  exprFacts.prepend(pred);
+}
+
+void AEnv::popFact()
+{
+  exprFacts.removeFirst(); 
 }
 
 
@@ -384,7 +416,7 @@ void AEnv::prove(Predicate *_goal, char const *context)
   SMUTATE_EACH_OBJLIST(AbsValue, distinct, iter2) {
     addrs->terms.append(iter2.data());
   }
-  facts->conjuncts.prepend(addrs);
+  pathFacts->conjuncts.prepend(addrs);
 
 
   // first, we'll try to prove false, to check the consistency
@@ -424,7 +456,7 @@ void AEnv::prove(Predicate *_goal, char const *context)
   }
 
   // pull the distinction fact back out
-  facts->conjuncts.deleteFirst();
+  pathFacts->conjuncts.deleteFirst();
 }
 
 
@@ -434,43 +466,50 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
                       char const *printTrue,
                       char const *context)
 {
-  // build an implication
-  string implSexp;
-  {
-    // temporarily let 'facts' own 'typeFacts'
-    facts->conjuncts.prepend(typeFacts);
-    P_impl implication(facts, goal);
-
-    try {
-      implSexp = implication.toSexpString();
-    }
-    catch (...) {
-      assert(!"not prepared to handle this");
-    }
-
-    // restore proper ownership
-    facts->conjuncts.removeFirst();
-    implication.premise = NULL;
-    implication.conclusion = NULL;
+  // build a big, nonowning P_and for our facts
+  P_and allFacts(NULL);
+  allFacts.conjuncts.prepend(pathFacts);
+  SMUTATE_EACH_OBJLIST(Predicate, exprFacts, iter) {   // (constness..)
+    allFacts.conjuncts.prepend(iter.data());   // doesn't really own this, see below
   }
+
+  // build an implication
+  P_impl implication(&allFacts, goal);         // again, fake ownership
 
   bool ret = false;
-  char const *print = printFalse;
-  if (runProver(implSexp)) {
-    ret = true;
-    print = printTrue;
+  try {
+    // map this to a Simplify input string
+    string implSexp = implication.toSexpString();
+
+    char const *print = printFalse;
+    if (runProver(implSexp)) {
+      ret = true;
+      print = printTrue;
+    }
+
+    if (print) {
+      VariablePrinter vp;
+      cout << print << ": " << context << endl;
+      printFact(vp, &allFacts);
+      cout << "  goal: " << goal->toSexpString() << "\n";
+      walkValuePredicate(vp, goal);
+
+      // print out variable map
+      vp.dump();
+    }
+  }
+  catch (...) {
+    // the destructors will mess up the heap if this propagates
+    // (I want my "finally"!  Borland C++ has it..)
+    assert(!"not prepared to handle this");
   }
 
-  if (print) {
-    VariablePrinter vp;
-    cout << print << ": " << context << endl;
-    printFact(vp, facts);
-    cout << "  goal: " << goal->toSexpString() << "\n";
-    walkValuePredicate(vp, goal);
-
-    // print out variable map
-    vp.dump();
+  // take apart the implication so dtor won't do anything
+  while (allFacts.conjuncts.isNotEmpty()) {
+    allFacts.conjuncts.removeFirst();
   }
+  implication.premise = NULL;
+  implication.conclusion = NULL;
 
   return ret;
 }

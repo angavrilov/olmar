@@ -65,6 +65,11 @@ void TF_func::vcgen(AEnv &env) const
     for (int path=0; path < root->numPaths; path++) {
       traceProgress() << "    path " << path << "\n";
 
+      if (tracingSys("printAnalysisPath")) {
+        SObjList<Statement> nodeList;
+        printPathFrom(nodeList, path /*index*/, root, false /*isContinue*/);
+      }
+
       // ----------- build the abstract environment ----------
       // clear anything left over in env
       env.clear();
@@ -836,12 +841,12 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
         AbsValue *current = env.get(var);
 
         // compute updated structure value
-        AbsValue *updated = 
+        AbsValue *updated =
           env.avSetElt(
             env.avInt(fldAcc->field->index),      // field index
             current,                              // value being updated
             v);                                   // new field value
-            
+
         // replace old with new in abstract environment
         env.set(var, updated);
 
@@ -858,6 +863,16 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
   }
 
   return env.dup(v);
+}
+
+
+AbsValue *E_forall::vcgen(AEnv &env, int path) const
+{                                  
+  // this is quite nonideal, but at the moment I don't know exactly
+  // what syntactic rule to use, so I just wait until the problem
+  // shows up, and then bomb
+  xfailure("can't use forall in a non-obviously-boolean context");
+  return NULL;   // silence warning
 }
 
 
@@ -928,9 +943,34 @@ Predicate *E_binary::vcgenPred(AEnv &env, int path) const
 
   if (isPredicateCombinator(op)) {
     if (e2->numPaths == 0) {
-      // simple side-effect-free combinator
+      xassert(rhsPath == 0);
+
+      // simple side-effect-free combinator, so there's no path stuff;
+      // *but* we do have to assume something about the LHS while
+      // analyzing the RHS, e.g. for "if (p && p->foo) ..."
       Predicate *lhs = e1->vcgenPred(env, lhsPath);
-      Predicate *rhs = e2->vcgenPred(env, 0); xassert(rhsPath == 0);
+
+      Predicate *rhs;
+      if (op != BIN_OR) {
+        env.pushFact(lhs);
+        rhs = e2->vcgenPred(env, 0);
+        env.popFact();
+      }
+      else {
+        // for "or", assume the negation
+        P_not notLHS(lhs);
+        try {
+          env.pushFact(&notLHS);
+          rhs = e2->vcgenPred(env, 0);
+          env.popFact();
+        }
+        catch (...) {
+          notLHS.p = NULL;
+          throw;
+        }
+        notLHS.p = NULL;
+      }
+
       return P_combinator(op, lhs, rhs);
     }
 
@@ -1045,6 +1085,27 @@ Predicate *E_assign::vcgenPred(AEnv &env, int path) const
   // for now I can punt and just keep using exprToPred to map the
   // term that results from analyzing this thing
   return exprToPred(this->vcgen(env, path));
+}
+
+
+Predicate *E_forall::vcgenPred(AEnv &env, int path) const
+{
+  // analyze the body; this will cause all the quantified
+  // variables to be instantiaged in AEnv::get
+  Predicate *body = pred->vcgenPred(env, path);
+                                           
+  // gather up the quantifiers
+  P_forall *ret = new P_forall(NULL, body);
+
+  FOREACH_ASTLIST(Declaration, decls, outer) {
+    FOREACH_ASTLIST(Declarator, outer.data()->decllist, inner) {
+      Variable *var = inner.data()->var;
+
+      ret->variables.append(env.get(var)->asAVvar());
+    }
+  }
+
+  return ret;
 }
 
 

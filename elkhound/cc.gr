@@ -164,7 +164,7 @@ nonterm[TranslationUnit*] TranslationUnit {
 
 // ------ A.4 Expressions ------
 nonterm[Expression*] PrimaryExpression {
-  -> e:Literal 
+  -> e:Literal
        [ return e; ]
 
   //-> "this" ;
@@ -174,6 +174,9 @@ nonterm[Expression*] PrimaryExpression {
 
   -> e:PQVarName
        [ return new E_variable(e); ]
+
+  -> "(" e:ThmprvPredicate ")"
+       [ return e; ]
 
   // GNU extension
   //-> "(" s:CompoundStatement ")" ;
@@ -1549,12 +1552,19 @@ nonterm[FuncAnnotation*] FuncAnnotation {
 nonterm[ASTList<Declaration>*] DeclListOpt {
   -> empty
        [ return new ASTList<Declaration>(); ]
-  -> list:DeclListOpt d:SimpleDeclaration
+  -> list:DeclList
+       [ return list; ]
+}
+
+nonterm[ASTList<Declaration>*] DeclList {
+  -> d:SimpleDeclaration
+       [ return new ASTList<Declaration>(d); ]
+  -> list:DeclList d:SimpleDeclaration
        [ list->append(d); return list; ]
 }
 
 nonterm[ThmprvAttr*] ThmprvAttr {
-  -> empty 
+  -> empty
        [ return NULL; ]
   -> "thmprv_attr" "(" list:ThmprvAttrList ")"
        [ return new ThmprvAttr(strRefAttr, list); ]
@@ -1572,4 +1582,10 @@ nonterm[ThmprvAttr*] OneThmprvAttr {
        [ return new ThmprvAttr(name, NULL /*args*/); ]
   -> name:AnyName "(" args:ThmprvAttrList ")"
        [ return new ThmprvAttr(name, args); ]
+}
+
+// note that all ThmprvPredicates occur in parentheses
+nonterm[Expression*] ThmprvPredicate {
+  -> "thmprv_forall" d:DeclList e:Expression
+       [ return new E_forall(d, e); ]
 }

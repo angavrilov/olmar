@@ -51,8 +51,17 @@ private:     // data
   // environment maps program variable declarators to abstract domain values
   OwnerHashTable<AbsVariable> bindings;
 
-  // (owner) set of known facts, as a big conjunction
-  P_and *facts;
+  // (owner of list of owners) set of known facts, as a big
+  // conjunction; these are the facts known from the *path*, so they
+  // are never rescineded (until the entire deck is cleared for a new
+  // path)
+  P_and *pathFacts;
+
+  // (owner of list of serfs) stack of facts derived from where we are
+  // in an expression, e.g. if I see "a ==> b" then I'll put "a" here
+  // while I analyze "b"; the facts pointed-to are *not* owned here;
+  // whoever pushes the facts owns them
+  SObjList<Predicate> exprFacts;
 
   // list of objects addresses known to be distinct, in addition to
   // those for which 'memvar' is true; the two lists are concatenated
@@ -60,7 +69,7 @@ private:     // data
   SObjList<AbsValue> distinct;
 
   // accessor functions for types
-  P_and *typeFacts;
+  //P_and *typeFacts;
 
 public:      // data
   // name of the memory variable
@@ -124,7 +133,7 @@ public:      // funcs
 
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
-                                               
+
   // refresh bindings that aren't known to be constant across a call
   void forgetAcrossCall(E_funCall const *call);
 
@@ -136,6 +145,9 @@ public:      // funcs
   void addFact(Predicate * /*owner*/ pred);
   void addBoolFact(Predicate *pred, bool istrue);
   void addFalseFact(Predicate *falsePred) { addBoolFact(falsePred, false); }
+
+  void pushFact(Predicate * /*serf*/ pred);
+  void popFact();      // must pop before corresponding 'pred' is deleted
 
   // proof obligation
   void prove(Predicate * /*owner*/ pred, char const *context);

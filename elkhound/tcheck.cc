@@ -207,7 +207,9 @@ void Declaration::tcheck(Env &env)
     if (df == DF_NONE ||
         df == DF_TYPEDEF ||
         df == DF_STATIC ||
-        df == DF_EXTERN) {
+        df == DF_EXTERN ||
+        df == DF_UNIVERSAL ||
+        df == DF_EXISTENTIAL) {
       // ok
     }
     else {
@@ -1249,6 +1251,40 @@ Type const *E_assign::itcheck(Env &env)
 }
 
 
+Type const *E_forall::itcheck(Env &env)
+{
+  if (!env.inPredicate) {
+    env.err("forall is only allowed inside thmprv predicates");
+  }
+                   
+  // add declared variables to the environment
+  env.enterScope();                           
+  FOREACH_ASTLIST_NC(Declaration, decls, iter) {
+    Declaration *d = iter.data();
+
+    // mark all these as universal
+    d->dflags = (DeclFlags)(d->dflags | DF_UNIVERSAL);
+
+    d->tcheck(env);
+  }
+
+  // typecheck the predicate
+  Type const *type = pred->tcheck(env)->asRval();
+  
+  // I really want this to be an int.. in fact I want it to be
+  // bool, but that type doesn't exist (yet?)
+  if (!type->isSimple(ST_INT)) {
+    env.err(stringc << "type of forall predicate should be int, not "
+                    << type->toString());
+  }
+
+  // remove declared variables
+  env.leaveScope();
+
+  return type;
+}
+
+
 string Expression::extrasToString() const
 {
   stringBuilder sb;
@@ -1362,6 +1398,7 @@ int E_cond::constEval(Env &env) const { return xnonconst(); }
 //int E_gnuCond::constEval(Env &env) const { return xnonconst(); }
 int E_comma::constEval(Env &env) const { return xnonconst(); }
 int E_assign::constEval(Env &env) const { return xnonconst(); }
+int E_forall::constEval(Env &env) const { return xnonconst(); }
 
 
 // -------------------- Expression::toString --------------------
@@ -1437,9 +1474,26 @@ string E_assign::toString() const
     return stringc << target->toString() << " = " << src->toString();
   }
   else {
-    return stringc << target->toString() << " " << ::toString(op) 
+    return stringc << target->toString() << " " << ::toString(op)
                    << "= " << src->toString();
   }
+}
+
+string E_forall::toString() const
+{
+  stringBuilder sb;
+  sb << "thmprv_forall ";
+
+  FOREACH_ASTLIST(Declaration, decls, outer) {
+    FOREACH_ASTLIST(Declarator, outer.data()->decllist, inner) {
+      Variable *var = inner.data()->var;
+
+      sb << var->type->toCString(var->name) << "; ";
+    }
+  }
+
+  sb << pred->toString();
+  return sb;
 }
 
 

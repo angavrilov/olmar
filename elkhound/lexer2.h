@@ -169,6 +169,7 @@ enum Lexer2TokenType {
   L2_THMPRV_POST,
   L2_THMPRV_LET,
   L2_THMPRV_ATTR,
+  L2_THMPRV_FORALL,
 
   L2_NUM_TYPES
 };

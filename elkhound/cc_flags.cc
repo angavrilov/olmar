@@ -96,6 +96,8 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "logic",
   "addrtaken",    // 14
   "parameter",
+  "universal",
+  "existential",  // 17
 };
 
 

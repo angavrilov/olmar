@@ -186,6 +186,7 @@ vcgen ptrptr.c
 vcgen simple.c
 vcgentb str.c
 vcgentb struct.c
+vcgen loop1.c
 
 
 # final arithmetic to report result

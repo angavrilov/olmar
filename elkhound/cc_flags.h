@@ -42,31 +42,33 @@ string toString(CVFlags cv);
 // set of declaration modifiers present;
 // these modifiers apply to variable names
 enum DeclFlags {
-  DF_NONE        = 0x0000,
+  DF_NONE        = 0x00000000,
 
   // syntactic declaration modifiers
-  DF_INLINE      = 0x0001,
-  DF_VIRTUAL     = 0x0002,
-  DF_FRIEND      = 0x0004,
-  DF_MUTABLE     = 0x0008,
-  DF_TYPEDEF     = 0x0010,
-  DF_AUTO        = 0x0020,
-  DF_REGISTER    = 0x0040,
-  DF_STATIC      = 0x0080,
-  DF_EXTERN      = 0x0100,
-  DF_SOURCEFLAGS = 0x01FF,    // all flags that come from source declarations
+  DF_INLINE      = 0x00000001,
+  DF_VIRTUAL     = 0x00000002,
+  DF_FRIEND      = 0x00000004,
+  DF_MUTABLE     = 0x00000008,
+  DF_TYPEDEF     = 0x00000010,
+  DF_AUTO        = 0x00000020,
+  DF_REGISTER    = 0x00000040,
+  DF_STATIC      = 0x00000080,
+  DF_EXTERN      = 0x00000100,
+  DF_SOURCEFLAGS = 0x000001FF,    // all flags that come from source declarations
 
   // other stuff that's convenient for me
-  DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
-  DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
-  DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
-  DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
-  DF_LOGIC       = 0x2000,    // true for logic variables
-  DF_ADDRTAKEN   = 0x4000,    // true if it's address has been (or can be) taken
-  DF_PARAMETER   = 0x8000,    // true if this is a function parameter
+  DF_ENUMVAL     = 0x00000200,    // not really a decl flag, but a Variable flag..
+  DF_GLOBAL      = 0x00000400,    // set for globals, unset for locals
+  DF_INITIALIZED = 0x00000800,    // true if has been declared with an initializer (or, for functions, with code)
+  DF_BUILTIN     = 0x00001000,    // true for e.g. __builtin_constant_p -- don't emit later
+  DF_LOGIC       = 0x00002000,    // true for logic variables
+  DF_ADDRTAKEN   = 0x00004000,    // true if it's address has been (or can be) taken
+  DF_PARAMETER   = 0x00008000,    // true if this is a function parameter
+  DF_UNIVERSAL   = 0x00010000,    // (requires DF_LOGIC) universally-quantified variable
+  DF_EXISTENTIAL = 0x00020000,    // (requires DF_LOGIC) existentially-quantified
 
-  ALL_DECLFLAGS  = 0xFFFF,
-  NUM_DECLFLAGS  = 16         // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x0003FFFF,
+  NUM_DECLFLAGS  = 18             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

@@ -30,14 +30,14 @@ void printPath(SObjList<Statement /*const*/> &path, char const *label);
 
 
 // watch for overflow
-int mult(int a, int b)
+static int mult(int a, int b)
 {
   int r = a*b;
   if (a>0 && b>0 && (r < a || r < b)) {
     xfailure(stringc << "arithmetic overflow: " << a << " * " << b);
   }
-  if (r > 1000000) {
-    cout << "more than 1000000 paths!";
+  if (r > 1000) {
+    cout << r << " is more than 1000 paths!\n";
   }
   return r;
 }
@@ -589,6 +589,10 @@ int countPaths(Env &env, Expression *ths)
       numPaths = ths->src->numPaths;              // start with paths through src
       SIDE_EFFECT();                              // clearly this expr has a side effect
       numPaths = mult(numPaths, ths->target->numPaths1());       // add paths through target
+    }
+    ASTNEXT(E_forall, ths) {
+      xfailure("shouldn't get here because only allowed in predicates");
+      PRETEND_USED(ths);
     }
     ASTENDCASED
   }

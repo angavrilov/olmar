@@ -79,7 +79,7 @@ class Declaration (
   TypeSpecifier spec,                  // e.g. "int"
   ASTList<Declarator> decllist         // e.g. "x=3, y"
 ) {
-  public void tcheck(Env &env);
+  public void tcheck(Env &env);        // adds declared variables to env
   public void vcgen(AEnv &env) const;
 }
 
@@ -401,6 +401,11 @@ class Expression {
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3
   -> E_assign(Expression target, BinaryOp op, Expression src);
+  
+  // thmprv extensions
+  // forall binds some declared variables, which are thereby universally
+  // quantified in 'pred'
+  -> E_forall(ASTList<Declaration> decls, Expression pred);
 }
 
 
@@ -426,7 +431,7 @@ class Initializer {
 // to particular fields of the structure or array being initialized
 class InitLabel {
   -> IL_element(Expression index);
-  -> IL_range(Expression low, Expression high);   // inclusive 
+  -> IL_range(Expression low, Expression high);   // inclusive
   -> IL_field(StringRef name);
   -> IL_elementField(Expression index, StringRef name);
 }
