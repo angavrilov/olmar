@@ -42,10 +42,17 @@ elsif (substr($ARGV[0], 0, 2) eq '-o') {
 }
 
 
+# remove -Wall and add -w so that we don't see warnings when
+# preprocessing to find dependencies
+@ARGV = grep(!/^-Wall$/, @ARGV);    # remove -Wall
+push @ARGV, "-w";                   # add -w
+
+
 # invoke gcc's preprocessor to discover dependencies:
 #   -MM   output Makefile rule, ignoring "#include <...>" lines
 #         (so as to avoid dependencies on system headers)
 $args = join(' ', @ARGV);
+#print STDERR ("running: gcc -MM $args\n");
 @deps = `gcc -MM $args`;     # unfortunately this does shell interpretation again..
 if ($? != 0) {
   # gcc failed, exit similarly

@@ -62,7 +62,7 @@ private:     // funcs
 
   // return the first entry in key's probe sequence that has either
   // a NULL key or a key equal to 'key'
-  Entry &findEntry(void *key) const;
+  Entry &findEntry(void const *key) const;
 
   // make the table twice as big, and move all the entries into
   // that new table
@@ -81,7 +81,7 @@ public:      // funcs
   int getNumEntries() const { return numEntries; }
 
   // if this key has a mapping, return it; otherwise, return NULL
-  void *get(void *key) const { return findEntry(key).value; }
+  void *get(void const *key) const { return findEntry(key).value; }
 
   // add a mapping from 'key' to 'value'; replaces existing
   // mapping, if any

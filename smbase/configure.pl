@@ -174,23 +174,7 @@ EOF
 print("C++ compiler seems to work\n\n");
 
 
-# ---------------------- etags? ---------------------
-print("checking for etags... ");
-if (system("type etags >/dev/null 2>&1")) {
-  # doesn't have etags; cygwin is an example of such a system
-  print("not found\n");
-  $ETAGS = "true";       # 'true' is a no-op
-}
-elsif (system("etags --help | grep -- --members >/dev/null")) {
-  # has it, but it does not know about the --members option
-  print("etags\n");
-  $ETAGS = "etags";
-}
-else {
-  # assume if it knows about --members it knows about --typedefs too
-  print("etags --members --typedefs\n");
-  $ETAGS = "etags --members --typedefs";
-}
+# etags: see elsa/configure.pl
 
 
 # ------------------ config.summary -----------------
@@ -251,7 +235,6 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@CFLAGS\@|$CFLAGS|g" \\
     -e "s|\@DEBUG_HEAP\@|$DEBUG_HEAP|g" \\
     -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
-    -e "s|\@ETAGS\@|$ETAGS|g" \\
   <Makefile.in >>Makefile
 
 # discourage editing ..

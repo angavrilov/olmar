@@ -1,7 +1,17 @@
 // sastlist.h            see license.txt for copyright and terms of use
-// non-owner list wrapper around VoidTailList
+// dsw: non-owner list wrapper around VoidTailList
 // FIX: this file is almost an identical copy of astlist.h
 // name 'AST' is because the first application is in ASTs
+
+// sm: 7/22/04: It seems this class was created as a way of improving
+// performance, particularly for otherwise quadratic append loops.
+// However, there are often better solutions for such problems, such
+// as using prepend (possibly with a final reverse()) or using an
+// array.  Therefore I caution against using this class.  I also
+// haven't (yet?) carefully reviewed the design.  ASTList's design was
+// not intended to be generalized along this dimension, so it isn't
+// obvious to me what changes are appropriate.
+
 
 #ifndef SASTLIST_H
 #define SASTLIST_H
@@ -88,6 +98,8 @@ public:
 };
 
 
+// sm: case in point: I think 'deleteAll' is an inappropriate
+// method for this class
 template <class T>
 void SASTList<T>::deleteAll()
 {

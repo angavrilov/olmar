@@ -332,6 +332,8 @@ public:     // funcs
   
   // will not delete any items
   void consolidate()         { arr.consolidate(); }
+
+  void swapWith(ObjArrayStack<T> &obj)   { arr.swapWith(obj.arr); }
 };
 
 

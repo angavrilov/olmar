@@ -79,14 +79,14 @@ inline T max(T const &a, T const &b)
 // for using selfCheck methods
 // to explicitly check invariants in debug mode
 //
-// debugging *weakly* implies selfchecking: if we are debugging, do
-// selfcheck unless otherwise specified
+// dsw: debugging *weakly* implies selfchecking: if we are debugging,
+// do selfcheck unless otherwise specified
 #ifndef NDEBUG
   #ifndef DO_SELFCHECK
     #define DO_SELFCHECK 1
   #endif
 #endif
-// selfcheck *bidirectionally* configurable from the command line: it
+// dsw: selfcheck *bidirectionally* configurable from the command line: it
 // may be turned on *or* off: any definition other than '0' counts as
 // true, such as -DDO_SELFCHECK=1 or just -DDO_SELFCHECK
 #if DO_SELFCHECK != 0

@@ -53,7 +53,7 @@ inline unsigned VoidPtrMap::hashFunc(unsigned multiplier, unsigned key) const
 }
 
 
-VoidPtrMap::Entry &VoidPtrMap::findEntry(void *key) const
+VoidPtrMap::Entry &VoidPtrMap::findEntry(void const *key) const
 {
   xassert(key != NULL);
   lookups++;

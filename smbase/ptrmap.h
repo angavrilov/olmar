@@ -27,11 +27,11 @@ public:      // funcs
   int getNumEntries() const        { return map.getNumEntries(); }
 
   // if this key has a mapping, return it; otherwise, return NULL
-  VALUE *get(KEY *key) const       { return (VALUE*)map.get((KEY*)key); }
+  VALUE *get(KEY *key) const       { return (VALUE*)map.get((void const*)key); }
 
   // add a mapping from 'key' to 'value'; replaces existing
   // mapping, if any
-  void add(KEY *key, VALUE *value) { map.add((KEY*)key, (VALUE*)value); }
+  void add(KEY *key, VALUE *value) { map.add((void*)key, (void*)value); }
 
   // remove all mappings
   void empty()                     { map.empty(); }

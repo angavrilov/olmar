@@ -3,7 +3,7 @@
 
 # main target
 THIS := libsmbase.a
-all: gensrc $(THIS) TAGS
+all: gensrc $(THIS)
 
 
 # C preprocessor, compiler and linker
@@ -23,7 +23,6 @@ LDFLAGS := -g -Wall libsmbase.a
 # some other tools
 AR     := ar
 RANLIB := ranlib
-ETAGS  := @ETAGS@
 
 
 # compile .cc to .o
@@ -335,9 +334,6 @@ gendoc/configure.txt: configure
 doc: gendoc gendoc/dependencies.png gendoc/configure.txt
 	@echo "built documentation"
 
-TAGS:
-	$(ETAGS) *.cc *.h
-
 
 # --------------------- clean --------------------
 # delete compiling/editing byproducts
@@ -346,7 +342,6 @@ clean:
 	rm -f $(TESTS)
 	rm -f *.a
 	rm -rf test.dir
-	rm -f TAGS
 
 distclean: clean
 	rm -f Makefile config.status config.summary
