@@ -43,12 +43,16 @@ objlist.h: xobjlist.h
 malloc.o: malloc.c
 	gcc -c -g -DDEBUG malloc.c
 
+# mysig needs some flags to *not* be set ....
+mysig.o: mysig.cc
+	gcc -c -g mysig.cc
+
 # library itself
 library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
-  trdelete.o flatten.o bflatten.o
+  trdelete.o flatten.o bflatten.o mysig.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
@@ -91,6 +95,9 @@ trdelete: trdelete.cc trdelete.h ${THISLIBRARY}
 bflatten: bflatten.cc bflatten.h ${THISLIBRARY}
 	${link} -o bflatten -DTEST_BFLATTEN bflatten.cc ${THISLIBRARY} ${linkend}
 
+mysig: mysig.cc mysig.h ${THISLIBRARY}
+	gcc -g -o mysig -DTEST_MYSIG mysig.cc ${THISLIBRARY} ${linkend}
+
 check: ${tests-files}
 	./nonport
 	./voidlist
@@ -103,6 +110,7 @@ check: ${tests-files}
 	./strhash
 	./trdelete
 	./bflatten
+	./mysig
 	@echo
 	@echo "make check: all the tests PASSED"
 
