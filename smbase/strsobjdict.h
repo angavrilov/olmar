@@ -71,9 +71,9 @@ public:     // funcs
   bool isMapped(char const *key) const                 { return dict.isMapped(key); }
 
   // -------- mutators -----------
-  void add(char const *key, T *value)                  { dict.add(key, value); }
+  void add(char const *key, T *value)                  { dict.add(key, (void*)value); }
 
-  T *modify(char const *key, T *newValue)              { return (T*)dict.modify(key, newValue); }
+  T *modify(char const *key, T *newValue)              { return (T*)dict.modify(key, (void*)newValue); }
 
   T *remove(char const *key)                           { return (T*)dict.remove(key); }
 

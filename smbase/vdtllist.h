@@ -99,6 +99,9 @@ public:
   bool isDone() const                         { return p == NULL; }
   void adv()                                  { p = p->next; }
   void *data() const                          { return p->data; }
+  
+  // iterator mutation; use with caution
+  void setDataLink(void *newData)             { p->data = newData; }
 };
 
 

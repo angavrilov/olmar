@@ -135,6 +135,9 @@ public:
   bool isDone() const                   { return iter.isDone(); }
   void adv()                            { iter.adv(); }
   T *data() const                       { return (T*)iter.data(); }
+  
+  // iterator mutation; use with caution
+  void setDataLink(T *newData)          { iter.setDataLink((void*)newData); }
 };
 
 #define FOREACH_ASTLIST_NC(T, list, iter) \
