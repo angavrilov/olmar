@@ -1,4 +1,5 @@
 // minimized from nsAtomTable.i
+// just a modified version of d0042.cc
 typedef unsigned int PRUint32;
 
 template <class InputIterator>

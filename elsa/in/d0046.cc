@@ -1,4 +1,5 @@
 // minimized from nsAtomTable.i
+// minimized version of d0042.cc
 typedef int A;
 
 template <class T>
