@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<HTML>
+
+<HEAD>
+  <TITLE>Elkhound Manual</TITLE>
+  <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+</HEAD>
+
+<body>
+
+<center><h2>
+Elkhound Manual
+</h2></center>
+
+<p>
+This page describes the input format for grammars for the Elkhound
+parser generator, and the features of that generator.
+<a href="index.html">Another page</a> describes the module structure
+of its implementation.
+
+<p>
+If you'd like to look at a simple grammar while reading this
+description, see <a
+href="examples/arith/arith.gr">examples/arith/arith.gr</a>, a parser
+for simple arithmetic expressions.
+
+
+<h2>1. Lexical structure</h2>
+
+<p>
+The grammar file format is free-form, meaning that all whitespace is
+considered equivalent.  In the C tradition, grouping is generally
+denoted by enclosing things in braces ("{" and "}").  Strings are
+enclosed in double-quotes ("").
+
+<p>
+Grammar files may include other grammar files, by writing
+include("other_file_name").
+
+<p>
+Comments can use the C++ "//" syntax or the C "/**/" syntax.
+
+
+<h2>2. Context Class</h2>
+
+<p>
+The parser's action functions are all members of a C++ context
+class.  As the grammar author, you must define the context class.
+The class is introduced with the "<tt>context_class</tt>" keyword,
+followed by ordinary C++ syntax for classes (ending with "<tt>};</tt>");
+
+
+<h2>3. Terminals</h2>
+
+The must declare of all the tokens, also called terminals.  A block
+of terminal declarations looks like:
+<pre>
+  terminals {
+    0 : TOK_EOF;
+    1 : TOK_NUMBER;              // no alias
+    2 : TOK_PLUS     "+";        // alias is "+" (including quotes)
+    3 : TOK_MINUS    "-";
+    4 : TOK_TIMES    "*";
+    5 : TOK_DIVIDE   "/";
+    6 : TOK_LPAREN   "(";
+    7 : TOK_RPAREN   ")";
+  }
+</pre>
+
+<p>
+Each statement gives a unique numeric code (e.g. 3), a canonical
+name (e.g. TOK_MINUS), and an optional alias (e.g. "-").  Either the
+name or the alias may appear in the grammar productions, though the
+usual style is to use aliases for tokens that always have the same
+spelling (like "}"), and the name for others (like TOK_NUMBER);
+
+<p>
+Normally it's expected the tokens will be described in their own
+file, and <a href="make-token-files">make-token-files</a> will create
+the token list seen above.
+
+<h2>4. Nonterminals</h2>
+
+<p>
+Following the terminals, the bulk of the grammar is one or more
+nonterminals.  Each nonterminal declaration specifies all of the
+productions for which it is the left-hand-side.
+
+<p>
+A simple nonterminal might be:
+<pre>
+  nonterm(int) Exp {
+    -&gt; e1:Exp "+" e2:Exp        { return e1 + e2; }
+    -&gt; n:TOK_NUMBER             { return n; }
+  }
+</pre>
+
+<p>
+The type of the semantic value yielded by the productions is given
+in parentheses, after the keyword "<tt>nonterm</tt>".  In this case,
+<tt>int</tt> is the type.  The type can be omitted if productions
+do not yield interesting semantic values.
+
+<p>
+In the example, Exp has two productions, <tt>Exp -&gt; Exp "+"
+Exp</tt> and <tt>Exp -&gt; TOK_NUMBER</tt>.  The "<tt>-&gt;</tt>"
+keyword introduces a production.
+
+<p>
+Right-hand-side symbols can be given names, by putting the name
+before a colon (":") and the symbol.  These names can be used in
+the action functions to refer to the semantic values of the
+subtrees (like Bison's <tt>$1</tt>, <tt>$2</tt>, etc.).  Note that
+action functions <tt>return</tt> their value, as opposed to (say)
+assigning to <tt>$$</tt>.
+
+
+<h2>5. Nonterminal Functions</h2>
+
+<p>
+There are four kinds of nontermial functions:
+<ul>
+<li>dup
+<li>del
+<li>merge
+<li>keep
+</ul>
+
+<p>
+TODO: I need to describe these.  For now, see the
+<a href="http://www.cs.berkeley.edu/~smcpeak/elkhound/elkhound.ps">Tech Report</a>.
+
+<p>
+  <a href="http://validator.w3.org/check/referer"><img border="0"
+      src="http://www.w3.org/Icons/valid-html401"
+      alt="Valid HTML 4.01!" height="31" width="88"></a>
+</p>
+
+</body>
+
+</HTML>
+
+
+

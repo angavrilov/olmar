@@ -420,43 +420,52 @@ triv/DeclExpr.perf.txt:
 
 
 # ------------------------ documentation -----------------------
+# directory of generated documentation
+gendoc:
+	mkdir gendoc
+
 # dependencies for 'elkhound', the parser generator executable
-doc/elkhound.dot:
+gendoc/elkhound_dep.dot:
 	$(SMBASE)/scan-depends.pl -r -I$(AST) gramanl.cc >$@
 
 # dependencies for 'glr.h', the entry point to the runtime library
-doc/glr.dot:
+gendoc/glr.dot:
 	$(SMBASE)/scan-depends.pl -r -I$(AST) glr.h >$@
 
-# dependencies for 'ccgr', the prototype C parser and typechecker
-doc/cc.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) -Icc -Sglr.h -Xsrcloc.h ccgrmain.h >$@
-
-# dependencies for 'trivmain.cc', the trivial grammar driver
-doc/triv.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) -Sglr.h trivmain.cc >$@
+# check to see if they have dot
+.PHONY: dot
+dot:
+	@if ! which dot >/dev/null; then \
+	  echo "You don't have the 'dot' tool.  You can get it at:"; \
+	  echo "http://www.research.att.com/sw/tools/graphviz/"; \
+	  exit 2; \
+	fi
 
 # use 'dot' to lay out the graph
-# http://www.research.att.com/sw/tools/graphviz/
-doc/%.ps: doc/%.dot
-	dot -Tps <$^ >$@
+%.ps: %.dot dot
+	dot -Tps <$*.dot >$@
 
 # use 'convert' to make a PNG image with resolution not to exceed
 # 1000 in X or 700 in Y ('convert' will preserve aspect ratio); this
 # also antialiases, so it looks very nice (it's hard to reproduce
 # this using 'gs' alone)
-doc/%.png: doc/%.ps
+%.png: %.ps
 	convert -geometry 1000x700 $^ $@
+
+# glr is much smaller
+gendoc/glr.png: gendoc/glr.ps
+	convert -geometry 500x400 $^ $@
+
+gendoc/configure.txt: configure
+	./configure --help >$@
 
 # "make doc" should build whatever we have that needs building
 .PHONY: doc
-doc: doc/elkhound.png doc/glr.png doc/cc.png doc/triv.png
-
-doc-clean:
-	cd doc; rm -f {elkhound,glr}.{ps,dot,png}
+doc: gendoc gendoc/elkhound_dep.png gendoc/glr.png gendoc/configure.txt
+	@echo "built documentation"
 
 # some other random phony targets (I hate this clutter..)
-.PHONY: doc-clean clean distclean check
+.PHONY: clean distclean check
 
 
 # -------------------- clean, check, etc. ------------------
@@ -491,6 +500,7 @@ distclean: clean
 	rm -f Makefile config.status config.summary glrconfig.h *.tmp
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 	$(MAKE) -C c distclean
+	rm -rf gendoc
 
 check: all
 	./regrtest

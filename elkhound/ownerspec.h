@@ -1,6 +1,10 @@
 // ownerspec.h            see license.txt for copyright and terms of use
 // specification of "owner pointer", as a C++ template class
 
+// I made this as an experiment.. it's really part of the
+// verifier project...
+#error This is not intended to be used
+
 template <class T>
 class OwnerPtr {
 private:
