@@ -16,6 +16,7 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
+//  #include "cc_flatten.h"   // FlattenEnv
 
 
 // no bison-parser present, so need to define this
@@ -96,6 +97,11 @@ void doit(int argc, char **argv)
     unit->debugPrint(cout, 0);
   }
 
+  // dsw:print abstract syntax tree as XML
+  if (tracingSys("xmlPrintAST")) {
+    unit->xmlPrint(cout, 0);
+  }
+
   if (tracingSys("stopAfterParse")) {
     return;
   }
@@ -136,6 +142,14 @@ void doit(int argc, char **argv)
     if (tracingSys("printTypedAST")) {
       unit->debugPrint(cout, 0);
     }
+                                  
+//      if (tracingSys("flattenTemplates")) {
+//        traceProgress() << "dsw flatten...\n";
+//        FlattenEnv env(cout);
+//        unit->flatten(env);
+//        traceProgress() << "dsw flatten... done\n";
+//        cout << endl;
+//      }
                                   
     if (tracingSys("stopAfterTCheck")) {
       return;

@@ -15,6 +15,10 @@ all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
 # in which things are made
 .PHONY: workingFiles
 workingFiles: cc/cc_tcheck.o cc/cc_print.o
+#workingFiles: cc/cc_flatten.o
+ifdef CCQUAL
+workingFiles: cc/cc_qual.o
+endif
 
 # some junk I was building a while ago..
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
@@ -188,7 +192,13 @@ cc-set := \
   cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o
+ifdef CCQUAL
+cc-set += cc/cc_qual/cc_qual.o
+endif
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
+
+# dsw: to be included above when turned on
+#  cc/cc_flatten.o
 
 # how to compile a .o in an adjacent directory (looser dependency
 # tracking across directories...)
