@@ -62,6 +62,8 @@
 %token TOK_DISAMB "disamb"
 %token TOK_TREECOMPARE "treeCompare"
 %token TOK_CONSTRUCTOR "constructor"
+%token TOK_DESTRUCTOR "destructor"
+%token TOK_DECLARE "declare"
 
 /* operators */
 %token TOK_OROR "||"
@@ -170,6 +172,7 @@ NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody GroupElement      { $$ = iappend($1, $2); }
                | NonterminalBody DisambFunction    { $$ = iappend($1, $2); }
                | NonterminalBody Constructor       { $$ = iappend($1, $2); }
+               | NonterminalBody Declaration       { $$ = iappend($1, $2); }
                ;
 
 /* things that can appear in any grouping construct; specifically,
@@ -382,7 +385,14 @@ DisambFunction: "disamb" TOK_NAME "{" TOK_FUN_BODY "}"   { $$ = AST2(AST_DISAMB,
               ;
 
 /* constructors are called whenever a tree node is created */
+/* destructors correspondingly get run at destruction time */
 Constructor: "constructor" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_CONSTRUCTOR, $3); }
+           | "destructor" "{" TOK_FUN_BODY "}"           { $$ = AST1(AST_DESTRUCTOR, $3); }
+           ;
+
+/* declarations; can declare data fields, or functions whose
+ * implementation is provided externally */
+Declaration: "declare" TOK_FUN_BODY ";"                  { $$ = AST1(AST_DECLARATION, $3); }
            ;
 
 

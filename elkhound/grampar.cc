@@ -435,6 +435,17 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
           }
           break;
 
+        case AST_DECLARATION:
+          if (attrDeclAllowed) {
+            nt->declarations.append(
+              childLitCode(node, 0));     // declaration body
+          }
+          else {
+            // cannot happen with current grammar
+            astParseError(node, "can only have declarations in nonterminals");
+          }
+          break;
+
         case AST_DISAMB:
           if (attrDeclAllowed) {
             // confirm it's declared
@@ -453,12 +464,25 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
         case AST_CONSTRUCTOR:
           if (attrDeclAllowed) {
             if (nt->constructor) {
-              astParseError(node, "constructor already defined");
+              //astParseError(node, "constructor already defined");
+              // hack: allow overriding ...
             }
             nt->constructor = childLitCode(node, 0);
           }
           else {
             astParseError(node, "can't define constructors here");
+          }
+          break;
+
+        case AST_DESTRUCTOR:
+          if (attrDeclAllowed) {
+            if (nt->destructor) {
+              astParseError(node, "destructor already defined");
+            }
+            nt->destructor = childLitCode(node, 0);
+          }
+          else {
+            astParseError(node, "can't define destructors here");
           }
           break;
 

@@ -52,8 +52,23 @@ nonterm Checkable {
   //   - check type consistency, and report errors where
   //     inconsistencies are found
   //   - add new symbols to the environment, with their types
-  fundecl void typeCheck(Env &env);
-        
+  fundecl void typeCheck();
+
+  // this is the entry point from parents
+  fundecl void callTypeCheck(Env *passedEnv);
+  fun callTypeCheck {
+    env = passedEnv;
+    typeCheck();
+  }
+
+  // store a pointer to the environment in which this node's
+  // names are to be interpreted
+  declare Env *env;           // (serf)
+
+  constructor {
+    env = NULL;
+  }
+
 /*
   // the problem is I can't call 'typeCheck' unless I have
   // a C++ class from which they're derived.. I'll put that
@@ -83,20 +98,23 @@ nonterm TranslationUnit : Checkable {
   -> empty;
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
-      t.typeCheck(env);
+      t.callTypeCheck(env);
 
       try {
-        d.typeCheck(env);
+        d.callTypeCheck(env);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
-        env.report(x.err);
+        env->report(x.err);
       }
-      env.flushLocalErrors(cout);
+      env->flushLocalErrors(cout);
     }
   }
   
   constructor {
+    // inherited ctor ... (hack!)
+    env = NULL;
+
     // if we just constructed the "-> empty" production,
     // do nothing special
     if (red->children.isEmpty()) {
@@ -104,10 +122,10 @@ nonterm TranslationUnit : Checkable {
     }
 
     // cast context argument
-    Env &env = *((Env*)(tree.extra));
+    Env *env = (Env*)(tree.extra);
 
     // run the analysis on this piece of the tree
-    typeCheck(env);
+    callTypeCheck(env);
 
     // ---- throw away most of the tree now ----
     // grab a pointer to the left child reduction, which should be
@@ -140,14 +158,14 @@ nonterm TranslationUnit : Checkable {
 nonterm HasVarsDecld {
   // check that all the used variables are declared, and report
   // those that are unused
-  fundecl void varsDecld(Env &env);
+  fundecl void varsDecld(Env *env);
   fun varsDecld {}
 }
 
 // base class for expressions
 nonterm ExprBase : HasVarsDecld {
   // return the integer this expression evaluates to at compile time
-  fundecl int intEval(Env &env);
+  fundecl int intEval(Env *env);
   fun intEval { throwError("not a constant integer expression"); }
 }
 
@@ -164,7 +182,7 @@ nonterm PrimaryExpression : ExprBase {
   
   // GNU extension
   -> "(" s:CompoundStatement ")"
-    { fun varsDecld { s.typeCheck(env); } }
+    { fun varsDecld { s.callTypeCheck(env); } }
 }
 
 nonterm Literal : ExprBase {
@@ -204,10 +222,10 @@ nonterm PQVarName : HasTypeName, HasDeclName, HasVarsDecld {
   -> n:VariableName {
     action colonColon := 0;
     fun varsDecld {
-      if (!env.isDeclaredVar(n.getName())) {
+      if (!env->isDeclaredVar(n.getName())) {
         SemanticError err(this, SE_UNDECLARED_VAR);
         err.varName = n.getName();
-        env.report(err);
+        env->report(err);
       }
     }
   }
@@ -594,7 +612,7 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
     disambiguate(env, (DisambFn)&unamb_typeCheck);
   }
 
-  fun typeCheck { s.typeCheck(env); }
+  fun typeCheck { s.callTypeCheck(env); }
   fun getCFG = s.getCFG(cfg, edge);
 
   fundecl bool isWhileLoop() const;
@@ -659,8 +677,8 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
     // (so far unimplemented!)
     -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement {
       fun typeCheck {
-        s1.typeCheck(env);
-        s2.typeCheck(env);
+        s1.callTypeCheck(env);
+        s2.callTypeCheck(env);
       }
 
       fun getCFG {
@@ -757,7 +775,7 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
   // of buried in ForInitStatement.  this is also a good rule to use
   // inline alternatives
   -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement {
-    fun typeCheck { s1.typeCheck(env); c.typeCheck(env); s2.typeCheck(env); }
+    fun typeCheck { s1.callTypeCheck(env); c.callTypeCheck(env); s2.callTypeCheck(env); }
     fun varsDecld { c.varsDecld(env); e.varsDecld(env); }
 
     fun getCFG {
@@ -867,12 +885,19 @@ nonterm ExpressionStatement : Checkable, HasCFG {
     }
   }
 }
+                 
+// base class for nodes that establish a new scope
+nonterm ScopeNode {
+  declare Owner<Env> localEnv;
+}
 
-nonterm CompoundStatement : Checkable, HasCFG {
+nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
   -> "{" seq:StatementSeqOpt "}" {
     fun typeCheck {
-      Env newEnv(&env);       // scope
-      seq.typeCheck(newEnv);
+      xassert(!localEnv);
+      localEnv = new Env(env);    // scope
+      //Env newEnv(&env);
+      seq.callTypeCheck(localEnv);
     }
 
     fun getCFG = seq.getCFG(cfg, edge);
@@ -884,15 +909,15 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
   -> seq:StatementSeqOpt s:Statement {
     fun typeCheck {
       try {
-        seq.typeCheck(env);
+        seq.callTypeCheck(env);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
-        env.report(x.err);
+        env->report(x.err);
       }
-      env.flushLocalErrors(cout);
+      env->flushLocalErrors(cout);
 
-      s.typeCheck(env);
+      s.callTypeCheck(env);
     }
 
     fun getCFG {
@@ -919,14 +944,14 @@ nonterm ConditionOpt : Checkable, HasVarsDecld {
 
   -> empty ;
   -> c:Condition {
-    fun typeCheck { c.typeCheck(env); }
+    fun typeCheck { c.callTypeCheck(env); }
     fun varsDecld { c.varsDecld(env); }
   }
 }
 
 nonterm ForInitStatement : Checkable, HasCFG {
   -> s:ExpressionStatement | s:SimpleDeclaration {
-     fun typeCheck { s.typeCheck(env); } 
+     fun typeCheck { s.callTypeCheck(env); } 
   }
 }
 
@@ -940,14 +965,14 @@ nonterm DeclarationSeqOpt : Checkable {
   }
   -> seq:DeclarationSeqOpt d:Declaration {
     fun typeCheck {
-      seq.typeCheck(env);
-      d.typeCheck(env);
+      seq.callTypeCheck(env);
+      d.callTypeCheck(env);
     }
   } 
 }
 
 nonterm Declaration : Checkable {
-  fun typeCheck { d.typeCheck(env); }
+  fun typeCheck { d.callTypeCheck(env); }
 
   -> d:BlockDeclaration ;
   -> d:FunctionDefinition ;
@@ -958,7 +983,7 @@ nonterm Declaration : Checkable {
 // C++ has other alternatives..
 nonterm BlockDeclaration : Checkable, HasCFG {
   -> d:SimpleDeclaration { 
-    fun typeCheck { d.typeCheck(env); }
+    fun typeCheck { d.callTypeCheck(env); }
   }
 }
 
@@ -992,7 +1017,7 @@ nonterm HasDeclFlags {
 
 nonterm HasType {
   // return the Type represented by this syntax
-  fundecl Type const *getType(Env &env);
+  fundecl Type const *getType(Env *env);
 }
 
 nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
@@ -1038,7 +1063,7 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
     CVFlags cv = getCVFlags();
 
     // apply the cv flags to what we have
-    Type const *ret = env.applyCVToType(cv, baseType);
+    Type const *ret = env->applyCVToType(cv, baseType);
     if (!ret) {
       // e.g.:
       //   typedef int (*Foo)();
@@ -1090,7 +1115,7 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
   -> k:ClassKeyword n:L2_NAME {
     fun getType {
       CompoundType::Keyword keyword = k.getKeyword();
-      CompoundType const *type = env.lookupOrMakeCompound(n.nameValue, keyword);
+      CompoundType const *type = env->lookupOrMakeCompound(n.nameValue, keyword);
       if (!type) {
         // e.g.:
         //   class Foo;
@@ -1098,17 +1123,17 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
         throwError("compound kind mismatch");
       }
 
-      return env.makeType(type);
+      return env->makeType(type);
     }
   }
 
   -> "enum" n:L2_NAME {
     fun getType {
-      EnumType const *type = env.lookupEnum(n.nameValue);
+      EnumType const *type = env->lookupEnum(n.nameValue);
       if (!type) {
         throwError("undeclared enum");
       }
-      return env.makeType(type);
+      return env->makeType(type);
     }
   }
 }
@@ -1121,7 +1146,7 @@ nonterm SimpleTypeBase : HasType {
   fun getst { internalError("can't call me"); }
 
   fun getType {
-    return env.getSimpleType(getst());
+    return env->getSimpleType(getst());
   }
 }
 
@@ -1137,7 +1162,7 @@ nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName {
     fun getType {
-      Type const *ret = env.lookupType(n.typeName());
+      Type const *ret = env->lookupType(n.typeName());
       if (!ret) {
         throwError(stringc << "undefined type: " << n.typeName());
       }
@@ -1238,19 +1263,19 @@ nonterm EnumSpecifier : HasType {
     string name = getEnumName();    // could be ""
 
     // construct the vessel to carry additional stuff
-    EnumType *type = env.lookupEnum(name);
+    EnumType *type = env->lookupEnum(name);
     if (type) {
       // TODO: wrong because this prevents local redeclaration
       throwError(stringc << "enum already declared: " << name);
     }
     if (!type) {
-      type = env.makeEnumType(name);
+      type = env->makeEnumType(name);
       xassert(type);
     }
 
     // TODO: add the enum's elements to its definition
 
-    return env.makeType(type);
+    return env->makeType(type);
   }
 
   -> "enum" "{" list:EnumeratorListOpt "}"
@@ -1274,7 +1299,7 @@ nonterm LinkageSpecification : Checkable {
   // todo: actually record the linkage spec
   -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" |
      "extern" L2_STRING_LITERAL d:Declaration {
-    fun typeCheck { d.typeCheck(env); }
+    fun typeCheck { d.callTypeCheck(env); }
   }
 }
 
@@ -1287,7 +1312,7 @@ nonterm HasDeclare {
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env &env, DeclFlags flags, Type const *type);
+  fundecl void declare(Env *env, DeclFlags flags, Type const *type);
 }
 
 nonterm InitDeclaratorList : HasDeclare {
@@ -1350,7 +1375,7 @@ nonterm HasDeclType {
   // retrieve the type associated with this declaration, where
   // 'type' is the type as built so far (inherited from the
   // specifier, or constructed by parsing type constructors)
-  fundecl Type const *getDeclType(Env &env, Type const *type);
+  fundecl Type const *getDeclType(Env *env, Type const *type);
 }
 
 nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
@@ -1403,7 +1428,7 @@ nonterm Declarator : DeclaratorBase {
 
       // make a new type that is, e.g., a pointer to the type
       // we were already given
-      Type *newType = env.makePtrOperType(op, cv, type);
+      Type *newType = env->makePtrOperType(op, cv, type);
 
       // and declare the variable with that new, constructed type
       return d.getDeclType(env, newType);
@@ -1425,7 +1450,7 @@ nonterm DirectDeclarator : DeclaratorBase {
   // for arrays
   fundecl bool hasSize();             // true if a size is specified
   fun hasSize = false;
-  fundecl int getSize(Env &env);      // get declared size
+  fundecl int getSize(Env *env);      // get declared size
   fun getSize { internalError("can't call getSize"); }
 
   -> n:PQVarName GNUAttribute |       // GNU extension
@@ -1461,7 +1486,7 @@ nonterm DirectDeclarator : DeclaratorBase {
     fun getDeclType {
       // build a container for the function type
       FunctionType *fnType =
-        env.makeFunctionType(type /*return type*/, q.getCVFlags());
+        env->makeFunctionType(type /*return type*/, q.getCVFlags());
 
       // fill in the details about arguments
       args.getArgTypes(env, fnType);
@@ -1481,10 +1506,10 @@ nonterm DirectDeclarator : DeclaratorBase {
     fun getDeclType {
       Type *arrType;
       if (hasSize()) {
-        arrType = env.makeArrayType(type, getSize(env));    // known size
+        arrType = env->makeArrayType(type, getSize(env));    // known size
       }
       else {
-        arrType = env.makeArrayType(type);                  // unknown size
+        arrType = env->makeArrayType(type);                  // unknown size
       }
 
       return d.getDeclType(env, arrType);
@@ -1568,7 +1593,7 @@ nonterm AbstractDeclarator : HasTypeName, HasDeclType {
     fun typeName = stringc << "*" << d.typeName();
     
     fun getDeclType =
-      d.getDeclType(env, env.makePtrOperType(
+      d.getDeclType(env, env->makePtrOperType(
         p.getPtrOper(), p.getCVFlags(), type));
   }
 
@@ -1592,7 +1617,7 @@ nonterm DirectAbstractDeclarator : HasTypeName, HasDeclType {
   -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt {
     fun getDeclType {
       FunctionType *fnType = 
-        env.makeFunctionType(type /*return type*/, q.getCVFlags());
+        env->makeFunctionType(type /*return type*/, q.getCVFlags());
       args.getArgTypes(env, fnType);
       return d.getDeclType(env, fnType);
     }
@@ -1600,12 +1625,12 @@ nonterm DirectAbstractDeclarator : HasTypeName, HasDeclType {
 
   -> d:DirectAbstractDeclarator "[" sz:ConstantExpression "]" {     // array of specified size
     fun getDeclType =
-      d.getDeclType(env, env.makeArrayType(type, sz.intEval(env)));
+      d.getDeclType(env, env->makeArrayType(type, sz.intEval(env)));
   }
 
   -> d:DirectAbstractDeclarator "[" "]" {                        // array of unspecified size
     fun getDeclType =
-      d.getDeclType(env, env.makeArrayType(type));
+      d.getDeclType(env, env->makeArrayType(type));
   }
 
   -> "(" d:AbstractDeclarator ")" {                              // precedence grouping
@@ -1623,7 +1648,7 @@ nonterm HasPrintSig {
 // -- parameters in declarations --
 nonterm HasArgTypes {
   // accumulate the types of the arguments and store them in 'fnType'
-  fundecl void getArgTypes(Env &env, FunctionType *fnType);
+  fundecl void getArgTypes(Env *env, FunctionType *fnType);
 }
 
 nonterm ParameterDeclarationClause : HasPrintSig, HasArgTypes {
@@ -1718,7 +1743,7 @@ nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
 }
 
 // -- function definition --
-nonterm FunctionDefinition : Checkable, HasPrintSig {
+nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
   // I am wary of letting the declspecifier be optional, because it seems
   // to me that may introduce more ambiguities.. but it truly is missing
   // in ctors and dtors; so my idea now is to only permit it when the
@@ -1745,7 +1770,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig {
     fun typeCheck {
       // typecheck the signature
       Type const *type = d.getDeclType(env, (r.getType(env)));
-      
+
       // must be a function type, otherwise the parser has
       // screwed up (in particular the 'isFunction' attribute)
       xassert(type->isFunctionType());
@@ -1758,18 +1783,19 @@ nonterm FunctionDefinition : Checkable, HasPrintSig {
 
       // add the formals to the new environment we'll create for
       // the function body
-      Env newEnv(&env);
+      xassert(!localEnv);
+      localEnv = new Env(env);     // scope
       FOREACH_OBJLIST(Parameter, fnType->params, iter) {
         Parameter const *param = iter.data();
         if (!param->name.isempty()) {
           // would really like to be doing this in the context
           // of the tree node that actually defined the name...
-          declareVariable(newEnv, param->name, DF_NONE, param->type);
+          declareVariable(localEnv, param->name, DF_NONE, param->type);
         }
       }
 
       // typecheck the body
-      b.typeCheck(newEnv);
+      b.callTypeCheck(localEnv);
     }
   }
 
@@ -1783,7 +1809,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig {
 }
 
 nonterm FunctionBody : Checkable -> s:CompoundStatement {
-  fun typeCheck { s.typeCheck(env); }
+  fun typeCheck { s.callTypeCheck(env); }
 }
 
 nonterm ExplicitOpt -> "explicit" | empty ;
@@ -1804,7 +1830,7 @@ nonterm ClassSpecifier : HasType ->
     // something to be redeclared inside a nested scope
 
     // construct the vessel to carry additional stuff
-    CompoundType *compound = env.lookupCompound(name);
+    CompoundType *compound = env->lookupCompound(name);
     if (compound && !compound->incomplete) {
       throwError(stringc << "already declared: " << name);
     }
@@ -1812,7 +1838,7 @@ nonterm ClassSpecifier : HasType ->
       throwError(stringc << "declared as different kind of compound: " << name);
     }
     if (!compound) {
-      compound = env.lookupOrMakeCompound(name, keyword);
+      compound = env->lookupOrMakeCompound(name, keyword);
       xassert(compound);
     }
     compound->incomplete = false;
@@ -1824,7 +1850,7 @@ nonterm ClassSpecifier : HasType ->
                        keyword==CompoundType::K_CLASS? 
                          AM_PRIVATE : AM_PUBLIC);
 
-    return env.makeType(compound);
+    return env->makeType(compound);
   }
 }
 
@@ -1844,7 +1870,7 @@ nonterm ClassKeyword {
 
 nonterm MemberDeclBase {
   // add info in this subtree to the compound we're building
-  fundecl void addMemberInfo(Env &env, CompoundType *compound, AccessMode access);
+  fundecl void addMemberInfo(Env *env, CompoundType *compound, AccessMode access);
 
   // for now, just eat it
   fun addMemberInfo {}
@@ -1943,27 +1969,29 @@ nonterm TemplateArgument -> Literal | TypeId ;
 nonterm TryBlock : Checkable, HasCFG 
   -> "try" s:CompoundStatement h:HandlerSeq {
   fun typeCheck {
-    s.typeCheck(env);
-    h.typeCheck(env);
+    s.callTypeCheck(env);
+    h.callTypeCheck(env);
   }
 }
 
 nonterm HandlerSeq : Checkable {
-  -> h:Handler { fun typeCheck { h.typeCheck(env); } }
+  -> h:Handler { fun typeCheck { h.callTypeCheck(env); } }
   -> h:Handler seq:HandlerSeq {
     fun typeCheck {
-      h.typeCheck(env);
-      seq.typeCheck(env);
+      h.callTypeCheck(env);
+      seq.callTypeCheck(env);
     }
   }
 }
 
-nonterm Handler : Checkable -> "catch" "(" d:ExceptionDeclaration ")" 
-                               s:CompoundStatement {
-  fun typeCheck {
-    Env newEnv(&env);     // scope
-    d.typeCheck(newEnv);
-    s.typeCheck(newEnv);
+nonterm Handler : Checkable, ScopeNode {
+  -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement {
+    fun typeCheck {                       
+      xassert(!localEnv);
+      localEnv = new Env(env);    // scope
+      d.callTypeCheck(localEnv);
+      s.callTypeCheck(localEnv);
+    }
   }
 }
 

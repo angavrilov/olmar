@@ -169,7 +169,16 @@ SLWHITE   [ \t]
   return TOK_FUNDECL;
 }
 
-("fun"|"disamb"|"prologue"|"epilogue"|"constructor") {
+"declare" {
+  TOK_UPD_COL;
+  BEGIN(FUNDECL);
+  embedded->reset();
+  embedFinish = ';';
+  embedMode = TOK_FUN_BODY;
+  return TOK_DECLARE;
+}
+
+("fun"|"disamb"|"prologue"|"epilogue"|"constructor"|"destructor") {
   TOK_UPD_COL;
 
   // one or two tokens must be processed before we start the embedded
@@ -183,7 +192,7 @@ SLWHITE   [ \t]
   switch (yytext[0]) {
     default: xfailure("huh?");
     case 'f': return TOK_FUN;
-    case 'd': return TOK_DISAMB;
+    case 'd': return yytext[1]=='i'? TOK_DISAMB : TOK_DESTRUCTOR;
     case 'p': return TOK_PROLOGUE;
     case 'e': return TOK_EPILOGUE;
     case 'c': return TOK_CONSTRUCTOR;

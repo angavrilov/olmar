@@ -41,6 +41,8 @@ string astTypeToString(int type)
     N(AST_DISAMB)
     N(AST_TREECOMPARE)
     N(AST_CONSTRUCTOR)
+    N(AST_DESTRUCTOR)
+    N(AST_DECLARATION)
 
     N(EXP_ATTRREF)
     N(EXP_FNCALL)

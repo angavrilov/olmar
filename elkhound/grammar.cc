@@ -70,6 +70,8 @@ Nonterminal::Nonterminal(char const *name)
     superclasses(),
     funDecls(),
     disambFuns(),
+    constructor(),
+    destructor(),
     ntIndex(-1),
     cyclic(false),
     first(),

@@ -157,12 +157,17 @@ public:     // data
   // text of the declaration is stored because it is needed when
   // emitting substrate code
   LitCodeDict funDecls;
-  
+
+  // declarations of things (data and fns) that are *not* implemented
+  // in generated code
+  ObjList<LiteralCode> declarations;
+
   // definitions of disambiguation routines
   LitCodeDict disambFuns;
 
-  // constructor function
+  // con/destructor functions
   Owner<LiteralCode> constructor;
+  Owner<LiteralCode> destructor;
 
 public:     // funcs
   Nonterminal(char const *name);

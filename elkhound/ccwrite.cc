@@ -149,8 +149,18 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
 
   os << "}\n"
      << "\n"
-     << "\n"
      ;
+
+  // emit destructor
+  if (nonterm->destructor) {
+    os << typeName << "::~" << typeName << "()\n"
+       << "{\n";
+    insertLiteralCode(os, nonterm->destructor);
+    os << "}\n\n";
+  }
+
+  os << "\n";
+
 
   // loop over all declared functions
   for (LitCodeDict::Iter declaration(nonterm->funDecls);
@@ -272,8 +282,15 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
   os << "class " << nodeTypeName(nonterm)
        << " : public " << g->treeNodeBaseClass << " {\n"
      << "public:\n"
-     << "  " << nodeTypeName(nonterm) << nodeCtorArgs << ";\n"
      ;
+   
+  // constructor
+  os << "  " << nodeTypeName(nonterm) << nodeCtorArgs << ";\n";
+
+  // destructor
+  if (nonterm->destructor) {
+    os << "  ~" << nodeTypeName(nonterm) << "();\n";
+  }
 
   // loop over all declared functions
   for (LitCodeDict::Iter declaration(nonterm->funDecls);
@@ -295,6 +312,11 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
          << restoreLine
          ;
     }
+  }
+
+  // loop over other declarations
+  FOREACH_OBJLIST(LiteralCode, nonterm->declarations, iter) {
+    insertLiteralCode(os, iter.data());
   }
 
   // type declaration epilogue

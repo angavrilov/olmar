@@ -50,6 +50,8 @@ enum ASTTypeCode {
   AST_DISAMB,            // disambiguating function: name, body
   AST_TREECOMPARE,       // name1, name2, expr
   AST_CONSTRUCTOR,       // ctor: body
+  AST_DESTRUCTOR,        // dtor: body
+  AST_DECLARATION,       // decl: decl body
 
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute
