@@ -550,6 +550,18 @@ void Expression::print(PrintEnv &env)
   iprint(env);
 }
 
+string Expression::exprToString() const
+{              
+  stringBuilder sb;
+  PrintEnv env(sb);
+  
+  // sm: I think all the 'print' methods should be 'const', but
+  // I'll leave such a change up to this module's author (dsw)
+  const_cast<Expression*>(this)->print(env);
+
+  return sb;
+}
+
 void E_boolLit::iprint(PrintEnv &env)
 {
   olayer ol("E_boolLit::itprint");

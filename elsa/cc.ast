@@ -611,6 +611,7 @@ class Expression {
 
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
+  public string exprToString() const;
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the

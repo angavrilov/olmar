@@ -1197,6 +1197,13 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
 
 
 // -------------------- Parameter -----------------
+Parameter::~Parameter()
+{
+  if (defaultArgument) {
+    delete defaultArgument;
+  }
+}
+
 string Parameter::toString() const
 {
   if (type->isTypeVariable()) {
@@ -1207,14 +1214,17 @@ string Parameter::toString() const
     stringBuilder sb;
     sb << type->toCString(name);
     if (defaultArgument) {
-      // don't have a way to print the expression.. will
-      // synch with Daniel's stuff before making the
-      // changes to his treewalker that let me ask for
-      // a string
-      sb << " /* = <some default arg>*/";
+      sb << " = " << defaultArgument->exprText;
     }
     return sb;
   }
+}
+
+
+// ---------------- DefaultArgument ------------
+DefaultArgument::~DefaultArgument()
+{
+  // deletes 'exprText'
 }
 
 

@@ -19,7 +19,7 @@
 class FA_precondition;    // c.ast
 class FA_postcondition;   // c.ast
 
-class Variable;           // variable.h
+class Variable;           // c_variable.h
 
 // fwd in this file
 class SimpleType;
