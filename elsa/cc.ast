@@ -646,6 +646,10 @@ class TemplateDeclaration (
   // declare a template class; 'spec' could either be a
   // TS_elaborated (forward decl) or a TS_classSpec (definition)
   -> TD_class(TypeSpecifier spec);
+  
+  // wrap another set of parameters around a template decl;
+  // this is for template members of template classes (14.5.2)
+  -> TD_tmember(TemplateDeclaration d);
 }
 
 // one of the parameters to a template declaration

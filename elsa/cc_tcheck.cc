@@ -5460,6 +5460,8 @@ void IN_ctor::tcheck(Env &env, Type *type)
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::tcheck(Env &env)
 {
+  // Note: This code has been partially copied to TD_tmember::itcheck (below).
+
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
 
@@ -5520,6 +5522,47 @@ void TD_class::itcheck(Env &env)
   // check the class definition; it knows what to do about
   // the template parameters (just like for functions)
   type = spec->tcheck(env, DF_NONE);
+}
+
+
+void TD_tmember::itcheck(Env &env)
+{
+  // The params from 'this' object have already been set up; but I need
+  // to dig down into 'd' and get its params too, since otherwise its
+  // default 'tcheck' would obliterate the ones from 'this'.
+  //
+  // Note that the effect of this code is to make
+  //   template <class S>
+  //   template <class T>
+  // indistinguishable from
+  //   template <class S, class T>
+  // but the spec clearly regards them as different.  One possible solution
+  // is to have separate slots in Scope for class-params and member-params.
+  // Another might be to change the way declarations gather extant parameters,
+  // and have them look at the enclosing *two* scopes for template params
+  // instead of just the innermost enclosing scope.  For now I merely note
+  // these possibilities and move on.
+  //
+  // What follows is a specialized version of TemplateDeclaration::tcheck (above).
+
+  // get the scope made by my caller
+  Scope *paramScope = env.scope();
+  xassert(paramScope->isTemplateScope() &&
+          !paramScope->canAcceptNames);
+
+  // temporarily allow it to accept more names
+  paramScope->canAcceptNames = true;
+
+  // check each of d's parameters
+  FAKELIST_FOREACH_NC(TemplateParameter, d->params, iter) {
+    iter->tcheck(env, paramScope->curTemplateParams);
+  }
+
+  // revert acceptance
+  paramScope->canAcceptNames = false;
+
+  // check what is inside 'd', past its template parameters
+  d->itcheck(env);
 }
 
 

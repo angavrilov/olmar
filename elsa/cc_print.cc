@@ -1153,6 +1153,18 @@ void TD_class::iprint(PrintEnv &env)
   env << ";\n";
 }
 
+void TD_tmember::iprint(PrintEnv &env)
+{
+  // If I print the params, then the TD_func case will be wrong
+  // since it prints all the params; if I don't, then the TD_class
+  // case will be wrong since it prints only the params that are
+  // syntactically present in TD_class.  Our printing design needs
+  // both cases to work the same way...
+  env << "/""* TD_member::iprint is fundamentally broken */\n";
+  d->print(env);
+}
+
+
 // ------------------- TemplateParameter ------------------
 // sm: this isn't used..
 void TP_type::print(PrintEnv &env)

@@ -2072,6 +2072,10 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
   // forward declarations of a template class
   -> plist:TemplatePreamble spec:ElaboratedTypeSpecifier ";"
        { return new TD_class(plist, spec); }
+       
+  // definition of a template member
+  -> plist:TemplatePreamble td:TemplateDeclaration
+       { return new TD_tmember(plist, td); }
 }
 
 // the "template <...>" stuff
