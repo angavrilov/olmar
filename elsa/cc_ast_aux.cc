@@ -405,6 +405,98 @@ bool PQName::templateUsed() const
 }
 
 
+// The setup is that 'this' and 'obj' are pointers to chains of
+// ambiguous PQNames.  Each chain consists of an initial sequence
+// of PQ_qualifiers, then (optionally) a final PQ_template.  Each
+// list is of nonzero length (neither is NULL), and there can be
+// at most one PQ_template among both lists.  So the situation
+// looks something like this:
+//            
+//            +--------------+   +--------------+   +-------------+
+//     this-->| PQ_qualifier |-->| PQ_qualifier |-->| PQ_template |
+//            +--------------+   +--------------+   +-------------+
+//
+//            +--------------+   +--------------+
+//      obj-->| PQ_qualifier |-->| PQ_qualifier |-->NULL
+//            +--------------+   +--------------+
+//                                     ^
+//                                     |
+//                                    tail (assigned below)
+//
+// The return value is the head of a single unified list.  If there
+// was a PQ_template, it of course goes at the end of the returned
+// list.
+PQName *PQName::mergeAmbiguous(PQName *obj)
+{
+  if (this->isPQ_qualifier()) {
+    PQ_qualifier *thisq = this->asPQ_qualifier();
+
+    if (obj->isPQ_qualifier()) {
+      PQ_qualifier *objq = obj->asPQ_qualifier();
+      PQName *tail = objq->ambiguity;
+
+      // insert 'objq' into 'thisq' ambiguity list
+      objq->ambiguity = thisq->ambiguity;
+      thisq->ambiguity = objq;
+
+      if (tail) {
+        // merge with the tail
+        return thisq->mergeAmbiguous(tail);
+      }
+      else {
+        // done
+        return thisq;
+      }
+    }
+
+    if (thisq->ambiguity) {
+      // push 'obj' further down
+      thisq->ambiguity = thisq->ambiguity->mergeAmbiguous(obj);
+      return thisq;
+    }
+    else {
+      // attach 'obj' here
+      xassert(obj->isPQ_template());
+      thisq->ambiguity = obj;
+      return thisq;
+    }
+  }
+
+  // reverse the roles
+  xassert(obj->isPQ_qualifier());
+  return obj->mergeAmbiguous(this);
+}
+
+
+void PQ_qualifier::printAmbiguities(ostream &os, int indent) const
+{                                                   
+  PQName const *n = this;
+  genericPrintAmbiguities(n, "PQName", os, indent);
+}
+
+
+PQName *getAmbiguity(PQName const *n)
+{
+  if (n->isPQ_qualifier()) {
+    return n->asPQ_qualifierC()->ambiguity;
+  }
+  else {
+    return NULL;
+  }
+}
+
+void setAmbiguity(PQName *n, PQName *newAmbig)
+{
+  if (n->isPQ_qualifier()) {
+    n->asPQ_qualifier()->ambiguity = newAmbig;
+  }
+  else {
+    // the 'ambiguity' link is always fixed at NULL
+    xassert(newAmbig == NULL);
+  }
+}
+
+
 //  ------------------- TypeSpecifier ---------------------
 void TypeSpecifier::printExtras(ostream &os, int indent) const
 {

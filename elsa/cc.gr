@@ -298,6 +298,8 @@ nonterm(E_stringLit*) StringLiteral {
 
 // possibly-qualified name
 nonterm(PQName*) IdExpression {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> id:PQualifiedId              { return id; }
 
   // a bare "::" qualifier can only appear at the start of a qualifier
@@ -309,6 +311,8 @@ nonterm(PQName*) IdExpression {
 
 // names that are not qualified
 nonterm(PQName*) UnqualifiedId {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> id:Identifier                { return new PQ_name(loc, id); }
   -> on:OperatorFunctionId        { return new PQ_operator(loc, on, str(on->getOperatorName())); }
   -> on:ConversionFunctionId      { return new PQ_operator(loc, on, str(on->getOperatorName())); }
@@ -324,6 +328,8 @@ nonterm(PQName*) UnqualifiedId {
 // UnqualifiedId; there is no option here that uses "~", since that
 // is handled by PQDtorName
 nonterm(PQName*) PQualifiedId {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> id:UnqualifiedId
        { return id; }
 
@@ -592,6 +598,8 @@ nonterm(Expression*) DeleteExpression {
 // part of the grammar.
                      
 nonterm(PQName*) NameAfterDot {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:NAD1     
        { return n; }
 
@@ -602,6 +610,8 @@ nonterm(PQName*) NameAfterDot {
 
 // can begin with "~" or "template" or Identifier or "operator"
 nonterm(PQName*) NAD1 {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:NAD2
        { return n; }
 
@@ -623,6 +633,8 @@ nonterm(PQName*) NAD1 {
 // can only begin with Identifier or "operator"; this is essentially
 // what follows "::" in cppstd's qualified-id
 nonterm(PQName*) NAD2 {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   // final names
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, n, list); }
@@ -1218,6 +1230,8 @@ nonterm(TypeSpecifier*) TypeSpecifier {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm(PQName*) PQTypeName {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:PQTypeName_ncc
        { return n; }
   -> "::" n:PQTypeName_ncc
@@ -1226,6 +1240,8 @@ nonterm(PQName*) PQTypeName {
 
 // no-colon-colon
 nonterm(PQName*) PQTypeName_ncc {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:Identifier
        { return new PQ_name(loc, n); }
   -> id:TemplateId
@@ -1241,6 +1257,8 @@ nonterm(PQName*) PQTypeName_ncc {
 // squirreled away down here because otherwise it becomes ambiguous
 // with the 'template' at the start of a
 nonterm(PQName*) PQTypeName_notfirst {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> id:PQTypeName_ncc
        { return id; }
 
@@ -1462,6 +1480,8 @@ nonterm(IDeclarator*) DirectDeclarator {
 // (I notice the standard calls this PseudoDestructorName; I'll stick with
 // my terminology.)
 nonterm(PQName*) PQDtorName {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> "~" n:Identifier              
        { return new PQ_name(loc, str(stringc << "~" << n)); }
 
@@ -1487,6 +1507,8 @@ nonterm(PQName*) PQDtorName {
 
 // syntax that precedes "*" in the pointer-to-member declarator syntax
 nonterm(PQName*) PtrToMemberName {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:IdExpression "::"    { return n; }
 }
 
@@ -1810,12 +1832,16 @@ nonterm(TS_classSpec*) ClassSpecifier {
 
 // this is the name portion of what the standard calls "ClassHead"
 nonterm(PQName*) ClassHeadNameOpt {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> empty               { pushClassName(NULL); return NULL; }
   -> n:ClassHeadName     { pushClassName(n->getName()); return n; }
 }
 
 // a possibly-qualified Identifier or TemplateId
 nonterm(PQName*) ClassHeadName {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:Identifier        { return new PQ_name(loc, n); }
   -> t:TemplateId        { return t; }
 
@@ -2074,6 +2100,8 @@ nonterm(AccessKeyword) AccessSpecifierOpt {
 }
 
 nonterm(PQName*) PQClassName {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   -> n:PQTypeName                 { return n; }
 }
 
@@ -2126,6 +2154,8 @@ nonterm(MemberInit*) MemInitializer {
 // have any qualifiers (because in most cases the parser can't make
 // the distinction so it would fall through to typechecking anyway)
 nonterm(PQName*) MemInitializerId {
+  fun merge(L,R) { return L->mergeAmbiguous(R); }
+
   // data member or base class
   -> id:Identifier
        { return new PQ_name(loc, id); }

@@ -700,7 +700,7 @@ testparse t0451.cc
 testparse t0452.cc
 testparse t0453.cc
 testparse t0454.cc
-failparse t0455.cc "PQName ambiguity"
+testparse t0455.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

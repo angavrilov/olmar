@@ -187,6 +187,9 @@ class PQName(SourceLoc loc) {
 
   // true if the 'template' keyword was used in this part of the name
   public bool templateUsed() const;
+  
+  // merge two ambiguous PQNames ('this' and 'obj')
+  public PQName *mergeAmbiguous(PQName *obj);
 
   // The reason for the "/*fakelist*/TemplateArgument" stuff is that
   // those fields are treated like lists, but I want to hide their
@@ -199,7 +202,23 @@ class PQName(SourceLoc loc) {
   // list of template arguments to the qualifier
   -> PQ_qualifier(StringRef /*nullable*/qualifier,
                   /*fakelist*/TemplateArgument templArgs,
-                  PQName rest);
+                  PQName rest)
+     {
+       // PQNames can be ambiguous; e.g., in/t0455.cc.  However, the
+       // ambiguity always involves a PQ_qualifier, so I will just
+       // attach the ambiguity link to it.
+       public PQName *ambiguity = NULL;
+       custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+       // print ambiguities
+       public void printAmbiguities(ostream &os, int indent) const;
+       custom preemptDebugPrint {
+         if (ambiguity) {
+           printAmbiguities(os, indent);
+           return;     // skip the normal, unambiguous-node print code
+         }
+       }
+     }
 
   // final name, when it's an ordinary identifier
   // NOTE: 'name' here is *never* NULL--instead, I use NULL

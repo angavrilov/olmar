@@ -2041,7 +2041,7 @@ string PQ_variable::toComponentString() const
   return var->name;
 }
 
-void PQ_variable::tcheck(Env &env, Scope*, LookupFlags)
+void PQ_variable::tcheck_pq(Env &env, Scope*, LookupFlags)
 {
   // nothing to check
 }

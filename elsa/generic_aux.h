@@ -4,6 +4,25 @@
 
 #include "cc_ast.h"         // C++ AST
 
+ 
+// generic get/set 'ambiguity'
+template <class NODE>
+NODE *getAmbiguity(NODE const *n)
+{
+  return n->ambiguity;
+}
+
+template <class NODE>
+void setAmbiguity(NODE *n, NODE *newAmbig)
+{
+  n->ambiguity = newAmbig;
+}
+
+
+// get/set 'ambiguity' for PQName (implemented in cc_ast_aux.cc)
+PQName *getAmbiguity(PQName const *n);
+void setAmbiguity(PQName *n, PQName *newAmbig);
+
 
 template <class NODE>
 void genericPrintAmbiguities(NODE const *ths, char const *typeName,
@@ -12,7 +31,7 @@ void genericPrintAmbiguities(NODE const *ths, char const *typeName,
   // count the number of alternatives
   int numAlts = 0;
   {
-    for (NODE const *p = ths; p != NULL; p = p->ambiguity) {
+    for (NODE const *p = ths; p != NULL; p = getAmbiguity(p)) {
       numAlts++;
     }
   }
@@ -27,15 +46,15 @@ void genericPrintAmbiguities(NODE const *ths, char const *typeName,
   int ct=0;
   for (NODE *e = const_cast<NODE*>(ths);
        e != NULL;
-       e = e->ambiguity) {
+       e = getAmbiguity(e)) {
     if (ct++ > 0) {
       ind(os, indent) << "---- or ----\n";
     }
 
-    NODE *tempAmbig = e->ambiguity;
-    const_cast<NODE*&>(e->ambiguity) = NULL;
+    NODE *tempAmbig = getAmbiguity(e);
+    setAmbiguity(e, (NODE*)NULL);
     e->debugPrint(os, indent+2);
-    const_cast<NODE*&>(e->ambiguity) = tempAmbig;
+    setAmbiguity(e, tempAmbig);
   }
 
   ind(os, indent) << "--------- end of ambiguous " << typeName

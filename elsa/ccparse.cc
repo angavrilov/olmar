@@ -111,6 +111,7 @@ public:
   bool visitStatement(Statement *obj);
   bool visitExpression(Expression *obj);
   bool visitTemplateArgument(TemplateArgument *obj);
+  bool visitPQName(PQName *obj);
 };
 
 
@@ -130,6 +131,15 @@ VISIT(Expression)
 VISIT(TemplateArgument)
 
 #undef VISIT
+
+bool AmbiguityChecker::visitPQName(PQName *obj)
+{
+  if (obj->isPQ_qualifier() &&
+      obj->asPQ_qualifier()->ambiguity) {
+    ambiguousNodes++;
+  }
+  return true;
+}
 
 
 template <class T>

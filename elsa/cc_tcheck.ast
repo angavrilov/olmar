@@ -146,8 +146,11 @@ class PQName {
   // qualifiers.  'scope' is the scope denoted by the qualifiers seen
   // so far, or NULL to mean "current scope", and 'lflags' might be
   // LF_DECLARATOR if this PQName is the name of a declarator.
-  pure_virtual void tcheck(Env &env, Scope *scope = NULL, 
-                           LookupFlags lflags = LF_NONE);
+  //
+  // 2005-03-14: Do not call this directly if the name might be
+  // ambiguous; use 'tcheckPQName' (in cc_tcheck.cc) instead.
+  pure_virtual void tcheck_pq(Env &env, Scope *scope = NULL, 
+                              LookupFlags lflags = LF_NONE);
 
   -> PQ_qualifier {
        // record the scope denoted by this qualifier; name the

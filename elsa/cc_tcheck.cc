@@ -40,6 +40,9 @@
 
 
 // forwards in this file
+void tcheckPQName(PQName *&name, Env &env, Scope *scope = NULL, 
+                  LookupFlags lflags = LF_NONE);
+
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo);
 
@@ -650,7 +653,7 @@ void Function::tcheck_memberInits(Env &env)
 void MemberInit::tcheck(Env &env, CompoundType *enclosing)
 {
   // resolve template arguments in 'name'
-  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // typecheck the arguments
   // dsw: I do not want to typecheck the args twice, as it is giving
@@ -912,7 +915,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 
   // check declarator
   decl = decl->tcheck(env, dt);
-                     
+
   // retrieve add'l info from declarator's tcheck struct
   if (tc.newSizeExpr) {
     *(tc.newSizeExpr) = dt.size_E_new;
@@ -928,19 +931,18 @@ Type *ASTTypeId::getType() const
 
 
 // ---------------------- PQName -------------------
-#if 0    // work in progress
 void tcheckPQName(PQName *&name, Env &env, Scope *scope, LookupFlags lflags)
 {
   if (!name->isPQ_qualifier()) {
     // easy case 1
-    name->itcheck(env, scope, lflags);
+    name->tcheck_pq(env, scope, lflags);
     return;
   }
 
   PQ_qualifier *qual = name->asPQ_qualifier();
   if (!qual->ambiguity) {
     // easy case
-    qual->itcheck(env, scope, lflags);
+    qual->tcheck_pq(env, scope, lflags);
     return;
   }
 
@@ -969,7 +971,7 @@ void tcheckPQName(PQName *&name, Env &env, Scope *scope, LookupFlags lflags)
       // this is the chosen one
       qual->ambiguity = NULL;
       name = qual;
-      qual->itcheck(env, scope, lflags);
+      qual->tcheck_pq(env, scope, lflags);
       return;
     }
 
@@ -983,16 +985,15 @@ void tcheckPQName(PQName *&name, Env &env, Scope *scope, LookupFlags lflags)
       // since all preceding alternatives have failed, and PQ_template
       // does not have an 'ambiguity' pointer, select it and tcheck it
       name = qual->ambiguity;
-      name->itcheck(env, scope, lflags);
+      name->tcheck_pq(env, scope, lflags);
       return;
     }
   }
-  
+
   // got to the end of the list, select+tcheck the final one
   name = qual;
-  qual->itcheck(env, scope, lflags);
+  qual->tcheck_pq(env, scope, lflags);
 }
-#endif // 0
 
 
 // The given 'src' is a DAG of 'ambiguity' and 'next' links encoding
@@ -1045,7 +1046,7 @@ bool tcheckTemplateArgumentList(ObjList<STemplateArgument> &dest,
   return ret;
 }
 
-void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
+void PQ_qualifier::tcheck_pq(Env &env, Scope *scope, LookupFlags lflags)
 {
   if (lflags & LF_NO_DENOTED_SCOPE) {
     // 2005-02-26: I am trying to transition away from relying on the
@@ -1054,7 +1055,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     // before tchecking PQNames in contexts where I do not need the
     // denotedScopeVar.
     tcheckTemplateArgumentList(sargs, templArgs, env);
-    rest->tcheck(env, scope, lflags);
+    tcheckPQName(rest, env, scope, lflags);
     return;
   }
 
@@ -1063,7 +1064,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     // do truncated processing here
     tcheckTemplateArgumentList(sargs, templArgs, env);
     denotedScopeVar = env.dependentVar;
-    rest->tcheck(env, scope, lflags);
+    tcheckPQName(rest, env, scope, lflags);
     return;
   }
 
@@ -1073,7 +1074,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   // now check the arguments
   if (!tcheckTemplateArgumentList(sargs, templArgs, env)) {
     // error already reported; just finish up and bail
-    rest->tcheck(env, scope, lflags);
+    tcheckPQName(rest, env, scope, lflags);
     return;
   }
   
@@ -1165,18 +1166,18 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     }
   }
 
-  rest->tcheck(env, denotedScope, lflags);
+  tcheckPQName(rest, env, denotedScope, lflags);
 }
 
-void PQ_name::tcheck(Env &env, Scope *, LookupFlags)
+void PQ_name::tcheck_pq(Env &env, Scope *, LookupFlags)
 {}
 
-void PQ_operator::tcheck(Env &env, Scope *, LookupFlags)
+void PQ_operator::tcheck_pq(Env &env, Scope *, LookupFlags)
 {
   o->tcheck(env);
 }
 
-void PQ_template::tcheck(Env &env, Scope *, LookupFlags lflags)
+void PQ_template::tcheck_pq(Env &env, Scope *, LookupFlags lflags)
 {                             
   tcheckTemplateArgumentList(sargs, templArgs, env);
 }
@@ -1271,7 +1272,7 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 // 7.1.5.2
 Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
-  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   ErrorFlags eflags = EF_NONE;
   LookupFlags lflags = LF_NONE;
@@ -1691,7 +1692,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
-  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   if (keyword == TI_ENUM) {
     Variable *tag = env.lookupPQ_one(name, LF_ONLY_TYPES);
@@ -1754,7 +1755,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   ScopeSeq qualifierScopes;
   if (name) {                                      
     // 2005-02-18: passing LF_DECLARATOR fixes in/t0191.cc
-    name->tcheck(env, NULL /*scope*/, LF_DECLARATOR);
+    tcheckPQName(name, env, NULL /*scope*/, LF_DECLARATOR);
   }
   env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);
@@ -1856,7 +1857,7 @@ void TS_classSpec::tcheckIntoCompound(
   if (bases) {
     FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
       // resolve any template arguments in the base class name
-      iter->name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+      tcheckPQName(iter->name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
       // cppstd 10, para 1: ignore non-types when looking up
       // base class names
@@ -2127,7 +2128,7 @@ void MR_publish::tcheck(Env &env)
 
   env.setLoc(loc);
 
-  name->tcheck(env);
+  tcheckPQName(name, env);
 
   if (!name->hasQualifiers()) {
     env.error(stringc
@@ -2987,7 +2988,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   ScopeSeq qualifierScopes;
   PQName *name = decl->getDeclaratorId();
   if (name) {
-    name->tcheck(env, NULL /*scope*/, LF_DECLARATOR);
+    tcheckPQName(name, env, NULL /*scope*/, LF_DECLARATOR);
   }
   env.getQualifierScopes(qualifierScopes, name);
   env.extendScopeSeq(qualifierScopes);
@@ -3780,7 +3781,7 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 
   if (name) {
     // shouldn't be necessary, but won't hurt
-    name->tcheck(env);
+    tcheckPQName(name, env);
   }
 
   // fix: I hadn't been type-checking this...
@@ -3807,7 +3808,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   env.setLoc(loc);                   
   
   // typecheck the nested name
-  nestedName->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(nestedName, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // enforce [cppstd 8.3.3 para 3]
   if (dt.type->isReference()) {
@@ -4787,7 +4788,7 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
 Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
                                   LookupFlags flags, LookupSet &candidates)
 {
-  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // re-use dependent?
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
@@ -6038,7 +6039,7 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
   // tcheck template arguments and ON_conversion types in the
   // current scope
-  fieldName->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(fieldName, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // want this generally I think
   flags |= LF_SELFNAME;
@@ -8024,7 +8025,7 @@ void ND_alias::tcheck(Env &env)
   // 2005-02-26: at this point the only thing being done is type
   // checking template arguments, which should not even be present,
   // but I do it anyway for uniformity
-  original->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(original, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // find the namespace we're talking about
   Variable *origVar = env.lookupPQ_one(original, LF_ONLY_NAMESPACES);
@@ -8080,7 +8081,7 @@ void ND_usingDecl::tcheck(Env &env)
   }
 
   // lookup the template arguments in the name
-  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // find what we're referring to; if this is a template, then it
   // names the template primary, not any instantiated version
@@ -8117,7 +8118,7 @@ void ND_usingDecl::tcheck(Env &env)
 
 void ND_usingDir::tcheck(Env &env)
 {
-  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
+  tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // find the namespace we're talking about
   Variable *targetVar = env.lookupPQ_one(name, LF_ONLY_NAMESPACES);
