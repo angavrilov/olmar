@@ -2657,6 +2657,12 @@ void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
     return;
   }        
 
+  if (dt.context == DC_MR_DECL &&
+      (dt.dflags & DF_STATIC)) {
+    // static members don't have to be complete types
+    return;
+  }
+
   if (dt.type->isArrayType()) {
     if (init) {
       // The array type might be incomplete now, but the initializer
