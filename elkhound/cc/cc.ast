@@ -137,7 +137,8 @@ class PQName (
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
-  
+
+  public string qualifierString() const;  
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
 }
 

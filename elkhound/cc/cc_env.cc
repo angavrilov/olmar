@@ -13,15 +13,21 @@ ErrorMsg::~ErrorMsg()
 {}
 
 
+string ErrorMsg::toString() const
+{
+  return stringc << loc.toString() << " " << msg;
+}
+
+
 // -------------------- Scope -----------------
-Scope::Scope(int cc)
+Scope::Scope(int cc, SourceLocation const &initLoc)
   : variables(),
     compounds(),
     enums(),
     changeCount(cc),
     curCompound(NULL),
     curFunction(NULL),
-    curLoc()
+    curLoc(initLoc)
 {}
 
 Scope::~Scope()
@@ -36,7 +42,7 @@ Env::Env(StringTable &s, CCLang &L)
     lang(L)
 {
   // create first scope
-  scopes.prepend(new Scope(0 /*changeCount*/));
+  scopes.prepend(new Scope(0 /*changeCount*/, SourceLocation()));
 }
 
 Env::~Env()
@@ -49,13 +55,31 @@ Env::~Env()
 void Env::enterScope()
 {
   trace("env") << "entered scope\n";
-  scopes.prepend(new Scope(getChangeCount()));
+  scopes.prepend(new Scope(getChangeCount(), loc()));
 }
 
 void Env::exitScope()
 {
   trace("env") << "exited scope\n";
   delete scopes.removeFirst();
+}
+
+
+void Env::setLoc(SourceLocation const &loc)
+{
+  trace("loc") << "setLoc: " << loc.toString() << endl;
+  
+  // only set it if it's a valid location; I get invalid locs
+  // from abstract declarators..
+  if (loc.validLoc()) {
+    Scope *s = scope();
+    s->curLoc = loc;
+  }
+}
+
+SourceLocation const &Env::loc() const
+{
+  return scopeC()->curLoc;
 }
 
 
@@ -147,7 +171,7 @@ EnumType const *Env::lookupPQEnum(PQName const *name) const
 Type const *Env::error(char const *msg)
 {
   trace("error") << "error: " << msg << endl;
-  errors.prepend(new ErrorMsg(stringc << "error: " << msg));
+  errors.prepend(new ErrorMsg(stringc << "error: " << msg, loc()));
   return getSimpleType(ST_ERROR);
 }
 
@@ -155,7 +179,7 @@ Type const *Env::error(char const *msg)
 Type const *Env::warning(char const *msg)
 {
   trace("error") << "warning: " << msg << endl;
-  errors.prepend(new ErrorMsg(stringc << "warning: " << msg));
+  errors.prepend(new ErrorMsg(stringc << "warning: " << msg, loc()));
   return getSimpleType(ST_ERROR);
 }
 
@@ -163,7 +187,7 @@ Type const *Env::warning(char const *msg)
 Type const *Env::unimp(char const *msg)
 {
   trace("error") << "unimplemented: " << msg << endl;
-  errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg));
+  errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg, loc()));
   return getSimpleType(ST_ERROR);
 }
 

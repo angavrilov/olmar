@@ -26,10 +26,14 @@ class CCLang;             // cc_lang.h
 class ErrorMsg {
 public:
   string msg;
-  
+  SourceLocation const &loc;
+
 public:
-  ErrorMsg(char const *m) : msg(m) {}
+  ErrorMsg(char const *m, SourceLocation const &L) 
+    : msg(m), loc(L) {}
   ~ErrorMsg();
+  
+  string toString() const;
 };
 
 
@@ -62,7 +66,7 @@ public:      // data
   SourceLocation curLoc;         // latest AST location marker seen
 
 public:
-  Scope(int changeCount);
+  Scope(int changeCount, SourceLocation const &initLoc);
   ~Scope();
 };
 
@@ -100,6 +104,11 @@ public:      // function
   void exitScope();
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
+
+  // source location tracking
+  void setLoc(SourceLocation const &loc);    // sets scope()->curLoc
+  SourceLocation const &loc() const;         // gets scope()->curLoc
+  string locStr() const { return loc().toString(); }
 
   // insertion into the current scope; return false if the
   // name collides with one that is already there

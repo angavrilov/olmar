@@ -18,11 +18,13 @@ void TranslationUnit::tcheck(Env &env)
 // --------------------- TopForm ---------------------
 void TF_decl::tcheck(Env &env)
 {
+  env.setLoc(loc);
   decl->tcheck(env);
 }
 
 void TF_func::tcheck(Env &env)
 {
+  env.setLoc(loc);
   f->tcheck(env);
 }
 
@@ -99,7 +101,7 @@ Type const *TS_name::tcheck(Env &env)
 
   if (!var->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
-      << "variable name `" << name << "' used as if it were a type");
+      << "variable name `" << *name << "' used as if it were a type");
   }
 
   Type const *ret = applyCVToType(cv, var->type);
@@ -209,7 +211,9 @@ Variable *IDeclarator::tcheck(Env &env, Type const *spec)
 
 
 Variable *D_name::itcheck(Env &env, Type const *spec)
-{                          
+{
+  env.setLoc(loc);
+
   if (name && name->getQualifiers().isNotEmpty()) {
     env.unimp("qualifiers on declarator");
   }
@@ -229,6 +233,8 @@ Variable *D_operator::itcheck(Env &env, Type const *spec)
 
 Variable *D_func::itcheck(Env &env, Type const *retSpec)
 {
+  env.setLoc(loc);
+
   FunctionType *ft = new FunctionType(retSpec, cv);
 
   // make a new scope for the parameter list
@@ -293,6 +299,9 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
   ObjList<ErrorMsg> existingErrors;
   existingErrors.concat(env.errors);
 
+  // grab location before checking the alternatives
+  string locStr = env.locStr();
+
   // how many alternatives?
   int numAlts = 1;
   {
@@ -328,7 +337,8 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
 
   if (numOk == 0) {
     // none of the alternatives checked out
-    trace("disamb") << "ambiguous " << nodeTypeName << ": all bad\n";
+    trace("disamb") << locStr << ": ambiguous " << nodeTypeName
+                    << ": all bad\n";
 
     // put all the errors in and also a note about the ambiguity
     for (int i=0; i<numAlts; i++) {
@@ -341,7 +351,7 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
 
   else if (numOk == 1) {
     // one alternative succeeds, which is what we want
-    trace("disamb") << "ambiguous " << nodeTypeName 
+    trace("disamb") << locStr << ": ambiguous " << nodeTypeName
                     << ": selected " << lastOk->kindName() << endl;
 
     // since it has no errors, nothing to put back (TODO: warnings?)
@@ -358,7 +368,8 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
 
   else {
     // more than one alternative succeeds, not good
-    trace("disamb") << "ambiguous " << nodeTypeName << ": multiple good!\n";
+    trace("disamb") << locStr << ": ambiguous " << nodeTypeName 
+                    << ": multiple good!\n";
 
     // first put back the old errors
     env.errors.concat(existingErrors);
@@ -375,6 +386,8 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
 
 Statement *Statement::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   if (!ambiguity) {
     // easy case
     mid_tcheck(env);

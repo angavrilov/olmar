@@ -14,20 +14,31 @@
 // ------------------------ PQName ------------------------
 void PQName::printExtras(ostream &os, int indent) const
 {
-  ind(os, indent) << "qualifiers: ";
+  ind(os, indent) << "qualifiers: " << qualifierString() << "\n";
+}
+
+
+string PQName::qualifierString() const
+{
+  stringBuilder sb;
   SFOREACH_OBJLIST(char const, qualifiers, iter) {
     char const *q = iter.data();
     if (q) {
-      os << q;
+      sb << q;
     }
     else {
       // for a NULL qualifier, don't print anything; it means
       // there was a leading "::" with no explicit qualifier,
       // and I'll use similar syntax on output
     }
-    os << "::";
+    sb << "::";
   }
-  os << "\n";
+  return sb;
+}
+
+stringBuilder& operator<< (stringBuilder &sb, PQName const &obj)
+{
+  return sb << obj.qualifierString() << obj.name;
 }
 
 
