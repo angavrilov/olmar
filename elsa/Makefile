@@ -33,18 +33,18 @@ TOCHECK += cc.in8
 TOCHECK += cc.in9
 TOCHECK += cc.in10
 
-# "extern" qualifiers are not printed
+# Using differen parameter var from prototype fails.
 # TOCHECK += cc.in11
 
 TOCHECK += cc.in12
 TOCHECK += cc.in13
 
-# Segfault at:
-#  traceRemoveAll();
-#TOCHECK += cc.in14
+#  p = new int[x]; ->
+# ( (p)= (new int []));
+# TOCHECK += cc.in14
 
 # this is getting printed before constructors and destructors: <cdtor>
-#TOCHECK += cc.in15
+# TOCHECK += cc.in15
 
 TOCHECK += cc.in16
 
@@ -52,20 +52,21 @@ TOCHECK += cc.in16
 # TOCHECK += cc.in17
 
 TOCHECK += cc.in18
+
 # constructor again
 # TOCHECK += cc.in19
 
 # "converstion-operator" being printed for converstion operators.
 # operator char ();
 # char ( conversion-operator)();
-#TOCHECK += cc.in20
+# TOCHECK += cc.in20
 
 TOCHECK += cc.in21
 
 # Bitfields not being printed correctly:
 # int x : 2; ->
 # int x;
-# TOCHECK += cc.in22
+#TOCHECK += cc.in22
 
 TOCHECK += cc.in23
 TOCHECK += cc.in24
@@ -99,13 +100,13 @@ TOCHECK += cc.in29
 
 # Stopping here as there are too many errors.
 
-.PHONY: check_idem
-check_idem: clean_idem
+.PHONY: idem/check
+idem/check: idem/clean
 	./check_idempotency $(addprefix ../cc.in/,$(TOCHECK))
 
-.PHONY: clean_idem
-clean_idem:
-	rm -f ../cc.in/cc.*.out ../cc.in/cc.*.out2
+.PHONY: idem/clean
+idem/clean:
+	rm -f ../cc.in/cc.*.out_raw ../cc.in/cc.*.out ../cc.in/cc.*.out2_raw ../cc.in/cc.*.out2
 
 #	./check_idempotency $(patsubst ../cc.in/,,$(wildcard ../cc.in/cc.in*))
 

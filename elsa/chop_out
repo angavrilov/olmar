@@ -6,8 +6,8 @@ use strict;
 
 # Daniel S. Wilkerson dsw@cs.berkeley.edu
 
-my $start = "---- TranslationUnit START ----\n";
-my $stop  = "---- TranslationUnit STOP ----\n";
+my $start = "---- START ----\n";
+my $stop  = "---- STOP ----\n";
 
 while(<STDIN>) {
     last if $_ eq $start;
