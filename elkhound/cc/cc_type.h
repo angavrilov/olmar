@@ -312,6 +312,8 @@ public:     // funcs
   // true if any constructor satisfies 'pred'
   virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
+  virtual Qualifiers *&getQualifiersPtr() = 0;
+
   // some common queries
   bool isSimpleType() const;
   SimpleType const &asSimpleTypeC() const;
@@ -381,6 +383,8 @@ public:     // funcs
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  Qualifiers *&getQualifiersPtr() {return q;}
 };
 
 
@@ -411,6 +415,8 @@ public:
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  Qualifiers *&getQualifiersPtr() {return q;}
 };
 
 
@@ -460,6 +466,8 @@ public:     // funcs
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  Qualifiers *&getQualifiersPtr() {return q;}
 };
 
 
@@ -534,6 +542,8 @@ public:
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
+
+  Qualifiers *&getQualifiersPtr() {return q;}
 };
 
 
