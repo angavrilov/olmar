@@ -876,7 +876,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   CompoundType *ct = NULL;
   if (!name->hasQualifiers() &&
       (dflags & DF_FORWARD) &&
-      !(dflags | DF_FRIEND)) {
+      !(dflags & DF_FRIEND)) {
     // cppstd 3.3.1 para 5:
     //   "for an elaborated-type-specifier of the form
     //      class-key identifier ;
@@ -3501,6 +3501,16 @@ bool Expression::constEval(Env &env, int &result) const
         << "can't const-eval non-const variable `" << v->var->name << "'",
         false /*disambiguates*/);
       return false;
+
+    ASTNEXTC(E_constructor, c)
+      if (type->isIntegerType()) {
+        // allow it; should only be 1 arg, and that will be value
+        return c->args->first()->constEval(env, result);
+      }
+      else {
+        env.error("can only const-eval E_constructors for integer types");
+        return false;
+      }
 
     ASTNEXTC(E_sizeof, s)
       result = s->size;
