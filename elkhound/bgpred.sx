@@ -52,13 +52,25 @@
       value
     ))
 
-  ; reading from a different location from last written
-  (FORALL (mem obj1 obj2 ofs1 ofs2 value)
+  ; pointer disequality can be shown by showing either component
+  ; is unequal
+  (FORALL (obj1 obj2 ofs1 ofs2)
     (IMPLIES
-      (OR 
+      (OR
         (NEQ obj1 obj2)      ; different objects
         (NEQ ofs1 ofs2)      ; different offsets
       )
+      (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+    ))
+
+  ; reading from a different location from last written
+  (FORALL (mem obj1 obj2 ofs1 ofs2 value)
+    (IMPLIES
+      (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+;       (OR
+;         (NEQ obj1 obj2)      ; different objects
+;         (NEQ ofs1 ofs2)      ; different offsets
+;       )
       (EQ
         (select (update mem obj1 ofs1 value) obj2 ofs2)
         (select mem obj2 ofs2)
@@ -92,8 +104,9 @@
         (firstZero mem obj2)
       )
     ))
-    
+
   ; validPointer: abstraction of a valid pointer
+  ; causes Simplify to mess up?
   ;(FORALL (p)
   ;  (IMPLIES
   ;    (validPointer p)
