@@ -15,6 +15,9 @@ public:
   // and inline definition
   ///*explicit*/ Foo(int x) { x+5; }
 
+  // destructor
+  ~Foo();
+
 };
 
 
@@ -22,4 +25,11 @@ public:
 Foo::Foo()
 {
   5;
+}
+
+
+// out-of-line dtor
+Foo::~Foo()
+{
+  8;
 }
