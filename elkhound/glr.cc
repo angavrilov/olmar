@@ -18,6 +18,10 @@
  * implementation being slow, and I'm going to refrain from any
  * optimization for a bit.
  *
+ * UPDATE (3/29/02): I'm now trying to optimize it.  The starting
+ * implementation is 300x slower than bison.  Ideal goal is 3x, but
+ * more realistic is 10x.
+ *
  * Description of the various lists in play here:
  *
  *   activeParsers
@@ -73,8 +77,8 @@
  * [GLR]:
  *
  * After thinking about this for some time, I have reached the conclusion
- * that the only way to handle the above problem is to separate the
- * collection of paths from the iteration over them.
+ * that the only way to handle the problem is to separate the collection
+ * of paths from the iteration over them.
  *
  * Here are several alternative schemes, and the reasons they don't
  * work:
