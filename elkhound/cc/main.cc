@@ -15,8 +15,6 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
-#include "qual_type.h"    // TypeFactory_Q
-#include "qual_var.h"     // Variable_Q
 //  #include "cc_flatten.h"   // FlattenEnv
 #include "ccparse.h"      // ParseEnv
 
