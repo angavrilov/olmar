@@ -43,6 +43,8 @@
      command line with -o, which I consider to be a flex bug. */
   /* %option outfile="lexer.yy.cc" */
 
+/* exclusive start state for when inside a slash-star style comment */
+%x IN_C_COMMENT
 
 /* ------------------- definitions -------------------- */
 /* newline */
@@ -363,17 +365,29 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   whitespace();
 }
 
-  /* C comment */
-"/""*"([^*]|"*"[^/])*"*/"     {
-  // TODO: I think this fails to match /***/
-  whitespace();
+  /* C comment; dsw: one that actually works! */
+"/""*" {
+  yymore();
+  BEGIN IN_C_COMMENT;
 }
-
-  /* unterminated C comment */
-"/""*"([^*]|"*"[^/])*"*"     |
-"/""*"([^*]|"*"[^/])*        {
+<IN_C_COMMENT>[^*]+ {
+  yymore();
+}
+<IN_C_COMMENT>"*"+"/" {
+  whitespace();
+  BEGIN INITIAL;
+}
+<IN_C_COMMENT>"*"+ {
+  /* NOTE: this rule must come after the above rule */
+  yymore();
+}
+<IN_C_COMMENT><<EOF>> {
+  /* TODO: I don't know why flex doesn't give me an error if I omit this rule, since -f is used */
   err("unterminated /**/ comment");
   whitespace();
+  /* dsw: TODO: I think I just have to replicate this here or we could factor it out */
+  srcFile->doneAdding();
+  yyterminate();
 }
 
   /* illegal */

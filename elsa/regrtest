@@ -201,10 +201,12 @@ done
 for fn in                                                                 \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
-  d0011.cc d0012.cc d0013.cc                   \
+  d0011.cc d0012.cc d0013.cc d0014.cc          \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr doOverload,mustBeUnambiguous$TR_EXTRA in/$fn
 done
+
+failTest "unterminated /**/ comment" ./ccparse in/d0015.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
