@@ -73,9 +73,6 @@ verbatim [
 #include "cc_lang.h"      // CCLang
 #include "ccparse.h"      // ParseEnv, the parser context class
 
-// sm: why was this needed?
-//#include <stdlib.h>
-
 
 #define D(msg) \
   trace("cc") << msg << endl

@@ -692,21 +692,14 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
   }
 }
 
+// sm: We only allow overloading when the types are different.  If
+// this function were to return true, then the type checker would
+// consider this a duplicate definition and complain.  Since this
+// function instead returns false, the type checker thinks a different
+// function (with a different type signature) is being defined (or
+// declared, but definitions are the interesting case).
 bool FunctionType::equalParameterLists(FunctionType const *obj) const
 {
-  // dsw: FIX: The comment below makes no sense to me.  If it *is*
-  // legal to overload with different cv qualifiers, then why does it
-  // cause us to return false?  Anyway, omitting checking for
-  // QualifierLiterals here.
-  
-  // sm: The sense of the return value is correct.  We only allow
-  // overloading when the types are different.  If this function
-  // were to return true, then the type checker would consider this
-  // a duplicate definition and complain.  Since this function
-  // instead returns false, the type checker thinks a different
-  // function (with a different type signature) is being defined
-  // (or declared, but definitions are the interesting case).
-
   if (cv != obj->cv) {
     // the 'cv' qualifier is really attached to the 'this' parameter;
     // it's important to check this here, since disequality of

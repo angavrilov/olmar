@@ -130,18 +130,18 @@ char *processArgs(int argc, char **argv, char const *additionalInfo) {
 
   if (argc != 2) {
     cout << "usage: [env] " << progName << " [options] input-file\n"
-      "  env:\n"
-      "    SYM_OF_INTEREST symbol to watch during analysis\n"
-      "  options:\n"
-      "    -tr <sys>:      turn on tracing for the named subsystem\n"
-      //"    -sym <sym>: name the \"symbol of interest\"\n"
-      "  useful tracing flags:\n"
-      "    parse           print shift/reduce steps of parsing algorithm\n"
-      "    grammar         echo the grammar\n"
-      "    ambiguities     print ambiguities encountered during parsing\n"
-      "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
-      "    itemsets        print the sets-of-items DFA\n"
-      "    ... the complete list is in parsgen.txt ...\n"
+            "  env:\n"
+            "    SYM_OF_INTEREST symbol to watch during analysis\n"
+            "  options:\n"
+            "    -tr <sys>:      turn on tracing for the named subsystem\n"
+            //"    -sym <sym>: name the \"symbol of interest\"\n"
+            "  useful tracing flags:\n"
+            "    parse           print shift/reduce steps of parsing algorithm\n"
+            "    grammar         echo the grammar\n"
+            "    ambiguities     print ambiguities encountered during parsing\n"
+            "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
+            "    itemsets        print the sets-of-items DFA\n"
+            "    ... the complete list is in parsgen.txt ...\n"
          << (additionalInfo? additionalInfo : "");
     exit(argc==1? 0 : 2);    // error if any args supplied
   }

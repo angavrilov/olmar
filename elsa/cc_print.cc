@@ -25,12 +25,7 @@ twalk_output_stream twalk_layer_out(cout, getenv("TWALK_VERBOSE"));
 // default mode and in qualifiers mode.
 class dummy_type;               // This does nothing.
 dummy_type *ql;
-// FIX: remove
-#include <stdio.h>
-string toString(class dummy_type*) {
-//    printf("**************** Dummy toString()\n");
-  return "";
-}
+string toString(class dummy_type*) {return "";}
   
 // sm: folded this into the PrintEnv
 //SourceLocation current_loc;
