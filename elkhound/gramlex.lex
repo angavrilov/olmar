@@ -7,7 +7,7 @@
 
 // pull in my declaration of the lexer class -- this defines
 // the additional lexer state, some of which is used in the
-// action rules below
+// action rules below (this is in the ../ast/ directory now)
 #include "gramlex.h"
 
 // pull in the bison-generated token codes
