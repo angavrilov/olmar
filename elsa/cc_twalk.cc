@@ -136,33 +136,77 @@ class olayer {
 
 SourceLocation current_loc;
 
-// print with only flags that were in the source
-//  string var_toString(Variable *var, string qualifierName) {
-string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
+
+// function for printing declarations (without the final semicolon);
+// handles a variety of declarations such as:
+//   int x
+//   int x()
+//   C()                    // ctor inside class C
+//   operator delete[]()
+//   char operator()        // conversion operator to 'char'
+string declaration_toString(
+  // declflags present in source; not same as 'var->flags' because
+  // the latter is a mixture of flags present in different
+  // declarations
+  DeclFlags dflags,
+
+  // type of the variable; not same as 'var->type' because the latter
+  // can come from a prototype and hence have different parameter
+  // names
+  Type const *type,
+
+  // original name in the source; for now this is redundant with
+  // 'var->name', but we plan to print the qualifiers by looking
+  // at 'pqname'
+  PQName const * /*nullable*/ pqname,
+
+  // associated variable; in the final design, this will only be
+  // used to look up the variable's scope
+  Variable *var)
 {
   stringBuilder s;
 
-  if (pqname && 0==strcmp(pqname->getName(), "conversion-operator")) {
+  // mask off flags used for internal purposes, so all that's
+  // left is the flags that were present in the source
+  dflags = (DeclFlags)(dflags & DF_SOURCEFLAGS);
+  if (dflags) {
+    s << toString(dflags) << " ";
+  }
+
+  // the string name after all of the qualifiers; if this is
+  // a special function, we're getting the encoded version
+  StringRef finalName = pqname? pqname->getName() : NULL;
+
+  if (finalName && 0==strcmp(finalName, "conversion-operator")) {
     // special syntax for conversion operators; first the keyword
     s << "operator ";
 
     // then the return type and the function designator
-    s << var->type->asFunctionTypeC().retType->toString() << " ()";
+    s << type->asFunctionTypeC().retType->toString() << " ()";
   }
 
-  else if (var && var->name && 0==strcmp(var->name, "constructor-special")) {
-    s << var->type->toCString(var->scope->curCompound->name);
+  else if (finalName && 0==strcmp(finalName, "constructor-special")) {
+    // extract the class name, which can be found by looking up
+    // the name of the scope which contains the associated variable
+    s << type->toCString(var->scope->curCompound->name);
   }
 
   else {
-    s << toString( (DeclFlags) (var->flags & DF_SOURCEFLAGS) );
-    s << " ";
     //s << var->type->toCString(qualifierName);
-    s << var->toString();
+    //s << var->toString();
+    s << type->toCString(finalName);
   }
 
   return s;
 }
+
+
+// more specialized version of the previous function
+string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
+{
+  return declaration_toString(var->flags, var->type, pqname, var);
+}
+
 
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::twalk(Env &env)
@@ -206,7 +250,16 @@ void Function::twalk(Env &env)
 {
   olayer ol("Function");
   //global_code_out << var_toString(nameAndParams->var, nameAndParams->decl->decl->getDeclaratorId());
-  nameAndParams->twalk(env);
+  
+  // instead of walking 'nameAndParams', use 'funcType' to
+  // get accurate parameter names
+  //nameAndParams->twalk(env);
+  
+  global_code_out <<
+    declaration_toString(dflags, funcType, 
+                         nameAndParams->getDeclaratorId(),
+                         nameAndParams->var);
+
   if (inits) twalk_memberInits(env);
   body->twalk(env);
   if (handlers) twalk_handlers(env);
@@ -784,7 +837,7 @@ void E_new::itwalk(Env &env)
 {
   olayer ol("E_new::itwalk");
   if (colonColon) global_code_out << "::";
-  global_code_out << "new";
+  global_code_out << "new ";
   if (placementArgs) {
     codeout co("", "(", ")");
     twalkFakeExprList(placementArgs, env);
@@ -808,7 +861,7 @@ void E_new::itwalk(Env &env)
     //   arraySize->twalk()                is "n"
     //   "array of 5 ints"->rightString()  is "[5]"
     Type const *t = atype->decl->var->type;   // type-id in question
-    global_code_out << " " << t->leftString() << " [";
+    global_code_out << t->leftString() << " [";
     arraySize->twalk(env);
     global_code_out << "]" << t->rightString();
   }

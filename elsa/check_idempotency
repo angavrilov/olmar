@@ -54,6 +54,7 @@ sub dump_outfiles {
 #  my %idempotent = ();
 my $numinputs = 0;
 my $numpass = 0;
+my @failingFiles = ();
 for my $name(@names) {
     print "$name\n";
     die "No such file $name\n" unless -f "$name";
@@ -70,6 +71,7 @@ for my $name(@names) {
     };
     if ($@) {
         dump_outfiles();
+        @failingFiles = (@failingFiles, $name);
         print "ERROR: $@\n";
         next;
     }
@@ -84,6 +86,7 @@ for my $name(@names) {
         ++$numpass;
     } else {
         dump_outfiles();
+        @failingFiles = (@failingFiles, $name);
     }
 }
 
@@ -93,6 +96,9 @@ for my $name(@names) {
 print "";
 print "Num inputs $numinputs\n";
 print "Num pass   $numpass\n";
+if (@failingFiles) {
+    print ("Failing files: ", join(' ', @failingFiles), "\n");
+}
 
 if ($numinputs==$numpass) {
     print "PASS\n";

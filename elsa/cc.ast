@@ -30,14 +30,16 @@ verbatim {
   #include "cc_flags.h"      // CVFlags, DeclFlags, etc. (r)
   #include "cc_type.h"       // Type, FunctonType, CompoundType
 
+  #include <stdio.h>         // printf, for ad-hoc debugging
+
   class Env;                 // cc_env.h
-//    #include <stdio.h>
 } // end verbatim
 
 // included in generated source file
+// (note that the generated source file always #includes the
+// generated header file)
 impl_verbatim {
   //#include "cc_type.h"       // Type
-//    #include <stdio.h>
 }
 
 
@@ -87,6 +89,16 @@ class Function (
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
 ) {
+  // since 'nameAndParams->var' might refer to a previous declaration,
+  // and therefore might have differently-named parameters, I'll add
+  // another field specifically for a version of the FunctionType
+  // which has the parameters for *this* definition
+  public FunctionType const *funcType;
+  ctor funcType = NULL;
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
   public void tcheck(Env &env, bool checkBody);
@@ -339,7 +351,6 @@ class Declarator (
 ) {
   public Variable *var;                // (serf) computed information: name, type, etc.
   ctor var=NULL;
-//    ctor printf("**************** Declarator ctor\n");
                                                        
   // FakeList link; use 'setNext' to set 'next'
   public Declarator *next;  ctor next=NULL;
@@ -357,6 +368,9 @@ class Declarator (
       return;     // skip the normal, unambiguous-node print code
     }
   }
+
+  // dig down and find the name being declared; may return NULL
+  public PQName const *getDeclaratorId() const;
 
 
   public void printExtras(ostream &os, int indent) const;

@@ -46,7 +46,16 @@ void genericPrintAmbiguities(NODE const *ths, char const *typeName,
 
 // TranslationUnit
 // TopForm
-// Function
+
+// ---------------------- Function --------------------
+void Function::printExtras(ostream &os, int indent) const
+{
+  if (funcType) {
+    ind(os, indent) << "funcType: " << funcType->toString() << "\n";
+  }
+}
+
+
 // MemberInit
 // Declaration
 // ASTTypeId
@@ -181,6 +190,12 @@ void Declarator::setNext(Declarator *newNext)
   if (ambiguity) {
     ambiguity->setNext(newNext);
   }
+}
+
+
+PQName const *Declarator::getDeclaratorId() const
+{
+  return decl->getDeclaratorId();
 }
 
 

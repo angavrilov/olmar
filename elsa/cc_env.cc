@@ -57,7 +57,7 @@ Env::Env(StringTable &s, CCLang &L)
     SourceLocation loc;
     Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
     ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *del = new Variable(loc, str("operator-delete"), ft, DF_NONE);
+    Variable *del = new Variable(loc, str("operator delete"), ft, DF_NONE);
     addVariable(del);
   }
 
@@ -67,7 +67,7 @@ Env::Env(StringTable &s, CCLang &L)
     SourceLocation loc;
     Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
     ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *del = new Variable(loc, str("operator-delete[]"), ft, DF_NONE);
+    Variable *del = new Variable(loc, str("operator delete[]"), ft, DF_NONE);
     addVariable(del);
   }
 }
