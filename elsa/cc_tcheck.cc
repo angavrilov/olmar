@@ -5313,8 +5313,17 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
     return env.dependentType();
   }
 
+  // did we already decide to re-use a previous nondependent lookup
+  // result?  (in/t0387.cc)
+  bool const alreadyDidLookup =
+    !env.inUninstTemplate() &&
+    fevar && 
+    fevar->nondependentVar && 
+    fevar->nondependentVar == fevar->var;
+
   // 2005-02-18: rewrote function call site name lookup; see doc/lookup.txt
   if (env.lang.allowOverloading &&
+      !alreadyDidLookup &&
       (func->type->isSimple(ST_NOTFOUND) ||
        func->type->asRval()->isFunctionType()) &&
       (fevar || (feacc &&
