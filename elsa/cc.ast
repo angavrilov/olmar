@@ -498,7 +498,9 @@ class Expression {
 
   // call to constructor as an expression; the expression's overall
   // type says which type is being constructed
-  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args) {
+  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args,
+                   bool artificial // did we manufacture it? needed during elaboration
+                   ) {
     public Expression *retObj; ctor retObj = NULL;
   }
 

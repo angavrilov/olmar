@@ -332,7 +332,9 @@ nonterm(Expression*) PostfixExpression {
   // almost always be ambiguous with function call, so the distinction
   // will have to be delayed until typechecking
   -> spec:CtorExpressionType a:ArgumentList
-       { return new E_constructor(spec, a); }
+       { return new E_constructor(spec, a,
+                                  false // artificial
+                                  ); }
 
   // field access
   -> p:PostfixExpression "." n:IdExpression

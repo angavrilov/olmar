@@ -1843,7 +1843,9 @@ static Statement *makeCtorStatement
   PQName *name0 = env.make_PQ_fullyQualifiedName(type->asCompoundType());
   E_constructor *ector0 =
     new E_constructor(new TS_name(env.loc(), name0, false),
-                      args);
+                      args,
+                      true      // artificial
+                      );
   // this way the E_constructor::itcheck() can tell that it is not for
   // a temporary
   ector0->var = var;
@@ -4533,7 +4535,7 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
   switch(var->scopeKind) {
     default:
     case SK_UNKNOWN:
-      xfailure("E_variable *wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
+      xfailure("wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
       break;
     case SK_TEMPLATE:
       xfailure("don't handle template scopes yet");
@@ -4863,7 +4865,9 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     // and point the retObj at it.  NOTE: We have to be careful here
     // to not accidentally make a temporary for ctor for a
     // non-temporary object.
-    if (!var) {                   // we are making a temporary
+
+//      if (!var) {                   // we are making a temporary
+    if (!artificial) {          // we are making a temporary
       // dsw: don't know what I was thinking here; you can make a
       // temporary for an int like this
       //   x = int(6);
@@ -4873,6 +4877,8 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
       Declaration *declaration0 = insertTempDeclaration(env, type);
       xassert(declaration0->decllist->count() == 1);
       var = declaration0->decllist->first()->var;
+    } else {
+      xassert(var);             // better have a target var
     }
     retObj = wrapVarWithE_variable(env, var);
   }

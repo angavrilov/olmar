@@ -398,6 +398,7 @@ testparse d0025.cc
 testparse d0026.cc
 testparse d0027.cc
 testparse d0028.cc
+testparse d0029.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
@@ -488,7 +489,7 @@ failnsparse() {
 testnsparse in/big/nsAtomTable.i
 testnsparse in/big/nsSOAPPropertyBag.i
 testnsparse in/big/nsCLiveconnectFactory.i
-failnsparse in/big/nsHTMLEditRules.i        "assertion: evar0->var == var"
+testnsparse in/big/nsHTMLEditRules.i
 testnsparse in/big/nsMsgServiceProvider.i
 testnsparse in/big/nsUnicodeToTeXCMRt1.i
 
