@@ -220,6 +220,13 @@ void Function::tcheck(Env &env, bool checkBody,
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
 
+  // if this is a complete specialization, temporarily supress
+  // TTM_3TEMPL_DEF and return to TTM_1NORMAL, since it is normal code
+  bool inCompleteSpec = inTemplate &&
+    env.scope()->curTemplateParams->params.isEmpty();
+  StackMaintainer<TemplateDeclaration> sm0
+    (env.templateDeclarationStack, (inCompleteSpec ? &Env::mode1Dummy : NULL));
+
   // only disambiguate, if template
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
 
@@ -655,14 +662,15 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
           // base name.  I'm hoping we are still in the same scope.
           (&dt1_varName,
            LF_TEMPL_PRIMARY,
-           dt1.var->type->asFunctionType());
+           dt1.var->type->asFunctionType(),
+           MatchTypes::MM_WILD);
         xassert(previous);
         xassert(previous->templateInfo()->isPrimary());
         if (dt1.var->templInfo->isPrimary()) {
           // if this is a forward declaration for a primary, it should
           // already be in the namespace and should be isomorphic
           MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
-          xassert(match.match_Type(dt1.var->type, previous->type, match.MT_TOP));
+          xassert(match.match_Type(dt1.var->type, previous->type));
         } else {
           // if this is a forward declaration for a specialization /
           // instantiation, it should not be in the namespace but
@@ -5850,6 +5858,8 @@ void TD_func::itcheck(Env &env)
   // instantiateTemplate().
 
   PQName const *name = f->nameAndParams->decl->getDeclaratorId();
+  FunctionType *funcType = f->nameAndParams->type->asFunctionType();
+  Variable *fVar = f->nameAndParams->var;
 
   // do we have template arguments? that is, are we a specialization?
   // If so, hang us off of the appropriate primary.  If we are a
@@ -5857,19 +5867,23 @@ void TD_func::itcheck(Env &env)
   // namespace during the tcheck() above.  Remember to look to see if
   // we have already been declared and if so, to re-use the
   // declaration and not duplicate it.
-  PQName const *unqual = name->getUnqualifiedNameC();
-  if (unqual->isPQ_template()) {
-    PQ_template const *t = unqual->asPQ_templateC();
-    ASTList<TemplateArgument> const &templateArgs = t->args;
-
-    FunctionType *funcType = f->nameAndParams->type->asFunctionType();
+  if (!fVar->templateInfo()) {
+    // we should be a function member of a class template primary
+    //
+    // FIX: do this
+    xassert(!fVar->templateInfo());
+  } else if (fVar->templateInfo()->isCompleteSpecOrInstantiation() ||
+             fVar->templateInfo()->isPartialSpec()) {
+    // find the primary
     Variable *primary = env.lookupPQVariable_primary_resolve
-      (name, LF_TEMPL_PRIMARY, funcType);
+      (name, LF_TEMPL_PRIMARY, funcType, MatchTypes::MM_WILD);
+    xassert(primary);
+    xassert(primary->templateInfo());
+    xassert(primary->templateInfo()->isPrimary());
     if (!primary) {
       env.error("cannot specialize a template that hasn't been declared");
       return;
     }
-
     TemplateInfo *primaryTI = primary->templateInfo();
     if (!primaryTI) {
       env.error("attempt to specialize a non-template");
@@ -5877,34 +5891,31 @@ void TD_func::itcheck(Env &env)
     }
     xassert(primaryTI->isPrimary());
 
+    // this is I suppose a completely gratuitous check that I thought
+    // was important at some point
+    PQName const *unqual = name->getUnqualifiedNameC();
+    if (unqual->isPQ_template()) {
+      PQ_template const *t = unqual->asPQ_templateC();
+      ASTList<TemplateArgument> const &templateArgs = t->args;
+      xassert(env.checkIsoToASTTemplArgs(fVar->templateInfo()->arguments, templateArgs));
+    } else {
+      xassert(fVar->templateInfo()->arguments.count() == 0);
+    }
+
     // add this type to the primary's list of specializations; the
     // only way to find the specialization is to go through the
     // primary template
-    Variable *fVar = f->nameAndParams->var;
-    env.checkIsoASTTemplArgs(fVar->templateInfo(), templateArgs);
-
+    //
     // is there already a forward declaration for it?
     Variable *forward = primaryTI->getInstantiationOfVar(fVar);
     if (forward) {
+      xassert(forward->templateInfo()->getMyPrimaryIdem() == primaryTI);
       if (forward->funcDefn) {
         env.error(stringc << "duplicate definition of specialization for " << fVar->toString());
+        return;
       } else {
-        // update things in the declaration; I copied this from
-        // Env::createDeclaration()
-        TRACE("odr",    "def'n of " << forward->name
-              << " at " << toString(f->getLoc())
-              << " overrides decl at " << toString(forward->loc));
-        forward->loc = f->getLoc();
-        forward->setFlag(DF_DEFINITION);
-        forward->clearFlag(DF_EXTERN);
-        forward->clearFlag(DF_FORWARD); // dsw: I added this
-        forward->funcDefn = f;
-        if (tracingSys("template")) {
-          cout << "TS_classSpec::itcheck: "
-               << "definition of " << fVar->toString()
-               << " attached to previous forwarded declaration" << endl;
-          primaryTI->debugPrint();
-        }
+        env.provideDefForFuncTemplDecl(forward, primaryTI, f);
+        env.instantiateForwardFunctions(forward, primary);
       }
     } else {
       primaryTI->addInstantiation(fVar);
@@ -5915,6 +5926,26 @@ void TD_func::itcheck(Env &env)
         primaryTI->debugPrint();
       }
     }
+    xassert(fVar->templateInfo()->getMyPrimaryIdem() == primaryTI);
+  } else if (fVar->templateInfo()->isPrimary()) {
+    // we should be the definition for a declared primary
+    Variable *primary = env.lookupPQVariable_primary_resolve
+      (name, LF_TEMPL_PRIMARY, funcType, MatchTypes::MM_ISO);
+    xassert(primary);
+    TemplateInfo *primaryTI = primary->templateInfo();
+    xassert(primaryTI);
+    xassert(primaryTI->isPrimary());
+    if (fVar->funcDefn) {
+      if (fVar->funcDefn != f) {
+        env.error(stringc << "Duplicate definition of function template priary " << fVar->name);
+        return;
+      }
+      // nothing to do; we must have been the original definition
+    } else {
+      xfailure("Should never happen as function template primary def'n's reuse the decl");
+      env.provideDefForFuncTemplDecl(fVar, primaryTI, f);
+    }
+    env.instantiateForwardFunctions(fVar, primary);
   }
 }
 

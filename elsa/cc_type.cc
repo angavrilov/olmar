@@ -102,7 +102,7 @@ bool AtomicType::equals(AtomicType const *obj) const
       (SL_UNKNOWN, const_cast<AtomicType*>(this), CV_NONE);
     CVAtomicType *obj_cva  = global_tfac->makeCVAtomicType
       (SL_UNKNOWN, const_cast<AtomicType*>(obj), CV_NONE);
-    return match.match_Type(this_cva, obj_cva, match.MT_TOP);
+    return match.match_Type(this_cva, obj_cva);
   } else {
     return this == obj;
   }
@@ -1959,6 +1959,7 @@ TemplateInfo::TemplateInfo(StringRef name, SourceLoc il)
     baseName(name),
     declSyntax(NULL),
     myPrimary(NULL),
+    instantiatedFrom(NULL),
     instantiations(),         // empty list
     arguments(),              // empty list
     instLoc(il)
@@ -2040,8 +2041,8 @@ Variable *TemplateInfo::getInstantiationOfVar(Variable *var)
     // exact.  If you wanted the standard effect of const/volatile not
     // making a difference at the top of a parameter type, you would
     // have to match each parameter separately
-    if (!match.match_Type(var->type, candidate->type, match.MT_NONE)) continue;
-    if (!match.match_Lists2(varTArgs, candidate->templateInfo()->arguments, match.MT_NONE)) {
+    if (!match.match_Type(var->type, candidate->type, 2 /*matchDepth*/)) continue;
+    if (!match.match_Lists2(varTArgs, candidate->templateInfo()->arguments, 2 /*matchDepth*/)) {
       continue;
     }
     xassert(!matchingVar);      // shouldn't be in there twice

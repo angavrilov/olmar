@@ -82,7 +82,13 @@ typedef ArrayStackEmbed<Scope*, 2> ScopeSeq;
 
 
 // utility class for maintaining a first-class sub-stack of the AST
-// stack isomorphic to the stackframe stack
+// stack isomorphic to the stackframe stack; Note that the fact that
+// nothing happens if 'obj' is NULL is a feature: sometimes you can't
+// map the need to call this class completely onto the control flow,
+// and so some dataflow is involved; since the dtor for this class is
+// used as a kind of finally statement, we can't nest its construction
+// in an 'if' statement!  Instead pass in NULL if you want a no-op
+// effect.
 template<class T>
 class StackMaintainer {
   SObjStack<T> &s;
@@ -95,12 +101,16 @@ class StackMaintainer {
     : s(s0)
     , obj(obj0)
   {
-    s.push(obj);
+    if (obj) {
+      s.push(obj);
+    }
   }
 
   ~StackMaintainer() {
-    T *obj0 = s.pop();
-    xassert(obj0 == obj);
+    if (obj) {
+      T *obj0 = s.pop();
+      xassert(obj0 == obj);
+    }
   }
 };
 
@@ -131,15 +141,6 @@ class FuncDeclThing {
     return init;
   }
 };
-
-
-// this strange creature is so that we have something to put on the
-// stack inside instantiateForwardClasses() so that we can push it
-// onto the templateDeclarationStack to temporarily supress
-// TTM_3TEMPL_DEF and return to TTM_1NORMAL for purposes of
-// instantiating the forward classes; FIX: maybe should do something
-// like FuncDeclThing but what a lot of work
-extern TD_class instFwdClassesTDSDummy;
 
 
 // the entire semantic analysis state
@@ -188,6 +189,14 @@ public:      // data
   // code, a sort of never-never land for typechecking; you might want
   // to change your behavior in such situations.
   SObjStack<TemplateDeclaration> templateDeclarationStack;
+
+  // this strange creature is so that we have something to put on the
+  // stack inside instantiateForwardClasses() so that we can push it
+  // onto the templateDeclarationStack to temporarily supress
+  // TTM_3TEMPL_DEF and return to TTM_1NORMAL for purposes of
+  // instantiating the forward classes; FIX: maybe should do something
+  // like FuncDeclThing but what a lot of work
+  static TD_class mode1Dummy;
 
   // stack of D_func-s; inside a D_func, except for in Initializers
   // (default arguments), we are in a strange mode where we need to do
@@ -328,7 +337,8 @@ private:     // funcs
   // returning NULL if does not exist; calls xfailure() for now if it
   // is ambiguous
   Variable *findTemplPrimaryForSignature(OverloadSet *oloadSet, 
-                                         FunctionType *signature);
+                                         FunctionType *signature,
+                                         MatchTypes::MatchMode matchMode);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -422,7 +432,8 @@ public:      // funcs
   // some extensions to lookupPQVariable that I want to move elsewhere;
   // for now I'm just trying to factor them out of lookup..
   Variable *lookupPQVariable_primary_resolve
-    (PQName const *name, LookupFlags flags, FunctionType *signature);
+    (PQName const *name, LookupFlags flags, FunctionType *signature,
+     MatchTypes::MatchMode matchMode);
 
   // initialize the arguments from an AST list of TempateArgument-s
   void initArgumentsFromASTTemplArgs
@@ -430,9 +441,9 @@ public:      // funcs
      ASTList<TemplateArgument> const &templateArgs);
   // check that if you made STemplateArguments from templateArgs that
   // they would be isomorphic to those alread in tinfo->arguments
-  bool checkIsoASTTemplArgs
-    (TemplateInfo *tinfo,
-     ASTList<TemplateArgument> const &templateArgs);
+  bool checkIsoToASTTemplArgs
+    (ObjList<STemplateArgument> &templateArgs0,
+     ASTList<TemplateArgument> const &templateArgs1);
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
                                      MatchTypes &match);
@@ -545,15 +556,25 @@ public:      // funcs
     (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
 
   // instantate 'base' with arguments 'sargs', and return the implicit
-  // typedef Variable associated with the resulting type; 'foundScope' is
-  // the scope in which 'base' was found; if 'inst' is not NULL then
-  // we already have a compound for this instantiation (from a forward
-  // declaration), so use that one; 'loc' is the location of the
-  // code that caused instantiation, for use in the inst loc stack
+  // typedef Variable associated with the resulting type; 'foundScope'
+  // is the scope in which 'base' was found; if 'instV' is not NULL
+  // then we already have a compound for this instantiation (from a
+  // forward declaration), so use that one; 'loc' is the location of
+  // the code that caused instantiation, for use in the inst loc
+  // stack; 'bestV' is the template primary or specialization to use
+  // to do the instantiation overriding the argument matching
+  // tournament if non-NULL; we only add the instantiation to the
+  // primary's instantiation list if 'addTheInstV' is true
   Variable *instantiateTemplate
-    (SourceLoc loc, Scope *foundScope,
-     Variable *baseV, Variable *instV,
-     SObjList<STemplateArgument> &sargs);
+    (SourceLoc loc,
+     // I'm pretty sure that this is not relevant for later
+     // instantiations of declarations that were forwarded
+     Scope *foundScope,
+     Variable *baseV,
+     Variable *instV,
+     Variable *bestV,
+     SObjList<STemplateArgument> &sargs,
+     bool addTheInstV = true);
 
   // variant of the above, which (for convenience) first converts
   // the AST representation of the arguments into STemplateArguments
@@ -561,6 +582,18 @@ public:      // funcs
     (SourceLoc loc, Scope *foundScope,
      Variable *baseV, Variable *instV,
      ASTList<TemplateArgument> const &astArgs);
+
+  // given a previously forwarded function template declaration and a
+  // defintion that we have just found for it, attach that definition
+  // to it and clean up a few things
+  void provideDefForFuncTemplDecl
+    (Variable *forward, TemplateInfo *primaryTI, Function *f);
+
+  // given a template function that was just made non-forward,
+  // instantiate all of its forward-declared instances; NOTE: neither
+  // the API nor the implementation is not as parallel to
+  // instantiateForwardClasses() as you might at first suspect
+  void instantiateForwardFunctions(Variable *forward, Variable *primary);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances

@@ -10,6 +10,7 @@
 #include "overload.h"    // selectBestCandidate_templCompoundType
 #include "matchtype.h"   // MatchType
 
+TD_class Env::mode1Dummy(NULL, NULL); // arguments are meaningless
 
 inline ostream& operator<< (ostream &os, SourceLoc sl)
   { return os << toString(sl); }
@@ -35,7 +36,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool leftAtLeastAsSpec;
     {
       MatchTypes match(tfac, MatchTypes::MM_WILD);
-      if (match.match_Type(larg->value.t, rarg->value.t, match.MT_TOP)) {
+      if (match.match_Type(larg->value.t, rarg->value.t)) {
         leftAtLeastAsSpec = true;
       } else {
         leftAtLeastAsSpec = false;
@@ -45,7 +46,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool rightAtLeastAsSpec;
     {
       MatchTypes match(tfac, MatchTypes::MM_WILD);
-      if (match.match_Type(rarg->value.t, larg->value.t, match.MT_TOP)) {
+      if (match.match_Type(rarg->value.t, larg->value.t)) {
         rightAtLeastAsSpec = true;
       } else {
         rightAtLeastAsSpec = false;
@@ -162,8 +163,6 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 // --------------------- Env -----------------
                                  
 int throwClauseSerialNumber = 0; // don't make this a member of Env
-
-TD_class instFwdClassesTDSDummy(NULL, NULL); // arguments are meaningless
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
@@ -976,7 +975,7 @@ CompoundType *Env::getEnclosingCompound()
 
 Env::TemplTcheckMode Env::getTemplTcheckMode() const {
   if (templateDeclarationStack.isEmpty()
-      || templateDeclarationStack.topC() == &instFwdClassesTDSDummy) {
+      || templateDeclarationStack.topC() == &mode1Dummy) {
     return TTM_1NORMAL;
   }
   // we are in a template declaration
@@ -1449,9 +1448,13 @@ void Env::retractScopeSeq(ScopeSeq const &scopes)
 }
 
 
+// FIX: this lookup doesn't do very well for overloaded function
+// templates where one primary is more specific than the other; the
+// more specific one matches both itself and the less specific one,
+// and this gets called ambiguous
 Variable *Env::lookupPQVariable_primary_resolve(
-  PQName const *name, LookupFlags flags,
-  FunctionType *signature)
+  PQName const *name, LookupFlags flags, FunctionType *signature,
+  MatchTypes::MatchMode matchMode)
 {
   // only makes sense in one context; will push this spec around later
   xassert(flags & LF_TEMPL_PRIMARY);
@@ -1464,21 +1467,21 @@ Variable *Env::lookupPQVariable_primary_resolve(
   if (oloadSet->count() > 1) {
     xassert(var->type->isFunctionType()); // only makes sense for function types
     // FIX: Somehow I think this isn't right
-    var = findTemplPrimaryForSignature(oloadSet, signature);
+    var = findTemplPrimaryForSignature(oloadSet, signature, matchMode);
     if (!var) {
       error("function template specialization does not match "
             "any primary in the overload set");
       return NULL;
     }
   }
-  // this should not be a user error
-  xassert(var->templateInfo()->isPrimary());
   return var;
 }
 
 
 Variable *Env::findTemplPrimaryForSignature
-  (OverloadSet *oloadSet, FunctionType *signature)
+  (OverloadSet *oloadSet,
+   FunctionType *signature,
+   MatchTypes::MatchMode matchMode)
 {
   if (!signature) {
     xfailure("This is one more place where you need to add a signature "
@@ -1502,13 +1505,13 @@ Variable *Env::findTemplPrimaryForSignature
     //
     // FIX: I don't know if this is really as precise a lookup as is
     // possible.
-    MatchTypes match(tfac, MatchTypes::MM_WILD);
+    MatchTypes match(tfac, matchMode);
     if (match.match_Type
         (signature,
-         var0->type,
+         var0->type
          // FIX: I don't know if this should be top or not or if it
          // matters.
-         match.MT_TOP)) {
+         )) {
       if (candidatePrim) {
         xfailure("ambiguous attempt to lookup "
                  "overloaded function template primary from specialization");
@@ -1536,22 +1539,21 @@ void Env::initArgumentsFromASTTemplArgs
 }
 
 
-bool Env::checkIsoASTTemplArgs
-  (TemplateInfo *tinfo,
-   ASTList<TemplateArgument> const &templateArgs)
+bool Env::checkIsoToASTTemplArgs
+  (ObjList<STemplateArgument> &templateArgs0,
+   ASTList<TemplateArgument> const &templateArgs1)
 {
-  xassert(tinfo);
   MatchTypes match(tfac, MatchTypes::MM_ISO);
-  ObjListIterNC<STemplateArgument> iter1(tinfo->arguments);
-  FOREACH_ASTLIST(TemplateArgument, templateArgs, iter2) {
-    if (iter1.isDone()) return false;
-    TemplateArgument const *targ = iter2.data();
+  ObjListIterNC<STemplateArgument> iter0(templateArgs0);
+  FOREACH_ASTLIST(TemplateArgument, templateArgs1, iter1) {
+    if (iter0.isDone()) return false;
+    TemplateArgument const *targ = iter1.data();
     xassert(targ->sarg.hasValue());
     STemplateArgument sta(targ->sarg);
-    if (!match.match_STA(iter1.data(), &sta, match.MT_NONE)) return false;
-    iter1.adv();
+    if (!match.match_STA(iter0.data(), &sta, 2 /*matchDepth*/)) return false;
+    iter0.adv();
   }
-  return iter1.isDone();
+  return iter0.isDone();
 }
 
 
@@ -1657,7 +1659,7 @@ bool Env::inferTemplArgsFromFuncArgs(Variable *var, FakeList<ArgExpression> *fun
               var->name, EF_STRONG);
         return false;
       }
-      bool argUnifies = match.match_Type(arg->getType(), param->type, match.MT_TOP);
+      bool argUnifies = match.match_Type(arg->getType(), param->type);
       if (!argUnifies) {
         error(stringc << "during function template instantiation: "
               << " argument " << i << " `" << arg->getType()->toString() << "'"
@@ -1776,7 +1778,7 @@ Variable *Env::lookupPQVariable_function_with_args(
   // the template; note that even if we had some explicit
   // template arguments, we have put them into the bindings now,
   // so we omit them here
-  return instantiateTemplate(loc(), scope, var, NULL /*inst*/, sargs);
+  return instantiateTemplate(loc(), scope, var, NULL /*inst*/, NULL /*bestV*/, sargs);
 }
 
 
@@ -2193,7 +2195,7 @@ static bool doesUnificationRequireBindings
 {
   // re-unify and check that no bindings get added
   MatchTypes match(tfac, MatchTypes::MM_BIND);
-  bool unifies = match.match_Lists(sargs, arguments, match.MT_NONE);
+  bool unifies = match.match_Lists(sargs, arguments, 2 /*matchDepth*/);
   xassert(unifies);             // should of course still unify
   // bindings should be trivial for a complete specialization
   // or instantiation
@@ -2412,7 +2414,7 @@ Variable *Env::instantiateTemplate_astArgs
 {
   SObjList<STemplateArgument> sargs;
   templArgsASTtoSTA(astArgs, sargs);
-  return instantiateTemplate(loc, foundScope, baseV, instV, sargs);
+  return instantiateTemplate(loc, foundScope, baseV, instV, NULL /*bestV*/, sargs);
 }
 
 
@@ -2454,7 +2456,7 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
     if (templInfo0->isMutant()) continue;
     // see if this candidate matches
     MatchTypes match(tfac, matchMode);
-    if (match.match_Lists(sargs, templInfo0->arguments, match.MT_NONE)) {
+    if (match.match_Lists(sargs, templInfo0->arguments, 2 /*matchDepth*/)) {
       templCandidates.candidates.push(var0);
     }
   }
@@ -2638,9 +2640,13 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 // and a D_func/Initializer respectively.  See the implementation of
 // Env::getTemplTcheckMode() for the details.
 Variable *Env::instantiateTemplate
-  (SourceLoc loc, Scope *foundScope,
-   Variable *baseV, Variable *instV,
-   SObjList<STemplateArgument> &sargs)
+  (SourceLoc loc,
+   Scope *foundScope,
+   Variable *baseV,
+   Variable *instV,
+   Variable *bestV,
+   SObjList<STemplateArgument> &sargs,
+   bool addTheInstV)
 {
   // NOTE: There is an ordering bug here, e.g. it fails t0209.cc.  The
   // problem here is that we choose an instantiation (or create one)
@@ -2677,11 +2683,16 @@ Variable *Env::instantiateTemplate
   if (!instV) {
     // Search through the instantiations of this primary and do an
     // argument/specialization pattern match.
-    Variable *bestV = findMostSpecific(baseV, sargs);
-    if (!bestV) {
-      return NULL;              // lookup was ambiguous, error has been reported
-    } else if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
-      return bestV;
+    if (bestV) {
+      xassert(!addTheInstV);
+    } else {
+      xassert(addTheInstV);
+      bestV = findMostSpecific(baseV, sargs);
+      if (!bestV) {
+        return NULL;            // lookup was ambiguous, error has been reported
+      } else if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
+        return bestV;
+      }
     }
     baseV = bestV;              // baseV is saved in oldBaseV above
   }
@@ -2699,8 +2710,8 @@ Variable *Env::instantiateTemplate
   //
   // dsw: UPDATE: now it's used during type construction for
   // elaboration, so has to be just the base name
-  bool baseForward;
   StringRef instName;
+  bool baseForward;
   if (baseV->type->isCompoundType()) {
     baseForward = baseV->type->asCompoundType()->forward;
     instName = baseV->type->asCompoundType()->name;
@@ -2739,13 +2750,15 @@ Variable *Env::instantiateTemplate
   bool changedToTemplateArgScope = false;
   if (!(baseForward && baseV->type->isCompoundType())) {
     changedToTemplateArgScope = true;
+    xassert(foundScope);
     argScope = prepArgScopeForTemlCloneTcheck
       (poppedScopes, pushedScopes, foundScope, baseV, sargs);
     if (baseV->templateInfo()->isPartialSpec()) {
       // unify again to compute the bindings again since we forgot
       // them already    
       MatchTypes match(tfac, MatchTypes::MM_BIND);
-      match.match_Lists(sargs, baseV->templateInfo()->arguments, match.MT_NONE);
+      bool matches = match.match_Lists(sargs, baseV->templateInfo()->arguments, 2 /*matchDepth*/);
+      xassert(matches);         // this is bad if it fails
       // FIX: this
 //        if (tracingSys("template")) {
 //          cout << "bindings generated by unification with partial-specialization "
@@ -2826,6 +2839,7 @@ Variable *Env::instantiateTemplate
       ? baseV->type->asCompoundType()->name    // no need to call 'str', 'name' is already a StringRef
       : NULL;
     TemplateInfo *instTInfo = new TemplateInfo(name, loc);
+    instTInfo->instantiatedFrom = baseV;
     SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
       instTInfo->arguments.append(new STemplateArgument(*iter.data()));
     }
@@ -2919,6 +2933,7 @@ Variable *Env::instantiateTemplate
     }
 
     xassert(instV);
+    xassert(foundScope);
     foundScope->registerVariable(instV);
 
     // tell the base template about this instantiation; this has to be
@@ -2932,7 +2947,13 @@ Variable *Env::instantiateTemplate
     // dsw: this had to be moved down here as you can't get the
     // typedefVar until it exists
     instV->setTemplateInfo(instTInfo);
-    oldBaseV->templateInfo()->addInstantiation(instV);
+    if (addTheInstV) {
+      oldBaseV->templateInfo()->addInstantiation(instV);
+      xassert(instV->templateInfo()->getMyPrimaryIdem() == oldBaseV->templateInfo());
+    } else {
+      // addInstantiation would have done this
+      instV->templateInfo()->setMyPrimary(oldBaseV->templateInfo());
+    }
     xassert(instTInfo->isNotPrimary());
     xassert(instTInfo->getMyPrimaryIdem() == oldBaseV->templateInfo());
   }
@@ -3026,16 +3047,102 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 }
 
 
+void Env::provideDefForFuncTemplDecl
+  (Variable *forward, TemplateInfo *primaryTI, Function *f)
+{
+  xassert(forward);
+  xassert(primaryTI);
+  xassert(forward->templateInfo()->getMyPrimaryIdem() == primaryTI);
+  xassert(primaryTI->isPrimary());
+  // update things in the declaration; I copied this from
+  // Env::createDeclaration()
+  TRACE("odr",    "def'n of " << forward->name
+        << " at " << toString(f->getLoc())
+        << " overrides decl at " << toString(forward->loc));
+  forward->loc = f->getLoc();
+  forward->setFlag(DF_DEFINITION);
+  forward->clearFlag(DF_EXTERN);
+  forward->clearFlag(DF_FORWARD); // dsw: I added this
+  forward->funcDefn = f;
+  Variable *fVar = f->nameAndParams->var;
+  fVar->templateInfo()->setMyPrimary(primaryTI);
+  if (tracingSys("template")) {
+    cout << "definition of function template " << fVar->toString()
+         << " attached to previous forwarded declaration" << endl;
+    primaryTI->debugPrint();
+  }
+}
+
+
+void Env::instantiateForwardFunctions(Variable *forward, Variable *primary)
+{
+  TemplateInfo *primaryTI = primary->templateInfo();
+  xassert(primaryTI);
+  xassert(primaryTI->isPrimary());
+
+  // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
+  // purposes of instantiating the forward function templates
+  StackMaintainer<TemplateDeclaration> sm1(templateDeclarationStack, &mode1Dummy);
+
+  // Find all the places where this declaration was instantiated,
+  // where this function template specialization was
+  // called/instantiated after it was declared but before it was
+  // defined.  In each, now instantiate with the same template
+  // arguments and fill in the funcDefn.
+  SFOREACH_OBJLIST_NC(Variable, primaryTI->getInstantiations(), iter) {
+    Variable *instV = iter.data();
+    TemplateInfo *instTIinfo = instV->templateInfo();
+    xassert(instTIinfo);
+    xassert(instTIinfo->isNotPrimary());
+    if (instTIinfo->instantiatedFrom != forward) continue;
+    // should not have a funcDefn as it is instantiated from a forward
+    // declaration that does not yet have a definition and we checked
+    // that above already
+    xassert(!instV->funcDefn);
+
+    // instantiate this definition
+    SourceLoc instLoc = instTIinfo->instLoc;
+
+    Variable *instWithDefn = instantiateTemplate
+      (instLoc,
+       // FIX: I don't know why it is possible for the primary here to
+       // not have a scope, but it is.  Since 1) we are in the scope
+       // of the definition that we want to instantiate, and 2) from
+       // experiments with gdb, I have to put the definition of the
+       // template in the same scope as the declaration, I conclude
+       // that I can use the same scope as we are in now
+//         primary->scope,    // FIX: ??
+       scope(),
+       primary,
+       NULL /*instV; only used by instantiateForwardClasses; this
+              seems to be a fundamental difference*/,
+       forward /*bestV*/,
+       reinterpret_cast< SObjList<STemplateArgument>& >  // hack..
+         (instV->templateInfo()->arguments),
+       // don't actually add the instantiation to the primary's
+       // instantiation list; we will do that below
+       false /*addTheInstV*/
+       );
+    // previously the instantiation of the forward declaration
+    // 'forward' produced an instantiated declaration; we now provide
+    // a definition for it
+    instV->funcDefn = instWithDefn->funcDefn;
+  }
+}
+
+
 void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 {
   // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
   // purposes of instantiating the forward classes
-  StackMaintainer<TemplateDeclaration> sm(templateDeclarationStack, &instFwdClassesTDSDummy);
+  StackMaintainer<TemplateDeclaration> sm(templateDeclarationStack, &mode1Dummy);
 
   SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->getInstantiations(), iter) {
     Variable *instV = iter.data();
     xassert(instV->templateInfo());
     CompoundType *inst = instV->type->asCompoundType();
+    // this assumption is made below
+    xassert(inst->templateInfo() == instV->templateInfo());
 
     if (inst->forward) {
       trace("template") << "instantiating previously forward " << inst->name << "\n";
@@ -3045,9 +3152,14 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
       // forward-instantiated
       SourceLoc instLoc = inst->templateInfo()->instLoc;
 
-      instantiateTemplate(instLoc, scope, baseV, instV /*use this one*/,
+      instantiateTemplate(instLoc,
+                          scope,
+                          baseV,
+                          instV /*use this one*/,
+                          NULL /*bestV*/,
                           reinterpret_cast< SObjList<STemplateArgument>& >  // hack..
-                            (inst->templateInfo()->arguments));
+                            (inst->templateInfo()->arguments)
+                          );
     }
     else {
       // this happens in e.g. t0079.cc, when the template becomes

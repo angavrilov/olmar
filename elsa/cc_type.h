@@ -1034,6 +1034,10 @@ private:                        // go through the accessors
   TemplateInfo *myPrimary;
 
 public:
+  // The specialization / primary that we were instantiated from, if
+  // we are an instantiation; NULL if we are not
+  Variable *instantiatedFrom;
+
   // NOTE: There is an over-orthogonalization here.  The semantics of
   // instantiations and arguments are as follows; all other
   // combinations are illegal.  The astute reader will note that there

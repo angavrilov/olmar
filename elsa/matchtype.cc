@@ -7,6 +7,10 @@
 #include "trace.h"           // trace
 
 
+// FIX: I'll bet the matchDepth here isn't right; not sure what should
+// go there
+//   if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
+
 int MatchTypes::recursionDepthLimit = 500; // what g++ 3.4.0 uses by default
 
 // ---------------------- utilities ---------------------
@@ -98,16 +102,41 @@ void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings)
   cout << "Bindings end" << endl;
 }
 
-// ---------- MatchTypes private methods ----------
+// ---------- MatchTypes private ----------
 
+CVFlags const MatchTypes::normalCvFlagMask = CV_CONST | CV_VOLATILE;
 
 //  // helper function for when we find an int var
 //  static bool unifyToIntVar(Type *a,
 //                            Type *b,
 //                            StringSObjDict<STemplateArgument> &bindings,
-//                            MFlags mFlags)
+//                            int matchDepth)
 //  {
 //  }
+
+bool MatchTypes::subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags)
+{
+  finalFlags = CV_NONE;
+  // partition qualifiers again
+  CVFlags acvNormal = acv & normalCvFlagMask;
+  CVFlags bcvNormal = bcv & normalCvFlagMask;
+  //      CVFlags bcvScott  = bcv & ~normalCvFlagMask;
+  // Lets kill a mosquito with a hydraulic wedge
+  for(CVFlagsIter cvIter; !cvIter.isDone(); cvIter.adv()) {
+    CVFlags curFlag = cvIter.data();
+    int aflagInt = (acvNormal & curFlag) ? 1 : 0;
+    int bflagInt = (bcvNormal & curFlag) ? 1 : 0;
+    int flagDifference = aflagInt - bflagInt;
+    if (flagDifference < 0) {
+      return false;           // can't subtract a flag that isn't there
+    }
+    if (flagDifference > 0) {
+      finalFlags |= curFlag;
+    }
+    // otherwise, the flags match
+  }
+  return true;
+}
 
 
 // bind value 'a' to var 'b'; I find the spec less than totally clear on what
@@ -117,7 +146,7 @@ void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings)
 //   2 - Below top level, the are matched exactly; a) lack of matching
 //   means a failure to match; b) those matched are subtracted and the
 //   remaining attached to the typevar.
-bool MatchTypes::bindValToVar(Type *a, Type *b, MFlags mFlags)
+bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
 {
   xassert(b->isTypeVariable());
   STemplateArgument *targa = new STemplateArgument;
@@ -128,9 +157,9 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, MFlags mFlags)
   CVFlags acv = a->getCVFlags();
   // partition qualifiers into normal ones and Scott's funky qualifier
   // extensions that aren't const or volatile
-  CVFlags acvNormal = acv &  (CV_CONST | CV_NONE);
-  CVFlags acvScott  = acv & ~(CV_CONST | CV_NONE);
-  if (mFlags & MT_TOP) {
+//    CVFlags acvNormal = acv &  normalCvFlagMask;
+  CVFlags acvScott  = acv & ~normalCvFlagMask;
+  if (matchDepth == 0) {
     // if we are at the top level, remove all CV qualifers before
     // binding; ignore the qualifiers on the type variable as they are
     // irrelevant
@@ -139,26 +168,9 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, MFlags mFlags)
     // if we are below the top level, subtract off the CV qualifiers
     // that match; if we get a negative qualifier set (arg lacks a
     // qualifer that the param has) we fail to match
-    CVFlags finalFlags = CV_NONE;
-
-    CVFlags bcv = b->getCVFlags();
-    // partition qualifiers again
-    CVFlags bcvNormal = bcv &  (CV_CONST | CV_NONE);
-    //      CVFlags bcvScott  = bcv & ~(CV_CONST | CV_NONE);
-    // Lets kill a mosquito with a hydraulic wedge
-    for(CVFlagsIter cvIter; !cvIter.isDone(); cvIter.adv()) {
-      CVFlags curFlag = cvIter.data();
-      int aflagInt = (acvNormal & curFlag) ? 1 : 0;
-      int bflagInt = (bcvNormal & curFlag) ? 1 : 0;
-      int flagDifference = aflagInt - bflagInt;
-      if (flagDifference < 0) {
-        return false;           // can't subtract a flag that isn't there
-      }
-      if (flagDifference > 0) {
-        finalFlags |= curFlag;
-      }
-      // otherwise, the flags match
-    }
+    CVFlags finalFlags;
+    bool aCvSuperBcv = subtractFlags(acv, b->getCVFlags(), finalFlags);
+    if (!aCvSuperBcv) return false;
 
     // if there's been a change, must (shallow) clone a and apply new
     // CV qualifiers
@@ -176,7 +188,7 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, MFlags mFlags)
 }
 
 
-bool MatchTypes::match_rightTypeVar(Type *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
 {
   xassert(b->isTypeVariable());
   switch(mode) {
@@ -187,16 +199,24 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, MFlags mFlags)
     STemplateArgument *targb = bindings.getTypeVar(b->asTypeVariable());
     if (targb) {
       return targb->kind==STemplateArgument::STA_TYPE
-        && match0(a, targb->value.t, mFlags & ~MT_TOP);
+        && match0(a, targb->value.t,
+                  matchDepth    // FIX: this used to be not top, but I don't remember why
+                  );
     } else {
-      return bindValToVar(a, b, mFlags);
+      return bindValToVar(a, b, matchDepth);
     }
     break;
   } // end case MM_BIND
 
-  case MM_WILD:
-    return true;
+  case MM_WILD: {
+    // match unless the cv qualifiers prevent us from not matching by
+    // b having something a doesn't have
+    CVFlags finalFlags;
+    return subtractFlags(a->asCVAtomicType()->cv,
+                         b->asCVAtomicType()->cv,
+                         finalFlags);
     break;
+  } // end case MM_WILD
 
   case MM_ISO: {
     STemplateArgument *targb = bindings.getTypeVar(b->asTypeVariable());
@@ -204,11 +224,21 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, MFlags mFlags)
       if (targb->kind!=STemplateArgument::STA_TYPE) return false;
       if (!a->isTypeVariable()) return false;
       xassert(targb->value.t->isTypeVariable());
-      // must be identical
-      return a->asTypeVariable()->typedefVar == targb->value.t->asTypeVariable()->typedefVar;
+      // since this is the MM_ISO case, they must be semantically
+      // identical
+      return
+        // must have the same qualifiers; FIX: I think even at the top level
+        ((a->asCVAtomicType()->cv & normalCvFlagMask) ==
+         (targb->value.t->asCVAtomicType()->cv & normalCvFlagMask))
+        &&
+        // must be the same typevar; NOTE: don't compare the types, as
+        // they can change when cv qualifiers are added etc. but the
+        // variables have to be the same
+        ((a->asTypeVariable()->typedefVar ==
+          targb->value.t->asTypeVariable()->typedefVar));
     } else {
       if (a->isTypeVariable()) {
-        return bindValToVar(a, b, mFlags);
+        return bindValToVar(a, b, matchDepth);
       } else {
         return false;
       }
@@ -219,15 +249,15 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, MFlags mFlags)
 }
 
 
-bool MatchTypes::match_cva(CVAtomicType *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
-  if (b->isReferenceToConst()) return match0(a, b->getAtType(), mFlags);
+  if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
   //   A non-ref, B ref to non-const: failure to unify
   else if (b->isReference()) return false;
 
   // NOTE: do NOT reverse the order of the following two tests
-  if (b->isTypeVariable()) return match_rightTypeVar(a, b, mFlags);
+  if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
   if (a->isTypeVariable()) {
     switch(mode) {
     default: xfailure("illegal MatchTypes mode"); break;
@@ -248,33 +278,38 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, MFlags mFlags)
   }
 
   if (b->isCVAtomicType()) {
+    // deal with top-level qualifiers; if we are not at MT_TOP, then
+    // they had better match exactly
+    if (matchDepth > 0) {
+      CVFlags const mask = normalCvFlagMask; // ignore other kinds of funky Scott-flags
+      if ( (a->asCVAtomicType()->cv & mask) != (b->asCVAtomicType()->cv & mask) ) return false;
+    }
+
+    // if they pass, then deal with the types themselves
     bool aIsCpdTemplate = a->isCompoundType()
       && a->asCompoundType()->typedefVar->isTemplate();
     bool bIsCpdTemplate = b->isCompoundType()
       && b->asCompoundType()->typedefVar->isTemplate();
     if (aIsCpdTemplate && bIsCpdTemplate) {
-      Variable *aTDvar = a->asCompoundType()->typedefVar;
-      Variable *bTDvar = b->asCompoundType()->typedefVar;
-      return
-        // don't write this code: two type variable's classes match
-        // iff their template info's match; you don't want to check
-        // for equality of the variables because two instances of the
-        // same template will both be class Foo but they will be
-        // different type variables
-//          aTDvar == bTDvar &&
-        match_TInfo(aTDvar->templateInfo(), bTDvar->templateInfo(), mFlags & ~MT_TOP);
+      TemplateInfo *aTI = a->asCompoundType()->typedefVar->templateInfo();
+      TemplateInfo *bTI = b->asCompoundType()->typedefVar->templateInfo();
+      // two type variable's classes match iff their template info's
+      // match; you don't want to check for equality of the variables
+      // because two instances of the same template will both be class
+      // Foo but they will be different type variables; therefore,
+      // don't write this code, even in conjunction with the below
+      // code
+      //   aTDvar == bTDvar /* bad and wrong */
+      return match_TInfo(aTI, bTI,
+                         // used to be not top but I don't remember why
+                         0 /*matchDepth*/);
     } else if (!aIsCpdTemplate && !bIsCpdTemplate) {
+      AtomicType *aAt = a->asCVAtomicType()->atomic;
+      AtomicType *bAt = b->asCVAtomicType()->atomic;
       // I don't want to call BaseType::equals() at all since I'm
       // essentially duplicating my version of that; however I do need
       // to be able to ask if to AtomicType-s are equal.
-      bool atomicMatches = a->asCVAtomicType()->atomic->equals(b->asCVAtomicType()->atomic);
-      if (mFlags & MT_TOP) {
-        return atomicMatches;
-      } else {
-        CVFlags const mask = CV_VOLATILE & CV_CONST; // ignore other kinds of flags
-        return ((a->asCVAtomicType()->cv & mask) == (b->asCVAtomicType()->cv & mask))
-          && atomicMatches;
-      }
+      return aAt->equals(bAt);
     }
     // if there is a mismatch, they definitely don't match
   }
@@ -282,26 +317,26 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, MFlags mFlags)
 }
 
 
-bool MatchTypes::match_ptr(PointerType *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_ptr(PointerType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
-  if (b->isReferenceToConst()) return match0(a, b->getAtType(), mFlags);
+  if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
   //   A non-ref, B ref to non-const: failure to unify
   else if (b->isReference()) return false;
 
-  if (b->isTypeVariable()) return match_rightTypeVar(a, b, mFlags);
+  if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
 
-  if (b->isPointer()) return match0(a->getAtType(), b->getAtType(), mFlags & ~MT_TOP);
+  if (b->isPointer()) return match0(a->getAtType(), b->getAtType(), 2 /*matchDepth*/);
   return false;
 }
 
 
-bool MatchTypes::match_ref(ReferenceType *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_ref(ReferenceType *a, Type *b, int matchDepth)
 {
   // NOTE: the line below occurs in all other five match_TYPE(TYPE *a,
-  // Type *b, MFflags, mFlags) methods EXCEPT IN THIS ONE.  THIS IS ON
+  // Type *b, MFflags, matchDepth) methods EXCEPT IN THIS ONE.  THIS IS ON
   // PURPOSE.
-//    if (b->isTypeVariable()) return match_rightTypeVar(a, b, mFlags);
+//    if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
 
   // The policy on references and unification is as follows.
   //   A non-ref, B ref to const: B's ref goes away
@@ -312,21 +347,24 @@ bool MatchTypes::match_ref(ReferenceType *a, Type *b, MFlags mFlags)
   //     do those here
   if (b->isReference()) b = b->getAtType();
   return match0(a->getAtType(), b,
-                // I don't know if this is right or not, but for now I
-                // consider that if you unreference that you are still
-                // considered to be a the top level
-                mFlags);
+                // starting at line 22890 in
+                // in/nsCLiveconnectFactory.i there is an example of
+                // two function template declarations that differ only
+                // in the fact that below the ref level one is a const
+                // and one is not; experiments with g++ confirm this
+                1 /*matchDepth*/
+                );
 }
 
 
-bool MatchTypes::match_func(FunctionType *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_func(FunctionType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
-  if (b->isReferenceToConst()) return match0(a, b->getAtType(), mFlags);
+  if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
   //   A non-ref, B ref to non-const: failure to unify
   else if (b->isReference()) return false;
 
-  if (b->isTypeVariable()) return match_rightTypeVar(a, b, mFlags);
+  if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
 
   if (b->isPointer()) {
     // cppstd 14.8.2.1 para 2: "If P is not a reference type: --
@@ -335,7 +373,7 @@ bool MatchTypes::match_func(FunctionType *a, Type *b, MFlags mFlags)
     // of A for type deduction"; rather than wrap the function type in
     // a pointer, I'll just unwrap the pointer-ness of 'b' and keep
     // going down.
-    return match0(a, b->getAtType(), mFlags & ~MT_TOP);
+    return match0(a, b->getAtType(), 2 /*matchDepth*/);
   }
 
   if (b->isFunctionType()) {
@@ -359,7 +397,7 @@ bool MatchTypes::match_func(FunctionType *a, Type *b, MFlags mFlags)
            // FIX: I don't know if this is right: are we at the top
            // level again when we recurse down into the parameters of
            // a function type that is itself an argument?
-           mFlags | MT_TOP )) {
+           0 /*matchDepth*/)) {
         return false; // conjunction
       }
     }
@@ -372,22 +410,22 @@ bool MatchTypes::match_func(FunctionType *a, Type *b, MFlags mFlags)
        // again when we recurse down into the rerturn value (just as
        // with the parameters) of a function type that is itself an
        // argument?
-       mFlags | MT_TOP);
+       0 /*matchDepth*/);
   }
   return false;
 }
 
 
-bool MatchTypes::match_array(ArrayType *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_array(ArrayType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
-  if (b->isReferenceToConst()) return match0(a, b->getAtType(), mFlags);
+  if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
   //   A non-ref, B ref to non-const: failure to unify
   else if (b->isReference()) return false;
 
-  if (b->isTypeVariable()) return match_rightTypeVar(a, b, mFlags);
+  if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
 
-  if (b->isPointer() && (mFlags & MT_TOP)) {
+  if (b->isPointer() && matchDepth < 2) {
     // cppstd 14.8.2.1 para 2: "If P is not a reference type: -- if A
     // is an array type, the pointer type produced by the
     // array-to-pointer standard conversion (4.2) is used in place of
@@ -395,27 +433,27 @@ bool MatchTypes::match_array(ArrayType *a, Type *b, MFlags mFlags)
     // top level; see cppstd 14.8.2.4 para 13.
     return match0(a->eltType,
                   b->asPointerType()->atType,
-                  mFlags & ~MT_TOP);
+                  2 /*matchDepth*/);
   }
 
   // FIX: if we are not at the top level then the array indicies
   // should be matched as well when we do Object STemplateArgument
   // matching
   if (b->isArrayType()) {
-    return match0(a->eltType, b->asArrayType()->eltType, mFlags & ~MT_TOP);
+    return match0(a->eltType, b->asArrayType()->eltType, 2 /*matchDepth*/);
   }
   return false;
 }
 
 
-bool MatchTypes::match_ptm(PointerToMemberType *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_ptm(PointerToMemberType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
-  if (b->isReferenceToConst()) return match0(a, b->getAtType(), mFlags);
+  if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
   //   A non-ref, B ref to non-const: failure to unify
   else if (b->isReference()) return false;
 
-  if (b->isTypeVariable()) return match_rightTypeVar(a, b, mFlags);
+  if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
 
   if (b->isPointerToMemberType()) {
     // FIX: should there be some subtyping polymorphism here?
@@ -431,8 +469,8 @@ bool MatchTypes::match_ptm(PointerToMemberType *a, Type *b, MFlags mFlags)
     CVAtomicType *b_inClassNATcvAtomic =
       tfac.makeCVAtomicType(SL_UNKNOWN, b->asPointerToMemberType()->inClassNAT, CV_NONE);
     return
-      match0(a_inClassNATcvAtomic, b_inClassNATcvAtomic, mFlags & ~MT_TOP)
-      && match0(a->atType, b->getAtType(), mFlags & ~MT_TOP);
+      match0(a_inClassNATcvAtomic, b_inClassNATcvAtomic, 0 /*matchDepth*/)
+      && match0(a->atType, b->getAtType(), 2 /*matchDepth*/);
   }
   return false;
 }
@@ -445,9 +483,10 @@ bool MatchTypes::match_ptm(PointerToMemberType *a, Type *b, MFlags mFlags)
 bool MatchTypes::match_Lists2
   (ObjList<STemplateArgument> &listA,
    ObjList<STemplateArgument> &listB,
-   MFlags mFlags)
+   int matchDepth)
 {
-  xassert(!(mFlags & MT_TOP));
+  // FIX: why assert this?
+//    xassert(!(mFlags & MT_TOP));
 
   ObjListIterNC<STemplateArgument> iterA(listA);
   ObjListIterNC<STemplateArgument> iterB(listB);
@@ -455,7 +494,7 @@ bool MatchTypes::match_Lists2
   while (!iterA.isDone() && !iterB.isDone()) {
     STemplateArgument *sA = iterA.data();
     STemplateArgument *sB = iterB.data();
-    if (!match_STA(sA, sB, mFlags)) {
+    if (!match_STA(sA, sB, matchDepth)) {
       return false;
     }
 
@@ -467,9 +506,11 @@ bool MatchTypes::match_Lists2
 }
 
 
-bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, MFlags mFlags)
+bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth)
 {
-  xassert(!(mFlags & MT_TOP));
+  // FIX: why assert this?
+//    xassert(!(mFlags & MT_TOP));
+
   // are we from the same primary even?
   TemplateInfo *ati = a->getMyPrimaryIdem();
   xassert(ati);
@@ -480,7 +521,7 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, MFlags mFlags)
 //    if (!ati || (ati != bti)) return false;
   if (ati != bti) return false;
   // do we match?
-  return match_Lists2(a->arguments, b->arguments, mFlags);
+  return match_Lists2(a->arguments, b->arguments, matchDepth);
 }
 
 
@@ -507,20 +548,15 @@ bool MatchTypes::unifyIntToVar(int i0, Variable *v1)
 }
 
 
-bool MatchTypes::match_STA(STemplateArgument *a, STemplateArgument const *b, MFlags mFlags)
+bool MatchTypes::match_STA(STemplateArgument *a, STemplateArgument const *b, int matchDepth)
 {
-  xassert(!(mFlags & MT_TOP));
+  // FIX: why assert this?
+//    xassert(!(mFlags & MT_TOP));
 
   switch (a->kind) {
   case STemplateArgument::STA_TYPE: // type argument
     if (STemplateArgument::STA_TYPE != b->kind) return false;
-    return match_Type(a->value.t, b->value.t,
-                      // FIX: I have no idea why this cast is
-                      // necessary here but not for other flag enums
-                      //
-                      // sm: b/c you need to add ENUM_BITWISE_OPS at
-                      // decl..  which I have now done
-                      /*(MFlags)*/ (mFlags | MT_TOP) );
+    return match_Type(a->value.t, b->value.t, 0 /*matchDepth*/);
     break;
 
   case STemplateArgument::STA_INT: // int or enum argument
@@ -572,7 +608,7 @@ bool MatchTypes::match_STA(STemplateArgument *a, STemplateArgument const *b, MFl
 }
 
 
-bool MatchTypes::match0(Type *a, Type *b, MFlags mFlags)
+bool MatchTypes::match0(Type *a, Type *b, int matchDepth)
 {
   // prevent infinite loops; see note at the top of matchtype.h
   ++recursionDepth;
@@ -591,12 +627,12 @@ bool MatchTypes::match0(Type *a, Type *b, MFlags mFlags)
   // roll our own dynamic dispatch
   switch (a->getTag()) {
     default: xfailure("bad tag");
-    case Type::T_ATOMIC:          return match_cva(a->asCVAtomicType(),        b, mFlags);
-    case Type::T_POINTER:         return match_ptr(a->asPointerType(),         b, mFlags);
-    case Type::T_REFERENCE:       return match_ref(a->asReferenceType(),       b, mFlags);
-    case Type::T_FUNCTION:        return match_func(a->asFunctionType(),       b, mFlags);
-    case Type::T_ARRAY:           return match_array(a->asArrayType(),         b, mFlags);
-    case Type::T_POINTERTOMEMBER: return match_ptm(a->asPointerToMemberType(), b, mFlags);
+    case Type::T_ATOMIC:          return match_cva(a->asCVAtomicType(),        b, matchDepth);
+    case Type::T_POINTER:         return match_ptr(a->asPointerType(),         b, matchDepth);
+    case Type::T_REFERENCE:       return match_ref(a->asReferenceType(),       b, matchDepth);
+    case Type::T_FUNCTION:        return match_func(a->asFunctionType(),       b, matchDepth);
+    case Type::T_ARRAY:           return match_array(a->asArrayType(),         b, matchDepth);
+    case Type::T_POINTERTOMEMBER: return match_ptm(a->asPointerToMemberType(), b, matchDepth);
   }
 
   --recursionDepth;
@@ -618,18 +654,19 @@ MatchTypes::~MatchTypes()
 {}
 
 
-bool MatchTypes::match_Type(Type *a, Type *b, MFlags mFlags)
+bool MatchTypes::match_Type(Type *a, Type *b, int matchDepth)
 {
-  return match0(a, b, mFlags);
+  return match0(a, b, matchDepth);
 }
 
 
 bool MatchTypes::match_Lists
   (SObjList<STemplateArgument> &listA,
    ObjList<STemplateArgument> &listB, // NOTE: Assymetry in the list serf/ownerness
-   MFlags mFlags)
+   int matchDepth)
 {
-  xassert(!(mFlags & MT_TOP));
+  // FIX: why assert this?
+//    xassert(!(mFlags & MT_TOP));
 
   SObjListIterNC<STemplateArgument> iterA(listA);
   ObjListIterNC<STemplateArgument> iterB(listB);
@@ -637,7 +674,7 @@ bool MatchTypes::match_Lists
   while (!iterA.isDone() && !iterB.isDone()) {
     STemplateArgument *sA = iterA.data();
     STemplateArgument *sB = iterB.data();
-    if (!match_STA(sA, sB, mFlags)) {
+    if (!match_STA(sA, sB, matchDepth)) {
       return false;
     }
 

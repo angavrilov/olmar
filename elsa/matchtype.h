@@ -82,15 +82,26 @@ void bindingsGdb(PtrMap<Variable, STemplateArgument> &bindings);
 // particularly the set of bindings
 class MatchTypes {
 public:                         // types
-  // these flags effect the matching at the node granularity: they are
-  // not stored in the MatchTypes object but are passed down with each
-  // method call; this enum is intended as a collection of orthogonal flags
-  enum MFlags {
-    MT_NONE      = 0x00000000,
-    // this is the top-level call for the traversal of a given type
-    MT_TOP       = 0x00000001,
-    MT_ALL_FLAGS = 0x00000001
-  };
+//    // these flags effect the matching at the node granularity: they are
+//    // not stored in the MatchTypes object but are passed down with each
+//    // method call; this enum is intended as a collection of orthogonal flags
+//    enum MFlags {
+//      MT_NONE      = 0x00000000,
+//      // this is the top-level call for the traversal of a given type
+//      MT_TOP       = 0x00000001,
+//      MT_ALL_FLAGS = 0x00000001
+//    };
+
+  // NOTE: now we use a match depth; It works like this.
+  // depth            | pointers match arrays | const and volatile matter
+  // -----------------+-----------------------+--------------------------
+  // 0, top level     | yes                   | no
+  // 1, below top ref | yes                   | yes
+  // 2, below top     | no                    | yes
+
+  // Scott has other funky flags that we have to ignore, so this mask
+  // is handy
+  static CVFlags const normalCvFlagMask;
 
   // this mode effects the behavior of the entire matching process;
   // there are two matching modes that govern how variables (not only,
@@ -141,51 +152,55 @@ private:                        // funcs
   // disallowed
   MatchTypes(MatchTypes&);
 
-  bool bindValToVar(Type *a, Type *b, MFlags mFlags);
-  bool match_rightTypeVar(Type *a, Type *b, MFlags mFlags);
+  // compute the set subtraction acv minus bcv as a set of flags;
+  // return true if the answer is positive, that is acv is a superset
+  // of bcv; false otherwise
+  bool subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags);
+  bool bindValToVar(Type *a, Type *b, int matchDepth);
+  bool match_rightTypeVar(Type *a, Type *b, int matchDepth);
 
-  bool match_cva   (CVAtomicType *a,        Type *b, MFlags mFlags);
-  bool match_ptr   (PointerType *a,         Type *b, MFlags mFlags);
-  bool match_ref   (ReferenceType *a,       Type *b, MFlags mFlags);
-  bool match_func  (FunctionType *a,        Type *b, MFlags mFlags);
-  bool match_array (ArrayType *a,           Type *b, MFlags mFlags);
-  bool match_ptm   (PointerToMemberType *a, Type *b, MFlags mFlags);
+  bool match_cva   (CVAtomicType *a,        Type *b, int matchDepth);
+  bool match_ptr   (PointerType *a,         Type *b, int matchDepth);
+  bool match_ref   (ReferenceType *a,       Type *b, int matchDepth);
+  bool match_func  (FunctionType *a,        Type *b, int matchDepth);
+  bool match_array (ArrayType *a,           Type *b, int matchDepth);
+  bool match_ptm   (PointerToMemberType *a, Type *b, int matchDepth);
 
   // check 1) if 'a' is a specialization/instantiation of the same
   // primary as 'b', and 2) the instantiation arguments of 'a' matches
   // that of 'b' pairwise
-  bool match_TInfo(TemplateInfo *a, TemplateInfo *b, MFlags mFlags);
+  bool match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth);
 
   bool unifyIntToVar(int i0, Variable *v1);
 
   // internal method for checking if Type 'a' matches Type 'b'.
-  bool match0(Type *a, Type *b, MFlags mFlags);
+  bool match0(Type *a, Type *b, int matchDepth);
 
 public:
   MatchTypes(TypeFactory &tfac0, MatchMode mode0);
   ~MatchTypes();
 
   // top level entry for checking if Type 'a' matches Type 'b'.
-  bool match_Type(Type *a, Type *b, MFlags mFlags);
+  bool match_Type(Type *a, Type *b, int matchDepth = 0);
 
-  bool match_STA(STemplateArgument *a, STemplateArgument const *b, MFlags mFlags);
+  bool match_STA(STemplateArgument *a, STemplateArgument const *b, int matchDepth = 0);
 
   // does listA match listB pairwise?  NOTE: asymmetry in the list
   // serf/ownerness of the first and second arguments.
   bool match_Lists(SObjList<STemplateArgument> &listA,
                    ObjList<STemplateArgument> &listB,
-                   MFlags mFlags);
+                   int matchDepth = 0);
 
   // does listA match listB pairwise?  NOTE: the SYMMETRY in the list
   // serf/ownerness in contrast to the other function for operating on
   // lists of STemplateArgument-s below.
   bool match_Lists2(ObjList<STemplateArgument> &listA,
                     ObjList<STemplateArgument> &listB,
-                    MFlags mFlags);
+                    int matchDepth = 0);
 };
 
 
-ENUM_BITWISE_OPS(MatchTypes::MFlags, MatchTypes::MT_ALL_FLAGS);
+//  ENUM_BITWISE_OPS(MatchTypes::MFlags, MatchTypes::MT_ALL_FLAGS);
 
 
 #endif // MATCHTYPE_H
