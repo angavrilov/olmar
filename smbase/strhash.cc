@@ -31,6 +31,9 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   return val;
   #endif // 0
 
+
+  #ifdef NELSON_HASH
+  #warning NELSON_HASH
   // this one is supposed to be better
   /* An excellent string hashing function.
      Adapted from glib's g_str_hash().
@@ -43,6 +46,48 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
     h = ( h << 5 ) - h + *key;       // h*31 + *key
   }
   return h;
+
+
+  #elif WILKERSON_GOLDSMITH_HASH
+  #warning WILKERSON_GOLDSMITH_HASH
+  // dsw: A slighly faster and likely more random implementation
+  // invented in collaboration with Simon Goldsmith.  Note that this
+  // one assumes that strings are allocated on word boundaries
+  // otherwise you could segfault while going off the end.
+  //
+  // Thanks to Matt Harren for this.  Supposedly gcc will sometimes
+  // recognize this and generate a single rotate instruction 'ROR'.
+  // http://groups.google.com/groups?q=rorl+x86&start=10&hl=en&lr=&ie=UTF-8&oe=UTF-8&
+  // selm=359954C9.3B354F0%40cartsys.com&rnum=11
+  #define ROTATE(n, b) (n >> b) | (n << (32 - b))
+
+  // source of primes: http://www.utm.edu/research/primes/lists/2small/0bit.html
+  static unsigned const primeA = (1U<<30) - 173U; // prime
+  static unsigned const primeB = (1U<<29) -  43U; // prime
+  unsigned h = primeA;
+  for (; key[0] && key[1] && key[2] && key[3]; key += 4) {
+    h += *( (int*) key );
+    h = ROTATE(h, 5);
+  }
+
+  if (*key == '\0') goto endHashing;
+  h += *key; h = ROTATE(h, 5); key += 1;
+  if (*key == '\0') goto endHashing;
+  h += *key; h = ROTATE(h, 5); key += 1;
+  if (*key == '\0') goto endHashing;
+  h += *key; h = ROTATE(h, 5); key += 1;
+//    xassert(*key == '\0');
+
+endHashing:
+  h *= primeB;
+  return h;
+
+  #undef ROTATE
+
+
+  #else
+    #error You must pick a hash function
+  #endif // hash function multi-switch
 }
 
 
