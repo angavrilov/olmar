@@ -5862,6 +5862,8 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
     }
   }
 
+  // TODO: do something with the default argument!
+
   // annotate this AST node with the type
   this->type = fullType;
 
