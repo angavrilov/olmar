@@ -440,6 +440,8 @@ void HGen::emitCommonFuncs(char const *virt)
 {
   // declare the one function they all have
   out << "  " << virt << "void debugPrint(ostream &os, int indent) const;\n";
+  // dsw:
+  out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
   out << "\n";
 }
 
@@ -519,6 +521,7 @@ public:
   void emitTFClass(TF_class const &cls);
   void emitDestructor(ASTClass const &cls);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
+  void emitXmlPrintCtorArgs(ASTList<CtorArg> const &args);
   void emitCustomCode(ASTList<Annotation> const &list, char const *tag);
 
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
@@ -598,6 +601,36 @@ void CGen::emitTFClass(TF_class const &cls)
   out << "}\n";
   out << "\n";
 
+  // dsw: xmlPrint
+  {
+    out << "void " << cls.super->name << "::xmlPrint(ostream &os, int indent) const\n";
+    out << "{\n";
+    if (!cls.hasChildren()) {
+      // dsw: Haven't figured out what this subsection means yet.
+//        // childless superclasses get the preempt in the superclass;
+//        // otherwise it goes into the child classes
+//        emitCustomCode(cls.super->decls, "preemptDebugPrint");
+
+//        // childless superclasses print headers; otherwise the subclass
+//        // prints the header
+      out << "  XMLPRINT_HEADER(" << cls.super->name << ");\n";
+      out << "\n";
+    }
+
+    // dsw: This must be in case the client .ast code overrides it.
+    // 10/31/01: decided I wanted custom debug print first, since it's
+    // often much shorter (and more important) than the subtrees
+//      emitCustomCode(cls.super->decls, "xmlPrint");
+    emitXmlPrintCtorArgs(cls.super->args);
+
+    if (!cls.hasChildren()) {
+      out << "  XMLPRINT_FOOTER(" << cls.super->name << ");\n";
+    }
+    out << "}\n";
+    out << "\n";
+  }
+
+
   // clone for childless superclasses
   if (!cls.hasChildren()) {
     emitCloneCode(cls.super, NULL /*sub*/);
@@ -637,6 +670,35 @@ void CGen::emitTFClass(TF_class const &cls)
 
     out << "}\n";
     out << "\n";
+
+    {
+      // subclass xmlPrint
+      out << "void " << ctor.name << "::xmlPrint(ostream &os, int indent) const\n";
+      out << "{\n";
+
+      // the xml print preempter is declared in the outer "class",
+      // but inserted into the print methods of the inner "constructors"
+      emitCustomCode(cls.super->decls, "preemptXmlPrint");
+
+      out << "  XMLPRINT_HEADER(" << ctor.name << ");\n";
+      out << "\n";
+
+      // call the superclass's fn to get its data members
+      out << "  " << cls.super->name << "::xmlPrint(os, indent);\n";
+      out << "\n";
+
+      // dsw: I assume this is not vital in the generic case, so I
+      // leave it out for now.
+//        emitCustomCode(ctor.decls, "xmlPrint");
+      emitXmlPrintCtorArgs(ctor.args);
+
+      // dsw: probably don't need the name; take it out later if not
+      out << "  XMLPRINT_FOOTER(" << ctor.name << ");\n";
+      out << "\n";
+
+      out << "}\n";
+      out << "\n";
+    }
 
     // clone for subclasses
     emitCloneCode(cls.super, &ctor);
@@ -725,6 +787,44 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
     else {
       // catch-all ..
       out << "  PRINT_GENERIC(" << arg.name << ");\n";
+    }
+  }
+}
+
+
+void CGen::emitXmlPrintCtorArgs(ASTList<CtorArg> const &args)
+{
+  FOREACH_ASTLIST(CtorArg, args, argiter) {
+    CtorArg const &arg = *(argiter.data());
+    if (arg.type.equals("string")) {
+      out << "  XMLPRINT_STRING(" << arg.name << ");\n";
+    }
+    else if (isListType(arg.type)) {
+      // for now, I'll continue to assume that any class that appears
+      // in ASTList<> is compatible with the printing regime here
+      out << "  XMLPRINT_LIST("
+          << extractListType(arg.type) << ", "
+          << arg.name << ");\n";
+    }
+    else if (isFakeListType(arg.type)) {
+      // similar printing approach for FakeLists
+      out << "  XMLPRINT_FAKE_LIST("
+          << extractListType(arg.type) << ", "
+          << arg.name << ");\n";
+    }
+    else if (isTreeNode(arg.type) ||
+             (isTreeNodePtr(arg.type) && arg.owner)) {
+      // dsw: This shared/circular property is going to be a fun one to check.
+      // don't print subtrees that are possibly shared or circular
+      out << "  XMLPRINT_SUBTREE(" << arg.name << ");\n";
+    }
+    else if (arg.type.equals("bool")) {
+      out << "  XMLPRINT_BOOL(" << arg.name << ");\n";
+    }
+    else {
+      // dsw: Not sure that this will fly with xml.
+      // catch-all ..
+      out << "  XMLPRINT_GENERIC(" << arg.name << ");\n";
     }
   }
 }

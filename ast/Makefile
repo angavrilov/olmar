@@ -83,6 +83,9 @@ ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
 example.cc: astgen example.ast
 	./astgen example.ast
 
+exampletest: exampletest.cc example.o asthelp.o locstr.o fileloc.o strtable.o ../smbase/libsmbase.a
+	g++ -o $@ -I ../smbase $^
+
 # If you want to regenerate astgen's own ast file, you do
 #   ./astgen -bname ast.ast
 #

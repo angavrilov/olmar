@@ -49,3 +49,42 @@ void debugPrintList(ASTList<LocString> const &list, char const *name,
 {
   debugPrintStringList(list, name, os, indent);
 }
+
+
+// ----------- xmlPrint helpers -----------------------
+void xmlPrintStr(string const &s, char const *name,
+                 ostream &os, int indent)
+{
+  ind(os, indent) << "<member type=string name = \"" << name << "\">\n";
+  // dsw: quoted might add another layer of quotes.
+  ind(os, indent+2) << "<value type=string val=\"" << quoted(s) << "\" />\n";
+  ind(os, indent) << "</member>\n";
+}
+
+
+template <class STR>
+void xmlPrintStringList(ASTList<STR> const &list, char const *name,
+                        ostream &os, int indent)
+{
+  ind(os, indent) << "<member type=stringList name = \"" << name << "\">\n";
+  {
+    FOREACH_ASTLIST(STR, list, iter) {
+      // dsw: quoted might add another layer of quotes.
+      ind(os, indent+2) << "<object type=string val=\"" << quoted(*( iter.data() )) << "\" />\n";
+    }
+  }
+  ind(os, indent) << "</member>\n";
+}
+
+
+void xmlPrintList(ASTList<string> const &list, char const *name,
+                  ostream &os, int indent)
+{
+  xmlPrintStringList(list, name, os, indent);
+}
+
+void xmlPrintList(ASTList<LocString> const &list, char const *name,
+                  ostream &os, int indent)
+{
+  xmlPrintStringList(list, name, os, indent);
+}
