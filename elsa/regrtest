@@ -333,7 +333,7 @@ testparse t0108b.cc
 testparse t0109.cc
 testparse t0110.cc
 testparse_strict t0111.cc
-testparse t0112.cc
+testparse_strict t0112.cc
 testparse t0113.cc
 testparse t0114.cc
 testparse t0115.cc
@@ -496,7 +496,7 @@ testparse t0266.cc
 testparse t0268a.cc
 testparse t0268.cc
 testparse t0269.cc
-testparse t0270.cc
+testparse_strict t0270.cc
 testparse t0271.cc
 testparse t0272.cc
 testparse t0273.cc

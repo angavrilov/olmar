@@ -752,11 +752,20 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // denotes the base class [para 2], first look up the name
   // in the environment generally
   Variable *baseVar = env.lookupPQ_one(name, LF_NONE);
-  if (!baseVar ||
-      !baseVar->hasFlag(DF_TYPEDEF) ||
-      !baseVar->type->isCompoundType()) {
-    env.error(stringc
-              << "`" << *name << "' does not denote any class");
+  if (baseVar &&
+      baseVar->isType() &&
+      baseVar->type->isCompoundType()) {
+    // as expected
+  }
+  else if (baseVar &&
+           baseVar->isType() &&
+           baseVar->type->isGeneralizedDependent()) {
+    // let it go
+    return;
+  }
+  else {
+    // complain
+    env.error(stringc << "`" << *name << "' does not denote any class");
     return;
   }
   CompoundType *baseClass = baseVar->type->asCompoundType();
@@ -1824,9 +1833,11 @@ void TS_classSpec::tcheckIntoCompound(
       // cppstd 10, para 1: must be a class type
       CompoundType *base = baseVar->type->ifCompoundType();
       if (!base) {
-        env.error(stringc
-          << "`" << *(iter->name) << "' is not a class or "
-          << "struct or union, so it cannot be used as a base class");
+        if (!baseVar->type->isGeneralizedDependent()) {
+          env.error(stringc
+            << "`" << *(iter->name) << "' is not a class or "
+            << "struct or union, so it cannot be used as a base class");
+        }
         continue;
       }
 
