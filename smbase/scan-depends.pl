@@ -112,6 +112,7 @@ EOF
 
 
 # read command-line arguments, looking for options as documented above
+$origArgs = join(' ', @ARGV);
 sub processArguments {
   while (@ARGV >= 1 &&
          ($ARGV[0] =~ m/^-/)) {
@@ -244,6 +245,12 @@ sub addNode {
       # the module actually stands for a subgraph of hidden dependencies
       print("    label = \"$filename\\n(subsystem)\"\n",
             "    shape = box\n",
+            "    style = dashed\n");
+    }
+
+    elsif (defined($excluded{$filename})) {
+      # indicate some incoming edges were not explored
+      print("    label = \"$filename\\n(ubiquitous)\"\n",
             "    style = dashed\n");
     }
 
@@ -424,7 +431,8 @@ processArguments();
 
 # graph preamble
 print(<<"EOF");
-// dependency graph automatically produced by $0
+// dependency graph automatically produced by
+//   $0 $origArgs
 
 digraph "Dependencies" {
 EOF

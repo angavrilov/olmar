@@ -1,5 +1,5 @@
 // okhashtbl.h            see license.txt for copyright and terms of use
-// version of ohashtbl.h with type-safe keys ("k" for keys)
+// version of ohasharr.h with type-safe keys ("k" for keys)
 
 #ifndef OKHASHTBL_H
 #define OKHASHTBL_H

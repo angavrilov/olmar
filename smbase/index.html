@@ -1,0 +1,342 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<HTML>
+
+<HEAD>
+  <TITLE>smbase</TITLE>
+  <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+</HEAD>
+
+<body>
+
+<center><h2>
+smbase: A Utility Library
+</h2></center>
+
+<p>
+"smbase" stands for Scott McPeak's Base Library.  It's a bunch of
+utility modules I use in virtually all of my projects.  The entire
+library is in the public domain.
+
+<p>
+Some of the links below refer to generated documentation files.  If
+you are reading this from your local filesystem, you may have to
+say <tt>"make gendoc"</tt> (after <tt>"./configure"</tt>) to get them.
+
+<p>
+Build instructions:
+<pre>
+  $ ./configure
+  $ make
+  $ make check
+</pre>
+<a href="configure"><tt>./configure</tt></a> understands
+<a href="gendoc/configure.txt">these options</a>.  You can also
+look at the <a href="Makefile.in">Makefile</a>.
+
+<p>
+Module List:
+<ul>
+
+<li><a href="array.h">array.h</a>:
+GrowArray, a growable array; plus ArrayStack.
+
+<li><a href="arraymap.h">arraymap.h</a>:
+ArrayMap, a map from integers to object pointers.
+
+<li><a href="astlist.h">astlist.h</a>:
+ASTList, a list class for use in abstract syntax trees.
+
+<li><a href="autofile.h">autofile.h</a>,
+    <a href="autofile.cc">autofile.cc</a>:
+AutoFILE, a simple wrapper around FILE* to open it or throw
+an exception, and automatically close it.
+
+<li><a href="bflatten.h">bflatten.h</a>,
+    <a href="bflatten.cc">bflatten.cc</a>:
+Implementation of the Flatten interface (<a href="flatten.h">flatten.h</a>) 
+for reading/writing binary files.
+
+<li><a href="bit2d.h">bit2d.h</a>,
+    <a href="bit2d.cc">bit2d.cc</a>:
+Two-dimensional array of bits.
+
+<li><a href="bitarray.h">bitarray.h</a>
+    <a href="bitarray.cc">bitarray.cc</a>:
+One-dimensional array of bits.
+
+<li><a href="breaker.h">breaker.h</a>
+    <a href="breaker.cpp">breaker.cpp</a>:
+Function for putting a breakpoint in, to get debugger control just
+before an exception is thrown.
+
+<li><a href="ckheap.h">ckheap.h</a>:
+Interface to check heap integrity.  The underlying malloc implementation
+must support these entry points for it to work.  I've extended Doug
+Lea's malloc (<a href="malloc.c">malloc.c</a>) to do so.
+
+<li><a href="crc.h">crc.h</a>
+    <a href="crc.cpp">crc.cpp</a>:
+32-bit cyclic redundancy check.
+
+<li><a href="cycles.h">cycles.h</a>
+    <a href="cycles.c">cycles.c</a>:
+Report total number of processor cycles since the machine was turned on.
+Uses the RDTSC instruction on x86.
+
+<li><a href="datablok.h">datablok.h</a>,
+    <a href="datablok.cpp">datablok.cpp</a>:
+DataBlock, an array of characters of a given length.  Useful when the
+data may contain NUL ('\0') bytes.
+
+<li><a href="exc.h">exc.h</a>,
+    <a href="exc.cpp">exc.cpp</a>:
+Various exception classes.  The intent is derive everything from xBase,
+so a program can catch this one exception type in main() and be assured
+no exception will propagate out of the program (or any other unit of
+granularity you want).
+
+<li><a href="flatten.h">flatten.h</a>,
+    <a href="flatten.cc">flatten.cc</a>:
+Generic interface for serializing in-memory data structures to files.
+Similar to Java's Serializable, but independently conceived, and has
+superior version control facilities.
+
+<li><a href="growbuf.h">growbuf.h</a>,
+    <a href="growbuf.cc">growbuf.cc</a>:
+Extension of DataBlock (<a href="datablok.h">datablok.h</a>) that
+provides an append() function.
+
+<li><a href="hashline.h">hashline.h</a>,
+    <a href="hashline.cc">hashline.cc</a>:
+HashLineMap, a mechanism for keeping track of #line directives in C
+source files.  Provides efficient queries with respect to a set of
+such directives.
+
+<li><a href="hashtbl.h">hashtbl.h</a>,
+    <a href="hashtbl.cc">hashtbl.cc</a>:
+HashTable, a hash table.
+
+<li><a href="macros.h">macros.h</a>:
+A bunch of useful macros.
+
+<li><a href="malloc.c">malloc.c</a>:
+Version 2.7.0 of 
+<a href="http://gee.cs.oswego.edu/dl/html/malloc.html">Doug Lea's malloc</a>.
+I've made some modifications to help with debugging of memory errors
+in client code.
+
+<li><a href="missing.h">missing.h</a>,
+    <a href="missing.cpp">missing.cpp</a>:
+Implementations of a few C library functions that are not present
+on all platforms.
+
+<li><a href="mypopen.h">mypopen.h</a>,
+    <a href="mypopen.c">mypopen.c</a>:
+Open a process, yielding two pipes: one for writing, one for reading.
+
+<li><a href="mysig.h">mysig.h</a>,
+    <a href="mysig.cc">mysig.cc</a>:
+Some signal-related utilities.
+
+<li><a href="nonport.h">nonport.h</a>,
+    <a href="nonport.cpp">nonport.cpp</a>:
+A library of utility functions whose implementation is system-specific.
+Generally, I try to encapsulate all system depenencies as functions
+defined in nonport.
+
+<li><a href="objlist.h">objlist.h</a>:
+ObjList, a general linked list of objects.  ObjList considers itself
+to "own" (be responsible for deallocating) the things on its list.
+See also <a href="sobjlist.h">sobjlist.h</a>.
+
+<li><a href="objpool.h">objpool.h</a>:
+ObjPool, a custom allocator for fixed-size objects with embedded
+'next' links.
+
+<li><a href="objstack.h">objstack.h</a>:
+ObjStack, a stack of owned objects.  Built with a linked list.
+
+<li><a href="ohashtbl.h">ohashtbl.h</a>
+OwnerHashTable, a hash table that owns the values.
+
+<li><a href="okhasharr.h">okhasharr.h</a>:
+OwnerKHashArray, a combination of an owner hash table and an array/stack.
+
+<li><a href="okhashtbl.h">okhashtbl.h</a>:
+OwnerKHashTable, a version of <a href="okhasharr.h">okhasharr.h</a>
+with type-safe keys ("k" for keys).
+
+<li><a href="point.h">point.h</a>,
+    <a href="point.cc">point.cc</a>:
+Point, a pair of integers.
+
+<li><a href="sobjlist.h">sobjlist.h</a>:
+SObjList, a general linked list of objects.  SObjList does <em>not</em>
+consider itself the owner of the list elements.  The "s" in the
+name stands for "serf", which I use to mean the opposite of "owner".
+See also <a href="objlist.h">objlist.h</a>.
+
+<li><a href="sobjset.h">sobjset.h</a>:
+SObjSet, a non-owning set of objects implemented with a hashtable.
+
+<li><a href="sobjstack.h">sobjstack.h</a>:
+SObjStack, a stack of non-owned objects.  Built with a linked list.
+
+<li><a href="srcloc.h">srcloc.h</a>
+    <a href="srcloc.cc">srcloc.cc</a>:                         
+This module maintains a one-word data type called SourceLoc.
+SourceLoc is a location within some file, e.g. line/col or character
+offset information.  SourceLoc also encodes <em>which</em> file it
+refers to.  This type is very useful for language processors (like
+compilers) because it efficiently encodes location formation.
+Decoding this into human-readable form is slower than incrementally
+updating it, but decoding is made somewhat efficient with some
+appropriate index structures.
+
+<li><a href="str.h">str.h</a>,
+    <a href="str.cpp">str.cpp</a>:
+A string class, predating the C++ standard's version.
+
+<li><a href="strdict.h">strdict.h</a>,
+    <a href="strdict.cc">strdict.cc</a>:
+StringDict, a case-sensitive map from strings to void* pointers.
+Built with a linked list.  Obsolete; use StringHash or StringVoidDict
+instead.
+
+<li><a href="strhash.h">strhash.h</a>
+    <a href="strhash.cc">strhash.cc</a>:
+StringHash, a case-sensitive map from strings to void* pointers.
+Built with a hash table.
+See also <a href="svdict.h">svdict.h</a>.
+
+<li><a href="stringset.h">stringset.h</a>,
+    <a href="stringset.cc">stringset.cc</a>:
+StringSet, a set of strings.
+
+<li><a href="strobjdict.h">strobjdict.h</a>:
+StringObjDict, a case-sensitive map from strings to object pointers.
+The dictionary owns the referred-to objects.
+
+<li><a href="strsobjdict.h">strsobjdict.h</a>:
+StringSObjDict, a case-sensitive map from strings to object pointers.
+The dictionary does <em>not</em> own the referred-to objects.
+
+<li><a href="strtokp.h">strtokp.h</a>,
+    <a href="strtokp.cpp">strtokp.cpp</a>:
+StrtokParse, a class that parses a string similar to how strtok()
+works, but provides a more convenient (and thread-safe) interface.
+Similar to Java's StringTokenizer.
+
+<li><a href="strutil.h">strutil.h</a>,
+    <a href="strutil.cc">strutil.cc</a>:
+A set of generic string utilities, including replace(), translate(),
+trimWhitespace(), encodeWithEscapes(), etc.
+
+<li><a href="svdict.h">svdict.h</a>,
+    <a href="svdict.cc">svdict.cc</a>:
+StringVoidDict, a case-sensitive map from strings to void* pointers.
+Built on top of StringHash (<a href="strhash.h">strhash.h</a>), it
+differs in that it supports a slightly more powerful interface,
+including query-then-modify-result.
+
+<li><a href="syserr.h">syserr.h</a>,
+    <a href="syserr.cpp">syserr.cpp</a>:
+Intended to be a portable encapsulation of system-dependent error
+facilities like UNIX's errno and Win32's GetLastError().  It's not
+very complete right now.
+
+<li><a href="test.h">test.h</a>:
+A few test-harness macros.
+
+<li><a href="trace.h">trace.h</a>,
+    <a href="trace.cc">trace.cc</a>:
+Module for recording and querying a set of debug tracing flags.  The
+idea is you can write
+<pre>
+  trace("myflag") &lt;&lt; "the value of foo is: " &lt;&lt; foo &lt;&lt; endl;
+</pre>
+Then usually nothing is printed, but if the user turns on the "myflag"
+tracing flag then the line prints to stdout.
+
+<li><a href="trdelete.h">trdelete.h</a>,
+    <a href="trdelete.cc">trdelete.cc</a>:
+An <tt>operator delete</tt> which overwrites the deallocated memory with
+0xAA before deallocating it.
+
+<li><a href="typ.h">typ.h</a>:
+Some type definitions like <tt>byte</tt> and <tt>bool</tt>, plus a few
+utility macros.  Not clearly distinguished from <a href="macros.h">macros.h</a>
+in purpose.
+
+<li><a href="unixutil.h">unixutil.h</a>,
+    <a href="unixutil.c">unixutil.c</a>:
+Some utilities on top of unix functions: writeAll(), readString().
+
+<li><a href="vdtllist.h">vdtllist.h</a>,
+    <a href="vdtllist.cc">vdtllist.cc</a>:
+VoidTailList, the core of a linked list implementation which maintains
+a pointer to the last node for O(1) appends.  
+Used by <a href="astlist.h">astlist.h</a>.
+
+<li><a href="voidlist.h">voidlist.h</a>,
+    <a href="voidlist.cc">voidlist.cc</a>:
+The core of the linked list implementation used by
+<a href="objlist.h">objlist.h</a> and <a href="sobjlist.h">sobjlist.h</a>.
+
+<li><a href="warn.h">warn.h</a>,
+    <a href="warn.cpp">warn.cpp</a>:
+Intended to provide a general interface for user-level warnings, the
+design never really worked well.
+
+<li><a href="xassert.h">xassert.h</a>:
+xassert is an assert()-like macro that throws an exception when it
+fails, instead of calling abort().
+
+<li><a href="xobjlist.h">xobjlist.h</a>:
+This file is processed by <a href="http://www.gnu.org/software/m4/">M4</a>
+to make <a href="objlist.h">objlist.h</a> and <a href="sobjlist.h">sobjlist.h</a>.
+
+</ul>
+
+<p>
+Test drivers.  Below are the modules that are purely test drivers
+for other modules.  They're separated out from the list above to
+avoid the clutter.
+
+<ul>
+<li><a href="testmalloc.cc">testmalloc.cc</a>:
+A program to test the interface exposed by <a href="ckheap.h">ckheap.h</a>.
+
+<li><a href="tmalloc.c">tmalloc.c</a>:
+Test my debugging enhancements to <a href="malloc.c">malloc.c</a>.
+
+<li><a href="tobjlist.cc">tobjlist.cc</a>:
+Test driver for <a href="objlist.h">objlist.h</a>.
+
+<li><a href="tobjpool.cc">tobjpool.cc</a>
+Test driver for <a href="objpool.h">objpool.h</a>.
+
+<li><a href="tsobjlist.cc">tsobjlist.cc</a>:
+Test driver for <a href="sobjlist.h">sobjlist.h</a>.
+
+</ul>
+
+
+<p>
+The <a href="scan-depends.pl">scan-depends.pl</a> script is capable
+of generating a
+<a href="gendoc/dependencies.dot">module dependency description</a> in the
+<a href="http://www.research.att.com/sw/tools/graphviz/">Dot</a>
+format.  Not all the modules appear; I try to show the most important
+modules, and try to avoid making Dot do weird things.
+Below is its output.
+
+<p>
+<img src="gendoc/dependencies.png" alt="Module Dependencies"><br>
+There's also a <a href="gendoc/dependencies.ps">Postscript version</a>.
+
+
+</body>
+
+</HTML>
