@@ -3,6 +3,9 @@
 
 int f(int x = 3);
 
+// parameter is unnamed
+int f2(int = 5);
+
 class Foo {
 public:
   // this doesn't work right now..

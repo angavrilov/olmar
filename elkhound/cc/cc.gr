@@ -1398,7 +1398,7 @@ nonterm[ASTTypeId*] ParameterDeclaration {
 
   -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
-  -> RegisterOpt s:TypeSpecifier d:AbstractDeclarator "=" e:AssignmentExpression
+  -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt "=" e:AssignmentExpression
        [ return new ASTTypeId(s, new Declarator(d, new IN_expr(e))); ]
 }
 
