@@ -1,0 +1,42 @@
+; sel_upd.sx    -*- Lisp -*-
+; experiments with new sel/upd axioms
+
+
+bg_push (                                     
+  (EQ (sel (sel mem0 a) 2) 9)      ; mem.a.2 == 9
+  (EQ p0 (sub a (sub 2 whole)))    ; p0 == .a.2
+)
+
+valid "a" (
+  (EQ (selOffset mem0 p0) 9)
+)
+
+notvalid "!a" (
+  (EQ (selOffset mem0 p0) 8)
+)
+       
+
+bg_push (
+  (EQ mem1 (updOffset mem0 p0 7))
+)
+
+valid "b" (
+  (EQ (selOffset mem1 p0) 7)
+)
+
+notvalid "!b" (
+  (EQ (selOffset mem1 p0) 9)
+)
+
+
+bg_push (
+  (EQ p1 (addOffset p0 4))
+)
+
+valid "c" (
+  (EQ p1 (sub a (sub 6 whole)))
+)
+
+notvalid "!c" (
+  (EQ p1 (sub a (sub 2 whole)))
+)

@@ -324,4 +324,84 @@
         field obj)
     ))
 
+    
+  ; ================== new, generalized sel/upd ===============
+  ; (sel obj index): select subobject 'index' from 'obj'; the index
+  ;                  could be an array index, or a field number
+  ; (upd obj index val): yield a modified 'obj' where (sel obj index)
+  ;                      equals 'val' in the yielded object
+
+  ; reading from the most recently-written field
+  (FORALL (obj index val)
+    (EQ
+      (sel (upd obj index val) index)          ; obj[index := val].index
+      val
+    ))
+
+  ; reading from a different field
+  (FORALL (obj index1 index2 val)
+    (IMPLIES
+      (NEQ index1 index2)
+      (EQ
+        (sel (upd obj index1 val) index2)      ; obj[index1 := val].index2
+        (sel obj index2)                       ; obj.index2
+      )
+    ))
+
+  ; =================== sel/upd with offsets ===================
+  ; An "index" is an atomic array index or field number; it can
+  ; be (or equal to) a literal integer.  An "offset" is a possibly
+  ; empty sequence of indexes.
+  
+  ; Offsets are built from this grammar:
+  ;   offset ::= sub(index, offset) | whole
+
+  ; reading from a nonempty offset:
+  ;   selOffset(M, .i rest) === selOffset(M.i, rest)
+  (FORALL (obj index rest)
+    (EQ
+      (selOffset obj (sub index rest))
+      (selOffset (sel obj index) rest)
+    ))
+
+  ; reading from an empty offset
+  ;   selOffset(M, .) === M
+  (FORALL (obj)
+    (EQ
+      (selOffset obj whole)
+      obj
+    ))
+
+  ; writing through a nonempty offset
+  ;   updOffset(M, .i rest, val) === M[i := updOffset(M.i, rest, val)]
+  (FORALL (obj index rest val)
+    (EQ
+      (updOffset obj (sub index rest) val)
+      (upd obj index (updOffset (sel obj index) rest val))
+    ))
+
+  ; writing through an empty offset
+  ;   updOffset(M, ., val) === val
+  (FORALL (obj val)
+    (EQ
+      (updOffset obj whole val)
+      val
+    ))
+
+  ; arithmetic with a nested offset
+  ;   addOffset(.i.k rest, j) === .i.addOffset(.k rest, j)
+  (FORALL (i j k rest)
+    (EQ
+      (addOffset (sub i (sub k rest)) j)
+      (sub i (addOffset (sub k rest) j))
+    ))
+
+  ; arithmetic with a base offset
+  ;   addOffset(.i whole, j) === .(i+j)
+  (FORALL (i j)
+    (EQ
+      (addOffset (sub i whole) j)
+      (sub (+ i j) whole)
+    ))
+
 ))

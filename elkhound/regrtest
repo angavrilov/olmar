@@ -224,6 +224,7 @@ fi
 
 # --------------- test Simplify directly ----------------
 runTest ./test-Simplify.pl simp-ex/indegree.sx
+runTest ./test-Simplify.pl simp-ex/sel_upd.sx
 
 
 # --------------- test the program verifier ---------------
