@@ -1,6 +1,8 @@
 // sobjlist.h
 // serf list of arbitrary objects
 
+// Author: Scott McPeak, 2000
+
 #ifndef __SOBJLIST_H
 #define __SOBJLIST_H
 
@@ -69,7 +71,8 @@ public:
   void mergeSort(Diff diff, void *extra=NULL)       { list.mergeSort((VoidDiff)diff, extra); }
 
   // multiple lists
-  void concat(SObjList &tail)           { list.concat((VoidList&)tail); }
+  void concat(SObjList &tail)                       { list.concat((VoidList&)tail); }
+  SObjList& operator= (SObjList const &src)         { list = src.list; return *this; }
 
   // debugging
   bool invariant() const                { return list.invariant(); }

@@ -1,6 +1,8 @@
 // voidlist.h
 // list of void*
 
+// Author: Scott McPeak, 2000
+
 #ifndef __VOIDLIST_H
 #define __VOIDLIST_H
 

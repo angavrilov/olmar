@@ -1,6 +1,8 @@
 // objlist.h
 // owner list of arbitrary dynamically-allocated objects
 
+// Author: Scott McPeak, 2000
+
 #ifndef __OBJLIST_H
 #define __OBJLIST_H
 
@@ -72,6 +74,7 @@ public:
 
   // multiple lists
   void concat(ObjList &tail)            { list.concat((VoidList&)tail); }
+  // (we do *not* have operator= here, since these are supposed to be owner lists)
 
   // debugging
   bool invariant() const                { return list.invariant(); }
