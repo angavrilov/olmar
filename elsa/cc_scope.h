@@ -125,6 +125,8 @@ public:      // funcs
   StringSObjDict<Variable> const &get_variablesC() const {return variables;}
   SObjList<Variable> const &get_data_variables_in_orderC() const {return data_variables_in_order;}
 
+  int *get_position_of_name(StringRef id) {return get_name_pos().queryif(id);}
+
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)
   bool addVariable(Variable *v, bool forceReplace=false);
