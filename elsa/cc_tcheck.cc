@@ -4923,6 +4923,14 @@ static Variable *outerResolveOverload_explicitSet(
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, ArgumentInfoArray &argInfo, bool really)
 {
+  // skip overload resolution if any dependent args (in/t0412.cc)
+  for (int i=0; i<argInfo.size(); i++) {
+    Type *t = argInfo[i].type;
+    if (t && t->containsGeneralizedDependent()) {
+      return NULL;
+    }
+  }
+
   Variable *ret = NULL;
   // dsw: FIX: should I be generating error messages if I get a weird
   // type here, or if I get a weird var below?
