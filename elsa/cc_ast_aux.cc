@@ -508,6 +508,16 @@ IDeclarator *IDeclarator::skipGroups()
 }
 
 
+IDeclarator const *D_name::getBaseC() const            { return NULL; }
+IDeclarator const *D_pointer::getBaseC() const         { return base; }
+IDeclarator const *D_reference::getBaseC() const       { return base; }
+IDeclarator const *D_func::getBaseC() const            { return base; }
+IDeclarator const *D_array::getBaseC() const           { return base; }
+IDeclarator const *D_bitfield::getBaseC() const        { return NULL; }
+IDeclarator const *D_ptrToMember::getBaseC() const     { return base; }
+IDeclarator const *D_grouping::getBaseC() const        { return base; }
+
+
 // ExceptionSpec
 // OperatorDeclarator
 

@@ -3555,47 +3555,36 @@ void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
 bool IDeclarator::hasInnerGrouping() const
 {
   bool ret = false;
-  
+
   IDeclarator const *p = this;
-  for(;;) {
+  while (p) {
     switch (p->kind()) {
-      default: xfailure("bad kind");
-
-      // base cases; return what we have
-      case D_NAME:
-      case D_BITFIELD:
-        return ret;
-
       // turn off the flag because innermost so far is now
       // a pointer type constructor
       case D_POINTER:
         ret = false;
-        p = p->asD_pointerC()->base;
         break;
       case D_REFERENCE:
         ret = false;
-        p = p->asD_referenceC()->base;
         break;
       case D_PTRTOMEMBER:
         ret = false;
-        p = p->asD_ptrToMemberC()->base;
-        break;
-
-      // propagate obliviously
-      case D_FUNC:
-        p = p->asD_funcC()->base;
-        break;
-      case D_ARRAY:
-        p = p->asD_arrayC()->base;
         break;
 
       // turn on the flag b/c innermost is now grouping
       case D_GROUPING:
         ret = true;
-        p = p->asD_groupingC()->base;
+        break;
+              
+      // silence warning..
+      default:
         break;
     }
+
+    p = p->getBaseC();
   }
+
+  return ret;
 }
 
 

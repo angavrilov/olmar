@@ -330,6 +330,12 @@ class IDeclarator(SourceLoc loc) {
   public PQName *getDeclaratorId()
     { return const_cast<PQName*>(getDeclaratorIdC()); };
 
+  // dig down one IDeclarator level, yielding the 'base' field,
+  // unless this is a leaf (in which case return NULL)
+  pure_virtual IDeclarator const *getBaseC() const;
+  public IDeclarator *getBase()
+    { return const_cast<IDeclarator*>(getBaseC()); };
+
   // skip any toplevel grouping operators
   public IDeclarator *skipGroups();
 
