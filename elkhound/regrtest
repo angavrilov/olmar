@@ -212,43 +212,6 @@ tcheck exprpath.c
 runTest c/cparse -tr printAnalysisPath tcheck/morepaths.c
 
 
-# ---------- test C++ parser using my grammar ------------
-for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 \
-         21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 \
-         38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 \
-         55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 \
-         72 73 74 75 76 77 78    80 81    83    85; do
-  runTest cc/ccparse cc.in/cc.in$n
-done
-
-for n in 100 101 102 105 106; do
-  runTest cc/ccparse cc.in/cc.in$n
-done
-
-for fn in cc.in/std/*.cc; do
-  runTest cc/ccparse "$fn"
-done
-
-make cc.in/big
-for fn in cc.in/big/*.i; do
-  runTest cc/ccparse "$fn"
-done
-
-for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  runTest cc/ccparse c.in/c.in$n
-done
-
-
-# --------- test C++ pretty-printer ---------
-# test files in cc.in
-runTest make -C cc idem/cc.in
-
-# test files in cure_cpp; this doesn't work now, because
-# the directory structure isn't the same.. move small examples
-# into cc.in if they contain new syntax
-#runTest make -C cc idem/check2
-
-
 # --------- test C++ parser using standard grammar ------------
 # no '4' because that uses thmprv_attr ...
 for n in 1 2 3   5 6 7 8 9 10 11 12; do
@@ -270,14 +233,11 @@ runTest c/bcparse c.in/c.in4d
 runTest c/cparse -tr trivialActions,stopAfterParse,yieldVariableName \
   c.in/c.in4d
 
-# and similar for C++
-runTest cc/ccparse -tr trivialActions,identityReclassify,stopAfterParse c.in/c.in4c
-
 
 # final arithmetic to report result
 echo ""
 echo "Successful tests:      $success"
-echo "Failed as expected:    $failure"    
+echo "Failed as expected:    $failure"
 if [ $contin = 1 ]; then
   echo "Unexpected success:    $unexSuccess"
   echo "Unexpected failure:    $unexFailure"

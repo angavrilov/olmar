@@ -952,7 +952,7 @@ GrammarAST *parseGrammarFile(char const *fname)
 
   traceProgress() << "parsing grammar source: " << fname << endl;
   int retval = grampar_yyparse(&params);
-  if (retval == 0) {
+  if (retval==0 && lexer->errors==0) {
     GrammarAST *ret = params.treeTop;
 
     if (tracingSys("printGrammarAST")) {

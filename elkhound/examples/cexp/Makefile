@@ -13,7 +13,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 
 # -------- compiler and linker configuration --------
 # preprocessing flags
-CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/cc -I$(AST) -I$(SMBASE)
+CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/c -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
 CCFLAGS := -g -Wall
@@ -42,11 +42,11 @@ all: cexp3ast.ast.gen.h cexp3 cexp3b
 
 # extra object files
 extras := \
-  $(ELKHOUND)/cc/parssppt.o \
-  $(ELKHOUND)/cc/lexer2.o \
-  $(ELKHOUND)/cc/lexer1.o \
-  $(ELKHOUND)/cc/lexer1yy.o \
-  $(ELKHOUND)/cc/cc_lang.o
+  $(ELKHOUND)/c/parssppt.o \
+  $(ELKHOUND)/c/lexer2.o \
+  $(ELKHOUND)/c/lexer1.o \
+  $(ELKHOUND)/c/lexer1yy.o \
+  $(ELKHOUND)/c/cc_lang.o
 
 # cexp3b: disambiguation using 'merge'
 cexp3b.gr: cexp3.gr

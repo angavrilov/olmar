@@ -46,7 +46,7 @@ impl_verbatim [
 
 terminals {
   // grab the lexer's token list
-  include("../../cc/cc.tok")
+  include("../../c/c.tok")
 
   // annotate some with semantic types
   token[int] L2_INT_LITERAL {

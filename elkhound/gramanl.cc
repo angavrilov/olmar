@@ -4689,13 +4689,7 @@ int entry(int argc, char **argv)
 
   // parse the AST into a Grammar
   GrammarAnalysis g;
-  try {
-    parseGrammarAST(g, ast);
-  }
-  catch (XASTParse &x) {
-    cout << x << endl;    // parse error, typically
-    return 4;
-  }
+  parseGrammarAST(g, ast);
   ast.del();              // done with it
 
   if (tracingSys("treebuild")) {

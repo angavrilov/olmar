@@ -10,7 +10,6 @@
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "ckheap.h"       // malloc_stats
 #include "srcloc.h"       // SourceLocManager
-#include "ccgrmain.h"     // makeUserActions
 #include "cc_lang.h"      // CCLang
 #include "parsetables.h"  // ParseTables
 
@@ -19,6 +18,7 @@ Lexer2Token const *yylval = NULL;
 
 // what a mess..
 ParseTables *makeParseTables();
+UserActions *makeUserActions(StringTable &table, CCLang &lang);
 
 void doit(int argc, char **argv)
 {

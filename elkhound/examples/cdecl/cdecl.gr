@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 
 terminals {
   // grab the lexer's token list
-  include("../../cc/cc.tok")
+  include("../../c/c.tok")
 
   token[StringRef] L2_NAME {
     dup(s) [ return s; ]

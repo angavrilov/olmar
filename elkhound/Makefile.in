@@ -4,8 +4,8 @@
 # I uncomment this temporarily to just build certain modules
 #tmp: cc/cc_type.o cc/cc_env.o cc/cc_tcheck.o
 
-# main targets: two C++ parsers and two C parsers
-all: elkhound libelkhound.a cc/ccparse cc2/cc2.exe c
+# main targets: two C parsers and one C++ parser
+all: elkhound libelkhound.a c cc2/cc2.exe
 	@echo BUILD FINISHED
 
 # TODO: put these back, ideally in the same executable as the non-t versions
@@ -38,9 +38,9 @@ TRGRAMANL := ,lrtable
 CXX := g++
 
 # flags for the C and C++ compilers (and preprocessor)
-# TODO: remove -Icc once Elsa is split out
+# "-Ic" is needed for binaries which use $(support-set)
 # "-I." is needed for gcc-2 when compiling things in cc2/
-CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -Icc -I.
+CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -Ic -I.
 
 # flags for the linker
 libraries := $(LIBAST) $(LIBSMBASE)
@@ -84,64 +84,14 @@ glr-set := \
   useract.o
 -include $(glr-set:.o=.d)
 
-# some (mostly) language-independent parsing support files which
-# are shared by several of the test parsers (e.g. cexp3)
+# additional modules borrowed from the C parser for the trivial grammars,
+# and the C++ parser based on the Standard grammar
 support-set := \
-  cc/cc_lang.o \
-  cc/lexer1.o \
-  cc/lexer1yy.o \
-  cc/lexer2.o \
-  cc/parssppt.o
--include $(support-set:.o=.d)
-
-# files for parsing C code with the c.gr or cc2.gr grammars;
-# since this set is used with both grammars, I don't include either
-# grammar in the set itself
-c-set := \
-  $(support-set) \
-  cc/c.ast.gen.o \
-  cc/c_env.o \
-  cc/cc_flags.o \
-  cc/c_type.o \
-  cc/cparse.o \
-  cc/exprequal.o \
-  cc/exprvisit.o \
-  cc/paths.o \
-  cc/postorder.o \
-  cc/stubs.o \
-  cc/tcheck.o \
-  cc/treeout.o \
-  cc/c_variable.o
--include $(c-set:.o=.d)
-
-# files for parsing C++ code with the cc.gr or cc2.gr grammars
-cc-set := \
-  $(support-set) \
-  cc/cc.ast.gen.o \
-  cc/cc_env.o \
-  cc/cc_scope.o \
-  cc/cc_flags.o \
-  cc/cc_type.o \
-  cc/cc_tcheck.o \
-  cc/cc_print.o \
-  cc/cc_ast_aux.o \
-  cc/treeout.o \
-  cc/variable.o \
-  cc/ccparse.o
--include $(cc-set:.o=.d)
-
-# a few random .o files which don't appear anyplace above, but I need
-# to make sure their dependency info (if it exists) gets included
-random-obj := \
-  parsstub.o \
-  glrmain.o \
-  cc/ccgrmain.o \
-  cc/c.gr.gen.o \
-  cc/cc.gr.gen.o \
-  cc/ccparset.o \
-  cc/main.o
--include $(random-obj:.o=.d)
-
+  c/cc_lang.o \
+  c/parssppt.o \
+  c/lexer1.o \
+  c/lexer1yy.o \
+  c/lexer2.o
 
 # ---------------------- generic rules ----------------------
 # intermediate files for an ast spec
@@ -155,7 +105,7 @@ random-obj := \
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
 # ('chmod a-w' is so I don't accidentally edit it)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
-%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc.tok elkhound
+%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr elkhound
 	rm -f $*.gr.gen.*
 	./elkhound -v -tr bison,NOconflict$(TRGRAMANL) -o $*.gr.gen $*.gr
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
@@ -197,10 +147,9 @@ random-obj := \
 	chmod a-w $@
 
 # make a parser for testing some grammar, using trivial lexer
-trivparse-deps := trivmain.cc ptreenode.o trivlex.o $(support-set) \
-                  libelkhound.a
+trivparse-deps := trivmain.cc ptreenode.o trivlex.o libelkhound.a
 %.gr.exe: %.gr.gen.o $(trivparse-deps) $(libraries)
-	$(CXX) -o $@ -DGRAMMAR_NAME=\"$*.bin\" $(CCFLAGS) $*.gr.gen.o $(trivparse-deps) $(LDFLAGS)
+	$(CXX) -o $@ -DGRAMMAR_NAME=\"$*.bin\" $(CCFLAGS) $*.gr.gen.o $(support-set) $(trivparse-deps) $(LDFLAGS)
 
 # similar, for Bison as the parser-generator
 trivbison-deps := trivbison.o trivlex.o lexer2.o ptreenode.o libelkhound.a
@@ -231,50 +180,8 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 	grep '# *define' grampar.tab.h >grampar.codes.h
 
 
-# ----------------- intermediate files for Elsa ---------------------
-# flex implementation of lexer stage 1
-cc/lexer1yy.cc: cc/lexer1.lex cc/lexer1.h
-	cd cc; flex lexer1.lex
-
-# token list for my grammar
-cc/cc.tok: cc/lexer2
-	cc/lexer2 -myparser >$@
-
-# copy it to the parsgen/ directory for now so I can change
-# the "include" line in cc.gr to not say "cc/"
-cc.tok: cc/cc.tok
-	cp -f $^ $@
-	chmod a-w $@
-
-# specific instructions for cc.ast, so I can add extension modules
-CC_AST_MODS := cc/cc_tcheck.ast cc/cc_print.ast
-cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast $(CC_AST_MODS) $(AST)/astgen
-	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
-	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast $(CC_AST_MODS)
-	chmod a-w cc/cc.ast.gen.cc cc/cc.ast.gen.h
-
-# don't delete these because error messages often point into them
-.PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
-
-# C++ grammar, but building entire parse tree instead
-# TODO: this won't work because I moved the #inclusion of cc.gr.gen.h
-cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc.tok elkhound
-	rm -f cc/cct.gr*
-	sed 's/cc\.gr\.gen\.h/cct.gr.gen.h/' <cc/cc.gr >cc/cct.gr
-	./elkhound -v -tr treebuild$(TRGRAMANL) -o cc/cct.gr.gen cc/cct.gr
-	chmod a-w cc/cct.gr*
-
-# bison parser from the same grammar; the 'sed' is because Bison
-# already interpretes 0 as EOF, and if my rule names it explicitly
-# then it gets mad
-cc/bccgr.y: cc/c.gr.gen.y
-	echo '%{' >$@
-	echo '#include "bccgr.h"' >>$@
-	echo '%}' >>$@
-	sed 's/File L2_EOF/File/' <cc/c.gr.gen.y >>$@
-
 # new C++ grammar with treebuilding actions
-cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok elkhound
+cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr c/c.tok elkhound
 	rm -f cc2/cc2t*
 	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
 	./elkhound -v -tr treebuild$(TRGRAMANL) -o cc2/cc2t.gr.gen cc2/cc2t.gr
@@ -291,17 +198,12 @@ cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok elkhou
 # compilation succeeds.
 
 extradep.mk:
-	./find-extra-deps *.d cc/*.d cc2/*.d >$@
+	./find-extra-deps *.d cc2/*.d >$@
 
 include extradep.mk
 
 
 # --------------------- test programs ----------------------
-# first pass lexer
-lexer1-dep := cc/lexer1.cc cc/lexer1yy.o
-cc/lexer1: $(lexer1-dep) $(libraries)
-	$(CXX) -o $@ -DTEST_LEXER1 $(CCFLAGS) $(lexer1-dep) $(LDFLAGS)
-
 # grammar lexer test program
 gramlex-dep := gramlex.yy.cc $(AST)/gramlex.cc
 gramlex: ../ast/gramlex.h $(gramlex-dep) $(libraries)
@@ -321,51 +223,21 @@ libelkhound.a: $(glr-set)
 
 
 # --------------------- executables ---------------------
-# second pass lexer; not considered a test program because this
-# is what generates cc.tok
-lexer2-dep := cc/lexer2.cc cc/lexer1.o cc/lexer1yy.o cc/cc_lang.o
-cc/lexer2: $(lexer2-dep) cc/lexer2.h $(libraries)
-	$(CXX) -o $@ -DTEST_LEXER2 $(CCFLAGS) $(lexer2-dep) $(LDFLAGS)
-
 # reads the grammar and emits C++ code for semantic functions;
 # this is the main parser generator binary
 elkhound-dep := gramanl.cc gramexpl.o $(grammar-set) $(grampar-set) parsetables.o
 elkhound: $(elkhound-dep) grammar.h gramanl.h $(libraries)
 	$(CXX) -o $@ -DGRAMANL_MAIN $(CCFLAGS) $(elkhound-dep) $(LDFLAGS)
 
-# stand-alone executable for parsing C
-cparse-dep := cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a
-cc/cparse: $(cparse-dep) $(libraries)
-	$(CXX) -o $@ $(cparse-dep) $(LDFLAGS)
-	./$@ -tr yieldVariableName c.in/c.in1
-
-# stand-alone executable for parsing C++
-ccparse-dep := cc/main.o cc/cc.gr.gen.o $(cc-set) libelkhound.a
-cc/ccparse: $(ccparse-dep) $(libraries)
-	$(CXX) -o $@ $(ccparse-dep) $(LDFLAGS)
-	./$@ c.in/c.in1
-
-# treebuilding C++ parser
-ccparset-dep := cc/ccparset.o cc/cct.gr.gen.o $(cc-set) ptreenode.o libelkhound.a 
-cc/ccparset: $(ccparset-dep) $(SMBASE)/libsmbase.a
-	$(CXX) -o $@ $(ccparset-dep) $(LDFLAGS)
-
-# C-without-typedefs parser, using Bison
-bccgr-deps := cc/bccgr.cc cc/bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
-              cc/cc_lang.o cyctimer.o
-cc/bccgr: $(bccgr-deps) $(libraries)
-	$(CXX) -o $@ $(CCFLAGS) $(bccgr-deps) $(LDFLAGS)
-	cc/bccgr c.in/c.in1
-
-# new C++ parser
-cc2-deps := cc2/cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libelkhound.a
+# C++ parser based on Standard grammar
+cc2-deps := cc2/cc2main.o cc2/cc2.gr.gen.o ptreenode.o libelkhound.a
 cc2/cc2.exe: $(cc2-deps) $(libraries)
-	$(CXX) -o $@ $(cc2-deps) $(LDFLAGS)
+	$(CXX) -o $@ $(support-set) $(cc2-deps) $(LDFLAGS)
 
 # new C++ parser with treebuilding
-cc2t-deps := cc2/cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libelkhound.a
+cc2t-deps := cc2/cc2main.o cc2/cc2t.gr.gen.o ptreenode.o libelkhound.a
 cc2/cc2t.exe: $(cc2t-deps) $(libraries)
-	$(CXX) -o $@ $(cc2t-deps) $(LDFLAGS)
+	$(CXX) -o $@ $(support-set) $(cc2t-deps) $(LDFLAGS)
 
 
 # ---------------------- Elkhound examples ------------------
@@ -379,15 +251,6 @@ examples: all
 	cd examples/arith; make
 	cd examples/cexp; make
 	cd examples/cdecl; make
-
-# rule to decompress one of the big examples
-cc.in/big/%.i: cc.in/big/gz/%.i.gz
-	gunzip -c <$^ >$@
-
-# decompress all of them which haven't already been decompressed
-.PHONY: cc.in/big
-cc.in/big: $(patsubst cc.in/big/gz/%.i.gz,cc.in/big/%.i,$(wildcard cc.in/big/gz/*.gz))
-	@echo made cc.in/big
 
 
 # ----------------------------- EFa -----------------------
@@ -606,14 +469,11 @@ CLEAN_PATTERNS := \
 
 clean:
 	rm -f $(CLEAN_PATTERNS)
-	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
-	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset
-	rm -f cc/libccgr.a libelkhound.a
-	rm -f cc/bccgr
-	rm -f cc/bccgr.y cc/cc.tok cc.tok grampar.codes.h
+	rm -f elkhound glr gramlex.yy.cc gramlex cyctimer
+	rm -f grampar.tab.* grampar
+	rm -f libelkhound.a
+	rm -f grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
-	cd cc; rm -f $(CLEAN_PATTERNS)
 	cd cc2; rm -f $(CLEAN_PATTERNS)
 	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr
 	for dir in arith cdecl cexp; do \
@@ -623,7 +483,6 @@ clean:
 
 distclean: clean
 	rm -f Makefile config.status config.summary glrconfig.h *.tmp
-	rm -f cc.in/big/*.i
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 	$(MAKE) -C c distclean
 
