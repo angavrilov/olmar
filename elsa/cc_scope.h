@@ -112,7 +112,7 @@ public:      // funcs
   // some syntactic sugar on the scope kind
   bool isGlobalScope() const        { return scopeKind == SK_GLOBAL; }
   bool isParameterScope() const     { return scopeKind == SK_PARAMETER; }
-  bool isFunctionScope() const      { return scopeKind == SK_TEMPLATE; }
+  bool isFunctionScope() const      { return scopeKind == SK_FUNCTION; }
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
   bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
 

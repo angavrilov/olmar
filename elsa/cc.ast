@@ -82,12 +82,12 @@ class Function (
 );
 
 class MemberInit (
-  PQName name,                   // name of member or base class
-  FakeList<ICExpression> *args   // arguments to its constructor
+  PQName name,                    // name of member or base class
+  FakeList<ArgExpression> *args   // arguments to its constructor
 ) {
   // standard way to make it possible to include something
   // in a FakeList; this line is repeated below in several places
-  public MemberInit *next;  ctor next=NULL;     // FakeList link
+  public MemberInit *next=NULL;   // FakeList link
 }
 
 
@@ -223,7 +223,7 @@ class BaseClassSpec (
   AccessKeyword access,                 // public/protected/private
   PQName name                           // name of base class
 ) {
-  public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
+  public BaseClassSpec *next=NULL;     // FakeList link
 }
 
 // a binding of a name to a constant value
@@ -232,7 +232,7 @@ class Enumerator (
   StringRef name,                       // name of this constant
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
-  public Enumerator *next;  ctor next=NULL;     // FakeList link
+  public Enumerator *next=NULL;     // FakeList link
 }
 
 
@@ -377,17 +377,17 @@ class Statement (SourceLoc loc) {
   -> S_label(StringRef name, Statement s);
   -> S_case(Expression expr, Statement s);
   -> S_default(Statement s);
-  -> S_expr(Expression expr);       // expression evaluated for side effect
+  -> S_expr(FullExpression expr);   // expression evaluated for side effect
   -> S_compound(ASTList<Statement> stmts);        // using ASTList for performance, I never yield it in cc.gr
   -> S_if(Condition cond, Statement thenBranch, Statement elseBranch);
   -> S_switch(Condition cond, Statement branches);
   -> S_while(Condition cond, Statement body);
-  -> S_doWhile(Statement body, Expression expr);  // note: 'expr' is not a Condition
+  -> S_doWhile(Statement body, FullExpression expr); // note: 'expr' is not a Condition
   -> S_for(Statement init, Condition cond,
-           Expression after, Statement body);
+           FullExpression after, Statement body);
   -> S_break();
   -> S_continue();
-  -> S_return(Expression /*nullable*/ expr);
+  -> S_return(FullExpression /*nullable*/ expr);
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
   -> S_try(Statement body, FakeList<Handler> *handlers);
@@ -398,7 +398,7 @@ class Statement (SourceLoc loc) {
 // to declare a variable that will hold the condition's value for
 // the duration of the substatement(s)
 class Condition {
-  -> CN_expr(Expression expr);      // simple expression
+  -> CN_expr(FullExpression expr);  // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
 }
 
@@ -425,7 +425,7 @@ class Handler (
 // ----------------- expressions -----------------
 // C expressions
 class Expression {
-  // NOTE: we never make lists of Expressions, only of ICExpressions
+  // NOTE: we never make lists of Expressions, only of ArgExpressions
 
   // same as we do for statements
   public Expression *ambiguity;  ctor ambiguity=NULL;
@@ -461,11 +461,11 @@ class Expression {
   // 5/19/03: 'loc' field removed because 'name' has a location
   -> E_variable(PQName name);
 
-  -> E_funCall(Expression func, FakeList<ICExpression> *args);
+  -> E_funCall(Expression func, FakeList<ArgExpression> *args);
 
   // call to constructor as an expression; the expression's overall
   // type says which type is being constructed
-  -> E_constructor(TypeSpecifier spec, FakeList<ICExpression> *args);
+  -> E_constructor(TypeSpecifier spec, FakeList<ArgExpression> *args);
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
@@ -486,16 +486,16 @@ class Expression {
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
-  -> E_assign(Expression target, BinaryOp op, ICExpression src);
+  -> E_assign(Expression target, BinaryOp op, Expression src);
 
-  -> E_new(bool colonColon,                      // true if "::" preceeds "new"
-           FakeList<ICExpression> *placementArgs,// arguments to placement-new (empty/NULL if no placement syntax)
-           ASTTypeId atype,                      // type to allocate
-           ICExpressionListOpt ctorArgs);        // arguments to type's constructor (NULL if no ctor call syntax)
+  -> E_new(bool colonColon,                        // true if "::" preceeds "new"
+           FakeList<ArgExpression> *placementArgs, // arguments to placement-new (empty/NULL if no placement syntax)
+           ASTTypeId atype,                        // type to allocate
+           ArgExpressionListOpt ctorArgs);         // arguments to type's constructor (NULL if no ctor call syntax)
 
-  -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
-              bool array,                        // true if "[]" follows "delete"
-              Expression expr);                  // address of obj to deallocate
+  -> E_delete(bool colonColon,                     // true if "::" preceeds "delete"
+              bool array,                          // true if "[]" follows "delete"
+              Expression expr);                    // address of obj to deallocate
 
   -> E_throw(Expression /*nullable*/ expr);
 
@@ -518,23 +518,39 @@ class Expression {
 }
 
 
-// implicit conversion, then Expression; the type checker will fill
-// in which implicit conversion (if any) takes place (cc_tcheck.ast
-// adds the 'ic' field); it's basically a level of indirection at
-// key places where implicit conversions are possible
-class ICExpression(Expression expr) {
+// maximal expressions: the parent is not an expression
+// (cppstd 1.9 para 12)
+class FullExpression (Expression expr) {
+  // We do not make lists of FullExpressions.
+  
+  // nothing is needed here beyond the 'expr'; cc_elaborate.cc adds
+  // a FullExpressionAnnot object, however
+}
+
+
+// In the original version of cc.ast, Expressions had both a FakeList
+// link and an ambiguity link.  All expressions in a given ambiguity
+// list were supposed to have the same FakeList link, and this was
+// a bit of a pain.  Then we added ICExpression (implicit conversion
+// expression), which separated the ambiguity representation and the
+// list representation, which simplified things.  Then we removed
+// ICExpression, because we handled implicit conversions differently,
+// re-introducing the ambiguity/FakeList complications.  I'm now
+// going to add that separation layer back in, just for the purpose
+// of separation, to get back the simplicity we had before.
+class ArgExpression(Expression expr) {   // expression in an argument list
   // FakeList link
-  public ICExpression *next;  ctor next=NULL;
-  public void setNext(ICExpression *newNext);
+  public ArgExpression *next=NULL;
+  public void setNext(ArgExpression *newNext);
 }
 
 
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
-// a NULL pointer to an ICExpressionListOpt, while the former is a valid
-// ICExpressionListOpt with a NULL 'list' field)
-class ICExpressionListOpt (
-  FakeList<ICExpression> *list
+// a NULL pointer to an ArgExpressionListOpt, while the former is a valid
+// ArgExpressionListOpt with a NULL 'list' field)
+class ArgExpressionListOpt (
+  FakeList<ArgExpression> *list
 );
 
 
@@ -543,7 +559,7 @@ class Initializer (SourceLoc loc) {
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
-  -> IN_expr(ICExpression e);
+  -> IN_expr(Expression e);
 
   // compound initializer, like "int x[4] = { 1,2,3,4 };
   // using ASTList for performance; some files have initializers
@@ -551,7 +567,7 @@ class Initializer (SourceLoc loc) {
   -> IN_compound(ASTList<Initializer> inits);
 
   // constructor initializer, like "int x(3);"
-  -> IN_ctor(FakeList<ICExpression> *args);
+  -> IN_ctor(FakeList<ArgExpression> *args);
 }
 
 

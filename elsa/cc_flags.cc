@@ -85,8 +85,9 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<inline_defn>",
   "<implicit>",
   "<forward>",
+  "<temporary>",    // 24
 
-  "<predicate>",    // 24
+  "<predicate>",    // 25
 };
 
 

@@ -87,9 +87,7 @@ class MemberInit {
 
 
 class Declaration {                                   
-  // adds declared variables to env; 'isMember' means that this
-  // declaration appears just inside a class body
-  public void tcheck(Env &env, bool isMember = false);
+  public void tcheck(Env &env);
 }
 
 
@@ -101,15 +99,13 @@ class ASTTypeId {
     // the number of elements for new[] to allocate
     Expression **newSizeExpr;
 
-    // when true, this ASTTypeId denotes a parameter; this knowledge
-    // is used for disambiguation
-    bool isParameter;
-
-    // additional declflags to attach to the resulting Variable
+    // additional declflags to attach to the resulting Variable;
+    // when this includes DF_PARAMETER, it's a function parameter,
+    // which knowledge can be applied towards disambiguation
     DeclFlags dflags;
 
   public:
-    Tcheck() : newSizeExpr(NULL), isParameter(false), dflags(DF_NONE) {}
+    Tcheck() : newSizeExpr(NULL), dflags(DF_NONE) {}
   };
 
   // the return value is the ASTTypeId* to store in place of the
@@ -239,26 +235,32 @@ class Declarator {
       CTX_E_NEW     = 0x1,     // inside an E_new (array)
       CTX_PARAM     = 0x2,     // in a parameter declarator
       CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
-      //CTX_MEMBER    = 0x8,     // toplevel member declarator
     } context;
 
   public:
     Tcheck(Type *t, DeclFlags d)
-      : var(NULL), type(t), dflags(d),
-        size_E_new(NULL), funcSyntax(NULL),
-        context(CTX_ORDINARY) {}
+      : var         (NULL)
+      , type        (t)
+      , dflags      (d)
+      , size_E_new  (NULL)
+      , funcSyntax  (NULL)
+      , context     (CTX_ORDINARY)
+    {}
     Tcheck(Tcheck const &obj)
-      : var(obj.var), type(obj.type), dflags(obj.dflags),
-        size_E_new(obj.size_E_new), funcSyntax(obj.funcSyntax),
-        context(obj.context) {}
-
+      : var         (obj.var)
+      , type        (obj.type)
+      , dflags      (obj.dflags)
+      , size_E_new  (obj.size_E_new)
+      , funcSyntax  (obj.funcSyntax)
+      , context     (obj.context)
+    {}
     Tcheck& operator= (Tcheck const &obj) {
-      var = obj.var;
-      type = obj.type;
-      dflags = obj.dflags;
-      size_E_new = obj.size_E_new;
-      context = obj.context;
-      funcSyntax = funcSyntax;
+      var         = obj.var;
+      type        = obj.type;
+      dflags      = obj.dflags;
+      size_E_new  = obj.size_E_new;
+      context     = obj.context;
+      funcSyntax  = obj.funcSyntax;
       return *this;
     }
 
@@ -278,6 +280,10 @@ class Declarator {
   // alternatives was selected
   public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
   public void mid_tcheck(Env &env, Tcheck &dt);
+  public void tcheck_init(Env &env);
+
+  // extend the environment with the scope indicated by my qualifiers
+  private Scope *openQualifierScope(Env &env);
 }
 
 
@@ -320,7 +326,7 @@ class Statement {
   // syntactically ambiguous choices
   public /*no_ignore*/ Statement *tcheck(Env &env);
 
-  public void mid_tcheck(Env &env, int &) { itcheck(env); };
+  public void mid_tcheck(Env &env, int &);
   pure_virtual void itcheck(Env &env);
 }
 
@@ -348,13 +354,16 @@ class Expression {
   // the new Expression into 'replacement' and the parent AST node
   // will be updated accordingly; the caller should always put the
   // receiver object pointer into 'replacement' initially
-  pure_virtual Type *itcheck(Env &env, Expression *&replacement);
+  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);     // the "_x" is for grepping value
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
   // same expression should stop and look for an ambiguous alt.
   public Type *type = NULL;
   custom clone { ret->type = type; }
+
+  // make the API for getting the type identical to that of FullExpression
+  public Type *getType() { return type; };
 
   // const-eval; will add an error message to the environment if this
   // expression is not a constant (and also return false); can only
@@ -395,7 +404,7 @@ class Expression {
      }
   -> E_constructor {
        public void inner1_itcheck(Env &env);
-       public Type *inner2_itcheck(Env &env);
+       public Type *inner2_itcheck(Env &env, Expression *&replacement);
 
        // the constructor function being called
        public Variable *ctorVar = NULL;
@@ -432,17 +441,35 @@ class Expression {
 }
 
 
-class ICExpression {
-  // implicit conversion; stored in compressed form
-  public CompressedImplicitConversion cic;
-
+class FullExpression {
   public void tcheck(Env &env);
 
-  // might be convenient
-  public Type *getType() { return expr->type; };
+  // duplicate the API of Expression and delegate all the calls down
+  // to the Expression *expr member
+  public Type *getType() const
+    { return expr->type; };
+  public bool constEval(Env &env, int &result) const
+    { return expr->constEval(env, result); };
+  public bool constEval(string &msg, int &result) const
+    { return expr->constEval(msg, result); };
+}
 
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
+
+class ArgExpression {
+  // repeat some of Expression's interface so I can avoid adding
+  // lots of annoying "expr->expr" clutter
+  public Type *getType() const
+    { return expr->type; };
+  public bool constEval(Env &env, int &result) const
+    { return expr->constEval(env, result); };
+  public bool constEval(string &msg, int &result) const
+    { return expr->constEval(msg, result); };
+  public bool hasUnparenthesizedGT() const
+    { return expr->hasUnparenthesizedGT(); };
+  public SpecialExpr getSpecial() const
+    { return expr->getSpecial(); };
+
+  public void tcheck(Env &env);
 }
 
 

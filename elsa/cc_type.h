@@ -383,7 +383,20 @@ public:     // funcs
 class BaseType {    // note: clients should refer to Type, not BaseType
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
-  
+
+  // This is a list of typedef'd aliases for this type.  It may be
+  // empty.  For compound types, there will be at least one, and it
+  // (the first one) will be the same as the corresponding
+  // NamedAtomicType::typedefVar (this is not so much an invariant to
+  // be relied upon as an explanation of the difference between them).
+  //
+  // The reason this was introduced is to make it easier to build an
+  // AST node referring to a given type (i.e. can just use TS_name
+  // instead of building the whole thing) during elaboration.  It also
+  // can be used to make error messages that use the programmer's
+  // names instead of their normal form.
+  SObjList<Variable> typedefAliases;
+
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
@@ -569,6 +582,9 @@ public:     // funcs
   // similar for TypeVariable
   bool containsTypeVariables() const;
 
+  // get the first typedef alias, if any
+  Variable *typedefName();
+
   ALLOC_STATS_DECLARE
 };
 
@@ -705,6 +721,16 @@ public:     // data
 
   // type of return value
   Type *retType;                     // (serf)
+
+  // The implied parameter for the reference to the return value for
+  // implementing return by value.  Should always be of reference type
+  // as we think of it as an lvalue to which the function is
+  // assigning.
+  //
+  // We don't need this for the base Elsa parser.  If an analysis
+  // would like to have a Variable here, it's free to add it in its
+  // derived version of FunctionType.
+  //Variable *retVal;
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is 'this'

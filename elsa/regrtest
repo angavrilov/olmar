@@ -181,40 +181,179 @@ grepBoth() {
 TR_FLAGS=doOverload,mustBeUnambiguous$TR_EXTRA
 #TR_FLAGS=doOverload,doOperatorOverload,mustBeUnambiguous$TR_EXTRA
 
-# the gaps below are for the tests that don't work
-#   0094: weird g++ iomanip.h "<>" syntax
-#   0126: work in progress
-#   0151,0152: known bugs
-for fn in                                                                 \
-  t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc \
-  t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc \
-  t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc   t0019.cc  t0020.cc \
-  t0021.cc   t0022.cc  t0023.cc  t0024.cc   t0025.cc   t0026.cc  t0027.cc \
-  t0028.cc   t0029.cc  t0030.cc  t0030a.cc  t0030b.cc  t0031.cc  t0032.cc \
-  t0033.cc   t0034.cc  t0035.cc  t0036.cc   t0037.cc   t0038.cc  t0039.cc \
-  t0040.cc   t0041.cc  t0042.cc  t0043.cc   t0044.cc   t0045.cc  t0046.cc \
-  t0047.cc   t0048.cc  t0049.cc  t0050.cc   t0051.cc   t0052.cc  t0053.cc \
-  t0054.cc   t0055.cc  t0056.cc  t0057.cc   t0058.cc   t0059.cc  t0060.cc \
-  t0061.cc   t0062.cc  t0063.cc  t0064.cc   t0065.cc   t0066.cc  t0067.cc \
-  t0068.cc   t0069.cc  t0070.cc  t0071.cc   t0072.cc   t0073.cc  t0074.cc \
-  t0075.cc   t0076.cc  t0077.cc  t0078.cc   t0079.cc   t0080.cc  t0081.cc \
-  t0082.cc   t0083.cc  t0084.cc  t0085.cc   t0086.cc   t0087.cc  t0088.cc \
-  t0089.cc   t0090.cc  t0091.cc  t0092.cc   t0093.cc             t0095.cc \
-  t0096.cc   t0097.cc  t0098.cc  t0099.cc   t0100.cc   t0101.cc  t0102.cc \
-  t0103.cc   t0104.cc  t0105.cc  t0106.cc   t0107.cc   t0108.cc  t0109.cc \
-  t0110.cc   t0111.cc  t0112.cc  t0113.cc   t0114.cc   t0115.cc  t0116.cc \
-  t0117.cc   t0118.cc  t0119.cc  t0120.cc   t0121.cc   t0122.cc  t0123.cc \
-  t0124.cc   t0125.cc            t0127.cc   t0128.cc   t0129.cc  t0130.cc \
-  t0131.cc   t0132.cc  t0133.cc  t0134.cc   t0135.cc   t0136.cc  t0137.cc \
-  t0138.cc   t0139.cc  t0140.cc  t0141.cc   t0142.cc   t0143.cc  t0144.cc \
-  t0145.cc   t0146.cc  t0147.cc  t0148.cc   t0149.cc   t0150.cc           \
-             t0153.cc  t0154.cc  t0155.cc                                 \
-    ; do
-  # $TR_EXTRA is here so I can put additional tracing flags into this
-  # command from the command line, to test them across all my test inputs;
-  # by default it expands to "", and hence has no effect
-  runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$fn
-done
+# NOTE: I've recently changed the 'trace' module to additionally be
+# sensitive to the "TRACE" environment variable, so that's another
+# (and more general) way to add flags globally.
+
+# by using shell functions we can make it easy to comment-out
+# or change to 'fail' status those tests that are not working at
+# some given time  
+testparse() {
+  runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
+}
+failparse() {
+  failTest "$2" perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
+}
+
+testparse t0001.cc
+testparse t0002.cc
+testparse t0003.cc
+testparse t0004.cc
+testparse t0005.cc
+testparse t0006.cc
+testparse t0007.cc
+testparse t0008.cc
+testparse t0009.cc
+testparse t0010.cc
+testparse t0011.cc
+testparse t0012.cc
+testparse t0013.cc
+testparse t0014.cc
+testparse t0014a.cc
+testparse t0015.cc
+testparse t0016.cc
+testparse t0017.cc
+testparse t0018.cc
+testparse t0019.cc
+testparse t0020.cc
+testparse t0021.cc
+testparse t0022.cc
+testparse t0023.cc
+testparse t0024.cc
+testparse t0025.cc
+testparse t0026.cc
+testparse t0027.cc
+testparse t0028.cc
+testparse t0029.cc
+testparse t0030.cc
+testparse t0030a.cc
+testparse t0030b.cc
+testparse t0031.cc
+testparse t0032.cc
+testparse t0033.cc
+testparse t0034.cc
+testparse t0035.cc
+testparse t0036.cc
+testparse t0037.cc
+testparse t0038.cc
+testparse t0039.cc
+testparse t0040.cc
+testparse t0041.cc
+testparse t0042.cc
+testparse t0043.cc
+testparse t0044.cc
+testparse t0045.cc
+testparse t0046.cc
+testparse t0047.cc
+testparse t0048.cc
+testparse t0049.cc
+testparse t0050.cc
+testparse t0051.cc
+testparse t0052.cc
+testparse t0053.cc
+testparse t0054.cc
+testparse t0055.cc
+testparse t0056.cc
+testparse t0057.cc
+testparse t0058.cc
+testparse t0059.cc
+testparse t0060.cc
+testparse t0061.cc
+testparse t0062.cc
+testparse t0063.cc
+testparse t0064.cc
+testparse t0065.cc
+testparse t0066.cc
+testparse t0067.cc
+testparse t0068.cc
+testparse t0069.cc
+testparse t0070.cc
+testparse t0071.cc
+testparse t0072.cc
+testparse t0073.cc
+testparse t0074.cc
+testparse t0075.cc
+testparse t0076.cc
+testparse t0077.cc
+testparse t0078.cc
+testparse t0079.cc
+testparse t0080.cc
+testparse t0081.cc
+testparse t0082.cc
+testparse t0083.cc
+testparse t0084.cc
+testparse t0085.cc
+testparse t0086.cc
+testparse t0087.cc
+testparse t0088.cc
+testparse t0089.cc
+testparse t0090.cc
+testparse t0091.cc
+testparse t0092.cc
+testparse t0093.cc
+failparse t0094.cc 'weird g++ iomanip.h <> syntax'
+testparse t0095.cc
+testparse t0096.cc
+testparse t0097.cc
+testparse t0098.cc
+testparse t0099.cc
+testparse t0100.cc
+testparse t0101.cc
+testparse t0102.cc
+testparse t0103.cc
+testparse t0104.cc
+testparse t0105.cc
+testparse t0106.cc
+testparse t0107.cc
+testparse t0108.cc
+testparse t0109.cc
+testparse t0110.cc
+testparse t0111.cc
+testparse t0112.cc
+testparse t0113.cc
+testparse t0114.cc
+testparse t0115.cc
+testparse t0116.cc
+testparse t0117.cc
+testparse t0118.cc
+testparse t0119.cc
+testparse t0120.cc
+testparse t0121.cc
+testparse t0122.cc
+testparse t0123.cc
+testparse t0124.cc
+testparse t0125.cc
+testparse t0126.cc  # work in progress, so it's ok if it starts failing
+testparse t0127.cc
+testparse t0128.cc
+testparse t0129.cc
+testparse t0130.cc
+testparse t0131.cc
+testparse t0132.cc
+testparse t0133.cc
+testparse t0134.cc
+testparse t0135.cc
+testparse t0136.cc
+testparse t0137.cc
+testparse t0138.cc
+testparse t0139.cc
+testparse t0140.cc
+testparse t0141.cc
+testparse t0142.cc
+testparse t0143.cc
+testparse t0144.cc
+testparse t0145.cc
+testparse t0146.cc
+testparse t0147.cc
+testparse t0148.cc
+testparse t0149.cc
+testparse t0150.cc
+failparse t0151.cc "known bug"
+failparse t0152.cc "known bug"
+testparse t0153.cc
+testparse t0154.cc
+testparse t0155.cc
+testparse t0156.cc
 
 # known bugs
 
@@ -231,15 +370,44 @@ failTest "need overload resolution with templates" \
 
 
 # another set of tests, generally isolated by Daniel
-for fn in                                      \
-  d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
-  d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
-  d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
-  d0016.cc d0017.cc                            \
-    ; do
-  runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
-done
-
+testparse d0001.cc
+testparse d0002.cc
+testparse d0003.cc
+testparse d0004.cc
+testparse d0005.cc
+testparse d0006.cc
+testparse d0007.cc
+testparse d0008.cc
+testparse d0009.cc
+testparse d0010.cc
+testparse d0011.cc
+testparse d0012.cc
+testparse d0013.cc
+testparse d0014.cc
+testparse d0015.cc
+testparse d0016.cc
+testparse d0017.cc
+testparse d0018.cc
+testparse d0019.cc
+testparse d0020.cc
+testparse d0021.cc
+testparse d0022.cc
+testparse d0023.cc
+testparse d0024.cc
+testparse d0025.cc
+testparse d0026.cc
+testparse d0027.cc
+testparse d0028.cc
+testparse d0029.cc
+# break
+testparse d0032.cc
+# break
+testparse d0034.cc
+testparse d0035.cc
+testparse d0036.cc
+testparse d0037.cc
+testparse d0038.cc
+testparse d0039.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
@@ -286,6 +454,7 @@ list=`echo " \
                        t0105.cc  t0106.cc
                                                                  t0123.cc \
   " | fmt -1 | sed 's|^[ 	]*|in/|'`
+
 runTest perl ./idemcheck -d outdir $list
 
 if $use_gnu; then
@@ -317,9 +486,24 @@ done
 # final parser checks against the big files, since they've now become
 # my performance measurement files
 $MAKE in/big
-for fn in in/big/*.i; do
-  runTest ./ccparse -tr $TR_FLAGS "$fn"
-done
+
+testnsparse() {
+  # don't try operator overload resolution, it doesn't work for them (?)
+  runTest ./ccparse -tr $TR_FLAGS "$1"
+}
+failnsparse() {
+  failTest "$2" ./ccparse -tr $TR_FLAGS "$1"
+}
+
+testnsparse in/big/nsAtomTable.i
+testnsparse in/big/nsSOAPPropertyBag.i
+testnsparse in/big/nsCLiveconnectFactory.i
+testnsparse in/big/nsHTMLEditRules.i
+testnsparse in/big/nsMsgServiceProvider.i
+testnsparse in/big/nsUnicodeToTeXCMRt1.i
+
+testnsparse in/big/nonport.i
+
 
 
 # final arithmetic to report result

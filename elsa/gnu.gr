@@ -158,9 +158,9 @@ nonterm(ASTTypeof*) TypeofTypeSpecifier {
 
 
 // gnu extension
-nonterm(Expression*) TypeofExpr {
+nonterm(FullExpression*) TypeofExpr {
   -> "__typeof__" "(" e:Expression ")"
-       { return e; }
+       { return new FullExpression(e); }
 }
 
 // gnu extension

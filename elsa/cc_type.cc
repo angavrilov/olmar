@@ -8,6 +8,11 @@
 #include "sobjset.h"    // SObjSet
 #include "hashtbl.h"    // lcprngTwoSteps
 
+// Do *not* add a dependency on cc.ast or cc_env.  cc_type is about
+// the intrinsic properties of types, independent of any particular
+// syntax for denoting them.  (toString() uses C's syntax, but that's
+// just for debugging.)
+
 #include <assert.h>     // assert
 
 
@@ -707,6 +712,7 @@ int TypeVariable::reprSize() const
 ALLOC_STATS_DEFINE(BaseType)
 
 BaseType::BaseType()
+  : typedefAliases()     // initially empty
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -1005,6 +1011,12 @@ bool BaseType::containsTypeVariables() const
 {
   return static_cast<Type const *>(this)->
     anyCtorSatisfies(typeHasTypeVariable);
+}
+
+
+Variable *BaseType::typedefName()
+{
+  return typedefAliases.isEmpty()? NULL : typedefAliases.first();
 }
 
 
@@ -1631,6 +1643,11 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
     return false;
   }
 
+  // At one point I tried making type arguments unequal if they had
+  // different typedefs, but that does not work, because I need A<int>
+  // to be the *same* type as A<my_int>, for example to do base class
+  // constructor calls.
+
   switch (kind) {
     case STA_TYPE:     return value.t->equals(obj->value.t);
     case STA_INT:      return value.i == obj->value.i;
@@ -1693,7 +1710,9 @@ bool ClassTemplateInfo::equalArguments
   SObjListIter<STemplateArgument> iter2(list);
   
   while (!iter1.isDone() && !iter2.isDone()) {
-    if (!iter1.data()->equals(iter2.data())) {
+    STemplateArgument const *sta1 = iter1.data();
+    STemplateArgument const *sta2 = iter2.data();
+    if (!sta1->equals(sta2)) {
       return false;
     }
     

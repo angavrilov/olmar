@@ -20,6 +20,7 @@
 #include "implconv.h"       // test_getImplicitConversion
 #include "overload.h"       // resolveOverload
 #include "generic_amb.h"    // resolveAmbiguity, etc.
+#include "ast_build.h"      // makeExprList1, etc.
 
 #include <stdlib.h>         // strtoul, strtod
 
@@ -33,8 +34,10 @@
 
 // forwards in this file
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, FakeList<ICExpression> *args, bool really);
-static bool reallyDoOverload(Env &env, FakeList<ICExpression> *args);
+  (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
+static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
+void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
 
 
 // return true if the list contains no disambiguating errors
@@ -289,9 +292,6 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 }
 
 
-// this is a prototype for a function down near E_funCall::itcheck
-void tcheckFakeExprList(FakeList<ICExpression> *list, Env &env);
-
 // cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
 {
@@ -303,6 +303,8 @@ void Function::tcheck_memberInits(Env &env)
   // ok, so far so good; now go through and check the member
   // inits themselves
   FAKELIST_FOREACH_NC(MemberInit, inits, iter) {
+    FullExpressionAnnot::StackBracket fea0(env, iter->annot);
+
     PQName *name = iter->name;
 
     // resolve template arguments in 'name'
@@ -329,14 +331,23 @@ void Function::tcheck_memberInits(Env &env)
         iter->member = v;
 
         // typecheck the arguments
-        tcheckFakeExprList(iter->args, env);
+        tcheckArgExprList(iter->args, env);
         
         // decide which of v's possible constructors is being used
         Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
                                                    reallyDoOverload(env, iter->args));
         if (ctor) {
           iter->ctorVar = ctor;
+
+          // FIX: do this; we need a variable for when it is a base class
+          // the var is the MemberInit::member
+//            xassert(!ctorStatement);
+//            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         }
+
+        // I think with the implicit ctors added now, this should
+        // always succeed
+        xassert(!!ctor == v->type->asRval()->isCompoundType());
 
         // TODO: check that the passed arguments are consistent
         // with at least one constructor of the variable's type
@@ -415,7 +426,7 @@ void Function::tcheck_memberInits(Env &env)
     // base class list
 
     // typecheck the arguments
-    tcheckFakeExprList(iter->args, env);
+    tcheckArgExprList(iter->args, env);
     
     // determine which constructor is being called
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
@@ -424,7 +435,17 @@ void Function::tcheck_memberInits(Env &env)
                                                reallyDoOverload(env, iter->args));
     if (ctor) {
       iter->ctorVar = ctor;
+
+      // FIX: do this; we need a variable for when it is a base class
+      // the var is Function::retVar; NOTE: the types won't match so
+      // watch out.
+//            xassert(!ctorStatement);
+//            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
     }
+
+    // I think with the implicit ctors added now, this should always
+    // succeed
+    xassert(!!ctor == baseVar->type->asRval()->isCompoundType());
 
     // TODO: check that the passed arguments are consistent
     // with at least one constructor in the base class
@@ -447,7 +468,7 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env, bool isMember)
+void Declaration::tcheck(Env &env)
 {
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
@@ -526,9 +547,9 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
                          
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags);
-  dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
-               tc.isParameter? Declarator::Tcheck::CTX_PARAM :
-                               Declarator::Tcheck::CTX_ORDINARY;
+  dt.context = tc.newSizeExpr?             Declarator::Tcheck::CTX_E_NEW :
+               (tc.dflags & DF_PARAMETER)? Declarator::Tcheck::CTX_PARAM :
+                                           Declarator::Tcheck::CTX_ORDINARY;
 
   // check declarator
   decl = decl->tcheck(env, dt);
@@ -637,6 +658,15 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
       << "variable name `" << *name << "' used as if it were a type",
       disambiguates);
   }
+
+  // dsw: store the pointer to the variable in the type; Note that, as
+  // Scott points out, if it already has a name, we keep it because it
+  // doesn't matter.
+  //
+  // sm: update: I thought this might happen.  Using typedefs means
+  // dealing with scoping, so we need to keep all the typedefs (and
+  // make typedef shadow names) so that at least one will be in scope.
+  var->type->typedefAliases.append(var);
 
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too
@@ -924,6 +954,12 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
                               false /*forward*/);
+
+    // dsw: need to register it at least, even if it isn't added to
+    // the scope, otherwise I can't print out the name of the type
+    // because at the top scope I don't know the scopeKind
+    env.typeAcceptingScope()->registerVariable(ct->typedefVar);
+
     this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
@@ -944,6 +980,25 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
             "attempt to use unresolved arguments to specialize a class");
         }
       }
+
+      // dsw: I need to have the argumentSyntax around so that if I
+      // call PQ_fullyQualifiedName() on this type I get a
+      // PQ_qualifier that has template arguments; If I don't do it
+      // this way, then I have to reconstruct them from the
+      // ClassTemplateInfo::arguments, and then I'm back to
+      // manufacturing ASTTypeId-s from Type-s which I want to avoid
+      // if I can.
+      //
+      // FIX: I'm worried that there is some corner condition where
+      // the same syntax doesn't work because the location has changed
+      // and we are down in some namespace where the names in the
+      // argumentSyntax now resolve to different variables.
+      //
+      // sm: update: That corner case (d0026.cc) is now handled by
+      // rebuilding the arguments in Env::make_PQ_fullyQualifiedName.
+      // So in fact this assignment is now not necessary, but it
+      // won't hurt either.
+      ct->templateInfo->argumentSyntax = templateArgs;
     }
   }
 
@@ -973,9 +1028,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 }
 
                                                           
-// fwd
-void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
 // type check once we know what 'ct' is; this is also called
 // to check newly-cloned AST fragments for template instantiation
 void TS_classSpec::tcheckIntoCompound(
@@ -1068,7 +1120,7 @@ void TS_classSpec::tcheckIntoCompound(
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
     iter.data()->tcheck(env);
   }
-                                    
+
   // default ctor, copy ctor, operator=
   addCompilerSuppliedDecls(env, loc, ct);
 
@@ -1097,12 +1149,14 @@ void TS_classSpec::tcheckIntoCompound(
 }
 
 
+// this is pass 2 of tchecking a class
 void TS_classSpec::tcheckFunctionBodies(Env &env)
 {
   CompoundType *ct = env.scope()->curCompound;
   xassert(ct);
 
-  // check function bodies
+  // check function bodies and elaborate ctors and dtors of member
+  // declarations
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
     if (iter.data()->isMR_func()) {
       Function *f = iter.data()->asMR_func()->f;
@@ -1119,6 +1173,19 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // same trick again (TODO: what if we decide to clone while down
       // in 'f->tcheck'?)
       f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
+    }
+    else if (iter.data()->isMR_decl()) {
+      Declaration *d0 = iter.data()->asMR_decl()->d;
+      FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
+        // tcheck initializers
+        if (decliter->init) {
+          decliter->tcheck_init(env);
+        }
+
+        if (env.doElaboration) {
+          decliter->elaborateCDtors(env);
+        }
+      }
     }
   }
 
@@ -1481,7 +1548,7 @@ void MR_decl::tcheck(Env &env)
 
   // the declaration knows to add its variables to
   // the curCompound
-  d->tcheck(env, true /*isMember*/);
+  d->tcheck(env);
 
   checkMemberFlags(env, d->dflags);
 }
@@ -1653,10 +1720,10 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
   if (tgt_type->isArrayType() &&
       !tgt_type->asArrayType()->hasSize() &&
       init->isIN_expr() &&
-      init->asIN_expr()->e->expr->type->isArrayType() &&
-      init->asIN_expr()->e->expr->type->asArrayType()->hasSize()
+      init->asIN_expr()->e->type->isArrayType() &&
+      init->asIN_expr()->e->type->asArrayType()->hasSize()
       ) {
-    tgt_type = env.tfac.cloneType(init->asIN_expr()->e->expr->type);
+    tgt_type = env.tfac.cloneType(init->asIN_expr()->e->type);
     xassert(tgt_type->asArrayType()->hasSize());
   }
   return tgt_type;
@@ -1664,6 +1731,9 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
 
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
+  // true if we're immediately in a class body
+  bool inClassBody = !!env.scope()->curCompound;
+
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
   //    qualified-id, names used before the qualified-id
@@ -1674,24 +1744,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   //
   // to implement this, I'll find the declarator's qualified
   // scope ahead of time and add it to the scope stack
-  PQName const *declaratorId = decl->getDeclaratorId();
-  Scope *qualifiedScope = NULL;
-  if (declaratorId &&     // i.e. not abstract
-      declaratorId->hasQualifiers()) {
-    // look up the scope named by the qualifiers
-    qualifiedScope = env.lookupQualifiedScope(declaratorId);
-    if (!qualifiedScope) {
-      // the environment will have already reported the
-      // problem; go ahead and check the declarator in the
-      // unqualified (normal) scope; it's about the best I
-      // could imagine doing as far as error recovery goes
-    }
-    else {
-      // ok, put the scope we found into the scope stack
-      // so the declarator's names will get its benefit
-      env.extendScope(qualifiedScope);
-    }
-  }
+  Scope *qualifierScope = openQualifierScope(env);
 
   if (init) dt.dflags |= DF_INITIALIZED;
 
@@ -1711,72 +1764,58 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // is always D_name, it's equivalent to add the name to the
   // environment then instead of here.
 
-  if (init) {
+  // tcheck the initializer, unless we're inside a class, in which
+  // case wait for pass two
+  if (init && !inClassBody) {
     // TODO: check the initializer for compatibility with
     // the declared type
 
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
 
-    // TODO: in the case of class data members, delay checking the
-    // initializer until the entire class body has been scanned
-
-    init->tcheck(env, type);
-
-    // remember the initializing value, for const values
-    if (init->isIN_expr()) {
-      var->value = init->asIN_exprC()->e->expr;
-    }
-
-    // use the initializer size to refine array types
-
-    // array initializer case
-    var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
-    // array compound literal initializer case
-    var->type = computeArraySizeFromLiteral(env, var->type, init);
+    tcheck_init(env);
   }
 
-  if (qualifiedScope) {
+  if (qualifierScope) {
     // pull the scope back out of the stack; if this is a
     // declarator attached to a function definition, then
     // Function::tcheck will re-extend it for analyzing
     // the function body
-    env.retractScope(qualifiedScope);
+    env.retractScope(qualifierScope);
   }
 
   // If it is a function, is it virtual?
-  if (var->type->isFunctionType()
+  if (inClassBody
+      && var->type->isFunctionType()
       && var->type->asFunctionType()->isMethod()
       && !var->hasFlag(DF_VIRTUAL)) {
 //      printf("var->name: %s\n", var->name);
 //      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
     // find the next variable up the hierarchy
-    if (env.scope()->curCompound) {
-      FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
-        // FIX: Should I skip it for private inheritance?  Hmm,
-        // experiments on g++ indicate that private inheritance does not
-        // prevent the virtuality from coming through.  Ben agrees.
+    FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
+      // FIX: Should I skip it for private inheritance?  Hmm,
+      // experiments on g++ indicate that private inheritance does not
+      // prevent the virtuality from coming through.  Ben agrees.
 
-        // FIX: deal with ambiguity if we find more than one
-        // FIX: is there something to do for virtual inheritance?
-        //        printf("iterating over base base_iter.data()->ct->name: %s\n",
-        //               base_iter.data()->ct->name);
-        Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
-        xassert(var2 != var);
-        if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMethod()) {
-          if (Variable *var_overload =
-              var2->getOverloadSet()->findByType
-              (var->type->asFunctionType(),
-               var->type->asFunctionType()->getThisCV())) {
-            xassert(var_overload != var);
-            xassert(var_overload->type->isFunctionType());
-            xassert(var_overload->type->asFunctionType()->isMethod());
-            if (var_overload->hasFlag(DF_VIRTUAL)) {
-              // then we inherit the virtuality
-              var->setFlag(DF_VIRTUAL);
-              // FIX: We could actually break out of the loop at this
-              // point
-            }
+      // FIX: deal with ambiguity if we find more than one
+      // FIX: is there something to do for virtual inheritance?
+      //        printf("iterating over base base_iter.data()->ct->name: %s\n",
+      //               base_iter.data()->ct->name);
+      Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
+      xassert(var2 != var);
+      if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMethod()) {
+        if (Variable *var_overload =
+            var2->getOverloadSet()->findByType
+            (var->type->asFunctionType(),
+             var->type->asFunctionType()->getThisCV())) {
+          xassert(var_overload != var);
+          xassert(var_overload->type->isFunctionType());
+          xassert(var_overload->type->asFunctionType()->isMethod());
+          if (var_overload->hasFlag(DF_VIRTUAL)) {
+            // then we inherit the virtuality
+            var->setFlag(DF_VIRTUAL);
+            // FIX: We could actually break out of the loop at this
+            // point
           }
         }
       }
@@ -1791,6 +1830,67 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //             sourceLocManager->getLine(var->loc),
 //             (var->hasFlag(DF_VIRTUAL)?"YES":"NO"));
 //    }
+
+  // Non-members aren't going to get a second pass over them, so we
+  // just call elaborateCDtors() now for them.  Don't elaborate the
+  // cdtors for the Declarator down inside an E_new.
+
+  // not any more:
+  // Parameters need to be elaborated during the second pass, since
+  // they can have a type of the class that we are still in the
+  // definition of, and therefore any references to implicit members
+  // of that class don't exist yet.
+  bool isE_new = (dt.context == Tcheck::CTX_E_NEW);
+  if (env.doElaboration &&
+      !inClassBody &&
+//        !isParameter &&
+      !isE_new) {
+    elaborateCDtors(env);
+  }
+}
+
+Scope *Declarator::openQualifierScope(Env &env)
+{
+  PQName const *declaratorId = decl->getDeclaratorId();
+  Scope *qualifiedScope = NULL;
+  if (declaratorId &&     // i.e. not abstract
+      declaratorId->hasQualifiers()) {
+    // look up the scope named by the qualifiers
+    qualifiedScope = env.lookupQualifiedScope(declaratorId);
+    if (!qualifiedScope) {
+      // the environment will have already reported the
+      // problem; go ahead and check the declarator in the
+      // unqualified (normal) scope; it's about the best I
+      // could imagine doing as far as error recovery goes
+    }
+    else {
+      // ok, put the scope we found into the scope stack
+      // so the declarator's names will get its benefit
+      env.extendScope(qualifiedScope);
+      return qualifiedScope;
+    }
+  }
+  
+  return NULL;   // didn't extend
+}
+
+// pulled out so it could be done in pass 1 or pass 2
+void Declarator::tcheck_init(Env &env)
+{
+  xassert(init);
+
+  init->tcheck(env, type);
+
+  // remember the initializing value, for const values
+  if (init->isIN_expr()) {
+    var->value = init->asIN_exprC()->e;
+  }
+
+  // use the initializer size to refine array types
+  // array initializer case
+  var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+  // array compound literal initializer case
+  var->type = computeArraySizeFromLiteral(env, var->type, init);
 }
 
 
@@ -2447,6 +2547,11 @@ realStart:
                      << " at " << prior->loc << " with new decl at "
                      << loc);
         forceReplace = true;
+         
+        // for support of the elaboration module, we don't want to lose
+        // the previous name altogether; make a shadow
+        env.makeShadowTypedef(scope, prior);
+
         goto noPriorDeclaration;
       }
       else {
@@ -2577,7 +2682,9 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 
   // context for checking (ok to share these across multiple ASTTypeIds)
   ASTTypeId::Tcheck tc;
-  tc.isParameter = isParameter;
+  if (isParameter) {
+    dflags |= DF_PARAMETER;
+  }
   tc.dflags = dflags;
 
   // check first ASTTypeId
@@ -3097,6 +3204,14 @@ Statement *Statement::tcheck(Env &env)
 }
 
 
+// dsw: it is too slow to have emacs reload cc.ast.gen.h just to display
+// the body of this method when I'm looking around in the stack in gdb
+void Statement::mid_tcheck(Env &env, int &)
+{
+  itcheck(env);
+}
+
+
 void S_skip::itcheck(Env &env)
 {}
 
@@ -3133,7 +3248,7 @@ void S_default::itcheck(Env &env)
 
 void S_expr::itcheck(Env &env)
 {
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
 }
 
 
@@ -3189,7 +3304,7 @@ void S_while::itcheck(Env &env)
 void S_doWhile::itcheck(Env &env)
 {
   body = body->tcheck(env);
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
 
   // TODO: verify that 'expr' makes sense in a boolean context
 }
@@ -3201,7 +3316,7 @@ void S_for::itcheck(Env &env)
 
   init = init->tcheck(env);
   cond->tcheck(env);
-  after->tcheck(env, after);
+  after->tcheck(env);
   body = body->tcheck(env);
 
   env.exitScope(scope);
@@ -3223,7 +3338,7 @@ void S_continue::itcheck(Env &env)
 void S_return::itcheck(Env &env)
 {
   if (expr) {
-    expr->tcheck(env, expr);
+    expr->tcheck(env);
     
     // TODO: verify that 'expr' is compatible with the current
     // function's declared return type
@@ -3269,7 +3384,7 @@ void S_asm::itcheck(Env &)
 // ------------------- Condition --------------------
 void CN_expr::tcheck(Env &env)
 {
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
 
   // TODO: verify 'expr' makes sense in a boolean or switch context
 }
@@ -3391,9 +3506,14 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // ok, finish up
       TRACE("disamb", toString(loc) << ": selected E_constructor");
       env.errors.prependMessages(existing);
-      ctor->type = ctor->inner2_itcheck(env);
-      ctor->ambiguity = NULL;
+      
+      // a little tricky because E_constructor::inner2_itcheck is
+      // allowed to yield a replacement AST node
       replacement = ctor;
+      Type *t = ctor->inner2_itcheck(env, replacement);
+
+      replacement->type = t;
+      replacement->ambiguity = NULL;
       return;
     }
 
@@ -3445,7 +3565,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   replacement = this;
 
   // check it, and store the result
-  Type *t = itcheck(env, replacement);
+  Type *t = itcheck_x(env, replacement);
   
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
@@ -3464,27 +3584,27 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_boolLit::itcheck(Env &env, Expression *&replacement)
+Type *E_boolLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.5 para 1
   return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 }
 
-Type *E_intLit::itcheck(Env &env, Expression *&replacement)
+Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: this is wrong; see cppstd 2.13.1 para 2
   i = strtoul(text, NULL /*endp*/, 0 /*radix*/);
   return env.getSimpleType(SL_UNKNOWN, ST_INT);
 }
 
-Type *E_floatLit::itcheck(Env &env, Expression *&replacement)
+Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: wrong; see cppstd 2.13.3 para 1
   d = strtod(text, NULL /*endp*/);
   return env.getSimpleType(SL_UNKNOWN, ST_FLOAT);
 }
 
-Type *E_stringLit::itcheck(Env &env, Expression *&replacement)
+Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.4 para 1
 
@@ -3514,7 +3634,7 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
                 delim, allowNewlines);
 }
 
-Type *E_charLit::itcheck(Env &env, Expression *&replacement)
+Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: wrong; cppstd 2.13.2 paras 1 and 2
 
@@ -3563,7 +3683,7 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
-Type *E_variable::itcheck(Env &env, Expression *&replacement)
+Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
   name->tcheck(env);
   var = env.lookupPQVariable(name);
@@ -3629,7 +3749,7 @@ static bool areYou_helper(Type const *t)
 // true if 't' is a template, an instantiated template, or contains
 // any type that is either (not including digging into the fields of
 // compound types)
-static bool areYouOrHaveYouEverBeenATemplate(Type const *t)
+bool areYouOrHaveYouEverBeenATemplate(Type const *t)
 {
   return t->anyCtorSatisfies(areYou_helper);
 }
@@ -3653,12 +3773,13 @@ static bool allNonTemplateFunctions(SObjList<Variable> &set)
 
 // return true iff all the args variables are non-templates; this is
 // temporary
-static bool allNonTemplates(FakeList<ICExpression> *args)
+static bool allNonTemplates(FakeList<ArgExpression> *args)
 {
-//    cout << "argument types:" << endl;
-  FAKELIST_FOREACH_NC(ICExpression, args, iter) {
-//      cout << "\titer->expr->type " << iter->expr->type->toCString() << endl;
-    if (areYouOrHaveYouEverBeenATemplate(iter->expr->type)) return false;
+//    cout << "arguments:" << endl;
+  FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
+//      cout << "\titer->expr->exprToString " << iter->exprToString() <<
+//        "iter->expr->type " << iter->type->toCString() << endl;
+    if (areYouOrHaveYouEverBeenATemplate(iter->getType())) return false;
   }
   return true;
 }
@@ -3704,7 +3825,7 @@ static bool allMethods(SObjList<Variable> &set)
 // better position to know what things need to be rewritten, since it
 // is fully aware of the syntactic context.
 static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
-                                      Type *receiverType, FakeList<ICExpression> *args)
+                                      Type *receiverType, FakeList<ArgExpression> *args)
 {
   // are we even in a situation where we can do overloading?
   if (!var->overload) return NULL;
@@ -3744,8 +3865,8 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
       index++;
     }
 
-    FAKELIST_FOREACH_NC(ICExpression, args, iter) {
-      argInfo[index] = ArgumentInfo(iter->expr->getSpecial(), iter->expr->type);
+    FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
+      argInfo[index] = ArgumentInfo(iter->getSpecial(), iter->getType());
       index++;
     }
   }
@@ -3758,7 +3879,7 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
 
 
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, FakeList<ICExpression> *args, bool really)
+  (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really)
 {
   Variable *ret = NULL;
   // dsw: FIX: should I be generating error messages if I get a weird
@@ -3792,7 +3913,7 @@ static Variable *outerResolveOverload_ctor
 
 
 // dsw: this function should eventually be the constant function "true"
-static bool reallyDoOverload(Env &env, FakeList<ICExpression> *args) {
+static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args) {
   return env.doOverload         // user wants overloading
     && !env.inTemplate()        // don't do any of this in a template context
     && allNonTemplates(args);   // avoid dealing with template args
@@ -3831,11 +3952,16 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 #endif // 0
 
 // here's the new code that serves the same role as the old
-void tcheckFakeExprList(FakeList<ICExpression> *list, Env &env)
+void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env)
 {
-  FAKELIST_FOREACH_NC(ICExpression, list, iter) {
+  FAKELIST_FOREACH_NC(ArgExpression, list, iter) {
     iter->tcheck(env);
   }
+}
+
+void ArgExpression::tcheck(Env &env)
+{
+  expr->tcheck(env, expr);
 }
 
 
@@ -3854,7 +3980,7 @@ static Variable *getNamedFunction(Expression *e)
   
 // fwd
 static Type *internalTestingHooks
-  (Env &env, StringRef funcName, FakeList<ICExpression> *args);
+  (Env &env, StringRef funcName, FakeList<ArgExpression> *args);
 
 
 // true if the type has no destructor because it's not a compound type
@@ -3870,7 +3996,7 @@ static bool hasNoopDtor(Type *t)
   return !t->isCompoundType();
 }
 
-Type *E_funCall::itcheck(Env &env, Expression *&replacement)
+Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
 
@@ -3918,7 +4044,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check the argument list
-  tcheckFakeExprList(args, env);
+  tcheckArgExprList(args, env);
 
   // the type of the function that is being invoked
   Type *t = func->type->asRval();
@@ -4012,8 +4138,13 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // then tcheck the arguments against 't' as if we had no reason to
   // suspect 't' was a good function to call.
 
+  FunctionType *ft = t->asFunctionType();
+  if (env.doElaboration) {
+    retObj = elaborateCallSite(env, ft, args);
+  }
+
   // type of the expr is type of the return value
-  return env.tfac.cloneType(t->asFunctionTypeC()->retType);
+  return env.tfac.cloneType(ft->retType);
 }
 
 
@@ -4021,18 +4152,18 @@ Type *E_funCall::inner2_itcheck(Env &env)
 // for the entire E_funCall expression if it recognizes the form
 // and typechecks it in its entirety
 static Type *internalTestingHooks
-  (Env &env, StringRef funcName, FakeList<ICExpression> *args)
+  (Env &env, StringRef funcName, FakeList<ArgExpression> *args)
 {
   // test vector for 'getStandardConversion'
   if (funcName == env.special_getStandardConversion) {
     int expect;
     if (args->count() == 3 &&
-        args->nth(2)->expr->constEval(env, expect)) {
+        args->nth(2)->constEval(env, expect)) {
       test_getStandardConversion
         (env,
-         args->nth(0)->expr->getSpecial(),     // is it special?
-         args->nth(0)->expr->type,             // source type
-         args->nth(1)->expr->type,             // dest type
+         args->nth(0)->getSpecial(),     // is it special?
+         args->nth(0)->getType(),        // source type
+         args->nth(1)->getType(),        // dest type
          expect);                        // expected result
     }
     else {
@@ -4047,15 +4178,15 @@ static Type *internalTestingHooks
     int expectUserLine;
     int expectSCS2;
     if (args->count() == 6 &&
-        args->nth(2)->expr->constEval(env, expectKind) &&
-        args->nth(3)->expr->constEval(env, expectSCS) &&
-        args->nth(4)->expr->constEval(env, expectUserLine) &&
-        args->nth(5)->expr->constEval(env, expectSCS2)) {
+        args->nth(2)->constEval(env, expectKind) &&
+        args->nth(3)->constEval(env, expectSCS) &&
+        args->nth(4)->constEval(env, expectUserLine) &&
+        args->nth(5)->constEval(env, expectSCS2)) {
       test_getImplicitConversion
         (env,
-         args->nth(0)->expr->getSpecial(),     // is it special?
-         args->nth(0)->expr->type,             // source type
-         args->nth(1)->expr->type,             // dest type
+         args->nth(0)->getSpecial(),     // is it special?
+         args->nth(0)->getType(),        // source type
+         args->nth(1)->getType(),        // dest type
          expectKind, expectSCS, expectUserLine, expectSCS2);   // expected result
     }
     else {
@@ -4067,7 +4198,7 @@ static Type *internalTestingHooks
   if (funcName == env.special_testOverload) {
     int expectLine;
     if (args->count() == 2 &&
-        args->nth(1)->expr->constEval(env, expectLine)) {
+        args->nth(1)->constEval(env, expectLine)) {
 
       if (args->first()->expr->isE_funCall() &&
           hasNamedFunction(args->first()->expr->asE_funCall()->func)) {
@@ -4087,7 +4218,7 @@ static Type *internalTestingHooks
       }
 
       // propagate return type
-      return args->first()->expr->type;
+      return args->first()->getType();
     }
     else {
       env.error("invalid call to __testOverload");
@@ -4098,13 +4229,13 @@ static Type *internalTestingHooks
   if (funcName == env.special_computeLUB) {
     int expect;
     if (args->count() == 4 &&
-        args->nth(3)->expr->constEval(env, expect)) {
+        args->nth(3)->constEval(env, expect)) {
       test_computeLUB
         (env,
-         args->nth(0)->expr->type,             // T1
-         args->nth(1)->expr->type,             // T2
-         args->nth(2)->expr->type,             // LUB
-         expect);                              // expected result
+         args->nth(0)->getType(),        // T1
+         args->nth(1)->getType(),        // T2
+         args->nth(2)->getType(),        // LUB
+         expect);                        // expected result
     }
     else {
       env.error("invalid call to __computeLUB");
@@ -4116,10 +4247,11 @@ static Type *internalTestingHooks
 }
 
 
-Type *E_constructor::itcheck(Env &env, Expression *&replacement)
+Type *E_constructor::itcheck_x(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
-  return inner2_itcheck(env);
+
+  return inner2_itcheck(env, replacement);
 }
 
 void E_constructor::inner1_itcheck(Env &env)
@@ -4127,9 +4259,44 @@ void E_constructor::inner1_itcheck(Env &env)
   type = spec->tcheck(env, DF_NONE);
 }
 
-Type *E_constructor::inner2_itcheck(Env &env)
+Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 {
-  tcheckFakeExprList(args, env);
+  xassert(replacement == this);
+
+  // inner1_itcheck sets the type, so if it signaled an error then bail
+  if (type->isError()) {
+    return type;
+  }
+
+  // simplify some gratuitous uses of E_constructor
+  if (!type->isCompoundType() && !type->isDependent()) {
+    // you can make a temporary for an int like this (from
+    // in/t0014.cc)
+    //   x = int(6);
+    // or you can use a typedef to get any other type like this (from
+    // t0059.cc)
+    //   typedef char* char_ptr;
+    //   typedef unsigned long ulong;
+    //   return ulong(char_ptr(mFragmentIdentifier)-char_ptr(0));
+    // in those cases, there isn't really any ctor to call, so just
+    // turn it into a cast
+
+    // there had better be exactly one argument to this ctor
+    if (args->count() != 1) {
+      return env.error(stringc
+        << "function-style cast to `" << type->toString()
+        << "' must have exactly one argument");
+    }
+
+    ASTTypeId *typeSyntax = env.buildASTTypeId(type);
+    replacement =
+      new E_cast(typeSyntax, args->first()->expr);
+    replacement->tcheck(env, replacement);
+    return replacement->type;
+  }
+
+  // check arguments
+  tcheckArgExprList(args, env);
 
   // dsw: I will assume for now that if overloading succeeds, that the
   // checking that it implies subsumes the below concern:
@@ -4140,6 +4307,10 @@ Type *E_constructor::inner2_itcheck(Env &env)
                                              reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;
+
+    if (env.doElaboration) {
+      retObj = elaborateCallSite(env, ctor->type->asFunctionType(), args);
+    }
   }
 
   return type;
@@ -4147,7 +4318,7 @@ Type *E_constructor::inner2_itcheck(Env &env)
 
 
 // cppstd sections: 5.2.5 and 3.4.5
-Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
+Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 {
   obj->tcheck(env, obj);
   fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
@@ -4210,7 +4381,7 @@ Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
   }
 }
 
-Type *E_arrow::itcheck(Env &env, Expression *&replacement)
+Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
 {
   // TODO: do overloading here; for now, just replace ourselves with a
   // '*' and a '.'
@@ -4220,7 +4391,7 @@ Type *E_arrow::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
+Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -4288,7 +4459,7 @@ Type *resolveOverloadedUnaryOperator(
         // replace '~a' with 'a.operator~()'
         replacement = new E_funCall(
           new E_fieldAcc(expr, pqo),               // function
-          FakeList<ICExpression>::emptyList()      // arguments
+          FakeList<ArgExpression>::emptyList()     // arguments
         );
       }
       else {
@@ -4299,7 +4470,7 @@ Type *resolveOverloadedUnaryOperator(
           new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
                                           NULL /*targs*/, pqo)),
           // arguments
-          FakeList<ICExpression>::makeList(new ICExpression(expr))
+          makeExprList1(expr)
         );
       }
 
@@ -4378,7 +4549,7 @@ Type *resolveOverloadedBinaryOperator(
             // function to invoke
             new E_fieldAcc(e1, pqo),
             // arguments
-            FakeList<ICExpression>::makeList(new ICExpression(e2))
+            makeExprList1(e2)
           );
         }
         else {
@@ -4389,8 +4560,7 @@ Type *resolveOverloadedBinaryOperator(
             new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
                                             NULL /*targs*/, pqo)),
             // arguments
-            FakeList<ICExpression>::makeList(new ICExpression(e2))
-            ->prepend(new ICExpression(e1))
+            makeExprList2(e1, e2)
           );
         }
 
@@ -4413,7 +4583,7 @@ Type *resolveOverloadedBinaryOperator(
 }
 
 
-Type *E_unary::itcheck(Env &env, Expression *&replacement)
+Type *E_unary::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -4430,7 +4600,7 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_effect::itcheck(Env &env, Expression *&replacement)
+Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -4450,7 +4620,7 @@ Type *E_effect::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_binary::itcheck(Env &env, Expression *&replacement)
+Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
   e2->tcheck(env, e2);
@@ -4645,7 +4815,7 @@ static Type *makePTMType(Env &env, E_variable *e_var)
            env.tfac.cloneType(e_var->type->asRval()));
 }
 
-Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
+Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -4707,7 +4877,7 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_deref::itcheck(Env &env, Expression *&replacement)
+Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
   
@@ -4750,7 +4920,7 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
         new E_fieldAcc(ptr, new PQ_operator(SL_UNKNOWN, new ON_operator(OP_STAR),
                                             env.operatorName[OP_STAR])),
         // arguments: ()
-        FakeList<ICExpression>::emptyList()
+        FakeList<ArgExpression>::emptyList()
       );
 
       // now, tcheck this new Expression
@@ -4780,7 +4950,7 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
   }
 }
 
-Type *E_cast::itcheck(Env &env, Expression *&replacement)
+Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
@@ -4792,7 +4962,7 @@ Type *E_cast::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_cond::itcheck(Env &env, Expression *&replacement)
+Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
   th->tcheck(env, th);
@@ -4812,7 +4982,7 @@ Type *E_cond::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
+Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
@@ -4831,15 +5001,15 @@ Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_assign::itcheck(Env &env, Expression *&replacement)
+Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 {
   target->tcheck(env, target);
-  src->tcheck(env);
+  src->tcheck(env, src);
   
   // check for operator overloading
   {
     Type *ovlRet = resolveOverloadedBinaryOperator(
-      env, replacement, /*this,*/ target, src->expr, 
+      env, replacement, /*this,*/ target, src, 
       toOverloadableOp(op, true /*assignment*/));
     if (ovlRet) {
       return ovlRet;
@@ -4852,9 +5022,9 @@ Type *E_assign::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_new::itcheck(Env &env, Expression *&replacement)
+Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 {
-  tcheckFakeExprList(placementArgs, env);
+  tcheckArgExprList(placementArgs, env);
 
   // TODO: check the environment for declaration of an operator 'new'
   // which accepts the given placement args
@@ -4883,11 +5053,11 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
   // it will likely suffice to simply pretend that anytime 't' refers
   // to a class type, missing parens were actually present.
   if (t->isCompoundType() && !ctorArgs) {
-    ctorArgs = new ICExpressionListOpt(NULL /*list*/);
+    ctorArgs = new ArgExpressionListOpt(NULL /*list*/);
   }
 
   if (ctorArgs) {
-    tcheckFakeExprList(ctorArgs->list, env);
+    tcheckArgExprList(ctorArgs->list, env);
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
                                                reallyDoOverload(env, ctorArgs->list));
     if (ctor) {
@@ -4897,12 +5067,17 @@ Type *E_new::itcheck(Env &env, Expression *&replacement)
 
   // TODO: check for a constructor in 't' which accepts these args
   // (partially subsumed by overload resolution, above)
-
+  // dsw: I suppose the ctor elaboration here is effectively the
+  // paragraph above.
+  if (env.doElaboration) {
+    elaborate(env, t);
+  }
+  
   return env.makePtrType(SL_UNKNOWN, t);
 }
 
 
-Type *E_delete::itcheck(Env &env, Expression *&replacement)
+Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -4912,23 +5087,34 @@ Type *E_delete::itcheck(Env &env, Expression *&replacement)
       << "can only delete pointers, not `" << t->toString() << "'");
   }
 
+  if (env.doElaboration) {
+    elaborate(env, t);
+  }
+  
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 
 
-Type *E_throw::itcheck(Env &env, Expression *&replacement)
+Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 {
   if (expr) {
     expr->tcheck(env, expr);
+
+    if (env.doElaboration) {
+      elaborate(env);
+    }
   }
   else {
     // TODO: make sure that we're inside a 'catch' clause
+
+    // TODO: elaboration for this case
   }
+
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 
 
-Type *E_keywordCast::itcheck(Env &env, Expression *&replacement)
+Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
@@ -4941,14 +5127,14 @@ Type *E_keywordCast::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_typeidExpr::itcheck(Env &env, Expression *&replacement)
+Type *E_typeidExpr::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
   return env.type_info_const_ref;
 }
 
 
-Type *E_typeidType::itcheck(Env &env, Expression *&replacement)
+Type *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ttype = ttype->tcheck(env, tc);
@@ -4956,7 +5142,7 @@ Type *E_typeidType::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_grouping::itcheck(Env &env, Expression *&replacement)
+Type *E_grouping::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
   return expr->type;
@@ -5026,7 +5212,7 @@ bool Expression::constEval(string &msg, int &result) const
     ASTNEXTC(E_constructor, c)
       if (type->isIntegerType()) {
         // allow it; should only be 1 arg, and that will be value
-        return c->args->first()->expr->constEval(msg, result);
+        return c->args->first()->constEval(msg, result);
       }
       else {
         msg = "can only const-eval E_constructors for integer types";
@@ -5171,7 +5357,7 @@ bool Expression::hasUnparenthesizedGT() const
              
     ASTNEXTC(E_assign, a)
       return a->target->hasUnparenthesizedGT() ||
-             a->src->expr->hasUnparenthesizedGT();
+             a->src->hasUnparenthesizedGT();
              
     ASTNEXTC(E_delete, d)
       return d->expr->hasUnparenthesizedGT();
@@ -5206,14 +5392,41 @@ SpecialExpr Expression::getSpecial() const
 }
 
 
-// ----------------------- ICExpression -------------------
-void ICExpression::tcheck(Env &env)
-{ 
+// ------------------- Full Expression tcheck -----------------------
+Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
+{
+//    cout << "FullExpressionAnnot::tcheck_preorder " << ::toString(env.loc()) << endl;
+  env.fullExpressionAnnotStack.push(this);
+  Scope *scope = env.enterScope(SK_FUNCTION, "full expression annot");
+  // come to think of it, there shouldn't be any declarations yet;
+  // they get constructed during the typechecking later
+//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env)" << endl;
+//    PrintEnv penv(cout);
+//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
+//      iter.data()->print(penv);
+//    }
+//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env) END" << endl;
+  // FIX: I think this fails if you typecheck the FullExpressionAnnot
+  // twice and it contains a temporary.
+  xassert(declarations.isEmpty());
+//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
+//      iter.data()->tcheck(env,
+//                          );
+//    }
+  return scope;
+}
+
+void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
+{
+  env.exitScope(scope);
+  env.fullExpressionAnnotStack.pop();
+//    cout << "FullExpressionAnnot::tcheck_postorder " << ::toString(env.loc()) << endl;
+}
+
+void FullExpression::tcheck(Env &env)
+{
+  FullExpressionAnnot::StackBracket fea0(env, annot);
   expr->tcheck(env, expr);
-  
-  // NOTE: this just tcheck's the expression; there's another step
-  // to do (that right now isn't done at all) that sets the 'cic'
-  // member according to the context in which the expression appears
 }
 
 
@@ -5225,12 +5438,14 @@ void ICExpression::tcheck(Env &env)
 
 void IN_expr::tcheck(Env &env, Type *)
 {
-  e->tcheck(env);
+  FullExpressionAnnot::StackBracket fea0(env, annot);
+  e->tcheck(env, e);
 }
 
 
 void IN_compound::tcheck(Env &env, Type* type)
 {
+  // NOTE: I ignore the FullExpressionAnnot *annot
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
     // TODO: This passes the wrong type; 'type' should be e.g. a class,
     // and this code ought to dig into the class and pass the types of
@@ -5243,7 +5458,8 @@ void IN_compound::tcheck(Env &env, Type* type)
 
 void IN_ctor::tcheck(Env &env, Type *type)
 {
-  tcheckFakeExprList(args, env);
+  FullExpressionAnnot::StackBracket fea0(env, annot);
+  tcheckArgExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;
@@ -5365,7 +5581,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
 {
   ASTTypeId::Tcheck tc;
-  tc.isParameter = true;
+  tc.dflags |= DF_PARAMETER;
   
   // check the parameter; this actually adds it to the
   // environment too, so we don't need to do so here

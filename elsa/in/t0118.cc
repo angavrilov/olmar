@@ -136,7 +136,7 @@ void f()
 
   // constructor conversions
   A a;
-  B b;
+  B b(a);
   C c;
   __getImplicitConversion((A)a, (B)b,
                           IC_USER_DEFINED, SC_IDENTITY, 47, SC_IDENTITY);
@@ -197,7 +197,7 @@ void f()
   __getImplicitConversion(i, anInt /*int&*/,
                           IC_USER_DEFINED, SC_IDENTITY, 92, SC_IDENTITY);
 
-  J j;
+  J j(1);
   __getImplicitConversion((int)0, (J)j,
                           IC_USER_DEFINED, SC_IDENTITY, 96, SC_IDENTITY);
   __getImplicitConversion((long)0, (J)j,
@@ -207,13 +207,13 @@ void f()
 
   // ambiguity between conversion operator and conversion constructor
   L ell;
-  K k;
+  K k(ell);
   __getImplicitConversion(ell, (K)k,
                           IC_AMBIGUOUS, 0,0,0);
 
   // ambiguity among 3: ambiguous conversion operator, and conversion constructor
   L2 ell2;
-  K2 k2;
+  K2 k2(ell2);
   __getImplicitConversion(ell2, (K2)k2,
                           IC_AMBIGUOUS, 0,0,0);
 

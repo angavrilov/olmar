@@ -4,6 +4,7 @@
 #include "variable.h"      // this module
 #include "cc_type.h"       // Type
 
+
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
   : loc(L),
@@ -79,6 +80,17 @@ string Variable::toStringAsParameter() const
     sb << renderExpressionAsString(" = ", value);
   }
   return sb;
+}
+
+
+// sm: I removed the cache; I'm much more concerned about wasted space
+// than wasted time (because the latter is much easier to profile)
+string Variable::fullyQualifiedName() const
+{
+  stringBuilder tmp;
+  if (scope) tmp << scope->fullyQualifiedName();
+  tmp << "::" << name;        // NOTE: not mangled
+  return tmp;
 }
 
 

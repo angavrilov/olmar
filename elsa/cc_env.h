@@ -22,6 +22,12 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
+// counter for generating unique throw clause names; NOTE: FIX: they
+// must not be duplicated across translation units since they are
+// global!  Thus, this must survive even multiple Env objects.
+// (this is for elaboration)
+extern int throwClauseSerialNumber;
+
 // the entire semantic analysis state
 class Env {
 protected:   // data
@@ -117,6 +123,20 @@ public:      // data
   // are to be treated as calls to overloaded operator functions
   bool doOperatorOverload;
 
+  // ------------------- for elaboration ------------------
+  // when true, do elaboration
+  bool doElaboration;
+
+  // so that we can find the closest nesting S_compound for when we
+  // need to insert temporary variables; its scope should always be
+  // the current scope.
+  SObjStack<FullExpressionAnnot> fullExpressionAnnotStack;
+
+  // counters for generating unique temporary names; not unique
+  // across translation units
+  int tempSerialNumber;
+  int e_newSerialNumber;
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -190,6 +210,7 @@ public:      // funcs
   // return the nearest enclosing scope of kind 'k', or NULL if there
   // is none with that kind
   Scope *enclosingKindScope(ScopeKind k);
+  Scope *globalScope() { return enclosingKindScope(SK_GLOBAL); }
 
   // essentially: enclosingKindScope(SK_CLASS)->curCompound;
   CompoundType *enclosingClassScope();
@@ -204,7 +225,8 @@ public:      // funcs
 
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
-  // 'forceReplace' true, silently replace instead)
+  // 'forceReplace' true, silently replace instead); if you
+  // want to insert into a specific scope, use Scope::addVariable
   bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
@@ -353,14 +375,47 @@ public:      // funcs
   // this is called after all the fields of 'ct' have been set, and
   // we've popped its scope off the stack
   virtual void addedNewCompound(CompoundType *ct);
-                                                        
+
   // return # of array elements initialized
   virtual int countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd);
-  
+
   // called when a variable is successfully added; note that there
   // is a similar mechanism in Scope itself, which can be used when
   // less context is necessary
   virtual void addedNewVariable(Scope *s, Variable *v);
+
+  // -------------- stuff for elaboration support ---------------
+  // change 'tv' into a shadow typedef var
+  void makeShadowTypedef(Scope *scope, Variable *tv);
+
+  // make a unique name for a new temporary variable
+  virtual PQ_name *makeTempName();
+  // make a unique name for a new E_new variable
+  virtual StringRef makeE_newVarName();
+  // make a unique name for a new throw clause variable
+  virtual StringRef makeThrowClauseVarName();
+
+  // return a PQName that will typecheck in the current environment to
+  // find (the typedef for) the 'ct' type; it's also maximally
+  // qualified
+  PQName *make_PQ_fullyQualifiedName(CompoundType *ct, PQName *name0 = NULL);
+        
+  // go from "A" to "A::~A"
+  PQName *make_PQ_fullyQualifiedDtorName(CompoundType *ct);
+
+  // given a type, return an ASTTypeId AST node that denotes that
+  // type in the current environment
+  ASTTypeId *buildASTTypeId(Type *type);
+  ASTTypeId *inner_buildASTTypeId     // effectively private to buildASTTypeId
+    (Type *type, IDeclarator *surrounding);
+                                                   
+  // look among the typedef aliases of 'type' for one that maps to
+  // 'type' in the current environment, and wrap that name in a
+  // TS_name; or, return NULL if it has no such aliases
+  TS_name *buildTypedefSpecifier(Type *type);
+                                            
+  // make an AST node for an integer literal expression
+  Expression *buildIntegerLiteralExp(int i);
 };
 
 
@@ -374,21 +429,40 @@ private:
 public:
   DisambiguateOnlyTemp(Env &e, bool disOnly)
     : env(e),
-      active(disOnly)
-  {
+      active(disOnly) {
     if (active) {
       prev = e.setDisambiguateOnly(true);
     }
   }
 
-  ~DisambiguateOnlyTemp()
-  {
+  ~DisambiguateOnlyTemp() {
     if (active) {
       env.setDisambiguateOnly(prev);
     }
   }
 };
 
+
+// little hack to suppress errors in a given segment
+class SuppressErrors {
+private:
+  Env &env;               // relevant environment
+  ErrorList existing;     // errors before the operation
+
+public:
+  SuppressErrors(Env &e) : env(e) {
+    // squirrel away the good messages
+    existing.takeMessages(env.errors);
+  }
+
+  ~SuppressErrors() {
+    // get rid of any messages added in the meantime
+    env.errors.deleteAll();
+
+    // put back the good ones
+    env.errors.takeMessages(existing);
+  }
+};
 
 
 #endif // CC_ENV_H

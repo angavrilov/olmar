@@ -95,6 +95,11 @@ class Handler {
 }
 
 
+class FullExpression {
+  public void print(PrintEnv &env);
+}
+
+
 class Expression {
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
@@ -103,8 +108,10 @@ class Expression {
   public string asString() const { return exprToString(); };
 }
 
-verbatim {
-  char *expr_toString(Expression *e);    // for debugging
+verbatim {                               
+  // for debugging
+  char *expr_toString(Expression const *e);
+  int expr_debugPrint(Expression const *e);
 }
 
 

@@ -209,6 +209,11 @@ Variable const *Scope
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
   if (!name->hasQualifiers()) {
+//      cout << "lookupPQVariableC variables" << endl;
+//      for (StringSObjDict<Variable>::IterC iter(variables); !iter.isDone(); iter.next()) {
+//        cout << "\t" << iter.key() << "=" << iter.value() << endl;
+//      }
+//      cout << "name->getName() " << name->getName() << endl;
     v1 = vfilterC(variables.queryif(name->getName()), flags);
     if (v1) {
       return v1;
@@ -358,6 +363,10 @@ bool Scope::linkerVisible()
   }
 }
 
+// FIX: Would be cleaner to implement this as a call to
+// PQ_fullyQualifiedName() below and then to a toString() method.
+// FIX: This is wrong as it does not take into account template
+// arguments; Should be moved into CompoundType and done right.
 string Scope::fullyQualifiedName() 
 {
   stringBuilder sb;

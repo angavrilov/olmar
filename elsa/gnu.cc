@@ -27,12 +27,12 @@ void ASTTypeof::mid_tcheck(Env &env, DeclFlags &dflags)
 Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 {
   // FIX: dflags discarded?
-  expr->tcheck(env, expr);
+  expr->tcheck(env);
   // FIX: check the asRval(); A use in kernel suggests it should be
   // there as otherwise you get "error: cannot create a pointer to a
   // reference" when used to specify the type in a declarator that
   // comes from a de-reference (which yeilds a reference).
-  return expr->type->asRval();
+  return expr->getType()->asRval();
 }
 
 
@@ -53,7 +53,7 @@ Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-Type *E_compoundLit::itcheck(Env &env, Expression *&replacement)
+Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   stype = stype->tcheck(env, tc);
@@ -64,7 +64,7 @@ Type *E_compoundLit::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E___builtin_constant_p::itcheck(Env &env, Expression *&replacement)
+Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
@@ -84,7 +84,7 @@ Type *E___builtin_constant_p::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_alignofType::itcheck(Env &env, Expression *&replacement)
+Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
@@ -97,7 +97,7 @@ Type *E_alignofType::itcheck(Env &env, Expression *&replacement)
 }
 
 
-Type *E_statement::itcheck(Env &env, Expression *&replacement)
+Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 {
   s = s->tcheck(env)->asS_compound();
   if (s->stmts.count() < 1) {
@@ -106,7 +106,7 @@ Type *E_statement::itcheck(Env &env, Expression *&replacement)
 
   Statement *last = s->stmts.last();
   if (last->isS_expr()) {
-    return last->asS_expr()->expr->type;
+    return last->asS_expr()->expr->getType();
   }
   else {
     return env.error("last thing in `({ ... })' must be an expression");
