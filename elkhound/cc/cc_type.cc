@@ -849,6 +849,14 @@ CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
 };
 
 
+Type *CVAtomicType::deepClone() const {
+  // NOTE: We don't clone the underlying AtomicType.
+  CVAtomicType *tmp = new CVAtomicType(atomic, cv);
+  tmp->q = q ? ::deepClone(q) : NULL;
+  return tmp;
+}
+
+
 bool CVAtomicType::innerEquals(CVAtomicType const *obj) const
 {
   return atomic->equals(obj->atomic) &&
@@ -921,6 +929,14 @@ PointerType::PointerType(PtrOper o, CVFlags c, Type const *a)
   xassert(!a->isReference());
 }
 
+
+Type *PointerType::deepClone() const {
+  PointerType *tmp = new PointerType(op, cv, atType->deepClone());
+  tmp->q = q ? ::deepClone(q) : NULL;
+  return tmp;
+}
+
+
 bool PointerType::innerEquals(PointerType const *obj) const
 {
   return op == obj->op &&
@@ -991,6 +1007,24 @@ bool PointerType::anyCtorSatisfies(TypePred pred) const
 
 
 // -------------------- FunctionType::ExnSpec --------------
+Type *FunctionType::deepClone() const {
+  FunctionType *tmp = new FunctionType(retType->deepClone(), cv);
+  for (ObjListIter<Parameter> param_iter(params); !param_iter.isDone(); param_iter.adv()) {
+    // Don't do this:
+//      tmp->addParam(param_iter.data()->deepClone());
+    xassert(param_iter.data()->type ==
+            param_iter.data()->decl->type // the variable
+            );
+  }
+  tmp->acceptsVarargs = acceptsVarargs;
+  // FIX: omit these for now.
+//    tmp->exnSpec = exnSpec->deepClone();
+//    tmp->templateParams = templateParams->deepClone();
+  tmp->q = q ? ::deepClone(q) : NULL;
+  return tmp;
+}
+
+
 FunctionType::ExnSpec::~ExnSpec()
 {
   types.removeAll();
@@ -1266,6 +1300,24 @@ Parameter::~Parameter()
   }
 }
 
+//  Parameter *deepClone() const {
+//    Parameter *tmp =
+//      new Parameter(
+//                    // dsw: FIX: don't see a reason to clone the name
+//  //                    (name ? strdup(name) : (StringRef)NULL)
+//                    name
+//                    ,type->deepClone()
+//                    // dsw: FIX: I don't think I need to clone the
+//                    // variable, since I already have its type above.
+//  //                    ,decl->deepClone()
+//                    ,decl
+//                    );
+//    // dsw: Cloning this involves cloning the whole expression language.
+//    // FIX: does this matter?
+//  //    tmp->defaultArgument = defaultArgument->deepClone();
+//    tmp->defaultArgument = NULL;
+//  }
+
 string Parameter::toString() const
 {
   stringBuilder sb;
@@ -1348,6 +1400,14 @@ ClassTemplateInfo::~ClassTemplateInfo()
 
 
 // -------------------- ArrayType ------------------
+Type *ArrayType::deepClone() const {
+  ArrayType *tmp = new ArrayType(eltType->deepClone(), size);
+  tmp->hasSize = hasSize;
+  tmp->q = q ? ::deepClone(q) : NULL;
+  return tmp;
+}
+
+
 void ArrayType::checkWellFormedness() const
 {
   // you can't have an array of references

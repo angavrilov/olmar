@@ -109,7 +109,7 @@ ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
                   new Declarator(new D_name(NULL /*name*/, SourceLocation()),
                                  NULL /*init*/));
   // FIX: creates garbage
-  tid->spec->q = new Qualifiers("__anonymous_ellipsis", loc, NULL, ql);
+  tid->spec->q = new Qualifiers("__anonymous_ellipsis", loc, 0 /*local*/, NULL, ql);
   return tid;
 }
 

@@ -271,6 +271,8 @@ public:     // funcs
   Type();
   virtual ~Type();
 
+  virtual Type *deepClone() const = 0;
+
   int getId() const { return (int)this; }
 
   virtual Tag getTag() const = 0;
@@ -373,7 +375,9 @@ public:     // funcs
   CVAtomicType(AtomicType const *a, CVFlags c)
     : atomic(a), q(NULL), cv(c) {}
   CVAtomicType(CVAtomicType const &obj)
-    : DMEMB(atomic), q(deepClone(obj.q)), DMEMB(cv) {}
+    : DMEMB(atomic), q(::deepClone(obj.q)), DMEMB(cv) {}
+
+  Type *deepClone() const;
 
   bool innerEquals(CVAtomicType const *obj) const;
 
@@ -404,7 +408,9 @@ public:
 public:
   PointerType(PtrOper o, CVFlags c, Type const *a);
   PointerType(PointerType const &obj)
-    : DMEMB(op), q(deepClone(obj.q)), DMEMB(cv), DMEMB(atType) {}
+    : DMEMB(op), q(::deepClone(obj.q)), DMEMB(cv), DMEMB(atType) {}
+
+  Type *deepClone() const;
 
   bool innerEquals(PointerType const *obj) const;
 
@@ -450,6 +456,8 @@ public:     // funcs
   FunctionType(Type const *retType, CVFlags cv);
   virtual ~FunctionType();
 
+  Type *deepClone() const;
+
   bool innerEquals(FunctionType const *obj) const;
   bool equalParameterLists(FunctionType const *obj) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
@@ -490,6 +498,7 @@ public:
   Parameter(StringRef n, Type const *t, Variable *d)
     : name(n), type(t), decl(d), defaultArgument(NULL) {}
   ~Parameter();
+//    Parameter *deepClone() const;
 
   string toString() const;
 };
@@ -532,6 +541,8 @@ public:
     : eltType(e), q(NULL), hasSize(true), size(s) { checkWellFormedness(); }
   ArrayType(Type const *e)
     : eltType(e), q(NULL), hasSize(false), size(-1) { checkWellFormedness(); }
+
+  Type *deepClone() const;
 
   bool innerEquals(ArrayType const *obj) const;
 

@@ -20,9 +20,8 @@ class Qualifiers {
   Type *t;                      // our type if we know it
 
   public:
-  explicit Qualifiers(const char *name, const SourceLocation &loc, Type *t0,
-                      QualifierLiterals *ql0 = NULL)
-    : ql(NULL), loc(new SourceFile("UNKNOWN")), t(NULL) {}
+  explicit Qualifiers(const char *, const SourceLocation &, int, Type *,
+                      QualifierLiterals *ql0 = NULL) : ql(ql0) {}
 
   void prependLiteralString(StringRef s) {}
   void appendLiteralString(StringRef s) {}

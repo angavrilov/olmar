@@ -2621,7 +2621,13 @@ Type const *E_funCall::itcheck(Env &env)
   // with the function parameters
 
   // type of the expr is type of the return value
+#ifdef DISTINCT_CVATOMIC_TYPES
+  // dsw: Need this to be a distinct type for polymorphic qualifier
+  // inference to work.
+  return t->asFunctionTypeC().retType->deepClone();
+#else
   return t->asFunctionTypeC().retType;
+#endif
 }
 
 
