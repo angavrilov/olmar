@@ -124,12 +124,14 @@ void GrowArray<T>::eidLoop(int index)
 
   int newSz = sz;
   while (newSz-1 < index) {
-    int prevSz = newSz;
+    #ifndef NDEBUG_NO_ASSERTIONS    // silence warning..
+      int prevSz = newSz;
+    #endif
     if (newSz == 0) {
       newSz = 1;
     }
     newSz = newSz*2;
-    xassert(newSz > prevSz);   // otherwise overflow -> infinite loop
+    xassert(newSz > prevSz);        // otherwise overflow -> infinite loop
   }
 
   setSize(newSz);

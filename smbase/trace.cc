@@ -101,8 +101,8 @@ void trstr(char const *sysName, char const *traceString)
 
 ostream &traceProgress(int level)
 {
-  // for now, just suppress anything more than 1
-  if (level == 1) {
+  if ( (level == 1) ||
+       (level == 2 && tracingSys("progress2")) ) {
     static long progStart = getMilliseconds();
 
     return trace("progress") << (getMilliseconds() - progStart) << "ms: ";
