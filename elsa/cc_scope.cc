@@ -130,6 +130,15 @@ bool Scope::addEnum(EnumType *et)
 }
 
 
+void Scope::registerVariable(Variable *v)
+{
+  if (curCompound && curCompound->name) {
+    // since the scope has a name, let the variable point at it
+    v->scope = this;
+  }
+}
+
+
 // -------- lookup --------
 // this sets 'crossVirtual' to true if we had to cross a
 // virtual inheritance boundary to find the name; otherwise

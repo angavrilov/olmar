@@ -94,20 +94,20 @@ Env::~Env()
 
 Scope *Env::enterScope()
 {
-  trace("env") << "entered scope\n";
+  trace("env") << locStr() << ": entered scope\n";
 
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
   Scope *newScope = new Scope(getChangeCount(), loc());
   scopes.prepend(newScope);
   newScope->curFunction = f;
-  
+
   return newScope;
 }
 
 void Env::exitScope(Scope *s)
 {
-  trace("env") << "exited scope\n";
+  trace("env") << locStr() << ": exited scope\n";
   Scope *f = scopes.removeFirst();
   xassert(s == f);
   delete f;
@@ -117,11 +117,12 @@ void Env::exitScope(Scope *s)
 void Env::extendScope(Scope *s)
 {
   if (s->curCompound) {
-    trace("env") << "extending scope "
+    trace("env") << locStr() << ": extending scope "
                  << s->curCompound->keywordAndName() << "\n";
   }
   else {
-    trace("env") << "extending scope at " << (void*)s << "\n";
+    trace("env") << locStr() << ": extending scope at "
+                 << (void*)s << "\n";
   }
   Scope *prevScope = scope();
   scopes.prepend(s);
@@ -131,11 +132,12 @@ void Env::extendScope(Scope *s)
 void Env::retractScope(Scope *s)
 {
   if (s->curCompound) {
-    trace("env") << "retracting scope "
+    trace("env") << locStr() << ": retracting scope "
                  << s->curCompound->keywordAndName() << "\n";
   }
   else {
-    trace("env") << "retracting scope at " << (void*)s << "\n";
+    trace("env") << locStr() << ": retracting scope at " 
+                 << (void*)s << "\n";
   }
   Scope *first = scopes.removeFirst();
   xassert(first == s);
@@ -194,6 +196,21 @@ Scope *Env::acceptingScope()
 }
 
 
+Scope *Env::outerScope()
+{
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    Scope *s = iter.data();
+    if (!s->canAcceptNames) continue;     // skip template scopes
+    if (s->curCompound) continue;         // skip class scopes
+    
+    return s;
+  }
+
+  xfailure("couldn't find the outer scope!");
+  return NULL;    // silence warning
+}
+
+
 bool Env::addVariable(Variable *v, bool forceReplace)
 {
   Scope *s = acceptingScope();
@@ -202,34 +219,13 @@ bool Env::addVariable(Variable *v, bool forceReplace)
     return false;
   }
 
-  if (s->curCompound &&
-      s->curCompound->keyword == CompoundType::K_UNION &&
-      s->curCompound->name == NULL) {
-    // we just added a field to an anonymous union, which won't
-    // do much good; also add it to the enclosing scope
-    if (s != scopes.first()) {
-      error("did you just make a templatized member of an "
-            "anonymous union?  silly rabbit!");
-      return true;
-    }
-
-    Scope *s2 = scopes.nth(1);
-    s2->addVariable(v, forceReplace);
-
-    // do what registerVariable would do.. sorta.. hmm..
-    v->scope = s2;
-  }
-
   return true;
 }
 
 void Env::registerVariable(Variable *v)
 {
   Scope *s = acceptingScope();
-  if (s->curCompound && s->curCompound->name) {
-    // since the scope has a name, let the variable point at it
-    v->scope = s;
-  }
+  s->registerVariable(v);
 }
 
 

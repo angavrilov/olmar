@@ -138,14 +138,34 @@ class Declaration (
 class ASTTypeId (
   TypeSpecifier spec,        // "int"
   Declarator decl            // this will be abstract sometimes (e.g. casts)
-) {
-  public ASTTypeId *next;  ctor next=NULL;     // FakeList link
-  
+) {                                            
+  // FakeList link; use setNext
+  public ASTTypeId *next;  ctor next=NULL;
+  public void setNext(ASTTypeId *newNext);
+
+  // ambiguity representation
+  public ASTTypeId *ambiguity; ctor ambiguity=NULL;
+  public void addAmbiguity(ASTTypeId *alternative);
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
+
   // typecheck the typeid; if we're in the context of an E_new, then
-  // pass is_E_new as true, in which case this function may return a
-  // non-null Expression* corresponding to the 'size' argument to
-  // new[]
-  public Expression *tcheck(Env &env, bool in_E_new=false);
+  // pass a non-NULL sizeExpr, in which case this function may store a
+  // non-null Expression* corresponding to the 'size' argument in
+  // '*sizeExpr'
+  //
+  // the return value is the ASTTypeId* to store in place of the
+  // one used to invoke the function, to resolve ambiguities
+  public ASTTypeId *tcheck(Env &env, Expression **sizeExpr);
+  public void mid_tcheck(Env &env, Expression **&sizeExpr);
 
   public void print(PrintEnv &env);
   
@@ -586,8 +606,8 @@ class Expression {
 
 
   // same as we do for statements
-  public Expression * const ambiguity;
-  ctor const_cast<Expression*&>(ambiguity) = NULL;
+  public Expression *ambiguity;
+  ctor ambiguity = NULL;
   public void addAmbiguity(Expression *alternative);
 
   // print ambiguities
@@ -604,7 +624,8 @@ class Expression {
   // gets automatically stored in the 'type' field; the return
   // value specifies which of possibly ambiguous alternatives
   // was selected for retention
-  public /*no_ignore*/ Expression *tcheck(Env &env);
+  //public /*no_ignore*/ Expression *tcheck(Env &env);
+  public void tcheck(Expression *&ptr, Env &env);
   public void mid_tcheck(Env &env, int &);
 
   // per-type checker; return type this expression eval's to
@@ -709,6 +730,11 @@ class Expression {
   -> E_typeidExpr(Expression expr);
   -> E_typeidType(ASTTypeId type);
 }
+
+verbatim {
+  char *expr_toString(Expression *e);    // for debugging
+}
+
 
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by

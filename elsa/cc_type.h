@@ -482,11 +482,14 @@ public:
   bool hasSize;                // true if a size is specified
   int size;                    // specified size, if 'hasSize'
 
+private:
+  void checkWellFormedness() const;
+
 public:
   ArrayType(Type const *e, int s)
-    : eltType(e), hasSize(true), size(s) {}
+    : eltType(e), hasSize(true), size(s) { checkWellFormedness(); }
   ArrayType(Type const *e)
-    : eltType(e), hasSize(false), size(-1) {}
+    : eltType(e), hasSize(false), size(-1) { checkWellFormedness(); }
 
   bool innerEquals(ArrayType const *obj) const;
 
@@ -570,12 +573,11 @@ CVAtomicType const *getSimpleType(SimpleTypeId st);
 
 // ------ for debugging ------
 // The idea here is you say "print type_toString(x)" in gdb, where 'x'
-// is a pointer to some type.  Then type_toString() will render a
-// description into 'type_toString_buf', and return 1 (for gdb to
-// "print").  Finally, you "print type_toString_buf" to see the
-// rendered name.
-extern char type_toString_buf[80];
-int type_toString(Type const *t);
+// is a pointer to some type.  The pointer that is returned will be
+// printed as a string by gdb.
+char *type_toString(Type const *t);
+
+char *type_toCilString(Type const *t);
 
 
 

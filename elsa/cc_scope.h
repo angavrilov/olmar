@@ -74,6 +74,8 @@ public:      // funcs
   bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
+  
+  void registerVariable(Variable *v);
 
   // lookup; these return NULL if the name isn't found
   Variable const *lookupVariableC(StringRef name, bool innerOnly, Env &env) const;

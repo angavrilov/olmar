@@ -5,7 +5,7 @@
 #include "strutil.h"        // plural
 
 
-// ------------ generic ambiguity printing ----------------
+// ------------ generic ambiguity handling ----------------
 template <class NODE>
 void genericPrintAmbiguities(NODE const *ths, char const *typeName,
                              ostream &os, int indent)
@@ -44,6 +44,59 @@ void genericPrintAmbiguities(NODE const *ths, char const *typeName,
 }
 
 
+// make sure that all the 'next' fields end up the same
+template <class NODE>
+void genericCheckNexts(NODE const *main)
+{
+  for (NODE const *a = main->ambiguity; a != NULL; a = a->ambiguity) {
+    xassert(main->next == a->next);
+  }
+}
+
+// add another ambiguous alternative to 'main', with care given
+// to the fact that NODE has 'next' links
+template <class NODE>
+void genericAddAmbiguity(NODE *main, NODE *alt)
+{
+  // 'alt' had better not already be on a list (shouldn't be,
+  // because it's the RHS argument to merge, which means it's
+  // never been yielded to anything)
+  xassert(alt->next == NULL);
+
+  if (main->next) {
+    // I don't expect 'main' to already be on a list, so I'll
+    // make some noise; but I think it will work anyway
+    cout << "note: ambiguous " << main->kindName()
+         << "node leader is already on a list..\n";
+  }
+
+  // if 'main' has been added to a list, add 'alt' also
+  alt->next = main->next;
+
+  // finally, prepend 'alt' to 'main's ambiguity list
+  alt->ambiguity = main->ambiguity;
+  main->ambiguity = alt;
+}
+
+
+// set the 'next' field of 'main' to 'newNext', with care given
+// to possible ambiguities
+template <class NODE>
+void genericSetNext(NODE *main, NODE *newNext)
+{
+  // 'main's 'next' should be NULL; if it's not, then it's already
+  // on a list, and setting 'next' now will lose information
+  xassert(main->next == NULL);
+  main->next = newNext;
+
+  // if 'main' has any ambiguous alternatives, set all their 'next'
+  // pointers too
+  if (main->ambiguity) {
+    genericSetNext(main->ambiguity, newNext);     // recursively set them all
+  }
+}
+
+
 // TranslationUnit
 // TopForm
 
@@ -58,7 +111,25 @@ void Function::printExtras(ostream &os, int indent) const
 
 // MemberInit
 // Declaration
-// ASTTypeId
+
+// ---------------------- ASTTypeId -----------------------
+void ASTTypeId::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "ASTTypeId", os, indent);
+  
+  genericCheckNexts(this);
+}
+
+void ASTTypeId::addAmbiguity(ASTTypeId *alt)
+{
+  genericAddAmbiguity(this, alt);
+}
+
+void ASTTypeId::setNext(ASTTypeId *newNext)
+{
+  genericSetNext(this, newNext);
+}
+
 
 // ------------------------ PQName ------------------------
 string PQName::qualifierString() const
@@ -163,33 +234,13 @@ void Declarator::printAmbiguities(ostream &os, int indent) const
 
 
 void Declarator::addAmbiguity(Declarator *alt)
-{ 
-  // see Expression::addAmbiguity for comments; this code is
-  // mostly copied from there
-
-  xassert(alt->next == NULL);
-  
-  if (next) {
-    cout << "note: ambiguous declarator leader is already on a list...\n";
-  }
-  
-  alt->next = next;
-  
-  alt->ambiguity = ambiguity;
-  ambiguity = alt;
+{
+  genericAddAmbiguity(this, alt);
 }
-
 
 void Declarator::setNext(Declarator *newNext)
 {
-  // see Expression::setNext
-
-  xassert(next == NULL);
-  next = newNext;
-
-  if (ambiguity) {
-    ambiguity->setNext(newNext);
-  }
+  genericSetNext(this, newNext);
 }
 
 
@@ -257,6 +308,9 @@ void Statement::printAmbiguities(ostream &os, int indent) const
 
 void Statement::addAmbiguity(Statement *alt)
 {
+  // this does not call 'genericAddAmbiguity' because Statements
+  // do not have 'next' fields
+
   // prepend 'alt' to my list
   const_cast<Statement*&>(alt->ambiguity) = ambiguity;
   const_cast<Statement*&>(ambiguity) = alt;
@@ -271,34 +325,14 @@ void Expression::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Expression", os, indent);
 
-  // make sure that all the 'next' fields end up the same
-  for (Expression *e = ambiguity; e != NULL; e = e->ambiguity) {
-    xassert(this->next == e->next);
-  }
+  genericCheckNexts(this);
 }
 
 
 void Expression::addAmbiguity(Expression *alt)
 {
-  // 'alt' had better not already be on a list (shouldn't be,
-  // because it's the RHS argument to merge, which means it's
-  // never been yielded to anything)
-  xassert(alt->next == NULL);
-
-  if (next) {
-    // I don't expect to already be on a list myself, so I'll
-    // make some noise; but I think it will work anyway
-    cout << "note: ambiguous expression leader is already on a list..\n";
-  }
-
-  // if I have been added to a a list, add 'alt' also
-  const_cast<Expression*&>(alt->next) = next;
-
-  // finally, prepend 'alt' to my ambiguity list
-  const_cast<Expression*&>(alt->ambiguity) = ambiguity;
-  const_cast<Expression*&>(ambiguity) = alt;
+  genericAddAmbiguity(this, alt);
 }
-
 
 void Expression::setNext(Expression *newNext)
 {
@@ -313,16 +347,7 @@ void Expression::setNext(Expression *newNext)
     return;    // bail if it's already what we want..
   }
 
-  // my 'next' should be NULL; if it's not, then I'm already
-  // on a list, and setting 'next' now will lose information
-  xassert(next == NULL);
-  const_cast<Expression*&>(next) = newNext;
-
-  // if I've got any ambiguous alternatives, set all their 'next'
-  // pointers too
-  if (ambiguity) {
-    ambiguity->setNext(newNext);    // recursively set them all
-  }
+  genericSetNext(this, newNext);
 }
 
 

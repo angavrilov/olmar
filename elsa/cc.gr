@@ -1088,6 +1088,13 @@ nonterm[Declarator*] InitDeclarator {
   // could be declaring a variable called "f" with ctor-initializer "(x*y)",
   // or it could be declaring a function called "f" which accepts a pointer
   // to an 'x' as a parameter
+  //
+  // another example:
+  //   int m(int (n));
+  // could be declaring a variable called "m" with ctor-initializer "int (n)"
+  // which itself is a call to the constructor for "int", or it could be
+  // declaring a function called "m" with an integer parameter called "n",
+  // the latter surrounded by a redundant set of parens
   merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> d:Declarator                       // (int)  x
@@ -1288,17 +1295,17 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   // function type constructor creates an ambiguity:
   //   typedef int x;
   //   int foo(int (x));
-  // is the argument an int, or a function accepting an 'x'?
-  // My understanding is, to resolve this we use the "if it can be 
-  // a declarator than it is" rule, but I don't actually know how
-  // to apply that rule..
-  
-  // HACK: will remove "opt" for now...
-  // TODO: find out how to correctly resolve the ambiguity, put "opt"
-  // back in and implement that resolution
+  // Is the parameter an int, or a function accepting an 'x'?
+  //
+  // This is addressed by cppstd 8.2 para 7; the rule given is
+  // a little vague, but I believe it's equivalent to always
+  // preferring D_func over D_name.  So in the above example,
+  // foo's parameter is a function.
+  //
+  // This ambiguity doesn't show up until ParameterDeclaration, below.
 
   // function
-  -> d:DirectAbstractDeclarator/*Opt*/
+  -> d:DirectAbstractDeclaratorOpt
      "(" args:ParameterDeclarationClause ")"
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
@@ -1332,7 +1339,8 @@ nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
   -> d:ParameterDeclaration "..."
        [ FakeList<ASTTypeId> *list =
            FakeList<ASTTypeId>::makeList(ellipsisTypeId());
-         return list->prepend(d); ]
+         d->setNext(list->first());
+         return FakeList<ASTTypeId>::makeList(d); ]
 
   // last arg is not "..."
   -> d:ParameterDeclaration
@@ -1340,10 +1348,45 @@ nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
 
   // argument then "," then arg or "..." or list
   -> d:ParameterDeclaration "," list:ParameterDeclarationList
-       [ return list->prepend(d); ]
+       [ d->setNext(list->first());
+         return FakeList<ASTTypeId>::makeList(d); ]
 }
 
 nonterm[ASTTypeId*] ParameterDeclaration {
+  // ambiguity:
+  //   int (x)
+  // is either type "int" with Declarator "(x)", or 
+  // it could be type "int (f)(x q)" such that "(x)" is an
+  // AbstractDeclaratorOpt
+  //
+  // I think the right choice is to prefer the function type,
+  // which I should be able to take care of by digging down into
+  // the 'd' sval and find its type.
+
+  //    merge(L,R) [
+  //      if (L->decl->decl->isD_func() &&
+  //          R->decl->decl->isD_name()) {
+  //        return L;    // prefer D_func
+  //      }
+  //      else if (R->decl->decl->isD_func() &&
+  //               L->decl->decl->isD_name()) {
+  //        return R;    // prefer D_func
+  //      }
+  //      else {
+  //        xfailure("unknown ParameterDeclaration ambiguity");
+  //        return L;    // silence warning
+  //      }
+  //    ]
+
+  //    // ensure yield-then-merge won't happen by nullifiying the
+  //    // sval, so that merge will segfault
+  //    dup(n) [ return NULL; ]
+  
+  // oops.. turns out yield-then-merge *does* happen (as detected
+  // by the above), so we've got to represent the ambiguity
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
+
+
   -> RegisterOpt s:TypeSpecifier d:Declarator
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
   -> RegisterOpt s:TypeSpecifier d:Declarator "=" e:AssignmentExpression
@@ -1404,11 +1447,11 @@ nonterm[Function*] FunctionDefinition {
        ]
 
   // constructor, destructor or conversion operator
-  // "explicit"?    name/params   member inits          body
-  -> e:ExplicitOpt  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
+  // "explicit"?      name/params   member inits          body
+  -> m:CDtorModifier  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        [
          return new Function(
-           e,                        // decl flags: explicit is only possibility
+           m,                        // decl flags: explicit, virtual, or none
            new TS_simple(ST_CDTOR),  // type specifier: ctor or dtor
            new Declarator(d, NULL),  // declarator with fn name, params
            c,                        // ctor member inits
@@ -1544,7 +1587,7 @@ nonterm[Member*] MemberDeclaration {
   // operator function
   // Q: what about pure virtual?
   // A: it's part of the MemberDeclarator
-  -> e:ExplicitOpt v:VirtualOpt d:MemberDeclarator ";"
+  -> flags:CDtorModifier d:MemberDeclarator ";"
        [ // 'd' is a Declarator
 
          //cout << "------ MemberDeclarator ----\n";
@@ -1558,7 +1601,6 @@ nonterm[Member*] MemberDeclaration {
            return NULL;
          }
 
-         DeclFlags flags = (DeclFlags)( e | (v? DF_VIRTUAL : DF_NONE) );
          return new MR_decl(
            new Declaration(
              flags,
@@ -1598,13 +1640,23 @@ nonterm[Declarator*] MemberDeclarator {
        [ return new Declarator(d, new IN_expr(e)); ]
 
   -> n:IdentifierOpt ":" e:ConstantExpression     // bitfield
-       [ return new Declarator(new D_bitfield(loc, n? new PQ_name(n) : NULL, e), 
+       [ return new Declarator(new D_bitfield(loc, n? new PQ_name(n) : NULL, e),
                                NULL /*init*/); ]
 }
 
 nonterm[StringRef] IdentifierOpt {
   -> empty         [ return NULL; ]
   -> n:Identifier  [ return n; ]
+}
+
+// modifier flags allowed in front of constructors ("explicit"),
+// destructors ("virtual") and conversion functions (none); plus,
+// "inline" is allowed with any of them..
+nonterm[DeclFlags] CDtorModifier {
+  -> empty                         [ return DF_NONE; ]
+  -> m:CDtorModifier "explicit"    [ return (DeclFlags)(m | DF_EXPLICIT); ]
+  -> m:CDtorModifier "virtual"     [ return (DeclFlags)(m | DF_VIRTUAL); ]
+  -> m:CDtorModifier "inline"      [ return (DeclFlags)(m | DF_INLINE); ]
 }
 
 
@@ -1622,8 +1674,13 @@ nonterm[FakeList<BaseClassSpec>*] BaseSpecifierList {
 }
 
 
+// TODO: spec allows leading "::" on the PQClassName
 nonterm[BaseClassSpec*] BaseSpecifier {
-  -> v:VirtualOpt a:AccessSpecifierOpt n:PQClassName
+  -> n:PQClassName
+       [ return new BaseClassSpec(false /*virtual*/, AK_UNSPECIFIED, n); ]
+  -> "virtual" a:AccessSpecifierOpt n:PQClassName
+       [ return new BaseClassSpec(true /*virtual*/, a, n); ]
+  -> a:AccessSpecifier v:VirtualOpt n:PQClassName
        [ return new BaseClassSpec(v, a, n); ]
 }
 
@@ -1892,6 +1949,9 @@ nonterm[ExceptionSpec*] ExceptionSpecificationOpt {
 }
 
 nonterm[FakeList<ASTTypeId>*] TypeIdList {
-  -> t:TypeId                      [ return FakeList<ASTTypeId>::makeList(t); ]
-  -> t:TypeId "," list:TypeIdList  [ return list->prepend(t); ]
+  -> t:TypeId                      
+       [ return FakeList<ASTTypeId>::makeList(t); ]
+  -> t:TypeId "," list:TypeIdList  
+       [ t->setNext(list->first());
+         return FakeList<ASTTypeId>::makeList(t); ]
 }
