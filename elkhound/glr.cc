@@ -1669,6 +1669,8 @@ void GLR::rwlProcessWorklist()
              " (rhsLen=" << rhsLen <<
              "), back to state " << path->leftEdgeNode->state);
 
+    ACCOUNTING( nondetReduce++; )
+
     // record location of left edge; defaults to no location (used for
     // epsilon rules)
     SOURCELOC( SourceLocation leftEdge; )

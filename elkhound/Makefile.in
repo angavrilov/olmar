@@ -562,6 +562,15 @@ triv/sssx.notree.perf.txt:
 	done
 
 
+# ------------------------ DeclExpr ----------------------
+triv/DeclExpr.perf.txt:
+	rm -f $@
+	for n in 1 10 100 1000 10000; do \
+	  triv/DeclExpr.gr.exe -tr progress,trivialActions triv/DeclExpr.in$$n 2>&1 | \
+	    sed "s/^/$$n: /" >> $@ ; \
+	done
+
+
 # ------------------------ documentation -----------------------
 # dependencies for 'elkhound', the parser generator executable
 doc/elkhound.dot:
