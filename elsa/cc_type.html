@@ -65,8 +65,20 @@ is explained in Section 2.
 
 <p>
 Constructed types, by constrast, are whatever is built on top of
-atomic types by applying type constructors such as "*".  Each
-type constructor is explained in Section 3.
+atomic types by applying type constructors such as "*".  
+These types <em>can</em> be deconstructed, in that typedefs can be
+used to build them in pieces
+<pre>
+  typedef int myint;
+  myint const *p;             // builds "int const"
+</pre>
+and template unification can delve into their structure
+<pre>
+  template &lt;class T&gt;
+  void foo(T *p) { ... }      // could pull "int" out of "int *"
+</pre>
+(again, in contrast to the AtomicTypes).
+Each type constructor is explained in Section 3.
 
 <h2>2. Atomic Types</h2>
       
