@@ -10,7 +10,7 @@
 
 #include <string.h>        // strncmp
 #include <fstream.h>       // ofstream
-#include <unistd.h>        // exit
+#include <stdlib.h>
 
 
 // ------------------ shared gen functions ----------------------
