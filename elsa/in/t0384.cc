@@ -26,6 +26,11 @@ enum E { blah };
 enum E k();
 
 
+namespace N {
+  class Foo {};
+};
+
+
 struct A {
   friend void ::f();
   friend int ::f2();
@@ -41,8 +46,10 @@ struct A {
   // illegal
   //friend INT ::h();
 
-  friend INT* ::j(); 
-  
+  friend INT* ::j();
+
   // illegal
   //friend enum E ::k();
+  
+  friend class N::Foo;
 };

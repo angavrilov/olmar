@@ -85,6 +85,10 @@ bool filterOutImplIntFirstParam
    IDeclarator *base,
    FakeList<ASTTypeId> *&params);
 
+// implemented at end of file
+bool isGlobalScopeQualified(PQName const *pq);
+bool keepDeclaration(Declaration const *d);
+
 
 // this is the shareable fragment of CCParse, since the new
 // Elkhound behavior prevents extension modules from inheriting
@@ -151,34 +155,6 @@ public:
       return NULL;
     }
     return new D_array(loc, base, size);
-  }
-
-  bool isGlobalScopeQualified(PQName const *pq)
-  {
-    return pq->isPQ_qualifier() &&
-           pq->asPQ_qualifierC()->qualifier == NULL;
-  }
-                       
-  // Filter out declarations of the form "TYPENAME ::NAME", since
-  // other front-ends would regard the TYPENAME as a qualifier.  
-  //
-  // The performance could be improved by doing static disambiguation,
-  // however that is a little tricky because the productions involved
-  // conflict with several rules, and I need to resolve conflicts with
-  // just certain pairs of rules.  So, until I implement a more
-  // precise form of static disambiguation in Elkhound, I will just
-  // resort to runtime filtering.
-  bool keepDeclaration(Declaration *d)
-  {
-    if ((d->spec->isTS_name() ||
-         d->spec->isTS_elaborated()) &&      // in/t0274.cc
-        d->decllist->isNotEmpty() &&
-        isGlobalScopeQualified(d->decllist->firstC()->decl->getDeclaratorIdC())) {
-      SourceLoc loc = d->decllist->firstC()->decl->loc;
-      TRACE("cancel", loc << ": TYPENAME ::NAME");
-      return false;
-    }
-    return true;
   }
 };
 
@@ -1818,12 +1794,11 @@ nonterm(Member*) MemberDeclaration {
              TRACE("cancel", loc << ": declaration of embedded self class instance");
              return NULL;
            }
-           if (isGlobalScopeQualified(list->firstC()->decl->getDeclaratorIdC())) {
-             TRACE("cancel", loc << ": TYPENAME ::NAME");     // e.g. in/t0037.cc
-             return NULL;
-           }
          }
          spec->decllist = list;
+         if (!keepDeclaration(spec)) {
+           return NULL;
+         }
          return new MR_decl(loc, spec);
        }
 
@@ -2447,6 +2422,53 @@ nonterm(NamespaceDecl*) NamespaceDecl {
        
   -> "using" "namespace" n:IdExpression ";"
        { return new ND_usingDir(n); }
+}
+
+
+
+impl_verbatim {
+  bool isGlobalScopeQualified(PQName const *pq)
+  {
+    return pq->isPQ_qualifier() &&
+           pq->asPQ_qualifierC()->qualifier == NULL;
+  }
+
+  // Filter out declarations of the form "TYPENAME ::NAME", since
+  // other front-ends would regard the TYPENAME as a qualifier.
+  //
+  // The performance could be improved by doing static disambiguation,
+  // however that is a little tricky because the productions involved
+  // conflict with several rules, and I need to resolve conflicts with
+  // just certain pairs of rules.  So, until I implement a more
+  // precise form of static disambiguation in Elkhound, I will just
+  // resort to runtime filtering.
+  bool keepDeclaration(Declaration const *d)
+  {
+    if ((d->spec->isTS_name() ||
+         d->spec->isTS_elaborated()) &&      // in/t0274.cc
+        d->decllist->isNotEmpty()) {
+      IDeclarator const *id = d->decllist->firstC()->decl;
+      while (!id->isD_name()) {
+        // skip past type constructors that come *after* the name;
+        // if they come before, then they separate the :: from the
+        // TYPENAME, and hence :: could be the global scope qualifier
+        if (id->isD_func()) {
+          id = id->asD_funcC()->base;
+        }
+        else if (id->isD_array()) {
+          id = id->asD_arrayC()->base;
+        }
+        else {
+          return true;      // something precedes ::, so is ok
+        }
+      }
+      if (isGlobalScopeQualified(id->asD_nameC()->name)) {
+        TRACE("cancel", id->loc << ": TYPENAME ::NAME");
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 
