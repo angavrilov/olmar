@@ -2591,6 +2591,31 @@ Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv
 }
 
 
+// cppstd 5 para 8
+Type *Env::operandRval(Type *t)
+{
+  // 4.1: lval to rval
+  if (t->isReferenceType()) {
+    t = t->asRval();
+
+    // non-compounds have their constness stripped at this point too,
+    // but I think that would not be observable in my implementation
+  }
+  
+  // 4.2: array to pointer
+  if (t->isArrayType()) {
+    t = makePointerType(SL_UNKNOWN, CV_NONE, t->getAtType());
+  }
+
+  // 4.2: function to pointer
+  if (t->isFunctionType()) {
+    t = makePointerType(SL_UNKNOWN, CV_NONE, t);
+  }
+
+  return t;
+}
+
+
 void Env::addBuiltinUnaryOp(SimpleTypeId retId, OverloadableOp op, Type *x)
 {
   Type *retType = getSimpleType(SL_INIT, retId);

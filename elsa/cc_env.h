@@ -550,6 +550,9 @@ public:      // funcs
   Variable *receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv,
                               D_func *syntax = NULL);
 
+  // standard conversion 4.1, 4.2, and 4.3
+  Type *operandRval(Type *t);
+
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
                                                               

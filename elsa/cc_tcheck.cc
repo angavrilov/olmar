@@ -5732,9 +5732,9 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
   }
 
   // get types of arguments, converted to rval
-  Type *lhsType = e1->type->asRval();
-  Type *rhsType = e2->type->asRval();
-
+  Type *lhsType = env.operandRval(e1->type);
+  Type *rhsType = env.operandRval(e2->type);
+  
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {
     lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
