@@ -18,7 +18,7 @@ open Smutil          (* getSome, etc. *)
 
 
 (* when true, print parse actions *)
-let traceParse:bool = false
+let traceParse:bool = true
 
 (* when true, keep some statistics useful for performance evaluation *)
 let accounting:bool = true
@@ -1308,9 +1308,9 @@ begin
     (* ambiguous; check for reductions in list of actions *)
     let firstEntry:int = (decodeAmbigAction glr.tables action parsr.state) in
     let numEntries:int = glr.tables.ambigTable.(firstEntry) in
-    for i = 0 to numEntries-1 do
+    for i = 1 to numEntries do
       (* ignore return value because I know it will be 1 *)
-      ignore (rwlEnqueueReductions glr parsr glr.tables.ambigTable.(i+1) mustUseLink);
+      ignore (rwlEnqueueReductions glr parsr glr.tables.ambigTable.(firstEntry+i) mustUseLink);
     done;
 
     numEntries
@@ -1423,8 +1423,8 @@ begin
       let firstEntry:int = (decodeAmbigAction glr.tables action leftSibling.state) in
       let numEntries:int = glr.tables.ambigTable.(firstEntry) in
 
-      for i=0 to numEntries-1 do
-        let action:tActionEntry = glr.tables.ambigTable.(i+1) in
+      for i=1 to numEntries do
+        let action:tActionEntry = glr.tables.ambigTable.(firstEntry+i) in
         if (isShiftAction glr.tables action) then (
           (* a shift was among the conflicted actions *)
           newState := (decodeShift (*tables*) action token);

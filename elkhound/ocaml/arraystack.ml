@@ -94,17 +94,17 @@ object (self)
     done;
   end
 
-  (* search and return the element, or None *)
-  method findOption (f: 'a -> bool) : 'a option =
+  (* search and return the element index, or -1 for not found *)
+  method findIndex (f: 'a -> bool) : int =
   begin
     (* ug.. must use tail recursion just so I can break early... *)
-    let rec loop (i: int) : 'a option =
+    let rec loop (i: int) : int =
     begin
       if (i > len-1) then (
-        None               (* not found *)
+        -1                 (* not found *)
       )
       else if (f (arr.(i))) then (
-        (Some arr.(i))     (* found *)
+        i                  (* found *)
       )
       else (
         (loop (i+1))       (* keep looking *)
@@ -114,12 +114,22 @@ object (self)
     (loop 0)
   end
 
+  (* search and return the element, or None *)
+  method findOption (f: 'a -> bool) : 'a option =
+  begin
+    let idx:int = (self#findIndex f) in
+    if (idx < 0) then (
+      None                 (* not found *)
+    )
+    else (
+      (Some arr.(idx))     (* found *)
+    )
+  end
+
   (* search *)
   method contains (f: 'a -> bool) : bool =
   begin
-    match (self#findOption f) with
-    | Some(_) -> true
-    | None -> false
+    ((self#findIndex f) >= 0)
   end
 
 

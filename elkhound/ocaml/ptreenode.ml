@@ -4,6 +4,7 @@
 
 
 open Smutil          (* getSome, etc. *)
+open Arraystack      (* tArrayStack *)
 
 
 (* for storing parse tree counts *)
@@ -137,6 +138,13 @@ begin
   (* indentation per level *)
   let cINDENT_INC:int = 2 in
 
+  (* for detecting cyclicity *)      
+  let dummyNode: tPTreeNode = ((Obj.magic []) : tPTreeNode) in
+  let path: tPTreeNode tArrayStack = (new tArrayStack dummyNode) in
+  
+  (* turn this on to detect cyclicity; there is a performance penalty *)
+  let checkForCycles: bool = true in
+
   (* methods cannot be recursive!  what's up with that?! *)
   let rec innerPrint (self:tPTreeNode) (indentationOrig:int) : unit =
   begin
@@ -145,69 +153,98 @@ begin
     let lhs: string ref = ref "" in
     let symbol: string = self.symbol in
     let merged: tPTreeNode option = self.merged in
+      
+    let cyclicSkip: bool = (
+      if (checkForCycles) then (
+        (* does 'self' appear in 'path'? *)
+        let idx:int = (path#findIndex (fun p -> p == self)) in
+        if (idx >= 0) then (
+          (* yes; print a cyclicity reference *)
+          (indent out !indentation);
+          (Printf.fprintf out "[CYCLIC: refers to %d hops up]\n"
+                              ((path#length()) - idx + 1));
+          true   (* return *)
+        )
+        else (
+          (* no; add myself to the path *)
+          (path#push self);
+          false
+        )
+      )
+      else (
+        false
+      )
+    ) in
 
-    if (isSome merged) then (
-      (* this is an ambiguity node *)
-      alts := (countMergedList self);
+    if (not cyclicSkip) then (
+      if (isSome merged) then (
+        (* this is an ambiguity node *)
+        alts := (countMergedList self);
 
-      (* get nonterm from first; should all be same *)
-      try
-        (* extract first word *)
-        let firstSpace:int = (String.index symbol ' ') in
-        lhs := (String.sub symbol 0 firstSpace);
-      with
-      | Not_found -> (
-          lhs := symbol    (* no spaces, use whole thing *)
+        (* get nonterm from first; should all be same *)
+        try
+          (* extract first word *)
+          let firstSpace:int = (String.index symbol ' ') in
+          lhs := (String.sub symbol 0 firstSpace);
+        with
+        | Not_found -> (
+            lhs := symbol    (* no spaces, use whole thing *)
+          );
+
+        indentation := !indentation + cINDENT_INC;
+      );
+
+      (* iterate over interpretations *)
+      let ct: int ref = ref 1 in
+      (mergedIter self (fun (node:tPTreeNode) -> (
+        if (!alts > 1) then (
+          (indent out (!indentation - cINDENT_INC));
+          (Printf.fprintf out "------------- ambiguous %s: %d of %d ------------\n"
+                              !lhs !ct !alts);
+          (flush out);
         );
 
-      indentation := !indentation + cINDENT_INC;
-    );
+        (indent out !indentation);
 
-    (* iterate over interpretations *)
-    let ct: int ref = ref 1 in
-    (mergedIter self (fun (node:tPTreeNode) -> (
-      if (!alts > 1) then (
-        (indent out (!indentation - cINDENT_INC));
-        (Printf.fprintf out "------------- ambiguous %s: %d of %d ------------\n"
-                            !lhs !ct !alts);
+        let children: tPTreeNode option array = node.children in
+        let numChildren:int = (Array.length children) in
+
+        (Printf.fprintf out "%s" node.symbol);
+
+        if (expand) then (
+          (* symbol is just LHS, write out RHS names after "->" *)
+          if (numChildren > 0) then (
+            (Printf.fprintf out " ->");
+            (childIter node.children (fun c ->
+              (Printf.fprintf out " %s" c.symbol)
+            ));
+          );
+        );
+
+        (Printf.fprintf out "\n");
+        (flush out);
+
+        (* iterate over children and print them *)
+        (childIter node.children (fun c ->
+          (innerPrint c (!indentation + cINDENT_INC))
+        ));
+
+        (incr ct);
+      )));
+
+      if (isSome merged) then (
+        (* close up ambiguity display *)
+        indentation := !indentation - cINDENT_INC;
+        (indent out !indentation);
+        (Printf.fprintf out "----------- end of ambiguous %s -----------\n"
+                            !lhs);
         (flush out);
       );
-
-      (indent out !indentation);
-
-      let children: tPTreeNode option array = node.children in
-      let numChildren:int = (Array.length children) in
-
-      (Printf.fprintf out "%s" node.symbol);
-
-      if (expand) then (
-        (* symbol is just LHS, write out RHS names after "->" *)
-        if (numChildren > 0) then (
-          (Printf.fprintf out " ->");
-          (childIter node.children (fun c ->
-            (Printf.fprintf out " %s" c.symbol)
-          ));
-        );
+      
+      if (checkForCycles) then (
+        (* remove myself from the path *)
+        (ignore (path#pop ()));
       );
-
-      (Printf.fprintf out "\n");
-      (flush out);
-
-      (* iterate over children and print them *)
-      (childIter node.children (fun c ->
-        (innerPrint c (!indentation + cINDENT_INC))
-      ));
-
-      (incr ct);
-    )));
-
-    if (isSome merged) then (
-      (* close up ambiguity display *)
-      indentation := !indentation - cINDENT_INC;
-      (indent out !indentation);
-      (Printf.fprintf out "----------- end of ambiguous %s -----------\n"
-                          !lhs);
-      (flush out);
     );
   end in
 

@@ -129,6 +129,11 @@ void emitMLActionCode(GrammarAnalysis const &g, char const *mliFname,
       << "\n"
       ;
   
+  // stand-alone verbatim sections go into .ml file *also*
+  {FOREACH_OBJLIST(LocString, g.verbatim, iter) {
+    emitMLUserCode(out, *(iter.data()), false /*braces*/);
+  }}
+
   #if 0   // not implemented and/or not needed
     #ifdef NO_GLR_SOURCELOC
       // we need to make sure the USER_ACTION_FUNCTIONS use
