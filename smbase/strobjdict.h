@@ -63,8 +63,7 @@ public:     // funcs
   bool queryC(char const *key, T const *&value) const  { return dict.query(key, (void*&)value); }
   bool query(char const *key, T *&value)               { return queryC(key, (T const*&)value); }
 
-  // it must be that no one calls this
-//    T const *queryfC(char const *key) const              { return (T const *)dict.queryfC(key); }
+  T const *queryfC(char const *key) const              { return (T const *)dict.queryf(key); }
   T * /*serf*/ queryf(char const *key)                 { return (T*)dict.queryf(key); }
   T * /*serf*/ queryif(char const *key)                { return (T*)dict.queryif(key); }
 

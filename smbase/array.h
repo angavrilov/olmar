@@ -203,10 +203,11 @@ public:
     {}
   ~ArrayStack();
 
-  // I seem to need these for g++-3.4.0
+  // element access; these declarations are necessary because
+  // the uses of 'operator[]' below are not "dependent", hence
+  // they can't use declarations inherited from GrowArray<T>
   T const& operator[] (int i) const { return GrowArray<T>::operator[](i); }
   T      & operator[] (int i)       { return GrowArray<T>::operator[](i); }
-  void ensureIndexDoubler(int index) { return GrowArray<T>::ensureIndexDoubler(index); }
 
   void push(T const &val)
     { setIndexDoubler(len++, val); }
@@ -220,7 +221,7 @@ public:
   // alternate interface, where init/deinit is done explicitly
   // on returned references
   T &pushAlt()    // returns newly accessible item
-    { ensureIndexDoubler(len++); return top(); }
+    { GrowArray<T>::ensureIndexDoubler(len++); return top(); }
   T &popAlt()     // returns item popped
     { return operator[](--len); }
 

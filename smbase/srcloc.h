@@ -299,7 +299,6 @@ extern SourceLocManager *sourceLocManager;
 // overloading and sometimes getting it wrong, which it does
 string locToStr(SourceLoc sl);
 
-// take advantage of singleton
 inline string toString(SourceLoc sl)
   { return locToStr(sl); }
 
