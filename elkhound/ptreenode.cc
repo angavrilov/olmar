@@ -60,12 +60,15 @@ enum { INDENT_INC = 2 };
 void PTreeNode::innerPrintTree(ostream &out, int indentation, 
                                PrintFlags pf) const
 {
+  int alts = 1;
+  string LHS;
+
   if (merged) {
     // this is an ambiguity node
+    alts = countMergedList();
 
     // since all of the alternatives should rewrite the same LHS
     // nonterminal, extract it from the first one
-    string LHS;
     char const *firstSpace = strchr(type, ' ');
     if (!firstSpace) {
       LHS = type;     // no space, use whole thing
@@ -74,16 +77,20 @@ void PTreeNode::innerPrintTree(ostream &out, int indentation,
       LHS = string(type, firstSpace-type);
     }
 
-    indent(out, indentation);
-    out << "--------- ambiguous " << LHS << ": "
-        << countMergedList() << " parses ---------\n";
     indentation += INDENT_INC;
   }
 
   // iterate over interpretations
+  int ct=1;
   for (PTreeNode const *n = this; n != NULL; n = n->merged) {
+    if (alts > 1) {
+      indent(out, indentation - INDENT_INC);
+      out << "--------- ambiguous " << LHS << ": "
+          << ct << " of " << alts << " ---------\n";
+    }
+
     indent(out, indentation);
-    
+
     out << n->type;
     if (pf & PF_EXPAND) {
       // the type is just the LHS name; write out the RHS names
@@ -107,13 +114,15 @@ void PTreeNode::innerPrintTree(ostream &out, int indentation,
       // recursively print children
       n->children[c]->innerPrintTree(out, indentation + INDENT_INC, pf);
     }
+
+    ct++;
   }
 
   if (merged) {
     // close up ambiguity display
     indentation -= INDENT_INC;
     indent(out, indentation);
-    out << "--------- end of ambiguity ---------\n";
+    out << "--------- end of ambiguous " << LHS << " ---------\n";
   }
 }
 

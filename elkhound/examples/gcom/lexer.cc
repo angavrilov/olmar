@@ -27,6 +27,7 @@ void Lexer::nextToken(LexerInterface *lex)
   // simple one-character tokens
   switch (ch) {
     case '+': lex->type = TOK_PLUS; return;
+    case '-': lex->type = TOK_MINUS; return;
     case '*': lex->type = TOK_TIMES; return;
     case '(': lex->type = TOK_LPAREN; return;
     case ')': lex->type = TOK_RPAREN; return;

@@ -13,7 +13,7 @@ CCFLAGS := -g -Wall -I$(ELKHOUND) -I$(SMBASE)
 LDFLAGS := -g -Wall $(LIBELKHOUND) $(LIBSMBASE)
 
 # default make targets
-all: lexer parser tparser
+all: lexer parser
 
 
 %.o: %.cc
@@ -29,21 +29,16 @@ gcom.h gcom.cc: gcom.gr tokens.tok
 	$(ELKHOUND)/elkhound gcom.gr
 
 parser.o: gcom.h
-tparser.o: gcom.h
 
 PARSER_OBJS := lexer.o parser.o gcom.o
 parser: $(PARSER_OBJS)
 	g++ -o $@ $(PARSER_OBJS) $(LDFLAGS)
 
-TPARSER_OBJS := lexer.o tparser.o gcom.o
-tparser: $(TPARSER_OBJS)
-	g++ -o $@ $(TPARSER_OBJS) $(LDFLAGS)
-
 check:
 	echo "2 + 3 + 4" | ./lexer
 	echo "2 + 3 + 4" | ./parser
-	echo "2 + 3 + 4" | ./tparser
+	echo "2 + 3 + 4" | ./parser -tree
 
 clean:
-	rm -f lexer parser tparser *.o tokens.tok gcom.h gcom.cc
+	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc
 

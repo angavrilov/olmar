@@ -12,7 +12,7 @@
 <center><h2>
 Elkhound Tutorial
 </h2></center>
-                   
+
 <p>The purpose of this tutorial is to walk through the steps of
 building a parser using Elkhound.  Familiarity with another parser
 generator (such as Bison) might be helpful but should not be necessary.
@@ -63,12 +63,12 @@ will be the same old example.
 <p>The first step is to write the lexer.  While it is possible to
 put the lexer definition right into the grammar file (using the
 <tt>verbatim</tt> and <tt>impl_verbatim</tt> directives), and
-doing so would make the example shorter, it would not represent
+doing so might make the example shorter, it would not represent
 very good design.  So the lexer is its own module.
 
 <h3>2.1 &nbsp; lexer.h</h3>
 
-<p>The header <a href="examples/gcom/lexer.h"><tt>lexer.h</tt></a>
+<p>The header <a href="examples/gcom1/lexer.h"><tt>lexer.h</tt></a>
 starts with an enumeration describing the tokens and their
 associated codes:
 
@@ -119,7 +119,7 @@ the token that is found.  For some tokens (<tt>TOK_LITERAL</tt> and
 decided by the person who writes the lexer.
 
 <p>Here is the <tt>Lexer::nextToken</tt> function from
-<a href="examples/gcom/lexer.cc">lexer.cc</a>:
+<a href="examples/gcom1/lexer.cc">lexer.cc</a>:
 
 <pre>
   void Lexer::nextToken(LexerInterface *lex)
@@ -140,6 +140,7 @@ decided by the person who writes the lexer.
     // simple one-character tokens
     switch (ch) {
       case '+': lex-&gt;type = TOK_PLUS; return;
+      case '-': lex-&gt;type = TOK_MINUS; return;
       case '*': lex-&gt;type = TOK_TIMES; return;
       case '(': lex-&gt;type = TOK_LPAREN; return;
       case ')': lex-&gt;type = TOK_RPAREN; return;
@@ -270,7 +271,7 @@ it's not the <tt>main()</tt> function of the completed parser program.
   EOF
 </pre>
 
-<p>The <a href="examples/gcom/Makefile"><tt>Makefile</tt></a> knows how
+<p>The <a href="examples/gcom1/Makefile"><tt>Makefile</tt></a> knows how
 to do the compilation step; just say <tt>make lexer</tt> in the
 <tt>examples/gcom</tt> directory of Elkhound.
 
@@ -441,7 +442,7 @@ right now.
 <p>Finally, we're ready to write a <tt>main()</tt> function to tie it
 all together.  Again, this could have been stuffed into
 <tt>gcom.gr</tt>, but it's better to separate it into another file (<a
-href="examples/gcom/parser.cc"><tt>parser.cc</tt></a>) for
+href="examples/gcom1/parser.cc"><tt>parser.cc</tt></a>) for
 maintainability.
 
 <pre>
@@ -476,7 +477,7 @@ maintainability.
 </pre>
 
 <p>Compile and link this program (can also use the
-<a href="examples/gcom/Makefile"><tt>Makefile</tt></a>: "<tt>make parser</tt>"):
+<a href="examples/gcom1/Makefile"><tt>Makefile</tt></a>: "<tt>make parser</tt>"):
 
 <pre>
   $ g++ -c -o lexer.o -g -Wall -I../.. -I../../../smbase lexer.cc
@@ -520,7 +521,9 @@ maintainability.
 
 <p>The parse error message explains which tokens would have allowed
 the parser to make progress for at least one more token of input.
-This output can be suppressed by adding to <tt>main()</tt>:
+Elkhound's error diagnosis and recovery is unfortunately still quite
+primitive; among the TODOs is to improve it.  Anyway,
+the output can be suppressed if desired by adding to <tt>main()</tt>:
 <pre>
   glr.noisyFailedParse = false;
 </pre>
@@ -540,7 +543,19 @@ how to handle it, so (at least) one of the ambiguous alternatives was
 arbitrarily dropped.  We could suppress that by specifying an empty
 ambiguity resolution procedure, but let's leave it alone for now.
 
+<p>The source files for this point in the tutorial are in the
+<a href="examples/gcom1"><tt>examples/gcom1</tt></a> directory:
+<ul>
+<li><a href="examples/gcom1/lexer.h"><tt>lexer.h</tt></a>
+<li><a href="examples/gcom1/lexer.cc"><tt>lexer.cc</tt></a>
+<li><a href="examples/gcom1/gcom.gr"><tt>gcom.gr</tt></a>
+<li><a href="examples/gcom1/parser.cc"><tt>parser.cc</tt></a>
+<li><a href="examples/gcom1/Makefile"><tt>Makefile</tt></a>
+</ul>
+
 <h2>5. Resolving the ambiguity</h2>
+
+<h3>5.1 &nbsp; Print the tree</h3>
 
 <p>The first step in resolving the ambiguity is to understand it.
 A good way to do this is to have Elkhound print the parse tree,
@@ -557,7 +572,225 @@ with actions that build a parse tree.  We need two more headers:
   #include "ptreeact.h"  // ParseTreeLexer, ParseTreeActions
 </pre>
 
-Then, replace the GLR initialization with these lines:
+Then, run the parser like this:
+
+<pre>
+  // wrap the lexer and actions with versions that make a parse tree
+  ParseTreeLexer ptlexer(&lexer, &gcom);
+  ParseTreeActions ptact(&gcom, gcom.makeTables());
+
+  // initialize the parser
+  GLR glr(&ptact, ptact.getTables());
+
+  // parse the input
+  SemanticValue result;
+  if (!glr.glrParse(ptlexer, result)) {
+    printf("parse error\n");
+    return 2;
+  }
+
+  // print the tree
+  PTreeNode *ptn = (PTreeNode*)result;
+  ptn->printTree(cout, PTreeNode::PF_EXPAND);
+</pre>
+
+<p>The file <a href="examples/gcom2/parser.cc"><tt>parser.cc</tt></a>
+decides whether to print the tree based on a command-line argument
+"<tt>-tree</tt>".  The new parser gives some interesting output:
+
+<pre>
+  $ echo "2" | ./parser -tree
+  __EarlyStartSymbol -&gt; AExp TOK_EOF
+    AExp -&gt; TOK_LITERAL
+      TOK_LITERAL
+    TOK_EOF
+
+  $ echo "2 + 3" | ./parser -tree
+  __EarlyStartSymbol -&gt; AExp TOK_EOF
+    AExp -&gt; AExp TOK_PLUS AExp
+      AExp -&gt; TOK_LITERAL
+        TOK_LITERAL
+      TOK_PLUS
+      AExp -&gt; TOK_LITERAL
+        TOK_LITERAL
+    TOK_EOF
+
+  $ echo "2 + 3 + 4" | ./parser -tree
+  __EarlyStartSymbol -&gt; AExp TOK_EOF
+    --------- ambiguous AExp: 1 of 2 ---------
+      AExp -&gt; AExp TOK_PLUS AExp
+        AExp -&gt; AExp TOK_PLUS AExp
+          AExp -&gt; TOK_LITERAL
+            TOK_LITERAL
+          TOK_PLUS
+          AExp -&gt; TOK_LITERAL
+            TOK_LITERAL
+        TOK_PLUS
+        AExp -&gt; TOK_LITERAL
+          TOK_LITERAL
+    --------- ambiguous AExp: 2 of 2 ---------
+      AExp -&gt; AExp TOK_PLUS AExp
+        AExp -&gt; TOK_LITERAL
+          TOK_LITERAL
+        TOK_PLUS
+        AExp -&gt; AExp TOK_PLUS AExp
+          AExp -&gt; TOK_LITERAL
+            TOK_LITERAL
+          TOK_PLUS
+          AExp -&gt; TOK_LITERAL
+            TOK_LITERAL
+    --------- end of ambiguous AExp ---------
+    TOK_EOF
+
+</pre>
+
+<p>As one can tell by inspecting the grammar, an ambiguity arises
+because the production
+
+<pre>
+  AExp -&gt; AExp "+" AExp
+</pre>
+
+does not specify an associativity for "<tt>+</tt>".  Moreover, we
+can see that "<tt>-</tt>" and "<tt>*</tt>" have the same problem,
+and that there is no precedence among these operators.
+
+<h3>5.2 &nbsp; Precedence and associativity</h3>
+
+<p>These problems are easy to fix.  We can just tell Elkhound the
+precedence and associativity of these operators, in the
+<tt>terminals</tt> section of
+<a href="examples/gcom3/gcom.gr"><tt>gcom.gr</tt></a>:
+
+<pre>
+  terminals {
+    include("tokens.tok")
+
+    precedence {
+      left  20 "*";        // high precedence, left associative
+      left  10 "+" "-";    // low precedence, left associative
+    }
+  }
+</pre>
+
+<p>Higher precedence numbers mean higher precedence, i.e. that those
+operators bind more tightly.  The order in which the declarations
+appear is irrelevant; only the numbers matter.  Operators with the
+same precedence are resolved using associativity, typically either
+"<tt>left</tt>" or "<tt>right</tt>".  See the manual (TODO: where?)
+for more information.
+
+<p>Now, <tt>elkhound</tt> reports no LR conflicts, which implies
+the grammar is unambiguous (though the converse is not true: the
+presence of conflicts does not guarantee ambiguity).  We can see
+that the tree for "<tt>2 + 3 + 4</tt>" no longer contains
+ambiguities:
+
+<pre>
+  $ echo "2 + 3 + 4" | ./parser -tree
+  __EarlyStartSymbol -&gt; AExp TOK_EOF
+    AExp -&gt; AExp TOK_PLUS AExp
+      AExp -&gt; AExp TOK_PLUS AExp
+        AExp -&gt; TOK_LITERAL
+          TOK_LITERAL
+        TOK_PLUS
+        AExp -&gt; TOK_LITERAL
+          TOK_LITERAL
+      TOK_PLUS
+      AExp -&gt; TOK_LITERAL
+        TOK_LITERAL
+    TOK_EOF
+</pre>
+
+<h2>6. Parse actions</h2>
+
+<p>To make the program do anything besides simply recognize a
+language, we need to add actions to the grammar productions.  Actions
+are written in C++, inside braces ("<tt>{</tt>" and "<tt>}</tt>")
+after the right-hand side (RHS).  Like the rest of the grammar,
+actions are free-form, and can span many lines if needed.
+
+<p>An action can yield a <i>semantic value</i>, or sval.  Svals
+can have whatever meaning you want.  However, since they are stored
+internally in a single word (typically 32 bits), data that does not
+fit into one word must be referred to with a pointer or some other
+indirection mechanism.  Svals are yielded by simply <tt>return</tt>ing
+them.
+
+<p>Semantic values have a declared type.  When the generated parser is
+compiled by the C++ compiler, it will check that the type matches what
+is actually yielded.  The sval type for a nonterminal is specified by
+enclosing it in parentheses ("<tt>(</tt>" and "<tt>)</tt>") right
+after the nonterminal name at the beginning of the nonterminal
+declaration.  The type for a terminal is declared in the
+<tt>terminals</tt> section with the syntax:
+
+<blockquote>
+  <tt>token(</tt> <i>type</i> <tt>)</tt> <i>tokenName</i> <tt>;</tt>
+</blockquote>
+
+<p>Actions accept svals from the actions that run for productions
+lower in the parse tree.  Specifically, each RHS element of a rule
+will yield some semantic value, and that value can be used by
+referring to the RHS label.  Labels are attached to RHS elements by
+preceding their symbol (terminal or nonterminal) name with an
+identifier and a colon ("<tt>:</tt>").  Within the action body, these
+labels are ordinary C++ variable names, with their proper declared type.
+
+<p>Here is a complete example for AExp which simply evaluates the
+expression in the usual way (from
+<a href="examples/gcom4/gcom.gr"><tt>gcom.gr</tt></a>):
+
+<pre>
+  nonterm(int) AExp {
+    -&gt; n:TOK_LITERAL         { return n; }
+    -&gt; a1:AExp "+" a2:AExp   { return a1 + a2; }
+    -&gt; a1:AExp "-" a2:AExp   { return a1 - a2; }
+    -&gt; a1:AExp "*" a2:AExp   { return a1 * a2; }
+    -&gt; "(" a:AExp ")"        { return a; }
+
+    // interpret identifiers using environment variables; it's
+    // a bit of a hack, and we'll do something better later
+    -&gt; x:TOK_IDENTIFIER {
+         char const *envp = getenv(x);
+         if (envp) {
+           return atoi(envp);
+         }
+         else {
+           return 0;      // not defined, call it 0
+         }
+       }
+  }
+</pre>
+
+<p>Now the parser finally does some useful computation.  (The last two
+examples assume you're using the
+<a href="http://www.gnu.org/software/bash/bash.html">bash</a> shell.
+If not, adjust them to use your shell's syntax for setting environment
+variables.)
+
+<pre>
+  $ echo "2 + 3 * 4" | ./parser
+  result: 14
+
+  $ echo "(2 + 3) * 4" | ./parser
+  result: 20
+
+  $ echo "(2 + 3) * 4 - 72" | ./parser
+  result: -52
+
+  $ echo "(2 + 3) * z - 72" | ./parser
+  result: -72
+
+  $ export a=4; echo "2 + a" | ./parser
+  result: 6
+
+  $ export a=4 b=6; echo "2 + a * b" | ./parser
+  result: 26
+</pre>
+
+
+
 
 
 
