@@ -8,117 +8,123 @@
 #include "array.h"     // GrowArray
 
 // the class T should have:
-//   // a link in the free list, as an index into the pool
-//   // array; -1 means null
-//   int nextInFreeList;
+//   // a link in the free list; it is ok for T to re-use this
+//   // member while the object is not free in the pool
+//   T *nextInFreeList;
 //
-//   // object is done being used
+//   // object is done being used for now
 //   void deinit();
 //
-//   // used when we need to make the pool larger
-//   T::T();           // default ctor for making arrays
-//   operator=(T&);    // assignment for copying to new storage
-//                     // NOTE: must copy 'nextInFreeList'!
-//   T::~T();          // dtor for when old array is cleared
+//   // needed so we can make arrays
+//   T::T();
 
 template <class T>
 class ObjectPool {
-private:     // types
-  enum { NULL_LINK = -1 };
-
 private:     // data
-  // growable array of T objects
-  GrowArray<T> pool;
+  // when the pool needs to expand, it expands by allocating an
+  // additional 'rackSize' objects; I use a linear (instead of
+  // exponential) expansion strategy because these are supposed
+  // to be used for small sets of rapidly-reused objects, not
+  // things allocated for long-term storage
+  int rackSize;
 
-  // (index of) head of the free list; -1 when list is empty
-  int head;          
-  
-private:     // funcs
-  void threadLinksFrom(int start);
+  // growable array of pointers to arrays of 'rackSize' T objects
+  ArrayStack<T*> racks;
+
+  // head of the free list; NULL when empty
+  T *head;
 
 public:      // funcs
-  ObjectPool(int initSize);
+  ObjectPool(int rackSize);
   ~ObjectPool();
 
-  // yields a reference to an object ready to be used; typically,
+  // yields a pointer to an object ready to be used; typically,
   // T should have some kind of init method to play the role a
   // constructor ordinarily does; this might cause the pool to
-  // expand
-  T &alloc();
+  // expand (but previously allocated objects do *not* move)
+  T *alloc();
 
   // return an object to the pool of objects; dealloc internally
-  // calls obj.deinit()
-  void deinit(T &obj);
+  // calls obj->deinit()
+  void dealloc(T *obj);
+  
+  // available for diagnostic purposes
+  int freeObjectsInPool() const;
 };
 
 
 template <class T>
-ObjectPool<T>::ObjectPool(int initSize)
-  : pool(initSize)
-{
-  // build a list out of the elements we have now; each node
-  // will point to the next one
-  threadLinksFrom(0);
-}
-
-template <class T>
-void ObjectPool::threadLinksFrom(int start)
-{
-  for (int i = start; i < pool.size()-1; i++) {
-    pool[i].nextInFreeList = i+1;
-  }
-  pool[pool.size()-1].nextInFreeList = NULL_LINK;
-
-  // 'start' will be beginning of free list
-  head = start;
-}
-
+ObjectPool<T>::ObjectPool(int rs)
+  : rackSize(rs),
+    racks(5),
+    head(NULL)
+{}
 
 template <class T>
 ObjectPool<T>::~ObjectPool()
 {
-  // pool deallocation takes are of everything
+  // deallocate all the objects in the racks
+  for (int i=0; i < racks.length(); i++) {
+    delete[] racks[i];
+  }
 }
 
 
 template <class T>
-T &ObjectPool<T>::alloc()
+T *ObjectPool<T>::alloc()
 {
   if (!head) {
     // need to expand the pool
-    int oldSize = pool.size();
-    pool.setSize(pool.size() * 2);
+    T *rack = new T[rackSize];
+    racks.push(rack);
 
     // thread new nodes into a free list
-    threadLinksFrom(oldSize);
+    for (int i=rackSize-1; i>=0; i--) {
+      rack[i].nextInFreeList = head;
+      head = &(rack[i]);
+    }
   }
 
-  T &ret = pool[head];               // prepare to return this one
-  head = ret.nextInFreeList;         // move to next free node
+  T *ret = head;                     // prepare to return this one
+  head = ret->nextInFreeList;        // move to next free node
 
-  ret.nextInFreeList = NULL_LINK;    // paranoia
+  ret->nextInFreeList = NULL;        // paranoia
 
   return ret;
 }
 
 
 template <class T>
-void ObjectPool<T>::dealloc(T &obj)
+void ObjectPool<T>::dealloc(T *obj)
 {
   // call obj's pseudo-dtor (the decision to have dealloc do this is
   // motivated by not wanting to have to remember to call deinit
   // before dealloc)
-  obj.deinit();
+  obj->deinit();
 
-  // I don't check that nextInFreeList == NULL_LINK, despite having set
-  // it that way in alloc(), because I want to allow for users to make
+  // I don't check that nextInFreeList == NULL, despite having set it
+  // that way in alloc(), because I want to allow for users to make
   // nextInFreeList share storage (e.g. with a union) with some other
   // field that gets used while the node is allocated
 
-  // prepend the object to the free list
-  obj.nextInFreeList = head;
-  head = (&obj - pool.getArray());      // ptr arith to derive index
-  xassert(0 <= head && head < pool.size());
+  // prepend the object to the free list; will be next yielded
+  obj->nextInFreeList = head;
+  head = obj;
+}
+
+
+template <class T>
+int ObjectPool<T>::freeObjectsInPool() const
+{
+  T *p = head;
+  int ct = 0;
+
+  while (p) {
+    ct++;
+    p = p->nextInFreeList;
+  }
+
+  return ct;
 }
 
 

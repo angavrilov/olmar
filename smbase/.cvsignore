@@ -25,3 +25,4 @@ strutil
 *.d
 mypopen
 tmalloc
+tobjpool

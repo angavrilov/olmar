@@ -143,6 +143,9 @@ mypopen: mypopen.c mypopen.h
 tmalloc: tmalloc.c
 	gcc -Wall -g -o tmalloc tmalloc.c $(THISLIBRARY)
 
+tobjpool: tobjpool.cc objpool.h
+	g++ -Wall -g -o tobjpool tobjpool.cc $(THISLIBRARY)
+
 check: $(tests-files)
 	./nonport
 	./voidlist
@@ -159,6 +162,7 @@ check: $(tests-files)
 	./mysig
 	./testmalloc 2>&1 | tail
 	./mypopen
+	./tobjpool
 	@echo
 	@echo "make check: all the tests PASSED"
 
