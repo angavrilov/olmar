@@ -1362,6 +1362,7 @@ void TS_classSpec::tcheckFunctionBodies
       }
 
       // preserve the instantiation context
+      xassert(!reallyTcheckFunctionBodies == !!instCtxt);
       f->nameAndParams->var->setInstCtxts(instCtxt);
 
       if (instCtxt) {

@@ -1544,6 +1544,7 @@ Variable *Env::instantiateTemplate
           // preserve the instantiation context
           xassert(funcDefnInstV = copyFuncDefn->nameAndParams->var);
           copyFuncDefn->nameAndParams->var->setInstCtxts(instCtxt);
+          xassert(instCtxt);
         }
       } else {
         xassert(instV->type->isFunctionType());
