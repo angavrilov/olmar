@@ -74,6 +74,7 @@ struct Struct3 {
           __attribute__((blah)) int __attribute__((blah))        x2;
   short   __attribute__((blah)) int __attribute__((blah))        x3;
   #endif
+          int                              x4   __attribute__((blah)) ;
 };
 
 // function parameter list (declaration declarator)
@@ -147,6 +148,34 @@ int ee1(int) __attribute__((blah));
 
 // example from the manual
 void (****gg1)(void) __attribute__((noreturn));
+
+
+// again, testing attributes *after* declarator, in a number of contexts:
+
+// toplevel:
+        int y1 __attribute__((blah));
+typedef int y2 __attribute__((blah));
+
+// function scope:
+void yg()
+{
+          int y1 __attribute__((blah));
+  typedef int y2 __attribute__((blah));
+}
+
+// struct member list
+struct yStruct3 {
+  int x1 __attribute__((blah)) ;
+  int x2 : 2 __attribute__((blah)) ;
+};
+
+// function parameter list (declaration declarator)
+int yf1(int x __attribute((blah)));
+int yf3(int x __attribute((blah)), int y __attribute((blah)));
+
+// and definition declarators
+int yg1(int x __attribute((blah))) {}
+int yg3(int x __attribute((blah)), int y __attribute((blah))) {}
 
 
 // a few more nested declarator examples from the manual
