@@ -4674,26 +4674,7 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
     // 2005-02-18: cppstd 14.2 para 2: if template arguments are
     // supplied, then the name must look up to a template name
     if (name->getUnqualifiedName()->isPQ_template()) {
-      bool const considerInherited = false;
-      bool foundTemplate = false;
-      if (v) {
-        if (v->isOverloaded()) {
-          // check amonst all overloaded names; 14.2 is not terribly
-          // clear about that, but 14.8.1 para 2 example 2 seems to
-          // imply this behavior
-          SFOREACH_OBJLIST(Variable, v->overload->set, iter) {
-            if (iter.data()->isTemplate(considerInherited)) {
-              foundTemplate = true;
-              break;
-            }
-          }
-        }
-        else if (v->isTemplate(considerInherited)) {
-          foundTemplate = true;
-        }
-      }
-
-      if (!foundTemplate) {
+      if (!v || !v->namesTemplateFunction()) {
         // would disambiguate use of '<' as less-than
         env.error(name->loc, stringc
           << "explicit template arguments were provided after `"
@@ -6436,6 +6417,12 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
   e2->tcheck(env, e2);
 
   // help disambiguate t0182.cc
+  //
+  // This is not exactly the right test.  The right thing to do is
+  // check for 'e1' being a name which refers to a template function,
+  // and then reject.  However, that is slightly more complicated
+  // (must consider both E_variable and E_fieldAcc), and I can't think
+  // of any test that would reveal the difference.
   if (op == BIN_LESS && e1->type->isFunctionType()) {
     return env.error("cannot apply '<' to a function", EF_DISAMBIGUATES);
   }

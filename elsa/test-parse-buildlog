@@ -24,7 +24,13 @@ $dry = 0;
 $minCt = 0;
 $maxCt = 99999999;
 $diag = 0;
-$ccparse = "$ENV{HOME}/wrk/cplr/elsa/ccparse";
+
+$cwd = `pwd`;   # gets changed below
+chomp($cwd);
+$ccparse = "$cwd/ccparse";
+if (! -x $ccparse) {
+  die("cannot execute $cwd/ccparse");
+}
 
 while ($ARGV[0] && $ARGV[0] =~ m/^-/) {
   my $op = $ARGV[0];

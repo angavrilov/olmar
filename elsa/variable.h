@@ -217,6 +217,10 @@ public:
   // follow the 'usingAlias' field if non-NULL; otherwise return this
   Variable const *skipAliasC() const;
   Variable *skipAlias() { return const_cast<Variable*>(skipAliasC()); }
+
+  // true if this name refers to a template (function) or an overload
+  // set that includes one
+  bool namesTemplateFunction() const;
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

@@ -355,6 +355,32 @@ bool sameEntity(Variable const *v1, Variable const *v2)
 }
 
 
+bool Variable::namesTemplateFunction() const
+{
+  // we are using this to compare template arguments to the
+  // preceding name, so we are only interested in the
+  // template-ness of the name itself, not any parent scopes
+  bool const considerInherited = false;
+
+  if (isOverloaded()) {
+    // check amongst all overloaded names; 14.2 is not terribly
+    // clear about that, but 14.8.1 para 2 example 2 seems to
+    // imply this behavior
+    SFOREACH_OBJLIST(Variable, overload->set, iter) {
+      if (iter.data()->isTemplate(considerInherited)) {
+        return true;
+      }
+    }
+  }
+
+  else if (isTemplate(considerInherited)) {
+    return true;
+  }
+
+  return false;
+}
+
+
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
   : set()
