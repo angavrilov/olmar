@@ -42,7 +42,7 @@ objlist.h: xobjlist.h
 # add the -DDEBUG flag to turn on additional checks
 # add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
 malloc.o: malloc.c
-	gcc -c -g -O3 -DDEBUG malloc.c
+	gcc -c -g -O3 -DDEBUG -DNO_TRACE_MALLOC_CALLS malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc

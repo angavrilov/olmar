@@ -16,8 +16,11 @@ static bool inited = false;
 // list of active tracers, initially empty
 static ObjList<string> tracers;
 
+// this will probably work; I just need a sink
+ostream devNullObj;
+
 // stream connected to /dev/null
-static ostream *devNull = NULL;
+static ostream *devNull = &devNullObj;
 
 
 // initialize
@@ -29,7 +32,9 @@ static void init()
 
   // there's a more efficient way to do this, but I don't care to dig
   // around and find out how
-  devNull = new ofstream("/dev/null");
+  // this leaks, and now that I'm checking for them, it's a little
+  // annoying...
+  //devNull = new ofstream("/dev/null");
 
   inited = true;
 }
