@@ -4620,7 +4620,7 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
 #include <stdlib.h>            // system
 
 
-int entry(int argc, char **argv)
+int inner_entry(int argc, char **argv)
 {
   #define SHIFT argc--; argv++ /* user ; */
 
@@ -4805,6 +4805,14 @@ int entry(int argc, char **argv)
   }
 
   return 0;
+}
+
+void entry(int argc, char **argv)
+{
+  int ret = inner_entry(argc, argv);
+  if (ret != 0) {
+    exit(ret);
+  }
 }
 
 ARGS_MAIN

@@ -15,6 +15,7 @@
 #include "useract.h"   // UserActions
 #include "ptreenode.h" // PTreeNode
 #include "cc_lang.h"   // CCLang
+#include "exc.h"       // throw_XOpen
 
 #include <string.h>    // strcmp
 
@@ -89,14 +90,14 @@ TreeCount sssxCount(int n)
 // defined in the grammar file
 UserActions *makeUserActions();
 
-int entry(int argc, char *argv[])
+void entry(int argc, char *argv[])
 {
   char const *progName = argv[0];
   TRACE_ARGS();
 
   if (argc < 2) {
     printf("usage: %s [-tr flags] [-count] input-file\n", progName);
-    return 0;
+    return;
   }
 
   bool count = false;
@@ -115,8 +116,7 @@ int entry(int argc, char *argv[])
   {
     FILE *input = fopen(inputFname, "r");
     if (!input) {
-      printf("cannot open file: %s\n", inputFname);
-      return 2;
+      throw_XOpen(inputFname);
     }
     fseek(input, 0, SEEK_END);
     inputLen = ftell(input);
@@ -133,13 +133,13 @@ int entry(int argc, char *argv[])
   // set up parser
   UserActions *user = makeUserActions();
   ParseTables *tables = user->makeTables();
-  
+
   // possibly replace actions with trivial ones
   if (tracingSys("trivialActions")) {
     user = new TrivialUserActions();
     count = false;   // cannot count with trivial actions, because no tree is made
   }
-  
+
   // make the parser object
   GLR glr(user, tables);
 
@@ -147,7 +147,7 @@ int entry(int argc, char *argv[])
   SemanticValue treeTop;
   if (!glr.glrParse(lexer, treeTop)) {
     // glrParse prints the error itself
-    return 2;
+    exit(2);
   }
 
   PTreeNode *top = (PTreeNode*)treeTop;
@@ -174,12 +174,10 @@ int entry(int argc, char *argv[])
   }
   cout << "tree nodes: " << PTreeNode::allocCount
        << endl;
-       
+
   if (tracingSys("printTree")) {
     top->printTree(cout);
   }
-
-  return 0;
 }
 
 
