@@ -16,7 +16,7 @@ $SMBASE = "../smbase";
 
 sub usage {
   print(<<"EOF");
-usage: $0 [options]
+usage: ./configure [options]
 options:
   -h:                print this message
   -debug,-nodebug:   enable/disable debugging options [disabled]

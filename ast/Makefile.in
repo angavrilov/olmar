@@ -28,7 +28,7 @@ RANLIB := ranlib
 # compile .cc to .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
+	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 
 # remake the generated Makefile if its inputs have changed
@@ -51,7 +51,7 @@ agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h ast.ast.h
 	    -e 's/__attribute__ ((__unused__))//' \
 	  < tmp > agrampar.tab.cc
 	mv -f agrampar.tab.h tmp
-	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > agrampar.tab.h
+	sed -e 's/typedef union {/typedef union YYSTYPE {/' < tmp > agrampar.tab.h
 	rm tmp
 	grep '# *define' agrampar.tab.h > agrampar.codes.h
 
@@ -60,7 +60,7 @@ agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h ast.ast.h
 agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 	flex -o$@ agramlex.lex
 	mv $@ agramlex.tmp
-	sed 's/class istream;/#include <iostream.h>/' <agramlex.tmp >$@
+	sed -e 's/class istream;/#include <iostream.h>/' <agramlex.tmp >$@
 	rm agramlex.tmp
 
 
@@ -90,7 +90,7 @@ example.cc: astgen example.ast
 	./astgen example.ast
 
 exampletest: exampletest.o example.o asthelp.o locstr.o strtable.o $(LIBSMBASE)
-	$(LINK) -o $@ $^
+	$(CXX) -o $@ $^
 
 # simple extension
 ext1.cc: astgen example.ast ext1.ast
@@ -153,8 +153,5 @@ distclean: clean
 	rm -rf gendoc
 
 # test for owner
-towner: owner.h towner.cc
-	$(COMPILE) towner.cc
-	$(LINK) -o towner towner.o
-
-
+towner: owner.h towner.o
+	$(CXX) -o towner towner.o $(LDFLAGS)
