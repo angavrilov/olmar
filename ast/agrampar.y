@@ -173,8 +173,8 @@ ArgList: Arg
 CtorMembersOpt
   : /* empty */
       { $$ = new ASTList<Annotation>; }
-  | CtorMembersOpt Public Embedded
-      { ($$=$1)->append(new UserDecl($2, unbox($3))); }
+  | CtorMembersOpt Annotation
+      { ($$=$1)->append($2); }
   ;
 
 /* yields Annotation */
