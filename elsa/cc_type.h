@@ -127,6 +127,7 @@ public:      // types
   class Field {
   public:
     StringRef name;                  // programmer-given name
+    AccessKeyword access;            // access control disposition
     int const index;                 // first field is 0, next is 1, etc.
     Type const *type;                // declared field type
     CompoundType const *compound;    // (serf) compound in which this appears
@@ -138,8 +139,9 @@ public:      // types
     Variable *decl;                  // (nullable serf)
 
   public:
-    Field(StringRef n, int i, Type const *t, CompoundType const *c, Variable *d)
-      : name(n), index(i), type(t), compound(c), decl(d) {}
+    Field(StringRef n, AccessKeyword a, int i, Type const *t, 
+          CompoundType const *c, Variable *d)
+      : name(n), access(a), index(i), type(t), compound(c), decl(d) {}
   };
 
 private:     // data
@@ -173,7 +175,7 @@ public:      // funcs
   Field const *getNthField(int index) const;         // must exist
   Field const *getNamedField(StringRef name) const;  // returns NULL if doesn't exist
 
-  Field *addField(StringRef name, Type const *type, 
+  Field *addField(StringRef name, AccessKeyword acc, Type const *type,
                   /*nullable*/ Variable *d);
 };
 

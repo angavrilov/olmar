@@ -223,6 +223,7 @@ Type const *TS_classSpec::tcheck(Env &env)
   // being built
   env.enterScope();
   env.scope()->curCompound = ct;
+  env.scope()->curAccess = (keyword==TI_CLASS? AK_PRIVATE : AK_PUBLIC);
 
   // look at members
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
@@ -268,7 +269,7 @@ void MR_func::tcheck(Env &env)
 
 void MR_access::tcheck(Env &env)
 {
-  env.unimp("access specifier");
+  env.scope()->curAccess = k;
 }
 
 
@@ -412,8 +413,13 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
         env.error(stringc
           << "duplicate declaration of class member `" << *name << "'");
       }
-      else {
-        ct->addField(var->name, var->type, var);
+      else {                                 
+        AccessKeyword access = env.scope()->curAccess;
+        trace("env") << "added " << toString(access)
+                     << " field `" << var->name
+                     << "' of type `" << var->type->toString()
+                     << "' to " << ct->keywordAndName() << endl;
+        ct->addField(var->name, env.scope()->curAccess, var->type, var);
       }
     }
 

@@ -199,12 +199,10 @@ class BaseClass(
 class MemberList (ASTList<Member> list);
 
 // member of a class
-class Member(
-  AccessKeyword access                  // public/protected/private
-) {
+class Member {
   -> MR_decl(Declaration d);            // data members or functions w/o bodies
   -> MR_func(Function f);               // function with body
-  -> MR_access();                       // section header
+  -> MR_access(AccessKeyword k);        // section header
   
   pure_virtual void tcheck(Env &env);
 }
