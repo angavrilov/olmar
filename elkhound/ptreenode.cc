@@ -45,33 +45,37 @@ TreeCount PTreeNode::countTrees()
 }
 
 
-void PTreeNode::printTree(ostream &out) const
+void PTreeNode::printTree(ostream &out, PrintFlags pf) const
 {
-  innerPrintTree(out, 0 /*indentation*/);
+  if (tracingSys("ptreeAddrs")) {
+    pf = (PrintFlags)(pf | PF_ADDRS);
+  }
+  innerPrintTree(out, 0 /*indentation*/, pf);
 }
 
 
 // amount to indent per level
 enum { INDENT_INC = 2 };
 
-void PTreeNode::innerPrintTree(ostream &out, int indentation) const
+void PTreeNode::innerPrintTree(ostream &out, int indentation, 
+                               PrintFlags pf) const
 {
   if (merged) {
     // this is an ambiguity node
-    
+
     // since all of the alternatives should rewrite the same LHS
     // nonterminal, extract it from the first one
     string LHS;
     char const *firstSpace = strchr(type, ' ');
     if (!firstSpace) {
-      LHS = "<no space in type?>";
+      LHS = type;     // no space, use whole thing
     }
     else {
       LHS = string(type, firstSpace-type);
     }
 
     indent(out, indentation);
-    out << "--------- ambiguous " << LHS << ": " 
+    out << "--------- ambiguous " << LHS << ": "
         << countMergedList() << " parses ---------\n";
     indentation += INDENT_INC;
   }
@@ -79,8 +83,20 @@ void PTreeNode::innerPrintTree(ostream &out, int indentation) const
   // iterate over interpretations
   for (PTreeNode const *n = this; n != NULL; n = n->merged) {
     indent(out, indentation);
+    
     out << n->type;
-    if (tracingSys("ptreeAddrs")) {
+    if (pf & PF_EXPAND) {
+      // the type is just the LHS name; write out the RHS names
+      // after an "->"
+      if (n->numChildren) {
+        out << " ->";
+        for (int c=0; c < n->numChildren; c++) {
+          out << " " << n->children[c]->type;
+        }
+      }
+    }
+
+    if (pf & PF_ADDRS) {
       // print the parse tree node address, so I can verify proper sharing
       out << " (" << ((void*)n) << ")";
     }
@@ -89,7 +105,7 @@ void PTreeNode::innerPrintTree(ostream &out, int indentation) const
     // iterate over children
     for (int c=0; c < n->numChildren; c++) {
       // recursively print children
-      n->children[c]->innerPrintTree(out, indentation + INDENT_INC);
+      n->children[c]->innerPrintTree(out, indentation + INDENT_INC, pf);
     }
   }
 

@@ -4229,6 +4229,21 @@ void emitDescriptions(GrammarAnalysis const &g, EmitCode &out)
       << "\n"
       << "\n"
       ;
+      
+  // emit functions to get access to the static maps
+  out << "char const *" << g.actionClassName
+      << "::terminalName(int termId)\n"
+      << "{\n"
+      << "  return termNames[termId];\n"
+      << "}\n"
+      << "\n"
+      << "char const *" << g.actionClassName
+      << "::nonterminalName(int nontermId)\n"
+      << "{\n"
+      << "  return nontermNames[nontermId];\n"
+      << "}\n"
+      << "\n"
+      ;
 }
 
 

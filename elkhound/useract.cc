@@ -68,4 +68,10 @@ string TrivialUserActions::terminalDescription(int, SemanticValue)
 
 string TrivialUserActions::nonterminalDescription(int, SemanticValue)
   { return string(""); }
+  
+char const *TrivialUserActions::terminalName(int)
+  { return ""; }
+char const *TrivialUserActions::nonterminalName(int)
+  { return ""; }
+
 

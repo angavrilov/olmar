@@ -124,7 +124,11 @@ public:
   // for the ACTION_TRACE function of the parser
   virtual string terminalDescription(int termId, SemanticValue sval)=0;
   virtual string nonterminalDescription(int nontermId, SemanticValue sval)=0;
-  
+
+  // get static names for all of the symbols
+  virtual char const *terminalName(int termId)=0;
+  virtual char const *nonterminalName(int termId)=0;
+
   // get the parse tables for this grammar; the default action
   // complains that no tables are defined
   virtual ParseTables *makeTables();
@@ -156,7 +160,10 @@ public:
   virtual ReclassifyFunc getReclassifier();                            \
                                                                        \
   virtual string terminalDescription(int termId, SemanticValue sval);  \
-  virtual string nonterminalDescription(int nontermId, SemanticValue sval);
+  virtual string nonterminalDescription(int nontermId, SemanticValue sval);  \
+                                                                       \
+  virtual char const *terminalName(int termId);                        \
+  virtual char const *nonterminalName(int termId);
 
 
 // a useraction class which has only trivial actions

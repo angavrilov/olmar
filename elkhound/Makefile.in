@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # I uncomment this temporarily to just build certain modules
-#tmp: cc/cc_type.o cc/cc_env.o cc/cc_tcheck.o
+#tmp: ptreeact.o ptreenode.o
 
 # main targets: two C parsers and one C++ parser
 all: elkhound libelkhound.a c cc2/cc2.exe
@@ -84,6 +84,12 @@ glr-set := \
   useract.o
 -include $(glr-set:.o=.d)
 
+# utility modules useful with elkhound, though not necessary
+util-set := \
+  ptreenode.o \
+  ptreeact.o
+-include $(util-set:.o=.d)
+
 # additional modules borrowed from the C parser for the trivial grammars,
 # and the C++ parser based on the Standard grammar
 support-set := \
@@ -147,12 +153,12 @@ support-set := \
 	chmod a-w $@
 
 # make a parser for testing some grammar, using trivial lexer
-trivparse-deps := trivmain.cc ptreenode.o trivlex.o libelkhound.a
+trivparse-deps := trivmain.cc trivlex.o libelkhound.a
 %.gr.exe: %.gr.gen.o $(trivparse-deps) $(libraries)
 	$(CXX) -o $@ -DGRAMMAR_NAME=\"$*.bin\" $(CCFLAGS) $*.gr.gen.o $(support-set) $(trivparse-deps) $(LDFLAGS)
 
 # similar, for Bison as the parser-generator
-trivbison-deps := trivbison.o trivlex.o lexer2.o ptreenode.o libelkhound.a
+trivbison-deps := trivbison.o trivlex.o lexer2.o libelkhound.a
 %.bison.exe: %.tab.o $(trivbison-deps)
 	$(CXX) -o $@ $*.tab.o $(trivbison-deps) $(LDFLAGS)
 
@@ -216,9 +222,9 @@ cyctimer: cyctimer.cc cyctimer.h
 
 # -------------------- exported library ----------------
 # glr parsing engine
-libelkhound.a: $(glr-set)
+libelkhound.a: $(glr-set) $(util-set)
 	rm -f $@
-	ar -r $@ $(glr-set)
+	ar -r $@ $(glr-set) $(util-set)
 	ranlib $@
 
 
@@ -230,12 +236,12 @@ elkhound: $(elkhound-dep) grammar.h gramanl.h $(libraries)
 	$(CXX) -o $@ -DGRAMANL_MAIN $(CCFLAGS) $(elkhound-dep) $(LDFLAGS)
 
 # C++ parser based on Standard grammar
-cc2-deps := cc2/cc2main.o cc2/cc2.gr.gen.o ptreenode.o libelkhound.a
+cc2-deps := cc2/cc2main.o cc2/cc2.gr.gen.o libelkhound.a
 cc2/cc2.exe: $(cc2-deps) $(libraries)
 	$(CXX) -o $@ $(support-set) $(cc2-deps) $(LDFLAGS)
 
 # new C++ parser with treebuilding
-cc2t-deps := cc2/cc2main.o cc2/cc2t.gr.gen.o ptreenode.o libelkhound.a
+cc2t-deps := cc2/cc2main.o cc2/cc2t.gr.gen.o libelkhound.a
 cc2/cc2t.exe: $(cc2t-deps) $(libraries)
 	$(CXX) -o $@ $(support-set) $(cc2t-deps) $(LDFLAGS)
 

@@ -48,7 +48,7 @@ public:     // funcs
   // the result of a method lookup this wouldn't be necessary.
   virtual NextTokenFunc getTokenFunc() const=0;
 
-  // suppress g++'s (wrong) warning
+  // allow destruction with interface pointer only
   virtual ~LexerInterface() {}
   
   

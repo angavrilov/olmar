@@ -15,12 +15,20 @@
 // ambiguous grammars
 typedef double TreeCount;
 
-// max # of children (when this is increased, more constructors
-// for PTreeNode should be added)
-enum { MAXCHILDREN = 5 };
-
 class PTreeNode {
-public:
+public:    // types
+  // max # of children (when this is increased, more constructors
+  // for PTreeNode should be added)
+  enum { MAXCHILDREN = 10 };
+  
+  // printing options
+  enum PrintFlags {
+    PF_NONE    = 0,       // default, print types as-is
+    PF_EXPAND  = 1,       // types are just LHS, dig down to find RHSs
+    PF_ADDRS   = 2,       // print node virtual addresses to see sharing
+  };
+
+public:    // data
   // textual repr. of the production applied; possibly useful for
   // printing the tree, or during debugging
   char const *type;
@@ -45,18 +53,18 @@ public:
   // count of # of allocated nodes; useful for identifying when
   // we're making too many
   static int allocCount;
-  
+
   // count # of times addAlternative is called; this will tell
   // the total number of local ambiguities that need to be resolved
   static int alternativeCount;
-  
+
 private:     // funcs
   // init fields which don't depend on ctor args
   void init();
 
   // helpers
   static void indent(ostream &out, int n);
-  void innerPrintTree(ostream &out, int indentation) const;
+  void innerPrintTree(ostream &out, int indentation, PrintFlags pf) const;
   int countMergedList() const;
 
 public:      // funcs
@@ -88,7 +96,7 @@ public:      // funcs
   // print the entire parse forest using indentation to represent
   // nesting, and duplicating printing of shared subtrees within
   // ambiguous regions
-  void printTree(ostream &out) const;
+  void printTree(ostream &out, PrintFlags pf = PF_NONE) const;
 
   // add an alternative to the current 'merged' list
   void addAlternative(PTreeNode *alt);
