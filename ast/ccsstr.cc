@@ -194,20 +194,39 @@ string CCSubstrate::getDeclName() const
 #ifdef TEST_CCSSTR
 
 #define CC CCSubstrate
+#define Test CCSubstrateTest
 
-void feed(CC &cc, char const *src)
+// test code is put into a class just so that CCSubstrate
+// can grant it access to private fields
+class Test {
+public:
+  void feed(CC &cc, char const *src);
+  void test(char const *src, CC::State state, int nesting, bool flag);
+  void normal(char const *src, int nesting);
+  void str(char const *src, int nesting, bool bs);
+  void yes(char const *src);
+  void no(char const *src);
+  void name(char const *body, char const *n);
+  void badname(char const *body);
+  int main();
+};
+
+
+#define min(a,b) ((a)<(b)?(a):(b))
+
+void Test::feed(CC &cc, char const *src)
 {
   cout << "trying: " << src << endl;
   while (*src) {
     // feed it in 10 char increments, to test split processing too
     int len = min(strlen(src), 10);
-    cc.handle(src, len);
+    cc.handle(src, len, '}');
     src += len;
   }
 }
 
 
-void test(char const *src, CC::State state, int nesting, bool flag)
+void Test::test(char const *src, CC::State state, int nesting, bool flag)
 {
   CC cc(simpleReportError);
   feed(cc, src);
@@ -221,12 +240,12 @@ void test(char const *src, CC::State state, int nesting, bool flag)
 }
 
 
-void normal(char const *src, int nesting)
+void Test::normal(char const *src, int nesting)
 {
   test(src, CC::ST_NORMAL, nesting, false);
 }
 
-void str(char const *src, int nesting, bool bs)
+void Test::str(char const *src, int nesting, bool bs)
 {
   test(src, CC::ST_STRING, nesting, bs);
 
@@ -236,7 +255,7 @@ void str(char const *src, int nesting, bool bs)
 }
 
 
-void yes(char const *src)
+void Test::yes(char const *src)
 {
   CC cc(simpleReportError);
   feed(cc, src);
@@ -244,7 +263,7 @@ void yes(char const *src)
   xassert(cc.zeroNesting());
 }
 
-void no(char const *src)
+void Test::no(char const *src)
 {
   CC cc(simpleReportError);
   feed(cc, src);
@@ -252,14 +271,14 @@ void no(char const *src)
   xassert(!cc.zeroNesting());
 }
 
-void name(char const *body, char const *n)
+void Test::name(char const *body, char const *n)
 {
   CC cc(simpleReportError);
   feed(cc, body);
   xassert(cc.getDeclName().equals(n));
 }
 
-void badname(char const *body)
+void Test::badname(char const *body)
 {
   CC cc(simpleReportError);
   feed(cc, body);
@@ -272,7 +291,7 @@ void badname(char const *body)
 }
 
 
-int main()
+int Test::main()
 {
   normal("int main()", 0);
   normal("int main() { hi", 1);
@@ -324,6 +343,12 @@ int main()
   cout << "\nccsstr: all tests PASSED\n";
 
   return 0;
+}
+
+int main()
+{
+  Test t;
+  return t.main();
 }
 
 #endif // TEST_CCSSTR

@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # main targets
-all: astgen libast.a TAGS example.o ext1.o
+all: ccsstr astgen libast.a TAGS example.o ext1.o
 
 
 # directories of other software
@@ -65,6 +65,16 @@ agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
             -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
 	  <agramlex.tmp >$@
 	rm agramlex.tmp
+
+
+# ------------------------- ccsstr ---------------------
+CCSSTR_OBJS := \
+  reporterr.o \
+  embedded.o
+-include $(CCSSTR_OBJS:.o=.d)
+
+ccsstr: ccsstr.cc $(CCSSTR_OBJS)
+	$(CXX) -o $@ -DTEST_CCSSTR $(CCFLAGS) ccsstr.cc $(CCSSTR_OBJS) $(LDFLAGS)
 
 
 # ------------------------- astgen ---------------------
@@ -145,8 +155,8 @@ TAGS:
 
 
 # ------------------------ misc ---------------------
-check:
-	@echo "ast doesn't have a useful 'make check' at this time"
+check: ccsstr
+	./ccsstr
 
 # delete outputs of compiler, linker
 clean:

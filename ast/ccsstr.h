@@ -1,15 +1,15 @@
 // ccsstr.h            see license.txt for copyright and terms of use
 // C++ substrate for my parser
 
-#ifndef __CCSSTR_H
-#define __CCSSTR_H
+#ifndef CCSSTR_H
+#define CCSSTR_H
 
 #include "embedded.h"      // EmbeddedLang
 
+class CCSubstrateTest;
+
 class CCSubstrate : public EmbeddedLang {
-public:
-  // these are public so the test code can access them,
-  // and because it doesn't hurt much
+private:
   enum State {
     ST_NORMAL,       // normal text
     ST_STRING,       // inside a string literal
@@ -22,6 +22,9 @@ public:
   int nesting;       // depth of paren/bracket/brace nesting
   bool backslash;    // in ST_{STRING,CHAR}, just seen backslash?
   bool star;         // in ST_C_COMMENT, just seen '*'?
+
+  // so test code can interrogate internal state
+  friend class CCSubstrateTest;
 
 public:
   CCSubstrate(ReportError &err);
@@ -36,4 +39,4 @@ public:
   virtual string getDeclName() const;
 };
 
-#endif // __CCSSTR_H
+#endif // CCSSTR_H
