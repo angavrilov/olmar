@@ -570,6 +570,46 @@ Variable *IDeclarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 }
 
 
+// given an unqualified name which might refer to a conversion
+// operator, rewrite the type if it is
+Type const *makeConversionOperType(Env &env, OperatorName *o,
+                                   Type const *spec)
+{
+  if (!o->isON_conversion()) {
+    // no change for non-conversion operators
+    return spec;
+  }
+  else {
+    ON_conversion *c = o->asON_conversion();
+
+    c->type->tcheck(env);
+    Type const *destType = c->type->getType();
+
+    // need a function which returns 'destType', but has the
+    // other characteristics gathered into 'spec'; make sure
+    // 'spec' is a function type
+    if (!spec->isFunctionType()) {
+      env.error("conversion operator must be a function");
+      return spec;
+    }
+    FunctionType const *specFunc = &( spec->asFunctionTypeC() );
+
+    if (specFunc->params.isNotEmpty() || specFunc->acceptsVarargs) {
+      env.error("conversion operator cannot accept arguments");
+      return spec;
+    }
+
+    // now build another function type using specFunc's cv flags
+    // (since we've verified none of the other info is interesting);
+    // in particular, fill in the conversion destination type as
+    // the function's return type
+    FunctionType *ft = new FunctionType(destType, specFunc->cv);
+
+    return ft;
+  }
+}
+
+
 // This function is perhaps the most complicated in this entire
 // module.  It has the responsibility of adding a variable called
 // 'name', with type 'spec', to the environment.  But to do this it
@@ -627,6 +667,17 @@ realStart:
   if (!name) {
     // no name, nothing to enter in environment
     return new Variable(loc, NULL, spec, dflags);
+  }
+
+  if (name->getUnqualifiedName()->isPQ_operator()) {
+    // conversion operators require that I play some games
+    // with the type
+    //
+    // this may not be perfect, because it makes looking up
+    // the set of candidate conversion functions difficult
+    // (you have to explicitly iterate through the base classes)
+    spec = makeConversionOperType(
+      env, name->getUnqualifiedName()->asPQ_operatorC()->o, spec);
   }
 
   // are we in a class member list?
@@ -808,58 +859,12 @@ realStart:
   return var;
 }
 
+
 Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
   env.setLoc(loc);
 
   return D_name_itcheck(env, loc, spec, name, dflags);
-}
-
-
-Variable *D_operator::itcheck(Env &env, Type const *spec, DeclFlags dflags)
-{
-  env.setLoc(loc);
-
-  // the idea will be to treat operator functions like special
-  // names, and use the same logic as for D_name
-  char const *opName = o->getOperatorName();
-  PQ_name tempName(env.str(opName));
-
-  if (!o->isOD_conversion()) {
-    return D_name_itcheck(env, loc, spec, &tempName, dflags);
-  }
-  else {
-    OD_conversion *c = o->asOD_conversion();
-
-    c->type->tcheck(env);
-    Type const *destType = c->type->getType();
-
-    // need a function which returns 'destType', but has the
-    // other characteristics gathered into 'spec'; make sure
-    // 'spec' is a function type
-    if (!spec->isFunctionType()) {
-      // return a dummy variable for error recovery
-      return new Variable(loc, tempName.name,
-        env.error("conversion operator must be a function"), DF_NONE);
-    }
-    FunctionType const *specFunc = &( spec->asFunctionTypeC() );
-
-    if (specFunc->params.isNotEmpty() || specFunc->acceptsVarargs) {
-      return new Variable(loc, tempName.name,
-        env.error("conversion operator cannot accept arguments"), DF_NONE);
-    }
-
-    // now build another function type using specFunc's cv flags
-    // (since we've verified none of the other info is interesting);
-    // in particular, fill in the conversion destination type as
-    // the function's return type
-    FunctionType *ft = new FunctionType(destType, specFunc->cv);
-
-    // this may not be perfect, because it makes looking up
-    // the set of candidate conversion functions difficult
-    // (you have to explicitly iterate through the base classes)
-    return D_name_itcheck(env, loc, ft, &tempName, dflags);
-  }
 }
 
 
@@ -958,7 +963,7 @@ FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
 
 
 // ------------------ OperatorDeclarator ----------------
-char const *OD_newDel::getOperatorName() const
+char const *ON_newDel::getOperatorName() const
 {
   return (isNew && isArray)? "new[]" :
          (isNew && !isArray)? "new" :
@@ -966,7 +971,7 @@ char const *OD_newDel::getOperatorName() const
                               "delete";
 }
 
-char const *OD_binary::getOperatorName() const
+char const *ON_binary::getOperatorName() const
 {
   switch (op) {
     default:              xfailure("bad code");
@@ -995,7 +1000,7 @@ char const *OD_binary::getOperatorName() const
   };
 }
 
-char const *OD_unary::getOperatorName() const
+char const *ON_unary::getOperatorName() const
 {
   switch (op) {
     default:           xfailure("bad code");
@@ -1004,46 +1009,46 @@ char const *OD_unary::getOperatorName() const
   }
 }
 
-char const *OD_effect::getOperatorName() const
+char const *ON_effect::getOperatorName() const
 {
-  switch (op) {                         
+  switch (op) {
     default:            xfailure("bad code");
     case EFF_PREINC:    return "operator++";
     case EFF_PREDEC:    return "operator--";
   }
 }
 
-char const *OD_assign::getOperatorName() const
+char const *ON_assign::getOperatorName() const
 {
   switch (op) {
     default:            xfailure("bad code");
-    case BIN_MULT:      return "*";
-    case BIN_DIV:       return "/";
-    case BIN_MOD:       return "%";
-    case BIN_PLUS:      return "+";
-    case BIN_MINUS:     return "-";
-    case BIN_LSHIFT:    return "<<";
-    case BIN_RSHIFT:    return ">>";
-    case BIN_BITAND:    return "&";
-    case BIN_BITXOR:    return "^";
-    case BIN_BITOR:     return "|";
-    case BIN_AND:       return "&&";
-    case BIN_OR:        return "||";
+    case BIN_MULT:      return "operator*=";
+    case BIN_DIV:       return "operator/=";
+    case BIN_MOD:       return "operator%=";
+    case BIN_PLUS:      return "operator+=";
+    case BIN_MINUS:     return "operator-=";
+    case BIN_LSHIFT:    return "operator<<=";
+    case BIN_RSHIFT:    return "operator>>=";
+    case BIN_BITAND:    return "operator&=";
+    case BIN_BITXOR:    return "operator^=";
+    case BIN_BITOR:     return "operator|=";
+    case BIN_AND:       return "operator&&=";
+    case BIN_OR:        return "operator||=";
   }
 }
 
-char const *OD_overload::getOperatorName() const
+char const *ON_overload::getOperatorName() const
 {
-  switch (op) {                     
+  switch (op) {
     default:             xfailure("bad code");
-    case OVL_COMMA:      return ",";
-    case OVL_ARROW:      return "->";
-    case OVL_PARENS:     return "( )";
-    case OVL_BRACKETS:   return "[ ]";
+    case OVL_COMMA:      return "operator,";
+    case OVL_ARROW:      return "operator->";
+    case OVL_PARENS:     return "operator()";
+    case OVL_BRACKETS:   return "operator[]";
   }
 }
 
-char const *OD_conversion::getOperatorName() const
+char const *ON_conversion::getOperatorName() const
 {                   
   // this is the sketchy one..
   return "conversion-operator";

@@ -125,15 +125,23 @@ class PQName {
   public string qualifierString() const;  
   public string toString() const;
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
-                                   
-  // retrieve the eventual PQ_name's name
+
+  // retrieve a StringRef for the underlying name, be it a PQ_name or
+  // a PQ_operator
   pure_virtual StringRef getName() const;
 
-  // final name
-  -> PQ_name(StringRef name);
+  // get the PQName at the bottom of any qualifiers
+  pure_virtual PQName const *getUnqualifiedName() const;
 
   // outer qualifier applied to some inner PQName
   -> PQ_qualifier(StringRef qualifier, PQName rest);
+
+  // final name, when it's an ordinary identifier
+  -> PQ_name(StringRef name);
+
+  // "operator" names; 'o' has the full info, while 'fakeName' is
+  // for getName(), which is sometimes used for string maps
+  -> PQ_operator(OperatorName o, StringRef fakeName);
 }
 
 
@@ -270,13 +278,9 @@ class IDeclarator {
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
-  // (dtor names start with "~")
+  // (dtor names start with "~"); it's also used for operator names
   -> D_name(SourceLocation loc,
             PQName /*nullable*/ name);
-
-  // C++ operator declarator
-  -> D_operator(SourceLocation loc,
-                OperatorDeclarator o);
 
   // "f(int)"
   -> D_func(SourceLocation loc,
@@ -312,39 +316,40 @@ class ExceptionSpec (
   public FunctionType::ExnSpec *tcheck(Env &env);
 }
 
-// declarators for operator and conversion functions
-class OperatorDeclarator {
+// names for operator and conversion functions
+class OperatorName {
+  // render the operator as a string, for use with string-based maps
   pure_virtual char const *getOperatorName() const;
 
   // operator new & delete (see note at end about SpecialDeclarator)
-  -> OD_newDel(bool isNew, bool isArray);
+  -> ON_newDel(bool isNew, bool isArray);
 
   // binary operator; since the declarator parser won't
   // know whether "+" and "-" are being overloaded as unary
   // or binary (since it won't count arguments or know
   // whether it's in a class context), "+" and "-" are always
-  // classified as OD_binary even when in fact unary; op
+  // classified as ON_binary even when in fact unary; op
   // will never be BIN_DOT_STAR nor BIN_ASSIGN
-  -> OD_binary(BinaryOp op);
+  -> ON_binary(BinaryOp op);
 
   // unary operator; only "!" and "~" are classified this way
-  -> OD_unary(UnaryOp op);
+  -> ON_unary(UnaryOp op);
 
   // ++ or --; since declarator parser doesn't know about
   // the arguments, this is always EFF_PREINC or EFF_PREDEC
   // even when in fact the "post" version is being overloaded
-  -> OD_effect(EffectOp op);
+  -> ON_effect(EffectOp op);
 
   // assignment; compound if op != BIN_ASSIGN
-  -> OD_assign(BinaryOp op);
+  -> ON_assign(BinaryOp op);
 
   // remaining misc ops not captured above
-  -> OD_overload(OverloadableOp op);
+  -> ON_overload(OverloadableOp op);
 
 
   // conversion operator to convert to 'type'; type will always have an
   // abstract declarator, with only pointer-type constructors (if any)
-  -> OD_conversion(ASTTypeId type);
+  -> ON_conversion(ASTTypeId type);
 }
 
 
@@ -589,8 +594,8 @@ class InitLabel {
   SpecialDeclarator:
 
   Why split out the various overloadable operators (c++ spec section
-  A.11) into various OD_XXX classes, instead of using just one
-  OD_overload?  Well, in any case, code which interprets overloaded
+  A.11) into various ON_XXX classes, instead of using just one
+  ON_overload?  Well, in any case, code which interprets overloaded
   operator declarators will have to map to/from the other operator
   names, so reusing those names may simplify some of that code.  Also,
   reuse means I get debug printing for free.  Finally, it's easy to

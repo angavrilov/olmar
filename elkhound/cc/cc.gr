@@ -152,38 +152,25 @@ nonterm LeaveScope -> empty     [
 ]
 
 
-// ------------- identifier ambiguity -------------------
-// identifiers can play two primary roles, and this is the
-// source of problems parsing C and C++
+// ------------- identifiers -------------------
+// simple string of characters
+nonterm[StringRef] Identifier {
+  dup(n) [ return n; ]
+  del(n) []
+  -> n:L2_NAME          [ return n; ]
+}
 
-// name of a type; introduced by class, struct, union, enum, typedef
+// another name that comes up in a few places; it's supposed
+// to refer to a type, but the typechecker will have to enforce
+// that later
 nonterm[StringRef] TypeName {
-  dup(n) [ return n; ]
-  del(n) []
-  -> n:L2_TYPE_NAME     [ return n; ]
-  -> n:L2_NAME          [ return n; ]    // for when not using lexer hack
-}
-
-// name of a variable or function; introduced by a declaration
-nonterm[StringRef] VariableName {
-  dup(n) [ return n; ]
-  del(n) []
-  -> n:L2_VARIABLE_NAME [ return n; ]
-  -> n:L2_NAME          [ return n; ]    // for when not using lexer hack
-}
-
-// names for situations where it does not matter what its previous
-// meaning may have been
-nonterm[StringRef] AnyName {
-  -> n:L2_TYPE_NAME     [ return n; ]
-  -> n:L2_VARIABLE_NAME [ return n; ]
-  -> n:L2_NAME          [ return n; ]    // for when not using lexer hack
+  -> id:Identifier      [ return id; ]
 }
 
 
 // ---------------- higher-level syntax -----------------
 // the section labels that follow (like "A.3") are from the
-// C++ standard document (should track down a proper reference..)
+// C++ standard document
 
 // ------ A.3 Basic Concepts ------
 nonterm[TranslationUnit*] TranslationUnit {
@@ -203,7 +190,7 @@ nonterm[Expression*] PrimaryExpression {
   -> "(" e:Expression ")"
        [ return e; ]
 
-  -> e:PQVarName
+  -> e:IdExpression
        [ return new E_variable(e); ]
 
   // GNU extension
@@ -241,36 +228,44 @@ nonterm[StringRef] StringLiteral {
 }
 
 
-// possibly-qualified name; essentially spec's id-expression
-// missing: template-id because I don't know what that is
-nonterm[PQName*] PQVarName {
-  -> n:VariableName               [ return new PQ_name(n); ]
-  -> q:Qualifier rhs:PQVarName    [ return new PQ_qualifier(q, rhs); ]
+// possibly-qualified name
+nonterm[PQName*] IdExpression {
+  -> id:PQualifiedId              [ return id; ]
 
-  //-> OperatorFunctionId ;
-  //-> ConversionFunctionId ;
-  //-> "~" TypeName ;
+  // a bare "::" qualifier can only appear at the start of a qualifier
+  // sequence; I'm enforcing it a little bit differently than the std
+  // does
+  -> "::" id:PQualifiedId         [ return new PQ_qualifier(NULL, id); ]
 }
 
-// similar for AnyName
-nonterm[PQName*] PQName {
-  -> n:AnyName                    [ return new PQ_name(n); ]
-  -> q:Qualifier rhs:PQName       [ return new PQ_qualifier(q, rhs); ]
+// names that are not qualified
+nonterm[PQName*] UnqualifiedId {
+  -> id:Identifier                [ return new PQ_name(id); ]
+  -> id:OperatorFunctionId        [ return new PQ_operator(id, str(id->getOperatorName())); ]
+  -> id:ConversionFunctionId      [ return new PQ_operator(id, str(id->getOperatorName())); ]
+
+  // std has `"~" ClassName' here, but I've chosen to separate out
+  // the places that a destructor name can occur, since it avoids
+  // an ambiguity with the "~" unary operator
+
+  //-> TemplateId ;
 }
 
-// variant of PQName which doesn't allow leading "::"; this is to
-// temporarily remove the ambiguity with defining functions declared
-// in the global namespace
-nonterm[PQName*] PQName_no_colon_colon {
-  -> n:AnyName                    
-       [ return new PQ_name(n); ]
-  -> q:TypeName "::" rhs:PQName_no_colon_colon
-       [ return new PQ_qualifier(q, rhs); ]
+// optional qualifier sequence (with no bare "::"), then an
+// UnqualifiedId
+nonterm[PQName*] PQualifiedId {
+  -> n:TypeName "::" id:PQualifiedId  [ return new PQ_qualifier(n, id); ]
+  -> id:UnqualifiedId                 [ return id; ]
+
+  // std has a couple places where "template" occurs, I'm leaving
+  // those out for now..
 }
 
-nonterm[StringRef] Qualifier {
-  -> "::"             [ return NULL; ]    // "::" alone is encoded this way
-  -> n:TypeName "::"  [ return n; ]
+// variant of IdExpression which doesn't allow leading "::"; this is
+// to temporarily remove the ambiguity with defining functions
+// declared in the global namespace
+nonterm[PQName*] IdExpression_no_colon_colon {
+  -> id:PQualifiedId                  [ return id; ]
 }
 
 
@@ -299,14 +294,14 @@ nonterm[Expression*] PostfixExpression {
        [ return new E_constructor(spec, e); ]
 
   // field access
-  -> p:PostfixExpression "."  n:PQVarName
+  -> p:PostfixExpression "."  n:IdExpression
        [ return new E_fieldAcc(p, n); ]
 
   // deref + field access
-  -> p:PostfixExpression "->" n:PQVarName
+  -> p:PostfixExpression "->" n:IdExpression
        [ return new E_fieldAcc(new E_deref(p), n); ]
 
-  -> p:PostfixExpression "++" 
+  -> p:PostfixExpression "++"
        [ return new E_effect(EFF_POSTINC, p); ]
   -> p:PostfixExpression "--"
        [ return new E_effect(EFF_POSTDEC, p); ]
@@ -587,7 +582,7 @@ nonterm[Statement*] Statement {
   // or a BlockDeclaration (declare variable y, of type x)
   merge(L,R) [ L->addAmbiguity(R); return L; ]
 
-  -> n:AnyName ":" s:Statement 
+  -> n:Identifier ":" s:Statement 
        [ return new S_label(loc, n, s); ]
 
   -> "case" e:ConstantExpression ":" s:Statement
@@ -636,7 +631,7 @@ nonterm[Statement*] Statement {
 
   -> "return" ";"                       [ return new S_return(loc, NULL); ]
 
-  -> "goto" n:AnyName ";"               [ return new S_goto(loc, n); ]
+  -> "goto" n:Identifier ";"            [ return new S_goto(loc, n); ]
 
   // declaration-statement
   -> d:BlockDeclaration                 [ return new S_decl(loc, d); ]
@@ -831,11 +826,11 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 
 
 nonterm[TS_elaborated*] ElaboratedTypeSpecifier {
-  -> k:ClassKey n:PQName   [
+  -> k:ClassKey n:PQTypeName   [
        declareClassTag(n);
        return new TS_elaborated(loc, k, n);
      ]
-  -> "enum" n:PQName            [ return new TS_elaborated(loc, TI_ENUM, n); ]
+  -> "enum" n:PQTypeName        [ return new TS_elaborated(loc, TI_ENUM, n); ]
 }
 
 
@@ -879,11 +874,18 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm[PQName*] PQTypeName {
-  -> n:TypeName                [ return new PQ_name(n); ]
-  -> q:Qualifier n:PQTypeName  [ return new PQ_qualifier(q, n); ]
+  -> n:PQTypeName_ncc              [ return n; ]
+  -> "::" n:PQTypeName_ncc         [ return new PQ_qualifier(NULL, n); ]
+}
+                                 
+// no-colon-colon
+nonterm[PQName*] PQTypeName_ncc {
+  -> n:TypeName                    [ return new PQ_name(n); ]
+  -> q:TypeName "::" n:PQTypeName  [ return new PQ_qualifier(q, n); ]
 
   //-> TemplateId ;
 }
+
 
 // the C++ standard allows "const" and "volatile" to be arbitrarily
 // interleaved with the words of a simple-type-specifier.. so I've
@@ -927,7 +929,7 @@ nonterm[int] PrimitiveCVTypeSpecifier {
 nonterm[TS_enumSpec*] EnumSpecifier {
   -> "enum" "{" list:EnumeratorListOpt "}"
        [ return new TS_enumSpec(NULL /*name*/, list); ]
-  -> "enum" n:AnyName "{" list:EnumeratorListOpt "}"
+  -> "enum" n:Identifier "{" list:EnumeratorListOpt "}"
        [ return new TS_enumSpec(n, list); ]
 }
 
@@ -946,9 +948,9 @@ nonterm[FakeList<Enumerator>*] EnumeratorListOpt {
 
 
 nonterm[Enumerator*] EnumeratorDefinition {
-  -> name:AnyName 
+  -> name:Identifier 
        [ return new Enumerator(loc, name, NULL /*expr*/); ]
-  -> name:AnyName "=" expr:ConstantExpression
+  -> name:Identifier "=" expr:ConstantExpression
        [ return new Enumerator(loc, name, expr); ]
 }
 
@@ -1048,20 +1050,13 @@ nonterm[IDeclarator*] DirectDeclarator {
   // it doesn't matter how this was classified before, because a
   // declarator binds a new name, so it shadows any prior definitions;
   // note: this rule handles constructor names!
-  -> n:PQName_no_colon_colon
+  // note: this also handles operator names!
+  -> n:IdExpression_no_colon_colon
        [ return new D_name(loc, n); ]
 
   // dtor
   -> n:PQDtorName
        [ return new D_name(loc, n); ]
-
-  // conversion function
-  -> d:ConversionFunctionId
-       [ return new D_operator(loc, d); ]
-
-  // operator function
-  -> d:OperatorFunctionId
-       [ return new D_operator(loc, d); ]
 
   // function declarator; the return type comes from the type
   // specifier that preceeds this
@@ -1149,7 +1144,7 @@ nonterm[IDeclarator*] TypedefDeclarator {
 }
 
 nonterm[IDeclarator*] DirectTypedefDeclarator {
-  -> n:PQName_no_colon_colon [
+  -> n:IdExpression_no_colon_colon [
        // TYPE/NAME
        D("defined new typedef name " << n->toString());
        addType(n);
@@ -1372,7 +1367,7 @@ nonterm[TS_classSpec*] ClassSpecifier ->
 
 nonterm[StringRef] ClassNameOpt {
   -> empty     [ return NULL; ]
-  -> n:AnyName [
+  -> n:Identifier [
        //declareClassTag(n);   // wrong type.. whatever
        return n;
      ]
@@ -1470,13 +1465,13 @@ nonterm[Declarator*] MemberDeclarator {
   -> d:Declarator "=" e:ConstantExpression     // pure, and member inits
        [ return new Declarator(d, new IN_expr(e)); ]
 
-  -> n:AnyNameOpt ":" e:ConstantExpression     // bitfield
+  -> n:IdentifierOpt ":" e:ConstantExpression     // bitfield
        [ return new Declarator(new D_bitfield(loc, n, e), NULL /*init*/); ]
 }
 
-nonterm[StringRef] AnyNameOpt {
-  -> empty      [ return NULL; ]
-  -> n:AnyName  [ return n; ]
+nonterm[StringRef] IdentifierOpt {
+  -> empty         [ return NULL; ]
+  -> n:Identifier  [ return n; ]
 }
 
 
@@ -1513,14 +1508,13 @@ nonterm[AccessKeyword] AccessSpecifierOpt {
 }
 
 nonterm[PQName*] PQClassName {
-  -> n:TypeName                   [ return new PQ_name(n); ]
-  -> q:Qualifier rhs:PQClassName  [ return new PQ_qualifier(q, rhs); ]
+  -> n:PQTypeName                 [ return n; ]
 }
 
 
 // ------ A.10 Special member functions ------
-nonterm[OperatorDeclarator*] ConversionFunctionId {
-  -> "operator" t:ConversionTypeId  [ return new OD_conversion(t); ]
+nonterm[OperatorName*] ConversionFunctionId {
+  -> "operator" t:ConversionTypeId  [ return new ON_conversion(t); ]
 }
 
 nonterm[ASTTypeId*] ConversionTypeId {
@@ -1556,54 +1550,55 @@ nonterm[MemberInit*] MemInitializer {
 // have any qualifiers (because in most cases the parser can't make
 // the distinction so it would fall to typechecking anyway)
 nonterm[PQName*] MemInitializerId {
-  -> n:PQName  [ return n; ]
+  -> id:Identifier                         [ return new PQ_name(id); ]
+  -> n:TypeName "::" id:MemInitializerId   [ return new PQ_qualifier(n, id); ]
 }
 
 
 // ------ A.11 Overloading ------
-nonterm[OperatorDeclarator*] OperatorFunctionId {
+nonterm[OperatorName*] OperatorFunctionId {
   -> "operator" od:Operator  [ return od; ]
 }
 
 // this nonterm is only used in the OperatorFunctionId context,
-// so go ahead and have it return a full OperatorDeclarator
-nonterm[OperatorDeclarator*] Operator {
-  -> "new"             [ return new OD_newDel(true /*isNew*/, false /*isArray*/); ]
-  -> "delete"          [ return new OD_newDel(false, false); ]
-  -> "new" "[" "]"     [ return new OD_newDel(true, true); ]
-  -> "delete" "[" "]"  [ return new OD_newDel(false, true); ]
+// so go ahead and have it return a full OperatorName
+nonterm[OperatorName*] Operator {
+  -> "new"             [ return new ON_newDel(true /*isNew*/, false /*isArray*/); ]
+  -> "delete"          [ return new ON_newDel(false, false); ]
+  -> "new" "[" "]"     [ return new ON_newDel(true, true); ]
+  -> "delete" "[" "]"  [ return new ON_newDel(false, true); ]
 
-  -> "*"  [ return new OD_binary(BIN_MULT); ]
-  -> "/"  [ return new OD_binary(BIN_DIV); ]
-  -> "%"  [ return new OD_binary(BIN_MOD); ]
-  -> "+"  [ return new OD_binary(BIN_PLUS); ]
-  -> "-"  [ return new OD_binary(BIN_MINUS); ]
-  -> "<<" [ return new OD_binary(BIN_LSHIFT); ]
-  -> ">>" [ return new OD_binary(BIN_RSHIFT); ]
-  -> "<"  [ return new OD_binary(BIN_LESS); ]
-  -> ">"  [ return new OD_binary(BIN_GREATER); ]
-  -> "<=" [ return new OD_binary(BIN_LESSEQ); ]
-  -> ">=" [ return new OD_binary(BIN_GREATEREQ); ]
-  -> "==" [ return new OD_binary(BIN_EQUAL); ]
-  -> "!=" [ return new OD_binary(BIN_NOTEQUAL); ]
-  -> "&"  [ return new OD_binary(BIN_BITAND); ]
-  -> "^"  [ return new OD_binary(BIN_BITXOR); ]
-  -> "|"  [ return new OD_binary(BIN_BITOR); ]
-  -> "&&" [ return new OD_binary(BIN_AND); ]
-  -> "||" [ return new OD_binary(BIN_OR); ]
+  -> "*"  [ return new ON_binary(BIN_MULT); ]
+  -> "/"  [ return new ON_binary(BIN_DIV); ]
+  -> "%"  [ return new ON_binary(BIN_MOD); ]
+  -> "+"  [ return new ON_binary(BIN_PLUS); ]
+  -> "-"  [ return new ON_binary(BIN_MINUS); ]
+  -> "<<" [ return new ON_binary(BIN_LSHIFT); ]
+  -> ">>" [ return new ON_binary(BIN_RSHIFT); ]
+  -> "<"  [ return new ON_binary(BIN_LESS); ]
+  -> ">"  [ return new ON_binary(BIN_GREATER); ]
+  -> "<=" [ return new ON_binary(BIN_LESSEQ); ]
+  -> ">=" [ return new ON_binary(BIN_GREATEREQ); ]
+  -> "==" [ return new ON_binary(BIN_EQUAL); ]
+  -> "!=" [ return new ON_binary(BIN_NOTEQUAL); ]
+  -> "&"  [ return new ON_binary(BIN_BITAND); ]
+  -> "^"  [ return new ON_binary(BIN_BITXOR); ]
+  -> "|"  [ return new ON_binary(BIN_BITOR); ]
+  -> "&&" [ return new ON_binary(BIN_AND); ]
+  -> "||" [ return new ON_binary(BIN_OR); ]
 
-  -> op:AssignmentOperator  [ return new OD_assign(op); ]
+  -> op:AssignmentOperator  [ return new ON_assign(op); ]
 
-  -> "!"  [ return new OD_unary(UNY_NOT); ]
-  -> "~"  [ return new OD_unary(UNY_BITNOT); ]
+  -> "!"  [ return new ON_unary(UNY_NOT); ]
+  -> "~"  [ return new ON_unary(UNY_BITNOT); ]
 
-  -> "++" [ return new OD_effect(EFF_PREINC); ]
-  -> "--" [ return new OD_effect(EFF_PREDEC); ]
+  -> "++" [ return new ON_effect(EFF_PREINC); ]
+  -> "--" [ return new ON_effect(EFF_PREDEC); ]
 
-  -> ","     [ return new OD_overload(OVL_COMMA); ]
-  -> "->"    [ return new OD_overload(OVL_ARROW); ]
-  -> "(" ")" [ return new OD_overload(OVL_PARENS); ]
-  -> "[" "]" [ return new OD_overload(OVL_BRACKETS); ]
+  -> ","     [ return new ON_overload(OVL_COMMA); ]
+  -> "->"    [ return new ON_overload(OVL_ARROW); ]
+  -> "(" ")" [ return new ON_overload(OVL_PARENS); ]
+  -> "[" "]" [ return new ON_overload(OVL_BRACKETS); ]
 }
 
 
