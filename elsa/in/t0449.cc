@@ -50,8 +50,8 @@ struct B {
 
 B::B()
   : x(3)
-//ERROR(10):  , y(7)     // member init of static data
-//ERROR(11):  , f(4)     // member init of a member function
+//ERROR(8):  , y(7)     // member init of static data
+//ERROR(9):  , f(4)     // member init of a member function
 {}
 
 
@@ -59,9 +59,25 @@ B::B()
 // two things:
 //   - non-member constructor
 //   - member inits on non-constructor
-//ERROR(9):  d()
-//ERROR(9):    : something(6)
-//ERROR(9):  {}
+//ERROR(10):  d()
+//ERROR(10):    : something(6)
+//ERROR(10):  {}
+
+
+// ------------------
+void func()
+{
+  struct A {
+    // local class template
+    //ERROR(11): template <class T> struct B {};
+    //ERROR(12): template <class T> int foo(T *t);
+  };
+};
+
+
+// ------------------
+typedef int Func(int);
+//ERROR(13): Func const cfunc;
 
 
 // EOF

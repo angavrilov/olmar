@@ -870,17 +870,6 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
 
 
 // -------------------- ASTTypeId -------------------
-int countD_funcs(ASTTypeId const *n)
-{
-  IDeclarator const *p = n->decl->decl;
-  int ct=0;
-  while (p->isD_func()) {
-    ct++;
-    p = p->asD_funcC()->base;
-  }
-  return ct;
-}
-
 ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 {
   if (!ambiguity) {
@@ -964,13 +953,8 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   }
 
   if (lflags & LF_DEPENDENT) {
-    // the previous qualifier was dependent; do truncated processing here
-    if (targs.isNotEmpty() && !templateUsed()) {
-      // without the "template" keyword, the dependent context may give
-      // rise to ambiguity, so reject it
-      env.error("dependent template scope name requires 'template' keyword",
-                EF_DISAMBIGUATES | EF_STRONG);
-    }
+    // the previous qualifier was dependent (and in fact erroneous);
+    // do truncated processing here
     tcheckTemplateArgumentList(targs, env);
     denotedScopeVar = env.dependentVar;
     rest->tcheck(env, scope, lflags);
@@ -1089,12 +1073,6 @@ void PQ_operator::tcheck(Env &env, Scope *, LookupFlags)
 
 void PQ_template::tcheck(Env &env, Scope *, LookupFlags lflags)
 {                             
-  // like above in PQ_qualifier::tcheck
-  if ((lflags & LF_DEPENDENT) && !templateUsed()) {
-    env.error("dependent template name requires 'template' keyword",
-              EF_DISAMBIGUATES | EF_STRONG);
-  }
-
   tcheckTemplateArgumentList(args, env);
 }
 
