@@ -57,12 +57,15 @@ int main()
   //int x = *(p.ptr);       // now automatic to use 'ptr'
   thmprv_assert(x == 6);
 
+  #if 1
   deallocFunc(p);
   //p.state = DEAD;         // now automatic whenever owner is passed
   thmprv_assert(p.state == DEAD);
 
   // function return
   thmprv_assert(p.state != OWNING);    // otherwise leak
+  #endif // 1
+
   return 0;
 }
 

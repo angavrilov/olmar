@@ -214,6 +214,22 @@ Predicate *vcgenPredicate(AEnv &env, Expression *expr, int path)
   return expr->vcgenPred(env, path);
 }
 
+void proveNonOwning(AEnv &env, AbsValue *ptrVal, char const *why)
+{
+  env.prove(P_notEqual(env.avGetElt(env.avOwnerField_state(), ptrVal),
+                       env.avOwnerState_owning()),
+            why);
+}
+
+
+void variableLeavingScope(AEnv &env, Variable const *var)
+{
+  if (var->type->isOwnerPtr()) {
+    // OWNER: must be nonowning to leave scope
+    proveNonOwning(env, env.get(var), "owner must be nonowning to leave scope");
+  }
+}
+
 
 // uber-vcgen: generic, as it uses the embedded CFG; but it
 // calls the specific 'vcgen' for the particular statement kind
@@ -255,6 +271,14 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
     if (post) {
       IN_PREDICATE(env);
       env.prove(post->expr->vcgenPred(env, 0 /*path*/), "postcondition");
+    }
+    
+    // implicit postconditions: do all scope-exit checks
+    SFOREACH_OBJLIST(Variable, env.currentFunc->params, iter1) {
+      variableLeavingScope(env, iter1.data());
+    }
+    SFOREACH_OBJLIST(Variable, env.currentFunc->locals, iter2) {
+      variableLeavingScope(env, iter2.data());
     }
   }
   else {
@@ -1067,9 +1091,7 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
 
     if (var->type->isOwnerPtr()) {
       // OWNER: verify it is nonowning before reassignment
-      env.prove(P_notEqual(env.avGetElt(env.avOwnerField_state(), old),
-                           env.avOwnerState_owning()),
-                "verify owner pointer is nonowning before reassignment");
+      proveNonOwning(env, old, "verify owner pointer is nonowning before reassignment");
     }
 
     // properly handles memvars vs regular vars
@@ -1126,9 +1148,8 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
         if (var->type->isOwnerPtr() &&
             fldAcc->field->index == 0 /*ptr*/) {
           // OWNER: verify it is nonowning before reassignment
-          env.prove(P_notEqual(env.avGetElt(env.avOwnerField_state(), current),
-                               env.avOwnerState_owning()),
-                    "verify owner pointer is nonowning before reassignment");
+          proveNonOwning(env, current,
+                         "verify owner pointer is nonowning before reassignment");
         }
 
         // replace old with new in abstract environment
