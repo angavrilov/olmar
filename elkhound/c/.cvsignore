@@ -12,3 +12,4 @@ lexer1yy.cc
 *.o
 cparse
 lexer2
+.gdbinit

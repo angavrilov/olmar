@@ -57,6 +57,8 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   actionCols = numTerms;
   actionRows = numStates;
 
+  gotoCols = numNonterms;
+
   allocZeroArray(actionTable, actionTableSize());
 
   allocZeroArray(gotoTable, gotoTableSize());
@@ -111,6 +113,8 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 
   actionIndexMap = NULL;
   actionRowPointers = NULL;
+
+  gotoIndexMap = NULL;
 }
 
 
@@ -148,6 +152,9 @@ ParseTables::~ParseTables()
     }
     if (actionIndexMap) {
       delete[] actionIndexMap;
+    }
+    if (gotoIndexMap) {
+      delete[] gotoIndexMap;
     }
   }
 
@@ -578,6 +585,10 @@ void ParseTables::mergeActionColumns()
 }
 
 
+// unsurprisingly, this function has considerable structure in common
+// with 'mergeActionColumns'; however, my attempts to consolidate them
+// have led to code that is harder to understand and debug, so they
+// remain separate (at least for now)
 void ParseTables::mergeActionRows()
 {
   traceProgress() << "merging action rows\n";
@@ -705,8 +716,94 @@ void ParseTables::mergeActionRows()
     next_s:
       ;
     }
-    trace("compression") << ct << " same-valued rows\n";
+    trace("compression") << ct << " same-valued action rows\n";
   }
+}
+
+
+void ParseTables::mergeGotoColumns()
+{
+  traceProgress() << "merging goto columns\n";
+
+  // can only do this if we've already pulled out the errors
+  xassert(errorBits);
+
+  // for now I assume we don't have a map yet
+  xassert(!gotoIndexMap);
+
+  // compute graph of conflicting 'goto' columns
+  Bit2d graph(point(numNonterms, numNonterms));
+  graph.setall(0);
+
+  // fill it in
+  for (int nt1=0; nt1 < numNonterms; nt1++) {
+    for (int nt2=0; nt2 < nt1; nt2++) {
+      // does column 't1' conflict with column 't2'?
+      for (int s=0; s < numStates; s++) {
+        GotoEntry g1 = gotoEntry((StateId)s, nt1);
+        GotoEntry g2 = gotoEntry((StateId)s, nt2);
+
+        if (isErrorGoto(g1) ||
+            isErrorGoto(g2) ||
+            g1 == g2) {
+          // no problem
+        }
+        else {
+          // conflict!
+          graph.set(point(nt1, nt2));
+          graph.set(point(nt2, nt1));
+          break;
+        }
+      }
+    }
+  }
+
+  // color the graph
+  Array<int> color(numNonterms);      // nonterminal -> color
+  int numColors = colorTheGraph(color, graph);
+
+  // build a new, compressed goto table; the entries are initialized
+  // to 'error', meaning every cell starts as don't-care
+  GotoEntry *newTable;
+  allocInitArray(newTable, numStates * numColors, encodeGotoError());
+
+  // merge columns in 'gotoTable' into those in 'newTable'
+  // according to the 'color' map
+  gotoIndexMap = new NtIndex[numNonterms];
+  for (int nt=0; nt<numNonterms; nt++) {
+    int c = color[nt];
+
+    // merge gotoTable[nt] into newTable[c]
+    for (int s=0; s<numStates; s++) {
+      GotoEntry &dest = newTable[s*numColors + c];
+
+      GotoEntry src = gotoEntry((StateId)s, nt);
+      if (!isErrorGoto(src)) {
+        // make sure there's no conflict (otherwise the graph
+        // coloring and/or conflict map algorithms screwed up)
+        xassert(isErrorGoto(dest) ||
+                dest == src);
+
+        // merge the entry
+        dest = src;
+      }
+    }
+
+    // fill in the goto index map
+    NtIndex nti = (NtIndex)c;
+    xassert(nti == c);     // otherwise value truncation happened
+    gotoIndexMap[nt] = nti;
+  }
+
+  trace("compression")
+    << "goto table: from " << (gotoTableSize() * sizeof(GotoEntry))
+    << " down to " << (numStates * numColors * sizeof(GotoEntry))
+    << " bytes\n";
+
+  // replace the existing table with the compressed one
+  delete[] gotoTable;
+  gotoTable = newTable;
+  gotoCols = numColors;
 }
 
 
@@ -924,6 +1021,11 @@ template <class EltType>
 void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
                      char const *typeName, char const *tableName, char const *baseName)
 {
+  if (!table) {
+    out << "  " << tableName << " = NULL;\n\n";
+    return;
+  }
+
   // make the pointers persist by storing a table of offsets
   Array<int> offsets(size);
   bool allUnassigned = true;
@@ -1014,6 +1116,7 @@ void ParseTables::emitConstructionCode(EmitCode &out,
   SET_VAR(numProds);
   SET_VAR(actionCols);
   SET_VAR(actionRows);
+  SET_VAR(gotoCols);
   SET_VAR(ambigTableSize);
   out << "  startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
@@ -1028,7 +1131,7 @@ void ParseTables::emitConstructionCode(EmitCode &out,
              "ActionEntry", "actionTable");
 
   // goto table, one row per state
-  emitTable2(out, gotoTable, gotoTableSize(), numNonterms,
+  emitTable2(out, gotoTable, gotoTableSize(), gotoCols,
              "GotoEntry", "gotoTable");
 
   // production info, arbitrarily 16 per row
@@ -1045,38 +1148,23 @@ void ParseTables::emitConstructionCode(EmitCode &out,
              "NtIndex", "nontermOrder");
 
   // errorBits
-  if (!errorBits) {
-    out << "  errorBits = NULL;\n";
-    out << "  errorBitsPointers = NULL;\n";
-  }
-  else {
-    emitTable2(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
-               "ErrorBitsEntry", "errorBits");
+  emitTable2(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
+             "ErrorBitsEntry", "errorBits");
 
-    emitOffsetTable(out, errorBitsPointers, errorBits, numStates,
-                    "ErrorBitsEntry*", "errorBitsPointers", "errorBits");
-  }
-  out << "\n";
+  emitOffsetTable(out, errorBitsPointers, errorBits, numStates,
+                  "ErrorBitsEntry*", "errorBitsPointers", "errorBits");
 
   // actionIndexMap
-  if (!actionIndexMap) {
-    out << "  actionIndexMap = NULL;\n";
-  }
-  else {
-    emitTable2(out, actionIndexMap, numTerms, 16,
-               "TermIndex", "actionIndexMap");
-  }
-  out << "\n";
+  emitTable2(out, actionIndexMap, numTerms, 16,
+             "TermIndex", "actionIndexMap");
 
   // actionRowPointers
-  if (!actionRowPointers) {
-    out << "  actionRowPointers = NULL;\n";
-  }
-  else {
-    emitOffsetTable(out, actionRowPointers, actionTable, numStates,
-                    "ActionEntry*", "actionRowPointers", "actionTable");
-  }
-  out << "\n";
+  emitOffsetTable(out, actionRowPointers, actionTable, numStates,
+                  "ActionEntry*", "actionRowPointers", "actionTable");
+
+  // gotoIndexMap
+  emitTable2(out, gotoIndexMap, numNonterms, 16,
+             "NtIndex", "gotoIndexMap");
 
   if (ENABLE_CRS_COMPRESSION) {
     emitTable2(out, firstWithTerminal, numTerms, 16,

@@ -3,3 +3,4 @@ arith
 *.gen.*
 arithyy.cc
 gmon.out
+.gdbinit

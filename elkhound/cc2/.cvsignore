@@ -2,3 +2,4 @@
 *.gen.*
 cc2t.gr
 *.d
+.gdbinit

@@ -154,9 +154,8 @@ protected:  // data
   int actionCols;
   ActionEntry *actionTable;              // (owner*)
 
-  // goto table, indexed by (state*numNonterms + nontermId),
-  // each entry is N, the state to go to after having reduced by
-  // 'nontermId'
+  // goto table, indexed by (state*gotoCols + nontermId)
+  int gotoCols;
   GotoEntry *gotoTable;                  // (owner*)
 
   // map production id to information about that production
@@ -239,7 +238,7 @@ protected:  // data
   // This is done as two-pass graph coloring.  They give a specific
   // heuristic.
   //
-  // this is a map to be applied to terminal indiced before being
+  // this is a map to be applied to terminal indices before being
   // used to access the compressed action table; it maps the terminal
   // id (as reported by the lexer) to the proper action table column
   TermIndex *actionIndexMap;             // (nullable owner*)
@@ -249,6 +248,9 @@ protected:  // data
   // states into equivalence classes
   int actionRows;                        // rows in actionTable[]
   ActionEntry **actionRowPointers;       // (nullable owner ptr to serfs)
+  //
+  // similar maps for the goto table
+  NtIndex *gotoIndexMap;                 // (nullable owner*)
 
 public:     // data
   // These are public because if they weren't, I'd just have a stupid
@@ -270,10 +272,11 @@ private:    // funcs
     { return actionTable[stateId*actionCols + termId]; }
   int actionTableSize() const
     { return actionRows * actionCols; }
+
   GotoEntry &gotoEntry(StateId stateId, int nontermId)
-    { return gotoTable[stateId*numNonterms + nontermId]; }
+    { return gotoTable[stateId*gotoCols + nontermId]; }
   int gotoTableSize() const
-    { return numStates * numNonterms; }
+    { return numStates * gotoCols; }
 
   void appendAmbig(ArrayStack<ActionEntry> const &set);
   bool compareAmbig(ArrayStack<ActionEntry> const &set, int startIndex);
@@ -357,6 +360,7 @@ public:     // funcs
   void computeErrorBits();
   void mergeActionColumns();
   void mergeActionRows();
+  void mergeGotoColumns();
 
 
   // -------------------- table queries ---------------------------
@@ -434,8 +438,16 @@ public:     // funcs
   #endif
 
   // decode gotos
-  GotoEntry getGotoEntry(StateId stateId, int nontermId)
-    { return gotoEntry(stateId, nontermId); }
+  GotoEntry getGotoEntry(StateId stateId, int nontermId) {
+    #if ENABLE_GCS_COMPRESSION
+      return gotoTable[stateId*gotoCols + gotoIndexMap[nontermId]];
+    #else
+      return gotoEntry(stateId, nontermId);
+    #endif
+  }
+
+  bool isErrorGoto(GotoEntry code)
+    { return code == numStates; }
   static StateId decodeGoto(GotoEntry code)
     { return (StateId)code; }
 
