@@ -14,5 +14,7 @@ void f()
   //ERROR(1): __checkType(sName, arr2);
   
   // this is not a legal type
-  //ERROR(2): char arr3[];
+  // UPDATE: dsw: I moved this test to t0228b.cc so I can turn it off
+  // in the presence of GNU
+  //ERROR - OFF - (2): char arr3[];
 }
