@@ -1799,6 +1799,11 @@ realStart:
       prior->clearFlag(DF_EXTERN);
     }
 
+    // FIX:
+    // prior is a ptr to the previous decl/def var
+    // dt.type is the type that was constructed for the current decl/def
+    // prior->type deeply accumulates the qualifiers of dt.type
+    
     // TODO: if 'dt.type' refers to a function type, and it has
     // some default arguments supplied, then:
     //   - it should only be adding new defaults, not overriding
@@ -2600,6 +2605,12 @@ Type const *E_funCall::itcheck(Env &env)
       << "you can't use an expression of type `" << func->type->toString()
       << "' as a function");
   }
+
+  // FIX: Do disambiguation here.  If the func is an e_variable
+  // (function was called by name) then look at the e_varable var
+  // field: it will contain the overload set.  The var field of the
+  // e_variable should be changed to point at the variable of the
+  // actual function called.
 
   // TODO: take into account possibility of operator overloading
   
