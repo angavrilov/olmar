@@ -52,7 +52,7 @@ endif
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -62,7 +62,7 @@ endif
 #ccflags += $(YYDEBUG)
 
 # generate debug table every time
-TRGRAMANL := foo,lrtable
+#TRGRAMANL := foo,lrtable
 
 
 # flags on command line

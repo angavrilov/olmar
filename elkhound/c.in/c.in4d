@@ -66,7 +66,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -467,7 +467,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -868,7 +868,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -1269,7 +1269,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -1670,7 +1670,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -2071,7 +2071,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -2472,7 +2472,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -2873,7 +2873,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -3274,7 +3274,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -3675,7 +3675,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -4076,7 +4076,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -4477,7 +4477,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -4878,7 +4878,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -5279,7 +5279,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -5680,7 +5680,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -6081,7 +6081,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -6482,7 +6482,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -6883,7 +6883,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -7284,7 +7284,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -7685,7 +7685,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -8086,7 +8086,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -8487,7 +8487,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -8888,7 +8888,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -9289,7 +9289,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -9690,7 +9690,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -10091,7 +10091,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -10492,7 +10492,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -10893,7 +10893,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -11294,7 +11294,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -11695,7 +11695,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -12096,7 +12096,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -12497,7 +12497,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -12898,7 +12898,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -13299,7 +13299,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -13700,7 +13700,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -14101,7 +14101,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -14502,7 +14502,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -14903,7 +14903,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -15304,7 +15304,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -15705,7 +15705,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -16106,7 +16106,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -16507,7 +16507,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -16908,7 +16908,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -17309,7 +17309,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -17710,7 +17710,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -18111,7 +18111,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -18512,7 +18512,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -18913,7 +18913,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -19314,7 +19314,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -19715,7 +19715,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -20116,7 +20116,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -20517,7 +20517,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -20918,7 +20918,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -21319,7 +21319,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -21720,7 +21720,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -22121,7 +22121,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -22522,7 +22522,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -22923,7 +22923,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -23324,7 +23324,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -23725,7 +23725,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -24126,7 +24126,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -24527,7 +24527,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -24928,7 +24928,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -25329,7 +25329,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -25730,7 +25730,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -26131,7 +26131,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -26532,7 +26532,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -26933,7 +26933,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -27334,7 +27334,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -27735,7 +27735,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -28136,7 +28136,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -28537,7 +28537,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -28938,7 +28938,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -29339,7 +29339,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -29740,7 +29740,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -30141,7 +30141,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -30542,7 +30542,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -30943,7 +30943,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -31344,7 +31344,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -31745,7 +31745,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -32146,7 +32146,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -32547,7 +32547,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -32948,7 +32948,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -33349,7 +33349,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -33750,7 +33750,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -34151,7 +34151,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -34552,7 +34552,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -34953,7 +34953,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -35354,7 +35354,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -35755,7 +35755,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -36156,7 +36156,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -36557,7 +36557,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -36958,7 +36958,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -37359,7 +37359,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -37760,7 +37760,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -38161,7 +38161,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -38562,7 +38562,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -38963,7 +38963,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -39364,7 +39364,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -39765,7 +39765,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -40166,7 +40166,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -40567,7 +40567,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -40968,7 +40968,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -41369,7 +41369,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -41770,7 +41770,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -42171,7 +42171,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -42572,7 +42572,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -42973,7 +42973,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -43374,7 +43374,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -43775,7 +43775,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -44176,7 +44176,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -44577,7 +44577,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -44978,7 +44978,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -45379,7 +45379,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -45780,7 +45780,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -46181,7 +46181,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -46582,7 +46582,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -46983,7 +46983,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -47384,7 +47384,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -47785,7 +47785,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -48186,7 +48186,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -48587,7 +48587,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -48988,7 +48988,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -49389,7 +49389,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -49790,7 +49790,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -50191,7 +50191,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -50592,7 +50592,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -50993,7 +50993,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -51394,7 +51394,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -51795,7 +51795,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -52196,7 +52196,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -52597,7 +52597,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -52998,7 +52998,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -53399,7 +53399,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -53800,7 +53800,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -54201,7 +54201,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -54602,7 +54602,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -55003,7 +55003,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -55404,7 +55404,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -55805,7 +55805,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -56206,7 +56206,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -56607,7 +56607,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -57008,7 +57008,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -57409,7 +57409,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -57810,7 +57810,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -58211,7 +58211,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -58612,7 +58612,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -59013,7 +59013,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -59414,7 +59414,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -59815,7 +59815,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -60216,7 +60216,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -60617,7 +60617,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -61018,7 +61018,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -61419,7 +61419,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -61820,7 +61820,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -62221,7 +62221,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -62622,7 +62622,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -63023,7 +63023,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -63424,7 +63424,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -63825,7 +63825,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -64226,7 +64226,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -64627,7 +64627,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -65028,7 +65028,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -65429,7 +65429,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -65830,7 +65830,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -66231,7 +66231,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -66632,7 +66632,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -67033,7 +67033,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -67434,7 +67434,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -67835,7 +67835,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -68236,7 +68236,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -68637,7 +68637,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -69038,7 +69038,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -69439,7 +69439,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -69840,7 +69840,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -70241,7 +70241,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -70642,7 +70642,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -71043,7 +71043,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -71444,7 +71444,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -71845,7 +71845,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -72246,7 +72246,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -72647,7 +72647,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -73048,7 +73048,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -73449,7 +73449,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -73850,7 +73850,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -74251,7 +74251,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -74652,7 +74652,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -75053,7 +75053,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -75454,7 +75454,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -75855,7 +75855,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -76256,7 +76256,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -76657,7 +76657,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -77058,7 +77058,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -77459,7 +77459,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -77860,7 +77860,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -78261,7 +78261,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -78662,7 +78662,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -79063,7 +79063,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -79464,7 +79464,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -79865,7 +79865,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -80266,7 +80266,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -80667,7 +80667,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -81068,7 +81068,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -81469,7 +81469,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -81870,7 +81870,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -82271,7 +82271,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -82672,7 +82672,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -83073,7 +83073,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -83474,7 +83474,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -83875,7 +83875,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -84276,7 +84276,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -84677,7 +84677,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -85078,7 +85078,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -85479,7 +85479,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -85880,7 +85880,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -86281,7 +86281,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -86682,7 +86682,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -87083,7 +87083,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -87484,7 +87484,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -87885,7 +87885,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -88286,7 +88286,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -88687,7 +88687,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -89088,7 +89088,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -89489,7 +89489,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -89890,7 +89890,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -90291,7 +90291,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -90692,7 +90692,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -91093,7 +91093,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -91494,7 +91494,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -91895,7 +91895,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -92296,7 +92296,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -92697,7 +92697,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -93098,7 +93098,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -93499,7 +93499,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -93900,7 +93900,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -94301,7 +94301,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -94702,7 +94702,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -95103,7 +95103,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -95504,7 +95504,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -95905,7 +95905,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -96306,7 +96306,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -96707,7 +96707,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -97108,7 +97108,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -97509,7 +97509,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -97910,7 +97910,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -98311,7 +98311,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -98712,7 +98712,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -99113,7 +99113,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -99514,7 +99514,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -99915,7 +99915,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -100316,7 +100316,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -100717,7 +100717,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -101118,7 +101118,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -101519,7 +101519,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -101920,7 +101920,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -102321,7 +102321,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -102722,7 +102722,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -103123,7 +103123,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -103524,7 +103524,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -103925,7 +103925,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -104326,7 +104326,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -104727,7 +104727,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -105128,7 +105128,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -105529,7 +105529,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -105930,7 +105930,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -106331,7 +106331,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -106732,7 +106732,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -107133,7 +107133,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -107534,7 +107534,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -107935,7 +107935,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -108336,7 +108336,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -108737,7 +108737,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -109138,7 +109138,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -109539,7 +109539,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -109940,7 +109940,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -110341,7 +110341,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -110742,7 +110742,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -111143,7 +111143,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -111544,7 +111544,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -111945,7 +111945,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -112346,7 +112346,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -112747,7 +112747,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -113148,7 +113148,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -113549,7 +113549,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -113950,7 +113950,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -114351,7 +114351,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -114752,7 +114752,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -115153,7 +115153,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -115554,7 +115554,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -115955,7 +115955,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -116356,7 +116356,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -116757,7 +116757,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -117158,7 +117158,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -117559,7 +117559,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -117960,7 +117960,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -118361,7 +118361,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -118762,7 +118762,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -119163,7 +119163,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -119564,7 +119564,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -119965,7 +119965,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -120366,7 +120366,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -120767,7 +120767,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -121168,7 +121168,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -121569,7 +121569,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -121970,7 +121970,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -122371,7 +122371,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -122772,7 +122772,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -123173,7 +123173,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -123574,7 +123574,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -123975,7 +123975,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -124376,7 +124376,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -124777,7 +124777,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -125178,7 +125178,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -125579,7 +125579,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -125980,7 +125980,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -126381,7 +126381,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -126782,7 +126782,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -127183,7 +127183,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -127584,7 +127584,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -127985,7 +127985,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -128386,7 +128386,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -128787,7 +128787,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -129188,7 +129188,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
@@ -129589,7 +129589,7 @@ int strcmp(char const *s1, char const *s2);
 
 /* Saved old terminal mode for read_passphrase. */
 //#ifdef USING_TERMIOS
-static struct termios saved_tio  thmprv_attr(addrtaken);
+static struct termios saved_tio  /*thmprv_addr(addrtaken)*/;
 //#endif
 //#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
