@@ -477,6 +477,11 @@ public:     // funcs
   // objects, once their tags have been established to be equal
   bool equals(BaseType const *obj, EqFlags flags = EF_EXACT) const;
 
+  // compute a hash value: equal types (EF_EXACT) have the same hash
+  // value, and unequal types are likely to have different values
+  unsigned hashValue() const;
+  virtual unsigned innerHashValue() const = 0;
+
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
   string toCString() const;
@@ -607,6 +612,7 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
+  unsigned innerHashValue() const;
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
@@ -637,6 +643,7 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
+  unsigned innerHashValue() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -746,6 +753,7 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
+  unsigned innerHashValue() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -777,6 +785,7 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
+  unsigned innerHashValue() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -804,6 +813,7 @@ public:
 
   // Type interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }
+  unsigned innerHashValue() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;

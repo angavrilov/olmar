@@ -6,6 +6,7 @@
 #include "variable.h"   // Variable
 #include "strutil.h"    // copyToStaticBuffer
 #include "sobjset.h"    // SObjSet
+#include "hashtbl.h"    // lcprngTwoSteps
 
 #include <assert.h>     // assert
 
@@ -736,6 +737,16 @@ not_polymorphic:
 }
 
 
+unsigned BaseType::hashValue() const
+{
+  unsigned h = innerHashValue();
+  
+  // 'h' now has quite a few bits of entropy, but they're mostly
+  // in the high bits.  push it through a PRNG to mix it better.
+  return lcprngTwoSteps(h);
+}
+
+
 string cvToString(CVFlags cv)
 {
   if (cv != CV_NONE) {
@@ -941,6 +952,21 @@ bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 }
 
 
+// map cv down to {0,1,2,3}
+inline unsigned cvHash(CVFlags cv)
+{
+  return cv >> CV_SHIFT_AMOUNT;
+}
+
+unsigned CVAtomicType::innerHashValue() const
+{
+  // underlying atomic is pointer-based equality
+  return (unsigned)atomic + 
+         cvHash(cv);
+         // T_ATOMIC is zero anyway
+}
+
+
 string CVAtomicType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;
@@ -997,6 +1023,35 @@ bool PointerType::innerEquals(PointerType const *obj, EqFlags flags) const
   return op == obj->op &&
          ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
          atType->equals(obj->atType, flags & EF_PTR_PROP);
+}
+
+
+enum {     
+  // enough to leave room for a composed type to describe itself
+  // (essentially 5 bits)
+  HASH_KICK = 33,
+
+  // put the tag in the upper part of those 5 bits
+  TAG_KICK = 7
+};
+
+unsigned PointerType::innerHashValue() const
+{
+  // The essential strategy for composed types is to multiply the
+  // underlying type's hash by HASH_KICK, pushing the existing bits up
+  // (but with mixing), and then add our local info, including the
+  // tag.
+  //
+  // I don't claim to be an expert at designing hash functions.  There
+  // are probably better ones; if you think you know one, let me know.
+  // My plan is to watch the hash outputs produced during operator
+  // overload resolution, and tweak the function if I see an obvious
+  // avenue for improvement.
+
+  return atType->innerHashValue() * HASH_KICK +
+         (unsigned)op +
+         cvHash(cv) * 2 +
+         T_POINTER * TAG_KICK;
 }
 
 
@@ -1219,6 +1274,37 @@ bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
   return iter1.isDone() == iter2.isDone();
 }
 
+
+unsigned FunctionType::innerHashValue() const
+{               
+  // process return type similarly to how other constructed types
+  // handle their underlying type
+  unsigned val = retType->innerHashValue() * HASH_KICK +
+                 params.count() +
+                 T_FUNCTION * TAG_KICK;
+                 
+  // now factor in the parameter types
+  int ct = 1;
+  SFOREACH_OBJLIST(Variable, params, iter) { 
+    // similar to return value
+    unsigned p = iter.data()->type->innerHashValue() * HASH_KICK +
+                 (ct + T_FUNCTION) * TAG_KICK;
+                 
+    // multiply with existing hash, sort of like each parameter
+    // is another dimension and we're constructing a tuple in
+    // some space
+    val *= p;
+  }          
+  
+  // don't consider exnSpec or templateParams; I don't think I'll
+  // be encountering situations where I want the hash to be
+  // sensitive to those
+  
+  // the 'flags' information is mostly redundant with the parameter
+  // list, so don't bother folding that in
+
+  return val;
+}
 
 
 void FunctionType::addParam(Variable *param)
@@ -1571,6 +1657,15 @@ bool ArrayType::innerEquals(ArrayType const *obj, EqFlags flags) const
 }
 
 
+unsigned ArrayType::innerHashValue() const
+{
+  // similar to PointerType
+  return eltType->innerHashValue() * HASH_KICK +
+         size +
+         T_ARRAY * TAG_KICK;
+}
+
+
 string ArrayType::leftString(bool /*innerParen*/) const
 {
   return eltType->leftString();
@@ -1630,6 +1725,15 @@ bool PointerToMemberType::innerEquals(PointerToMemberType const *obj, EqFlags fl
   return inClass == obj->inClass &&
          ((flags & EF_OK_DIFFERENT_CV) || (cv == obj->cv)) &&
          atType->equals(obj->atType, flags & EF_PTR_PROP);
+}
+
+
+unsigned PointerToMemberType::innerHashValue() const
+{
+  return atType->innerHashValue() * HASH_KICK +
+         cvHash(cv) +
+         T_POINTERTOMEMBER * TAG_KICK +
+         (unsigned)inClass;       // we'll see...
 }
 
 

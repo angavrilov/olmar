@@ -33,10 +33,7 @@ STATICDEF Type const *PredicateCandidateSet::Inst::getKeyFn(Inst *ic)
 
 STATICDEF unsigned PredicateCandidateSet::Inst::hashFn(Type const *t)
 {
-  return 6;     // cool hash fn, eh?
-
-  // TODO: implement this!
-  //t->hashValue();
+  return t->hashValue();
 }
 
 STATICDEF bool PredicateCandidateSet::Inst::equalFn(Type const *t1, Type const *t2)
@@ -170,7 +167,8 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
     ic = new Inst(T, makeNewCandidate(env, op, T));
     instantiations.add(T, ic);
 
-    OVERLOADTRACE("cset: made new instantiation: " << T->toString());
+    OVERLOADTRACE("cset: made new instantiation: " << T->toString() <<
+                  " (" << T->hashValue() << ")");
   }
 
   // give it to the resolver
@@ -266,10 +264,13 @@ STATICDEF ArrowStarCandidateSet::TypePair const *
 
 STATICDEF unsigned ArrowStarCandidateSet::Inst::hashFn(TypePair const *p)
 {
-  return 6;
+  return p->hashValue();
+}
 
-  // TODO: implement this!
-  //t->hashValue();
+unsigned ArrowStarCandidateSet::TypePair::hashValue() const
+{
+  return lhsType->hashValue() * 1000 +
+         rhsType->hashValue();
 }
 
 STATICDEF bool ArrowStarCandidateSet::Inst::equalFn
@@ -393,7 +394,8 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
 
     instantiations.add(&(ic->types), ic);
 
-    OVERLOADTRACE("->*set: made new instantiation: " << pair.asString());
+    OVERLOADTRACE("->*set: made new instantiation: " << pair.asString() <<
+                  " (" << pair.hashValue() << ")");
   }
 
   // give it to the resolver

@@ -151,6 +151,7 @@ private:    // types
     {}
     
     string asString() const;
+    unsigned hashValue() const;
   };
 
   // similar to above, for caching candidates
