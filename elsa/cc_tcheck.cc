@@ -3621,11 +3621,11 @@ Type *E_binary::itcheck(Env &env)
   // dsw: deal with pointer arithmetic correctly: p is a pointer; Note
   // that case p + 1 is handled correctly by the default behavior
   // case: 1 + p
-  if (op==BIN_PLUS && rhsType->isPointerType() && lhsType->isIntegerType()) {
+  if (lhsType->isIntegerType() && op==BIN_PLUS && rhsType->isPointerType()) {
     return env.tfac.cloneType(rhsType);
   }
   // case: p1 - p2
-  if (op==BIN_MINUS && rhsType->isIntegerType() && lhsType->isIntegerType()) {
+  if (lhsType->isPointerType() && op==BIN_MINUS && rhsType->isPointerType() ) {
     return env.getSimpleType(SL_UNKNOWN, ST_INT);
   }
 
