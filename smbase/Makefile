@@ -82,7 +82,7 @@ library-objs := \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
   trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
-  stringset.o mypopen.o unixutil.o
+  stringset.o mypopen.o unixutil.o cycles.o
 -include $(library-objs:.o=.d)
 
 $(THISLIBRARY): $(library-objs)
@@ -93,7 +93,7 @@ $(THISLIBRARY): $(library-objs)
 # test program targets
 tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
                strdict svdict str strutil trdelete bflatten mysig \
-               testmalloc mypopen tobjpool strhash
+               testmalloc mypopen tobjpool strhash cycles
 tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h
@@ -148,6 +148,9 @@ tmalloc: tmalloc.c
 tobjpool: tobjpool.cc objpool.h
 	g++ -Wall -g -o tobjpool tobjpool.cc $(THISLIBRARY)
 
+cycles: cycles.h cycles.c
+	gcc -Wall -g -o cycles -DTEST_CYCLES cycles.c
+
 check: $(tests-files)
 	./nonport
 	./voidlist
@@ -165,6 +168,7 @@ check: $(tests-files)
 	./testmalloc 2>&1 | tail
 	./mypopen
 	./tobjpool
+	./cycles
 	@echo
 	@echo "make check: all the tests PASSED"
 
