@@ -139,7 +139,7 @@ doc: gendoc gendoc/configure.txt gendoc/demo.h
 	@echo "built documentation"
 
 TAGS:
-	$(ETAGS) --members --typedefs *.cc *.h
+	$(ETAGS) *.cc *.h
 
 
 # ------------------------ misc ---------------------
