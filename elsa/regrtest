@@ -385,6 +385,7 @@ failTest "need overload resolution with templates" \
 
 # another set of tests, generally isolated by Daniel
 # FIX: d0018.cc fails; it was minimized from in/big/nsAtomTable.i;
+# FIX: d0019.cc fails; it was minimized from in/big/nsCLiveconnectFactory.i
 # turn on when works
 for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
@@ -491,7 +492,9 @@ done
 # This one has been minimized to in/d0018.cc
 #  in/big/nsAtomTable.i
 
-#  in/big/nsCLiveconnectFactory.i
+# This one has been minimized to in/d0019.cc
+# in/big/nsCLiveconnectFactory.i
+
 #  in/big/nsHTMLEditRules.i
 #  in/big/nsMsgServiceProvider.i
 #  in/big/nsSOAPPropertyBag.i
