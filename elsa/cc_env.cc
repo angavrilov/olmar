@@ -3519,10 +3519,16 @@ bool Env::ensureCompleteType(char const *action, Type *type)
 
   if (type->isArrayType() &&
       type->asArrayType()->size == ArrayType::NO_SIZE) {
-    // 8.3.4 para 1: this is an incomplete type
-    error(stringc << "attempt to " << action <<
-                     " incomplete type `" << type->toString() << "'");
-    return false;
+    if (lang.assumeNoSizeArrayHasSizeOne) {
+      type->asArrayType()->size = 1;
+      warning(stringc << "array of no size assumed to have one element");
+      return true;
+    } else {
+      // 8.3.4 para 1: this is an incomplete type
+      error(stringc << "attempt to " << action <<
+            " incomplete type `" << type->toString() << "'");
+      return false;
+    }
   }
 
   return true;

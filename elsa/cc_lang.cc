@@ -20,6 +20,7 @@ void CCLang::ANSI_C89()
   emptyParamsMeansNoInfo = true;
   complainUponBadDeref = true;
   strictArraySizeRequirements = false;
+  assumeNoSizeArrayHasSizeOne = false;
   allowOverloading = false;
   compoundSelfName = false;
   allowImplicitFunctionDecls = true;        // C89 does not require prototypes
@@ -64,6 +65,7 @@ void CCLang::GNU_C()
 
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
+  assumeNoSizeArrayHasSizeOne = true;
   declareGNUBuiltins = true;
 
   // I'm just guessing this is GNU only.... yep:
@@ -78,6 +80,7 @@ void CCLang::GNU_KandR_C()
   implicitFuncVariable = true;
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
+  assumeNoSizeArrayHasSizeOne = true;
   allowIncompleteEnums = true;  // gnu according to Scott, above
   declareGNUBuiltins = true;
 
@@ -111,6 +114,7 @@ void CCLang::ANSI_Cplusplus()
   // for the current state of the parser
   complainUponBadDeref = false;
   strictArraySizeRequirements = false;
+  assumeNoSizeArrayHasSizeOne = false;
 
   allowOverloading = true;
   compoundSelfName = true;

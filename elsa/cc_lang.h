@@ -74,6 +74,10 @@ public:
   // 0-length arrays are allowed as class/struct fields
   bool strictArraySizeRequirements;
 
+  // when true, assume arrays with no size are of size 1 and issue a
+  // warning
+  bool assumeNoSizeArrayHasSizeOne;
+
   // when true, we allow overloaded function declarations (same name,
   // different signature)
   bool allowOverloading;
