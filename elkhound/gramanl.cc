@@ -4017,12 +4017,24 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
     emitUserCode(dcl, *(iter.data()), false /*braces*/);
   }}
 
-  // now we insert the entire class body the user specified; the
-  // 'actionClassBody' begins with a colon (':')
-  dcl << "\n"
-      << "// parser context class\n"
-      << "class " << g.actionClassName;
-  emitUserCode(dcl, g.actionClassBody, false /*braces*/);
+  // insert each of the context class definitions; the last one
+  // is the one whose name is 'g.actionClassName' and into which
+  // the action functions are inserted as methods
+  {
+    int ct=0;
+    FOREACH_OBJLIST(LocString, g.actionClasses, iter) {
+      if (ct++ > 0) {
+        // end the previous class; the following body will open
+        // another one, and the brace following the action list
+        // will close the last one
+        dcl << "};\n";
+      }
+
+      dcl << "\n"
+          << "// parser context class\n"
+          << "class ";
+      emitUserCode(dcl, *(iter.data()), false /*braces*/);
+  }}
 
   // we end the context class with declarations of the action functions
   dcl << "\n"

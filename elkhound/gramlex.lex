@@ -70,7 +70,6 @@ SLWHITE   [ \t]
 %x INCLUDE
 %x EAT_TO_NEWLINE
 %x LITCODE
-%x GET_CLASS_NAME
 
 
 /* ---------------------- rules ----------------------- */
@@ -79,7 +78,7 @@ SLWHITE   [ \t]
   /* -------- whitespace ------ */
   /* this means I eat whitespace in the same way in the normal
    * "INITIAL" state, and when looking for a class name */
-<INITIAL,GET_CLASS_NAME>{
+<INITIAL>{
   "\n" {
     newLine();
   }
@@ -204,35 +203,22 @@ SLWHITE   [ \t]
 }
 
 
-  /* embedded *type* description, somewhat interpreted */
+  /* embedded *type* description */
 "context_class" {
+  /* caller will get text from yytext and yyleng */
   TOK_UPD_COL;
-  BEGIN(GET_CLASS_NAME);
+
+  /* drop into literal-code processing */
+  BEGIN(LITCODE);
+
+  /* I reset the initial nesting to -1 so that the '{' at the
+   * beginning of the class body sets nesting to 0, thus when
+   * I see the final '}' I'll see that at level 0 and stop */
+  embedded->reset(-1);
+  embedFinish = '}';
+  embedMode = TOK_LIT_CODE;
+
   return TOK_CONTEXT_CLASS;
-}
-
-<GET_CLASS_NAME>{
-  {LETTER}({LETTER}|{DIGIT})* {
-    /* caller will get text from yytext and yyleng */
-    TOK_UPD_COL;
-
-    /* once I see the name, I drop into literal-code processing */
-    BEGIN(LITCODE);   
-    
-    /* I reset the initial nesting to -1 so that the '{' at the
-     * beginning of the class body sets nesting to 0, thus when
-     * I see the final '}' I'll see that at level 0 and stop */
-    embedded->reset(-1);
-    embedFinish = '}';
-    embedMode = TOK_LIT_CODE;
-
-    return TOK_NAME;
-  }
-
-  {ANY} {
-    TOK_UPD_COL;
-    errorIllegalCharacter(yytext[0]);
-  }
 }
 
 

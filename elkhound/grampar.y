@@ -168,8 +168,8 @@ TopForm: ContextClass               { $$ = $1; }
        ;
 
 /* yields: TopForm (always TF_context) */
-ContextClass: "context_class" TOK_NAME TOK_LIT_CODE ";" 
-                { $$ = new TF_context($2, $3); }
+ContextClass: "context_class" TOK_LIT_CODE ";"
+                { $$ = new TF_context($2); }
             ;
 
 /* yields: TopForm (always TF_verbatim) */

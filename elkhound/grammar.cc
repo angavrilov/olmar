@@ -806,7 +806,7 @@ void Grammar::xfer(Flatten &flat)
   xferObjList(flat, verbatim);
 
   actionClassName.xfer(flat);
-  actionClassBody.xfer(flat);
+  xferObjList(flat, actionClasses);
 
   xferObjList(flat, implVerbatim);
 

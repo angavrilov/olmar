@@ -15,6 +15,7 @@
 #include "array.h"           // GrowArray
 
 #include <fstream.h>         // ifstream
+#include <ctype.h>           // isspace, isalnum
 
 #define LIT_STR(s) LITERAL_LOCSTRING(grammarStringTable.add(s))
 
@@ -118,16 +119,7 @@ void setAnnotations(GrammarAST *ast)
   // work through the toplevel forms
   FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
     ASTSWITCH(TopForm, iter.data()) {
-      ASTCASE(TF_context, c) {
-        if (!ast->context) {
-          ast->context = c;
-        }
-        else {
-          astParseError(c->name, "there is more than one context class definition");
-        }
-      }
-
-      ASTNEXT(TF_terminals, t) {
+      ASTCASE(TF_terminals, t) {
         if (!ast->terms) {
           ast->terms = t;
         }
@@ -149,12 +141,21 @@ void setAnnotations(GrammarAST *ast)
   if (!ast->terms) {
     astParseError("'Terminals' specification is missing");
   }
-  if (!ast->context) {
-    astParseError("'context_class' specification is missing");
-  }
   if (!ast->firstNT) {
     astParseError("you have to have at least one nonterminal");
   }
+}
+
+
+LocString extractActionClassName(LocString const &body)
+{
+  // find end of first token
+  char const *p = body.str;
+  while (isspace(*p)) p++;
+  while (isalnum(*p) || *p=='_') p++;
+  
+  // yield that, with the same source location
+  return LocString(body, grammarStringTable.add(string(body.str, p-body.str)));
 }
 
 
@@ -164,17 +165,20 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
   // default, empty environment
   Environment env(g);
 
-  // handle TF_context
-  g.actionClassName = ast->context->name;
-  g.actionClassBody = ast->context->body;
-
   // handle TF_terminals
   astParseTerminals(env, *(ast->terms));
 
   // handle TF_verbatim and TF_option
   FOREACH_ASTLIST_NC(TopForm, ast->forms, iter) {
     ASTSWITCH(TopForm, iter.data()) {
-      ASTCASE(TF_verbatim, v) {
+      ASTCASE(TF_context, c) {
+        // overwrite the context class name, and append to
+        // its body verbatim list
+        g.actionClassName = extractActionClassName(c->body);
+        g.actionClasses.append(new LocString(c->body));
+      }
+
+      ASTNEXT(TF_verbatim, v) {
         if (v->isImpl) {
           g.implVerbatim.append(new LocString(v->code));
         }
@@ -680,6 +684,11 @@ void grampar_yyerror(char const *message, void *parseParam)
 // ---------------------- merging -----------------------
 void mergeContext(GrammarAST *base, TF_context * /*owner*/ ext)
 {
+  // do simple append, since the grammar parser above knows how
+  // to handle multiple context classes
+  base->forms.append(ext);
+
+  #if 0
   // find 'base' context
   TF_context *baseContext = NULL;
   FOREACH_ASTLIST_NC(TopForm, base->forms, iter) {
@@ -688,7 +697,7 @@ void mergeContext(GrammarAST *base, TF_context * /*owner*/ ext)
       break;
     }
   }
-  
+
   if (!baseContext) {
     // base does not have a context class, so 'ext' becomes it
     base->forms.append(ext);
@@ -700,13 +709,14 @@ void mergeContext(GrammarAST *base, TF_context * /*owner*/ ext)
     // be right..
     astParseError(ext->name, "context append not implemented");
   }
-  
+
   else {
     // different name, replace the old
     base->forms.removeItem(baseContext);
     delete baseContext;
     base->forms.append(ext);
   }
+  #endif // 0
 }
 
 

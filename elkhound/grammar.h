@@ -461,8 +461,9 @@ public:	    // data
   // name of the class into which the action functions are placed
   LocString actionClassName;
 
-  // verbatim action class declaration
-  LocString actionClassBody;
+  // verbatim action class declaration, and additional codes from
+  // extension modules to append to it
+  ObjList<LocString> actionClasses;
 
   // code emitted into the implementation file at the end
   ObjList<LocString> implVerbatim;

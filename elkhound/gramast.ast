@@ -10,18 +10,18 @@ verbatim {
 class GrammarAST (ASTList<TopForm> forms) {
   // annotations, filled in during initial checking, pointing
   // to some things that are supposed to exist and be unique
-  public TF_context *context;
   public TF_terminals *terms;
   public TF_nonterm *firstNT;    // textually first nonterminal
   
-  ctor { context=NULL; terms=NULL; firstNT=NULL; };
+  ctor { terms=NULL; firstNT=NULL; };
 }
 
 
 // toplevel form
 class TopForm {
-  // definition of the parser context class
-  -> TF_context(LocString name, LocString body);
+  // definition of the parser context class; the first token
+  // in 'body' is the class name
+  -> TF_context(LocString body);
   
   // arbitrary verbatim section, emitted into either the interface
   // (isImpl=false) or implementation (isImpl=true) file
