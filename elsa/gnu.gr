@@ -346,6 +346,9 @@ nonterm(Initializer*) InitializerClause {
   // C99 official form; C99 standard section 6.7.8
   -> dl:DesignatorList "=" init:SimpleInitializerClause
     { return new IN_designated(loc, dl, init); }
+  // dsw: another form I run into
+  -> dl:DesignatorList init:SimpleInitializerClause
+    { return new IN_designated(loc, dl, init); }
 }
 
 nonterm(FakeList<Designator>*) DesignatorList {
