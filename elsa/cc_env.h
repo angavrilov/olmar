@@ -70,6 +70,10 @@ public:      // data
   // the class scope
   bool checkFunctionBodies;
 
+  // when true, we are re-typechecking part of a class definition,
+  // hence the names encountered should already be declared, etc.
+  bool secondPassTcheck;
+
   // list of error messages; during disambiguation, the existing
   // list is set aside, so 'errors' only has errors from the
   // disambiguation we're doing now (if any)

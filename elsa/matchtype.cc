@@ -201,8 +201,7 @@ bool MatchTypes::subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags)
 bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
 {
   xassert(b->isTypeVariable());
-  STemplateArgument *targa = new STemplateArgument;
-
+  
   // deal with CV qualifier strangness;
   // dsw: Const should be removed from the language because of things
   // like this!  I mean, look at it!
@@ -217,6 +216,11 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
     // irrelevant
     a = tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, a, NULL /*syntax*/);
   } else {
+    // sm: 8/15/04: in MM_ISO mode, the cv flags on both must match (t0259.cc)
+    if (acv != b->getCVFlags()) {
+      return false;
+    }
+
     // if we are below the top level, subtract off the CV qualifiers
     // that match; if we get a negative qualifier set (arg lacks a
     // qualifer that the param has) we fail to match
@@ -234,6 +238,7 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
        );
   }
 
+  STemplateArgument *targa = new STemplateArgument;
   targa->setType(a);
   bindings.putTypeVar(b->asTypeVariable(), targa);
   TRACE("matchtype", "bound " << b->asTypeVariable()->name <<
@@ -282,12 +287,19 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
       if (targb->kind!=STemplateArgument::STA_TYPE) return false;
       if (!a->isTypeVariable()) return false;
       xassert(targb->value.t->isTypeVariable());
+      
+      // sm: 8/15/04: the cv-flags for 'b' are effectively the union
+      // of those applied to the type variable and those to which the
+      // type variable is bound (t0259.cc)
+      CVFlags bFlags = b->getCVFlags();
+      bFlags |= targb->value.t->getCVFlags();
+
       // since this is the MM_ISO case, they must be semantically
       // identical
       return
         // must have the same qualifiers; FIX: I think even at the top level
         ((a->getCVFlags() & normalCvFlagMask) ==
-         (targb->value.t->getCVFlags() & normalCvFlagMask))
+         (bFlags & normalCvFlagMask))
         &&
         // must be the same typevar; NOTE: don't compare the types, as
         // they can change when cv qualifiers are added etc. but the

@@ -296,6 +296,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     disambiguationNestingLevel(0),
     checkFunctionBodies(true),
+    secondPassTcheck(false),
     errors(),
     hiddenErrors(NULL),
     instantiationLocStack(),
@@ -2941,10 +2942,17 @@ Variable *Env::createDeclaration(
         //
         // actually, I just added TypeVariables to 'Type::containsErrors',
         // so the error message will be suppressed automatically
-        error(prior->type, stringc
+        //
+        // 8/15/04: removing 'prior->type' so I can detect duplicate
+        // definitions of template functions (t0258.cc errors 1 and
+        // 2); I think the right soln is to remove the
+        // type-vars-suppress-errors thing altogether, but I want to
+        // minimize churn for the moment
+        error(/*prior->type,*/ stringc
           << "duplicate definition for `" << name
           << "' of type `" << prior->type->toString()
-          << "'; previous at " << toString(prior->loc));
+          << "'; previous at " << toString(prior->loc),
+          EF_STRONG);
 
       makeDummyVar:
         // the purpose of this is to allow the caller to have a workable
@@ -2971,8 +2979,10 @@ Variable *Env::createDeclaration(
       // of typechecking for inline members (the user's code doesn't
       // violate the rule, it only appears to because of the second
       // pass); this exception is indicated by DF_INLINE_DEFN.
+      //
+      // 8/15/04: Now using 'secondPassTcheck' instead of DF_INLINE_DEFN.
       if (enclosingClass &&
-          !(dflags & DF_INLINE_DEFN) &&
+          !secondPassTcheck &&
           !prior->isImplicitTypedef()) {    // allow implicit typedef to be hidden
         if (!prior->usingAlias) {
           error(stringc

@@ -2353,15 +2353,26 @@ void Env::transferTemplateMemberInfo
       Variable *destVar = destIter.data()->asMR_func()->f->nameAndParams->var;
 
       transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
-      
+
       // the instance 'destVar' needs to have a 'defnScope'; it didn't
       // get set earlier b/c at the time the declaration was tchecked,
       // the Function didn't know it was an instantiation (but why is
       // that?)
       TemplateInfo *destTI = destVar->templateInfo();
-      xassert(!destTI->defnScope);
-      destTI->defnScope = destVar->scope;
-      xassert(destTI->defnScope);
+      if (!destTI->defnScope) {
+        destTI->defnScope = destVar->scope;
+        xassert(destTI->defnScope);
+
+        // arg.. I keep pushing this around.. maybe new strategy:
+        // set defnScope and funcDefn at same time?
+        destVar->funcDefn = destIter.data()->asMR_func()->f;
+      }
+      else {
+        // this happens when 'destVar' is actually a partial instantiation,
+        // so the scope was set by transferTemplateMemberInfo_membert
+        // when ..._one delegated to it
+        xassert(destTI->isPartialInstantiation());
+      }
     }
 
     else if (srcIter.data()->isMR_template()) {
@@ -2392,7 +2403,29 @@ void Env::transferTemplateMemberInfo
       }
 
       else if (srcTDecl->isTD_class()) {
-        unimp("template class with member template class");
+        TypeSpecifier *srcTS = srcTDecl->asTD_class()->spec;
+        TypeSpecifier *destTS = destTDecl->asTD_class()->spec;
+
+        if (srcTS->isTS_elaborated()) {
+          Variable *srcVar = srcTS->asTS_elaborated()->atype->typedefVar;
+          Variable *destVar = destTS->asTS_elaborated()->atype->typedefVar;
+
+          // just a forward decl, do the one element
+          transferTemplateMemberInfo_membert(instLoc, srcVar, destVar, sargs);
+        }
+
+        else {     // TS_classSpec
+          TS_classSpec *srcCS = srcTS->asTS_classSpec();
+          TS_classSpec *destCS = destTS->asTS_classSpec();
+
+          // connect the classes themselves
+          transferTemplateMemberInfo_membert(instLoc, 
+            srcCS->ctype->typedefVar, 
+            destCS->ctype->typedefVar, sargs);
+
+          // connect their members
+          transferTemplateMemberInfo(instLoc, srcCS, destCS, sargs);
+        }
       }
 
       else if (srcTDecl->isTD_tmember()) {
@@ -2422,6 +2455,16 @@ void Env::transferTemplateMemberInfo_one
   (SourceLoc instLoc, Variable *srcVar, Variable *destVar,
    ObjList<STemplateArgument> const &sargs)
 {
+  // bit of a hack: if 'destVar' already has templateInfo, then it's
+  // because it is a member template (or a member of a member
+  // template), and we got here by recursively calling
+  // 'transferTemplateMemberInfo'; call the member template handler
+  // instead
+  if (destVar->templateInfo()) {
+    transferTemplateMemberInfo_membert(instLoc, srcVar, destVar, sargs);
+    return;
+  }
+
   TRACE("templateXfer", "associated primary " << srcVar->toQualifiedString()
                      << " with inst " << destVar->toQualifiedString());
 

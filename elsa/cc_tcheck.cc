@@ -369,6 +369,11 @@ void Function::tcheckBody(Env &env)
   // want it done twice, so we do it first for now
   hasBodyBeenTChecked = true;
 
+  // once we get into the body of a function, if we end up triggering
+  // additional instantiations, they should *not* see any prevailing
+  // second-pass mode
+  Restorer<bool> re(env.secondPassTcheck, false);
+
   // location for random purposes..
   SourceLoc loc = nameAndParams->var->loc;
 
@@ -1385,6 +1390,15 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   env.setLoc(loc);
   dflags |= DF_DEFINITION;
 
+  // if we're on the second pass, then skip almost everything
+  if (env.secondPassTcheck) {
+    // just get the function bodies
+    env.extendScope(ctype);
+    tcheckFunctionBodies(env);
+    env.retractScope(ctype);
+    return ctype->typedefVar->type;
+  }
+
   // lookup scopes in the name, if any
   if (name) {
     name->tcheck(env);
@@ -1493,7 +1507,7 @@ void TS_classSpec::tcheckIntoCompound(
       // annotate the AST with the type we found
       iter->type = base;
     }
-    
+
     // we're finished constructing the inheritance hierarchy
     if (tracingSys("printHierarchies")) {
       string h1 = ct->renderSubobjHierarchy();
@@ -1522,6 +1536,8 @@ void TS_classSpec::tcheckIntoCompound(
     FOREACH_ASTLIST_NC(Member, members->list, iter) {
       Member *member = iter.data();
       member->tcheck(env);
+      
+      #if 0     // old
       // dsw: The invariant that I have chosen for function members of
       // templatized classes is that we typecheck the declaration but
       // not the definition; the definition is typechecked when the
@@ -1539,6 +1555,7 @@ void TS_classSpec::tcheckIntoCompound(
         xassert(!mrvar->funcDefn);
         mrvar->funcDefn = mrfunc->f;
       }
+      #endif // 0
     }
   }
 
@@ -1587,8 +1604,18 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
   CompoundType *ct = env.scope()->curCompound;
   xassert(ct);
 
+  // inform the members that they are being checked on the second
+  // pass through a class definition
+  Restorer<bool> r(env.secondPassTcheck, true);
+
   // check function bodies and elaborate ctors and dtors of member
   // declarations
+  FOREACH_ASTLIST_NC(Member, members->list, iter) {
+    Member *member = iter.data();
+    member->tcheck(env);
+  }
+  
+  #if 0     // old; doesn't work right for member templates
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
     if (iter.data()->isMR_func()) {
       Function *f = iter.data()->asMR_func()->f;
@@ -1661,6 +1688,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
     // retract the inner scope
     env.retractScope(inner);
   }
+  #endif // 0
 }
 
 
@@ -1717,6 +1745,14 @@ void MR_decl::tcheck(Env &env)
 {
   env.setLoc(loc);
 
+  if (env.secondPassTcheck) {
+    // TS_classSpec is only thing of interest
+    if (d->spec->isTS_classSpec()) {
+      d->spec->asTS_classSpec()->tcheck(env, d->dflags);
+    }
+    return;
+  }
+
   // the declaration knows to add its variables to
   // the curCompound
   d->tcheck(env, DC_MR_DECL);
@@ -1754,6 +1790,8 @@ void MR_func::tcheck(Env &env)
 
 void MR_access::tcheck(Env &env)
 {
+  if (env.secondPassTcheck) { return; }
+
   env.setLoc(loc);
 
   env.scope()->curAccess = k;
@@ -1761,6 +1799,8 @@ void MR_access::tcheck(Env &env)
 
 void MR_publish::tcheck(Env &env)
 {
+  if (env.secondPassTcheck) { return; }
+
   env.setLoc(loc);
 
   name->tcheck(env);
@@ -1777,6 +1817,8 @@ void MR_publish::tcheck(Env &env)
 
 void MR_usingDecl::tcheck(Env &env)
 {
+  if (env.secondPassTcheck) { return; }
+
   env.setLoc(loc);
   decl->tcheck(env);
 }
