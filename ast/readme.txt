@@ -52,7 +52,9 @@ semicolon following the "}".
 Ctor arguments play two roles.  First, they become parameters to
 the generated class' constructor function.  Thus, (above) any time
 a MyClass is constructed, the caller has to supply two arguments
-of the given types.
+of the given types.  Ctor arguments may be given default values
+using the usual C++ syntax, in which case those become default values
+for the associated constructor parameters.
 
 Second, ctor arguments become fields in the generated class, and
 those fields are initialized by the constructor call.  So a MyClass
