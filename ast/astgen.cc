@@ -8,6 +8,7 @@
 #include "ckheap.h"        // checkHeap
 #include "strutil.h"       // replace, translate, localTimeString
 #include "sobjlist.h"      // SObjList
+#include "srcloc.h"        // SourceLocManager
 
 #include <string.h>        // strncmp
 #include <fstream.h>       // ofstream
@@ -1232,6 +1233,7 @@ void entry(int argc, char **argv)
 {
   TRACE_ARGS();
   checkHeap();
+  SourceLocManager mgr;
 
   if (argc < 2) {
     cout << "usage: " << argv[0] << " [options] file.ast [extension.ast [...]]\n"

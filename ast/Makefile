@@ -62,8 +62,9 @@ agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 	$(COMPILE) $*.cc
 	@$(SMBASE)/depend.sh $(CXXFLAGS) $< > $*.d
 
+# removed fileloc.o
 agrampar-dep = gramlex.o agrampar.tab.o ccsstr.o \
-               fileloc.o agramlex.yy.o embedded.o ast.hand.o \
+               agramlex.yy.o embedded.o ast.hand.o \
                asthelp.o strtable.o
 -include $(agrampar-dep:.o=.d)
 
@@ -85,7 +86,7 @@ ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
 example.cc: astgen example.ast
 	./astgen example.ast
 
-exampletest: exampletest.o example.o asthelp.o locstr.o fileloc.o strtable.o $(LIBSMBASE)
+exampletest: exampletest.o example.o asthelp.o locstr.o strtable.o $(LIBSMBASE)
 	$(LINK) -o $@ $^
 
 # simple extension
@@ -101,7 +102,8 @@ ext1.cc: astgen example.ast ext1.ast
 # distribution tarball or from CVS).
 
 clean:
-	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr towner
+	rm -f *.o agrampar.tab.* tmp *.d
+	rm -f agrampar astgen ccsstr towner exampletest
 	rm -f agrampar.{codes.h,output} agramlex.yy.cc
 
 # test for owner

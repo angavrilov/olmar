@@ -4,39 +4,41 @@
 #include "locstr.h"     // this module
 
 LocString::LocString()
-  : SourceLocation(),
+  : loc(SL_UNKNOWN),
     str(NULL)           // problem with "" is we don't have the string table here..
 {}
 
 LocString::LocString(LocString const &obj)
-  : SourceLocation(obj),
+  : loc(obj.loc),
     str(obj.str)
 {}
 
-LocString::LocString(SourceLocation const &loc, StringRef s)
-  : SourceLocation(loc),
-    str(s)
-{}
-
-LocString::LocString(FileLocation const &floc, SourceFile *f, StringRef s)
-  : SourceLocation(floc, f),
+LocString::LocString(SourceLoc L, StringRef s)
+  : loc(L),
     str(s)
 {}
 
 
 LocString::LocString(Flatten&)
-  : str(NULL)
+  : loc(SL_UNKNOWN), str(NULL)
 {}
 
 void LocString::xfer(Flatten &flat)
 {
+  // doh.. flattening locs is hard.  I wasn't even doing
+  // it before.  issues:
+  //   - don't want to store the file name lots of times
+  //   - what if the file goes away, or we're in a different directory?
+  //   - what if the file is changed, what loc to use then?
+  // so for now I'm punting and not saving the loc at all...
+
   xassert(flattenStrTable);
   flattenStrTable->xfer(flat, str);
 }
 
 
 LocString::LocString(LocString *obj)
-  : SourceLocation(*obj),
+  : loc(obj->loc),
     str(obj->str)
 {
   delete obj;

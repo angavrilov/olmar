@@ -12,23 +12,21 @@
 // ----------------- GrammarLexer::AltReportError ---------------
 void GrammarLexer::AltReportError::reportError(char const *msg)
 {
-  lexer.printError(lexer.fileState, msg);
+  lexer.printError(lexer.fileState.loc, msg);
 }
 
 void GrammarLexer::AltReportError::reportWarning(char const *msg)
 {
-  lexer.printWarning(lexer.fileState, msg);
+  lexer.printWarning(lexer.fileState.loc, msg);
 }
 
 
 // ----------------- GrammarLexer::FileState --------------------
-GrammarLexer::FileState::FileState(SourceFile *file, istream *src)
-  : SourceLocation(file),
+GrammarLexer::FileState::FileState(char const *filename, istream *src)
+  : loc(sourceLocManager->encodeBegin(filename)),
     source(src),
     bufstate(NULL)
-{
-  FileLocation::reset();
-}
+{}
 
 
 GrammarLexer::FileState::~FileState()
@@ -49,7 +47,7 @@ GrammarLexer::FileState &GrammarLexer::FileState::
   operator= (FileState const &obj)
 {
   if (this != &obj) {
-    SourceLocation::operator=(obj);
+    loc = obj.loc;
     source = obj.source;
     bufstate = obj.bufstate;
   }
@@ -62,9 +60,9 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
                            char const *fname, istream *source)
   : yyFlexLexer(source),
     altReporter(*this),
-    fileState(sourceFileList.open(fname), source),
+    fileState(fname, source),
     fileStack(),
-    tokenStartLoc(),
+    tokenStartLoc(SL_UNKNOWN),
     expectingEmbedded(false),
     embedFinish(0),
     embedMode(0),
@@ -187,7 +185,7 @@ StringRef GrammarLexer::curDeclName() const
 
 string GrammarLexer::curLocStr() const
 {
-  return curLoc().likeGccToString();
+  return toString(curLoc());
 }
 
 
@@ -196,9 +194,9 @@ void GrammarLexer::reportError(char const *msg)
   printError(curLoc(), msg);
 }
 
-void GrammarLexer::printError(SourceLocation const &loc, char const *msg)
+void GrammarLexer::printError(SourceLoc loc, char const *msg)
 {
-  cerr << loc.likeGccToString() << ": error: " << msg << endl;
+  cerr << toString(loc) << ": error: " << msg << endl;
 }
 
 
@@ -207,16 +205,16 @@ void GrammarLexer::reportWarning(char const *msg)
   printWarning(curLoc(), msg);
 }
 
-void GrammarLexer::printWarning(SourceLocation const &loc, char const *msg)
+void GrammarLexer::printWarning(SourceLoc loc, char const *msg)
 {
-  cerr << loc.toString() << ": warning: " << msg << endl;
+  cerr << toString(loc) << ": warning: " << msg << endl;
 }
 
 
 void GrammarLexer::errorUnterminatedComment()
 {
   err(stringc << "unterminated comment, beginning on line " //<< commentStartLine);
-              << tokenStartLoc.line);
+              << sourceLocManager->getLine(tokenStartLoc));
 }
 
 void GrammarLexer::errorMalformedInclude()
@@ -243,7 +241,7 @@ void GrammarLexer::recursivelyProcess(char const *fname, istream *source)
   fileStack.prepend(new FileState(fileState));
 
   // reset current state
-  fileState = FileState(sourceFileList.open(fname), source);
+  fileState = FileState(fname, source);
 
   // storing this in 'bufstate' is redundant because of the
   // assignment above, but no big deal
@@ -256,7 +254,8 @@ void GrammarLexer::recursivelyProcess(char const *fname, istream *source)
 
 void GrammarLexer::popRecursiveFile()
 {
-  trace("lex") << "done processing " << fileState.fname() << endl;
+  trace("lex") << "done processing " <<     
+    sourceLocManager->getFile(fileState.loc) << endl;
 
   // among other things, this prevents us from accidentally deleting
   // flex's first buffer (which it presumably takes care of) or
@@ -266,7 +265,7 @@ void GrammarLexer::popRecursiveFile()
   // close down stuff associated with current file
   yy_delete_buffer(fileState.bufstate);
   delete fileState.source;
-  
+
   // pop stack
   FileState *st = fileStack.removeAt(0);
   fileState = *st;
@@ -291,6 +290,7 @@ bool isGramlexEmbed(int code);
 
 int main(int argc)
 {
+  SourceLocManager mgr;
   GrammarLexer lexer(isGramlexEmbed);
   traceAddSys("lex");
 

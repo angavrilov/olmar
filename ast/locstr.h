@@ -8,17 +8,17 @@
 #include <string.h>      // strlen
 
 #include "strtable.h"    // StringRef
-#include "fileloc.h"     // SourceLocation
+#include "srcloc.h"      // SourceLoc
 
-class LocString : public SourceLocation {
+class LocString {
 public:    // data
+  SourceLoc loc;
   StringRef str;
 
 public:    // funcs
   LocString();
   LocString(LocString const &obj);
-  LocString(SourceLocation const &loc, StringRef str);
-  LocString(FileLocation const &floc, SourceFile *f, StringRef str);
+  LocString(SourceLoc loc, StringRef str);
 
   LocString(Flatten&);
   void xfer(Flatten &flat);
@@ -30,10 +30,10 @@ public:    // funcs
   LocString *clone() const;
 
   LocString& operator= (LocString const &obj)
-    { SourceLocation::operator=(obj); str = obj.str; return *this; }
+    { loc = obj.loc; str = obj.str; return *this; }
 
   // string with location info
-  string locString() const { return SourceLocation::toString(); }
+  string locString() const { return toString(loc); }
 
   // (read-only) string-like behavior
   friend ostream& operator<< (ostream &os, LocString const &loc)
@@ -43,26 +43,24 @@ public:    // funcs
   StringRef strref() const { return str; }
   operator StringRef () const { return str; }
   char operator [] (int index) const { return str[index]; }
-  bool equals(char const *other) const;
+  bool equals(char const *other) const;    // string comparison
   int length() const { return strlen(str); }
 
   // experimenting with allowing 'str' to be null, which is convenient
   // when the string table isn't available
   bool isNull() const { return str == NULL; }
   bool isNonNull() const { return !isNull(); }
+  
+  bool validLoc() const { return loc != SL_UNKNOWN; }
 };
 
 // yields simply the string, no location info
 string toString(LocString const &s);
 
 
-// useful for constructing literal strings in source code; column
-// information isn't available so I just put in "1"
+// useful for constructing literal strings in source code
 #define LITERAL_LOCSTRING(str)                                   \
-  LocString(SourceLocation(FileLocation(__LINE__, 1),            \
-                           sourceFileList.open(__FILE__)),       \
-            str)
-
+  LocString(HERE_SOURCELOC, str)
 
 
 #endif // LOCSTR_H

@@ -24,7 +24,7 @@
 // other includes
 #include "str.h"              // string
 #include "objlist.h"          // ObjList
-#include "fileloc.h"          // SourceLocation
+#include "srcloc.h"           // SourceLoc
 #include "embedded.h"         // EmbeddedLang
 #include "strtable.h"         // StringTable, StringRef
 
@@ -56,12 +56,13 @@ private:     // data
   AltReportError altReporter;
 
   // state of a file we were or are lexing
-  struct FileState : public SourceLocation {
+  struct FileState {
+    SourceLoc loc;                 // location in the file
     istream *source;               // (owner?) source stream
     yy_buffer_state *bufstate;     // (owner?) flex's internal buffer state
 
   public:
-    FileState(SourceFile *file, istream *source);
+    FileState(char const *filename, istream *source);
     ~FileState();
 
     FileState(FileState const &obj);
@@ -71,7 +72,7 @@ private:     // data
   FileState fileState;             // state for file we're lexing now
   ObjList<FileState> fileStack;    // stack of files we will return to
 
-  SourceLocation tokenStartLoc;    // location of start of current token
+  SourceLoc tokenStartLoc;         // location of start of current token
 
   // support for embedded code
   bool expectingEmbedded;          // true when certain punctuation triggers
@@ -98,8 +99,13 @@ private:     // funcs
   // disallowed
   GrammarLexer(GrammarLexer const &);
 
+  // called to advance the column count
+  void advCol(int n) 
+    { fileState.loc = sourceLocManager->advCol(fileState.loc, n); }
+
   // called when a newline is encountered
-  void newLine() { fileState.newLine(); }
+  void newLine()
+    { fileState.loc = sourceLocManager->advLine(fileState.loc); }
   
   // adds a string with only the specified # of chars; writes (but
   // then restores) a null terminator if necessary, so 'str' isn't const
@@ -134,10 +140,13 @@ public:      // funcs
   int yylexInc();
 
   // info about location of current token
-  char const *curFname() const { return tokenStartLoc.fname(); }
-  int curLine() const { return tokenStartLoc.line; }
-  int curCol() const { return tokenStartLoc.col; }
-  SourceLocation const &curLoc() const { return tokenStartLoc; }
+  char const *curFname() const 
+    { return sourceLocManager->getFile(tokenStartLoc); }
+  int curLine() const 
+    { return sourceLocManager->getLine(tokenStartLoc); }
+  int curCol() const 
+    { return sourceLocManager->getCol(tokenStartLoc); }
+  SourceLoc curLoc() const { return tokenStartLoc; }
   string curLocStr() const;    // string with file/line/col
 
   // error reporting; called by the lexer code
@@ -146,8 +155,8 @@ public:      // funcs
   void errorMalformedInclude();
   void errorIllegalCharacter(char ch);
 
-  void printError(SourceLocation const &loc, char const *msg);
-  void printWarning(SourceLocation const &loc, char const *msg);
+  void printError(SourceLoc loc, char const *msg);
+  void printWarning(SourceLoc loc, char const *msg);
 
   // for processing includes
   void recursivelyProcess(char const *fname, istream * /*owner*/ source);
