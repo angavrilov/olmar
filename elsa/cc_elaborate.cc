@@ -708,6 +708,10 @@ Expression *ElabVisitor::elaborateCallSite(
 
     SObjListIterNC<Variable> paramsIter(ft->params);
 
+    if (ft->isMethod()) {
+      paramsIter.adv();
+    }
+
     FAKELIST_FOREACH_NC(ArgExpression, args, arg) {
       if (paramsIter.isDone()) {
         // FIX: I suppose we could still have arguments here if there is a
