@@ -1741,11 +1741,11 @@ void TS_classSpec::tcheckIntoCompound(
   if (bases) {
     FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
       // resolve any template arguments in the base class name
-      iter->name->tcheck(env);
+      iter->name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
       // cppstd 10, para 1: ignore non-types when looking up
       // base class names
-      Variable *baseVar = env.lookupPQVariable(iter->name, LF_ONLY_TYPES);
+      Variable *baseVar = env.lookupPQ_one(iter->name, LF_ONLY_TYPES);
       if (!baseVar) {
         env.error(stringc
           << "no class called `" << *(iter->name) << "' was found",
