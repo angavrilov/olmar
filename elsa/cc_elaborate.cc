@@ -453,10 +453,25 @@ void Declarator::elaborateCDtors(ElabVisitor &env)
 
   // get this context from the 'var', don't make a mess passing
   // it down from above
-  bool isMember = var->hasFlag(DF_MEMBER);
-  bool isTemporary = var->hasFlag(DF_TEMPORARY);
-  bool isStatic = var->hasFlag(DF_STATIC);
-  bool isExtern = var->hasFlag(DF_EXTERN);
+  //
+  // this is a property of the variable, not the declaration
+  bool isTemporary =   var->hasFlag(DF_TEMPORARY);
+  // these are properties of the declaration and the variable and
+  // should match
+  bool isMember =      this->dflags & DF_MEMBER;
+  xassert(isMember ==    var->hasFlag(DF_MEMBER));
+  bool isStatic =      this->dflags & DF_STATIC;
+  xassert(isStatic ==    var->hasFlag(DF_STATIC));
+  // this used to check if the *var* had an extern flag, which is not
+  // correct because if there is a later declaration in the file for
+  // the same variable that is *not* extern then the flag DF_EXTERN
+  // will be removed, which seems reasonable to me.  What we care
+  // about here is if the *declaration* is extern.
+  bool isExtern =      this->dflags & DF_EXTERN;
+  // note that this assertion is not an equality
+  if (var->hasFlag(DF_EXTERN)) {
+    xassert(isExtern);
+  }
 
   bool isAbstract = decl->isD_name() && !decl->asD_name()->name;
   SourceLoc loc = getLoc();

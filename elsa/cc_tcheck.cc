@@ -2710,6 +2710,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.context == DC_TD_PROTO ||
     dt.context == DC_MR_DECL;
 
+  // dsw: I need this later in Declarator::elaborateCDtors() so that I
+  // can tell if the Declaration was extern; this information is lost
+  // if there is a later declaration of the variable that is not
+  // extern, as the DF_EXTERN flag on the variable is removed
+  this->dflags = dt.dflags;
+
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
   //    qualified-id, names used before the qualified-id

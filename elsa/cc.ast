@@ -312,6 +312,11 @@ class Declarator (
     }
   }
 
+  // dsw: the flags that were on the Declaration above; see note in
+  // Declarator::mid_tcheck() and Declarator::elaborateCDtors() at
+  // isExtern.
+  public DeclFlags dflags = DF_NONE;// typedef, virtual, extern, etc.
+
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorIdC() const;
   public PQName *getDeclaratorId()
