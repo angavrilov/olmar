@@ -2537,8 +2537,23 @@ PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
     return make_PQ_fullyQualifiedName(s->parentScope, name0);
   }
   else if (s->scopeKind == SK_GLOBAL) {
-    // Scott's "fix"
-//    else if (s->getTypedefName()->scopeKind == SK_GLOBAL) {
+    // sm: 12/19/03: The intent of this code was to notice when the
+    // scope 's' appeared in the global scope, meaning it should be
+    // qualified with "::".  Therefore the test that makes sense to me
+    // is
+    //
+    //    s->getTypedefName()->scopeKind == SK_GLOBAL
+    //
+    // However, Daniel reports that this breaks things.  I suspect
+    // that is due to the failure to handle "::" correctly in general.
+    // Since, for the moment, things appear to work correctly with the
+    // test as it is above, I'm going to leave it.
+    //
+    // But as further evidence that my understanding is at least
+    // partially correct, notice that indeed this is never reached
+    // with the code the way it is.
+    xfailure("this is not reached");
+
     // prepend what syntactically would be a leading "::"
     return new PQ_qualifier(loc(), NULL /*qualifier*/,
                             FakeList<TemplateArgument>::emptyList(),
