@@ -26,10 +26,11 @@ Env::Env(StringTable &s, CCLang &L)
     anonTypeCounter(1),
     errors(),
     str(s),
-    lang(L),                      
-    
+    lang(L),
+    madeUpVariables(),
+
     // filled in below; initialized for definiteness
-    type_info_const_ref(NULL), 
+    type_info_const_ref(NULL),
 
     conversionOperatorName(NULL),
     constructorSpecialName(NULL),
@@ -60,25 +61,27 @@ Env::Env(StringTable &s, CCLang &L)
 
   dependentTypeVar = new Variable(HERE_SOURCELOC, str("<dependentTypeVar>"),
                                   getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
-                                  
+  madeUpVariables.append(dependentTypeVar);
+
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
   errorVar = new Variable(HERE_SOURCELOC, str("<errorVar>"),
                           getSimpleType(ST_ERROR), DF_NONE);
+  madeUpVariables.append(errorVar);
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
   Type const *t_void = getSimpleType(ST_VOID);
   Type const *t_voidptr = makePtrType(t_void);
-  
+
   // note: my stddef.h typedef's size_t to be 'int', so I use
   // 'int' directly here instead of size_t
   Type const *t_int = getSimpleType(ST_INT);
 
   // but I do need a class called 'bad_alloc'..
-  //   class bad_alloc;                     
+  //   class bad_alloc;
   CompoundType *dummyCt;
-  Type const *t_bad_alloc = 
+  Type const *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE_SOURCELOC,
                     TI_CLASS, true /*forward*/);
 
@@ -134,6 +137,9 @@ void Env::declareFunction1arg(Type const *retType, char const *funcName,
 {
   FunctionType *ft = new FunctionType(retType, CV_NONE);
   Variable *p = new Variable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
+  // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
+  // and it's reachable through 'var' (below)
+
   ft->addParam(new Parameter(p->name, p->type, p));
   if (exnType) {
     ft->exnSpec = new FunctionType::ExnSpec;
@@ -145,6 +151,7 @@ void Env::declareFunction1arg(Type const *retType, char const *funcName,
   }
   Variable *var = new Variable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
+  madeUpVariables.append(var);
 }
 
 

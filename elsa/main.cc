@@ -201,6 +201,18 @@ void doit(int argc, char **argv)
     if (tracingSys("stopAfterTCheck")) {
       return;
     }
+
+    // C++Qual-aware type checker
+    traceProgress() << "C++Qual-aware type checker...\n";
+    
+    // little bit of a hack: I need to make a Variable_Q to
+    // correspond to env.dependentTypeVar
+    try {
+      unit->qualTcheck(env.madeUpVariables);
+    }
+    catch (XNotSupported &x) {
+      cout << x.why() << endl;
+    }
   }
 
   // dsw: cc_qual
@@ -252,6 +264,7 @@ void doit(int argc, char **argv)
     u2->debugPrint(cout, 0);
   }
 
+  traceProgress() << "cleaning up...\n";
 
   //malloc_stats();
 

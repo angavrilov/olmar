@@ -747,7 +747,8 @@ void E_fieldAcc::iprint(PrintEnv &env)
   olayer ol("E_fieldAcc::iprint");
   obj->print(env);
   env << ".";
-  if (field) {
+  if (field &&
+      !field->type->isDependent()) {
     env << field->name;
   }
   else {

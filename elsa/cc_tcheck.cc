@@ -377,10 +377,10 @@ void Function::tcheck(Env &env, bool checkBody)
       thisType = makePtrOperType(PO_POINTER, CV_CONST, tmpcvat);
     }
 
-    // add the implicit 'this' parameter
-    Variable *ths = new Variable(nameAndParams->var->loc, env.str("this"),
-                                 thisType, DF_NONE);
-    env.addVariable(ths);
+    // add the implicit 'this' parameter (the pointer is an AST annotation)
+    thisVar = new Variable(nameAndParams->var->loc, env.str("this"),
+                           thisType, DF_NONE);
+    env.addVariable(thisVar);
   }
 
   // have to check the member inits after adding the parameters
@@ -739,7 +739,7 @@ Type const *TS_name::itcheck(Env &env, DeclFlags dflags)
   // are non-disambiguating, because the syntax is unambiguous
   bool disambiguates = (typenameUsed? false : true);
 
-  Variable *var = env.lookupPQVariable(name);
+  this->var = env.lookupPQVariable(name);      // annotation
   if (!var) {
     // NOTE:  Since this is marked as disambiguating, but the same
     // error message in E_variable::itcheck is not marked as such, it
@@ -848,6 +848,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
         true /*disambiguating*/);
     }
 
+    this->atype = et;          // annotation
     return makeType(et);
   }
 
@@ -863,8 +864,11 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     ct = env.lookupCompound(name->getName(), LF_INNER_ONLY);
     if (!ct) {
       // make a forward declaration
-      return env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
-                                 loc, keyword, true /*forward*/);
+      Type const *ret =
+         env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
+                             loc, keyword, true /*forward*/);
+      this->atype = ct;        // annotation
+      return ret;
     }
     else {
       // redundant, nothing to do (what the hey, I'll check keywords)
@@ -874,6 +878,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
           << "you asked for a " << toString(keyword) << " called `"
           << *name << "', but that's actually a " << toString(ct->keyword));
       }
+      this->atype = ct;        // annotation
       return makeType(ct);
     }
   }
@@ -904,8 +909,11 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     // Note that due to the exclusion of DF_FRIEND above I'm actually
     // handling 'friend' here, despite what the standard says..
     Scope *scope = env.outerScope();
-    return env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
-                               true /*forward*/);
+    Type const *ret =
+       env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
+                           true /*forward*/);
+    this->atype = ct;           // annotation
+    return ret;
   }
 
   // check that the keywords match; these 'keyword's are different
@@ -934,6 +942,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     verifyCompatibleTemplates(env, ct);
   }
 
+  this->atype = ct;              // annotation
   return makeType(ct);
 }
 
@@ -1016,6 +1025,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
     verifyCompatibleTemplates(env, ct);
 
+    this->ctype = ct;           // annotation
     ret = makeType(ct);
   }
 
@@ -1033,6 +1043,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     ct = new CompoundType((CompoundType::Keyword)keyword, stringName);
     ClassTemplateInfo *specialTI = ct->templateInfo = env.takeTemplateClassInfo();
     xassert(specialTI);
+    this->ctype = ct;           // annotation
     ret = makeType(ct);
 
     // add this type to the primary's list of specializations; we are not
@@ -1043,7 +1054,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // 'makeNewCompound' will already have put the template *parameters*
     // into 'specialTI', but not the template arguments
     specialTI->specialArguments = templateArgs;
-    
+
     // compute a textual representation of 'templateArgs' to facilitate
     // printing of 'ct' from cc_type.cc
     stringBuilder sb;
@@ -1061,7 +1072,11 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // no existing compound; make a new one
     ret = env.makeNewCompound(ct, env.acceptingScope(), stringName,
                               loc, keyword, false /*forward*/);
+    this->ctype = ct;              // annotation
   }
+                 
+  // should have set the annotation by now
+  xassert(ctype);
 
   // let me map from compounds to their AST definition nodes
   ct->syntax = this;
@@ -1144,6 +1159,10 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       FunctionType *ft = new FunctionType(getSimpleType(ST_CDTOR), CV_NONE);
       Variable *v = new Variable(loc, dtorName, ft, DF_NONE);
       env.addVariable(v);
+      
+      // put it on the list of made-up variables since there are
+      // no qualifiers (since the user didn't even type the dtor's name)
+      env.madeUpVariables.append(v);
     }
   }
 
@@ -1203,7 +1222,7 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
   // which was returning an entire StrSObjDict instead of an iter..
   // but that still should have worked (though it wasn't what I
   // intended), so something still needs to be investigated
-  #if 1
+
   // check function bodies of any inner classes, too, since only
   // a non-inner class will call tcheckFunctionBodies directly
   StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
@@ -1214,14 +1233,6 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 
   for (; !innerIter.isDone(); innerIter.next()) {
     CompoundType *inner = innerIter.value();
-
-  #else
-  // iterate using a different data structure
-  SFOREACH_OBJLIST(CompoundType, ct->innerClasses, innerIter) {
-    CompoundType *inner = const_cast<CompoundType*>  // f'ing gcc, please STFU
-                            (innerIter.data());
-
-  #endif // 0
     if (!inner->syntax) {
       // this happens when all we have is a forward decl
       continue;
@@ -1239,7 +1250,6 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
     // retract the inner scope
     env.retractScope(inner);
   }
-
 }
 
 
@@ -1270,6 +1280,7 @@ Type const *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
     }
   }
 
+  this->etype = et;           // annotation
   return ret;
 }
 
@@ -1588,7 +1599,7 @@ bool ctorNameMatches(char const *ctorName, char const *className)
 // note that this is *not* the same rule that allows array types in
 // function parameters to vary similarly, see
 // 'normalizeParameterType()'
-static bool almostEqualTypes(Type const *t1, Type const *t2)
+bool almostEqualTypes(Type const *t1, Type const *t2)
 {
   if (t1->isArrayType() &&
       t2->isArrayType()) {
@@ -2024,7 +2035,7 @@ noPriorDeclaration:
   else if (!dt.type->isError()) {
     scope->addVariable(dt.var, forceReplace);
   }
- 
+
   return;
 }
 
@@ -2035,6 +2046,7 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
     name->tcheck(env);
   }
 
+  this->type = dt.type;     // annotation
   D_name_tcheck(env, dt, loc, name);
 }
 
@@ -2070,6 +2082,9 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
       pt->q = deepClone(q);
       dt.type = pt;
     }
+
+    // annotation
+    this->type = dt.type;
   }
 
   // turn off CTX_GROUPING
@@ -2197,6 +2212,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // now that we've constructed this function type, pass it as
   // the 'base' on to the next-lower declarator
   dt.type = ft;
+  this->type = dt.type;       // annotation
   base->tcheck(env, dt);
 }
 
@@ -2243,10 +2259,12 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         // of the objects being allocated, rather it is a dynamic
         // count of the number of objects to allocate
         dt.size_E_new = size;
-        
+        this->isNewSize = true;     // annotation
+
         // now just call into the D_name to finish off the type; dt.type
         // is left unchanged, because this D_array contributed nothing
         // to the *type* of the objects we're allocating
+        this->type = dt.type;       // annotation
         base->tcheck(env, dt);
         return;
       }
@@ -2288,6 +2306,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
   // having added this D_array's contribution to the type, pass
   // that on to the next declarator
   dt.type = at;
+  this->type = dt.type;       // annotation
   base->tcheck(env, dt);
 }
 
@@ -2300,6 +2319,9 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
     // shouldn't be necessary, but won't hurt
     name->tcheck(env);
   }
+
+  // fix: I hadn't been type-checking this...
+  bits->tcheck(bits, env);
 
   // check that the expression is a compile-time constant
   int n;
@@ -2315,6 +2337,7 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
   // stacks a bitfield size on top of another Type, and
   // construct such an animal here.
 
+  this->type = dt.type;       // annotation
   D_name_tcheck(env, dt, loc, name);
 }
 
@@ -2326,6 +2349,7 @@ void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
   dt.context =
     (Declarator::Tcheck::Context)(dt.context | Declarator::Tcheck::CTX_GROUPING);
 
+  this->type = dt.type;       // annotation
   base->tcheck(env, dt);
 }
 
@@ -2922,6 +2946,15 @@ Type const *E_fieldAcc::itcheck(Env &env)
   Type const *rt = obj->type->asRval();
   CompoundType const *ct = rt->ifCompoundType();
   if (!ct) {
+    // maybe it's a type variable because we're accessing a field
+    // of a template parameter?
+    if (rt->isTypeVariable()) {
+      // call it a reference to the 'dependent' variable instead of
+      // leaving it NULL; this helps the C++Qual type checker a little
+      field = env.dependentTypeVar;
+      return field->type;
+    }
+
     return env.error(rt, stringc
       << "non-compound `" << rt->toString()
       << "' doesn't have fields to access");
@@ -3468,18 +3501,21 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   // out the subsequent use of "class T" ...
 
   // make a type variable for this thing
-  TypeVariable *type = new TypeVariable(name);
+  TypeVariable *tvar = new TypeVariable(name);
 
   // introduce 'name' into the environment as a typedef for the
   // type variable
-  Type const *fullType = makeType(type);
+  CVAtomicType const *fullType = makeType(tvar);
   Variable *var = new Variable(loc, name, fullType, DF_TYPEDEF);
-  type->typedefVar = var;
+  tvar->typedefVar = var;
   if (!env.addVariable(var)) {
     env.error(stringc
       << "duplicate template parameter `" << name << "'",
       false /*disambiguates*/);
   }
+
+  // annotate this AST node with the type
+  this->type = fullType;
 
   // add this parameter to the list of them
   tparams->params.append(new Parameter(name, fullType, var));

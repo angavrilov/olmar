@@ -1045,24 +1045,6 @@ bool PointerType::anyCtorSatisfies(TypePred pred) const
 
 
 // -------------------- FunctionType::ExnSpec --------------
-FunctionType *FunctionType::deepClone() const {
-  FunctionType *tmp = new FunctionType(retType->deepClone(), cv);
-  for (ObjListIter<Parameter> param_iter(params); !param_iter.isDone(); param_iter.adv()) {
-    tmp->addParam(param_iter.data()->deepClone());
-//      xassert(param_iter.data()->type ==
-//              param_iter.data()->decl->type // the variable
-//              );
-  }
-  tmp->acceptsVarargs = acceptsVarargs;
-  // FIX: omit these for now.
-//    tmp->exnSpec = exnSpec->deepClone();
-//    tmp->templateParams = templateParams->deepClone();
-
-  tmp->q = q ? ::deepCloneLiterals(q) : NULL;
-  return tmp;
-}
-
-
 FunctionType::ExnSpec::~ExnSpec()
 {
   types.removeAll();
@@ -1093,13 +1075,31 @@ FunctionType::FunctionType(Type const *r, CVFlags c)
 
 
 FunctionType::~FunctionType()
-{        
+{
   if (exnSpec) {
     delete exnSpec;
   }
   if (templateParams) {
     delete templateParams;
   }
+}
+
+
+FunctionType *FunctionType::deepClone() const {
+  FunctionType *tmp = new FunctionType(retType->deepClone(), cv);
+  for (ObjListIter<Parameter> param_iter(params); !param_iter.isDone(); param_iter.adv()) {
+    tmp->addParam(param_iter.data()->deepClone());
+//      xassert(param_iter.data()->type ==
+//              param_iter.data()->decl->type // the variable
+//              );
+  }
+  tmp->acceptsVarargs = acceptsVarargs;
+  // FIX: omit these for now.
+//    tmp->exnSpec = exnSpec->deepClone();
+//    tmp->templateParams = templateParams->deepClone();
+
+  tmp->q = q ? ::deepCloneLiterals(q) : NULL;
+  return tmp;
 }
 
 
@@ -1213,6 +1213,17 @@ string FunctionType::leftString(bool innerParen) const
 
 string FunctionType::rightString(bool innerParen) const
 {
+  // I split this into two pieces because the C++Qual concrete
+  // syntax puts $tainted into the middle of my rightString,
+  // since it's following the placement of 'const' and 'volatile'
+  return stringc
+    << rightStringUpToQualifiers(innerParen)
+    << rightStringAfterQualifiers();
+}
+
+
+string FunctionType::rightStringUpToQualifiers(bool innerParen) const
+{
   // finish enclosing type
   stringBuilder sb;
   if (innerParen) {
@@ -1243,6 +1254,13 @@ string FunctionType::rightString(bool innerParen) const
   if (cv) {
     sb << " " << ::toString(cv);
   }
+  
+  return sb;
+}
+
+string FunctionType::rightStringAfterQualifiers() const
+{           
+  stringBuilder sb;
 
   // exception specs
   if (exnSpec) {
@@ -1644,7 +1662,7 @@ ArrayType const *setArraySize(ArrayType const *type, int size)
 Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
 {
   if (type->isError()) {
-    return type;
+    return type;      // this is why this function doesn't return PointerType ...
   }
 
   xassert(!type->isReference()); // don't make a ref to a ref

@@ -3,6 +3,7 @@
 
 #include "qual_type.h"      // this module
 #include "qual_var.h"       // Variable_Q
+#include "variable.h"       // Variable
 
 
 // ------------------------ Type_Q ----------------------
@@ -55,6 +56,30 @@ string Type_Q::toCString(char const *name) const
 }
 
 
+Type_Q *Type_Q::applyCV(CVFlags cv)
+{
+  // should be easy: apply 'cv' to the C++ type and replace
+  // my 'correspType' with that one
+  Type const *newType = applyCVToType(cv, correspType);
+  xassert(newType);
+  if (newType == correspType) {
+    return this;    // common case
+  }
+
+  // if the correspType changes, I need to make a new Type_Q,
+  // and the easiest way to do that is to clone it (if I don't
+  // make a new one, then I'd be polluting all uses of a given
+  // typedef the moment anyone wants a const version of it)
+  Type_Q *ret = deepClone();
+  ret->correspType = newType;
+
+  // make sure I didn't screw up
+  ret->checkHomomorphism();
+  
+  return ret;
+}
+
+
 // ----------------------- CVAtomicType_Q ---------------------
 CVAtomicType_Q *CVAtomicType_Q::deepClone() const
 {
@@ -85,6 +110,16 @@ string CVAtomicType_Q::rightString(bool innerParen) const
 
 
 // ------------------------- PointerType_Q ------------------------
+// local invariants only (things checkable in O(1))
+void PointerType_Q::checkInvars() const
+{
+  // check commutativity
+  // I'd been using == but that doesn't seem to hold and it's
+  // not entirely clear why..
+  xassert(atType->type()->equals(type()->atType));
+}
+
+
 PointerType_Q *PointerType_Q::deepClone() const
 {
   PointerType_Q *tmp = new PointerType_Q(type(), atType->deepClone());
@@ -94,12 +129,11 @@ PointerType_Q *PointerType_Q::deepClone() const
 
 
 void PointerType_Q::checkHomomorphism() const
-{                               
-  // check commutativity
-  xassert(atType->type() == type()->atType);
-  
+{
+  checkInvars();
+
   // recursively check property on type subtree
-  atType->checkHomomorphism();        
+  atType->checkHomomorphism();
 }
 
 
@@ -117,7 +151,9 @@ string PointerType_Q::rightString(bool innerParen) const
 // --------------------------- FunctionType_Q -----------------
 FunctionType_Q::FunctionType_Q(FunctionType const *corresp, Type_Q *ret)
   : Type_Q(corresp), retType(ret), params(/*initially empty*/)
-{}
+{
+  xassert(retType->type()->equals(type()->retType));
+}
 
 
 FunctionType_Q::~FunctionType_Q()
@@ -125,10 +161,10 @@ FunctionType_Q::~FunctionType_Q()
 
 
 FunctionType_Q *FunctionType_Q::deepClone() const
-{ 
+{
   // clone return type
   FunctionType_Q *tmp = new FunctionType_Q(type(), retType->deepClone());
-                      
+
   // copy parameters (initially in reverse)
   for (SObjListIter<Variable_Q> param_iter(params);
        !param_iter.isDone(); param_iter.adv()) {
@@ -146,9 +182,9 @@ FunctionType_Q *FunctionType_Q::deepClone() const
 
 void FunctionType_Q::checkHomomorphism() const
 {
-  xassert(retType->type() == type()->retType);
+  xassert(retType->type()->equals(type()->retType));
   retType->checkHomomorphism();
-  
+
   // not clear if we have to check this for parameters since they
   // are Variable_Qs and it's possible an outer iteration of
   // checkHomomorphism will get them, but I'll do it anyway
@@ -176,6 +212,11 @@ string FunctionType_Q::rightString(bool innerParen) const
 
 
 // ----------------------- ArrayType_Q -----------------
+void ArrayType_Q::checkInvars() const
+{
+  xassert(eltType->type()->equals(type()->eltType));
+}
+
 ArrayType_Q *ArrayType_Q::deepClone() const
 {
   ArrayType_Q *tmp = new ArrayType_Q(type(), eltType->deepClone());
@@ -186,7 +227,7 @@ ArrayType_Q *ArrayType_Q::deepClone() const
 
 void ArrayType_Q::checkHomomorphism() const
 {
-  xassert(eltType->type() == type()->eltType);
+  checkInvars();
   eltType->checkHomomorphism();
 }
 
@@ -207,4 +248,46 @@ CVAtomicType_Q *getSimpleType_Q(SimpleTypeId id, CVFlags cv)
 {
   CVAtomicType const *at = makeCVType(&SimpleType::fixed[id], cv);
   return new CVAtomicType_Q(at);
+}
+
+
+Type_Q *buildQualifierFreeType_Q(Type const *t)
+{
+  switch (t->getTag()) {
+    default:
+      xfailure("bad type code");
+
+    case Type::T_ATOMIC:
+      return new CVAtomicType_Q(&( t->asCVAtomicTypeC() ));
+
+    case Type::T_POINTER: {
+      PointerType const *pt = &( t->asPointerTypeC() );
+      return new PointerType_Q(pt, buildQualifierFreeType_Q(pt->atType));
+    }
+
+    case Type::T_FUNCTION: {
+      FunctionType const *ft = &( t->asFunctionTypeC() );
+      FunctionType_Q *ret = new FunctionType_Q(ft, buildQualifierFreeType_Q(ft->retType));
+
+      // copy parameters (initially in reverse)
+      FOREACH_OBJLIST(Parameter, ft->params, iter) {
+        Variable *v = iter.data()->decl;
+
+        // if this Variable hasn't been annotated, do so now
+        if (!v->q) {
+          v->q = new Variable_Q(v, buildQualifierFreeType_Q(v->type));
+        }
+
+        ret->params.prepend(v->q);
+      }
+      ret->params.reverse();
+
+      return ret;
+    }
+
+    case Type::T_ARRAY: {
+      ArrayType const *at = &( t->asArrayTypeC() );
+      return new ArrayType_Q(at, buildQualifierFreeType_Q(at->eltType));
+    }
+  }
 }
