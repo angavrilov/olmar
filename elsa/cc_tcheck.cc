@@ -1095,7 +1095,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   tcheckIntoCompound(env, dflags, ct, inTemplate, containingClass);
   
-  if (prevWasForward && inTemplate) {
+  if (prevWasForward && ct->isTemplate()) {
     // we might have had forward declarations of template
     // instances that now can be made non-forward by tchecking
     // this syntax
