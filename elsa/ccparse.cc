@@ -90,6 +90,7 @@ void doit(int argc, char **argv)
       // FIX: pass this in on the command line; wrote Scott
       init_cc_qual("cc_qual/cqual/config/lattice");
       cc_qual_flag = 1;
+      if (tracingSys("matt")) matt_flag = 1;
     } else cc_qual_flag = 0;
 
     if (!toplevelParse(tree, positionalArg)) exit(2); // parse error
@@ -178,17 +179,17 @@ void doit(int argc, char **argv)
     //        init_cc_qual("cc_qual/cqual/config/lattice");
     QualEnv env;
     // insert the names into all the Qualifiers objects
-    printf("**************** insert the names into all the Qualifiers objects\n");
+    printf("** insert the names into all the Qualifiers objects\n");
     SFOREACH_OBJLIST_NC(Variable, Variable::instances, variable_iter) {
       nameSubtypeQualifiers(variable_iter.data());
     }
-    printf("**************** Qualifiers::insertInstancesIntoGraph()\n");
+    printf("** Qualifiers::insertInstancesIntoGraph()\n");
     Qualifiers::insertInstancesIntoGraph();
-    printf("**************** unit->qual(env)\n");
+    printf("** unit->qual(env)\n");
     unit->qual(env);
-    printf("**************** finish_cc_qual()\n");
+    printf("** finish_cc_qual()\n");
     finish_cc_qual();
-    printf("**************** qual done\n");
+    printf("** qual done\n");
     traceProgress() << "dsw cc_qual... done\n";
   }
 #endif
