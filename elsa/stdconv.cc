@@ -486,6 +486,11 @@ StandardConversion getStandardConversion
     return conv.ret;    // identical now
   }
 
+  if (conv.ptrCtorsStripped == 1 &&
+      dest->isSimple(ST_VOID)) {
+    return conv.ret | SC_PTR_CONV;      // converting T* to void*
+  }
+
   // if both types have not arrived at CVAtomic, then they
   // are not convertible
   if (!src->isCVAtomicType() ||
@@ -532,10 +537,6 @@ StandardConversion getStandardConversion
 
   if (conv.ptrCtorsStripped > 0) {
     if (conv.ptrCtorsStripped == 1) {
-      if (dest->isSimple(ST_VOID)) {
-        return conv.ret | SC_PTR_CONV;      // converting T* to void*
-      }
-
       if (src->isCompoundType() &&
           dest->isCompoundType() &&
           src->asCompoundTypeC()->hasStrictBaseClass(dest->asCompoundTypeC())) {
