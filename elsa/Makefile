@@ -181,7 +181,7 @@ CHK_CHAP += ch10/Person.cc
 #CHK_CHAP += ch10/PlacementNew.cc
 
 CHK_CHAP += ch10/RefBox.cc
-#CHK_CHAP += ch10/Test1.cc
+CHK_CHAP += ch10/Test1.cc
 CHK_CHAP += ch10/Test2.cc
 
 #outdir/Union.cc.0cppout.cc:3166:12 error: unions cannot have member functions
@@ -189,19 +189,36 @@ CHK_CHAP += ch10/Test2.cc
 
 CHK_CHAP += ch10/test_ambig1.cc
 
+# Sent to Scott Oct 21
+# outdir/apply.cc.0cppout.cc:3182:5 error: can't const-eval non-const variable `size'
+# outdir/apply.cc.0cppout.cc:3197:34 error: you can't use an expression of type `class add_func( &)' as a function
+# outdir/apply.cc.0cppout.cc:3206:34 error: you can't use an expression of type `class add_func( &)' as a function
+# outdir/apply.cc.0cppout.cc:3232:26 error: you can't use an expression of type `class subscriptable_string( &)' as a function
 #CHK_CHAP += ch11/apply.cc
+
+# template
 #CHK_CHAP += ch11/arrow.cc
+
 CHK_CHAP += ch11/complex.cc
 #CHK_CHAP += ch11/complex3.cc
 
+# Don't know why this fails.
+#Line 365, col 34: Parse error at NAME(d)
 #CHK_CHAP += ch11/day.cc
+
 CHK_CHAP += ch11/map.cc
 CHK_CHAP += ch11/my_ostream.cc
 
+# Segfault, and not in pretty printer; sent to Scott on Oct 21
 # CHK_CHAP += ch11/test1.cc
+
+# Line 606, col 51: Parse error at INT_LITERAL(300); sent to Scott on Oct 21
 # CHK_CHAP += ch11/test2.cc
-# CHK_CHAP += ch11/test3.cc
+CHK_CHAP += ch11/test3.cc
+
+#Line 369, col 33: Parse error at INT_LITERAL(3)
 # CHK_CHAP += ch11/test4.cc
+
 # CHK_CHAP += ch11/test5.cc
 
 #CHK_CHAP += ch12/impl0_IO.cc
