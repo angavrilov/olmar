@@ -12,13 +12,15 @@
 #include "sobjlist.h"     // SObjList
 #include "array.h"        // ArrayStack
 
+// NOTE: We cannot #include cc_type.h b/c cc_type.h #includes cc_scope.h.
+
 class Env;                // cc_env.h
 class Variable;           // variable.h
 class CompoundType;       // cc_type.h
 class BaseClassSubobj;    // cc_type.h
 class EnumType;           // cc_type.h
 class Function;           // cc.ast
-class TemplateInfo;       // cc_type.h
+class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
 class TranslationUnit;    // cc.ast.gen.h
 
@@ -135,7 +137,7 @@ public:      // data
   CompoundType *curCompound;          // (serf) CompoundType we're building
   AccessKeyword curAccess;            // access disposition in effect
   Function *curFunction;              // (serf) Function we're analyzing
-  TemplateInfo *curTemplateParams;    // (owner) params to attach to next function or class
+  TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
   SourceLoc curLoc;                   // latest AST location marker seen
 
 private:     // funcs

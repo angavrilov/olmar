@@ -574,7 +574,7 @@ class TemplateDeclaration {
 
 
 class TemplateParameter {
-  pure_virtual void tcheck(Env &env, TemplateInfo *tinfo);
+  pure_virtual void tcheck(Env &env, TemplateParams *tinfo);
   
   -> TP_type {
        // stand-in for the type used when checking the body; it's

@@ -1477,7 +1477,14 @@ StringRef Env::getAnonName(TypeIntr keyword)
 }
 
 
-TemplateInfo *Env::takeTemplateInfo(StringRef baseName)
+TemplateInfo * /*owner*/ Env::takeFTemplateInfo()
+{
+  // for now, difference is that function TemplateInfos have
+  // NULL baseNames
+  return takeCTemplateInfo(NULL /*baseName*/);
+}
+
+TemplateInfo * /*owner*/ Env::takeCTemplateInfo(StringRef baseName)
 {
   TemplateInfo *ret = NULL;
 
@@ -1485,7 +1492,6 @@ TemplateInfo *Env::takeTemplateInfo(StringRef baseName)
   if (s->curTemplateParams) {
     ret = new TemplateInfo(baseName);
     ret->params.concat(s->curTemplateParams->params);
-//      delete takeTemplateParams();
     delete s->curTemplateParams;
     s->curTemplateParams = NULL;
   }
@@ -1542,7 +1548,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
   // transfer template parameters
-  ct->templateInfo = takeTemplateInfo(name);
+  ct->templateInfo = takeCTemplateInfo(name);
 
   ct->forward = forward;
   if (name && scope) {

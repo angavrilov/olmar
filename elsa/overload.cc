@@ -484,10 +484,10 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   // the specialization syntax or just an instance of a template..
   // I'm going to use the latter interpretation since I think it
   // makes more sense
-  if (!leftFunc->templateInfo && rightFunc->templateInfo) {
+  if (!leftFunc->isTemplate() && rightFunc->isTemplate()) {
     return -1;     // left is non-template
   }
-  else if (leftFunc->templateInfo && !rightFunc->templateInfo) {
+  else if (leftFunc->isTemplate() && !rightFunc->isTemplate()) {
     return +1;     // right is non-template
   }
   

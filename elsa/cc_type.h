@@ -921,30 +921,44 @@ public:
 };
 
 
-// dsw: This class is a merge of the old TemplateParams and
-// ClassTemplateInfo
-
-// for a template class, including instantiations thereof, this is the
-// template-related info
-class TemplateInfo {
+// just some template parameters (this class exists, in part, so
+// that Scope doesn't have to instantiate a full TemplateInfo)
+class TemplateParams {
 public:    // data
-  // dsw: from TemplateParams
-
+  // template parameters: the dimensions along which the associated
+  // entity may be specialized at compile time
   SObjList<Variable> params;
 
-  // dsw: from ClassTemplateInfo
+public:    // funcs
+  TemplateParams() {}
+  TemplateParams(TemplateParams const &obj);
+  ~TemplateParams();
 
-  // name of the least-specialized template; this is used to detect
-  // when a name is the name of the template we're inside
+  // queries on parameters
+  string paramsToCString() const;
+  string paramsToMLString() const;
+  bool equalParamTypes(TemplateParams const *obj) const;
+  bool anyParamCtorSatisfies(Type::TypePred pred) const;
+};
+
+
+// for a template function or class, including instantiations thereof,
+// this is the information regarding its template-ness
+class TemplateInfo : public TemplateParams {
+public:    // data
+  // name of the least-specialized ("primary") template; this is used
+  // to detect when a name is the name of the template we're inside
+  // (this is NULL for TemplateInfos attached to FunctionTypes)
   StringRef baseName;
 
-  // list of instantiations and specializations of this template class
+  // list of instantiations and specializations of this template
   SObjList<CompoundType> instantiations;
 
   // if this is an instantiation or specialization, then this is the
-  // list of template arguments
+  // list of template arguments (Q: do the line up with 'params'?
+  // what is the relationship between 'params' and 'arguments'?)
   ObjList<STemplateArgument> arguments;
-                                            
+
   // keep the syntactic arguments around so we can deal with
   // forward-declared templates
   FakeList<TemplateArgument> *argumentSyntax;
@@ -954,13 +968,7 @@ public:    // funcs
   TemplateInfo(TemplateInfo const &obj);
   ~TemplateInfo();
 
-  // dsw: from TemplateParams
-  string paramsToCString() const;// dsw: renamed to be more specific
-  string toMLString() const;
-  bool equalTypes(TemplateInfo const *obj) const;
-  bool anyCtorSatisfies(Type::TypePred pred) const;
-
-  // dsw: from ClassTemplateInfo
+  // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;
 };
 

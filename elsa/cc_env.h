@@ -283,12 +283,12 @@ public:      // funcs
   Scope *lookupQualifiedScope(PQName const *name);
 
   // if the innermost scope has some template parameters, take
-  // them out and return them; otherwise return NULL
-//    TemplateParams * /*owner*/ takeTemplateParams();
-  
-  // like the above, but wrap it in a TemplateInfo
-  // dsw: FIX: do something with the NULL argument here
-  TemplateInfo * /*owner*/ takeTemplateInfo(StringRef baseName = NULL);
+  // them out and return them; otherwise return NULL; this is for
+  // use by template *functions*
+  TemplateInfo * /*owner*/ takeFTemplateInfo();
+
+  // like the above, but for template *classes*
+  TemplateInfo * /*owner*/ takeCTemplateInfo(StringRef baseName);
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming

@@ -1712,7 +1712,7 @@ int FunctionType::reprSize() const
 }
 
 
-bool parameterListCtorSatisfies(Type::TypePred pred, 
+bool parameterListCtorSatisfies(Type::TypePred pred,
                                 SObjList<Variable> const &params)
 {
   SFOREACH_OBJLIST(Variable, params, iter) {
@@ -1729,32 +1729,20 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
          retType->anyCtorSatisfies(pred) ||
          parameterListCtorSatisfies(pred, params) ||
          (exnSpec && exnSpec->anyCtorSatisfies(pred)) ||
-         (templateInfo && templateInfo->anyCtorSatisfies(pred));
+         (templateInfo && templateInfo->anyParamCtorSatisfies(pred));
 }
 
 
-// ------------------ TemplateInfo -------------
-TemplateInfo::TemplateInfo(StringRef name)
-  : baseName(name),
-    instantiations(),         // empty list
-    arguments(),              // empty list
-    argumentSyntax(NULL)
+// ------------------ TemplateParams ---------------
+TemplateParams::TemplateParams(TemplateParams const &obj)
+  : params(obj.params)
+{}
+
+TemplateParams::~TemplateParams()
 {}
 
 
-// this is copied from TemplateParams, but I think it is unnecessary
-TemplateInfo::TemplateInfo(TemplateInfo const &obj)
-{
-  // copy list contents
-  params = obj.params;
-}
-
-
-TemplateInfo::~TemplateInfo()
-{}
-
-
-string TemplateInfo::paramsToCString() const
+string TemplateParams::paramsToCString() const
 {
   stringBuilder sb;
   sb << "template <";
@@ -1778,7 +1766,7 @@ string TemplateInfo::paramsToCString() const
 }
 
 
-bool TemplateInfo::equalTypes(TemplateInfo const *obj) const
+bool TemplateParams::equalParamTypes(TemplateParams const *obj) const
 {
   SObjListIter<Variable> iter1(params), iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
@@ -1795,10 +1783,55 @@ bool TemplateInfo::equalTypes(TemplateInfo const *obj) const
 }
 
 
-bool TemplateInfo::anyCtorSatisfies(Type::TypePred pred) const
+bool TemplateParams::anyParamCtorSatisfies(Type::TypePred pred) const
 {
   return parameterListCtorSatisfies(pred, params);
 }
+
+
+// ------------------ TemplateInfo -------------
+TemplateInfo::TemplateInfo(StringRef name)
+  : TemplateParams(),
+    baseName(name),
+    instantiations(),         // empty list
+    arguments(),              // empty list
+    argumentSyntax(NULL)
+{}
+
+
+TemplateInfo::TemplateInfo(TemplateInfo const &obj)
+  : TemplateParams(obj),
+    baseName(obj.baseName),
+    instantiations(obj.instantiations),      // suspicious... oh well
+    arguments(),                             // copied below
+    argumentSyntax()                         // copied below
+{ 
+  // arguments
+  FOREACH_OBJLIST(STemplateArgument, obj.arguments, iter) {
+    arguments.prepend(new STemplateArgument(*(iter.data())));
+  }
+  arguments.reverse();
+
+  // What I'd like to do is make a copy.. but gcc doesn't like me
+  // to do so while TemplateArgument is an incomplete type.  But
+  // TemplateArgument is defined in cc.ast, and that would mean
+  // introducing more dependencies that I don't want.  So instead
+  // I'll just assert that there are no arguments to copy, and deal
+  // with the fallout later if it happens.
+  #if 0
+    // argumentSyntax
+    FAKELIST_FOREACH(TemplateArgument, obj.argumentSyntax, iter2) {
+      argumentSyntax = argumentSyntax->prepend(iter2);
+    }
+    argumentSyntax = argumentSyntax->reverse();
+  #else
+    xassert(obj.argumentSyntax->isEmpty());
+  #endif
+}
+
+
+TemplateInfo::~TemplateInfo()
+{}
 
 
 bool TemplateInfo::equalArguments
@@ -1806,18 +1839,18 @@ bool TemplateInfo::equalArguments
 {
   ObjListIter<STemplateArgument> iter1(arguments);
   SObjListIter<STemplateArgument> iter2(list);
-  
+
   while (!iter1.isDone() && !iter2.isDone()) {
     STemplateArgument const *sta1 = iter1.data();
     STemplateArgument const *sta2 = iter2.data();
     if (!sta1->equals(sta2)) {
       return false;
     }
-    
+
     iter1.adv();
     iter2.adv();
   }
-  
+
   return iter1.isDone() && iter2.isDone();
 }
 
@@ -2048,7 +2081,7 @@ string CompoundType::toMLString() const
 //    bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
 //    if (hasParams) {
   if (templateInfo) {
-    sb << templateInfo->toMLString();
+    sb << templateInfo->paramsToMLString();
   }
 
 //    if (!templateInfo || hasParams) {   
@@ -2125,7 +2158,7 @@ string FunctionType::toMLString() const
 {
   stringBuilder sb;
   if (templateInfo) {
-    sb << templateInfo->toMLString();
+    sb << templateInfo->paramsToMLString();
   }
   putSerialNo(sb);
   if (flags & FF_CTOR) {
@@ -2194,7 +2227,7 @@ string PointerToMemberType::toMLString() const
   return sb;
 }
 
-string TemplateInfo::toMLString() const
+string TemplateParams::paramsToMLString() const
 {
   stringBuilder sb;
   sb << "template <";

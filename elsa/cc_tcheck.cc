@@ -814,7 +814,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
   // given to the parameters don't matter; the current
   // declaration's names have already been entered into the
   // template-parameter scope)
-  if (scope->curTemplateParams->equalTypes(prior->templateInfo)) {
+  if (scope->curTemplateParams->equalParamTypes(prior->templateInfo)) {
     // ok
   }
   else {
@@ -2708,7 +2708,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   // grab the template parameters before entering the parameter scope
-  TemplateInfo *templateInfo = env.takeTemplateInfo();
+  TemplateInfo *templateInfo = env.takeFTemplateInfo();
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
@@ -5439,12 +5439,13 @@ void TemplateDeclaration::tcheck(Env &env)
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
 
-  // make a list of template parameters
-  TemplateInfo *tinfo = new TemplateInfo(NULL);// dsw: FIX: put a name here
+  // make a list of template parameters, into which we will store
+  // the information from the parameter syntax
+  TemplateParams *tparams = new TemplateParams;
 
   // check each of the parameters, i.e. enter them into the scope
   FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    iter->tcheck(env, tinfo);
+    iter->tcheck(env, tparams);
   }
 
   // mark the new scope as unable to accept new names, so
@@ -5453,11 +5454,11 @@ void TemplateDeclaration::tcheck(Env &env)
   paramScope->canAcceptNames = false;
 
   // put the template parameters in a place the D_func will find them
-  paramScope->curTemplateParams = tinfo;
+  paramScope->curTemplateParams = tparams;
 
   // in what follows, ignore errors that are not disambiguating
   //bool prev = env.setDisambiguateOnly(true);
-  // 
+  //
   // update: moved this inside Function::tcheck and TS_classSpec::tcheck
   // so that the declarators would still get full checking
 
@@ -5491,7 +5492,7 @@ void TD_proto::itcheck(Env &env)
 
 
 void TD_class::itcheck(Env &env)
-{ 
+{
   // check the class definition; it knows what to do about
   // the template parameters (just like for functions)
   type = spec->tcheck(env, DF_NONE);
@@ -5499,7 +5500,7 @@ void TD_class::itcheck(Env &env)
 
 
 // ------------------- TemplateParameter ------------------
-void TP_type::tcheck(Env &env, TemplateInfo *tinfo)
+void TP_type::tcheck(Env &env, TemplateParams *tparams)
 {
   // cppstd 14.1 is a little unclear about whether the type
   // name is visible to its own default argument; but that
@@ -5526,7 +5527,7 @@ void TP_type::tcheck(Env &env, TemplateInfo *tinfo)
   // make a typedef variable for this type
   Variable *var = env.makeVariable(loc, name, fullType, DF_TYPEDEF);
   tvar->typedefVar = var;
-    
+
   if (name) {
     // introduce 'name' into the environment
     if (!env.addVariable(var)) {
@@ -5540,20 +5541,20 @@ void TP_type::tcheck(Env &env, TemplateInfo *tinfo)
   this->type = fullType;
 
   // add this parameter to the list of them
-  tinfo->params.append(var);
+  tparams->params.append(var);
 }
 
 
-void TP_nontype::tcheck(Env &env, TemplateInfo *tinfo)
+void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
 {
   ASTTypeId::Tcheck tc(DF_PARAMETER, DC_TP_NONTYPE);
-  
+
   // check the parameter; this actually adds it to the
   // environment too, so we don't need to do so here
   param = param->tcheck(env, tc);
 
   // add to the parameter list
-  tinfo->params.append(param->decl->var);
+  tparams->params.append(param->decl->var);
 }
 
 
