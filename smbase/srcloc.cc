@@ -759,7 +759,7 @@ void testFile(char const *fname)
   // temporary
   //testRoundTrip((SourceLoc)11649);
 
-  BiLoc *bi = new BiLoc[len];
+  BiLoc *bi = new BiLoc[len+1];
   char const *dummy;
 
   // test all positions, forward sequential; also build the
@@ -799,6 +799,8 @@ void testFile(char const *fname)
       xassert(loc == bi[j].loc);
     }
   }
+  
+  delete[] bi;
 }
 
 

@@ -3266,7 +3266,7 @@ static Void_t* sYSMALLOc(nb, av) INTERNAL_SIZE_T nb; mstate av;
       if (!av->firstChunk ||
           p < av->firstChunk) {
         /* new 'first' */
-        printf("new firstChunk: %p\n", p);
+        /*printf("new firstChunk: %p\n", p);*/
         av->firstChunk = p;
       }
 
