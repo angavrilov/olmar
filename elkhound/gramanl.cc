@@ -2183,9 +2183,10 @@ void GrammarAnalysis::constructLRItemSets()
     &ItemSet::dataToKey,
     &ItemSet::hash,
     &ItemSet::equalKey);
-    
+  itemSetsPending.setEnableShrink(false);
+
   // the 'list' is actually an array, to avoid allocation
-  GrowArray<ItemSet*> pendingList(5);    // TODO: increase to 100
+  GrowArray<ItemSet*> pendingList(100);
   int pendingLength = 0;                 // # items in 'pendingList'
   #define ADD_PENDING(item) \
     pendingList.setIndexDoubler(pendingLength++, item)
@@ -2198,6 +2199,7 @@ void GrammarAnalysis::constructLRItemSets()
     &ItemSet::dataToKey,
     &ItemSet::hash,
     &ItemSet::equalKey);
+  itemSetsDone.setEnableShrink(false);
 
   // to avoid allocating in the inner loop, we make a single item set
   // which we'll fill with kernel items every time we think we *might*
@@ -2243,7 +2245,7 @@ void GrammarAnalysis::constructLRItemSets()
     ADD_PENDING(is);
   }
 
-  #if 1    // track malloc stuff
+  #if !defined(NDEBUG) && 1     // track unauthorized malloc's
     // track how much allocation we're doing
     unsigned mallocCt = numMallocCalls();
 
@@ -2255,6 +2257,7 @@ void GrammarAnalysis::constructLRItemSets()
         if (mallocCt != newCt) {                                                  \
           cout << (newCt - mallocCt) << " malloc calls during " << desc << endl;  \
           mallocCt = newCt;                                                       \
+          breaker();                                                              \
         }                                                                         \
       }
 
@@ -2272,9 +2275,14 @@ void GrammarAnalysis::constructLRItemSets()
     ItemSet *itemSet = REMOVE_PENDING();               // dequeue (owner)
     itemSetsPending.remove(itemSet);                   // (ownership transfer)
 
+    CHECK_MALLOC_STATS("top of pending list loop");
+
     // put it in the done set; note that we must do this *before*
     // the processing below, to properly handle self-loops
     itemSetsDone.add(itemSet, itemSet);                // (ownership transfer; 'itemSet' becomes serf)
+                          
+    // allows for expansion of 'itemSetsDone' hash
+    UPDATE_MALLOC_STATS();
 
     if (tr) {
       trace("lrsets") << "state " << itemSet->id
@@ -2283,8 +2291,6 @@ void GrammarAnalysis::constructLRItemSets()
                       << itemSet->nonkernelItems.count()
                       << " nonkernel items" << endl;
     }
-
-    CHECK_MALLOC_STATS("top of pending list loop");
 
     // for each production in the item set where the
     // dot is not at the right end
@@ -2359,8 +2365,10 @@ void GrammarAnalysis::constructLRItemSets()
                 << already->id << ", but with different lookahead" << endl;
             }
 
+            CHECK_MALLOC_STATS("mergeLookaheadsInto");
+
             // this changed 'already'; recompute its closure
-            itemSetClosure(*already);
+            itemSetClosure(*already);                 
 
             // and reconsider all of the states reachable from it
             if (!inDoneList) {
@@ -2378,6 +2386,10 @@ void GrammarAnalysis::constructLRItemSets()
               //pendingList.prepend(already);
               ADD_PENDING(already);
             }
+
+            // it's ok if closure makes more items, or if
+            // the pending list expands
+            UPDATE_MALLOC_STATS();
           }
 
           // we already have it, so throw away one we made
@@ -2386,8 +2398,6 @@ void GrammarAnalysis::constructLRItemSets()
 
           // and use existing one for setting the transition function
           withDotMoved = already;
-          
-          CHECK_MALLOC_STATS("state merging");
         }
         else {
           // we don't already have it; need to actually allocate & copy
@@ -2399,12 +2409,17 @@ void GrammarAnalysis::constructLRItemSets()
           // finish it by computing its closure
           itemSetClosure(*withDotMoved);
 
-          UPDATE_MALLOC_STATS();
-
           // then add it to 'pending'
           itemSetsPending.add(withDotMoved, withDotMoved);
           //pendingList.prepend(withDotMoved);
           ADD_PENDING(withDotMoved);
+
+          // takes into account:
+          //   - creation of 'withDotMoved' state
+          //   - creation of items to fill its kernel
+          //   - creation of nonkernel items during closure
+          //   - possible expansion of the 'itemSetsPending' hash
+          UPDATE_MALLOC_STATS();
         }
 
         // setup the transition function
@@ -2422,6 +2437,8 @@ void GrammarAnalysis::constructLRItemSets()
 
       } // for each item
     } // 0=kernel, 1=nonkernel
+
+    CHECK_MALLOC_STATS("end of item set loop");
   } // for each item set
 
   // we're done constructing item sets, so move all of them out
