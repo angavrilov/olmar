@@ -255,8 +255,9 @@ Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
   // compound literal is an lvalue.  But, compound literals are now
   // part of C99 (6.5.2.5), which says they are indeed lvalues (but
   // says nothing about being const)."
-  Type *t0 = env.makeReferenceType(SL_UNKNOWN, stype->getType());
-  return env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
+  Type *t0 = stype->getType();
+  Type *t1 = env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
+  return env.makeReferenceType(SL_UNKNOWN, t1);
   // TODO: check that the cast (literal) makes sense
 }
 

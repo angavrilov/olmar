@@ -2589,6 +2589,10 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
                                             Type *src_type, Initializer *init)
 {
+  // If we start at a reference, we have to go down to the raw
+  // ArrayType and then back up to a reference.
+  bool tgt_type_isRef = tgt_type->isReferenceType();
+  tgt_type = tgt_type->asRval();
   if (tgt_type->isArrayType() &&
       init->isIN_compound()) {
     ArrayType *at = tgt_type->asArrayType();
@@ -2612,7 +2616,7 @@ Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
       // if my count is short
     }
   }
-  return tgt_type;
+  return tgt_type_isRef ? makeReferenceType(SL_UNKNOWN, tgt_type): tgt_type;
 }
 
 // provide a well-defined size for the array from the size of the
@@ -2620,17 +2624,22 @@ Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
 //   char sName[] = "SOAPPropertyBag";
 Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
 {
+  // If we start at a reference, we have to go down to the raw
+  // ArrayType and then back up to a reference.
+  bool tgt_type_isRef = tgt_type->isReferenceType();
+  tgt_type = tgt_type->asRval();
   if (tgt_type->isArrayType() &&
       !tgt_type->asArrayType()->hasSize() &&
       init->isIN_expr() &&
-      init->asIN_expr()->e->type->isArrayType() &&
-      init->asIN_expr()->e->type->asArrayType()->hasSize()
+      init->asIN_expr()->e->type->asRval()->isArrayType() &&
+      init->asIN_expr()->e->type->asRval()->asArrayType()->hasSize()
       ) {
     tgt_type = env.tfac.cloneType(tgt_type);
-    tgt_type->asArrayType()->size = init->asIN_expr()->e->type->asArrayType()->size;
+    tgt_type->asArrayType()->size =
+      init->asIN_expr()->e->type->asRval()->asArrayType()->size;
     xassert(tgt_type->asArrayType()->hasSize());
   }
-  return tgt_type;
+  return tgt_type_isRef ? env.makeReferenceType(SL_UNKNOWN, tgt_type): tgt_type;
 }
 
 // true if the declarator corresponds to a local/global variable declaration
@@ -3070,8 +3079,8 @@ void Declarator::tcheck_init(Env &env)
   var->type = computeArraySizeFromLiteral(env, var->type, init);
 
   // update 'type' if necessary
-  if (type->isArrayType()) {
-    type->asArrayType()->size = var->type->asArrayType()->size;
+  if (type->asRval()->isArrayType()) {
+    type->asRval()->asArrayType()->size = var->type->asRval()->asArrayType()->size;
   }
 }
 
