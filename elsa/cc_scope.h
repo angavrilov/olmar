@@ -232,8 +232,12 @@ public:      // funcs
   Variable *getTypedefName() { return const_cast<Variable*>(getTypedefNameC()); }
   bool hasName() const { return scopeKind==SK_CLASS || scopeKind==SK_NAMESPACE; }
 
-  // true if this scope encloses (has as a nested scope) 's'
+  // true if this scope encloses (has as a nested scope) 's'; this
+  // is proper enclosure: it is not the case that s->encloses(s)
   bool encloses(Scope const *s) const;
+  
+  // non-proper enclosure
+  bool enclosesOrEq(Scope const *s) const;
 
   // stuff for using-directives
   void addUsingEdge(Scope *target);

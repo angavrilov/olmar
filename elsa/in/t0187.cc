@@ -9,10 +9,15 @@ struct C : T {
 struct B {
   int a;
 };
+        
+template <class T>
+struct D {
+  C<T> c;
+};
 
 int foo()
 {
-  C<B> c;
-  return c.a;     // refers to B::a, since C<B> inherits B
+  D<B> d;
+  return d.c.a;     // refers to B::a, since C<B> inherits B
 }
 

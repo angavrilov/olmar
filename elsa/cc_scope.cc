@@ -432,6 +432,12 @@ bool Scope::encloses(Scope const *s) const
 }
 
 
+bool Scope::enclosesOrEq(Scope const *s) const
+{ 
+  return this == s || this->encloses(s);
+}
+
+
 string Scope::desc() const
 {
   if (curCompound) {

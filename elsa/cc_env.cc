@@ -1658,11 +1658,17 @@ Variable *Env::instantiateClassTemplate
   // scope on the scope stack is the same one that the template
   // definition appeared in; template definitions can see names
   // visible from their defining scope only [cppstd 14.6 para 1]
+  //
+  // update: (e.g. t0188.cc) pop scopes until we reach one that
+  // *contains* (or equals) the defining scope
   ObjList<Scope> innerScopes;
   Scope *argScope = NULL;
   if (!base->forward) {      // don't mess with it if not going to tcheck anything
-    while (scopes.first() != foundScope) {
+    while (!scopes.first()->enclosesOrEq(foundScope)) {
       innerScopes.prepend(scopes.removeFirst());
+      if (scopes.isEmpty()) {
+        xfailure("emptied scope stack searching for defining scope");
+      }
     }
 
     // make a new scope for the template arguments
