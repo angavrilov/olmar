@@ -81,6 +81,7 @@ public:
         && 0!=strcmp("__other",        v->name) // "__other": for inserted elaboration code
         && 0!=strcmp("this",           v->name) // dsw: not sure why "this" is showing up
         && 0!=strcmp("operator=",      v->name) // an implicitly defined member of every class
+        && v->name[0]!='~'                      // don't print dtors
         ) {
       sb << " " << v->name << "=" << sourceLocManager->getLine(v->loc);
     }

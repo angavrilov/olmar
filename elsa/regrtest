@@ -441,9 +441,7 @@ testparse d0051elab.cc
 #   7.3.3k.cc: I don't detect a purported ambiguity
 #   7.3.4e.cc: major design flaw: cannot return sets from lookup functions
 #   (more from before I started maintaining this list)
-# dsw: removed 7.3.3j.cc because the elaborated dtor ends up in the
-# collectLookupResults resulting in a pseudo-failure
-for fn in `ls in/std/*.cc | grep -v 7.3.3j.cc`; do
+for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
 done
 

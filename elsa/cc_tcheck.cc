@@ -1487,7 +1487,9 @@ bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
 //   - an operator= if none is present
 //   - a dtor if none is present
 // 'loc' remains a hack ...
+//
 // FIX: this should be a method on TS_classSpec
+// sm: I don't agree.
 void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
                               SourceLoc loc, CompoundType *ct)
 {
@@ -1516,7 +1518,8 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       MR_func *ctorBody = makeNoArgCtorBody(env, ct);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
-    } else {
+    } 
+    else {
       // add a no-arg ctor declaration: "Class();".  For now we just
       // add the variable to the scope and don't construct the AST, in
       // order to be symmetric with what is going on with the dtor
@@ -1563,7 +1566,8 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       MR_func *ctorBody = makeCopyCtorBody(env, ct);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
-    } else {
+    } 
+    else {
       // create the effects of a declaration without making any AST or
       // a body; add a copy ctor declaration: Class(Class const &);
       FunctionType *ft = env.beginConstructorFunctionType(loc);
@@ -1618,7 +1622,8 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       //      ctorBody->debugPrint(cout, 0);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
-    } else {
+    } 
+    else {
       // add a copy assignment op declaration: Class& operator=(Class const &);
       Type *refToSelfType =
         env.makePointerType(loc, PO_REFERENCE, CV_NONE,
@@ -1660,7 +1665,8 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       MR_func *dtorBody = makeDtorBody(env, ct);
       dtorBody->tcheck(env);
       tsClassSpec->members->list.append(dtorBody);
-    } else {
+    } 
+    else {
       // add a dtor declaration: ~Class();
       FunctionType *ft = env.makeDestructorFunctionType(loc);
       Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
