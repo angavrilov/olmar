@@ -246,7 +246,7 @@ testparse t0024.cc
 testparse t0025.cc
 testparse t0026.cc
 testparse t0027.cc
-testparse t0028.cc
+testparse_strict t0028.cc
 testparse t0029.cc
 testparse t0030.cc
 testparse t0030a.cc
@@ -254,7 +254,7 @@ testparse t0030b.cc
 testparse t0031.cc
 testparse t0032.cc
 testparse t0033.cc
-testparse t0034.cc
+testparse_strict t0034.cc
 testparse t0035.cc
 testparse t0036.cc
 testparse t0037.cc

@@ -1448,11 +1448,9 @@ CompoundType *checkClasskeyAndName(
           }
           ct = tag->type->asCompoundType();
         } 
-        // not sure if I need this
-        //else if (tag->type->isSimple(ST_DEPENDENT)) {
-        //  // replicate the behavior of Env::lookupPQCompound
-        //  ct = NULL;
-        //}
+        else if (tag->type->isGeneralizedDependent()) {
+          return NULL;
+        }
         else {
           env.error(stringc << "`" << *name << "' is not a struct/class/union");
           return NULL;
@@ -5208,20 +5206,22 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
                                          argInfo[paramIndex].overloadSet);
 
     // try to convert the argument to the parameter
-    ImplicitConversion ic = getImplicitConversion(env,
-      arg->getSpecial(env.lang),
-      arg->getType(),
-      param->type,
-      false /*destIsReceiver*/);
-    if (!ic) {
-      env.error(arg->getType(), stringc
-        << "cannot convert argument type `" << arg->getType()->toString()
-        << "' to parameter " << paramIndex 
-        << " type `" << param->type->toString() << "'");
-    }
+    if (!arg->getType()->isGeneralizedDependent()) {
+      ImplicitConversion ic = getImplicitConversion(env,
+        arg->getSpecial(env.lang),
+        arg->getType(),
+        param->type,
+        false /*destIsReceiver*/);
+      if (!ic) {
+        env.error(arg->getType(), stringc
+          << "cannot convert argument type `" << arg->getType()->toString()
+          << "' to parameter " << paramIndex 
+          << " type `" << param->type->toString() << "'");
+      }
 
-    // TODO (elaboration): if 'ic' involves a user-defined
-    // conversion, then modify the AST to make that explicit
+      // TODO (elaboration): if 'ic' involves a user-defined
+      // conversion, then modify the AST to make that explicit
+    }
   }
 
   if (argIter->isEmpty()) {
@@ -5707,7 +5707,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       }
     }
 
-    if (receiverType) {
+    if (receiverType && !receiverType->isGeneralizedDependent()) {
       // check that the receiver object matches the receiver parameter
       if (!getImplicitConversion(env,
              SE_NONE,
