@@ -35,6 +35,9 @@ Env::Env(StringTable &s, CCLang &L)
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
   type_info_const_ref = makeRefType(makeCVType(ct, CV_CONST));
+  
+  // cache this because I compare with it frequently
+  conversionOperatorName = str("conversion-operator");
 }
 
 Env::~Env()
@@ -200,12 +203,12 @@ Variable *Env::lookupPQVariable(PQName const *name)
 Variable *Env::lookupVariable(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.first()->lookupVariable(name, *this);
+    return scopes.first()->lookupVariable(name, innerOnly, *this);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    Variable *v = iter.data()->lookupVariable(name, *this); 
+    Variable *v = iter.data()->lookupVariable(name, innerOnly, *this);
     if (v) {
       return v;
     }
@@ -225,12 +228,12 @@ CompoundType *Env::lookupPQCompound(PQName const *name)
 CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.first()->lookupCompound(name);
+    return scopes.first()->lookupCompound(name, innerOnly);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    CompoundType *ct = iter.data()->lookupCompound(name);
+    CompoundType *ct = iter.data()->lookupCompound(name, innerOnly);
     if (ct) {
       return ct;
     }
@@ -246,7 +249,7 @@ EnumType *Env::lookupPQEnum(PQName const *name)
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    EnumType *et = iter.data()->lookupEnum(name->getName());
+    EnumType *et = iter.data()->lookupEnum(name->getName(), false /*innerOnly*/);
     if (et) {
       return et;
     }

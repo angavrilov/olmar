@@ -146,9 +146,9 @@ public:      // funcs
 
   // returns NULL if doesn't exist
   Variable const *getNamedFieldC(StringRef name, Env &env) const
-    { return lookupVariableC(name, env); }
+    { return lookupVariableC(name, false /*innerOnly*/, env); }
   Variable *getNamedField(StringRef name, Env &env)
-    { return lookupVariable(name, env); }
+    { return lookupVariable(name, false /*innerOnly*/, env); }
 
   void addField(Variable *v);
 };
