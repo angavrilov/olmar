@@ -1,5 +1,6 @@
 // trace.h            see license.txt for copyright and terms of use
 // module for diagnostic tracing
+// see trace.html
 
 #ifndef TRACE_H
 #define TRACE_H
