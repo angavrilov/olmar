@@ -51,11 +51,7 @@ void LoweredASTVisitorHelper::oneContainer(Variable *container)
 
 void LoweredASTVisitorHelper::oneVariable(Variable *tinfoVar)
 {
-  // FIX: turn this back on and run in/t0194.error1.cc to see it fail
-//    xassert(tinfoVar);
-  if (!tinfoVar) {
-    return;
-  }
+  xassert(tinfoVar);
 
   TemplateInfo *tinfo = tinfoVar->templateInfo();
 
