@@ -108,7 +108,7 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
 
     // attempt type-check in a new environment so it can't
     // corrupt the main one we're working on
-    Env newEnv(passedEnv);
+    Env newEnv(passedEnv, passedEnv->getTypeEnv());
     newEnv.setTrialBalloon(true);
     CilFnDefn dummyDefn(this, NULL);
     CilContext newCtxt(ctxt, dummyDefn);

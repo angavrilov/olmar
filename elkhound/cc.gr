@@ -1815,7 +1815,7 @@ nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
   -> "{" seq:StatementSeqOpt "}" {
     fun typeCheck {
       xassert(!localEnv);
-      localEnv = new Env(env);    // scope
+      localEnv = new Env(env, env->getTypeEnv());    // scope
 
       try {
         Owner<CilExpr> ret; ret = seq.typeCheck(localEnv, ctxt);
@@ -2946,7 +2946,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       // add the formals to the new environment we'll create for
       // the function body
       xassert(!localEnv);
-      localEnv = new Env(env);     // scope
+      localEnv = new Env(env, env->getTypeEnv());     // scope
 
       try {
         FOREACH_OBJLIST(Parameter, fnType->params, iter) {
@@ -3024,7 +3024,8 @@ nonterm ClassSpecifier : HasType ->
       compound = env->lookupOrMakeCompound(name, keyword);
       xassert(compound);
     }
-    compound->makeComplete(NULL /*no enclosing env for C structs*/);
+    compound->makeComplete(NULL /*no enclosing env for C structs*/,
+                           env->getTypeEnv());
 
     // ignore 'base' for now
 
@@ -3241,7 +3242,7 @@ nonterm Handler : Checkable, ScopeNode {
   -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement {
     fun typeCheck {
       xassert(!localEnv);
-      localEnv = new Env(env);    // scope
+      localEnv = new Env(env, env->getTypeEnv());    // scope
 
       try {
         delete d.typeCheck(localEnv, ctxt);

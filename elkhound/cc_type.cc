@@ -101,10 +101,10 @@ CompoundType::~CompoundType()
 }
 
 
-void CompoundType::makeComplete(Env *parentEnv)
+void CompoundType::makeComplete(Env *parentEnv, TypeEnv *te)
 {
-  xassert(!env);
-  env = new Env(parentEnv);
+  xassert(!env);     // for now, no shadowing for field lookups
+  env = new Env(parentEnv, te);
 }
 
 

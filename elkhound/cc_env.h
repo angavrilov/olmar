@@ -8,9 +8,14 @@
 #include "cc_err.h"       // SemanticError
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
+#include "arraymap.h"     // ArrayMap
 
+// fwds to other files
 class DataflowEnv;        // dataflow.h
 class CCTreeNode;         // cc_tree.h
+
+// fwds for file
+class TypeEnv;
 
 
 // set of declaration modifiers present
@@ -72,6 +77,10 @@ private:    // data
   // to the parent before failing altogether
   Env * const parent;               // (serf)
 
+  // type environment; points directly to the global
+  // type env, even if this is a nested-scope Env
+  TypeEnv * const typeEnv;          // (serf)
+
   // counter for synthesizing names; only the counter in the toplevel
   // environment is used
   int nameCounter;
@@ -110,8 +119,8 @@ private:    // funcs
   Env(Env&);               // not allowed
 
 public:     // funcs
-  Env(DataflowEnv *denv);  // empty toplevel environment
-  Env(Env *parent);        // nested environment
+  Env(DataflowEnv *denv, TypeEnv *typeEnv);  // empty toplevel environment
+  Env(Env *parent, TypeEnv *typeEnv);        // nested environment
   ~Env();
 
   // close this environment's link with its parent; this must
@@ -237,83 +246,11 @@ public:     // funcs
   // true if this is the toplevel, global environment
   bool isGlobalEnv() const { return parent==NULL; }
 
+  TypeEnv *getTypeEnv() { return typeEnv; }
+
   // debugging
   string toString() const;
 };
-
-
-// ----------------- ArrayMap -----------------
-// map: int -> T   
-template <class T>
-class ArrayMap {
-private:     // data
-  T **map;               // array[0,nextId-1] of owner ptr
-  int nextId;            // next id to assign
-  int mapSize;           // allocated size of 'map'
-  
-public:
-  ArrayMap();
-  ~ArrayMap();
-
-  // # of elements defined
-  int count() const { return nextId; }
-
-  // insert a new element and yield its assigned id
-  int insert(T *t);
-  
-  // retrieve by id
-  T *lookup(int id);
-};
-
-template <class T>
-ArrayMap<T>::ArrayMap()
-{
-  mapSize = 100;      // TODO: reset; just for testing
-  nextId = 0;
-  map = new T* [mapSize];
-}
-
-template <class T>
-ArrayMap<T>::~ArrayMap()
-{
-  loopi(nextId) {
-    delete map[i];
-  }
-  delete[] map;
-}
-
-template <class T>
-int ArrayMap<T>::insert(T *t)
-{
-  if (nextId == mapSize) {
-    // make it bigger
-    int newMapSize = mapSize * 2;
-    T **newMap = new T* [newMapSize];
-
-    // copy the old contents to the new map
-    loopi(mapSize) {
-      newMap[i] = map[i];
-    }
-    mapSize = newMapSize;
-
-    // blow away the old map
-    delete[] map;
-
-    // grab the new map
-    map = newMap;
-  }
-  
-  int ret = nextId++;
-  map[ret] = t;
-  return ret;
-}
-
-template <class T>
-T *ArrayMap<T>::lookup(int id)
-{
-  xassert(0 <= id && id < nextId);
-  return map[id];
-}
 
 
 // --------------------- TypeEnv ------------------
@@ -335,11 +272,6 @@ public:
   AtomicTypeId grabAtomic(AtomicType *type);
   AtomicType *lookupAtomic(AtomicTypeId id) { return atomicTypes.lookup(id); }
 };
-
-// single global type environment
-extern TypeEnv *typeEnv;
-
-
 
 
 #endif // __CC_ENV_H

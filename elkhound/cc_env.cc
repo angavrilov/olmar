@@ -17,8 +17,9 @@ string Variable::toString() const
 
 
 // --------------------------- Env ----------------------------
-Env::Env(DataflowEnv *d)
+Env::Env(DataflowEnv *d, TypeEnv *te)
   : parent(NULL),
+    typeEnv(te),
     nameCounter(1),
     compounds(),
     enums(),
@@ -53,8 +54,9 @@ Env::Env(DataflowEnv *d)
 }
 
 
-Env::Env(Env *p)
+Env::Env(Env *p, TypeEnv *te)
   : parent(p),
+    typeEnv(te),
     nameCounter(-1000),    // so it will be obvious if I use it (I don't intend to)
     compounds(),
     enums(),
@@ -270,7 +272,7 @@ ArrayType *Env::makeArrayType(Type const *eltType)
 
 
 CompoundType *Env::lookupOrMakeCompound(char const *name, CompoundType::Keyword keyword)
-{                   
+{
   bool anon = (strlen(name) == 0);
 
   CompoundType *ret;
@@ -293,7 +295,7 @@ CompoundType *Env::lookupOrMakeCompound(char const *name, CompoundType::Keyword 
   if (!anon) {
     newName = name;
   }
-  else { 
+  else {
     newName = makeAnonName();
   }
 
@@ -686,18 +688,11 @@ string Env::toString() const
 
 
 // --------------------- TypeEnv ------------------
-TypeEnv *typeEnv = NULL;
-
 TypeEnv::TypeEnv()
 {}
 
 TypeEnv::~TypeEnv()
-{
-  if (typeEnv == this) {
-    // attempt to catch problems before they get hard ..
-    typeEnv = NULL;
-  }
-}
+{}
 
 
 TypeId TypeEnv::grab(Type *type)

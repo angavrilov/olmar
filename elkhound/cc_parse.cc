@@ -9,6 +9,37 @@
 #include "stmt2bb.h"   // doTranslationStuff
 
 
+// little hack to get more info when the parser crashes
+int lastLineChecked = -1;
+
+
+// global translation state; initialized before we start
+// processing the file, and updated as we process each
+// toplevel declaration
+class TranslationState {
+public:
+  Env *globalEnv;             // global environment (incl. ptr to type env)
+  TypeId nextType;            // id of next one to emit
+  AtomicTypeId nextAtomic;    // similarly for atomic types
+
+  struct wes_state *wes;      // stuff related to the ocaml translation
+
+public:
+  TranslationState(Env *e, wes_state *w)
+    : globalEnv(e),
+
+      // don't emit info about the simple types; we'll
+      // take that as implicit (and it clutters the output
+      // for small examples)
+      nextType(NUM_SIMPLE_TYPES),
+      nextAtomic(NUM_SIMPLE_TYPES),
+
+      wes(w)
+  {}
+};
+
+
+
 // stuff related to exporting data to ocaml
 #ifdef WES_OCAML_LINKAGE
   #include "my_caml.h"     // ML interface
@@ -22,12 +53,15 @@
       struct wes_ast_node * hd;
       struct wes_list * tl;
   };
+
+  // global translation state for ocaml stuff
+  struct wes_state {
+    bool want_cil;                      // true:Cil; false:C-parse-tree
+    struct wes_ast_node *result_list;   // toplevel C-parse-tree result
+  };
+
   extern "C" { value cil_program_to_ocaml(CilProgram *prog); }
 #endif /* WES_OCAML_LINKAGE */
-
-
-// little hack to get more info when the parser crashes
-int lastLineChecked = -1;
 
 
 struct wes_ast_node *emptyCamlAST()
@@ -66,7 +100,8 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   }
 
   // cast context argument
-  env = (Env*)(tree.extra);
+  TranslationState &state = *((TranslationState*)(tree.extra));
+  env = state.globalEnv;
 
   // clear the existing dataflow environment (effect is we
   // don't analyze globals ....)
@@ -83,32 +118,23 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   delete typeCheck(env, CilContext(prog));
 
   #ifdef WES_OCAML_LINKAGE
-    // this is a hideous hack, but I cannot actually pass return values
-    // around through scott's code
-    // sm: yeah, we're in a C++ constructor here so return
-    // values are tricky ...
-    { extern int ocaml_wants_cil;
-      if (ocaml_wants_cil) {
-          extern struct wes_list * wes_result_list; // declared below
-          wes_result_list = (struct wes_list *) cil_program_to_ocaml(&prog);
-          register_global_root((value *)&wes_result_list);
-      } else {
-          extern struct wes_list * wes_result_list; // declared below
-          struct wes_list * new_cell = new struct wes_list;
-          new_cell->hd = camlAST();
-          new_cell->tl = wes_result_list;
-          wes_result_list = new_cell;
-      }
-  }
+    if (state.wes->want_cil) {
+        state.wes->result_list = (struct wes_list *) cil_program_to_ocaml(&prog);
+        register_global_root((value *)&wes_result_list);
+    } else {
+        struct wes_list * new_cell = new struct wes_list;
+        new_cell->hd = camlAST();
+        new_cell->tl = wes_result_list;
+        state.wes->result_list = new_cell;
+    }
   #endif /* WES_OCAML_LINKAGE */
 
-  #ifndef WES_OCAML_LINKAGE
   // this is, more or less, the product of the analysis
-  // but ocaml users do not want to see it ...
+  // (removed the #ifdef's because nothing is printed
+  // unless certain tracing flags are set)
   printTree();
-  #endif /* WES_OCMAL_LINKAGE */
 
-  // or this
+  // print Cil if we want that
   if (tracingSys("cil-tree")) {
     prog.printTree(0 /*indent*/, cout);
   }
@@ -122,9 +148,7 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   // keep this info beyond the end of this fn because
   // we're about to delete e.g. all the environments
   // into which 'prog' points (indirectly))
-  #ifndef WES_OCAML_LINKAGE
   prog.empty();
-  #endif
 
   #if 0      // for tracking down leaks
   CilExpr::printAllocStats(false /*anyway*/);
@@ -198,7 +222,7 @@ CilStmt *todoCilStmt(CCTreeNode *tn)
 }
 
 
-int fakemain(int argc, char *argv[])
+int fakemain(int argc, char *argv[], struct wes_state *wes)
 {
   // by default, print progress reports
   traceAddSys("progress");
@@ -225,7 +249,6 @@ int fakemain(int argc, char *argv[])
 
       // toplevel type environment
       TypeEnv topTypeEnv;
-      typeEnv = &topTypeEnv;
 
       // dataflow environment ...
       DataflowEnv denv;
@@ -234,11 +257,12 @@ int fakemain(int argc, char *argv[])
       // will be evaluated, just before that form is thrown
       // away
       //traceAddSys("env-declare");
-      Env env(&denv);
+      Env env(&denv, &topTypeEnv);
 
       // carry this context in the tree, since it is an argument
       // to node constructors
-      tree.extra = &env;
+      TranslationState state(&env, wes);
+      tree.extra = &state;
 
       // use another try to catch ambiguities so we can
       // report them before the tree is destroyed
@@ -267,10 +291,13 @@ int fakemain(int argc, char *argv[])
     cout << "last line checked: " << lastLineChecked << endl;
     return 7;
   }
+  
+  // restore the default handler, because we're about to exit
+  // the scope of the sane_state jmp_buf
   setHandler(SIGSEGV, SIG_DFL);
 
   // since this is outside all the scopes that create interesting
-  // nodes, the stat counts should be 0
+  // nodes, the stat counts should now be 0
   bool anyway = tracingSys("allocStats");
   if (anyway || TreeNode::numTreeNodesAllocd != 0) {
     TreeNode::printAllocStats();
@@ -329,10 +356,6 @@ void wes_print(struct wes_ast_node * n)
     printf(")");
 }
 
-/* I am putting this here to avoid "multiple declaration" errors from the
- * ocaml linker which is not quite as robust as g++ */
-struct wes_list * wes_result_list;
-int ocaml_wants_cil; /* if 0, we want a wes-style AST */
 
 value wes_main(char *filename) {
     CAMLparam0();
@@ -341,21 +364,21 @@ value wes_main(char *filename) {
 	"cc.gr",
 	"-tr",
 	"",	/* wes: was parse-tree,sizeof */
-	"cc.bin",	/* wes: was cc.gr */
+        "cc.bin",
 	filename};
     int argc = 5;
     int res;
     struct wes_list * l;
 
-    wes_result_list = NULL; // declaring this NULL at the toplevel
-    			    // gives multiple definition errors on my machine
-    ocaml_wants_cil = 0;
+    struct wes_state wes;
+    wes.result_list = NULL;
+    wes.want_cil = false;
 
-    res = fakemain(argc, argv);
-    // examine wes_result_list
+    res = fakemain(argc, argv, &wes);
+    // examine wes.result_list
 
 #if 0
-    for (l = wes_result_list; l != NULL; l = l->tl) {
+    for (l = wes.result_list; l != NULL; l = l->tl) {
 	struct wes_ast_node * n = l->hd;
 	wes_print(n);
     }
@@ -364,14 +387,14 @@ value wes_main(char *filename) {
 
     // convert it over to OCAML
     c = Val_int(0);
-    for (l = wes_result_list; l != NULL; l = l->tl) {
+    for (l = wes.result_list; l != NULL; l = l->tl) {
 	struct wes_ast_node * n = l->hd;
 	retval = alloc(2,0);
 	Store_field(retval, 0, c_to_ocaml(n,filename));
 	Store_field(retval, 1, c);
 	c = retval;
     }
-    wes_result_list = NULL; // memory leak!
+    wes.result_list = NULL; // memory leak!
     CAMLreturn(c);
 }
 
@@ -384,24 +407,24 @@ value cil_main(char *filename) {
 	"cc.gr",
 	"-tr",
 	"",	/* wes: was parse-tree,sizeof */
-	"cc.bin",	/* wes: was cc.gr */
+        "cc.bin",
 	filename};
     int argc = 5;
     int res;
 
-    wes_result_list = NULL; // declaring this NULL at the toplevel
-    			    // gives multiple definition errors on my machine
-    ocaml_wants_cil = 1;
+    struct wes_state wes;
+    wes.result_list = NULL;
+    wes.want_cil = true;
 
-    res = fakemain(argc, argv);
-    // examine wes_result_list
+    res = fakemain(argc, argv, &wes);
+    // examine wes.result_list
 
     // convert it over to OCAML
-    c = (value) wes_result_list;
+    c = (value) wes.result_list;
 
-    printf("Returning from C land with value %p ...\n", wes_result_list);
+    printf("Returning from C land with value %p ...\n", wes.result_list);
 
-    wes_result_list = NULL; 
+    wes.result_list = NULL;
 
     CAMLreturn(c);
 }
@@ -414,7 +437,7 @@ value cil_main(char *filename) {
 int main(int argc, char *argv[])
 {
   //fakemain(argc, argv);
-  return fakemain(argc, argv);
+  return fakemain(argc, argv, NULL /*wes*/);
 }
 
 #endif /* !WES_OCAML_LINKAGE */

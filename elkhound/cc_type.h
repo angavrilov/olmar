@@ -10,6 +10,7 @@
 
 // other files
 class Env;              // cc_env.h
+class TypeEnv;          // cc_env.h
 
 // fwd in this file
 class SimpleType;
@@ -141,7 +142,7 @@ public:     // funcs
   ~CompoundType();
 
   // make it complete
-  void makeComplete(Env *parentEnv);
+  void makeComplete(Env *parentEnv, TypeEnv *te);
 
   bool isComplete() const { return env != NULL; }
 
