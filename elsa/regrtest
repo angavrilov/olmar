@@ -987,6 +987,7 @@ if $use_gnu; then
   done
 
   failparse gnu/k0001.cc "({...}) cannot be empty"
+  failparse gnu/k0002.cc "__builtin_va_*"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
