@@ -28,6 +28,9 @@ public:
   operator T const* () const { return arr; }
   operator T const* () { return arr; }
   operator T * () { return arr; }
+  
+  T const* operator+ (int i) const { return arr+i; }
+  T * operator+ (int i) { return arr+i; }
 };
 
 
