@@ -16,6 +16,11 @@
 #include "factflow.h"     // factFlow
 
 
+// globals that allow AEnv's to be created wherever ...
+StringTable *globalStringTable;
+Variable const *globalMemVariable;
+
+
 void if_malloc_stats()
 {
   if (tracingSys("malloc_stats")) {
@@ -36,6 +41,7 @@ void doit(int argc, char **argv)
 
   // string table for storing parse tree identifiers
   StringTable strTable;
+  globalStringTable = &strTable;
 
 
   // --------------- parse --------------
@@ -89,6 +95,7 @@ void doit(int argc, char **argv)
   Variable mem(dummyLoc, strTable.add("mem"),
                new PointerType(PO_POINTER, CV_NONE,
                  &CVAtomicType::fixed[ST_INT]), DF_NONE);
+  globalMemVariable = &mem;
 
   // ---------------- typecheck -----------------
   {

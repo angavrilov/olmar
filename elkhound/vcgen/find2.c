@@ -101,9 +101,9 @@ void find(int *A, int N, int f)
         i = i+1;    // skip past small-enough elts
 
         // could be retained in facts if I use Simplfy
-        thmprv_assert
-          (thmprv_forall int p;
-            (1 <= p && p < i) ==> (A[p] <= r));
+        //SLOWINFER: thmprv_assert
+        //SLOWINFER:   (thmprv_forall int p;
+        //SLOWINFER:     (1 <= p && p < i) ==> (A[p] <= r));
       }
 
       while (r < A[j]) {
@@ -139,9 +139,9 @@ void find(int *A, int N, int f)
         j = j-1;    // skip past large-enough elts
 
         // could be retained in facts if I use Simplfy
-        thmprv_assert
-          (thmprv_forall int q;
-            (j < q && q <= N) ==> (r <= A[q]));
+        //SLOWINFER: thmprv_assert
+        //SLOWINFER:   (thmprv_forall int q;
+        //SLOWINFER:     (j < q && q <= N) ==> (r <= A[q]));
       }
 
       thmprv_invariant
@@ -165,7 +165,7 @@ void find(int *A, int N, int f)
         //RDNDT: (thmprv_forall int q;
         //RDNDT:   (j < q && q <= N) ==> (r <= A[q])) &&
 
-        //RDNDT: m < n ;   
+        //RDNDT: m < n ;
         true;
 
       thmprv_assume A[j] <= r && r <= A[i];     // TEMPORARY HACK

@@ -88,6 +88,9 @@ public:      // data
   // this changes how function applications are treated
   bool inPredicate;
 
+  // when set to true, calls to 'prove' always return true
+  bool disableProver;
+
   // need access to the string table to make new names
   StringTable &stringTable;
 
@@ -151,7 +154,7 @@ public:      // funcs
   void popFact();      // must pop before corresponding 'pred' is deleted
 
   // proof obligation
-  void prove(Predicate * /*owner*/ pred, char const *context);
+  bool prove(Predicate * /*owner*/ pred, char const *context, bool silent=false);
 
   // pseudo-memory-management; semantics not very precise at the moment
   AbsValue *grab(AbsValue *v);

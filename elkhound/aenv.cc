@@ -76,6 +76,7 @@ AEnv::AEnv(StringTable &table, Variable const *m)
     currentFunc(NULL),
     seenStructs(),
     inPredicate(false),
+    disableProver(false),
     stringTable(table),
     failedProofs(0)
 {
@@ -401,11 +402,22 @@ void AEnv::popFact()
 }
 
 
-void AEnv::prove(Predicate *_goal, char const *context)
+bool AEnv::prove(Predicate *_goal, char const *context, bool silent)
 {
+  if (disableProver) {
+    return true;
+  }
+
   char const *proved =
     tracingSys("predicates")? "predicate proved" : NULL;
   char const *notProved = "*** predicate NOT proved ***";
+  char const *inconsistent =
+    tracingSys("predicates") || tracingSys("inconsistent")?
+      "inconsistent assumptions" : NULL;
+
+  if (silent) {
+    proved = notProved = inconsistent = NULL;
+  }
 
   // take ownership of the goal predicate
   Owner<Predicate> goal(_goal);
@@ -424,13 +436,14 @@ void AEnv::prove(Predicate *_goal, char const *context)
   }
   pathFacts->conjuncts.prepend(addrs);
 
+  bool ret = true;
 
   // first, we'll try to prove false, to check the consistency
   // of the assumptions
   P_lit falsePred(false);
   if (innerProve(&falsePred,
-                 NULL,                          // printFalse
-                 "inconsistent assumptions",    // printTrue
+                 NULL,               // printFalse
+                 inconsistent,       // printTrue
                  context)) {
     // this counts as a proved predicate (we can prove anything if
     // we can prove false)
@@ -446,6 +459,7 @@ void AEnv::prove(Predicate *_goal, char const *context)
                         proved,      // printTrue
                         context)) {
           failedProofs++;
+          ret = false;
         }
       }
     }
@@ -453,16 +467,19 @@ void AEnv::prove(Predicate *_goal, char const *context)
     else {
       // prove the whole thing at once
       if (!innerProve(goal,
-                      notProved,   // printFalse
-                      proved,      // printTrue
+                      notProved,     // printFalse
+                      proved,        // printTrue
                       context)) {
         failedProofs++;
+        ret = false;
       }
     }
   }
 
   // pull the distinction fact back out
   pathFacts->conjuncts.deleteFirst();
+  
+  return ret;
 }
 
 
