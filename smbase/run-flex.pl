@@ -1,0 +1,253 @@
+#!/usr/bin/perl -w
+# wrapper around flex
+
+# The purpose of this script is basically to "fix" flex's output
+# in a number of ways.
+#
+# 1. It changes a forward declaration of istream into a proper
+# #include directive.  In current C++ libraries, istream is not
+# a class but rather a template specialization.
+#
+# 2. Fix the "yyclass" option output so that the resulting module
+# can be linked with other flex-generated lexers:
+#
+#   2a. Wrap all yyFlexLexer methods with
+#         #ifdef WANT_YYFLEXLEXER_METHODS
+#         #endif
+#   so that from the Makefile I can control whether the object file
+#   contains those methods.
+#
+#   2b. Make copies of two yyFlexLexer methods and rename them to
+#   be methods of the derived lexer class, as these methods are
+#   different in each generated lexer.  (This is optional.)
+
+# Given that I make so many changes, and they are so dependent on
+# the details of the generated file, it might seem easier to just
+# hack my own copy of flex and distribute that.  I may end up
+# doing that, but for now this provides a little portability (I
+# will try to make this work with both 2.5.4 and 2.5.31), and
+# avoids the need for me to repackage things like flex's configure
+# script.
+
+use strict 'subs';
+
+# defaults
+$nobackup = 0;           # if true, require the scanner to be backup-free
+$makeMethodCopies = 0;   # if true, do step 2b above
+$outputFile = "";        # name of eventual output file
+@flexArgs = ("flex");    # arguments to pass to flex
+
+if (@ARGV == 0) {
+  print(<<"EOF");
+usage: $0 [-nobackup] [-copies] -o<fname> [flex-options] input.lex
+  -nobackup: fail if the scanner can jam
+  -copies:   make copies of methods that use per-lexer state
+  -o<fname>: specify output file name
+For details on other flex options, consult "man flex".
+EOF
+  exit(0);
+}
+
+# process command-line arguments; the syntax is basically a superset
+# of what flex itself accepts
+for (; @ARGV; shift @ARGV) {
+  # interestingly, both my choices of options are deprecated NOPs
+  # to flex in their single-letter forms (-n and -c), so there is
+  # little chance of confusion
+
+  if ($ARGV[0] eq "-nobackup") {
+    $nobackup = 1;
+    push @flexArgs, ("-b");
+    next;
+  }
+  
+  if ($ARGV[0] eq "-copies") {
+    $makeMethodCopies = 1;
+    next;
+  }
+
+  my ($s) = ($ARGV[0] =~ m/^-o(.+)/);
+  if (defined($s)) {
+    diagnostic("saw output file: $s\n");
+    $outputFile = $s;
+  }
+
+  push @flexArgs, ($ARGV[0]);
+}
+
+if (!$outputFile) {
+  die("please specify an output file with -o<file>\n");
+}
+
+# run flex
+print(join(' ', @flexArgs) . "\n");
+if (0!=system(@flexArgs)) {
+  exit(2);
+}
+
+# check for backing up
+if ($nobackup) {
+  if (0==system("grep non-accepting lex.backup")) {
+    print("(see lex.backup for details)\n");
+    exit(2);
+  }
+  else {
+    unlink("lex.backup");
+  }
+}
+
+# read the flex-generated output into memory
+open(IN, "<$outputFile") or die("cannot read $outputFile: $!\n");
+@lines = <IN>;
+close(IN);
+
+# start writing it again
+open(OUT, ">$outputFile") or die("cannot write $outputFile: $!\n");
+
+# keep track of what we've done
+$state = 0;
+
+# name of derived lexer class (if any)
+$derivedClassName = "";
+
+# text (lines) of methods to copy
+@methodCopies = ();
+
+# begin translating the generated file, making the changes outlined above
+for ($i=0; $i < @lines; $i++) {
+  $line = $lines[$i];
+
+  my ($s) = ($line =~ m/^\#define YY_DECL int (.*)::yylex/);
+  if (defined($s) && $s ne "yyFlexLexer") {
+    $derivedClassName = $s;
+  }
+
+  if ($state == 0) {
+    if ($line =~ m/class istream;/) {
+      $state++;
+      print OUT ("#include <iostream.h>      // class istream\n");
+      next;
+    }
+  }
+
+  elsif ($state == 1) {
+    if ($lines[$i+1] =~ m/^static void \*yy_flex_alloc/) {
+      $state++;
+      print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
+      next;
+    }
+  }
+
+  elsif ($state == 2) {
+    if ($line =~ m/^static void yy_flex_free/) {
+      $state++;
+      $i++;
+      print OUT ($line .
+                 "#endif // yyflexlexer methods\n");
+      next;
+    }
+  }
+
+  elsif ($state == 3) {
+    if ($line =~ m/^int yyFlexLexer::yylex/) {
+      $state++;
+      $i++;       # skip the '{' line, to keep #line numbers in sync
+      chomp($line);
+      print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n" .
+                 $line . " {\n");
+      next;
+    }
+  }
+
+  elsif ($state == 4) {
+    if ($line =~ m/^\s*\}\s*$/) {
+      $state++;
+      $i++;       # skip subsequent blank line
+      print OUT ($line .
+                 "#endif // yyflexlexer methods\n");
+      next;
+    }
+  }
+
+  elsif ($state == 5) {
+    if ($lines[$i+1] =~ m/^yyFlexLexer::yyFlexLexer/) {
+      $state++;
+      print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
+      next;
+    }
+  }
+
+  elsif ($state == 6) {
+    if ($lines[$i+1] =~ m/yyFlexLexer::yy_get_previous_state/) {
+      $state++;
+    }
+  }
+
+  elsif ($state == 7) {
+    push @methodCopies, ($line);
+    if ($line =~ m/yyFlexLexer::yy_try_NUL_trans/) {
+      $state++;
+    }
+  }
+
+  elsif ($state == 8) {
+    push @methodCopies, ($line);
+    if ($line =~ m/^\s*\}\s*$/) {
+      $state++;
+    }
+  }
+
+  elsif ($state == 9) {
+    if ($line =~ m/^\#line/) {    # #line directive just before section 3
+      $state++;
+
+      # NOTE: This if-endif encloses the redefinition of 'yynext'
+      # that is appropriate for section 3.  I never use yynext in
+      # section 3 (in fact I rarely use section 3 at all), but if
+      # someone does then this will need to be adjusted.
+      print OUT ("#endif // yyflexlexer methods\n");
+
+      if ($makeMethodCopies) {
+        # emit the copied method text again, this time substituting
+        # the name of the derived lexer class
+        if (!$derivedClassName) {
+          die("$0: did not see a derived lexer class name\n");
+        }
+
+        print OUT ("// BEGIN method copies for $derivedClassName\n");
+        foreach $copyLine (@methodCopies) {
+          $copyLine =~ s/yyFlexLexer/$derivedClassName/;
+          print OUT ($copyLine);
+        }
+        print OUT ("// END method copies for $derivedClassName\n");
+      }
+    }
+  }
+
+  elsif ($state == 10) {
+    # state 10 prevails until the end of the file; just check
+    # that the yynext breakage isn't being exposed
+    if ($line =~ m/yynext/) {
+      die("$0: unimplemented: 'yynext' used in section 3\n");
+    }
+  }
+
+  print OUT ($line);
+}
+
+if ($state != 10) {
+  print OUT ("#error please rebuild $outputFile\n");   # make sure must rebuilt
+  close(OUT);    # flush
+  die("failed to reach state 10; got stuck in state " . $state);
+}
+
+close(OUT);
+exit(0);
+
+
+sub diagnostic {
+  #print(@_);
+}
+
+
+# EOF
