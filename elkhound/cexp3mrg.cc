@@ -4,6 +4,24 @@
 #include "cexp3ast.gen.h"     // Exp
 #include "xassert.h"          // xfailure
 
+
+void Exp::incRefCt()
+{
+  refCt++;
+  cout << "incremented refct of " << this << " to " << refCt << endl;
+}
+
+void Exp::decRefCt()
+{
+  xassert(refCt > 0);
+  --refCt;
+  cout << "decremented refct of " << this << " to " << refCt << endl;
+  if (refCt == 0) {
+    delete this;
+  }
+}
+
+
 // this code is used to select between two competing interpretations
 // for the same sequence of ground terminals
 STATICDEF Exp *Exp::mergeAlts(Exp *_p1, Exp *_p2)
@@ -19,11 +37,11 @@ STATICDEF Exp *Exp::mergeAlts(Exp *_p1, Exp *_p2)
     // they are different; keep the one with '+' at the
     // top, as this is the lower-precedence operator
     if (p1->op == '+') {
-      delete p2;
+      p2->decRefCt();
       return p1;
     }
     else {
-      delete p1;
+      p1->decRefCt();
       return p2;
     }
   }
@@ -34,11 +52,11 @@ STATICDEF Exp *Exp::mergeAlts(Exp *_p1, Exp *_p2)
   int nodes2 = p2->left->numNodes();
   if (nodes1 != nodes2) {
     if (nodes1 > nodes2) {
-      delete p2;
+      p2->decRefCt();
       return p1;
     }
     else {
-      delete p1;
+      p1->decRefCt();
       return p2;
     }
   }

@@ -32,7 +32,8 @@ public:      // data
   ASTList <NontermDecl > nonterms;
 
 public:      // funcs
-  GrammarAST(LocString *_verbatimCode, Terminals *_terms, ASTList <NontermDecl > *_nonterms) : verbatimCode(_verbatimCode), terms(_terms), nonterms(_nonterms) {}
+  GrammarAST(LocString *_verbatimCode, Terminals *_terms, ASTList <NontermDecl > *_nonterms) : verbatimCode(_verbatimCode), terms(_terms), nonterms(_nonterms) {
+  }
   ~GrammarAST();
 
 
@@ -49,7 +50,8 @@ public:      // data
   ASTList <TermType > types;
 
 public:      // funcs
-  Terminals(ASTList <TermDecl > *_decls, ASTList <TermType > *_types) : decls(_decls), types(_types) {}
+  Terminals(ASTList <TermDecl > *_decls, ASTList <TermType > *_types) : decls(_decls), types(_types) {
+  }
   ~Terminals();
 
 
@@ -67,7 +69,8 @@ public:      // data
   LocString alias;
 
 public:      // funcs
-  TermDecl(int _code, LocString *_name, LocString *_alias) : code(_code), name(_name), alias(_alias) {}
+  TermDecl(int _code, LocString *_name, LocString *_alias) : code(_code), name(_name), alias(_alias) {
+  }
   ~TermDecl();
 
 
@@ -85,7 +88,8 @@ public:      // data
   ASTList <SpecFunc > funcs;
 
 public:      // funcs
-  TermType(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs) : name(_name), type(_type), funcs(_funcs) {}
+  TermType(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs) : name(_name), type(_type), funcs(_funcs) {
+  }
   ~TermType();
 
 
@@ -103,7 +107,8 @@ public:      // data
   LocString code;
 
 public:      // funcs
-  SpecFunc(LocString *_name, ASTList <LocString > *_formals, LocString *_code) : name(_name), formals(_formals), code(_code) {}
+  SpecFunc(LocString *_name, ASTList <LocString > *_formals, LocString *_code) : name(_name), formals(_formals), code(_code) {
+  }
   ~SpecFunc();
 
 
@@ -124,7 +129,8 @@ public:      // data
   ASTList <ProdDecl > productions;
 
 public:      // funcs
-  NontermDecl(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs, ASTList <ProdDecl > *_productions) : name(_name), type(_type), funcs(_funcs), productions(_productions) {}
+  NontermDecl(LocString *_name, LocString *_type, ASTList <SpecFunc > *_funcs, ASTList <ProdDecl > *_productions) : name(_name), type(_type), funcs(_funcs), productions(_productions) {
+  }
   ~NontermDecl();
 
 
@@ -141,7 +147,8 @@ public:      // data
   LocString actionCode;
 
 public:      // funcs
-  ProdDecl(ASTList <RHSElt > *_rhs, LocString *_actionCode) : rhs(_rhs), actionCode(_actionCode) {}
+  ProdDecl(ASTList <RHSElt > *_rhs, LocString *_actionCode) : rhs(_rhs), actionCode(_actionCode) {
+  }
   ~ProdDecl();
 
 
@@ -156,7 +163,8 @@ class RHSElt {
 public:      // data
 
 public:      // funcs
-  RHSElt() {}
+  RHSElt() {
+  }
   virtual ~RHSElt();
 
   enum Kind { RH_NAME, RH_TAGGEDNAME, RH_STRING, RH_TAGGEDSTRING, NUM_KINDS };
@@ -176,7 +184,8 @@ public:      // data
   LocString name;
 
 public:      // funcs
-  RH_name(LocString *_name) : RHSElt(), name(_name) {}
+  RH_name(LocString *_name) : RHSElt(), name(_name) {
+  }
   virtual ~RH_name();
 
   virtual Kind kind() const { return RH_NAME; }
@@ -192,7 +201,8 @@ public:      // data
   LocString name;
 
 public:      // funcs
-  RH_taggedName(LocString *_tag, LocString *_name) : RHSElt(), tag(_tag), name(_name) {}
+  RH_taggedName(LocString *_tag, LocString *_name) : RHSElt(), tag(_tag), name(_name) {
+  }
   virtual ~RH_taggedName();
 
   virtual Kind kind() const { return RH_TAGGEDNAME; }
@@ -207,7 +217,8 @@ public:      // data
   LocString str;
 
 public:      // funcs
-  RH_string(LocString *_str) : RHSElt(), str(_str) {}
+  RH_string(LocString *_str) : RHSElt(), str(_str) {
+  }
   virtual ~RH_string();
 
   virtual Kind kind() const { return RH_STRING; }
@@ -223,7 +234,8 @@ public:      // data
   LocString str;
 
 public:      // funcs
-  RH_taggedString(LocString *_tag, LocString *_str) : RHSElt(), tag(_tag), str(_str) {}
+  RH_taggedString(LocString *_tag, LocString *_str) : RHSElt(), tag(_tag), str(_str) {
+  }
   virtual ~RH_taggedString();
 
   virtual Kind kind() const { return RH_TAGGEDSTRING; }

@@ -40,13 +40,13 @@ terminals {
 nonterm[int] Start {
   -> e:Exp L2_EOF      [ int ret = e->eval();
                          cout << "reduced Start: " << ret << endl;
-                         delete e;
+                         e->decRefCt();
                          return ret;]
 }
 
 nonterm[Exp*] Exp {
-  dup(p) [ D("dup " << p); return p->deepCopy(); ]
-  del(p) [ D("del " << p); delete p; ]
+  dup(p) [ D("dup " << p); p->incRefCt(); return p; ]
+  del(p) [ D("del " << p); p->decRefCt(); ]
   merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
 
   -> i:L2_INT_LITERAL  [ cout << "literal: " << i << endl;

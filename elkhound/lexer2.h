@@ -163,7 +163,9 @@ public:
   // kind of token
   Lexer2TokenType type;
 
-  // semantic value
+  // semantic value; 'sval' is essentially an owner until the parser
+  // reads it, and then it's a serf; so in fact it's treated as a serf
+  // throughout, with corresponding leak potential
   union {
     int intValue;      	       	 // for L2_INT_LITERALs
     float floatValue;		 // for L2_FLOAT_LITERALs

@@ -17,27 +17,35 @@ typedef void *SemanticValue;          // (???)
 // user-supplied reduction actions: production 'id' is being used, and
 // 'svals' contains an array of semantic values yielded by the RHS
 // symbols, such that the 0th element is the leftmost RHS element;
-// this returns the semantic value for the reduction
+// this returns the semantic value for the reduction;
+// 'svals' is an array of owner pointers, and this fn yields an owner pointer
 SemanticValue doReductionAction(int productionId, SemanticValue *svals);
 
-// a given semantic value is about to be passed a second (or third..)
-// time to a reduction action function, and the user may need to
-// copy it, or increment its refcount, etc.
+// TODO - WRONG
+  // a given semantic value is about to be passed a second (or third..)
+  // time to a reduction action function, and the user may need to
+  // copy it, or increment its refcount, etc.
+// 'sval' is a serf pointer, ownership will be transfered when this
+// value is passed to the reduction action; but this fn returns an
+// owner pointer
 SemanticValue duplicateTerminalValue(int termId, SemanticValue sval);
 SemanticValue duplicateNontermValue(int nontermId, SemanticValue sval);
-                                                             
+
 // a semantic value didn't get passed to an action function, either
 // because it was never used at all (e.g. a semantic value for a
 // punctuator token, which the user can simply ignore), or because
 // we duplicated it in response to a local ambiguity, but then that
-// parse turned out not to be viable, so we're cancelling the dup now
+// parse turned out not to be viable, so we're cancelling the dup now;
+// 'sval' is an owner pointer
 void deallocateTerminalValue(int termId, SemanticValue sval);
 void deallocateNontermValue(int nontermId, SemanticValue sval);
 
 // this is called when there are two interpretations for the same
 // sequence of ground terminals, culminating in two different reductions
 // deriving the same left-hand-side nonterminal (identified by 'ntIndex');
-// it should return a value to be used in the place where they conflict
+// it should return a value to be used in the place where they conflict'
+// both 'left' and 'right' are owner pointers, and the return value
+// is also an owner pointer
 SemanticValue mergeAlternativeParses(int ntIndex, SemanticValue left,
                                      SemanticValue right);
 

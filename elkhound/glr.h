@@ -124,17 +124,13 @@ public:
   // this is the semantic value associated with this link
   // (parse tree nodes are *not* associated with stack nodes --
   // that's now it was originally, but I figured out the hard
-  // way that's wrong (more info in compiler.notes.txt))
+  // way that's wrong (more info in compiler.notes.txt));
+  // this is an *owner* pointer
   SemanticValue sval;
-  
-  // every time I hand this value to a reduction function, I
-  // increment the value (if the value is 0, then this object
-  // is the only one which has a reference to it)
-  int svalRefCt;
 
 public:
   SiblingLink(StackNode *s, SemanticValue sv)
-    : sib(s), sval(sv), svalRefCt(0) {}
+    : sib(s), sval(sv) {}
   ~SiblingLink();
 };
 
@@ -168,7 +164,7 @@ public:    // types
     // the state we end up in after reducing those symbols
     RCPtr<StackNode> finalState;
 
-    // the semantic value yielded by the reduction action
+    // the semantic value yielded by the reduction action (owner)
     SemanticValue sval;
 
   public:
@@ -185,17 +181,9 @@ public:	   // data
   // we collect paths into this array, which is maintained as we
   // enter/leave recursion; the 0th item is the leftmost, i.e.
   // the last one we collect when starting from the reduction state
-  // and popping symbols as we move left
-  SemanticValue *poppedSymbols;
-
-  // also collect reference count pointers, so they can be incremented
-  // each time the corresponding semantic value ends up being used
-  int **svalRefCts;
-  
-  // yet more: collect the symbols associated with each of the
-  // semantic values, as this info is needed to call the 'dup'
-  // functions
-  Symbol const **svalSymbols;
+  // and popping symbols as we move left;
+  SiblingLink **siblings;        // (owner ptr to array of serfs)
+  Symbol const **symbols;        // (owner ptr to array of serfs)
 
   // as reduction possibilities are encountered, we record them here
   ObjList<ReductionPath> paths;
@@ -265,7 +253,8 @@ public:     // funcs
   GLR();
   ~GLR();
 
-  // 'main' for testing this class; returns false on error
+  // 'main' for testing this class; returns false on error;
+  // yielded 'treeTop' is an owner (if a pointer)
   bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
                         char const *grammarFname, char const *inputFname,
                         char const *symOfInterestName = NULL);

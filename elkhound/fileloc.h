@@ -95,11 +95,14 @@ private:     // data
 public:
   SourceFileList();
   ~SourceFileList();
-                                      
+
   // get permanent name for a file; if you call open twice
   // with the same name (case sensitive), it will return the
   // same structure as before
   SourceFile * /*serf*/ open(char const *fname);
+
+  // clear all files
+  void clear() { files.deleteAll(); }
 };
 
 // the global list

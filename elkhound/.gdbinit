@@ -19,7 +19,7 @@
 #set args -tr cat-grammar cexp3.gr
 
 file cexp3
-set args -tr parse,sval cexp3.bin cexp3.in1
+set args -tr sval,parse,malloc cexp3.bin cexp3.in1
 
 break main
 break breaker

@@ -195,10 +195,8 @@ StackNode::~StackNode()
   // associated symbol, which the SiblinkLinks don't know)
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
-    if (sib->svalRefCt == 0 && sib->sval) {
-      D(trace("sval") << "deleting refct 0 sval " << sib->sval << endl);
-      deallocateSemanticValue(getSymbolC(), sib->sval);
-    }
+    D(trace("sval") << "deleting sval " << sib->sval << endl);
+    deallocateSemanticValue(getSymbolC(), sib->sval);
   }
 }
 
@@ -221,6 +219,7 @@ SiblingLink *StackNode::
 
 void StackNode::decRefCt()
 {
+  xassert(referenceCount > 0);
   if (--referenceCount == 0) {
     delete this;
   }
@@ -254,24 +253,24 @@ PathCollectionState::PathCollectionState(Production const *p, int start)
   int len = p->rhsLength();
                                         
   // possible optimization: allocate these once, using the largest length
-  // of any production, when parsing starts
-  poppedSymbols = new SemanticValue[len];
-  svalRefCts = new int *[len];
-  svalSymbols = new Symbol const *[len];
+  // of any production, when parsing starts; do the same for 'toPass'
+  // in collectReductionPaths
+  siblings = new SiblingLink *[len];
+  symbols = new Symbol const *[len];
 }
 
 PathCollectionState::~PathCollectionState()
 {
-  delete[] poppedSymbols;
-  delete[] svalRefCts;
-  delete[] svalSymbols;
+  delete[] siblings;
+  delete[] symbols;
 }
 
 PathCollectionState::ReductionPath::~ReductionPath()
 {
-  if (sval) {                                               
+  if (sval) {
     // this should be very unusual, since 'sval' is consumed
-    // (and nullified) soon after the ReductionPath is created
+    // (and nullified) soon after the ReductionPath is created;
+    // it can happen if an exception is thrown from certain places
     cout << "interesting: using ~ReductionPath's deallocator on " << sval << endl;
     deallocateSemanticValue(finalState->getSymbolC(), sval);
   }
@@ -355,14 +354,16 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
 
 // used to extract the svals from the nodes just under the
 // start symbol reduction
-SemanticValue grabTopSval(SiblingLink *sib)
-{
-  if (sib->svalRefCt != 0) {
-    cout << "unexpected: toplevel refct is " << sib->svalRefCt << endl;
-    abort();
-  }
-  sib->svalRefCt++;     // so it won't be deleting by the sibling link
-  return sib->sval;
+SemanticValue grabTopSval(StackNode *node)
+{                      
+  SiblingLink *sib = node->leftSiblings.first();
+  SemanticValue ret = sib->sval;
+  sib->sval = duplicateSemanticValue(node->getSymbolC(), sib->sval);
+
+  trace("sval") << "dup'd " << ret << " for top sval, yielded "
+                << sib->sval << endl;
+
+  return ret;
 }
 
 bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
@@ -478,8 +479,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   // the top of the tree is unambiguous
   SemanticValue arr[2];
   StackNode *nextToLast = last->leftSiblings.first()->sib;
-  arr[0] = grabTopSval(nextToLast->leftSiblings.first());   // Something's sval
-  arr[1] = grabTopSval(last->leftSiblings.first());         // eof's sval
+  arr[0] = grabTopSval(nextToLast);   // Something's sval
+  arr[1] = grabTopSval(last);         // eof's sval
 
   // reduce
   trace("sval") << "handing toplevel svals " << arr[0]
@@ -675,28 +676,32 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     }
 
     // before calling the user, duplicate any needed values
-    for (int i=0; i < pcs.production->rhsLength(); i++) {
-      int &ct = *(pcs.svalRefCts[i]);
-      ct++;                      // increment sval reference count
-      D(trace("sval") << "inc'd refct of " << pcs.poppedSymbols[i]
-                      << " to " << ct << " before passing to reduce" << endl);
-      if (ct > 1) {
-        // after the first use, call dup to get the rest
-        D(SemanticValue old = pcs.poppedSymbols[i]);
-        pcs.poppedSymbols[i] =
-          duplicateSemanticValue(pcs.svalSymbols[i], pcs.poppedSymbols[i]);
-        D(trace("sval") << "dup'd " << old << ", yielding "
-                        << pcs.poppedSymbols[i] << endl);
-      }
+    int rhsLen = pcs.production->rhsLength();
+    SemanticValue *toPass = new SemanticValue[rhsLen];
+    for (int i=0; i < rhsLen; i++) {
+      SiblingLink *sib = pcs.siblings[i];
+
+      // we're about to yield sib's 'sval' to the reduction action
+      toPass[i] = sib->sval;
+
+      // we inform the user, and the user responds with a value
+      // to be kept in this sibling link *instead* of the passed
+      // value; if this link yields a value in the future, it will
+      // be this replacement
+      sib->sval = duplicateSemanticValue(pcs.symbols[i], sib->sval);
+
+      D(trace("sval") << "dup'd " << toPass[i] << " to pass, yielding "
+                      << sib->sval << " to store" << endl);
     }
 
     // we've popped the required number of symbols; call the
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
     SemanticValue sval = doReductionAction(pcs.production->prodIndex,
-                                           pcs.poppedSymbols);
+                                           toPass);
     D(trace("sval") << "reduced " << pcs.production->toString()
                     << ", yielding " << sval << endl);
+    delete[] toPass;
 
     // and just collect this reduction, and the final state, in our
     // running list
@@ -710,9 +715,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       // the symbol on the sibling link is being popped;
       // TREEBUILD: we are collecting 'treeNode' for the purpose
       // of handing it to the user's reduction routine
-      pcs.poppedSymbols[popsRemaining-1] = sibling.data()->sval;
-      pcs.svalRefCts[popsRemaining-1] = &(sibling.data()->svalRefCt);
-      pcs.svalSymbols[popsRemaining-1] = currentNode->getSymbolC();
+      pcs.siblings[popsRemaining-1] = sibling.data();
+      pcs.symbols[popsRemaining-1] = currentNode->getSymbolC();
 
       // recurse one level deeper, having traversed this link
       if (sibling.data() == mustUseLink) {
@@ -748,7 +752,7 @@ void *mergeAlternativeParses(int ntIndex, void *left, void *right)
 // production we're using
 // ([GLR] calls this 'reducer')
 void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
-                              SemanticValue sval)
+                              SemanticValue /*owner*/ sval)
 {
   // this is like a shift -- we need to know where to go
   ItemSet const *rightSiblingState =

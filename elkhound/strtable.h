@@ -77,6 +77,9 @@ private:    // funcs
 public:     // funcs
   StringTable();
   ~StringTable();
+               
+  // throw away everything in this table
+  void clear();
 
   // add 'src' to the table, if it isn't already there; return a
   // unique representative, such that multiple calls to 'add' with

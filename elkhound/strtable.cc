@@ -17,14 +17,20 @@ STATICDEF char const *StringTable::identity(void *data)
 
 StringTable::StringTable()
   : hash(identity),
+    racks(NULL),
     longStrings(NULL)
-{
-  racks = new Rack(NULL);
-}
+{}
 
 
 StringTable::~StringTable()
 {
+  clear();
+}
+
+void StringTable::clear()
+{
+  hash.empty();
+  
   while (racks != NULL) {
     Rack *temp = racks;
     racks = racks->next;
@@ -62,7 +68,7 @@ StringRef StringTable::add(char const *src)
 
   else {
     // see if we need a new rack
-    if (len > racks->availBytes()) {
+    if (!racks || len > racks->availBytes()) {
       // need a new rack
       xassert(len <= rackSize);
       racks = new Rack(racks);     // prepend new rack

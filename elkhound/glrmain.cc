@@ -4,8 +4,11 @@
 #include <iostream.h>     // cout
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
+#include "ckheap.h"       // malloc_stats
+#include "grampar.h"      // gramparStringTable
+#include "fileloc.h"      // sourceFileList
 
-int main(int argc, char **argv)
+void doit(int argc, char **argv)
 {
   traceAddSys("progress");
   //traceAddSys("parse-tree");
@@ -15,6 +18,18 @@ int main(int argc, char **argv)
   treeMain(tree, argc, argv);
 
   cout << "final parse result: " << treeTop << endl;
+
+  // global cleanup
+  gramparStringTable.clear();
+  sourceFileList.clear();
+  traceRemoveAll();
+}
+
+int main(int argc, char **argv)
+{
+  doit(argc, argv);
+
+  malloc_stats();
 
   return 0;
 }

@@ -1,12 +1,24 @@
 // cexp3ast.ast
 // simple expression AST
 
+verbatim {
+  inline string toString(Exp const *e) {
+    return stringc << (void*)e;
+  }
+}
+
 class Exp {
+  // reference count
+  private int refCt;
+  public void incRefCt();
+  public void decRefCt();      // deletes when it hits 0
+  
+  // whoever creates this object initially is its first owner,
+  // hence the refct starts at 1
+  ctor { refCt=1; };
+
   // number of nodes in this subtree, including myself
   public virtual int numNodes() const = 0;
-
-  // make a completely new copy, sharing nothing with the original
-  public virtual Exp *deepCopy() const = 0;
 
   // evaluate the arithmetic value of the subtree
   public virtual int eval() const = 0;
@@ -18,18 +30,19 @@ class Exp {
   -> E_int(int i) {
     public int numNodes() const
       { return 1; };
-    public Exp *deepCopy() const
-      { return new E_int(i); };
     public int eval() const
       { return i; };
   }
 
-  // 'op' can be either '+' or '*'
-  -> E_op(char op, Exp left, Exp right) {
+  // 'op' can be either '+' or '*' 
+  // the explicit pointer notation means "serf"
+  -> E_op(char op, Exp *left, Exp *right) {
+    dtor {
+      left->decRefCt();
+      right->decRefCt();
+    };
     public int numNodes() const
       { return 1 + left->numNodes() + right->numNodes(); };
-    public Exp *deepCopy() const
-      { return new E_op(op, left->deepCopy(), right->deepCopy()); };
     public int eval() const {
       int L = left->eval();
       int R = right->eval();
