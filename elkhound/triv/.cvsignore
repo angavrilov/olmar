@@ -29,3 +29,8 @@ EFa.gr
 EFa.tree.*
 efa.in
 EFa.notree.*
+EFa.bin
+EFa.gr.gen.*
+*.output
+*.tab.*
+EFa.y

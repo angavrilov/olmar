@@ -1,10 +1,10 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: sexp ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe ssx.in \
-           triv/EEb.tree.gr.exe eeb.in triv/SSSx.tree.gr.exe sssx.in \
-           triv/EFa.tree.gr.exe efa.in \
-	   EFa.notree.bison.exe EFa.tree.bison.exe
+temporary: sexp ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
+           triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
+           triv/EFa.tree.gr.exe triv/efa.in \
+	   triv/EFa.bison.exe triv/EFa.tree.bison.exe
 
 # main targets
 all: ccgr
@@ -380,6 +380,15 @@ bccgr.y: cc.gr.gen.y
 	echo '%}' >> bccgr.y
 	sed 's/File "L2_EOF"/File/' <cc.gr.gen.y >>bccgr.y
 
+# bison parser from the a given grammar; the 'sed' is because Bison
+# already interpretes 0 as EOF, and if my rule names it explicitly
+# then it gets mad
+%.y: %.gr.gen.y
+	echo '%{' > $@
+	echo '#include "trivbison.h"' >> $@
+	echo '%}' >> $@
+	sed 's/"EOF" {/{/' <$*.gr.gen.y >>$@
+
 # run Bison; the 'sed' command is to silence a spurious warning about
 # 'yyval' being used uninitialized; I also compile here (instead of
 # relying on another pattern rule) because I want to control exactly
@@ -390,7 +399,7 @@ bccgr.y: cc.gr.gen.y
 	mv $*.tab.c $*.tab.c.orig
 	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
 	rm $*.tab.c.orig
-	g++ -c -g -Wall -O2 -DNDEBUG $(YYDEBUG) $*.tab.c
+	g++ -c -g -o $*.tab.o -Wall -O2 -I. -DNDEBUG $(YYDEBUG) $*.tab.c
 
 bccgr.tab.o: bccgr.h
 
@@ -478,7 +487,7 @@ triv/efa.bison.notree.perf.txt:
 	rm -f $@
 	for fn in triv/efa.in/*; do \
 	  for count in 1 2 3 4 5; do \
-	    triv/EFa.notree.bison.exe $$fn 2>&1 | \
+	    triv/EFa.bison.exe $$fn 2>&1 | \
 	      sed "s,^,$$fn: ," >> $@ ; \
 	  done; \
 	done
