@@ -66,5 +66,11 @@ void deallocateNontermValue(int nontermId, SemanticValue sval);
 SemanticValue mergeAlternativeParses(int ntIndex, SemanticValue left,
                                      SemanticValue right);
 
+// after every reduction, the semantic value is passed to this function,
+// which returns 'true' if the reduction should be cancelled; if it
+// does return true, then 'sval' is an owner pointer (the parser engine
+// will drop the value on the floor)
+bool cancelNontermValue(int nontermId, SemanticValue sval);
+
 
 #endif // USERACT_H

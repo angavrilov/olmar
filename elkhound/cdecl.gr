@@ -1,0 +1,66 @@
+// cdecl.gr
+// experimenting with resolving C ident/type ambiguity
+
+verbatim [
+  #include <iostream.h>      // cout
+  #include "trace.h"         // trace
+  #include "locstr.h"        // LocString
+
+  #define D(msg) \
+    trace("cdecl") << msg << endl
+  #define R0 return 0
+]
+
+
+terminals {
+  // grab the lexer's token list
+  include("cc.tok")
+
+  token[StringRef] L2_NAME {
+    dup(s) [ return s; ]
+    del()  []
+  }
+}
+
+
+nonterm[int] Start -> Stmts L2_EOF  [ R0; ]
+
+nonterm[int] Stmts {
+  -> empty         [ D("entering scope"); R0; ]
+  -> Stmts Stmt    [ R0; ]
+}
+
+nonterm[int] Stmt {
+  -> t:TypeName "(" n:VarName ")" ";"   [    // declaration
+       D("declaration of " << n << ", type " << t); R0;
+     ]
+
+  -> f:VarName "(" a:VarName ")" ";"    [    // function call
+       D("call of " << f << " with arg " << a); R0;
+     ]
+
+  -> "typedef" t:TypeName n:L2_NAME ";" [    // typedef: introduce type name
+       D("typedef of " << n << " as type " << t); R0;
+     ]
+
+  -> "{" Stmts "}"                  [    // scope
+       D("exiting scope"); R0;
+     ]
+}
+
+nonterm[StringRef] VarName {
+  -> n:L2_NAME     [ return n; ]
+}
+
+nonterm[StringRef] TypeName {
+  // always cancel, for now
+  cancel(n)        [ return !n; ]
+
+  -> n:L2_NAME     [ return NULL; ] 
+  
+  // this is a little bit of a hack, but in some sense it's valid
+  // to regard the global strings as another stringtable.. of course,
+  // equality won't work, but I don't need it for the moment
+  -> L2_INT        [ return "int"; ]
+}
+

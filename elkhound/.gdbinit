@@ -10,7 +10,7 @@
 #  run
 
 file gramanl
-set args -tr itemsets cexp3
+set args -tr itemsets cdecl
 
 #  file cexp2
 #  set args cexp2.bin cexp.in1

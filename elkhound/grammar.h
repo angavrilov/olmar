@@ -61,6 +61,9 @@ public:
   StringRef mergeParam2;    // and 2nd alt
   LocString mergeCode;      // code to resolve then
   
+  StringRef cancelParam;    // name of parameter to 'cancel'
+  LocString cancelCode;     // code to decide whether to cancel a reduction
+
 public:
   ConflictHandlers();
   ~ConflictHandlers();

@@ -397,8 +397,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     currentTokenClass = indexedTerms[currentToken->type];
     currentTokenColumn = tokenNumber;
     currentTokenValue = currentToken->sval;
-
-
+    
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
 
@@ -702,6 +701,12 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     D(trace("sval") << "reduced " << pcs.production->toString()
                     << ", yielding " << sval << endl);
     delete[] toPass;
+
+    // see if the user wants to cancel this reduction
+    if (cancelNontermValue(pcs.production->left->ntIndex, sval)) {
+      D(trace("sval") << "but the user cancelled it" << endl);
+      return;
+    }
 
     // and just collect this reduction, and the final state, in our
     // running list

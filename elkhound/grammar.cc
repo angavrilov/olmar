@@ -25,7 +25,8 @@ ConflictHandlers::ConflictHandlers()
   : dupParam(NULL),
     delParam(NULL),
     mergeParam1(NULL),
-    mergeParam2(NULL)
+    mergeParam2(NULL),
+    cancelParam(NULL)
 {}
 
 ConflictHandlers::~ConflictHandlers()
@@ -35,7 +36,8 @@ ConflictHandlers::ConflictHandlers(Flatten&)
   : dupParam(NULL),
     delParam(NULL),
     mergeParam1(NULL),
-    mergeParam2(NULL)
+    mergeParam2(NULL),
+    cancelParam(NULL)
 {}
 
 void ConflictHandlers::xfer(Flatten &flat)
@@ -49,6 +51,9 @@ void ConflictHandlers::xfer(Flatten &flat)
   flattenStrTable->xfer(flat, mergeParam1);
   flattenStrTable->xfer(flat, mergeParam2);
   mergeCode.xfer(flat);
+
+  flattenStrTable->xfer(flat, cancelParam);
+  cancelCode.xfer(flat);
 }
 
 
@@ -56,7 +61,8 @@ bool ConflictHandlers::anyNonNull() const
 {
   return dupCode.isNonNull() ||
          delCode.isNonNull() ||
-         mergeCode.isNonNull();
+         mergeCode.isNonNull() ||
+         cancelCode.isNonNull();
 }
 
 
@@ -73,6 +79,10 @@ void ConflictHandlers::print(ostream &os) const
   if (mergeCode.isNonNull()) {
     os << "    merge(" << mergeParam1 << ", " << mergeParam2
        << ") [" << mergeCode << "]\n";
+  }
+
+  if (cancelCode.isNonNull()) {
+    os << "    cancel(" << dupParam << ") [" << dupCode << "]\n";
   }
 }
 

@@ -261,10 +261,23 @@ void astParseDDM(Environment &env, ConflictHandlers &ddm,
         astParseError(func.name, "'merge' can only be applied to nonterminals");
       }
     }
-    
+
+    else if (func.name.equals("cancel")) {
+      if (mergeOk) {
+        if (numFormals != 1) {
+          astParseError(func.name, "'cancel' function must have one formal parameter");
+        }
+        ddm.cancelParam = func.nthFormal(0);
+        ddm.cancelCode = func.code;
+      }
+      else {
+        astParseError(func.name, "'cancel' can only be applied to nonterminals");
+      }
+    }
+
     else {
-      astParseError(func.name, 
-        stringc << "unrecognized spec function `" << func.name << "'");
+      astParseError(func.name,
+        stringc << "unrecognized spec function \"" << func.name << "\"");
     }
   }
 }
@@ -540,7 +553,7 @@ int main(int argc, char **argv)
     cout << "usage: " << argv[0] << " [-tr flags] filename.gr\n";
     cout << "  interesting trace flags:\n";
     cout << "    keep-tmp      do not delete the temporary files\n";
-    cout << "    cat-grammar   print the ascii rep to the screen\n";
+    //cout << "    cat-grammar   print the ascii rep to the screen\n";
     return 0;
   }
 
@@ -562,9 +575,9 @@ int main(int argc, char **argv)
     g1.printProductions(out, printCode);
   }
 
-  if (tracingSys("cat-grammar")) {
+  //if (tracingSys("cat-grammar")) {
     system("cat grammar.g1.tmp");
-  }
+  //}
 
   // before using 'xfer' we have to tell it about the string table
   flattenStrTable = &gramparStringTable;

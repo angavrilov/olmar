@@ -69,3 +69,6 @@ cexp3.cc
 cexp3.bin
 cexp3
 cexp3ast.gen.*
+cdecl.cc
+cdecl.bin
+cdecl

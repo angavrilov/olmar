@@ -2978,7 +2978,7 @@ void emitActions(Grammar &g, EmitCode &out)
 
 void emitDupDelMerge(Grammar &g, EmitCode &out)
 {
-  out << "// ---------------- dup/del/merge nonterminals ---------------\n";
+  out << "// ---------------- dup/del/merge/cancel nonterminals ---------------\n";
   // emit inlines for dup/del/merge of nonterminals
   FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
     emitDDMInlines(out, *(ntIter.data()), true /*mergeOk*/);
@@ -3013,6 +3013,15 @@ void emitDupDelMerge(Grammar &g, EmitCode &out)
     "      return (SemanticValue)merge_$symName(($symType)left, ($symType)right);\n",
     "merge nonterm");
   out << "\n";
+
+  // emit cancel-nonterm
+  emitSwitchCode(out,
+    "bool cancelNontermValue(int nontermId, SemanticValue sval)",
+    "nontermId",
+    (ObjList<Symbol> const&)g.nonterminals,
+    3 /*cancelCode*/,
+    "      return cancel_$symName(($symType)sval);\n",
+    "cancel nonterm");    // last param not used; cancel-specific code used instead
 
 
   out << "// ---------------- dup/del terminals ---------------\n";
@@ -3062,6 +3071,12 @@ void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk)
         << ", " << sym.type << " " << sym.ddm.mergeParam2 << ") ";
     emitUserCode(out, sym.ddm.mergeCode);
   }
+
+  if (mergeOk && sym.ddm.cancelCode) {
+    out << "static inline bool cancel_" << sym.name
+        << "(" << sym.type << " " << sym.ddm.cancelParam << ") ";
+    emitUserCode(out, sym.ddm.cancelCode);
+  }
 }
 
 void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
@@ -3077,18 +3092,30 @@ void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
 
     if (whichFunc==0 && sym.ddm.dupCode ||
         whichFunc==1 && sym.ddm.delCode ||
-        whichFunc==2 && sym.ddm.mergeCode) {
+        whichFunc==2 && sym.ddm.mergeCode ||
+        whichFunc==3 && sym.ddm.cancelCode) {
       out << "    case " << sym.getTermOrNontermIndex() << ":\n";
       out << replace(replace(templateCode, "$symName", sym.name),
                      "$symType", sym.type);
     }
   }
 
-  out << "    default:\n"
-         "      cout << \"there is no action to " << actUpon << " id \"\n"
-         "           << " << switchVar << " << endl;\n"
-         "      abort();\n"
-         "  }\n"
+  out << "    default:\n";
+  if (whichFunc == 0) {
+    // unspecified dup: return NULL
+    out << "      return (SemanticValue)0;\n";
+  }
+  if (whichFunc == 3) {
+    // unspecified cancel functions default to not cancelling
+    out << "      return false;\n";
+  }
+  else {
+    out << "      cout << \"there is no action to " << actUpon << " id \"\n"
+           "           << " << switchVar << " << endl;\n"
+           "      abort();\n";
+  }
+
+  out << "  }\n"
          "}\n"
          "\n";
 }
