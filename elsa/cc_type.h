@@ -409,6 +409,7 @@ public:     // funcs
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
+  TypeVariable *asTypeVariable();
   bool isCompoundType() const { return isCVAtomicType(AtomicType::T_COMPOUND); }
 
   bool isTemplateFunction() const;

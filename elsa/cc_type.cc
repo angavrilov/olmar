@@ -720,6 +720,12 @@ Type *Type::asRval()
 }
 
 
+TypeVariable *Type::asTypeVariable() 
+{ 
+  return asCVAtomicType()->atomic->asTypeVariable(); 
+}
+
+
 bool Type::isCVAtomicType(AtomicType::Tag tag) const
 {
   return isCVAtomicType() &&
@@ -1140,10 +1146,18 @@ string TemplateParams::toString() const
   sb << "template <";
   int ct=0;
   SFOREACH_OBJLIST(Variable, params, iter) {
+    Variable const *p = iter.data();
     if (ct++ > 0) {
       sb << ", ";
     }
-    sb << iter.data()->toStringAsParameter();
+
+    if (p->type->isTypeVariable()) {
+      sb << "class " << p->type->asTypeVariable()->name;
+    }
+    else {
+      // non-type parameter
+      sb << p->toStringAsParameter();
+    }
   }
   sb << ">";
   return sb;
