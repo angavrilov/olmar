@@ -1810,21 +1810,23 @@ void TS_classSpec::tcheckIntoCompound(
       xassert(baseVar->hasFlag(DF_TYPEDEF));    // that's what LF_ONLY_TYPES means
 
       // special case for template parameters
-      if (baseVar->type->isTypeVariable()) {
+      if (baseVar->type->isTypeVariable() ||
+          baseVar->type->isPseudoInstantiation() ||
+          baseVar->type->isDependentQType()) {
         // let it go.. we're doing the pseudo-check of a template;
         // but there's nothing we can add to the base class list,
         // and it wouldn't help even if we could, so do nothing
+        TemplateInfo *ti = ct->templateInfo();
+        ti->dependentBases.append(baseVar->type);
         continue;
       }
 
       // cppstd 10, para 1: must be a class type
       CompoundType *base = baseVar->type->ifCompoundType();
       if (!base) {
-        if (!baseVar->type->isGeneralizedDependent()) {
-          env.error(stringc
-            << "`" << *(iter->name) << "' is not a class or "
-            << "struct or union, so it cannot be used as a base class");
-        }
+        env.error(stringc
+          << "`" << *(iter->name) << "' is not a class or "
+          << "struct or union, so it cannot be used as a base class");
         continue;
       }
 
@@ -5503,7 +5505,8 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       return fevar->type =
         env.error(pqname->loc,
                   stringc << "there is no function called `"
-                          << pqname->getName() << "'",
+                          << pqname->getName() << "'"
+                          << env.unsearchedDependentBases(),
                   EF_NONE);
     }
 

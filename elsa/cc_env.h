@@ -519,6 +519,9 @@ public:      // funcs
   // features, but EF_NONE (not reported in templates) when trying to
   // get big testcases through.
   ErrorFlags maybeEF_STRONG() const;
+         
+  // report on unsearched base classes; "" if none
+  string unsearchedDependentBases();
 
   // when true, the type checker does overload resolution
   bool doOverload() const;

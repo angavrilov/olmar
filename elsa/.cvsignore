@@ -61,3 +61,6 @@ history.txt
 tmp2*
 make.out
 tmp.txt
+*.bb
+*.bbg
+*.da

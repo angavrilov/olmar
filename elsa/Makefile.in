@@ -37,6 +37,12 @@ extradep.mk:
 
 -include extradep.mk
 
+# modules to compile with coverage info; I do not build them
+# all with coverage info because it takes about 25% longer to
+# compile for each module with coverage info
+GCOV_MODS := @GCOV_MODS@
+TOCLEAN += *.bb *.bbg *.da
+
 
 # --------------------- extension modules ----------------------
 # base modules
@@ -86,6 +92,9 @@ CXX := g++
 # flags for the C++ compiler (and preprocessor)
 CCFLAGS := @CCFLAGS@ -Woverloaded-virtual -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
 
+# how to enable coverage
+GCOV_OPTS := -fprofile-arcs -ftest-coverage
+
 # flags for the linker
 libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
 LDFLAGS := @LDFLAGS@ $(libraries)
@@ -94,7 +103,7 @@ LDFLAGS := @LDFLAGS@ $(libraries)
 # compile .cc in this directory to a .o
 TOCLEAN += *.o *.d
 %.o: %.cc
-	$(CXX) -c -o $@ $< $(CCFLAGS)
+	$(CXX) -c -o $@ $< $(if $(findstring $*,$(GCOV_MODS)),$(GCOV_OPTS) )$(CCFLAGS)
 	@$(PERL) $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 

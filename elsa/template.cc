@@ -284,7 +284,8 @@ TemplateInfo::TemplateInfo(SourceLoc il, Variable *v)
     defnScope(NULL),
     definitionTemplateInfo(NULL),
     instantiateBody(false),
-    uninstantiatedDefaultArgs(0)
+    uninstantiatedDefaultArgs(0),
+    dependentBases()
 {
   if (v) {
     // this sets 'this->var' too
@@ -309,7 +310,8 @@ TemplateInfo::TemplateInfo(TemplateInfo const &obj)
     defnScope(NULL),
     definitionTemplateInfo(NULL),
     instantiateBody(false),
-    uninstantiatedDefaultArgs(obj.uninstantiatedDefaultArgs)
+    uninstantiatedDefaultArgs(obj.uninstantiatedDefaultArgs),
+    dependentBases(obj.dependentBases)
 {
   // inheritedParams
   FOREACH_OBJLIST(InheritedTemplateParams, obj.inheritedParams, iter2) {

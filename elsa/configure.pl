@@ -49,6 +49,7 @@ $AST = "../ast";
 $ELKHOUND = "../elkhound";
 $USE_GNU = "yes";
 $USE_KANDR = "yes";
+$GCOV_MODS = "";
 
 
 sub usage {
@@ -60,6 +61,7 @@ options:
   -no-dash-g         disable -g
   -no-dash-O2        disable -O2
   -prof              enable profiling
+  -gcov              enable coverage testing for certain modules
   -devel             add options useful while developing (-Werror)
   -gnu=yes/no        enable GNU extensions? [$USE_GNU]
   -kandr=yes/no      enable K&R extensions? [$USE_KANDR]
@@ -129,6 +131,11 @@ while (@ARGV) {
   elsif ($arg eq "-prof") {
     push @CCFLAGS, "-pg";
     push @LDFLAGS, "-pg";
+  }
+  
+  elsif ($arg eq "-gcov") {
+    # for now, hardcode the set of modules to apply coverage to
+    $GCOV_MODS = "cc_tcheck";
   }
 
   elsif ($arg eq "-devel") {
@@ -266,6 +273,7 @@ Compile flags:
   ELKHOUND:    $ELKHOUND
   USE_GNU:     $USE_GNU
   USE_KANDR:   $USE_KANDR
+  GCOV_MODS:   $GCOV_MODS
 
 EOF
 
@@ -312,6 +320,7 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@PERL\@|$PERL|g" \\
     -e "s|\@USE_GNU\@|$USE_GNU|g" \\
     -e "s|\@USE_KANDR\@|$USE_KANDR|g" \\
+    -e "s|\@GCOV_MODS\@|$GCOV_MODS|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing

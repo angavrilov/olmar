@@ -248,6 +248,12 @@ public:    // data
   // for a template function, number of default arguments that have
   // not yet been instantiated
   int uninstantiatedDefaultArgs;
+  
+  // for a template class, this is a list of the base classes that
+  // were dependent, and as a consequence not added to its normal
+  // base class list; this info is maintained to provide more
+  // informative diagnostic messages
+  SObjList<Type> dependentBases;
 
 private:     // funcs
   // can modify the 'const' fields, for updates

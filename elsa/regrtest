@@ -691,6 +691,7 @@ testparse_strict t0444.cc
 testparse_strict t0445.cc
 testparse_strict t0446.cc
 testparse_strict t0447.cc
+testparse_strict t0448.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

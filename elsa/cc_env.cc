@@ -4308,6 +4308,40 @@ CompoundType *Env::getMatchingTemplateInScope
 }
 
 
+// This function produces a string describing the set of dependent
+// base classes that were not searched during unqualified lookup.
+string Env::unsearchedDependentBases()
+{   
+  stringBuilder sb;
+  int ct=0;
+
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    // filter for scopes that are template definitions
+    if (!iter.data()->curCompound) continue;
+    CompoundType *scopeCt = iter.data()->curCompound;
+    TemplateInfo *scopeTI = scopeCt->templateInfo();
+    if (!scopeTI) continue;
+
+    // list unsearched bases    
+    SFOREACH_OBJLIST(Type, scopeTI->dependentBases, baseIter) {
+      if (ct++ == 0) {
+        sb << " (due to nondependent lookup, did not search bases: ";
+      }
+      else {
+        sb << ", ";
+      }
+      sb << baseIter.data()->toString();
+    }
+  }
+  
+  if (ct) {
+    sb << ")";
+  }
+  
+  return sb;
+}
+
+
 // ---------------- new lookup mechanism --------------------
 bool sameArguments(ASTList<TemplateArgument> const &args1,
                    ObjList<STemplateArgument> const &args2)
