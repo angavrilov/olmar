@@ -932,8 +932,11 @@ void Grammar::checkWellFormed() const
 // syntax for identifying tokens in Bison output
 string bisonTokenName(Terminal const *t)
 {
-  //return t->name;
-  return stringc << "\"" << t->name << "\"";
+  // this worked with older versions of Bison
+  //return stringc << "\"" << t->name << "\"";
+
+  // but the newer ones don't like quoted terminal names..
+  return string(t->name.str);
 }
 
 // print the grammar in a form that Bison likes
@@ -1064,10 +1067,11 @@ void Grammar::printAsBison(ostream &os) const
     }
     else {
       // finish the rules with a semicolon
+      os << "\n";
       INTLOOP(i, 0, nt.data()->name.length()) {
         os << " ";
       }
-      os << ";\n";
+      os << ";";
     }
 
     os << "\n\n";

@@ -45,9 +45,10 @@ ranlib      := ranlib
 
 OPTIMIZATION_FLAGS :=
 ifdef ALLOW_DEBUG
-# enable action trace in glr parser
+  # enable action trace in glr parser
   OPTIMIZATION_FLAGS += -DACTION_TRACE
 else
+  # turn on the optimizer
   OPTIMIZATION_FLAGS += -O2 -DNDEBUG
 endif
 ccflags += $(OPTIMIZATION_FLAGS)
@@ -323,7 +324,7 @@ cc/bccgr.y: cc/c.gr.gen.y
 	echo '%{' >$@
 	echo '#include "bccgr.h"' >>$@
 	echo '%}' >>$@
-	sed 's/File "L2_EOF"/File/' <cc/c.gr.gen.y >>$@
+	sed 's/File L2_EOF/File/' <cc/c.gr.gen.y >>$@
 
 # bison parser from the a given grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
@@ -347,7 +348,7 @@ cc/bccgr.y: cc/c.gr.gen.y
 	mv $*.tab.c $*.tab.c.orig
 	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
 	rm $*.tab.c.orig
-	g++ -c -g -o $*.tab.o $(OPTIMIZATION_FLAGS) -Wall $(YYDEBUG) $*.tab.c
+	g++ -c -g -o $*.tab.o -O2 -DNDEBUG -Wall $(YYDEBUG) $*.tab.c
 
 
 cc/bccgr.tab.o: cc/bccgr.h
