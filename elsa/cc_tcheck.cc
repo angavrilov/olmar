@@ -3244,14 +3244,11 @@ void E_funCall::inner1_itcheck(Env &env)
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
-  // controls whether overload resolution is performed
-  // TODO: enable permanently
-  static bool doOverload = tracingSys("doOverload");
   if (func->isE_variable() &&
       func->asE_variable()->name->getName() == env.special_testOverload) {
     // if I'm trying to test it, I want it performed; do this up here
     // so I turn it on before resolving the arguments
-    doOverload = true;
+    env.doOverload = true;
   }
 
   // check the argument list
@@ -3351,7 +3348,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
     }
 
     // overload resolution
-    if (doOverload && funcEVar->var->overload) {
+    if (env.doOverload && funcEVar->var->overload) {
       TRACE("overload", ::toString(funcEVar->name->loc)
         << ": overloaded(" << funcEVar->var->overload->set.count() 
         << ") call to " << funcName);
@@ -3536,6 +3533,31 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
 
   Type *lhsType = e1->type->asRval();
   Type *rhsType = e2->type->asRval();
+
+  #if 0     // work in progress
+  // check for operator overloading; only limited cases for now
+  if (env.doOverload &&
+      op == BIN_PLUS &&
+      (lhsType->isCompoundType() || rhsType->isCompoundType)) {
+    // collect candidates: cppstd 13.3.1.2 para 3
+
+    // member candidates
+    Variable *member = NULL;
+    if (lhsType->isCompoundType()) {
+      member = lhsType->lookupVariable(env.operatorPlusName, env);
+    }
+
+    // non-member candidates; this lookup ignores member functions
+    Variable *nonmember = env.lookupVariable(env.operatorPlusName, LF_SKIP_CLASSES);
+
+    // built-in candidates
+    // TODO: add support for polymorphic candidates and user-defined
+    // conversion functions
+
+
+
+
+  #endif // 0
 
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {

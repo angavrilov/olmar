@@ -66,6 +66,50 @@ enum OverloadFlags {
 ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);
 
 
+// this class implements a single overload resolution, exposing
+// a richer interface than the simple 'resolveOverload' call below
+class OverloadResolver {
+public:      // data
+  // same meaning as corresponding arguments to 'resolveOverload'
+  Env &env;
+  SourceLoc loc;
+  ErrorList * /*nullable*/ errors;
+  OverloadFlags flags;          
+  // no list of candidates here
+  GrowArray<ArgumentInfo> &args;
+
+  // these are the "viable functions" of the standard
+  ObjArrayStack<Candidate> candidates;
+
+private:     // funcs
+  Candidate * /*owner*/ makeCandidate(Variable *var);
+  Candidate *pickWinner(int low, int high);
+  int compareCandidates(Candidate const *left, Candidate const *right);
+
+public:      // funcs
+  OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
+                   OverloadFlags f, GrowArray<ArgumentInfo> &a,
+                   int numCand /*estimate of # of candidates*/)
+    : env(en),
+      loc(L),
+      errors(er),
+      flags(f),
+      args(a),
+      candidates(numCand)
+  {}
+  ~OverloadResolver();
+
+  // process a batch of candidate functions, adding the viable
+  // ones to the 'candidates' list
+  void processCandidates(SObjList<Variable> &varList);
+  void processCandidate(Variable *v);
+
+  // run the tournament to decide among the candidates; returns
+  // NULL if there is no clear winner
+  Variable *resolve();
+};
+
+
 // resolve the overloading, return the selected candidate; if nothing
 // matches or there's an ambiguity, adds an error to 'env' and returns
 // NULL

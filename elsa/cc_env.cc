@@ -23,10 +23,17 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // filled in below; initialized for definiteness
     type_info_const_ref(NULL),
 
-    conversionOperatorName(NULL),
-    constructorSpecialName(NULL),
-    functionOperatorName(NULL),
-    thisName(NULL),
+    // some special names; pre-computed (instead of just asking the
+    // string table for it each time) because in certain situations
+    // I compare against them frequently; the main criteria for
+    // choosing the fake names is they have to be untypable by the C++
+    // programmer (i.e. if the programmer types one it won't be
+    // lexed as a single name)
+    conversionOperatorName(str("conversion-operator")),
+    constructorSpecialName(str("constructor-special")),
+    functionOperatorName(str("operator()")),
+    thisName(str("this")),
+    operatorPlusName(str("operator+")),
 
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
@@ -36,8 +43,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     dependentVar(NULL),
     errorTypeVar(NULL),
     errorVar(NULL),
+
     var__builtin_constant_p(NULL),
-    tunit(tunit0)
+    tunit(tunit0),
+
+    doOverload(tracingSys("doOverload"))
 {
   // slightly less verbose
   #define HERE HERE_SOURCELOC
@@ -57,17 +67,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // TODO: fill in the proper fields and methods
   type_info_const_ref = tfac.makeRefType(HERE,
     makeCVAtomicType(HERE, ct, CV_CONST));
-
-  // some special names; pre-computed (instead of just asking the
-  // string table for it each time) because in certain situations
-  // I compare against them frequently; the main criteria for
-  // choosing these names is they have to be untypable by the C++
-  // programmer (i.e. if the programmer types one it won't be
-  // lexed as a single name)
-  conversionOperatorName = str("conversion-operator");
-  constructorSpecialName = str("constructor-special");
-  functionOperatorName = str("operator()");
-  thisName = str("this");
 
   dependentTypeVar = makeMadeUpVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
@@ -793,9 +792,14 @@ Variable *Env::lookupVariable(StringRef name, LookupFlags flags,
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    Variable *v = iter.data()->lookupVariable(name, *this, flags);
+    Scope *s = iter.data();
+    if ((flags & LF_SKIP_CLASSES) && s->isClassScope()) {
+      continue;
+    }
+
+    Variable *v = s->lookupVariable(name, *this, flags);
     if (v) {
-      foundScope = iter.data();
+      foundScope = s;
       return v;
     }
   }

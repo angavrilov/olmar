@@ -75,6 +75,7 @@ public:      // data
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
   StringRef thisName;
+  StringRef operatorPlusName;
 
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
@@ -90,6 +91,12 @@ public:      // data
   Variable *var__builtin_constant_p;
 
   TranslationUnit *tunit;
+  
+  // when true, the type checker does overload resolution; this isn't
+  // enabled by default because it's not fully implemented, and
+  // consequently, turning it on leads to spurious errors on some test
+  // cases (TODO: eventually, enable this permanently)
+  bool doOverload;
 
 private:     // funcs
   // old

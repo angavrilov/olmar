@@ -37,13 +37,6 @@ string Candidate::conversionDescriptions(char const *indent) const
 
 // ------------------ resolveOverload --------------------
 // prototypes
-Candidate * /*owner*/ makeCandidate
-  (Env &env, OverloadFlags flags, Variable *var, GrowArray<ArgumentInfo> &args);
-Candidate *pickWinner(ObjArrayStack<Candidate> &candidates,
-                      GrowArray<ArgumentInfo> &args,
-                      int low, int high);
-int compareCandidates(Candidate const *left, Candidate const *right,
-                      GrowArray<ArgumentInfo> &args);
 int compareConversions(ArgumentInfo const &src,
   ImplicitConversion const &left, Type const *leftDest,
   ImplicitConversion const &right, Type const *rightDest);
@@ -60,7 +53,8 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
 
 
-
+// this function can be used anyplace that there's only one list
+// of original candidate functions
 Variable *resolveOverload(
   Env &env,
   SourceLoc loc,
@@ -69,22 +63,40 @@ Variable *resolveOverload(
   SObjList<Variable> &varList,
   GrowArray<ArgumentInfo> &args)
 {
+  OverloadResolver or(env, loc, errors, flags, args, varList.count());
+  or.processCandidates(varList);
+  return or.resolve();
+}
+
+
+OverloadResolver::~OverloadResolver()
+{}
+
+
+void OverloadResolver::processCandidates(SObjList<Variable> &varList)
+{
+  SFOREACH_OBJLIST_NC(Variable, varList, iter) {
+    processCandidate(iter.data());
+  }
+}
+
+void OverloadResolver::processCandidate(Variable *v)
+{
   // for debug printing
   IFDEBUG( char const *indent = (flags & OF_NO_USER)? "    " : "  "; )
 
-  // generate a sequence of candidates ("viable functions"), in an
-  // array
-  ObjArrayStack<Candidate> candidates(varList.count());
-  SFOREACH_OBJLIST_NC(Variable, varList, iter) {
-    Candidate *c = makeCandidate(env, flags, iter.data(), args);
-    if (c) {
-      TRACE("overload", indent << "candidate: " << c->var->toString() <<
-                        " at " << toString(c->var->loc) <<
-                        c->conversionDescriptions(indent));
-      candidates.push(c);
-    }
+  Candidate *c = makeCandidate(v);
+  if (c) {
+    TRACE("overload", indent << "candidate: " << c->var->toString() <<
+                      " at " << toString(c->var->loc) <<
+                      c->conversionDescriptions(indent));
+    candidates.push(c);
   }
+}
 
+
+Variable *OverloadResolver::resolve()
+{
   if (candidates.isEmpty()) {
     if (errors) {
       // TODO: expand this message greatly: explain which functions
@@ -98,7 +110,7 @@ Variable *resolveOverload(
   // use a tournament to select a candidate that is not worse
   // than any of those it faced
   Candidate const *winner =
-    pickWinner(candidates, args, 0, candidates.length()-1);
+    pickWinner(0, candidates.length()-1);
 
   // now verify that the picked winner is in fact better than any
   // of the other candidates (since the order is not necessarily linear)
@@ -107,7 +119,7 @@ Variable *resolveOverload(
       continue;    // skip it, no need to compare to itself
     }
 
-    if (compareCandidates(winner, candidates[i], args) == -1) {
+    if (compareCandidates(winner, candidates[i]) == -1) {
       // ok, it's better
     }
     else {
@@ -130,8 +142,7 @@ Variable *resolveOverload(
 // for each parameter, determine an ICS, and return the resulting
 // Candidate; return NULL if the function isn't viable; this
 // implements cppstd 13.3.2
-Candidate * /*owner*/ makeCandidate
-  (Env &env, OverloadFlags flags, Variable *var, GrowArray<ArgumentInfo> &args)
+Candidate * /*owner*/ OverloadResolver::makeCandidate(Variable *var)
 {
   Owner<Candidate> c(new Candidate(var, args.size()));
 
@@ -211,9 +222,7 @@ Candidate * /*owner*/ makeCandidate
 
 // this is a simple tournament, as suggested in footnote 123,
 // cppstd 13.3.3 para 2
-Candidate *pickWinner(ObjArrayStack<Candidate> &candidates,
-                      GrowArray<ArgumentInfo> &args,
-                      int low, int high)
+Candidate *OverloadResolver::pickWinner(int low, int high)
 {
   if (low == high) {
     // only one candidate
@@ -225,11 +234,11 @@ Candidate *pickWinner(ObjArrayStack<Candidate> &candidates,
     // 1,3 -> 2
     // 1,2 -> 2
     // 2,3 -> 3
-  Candidate *left = pickWinner(candidates, args, low, mid-1);
-  Candidate *right = pickWinner(candidates, args, mid, high);
+  Candidate *left = pickWinner(low, mid-1);
+  Candidate *right = pickWinner(mid, high);
 
   // compare the candidates to get one that is not worse than the other
-  int choice = compareCandidates(left, right, args);
+  int choice = compareCandidates(left, right);
   if (choice <= 0) {
     return left;    // left is better, or neither is better or worse
   }
@@ -244,8 +253,7 @@ Candidate *pickWinner(ObjArrayStack<Candidate> &candidates,
 //    0 if they are indistinguishable
 //   +1 if right is better
 // this is cppstd 13.3.3 para 1, second group of bullets
-int compareCandidates(Candidate const *left, Candidate const *right,
-                      GrowArray<ArgumentInfo> &args)
+int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *right)
 {
   // decision so far
   int ret = 0;
