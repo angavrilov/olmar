@@ -3030,6 +3030,21 @@ string parseArg(Grammar &g)
   }
 }
 
+                 
+// yield the given type, but if it's NULL, then yield
+// something to use instead
+char const *typeString(char const *type, LocString const &tag)
+{
+  if (!type) {
+    cout << "Production tag \"" << tag << "\" at "
+         << tag.locString() << " on a symbol with no type.\n";
+    return "__error_no_type__";     // will make compiler complain
+  }
+  else {
+    return type;
+  }
+}
+
 
 void emitActions(Grammar &g, EmitCode &out)
 {
@@ -3057,14 +3072,7 @@ void emitActions(Grammar &g, EmitCode &out)
         out << ", ";
       }
 
-      if (!elt.sym->type) {
-        cout << "Production with action code at " << prod.action.locString()
-             << " has tag `" << elt.tag << "' on a symbol with no type.\n";
-        out << "__error_no_type__";     // will make compiler complain
-      }
-      else {
-        out << elt.sym->type;
-      }
+      out << typeString(elt.sym->type, elt.tag);
 
       // the tag becomes the formal parameter's name
       out << " " << elt.tag;
@@ -3111,7 +3119,8 @@ void emitActions(Grammar &g, EmitCode &out)
       }
 
       // cast SemanticValue to proper type
-      out << "(" << elt.sym->type << ")(semanticValues[" << index << "])";
+      out << "(" << typeString(elt.sym->type, elt.tag) 
+          << ")(semanticValues[" << index << "])";
     }
 
     out << ");\n";
