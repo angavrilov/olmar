@@ -117,6 +117,7 @@ grampar-set := \
   $(AST)/gramlex.o \
   $(AST)/strtable.o \
   emitcode.o \
+  emittables.o \
   gramast.ast.gen.o \
   gramlex.yy.o \
   grampar.o \
@@ -648,3 +649,6 @@ cc.gr.ps:
 # test for rcptr
 trcptr: rcptr.h trcptr.cc
 	$(link) -o trcptr trcptr.cc
+
+dependencies.ps: dependencies.dot
+	dot -Tps $^ >$@

@@ -10,6 +10,8 @@
 #include "strsobjdict.h"  // StringSObjDict
 #include "locstr.h"       // LocString
 
+// linkdepend: grampar.tab.cc
+
 // fwd decl
 class GrammarAST;
 class GrammarLexer;

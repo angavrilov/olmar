@@ -2325,24 +2325,3 @@ string readFileIntoString(char const *fname)
   // return the new string
   return ret;
 }
-
-
-// ----------------------- test code ------------------------
-// I actually don't think I use this at all, but I'll leave it
-// here for now.
-
-#ifdef GLR_MAIN
-
-#include "parssppt.h"    // treeMain
-
-int main(int argc, char **argv)
-{
-  traceAddSys("progress");
-  //traceAddSys("parse-tree");
-
-  ParseTreeAndTokens tree;
-  treeMain(tree, argc, argv);
-
-  return 0;
-}
-#endif // GLR_MAIN

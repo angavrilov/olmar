@@ -19,6 +19,9 @@
 #include <stdlib.h>      // getenv
 #include <stdio.h>       // printf
 
+// for ParseTables::emitConstructionCode:
+//   linkdepend: emittables.cc
+
 
 // for now, we'll just have these be global variables; if I later
 // decide I actually want more than one at a time, I can move these

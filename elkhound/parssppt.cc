@@ -5,7 +5,6 @@
 #include "glr.h"          // toplevelParse
 #include "trace.h"        // traceProcessArg
 #include "syserr.h"       // xsyserror
-#include "grampar.h"      // readGrammarFile
 
 
 // ---------------------- ParseTree --------------------
