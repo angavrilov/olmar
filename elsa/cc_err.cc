@@ -1,88 +1,17 @@
 // cc_err.cc            see license.txt for copyright and terms of use
 // code for cc_err.h
 
-// I put the implementation of ErrorMsg's functions into cc_err.cc
-// for some reason...
-#error This is obsolete
-
 #include "cc_err.h"      // this module
-#include "cc_tree.h"     // CCTreeNode
 
 
-// ------------------- SemanticError --------------------
-SemanticError::SemanticError(CCTreeNode const *n, SemanticErrorCode c)
-  : node(n),
-    code(c),
-    msg(),
-    varName()
+// ----------------- ErrorMsg -----------------
+ErrorMsg::~ErrorMsg()
 {}
 
 
-SemanticError::SemanticError(SemanticError const &obj)
-  : DMEMB(node),
-    DMEMB(code),
-    DMEMB(msg),
-    DMEMB(varName)
-{}
-
-
-SemanticError::~SemanticError()
-{}
-
-
-SemanticError& SemanticError::operator= (SemanticError const &obj)
+string ErrorMsg::toString() const
 {
-  if (this != &obj) {
-    CMEMB(node);
-    CMEMB(code);
-    CMEMB(msg);
-    CMEMB(varName);
-  }
-  return *this;
+  return stringc << ::toString(loc)
+                 << (isWarning()? ": warning: " : ": error: ")
+                 << msg;
 }
-
-
-string SemanticError::whyStr() const
-{
-  stringBuilder sb;
-  sb << node->locString() << ": ";
-  
-  switch (code) {
-    default:
-      xfailure("bad code");
-
-    case SE_DUPLICATE_VAR_DECL:
-      sb << "duplicate variable declaration for `" << varName << "'";
-      break;
-
-    case SE_UNDECLARED_VAR:
-      sb << "undeclared variable `" << varName << "'";
-      break;
-
-    case SE_GENERAL:
-      sb << msg;
-      break;
-      
-    case SE_INTERNAL_ERROR:
-      sb << "internal error: " << msg;
-      break;
-  }
-  
-  return sb;
-}
-
-
-// -------------------- XSemanticError ----------------------
-XSemanticError::XSemanticError(SemanticError const &e)
-  : xBase(e.whyStr()),
-    err(e)
-{}
-
-
-XSemanticError::XSemanticError(XSemanticError const &obj)
-  : xBase(obj),
-    DMEMB(err)
-{}
-
-XSemanticError::~XSemanticError()
-{}

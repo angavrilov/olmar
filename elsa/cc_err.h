@@ -4,8 +4,29 @@
 #ifndef CC_ERR_H
 #define CC_ERR_H
 
+#include "macros.h"    // ENUM_BITWISE_OR
 #include "str.h"       // string
 #include "srcloc.h"    // SourceLoc
+
+
+// flags on errors
+enum ErrorFlags {
+  EF_NONE          = 0x00,
+
+  // informative, but not an error; typically, such messages should
+  // have a switch to disable them
+  EF_WARNING       = 0x01,
+
+  // when this is true, the error message should be considered
+  // when disambiguation; when it's false, it's not a sufficiently
+  // severe error to warrant discarding an ambiguous alternative;
+  // for the most part, only environment lookup failures are
+  // considered to disambiguate
+  EF_DISAMBIGUATES = 0x02,
+
+  EF_ALL           = 0x03
+};
+ENUM_BITWISE_OR(ErrorFlags)
 
 
 // an error message from the typechecker; I plan to expand
@@ -14,21 +35,17 @@
 // produces
 class ErrorMsg {
 public:
-  string msg;
-  bool isWarning;
-  SourceLoc loc;
-
-  // when this is true, the error message should be considered
-  // when disambiguation; when it's false, it's not a sufficiently
-  // severe error to warrant discarding an ambiguous alternative;
-  // for the most part, only environment lookup failures are
-  // considered to disambiguate
-  bool disambiguates;
+  SourceLoc loc;          // where the error happened
+  string msg;             // english explanation
+  ErrorFlags flags;       // various
 
 public:
-  ErrorMsg(char const *m, bool w, SourceLoc L, bool d)
-    : msg(m), isWarning(w), loc(L), disambiguates(d) {}
+  ErrorMsg(SourceLoc L, char const *m, ErrorFlags f)
+    : loc(L), msg(m), flags(f) {}
   ~ErrorMsg();
+
+  bool isWarning() const { return !!(flags & EF_WARNING); }
+  bool disambiguates() const { return !!(flags & EF_DISAMBIGUATES); }
 
   string toString() const;
 };

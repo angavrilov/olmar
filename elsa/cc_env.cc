@@ -8,19 +8,6 @@
 #include "cc_lang.h"     // CCLang
 
 
-// ----------------- ErrorMsg -----------------
-ErrorMsg::~ErrorMsg()
-{}
-
-
-string ErrorMsg::toString() const
-{
-  return stringc << ::toString(loc)
-                 << (isWarning? ": warning: " : ": error: ")
-                 << msg;
-}
-
-
 // --------------------- Env -----------------
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
@@ -1216,8 +1203,8 @@ Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
 {
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
-    errors.prepend(new ErrorMsg(
-      stringc << msg, false /*isWarning*/, L, disambiguates));
+    errors.prepend(new ErrorMsg(L, msg, 
+      disambiguates ? EF_DISAMBIGUATES : EF_NONE));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -1232,8 +1219,7 @@ Type *Env::warning(char const *msg)
 {
   trace("error") << "warning: " << msg << endl;
   if (!disambiguateOnly) {
-    errors.prepend(new ErrorMsg(
-      stringc << msg, true /*isWarning*/, loc(), false /*disambiguates*/));
+    errors.prepend(new ErrorMsg(loc(), msg, EF_WARNING));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -1246,7 +1232,7 @@ Type *Env::unimp(char const *msg)
   cout << "unimplemented: " << msg << endl;
 
   errors.prepend(new ErrorMsg(
-    stringc << "unimplemented: " << msg, false /*isWarning*/, loc(), false /*disambiguates*/));
+    loc(), stringc << "unimplemented: " << msg, EF_NONE));
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
@@ -1282,7 +1268,7 @@ bool Env::setDisambiguateOnly(bool newVal)
 STATICDEF bool Env::listHasDisambErrors(ObjList<ErrorMsg> const &list)
 {
   FOREACH_OBJLIST(ErrorMsg, list, iter) {
-    if (iter.data()->disambiguates) {
+    if (iter.data()->disambiguates()) {
       return true;     // has at least one disambiguating error
     }
   }

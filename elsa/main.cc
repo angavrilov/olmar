@@ -190,7 +190,7 @@ void doit(int argc, char **argv)
 
     int numErrors=0, numWarnings=0;
     FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
-      if (iter.data()->isWarning) {
+      if (iter.data()->isWarning()) {
         numWarnings++;
       }
       else {

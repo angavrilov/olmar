@@ -159,8 +159,7 @@ NODE *resolveAmbiguity(
         // error, so this entire interpretation line has to be rejected
         // one way or another
         altErrors[altIndex].prepend(new ErrorMsg(
-          "a rejected alternative modified this environment", false /*isWarning*/,
-          loc, false /*disambiguates*/));
+          loc, "a rejected alternative modified this environment", EF_NONE));
       }
 
       // make sure we don't consider this subtree to be finished
@@ -181,8 +180,7 @@ NODE *resolveAmbiguity(
       env.errors.concat(altErrors[i]);
     }
     env.errors.append(new ErrorMsg(
-      "following messages from an ambiguity", false /*isWarning*/,
-      loc, false /*disambiguates*/));
+      loc, "following messages from an ambiguity", EF_NONE));
     env.errors.concat(existingErrors);
     env.error("previous messages from an ambiguity with bad alternatives");
     return ths;

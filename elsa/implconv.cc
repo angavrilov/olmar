@@ -222,7 +222,7 @@ void test_getImplicitConversion(
   // turn any resulting messags into warnings, so I can see their
   // results without causing the final exit status to be nonzero
   FOREACH_OBJLIST_NC(ErrorMsg, env.errors, iter) {
-    iter.data()->isWarning = true;
+    iter.data()->flags |= EF_WARNING;
   }
 
   // put the old messages back

@@ -68,7 +68,7 @@ ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);
 
 // resolve the overloading, return the selected candidate; if nothing
 // matches or there's an ambiguity, adds an error to 'env' and returns
-// one of the candidates arbitrarily (for error recovery)
+// NULL
 Variable *resolveOverload(
   Env &env,                        // for emitting error messages, etc.
   OverloadFlags flags,             // various options
