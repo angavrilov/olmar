@@ -149,11 +149,6 @@ SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
 
 // ------------------------ UnaryOp -----------------------------
 char const * const unaryOpNames[NUM_UNARYOPS] = {
-  "++/*postfix*/",
-  "--/*postfix*/",
-  "++/*prefix*/",
-  "--/*prefix*/",
-  "sizeof",
   "+",
   "-",
   "!",
@@ -162,9 +157,19 @@ char const * const unaryOpNames[NUM_UNARYOPS] = {
 
 MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
 
-bool hasSideEffect(UnaryOp op)
+
+char const * const effectOpNames[NUM_EFFECTOPS] = {
+  "++/*postfix*/",
+  "--/*postfix*/",
+  "++/*prefix*/",
+  "--/*prefix*/",
+};
+
+MAKE_TOSTRING(EffectOp, NUM_EFFECTOPS, effectOpNames)
+
+bool isPostfix(EffectOp op)
 {
-  return op <= UNY_PREDEC;
+  return op <= EFF_POSTDEC;
 }
 
 

@@ -500,11 +500,16 @@ int countPaths(Env &env, Expression *ths)
     ASTNEXT(E_fieldAcc, ths) {
       numPaths = ths->obj->numPaths;
     }
+    ASTNEXT(E_sizeof, ths) {
+      PRETEND_USED(ths);     // silence warning
+      numPaths = 0;
+    }
     ASTNEXT(E_unary, ths) {
       numPaths = ths->expr->numPaths;
-      if (hasSideEffect(ths->op)) {
-        SIDE_EFFECT();
-      }
+    }
+    ASTNEXT(E_effect, ths) {
+      numPaths = ths->expr->numPaths;
+      SIDE_EFFECT();
     }
     ASTNEXT(E_binary, ths) {
       // there are at least as many paths as paths through left-hand side
@@ -619,10 +624,14 @@ void printPath(int index, Expression const *ths)
     ASTNEXTC(E_fieldAcc, ths) {
       printPath(index, ths->obj);
     }
+    ASTNEXTC(E_sizeof, ths) {
+      PRETEND_USED(ths);     // silence warning
+    }
     ASTNEXTC(E_unary, ths) {
-      if (hasSideEffect(ths->op)) {
-        cout << "    side effect: " << ths->toString() << endl;
-      }
+      printPath(index, ths->expr);
+    }
+    ASTNEXTC(E_effect, ths) {
+      cout << "    side effect: " << ths->toString() << endl;
       printPath(index, ths->expr);
     }
     ASTNEXTC(E_binary, ths) {

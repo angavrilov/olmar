@@ -1016,23 +1016,35 @@ Type const *E_fieldAcc::itcheck(Env &env)
 }
 
 
+Type const *E_sizeof::itcheck(Env &env)
+{
+  expr->tcheck(env);
+  return fixed(ST_INT);
+}
+
+
 Type const *E_unary::itcheck(Env &env)
 {
   Type const *t = expr->tcheck(env);
-  if (op == UNY_SIZEOF) {
-    return fixed(ST_INT);
-  }
 
   // just about any built-in will do...
   checkBoolean(env, t, expr);
 
-  // TODO: verify argument to ++/-- is an lvalue..
+  // assume these unary operators to not widen their argument
+  return t;
+}
 
-  if (hasSideEffect(op) && env.inPredicate) {
+Type const *E_effect::itcheck(Env &env)
+{
+  Type const *t = expr->tcheck(env);
+  checkBoolean(env, t, expr);
+
+  // TODO: verify argument is an lvalue..
+
+  if (env.inPredicate) {
     env.err("cannot have side effects in predicates");
   }
 
-  // assume these unary operators to not widen their argument
   return t;
 }
 
@@ -1195,20 +1207,27 @@ int E_charLit::constEval(Env &env) const
   return c;
 }
 
+
+int E_sizeof::constEval(Env &env) const
+{
+  return expr->type->reprSize();
+}
+
 int E_unary::constEval(Env &env) const
 {
-  if (op == UNY_SIZEOF) {
-    return expr->type->reprSize();
-  }
-
   int v = expr->constEval(env);
   switch (op) {
+    default:         xfailure("bad op");
     case UNY_PLUS:   return v;
     case UNY_MINUS:  return -v;
     case UNY_NOT:    return !v;
     case UNY_BITNOT: return ~v;
-    default:         return xnonconst();
   }
+}
+
+int E_effect::constEval(Env &env) const
+{
+  return xnonconst();
 }
 
 
@@ -1304,8 +1323,21 @@ string E_funCall::toString() const
 
 string E_fieldAcc::toString() const
   { return stringc << obj->toString() << "." << field; }
+string E_sizeof::toString() const
+  { return stringc << "sizeof(" << expr->toString() << ")"; }
 string E_unary::toString() const
   { return stringc << ::toString(op) << expr->toString(); }
+
+string E_effect::toString() const
+{ 
+  if (isPostfix(op)) {
+    return stringc << expr->toString() << ::toString(op);
+  }
+  else {
+    return stringc << ::toString(op) << expr->toString(); 
+  }
+}
+
 string E_binary::toString() const
   { return stringc << e1->toString() << ::toString(op) << e2->toString(); }
 string E_addrOf::toString() const
@@ -1344,7 +1376,9 @@ string E_assign::toString() const
   E_arrayAcc
   E_funCall
   E_fieldAcc
-  E_unary
+  E_sizeof
+  E_unary 
+  E_effect
   E_binary
   E_addrOf
   E_deref

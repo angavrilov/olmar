@@ -64,7 +64,6 @@ impl_verbatim {
   void AVunary::toSexp(stringBuilder &sb) const
   {
     static char const * const names[] = {
-      "++", "--", "++", "--", "sizeof",    // should not be used
       "uPlus",
       "uMinus",
       "uNot",

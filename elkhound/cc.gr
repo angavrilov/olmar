@@ -245,9 +245,9 @@ nonterm[Expression*] PostfixExpression {
        [ return new E_fieldAcc(new E_deref(p), n); ]
 
   -> p:PostfixExpression "++" 
-       [ return new E_unary(UNY_POSTINC, p); ]
+       [ return new E_effect(EFF_POSTINC, p); ]
   -> p:PostfixExpression "--"
-       [ return new E_unary(UNY_POSTDEC, p); ]
+       [ return new E_effect(EFF_POSTDEC, p); ]
 
   // pulled these two because other rules supercede them
   //-> PostfixExpression "." PseudoDestructorName           ; // explicit dtor call
@@ -283,11 +283,11 @@ nonterm[ASTList<Expression>*] ExpressionListOpt {
 nonterm[Expression*] UnaryExpression {
   -> e:PostfixExpression         [ return e; ]
 
-  -> "++" e:CastExpression       [ return new E_unary(UNY_PREINC, e); ]
-  -> "--" e:CastExpression       [ return new E_unary(UNY_PREDEC, e); ]
+  -> "++" e:CastExpression       [ return new E_effect(EFF_PREINC, e); ]
+  -> "--" e:CastExpression       [ return new E_effect(EFF_PREDEC, e); ]
 
   // size of expression
-  -> "sizeof" e:UnaryExpression  [ return new E_unary(UNY_SIZEOF, e); ]
+  -> "sizeof" e:UnaryExpression  [ return new E_sizeof(e); ]
 
   //-> e:DeleteExpression ;
 

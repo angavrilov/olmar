@@ -774,20 +774,24 @@ AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
 }
 
 
-AbsValue *E_unary::vcgen(AEnv &env, int path) const
-{ 
-  // this comes first because for sizeof we don't want to
-  // get any side effects that may be in the expr
-  if (op == UNY_SIZEOF) {
-    return env.grab(new AVint(expr->type->reprSize()));
-  }
-  else {
-    if (hasSideEffect(op)) {
-      cout << "TODO: unhandled side effect: " << toString() << endl;
-    }
-    return env.grab(new AVunary(op, expr->vcgen(env, path)));
-  }
+AbsValue *E_sizeof::vcgen(AEnv &env, int path) const
+{
+  // whether 'expr' has side effects or not is irrelevant; they
+  // won't be executed at run time; we only are about the type
+  return env.grab(new AVint(expr->type->reprSize()));         
 }
+
+AbsValue *E_unary::vcgen(AEnv &env, int path) const
+{
+  return env.grab(new AVunary(op, expr->vcgen(env, path)));
+}
+
+AbsValue *E_effect::vcgen(AEnv &env, int path) const
+{
+  cout << "TODO: unhandled side effect: " << toString() << endl;
+  return expr->vcgen(env, path);
+}
+
 
 AbsValue *E_binary::vcgen(AEnv &env, int path) const
 {
