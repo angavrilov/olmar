@@ -284,6 +284,13 @@ void HGen::emitTFClass(TF_class const &cls)
     out << "  char const *kindName() const { return kindNames[kind()]; }\n";
     out << "\n";
   }
+  else {
+    // even if the phylum doesn't have children, it's nice to be able
+    // to ask an AST node for its name (e.g. in templatized code that
+    // deals with arbitrary AST node types), so define the
+    // 'kindName()' method anyway
+    out << "  char const *kindName() const { return \"" << cls.super->name << "\"; }\n";
+  }
 
   // declare checked downcast functions
   {
@@ -555,6 +562,10 @@ void CGen::emitTFClass(TF_class const &cls)
   out << "void " << cls.super->name << "::debugPrint(ostream &os, int indent) const\n";
   out << "{\n";
   if (!cls.hasChildren()) {
+    // childless superclasses get the preempt in the superclass;
+    // otherwise it goes into the child classes
+    emitCustomCode(cls.super->decls, "preemptDebugPrint");
+
     // childless superclasses print headers; otherwise the subclass
     // prints the header
     out << "  PRINT_HEADER(" << cls.super->name << ");\n";
