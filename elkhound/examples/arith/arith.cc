@@ -1,8 +1,10 @@
 // arith.cc
 // driver program for arithmetic evaluator
-         
+
 #include "arith.h"     // this module
 #include "glr.h"       // GLR parser
+#include "ptreenode.h" // PTreeNode
+#include "ptreeact.h"  // ParseTreeLexer, ParseTreeActions
 
 #include <assert.h>    // assert
 
@@ -57,24 +59,44 @@ string ArithLexer::tokenKindDesc(int kind) const
 // --------------------- main ----------------------
 ArithLexer lexer;
 
-int main()
+int main(int argc)
 {
   // initialize lexer by grabbing first token
   lexer.nextToken(&lexer);
-  
+
   // create parser; actions and tables not dealloc'd but who cares
   Arith *arith = new Arith;
-  GLR glr(arith, arith->makeTables());
-  
-  // start parsing         
-  SemanticValue result;
-  if (!glr.glrParse(lexer, result)) {
-    printf("parse error\n");
-    return 2;
+  ParseTables *tables = arith->makeTables();
+
+  if (argc == 1) {
+    // start parsing
+    GLR glr(arith, tables);
+    SemanticValue result;
+    if (!glr.glrParse(lexer, result)) {
+      printf("parse error\n");
+      return 2;
+    }
+
+    // print result
+    printf("result: %d\n", (int)result);
   }
-  
-  // print result
-  printf("result: %d\n", (int)result);
-  
+
+  else {
+    // make it print a parse tree instead of evaluating the expression
+    ParseTreeLexer ptlexer(&lexer, arith);
+    ParseTreeActions ptact(arith, tables);
+
+    GLR glr(&ptact, tables);
+    SemanticValue result;
+    if (!glr.glrParse(ptlexer, result)) {
+      printf("parse error\n");
+      return 2;
+    }
+
+    // print the tree
+    PTreeNode *ptn = (PTreeNode*)result;
+    ptn->printTree(cout, PTreeNode::PF_EXPAND);
+  }
+
   return 0;
 }
