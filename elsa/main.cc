@@ -188,8 +188,8 @@ void doit(int argc, char **argv)
     }
 
     #if 0
-    // C++Qual-aware type checker
-    traceProgress() << "C++Qual-aware type checker...\n";
+    // Cqual++-aware type checker
+    traceProgress() << "Cqual++-aware type checker...\n";
 
     // little bit of a hack: I need to make a Variable_Q to
     // correspond to env.dependentTypeVar

@@ -449,7 +449,7 @@ public:
 
   bool isTemplate() const { return templateParams!=NULL; }
 
-  // more specialized printing, for C++Qual syntax
+  // more specialized printing, for Cqual++ syntax
   virtual string rightStringUpToQualifiers(bool innerParen) const;
   virtual string rightStringAfterQualifiers() const;
 

@@ -2912,7 +2912,7 @@ Type *E_fieldAcc::itcheck(Env &env)
     // of a template parameter?
     if (rt->isTypeVariable()) {
       // call it a reference to the 'dependent' variable instead of
-      // leaving it NULL; this helps the C++Qual type checker a little
+      // leaving it NULL; this helps the Cqual++ type checker a little
       field = env.dependentTypeVar;
       return field->type;
     }

@@ -784,7 +784,7 @@ string FunctionType::leftString(bool innerParen) const
 
 string FunctionType::rightString(bool innerParen) const
 {
-  // I split this into two pieces because the C++Qual concrete
+  // I split this into two pieces because the Cqual++ concrete
   // syntax puts $tainted into the middle of my rightString,
   // since it's following the placement of 'const' and 'volatile'
   return stringc
