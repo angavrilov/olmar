@@ -59,6 +59,12 @@ option useGCDefaults;
 // then abort
 option defaultMergeAborts;
 
+// expected statistics
+expect shift_reduce_conflicts 73;
+expect reduce_reduce_conflicts 57;
+expect unreachable_nonterminals 0;
+expect unreachable_terminals 28;
+
 verbatim CCGr [
 
 #include "strtable.h"     // StringRef (r)
@@ -196,9 +202,12 @@ nonterm[StringRef] Identifier {
 // another name that comes up in a few places; it's supposed
 // to refer to a type, but the typechecker will have to enforce
 // that later
-nonterm[StringRef] TypeName {
-  -> id:Identifier      [ return id; ]
-}
+//
+// update: I've substituted it into the grammar elsewhere, since
+// it's just causing s/r conflicts with no gain
+//  nonterm[StringRef] TypeName {
+//    -> id:Identifier      [ return id; ]
+//  }
 
 
 // ---------------- higher-level syntax -----------------
@@ -298,10 +307,10 @@ nonterm[PQName*] PQualifiedId {
   -> id:UnqualifiedId
        [ return id; ]
 
-  -> n:TypeName "::" id:PQualifiedId
+  -> n:Identifier "::" id:PQualifiedId
        [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
 
-  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
+  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
        [ return new PQ_qualifier(n, targs, id); ]
 
   // TODO: cppstd has a couple places where "template" occurs, I'm
@@ -1123,14 +1132,14 @@ nonterm[PQName*] PQTypeName {
 
 // no-colon-colon
 nonterm[PQName*] PQTypeName_ncc {
-  -> n:TypeName                    
+  -> n:Identifier                    
        [ return new PQ_name(n); ]
   -> id:TemplateId
        [ return id; ]
 
-  -> q:TypeName "::" n:PQTypeName_ncc
+  -> q:Identifier "::" n:PQTypeName_ncc
        [ return new PQ_qualifier(q, NULL /*targs*/, n); ]
-  -> q:TypeName "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
+  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
        [ return new PQ_qualifier(q, targs, n); ]
 }
 
@@ -1202,8 +1211,9 @@ nonterm[Enumerator*] EnumeratorDefinition {
        [ return new Enumerator(loc, name, expr); ]
 }
 
-
-nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
+  
+// not used for now
+//nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
 nonterm[TF_linkage*] LinkageSpecification {
   -> "extern" n:L2_STRING_LITERAL "{" tu:TranslationUnit "}"
@@ -1358,16 +1368,16 @@ nonterm[IDeclarator*] DirectDeclarator {
 // (I notice the standard calls this PseudoDestructorName; I'll stick with
 // my terminology.)
 nonterm[PQName*] PQDtorName {
-  -> "~" n:TypeName              
+  -> "~" n:Identifier              
        [ return new PQ_name(str(stringc << "~" << n)); ]
 
   // as above for PQName_no_colon_colon, I'm temporarily removing an
   // ambiguity that relates to namespaces (e.g. "::F::~F()")
   //-> q:Qualifier rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
-  -> q:TypeName "::" rhs:PQDtorName
+  -> q:Identifier "::" rhs:PQDtorName
        [ return new PQ_qualifier(q, NULL /*targs*/, rhs); ]
 
-  -> q:TypeName "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
+  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
        [ return new PQ_qualifier(q, targs, rhs); ]
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
@@ -1383,13 +1393,13 @@ nonterm[Expression*] ConstantExpressionOpt {
 // also, it reminds me that every place I've substituted PtrOperator
 // into the syntaxes elsewhere has an implicit TODO for the
 // pointer-to-member syntax
-nonterm PtrOperator {
-  -> "*" q:CVQualifierSeqOpt ;
-  -> "&"                     ;
+//  nonterm PtrOperator {
+//    -> "*" q:CVQualifierSeqOpt ;
+//    -> "&"                     ;
 
-  // TODO: pointer to member
-  //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
-}
+//    // TODO: pointer to member
+//    //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
+//  }
 
 
 nonterm[enum CVFlags] CVQualifierSeqOpt {
@@ -1679,9 +1689,9 @@ nonterm[PQName*] ClassHeadName {
   -> n:Identifier        [ return new PQ_name(n); ]
   -> t:TemplateId        [ return t; ]
 
-  -> n:TypeName "::" rest:ClassHeadName
+  -> n:Identifier "::" rest:ClassHeadName
        [ return new PQ_qualifier(n, NULL /*targs*/, rest); ]
-  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
+  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
        [ return new PQ_qualifier(n, targs, rest); ]
        
   // TODO: as in PQualifiedId, I'm omitting the keyword "template"
@@ -1785,12 +1795,18 @@ nonterm[Member*] MemberDeclaration {
   // operator function
   // Q: what about pure virtual?
   // A: it's part of the MemberDeclarator
-  -> flags:CDtorModifierSeqOpt d:MemberDeclarator ";"
+  -> flags:CDtorModifierSeq d:MemberDeclarator ";"
        [ // 'd' is a Declarator
-
-         //cout << "------ MemberDeclarator ----\n";
-         //d->debugPrint(cout, 0);
-
+         return new MR_decl(loc,
+           new Declaration(
+             flags,
+             new TS_simple(ST_CDTOR),
+             FakeList<Declarator>::makeList(d)
+           )
+         );
+       ]
+  -> /*no modifier*/ d:MemberDeclarator ";"
+       [
          // does the declarator construct a function type?
          // if not, this might be ambiguous (superclass
          // member publication), so cancel the entire reduction
@@ -1801,7 +1817,7 @@ nonterm[Member*] MemberDeclaration {
 
          return new MR_decl(loc,
            new Declaration(
-             flags,
+             DF_NONE,
              new TS_simple(ST_CDTOR),
              FakeList<Declarator>::makeList(d)
            )
@@ -1866,10 +1882,11 @@ nonterm[DeclFlags] CDtorModifierSeq {
   -> s:CDtorModifierSeq m:CDtorModifier    [ return s|m; ]
 }
 
-nonterm[DeclFlags] CDtorModifierSeqOpt {
-  -> empty                         [ return DF_NONE; ]
-  -> m:CDtorModifierSeq            [ return m; ]
-}
+// I substituted this into everywhere it occurred
+//  nonterm[DeclFlags] CDtorModifierSeqOpt {
+//    -> empty                         [ return DF_NONE; ]
+//    -> m:CDtorModifierSeq            [ return m; ]
+//  }
 
 
 // ------ A.9 Derived classes ------
@@ -1960,12 +1977,12 @@ nonterm[PQName*] MemInitializerId {
        [ return new PQ_name(id); ]
        
   // base class which is a template
-  -> n:TypeName "<" targs:TemplateArgumentList ">"
+  -> n:Identifier "<" targs:TemplateArgumentList ">"
        [ return new PQ_template(n, targs); ]
 
-  -> n:TypeName "::" id:MemInitializerId   
+  -> n:Identifier "::" id:MemInitializerId   
        [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
-  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
+  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
        [ return new PQ_qualifier(n, targs, id); ]
 }
 
