@@ -85,9 +85,11 @@ int main()
     setHandler(SIGTERM, printHandler);
     setHandler(SIGUSR1, jmpHandler);
     setHandler(SIGSEGV, jmpHandler);
+    setHandler(SIGBUS, jmpHandler);   // osx gives SIBGUS instead of SIGSEGV
 
     //printf("I'm pid %d waiting to be killed...\n", getpid());
     //sleep(10);
+    printf("about to cause a segfault\n");
     *((int*)0) = 0;    // segfault!
     printf("finished waiting\n");
     return 0;
