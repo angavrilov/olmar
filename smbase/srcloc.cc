@@ -653,6 +653,15 @@ string SourceLocManager::getString(SourceLoc loc)
   return stringc << name << ":" << line << ":" << col;
 }
 
+string SourceLocManager::getLCString(SourceLoc loc)
+{
+  char const *name;
+  int line, col;
+  decodeLineCol(loc, name, line, col);
+
+  return stringc << line << ":" << col;
+}
+
 
 // -------------------------- test code ----------------------
 #ifdef TEST_SRCLOC

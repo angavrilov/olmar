@@ -54,7 +54,9 @@ StringVoidDict& StringVoidDict::operator= (StringVoidDict const &obj)
 
   Node *end = top;
   FOREACH_ITERC(obj, src) {
-    Node *newnode = new Node(src.key(), src.value());
+    // const_cast needed because the resulting dictionary can now access
+    // the data objects and modify them... hmm...
+    Node *newnode = new Node(src.key(), const_cast<void*>(src.value()));
     if (!end) {
       // first element of list
       end = top = newnode;

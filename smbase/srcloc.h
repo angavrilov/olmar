@@ -277,6 +277,9 @@ public:      // funcs
 
   // render as string in "file:line:col" format
   string getString(SourceLoc loc);
+
+  // "line:col" format
+  string getLCString(SourceLoc loc);
 };
 
 
@@ -289,6 +292,9 @@ inline string toString(SourceLoc sl)
 
 inline stringBuilder& operator<< (stringBuilder &sb, SourceLoc sl)
   { return sb << toString(sl); }
+
+inline string toLCString(SourceLoc sl)
+  { return sourceLocManager->getLCString(sl); }
 
 
 // macro for obtaining a source location that points at the
