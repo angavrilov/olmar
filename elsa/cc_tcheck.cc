@@ -3,6 +3,7 @@
 
 #include "cc.ast.gen.h"     // C++ AST
 #include "cc_env.h"         // Env
+#include "trace.h"          // trace
 
 
 // ------------------- TranslationUnit --------------------
@@ -177,7 +178,12 @@ void Declarator::tcheck(Env &env, Type const *spec)
   // its initializer (if any), except as noted below.
   // (where "below" talks about enumerators, class members, and
   // class names)
-  env.addVariable(var);
+  if (var->name != NULL) {
+    env.addVariable(var);
+  }
+  else {
+    // abstract declarator, no name entered into the environment
+  }  
   
   // NOTE: if we're declaring a typedef, it will be added here
   // *without* DF_TYPEDEF, and then that flag will be added
@@ -204,13 +210,13 @@ Variable *IDeclarator::tcheck(Env &env, Type const *spec)
 
 Variable *D_name::itcheck(Env &env, Type const *spec)
 {                          
-  if (name->getQualifiers().isNotEmpty()) {
+  if (name && name->getQualifiers().isNotEmpty()) {
     env.unimp("qualifiers on declarator");
   }
 
   // the declflags are filled in as DF_NONE here, but they might
   // get filled in later by the enclosing Declaration
-  return new Variable(loc, name->name, spec, DF_NONE);
+  return new Variable(loc, name? name->name : NULL, spec, DF_NONE);
 }
 
 
@@ -281,7 +287,7 @@ Variable *D_bitfield::itcheck(Env &env, Type const *spec)
 
 // ---------------------- Statement ---------------------
 template <class NODE>
-NODE *resolveAmbiguity(NODE *ths, Env &env)
+NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName)
 {
   // grab the existing list of error messages
   ObjList<ErrorMsg> existingErrors;
@@ -321,8 +327,10 @@ NODE *resolveAmbiguity(NODE *ths, Env &env)
   }
 
   if (numOk == 0) {
-    // none of the alternatives checked out; put all the errors in and
-    // also a note about the ambiguity
+    // none of the alternatives checked out
+    trace("disamb") << "ambiguous " << nodeTypeName << ": all bad\n";
+
+    // put all the errors in and also a note about the ambiguity
     for (int i=0; i<numAlts; i++) {
       env.errors.concat(altErrors[i]);
     }
@@ -332,10 +340,13 @@ NODE *resolveAmbiguity(NODE *ths, Env &env)
   }
 
   else if (numOk == 1) {
-    // one alternative succeeds, which is what we want; since it has
-    // no errors, nothing to put back (TODO: warnings?) besides the
-    // errors which existed before; let the other errors go away with
-    // the array
+    // one alternative succeeds, which is what we want
+    trace("disamb") << "ambiguous " << nodeTypeName 
+                    << ": selected " << lastOk->kindName() << endl;
+
+    // since it has no errors, nothing to put back (TODO: warnings?)
+    // besides the errors which existed before; let the other errors
+    // go away with the array
     env.errors.concat(existingErrors);
 
     // break the ambiguity link (if any) in 'lastOk', so if someone
@@ -346,8 +357,10 @@ NODE *resolveAmbiguity(NODE *ths, Env &env)
   }
 
   else {
-    // more than one alternative succeeds, not good; first put back
-    // the old errors
+    // more than one alternative succeeds, not good
+    trace("disamb") << "ambiguous " << nodeTypeName << ": multiple good!\n";
+
+    // first put back the old errors
     env.errors.concat(existingErrors);
 
     // now complain
@@ -368,7 +381,7 @@ Statement *Statement::tcheck(Env &env)
     return this;
   }
 
-  return resolveAmbiguity(this, env);
+  return resolveAmbiguity(this, env, "Statement");
 }
 
 
@@ -581,7 +594,7 @@ Expression *Expression::tcheck(Env &env)
     return this;
   }
   
-  return resolveAmbiguity(this, env);
+  return resolveAmbiguity(this, env, "Expression");
 }
 
 
