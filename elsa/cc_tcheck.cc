@@ -2979,11 +2979,31 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   // find the compound to which it refers
-  CompoundType *ct = env.lookupPQCompound(nestedName);
+  // (previously I used lookupPQCompound, but I believe that is wrong
+  // because this is a lookup of a nested-name-specifier (8.3.3) and
+  // such lookups are done in the variable space (3.4.3))
+  Variable *ctVar = env.lookupPQVariable(nestedName, LF_ONLY_TYPES);
+  if (!ctVar) {
+    env.error(stringc
+      << "cannot find type `" << nestedName->toString()
+      << "' for pointer-to-member");
+    return;
+  }
+
+  if (ctVar->type->isDependent()) {
+    // e.g. t0186.cc; propagate the dependentness
+    TRACE("dependent", "ptr-to-member: propagating dependentness of " <<
+                       nestedName->toString());
+    this->type = dt.type = env.getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
+    base->tcheck(env, dt, false /*inGrouping*/);
+    return;
+  }
+
+  CompoundType *ct = ctVar->type->ifCompoundType();
   if (!ct) {
     env.error(stringc
-      << "cannot find class `" << nestedName->toString()
-      << "' for pointer-to-member");
+      << "in ptr-to-member, `" << nestedName->toString()
+      << "' does not refer to a class");
     return;
   }
 

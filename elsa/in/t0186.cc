@@ -3,5 +3,6 @@
 
 template <class T>
 struct A {
+  int foo(int (T::*f)());
   int (T::*m)();
 };

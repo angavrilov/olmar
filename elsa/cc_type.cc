@@ -1034,6 +1034,15 @@ bool BaseType::isEnumType() const
 }
 
 
+bool BaseType::isDependent() const 
+{
+  // 14.6.2.1: type variables (template parameters) are the base case
+  // for dependent types
+  return isSimple(ST_DEPENDENT) ||
+         isTypeVariable();
+}
+
+
 bool BaseType::isCompoundTypeOf(CompoundType::Keyword keyword) const
 {
   if (isCVAtomicType()) {

@@ -582,7 +582,7 @@ public:     // funcs
   bool isBool() const { return isSimple(ST_BOOL); }
   bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   bool isError() const { return isSimple(ST_ERROR); }
-  bool isDependent() const { return isSimple(ST_DEPENDENT); }
+  bool isDependent() const;
   CompoundType *ifCompoundType();        // NULL or corresp. compound
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
