@@ -1,11 +1,23 @@
 # Makefile.in
 # source for Makefile for parser generator project
-OCAMLINCL# mode: ocaml
-NOCAMLINCL# mode: nocaml
+
+OCAMLINCL mode = --ocaml
+NOCAMLINCL mode = --nocaml
 
 # main targets; a few objs in front to tweak compile order
 # so I get to the errors faster
-all: cil.o stmt2bb.o ccgr
+all: check-makefiles cil.o stmt2bb.o ccgr
+
+# added this because otherwise there's a decent chance
+# that changes I make and Wes cvs-updates won't make it
+# into his Makefile
+check-makefiles:
+	@if [ Makefile -ot Makefile.in ]; then             \
+          echo "Makefile.in has changed; please run" ;     \
+          echo "  % ./configure ${mode} --setupMakefile" ; \
+          echo "before running make again" ;               \
+          exit 2 ;                                         \
+        fi
 
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
@@ -151,7 +163,7 @@ OCAMLINCL	@echo "we don't build ccgr in ocaml mode"
 clean:
 	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
 	rm -f lexer2 grampar.tab.* grampar a.out
-	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2 cc.{h,cc} ccgr ccgr.a
+	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2 cc.{h,cc} ccgr libccgr.a
 	rm -f towner cc.gr.ps
 
 # regression tests

@@ -32,6 +32,7 @@ and typ =
   | TArray of typ  (* len *)
   | TStruct of string * fieldinfo list
   | TUnion of string * fieldinfo list
+(* missing: enum, functions *)
 
 
 type constant =
