@@ -8,7 +8,8 @@ eval 'exec perl -wS $0 ${1+"$@"}'
 use strict 'subs';
 
 # defaults
-$BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+#  $BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+$BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
 $CCFLAGS = ();
 $debug = 0;
 $SMBASE = "../smbase";
