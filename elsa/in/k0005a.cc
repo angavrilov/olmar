@@ -3,6 +3,12 @@
 // originally found in package bombermaze
 // template version originally found in package buffy
 
+// for non-templatized structs:
+//   error: undeclared identifier `S1::varName'
+
+// for inherited templated version:
+//   Assertion failed: kind() == PQ_NAME, file cc.ast.gen.cc line 552
+
 struct S1 {
     int S1::varName;
 };
