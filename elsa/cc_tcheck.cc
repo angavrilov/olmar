@@ -1706,6 +1706,32 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
 }
 
 
+// check if multiple definitions of a global symbol are ok; also
+// updates some data structures so that future checks can be made
+static bool multipleDefinitionsOK(Env &env, Variable *prior, Declarator::Tcheck &dt_current) {
+  if (!env.lang.uninitializedGlobalDataIsCommon) {
+    return false;
+  }
+
+  // dsw: I think the "common symbol exception" only applies to
+  // globals.
+  if (!prior->hasFlag(DF_GLOBAL)) {
+    return false;
+  }
+
+  // can't be initialized more then once
+  if (dt_current.dflags & DF_INITIALIZED) {
+    if (prior->hasFlag(DF_INITIALIZED)) {
+      return false; // can't both be initialized
+    }
+    else {
+      prior->setFlag(DF_INITIALIZED); // update for future reference
+    }
+  }
+  return true;
+}
+
+
 // This function is perhaps the most complicated in this entire
 // module.  It has the responsibility of adding a variable called
 // 'name' to the environment.  But to do this it has to implement the
@@ -2029,7 +2055,9 @@ realStart:
     else {
       // check for violation of the One Definition Rule
       if (prior->hasFlag(DF_DEFINITION) &&
-          (dt.dflags & DF_DEFINITION)) {
+          (dt.dflags & DF_DEFINITION) &&
+          !multipleDefinitionsOK(env, prior, dt)) 
+        {
         // HACK: if the type refers to type variables, then let it slide
         // because it might be Foo<int> vs. Foo<float> but my simple-
         // minded template implementation doesn't know they're different

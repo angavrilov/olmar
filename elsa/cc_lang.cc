@@ -9,6 +9,7 @@ void CCLang::ANSI_C()
   recognizeCppKeywords = false;
   implicitFuncVariable = true;
   noInnerClasses = true;
+  uninitializedGlobalDataIsCommon = true;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -17,5 +18,6 @@ void CCLang::ANSI_Cplusplus()
   recognizeCppKeywords = true;
   implicitFuncVariable = false;
   noInnerClasses = false;
+  uninitializedGlobalDataIsCommon = false;
 }
 

@@ -28,6 +28,13 @@ public:
   // pretend it was at toplevel scope anyway
   bool noInnerClasses;
 
+  // when true, an uninitialized global data object is typechecked as
+  // a common symbol ("C" in the nm(1) manpage) instead of a bss
+  // symbol ("B").  This means that the following is not an error:
+  //   int a; int a;
+  // gcc seems to operate as if this is true, whereas g++ not.
+  bool uninitializedGlobalDataIsCommon;
+
 public:
   CCLang() { ANSI_C(); }
 
