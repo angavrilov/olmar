@@ -58,6 +58,17 @@ void Env::addGNUBuiltins()
 //                        t_voidconstptr, "__format",
                       FF_VARARGS, NULL);
 
+  // void __builtin_va_start(__builtin_va_list __list, ...);
+  declareFunction1arg(t_void, "__builtin_va_start",
+                      var__builtin_va_list->type, "__list",
+                      FF_VARARGS, NULL);
+
+  // void __builtin_va_copy(__builtin_va_list dest, __builtin_va_list src);
+  declareFunction2arg(t_void, "__builtin_va_copy",
+                      var__builtin_va_list->type, "dest",
+                      var__builtin_va_list->type, "src",
+                      FF_NONE, NULL);
+
   // void __builtin_va_end(__builtin_va_list __list);
   declareFunction1arg(t_void, "__builtin_va_end",
                       var__builtin_va_list->type, "__list");
