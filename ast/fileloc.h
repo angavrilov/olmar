@@ -101,6 +101,9 @@ public:
   string likeGccToString() const;
   
   string toString() const { return likeGccToString(); }
+  
+  friend stringBuilder& operator<< (stringBuilder &sb, SourceLocation const &obj)
+    { return sb << obj.toString(); }
 };
 
 inline string toString(SourceLocation const &loc)

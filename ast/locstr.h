@@ -38,6 +38,8 @@ public:    // funcs
   // (read-only) string-like behavior
   friend ostream& operator<< (ostream &os, LocString const &loc)
     { return os << loc.str; }
+  friend stringBuilder& operator<< (stringBuilder &sb, LocString const &loc)
+    { return sb << loc.str; }
   StringRef strref() const { return str; }
   operator StringRef () const { return str; }
   char operator [] (int index) const { return str[index]; }
