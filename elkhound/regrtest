@@ -168,6 +168,9 @@ vcgen blast1.c
 vcgentb clash1.c
 vcgentb swap1.c
 vcgentb array.c
+vcgen ptrptr.c
+vcgen simple.c
+vcgentb str.c
 
 
 # final arithmetic to report result

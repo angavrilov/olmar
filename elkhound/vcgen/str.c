@@ -1,5 +1,6 @@
 // str.c
 // trying some str* functions
+// NUMERRORS 1
 
 
 //int *mem;
@@ -83,5 +84,5 @@ void foo()
   char buf[80];
   strcpy(buf, "hello there");
   strcat(buf, " and how are you?");
-  strcat(buf, " but this is now certainly too long for an 80-char buffer");
+  strcat(buf, " but this is now certainly too long for an 80-char buffer");  // ERROR(1)
 }
