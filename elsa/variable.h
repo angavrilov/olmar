@@ -201,6 +201,7 @@ public:
   int count() const { return set.count(); }
 
   Variable *findByType(FunctionType const *ft, CVFlags receiverCV);
+  Variable *findByType(FunctionType const *ft);
 };
 
 

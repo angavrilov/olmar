@@ -67,6 +67,10 @@ class TypeFactory;
 class BasicTypeFactory;
 
 
+// FIX: eventually perhaps we can remove this
+extern TypeFactory * global_tfac;
+
+
 // --------------------- atomic types --------------------------
 // interface to types that are atomic in the sense that no
 // modifiers can be stripped away; see types.txt
@@ -1057,7 +1061,15 @@ public:
   // is a PRIMARY; the specializations or instantiations of a
   // specialization, S, go under the instantiations of S's primary, P,
   // NOT under S's instantiations
+  //
+  // This is private so that you have to go through my accessor
+  // methods.  One thing this does is that it ensures that it is
+  // impossible to insert a member into the instantiations list
+  // without setting its myPrimary field to the primary
+  private:
   SObjList<Variable> instantiations;
+
+  public:
 
   // if this is an instantiation or specialization, then this is the
   // list of template arguments; note that an argument for a
@@ -1141,8 +1153,14 @@ public:    // funcs
 
   // just sets 'myPrimary', plus a couple assertions regarding 'prim'
   void setMyPrimary(TemplateInfo *prim);
-  // return 'myPrimary'
-  TemplateInfo *getMyPrimary() const;
+  // return myPrimary unless we are a primary, in which case return
+  // 'this' (since myPrimary for a primary is NULL)
+  TemplateInfo *getMyPrimaryIdem() const;
+
+  void addInstantiation(Variable *inst);
+  // only use this for iteration, not appending!  Don't know a good
+  // way to enforce that
+  SObjList<Variable> &getInstantiations();
 
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;
@@ -1157,6 +1175,7 @@ public:    // funcs
 
   bool isMutant() const;
   bool isPrimary() const;
+  bool isNotPrimary() const;    // "!isPrimary()" fails on mutants
   bool isPartialSpec() const;
   bool isCompleteSpecOrInstantiation() const;
 

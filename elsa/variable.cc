@@ -166,6 +166,8 @@ string Variable::namePrintSuffix() const
 
 OverloadSet *Variable::getOverloadSet()
 {
+  xassert(type);
+  xassert(type->isFunctionType());
   if (!overload) {
     overload = new OverloadSet;
     overload->addMember(this);
@@ -241,6 +243,11 @@ OverloadSet::~OverloadSet()
 
 void OverloadSet::addMember(Variable *v)
 {
+  // dsw: wow, this can happen when you import two names into a
+  // namespace.  So the idea is we allow ambiguity and then only
+  // report an error at lookup, which is The C++ Way.
+//    xassert(!findByType(v->type->asFunctionType()));
+  xassert(v->type->isFunctionType());
   set.prepend(v);
 }
 
@@ -262,5 +269,9 @@ Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
   return NULL;    // not found
 }
 
+
+Variable *OverloadSet::findByType(FunctionType const *ft) {
+  return findByType(ft, ft->getReceiverCV());
+}
 
 // EOF

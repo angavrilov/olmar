@@ -70,6 +70,7 @@ template<class T> void g5(T x[4]) {}
 
 //      template-name<T> (where template-name refers to a class template)
 template<class T> struct A1 {};
+//ERROR(8): template<class T> struct A1b {}; // distractor
 template<class T> void g6(A1<T> x) {}
 
 //      template-name<i> (where template-name refers to a class template)
@@ -204,6 +205,9 @@ int main() {
   //      template-name<T> (where template-name refers to a class template)
   A1<A> a6;
   g6(a6);
+  // a different but isomorphic atomic type construction should not match
+  //ERROR(8):    A1b<A> a6b;
+  //ERROR(8):    g6(a6b);
 
   //      template-name<i> (where template-name refers to a class template)
   A2<17> a7;

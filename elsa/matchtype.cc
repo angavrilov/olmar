@@ -201,8 +201,11 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, MFlags mFlags)
   case MM_ISO: {
     STemplateArgument *targb = bindings.getTypeVar(b->asTypeVariable());
     if (targb) {
-      return targb->kind==STemplateArgument::STA_TYPE
-        && a == targb->value.t; // must be identical
+      if (targb->kind!=STemplateArgument::STA_TYPE) return false;
+      if (!a->isTypeVariable()) return false;
+      xassert(targb->value.t->isTypeVariable());
+      // must be identical
+      return a->asTypeVariable()->typedefVar == targb->value.t->asTypeVariable()->typedefVar;
     } else {
       if (a->isTypeVariable()) {
         return bindValToVar(a, b, mFlags);
@@ -245,16 +248,22 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, MFlags mFlags)
   }
 
   if (b->isCVAtomicType()) {
-    bool isCpdTemplate = a->isCompoundType()
+    bool aIsCpdTemplate = a->isCompoundType()
       && a->asCompoundType()->typedefVar->isTemplate();
-    bool tIsCpdTemplate = b->isCompoundType()
+    bool bIsCpdTemplate = b->isCompoundType()
       && b->asCompoundType()->typedefVar->isTemplate();
-    if (isCpdTemplate && tIsCpdTemplate) {
+    if (aIsCpdTemplate && bIsCpdTemplate) {
+      Variable *aTDvar = a->asCompoundType()->typedefVar;
+      Variable *bTDvar = b->asCompoundType()->typedefVar;
       return
-        match_TInfo(a->asCompoundType()->typedefVar->templateInfo(),
-                    b->asCompoundType()->typedefVar->templateInfo(),
-                    mFlags & ~MT_TOP);
-    } else if (!isCpdTemplate && !tIsCpdTemplate) {
+        // don't write this code: two type variable's classes match
+        // iff their template info's match; you don't want to check
+        // for equality of the variables because two instances of the
+        // same template will both be class Foo but they will be
+        // different type variables
+//          aTDvar == bTDvar &&
+        match_TInfo(aTDvar->templateInfo(), bTDvar->templateInfo(), mFlags & ~MT_TOP);
+    } else if (!aIsCpdTemplate && !bIsCpdTemplate) {
       // I don't want to call BaseType::equals() at all since I'm
       // essentially duplicating my version of that; however I do need
       // to be able to ask if to AtomicType-s are equal.
@@ -462,9 +471,14 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, MFlags mFlags)
 {
   xassert(!(mFlags & MT_TOP));
   // are we from the same primary even?
-  TemplateInfo *ati = a->getMyPrimary();
-  TemplateInfo *bti = b->getMyPrimary();
-  if (!ati || (ati != bti)) return false;
+  TemplateInfo *ati = a->getMyPrimaryIdem();
+  xassert(ati);
+  TemplateInfo *bti = b->getMyPrimaryIdem();
+  xassert(bti);
+  // FIX: why did I do it this way?  It seems that before if a and b
+  // were equal and both primaries that they would fail to match
+//    if (!ati || (ati != bti)) return false;
+  if (ati != bti) return false;
   // do we match?
   return match_Lists2(a->arguments, b->arguments, mFlags);
 }
@@ -524,7 +538,16 @@ bool MatchTypes::match_STA(STemplateArgument *a, STemplateArgument const *b, MFl
       // you can't unify a reference with an int
       return false;
     }
-    // FIX:
+    if (STemplateArgument::STA_REFERENCE == b->kind) {
+      if (mode == MM_WILD ||
+          // FIX: THIS IS WRONG.  We should save the binding and
+          // lookup and check if they match just as we would do for
+          // type variables.
+          mode == MM_ISO) {
+        return true;
+      }
+    }
+    // FIX: do MM_BIND mode also
     xfailure("reference arguments unimplemented");
     break;
 

@@ -102,8 +102,8 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 
   // I do not even put the primary into the set so it should never
   // show up.
-  xassert(!lti->isPrimary());
-  xassert(!rti->isPrimary());
+  xassert(lti->isNotPrimary());
+  xassert(rti->isNotPrimary());
 
   // they should always have the same number of arguments; the number
   // of parameters is irrelevant
@@ -221,6 +221,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
     collectLookupResults(NULL)
 {
+  // dsw: for esoteric reasions I need the tfac to be publicly
+  // available at times
+  global_tfac = &tfac;
+
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
   #define HERE SL_INIT              // decided I prefer this
@@ -1334,7 +1338,7 @@ Scope *Env::lookupOneQualifier(
         // for now, restricted form of specialization selection to
         // get in/t0154.cc through
         if (qualifier->targs.count() == 1) {
-          SFOREACH_OBJLIST_NC(Variable, ct->templateInfo()->instantiations, iter) {
+          SFOREACH_OBJLIST_NC(Variable, ct->templateInfo()->getInstantiations(), iter) {
             Variable *special = iter.data();
             if (!special->templateInfo()->arguments.count() == 1) continue;
 
@@ -1455,24 +1459,19 @@ Variable *Env::lookupPQVariable_primary_resolve(
   // first, call the version that does *not* do overload selection
   Variable *var = lookupPQVariable(name, flags);
 
-  if (var &&
-      var->isTemplate() &&
-      (flags & LF_TEMPL_PRIMARY)) {
-    OverloadSet *oloadSet = var->getOverloadSet();
-    if (oloadSet->count() > 1) {
-      xassert(var->type->isFunctionType()); // only makes sense for function types
-      // FIX: Somehow I think this isn't right
-      var = findTemplPrimaryForSignature(oloadSet, signature);
-      if (!var) {
-        error("function template specialization does not match "
-              "any primary in the overload set");
-        return NULL;
-      }
+  if (!var) return NULL;
+  OverloadSet *oloadSet = var->getOverloadSet();
+  if (oloadSet->count() > 1) {
+    xassert(var->type->isFunctionType()); // only makes sense for function types
+    // FIX: Somehow I think this isn't right
+    var = findTemplPrimaryForSignature(oloadSet, signature);
+    if (!var) {
+      error("function template specialization does not match "
+            "any primary in the overload set");
+      return NULL;
     }
-    xassert(var->templateInfo()->isPrimary());
-    return var;
   }
-
+  xassert(var->templateInfo()->isPrimary());
   return var;
 }
 
@@ -2413,7 +2412,7 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
   // iterate through all of the instantiations and build up an
   // ObjArrayStack<Candidate> of candidates
   TemplCandidates templCandidates(tfac);
-  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
+  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->getInstantiations(), iter) {
     Variable *var0 = iter.data();
     TemplateInfo *templInfo0 = var0->templateInfo();
     // Sledgehammer time.
@@ -2896,12 +2895,12 @@ Variable *Env::instantiateTemplate
     // looking at the other code above, I think it is the only one
     // where I should, but I'm not sure.
     xassert(oldBaseV->templateInfo() && oldBaseV->templateInfo()->isPrimary());
-    oldBaseV->templateInfo()->instantiations.append(instV);
-    instTInfo->setMyPrimary(oldBaseV->templateInfo());
-
     // dsw: this had to be moved down here as you can't get the
     // typedefVar until it exists
     instV->setTemplateInfo(instTInfo);
+    oldBaseV->templateInfo()->addInstantiation(instV);
+    xassert(instTInfo->isNotPrimary());
+    xassert(instTInfo->getMyPrimaryIdem() == oldBaseV->templateInfo());
   }
 
   // 5 **** typecheck the cloned AST
@@ -2999,7 +2998,7 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
   // purposes of instantiating the forward classes
   StackMaintainer<TemplateDeclaration> sm(templateDeclarationStack, &instFwdClassesTDSDummy);
 
-  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
+  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->getInstantiations(), iter) {
     Variable *instV = iter.data();
     xassert(instV->templateInfo());
     CompoundType *inst = instV->type->asCompoundType();

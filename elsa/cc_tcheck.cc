@@ -237,6 +237,11 @@ void Function::tcheck(Env &env, bool checkBody,
   dt.reallyAddVariable = reallyAddVariable;
   dt.priorTemplInst = priorTemplInst;
   nameAndParams = nameAndParams->tcheck(env, dt);
+  // this seems like it should be being done, but if I want this, I
+  // should first write a test that fails if I don't do it
+//    if (!nameAndParams->var->funcDefn) {
+//      nameAndParams->var->funcDefn = this;
+//    }
 
   // location for random purposes..
   SourceLoc loc = nameAndParams->var->loc;
@@ -633,6 +638,46 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
       // this 'declSyntax' action in the loop below
       if (decllist->count() > 1) {
         env.error("there can be at most one declarator in a template declaration");
+      }
+
+      // is this a function template?
+      if (dt1.var->type->isFunctionType()) {
+        xassert(!dt1.var->templInfo->isMutant());
+        // lookup the Declarator
+        Declarator *declarator = decllist->first();
+        xassert(declarator->var == dt1.var);
+        PQ_name dt1_varName(dt1.var->loc, dt1.var->name);
+        Variable *previous = env.lookupPQVariable_primary_resolve
+          // FIX: this test doesn't work for special names like for
+          // constructors
+//            (declarator->decl->getDeclaratorId(),
+          // FIX: this won't work if you need anything other than the
+          // base name.  I'm hoping we are still in the same scope.
+          (&dt1_varName,
+           LF_TEMPL_PRIMARY,
+           dt1.var->type->asFunctionType());
+        xassert(previous);
+        xassert(previous->templateInfo()->isPrimary());
+        if (dt1.var->templInfo->isPrimary()) {
+          // if this is a forward declaration for a primary, it should
+          // already be in the namespace and should be isomorphic
+          MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+          xassert(match.match_Type(dt1.var->type, previous->type, match.MT_TOP));
+        } else {
+          // if this is a forward declaration for a specialization /
+          // instantiation, it should not be in the namespace but
+          // should be in the instantiation list of 'previous'
+          Variable *var0 = NULL;
+          SFOREACH_OBJLIST_NC(Variable, previous->templateInfo()->getInstantiations(), iter) {
+            MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+            if (match.match_Type(dt1.var->type, iter.data()->type, match.MT_TOP)) {
+              // shouldn't be in there twice
+              xassert(!var0);
+              var0 = iter.data();
+            }
+          }
+          xassert(!var0);       // should be in there
+        }
       }
     }
 
@@ -1181,11 +1226,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
     this->ctype = ct;           // annotation
 
-    // add this type to the primary's list of specializations; we are not
-    // going to add 'ct' to the environment, so the only way to find the
-    // specialization is to go through the primary template
-    primaryTI->instantiations.append(ct->getTypedefVar());
-
     // 'makeNewCompound' will already have put the template *parameters*
     // into 'specialTI', but not the template arguments
     // TODO: this is copied from Env::instantiateTemplate(); collapse it
@@ -1197,6 +1237,10 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       }
     }
 
+    // add this type to the primary's list of specializations; we are not
+    // going to add 'ct' to the environment, so the only way to find the
+    // specialization is to go through the primary template
+    primaryTI->addInstantiation(ct->getTypedefVar());
     
     if (tracingSys("template")) {
       cout << "TS_classSpec::itcheck: "
@@ -2101,10 +2145,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         else {
           // check for member of overload set with same signature
           // and marked 'virtual'
-          if (Variable *var_overload =
-              var2->getOverloadSet()->findByType
-              (var->type->asFunctionType(),
-               var->type->asFunctionType()->getReceiverCV())) {
+          if (Variable *var_overload = var2->getOverloadSet()->
+              findByType(var->type->asFunctionType())) {
             xassert(var_overload != var);
             xassert(var_overload->type->isFunctionType());
             xassert(var_overload->type->asFunctionType()->isMethod());
@@ -2656,7 +2698,7 @@ realStart:
   // exists, I can skip the rest of this.  I am getting really weird
   // errors by trying to push through and on top of that I just don't
   // understand why try.  We have what we want already and we don't
-  // wanted it added to the environment.
+  // want it added to the environment.
   if (dt.priorTemplInst) {
     dt.var = dt.priorTemplInst;
     return;
@@ -5813,13 +5855,12 @@ void TD_func::itcheck(Env &env)
     // only way to find the specialization is to go through the
     // primary template
     Variable *fVar = f->nameAndParams->var;
-    primaryTI->instantiations.append(fVar);
-    // TODO: this is copied from Env::instantiateTemplate(); collapse it
     FOREACH_ASTLIST(TemplateArgument, templateArgs, iter) {
       TemplateArgument const *targ = iter.data();
       xassert(targ->sarg.hasValue());
       fVar->templateInfo()->arguments.append(new STemplateArgument(targ->sarg));
     }
+    primaryTI->addInstantiation(fVar);
     
     if (tracingSys("template")) {
       cout << "TS_classSpec::itcheck: "

@@ -7,6 +7,7 @@
 #include "strutil.h"    // copyToStaticBuffer
 #include "sobjset.h"    // SObjSet
 #include "hashtbl.h"    // lcprngTwoSteps
+#include "matchtype.h"  // MatchTypes
 
 // Do *not* add a dependency on cc.ast or cc_env.  cc_type is about
 // the intrinsic properties of types, independent of any particular
@@ -14,6 +15,9 @@
 // just for debugging.)
 
 #include <stdlib.h>     // getenv
+
+
+TypeFactory * global_tfac = NULL;
 
 
 // ------------------ AtomicType -----------------
@@ -77,7 +81,31 @@ bool AtomicType::equals(AtomicType const *obj) const
   // it is *important* that we don't do structural equality
   // here, because then we'd be confused by types with the
   // same name that appear in different scopes!
-  return this == obj;
+  //
+  // dsw: but if they are instantiations of the same class template in
+  // TemplTcheckMode TTM_2TEMPL_FUNC_DECL (the parameter list of a
+  // function template) they might not be '==', but still be
+  // isomorphic if they were instantiated with a template argument
+  // that is the template parameter (type variable) of the function
+  // template
+  if (this->isCompoundType() && this->asCompoundTypeC()->templateInfo() &&
+      obj->isCompoundType()  &&  obj->asCompoundTypeC()->templateInfo()) {
+    xassert(global_tfac);
+    MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+    // FIX: this is gross, but to make matchtype such that I don't
+    // have to do it adds a lot of complexity that I don't want to
+    // test and debug right now; eventually match type should have an
+    // API that takes AtomicTypes as arguments.
+    //
+    // I don't know how to not use the const_cast given the APIs.
+    CVAtomicType *this_cva = global_tfac->makeCVAtomicType
+      (SL_UNKNOWN, const_cast<AtomicType*>(this), CV_NONE);
+    CVAtomicType *obj_cva  = global_tfac->makeCVAtomicType
+      (SL_UNKNOWN, const_cast<AtomicType*>(obj), CV_NONE);
+    return match.match_Type(this_cva, obj_cva, match.MT_TOP);
+  } else {
+    return this == obj;
+  }
 }
 
 
@@ -1959,24 +1987,44 @@ TemplateInfo::~TemplateInfo()
 
 void TemplateInfo::setMyPrimary(TemplateInfo *prim) 
 {
-  xassert(!myPrimary);
-  xassert(prim);
-  xassert(prim->isPrimary());
+  xassert(prim);                // argument must be non-NULL
+  xassert(prim->isPrimary());   // myPrimary can only be a primary
+  xassert(!myPrimary);          // can only do this once
+  xassert(isNotPrimary());      // can't set myPrimary of a primary
   myPrimary = prim;
 }
 
 
-TemplateInfo *TemplateInfo::getMyPrimary() const
+// this one is idempotent
+TemplateInfo *TemplateInfo::getMyPrimaryIdem() const
 {
-  // changed my mind about making getMyPrimary() idempotent on
-  // primaries
-//    if (!myPrimary) {
-//      xassert(isPrimary());
-//      return const_cast<TemplateInfo*>(this);
-//    } else {
-//      xassert(!isPrimary());
-  return myPrimary;
-//    }
+  // I know, this is weird; you have to protect isPrimary() from being
+  // called on a mutant.
+  if (isMutant()) {
+    xassert(myPrimary);
+    return myPrimary;
+  } else if (isPrimary()) {
+    xassert(!myPrimary);
+    return const_cast<TemplateInfo*>(this);
+  } else {
+    xassert(myPrimary);
+    return myPrimary;
+  }
+}
+
+
+void TemplateInfo::addInstantiation(Variable *inst)
+{
+  xassert(inst);
+  xassert(inst->templateInfo());
+  inst->templateInfo()->setMyPrimary(this);
+  instantiations.append(inst);
+}
+
+
+SObjList<Variable> &TemplateInfo::getInstantiations()
+{
+  return instantiations;
 }
 
 
@@ -2063,6 +2111,12 @@ bool TemplateInfo::isMutant() const {
 bool TemplateInfo::isPrimary() const {
   xassert(!isMutant());
   return params.isNotEmpty() && arguments.isEmpty();
+}
+
+
+bool TemplateInfo::isNotPrimary() const {
+  if (isMutant()) return true;
+  return !isPrimary();
 }
 
 
