@@ -169,12 +169,12 @@ cexp2-dep = cexp2.o ${grammar-set} ${common} ${grampar-set} \
 cexp2: ${cexp2-dep} cexp2.h
 	${link} -o cexp2 ${cexp2-dep} ${linkend}
 
-# intermediate files for cexp3
+# intermediate files for cexp3 (disambiguates using prec/assoc)
 # ('chmod a-w' is so I don't accidentally edit it)
 cexp3.gen.cc cexp3.gen.h: cexp3.gr cc.tok gramanl
 	rm -f cexp3.gen.*
 	./gramanl cexp3
-	chmod a-w cexp3.gen.*
+	chmod a-w cexp3.gen.{h,cc}
 
 cexp3.gen.o: cexp3ast.gen.h
 
@@ -189,11 +189,35 @@ cexp3: ${cexp3-dep} ${libraries}
 	${link} -o cexp3 ${cexp3-dep} ${linkend}
 	./cexp3 cexp3.bin cexp3.in1
 
+# intermediate files for a grammar
+# ('chmod a-w' is so I don't accidentally edit it)
+%.gen.cc %.gen.h: %.gr cc.tok gramanl
+	rm -f $*.gen.*
+	./gramanl $*
+	chmod a-w $*.gen.{h,cc}
+
+# intermediate files for an ast spec
+%.gen.cc %.gen.h: %.ast ../ast/astgen
+	../ast/astgen $*.ast
+
+# cexp3b: disambiguation using 'merge'
+cexp3b.gr: cexp3.gr
+	rm -f cexp3b.gr
+	grep -v PREC cexp3.gr > cexp3b.gr
+	chmod a-w cexp3b.gr
+
+# parser and semantic analyzer for cexp3b.gr
+cexp3b-dep = cexp3b.gen.o ${grammar-set} ${common} ${grampar-set} \
+            ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
+cexp3b: ${cexp3b-dep} ${libraries}
+	${link} -o cexp3b ${cexp3b-dep} ${linkend}
+	./cexp3b cexp3b.bin cexp3.in1
+
 # intermediate files for cdecl
 cdecl.gen.cc cdecl.gen.h: cdecl.gr cc.tok gramanl
 	rm -f cdecl.gen.*
 	./gramanl cdecl
-	chmod a-w cdecl.gen.*
+	chmod a-w cdecl.gen.{h,cc}
 
 # parser and semantic analyzer for cdecl.gr
 cdecl-dep = cdecl.gen.o ${grammar-set} ${common} ${grampar-set} \
@@ -208,7 +232,7 @@ cdecl: ${cdecl-dep} ${libraries}
 cdecl2.gen.cc cdecl2.gen.h: cdecl2.gr cc.tok gramanl
 	rm -f cdecl2.gen.*
 	./gramanl cdecl2
-	chmod a-w cdecl2.gen.*
+	chmod a-w cdecl2.gen.{h,cc}
 
 # parser and semantic analyzer for cdecl2.gr
 cdecl2-dep = cdecl2.gen.o ${grammar-set} ${common} ${grampar-set} \

@@ -49,10 +49,12 @@ terminals {
   }
   
   // precedence and associativity
+  // I mark with 'PREC' lines to be removed to yield a version
+  // which disambiguates using 'merge'
   precedence {
     // low precedence
-    left "+";
-    left "*";
+    left "+";                  // PREC
+    left "*";                  // PREC
     // high precedence
   }
 }
@@ -67,7 +69,8 @@ nonterm[int] Start {
 nonterm[Exp*] Exp {
   dup(p) [ D("dup " << p); p->incRefCt(); return p; ]
   del(p) [ D("del " << p); p->decRefCt(); ]
-  merge(p1, p2) [ return Exp::mergeAlts(p1, p2); ]
+  merge(p1, p2) [ D("merge " << p1 << " and " << p2);
+                  return Exp::mergeAlts(p1, p2); ]
 
   -> i:L2_INT_LITERAL  [ D("literal: " << i);
                          return new E_int(i); ]
