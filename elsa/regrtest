@@ -393,13 +393,11 @@ failTest "need overload resolution with templates" \
 # another set of tests, generally isolated by Daniel
 # FIX: d0018.cc fails; it was minimized from in/big/nsAtomTable.i;
 # FIX: d0019.cc fails; it was minimized from in/big/nsCLiveconnectFactory.i
-# FIX: d0020.cc fails; just trying to test that no-arg new, "new A;", works
-# turn on when works
 for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
   d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
-  d0016.cc d0017.cc                            \
+  d0016.cc d0017.cc                   d0020.cc \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
 done

@@ -365,6 +365,7 @@ void Function::tcheck_memberInits(Env &env)
           xassert(ctor);
           iter->ctorVar = ctor;
           // FIX: do this; we need a variable for when it is a base class
+          // the var is the MemberInit::member
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         } else {
           xassert(!ctor);
@@ -460,6 +461,8 @@ void Function::tcheck_memberInits(Env &env)
       xassert(ctor);
       iter->ctorVar = ctor;
       // FIX: do this; we need a variable for when it is a base class
+      // the var is Function::retVar; NOTE: the types won't match so
+      // watch out.
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
     } else {
       xassert(!ctor);
@@ -5540,7 +5543,10 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   if (t->isCompoundType()) {
     xassert(!var);
     var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
-    xassert(ctorArgs);          // I'll bet this fails
+    // even though this is on the heap, Scott says put it into the
+    // local scope
+    env.addVariable(var);
+    xassert(ctorArgs);
     ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
   }
 
