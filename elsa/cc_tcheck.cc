@@ -1910,8 +1910,6 @@ void Declarator::tcheck_init(Env &env)
     var->value = init->asIN_exprC()->e;
   }
 
-  Type *origType = var->type;
-
   // use the initializer size to refine array types
   // array initializer case
   var->type = env.computeArraySizeFromCompoundInit(var->loc, var->type, type, init);
@@ -1919,8 +1917,8 @@ void Declarator::tcheck_init(Env &env)
   var->type = computeArraySizeFromLiteral(env, var->type, init);
 
   // update 'type' if necessary
-  if (origType != var->type) {
-    type = env.tfac.cloneType(var->type);
+  if (type->isArrayType()) {
+    type->asArrayType()->size = var->type->asArrayType()->size;
   }
 }
 
