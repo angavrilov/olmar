@@ -44,10 +44,10 @@ ranlib      := ranlib
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # enable action trace in glr parser
-ccflags += -DACTION_TRACE
+#ccflags += -DACTION_TRACE
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
