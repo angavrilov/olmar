@@ -808,6 +808,9 @@ void TemplateArgument::addAmbiguity(TemplateArgument *alt)
 
 string TA_type::argString() const
 {
+  if (!type->decl->var) {
+    return "(un-tchecked-TA_type)";
+  }
   return type->getType()->toString();
 }
 

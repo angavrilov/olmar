@@ -1162,6 +1162,12 @@ CompoundType const *BaseType::asCompoundTypeC() const
   return asCVAtomicTypeC()->atomic->asCompoundTypeC();
 }
 
+PseudoInstantiation const *BaseType::asPseudoInstantiationC() const
+{
+  return asCVAtomicTypeC()->atomic->asPseudoInstantiationC();
+}
+
+
 bool BaseType::isOwnerPtr() const
 {
   return isPointer() && ((asPointerTypeC()->cv & CV_OWNER) != 0);

@@ -4220,6 +4220,11 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           dqt = new DependentQType(svar->type->asTypeVariable());
         }
 
+        else if (svar->type->isPseudoInstantiation()) {
+          // build on top of the existing pseudoinstantiation (in/t0430.cc)
+          dqt = new DependentQType(svar->type->asPseudoInstantiation());
+        }
+
         else if (containsVariables(qual->targs)) {
           if (!svar->type->isCompoundType()) {
             error(name->loc, stringc
@@ -4231,6 +4236,10 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           // build DependentQType PseudoInstantiation(svar, qual->targs)::...
           CompoundType *ct = svar->type->asCompoundType();
           dqt = new DependentQType(createPseudoInstantiation(ct, qual->targs));
+        }
+        
+        else {
+          xfailure("unhandled case of dependent qualified type in lookupPQ");
         }
 
         // examine the names further down

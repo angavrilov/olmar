@@ -735,6 +735,9 @@ public:     // funcs
 
   // etc. ...
   bool isPseudoInstantiation() const { return isCVAtomicType(AtomicType::T_PSEUDOINSTANTIATION); }
+  PseudoInstantiation const *asPseudoInstantiationC() const;
+  PseudoInstantiation *asPseudoInstantiation() { return const_cast<PseudoInstantiation*>(asPseudoInstantiationC()); }
+
   bool isDependentQType() const { return isCVAtomicType(AtomicType::T_DEPENDENTQTYPE); }
 
   // something that behaves like a CompoundType in most respects
