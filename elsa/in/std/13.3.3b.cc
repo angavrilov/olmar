@@ -6,7 +6,10 @@ void Fcn(int*, int);                 // line 4
 int i;
 short s = 0;
 
-void f() {
+void f() {                           // line 9
+  // turn on overload resolution
+  __testOverload(f(), 9);
+
   //ERROR(1): Fcn(&i, s);            // is ambiguous because
                                      // &i->int* is better than &i->const int*
                                      // but s->short is also better than s->int

@@ -1834,9 +1834,14 @@ nonterm(ASTTypeId*) ConversionTypeId {
 // collects the stars that might follow a type specifier in a
 // conversion function (for converting to pointer type)
 nonterm(IDeclarator*) ConversionDeclaratorOpt {
-  -> empty                                    
+  // this rule is given low precedence so that if there are
+  // stars (etc.) following, they will be considered to be part
+  // of the conversion operator's name (cppstd 12.3.2 para 4);
+  // there is still an S/R conflict for "::" and I'm not sure how
+  // to resolve that one...
+  -> empty                             precedence(TOK_PREFER_SHIFT)
        { return new D_name(loc, NULL /*name*/); }
-       
+
   -> "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:ConversionDeclaratorOpt
