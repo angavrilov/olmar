@@ -1,4 +1,4 @@
-/*
+/* -*- c++ -*-
 
 readpass.c
 
@@ -46,10 +46,11 @@ int c_lflag, sg_flags;
 int errno;
 void SSH_TRACE(int flag, void *whatever);
 AnyFn strerror, fclose, ssh_xstrdup,
-      memset, strlen;
+      memset;
 int isprint(char c);
 int isspace(char c);
 int iscntrl(char c);
+int strlen(char const *s);
 char *fgets(char *s, int size, FILE *stream);
 char *strchr(char *s, char c);
 struct termios {

@@ -74,19 +74,19 @@ DIGITS        ({DIGIT}+)
 SIGN          ("+"|"-")
 
 /* normal string character: any but quote, newline, or backslash */
-STRCHAR       [^"\n\\]
+STRCHAR       [^\"\n\\]
 
 /* (start of) an escape sequence */
 ESCAPE        ({BACKSL}{ANY})
 
 /* double quote */
-QUOTE         ["]
+QUOTE         [\"]
 
 /* normal character literal character: any but single-quote, newline, or backslash */
-CCCHAR        [^'\n\\]
+CCCHAR        [^\'\n\\]
 
 /* single quote */
-TICK          [']
+TICK          [\']
 
 /* space or tab */
 SPTAB         [ \t]
