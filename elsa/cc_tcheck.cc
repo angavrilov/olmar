@@ -3248,6 +3248,33 @@ static Variable *getNamedFunction(Expression *e)
 Type *E_funCall::itcheck(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
+  
+  // special case: if someone explicitly called the destructor
+  // of a non-class type, e.g.:
+  //   typedef unsigned uint;
+  //   uint x;
+  //   x.~uint();
+  // then change it into a void-typed simple evaluation:
+  //   (void)x;
+  // since the call itself is a no-op (Q: what if it's an array
+  // of class-typed objects?)
+  if (func->isE_fieldAcc()) {
+    E_fieldAcc *fa = func->asE_fieldAcc();
+    if (!fa->obj->type->asRval()->isCompoundType() &&
+        fa->fieldName->getName()[0] == '~') {
+      if (args->isNotEmpty()) {
+        env.error("call to dtor must have no arguments");
+      }                        
+      ASTTypeId *voidId =
+        new ASTTypeId(new TS_simple(SL_UNKNOWN, ST_VOID),
+                      new Declarator(new D_name(SL_UNKNOWN, NULL /*name*/),
+                                     NULL /*init*/));
+      replacement = new E_cast(voidId, fa->obj);
+      replacement->tcheck(env, replacement);
+      return replacement->type;
+    }
+  }
+
   return inner2_itcheck(env);
 }
 
