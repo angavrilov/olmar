@@ -16,6 +16,8 @@
 # Then, the saved log can be examined for lines that begin with
 # "failing" to find the details on what failed.
 
+use strict 'subs';
+
 $SIG{INT} = \&sigIntHandler;
 
 $dry = 0;
@@ -135,6 +137,18 @@ while (defined($line = <IN>)) {
     # normalize cc vs gcc
     if ($s eq "cc") {
       $s = "gcc";
+    }
+
+    # splice lines if it ends in backslash
+    while (substr($line, -1, 1) eq "\\") {
+      diagnostic("continued line");
+      chop($line);             # throw away the backslash
+      my $next = <IN>;
+      if (!defined($next)) {
+        die("log ended with a backslash!\n");
+      }
+      chomp($next);
+      $line = $line . $next;
     }
 
     # modify command string to send output to tmp.i

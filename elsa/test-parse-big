@@ -34,6 +34,11 @@ echo "Pine 4.44"
 ./test-parse-buildlog ~/bld/pine4.44/build.out >pine.parse.out
 if [ $? = 130 ]; then exit 130; fi
 
+# 190 modules
+echo "Binutils 2.14"
+./test-parse-buildlog ~/bld/binutils-2.14/make.out >binutils.parse.out
+if [ $? = 130 ]; then exit 130; fi
+
 # 259 modules
 echo "DDD 3.3.1"
 ./test-parse-buildlog $HOME/bld/ddd-3.3.1/make.out >ddd.parse.out
