@@ -75,7 +75,9 @@ string ambiguousNodeName(ASTTypeId const *n)
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
 {
+//    static int numTopForms = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
+//      cout << "**** numTopForms " << ++numTopForms << endl;
     iter.data()->tcheck(env);
   }
 }
@@ -1065,13 +1067,20 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // TODO: this is copied from Env::instantiateClassTemplate; collapse it
     {
       FAKELIST_FOREACH_NC(TemplateArgument, templateArgs, iter) {
-        if (iter->sarg.hasValue()) {
-          ct->templateInfo->arguments.append(new STemplateArgument(iter->sarg));
-        }
-        else {
-          return env.error(
-            "attempt to use unresolved arguments to specialize a class");
-        }
+        // The check was bogus, as this would cause an error
+        //          template<S> struct A<S> {};
+        // but this would not because the "*" sheilds the typevar
+        //          template<S> struct A<S*> {};
+        xassert(iter->sarg.hasValue());
+//          if (iter->sarg.hasValue()) {
+        ct->templateInfo->arguments.append(new STemplateArgument(iter->sarg));
+//          }
+//          else {
+//            // This is not really an error; This is what happens when
+//            // you have a partial specialization.
+//            return env.error(
+//              "attempt to use unresolved arguments to specialize a class");
+//          }
       }
 
       // dsw: I need to have the argumentSyntax around so that if I
@@ -5586,9 +5595,10 @@ void TA_type::itcheck(Env &env)
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();
-  if (!t->isTypeVariable()) {
-    sarg.setType(t);
-  }
+  // this is a gratuitious non-orthgonality
+//    if (!t->isTypeVariable()) {
+  sarg.setType(t);
+//    }
 }
 
 void TA_nontype::itcheck(Env &env)
