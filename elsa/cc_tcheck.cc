@@ -703,7 +703,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
         if (dt1.var->templInfo->isPrimary()) {
           // if this is a forward declaration for a primary, it should
           // already be in the namespace and should be isomorphic
-          MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+          MatchTypes match(env.tfac, MatchTypes::MM_ISO);
           xassert(match.match_Type(dt1.var->type, previous->type));
         } else {
           // if this is a forward declaration for a specialization /
