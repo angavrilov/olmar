@@ -64,9 +64,22 @@ extern inline void read_lock2(rwlock_t *rw)
         } while (0) ;
 }
 
-void oink() {
+void triple() {
   // three-colons now works also!
   asm ("asdfasd" ::: "a"(rw) );
   // and four
   asm ("asdfasd" :::: "a"(rw) );
+}
+
+//  /home/dsw/oink_extra/ballAruns/tmpfiles/./arts-1.1-7/gsldatahandle-mad-04hG.i:2145:107: Parse error (state 222) at <string literal>: "fpatan"
+
+typedef unsigned int guint32;
+typedef guint32 CORBA_unsigned_long;
+typedef unsigned char guchar;
+void f() {
+  guchar *_ORBIT_curptr;
+        __asm__ __const__       // "const" is also legal after an asm
+          ("rorw $8, %w0\n\t" "rorl $16, %0\n\t" "rorw $8, %w0": "=r" (__v):"0"
+           ((guint32)
+            (*((guint32 *) _ORBIT_curptr))));
 }

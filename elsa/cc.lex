@@ -192,6 +192,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "virtual"          return tok(TOK_VIRTUAL);
 "void"             return tok(TOK_VOID);
 "volatile"         return tok(TOK_VOLATILE);
+"__volatile"       return tok(TOK_VOLATILE);
 "__volatile__"     return tok(TOK_VOLATILE);
 "wchar_t"          return tok(TOK_WCHAR_T);
 "while"            return tok(TOK_WHILE);

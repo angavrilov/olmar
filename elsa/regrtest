@@ -542,8 +542,6 @@ testparse d0072.cc
 testparse d0073.cc
 failparse d0074.cc "(fill in a reason here)"
 testparse d0075.cc
-testparse d0076.cc
-testparse d0077.cc
 # ---- END: lots of tests ----
 
 
@@ -599,6 +597,7 @@ if $use_gnu; then
   testparse gnu/t0130.cc
   testparse gnu/t0131.cc
   testparse gnu/t0132.cc
+  testparse gnu/d0076.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do

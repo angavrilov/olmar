@@ -1161,9 +1161,11 @@ nonterm(Enumerator*) EnumeratorDefinition {
 }
 
 
-nonterm(E_stringLit*) AsmDefinition {
-  -> "asm" "(" s:StringLiteral ")" ";"    { return s; }
-}
+// dsw: this is ambiguous and redundant with a similar thing in
+// gnu.gr; should it be here at all?
+//  nonterm(E_stringLit*) AsmDefinition {
+//    -> "asm" "(" s:StringLiteral ")" ";"    { return s; }
+//  }
 
 
 nonterm(TopForm*) LinkageSpecification {
