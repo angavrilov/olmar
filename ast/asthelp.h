@@ -79,7 +79,7 @@
 #define ASTDEFAULTC                                   \
     break;                                            \
   } /* end final case */                              \
-  default: {                                          \
+  default: {
 
 // end a case where an explicit default was present, or
 // there is no need to add one (e.g. because it was exhaustive)
