@@ -54,7 +54,7 @@ void lvals()
   *ip = z;
   s.m = z;
   sp->m = 5;
-  (char)x = z;
+  //(char)x = z;      // removed casts as lvals
   a[1] = y;
 
   // TODO: handle this more gracefully

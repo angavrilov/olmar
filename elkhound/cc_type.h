@@ -272,6 +272,13 @@ public:     // funcs
   bool isIntegerType() const;            // any of the simple integer types
   bool isUnionType() const;
   bool isVoid() const { return isSimple(ST_VOID); }
+  bool isError() const { return isSimple(ST_ERROR); }
+
+  // pointer/reference stuff
+  bool isPointer() const;                // as opposed to reference or non-pointer
+  bool isReference() const;
+  bool isLval() const { return isReference(); }    // C terminology
+  Type const *asRval() const;            // if I am a reference, return referrent type
 
   ALLOC_STATS_DECLARE
 };
@@ -318,8 +325,7 @@ public:
   Type const *atType;          // (serf) type of thing pointed-at
 
 public:
-  PointerType(PtrOper o, CVFlags c, Type const *a)
-    : op(o), cv(c), atType(a) {}
+  PointerType(PtrOper o, CVFlags c, Type const *a);
   PointerType(PointerType const &obj)
     : DMEMB(op), DMEMB(cv), DMEMB(atType) {}
 

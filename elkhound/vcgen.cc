@@ -671,7 +671,7 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
     argExps.reverse();      // when it's easy to stay linear..
   }
 
-  FunctionType const &ft = func->type->asFunctionTypeC();
+  FunctionType const &ft = func->type->asRval()->asFunctionTypeC();
 
   // --------------- predicate: fn symbol application ----------------
   if (env.inPredicate) {
@@ -778,7 +778,7 @@ AbsValue *E_sizeof::vcgen(AEnv &env, int path) const
 {
   // whether 'expr' has side effects or not is irrelevant; they
   // won't be executed at run time; we only are about the type
-  return env.grab(new AVint(expr->type->reprSize()));         
+  return env.grab(new AVint(size));
 }
 
 AbsValue *E_unary::vcgen(AEnv &env, int path) const

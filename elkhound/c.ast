@@ -358,7 +358,10 @@ class Expression {
      }
   -> E_funCall(Expression func, ASTList<Expression> args);
   -> E_fieldAcc(Expression obj, StringRef field);
-  -> E_sizeof(Expression expr);
+  -> E_sizeof(Expression expr) {
+       public int size;     // size of the type of expr
+       ctor size=-1;
+     }
 
   -> E_unary(UnaryOp op, Expression expr);
   -> E_effect(EffectOp op, Expression expr);

@@ -12,6 +12,7 @@
 #include "c.ast.gen.h"    // C ast
 #include "cc_env.h"       // Env
 #include "aenv.h"         // AEnv
+#include "strutil.h"      // plural
 
 
 void if_malloc_stats()
@@ -96,7 +97,9 @@ void doit(int argc, char **argv)
     }
 
     if (env.getErrors() != 0) {
-      cout << "there were " << env.getErrors() << " typechecking errors\n";
+      int n = env.getErrors();
+      cout << "there " << plural(n, "was") << " " << env.getErrors() 
+           << " typechecking " << plural(n, "error") << "\n";
       exit(4);
     }
 

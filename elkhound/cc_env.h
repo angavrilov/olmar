@@ -281,8 +281,11 @@ public:     // funcs
   // the same except its size is as specified
   ArrayType const *setArraySize(ArrayType const *type, int size);
 
-  // make a ptr-to-'type' type
-  PointerType *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
+  // make a ptr-to-'type' type; returns generic Type instead of
+  // PointerType because sometimes I return fixed(ST_ERROR)
+  Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
+  Type const *makeRefType(Type const *type)
+    { return makePtrOperType(PO_REFERENCE, CV_NONE, type); }
 
   // make a function type; initially, its parameter list is
   // empty, but can be built up by modifying the returned object

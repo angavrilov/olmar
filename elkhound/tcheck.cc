@@ -11,17 +11,41 @@
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
 
-void checkBoolean(Env &env, Type const *c, Expression const *e)
+Type const *fixed(SimpleTypeId id)
 {
-  if (c->isIntegerType() ||
-      c->isPointerType() ||
-      c->isArrayType()) {      // what the hey..
+  return &CVAtomicType::fixed[id];
+}
+
+
+void checkBoolean(Env &env, Type const *t, Expression const *e)
+{
+  // if a reference type is being used as an atomic, unwrap the reference
+  t = t->asRval();
+
+  if (t->isError() ||          // don't report errors for <error> type
+      t->isIntegerType() ||
+      t->isPointerType()) {    // what the hey..
     // ok
   }
   else {
-    env.err(stringc << "expression `" << e->toString() 
-                    << "', type `" << c->toString()
-                    << "' should be a number or pointer");
+    env.err(stringc << "expression " << e->toString()
+                    << " has type " << t->toString()
+                    << " but is used like a number or pointer");
+  }
+}
+
+
+// verify 't' is an lval, and return the rvalue version
+Type const *checkLval(Env &env, Type const *t, Expression const *e)
+{
+  if (!t->isError() && !t->isLval()) {
+    env.err(stringc << "expression " << e->toString()
+                    << " has type " << t->toString()
+                    << " but is used like an lvalue");
+    return fixed(ST_ERROR);
+  }
+  else {
+    return t->asRval();
   }
 }
 
@@ -866,14 +890,13 @@ string Statement::successorsToString() const
 Type const *Expression::tcheck(Env &env)
 {
   type = itcheck(env);
+  
+  // it's important we cound paths *after* typechecking, because
+  // the path counter will rely on the fact that all subexpressions
+  // have already had their paths counted
   countPaths(env, this);
+
   return type;
-}
-
-
-Type const *fixed(SimpleTypeId id)
-{
-  return &CVAtomicType::fixed[id];
 }
 
 
@@ -907,9 +930,23 @@ Type const *E_structLit::itcheck(Env &env)
   // the initializer itself is ignored
   cout << "TODO: handle structure initializers\n";
   return stype->tcheck(env);
-}    
+}
 #endif // 0
 
+
+// like Env::makeRefType, except we handle array types specially
+Type const *makeReference(Env &env, Type const *type)
+{
+  if (type->isArrayType()) {
+    // implicit coercion to a pointer to the first element
+    return env.makePtrOperType(PO_POINTER, CV_NONE,
+                               type->asArrayTypeC().eltType);
+  }
+  else {
+    // since the name of a variable is an lvalue, return a reference type
+    return env.makeRefType(type);
+  }
+}
 
 Type const *E_variable::itcheck(Env &env)
 {
@@ -927,31 +964,8 @@ Type const *E_variable::itcheck(Env &env)
     env.err(stringc << name << " cannot be referenced outside a predicate");
   }
 
-  return v->type;
+  return makeReference(env, v->type);
 }
-
-
-#if 0
-Type const *E_arrayAcc::itcheck(Env &env)
-{
-  Type const *itype = index->tcheck(env);
-  if (!itype->isIntegerType()) {
-    env.err("array index type must be integer");
-  }
-
-  Type const *lhsType = arr->tcheck(env);
-  if (lhsType->isArrayType()) {
-    return lhsType->asArrayTypeC().eltType;
-  }
-  else if (lhsType->isPointerType()) {
-    return lhsType->asPointerTypeC().atType;
-  }
-  else {
-    env.err("lhs of [] must be array or pointer");
-    return itype;     // whatever
-  }
-}
-#endif // 0
 
 
 void fatal(Env &env, Expression const *expr, Type const *type, char const *msg)
@@ -965,7 +979,7 @@ void fatal(Env &env, Expression const *expr, Type const *type, char const *msg)
 
 Type const *E_funCall::itcheck(Env &env)
 {
-  Type const *maybe = func->tcheck(env);
+  Type const *maybe = func->tcheck(env)->asRval();
   if (!maybe->isFunctionType()) {
     fatal(env, func, maybe, "must be function type");
   }
@@ -992,7 +1006,7 @@ Type const *E_funCall::itcheck(Env &env)
     else {
       // we can only portably pass built-in types across
       // a varargs boundary
-      checkBoolean(env, atype, iter.data());
+      checkBoolean(env, atype->asRval(), iter.data());
     }
   }
   if (!param.isDone()) {
@@ -1005,27 +1019,52 @@ Type const *E_funCall::itcheck(Env &env)
 
 Type const *E_fieldAcc::itcheck(Env &env)
 {
-  CompoundType const *ctype =
-    &( obj->tcheck(env)->asCVAtomicTypeC()
-         .atomic->asCompoundTypeC() );
+  Type const *lhstype = obj->tcheck(env);
+  bool lval = lhstype->isLval();     // e.g. a structure literal is not an lval
+  lhstype = lhstype->asRval();
+
+  CompoundType const *ctype;
+  try {
+    ctype = &( lhstype->asCVAtomicTypeC().atomic->asCompoundTypeC() );
+  }
+  catch (...) {
+    env.err(stringc << obj->toString() << " is not a compound type");
+    return fixed(ST_ERROR);
+  }
 
   CompoundType::Field const *f = ctype->getNamedField(field);
-  env.errIf(!f, stringc << "no field named " << field);
+  if (!f) {
+    env.err(stringc << "no field named " << field);
+    return fixed(ST_ERROR);
+  }
 
-  return f->type;
+  // field reference is an lval if the LHS was an lval
+  if (lval) {
+    return makeReference(env, f->type);
+  }
+  else {
+    if (f->type->isArrayType()) {
+      env.err("I don't know how to handle array accesses inside non-lval structs");
+      return fixed(ST_ERROR);
+    }
+    else {
+      // the field's type, as a non-lvalue
+      return f->type;                            
+    }
+  }
 }
 
 
 Type const *E_sizeof::itcheck(Env &env)
 {
-  expr->tcheck(env);
+  size = expr->tcheck(env)->reprSize();
   return fixed(ST_INT);
 }
 
 
 Type const *E_unary::itcheck(Env &env)
 {
-  Type const *t = expr->tcheck(env);
+  Type const *t = expr->tcheck(env)->asRval();
 
   // just about any built-in will do...
   checkBoolean(env, t, expr);
@@ -1036,10 +1075,8 @@ Type const *E_unary::itcheck(Env &env)
 
 Type const *E_effect::itcheck(Env &env)
 {
-  Type const *t = expr->tcheck(env);
+  Type const *t = checkLval(env, expr->tcheck(env), expr);
   checkBoolean(env, t, expr);
-
-  // TODO: verify argument is an lvalue..
 
   if (env.inPredicate) {
     env.err("cannot have side effects in predicates");
@@ -1051,12 +1088,12 @@ Type const *E_effect::itcheck(Env &env)
 
 Type const *E_binary::itcheck(Env &env)
 {
-  Type const *t1 = e1->tcheck(env);
-  Type const *t2 = e2->tcheck(env);
+  Type const *t1 = e1->tcheck(env)->asRval();
+  Type const *t2 = e2->tcheck(env)->asRval();
 
   checkBoolean(env, t1, e1);     // pointer is acceptable here..
   checkBoolean(env, t2, e2);
-  
+
   // e.g. (short,long) -> long
   return env.promoteTypes(op, t1, t2);
 }
@@ -1064,13 +1101,11 @@ Type const *E_binary::itcheck(Env &env)
 
 Type const *E_addrOf::itcheck(Env &env)
 {
-  Type const *t = expr->tcheck(env);
-
-  // TODO: check that 'expr' is an lvalue
+  Type const *t = checkLval(env, expr->tcheck(env), expr);
 
   if (expr->isE_variable()) {
     // mark the variable as having its address taken
-    Variable *v = env.getVariable(expr->asE_variable()->name);
+    Variable *v = expr->asE_variable()->var;
     v->flags = (DeclFlags)(v->flags | DF_ADDRTAKEN);
   }
 
@@ -1080,23 +1115,20 @@ Type const *E_addrOf::itcheck(Env &env)
 
 Type const *E_deref::itcheck(Env &env)
 {
-  Type const *t = ptr->tcheck(env);
-  env.errIf(!t->isPointerType() && !t->isArrayType(),
-            stringc << "can only dereference pointers, not " << t->toCString());
+  Type const *t = ptr->tcheck(env)->asRval();
+  if (!t->isPointer()) {
+    env.err(stringc << "can only dereference pointers, not " << t->toCString());
+    return fixed(ST_ERROR);
+  }
 
-  if (t->isPointerType()) {
-    return t->asPointerTypeC().atType;
-  }
-  else {
-    return t->asArrayTypeC().eltType;
-  }
+  return env.makeRefType(t->asPointerTypeC().atType);
 }
 
 
 Type const *E_cast::itcheck(Env &env)
 {
-  // let's just allow any cast at all..
-  expr->tcheck(env);
+  // let's just allow any cast at all; strips lvalue-ness
+  expr->tcheck(env)->asRval();
   return ctype->tcheck(env);
 }
 
@@ -1126,7 +1158,7 @@ Type const *E_gnuCond::itcheck(Env &env)
   checkBoolean(env, e, el);
 
   return env.promoteTypes(BIN_PLUS, c, e);
-}    
+}
 #endif // 0
 
 
@@ -1141,36 +1173,33 @@ Type const *E_comma::itcheck(Env &env)
 
 Type const *E_sizeofType::itcheck(Env &env)
 {
-  size = atype->tcheck(env)->reprSize();
+  size = atype->tcheck(env)->asRval()->reprSize();
   return fixed(ST_INT);
 }
 
 
 Type const *E_assign::itcheck(Env &env)
 {
-  Type const *stype = src->tcheck(env);
-  Type const *ttype = target->tcheck(env);
-
-  // TODO: check that 'ttype' is an lvalue
-  // TODO: this isn't quite right.. I should first compute
-  // the promotion of stype,ttype, then verify this can
-  // in turn be coerced back to ttype.. (?)
+  Type const *stype = src->tcheck(env)->asRval();
+  Type const *ttype = checkLval(env, target->tcheck(env), target);
 
   if (env.inPredicate) {
     env.err(stringc << "cannot have side effects in predicates: " << toString());
   }
 
   if (op != BIN_ASSIGN) {
-    // they both need to be integers
-    if (!stype->isIntegerType() ||
-        !ttype->isIntegerType()) {
-      env.err(stringc << "arguments to " << ::toString(op)
-                      << "= must both be integral");
-    }
-    env.checkCoercible(stype, ttype);
+    // TODO: this isn't quite right.. I should first compute
+    // the promotion of stype,ttype, then verify this can
+    // in turn be coerced back to ttype.. (?)
+
+    // they both need to be integers or pointers
+    checkBoolean(env, stype, src);
+    checkBoolean(env, ttype, target);
   }
 
-  return stype;    // not sure whether to return ttype or stype here..
+  env.checkCoercible(stype, ttype);
+
+  return ttype;    // not sure whether to return ttype or stype here..
 }
 
 
@@ -1182,6 +1211,7 @@ string Expression::extrasToString() const
     sb << type->toCString();
   }
   else {
+    // for when we print a tree before/during typechecking
     sb << "(null)";
   }
   return sb;
@@ -1210,7 +1240,7 @@ int E_charLit::constEval(Env &env) const
 
 int E_sizeof::constEval(Env &env) const
 {
-  return expr->type->reprSize();
+  return size;
 }
 
 int E_unary::constEval(Env &env) const
@@ -1345,7 +1375,7 @@ string E_addrOf::toString() const
 string E_deref::toString() const
   { return stringc << "*(" << ptr->toString() << ")"; }
 string E_cast::toString() const
-  { return stringc << "(..some type..)" << expr->toString(); }
+  { return stringc << "(" << type->toCString() << ")" << expr->toString(); }
 string E_cond::toString() const
   { return stringc << cond->toString() << "?" << th->toString() << ":" << el->toString(); }
 //string E_gnuCond::toString() const

@@ -43,7 +43,7 @@ int foo()
   b = sizeof(int);    // sizeof built-in type
   a = sizeof(S);      // sizeof user-def type
 
-  (int)c = x;         // cast of lval
+  //(int)c = x;         // cast of lval (removed)
   b = (int)(x+y);     // cast of expr
 
   a = b + c;          // binary expr

@@ -29,7 +29,7 @@ void foo()
   f = (float)x;
 
   // assigned lval cast rewrite
-  (float)x = f;
+  //(float)x = f;   // removed this syntax
 
 
   // field of field

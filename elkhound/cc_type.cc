@@ -624,6 +624,28 @@ bool Type::isUnionType() const
   return false;
 }
 
+bool Type::isPointer() const
+{
+  return isPointerType() && asPointerTypeC().op == PO_POINTER;
+}
+
+bool Type::isReference() const
+{
+  return isPointerType() && asPointerTypeC().op == PO_REFERENCE;
+}
+
+Type const *Type::asRval() const
+{
+  if (isReference()) {
+    // note that due to the restriction about stacking reference
+    // types, unrolling more than once is never necessary
+    return asPointerTypeC().atType;
+  }
+  else {
+    return this;
+  }
+}
+
 
 // ----------------- CVAtomicType ----------------
 CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
@@ -702,6 +724,18 @@ int CVAtomicType::reprSize() const
 
 
 // ------------------- PointerType ---------------
+PointerType::PointerType(PtrOper o, CVFlags c, Type const *a)
+  : op(o), cv(c), atType(a) 
+{
+  // since references are always immutable, it makes no sense to
+  // apply const or volatile to them
+  xassert(op==PO_REFERENCE? cv==CV_NONE : true);
+
+  // it also makes no sense to stack reference operators underneath
+  // other indirections (i.e. no ptr-to-ref, nor ref-to-ref)
+  xassert(!a->isReference());
+}
+
 bool PointerType::innerEquals(PointerType const *obj) const
 {
   return op == obj->op &&

@@ -60,18 +60,18 @@ typedef int size_t;
 size_t read(int fd, void *buf, size_t count);
 int strcmp(char const *s1, char const *s2);
 
-#include "ssh2includes.h"
-#include "readpass.h"
+//#include "ssh2includes.h"
+//#include "readpass.h"
 
-#define SSH_DEBUG_MODULE "SshReadPass"
+//#define SSH_DEBUG_MODULE "SshReadPass"
 
 /* Saved old terminal mode for read_passphrase. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
 static struct termios saved_tio;
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
 //static struct sgttyb saved_tio;
-#endif
+//#endif
 
 /* Old interrupt signal handler for read_passphrase. */
 static RETSIGTYPE (*old_handler)(int sig) = 0/*NULL*/;
@@ -81,12 +81,12 @@ static RETSIGTYPE (*old_handler)(int sig) = 0/*NULL*/;
 RETSIGTYPE ssh_rp_intr_handler(int sig)
 {
   /* Restore terminal modes. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
   tcsetattr(fileno(stdin), TCSANOW, &saved_tio);
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
   //ioctl(fileno(stdin), TIOCSETP, &saved_tio);
-#endif
+//#endif
   /* Restore the old signal handler. */
   signal(sig, old_handler);
   /* Resend the signal, with the old handler. */
@@ -103,12 +103,12 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
   char buf[1024], *cp;
   unsigned char quoted_prompt[512];
   unsigned char const *p;    // sm: swapped order of 'char' and 'const'
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
   struct termios tio;
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
   //struct sgttyb tio;
-#endif
+//#endif
   FILE *f;
   int i;
   
@@ -209,25 +209,25 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
   fflush(stderr);
 
   /* Get terminal modes. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
   tcgetattr(fileno(f), &tio);
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
   //ioctl(fileno(f), TIOCGETP, &tio);
-#endif
+//#endif
   saved_tio = tio;
   /* Save signal handler and set the new handler. */
   old_handler = signal(SIGINT, ssh_rp_intr_handler);
 
   /* Set new terminal modes disabling all echo. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
   tio.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
   tcsetattr(fileno(f), TCSANOW, &tio);
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
   //tio.sg_flags &= ~(ECHO);
   //ioctl(fileno(f), TIOCSETP, &tio);
-#endif
+//#endif
   
   {
     /* Read the passphrase from the terminal. */
@@ -269,12 +269,12 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
       read_error:
         /* Got EOF, or error.  Just return NULL. */
         /* Restore terminal modes. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
         tcsetattr(fileno(f), TCSANOW, &saved_tio);
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
         ioctl(fileno(f), TIOCSETP, &saved_tio);
-#endif
+//#endif
         /* Restore the signal handler. */
         signal(SIGINT, old_handler);
         /* Print a newline (the prompt probably didn\'t have one). */
@@ -287,18 +287,18 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
       }
   }
 
-#ifdef OLDXXX
+//#ifdef OLDXXX
   /* Read the passphrase from the terminal. */
   if (fgets(buf, sizeof(buf), f) == 0/*NULL*/)
     {
       /* Got EOF.  Just return NULL. */
       /* Restore terminal modes. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
       tcsetattr(fileno(f), TCSANOW, &saved_tio);
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
       //ioctl(fileno(f), TIOCSETP, &saved_tio);
-#endif
+//#endif
       /* Restore the signal handler. */
       signal(SIGINT, old_handler);
       /* Print a newline (the prompt probably didn\'t have one). */
@@ -308,14 +308,14 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
         fclose(f);
       return 0/*NULL*/;
     }
-#endif /* OLDXXX */
+//#endif /* OLDXXX */
   /* Restore terminal modes. */
-#ifdef USING_TERMIOS
+//#ifdef USING_TERMIOS
   tcsetattr(fileno(f), TCSANOW, &saved_tio);
-#endif
-#ifdef USING_SGTTY
+//#endif
+//#ifdef USING_SGTTY
   //ioctl(fileno(f), TIOCSETP, &saved_tio);
-#endif
+//#endif
   /* Restore the signal handler. */
   (void)signal(SIGINT, old_handler);
   /* Remove newline from the passphrase. */

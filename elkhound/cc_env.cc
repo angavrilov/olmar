@@ -465,6 +465,10 @@ CVAtomicType *Env::makeCVType(AtomicType const *atomic, CVFlags cv)
 
 Type const *Env::applyCVToType(CVFlags cv, Type const *baseType)
 {
+  if (baseType->isError()) {
+    return baseType;
+  }
+
   if (cv == CV_NONE) {
     // keep what we've got
     return baseType;
@@ -530,15 +534,19 @@ Type const *Env::applyCVToType(CVFlags cv, Type const *baseType)
 
 
 ArrayType const *Env::setArraySize(ArrayType const *type, int size)
-{                                      
+{
   ArrayType *ret = new ArrayType(type->eltType, size);
   grab(ret);
   return ret;
 }
 
 
-PointerType *Env::makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
+Type const *Env::makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
 {
+  if (type->isError()) {
+    return type;
+  }
+
   PointerType *ret = new PointerType(op, cv, type);
   grab(ret);
   return ret;
