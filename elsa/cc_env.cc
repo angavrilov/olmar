@@ -43,7 +43,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
     thisName(str("this")),
-                       
+    quote_C_quote(str("\"C\"")),
+    quote_C_plus_plus_quote(str("\"C++\"")),
+
     // these are done below because they have to be declared as functions too
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
@@ -63,6 +65,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // arrays, and then have things added to them below
 
     tunit(tunit0),
+
+    currentLinkage(quote_C_plus_plus_quote),
 
     doOverload(tracingSys("doOverload")),
     doOperatorOverload(tracingSys("doOperatorOverload")),

@@ -87,6 +87,8 @@ public:      // data
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
   StringRef thisName;
+  StringRef quote_C_quote;
+  StringRef quote_C_plus_plus_quote;
 
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
@@ -109,8 +111,12 @@ public:      // data
   ArrayStack<Variable*> builtinUnaryOperator[NUM_OVERLOADABLE_OPS];
   ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_OVERLOADABLE_OPS];
 
+  // TODO: elminate this!
   TranslationUnit *tunit;
-  
+                
+  // current linkage type, as a string literal like "C" or "C++"
+  StringRef currentLinkage;
+
   // when true, the type checker does overload resolution; this isn't
   // enabled by default because it's not fully implemented, and
   // consequently, turning it on leads to spurious errors on some test
@@ -404,6 +410,9 @@ public:      // funcs
   // subsequent overload resolution needs to pick from the set, before
   // de-aliasing happens
   Variable *storeVarIfNotOvl(Variable *var);
+
+  // true if the current linkage type is "C"
+  bool linkageIs_C() const { return currentLinkage == quote_C_quote; }
 
   // points of extension: These functions do nothing in the base
   // Elsa parser, but can be overridden in client analyses to

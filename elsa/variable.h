@@ -153,6 +153,9 @@ public:
 
 inline string toString(Variable const *v) { return v->toString(); }
 
+// true if 'v1' and 'v2' refer to the same run-time entity
+bool sameEntity(Variable const *v1, Variable const *v2);
+
 
 class OverloadSet {
 public:

@@ -136,6 +136,33 @@ Variable const *Variable::skipAliasC() const
 }
 
 
+bool sameEntity(Variable const *v1, Variable const *v2)
+{
+  v1 = v1->skipAliasC();
+  v2 = v2->skipAliasC();
+  
+  if (v1 == v2) {
+    return true;
+  }
+  
+  if (v1 && v2 &&                   // both non-NULL
+      v1->name == v2->name &&       // same simple name
+      v1->hasFlag(DF_EXTERN_C) &&   // both are extern "C"
+      v2->hasFlag(DF_EXTERN_C)) {
+    // They are the same entity.. unfortunately, outside this
+    // rather oblique test, there's no good way for the analysis
+    // to know this in advance.  Ideally the tchecker should be
+    // maintaining some symbol table of extern "C" names so that
+    // it could use the *same* Variable object for multiple
+    // occurrences in different namespaces, but I'm too lazy to
+    // implement that now.
+    return true;
+  }
+  
+  return false;
+}
+
+
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
   : set()

@@ -600,10 +600,19 @@ Variable const *Scope::searchActiveUsingEdges
     // look for 'name' in 's'
     Variable const *v = vfilterC(s->variables.queryif(name), flags);
     if (v) {
-      if (vfound && vfound!=v) {
-        env.error(stringc
-          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
-          << "' vs. `" << v->fullyQualifiedName() << "'");
+      if (vfound) {
+        if (!sameEntity(vfound, v)) {
+          env.error(stringc
+            << "ambiguous lookup: `" << vfound->fullyQualifiedName()
+            << "' vs. `" << v->fullyQualifiedName() << "'");
+            
+          // originally I kept going in hopes of reporting more
+          // interesting things, but now that the same scope can
+          // appear multiple times on the active-using list, I
+          // get multiple reports of the same thing, so bail after
+          // the first
+          return v;
+        }
       }
       else {
         vfound = v;

@@ -22,6 +22,7 @@
 #include "generic_amb.h"    // resolveAmbiguity, etc.
 #include "ast_build.h"      // makeExprList1, etc.
 #include "strutil.h"        // prefixEquals
+#include "macros.h"         // Restorer
 
 #include <stdlib.h>         // strtoul, strtod
 
@@ -101,7 +102,9 @@ void TF_template::tcheck(Env &env)
 void TF_linkage::tcheck(Env &env)
 {  
   env.setLoc(loc);
-  // ignore the linkage type for now
+
+  // set the linkage type for the duration of this form
+  Restorer<StringRef> restorer(env.currentLinkage, linkageType);
 
   forms->tcheck(env);
 }
@@ -109,8 +112,10 @@ void TF_linkage::tcheck(Env &env)
 void TF_one_linkage::tcheck(Env &env)
 {
   env.setLoc(loc);
-  // ignore the linkage type for now
-  
+
+  // set the linkage type for the duration of this form
+  Restorer<StringRef> restorer(env.currentLinkage, linkageType);
+
   // we need to dig down into the form to apply 'extern'
   // [cppstd 7.5 para 7]
   ASTSWITCH(TopForm, form) {
@@ -2304,6 +2309,11 @@ realStart:
     possiblyConsumeFunctionType(env, dt);
     dt.var = env.makeVariable(loc, NULL, dt.type, dt.dflags);
     return;
+  }
+
+  // C linkage?
+  if (env.linkageIs_C()) {
+    dt.dflags |= DF_EXTERN_C;
   }
 
   // friend?
