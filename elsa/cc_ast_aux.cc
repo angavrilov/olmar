@@ -22,19 +22,18 @@
 // but the extra information is probably worth it.
 string refersTo(Variable *v)
 {
-  if (v) {
+  if (!v) {
     return "NULL";
   }
 
-  if (!v->usingAlias) {
-    return stringc << "refers to " << toString(v->loc) 
-                   << ", type is " << v->type->toString();
+  stringBuilder sb;
+  sb << v->toString();
+  sb << ", at " << toString(v->loc);
+  if (v->usingAlias) {
+    sb << ", alias of " << toString(v->skipAlias()->loc);
   }
-  else {
-    return stringc << "refers to " << toString(v->loc)
-                   << " (alias of " << toString(v->skipAlias()->loc) << ")"
-                   << ", type is " << v->type->toString();
-  }
+  sb << stringf(" (0x%08X)", (long)v);
+  return sb;
 }
 
 
@@ -47,6 +46,14 @@ void Function::printExtras(ostream &os, int indent) const
   if (funcType) {
     ind(os, indent) << "funcType: " << funcType->toString() << "\n";
   }
+  ind(os, indent) << "thisVar: " << refersTo(thisVar) << "\n";
+  ind(os, indent) << "ctorThisLocalVar: " << refersTo(ctorThisLocalVar) << "\n";
+}
+
+
+SourceLoc Function::getLoc() const
+{
+  return nameAndParams->getLoc();
 }
 
 
@@ -247,6 +254,12 @@ PQName const *Declarator::getDeclaratorId() const
 }
 
 
+SourceLoc Declarator::getLoc() const
+{
+  return decl->loc;
+}
+
+
 void Declarator::printExtras(ostream &os, int indent) const
 {
   if (var) {
@@ -371,6 +384,7 @@ void Statement::addAmbiguity(Statement *alt)
   // do not have 'next' fields
 
   // prepend 'alt' to my list
+  xassert(alt->ambiguity == NULL);
   const_cast<Statement*&>(alt->ambiguity) = ambiguity;
   const_cast<Statement*&>(ambiguity) = alt;
 }
@@ -404,8 +418,9 @@ void Condition::addAmbiguity(Condition *alt)
   // do not have 'next' fields
 
   // prepend 'alt' to my list
-  const_cast<Condition*&>(alt->ambiguity) = ambiguity;
-  const_cast<Condition*&>(ambiguity) = alt;
+  xassert(alt->ambiguity == NULL);
+  alt->ambiguity = ambiguity;
+  ambiguity = alt;
 }
 
 
@@ -492,17 +507,16 @@ void Expression::printExtras(ostream &os, int indent) const
     }
 
     ASTNEXTC(E_variable, v)
-      if (v->var) {
-        ind(os, indent) << "var: " << refersTo(v->var) << "\n";
-      }
+      ind(os, indent) << "var: " << refersTo(v->var) << "\n";
+
+    ASTNEXTC(E_constructor, c)
+      ind(os, indent) << "ctorVar: " << refersTo(c->ctorVar) << "\n";
 
     ASTNEXTC(E_new, n)
       PRINT_SUBTREE(n->arraySize);
 
     ASTNEXTC(E_fieldAcc, f)
-      if (f->field) {
-        ind(os, indent) << "field: " << refersTo(f->field) << "\n";
-      }
+      ind(os, indent) << "field: " << refersTo(f->field) << "\n";
 
     ASTDEFAULTC
       /* do nothing */

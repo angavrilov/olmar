@@ -54,23 +54,22 @@ public:
   // for overloading, which causes me to compute the wrong types
   // sometimes (defaults to true, but is false in C++ mode for now)
   bool complainUponBadDeref;
-  
+
   // when true, require all array sizes to be positive; when false,
   // 0-length arrays are allowed as class/struct fields
   bool strictArraySizeRequirements;
-  
+
   // when true, we allow overloaded function declarations (same name,
   // different signature)
   bool allowOverloading;
 
-  // when true, implicit syntax such as "default" (no-arg) ctors for
-  // structs/classes are created; when false (standard C) there is no
-  // implicit syntax (this definition is admittedly vague; it may be
-  // refined at some point, once elaboration stabilizes)
-  bool hasImplicitStuff;
-
   // when true, to every compound type add the name of the type itself
   bool compoundSelfName;
+
+  // catch-call for behaviors that are unique to C++ but aren't
+  // enumerated above; these behaviors are candidates for being split
+  // out as separate flags, but there currently is no need
+  bool isCplusplus;
 
 public:
   CCLang() { ANSI_C(); }

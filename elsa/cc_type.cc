@@ -17,9 +17,6 @@
 #include <stdlib.h>     // getenv
 
 
-ToStringMode currentToStringMode = C_TSM;
-
-
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
@@ -41,11 +38,13 @@ DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
 
 
-string AtomicType::toString() const {
-  switch (currentToStringMode) {
-  default: xfailure("illegal currentToStringMode"); break;
-  case C_TSM: return toCString();
-  case ML_TSM: return toMLString();
+string AtomicType::toString() const
+{
+  if (Type::printAsML) {
+    return toMLString();
+  }
+  else {
+    return toCString();
   }
 }
 
@@ -629,6 +628,101 @@ void CompoundType::addLocalConversionOp(Variable *op)
 }
 
 
+// a filter on elements of an overload set of members in 'ct'
+typedef bool (*OverloadFilter)(CompoundType *ct, FunctionType *ft);
+
+Variable *overloadSetFilter(CompoundType *ct, Variable *start, OverloadFilter func)
+{
+  if (!start || !start->type->isFunctionType()) {
+    return NULL;               // name maps to no function
+  }
+
+  if (!start->overload) {
+    if (func(ct, start->type->asFunctionType())) {
+      return start;            // name maps to one thing, it passes
+    }
+    else {
+      return NULL;             // name maps to one thing, it fails
+    }
+  }
+
+  // name maps to multiple things, consider each
+  SFOREACH_OBJLIST_NC(Variable, start->overload->set, iter) {
+    if (func(ct, iter.data()->type->asFunctionType())) {
+      return iter.data();      // the first one that passes
+    }
+  }
+
+  return NULL;                 // none pass
+}
+
+
+static bool defaultCtorTest(CompoundType *ct, FunctionType *ft)
+{
+  // every parameter must have a default value
+  return ft->paramsHaveDefaultsPast(0);
+}
+
+Variable *CompoundType::getDefaultCtor()
+{
+  return overloadSetFilter(this, rawLookupVariable("constructor-special"),
+                           defaultCtorTest);
+}
+
+
+// true if parameter 'n' is a reference to 'ct'
+static bool nthIsCtReference(CompoundType *ct, FunctionType *ft, int n)
+{
+  if (ft->params.count() <= n) {
+    return false;
+  }
+  Type *t = ft->params.nth(n)->type;
+  if (t->isReference() &&
+      t->asRval()->ifCompoundType() == ct) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+static bool copyCtorTest(CompoundType *ct, FunctionType *ft)
+{
+  return
+    nthIsCtReference(ct, ft, 0) &&   // first param must be a reference to 'ct'
+    ft->paramsHaveDefaultsPast(1);   // subsequent have defaults
+}
+
+Variable *CompoundType::getCopyCtor()
+{
+  return overloadSetFilter(this, rawLookupVariable("constructor-special"),
+                           copyCtorTest);
+}
+
+
+static bool assignOperatorTest(CompoundType *ct, FunctionType *ft)
+{
+  return
+    ft->isMethod() &&                // first param is receiver object
+    nthIsCtReference(ct, ft, 1) &&   // second param must be a reference to 'ct'
+    ft->paramsHaveDefaultsPast(2);   // subsequent have defaults
+}
+
+Variable *CompoundType::getAssignOperator()
+{
+  return overloadSetFilter(this, rawLookupVariable("operator="),
+                           assignOperatorTest);
+}
+
+
+Variable *CompoundType::getDtor()
+{
+  // synthesize the dtor name... maybe I should be using
+  // "destructor-special" or something
+  return rawLookupVariable(stringc << "~" << name);
+}
+
+
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
 {}
@@ -710,9 +804,11 @@ int TypeVariable::reprSize() const
 
 
 // -------------------- BaseType ----------------------
+ALLOC_STATS_DEFINE(BaseType)
+
 #if USE_TYPE_SERIAL_NUMBERS
 int BaseType::globalSerialNumber = 0;
-                   
+
 // semantically, just "++"; but here anyway to make it easier to put
 // in conditional breakpoints for specific type ids
 static int incSerialNumber()
@@ -721,7 +817,8 @@ static int incSerialNumber()
 }
 #endif
 
-ALLOC_STATS_DEFINE(BaseType)
+bool BaseType::printAsML = false;
+
 
 BaseType::BaseType()
   : typedefAliases()     // initially empty
@@ -851,30 +948,32 @@ string printSerialNo(int serialNumber)
     return "";     // don't print them.. messes up idempotency among other things
   }
   else {
-//      return stringc << "/""*t" << serialNumber << "*/";
     return stringc << "t" << serialNumber;
   }
 }
 
 
-string BaseType::toString() const {
-  switch (currentToStringMode) {
-  default: xfailure("illegal currentToStringMode"); break;
-  case C_TSM: return toCString();
-  case ML_TSM: return toMLString();
+string BaseType::toString() const 
+{
+  if (printAsML) {
+    return toMLString();
+  }
+  else {
+    return toCString();
   }
 }
 
 
-string BaseType::toString(char const *name) const {
-  switch (currentToStringMode) {
-  default: xfailure("illegal currentToStringMode"); break;
-  case C_TSM: return toCString(name);
-  case ML_TSM:
+string BaseType::toString(char const *name) const 
+{
+  if (printAsML) {
     if (!name) {
       name = "*anonymous*";
     }
     return stringc << "\"" << name << "\"->" << toMLString();
+  }
+  else {
+    return toCString(name);
   }
 }
 
@@ -1077,6 +1176,12 @@ bool BaseType::containsTypeVariables() const
 Variable *BaseType::typedefName()
 {
   return typedefAliases.isEmpty()? NULL : typedefAliases.first();
+}
+
+
+string toString(Type *t)
+{
+  return t->toString();
 }
 
 
@@ -1417,8 +1522,29 @@ bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
 }
 
 
+bool FunctionType::paramsHaveDefaultsPast(int startParam) const
+{
+  SObjListIter<Variable> iter(params);
+
+  // count off 'startParams' parameters that are not tested
+  while (!iter.isDone() && startParam>0) {
+    iter.adv();
+    startParam--;
+  }
+
+  // all remaining parameters must accept defaults
+  for (; !iter.isDone(); iter.adv()) {
+    if (!iter.data()->value) {
+      return false;     // doesn't have a default value
+    }
+  }
+
+  return true;          // all params after 'startParam' have defaults
+}
+
+
 unsigned FunctionType::innerHashValue() const
-{               
+{
   // process return type similarly to how other constructed types
   // handle their underlying type
   unsigned val = retType->innerHashValue() * HASH_KICK +
@@ -1469,6 +1595,10 @@ void FunctionType::doneParams()
 {}
 
 
+void FunctionType::registerRetVal(Variable *retVal)
+{}
+
+
 Variable const *FunctionType::getThisC() const
 {
   xassert(isMethod());
@@ -1487,6 +1617,11 @@ CVFlags FunctionType::getThisCV() const
   else {
     return CV_NONE;
   }
+}
+
+CompoundType *FunctionType::getClassOfMember()
+{
+  return getThis()->type->asPointerType()->atType->asCompoundType();
 }
 
 
@@ -2418,3 +2553,6 @@ char *type_toString(Type const *t)
   // defined in smbase/strutil.cc
   return copyToStaticBuffer(t->toString());
 }
+
+
+// EOF

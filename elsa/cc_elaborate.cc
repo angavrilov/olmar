@@ -1,20 +1,48 @@
 // cc_elaborate.cc            see license.txt for copyright and terms of use
 // code for cc_elaborate.h
 
-// Convention w.r.t. 'env.doElaborate':
-//   - The caller (in cc_tcheck.cc) checks this flag, and only calls 
-//     into cc_elaborate.cc when it is true.
-//   - The functions in cc_elaborate.cc xassert that it is true, but do
-//     not otherwise check it.
-// This ensures that the caller respects the flag, and also minimizes
-// what will have to change later when (if) elaboration becomes a separate
-// pass, rather than integrated into tcheck.
+
+// Subtree cloning strategy (SCS):
+//
+// Since cloning remains somewhat ad-hoc and untested, when a node has
+// subtrees that are used in its elaboration, we clone the subtrees
+// but put the clone back into the subtree pointer.  Then the original
+// subtree (trusted to be properly tcheck'd) is what's used in the
+// elaboration, since we assume that analyses will look at the
+// elaboration to the exclusion of the subtree pointer.
+//
+// Update: The problem with this is that an analysis has to be
+// explicitly coded to avoid the cloned, defunct subtrees, otherwise
+// it encounters un-elaborated AST.  Therefore the new default is to
+// simply nullify defunct subtrees, despite the fact that it
+// technically results in invalid AST (e.g. E_delete with a NULL
+// 'expr').  The analysis can request the full SCS by setting
+// 'ElabVisitor::cloneDefunct' to true.
+
+
+// Subtree elaboration strategy (SES):
+//
+// Q: An AST node may have subtrees.  When do the subtrees get
+// elaborated, with respect to the elaboration of the parent node?
+//
+// A: The parent node's elaborate() function (goes by various names
+// in the following code) is called first.  The parent then has the
+// responsibility of elaborating its children manually.  For example,
+// if it puts its children into a ctorStatement, 'makeCtorStatement'
+// will elaborate the arguments (children).  Then the visitor returns
+// 'false' so that the children are not elaborated again.  (In fact
+// it would be the children's clones being elaborated "again", and I
+// don't want to elaborate clones.)
+
 
 #include "cc_elaborate.h"      // this module
 #include "cc_ast.h"            // Declaration
-#include "cc_env.h"            // Scope, Env
 #include "ast_build.h"         // makeExprList1, etc.
 #include "trace.h"             // TRACE
+#include "cc_print.h"          // PrintEnv
+                                                        
+// cc_type.h
+Type *makeLvalType(TypeFactory &tfac, Type *underlying);
 
 
 // ---------------------- FullExpressionAnnot ---------------------
@@ -25,6 +53,7 @@ FullExpressionAnnot::~FullExpressionAnnot()
 {}
 
 
+#if 0    // delete me
 FullExpressionAnnot::StackBracket::StackBracket
   (Env &env0, FullExpressionAnnot &fea0)
   : env(env0)
@@ -36,513 +65,711 @@ FullExpressionAnnot::StackBracket::~StackBracket()
 {
   fea.tcheck_postorder(env, s);
 }
+#endif // 0
 
 
-// ------------------------ misc ----------------------
-// (what follows could be better organized)
+// --------------------- ElabVisitor misc. ----------------------
+ElabVisitor::ElabVisitor(StringTable &s, TypeFactory &tf,
+                         TranslationUnit *tu)
+  : str(s),
+    tfac(tf),
+    tunit(tu),
+    env(*this),
+    functionStack(),              // empty
+    fullExpressionAnnotStack(),   // empty
+    enclosingStmtLoc(SL_UNKNOWN),
+    thisName(s("this")),
+    activities(EA_ALL),
+    cloneDefunctChildren(false),
+    tempSerialNumber(0),
+    e_newSerialNumber(0)
+{}
 
-// Note: the return value should be typechecked.  This is an asymmetry
-// with makeCtorStatement() where the returned statement has already
-// been typechecked.
-E_constructor *makeCtorExpr(Env &env,
-                            Variable *target,
-                            CompoundType *cpdType,
-                            FakeList<ArgExpression> *args)
+ElabVisitor::~ElabVisitor()
+{}
+
+
+StringRef ElabVisitor::makeTempName()
 {
-  xassert(env.doElaboration);
-  xassert(target);
-  xassert(!target->hasFlag(DF_TYPEDEF));
-  PQName *name0 = env.make_PQ_fullyQualifiedName(cpdType);
-  E_constructor *ector0 =
-    new E_constructor(new TS_name(env.loc(), name0, false),
-                      args);
-  ector0->artificial = true;
+  return str(stringc << "temp-name-" << tempSerialNumber++);
+}
 
-  // FIX: this is probably organized wrong; I should probably take an
-  // expression rather than a Variable as the argument _target_.
-  ector0->retObj = wrapVarWithE_variable(env, target);
+StringRef ElabVisitor::makeE_newVarName()
+{
+  return str(stringc << "e_new-name-" << e_newSerialNumber++);
+}
 
-  // I need to deal with the possibility that the type of the variable
-  // may be a pointer.  A pointer would never have a user-defined ctor
-  // called on it, however when writing a ctor to call a superclass
-  // ctor, you have to call it on the "this" variable, which is a
-  // pointer.  There is no "*this" variable to pass down instead.
-  //
-  // 'target' has type 'C&' for class C.  But then it gets wrapped in
-  // an E_variable, and E_variable's tcheck turns it into a pointer
-  // when the name is "this".  (FIX that.)  So then we change it back
-  // into a reference by wrapping in E_deref.
-  if (ector0->retObj->getType()->isPointer()) {
-    xassert(0==strcmp("this", target->name)); // I think I only need it for "this"
-    ector0->retObj = new E_deref(ector0->retObj);
+StringRef ElabVisitor::makeThrowClauseVarName()
+{
+  return str(stringc << "throwClause-name-" << throwClauseSerialNumber++);
+}
+
+StringRef ElabVisitor::makeCatchClauseVarName()
+{
+  return str(stringc << "catchClause-name-" << throwClauseSerialNumber++);
+}
+
+
+Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
+                                    Type *type, DeclFlags dflags)
+{
+  return tfac.makeVariable(loc, name, type, dflags, tunit /*doh!*/);
+}
+
+
+// ----------------------- AST creation ---------------------------
+// This section contains functions that build properly-tcheck'd
+// AST nodes of a variety of kinds.  Part of the strategy for
+// building tcheck'd nodes is for most of the elaboration code
+// to use the functions in this section, which are then individually
+// checked to ensure they set all the fields properly, instead of
+// building AST nodes from scratch.
+
+
+// Variable -> D_name
+D_name *ElabVisitor::makeD_name(SourceLoc loc, Variable *var)
+{
+  D_name *ret = new D_name(loc, new PQ_variable(loc, var));
+  ret->type = var->type;
+  return ret;
+}
+
+
+// given a Variable, make a Declarator that refers to it; assume it's
+// being preceded by a TS_name that fully specifies the variable's
+// type, so we just use a D_name to finish it off
+Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var)
+{
+  IDeclarator *idecl = makeD_name(loc, var);
+
+  Declarator *decl = new Declarator(idecl, NULL /*init*/);
+  decl->var = var;
+  decl->type = var->type;
+
+  return decl;
+}
+
+// and similar for a full (singleton) declaration
+Declaration *ElabVisitor::makeDeclaration(SourceLoc loc, Variable *var)
+{
+  Declarator *declarator = makeDeclarator(loc, var);
+  Declaration *declaration =
+    new Declaration(DF_NONE, new TS_type(loc, var->type),
+      FakeList<Declarator>::makeList(declarator));
+  return declaration;
+}
+
+
+// given a function declaration, make a Declarator containing
+// a D_func that refers to it
+Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
+{
+  FunctionType *ft = var->type->asFunctionType();
+
+  // construct parameter list
+  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::emptyList();
+  {
+    // iterate over parameters other than the receiver object ("this")
+    SObjListIterNC<Variable> iter(ft->params);
+    if (ft->isMethod()) {
+      iter.adv();
+    }
+    for (; !iter.isDone(); iter.adv()) {
+      Variable *param = iter.data();
+
+      ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, param->type),
+                                        makeDeclarator(loc, param));
+      params = params->prepend(typeId);
+    }
+    params = params->reverse();     // fix prepend()-induced reversal
   }
+
+  // build D_func
+  IDeclarator *funcIDecl = new D_func(loc,
+                                      makeD_name(loc, var),
+                                      params,
+                                      CV_NONE,
+                                      NULL /*exnSpec*/);
+  funcIDecl->type = var->type;
+
+  Declarator *funcDecl = new Declarator(funcIDecl, NULL /*init*/);
+  funcDecl->var = var;
+  funcDecl->type = var->type;
+
+  return funcDecl;
+}
+
+
+// given a function declaration and a body, make a Function AST node
+Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var, 
+                                    FakeList<MemberInit> *inits,
+                                    S_compound *body)
+{
+  FunctionType *ft = var->type->asFunctionType();
+
+  Declarator *funcDecl = makeFuncDeclarator(loc, var);
+
+  Function *f = new Function(
+    var->flags        // this is too many (I only want syntactic); but won't hurt
+      | DF_INLINE,    // pacify pretty-printing idempotency
+    new TS_type(loc, ft->retType),
+    funcDecl,
+    inits,
+    body,
+    NULL /*handlers*/
+  );
+  f->funcType = var->type->asFunctionType();
+
+  if (ft->isMethod()) {
+    f->thisVar = ft->getThis();
+  }
+
+  // the caller should set 'ctorThisLocalVar' if appropriate
+
+  f->implicitlyDefined = true;
+
+  // the existence of a definition has implications for the Variable too
+  var->setFlag(DF_DEFINITION);
+  var->funcDefn = f;
+
+  return f;
+}
+
+
+// given a Variable, make an E_variable referring to it
+E_variable *ElabVisitor::makeE_variable(SourceLoc loc, Variable *var)
+{
+  E_variable *evar = new E_variable(new PQ_variable(loc, var));
+  evar->type = makeLvalType(tfac, tfac.cloneType(var->type));
+  evar->var = var;
+  return evar;
+}
+
+E_fieldAcc *ElabVisitor::makeE_fieldAcc
+  (SourceLoc loc, Expression *obj, Variable *field)
+{
+  E_fieldAcc *efieldacc = new E_fieldAcc(obj, new PQ_variable(loc, field));
+  efieldacc->type = makeLvalType(tfac, field->type);
+  efieldacc->field = field;
+  return efieldacc;
+}
+
+
+E_funCall *ElabVisitor::makeMemberCall
+  (SourceLoc loc, Expression *obj, Variable *func, FakeList<ArgExpression> *args)
+{
+  // "a.f"
+  E_fieldAcc *efieldacc = makeE_fieldAcc(loc, obj, func);
+
+  // "a.f(<args>)"
+  E_funCall *funcall = new E_funCall(efieldacc, args);
+  funcall->type = tfac.cloneType(func->type->asFunctionType()->retType);
+
+  return funcall;
+}
+
+FakeList<ArgExpression> *ElabVisitor::emptyArgs()
+{
+  return FakeList<ArgExpression>::emptyList();
+}
+
+          
+// reference to the receiver object of the current function
+Expression *ElabVisitor::makeThisRef(SourceLoc loc)
+{
+  Variable *thisVar = functionStack.top()->thisVar;
+
+  // 'thisVar' is a reference, but tcheck would make it into
+  // a pointer type anyway, so we follow that (broken) lead
+  E_variable *evar = new E_variable(new PQ_variable(loc, thisVar));
+  evar->type = tfac.makePointerType(loc, PO_POINTER, CV_NONE,
+                                    thisVar->type->asRval());
+  evar->var = thisVar;
+
+  // then wrap that "pointer" in an E_deref
+  E_deref *deref = new E_deref(evar);
+  deref->type = thisVar->type;
+
+  return deref;
+}
+
+
+// wrap up an expression in an S_expr
+S_expr *ElabVisitor::makeS_expr(SourceLoc loc, Expression *e)
+{
+  return new S_expr(loc, new FullExpression(e));
+}
+
+
+// make an empty S_compound
+S_compound *ElabVisitor::makeS_compound(SourceLoc loc)
+{       
+  // note that the ASTList object created here is *deleted* by
+  // the act of passing it to the S_compound; the S_compound has
+  // its own ASTList<Statement> inside it
+  return new S_compound(loc, new ASTList<Statement>);
+}
+
+
+// ------------------------ makeCtor ----------------------
+// Make a call to the constructor for 'type', such that the object
+// constructed is in 'target' (a reference to some memory location).
+// 'args' is the list of arguments to the ctor call.
+E_constructor *ElabVisitor::makeCtorExpr(
+  SourceLoc loc,                    // where elaboration is occurring
+  Expression *target,               // reference to object to construct
+  Type *type,                       // type of the constructed object
+  Variable *ctor,                   // ctor function to call
+  FakeList<ArgExpression> *args)    // arguments to ctor (tcheck'd)
+{
+  xassert(target->type->isReference());
+
+  E_constructor *ector0 = new E_constructor(new TS_type(loc, type), args);
+  ector0->type = type;
+  ector0->ctorVar = ctor;
+  ector0->artificial = true;
+  ector0->retObj = target;
+
+  // want to return a node that is both tcheck'd *and* elaborated
+  ector0->traverse(*this);
 
   return ector0;
 }
 
 // NOTE: the client should consider cloning the _args_ before passing
 // them in so that the AST remains a tree
-Statement *makeCtorStatement(Env &env,
-                             Variable *target,
-                             CompoundType *cpdType,
-                             FakeList<ArgExpression> *args)
+Statement *ElabVisitor::makeCtorStatement(
+  SourceLoc loc,
+  Expression *target,
+  Type *type,
+  Variable *ctor,
+  FakeList<ArgExpression> *args)
 {
-  xassert(env.doElaboration);
-  E_constructor *ector0 = makeCtorExpr(env, target, cpdType, args);
-  Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
-  ctorStmt0->tcheck(env);
+  // see comment below regarding 'getDefaultCtor'; if this assertion
+  // fails it may be due to an input program that is not valid C++,
+  // but the type checker failed to diagnose it
+  xassert(ctor);
+
+  E_constructor *ector0 = makeCtorExpr(loc, target, type, ctor, args);
+  Statement *ctorStmt0 = makeS_expr(loc, ector0);
   return ctorStmt0;
 }
 
-// Note: the return value should be typechecked.  This is an asymmetry
-// with makeDtorStatement() where the returned statement has already
-// been typechecked.
-Expression *makeDtorExpr(Env &env, Expression *target, Type *type)
+
+// ------------------------ makeDtor ----------------------
+Expression *ElabVisitor::makeDtorExpr(SourceLoc loc, Expression *target,
+                                      Type *type)
 {
-  xassert(env.doElaboration);
-  FakeList<ArgExpression> *args = FakeList<ArgExpression>::emptyList();
-//    PQName *dtorName = env.make_PQ_fullyQualifiedDtorName(type->asCompoundType());
-  PQName *dtorName = NULL;
-  {
-    CompoundType *cpdType = type->asCompoundType();
-    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(cpdType);
-    dtorName = env.make_PQ_possiblyTemplatizedName
-      (env.loc(), env.str(stringc << "~" << cpdType->name), targs);
-  }
-  E_fieldAcc *efieldacc = new E_fieldAcc(target, dtorName);
-  return new E_funCall(efieldacc, args);
+  Variable *dtor = type->asCompoundType()->getDtor();
+
+  // question of whether to elaborate returned value is moot, as
+  // elaboration would do nothin anyway
+
+  return makeMemberCall(loc, target, dtor, emptyArgs());
 }
 
 // NOTE: consider cloning the target so that the AST remains a tree
-Statement *makeDtorStatement(Env &env, Expression *target, Type *type)
+Statement *ElabVisitor::makeDtorStatement(SourceLoc loc, Expression *target,
+                                          Type *type)
 {
-  // hmm, can't say this because I don't have a var to say it about.
-//    xassert(!var->hasFlag(DF_TYPEDEF));
-  xassert(env.doElaboration);
-  Expression *efc0 = makeDtorExpr(env, target, type);
-  Statement *dtorStmt0 = new S_expr(env.loc(), new FullExpression(efc0));
-  dtorStmt0->tcheck(env);
-  return dtorStmt0;
+  Expression *efc0 = makeDtorExpr(loc, target, type);
+  return makeS_expr(loc, efc0);
 }
 
 
-//  void D_func::elaborateParameterCDtors(Env &env)
-//  {
-//    FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
-//      iter->decl->elaborateCDtors
-//        (env,
-//         // Only Function and Declaration have any DeclFlags; the only
-//         // one that seems appropriate is this one
-//         DF_PARAMETER
-//         );
-//    }
-//  }
-
-
-//  FakeList<ArgExpression> *cloneFakeList_ArgExpression(FakeList<ArgExpression> *args0)
-//  {
-//    FakeList<ArgExpression> *ret = FakeList<ArgExpression>::emptyList();
-//    FAKELIST_FOREACH(ArgExpression, args0, iter) {
-//      ret = ret->prepend(iter->clone());
-//    }
-//    return ret->reverse();
-//  }
-
-
-void Declarator::elaborateCDtors(Env &env)
+// ------------------- cloning support (SCS) ------------------
+FakeList<ArgExpression> *ElabVisitor::cloneExprList(FakeList<ArgExpression> *args0)
 {
-  xassert(env.doElaboration);
+  FakeList<ArgExpression> *ret = FakeList<ArgExpression>::emptyList();
+
+  if (cloneDefunctChildren) {
+    FAKELIST_FOREACH(ArgExpression, args0, iter) {
+      ret = ret->prepend(iter->clone());
+    }
+    return ret->reverse();
+  }
+  else {
+    // empty defunct list
+    return ret;
+  }
+}
+            
+
+Expression *ElabVisitor::cloneExpr(Expression *e)
+{
+  if (cloneDefunctChildren) {
+    return e->clone();
+  }
+  else {
+    return NULL;
+  }
+}
+
+
+// ------------------------ elaborateCDtors -----------------------
+void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
+{
+  FAKELIST_FOREACH_NC(Declarator, decl->decllist, decliter) {
+    decliter->elaborateCDtors(env);
+  }
+
+  // the caller isn't going to automatically traverse into the
+  // type specifier, so we must do it manually
+  // (e.g. cc_qual's test/memberInit_cdtor1.cc.filter-good.cc fails otherwise)
+  decl->spec->traverse(*this);
+}
+
+
+// for EA_MEMBER_DECL_CDTOR and EA_VARIABLE_DECL_CDTOR
+//
+// Given a Declarator, annotate it with statements that construct and
+// destruct the associated variable.
+void Declarator::elaborateCDtors(ElabVisitor &env)
+{
+  // don't do anything if this is not data
+  if (var->type->isFunctionType() ||
+      var->hasFlag(DF_TYPEDEF)) {
+    return;
+  }
+
+  // also don't do this for parameters
+  if (var->hasFlag(DF_PARAMETER)) {
+    return;
+  }
+      
+  // don't bother unless it is a class-valued object
+  if (!type->isCompoundType()) {
+    // except that we still need to elaborate the initializer, and the
+    // caller is *not* going to let the visitor do so automatically
+    // (since that would violate the SES in the case that the type
+    // *is* compound)
+    if (init) {
+      init->traverse(env);
+    }
+
+    return;
+  }
+  CompoundType *ct = type->asCompoundType();
 
   // get this context from the 'var', don't make a mess passing
   // it down from above
   bool isMember = var->hasFlag(DF_MEMBER);
   bool isTemporary = var->hasFlag(DF_TEMPORARY);
-  bool isParameter = var->hasFlag(DF_PARAMETER);
+  bool isStatic = var->hasFlag(DF_STATIC);
+  bool isExtern = var->hasFlag(DF_EXTERN);
 
-  // the code originally got this from syntactic context, but that's
-  // not always correct, and this is much easier
-  DeclFlags dflags = var->flags;
+  bool isAbstract = decl->isD_name() && !decl->asD_name()->name;
+  SourceLoc loc = getLoc();
 
-  bool isStatic = (dflags & DF_STATIC)!=0;
-                       
-  // open the scope indicated by the qualifiers, if any
-  Scope *qualifierScope = openQualifierScope(env);
+  if (init) {
+    // sm: why this assertion?
+    xassert(!isTemporary);
 
-  if (!isParameter) {
-    if (init) {
-      if (isMember && !isStatic) {
-        // special case: virtual methods can have an initializer that is
-        // the int constant "0", which means they are abstract.  I could
-        // check for the value "0", but I don't bother.
-        if (! (var->type->isFunctionType()
-               && var->type->asFunctionType()->isMethod()
-               && var->hasFlag(DF_VIRTUAL))) {
-          env.error(env.loc(), "initializer not allowed for a non-static member declaration");
-        }
-        // but we still shouldn't make a ctor for this function from the
-        // "0".
-        goto ifInitEnd;
+    // sm: and why this one too?
+    xassert(!isAbstract);
+
+    // get a list of (tcheck'd) arguments to pass to the ctor; we will
+    // clone the existing arguments, and put the clone in where the
+    // original ones were
+    FakeList<ArgExpression> *args0 = NULL;
+
+    // the arguments have not yet been elaborated, that will happen
+    // during 'makeCtorStatement'; but we need a fullexp context
+    // for it
+    FullExpressionAnnot *fullexp = NULL;
+
+    // constructor to call
+    Variable *ctor = NULL;
+
+    ASTSWITCH(Initializer, init) {
+      ASTCASE(IN_ctor, inctor) {
+        args0 = inctor->args;
+        inctor->args = env.cloneExprList(inctor->args);
+
+        fullexp = &inctor->annot;
+        ctor = inctor->ctorVar;
       }
-      
-      #if 0
-      // sm: not quite right b/c of my change to 'isMember' (fails
-      // in/t0012.cc), and not important
-      if (isMember && isStatic && !type->isConst()) {
-        env.error(env.loc(), "initializer not allowed for a non-const static member declaration");
-        goto ifInitEnd;
+      ASTNEXT(IN_expr, inexpr) {
+        // just call the copy ctor; FIX: this is questionable; we
+        // haven't decided what should really happen for an IN_expr;
+        // update: dsw: I'm sure that is right
+        args0 = makeExprList1(inexpr->e);
+        inexpr->e = env.cloneExpr(inexpr->e);
+
+        fullexp = &inexpr->annot;
+        ctor = ct->getCopyCtor();
       }
-      #endif // 0
+      ASTNEXT(IN_compound, incpd) {
+        // just call the no-arg ctor; FIX: this is questionable; it
+        // is undefined what should happen for an IN_compound since
+        // it is a C99-ism.
+        //
+        // sm: No it isn't.. IN_compound is certainly part of C++.
+        // I still don't know how to handle it, though.
+        args0 = env.emptyArgs();
 
-      // TODO: check the initializer for compatibility with
-      // the declared type
-
-      // TODO: check compatibility with dflags; e.g. we can't allow
-      // an initializer for a global variable declared with 'extern'
-
-      // dsw: or a typedef
-      if (var->hasFlag(DF_TYPEDEF)) {
-        // dsw: FIX: should the return value get stored somewhere?
-        // FIX: the loc is probably wrong
-        env.error(env.loc(), "initializer not allowed for a typedef");
-        goto ifInitEnd;
+        fullexp = &incpd->annot;       // sm: not sure about this..
+        ctor = ct->getDefaultCtor();
+        
+        // NOTE: 'getDefaultCtor' can return NULL, corresponding to a class
+        // that has no default ctor.  However, it is the responsibility of
+        // the type checker to diagnose this case.  Now, as it happens, our
+        // tchecker does not do so right now; but nevertheless it would be
+        // wrong to, say, emit an error message here.  Instead,
+        // 'makeCtorStatement' simply asserts that it is non-NULL.
       }
-
-      // dsw: Arg, do I have to deal with this?
-      // TODO: in the case of class data members, delay checking the
-      // initializer until the entire class body has been scanned
-
-      xassert(!isTemporary);
-      // make the call to the ctor; FIX: Are there other things to check
-      // in the if clause, like whether this is a typedef?
-      xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-      if (type->isCompoundType()) {
-        FakeList<ArgExpression> *args0 = NULL;
-        if (init->isIN_ctor()) {
-//            args0 = cloneFakeList_ArgExpression(init->asIN_ctor()->args);
-          args0 = init->asIN_ctor()->args;
-          init->asIN_ctor()->args = NULL; // keep the tree a tree
-        } else if (init->isIN_expr()) {
-          // just call the one-arg ctor; FIX: this is questionable; we
-          // haven't decided what should really happen for an IN_expr;
-          // update: dsw: I'm sure that is right
-//            args0 = makeExprList1(init->asIN_expr()->e->clone());
-          args0 = makeExprList1(init->asIN_expr()->e);
-          init->asIN_expr()->e = NULL; // keep the tree a tree
-          // keep the tree a tree
-        } else if (init->isIN_compound()) {
-          // just call the no-arg ctor; FIX: this is questionable; it
-          // is undefined what should happen for an IN_compound since
-          // it is a C99-ism.
-          args0 = FakeList<ArgExpression>::emptyList();
-        }
-        ctorStatement = makeCtorStatement(env, var, type->asCompoundType(), args0);
-      }
-
-      // jump here if we find an error in the init code above and report
-      // it but want to keep going
-    ifInitEnd: ;                  // must have a statement here
-    }
-    else /* init is NULL */ {
-      if (type->isCompoundType() &&
-          !var->hasFlag(DF_TYPEDEF) &&
-          !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-          !isTemporary &&
-          !isMember &&
-          !( (dflags & DF_EXTERN)!=0 ) // not extern
-          ) {
-        // call the no-arg ctor; for temporaries do nothing since this is
-        // a temporary, it will be initialized later
-        ctorStatement = makeCtorStatement(env, var, type->asCompoundType(),
-                                          FakeList<ArgExpression>::emptyList());
-      }
+      ASTENDCASED
     }
 
-    // if isTemporary we don't want to make a ctor since by definition
-    // the temporary will be initialized later
-    if (isTemporary ||
-        (isMember && !(isStatic && type->isConst())) ||
-        ( (dflags & DF_EXTERN)!=0 ) // extern
-        ) {
-      xassert(!ctorStatement);
-    } else if (type->isCompoundType() &&
-               !var->hasFlag(DF_TYPEDEF) &&
-               !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-               (!isMember ||
-                (isStatic && type->isConst() && init)) &&
-               !( (dflags & DF_EXTERN)!=0 ) // not extern
-               ) {
-      xassert(ctorStatement);
-    }
+    env.push(*fullexp);
+    ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, var),
+                                          type, ctor, args0);
+    env.pop(*fullexp);
+  }
 
-    // make the dtorStatement
-    if (type->isCompoundType() &&
-        !var->hasFlag(DF_TYPEDEF) &&
-        !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-        !( (dflags & DF_EXTERN)!=0 ) // not extern
-        ) {
-      // no need to clone the target as wrapVarWithE_variable() makes
-      // all new AST
-      dtorStatement = makeDtorStatement(env, wrapVarWithE_variable(env, var), type);
-    } else {
-      xassert(!dtorStatement);
+  else /* init is NULL */ {
+    if (!isAbstract &&
+        !isTemporary &&
+        !isMember &&
+        !isExtern
+        ) {                               
+      // sm: I think this should not be reachable because I modified
+      // the type checker to insert an IN_ctor in this case.  It would be
+      // be bad if it *were* reachable, because there's no fullexp here.
+      xfailure("should not be reachable");
+
+      // call the no-arg ctor; for temporaries do nothing since this is
+      // a temporary, it will be initialized later
+      ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, var),
+                                            type, ct->getDefaultCtor(),
+                                            env.emptyArgs());
     }
   }
 
-  // I think this is wrong.  We only want it for function DEFINITIONS.
-//    // recuse on the parameters if we are a D_func
-//    if (decl->isD_func()) {
-  // NOTE: this is also implemented wrong: use getD_func()
-//      decl->asD_func()->elaborateParameterCDtors(env);
-//    }
+  // if isTemporary we don't want to make a ctor since by definition
+  // the temporary will be initialized later
+  //
+  // sm: the logic here could use some more explanation (isTemporary
+  // is discussed but not the others)
+  if (isTemporary ||
+      (isMember && !(isStatic && type->isConst())) ||
+      isExtern
+      ) {
+    xassert(!ctorStatement);
+  } else if (!isAbstract &&
+             (!isMember ||
+              (isStatic && type->isConst() && init)) &&
+             !isExtern     // sm: this is redundant
+             ) {
+    xassert(ctorStatement);
+  }
 
-  if (qualifierScope) {
-    env.retractScope(qualifierScope);
+  // make the dtorStatement
+  if (!isAbstract &&
+      !isExtern
+      ) {
+    // no need to clone the target as makeE_variable makes all new AST
+    dtorStatement = env.makeDtorStatement(loc, env.makeE_variable(loc, var), type);
+  } else {
+    xassert(!dtorStatement);
   }
 }
 
 
+// -------------------- elaborateCallSite ---------------------
 // If the return type is a CompoundType, then make a temporary and
 // point the retObj at it.  The intended semantics of this is to
 // override the usual way of analyzing the return value just from the
 // return type of the function.
 //
-// Make a Declaration for a temporary.
-static Declaration *makeTempDeclaration(Env &env, Type *retType)
+// Make a Declaration for a temporary; yield the Variable too.
+Declaration *ElabVisitor::makeTempDeclaration
+  (SourceLoc loc, Type *retType, Variable *&var /*OUT*/)
 {
   // while a user may attempt this, we should catch it earlier and not
   // end up down here.
   xassert(retType->isCompoundType());
-  TypeSpecifier *typeSpecifier =
-    new TS_name(env.loc(),
-                env.make_PQ_fullyQualifiedName(retType->asCompoundType()),
-                false);
-  xassert(typeSpecifier);
-  Declarator *declarator0 =
-    new Declarator(new D_name(env.loc(),
-                              env.makeTempName() // give it a new unique name
-                              ),
-                   NULL         // important: no Initializer
-                   );
-  Declaration *declaration0 =
-    new Declaration(DF_TEMPORARY,
-                    // should get DF_AUTO since they are auto, but I
-                    // seem to recall that Scott just wants to use
-                    // that for variables that are explicitly marked
-                    // auto; will get DF_DEFINITION as soon as
-                    // typechecked, I hope
-                    typeSpecifier,
-                    FakeList<Declarator>::makeList(declarator0)
-                    );
 
-  // typecheck it
+  // make up a Variable
+  var = makeVariable(loc, makeTempName(), retType, DF_TEMPORARY);
 
-  // don't do this for now:
-//    int numErrors = env.numErrors();
-  declaration0->tcheck(env);
+  // make a decl for it
+  Declaration *decl = makeDeclaration(loc, var);
 
-  // FIX: what the heck am I doing here?  There should only be one.
-  // UPDATE: I think I meant "There should be only one, so why the
-  // loop?"
-  xassert(declaration0->decllist->count() == 1);
-  // leave it for now
-  FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
-    decliter->elaborateCDtors(env);
-  }
-  // don't do this for now:
-//    xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
+  // elaborate this declaration; because of DF_TEMPORARY this will *not*
+  // add a ctor, but it will add a dtor
+  elaborateCDtorsDeclaration(decl);
 
-  return declaration0;
+  return decl;
 }
 
-static Declaration *insertTempDeclaration(Env &env, Type *retType)
+// make the decl, and add it to the innermost FullExpressionAnnot;
+// yield the Variable since neither caller needs the Declaration
+Variable *ElabVisitor::insertTempDeclaration(SourceLoc loc, Type *retType)
 {
-  // make a temporary in the innermost FullExpressionAnnot
   FullExpressionAnnot *fea0 = env.fullExpressionAnnotStack.top();
 
-  // dsw: FIX: I would like to assert here that env.scope() (the
-  // current scope) == (fictional) fea0->scope, except that
-  // FullExpressionAnnot doesn't have a scope field.
-
-  Declaration *declaration0 = makeTempDeclaration(env, retType);
-  // maybe the loc should be: fea0->expr->loc
-
-  // check that it got entered into the current scope
-  if (!env.disambErrorsSuppressChanges()) {
-    Declarator *declarator0 = declaration0->decllist->first();
-    xassert(env.scope()->rawLookupVariable
-            (declarator0->decl->asD_name()->name->getName()) ==
-            declarator0->var);
-  }
+  Variable *var;
+  Declaration *declaration0 = makeTempDeclaration(loc, retType, var);
 
   // put it into fea0
   fea0->declarations.append(declaration0);
 
-  return declaration0;
-}
-
-E_variable *wrapVarWithE_variable(Env &env, Variable *var)
-{
-  PQName *name0 = NULL;
-  switch(var->scopeKind) {
-    default:
-    case SK_UNKNOWN:
-      xfailure("wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
-      break;
-    case SK_TEMPLATE:
-      xfailure("don't handle template scopes yet");
-      break;
-    case SK_GLOBAL:
-      xassert(!var->scope);
-      name0 = new PQ_qualifier(env.loc(), NULL,
-                               FakeList<TemplateArgument>::emptyList(),
-                               new PQ_name(env.loc(), var->name));
-      break;
-    case SK_CLASS:
-      xassert(var->scope->curCompound);
-      name0 = env.make_PQ_fullyQualifiedName
-        (var->scope->curCompound, new PQ_name(env.loc(), var->name));
-      break;
-    case SK_PARAMETER:
-    case SK_FUNCTION:
-      name0 = new PQ_name(env.loc(), var->name);
-      break;
-  }
-  xassert(name0);
-
-  // wrap an E_variable around the var so it is an expression
-  E_variable *evar0 = new E_variable(name0);
-  {
-    Expression *evar1 = evar0;
-    evar0->tcheck(env, evar1);
-    xassert(evar0 == evar1->asE_variable());
-  }
-  // it had better find the same variable
-  if (!env.disambErrorsSuppressChanges()) {
-    xassert(evar0->var == var);
-  }
-  return evar0;
+  return var;
 }
 
 
+// make a comma expression so we can copy the argument before passing it
+//
 // NOTE: the client is expected to clone _argExpr_ before passing it
 // in here *if* needed, since we don't clone it below
-static Expression *elaborateCallByValue(Env &env, Type *paramType, Expression *argExpr)
+Expression *ElabVisitor::elaborateCallByValue
+  (SourceLoc loc, Type *paramType, Expression *argExpr)
 {
-  xassert(paramType->isCompoundType());
+  CompoundType *paramCt = paramType->asCompoundType();
 
   // E_variable that points to the temporary
-  Declaration *declaration0 = insertTempDeclaration(env, paramType);
-  xassert(declaration0->decllist->count() == 1);
-  Variable *tempVar = declaration0->decllist->first()->var;
-  E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
+  Variable *tempVar = insertTempDeclaration(loc, paramType);
 
   // E_constructor for the temporary that calls the copy ctor for the
   // temporary taking the real argument as the copy ctor argument.
   // NOTE: we do NOT clone argExpr here, as the client to this
   // function is expected to do it
-  E_constructor *ector = makeCtorExpr(env, tempVar, paramType->asCompoundType(),
-                                      makeExprList1(argExpr));
+  E_constructor *ector =
+    env.makeCtorExpr(loc, makeE_variable(loc, tempVar), paramType,
+                     paramCt->getCopyCtor(), makeExprList1(argExpr));
 
   // combine into a comma expression so we do both but return the
   // value of the second
+  //
+  // sm: I choose to call 'makeE_variable' twice instead of using clone()
+  // since I trust the former more
+  Expression *byValueArg = makeE_variable(loc, tempVar);
   Expression *ret = new E_binary(ector, BIN_COMMA, byValueArg);
-  ret->tcheck(env, ret);
+  ret->type = tfac.cloneType(byValueArg->type);
   xassert(byValueArg->getType()->isReference()); // the whole point
   return ret;
 }
 
 
-Expression *elaborateCallSite(Env &env, FunctionType *ft,
-                              FakeList<ArgExpression> *args,
-                              bool artificalCtor)
+// this returns the 'retObj', the object that the call is constructing
+Expression *ElabVisitor::elaborateCallSite(
+  SourceLoc loc,
+  FunctionType *ft,
+  FakeList<ArgExpression> *args,
+  bool artificalCtor)          // always false; see call sites
 {
   Expression *retObj = NULL;
 
-  // If the return type is a CompoundType, then make a temporary and
-  // point the retObj at it.  NOTE: This can never accidentally create
-  // a temporary for a dtor for a non-temporary object because the
-  // retType for a dtor is void.  However, we do need to guard against
-  // this possibility for ctors.
-  if (artificalCtor) {
-    xassert(ft->isConstructor());
+  if (doing(EA_ELIM_RETURN_BY_VALUE)) {
+    // If the return type is a CompoundType, then make a temporary and
+    // point the retObj at it.  NOTE: This can never accidentally create
+    // a temporary for a dtor for a non-temporary object because the
+    // retType for a dtor is void.  However, we do need to guard against
+    // this possibility for ctors.
+    if (artificalCtor) {
+      xassert(ft->isConstructor());
+    }
+    if (ft->retType->isCompoundType() &&
+        (!ft->isConstructor() || !artificalCtor)   // sm: the isConstructor() test is redundant
+        ) {
+      Variable *var0 = insertTempDeclaration(loc, ft->retType);
+      retObj = makeE_variable(loc, var0);
+    }
   }
-  if (ft->retType->isCompoundType() &&
-      (!ft->isConstructor() || !artificalCtor)
-      ) {
-    Declaration *declaration0 = insertTempDeclaration(env, ft->retType);
-    xassert(declaration0->decllist->count() == 1);
-    Variable *var0 = declaration0->decllist->first()->var;
-    retObj = wrapVarWithE_variable(env, var0);
-  }
 
-  // Elaborate cdtors for CompoundType arguments being passed by
-  // value.
-  //
-  // For each parameter, if it is a CompoundType (pass by value) then 1)
-  // make a temporary variable here for it that has a dtor but not a
-  // ctor 2) for the corresponding argument, replace it with a comma
-  // expression where a) the first part is an E_constructor for the
-  // temporary that has one argument that is what was the arugment in
-  // this slot and the ctor is the copy ctor, and b) E_variable for the
-  // temporary
+  if (doing(EA_ELIM_PASS_BY_VALUE)) {
+    // Elaborate cdtors for CompoundType arguments being passed by
+    // value.
+    //
+    // For each parameter, if it is a CompoundType (pass by value) then 1)
+    // make a temporary variable here for it that has a dtor but not a
+    // ctor 2) for the corresponding argument, replace it with a comma
+    // expression where a) the first part is an E_constructor for the
+    // temporary that has one argument that is what was the arugment in
+    // this slot and the ctor is the copy ctor, and b) E_variable for the
+    // temporary
 
-  SObjListIterNC<Variable> paramsIter(ft->params);
+    SObjListIterNC<Variable> paramsIter(ft->params);
 
-  FAKELIST_FOREACH_NC(ArgExpression, args, arg) {
-    if (paramsIter.isDone()) {
-      // FIX: I suppose we could still have arguments here if there is a
-      // ellipsis at the end of the parameter list.  Can those be passed
-      // by value?
-      break;
+    FAKELIST_FOREACH_NC(ArgExpression, args, arg) {
+      if (paramsIter.isDone()) {
+        // FIX: I suppose we could still have arguments here if there is a
+        // ellipsis at the end of the parameter list.  Can those be passed
+        // by value?
+        break;
+      }
+
+      Variable *param = paramsIter.data();
+      Type *paramType = param->getType();
+      if (paramType->isCompoundType()) {
+        // NOTE: it seems like this is one of those places where I
+        // should NOT clone the "argument" argument to
+        // makeCtorExpr/Statement (which is called by
+        // elaborateCallByValue()) since it is being replaced by
+        // something wrapped around itself: that is the AST tree remains
+        // a tree
+        //
+        // sm: I agree
+        arg->expr = elaborateCallByValue(loc, paramType, arg->expr);
+      }
+
+      paramsIter.adv();
     }
 
-    Variable *param = paramsIter.data();
-    Type *paramType = param->getType();
-    if (paramType->isCompoundType()) {
-      // NOTE: it seems like this is one of those places where I
-      // should NOT clone the "argument" argument to
-      // makeCtorExpr/Statement (which is called by
-      // elaborateCallByValue()) since it is being replaced by
-      // something wrapped around itself: that is the AST tree remains
-      // a tree
-      arg->expr = elaborateCallByValue(env, paramType, arg->expr);
+    if (!paramsIter.isDone()) {
+      // FIX: if (!paramsIter.isDone()) then have to deal with default
+      // arguments that are pass by value if such a thing is even
+      // possible.
     }
-
-    paramsIter.adv();
-  }
-
-  if (!paramsIter.isDone()) {
-    // FIX: if (!paramsIter.isDone()) then have to deal with default
-    // arguments that are pass by value if such a thing is even
-    // possible.
   }
 
   return retObj;
 }
 
 
-void elaborateFunctionStart(Env &env, FunctionType *ft)
+// ----------------- elaborateFunctionStart -----------------
+// for EA_ELIM_RETURN_BY_VALUE
+void ElabVisitor::elaborateFunctionStart(Function *f)
 {
+  FunctionType *ft = f->funcType;
   if (ft->retType->isCompoundType()) {
     // We simulate return-by-value for class-valued objects by
     // passing a hidden additional parameter of type C& for a
     // return value of type C.  For static semantics, that means
     // adding an environment entry for a special name, "<retVal>".
+    // For dynamic semantics, clients looking at the declaration
+    // must simply know (by its name) that this variable is bound
+    // to the reference passed as the 'retObj' at the call site.
+
+    SourceLoc loc = f->nameAndParams->decl->loc;
     Type *retValType =
-      env.tfac.makePointerType(env.loc(), PO_REFERENCE, CV_NONE,
+      env.tfac.makePointerType(loc, PO_REFERENCE, CV_NONE,
                                env.tfac.cloneType(ft->retType));
-    Variable *v = env.makeVariable(env.loc(), env.str("<retVal>"),
-                                   retValType, DF_PARAMETER);
-    env.addVariable(v);
-    ft->registerRetVal(v);
+    StringRef retValName = env.str("<retVal>");
+    f->retVal = env.makeVariable(loc, retValName, retValType, DF_NONE);
+    ft->registerRetVal(f->retVal);
+
+    // sm: This seemed like a good idea, because an analysis would get
+    // to see the declaration and not just the magical appearance of a
+    // new Variable.  But, it was not present in the code that I'm
+    // working from and it messes up pretty printing idempotency; and
+    // I'm now not as convinced that an analysis really wants to see
+    // it.  So I'm commenting it out.
+    #if 0
+    Declaration *declaration = makeDeclaration(loc, f->retVal);
+    f->body->stmts.prepend(new S_decl(loc, declaration));
+    #endif // 0
   }
 }
 
 
+// ---------------- completeNoArgMemberInits -------------------
 // add no-arg MemberInits to existing ctor body ****************
 
 // Does this Variable want a no-arg MemberInitializer?
-static bool wantsMemberInit(Variable *var) {
+bool ElabVisitor::wantsMemberInit(Variable *var) 
+{
   // function members should be skipped
   if (var->type->isFunctionType()) return false;
   // skip arrays for now; FIX: do something correct here
@@ -563,7 +790,7 @@ static bool wantsMemberInit(Variable *var) {
 
 // find the MemberInitializer that initializes data member memberVar;
 // return NULL if none
-static MemberInit *findMemberInitDataMember
+MemberInit *ElabVisitor::findMemberInitDataMember
   (FakeList<MemberInit> *inits, // the inits to search
    Variable *memberVar)         // data member to search for the MemberInit for
 {
@@ -580,7 +807,7 @@ static MemberInit *findMemberInitDataMember
 
 // find the MemberInitializer that initializes data member memberVar;
 // return NULL if none
-static MemberInit *findMemberInitSuperclass
+MemberInit *ElabVisitor::findMemberInitSuperclass
   (FakeList<MemberInit> *inits, // the inits to search
    CompoundType *superclass)    // superclass to search for the MemberInit for
 {
@@ -597,22 +824,10 @@ static MemberInit *findMemberInitSuperclass
 
 
 // Finish supplying to a ctor the no-arg MemberInits for unmentioned
-// superclasses and members.  NOTE: to be correct, the input
-// ctor->inits had better have already been typechecked.  Any new ones
-// created are typchecked here before being added.  FIX: maybe this
-// should be a method on Function.
-void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
+// superclasses and members.
+void ElabVisitor::completeNoArgMemberInits(Function *ctor, CompoundType *ct)
 {
-  // can't do any of this since Function *ctor can't have been
-  // typechecked yet
-//    Type *funcType = ctor->funcType;
-//    xassert(funcType->isFunctionType());
-//    FunctionType *ctorFunc = funcType->asFunctionType();
-//    xassert(ctorFunc->isConstructor());
-//    // FIX: assert here that _ctor_ is a ctor for _ct_; don't know how
-//    // to do it.  Scott says it is not easy.
-
-  SourceLoc loc = env.loc();
+  SourceLoc loc = ctor->getLoc();
 
   // Iterate through the members in the declaration order (what is in
   // the CompoundType).  For each one, check to see if we have a
@@ -625,12 +840,12 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
   // NOTE: you can't make a new list of inits that is a FakeList
   // because we are still traversing over the old one.  Linked lists
   // are a premature optimization!
-  VoidList newInits;            // I don't care that this isn't typechecked.
+  SObjList<MemberInit> newInits;
   // NOTE: don't do this!
 //    FakeList<MemberInit> *newInits = FakeList<MemberInit>::emptyList();
   
   FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass*>(iter.data());
+    BaseClass const *base = iter.data();
     // omit initialization of virtual base classes, whether direct
     // virtual or indirect virtual.  See cppstd 12.6.2 and the
     // implementation of Function::tcheck_memberInits()
@@ -641,12 +856,12 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
     // UPDATE: the spec says we can do it multiple times for copy
     // assign operator, so I wonder if that holds for ctors also.
     if (!ct->hasVirtualBase(base->ct)) {
-      FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
-      PQName *name = env.make_PQ_possiblyTemplatizedName(loc, base->ct->name, targs);
       MemberInit *mi = findMemberInitSuperclass(oldInits, base->ct);
       if (!mi) {
-        mi = new MemberInit(name, FakeList<ArgExpression>::emptyList());
-        mi->tcheck(env, ctor->ctorThisLocalVar, ct);
+        PQName *name = new PQ_variable(loc, base->ct->typedefVar);
+        mi = new MemberInit(name, emptyArgs());
+        mi->base = base->ct;
+        mi->ctorVar = base->ct->getDefaultCtor();
       }
       newInits.prepend(mi);
     } else {
@@ -654,6 +869,9 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
     }
   }
   // FIX: virtual bases omitted for now
+  //
+  // sm: note that this code drops (user-supplied!) initializers for
+  // virtual bases on the floor
 
   SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
     Variable *var = iter.data();
@@ -672,8 +890,9 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
     // class, the entity is default-initialized (8.5). ....
     // -- Otherwise, the entity is not initialized. ....
     if (!mi && var->type->isCompoundType()) {
-      mi = new MemberInit(new PQ_name(loc, var->name), FakeList<ArgExpression>::emptyList());
-      mi->tcheck(env, ctor->ctorThisLocalVar, ct);
+      mi = new MemberInit(new PQ_name(loc, var->name), emptyArgs());
+      mi->member = var;
+      mi->ctorVar = var->type->asCompoundType()->getDefaultCtor();
     }
     if (mi) newInits.prepend(mi);
   }
@@ -681,112 +900,65 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct)
   // *Now* we can destroy the linked list structure and rebuild it
   // again while also reversing the list.
   ctor->inits = FakeList<MemberInit>::emptyList();
-  for (VoidListIter iter(newInits); !iter.isDone(); iter.adv()) {
-    MemberInit *mi = static_cast<MemberInit*>(iter.data());
+  SFOREACH_OBJLIST_NC(MemberInit, newInits, iter) {
+    MemberInit *mi = iter.data();
     mi->next = NULL;
     ctor->inits = ctor->inits->prepend(mi);
   }
 }
 
 
+// ---------------- make compiler-supplied member funcs -------------=
 // make no-arg ctor ****************
 
-MR_func *makeNoArgCtorBody(Env &env, CompoundType *ct)
+// mirrors code in Function::tcheck()
+Variable *ElabVisitor::makeCtorThisLocalVar(SourceLoc loc, CompoundType *ct)
 {
-  // reversed print AST output; remember to read going up even for the
-  // tree leaves
+  Type *thisType = tfac.makeTypeOf_this(loc, ct, CV_NONE, NULL /*syntax*/);
+  return makeVariable(loc, thisName, thisType, DF_NONE);
+}
 
-  SourceLoc loc = env.loc();
+// for EA_IMPLICIT_MEMBER_DEFN
+MR_func *ElabVisitor::makeNoArgCtorBody(CompoundType *ct, Variable *ctor)
+{
+  SourceLoc loc = ctor->loc;
 
-  //     handlers:
-  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
-  //       stmts:
-  ASTList<Statement> *stmts = new ASTList<Statement>();
-  //       loc = ex/no_arg_ctor1.cc:2:7
-  //       succ={ }
-  //     S_compound:
-  S_compound *body = new S_compound(loc, stmts);
-  //     inits:
+  // empty body
+  S_compound *body = makeS_compound(loc);
 
   // NOTE: The MemberInitializers will be added by
-  // completeNoArgMemberInits() during typechecking, so we don't add
-  // them now.
+  // completeNoArgMemberInits() during later elaboration, so we don't
+  // add them now.
   FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
 
-  //       init is null
-  Initializer *init = NULL;
-  //         exnSpec is null
-  ExceptionSpec *exnSpec = NULL;
-  //         cv = 
-  CVFlags cv = CV_NONE;
-  //         params:
-  // The no-arg ctor takes no parameters.
-  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::emptyList();
-  //             name = A
-  //             loc = ex/no_arg_ctor1.cc:2:3
-  //           PQ_name:
-  // see this point in makeCopyCtorBody() below for a comment on the
-  // sufficient generality of this
-  PQName *ctorName = new PQ_name(loc, ct->name);
-  //           loc = ex/no_arg_ctor1.cc:2:3
-  //         D_name:
-  IDeclarator *base = new D_name(loc, ctorName);
-  //         loc = ex/no_arg_ctor1.cc:2:3
-  //       D_func:
-  IDeclarator *decl = new D_func(loc,
-                                 base,
-                                 params,
-                                 cv,
-                                 exnSpec);
-  //     Declarator:
-  Declarator *nameAndParams = new Declarator(decl, init);
-  //       id = /*cdtor*/
-  //       loc = ex/no_arg_ctor1.cc:2:3
-  //       cv = 
-  //     TS_simple:
-  TypeSpecifier *retspec = new TS_simple(loc, ST_CDTOR);
-  //     dflags = 
-  DeclFlags dflags = DF_MEMBER | DF_INLINE;
-  //   Function:
-  Function *f =
-    new Function(dflags,
-                 retspec,
-                 nameAndParams,
-                 inits,
-                 body,
-                 handlers);
-  f->implicitlyDefined = true;
-  //   loc = ex/no_arg_ctor1.cc:2:3
-  // MR_func:
+  Function *f = makeFunction(loc, ctor, inits, body);
+  f->ctorThisLocalVar = env.makeCtorThisLocalVar(loc, ct);
+
   return new MR_func(loc, f);
 }
 
 
 // make copy ctor ****************
 
-static MemberInit *makeCopyCtorMemberInit(PQName *tgtName,
-                                          StringRef srcNameS,
-                                          StringRef srcMemberNameS,
-                                          SourceLoc loc)
+MemberInit *ElabVisitor::makeCopyCtorMemberInit(
+  Variable *target,          // member or base class to initialize
+  Variable *srcParam,        // "__other" parameter to the copy ctor
+  SourceLoc loc)
 {
-  //                 name = b
-  //                 loc = ../oink/ctor1.cc:12:9
-  //               PQ_name:
-  PQ_name *srcName = new PQ_name(loc, srcNameS);
-  //             E_variable:
-  Expression *expr = new E_variable(srcName);
-  if (srcMemberNameS) {
-    //               name = y
-    //               loc = ../oink/ctor1.cc:15:11
-    //             PQ_name:
-    PQ_name *srcMemberName = new PQ_name(loc, srcMemberNameS);
-    //                 name = b
-    //                 loc = ../oink/ctor1.cc:15:9
-    //               PQ_name:
-    //             E_variable:
-    //           E_fieldAcc:
-    expr = new E_fieldAcc(expr, srcMemberName);
+  // compound, if class-valued (if not, we're initializing a member
+  // that is not class-valued, so it's effectively just an assignment)
+  CompoundType *targetCt = target->type->ifCompoundType();
+
+  // expression referring to "__other"
+  Expression *expr = makeE_variable(loc, srcParam);
+
+  // are we initializing a member?  if not, it's a base class subobject
+  bool isMember = !target->hasFlag(DF_TYPEDEF);
+  if (isMember) {
+    // expression: "__other.<member>"
+    expr = makeE_fieldAcc(loc, expr, target);
   }
+
   //           ArgExpression:
   ArgExpression *argExpr = new ArgExpression(expr);
   //         args:
@@ -795,198 +967,88 @@ static MemberInit *makeCopyCtorMemberInit(PQName *tgtName,
   //           loc = ../oink/ctor1.cc:12:7
   //         PQ_name:
 
-  // this doesn't work in the case of templates for example
-//    PQ_name *tgtName = new PQ_name(loc, tgtNameS);
-  xassert(tgtName);
-
   //       MemberInit:
-  MemberInit *mi = new MemberInit(tgtName, args);
+  MemberInit *mi = new MemberInit(new PQ_variable(loc, target), args);
+  if (isMember) {
+    mi->member = target;
+  }
+  else {
+    mi->base = targetCt;
+  }
+  mi->ctorVar = targetCt? targetCt->getCopyCtor() : NULL;
   return mi;
 }
 
 
-MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
+// for EA_IMPLICIT_MEMBER_DEFN
+MR_func *ElabVisitor::makeCopyCtorBody(CompoundType *ct, Variable *ctor)
 {
   // reversed print AST output; remember to read going up even for the
   // tree leaves
 
-  SourceLoc loc = env.loc();
+  SourceLoc loc = ctor->loc;
 
-  //     handlers:
-  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+  // empty body
+  S_compound *body = makeS_compound(loc);
 
-  //       stmts:
-  ASTList<Statement> *stmts = new ASTList<Statement>();
-
-  //       loc = ../oink/ctor1.cc:16:3
-  //       succ={ }
-  //     S_compound:
-  S_compound *body = new S_compound(loc, stmts);
+  // the parameter that refers to the source object
+  Variable *srcParam = ctor->type->asFunctionType()->params.first();
+  //StringRef srcNameS = env.str.add("__other");
 
   // for each member, make a call to its copy ctor; Note that this
   // works for simple types also; NOTE: We build this in reverse and
   // then reverse it.
   FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
-
-  StringRef srcNameS = env.str.add("__other");
-
-  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass*>(iter.data());
-    // omit initialization of virtual base classes, whether direct
-    // virtual or indirect virtual.  See cppstd 12.6.2 and the
-    // implementation of Function::tcheck_memberInits()
-    //
-    // FIX: We really should be initializing the direct virtual bases,
-    // but the logic is so complex I'm just going to omit it for now
-    // and err on the side of not calling enough initializers
-    if (!ct->hasVirtualBase(base->ct)) {
-//        env.make_PQ_qualifiedName(base->ct),
-      FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
-//        Variable *typedefVar = base->ct->getTypedefName();
-//        xassert(typedefVar);
-//        PQName *name = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
-      PQName *name = env.make_PQ_possiblyTemplatizedName(loc, base->ct->name, targs);
-      MemberInit *mi = makeCopyCtorMemberInit(name, srcNameS, NULL, loc);
-      inits = inits->prepend(mi);
-    } else {
-//        cerr << "Omitting a direct base that is also a virtual base" << endl;
-    }
-  }
-
-  // FIX: What the heck do I do for virtual bases?  This surely isn't
-  // right.
-  //
-  // Also, it seems that the order of interleaving of the virtual and
-  // non-virtual bases has been lost.  Have to be careful of this when
-  // we pretty print.
-  //
-  // FIX: This code is broken anyway.
-//    FOREACH_OBJLIST_NC(BaseClassSubobj, ct->virtualBases, iter) {
-//      BaseClass *base = iter->data();
-// // This must not mean what I think.
-// //     xassert(base->isVirtual);
-//      MemberInit *mi = makeCopyCtorMemberInit(base->ct->name, srcNameS, NULL, loc);
-//      inits = inits->prepend(mi);
-//    }
-
-  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
-    Variable *var = iter.data();
-    if (!wantsMemberInit(var)) continue;
-    MemberInit *mi = makeCopyCtorMemberInit
-      (new PQ_name(loc, var->name), srcNameS, var->name, loc);
-    inits = inits->prepend(mi);
-  }
-
-  //     inits:
-  inits = inits->reverse();
-
-  //       init is null
-  Initializer *init = NULL;
-
-  //         exnSpec is null
-  ExceptionSpec *exnSpec = NULL;
-
-  //         cv = 
-  CVFlags cv = CV_NONE;
-
-  //               init is null
-  Initializer *init0 = NULL;
-
-  //                     name = b
-  //                     loc = ../oink/ctor1.cc:11:14
-  //                   PQ_name:
-  PQ_name *name0 = new PQ_name(loc, srcNameS);
-
-  //                   loc = ../oink/ctor1.cc:11:14
-  //                 D_name:
-  IDeclarator *base0 = new D_name(loc, name0);
-
-  //                 cv = 
-  //                 isPtr = false
-  //                 loc = ../oink/ctor1.cc:11:13
-  //               D_pointer:
-  IDeclarator *idecl0 = new D_pointer(loc,
-                                      false, // a ref, not a real pointer
-                                      CV_NONE,
-                                      base0);
-
-  //             Declarator:
-  Declarator *decl0 = new Declarator(idecl0, init0);
-
-  //               typenameUsed = false
-  bool typenameUsed = false;
-
-  //                 name = B
-  //                 loc = ../oink/ctor1.cc:11:5
-  //               PQ_name:
-  PQName *name = NULL;
   {
-    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(ct);
-    Variable *typedefVar = ct->getTypedefName();
-    xassert(typedefVar);
-    name = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
+    FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+      BaseClass const *base = iter.data();
+      // omit initialization of virtual base classes, whether direct
+      // virtual or indirect virtual.  See cppstd 12.6.2 and the
+      // implementation of Function::tcheck_memberInits()
+      //
+      // FIX: We really should be initializing the direct virtual bases,
+      // but the logic is so complex I'm just going to omit it for now
+      // and err on the side of not calling enough initializers
+      if (!ct->hasVirtualBase(base->ct)) {
+        MemberInit *mi =
+          makeCopyCtorMemberInit(base->ct->typedefVar, srcParam, loc);
+        inits = inits->prepend(mi);
+      }
+      else {
+        //cerr << "Omitting a direct base that is also a virtual base" << endl;
+      }
+    }
+
+    // FIX: What the heck do I do for virtual bases?  This surely isn't
+    // right.
+    //
+    // Also, it seems that the order of interleaving of the virtual and
+    // non-virtual bases has been lost.  Have to be careful of this when
+    // we pretty print.
+    //
+    // FIX: This code is broken anyway.
+  //    FOREACH_OBJLIST_NC(BaseClassSubobj, ct->virtualBases, iter) {
+  //      BaseClass *base = iter->data();
+  // // This must not mean what I think.
+  // //     xassert(base->isVirtual);
+  //      MemberInit *mi = makeCopyCtorMemberInit(base->ct->name, srcNameS, NULL, loc);
+  //      inits = inits->prepend(mi);
+  //    }
+
+    SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+      Variable *var = iter.data();
+      if (!wantsMemberInit(var)) continue;
+      MemberInit *mi = makeCopyCtorMemberInit(var, srcParam, loc);
+      inits = inits->prepend(mi);
+    }
+
+    //     inits:
+    inits = inits->reverse();
   }
 
-  //               loc = ../oink/ctor1.cc:11:5
-  //               cv = const
-  //             TS_name:
-  TypeSpecifier *spec = new TS_name(loc, name, typenameUsed);
-  spec->cv = CV_CONST;
+  Function *f = makeFunction(loc, ctor, inits, body);
+  f->ctorThisLocalVar = env.makeCtorThisLocalVar(loc, ct);
 
-  //           ASTTypeId:
-  ASTTypeId *param0 = new ASTTypeId(spec, decl0); 
-  
-  //         params:
-  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::makeList(param0);
-
-  //             name = B
-  //             loc = ../oink/ctor1.cc:11:3
-  //           PQ_name:
-  // FIX: is this a sufficiently general way of getting a name for
-  // this class?
-  // update: Yes, it is.  We do *not* want to use a fully qualified
-  // name for the class here for the name of the ctor.  Just the way
-  // naming works in C++ I guess.
-  PQName *ctorName = new PQ_name(loc, ct->name);
-
-  //           loc = ../oink/ctor1.cc:11:3
-  //         D_name:
-  IDeclarator *base = new D_name(loc, ctorName);
-
-  //         loc = ../oink/ctor1.cc:11:3
-  //       D_func:
-  IDeclarator *decl = new D_func(loc,
-                                 base,
-                                 params,
-                                 cv,
-                                 exnSpec);
-
-  //     Declarator:
-  Declarator *nameAndParams = new Declarator(decl, init);
-
-  //       id = /*cdtor*/
-  //       loc = ../oink/ctor1.cc:11:3
-  //       cv = 
-  //     TS_simple:
-  TypeSpecifier *retspec = new TS_simple(loc, ST_CDTOR);
-
-  //     dflags =
-  // FIX: are ctors members?
-  // update: old email from Scott says yes.
-  DeclFlags dflags = DF_MEMBER | DF_INLINE;
-
-  //   Function:
-  Function *f =
-    new Function(dflags,
-                 retspec,
-                 nameAndParams,
-                 inits,
-                 body,
-                 handlers);
-  f->implicitlyDefined = true;
-
-  //   loc = ../oink/ctor1.cc:11:3
-  // MR_func:
   return new MR_func(loc, f);
 }
 
@@ -994,185 +1056,55 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
 // make copy assign op ****************
 
 // "return *this;"
-static S_return *make_S_return(Env &env)
+S_return *ElabVisitor::make_S_return_this(SourceLoc loc)
 {
-  SourceLoc loc = env.loc();
-
-  //                   name = this
-  //                   loc = copy_assign1.cc:12:13
-  //                 PQ_name:
-  PQ_name *name0 = new PQ_name(loc, env.str.add("this"));
-  //               E_variable:
-  E_variable *evar0 = new E_variable(name0);
-  //             E_deref:
-  E_deref *ederef0 = new E_deref(evar0);
-  //           FullExpression:
-  FullExpression *fullexp0 = new FullExpression(ederef0);
-  //           loc = copy_assign1.cc:12:5
-  //           succ={ }
-  //         S_return:
-  return new S_return(loc, fullexp0);
+  // "return *this;"
+  return new S_return(loc, new FullExpression(makeThisRef(loc)));
 }
 
 // "y = __other.y;"
-static S_expr *make_S_expr_memberCopyAssign(Env &env, StringRef memberName)
+S_expr *ElabVisitor::make_S_expr_memberCopyAssign
+  (SourceLoc loc, Variable *member, Variable *other)
 {
-  SourceLoc loc = env.loc();
+  // "__other.y"
+  E_fieldAcc *otherDotY = makeE_fieldAcc(loc, makeE_variable(loc, other), member);
 
-  //                   name = y
-  //                   loc = copy_assign1.cc:11:17
-  //                 PQ_name:
-  PQ_name *name1 = new PQ_name(loc, memberName);
-  //                     name = __other
-  //                     loc = copy_assign1.cc:11:9
-  //                   PQ_name:
-  PQ_name *name2 = new PQ_name(loc, env.str.add("__other"));
-  //                 E_variable:
-  E_variable *evar2 = new E_variable(name2);
-  //               E_fieldAcc:
-  E_fieldAcc *efieldacc2 = new E_fieldAcc(evar2, name1);
-  //               op = =
-  // NOTE: below
-  //                   name = y
-  //                   loc = copy_assign1.cc:11:5
-  //                 PQ_name:
-  PQ_name *name3 = new PQ_name(loc, memberName);
-  //               E_variable:
-  E_variable *evar3 = new E_variable(name3);
-  //             E_assign:
-  E_assign *eassign0 = new E_assign(evar3, BIN_ASSIGN, efieldacc2);
-  //           FullExpression:
-  FullExpression *fullexp1 = new FullExpression(eassign0);
-  //           loc = copy_assign1.cc:11:5
-  //           succ={ }
-  //         S_expr:
-  return new S_expr(loc, fullexp1);
+  Expression *action;
+  if (member->type->isCompoundType()) {
+    CompoundType *ct = member->type->asCompoundType();
+
+    // use a call to the assignment operator
+    Variable *assign = ct->getAssignOperator();
+
+    // "y.operator=(__other.y)"
+    action = makeMemberCall(loc, makeE_variable(loc, member) /*y*/, assign,
+                            makeExprList1(otherDotY));
+  }
+  else {
+    // use the E_assign built-in operator
+
+    // "y = other.y"
+    action = new E_assign(makeE_variable(loc, member), BIN_ASSIGN, otherDotY);
+    action->type = otherDotY->type;
+  }
+
+  // wrap up as a statement
+  return makeS_expr(loc, action);
 }
 
 // "this->W::operator=(__other);"
-static S_expr *make_S_expr_superclassCopyAssign(Env &env, BaseClass *base)
+S_expr *ElabVisitor::make_S_expr_superclassCopyAssign
+  (SourceLoc loc, CompoundType *w, Variable *other)
 {
-  SourceLoc loc = env.loc();
+  // "W::operator="
+  Variable *assign = w->getAssignOperator();
 
-  //                       name = __other
-  StringRef other = env.str.add("__other");
-  //                       loc = copy_assign2.cc:8:24
-  //                     PQ_name:
-  PQ_name *name0 = new PQ_name(loc, other);
-  //                   E_variable:
-  E_variable *evar0 = new E_variable(name0);
-  //                 ArgExpression:
-  ArgExpression *argexpr0 = new ArgExpression(evar0);
-  //               args:
-  FakeList<ArgExpression> *args = FakeList<ArgExpression>::makeList(argexpr0);
-  //                     fakeName = operator=
-  StringRef fakename = env.str.add("operator=");
-  //                       op = =
-  //                     ON_operator:
-  ON_operator *opname = new ON_operator(OP_ASSIGN);
-  //                     loc = copy_assign2.cc:8:14
-  //                   PQ_operator:
-  PQ_operator *assignop = new PQ_operator(loc, opname, fakename);
-  //                   targs:
-  FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
-  //                   qualifier = W
-  //                   loc = copy_assign2.cc:8:11
-  //                 PQ_qualifier:
-  PQName *superclassName = NULL;
-  {
-    Variable *typedefVar = base->ct->getTypedefName();
-    xassert(typedefVar);
-    superclassName = new PQ_qualifier(loc, typedefVar->name, targs, assignop);
-  }
-  //                     name = this
-  //                     loc = copy_assign2.cc:8:5
-  //                   PQ_name:
-  PQ_name *thisName = new PQ_name(loc, env.str.add("this"));
-  //                 E_variable:
-  E_variable *this0 = new E_variable(thisName);
-  //               E_arrow:
-  E_arrow *earrow = new E_arrow(this0, superclassName);
-  //             E_funCall:
-  E_funCall *efuncall = new E_funCall(earrow, args);
-  //           FullExpression:
-  FullExpression *fullexpr = new FullExpression(efuncall);
-  //           loc = copy_assign2.cc:8:5
-  //           succ={ }
-  //         S_expr:
-  return new S_expr(loc, fullexpr);
-}
+  // "this->W::operator=(__other)"
+  E_funCall *call = makeMemberCall(loc, makeThisRef(loc), assign,
+                                   makeExprList1(makeE_variable(loc, other)));
 
-Declarator *makeCopyAssignDeclarator(Env &env, CompoundType *ct)
-{
-  SourceLoc loc = env.loc();
-
-  //       init is null
-  // NOTE: below inline
-  //           exnSpec is null
-  // NOTE: below inline
-  //           cv = 
-  // NOTE: below inline
-  //                 init is null
-  Initializer *init = NULL;
-  //                       name = __other
-  StringRef otherName = env.str.add("__other");
-  //                       loc = copy_assign1.cc:7:25
-  //                     PQ_name:
-  PQ_name *otherPQ_name = new PQ_name(loc, otherName);
-  //                     loc = copy_assign1.cc:7:25
-  //                   D_name:
-  D_name *declname = new D_name(loc, otherPQ_name);
-  //                   cv = 
-  //                   isPtr = false
-  //                   loc = copy_assign1.cc:7:24
-  //                 D_pointer:
-  D_pointer *dptr = new D_pointer(loc, false /*ref, not ptr*/, CV_NONE, declname);
-  //               Declarator:
-  Declarator *declarator0 = new Declarator(dptr, init);
-  //                 typenameUsed = false
-  bool typenameUsed = false;
-  //                   name = X
-  //                   loc = copy_assign1.cc:7:16
-  //                 PQ_name:
-  PQName *name1 = NULL;
-  {
-    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(ct);
-    Variable *typedefVar = ct->getTypedefName();
-    xassert(typedefVar);
-    name1 = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
-  }
-  //                 loc = copy_assign1.cc:7:16
-  //                 cv = const
-  //               TS_name:
-  TS_name *tsname1 = new TS_name(loc, name1, typenameUsed);
-  tsname1->cv = CV_CONST;
-  //             ASTTypeId:
-  ASTTypeId *asttypeid = new ASTTypeId(tsname1, declarator0);
-  //           params:
-  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::makeList(asttypeid);
-  //               fakeName = operator=
-  StringRef fakeName = env.str.add("operator=");
-  //                 op = =
-  //               ON_operator:
-  ON_operator *opname = new ON_operator(OP_ASSIGN);
-  //               loc = copy_assign1.cc:7:6
-  //             PQ_operator:
-  PQ_operator *pqop = new PQ_operator(loc, opname, fakeName);
-  //             loc = copy_assign1.cc:7:6
-  //           D_name:
-  D_name *dname = new D_name(loc, pqop);
-  //           loc = copy_assign1.cc:7:6
-  //         D_func:
-  // FIX: this exception spec is wrong: the spec says that the implied
-  // copy operator= has an exception spec.
-  D_func *dfunc = new D_func(loc, dname, params, CV_NONE, NULL/*exnSpec*/);
-  //         cv = 
-  //         isPtr = false
-  //         loc = copy_assign1.cc:7:4
-  //       D_pointer:
-  D_pointer *dptr1 = new D_pointer(loc, false /*ref, not ptr*/, CV_NONE, dfunc);
-  //     Declarator:
-  return new Declarator(dptr1, NULL /*init*/);
+  // "this->W::operator=(__other);"
+  return makeS_expr(loc, call);
 }
 
 
@@ -1188,129 +1120,73 @@ Declarator *makeCopyAssignDeclarator(Env &env, CompoundType *ct)
 //  parameter should be a reference to const or not; I'm just going to
 //  make it const for now] ...
 //
-//  The implicitly-declared copy assignment operator for class X has the
-//  return type X&; it returns the object for which the assignment
-//  operator is invoked, that is, the object assigned to.  An
-//  implicitly-declared copy assignment operator is an inline public
-//  member of its class. ...
-//
-//  paragraph 12
-//
-//  An implicitly-declared copy assignment operator is implicitly defined
-//  when an object of its class type is assigned a value of its class type
-//  or a value of a class type derived from its class type. ...
-//
 //  paragraph 13
 //
 //  The implicitly-defined copy assignment operator for class X performs
-//  memberwise assignment of its subobjects.  The direct base classes of X
-//  are assigned first, in the order of their declaration in the
-//  base-specifier-list, and then the immediate nonstatic data members of
-//  X are assigned, in the order in which they were declared in the class
-//  definition.  Each subobject is assigned in the manner appropriate to
-//  its type:
+//  memberwise assignment of its subobjects.  ...
 //
-//  -- if the subobject is of class type, the copy assignment operator for
-//  the class is used (as if by explicit qualification; that is, ignoring
-//  any possible virtual overriding functions in more derived classes);
+//  sm: I removed some large passages that are not directly relevant
+//  to the operation of this function.  The standard is a copyrighted work
+//  and we should therefore only include brief segments that are highly
+//  relevant.
 //
-//  -- if the subobject is an array, each element is assigned, in the
-//  manner appropriate to the element type.
-//
-//  -- if the subobject is of scalar type, the built-in assignment
-//  operator is used.
-//
-//  It is unspecified whether subobjects representing virtual base classes
-//  are assigned more than once by the implicitly-defined copy assignment
-//  operator.
-MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
+// for EA_IMPLICIT_MEMBER_DEFN
+MR_func *ElabVisitor::makeCopyAssignBody
+  (SourceLoc loc, CompoundType *ct, Variable *assign)
 {
-  // reversed print AST output; remember to read going up even for the
-  // tree leaves
+  // get the source parameter, called "__other" (0th param is receiver
+  // object, so 1st is __other)
+  FunctionType *assignFt = assign->type->asFunctionType();
+  xassert(assignFt->params.count() == 2);
+  Variable *other = assignFt->params.nth(1);
 
-  // this is a pretty pathetic way to get a loc, since everything in
-  // the constructed AST ends up at one point loc
-  SourceLoc loc = env.loc();
+  // we make the function now, before filling in 'stmts', because
+  // while we're filling in 'stmts' we want 'f' on the function stack
+  Function *f = makeFunction(loc, assign,
+                             FakeList<MemberInit>::emptyList(),    // inits
+                             makeS_compound(loc));
+  functionStack.push(f);
 
-  //     handlers:
-  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+  // get ahold of the statement list to build
+  ASTList<Statement> *stmts = &(f->body->stmts);
 
-  //       stmts:
   // NOTE: these are made and appended *in* *order*, not in reverse
   // and then reversed as with the copy ctor
-  ASTList<Statement> *stmts = new ASTList<Statement>();
-
-  // For each superclass, make the call to operator =.
-  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass*>(iter.data());
-    // omit initialization of virtual base classes, whether direct
-    // virtual or indirect virtual.  See cppstd 12.6.2 and the
-    // implementation of Function::tcheck_memberInits()
-    //
-    // FIX: We really should be initializing the direct virtual bases,
-    // but the logic is so complex I'm just going to omit it for now
-    // and err on the side of not calling enough initializers
-    if (!ct->hasVirtualBase(base->ct)) {
-      stmts->append(make_S_expr_superclassCopyAssign(env, base));
-    }
-  }
-
-  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
-    Variable *var = iter.data();
-    if (!wantsMemberInit(var)) continue;
-    // skip assigning to const or reference members; NOTE: this is an
-    // asymmetry with copy ctor, which can INITIALIZE const or ref
-    // types, however we cannot ASSIGN to them.
-    Type *type = var->type;
-    if (type->isReference() || type->isConst()) continue;
-    stmts->append(make_S_expr_memberCopyAssign(env, var->name));
-  }
-
-  stmts->append(make_S_return(env));
-
-  //       loc = copy_assign1.cc:7:34
-  //       succ={ }
-  //     S_compound:
-  S_compound *body = new S_compound(loc, stmts);
-
-  //     inits:
-  FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
-
-  //     Declarator:
-  Declarator *nameAndParams = makeCopyAssignDeclarator(env, ct);
-
-  //       typenameUsed = false
-  bool typenameUsed = false;
-  //         name = X
-  //         loc = copy_assign1.cc:7:3
-  //       PQ_name:
-  PQName *pqnameRetSpec = NULL;
   {
-    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(ct);
-    Variable *typedefVar = ct->getTypedefName();
-    xassert(typedefVar);
-    pqnameRetSpec = env.make_PQ_possiblyTemplatizedName(loc, typedefVar->name, targs);
+    // For each superclass, make the call to operator =.
+    FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+      BaseClass const *base = iter.data();
+      // omit initialization of virtual base classes, whether direct
+      // virtual or indirect virtual.  See cppstd 12.6.2 and the
+      // implementation of Function::tcheck_memberInits()
+      //
+      // FIX: We really should be initializing the direct virtual bases,
+      // but the logic is so complex I'm just going to omit it for now
+      // and err on the side of not calling enough initializers
+      if (!ct->hasVirtualBase(base->ct)) {
+        stmts->append(make_S_expr_superclassCopyAssign(loc, base->ct, other));
+      }
+    }
+
+    SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+      Variable *var = iter.data();
+      if (!wantsMemberInit(var)) continue;
+      // skip assigning to const or reference members; NOTE: this is an
+      // asymmetry with copy ctor, which can INITIALIZE const or ref
+      // types, however we cannot ASSIGN to them.
+      //
+      // sm: The existence of consts or refs means that the assignment
+      // operator cannot be called, according to the spec.  But the
+      // behavior of the code here seems fine.
+      Type *type = var->type;
+      if (type->isReference() || type->isConst()) continue;
+      stmts->append(make_S_expr_memberCopyAssign(loc, var, other));
+    }
+
+    stmts->append(make_S_return_this(loc));
   }
-  //       loc = copy_assign1.cc:7:3
-  //       cv = 
-  //     TS_name:
-  TypeSpecifier *retspec = new TS_name(loc, pqnameRetSpec, typenameUsed);
 
-  //     dflags = 
-  DeclFlags dflags = DF_MEMBER | DF_INLINE;
-
-  //   Function:
-  Function *f =
-    new Function(dflags,
-                 retspec,
-                 nameAndParams,
-                 inits,
-                 body,
-                 handlers);
-  f->implicitlyDefined = true;
-
-  //   loc = copy_assign1.cc:7:3
-  // MR_func:
+  functionStack.pop();
   return new MR_func(loc, f);
 }
 
@@ -1318,114 +1194,25 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
 // make implicit dtor ****************
 
 // "a.~A();"
-static S_expr *make_S_expr_memberDtor(Env &env, StringRef memberName, CompoundType *memberType)
+S_expr *ElabVisitor::make_S_expr_memberDtor
+  (SourceLoc loc, Expression *member, CompoundType *memberType)
 {
-  SourceLoc loc = env.loc();
+  // "~A"
+  Variable *dtor = memberType->getDtor();
 
-  //       args:
-  FakeList<ArgExpression> *args = FakeList<ArgExpression>::emptyList();
-  //           name = ~A
-  //           loc = ex/dtor2.cc:7:7
-  //         PQ_name:
-//    PQName *dtorName = env.make_PQ_fullyQualifiedDtorName(memberType);
-//    PQ_name *name0 = new PQ_name(loc, env.str(stringc << "~" << memberType->name));
-//    PQName *dtorName = name0;
-  PQName *dtorName = NULL;
-  {
-    FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(memberType);
-//      Variable *typedefVar = memberType->getTypedefName();
-//      xassert(typedefVar);
-//      dtorName = new PQ_qualifier(loc, typedefVar->name, targs, name0);
-    dtorName = env.make_PQ_possiblyTemplatizedName
-      (loc, env.str(stringc << "~" << memberType->name), targs);
-  }
+  // "a.~A()"
+  E_funCall *funcall = makeMemberCall(loc, member, dtor, emptyArgs());
 
-  //             name = a
-  //             loc = ex/dtor2.cc:7:5
-  //           PQ_name:
-  PQ_name *name = new PQ_name(loc, memberName);
-  //           var: refers to ex/dtor2.cc:4:5
-  //           type: struct A &
-  //         E_variable:
-  E_variable *evar0 = new E_variable(name);
-  //         field: refers to ex/dtor2.cc:1:1
-  //         type: ()()
-  //       E_fieldAcc:
-  E_fieldAcc *efieldacc = new E_fieldAcc(evar0, dtorName);
-  //       type: /*cdtor*/
-  //     E_funCall:
-  E_funCall *efuncall = new E_funCall(efieldacc, args);
-  //   FullExpression:
-  FullExpression *fullexpr = new FullExpression(efuncall);
-  //   loc = ex/dtor2.cc:7:5
-  //   succ={ }
-  // S_expr:
-  return new S_expr(loc, fullexpr);
+  // "a.~A();"
+  return makeS_expr(loc, funcall);
 }
 
-// "this->B::~B();"
-static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
+// for EA_MEMBER_DTOR
+void ElabVisitor::completeDtorCalls(
+  Function *func,      // destructor being annotated
+  CompoundType *ct)    // the class of which 'func' is a member
 {
-  SourceLoc loc = env.loc();
-
-  //       args:
-  FakeList<ArgExpression> *args = FakeList<ArgExpression>::emptyList();
-  //             name = ~B
-  //             loc = ex/dtor2.cc:6:14
-  //           PQ_name:
-
-//    PQName *name = env.make_PQ_fullyQualifiedDtorName(base->ct);
-
-  PQ_name *name0 = new PQ_name(loc, env.str(stringc << "~" << base->ct->name));
-  //           targs:
-  FakeList<TemplateArgument> *targs = env.make_PQ_templateArgs(base->ct);
-  //           qualifier = B
-  //           loc = ex/dtor2.cc:6:11
-  //         PQ_qualifier:
-  PQName *name = NULL;
-  {
-    Variable *typedefVar = base->ct->getTypedefName();
-    xassert(typedefVar);
-    name = new PQ_qualifier(loc, typedefVar->name, targs, name0);
-  }
-
-  //               name = this
-  //               loc = ex/dtor2.cc:6:5
-  //             PQ_name:
-  PQ_name *thisName = new PQ_name(loc, env.str.add("this"));
-  //             var: refers to ex/dtor2.cc:5:3
-  //             type: struct C *
-  //           E_variable:
-  E_variable *this0 = new E_variable(thisName);
-  //           type: struct C &
-  //         E_deref:
-  //         field: refers to ex/dtor2.cc:2:1
-  //         type: ()()
-  //       E_fieldAcc:
-  //       type: /*cdtor*/
-  // not sure why it isn't printing as E_arrow
-  E_arrow *earrow = new E_arrow(this0, name);
-  //     E_funCall:
-  E_funCall *efuncall = new E_funCall(earrow, args);
-  //   FullExpression:
-  FullExpression *fullexpr = new FullExpression(efuncall);
-  //   loc = ex/dtor2.cc:6:5
-  //   succ={ 7:5 }
-  // S_expr:
-  return new S_expr(loc, fullexpr);
-}
-
-void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
-{
-  xassert(ct);                  // can't be a stand-alone function
-
-  if (func->dtorStatement) { 
-    // sm: previously, cc_tcheck.cc would only call this function
-    // when 'dtorStatement' was NULL; but I don't want cc_tcheck.cc
-    // to depend on cc_elaborate.ast, so I will just test in here
-    // and call the function unconditionally
-    return;
-  }
+  SourceLoc loc = func->getLoc();
 
   // We add to the statements in *forward* order, unlike when adding
   // to MemberInitializers, but since this is a dtor, not a ctor, we
@@ -1433,16 +1220,17 @@ void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
   SObjStack<S_expr> dtorStmtsReverse;
 
   FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
-    BaseClass *base = const_cast<BaseClass*>(iter.data());
+    BaseClass const *base = iter.data();
     // omit initialization of virtual base classes, whether direct
     // virtual or indirect virtual.  See cppstd 12.6.2 and the
     // implementation of Function::tcheck_memberInits()
     //
     // FIX: We really should be initializing the direct virtual bases,
     // but the logic is so complex I'm just going to omit it for now
-    // and err on the side of not calling enough initializers
+    // and err on the side of not calling enough destructors
     if (!ct->hasVirtualBase(base->ct)) {
-      dtorStmtsReverse.push(make_S_expr_superclassDtor(env, base));
+      dtorStmtsReverse.push(
+        make_S_expr_memberDtor(loc, makeThisRef(loc), base->ct));
     }
   }
 
@@ -1450,99 +1238,51 @@ void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
     Variable *var = iter.data();
     if (!wantsMemberInit(var)) continue;
     if (!var->type->isCompoundType()) continue;
-    dtorStmtsReverse.push(make_S_expr_memberDtor(env, var->name, var->type->asCompoundType()));
+    dtorStmtsReverse.push(
+      make_S_expr_memberDtor(loc, makeE_variable(loc, var), 
+                             var->type->asCompoundType()));
   }
 
   // reverse and append to the statements list
   ASTList<Statement> *dtorStatements = new ASTList<Statement>();
   while (!dtorStmtsReverse.isEmpty()) {
     dtorStatements->append(dtorStmtsReverse.pop());
-  }
+  }     
+
   // FIX: I can't figure out the bug right now, but in/t0019.cc fails
   // with a seg fault if I put this line *before* the while loop
   // above.  From looking at the data structures, it seems that it
   // shouldn't matter.
-  func->dtorStatement = new S_compound(env.loc(), dtorStatements);
-  
-  // sm: I moved this 'tcheck' call from the (only) call site in cc_tcheck.cc
-  // down here, to remove a dependency of cc_tcheck.cc on cc_elaborate.ast
-  func->dtorStatement->tcheck(env);
-//      cout << "**** elaborated dtor" << endl;
-//      func->debugPrint(cout, 0);
-//      cout << "**** elaborated dtor done" << endl;
+  //
+  // sm: the reason is that creating an S_compound *deletes* the
+  // ASTList<Statement> that is passed to it
+  func->dtorStatement = new S_compound(loc, dtorStatements);
 }
 
-MR_func *makeDtorBody(Env &env, CompoundType *ct)
+// for EA_IMPLICIT_MEMBER_DEFN
+MR_func *ElabVisitor::makeDtorBody(CompoundType *ct, Variable *dtor)
 {
-  // reversed print AST output; remember to read going up even for the
-  // tree leaves
+  SourceLoc loc = dtor->loc;
 
-  SourceLoc loc = env.loc();
-  //     handlers:
-  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+  // function with empty body; the member dtors will be elaborated later
+  Function *f = makeFunction(loc, dtor,
+                             FakeList<MemberInit>::emptyList(),   // inits
+                             makeS_compound(loc));
 
-  //       stmts:
-  ASTList<Statement> *stmts = new ASTList<Statement>();
-  //       loc = ex/dtor2.cc:5:8
-  //       succ={ 6:5 }
-  //     S_compound:
-  S_compound *body = new S_compound(loc, stmts);
-  //     inits:
-  FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
-  //       init is null
-  Initializer *init = NULL;
-  //         exnSpec is null
-  ExceptionSpec *exnSpec = NULL;
-  //         cv = 
-  CVFlags cv = CV_NONE;
-  //         params:
-  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::emptyList();
-  //             name = ~C
-  //             loc = ex/dtor2.cc:5:3
-  //           PQ_name:
-  // see this point in makeCopyCtorBody() for a comment on the
-  // sufficient generality of this
-  PQName *dtorName = new PQ_name(loc, env.str(stringc << "~" << ct->name));
-  //           loc = ex/dtor2.cc:5:3
-  //         D_name:
-  IDeclarator *base = new D_name(loc, dtorName);
-  //         loc = ex/dtor2.cc:5:3
-  //       D_func:
-  IDeclarator *decl = new D_func(loc,
-                                 base,
-                                 params,
-                                 cv,
-                                 exnSpec);
-  //       var: inline <member> <definition> ~C(/*m: struct C & */ )
-  //     Declarator:
-  Declarator *nameAndParams = new Declarator(decl, init);
-  //       id = /*cdtor*/
-  //       loc = ex/dtor2.cc:5:3
-  //       cv = 
-  //     TS_simple:
-  TypeSpecifier *retspec = new TS_simple(loc, ST_CDTOR);
-  //     dflags = inline
-  DeclFlags dflags = DF_MEMBER | DF_INLINE;
-  //     funcType: ()(/*m: struct C & */ )
-  //   Function:
-  Function *f =
-    new Function(dflags,
-                 retspec,
-                 nameAndParams,
-                 inits,
-                 body,
-                 handlers);
-  f->implicitlyDefined = true;
-  //   loc = ex/dtor2.cc:5:3
-  // MR_func:
   return new MR_func(loc, f);
 }
 
-//  ****************
 
-void Handler::elaborate(Env &env)
+// --------------------- exception stuff ------------------
+// for EA_GLOBAL_EXCEPTION
+void Handler::elaborate(ElabVisitor &env)
 {
-  xassert(env.doElaboration);
+  SourceLoc loc = body->loc;
+
+  // sm: grumble grumble, this code makes no sense... a separate
+  // global for every handler?  who interacts with all these globals?
+  // certainly not E_throw...
+
   // NOTE: don't do this if it is just a *ref* to a CompoundType.
   // Those are dtored later since the reference captures the global
   // and prevents it from being dtored now.  FIX: we have to deal with
@@ -1552,25 +1292,19 @@ void Handler::elaborate(Env &env)
   Type *typeIdType = typeId->getType();
   if (typeIdType->asRval()->isCompoundType()) {
     if (!globalVar) {
-      globalVar = env.makeVariable(env.loc(), env.makeCatchClauseVarName(),
+      globalVar = env.makeVariable(loc, env.makeCatchClauseVarName(),
                                    env.tfac.cloneType(typeIdType->asRval()),
                                    DF_STATIC // I think it is a static global
                                    | DF_GLOBAL);
-      // These variables persist beyond the stack frame, so I hesitate
-      // to do anything but add them to the global scope.  FIX: Then
-      // again, this argument applies to the E_new variables as well.
-      Scope *gscope = env.globalScope();
-      gscope->registerVariable(globalVar);
-      gscope->addVariable(globalVar);
 
       // if we catch by value, we need a copy ctor into a temporary
       // which is passed into the handler; in other words, we treat
       // passing the global exception to the handler as if it were a
       // function call
       if (typeIdType->isCompoundType()) {
-        localArg = elaborateCallByValue
-          (env, typeIdType,
-           wrapVarWithE_variable(env, globalVar) // NOTE: elaborateCallByValue() won't clone this
+        localArg = env.elaborateCallByValue
+          (loc, typeIdType,
+           env.makeE_variable(loc, globalVar) // NOTE: elaborateCallByValue() won't clone this
            );
       }
 
@@ -1579,76 +1313,23 @@ void Handler::elaborate(Env &env)
       // which to put the globalVar, we don't have a "global" place to
       // put its dtor, so I put them together.
       globalDtorStatement =
-        makeDtorStatement(env,
-                          // no need to clone the target as
-                          // wrapVarWithE_variable() makes all new AST
-                          wrapVarWithE_variable(env, globalVar),
-                          // can only make a dtor for a CompoundType, not a ref to one
-                          typeIdType->asRval());
+        env.makeDtorStatement(loc,
+                              // no need to clone the target as
+                              // makeE_variable() makes all new AST
+                              env.makeE_variable(loc, globalVar),
+                              // can only make a dtor for a CompoundType, not a ref to one
+                              typeIdType->asRval());
     }
   }
 }
 
 
-void E_new::elaborate(Env &env, Type *t)
+// for EA_GLOBAL_EXCEPTION
+bool E_throw::elaborate(ElabVisitor &env)
 {
-  xassert(env.doElaboration);
-
-  // TODO: this doesn't work for new[]
-
-  if (env.disambErrorsSuppressChanges()) {
-    TRACE("env", "not adding variable or ctorStatement to E_new `" << /*what?*/
-          "' because there are disambiguating errors");
+  if (!expr) {
+    return false;     // no children anyway
   }
-  else {
-    heapVar = env.makeVariable(env.loc(), env.makeE_newVarName(),
-                               env.tfac.cloneType(t), DF_NONE);
-    // even though this is on the heap, Scott says put it into the
-    // local scope
-    // FIX: this creates extra temporaries if we are typechecked
-    // twice
-    env.addVariable(heapVar);
-    FakeList<ArgExpression> *args0 = FakeList<ArgExpression>::emptyList();
-    if (ctorArgs) {
-//        args0 = cloneFakeList_ArgExpression(ctorArgs->list);
-      args0 = ctorArgs->list;
-      ctorArgs = NULL;          // wipe out the whole list
-    }
-    if (t->isCompoundType()) {
-      // FIX: this creates a lot of extra junk if we are typechecked
-      // twice
-      ctorStatement = makeCtorStatement(env, heapVar, t->asCompoundType(), args0);
-    }
-  }
-}
-
-
-void E_delete::elaborate(Env &env, Type *t)
-{
-  xassert(env.doElaboration);
-
-  // TODO: this doesn't work for delete[]
-
-  // E_delete::itcheck_x() should have noticed that its not a pointer
-  // and aborted before calling us if it wasn't.
-  PointerType *to = t->asPointerType();
-  xassert(to->op == PO_POINTER);
-  if (to->atType->isCompoundType()) {
-    dtorStatement = makeDtorStatement
-      (env,
-       // NOTE: clone is necessary to keep the AST being a tree
-//         new E_deref(expr->clone()),
-       new E_deref(expr),
-       to->atType               // no need to clone this type; it is not stored
-       );
-    expr = NULL;                // keep the tree a tree
-  }
-}
-
-
-void E_throw::elaborate(Env &env)
-{
-  xassert(env.doElaboration);
 
   // sm: I think what follows is wrong:
   //   - 'globalVar' is created, but a declaration is not, so
@@ -1660,6 +1341,11 @@ void E_throw::elaborate(Env &env)
   //     construction if a wrapper analysis wants the numbers to not
   //     be re-used
 
+  // sm: there is no location handy, and it wouldn't make sense anyway
+  // because it makes no sense to associate a new global with every E_throw!
+  // ok, maybe I'm being harsh.. but there's still no loc handy
+  SourceLoc loc = SL_UNKNOWN;
+
   // If it is a throw by value, it gets copy ctored somewhere, which
   // in an implementation is some anonymous global.  I can't think of
   // where the heck to make these globals or how to organize them, so
@@ -1669,38 +1355,108 @@ void E_throw::elaborate(Env &env)
   Type *exprType = expr->getType()->asRval();
   if (exprType->isCompoundType()) {
     if (!globalVar) {
-      globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(),
+      globalVar = env.makeVariable(loc, env.makeThrowClauseVarName(),
                                    env.tfac.cloneType(exprType),
                                    DF_STATIC // I think it is a static global
                                    | DF_GLOBAL);
-      // These variables persist beyond the stack frame, so I
-      // hesitate to do anything but add them to the global scope.
-      // FIX: Then again, this argument applies to the E_new
-      // variables as well.
-      Scope *gscope = env.globalScope();
-      gscope->registerVariable(globalVar);
-      gscope->addVariable(globalVar);
 
-      // FIX: I don't like how this typechecks the expr twice.  Note
-      // how we don't have the problem that we do with S_return in
-      // dealing with the FullExpression: since E_throw is an
-      // Expression rather than a Statement, it is already contained
-      // within an FullExpression (usually an S_expr).
-      globalCtorStatement = makeCtorStatement(env, globalVar, exprType->asCompoundType(),
-//                                                makeExprList1(expr->clone()));
-                                              makeExprList1(expr));
-      expr = NULL;              // keep the tree a tree
+      // clone the expr, putting the clone back into 'expr', and using
+      // the original (tcheck'd) one in 'makeCtorStatement' (SCS)
+      Expression *origExpr = expr;
+      expr = env.cloneExpr(expr);
+
+      globalCtorStatement =
+        env.makeCtorStatement(loc, env.makeE_variable(loc, globalVar), exprType,
+                              exprType->asCompoundType()->getCopyCtor(),
+                              makeExprList1(origExpr));
+                              
+      return false;     // SES
     }
-  }
+  }                           
+  
+  return true;
 }
 
 
-void S_return::elaborate(Env &env)
+// ------------------------ new/delete ---------------------------
+bool E_new::elaborate(ElabVisitor &env)
 {
-  xassert(env.doElaboration);
+  SourceLoc loc = env.enclosingStmtLoc;
 
+  // TODO: this doesn't work for new[]
+
+  // sm: This is way wrong.  It pretends that 'new' yields a reference
+  // to the same global instance over and over.  The code should
+  // instead do something like:
+  //   C *temp = ::operator new(sizeof(C));
+  //   temp <- C::C();      // 'temp' is 'retObj'
+  //   temp                 // the value of the E_new expression
+
+  // the type of the elements to create
+  Type *t = atype->getType();
+
+  if (t->isCompoundType()) {
+    heapVar = env.makeVariable(loc, env.makeE_newVarName(),
+                               env.tfac.cloneType(t), DF_NONE);
+
+    FakeList<ArgExpression> *args0 = env.emptyArgs();
+    if (ctorArgs) {
+      // original is used in elaboration, clone stays behind (SCS)
+      args0 = ctorArgs->list;
+      ctorArgs->list = env.cloneExprList(ctorArgs->list);
+    }
+
+    ctorStatement = env.makeCtorStatement(loc, env.makeE_variable(loc, heapVar), t,
+                                          ctorVar, args0);
+    return false;    // SES
+  }
+
+  return true;
+}
+
+
+bool E_delete::elaborate(ElabVisitor &env)
+{
+  SourceLoc loc = env.enclosingStmtLoc;
+
+  // TODO: this doesn't work for delete[]
+
+  // the type of the argument to 'delete', typically a pointer to
+  // the type of the elements to destroy
+  Type *t = expr->type->asRval();
+
+  // E_delete::itcheck_x() should have noticed that its not a pointer
+  // and aborted before calling us if it wasn't.
+  PointerType *to = t->asPointerType();
+  xassert(to->op == PO_POINTER);
+  if (to->atType->isCompoundType()) {
+    // use orig in elaboration, clone stays behind
+    Expression *origExpr = expr;
+    expr = env.cloneExpr(expr);
+
+    E_deref *deref = new E_deref(origExpr);
+    deref->type = env.tfac.makePointerType(loc, PO_REFERENCE, CV_NONE,
+                                           to->atType);
+
+    dtorStatement = env.makeDtorStatement
+      (loc,
+       deref,
+       to->atType               // no need to clone this type; it is not stored
+       );
+       
+    return false;     // SES
+  }
+
+  return true;
+}
+
+
+// ----------------------- S_return -----------------------
+// for EA_ELIM_RETURN_BY_VALUE
+bool S_return::elaborate(ElabVisitor &env)
+{
   if (expr) {
-    FunctionType *ft = env.scope()->curFunction->funcType;
+    FunctionType *ft = env.functionStack.top()->funcType;
     xassert(ft);
 
     // FIX: check that ft->retType is non-NULL; I'll put an assert for now
@@ -1708,32 +1464,422 @@ void S_return::elaborate(Env &env)
     xassert(ft->retType);
 
     if (ft->retType->isCompoundType()) {
+      CompoundType *retTypeCt = ft->retType->asCompoundType();
+
       // This is an instance of return by value of a compound type.
       // We accomplish this by calling the copy ctor.
 
       // get the target of the constructor function
-      Variable *retVal = env.lookupVariable(env.str("<retVal>"));
-      xassert(retVal && retVal->getType()->asRval()->equals(ft->retType));
+      E_variable *retVal = env.makeE_variable(loc, env.functionStack.top()->retVal);
+
+      // since the S_return itself will be visited before the subexpr,
+      // we know the expr here has not yet been elaborated, so will not
+      // yet have put any temporaries into the fullexp
+      xassert(expr->annot.noTemporaries());
 
       // get the arguments of the constructor function; NOTE: we dig
-      // down below the FullExpression to the raw Expression and then
-      // clone it; the makeCtorStatement made below will wrap another
-      // FullExpression around it and then re-typecheck it
-//        Expression *subExpr = expr->expr->clone();
-      // UPDATE: no, just steal it for now and don't clone
+      // down below the FullExpression to the raw Expression
       Expression *subExpr = expr->expr;
       FakeList<ArgExpression> *args0 =
         FakeList<ArgExpression>::makeList(new ArgExpression(subExpr));
-      xassert(args0->count() == 1);
+      xassert(args0->count() == 1);      // makeList always returns a singleton list
 
       // make the constructor function
-      ctorStatement = makeCtorStatement(env, retVal, ft->retType->asCompoundType(), args0);
-      xassert(ctorStatement);   // FIX: what happens if there is no such compatable copy ctor?
+      env.push(expr->annot);             // e.g. in/d0049.cc breaks w/o this
+      ctorStatement = env.makeCtorStatement(loc, retVal, ft->retType,
+                                            retTypeCt->getCopyCtor(), args0);
+      env.pop(expr->annot);
 
-      // FIX: prevent problems with expr being typechecked twice.
-      expr = NULL;              // keep the tree a tree
+      // make the original expression a clone
+      expr->expr = env.cloneExpr(expr->expr);
+      
+      // traverse only the elaboration
+      //ctorStatement->traverse(env);    // 'makeCtorStatement' does this internally
+      return false;
     }
   }
+
+  return true;     // traverse 'expr'
+}
+
+
+// ===================== ElabVisitor =========================
+// ----------------------- TopForm ---------------------------
+bool ElabVisitor::visitTopForm(TopForm *tf)
+{
+  if (doing(EA_VARIABLE_DECL_CDTOR) &&
+      tf->isTF_decl()) {
+    // global variables
+    elaborateCDtorsDeclaration(tf->asTF_decl()->decl);
+    return false;     // SES (e.g. in/d0027.cc breaks if we return true)
+  } 
+  
+  return true;
+}
+
+
+// ----------------------- Function ---------------------------
+bool ElabVisitor::visitFunction(Function *f)
+{
+  functionStack.push(f);
+  FunctionType *ft = f->funcType;
+
+  if (doing(EA_ELIM_RETURN_BY_VALUE)) {
+    elaborateFunctionStart(f);
+  }
+
+  if (doing(EA_MEMBER_DTOR) &&
+      ft->isDestructor()) {
+    completeDtorCalls(f, ft->getClassOfMember());
+  }
+
+  if (doing(EA_IMPLICIT_MEMBER_CTORS) &&
+      ft->isConstructor()) {
+    // pull out the compound that this ctor creates
+    CompoundType *ct = f->ctorThisLocalVar->type->asPointerType()->
+                          atType->asCompoundType();
+    completeNoArgMemberInits(f, ct);
+  } 
+  
+  return true;
+}
+
+
+void ElabVisitor::postvisitFunction(Function *)
+{
+  functionStack.pop();
+}
+
+
+// ---------------------- MemberInit ---------------------------
+bool ElabVisitor::visitMemberInit(MemberInit *mi)
+{
+  push(mi->annot);
+
+  Function *func = functionStack.top();
+  SourceLoc loc = mi->name->loc;
+
+  // should already be tchecked, and either be a member or base class subobject
+  xassert(mi->member || mi->base);
+
+  // TODO: use assignments instead of ctors for non-class-valued objects
+
+  if (doing(EA_MEMBER_CTOR) &&
+      mi->ctorVar) {
+    // clone the arguments, but use the original tcheck'd version as
+    // what will subsequently be elaborated
+    FakeList<ArgExpression> *orig = mi->args;
+    FakeList<ArgExpression> *cloned = env.cloneExprList(mi->args);
+    mi->args = cloned;
+
+    if (mi->member) {
+      // initializing a data member
+      mi->ctorStatement = makeCtorStatement
+        (loc, makeE_variable(loc, mi->member), mi->member->type,
+         mi->ctorVar, orig);
+    }
+
+    else {
+      // initializing a base class subobject
+
+      // need a Type for the eventual E_constructor...
+      Type *type = tfac.makeCVAtomicType(loc, mi->base, CV_NONE);
+
+      mi->ctorStatement = makeCtorStatement
+        (loc, makeE_variable(loc, func->ctorThisLocalVar), type,
+         mi->ctorVar, orig);
+    }
+
+    // elaborate the ctorStatement only (not the 'args')
+    //mi->ctorStatement->traverse(*this);    // 'makeCtorStatement' does this internally
+
+    pop(mi->annot);     // b/c when I return false, postvisit isn't called
+    return false;       // don't automatically traverse children, esp. 'args' (SES)
+  }
+
+  else {
+    return true;        // automatically traverse, elaborate 'args'
+  }
+}
+
+void ElabVisitor::postvisitMemberInit(MemberInit *mi)
+{
+  pop(mi->annot);
+}
+
+
+// -------------------- TypeSpecifier --------------------------
+bool ElabVisitor::visitTypeSpecifier(TypeSpecifier *ts)
+{
+  if (doing(EA_IMPLICIT_MEMBER_DEFN) &&
+      ts->isTS_classSpec()) {
+    TS_classSpec *spec = ts->asTS_classSpec();
+    SourceLoc loc = spec->loc;
+    CompoundType *ct = spec->ctype;
+
+    if (!ct->name) {
+      return true;      // bail on anonymous classes, since 'addCompilerSuppliedDecls' does
+    }
+
+    // default ctor
+    {
+      // is there an implicit decl?
+      Variable *var = ct->getDefaultCtor();
+      if (var && var->isImplicitMemberFunc()) {
+        spec->members->list.append(makeNoArgCtorBody(ct, var));
+      }
+    }
+
+    // copy ctor
+    {
+      // is there an implicit decl?
+      Variable *var = ct->getCopyCtor();
+      if (var && var->isImplicitMemberFunc()) {
+        spec->members->list.append(makeCopyCtorBody(ct, var));
+      }
+    }
+
+    // assignment operator
+    {
+      // is there an implicit decl?
+      Variable *var = ct->getAssignOperator();
+      if (var && var->isImplicitMemberFunc()) {
+        spec->members->list.append(makeCopyAssignBody(loc, ct, var));
+      }
+    }
+
+    // dtor
+    {
+      // is there an implicit decl?
+      Variable *var = ct->getDtor();
+      if (var && var->isImplicitMemberFunc()) {
+        spec->members->list.append(makeDtorBody(ct, var));
+      }
+    }
+
+    // NOTE: In the code above, we have added to 'members->list', which
+    // means that the added elements *will* be traversed after this
+    // function returns, as part of the usual subtree traversal.
+  }
+
+  return true;     // traverse children (subtrees)
+}
+
+
+// ------------------------ Member -----------------------------
+bool ElabVisitor::visitMember(Member *m)
+{           
+  // Calling 'elaborateCDtorsDeclaration' wouldn't make sense because
+  // ctors need to depend on member init arguments, and dtors are more
+  // easily handled by adding them to the containing dtors.
+  #if 0
+  if (doing(EA_MEMBER_DECL_CDTOR) &&
+      m->isMR_decl()) {
+    // members
+    elaborateCDtorsDeclaration(m->asMR_decl()->d);
+    return false;    // SES
+  }
+  #endif // 0
+
+  return true;
+}
+
+
+// ----------------------- Statement ---------------------------
+bool ElabVisitor::visitStatement(Statement *s)
+{
+  enclosingStmtLoc = s->loc;
+
+  if (doing(EA_ELIM_RETURN_BY_VALUE) &&
+      s->isS_return()) {
+    return s->asS_return()->elaborate(*this);
+  }
+
+  if (doing(EA_VARIABLE_DECL_CDTOR) &&
+      s->isS_decl()) {
+    // local variables
+    elaborateCDtorsDeclaration(s->asS_decl()->decl);
+    return false;      // SES
+  }
+
+  return true;
+}
+
+
+// --------------------- Condition ------------------------
+bool ElabVisitor::visitCondition(Condition *c)
+{
+  if (doing(EA_VARIABLE_DECL_CDTOR) &&
+      c->isCN_decl()) {
+    c->asCN_decl()->typeId->decl->elaborateCDtors(*this);
+    return false;      // SES
+  }                          
+  
+  return true;
+}
+
+
+// ---------------------- Handler -------------------------
+bool ElabVisitor::visitHandler(Handler *h)
+{
+  push(h->annot);
+
+  if (doing(EA_GLOBAL_EXCEPTION)) {
+    h->elaborate(*this);
+
+    // the elaboration performed by 'h' doesn't do anything with
+    // the handler body, and default elaboration won't mess with
+    // the handler parameter, so it should be safe to simply allow
+    // default elaboration to take care of subtrees
+    return true;
+  }
+
+  return true;
+}
+
+void ElabVisitor::postvisitHandler(Handler *h)
+{  
+  pop(h->annot);
+}
+
+
+// ---------------------- Expression ------------------------
+bool ElabVisitor::visitExpression(Expression *e)
+{
+  // will have to suffice..
+  SourceLoc loc = enclosingStmtLoc;
+
+  if (e->isE_stringLit()) {
+    // There is nothing to elaborate, and I don't want to look at
+    // the 'continuation' since its 'type' field is NULL.  Also,
+    // this avoids dying on the NULL 'type' field of the string
+    // literals in 'asm's.
+    return false;
+  }
+
+  // don't elaborate template-dependent expressions
+  //
+  // note that if someone creates an Expression and forgets to set
+  // the 'type' field, it will segfault here, so this test also
+  // serves as something of an AST validator
+  if (e->type->isDependent()) {
+    return false;   // ignore children
+  }
+
+  if (doing(EA_GLOBAL_EXCEPTION) &&
+      e->isE_throw()) {
+    return e->asE_throw()->elaborate(*this);
+  }
+
+  // EA_ELIM_RETURN_BY_VALUE and EA_ELIM_PASS_BY_VALUE; the
+  // individual feature tests are inside 'elaborateCallSite'
+  //
+  // Note that 'elaborateCallSite' produces tcheck'd AST but
+  // does not finish off all elaboration, so afterwards we
+  // let the visitor automatically elaborate subtrees.
+  if (e->isE_funCall()) {
+    E_funCall *call = e->asE_funCall();
+    if (call->func->type->isFunctionType()) {
+      call->retObj = elaborateCallSite(loc, call->func->type->asFunctionType(),
+                                       call->args, false /*artificialCtor*/);
+    }
+    else {
+      // things that end up here:
+      //   - call sites in template functions (e.g. in/t0047.cc);
+      //     maybe don't elaborate template functions at all?
+      //   - calls to function objects (operator()), because our
+      //     operator overload resolution doesn't fix the AST in
+      //     that case
+      // just let these slide for now...
+    }
+  }
+  if (e->isE_constructor()) {
+    E_constructor *call = e->asE_constructor();
+
+    // sm: I'm replicating the logic that was originally in
+    // E_constructor::inner2_itcheck, even though it's clear
+    // that 'artificialCtor' is always false
+    if (call->ctorVar && !call->artificial) {
+      call->retObj = elaborateCallSite(loc, call->ctorVar->type->asFunctionType(),
+                                       call->args, call->artificial /*artificialCtor*/);
+    }
+  }
+
+  if (doing(EA_TRANSLATE_NEW) &&
+      e->isE_new()) {
+    return e->asE_new()->elaborate(*this);
+  }
+  if (doing(EA_TRANSLATE_DELETE) &&
+      e->isE_delete()) {
+    return e->asE_delete()->elaborate(*this);
+  }
+
+  return true;
+}
+
+
+// ----------------------- FullExpression ----------------------
+bool ElabVisitor::visitFullExpression(FullExpression *fe)
+{
+  push(fe->annot);
+  return true;
+}
+
+void ElabVisitor::postvisitFullExpression(FullExpression *fe)
+{
+  pop(fe->annot);
+}
+
+
+// ----------------------- Initializer ----------------------
+bool ElabVisitor::visitInitializer(Initializer *in)
+{
+  // the fullexp annots kick in only for IN_expr and IN_ctor;
+  // its presence in IN_compound is a false orthogonality
+  if (in->isIN_expr() || in->isIN_ctor()) {
+    push(in->annot);
+  }
+
+  return true;
+}
+
+void ElabVisitor::postvisitInitializer(Initializer *in)
+{
+  if (in->isIN_expr() || in->isIN_ctor()) {
+    pop(in->annot);
+  }
+}
+
+
+// =================== extra AST nodes =====================
+// ------------------------ TS_type ------------------------
+Type *TS_type::itcheck(Env &env, DeclFlags dflags)
+{
+  return type;
+}
+
+void TS_type::print(PrintEnv &env)
+{
+  xfailure("I think this is not called because TS_simple::print isn't either");
+}
+
+
+// --------------------- PQ_variable ------------------------
+StringRef PQ_variable::getName() const
+{
+  return var->name;
+}
+
+void PQ_variable::tcheck(Env &env)
+{
+  // nothing to check
+}
+
+void PQ_variable::print(PrintEnv &env)
+{
+  // this is unlikely to tcheck correctly, but that's true of
+  // lots of cc_print functions..
+  env << var->name;
 }
 
 

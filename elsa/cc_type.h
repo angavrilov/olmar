@@ -65,13 +65,6 @@ class TypeFactory;
 class BasicTypeFactory;
 
 
-// specify a mode for toString()
-enum ToStringMode {
-  C_TSM,                        // print in C syntax
-  ML_TSM,                       // print in an imitation ML syntax
-};
-extern ToStringMode currentToStringMode; // global
-
 #ifndef USE_TYPE_SERIAL_NUMBERS
   // The idea here is that it's sometimes difficult during debugging
   // to keep track of the various Type objects floating around, and
@@ -117,10 +110,12 @@ public:     // funcs
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
 
-  // print the string according to the currentToStringMode
+  // print the string according to 'Type::printAsML'
   string toString() const;
+
   // print in C notation
   virtual string toCString() const = 0;
+
   // print in ML notation
   virtual string toMLString() const = 0;
 
@@ -352,6 +347,14 @@ public:      // funcs
   // return NULL if no LUB ("least" means most-derived)
   static CompoundType *lub(CompoundType *t1, CompoundType *t2, bool &wasAmbig);
 
+  // some special member functions; these might be NULL at early
+  // stages of processing, but the type checker fills them in at some
+  // point (addCompilerSuppliedDecls)
+  Variable *getDefaultCtor();         // C(); might be NULL at any time
+  Variable *getCopyCtor();            // C(C const &);
+  Variable *getAssignOperator();      // C& operator= (C const &);
+  Variable *getDtor();                // ~C();
+
   // call this when we're finished adding base classes and member
   // fields; it builds 'conversionOperators'; 'specialName' is the
   // name under which the conversion operators have been filed in
@@ -420,16 +423,23 @@ public:     // data
   // instead of building the whole thing) during elaboration.  It also
   // can be used to make error messages that use the programmer's
   // names instead of their normal form.
+  //
+  // TODO: Now that elaboration doesn't need this, remove it.
   SObjList<Variable> typedefAliases;
 
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
-                  
+
 #if USE_TYPE_SERIAL_NUMBERS
   static int globalSerialNumber;       // global counter to ensure uniqueness
   int serialNumber;                    // this object's serial number
 #endif // USE_TYPE_SERIAL_NUMBERS
+
+  // when true (the default is false), types are printed in ML-like
+  // notation instead of C notation by AtomicType::toString and
+  // Type::toString
+  static bool printAsML;
 
 private:    // disallowed
   BaseType(BaseType&);
@@ -540,13 +550,15 @@ public:     // funcs
   unsigned hashValue() const;
   virtual unsigned innerHashValue() const = 0;
 
-  // print the string according to the currentToStringMode
+  // print the string according to 'printAsML'
   string toString() const;
   string toString(char const *name) const;
+
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
   string toCString() const;
   string toCString(char const *name) const;
+
   // NOTE: yes, toMLString() is virtual, whereas toCString() is not
   virtual string toMLString() const = 0;
   void putSerialNo(stringBuilder &sb) const;
@@ -655,6 +667,9 @@ ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
       { return static_cast<Type*>(BaseType::asRval()); }
   };
 #endif // TYPE_CLASS_FILE
+
+// supports the use of 'Type*' in AST constructor argument lists
+string toString(Type *t);
 
 
 // essentially just a wrapper around an atomic type, but
@@ -792,6 +807,10 @@ public:
   // types, am I equal to 'obj'?
   bool equalOmittingThisParam(FunctionType const *obj) const
     { return innerEquals(obj, EF_STAT_EQ_NONSTAT | EF_IGNORE_IMPLICIT); }
+                                             
+  // true if all parameters after 'startParam' (0 is first) have
+  // default values      
+  bool paramsHaveDefaultsPast(int startParam) const;
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);
@@ -803,13 +822,25 @@ public:
   // type, thus any Type annotation system can assume the
   // function type is now completely described
   virtual void doneParams();
-  
+
+  // During elaboration, functions that return CompoundTypes are
+  // changed to behave as if they instead accepted a reference to an
+  // object in which the return value is constructed.  At that time,
+  // this function is called, and passed the Variable that is to be
+  // bound to that passed object (sort of like a hidden parameter).
+  // The base tcheck module does not need to store this, so the
+  // default implementation does nothing, but other analyses may want
+  // to.
+  virtual void registerRetVal(Variable *retVal);
+
   bool isTemplate() const { return templateParams!=NULL; }
-  
+
   CVFlags getThisCV() const;         // dig down; or CV_NONE if !isMember
 
   Variable const *getThisC() const;  // 'isMember' must be true
   Variable *getThis() { return const_cast<Variable*>(getThisC()); }
+
+  CompoundType *getClassOfMember();  // 'isMember' must be true
 
   // more specialized printing, for Cqual++ syntax
   virtual string rightStringUpToQualifiers(bool innerParen) const;
@@ -817,9 +848,6 @@ public:
 
   // a hook for the verifier's printer
   virtual void extraRightmostSyntax(stringBuilder &sb) const;
-  
-  // hook for Oink
-  virtual void registerRetVal(Variable *retVal0) {}
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }

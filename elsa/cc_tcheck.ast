@@ -59,6 +59,9 @@ class Function {
   // UPDATE: I now rely on this to be different from "thisVar" so that
   // I can tell in cc_qual when I'm in a function body and when I'm in
   // a ctor body.
+  //
+  // sm: There are lots of other ways to make that distinction.  I
+  // think this should be merged with 'thisVar' ASAP.
   public Variable *ctorThisLocalVar = NULL;
 
   public void printExtras(ostream &os, int indent) const;
@@ -99,7 +102,7 @@ class MemberInit {
 
 
 class Declaration {                                   
-  public void tcheck(Env &env);
+  public void tcheck(Env &env, DeclaratorContext context);
 }
 
 
@@ -115,9 +118,13 @@ class ASTTypeId {
     // when this includes DF_PARAMETER, it's a function parameter,
     // which knowledge can be applied towards disambiguation
     DeclFlags dflags;
+    
+    // syntactic context
+    DeclaratorContext context;
 
   public:
-    Tcheck() : newSizeExpr(NULL), dflags(DF_NONE) {}
+    Tcheck(DeclFlags df, DeclaratorContext dc)
+      : newSizeExpr(NULL), dflags(df), context(dc) {}
   };
 
   // the return value is the ASTTypeId* to store in place of the
@@ -203,9 +210,40 @@ class Enumerator {
 }
 
 
+// The "Declarator" AST node appears in many different contexts in the
+// AST, and visitor-based analyses often need to do quite different
+// things depending on which context a declarator appears in.  So,
+// this enumeration lists all the possible contexts.
+enum DeclaratorContext {
+  DC_UNKNOWN,             // dummy value; nothing should have this after tcheck
+
+  DC_FUNCTION,            // Function::nameAndParams
+                          // inside Declaration
+  DC_TF_DECL,             //   TF_decl::decl
+  DC_MR_DECL,             //   MR_decl::d
+  DC_S_DECL,              //   S_decl::decl
+  DC_TD_PROTO,            //   TD_proto::d
+                          // inside ASTTypeId
+  DC_D_FUNC,              //   D_func::params
+  DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
+  DC_ON_CONVERSION,       //   ON_conversion::type
+  DC_CN_DECL,             //   CN_decl::typeId
+  DC_HANDLER,             //   Handler::typeId
+  DC_E_CAST,              //   E_cast::ctype
+  DC_E_SIZEOFTYPE,        //   E_sizeofType::atype
+  DC_E_NEW,               //   E_new::atype (new)
+  DC_E_KEYWORDCAST,       //   E_keywordCast::ctype
+  DC_E_TYPEIDTYPE,        //   E_typeidType::ttype
+  DC_TP_TYPE,             //   TP_type::defaultType
+  DC_TP_NONTYPE,          //   TP_nontype::param
+  DC_TA_TYPE,             //   TA_type::type
+};
+
+
 class Declarator {
   public Variable *var = NULL;          // (serf) computed information: name, type, etc.
   public Type *type = NULL;
+  public DeclaratorContext context = DC_UNKNOWN;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -242,21 +280,24 @@ class Declarator {
     D_func *funcSyntax;
 
     // syntactic context
-    enum Context {
-      CTX_ORDINARY  = 0x0,     // no particular context
-      CTX_E_NEW     = 0x1,     // inside an E_new (array)
-      CTX_PARAM     = 0x2,     // in a parameter declarator
-      CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
-    } context;
+    DeclaratorContext context;
+    
+//      enum Context {
+//        CTX_ORDINARY  = 0x0,     // no particular context
+//        CTX_E_NEW     = 0x1,     // inside an E_new (array)
+//        CTX_PARAM     = 0x2,     // in a parameter declarator
+//        CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
+//        CTX_ASTTYPEID = 0x8,     // some form of an ASTTypeId, as opposed to Declaration
+//      } context;
 
   public:
-    Tcheck(Type *t, DeclFlags d)
+    Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
       : var         (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
-      , context     (CTX_ORDINARY)
+      , context     (dc)
     {}
     Tcheck(Tcheck const &obj)
       : var         (obj.var)
@@ -271,14 +312,18 @@ class Declarator {
       type        = obj.type;
       dflags      = obj.dflags;
       size_E_new  = obj.size_E_new;
-      context     = obj.context;
       funcSyntax  = obj.funcSyntax;
+      context     = obj.context;
       return *this;
     }
 
     // manipulate context
-    void setInGrouping()    { context = (Context)(context | CTX_GROUPING); }
-    void clearInGrouping()  { context = (Context)(context & ~CTX_GROUPING); }
+//      void setInGrouping()    { context = (Context)(context | CTX_GROUPING); }
+//      void clearInGrouping()  { context = (Context)(context & ~CTX_GROUPING); }
+//      void setInASTTypeId()   { context = (Context)(context | CTX_ASTTYPEID); }
+//      bool inContext(Context f) const { return !!(context & f); }
+
+    bool hasFlag(DeclFlags f) const { return !!(dflags &f); }
   };
 
   // determine the type denoted by the combination of 'dt.type' and
@@ -308,7 +353,11 @@ class IDeclarator {
   // external interface; add the type constructor represented by this
   // IDeclarator to 'dt.type' and then make a Variable to represent
   // it; put the variable into the environment if appropriate
-  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+  //
+  // 'inGrouping' should be true if this IDeclarator is inside
+  // a D_grouping but not a D_pointer or D_ptrToMember (or the
+  // former is inside the latter)
+  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping);
 
   -> D_func {
        // I want to know which D_funcs are members of classes (whether

@@ -1,26 +1,27 @@
 // cc_elaborate.ast            see license.txt for copyright and terms of use
 // extension to cc.ast defining data for an elaboration pass
+// see also cc_elaborate.h
 
-// The concept of semantic elaboration is that we provide, for many
-// constructs in the language, equivalent alternative formulations in
-// terms of a smaller set of primitive operations.  Then, an analysis
-// can ignore the elaborated constructs' specified semantics, instead
-// using the elaboration annotation to understand them.
-//
-// Of course, an analysis is free to ignore the elaboration if the
-// original construct maps more naturally into its analysis domain.
 
 verbatim {
-  #include "cc_elaborate.h"      // FullExpressionAnnot
+  #include "fullexp.h"           // FullExpressionAnnot
+
+  class ElabVisitor;             // cc_elaborate.h
 
   string refersTo(Variable *v);  // cc_ast_aux.cc
 }
 
 
 class Function {
+  // for EA_ELIM_RETURN_BY_VALUE, this variable is the hidden
+  // parameter bound to the object into which the return value
+  // will be constructed
+  //
   // NOTE!: If this function is a ctor, then the semantics is as if we
   // have this line in the code before the MemberInit-s:
   //   this = &retVal;
+  public Variable *retVal = NULL;
+  custom debugPrint { ind(os,indent) << "retVal: " << refersTo(retVal) << "\n"; }
 
   // to be called when the function exits; should only be non-NULL for
   // dtor Functions: it is the superclass and member dtors that are
@@ -30,7 +31,21 @@ class Function {
   // is this function implicitly defined?  dsw: I need to know so that
   // the linker imitator doesn't think there is a double-definition
   // when the same class occurs in two different translation units
+  //
+  // sm: this is now redundant with Variable::isImplicitMemberFunc()
   public(field) bool implicitlyDefined = false;
+}
+
+
+class PQName {  
+  // denote an existing Variable; avoids having to create syntax
+  -> PQ_variable(Variable *var);
+}
+
+
+class TypeSpecifier {
+  // denote an existing Type
+  -> TS_type(Type *type);
 }
 
 
@@ -52,14 +67,14 @@ class Declarator {
   public(field,owner) Statement *ctorStatement = NULL;
   public(field,owner) Statement *dtorStatement = NULL;
 
-  public void elaborateCDtors(Env &env);
+  public void elaborateCDtors(ElabVisitor &env);
 }
 
 
 class IDeclarator {
   -> D_func {
 //         // elaborate the parameters
-//         public void elaborateParameterCDtors(Env &env);
+//         public void elaborateParameterCDtors(ElabVisitor &env);
   }
 }
 
@@ -71,8 +86,8 @@ class Statement {
     // *FunctionType::retVal for the function that it is in.
     public(field,owner) Statement *ctorStatement = NULL;
 
-    // this function sets 'ctorStatement'
-    public void elaborate(Env &env);
+    // this function sets 'ctorStatement', and returns a visitor boolean
+    public bool elaborate(ElabVisitor &env);
   }
 }
 
@@ -93,7 +108,7 @@ class Handler {
     // dtor for the globalVar if it is a CompoundType or ref to one
     public(field,owner) Statement *globalDtorStatement = NULL;
 
-    public void elaborate(Env &env);
+    public void elaborate(ElabVisitor &env);
 }
 
 
@@ -103,6 +118,10 @@ class FullExpression {
 
 
 class Expression {
+  // All of the 'elaborate()' functions of Expression return a visitor
+  // boolean: true to elaborate the children automatically, false to
+  // skip the children.  See the SES in cc_elaborate.cc.
+
   -> E_funCall {
     // Pass by value (for class-valued objects) is elaborated by saying there
     // is another function parameter, the 'return object'.  At the call site,
@@ -132,9 +151,7 @@ class Expression {
     public Variable *heapVar = NULL;
     custom debugPrint { ind(os,indent) << "heapVar: " << refersTo(heapVar) << "\n"; }
 
-    // fill in the above; 't' is the type of object that is
-    // being allocated
-    public void elaborate(Env &env, Type *t);
+    public bool elaborate(ElabVisitor &env);
   }
 
   -> E_delete {
@@ -144,8 +161,7 @@ class Expression {
     // of FullExpression; we do it anyway
     public(field,owner) Statement *dtorStatement = NULL;
 
-    // 't' is the type of object that is being deallocated
-    public void elaborate(Env &env, Type *t);
+    public bool elaborate(ElabVisitor &env);
   }
 
   -> E_throw {
@@ -156,7 +172,7 @@ class Expression {
 
     public(field,owner) Statement *globalCtorStatement=NULL;
 
-    public void elaborate(Env &env);
+    public bool elaborate(ElabVisitor &env);
   }
 }
 

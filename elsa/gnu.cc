@@ -38,8 +38,8 @@ Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 
 Type *TS_typeof_type::itcheck(Env &env, DeclFlags dflags)
 {
-  // FIX: dflags discarded?
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE /*dflags don't apply to this type*/,
+                       DC_TS_TYPEOF_TYPE);
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
   return t;
@@ -55,7 +55,7 @@ Type *TS_typeof::itcheck(Env &env, DeclFlags dflags)
 
 Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_COMPOUNDLIT);
   stype = stype->tcheck(env, tc);
   init->tcheck(env, NULL);
   
@@ -86,7 +86,7 @@ Type *E___builtin_constant_p::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_ALIGNOFTYPE);
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
   // dsw: If this is turned back on, be sure to catch the possible

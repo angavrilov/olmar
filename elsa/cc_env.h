@@ -22,12 +22,6 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
-// counter for generating unique throw clause names; NOTE: FIX: they
-// must not be duplicated across translation units since they are
-// global!  Thus, this must survive even multiple Env objects.
-// (this is for elaboration)
-extern int throwClauseSerialNumber;
-
 // the entire semantic analysis state
 class Env {
 protected:   // data
@@ -87,6 +81,7 @@ public:      // data
   StringRef constructorSpecialName;
   StringRef functionOperatorName;
   StringRef thisName;
+  StringRef otherName;
   StringRef quote_C_quote;
   StringRef quote_C_plus_plus_quote;
 
@@ -140,6 +135,7 @@ public:      // data
   //   - change return-by-value for class-valued objects into pass-by-ref
   bool doElaboration;
 
+#if 0    // delete me
   // so that we can find the closest nesting S_compound for when we
   // need to insert temporary variables; its scope should always be
   // the current scope.
@@ -149,6 +145,7 @@ public:      // data
   // across translation units
   int tempSerialNumber;
   int e_newSerialNumber;
+#endif // 0
 
 private:     // funcs
   // old
@@ -348,11 +345,12 @@ public:      // funcs
   int numErrors() const { return errors.count(); }
 
   // makes a function type that returns ST_CDTOR and accepts no params
-  FunctionType *makeDestructorFunctionType(SourceLoc loc);
+  // (other than the receiver object of type 'ct')
+  FunctionType *makeDestructorFunctionType(SourceLoc loc, CompoundType *ct);
 
   // similar to above, except its flagged with FF_CTOR, and the caller
   // must call 'doneParams' when it has finished adding parameters
-  FunctionType *beginConstructorFunctionType(SourceLoc loc);
+  FunctionType *beginConstructorFunctionType(SourceLoc loc, CompoundType *ct);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
@@ -381,6 +379,10 @@ public:      // funcs
   // if in a context where an implicit receiver object is available,
   // return its type; otherwise return NULL
   Type *implicitReceiverType();
+  
+  // create the receiver object parameter for use in a FunctionType
+  Variable *receiverParameter(SourceLoc loc, CompoundType *ct, CVFlags cv,
+                              D_func *syntax = NULL);
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
@@ -449,6 +451,7 @@ public:      // funcs
   // true if 'tv' is a shadow typedef made by the above function
   bool isShadowTypedef(Variable *tv);
 
+#if 0    // delete me
   // make a unique name for a new temporary variable
   virtual PQ_name *makeTempName();
   // make a unique name for a new E_new variable
@@ -457,6 +460,7 @@ public:      // funcs
   virtual StringRef makeThrowClauseVarName();
   // make a unique name for a new catch clause global
   virtual StringRef makeCatchClauseVarName();
+#endif // 0
 
   // --- begin: syntax -> PQName ---
   // return a PQName that will typecheck in the current environment to

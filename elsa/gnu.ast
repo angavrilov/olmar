@@ -52,6 +52,15 @@ class TypeSpecifier {
 }
 
 
+// additional contexts in the GNU extensions
+enum DeclaratorContext {
+                          // inside ASTTypeId
+  DC_TS_TYPEOF_TYPE,      //   TS_typeof_type::atype
+  DC_E_COMPOUNDLIT,       //   E_compoundLit::stype
+  DC_E_ALIGNOFTYPE,       //   E_alignofType::atype
+}
+
+
 class Expression {
   -> E_compoundLit(ASTTypeId stype, IN_compound init);
 

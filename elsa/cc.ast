@@ -86,7 +86,9 @@ class Function (
   S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
-);
+) {
+  public SourceLoc getLoc() const;
+}
 
 class MemberInit (
   PQName name,                    // name of member or base class
@@ -115,11 +117,11 @@ class ASTTypeId (
   Declarator decl            // this will be abstract sometimes (e.g. casts)
 ) {
   // FakeList link; use setNext
-  public ASTTypeId *next;  ctor next=NULL;
+  public ASTTypeId *next = NULL;
   public void setNext(ASTTypeId *newNext);
 
   // ambiguity representation
-  public ASTTypeId *ambiguity; ctor ambiguity=NULL;
+  public ASTTypeId *ambiguity = NULL;
   public void addAmbiguity(ASTTypeId *alternative);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 
@@ -266,11 +268,11 @@ class Declarator (
   Initializer init                     // (nullable) optional data initializer
 ) {
   // FakeList link; use 'setNext' to set 'next'
-  public Declarator *next;  ctor next=NULL;
+  public Declarator *next = NULL;
   public void setNext(Declarator *newNext);
 
   // ambiguity representation
-  public Declarator *ambiguity;  ctor ambiguity=NULL;
+  public Declarator *ambiguity = NULL;
   public void addAmbiguity(Declarator *alternative);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 
@@ -285,6 +287,8 @@ class Declarator (
 
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorId() const;
+  
+  public SourceLoc getLoc() const;
 }
 
 
@@ -364,8 +368,7 @@ class OperatorName {
 // ------------------- statements -----------------
 class Statement (SourceLoc loc) {
   // represent ambiguous statements by forming a linked list of alternatives
-  public Statement * const ambiguity;
-  ctor const_cast<Statement*&>(ambiguity) = NULL;
+  public Statement * const ambiguity = NULL;
   public void addAmbiguity(Statement *alt);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 
@@ -408,7 +411,7 @@ class Statement (SourceLoc loc) {
 // the duration of the substatement(s)
 class Condition {
   // ambiguity representation
-  public Condition *ambiguity; ctor ambiguity=NULL;
+  public Condition *ambiguity = NULL;
   public void addAmbiguity(Condition *alternative);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 
@@ -426,15 +429,15 @@ class Condition {
 }
 
 // exception handler
-class Handler (                     
+class Handler (
   // type of exception objects this handler catches; note that it
   // might be ST_ELLIPSIS, which corresponds to the "..." syntax
   ASTTypeId typeId,
-                                    
+
   // code to run when handler catches an exception
   Statement body
 ) {
-  public Handler *next;  ctor next=NULL;      // FakeList link
+  public Handler *next = NULL;      // FakeList link
   
   // test whether this is the "..." handler; in this case, at the
   // moment, the type checker will make a type with ST_ELLIPSIS in
@@ -451,7 +454,7 @@ class Expression {
   // NOTE: we never make lists of Expressions, only of ArgExpressions
 
   // same as we do for statements
-  public Expression *ambiguity;  ctor ambiguity=NULL;
+  public Expression *ambiguity = NULL;
   public void addAmbiguity(Expression *alternative);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
   custom clone {
@@ -568,7 +571,7 @@ class FullExpression (Expression expr) {
 // of separation, to get back the simplicity we had before.
 class ArgExpression(Expression expr) {   // expression in an argument list
   // FakeList link
-  public ArgExpression *next=NULL;
+  public ArgExpression *next = NULL;
   public void setNext(ArgExpression *newNext);
 }
 
@@ -584,7 +587,7 @@ class ArgExpressionListOpt (
 
 // animals which appear after declarations to assign initial values
 class Initializer (SourceLoc loc) {
-  public Initializer *next;  ctor next=NULL;       // FakeList link
+  public Initializer *next = NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
@@ -617,7 +620,7 @@ class TemplateDeclaration (
 
 // one of the parameters to a template declaration
 class TemplateParameter (SourceLoc loc) {
-  public TemplateParameter *next;  ctor next=NULL;   // FakeList link
+  public TemplateParameter *next = NULL;   // FakeList link
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
@@ -633,11 +636,11 @@ class TemplateParameter (SourceLoc loc) {
 // one of the arguments to a template instantiation
 class TemplateArgument {
   // FakeList link, same as Expressions
-  public TemplateArgument *next;  ctor next=NULL;
+  public TemplateArgument *next = NULL;
   public void setNext(TemplateArgument *newNext);
 
   // also same as Expressions
-  public TemplateArgument *ambiguity;  ctor ambiguity=NULL;
+  public TemplateArgument *ambiguity = NULL;
   public void addAmbiguity(TemplateArgument *alternative);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 

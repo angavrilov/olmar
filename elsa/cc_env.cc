@@ -43,6 +43,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     constructorSpecialName(str("constructor-special")),
     functionOperatorName(str("operator()")),
     thisName(str("this")),
+    otherName(str("__other")),
     quote_C_quote(str("\"C\"")),
     quote_C_plus_plus_quote(str("\"C++\"")),
 
@@ -71,10 +72,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOverload(tracingSys("doOverload") && lang.allowOverloading),
     doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
     collectLookupResults(NULL),
-    doElaboration(false),       // is turned on later if lang.hasImplicitStuff
+    doElaboration(false)       // is turned on later if lang.hasImplicitStuff
 
+#if 0    // delete me
     tempSerialNumber(0),
     e_newSerialNumber(0)
+#endif // 0
 
     // made this global
 //      throwClauseSerialNumber(0),
@@ -83,12 +86,14 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   //#define HERE HERE_SOURCELOC     // old
   #define HERE SL_INIT              // decided I prefer this
 
+#if 0    // delete me
   // elaboration is on by default if we are in a language that
   // hasImplicitStuff
   if (lang.hasImplicitStuff &&
       !tracingSys("disableElaboration")) {
     doElaboration = true;
   }
+#endif // 0
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
@@ -555,6 +560,7 @@ void Env::setupOperatorOverloading()
 
 Env::~Env()
 {
+#if 0    // delete me
   // sm: Generally, I don't like to do things that might throw
   // exceptions in destructors, b/c if we're unwinding the stack then
   // it escalates the failure (thereby complicating diagnosis of the
@@ -563,6 +569,7 @@ Env::~Env()
   if (!fullExpressionAnnotStack.isEmpty()) {
     cout << "BUG: fullExpressionAnnotStack isn't empty!\n";
   }
+#endif // 0
 
   // delete the scopes one by one, so we can skip any
   // which are in fact not owned
@@ -684,9 +691,9 @@ Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
 }
 
 
-FunctionType *Env::beginConstructorFunctionType(SourceLoc loc)
+FunctionType *Env::beginConstructorFunctionType(SourceLoc loc, CompoundType *ct)
 {
-  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
+  FunctionType *ft = makeFunctionType(loc, makeType(loc, ct));
   ft->flags |= FF_CTOR;
   // asymmetry with makeDestructorFunctionType(): this must be done by the client
 //    ft->doneParams();
@@ -694,9 +701,19 @@ FunctionType *Env::beginConstructorFunctionType(SourceLoc loc)
 }
 
 
-FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
+FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
 {
-  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
+  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_VOID));
+
+  if (!ct) {
+    // there's a weird case in E_fieldAcc::itcheck_x where we're making
+    // a destructor type but there is no class... so just skip making
+    // the receiver
+  }
+  else {
+    ft->addThisParam(receiverParameter(loc, ct, CV_NONE));
+  }
+
   ft->flags |= FF_DTOR;
   ft->doneParams();
   return ft;
@@ -1945,6 +1962,15 @@ Type *Env::implicitReceiverType()
 }
 
 
+Variable *Env::receiverParameter(SourceLoc loc, CompoundType *ct, CVFlags cv,
+                                 D_func *syntax)
+{
+  // this doesn't use 'implicitReceiverType' because of the warnings above
+  Type *thisType = tfac.makeTypeOf_this(loc, ct, cv, syntax);
+  return makeVariable(loc, thisName, thisType, DF_PARAMETER);
+}
+
+
 void Env::addBuiltinUnaryOp(OverloadableOp op, Type *x)
 {
   builtinUnaryOperator[op].push(createBuiltinUnaryOp(op, x));
@@ -2117,9 +2143,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
       // add the receiver parameter
       CompoundType *ct = scope->curCompound;
-      Type *thisType = tfac.makeTypeOf_this(SL_UNKNOWN, ct, oldFt->getThisCV(), NULL /*syntax*/);
-      Variable *this0 = makeVariable(loc, thisName, thisType, DF_PARAMETER);
-      newFt->addThisParam(this0);
+      newFt->addThisParam(receiverParameter(SL_UNKNOWN, ct, oldFt->getThisCV()));
 
       // copy the other parameters
       SObjListIterNC<Variable> iter(oldFt->params);
@@ -2321,7 +2345,7 @@ Variable *Env::createDeclaration(
       // pass); this exception is indicated by DF_INLINE_DEFN.
       if (enclosingClass &&
           !(dflags & DF_INLINE_DEFN) &&
-          !prior->hasFlag(DF_IMPLICIT)) {    // allow implicit typedef to be hidden
+          !prior->isImplicitTypedef()) {    // allow implicit typedef to be hidden
         if (!prior->usingAlias) {
           error(stringc
             << "duplicate member declaration of `" << name
@@ -2365,7 +2389,7 @@ Variable *Env::createDeclaration(
       // special case allow it, and arrange for the environment
       // to replace the implicit typedef with the variable being
       // declared here
-      if (prior->hasFlag(DF_IMPLICIT)) {
+      if (prior->isImplicitTypedef()) {
         TRACE("env",    "replacing implicit typedef of " << prior->name
                      << " at " << prior->loc << " with new decl at "
                      << loc);
@@ -2515,6 +2539,7 @@ void Env::addedNewVariable(Scope *, Variable *)
 
 
 // ------------------------ elaboration -------------------------
+#if 0    // delete me
 PQ_name *Env::makeTempName()
 {
   // can't collide with user identifier
@@ -2536,6 +2561,7 @@ StringRef Env::makeCatchClauseVarName()
 {
   return str(stringc << "catchClause-name-" << throwClauseSerialNumber++);
 }
+#endif // 0
 
 
 PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)

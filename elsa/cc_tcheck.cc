@@ -85,7 +85,7 @@ void TranslationUnit::tcheck(Env &env)
 void TF_decl::tcheck(Env &env)
 {
   env.setLoc(loc);
-  decl->tcheck(env);
+  decl->tcheck(env, DC_TF_DECL);
 }
 
 void TF_func::tcheck(Env &env)
@@ -227,7 +227,8 @@ void Function::tcheck(Env &env, bool checkBody)
   // dt.type will come back with a function type which always has the
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
-                        (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
+                        dflags | (checkBody? DF_DEFINITION : DF_NONE),
+                        DC_FUNCTION);
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -314,10 +315,12 @@ void Function::tcheck(Env &env, bool checkBody)
     env.addVariable(ctorThisLocalVar);
   }
 
+#if 0    // delete me
   if (env.doElaboration) {
     // adds the "<retVal>" environment entry
     elaborateFunctionStart(env, funcType);
   }
+#endif // 0
 
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
@@ -340,11 +343,13 @@ void Function::tcheck(Env &env, bool checkBody)
     env.addVariable(funcVar);
   }
 
+#if 0    // delete me
   // if it is a dtor, add the calls to the superclass and member dtors
   // at the end of the body
   if (env.doElaboration && funcType->isDestructor()) {
     completeDtorCalls(env, this, inClass);
   }
+#endif // 0
 
   // check the body in the new scope as well
   Statement *sel = body->tcheck(env);
@@ -417,10 +422,12 @@ void Function::tcheck_memberInits(Env &env)
       iter->tcheck(env, ctorThisLocalVar, enclosing);
     }
 
+#if 0    // delete me
     // Add and tcheck any MemberInits needed to call no-arg (default)
     // ctor for any of the (appropriate) superclasses or members that
     // were left out of the MemberInit list by the user.
     completeNoArgMemberInits(env, this, enclosing);
+#endif // 0
   }
   else {
     // no inits and doesn't have a ctor name, skip
@@ -429,7 +436,9 @@ void Function::tcheck_memberInits(Env &env)
 
 void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *enclosing)
 {
+#if 0    // delete me
   FullExpressionAnnot::StackBracket fea0(env, annot);
+#endif // 0
   xassert(ctorThisLocalVar);    // a member init is always on a ctor for a well-defined class
 
   // resolve template arguments in 'name'
@@ -461,11 +470,13 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
       member = env.storeVar(v);
 
       if (env.doElaboration && v->type->isCompoundType()) {
+#if 0    // delete me
         ctorStatement = makeCtorStatement
           (env, member, v->type->asCompoundType(),
 //               cloneFakeList_ArgExpression(args));
            args);
         args = NULL;            // keep the tree a tree
+#endif // 0
       } else {
         tcheckArgExprList(args, env);
         // decide which of v's possible constructors is being used
@@ -562,11 +573,13 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
   // with the chosen constructor
 
   if (env.doElaboration) {
+#if 0    // delete me
     ctorStatement = makeCtorStatement
       (env, ctorThisLocalVar, base,
 //         cloneFakeList_ArgExpression(args));
        args);
     args = NULL;
+#endif // 0
   } else {
     tcheckArgExprList(args, env);
     // determine which constructor is being called
@@ -594,7 +607,7 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env)
+void Declaration::tcheck(Env &env, DeclaratorContext context)
 {
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
@@ -624,7 +637,7 @@ void Declaration::tcheck(Env &env)
   // each declarator..)
   if (decllist) {
     // check first declarator
-    Declarator::Tcheck dt1(specType, dflags);
+    Declarator::Tcheck dt1(specType, dflags, context);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
@@ -634,7 +647,7 @@ void Declaration::tcheck(Env &env)
       // the factory clone it if it wants to
       Type *dupType = env.tfac.cloneType(specType);
 
-      Declarator::Tcheck dt2(dupType, dflags);
+      Declarator::Tcheck dt2(dupType, dflags, context);
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -670,12 +683,18 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
   // check type specifier
   Type *specType = spec->tcheck(env, DF_NONE);
-                         
+
   // pass contextual info to declarator
-  Declarator::Tcheck dt(specType, tc.dflags);
+  Declarator::Tcheck dt(specType, tc.dflags, tc.context);
+  
+  xassert(!tc.newSizeExpr || tc.context == DC_E_NEW);
+
+  #if 0     // delete me
   dt.context = tc.newSizeExpr?             Declarator::Tcheck::CTX_E_NEW :
                (tc.dflags & DF_PARAMETER)? Declarator::Tcheck::CTX_PARAM :
                                            Declarator::Tcheck::CTX_ORDINARY;
+  dt.setInASTTypeId();     // OR-in CTX_ASTTYPEID
+  #endif // 0
 
   // check declarator
   decl = decl->tcheck(env, dt);
@@ -1252,7 +1271,7 @@ void TS_classSpec::tcheckIntoCompound(
   }
 
   // default ctor, copy ctor, operator=; only do this for C++.
-  if (env.lang.hasImplicitStuff) {
+  if (env.lang.isCplusplus) {
     addCompilerSuppliedDecls(env, this, loc, ct);
   }
 
@@ -1314,9 +1333,11 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
           decliter->tcheck_init(env);
         }
 
+#if 0    // delete me
         if (env.doElaboration) {
           decliter->elaborateCDtors(env);
         }
+#endif // 0
       }
     }
   }
@@ -1501,7 +1522,7 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
                               SourceLoc loc, CompoundType *ct)
 {
   // we shouldn't even be here if the language isn't C++.
-  xassert(env.lang.hasImplicitStuff);
+  xassert(env.lang.isCplusplus);
 
   // the caller should already have arranged so that 'ct' is the
   // innermost scope
@@ -1519,21 +1540,24 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
   // constructor is implicitly declared."
   if (!ct->getNamedFieldC(env.constructorSpecialName, env, LF_INNER_ONLY)) {
     if (env.doElaboration) {
+#if 0    // delete me
       // create the AST for a definition and do the first typechecking
       // pass; the second part of the pass will be done with the rest
       // of the members later.
       MR_func *ctorBody = makeNoArgCtorBody(env, ct);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
+#endif // 0
     } 
     else {
       // add a no-arg ctor declaration: "Class();".  For now we just
       // add the variable to the scope and don't construct the AST, in
       // order to be symmetric with what is going on with the dtor
       // below.
-      FunctionType *ft = env.beginConstructorFunctionType(loc);
+      FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
       ft->doneParams();
-      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, 
+                    DF_MEMBER | DF_IMPLICIT);
       // NOTE: we don't use env.addVariableWithOload() because this is
       // a special case: we only insert if there are no ctors AT ALL.
       env.addVariable(v);
@@ -1550,7 +1574,7 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
   // is there a copy constructor?  I'm rolling my own here.
   if (!testAmongOverloadSet(isCopyConstructor, ctor0, ct)) {
     // cppstd 12.8 para 5: "The implicitly-declared copy constructor
-    // for a class X will have the form 
+    // for a class X will have the form
     //
     //   X::X(const X&)
     //
@@ -1562,31 +1586,34 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     //
     // An implicitly-declared copy constructor is an inline public
     // member of its class."
-    
+
     // dsw: I'm going to just always make it X::X(X const &) for now.
     // TODO: do it right.
 
     if (env.doElaboration) {
+#if 0    // delete me
       // create the AST for a definition and do the first typechecking
       // pass; the second part of the pass will be done with the rest
       // of the members later.
       MR_func *ctorBody = makeCopyCtorBody(env, ct);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
-    } 
+#endif // 0
+    }
     else {
       // create the effects of a declaration without making any AST or
-      // a body; add a copy ctor declaration: Class(Class const &);
-      FunctionType *ft = env.beginConstructorFunctionType(loc);
+      // a body; add a copy ctor declaration: Class(Class const &__other);
+      FunctionType *ft = env.beginConstructorFunctionType(loc, ct);
       Variable *refToSelfParam =
         env.makeVariable(loc,
-                         NULL,     // no parameter name
+                         env.otherName,
                          env.makePointerType(loc, PO_REFERENCE, CV_NONE,
                                              env.makeCVAtomicType(loc, ct, CV_CONST)),
                          DF_PARAMETER);
       ft->addParam(refToSelfParam);
       ft->doneParams();
-      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
+      Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft,
+                                     DF_MEMBER | DF_IMPLICIT);
       env.addVariableWithOload(ctor0, v);     // always overloaded; ctor0!=NULL
       env.madeUpVariables.push(v);
     }
@@ -1602,7 +1629,7 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     // 12.8 para 10: "The implicitly-declared copy assignment operator
     // for a class X will have the form
     //
-    //   X& X::operator=(const X&) 
+    //   X& X::operator=(const X&)
     //
     // if [lots of complicated conditions about the superclasses have
     // const-parmeter copy assignment, etc.] ... Otherwise, the
@@ -1616,11 +1643,12 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     // object for which the assignment operator is invoked, that is,
     // the object assigned to.  An implicitly-declared copy assignment
     // operator is an inline public member of its class. ..."
-    
+
     // dsw: I'm going to just always make the parameter const for now.
     // TODO: do it right.
 
     if (env.doElaboration) {
+#if 0    // delete me
       // create the AST for a definition and do the first typechecking
       // pass; the second part of the pass will be done with the rest
       // of the members later.
@@ -1629,7 +1657,8 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       //      ctorBody->debugPrint(cout, 0);
       ctorBody->tcheck(env);
       tsClassSpec->members->list.append(ctorBody);
-    } 
+#endif // 0
+    }
     else {
       // add a copy assignment op declaration: Class& operator=(Class const &);
       Type *refToSelfType =
@@ -1642,19 +1671,20 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
       FunctionType *ft = env.makeFunctionType(loc, refToSelfType);
 
       // receiver object
-      ft->addThisParam(env.makeVariable(loc, NULL,
+      ft->addThisParam(env.makeVariable(loc, env.thisName,
                                         env.tfac.cloneType(refToSelfType),
                                         DF_PARAMETER));
 
       // source object parameter
       ft->addParam(env.makeVariable(loc,
-                                    NULL,  // no parameter name
+                                    env.otherName,
                                     env.tfac.cloneType(refToConstSelfType),
                                     DF_PARAMETER));
 
       ft->doneParams();
 
-      Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft, DF_MEMBER);
+      Variable *v = env.makeVariable(loc, env.operatorName[OP_ASSIGN], ft,
+                                     DF_MEMBER | DF_IMPLICIT);
       env.addVariableWithOload(assign_op0, v);
       env.madeUpVariables.push(v);
     }
@@ -1666,23 +1696,21 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
   StringRef dtorName = env.str(stringc << "~" << ct->name);
   if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
     if (env.doElaboration) {
+#if 0    // delete me
       // create the AST for a definition and do the first typechecking
       // pass; the second part of the pass will be done with the rest
       // of the members later.
       MR_func *dtorBody = makeDtorBody(env, ct);
       dtorBody->tcheck(env);
       tsClassSpec->members->list.append(dtorBody);
-    } 
+#endif // 0
+    }
     else {
       // add a dtor declaration: ~Class();
-      FunctionType *ft = env.makeDestructorFunctionType(loc);
-      Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
+      FunctionType *ft = env.makeDestructorFunctionType(loc, ct);
+      Variable *v = env.makeVariable(loc, dtorName, ft,
+                                     DF_MEMBER | DF_IMPLICIT);
       env.addVariable(v);       // cannot be overloaded
-
-      // BUG/TODO: Scott says the dtor should have a this parameter
-      // added with addThisParam(); I'm leaving it out so that we
-      // don't add this feature until we have a test that makes it
-      // fail
 
       // put it on the list of made-up variables since there are no
       // (e.g.) $tainted qualifiers (since the user didn't even type
@@ -1713,7 +1741,7 @@ void MR_decl::tcheck(Env &env)
 
   // the declaration knows to add its variables to
   // the curCompound
-  d->tcheck(env);
+  d->tcheck(env, DC_MR_DECL);
 
   checkMemberFlags(env, d->dflags);
 }
@@ -1901,6 +1929,14 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
   return tgt_type;
 }
 
+// true if the declarator corresponds to a local/global variable declaration
+bool isVariableDC(DeclaratorContext dc)
+{
+  return dc==DC_TF_DECL ||    // global
+         dc==DC_S_DECL ||     // local
+         dc==DC_CN_DECL;      // local in a Condition
+}
+
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
   // true if we're immediately in a class body
@@ -1921,9 +1957,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   if (init) dt.dflags |= DF_INITIALIZED;
 
   // get the variable from the IDeclarator
-  decl->tcheck(env, dt);
+  decl->tcheck(env, dt, false /*inGrouping*/);
   var = env.storeVar(dt.var);
   type = dt.type;
+  context = dt.context;
 
   // cppstd, sec. 3.3.1:
   //   "The point of declaration for a name is immediately after
@@ -1935,6 +1972,40 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // However, since the bottom of the recursion for IDeclarators
   // is always D_name, it's equivalent to add the name to the
   // environment then instead of here.
+
+  // want only declarators corresp. to local/global variables
+  // (it is disturbing that I have to check for so many things...)
+  if (env.lang.isCplusplus &&
+      !dt.hasFlag(DF_EXTERN) &&                 // not an extern decl
+      !dt.hasFlag(DF_TYPEDEF) &&                // not a typedef
+      isVariableDC(dt.context) &&               // local/global variable
+      var->type->isCompoundType()) {            // class-valued
+    if (!init) {
+      // cppstd 8.5 paras 7,8,9: treat
+      //   C c;
+      // like
+      //   C c();
+      // except that the latter is not actually allowed since it would
+      // be interpreted as a declaration of a function
+      init = new IN_ctor(decl->loc, NULL /*args*/);
+    }
+    else if (init->isIN_expr()) {
+      // cppstd reference? treat
+      //   C c = 5;
+      // like
+      //   C c(5);
+      // except the latter isn't always syntactically allowed (e.g. CN_decl)
+      
+      // take out the IN_expr
+      IN_expr *inexpr = init->asIN_expr();
+      Expression *e = inexpr->e;
+      inexpr->e = NULL;
+      delete inexpr;
+
+      // put in an IN_ctor
+      init = new IN_ctor(decl->loc, makeExprList1(e));
+    }
+  }
 
   // tcheck the initializer, unless we're inside a class, in which
   // case wait for pass two
@@ -2015,6 +2086,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     }
   }
 
+#if 0    // delete me
 //    // for debugging confirmation
 //    if (var->type->isFunctionType()
 //        && var->type->asFunctionType()->isMember()) {
@@ -2033,7 +2105,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // they can have a type of the class that we are still in the
   // definition of, and therefore any references to implicit members
   // of that class don't exist yet.
-  bool isE_new = (dt.context == Tcheck::CTX_E_NEW);
+  bool isE_new = dt.inContext(Tcheck::CTX_E_NEW);
   if (env.doElaboration &&
       !inClassBody &&
       // parameters get no elaboration, so the elaborateCDtors() just
@@ -2042,6 +2114,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       !isE_new) {
     elaborateCDtors(env);
   }
+#endif // 0
 }
 
 Scope *Declarator::openQualifierScope(Env &env)
@@ -2076,6 +2149,15 @@ void Declarator::tcheck_init(Env &env)
 
   init->tcheck(env, type);
 
+  // TODO: check the initializer for compatibility with
+  // the declared type
+
+  // TODO: check compatibility with dflags; e.g. we can't allow
+  // an initializer for a global variable declared with 'extern'
+
+  // TODO: in the case of class data members, delay checking the
+  // initializer until the entire class body has been scanned
+      
   // remember the initializing value, for const values
   if (init->isIN_expr()) {
     var->value = init->asIN_exprC()->e;
@@ -2295,8 +2377,7 @@ void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
   // make the implicit 'this' parameter
   xassert(dt.funcSyntax);
   CVFlags thisCV = dt.funcSyntax->cv;
-  Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, thisCV, dt.funcSyntax);
-  Variable *this0 = env.makeVariable(loc, env.thisName, thisType, DF_PARAMETER);
+  Variable *this0 = env.receiverParameter(loc, inClass, thisCV, dt.funcSyntax);
 
   // add it to the function type
   FunctionType *ft = dt.type->asFunctionType();
@@ -2322,6 +2403,9 @@ static void D_name_tcheck(
 
   // contains various information about 'name', notably it's type
   Declarator::Tcheck &dt,
+  
+  // true if we're a D_grouping is innermost to a D_pointer
+  bool inGrouping,
 
   // source location where 'name' appeared
   SourceLoc loc,
@@ -2420,8 +2504,7 @@ realStart:
   }
 
   // ambiguous grouped declarator in a paramter list?
-  if ((dt.context & Declarator::Tcheck::CTX_PARAM) &&
-      (dt.context & Declarator::Tcheck::CTX_GROUPING)) {
+  if (dt.hasFlag(DF_PARAMETER) && inGrouping) {
     // the name must *not* correspond to an existing type; this is
     // how I implement cppstd 8.2 para 7
     Variable *v = env.lookupPQVariable(name);
@@ -2593,7 +2676,7 @@ realStart:
                                  scope, enclosingClass, prior, overloadSet);
 }
 
-void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
 
@@ -2605,7 +2688,7 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
   // will do so if necessary, and in a different way
 
   this->type = dt.type;     // annotation
-  D_name_tcheck(env, dt, loc, name);
+  D_name_tcheck(env, dt, inGrouping, loc, name);
 }
 
 
@@ -2613,7 +2696,7 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 //   "There shall be no references to references, no arrays of
 //    references, and no pointers to references."
 
-void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -2634,30 +2717,28 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
     // annotation
     this->type = dt.type;
   }
-
+  
+  #if 0     // delete me
   // turn off CTX_GROUPING
-  dt.clearInGrouping();
+  dt.clearInGrouping(); 
+  #endif // 0
 
   // recurse
-  base->tcheck(env, dt);
+  base->tcheck(env, dt, false /*inGrouping*/);
 }
 
 
 // this code adapted from (the old) tcheckFakeExprList; always passes NULL
 // for the 'sizeExpr' argument to ASTTypeId::tcheck
 FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
-  FakeList<ASTTypeId> *list, Env &env, bool isParameter, DeclFlags dflags = DF_NONE)
+  FakeList<ASTTypeId> *list, Env &env, DeclFlags dflags, DeclaratorContext context)
 {
   if (!list) {
     return list;
   }
 
   // context for checking (ok to share these across multiple ASTTypeIds)
-  ASTTypeId::Tcheck tc;
-  if (isParameter) {
-    dflags |= DF_PARAMETER;
-  }
-  tc.dflags = dflags;
+  ASTTypeId::Tcheck tc(dflags, context);
 
   // check first ASTTypeId
   FakeList<ASTTypeId> *ret
@@ -2692,7 +2773,7 @@ static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 }
 
 
-void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -2726,7 +2807,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       }
 
       // compute the named type; this becomes the return type
-      ASTTypeId::Tcheck tc;
+      ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
       conv->type = conv->type->tcheck(env, tc);
       dt.type = conv->type->getType();
       specialFunc = FF_CONVERSION;
@@ -2782,7 +2863,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids,
   // and adds them to the environment
-  params = tcheckFakeASTTypeIdList(params, env, true /*isParameter*/);
+  params = tcheckFakeASTTypeIdList(params, env, DF_PARAMETER, DC_D_FUNC);
 
   // build the function type; I do this after type checking the parameters
   // because it's convenient if 'syntaxFunctionType' can use the results
@@ -2869,11 +2950,11 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // the 'base' on to the next-lower declarator
   dt.type = ft;
   this->type = dt.type;       // annotation
-  base->tcheck(env, dt);
+  base->tcheck(env, dt, inGrouping);
 }
 
 
-void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -2905,7 +2986,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
 
   ArrayType *at;
 
-  if (dt.context == Declarator::Tcheck::CTX_E_NEW) {
+  if (dt.context == DC_E_NEW) {
     // we're in a new[] (E_new) type-id
     if (!size) {
       env.error("new[] must have an array size specified");
@@ -2924,7 +3005,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         // is left unchanged, because this D_array contributed nothing
         // to the *type* of the objects we're allocating
         this->type = dt.type;       // annotation
-        base->tcheck(env, dt);
+        base->tcheck(env, dt, inGrouping);
         return;
       }
       else {
@@ -2985,11 +3066,11 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
   // that on to the next declarator
   dt.type = at;
   this->type = dt.type;       // annotation
-  base->tcheck(env, dt);
+  base->tcheck(env, dt, inGrouping);
 }
 
 
-void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
@@ -3017,12 +3098,12 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
   // construct such an animal here.
 
   this->type = dt.type;       // annotation
-  D_name_tcheck(env, dt, loc, name);
+  D_name_tcheck(env, dt, inGrouping, loc, name);
 }
 
 
 // this function is very similar to D_pointer::tcheck
-void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);                   
   
@@ -3037,7 +3118,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
     // keep going, as error recovery, pretending this level
     // of the declarator wasn't present
     possiblyConsumeFunctionType(env, dt);
-    base->tcheck(env, dt);
+    base->tcheck(env, dt, false /*inGrouping*/);
     return;
   }
 
@@ -3066,15 +3147,17 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   // annotation
   this->type = dt.type;
 
+  #if 0      // delete me
   // turn off CTX_GROUPING
-  dt.clearInGrouping();
+  dt.clearInGrouping();  
+  #endif // 0
 
   // recurse
-  base->tcheck(env, dt);
+  base->tcheck(env, dt, false /*inGrouping*/);
 }
 
 
-void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
+void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
 
@@ -3082,11 +3165,11 @@ void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
   // D_grouping is supposed to be transparent
 
   // the whole purpose of this AST node is to communicate
-  // this one piece of context
-  dt.setInGrouping();
+  // this one piece of context: inGrouping = true
+  //dt.setInGrouping();     // delete me
 
   this->type = dt.type;       // annotation
-  base->tcheck(env, dt);
+  base->tcheck(env, dt, true /*inGrouping*/);
 }
 
 
@@ -3098,7 +3181,7 @@ FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
   FunctionType::ExnSpec *ret = new FunctionType::ExnSpec;
 
   // typecheck the list, disambiguating it
-  types = tcheckFakeASTTypeIdList(types, env, false /*isParameter*/);
+  types = tcheckFakeASTTypeIdList(types, env, DF_NONE, DC_EXCEPTIONSPEC);
 
   // add the types to the exception specification
   FAKELIST_FOREACH_NC(ASTTypeId, types, iter) {
@@ -3342,9 +3425,11 @@ void S_continue::itcheck(Env &env)
 
 void S_return::itcheck(Env &env)
 {
+#if 0    // delete me
   if (env.doElaboration) {
     elaborate(env);
   }
+#endif // 0
 
   if (expr) {
     expr->tcheck(env);
@@ -3367,7 +3452,7 @@ void S_goto::itcheck(Env &env)
 
 void S_decl::itcheck(Env &env)
 {
-  decl->tcheck(env);
+  decl->tcheck(env, DC_S_DECL);
 }
 
 
@@ -3420,7 +3505,7 @@ void CN_expr::itcheck(Env &env)
 
 void CN_decl::itcheck(Env &env)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_CN_DECL);
   typeId = typeId->tcheck(env, tc);
   
   // TODO: verify the type of the variable declared makes sense
@@ -3431,6 +3516,7 @@ void CN_decl::itcheck(Env &env)
 // ------------------- Handler ----------------------
 void Handler::tcheck(Env &env)
 {
+#if 0    // delete me
   // for catch by value, we need a FullExpressionAnnot for the
   // temporary that the global is copy ctored into; I can't put this
   // inside the "if (env.doElaboration)", because it would go away
@@ -3438,21 +3524,25 @@ void Handler::tcheck(Env &env)
   // are doing elaboration; I wouldn't want the temporary which is in
   // scope during the body to be dtored before the body is typechecked
   FullExpressionAnnot::StackBracket fea0(env, annot);
+#endif // 0
 
   Scope *scope = env.enterScope(SK_FUNCTION, "exception handler");
 
   // originally, I only did this for the non-isEllpsis() case, to
   // avoid creating a type with ST_ELLIPSIS in it.. but cc_qual
   // finds it convenient, so now we tcheck 'typeId' always
-  ASTTypeId::Tcheck tc;
-  // we think of the handler as an anonymous inline function that is
-  // simultaneously defined and called in the same place
-  tc.dflags |= DF_PARAMETER;
+  //
+  // dsw: DF_PARAMETER: we think of the handler as an anonymous inline
+  // function that is simultaneously defined and called in the same
+  // place
+  ASTTypeId::Tcheck tc(DF_PARAMETER, DC_HANDLER);
   typeId = typeId->tcheck(env, tc);
 
+#if 0    // delete me
   if (env.doElaboration) {
     elaborate(env);
   }
+#endif // 0
 
   body->tcheck(env);
 
@@ -3703,7 +3793,7 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-Type *makeLvalType(Env &env, Type *underlying)
+Type *makeLvalType(TypeFactory &tfac, Type *underlying)
 {
   if (underlying->isLval()) {
     // this happens for example if a variable is declared to
@@ -3721,8 +3811,13 @@ Type *makeLvalType(Env &env, Type *underlying)
   else {
     // I expect Daniel's factory to take the location from
     // 'underlying', instead of the passed location
-    return env.tfac.makeRefType(SL_UNKNOWN, underlying);
+    return tfac.makeRefType(SL_UNKNOWN, underlying);
   }
+}
+
+Type *makeLvalType(Env &env, Type *underlying)
+{
+  return makeLvalType(env.tfac, underlying);
 }
 
 
@@ -3761,7 +3856,18 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
   }
 
   // return a reference because this is an lvalue
-  return makeLvalType(env, var->type);
+  #if 1
+    // this is how the code has been for quite a while
+    return makeLvalType(env, var->type);              
+  #else
+    // This is a new clone() call that Daniel asked me to put in,
+    // but when I do so oink's "make check" fails because some of
+    // the C language tests (e.g.
+    // "make qual-check-regression-cc-basic/oldstyle-with-proto.c")
+    // do not pass.  So for now I'm taking out the clone call, and
+    // he can put it back and debug the resulting failures later.
+    return makeLvalType(env, env.tfac.cloneType(var->type));
+  #endif
 }
 
 
@@ -4122,6 +4228,11 @@ Type *E_funCall::inner2_itcheck(Env &env)
     Variable const *funcVar = ct->getNamedFieldC(env.functionOperatorName, env);
     if (funcVar) {
       t = funcVar->type;
+      
+      // TODO: There are (at least) two problems here:
+      //   - 'operator()' may be overloaded, but we only pick the first
+      //   - the AST should be rewritten to explicitly refer to
+      //     'operator()' so that elaboration works correctly
     }
     else {
       // fall through, error case below handles it
@@ -4213,6 +4324,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // suspect 't' was a good function to call.
 
   FunctionType *ft = t->asFunctionType();
+#if 0    // delete me
   if (env.doElaboration) {
     // dsw: I think I can't assert this since typechecking can happen
     // more than once.
@@ -4222,6 +4334,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
       retObj->tcheck(env, retObj);
     }
   }
+#endif // 0
 
   // type of the expr is type of the return value
   return env.tfac.cloneType(ft->retType);
@@ -4394,6 +4507,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   if (ctor) {
     ctorVar = env.storeVar(ctor);
 
+#if 0    // delete me
     if (env.doElaboration) {
       // It seems that if the E_constructor were ever typechecked
       // twice, say if it were shared between two ambiguous trees,
@@ -4412,6 +4526,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     } else {
       xassert(!retObj);
     }
+#endif // 0
   }
 
   return type;
@@ -4443,7 +4558,7 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
       // will replace this, but in the case of a type which is an
       // array of objects, this will leave the E_fieldAcc's 'field'
       // member NULL ...
-      return env.makeDestructorFunctionType(SL_UNKNOWN);
+      return env.makeDestructorFunctionType(SL_UNKNOWN, NULL /*ct*/);
     }
 
     return env.error(rt, stringc
@@ -5060,7 +5175,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_CAST);
   ctype = ctype->tcheck(env, tc);
   expr->tcheck(env, expr);
   
@@ -5092,7 +5207,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
   try {
@@ -5139,7 +5254,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 
   // typecheck the typeid in E_new context; it returns the
   // array size for new[] (if any)
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_NEW);
   tc.newSizeExpr = &arraySize;
   atype = atype->tcheck(env, tc);
 
@@ -5171,6 +5286,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
                                 reallyDoOverload(env, ctorArgs->list)));
   }
 
+#if 0    // delete me
   // TODO: check for a constructor in 't' which accepts these args
   // (partially subsumed by overload resolution, above)
   // dsw: I suppose the ctor elaboration here is effectively the
@@ -5178,6 +5294,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   if (env.doElaboration) {
     elaborate(env, t);
   }
+#endif // 0
   
   return env.makePtrType(SL_UNKNOWN, t);
 }
@@ -5192,7 +5309,9 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
   } else if (env.doElaboration) {
+#if 0    // delete me
     elaborate(env, t);
+#endif // 0
   }
   
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
@@ -5204,14 +5323,18 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
   if (expr) {
     expr->tcheck(env, expr);
 
+#if 0    // delete me
     if (env.doElaboration) {
       elaborate(env);
     }
+#endif // 0
   }
   else {
     // TODO: make sure that we're inside a 'catch' clause
 
+#if 0    // delete me
     // TODO: elaboration for this case
+#endif // 0
   }
 
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
@@ -5220,7 +5343,7 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_KEYWORDCAST);
   ctype = ctype->tcheck(env, tc);
   expr->tcheck(env, expr);
 
@@ -5240,7 +5363,7 @@ Type *E_typeidExpr::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_E_TYPEIDTYPE);
   ttype = ttype->tcheck(env, tc);
   return env.type_info_const_ref;
 }
@@ -5498,6 +5621,7 @@ SpecialExpr Expression::getSpecial() const
 
 
 // ------------------- Full Expression tcheck -----------------------
+#if 0    // delete me
 Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 {
   env.fullExpressionAnnotStack.push(this);
@@ -5529,10 +5653,13 @@ void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
   env.exitScope(scope);
   env.fullExpressionAnnotStack.pop();
 }
+#endif // 0
 
 void FullExpression::tcheck(Env &env)
 {
+#if 0    // delete me
   FullExpressionAnnot::StackBracket fea0(env, annot);
+#endif // 0
   expr->tcheck(env, expr);
 }
 
@@ -5545,7 +5672,9 @@ void FullExpression::tcheck(Env &env)
 
 void IN_expr::tcheck(Env &env, Type *)
 {
+#if 0    // delete me
   FullExpressionAnnot::StackBracket fea0(env, annot);
+#endif // 0
   e->tcheck(env, e);
 }
 
@@ -5565,7 +5694,9 @@ void IN_compound::tcheck(Env &env, Type* type)
 
 void IN_ctor::tcheck(Env &env, Type *type)
 {
+#if 0    // delete me
   FullExpressionAnnot::StackBracket fea0(env, annot);
+#endif // 0
   tcheckArgExprList(args, env);
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args)));
@@ -5625,7 +5756,7 @@ void TD_proto::itcheck(Env &env)
   // place we grab template parameters, and that's shared by both
   // definitions and prototypes
   DisambiguateOnlyTemp disOnly(env, true /*disOnly*/);
-  d->tcheck(env);
+  d->tcheck(env, DC_TD_PROTO);
 }
 
 
@@ -5645,7 +5776,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   // would make no sense, so I'm going to check the
   // default type first
   if (defaultType) {
-    ASTTypeId::Tcheck tc;
+    ASTTypeId::Tcheck tc(DF_NONE, DC_TP_TYPE);
     defaultType = defaultType->tcheck(env, tc);
   }
 
@@ -5685,8 +5816,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 
 void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
 {
-  ASTTypeId::Tcheck tc;
-  tc.dflags |= DF_PARAMETER;
+  ASTTypeId::Tcheck tc(DF_PARAMETER, DC_TP_NONTYPE);
   
   // check the parameter; this actually adds it to the
   // environment too, so we don't need to do so here
@@ -5714,7 +5844,7 @@ TemplateArgument *TemplateArgument::tcheck(Env &env)
 
 void TA_type::itcheck(Env &env)
 {
-  ASTTypeId::Tcheck tc;
+  ASTTypeId::Tcheck tc(DF_NONE, DC_TA_TYPE);
   type = type->tcheck(env, tc);
 
   Type *t = type->getType();

@@ -218,7 +218,7 @@ public:      // funcs
 
   // lookup within the 'variables' map, without consulting base
   // classes, etc.; returns NULL if not found
-  Variable *rawLookupVariable(StringRef name)
+  Variable *rawLookupVariable(char const *name)
     { return variables.queryif(name); }
 
   int private_compoundTop() const

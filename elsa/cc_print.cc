@@ -464,9 +464,12 @@ void Declarator::print(PrintEnv &env)
   if (init) {
     IN_ctor *ctor = dynamic_cast<IN_ctor*>(init);
     if (ctor) {
-      // dsw:Constructor arguments.
-      codeout co(env, "", "(", ")");
-      ctor->print(env);         // NOTE: You can NOT factor this line out of the if!
+      // sm: don't print "()" as an IN_ctor initializer (cppstd 8.5 para 8)
+      if (!ctor->args->isEmpty()) {
+        // dsw:Constructor arguments.
+        codeout co(env, "", "(", ")");
+        ctor->print(env);       // NOTE: You can NOT factor this line out of the if!
+      }
     } else {
       env << "=";
       init->print(env);         // Don't pull this out!

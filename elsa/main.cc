@@ -20,6 +20,7 @@
 #include "sprint.h"       // structurePrint
 #include "strtokp.h"      // StrtokParse
 #include "smregexp.h"     // regexpMatch
+#include "cc_elaborate.h" // ElabVisitor
 
 
 // little check: is it true that only global declarators
@@ -121,20 +122,36 @@ void doit(int argc, char **argv)
   {
     char const *inputFname = processArgs
       (argc, argv,
-       "  additional flags for ccparse:\n"
-       "    malloc_stats       print malloc stats every so often\n"
-       "    parseTree          make a parse tree and print that, only\n"
-       "    stopAfterParse     stop after parsing\n"
-       "    printAST           print AST after parsing\n"
-       "    stopAfterTCheck    stop after typechecking\n"
-       "    printTypedAST      print AST with type info\n"
-       "    tcheck             print typechecking info\n"
+       "\n"
+       "  general behavior flags:\n"
+       "    c_lang             use C language rules (default is C++)\n"
        "    nohashline         ignore #line when reporting locations\n"
-       "    prettyPrint        echo input as pretty-printed C++\n"
+       "    doOverload         do named function overload resolution\n"
+       "    doOperatorOverload do operator overload resolution\n"
+       "\n"
+       "  options to stop after a certain stage:\n"
+       "    stopAfterParse     stop after parsing\n"
+       "    stopAfterTCheck    stop after typechecking\n"
+       "    stopAfterElab      stop after semantic elaboration\n"
+       "\n"
+       "  output options:\n"
+       "    parseTree          make a parse tree and print that, only\n"
+       "    printAST           print AST after parsing\n"
+       "    printTypedAST      print AST with type info\n"
+       "    printElabAST       print AST after semantic elaboration\n"
+       "    prettyPrint        echo input as pretty-printed (but sometimes invalid) C++\n"
+       "\n"
+       "  debugging output:\n"
+       "    malloc_stats       print malloc stats every so often\n"
+       "    env                print as variables are added to the environment\n"
+       "    error              print as errors are accumulated\n"
+       "    overload           print details of overload resolution\n"
+       "\n"
+       "  (grep in source for \"trace\" to find more obscure flags)\n"
        "");
 
-    if (tracingSys("ML_TSM")) {
-      currentToStringMode = ML_TSM;
+    if (tracingSys("printAsML")) {
+      Type::printAsML = true;
     }
 
     if (tracingSys("nohashline")) {
@@ -226,8 +243,8 @@ void doit(int argc, char **argv)
     long tcheckStart = getMilliseconds();
     Env env(strTable, lang, tfac, unit);
     unit->tcheck(env);
-    traceProgress() << "done type checking (" 
-                    << (getMilliseconds() - tcheckStart) 
+    traceProgress() << "done type checking ("
+                    << (getMilliseconds() - tcheckStart)
                     << " ms)\n";
 
     int numErrors = env.errors.numErrors();
@@ -321,6 +338,32 @@ void doit(int argc, char **argv)
 //      }
                                   
     if (tracingSys("stopAfterTCheck")) {
+      return;
+    }
+  }
+
+  // semantic elaboration
+  if (lang.isCplusplus) {
+    long start = getMilliseconds();
+
+    ElabVisitor vis(strTable, tfac, unit);
+    
+    // if we are going to pretty print, then we need to retain defunct children
+    if (tracingSys("prettyPrint")) {
+      vis.cloneDefunctChildren = true;
+    }
+
+    unit->traverse(vis);
+
+    traceProgress() << "done elaborating ("
+                    << (getMilliseconds() - start)
+                    << " ms)\n";
+
+    // print abstract syntax tree annotated with types
+    if (tracingSys("printElabAST")) {
+      unit->debugPrint(cout, 0);
+    }
+    if (tracingSys("stopAfterElab")) {
       return;
     }
   }
