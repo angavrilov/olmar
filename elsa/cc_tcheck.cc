@@ -1047,24 +1047,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
         xassert(iter->sarg.hasValue());
         ct->templateInfo()->arguments.append(new STemplateArgument(iter->sarg));
       }
-
-      // dsw: I need to have the argumentSyntax around so that if I
-      // call PQ_fullyQualifiedName() on this type I get a
-      // PQ_qualifier that has template arguments; If I don't do it
-      // this way, then I have to reconstruct them from the
-      // TemplateInfo::arguments, and then I'm back to manufacturing
-      // ASTTypeId-s from Type-s which I want to avoid if I can.
-      //
-      // FIX: I'm worried that there is some corner condition where
-      // the same syntax doesn't work because the location has changed
-      // and we are down in some namespace where the names in the
-      // argumentSyntax now resolve to different variables.
-      //
-      // sm: update: That corner case (d0026.cc) is now handled by
-      // rebuilding the arguments in Env::make_PQ_fullyQualifiedName.
-      // So in fact this assignment is now not necessary, but it
-      // won't hurt either.
-      ct->templateInfo()->argumentSyntax = templateArgs;
     }
 
     
@@ -3017,6 +2999,8 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     return;
   }
 
+  // allow the pointer to point to a member of a class (CompoundType),
+  // *or* a TypeVariable (for templates)
   NamedAtomicType *nat = ctVar->type->ifNamedAtomicType();
   if (!nat) {
     env.error(stringc
@@ -3026,7 +3010,8 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   if (dt.type->isFunctionType()) {
-    // add the 'this' parameter to the function type
+    // add the 'this' parameter to the function type, so the
+    // full type becomes "pointer to *member* function"
     makeMemberFunctionType(env, dt, nat, loc);
   }
 
@@ -3432,7 +3417,7 @@ void Handler::tcheck(Env &env)
 // a reference to it is now a parameter.
 
 
-void Expression::tcheck(Env &env, Expression *&replacement, FakeList<ArgExpression> *args)
+void Expression::tcheck(Env &env, Expression *&replacement)
 {
   // the replacement point should always start out in agreement with
   // the receiver object of the 'tcheck' call; consequently,
@@ -3440,7 +3425,7 @@ void Expression::tcheck(Env &env, Expression *&replacement, FakeList<ArgExpressi
   xassert(replacement == this);
 
   if (!ambiguity) {
-    mid_tcheck(env, replacement, args);
+    mid_tcheck(env, replacement);
     return;
   }
 
@@ -3531,8 +3516,7 @@ void Expression::tcheck(Env &env, Expression *&replacement, FakeList<ArgExpressi
 
 bool const CACHE_EXPR_TCHECK = false;
 
-void Expression::mid_tcheck(Env &env, Expression *&replacement,
-                            FakeList<ArgExpression> *args)
+void Expression::mid_tcheck(Env &env, Expression *&replacement)
 {
   if (CACHE_EXPR_TCHECK && type && !type->isError()) {
     // this expression has already been checked
@@ -3552,7 +3536,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement,
     // contexts (which is almost everywhere)
     return;
   }
-  
+
   // during ambiguity resolution, 'replacement' is set to whatever
   // the original (first in the ambiguity list) Expression pointer
   // was; reset it to 'this', as that will be our "replacement"
@@ -3560,15 +3544,8 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement,
   replacement = this;
 
   // check it, and store the result
-  Type *t = NULL;
-  // dsw: deliberately prevent the args from being passed down unless
-  // it is an E_variable
-  if (isE_variable()) {
-    t = asE_variable()->itcheck_x2(env, replacement, args);
-  } else {
-    t = itcheck_x(env, replacement);
-  }
-  
+  Type *t = itcheck_x(env, replacement);
+
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
   // the types will be ST_ERROR anyway)
@@ -3719,14 +3696,13 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
-  xfailure("E_variable::itcheck_x should not be called.");
+  return itcheck_var(env, LF_NONE);
 }
 
-Type *E_variable::itcheck_x2(Env &env, Expression *&replacement, FakeList<ArgExpression> *args)
+Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
 {
   name->tcheck(env);
-  Variable *v = env.lookupPQVariable(name, LF_NONE,
-                                     NULL /*signature*/, args /*funcArgs*/);
+  Variable *v = env.lookupPQVariable(name, flags);
   if (!v) {
     // 10/23/02: I've now changed this to non-disambiguating, prompted
     // by the need to allow template bodies to call undeclared
@@ -3907,12 +3883,7 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
     }
   }
 
-//    // resolve overloading
-//    cout << "resolve overloading" << endl;
-//    SFOREACH_OBJLIST(Variable, var->overload->set, iter) {
-//      Variable *var0 = const_cast<Variable *>(iter.data());
-//      cout << "\t" << var0->toString() << endl;
-//    }
+  // resolve overloading
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
                          OF_NONE, var->overload->set, argInfo, wasAmbig);
@@ -4104,9 +4075,31 @@ void E_funCall::inner1_itcheck(Env &env)
   // the function template
   //
   // check the argument list
-  args = tcheckArgExprList(args, env);
+  //
+  // sm: No!  That defeats the entire purpose of inner1/2.  See the
+  // comments above the block that calls inner1/2, and the comments
+  // near the declarations of inner1/2 in cc_tcheck.ast.
+  //args = tcheckArgExprList(args, env);
 
-  func->tcheck(env, func, args);
+  Expression *f = func->skipGroups();
+  if (f->isE_variable()) {
+    // tell the E_variable *not* to do instantiation of
+    // templates, because that will need to wait until 
+    // we see the argument types
+    //
+    // what follows is essentially Expression::tcheck
+    // specialized to E_variable, but with a special lookup
+    // flag passed
+    E_variable *evar = f->asE_variable();
+    xassert(!evar->ambiguity);
+    func->type = evar->type = env.tfac.cloneType(
+      evar->itcheck_var(env, LF_TEMPL_PRIMARY));
+  }
+  // TODO: need similar handling for member function templates
+  else {
+    // do the general thing
+    func->tcheck(env, func);
+  }
 }
 
 Type *E_funCall::inner2_itcheck(Env &env)
@@ -4117,6 +4110,24 @@ Type *E_funCall::inner2_itcheck(Env &env)
     // so I turn it on before resolving the arguments
     env.doOverload = true;
     env.doOperatorOverload = true;     // this too, when test wants overloading
+  }
+
+  // check the argument list
+  args = tcheckArgExprList(args, env);
+
+  // argument-dependent re-lookup and function template instantiation
+  if (func->skipGroups()->isE_variable()) {
+    E_variable *evar = func->skipGroups()->asE_variable();
+    evar->var = env.lookupPQVariable_function_with_args(
+      evar->name, LF_NONE, args /*funcArgs*/);
+    if (evar->var) {
+      evar->type = evar->var->type;
+    }
+    else {
+      // error already reported, but don't proceed below since
+      // the NULL evar->var will cause problems
+      return evar->type = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
+    }
   }
 
   // the type of the function that is being invoked
@@ -5572,22 +5583,20 @@ void TD_func::itcheck(Env &env)
   // that is called to typecheck cloned templates by
   // instantiateTemplate().
 
-  PQName *name = const_cast<PQName*>(f->nameAndParams->decl->getDeclaratorId());
+  PQName const *name = f->nameAndParams->decl->getDeclaratorId();
 
   // do we have template arguments? that is, are we a specialization?
   // If so, hang us off of the appropriate primary.  If we are a
   // primary, skip the whole thing because we got entered into the
   // namespace during the tcheck() above.
-  PQName *unqual = name->getUnqualifiedName();
+  PQName const *unqual = name->getUnqualifiedNameC();
   if (unqual->isPQ_template()) {
-    PQ_template *t = unqual->asPQ_template();
-    ASTList<TemplateArgument> *templateArgs = &(t->args);
-    xassert(templateArgs);
+    PQ_template const *t = unqual->asPQ_templateC();
+    ASTList<TemplateArgument> const &templateArgs = t->args;
 
     FunctionType *funcType = f->nameAndParams->type->asFunctionType();
-    xassert(funcType);
-    Variable *primary = env.lookupPQVariable(name, LF_TEMPL_PRIMARY,
-                                             funcType, NULL /*funcArgs*/);
+    Variable *primary = env.lookupPQVariable_primary_resolve
+      (name, LF_TEMPL_PRIMARY, funcType);
     if (!primary) {
       env.error("cannot specialize a template that hasn't been declared");
       return;
@@ -5606,12 +5615,11 @@ void TD_func::itcheck(Env &env)
     Variable *fVar = f->nameAndParams->var;
     primaryTI->instantiations.append(fVar);
     // TODO: this is copied from Env::instantiateTemplate(); collapse it
-    FOREACH_ASTLIST_NC(TemplateArgument, *templateArgs, iter) {
-      TemplateArgument *targ = iter.data();
+    FOREACH_ASTLIST(TemplateArgument, templateArgs, iter) {
+      TemplateArgument const *targ = iter.data();
       xassert(targ->sarg.hasValue());
       fVar->templateInfo()->arguments.append(new STemplateArgument(targ->sarg));
     }
-    fVar->templateInfo()->argumentSyntax = templateArgs;
     
     if (tracingSys("template")) {
       cout << "TS_classSpec::itcheck: "

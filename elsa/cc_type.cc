@@ -32,6 +32,7 @@ AtomicType::~AtomicType()
 
 
 DOWNCAST_IMPL(AtomicType, SimpleType)
+DOWNCAST_IMPL(AtomicType, NamedAtomicType)
 DOWNCAST_IMPL(AtomicType, CompoundType)
 DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
@@ -54,14 +55,10 @@ string AtomicType::toString() const
 }
 
 
-bool AtomicType::isNamedAtomicType() const {
+bool AtomicType::isNamedAtomicType() const 
+{
+  // default to false; NamedAtomicType overrides
   return false;
-}
-
-
-NamedAtomicType const *AtomicType::asNamedAtomicTypeC() const {
-  xfailure("not a NamedAtomicType");
-  return NULL;
 }
 
 
@@ -146,14 +143,11 @@ NamedAtomicType::~NamedAtomicType()
 }
 
 
-bool NamedAtomicType::isNamedAtomicType() const {
+bool NamedAtomicType::isNamedAtomicType() const 
+{
   return true;
 }
 
-
-NamedAtomicType const *NamedAtomicType::asNamedAtomicTypeC() const {
-  return this;
-}
 
 // ---------------- BaseClassSubobj ----------------
 BaseClassSubobj::BaseClassSubobj(BaseClass const &base)
@@ -1864,8 +1858,7 @@ TemplateInfo::TemplateInfo(StringRef name)
     baseName(name),
     myPrimary(NULL),
     instantiations(),         // empty list
-    arguments(),              // empty list
-    argumentSyntax(NULL)
+    arguments()               // empty list
 {}
 
 
@@ -1874,30 +1867,13 @@ TemplateInfo::TemplateInfo(TemplateInfo const &obj)
     baseName(obj.baseName),
     myPrimary(obj.myPrimary),
     instantiations(obj.instantiations),      // suspicious... oh well
-    arguments(),                             // copied below
-    argumentSyntax()                         // copied below
+    arguments()                              // copied below
 { 
   // arguments
   FOREACH_OBJLIST(STemplateArgument, obj.arguments, iter) {
     arguments.prepend(new STemplateArgument(*(iter.data())));
   }
   arguments.reverse();
-
-  // What I'd like to do is make a copy.. but gcc doesn't like me
-  // to do so while TemplateArgument is an incomplete type.  But
-  // TemplateArgument is defined in cc.ast, and that would mean
-  // introducing more dependencies that I don't want.  So instead
-  // I'll just assert that there are no arguments to copy, and deal
-  // with the fallout later if it happens.
-  #if 0
-    // argumentSyntax
-    FAKELIST_FOREACH(TemplateArgument, obj.argumentSyntax, iter2) {
-      argumentSyntax = argumentSyntax->prepend(iter2);
-    }
-    argumentSyntax = argumentSyntax->reverse();
-  #else
-    xassert(obj.argumentSyntax->isEmpty());
-  #endif
 }
 
 
@@ -1905,7 +1881,8 @@ TemplateInfo::~TemplateInfo()
 {}
 
 
-void TemplateInfo::setMyPrimary(TemplateInfo *prim) {
+void TemplateInfo::setMyPrimary(TemplateInfo *prim) 
+{
   xassert(prim);
   xassert(prim->isPrimary());
   myPrimary = prim;
@@ -1930,77 +1907,6 @@ bool TemplateInfo::equalArguments
   }
 
   return iter1.isDone() && iter2.isDone();
-}
-
-
-/* static */
-bool TemplateInfo::atLeastAsSpecificAs_STemplateArgument_list
-  (SObjList<STemplateArgument> &list1,
-   ObjList<STemplateArgument> &list2, // NOTE: Assymetry in the list serf/ownerness
-   StringSObjDict<STemplateArgument> &bindings,
-   AsSpecAsFlags asaFlags)
-{
-  xassert(!(asaFlags & ASA_TOP));
-
-  SObjListIterNC<STemplateArgument> iter1(list1);
-  ObjListIterNC<STemplateArgument> iter2(list2);
-
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument *sta1 = iter1.data();
-    STemplateArgument *sta2 = iter2.data();
-    if (!sta1->atLeastAsSpecificAs(sta2, bindings, asaFlags)) {
-      return false;
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  return iter1.isDone() && iter2.isDone();
-}
-
-
-// FIX: EXACT COPY OF THE CODE ABOVE.  Have to figure out how to fix
-// that.  NOTE: the SYMMETRY in the list serf/ownerness.
-/* static */
-bool TemplateInfo::atLeastAsSpecificAs_STemplateArgument_list
-  (ObjList<STemplateArgument> &list1,
-   ObjList<STemplateArgument> &list2,
-   StringSObjDict<STemplateArgument> &bindings,
-   AsSpecAsFlags asaFlags)
-{
-  xassert(!(asaFlags & ASA_TOP));
-
-  ObjListIterNC<STemplateArgument> iter1(list1);
-  ObjListIterNC<STemplateArgument> iter2(list2);
-
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument *sta1 = iter1.data();
-    STemplateArgument *sta2 = iter2.data();
-    if (!sta1->atLeastAsSpecificAs(sta2, bindings, asaFlags)) {
-      return false;
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  return iter1.isDone() && iter2.isDone();
-}
-
-
-bool TemplateInfo::atLeastAsSpecificAs
-  (TemplateInfo *tinfo,
-   StringSObjDict<STemplateArgument> &bindings,
-   AsSpecAsFlags asaFlags)
-{
-  xassert(!(asaFlags & ASA_TOP));
-
-  // is tinfo from the same primary even?
-  if (!myPrimary || (myPrimary != tinfo->myPrimary)) return false;
-  // are we at least as specific as tinfo?
-  return TemplateInfo::atLeastAsSpecificAs_STemplateArgument_list
-    (arguments, tinfo->arguments, bindings, asaFlags);
 }
 
 
@@ -2121,10 +2027,6 @@ void TemplateInfo::gdbi(int depth)
   FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
     iter.data()->gdbi(depth+1);
   }
-//    cout << "argumentSyntax:" << endl;
-//    FAKELIST_FOREACH(TemplateArgument, argumentSyntax, iter) {
-//      iter->gdb();
-//    }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "TemplateInfo end" << endl;
 }
@@ -2136,6 +2038,9 @@ STemplateArgument::STemplateArgument(STemplateArgument const &obj)
 {
   // take advantage of representation uniformity
   // dsw: Ugh, a hidden reinterpret_cast!
+  // sm: not really.. it's just a bit-for-bit copy, with the
+  // same interpretation to be applied to the source and
+  // destination
   value.i = obj.value.i;
   value.v = obj.value.v;    // just in case ptrs and ints are diff't size
 }
@@ -2176,86 +2081,6 @@ bool STemplateArgument::equals(STemplateArgument const *obj) const
     case STA_TYPE:     return value.t->equals(obj->value.t);
     case STA_INT:      return value.i == obj->value.i;
     default:           return value.v == obj->value.v;
-  }
-}
-
-
-// helper function for when we find an int
-static bool unifyIntToVar(int i0, Variable *v1, StringSObjDict<STemplateArgument> &bindings)
-{
-  STemplateArgument *v1old = bindings.queryif(v1->name);
-  // is this variable already bound?
-  if (v1old) {
-    // check that the current value matches the bound value
-    if (v1old->kind==STemplateArgument::STA_INT) {
-      return v1old->value.i == i0;
-    } else if (v1old->kind==STemplateArgument::STA_TYPE) {
-      return false;             // types don't match objects
-    } else {
-      xfailure("illegal template unification binding");
-    }
-  }
-  // otherwise, bind it
-  STemplateArgument *a1new = new STemplateArgument;
-  a1new->setInt(i0);
-  bindings.add(v1->name, a1new);
-  return true;
-}
-
-
-bool STemplateArgument::atLeastAsSpecificAs
-  (STemplateArgument const *obj,
-   StringSObjDict<STemplateArgument> &bindings,
-   AsSpecAsFlags asaFlags)
-{
-  xassert(!(asaFlags & ASA_TOP));
-
-  switch (kind) {
-  case STA_TYPE:                // type argument
-    if (STA_TYPE != obj->kind) return false;
-    return value.t->atLeastAsSpecificAs
-      (obj->value.t, bindings,
-       // FIX: I have no idea why this cast is necessary here but not
-       // for other flag enums
-       (AsSpecAsFlags) (asaFlags | ASA_TOP) );
-    break;
-
-  case STA_INT:                 // int or enum argument
-    if (STA_INT == obj->kind) {
-      return value.i == obj->value.i;
-    } else if (STA_REFERENCE == obj->kind) {
-      return unifyIntToVar(value.i, obj->value.v, bindings);
-    } else {
-      return false;
-    }
-    break;
-
-  case STA_REFERENCE:           // reference to global object
-    if (STA_INT == obj->kind) {
-      // you can't unify a reference with an int
-      return false;
-    }
-    // FIX:
-    xfailure("reference arguments unimplemented");
-    break;
-
-  case STA_POINTER:             // pointer to global object
-    // FIX:
-    xfailure("pointer arguments unimplemented");
-
-  case STA_MEMBER:              // pointer to class member
-    // FIX:
-    xfailure("pointer to member arguments unimplemented");
-    break;
-
-  case STA_TEMPLATE:            // template argument (not implemented)
-    // FIX:
-    xfailure("STA_TEMPLATE non implemented");
-    break;
-
-  default:
-    xfailure("illegal STemplateArgument::kind");
-    break;
   }
 }
 
@@ -2384,6 +2209,10 @@ bool ArrayType::anyCtorSatisfies(TypePred pred) const
 PointerToMemberType::PointerToMemberType(NamedAtomicType *inClassNAT0, CVFlags c, Type *a)
   : inClassNAT(inClassNAT0), cv(c), atType(a)
 {
+  // 'inClassNAT' should always be a compound or a type variable
+  xassert(inClassNAT->isCompoundType() ||
+          inClassNAT->isTypeVariable());
+
   // cannot have pointer to reference type
   xassert(!a->isReference());
   
@@ -2657,348 +2486,6 @@ string TemplateParams::paramsToMLString() const
 }
 
 
-// ---------------------- atLeastAsSpecificAs ---------------------
-
-void bindingsGdb(StringSObjDict<STemplateArgument> &bindings)
-{
-  cout << "Bindings" << endl;
-  for (StringSObjDict<STemplateArgument>::Iter bindIter(bindings);
-       !bindIter.isDone();
-       bindIter.next()) {
-    string const &name = bindIter.key();
-    STemplateArgument *value = bindIter.value();
-    cout << "'" << name << "' ";
-    value->gdb();
-  }
-  cout << "Bindings end" << endl;
-}
-
-
-// this is bizarre, but I can't think of a better way
-class CVFlagsIter {
-  int which;
-  public:
-  CVFlagsIter() : which(0) {}
-  CVFlags data() {
-    switch(which) {
-    default: xfailure("urk!?");
-    case 0: return CV_CONST;
-    case 1: return CV_VOLATILE;
-    }
-  }
-  bool isDone() { return which == 1; }
-  void adv() {
-    xassert(which<1);
-    ++which;
-  }
-};
-
-
-// helper function for when we find a type var; I find the spec less
-// than totally clear on what happens to qualifiers, but some
-// experiments with g++ suggest the following policy that I implement.
-//   1 - Top level cv qualifiers are ignored on both sides
-//   2 - Below top level, the are matched exactly; a) lack of matching
-//   means a failure to match; b) those matched are subtracted and the
-//   remaining attached to the typevar.
-static bool unifyToTypeVar(Type *t0,
-                           Type *t1,
-                           StringSObjDict<STemplateArgument> &bindings,
-                           AsSpecAsFlags asaFlags)
-{
-  TypeVariable *tv = t1->asTypeVariable();
-  STemplateArgument *targ1 = bindings.queryif(tv->name);
-  // is this type variable already bound?
-  if (targ1) {
-    // check that the current value matches the bound value
-    // FIX: the EF_IGNORE_PARAM_CV is just a guess
-    Type::EqFlags eqFlags0 = Type::EF_IGNORE_PARAM_CV;
-    if (asaFlags & ASA_TOP) eqFlags0 |= Type::EF_IGNORE_TOP_CV;
-    return targ1->kind==STemplateArgument::STA_TYPE
-      && t0->equals(targ1->value.t, eqFlags0);
-  }
-  // otherwise, bind it
-  STemplateArgument *targ0 = new STemplateArgument;
-
-  // deal with CV qualifier strangness;
-  // dsw: Const should be removed from the language because of things
-  // like this!  I mean, look at it!
-  CVFlags t0cv = t0->getCVFlags();
-  // partition qualifiers into normal ones and Scott's funky qualifier
-  // extensions that aren't const or volatile
-  CVFlags t0cvNormal = t0cv &  (CV_CONST | CV_NONE);
-  CVFlags t0cvScott  = t0cv & ~(CV_CONST | CV_NONE);
-  if (asaFlags & ASA_TOP) {
-    // if we are at the top level, remove all CV qualifers before
-    // binding; ignore the qualifiers on the type variable as they are
-    // irrelevant
-    t0 = tfac_global->setCVQualifiers(SL_UNKNOWN, CV_NONE, t0, NULL /*syntax*/);
-  } else {
-    // if we are below the top level, subtract off the CV qualifiers
-    // that match; if we get a negative qualifier set (arg lacks a
-    // qualifer that the param has) we fail to match
-    CVFlags finalFlags = CV_NONE;
-
-    CVFlags t1cv = t1->getCVFlags();
-    // partition qualifiers again
-    CVFlags t1cvNormal = t1cv &  (CV_CONST | CV_NONE);
-//      CVFlags t1cvScott  = t1cv & ~(CV_CONST | CV_NONE);
-    // Lets kill a mosquito with a hydraulic wedge
-    for(CVFlagsIter cvIter; !cvIter.isDone(); cvIter.adv()) {
-      CVFlags curFlag = cvIter.data();
-      int t0flagInt = (t0cvNormal & curFlag) ? 1 : 0;
-      int t1flagInt = (t1cvNormal & curFlag) ? 1 : 0;
-      int flagDifference = t0flagInt - t1flagInt;
-      if (flagDifference < 0) {
-        return false;           // can't subtract a flag that isn't there
-      }
-      if (flagDifference > 0) {
-        finalFlags |= curFlag;
-      }
-      // otherwise, the flags match
-    }
-
-    // if there's been a change, must (shallow) clone t0 and apply new
-    // CV qualifiers
-    t0 = tfac_global->setCVQualifiers
-      (SL_UNKNOWN,
-       finalFlags | t0cvScott,  // restore Scott's funkyness
-       t0,
-       NULL /*syntax*/
-       );
-  }
-
-  targ0->setType(t0);
-  bindings.add(tv->name, targ0);
-  return true;
-}
-
-
-//  // helper function for when we find an int var
-//  static bool unifyToIntVar(Type *t0,
-//                            Type *t1,
-//                            StringSObjDict<STemplateArgument> &bindings,
-//                            AsSpecAsFlags asaFlags)
-//  {
-//  }
-
-
-bool CVAtomicType::atLeastAsSpecificAs(Type *t,
-                                       StringSObjDict<STemplateArgument> &bindings,
-                                       AsSpecAsFlags asaFlags)
-{
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
-  }
-  // I'm tempted to do this, but when I test it, it ends up testing
-  // false in the end anyway.  It is hard to construct a test for it,
-  // so I don't have one checked in.
-//    if (isTypeVariable() && !t->isTypeVariable()) {
-//      return false;
-//    }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(this, t, bindings, asaFlags);
-  }
-  if (t->isCVAtomicType()) {
-    bool isCpdTemplate = isCompoundType() && asCompoundType()->typedefVar->isTemplate();
-    bool tIsCpdTemplate = t->isCompoundType() && t->asCompoundType()->typedefVar->isTemplate();
-    if (isCpdTemplate && tIsCpdTemplate) {
-      return asCompoundType()->typedefVar->templateInfo()->
-        atLeastAsSpecificAs(t->asCompoundType()->typedefVar->templateInfo(),
-                            bindings,
-                            (AsSpecAsFlags) (asaFlags & ~ASA_TOP));
-    } else if (!isCpdTemplate && !tIsCpdTemplate) {
-      return equals(t);
-    }
-    // if there is a mismatch, they definitely don't match
-  }
-  return false;
-}
-
-bool PointerType::atLeastAsSpecificAs(Type *t,
-                                      StringSObjDict<STemplateArgument> &bindings,
-                                      AsSpecAsFlags asaFlags)
-{
-  // The policy on references and unification is as follows.
-  //   A non-ref, B ref to const: B's ref goes away
-  //   A non-ref, B ref to non-const: failure to unify
-  //   A ref, B non-ref: A's ref-ness silently goes away.
-  //   A ref, B ref: the ref's match and unification continues below.
-
-  // unify the reference-ness
-  Type *thisType = this;
-  if (isReference() && !t->isReference()) {
-    thisType = asRval();
-  }
-  else if (!isReference() &&
-           t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
-  }
-
-  xassert(thisType->isReference() == t->isReference());
-
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(thisType, t, bindings, asaFlags);
-  }
-  if (t->isPointerType() && thisType->isPointerType()
-      && thisType->asPointerType()->op==t->asPointerType()->op) {
-    return thisType->asPointerType()->atType->atLeastAsSpecificAs
-      (t->asPointerType()->atType, bindings, (AsSpecAsFlags) (asaFlags & ~ASA_TOP) );
-  }
-  if (this == thisType) {
-    return false;               // there is no progress to make
-  }
-  return thisType->
-    atLeastAsSpecificAs(t, bindings,
-                        // I don't know if this is right or not, but
-                        // for now I consider that if you unreference
-                        // that you are still considered to be a the
-                        // top level
-                        asaFlags);
-}
-
-bool FunctionType::atLeastAsSpecificAs(Type *t,
-                                       StringSObjDict<STemplateArgument> &bindings,
-                                       AsSpecAsFlags asaFlags)
-{
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
-  }
-
-  if (t->isPointer()
-      // see my rant below about isPointer() and isPointerType()
-      && t->asPointerType()->op == PO_POINTER) {
-    // cppstd 14.8.2.1 para 2: "If P is not a reference type: --
-    // ... If A is a function type, the pointer type produced by the
-    // function-to-pointer standard conversion (4.3) is used in place
-    // of A for type deduction"; rather than wrap the function type in
-    // a pointer, I'll just unwrap the pointer-ness of 't' and keep
-    // going down.
-    return atLeastAsSpecificAs(t->asPointerType()->atType,
-                               bindings,
-                               (AsSpecAsFlags) (asaFlags & ~ASA_TOP));
-  }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(this, t, bindings, asaFlags);
-  }
-  if (t->isFunctionType()) {
-    FunctionType *ft = t->asFunctionType();
-
-    // check all the parameters
-    if (params.count() != ft->params.count()) {
-      return false;
-    }
-    SObjListIterNC<Variable> iter0(params);
-    SObjListIterNC<Variable> iter1(ft->params);
-    for(;
-        !iter0.isDone();
-        iter0.adv(), iter1.adv()) {
-      Variable *var0 = iter0.data();
-      Variable *var1 = iter1.data();
-      xassert(!var0->hasFlag(DF_TYPEDEF)); // should not be possible
-      xassert(!var1->hasFlag(DF_TYPEDEF)); // should not be possible
-      if (!var0->type->atLeastAsSpecificAs
-          (var1->type, bindings,
-           // FIX: I don't know if this is right: are we at the top
-           // level again when we recurse down into the parameters of
-           // a function type that is itself an argument?
-           (AsSpecAsFlags) (asaFlags | ASA_TOP) )) {
-        return false; // conjunction
-      }
-    }
-    xassert(iter1.isDone());
-
-    // check the return type
-    return retType->atLeastAsSpecificAs
-      (ft->retType,
-       bindings,
-       // FIX: I don't know if this is right: are we at the top level
-       // again when we recurse down into the rerturn value (just as
-       // with the parameters) of a function type that is itself an
-       // argument?
-       (AsSpecAsFlags) (asaFlags | ASA_TOP) );
-  }
-  return false;
-}
-
-bool ArrayType::atLeastAsSpecificAs
-  (Type *t,
-   StringSObjDict<STemplateArgument> &bindings,
-   AsSpecAsFlags asaFlags)
-{
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
-  }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(this, t, bindings, asaFlags);
-  }
-  if (t->isPointer()
-      // this second test is probably redundant but I really find it
-      // confusing that you can test if something is a pointer or
-      // reference with isPointerType() and if it is a pointer and in
-      // particular not a reference with isPointer(); therefore the
-      // solution is to be way extra verbose and redundant
-      && t->asPointerType()->op == PO_POINTER
-      && (asaFlags & ASA_TOP)
-      ) {
-    // cppstd 14.8.2.1 para 2: "If P is not a reference type: -- if A
-    // is an array type, the pointer type produced by the
-    // array-to-pointer standard conversion (4.2) is used in place of
-    // A for type deduction"; however, this only seems to apply at the
-    // top level; see cppstd 14.8.2.4 para 13.
-    return eltType->atLeastAsSpecificAs(t->asPointerType()->atType,
-                                        bindings,
-                                        (AsSpecAsFlags) (asaFlags & ~ASA_TOP) );
-  }
-  if (t->isArrayType()) {
-    ArrayType *tArray = t->asArrayType();
-    bool baseUnifies = eltType->
-      atLeastAsSpecificAs(tArray->eltType,
-                          bindings,
-                          (AsSpecAsFlags) (asaFlags & ~ASA_TOP) );
-    return baseUnifies;
-  }
-  return false;
-}
-
-bool PointerToMemberType::atLeastAsSpecificAs(Type *t,
-                                              StringSObjDict<STemplateArgument> &bindings,
-                                              AsSpecAsFlags asaFlags)
-{
-  if (t->isReference() && t->asPointerType()->atType->isConst()) {
-    t = t->asPointerType()->atType;
-  }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(this, t, bindings, asaFlags);
-  }
-  if (t->isPointerToMemberType()) {
-    // FIX: should there be some subtyping polymorphism here?
-
-    // I have to wrap the CompoundType in a CVAtomicType just so I can
-    // do the unification
-    CVAtomicType *inClassNATcvAtomic =
-      tfac_global->makeCVAtomicType(SL_UNKNOWN, inClassNAT, CV_NONE);
-    CVAtomicType *t_inClassNATcvAtomic =
-      tfac_global->makeCVAtomicType(SL_UNKNOWN, t->asPointerToMemberType()->inClassNAT, CV_NONE);
-    bool inClassUnifies;
-    if (t_inClassNATcvAtomic->isTypeVariable()) {
-      inClassUnifies =
-        unifyToTypeVar(inClassNATcvAtomic, t_inClassNATcvAtomic, bindings, asaFlags);
-    } else {
-      inClassUnifies = inClassNATcvAtomic->
-        atLeastAsSpecificAs(t_inClassNATcvAtomic,
-                            bindings, 
-                            (AsSpecAsFlags) (asaFlags & ~ASA_TOP));
-    }
-    return inClassUnifies &&
-      atType->atLeastAsSpecificAs(t->asPointerToMemberType()->atType,
-                                  bindings,
-                                  (AsSpecAsFlags) (asaFlags & ~ASA_TOP));
-  }
-  return false;
-}
-
-
 // ---------------------- TypeFactory ---------------------
 CompoundType *TypeFactory::makeCompoundType
   (CompoundType::Keyword keyword, StringRef name)
@@ -3082,11 +2569,8 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
     return baseType;
   }
   else {
-    // change to the union
-    // don't know how to do this without adding a dependency on Env
-//      if (baseType->isReference() && (cv & CV_CONST)) {
-//        return env.error("attempt to apply const to a reference type");
-//      }
+    // change to the union; setCVQualifiers will take care of catching
+    // inappropriate application (e.g. 'const' to a reference)
     return setCVQualifiers(loc, now | cv, baseType, syntax);
   }
 }
@@ -3268,12 +2752,6 @@ Variable *BasicTypeFactory::cloneVariable(Variable *src)
   // immutable => don't clone
   return src;
 }
-
-
-// I need access to this from within cc_type.cc, and, ironically, you
-// need an Env for that otherwise, and it says at the top that this
-// file should not depend on cc_env.h
-TypeFactory *tfac_global = NULL;
 
 
 // -------------------- XReprSize -------------------

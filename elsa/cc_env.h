@@ -26,10 +26,12 @@ class CCLang;             // cc_lang.h
 // holder for the CompoundType template candidates
 class TemplCandidates {
   public:
+  TypeFactory &tfac;
+
   // sm: changed ObjArrayStack to ArrayStack so is not owner
   ArrayStack<Variable*> candidates;
 
-  TemplCandidates() {}
+  TemplCandidates(TypeFactory &t) : tfac(t) {}
 
   private:
   TemplCandidates(TemplCandidates const &); // forbid copying
@@ -232,6 +234,12 @@ private:     // funcs
                                              bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
+  // find the template primary that matches the template args,
+  // returning NULL if does not exist; calls xfailure() for now if it
+  // is ambiguous
+  Variable *findTemplPrimaryForSignature(OverloadSet *oloadSet, 
+                                         FunctionType *signature);
+
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
@@ -305,31 +313,20 @@ public:      // funcs
   // using this interface
   void addVariableWithOload(Variable *prevLookup, Variable *v);
 
-  // lookup in the environment (all scopes); return NULL if can't
-  // find; dsw: this one is now a wrapper
-  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE) {
-    return lookupPQVariable(name, f, NULL, NULL);
-  }
-  // this is the real lookup function; specify a function 'signature'
-  // for when disambiguation between overloaded function templates is
-  // required at a function template specialization site; specify the
-  // function 'args' when doing the same at a function template call
-  // site.  Yes, I know that sounds a bit redundant, but it works for
-  // now.
-  //
-  // sm: TODO: what is going on here?  lookup should return an
-  // overload set if something is overloaded, and then the
-  // overload set can be queried with the signature .. ?
-  //
-  // dsw: Now I've made it even worse :-) I thought you might say
-  // that, but this way was easier for me to implement for now.  Feel
-  // free to change it.
-  Variable *lookupPQVariable(PQName const *name, LookupFlags flags,
-                             FunctionType *signature, FakeList<ArgExpression> *funcArgs);
+  // some extensions to lookupPQVariable that I want to move elsewhere;
+  // for now I'm just trying to factor them out of lookup..
+  Variable *lookupPQVariable_primary_resolve
+    (PQName const *name, LookupFlags flags, FunctionType *signature);
+  Variable *lookupPQVariable_function_with_args
+    (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
 
+  // lookup in the environment (all scopes); return NULL if can't
+  // find the name
+  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
-  
+
   // this variant returns the Scope in which the name was found
+  Variable *lookupPQVariable(PQName const *name, LookupFlags f, Scope *&scope);
   Variable *lookupVariable(StringRef name, LookupFlags f, Scope *&scope);
 
   CompoundType *lookupPQCompound(PQName const *name, LookupFlags f=LF_NONE);
@@ -376,7 +373,7 @@ public:      // funcs
   // insertBindingsForPrimary() and insertBindingsForPartialSpec() is
   // gratuitous
   void insertBindingsForPrimary
-    (Variable *baseV, SObjList<STemplateArgument> *sargs);
+    (Variable *baseV, SObjList<STemplateArgument> &sargs);
 
   // for the instantiation of a partial specialization, iterate over
   // the parameters and retrieve their bindings; insert these into the
@@ -388,16 +385,20 @@ public:      // funcs
     (ASTList<TemplateArgument> const &arguments,
      SObjList<STemplateArgument> &sargs);
 
-  // instantate 'base' with arguments, either 'astArgs' or 'sargs',
-  // and return the implicit typedef Variable associated with the
-  // resulting type; 'scope' is the scope in which 'base' was found;
-  // if 'inst' is not NULL then we already have a compound for this
-  // instantiation (from a forward declaration), so use that one
+  // instantate 'base' with arguments 'sargs', and return the implicit
+  // typedef Variable associated with the resulting type; 'scope' is
+  // the scope in which 'base' was found; if 'inst' is not NULL then
+  // we already have a compound for this instantiation (from a forward
+  // declaration), so use that one
   Variable *instantiateTemplate
     (Scope *foundScope, Variable *baseV, Variable *instV,
-     // exactly one should be NULL and the other non-NULL
-     ASTList<TemplateArgument> const *astArgs,
-     SObjList<STemplateArgument> *sargs);
+     SObjList<STemplateArgument> &sargs);
+
+  // variant of the above, which (for convenience) first converts
+  // the AST representation of the arguments into STemplateArguments
+  Variable *instantiateTemplate_astArgs
+    (Scope *foundScope, Variable *baseV, Variable *instV,
+     ASTList<TemplateArgument> const &astArgs);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances

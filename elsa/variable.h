@@ -132,12 +132,13 @@ public:
   // true if this name refers to a template function, or is
   // the typedef-name of a template class
   bool isTemplate() const { return isTemplateFunction() || isTemplateClass(); }
-  // are we an uninstantiated template or a member of one?
-  bool isUninstTemplateMember() const;
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
   TemplateInfo *templateInfo() const;
   void setTemplateInfo(TemplateInfo *templInfo0);
+
+  // are we an uninstantiated template or a member of one?
+  bool isUninstTemplateMember() const;
 
   // variable's type.. same as the public 'type' field..
   Type *getType() { return type; }
@@ -196,11 +197,6 @@ public:
   int count() const { return set.count(); }
 
   Variable *findByType(FunctionType const *ft, CVFlags receiverCV);
-
-  // find the template primary that matches the template args,
-  // returning NULL if does not exist; calls xfailure() for now if it
-  // is ambiguous
-  Variable *findTemplPrimaryForSignature(FunctionType *signature);
 };
 
 

@@ -262,45 +262,4 @@ Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
 }
 
 
-Variable *OverloadSet::findTemplPrimaryForSignature(FunctionType *signature)
-{
-  if (!signature) {
-    xfailure("This is one more place where you need to add a signature "
-             "to the call to Env::lookupPQVariable() to deal with function "
-             "template overload resolution");
-    return NULL;
-  }
-
-  Variable *candidatePrim = NULL;
-  SFOREACH_OBJLIST_NC(Variable, set, iter) {
-    Variable *var0 = iter.data();
-    // skip non-template members of the overload set
-    if (!var0->isTemplate()) continue;
-
-    TemplateInfo *tinfo = var0->templateInfo();
-    xassert(tinfo);
-    xassert(tinfo->isPrimary()); // can only have primaries at the top level
-
-    // check that the function type could be a special case of the
-    // template primary
-    //
-    // FIX: I don't know if this is really as precise a lookup as is
-    // possible.
-    StringSObjDict<STemplateArgument> bindings;
-    if (signature->atLeastAsSpecificAs
-        (var0->type,
-         bindings,
-         // FIX: I don't know if this should be top or not or if it
-         // matters.
-         (AsSpecAsFlags) ASA_TOP)) {
-      if (candidatePrim) {
-        xfailure("ambiguous attempt to lookup "
-                 "overloaded function template primary from specialization");
-        return NULL;            // ambiguous
-      } else {
-        candidatePrim = var0;
-      }
-    }
-  }
-  return candidatePrim;
-}
+// EOF
