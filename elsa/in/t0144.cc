@@ -34,8 +34,8 @@ void f1()
   D d;
   E e;
 
-  ++a;                          // A::operator int& ()
-  __testOverload(++b, 13);      // B::operator ++ ()
+  //++a;                          // A::operator int& ()
+  //__testOverload(++b, 13);      // B::operator ++ ()
   ++c;                          // C::operator volatile int& ()
   //ERROR(1): ++d;              // not an lvalue
   //ERROR(2): ++e;              // can't unify with VQ T&

@@ -128,7 +128,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "char",                   1,    S(STF_INTEGER)              },
   { "unsigned char",          1,    S(STF_INTEGER)              },
   { "signed char",            1,    S(STF_INTEGER)              },
-  { "bool",                   4,    S(STF_NONE)                 },
+  { "bool",                   4,    S(STF_INTEGER)              },
   { "int",                    4,    S(STF_INTEGER | STF_PROM)   },
   { "unsigned int",           4,    S(STF_INTEGER | STF_PROM)   },
   { "long int",               4,    S(STF_INTEGER | STF_PROM)   },

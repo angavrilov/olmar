@@ -669,14 +669,16 @@ StandardConversion getStandardConversion
     return conv.ret | SC_FLOAT_PROM;
   }
 
-  if (isIntegerNumeric(src, srcSimple) &&
-      destSimple && isIntegerType(destSimple->type)) {
-    return conv.ret | SC_INT_CONV;
-  }
-
+  // do this before checking for SC_INT_CONV, since a destination
+  // type of 'bool' is explicitly excluded by 4.7 para 4
   if (isNumeric(src, srcSimple) &&
       destSimple && destSimple->type == ST_BOOL) {
     return conv.ret | SC_BOOL_CONV;
+  }
+
+  if (isIntegerNumeric(src, srcSimple) &&
+      destSimple && isIntegerType(destSimple->type)) {
+    return conv.ret | SC_INT_CONV;
   }
 
   bool srcFloat = srcSimple && isFloatType(srcSimple->type);

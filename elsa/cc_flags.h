@@ -176,8 +176,8 @@ enum SimpleTypeId {
 // some flags that can be set for simple types
 enum SimpleTypeFlags {
   STF_NONE       = 0x00,
-  STF_INTEGER    = 0x01,     // full name is "... int" or "... char" or wchar_t
-  STF_FLOAT      = 0x02,     // float, double, long double
+  STF_INTEGER    = 0x01,     // "integral type" (3.9.1 para 7)
+  STF_FLOAT      = 0x02,     // "floating point type" (3.9.1 para 8)
   STF_PROM       = 0x04,     // can be destination of a promotion
   STF_ALL        = 0x07,
 };
@@ -197,6 +197,9 @@ inline char const *simpleTypeName(SimpleTypeId id)  { return simpleTypeInfo(id).
 inline int simpleTypeReprSize(SimpleTypeId id)      { return simpleTypeInfo(id).reprSize; }
 inline bool isIntegerType(SimpleTypeId id)          { return !!(simpleTypeInfo(id).flags & STF_INTEGER); }
 inline bool isFloatType(SimpleTypeId id)            { return !!(simpleTypeInfo(id).flags & STF_FLOAT); }
+
+inline bool isArithmeticType(SimpleTypeId id)    // 3.9.1 para 8
+  { return !!(simpleTypeInfo(id).flags & (STF_FLOAT | STF_INTEGER)); }
 
 inline char const *toString(SimpleTypeId id)        { return simpleTypeName(id); }
 
