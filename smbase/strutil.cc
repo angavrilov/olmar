@@ -351,7 +351,10 @@ string plural(int n, char const *prefix)
   if (n==1) {
     return string(prefix);
   }
-  
+
+  if (0==strcmp(prefix, "was")) {
+    return string("were");
+  }
   if (prefix[strlen(prefix)-1] == 'y') {
     return stringc << string(prefix, strlen(prefix)-1) << "ies";
   }
@@ -429,6 +432,7 @@ void entry()
   pluralVector(2, "path", "paths");
   pluralVector(1, "fly", "fly");
   pluralVector(2, "fly", "flies");
+  pluralVector(2, "was", "were");
 }
 
 
