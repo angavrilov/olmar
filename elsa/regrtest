@@ -682,6 +682,7 @@ failparse d0114.cc "overloading bug"
 failparse d0115.cc "cannot find standard namespace"
 testparse d0116.cc
 testparse d0117.cc
+testparse d0118.cc
 # ---- END: lots of tests ----
 
 
