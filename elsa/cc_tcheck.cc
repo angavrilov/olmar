@@ -531,6 +531,8 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << " was not templatized, but this one is, with parameters "
       << scope->templateParams->toString(),
       true /*disambiguating*/);
+    delete scope->templateParams;
+    scope->templateParams = NULL;
     return;
   }
 
@@ -553,6 +555,8 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << ", and these are not equivalent",
       true /*disambiguating*/);
   }
+  delete scope->templateParams;
+  scope->templateParams = NULL;
 }
 
 
@@ -627,7 +631,25 @@ Type const *TS_elaborated::tcheck(Env &env)
         << name << "', but that's actually a " << toString(ct->keyword));
     }
 
-    verifyCompatibleTemplates(env, ct);
+    if (name->getUnqualifiedName()->isPQ_template()) {
+      // this is like
+      //   friend class Foo<T>;
+      // inside some other templatized class.. I'm not sure
+      // how to properly enforce the correspondence between
+      // the declarations..
+      // TODO: fix his
+      
+      // at least discard the template params as
+      // 'verifyCompatibleTemplates' would have done..
+      Scope *s = env.scope();
+      if (s->templateParams) {
+        delete s->templateParams;
+        s->templateParams = NULL;
+      }
+    }
+    else {
+      verifyCompatibleTemplates(env, ct);
+    }
 
     return makeType(ct);
   }
