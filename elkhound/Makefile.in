@@ -4,12 +4,9 @@
 # I uncomment this temporarily to just build certain modules
 #tmp: parsetables.o elkhound libelkhound.a ocaml
 
-# main targets: elkhound, and the arith example
-all: elkhound libelkhound.a TAGS arith
+# main targets: elkhound, and some examples
+all: elkhound libelkhound.a TAGS arith c cc2/cc2.exe
 	@echo BUILD FINISHED
-
-# extra targets: more examples, including a C parser and a C++ parser
-extra: examples c cc2/cc2.exe
 
 
 # directories of other software
