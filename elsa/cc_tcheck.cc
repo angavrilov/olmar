@@ -774,15 +774,24 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   // begin by looking up the bare name, igoring template arguments
   Variable *bareQualifierVar = env.lookupOneQualifier_bareName(scope, this, lflags);
 
+  // now check the arguments
+  tcheckTemplateArgumentList(targs, env);
+  
+  // pull them out into a list
+  SObjList<STemplateArgument> sargs;
+  if (!env.templArgsASTtoSTA(targs, sargs)) {
+    // error already reported; just finish up and bail
+    rest->tcheck(env, scope, lflags);
+    return;
+  }
+
   // scope that has my template params
   Scope *hasParamsForMe = NULL;
 
-  // template scopes temporarily removed
-  ObjList<Scope> temporarilyRemoved;
-
-  if ((lflags & LF_DECLARATOR) &&
-      bareQualifierVar &&
-      targs.isNotEmpty()) {
+  if ((lflags & LF_DECLARATOR) &&                // declarator context
+      bareQualifierVar &&                        // lookup succeeded
+      bareQualifierVar->isTemplate() &&          // names a template
+      targs.isNotEmpty()) {                      // arguments supplied
     // In a template declarator context, we want to stage the use of
     // the template parameters so as to ensure proper association
     // between parameters and qualifiers.  For example, if we have
@@ -797,24 +806,23 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     //
     // So, for this and other reasons, find the template argument or
     // parameter scope that corresponds to 'bareQualifierVar'.
-    hasParamsForMe = env.findParameterizingScope(bareQualifierVar);
 
-    // now remove scopes inside that one
-    if (hasParamsForMe) {
-      env.removeScopesInside(temporarilyRemoved, hasParamsForMe);
-      
-      // 'findParameterizingScope' ensures this
-      xassert(hasParamsForMe->parameterizedPrimary == bareQualifierVar);
+    // But there is an exception to the rule; this is implied by
+    // 14.5.4.3, as it gives the above rules only for partial
+    // class specializations (so arguments are not all concrete) and
+    // explicit specializations of *implicitly* specialized classes
+    // (so the template does not have a matching explicit spec):
+    //   - if all template args are concrete, and
+    //   - they correspond to an explicit specialization
+    //   - then "template <>" is *not* used (for that class)
+    // t0248.cc tests a couple cases...
+    if (!containsTypeVariables(sargs) &&
+        bareQualifierVar->templateInfo()->hasSpecialization(env.tfac, sargs)) {
+      // do not associate 'bareQualifier' with any template scope
     }
-  }
-
-  // now check the arguments, having (possibly) removed template
-  // scopes that should not be visible
-  tcheckTemplateArgumentList(targs, env);
-
-  // restore the original scope structure, if we modified it
-  if (temporarilyRemoved.isNotEmpty()) {
-    env.restoreScopesInside(temporarilyRemoved, hasParamsForMe);
+    else {
+      hasParamsForMe = env.findParameterizingScope(bareQualifierVar);
+    }
   }
 
   // finish looking up this qualifier
@@ -824,7 +832,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
     bareQualifierVar,       // scope found w/o using args
     this,                   // qualifier (to look up)
     dependent, anyTemplates, lflags);
-    
+
   // save the result in our AST annotation field, 'denotedScopeVar'
   if (!denotedScope) {
     if (dependent) {
@@ -837,7 +845,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   else {
     if (denotedScope->curCompound) {
       denotedScopeVar = denotedScope->curCompound->typedefVar;
-      
+
       // must be a complete type [ref?] (t0245.cc)
       env.ensureCompleteType("use as qualifier", denotedScopeVar->type);
     }

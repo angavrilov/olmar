@@ -1619,6 +1619,10 @@ Variable *Env::lookupOneQualifier_bareName(
 
 
 // Second half of 'lookupOneQualifier': use the template args.
+//
+// TODO: The caller has already put the template arguments into an
+// SObjList<STemplateArgument>; accept a reference to those instead of
+// making another list myself.
 Scope *Env::lookupOneQualifier_useArgs(
   Variable *qualVar,             // bare name scope Variable
   PQ_qualifier const *qualifier, // will look up the qualifier on this name

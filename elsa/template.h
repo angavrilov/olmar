@@ -272,6 +272,11 @@ public:      // funcs
   // inherited or main
   bool hasMainOrInheritedParameters() const;
 
+  // true if one of my explicit specializations has arguments that
+  // exactly match 'sargs' (which is a list of concrete arguments)
+  bool hasSpecialization(TypeFactory &tfac,
+                         SObjList<STemplateArgument> const &sargs) const;
+
   // true if the given Variable is among the parameters (at any level)
   //
   // TODO: what is this used for?

@@ -434,6 +434,19 @@ bool TemplateInfo::hasMainOrInheritedParameters() const
 }
 
 
+bool TemplateInfo::hasSpecialization(
+  TypeFactory &tfac,
+  SObjList<STemplateArgument> const &sargs) const
+{
+  SFOREACH_OBJLIST(Variable, specializations, iter) {
+    if (iter.data()->templateInfo()->equalArguments(tfac, sargs)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 bool TemplateInfo::hasSpecificParameter(Variable const *v) const
 {
   // 'params'?
