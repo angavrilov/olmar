@@ -324,7 +324,7 @@ nonterm(Expression*) PostfixExpression {
 
   // array access
   -> a:PostfixExpression "[" e:Expression "]"
-       { return new E_brackets(a, e); }
+       { return new E_binary(a, BIN_BRACKETS, e); }
 
   // fn call
   -> f:PostfixExpression a:ArgumentList
@@ -640,7 +640,7 @@ nonterm(Expression*) Expression {
        { return ae; }
 
   -> e:Expression "," ae:AssignmentExpression 
-       { return new E_comma(e, ae); }
+       { return new E_binary(e, BIN_COMMA, ae); }
 }
 
 nonterm(Expression*) ExpressionOpt {
@@ -1928,6 +1928,10 @@ nonterm(OperatorName*) Operator {
   -> "|"  { return new ON_binary(BIN_BITOR); }
   -> "&&" { return new ON_binary(BIN_AND); }
   -> "||" { return new ON_binary(BIN_OR); }
+  -> ","  { return new ON_binary(BIN_COMMA); }
+
+  -> "[" "]" { return new ON_binary(BIN_BRACKETS); }
+  -> "->*"   { return new ON_binary(BIN_ARROW_STAR); }
 
   -> op:AssignmentOperator  { return new ON_assign(op); }
 
@@ -1937,10 +1941,8 @@ nonterm(OperatorName*) Operator {
   -> "++" { return new ON_effect(EFF_PREINC); }
   -> "--" { return new ON_effect(EFF_PREDEC); }
 
-  -> ","     { return new ON_overload(OVL_COMMA); }
   -> "->"    { return new ON_overload(OVL_ARROW); }
   -> "(" ")" { return new ON_overload(OVL_PARENS); }
-  -> "[" "]" { return new ON_overload(OVL_BRACKETS); }
 }
 
 

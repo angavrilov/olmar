@@ -2638,10 +2638,8 @@ char const *ON_overload::getOperatorName() const
 {
   switch (op) {
     default:             xfailure("bad code");
-    case OVL_COMMA:      return "operator,";
     case OVL_ARROW:      return "operator->";
     case OVL_PARENS:     return "operator()";
-    case OVL_BRACKETS:   return "operator[]";
   }
 }
 
@@ -3818,6 +3816,14 @@ inline ArgumentInfo argInfo(Expression *e)
 
 Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
+  if (op == BIN_BRACKETS) {
+    // TODO: do overloading here; for now, just replace ourselves with a
+    // '+' and a '*'
+    replacement = new E_deref(new E_binary(e1, BIN_PLUS, e2));
+    replacement->tcheck(env, replacement);
+    return replacement->type;
+  }
+
   e1->tcheck(env, e1);
   e2->tcheck(env, e2);
 
@@ -3859,12 +3865,6 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       }
 
       // built-in candidates
-      // TODO: if any built-in candidate has the same parameter type
-      // list as a user-defined candidate, the built-in is not used
-      // (cppstd 13.3.1.2 para 3, last bullet); a possible
-      // implementation is as part of the tournament algorithm (if I
-      // see two identical candidates, but one is built-in, then
-      // the non-built-in is better)
       ObjArrayStack<CandidateSet> &builtins = env.builtinBinaryOperator[op];
       for (int i=0; i < builtins.length(); i++) {
         if (!builtins[i]->instantiateBinary(env, resolver, op, lhsType, rhsType)) {
@@ -3937,6 +3937,9 @@ after_overload_resolution:
     case BIN_IMPLIES:             // ==>
     case BIN_EQUIVALENT:          // <==>
       return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
+
+    case BIN_COMMA:
+      return env.tfac.cloneType(rhsType);
 
     case BIN_PLUS:                // +
       // dsw: deal with pointer arithmetic correctly; Note that the case
@@ -4208,15 +4211,6 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
   }
 }
 
-Type *E_brackets::itcheck(Env &env, Expression *&replacement)
-{
-  // TODO: do overloading here; for now, just replace ourselves with a
-  // '+' and a '*'
-  replacement = new E_deref(new E_binary(obj, BIN_PLUS, index));
-  replacement->tcheck(env, replacement);
-  return replacement->type;
-}
-
 Type *E_cast::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
@@ -4246,15 +4240,6 @@ Type *E_cond::itcheck(Env &env, Expression *&replacement)
 
   // dsw: I need the type to be distinct here.
   return env.tfac.cloneType(th->type);
-}
-
-
-Type *E_comma::itcheck(Env &env, Expression *&replacement)
-{
-  e1->tcheck(env, e1);
-  e2->tcheck(env, e2);
-  
-  return env.tfac.cloneType(e2->type);
 }
 
 
@@ -4456,6 +4441,11 @@ bool Expression::constEval(string &msg, int &result) const
       }
 
     ASTNEXTC(E_binary, b)
+      if (b->op == BIN_COMMA) {
+        // avoid trying to eval the LHS
+        return b->e2->constEval(msg, result);
+      }
+
       int v1, v2;
       if (!b->e1->constEval(msg, v1) ||
           !b->e2->constEval(msg, v2)) return false;
@@ -4466,8 +4456,6 @@ bool Expression::constEval(string &msg, int &result) const
       }
 
       switch (b->op) {
-        default: xfailure("bad code");
-
         case BIN_EQUAL:     result = (v1 == v2);  return true;
         case BIN_NOTEQUAL:  result = (v1 != v2);  return true;
         case BIN_LESS:      result = (v1 < v2);  return true;
@@ -4487,6 +4475,10 @@ bool Expression::constEval(string &msg, int &result) const
         case BIN_BITOR:     result = (v1 | v2);  return true;
         case BIN_AND:       result = (v1 && v2);  return true;
         case BIN_OR:        result = (v1 || v2);  return true;
+        // BIN_COMMA handled above
+
+        default:         // BIN_BRACKETS, etc.
+          return false;
       }
 
     ASTNEXTC(E_cast, c)
@@ -4513,9 +4505,6 @@ bool Expression::constEval(string &msg, int &result) const
       else {
         return c->el->constEval(msg, result);
       }
-
-    ASTNEXTC(E_comma, c)
-      return c->e2->constEval(msg, result);
 
     ASTNEXTC(E_sizeofType, s)
       result = s->size;
@@ -4573,10 +4562,6 @@ bool Expression::hasUnparenthesizedGT() const
              c->th->hasUnparenthesizedGT() ||
              c->el->hasUnparenthesizedGT();
              
-    ASTNEXTC(E_comma, c)
-      return c->e1->hasUnparenthesizedGT() ||
-             c->e2->hasUnparenthesizedGT();
-
     ASTNEXTC(E_assign, a)
       return a->target->hasUnparenthesizedGT() ||
              a->src->expr->hasUnparenthesizedGT();

@@ -233,6 +233,9 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "|",
   "&&",
   "||",
+  ",",
+
+  "[]",
 
   "=",
 
@@ -262,7 +265,7 @@ bool isInequality(BinaryOp op)
 
 bool isOverloadable(BinaryOp op)
 {
-  return BIN_EQUAL <= op && op <= BIN_OR ||
+  return BIN_EQUAL <= op && op <= BIN_BRACKETS ||
          op == BIN_ARROW_STAR;
 }
 
@@ -290,6 +293,9 @@ char const * const binaryOperatorFunctionNames[NUM_BINARYOPS] = {
   "operator|",
   "operator&&",
   "operator||",
+  "operator,",
+
+  "operator[]",
 
   "operator=",
 
@@ -325,10 +331,8 @@ MAKE_TOSTRING(CastKeyword, NUM_CAST_KEYWORDS, castKeywordNames)
 
 // -------------------- OverloadableOp --------------------
 char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
-  ",",
   "->",
   "()",
-  "[]"
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)

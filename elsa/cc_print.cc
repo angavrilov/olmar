@@ -846,8 +846,15 @@ void E_binary::iprint(PrintEnv &env)
 {
   olayer ol("E_binary::iprint");
   e1->print(env);
-  env << toString(op);
-  e2->print(env);
+  if (op != BIN_BRACKETS) {
+    env << toString(op);
+    e2->print(env);
+  }
+  else {
+    env << "[";
+    e2->print(env);
+    env << "]";
+  }
 }
 
 void E_addrOf::iprint(PrintEnv &env)
@@ -862,14 +869,6 @@ void E_deref::iprint(PrintEnv &env)
   olayer ol("E_deref::iprint");
   env << "*";
   ptr->print(env);
-}
-
-void E_brackets::iprint(PrintEnv &env)
-{
-  olayer ol("E_brackets::iprint");
-  obj->print(env);
-  codeout co(env, "", "[", "]");
-  index->print(env);
 }
 
 // C-style cast
@@ -892,14 +891,6 @@ void E_cond::iprint(PrintEnv &env)
   th->print(env);
   env << ":";
   el->print(env);
-}
-
-void E_comma::iprint(PrintEnv &env)
-{
-  olayer ol("E_comma::iprint");
-  e1->print(env);
-  env << ",";
-  e2->print(env);
 }
 
 void E_sizeofType::iprint(PrintEnv &env)

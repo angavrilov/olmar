@@ -501,7 +501,6 @@ class Expression {
 
   -> E_cast(ASTTypeId ctype, Expression expr);
   -> E_cond(Expression cond, Expression th, Expression el);
-  -> E_comma(Expression e1, Expression e2);
   -> E_sizeofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
@@ -531,10 +530,9 @@ class Expression {
   // obscure rule about pointer-to-member
   -> E_grouping(Expression expr);
 
-  // these exist only between parsing and type-checking; they are always
+  // this exist onlys between parsing and type-checking; it is always
   // translated away by the type checker (Q: should we do the same for
   // E_grouping?)
-  -> E_brackets(Expression obj, Expression index);      // e.g. a[3]
   -> E_arrow(Expression obj, PQName fieldName);         // e.g. p->f
 }
 

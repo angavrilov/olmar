@@ -244,6 +244,10 @@ enum BinaryOp {
   BIN_BITOR,     // |
   BIN_AND,       // &&
   BIN_OR,        // ||
+  BIN_COMMA,     // ,
+
+  // this exists only between parsing and typechecking
+  BIN_BRACKETS,  // []
 
   BIN_ASSIGN,    // = (used to denote simple assignments in AST, as opposed to (say) "+=")
 
@@ -306,10 +310,8 @@ char const *toString(CastKeyword key);
 // these are just the operators that are overloadable
 // but aren't already listed in one of the lists above
 enum OverloadableOp {
-  OVL_COMMA,      // ,
   OVL_ARROW,      // ->
   OVL_PARENS,     // ( )
-  OVL_BRACKETS,   // [ ]
 
   NUM_OVERLOADABLE_OPS
 };
