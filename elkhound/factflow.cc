@@ -400,9 +400,16 @@ void InvalidateVisitor::visitExpr(Expression const *expr)
 {
   ASTSWITCHC(Expression, expr) {
     ASTCASEC(E_funCall, e)
+      // hack: until I have some better notation for functions which
+      // don't affect state, I'll recognize one by name (worst case
+      // I infer some untrue facts and fail during vcgen)
+      if (e->func->isE_variable() &&
+          0==strcmp(e->func->asE_variableC()->var->name, "assert")) {
+        return;   // no effect
+      }
+
       // very crude: forget everything
       inval = true;
-      PRETEND_USED(e);
 
     ASTNEXTC(E_effect, e)
       inval = invalidateLvalue(fact, e->expr);
