@@ -199,8 +199,8 @@ ImplicitConversion getConversionOperator(
 );
 
 
-// least upper bound: given two pointer types T1 and T2, compute the
-// unique type S such that:
+// least upper bound: given types T1 and T2, compute the unique type S
+// such that:
 //   (a) T1 and T2 can be standard-converted to S
 //   (b) for any other type S' != S that T1 and T2 can be
 //       standard-converted to, the conversion T1->S is better than
@@ -208,6 +208,12 @@ ImplicitConversion getConversionOperator(
 //       conversion is worse than a ->S' conversion
 // if no type satisfies (a) and (b), return NULL; furthermore, if
 // a type satisfies (a) but not (b), then yield 'wasAmbig'
+//                 
+// NOTE: This only works for pointers, pointers-to-member, and enums.
+// If you give it some other types, it might return one of them, but
+// it might not actually be the the LUB.  This doesn't cause a problem
+// in my design because the output of computeLUB is always filtered to
+// ignore types that aren't one of those that work.
 Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig);
 
 // test vector for 'computeLUB'; code:

@@ -1021,13 +1021,6 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
     CompoundType *ct2 = ifPtrToCompound(t2);
     CompoundType *lubCt = NULL;
     if (ct1 && ct2) {
-      lubCt = CompoundType::lub(ct1, ct2, wasAmbig);
-      if (!lubCt) {
-        // no LUB, or it's not unique; that prevents us from computing
-        // a LUB overall ('wasAmbig' is already set properly)
-        return NULL;
-      }
-
       // get CV under the pointers
       CVFlags cv1 = t1->asPointerType()->atType->getCVFlags();
       CVFlags cv2 = t2->asPointerType()->atType->getCVFlags();
@@ -1035,19 +1028,52 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
       // union them (LUB in cv lattice)
       CVFlags cvu = cv1 | cv2;
 
-      // now I want to make the type 'pointer to <cvu> <lubCt>', but I
-      // suspect I may frequently be able to re-use t1 or t2; and,
-      // given the current fact that I don't deallocate types, that
-      // should be advantageous when possible
-      if (ct1==lubCt && cv1==cvu) return t1;
-      if (ct2==lubCt && cv2==cvu) return t2;
+      // find the LUB class, if any
+      lubCt = CompoundType::lub(ct1, ct2, wasAmbig);
+      Type *lubCtType;
+      if (!lubCt) {
+        if (wasAmbig) {
+          // no unique LUB
+          return NULL;
+        }
+        else {
+          // no class is the LUB, so use 'void'
+          lubCtType = env.tfac.getSimpleType(SL_UNKNOWN, ST_VOID, cvu);
+        }
+      }
+      else {
+        // now I want to make the type 'pointer to <cvu> <lubCt>', but I
+        // suspect I may frequently be able to re-use t1 or t2; and,
+        // given the current fact that I don't deallocate types, that
+        // should be advantageous when possible
+        if (ct1==lubCt && cv1==cvu) return t1;
+        if (ct2==lubCt && cv2==cvu) return t2;
 
-      // neither existing type is right, make a new one
-      return env.tfac.makePointerType(SL_UNKNOWN, PO_POINTER, CV_NONE,
-        env.tfac.makeCVAtomicType(SL_UNKNOWN, lubCt, cvu));
+        // make a type from the class
+        lubCtType = env.tfac.makeCVAtomicType(SL_UNKNOWN, lubCt, cvu);
+      }
+
+      return env.tfac.makePointerType(SL_UNKNOWN, PO_POINTER, CV_NONE, lubCtType);
     }
   }
-  
+
+  // TODO: I should check for pointer-to-members that are compatible
+  // by the existence of a greatest-upper-bound in the class hierarchy,
+  // for example:
+  //      A   B     .
+  //       \ /      .
+  //        C       . 
+  // LUB(int A::*, int B::*) should be int C::*
+  // 
+  // However, that's a bit of a pain to do, since it means maintaining
+  // the inverse of the 'hasBaseClass' relationship.  Also, I would not
+  // be able to follow the simple pattern used for pointer-to-class,
+  // since pointer-to-member can have multilevel cv qualification, so I
+  // need to flow into the general cv LUB analysis below.
+  //
+  // Since this situation should be extremely rare, I won't bother for
+  // now.
+
   // ok, inheritance is irrelevant; I need to see if types
   // are "similar" (4.4 para 4)
   if (!t1->equals(t2, Type::EF_SIMILAR)) {
@@ -1057,8 +1083,9 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   }
 
   // ok, well, are they equal?  if so, then I don't have to make
-  // a new type object
-  if (t1->equals(t2)) {
+  // a new type object; NOTE: this allows identical enum arguments
+  // to yield out
+  if (t1->equals(t2, Type::EF_IGNORE_TOP_CV)) {
     return t1;        // cool
   }
   

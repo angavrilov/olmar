@@ -3940,7 +3940,11 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
                 << ", but their LUB is ambiguous");
               goto after_overload_resolution;
             }
-            else if (lub) {
+            else if (lub &&             
+                     // filter for requirements on T
+                     lub->isPointer() &&
+                     !lub->asPointerType()->atType->isVoid() &&
+                     !lub->asPointerType()->atType->isFunctionType()) {
               // add the LUB to our list of to-instantiate types
               addTypeUniquely(instTypes, lub);
             }

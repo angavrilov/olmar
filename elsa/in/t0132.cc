@@ -300,6 +300,28 @@ void jjj()
   K k;
   L l;
 
-  // no type to which both can be converted
+  // LUB is void*, but that is not a pointer-to-object type
   //ERROR(2): k-l;
+}
+
+
+
+
+typedef int (*funcPtr)();
+
+struct M {
+  operator funcPtr ();
+};
+
+struct N {
+  operator funcPtr ();
+};
+
+void mn()
+{
+  M m;
+  N n;
+
+  // LUB is a function pointer type, which is not pointer-to-object
+  //ERROR(3): m-n;
 }
