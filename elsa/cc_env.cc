@@ -58,9 +58,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   {
     Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
     scopes.prepend(s);
-
-    // cause Variables inserted into this scope to acquire DF_GLOBAL
-    //s->isGlobalScope = true;
   }
 
   // create the typeid type
@@ -380,7 +377,7 @@ Scope *Env::outerScope()
         s->isParameterScope()) {             // skip parameter list scopes
       continue;
     }
-    
+
     return s;
   }
 

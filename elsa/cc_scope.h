@@ -57,7 +57,7 @@ private:     // data
   // this is needed to support compound initializeres with mixed
   // descriptor-ed and non-descriptor-ed initializers
   StringSObjDict<int> name_pos;
-  
+
   // compounds: map name -> CompoundType
   StringSObjDict<CompoundType> compounds;
 
@@ -90,13 +90,6 @@ public:      // data
 
   // what kind of scope is this?
   ScopeKind scopeKind;
-
-  // true for function parameter list scopes; the C++ standard
-  // has places where they are treated differently, e.g. 3.3.1 para 5
-  //bool isParameterListScope;
-
-  // if this is true, then inserted Variables get the DF_GLOBAL flag
-  //bool isGlobalScope;
 
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about

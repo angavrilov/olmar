@@ -16,8 +16,6 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     innerClasses(),
     parentScope(),
     scopeKind(sk),
-    //isParameterListScope(false),
-    //isGlobalScope(false),
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),

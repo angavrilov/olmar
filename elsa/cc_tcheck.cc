@@ -2398,7 +2398,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
-  //paramScope->isParameterListScope = true;
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids
   params = tcheckFakeASTTypeIdList(params, env, true /*isParameter*/);
