@@ -1,0 +1,16 @@
+
+documentation for parsgen
+
+tracing strings:
+  parse:         details of the parsing actions
+  parse-tree:    the parse tree itself
+  grammar:       echoing the grammar
+  terminals:     list of terminals
+  nonterminals:	 list of nonterminals
+  derivable:     mechanics of the derivability relation computation
+  pred-table:    predictive parsing table
+  item-sets:     the LR parsing table (item sets)
+  progress:      poor-man's profiler (prints at each major phase)
+  
+
+

@@ -1,0 +1,6 @@
+# expr.gr
+# simple ambiguous-expression grammar
+
+S  ->  E  $
+E  ->  x  |  E Op E
+Op ->  +  |  *

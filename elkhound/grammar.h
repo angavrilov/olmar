@@ -89,6 +89,9 @@ typedef SObjListMutator<Symbol> SymbolListMutator;
 #define SFOREACH_SYMBOL(list, iter) SFOREACH_OBJLIST(Symbol, list, iter)
 #define SMUTATE_EACH_SYMBOL(list, iter) SMUTATE_EACH_OBJLIST(Symbol, list, iter)
 
+// format: "s1 s2 s3"
+string symbolSequenceToString(SymbolList const &list);
+
 
 // ---------------- Terminal --------------------
 // something that only appears on the right-hand side of
@@ -118,6 +121,9 @@ typedef SObjListIter<Terminal> TerminalListIter;
 // casting aggregates
 inline ObjList<Symbol> const &toObjList(ObjList<Terminal> const &list)
   { return reinterpret_cast< ObjList<Symbol>const& >(list); }
+
+// format: "t1 t2 t3"
+string terminalSequenceToString(TerminalList const &list);
 
 
 // ---------------- Nonterminal --------------------
@@ -164,8 +170,11 @@ public:	    // data
   Production(Nonterminal *L);   // you have to call append manually
   ~Production();
 
-  // queries
-  int rhsLength() const;        // length *not* including emptySymbol, if present
+  // length *not* including emptySymbol, if present
+  int rhsLength() const;
+  
+  // number of nonterminals on RHS, *not* counting emptyString
+  int numRHSNonterminals() const;
 
   // append a RHS symbol
   void append(Symbol *sym);
@@ -258,12 +267,21 @@ public:
 
   // transition function (where we go on shifts)
   //   Map : (Terminal id or Nonterminal id)  -> ItemSet*
-  ItemSet **termTransition;
-  ItemSet **nontermTransition;
+  ItemSet **termTransition;		     // (owner ptr to array of serf ptrs)
+  ItemSet **nontermTransition;		     // (owner ptr to array of serf ptrs)
 
   // bounds for above
   int terms;
   int nonterms;
+
+  // it's useful to have a BFS tree superimposed on the transition
+  // graph; for example, it makes it easy to generate sample inputs
+  // for each state.  so we store the parent pointer; we can derive
+  // child pointers by looking at all outgoing transitions, and
+  // filtering for those whose targets' parent pointers equal 'this'.
+  // the start state's parent is NULL, since it is the root of the
+  // BFS tree
+  ItemSet *BFSparent;                        // (serf)
 
 private:    // funcs
   int bcheckTerm(int index);
@@ -336,6 +354,15 @@ public:     // funcs
   // print the current list of productions
   void printProductions(ostream &os) const;
 
+  // ---- whole-grammar stuff ----
+  // after adding all rules, check that all nonterminals have
+  // at least one rule
+  void checkWellFormed() const;
+
+  // output grammar in Bison's syntax
+  // (coincidentally, when bison dumps its table with '-v', its table
+  // dump syntax is identical to my (current) input syntax!)
+  void printAsBison(ostream &os) const;
 
   // ---- grammar parsing ----
   void readFile(char const *fname);
@@ -358,6 +385,11 @@ public:     // funcs
   SYMBOL_ACCESS(Terminal)      //   likewise
   SYMBOL_ACCESS(Nonterminal)   //   ..
   #undef SYMBOL_ACCESS
+
+  // the inverse of transition: map a target state to the symbol that
+  // would transition to that state (from the given source state)
+  Symbol const *inverseTransitionC(ItemSet const *source,
+                                   ItemSet const *target) const;
 };
 
 

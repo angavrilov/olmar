@@ -41,10 +41,17 @@ protected:  // data
 
   // the LR parsing tables
   ObjList<ItemSet> itemSets;
+  ItemSet *startState;			// (serf) distinguished start state
 
 public:	    // data
   // true if any nonterminal can derive itself in 1 or more steps
   bool cyclic;
+
+  // symbol of interest; various diagnostics are printed when
+  // certain things happen with it (e.g. the first application
+  // is to print whenever something is added to this sym's 
+  // follow)
+  Symbol const *symOfInterest;
 
 
 private:    // funcs
@@ -91,9 +98,23 @@ private:    // funcs
   void constructLRItemSets();
   void lrParse(char const *input);
 
+  void findSLRConflicts() const;
+  bool checkSLRConflicts(ItemSet const *state, Terminal const *sym,
+                         bool conflictAlready) const;
+
+  void computeBFSTree();
+
   // misc
   void computePredictiveParsingTable();
     // non-const because have to add productions to lists
+    
+  // sample input helpers
+  void leftContext(SymbolList &output, ItemSet const *state) const;
+  bool rewriteAsTerminals(TerminalList &output, SymbolList const &input) const;
+  bool rewriteAsTerminalsHelper(TerminalList &output, SymbolList const &input,
+				NonterminalList &reducedStack) const;
+  bool rewriteSingleNTAsTerminals(TerminalList &output, Nonterminal const *nonterminal,
+				  NonterminalList &reducedStack) const;
 
 
 public:	    // funcs
@@ -118,6 +139,11 @@ public:	    // funcs
 
   bool firstIncludes(Nonterminal const *NT, Terminal const *term) const;
   bool followIncludes(Nonterminal const *NT, Terminal const *term) const;
+
+
+  // ---- sample inputs and contexts ----
+  string sampleInput(ItemSet const *state) const;
+  string leftContextString(ItemSet const *state) const;
 };
 
 

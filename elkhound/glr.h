@@ -140,6 +140,48 @@ public:
 };
 
 
+// when a reduction is performed, we do a DFS to find all the ways
+// the reduction can happen; this structure keeps state persistent
+// across the recursion (commends in code have some details, too)
+class StackSearchState {
+public:	   // data
+  // ---- stuff that changes ----
+  // we collect paths into this list, which is maintained as we
+  // enter/leave recursion
+  SObjList<TreeNode> poppedSymbols;
+
+  // keeps track of visited paths, by keeping track of visited
+  // parsers; there is never more than one path to a given parser
+  SObjList<StackNode> visited;
+
+  // if we make a change that may require re-visiting the paths,
+  // we'll set this to true (it's also set to true initially, so
+  // the first iteration happens)
+  bool revisit;
+
+  // ---- stuff constant across a series of DFSs ----
+  // this is the production we're trying to reduce by
+  Production const *production const;
+
+  // this is the parser at the top of the search; it's useful for
+  // printing diagnostic messages
+  StackNode const *topOfSearch const;
+
+public:	   // funcs
+  StackSearchState(Production const *p, StackNode const *t)
+    : poppedSymbols(), visited(),    // both empty, initially
+      revisit(false),
+      revisitproduction(p), topOfSearch(t)
+  {}
+
+  ~StackSearchState();
+
+  // this interface is provided in anticipation of a performance
+  // optimization I plan
+  bool alreadyVisited(StackNode const *sn) const;
+};
+
+
 // the GLR analyses are performed within this class; GLR
 // differs from GrammarAnalysis in that the latter should have
 // stuff useful across a wide range of possible analyses
@@ -189,7 +231,7 @@ private:    // funcs
                                SiblingLink *mustUseLink);
   void popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
                       StackNode *currentNode, Production const *production,
-                      SiblingLink *mustUseLink);
+                      SiblingLink *mustUseLink, StackNode const *topOfSearch);
   void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
@@ -205,7 +247,8 @@ public:     // funcs
   ~GLR();
 
   // 'main' for testing this class
-  void glrTest(char const *grammarFname, char const *inputFname);
+  void glrTest(char const *grammarFname, char const *inputFname,
+               char const *symOfInterestName);
 };
 
 #endif // __GLR_H

@@ -94,17 +94,22 @@ Symbol const *NonterminalNode::getSymbolC() const
 
 void NonterminalNode::printParseTree(ostream &os, int indent) const
 {
-  if (reductions.count() == 1) {
+  int parses = reductions.count();
+  if (parses == 1) {
     // I am unambiguous
     reductions.nthC(0)->printParseTree(os, indent);
   }
 
   else {
     // I am ambiguous
-    IND << "ALTERNATIVE PARSES for nonterminal " << nonterminal->name << ":\n";
+    IND << parses << " ALTERNATIVE PARSES for nonterminal "
+        << nonterminal->name << ":\n";
     indent += 2;
-
+	     
+    int ct=0;
     FOREACH_OBJLIST(Reduction, reductions, red) {
+      ct++;
+      IND << "---- alternative " << ct << " ----\n";
       red.data()->printParseTree(os, indent);
     }
   }
@@ -124,7 +129,10 @@ Reduction::~Reduction()
 void Reduction::printParseTree(ostream &os, int indent) const
 {
   // print the production that was used to reduce
-  IND << *(production) << endl;
+  // debugging: print address too, as a clumsy uniqueness identifier
+  IND << *(production)
+      //<< " [" << (void*)production << "]"
+      << endl;
 
   // print children
   indent += 2;

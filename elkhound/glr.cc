@@ -30,7 +30,7 @@
  *   we add another leftAdjState; if it's a reduction, we add a
  *   rule node *and* another leftAdjState).
  *
- *   Before a token is processed, activeParsers contains those 
+ *   Before a token is processed, activeParsers contains those
  *   parsers that successfully shifted the previous token.  This
  *   list is then copied to the parserWorklist (described below).
  *
@@ -40,6 +40,8 @@
  *   Before the accumulated shifts are processed, the activeParsers
  *   list is cleared.  As each shift is processed, the resulting
  *   parser is added to activeParsers (modulo USP).
+ *
+ *   [GLR] calls this "active-parsers"
  *
  *
  *   parserWorklist
@@ -53,6 +55,8 @@
  *   activeParsers, we also add it to parserWorklist.  This ensures
  *   the just-reduced parser gets a chance to reduce or shift.
  *
+ *   [GLR] calls this "for-actor"
+ *
  *
  *   pendingShifts
  *   -------------
@@ -62,14 +66,18 @@
  *   shifted by every parser at the same time.  This synchronization
  *   is important because it makes merging parsers possible.
  *
+ *   [GLR] calls this "for-shifter"
+ *
  */
 
 
 #include "glr.h"         // this module
 #include "strtokp.h"     // StrtokParse
 #include "syserr.h"      // xsyserror
+#include "trace.h"       // tracing system
 
 #include <stdio.h>       // FILE
+#include <fstream.h>     // ofstream
 
 
 // ----------------------- StackNode -----------------------
@@ -111,6 +119,17 @@ SiblingLink *StackNode::
 }
 
 
+// ------------------ StackSearchState -----------------
+StackSearchState::~StackSearchState()
+{}
+
+bool StackSearchState::alreadyVisited(StackNode const *sn) const
+{
+  // for now, simple
+  return visited.contains(sn);
+}
+
+
 // ------------------------- GLR ---------------------------
 GLR::GLR()
   : currentToken(NULL)
@@ -148,16 +167,19 @@ void GLR::glrParse(char const *input)
   // for each input symbol
   INTLOOP(t, 0, tok) {
     // debugging
-    cout << "processing token " << tok[t]
-         << ", # active parsers = " << activeParsers.count()
-         << endl;
+    trace("parse")
+      << "---------- "
+      << "processing token " << tok[t]
+      << ", " << activeParsers.count() << " active parsers"
+      << " ----------"
+      << endl;
 
     // convert the token to a symbol
     currentToken = findTerminalC(tok[t]);
     currentTokenColumn = t;
     
     if (currentToken == NULL) {
-      cout << "unknown token: " << tok[t] << endl;
+      cout << "parse error: unknown token: " << tok[t] << endl;
       exit(1);
     }
 
@@ -188,7 +210,7 @@ void GLR::glrParse(char const *input)
   }
 
 
-  cout << "Parse succeeded!\n";
+  trace("parse") << "Parse succeeded!\n";
 
 
   // print the parse as a graph for my graph viewer
@@ -212,7 +234,7 @@ void GLR::glrParse(char const *input)
   // had broken this into pieces while tracking down a problem, and
   // I've decided to leave it this way
   xassert(tn);
-  tn->printParseTree(cout, 2 /*indent*/);
+  tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/);
 }
 
 
@@ -272,12 +294,32 @@ void GLR::doAllPossibleReductions(StackNode *parser,
     // failure to collapse and share somewhere)
 
     // so, the strategy will be to do a simple depth-first search
+    
+    #ifdef NEWSTUFF
+    // during this search, we need some state
+    StackSearchState sss(prod.data(), parser);
+
+    // what's more, during the search, if we ever add a link to
+    // an existing parser node, then that may expose additional
+    // paths; sss.visistedPaths will prevent duplicate visits, and
+    // sss.revisit reports when revisitation may be necessary
+    // (the common case is that it is not necessary)
+    while (sss.revisit == true) {
+      sss.revisit = false;    // clear the flag..
+
+      // do a DFS
+      popStackSearch(sss, rhsLen, parser);
+    }
+
+
+    #endif // NEWSTUFF
+
     SObjList<TreeNode> poppedSymbols;     // state during recursion
     popStackSearch(rhsLen, poppedSymbols, parser, prod.data(),
-                   mustUseLink);
+                   mustUseLink, parser);
 
     // invariant: poppedSymbols' length is equal to the recursion
-    // depthin 'popStackSearch'; thus, should be empty now
+    // depth in 'popStackSearch'; thus, should be empty now
     xassert(poppedSymbols.isEmpty());
   }
 }
@@ -309,11 +351,15 @@ void GLR::doAllPossibleReductions(StackNode *parser,
  *   we consider for reducing (explained in 'glrStackRule');
  *   if it's NULL, there is no such restriction
  *
+ * topOfSearch:
+ *   stack node from which we started; useful for printing
+ *   diagnostic messages
+ *
  * ([GLR] called this 'do-reductions')
  */
 void GLR::popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
                          StackNode *currentNode, Production const *production,
-                         SiblingLink *mustUseLink)
+                         SiblingLink *mustUseLink, StackNode const *topOfSearch)
 {
   // inefficiency: all this mechanism is somewhat overkill, given that
   // most of the time the reductions are unambiguous and unrestricted
@@ -325,6 +371,12 @@ void GLR::popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
       // so this path must be ignored
       return;
     }
+
+    trace("parse") 
+      << "in state " << topOfSearch->state->id
+      << ", reducing by " << *production
+      << ", to go to state " << currentNode->state->id
+      << endl;
 
     // we've popped the required number of symbols; collect the
     // popped symbols into a Reduction
@@ -350,13 +402,13 @@ void GLR::popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
           mustUseLink == sibling.data()) {
         // yes!  lift the restriction for the rest of the path
         popStackSearch(popsRemaining-1, poppedSymbols, sibling.data()->sib,
-                       production, NULL /*no restriction*/);
+                       production, NULL /*no restriction*/, topOfSearch);
       }
       else {
         // either there is no restriction, or we didn't satisfy it; either
         // way carry the restriction forward
         popStackSearch(popsRemaining-1, poppedSymbols, sibling.data()->sib,
-                       production, mustUseLink /*same as before*/);
+                       production, mustUseLink /*same as before*/, topOfSearch);
       }
 
       // un-pop the tree node, so exploring another path will work
@@ -375,10 +427,11 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
     leftSibling->state->transitionC(reduction->production->left);
 
   // debugging
-  cout << "from state " << leftSibling->state->id
-       << ", shifting production " << *(reduction->production)
-       << ", transitioning to state " << rightSiblingState->id
-       << endl;
+  trace("parse")
+    << "from state " << leftSibling->state->id
+    << ", shifting production " << *(reduction->production)
+    << ", transitioning to state " << rightSiblingState->id
+    << endl;
 
   // is there already an active parser with this state?
   StackNode *rightSibling = findActiveParser(rightSiblingState);
@@ -402,13 +455,13 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
       // opportunties to do reductions from parsers we thought
       // we were finished with.
       //
-      // what's more, it's not just the
-      // parser ('rightSibling') we added the link to -- if
-      // rightSibling's itemSet contains 'A -> alpha . B beta' and
-      // B ->* empty (so A's itemSet also has 'B -> .'), then we
-      // reduced it (if lookahead ok), so 'rightSibling' now has
-      // another left sibling with 'A -> alpha B . beta'.  We need
-      // to let this sibling re-try its reductions also.
+      // what's more, it's not just the parser ('rightSibling') we
+      // added the link to -- if rightSibling's itemSet contains 'A ->
+      // alpha . B beta' and B ->* empty (so A's itemSet also has 'B
+      // -> .'), then we reduced it (if lookahead ok), so
+      // 'rightSibling' now has another left sibling with 'A -> alpha
+      // B . beta'.  We need to let this sibling re-try its reductions
+      // also.
       //
       // so, the strategy is to let all 'finished' parsers re-try
       // reductions, and process those that actually use the just-
@@ -458,10 +511,11 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     ItemSet const *newState = pshift.data()->shiftDest;
 
     // debugging
-    cout << "from state " << leftSibling->state->id
-         << ", shifting terminal " << currentToken->name
-         << ", transitioning to state " << newState->id
-         << endl;
+    trace("parse")
+      << "from state " << leftSibling->state->id
+      << ", shifting terminal " << currentToken->name
+      << ", transitioning to state " << newState->id
+      << endl;
 
     // if there's already a parser with this state
     StackNode *rightSibling = findActiveParser(newState);
@@ -660,7 +714,7 @@ string readFileIntoString(char const *fname)
   if (fread(ret.pchar(), 1, len, fp) < (size_t)len) {
     xsyserror("fread");
   }
-  
+
   // close file
   if (fclose(fp) < 0) {
     xsyserror("fclose");
@@ -671,7 +725,8 @@ string readFileIntoString(char const *fname)
 }
 
 
-void GLR::glrTest(char const *grammarFname, char const *inputFname)
+void GLR::glrTest(char const *grammarFname, char const *inputFname,
+                  char const *symOfInterestName)
 {
   #if 0
     // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
@@ -735,16 +790,49 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname)
     string input = readFileIntoString(inputFname);
 
     // parse grammar
-    StrtokParse tok(grammar, "\n");
-    INTLOOP(i, 0, tok) {
-      parseLine(tok[i]);
+    {
+      StrtokParse tok(grammar, "\n");
+      INTLOOP(i, 0, tok) {
+	parseLine(tok[i]);
+      }
     }
 
-    printProductions(cout);
+    // spit it out as something bison might be able to parse
+    {
+      ofstream bisonOut("bisongr.y");
+      printAsBison(bisonOut);
+    }
+
+    // prepare for symbol of interest
+    if (symOfInterestName != NULL) {
+      symOfInterest = findSymbolC(symOfInterestName);
+      if (!symOfInterest) {
+        cout << "warning: " << symOfInterestName << " isn't in the grammar\n";
+      }
+    }
+
+    printProductions(trace("grammar") << endl);
     runAnalyses();
 
+    // work through input, throwing away comments
+    trace("progress") << "preprocessing...\n";
+    stringBuilder sb;
+    {
+      StrtokParse tok(input, "\n");
+      INTLOOP(i, 0, tok) {
+        if (tok[i][0] == '#') {
+          // throw it away
+        }
+        else {
+          // keep it
+          sb << tok[i] << "\n";
+        }
+      }
+    }
+
     // parse input
-    glrParse(input);
+    trace("progress") << "parsing...\n";
+    glrParse(sb);
   #endif // 0/1
 }
 
@@ -752,17 +840,44 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname)
 #ifdef GLR_MAIN
 //#include <fstream.h>    // ofstream
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
-  #if 1
-  if (argc != 3) {
-    printf("usage: %s grammar-file input-file\n", argv[0]);
+  // skip program name
+  char const *progName = argv[0];
+  argc--;
+  argv++;
+
+  // parameters
+  char const *symOfInterestName = NULL;
+
+  // process args
+  while (argc >= 1) {
+    if (0==strcmp(argv[0], "-tr") && argc >= 2) {
+      traceAddSys(argv[1]);
+      argc -= 2;
+      argv += 2;
+    }
+    else if (0==strcmp(argv[0], "-sym") && argc >= 2) {
+      symOfInterestName = argv[1];
+      argc -= 2;
+      argv += 2;
+    }
+    else {
+      break;     // didn't find any more options
+    }
+  }
+
+  if (argc != 2) {
+    cout << "usage: " << progName << " [options] grammar-file input-file\n"
+            "  options:\n"
+            "    -tr <sys>:  turn on tracing for the named subsystem\n"
+            "    -sym <sym>: name the \"symbol of interest\"\n"
+            ;
     return 0;
   }
-  #endif // 0
 
   GLR g;
-  g.glrTest(argv[1], argv[2]);
+  g.glrTest(argv[0], argv[1], symOfInterestName);
   return 0;
 }
 #endif // GLR_MAIN

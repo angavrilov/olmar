@@ -33,7 +33,7 @@ Terminal const &Symbol::asTerminalC() const
 }
 
 Nonterminal const &Symbol::asNonterminalC() const
-{			 
+{                        
   xassert(isNonterminal());
   return (Nonterminal&)(*this);
 }
@@ -116,6 +116,19 @@ int Production::rhsLength() const
   else {
     return right.count();
   }
+}
+
+
+int Production::numRHSNonterminals() const
+{
+  int ct = 0;
+  SFOREACH_SYMBOL(right, sym) {
+    if (!sym.data()->isEmptyString &&
+        sym.data()->isNonterminal()) {
+      ct++;
+    }
+  }
+  return ct;
 }
 
 
@@ -223,7 +236,8 @@ void DottedProduction::print(ostream &os) const
 ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
   : id(anId),
     terms(numTerms),
-    nonterms(numNonterms)
+    nonterms(numNonterms),
+    BFSparent(NULL)
 {
   termTransition = new ItemSet* [terms];
   nontermTransition = new ItemSet* [nonterms];
@@ -291,7 +305,7 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
   refTransition(sym) = dest;
 }
 
-							    
+
 // return the reductions that are ready in this state, given
 // that the next symbol is 'lookahead'
 void ItemSet::getPossibleReductions(ProductionList &reductions,
@@ -314,7 +328,7 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
     }
 
     // ok, this one's ready
-    reductions.append(item->prod);			    // (constness)
+    reductions.append(item->prod);                          // (constness)
   }
 }
 
@@ -340,7 +354,7 @@ void ItemSet::print(ostream &os) const
       }
       else {
         os << "--> " << is->id;
-      }		 
+      }          
     }
     os << endl;
   }
@@ -483,10 +497,20 @@ void Grammar::readFile(char const *fname)
 }
 
 // returns false on parse error
-bool Grammar::parseLine(char const *line)
+bool Grammar::parseLine(char const *preLine)
 {
+  // strip comments
+  string line(preLine);
+  {
+    char *p = strchr(line, '#');
+    if (p != NULL) {
+      *p = 0;    // truncate line there
+    }
+  }
+
+  // parse on whitespace
   StrtokParse tok(line, " \t\n\r");
-  if (tok == 0 || tok[0][0] == '#') {
+  if (tok == 0) {
     // blank line or comment
     return true;
   }
@@ -526,6 +550,93 @@ bool Grammar::parseLine(char const *line)
   // ok
   return true;
 }
+
+
+// well-formedness check; prints complaints
+void Grammar::checkWellFormed() const
+{
+  // verify every nonterminal has at least one rule
+  FOREACH_NONTERMINAL(nonterminals, nt) {
+    // does this nonterminal have a rule?
+    bool hasRule = false;
+    FOREACH_PRODUCTION(productions, prod) {
+      if (prod.data()->left == nt.data()) {
+        hasRule = true;
+        break;
+      }
+    }
+
+    if (!hasRule) {
+      cout << "warning: nonterminal "
+           << nt.data()->name
+           << " has no rules\n";
+    }
+  }
+}
+
+
+// print the grammar in a form that Bison likes
+void Grammar::printAsBison(ostream &os) const
+{
+  os << "/* automatically generated grammar */\n\n";
+
+  os << "/* -------- tokens -------- */\n";
+  FOREACH_TERMINAL(terminals, term) {
+    // I'll surround all my tokens with quotes and see how Bison likes it
+    os << "%token \"" << term.data()->name << "\"\n";
+  }
+  os << "\n\n";
+
+  os << "/* -------- productions ------ */\n"
+        "%%\n\n";
+  // print every nonterminal's rules
+  FOREACH_NONTERMINAL(nonterminals, nt) {
+    // look at every rule where this nonterminal is on LHS
+    bool first = true;
+    FOREACH_PRODUCTION(productions, prod) {
+      if (prod.data()->left == nt.data()) {
+
+        if (first) {
+          os << nt.data()->name << ":";
+        }
+        else {	     
+          os << "\n";
+          INTLOOP(i, 0, nt.data()->name.length()) {
+            os << " ";
+          }
+          os << "|";
+        }
+
+        // print RHS symbols
+        SFOREACH_SYMBOL(prod.data()->right, sym) {
+          if (sym.data() != &emptyString) {
+            if (sym.data()->isTerminal()) {
+              os << " \"" << sym.data()->name << "\"";
+            }
+            else {
+              os << " " << sym.data()->name;
+            }
+          }
+        }
+
+        // or, if empty..
+        if (prod.data()->rhsLength() == 0) {
+          os << " /* empty */";
+        }
+
+        first = false;
+      }
+    }
+
+    if (first) {
+      // no rules..
+      os << "/* no rules for " << nt.data()->name << " */";
+    }
+
+    os << "\n\n";
+  }
+}
+
 
 
 // ------------------- symbol access -------------------
@@ -611,4 +722,50 @@ Symbol *Grammar::getOrMakeSymbol(char const *name)
   else {
     return getOrMakeTerminal(name);
   }
+}
+
+
+Symbol const *Grammar::
+  inverseTransitionC(ItemSet const *source, ItemSet const *target) const
+{
+  // for each symbol..
+  FOREACH_TERMINAL(terminals, t) {
+    // see if it is the one
+    if (source->transitionC(t.data()) == target) {
+      return t.data();
+    }
+  }
+
+  FOREACH_NONTERMINAL(nonterminals, nt) {
+    if (source->transitionC(nt.data()) == target) {
+      return nt.data();
+    }
+  }
+
+  xfailure("Grammar::inverseTransitionC: no transition from source to target");
+  return NULL;     // silence warning
+}
+
+
+string symbolSequenceToString(SymbolList const &list)
+{
+  stringBuilder sb;   // collects output
+
+  bool first = true;
+  SFOREACH_SYMBOL(list, sym) {
+    if (!first) {
+      sb << " ";
+    }
+    sb << sym.data()->name;
+    first = false;
+  }
+
+  return sb;
+}
+
+
+string terminalSequenceToString(TerminalList const &list)
+{
+  // this works because access is read-only
+  return symbolSequenceToString(reinterpret_cast<SymbolList const&>(list));
 }

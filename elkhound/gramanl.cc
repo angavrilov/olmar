@@ -6,6 +6,7 @@
 #include "bit2d.h"       // Bit2d
 #include "strtokp.h"     // StrtokParse
 #include "syserr.h"      // xsyserror
+#include "trace.h"       // tracing system
 
 #include <fstream.h>     // ofstream
 
@@ -16,7 +17,9 @@ GrammarAnalysis::GrammarAnalysis()
     indexedTerms(NULL),
     initialized(false),
     nextItemSetId(0),    // [ASU] starts at 0 too
-    cyclic(false)
+    startState(NULL),
+    cyclic(false),
+    symOfInterest(NULL)
 {}
 
 
@@ -75,8 +78,9 @@ bool GrammarAnalysis::addDerivable(int left, int right)
   if (left==right) {
     Nonterminal *NT = indexedNonterms[left];    // ==right
     if (!NT->cyclic) {
-      cout << "discovered that " << NT->name << " ->+ "
-           << NT->name << " (i.e. is cyclic)\n";
+      trace("derivable")
+        << "discovered that " << NT->name << " ->+ "
+        << NT->name << " (i.e. is cyclic)\n";
       NT->cyclic = true;
       cyclic = true;     // for grammar as a whole
 
@@ -298,8 +302,9 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
 
             changes++;
 
-            cout << "discovered (by production): " << prod->left->name
-                 << " ->* " << rightNT.name << "\n";
+            trace("derivable") 
+              << "discovered (by production): " << prod->left->name
+              << " ->* " << rightNT.name << "\n";
           }
         }
 
@@ -341,9 +346,10 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
           // add an edge (u,w), if there isn't one already
           if (addDerivable(u,w)) {
             changes++;
-            cout << "discovered (by closure step): " 
-                 << indexedNonterms[u]->name << " ->* "
-                 << indexedNonterms[w]->name << "\n";
+            trace("derivable") 
+              << "discovered (by closure step): "
+              << indexedNonterms[u]->name << " ->* "
+              << indexedNonterms[w]->name << "\n";
           }
         }
       }
@@ -400,7 +406,7 @@ void GrammarAnalysis::computeFirst()
 
       // add everything in First(RHS-sequence) to First(LHS)
       SMUTATE_EACH_TERMINAL(firstOfRHS, iter) {
-       	changes += true==addFirst(LHS, iter.data());
+        changes += true==addFirst(LHS, iter.data());
       }
     } // for (productions)
   } // while (changes)
@@ -429,7 +435,7 @@ void GrammarAnalysis::firstOfIterSeq(TerminalList &destList, SymbolListMutator s
     if (sym.data()->isTerminal()) {
       destList.append(&( sym.data()->asTerminal() ));
       break;    // stop considering RHS members since a terminal
-		// effectively "hides" all further symbols from First
+                // effectively "hides" all further symbols from First
     }
 
     // sym must be a nonterminal
@@ -439,7 +445,7 @@ void GrammarAnalysis::firstOfIterSeq(TerminalList &destList, SymbolListMutator s
     // for each element in First(nt)
     for (int t=0; t<numTerms; t++) {
       if (firstIncludes(&nt, indexedTerms[t])) {
-       	destList.append(indexedTerms[t]);
+        destList.append(indexedTerms[t]);
       }
     }
 
@@ -483,34 +489,50 @@ void GrammarAnalysis::computeFollow()
 
         // an iterator pointing to the symbol just after
         // 'rightSym' will be useful below
-       	SymbolListMutator afterRightSym(rightSym);
-       	afterRightSym.adv();    // NOTE: 'isDone()' may be true now
+        SymbolListMutator afterRightSym(rightSym);
+        afterRightSym.adv();    // NOTE: 'isDone()' may be true now
 
-	// rule 1:
-	// if there is a production A -> alpha B beta, then
-	// everything in First(beta) is in Follow(B)
+        // rule 1:
+        // if there is a production A -> alpha B beta, then
+        // everything in First(beta) is in Follow(B)
         {
-	  // compute First(beta)
-	  TerminalList firstOfBeta;
-       	  firstOfIterSeq(firstOfBeta, afterRightSym);
+          // compute First(beta)
+          TerminalList firstOfBeta;
+          firstOfIterSeq(firstOfBeta, afterRightSym);
 
-  	  // put those into Follow(rightNT)
-  	  SMUTATE_EACH_TERMINAL(firstOfBeta, term) {
-  	    changes += true==
-  	      addFollow(&rightNT, term.data());
-  	  }
+          // put those into Follow(rightNT)
+          SMUTATE_EACH_TERMINAL(firstOfBeta, term) {
+            if (addFollow(&rightNT, term.data())) {
+              changes++;
+              if (&rightNT == symOfInterest) {
+                trace("follow-sym")
+                  << "Follow(" << rightNT.name
+                  << "): adding " << term.data()->name
+                  << " by first(RHS-tail) of " << *prod
+                  << endl;
+              }
+            }
+          }
         }
 
-  	// rule 2:
-  	// if there is a production A -> alpha B, or a
-    	// production A -> alpha B beta where beta ->* empty,
-       	// then everything in Follow(A) is in Follow(B)
+        // rule 2:
+        // if there is a production A -> alpha B, or a
+        // production A -> alpha B beta where beta ->* empty,
+        // then everything in Follow(A) is in Follow(B)
         if (iterSeqCanDeriveEmpty(afterRightSym)) {
           // for each element in Follow(LHS)
           for (int t=0; t<numTerms; t++) {
             if (followIncludes(prod->left, indexedTerms[t])) {
-	      changes += true==
-                addFollow(&rightNT, indexedTerms[t]);
+              if (addFollow(&rightNT, indexedTerms[t])) {
+                changes++;
+                if (&rightNT == symOfInterest) {
+                  trace("follow-sym")
+                    << "Follow(" << rightNT.name
+                    << "): adding " << indexedTerms[t]->name
+                    << " by follow(LHS) of " << *prod
+                    << endl;
+                }
+              }
             }
           } // for each in Follow(LHS)
         }
@@ -557,22 +579,24 @@ void GrammarAnalysis::computePredictiveParsingTable()
   }
 
 
-  // print the resulting table:
+  // print the resulting table
+  ostream &os = trace("pred-table") << endl;
+
   // for each nonterminal
   INTLOOP(nonterm, 0, numNonterms) {
-    cout << "Row " << indexedNonterms[nonterm]->name << ":\n";
+    os << "Row " << indexedNonterms[nonterm]->name << ":\n";
 
     // for each terminal
     INTLOOP(term, 0, numTerms) {
-      cout << "  Column " << indexedTerms[term]->name << ":";
+      os << "  Column " << indexedTerms[term]->name << ":";
 
       // for each production in table[nonterm,term]
       SFOREACH_PRODUCTION(TABLE(nonterm,term), prod) {
-        cout << "   ";
-        prod.data()->print(cout);
+        os << "   ";
+        prod.data()->print(os);
       }
 
-      cout << endl;
+      os << endl;
     }
   }
 
@@ -600,19 +624,19 @@ void GrammarAnalysis::itemSetClosure(DProductionList &itemSet)
       if (B->isTerminal()) continue;
 
       // for each production B -> gamma
-      MUTATE_EACH_PRODUCTION(productions, prod) {	    // (constness)
-	if (prod.data()->left != B) continue;
+      MUTATE_EACH_PRODUCTION(productions, prod) {           // (constness)
+        if (prod.data()->left != B) continue;
 
         // add B -> . gamma to the itemSet if not already there
         changes += true==
           itemSet.appendUnique(
             prod.data()->getDProd(0 /*dot placement*/));    // (constness)
 
-      }	// for each production
+      } // for each production
     } // for each item
   } // while changes
 }
-  
+
 
 // -------------- START of construct LR item sets -------------------
 ItemSet *GrammarAnalysis::makeItemSet()
@@ -644,11 +668,11 @@ ItemSet *GrammarAnalysis::moveDot(ItemSet const *source, Symbol const *symbol)
     if (dprod->isDotAtEnd() ||
         dprod->symbolAfterDotC() != symbol) {
       continue;    // can't move dot
-    }		  
+    }             
     
     // move the dot
     DottedProduction *dotMoved =
-      dprod->prod->getDProd(dprod->dot + 1);   	  // (constness!)
+      dprod->prod->getDProd(dprod->dot + 1);      // (constness!)
 
     // add the new item to the itemset I'm building
     ret->items.append(dotMoved);
@@ -721,13 +745,14 @@ void GrammarAnalysis::constructLRItemSets()
   // on LHS, and no other productions have the start symbol
   // on LHS)
   {
-    ItemSet *is = makeItemSet();       	     // (owner)
+    ItemSet *is = makeItemSet();             // (owner)
+    startState = is;
     is->items.append(productions.nth(0)->    // first production's ..
-                       getDProd(0));	     //   .. first dot placement
+                       getDProd(0));         //   .. first dot placement
     itemSetClosure(is->items);
 
     // this makes the initial pending itemSet
-    itemSetsPending.append(is);		     // (ownership transfer)
+    itemSetsPending.append(is);              // (ownership transfer)
   }
 
 
@@ -754,7 +779,7 @@ void GrammarAnalysis::constructLRItemSets()
         continue;
       }
 
-      // fixed: adding transition functions fixes this
+      // fixed: adding transition functions fixes this:
       // inefficiency: if several productions have X to the
       // left of the dot, then we will 'moveDot' each time
 
@@ -790,10 +815,24 @@ void GrammarAnalysis::constructLRItemSets()
     } // for each item
   } // for each item set
 
+  
+  // do the BFS now, since we want to print the sample inputs
+  // in the loop that follows
+  trace("progress") << "BFS tree on transition graph...\n";
+  computeBFSTree();
+
 
   // print each item set
   FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
-    itemSet.data()->print(cout);
+    ostream &os = trace("item-sets")
+      << "State " << itemSet.data()->id
+      << ", sample input: " << sampleInput(itemSet.data())
+      << endl
+      << "  and left context: " << leftContextString(itemSet.data())
+      << endl
+      ;
+
+    itemSet.data()->print(os);
   }
 
 
@@ -809,6 +848,345 @@ void GrammarAnalysis::constructLRItemSets()
   }
 }
 
+// --------------- END of construct LR item sets -------------------
+
+// --------------- LR support -------------------
+// find and print all the conflicts that would be reported by
+// an SLR(1) parser; this is a superset of the conflicts reported
+// by bison, which is LALR(1); found conflicts are printed with
+// trace("conflict")
+void GrammarAnalysis::findSLRConflicts() const
+{
+  // for every item set..
+  FOREACH_OBJLIST(ItemSet, itemSets, itemSet) {
+  
+    // we want to print something special for the first conflict
+    // in a state, so track which is first
+    bool conflictAlready = false;
+
+    // for every input symbol..
+    FOREACH_TERMINAL(terminals, t) {
+      // check it
+      bool con = checkSLRConflicts(itemSet.data(), t.data(), conflictAlready);
+      conflictAlready = conflictAlready || con;
+    }
+  }
+}
+
+
+// given a parser state and an input symbol determine if we will fork
+// the parse stack; return true if there is a conflict
+bool GrammarAnalysis::checkSLRConflicts(ItemSet const *state, Terminal const *sym,
+                                        bool conflictAlready) const
+{
+  // see where a shift would go
+  ItemSet const *shiftDest = state->transitionC(sym);
+
+  // get all possible reductions where 'sym' is in Follow(LHS)
+  ProductionList reductions;
+  state->getPossibleReductions(reductions, sym);
+
+  // case analysis
+  if (shiftDest != NULL &&
+      reductions.isEmpty()) {
+    // unambiguous shift; ok
+  }
+
+  else if (shiftDest == NULL &&
+           reductions.count() == 1) {
+    // unambiguous reduction; ok
+  }
+
+  else if (shiftDest == NULL &&
+           reductions.isEmpty()) {
+    // no transition: syntax error
+    // presumably it's really an input error, not a grammar issue,
+    // so I'd rather not see these
+  }
+
+  else {
+    // local ambiguity
+    if (!conflictAlready) {
+      trace("conflict")
+        << "--------- state " << state->id << " ----------\n"
+        << "left context: " << leftContextString(state)
+        << endl
+        << "sample input: " << sampleInput(state)
+        << endl
+        ;
+    }
+
+    trace("conflict")
+      << "conflict for symbol " << sym->name
+      << endl;
+
+    if (shiftDest) {
+      trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
+    }
+
+    SFOREACH_PRODUCTION(reductions, prod) {
+      trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
+    }
+
+    return true;    // found conflict
+  }
+  
+  return false;     // no conflict
+}
+
+
+// given an LR transition graph, compute the BFS tree on top of it
+// and set the parent links to record the tree
+void GrammarAnalysis::computeBFSTree()
+{
+  // for the BFS, we need a queue of states yet to be processed, and a
+  // pile of 'done' states
+  SObjList<ItemSet> queue;
+  SObjList<ItemSet> done;
+
+  // initial entry in queue is root of BFS tree
+  queue.append(startState);
+
+  // it will be convenient to have all the symbols in a single list
+  // for iteration purposes
+  SymbolList allSymbols;       	  // (const list)
+  {
+    FOREACH_TERMINAL(terminals, t) {
+      allSymbols.append(const_cast<Terminal*>(t.data()));
+    }
+    FOREACH_NONTERMINAL(nonterminals, nt) {
+      allSymbols.append(const_cast<Nonterminal*>(nt.data()));
+    }
+  }
+
+  // loop until the queue is exhausted
+  while (queue.isNotEmpty()) {
+    // dequeue first element
+    ItemSet *source = queue.removeAt(0);
+
+    // mark it as done so we won't consider any more transitions to it
+    done.append(source);
+
+    // for each symbol...
+    SFOREACH_SYMBOL(allSymbols, sym) {
+      // get the transition on this symbol
+      ItemSet *target = source->transition(sym.data());
+
+      // if the target is done or already enqueued, or there is no
+      // transition on this symbol, we don't need to consider it
+      // further
+      if (target == NULL ||
+          done.contains(target) || 
+          queue.contains(target)) {
+        continue;
+      }
+
+      // the source->target link just examined is the first time
+      // we've encounted 'target', so that link becomes the BFS
+      // parent link
+      target->BFSparent = source;
+
+      // finally, enqueue the target so we'll explore its targets too
+      queue.append(target);
+    }
+  }
+}
+
+// --------------- END of LR support -------------------
+
+
+// --------------- sample inputs -------------------
+// yield a sequence of names of symbols (terminals and nonterminals) that
+// will lead to the given state, from the start state
+string GrammarAnalysis::leftContextString(ItemSet const *state) const
+{
+  SymbolList ctx;
+  leftContext(ctx, state);                // get as list
+  return symbolSequenceToString(ctx);	  // convert to string
+}
+
+
+// yield the left-context as a sequence of symbols
+// CONSTNESS: want output as list of const pointers
+void GrammarAnalysis::leftContext(SymbolList &output,
+                                  ItemSet const *state) const
+{
+  // since we have the BFS tree, generating sample input (at least, if
+  // it's allowed to contain nonterminals) is a simple matter of walking
+  // the tree towards the root
+
+  // for each parent..
+  while (state->BFSparent) {
+    // get that parent
+    ItemSet *parent = state->BFSparent;
+
+    // find a symbol on which we would transition from the parent
+    // to the current state
+    Symbol const *sym = inverseTransitionC(parent, state);
+
+    // prepend that symbol's name to our current context
+    output.prepend(const_cast<Symbol*>(sym));
+
+    // move to our parent and repeat
+    state = parent;
+  }
+}
+
+
+// compare two-element quantities where one dominates and the other
+// is only for tie-breaking; return true if a's quantities are fewer
+// (candidate for adding to a library somewhere)
+int priorityFewer(int a_dominant, int b_dominant,
+                  int a_recessive, int b_recessive)
+{
+  return (a_dominant < b_dominant) ||
+       	 ((a_dominant == b_dominant) && (a_recessive < b_recessive));
+}
+
+
+// sample input (terminals only) that can lead to a state
+string GrammarAnalysis::sampleInput(ItemSet const *state) const
+{
+  // get left-context as terminals and nonterminals
+  SymbolList symbols;
+  leftContext(symbols, state);
+
+  // reduce the nonterminals to terminals
+  TerminalList terminals;
+  if (!rewriteAsTerminals(terminals, symbols)) {
+    return string("(failed to reduce!!)");
+  }
+  
+  // convert to a string
+  return terminalSequenceToString(terminals);
+}
+
+
+// given a sequence of symbols (terminals and nonterminals), use the
+// productions to rewrite it as a (hopefully minimal) sequence of
+// terminals only; return true if it works, false if we get stuck
+// in an infinite loop
+// CONSTNESS: ideally, 'output' would contain const ptrs to terminals
+bool GrammarAnalysis::rewriteAsTerminals(TerminalList &output, SymbolList const &input) const
+{
+  // we detect looping by noticing if we ever reduce the same
+  // nonterminal more than once in a single vertical recursive slice
+  // (which is necessary and sufficient for looping, since we have a
+  // context-*free* grammar)
+  NonterminalList reducedStack;      // starts empty
+
+  // start the recursive version
+  return rewriteAsTerminalsHelper(output, input, reducedStack);
+}
+
+
+// (nonterminals and terminals) -> terminals
+bool GrammarAnalysis::
+  rewriteAsTerminalsHelper(TerminalList &output, SymbolList const &input,
+                           NonterminalList &reducedStack) const
+{
+  // walk down the input list, creating the output list by copying
+  // terminals and reducing nonterminals
+  SFOREACH_SYMBOL(input, symIter) {
+    Symbol const *sym = symIter.data();
+
+    if (sym->isEmptyString) {
+      // easy; no-op
+    }
+
+    else if (sym->isTerminal()) {
+      // no sweat, just copy it (er, copy the pointer)
+      output.append(const_cast<Terminal*>(&sym->asTerminalC()));
+    }
+
+    else {
+      // not too bad either, just reduce it, sticking the result
+      // directly into our output list
+      if (!rewriteSingleNTAsTerminals(output, &sym->asNonterminalC(),
+                                      reducedStack)) {
+        // oops..
+        return false;
+      }
+    }
+  }
+
+  // ok!
+  return true;
+}
+
+
+// nonterminal -> terminals
+// CONSTNESS: want 'reducedStack' to be list of const ptrs
+bool GrammarAnalysis::
+  rewriteSingleNTAsTerminals(TerminalList &output, Nonterminal const *nonterminal,
+                             NonterminalList &reducedStack) const
+{
+  // have I already reduced this?
+  if (reducedStack.contains(nonterminal)) {
+    // we'd loop if we continued
+    trace("rewrite") << "aborting rewrite of " << nonterminal->name
+                     << " because of looping\n";
+    return false;
+  }
+
+  // add myself to the stack
+  reducedStack.prepend(const_cast<Nonterminal*>(nonterminal));
+
+  // look for best rule to use
+  Production const *best = NULL;
+
+  // for each rule with 'nonterminal' on LHS ...
+  FOREACH_PRODUCTION(productions, prodIter) {
+    Production const *prod = prodIter.data();
+    if (prod->left != nonterminal) continue;
+
+    // if 'prod' has 'nonterminal' on RHS, that would certainly
+    // lead to looping (though it's not the only way -- consider
+    // mutual recursion), so don't even consider it
+    if (prod->right.contains(nonterminal)) {
+      continue;
+    }
+
+    // no champ yet?
+    if (best == NULL) {
+      best = prod;
+      continue;
+    }
+
+    // compare new guy to existing champ
+    if (priorityFewer(prod->numRHSNonterminals(), best->numRHSNonterminals(),
+		      prod->rhsLength(), best->rhsLength())) {
+      // 'prod' is better
+      best = prod;
+    }
+  }
+
+  // I don't expect this... either the NT doesn't have any rules,
+  // or all of them are recursive (which means the language doesn't
+  // have any finite sentences)
+  if (best == NULL) {
+    trace("rewrite") << "couldn't find suitable rule to reduce "
+		     << nonterminal->name << "!!\n";
+    return false;
+  }
+
+  // now, the chosen rule provides a RHS, which is a sequence of
+  // terminals and nonterminals; recursively reduce that sequence
+  bool retval = rewriteAsTerminalsHelper(output, best->right, reducedStack);
+
+  // remove myself from stack
+  Nonterminal *temp = reducedStack.removeAt(0);
+  xassert((temp == nonterminal) || !retval);
+    // make sure pushes are paired with pops properly (unless we're just
+    // bailing out of a failed attempt, in which case some things might
+    // not get popped)
+
+  // and we succeed only if the recursive call succeeded
+  return retval;
+}
+
+// --------------- END of sample inputs -------------------
+
 
 // this is mostly [ASU] algorithm 4.7, p.218-219.  however,
 // I've modified it to store one less item on the state stack
@@ -821,7 +1199,7 @@ void GrammarAnalysis::lrParse(char const *input)
 
   // parser state
   int currentToken = 0;               // index of current token
-  ItemSet *state = itemSets.nth(0);   // current parser state
+  ItemSet *state = startState;        // current parser state
   SObjList<ItemSet> stateStack;       // stack of parser states
   SObjList<Symbol> symbolStack;       // stack of shifted symbols
 
@@ -851,12 +1229,13 @@ void GrammarAnalysis::lrParse(char const *input)
       currentToken++;
 
       // debugging
-      cout << "moving to state " << state->id
-           << " after shifting symbol " << symbol->name << endl;
+      trace("parse")
+        << "moving to state " << state->id
+        << " after shifting symbol " << symbol->name << endl;
     }
 
     else if (shiftDest == NULL &&
-             reductions.count() == 1) {	   // unambiguous reduction
+             reductions.count() == 1) {    // unambiguous reduction
       // get the production we're reducing by
       Production *prod = reductions.nth(0);
 
@@ -887,33 +1266,36 @@ void GrammarAnalysis::lrParse(char const *input)
 
       // move to new state
       state = gotoDest;
-			  
+                          
       // again, setting 'state' is what [ASU] accomplishes with
       // a push
 
       // debugging
-      cout << "moving to state " << state->id
-           << " after reducing by rule " << *prod << endl;
+      trace("parse")
+        << "moving to state " << state->id
+        << " after reducing by rule " << *prod << endl;
     }
 
     else if (shiftDest == NULL &&
-	     reductions.isEmpty()) {       // no transition: syntax error
-      cout << "no actions defined for symbol " << symbol->name
-           << " in state " << state->id << endl;
+             reductions.isEmpty()) {       // no transition: syntax error
+      trace("parse")
+        << "no actions defined for symbol " << symbol->name
+        << " in state " << state->id << endl;
       break;       // stop parsing
     }
 
     else {                                 // local ambiguity
-      cout << "conflict for symbol " << symbol->name
-           << " in state " << state->id
-           << "; possible actions:\n";
+      trace("parse")
+        << "conflict for symbol " << symbol->name
+        << " in state " << state->id
+        << "; possible actions:\n";
 
       if (shiftDest) {
-        cout << "  shift, and move to state " << shiftDest->id << endl;
+        trace("parse") << "  shift, and move to state " << shiftDest->id << endl;
       }
 
       SFOREACH_PRODUCTION(reductions, prod) {
-        cout << "  reduce by rule " << *(prod.data()) << endl;
+        trace("parse") << "  reduce by rule " << *(prod.data()) << endl;
       }
 
       break;       // stop parsing
@@ -922,25 +1304,23 @@ void GrammarAnalysis::lrParse(char const *input)
 
   // print final contents of stack; if the parse was successful,
   // I want to see what remains; if not, it's interesting anyway
-  cout << "final contents of stacks (right is top):\n";
-  stateStack.reverse();	   // more convenient for printing
+  trace("parse") << "final contents of stacks (right is top):\n";
+  stateStack.reverse();    // more convenient for printing
   symbolStack.reverse();
 
-  cout << "  state stack:";
+  ostream &os = trace("parse") << "  state stack:";
   SFOREACH_OBJLIST(ItemSet, stateStack, stateIter) {
-    cout << " " << stateIter.data()->id;
+    os << " " << stateIter.data()->id;
   }
-  cout << " current=" << state->id;   // print current state too
-  cout << endl;
+  os << " current=" << state->id;   // print current state too
+  os << endl;
 
-  cout << "  symbol stack:";
+  trace("parse") << "  symbol stack:";
   SFOREACH_SYMBOL(symbolStack, sym) {
-    cout << " " << sym.data()->name;
+    os << " " << sym.data()->name;
   }
-  cout << endl;
+  os << endl;
 }
-
-// --------------- END of construct LR item sets -------------------
 
 
 // ---------------------------- main --------------------------------
@@ -1090,7 +1470,7 @@ void GrammarAnalysis::exampleGrammar()
 
 
   // verify we got what we expected
-  printProductions(cout);
+  printProductions(trace("grammar") << endl);
 
 
   // run analyses
@@ -1098,8 +1478,8 @@ void GrammarAnalysis::exampleGrammar()
 
 
   // do some test parses
-  INTLOOP(i, 0,	(int)TABLESIZE(input)) {
-    cout << "------ parsing: `" << input[i] << "' -------\n";
+  INTLOOP(i, 0, (int)TABLESIZE(input)) {
+    trace("parse") << "------ parsing: `" << input[i] << "' -------\n";
     lrParse(input[i]);
   }
 }
@@ -1107,23 +1487,37 @@ void GrammarAnalysis::exampleGrammar()
 
 void GrammarAnalysis::runAnalyses()
 {
+  checkWellFormed();
+
   // precomputations
+  trace("progress") << "init...\n";
   initializeAuxData();
+
+  trace("progress") << "derivability relation...\n";
   computeWhatCanDeriveWhat();
+
+  trace("progress") << "first...\n";
   computeFirst();
+
+  trace("progress") << "follow...\n";
   computeFollow();
 
   // print results
-  cout << "Terminals:\n";
-  printSymbols(cout, toObjList(terminals));
-  cout << "Nonterminals:\n";
-  cout << "  " << emptyString << endl;
-  printSymbols(cout, toObjList(nonterminals));
+  {
+    ostream &tracer = trace("terminals") << "Terminals:\n";
+    printSymbols(tracer, toObjList(terminals));
+  }
+  {
+    ostream &tracer = trace("nonterminals") << "Nonterminals:\n";
+    tracer << "  " << emptyString << endl;
+    printSymbols(tracer, toObjList(nonterminals));
+  }
 
-  derivable->print();
+  //derivable->print();
     
   // testing closure
-  {  
+  #if 0
+  {
     // make a singleton set out of the first production, and
     // with the dot at the start
     DProductionList itemSet;
@@ -1144,10 +1538,15 @@ void GrammarAnalysis::runAnalyses()
       cout << endl;
     }
   }
+  #endif // 0
 
 
   // LR stuff
+  trace("progress") << "LR item sets...\n";
   constructLRItemSets();
+
+  trace("progress") << "SLR conflicts...\n";
+  findSLRConflicts();
 
   // another analysis
   //computePredictiveParsingTable();
