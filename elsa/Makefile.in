@@ -133,9 +133,9 @@ lexer.yy.cc: lexer.lex lexer.h
 # generate token lists
 TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
 TOCLEAN += $(TOK_FILES)
-$(TOK_FILES): $(TOK_MODS) $(ELKHOUND)/make-token-files
+$(TOK_FILES): $(TOK_MODS) make-token-files
 	rm -f $(TOK_FILES)
-	perl $(ELKHOUND)/make-token-files $(TOK_MODS)
+	perl ./make-token-files $(TOK_MODS)
 	chmod a-w $(TOK_FILES)
 
 
