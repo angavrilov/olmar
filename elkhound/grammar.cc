@@ -5,6 +5,7 @@
 #include "syserr.h"    // xsyserror
 #include "strtokp.h"   // StrtokParse
 #include "trace.h"     // trace
+#include "crc.h"       // crc32
 
 #include <stdarg.h>    // variable-args stuff
 #include <stdio.h>     // FILE, etc.
@@ -412,6 +413,8 @@ ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
     nontermTransition(NULL),   // inited below
     terms(numTerms),
     nonterms(numNonterms),
+    dotsAtEnd(NULL),
+    numDotsAtEnd(0),
     id(anId),
     BFSparent(NULL)
 {
@@ -431,11 +434,15 @@ ItemSet::~ItemSet()
 {
   delete[] termTransition;
   delete[] nontermTransition;
+  
+  if (dotsAtEnd) {
+    delete[] dotsAtEnd;
+  }
 }
 
 
 Symbol const *ItemSet::getStateSymbolC() const
-{                                  
+{
   // need only check kernel items since all nonkernel items
   // have their dots at the left side
   SFOREACH_DOTTEDPRODUCTION(kernelItems, item) {
@@ -502,32 +509,33 @@ void ItemSet::addKernelItem(DottedProduction *item)
 
   // sort the items to facilitate equality checks
   kernelItems.insertionSort(itemDiff);
+  
+  changedItems();
 }
 
 
 bool ItemSet::operator==(ItemSet const &obj) const
-{
-  #if 1
-  // since nonkernel items are entirely determined by kernel
-  // items, and kernel items are sorted, it's sufficient to
-  // check for kernel list equality
-  return kernelItems.equalAsPointerLists(obj.kernelItems);
-
-  #else   // experiment
-  DProductionList myItems;
-  getAllItems(myItems);
-
-  DProductionList hisItems;
-  obj.getAllItems(hisItems);
-
-  return myItems.equalAsPointerSets(hisItems);
-  #endif
+{                                          
+  // since common case is disequality, check the 
+  // CRCs first, and only do full check if they
+  // match
+  if (kernelItemsCRC == obj.kernelItemsCRC) {
+    // since nonkernel items are entirely determined by kernel
+    // items, and kernel items are sorted, it's sufficient to
+    // check for kernel list equality
+    return kernelItems.equalAsPointerLists(obj.kernelItems);
+  }
+  else {
+    // can't possibly be equal if CRCs differ
+    return false;
+  }
 }
 
 
 void ItemSet::addNonkernelItem(DottedProduction *item)
 {
   nonkernelItems.appendUnique(item);
+  changedItems();
 }
 
 
@@ -544,24 +552,15 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
                                     Terminal const *lookahead,
                                     bool parsing) const
 {
-  // collect all items
-  DProductionList items;
-  getAllItems(items);
+  // for each item with dot at end
+  loopi(numDotsAtEnd) {
+    DottedProduction const *item = dotsAtEnd[i];
 
-  // for each item
-  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
-    DottedProduction const *item = itemIter.data();
-
-    // it has to have the dot at the end
-    if (!item->isDotAtEnd()) {
-      continue;
-    }
-
-    // and the follow of its LHS must include 'lookahead'
+    // the follow of its LHS must include 'lookahead'
     // NOTE: this is the difference between LR(0) and SLR(1) --
     //       LR(0) would not do this check, while SLR(1) does
     if (!item->prod->left->follow.contains(lookahead)) {    // (constness)
-      if (parsing) {
+      if (parsing && tracingSys("parse")) {
 	trace("parse") << "not reducing by " << *(item->prod)
        	       	       << " because `" << lookahead->name
 		       << "' is not in follow of "
@@ -573,6 +572,83 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
     // ok, this one's ready
     reductions.append(item->prod);                          // (constness)
   }
+}
+
+
+void ItemSet::changedItems()
+{
+  // -- recompute dotsAtEnd --
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
+
+  // count number with dots at end
+  int count = 0;
+  {
+    SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+      DottedProduction const *item = itemIter.data();
+
+      if (item->isDotAtEnd()) {
+        count++;
+      }
+    }
+  }
+
+  // get array of right size
+  if (dotsAtEnd  &&  count == numDotsAtEnd) {
+    // no need to reallocate, already correct size
+  }
+  else {
+    // throw old away
+    if (dotsAtEnd) {
+      delete[] dotsAtEnd;
+    }
+
+    // allocate new array
+    numDotsAtEnd = count;
+    dotsAtEnd = new DottedProduction const * [numDotsAtEnd];
+  }
+
+  // fill array
+  int index = 0;
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *item = itemIter.data();
+
+    if (item->isDotAtEnd()) {
+      dotsAtEnd[index] = item;
+      index++;
+    }
+  }
+
+  // verify both loops executed same number of times
+  xassert(index == count);
+
+
+  // -- compute CRC of kernel items --
+  // put all pointers into a single buffer
+  // (assumes they've already been sorted!)
+  int numKernelItems = kernelItems.count();
+  DottedProduction const **array = 
+    new DottedProduction const * [numKernelItems];      // (owner ptr to array of serf ptrs)
+  index = 0;
+  SFOREACH_DOTTEDPRODUCTION(kernelItems, kitem) {
+    array[index] = kitem.data();
+
+    if (index > 0) {
+      // may as well check sortedness and
+      // uniqueness
+      xassert(array[index] > array[index-1]);
+    }
+
+    index++;
+  }
+
+  // CRC the buffer
+  kernelItemsCRC = crc32((unsigned char const*)array, 
+                         sizeof(array[0]) * numKernelItems);
+
+  // trash the array
+  delete[] array;
 }
 
 

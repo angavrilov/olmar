@@ -12,6 +12,7 @@
 #include <fstream.h>     // ofstream
 
 
+#if 0    // not used anymore; gprof is much better
 // should make a new module for this
 class Timer {
   long start;
@@ -23,17 +24,16 @@ public:
   ~Timer()
     { accumulator += getMilliseconds() - start; }
 };
-
-
-// profiling
-long totalms=0, movedotms=0, findms=0, closurems=0, getallitemsms=0;
-long closureNewItemsMS=0, wastedMoveDotMS=0;
+#endif // 0
 
 
 GrammarAnalysis::GrammarAnalysis()
   : derivable(NULL),
     indexedNonterms(NULL),
     indexedTerms(NULL),
+    numNonterms(0),
+    numTerms(0),
+    productionsByLHS(NULL),
     initialized(false),
     nextItemSetId(0),    // [ASU] starts at 0 too
     startState(NULL),
@@ -50,6 +50,11 @@ GrammarAnalysis::~GrammarAnalysis()
 
   if (indexedTerms != NULL) {
     delete indexedTerms;
+  }
+
+  if (productionsByLHS != NULL) {
+    // empties all lists automatically because of "[]"
+    delete[] productionsByLHS;
   }
 
   if (derivable != NULL) {
@@ -258,6 +263,18 @@ void GrammarAnalysis::initializeAuxData()
     sym.data()->termIndex = index;       // map: symbol to index
   }
   #endif
+
+  
+  // map: nonterminal -> productions with that nonterm on LHS
+  productionsByLHS = new SObjList<Production> [numNonterms];
+  {
+    MUTATE_EACH_PRODUCTION(productions, prod) {        // (constness)
+      int LHSindex = prod.data()->left->ntIndex;
+      xassert(LHSindex < numNonterms);
+
+      productionsByLHS[LHSindex].append(prod.data());
+    }
+  }
 
 
   // initialize the derivable relation
@@ -653,18 +670,9 @@ void GrammarAnalysis::computePredictiveParsingTable()
 }
 
 
-void timedGetAllItems(ItemSet const &itemSet, DProductionList &items)
-{
-  Timer timer(getallitemsms);
-  itemSet.getAllItems(items);
-}
-
-
 // [ASU] figure 4.33, p.223
 void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 {
-  Timer closureTimer(closurems);
-
   // while no changes
   int changes = 1;
   while (changes > 0) {
@@ -675,7 +683,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
     // grab the current set of items
     DProductionList items;
-    timedGetAllItems(itemSet, items);
+    itemSet.getAllItems(items);
 
     // for each item A -> alpha . B beta in itemSet
     SFOREACH_DOTTEDPRODUCTION(items, itemIter) {            // (constness ok)
@@ -685,12 +693,12 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
       if (item->isDotAtEnd()) continue;
       Symbol const *B = item->symbolAfterDotC();
       if (B->isTerminal()) continue;
-
-      Timer timer(closureNewItemsMS);
+      int nontermIndex = B->asNonterminalC().ntIndex;
 
       // for each production B -> gamma
-      MUTATE_EACH_PRODUCTION(productions, prod) {           // (constness)
-        if (prod.data()->left != B) continue;
+      SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prod) {           // (constness)
+        // invariant of the indexed productions list
+        xassert(prod.data()->left == B);
 
         // plan to add B -> . gamma to the itemSet, if not already there
         DottedProduction *dp = prod.data()->getDProd(0 /*dot placement*/);     // (constness)
@@ -703,12 +711,9 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     // add the new items (we don't do this while iterating because my
     // iterator interface says not to, even though it would work with
     // my current implementation)
-    {
-      Timer timer(closureNewItemsMS);
-      SMUTATE_EACH_DOTTEDPRODUCTION(newItems, item) {
-	itemSet.addNonkernelItem(item.data());	            // (constness)
-	changes++;
-      }
+    SMUTATE_EACH_DOTTEDPRODUCTION(newItems, item) {
+      itemSet.addNonkernelItem(item.data());	            // (constness)
+      changes++;
     }
   } // while changes
 }
@@ -819,8 +824,6 @@ void GrammarAnalysis::constructLRItemSets()
   // for each pending item set
   while (!itemSetsPending.isEmpty()) {
     ItemSet *itemSet = itemSetsPending.removeAt(0);    // dequeue   (owner; ownership transfer)
-				      
-    Timer totalTimer(totalms);
 
     // put it in the done set; note that we must do this *before*
     // the processing below, to properly handle self-loops
@@ -849,33 +852,20 @@ void GrammarAnalysis::constructLRItemSets()
 	// left of the dot, then we will 'moveDot' each time
 
       // compute the itemSet produced by moving the dot
-      // across 'sym' and taking the closure
-      ItemSet *withDotMoved;
-      long thisMoveDotMS=0;
-      {
-        Timer moveTimer(movedotms);
-        Timer another(thisMoveDotMS);
-        withDotMoved = moveDotNoClosure(itemSet, sym);
-      }
-
-      // inefficiency: we go all the way to materialize the
-      // itemset before checking whether we already have it
+      // across 'sym'; but don't take closure yet since
+      // we first want to check whether it is already present
+      ItemSet *withDotMoved = moveDotNoClosure(itemSet, sym);
 
       // see if we already have it, in either set
-      ItemSet *already;
-      {
-        Timer findTimer(findms);
-	already = findItemSetInList(itemSetsPending, withDotMoved);
-	if (already == NULL) {
-	  already = findItemSetInList(itemSetsDone, withDotMoved);
-	}
+      ItemSet *already = findItemSetInList(itemSetsPending, withDotMoved);
+      if (already == NULL) {
+        already = findItemSetInList(itemSetsDone, withDotMoved);
       }
 
       // have it?
       if (already != NULL) {
         // we already have it, so throw away one we made
         disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
-        wastedMoveDotMS += thisMoveDotMS;
 
         // and use existing one for setting the transition function
         withDotMoved = already;
@@ -895,34 +885,25 @@ void GrammarAnalysis::constructLRItemSets()
   } // for each item set
 
 
-  trace("profiling")
-    << "total=" << totalms
-    << " movedot=" << movedotms
-    << " find=" << findms
-    << " closure=" << closurems
-//    << " getallitems=" << getallitemsms
-    << " closureNewItems=" << closureNewItemsMS
-    << " wastedMoveDot=" << wastedMoveDotMS
-    << endl;
-
-
   // do the BFS now, since we want to print the sample inputs
   // in the loop that follows
   trace("progress") << "BFS tree on transition graph...\n";
   computeBFSTree();
 
 
-  // print each item set
-  FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
-    ostream &os = trace("item-sets")
-      << "State " << itemSet.data()->id
-      << ", sample input: " << sampleInput(itemSet.data())
-      << endl
-      << "  and left context: " << leftContextString(itemSet.data())
-      << endl
-      ;
+  if (tracingSys("item-sets")) {
+    // print each item set
+    FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
+      ostream &os = trace("item-sets")
+        << "State " << itemSet.data()->id
+        << ", sample input: " << sampleInput(itemSet.data())
+        << endl
+        << "  and left context: " << leftContextString(itemSet.data())
+        << endl
+        ;
 
-    itemSet.data()->print(os);
+      itemSet.data()->print(os);
+    }
   }
 
 

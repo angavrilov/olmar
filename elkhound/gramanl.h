@@ -29,11 +29,18 @@ protected:  // data
   enum { emptyStringIndex = 0 };
   Bit2d *derivable;                     // (owner)
 
-  // indexing structures
+  // index the symbols on their integer ids
   Nonterminal **indexedNonterms;        // (owner * serfs) ntIndex -> Nonterminal
   Terminal **indexedTerms;              // (owner * serfs) termIndex -> Terminal
   int numNonterms;                      // length of 'indexedNonterms' array
   int numTerms;                         //   "     "         terms       "
+
+  // during itemSetClosure, profiling reports we spend a lot of time
+  // walking the list of productions looking for those that have a given
+  // symbol on the LHS; so let's index produtions by LHS symbol index;
+  // this array has 'numNonterms' elements, mapping each nonterminal to
+  // the list of productions with that nonterminal on the LHS
+  SObjList<Production> *productionsByLHS;    // (owner ptr to array)
 
   // only true after initializeAuxData has been called
   bool initialized;

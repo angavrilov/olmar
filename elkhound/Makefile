@@ -9,7 +9,7 @@ SMBASE = /home/scott/wrk/lib/smbase
 # dependencies
 libraries = ${SMBASE}/libsmbase.a
 includes = -I${SMBASE}
-ccflags = -pg
+#ccflags = -pg
 
 # pull in base stuff
 include ${SMBASE}/Makefile.base.mk

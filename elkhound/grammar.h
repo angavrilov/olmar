@@ -327,6 +327,17 @@ private:    // data
   int terms;
   int nonterms;
 
+  // profiler reports I'm spending significant time rifling through
+  // the items looking for those that have the dot at the end; so this
+  // array will point to all such items
+  DottedProduction const **dotsAtEnd;        // (owner ptr to array of serf ptrs)
+  int numDotsAtEnd;                          // number of elements in 'dotsAtEnd'
+  
+  // profiler also reports I'm still spending time comparing item sets; this
+  // stores a CRC of the numerically sorted kernel item pointer addresses,
+  // concatenated into a buffer of sufficient size
+  unsigned long kernelItemsCRC;
+
 public:	    // data
   // numerical state id, should be unique among item sets
   // in a particular grammar's sets
@@ -345,6 +356,9 @@ private:    // funcs
   int bcheckTerm(int index);
   int bcheckNonterm(int index);
   ItemSet *&refTransition(Symbol const *sym);
+                      
+  // computes things derived from the item set lists
+  void changedItems();
 
 public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);

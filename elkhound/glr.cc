@@ -297,7 +297,10 @@ void GLR::glrParse(char const *inputFname)
   // printer will handle it ok, whereas thet tree printer will
   // get into an infinite loop (so at least the graph will be
   // available in a file after I kill the process))
-  writeParseGraph("parse.g");
+  if (tracingSys("parse-graph")) {      // profiling says this is slow
+    trace("progress") << "writing parse graph...\n";
+    writeParseGraph("parse.g");
+  }
 
 
   // print parse tree in ascii; the final activeParser is the one
@@ -465,7 +468,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // we've popped the required number of symbols; collect the
     // popped symbols into a Reduction
     Reduction *rn = new Reduction(pcs.production);        // (owner)
-    rn->children = pcs.poppedSymbols;
+    rn->children = pcs.poppedSymbols;       // profiling: majority of time spent here
 
     // previously, I had been reversing the children here; that
     // is wrong!  since the most recent symbol prepended is the
@@ -492,7 +495,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       else {
         // either no requirement, or we didn't consume it; just
         // propagate current requirement state
-        collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib, 
+        collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib,
                               mustUseLink);
       }
 

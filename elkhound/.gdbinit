@@ -1,7 +1,7 @@
 # .gdbinit for running glr
 
 file glr
-set args -tr progress,ambiguities c.gr c.in3
+set args -tr progress,ambiguities c.gr c.in1
 
 #file lexer1
 #set args -tr lexer1
