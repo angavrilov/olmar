@@ -255,4 +255,63 @@ public:
   for(ObjListIterNC< T > iter(list); !iter.isDone(); iter.adv())
 
 
+// iterate over the combined elements of two or more lists
+template <class T>
+class ObjListMultiIter {
+private:
+  // all the lists
+  ObjList<T> **lists;                // serf array of serf list pointers
+  int numLists;                      // length of this array
+
+  // current element
+  int curList;                       // which list we're working on
+  ObjListIter<T> iter;               // current element of that list
+
+  // invariant:
+  //   either curList==numLists, or
+  //   iter is not 'done'
+
+public:
+  ObjListMultiIter(ObjList<T> **L, int n)
+    : lists(L),
+      numLists(n),
+      curList(0),
+      iter(*(lists[0]))
+  {
+    xassert(n > 0);
+    normalize();
+  }
+
+  // advance the iterator to the next element of the next non-empty list;
+  // establishes invariant above
+  void normalize();
+
+  bool isDone() const {
+    return curList == numLists;
+  }
+
+  T const *data() const {
+    return iter.data();
+  }
+
+  void adv() {
+    iter.adv();
+    normalize();
+  }
+};
+
+// this was originally inline, but that was causing some strange
+// problems (compiler bug?)
+template <class T>
+void ObjListMultiIter<T>::normalize()
+{
+  while (iter.isDone() && curList < numLists) {
+    curList++;
+    if (curList < numLists) {
+      iter.reset(*(lists[curList]));
+    }
+  }
+}
+
+
 #endif // OBJLIST_H

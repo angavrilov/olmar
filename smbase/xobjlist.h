@@ -1,6 +1,6 @@
 m4_dnl // xobjlist.h            see license.txt for copyright and terms of use
 m4_dnl // template file to be processed with m4 to generate one
-m4_dnl // of wrappers around VoidList
+m4_dnl // of the wrappers around VoidList
 m4_dnl
 m4_changequote([, ])m4_dnl      // for this section
 m4_changecom[]m4_dnl            // no m4 "comments"
@@ -9,17 +9,20 @@ m4_ifelse(m4_output, sobjlist.h, [m4_dnl
 // serf list of arbitrary objects
 m4_define(makeName, S[$1])m4_dnl
 m4_define(outputCond, [$1])m4_dnl       // select 1st arg
+m4_define(SPC, [])m4_dnl
 ], [m4_dnl
 // objlist.h
 // owner list of arbitrary dynamically-allocated objects
 m4_define(makeName, [$1])m4_dnl
 m4_define(outputCond, [$2])m4_dnl       // select 2nd arg
+m4_define(SPC, [ ])m4_dnl               // for balancing lined-up comments
 ])m4_dnl
 m4_define(includeLatch, makeName(OBJLIST_H))m4_dnl
 m4_define(className, makeName(ObjList))m4_dnl
 m4_define(iterName, makeName(ObjListIter))m4_dnl
 m4_define(mutatorName, makeName(ObjListMutator))m4_dnl
 m4_define(iterNameNC, makeName(ObjListIterNC))m4_dnl
+m4_define(multiIterName, makeName(ObjListMultiIter))m4_dnl
 m4_changequote(, )m4_dnl              // so quotes are not quoted..
 m4_changequote([[[, ]]])m4_dnl        // reduce likelihood of confusion
 // NOTE: automatically generated from xobjlist.h -- do not edit directly
@@ -303,6 +306,65 @@ public:
 
 #define makeName(FOREACH_OBJLIST_NC)(T, list, iter) \
   for(iterNameNC< T > iter(list); !iter.isDone(); iter.adv())
+
+
+// iterate over the combined elements of two or more lists
+template <class T>
+class multiIterName {
+private:
+  // all the lists
+  className<T> **lists;               SPC// serf array of serf list pointers
+  int numLists;                      // length of this array
+
+  // current element
+  int curList;                       // which list we're working on
+  iterName<T> iter;              SPC// current element of that list
+
+  // invariant:
+  //   either curList==numLists, or
+  //   iter is not 'done'
+
+public:
+  multiIterName[[[]]](className<T> **L, int n)
+    : lists(L),
+      numLists(n),
+      curList(0),
+      iter(*(lists[0]))
+  {
+    xassert(n > 0);
+    normalize();
+  }
+
+  // advance the iterator to the next element of the next non-empty list;
+  // establishes invariant above
+  void normalize();
+
+  bool isDone() const {
+    return curList == numLists;
+  }
+
+  T const *data() const {
+    return iter.data();
+  }
+
+  void adv() {
+    iter.adv();
+    normalize();
+  }
+};
+
+// this was originally inline, but that was causing some strange
+// problems (compiler bug?)
+template <class T>
+void multiIterName<T>::normalize()
+{
+  while (iter.isDone() && curList < numLists) {
+    curList++;
+    if (curList < numLists) {
+      iter.reset(*(lists[curList]));
+    }
+  }
+}
 
 
 #endif // includeLatch
