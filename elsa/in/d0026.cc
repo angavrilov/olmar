@@ -1,5 +1,5 @@
 template <class T> struct F {};
-template <class T> class I {
+template <class T> struct I {
   F<T> m;
 };
 struct C {
