@@ -230,5 +230,16 @@ public:
   ENUM_BITWISE_NOT(Type, ALL)
 
 
+// macro to conditionalize something on NDEBUG; I typically use this
+// to hide the declaration of a variable whose value is only used by
+// debugging trace statements (and thus provokes warnings about unused
+// variables if NDEBUG is set)
+#ifdef NDEBUG
+  #define IFDEBUG(stuff)
+#else
+  #define IFDEBUG(stuff) stuff
+#endif
+
+
 
 #endif // __MACROS_H
