@@ -691,7 +691,7 @@ public:     // funcs
   bool isOwnerPtr() const;
   bool isMethod() const;                       // function and method
 
-  // ST_DEPENDENT or TypeVariable or PseudoInstantiation
+  // ST_DEPENDENT or TypeVariable or PseudoInstantiation or DependentQType
   bool isGeneralizedDependent() const;
   bool containsGeneralizedDependent() const;   // anywhere in Type tree
 
@@ -731,9 +731,10 @@ public:     // funcs
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
 
-  // and PseudoInstantiation ...
+  // etc. ...
   bool isPseudoInstantiation() const { return isCVAtomicType(AtomicType::T_PSEUDOINSTANTIATION); }
-  
+  bool isDependentQType() const { return isCVAtomicType(AtomicType::T_DEPENDENTQTYPE); }
+
   // something that behaves like a CompoundType in most respects
   bool isLikeCompoundType() const
     { return isCompoundType() || isPseudoInstantiation(); }

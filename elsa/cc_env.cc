@@ -1563,7 +1563,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
                                                                  
 // return true if the semantic template arguments in 'args' are not
 // all concrete
-bool containsTypeVariables(ASTList<TemplateArgument> const &args)
+bool containsVariables(ASTList<TemplateArgument> const &args)
 {
   FOREACH_ASTLIST(TemplateArgument, args, iter) {
     if (iter.data()->sarg.containsVariables()) {
@@ -1641,7 +1641,16 @@ Scope *Env::lookupOneQualifier(
   bool &dependent,               // set to true if we have to look inside a TypeVariable
   bool &anyTemplates,            // set to true if we look in uninstantiated templates
   LookupFlags lflags)
-{
+{                                       
+  // the other call site to lookupOneQualifier_useArgs has a certain
+  // DF_SELFNAME processing that would have to be repeated if this
+  // code is reachable
+  //
+  // I will delete this function when I strip out the last vestiges of
+  // the old lookup mechanism; but I can't do that until
+  // declarator/type-tag lookup is rewritten too
+  xfailure("this function is obsolete");
+
   // lookup the name
   Variable *qualVar = lookupOneQualifier_bareName(startingScope, qualifier, lflags);
   if (!qualVar) {
@@ -1746,20 +1755,6 @@ Scope *Env::lookupOneQualifier_useArgs(
     }
     CompoundType *ct = qualVar->type->asCompoundType();
 
-    if (qualVar->hasFlag(DF_SELFNAME) &&
-        targs.isNotEmpty() &&
-        ct->templateInfo()) {
-      // 2005-03-04: referring to the self-name but passing args:
-      // regard the arguments as being applied to the primary
-      // (in/t0425.cc) (in/0428.cc)
-      //
-      // what it if the arguments are the same as the current
-      // parameter list?  will this mess up that case?  (could only
-      // cause problems in uninstantiated template definitions...)
-      qualVar = ct->templateInfo()->getPrimary()->var;
-      ct = qualVar->type->asCompoundType();
-    }
-
     if (ct->isTemplate()) {
       anyTemplates = true;
     }
@@ -1793,7 +1788,7 @@ Scope *Env::lookupOneQualifier_useArgs(
         }
 
         if ((lflags & LF_DECLARATOR) &&
-            containsTypeVariables(targs)) {    // fix t0185.cc?  seems to...
+            containsVariables(targs)) {    // fix t0185.cc?  seems to...
           // Since we're in a declarator, the template arguments are
           // being supplied for the purpose of denoting an existing
           // template primary or specialization, *not* to cause
@@ -1823,7 +1818,7 @@ Scope *Env::lookupOneQualifier_useArgs(
             // proper fix for t0185.cc will land soon and we can make
             // this visible.
             //
-            // 8/07/04: I think the test above, 'containsTypeVariables',
+            // 8/07/04: I think the test above, 'containsVariables',
             // has resolved this issue.
             error(stringc << "cannot find template primary or specialization `"
                           << qual << targsToString(targs) << "'",
@@ -1836,7 +1831,7 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         // if the template arguments are not concrete, then this is
         // a dependent name, e.g. "C<T>::foo"
-        if (containsTypeVariables(targs)) {
+        if (containsVariables(targs)) {
           dependent = true;
           return NULL;
         }
@@ -2142,7 +2137,7 @@ Variable *Env::applyPQNameTemplateArguments
       // a PseudoInstantiation
       if (containsTypeVariables(sargs)) {
         PseudoInstantiation *pi =
-          createPseudoInstantiation(var->type->asCompoundType(), sargs);
+          createPseudoInstantiation(var->type->asCompoundType(), tqual->args);
         xassert(pi->typedefVar);
         return pi->typedefVar;
       }
@@ -3583,11 +3578,12 @@ E_intLit *Env::buildIntegerLiteralExp(int i)
 }
 
 
+#if 0    // not needed, right?
 // create a PseudoInstantiation, bind its arguments, and create
 // the associated typedef variable
 PseudoInstantiation *Env::createPseudoInstantiation
   (CompoundType *ct, SObjList<STemplateArgument> const &args)
-{                                                            
+{
   TRACE("pseudo", "creating " << ct->name << sargsToString(args));
 
   // make the object itself
@@ -3600,11 +3596,45 @@ PseudoInstantiation *Env::createPseudoInstantiation
   pi->args.reverse();
 
   // make the typedef var; do *not* add it to the environment
-  pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi), 
+  pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi),
                                 DF_TYPEDEF | DF_IMPLICIT);
 
   return pi;
 }
+#endif // 0
+
+
+// create a PseudoInstantiation, bind its arguments, and create
+// the associated typedef variable
+PseudoInstantiation *Env::createPseudoInstantiation
+  (CompoundType *ct, ASTList<TemplateArgument> const &args)
+{
+  TRACE("pseudo", "creating " << ct->name << sargsToString(args));
+
+  // make the object itself
+  PseudoInstantiation *pi = new PseudoInstantiation(ct);
+
+  // attach the template arguments
+  copyPITemplateArgs(pi->args, args);
+
+  // make the typedef var; do *not* add it to the environment
+  pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi),
+                                DF_TYPEDEF | DF_IMPLICIT);
+
+  return pi;
+}
+
+// does this code exist somewhere else?
+void Env::copyPITemplateArgs(ObjList<STemplateArgument> &dest,
+                             ASTList<TemplateArgument> const &args)
+{ 
+  xassert(dest.isEmpty());
+  FOREACH_ASTLIST(TemplateArgument, args, iter) {
+    dest.prepend(new STemplateArgument(iter.data()->sarg));
+  }
+  dest.reverse();
+}
+
 
 
 // Push onto the scope stack the scopes that contain the declaration
@@ -4129,38 +4159,93 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
   while (name->isPQ_qualifier()) {
     PQ_qualifier *qual = name->asPQ_qualifier();
 
-    // lookup this qualifier in 'scope'
-    scope = lookupScope(scope, qual->qualifier, qual->targs, flags);
-    if (!scope) {
-      return;      // error already reported
+    if (!qual->qualifier) {
+      scope = globalScope();
     }
 
-    if (scope == dependentScope) {
-      // check that all names further down use 'template'
-      // appropriately (in/t0254.cc)
-      do {
-        name = name->asPQ_qualifier()->rest;
-        bool templateUsed = name->templateUsed();
-        bool hasTemplArgs = name->isPQ_template() ||
-                            (name->isPQ_qualifier() && name->asPQ_qualifier()->targs.isNotEmpty());
+    else {
+      // lookup this qualifier in 'scope'
+      Variable *svar = lookupScopeVar(scope, qual->qualifier, flags);
 
-        // we only need to check for one kind of mismatch, because the
-        // other kind is rejected by the parser
-        if (!templateUsed && hasTemplArgs) {
-          // without the "template" keyword, the dependent context may give
-          // rise to ambiguity, so reject it
-          env.error("dependent template scope name requires 'template' keyword",
-                    EF_DISAMBIGUATES | EF_STRONG);
+      // 2005-03-04: referring to the self-name but passing args:
+      // regard the arguments as being applied to the primary
+      // (in/t0425.cc) (in/0428.cc)
+      if (svar &&
+          svar->hasFlag(DF_SELFNAME) &&
+          qual->targs.isNotEmpty()) {
+        if (svar->type->isCompoundType()) {
+          // have to go via the CompoundType because the DF_SELFNAME
+          // may not have templateInfo
+          CompoundType *ct = svar->type->asCompoundType();
+          if (ct->templateInfo()) {
+            svar = ct->templateInfo()->getPrimary()->var;
+          }
         }
-      } while (name->isPQ_qualifier());
+        else if (svar->type->isPseudoInstantiation()) {
+          svar = svar->type->asCVAtomicType()->atomic->
+                   asPseudoInstantiation()->primary->typedefVar;
+        }
+      }
+    
+      // interpret 'var', apply template args, etc. (legacy call)
+      bool dependent=false, anyTemplates=false;
+      scope = lookupOneQualifier_useArgs(svar, qual->targs, dependent,
+                                         anyTemplates, flags);
 
-      if (flags & (LF_TYPENAME | LF_ONLY_TYPES)) {
-        set.add(dependentTypeVar);    // user claims it's a type
+      // dependent qualified name: if a variable, just yield
+      // 'dependentVar', but if a type, we need to construct a more
+      // detailed record so we can match declarations with definitions
+      if (dependent) {
+        DependentQType *dqt;
+
+        if (!( flags & (LF_TYPENAME | LF_ONLY_TYPES) )) {
+          set.add(dependentVar);    // user makes no claim, so it's a variable
+          dqt = NULL;               // don't need a DQT
+        }
+
+        else if (svar->isTemplateParam()) {
+          if (qual->targs.isNotEmpty()) {
+            error(name->loc, stringc     // t0265.cc error 1
+              << "template arguments applied to `" << qual->qualifier
+              << "' but that is a template parameter (and template "
+              << "template parameters are not implemented yet)",
+              EF_STRONG);
+            return;
+          }
+
+          // build DependentQType TypeVariable(svar)::...
+          xassert(svar->type->isTypeVariable());
+          dqt = new DependentQType(svar->type->asTypeVariable());
+        }
+
+        else if (containsVariables(qual->targs)) {
+          if (!svar->type->isCompoundType()) {
+            error(name->loc, stringc
+              << "template arguments applied to `" << qual->qualifier
+              << "' but that is not a class template");
+            return;
+          }
+
+          // build DependentQType PseudoInstantiation(svar, qual->targs)::...
+          CompoundType *ct = svar->type->asCompoundType();
+          dqt = new DependentQType(createPseudoInstantiation(ct, qual->targs));
+        }
+
+        // examine the names further down
+        finishDependentQType(set, dqt, qual->rest);
+        return;
       }
-      else {
-        set.add(dependentVar);        // user makes no claim, so it's a variable
+
+      if (!scope) {
+        return;      // error already reported
       }
-      return;
+
+      // a scope used as a qualifier must be a complete type; I cannot
+      // find anyplace in the standard that explicitly requires this,
+      // though it seems to be clearly true (t0245.cc)
+      if (scope->curCompound) {
+        env.ensureCompleteCompound("use as qualifier", scope->curCompound);
+      }
     }
 
     flags |= LF_QUALIFIED;            // subsequent lookups are qualified
@@ -4208,13 +4293,13 @@ void Env::unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
 }
 
 
-Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
-                        ASTList<TemplateArgument> &targs, LookupFlags flags)
+// starting from 'scope', lookup scope name 'name' to get
+// the corresponding Variable (NULL if (reported) error);
+// in the case of a template class, this returns the primary,
+// so template args may still have to be applied
+Variable *Env::lookupScopeVar(Scope * /*nullable*/ scope, StringRef name,
+                              LookupFlags flags)
 {
-  if (!name) {
-    return globalScope();       // "::" qualifier
-  }
-
   // lookup 'name' in 'scope'
   flags |= LF_QUALIFIER_LOOKUP;
   flags &= ~LF_ONLY_TYPES;      // only-types is only for the final component, not the qualifiers
@@ -4224,25 +4309,7 @@ Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
     return NULL;                // error already reported
   }
   xassert(set.count() == 1);    // 'flags' should ensure this
-  Variable *var = set.first();
-
-  // interpret 'var', apply template args, etc. (legacy call)
-  bool dependent=false, anyTemplates=false;
-  Scope *ret = lookupOneQualifier_useArgs(var, targs, dependent,
-                                          anyTemplates, flags);
-
-  if (dependent) {
-    return dependentScope;
-  }
-
-  // a scope used as a qualifier must be a complete type; I cannot
-  // find anyplace in the standard that explicitly requires this,
-  // though it seems to be clearly true (t0245.cc)
-  if (ret && ret->curCompound) {
-    env.ensureCompleteCompound("use as qualifier", ret->curCompound);
-  }
-
-  return ret;
+  return set.first();
 }
 
 
@@ -4309,63 +4376,73 @@ Variable *Env::unqualifiedLookup_one(StringRef name, LookupFlags flags)
 }
 
 
-#if 0      // work in progress; does not compile yet
-// modeled on Env::lookupPQ
-Type *Env::buildDependentQType(PQName *name, LookupFlags flags)
+// given a partially-constructed DQT, with trailing name components
+// 'name', finish building it, and then put its typedef Variable
+// into 'set'
+void Env::finishDependentQType(LookupSet &set, DependentQType * /*nullable*/ dqt,
+                               PQName *name)
 {
-  // as above
-  Scope *scope = NULL;
-  flags |= LF_LOOKUP_SET;
-
-  // lookup along the chain of qualifiers, searching for the
-  // first qualifier that is dependent
   while (name->isPQ_qualifier()) {
     PQ_qualifier *qual = name->asPQ_qualifier();
-
-    // lookup this qualifier in 'scope'
-    Variable *svar = lookup_one(...);
-    xassert(svar);    // otherwise already got an error
-
-    if (svar->isTemplateParam()) {
-      // build DependentQType TypeVariable(svar)::...
-
-
-      return ...;
-    }
-    else if (containsVariables(qual->targs)) {
-      // build DependentQType PseudoInstantiation(svar, qual->targs)::...
-
-
-      return ...;
-    }
-    else if (qual->targs.isNotEmpty()) {
-      svar = applyTemplateArgs(svar, qual->targs);
+    checkTemplateKeyword(qual);
+  
+    if (dqt) {
+      // The idea here is we simply record the textual name of the type,
+      // and any template arguments too; this is simply a guess, as the
+      // standard does not seem to specify how dependent-qualified types
+      // are supposed to be used when matching declarations with
+      // definitions.
+      //
+      // The whole thing is wrapped up as a PseudoInstantiation simply
+      // because that object has the right components; it's something of
+      // an abuse.  (No CompoundType, no typedefVar.)
+      PseudoInstantiation *pi = new PseudoInstantiation(NULL /*ct*/);
+      pi->name = qual->qualifier;
+      copyPITemplateArgs(pi->args, qual->targs);
+      dqt->rest.append(pi);
     }
 
-    // get the scope represented by this svar
-    scope = ...svar...;
-
-    // subsequent lookups are qualified
-    flags |= LF_QUALIFIED;
     name = qual->rest;
   }
 
-  // can only get to the end if it ends with a dependent template-id,
-  // which will just become an ordinary PseudoInstantiation (maybe
-  // lookupPQ should have handled it?  I think maybe the difference
-  // between 'containsVariables' and 'containsTypeVariables' might
-  // make this code reachable until that gets sorted out)
-  PQ_template *final = name->isPQ_template();
+  checkTemplateKeyword(name);
 
-  // lookup 'scope'
-  Variable *var = lookup_one(...);
-  xassert(var);    // otherwise already got an error
+  if (dqt) {
+    // put on the last component
+    StringRef finalName = name->getName();
+    PseudoInstantiation *pi = new PseudoInstantiation(NULL /*ct*/);
+    pi->name = finalName;
+    if (name->isPQ_template()) {
+      copyPITemplateArgs(pi->args, name->asPQ_template()->args);
+    }
+    dqt->rest.append(pi);
 
-  // build PseudoInstantiation(var, final->targs)
-
-  return ...;
+    // slap a typedefVar on 'dqt' so we can put it into 'set'
+    dqt->name = finalName;
+    dqt->typedefVar = makeVariable(name->loc, finalName,
+                                   makeType(name->loc, dqt),
+                                   DF_TYPEDEF | DF_IMPLICIT);
+    set.add(dqt->typedefVar);
+  }
 }
-#endif // 0 (work in progress)
+
+// given 'name' that appears below a dependent-type qualifier,
+// check that the 'template' keyword is used properly
+void Env::checkTemplateKeyword(PQName *name)
+{
+  bool templateUsed = name->templateUsed();
+  bool hasTemplArgs = name->isPQ_template() ||
+                      (name->isPQ_qualifier() && name->asPQ_qualifier()->targs.isNotEmpty());
+
+  // we only need to check for one kind of mismatch, because the
+  // other kind is rejected by the parser
+  if (!templateUsed && hasTemplArgs) {
+    // without the "template" keyword, the dependent context may give
+    // rise to ambiguity, so reject it
+    env.error("dependent template scope name requires 'template' keyword",
+              EF_DISAMBIGUATES | EF_STRONG);
+  }
+}
 
 
 // ----------------------- makeQualifiedName -----------------------

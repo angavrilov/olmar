@@ -66,7 +66,7 @@ public:      // funcs
 // dependent-typed qualifier and therefore cannot be represented
 // as an ordinary TypeVariable or PseudoInstantiation.  For
 // example, T::foo where T is a template parameter.
-class DependentQType : public AtomicType {
+class DependentQType : public NamedAtomicType {
 public:      // data
   // The first component is either a template parameter (e.g., T::foo)
   // or is a PseudoInstantiation (e.g., C<T>::foo).  The latter could
@@ -447,6 +447,7 @@ SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
+string sargsToString(ASTList<TemplateArgument> const &list);
 
 bool containsTypeVariables(SObjList<STemplateArgument> const &args);
 bool hasDependentArgs(SObjList<STemplateArgument> const &args);

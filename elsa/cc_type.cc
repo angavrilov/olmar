@@ -1099,7 +1099,8 @@ bool BaseType::isGeneralizedDependent() const
 {
   if (isSimple(ST_DEPENDENT) ||
       isTypeVariable() ||
-      isPseudoInstantiation()) {
+      isPseudoInstantiation() ||
+      isDependentQType()) {
     return true;
   }
   

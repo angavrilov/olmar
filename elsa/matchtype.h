@@ -210,6 +210,8 @@ private:                        // funcs
                            int matchDepth);
   bool match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
                 int matchDepth);
+  bool match_DQT(DependentQType *a, DependentQType *b,
+                 int matchDepth);
 
   bool match_variables(Type *a, TypeVariable *b, int matchDepth);
 

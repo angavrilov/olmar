@@ -490,7 +490,7 @@ testparse t0262.cc
 testparse t0263.cc
 testparse t0264.cc
 testparse t0265.cc
-failparse_strict t0265.cc "<dependent> problem"
+testparse_strict t0265.cc
 testparse t0266.cc
 # it's not clear whether t0267.cc is valid C++ or not, no point in testing it here
 testparse t0268a.cc
@@ -648,7 +648,7 @@ testparse t0411.cc
 testparse t0412.cc
 testparse t0413.cc
 testparse t0414.cc
-failparse_strict t0415.cc "more qualified dependent-type matching problems"
+testparse_strict t0415.cc
 testparse_strict t0416.cc
 failparse t0417.cc "invalid template declarations are not rejected"
 testparse_strict t0418.cc

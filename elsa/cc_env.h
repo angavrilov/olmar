@@ -266,8 +266,12 @@ private:     // funcs
     (LookupSet &candidates, PQName const *name, LookupFlags flags,
      Scope *&scope);
 
+  //PseudoInstantiation *createPseudoInstantiation
+  //  (CompoundType *ct, SObjList<STemplateArgument> const &args);
   PseudoInstantiation *createPseudoInstantiation
-    (CompoundType *ct, SObjList<STemplateArgument> const &args);
+    (CompoundType *ct, ASTList<TemplateArgument> const &args);
+  void copyPITemplateArgs(ObjList<STemplateArgument> &dest,
+                          ASTList<TemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
   bool equivalentTypes(Type *t1, Type *t2, Type::EqFlags eflags = Type::EF_EXACT);
@@ -697,10 +701,13 @@ public:      // funcs
 
   // ------------ new lookup mechanism ---------------
 private:     // funcs
-  Scope *lookupScope(Scope * /*nullable*/ scope, StringRef name,
-                     ASTList<TemplateArgument> &targs, LookupFlags flags);
   void unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
                          StringRef name, LookupFlags flags);
+  Variable *lookupScopeVar(Scope * /*nullable*/ scope, StringRef name,
+                           LookupFlags flags);
+  void finishDependentQType(LookupSet &set, DependentQType * /*nullable*/ dqt,
+                            PQName *name);
+  void checkTemplateKeyword(PQName *name);
 
 public:      // funcs
   // this is the main lookup function in the new design

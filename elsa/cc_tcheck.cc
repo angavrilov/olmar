@@ -1159,6 +1159,7 @@ void maybeNondependent(Env &env, SourceLoc loc, Variable *&nondependentVar,
 
   if (env.inUninstTemplate() &&               // we're in a template
       !var->type->isSimple(ST_DEPENDENT) &&   // lookup was non-dependent
+      !var->type->isDependentQType() &&       //   (also would be dependent)
       !var->type->isError() &&                // and not erroneous
       !var->isMemberOfTemplate()) {           // will be in scope in instantiation
     TRACE("dependent", toString(loc) << ": " <<

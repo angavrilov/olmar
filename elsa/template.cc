@@ -90,7 +90,7 @@ bool TypeVariable::isAssociated() const
 
 // -------------------- PseudoInstantiation ------------------
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
-  : NamedAtomicType(p->name),
+  : NamedAtomicType(p? p->name : NULL),
     primary(p),
     args()        // empty initially
 {}
@@ -100,7 +100,7 @@ PseudoInstantiation::~PseudoInstantiation()
 
 string PseudoInstantiation::toCString() const
 {
-  return stringc << primary->name << sargsToString(args);
+  return stringc << name << sargsToString(args);
 }
 
 int PseudoInstantiation::reprSize() const
@@ -117,10 +117,66 @@ void PseudoInstantiation::traverse(TypeVisitor &vis)
   if (!vis.visitAtomicType(this)) {
     return;
   }
-  
-  primary->traverse(vis);
+
+  if (primary) {
+    primary->traverse(vis);
+  }
+  else {
+    // this is a component of a DependentQType
+  }
   
   FOREACH_OBJLIST_NC(STemplateArgument, args, iter) {
+    iter.data()->traverse(vis);
+  }
+}
+
+
+// -------------------- DependentQType ------------------
+DependentQType::DependentQType(AtomicType *f)
+  : NamedAtomicType(NULL /*name*/),    // gets changed later
+    first(f),
+    rest()
+{}
+
+DependentQType::~DependentQType()
+{}
+
+string DependentQType::toCString() const
+{
+  stringBuilder sb;
+  sb << first->toCString();
+  
+  FOREACH_OBJLIST(PseudoInstantiation, rest, iter) {
+    PseudoInstantiation const *pi = iter.data();
+    sb << "::" << pi->name;
+    if (pi->args.isNotEmpty()) {
+      sb << sargsToString(pi->args);
+    }
+  }
+
+  return sb;
+}
+
+string DependentQType::toMLString() const
+{
+  return stringc << "punt!" << toCString();
+}
+
+int DependentQType::reprSize() const
+{
+  return 4;    // should not matter
+}
+
+
+void DependentQType::traverse(TypeVisitor &vis)
+{
+  if (!vis.visitAtomicType(this)) {
+    return;
+  }
+
+  first->traverse(vis);
+
+  FOREACH_OBJLIST_NC(PseudoInstantiation, rest, iter) {
     iter.data()->traverse(vis);
   }
 }
@@ -814,6 +870,24 @@ string sargsToString(SObjList<STemplateArgument> const &list)
       sb << ", ";
     }
     sb << iter.data()->toString();
+  }
+
+  sb << ">";
+  return sb;
+}
+
+
+string sargsToString(ASTList<TemplateArgument> const &list)
+{
+  stringBuilder sb;
+  sb << "<";
+
+  int ct=0;
+  FOREACH_ASTLIST(TemplateArgument, list, iter) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << iter.data()->sarg.toString();
   }
 
   sb << ">";

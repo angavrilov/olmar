@@ -499,6 +499,12 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
                         matchDepth);
       }
 
+      // adjustment 3: dependent qualified types
+      if (aAT->isDependentQType() && bAT->isDependentQType()) {
+        return match_DQT(aAT->asDependentQType(), bAT->asDependentQType(),
+                         matchDepth);
+      }
+
       // not equal
       return false;
     }
@@ -800,14 +806,42 @@ bool MatchTypes::match_TInfo_with_PI(TemplateInfo *a, PseudoInstantiation *b,
 
 bool MatchTypes::match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
                           int matchDepth)
-{ 
+{
   // same primary?
   if (a->primary != b->primary) {
     return false;
   }
+                           
+  // component in a DependentQType?
+  if (a->primary == NULL) {        
+    // compare the *names*
+    if (a->name != b->name) {
+      return false;
+    }
+  }
 
   // compare arguments
   return match_Lists(a->args, b->args, matchDepth);
+}
+
+
+bool MatchTypes::match_DQT(DependentQType *a, DependentQType *b,
+                           int matchDepth)
+{
+  if (!match_Atomic(a->first, b->first, matchDepth)) {
+    return false;
+  }
+
+  // compare subsequent components
+  ObjListIterNC<PseudoInstantiation> aIter(a->rest);
+  ObjListIterNC<PseudoInstantiation> bIter(b->rest);
+  for(; !aIter.isDone() && !bIter.isDone(); aIter.adv(), bIter.adv()) {
+    if (!match_PI(aIter.data(), bIter.data(), matchDepth)) {
+      return false;
+    }
+  }
+
+  return aIter.isDone() && bIter.isDone();
 }
 
 
