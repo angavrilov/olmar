@@ -1132,7 +1132,11 @@ void E_delete::iprint(PrintEnv &env)
   if (colonColon) env << "::";
   env << "delete";
   if (array) env << "[]";
-  expr->print(env);
+  // dsw: this can be null because elaboration can remove syntax when
+  // it is replaced with other syntax
+  if (expr) {
+    expr->print(env);
+  }
 }
 
 void E_throw::iprint(PrintEnv &env)

@@ -271,7 +271,7 @@ public:      // funcs
 
   // lookup within the 'variables' map, without consulting base
   // classes, etc.; returns NULL if not found
-  Variable *rawLookupVariable(char const *name)
+  Variable *rawLookupVariable(StringRef name)
     { return variables.get(name); }
 
   // extended interface for returning sets
@@ -326,6 +326,9 @@ public:      // funcs
   // for debugging, a quick description of this scope
   string desc() const;
   void gdb() const;
+
+  // dump out more state
+  void dump();
 };
 
 
