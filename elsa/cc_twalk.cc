@@ -138,12 +138,25 @@ SourceLocation current_loc;
 
 // print with only flags that were in the source
 //  string var_toString(Variable *var, string qualifierName) {
-string var_toString(Variable *var) {
+string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
+{
   stringBuilder s;
-  s << toString( (DeclFlags) (var->flags & DF_SOURCEFLAGS) );
-  s << " ";
-//    s << var->type->toCString(qualifierName);
-  s << var->toString();
+
+  if (pqname && 0==strcmp(pqname->getName(), "conversion-operator")) {
+    // special syntax for conversion operators; first the keyword
+    s << "operator ";
+
+    // then the return type and the function designator
+    s << var->type->asFunctionTypeC().retType->toString() << " ()";
+  }
+
+  else {
+    s << toString( (DeclFlags) (var->flags & DF_SOURCEFLAGS) );
+    s << " ";
+    //s << var->type->toCString(qualifierName);
+    s << var->toString();
+  }
+
   return s;
 }
 
@@ -188,8 +201,8 @@ void TF_linkage::twalk(Env &env)
 void Function::twalk(Env &env)
 {
   olayer ol("Function");
-  global_code_out << var_toString(nameAndParams->var);
-//    nameParams->twalk(env);
+  //global_code_out << var_toString(nameAndParams->var, nameAndParams->decl->decl->getDeclaratorId());
+  nameAndParams->twalk(env);
   if (inits) twalk_memberInits(env);
   body->twalk(env);
   if (handlers) twalk_handlers(env);
@@ -366,7 +379,7 @@ void Enumerator::twalk(Env &env)
 void Declarator::twalk(Env &env)
 {
   olayer ol("Declarator");
-  global_code_out << var_toString(var);
+  global_code_out << var_toString(var, decl->getDeclaratorId());
 //    var_toString(var, decl->getDeclaratorId()->toString());
   if (init) {
     global_code_out << "=";
