@@ -1616,6 +1616,7 @@ Variable *Env::instantiateClassTemplate
     Variable *var = makeVariable(copyLoc, instName, type,
                                  DF_TYPEDEF | DF_IMPLICIT);
     inst->typedefVar = var;
+    foundScope->registerVariable(var);
   }
 
   if (copy) {

@@ -215,6 +215,7 @@ public:      // funcs
   // return the nearest enclosing scope of kind 'k', or NULL if there
   // is none with that kind
   Scope *enclosingKindScope(ScopeKind k);
+  Scope *globalScope() {return enclosingKindScope(SK_GLOBAL);}
 
   // essentially: enclosingKindScope(SK_CLASS)->curCompound;
   CompoundType *enclosingClassScope();
