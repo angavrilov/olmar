@@ -9,17 +9,21 @@
 
 #include <stdio.h>     // perror, FILE stuff
 #include <string.h>    // strstr
+#include <sys/types.h> // open
+#include <sys/stat.h>  // open
+#include <fcntl.h>     // open
 
 bool runProver(char const *str)
 {
   static bool opened = false;             // true once we've opened the process
   static int toSimplify, fromSimplify;    // pipe file descriptors
+  //static int predicateLog;                // log of calls
 
   trace("prover") << str << endl;
 
   if (!opened) {
     // open Simplify as a child process, with pipes to communicate
-    char *argv[] = { "Simplify", "-nosc", NULL };
+    char *argv[] = { "./run-Simplify", "-nosc", NULL };
     popen_execvp(&toSimplify, &fromSimplify, NULL, argv[0], argv);
 
     // open background predicate
@@ -52,6 +56,15 @@ bool runProver(char const *str)
       exit(2);
     }
 
+    #if 0
+    // open the log
+    predicateLog = creat("predicate.log", 0777);
+    if (predicateLog < 0) {
+      perror("creat predicate.log");
+      exit(2);
+    }    
+    #endif // 0
+
     opened = true;
   }
 
@@ -60,6 +73,9 @@ bool runProver(char const *str)
     perror("write to Simplify");
     exit(2);
   }
+
+  // log predicate; don't care about failure as much
+  //writeAll(predicateLog, str, strlen(str));
 
   // read Simplify's response
   for (;;) {

@@ -358,13 +358,14 @@ void factFlow(TF_func &func)
 
         // as an initial approximation, use simple syntactic checks
         // to decide that some facts are definitely valid; this also
-        // adds an facts implied by the control flow edge
+        // adds any facts implied by the control flow edge
         afterFacts = nodeFacts->facts;         // list copy
         stmt->factFlow(afterFacts, stmtCont, succPtr);
 
         // any facts that were not deemed valid by the above factFlow
         // will now be considered more carefully, but seeing whether
         // Simplify can prove them
+        int thisBatch = 0;
         IN_PREDICATE(aenv);
         SFOREACH_OBJLIST(Expression, nodeFacts->facts, fact2) {
           Expression const *pred = fact2.data();
@@ -372,19 +373,21 @@ void factFlow(TF_func &func)
             // no need to consider this one
             continue;
           }
+          thisBatch++;     // counts how many thmprv calls in one context
 
           if (miniProve(aenv, pred, "testing for fact invalidation",
                         invalidation)) {
             // rescued by Simplfy!
             trace("factflw2")
               << "      validated fact " << pred->toString()
-              << " by Simplify" << endl;
+              << " by Simplify (thisBatch=" << thisBatch << ")" << endl;
             afterFacts.append(const_cast<Expression*>(pred));
           }
           else {
             trace("factflw2")
               << "      invalidated fact " << pred->toString()
-              << " by " << stmt->kindLocString() << endl;
+              << " by " << stmt->kindLocString() 
+              << " (thisBatch=" << thisBatch << ")" << endl;
 
             // try to weaken the predicate slightly
             if (pred->isE_binary()) {
@@ -414,7 +417,14 @@ void factFlow(TF_func &func)
 
           }
         }
-
+                 
+        // I added this check when I was doing intersections
+        // syntactically; now that I do them semantically,
+        // inconsistent fact sets behave the same way as allTrue (I
+        // still don't understand why *no* fact sets are actually
+        // inconsistent, since that would also have had to have been
+        // part of the motivation..)
+        #if 0
         // are these facts consistent?  I.e., is the path feasible?
         E_intLit zero(0);
         if (miniProve(aenv, &zero, "testing fact-set consistency",
@@ -422,7 +432,8 @@ void factFlow(TF_func &func)
           // they are inconsistent; do not contribute anything to the successor
           trace("factflw2") << "      flowing allTrue because of infeasible path" << endl;
           consistent = false;
-        }
+        }                  
+        #endif // 0
       }
 
       // is anything known about this successor?
@@ -685,7 +696,9 @@ void InvalidateVisitor::visitExpr(Expression const *expr)
       inval = invalidateLvalue(fact, e->expr);
 
     ASTNEXTC(E_assign, e)
-      #if 0
+      // turning this back on removed 10 of 77 invalidations for find2.c,
+      // and overall performance improved
+      #if 1
       // look for monotonicity; is the assignment monotonic?
       int assignDir;     // becomes: +1 for increasing, -1 for decreasing
       Variable *var;     // variable monotonically modified
