@@ -161,12 +161,12 @@ public:      // data
 private:     // funcs
   void lookupPQVariableC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
-     Variable const *&v1, CompoundType const *&v1Base,
+     Variable const *&v1, BaseClassSubobj const *&v1Subobj,
      BaseClassSubobj const *v2Subobj) const;
   void lookupPQEnumC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
      EnumType const *&v1,
-     CompoundType const *&v1Base,
+     BaseClassSubobj const *&v1Subobj,
      BaseClassSubobj const *v2Subobj) const;
   Variable const *lookupPQVariableC_inner
     (PQName const *name, Env &env, LookupFlags flags) const;

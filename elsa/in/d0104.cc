@@ -14,9 +14,19 @@ struct C:virtual A {
   int *f() {}
 };
 
+
 struct D: C, B {};
 
 void f(D &d)
+{
+  d.f();
+}
+
+               
+// sm: add a variant that has the bases in the opposite order
+struct D2: B, C {};
+
+void f(D2 &d)
 {
   d.f();
 }
