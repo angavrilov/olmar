@@ -27,11 +27,15 @@ struct FILE {
 extern struct FILE *stderr;
 
 
+extern int level;    // needed for printf postcondition..
+
 int printf(char const *fmt, ...)
-  thmprv_pre(int pre_mem=mem;
+  thmprv_pre(
+    int pre_mem = mem;
+    int pre_level = level;
     okSelOffset(mem, fmt)
   )
-  thmprv_post(pre_mem == mem)
+  thmprv_post(pre_mem == mem && pre_level == level)
 ;
 
 
@@ -103,13 +107,16 @@ void filestuff()
   thmprv_post(pre_mem == mem)
 {}
 
-int level;
+int level;     // must be >= 0
 int iters;
 
 int dealwithargs(int argc, char **argv)
   thmprv_pre(
     okSelOffsetRange(mem, argv, argc) &&
     thmprv_forall(int i; 0<=i && i<argc ==> okSelOffset(mem, argv[i]))
+  )
+  thmprv_post(
+    level >= 0
   )
 {
   if (argc > 2)
@@ -121,6 +128,11 @@ int dealwithargs(int argc, char **argv)
     level = atoi(argv[1]);
   else
     level = 5;
+
+  if (level < 0) {
+    printf("level must be >= 0; you gave %d\n", level);
+    exit(2);
+  }
 
   return level;
 }
@@ -259,7 +271,10 @@ int main (int argc, char **argv)
 
     for (i = 0; i < iters; i++)
       {
-        thmprv_invariant(true);
+        thmprv_invariant(
+          treeNode(mem, firstIndexOf(root)) &&
+          root == sub(firstIndexOf(root), 0 /*whole*/)
+        );
 	fprintf(stderr, "Iteration %d...", i);
 	result = TreeAdd (root);
 	fprintf(stderr, "done\n");
