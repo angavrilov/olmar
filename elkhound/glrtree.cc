@@ -14,7 +14,16 @@
   // .. I am a gratuitous change to observe propagation ..
 
   #include "cc_tree.h"    // TODO: why did we need this?
-  #include <string.h>     // strdup
+  // in wes-world, using #include <string.h> to get strdup() leads
+  // to far too many problems ...
+  char *wes_strdup(const char *s) {
+      char * retval;
+      size_t len = strlen(s);
+      retval = (char *)malloc(len * sizeof(char));
+      xassert(retval);
+      memcpy(retval, s, len);
+      return retval;
+  }
 #endif
 
 
@@ -172,7 +181,7 @@ struct wes_ast_node * TerminalNode::camlAST() const
 {
     // I am a leaf
     struct wes_ast_node * retval = new struct wes_ast_node;
-    retval->name = strdup(token->toString(true).pchar());
+    retval->name = wes_strdup(token->toString(true).pchar());
     retval->num_children = 0;
     retval->line = token->loc.line;
     retval->col = token->loc.col;
@@ -349,7 +358,7 @@ struct wes_ast_node * NonterminalNode::camlAST(void) const
 	CCTreeNode * c = (CCTreeNode *) this;
 	if (c->isJustInt) {
 	    // memory leak
-	    retval->name = strdup( stringc << "L2_INT_LITERAL " << c->theInt );
+	    retval->name = wes_strdup( stringc << "L2_INT_LITERAL " << c->theInt );
 	    retval->children = NULL;
 	    retval->num_children = 0;
 	}
@@ -521,7 +530,7 @@ struct wes_ast_node * Reduction::camlAST() const
 	return children.firstC()->camlAST();
     } else if (nbr == 0) {
 	struct wes_ast_node * retval = new struct wes_ast_node;
-	retval->name = strdup(production->left->name.pcharc());
+	retval->name = wes_strdup(production->left->name.pcharc());
 	retval->num_children = 0;
 	retval->children = NULL;
 	retval->line = -1;
@@ -531,7 +540,7 @@ struct wes_ast_node * Reduction::camlAST() const
 	int i;
 	struct wes_ast_node * retval = new struct wes_ast_node;
 
-	retval->name = strdup(production->left->name.pcharc());
+	retval->name = wes_strdup(production->left->name.pcharc());
 	if (!strcmp(retval->name,"L2_SIZEOF")) {
 
 	}
