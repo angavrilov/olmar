@@ -10,6 +10,12 @@ open Parsetables     (* action/goto/etc. *)
 open Smutil          (* getSome, etc. *)
 
 
+(* Relative to C++ implementation, what is not done:
+ *   - Token reclassification
+ *   - Table compression
+ *)
+
+
 (* when true, print parse actions *)
 let traceParse:bool = true
 
@@ -18,6 +24,9 @@ let accounting:bool = true
 
 (* when true, we call the user's keep() functions *)
 let use_keep:bool = true
+
+(* when true, use the mini LR core *)
+let use_mini_lr:bool = true
 
 
 (* NOTE: in some cases, more detailed comments can be found in
@@ -158,7 +167,7 @@ and tGLR = {
 
 
 (* -------------------- misc constants --------------------- *)
-(* maximum RHS length *)
+(* maximum RHS length for mini-lr core *)
 let cMAX_RHSLEN = 30
 
 let cTYPICAL_MAX_REDUCTION_PATHS = 5
@@ -481,6 +490,20 @@ begin
   glr.prevTopmost <- (new tArrayStack dummyNode);
   glr.stackNodePool <- (new tObjectPool (fun () -> (emptyStackNode glr)));
   glr.pathQueue <- (makeReductionPathQueue tablesIn dummyNode dummyLink);
+                   
+  if (use_mini_lr) then (
+    (* check that none of the productions exceed cMAX_RHSLEN *)
+    for i=0 to (glr.tables.numProds-1) do
+      let len:int = (getProdInfo_rhsLen glr.tables i) in
+      if (len > cMAX_RHSLEN) then (
+        (* I miss token concatenation...*)
+        (Printf.printf "Production %d contains %d right-hand side symbols,\nbut the GLR core has been compiled with a limit of %d.\nPlease adjust cMAX_RHSLEN and recompile the GLR core.\n"
+                       i len cMAX_RHSLEN);
+        (flush stdout);
+        (failwith "cannot continue");
+      );
+    done;
+  );
 
   glr
 end
@@ -546,8 +569,8 @@ and innerGlrParse (glr: tGLR) (lexer: tLexerInterface)
                   (treeTop: tSemanticValue ref) : bool =
 begin
   (* make some things into local variables *)
-  (*userAct*)
-  (*tables*)
+  let userAct:tUserActions = glr.userAct in
+  let tables:tParseTables = glr.tables in
   let topmostParsers: tStackNode tArrayStack = glr.topmostParsers in
 
   (*nextToken*)
@@ -564,39 +587,215 @@ begin
     let first:tStackNode = (makeStackNode glr 0(*startState*)) in
     (addTopmostParser glr first);
   end;
-  
+
   (* MINI_LR TODO: reductionAction *)
-  (* MINI_LR TODO: toPass *)
-  
+
+  (* array for passing semantic values in the mini lr core *)
+  let toPass: tSemanticValue array = (Array.make cMAX_RHSLEN cNULL_SVAL) in
+
+  let localDetShift: int ref = ref 0 in
+  let localDetReduce: int ref = ref 0 in
+
   (* main parsing loop *)
-  try 
-    while true do
-      if (traceParse) then (
-        (Printf.printf "---- processing token %s, %d active parsers ----\n"
-                       (lexer#tokenDesc())
-                       (glr.topmostParsers#length())
+  try
+    let rec main_loop (jump_to_mini_lr:bool) : bool =
+    begin(
+      if (not jump_to_mini_lr) then (
+        if (traceParse) then (
+          (Printf.printf "---- processing token %s, %d active parsers ----\n"
+                         (lexer#tokenDesc())
+                         (glr.topmostParsers#length())
+          );
+          (flush stdout);
         );
-        (flush stdout);
+
+        (* reclassifyToken *)
       );
+      
+      (* ------------ glr parser ------------ *)
+      (* pulled out so I can use this block of statements in several places *)
+      let glrParseToken () : unit =
+      begin
+        if (not (nondeterministicParseToken glr)) then (
+          (raise Exit)              (* "return false" *)
+        );
 
-      (* reclassifyToken *)
+        (* goto label: getNextToken *)
+        (* last token? *)
+        if (lexer#atEOF()) then (
+          (raise End_of_file)       (* "break" *)
+        );
 
-      (* MINI_LR TODO: main MINI_LR core *)
+        (* get the next token *)
+        (lexer#getToken());
+      end in
 
-      (* if we get here, use full GLR *)
-      if (not (nondeterministicParseToken glr)) then (
-        (raise Exit)              (* "return false" *)
-      );
+      (* --------- mini-lr parser ------- *)
+      (* see elkhound/glr.cc for more details *)
+      (* goto label: tryDeterministic *)
+      if (use_mini_lr &&
+          (topmostParsers#length()) = 1) then (
+        let parsr: tStackNode ref = ref (topmostParsers#top()) in
+        (xassertdb (!parsr.referenceCount = 1));
 
-      (* last token? *)
-      if (lexer#atEOF()) then (
-        (raise End_of_file)       (* "break" *)
-      );
+        let tok:int = (lexer#getTokType()) in
+        let action:tActionEntry = (getActionEntry_noError tables !parsr.state tok) in
 
-      (* get the next token *)
-      (lexer#getToken());
-    done;
-    true
+        if (isReduceAction action) then (
+          if (accounting) then (
+            (incr localDetReduce);
+          );
+          let prodIndex:int = (decodeReduce action !parsr.state) in
+          let rhsLen:int = (getProdInfo_rhsLen tables prodIndex) in
+          if (rhsLen <= !parsr.determinDepth) then (
+            (* can reduce unambiguously *)
+            let lhsIndex:int = (getProdInfo_lhsIndex tables prodIndex) in
+
+            let startStateId:int = !parsr.state in
+
+            (xassertdb (rhsLen <= cMAX_RHSLEN));
+
+            (* loop for arbitrary rhsLen *)
+            for i = rhsLen-1 downto 0 do
+              (* grab the (only) sibling of 'parsr' *)
+              let sib:tSiblingLink = !parsr.firstSib in
+
+              (* store its semantic value in the 'toPass' array *)
+              toPass.(i) <- sib.sval;
+
+              (* pop 'parsr' and move to next one *)
+              (stackNodePool#dealloc !parsr);
+              let prev:tStackNode = !parsr in
+              parsr := (getSome sib.sib);
+
+              (xassertdb (!parsr.referenceCount = 1));
+              (xassertdb (prev.referenceCount = 1));
+
+              (* adjust a couple things about 'prev' reflecting
+               * that it has been deallocated *)
+              (decr numStackNodesAllocd);
+              prev.firstSib.sib <- None;
+
+              (xassertdb (!parsr.referenceCount = 1));
+            done;
+
+            (* call the user's action function (TREEBUILD) *)
+            let sval:tSemanticValue =
+              (userAct.reductionAction prodIndex toPass) in
+
+            (* now, do an abbreviated 'glrShiftNonterminal' *)
+            let newState:int = (decodeGoto
+              (getGotoEntry tables !parsr.state lhsIndex)
+            lhsIndex) in
+
+            if (traceParse) then (
+              (Printf.printf "state %d, (unambig) reduce by %d (len=%d), back to %d then out to %d\n"
+                             startStateId
+                             prodIndex
+                             rhsLen
+                             !parsr.state
+                             newState);
+              (flush stdout);
+            );
+
+            (* the sole reference is the 'parsr' variable *)
+            (xassertdb (!parsr.referenceCount = 1));
+
+            (* push new state *)
+            let newNode:tStackNode =
+              (mMAKE_STACK_NODE newState glr stackNodePool) in
+
+            (addFirstSiblingLink_noRefCt newNode !parsr sval);
+
+            (xassertdb (!parsr.referenceCount = 1));
+
+            (* replace old topmost parser with 'newNode' *)
+            (topmostParsers#setElt 0 newNode);
+            (incRefCt newNode);
+            (xassertdb (newNode.referenceCount = 1));
+
+            (* does the user want to keep it? *)
+            if (use_keep &&
+                (not (userAct.keepNontermValue lhsIndex sval))) then (
+              (printParseErrorMessage glr newNode.state);
+              if (accounting) then (
+                glr.detShift <- glr.detShift + !localDetShift;
+                glr.detReduce <- glr.detReduce + !localDetReduce;
+              );
+
+              (raise Exit)               (* "return false" *)
+            );
+
+            (* we have not shifted a token, so again try to use
+             * the deterministic core *)
+            (main_loop true(*jump*))     (* "goto tryDeterministic;" *)
+          )
+          else (
+            (* deterministic depth insufficient: use GLR *)
+            (glrParseToken());
+            (main_loop false)            (* tail call *)
+          )
+        )
+
+        else if (isShiftAction tables action) then (
+          if (accounting) then (
+            (incr localDetShift);
+          );
+
+          (* can shift unambiguously *)
+          let newState:int = (decodeShift action tok) in
+
+          if (traceParse) then (
+            (Printf.printf "state %d, (unambig) shift token %d, to state %d\n"
+                           !parsr.state
+                           tok
+                           newState);
+            (flush stdout);
+          );
+
+          glr.globalNodeColumn <- glr.globalNodeColumn + 1;
+
+          let rightSibling:tStackNode =
+            (mMAKE_STACK_NODE newState glr stackNodePool) in
+
+          (addFirstSiblingLink_noRefCt rightSibling !parsr (lexer#getSval()));
+
+          (* replace 'parsr' with 'rightSibling' *)
+          (topmostParsers#setElt 0 rightSibling);
+
+          (xassertdb (!parsr.referenceCount = 1));
+          (xassertdb (rightSibling.referenceCount = 0));
+
+          rightSibling.referenceCount <- 1;
+
+          (* get next token *)
+          (* "goto getNextToken;" *)
+          begin
+            (* last token? *)
+            if (lexer#atEOF()) then (
+              (raise End_of_file)       (* "break" *)
+            );
+
+            (* get the next token *)
+            (lexer#getToken());
+          end;
+          (main_loop false)      (* tail call *)
+        )
+
+        else (
+          (* error or ambig; not deterministic *)
+          (glrParseToken());
+          (main_loop false)      (* tail call *)
+        )
+      )
+
+      else (
+        (* mini lr core disabled, use full GLR *)
+        (glrParseToken());
+        (main_loop false)        (* tail call *)
+      )
+    )end in
+    (main_loop false)
   with
   | Exit -> false
   | End_of_file -> (

@@ -169,6 +169,12 @@ begin
   tables.actionTable.(state * tables.actionCols + tok)
 end
 
+let getActionEntry_noError (tables: tParseTables) (state: int) (tok: int) : tActionEntry =
+begin
+  (getActionEntry tables state tok)
+end
+
+
 let isShiftAction (tables: tParseTables) (code: tActionEntry) : bool =
 begin
   code > 0 && code <= tables.numStates
