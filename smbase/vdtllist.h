@@ -52,7 +52,7 @@ public:
   void prepend(void *newitem);
   void append(void *newitem);
   void insertAt(void *newitem, int index);
-  void concat(VoidTailList &tail)    { concat(tail); }
+  void concat(VoidTailList &tail)    { VoidList::concat(tail); }
 
   // removal
   void *removeFirst();               // remove first, return data; must exist
