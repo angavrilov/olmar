@@ -3524,7 +3524,10 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
       if (!size->constEval(errorMsg, sz)) {
         // size didn't evaluate to a constant
         sz = ArrayType::NO_SIZE;
-        if (dt.context == DC_S_DECL &&
+        if ((dt.context == DC_S_DECL ||
+             // dsw: if it is a struct declared local to a function,
+             // then gcc in C mode allows it to have dynamic size
+             (dt.context == DC_MR_DECL && env.enclosingKindScope(SK_FUNCTION))) &&
             env.lang.allowDynamicallySizedArrays) {
           // allow it anyway
           sz = ArrayType::DYN_SIZE;
