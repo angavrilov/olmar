@@ -3,29 +3,33 @@
 
 # -------- external tools and libraries --------
 # paths to the relevant subsystems
-ELKHOUND := ../..
-AST      := ../../../ast
-SMBASE   := ../../../smbase
+ELKHOUND_DIST := ../../..
+SMBASE        := $(ELKHOUND_DIST)/smbase
+AST           := $(ELKHOUND_DIST)/ast
+PARSGEN       := $(ELKHOUND_DIST)/parsgen
 
 # Elkhound parser generator
-GRAMANL := $(ELKHOUND)/gramanl
+ELKHOUND := $(PARSGEN)/elkhound
+
+# Elkhound runtime support library
+LIBELKHOUND := $(PARSGEN)/libelkhound.a
 
 
 # -------- compiler and linker configuration --------
 # preprocessing flags
-CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/cc -I$(AST) -I$(SMBASE)
+CPPFLAGS := -I$(PARSGEN) -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
 CCFLAGS := -g -Wall
 
 # linking flags
-LDFLAGS := $(ELKHOUND)/libglr.a $(SMBASE)/libsmbase.a
+LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
 
 
 # -------- generic rules --------
 # invoke the parser generator
 %.gr.gen.cc %.gr.gen.h: %.gr
-	$(GRAMANL) $*
+	$(ELKHOUND) $*
 
 # invoke the AST generator
 %.ast.gen.cc %.ast.gen.h: %.ast
@@ -42,11 +46,11 @@ all: cexp3ast.ast.gen.h cexp3 cexp3b
 
 # extra object files
 extras := \
-  $(ELKHOUND)/cc/parssppt.o \
-  $(ELKHOUND)/cc/lexer2.o \
-  $(ELKHOUND)/cc/lexer1.o \
-  $(ELKHOUND)/cc/lexer1yy.o \
-  $(ELKHOUND)/cc/cc_lang.o \
+  $(PARSGEN)/cc/parssppt.o \
+  $(PARSGEN)/cc/lexer2.o \
+  $(PARSGEN)/cc/lexer1.o \
+  $(PARSGEN)/cc/lexer1yy.o \
+  $(PARSGEN)/cc/cc_lang.o \
   $(AST)/asthelp.o \
   $(AST)/strtable.o
 
@@ -56,15 +60,15 @@ cexp3b.gr: cexp3.gr
 	grep -v PREC cexp3.gr >$@
 	chmod a-w $@
 
-cexp3: $(ELKHOUND)/glrmain.o cexp3.gr.gen.o cexp3mrg.o cexp3ast.ast.gen.o 
+cexp3: $(PARSGEN)/glrmain.o cexp3.gr.gen.o cexp3mrg.o cexp3ast.ast.gen.o 
 	g++ -g -o $@ $^ $(extras) $(LDFLAGS)
-	./$@ $(ELKHOUND)/in/cexp3.in1 | tee tmp.out
+	./$@ $(PARSGEN)/in/cexp3.in1 | tee tmp.out
 	grep 'result: 7' tmp.out
 	rm tmp.out
 
-cexp3b: $(ELKHOUND)/glrmain.o cexp3b.gr.gen.o cexp3mrg.o cexp3ast.ast.gen.o
+cexp3b: $(PARSGEN)/glrmain.o cexp3b.gr.gen.o cexp3mrg.o cexp3ast.ast.gen.o
 	g++ -g -o $@ $^ $(extras) $(LDFLAGS)
-	./$@ $(ELKHOUND)/in/cexp3.in1 | tee tmp.out
+	./$@ $(PARSGEN)/in/cexp3.in1 | tee tmp.out
 	grep 'result: 7' tmp.out
 	rm tmp.out
 

@@ -118,7 +118,7 @@ grampar-set := \
 -include $(filter-out $(AST)/%, $(grampar-set:.o=.d))
 
 # minimal runtime files needed to do GLR parsing; these get
-# combined to form libglr.a, the Elkhound runtime library
+# combined to form libelkhound.a, the Elkhound runtime library
 glr-set := \
   $(AST)/fileloc.o \
   cyctimer.o \
@@ -192,11 +192,12 @@ random-obj := \
 gramlex.yy.o: grampar.codes.h
 
 # ------ targets -------
-# reads the grammar and emits C++ code for semantic functions
-gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(grampar-set) \
+# reads the grammar and emits C++ code for semantic functions;
+# this is the main parser generator binary
+elkhound-dep := gramanl.cc gramexpl.o $(grammar-set) $(grampar-set) \
                parsetables.o $(libraries)
-gramanl: $(gramanl-dep) grammar.h gramanl.h
-	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)
+elkhound: $(elkhound-dep) grammar.h gramanl.h
+	$(link) -o $@ -DGRAMANL_MAIN $(elkhound-dep)
 
 cc/lexer1yy.cc: cc/lexer1.lex cc/lexer1.h
 	cd cc; flex lexer1.lex
@@ -252,18 +253,18 @@ cc/cc.tok: cc/lexer2
 	cc/lexer2 myparser >$@
 
 # glr parsing engine
-libglr.a: $(glr-set)
-	rm -f libglr.a
-	ar -r libglr.a $(glr-set)
-	ranlib libglr.a
+libelkhound.a: $(glr-set)
+	rm -f libelkhound.a
+	ar -r libelkhound.a $(glr-set)
+	ranlib libelkhound.a
 
 # intermediate files for a grammar
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
 # ('chmod a-w' is so I don't accidentally edit it)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
-%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc/cc.tok gramanl
+%.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc/cc.tok elkhound
 	rm -f $*.gr.gen.*
-	./gramanl -tr NOconflict$(TRGRAMANL) $*
+	./elkhound -tr NOconflict$(TRGRAMANL) $*
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
 
 # intermediate files for an ast spec
@@ -277,26 +278,26 @@ libglr.a: $(glr-set)
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
 
 # stand-alone executable for parsing C
-cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libglr.a $(SMBASE)/libsmbase.a
+cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
 
 .PRECIOUS: cc/ccgr
 
 # stand-alone executable for parsing C++
-cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libglr.a $(SMBASE)/libsmbase.a
+cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
 
 # same grammar, but building entire parse tree instead
-cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc/cc.tok gramanl
+cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc/cc.tok elkhound
 	rm -f cc/cct.gr*
 	sed 's/cc\.gr\.gen\.h/cct.gr.gen.h/' <cc/cc.gr >cc/cct.gr
-	./gramanl -tr treebuild$(TRGRAMANL) cc/cct
+	./elkhound -tr treebuild$(TRGRAMANL) cc/cct
 	chmod a-w cc/cct.gr*
 
 cc/ccparset: cc/ccparset.o cc/cct.gr.gen.o $(cc-set) ptreenode.o \
-             libglr.a $(SMBASE)/libsmbase.a
+             libelkhound.a $(SMBASE)/libsmbase.a
 	g++ -o $@ $(ccflags) $^
 
 # bison parser from the same grammar; the 'sed' is because Bison
@@ -351,7 +352,7 @@ cc/bccgr: cc/bccgr.cc cc/bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
 
 # make a parser for testing some grammar, using trivial lexer
 trivparse-deps := trivmain.cc ptreenode.o trivlex.o $(support-set) \
-                  libglr.a
+                  libelkhound.a
 %.gr.exe: %.gr.gen.o $(trivparse-deps)
 	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
 	  $^ $(linkend)
@@ -359,22 +360,22 @@ trivparse-deps := trivmain.cc ptreenode.o trivlex.o $(support-set) \
 
 # similar, for Bison as the parser-generator
 %.bison.exe: %.tab.o trivbison.o trivlex.o lexer2.o ptreenode.o \
-             libglr.a
+             libelkhound.a
 	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
 
 # new C++ parser
-cc2/cc2.exe: cc2/cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libglr.a $(SMBASE)/libsmbase.a
+cc2/cc2.exe: cc2/cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a
 	g++ -o $@ $(ccflags) $^
 
 # new C++ grammar with treebuilding actions
-cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc/cc.tok gramanl
+cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc/cc.tok elkhound
 	rm -f cc2/cc2t*
 	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
-	./gramanl -tr treebuild$(TRGRAMANL) cc2/cc2t
+	./elkhound -tr treebuild$(TRGRAMANL) cc2/cc2t
 	chmod a-w cc2/cc2t.gr*
 
 # new C++ parser with treebuilding
-cc2/cc2t.exe: cc2/cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libglr.a $(SMBASE)/libsmbase.a
+cc2/cc2t.exe: cc2/cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a
 	g++ -o $@ $(ccflags) $^
 
 
@@ -538,8 +539,8 @@ triv/sssx.notree.perf.txt:
 
 
 # ------------------------ documentation -----------------------
-# dependencies for 'gramanl', the parser generator executable
-doc/gramanl.dot:
+# dependencies for 'elkhound', the parser generator executable
+doc/elkhound.dot:
 	$(SMBASE)/scan-depends.pl -r -I$(AST) gramanl.cc >$@
 
 # dependencies for 'glr.h', the entry point to the runtime library
@@ -568,10 +569,10 @@ doc/%.png: doc/%.ps
 
 # "make doc" should build whatever we have that needs building
 .PHONY: doc
-doc: doc/gramanl.png doc/glr.png doc/cc.png doc/triv.png
+doc: doc/elkhound.png doc/glr.png doc/cc.png doc/triv.png
 
 doc-clean:
-	cd doc; rm -f {gramanl,glr}.{ps,dot,png}
+	cd doc; rm -f {elkhound,glr}.{ps,dot,png}
 
 
 # -------------------- clean, check, etc. ------------------
@@ -590,9 +591,9 @@ CLEAN_PATTERNS := \
 
 clean:
 	rm -f $(CLEAN_PATTERNS)
-	rm -f gramanl glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
+	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/libccgr.a libglr.a
+	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/libccgr.a libelkhound.a
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c

@@ -236,7 +236,7 @@ runTest cc/bccgr c.in/c.in4d
 runTest cc/cparse -tr trivialActions,stopAfterParse c.in/c.in4d
 
 # and similar for C++
-runTest cc/ccparse -tr trivialActions,identityReclassify c.in/c.in4d
+runTest cc/ccparse -tr trivialActions,identityReclassify c.in/c.in4c
 
 
 # final arithmetic to report result

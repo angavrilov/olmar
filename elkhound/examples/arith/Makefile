@@ -3,26 +3,27 @@
 
 # -------- external tools and libraries --------
 # paths to the relevant subsystems
-ELKHOUND := ../..
-AST      := ../../../ast
-SMBASE   := ../../../smbase
+ELKHOUND_DIST := ../../..
+SMBASE        := $(ELKHOUND_DIST)/smbase
+AST           := $(ELKHOUND_DIST)/ast
+PARSGEN       := $(ELKHOUND_DIST)/parsgen
 
 # Elkhound parser generator
-GRAMANL := $(ELKHOUND)/gramanl
+ELKHOUND := $(PARSGEN)/elkhound
 
 # Elkhound runtime support library
-LIBGLR := $(ELKHOUND)/libglr.a
+LIBELKHOUND := $(PARSGEN)/libelkhound.a
 
 
 # -------- compiler and linker configuration --------
 # preprocessing flags
-CPPFLAGS := -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
+CPPFLAGS := -I$(PARSGEN) -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
 CCFLAGS := -g -Wall
 
 # linking flags
-LDFLAGS := $(LIBGLR) $(SMBASE)/libsmbase.a
+LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
 
 
 # -------- targets --------
@@ -31,7 +32,7 @@ all: arith
 
 # invoke the parser generator
 arith.gr.gen.cc arith.gr.gen.h: arith.gr
-	$(GRAMANL) arith
+	$(ELKHOUND) arith
 
 # invoke the lexer generator
 arithyy.cc: arith.lex
