@@ -3893,7 +3893,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
         // which to instantiate the above pattern.  Naively, we'd like
         // to instantiate it with all types, but of course that is not
         // practical.  Instead, we compute a finite set S of types such
-        // that we get the same answer as we would if we had
+        // that we get the same answer as we would have if we had
         // instantiated it with all types.  Note that if we compute S
         // correctly, it will be the case that any superset of S would
         // also work; we do not necessarily compute the minimal S.

@@ -164,7 +164,7 @@ enum SimpleTypeId {
   //ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
   ST_PROMOTED_ARITHMETIC,    // promoted integral + float,double,longdouble
   //ST_ARITHMETIC,             // every simple type except bool & void
-  ST_ANY_OBJ_TYPE,           // any object (non-function) type
+  ST_ANY_OBJ_TYPE,           // any object (non-function, non-void) type
   //ST_ANY_TYPE,               // any type, including functions
   //ST_ENUM_TYPE,              // any 'enum' type
   // ... there are more, and I'm not sure what the ones I have mean ...

@@ -492,7 +492,8 @@ StandardConversion getStandardConversion
   // ---------------- group 2 --------------
 
   if (dest->isSimple(ST_ANY_OBJ_TYPE) &&
-      !src->isFunctionType()) {
+      !src->isFunctionType() &&
+      !src->isVoid()) {
     // polymorphic match
     return conv.ret;    
   }
