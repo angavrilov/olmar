@@ -391,7 +391,11 @@ public:     // funcs
   // query action table, without checking the error bitmap
   ActionEntry getActionEntry_noError(StateId stateId, int termId) {
     #if ENABLE_GCS_COMPRESSION
-      return actionRowPointers[stateId][actionIndexMap[termId]];
+      #if ENABLE_GCS_COLUMN_COMPRESSION
+        return actionRowPointers[stateId][actionIndexMap[termId]];
+      #else
+        return actionRowPointers[stateId][termId];
+      #endif
     #else
       return actionEntry(stateId, termId);
     #endif
@@ -453,7 +457,11 @@ public:     // funcs
   // decode gotos
   GotoEntry getGotoEntry(StateId stateId, int nontermId) {
     #if ENABLE_GCS_COMPRESSION
-      return gotoRowPointers[stateId][gotoIndexMap[nontermId]];
+      #if ENABLE_GCS_COLUMN_COMPRESSION
+        return gotoRowPointers[stateId][gotoIndexMap[nontermId]];
+      #else
+        return gotoRowPointers[stateId][nontermId];
+      #endif
     #else
       return gotoEntry(stateId, nontermId);
     #endif
@@ -488,6 +496,8 @@ public:     // funcs
   bool eef_enabled() const
     { return !!errorBits; }
   bool gcs_enabled() const
+    { return !!actionRowPointers; }
+  bool gcsc_enabled() const
     { return !!actionIndexMap; }
   bool crs_enabled() const
     { return !!firstWithTerminal; }

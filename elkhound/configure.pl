@@ -8,19 +8,45 @@ $| = 1;     # autoflush
 # defaults
 $BASE_FLAGS = "-g -Wall -D__UNIX__";
 $CCFLAGS = ();
-$debug = 0;
-$loc = 1;
 %flags = (
+  "debug" => 0,
+  "loc" => 1,
+
   "eef" => 0,
   "gcs" => 0,
-  "crs" => 0
+  "gcsc" => 0,
+  "crs" => 0,
+
+  "subconfigure" => 1
 );
-$subconfigure = 1;
 $SMBASE = "../smbase";
 $AST = "../ast";
 
 # arguments to pass to sub-configures
 @c_args = ();
+       
+
+# copy from %flags to individual global variables
+sub copyFlagsToGlobals {
+  $debug = $flags{debug};
+  $loc = $flags{loc};
+
+  $eef = $flags{eef};
+  $gcs = $flags{gcs};
+  $gcsc = $flags{gcsc};
+  $crs = $flags{crs};
+
+  $subconfigure = $flags{subconfigure};
+
+  # test consistency of configuration
+  if ($gcs && !$eef) {
+    die "GCS requires EEF\n";
+  }
+  if ($gcsc && !$gcs) {
+    die "GCSC requires GCS\n";
+  }
+}
+copyFlagsToGlobals();
 
 
 sub usage {
@@ -28,14 +54,16 @@ sub usage {
 usage: ./configure [options]
 options:
   -h:                print this message
-  -debug,-nodebug:   enable/disable debugging options [disabled]
+  -debug=y/n:        enable/disable debugging options [disabled]
   -prof              enable profiling
   -devel             add options useful while developing
-  -loc,-noloc:       enable/disable source location tracking [enabled]
+  -loc=y/n:          enable/disable source location tracking [enabled]
   -action:           enable use of "-tr action" to see parser actions
-  -eef=y/n           enable/disable EEF compression [disabled]
-  -gcs=y/n           enable/disable GCS compression [disabled]
-  -crs=y/n           enable/disable CRS compression [disabled]
+  -compression=y/n:  enable/disable all table compression options [disabled]
+    -eef=y/n           enable/disable EEF compression [disabled]
+    -gcs=y/n           enable/disable GCS compression [disabled]
+    -gcsc=y/n          enable/disable GCS column compression [disabled]
+    -crs=y/n           enable/disable CRS compression [disabled]
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
                      (note that Elsa will not work in this mode)
@@ -73,11 +101,11 @@ while (@ARGV) {
 
   elsif ($arg eq "-d" ||
          $arg eq "-debug") {
-    $debug = 1;
+    $flags{debug} = 1;
     push @c_args, $arg;
   }
   elsif ($arg eq "-nodebug") {
-    $debug = 0;
+    $flags{debug} = 0;
     push @c_args, $arg;
   }
 
@@ -92,10 +120,10 @@ while (@ARGV) {
   }
 
   elsif ($arg eq "-loc") {
-    $loc = 1;
+    $flags{loc} = 1;
   }
   elsif ($arg eq "-noloc") {
-    $loc = 0;
+    $flags{loc} = 0;
   }
 
   elsif ($arg eq "-action") {
@@ -109,9 +137,8 @@ while (@ARGV) {
     #   $ ./perf -tests c -iters 5
     # to verify that I'm still within 3% of Bison (at least
     # when compiled with gcc-2.95.3)
-    $loc = 0;
-    $debug = 0;
-    $flags{eef} = 0;
+    $flags{loc} = 0;
+    $flags{debug} = 0;
     push @CCFLAGS,
       ("-DUSE_RECLASSIFY=0",        # no token reclassification
        "-DUSE_KEEP=0",              # don't call keep() functions
@@ -122,7 +149,7 @@ while (@ARGV) {
   }
 
   elsif ($arg eq "-nosub") {
-    $subconfigure = 0;
+    $flags{subconfigure} = 0;
   }
 
   elsif (($tmp) = ($arg =~ m/^-smbase=(.*)$/)) {
@@ -139,16 +166,28 @@ while (@ARGV) {
   }
 
   elsif (($opt, $val) = ($arg =~ m/^-(.*)=(y|n|yes|no)$/)) {
-    if (!defined($flags{$opt})) {
-      die "unknown flag: $opt\n";
-    }              
-    $flags{$opt} = ($val eq "y" || $val eq "yes")? 1 : 0;
+    my $value = ($val eq "y" || $val eq "yes")? 1 : 0;
+
+    if ($opt eq "compression") {
+      $flags{eef} = $value;
+      $flags{gcs} = $value;
+      $flags{gcsc} = $value;
+      $flags{crs} = $value;
+    }
+    else {
+      if (!defined($flags{$opt})) {
+        die "unknown flag: $opt\n";
+      }
+      $flags{$opt} = $value;
+    }
   }
 
   else {
     die "unknown option: $arg\n";
   }
 }
+
+copyFlagsToGlobals();
 
 if (!$debug) {
   push @CCFLAGS, ("-O2", "-DNDEBUG");
@@ -163,8 +202,10 @@ if ($os eq "Linux") {
 # summarize compression flags
 @compflags = ();
 for $k (keys %flags) {
-  if ($flags{$k}) {
-    push @compflags, $k;
+  if ($k eq "eef" || $k eq "gcs" || $k eq "gcsc" || $k eq "crs") {
+    if ($flags{$k}) {
+      push @compflags, $k;
+    }
   }
 }
 if (@compflags) {
@@ -174,13 +215,6 @@ else {
   $compflags = "<none>";
 }
 
-# individual flags, for substituting later
-$eef = $flags{eef};
-$gcs = $flags{gcs};
-$crs = $flags{crs};
-if ($gcs && !$eef) {
-  die "GCS requires EEF\n";
-}
 
 
 # ------------------ compiler tests ---------------
@@ -320,6 +354,7 @@ EOF
 sed -e "s|\@GLR_SOURCELOC\@|$loc|g" \\
     -e "s|\@eef\@|$eef|g" \\
     -e "s|\@gcs\@|$gcs|g" \\
+    -e "s|\@gcsc\@|$gcsc|g" \\
     -e "s|\@crs\@|$crs|g" \\
   <glrconfig.h.in >>glrconfig.h.tmp
 

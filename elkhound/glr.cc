@@ -585,6 +585,7 @@ GLR::GLR(UserActions *user, ParseTables *t)
   // as this core expects
   configCheck("EEF compression", ENABLE_EEF_COMPRESSION, tables->eef_enabled());
   configCheck("GCS compression", ENABLE_GCS_COMPRESSION, tables->gcs_enabled());
+  configCheck("GCS column compression", ENABLE_GCS_COLUMN_COMPRESSION, tables->gcsc_enabled());
   configCheck("CRS compression", ENABLE_CRS_COMPRESSION, tables->crs_enabled());
 }
 
@@ -692,6 +693,8 @@ void GLR::printConfig() const
          ENABLE_EEF_COMPRESSION? "enabled" : "disabled *");
   printf("  Graph Coloring Scheme (GCS): \t\t\t%s\n",
          ENABLE_GCS_COMPRESSION? "enabled" : "disabled *");
+  printf("  GCS for columns (GCSC): \t\t\t%s\n",
+         ENABLE_GCS_COLUMN_COMPRESSION? "enabled" : "disabled *");
   printf("  Code Reduction Scheme (CRS): \t\t\t%s\n",
          ENABLE_CRS_COMPRESSION? "enabled" : "disabled *");
 }

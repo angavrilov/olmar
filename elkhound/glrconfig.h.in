@@ -71,6 +71,12 @@
   #define ENABLE_GCS_COMPRESSION @gcs@
 #endif
 
+// when true, action and goto *columns* are merged during GCS;
+// otherwise, only rows are merged
+#ifndef ENABLE_GCS_COLUMN_COMPRESSION
+  #define ENABLE_GCS_COLUMN_COMPRESSION @gcsc@
+#endif
+
 // when true, entries in the action and goto tables are a
 // 1-byte index into an appropriate map
 #ifndef ENABLE_CRS_COMPRESSION

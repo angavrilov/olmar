@@ -614,9 +614,6 @@ void ParseTables::mergeActionRows()
   // can only do this if we've already pulled out the errors
   xassert(errorBits);
 
-  // I should already have a column map
-  xassert(actionIndexMap);
-
   // for now I assume we don't have a map yet
   xassert(!actionRowPointers);
 
@@ -835,9 +832,6 @@ void ParseTables::mergeGotoRows()
 
   // can only do this if we've already pulled out the errors
   xassert(errorBits);
-
-  // I should already have a column map
-  xassert(gotoIndexMap);
 
   // for now I assume we don't have a map yet
   xassert(!gotoRowPointers);
