@@ -941,6 +941,7 @@ failparse k0053.cc "calling a function with a pointer to an undefined template c
 failparse k0054.cc "constructor member initialization without namespace qualifier"
 failparse k0055.cc "using 'class' instead of 'typename' for template-class typedefs"
 failparse k0056.cc "template friend function"
+failparse k0057.cc "template friend function (2)"
 
 ### </quarl-testcases-c++>
 
