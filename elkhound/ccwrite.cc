@@ -4,7 +4,7 @@
 #include "ccwrite.h"      // this module
 #include "gramanl.h"      // GrammarAnalysis, Grammar, etc.
 #include "strutil.h"      // quoted
-#include "syserr.h"       // xsyserror
+#include "emitcode.h"     // EmitCode
 
 #include <string.h>       // strstr
 #include <fstream.h>      // ofstream
@@ -57,16 +57,29 @@ string headerFileLatch(char const *fname)
 }
 
 
+// note that #line must be preceeded by a newline
+
 string lineDirective(SourceLocation const &loc)
 {
   return stringc << "#line " << loc.line
                  << " \"" << loc.file->filename << "\"\n";
 }
 
+stringBuilder &restoreLine(stringBuilder &sb)
+{                              
+  // little hack..
+  EmitCode &os = (EmitCode&)sb;
+
+  // +1 because we specify what line will be *next*
+  int line = os.getLine()+1;
+  return os << "#line " << line
+            << " \"" << os.getFname() << "\"\n";
+}                 
+
 
 // ----------------- code emitters -----------------
 // emit the C++ code for a nonterminal's semantic functions
-void emitSemFuns(ostream &os, Grammar const *g,
+void emitSemFuns(EmitCode &os, Grammar const *g,
                  Nonterminal const *nonterm)
 {
   // comment to separate types
@@ -95,6 +108,7 @@ void emitSemFuns(ostream &os, Grammar const *g,
     // write the function prologue
     os << lineDirective(decl->loc)
        << semFuncDecl(name, decl->code, nonterm) << "\n"
+       << restoreLine
        << "{\n"
        << "  if (tracingSys(\"sem-fns\")) {\n"
        << "    cout << locString() << \": in "
@@ -151,7 +165,8 @@ void emitSemFuns(ostream &os, Grammar const *g,
       os << "\n"
          << "      // begin user code\n"
          << lineDirective(body->loc)
-         << body->code
+         << body->code << "\n"
+         << restoreLine
          << "      // end user code\n"
          << "      break;\n"    // catch missing returns, or for void fns
          << "    }\n"
@@ -173,7 +188,7 @@ void emitSemFuns(ostream &os, Grammar const *g,
 
 
 // emit the C++ declaration for a nonterminal's node type class
-void emitClassDecl(ostream &os, Grammar const *g, Nonterminal const *nonterm)
+void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
 {
   // type declaration prologue
   os << "class " << nodeTypeName(nonterm)
@@ -190,7 +205,9 @@ void emitClassDecl(ostream &os, Grammar const *g, Nonterminal const *nonterm)
 
     // emit declaration
     os << lineDirective(decl->loc)
-       << "  " << decl->code << ";    // " << name << "\n";
+       << "  " << decl->code << ";    // " << name << "\n"
+       << restoreLine
+       ;
   }
 
   // type declaration epilogue
@@ -200,7 +217,7 @@ void emitClassDecl(ostream &os, Grammar const *g, Nonterminal const *nonterm)
 
 
 // emit the array of info about each nonterminal
-void GrammarAnalysis::emitTypeCtorMap(ostream &os) const
+void GrammarAnalysis::emitTypeCtorMap(EmitCode &os) const
 {
   // prologue
   os << "// ---------- nonterm info map ----------\n";
@@ -235,10 +252,7 @@ void GrammarAnalysis::emitTypeCtorMap(ostream &os) const
 void emitSemFunImplFile(char const *fname, char const *headerFname, 
                         GrammarAnalysis const *g)
 {
-  ofstream os(fname);
-  if (!os) {
-    xsyserror("open", fname);
-  }
+  EmitCode os(fname);
 
   // file header
   os << "// " << fname << "\n"
@@ -261,7 +275,8 @@ void emitSemFunImplFile(char const *fname, char const *headerFname,
   if (g->semanticsEpilogue != NULL) {
     os << "// -------- user-supplied semantics epilogue --------\n"
        << lineDirective(g->semanticsEpilogue->loc)
-       << g->semanticsEpilogue->code
+       << g->semanticsEpilogue->code << "\n"
+       << restoreLine
        << "\n"
        << "\n"
        << "// end of " << fname << "\n";
@@ -272,10 +287,7 @@ void emitSemFunImplFile(char const *fname, char const *headerFname,
 // emit the file of C++ node type declarations
 void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
 {
-  ofstream os(fname);
-  if (!os) {
-    xsyserror("open", fname);
-  }
+  EmitCode os(fname);
 
   // file header
   os << "// " << fname << "\n"
@@ -293,7 +305,8 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
   if (g->semanticsPrologue != NULL) {
     os << "// ------------ user-supplied prologue ----------\n"
        << lineDirective(g->semanticsPrologue->loc)
-       << g->semanticsPrologue->code
+       << g->semanticsPrologue->code << "\n"
+       << restoreLine
        << "\n"
        << "\n";
   }

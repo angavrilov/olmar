@@ -80,8 +80,12 @@ nonterm Checkable {
 
 nonterm TranslationUnit : Checkable {
   -> empty;
-  -> d:Declaration t:TranslationUnit
-    { fun typeCheck { d.typeCheck(env); t.typeCheck(env); } }
+  -> d:Declaration t:TranslationUnit {
+    fun typeCheck { 
+      d.typeCheck(env); 
+      t.typeCheck(env); 
+    } 
+  }
 }
 
 // ------ A.4 Expressions ------
@@ -266,12 +270,11 @@ nonterm BinaryOperator {
                                                  
   // return this operator's effect on integers
   fundecl int intEval(int left, int right) const;
-  fun intEval { error("can't apply this operator to integers"); }
 
   // highest precedence
-  formGroup { 
-    action prec:=64;   
-    -> ".*" | "->*" ;
+  formGroup {
+    action prec:=64;
+    -> ".*" | "->*"     { fun intEval { error("can't apply this operator to integers"); } }
   }
 
   formGroup {
@@ -442,15 +445,25 @@ nonterm ForInitStatement -> ExpressionStatement | SimpleDeclaration ;
 
 
 // ----- A.6 Declarations ------
-nonterm DeclarationSeqOpt -> empty | DeclarationSeqOpt Declaration ;
+nonterm DeclarationSeqOpt : Checkable {
+  -> empty {
+    fun typeCheck {} 
+  }
+  -> seq:DeclarationSeqOpt d:Declaration {
+    fun typeCheck {
+      seq.typeCheck(env);
+      d.typeCheck(env);
+    }
+  } 
+}
 
 nonterm Declaration : Checkable {
-  fun typeCheck {}    // for now
+  fun typeCheck { d.typeCheck(env); }
 
-  -> d:BlockDeclaration     { fun typeCheck { d.typeCheck(env); } }
-  -> FunctionDefinition ;
+  -> d:BlockDeclaration ;
+  -> d:FunctionDefinition ;
   //-> TemplateDeclaration ;
-  -> LinkageSpecification ;
+  -> d:LinkageSpecification ;
 }
 
 // C++ has other alternatives..
@@ -728,9 +741,13 @@ nonterm EnumeratorDefinition -> EnumValueName |
 
 nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
-nonterm LinkageSpecification -> 
-  "extern" L2_STRING_LITERAL "{" DeclarationSeqOpt "}" |
-  "extern" L2_STRING_LITERAL Declaration ;
+nonterm LinkageSpecification : Checkable {
+  // todo: actually record the linkage spec
+  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" |
+     "extern" L2_STRING_LITERAL d:Declaration {
+    fun typeCheck { d.typeCheck(env); }
+  }
+}
 
 // ------ A.7 Declarators ------
 // -- declarator --
@@ -1137,7 +1154,7 @@ nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
 }
 
 // -- function definition --
-nonterm FunctionDefinition : HasPrintSig {
+nonterm FunctionDefinition : Checkable, HasPrintSig {
   // I am wary of letting the declspecifier be optional, because it seems
   // to me that may introduce more ambiguities.. but it truly is missing
   // in ctors and dtors; so my idea now is to only permit it when the
@@ -1150,7 +1167,7 @@ nonterm FunctionDefinition : HasPrintSig {
   // this works for all the productions
 
   // return type      name/params   body
-  -> r:DeclSpecifier  d:Declarator  FunctionBody {
+  -> r:DeclSpecifier  d:Declarator  b:FunctionBody {
     fun printSig {
       cout << d.getDeclName() << ": returns "
            << r.typeName() << d.retTypeName() << ", arg types: ";
@@ -1159,6 +1176,17 @@ nonterm FunctionDefinition : HasPrintSig {
       xassert(pdc);    // otherwise isFunction had to be 0
       pdc->printSig();
       cout << endl;
+    }
+
+    fun typeCheck {
+      // typecheck the signature
+      Type const *type = spec.getType(env);    // a complete type
+      DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
+      string name = d.getDeclName();
+      env.declareVariable(name, flags, d.getDeclType(env, type));
+
+      // typecheck the body
+      b.typeCheck(env);
     }
   }
 
@@ -1171,7 +1199,9 @@ nonterm FunctionDefinition : HasPrintSig {
     { fun printSig { cout << d.getDeclName() << ": ctor with init list\n"; } }
 }
 
-nonterm FunctionBody -> CompoundStatement ;
+nonterm FunctionBody : Checkable -> s:CompoundStatement {
+  fun typeCheck { s.typeCheck(env); }
+}
 
 nonterm ExplicitOpt -> "explicit" | empty ;
 

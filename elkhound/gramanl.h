@@ -20,6 +20,7 @@
 
 // forward decls
 class Bit2d;            // bit2d.h
+class EmitCode;         // emitcode.h
 
 
 class GrammarAnalysis : public Grammar {
@@ -141,7 +142,7 @@ public:	    // funcs
 
   // really should be in ccwrite.h, but it's here
   // because the implementation needed private data..
-  void emitTypeCtorMap(ostream &os) const;
+  void emitTypeCtorMap(EmitCode &os) const;
 
 
   // ---- grammar queries ----

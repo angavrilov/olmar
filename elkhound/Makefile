@@ -28,7 +28,7 @@ common = trace.o
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep = gramanl.cc ${grammar-set} ${common} ${grampar-set} \
-              ccwrite.o
+              ccwrite.o emitcode.o
 gramanl: ${gramanl-dep} grammar.h gramanl.h 
 	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 
@@ -93,7 +93,7 @@ cexp2.cc cexp2.h: cexp2.gr gramanl
 	chmod a-w cexp2.cc cexp2.h
 
 # parser and semantic analyzer for cexp2.gr
-cexp2-dep = cexp2.cc ${grammar-set} ${common} ${grampar-set} \
+cexp2-dep = cexp2.o ${grammar-set} ${common} ${grampar-set} \
             ${glr-set}
 cexp2: ${cexp2-dep} cexp2.h
 	${link} -o cexp2 ${cexp2-dep} ${linkend}
@@ -106,7 +106,7 @@ cc.cc cc.h: cc.gr gramanl
 
 # parser and semantic analyzer for cc.gr
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
-ccgr-dep = cc.cc ${grammar-set} ${common} ${grampar-set} \
+ccgr-dep = cc.o ${grammar-set} ${common} ${grampar-set} \
            ${glr-set} ${cc-set}
 ccgr: ${ccgr-dep} cc.h
 	${link} -o ccgr ${ccgr-dep} ${linkend}

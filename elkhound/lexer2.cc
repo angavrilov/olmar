@@ -286,8 +286,8 @@ string Lexer2Token::unparseString() const
 
 void Lexer2Token::print() const
 {
-  printf("[L2] Token at line %d, col %d: %s\n",
-         loc.line, loc.col, toString().pcharc());
+  printf("[L2] Token at %s: %s\n",
+         loc.toString().pcharc(), toString().pcharc());
 }
 
 
