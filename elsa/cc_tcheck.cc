@@ -1759,14 +1759,21 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
   OperatorName const *oname = name->getUnqualifiedNameC()->asPQ_operatorC()->o;
   char const *strname = oname->getOperatorName();
 
-  // cppstd doesn't say this explicitly, but every place that mentions
-  // what an operator can be allows only non-static members, if it
-  // allows members at all
-  // UPDATE: dsw: operator new() has to be static
-  #warning so make it specific to new
-//    if (scope->curCompound && (dt.dflags & DF_STATIC)) {
-//      env.error(loc, "operator member functions cannot be static");
-//    }
+  if (scope->curCompound) {
+    // All the operators mentioned in 13.5 must be non-static if they
+    // are implemented by member functions.  (Actually, 13.5.7 does
+    // not explicitly require non-static, but it's clearly intended.)
+    //
+    // That leaves only operators new and delete, which (12.5 para 1)
+    // are always static *even if not explicitly declared so*.
+    if (oname->isON_newDel()) {
+      // actually, this is now done elsewhere (search for "12.5 para 1")
+      //dt.dflags |= DF_STATIC;      // force it to be static
+    }
+    else if (dt.dflags & DF_STATIC) {
+      env.error(loc, "operator member functions (other than new/delete) cannot be static");
+    }
+  }
 
   // describe the operator
   enum OperatorDesc {
@@ -2181,6 +2188,15 @@ realStart:
     // has this name already been declared in the innermost scope?
     prior = env.lookupVariableForDeclaration(scope, unqualifiedName, dt.type,
       dt.funcSyntax? dt.funcSyntax->cv : CV_NONE);
+  }
+
+  if (scope->curCompound &&
+      !isFriend &&
+      name->getUnqualifiedNameC()->isPQ_operator() &&
+      name->getUnqualifiedNameC()->asPQ_operatorC()->o->isON_newDel()) {
+    // 12.5 para 1: new/delete member functions are static even if
+    // they are not explicitly declared so
+    dt.dflags |= DF_STATIC;
   }
 
   // is this a nonstatic member function?
