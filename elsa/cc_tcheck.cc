@@ -1056,7 +1056,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
       return ret;
     }
     else {
-      // redundant, nothing to do (what the hey, I'll check keywords)
+      // redundant, nothing to do except check keywords (7.1.5.3 para 3)
       if ((keyword==TI_UNION) != (ct->keyword==CompoundType::K_UNION)) {
     keywordComplaint:
         return env.error(stringc
@@ -1101,19 +1101,9 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     return ret;
   }
 
-  // check that the keywords match; these 'keyword's are different
-  // types, but they agree for the three relevant values
-  if ((int)keyword != (int)ct->keyword) {
-    // dsw: I made the struct/class confusion only be a warning
-    // because gcc allows it
-    if ( (keyword==TI_STRUCT && ct->keyword==CompoundType::K_CLASS)
-         || (keyword==TI_CLASS && ct->keyword==CompoundType::K_STRUCT) ) {
-      env.warning(stringc
-        << "you asked for a " << toString(keyword) << " called `"
-        << *name << "', but that's actually a " << toString(ct->keyword));
-    } else {
-      goto keywordComplaint;
-    }
+  // check that the keywords match (7.1.5.3 para 3)
+  if ((keyword==TI_UNION) != (ct->keyword==CompoundType::K_UNION)) {
+    goto keywordComplaint;
   }
 
   if (name->getUnqualifiedName()->isPQ_template()) {
