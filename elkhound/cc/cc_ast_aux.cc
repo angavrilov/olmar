@@ -287,6 +287,17 @@ void Expression::addAmbiguity(Expression *alt)
 
 void Expression::setNext(Expression *newNext)
 {
+  // relaxation: The syntax
+  //   tok = strtok(((void *)0) , delim);
+  // provokes a double-add, where 'next' is the same both
+  // times.  I think this is because we merge a little
+  // later than usual due to unexpected state splitting.
+  // I might try to investigate this more carefully at a
+  // later time, but for now..
+  if (next == newNext) {
+    return;    // bail if it's already what we want..
+  }
+
   // my 'next' should be NULL; if it's not, then I'm already
   // on a list, and setting 'next' now will lose information
   xassert(next == NULL);
