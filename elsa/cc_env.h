@@ -43,6 +43,10 @@ private:     // data
   int anonTypeCounter;
 
 public:      // data
+  // nesting level of disambiguation passes; 0 means not disambiguating;
+  // this is used for certain kinds of error reporting and suppression
+  int disambiguationNestingLevel;
+
   // stack of error messages; the first one is the latest
   // one inserted; during disambiguation, I'll remember where
   // the top was before each alternative, so I can leave this
@@ -181,6 +185,11 @@ public:      // funcs
   // are disambiguating errors
   static bool listHasDisambErrors(ObjList<ErrorMsg> const &list);
   bool hasDisambErrors() const { return listHasDisambErrors(errors); }
+  
+  // return true if environment modifications should be suppressed
+  // because of disambiguating errors
+  bool disambErrorsSuppressChanges() const
+    { return disambiguationNestingLevel>0 && hasDisambErrors(); }
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)

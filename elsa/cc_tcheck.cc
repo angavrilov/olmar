@@ -113,6 +113,11 @@ NODE *resolveAmbiguity(
   ObjList<ErrorMsg> existingErrors;
   existingErrors.concat(env.errors);
 
+  // having stolen the existing errors, we now tell the environment
+  // we're in a disambiguation pass so it knows that any disambiguating
+  // errors are participating in an active disambiguation
+  env.disambiguationNestingLevel++;
+
   // grab location before checking the alternatives
   SourceLoc loc = env.loc();
 
@@ -200,6 +205,9 @@ NODE *resolveAmbiguity(
       //markAsFailed(alt);
     }
   }
+
+  // we're about to put the pre-existing errors back into env.errors
+  env.disambiguationNestingLevel--;
 
   if (numOk == 0) {
     // none of the alternatives checked out
@@ -3480,6 +3488,12 @@ bool Expression::constEval(Env &env, int &result) const
 {
   xassert(!ambiguity);
 
+  if (type->isError()) {
+    // don't try to const-eval an expression that failed
+    // to typecheck
+    return false;
+  }
+
   ASTSWITCHC(Expression, this) {
     ASTCASEC(E_boolLit, b)
       result = b->b? 1 : 0;
@@ -3488,7 +3502,7 @@ bool Expression::constEval(Env &env, int &result) const
     ASTNEXTC(E_intLit, i)
       result = i->i;
       return true;
-      
+
     ASTNEXTC(E_charLit, c)
       result = c->c;
       return true;

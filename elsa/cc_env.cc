@@ -24,6 +24,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   : scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
+    disambiguationNestingLevel(0),
     errors(),
     str(s),
     lang(L),
@@ -311,7 +312,7 @@ Scope *Env::enclosingScope()
 
 bool Env::addVariable(Variable *v, bool forceReplace)
 {
-  if (hasDisambErrors()) {
+  if (disambErrorsSuppressChanges()) {
     // the environment is not supposed to be modified by an ambiguous
     // alternative that fails
     trace("env") << "not adding variable `" << v->name
@@ -338,7 +339,7 @@ void Env::registerVariable(Variable *v)
 bool Env::addCompound(CompoundType *ct)
 {
   // like above
-  if (hasDisambErrors()) {
+  if (disambErrorsSuppressChanges()) {
     trace("env") << "not adding compound `" << ct->name
                  << "' because there are disambiguating errors\n";
     return true;
@@ -351,7 +352,7 @@ bool Env::addCompound(CompoundType *ct)
 bool Env::addEnum(EnumType *et)
 {
   // like above
-  if (hasDisambErrors()) {
+  if (disambErrorsSuppressChanges()) {
     trace("env") << "not adding enum `" << et->name
                  << "' because there are disambiguating errors\n";
     return true;

@@ -15,4 +15,9 @@ typedef signed int ptrdiff_t;
 
 typedef signed int size_t;
 
+// for parsing C code
+#ifndef __cplusplus
+  typedef int wchar_t;
+#endif
+
 #endif // __STDDEF_H
