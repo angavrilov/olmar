@@ -340,7 +340,7 @@ void Function::tcheck(Env &env, bool checkBody)
       nameAndParams->var->name[0]=='~' &&
       !dtorElaborated) {
     // FIX: turn this back on
-//      completeDtorCalls(env, this, inClass);
+    completeDtorCalls(env, this, inClass);
 //      cout << "**** elaborated dtor" << endl;
 //      this->debugPrint(cout, 0);
 //      cout << "**** elaborated dtor done" << endl;
@@ -1652,16 +1652,14 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
   // "a->~A();", since I treat that like a field lookup
   StringRef dtorName = env.str(stringc << "~" << ct->name);
   if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
-    // FIX: turn this back on
-//      if (env.doElaboration) {
-//        // create the AST for a definition and do the first typechecking
-//        // pass; the second part of the pass will be done with the rest
-//        // of the members later.
-//        MR_func *dtorBody = makeDtorBody(env, ct);
-//        dtorBody->tcheck(env);
-//        tsClassSpec->members->list.append(dtorBody);
-//      } else
-    {
+    if (env.doElaboration) {
+      // create the AST for a definition and do the first typechecking
+      // pass; the second part of the pass will be done with the rest
+      // of the members later.
+      MR_func *dtorBody = makeDtorBody(env, ct);
+      dtorBody->tcheck(env);
+      tsClassSpec->members->list.append(dtorBody);
+    } else {
       // add a dtor declaration: ~Class();
       FunctionType *ft = env.makeDestructorFunctionType(loc);
       Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
