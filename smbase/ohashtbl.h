@@ -50,7 +50,7 @@ void OwnerHashTable<T>::empty()
 template <class T>
 class OwnerHashTableIter {
 private:      // data
-  HashTableIter &iter;   // internal iterator
+  HashTableIter iter;    // internal iterator
 
 public:       // funcs
   OwnerHashTableIter(OwnerHashTable<T> &table)
@@ -58,7 +58,7 @@ public:       // funcs
 
   bool isDone() const      { return iter.isDone(); }
   void adv()               { iter.adv(); }
-  void *data()             { return (T*)iter.data(); }
+  T *data()                { return (T*)iter.data(); }
 };
 
 #endif // OHASHTBL_H
