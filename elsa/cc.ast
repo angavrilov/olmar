@@ -676,17 +676,9 @@ class TemplateDeclaration (
   // define a template function
   -> TD_func(Function f);
 
-  // declare a template function prototype
-  //
-  // TODO: this is also used for definitions of static members of
-  // template classes; TD_proto and TD_class ought to be merged
-  // into a single TD_decl, but when I tried that it exposed a
-  // number of tangential bugs so for now I'm leaving it alone
-  -> TD_proto(Declaration d);
-
-  // declare a template class; 'spec' could either be a
-  // TS_elaborated (forward decl) or a TS_classSpec (definition)
-  -> TD_class(TypeSpecifier spec);
+  // declare a template function prototype, or declare or define a
+  // template class
+  -> TD_decl(Declaration d);
   
   // wrap another set of parameters around a template decl;
   // this is for template members of template classes (14.5.2)

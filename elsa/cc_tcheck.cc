@@ -2810,7 +2810,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // contain declarators), among other things
   bool templatizableContext = 
     dt.context == DC_FUNCTION ||   // could be in MR_func or TD_func
-    dt.context == DC_TD_PROTO ||
+    dt.context == DC_TD_DECL ||
     dt.context == DC_MR_DECL;
 
   // cppstd sec. 3.4.3 para 3:
@@ -7727,8 +7727,13 @@ void TD_func::itcheck(Env &env)
 }
 
 
-void TD_proto::itcheck(Env &env)
+void TD_decl::itcheck(Env &env)
 {
+  if (d->dflags & DF_FRIEND) {
+    // for now I just want to ignore friend declarations altogether...
+    return;
+  }
+
   if (env.secondPassTcheck) {
     // TS_classSpec is only thing of interest
     if (d->spec->isTS_classSpec()) {
@@ -7743,19 +7748,14 @@ void TD_proto::itcheck(Env &env)
     env.error("there can be at most one declarator in a template declaration");
   }
 
+  // is this like the old TD_class?
+  bool likeTD_class = d->spec->isTS_classSpec() || d->spec->isTS_elaborated();
+
   // check the declaration; works like TD_func because D_func is the
   // place we grab template parameters, and that's shared by both
   // definitions and prototypes
-  DisambiguateOnlyTemp disOnly(env, true /*disOnly*/);
-  d->tcheck(env, DC_TD_PROTO);
-}
-
-
-void TD_class::itcheck(Env &env)
-{
-  // check the class definition; it knows what to do about
-  // the template parameters (just like for functions)
-  type = spec->tcheck(env, spec->isTS_elaborated()? DF_FORWARD : DF_NONE);
+  DisambiguateOnlyTemp disOnly(env, !likeTD_class);
+  d->tcheck(env, DC_TD_DECL);
 }
 
 

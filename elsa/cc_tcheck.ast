@@ -246,7 +246,7 @@ enum DeclaratorContext {
   DC_TF_EXPLICITINST,     //   TF_explicitInst::d
   DC_MR_DECL,             //   MR_decl::d
   DC_S_DECL,              //   S_decl::decl
-  DC_TD_PROTO,            //   TD_proto::d
+  DC_TD_DECL,             //   TD_decl::d
                           // inside ASTTypeId
   DC_D_FUNC,              //   D_func::params
   DC_EXCEPTIONSPEC,       //   ExceptionSpec::types
@@ -603,13 +603,6 @@ class Initializer {
 class TemplateDeclaration {
   public void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
-
-  -> TD_class {
-       public Type *type = NULL;     // defined type
-
-       public void printExtras(ostream &os, int indent) const;
-       custom debugPrint { printExtras(os, indent); }
-     }
 }
 
 

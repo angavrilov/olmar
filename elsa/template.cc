@@ -2548,11 +2548,21 @@ void Env::transferTemplateMemberInfo
       // need to remember the template arguments.  so, I'm introducing
       // the notion of "partial instantiation"
 
-      if (srcTDecl->isTD_proto()) {
-        Variable *srcVar = srcTDecl->asTD_proto()->d->decllist->first()->var;
-        Variable *destVar = destTDecl->asTD_proto()->d->decllist->first()->var;
+      if (srcTDecl->isTD_decl()) {
+        TypeSpecifier *srcSpec = srcTDecl->asTD_decl()->d->spec;
+        if (srcSpec->isTS_classSpec() || srcSpec->isTS_elaborated()) {
+          // old TD_class behavior
+          transferTemplateMemberInfo_typeSpec(instLoc,
+            srcSpec, source->ctype,
+            destTDecl->asTD_decl()->d->spec, sargs);
+        }
+        else {
+          // old TD_proto behavior
+          Variable *srcVar = srcTDecl->asTD_decl()->d->decllist->first()->var;
+          Variable *destVar = destTDecl->asTD_decl()->d->decllist->first()->var;
 
-        transferTemplateMemberInfo_membert(instLoc, srcVar, destVar, sargs);
+          transferTemplateMemberInfo_membert(instLoc, srcVar, destVar, sargs);
+        }
       }
 
       else if (srcTDecl->isTD_func()) {
@@ -2560,12 +2570,6 @@ void Env::transferTemplateMemberInfo
         Variable *destVar = destTDecl->asTD_func()->f->nameAndParams->var;
 
         transferTemplateMemberInfo_membert(instLoc, srcVar, destVar, sargs);
-      }
-
-      else if (srcTDecl->isTD_class()) {
-        transferTemplateMemberInfo_typeSpec(instLoc,
-          srcTDecl->asTD_class()->spec, source->ctype,
-          destTDecl->asTD_class()->spec, sargs);
       }
 
       else if (srcTDecl->isTD_tmember()) {

@@ -2167,34 +2167,19 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
   -> plist:TemplatePreamble def:FunctionDefinition
        { return new TD_func(plist, def); }
 
-  // template function prototype, OR
-  // initialized static data member of a class
-  // (TODO: should allow arbitrary SimpleDeclaration so, e.g., could
-  // define more than one static member in a single decl)
-  -> plist:TemplatePreamble spec:DeclSpecifier nameParams:InitDeclarator ";"
-       { spec->decllist = FakeList<Declarator>::makeList(nameParams);
-         if (!keepDeclaration(spec)) {      // in/t0185.cc
-           return NULL;
-         }
-         return new TD_proto(plist, spec); }
+  // template function definition, or template class or data member decl/defn
+  -> plist:TemplatePreamble d:SimpleDeclaration
+       { return new TD_decl(plist, d); }
 
-  // definition of a template classe
-  -> plist:TemplatePreamble spec:ClassSpecifier ";"
-       { return new TD_class(plist, spec); }
-
-  // forward declarations of a template class
-  -> plist:TemplatePreamble spec:ElaboratedTypeSpecifier ";"
-       { return new TD_class(plist, spec); }
-       
   // definition of a template member
   -> plist:TemplatePreamble td:TemplateDeclaration
        { return new TD_tmember(plist, td); }
 
   // as a toplevel form, this is a specialization of a template class
-  // constructor; as a class member, it is a declaration of a 
+  // constructor; as a class member, it is a declaration of a
   // templatized constructor
   -> plist:TemplatePreamble d:CDtorProtoDecl
-       { return new TD_proto(plist, d); }
+       { return new TD_decl(plist, d); }
 }
 
 // the "template <...>" stuff

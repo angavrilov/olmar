@@ -76,22 +76,29 @@ bool ASTTemplVisitor::visitTemplateDeclaration(TemplateDeclaration *obj)
     tinfoVar = decltor->var;
     // this fails for function members of template classes
     //   xassert(tinfoVar);
-  } else if (obj->isTD_proto()) {
-    FakeList<Declarator> *decllist = obj->asTD_proto()->d->decllist;
-    xassert(decllist->count() == 1);
-    Declarator *decltor = decllist->first();
-    if (hasBeenTchecked) xassert(decltor->var);
-    tinfoVar = decltor->var;
-    // this fails for var members of template classes
-    //      xassert(tinfoVar);
-  } else if (obj->isTD_class() && obj->asTD_class()->spec->isTS_classSpec()) {
-    TS_classSpec *ts = obj->asTD_class()->spec->asTS_classSpec();
-    // ts->ctype can be NULL if there was an error: in/0027.cc:ERROR(1)
-    if (ts->ctype) {
-      tinfoVar = ts->ctype->asCompoundType()->getTypedefVar();
-      // I think this will fail for class members of template
-      // classes, but I'll leave it until it does.
-      xassert(tinfoVar);
+  } else if (obj->isTD_decl()) {
+    FakeList<Declarator> *decllist = obj->asTD_decl()->d->decllist;
+    if (decllist->count() == 0) {
+      // old TD_class behavior
+      if (obj->asTD_decl()->d->spec->isTS_classSpec()) {
+        TS_classSpec *ts = obj->asTD_decl()->d->spec->asTS_classSpec();
+        // ts->ctype can be NULL if there was an error: in/0027.cc:ERROR(1)
+        if (ts->ctype) {
+          tinfoVar = ts->ctype->asCompoundType()->getTypedefVar();
+          // I think this will fail for class members of template
+          // classes, but I'll leave it until it does.
+          xassert(tinfoVar);
+        }
+      }   
+    }
+    else {
+      // old TD_proto behavior
+      xassert(decllist->count() == 1);
+      Declarator *decltor = decllist->first();
+      if (hasBeenTchecked) xassert(decltor->var);
+      tinfoVar = decltor->var;
+      // this fails for var members of template classes
+      //      xassert(tinfoVar);
     }
   }
 
@@ -773,16 +780,7 @@ void ArgExpression::printAmbiguities(ostream &os, int indent) const
 // ExpressionListOpt
 // Initializer
 // InitLabel
-
-// ------------------- TemplateDeclaration ------------------
-void TD_class::printExtras(ostream &os, int indent) const
-{
-  if (type) {
-    ind(os, indent) << "type: " << type->toString() << "\n";
-  }
-}
-
-
+// TemplateDeclaration
 // TemplateParameter
 
 // -------------------- TemplateArgument ---------------------

@@ -1286,19 +1286,13 @@ void TD_func::iprint(PrintEnv &env)
   }
 }
 
-void TD_proto::iprint(PrintEnv &env)
+void TD_decl::iprint(PrintEnv &env)
 {
   d->print(env);
-}
-
-void TD_class::iprint(PrintEnv &env)
-{
-  spec->print(env);
-  env << ";\n";
 
   // print instantiations
-  if (spec->isTS_classSpec()) {
-    CompoundType *ct = spec->asTS_classSpec()->ctype;
+  if (d->spec->isTS_classSpec()) {
+    CompoundType *ct = d->spec->asTS_classSpec()->ctype;
     TemplateInfo *ti = ct->typedefVar->templateInfo();
     if (!ti->isCompleteSpec()) {
       env << "#if 0    // instantiations of " << ct->name << "\n";
