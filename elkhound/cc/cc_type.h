@@ -376,6 +376,7 @@ public:     // funcs
   virtual ~FunctionType();
 
   bool innerEquals(FunctionType const *obj) const;
+  bool equalParameterLists(FunctionType const *obj) const;
 
   // append a parameter to the parameters list
   void addParam(Param *param);

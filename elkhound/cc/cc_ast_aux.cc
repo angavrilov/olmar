@@ -2,6 +2,7 @@
 // auxilliary code (debug printing, etc.) for cc.ast
 
 #include "cc.ast.gen.h"     // C++ AST
+#include "strutil.h"        // plural
 
 
 // TranslationUnit
@@ -76,7 +77,14 @@ void Declarator::printExtras(ostream &os, int indent) const
   if (var) {
     ind(os, indent) << "var: " 
       << toString(var->flags) << (var->flags? " " : "")
-      << var->type->toCString(var->name) << "\n";
+      << var->type->toCString(var->name);
+
+    if (var->overload) {
+      int n = var->overload->count();
+      os << " (" << n << " " << plural(n, "overloading") << ")";
+    }
+
+    os << "\n";
   }
 }
 

@@ -841,25 +841,30 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
       //cv == obj->cv &&
       acceptsVarargs == obj->acceptsVarargs) {
     // so far so good, try the parameters
-    ObjListIter<Param> iter1(params);
-    ObjListIter<Param> iter2(obj->params);
-    for (; !iter1.isDone() && !iter2.isDone();
-         iter1.adv(), iter2.adv()) {
-      // parameter names do not have to match, but
-      // the types do
-      if (iter1.data()->type->equals(iter2.data()->type)) {
-        // ok
-      }
-      else {
-        return false;
-      }
-    }
-
-    return iter1.isDone() == iter2.isDone();
+    return equalParameterLists(obj);
   }
   else {
     return false;
   }
+}
+
+bool FunctionType::equalParameterLists(FunctionType const *obj) const
+{
+  ObjListIter<Param> iter1(params);
+  ObjListIter<Param> iter2(obj->params);
+  for (; !iter1.isDone() && !iter2.isDone();
+       iter1.adv(), iter2.adv()) {
+    // parameter names do not have to match, but
+    // the types do
+    if (iter1.data()->type->equals(iter2.data()->type)) {
+      // ok
+    }
+    else {
+      return false;
+    }
+  }
+
+  return iter1.isDone() == iter2.isDone();
 }
 
 

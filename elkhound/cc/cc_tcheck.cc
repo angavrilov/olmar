@@ -428,6 +428,30 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     prior = env.lookupVariable(name->getName(), true /*innerOnly*/);
   }
 
+  // check for overloading
+  OverloadSet *overloadSet = NULL;    // null until valid overload seen
+  if (prior &&
+      prior->type->isFunctionType() &&
+      spec->isFunctionType() &&
+      !prior->type->equals(spec)) {
+    // potential overloading situation; make sure the parameter
+    // lists are not the same (BUG: this isn't the exact criteria
+    // for allowing overloading, but it's close)
+    if (prior->type->asFunctionTypeC().equalParameterLists(
+          &(spec->asFunctionTypeC()))) {
+      env.error(stringc
+        << "cannot overload `" << *name << "' on return type only");
+      goto makeDummyVar;
+    }
+    else {
+      // ok, allow the overload
+      trace("ovl") << "overloaded: `" << prior->type->toString()
+                   << "' and `" << spec->toString() << "'\n";
+      overloadSet = prior->getOverloadSet();
+      prior = NULL;    // so we don't consider this to be the same
+    }
+  }
+
   // did we find something?
   if (prior) {
     // check for violation of the One Definition Rule
@@ -481,7 +505,13 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
   Variable *var = new Variable(loc, name->getName(), spec, dflags);
-  if (!var->type->isError()) {
+  if (overloadSet) {
+    // don't add it to the environment (another overloaded version
+    // is already in the environment), instead add it to the overload set
+    overloadSet->addMember(var);
+    var->overload = overloadSet;
+  }
+  else if (!var->type->isError()) {
     env.addVariable(var);
   }
 

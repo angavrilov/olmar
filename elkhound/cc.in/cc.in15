@@ -1,5 +1,5 @@
 // cc.in15
-// some special class member functions
+// ctors and dtors
 
 class Foo {
 public:

@@ -1,0 +1,8 @@
+// cc.in16
+// overloading
+
+int f(int);
+
+int f(double);
+
+
