@@ -1744,7 +1744,8 @@ Scope *Env::lookupOneQualifier_useArgs(
     // check for a special case: a qualifier that refers to
     // a template parameter
     if (qualVar->type->isTypeVariable() ||
-        qualVar->type->isPseudoInstantiation()) {    // in/t0426.cc
+        qualVar->type->isPseudoInstantiation() ||    // in/t0426.cc
+        qualVar->type->isDependentQType()) {         // in/t0443.cc
       // we're looking inside an uninstantiated template parameter
       // type; the lookup fails, but no error is generated here
       dependent = true;     // tell the caller what happened
@@ -4422,38 +4423,28 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           dqt = NULL;               // don't need a DQT
         }
 
-        else if (svar->type->isTypeVariable()) {
-          if (qual->targs.isNotEmpty()) {
-            error(name->loc, stringc     // t0265.cc error 1
-              << "template arguments applied to `" << qual->qualifier
-              << "' but that is a template parameter (and template "
-              << "template parameters are not implemented yet)",
-              EF_STRONG);
-            return;
-          }
-
-          // build DependentQType TypeVariable(svar)::...
-          dqt = new DependentQType(svar->type->asTypeVariable());
-        }
-
-        else if (svar->type->isPseudoInstantiation()) {
-          // build on top of the existing pseudoinstantiation (in/t0430.cc)
-          dqt = new DependentQType(svar->type->asPseudoInstantiation());
-        }
-
-        else if (containsVariables(qual->targs)) {
-          if (!svar->type->isCompoundType()) {
-            error(name->loc, stringc
-              << "template arguments applied to `" << qual->qualifier
-              << "' but that is not a class template");
-            return;
-          }
+        else if (svar->type->isCompoundType()) {
+          xassert(containsVariables(qual->targs));  // otherwise why dependent?
 
           // build DependentQType PseudoInstantiation(svar, qual->targs)::...
           CompoundType *ct = svar->type->asCompoundType();
           dqt = new DependentQType(createPseudoInstantiation(ct, qual->targs));
         }
-        
+
+        else if (svar->type->isNamedAtomicType()) {
+          if (qual->targs.isNotEmpty()) {
+            error(name->loc, stringc     // t0265.cc error 1
+              << "cannot apply template arguments to `" << qual->qualifier << "'",
+              EF_STRONG);
+            return;
+          }
+
+          // build DependentQType on top of 'svar->type'; could be
+          // a TypeVariable, a PseudoInstantiation (in/t0430.cc), or
+          // another DependentQType (in/t0433.cc)
+          dqt = new DependentQType(svar->type->asNamedAtomicType());
+        }
+
         else {
           xfailure("unhandled case of dependent qualified type in lookupPQ");
         }
