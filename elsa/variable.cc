@@ -261,12 +261,11 @@ string Variable::namePrintSuffix() const
 }
 
 
-OverloadSet *Variable::getOverloadSet()
+OverloadSet *Variable::getOrCreateOverloadSet()
 {
   xassert(type);
   xassert(type->isFunctionType());
   if (!overload) {
-    #warning I do not like making an OverloadSet unnecessarily
     overload = new OverloadSet;
     overload->addMember(this);
   }

@@ -2153,7 +2153,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
           // check for member of overload set with same signature
           // and marked 'virtual'
           if (Variable *var_overload = env.findInOverloadSet(
-                var2->getOverloadSet(), var->type->asFunctionType())) {
+                var2->overload, var->type->asFunctionType())) {
             xassert(var_overload != var);
             xassert(var_overload->type->isFunctionType());
             xassert(var_overload->type->asFunctionType()->isMethod());

@@ -1404,7 +1404,7 @@ bool Env::addVariable(Variable *v, bool forceReplace)
 void Env::addVariableWithOload(Variable *prevLookup, Variable *v) 
 {
   if (prevLookup) {
-    prevLookup->getOverloadSet()->addMember(v);   // might make an overload set
+    prevLookup->getOrCreateOverloadSet()->addMember(v);
     registerVariable(v);
 
     TRACE("ovl",    "overloaded `" << prevLookup->name
@@ -2751,7 +2751,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
     if (!enclosingClass &&
         prior->type->isFunctionType()) {
       // turn it into an overloading situation
-      overloadSet = prior->getOverloadSet();
+      overloadSet = prior->getOrCreateOverloadSet();
       prior = NULL;
     }
 
@@ -2899,7 +2899,7 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
       TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
                    << "' and `" << type->toString() << "'");
-      overloadSet = prior->getOverloadSet();
+      overloadSet = prior->getOrCreateOverloadSet();
       prior = NULL;    // so we don't consider this to be the same
     }
   }

@@ -1018,6 +1018,7 @@ Env::TemplTcheckMode Env::getTemplTcheckMode() const
 }
 
 
+#if 0   // not needed
 // FIX: this lookup doesn't do very well for overloaded function
 // templates where one primary is more specific than the other; the
 // more specific one matches both itself and the less specific one,
@@ -1048,6 +1049,7 @@ Variable *Env::lookupPQVariable_primary_resolve(
   }
   return var;
 }
+#endif // 0
 
 
 Variable *Env::findTemplPrimaryForSignature
@@ -1462,8 +1464,7 @@ Variable *Env::lookupPQVariable_applyArgs(
   PQName const *final = name->getUnqualifiedNameC();
 
   // duck overloading
-  OverloadSet *oloadSet = primary->getOverloadSet();
-  if (oloadSet->count() > 1) {
+  if (primary->isOverloaded()) {
     xassert(primary->type->isFunctionType()); // only makes sense for function types
     // FIX: the correctness of this depends on someone doing
     // overload resolution later, which I don't think is being

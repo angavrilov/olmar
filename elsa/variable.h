@@ -161,12 +161,18 @@ public:
   Type *getType() { return type; }
   Type const *getTypeC() const { return type; }
 
-  // create an overload set if it doesn't exist, and return it
-  OverloadSet *getOverloadSet();
+  // create an overload set if it doesn't exist, and return it (do not
+  // do this unless you actually need a set; if you just want to treat
+  // overloaded and non-overloaded variables uniformly, use
+  // 'getOverloadList' instead)
+  OverloadSet *getOrCreateOverloadSet();
 
   // return the set of overloaded entities; this might just
   // be the singleton 'this', if it isn't overloaded
   void getOverloadList(SObjList<Variable> &set);
+
+  // true if this name is overloaded
+  bool isOverloaded() const { return !!overload; }
 
   // number of elements in the overload set, or 1 if there is no
   // overload set

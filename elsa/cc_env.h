@@ -669,9 +669,9 @@ public:      // template funcs
 
   // some extensions to lookupPQVariable that I want to move elsewhere;
   // for now I'm just trying to factor them out of lookup..
-  Variable *lookupPQVariable_primary_resolve
-    (PQName const *name, LookupFlags flags, FunctionType *signature,
-     MatchTypes::MatchMode matchMode);
+  //Variable *lookupPQVariable_primary_resolve
+  //  (PQName const *name, LookupFlags flags, FunctionType *signature,
+  //   MatchTypes::MatchMode matchMode);
 
   // initialize the arguments from an AST list of TempateArgument-s
   void initArgumentsFromASTTemplArgs
