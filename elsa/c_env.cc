@@ -739,7 +739,7 @@ string Env::toString() const
 
   // for now, just the variables
   FOREACH_OBJLIST(ScopedEnv, scopes, sc) {
-    StringSObjDict<Variable>::Iter iter(sc.data()->variables);
+    StringSObjDict<Variable>::IterC iter(sc.data()->variables);
     for (; !iter.isDone(); iter.next()) {
       sb << iter.value()->toString() << " ";
     }

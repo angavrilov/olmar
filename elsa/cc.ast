@@ -197,7 +197,9 @@ class TypeSpecifier {
        StringRef /*nullable*/ name,          // user-provided name, if any
        FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
-     );
+     ) {
+       private void tcheckFunctionBodies(Env &env);
+     }
 
   -> TS_enumSpec(                          // "enum { ... }"
        SourceLocation loc,

@@ -696,6 +696,9 @@ Type const *TS_classSpec::tcheck(Env &env)
   // are we in a template?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
 
+  // are we an inner class?
+  bool innerClass = env.acceptingScope()->curCompound != NULL;
+
   // see if the environment already has this name
   CompoundType *ct = name? env.lookupCompound(name, true /*innerOnly*/) : NULL;
   Type const *ret;
@@ -785,9 +788,30 @@ Type const *TS_classSpec::tcheck(Env &env)
   }
 
   // second pass: check function bodies
-  FOREACH_ASTLIST_NC(Member, members->list, iter2) {
-    if (iter2.data()->isMR_func()) {
-      Function *f = iter2.data()->asMR_func()->f;
+  if (!innerClass) {
+    tcheckFunctionBodies(env);
+  }
+
+  // now retract the class scope from the stack of scopes; do
+  // *not* destroy it!
+  env.retractScope(ct);
+
+  if (inTemplate) {
+    env.setDisambiguateOnly(prevDO);
+  }
+
+  return ret;
+}
+
+void TS_classSpec::tcheckFunctionBodies(Env &env)
+{
+  CompoundType *ct = env.scope()->curCompound;
+  xassert(ct);
+
+  // check function bodies
+  FOREACH_ASTLIST_NC(Member, members->list, iter) {
+    if (iter.data()->isMR_func()) {
+      Function *f = iter.data()->asMR_func()->f;
 
       // ordinarily we'd complain about seeing two declarations
       // of the same class member, so to tell D_name::itcheck not
@@ -804,17 +828,42 @@ Type const *TS_classSpec::tcheck(Env &env)
     }
   }
 
-  // now retract the class scope from the stack of scopes; do
-  // *not* destroy it!
-  env.retractScope(ct);
-
-  if (inTemplate) {
-    env.setDisambiguateOnly(prevDO);
-  }
-
-  return ret;
-}
+  // a gcc-2.95.3 compiler bug is making this code segfault..
+  // will disable it for now and try again when I have more time
+  #if 0
+  // check function bodies of any inner classes, too, since only
+  // a non-inner class will call tcheckFunctionBodies directly
+  StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
   
+  // if these print different answers, gcc has a bug
+  trace("sm") << "compound top: " << ct->private_compoundTop() << "\n"
+              << "iter current: " << innerIter.private_getCurrent() << endl;
+
+  // compiler bug..
+  //for (; !innerIter.isDone(); innerIter.next()) {
+
+  while (true) {
+    if (innerIter.isDone()) {
+      break;
+    }
+
+    CompoundType *inner = innerIter.value();
+
+    // open the inner scope
+    env.extendScope(inner);
+
+    // check its function bodies (it's somewhat of a hack to
+    // resort to inner's 'syntax' poiner)
+    inner->syntax->tcheckFunctionBodies(env);
+
+    // retract the inner scope
+    env.retractScope(inner);
+
+    innerIter.next();
+  }
+  #endif // 0
+}
+
 
 Type const *TS_enumSpec::tcheck(Env &env)
 {

@@ -448,7 +448,7 @@ int CompoundType::reprSize() const
 int CompoundType::numFields() const
 {                                                
   int ct = 0;
-  for (StringSObjDict<Variable>::Iter iter(getVariableIter());
+  for (StringSObjDict<Variable>::IterC iter(getVariableIter());
        !iter.isDone(); iter.next()) {
     Variable *v = iter.value();
            
