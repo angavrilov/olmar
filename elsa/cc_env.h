@@ -132,7 +132,7 @@ public:      // funcs
   StringRef getAnonName(TypeIntr keyword);
 
   // diagnostic reports; all return ST_ERROR type
-  Type const *error(char const *msg, bool disambiguates=true);
+  Type const *error(char const *msg, bool disambiguates=false);
   Type const *warning(char const *msg);
   Type const *unimp(char const *msg);
 

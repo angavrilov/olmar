@@ -2455,11 +2455,12 @@ Type const *E_constructor::itcheck(Env &env)
 }
 
 
+// cppstd sections: 5.2.5 and 3.4.5
 Type const *E_fieldAcc::itcheck(Env &env)
 {
   obj->tcheck(obj, env);
   fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
-  
+
   // get the type of 'obj', and make sure it's a compound
   Type const *rt = obj->type->asRval();
   CompoundType const *ct = rt->ifCompoundType();
@@ -2468,24 +2469,19 @@ Type const *E_fieldAcc::itcheck(Env &env)
       << "non-compound `" << rt->toString()
       << "' doesn't have fields to access");
   }
-
-  if (fieldName->hasQualifiers()) {
-    // this also catches destructor invocations
-    return env.unimp("fields with qualified names");
-  }
-
+  
   // make sure the type has been completed
   if (!ct->isComplete()) {
     return env.error(rt, stringc
-      << "attempt to access a field of incomplete type "
+      << "attempt to access a member of incomplete type "
       << ct->keywordAndName());
   }
 
   // look for the named field
-  field = ct->getNamedFieldC(fieldName->getName(), env);
+  field = ct->lookupPQVariableC(fieldName, env);
   if (!field) {
     return env.error(rt, stringc
-      << "there is no field called `" << fieldName->getName()
+      << "there is no member called `" << fieldName->getName()
       << "' in " << obj->type->toString());
   }
 
