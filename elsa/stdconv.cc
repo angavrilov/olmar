@@ -7,6 +7,30 @@
 #include "trace.h"        // tracingSys
 
 
+/*
+ * 2005-04-03: ARR_QUAL_CONV:
+ *
+ * It is possible to convert (say)
+ *
+ *   pointer to array of int
+ *
+ * to
+ *
+ *   pointer to array of const int
+ *
+ * because 3.9.3p5 apparently intends cv qualifiers on arrays and
+ * array elements to be interchangeable with respect to standard
+ * conversions.  See this post:
+ *
+ *   http://groups-beta.google.com/group/comp.std.c++/msg/1396c9ff05f4e86f?dmode=source
+ *
+ * So the strategy in this module (marked with "ARR_QUAL_CONV")
+ * is to "pull" qualifiers on array elements up to the level of
+ * the (outermost) ArrayType, as if they were attached to that
+ * object (only).  This is done primarily by 'getSrcCVFlags'.
+ */
+
+
 // ----------------------- StandardConversion -------------------
 string toString(StandardConversion c)
 {
@@ -289,13 +313,28 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 }
 
 
+// ARR_QUAL_CONV: Regard cv flags on an array element to be cv flags
+// on the array itself.  Dig down below arbitrarily many levels of
+// array to find the element.
+CVFlags getSrcCVFlags(Type const *src)
+{
+  if (src->isArrayType()) {
+    ArrayType const *at = src->asArrayTypeC();
+    return getSrcCVFlags(at->eltType);
+  }
+  else {
+    return src->getCVFlags();
+  }
+}
+
+
 // Below, each time I extract the CV flags from the 'dest' type,
 // I use this function.  Whenever 'dest' names a polymorphic type,
 // I pretend it has the same CV flags as the source so we don't
 // get spurious mismatches.
 CVFlags getDestCVFlags(Type const *dest, CVFlags srcCV)
 {
-  CVFlags destCV = dest->getCVFlags();
+  CVFlags destCV = getSrcCVFlags(dest);
 
   // 9/23/04: If the destination type is polymorphic, then pretend
   // the flags match.
@@ -408,7 +447,7 @@ StandardConversion getStandardConversion
     dest = dest->asPointerTypeC()->atType;
 
     // do one level of qualification conversion checking
-    CVFlags scv = src->getCVFlags();
+    CVFlags scv = getSrcCVFlags(src);
     CVFlags dcv = getDestCVFlags(dest, scv);
 
     if (srcSpecial == SE_STRINGLIT &&
@@ -434,7 +473,7 @@ StandardConversion getStandardConversion
 
     dest = dest->asPointerTypeC()->atType;
 
-    CVFlags scv = src->getCVFlags();
+    CVFlags scv = getSrcCVFlags(src);
     CVFlags dcv = getDestCVFlags(dest, scv);
 
     if (conv.stripPtrCtor(scv, dcv))
@@ -492,7 +531,7 @@ StandardConversion getStandardConversion
         // rules in cppstd talk about things like "pointer to cv T",
         // i.e. pairing the * with the cv one level down in their
         // descriptive patterns
-        CVFlags srcCV = src->getCVFlags();
+        CVFlags srcCV = getSrcCVFlags(src);
         CVFlags destCV = getDestCVFlags(dest, srcCV);
         
         if (conv.stripPtrCtor(srcCV, destCV, isReference))
@@ -523,7 +562,11 @@ StandardConversion getStandardConversion
         //   int[3]
         // to
         //   int[]
-        if (src->equals(dest)) {
+        //
+        // ARR_QUAL_CONV: A qualification conversion is possible.  The
+        // element qualifier will already have been processed, so ignore
+        // it during equality checking.
+        if (src->equals(dest, Type::EF_IGNORE_ELT_CV)) {
           return conv.ret;
         }
         else {
@@ -564,7 +607,7 @@ StandardConversion getStandardConversion
         src = s->atType;
         dest = d->atType;
 
-        CVFlags scv = src->getCVFlags();
+        CVFlags scv = getSrcCVFlags(src);
         CVFlags dcv = getDestCVFlags(dest, scv);
 
         if (conv.stripPtrCtor(scv, dcv))

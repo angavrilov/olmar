@@ -588,10 +588,14 @@ public:     // funcs
     // parameters should be regarded as unification variables only if
     // they are *not* associated with a specific template
     EF_UNASSOC_TPARAMS = 0x0200,
+    
+    // ignore the cv qualification on the array element, if the
+    // types being compared are arrays
+    EF_IGNORE_ELT_CV   = 0x0400,
 
     // ----- combined behaviors -----
     // all flags set to 1
-    EF_ALL             = 0x03FF,
+    EF_ALL             = 0x07FF,
 
     // signature equivalence for the purpose of detecting whether
     // two declarations refer to the same entity (as opposed to two

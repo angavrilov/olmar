@@ -2037,8 +2037,23 @@ void ArrayType::checkWellFormedness() const
 
 
 bool ArrayType::innerEquals(ArrayType const *obj, EqFlags flags) const
-{
-  if (!( eltType->equals(obj->eltType, flags & EF_PROP) &&
+{       
+  // what flags to propagate?
+  EqFlags propFlags = (flags & EF_PROP);
+
+  if (flags & EF_IGNORE_ELT_CV) {
+    if (eltType->isArrayType()) {
+      // propagate the ignore-elt down through as many ArrayTypes
+      // as there are
+      propFlags |= EF_IGNORE_ELT_CV;
+    }
+    else {
+      // the next guy is the element type, ignore *his* cv only
+      propFlags |= EF_IGNORE_TOP_CV;
+    }
+  }
+
+  if (!( eltType->equals(obj->eltType, propFlags) &&
          hasSize() == obj->hasSize() )) {
     return false;
   }
