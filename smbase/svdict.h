@@ -63,6 +63,8 @@ public:     // types
 
     string &key() const { return current->key; }
     void *&value() const { return current->value; }
+    
+    int private_getCurrent() const { return (int)current; }
   };
   friend class Iter;
 
@@ -77,10 +79,11 @@ public:     // types
     // some operations can be made available unchanged
     Iter::isDone;
     Iter::next;
+    Iter::private_getCurrent;
 
     // others must be const-ified
     string const &key() const { return Iter::key(); }
-    void *&value() const { return Iter::value(); }
+    void *value() const { return Iter::value(); }
   };
 
 private:    // data
@@ -173,6 +176,9 @@ public:
   // ------------ misc --------------
   INSERT_OSTREAM(StringVoidDict)
   string toString() const;
+  
+  // debugging...
+  int private_getTopAddr() const { return (int)top; }
 };
 
 #endif // __SVDICT_H

@@ -24,10 +24,10 @@ public:     // types
   // external iterator
   class Iter {
   private:
-    StringVoidDict::IterC iter;
+    StringVoidDict::Iter iter;
 
   public:
-    Iter(StringSObjDict const &dict) : iter(dict.dict) {}
+    Iter(StringSObjDict &dict) : iter(dict.dict) {}
     Iter(Iter const &obj) : DMEMB(iter) {}
     Iter& operator= (Iter const &obj) { CMEMB(iter); return *this; }
 
@@ -36,8 +36,29 @@ public:     // types
 
     string const &key() const { return iter.key(); }
     T *&value() const { return (T *&)iter.value(); }
+
+    int private_getCurrent() const { return iter.private_getCurrent(); }
   };
   friend class Iter;
+
+  class IterC {
+  private:
+    StringVoidDict::IterC iter;
+
+  public:
+    IterC(StringSObjDict const &dict) : iter(dict.dict) {}
+    IterC(IterC const &obj) : DMEMB(iter) {}
+    IterC& operator= (IterC const &obj) { CMEMB(iter); return *this; }
+
+    bool isDone() const { return iter.isDone(); }
+    IterC& next() { iter.next(); return *this; }
+
+    string const &key() const { return iter.key(); }
+    T *value() const { return (T *)iter.value(); }
+
+    int private_getCurrent() const { return iter.private_getCurrent(); }
+  };
+  friend class IterC;
 
 private:    // data
   // underlying dictionary functionality
@@ -82,6 +103,9 @@ public:     // funcs
   // --------- iters -------------
   void foreach(ForeachFn func, void *extra=NULL) const
     { dict.foreach((StringVoidDict::ForeachFn)func, extra); }
+    
+  // debugging
+  int private_getTopAddr() const { return dict.private_getTopAddr(); }
 };
 
 
