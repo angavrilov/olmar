@@ -308,9 +308,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     tfac(tf),
     madeUpVariables(),
 
-    // filled in below; initialized for definiteness
-    type_info_const_ref(NULL),
-
     // some special names; pre-computed (instead of just asking the
     // string table for it each time) because in certain situations
     // I compare against them frequently; the main criteria for
@@ -378,13 +375,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
                                   NULL /*type*/, DF_NAMESPACE);
     globalScopeVar->scope = s;
   }
-
-  // create the typeid type
-  CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
-  // TODO: put this into the 'std' namespace
-  // TODO: fill in the proper fields and methods
-  type_info_const_ref =
-    tfac.makeReferenceType(SL_INIT, makeCVAtomicType(SL_INIT, ct, CV_CONST));
 
   dependentTypeVar = makeVariable(SL_INIT, str("<dependentTypeVar>"),
                                   getSimpleType(SL_INIT, ST_DEPENDENT), DF_TYPEDEF);
@@ -2609,6 +2599,32 @@ Type *Env::operandRval(Type *t)
   }
 
   return t;
+}
+
+
+// Get the typeid type (5.2.8, 18.5.1).  The program is required to
+// #include <typeinfo> before using it, so we don't need to define
+// this class (since that header does).
+Type *Env::type_info_const_ref()
+{
+  // does the 'std' namespace exist?
+  Scope *scope = globalScope();
+  Variable *stdNS = scope->lookupVariable(str("std"), *this);
+  if (stdNS && stdNS->isNamespace()) {
+    // use that instead of the global scope
+    scope = stdNS->scope;
+  }
+
+  // look for 'type_info'
+  Variable *ti = scope->lookupVariable(str("type_info"), *this, LF_ONLY_TYPES);
+  if (ti && ti->hasFlag(DF_TYPEDEF)) {
+    // make a const reference
+    return makeReferenceType(loc(),
+             tfac.applyCVToType(loc(), CV_CONST, ti->type, NULL /*syntax*/));
+  }
+  else {
+    return error("must #include <typeinfo> before using typeid");
+  }
 }
 
 

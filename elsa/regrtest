@@ -570,6 +570,7 @@ testparse t0334.cc
 testparse t0335.cc
 testparse t0336.cc
 testparse t0337.cc
+testparse t0338.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -747,6 +748,7 @@ if $use_gnu; then
   testparse gnu/g0017.cc
   testparse gnu/g0018.cc
   testparse gnu/g0019.cc
+  # g0020.cc is documentation
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

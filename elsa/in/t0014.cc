@@ -1,6 +1,14 @@
 // cc.in14
 // a few of the obscure expression kinds
 
+// this would normally come from the <typeinfo> header
+namespace std {
+  class type_info {
+  public:
+    char const *name() const;
+  };
+}
+
 typedef char y;
 
 int main()

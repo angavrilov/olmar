@@ -4663,7 +4663,7 @@ void compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *ar
       param->type,
       false /*destIsReceiver*/);
     if (!ic) {
-      env.error(stringc
+      env.error(arg->getType(), stringc
         << "cannot convert argument type `" << arg->getType()->toString()
         << "' to parameter " << paramIndex 
         << " type `" << param->type->toString() << "'");
@@ -6640,7 +6640,7 @@ Type *E_keywordCast::itcheck_x(Env &env, Expression *&replacement)
 Type *E_typeidExpr::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
-  return env.type_info_const_ref;
+  return env.type_info_const_ref();
 }
 
 
@@ -6648,7 +6648,7 @@ Type *E_typeidType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_TYPEIDTYPE);
   ttype = ttype->tcheck(env, tc);
-  return env.type_info_const_ref;
+  return env.type_info_const_ref();
 }
 
 

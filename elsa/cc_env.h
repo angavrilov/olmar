@@ -105,9 +105,6 @@ public:      // data
   // at the moment, I don't think anyone is using this information)
   ArrayStack<Variable*> madeUpVariables;
 
-  // type for typeid expression
-  Type *type_info_const_ref;      // (serf)
-
   // ---- BEGIN: special names ----
   // name under which conversion operators are looked up
   StringRef conversionOperatorName;                     
@@ -544,10 +541,13 @@ public:      // funcs
   Type *makePtrType(SourceLoc loc, Type *type)
     { return tfac.makePtrType(loc, type); }
 
+  // others are more obscure, so I'll just call into 'tfac' directly
+  // in the places I call them
+                                                              
   // if in a context where an implicit receiver object is available,
   // return its type; otherwise return NULL
   Type *implicitReceiverType();
-  
+
   // create the receiver object parameter for use in a FunctionType
   Variable *receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv,
                               D_func *syntax = NULL);
@@ -555,9 +555,9 @@ public:      // funcs
   // standard conversion 4.1, 4.2, and 4.3
   Type *operandRval(Type *t);
 
-  // others are more obscure, so I'll just call into 'tfac' directly
-  // in the places I call them
-                                                              
+  // get 'std::type_info const &'
+  Type *type_info_const_ref();
+
   // create a built-in candidate for operator overload resolution
   Variable *createBuiltinUnaryOp(Type *retType, OverloadableOp op, Type *x);
   Variable *createBuiltinBinaryOp(Type *retType, OverloadableOp op, Type *x, Type *y);
