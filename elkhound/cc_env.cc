@@ -14,7 +14,8 @@ Env::Env()
     anonCounter(1),
     compounds(),
     enums(),
-    intermediates()
+    intermediates(),
+    errors()
 {
   // init of global data (won't be freed)
   if (!builtins) {
@@ -39,12 +40,25 @@ Env::Env(Env *p)
     anonCounter(-1000),    // so it will be obvious if I use it (I don't intend to)
     compounds(),
     enums(),
-    intermediates()
+    typedefs(),
+    variables(),
+    intermediates(),
+    errors()
 {}
 
 
 Env::~Env()
-{}
+{
+  if (parent) {
+    // if we're carrying any errors, deliver them to the
+    // containing environment
+    parent->errors.concat(errors);
+  }
+  else {
+    // may as well print errors
+    flushLocalErrors(cout);
+  }
+}
 
 
 void Env::grab(Type *t)
@@ -184,6 +198,13 @@ CompoundType *Env::lookupOrMakeCompound(char const *name, CompoundType::Keyword 
   ret = new CompoundType(keyword, newName);
   compounds.add(newName, ret);
 
+  // debugging: print it
+  if (tracingSys("env-declare")) {
+    // print declaration
+    indent(cout);
+    cout << CompoundType::keywordName(keyword) << ": "
+         << newName << endl;
+  }
   return ret;
 }
 
@@ -267,18 +288,89 @@ Type const *Env::lookupType(char const *name)
 }
 
 
-void Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
+ostream &Env::indent(ostream &os) const
 {
-  variables.add(name, new Variable(flags, type));
-  
+  // indent proportional to nesting level
+  for (Env *p = parent; p != NULL; p = p->parent) {
+    os << "  ";
+  }   
+  return os;
+}
+
+
+bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
+{
+  if (!( flags & DF_TYPEDEF )) {
+    // declare a variable
+    if (variables.isMapped(name)) {
+      // duplicate name
+      return false;
+    }
+    variables.add(name, new Variable(flags, type));
+  }
+
+  else {
+    // declare a typedef
+    if (typedefs.isMapped(name)) {
+      return false;
+    }
+    typedefs.add(name, const_cast<Type*>(type));
+  }
+
   // debugging: print it
   if (tracingSys("env-declare")) {
-    // indent proportional to nesting level
-    for (Env *p = parent; p != NULL; p = p->parent) {
-      cout << "  ";
-    }
-
     // print declaration
+    indent(cout);
+    cout << ((flags&DF_TYPEDEF) ? "typedef: " : "variable: ");
     cout << type->toString(name) << endl;
   }
+
+  return true;
+}
+
+
+void Env::report(SemanticError const &err)
+{
+  errors.append(new SemanticError(err));
+}
+
+
+int Env::numErrors() const
+{
+  int ct = numLocalErrors();
+  if (parent) {
+    ct += parent->numErrors();
+  }
+  return ct;
+}
+
+
+void Env::printErrors(ostream &os) const
+{
+  if (parent) {
+    parent->printErrors(os);
+  }
+  printLocalErrors(os);
+}
+
+void Env::printLocalErrors(ostream &os) const
+{
+  FOREACH_OBJLIST(SemanticError, errors, iter) {
+    // indenting here doesn't quite work because sometimes
+    // the error is passed to a parent in ~Env and then
+    // we get the wrong indentation level...
+    indent(os) << "Error: " << iter.data()->whyStr() << endl;
+  }
+}
+
+
+void Env::flushLocalErrors(ostream &os)
+{
+  printLocalErrors(os);
+  forgetLocalErrors();
+}
+
+void Env::forgetLocalErrors()
+{
+  errors.deleteAll();
 }

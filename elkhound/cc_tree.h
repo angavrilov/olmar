@@ -6,34 +6,22 @@
 
 #include "glrtree.h"    // NonterminalNode
 #include "exc.h"        // xBase
+#include "cc_env.h"     // Env
 
 
 class CCTreeNode : public NonterminalNode {
 public:
   CCTreeNode(Reduction *red) : NonterminalNode(red) {}
+
+  // do the declaration, and report an error if it happens
+  void declareVariable(Env &env, char const *name,
+                       DeclFlags flags, Type const *type) const;
+
+  // construct a general error, and throw it
+  void throwError(char const *msg) const NORETURN;
   
-  void error(char const *msg) const NORETURN;
-};
-
-
-// exception thrown when a problem is detected while executing
-// semantic functions associated with tree nodes
-class XTreeError : public xBase {
-public:     // data
-  // node where the error was detected; useful for printing
-  // location in input file
-  CCTreeNode const *node;
-
-  // what is wrong
-  string message;
-
-private:    // funcs
-  static string makeMsg(CCTreeNode const *n, char const *m);
-
-public:     // funcs
-  XTreeError(CCTreeNode const *n, char const *m);
-  XTreeError(XTreeError const &obj);
-  ~XTreeError();
+  // make a general error but simply report it
+  void reportError(Env &env, char const *msg) const;
 };
 
 

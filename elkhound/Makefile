@@ -1,7 +1,7 @@
 # Makefile for parser generator project
 
 # main targets
-all: gramanl
+all: ccgr
 
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
@@ -22,7 +22,7 @@ grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o gramast.o ccsstr.o
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
           lexer2.o parssppt.o
-cc-set = cc_tree.o cc_type.o cc_env.o
+cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o
 common = trace.o
 
 # ------ targets -------

@@ -168,7 +168,7 @@ SLWHITE   [ \t]
   return TOK_FUNDECL;
 }
 
-("fun"|"prologue"|"epilogue") {
+("fun"|"disamb"|"prologue"|"epilogue") {
   TOK_UPD_COL;
 
   // one or two tokens must be processed before we start the embedded
@@ -180,6 +180,7 @@ SLWHITE   [ \t]
   embedded->reset();
   embedMode = TOK_FUN_BODY;
   return yytext[0]=='f'? TOK_FUN :
+         yytext[0]=='d'? TOK_DISAMB :
          yytext[0]=='p'? TOK_PROLOGUE :
                          TOK_EPILOGUE;
 }

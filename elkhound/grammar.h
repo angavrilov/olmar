@@ -149,10 +149,16 @@ public:     // data
   // for all attributes
   ObjList<string> attributes;
 
+  // inheritance relationships
+  SObjList<Nonterminal> superclasses;
+
   // declarations of functions, as a dictionary: name -> declBody; the
   // text of the declaration is stored because it is needed when
   // emitting substrate code
   LitCodeDict funDecls;
+  
+  // definitions of disambiguation routines
+  LitCodeDict disambFuns;
 
 public:     // funcs
   Nonterminal(char const *name);
@@ -161,7 +167,10 @@ public:     // funcs
   // return true if 'attr' is among 'attributes'
   // (by 0==strcmp comparison)
   bool hasAttribute(char const *attr) const;
-  
+
+  // true if the given nonterminal is a superclass (transitively)
+  bool hasSuperclass(Nonterminal const *nt) const;
+
   // true if the named function has a declaration here
   bool hasFunDecl(char const *name) const
     { return funDecls.isMapped(name); }

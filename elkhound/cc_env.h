@@ -5,6 +5,7 @@
 #define __CC_ENV_H
 
 #include "cc_type.h"      // Type, AtomicType, etc.
+#include "cc_err.h"       // SemanticError
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
 
@@ -65,7 +66,7 @@ private:    // data
   StringObjDict<EnumType> enums;
 
   // user-defined typedefs
-  StringSObjDict<Type> typedefs;
+  StringSObjDict<Type /*const*/> typedefs;
 
   // variables
   StringObjDict<Variable> variables;
@@ -74,9 +75,15 @@ private:    // data
   // so they will be deallocated when the environment goes away
   ObjList<Type> intermediates;
 
+  // list of errors found so far
+  ObjList<SemanticError> errors;
+
 private:    // funcs
   void grab(Type *t);
   string makeAnonName();
+  ostream& indent(ostream &os) const;
+
+  Env(Env&);              // not allowed
 
 public:     // funcs
   Env();                  // empty toplevel environment
@@ -122,8 +129,24 @@ public:     // funcs
   // lookup an existing type; if it doesn't exist, return NULL
   Type const *lookupType(char const *name);
 
-  // install a new name->type binding in the environment
-  void declareVariable(char const *name, DeclFlags flags, Type const *type);
+  // install a new name->type binding in the environment; return
+  // false if there is already a binding for this name
+  bool declareVariable(char const *name, DeclFlags flags, Type const *type);
+  
+  // report an error
+  void report(SemanticError const &err);
+
+  // get errors accumulated, including parent environments
+  int numErrors() const;
+  void printErrors(ostream &os) const;
+  
+  // just deal with errors in this environment
+  int numLocalErrors() const { return errors.count(); }
+  void printLocalErrors(ostream &os) const;
+  void forgetLocalErrors();
+
+  // print local errors and then throw them away
+  void flushLocalErrors(ostream &os);
 };
 
 

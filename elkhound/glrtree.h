@@ -19,6 +19,7 @@
 #include "attr.h"        // Attributes
 #include "lexer2.h"      // Lexer2, Lexer2Token
 #include "owner.h"       // Owner
+#include "exc.h"         // xBase
 
 
 // forward decls for things declared below
@@ -200,5 +201,25 @@ public:
   // transfer of ownership (nullifies 'red')
   Reduction *grabReduction();
 };
+
+
+// carry information about an unhandled ambiguity
+class XAmbiguity : public xBase {
+public:     // data
+  // node that has more than one possible reduction, but
+  // some code expected only one
+  // NOTE: since this is a pointer into the tree, this
+  // exception must be caught *before* the tree is destroyed
+  NonterminalNode const *node;
+  
+private:    // funcs
+  static string makeWhy(NonterminalNode const *n);
+
+public:     // funcs
+  XAmbiguity(NonterminalNode const *n);
+  XAmbiguity(XAmbiguity const &obj);
+  ~XAmbiguity();
+};
+
 
 #endif // __GLRTREE_H

@@ -14,6 +14,17 @@ readpass.c
 
 */
 
+
+// sm: stuff I've added to get it through my parser
+typedef void RETSIGTYPE;
+typedef bool Boolean;
+struct FILE {
+  int foo;
+};
+
+
+
+
 #include "ssh2includes.h"
 #include "readpass.h"
 

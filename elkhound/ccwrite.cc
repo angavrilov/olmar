@@ -11,6 +11,11 @@
 #include <ctype.h>        // toupper
 
 
+// prototypes
+void emitDisambiguationFun(EmitCode &os, Nonterminal const *nonterm,
+                           char const *name, LiteralCode const *decl);
+
+
 // ------------- name constructors -------------
 // return the name of the type created for storing
 // parse tree nodes for 'sym'
@@ -27,11 +32,10 @@ string nodeCtorName(Symbol const *sym)
 }
 
 
-// return a declaration of a semantic function:
-//   decl: declaration as appeared in the grammar file
-//   name: extracted function name from 'decl'
-//   nonterm: symbol the function will be associated with
-string semFuncDecl(string name, string decl, Nonterminal const *nonterm)
+// return a declaration but with some characters
+// prepended to the name part of 'decl'; 'name' is the
+// name that is somewhere in 'decl'
+string prefixNameInDecl(string prefix, string name, string decl)
 {
   // find where the name appears in 'decl'; assumes that
   // first such occurrance is the right place....
@@ -39,16 +43,34 @@ string semFuncDecl(string name, string decl, Nonterminal const *nonterm)
   xassert(nameInDecl);
 
   return stringc
-    << string(decl, nameInDecl-decl)      // first part
-    << nodeTypeName(nonterm) << "::"      // insert node type
-    << nameInDecl;                        // second part
+    << string(decl, nameInDecl-decl)    // first part
+    << prefix                           // prepend some name stuff
+    << nameInDecl;                      // second part
 }
 
 
-// foo.h -> __FOO_H
+// return a declaration of a semantic function:
+//   decl: declaration as appeared in the grammar file
+//   name: extracted function name from 'decl'
+//   nonterm: symbol the function will be associated with
+//   unamb: if true, make this the "unambiguous" version
+string semFuncDecl(string name, string decl,
+                   Nonterminal const *nonterm, bool unamb)
+{
+  stringBuilder sb;
+  sb << nodeTypeName(nonterm) << "::";     // class qualifier
+  if (unamb) {
+    sb << "unamb_";                        // unamb tag
+  }
+
+  return prefixNameInDecl(sb, name, decl);
+}
+
+
+// foo.h -> FOO_H
 string headerFileLatch(char const *fname)
 {
-  string ret = stringc << "__" << fname;
+  string ret = fname;
   ret = replace(ret, ".", "_");
   loopi(ret.length()) {
     ret[i] = toupper(ret[i]);
@@ -74,10 +96,19 @@ stringBuilder &restoreLine(stringBuilder &sb)
   int line = os.getLine()+1;
   return os << "#line " << line
             << " \"" << os.getFname() << "\"\n";
-}                 
+}
 
 
 // ----------------- code emitters -----------------
+string getTraceCode(char const *functionDecl)
+{
+  return stringc
+    << "  if (tracingSys(\"sem-fns\")) {\n"
+    << "    cout << locString() << \": in " << functionDecl << "\\n\";\n"
+    << "  }\n";
+}
+
+
 // emit the C++ code for a nonterminal's semantic functions
 void emitSemFuns(EmitCode &os, Grammar const *g,
                  Nonterminal const *nonterm)
@@ -105,17 +136,27 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
     string name = declaration.key();
     LiteralCode const *decl = declaration.value();
 
-    // write the function prologue
+    // if there is a disambiguation function, emit it
+    bool hasDisamb = nonterm->disambFuns.isMapped(name);
+    if (hasDisamb) {
+      emitDisambiguationFun(os, nonterm, name, decl);
+    }
+  
+    // function name and arguments
+    string functionDecl = semFuncDecl(name, decl->code, nonterm, hasDisamb);
+
+    // write the function prologue for the unambiguous version
+    // (or the only version, if there is no disambiguator)
     os << lineDirective(decl->loc)
-       << semFuncDecl(name, decl->code, nonterm) << "\n"
+       << functionDecl << "\n"
        << restoreLine
-       << "{\n"
-       << "  if (tracingSys(\"sem-fns\")) {\n"
-       << "    cout << locString() << \": in "
-         << semFuncDecl(name, decl->code, nonterm) << "\\n\";\n"
-       << "  }\n"
+       << "{\n"       
+       <<    getTraceCode(functionDecl)
        << "  switch (onlyProductionIndex()) {\n"
-          ;
+       << "    default:\n"
+       << "      xfailure(\"bad production code\");\n"
+       << "\n"
+       ;
 
     // loop over all productions for this nonterminal
     FOREACH_OBJLIST(Production, g->productions, prodIter) {
@@ -127,7 +168,7 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
       // write the header for this production's action
       xassert(prod->prodIndex != -1);    // otherwise we forgot to set it
       os << "    case " << prod->prodIndex
-         << ": {       // " << prod->toString() << "\n";
+           << ": {       // " << prod->toString() << "\n";
 
       // for each RHS element with a tag
       int childNum=0;
@@ -164,9 +205,9 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
       // write the user's code
       os << "\n"
          << "      // begin user code\n"
-         << lineDirective(body->loc)
-         << body->code << "\n"
-         << restoreLine
+         <<        lineDirective(body->loc)
+         <<        body->code << "\n"
+         <<        restoreLine
          << "      // end user code\n"
          << "      break;\n"    // catch missing returns, or for void fns
          << "    }\n"
@@ -176,14 +217,37 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
 
     // write function epilogue; if it's a non-void function,
     // rely on compiler warnings to catch missing 'return's
-    os << "    default:\n"
-          "      xfailure(\"bad production code\");\n"
-          //"      throw 0;    // silence warning\n"
-          "  }\n"
+    os << "  }\n"
           "}\n\n\n"
           ;
 
   } // end of loop over declared functions in the nonterminal
+}
+
+
+void emitDisambiguationFun(EmitCode &os, Nonterminal const *nonterm, 
+                           char const *name, LiteralCode const *decl)
+{
+  // user's code
+  LiteralCode const *code = nonterm->disambFuns.queryfC(name);
+
+  // full function name and arguments
+  string functionDecl = semFuncDecl(name, decl->code, nonterm, false /*unamb*/);
+
+  // emit whole thing
+  os << lineDirective(decl->loc)
+     << functionDecl << "\n"
+     << restoreLine
+     << "{\n"
+     <<    getTraceCode(functionDecl)
+     << "  // begin user code\n"
+     <<    lineDirective(code->loc)
+     <<    code->code << "\n"
+     <<    restoreLine
+     << "  // end user code\n"
+     << "}\n"
+     << "\n\n"
+     ;
 }
 
 
@@ -208,6 +272,15 @@ void emitClassDecl(EmitCode &os, Grammar const *g, Nonterminal const *nonterm)
        << "  " << decl->code << ";    // " << name << "\n"
        << restoreLine
        ;
+
+    // if there is a disambiguator, the above declaration is
+    // for it; so we need one for the unamb version
+    if (nonterm->disambFuns.isMapped(name)) {
+      os << lineDirective(decl->loc)
+         << "  " << prefixNameInDecl("unamb_", name, decl->code) << ";\n"
+         << restoreLine
+         ;
+    }
   }
 
   // type declaration epilogue

@@ -67,7 +67,9 @@ string Terminal::toString() const
 Nonterminal::Nonterminal(char const *name)
   : Symbol(name, false /*terminal*/),
     attributes(),
+    superclasses(),
     funDecls(),
+    disambFuns(),
     ntIndex(-1),
     cyclic(false),
     first(),
@@ -109,6 +111,18 @@ void Nonterminal::print(ostream &os) const
   // follow
   os << " follow=";
   printTerminalSet(os, follow);
+}
+
+
+bool Nonterminal::hasSuperclass(Nonterminal const *nt) const
+{
+  SFOREACH_OBJLIST(Nonterminal, superclasses, iter) {
+    if (iter.data() == nt  ||
+        iter.data()->hasSuperclass(nt)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

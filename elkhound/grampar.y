@@ -59,6 +59,7 @@
 %token TOK_PROLOGUE "prologue"
 %token TOK_EPILOGUE "epilogue"
 %token TOK_TREENODEBASE "treeNodeBase"
+%token TOK_DISAMB "disamb"
 
 /* operators */
 %token TOK_OROR "||"
@@ -165,6 +166,7 @@ BaseClassList: TOK_NAME                       { $$ = AST1(AST_BASECLASSES, $1); 
 NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
                | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
                | NonterminalBody GroupElement      { $$ = iappend($1, $2); }
+               | NonterminalBody DisambFunction    { $$ = iappend($1, $2); }
                ;
 
 /* things that can appear in any grouping construct; specifically,
@@ -360,7 +362,11 @@ Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = AST2(AST_FUNCTION, $2, $
         | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = AST2(AST_FUNEXPR, $2, $4); }
         ;
 
-        
+
+DisambFunction: "disamb" TOK_NAME "{" TOK_FUN_BODY "}"   { $$ = AST2(AST_DISAMB, $2, $4); }
+              ;
+
+
 /* ------ prologue, epilogue -------- */
 /* this additional C++ code goes at the top of the generated header */
 Prologue: "prologue" "{" TOK_FUN_BODY "}"          { $$ = AST1(AST_PROLOGUE, $3); }

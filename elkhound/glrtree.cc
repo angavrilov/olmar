@@ -158,7 +158,10 @@ Nonterminal const *NonterminalNode::getLHS() const
 
 Reduction const *NonterminalNode::only() const
 {
-  xassert(reductions.count() == 1);
+  if (reductions.count() != 1) {
+    THROW(XAmbiguity(this));
+  }
+
   return reductions.firstC();
 }
 
@@ -367,3 +370,33 @@ Reduction *AttrContext::grabReduction()
   red = NULL;
   return ret;
 }
+
+
+// -------------------- XAmbiguity -------------------
+STATICDEF string XAmbiguity::makeWhy(NonterminalNode const *n)
+{
+  stringBuilder sb;
+  sb << "Ambiguity at " << n->locString() 
+     << " between productions:";
+
+  FOREACH_OBJLIST(Reduction, n->reductions, iter) {
+    sb << " (" << iter.data()->production->toString() << ")";
+  }
+
+  return sb;
+}
+
+
+XAmbiguity::XAmbiguity(NonterminalNode const *n)
+  : xBase(makeWhy(n)),
+    node(n)
+{}
+
+XAmbiguity::XAmbiguity(XAmbiguity const &obj)
+  : xBase(obj),
+    DMEMB(node)
+{}
+
+XAmbiguity::~XAmbiguity()
+{}
+

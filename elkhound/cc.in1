@@ -1,6 +1,8 @@
 // cc.in1
 // testing various constructs in c++ parser
 
+class Foo;
+
 int foo()
 {
   int a = B::c;
@@ -59,9 +61,10 @@ Bar::Bar()
 }
 
 
-int foo()
+int foobar()
 {
-  List<Apple> apples;
+  // ambiguous at the moment
+  //List<Apple> apples;
 }
 
 
@@ -69,3 +72,9 @@ int x;
 char y;
 float z;
 
+
+  // ptr to a function; isFunction = 0
+  int (*ptrToFn)(int);
+
+  // function that returns a pointer to a fn; isFunction = 1
+  int (*  fn(char)  )(int);

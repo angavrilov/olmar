@@ -331,18 +331,26 @@ void astParseNonterm(Environment &env, ASTNode const *node,
 
     // for each base class..
     loopi(numChildren(classes)) {
+      // get its name
       string baseClassName = childName(classes, i);
-
+                     
+      // get its AST node
       if (!env.nontermDecls.isMapped(baseClassName)) {
         astParseError(nthChild(classes, i),
                       "undeclared base class");
       }
       ASTNode const *base = env.nontermDecls.queryf(baseClassName);
+                         
+      // map the name to a Nonterminal
+      Nonterminal *baseNT = env.g.findNonterminal(baseClassName);
+      xassert(baseNT);
+      
+      // record the inheritance in the grammar
+      nonterm->superclasses.append(baseNT);
 
-      // inheritance implementation: simply re-parse the
-      // definition of the base classes, but in the context
-      // of the new nonterminal (somewhat of a hack; perhaps
-      // it would be better to model it using C++ inheritance)
+      // primary inheritance implementation mechanism: simply re-parse
+      // the definition of the base classes, but in the context of the
+      // new nonterminal
       astParseNonterm(env, base, nonterm);
     }
   }
@@ -397,6 +405,21 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
           else {
             // cannot happen with current grammar
             astParseError(node, "can only declare functions in nonterminals");
+          }
+          break;
+
+        case AST_DISAMB:
+          if (attrDeclAllowed) {
+            // confirm it's declared
+            string name = childName(node, 0);
+            if (!nt->funDecls.isMapped(name)) {
+              astParseError(node, "undeclared function");
+            }
+            nt->disambFuns.add(name, childLitCode(node, 1));
+          }
+          else {
+            // cannot happen with current grammar
+            astParseError(node, "can only define disambiguation functions in nonterminals");
           }
           break;
 

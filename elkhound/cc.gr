@@ -82,7 +82,15 @@ nonterm TranslationUnit : Checkable {
   -> empty;
   -> d:Declaration t:TranslationUnit {
     fun typeCheck { 
-      d.typeCheck(env); 
+      try {
+        d.typeCheck(env);
+      }
+      catch (XSemanticError &x) {
+        // error recovery; report and proceed
+        env.report(x.err);
+      }
+      env.flushLocalErrors(cout);
+
       t.typeCheck(env); 
     } 
   }
@@ -90,18 +98,27 @@ nonterm TranslationUnit : Checkable {
 
 // ------ A.4 Expressions ------
 // base class for expressions
-nonterm ExprBase {           
+nonterm ExprBase {
   // return the integer this expression evaluates to at compile time
   fundecl int intEval(Env &env) const;
-  fun intEval { error("not a constant integer expression"); }
+  fun intEval { throwError("not a constant integer expression"); }
+  
+  // check that all the used variables are declared, and report
+  // those that are unused
+  fundecl void varsDecld(Env &env) const;
+  fun varsDecld {}
 }
 
 
 nonterm PrimaryExpression : ExprBase {
   -> e:Literal                  { fun intEval = e.intEval(env); }
   -> "this"                     {}
-  -> "(" e:Expression ")"       { fun intEval = e.intEval(env); }
-  -> PQVarName                  {}
+  
+  formGroup {
+    fun varsDecld { e.varsDecld(env) }
+    -> "(" e:Expression ")"       { fun intEval = e.intEval(env); }
+    -> e:PQVarName                {}
+  }
 }
 
 nonterm Literal : ExprBase {
@@ -132,13 +149,29 @@ nonterm HasDeclName {
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
-nonterm PQVarName : HasTypeName, HasDeclName {
+nonterm PQVarName : HasTypeName, HasDeclName, HasVarsDecld {
   // 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
   // the leftmost token in the tree matched; this is important because
   // declarators aren't allowed to have the bare "::" qualifier
   attr colonColon;        // true if a bare "::" is in front
 
-  -> n:VariableName         { action colonColon := 0; }
+  -> n:VariableName {
+    action colonColon := 0;
+    fun varsDecld {
+      if (!env.isDeclaredVar(n.getName())) {
+        SemanticError err(this, SE_UNDECLARED_VAR);
+        err.varName = n.getName();
+        env.report(err);
+      }
+    }
+  }
+
+  fun varsDecld {                          
+    // each of the remaining rules requires some more sophisticated
+    // way of naming symbols
+    reportError("varsDecld unimplemented");
+  }
+
   -> OperatorFunctionId     { action colonColon := 0; }
   -> ConversionFunctionId   { action colonColon := 0; }
   -> "~" ClassName          { action colonColon := 0; }
@@ -202,7 +235,7 @@ nonterm UnaryOperator {
   // return this operator's effect on integer value 'val'
   fundecl int intEval(int val) const;
 
-  -> "*" | "&"     { fun intEval { error("can't apply this operator to an integer"); } }
+  -> "*" | "&"     { fun intEval { throwError("can't apply this operator to an integer"); } }
   -> "+"           { fun intEval = val; }
   -> "-"           { fun intEval = -val; }
   -> "!"           { fun intEval = !val; }
@@ -274,7 +307,7 @@ nonterm BinaryOperator {
   // highest precedence
   formGroup {
     action prec:=64;
-    -> ".*" | "->*"     { fun intEval { error("can't apply this operator to integers"); } }
+    -> ".*" | "->*"     { fun intEval { throwError("can't apply this operator to integers"); } }
   }
 
   formGroup {
@@ -387,59 +420,171 @@ nonterm ConstantExpression : ExprBase -> e:ConditionalExpression
 
 // ------ A.5 Statements ------
 // labeled-statement
-nonterm Statement {
-  -> LabelName ":" Statement ;
-  -> "case" ConstantExpression ":" Statement ;
-  -> "default" ":" Statement ;
+nonterm Statement : Checkable {
+  disamb typeCheck {
+    // if it's not ambiguous, or we've already disambiguated,
+    // go straight to the real deal
+    if (reductions.count() == 1) {
+      unamb_typeCheck(env);
+      return;
+    }
+
+    // DARN!  need to break the type system here ... I'd like to
+    // not have to remove all 'const' just for this ...
+    ObjList<Reduction> &realReds =
+      const_cast< ObjList<Reduction>& >(reductions);
+
+    // pull all the competing reductions out into a private list
+    ObjList<Reduction> myReds;
+    myReds.concat(realReds);
+
+    // need place to put the ones that are finished
+    ObjList<Reduction> okReds;
+    ObjList<Reduction> badReds;
+
+    // one at a time, put them back, and attempt to type-check them
+    while (myReds.isNotEmpty()) {
+      // put it back
+      Reduction *red = myReds.removeAt(0);
+      realReds.append(red);
+
+      // attempt type-check in a new environment so it can't
+      // corrupt the main one we're working on
+      Env newEnv(&env);
+      try {
+        unamb_typeCheck(newEnv);
+      }
+      catch (XSemanticError &x) {
+        newEnv.report(x.err);
+      }
+
+      // remove the reduction from the main node
+      realReds.removeAt(0);
+
+      // did that work?
+      if (newEnv.numLocalErrors() == 0) {
+        // yes
+        okReds.append(red);
+      }
+      else {
+        // no
+        badReds.append(red);
+
+        // throw away the errors so they don't get
+        // moved into the original environment
+        newEnv.forgetLocalErrors();
+      }
+    }
+
+    // put all the good ones back
+    realReds.concat(okReds);
+
+    // see what the verdict is
+    if (realReds.count() == 1) {
+      // successfully disambiguated
+    }
+    else if (realReds.count() > 1) {
+      // more than one worked..
+      THROW(XAmbiguity(this));
+    }
+    else {
+      // none of them worked.. let's arbitrarily pick the first and
+      // throw away the rest, and report the errors from that one
+      realReds.append(badReds.removeAt(0));
+    }
+
+    // throw away the bad ones
+    badReds.deleteAll();
+
+    // now, we have exactly one reduction -- typecheck it
+    // in the current environment
+    xassert(realReds.count() == 1);
+    unamb_typeCheck(env);
+  }
+
+  fun typeCheck { s.typeCheck(env); }
+
+  -> LabelName ":" s:Statement ;
+  -> "case" ConstantExpression ":" s:Statement ;
+  -> "default" ":" s:Statement ;
 
   // expression-statement
-  -> ExpressionStatement ;
+  -> s:ExpressionStatement ;
 
   // compound-statement
-  -> CompoundStatement ;
+  -> s:CompoundStatement ;
 
   // selection-statement
-  -> "if" "(" Condition ")" Statement ;
-  -> "if" "(" Condition ")" Statement "else" Statement ;     // preferred earlier when ambiguous
-  -> "switch" "(" Condition ")" Statement ;
+  -> "if" "(" Condition ")" s:Statement ;
+  -> "if" "(" Condition ")" s1:Statement "else" s2:Statement      // preferred earlier when ambiguous
+    { fun typeCheck { s1.typeCheck(env); s2.typeCheck(env); } }
+  -> "switch" "(" Condition ")" s:Statement ;
 
   // iteration-statement
-  -> "while" "(" Condition ")" Statement ;
-  -> "do" Statement "while" "(" Expression ")" ";" ;
+  -> "while" "(" Condition ")" s:Statement ;
+  -> "do" s:Statement "while" "(" Expression ")" ";" ;
 
   // this is a special-purpose rule intended for use with (unexpanded)
   // macros that, internally, contain a for loop; it is *not* part of
   // the C or C++ languages!
-  -> L2_NAME "(" ExpressionList ")" CompoundStatement ;
+  -> L2_NAME "(" ExpressionList ")" s:CompoundStatement ;
 
   // I might like to rework this so both semicolons appear here instead
   // of buried in ForInitStatement.  this is also a good rule to use
   // inline alternatives
-  -> "for" "(" ForInitStatement ConditionOpt ";" ExpressionOpt ")" Statement ;
+  -> "for" "(" s1:ForInitStatement ConditionOpt ";" ExpressionOpt ")" s2:Statement
+    { fun typeCheck { s1.typeCheck(env); s2.typeCheck(env); } }
 
   // jump-statement
-  -> "break" ";" ;
-  -> "continue" ";" ;
-  -> "return" Expression ";" ;
-  -> "return" ";" ;
-  -> "goto" LabelName ";" ;
+  formGroup {
+    fun typeCheck {}
+
+    -> "break" ";" ;
+    -> "continue" ";" ;
+    -> "return" Expression ";" ;
+    -> "return" ";" ;
+    -> "goto" LabelName ";" ;
+  }
 
   // declaration-statement
-  -> BlockDeclaration ;
+  -> s:BlockDeclaration ;
 
   // try-block
-  -> TryBlock ;
+  -> s:TryBlock ;
 }
 
-nonterm ExpressionStatement -> Expression ";" | ";" ;
+nonterm ExpressionStatement : Checkable -> Expression ";" | ";" ;
 
-nonterm CompoundStatement -> "{" StatementSeqOpt "}" ;
-nonterm StatementSeqOpt -> empty | StatementSeqOpt Statement ;
+nonterm CompoundStatement : Checkable -> "{" seq:StatementSeqOpt "}" {
+  fun typeCheck {
+    Env newEnv(&env);       // scope
+    seq.typeCheck(newEnv);
+  }
+}
+
+nonterm StatementSeqOpt : Checkable {
+  -> empty ;
+  -> seq:StatementSeqOpt s:Statement {
+    fun typeCheck {
+      try {
+        seq.typeCheck(env);
+      }
+      catch (XSemanticError &x) {
+        // error recovery; report and proceed
+        env.report(x.err);
+      }
+      env.flushLocalErrors(cout);
+
+      s.typeCheck(env);
+    }
+  }
+}
 
 nonterm Condition -> Expression | TypeSpecifierSeq Declarator "=" AssignmentExpression ;
 nonterm ConditionOpt -> empty | Condition ;
 
-nonterm ForInitStatement -> ExpressionStatement | SimpleDeclaration ;
+nonterm ForInitStatement : Checkable -> s:ExpressionStatement | s:SimpleDeclaration
+  { fun typeCheck { s.typeCheck(env); } }
 
 
 
@@ -549,7 +694,8 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
       // e.g.:
       //   typedef int (*Foo)();
       //   Foo const f;
-      error("cannot apply const/volatile to this type");
+      reportError(env, "cannot apply const/volatile to this type");
+      return baseType;    // error recovery
     }
     return ret;
   }
@@ -601,7 +747,7 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
         // e.g.:
         //   class Foo;
         //   struct Foo *f;
-        error("compound kind mismatch");
+        throwError("compound kind mismatch");
       }
 
       return env.makeType(type);
@@ -612,7 +758,7 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
     fun getType {
       EnumType const *type = env.lookupEnum(n.strValue);
       if (!type) {
-        error("undeclared enum");
+        throwError("undeclared enum");
       }
       return env.makeType(type);
     }
@@ -644,7 +790,7 @@ nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
     fun getType {
       Type const *ret = env.lookupType(n.typeName());
       if (!ret) {
-        error(stringc << "undefined type: " << n.typeName());
+        throwError(stringc << "undefined type: " << n.typeName());
       }
       return ret;
     }
@@ -780,18 +926,18 @@ nonterm InitDeclaratorListOpt : HasDeclare {
 }
 
 nonterm InitDeclarator : HasDeclare {
-  // don't know what to do with the initializer at this point..
   fun declare {
     // get the full type from the declarator
     Type const *fullType = d.getDeclType(env, type);
-    
+
     // get the declared name
     string name = d.getDeclName();
-    
+
     // put that pair into the environment
-    env.declareVariable(name, flags, fullType);
+    declareVariable(env, name, flags, fullType);
   }
 
+  // don't know what to do with the initializer at this point..
   -> d:Declarator |                   // (int)  x
      d:Declarator Initializer ;       // (int)  x = 5
 }
@@ -812,7 +958,8 @@ nonterm InitializerList -> InitializerClause |
 
 nonterm HasDeclType {
   // retrieve the type associated with this declaration, where
-  // 'type' is the type as built so far
+  // 'type' is the type as built so far (inherited from the
+  // specifier, or constructed by parsing type constructors)
   fundecl Type const *getDeclType(Env &env, Type const *type) const;
 }
 
@@ -837,14 +984,27 @@ nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
   // allowed to not have return types (DeclSpecifiers) to allow for
   // ctors and dtors, but other declarations must have types
   attr isFunction;
+  
+  // this attribute is needed to compute isFunction; it is 1 if the
+  // declarator is simply a PQName, and 0 otherwise
+  attr isName;
 }
 
 nonterm Declarator : DeclaratorBase {
   // (PtrOperator)* DirectDeclarator
   -> p:PtrOperator d:Declarator {
-    action isFunction := 0;
+  
+    // if d is a function, then this declares a function that
+    // returns a pointer
+    action isFunction := d.isFunction;
+    action isName := 0;
+
     fun typeName = stringc << "*" << d.typeName();
     fun retTypeName = stringc << "*" << d.retTypeName();
+
+    fun getFnParams {
+      return d.getFnParams();
+    }
 
     fun getDeclType {
       // grab info about the syntax
@@ -862,6 +1022,8 @@ nonterm Declarator : DeclaratorBase {
 
   -> d:DirectDeclarator {
     action isFunction := d.isFunction;
+    action isName := d.isName;
+
     fun getFnParams = d.getFnParams();
     fun typeName = d.typeName();
     fun retTypeName = d.retTypeName();
@@ -878,6 +1040,7 @@ nonterm DirectDeclarator : DeclaratorBase {
 
   -> n:PQVarName {
     action isFunction := 0;
+    action isName := 1;
 
     // declarator names can't be qualified with "::" (this resolves an
     // ambiguity with constructs like "Foo::Foo() {}")
@@ -897,14 +1060,16 @@ nonterm DirectDeclarator : DeclaratorBase {
   // specifier that preceeds this
   -> d:DirectDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt  {
   // ^^^ name of fn ^^^     ^^^^^^^^^^ arguments ^^^^^^^^^^     ^^^^^ const? ^^^^^^
-    action isFunction := 1;
+    action isFunction := d.isName? 1 : d.isFunction;
+    action isName := 0;
+
     fun getFnParams = &args;
     fun typeName = "(function)";
     fun retTypeName = d.typeName();
 
     fun getDeclType {
       // build a container for the function type
-      FunctionType *fnType = 
+      FunctionType *fnType =
         env.makeFunctionType(type /*return type*/, q.getCVFlags());
 
       // fill in the details about arguments
@@ -917,7 +1082,10 @@ nonterm DirectDeclarator : DeclaratorBase {
 
   // arrays
   formGroup {
+    // Q: is there such a thing as returning an array, and could
+    // this syntax declare one?  looks like yes...
     action isFunction := 0;
+    action isName := 0;
 
     fun getDeclType {
       Type *arrType;
@@ -947,6 +1115,8 @@ nonterm DirectDeclarator : DeclaratorBase {
   // precedence grouping
   -> "(" d:Declarator ")"  {
     action isFunction := d.isFunction;
+    action isName := d.isName;
+
     fun getFnParams = d.getFnParams();
     fun typeName = d.typeName();
     fun retTypeName = d.retTypeName();
@@ -1116,13 +1286,13 @@ nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
     // type
     Type const *specType = s.getType(env);
     Type const *fullType = d.getDeclType(env, specType);
-                                                  
+
     // check that there are no modifiers.. this could also be
     // done with attributes, and it's a toss-up in my mind now
     // which is the superior approach
     DeclFlags flags = s.getDeclFlags();
     if (flags != DF_NONE) {
-      error("modifiers not allowed in parameter declarations");
+      reportError(env, "modifiers not allowed in parameter declarations");
     }
 
     Parameter *param = new Parameter(fullType);
@@ -1180,13 +1350,32 @@ nonterm FunctionDefinition : Checkable, HasPrintSig {
 
     fun typeCheck {
       // typecheck the signature
-      Type const *type = spec.getType(env);    // a complete type
-      DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
+      Type const *type = d.getDeclType(env, (r.getType(env)));
+      
+      // must be a function type, otherwise the parser has
+      // screwed up (in particular the 'isFunction' attribute)
+      xassert(type->isFunctionType());
+      FunctionType const *fnType = &type->asFunctionTypeC();
+
+      // add the function decl to the original environment
+      DeclFlags flags = r.getDeclFlags();   // inline, virtual, etc.
       string name = d.getDeclName();
-      env.declareVariable(name, flags, d.getDeclType(env, type));
+      declareVariable(env, name, flags, fnType);
+
+      // add the formals to the new environment we'll create for
+      // the function body
+      Env newEnv(&env);
+      FOREACH_OBJLIST(Parameter, fnType->params, iter) {
+        Parameter const *param = iter.data();
+        if (!param->name.isempty()) {
+          // would really like to be doing this in the context
+          // of the tree node that actually defined the name...
+          declareVariable(newEnv, param->name, DF_NONE, param->type);
+        }
+      }
 
       // typecheck the body
-      b.typeCheck(env);
+      b.typeCheck(newEnv);
     }
   }
 
@@ -1217,13 +1406,16 @@ nonterm ClassSpecifier : HasType ->
     CompoundType::Keyword keyword = k.getKeyword();
     string name = n.getName();    // could be ""
 
+    // TODO: the rules below are wrong since they don't allow
+    // something to be redeclared inside a nested scope
+
     // construct the vessel to carry additional stuff
     CompoundType *compound = env.lookupCompound(name);
     if (compound && !compound->incomplete) {
-      error(stringc << "already declared: " << name);
+      throwError(stringc << "already declared: " << name);
     }
     if (compound && compound->keyword != keyword) {
-      error(stringc << "declared as different kind of compound: " << name);
+      throwError(stringc << "declared as different kind of compound: " << name);
     }
     if (!compound) {
       compound = env.lookupOrMakeCompound(name, keyword);
@@ -1350,16 +1542,43 @@ nonterm TemplateArgument -> Literal | TypeId ;
 
 
 // ------ A.13 Exception handling ------
-nonterm TryBlock -> "try" CompoundStatement HandlerSeq ;
+nonterm TryBlock : Checkable -> "try" s:CompoundStatement h:HandlerSeq {
+  fun typeCheck {
+    s.typeCheck(env);
+    h.typeCheck(env);
+  }
+}
 
-nonterm HandlerSeq -> Handler | Handler HandlerSeq ;
+nonterm HandlerSeq : Checkable {
+  -> h:Handler { fun typeCheck { h.typeCheck(env); } }
+  -> h:Handler seq:HandlerSeq {
+    fun typeCheck {
+      h.typeCheck(env);
+      seq.typeCheck(env);
+    }
+  }
+}
 
-nonterm Handler -> "catch" "(" ExceptionDeclaration ")" CompoundStatement ;
+nonterm Handler : Checkable -> "catch" "(" d:ExceptionDeclaration ")" 
+                               s:CompoundStatement {
+  fun typeCheck {
+    Env newEnv(&env);     // scope
+    d.typeCheck(newEnv);
+    s.typeCheck(newEnv);
+  }
+}
 
-nonterm ExceptionDeclaration {
-  -> TypeSpecifier Declarator ;          // named exception object
-  -> TypeSpecifier AbstractDeclarator ;  // unnamed exception object
-  -> "..."                            ;  // anything
+nonterm ExceptionDeclaration : Checkable {
+  -> s:TypeSpecifier d:Declarator {          // named exception object
+    fun typeCheck {
+      Type const *type = d.getDeclType(env, s.getType(env));
+      string name = d.getDeclName();
+      declareVariable(env, name, DF_NONE, type);
+    }
+  }
+
+  -> TypeSpecifier AbstractDeclarator     ;  // unnamed exception object
+  -> "..."                                ;  // anything
 }
 
 nonterm ThrowExpression -> "throw" AssignmentExpression |
@@ -1384,21 +1603,38 @@ bool processNode(TreeNode const *n, void*)
 
 int main(int argc, char *argv[])
 {
-  Owner<ParseTree> tree(treeMain(argc, argv));
+  try {
+    xBase::logExceptions = false;
+    Owner<ParseTree> tree(treeMain(argc, argv));
+    
+    // use another try to catch ambiguities so we can
+    // report them before the tree is destroyed
+    try {
+      // get tree top
+      xassert(tree->getTop()->getSymbolC()->name.equals("TranslationUnit"));
+      TranslationUnit_Node *top = (TranslationUnit_Node*)(tree->getTop());
 
-  // get tree top
-  xassert(tree->getTop()->getSymbolC()->name.equals("TranslationUnit"));
-  TranslationUnit_Node *top = (TranslationUnit_Node*)(tree->getTop());
+      // simple test: print all function definition signatures
+      cout << "------ all function def signatures ------\n";
+      top->walkTree(processNode);
 
-  // simple test: print all function definition signatures
-  top->walkTree(processNode);
+      // more complex test: print all declarations
+      cout << "------ all declarations ------\n";
+      traceAddSys("env-declare");
+      Env env;
+      top->typeCheck(env);
 
-  // more complex test: print all declarations
-  traceAddSys("env-declare");
-  Env env;
-  top->typeCheck(env);
-
-  return 0;
+      return 0;
+    }
+    catch (XAmbiguity &x) {
+      cout << x << endl;
+      return 4;
+    }
+  }
+  catch (xBase &x) {
+    cout << "died on exception: " << x << endl;
+    return 6;
+  }
 }
 
 

@@ -5,31 +5,28 @@
 
 
 // --------------------- CCTreeNode ----------------------
-void CCTreeNode::error(char const *msg) const
+void CCTreeNode::declareVariable(Env &env, char const *name,
+                                 DeclFlags flags, Type const *type) const
 {
-  THROW(XTreeError(this, msg));
+  if (!env.declareVariable(name, flags, type)) {
+    SemanticError err(this, SE_DUPLICATE_VAR_DECL);
+    err.varName = name;
+    env.report(err);
+  }
 }
 
 
-// -------------------- XTreeError ----------------------
-STATICDEF string XTreeError::makeMsg(CCTreeNode const *n, char const *m)
-{                    
-  return stringc << n->locString() << ": " << m;
+void CCTreeNode::throwError(char const *msg) const
+{
+  SemanticError err(this, SE_GENERAL);
+  err.msg = msg;
+  THROW(XSemanticError(err));
 }
 
-XTreeError::XTreeError(CCTreeNode const *n, char const *m)
-  : xBase(makeMsg(n, m)),
-    node(n),
-    message(m)
-{}
 
-
-XTreeError::XTreeError(XTreeError const &obj)
-  : xBase(obj),
-    DMEMB(node),
-    DMEMB(message)
-{}
-
-XTreeError::~XTreeError()
-{}
-
+void CCTreeNode::reportError(Env &env, char const *msg) const
+{
+  SemanticError err(this, SE_GENERAL);
+  err.msg = msg;
+  env.report(err);
+}

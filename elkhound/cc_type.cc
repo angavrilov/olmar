@@ -134,8 +134,12 @@ string PointerType::leftString() const
 {
   return stringc << atType->leftString()
                  << (op==PO_POINTER? "*" : "&")
-                 << cvToString(cv)
-                 << atType->rightString();
+                 << cvToString(cv);
+}
+
+string PointerType::rightString() const
+{
+  return atType->rightString();
 }
 
 
@@ -172,7 +176,7 @@ void FunctionType::addParam(Parameter *param)
 string FunctionType::leftString() const
 {
   // return type and start of enclosing type's description
-  return stringc << retType->toString() << " (";
+  return stringc << retType->leftString() << " (";
 }
 
 string FunctionType::rightString() const
@@ -194,6 +198,9 @@ string FunctionType::rightString() const
 
   // qualifiers
   sb << cvToString(cv);
+
+  // finish up the return type
+  sb << retType->rightString();
 
   return sb;
 }

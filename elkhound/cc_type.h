@@ -198,6 +198,7 @@ public:
 
   virtual Tag getTag() const { return T_POINTER; }
   virtual string leftString() const;
+  virtual string rightString() const;
 };
 
 

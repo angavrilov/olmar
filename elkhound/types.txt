@@ -91,3 +91,37 @@ first requesting a new Type object from the environment (which stores
 that pointer before returning it) and then working with the pointer as
 necessary.
 
+
+attr isFunction in declarators
+------------------------------
+
+Q for a declarator: does it declare a function type, such
+that it is a declarator suitable for function definitions?
+
+kinds of declarators:
+  name
+  * declarator
+  declarator ()
+  declarator []
+  ( declarator )
+
+name: not a function type
+
+* declarator: not a function type unless the declarator is; e.g.
+  // ptr to a function; isFunction = 0
+  int (*ptrToFn)(int);
+
+  // function that returns a pointer to a fn; isFunction = 1
+  int (*  fn(char)  )(int)
+
+declarator ():
+  isFunction is 1 if the declarator is just a name, but
+  0 if it is anything else (like a pointer, because that would
+  declare a pointer to a function)
+  
+declarator []:
+  not a function, I think..
+  
+( declarator ):
+  whatever the inner declarator is
+
