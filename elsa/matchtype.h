@@ -117,10 +117,6 @@ public:                         // types
   // 1, below top ref | yes                   | yes
   // 2, below top     | no                    | yes
 
-  // Scott has other funky flags that we have to ignore, so this mask
-  // is handy
-  static CVFlags const normalCvFlagMask;
-
   // this mode effects the behavior of the entire matching process;
   // there are two matching modes that govern how variables (not only,
   // but usually type variables) are treated
@@ -193,6 +189,7 @@ private:                        // funcs
   // return true if the answer is positive, that is acv is a superset
   // of bcv; false otherwise
   bool subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags);
+
   bool bindValToVar(Type *a, Type *b, int matchDepth);
   bool match_rightTypeVar(Type *a, Type *b, int matchDepth);
 

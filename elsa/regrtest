@@ -549,6 +549,7 @@ testparse t0311.cc
 testparse t0312.cc
 testparse t0313.cc
 testparse t0314.cc
+failparse t0315.cc "problem with template argument deduction"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -809,6 +810,7 @@ testCparse c/t0005.c
 testCparse c/t0006.c
 testCparse c/t0007.c
 testCparse c/t0008.c
+testCparse c/t0009.c
 
 
 # test GNU C

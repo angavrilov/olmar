@@ -6200,6 +6200,13 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
         return thRval;         // result has type 'void'
       }
 
+      if (!env.lang.isCplusplus) {
+        // ANSI C99 requires that if either argument is void, then
+        // both are (6.5.15); however, gcc in C mode accepts code
+        // (like in/c/t0009.c) where only one is, so I will too
+        return thVoid? thRval : elRval;
+      }
+
       // the void-typed expression must be a 'throw' (can it be
       // parenthesized?  a strict reading of the standard would say
       // no..), and the whole ?: has the non-void type

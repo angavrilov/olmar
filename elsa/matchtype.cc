@@ -21,28 +21,6 @@ int MatchTypes::recursionDepthLimit = 500; // what g++ 3.4.0 uses by default
 // termination is guaranteed.
 
 
-// ---------------------- utilities ---------------------
-
-// this is bizarre, but I can't think of a better way
-class CVFlagsIter {
-  int which;
-  public:
-  CVFlagsIter() : which(0) {}
-  CVFlags data() {
-    switch(which) {
-    default: xfailure("urk!?");
-    case 0: return CV_CONST;
-    case 1: return CV_VOLATILE;
-    }
-  }
-  bool isDone() { return which == 1; }
-  void adv() {
-    xassert(which<1);
-    ++which;
-  }
-};
-
-
 // -------------------- XMatchDepth ---------------------
 // thrown when the match0() function exceeds its recursion depth limit
 class XMatchDepth : public xBase {
@@ -156,8 +134,6 @@ void bindingsGdb(STemplateArgumentMap &bindings)
 
 // ---------- MatchTypes private ----------
 
-CVFlags const MatchTypes::normalCvFlagMask = CV_CONST | CV_VOLATILE;
-
 //  // helper function for when we find an int var
 //  static bool unifyToIntVar(Type *a,
 //                            Type *b,
@@ -165,28 +141,17 @@ CVFlags const MatchTypes::normalCvFlagMask = CV_CONST | CV_VOLATILE;
 //                            int matchDepth)
 //  {
 //  }
-
+        
+// compute 'acv' - 'bcv'
 bool MatchTypes::subtractFlags(CVFlags acv, CVFlags bcv, CVFlags &finalFlags)
 {
-  finalFlags = CV_NONE;
-  // partition qualifiers again
-  CVFlags acvNormal = acv & normalCvFlagMask;
-  CVFlags bcvNormal = bcv & normalCvFlagMask;
-  //      CVFlags bcvScott  = bcv & ~normalCvFlagMask;
-  // Lets kill a mosquito with a hydraulic wedge
-  for(CVFlagsIter cvIter; !cvIter.isDone(); cvIter.adv()) {
-    CVFlags curFlag = cvIter.data();
-    int aflagInt = (acvNormal & curFlag) ? 1 : 0;
-    int bflagInt = (bcvNormal & curFlag) ? 1 : 0;
-    int flagDifference = aflagInt - bflagInt;
-    if (flagDifference < 0) {
-      return false;           // can't subtract a flag that isn't there
-    }
-    if (flagDifference > 0) {
-      finalFlags |= curFlag;
-    }
-    // otherwise, the flags match
+  // if 'bcv' has any flags that 'acv' doesn't, return false
+  if (bcv & ~acv) {
+    return false;
   }
+
+  // otherwise, just do the set subtraction
+  finalFlags = (acv & ~bcv);
   return true;
 }
 
@@ -206,10 +171,6 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
   // dsw: Const should be removed from the language because of things
   // like this!  I mean, look at it!
   CVFlags acv = a->getCVFlags();
-  // partition qualifiers into normal ones and Scott's funky qualifier
-  // extensions that aren't const or volatile
-//    CVFlags acvNormal = acv &  normalCvFlagMask;
-  CVFlags acvScott  = acv & ~normalCvFlagMask;
   if (matchDepth == 0) {
     // if we are at the top level, remove all CV qualifers before
     // binding; ignore the qualifiers on the type variable as they are
@@ -232,7 +193,7 @@ bool MatchTypes::bindValToVar(Type *a, Type *b, int matchDepth)
     // CV qualifiers
     a = tfac.setCVQualifiers
       (SL_UNKNOWN,
-       finalFlags | acvScott,  // restore Scott's funkyness
+       finalFlags,
        a,
        NULL /*syntax*/
        );
@@ -298,8 +259,7 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
       // identical
       return
         // must have the same qualifiers; FIX: I think even at the top level
-        ((a->getCVFlags() & normalCvFlagMask) ==
-         (bFlags & normalCvFlagMask))
+        (a->getCVFlags() == bFlags)
         &&
         // must be the same typevar; NOTE: don't compare the types, as
         // they can change when cv qualifiers are added etc. but the
@@ -425,8 +385,7 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
     // deal with top-level qualifiers; if we are not at MT_TOP, then
     // they had better match exactly
     if (matchDepth > 0) {
-      CVFlags const mask = normalCvFlagMask; // ignore other kinds of funky Scott-flags
-      if ( (a->getCVFlags() & mask) != (b->getCVFlags() & mask) ) return false;
+      if (a->getCVFlags() != b->getCVFlags()) return false;
     }
 
     // sm: below here all supplied matchDepths were 0, so I've pulled
