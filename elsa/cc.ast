@@ -344,15 +344,14 @@ class OperatorName {
   // operator new & delete (see note at end about SpecialDeclarator)
   -> ON_newDel(bool isNew, bool isArray);
 
-  // binary operator; since the declarator parser won't
-  // know whether "+" and "-" are being overloaded as unary
-  // or binary (since it won't count arguments or know
-  // whether it's in a class context), "+" and "-" are always
-  // classified as ON_binary even when in fact unary; op
-  // will never be BIN_DOT_STAR nor BIN_ASSIGN
+  // binary operator; since the declarator parser won't know whether
+  // "+", "-" and "*" are being overloaded as unary or binary (since
+  // it won't count arguments or know whether it's in a class
+  // context), "+" and "-" are always classified as ON_binary even
+  // when in fact unary; op will never be BIN_DOT_STAR nor BIN_ASSIGN
   -> ON_binary(BinaryOp op);
 
-  // unary operator; only "!" and "~" are classified this way
+  // unary operator; "!" and "~" are classified this way
   -> ON_unary(UnaryOp op);
 
   // ++ or --; since declarator parser doesn't know about

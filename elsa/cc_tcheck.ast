@@ -337,11 +337,15 @@ class Expression {
   // gets automatically stored in the 'type' field; the return
   // value specifies which of possibly ambiguous alternatives
   // was selected for retention
-  public void tcheck(Expression *&ptr, Env &env);
-  public void mid_tcheck(Env &env, int &);
+  public void tcheck(Env &env, Expression *&ptr);
+  public void mid_tcheck(Env &env, Expression *&replacement);
 
-  // per-type checker; return type this expression eval's to
-  pure_virtual Type *itcheck(Env &env);
+  // per-type checker; return type this expression eval's to; if
+  // this Expression would like to rewrite itself, then it can put
+  // the new Expression into 'replacement' and the parent AST node
+  // will be updated accordingly; the caller should always put the
+  // receiver object pointer into 'replacement' initially
+  pure_virtual Type *itcheck(Env &env, Expression *&replacement);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the

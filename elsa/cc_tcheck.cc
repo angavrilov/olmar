@@ -1261,7 +1261,7 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 
   enumValue = parentEnum->nextValue;
   if (expr) {
-    expr->tcheck(expr, env);
+    expr->tcheck(env, expr);
 
     // will either set 'enumValue', or print (add) an error message
     expr->constEval(env, enumValue);
@@ -2365,7 +2365,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
 
   if (size) {
     // typecheck the 'size' expression
-    size->tcheck(size, env);
+    size->tcheck(env, size);
   }
 
   ArrayType *at;
@@ -2447,7 +2447,7 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
   }
 
   // fix: I hadn't been type-checking this...
-  bits->tcheck(bits, env);
+  bits->tcheck(env, bits);
 
   // check that the expression is a compile-time constant
   int n;
@@ -2712,8 +2712,8 @@ void S_label::itcheck(Env &env)
 
 void S_case::itcheck(Env &env)
 {                    
-  expr->tcheck(expr, env);
-  s = s->tcheck(env);      
+  expr->tcheck(env, expr);
+  s = s->tcheck(env);
   
   // TODO: check that the expression is of a type that makes
   // sense for a switch statement, and that this isn't a 
@@ -2731,7 +2731,7 @@ void S_default::itcheck(Env &env)
 
 void S_expr::itcheck(Env &env)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 }
 
 
@@ -2787,7 +2787,7 @@ void S_while::itcheck(Env &env)
 void S_doWhile::itcheck(Env &env)
 {
   body = body->tcheck(env);
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // TODO: verify that 'expr' makes sense in a boolean context
 }
@@ -2799,7 +2799,7 @@ void S_for::itcheck(Env &env)
 
   init = init->tcheck(env);
   cond->tcheck(env);
-  after->tcheck(after, env);
+  after->tcheck(env, after);
   body = body->tcheck(env);
 
   env.exitScope(scope);
@@ -2821,7 +2821,7 @@ void S_continue::itcheck(Env &env)
 void S_return::itcheck(Env &env)
 {
   if (expr) {
-    expr->tcheck(expr, env);
+    expr->tcheck(env, expr);
     
     // TODO: verify that 'expr' is compatible with the current
     // function's declared return type
@@ -2867,7 +2867,7 @@ void S_asm::itcheck(Env &)
 // ------------------- Condition --------------------
 void CN_expr::tcheck(Env &env)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // TODO: verify 'expr' makes sense in a boolean or switch context
 }
@@ -2901,13 +2901,35 @@ void Handler::tcheck(Env &env)
 
 
 // ------------------- Expression tcheck -----------------------
-// experiment: pass ref to ptr so I can't forget to do ambig. assign
-void Expression::tcheck(Expression *&ptr, Env &env)
+
+// There are several things going on with the replacement pointer.
+//
+// First, since Expressions can be ambiguous, when we select among
+// ambiguous Expressions, the replacement is used to tell which one
+// to use.  The caller then stores that instead of the original
+// pointer.
+//
+// Second, to support elaboration of implicit function calls, an
+// Expression node can decide to replace itself with a different
+// kind of node (e.g. overloaded operators), or to insert another
+// Expression above it (e.g. user-defined conversion functions).
+//
+// Finally, the obvious design would call for 'replacement' being
+// a return value from 'tcheck', but I found that it was too easy
+// to forget to update the original pointer.  So I changed the
+// interface so that the original pointer cannot be forgotten, since
+// a reference to it is now a parameter.
+
+
+void Expression::tcheck(Env &env, Expression *&replacement)
 {
-  int dummy;
+  // the replacement point should always start out in agreement with
+  // the receiver object of the 'tcheck' call; consequently,
+  // Expressions can leave it as-is and no replacement will happen
+  xassert(replacement == this);
+
   if (!ambiguity) {
-    mid_tcheck(env, dummy);
-    ptr = this;
+    mid_tcheck(env, replacement);
     return;
   }
 
@@ -2915,7 +2937,7 @@ void Expression::tcheck(Expression *&ptr, Env &env)
   // E_constructor, and this ambiguity happens to frequently stack
   // upon itself, leading to worst-case exponential tcheck time.
   // Since it can be resolved easily in most cases, I special-case the
-  // resolution.  
+  // resolution.
   if ( ( (this->isE_funCall() &&
           this->ambiguity->isE_constructor() ) ||
          (this->isE_constructor() &&
@@ -2952,7 +2974,7 @@ void Expression::tcheck(Expression *&ptr, Env &env)
       env.errors.concat(existing);
       call->type = call->inner2_itcheck(env);
       call->ambiguity = NULL;
-      ptr = call;
+      replacement = call;
       return;
     }
 
@@ -2969,7 +2991,7 @@ void Expression::tcheck(Expression *&ptr, Env &env)
       env.errors.concat(existing);
       ctor->type = ctor->inner2_itcheck(env);
       ctor->ambiguity = NULL;
-      ptr = ctor;
+      replacement = ctor;
       return;
     }
 
@@ -2980,18 +3002,20 @@ void Expression::tcheck(Expression *&ptr, Env &env)
     env.errors.concat(existing);
     
     // finish up
-    ptr = this;
+    replacement = this;     // redundant but harmless
     return;
   }
 
-  // some other ambiguity, use the generic mechanism
-  ptr = resolveAmbiguity(this, env, "Expression", false /*priority*/, dummy);
+  // some other ambiguity, use the generic mechanism; the return value
+  // is ignored, because the selected alternative will be stored in
+  // 'replacement'
+  resolveAmbiguity(this, env, "Expression", false /*priority*/, replacement);
 }
 
 
 bool const CACHE_EXPR_TCHECK = false;
 
-void Expression::mid_tcheck(Env &env, int &)
+void Expression::mid_tcheck(Env &env, Expression *&replacement)
 {
   if (CACHE_EXPR_TCHECK && type && !type->isError()) {
     // this expression has already been checked
@@ -3011,9 +3035,15 @@ void Expression::mid_tcheck(Env &env, int &)
     // contexts (which is almost everywhere)
     return;
   }
+  
+  // during ambiguity resolution, 'replacement' is set to whatever
+  // the original (first in the ambiguity list) Expression pointer
+  // was; reset it to 'this', as that will be our "replacement"
+  // unless the Expression wants to do something else
+  replacement = this;
 
   // check it, and store the result
-  Type *t = itcheck(env);
+  Type *t = itcheck(env, replacement);
   
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
@@ -3032,27 +3062,27 @@ void Expression::mid_tcheck(Env &env, int &)
 }
 
 
-Type *E_boolLit::itcheck(Env &env)
+Type *E_boolLit::itcheck(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.5 para 1
   return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 }
 
-Type *E_intLit::itcheck(Env &env)
+Type *E_intLit::itcheck(Env &env, Expression *&replacement)
 {
   // TODO: this is wrong; see cppstd 2.13.1 para 2
   i = strtoul(text, NULL /*endp*/, 0 /*radix*/);
   return env.getSimpleType(SL_UNKNOWN, ST_INT);
 }
 
-Type *E_floatLit::itcheck(Env &env)
+Type *E_floatLit::itcheck(Env &env, Expression *&replacement)
 {
   // TODO: wrong; see cppstd 2.13.3 para 1
   d = strtod(text, NULL /*endp*/);
   return env.getSimpleType(SL_UNKNOWN, ST_FLOAT);
 }
 
-Type *E_stringLit::itcheck(Env &env)
+Type *E_stringLit::itcheck(Env &env, Expression *&replacement)
 {
   // cppstd 2.13.4 para 1
 
@@ -3082,7 +3112,7 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
                 delim, allowNewlines);
 }
 
-Type *E_charLit::itcheck(Env &env)
+Type *E_charLit::itcheck(Env &env, Expression *&replacement)
 {
   // TODO: wrong; cppstd 2.13.2 paras 1 and 2
 
@@ -3127,7 +3157,7 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
-Type *E_variable::itcheck(Env &env)
+Type *E_variable::itcheck(Env &env, Expression *&replacement)
 {
   name->tcheck(env);
   var = env.lookupPQVariable(name);
@@ -3174,7 +3204,7 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 
   // check first expression
   Expression *firstExp = list->first();
-  firstExp->tcheck(firstExp, env);
+  firstExp->tcheck(env, firstExp);
   FakeList<Expression> *ret = FakeList<Expression>::makeList(firstExp);
 
   // check subsequent expressions, using a pointer that always
@@ -3182,7 +3212,7 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
   Expression *prev = ret->first();
   while (prev->next) {
     Expression *tmp = prev->next;
-    tmp->tcheck(tmp, env);
+    tmp->tcheck(env, tmp);
     prev->next = tmp;
 
     prev = prev->next;
@@ -3201,7 +3231,7 @@ void tcheckFakeExprList(FakeList<ICExpression> *list, Env &env)
 }
 
 
-Type *E_funCall::itcheck(Env &env)
+Type *E_funCall::itcheck(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
   return inner2_itcheck(env);
@@ -3209,7 +3239,7 @@ Type *E_funCall::itcheck(Env &env)
 
 void E_funCall::inner1_itcheck(Env &env)
 {
-  func->tcheck(func, env);
+  func->tcheck(env, func);
 }
 
 Type *E_funCall::inner2_itcheck(Env &env)
@@ -3363,7 +3393,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
 }
 
 
-Type *E_constructor::itcheck(Env &env)
+Type *E_constructor::itcheck(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
   return inner2_itcheck(env);
@@ -3386,9 +3416,9 @@ Type *E_constructor::inner2_itcheck(Env &env)
 
 
 // cppstd sections: 5.2.5 and 3.4.5
-Type *E_fieldAcc::itcheck(Env &env)
+Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
 {
-  obj->tcheck(obj, env);
+  obj->tcheck(env, obj);
   fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
 
   // get the type of 'obj', and make sure it's a compound
@@ -3447,9 +3477,9 @@ Type *E_fieldAcc::itcheck(Env &env)
 }
 
 
-Type *E_sizeof::itcheck(Env &env)
+Type *E_sizeof::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // TODO: this will fail an assertion if someone asks for the
   // size of a variable of template-type-parameter type..
@@ -3463,9 +3493,9 @@ Type *E_sizeof::itcheck(Env &env)
 }
 
 
-Type *E_unary::itcheck(Env &env)
+Type *E_unary::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: consider the possibility of operator overloading
@@ -3473,9 +3503,9 @@ Type *E_unary::itcheck(Env &env)
 }
 
 
-Type *E_effect::itcheck(Env &env)
+Type *E_effect::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: make sure that 'expr' is an lvalue (reference type)
@@ -3484,10 +3514,10 @@ Type *E_effect::itcheck(Env &env)
 }
 
 
-Type *E_binary::itcheck(Env &env)
+Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
-  e1->tcheck(e1, env);
-  e2->tcheck(e2, env);
+  e1->tcheck(env, e1);
+  e2->tcheck(env, e2);
 
   Type *lhsType = e1->type->asRval();
   Type *rhsType = e2->type->asRval();
@@ -3650,10 +3680,16 @@ static Type *makePTMType(Env &env, Expression *expr)
   return env.makePtrToMemberType(SL_UNKNOWN, inClass0, env.tfac.cloneType(expr->type->asRval()));
 }
 
-Type *E_addrOf::itcheck(Env &env)
+Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
-  if (expr->type->isError()) return expr->type;
+  expr->tcheck(env, expr);
+
+  if (expr->type->isError()) {
+    // skip further checking because the tree is not necessarily
+    // as the later stages expect; e.g., an E_variable might have
+    // a NULL 'var' field
+    return expr->type;
+  }
 
   // NOTE: do *not* unwrap any layers of parens:
   //  Spec 5.3.1 para 3: [Note: that is, the expression
@@ -3705,9 +3741,9 @@ Type *E_addrOf::itcheck(Env &env)
 }
 
 
-Type *E_deref::itcheck(Env &env)
+Type *E_deref::itcheck(Env &env, Expression *&replacement)
 {
-  ptr->tcheck(ptr, env);
+  ptr->tcheck(env, ptr);
 
   Type *rt = ptr->type->asRval();
   if (rt->isFunctionType()) {
@@ -3728,11 +3764,28 @@ Type *E_deref::itcheck(Env &env)
   }
 
   // check for "operator*" (and "operator[]" since I unfortunately
-  // currently map [] into * and +)
-  if (rt->ifCompoundType()) {
-    CompoundType *ct = rt->ifCompoundType();
-    if (ct->lookupVariableC(env.str("operator*"), env) ||
-        ct->lookupVariableC(env.str("operator[]"), env)) {
+  // currently map 'x[y]' into '*(x+y)' during parsing)
+  if (rt->isCompoundType()) {
+    CompoundType *ct = rt->asCompoundType();
+    if (ct->lookupVariableC(env.str("operator*"), env)) {
+      // replace this Expression node with one that looks like
+      // an explicit call to the overloaded operator* (misleadingly,
+      // that's encoded as BIN_MULT...)
+      replacement = new E_funCall(
+        // function: ptr.operator*
+        new E_fieldAcc(ptr, new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_MULT),
+                                            env.str("operator*"))),
+        // arguments: ()
+        FakeList<ICExpression>::emptyList()
+      );
+
+      // now, tcheck this new Expression
+      replacement->tcheck(env, replacement);
+      return replacement->type;
+    }
+
+    // this is an older hack..
+    if (ct->lookupVariableC(env.str("operator[]"), env)) {
       // ok.. gee what type?  would have to do the full deal, and
       // would likely get it wrong for operator[] since I don't have
       // the right info to do an overload calculation.. well, if I
@@ -3754,11 +3807,11 @@ Type *E_deref::itcheck(Env &env)
 }
 
 
-Type *E_cast::itcheck(Env &env)
+Type *E_cast::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
   
   // TODO: check that the cast makes sense
   
@@ -3766,11 +3819,11 @@ Type *E_cast::itcheck(Env &env)
 }
 
 
-Type *E_cond::itcheck(Env &env)
+Type *E_cond::itcheck(Env &env, Expression *&replacement)
 {
-  cond->tcheck(cond, env);
-  th->tcheck(th, env);
-  el->tcheck(el, env);
+  cond->tcheck(env, cond);
+  th->tcheck(env, th);
+  el->tcheck(env, el);
   
   // TODO: verify 'cond' makes sense in a boolean context
   // TODO: verify 'th' and 'el' return the same type
@@ -3786,16 +3839,16 @@ Type *E_cond::itcheck(Env &env)
 }
 
 
-Type *E_comma::itcheck(Env &env)
+Type *E_comma::itcheck(Env &env, Expression *&replacement)
 {
-  e1->tcheck(e1, env);
-  e2->tcheck(e2, env);
+  e1->tcheck(env, e1);
+  e2->tcheck(env, e2);
   
   return env.tfac.cloneType(e2->type);
 }
 
 
-Type *E_sizeofType::itcheck(Env &env)
+Type *E_sizeofType::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
@@ -3809,9 +3862,9 @@ Type *E_sizeofType::itcheck(Env &env)
 }
 
 
-Type *E_assign::itcheck(Env &env)
+Type *E_assign::itcheck(Env &env, Expression *&replacement)
 {
-  target->tcheck(target, env);
+  target->tcheck(env, target);
   src->tcheck(env);
   
   // TODO: make sure 'target' and 'src' make sense together with 'op'
@@ -3821,7 +3874,7 @@ Type *E_assign::itcheck(Env &env)
 }
 
 
-Type *E_new::itcheck(Env &env)
+Type *E_new::itcheck(Env &env, Expression *&replacement)
 {
   tcheckFakeExprList(placementArgs, env);
 
@@ -3847,9 +3900,9 @@ Type *E_new::itcheck(Env &env)
 }
 
 
-Type *E_delete::itcheck(Env &env)
+Type *E_delete::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   Type *t = expr->type->asRval();
   if (!t->isPointer()) {
@@ -3861,10 +3914,10 @@ Type *E_delete::itcheck(Env &env)
 }
 
 
-Type *E_throw::itcheck(Env &env)
+Type *E_throw::itcheck(Env &env, Expression *&replacement)
 {
   if (expr) {
-    expr->tcheck(expr, env);
+    expr->tcheck(env, expr);
   }
   else {
     // TODO: make sure that we're inside a 'catch' clause
@@ -3873,11 +3926,11 @@ Type *E_throw::itcheck(Env &env)
 }
 
 
-Type *E_keywordCast::itcheck(Env &env)
+Type *E_keywordCast::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // TODO: make sure that 'expr' can be cast to 'type'
   // using the 'key'-style cast
@@ -3886,14 +3939,14 @@ Type *E_keywordCast::itcheck(Env &env)
 }
 
 
-Type *E_typeidExpr::itcheck(Env &env)
+Type *E_typeidExpr::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
   return env.type_info_const_ref;
 }
 
 
-Type *E_typeidType::itcheck(Env &env)
+Type *E_typeidType::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   ttype = ttype->tcheck(env, tc);
@@ -3901,9 +3954,9 @@ Type *E_typeidType::itcheck(Env &env)
 }
 
 
-Type *E_grouping::itcheck(Env &env)
+Type *E_grouping::itcheck(Env &env, Expression *&replacement)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
   return expr->type;
 }
 
@@ -4154,7 +4207,7 @@ SpecialExpr Expression::getSpecial() const
 // ----------------------- ICExpression -------------------
 void ICExpression::tcheck(Env &env)
 { 
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
   
   // NOTE: this just tcheck's the expression; there's another step
   // to do (that right now isn't done at all) that sets the 'cic'
@@ -4343,7 +4396,7 @@ void TA_type::itcheck(Env &env)
 
 void TA_nontype::itcheck(Env &env)
 {
-  expr->tcheck(expr, env);
+  expr->tcheck(env, expr);
 
   // see cppstd 14.3.2 para 1
 
