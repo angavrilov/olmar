@@ -420,7 +420,8 @@ testparse d0036.cc
 testparse d0037.cc
 testparse d0038.cc
 testparse d0039.cc
-# break
+# d0040.cc and d0041.cc are illegal C++
+# d0042.cc through d0045.cc were less cleaned up versions of d0046.cc
 testparse d0046.cc
 testparse d0046elab.cc
 testparse d0047.cc
