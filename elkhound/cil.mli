@@ -27,7 +27,7 @@ type varinfo = {
 												  (* FIXME: currently always false *)
 	vtype: typ; 			
 	vdecl: location;			  (* where was this variable declared? *)
-}
+} 
 
 (* information about a field access *)
 and fieldinfo = { 
@@ -105,7 +105,7 @@ and lval =
   | Var        of varinfo * location     (* an identifier and some other info*)
   | Deref      of exp * location          (* *e *)
   | Field      of lval * fieldinfo * location(* e.f *)
-  | CastL      of typeinfo * exp * location
+  | CastL      of typ * exp * location
   | ArrayElt   of exp * exp             (* array, index *)
 
 (* Instructions. May cause effects directly but may not have control flow. *)
@@ -134,3 +134,4 @@ type fun_decl = string * typ * stmt * (varinfo list) * (varinfo list)
 type program = (fun_decl list) * (varinfo list)
 	(* global function decls, global variable decls *)
 
+val parse : string -> program list

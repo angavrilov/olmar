@@ -54,6 +54,7 @@ literalCode "prologue" {
         struct wes_ast_node * hd;
         struct wes_list * tl;
     };
+    extern "C" { value cil_program_to_ocaml(CilProgram *prog); }
   #endif /* WES_OCAML_LINKAGE */
 }
 
@@ -238,15 +239,12 @@ nonterm TranslationUnit : Checkable {
       { extern int ocaml_wants_cil;
 	if (ocaml_wants_cil) {
 	    extern struct wes_list * wes_result_list; // declared below
-	    struct wes_list * new_cell = new struct wes_list;
-	    new_cell->hd = camlAST();
-	    new_cell->tl = wes_result_list;
-	    wes_result_list = new_cell;
+	    wes_result_list = (struct wes_list *) cil_program_to_ocaml(&prog);
+	    register_global_root((value *)&wes_result_list);
 	} else {
 	    extern struct wes_list * wes_result_list; // declared below
-	    extern value cil_program_to_ocaml(CilProgram *prog);
 	    struct wes_list * new_cell = new struct wes_list;
-	    new_cell->hd = (wes_ast_node *)cil_program_to_ocaml(&prog);
+	    new_cell->hd = camlAST();
 	    new_cell->tl = wes_result_list;
 	    wes_result_list = new_cell;
 	}
@@ -269,15 +267,11 @@ nonterm TranslationUnit : Checkable {
       doTranslationStuff(*( iter.data() ));
     }
 
-    #ifdef CIL_OCAML_LINKAGE
-
-    #endif
-
     // deallocate now .. no good reason why .. (we can't
     // keep this info beyond the end of this fn because
     // we're about to delete e.g. all the environments
     // into which 'prog' points (indirectly))
-    #ifndef CIL_OCAML_LINKAGE
+    #ifndef WES_OCAML_LINKAGE
     prog.empty();
     #endif
 
@@ -3684,6 +3678,8 @@ value wes_main(char *filename) {
     CAMLreturn(c);
 }
 
+#include "cil_to_ocaml.c"
+
 value cil_main(char *filename) {
     CAMLparam0();
     CAMLlocal3(retval, c, val);
@@ -3705,15 +3701,12 @@ value cil_main(char *filename) {
     // examine wes_result_list
 
     // convert it over to OCAML
-    c = Val_int(0);
-    for (l = wes_result_list; l != NULL; l = l->tl) {
-	val = (value) l->hd;
-	retval = alloc(2,0);
-	Store_field(retval, 0, val);
-	Store_field(retval, 1, c);
-	c = retval;
-    }
-    wes_result_list = NULL; // memory leak!
+    c = (value) wes_result_list;
+
+    printf("Returning from C land with value %ld ...\n", wes_result_list);
+
+    wes_result_list = NULL; 
+
     CAMLreturn(c);
 }
 

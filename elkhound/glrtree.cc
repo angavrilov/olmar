@@ -353,7 +353,6 @@ TreeNode const *NonterminalNode::walkTree(WalkFn func, void *extra) const
 struct wes_ast_node * NonterminalNode::camlAST(void) const
 {
     struct wes_ast_node * retval;
-    retval = reductions.firstC()->camlAST();
     if (getIsJustInt()) {
 	retval = (struct wes_ast_node *)malloc(sizeof(*retval));
 	retval->name = wes_strdup( stringc << "L2_INT_LITERAL " << getTheInt());

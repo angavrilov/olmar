@@ -10,6 +10,21 @@
 #define OCAML_DUMMY_LOCATION	(ocaml_location(-1,-1,"unknown"))
 #define OCAML_DUMMY_TYPE	(Val_int(0))
 
+/* forward declarations */
+value ocaml_location(int line, int col, const char *file);
+value ocaml_varinfo(int id, const char * name, int global, value typeinfo, value location);
+value cil_variable_to_ocaml(Variable *v);
+value ocaml_fieldinfo(const char *s_name, const char *f_name, value type);
+value cil_lval_to_ocaml(CilLval *lval);
+value ocaml_const_int(int i);
+value cil_exp_to_ocaml(CilExpr *exp);
+value cil_fncall_to_ocaml(CilFnCall *fnc);
+value cil_inst_to_ocaml(CilInst *inst);
+value cil_compound_to_ocaml(CilCompound *comp);
+value cil_stmt_to_ocaml(CilStmt *stmt);
+value cil_fndefn_to_ocaml(CilFnDefn * f);
+/* value cil_program_to_ocaml(CilProgram * prog); */
+
 /* return a "location" structure */
 value ocaml_location(int line, int col, const char *file)
 {
@@ -56,7 +71,7 @@ value cil_variable_to_ocaml(Variable *v)
     a = OCAML_DUMMY_TYPE;	/* FIXME */
     b = OCAML_DUMMY_LOCATION;	/* FIXME */
     result = ocaml_varinfo(0, 
-	    v->name(), 0, a, b);
+	    v->name.pcharc(), 0, a, b);
     CAMLreturn(result);
 }
 
@@ -64,7 +79,7 @@ value cil_variable_to_ocaml(Variable *v)
 value ocaml_fieldinfo(const char *s_name, const char *f_name, value type)
 {
     CAMLparam1(type);
-    CAMLlocal4(result, s, f);
+    CAMLlocal3(result, s, f);
 
     result = alloc(3,0);
     f = copy_string(f_name);
@@ -77,7 +92,7 @@ value ocaml_fieldinfo(const char *s_name, const char *f_name, value type)
 }
 
 /* convert a CIL lvalue to OCAML */
-cil_lval_to_ocaml(CilLval *lval)
+value cil_lval_to_ocaml(CilLval *lval)
 {
     CAMLparam0();
     CAMLlocal4(result,a,b,l);
@@ -99,8 +114,9 @@ cil_lval_to_ocaml(CilLval *lval)
 	    break;
 	case CilLval::T_FIELDREF:
 	    result = alloc(3,2);
-	    a = cil_lval_to_ocaml(lval->deref.addr);
-	    b = ocaml_fieldinfo("struct_name", "field_name", 
+	    a = cil_lval_to_ocaml(lval->fieldref.record);
+	    b = ocaml_fieldinfo("struct_name",
+		    lval->fieldref.field->name.pcharc(), 
 		    OCAML_DUMMY_TYPE);
 	    Store_field(result, 0, a);
 	    Store_field(result, 1, b);
@@ -133,7 +149,7 @@ value ocaml_const_int(int i)
     CAMLparam0();
     CAMLlocal2(result,a);
     result = alloc(1,0);
-    a = val_int(i);
+    a = Val_int(i);
     Store_field(result, 0, a);
     CAMLreturn(result);
 }
@@ -236,33 +252,33 @@ value cil_exp_to_ocaml(CilExpr *exp)
 value cil_fncall_to_ocaml(CilFnCall *fnc)
 {
     CAMLparam0();
-    CAMLlocal6(result,a,b,c,d,e);
+    CAMLlocal5(result,a,b,c,d);
     int i;
 
     result = alloc(4,1); /* tag 1 means "call" */
 
     a = cil_lval_to_ocaml(fnc->result);
     b = cil_exp_to_ocaml(fnc->func);
+    Store_field(result, 0, a);
+    Store_field(result, 1, b);
 
     /* now gather the argument list */
     c = Val_int(0);	/* empty list */
-    for (i=0; i<fnc->args.length() ;i++) {
+    for (i=0; i<fnc->args.count() ;i++) {
 	CilExpr * arg = fnc->args.nth(i);
 
 	d = alloc(2,0); /* cons cell */
-	e = cil_exp_to_ocaml(arg);
-	Store_field(d, 0, e);
+	a = cil_exp_to_ocaml(arg);
+	Store_field(d, 0, a);
 	Store_field(d, 1, c); /* store old tail */
 	c = d;
     }
-    Store_field(result, 0, a);
-    Store_field(result, 1, b);
     Store_field(result, 2, c);
 }
 
 
 /* convert a CIL instruction into OCAML */
-cil_inst_to_ocaml(CilInst *inst)
+value cil_inst_to_ocaml(CilInst *inst)
 {
     CAMLparam0();
     CAMLlocal5(result,a,b,c,l);
@@ -299,7 +315,7 @@ value cil_compound_to_ocaml(CilCompound *comp)
 
     result = Val_int(0);	/* the empty list */
 
-    for (i=0; i<comp->stmts.length(); i++) {
+    for (i=0; i<comp->stmts.count(); i++) {
 	/* create a new cons cell */
 	b = alloc(2,0);
 	c = cil_stmt_to_ocaml(comp->stmts.nth(i));
@@ -317,7 +333,6 @@ value cil_stmt_to_ocaml(CilStmt *stmt)
 {
     CAMLparam0();
     CAMLlocal5(result,a,b,c,d);
-    int i;
 
     switch (stmt->stag) {
 	case CilStmt::T_COMPOUND:
@@ -346,13 +361,13 @@ value cil_stmt_to_ocaml(CilStmt *stmt)
 
 	case CilStmt::T_LABEL:
 	    result = alloc(1,3);
-	    a = copy_string(stmt->label.name.toString(true).pchar());
+	    a = copy_string(stmt->label.name->pcharc());
 	    Store_field(result, 0, a);
 	    break;
 
 	case CilStmt::T_JUMP:
 	    result = alloc(1,4);
-	    a = copy_string(stmt->jump.dest.toString(true).pchar());
+	    a = copy_string(stmt->jump.dest->pcharc());
 	    Store_field(result, 0, a);
 	    break;
 
@@ -401,12 +416,12 @@ value cil_fndefn_to_ocaml(CilFnDefn * f)
 
     result = alloc(5,0);
 
-    a = copy_string(f->var->name());
+    a = copy_string(f->var->name.pcharc());
     Store_field(result, 0, a);
     b = OCAML_DUMMY_TYPE;	/* FIXME */
     Store_field(result, 1, b);
     c = alloc(1,0);
-    d = cil_compound_to_ocaml(f->bodyStmt);
+    d = cil_compound_to_ocaml(& (f->bodyStmt));
     Store_field(c, 0, d);
     Store_field(result, 2, c);
 
@@ -417,10 +432,10 @@ value cil_fndefn_to_ocaml(CilFnDefn * f)
 
     /* now handle the decl list */
     d = Val_int(0);
-    for (i=0; i<f->locals.length(); i++) {
+    for (i=0; i<f->locals.count(); i++) {
 	/* make a new cons cell */
 	a = alloc(2,0);
-	b = cil_variable_to_ocaml(f->locals.nth(i))
+	b = cil_variable_to_ocaml(f->locals.nth(i));
 	Store_field(a, 0, b);
 	Store_field(a, 1, d);
 	d = a;
@@ -437,12 +452,15 @@ value cil_program_to_ocaml(CilProgram * prog)
     CAMLlocal5(result,a,b,c,d);
     int i;
 
+    result = alloc(2,0);
+
     /* first do the fun decl list */
     a = Val_int(0);
-    for (i=0; i<prog->funcs.length(); i++) {
+    for (i=0; i<prog->funcs.count(); i++) {
 	/* make a cons cell */
 	b = alloc(2,0);
-	c = cil_fndefn_to_ocaml(prog->funcs.ith(i));
+	printf ("Converting fundecl %d\n", i);
+	c = cil_fndefn_to_ocaml(prog->funcs.nth(i));
 	Store_field(b, 0, c);
 	Store_field(b, 1, a);
 	a = b;
@@ -452,9 +470,10 @@ value cil_program_to_ocaml(CilProgram * prog)
 
     /* now do the global variable decls */
     a = Val_int(0);
-    for (i=0; i<prog->globals.length(); i++) {
+    for (i=0; i<prog->globals.count(); i++) {
 	/* make a cons cell */
 	b = alloc(2,0);
+	printf ("Converting global %d\n", i);
 	c = cil_variable_to_ocaml( prog->globals.nth(i) );
 	Store_field(b, 0, c);
 	Store_field(b, 1, a);
@@ -462,6 +481,8 @@ value cil_program_to_ocaml(CilProgram * prog)
     }
 
     Store_field(result, 1, a);
+
+    printf("Done converting ...\n");
 
     CAMLreturn(result);
 }
