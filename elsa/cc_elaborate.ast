@@ -67,7 +67,9 @@ class Declarator {
   public(field,owner) Statement *ctorStatement = NULL;
   public(field,owner) Statement *dtorStatement = NULL;
 
-  public void elaborateCDtors(ElabVisitor &env);
+  // the 'dflags' are the syntactic declaration flags attached
+  // to the declaration in which this declarator appears
+  public void elaborateCDtors(ElabVisitor &env, DeclFlags dflags = DF_NONE);
 }
 
 

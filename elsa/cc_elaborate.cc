@@ -410,7 +410,7 @@ Expression *ElabVisitor::cloneExpr(Expression *e)
 void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
 {
   FAKELIST_FOREACH_NC(Declarator, decl->decllist, decliter) {
-    decliter->elaborateCDtors(env);
+    decliter->elaborateCDtors(env, decl->dflags);
   }
 
   // the caller isn't going to automatically traverse into the
@@ -424,7 +424,7 @@ void ElabVisitor::elaborateCDtorsDeclaration(Declaration *decl)
 //
 // Given a Declarator, annotate it with statements that construct and
 // destruct the associated variable.
-void Declarator::elaborateCDtors(ElabVisitor &env)
+void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
 {
   // don't do anything if this is not data
   if (var->type->isFunctionType() ||
@@ -436,7 +436,7 @@ void Declarator::elaborateCDtors(ElabVisitor &env)
   if (var->hasFlag(DF_PARAMETER)) {
     return;
   }
-      
+
   // don't bother unless it is a class-valued object
   if (!type->isCompoundType()) {
     // except that we still need to elaborate the initializer, and the
@@ -451,23 +451,20 @@ void Declarator::elaborateCDtors(ElabVisitor &env)
   }
   CompoundType *ct = type->asCompoundType();
 
-  // get this context from the 'var', don't make a mess passing
-  // it down from above
-  //
   // this is a property of the variable, not the declaration
   bool isTemporary =   var->hasFlag(DF_TEMPORARY);
   // these are properties of the declaration and the variable and
   // should match
-  bool isMember =      this->dflags & DF_MEMBER;
+  bool isMember =      dflags & DF_MEMBER;
   xassert(isMember ==    var->hasFlag(DF_MEMBER));
-  bool isStatic =      this->dflags & DF_STATIC;
+  bool isStatic =      dflags & DF_STATIC;
   xassert(isStatic ==    var->hasFlag(DF_STATIC));
   // this used to check if the *var* had an extern flag, which is not
   // correct because if there is a later declaration in the file for
   // the same variable that is *not* extern then the flag DF_EXTERN
   // will be removed, which seems reasonable to me.  What we care
   // about here is if the *declaration* is extern.
-  bool isExtern =      this->dflags & DF_EXTERN;
+  bool isExtern =      dflags & DF_EXTERN;
   // note that this assertion is not an equality
   if (var->hasFlag(DF_EXTERN)) {
     xassert(isExtern);

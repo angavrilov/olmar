@@ -142,7 +142,6 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_PRET_FIRST_PTR2REF),
   SimpleType(ST_PRET_SECOND),
   SimpleType(ST_PRET_SECOND_PTR2REF),
-  SimpleType(ST_PRET_ARITH_CONV_23),
 };
 
 string SimpleType::toCString() const
@@ -2425,7 +2424,6 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_PRET_FIRST_PTR2REF)
   CVAT(ST_PRET_SECOND)
   CVAT(ST_PRET_SECOND_PTR2REF)
-  CVAT(ST_PRET_ARITH_CONV_23)
   #undef CVAT
 };
 

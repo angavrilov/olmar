@@ -2136,6 +2136,8 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 
         // 13.5.2
         NONMEMBER | TWOPARAMS,                      // OP_COMMA
+        
+        OD_NONE,                                    // OP_QUESTION (not used)
       };
       ASSERT_TABLESIZE(map, NUM_OVERLOADABLE_OPS);
       xassert(validCode(o->op));      
@@ -2709,12 +2711,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.context == DC_FUNCTION ||   // could be in MR_func or TD_func
     dt.context == DC_TD_PROTO ||
     dt.context == DC_MR_DECL;
-
-  // dsw: I need this later in Declarator::elaborateCDtors() so that I
-  // can tell if the Declaration was extern; this information is lost
-  // if there is a later declaration of the variable that is not
-  // extern, as the DF_EXTERN flag on the variable is removed
-  this->dflags = dt.dflags;
 
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
@@ -4483,7 +4479,7 @@ static Variable *outerResolveOverload(Env &env,
     }
 
     FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
-      argInfo[index] = ArgumentInfo(iter->getSpecial(), iter->getType());
+      argInfo[index] = ArgumentInfo(iter->getSpecial(env.lang), iter->getType());
       index++;
     }
   }
@@ -4642,7 +4638,7 @@ void compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *ar
 
     // try to convert the argument to the parameter
     ImplicitConversion ic = getImplicitConversion(env,
-      arg->getSpecial(),
+      arg->getSpecial(env.lang),
       arg->getType(),
       param->type,
       false /*destIsReceiver*/);
@@ -5107,10 +5103,10 @@ static Type *internalTestingHooks
         args->nth(2)->constEval(env, expect)) {
       test_getStandardConversion
         (env,
-         args->nth(0)->getSpecial(),     // is it special?
-         args->nth(0)->getType(),        // source type
-         args->nth(1)->getType(),        // dest type
-         expect);                        // expected result
+         args->nth(0)->getSpecial(env.lang),     // is it special?
+         args->nth(0)->getType(),                // source type
+         args->nth(1)->getType(),                // dest type
+         expect);                                // expected result
     }
     else {
       env.error("invalid call to __getStandardConversion");
@@ -5130,9 +5126,9 @@ static Type *internalTestingHooks
         args->nth(5)->constEval(env, expectSCS2)) {
       test_getImplicitConversion
         (env,
-         args->nth(0)->getSpecial(),     // is it special?
-         args->nth(0)->getType(),        // source type
-         args->nth(1)->getType(),        // dest type
+         args->nth(0)->getSpecial(env.lang),     // is it special?
+         args->nth(0)->getType(),                // source type
+         args->nth(1)->getType(),                // dest type
          expectKind, expectSCS, expectUserLine, expectSCS2);   // expected result
     }
     else {
@@ -5446,9 +5442,9 @@ Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-inline ArgumentInfo argInfo(Expression *e)
+inline ArgumentInfo argInfo(CCLang &lang, Expression *e)
 {
-  return ArgumentInfo(e->getSpecial(), e->type);
+  return ArgumentInfo(e->getSpecial(lang), e->type);
 }
 
 // do operator overload resolution for a unary operator; return
@@ -5463,6 +5459,7 @@ Type *resolveOverloadedUnaryOperator(
 ) {
   // consider the possibility of operator overloading
   if (env.doOperatorOverload &&
+      !expr->type->containsGeneralizedDependent() &&
       (expr->type->asRval()->isCompoundType() ||
        expr->type->asRval()->isEnumType())) {
     OVERLOADINDTRACE("found overloadable unary " << toString(op) <<
@@ -5471,14 +5468,7 @@ Type *resolveOverloadedUnaryOperator(
 
     // argument information
     GrowArray<ArgumentInfo> args(1);
-    args[0] = argInfo(expr);
-
-    // don't do this if it has dependent args
-    bool hasDepArgs = args[0].type->containsGeneralizedDependent();
-    if (hasDepArgs) {
-      // FIX: not sure what to return here
-      return args[0].type;
-    }
+    args[0] = argInfo(env.lang, expr);
 
     // prepare resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
@@ -5560,6 +5550,12 @@ Type *resolveOverloadedBinaryOperator(
     return NULL;
   }
 
+  // don't do this if it has dependent args
+  if (e1->type->containsGeneralizedDependent() ||
+      e2 && e2->type->containsGeneralizedDependent()) {
+    return NULL;
+  }
+
   // check for operator overloading
   if (e1->type->asRval()->isCompoundType() ||
       e1->type->asRval()->isEnumType() ||
@@ -5571,22 +5567,13 @@ Type *resolveOverloadedBinaryOperator(
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
-    args[0] = argInfo(e1);
+    args[0] = argInfo(env.lang, e1);
     if (e2) {
-      args[1] = argInfo(e2);
+      args[1] = argInfo(env.lang, e2);
     }
     else {
       // for postfix inc/dec, the second parameter is 'int'
       args[1] = ArgumentInfo(SE_NONE, env.getSimpleType(SL_UNKNOWN, ST_INT));
-    }
-
-    // don't do this if it has dependent args
-    bool hasDepArgs = 
-      args[0].type->containsGeneralizedDependent() ||
-      args[1].type->containsGeneralizedDependent();
-    if (hasDepArgs) {
-      // FIX: not sure what to return here
-      return args[0].type;
     }
 
     // prepare the overload resolver
@@ -6072,13 +6059,301 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+// try to convert t1 to t2 as per the rules in 5.16 para 3; return
+// NULL if conversion is not possible, otherwise return type to which
+// 't1' is converted (it is not always exactly 't2') and set 'ic'
+// accordingly
+Type *attemptCondConversion(Env &env, ImplicitConversion &ic /*OUT*/,
+                            Type *t1, Type *t2)
+{
+  // bullet 1: attempt direct conversion to lvalue
+  if (t2->isLval()) {
+    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    if (ic) {
+      return t2;
+    }
+  }
+
+  // bullet 2
+  CompoundType *t1Class = t1->asRval()->ifCompoundType();
+  CompoundType *t2Class = t2->asRval()->ifCompoundType();
+  if (t1Class && t2Class &&
+      (t1Class->hasBaseClass(t2Class) ||
+       t2Class->hasBaseClass(t1Class))) {
+    // bullet 2.1
+    if (t1Class->hasBaseClass(t2Class) &&
+        t2->asRval()->getCVFlags() >= t1->asRval()->getCVFlags()) {
+      ic.addStdConv(SC_IDENTITY);
+      return t2->asRval();
+    }
+    else {
+      return NULL;
+    }
+  }
+  else {
+    // bullet 2.2
+    t2 = t2->asRval();
+    ic = getImplicitConversion(env, SE_NONE, t1, t2);
+    if (ic) {
+      return t2;
+    }
+  }
+
+  return NULL;
+}
+
+
+// "array-to-pointer (4.2) and function-to-pointer (4.3) standard
+// conversions"; (for the moment) functionally identical to
+// 'normalizeParameterType' but specified by a different part of
+// cppstd...
+Type *arrAndFuncToPtr(Env &env, Type *t)
+{
+  if (t->isArrayType()) {
+    return env.makePtrType(SL_UNKNOWN, t->asArrayType()->eltType);
+  }
+  if (t->isFunctionType()) {
+    return env.makePtrType(SL_UNKNOWN, t);
+  }
+  return t;
+}
+
+
+bool isArithmeticOrEnumType(Type *t)
+{
+  if (t->isSimpleType()) {
+    return isArithmeticType(t->asSimpleTypeC()->type);
+  }
+  return t->isEnumType();
+}
+
+
+// cppstd 5.9 "composite pointer type" computation
+Type *compositePointerType
+  (Env &env, PointerType *t1, PointerType *t2)
+{
+  // if either is pointer to void, result is void
+  if (t1->atType->isVoid() || t2->atType->isVoid()) {
+    CVFlags cv = t1->atType->getCVFlags() | t2->atType->getCVFlags();
+
+    // reuse t1 or t2 if possible
+    if (t1->atType->isVoid() && cv == t1->atType->getCVFlags()) {
+      return t1;
+    }
+    if (t2->atType->isVoid() && cv == t2->atType->getCVFlags()) {
+      return t2;
+    }
+
+    return env.tfac.makePointerType(SL_UNKNOWN, CV_NONE,
+      env.tfac.getSimpleType(SL_UNKNOWN, ST_VOID, cv));
+  }
+
+  // types must be similar... aw hell.  I don't understand what the
+  // standard wants, and my limited understanding is at odds with
+  // what both gcc and icc do so.... hammer time
+  bool whatev;
+  return computeLUB(env, t1, t2, whatev);
+}
+
+// cppstd 5.16 computation similar to composite pointer but
+// for pointer-to-member
+Type *compositePointerToMemberType
+  (Env &env, PointerToMemberType *t1, PointerToMemberType *t2)
+{
+  // hammer time
+  bool whatev;
+  return computeLUB(env, t1, t2, whatev);
+}
+
+
+// cppstd 5.16
 Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
+
+  // para 1: 'cond' converted to bool
+  if (!getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
+                             env.getSimpleType(SL_UNKNOWN, ST_BOOL))) {
+    env.error(stringc
+      << "cannot convert `" << cond->type->toString() 
+      << "' to bool for conditional of ?:");
+  }
+  // TODO (elaboration): rewrite AST if a user-defined conversion was used
+
   th->tcheck(env, th);
   el->tcheck(env, el);
 
-  // TODO: verify 'cond' makes sense in a boolean context
+  // pull out the types; during the processing below, we might change
+  // these to implement "converted operand used in place of ..."
+  Type *thType = th->type;
+  Type *elType = el->type;
+
+  Type *thRval = th->type->asRval();
+  Type *elRval = el->type->asRval();
+
+  // para 2: if one or the other has type 'void'
+  {
+    bool thVoid = thRval->isSimple(ST_VOID);
+    bool elVoid = elRval->isSimple(ST_VOID);
+    if (thVoid || elVoid) {
+      if (thVoid && elVoid) {
+        return thRval;         // result has type 'void'
+      }
+
+      // the void-typed expression must be a 'throw' (can it be
+      // parenthesized?  a strict reading of the standard would say
+      // no..), and the whole ?: has the non-void type
+      if (thVoid) {
+        if (!th->isE_throw()) {
+          env.error("void-typed expression in ?: must be a throw-expression");
+        }
+        return arrAndFuncToPtr(env, elRval);
+      }
+      if (elVoid) {
+        if (!el->isE_throw()) {
+          env.error("void-typed expression in ?: must be a throw-expression");
+        }
+        return arrAndFuncToPtr(env, thRval);
+      }
+    }
+  }
+
+  // para 3: different types but at least one is a class type
+  if (!thRval->equals(elRval) &&
+      (thRval->isCompoundType() ||
+       elRval->isCompoundType())) {
+    // try to convert each to the other
+    ImplicitConversion ic_thToEl;
+    Type *thConv = attemptCondConversion(env, ic_thToEl, thType, elType);
+    ImplicitConversion ic_elToTh;
+    Type *elConv = attemptCondConversion(env, ic_elToTh, elType, thType);
+
+    if (thConv && elConv) {
+      return env.error("class-valued argument(s) to ?: are ambiguously inter-convertible");
+    }
+
+    if (thConv) {
+      if (ic_thToEl.isAmbiguous()) {
+        return env.error("in ?:, conversion of second arg to type of third is ambiguous");
+      }
+
+      // TODO (elaboration): rewrite AST according to 'ic_thToEl'
+      thType = thConv;
+      thRval = th->type->asRval();
+    }
+
+    if (elConv) {
+      if (ic_elToTh.isAmbiguous()) {
+        return env.error("in ?:, conversion of third arg to type of second is ambiguous");
+      }
+
+      // TODO (elaboration): rewrite AST according to 'ic_elToTh'
+      elType = elConv;
+      elRval = el->type->asRval();
+    }
+  }
+
+  // para 4: same-type lval -> result is that type
+  if (thType->isLval() &&
+      elType->isLval() &&
+      thType->equals(elType)) {
+    return thType;
+  }
+
+  // para 5: overload resolution
+  if (!thRval->equals(elRval) &&
+      (thRval->isCompoundType() || elRval->isCompoundType())) {
+    // collect argument info
+    GrowArray<ArgumentInfo> args(2);
+    args[0].special = th->getSpecial(env.lang);
+    args[0].type = thType;
+    args[1].special = el->getSpecial(env.lang);
+    args[1].type = elType;
+
+    // prepare the overload resolver
+    OverloadResolver resolver(env, env.loc(), &env.errors,
+                              OF_NONE,
+                              NULL, // no template arguments
+                              args, 2 /*numCand*/);
+
+    // built-in candidates
+    resolver.addBuiltinBinaryCandidates(OP_QUESTION, args[0], args[1]);
+
+    // pick one
+    bool dummy;
+    Candidate const *winnerCand = resolver.resolveCandidate(dummy);
+    if (winnerCand) {
+      Variable *winner = winnerCand->var;
+      xassert(winner->hasFlag(DF_BUILTIN));
+
+      // TODO (elaboration): need to replace the arguments according
+      // to their conversions (if any)
+
+      // get the correct return value, at least
+      Type *ret = resolver.getReturnType(winnerCand);
+      OVERLOADINDTRACE("computed built-in operator return type `" <<
+                       ret->toString() << "'");
+
+      // para 5 ends by saying (in effect) that 'ret' should be used
+      // as the new 'thType' and 'elType' and then keep going on to
+      // para 6; but I can't see how that would be different from just
+      // returning here...
+      return ret;
+    }
+  }
+  
+  // para 6: final standard conversions (conversion to rvalues has
+  // already been done, so use the '*Rval' variables)
+  {
+    thRval = arrAndFuncToPtr(env, thRval);
+    elRval = arrAndFuncToPtr(env, elRval);
+    
+    // bullet 1
+    if (thRval->equals(elRval)) {
+      return thRval;
+    }
+    
+    // bullet 2
+    if (isArithmeticOrEnumType(thRval) &&
+        isArithmeticOrEnumType(elRval)) {
+      return usualArithmeticConversions(env.tfac, thRval, elRval);
+    }
+
+    // bullet 3
+    if (thRval->isPointerType() && el->getSpecial(env.lang) == SE_ZERO) {
+      return thRval;
+    }
+    if (elRval->isPointerType() && th->getSpecial(env.lang) == SE_ZERO) {
+      return elRval;
+    }
+    if (thRval->isPointerType() && elRval->isPointerType()) {
+      Type *ret = compositePointerType(env,
+        thRval->asPointerType(), elRval->asPointerType());
+      if (!ret) { goto incompatible; }
+      return ret;
+    }
+
+    // bullet 4
+    if (thRval->isPointerToMemberType() && el->getSpecial(env.lang) == SE_ZERO) {
+      return thRval;
+    }
+    if (elRval->isPointerToMemberType() && th->getSpecial(env.lang) == SE_ZERO) {
+      return elRval;
+    }
+    if (thRval->isPointerToMemberType() && elRval->isPointerToMemberType()) {
+      Type *ret = compositePointerToMemberType(env,
+        thRval->asPointerToMemberType(), elRval->asPointerToMemberType());
+      if (!ret) { goto incompatible; }
+      return ret;
+    }
+  }
+
+incompatible:
+  return env.error(stringc
+    << "incompatible ?: argument types `" << thRval->toString()
+    << "' and `" << elRval->toString() << "'");
+
+  #if 0      // old, delete me
   // TODO: verify 'th' and 'el' return the same type
 
   // dsw: shouldn't the type of the expression should be the least
@@ -6092,7 +6367,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // actually gcc only allows this if it is not just void* but also 0,
   // so this is too lenient
   //
-  // sm: This is similar to one of the provisions in cppstd 5.16 
+  // sm: This is similar to one of the provisions in cppstd 5.16
   // (para 6 bullet 3), so I'm just going to make it the normal behavior
   // (rather than conditionalizing it upon GNU_EXTENSION).
   if (th->type->isPointerType() &&
@@ -6101,6 +6376,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   }
 
   return th->type;
+  #endif // 0
 }
 
 
@@ -6493,7 +6769,26 @@ bool Expression::extHasUnparenthesizedGT() const
 }
 
 
-SpecialExpr Expression::getSpecial() const
+// can 0 be cast to 't' and still be regarded as a null pointer
+// constant?
+bool allowableNullPtrCastDest(CCLang &lang, Type *t)
+{
+  // C++ (4.10, 5.19)
+  if (t->isIntegerType() || t->isEnumType()) {
+    return true;
+  }
+
+  // C99 6.3.2.3: in C, void* casts are also allowed
+  if (!lang.isCplusplus && 
+      t->isPointerType() &&
+      t->asPointerType()->atType->isVoid()) {
+    return true;
+  }
+  
+  return false;
+}
+
+SpecialExpr Expression::getSpecial(CCLang &lang) const
 {
   ASTSWITCHC(Expression, this) {
     ASTCASEC(E_intLit, i)
@@ -6504,7 +6799,18 @@ SpecialExpr Expression::getSpecial() const
 
     // 9/23/04: oops, forgot this
     ASTNEXTC(E_grouping, e)
-      return e->expr->getSpecial();
+      return e->expr->getSpecial(lang);
+
+    // 9/24/04: cppstd 4.10: null pointer constant is integral constant
+    // expression (5.19) that evaluates to 0.
+    // cppstd 5.19: "... only type conversions to integral or enumeration
+    // types can be used ..."
+    ASTNEXTC(E_cast, e)
+      if (allowableNullPtrCastDest(lang, e->ctype->getType()) &&
+          e->expr->getSpecial(lang) == SE_ZERO) {
+        return SE_ZERO;
+      }
+      return SE_NONE;
 
     ASTDEFAULTC
       return SE_NONE;

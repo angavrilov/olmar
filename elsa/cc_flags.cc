@@ -178,7 +178,6 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "<pret_first_ptr2ref>",   0,    S(STF_NONE)                 },
   { "<pret_second>",          0,    S(STF_NONE)                 },
   { "<pret_second_ptr2ref>",  0,    S(STF_NONE)                 },
-  { "<pret_arith_conv_23>",   0,    S(STF_NONE)                 },
 };
 #undef S
 
@@ -344,6 +343,7 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
   "[]",
   "()",
   ",",
+  "?:",
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)
@@ -396,6 +396,7 @@ char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
   "operator[]",
   "operator()",
   "operator,",
+  "operator?",
 };
 
 

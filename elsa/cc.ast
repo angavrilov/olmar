@@ -27,6 +27,8 @@
 // included in generated header
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
+  
+  class CCLang;                 // cc_lang.h
 }
 
 // use a new astgen feature: make a visitor!
@@ -311,11 +313,6 @@ class Declarator (
       return;     // skip the normal, unambiguous-node print code
     }
   }
-
-  // dsw: the flags that were on the Declaration above; see note in
-  // Declarator::mid_tcheck() and Declarator::elaborateCDtors() at
-  // isExtern.
-  public DeclFlags dflags = DF_NONE;// typedef, virtual, extern, etc.
 
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorIdC() const;

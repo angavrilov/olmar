@@ -122,11 +122,6 @@ Type *OverloadResolver::getReturnType(Candidate const *winner) const
     // e.g.: T* operator+ (ptrdiff_t, T*)
     case ST_PRET_SECOND:
       return concreteParamTypes[1];
-
-    // e.g.: LR operator? (bool, L, R)
-    case ST_PRET_ARITH_CONV_23:
-      return usualArithmeticConversions(env.tfac,
-               concreteParamTypes[1], concreteParamTypes[2]);
   }
 }
 

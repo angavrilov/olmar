@@ -193,10 +193,16 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
 
 Variable *PredicateCandidateSet::makeNewCandidate(Env &env,
   OverloadableOp op, Type *T)
-{ 
-  // return type is always concrete for predicate set
-  xassert(isConcreteSimpleType(retAlgorithm));      
-  Type *retType = env.getSimpleType(SL_INIT, retAlgorithm);
+{
+  Type *retType;
+  if (isConcreteSimpleType(retAlgorithm)) {
+    retType = env.getSimpleType(SL_INIT, retAlgorithm);
+  }
+  else {
+    // only non-concrete predicate set is for '?:'
+    xassert(retAlgorithm == ST_PRET_FIRST);
+    retType = T;
+  }
 
   // parameters are symmetric
   return env.createBuiltinBinaryOp(retType, op, T, T);
@@ -505,6 +511,11 @@ bool pointerOrEnum(Type *t)
 bool pointerOrEnumOrPTM(Type *t)
 {
   return t->isPointer() || t->isEnumType() || t->isPointerToMemberType();
+}
+
+bool pointerOrPTM(Type *t)
+{
+  return t->isPointer() || t->isPointerToMemberType();
 }
 
 bool pointerToAny(Type *t)

@@ -527,17 +527,8 @@ void Env::setupOperatorOverloading()
     operatorName[i] = str(operatorFunctionNames[i]);
   }
 
-  // I want to declare some functions, but I don't want them entered
-  // into the environment for name lookup; so I'll make a throwaway
-  // Scope for them to go into; NOTE that this assumes that Scopes do
-  // not delete the Variables they contain (if at some point they
-  // acquire that behavior, I can have a method in Scope to clear
-  // the Variables without deleting them)
-  //
-  // update: built-in operators are now suppressed from the
-  // environment using FF_BUILTINOP
-  //Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/,
-  //  "dummy scope for built-in operator functions");
+  // the symbols declared here are prevented from being entered into
+  // the environment by FF_BUILTINOP
 
   // this has to match the typedef in include/stddef.h
   SimpleTypeId ptrdiff_t_id = ST_INT;
@@ -798,7 +789,7 @@ void Env::setupOperatorOverloading()
   // this pattern captures both:
   // T: pointer, ptr-to-member, or enumeration ('para19_20filter')
   // T VQ & operator= (T VQ &, T);
-  addBuiltinBinaryOp(ST_PRET_FIRST, OP_ASSIGN, para19_20filter, 
+  addBuiltinBinaryOp(ST_PRET_FIRST, OP_ASSIGN, para19_20filter,
                      anyType, true /*isAssignment*/);
 
   // ------------ 13.6 para 21 ------------
@@ -831,7 +822,7 @@ void Env::setupOperatorOverloading()
     Type *Lvr = tfac.makeReferenceType(SL_INIT, Lv);
     
     Type *R = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
-    
+
     static OverloadableOp const ops[] = {
       OP_MODEQ,        // VQ L& operator%= (VQ L&, R);
       OP_LSHIFTEQ,     // VQ L& operator<<= (VQ L&, R);
@@ -858,11 +849,24 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 24 ------------
   // 24: ?: on arithmetic types
+  {
+    Type *L = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+    Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
+
+    // NOTE: For the '?:' operator, I pretend it is binary because the
+    // first argument plays no role in overload resolution, and the
+    // caller will have already ensured it can be converted to 'bool'.
+    // Thus, I only include information for the second and third args.
+
+    // LR operator?(bool, L, R);
+    addBuiltinBinaryOp(ST_PRET_ARITH_CONV, OP_QUESTION, L, R);
+  }
 
   // ------------ 13.6 para 25 ------------
   // 25: ?: on pointer and ptr-to-member types
+  // T operator?(bool, T, T);
+  addBuiltinBinaryOp(ST_PRET_FIRST, OP_QUESTION, rvalFilter, pointerOrPTM);
 
-  //exitScope(dummyScope);
 
   // the default constructor for ArrayStack will have allocated 10
   // items in each array, which will then have grown as necessary; go

@@ -58,6 +58,10 @@ string toString(CVFlags cv);
 
 ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 
+// experiment: superset operator
+inline bool operator>= (CVFlags cv1, CVFlags cv2)
+  { return cv1 & cv2 == cv2; }
+
 
 // ----------------------- DeclFlags ----------------------
 // set of declaration modifiers present;
@@ -192,7 +196,6 @@ enum SimpleTypeId {
   ST_PRET_FIRST_PTR2REF,     // 1st arg ptr type -> ref type
   ST_PRET_SECOND,            // 2nd arg type
   ST_PRET_SECOND_PTR2REF,    // 2nd arg ptr type -> ref type
-  ST_PRET_ARITH_CONV_23,     // "usual arithmetic conversions" on 2nd, 3rd arg
 
   NUM_SIMPLE_TYPES,
   ST_BITMASK = 0xFF          // for extraction for OR with CVFlags
@@ -416,6 +419,7 @@ enum OverloadableOp {
   OP_BRACKETS,     // []
   OP_PARENS,       // ()
   OP_COMMA,        // ,
+  OP_QUESTION,     // ?:  (not overloadable, but resolution used nonetheless)
 
   NUM_OVERLOADABLE_OPS
 };

@@ -206,6 +206,7 @@ Type *para19_20filter(Type *t, bool);
 bool pointerToObject(Type *t);
 bool pointerOrEnum(Type *t);
 bool pointerOrEnumOrPTM(Type *t);
+bool pointerOrPTM(Type *t);
 bool pointerToAny(Type *t);
 bool anyType(Type *t);
 

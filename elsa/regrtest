@@ -539,6 +539,13 @@ testparse t0301.cc
 testparse t0302.cc
 testparse t0303.cc
 testparse t0304.cc
+testparse t0305.cc
+testparse t0306.cc
+testparse t0307.cc
+testparse t0308.cc
+testparse t0309.cc
+testparse t0310.cc
+testparse t0311.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -789,37 +796,37 @@ fi
 
 # test the parser in C mode
 testCparse() {
-  runTest perl ./multitest.pl ./ccparse -tr c_lang in/c/$1
+  runTest perl ./multitest.pl ./ccparse -tr c_lang in/$1
 }
-testCparse t0001.c
-testCparse t0002.c
-testCparse t0003.c
-testCparse t0004.c
-testCparse t0005.c
-testCparse t0006.c
-testCparse t0007.c
-testCparse t0008.c
+testCparse c/t0001.c
+testCparse c/t0002.c
+testCparse c/t0003.c
+testCparse c/t0004.c
+testCparse c/t0005.c
+testCparse c/t0006.c
+testCparse c/t0007.c
+testCparse c/t0008.c
 
 
 # test GNU C
 if $use_gnu; then
-  runTest ./ccparse -tr c_lang in/gnu/g0009.c
-  runTest ./ccparse -tr c_lang in/gnu/d0083.c
-  runTest ./ccparse -tr c_lang in/gnu/t0126.c
+  testCparse gnu/g0009.c
+  testCparse gnu/d0083.c
+  testCparse gnu/t0126.c
+  testCparse gnu/d0095.c
 
-  testparse gnu/d0095.c
-  testparse gnu/dC0001.c # "hex floating-point literals"
+  testCparse gnu/dC0001.c # "hex floating-point literals"
   # FIX: I think this is K&R specific, not gnu specific, so should be
   # in a different K&R section
   testparse_KandR gnu/d0096.c
 
   # attribute tests
-  runTest ./ccparse -tr c_lang in/gnu/attr01.c
-  runTest ./ccparse -tr c_lang in/gnu/attr02.c
-  runTest ./ccparse -tr c_lang in/gnu/d0099.c
-                                           
+  testCparse gnu/attr01.c
+  testCparse gnu/attr02.c
+  testCparse gnu/d0099.c
+
   # asm tests
-  runTest ./ccparse -tr c_lang in/gnu/asm01.c
+  testCparse gnu/asm01.c
 
   # tests (primarily for __attribute__) from CIL
   testcil() {
