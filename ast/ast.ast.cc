@@ -47,6 +47,7 @@ char const * const ToplevelForm::kindNames[ToplevelForm::NUM_KINDS] = {
   "TF_impl_verbatim",
   "TF_class",
   "TF_option",
+  "TF_enum",
 };
 
 void ToplevelForm::debugPrint(ostream &os, int indent) const
@@ -200,6 +201,43 @@ TF_option *TF_option::clone() const
   TF_option *ret = new TF_option(
     name,
     shallowCloneASTList(args)
+  );
+  return ret;
+}
+
+DEFN_AST_DOWNCASTS(ToplevelForm, TF_enum, TF_ENUM)
+
+TF_enum::~TF_enum()
+{
+}
+
+void TF_enum::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(TF_enum);
+
+  ToplevelForm::debugPrint(os, indent);
+
+  PRINT_STRING(name);
+  PRINT_STRING(body);
+}
+
+void TF_enum::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(TF_enum);
+
+  ToplevelForm::xmlPrint(os, indent);
+
+  XMLPRINT_STRING(name);
+  XMLPRINT_STRING(body);
+  XMLPRINT_FOOTER(TF_enum);
+
+}
+
+TF_enum *TF_enum::clone() const
+{
+  TF_enum *ret = new TF_enum(
+    name,
+    body
   );
   return ret;
 }

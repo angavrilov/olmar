@@ -58,6 +58,7 @@
 %token TOK_CUSTOM "custom"
 %token TOK_OPTION "option"
 %token TOK_NEW "new"
+%token TOK_ENUM "enum"
 
 
 /* ======================== types ========================== */
@@ -74,6 +75,7 @@
   Annotation *annotation;
   TF_option *tfOption;
   ASTList<string> *stringList;
+  TF_enum *tfEnum;
 }
 
 %type <file> StartSymbol
@@ -87,6 +89,7 @@
 %type <annotation> Annotation
 %type <tfOption> Option
 %type <stringList> OptionArgs
+%type <tfEnum> Enum
 
 
 /* ===================== productions ======================= */
@@ -104,6 +107,8 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
      | Input Class           { ($$=$1)->append($2); }
      | Input Verbatim        { ($$=$1)->append($2); }
      | Input Option          { ($$=$1)->append($2); }
+     | Input Enum            { ($$=$1)->append($2); }
+     | Input ";"             { $$=$1; }     /* ignore extraneous semis */
      ;
 
 /* a class is a nonterminal in the abstract grammar */
@@ -244,6 +249,12 @@ OptionArgs: /*empty*/
           | OptionArgs TOK_NAME
               { ($$=$1)->append($2); }
           ;
+
+/* yields TF_enum */
+Enum: "enum" TOK_NAME Embedded
+        { $$ = new TF_enum(unbox($2), unbox($3)); }
+    ;
+
 
 %%
 

@@ -14,6 +14,7 @@ class TF_verbatim;
 class TF_impl_verbatim;
 class TF_class;
 class TF_option;
+class TF_enum;
 class ASTClass;
 class Annotation;
 class UserDecl;
@@ -59,7 +60,7 @@ public:      // funcs
   }
   virtual ~ToplevelForm();
 
-  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, TF_OPTION, NUM_KINDS };
+  enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, TF_OPTION, TF_ENUM, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   static char const * const kindNames[NUM_KINDS];
@@ -69,6 +70,7 @@ public:      // funcs
   DECL_AST_DOWNCASTS(TF_impl_verbatim, TF_IMPL_VERBATIM)
   DECL_AST_DOWNCASTS(TF_class, TF_CLASS)
   DECL_AST_DOWNCASTS(TF_option, TF_OPTION)
+  DECL_AST_DOWNCASTS(TF_enum, TF_ENUM)
 
   virtual ToplevelForm *clone() const=0;
 
@@ -153,6 +155,26 @@ public:      // funcs
   virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual TF_option *clone() const;
+
+};
+
+class TF_enum : public ToplevelForm {
+public:      // data
+  string name;
+  string body;
+
+public:      // funcs
+  TF_enum(string _name, string _body) : ToplevelForm(), name(_name), body(_body) {
+  }
+  virtual ~TF_enum();
+
+  virtual Kind kind() const { return TF_ENUM; }
+  enum { TYPE_TAG = TF_ENUM };
+
+  virtual void debugPrint(ostream &os, int indent) const;
+  virtual void xmlPrint(ostream &os, int indent) const;
+
+  virtual TF_enum *clone() const;
 
 };
 

@@ -152,7 +152,7 @@ SLWHITE   [ \t]
              /*[2] == 'r'*/TOK_PURE_VIRTUAL ;
 }
 
-("verbatim"|"impl_verbatim") {
+("verbatim"|"impl_verbatim"|"enum") {
   TOK_UPD_COL;
 
   // need to see one more token ("{") before we begin embedded processing
@@ -160,7 +160,9 @@ SLWHITE   [ \t]
 
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
-  return yytext[0]=='v'? TOK_VERBATIM : TOK_IMPL_VERBATIM;
+  return yytext[0]=='v'? TOK_VERBATIM : 
+         yytext[1]=='i'? TOK_IMPL_VERBATIM :
+                         TOK_ENUM;
 }
 
 "custom" {

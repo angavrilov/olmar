@@ -254,6 +254,13 @@ void HGen::emitFile()
       case ToplevelForm::TF_CLASS:
         emitTFClass(*( form.data()->asTF_classC() ));
         break;
+        
+      case ToplevelForm::TF_ENUM: {
+        TF_enum const *e = form.data()->asTF_enumC();
+        doNotEdit();
+        out << "enum " << e->name << " {" << e->body << "};\n\n";
+        break;
+      }
 
       default:
         // ignore other toplevel forms (just TF_option, for now)

@@ -28,6 +28,9 @@ class ToplevelForm {
   // a generic option: first word specifies the kind of option, and
   // additional words (if any) are arguments
   -> TF_option(string name, ASTList<string> args);
+  
+  // just an enumeration, emitted verbatim
+  -> TF_enum(string name, string body);
 }
 
 // a definition of a grammar terminal or nonterminal

@@ -33,3 +33,19 @@ class Super (int x) {
   -> Sub1(int y);
   -> Sub2(int z);
 }
+
+
+enum AnEnum { AE_ONE, AE_TWO };
+
+enum AnotherEnum {
+  anotherone, 
+  anothertwo = 0x04,
+  anotherthree = anotherone
+};
+
+class UsesEnum {
+  -> UE_a(AnEnum x);
+  -> UE_b(int y);
+}
+
+
