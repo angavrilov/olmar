@@ -19,6 +19,7 @@ class EnumType;           // cc_type.h
 class Function;           // cc.ast
 class TemplateParams;     // cc_type.h
 class PQName;             // cc.ast
+class TranslationUnit;    // cc.ast.gen.h
 
 
 // variable lookup sometimes has complicated exceptions or
@@ -99,7 +100,8 @@ public:      // data
   Function *curFunction;              // (serf) Function we're analyzing
   TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
   SourceLoc curLoc;                   // latest AST location marker seen
-
+  TranslationUnit *tunit;             // the translation unit we are in
+                                    
 private:     // funcs
   void Scope::lookupPQVariableC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
@@ -107,7 +109,7 @@ private:     // funcs
      BaseClassSubobj const *v2Subobj) const;
 
 public:      // funcs
-  Scope(ScopeKind sk, int changeCount, SourceLoc initLoc);
+  Scope(ScopeKind sk, int changeCount, SourceLoc initLoc, TranslationUnit *tunit0);
   ~Scope();
 
   int getChangeCount() const { return changeCount; }
@@ -168,6 +170,11 @@ public:      // funcs
     
   int private_compoundTop() const
     { return compounds.private_getTopAddr(); }
+
+  public:                       // dsw: needed this and this was a natual place to put it
+  bool immediateGlobalScopeChild();
+  bool linkerVisible();
+  stringBuilder fullyQualifiedName();
 };
 
 

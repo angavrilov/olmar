@@ -1781,7 +1781,7 @@ realStart:
       xassert(dt.funcSyntax);
       CVFlags thisCV = dt.funcSyntax->cv;
       Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, thisCV, dt.funcSyntax);
-      Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
+      Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_PARAMETER);
 
       // add it to the function type
       FunctionType *ft = dt.type->asFunctionType();

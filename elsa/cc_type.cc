@@ -145,9 +145,9 @@ string BaseClassSubobj::canonName() const
 
 
 // ------------------ CompoundType -----------------
-CompoundType::CompoundType(Keyword k, StringRef n)
+CompoundType::CompoundType(Keyword k, StringRef n, TranslationUnit *tunit)
   : NamedAtomicType(n),
-    Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/),
+    Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/, tunit),
     forward(true),
     keyword(k),
     bases(),
@@ -1038,11 +1038,13 @@ bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
 
 void FunctionType::addParam(Variable *param)
 {
+  xassert(param->hasFlag(DF_PARAMETER));
   params.append(param);
 }
 
 void FunctionType::addThisParam(Variable *param)
 {                       
+  xassert(param->hasFlag(DF_PARAMETER));
   xassert(!isMember());
   params.prepend(param);
   flags |= FF_MEMBER;
@@ -1490,9 +1492,9 @@ CVFlags PointerToMemberType::getCVFlags() const
 
 // ---------------------- TypeFactory ---------------------
 CompoundType *TypeFactory::makeCompoundType
-  (CompoundType::Keyword keyword, StringRef name)
+  (CompoundType::Keyword keyword, StringRef name, TranslationUnit *tunit)
 {
-  return new CompoundType(keyword, name);
+  return new CompoundType(keyword, name, tunit);
 }
 
 

@@ -7,7 +7,7 @@
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
 
-Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
+Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc, TranslationUnit *tunit0)
   : variables(),
     compounds(),
     enums(),
@@ -19,7 +19,8 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),
-    curLoc(initLoc)
+    curLoc(initLoc),
+    tunit(tunit0)
 {
   xassert(sk != SK_UNKNOWN);
 }
@@ -330,4 +331,33 @@ EnumType const *Scope::lookupEnumC(StringRef name, LookupFlags /*flags*/) const
   return enums.queryif(name);
 }
 
+// true if this scope is a member of the global scope
+bool Scope::immediateGlobalScopeChild() {
+  if (!curCompound) return false;
+  return curCompound->typedefVar->hasFlag(DF_GLOBAL);
+}
 
+// are we in a scope where the parent chain terminates in a global?
+// That is, can fullyQualifiedName() be called on this scope without
+// failing
+bool Scope::linkerVisible() {
+  if (parentScope) return parentScope->linkerVisible();
+  else return immediateGlobalScopeChild();
+}
+
+stringBuilder Scope::fullyQualifiedName() {
+  stringBuilder sb;
+  if (parentScope) sb = parentScope->fullyQualifiedName();
+  else {
+    if (!immediateGlobalScopeChild()) {
+      // we didn't end up in the global scope; for example a function
+      // in a class in a function
+      xfailure("fullyQualifiedName called on scope that doesn't terminate in the global scope");
+    }
+    sb = stringc;
+  }
+  sb << "::";
+  xassert(curCompound);
+  sb << curCompound->name;
+  return sb;
+}

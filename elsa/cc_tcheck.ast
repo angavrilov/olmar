@@ -30,6 +30,9 @@ class TranslationUnit {
   // subclasses, meaning the superclass 'tcheck' does some common
   // processing and then delegates to the per-subclass 'itcheck.
   public void tcheck(Env &env);
+  // dsw: I need the global scope from the TranslationUnit and it
+  // seems like a natural enough thing to me
+  public Scope *globalScope; ctor globalScope = NULL;
 }
 
 

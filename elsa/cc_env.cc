@@ -22,7 +22,7 @@ string ErrorMsg::toString() const
 
 
 // --------------------- Env -----------------
-Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
+Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
@@ -48,7 +48,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
     dependentTypeVar(NULL),
     dependentVar(NULL),
     errorTypeVar(NULL),
-    errorVar(NULL)
+    errorVar(NULL),
+    var__builtin_constant_p(NULL),
+    tunit(tunit0)
 {
   // slightly less verbose
   #define HERE HERE_SOURCELOC
@@ -56,12 +58,14 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
   {
-    Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
+    Scope *s = new Scope(SK_GLOBAL // cause Variables inserted into this scope to acquire DF_GLOBAL
+                         , 0 /*changeCount*/, emptyLoc, tunit);
     scopes.prepend(s);
+    tunit->globalScope = s;
   }
 
   // create the typeid type
-  CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
+  CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"), tunit);
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
   type_info_const_ref = tfac.makeRefType(HERE,
@@ -217,7 +221,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
   }
 
   FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
-  Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
+  Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
 
@@ -270,7 +274,7 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
-  Scope *newScope = new Scope(sk, getChangeCount(), loc());
+  Scope *newScope = new Scope(sk, getChangeCount(), loc(), tunit);
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
@@ -931,7 +935,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
 {
-  ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
+  ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name, tunit);
 
   // transfer template parameters
   ct->templateInfo = takeTemplateClassInfo(name);
@@ -1090,7 +1094,7 @@ Variable *Env::instantiateClassTemplate
   if (!inst) {
     // 1/21/03: I had been using 'instName' as the class name, but that
     // causes problems when trying to recognize constructors
-    inst = tfac.makeCompoundType(base->keyword, base->name);
+    inst = tfac.makeCompoundType(base->keyword, base->name, tunit);
     inst->instName = instName;     // stash it here instead
     inst->forward = base->forward;
 

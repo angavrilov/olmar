@@ -22,12 +22,13 @@ class CCLang;             // cc_lang.h
 
 // the entire semantic analysis state
 class Env {
-private:     // data
+protected:   // data
   // stack of lexical scopes; first is innermost
   // NOTE: if a scope has curCompound!=NULL, then this list does *not* own
   // it.  otherwise it does own it.
   ObjList<Scope> scopes;
 
+private:
   // list of named scopes (i.e. namespaces)
   //StringObjDict<Scope> namespaces;    // not implemented yet
 
@@ -90,6 +91,8 @@ public:      // data
   // dsw: Can't think of a better way to do this, sorry.
   Variable *var__builtin_constant_p;
 
+  TranslationUnit *tunit;
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -107,7 +110,7 @@ private:     // funcs
   CompoundType *findEnclosingTemplateCalled(StringRef name);
 
 public:      // funcs
-  Env(StringTable &str, CCLang &lang, TypeFactory &tfac);
+  Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
 
   int getChangeCount() const { return scopeC()->getChangeCount(); }

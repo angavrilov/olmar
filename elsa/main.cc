@@ -182,7 +182,7 @@ void doit(int argc, char **argv)
 
     traceProgress() << "type checking...\n";
     long tcheckStart = getMilliseconds();
-    Env env(strTable, lang, tfac);
+    Env env(strTable, lang, tfac, unit);
     unit->tcheck(env);
     traceProgress() << "done type checking (" 
                     << (getMilliseconds() - tcheckStart) 
@@ -219,7 +219,7 @@ void doit(int argc, char **argv)
       // this is useful to measure the cost of disambiguation, since
       // now the tree is entirely free of ambiguities
       traceProgress() << "beginning second tcheck...\n";
-      Env env2(strTable, lang, tfac);
+      Env env2(strTable, lang, tfac, unit);
       unit->tcheck(env2);
       traceProgress() << "end of second tcheck\n";
     }
@@ -290,7 +290,8 @@ void doit(int argc, char **argv)
     }
 
     if (tracingSys("cloneCheck")) {
-      Env env3(strTable, lang, tfac);
+      // dsw: I hope you intend that I should use the cloned TranslationUnit
+      Env env3(strTable, lang, tfac, u2);
       u2->tcheck(env3);
 
       if (tracingSys("cloneTypedAST")) {

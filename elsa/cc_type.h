@@ -230,7 +230,7 @@ private:     // funcs
 protected:   // funcs
   // create an incomplete (forward-declared) compound
   // experiment: force creation of these to go through the factory too
-  CompoundType(Keyword keyword, StringRef name);
+  CompoundType(Keyword keyword, StringRef name, TranslationUnit *tunit);
   friend class TypeFactory;
 
 public:      // funcs
@@ -855,7 +855,7 @@ public:
   // provide a default implementation in TypeFactory to avoid having
   // to change the interface w.r.t. cc_qual
   virtual CompoundType *makeCompoundType
-    (CompoundType::Keyword keyword, StringRef name);
+    (CompoundType::Keyword keyword, StringRef name, TranslationUnit *tunit);
 
   // ---- constructors for the constructed types ----
   // the 'loc' being passed is the start of the syntactic construct
