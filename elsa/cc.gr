@@ -2057,18 +2057,12 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
   -> plist:TemplatePreamble def:FunctionDefinition
        { return new TD_func(plist, def); }
 
-  // template function prototype
-  -> plist:TemplatePreamble spec:DeclSpecifier nameParams:Declarator ";"
-       { spec->decllist = FakeList<Declarator>::makeList(
-           new Declarator(nameParams, NULL /*init*/));
-         return new TD_proto(plist, spec); }
-
+  // template function prototype, OR
   // initialized static data member of a class
   // (TODO: should allow arbitrary SimpleDeclaration so, e.g., could
   // define more than one static member in a single decl)
-  -> plist:TemplatePreamble spec:DeclSpecifier nameParams:Declarator i:Initializer ";"
-       { spec->decllist = FakeList<Declarator>::makeList(
-           new Declarator(nameParams, i));
+  -> plist:TemplatePreamble spec:DeclSpecifier nameParams:InitDeclarator ";"
+       { spec->decllist = FakeList<Declarator>::makeList(nameParams);
          return new TD_proto(plist, spec); }
 
   // definition of a template classe
