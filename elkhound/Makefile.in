@@ -1,9 +1,9 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
-all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/cc_tcheck.o cc/cc_env.o cc/cc_scope.o cc/cc_type.o \
+all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/cc_tcheck.o cc/cc_twalk.o cc/cc_env.o cc/cc_scope.o cc/cc_type.o \
      cc/c.ast.gen.h glr.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
-     cc/cc.ast.gen.h cc/ccparse cc/ccparset glrmain.o
+     cc/cc.ast.gen.h cc/ccparse cc/ccparse_twalk cc/ccparset glrmain.o
 	@echo BUILD FINISHED
 
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
@@ -94,6 +94,19 @@ linkend := $(libraries)
           sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
 	@rm -f $*.d.tmp
 
+# dsw: Not sure of a better way to do this yet.  Would be nice to
+# factor out the dependency generation stuff.  Maybe into a shell
+# script.
+cc/ccparse_twalk.o: cc/ccparse.cc
+	$(compile) -DTWALK $< -o $@
+	@echo "dependencies for $< > $*.d"
+	@$(depend) $< > $*.d
+	@mv -f $*.d $*.d.tmp
+	@sed -e 's|.*:|$@:|' < $*.d.tmp > $*.d
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
+          sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
+	@rm -f $*.d.tmp
+
 # sets of related object files
 # files needed to represent a grammar in memory
 grammar-set := \
@@ -169,6 +182,7 @@ cc-set := \
   cc/cc_flags.o \
   cc/cc_type.o \
   cc/cc_tcheck.o \
+  cc/cc_twalk.o \
   cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o
@@ -288,6 +302,11 @@ cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbas
 
 # stand-alone executable for parsing C++
 cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
+	$(link) -o $@ $^
+	./$@ c.in/c.in1
+
+# dsw:stand-alone executable for parsing C++ and dumping the tree back out
+cc/ccparse_twalk: cc/ccparse_twalk.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
 
@@ -595,7 +614,7 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/libccgr.a libelkhound.a
+	rm -f cc/cc.bin cc/ccgr cc/ccparse cc/ccparse_twalk cc/libccgr.a libelkhound.a
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
