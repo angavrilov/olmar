@@ -569,16 +569,28 @@ int GLR::postponeShift(StackNode *parser,
 {
   // see where a shift would go
   ItemSet const *shiftDest = parser->state->transitionC(currentTokenClass);
+  
+  // compare to 'action' table
+  ActionEntry action =
+    tables->actionEntry(parser->state->id, currentTokenClass->termIndex);
+
   if (shiftDest != NULL) {
+    // valid shift
+    xassert(tables->isShiftAction(action));
+    xassert(tables->decodeShift(action) == shiftDest->id);
+
     // postpone until later; save necessary state (the
     // parser and the state to transition to)
 
     // add (parser, shiftDest) to pending-shifts
     pendingShifts.append(new PendingShift(parser, shiftDest));
-    
+
     return 1;   // 1 action
-  }                        
+  }
   else {
+    // no shift
+    xassert(!tables->isShiftAction(action));
+
     return 0;
   }
 }
@@ -595,6 +607,19 @@ int GLR::doAllPossibleReductions(StackNode *parser,
   ProductionList reductions;
   parser->state->getPossibleReductions(reductions, currentTokenClass,
                                        true /*parsing*/);
+
+  // check against my 'action' table
+  ActionEntry action =
+    tables->actionEntry(parser->state->id, currentTokenClass->termIndex);
+
+  if (reductions.isNotEmpty()) {
+    xassert(reductions.count() == 1);     // for the moment, no stack splits
+    xassert(tables->isReduceAction(action));
+    xassert(tables->decodeReduce(action) == reductions.first()->prodIndex);
+  }
+  else {     // no reduction
+    xassert(!tables->isReduceAction(action));
+  }
 
   // for each possible reduction, do it
   SFOREACH_PRODUCTION(reductions, prod) {
@@ -812,6 +837,11 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
       << ", to state " << rightSiblingState->id
       << endl;
   }
+  
+  // verify my 'goto' table agrees
+  xassert(tables->decodeGoto(
+    tables->gotoEntry(leftSibling->state->id, prod->left->ntIndex)) ==
+    rightSiblingState->id);
 
   // is there already an active parser with this state?
   StackNode *rightSibling = findActiveParser(rightSiblingState);
