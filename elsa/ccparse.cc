@@ -17,7 +17,7 @@
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
 #ifdef CC_QUAL
-  #include "cc_qual/cc_qual.h"
+  #include "cc_qual/cc_qual_walk.h"
   #include "cc_qual/cqual_iface.h"
 #else
   #include "cc_qual_dummy.h"
