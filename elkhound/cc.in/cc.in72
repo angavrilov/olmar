@@ -14,6 +14,13 @@ const unsigned volatile long static int z;
 
 long long LL;    // support this because my libc headers use it..
 
+// may as well get the literal notation too
+void foo()
+{
+  LL = 12LL;
+}
+
+
 //ERROR3: long float g;    // malformed type
                        
 // too many!
