@@ -104,6 +104,11 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 /* ------------- token definition rules --------------- */
 %%
 
+  /* this comment is replaced, by an external script, with whatever
+   * additional rules a language extension author desires */
+  /* EXTENSION RULES GO HERE */
+
+
   /* operators, punctuators and keywords: tokens with one spelling */
 "asm"              return tok(TOK_ASM);
 "auto"             return tok(TOK_AUTO);
@@ -299,10 +304,8 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
 
-  /* dsw: user-defined qualifier; example: $tainted */
-"$"{ALNUM}+ {
-  return svalTok(TOK_UDEF_QUAL);
-}
+  /* sm: I moved the user-defined qualifier rule into qual_ext.lex
+   * in the cc_qual tree */
 
 
   /* preprocessor */

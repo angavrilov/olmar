@@ -1,4 +1,4 @@
-// cc_tokens.tok
+// cc_tokens.tok  -*- c++ -*-
 // this is the master description of the token classes; from
 // this several other files are generator, and extensions can
 // add new tokens by appending to this file
@@ -26,10 +26,6 @@ TOK_INT_LITERAL,         "<int literal>",             : m  n
 TOK_FLOAT_LITERAL,       "<float literal>",           : m  n
 TOK_STRING_LITERAL,      "<string literal>",          : m  n
 TOK_CHAR_LITERAL,        "<char literal>",            : m  n
-
-// dsw: user-defined qualifiers
-// TODO: move this into an extension
-TOK_UDEF_QUAL,           "<user-defined qualifier>",  : m  n
 
 // keywords
 TOK_ASM,                 "asm",                       :    n

@@ -130,13 +130,10 @@ terminals {
   token(StringRef) TOK_TYPE_NAME;
   token(StringRef) TOK_VARIABLE_NAME;
 
-  // and user-defined qualifiers
-  token(StringRef) TOK_UDEF_QUAL ;
-
   precedence {
     // high precedence
     prec  200 TOK_PREFER_REDUCE;
-    prec  190 TOK_UDEF_QUAL "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else" "[";
+    prec  190 "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else" "[";
 
     right 120 ".*" "->*";
     left  110 "*" "/" "%";
