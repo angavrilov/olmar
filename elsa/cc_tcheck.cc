@@ -3647,134 +3647,113 @@ Type *E_binary::itcheck(Env &env)
   Type *lhsType = e1->type->asRval();
   Type *rhsType = e2->type->asRval();
 
-  if (op == BIN_DOT_STAR || op == BIN_ARROW_STAR) {
-    // [cppstd 5.5] I handle this one in detail, unlike most of the
-    // other operators, because I just implemented ptr-to-member (and
-    // don't have much experience using it) and I want some validation
-    // that I did it right
-
-    if (op == BIN_ARROW_STAR) {
-      // left side should be a pointer to a class
-      if (!lhsType->isPointer()) {
-        return env.error("left side of ->* must be a pointer");
-      }
-      lhsType = lhsType->asPointerType()->atType;
-    }
-
-    // left side should be a class
-    CompoundType *lhsClass = lhsType->ifCompoundType();
-    if (!lhsClass) {
-      return env.error(op==BIN_DOT_STAR?
-        "left side of .* must be a class or reference to a class" :
-        "left side of ->* must be a pointer to a class");
-    }
-
-    // right side should be a pointer to a member
-    if (!rhsType->isPointerToMemberType()) {
-      return env.error("right side of .* or ->* must be a pointer-to-member");
-    }
-    PointerToMemberType *ptm = rhsType->asPointerToMemberType();
-
-    // actual LHS class must be 'ptm->inClass', or a
-    // class unambiguously derived from it
-    int subobjs = lhsClass->countBaseClassSubobjects(ptm->inClass);
-    if (subobjs == 0) {
-      return env.error(stringc
-        << "the left side of .* or ->* has type `" << lhsClass->name
-        << "', but this is not equal to or derived from `" << ptm->inClass->name
-        << "', the class whose members the right side can point at");
-    }
-    else if (subobjs > 1) {
-      return env.error(stringc
-        << "the left side of .* or ->* has type `" << lhsClass->name
-        << "', but this is derived from `" << ptm->inClass->name
-        << "' ambiguously (in more than one way)");
-    }
-
-    // the return type is essentially the 'atType' of 'ptm'
-    Type *ret = ptm->atType;
-
-    // but it might be an lvalue if it is a pointer to a data
-    // member, and either
-    //   - op==BIN_ARROW_STAR, or
-    //   - op==BIN_ARROW_DOT and 'e1->type' is an lvalue
-    if (op==BIN_ARROW_STAR ||
-        /*must be arrow_dot*/ e1->type->isLval()) {
-      // this internally handles 'ret' being a function type
-      ret = makeLvalType(env, ret);
-    }
-
-    return env.tfac.cloneType(ret);
-  }
-
-
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {
     lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
   }
 
-  switch(op) {
-  default: xfailure("illegal op code"); break;
+  switch (op) {
+    default: xfailure("illegal op code"); break;
 
-  // the relationals come first, and in this order, to correspond
-  // to RelationOp in predicate.ast
-  case BIN_EQUAL:               // ==
-  case BIN_NOTEQUAL:            // !=
-  case BIN_LESS:                // <
-  case BIN_GREATER:             // >
-  case BIN_LESSEQ:              // <=
-  case BIN_GREATEREQ:           // >=
+    case BIN_EQUAL:               // ==
+    case BIN_NOTEQUAL:            // !=
+    case BIN_LESS:                // <
+    case BIN_GREATER:             // >
+    case BIN_LESSEQ:              // <=
+    case BIN_GREATEREQ:           // >=
 
-  case BIN_AND:                 // &&
-  case BIN_OR:                  // ||
-    return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
-    break;
+    case BIN_AND:                 // &&
+    case BIN_OR:                  // ||
+    case BIN_IMPLIES:             // ==>
+      return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 
-  case BIN_PLUS:                // +
-    // dsw: deal with pointer arithmetic correctly; Note that the case
-    // p + 1 is handled correctly by the default behavior; this is the
-    // case 1 + p.
-    if (lhsType->isIntegerType() && rhsType->isPointerType()) {
-      return env.tfac.cloneType(rhsType); // a pointer type, that is
-    }
-    // default behavior of returning the left side is close enough for now.
-    break;
+    case BIN_PLUS:                // +
+      // dsw: deal with pointer arithmetic correctly; Note that the case
+      // p + 1 is handled correctly by the default behavior; this is the
+      // case 1 + p.
+      if (lhsType->isIntegerType() && rhsType->isPointerType()) {
+        return env.tfac.cloneType(rhsType); // a pointer type, that is
+      }
+      // default behavior of returning the left side is close enough for now.
+      break;
 
-  case BIN_MINUS:               // -
-    // dsw: deal with pointer arithmetic correctly; this is the case
-    // p1 - p2
-    if (lhsType->isPointerType() && rhsType->isPointerType() ) {
-      return env.getSimpleType(SL_UNKNOWN, ST_INT);
-    }
-    // default behavior of returning the left side is close enough for now.
-    break;
+    case BIN_MINUS:               // -
+      // dsw: deal with pointer arithmetic correctly; this is the case
+      // p1 - p2
+      if (lhsType->isPointerType() && rhsType->isPointerType() ) {
+        return env.getSimpleType(SL_UNKNOWN, ST_INT);
+      }
+      // default behavior of returning the left side is close enough for now.
+      break;
 
-  case BIN_MULT:                // *
-  case BIN_DIV:                 // /
-  case BIN_MOD:                 // %
-  case BIN_LSHIFT:              // <<
-  case BIN_RSHIFT:              // >>
-  case BIN_BITAND:              // &
-  case BIN_BITXOR:              // ^
-  case BIN_BITOR:               // |
-    // default behavior of returning the left side is close enough for now.
-    break;
+    case BIN_MULT:                // *
+    case BIN_DIV:                 // /
+    case BIN_MOD:                 // %
+    case BIN_LSHIFT:              // <<
+    case BIN_RSHIFT:              // >>
+    case BIN_BITAND:              // &
+    case BIN_BITXOR:              // ^
+    case BIN_BITOR:               // |
+      // default behavior of returning the left side is close enough for now.
+      break;
 
-  case BIN_ASSIGN:    // = (used to denote simple assignments in AST, as opposed to (say) "+=")
-    xfailure("why isn't this in E_assign?");
-    break;
+    // BIN_ASSIGN can't appear in E_binary
 
-  // C++ operators
-  case BIN_DOT_STAR:            // .*
-  case BIN_ARROW_STAR:          // ->*
-    // dealt with above
-    xfailure("should not get here");
-    break;
+    case BIN_DOT_STAR:            // .*
+    case BIN_ARROW_STAR:          // ->*
+      // [cppstd 5.5]
+      if (op == BIN_ARROW_STAR) {
+        // left side should be a pointer to a class
+        if (!lhsType->isPointer()) {
+          return env.error("left side of ->* must be a pointer");
+        }
+        lhsType = lhsType->asPointerType()->atType;
+      }
 
-  // theorem prover extension
-  case BIN_IMPLIES:             // ==>
-    // Scott knows what to do with this
-    break;
+      // left side should be a class
+      CompoundType *lhsClass = lhsType->ifCompoundType();
+      if (!lhsClass) {
+        return env.error(op==BIN_DOT_STAR?
+          "left side of .* must be a class or reference to a class" :
+          "left side of ->* must be a pointer to a class");
+      }
+
+      // right side should be a pointer to a member
+      if (!rhsType->isPointerToMemberType()) {
+        return env.error("right side of .* or ->* must be a pointer-to-member");
+      }
+      PointerToMemberType *ptm = rhsType->asPointerToMemberType();
+
+      // actual LHS class must be 'ptm->inClass', or a
+      // class unambiguously derived from it
+      int subobjs = lhsClass->countBaseClassSubobjects(ptm->inClass);
+      if (subobjs == 0) {
+        return env.error(stringc
+          << "the left side of .* or ->* has type `" << lhsClass->name
+          << "', but this is not equal to or derived from `" << ptm->inClass->name
+          << "', the class whose members the right side can point at");
+      }
+      else if (subobjs > 1) {
+        return env.error(stringc
+          << "the left side of .* or ->* has type `" << lhsClass->name
+          << "', but this is derived from `" << ptm->inClass->name
+          << "' ambiguously (in more than one way)");
+      }
+
+      // the return type is essentially the 'atType' of 'ptm'
+      Type *ret = ptm->atType;
+
+      // but it might be an lvalue if it is a pointer to a data
+      // member, and either
+      //   - op==BIN_ARROW_STAR, or
+      //   - op==BIN_ARROW_DOT and 'e1->type' is an lvalue
+      if (op==BIN_ARROW_STAR ||
+          /*must be arrow_dot*/ e1->type->isLval()) {
+        // this internally handles 'ret' being a function type
+        ret = makeLvalType(env, ret);
+      }
+
+      return env.tfac.cloneType(ret);
   }
 
   // TODO: make sure 'expr' is compatible with given operator
