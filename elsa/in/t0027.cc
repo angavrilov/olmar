@@ -23,6 +23,12 @@ T Foo<T>::put()
   return 3;
 }
 
+// TODO: sm: apparently when I first wrote this test I accidentally
+// used code 2 twice; if I change the test below to use (say) code 4,
+// it does not fail; that means there is a bug somewhere that should
+// be being caught by this test but is not; for now I will not fix
+// since I'm in the middle of something else
+
 //ERROR(2): template <class T> T Foo::get() { return 3; }   // needs template args
 
 int main()

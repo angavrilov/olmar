@@ -2012,6 +2012,14 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
            new Declarator(nameParams, NULL /*init*/));
          return new TD_proto(plist, spec); }
 
+  // initialized static data member of a class
+  // (TODO: should allow arbitrary SimpleDeclaration so, e.g., could
+  // define more than one static member in a single decl)
+  -> plist:TemplatePreamble spec:DeclSpecifier nameParams:Declarator i:Initializer ";"
+       { spec->decllist = FakeList<Declarator>::makeList(
+           new Declarator(nameParams, i));
+         return new TD_proto(plist, spec); }
+
   // definition of a template classe
   -> plist:TemplatePreamble spec:ClassSpecifier ";"
        { return new TD_class(plist, spec); }

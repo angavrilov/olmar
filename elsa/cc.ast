@@ -620,6 +620,11 @@ class TemplateDeclaration (
   -> TD_func(Function f);
 
   // declare a template function prototype
+  //
+  // TODO: this is also used for definitions of static members of
+  // template classes; TD_proto and TD_class ought to be merged
+  // into a single TD_decl, but when I tried that it exposed a
+  // number of tangential bugs so for now I'm leaving it alone
   -> TD_proto(Declaration d);
 
   // declare a template class; 'spec' could either be a
