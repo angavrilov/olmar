@@ -152,7 +152,8 @@ TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
          srcloc hashline gprintf smregexp vptrmap vdtllist pprint \
-         boxprint tarrayqueue testarray taillist_test autofile
+         boxprint tarrayqueue testarray taillist_test autofile \
+         bitarray
 tests: $(TESTS)
 
 # command to compile and link
@@ -260,6 +261,9 @@ testarray: testarray.cc $(THIS)
 autofile: autofile.cc $(THIS)
 	$(TESTCXX) -o $@ -DTEST_AUTOFILE autofile.cc $(TESTFLAGS)
 
+bitarray: bitarray.cc $(THIS)
+	$(TESTCXX) -o $@ -DTEST_BITARRAY bitarray.cc $(TESTFLAGS)
+
 check: $(TESTS)
 	./nonport
 	./voidlist
@@ -291,6 +295,7 @@ check: $(TESTS)
 	./testarray
 	./taillist_test
 	./autofile autofile.cc
+	./bitarray
 	@echo
 	@echo "make check: all the tests PASSED"
 
