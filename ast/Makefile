@@ -7,7 +7,7 @@ CXXFLAGS := -Wall -g -I. -I$(SMBASE) $(EXTRAARGS)
 CXXFLAGS += -Werror
 
 # to enable profiling
-CXXFLAGS += -pg
+#CXXFLAGS += -pg
 
 # to turn on optimizer
 CXXFLAGS += -O2 -DNDEBUG
