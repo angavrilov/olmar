@@ -1760,9 +1760,11 @@ void Env::insertBindingsForPartialSpec
     if (param->hasFlag(DF_TYPEDEF) &&
         arg->isType()) {
       // bind the type parameter to the type argument
-      Variable *binding = makeVariable(param->loc, param->name,
-                                       arg->value.t,
-                                       DF_TYPEDEF);
+      Variable *binding =
+        makeVariable(param->loc, param->name,
+                     // FIX: perhaps this clone type is gratuitous
+                     tfac.cloneType(arg->value.t),
+                     DF_TYPEDEF);
       addVariable(binding);
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
@@ -1773,8 +1775,11 @@ void Env::insertBindingsForPartialSpec
         // const-eval the expression whenever it participates in type
         // determination; the type must be made 'const' so that
         // E_variable::constEval will believe it can evaluate it
-        Type *bindType = tfac.applyCVToType(param->loc, CV_CONST,
-                                            param->type, NULL /*syntax*/);
+        Type *bindType =
+          // FIX: perhaps this clone type is gratuitous
+          tfac.cloneType(tfac.applyCVToType
+                         (param->loc, CV_CONST,
+                          param->type, NULL /*syntax*/));
         Variable *binding = makeVariable(param->loc, param->name,
                                          bindType, DF_NONE);
         // we omit the text as irrelevant and expensive to reconstruct
