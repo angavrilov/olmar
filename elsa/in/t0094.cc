@@ -12,6 +12,13 @@
 // needed forward declarations.)  Maybe I was wrong about the grammar?
 // icc and gcc-3 both like it too.
 
+// 2005-02-27: I just figured this out.  The problematic syntax is
+// *not* allowed by the grannar of ISO/IEC 14882:1998(E), but *is*
+// allowed by the grammar of ISO/IEC 14882:2003(E).  My original
+// conclusion that the syntax was invalid was itself based on a
+// faulty grammar.  So now things are correct, I believe.
+
+
 class ios;
 class istream;
 class ostream;

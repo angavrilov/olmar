@@ -429,6 +429,8 @@ an E_fieldAcc is:
            - Perform unqualified lookup of the type.
            - Lookup the type in C.
          *Both* must succeed, and name the same type.
+         
+         Actually, this applies even to qualified names (3.4.3.1p1).
 
   6. Having looked up the FIELD, it must name a nonempty set of members
      of C, or a nonempty set of members of one of C's base classes.  If

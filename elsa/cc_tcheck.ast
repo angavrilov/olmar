@@ -527,6 +527,9 @@ class Expression {
   -> E_fieldAcc {
        public Variable *field = NULL;
        public Type *itcheck_fieldAcc(Env &env, LookupFlags flags);
+       public Type *itcheck_fieldAcc_set(Env &env, LookupFlags flags,
+                                         LookupSet &candidates);
+
        custom clone { ret->field = field; }
      }
 
@@ -563,6 +566,10 @@ class Expression {
   -> E_grouping {
        public Type *itcheck_grouping_set(Env &env, Expression *&replacement,
                                          LookupFlags flags, LookupSet &set);
+     }
+  -> E_arrow {
+       public Type *itcheck_arrow_set(Env &env, Expression *&replacement,
+                                      LookupFlags flags, LookupSet &set);
      }
 }
 

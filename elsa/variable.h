@@ -145,6 +145,10 @@ public:
   bool isImplicitTypedef() const { return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF); }
   bool isImplicitMemberFunc() const { return hasFlag(DF_IMPLICIT) && !hasFlag(DF_TYPEDEF); }
   bool isEnumerator() const { return hasFlag(DF_ENUMERATOR); }
+  bool isType() const { return hasFlag(DF_TYPEDEF); }
+
+  // true if this name refers to a class or struct
+  bool isClass() const;
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)

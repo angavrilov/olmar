@@ -7,6 +7,9 @@ use Config;
 
 $selectedError = "";
 $keepTemps = 0;
+$contin = 0;
+@failures = ();     # if $contin, track which configurations failed
+
 $me = "multitest";
 
 while (@ARGV && $ARGV[0] =~ m/^-/) {
@@ -17,13 +20,18 @@ while (@ARGV && $ARGV[0] =~ m/^-/) {
     $selectedError = $ARGV[0];
     shift @ARGV;
     next;
-  }      
-  
+  }
+
   if ($opt eq "-keep") {
     $keepTemps = 1;
     next;
   }
-  
+
+  if ($opt eq "-contin") {
+    $contin = 1;
+    next;
+  }
+
   die("$me: unknown argument: $opt\n");
 }
 
@@ -80,9 +88,22 @@ if (!defined($fnameExt)) {
 if (!$selectedError) {
   $code = mysystem(@ARGV);
   if ($code != 0) {
+    failed("original", $code);
+  }
+}
+
+# bail, or if $contin, just keep track
+sub failed {
+  my ($config, $code) = @_;
+
+  if ($contin) {
+    push @failures, ($config);
+  }
+  else {
     exit($code);
   }
 }
+
 
 # read the input file
 open(IN, "<$fname") or die("can't open $fname: $!\n");
@@ -158,7 +179,7 @@ foreach $selcode (@allkeys) {
   if ($code == 0) {
     print("ERROR($selcode): expected this to fail:\n",
           "  ", join(' ', @args), "\n");
-    exit(4);
+    failed($selcode, 4);
   }
   else {
     print("$selcode: failed as expected\n");
@@ -169,7 +190,12 @@ foreach $selcode (@allkeys) {
 }
 
 print("\n$me: ");
-if (!$selectedError) {
+
+if ($contin && @failures) {
+  print("failures: @failures\n");
+  exit(4);
+}
+elsif (!$selectedError) {
   print("success: all $testedVariations variations failed as expected\n");
 }
 elsif ($testedVariations) {

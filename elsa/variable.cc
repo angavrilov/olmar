@@ -84,6 +84,18 @@ void Variable::setFlagsTo(DeclFlags f)
 }
 
 
+bool Variable::isClass() const
+{
+  if (hasFlag(DF_TYPEDEF) &&
+      type->isCompoundType()) {
+    CompoundType const *ct = type->asCompoundType();
+    return ct->keyword == CompoundType::K_CLASS ||
+           ct->keyword == CompoundType::K_STRUCT;
+  }
+  return false;
+}
+
+
 bool Variable::isUninstTemplateMember() const
 {
   if (isTemplate() &&
@@ -248,7 +260,12 @@ string Variable::fullyQualifiedName() const
   if (scope && !scope->isGlobalScope()) {
     tmp << scope->fullyQualifiedCName();
   }
-  tmp << "::" << name;        // NOTE: not mangled
+  if (hasFlag(DF_SELFNAME)) {
+    // don't need another "::name", since my 'scope' is the same
+  }
+  else {
+    tmp << "::" << name;        // NOTE: not mangled
+  }
   return tmp;
 }
 

@@ -3727,11 +3727,23 @@ void Env::setOverloadedFunctionVar(Expression *e, Variable *selVar)
     return;
   }
 
-  xassert(e->isE_variable());
-  E_variable *ev = e->asE_variable();
+  if (e->isE_variable()) {
+    E_variable *ev = e->asE_variable();
 
-  ev->type = selVar->type;
-  ev->var = selVar;
+    ev->type = selVar->type;
+    ev->var = selVar;
+  }
+  
+  else if (e->isE_fieldAcc()) {
+    E_fieldAcc *eacc = e->asE_fieldAcc();
+    
+    eacc->type = selVar->type;
+    eacc->field = selVar;
+  }
+  
+  else {
+    xfailure("setOverloadedFunctionVar: bad expression kind");
+  }
 }
 
 
@@ -4013,8 +4025,21 @@ void Env::lookupPQ(LookupSet &set, PQName *name, LookupFlags flags)
   // "in the current scope stack", and non-NULL means "in the named
   // scope"
   Scope *scope = NULL;
-                         
-  // so legacy calls will honor 'set'
+
+  // ---- BEGIN: second entry point ---
+  // I need to jump in to the algorithm right here for 3.4.5p4, so
+  // break the function and expose an entry.  When reading
+  // Env::lookupPQ, one can effectively ignore the entire 'second
+  // entry point' section.
+  lookupPQ_withScope(set, name, flags, scope);
+}
+void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
+                             Scope *scope)    // 'scope' is as stated above
+{
+  // ---- END: second entry point ---
+
+  // this is so legacy calls will honor 'set' (I plan to eventually
+  // get rid of LF_LOOKUP_SET entirely)
   flags |= LF_LOOKUP_SET;
 
   // lookup along the chain of qualifiers
@@ -4060,10 +4085,22 @@ void Env::lookupPQ(LookupSet &set, PQName *name, LookupFlags flags)
   }
 
   // unqualified lookup in 'scope'
+  unqualifiedFinalNameLookup(set, scope, name, flags);
+}
+
+void Env::unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
+                                     PQName *name, LookupFlags flags)
+{
   unqualifiedLookup(set, scope, name->getName(), flags);
   if (set.isEmpty()) {
     return;
   }
+
+  // TODO: BUG: If 'name' is ON_conversion, then we need to further
+  // filter the resulting set for those that convert to the right
+  // type.  Also, we need to check that looking up the type name in
+  // 'scope' yields the same results as its current setting, which
+  // came from tchecking in the current scope.
 
   // consider template arguments?
   if (flags & LF_TEMPL_PRIMARY) {
@@ -4096,7 +4133,7 @@ Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
   }
 
   // lookup 'name' in 'scope'
-  flags |= LF_TYPES_NAMESPACES | LF_SELFNAME;
+  flags |= LF_QUALIFIER_LOOKUP;
   LookupSet set;
   unqualifiedLookup(set, scope, name, flags);
   if (set.isEmpty()) {

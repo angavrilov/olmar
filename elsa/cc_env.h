@@ -707,8 +707,17 @@ private:     // funcs
                          StringRef name, LookupFlags flags);
 
 public:      // funcs
+  // this is the main lookup function in the new design
   void lookupPQ(LookupSet &set, PQName *name, LookupFlags flags);
-  
+
+  // effectively, this is a second entry point to 'lookupPQ'
+  void lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags, Scope *scope);
+
+  // do the last step of qualified lookup, where the qualifiers
+  // denoted 'scope' and 'name' is the last element of the chain
+  void unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
+                                  PQName *name, LookupFlags flags);
+                                     
   // yield just the first element of the lookup set, if any; the
   // context is going to reject a function name anyway (so it does
   // not matter if there is more than one)

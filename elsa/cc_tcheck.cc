@@ -1813,26 +1813,6 @@ void TS_classSpec::tcheckIntoCompound(
     FOREACH_ASTLIST_NC(Member, members->list, iter) {
       Member *member = iter.data();
       member->tcheck(env);
-      
-      #if 0     // old
-      // dsw: The invariant that I have chosen for function members of
-      // templatized classes is that we typecheck the declaration but
-      // not the definition; the definition is typechecked when the
-      // function is called or at some other later time.  This works
-      // fine for out-of-line function definitions, as when the
-      // definition is found, without typechecking the body, we point
-      // the variable created by typechecking the declaration at the
-      // definition, which will be typechecked later.  This means that
-      // for in-line functions we need to do this as well.
-      if (member->isMR_func()) {
-        // an inline member function definition
-        MR_func *mrfunc = member->asMR_func();
-        Variable *mrvar = mrfunc->f->nameAndParams->var;
-        xassert(mrvar);
-        xassert(!mrvar->funcDefn);
-        mrvar->funcDefn = mrfunc->f;
-      }
-      #endif // 0
     }
   }
 
@@ -4351,7 +4331,7 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   // "return makeLvalType(env.tfac.cloneType(t))" and get rid of the
   // clone here; but that would be error prone and labor-intensive, so
   // I don't do it.
-  type = env.tfac.cloneType(t);
+  replacement->type = env.tfac.cloneType(t);
 }
 
 
@@ -4835,19 +4815,13 @@ static bool allMethods(SObjList<Variable> &set)
 #endif // 0
 
 
-// set an ArgumentInfo according to an expression
+// set an ArgumentInfo according to an expression; this can only be
+// used when the argument cannot be an overloaded function name
+// (tcheckArgExprList handles the case where it can)
 void getArgumentInfo(Env &env, ArgumentInfo &ai, Expression *e)
 {
-  #if 0    // re-enable this
-  Variable *ovlVar = env.getOverloadedFunctionVar(e);
-  if (ovlVar) {
-    ai.ovlVar = ovlVar;
-  }
-  else {
-  #endif // 0
-    ai.special = e->getSpecial(env.lang);
-    ai.type = e->type;
-  //}
+  ai.special = e->getSpecial(env.lang);
+  ai.type = e->type;
 }
 
 
@@ -4997,18 +4971,24 @@ Expression **skipGroupsPtr(Expression **e, ArrayStack<Expression*> &intermediate
 void tcheckExpression_set(Env &env, Expression *&expr,
                           LookupFlags flags, LookupSet &set)
 {
+  Expression *origExpr = expr;
+
   Type *t;
   ASTSWITCH(Expression, expr) {
     ASTCASE(E_variable, evar)
       t = evar->itcheck_var_set(env, expr, flags, set);
 
-    // TODO: There should be a similar case for E_fieldAcc.
+    ASTNEXT(E_fieldAcc, eacc)
+      t = eacc->itcheck_fieldAcc_set(env, /*no expr*/ flags, set);
 
     ASTNEXT(E_addrOf, ea)
       t = ea->itcheck_addrOf_set(env, expr, flags, set);
 
     ASTNEXT(E_grouping, eg)
       t = eg->itcheck_grouping_set(env, expr, flags, set);
+
+    ASTNEXT(E_arrow, ea)
+      t = ea->itcheck_arrow_set(env, expr, flags, set);
 
     ASTDEFAULT
       // 'expr' is not a variant that knows what to do with 'set',
@@ -5019,6 +4999,10 @@ void tcheckExpression_set(Env &env, Expression *&expr,
 
     ASTENDCASE
   }
+
+  // the above assumed that the *original* was unambiguous, as it
+  // totally ignored the ambiguity link; check that now
+  xassert(origExpr->ambiguity == NULL);
 
   // must explicitly set 'expr->type' since we did not call
   // into Expression::tcheck
@@ -5291,49 +5275,24 @@ void E_funCall::inner1_itcheck(Env &env, LookupSet &candidates)
   func = func->skipGroups();
 
   // nominal flags if we're calling a named function
-  LookupFlags specialFlags = 
+  LookupFlags specialFlags =
     LF_TEMPL_PRIMARY |       // we will do template instantiation later
     LF_FUNCTION_NAME |       // we might allow an implicit declaration
-    LF_NO_IMPL_THIS;         // don't add 'this->' (must do overload resol'n first)
+    LF_NO_IMPL_THIS |        // don't add 'this->' (must do overload resol'n first)
+    LF_LOOKUP_SET;           // both lookups use new system
 
-  if (func->isE_variable()) {
-    // tell the E_variable *not* to do instantiation of
-    // templates, because that will need to wait until
-    // we see the argument types
-    //
-    // what follows is essentially Expression::tcheck
-    // specialized to E_variable, but with a special lookup
-    // flag passed
-    E_variable *evar = func->asE_variable();
-    xassert(!evar->ambiguity);
-
-    if (!evar->name->hasQualifiers()) {
+  if (func->isE_variable() &&
+      !func->asE_variable()->name->hasQualifiers()) {
       // Unqualified name being looked up in the context of a function
       // call; cppstd 3.4.2 applies, which is implemented in
       // inner2_itcheck.  So, here, we don't report an error because
       // inner2 will do another lookup and report an error if that one
       // fails too.
       specialFlags |= LF_SUPPRESS_NONEXIST;
-    }
-
-    // fill in 'candidates'
-    specialFlags |= LF_LOOKUP_SET;
-
-    func->type = env.tfac.cloneType(
-      evar->itcheck_var_set(env, func, specialFlags, candidates));
   }
-  else if (func->isE_fieldAcc()) {
-    // similar handling for member function templates
-    E_fieldAcc *eacc = func->asE_fieldAcc();
-    xassert(!eacc->ambiguity);
-    func->type = env.tfac.cloneType(
-      eacc->itcheck_fieldAcc(env, specialFlags));
-  }
-  else {
-    // do the general thing
-    func->tcheck(env, func);
-    return;
-  }
+  
+  // tcheck, passing candidates if possible
+  tcheckExpression_set(env, func, specialFlags, candidates);
 }
 
 
@@ -5438,15 +5397,6 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 
     // what is the set of names obtained by inner1?
     //LookupSet candidates;   // use passed-in list
-    if (fevar) {
-      // passed-in 'candidates' is already correct
-    }
-    else {
-      xassert(candidates.isEmpty());
-      if (feacc->field) {
-        feacc->field->getOverloadList(candidates);
-      }
-    }
 
     // augment with arg-dep lookup?
     if (fevar &&                              // E_variable
@@ -5967,7 +5917,32 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 }
 
 
-// cppstd sections: 5.2.5 and 3.4.5
+// Maybe this should go in variable.h?  If so, I should be more careful
+// to ensure the case analysis is exhaustive.
+string kindAndType(Variable *v)
+{
+  if (v->isNamespace()) {
+    return stringc << "namespace " << v->fullyQualifiedName();
+  }
+  else if (v->isType()) {
+    if (v->type->isCompoundType()) {
+      CompoundType *ct = v->type->asCompoundType();
+      return stringc << toString(ct->keyword) << " " << v->fullyQualifiedName();
+    }
+    else {
+      return stringc << "type `" << v->type->toString() << "'";
+    }
+  }
+  else if (v->type->isFunctionType()) {
+    return stringc << "function of type `" << v->type->toString() << "'";
+  }
+  else {
+    return stringc << "object of type `" << v->type->toString() << "'";
+  }
+}
+
+
+// cppstd sections: 5.2.4, 5.2.5 and 3.4.5
 Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 {
   return itcheck_fieldAcc(env, LF_NONE);
@@ -5975,11 +5950,23 @@ Type *E_fieldAcc::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 {
+  LookupSet dummy;
+  return itcheck_fieldAcc_set(env, flags, dummy);
+}
+
+Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
+                                       LookupSet &candidates)
+{
   obj->tcheck(env, obj);
 
-  // Note: must delay tchecking 'fieldName' until we decide how to do
-  // its lookup.  See doc/lookup.txt, E_fieldAcc section.
+  // tcheck template arguments and ON_conversion types in the
+  // current scope
+  fieldName->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
+  // want this generally I think
+  flags |= LF_SELFNAME;
+
+  // naming a destructor?
   StringRef rhsFinalTypeName = fieldName->getName();
   bool isDestructor = rhsFinalTypeName[0] == '~';
   if (isDestructor) {
@@ -6038,8 +6025,9 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
         // 'fieldName' must be of form type-name :: ~ type-name, so
         // we do unqualified lookups
         xassert(secondLast->qualifier);   // grammar should ensure this
-        secondVar = env.unqualifiedLookup_one(secondLast->qualifier, LF_NONE);
-        lastVar = env.unqualifiedLookup_one(rhsFinalTypeName, LF_NONE);
+        secondVar = env.unqualifiedLookup_one(secondLast->qualifier,
+          /* the name precedes "::" so ... */ LF_QUALIFIER_LOOKUP);
+        lastVar = env.unqualifiedLookup_one(rhsFinalTypeName, flags);
       }
 
       else {
@@ -6051,12 +6039,12 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
         // fieldName := Q :: type-name1
         PQ_name fakeLast(secondLast->loc, secondLast->qualifier);
         thirdLast->rest = &fakeLast;
-        secondVar = env.lookupPQ_one(fieldName, LF_NONE);
+        secondVar = env.lookupPQ_one(fieldName, flags);
 
         // fieldName := Q :: type-name2
         fakeLast.loc = last->loc;
         fakeLast.name = rhsFinalTypeName;
-        lastVar = env.lookupPQ_one(fieldName, LF_NONE);
+        lastVar = env.lookupPQ_one(fieldName, flags);
 
         // fieldName := original fieldName
         thirdLast->rest = secondLast;
@@ -6083,7 +6071,7 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 
     else {
       // RHS of form ~ type-name
-      Variable *v = env.unqualifiedLookup_one(rhsFinalTypeName, LF_NONE);
+      Variable *v = env.unqualifiedLookup_one(rhsFinalTypeName, flags);
       if (!v || !v->hasFlag(DF_TYPEDEF)) {
         return env.error(fieldName->loc,
           stringc << "no such type: `" << rhsFinalTypeName << "'");
@@ -6115,84 +6103,180 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
     return env.errorType();
   }
 
-  // look for the named field [cppstd 3.4.5]
-  Variable *f;
-  if (!fieldName->hasQualifiers()) {
-    // lookup in class only [cppstd 3.4.5 para 2]
-    fieldName->tcheck(env, ct);
-    f = ct->lookupPQVariable(fieldName, env, flags);
+  // case analysis on the presence/kind of qualifiers
+  if (fieldName->isPQ_qualifier() &&
+      fieldName->asPQ_qualifier()->qualifier == NULL) {
+    // global scope qualifier: 3.4.5p5
+    env.lookupPQ(candidates, fieldName, flags);
   }
-  else {
+
+  else if (fieldName->isPQ_qualifier()) {
+    // qualified (but not global scope): 3.4.5p4
     PQ_qualifier *firstQ = fieldName->asPQ_qualifier();
-    if (!firstQ->qualifier) {      // empty first qualifier
-      // lookup in complete scope only [cppstd 3.4.5 para 5]
-      fieldName->tcheck(env);
-      f = env.lookupPQVariable(fieldName, flags);
+
+    // unqualified lookup of firstQ
+    Variable *firstQVar1 =
+      env.unqualifiedLookup_one(firstQ->qualifier, LF_QUALIFIER_LOOKUP);
+    if (firstQVar1 &&
+        !firstQVar1->isNamespace() &&
+        !firstQVar1->isClass()) {
+      return env.error(firstQ->loc, stringc
+        << "in " << this->asString() << ", when " << firstQ->qualifier
+        << " is found in the current scope, it must be "
+        << "a class or namespace, not " << kindAndType(firstQVar1));
+    }
+    Scope *firstQScope1 = (!firstQVar1)?             NULL :
+                          firstQVar1->isNamespace()? firstQVar1->scope :
+                                                     firstQVar1->type->asCompoundType();
+
+    // lookup of firstQ in scope of LHS class
+    Variable *firstQVar2 =
+      ct->lookup_one(firstQ->qualifier, env, LF_QUALIFIER_LOOKUP);
+    if (firstQVar2 &&
+        !firstQVar2->isClass()) {
+      return env.error(firstQ->loc, stringc
+        << "in " << this->asString() << ", when " << firstQ->qualifier
+        << " is found in the class of " << obj->asString() << ", it must be "
+        << "a class, not " << kindAndType(firstQVar2));
+    }
+    Scope *firstQScope2 = (!firstQVar2)? NULL :
+                                         firstQVar2->type->asCompoundType();
+
+    // combine the two lookups
+    if (firstQScope1) {
+      if (firstQScope2 && firstQScope1!=firstQScope2) {
+        return env.error(firstQ->loc, stringc
+          << "in " << this->asString() << ", " << firstQ->qualifier
+          << " was found in the current scope as "
+          << kindAndType(firstQVar1) << ", and also in the class of "
+          << obj->asString() << " as "
+          << kindAndType(firstQVar2) << ", but they must be the same");
+      }
     }
     else {
-      // lookup in both scopes [cppstd 3.4.5 para 4]
-
-      // class scope
-      fieldName->tcheck(env, ct, LF_SUPPRESS_ERROR);
-      f = ct->lookupPQVariable(fieldName, env, flags);
-
-      // global scope
-      fieldName->tcheck(env, NULL, LF_SUPPRESS_ERROR);
-      Variable *globalF = env.lookupPQVariable(fieldName, flags);
-
-      if (f && globalF) {
-        // must both refer to same entity
-        if (f != globalF) {
-          // unfortunately, a lookup bug elsewhere prevents this message
-          // from being reached even when it should be, e.g. in/t0330.cc
-          return env.error(stringc
-            << "in qualified member lookup of `" << *fieldName
-            << "', lookup in class scope found entity at " << f->loc
-            << " but lookup in global scope found entity at " << globalF->loc
-            << "; they must lookup to the same entity");
-        }
-        
-        // Note: cppstd requires that 'f' and 'globalF' name the same
-        // entity, but allows the intermediate qualifiers to be
-        // different.  That means that the scope annotations on
-        // 'fieldName' are in essence undefined.  I choose to leave
-        // them as they are now, corresponding to the (successful)
-        // lookup in the global scope.
+      if (firstQScope2) {
+        firstQScope1 = firstQScope2;     // make 'firstQScope1' the only one
       }
-      else if (!f) {
-        f = globalF;        // keep whichever is not NULL, if either
-      }
-      else if (!globalF) {
-        // 'f' was good but 'globalF' not; re-tcheck 'fieldName' in
-        // the scope that worked, so its scope annotations are right
-        fieldName->tcheck(env, ct);
+      else {
+        return env.error(firstQ->loc, stringc
+          << "no such scope `" << firstQ->qualifier << "'");
       }
     }
 
-    // if not NULL, 'f' should refer to a member of class 'ct'
-    if (f) {
-      if (!( f->scope &&
-             f->scope->curCompound &&
-             ct->hasBaseClass(f->scope->curCompound) )) {
-        return env.error(f->type, stringc
-          << "in qualified member lookup of `" << *fieldName
-          << "', the found entity is not a member of " << ct->name);
-      }
-    }
+    // lookup the remainder of 'fieldName', but we already know
+    // that 'firstQ' maps to 'firstQScope1'
+    env.lookupPQ_withScope(candidates, firstQ->rest, flags, firstQScope1);
   }
 
-  if (!f) {
+  else {
+    // unqualified field name: 3.4.5p1,2,3
+
+    if (isDestructor) {
+      // doc/lookup.txt case 2
+
+      // unqualified lookup
+      Variable *var1 = env.unqualifiedLookup_one(rhsFinalTypeName, flags);
+      if (var1 && !var1->isClass()) {
+        return env.error(fieldName->loc, stringc
+          << "in " << this->asString() << ", when " << rhsFinalTypeName
+          << " is found in the current scope, it must be "
+          << "a class, not " << kindAndType(var1));
+      }
+
+      // lookup in class of LHS
+      Variable *var2 = ct->lookup_one(rhsFinalTypeName, env, flags);
+      if (var2 && !var2->isClass()) {
+        return env.error(fieldName->loc, stringc
+          << "in " << this->asString() << ", when " << rhsFinalTypeName
+          << " is found in the class of " << obj->asString() 
+          << ", it must be a class, not " << kindAndType(var2));
+      }
+
+      // combine
+      if (var1) {
+        if (var2 && 
+            var1->type->asCompoundType() != var2->type->asCompoundType()) {
+          return env.error(fieldName->loc, stringc
+            << "in " << this->asString() << ", " << rhsFinalTypeName
+            << " was found in the current scope as "
+            << kindAndType(var1) << ", and also in the class of "
+            << obj->asString() << " as "
+            << kindAndType(var2) << ", but they must be the same");
+        }
+      }
+      else {
+        if (var2) {
+          var1 = var2;      // make 'var1' the only one
+        }
+        else {
+          return env.error(fieldName->loc, stringc
+            << "no such class `" << rhsFinalTypeName << "'");
+        }
+      }
+
+      // get the destructor of the named class
+      CompoundType *rhsClass = var1->type->asCompoundType();
+      rhsClass->lookup(candidates, fieldName->getName(), env, flags);
+    }
+
+    else {
+      // doc/lookup.txt cases 1,2,4,5,6
+
+      // lookup 'fieldName' in 'ct', taking any template arguments
+      // or conversion function types into account
+      env.unqualifiedFinalNameLookup(candidates, ct, fieldName, flags);
+    }
+  }
+  
+  // investigate what lookup yielded
+  if (candidates.isEmpty()) {
     return env.error(lhsType, stringc
       << "there is no member called `" << *fieldName
       << "' in " << lhsType->toString());
   }
 
-  // should not be a type
+  // should only get members of 'ct' or base classes
+  SFOREACH_OBJLIST(Variable, candidates, iter) {
+    Variable const *v = iter.data();
+
+    if (v->scope == ct) {
+      continue;         // easy case
+    }
+    
+    if (!v->scope || !v->scope->curCompound) {
+      return env.error(fieldName->loc, stringc
+        << "field `" << *fieldName << "' is not a class member");
+    }
+
+    CompoundType *vClass = v->scope->curCompound;
+    int subobjs = ct->countBaseClassSubobjects(vClass);
+    if (!subobjs) {
+      return env.error(fieldName->loc, stringc
+        << "field `" << *fieldName << "' is a member of "
+        << kindAndType(vClass->typedefVar)
+        << ", which is not a base class of "
+        << kindAndType(ct->typedefVar));
+    }
+
+    // 10.2p2: must not ambiguously refer to fields of distinct
+    // subobjects
+    if (!v->hasFlag(DF_STATIC) && subobjs>1) {
+      return env.error(fieldName->loc, stringc
+        << "field `" << *fieldName << "' ambiguously refers to "
+        << "elements of multiple base class subobjects");
+    }
+  }
+
+  // nominal lookup result for remaining checks; if this name is
+  // overloaded, this should get overwritten after overload resolution
+  Variable *f = candidates.first();
+
+  // should not be a type (5.2.5p4b4)
   if (f->hasFlag(DF_TYPEDEF)) {
     return env.error(lhsType, stringc
       << "member `" << *fieldName << "' is a typedef!");
   }
-       
+
   // TODO: access control check
 
   if (!(flags & LF_TEMPL_PRIMARY)) {
@@ -6203,6 +6287,7 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
   // type of expression is type of field; possibly as an lval
   if (obj->type->isLval() &&
       !field->type->isFunctionType()) {
+    // TODO: this is wrong if the field names an enumerator (5.2.5p4b5)
     return makeLvalType(env, field->type);
   }
   else {
@@ -6212,7 +6297,14 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
 
 
 Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
-{   
+{
+  LookupSet dummy;
+  return itcheck_arrow_set(env, replacement, LF_NONE, dummy);
+}
+
+Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
+                                 LookupFlags flags, LookupSet &set)
+{
   // check LHS
   obj->tcheck(env, obj);
 
@@ -6222,11 +6314,11 @@ Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
     t = resolveOverloadedUnaryOperator(env, obj, obj, OP_ARROW);
     // keep sticking in 'operator->' until the LHS is not a class
   }
-  
+
   // now replace with '*' and '.' and proceed
-  replacement = new E_fieldAcc(new E_deref(obj), fieldName);
-  replacement->tcheck(env, replacement);
-  return replacement->type;
+  E_fieldAcc *eacc = new E_fieldAcc(new E_deref(obj), fieldName);
+  replacement = eacc;
+  return eacc->itcheck_fieldAcc_set(env, flags, set);
 }
 
 

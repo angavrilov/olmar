@@ -1,7 +1,8 @@
 // t0406.cc
 // tests of 5.2.4: E_fieldAcc with a non-class LHS
 
-// icc gets all of these tests right, but gcc gets several wrong
+// icc gets all of these tests right
+// gcc fails to reject tests: 1 4 6 11 12 13 14
 
 
 typedef int INT;
@@ -30,7 +31,7 @@ void foo()
   p->~INT();
 
   // 1/2 qualifier
-  //ERROR(1): x.::~INT();               // gcc mistakenly allows this
+  //ERROR(1): x.::~INT();
 
   // one qualifier
   x.INT::~INT();
@@ -38,7 +39,7 @@ void foo()
   p->INT2::~INT();
   //ERROR(2): x.INT::~FLOAT();
   //ERROR(3): x.FLOAT::~FLOAT();
-  //ERROR(4): x.FLOAT::~INT();          // gcc mistakenly allows this
+  //ERROR(4): x.FLOAT::~INT();
 
   // one+1/2 qualifier
   x.::INT::~INT();
@@ -50,7 +51,7 @@ void foo()
   x.N::INT3::~INT3();
   x.N::INT3::~INT4();
   p->N::INT4::~INT3();
-  //ERROR(6): x.N::FLOAT3::~INT3();     // gcc mistakenly allows this
+  //ERROR(6): x.N::FLOAT3::~INT3();
 
   // two+1/2 qualifiers
   x.::N::INT3::~INT3();
@@ -68,15 +69,15 @@ void foo()
   xc.~INT();                   // ok
   xc.INTC::~INTC();
   xc.INT::~INT();              // ok
-  //ERROR(11): xc.INTC::~INT();         // gcc mistakenly allows this
-  //ERROR(12): xc.INT::~INTC();         // gcc mistakenly allows this
+  //ERROR(11): xc.INTC::~INT();
+  //ERROR(12): xc.INT::~INTC();
 
   x.~INTC();
   x.~INT();                    // ok
   x.INTC::~INTC();
   x.INT::~INT();               // ok
-  //ERROR(13): x.INTC::~INT();          // gcc mistakenly allows this
-  //ERROR(14): x.INT::~INTC();          // gcc mistakenly allows this
+  //ERROR(13): x.INTC::~INT();
+  //ERROR(14): x.INT::~INTC();
 }
 
 

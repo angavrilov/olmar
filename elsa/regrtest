@@ -562,7 +562,7 @@ testparse t0326.cc
 testparse t0327.cc
 testparse t0328.cc
 testparse t0329.cc
-failparse t0330.cc "member lookup bug causes failure to diagnose bad input"
+testparse t0330.cc
 testparse t0331.cc
 testparse t0332.cc
 testparse t0333.cc
@@ -639,6 +639,8 @@ testparse t0403.cc
 testparse t0404.cc
 testparse t0405.cc
 testparse t0406.cc
+testparse t0407.cc
+testparse t0408.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

@@ -35,6 +35,10 @@ enum LookupFlags {
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
   LF_NO_DENOTED_SCOPE  = 0x00080000,   // temporary: disable denoted-scope computation in PQ_qualifier::tcheck
 
+  // flag combination for looking up names that precede "::" (3.4.3p1);
+  // this is used for the new lookup mechanism (Env::lookupPQ, etc.)
+  LF_QUALIFIER_LOOKUP  = LF_TYPES_NAMESPACES | LF_SELFNAME,
+
   LF_ALL_FLAGS         = 0x000FFFFF,   // bitwise OR of all flags
 };
 
