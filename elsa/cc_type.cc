@@ -270,6 +270,7 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     keyword(k)
 {
   curCompound = this;
+  curAccess = (k==K_CLASS? AK_PRIVATE : AK_PUBLIC);
 }
 
 CompoundType::~CompoundType()
