@@ -8208,11 +8208,10 @@ void ND_usingDecl::tcheck(Env &env)
 
 void ND_usingDir::tcheck(Env &env)
 {
-  // lookup the qualifiers in the name
-  name->tcheck(env);
+  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // find the namespace we're talking about
-  Variable *targetVar = env.lookupPQVariable(name, LF_ONLY_NAMESPACES);
+  Variable *targetVar = env.lookupPQ_one(name, LF_ONLY_NAMESPACES);
   if (!targetVar) {
     env.error(stringc
       << "could not find namespace `" << *name << "'");
