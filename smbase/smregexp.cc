@@ -8,8 +8,11 @@
 // for now, I implement everything using the libc POSIX regex
 // facilities
 #include <stddef.h>       // size_t
-#include <regex.h>        // POSIX regex functions
-
+#ifndef __FreeBSD__
+#include <regex.h>
+#else
+#include <gnuregex.h>        // POSIX regex functions
+#endif
 
 // get an error string
 static string regexpErrorString(regex_t const *pat, int code)
