@@ -80,6 +80,46 @@ if ($os eq "Linux") {
 $CCFLAGS = join(' ', @CCFLAGS);
 
 
+# -------------- does the C++ compiler work? --------------
+print("Testing C++ compiler ...\n");
+$cmd = "g++ -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
+if (system($cmd)) {
+  print(<<"EOF");
+
+I was unable to compile a really simple C++ program.  I tried:
+  $cmd
+
+Please double-check your compiler installation.
+
+Until this is fixed, smbase (and any software that depends on it) will
+certainly not compile either.
+EOF
+  exit(2);
+}
+
+if (system("./testcout")) {
+  print(<<"EOF");
+
+I was able to compile testcout.cc, but it did not run.  I tried:
+  ./testcout
+
+A frequent cause for this error is a misconfiguration of the
+language runtime libraries.
+
+For example, by default g++ installs libstdc++ into /usr/local/lib,
+but on many systems this directory is not searched by the loader.
+Solutions would include symlinking or copying the files into /usr/lib,
+adding /usr/local/lib to the library search path, or reinstalling g++
+with a different --prefix argument to its configuration script.
+
+Until this is fixed, smbase (and any software that depends on it) will
+certainly not run either.
+EOF
+  exit(2);
+}
+
+print("C++ compiler seems to work\n");
+
 
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
@@ -129,7 +169,7 @@ EOF
 
 
 # substitute the CCFLAGS
-sed "s/\@CCFLAGS\@/$CCFLAGS/g" <Makefile.in >>Makefile
+sed -e "s/\@CCFLAGS\@/$CCFLAGS/g" <Makefile.in >>Makefile
 
 # discourage editing ..
 chmod a-w Makefile
@@ -143,19 +183,29 @@ chmod 0755, "config.status";
 
 # ----------------- final actions -----------------
 # run the output file generator
-my $code = system("./config.status");
-if ($code != 0) {
-  # hopefully ./config.status has already printed a message,
-  # I'll just relay the status code
-  if ($code >> 8) {                
-    exit($code >> 8);
-  }
-  else {
-    exit($code & 127);
-  }
-}
-
+run("./config.status");
 
 print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 
 exit(0);
+
+
+# ---------------- subroutines -------------
+sub run {
+  my $code = system(@_);
+  checkExitCode($code);
+}
+
+sub checkExitCode {
+  my ($code) = @_;
+  if ($code != 0) {
+    # hopefully the command has already printed a message,
+    # I'll just relay the status code
+    if ($code >> 8) {
+      exit($code >> 8);
+    }
+    else {
+      exit($code & 127);
+    }
+  }
+}
