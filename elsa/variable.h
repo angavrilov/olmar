@@ -93,6 +93,12 @@ public:
   bool isGlobal() const { return flags & DF_GLOBAL; }
   bool isStatic() const { return flags & DF_STATIC; }
 
+  // true if this name refers to a template function, or is
+  // the typedef-name of a template class
+  bool isTemplate() const { return isTemplateFunction() || isTemplateClass(); }
+  bool isTemplateFunction() const;
+  bool isTemplateClass() const;
+
   // create an overload set if it doesn't exist, and return it
   OverloadSet *getOverloadSet();
 

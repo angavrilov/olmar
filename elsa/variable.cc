@@ -30,6 +30,19 @@ void Variable::setFlagsTo(DeclFlags f)
 }
 
 
+bool Variable::isTemplateFunction() const
+{
+  return type->isTemplateFunction() &&
+         !hasFlag(DF_TYPEDEF);
+}
+
+bool Variable::isTemplateClass() const
+{
+  return type->isTemplateClass() &&
+         hasFlag(DF_TYPEDEF);
+}
+
+
 string Variable::toString() const
 {
   // The purpose of this method is to print the name and type

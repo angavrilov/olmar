@@ -629,36 +629,54 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
     var = lookupVariable(name->getName(), flags);
   }
 
-  if (var &&
-      name->getUnqualifiedNameC()->isPQ_template()) {
-    // make sure the name in question is a template
-    if (var->type->isTemplateFunction() &&
-        !var->hasFlag(DF_TYPEDEF)) {
-      // ok; a template function
-    }
-    else if (var->type->isTemplateClass() &&
-             var->hasFlag(DF_TYPEDEF)) {
-      // ok; a typedef referring to a template class
-      #if 0    // disabling template instantiation for now..
-      // instantiate it
-      CompoundType *instantiatedCt
-        = instantiateClass(var->type->ifCompoundType(),
-                           name->getUnqualifiedName()->asPQ_templateC()->args);
+  if (var) {                
+    // get the final component of the name, so we can inspect
+    // whether it has template arguments
+    PQName const *final = name->getUnqualifiedNameC();
 
-      // get the typedef variable for it
-      var = instantiatedCt->typedefVar;
-      #endif // 0
+    // compare the name's template status to whether template
+    // arguments were supplied; note that you're only *required*
+    // to pass arguments for template classes, since template
+    // functions can infer their arguments
+    if (var->isTemplateClass()) {
+      if (!final->isPQ_template()) {
+        // this disambiguates
+        //   new Foo< 3 > +4 > +5;
+        // which could absorb the '3' as a template argument or not,
+        // depending on whether Foo is a template
+        #if 0      // removed this restriction until my template impl is better
+        error(stringc
+          << "`" << var->name << "' is a template, but template "
+          << "arguments were not supplied",
+          true /*disambiguating*/);
+        return NULL;
+        #endif
+      }
+      else {
+        #if 0    // aborted
+        // apply the template arguments to yield a new type based
+        // on the template
+        FakeList<TemplateArgument> *targs = final->asPQ_template()->args;
+        CompoundType *ct = var->type;
+        xassert(ct->isTemplate());
+
+        // make the new type (or get the one that already exists, if
+        // this isn't the first time we've asked for this set of
+        // arguments applied to this template)
+        CompoundType *instantiated = ct->instantiate(targs);
+
+
+        #endif // 0
+      }
     }
-    else {
-      // I'm not sure if I really need to make this disambiguating
-      // (i.e. I don't know if there is a syntax example which is
-      // ambiguous without this error), but since I should always
-      // know when something is or is not a template (even when
-      // processing template code itself) this shouldn't introduce any
-      // problems.
+    else if (!var->isTemplate() &&
+             final->isPQ_template()) {
+      // disambiguates the same example as above, but selects
+      // the opposite interpretation
       error(stringc
-        << "`" << *name << "' does not refer to a template",
-        true /*disambiguates*/);
+        << "`" << var->name << "' is not a template, but template "
+        << "arguments were supplied",
+        true /*disambiguating*/);
       return NULL;
     }
   }
@@ -996,6 +1014,7 @@ Type *Env::error(Type *t, char const *msg)
     return t;
   }
 
+  // TODO: remove containsTypeVariables() from this..
   if (t->containsErrors() ||
       t->containsTypeVariables()) {   // hack until template stuff fully working
     // no report

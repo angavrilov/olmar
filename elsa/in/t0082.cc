@@ -1,5 +1,5 @@
 // cc.in82
-// ambiguity with angle brackets?
+// ambiguity with angle brackets
 
 template <int n> class C { /*...*/ };
 

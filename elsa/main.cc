@@ -187,6 +187,11 @@ void doit(int argc, char **argv)
                     << (getMilliseconds() - tcheckStart) 
                     << " ms)\n";
 
+    // print abstract syntax tree annotated with types
+    if (tracingSys("printTypedAST")) {
+      unit->debugPrint(cout, 0);
+    }
+
     if (tracingSys("secondTcheck")) {
       // this is useful to measure the cost of disambiguation, since
       // now the tree is entirely free of ambiguities
@@ -228,11 +233,6 @@ void doit(int argc, char **argv)
       }
     }
 
-    // print abstract syntax tree annotated with types
-    if (tracingSys("printTypedAST")) {
-      unit->debugPrint(cout, 0);
-    }
-                                      
     // check an expected property of the annotated AST
     if (tracingSys("declTypeCheck") || getenv("declTypeCheck")) {
       DeclTypeChecker vis;

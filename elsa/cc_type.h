@@ -58,6 +58,7 @@ class ArrayType;
 class PointerToMemberType;
 class Type;
 class TemplateParams;
+class STemplateArgument;
 class ClassTemplateInfo;
 class TypeFactory;
 class BasicTypeFactory;
@@ -270,6 +271,12 @@ public:      // funcs
   // how many times does 'ct' appear as a subobject?
   // returns 1 if ct==this
   int countBaseClassSubobjects(CompoundType const *ct) const;
+
+  // instantiate this template (must be a template), yielding
+  // a new compound type (or an existing one if these arguments
+  // have been presented previously)
+  //CompoundType *instantiate(SObjList<STemplateArgument> const &args);
+  // aborted for now
 };
 
 string toString(CompoundType::Keyword k);
@@ -634,6 +641,37 @@ public:
 };
 
 
+#if 0     // aborted for now
+// semantic template argument (semantic as opposed to syntactic); this
+// breaks the argument down into the cases described in cppstd 14.3.2
+// para 1, plus types, minus template parameters, then grouped into
+// equivalence classes as implied by cppstd 14.4 para 1
+class STemplateArgument {
+public:
+  enum Kind {
+    STA_TYPE,        // type argument
+    STA_INT,         // int or enum argument
+    STA_VARIABLE,    // object reference, object pointer, or ptr-to-member
+    STA_TEMPLATE,    // template argument (not implemented)
+    NUM_STA_KINDS
+  } kind;
+
+  union {
+    Type *t;         // for STA_TYPE (serf)
+    int i;           // for STA_INT
+    Variable *v;     // for STA_VARIABLE (serf)
+  } value;
+
+public:
+  STemplateArgument(Kind k) : kind(k) { value.i = 0; }
+
+  // the point of boiling down the syntactic arguments into this
+  // simpler semantic form is to make equality checking easy
+  bool equals(STemplateArgument const *obj) const;
+};
+#endif // 0
+
+
 // for a template class, this is the template-related info
 class ClassTemplateInfo : public TemplateParams {
 public:    // data
@@ -649,6 +687,7 @@ public:    // data
   // argument list (AST pointer); the arguments are used during
   // template specialization matching (which is not implemented for
   // now)
+  // TODO: replace TemplateArgument with STemplateArgument
   FakeList<TemplateArgument> *specialArguments;
   string specialArgumentsRepr;      // textual repr. for printing
 

@@ -170,6 +170,7 @@ grepBoth() {
 # ---------- test C++ parser ------------
 # the gaps below are for the tests which don't work
 #   0094: weird g++ iomanip.h "<>" syntax
+#   0109: can't disambiguate example from paper..
 for fn in                                                                 \
   t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc \
   t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc \
