@@ -645,8 +645,8 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
         // no receiver object but function is a method: not viable
         return NULL;
       }
-      if (args[argIndex].type && !ft->isMethod()) {
-        // leave the conversion as IC_NONE
+      if (!ft->isMethod()) {
+        // no receiver parameter; leave the conversion as IC_NONE
         argIndex++;       // do *not* advance 'paramIter'
         continue;
       }

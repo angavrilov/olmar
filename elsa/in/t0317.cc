@@ -14,4 +14,10 @@ void A::f()
   foo(2,3);
 }
 
+void g()
+{
+  A::foo(2,3);
+  //ERROR(1): A::foo(2);      // need receiver
+}
+
 // EOF
