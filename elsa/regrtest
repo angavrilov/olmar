@@ -883,6 +883,7 @@ failparse k0018.cc "member function taking an array argument with default value 
 failparse k0019.cc "template parameters named for ctor/dtor"
 failparse k0020.cc "deleting pointers of template-type"
 failparse k0021.cc "calling a templated function pointer"
+failparse k0022.cc "explicit instantiation of template loses original template parameter names"
 
 # ---- END: lots of tests ----
 
