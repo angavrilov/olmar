@@ -11,6 +11,7 @@
 #include "cc_flags.h"      // UberModifiers, SimpleTypeId
 
 class PQName;              // cc.ast.gen.h
+class TranslationUnit;     // cc.ast.gen.h
 class SourceLocation;      // fileloc.h
 
 // ugly-ass hack
@@ -48,5 +49,13 @@ public:
   SimpleTypeId uberSimpleType(SourceLocation const &loc, UberModifiers m);
   UberModifiers uberCombine(SourceLocation const &loc, UberModifiers m1, UberModifiers m2);
 };
+
+
+// count ambiguous nodes; actually, this may double-count some nodes
+// because of sharing in the ambiguous forest--but it will
+// double-count exactly to the degree that debugPrint will
+// double-print, so they will agree in that regard
+int numAmbiguousNodes(TranslationUnit *unit);
+
 
 #endif // CPARSE_H

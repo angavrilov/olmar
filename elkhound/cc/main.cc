@@ -127,6 +127,10 @@ void doit(int argc, char **argv)
     unit->debugPrint(cout, 0);
   }
 
+  if (unit) {     // when "-tr trivialActions" it's NULL...
+    cout << "ambiguous nodes: " << numAmbiguousNodes(unit) << endl;
+  }
+
   // dsw:print abstract syntax tree as XML
   if (tracingSys("xmlPrintAST")) {
     unit->xmlPrint(cout, 0);
@@ -142,7 +146,7 @@ void doit(int argc, char **argv)
     traceProgress() << "type checking...\n";
     Env env(strTable, lang);
     unit->tcheck(env);
-    traceProgress(2) << "done type checking\n";
+    traceProgress() << "done type checking\n";
 
     if (tracingSys("secondTcheck")) {
       // this is useful to measure the cost of disambiguation, since
@@ -163,18 +167,26 @@ void doit(int argc, char **argv)
       }
     }
 
-    cout << "typechecking results:\n"
-         << "  errors:   " << numErrors << "\n"
-         << "  warnings: " << numWarnings << "\n";
-
     // print errors and warnings in reverse order
     env.errors.reverse();
     FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
       cout << iter.data()->toString() << "\n";
     }
 
+    cout << "typechecking results:\n"
+         << "  errors:   " << numErrors << "\n"
+         << "  warnings: " << numWarnings << "\n";
+
     if (numErrors != 0) {
       exit(4);
+    }
+
+    // verify the tree now has no ambiguities
+    if (unit && numAmbiguousNodes(unit) != 0) {
+      cout << "UNEXPECTED: ambiguities remain after type checking!\n";
+      if (tracingSys("mustBeUnambiguous")) {
+        exit(2);
+      }
     }
 
     // print abstract syntax tree annotated with types
@@ -258,7 +270,6 @@ void doit(int argc, char **argv)
   //malloc_stats();
 
   sourceFileList.clear();
-  traceRemoveAll();
 }
 
 int main(int argc, char **argv)
