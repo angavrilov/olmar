@@ -383,7 +383,16 @@ void Expression::printExtras(ostream &os, int indent) const
 // ExpressionListOpt
 // Initializer
 // InitLabel
-// TemplateDeclaration
+
+// ------------------- TemplateDeclaration ------------------
+void TD_class::printExtras(ostream &os, int indent) const
+{
+  if (type) {
+    ind(os, indent) << "type: " << type->toString() << "\n";
+  }
+}
+
+
 // TemplateParameter
 
 // -------------------- TemplateArgument ---------------------

@@ -214,6 +214,12 @@ class PQName {
   -> PQ_template(StringRef name, FakeList<TemplateArgument> *args);
 }
 
+verbatim {
+  // so clients outside cc_print.cc can print these lists; this
+  // does *not* print the surrounding angle brackets
+  void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args);
+}
+
 
 // a name of an "atomic" type--one to which type constructors
 // (e.g. '*') can be applied, but which itself is not syntactically
@@ -244,10 +250,20 @@ class TypeSpecifier {
        PQName name
      );
 
+  // class definition
   -> TS_classSpec(                         // "class { ... }"
        SourceLocation loc,
        TypeIntr keyword,                     // "class", "struct", "union"
-       StringRef /*nullable*/ name,          // user-provided name, if any
+
+       // 'name' is the user-provided name, if any.
+       // Why is this a PQName instead of just a StringRef?
+       //   - it could be a template specialization, and therefore
+       //     has template arguments
+       //   - it could be a definition or specialization of a class
+       //     declared in another namespace
+       // See cppstd 14.5.4 para 6 for an example of both at once.
+       PQName /*nullable*/ name,
+
        FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
      ) {
@@ -792,9 +808,14 @@ class TemplateDeclaration (
   // declare a template function
   -> TD_func(Function f);
   
-  // declare a template class; 'type' could either be a
+  // declare a template class; 'spec' could either be a
   // TS_elaborated (forward decl) or a TS_classSpec (definition)
-  -> TD_class(TypeSpecifier type);
+  -> TD_class(TypeSpecifier spec) {
+       public Type const *type;  ctor type=NULL;     // defined type
+
+       public void printExtras(ostream &os, int indent) const;
+       custom debugPrint { printExtras(os, indent); }
+     }
 }
 
 // one of the parameters to a template declaration

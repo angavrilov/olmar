@@ -8,6 +8,7 @@
 #include "cc.ast.gen.h"     // C++ AST
 #include "cc_env.h"         // Env
 #include "trace.h"          // trace
+#include "cc_print.h"       // PrintEnv
 
 
 // ------------- generic ambiguity resolution -------------
@@ -473,7 +474,7 @@ void Declaration::tcheck(Env &env)
     if (spec->isTS_classSpec()) {
       TS_classSpec *cs = spec->asTS_classSpec();
       if (cs->name == NULL) {
-        cs->name = env.getAnonName(cs->keyword);
+        cs->name = new PQ_name(env.getAnonName(cs->keyword));
       }
     }
     if (spec->isTS_enumSpec()) {
@@ -717,19 +718,28 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
 }
 
 
+ClassTemplateInfo *takeTemplateClassInfo(Env &env)
+{
+  ClassTemplateInfo *ret = NULL;
+
+  Scope *scope = env.scope();
+  if (scope->curTemplateParams) {
+    ret = new ClassTemplateInfo;
+    ret->params.concat(env.scope()->curTemplateParams->params);
+    delete env.takeTemplateParams();
+  }    
+  
+  return ret;
+}
+
 Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
                             SourceLocation const &loc, TypeIntr keyword,
                             bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
-  
+
   // transfer template parameters
-  Scope *scope = env.scope();
-  if (scope->curTemplateParams) {
-    ct->templateInfo = new ClassTemplateInfo;
-    ct->templateInfo->params.concat(env.scope()->curTemplateParams->params);
-    delete env.takeTemplateParams();
-  }
+  ct->templateInfo = takeTemplateClassInfo(env);
 
   ct->forward = forward;
   if (name) {
@@ -834,10 +844,38 @@ Type const *TS_classSpec::itcheck(Env &env)
   CompoundType *containingClass = env.acceptingScope()->curCompound;
   bool innerClass = !!containingClass;
 
+  // check restrictions on the form of the name
+  FakeList<TemplateArgument> *templateArgs = NULL;
+  if (name) {
+    if (name->hasQualifiers()) {
+      return env.unimp("qualified class specifier name");
+    }                           
+
+    PQName const *unqual = name->getUnqualifiedName();
+    if (unqual->isPQ_template()) {
+      if (!inTemplate) {
+        return env.error("class specifier name can have template arguments "
+                         "only in a templatized declaration");
+      }
+      else {
+        templateArgs = unqual->asPQ_templateC()->args;
+                                                                
+        // typecheck the arguments
+        FAKELIST_FOREACH_NC(TemplateArgument, templateArgs, iter) {
+          iter->tcheck(env);
+        }
+      }
+    }
+  }
+  
+  // get the raw name
+  StringRef stringName = name? name->getName() : NULL;
+
   // see if the environment already has this name
-  CompoundType *ct = name? env.lookupCompound(name, true /*innerOnly*/) : NULL;
+  CompoundType *ct = 
+    stringName? env.lookupCompound(stringName, true /*innerOnly*/) : NULL;
   Type const *ret;
-  if (ct) {
+  if (ct && !templateArgs) {
     // check that the keywords match
     if ((int)ct->keyword != (int)keyword) {
       // apparently this isn't an error, because my streambuf.h
@@ -854,7 +892,7 @@ Type const *TS_classSpec::itcheck(Env &env)
         return env.error(stringc
           << "there is already a " << ct->keywordAndName()
           << ", but here you're defining a " << toString(keyword)
-          << " " << name);
+          << " " << *name);
       }
 
       trace("env") << "changing " << ct->keywordAndName()
@@ -876,9 +914,47 @@ Type const *TS_classSpec::itcheck(Env &env)
     ret = makeType(ct);
   }
 
-  else {
+  else if (ct && templateArgs) {
+    CompoundType *primary = ct;
+    ClassTemplateInfo *primaryTI = primary->templateInfo;
+
+    // this is supposed to be a specialization
+    if (!primaryTI) {
+      return env.error("attempt to specialize a non-template");
+    }
+
+    // make a new type, since a specialization is a distinct template
+    // [cppstd 14.5.4 and 14.7]
+    ct = new CompoundType((CompoundType::Keyword)keyword, stringName);
+    ClassTemplateInfo *specialTI = ct->templateInfo = takeTemplateClassInfo(env);
+    xassert(specialTI);
+    ret = makeType(ct);
+
+    // add this type to the primary's list of specializations; we are not
+    // going to add 'ct' to the environment, so the only way to find the
+    // specialization is to go through the primary template
+    primaryTI->specializations.append(ct);
+
+    // 'makeNewCompound' will already have put the template *parameters*
+    // into 'specialTI', but not the template arguments
+    specialTI->specialArguments = templateArgs;
+    
+    // compute a textual representation of 'templateArgs' to facilitate
+    // printing of 'ct' from cc_type.cc
+    stringBuilder sb;
+    PrintEnv penv(sb);
+    printTemplateArgumentFakeList(penv, templateArgs);
+    specialTI->specialArgumentsRepr = sb;
+  }
+
+  else {      // !ct
+    xassert(!ct);
+    if (templateArgs) {
+      env.error("cannot specialize a template that hasn't been declared");
+    }
+
     // no existing compound; make a new one
-    ret = makeNewCompound(ct, env, name, loc, keyword, false /*forward*/);
+    ret = makeNewCompound(ct, env, stringName, loc, keyword, false /*forward*/);
   }
 
   // let me map from compounds to their AST definition nodes
@@ -2951,7 +3027,7 @@ void TD_class::itcheck(Env &env)
 { 
   // check the class definition; it knows what to do about
   // the template parameters (just like for functions)
-  type->tcheck(env);
+  type = spec->tcheck(env);
 }
 
 

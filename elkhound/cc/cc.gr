@@ -305,7 +305,7 @@ nonterm[PQName*] UnqualifiedId {
 // optional qualifier sequence (with no bare "::"), then an
 // UnqualifiedId
 nonterm[PQName*] PQualifiedId {
-  -> id:UnqualifiedId                 
+  -> id:UnqualifiedId
        [ return id; ]
 
   -> n:TypeName "::" id:PQualifiedId
@@ -314,8 +314,8 @@ nonterm[PQName*] PQualifiedId {
   -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
        [ return new PQ_qualifier(n, targs, id); ]
 
-  // std has a couple places where "template" occurs, I'm leaving
-  // those out for now..
+  // TODO: cppstd has a couple places where "template" occurs, I'm
+  // leaving those out for now..
 }
 
 // variant of IdExpression which doesn't allow leading "::"; this is
@@ -768,12 +768,12 @@ nonterm[Statement*] ForInitStatement {
 //} 
 
 nonterm[TopForm*] Declaration {
-  -> d:BlockDeclaration      [ return new TF_decl(loc, d); ]
-  -> f:FunctionDefinition    [ return new TF_func(loc, f); ]
-  -> t:TemplateDeclaration   [ return new TF_template(loc, t); ]
+  -> d:BlockDeclaration        [ return new TF_decl(loc, d); ]
+  -> f:FunctionDefinition      [ return new TF_func(loc, f); ]
+  -> t:TemplateDeclaration     [ return new TF_template(loc, t); ]
   //-> ExplicitInstantiation;
-  //-> ExplicitSpecialization;
-  -> s:LinkageSpecification  [ return s; ]
+  -> s:ExplicitSpecialization  [ return new TF_template(loc, s); ]
+  -> s:LinkageSpecification    [ return s; ]
   //-> NamespaceDefinition;
 }
 
@@ -1493,19 +1493,28 @@ nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
 
 
 // ------ A.8 Classes ------
-nonterm[TS_classSpec*] ClassSpecifier ->
-  k:ClassKey n:ClassNameOpt b:BaseClauseOpt
-    "{" memb:MemberDeclarationSeqOpt "}"
-  [
-    return new TS_classSpec(loc, k, n, b, memb);
-  ]
+nonterm[TS_classSpec*] ClassSpecifier {
+  -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
+       [ return new TS_classSpec(loc, k, n, b, memb); ]
+}
 
-nonterm[StringRef] ClassNameOpt {
-  -> empty     [ return NULL; ]
-  -> n:Identifier [
-       //declareClassTag(n);   // wrong type.. whatever
-       return n;
-     ]
+// this is the name portion of what the standard calls "ClassHead"
+nonterm[PQName*] ClassHeadNameOpt {
+  -> empty               [ return NULL; ]
+  -> n:ClassHeadName     [ return n; ]
+}
+
+// a possibly-qualified Identifier or TemplateId
+nonterm[PQName*] ClassHeadName {
+  -> n:Identifier        [ return new PQ_name(n); ]
+  -> t:TemplateId        [ return t; ]
+
+  -> n:TypeName "::" rest:ClassHeadName
+       [ return new PQ_qualifier(n, NULL /*targs*/, rest); ]
+  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
+       [ return new PQ_qualifier(n, targs, rest); ]
+       
+  // TODO: as in PQualifiedId, I'm omitting the keyword "template"
 }
 
 nonterm[enum TypeIntr] ClassKey {
@@ -1902,9 +1911,20 @@ nonterm[TemplateArgument*] TemplateArgument {
 //  -> "template" Declaration;
 //}
 
-//nonterm ExplicitSpecialization {
-//  -> "template" "<" ">" Declaration;
-//}
+nonterm[TemplateDeclaration*] ExplicitSpecialization {
+  // rule from std:
+  //   -> "template" "<" ">" Declaration;
+  // as in TemplateDeclaration, I've expanded the Declaration nonterminal
+
+  -> "template" "<" ">" def:FunctionDefinition
+       [ return new TD_func(FakeList<TemplateParameter>::emptyList(), def); ]
+
+  -> "template" "<" ">" spec:ClassSpecifier ";"
+       [ return new TD_class(FakeList<TemplateParameter>::emptyList(), spec); ]
+
+  -> "template" "<" ">" spec:ElaboratedTypeSpecifier ";"
+       [ return new TD_class(FakeList<TemplateParameter>::emptyList(), spec); ]
+}
 
 
 // ------ A.13 Exception handling ------

@@ -524,7 +524,7 @@ CompoundType *Env::instantiateClass(
   // clone the abstract syntax of the template class, substituting
   // the constructed name for the original
   ret->syntax = tclass->syntax->clone();  
-  ret->syntax->name = instNameRef;
+  ret->syntax->name = new PQ_name(instNameRef);
     
   if (tracingSys("printClonedAST")) {     
     cout << "---------- cloned: " << instNameRef << " ----------\n";

@@ -328,6 +328,10 @@ string CompoundType::toCString() const
 
   sb << keywordName(keyword) << " "
      << (name? name : "/*anonymous*/");
+     
+  if (templateInfo && templateInfo->specialArguments) {
+    sb << "<" << templateInfo->specialArgumentsRepr << ">";
+  }
    
   return sb;
 }
@@ -1311,6 +1315,17 @@ bool TemplateParams::anyCtorSatisfies(Type::TypePred pred) const
 {
   return parameterListCtorSatisfies(pred, params);
 }
+
+
+// ------------------ ClassTemplateInfo -------------
+ClassTemplateInfo::ClassTemplateInfo()
+  : instantiated(),           // empty map
+    specializations(),        // empty list
+    specialArguments(NULL)    // empty list
+{}
+
+ClassTemplateInfo::~ClassTemplateInfo()
+{}
 
 
 // -------------------- ArrayType ------------------
