@@ -5,6 +5,7 @@
 #define ARRAY_H
 
 #include "xassert.h"      // xassert
+#include <stdlib.h>       // qsort
 
 
 // -------------------- Array ----------------------
@@ -98,7 +99,7 @@ public:      // funcs
   // set an element, using the doubler if necessary
   void setIndexDoubler(int index, T const &value)
     { ensureIndexDoubler(index); arr[index] = value; }
-    
+
   // swap my data with the data in another GrowArray object
   void swapWith(GrowArray<T> &obj) {
     T *tmp1 = obj.arr; obj.arr = this->arr; this->arr = tmp1;
@@ -255,6 +256,11 @@ public:
   void swapWith(ArrayStack<T> &obj) {
     GrowArray<T>::swapWith(obj);
     int tmp = obj.len; obj.len = this->len; this->len = tmp;
+  }
+
+  void sort(int (*compare)(T const *t1, T const *t2)) {
+    qsort(getArrayNC(), len, sizeof(T),
+          (int (*)(void const*, void const*))compare );
   }
 };
 
