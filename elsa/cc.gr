@@ -1762,7 +1762,8 @@ nonterm(Member*) MemberDeclaration {
   // destructive action on 'spec'
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       { if (list->firstC()->decl->skipGroups()->isD_name() &&
+       { if (lang.isCplusplus &&        // 10/20/04: e.g. in/c/t0017.c
+             list->firstC()->decl->skipGroups()->isD_name() &&
              !(spec->dflags & (DF_TYPEDEF | DF_STATIC)) &&
              spec->spec->isTS_name()) {
            PQName const *n = spec->spec->asTS_nameC()->name;
