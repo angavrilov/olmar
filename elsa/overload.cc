@@ -689,29 +689,22 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   // the specialization syntax or just an instance of a template..
   // I'm going to use the latter interpretation since I think it
   // makes more sense
-  if (!left->var->templateInfo() && right->var->templateInfo()) {
-    xassert(!left->instFrom);
-    xassert(right->instFrom);
+  if (!left->instFrom && right->instFrom) {
     return -1;     // left is non-template
-  } else if (left->var->templateInfo() && !right->var->templateInfo()) {
-    xassert(left->instFrom);
-    xassert(!right->instFrom);
+  } else if (left->instFrom && !right->instFrom) {
     return +1;     // right is non-template
   }
-  
+
   // next rule talks about comparing templates to find out which is
   // more specialized
-  if (left->var->templateInfo() && right->var->templateInfo()) {
-    // NOTE: we use the instFrom field here instead of the var
-    xassert(left->instFrom);
-    xassert(right->instFrom);
-
+  if (left->instFrom && right->instFrom) {
     // sm: I think we just compare the candidates directly; there is
     // no notion of partial specialization for function templates, so
     // all the old stuff about primaries doesn't make sense
 
     // this section implements cppstd 14.5.5.2
 
+    // NOTE: we use the instFrom field here instead of the var
     Type *leftType = left->instFrom->type;
     Type *rightType = right->instFrom->type;
 

@@ -4,7 +4,7 @@
 
 template <class T>
 struct A {
-  A(const A&);
+  A(const A&) {}
 
   template <class S>
   A(const A<S>&);
