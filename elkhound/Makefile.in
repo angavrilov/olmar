@@ -1,18 +1,12 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
-ifdef CC_QUAL
-  CC_QUAL_EXE := cc/cc_qual/cc_qual
-else
-  CC_QUAL_EXE :=
-endif
-
 # the astgen-generated files need to come first because otherwise
 # the build doesn't go through properly.. I investigated a better
 # fix at one point but don't now remember what the problem was..
 all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
      workingFiles glrmain.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
-     cc/cc.ast.gen.h cc/ccparse cc/ccparset $(CC_QUAL_EXE)
+     cc/cc.ast.gen.h cc/ccparse cc/ccparset
 	@echo BUILD FINISHED
 
 # these are files I'm working on now, so I want them compiled first;
@@ -43,9 +37,6 @@ AST    := ../ast
 # translation process variables
 libraries   := $(SMBASE)/libsmbase.a
 includes    := -I$(SMBASE) -I$(AST) -Icc
-ifdef CC_QUAL
-  includes += -I cc/cc_qual/cqual/src -I cc/cc_qual/cqual/src/libcompat
-endif
 
 # needed for gcc-2 when compiling things in cc2/
 includes    += -I.
@@ -197,16 +188,6 @@ cc-set := \
   cc/variable.o \
   cc/ccparse.o
 
-ifdef CC_QUAL
-  cc-set += cc/qual_type.o
-  cc-set += cc/qual_var.o
-  cc-set += cc/qual_aux.o
-  cc-set += cc/cc_qual/cc_qualifiers.o
-  cc-set += cc/cc_qual/cc_qual_walk.o
-  cc-set += cc/cc_qual/GlobalUnifierVisitor.o
-  cc-set += cc/cc_qual/cqual_iface.o
-endif
-
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
 
 # dsw: to be included above when turned on
@@ -228,9 +209,6 @@ random-obj := \
   cc/cc.gr.gen.o \
   cc/ccparset.o \
   cc/main.o
-ifdef CC_QUAL
-  random-obj += cc/cc_qual/cc_qual.o
-endif
 -include $(random-obj:.o=.d)
 
 # extra dependencies
@@ -321,9 +299,6 @@ libelkhound.a: $(glr-set)
 
 # specific instructions for cc.ast, so I can add extension modules
 CC_AST_MODS := cc/cc_tcheck.ast cc/cc_print.ast
-ifdef CC_QUAL
-  CC_AST_MODS += cc/cc_qual/cc_qual.ast
-endif
 cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast $(CC_AST_MODS) $(AST)/astgen
 	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
 	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast $(CC_AST_MODS)
@@ -341,12 +316,6 @@ cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbas
 
 # stand-alone executable for parsing C++
 CQUAL_DEPS :=
-ifdef CC_QUAL
-  CQUAL_DEPS += cc/cc_qual/cqual.a
-  CQUAL_DEPS += cc/cc_qual/libregions.a
-cc/cc_qual/cc_qual: cc/cc_qual/cc_qual.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
-	$(link) -o $@ $^
-endif
 cc/ccparse: cc/main.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
@@ -675,7 +644,7 @@ clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
-	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset $(CC_QUAL_EXE)
+	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset
 	rm -f cc/libccgr.a libelkhound.a
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
