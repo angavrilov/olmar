@@ -489,7 +489,6 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 // -------------------- Declarator --------------------
 void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
-  #if 0   // this won't quite work right now..
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
   //    qualified-id, names used before the qualified-id
@@ -498,9 +497,9 @@ void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
   //    are looked up in the scope of the member's class
   //    or namespace."
   //
-  // to implement this, I'll dig down into the declarator
-  // to find out if it's qualified
-  PQName *declaratorId = decl->getDeclaratorId();
+  // to implement this, I'll find the declarator's qualified
+  // scope ahead of time and add it to the scope stack
+  PQName const *declaratorId = decl->getDeclaratorId();
   Scope *qualifiedScope = NULL;
   if (declaratorId &&     // i.e. not abstract
       declaratorId->hasQualifiers()) {
@@ -518,20 +517,17 @@ void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
       env.extendScope(qualifiedScope);
     }
   }
-  #endif // 0
 
   // get the variable from the IDeclarator
   var = decl->tcheck(env, spec, dflags);
 
-  #if 0
   if (qualifiedScope) {
     // pull the scope back out of the stack; if this is a
     // declarator attached to a function definition, then
     // Function::tcheck will re-extend it for analyzing
     // the function body
     env.retractScope(qualifiedScope);
-  }    
-  #endif // 0
+  }
 
   // cppstd, sec. 3.3.1: 
   //   "The point of declaration for a name is immediately after 
@@ -680,8 +676,11 @@ realStart:
       env, name->getUnqualifiedName()->asPQ_operatorC()->o, spec);
   }
 
-  // are we in a class member list?
-  CompoundType *enclosingClass = env.scope()->curCompound;
+  // are we in a class member list?  we can't be in a member
+  // list if the name is qualified (and if it's qualified then
+  // a class scope has been pushed, so we'd be fooled)
+  CompoundType *enclosingClass = 
+    name->hasQualifiers()? NULL : env.scope()->curCompound;
 
   // if we're not in a class member list, and the type is not a
   // function type, and 'extern' is not specified, then this is
@@ -696,9 +695,11 @@ realStart:
   //Variable *prior = NULL;    // moved to the top
 
   if (name->hasQualifiers()) {
-    // the name has qualifiers, which means it *must* be
-    // declared somewhere
-    prior = env.lookupPQVariable(name);
+    // the name has qualifiers, which means it *must* be declared
+    // somewhere; now, Declarator::tcheck will have already pushed the
+    // qualified scope, so we just look up the name in the now-current
+    // environment, which will include that scope
+    prior = env.lookupVariable(name->getName(), true /*innerOnly*/);
     if (!prior) {
       env.error(stringc
         << "undeclared identifier `" << *name << "'");
