@@ -34,7 +34,8 @@ UserActions *makeUserActions(StringTable &table)
 // is a vararg function
 ASTTypeId *ellipsisTypeId()
 {
-  return new ASTTypeId(new TS_simple(ST_ELLIPSIS), new D_name(NULL));
+  return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
+                       new Declarator(new D_name(NULL), NULL));
 }
 
 ]
@@ -838,10 +839,10 @@ nonterm[ASTList<Declarator>*] InitDeclaratorListOpt {
 
 nonterm[Declarator*] InitDeclarator {
   -> d:Declarator                       // (int)  x
-       [ return d; ]
+       [ return new Declarator(d, NULL); ]
 
   -> d:Declarator i:Initializer         // (int)  x = 5
-       [ d->init = i; return d; ]
+       [ return new Declarator(d, i); ]
 }
 
 nonterm[Initializer*] Initializer {
@@ -909,7 +910,13 @@ nonterm[ASTList<Initializer>*] InitializerList {
 }
 
 
-nonterm[Declarator*] Declarator {
+// perhaps confusing name correspondence:
+//   The AST name "Declarator" corresponds to the grammar name
+//   "InitDeclarator"; the AST name "IDeclarator" (inner declarator)
+//   corresponds to the grammar name "Declarator"
+// this name shift simply reflects the different interests of the
+// parser vs. subsequent phases of analysis
+nonterm[IDeclarator*] Declarator {
   // (PtrOperator)* DirectDeclarator
   -> p:PtrOperator d:Declarator
        [ d->stars.prepend(p); return d; ]
@@ -921,7 +928,7 @@ nonterm[Declarator*] Declarator {
        [ return d; ]
 }
 
-nonterm[Declarator*] DirectDeclarator {
+nonterm[IDeclarator*] DirectDeclarator {
   // it doesn't matter how this was classified before, because
   // a declarator binds a new name, so it shadows any prior definitions
   -> n:AnyName
@@ -976,19 +983,19 @@ nonterm[enum CVFlags] CVQualifier {
 // introduction of type names
 nonterm[ASTList<Declarator>*] TypedefDeclaratorList {
   -> d:TypedefDeclarator              
-       [ return new ASTList<Declarator>(d); ]
-  -> list:TypedefDeclaratorList "," d:TypedefDeclarator 
-       [ list->append(d); return list; ]
+       [ return new ASTList<Declarator>(new Declarator(d, NULL)); ]
+  -> list:TypedefDeclaratorList "," d:TypedefDeclarator
+       [ list->append(new Declarator(d, NULL)); return list; ]
 }
 
-nonterm[Declarator*] TypedefDeclarator {
+nonterm[IDeclarator*] TypedefDeclarator {
   -> p:PtrOperator d:TypedefDeclarator
        [ d->stars.append(p); return d; ]
-  -> d:DirectTypedefDeclarator 
+  -> d:DirectTypedefDeclarator
        [ return d; ]
 }
 
-nonterm[Declarator*] DirectTypedefDeclarator {
+nonterm[IDeclarator*] DirectTypedefDeclarator {
   -> n:VariableName [
        // TYPE/NAME
        D("defined new typedef name " << n);
@@ -1012,19 +1019,19 @@ nonterm[Declarator*] DirectTypedefDeclarator {
 // it is, for example, what appears inside the parens of a typecast
 nonterm[ASTTypeId*] TypeId {
   -> spec:TypeSpecifier decl:AbstractDeclaratorOpt
-       [ return new ASTTypeId(spec, decl); ]
+       [ return new ASTTypeId(spec, new Declarator(decl, NULL)); ]
 
   // gnu extension
   //-> "__typeof__" "(" e:Expression ")" ;
 }
 
-nonterm[Declarator*] AbstractDeclaratorOpt {
+nonterm[IDeclarator*] AbstractDeclaratorOpt {
   -> empty                 [ return new D_name(NULL); ]
   -> d:AbstractDeclarator  [ return d; ]
 }
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
-nonterm[Declarator*] AbstractDeclarator {
+nonterm[IDeclarator*] AbstractDeclarator {
   -> p:PtrOperator d:AbstractDeclaratorOpt
        [ d->stars.append(p); return d; ]
 
@@ -1032,13 +1039,13 @@ nonterm[Declarator*] AbstractDeclarator {
        [ return d; ]
 }
 
-nonterm[Declarator*] DirectAbstractDeclaratorOpt {
+nonterm[IDeclarator*] DirectAbstractDeclaratorOpt {
   -> empty                       [ return new D_name(NULL); ]
   -> d:DirectAbstractDeclarator  [ return d; ]
 }
 
 // this also must have some ground syntax
-nonterm[Declarator*] DirectAbstractDeclarator {
+nonterm[IDeclarator*] DirectAbstractDeclarator {
   // this is where abstract declarators differ from regular declarators;
   // for a declarator, this rule is "-> PQVarName"
   // update: this approach, while conceptually elegant, leads to an ambiguity
@@ -1093,9 +1100,9 @@ nonterm[ASTList<ASTTypeId>*] ParameterDeclarationList {
 
 nonterm[ASTTypeId*] ParameterDeclaration {
   -> RegisterOpt s:TypeSpecifier d:Declarator
-       [ return new ASTTypeId(s, d); ]
+       [ return new ASTTypeId(s, new Declarator(d, NULL)); ]
   -> RegisterOpt s:TypeSpecifier d:AbstractDeclaratorOpt
-       [ return new ASTTypeId(s, d); ]
+       [ return new ASTTypeId(s, new Declarator(d, NULL)); ]
 
   //-> s:DeclSpecifier d:Declarator "=" AssignmentExpression ;
   //-> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
@@ -1118,9 +1125,9 @@ nonterm[TF_func*] FunctionDefinition {
   // aren't good syntactic clues for ctors)
 
   // return type      name/params   body
-  -> r:DeclSpecifier  d:Declarator  b:FunctionBody 
+  -> r:DeclSpecifier  d:Declarator  b:FunctionBody
        [
-         TF_func *ret = new TF_func(r->dflags, r->spec, d, b);
+         TF_func *ret = new TF_func(r->dflags, r->spec, new Declarator(d, NULL), b);
          r->spec = NULL;    // stole it above
          delete r;          // was just a carrier of dflags/spec
          return ret;
@@ -1203,12 +1210,12 @@ nonterm[Declaration*] MemberDeclaration {
 // very similar to InitDeclaratorList
 nonterm[ASTList<Declarator>*] MemberDeclaratorList {
   -> d:MemberDeclarator
-       [ return new ASTList<Declarator>(d); ]
+       [ return new ASTList<Declarator>(new Declarator(d, NULL)); ]
   -> list:MemberDeclaratorList "," d:MemberDeclarator
-       [ list->append(d); return list; ]
+       [ list->append(new Declarator(d, NULL)); return list; ]
 }
 
-nonterm[Declarator*] MemberDeclarator {
+nonterm[IDeclarator*] MemberDeclarator {
   -> d:Declarator
        [ return d; ]
 

@@ -27,7 +27,7 @@ void TF_func::vcgen(AEnv &env)
   env.clear();
 
   // add the function parameters to the environment
-  FOREACH_OBJLIST(FunctionType::Param, ftype->params, iter) {
+  FOREACH_OBJLIST(FunctionType::Param, ftype()->params, iter) {
     FunctionType::Param const *p = iter.data();
 
     if (p->name && p->type->isIntegerType()) {
@@ -42,7 +42,7 @@ void TF_func::vcgen(AEnv &env)
   body->vcgen(env);
 
   // print the results
-  cout << "interpretation after " << name << ":\n";
+  cout << "interpretation after " << name() << ":\n";
   env.print();
 }
 
@@ -53,7 +53,7 @@ void Declaration::vcgen(AEnv &env)
   FOREACH_ASTLIST_NC(Declarator, decllist, iter) {
     Declarator *dr = iter.data();
 
-    StringRef name = dr->getName();
+    StringRef name = dr->name;
     if (name && dr->type->isIntegerType()) {
       env.set(name, new IVvar(name,
         stringc << "initial value of local " << name));

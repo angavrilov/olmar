@@ -29,19 +29,13 @@ void TF_func::tcheck(Env &env)
   Type const *f = nameParams->tcheck(env, r, dflags);
   xassert(f->isFunctionType());
 
-  // store the computed function type
-  ftype = &( f->asFunctionTypeC() );
-  
-  // and name
-  name = nameParams->getName();
-
   // write down the expected return type
   env.setCurrentRetType(r);
 
   // put parameters into the environment
   env.enterScope();
 
-  FOREACH_OBJLIST(FunctionType::Param, ftype->params, iter) {
+  FOREACH_OBJLIST(FunctionType::Param, ftype()->params, iter) {
     FunctionType::Param const *p = iter.data();
     env.addVariable(p->name, DF_NONE, p->type);
   }
@@ -208,6 +202,14 @@ Type const *TS_enumSpec::tcheck(Env &env)
 // -------------------- Declarator -------------------
 Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 {
+  type = decl->tcheck(env, base, dflags);
+  name = decl->getName();
+  return type;
+}
+
+
+Type const *IDeclarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
+{
   FOREACH_ASTLIST(PtrOperator, stars, iter) {
     // the list is left-to-right, so the first one we encounter is
     // the one to be most immediately applied to the base type:
@@ -217,8 +219,8 @@ Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
     base = env.makePtrOperType(PO_POINTER, iter.data()->cv, base);
   }
 
-  // call inner function, and assign result to 'type' (& return that)
-  return type = itcheck(env, base, dflags);
+  // call inner function
+  return itcheck(env, base, dflags);
 }
 
 
@@ -268,8 +270,8 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags)
     // compute the type of the parameter
     Type const *paramType = ti->tcheck(env);
 
-    // extract the name too (second pass, but quick)
-    StringRef /*nullable*/ paramName = ti->decl->getName();
+    // extract the name too
+    StringRef /*nullable*/ paramName = ti->decl->name;
 
     // add it to the type description
     FunctionType::Param *param =

@@ -43,12 +43,16 @@ class TopForm {
                                        // 2. name of function
                                        // 3. names/types of parameters
              S_compound body) {        // body of function
-       public FunctionType const *ftype;     // computed type of this function
-       ctor ftype=NULL;
-       
-       public StringRef name;
-       ctor name=NULL;
+       public FunctionType const *ftype() const;
+       public StringRef name() const;
      }
+}
+
+impl_verbatim {
+  // pulled these out of line because Declaration appears lower in .h file
+  FunctionType const *TF_func::ftype() const 
+    { return &( nameParams->type->asFunctionTypeC() ); }
+  StringRef TF_func::name() const { return nameParams->name; }
 }
 
 
@@ -116,13 +120,28 @@ class Enumerator (
 
 // a thing which introduces a name of a declared thing, and also
 // optionally adds type constructors to the base type of the specifier;
+// may have an initializing expression, depending on the context
+class Declarator (
+  IDeclarator decl,                    // syntax of type designation
+  Initializer init                     // (nullable) optional data initializer
+) {
+  public Type const *type;             // computed type for this declarator
+  public StringRef name;               // name of thing being introduced
+  ctor { type=NULL; name=NULL; };
+
+  // returns the type denoted by the combination of 'base' and the
+  // type constructors in this declarator
+  public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
+}
+
+
+// inner declarator; things recursively buried inside declarators;
+// cannot have initializers; the internal structure is not analyzed
+// once typechecking determines what type is denoted;
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
-class Declarator {
+class IDeclarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, left to right
-  public Initializer *init;            // (nullable) optional data initializer
-  public Type const *type;             // computed type for this declarator
-  ctor { init=NULL; type=NULL; };
 
   // external interface; adds 'stars' before calling 'itcheck'
   public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);
@@ -135,10 +154,10 @@ class Declarator {
   // dig down and find the name being declared; may return NULL
   pure_virtual StringRef getName() const;
 
-  -> D_name(StringRef /*nullable*/ name);                      // "x" (NULL means abstract declarator or anonymous parameter)
-  -> D_func(Declarator base, ASTList<ASTTypeId> params);       // "f(int)"
-  -> D_array(Declarator base, Expression /*nullable*/ size);   // "a[5]" or "b[]"
-  -> D_bitfield(StringRef /*nullable*/ name, Expression bits); // "c : 2"
+  -> D_name(StringRef /*nullable*/ name);                       // "x" (NULL means abstract declarator or anonymous parameter)
+  -> D_func(IDeclarator base, ASTList<ASTTypeId> params);       // "f(int)"
+  -> D_array(IDeclarator base, Expression /*nullable*/ size);   // "a[5]" or "b[]"
+  -> D_bitfield(StringRef /*nullable*/ name, Expression bits);  // "c : 2"
 }
 
 // each star is associated with one of these; it's here so I can expand

@@ -198,7 +198,7 @@ void GrammarLexer::reportError(char const *msg)
 
 void GrammarLexer::printError(SourceLocation const &loc, char const *msg)
 {
-  cerr << loc.toString() << ": error: " << msg << endl;
+  cerr << loc.likeGccToString() << ": error: " << msg << endl;
 }
 
 
