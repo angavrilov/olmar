@@ -5,10 +5,54 @@ verbatim [
   #include <iostream.h>      // cout
   #include "trace.h"         // trace
   #include "locstr.h"        // LocString
+  #include "strhash.h"       // StringHash
+  #include "objlist.h"       // ObjList
 
   #define D(msg) \
     trace("cdecl") << msg << endl
   #define R0 return 0
+
+  // temporary: simple way to get unique id for 'int'
+  char const *intStr = "int";
+
+  // stack of hashes which identify names of types
+  ObjList<StringHash> types;
+
+  static char const *identity(void *data)
+  {
+    return (char const*)data;
+  }
+
+  void enterScope()
+  {
+    types.prepend(new StringHash(identity));
+  }
+
+  void leaveScope()
+  {
+    delete types.removeAt(0);
+  }
+
+  void addType(StringRef type)
+  {
+    StringHash *h = types.first();
+    if (h->get(type)) {
+      cout << "duplicate entry for " << type << " -- will ignore\n";
+    }
+    else {
+      h->add(type, (void*)type);
+    }
+  }
+
+  bool isType(StringRef name)
+  {
+    FOREACH_OBJLIST(StringHash, types, iter) {
+      if (iter.data()->get(name)) {
+        return true;
+      }
+    }
+    return false;
+  }
 ]
 
 
@@ -23,10 +67,14 @@ terminals {
 }
 
 
-nonterm[int] Start -> Stmts L2_EOF  [ D("exiting scope and program"); R0; ]
+nonterm[int] Start -> Stmts L2_EOF  [ 
+  D("exiting scope and program");
+  leaveScope();
+  R0;
+]
 
 nonterm[int] Stmts {
-  -> empty         [ D("entering scope"); R0; ]
+  -> empty         [ D("entering scope"); enterScope(); R0; ]
   -> Stmts Stmt    [ R0; ]
 }
 
@@ -40,27 +88,30 @@ nonterm[int] Stmt {
      ]
 
   -> "typedef" t:TypeName n:L2_NAME ";" [    // typedef: introduce type name
-       D("typedef of " << n << " as type " << t); R0;
+       D("typedef of " << n << " as type " << t);
+       addType(n);
+       R0;
      ]
 
-  -> "{" Stmts "}"                  [    // scope
-       D("exiting scope"); R0;
+  -> "{" Stmts "}"                      [    // scope
+       D("exiting scope"); leaveScope(); R0;
      ]
 }
 
 nonterm[StringRef] VarName {
+  cancel(n)        [ return !( n!=intStr && !isType(n) ); ]
+
   -> n:L2_NAME     [ return n; ]
 }
 
 nonterm[StringRef] TypeName {
-  // always cancel, for now
-  cancel(n)        [ return !n; ]
+  cancel(n)        [ return !( n==intStr || isType(n) ); ]
 
-  -> n:L2_NAME     [ return NULL; ] 
-  
+  -> n:L2_NAME     [ return n; ]
+
   // this is a little bit of a hack, but in some sense it's valid
   // to regard the global strings as another stringtable.. of course,
   // equality won't work, but I don't need it for the moment
-  -> L2_INT        [ return "int"; ]
+  -> L2_INT        [ return intStr; ]
 }
 
