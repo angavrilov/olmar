@@ -7,7 +7,7 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 132;
+option shift_reduce_conflicts 133;
 option reduce_reduce_conflicts 110;
 
 

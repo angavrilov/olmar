@@ -1258,7 +1258,7 @@ nonterm(PQName*) PQTypeName_ncc {
 
 // after at least one qualifier other than "::"; 'template' has to be
 // squirreled away down here because otherwise it becomes ambiguous
-// with the 'template' at the start of a
+// with the 'template' at the start of an ElaboratedTypeSpecifier
 nonterm(PQName*) PQTypeName_notfirst {
   fun merge(L,R) { return L->mergeAmbiguous(R); }
 
@@ -2155,26 +2155,9 @@ nonterm(MemberInit*) MemInitializer {
 // have any qualifiers (because in most cases the parser can't make
 // the distinction so it would fall through to typechecking anyway)
 nonterm(PQName*) MemInitializerId {
-  fun merge(L,R) { return L->mergeAmbiguous(R); }
-
-  // data member or base class
-  -> id:Identifier
-       { return new PQ_name(loc, id); }
-       
-  // base class which is a template
-  -> n:Identifier "<" targs:TemplateArgumentList ">"
-       { return new PQ_template(loc, n, targs); }
-
-  -> n:Identifier "::" id:MemInitializerId
-       { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
-  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
-       { return new PQ_qualifier(loc, n, targs, id); }
-
-  // TEMPLATE_QUALIFIER_HACK
-  //-> "template" n:Identifier "::" id:MemInitializerId
-  //     { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
-  -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
-       { return new PQ_qualifier(loc, n, templateUsed(targs), id); }
+  // PQTypeName includes the 'identifier' case, and is otherwise
+  // exactly right for the 'base class' case, so just use it
+  -> n:PQTypeName { return n; }
 }
 
 
