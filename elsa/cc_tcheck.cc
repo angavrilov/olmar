@@ -47,9 +47,10 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // construct the type of the function
   Type const *retTypeSpec = retspec->tcheck(env);
-  nameParams->tcheck(env, retTypeSpec, dflags);
+  DeclaratorTcheck dt(retTypeSpec, dflags);
+  nameParams->tcheck(env, dt);
 
-  if (! nameParams->var->type->isFunctionType() ) {
+  if (! dt.type->isFunctionType() ) {
     env.error("function declarator must be of function type", true /*disambiguating*/);
     return;
   }
@@ -80,7 +81,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // function body and enter the parameters into that
   Scope *bodyScope = env.enterScope();
   bodyScope->curFunction = this;
-  FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
+  FunctionType const &ft = dt.type->asFunctionTypeC();
   FOREACH_OBJLIST(Parameter, ft.params, iter) {
     Variable *v = iter.data()->decl;
     if (v->name) {
@@ -233,7 +234,8 @@ void Declaration::tcheck(Env &env)
   Type const *specType = spec->tcheck(env);
 
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
-    iter->tcheck(env, specType, dflags);
+    DeclaratorTcheck dt(specType, dflags);
+    iter->tcheck(env, dt);
   }
 }
 
@@ -242,7 +244,8 @@ void Declaration::tcheck(Env &env)
 void ASTTypeId::tcheck(Env &env)
 {
   Type const *specType = spec->tcheck(env);
-  decl->tcheck(env, specType, DF_NONE);
+  DeclaratorTcheck dt(specType, DF_NONE);
+  decl->tcheck(env, dt);
 }
 
 
@@ -589,7 +592,7 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 
 
 // -------------------- Declarator --------------------
-void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
+void Declarator::tcheck(Env &env, DeclaratorTcheck &dt)
 {
   // cppstd sec. 3.4.3 para 3:
   //    "In a declaration in which the declarator-id is a
@@ -621,7 +624,8 @@ void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
   }
 
   // get the variable from the IDeclarator
-  var = decl->tcheck(env, spec, dflags);
+  decl->tcheck(env, dt);
+  var = dt.var;
 
   if (qualifiedScope) {
     // pull the scope back out of the stack; if this is a
@@ -631,9 +635,9 @@ void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
     env.retractScope(qualifiedScope);
   }
 
-  // cppstd, sec. 3.3.1: 
-  //   "The point of declaration for a name is immediately after 
-  //   its complete declarator (clause 8) and before its initializer 
+  // cppstd, sec. 3.3.1:
+  //   "The point of declaration for a name is immediately after
+  //   its complete declarator (clause 8) and before its initializer
   //   (if any), except as noted below."
   // (where "below" talks about enumerators, class members, and
   // class names)
@@ -645,7 +649,7 @@ void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
   if (init) {
     // TODO: check the initializer for compatibility with
     // the declared type
-    
+
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
 
@@ -655,16 +659,16 @@ void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 
 
 //  ------------------ IDeclarator ------------------
-Variable *IDeclarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
+void IDeclarator::tcheck(Env &env, DeclaratorTcheck &dt)
 {
   // apply the stars left to right; the leftmost is the innermost
   FAKELIST_FOREACH_NC(PtrOperator, stars, iter) {
-    spec = makePtrOperType(iter->isPtr? PO_POINTER : PO_REFERENCE,
-                           iter->cv, spec);
+    dt.type = makePtrOperType(iter->isPtr? PO_POINTER : PO_REFERENCE,
+                              iter->cv, dt.type);
   }
 
   // now go inside and apply the specific type constructor
-  return itcheck(env, spec, dflags);
+  itcheck(env, dt);
 }
 
 
@@ -714,8 +718,8 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
 // 'name', with type 'spec', to the environment.  But to do this it
 // has to implement the various rules for when declarations conflict,
 // overloading, qualified name lookup, etc.
-Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
-                         Type const *spec, PQName const *name, DeclFlags dflags)
+void D_name_itcheck(Env &env, DeclaratorTcheck &dt,
+                    SourceLocation const &loc, PQName const *name)
 {
   // this is used to refer to a pre-existing declaration of the same
   // name; I moved it up top so my error subroutines can use it
@@ -736,7 +740,7 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
     // object, so we can continue making progress diagnosing errors
     // in the program; this won't be entered in the environment, even
     // though the 'name' is not NULL
-    Variable *ret = new Variable(loc, name->getName(), spec, dflags);
+    dt.var = new Variable(loc, name->getName(), dt.type, dt.dflags);
 
     // a bit of error recovery: if we clashed with a prior declaration,
     // and that one was in a named scope, then make our fake variable
@@ -744,10 +748,10 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
     // constructor definitions, even when the declarator has a type
     // clash)
     if (prior && prior->scope) {
-      ret->scope = prior->scope;
+      dt.var->scope = prior->scope;
     }
 
-    return ret;
+    return;
   }
 
   declarationTypeMismatch:
@@ -755,17 +759,18 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
     // this message reports two declarations which declare the same
     // name, but their types are different; we only jump here *after*
     // ruling out the possibility of function overloading
-    env.error(spec, stringc
+    env.error(dt.type, stringc
       << "prior declaration of `" << *name << "' had type `"
       << prior->type->toString() << "', but this one uses `"
-      << spec->toString() << "'");
+      << dt.type->toString() << "'");
     goto makeDummyVar;
   }
 
 realStart:
   if (!name) {
     // no name, nothing to enter in environment
-    return new Variable(loc, NULL, spec, dflags);
+    dt.var = new Variable(loc, NULL, dt.type, dt.dflags);
+    return;
   }
 
   if (name->getUnqualifiedName()->isPQ_operator()) {
@@ -775,23 +780,23 @@ realStart:
     // this may not be perfect, because it makes looking up
     // the set of candidate conversion functions difficult
     // (you have to explicitly iterate through the base classes)
-    spec = makeConversionOperType(
-      env, name->getUnqualifiedName()->asPQ_operatorC()->o, spec);
+    dt.type = makeConversionOperType(
+      env, name->getUnqualifiedName()->asPQ_operatorC()->o, dt.type);
   }
 
   // are we in a class member list?  we can't be in a member
   // list if the name is qualified (and if it's qualified then
   // a class scope has been pushed, so we'd be fooled)
-  CompoundType *enclosingClass = 
+  CompoundType *enclosingClass =
     name->hasQualifiers()? NULL : env.scope()->curCompound;
 
   // if we're not in a class member list, and the type is not a
   // function type, and 'extern' is not specified, then this is
   // a definition
   if (!enclosingClass &&
-      !spec->isFunctionType() &&
-      !(dflags & DF_EXTERN)) {
-    dflags = (DeclFlags)(dflags | DF_DEFINITION);
+      !dt.type->isFunctionType() &&
+      !(dt.dflags & DF_EXTERN)) {
+    dt.dflags = (DeclFlags)(dt.dflags | DF_DEFINITION);
   }
 
   // has this variable already been declared?
@@ -818,7 +823,7 @@ realStart:
       OverloadSet *set = prior->overload;
       prior = NULL;     // for now we haven't found a valid prior decl
       SMUTATE_EACH_OBJLIST(Variable, set->set, iter) {
-        if (iter.data()->type->equals(spec)) {
+        if (iter.data()->type->equals(dt.type)) {
           // ok, this is the right one
           prior = iter.data();
           break;
@@ -826,9 +831,9 @@ realStart:
       }
 
       if (!prior) {
-        env.error(spec, stringc
+        env.error(dt.type, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
-          << spec->toString() << "' doesn't match any of the "
+          << dt.type->toString() << "' doesn't match any of the "
           << set->set.count() << " declared overloaded instances");
         goto makeDummyVar;
       }
@@ -854,11 +859,11 @@ realStart:
   if (!name->hasQualifiers() &&
       prior &&
       prior->type->isFunctionType() &&
-      spec->isFunctionType() &&
-      !prior->type->equals(spec)) {
+      dt.type->isFunctionType() &&
+      !prior->type->equals(dt.type)) {
     // potential overloading situation; get the two function types
     FunctionType const *priorFt = &( prior->type->asFunctionTypeC() );
-    FunctionType const *specFt = &( spec->asFunctionTypeC() );
+    FunctionType const *specFt = &( dt.type->asFunctionTypeC() );
 
     // (BUG: this isn't the exact criteria for allowing overloading,
     // but it's close)
@@ -888,7 +893,7 @@ realStart:
       // ok, allow the overload
       trace("ovl") << "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
-                   << "' and `" << spec->toString() << "'\n";
+                   << "' and `" << dt.type->toString() << "'\n";
       overloadSet = prior->getOverloadSet();
       prior = NULL;    // so we don't consider this to be the same
     }
@@ -898,7 +903,7 @@ realStart:
   if (prior) {
     // check for violation of the One Definition Rule
     if (prior->hasFlag(DF_DEFINITION) &&
-        (dflags & DF_DEFINITION)) {
+        (dt.dflags & DF_DEFINITION)) {
       env.error(stringc
         << "duplicate definition for `" << *name
         << "'; previous at " << prior->loc.toString());
@@ -915,7 +920,7 @@ realStart:
     // pass of typechecking for inline members (the code doesn't
     // violate the rule, it only appears to because of the second
     // pass); this exception is indicated by DF_INLINE_DEFN.
-    if (enclosingClass && !(dflags & DF_INLINE_DEFN)) {
+    if (enclosingClass && !(dt.dflags & DF_INLINE_DEFN)) {
       env.error(stringc
         << "duplicate member declaration of `" << *name
         << "' in " << enclosingClass->keywordAndName()
@@ -924,13 +929,13 @@ realStart:
     }
 
     // check that the types match
-    if (!prior->type->equals(spec)) {
+    if (!prior->type->equals(dt.type)) {
       goto declarationTypeMismatch;
     }
 
     // ok, use the prior declaration, but update the 'loc'
     // if this is the definition
-    if (dflags & DF_DEFINITION) {
+    if (dt.dflags & DF_DEFINITION) {
       trace("odr") << "def'n at " << loc.toString()
                    << " overrides decl at " << prior->loc.toString()
                    << endl;
@@ -938,45 +943,46 @@ realStart:
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);
     }
-    return prior;
+    
+    dt.var = prior;
+    return;
   }
 
   // no prior declaration, make a new variable and put it
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
-  Variable *var = new Variable(loc, name->getName(), spec, dflags);
+  dt.var = new Variable(loc, name->getName(), dt.type, dt.dflags);
   if (overloadSet) {
     // don't add it to the environment (another overloaded version
     // is already in the environment), instead add it to the overload set
-    overloadSet->addMember(var);
-    var->overload = overloadSet;
-    
+    overloadSet->addMember(dt.var);
+    dt.var->overload = overloadSet;
+
     // but tell the environment about it, because the environment
     // takes care of making sure that variables' 'scope' field is
     // set correctly..
-    env.registerVariable(var);
+    env.registerVariable(dt.var);
   }
-  else if (!var->type->isError()) {
-    env.addVariable(var);
+  else if (!dt.type->isError()) {
+    env.addVariable(dt.var);
   }
-
-  return var;
+ 
+  return;
 }
 
-
-Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
+void D_name::itcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
 
-  return D_name_itcheck(env, loc, spec, name, dflags);
+  D_name_itcheck(env, dt, loc, name);
 }
 
 
-Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
+void D_func::itcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
 
-  FunctionType *ft = new FunctionType(retSpec, cv);
+  FunctionType *ft = new FunctionType(dt.type, cv);
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
@@ -998,19 +1004,20 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
 
   // now that we've constructed this function type, pass it as
   // the 'base' on to the next-lower declarator
-  return base->tcheck(env, ft, dflags);
+  dt.type = ft;
+  base->tcheck(env, dt);
 }
 
 
-Variable *D_array::itcheck(Env &env, Type const *eltSpec, DeclFlags dflags)
+void D_array::itcheck(Env &env, DeclaratorTcheck &dt)
 {
   ArrayType *at;
   if (!size) {
-    at = new ArrayType(eltSpec);
+    at = new ArrayType(dt.type);
   }
   else {
     if (size->isE_intLit()) {
-      at = new ArrayType(eltSpec, size->asE_intLitC()->i);
+      at = new ArrayType(dt.type, size->asE_intLitC()->i);
     }
     else {
       // TODO: do a true const-eval of the expression
@@ -1019,11 +1026,12 @@ Variable *D_array::itcheck(Env &env, Type const *eltSpec, DeclFlags dflags)
     }
   }
 
-  return base->tcheck(env, at, dflags);
+  dt.type = at;
+  base->tcheck(env, dt);
 }
 
 
-Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
+void D_bitfield::itcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
 
@@ -1041,7 +1049,7 @@ Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
   // stacks a bitfield size on top of another Type, and
   // construct such an animal here.
 
-  return D_name_itcheck(env, loc, spec, name, dflags);
+  D_name_itcheck(env, dt, loc, name);
 }
 
 
