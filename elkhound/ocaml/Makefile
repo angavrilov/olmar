@@ -3,7 +3,7 @@
 # directories
 ELKHOUND := ..
 
-#tmp: smutil.cmo ptreenode.cmo ptreeact.cmo
+#tmp: lexer.cmo
 
 all: tobjpool main
 
@@ -18,6 +18,10 @@ all: tobjpool main
 %.ml: %.gr $(ELKHOUND)/elkhound
 	$(ELKHOUND)/elkhound -v $*.gr
 	rm -f $*.mli
+
+# run ocamllex on a lex spec
+%.ml: %.mll
+	ocamllex $*.mll
 
 # NOTE: Module order is important!  OCaml module dependencies cannot
 # be cyclic, and the order presented must respect the dependency order.
@@ -41,7 +45,7 @@ MINIMAL_MODULES = \
   glr.cmo
 
 # these are modules for the test program; they include some specific 
-# grammar tables/actions, a deterministic LR parser, the
+# grammar tables/actions, a lexer, a deterministic LR parser, the
 # parse-tree-printing stuff (ptreenode, ptreeact), and a main() function
 MAIN_MODULES = \
   $(MINIMAL_MODULES) \
@@ -50,6 +54,7 @@ MAIN_MODULES = \
   lrparse.cmo \
   ptreenode.cmo \
   ptreeact.cmo \
+  lexer.cmo \
   main.cmo
 main: $(MAIN_MODULES)
 	ocamlc -o $@ -g $^
@@ -68,4 +73,4 @@ check:
 	echo "2+3+4" | ./main een glr ptree
 
 clean:
-	rm -f *.cmo *.cmi arith.ml* een.ml* main tobjpool
+	rm -f *.cmo *.cmi arith.ml* een.ml* lexer.ml main tobjpool

@@ -11,61 +11,41 @@ open Arith         (* arithParseTables, arithUserActions *)
 open Een           (* eenParseTables, eenUserActions *)
 open Ptreeact      (* tParseTreeLexer, makeParseTreeActions *)
 open Ptreenode     (* tPTreeNode, printTree *)
+open Lexer         (* tToken, readToken *)
 
 
 (* ------------------ lexer ------------------- *)
-let useHardcoded:bool = false     (* set to true for testing with ocamldebug *)
+let useHardcoded:bool = false        (* set to true for testing with ocamldebug *)
 
 class tLexer =
 object (self)
   inherit tLexerInterface
 
-  (* hardcoded input *)
-  val mutable input: string = "2+3";
+  (* stdin *)
+  val lexbuf:Lexing.lexbuf =
+    if (useHardcoded) then (
+      (Lexing.from_string "2+3")     (* hardcoded input *)
+    )
+    else (
+      (Lexing.from_channel stdin)
+    );
 
   method getToken() : unit =
   begin
-    try
-      (self#setIntSval 0);        (* clear previous *)
-
-      let c:char =
-        if (not useHardcoded) then (
-          (* read from stdin *)
-          (input_char stdin)
-        )
-        else (
-          (* take from hardcoded input *)
-          let len:int = (String.length input) in
-          if (len > 0) then (
-            (* take first char *)
-            let res:char = (String.get input 0) in
-            input <- (String.sub input 1 (len-1));
-            res
-          )
-          else (
-            (* eof *)
-            (raise End_of_file)
-          )
-        )
-      in
-
-      if ('0' <= c && c <= '9') then (
+    (* read from stdin *)
+    let t:tToken = (readToken lexbuf) in
+    
+    (* break the tToken apart into a kind and an sval; perhaps
+     * this belongs in lexer.mll too? *)
+    match t with
+    | INT(i) -> (
         tokType <- 1;
-        (self#setIntSval ((int_of_char c) - (int_of_char '0')));
+        (self#setIntSval i);
       )
-      else if (c = '+') then tokType <- 2
-      else if (c = '-') then tokType <- 3
-      else if (c = '*') then tokType <- 4
-      else if (c = '/') then tokType <- 5
-      else if (c = '(') then tokType <- 6
-      else if (c = ')') then tokType <- 7
-      else (
-        (* skip it *)
-        self#getToken()
+    | _ -> (
+        tokType <- (tokenKind t);
+        (self#setIntSval 0);           (* clear previous *)
       )
-    with End_of_file -> (
-      tokType <- 0
-    )
   end
 
   method tokenDesc() : string =
@@ -80,16 +60,7 @@ object (self)
 
   method tokenKindDesc (kind:int) : string =
   begin
-    match tokType with
-    | 0 -> "EOF"
-    | 1 -> "Number"
-    | 2 -> "+"
-    | 3 -> "-"
-    | 4 -> "*"
-    | 5 -> "/"
-    | 6 -> "("
-    | 7 -> ")"
-    | _ -> (failwith "bad token kind")
+    (Lexer.tokenKindDesc kind)
   end
 end
 
@@ -134,10 +105,10 @@ begin
       )
   done;
 
-  (* create lexer *)
+  (* create the lexer *)
   let lex:tLexerInterface = ((new tLexer) :> tLexerInterface) in
   if (!justTokens) then (
-    (* just print tokens and bail *)
+    (* just print all the tokens and bail *)
     (printTokens lex);
     (raise Exit);       (* close enough *)
   );
