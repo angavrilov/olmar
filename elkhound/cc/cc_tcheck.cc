@@ -96,6 +96,25 @@ void Function::tcheck(Env &env, bool checkBody)
     }
   }
 
+  // is this a nonstatic member function?
+  if (nameParams->var->scope &&
+      nameParams->var->scope->curCompound &&
+      !nameParams->var->hasFlag(DF_STATIC)) {
+    CompoundType const *ct = nameParams->var->scope->curCompound;
+
+    // make a type which is a pointer to the class that this
+    // function is a member of; if the function has been declared
+    // with some 'cv' flags, then those become attached to the
+    // pointed-to type; the pointer itself is always 'const'
+    Type const *thisType =
+      makePtrOperType(PO_POINTER, CV_CONST, makeCVType(ct, ft.cv));
+
+    // add the implicit 'this' parameter
+    Variable *ths = new Variable(nameParams->var->loc, env.str("this"),
+                                 thisType, DF_NONE);
+    env.addVariable(ths);
+  }
+
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
   // can refer to the parameters
@@ -368,14 +387,16 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
 
   // make the implicit typedef
   Type const *ret = makeType(ct);
-  Variable *tv = new Variable(loc, name, ret, DF_TYPEDEF);
+  Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
   ct->typedefVar = tv;
   if (name) {
     if (!env.addVariable(tv)) {
-      return env.error(stringc
-        << "implicit typedef associated with " << ct->keywordAndName()
-        << " conflicts with an existing typedef or variable",
-        true /*disambiguating*/);
+      // this isn't really an error, because in C it would have
+      // been allowed, so C++ does too [ref?]
+      //return env.error(stringc
+      //  << "implicit typedef associated with " << ct->keywordAndName()
+      //  << " conflicts with an existing typedef or variable",
+      //  true /*disambiguating*/);
     }
   }
 
@@ -385,6 +406,8 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
 
 Type const *TS_elaborated::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   if (keyword == TI_ENUM) {
     EnumType const *et = env.lookupPQEnum(name);
     if (!et) {
@@ -430,6 +453,8 @@ Type const *TS_elaborated::tcheck(Env &env)
 
 Type const *TS_classSpec::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   // are we in a template?
   bool inTemplate = env.scope()->templateParams != NULL;
 
@@ -439,10 +464,16 @@ Type const *TS_classSpec::tcheck(Env &env)
   if (ct) {
     // check that the keywords match
     if ((int)ct->keyword != (int)keyword) {
-      return env.error(stringc
-        << "there is already a " << ct->keywordAndName()
-        << ", but here you're defining a " << toString(keyword)
-        << " " << name);
+      // apparently this isn't an error, because my streambuf.h
+      // violates it..
+      //return env.error(stringc
+      //  << "there is already a " << ct->keywordAndName()
+      //  << ", but here you're defining a " << toString(keyword)
+      //  << " " << name);
+      
+      trace("env") << "changing " << ct->keywordAndName()
+                   << " to a " << toString(keyword) << endl;
+      ct->keyword = (CompoundType::Keyword)keyword;
     }
 
     // check that the previous was a forward declaration
@@ -485,7 +516,7 @@ Type const *TS_classSpec::tcheck(Env &env)
   }
 
   bool prevDO = false;
-  if (inTemplate) {                          
+  if (inTemplate) {
     // only report serious errors while checking the class
     // body, in the absence of actual template arguments
     prevDO = env.setDisambiguateOnly(true);
@@ -530,6 +561,8 @@ Type const *TS_classSpec::tcheck(Env &env)
 
 Type const *TS_enumSpec::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   EnumType *et = new EnumType(name);
   Type *ret = makeType(et);
 
@@ -539,6 +572,18 @@ Type const *TS_enumSpec::tcheck(Env &env)
 
   if (name) {
     env.addEnum(et);
+
+    // make the implicit typedef
+    Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+    et->typedefVar = tv;
+    if (!env.addVariable(tv)) {
+      // this isn't really an error, because in C it would have
+      // been allowed, so C++ does too [ref?]
+      //return env.error(stringc
+      //  << "implicit typedef associated with enum " << et->name
+      //  << " conflicts with an existing typedef or variable",
+      //  true /*disambiguating*/);
+    }
   }
 
   return ret;
@@ -917,6 +962,10 @@ realStart:
     }
   }
 
+  // if this gets set, we'll replace a conflicting variable
+  // when we got to do the insertion
+  bool forceReplace = false;
+
   // did we find something?
   if (prior) {
     // check for violation of the One Definition Rule
@@ -948,7 +997,20 @@ realStart:
 
     // check that the types match
     if (!prior->type->equals(dt.type)) {
-      goto declarationTypeMismatch;
+      // if the previous guy was an implicit typedef, then as a
+      // special case allow it, and arrange for the environment
+      // to replace the implicit typedef with the variable being
+      // declared here
+      if (prior->hasFlag(DF_IMPLICIT)) {
+        trace("env") << "replacing implicit typedef of " << prior->name
+                     << " at " << prior->loc << " with new decl at "
+                     << loc << endl;
+        forceReplace = true;
+        goto noPriorDeclaration;
+      }
+      else {
+        goto declarationTypeMismatch;
+      }
     }
 
     // ok, use the prior declaration, but update the 'loc'
@@ -961,11 +1023,12 @@ realStart:
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);
     }
-    
+
     dt.var = prior;
     return;
   }
 
+noPriorDeclaration:
   // no prior declaration, make a new variable and put it
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
@@ -982,7 +1045,7 @@ realStart:
     env.registerVariable(dt.var);
   }
   else if (!dt.type->isError()) {
-    env.addVariable(dt.var);
+    env.addVariable(dt.var, forceReplace);
   }
  
   return;
@@ -1096,10 +1159,10 @@ FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
 // ------------------ OperatorDeclarator ----------------
 char const *ON_newDel::getOperatorName() const
 {
-  return (isNew && isArray)? "new[]" :
-         (isNew && !isArray)? "new" :
-         (!isNew && isArray)? "delete[]" :
-                              "delete";
+  return (isNew && isArray)? "operator-new[]" :
+         (isNew && !isArray)? "operator-new" :
+         (!isNew && isArray)? "operator-delete[]" :
+                              "operator-delete";
 }
 
 char const *ON_binary::getOperatorName() const

@@ -86,8 +86,9 @@ public:      // function
   string locStr() const { return loc().toString(); }
 
   // insertion into the current scope; return false if the
-  // name collides with one that is already there
-  bool addVariable(Variable *v);
+  // name collides with one that is already there (but if
+  // 'forceReplace' true, silently replace instead)
+  bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 

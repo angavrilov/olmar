@@ -129,7 +129,7 @@ public:      // types
 
 public:      // data
   bool forward;               // true when it's only fwd-declared
-  Keyword const keyword;      // keyword used to introduce the type
+  Keyword keyword;            // keyword used to introduce the type
   ObjList<BaseClass> bases;   // classes from which this one inherits
 
   // for template classes, this is the list of template parameters

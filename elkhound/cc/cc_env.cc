@@ -42,6 +42,28 @@ Env::Env(StringTable &s, CCLang &L)
   
   // cache this because I compare with it frequently
   conversionOperatorName = str("conversion-operator");
+
+  // create declarations for some built-in operators
+
+  // void operator delete (void *p);
+  {                                                                  
+    FunctionType *ft = new FunctionType(getSimpleType(ST_VOID), CV_NONE);
+    SourceLocation loc;
+    Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
+    ft->addParam(new Parameter(p->name, p->type, p));
+    Variable *del = new Variable(loc, str("operator-delete"), ft, DF_NONE);
+    addVariable(del);
+  }
+
+  // void operator delete[] (void *p);
+  {
+    FunctionType *ft = new FunctionType(getSimpleType(ST_VOID), CV_NONE);
+    SourceLocation loc;
+    Variable *p = new Variable(loc, str("p"), makePtrType(getSimpleType(ST_VOID)), DF_NONE);
+    ft->addParam(new Parameter(p->name, p->type, p));
+    Variable *del = new Variable(loc, str("operator-delete[]"), ft, DF_NONE);
+    addVariable(del);
+  }
 }
 
 Env::~Env()
@@ -165,11 +187,11 @@ Scope *Env::acceptingScope()
 }
 
 
-bool Env::addVariable(Variable *v)
+bool Env::addVariable(Variable *v, bool forceReplace)
 {
   Scope *s = acceptingScope();
   registerVariable(v);
-  return s->addVariable(v);
+  return s->addVariable(v, forceReplace);
 }
 
 void Env::registerVariable(Variable *v)

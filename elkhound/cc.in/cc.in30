@@ -33,7 +33,7 @@ typedef struct
 enum Blah { A, B, C=B, D };
   
 
-/*
+
 // struct with same name as function
 struct stat {
   int x;
@@ -112,4 +112,4 @@ class ostream {
     ostream& operator<<(unsigned char c) { return (*this) << (char)c; }
 };
 
-*/
+
