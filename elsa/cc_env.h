@@ -194,24 +194,6 @@ public:      // data
   // an an 'asm' directive (see TF_asm::itcheck)
   string collectLookupResults;
 
-  // template typechecking modes; see comment at the top of the
-  // implementation of Env::instantiateTemplate()
-  //
-  // sm: TODO: I believe these modes are now redundant, because
-  // the new PseudoInstantiation mechanism should take care of
-  // doing the right thing.  So, I want to try removing this.
-  //
-  // I have discovered that what is preventing me from removing it
-  // is the STA_REFERENCE hack.  So that must be fixed first.
-  enum TemplTcheckMode {
-    TTM_1NORMAL          = 1,
-    TTM_2TEMPL_FUNC_DECL = 2,
-    TTM_3TEMPL_DEF       = 3,
-  };
-
-  // current template instantiation tcheck mode
-  TemplTcheckMode tcheckMode;
-
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -798,9 +780,6 @@ private:     // template funcs
     (Variable const *param, STemplateArgumentCMap &map);
 
 public:      // template funcs
-  // return the current mode
-  TemplTcheckMode getTemplTcheckMode() const;
-
   // initialize the arguments from an AST list of TempateArgument-s
   void initArgumentsFromASTTemplArgs
     (TemplateInfo *tinfo,
@@ -862,9 +841,6 @@ public:      // template funcs
   // Undo prepArgScopeForTemlCloneTcheck().
   void unPrepArgScopeForTemlCloneTcheck
     (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes);
-
-  // pick the MatchMode appropriate for the the TemplTcheckMode
-  MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
 
   // function template instantiation chain
   Variable *instantiateFunctionTemplate            // inst decl 1

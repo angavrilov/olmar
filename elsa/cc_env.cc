@@ -354,7 +354,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     tunit(tunit0),
 
     doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
-                          
+
     // this can be turned off with its own flag, or in C mode (since I
     // have not implemented any of the relaxed C rules)
     doCompareArgsToParams(!tracingSys("doNotCompareArgsToParams") && L.isCplusplus),
@@ -362,14 +362,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // 2005-03-09: things are finally ready to turn strict checking
     // on by default
     doReportTemplateErrors(!tracingSys("permissive")),
-                                                              
-    collectLookupResults(""),
-    
-    tcheckMode(TTM_1NORMAL)
+
+    collectLookupResults("")
 {
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
-  {                               
+  {
     // among other things, SK_GLOBAL causes Variables inserted into
     // this scope to acquire DF_GLOBAL
     Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
@@ -2202,7 +2200,6 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
   // in normal typechecking, nothing should look up to a variable from
   // template-definition never-never land
   if ( !(flags & LF_TEMPL_PRIMARY) &&
-       getTemplTcheckMode() == TTM_1NORMAL &&
        var &&
        !var->hasFlag(DF_NAMESPACE)
        ) {

@@ -1088,15 +1088,6 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 // These are not all of Env's methods, just the ones declared in the
 // section for templates.
 
-Env::TemplTcheckMode Env::getTemplTcheckMode() const
-{
-  // one step towards removing this altogether...
-  return tcheckMode;
-  
-  // ack!  the STA_REFERENCE hack depends on the mode...
-  //return TTM_1NORMAL;
-}
-
 
 void Env::initArgumentsFromASTTemplArgs
   (TemplateInfo *tinfo,
@@ -1437,18 +1428,6 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
   (Variable *primary, PQName const *name, FakeList<ArgExpression> *funcArgs)
 {
   xassert(primary->isTemplateFunction());
-
-  // if we are inside a function definition, just return the primary
-  TemplTcheckMode ttm = getTemplTcheckMode();
-  // FIX: this can happen when in the parameter list of a function
-  // template definition a class template is instantiated (as a
-  // Mutant)
-  // UPDATE: other changes should prevent this
-  xassert(ttm != TTM_2TEMPL_FUNC_DECL);
-  if (ttm == TTM_2TEMPL_FUNC_DECL || ttm == TTM_3TEMPL_DEF) {
-    xassert(primary->templateInfo()->isPrimary());
-    return primary;
-  }
 
   PQName const *final = name->getUnqualifiedNameC();
 
@@ -1810,31 +1789,6 @@ bool Env::templArgsASTtoSTA
 }
 
 
-// TODO: can this be removed?  what goes wrong if we use MM_BIND
-// always?
-MatchTypes::MatchMode Env::mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode)
-{
-  // map the typechecking mode to the type matching mode
-  MatchTypes::MatchMode matchMode = MatchTypes::MM_NONE;
-  switch(tcheckMode) {
-  default: xfailure("bad mode"); break;
-  case TTM_1NORMAL:
-    matchMode = MatchTypes::MM_BIND;
-    break;
-  case TTM_2TEMPL_FUNC_DECL:
-    matchMode = MatchTypes::MM_ISO;
-    break;
-  case TTM_3TEMPL_DEF:
-    // 8/09/04: we used to not instantiate anything in mode 3 (template
-    // definition), but in the new design I see no harm in allowing it;
-    // I think we should use bind mode
-    matchMode = MatchTypes::MM_BIND;
-    break;
-  }
-  return matchMode;
-}
-
-
 // find most specific specialization that matches the given arguments
 Variable *Env::findMostSpecific
   (Variable *baseV, SObjList<STemplateArgument> const &sargs)
@@ -1842,10 +1796,6 @@ Variable *Env::findMostSpecific
   // baseV should be a template primary
   TemplateInfo *baseVTI = baseV->templateInfo();
   xassert(baseVTI->isPrimary());
-
-  // ?
-  MatchTypes::MatchMode matchMode =
-    mapTcheckModeToTypeMatchMode(getTemplTcheckMode());
 
   // iterate through all of the specializations and build up a set of
   // candidates
@@ -1860,7 +1810,7 @@ Variable *Env::findMostSpecific
       const_cast<SObjList<STemplateArgument>&>(sargs);
 
     // see if this candidate matches
-    MatchTypes match(tfac, matchMode);
+    MatchTypes match(tfac, MatchTypes::MM_BIND);
     if (match.match_Lists(hackSargs, specTI->arguments, 2 /*matchDepth (?)*/)) {
       templCandidates.add(spec);
     }
@@ -2725,10 +2675,6 @@ void Env::instantiateTemplatesInParams(FunctionType *ft)
 
 void Env::instantiateForwardClasses(Variable *baseV)
 {
-  // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
-  // purposes of instantiating the forward classes
-  Restorer<TemplTcheckMode> restoreMode(tcheckMode, TTM_1NORMAL);
-
   SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
     instantiateClassBody(iter.data());
   }
@@ -2848,12 +2794,10 @@ void Env::setSTemplArgFromExpr
   else if (expr->type->isReference()) {
     if (expr->isE_variable()) {
       // see if it has a value and replace it with that
-      Env::TemplTcheckMode mode = env.getTemplTcheckMode();
-      if (mode == Env::TTM_2TEMPL_FUNC_DECL
-          || mode == Env::TTM_3TEMPL_DEF
-          || recursionCount > 0) {
+      if (recursionCount > 0) {
         sarg.setReference(expr->asE_variable()->var);
-      } else if (mode == Env::TTM_1NORMAL) {
+      }
+      else {
         Variable *var0 = expr->asE_variable()->var;
         if (!var0) {
           return;     // the error will already have been reported
@@ -2871,8 +2815,6 @@ void Env::setSTemplArgFromExpr
         // FIX: I suppose we should check here that the type of
         // var0->value is what we expect from the expr
         setSTemplArgFromExpr(sarg, var0->value, 1 /*recursionCount*/);
-      } else {
-        xfailure("bad");
       }
     }
     else {
