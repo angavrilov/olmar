@@ -3816,6 +3816,56 @@ inline ArgumentInfo argInfo(Expression *e)
   return ArgumentInfo(e->getSpecial(), e->type);
 }
 
+// get the set of types that 't' can be converted to via a
+// user-defined conversion operator, or by the identity conversion
+void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
+{
+  if (!t->isCompoundType()) {
+    dest.append(t);
+  }
+  else {
+    // get conops
+    SObjList<Variable> convs;
+    getConversionOperators(convs, env, t->asCompoundType());
+
+    // get return types
+    dest.reverse();
+    SFOREACH_OBJLIST_NC(Variable, convs, iter) {
+      dest.prepend(iter.data()->type->asFunctionType()->retType);
+    }
+    dest.reverse();
+  }
+}
+
+Type *opMinusPreFilter(Type *t)
+{
+  // 13.3.1.5: functions that return 'T&' are regarded as
+  // yielding 'T' for purposes of this analysis
+  t = t->asRval();
+
+  // only pointer types need consideration
+  if (t->isPointer()) {
+    return t;
+  }
+  else {
+    return NULL;
+  }
+}
+
+bool opMinusPostFilter(Type *t)
+{
+  // the pre-filter already guarantees that only pointer types
+  // can result from the LUB, but we need to ensure that 
+  // only pointer-to-object types are instantiated
+  Type *at = t->asPointerType()->atType;
+  if (at->isVoid() || at->isFunctionType()) {
+    return false;    // don't instantiate with this one
+  }
+  else {
+    return true;
+  }
+}
+
 // add 't' to 'instTypes', but only if it isn't already present
 void addTypeUniquely(SObjList<Type> &instTypes, Type *t)
 {
@@ -3872,7 +3922,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       // built-in candidates
       // TODO: if any built-in candidate has the same parameter type
       // list as a user-defined candidate, the built-in is not used
-      // (cppstd 13.3.1.2 para 3, last bullet); a possible 
+      // (cppstd 13.3.1.2 para 3, last bullet); a possible
       // implementation is as part of the tournament algorithm (if I
       // see two identical candidates, but one is built-in, then
       // the non-built-in is better)
@@ -3881,8 +3931,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
         resolver.processCandidate(builtins[i]);
       }
 
-      if (op == BIN_MINUS &&
-          (lhsType->isCompoundType() && rhsType->isCompoundType())) {
+      if (op == BIN_MINUS) {
         // tricky built-in: 13.6 para 14:
         //
         // For every T, where T is a pointer to object type, there exist
@@ -3908,22 +3957,19 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
         // set of types with which to instantiate T
         SObjList<Type> instTypes;      // called 'S' in the comments above
 
-        // collect all of the operator functions from lhs and rhs
-        SObjList<Variable> lhsConvs, rhsConvs;
-        getConversionOperators(lhsConvs, env, lhsType->asCompoundType());
-        getConversionOperators(rhsConvs, env, rhsType->asCompoundType());
+        // collect all of the operator functions rettypes from lhs and rhs
+        SObjList<Type> lhsRets, rhsRets;
+        getConversionOperatorResults(env, lhsRets, lhsType);
+        getConversionOperatorResults(env, rhsRets, rhsType);
 
-        // consider all pairs of conversion functions (filter for
-        // those that yield pointer types)
-        SFOREACH_OBJLIST_NC(Variable, lhsConvs, lhsIter) {
-          // 13.3.1.5: functions that return 'T&' are regarded as
-          // yielding 'T' for purposes of this analysis
-          Type *lhsRet = lhsIter.data()->type->asFunctionType()->retType->asRval();
-          if (!lhsRet->isPointer()) continue;
+        // consider all pairs of conversion results
+        SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
+          Type *lhsRet = opMinusPreFilter(lhsIter.data());
+          if (!lhsRet) continue;
 
-          SFOREACH_OBJLIST_NC(Variable, rhsConvs, rhsIter) {
-            Type *rhsRet = rhsIter.data()->type->asFunctionType()->retType->asRval();
-            if (!rhsRet->isPointer()) continue;
+          SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
+            Type *rhsRet = opMinusPreFilter(rhsIter.data());
+            if (!rhsRet) continue;
 
             // compute LUB
             bool wasAmbig;
@@ -3940,11 +3986,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
                 << ", but their LUB is ambiguous");
               goto after_overload_resolution;
             }
-            else if (lub &&             
-                     // filter for requirements on T
-                     lub->isPointer() &&
-                     !lub->asPointerType()->atType->isVoid() &&
-                     !lub->asPointerType()->atType->isFunctionType()) {
+            else if (lub && opMinusPostFilter(lub)) {
               // add the LUB to our list of to-instantiate types
               addTypeUniquely(instTypes, lub);
             }
