@@ -6,6 +6,7 @@
 
 #include "astlist.h"     // ASTList
 #include "str.h"         // string
+#include "locstr.h"      // LocString
 
 #include <iostream.h>    // ostream
 
@@ -94,6 +95,8 @@ void debugPrintList(ASTList<T> const &list, char const *name,
 
 // provide explicit specialization for strings
 void debugPrintList(ASTList<string> const &list, char const *name,
+                    ostream &os, int indent);
+void debugPrintList(ASTList<LocString> const &list, char const *name,
                     ostream &os, int indent);
 
 

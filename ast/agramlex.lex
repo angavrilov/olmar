@@ -84,7 +84,7 @@ SLWHITE   [ \t]
   /* C-style comments */
   TOKEN_START;
   UPD_COL;
-  commentStartLine = fileState.line;
+  //commentStartLine = fileState.line;
   BEGIN(C_COMMENT);
 }
 

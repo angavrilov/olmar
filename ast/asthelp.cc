@@ -21,17 +21,31 @@ void debugPrintStr(string const &s, char const *name,
 }
 
 
-void debugPrintList(ASTList<string> const &list, char const *name,
-                    ostream &os, int indent)
+template <class STR>
+void debugPrintStringList(ASTList<STR> const &list, char const *name,
+                          ostream &os, int indent)
 {
   ind(os, indent) << name << ": ";
-  {                                 
+  {
     int ct=0;
-    FOREACH_ASTLIST(string, list, iter) {
+    FOREACH_ASTLIST(STR, list, iter) {
       if (ct++ > 0) {
         os << ", ";
       }
       os << quoted(*( iter.data() ));
     }
   }
+}
+
+
+void debugPrintList(ASTList<string> const &list, char const *name,
+                    ostream &os, int indent)
+{
+  debugPrintStringList(list, name, os, indent);
+}
+
+void debugPrintList(ASTList<LocString> const &list, char const *name,
+                    ostream &os, int indent)
+{
+  debugPrintStringList(list, name, os, indent);
 }
