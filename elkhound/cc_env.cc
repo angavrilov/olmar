@@ -283,9 +283,8 @@ CVAtomicType const *Env::getSimpleType(SimpleTypeId st)
 }
 
 
-Type const *Env::lookupType(char const *name)
+Type const *Env::lookupLocalType(char const *name)
 {
-  // search the current environment
   if (typedefs.isMapped(name)) {
     return typedefs.queryf(name);
   }
@@ -293,9 +292,24 @@ Type const *Env::lookupType(char const *name)
   if (compounds.isMapped(name)) {
     return makeType(compounds.queryf(name));
   }
-  
+
   if (enums.isMapped(name)) {
     return makeType(enums.queryf(name));
+  }
+
+  return NULL;
+}
+
+Type const *Env::lookupType(char const *name)
+{
+  // search the current environment for the type
+  Type const *ret = lookupLocalType(name);
+  if (ret) { return ret; }
+
+  // search it for a variable name, which would shadow
+  // the type
+  if (isLocalDeclaredVar(name)) {
+    return NULL;
   }
 
   // now search parents
@@ -349,10 +363,24 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
 }
 
 
+bool Env::isLocalDeclaredVar(char const *name)
+{
+  return variables.isMapped(name);
+}
+
 bool Env::isDeclaredVar(char const *name)
 {
-  return variables.isMapped(name) ||
-         (parent && parent->isDeclaredVar(name));
+  if (isLocalDeclaredVar(name)) {
+    return true;
+  }
+  
+  // if there's a local type, it shadows the variable
+  if (lookupType(name)) {
+    return false;
+  }
+        
+  // look in enclosing scopes
+  return parent && parent->isDeclaredVar(name);
 }
 
 

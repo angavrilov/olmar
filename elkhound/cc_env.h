@@ -130,6 +130,7 @@ public:     // funcs
   CVAtomicType const *getSimpleType(SimpleTypeId st);
 
   // lookup an existing type; if it doesn't exist, return NULL
+  Type const *lookupLocalType(char const *name);
   Type const *lookupType(char const *name);
 
   // install a new name->type binding in the environment; return
@@ -137,6 +138,7 @@ public:     // funcs
   bool declareVariable(char const *name, DeclFlags flags, Type const *type);
 
   // return true if the named variable is declared as something
+  bool isLocalDeclaredVar(char const *name);
   bool isDeclaredVar(char const *name);
 
   // report an error

@@ -356,6 +356,10 @@ nonterm CastExpression : ExprBase {
 nonterm BinaryExpression : ExprBase {
   attr prec;                  // precedence of binding (topmost) operator in expression
 
+  disamb varsDecld {
+    disambiguate(env, (DisambFn)&unamb_varsDecld);
+  }
+
   -> e:CastExpression {
     action  prec := 100;      // higher precedence than anything else
 

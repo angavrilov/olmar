@@ -1,14 +1,28 @@
 // expressions
 
+struct page { int x; };
+struct pte_t { int y; };
+
 int foo ( )
-{                   
+{
   putc(EOF);
   printf("foo\n");
   sizeof(foo);
   return 1 + 2 * 3 ;
-  
+
   int dest, a, b;
   ( dest )  = ( a )  & ( b ) ;     // AMBIGUOUS (no longer!)
+
+  int nr;
+  nr = ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long)) ;   // AMBIGUOUS
+
+  // this one is harder because there is a local definition
+  // of 'page' as a variable, and a global definition of it
+  // as a type
+  int pmd;
+  pte_t * page = (pte_t *) get_pte_fast();
+  (( *pmd ).pmd)  = (0x001  | 0x002  | 0x020  | 0x040 )
+    + ((unsigned long)( page )- ((unsigned long)(0xC0000000 ) ) ) ;   // AMBIGUOUS
 
   enum E { a,b,c };
 }
