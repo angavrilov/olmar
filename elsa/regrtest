@@ -919,6 +919,7 @@ failparse k0044.cc "template super class member variable"
 failparse k0045.cc "'operator delete' redeclared without throw()"
 failparse k0046.cc "anonymous inline struct fields"
 failparse k0047.cc "template<T> operator T*"
+failparse k0048.cc "re-declaration of template base-class member"
 
 ### </quarl-testcases-c++>
 
