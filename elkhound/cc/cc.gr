@@ -1374,11 +1374,11 @@ nonterm[Member*] MemberDeclaration {
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
        [ spec->decllist = list; 
-         return new MR_decl(AK_UNSPECIFIED, spec); ]
+         return new MR_decl(spec); ]
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt
-       [ return new MR_func(AK_UNSPECIFIED, f); ]
+       [ return new MR_func(f); ]
   
   // declaration (with no definition) of a c/dtor or conversion
   // operator function                                         
@@ -1388,7 +1388,6 @@ nonterm[Member*] MemberDeclaration {
        [ // 'd' is a Declarator
          DeclFlags flags = (DeclFlags)( e | (v? DF_VIRTUAL : DF_NONE) );
          return new MR_decl(
-           AK_UNSPECIFIED,
            new Declaration(
              flags,
              new TS_simple(ST_CDTOR),

@@ -432,11 +432,11 @@ CompoundType::Field const *CompoundType::getNamedField(StringRef name) const
 
 
 CompoundType::Field *CompoundType::
-  addField(StringRef name, Type const *type, Variable *decl)
+  addField(StringRef name, AccessKeyword acc, Type const *type, Variable *decl)
 {
   xassert(!fieldIndex.isMapped(name));
 
-  Field *f = new Field(name, fieldCounter++, type, this, decl);
+  Field *f = new Field(name, acc, fieldCounter++, type, this, decl);
   fields.append(f);
   fieldIndex.add(name, f);
 

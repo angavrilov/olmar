@@ -69,6 +69,7 @@ private:     // data
 public:      // data
   // ------------- "current" entities -------------------
   CompoundType *curCompound;     // CompoundType we're building
+  AccessKeyword curAccess;       // access disposition in effect
   Function *curFunction;         // Function we're analyzing
   SourceLocation curLoc;         // latest AST location marker seen
 
