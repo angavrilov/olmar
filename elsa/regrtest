@@ -430,6 +430,10 @@ testparse d0048elab.cc
 testparse d0049.cc
 testparse d0050.cc
 testparse d0050elab.cc
+testparse d0051.cc
+# this one shouldn't pass but does; however our goal is not to
+# recognize all wrong C++, so it is ok
+testparse d0051elab.cc
 
 # examples from C++ standard
 #
