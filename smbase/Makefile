@@ -16,7 +16,7 @@ ranlib      := ranlib
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-ccflags += -pg
+#ccflags += -pg
 
 # optimizer...
 ccflags += -O2 -DNDEBUG
