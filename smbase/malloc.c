@@ -1608,38 +1608,40 @@ void public_fREe(Void_t* m)
 {
   int i;
 
-  // get back to the real start
-  unsigned char *p = ((char*)m) - ZONE_SIZE - sizeof(size_t);
+  if (m) {
+    // get back to the real start
+    unsigned char *p = ((char*)m) - ZONE_SIZE - sizeof(size_t);
 
-  // pull off the size
-  size_t bytes = *((size_t*)p);
+    // pull off the size
+    size_t bytes = *((size_t*)p);
 
-  // check for one particularly common occurrence
-  if (p[sizeof(size_t)] == 0xBB) {
-    assert(!"double deallocation");
-  }
+    // check for one particularly common occurrence
+    if (p[sizeof(size_t)] == 0xBB) {
+      assert(!"double deallocation");
+    }
 
-  // check the zones; should be all 0xAA
-  checkZones(p, bytes);
+    // check the zones; should be all 0xAA
+    checkZones(p, bytes);
 
-  // blank the entire area with 0xBB
-  // (except for the size, which I want to keep so I can
-  // check it in checkHeap)
-  for (i=sizeof(size_t); i<bytes; i++) {
-    p[i] = 0xBB;
-  }
+    // blank the entire area with 0xBB
+    // (except for the size, which I want to keep so I can
+    // check it in checkHeap)
+    for (i=sizeof(size_t); i<bytes; i++) {
+      p[i] = 0xBB;
+    }
 
-  if (MALLOC_PREACTION != 0) {
-    return;
-  }
-  #ifdef DEBUG_HEAP
-    // don't free the memory; but not re-using memory, references
-    // to free'd memory become even more apparent
-  #else
-    // usual mode; free the memory
-    fREe(p);
-  #endif
-  if (MALLOC_POSTACTION != 0) {
+    if (MALLOC_PREACTION != 0) {
+      return;
+    }
+    #ifdef DEBUG_HEAP
+      // don't free the memory; but not re-using memory, references
+      // to free'd memory become even more apparent
+    #else
+      // usual mode; free the memory
+      fREe(p);
+    #endif
+    if (MALLOC_POSTACTION != 0) {
+    }
   }
 }
 
