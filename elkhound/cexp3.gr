@@ -3,7 +3,7 @@
 
 verbatim Cexp3 [
   #include <iostream.h>      // cout
-  #include "cexp3ast.gen.h"  // Exp
+  #include "cexp3ast.h"      // Exp
   #include "trace.h"         // trace
   #include "useract.h"       // UserActions
 
@@ -11,10 +11,11 @@ verbatim Cexp3 [
     trace("exptree") << msg << endl
 
   class Cexp3 : public UserActions {
-    #include "cexp3.gen.h"
+    #include "cexp3.gr.gen.h"
   };
-  
-  UserActions *makeUserActions(StringTable &)
+
+  class CCLang;  
+  UserActions *makeUserActions(StringTable &, CCLang &)
   {
     return new Cexp3;
   }

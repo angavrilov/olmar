@@ -40,7 +40,7 @@ endif
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-ccflags += -pg
+#ccflags += -pg
 
 # optimizer...
 #ccflags += -O2
@@ -197,13 +197,16 @@ libglr.a: $(libglr-dep)
 
 # intermediate files for cexp3 (disambiguates using prec/assoc)
 # ('chmod a-w' is so I don't accidentally edit it)
-cexp3.gen.cc cexp3.gen.h: cexp3.gr cc.tok gramanl
-	rm -f cexp3.gen.*
+cexp3.gr.gen.cc cexp3.gr.gen.h: cexp3.gr cc.tok gramanl
+	rm -f cexp3.gr.gen.*
 	./gramanl cexp3
-	chmod a-w cexp3.gen.{h,cc}
+	chmod a-w cexp3.gr.gen.{h,cc}
+
+cexp3ast.h cexp3ast.cc: cexp3ast.ast
+	../../ast/astgen cexp3ast.ast
 
 # AUXDEPEND
-#cexp3.gen.o: cexp3ast.gen.h
+cexp3.gen.o: cexp3ast.h
 
 # ast for cexp3
 # (these rules should be superceded by pattern rule below)
@@ -211,7 +214,8 @@ cexp3.gen.cc cexp3.gen.h: cexp3.gr cc.tok gramanl
 #	$(AST)/astgen cexp3ast.ast
 
 # parser and semantic analyzer for cexp3.gr
-cexp3-dep := cexp3.gen.o glrmain.o cexp3mrg.o cexp3ast.gen.o libglr.a $(libraries)
+cexp3-dep := cexp3.gr.gen.o glrmain.o cexp3mrg.o cexp3ast.o \
+             cc_lang.o libglr.a $(libraries)
 cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
 	./cexp3 cexp3.bin cexp3.in1

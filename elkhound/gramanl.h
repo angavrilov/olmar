@@ -38,18 +38,15 @@ class GrammarAnalysis;
 class DottedProduction {
 // ------ representation ------
 private:    // data
-  Production *prod;              // (serf) the base production
+  Production const *prod;        // (serf) the base production
   int dot;                       // 0 means it's before all RHS symbols, 1 means after first, etc.
-  
-public:     // data
-  TerminalSet lookahead;         // lookahead symbols
 
 // -------- annotation ----------
 private:
   // performance optimization: NULL if dot at end, or else pointer
   // to the symbol right after the dot
   Symbol *afterDot;
-
+            
 private:    // funcs
   void init();
 
@@ -58,41 +55,31 @@ public:	    // funcs
 
   // need the grammar passed during creation so we know how big
   // to make 'lookahead'
-  DottedProduction(GrammarAnalysis const &g);       // for later filling-in
-  DottedProduction(GrammarAnalysis const &g, Production *p, int d);
+  //DottedProduction(GrammarAnalysis const &g);       // for later filling-in
+  //DottedProduction(/*GrammarAnalysis const &g,*/ Production *p, int d);
+  DottedProduction();     // for creating arrays of them
   ~DottedProduction();
 
+  // no point to flattening these because they're easily re-computable
+  #if 0
   DottedProduction(Flatten&);
   void xfer(Flatten &flat);
   void xferSerfs(Flatten &flat, GrammarAnalysis &g);
+  #endif // 0
 
   // simple queries
-  Production *getProd() const { return prod; }
+  Production const *getProd() const { return prod; }
   int getDot() const { return dot; }
   bool isDotAtStart() const { return dot==0; }
   bool isDotAtEnd() const { return afterDot==NULL; }
 
-  // manipulate the lookahead set
-  bool laContains(int terminalId) const
-    { return lookahead.contains(terminalId); }
-  void laAdd(int terminalId)
-    { lookahead.add(terminalId); }
-  void laRemove(int terminalId)
-    { lookahead.remove(terminalId); }
-  void laCopy(DottedProduction const &obj)
-    { lookahead.copy(obj.lookahead); }
-  bool laMerge(DottedProduction const &obj)     // returns true if merging changed lookahead
-    { return lookahead.merge(obj.lookahead); }
-  bool laIsEqual(DottedProduction const &obj) const
-    { return lookahead.isEqual(obj.lookahead); }
-
-  // comparison, equality (ignores lookahead set for purposes of comparison)
-  static int diff(DottedProduction const *a, DottedProduction const *b, void*);
-  bool equalNoLA(DottedProduction const &obj) const;
+  // no need for equality now, since all DPs with the same
+  // prod/dot are shared
+  //bool isEqual(DottedProduction const &obj) const;
   //bool operator== (DottedProduction const &obj) const;
 
   // call this to change prod and dot
-  void setProdAndDot(Production *p, int d);
+  void setProdAndDot(Production const *p, int d);
 
   // dot must not be at the start (left edge)
   Symbol const *symbolBeforeDotC() const;
@@ -102,16 +89,9 @@ public:	    // funcs
   Symbol const *symbolAfterDotC() const { return afterDot; }
   Symbol *symbolAfterDot() { return const_cast<Symbol*>(symbolAfterDotC()); }
 
-#ifdef HASHCLOSURE
-  // stuff for insertion into a hash table
-  static unsigned hash(void const *key);
-  static void const *dataToKey(DottedProduction *dp);
-  static bool dpEqual(void const *key1, void const *key2);
-#endif /* HASHCLOSURE */
-
   // print to cout as 'A -> B . c D' (no newline)
-  void print(ostream &os, GrammarAnalysis const &g) const;
-  //OSTREAM_OPERATOR(DottedProduction)
+  void print(ostream &os/*, GrammarAnalysis const &g*/) const;
+  OSTREAM_OPERATOR(DottedProduction)
 };
 
 // lists of dotted productions
@@ -126,6 +106,75 @@ typedef SObjListIter<DottedProduction> SDProductionListIter;
 #define SMUTATE_EACH_DOTTEDPRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(DottedProduction, list, iter)
 
 
+// --------------- LRItem ---------------
+// a dotted production with a lookahead; whereas each production
+// has a fixed number of dotted versions of that production, there
+// can be lots of items, because of the differing lookahead sets
+// (I prefer the name "LRItem" to simply "Item" because the latter
+// easily collides with other uses)
+class LRItem {
+public:    // data
+  DottedProduction const *dprod;  // (serf) production and dot position
+  TerminalSet lookahead;          // lookahead symbols
+
+public:    // funcs
+  LRItem(LRItem const &obj);
+  ~LRItem();
+
+  // need 'numTerms' to tell how big to make 'lookahead'
+  LRItem(int numTerms, DottedProduction const *dp);
+
+  LRItem(Flatten&);
+  void xfer(Flatten &flat);
+  void xferSerfs(Flatten &flat, GrammarAnalysis &g);
+
+  // comparison
+  static int diff(LRItem const *a, LRItem const *b, void*);
+  bool equalNoLA(LRItem const &obj) const
+    { return dprod == obj.dprod; }
+
+  // manipulate the lookahead set
+  bool laContains(int terminalId) const
+    { return lookahead.contains(terminalId); }
+  void laAdd(int terminalId)
+    { lookahead.add(terminalId); }
+  void laRemove(int terminalId)
+    { lookahead.remove(terminalId); }
+  void laCopy(LRItem const &obj)
+    { lookahead.copy(obj.lookahead); }
+  bool laMerge(LRItem const &obj)     // returns true if merging changed lookahead
+    { return lookahead.merge(obj.lookahead); }
+  bool laIsEqual(LRItem const &obj) const
+    { return lookahead.isEqual(obj.lookahead); }
+
+  // pass-thru queries into 'dprod'
+  Production const *getProd() const
+    { return dprod->getProd(); }
+  int getDot() const
+    { return dprod->getDot(); }
+  bool isDotAtStart() const
+    { return dprod->isDotAtStart(); }
+  bool isDotAtEnd() const
+    { return dprod->isDotAtEnd(); }
+  Symbol const *symbolBeforeDotC() const
+    { return dprod->symbolBeforeDotC(); }
+  Symbol const *symbolAfterDotC() const
+    { return dprod->symbolAfterDotC(); }
+    
+  int prodIndex() const
+    { return getProd()->prodIndex; }
+
+#ifdef HASHCLOSURE
+  // stuff for insertion into a hash table
+  static unsigned hash(void const *key);
+  static void const *dataToKey(LRItem *dp);
+  static bool dpEqual(void const *key1, void const *key2);
+#endif /* HASHCLOSURE */
+
+  void print(ostream &os, GrammarAnalysis const &g) const;
+};
+
+
 // ---------------- ItemSet -------------------
 // a set of dotted productions, and the transitions between
 // item sets, as in LR(0) set-of-items construction
@@ -135,13 +184,13 @@ public:     // intended to be read-only public
   // the special case of the initial item in the initial state,
   // the kernel items are distinguished by having the dot *not*
   // at the left edge
-  DProductionList kernelItems;
+  ObjList<LRItem> kernelItems;
 
   // nonkernel items: those derived as the closure of the kernel
   // items by expanding symbols to the right of dots; here I am
   // making the choice to materialize them, rather than derive
   // them on the spot as needed (and may change this decision)
-  DProductionList nonkernelItems;
+  ObjList<LRItem> nonkernelItems;
 
 private:    // data
   // transition function (where we go on shifts); NULL means no transition
@@ -156,9 +205,9 @@ private:    // data
   // profiler reports I'm spending significant time rifling through
   // the items looking for those that have the dot at the end; so this
   // array will point to all such items
-  DottedProduction const **dotsAtEnd;        // (owner ptr to array of serf ptrs)
+  LRItem const **dotsAtEnd;                  // (owner ptr to array of serf ptrs)
   int numDotsAtEnd;                          // number of elements in 'dotsAtEnd'
-  
+
   // profiler also reports I'm still spending time comparing item sets; this
   // stores a CRC of the numerically sorted kernel item pointer addresses,
   // concatenated into a buffer of sufficient size
@@ -190,7 +239,7 @@ private:    // funcs
   void allocateTransitionFunction();
   Symbol const *computeStateSymbolC() const;
 
-  void deleteNonReductions(DProductionList &list);
+  void deleteNonReductions(ObjList<LRItem> &list);
 
 public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);
@@ -213,7 +262,7 @@ public:     // funcs
 
   // sometimes it's convenient to have all items mixed together
   // (CONSTNESS: allows modification of items...)
-  void getAllItems(SDProductionList &dest) const;
+  void getAllItems(SObjList<LRItem> &dest) const;
 
   // used for sorting by id
   static int diffById(ItemSet const *left, ItemSet const *right, void*);
@@ -228,39 +277,40 @@ public:     // funcs
   // get the list of productions that are ready to reduce, given
   // that the next input symbol is 'lookahead' (i.e. in the follow
   // of a production's LHS); parsing=true means we are actually
-  // parsing input, so certain tracing output is appropriate
+  // parsing input, so certain tracing output is appropriate;
+  // 'reductions' is a list of const Productions
   void getPossibleReductions(ProductionList &reductions,
                              Terminal const *lookahead,
                              bool parsing) const;
 
-                    
+
   // assuming this itemset has at least one reduction ready (an assertion
   // checks this), retrieve the first one
   Production const *getFirstReduction() const;
 
   // ---- item mutations ----
   // add a kernel item; used while constructing the state
-  void addKernelItem(DottedProduction * /*owner*/ item);
-  
+  void addKernelItem(LRItem * /*owner*/ item);
+
   // after adding all kernel items, call this
   void sortKernelItems();
 
   // add a nonkernel item; used while computing closure; this
   // item must not already be in the item set
-  void addNonkernelItem(DottedProduction * /*owner*/ item);
+  void addNonkernelItem(LRItem * /*owner*/ item);
 
   // computes things derived from the item set lists:
   // dotsAtEnd, numDotsAtEnd, kernelItemsCRC, stateSymbol;
   // do this after adding things to the items lists
   void changedItems();
 
-  // remove the reduce using 'prod' on lookahead 'sym; 
+  // remove the reduce using 'prod' on lookahead 'sym;
   // calls 'changedItems' internally
   void removeReduce(Production const *prod, Terminal const *sym);
 
   // throw away information not needed during parsing
   void throwAwayItems();
-                                          
+
   // 'dest' has already been established to have the same kernel
   // items as 'this' -- so merge all the kernel lookahead items
   // of 'this' into 'dest'; return 'true' if any changes were made
@@ -307,6 +357,15 @@ protected:  // data
   // the list of productions with that nonterminal on the LHS
   SObjList<Production> *productionsByLHS;    // (owner ptr to array)
 
+  // map of production x dotPosition -> DottedProduction;
+  // each element of the 'dottedProds' array is a pointer to an
+  // array of DottedProduction objects
+  DottedProduction **dottedProds;       // (owner ptr to array of owners)
+  
+  // index of productions by id
+  Production **indexedProds;            // (owner -> serfs) prodIndex -> Production
+  int numProds;                         // length of 'dottedProds'
+
   // only true after initializeAuxData has been called
   bool initialized;
 
@@ -327,10 +386,10 @@ public:	    // data
   // is to print whenever something is added to this sym's
   // follow)
   Symbol const *symOfInterest;
-  
+
   // incremented each time we encounter an error that we can recover from
   int errors;
-  
+
 private:    // funcs
   // ---- analyis init ----
   // call this after grammar is completely built
@@ -341,6 +400,19 @@ private:    // funcs
   void computeReachable();
   void computeReachableDFS(Nonterminal *nt);
   void resetFirstFollow();
+
+  // ---- dotted productions ----
+  void createDottedProductions();
+  void deleteDottedProductions();
+  DottedProduction const *getDProd(Production const *prod, int posn) const;
+
+  // given a dprod, yield the one obtained by moving the dot one
+  // place to the right
+  DottedProduction const *nextDProd(DottedProduction const *dp) const
+    #ifdef NDEBUG
+      { return dp+1; }      // take advantage of physical co-location
+    #endif
+      ;                     // debug version checks bounds
 
   // ---- derivability ----
   // iteratively compute every pair A,B such that A can derive B
@@ -407,13 +479,13 @@ private:    // funcs
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
 #ifndef HASHCLOSURE
-  void singleItemClosure(ItemSet &itemSet, DProductionList &worklist,
-                         DottedProduction const *item);
+  void singleItemClosure(ItemSet &itemSet, ObjList<LRItem> &worklist,
+                         LRItem const *item);
 #else /* HASHCLOSURE */
-  void singleItemClosure(OwnerHashTable<DottedProduction> &finished,
-                    SDProductionList &worklist,
-                    OwnerHashTable<DottedProduction> &workhash,
-                    DottedProduction const *item);
+  void singleItemClosure(OwnerHashTable<LRItem> &finished,
+                         SObjList<LRItem> &worklist,
+                         OwnerHashTable<LRItem> &workhash,
+                         LRItem const *item);
 #endif /* HASHCLOSURE */
 
 public:	    // funcs
@@ -423,6 +495,7 @@ public:	    // funcs
   // access symbols by index
   Terminal const *getTerminal(int index) const;
   Nonterminal const *getNonterminal(int index) const;
+  Production const *getProduction(int index) const;
 
   ItemSet const *getItemSet(int index) const;
   int numItemSets() const { return nextItemSetId; }
@@ -465,6 +538,7 @@ public:	    // funcs
   
   // ---- moved out of private ----
   void itemSetClosure(ItemSet &itemSet);
+  DottedProduction const *getDProdIndex(int prodIndex, int posn) const;
 };
 
 

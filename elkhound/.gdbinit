@@ -3,8 +3,8 @@
 # needed for Squish
 #set width 0
 
-file ccgr
-#set args -tr printPaths,printTypedAST,stopAfterTCheck,tcheck cc.bin tcheck/loops.c
+#file ccgr
+#set args cc.bin c.in1
 
 #set args -tr predicates cc.bin vcgen/struct.c
 
@@ -12,7 +12,7 @@ file ccgr
 
 #set args -tr stopAfterTCheck cc.bin vcgen/if.c
 
-set args cc.bin c.in1
+#set args cc.bin c.in1
 
 #set args -tr factflow cc.bin vcgen/ff.c
 
@@ -20,8 +20,8 @@ set args cc.bin c.in1
 #  break breaker
 #  run
 
-#file gramanl
-#set args cc
+file gramanl
+set args --testRW cexp3
 
 #  file cexp2
 #  set args cexp2.bin cexp.in1

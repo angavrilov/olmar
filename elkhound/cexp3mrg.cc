@@ -1,7 +1,7 @@
 // cexp3mrg.cc
 // code to merge alternatives for cexp3ast.ast
 
-#include "cexp3ast.gen.h"     // Exp
+#include "cexp3ast.h"         // Exp
 #include "xassert.h"          // xfailure
 #include "trace.h"            // trace
 
