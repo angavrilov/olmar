@@ -674,7 +674,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     SOURCELOC( currentTokenLoc = currentToken->loc; )
 
 
-  tryDeterministic:    
+  tryDeterministic:
     // --------------------- mini-LR parser -------------------------
     // optimization: if there's only one active parser, and the
     // action is unambiguous, and it doesn't involve traversing
@@ -691,40 +691,11 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       ActionEntry action =
         tables->actionEntry(parser->state, currentTokenClass->termIndex);
 
-      if (tables->isShiftAction(action)) {
-        // can shift unambiguously
-        StateId newState = tables->decodeShift(action);
-
-        TRSPARSE("state " << parser->state <<
-                 ", (unambig) shift token " << currentTokenClass->name <<
-                 ", to state " << newState);
-
-        StackNode *rightSibling = makeStackNode(newState);
-        rightSibling->addFirstSiblingLink_noRefCt(
-          parser, currentTokenValue  SOURCELOCARG( currentTokenLoc ) );
-        // cancelled(2) effect: parser->incRefCt();
-
-        // replace 'parser' with 'rightSibling' in the activeParsers list
-        activeParsers[0] = rightSibling;
-        // cancelled(2) effect: xassertdb(parser->referenceCount==2);         // rightSibling & activeParsers[0]
-        // expand "parser->decRefCt();"
-        {
-          // cancelled(2) effect: parser->referenceCount = 1;
-        }
-        xassertdb(parser->referenceCount==1);         // rightSibling
-
-        xassertdb(rightSibling->referenceCount==0);   // just created
-        // expand "rightSibling->incRefCt();"
-        {
-          rightSibling->referenceCount = 1;
-        }
-        xassertdb(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
-
-        // get next token
-        continue;
-      }
-
-      else if (tables->isReduceAction(action)) {
+      // I decode reductions before shifts because:
+      //   - they are 4x more common in my C grammar
+      //   - decoding a reduction is one less integer comparison
+      // however I can only measure ~1% performance difference
+      if (tables->isReduceAction(action)) {
         int prodIndex = tables->decodeReduce(action);
         ParseTables::ProdInfo const &prodInfo = tables->prodInfo[prodIndex];
         int rhsLen = prodInfo.rhsLen;
@@ -849,6 +820,39 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           // then we drop into full GLR, which always ends by shifting)
           goto tryDeterministic;
         }
+      }
+
+      else if (tables->isShiftAction(action)) {
+        // can shift unambiguously
+        StateId newState = tables->decodeShift(action);
+
+        TRSPARSE("state " << parser->state <<
+                 ", (unambig) shift token " << currentTokenClass->name <<
+                 ", to state " << newState);
+
+        StackNode *rightSibling = makeStackNode(newState);
+        rightSibling->addFirstSiblingLink_noRefCt(
+          parser, currentTokenValue  SOURCELOCARG( currentTokenLoc ) );
+        // cancelled(2) effect: parser->incRefCt();
+
+        // replace 'parser' with 'rightSibling' in the activeParsers list
+        activeParsers[0] = rightSibling;
+        // cancelled(2) effect: xassertdb(parser->referenceCount==2);         // rightSibling & activeParsers[0]
+        // expand "parser->decRefCt();"
+        {
+          // cancelled(2) effect: parser->referenceCount = 1;
+        }
+        xassertdb(parser->referenceCount==1);         // rightSibling
+
+        xassertdb(rightSibling->referenceCount==0);   // just created
+        // expand "rightSibling->incRefCt();"
+        {
+          rightSibling->referenceCount = 1;
+        }
+        xassertdb(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
+
+        // get next token
+        continue;
       }
 
       else {

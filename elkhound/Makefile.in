@@ -46,7 +46,7 @@ ccflags += -Werror
 ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
-ccflags += -DNO_GLR_SOURCELOC
+#ccflags += -DNO_GLR_SOURCELOC
 
 # flags on command line
 ccflags+= $(EXTRA)
