@@ -88,10 +88,9 @@ nonterm Checkable {
 nonterm TranslationUnit : Checkable { 
   // simple indirection so I can print just the d's
   fundecl void printTree();
+  fun printTree {}      // NOP; never called
 
-  -> empty {
-    fun printTree {}      // NOP; never called
-  }
+  -> empty;
   
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
@@ -126,8 +125,6 @@ nonterm TranslationUnit : Checkable {
     fun typeCheck {
       t.typeCheck(env);
     }
-   
-    fun printTree {}
   }
 
   literalCode "constructor" {
