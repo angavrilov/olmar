@@ -1124,6 +1124,12 @@ static bool cGD_helper(Type const *t)
   return t->isGeneralizedDependent();
 }
 
+// What is the intended difference in usage between
+// 'isGeneralizedDependent' and 'containsGeneralizedDependent'?
+// Mostly, the latter includes types that cannot be classes even when
+// template args are supplied, whereas the former includes only types
+// that *might* be classes when targs are supplied.  (TODO: write up
+// the entire design of dependent type representation)
 bool BaseType::containsGeneralizedDependent() const
 {
   return anyCtorSatisfiesF(cGD_helper);
@@ -1261,11 +1267,16 @@ bool BaseType::containsTypeVariables() const
 
 bool atomicTypeHasVariable(AtomicType const *t)
 {
-  if (t->isTypeVariable()) return true;
+  if (t->isTypeVariable() ||
+      t->isPseudoInstantiation() ||
+      t->isDependentQType()) {
+    return true;
+  }
+
   if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
     return t->asCompoundTypeC()->templateInfo()->argumentsContainVariables();
   }
-  if (t->isPseudoInstantiation()) return true;
+
 
   return false;
 }

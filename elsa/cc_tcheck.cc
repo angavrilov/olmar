@@ -5226,22 +5226,20 @@ int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *arg
                                          argInfo[paramIndex].overloadSet);
 
     // try to convert the argument to the parameter
-    if (!arg->getType()->isGeneralizedDependent()) {
-      ImplicitConversion ic = getImplicitConversion(env,
-        arg->getSpecial(env.lang),
-        arg->getType(),
-        param->type,
-        false /*destIsReceiver*/);
-      if (!ic) {
-        env.error(arg->getType(), stringc
-          << "cannot convert argument type `" << arg->getType()->toString()
-          << "' to parameter " << paramIndex 
-          << " type `" << param->type->toString() << "'");
-      }
-
-      // TODO (elaboration): if 'ic' involves a user-defined
-      // conversion, then modify the AST to make that explicit
+    ImplicitConversion ic = getImplicitConversion(env,
+      arg->getSpecial(env.lang),
+      arg->getType(),
+      param->type,
+      false /*destIsReceiver*/);
+    if (!ic) {
+      env.error(arg->getType(), stringc
+        << "cannot convert argument type `" << arg->getType()->toString()
+        << "' to parameter " << paramIndex 
+        << " type `" << param->type->toString() << "'");
     }
+
+    // TODO (elaboration): if 'ic' involves a user-defined
+    // conversion, then modify the AST to make that explicit
   }
 
   if (argIter->isEmpty()) {
@@ -5727,7 +5725,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
       }
     }
 
-    if (receiverType && !receiverType->isGeneralizedDependent()) {
+    if (receiverType) {
       // check that the receiver object matches the receiver parameter
       if (!getImplicitConversion(env,
              SE_NONE,
@@ -7305,8 +7303,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   cond->tcheck(env, cond);
 
   // para 1: 'cond' converted to bool
-  if (!cond->type->isGeneralizedDependent() &&
-      !getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
+  if (!getImplicitConversion(env, cond->getSpecial(env.lang), cond->type,
                              env.getSimpleType(SL_UNKNOWN, ST_BOOL))) {
     env.error(cond->type, stringc
       << "cannot convert `" << cond->type->toString() 
@@ -7323,9 +7320,9 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // regarding the entire ?: dependent if the condition is, even
   // though the type of the condition cannot affect the type of the ?:
   // expression.
-  if (cond->type->isGeneralizedDependent() ||
-      th->type->isGeneralizedDependent() ||
-      el->type->isGeneralizedDependent()) {
+  if (cond->type->containsGeneralizedDependent() ||
+      th->type->containsGeneralizedDependent() ||
+      el->type->containsGeneralizedDependent()) {
     return env.dependentType();
   }
 

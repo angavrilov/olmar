@@ -689,6 +689,8 @@ failparse t0442.cc "triply-nested templates with out-of-line defns"
 testparse_strict t0443.cc
 testparse_strict t0444.cc
 testparse_strict t0445.cc
+testparse_strict t0446.cc
+testparse_strict t0447.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

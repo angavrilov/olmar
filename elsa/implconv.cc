@@ -145,6 +145,11 @@ ImplicitConversion getImplicitConversion
 {
   ImplicitConversion ret;
 
+  if (src->asRval()->isGeneralizedDependent()) {
+    ret.addStdConv(SC_IDENTITY);      // could be as good as this
+    return ret;
+  }
+
   // 9/25/04: conversion from template class pointer requires
   // instantiating the template class, so we can try derived-to-base
   // conversions
