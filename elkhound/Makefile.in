@@ -49,10 +49,10 @@ endif
 #ccflags += -Werror
 
 # when uncommented, we get profiling info
-#ccflags += -pg
+ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -430,7 +430,7 @@ trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 
 # new C++ parser
 cc2.exe: cc2main.o cc2/cc2.gr.gen.o ptreenode.o libglr.a
-	g++ -o $@ $^ $(linkend)
+	g++ -o $@ $(ccflags) $^ $(linkend)
 
 # new C++ grammar with treebuilding actions
 cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok gramanl
@@ -441,7 +441,7 @@ cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok graman
 
 # new C++ parser with treebuilding
 cc2t.exe: cc2main.o cc2/cc2t.gr.gen.o ptreenode.o libglr.a
-	g++ -o $@ $^ $(linkend)
+	g++ -o $@ $(ccflags) $^ $(linkend)
 
 
 
