@@ -16,7 +16,7 @@
 #  set args cexp2.bin cexp.in1
 
 file grampar
-set args -tr grampar asu419.gr
+set args cexp3.gr
 
 break main
 break breaker

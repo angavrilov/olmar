@@ -166,7 +166,7 @@ void astParseTerminals(Environment &env, Terminals const &terms)
       if (!t) {
         astParseError(type.name, "undeclared token");
       }
-      if (!type.type.isNull()) {
+      if (t->type) {
         astParseError(type.name, "this token already has a type");
       }
 
