@@ -27,7 +27,6 @@
 // included in generated header
 verbatim {
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
-  #include <limits.h>           // INT_MIN
 }
 
 // use a new astgen feature: make a visitor!
@@ -172,27 +171,27 @@ class PQName {
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(SourceLoc loc) {
-  // FakeList link; use 'setNext' to set 'next'
-  public TypeSpecifier *next;  ctor next=NULL;
-  public void setNext(TypeSpecifier *newNext);
+//    // FakeList link; use 'setNext' to set 'next'
+//    public TypeSpecifier *next;  ctor next=NULL;
+//    public void setNext(TypeSpecifier *newNext);
 
-  // same as we do for statements
-  public TypeSpecifier *ambiguity;  ctor ambiguity=NULL;
-  public void addAmbiguity(TypeSpecifier *alternative);
-  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+//    // same as we do for statements
+//    public TypeSpecifier *ambiguity;  ctor ambiguity=NULL;
+//    public void addAmbiguity(TypeSpecifier *alternative);
+//    custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 
-  // print ambiguities
-  public void printAmbiguities(ostream &os, int indent) const;
-  custom preemptDebugPrint {
-    if (ambiguity) {
-      printAmbiguities(os, indent);
-      return;     // skip the normal, unambiguous-node print code
-    }
-  }
+//    // print ambiguities
+//    public void printAmbiguities(ostream &os, int indent) const;
+//    custom preemptDebugPrint {
+//      if (ambiguity) {
+//        printAmbiguities(os, indent);
+//        return;     // skip the normal, unambiguous-node print code
+//      }
+//    }
 
-  // dsw: I had to move this here to deal with the mid_tcheck design
-  // pattern that is used to resolve ambiguities.
-  public Type *type;
+//    // dsw: I had to move this here to deal with the mid_tcheck design
+//    // pattern that is used to resolve ambiguities.
+//    public Type *type;
 
   public enum CVFlags cv;  ctor cv=CV_NONE;
   custom clone { ret->cv = cv; }
@@ -233,10 +232,6 @@ class TypeSpecifier(SourceLoc loc) {
        StringRef /*nullable*/ name,          // name of enum, if any
        FakeList<Enumerator> *elts            // elements of the enumeration
      );
-
-  -> TS_typeof_expr(Expression expr);
-
-  -> TS_typeof_type(ASTTypeId atype);
 }
 
 // base class specification
@@ -493,8 +488,6 @@ class Expression {
   -> E_stringLit(StringRef text, E_stringLit continuation = NULL);
   -> E_charLit(StringRef text);
 
-  -> E_compoundLit(ASTTypeId stype, IN_compound init);
-
   // variable reference; 'name' might be "this"
   -> E_variable(SourceLoc loc, PQName name);
 
@@ -509,7 +502,6 @@ class Expression {
   -> E_fieldAcc(Expression obj, PQName fieldName);
 
   -> E_sizeof(Expression expr);
-  -> E___builtin_constant_p(SourceLoc loc, Expression expr);
 
   -> E_unary(UnaryOp op, Expression expr);
   -> E_effect(EffectOp op, Expression expr);
@@ -523,7 +515,6 @@ class Expression {
   //-> E_gnuCond(Expression cond, Expression el);
   -> E_comma(Expression e1, Expression e2);
   -> E_sizeofType(ASTTypeId atype);
-  -> E_alignofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
@@ -547,8 +538,6 @@ class Expression {
   -> E_typeidExpr(Expression expr);
   -> E_typeidType(ASTTypeId ttype);
 
-  -> E_statement(S_compound s);
-                                 
   // for syntactic disambiguation of angle brackets; E_grouping
   // is a pair of grouping parentheses
   -> E_grouping(Expression expr);
@@ -566,7 +555,6 @@ class ExpressionListOpt (
 
 // animals which appear after declarations to assign initial values
 class Initializer {
-  public FakeList<Designator> *designator_list;  ctor designator_list=NULL;
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
@@ -581,41 +569,14 @@ class Initializer {
   -> IN_ctor(FakeList<Expression> *args);
 }
 
-class Designator {
-  // FakeList link; use setNext
-  public Designator *next;  ctor next=NULL;
-  public void setNext(Designator *newNext);
-
-  // dsw: I seem to need all of this ambiguity stuff in order to use
-  // genericSetNext
-
-  // ambiguity representation
-  public Designator *ambiguity; ctor ambiguity=NULL;
-  public void addAmbiguity(Designator *alternative);
-  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
-
-  // print ambiguities
-  public void printAmbiguities(ostream &os, int indent) const;
-  custom preemptDebugPrint {
-    if (ambiguity) {
-      printAmbiguities(os, indent);
-      return;     // skip the normal, unambiguous-node print code
-    }
-  }
-
-  -> FieldDesignator(StringRef id);
-  -> SubscriptDesignator(Expression idx_expr, // taken from D_array
-                         Expression /*nullable*/ idx_expr2);
-}
-
-// gnu extension to attach particular elements of an initializer list
-// to particular fields of the structure or array being initialized
-class InitLabel {
-  -> IL_element(Expression index);
-  -> IL_range(Expression low, Expression high);   // inclusive
-  -> IL_field(StringRef name);
-  -> IL_elementField(Expression index, StringRef name);
-}
+//  // gnu extension to attach particular elements of an initializer list
+//  // to particular fields of the structure or array being initialized
+//  class InitLabel {
+//    -> IL_element(Expression index);
+//    -> IL_range(Expression low, Expression high);   // inclusive
+//    -> IL_field(StringRef name);
+//    -> IL_elementField(Expression index, StringRef name);
+//  }
 
 
 // ------------------- templates -------------------

@@ -372,18 +372,6 @@ void TS_enumSpec::print(PrintEnv &env)
   }
 }
 
-void TS_typeof_expr::print(PrintEnv &env)
-{
-  xassert(0);                   // I'll bet this is never called.
-//    olayer ol("TS_typeof_expr");
-}
-
-void TS_typeof_type::print(PrintEnv &env)
-{
-  xassert(0);                   // I'll bet this is never called.
-//    olayer ol("TS_typeof_type");
-}
-
 // BaseClass
 void BaseClassSpec::print(PrintEnv &env) {
   olayer ol("BaseClassSpec");
@@ -752,19 +740,9 @@ void E_stringLit::iprint(PrintEnv &env)
 }
 
 void E_charLit::iprint(PrintEnv &env)
-{                               
+{
   olayer ol("E_charLit::iprint");
   env << text;
-}
-
-void E_compoundLit::iprint(PrintEnv &env)
-{
-  olayer ol("E_compoundLit::iprint");
-  {
-    codeout co(env, "", "(", ")");
-    stype->print(env);
-  }
-  init->print(env);
 }
 
 void E_variable::iprint(PrintEnv &env)
@@ -830,13 +808,6 @@ void E_sizeof::iprint(PrintEnv &env)
   // type.
   env << "sizeof";
   expr->print(env);           // putting parens in here so we are safe wrt precedence
-}
-
-void E___builtin_constant_p::iprint(PrintEnv &env)
-{
-  olayer ol("E___builtin_constant_p::iprint");
-  codeout co(env, "__builtin_constant_p", "(", ")");
-  expr->print(env);
 }
 
 // dsw: unary expression?
@@ -912,13 +883,6 @@ void E_sizeofType::iprint(PrintEnv &env)
 {
   olayer ol("E_sizeofType::iprint");
   codeout co(env, "sizeof", "(", ")"); // NOTE yes, you do want the parens because argument is a type.
-  atype->print(env);
-}
-
-void E_alignofType::iprint(PrintEnv &env)
-{
-  olayer ol("E_alignofType::iprint");
-  codeout co(env, "__alignof__", "(", ")");
   atype->print(env);
 }
 
@@ -1015,13 +979,6 @@ void E_typeidType::iprint(PrintEnv &env)
   ttype->print(env);
 }
 
-void E_statement::iprint(PrintEnv &env)
-{
-  olayer ol("E_statement::iprint");
-  codeout co(env, "", "(", ")");
-  s->iprint(env);
-}
-
 void E_grouping::iprint(PrintEnv &env)
 {
   olayer ol("E_grouping::iprint");
@@ -1044,21 +1001,12 @@ void E_grouping::iprint(PrintEnv &env)
 
 // ----------------------- Initializer --------------------
 
-// prints designators in the new C99 style, not the obsolescent ":"
-// style
-static void print_DesignatorList(PrintEnv &env, FakeList<Designator> *dl) {
-  xassert(dl);
-  FAKELIST_FOREACH_NC(Designator, dl, d) d->print(env);
-  env << "=";
-}
-
 // this is under a declaration
 // int x = 3;
 //         ^ only
 void IN_expr::print(PrintEnv &env)
 {
   olayer ol("IN_expr");
-  if (designator_list) print_DesignatorList(env, designator_list);
   e->print(env);
 }
 
@@ -1067,7 +1015,6 @@ void IN_expr::print(PrintEnv &env)
 void IN_compound::print(PrintEnv &env)
 {
   olayer ol("IN_compound");
-  if (designator_list) print_DesignatorList(env, designator_list);
   codeout co(env, "", "{\n", "\n}");
   bool first_time = true;
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
@@ -1080,29 +1027,7 @@ void IN_compound::print(PrintEnv &env)
 void IN_ctor::print(PrintEnv &env)
 {
   olayer ol("IN_ctor");
-  if (designator_list) print_DesignatorList(env, designator_list);
   printFakeExprList(args, env);
-}
-
-// -------------------- Designator ---------------
-
-void FieldDesignator::print(PrintEnv &env)
-{
-  olayer ol("FieldDesignator");
-  xassert(id);
-  env << "." << id;
-}
-
-void SubscriptDesignator::print(PrintEnv &env)
-{
-  olayer ol("SubscriptDesignator");
-  xassert(idx_expr);
-  codeout co(env, "", "[", "]");
-  idx_expr->print(env);
-  if (idx_expr2) {
-    env << " ... ";
-    idx_expr2->print(env);
-  }
 }
 
 // InitLabel

@@ -115,22 +115,6 @@ public:
     ret->cv = cv;
     return ret;
   }
-
-  // make a TS_typeof_expr, and supply CV flags
-  TS_typeof_expr *new_TS_typeof_expr(SourceLoc loc, CVFlags cv, Expression *expr)
-  {
-    TS_typeof_expr *ret = new TS_typeof_expr(loc, expr);
-    ret->cv = cv;
-    return ret;
-  }
-
-  // make a TS_typeof_type, and supply CV flags
-  TS_typeof_type *new_TS_typeof_type(SourceLoc loc, CVFlags cv, ASTTypeId *t)
-  {
-    TS_typeof_type *ret = new TS_typeof_type(loc, t);
-    ret->cv = cv;
-    return ret;
-  }
 };
 
 
@@ -152,7 +136,7 @@ terminals {
   precedence {
     // high precedence
     prec  200 TOK_PREFER_REDUCE;
-    prec  190 "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else" "[";
+    prec  190 "const" "volatile" "owner_ptr_qualifier" "else" "[";
 
     right 120 ".*" "->*";
     left  110 "*" "/" "%";
@@ -244,20 +228,6 @@ nonterm(Expression*) PrimaryExpression {
 
   -> e:IdExpression
        { return new E_variable(loc, e); }
-
-  // GNU extension
-  -> "(" cs:CompoundStatement ")"
-       { return new E_statement(cs); }
-
-  // GNU extension: "Compound Literal"
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Compound-Literals.html#Compound%20Literals
-  // (notation for literal struct values)
-  // e.g.:
-  //   struct Foo { int x; int y; } myfoo;
-  //   myfoo = (struct Foo) { 4, 5 };        <-- here
-  // which would assign x=4 and y=5 in 'myfoo'
-  -> "(" t:TypeId ")" i:CompoundInitializer
-       { return new E_compoundLit(t, i); }
 }
 
 nonterm(Expression*) Literal {
@@ -461,12 +431,6 @@ nonterm(Expression*) UnaryExpression {
   // size of expression
   -> "sizeof" e:UnaryExpression  { return new E_sizeof(e); }
 
-  // GNU extension; dsw: Since the argument is an expression, I know
-  // of no way to handle this other than putting it into the grammar
-  // directly.
-  -> "__builtin_constant_p" pe:ParenthesizedExpression
-    { return new E___builtin_constant_p(loc, pe); }
-
   -> e:DeleteExpression          { return e; }
 
   // dereference, addrof
@@ -482,16 +446,7 @@ nonterm(Expression*) UnaryExpression {
   // size of type
   -> "sizeof" "(" t:TypeId ")"   { return new E_sizeofType(t); }
 
-  // dsw: some undocumented gcc extension
-  -> "__alignof__" "(" t:TypeId ")" { return new E_alignofType(t); }
-
   -> e:NewExpression             { return e; }
-}
-
-// dsw: had to break this out for location recording reasons
-nonterm(Expression*) ParenthesizedExpression {
-  -> "(" e:Expression ")"
-       { return new E_grouping(e); }
 }
 
 
@@ -711,7 +666,7 @@ nonterm(Statement*) Statement {
   // or a BlockDeclaration (declare variable y, of type x)
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  -> n:Identifier ":" attrspec:AttributeSpecifierListOpt s:Statement 
+  -> n:Identifier ":" s:Statement
        { return new S_label(loc, n, s); }
 
   -> "case" e:ConstantExpression ":" s:Statement
@@ -783,14 +738,6 @@ nonterm(S_compound*) CompoundStatement {
   // the scope, it's in the new one
   -> EnterScope seq:CompoundStmtSeq LeaveScope "}"
        { return seq; }
-  // special case for a block that ends in a label; Warning: no don't
-  // do this by making a label, case and/or default form not contain
-  // the statement that follows; It doesn't work in this case:
-  //   if (0) gronk: printf("hello\n");
-  // The then branch would only contain the gronk label, whereas, at
-  // least in gcc, it also includes the printf() call.
-  -> EnterScope seq:CompoundStmtSeq lesl:LabeledEmptyStatementList LeaveScope "}"
-       { seq->stmts.append(lesl); return seq; }
 }
 
 nonterm(S_compound*) CompoundStmtSeq {
@@ -804,21 +751,6 @@ nonterm(S_compound*) CompoundStmtSeq {
        { c->stmts.append(s); return c; }
 }
 
-// a sequence of labels with no statement following, not even a skip
-nonterm(Statement*) LabeledEmptyStatementList {
-  -> n:Identifier ":" attrspec:AttributeSpecifierListOpt
-       { return new S_label(loc, n, new S_skip(loc)); }
-  -> "case" e:ConstantExpression ":"
-       { return new S_case(loc, e, new S_skip(loc)); }
-  -> "default" ":"
-       { return new S_default(loc, new S_skip(loc)); }
-  -> n:Identifier ":" attrspec:AttributeSpecifierListOpt lesl:LabeledEmptyStatementList
-       { return new S_label(loc, n, lesl); }
-  -> "case" e:ConstantExpression ":" lesl:LabeledEmptyStatementList
-       { return new S_case(loc, e, lesl); }
-  -> "default" ":" lesl:LabeledEmptyStatementList
-       { return new S_default(loc, lesl); }
-}
 
 // the guard of e.g. an 'if' statement
 nonterm(Condition*) Condition {
@@ -911,11 +843,6 @@ nonterm(Declaration*) SimpleDeclaration {
   //       spec->decllist = list;
   //       return spec;
   //     }
-
-  // gnu; specifically for linux printk declaration
-  // dsw: thanks, that's exactly the function that I couldn't parse.
-  -> attrspec:AttributeSpecifier decl:SimpleDeclaration
-       { return decl; }
 }
 
 
@@ -978,26 +905,6 @@ nonterm(Declaration*) DeclSpecifier {
        { UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return new Declaration(uberDeclFlags(m), e, NULL); }
-
-  // TS_typeof_expr: triggered by TypeofExpr
-  -> te:TypeofExpr m2:UberModifierSeqOpt
-       { return new Declaration(uberDeclFlags(m2),
-           new_TS_typeof_expr(loc, uberCVFlags(m2), te), NULL); }
-
-  -> m1:UberModifierSeq te:TypeofExpr m2:UberModifierSeqOpt
-       { UberModifiers m = uberCombine(loc, m1, m2);
-         return new Declaration(uberDeclFlags(m),
-           new_TS_typeof_expr(loc, uberCVFlags(m), te), NULL); }
-
-  // TS_typeof_type: triggered by TypeofType
-  -> tt:TypeofType m2:UberModifierSeqOpt
-       { return new Declaration(uberDeclFlags(m2),
-           new_TS_typeof_type(loc, uberCVFlags(m2), tt), NULL); }
-
-  -> m1:UberModifierSeq tt:TypeofType m2:UberModifierSeqOpt
-       { UberModifiers m = uberCombine(loc, m1, m2);
-         return new Declaration(uberDeclFlags(m),
-           new_TS_typeof_type(loc, uberCVFlags(m), tt), NULL); }
 }
 
 // choose among TS_elaborated, TS_classSpec and TS_enumSpec
@@ -1005,8 +912,7 @@ nonterm(TypeSpecifier*) ElaboratedOrSpecifier {
   fun dup(n) { return NULL; }              // prevent multi-yield
 
   -> s:ElaboratedTypeSpecifier { return s; }
-  -> s:ClassSpecifier attrspec:AttributeSpecifierListOpt
-                               { return s; }
+  -> s:ClassSpecifier          { return s; }
   -> s:EnumSpecifier           { return s; }
 }
 
@@ -1111,13 +1017,6 @@ nonterm(TypeSpecifier*) ElaboratedTypeSpecifier {
 // version of DeclSpecifier restricted to only allow "const" and
 // "volatile" UberModifiers
 nonterm(TypeSpecifier*) TypeSpecifier {
-  // ambiguous:
-  //   typeof(x)
-  // could either be type of an expression 'x', or
-  // type (of a type) called 'x'
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Typeof.html#Typeof
-  fun merge(L,R) { L->addAmbiguity(R); return L; }
-
   // TS_name
   -> n:PQTypeName cv2:UberCVQualifierSeqOpt
        { return new_TS_name(loc, uberCVFlags(cv2), n, false /*typename*/); }
@@ -1145,22 +1044,6 @@ nonterm(TypeSpecifier*) TypeSpecifier {
        { UberModifiers m = uberCombine(loc, m1, m2);
          e->cv |= uberCVFlags(m);      // destructive action
          return e; }
-
-  // TS_typeof_expr
-  -> te:TypeofExpr cv2:UberCVQualifierSeqOpt
-       { return new_TS_typeof_expr(loc, uberCVFlags(cv2), te); }
-
-  -> cv1:UberCVQualifierSeq te:TypeofExpr cv2:UberCVQualifierSeqOpt
-       { UberModifiers cv = uberCombine(loc, cv1, cv2);
-         return new_TS_typeof_expr(loc, uberCVFlags(cv), te); }
-
-  // TS_typeof_type
-  -> tt:TypeofType cv2:UberCVQualifierSeqOpt
-       { return new_TS_typeof_type(loc, uberCVFlags(cv2), tt); }
-
-  -> cv1:UberCVQualifierSeq tt:TypeofType cv2:UberCVQualifierSeqOpt
-       { UberModifiers cv = uberCombine(loc, cv1, cv2);
-         return new_TS_typeof_type(loc, uberCVFlags(cv), tt); }
 }
 
 
@@ -1172,18 +1055,6 @@ nonterm(PQName*) PQTypeName {
        { return n; }
   -> "::" n:PQTypeName_ncc
        { return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, n); }
-}
-
-// gnu extension
-nonterm(Expression*) TypeofExpr {
-  -> "__typeof__" "(" e:Expression ")"
-       { return e; }
-}
-
-// gnu extension
-nonterm(ASTTypeId*) TypeofType {
-  -> "__typeof__" "(" t:TypeId ")"
-       { return t; }
 }
 
 // no-colon-colon
@@ -1229,65 +1100,9 @@ nonterm(Enumerator*) EnumeratorDefinition {
 }
 
 
-// ---- BEGIN: gnu-extended 'asm' ----
-nonterm(UberModifiers) VolatileOpt {
-  -> empty
-       { return UM_NONE; }
-  -> "volatile"
-       { return UM_VOLATILE; }
-}
-
-
-// dsw: FIX: add returning semantic value
-nonterm BracketedWordOpt {
-  -> empty { return 0; }
-  -> "[" id:Identifier "]" { return 0; }
-}
-
-
-// dsw: FIX: add returning semantic value
-nonterm ParenthesizedExpressionOpt {
-  -> empty { return 0; }
-  ->  "(" e:Expression ")" { return 0; }
-}
-
-
-// dsw: FIX: add returning semantic value
-nonterm OpConstraint {
-  -> name:BracketedWordOpt constr:StringLiteral e:ParenthesizedExpressionOpt { return 0; }
-}
-
-
-// dsw: FIX: add returning semantic value
-nonterm OpConstraintList {
-  -> empty { return 0; }
-  -> oc:OpConstraint { return 0; }
-  -> oc:OpConstraint "," ocl:OpConstraintList { return 0; }
-}
-
-
-// dsw: FIX: add returning semantic value
-// note: technically you can only have up to 3, but I allow 0 or more
-nonterm OpConstraints {
-  -> empty { return 0; }
-  -> ocs:OpConstraints ":" ocl:OpConstraintList { return 0; }
-  -> ocs:OpConstraints "::" ocl:OpConstraintList { return 0; }
-}
-
-
-// dsw: FIX: add returning rest of semantic value
 nonterm(E_stringLit*) AsmDefinition {
-  // NOTE: volatile modifier is simply discarded here
-  -> "asm" vo:VolatileOpt "(" s:StringLiteral ocs:OpConstraints ")" ";"
-       { return s; }
+  -> "asm" "(" s:StringLiteral ")" ";"    { return s; }
 }
-// ---- END: gnu-extended 'asm' ----
-
-
-// 'asm' in the C++ standard
-//  nonterm(E_stringLit*) AsmDefinition {
-//    -> "asm" "(" s:StringLiteral ")" ";"    { return s; }
-//  }
 
 
 nonterm(TopForm*) LinkageSpecification {
@@ -1360,38 +1175,11 @@ nonterm(Initializer*) SimpleInitializerClause {
        { return c; }
 }
 
+// this nonterminal exists so that extensions can augment it with
+// possibilities for designated initializers
 nonterm(Initializer*) InitializerClause {
   -> init:SimpleInitializerClause
     { return init; }
-
-  // Designated Initializers
-  // obsolescent form
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
-  -> d:Identifier ":" init:SimpleInitializerClause
-    { init->designator_list = FakeList<Designator>::makeList(new FieldDesignator(d));
-      return init; }
-  // C99 official form; C99 standard section 6.7.8
-  -> dl:DesignatorList "=" init:SimpleInitializerClause
-    { init->designator_list = dl; return init; }
-}
-
-nonterm(FakeList<Designator>*) DesignatorList {
-  -> d:Designator
-    { return FakeList<Designator>::makeList(d); }
-  -> d:Designator dl:DesignatorList
-    { d->setNext(dl->first());
-    return FakeList<Designator>::makeList(d); }
-}
-
-nonterm(Designator*) Designator {
-  -> "." id:Identifier
-    { return new FieldDesignator(id); }
-  -> "[" idx_expr:ConstantExpression "]"
-    { return new SubscriptDesignator(idx_expr, NULL); }
-  // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
-  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
-  -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
-    { return new SubscriptDesignator(idx_expr, idx_expr2); }
 }
 
 nonterm(IN_compound*) CompoundInitializer {
@@ -1402,23 +1190,23 @@ nonterm(IN_compound*) CompoundInitializer {
   -> "{" "}"  { return new IN_compound(NULL); }
 }
 
+// useful syntactic quirk
+nonterm CommaOpt {
+  -> empty ;
+  -> "," ;
+}
+
 nonterm(IN_compound*) InitializerList {
   fun dup(i) { return NULL; }     // prevent multi-yield
 
   -> init:InitializerClause
        { IN_compound *list = new IN_compound(NULL);
-         list->inits.append(init); 
+         list->inits.append(init);
          return list; }
-         
+
   // destructive action on 'list'
   -> list:InitializerList "," init:InitializerClause
        { list->inits.append(init); return list; }
-}
-
-// useful syntactic quirk
-nonterm CommaOpt {
-  -> empty ;
-  -> "," ;
 }
 
 
@@ -1431,13 +1219,13 @@ nonterm CommaOpt {
 //
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm(IDeclarator*) Declarator {
-  -> "*" attrspec:AttributeSpecifierListOpt cv:CVQualifierSeqOpt d:Declarator
+  -> "*" cv:CVQualifierSeqOpt d:Declarator
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:Declarator
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:Declarator
        { return new D_ptrToMember(loc, n, cv, d); }
-  -> d:DirectDeclarator attrspec:AttributeSpecifierListOpt
+  -> d:DirectDeclarator
        { return d; }
 }
 
@@ -1466,7 +1254,7 @@ nonterm(IDeclarator*) DirectDeclarator {
        { return new D_array(loc, d, sz); }
 
   // precedence grouping; must be recorded in the AST for disambiguation
-  -> "(" attrspec:AttributeSpecifierListOpt d:Declarator ")"
+  -> "(" d:Declarator ")"
        { return new D_grouping(loc, d); }
 }
 
@@ -1565,13 +1353,13 @@ nonterm(IDeclarator*) AbstractDeclaratorOpt {
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm(IDeclarator*) AbstractDeclarator {
-  -> "*" attrspec:AttributeSpecifierListOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+  -> "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        { return new D_pointer(loc, true /*isPtr*/, cv, d); }
   -> "&" d:AbstractDeclaratorOpt
        { return new D_pointer(loc, false /*isPtr*/, CV_NONE, d); }
   -> n:PtrToMemberName "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
        { return new D_ptrToMember(loc, n, cv, d); }
-  -> d:DirectAbstractDeclarator attrspec:AttributeSpecifierListOpt
+  -> d:DirectAbstractDeclarator
        { return d; }
 }
 
@@ -1605,7 +1393,7 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
 
   // precedence grouping; shouldn't need to record this in AST, but
   // I will for consistency with Declarator
-  -> "(" attrspec:AttributeSpecifierListOpt d:AbstractDeclarator ")"
+  -> "(" d:AbstractDeclarator ")"
        { return new D_grouping(loc, d); }
 }
 
@@ -1777,8 +1565,6 @@ nonterm(FakeList<MemberInit>*) CtorInitializerOpt {
 // ------ A.8 Classes ------
 nonterm(TS_classSpec*) ClassSpecifier {
   -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
-         // dsw: Should this work?  It causes a the popClassName() to pop an empty stack
-//           attrspec:AttributeSpecifierListOpt
        { popClassName(); return new TS_classSpec(loc, k, n, b, memb); }
 }
 
@@ -2348,127 +2134,4 @@ nonterm(FakeList<ASTTypeId>*) TypeIdList {
   -> t:TypeId "," list:TypeIdList  
        { t->setNext(list->first());
          return FakeList<ASTTypeId>::makeList(t); }
-}
-
-
-// ------ attributes ------
-// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html#Attribute%20Syntax
-
-// "A word (which may be an identifier such as unused, or a reserved
-// word such as const)."
-nonterm AttributeWord {
-  // non-keyword name
-  -> n:TOK_NAME { return 0; }
-  // keywords
-  -> "asm" { return 0; }
-  -> "auto" { return 0; }
-  -> "break" { return 0; }
-  -> "bool" { return 0; }
-  -> "case" { return 0; }
-  -> "catch" { return 0; }
-  -> "cdecl" { return 0; }
-  -> "char" { return 0; }
-  -> "class" { return 0; }
-  -> "const" { return 0; }
-  -> "const_cast" { return 0; }
-  -> "continue" { return 0; }
-  -> "default" { return 0; }
-  -> "delete" { return 0; }
-  -> "do" { return 0; }
-  -> "double" { return 0; }
-  -> "dynamic_cast" { return 0; }
-  -> "else" { return 0; }
-  -> "enum" { return 0; }
-  -> "explicit" { return 0; }
-  -> "export" { return 0; }
-  -> "extern" { return 0; }
-  -> "false" { return 0; }
-  -> "float" { return 0; }
-  -> "for" { return 0; }
-  -> "friend" { return 0; }
-  -> "goto" { return 0; }
-  -> "if" { return 0; }
-  -> "inline" { return 0; }
-  -> "int" { return 0; }
-  -> "long" { return 0; }
-  -> "mutable" { return 0; }
-  -> "namespace" { return 0; }
-  -> "new" { return 0; }
-  -> "operator" { return 0; }
-  -> "pascal" { return 0; }
-  -> "private" { return 0; }
-  -> "protected" { return 0; }
-  -> "public" { return 0; }
-  -> "register" { return 0; }
-  -> "reinterpret_cast" { return 0; }
-  -> "return" { return 0; }
-  -> "short" { return 0; }
-  -> "signed" { return 0; }
-  -> "sizeof" { return 0; }
-  -> "static" { return 0; }
-  -> "static_cast" { return 0; }
-  -> "struct" { return 0; }
-  -> "switch" { return 0; }
-  -> "template" { return 0; }
-  -> "this" { return 0; }
-  -> "throw" { return 0; }
-  -> "true" { return 0; }
-  -> "try" { return 0; }
-  -> "typedef" { return 0; }
-  -> "typeid" { return 0; }
-  -> "typename" { return 0; }
-  -> "union" { return 0; }
-  -> "unsigned" { return 0; }
-  -> "using" { return 0; }
-  -> "virtual" { return 0; }
-  -> "void" { return 0; }
-  -> "volatile" { return 0; }
-  -> "wchar_t" { return 0; }
-  -> "while" { return 0; }
-  // don't know if I need to allow these; gcc 2.95.3 doesn't like them
-  //  // GNU extensions
-  //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
-  //  TOK___FUNCTION__,        "__FUNCTION__",              :    n
-  //  TOK___LABEL__,           "__label__",                 :    n
-  //  TOK___PRETTY_FUNCTION__, "__PRETTY_FUNCTION__",       :    n
-  //  TOK___TYPEOF__,          "__typeof__",                :    n
-}
-
-nonterm CommaSepExpressionListOpt {
-  -> empty { return 0; }
-  -> el:ExpressionList { return 0; }
-}
-
-nonterm AttributeParameters {
-//    -> id:Identifier "," exprs:CommaSepExpressionListOpt { return 0; }
-  // NOTE: the below includes the above, except that the first
-  // expression, if an identifier, should not be typechecked as an
-  // E_varaible, since it need not match a declared name; first it
-  // should be checked against know attribute parameters (maybe?).
-  -> exprs:CommaSepExpressionListOpt { return 0; }
-}
-
-nonterm Attribute {
-  -> empty { return 0; }
-  -> w:AttributeWord { return 0; }
-  -> w:AttributeWord "(" ap:AttributeParameters ")" { return 0; }
-}
-
-nonterm AttributeList {
-  -> at:Attribute { return 0; }
-  -> ap:AttributeList "," at:Attribute { return 0; }
-}
-
-nonterm AttributeSpecifier {
-  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" { return 0; }
-}
-
-nonterm AttributeSpecifierList {
-  -> as:AttributeSpecifier { return 0; }
-  -> asl:AttributeSpecifierList as:AttributeSpecifier { return 0; }
-}
- 
-nonterm AttributeSpecifierListOpt {
-  -> empty { return 0; }
-  -> asl:AttributeSpecifierList { return 0; }
 }

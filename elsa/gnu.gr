@@ -1,0 +1,428 @@
+// gnu.gr            see license.txt for copyright and terms of use
+// extension to cc.gr for GNU C/C++ language extensions
+
+// expected statistics
+option shift_reduce_conflicts 129;
+option reduce_reduce_conflicts 63;
+
+
+verbatim {
+  // make a TS_typeof, and supply CV flags
+  TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype);
+}
+
+impl_verbatim {
+  TS_typeof *new_TS_typeof(SourceLoc loc, CVFlags cv, ASTTypeof *atype)
+  {
+    TS_typeof *ret = new TS_typeof(loc, atype);
+    ret->cv = cv;
+    return ret;
+  }
+}
+
+
+terminals {
+  precedence {
+    prec  190 "__attribute__";
+  }
+}
+
+
+nonterm(Expression*) PrimaryExpression {
+  -> "(" cs:CompoundStatement ")"
+       { return new E_statement(cs); }
+
+  // GNU extension: "Compound Literal"
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Compound-Literals.html#Compound%20Literals
+  // (notation for literal struct values)
+  // e.g.:
+  //   struct Foo { int x; int y; } myfoo;
+  //   myfoo = (struct Foo) { 4, 5 };        <-- here
+  // which would assign x=4 and y=5 in 'myfoo'
+  -> "(" t:TypeId ")" i:CompoundInitializer
+       { return new E_compoundLit(t, i); }
+}
+
+
+nonterm(Expression*) UnaryExpression {
+  // GNU extension; dsw: Since the argument is an expression, I know
+  // of no way to handle this other than putting it into the grammar
+  // directly.
+  -> "__builtin_constant_p" pe:ParenthesizedExpression
+    { return new E___builtin_constant_p(loc, pe); }
+
+  // dsw: some undocumented gcc extension
+  -> "__alignof__" "(" t:TypeId ")" { return new E_alignofType(t); }
+}
+
+// dsw: had to break this out for location recording reasons
+nonterm(Expression*) ParenthesizedExpression {
+  -> "(" e:Expression ")"
+       { return new E_grouping(e); }
+}
+
+
+nonterm(Statement*) Statement {
+  -> n:Identifier ":" attrspec:AttributeSpecifierList s:Statement
+       { return new S_label(loc, n, s); }
+}
+
+nonterm(S_compound*) CompoundStatement {
+  // special case for a block that ends in a label; Warning: no don't
+  // do this by making a label, case and/or default form not contain
+  // the statement that follows; It wouldn't work in this case:
+  //   if (0) gronk: printf("hello\n");
+  // The then branch would only contain the gronk label, whereas, at
+  // least in gcc, it also includes the printf() call.
+  -> EnterScope seq:CompoundStmtSeq lesl:LabeledEmptyStatementList LeaveScope "}"
+       { seq->stmts.append(lesl); return seq; }
+}
+
+// a sequence of labels with no statement following, not even a skip
+nonterm(Statement*) LabeledEmptyStatementList {
+  -> n:Identifier ":"
+       { return new S_label(loc, n, new S_skip(loc)); }
+  -> n:Identifier ":" attrspec:AttributeSpecifierList
+       { return new S_label(loc, n, new S_skip(loc)); }
+  -> "case" e:ConstantExpression ":"
+       { return new S_case(loc, e, new S_skip(loc)); }
+  -> "default" ":"
+       { return new S_default(loc, new S_skip(loc)); }
+  -> n:Identifier ":" lesl:LabeledEmptyStatementList
+       { return new S_label(loc, n, lesl); }
+  -> n:Identifier ":" attrspec:AttributeSpecifierList lesl:LabeledEmptyStatementList
+       { return new S_label(loc, n, lesl); }
+  -> "case" e:ConstantExpression ":" lesl:LabeledEmptyStatementList
+       { return new S_case(loc, e, lesl); }
+  -> "default" ":" lesl:LabeledEmptyStatementList
+       { return new S_default(loc, lesl); }
+}
+
+
+nonterm(Declaration*) SimpleDeclaration {
+  // gnu; specifically for linux printk declaration
+  // dsw: thanks, that's exactly the function that I couldn't parse.
+  -> attrspec:AttributeSpecifier decl:SimpleDeclaration
+       { return decl; }
+
+  // NOTE: while apparently unambiguous, this production nearly doubles
+  // the number of S/R conflicts, presumably because it's inheriting the
+  // conflicts from 'SimpleDeclaration'; a possible TODO is to make
+  // the production more specific to remove those conflicts
+}
+
+
+nonterm(TypeSpecifier*) ElaboratedOrSpecifier {
+  -> s:ClassSpecifier attrspec:AttributeSpecifierList
+       { return s; }
+}
+
+
+nonterm(Declaration*) DeclSpecifier {
+  // TS_typeof: triggered by TypeTypeSpecifier
+  -> te:TypeofTypeSpecifier m2:UberModifierSeqOpt
+       { return new Declaration(uberDeclFlags(m2),
+           new_TS_typeof(loc, uberCVFlags(m2), te), NULL); }
+
+  -> m1:UberModifierSeq te:TypeofTypeSpecifier m2:UberModifierSeqOpt
+       { UberModifiers m = uberCombine(loc, m1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_typeof(loc, uberCVFlags(m), te), NULL); }
+}
+
+
+nonterm(TypeSpecifier*) TypeSpecifier {
+  // TS_typeof
+  -> te:TypeofTypeSpecifier cv2:UberCVQualifierSeqOpt
+       { return new_TS_typeof(loc, uberCVFlags(cv2), te); }
+
+  -> cv1:UberCVQualifierSeq te:TypeofTypeSpecifier cv2:UberCVQualifierSeqOpt
+       { UberModifiers cv = uberCombine(loc, cv1, cv2);
+         return new_TS_typeof(loc, uberCVFlags(cv), te); }
+}
+
+
+// this production isolates the ambiguity to within itself, rather
+// than letting it pollute upwards into TypeSpecifier
+nonterm(ASTTypeof*) TypeofTypeSpecifier {
+  // ambiguous:
+  //   typeof(x)
+  // could either be type of an expression 'x', or
+  // type (of a type) called 'x'
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Typeof.html#Typeof
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  -> e:TypeofExpr       { return new TS_typeof_expr(e); }
+  -> t:TypeofType       { return new TS_typeof_type(t); }
+}
+
+
+// gnu extension
+nonterm(Expression*) TypeofExpr {
+  -> "__typeof__" "(" e:Expression ")"
+       { return e; }
+}
+
+// gnu extension
+nonterm(ASTTypeId*) TypeofType {
+  -> "__typeof__" "(" t:TypeId ")"
+       { return t; }
+}
+
+
+// ---- BEGIN: asm ----
+//  nonterm(UberModifiers) VolatileOpt {
+//    -> empty
+//         { return UM_NONE; }
+//    -> "volatile"
+//         { return UM_VOLATILE; }
+//  }
+
+
+// dsw: FIX: add returning semantic value
+nonterm BracketedWordOpt {
+  -> empty { return 0; }
+  -> "[" id:Identifier "]" { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm ParenthesizedExpressionOpt {
+  -> empty { return 0; }
+  ->  "(" e:Expression ")" { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm OpConstraint {
+  -> name:BracketedWordOpt constr:StringLiteral e:ParenthesizedExpressionOpt { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+nonterm OpConstraintList {
+  -> empty { return 0; }
+  -> oc:OpConstraint { return 0; }
+  -> oc:OpConstraint "," ocl:OpConstraintList { return 0; }
+}
+
+
+// dsw: FIX: add returning semantic value
+// note: technically you can only have up to 3, but I allow 0 or more
+nonterm OpConstraints {
+  -> empty;
+  -> NonemptyOpConstraints;
+}
+nonterm NonemptyOpConstraints {
+  -> ocs:OpConstraints ":" ocl:OpConstraintList { return 0; }
+  -> ocs:OpConstraints "::" ocl:OpConstraintList { return 0; }
+}
+
+
+// dsw: FIX: add returning rest of semantic value
+nonterm(E_stringLit*) AsmDefinition {
+  // NOTE: volatile modifier is simply discarded here
+  -> "asm" "volatile" "(" s:StringLiteral ")" ";"
+       { return s; }
+  -> "asm" "(" s:StringLiteral ocs:NonemptyOpConstraints ")" ";"
+       { return s; }
+  -> "asm" "volatile" "(" s:StringLiteral ocs:NonemptyOpConstraints ")" ";"
+       { return s; }
+}
+// ---- END: asm ----
+
+
+
+
+nonterm(IDeclarator*) Declarator {
+  -> "*" attrspec:AttributeSpecifierList cv:CVQualifierSeqOpt d:Declarator
+       { return new D_pointer(loc, true /*isPtr*/, cv, d); }
+  -> d:DirectDeclarator attrspec:AttributeSpecifierList
+       { return d; }
+}
+
+
+nonterm(IDeclarator*) DirectDeclarator {
+  -> "(" attrspec:AttributeSpecifierList d:Declarator ")"
+       { return new D_grouping(loc, d); }
+}
+
+
+nonterm(IDeclarator*) AbstractDeclarator {
+  -> "*" attrspec:AttributeSpecifierList cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+       { return new D_pointer(loc, true /*isPtr*/, cv, d); }
+  -> d:DirectAbstractDeclarator attrspec:AttributeSpecifierList
+       { return d; }
+}
+
+nonterm(IDeclarator*) DirectAbstractDeclarator {
+  -> "(" attrspec:AttributeSpecifierList d:AbstractDeclarator ")"
+       { return new D_grouping(loc, d); }
+}
+
+
+//  nonterm(TS_classSpec*) ClassSpecifier {
+//    -> k:ClassKey n:ClassHeadNameOpt b:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
+//           // dsw: Should this work?  It causes a the popClassName() to pop an empty stack
+//           attrspec:AttributeSpecifierList
+//         { popClassName(); return new TS_classSpec(loc, k, n, b, memb); }
+//  }
+
+
+// Designated Initializers
+nonterm(Initializer*) InitializerClause {
+  // obsolescent form
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
+  -> d:Identifier ":" init:SimpleInitializerClause
+    { return new IN_designated(FakeList<Designator>::makeList(new FieldDesignator(d)),
+                               init); }
+  // C99 official form; C99 standard section 6.7.8
+  -> dl:DesignatorList "=" init:SimpleInitializerClause
+    { return new IN_designated(dl,init); }
+}
+
+nonterm(FakeList<Designator>*) DesignatorList {
+  -> d:Designator
+    { return FakeList<Designator>::makeList(d); }
+  -> d:Designator dl:DesignatorList
+    { d->setNext(dl->first());
+    return FakeList<Designator>::makeList(d); }
+}
+
+nonterm(Designator*) Designator {
+  -> "." id:Identifier
+    { return new FieldDesignator(id); }
+  -> "[" idx_expr:ConstantExpression "]"
+    { return new SubscriptDesignator(idx_expr, NULL); }
+  // range designator "[ 1 ... 3 ] =".  This is a gcc-ism:
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
+  -> "[" idx_expr:ConstantExpression "..." idx_expr2:ConstantExpression "]"
+    { return new SubscriptDesignator(idx_expr, idx_expr2); }
+}
+
+
+// ------ attributes ------
+// http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Attribute-Syntax.html#Attribute%20Syntax
+
+// "A word (which may be an identifier such as unused, or a reserved
+// word such as const)."
+nonterm AttributeWord {
+  // non-keyword name
+  -> n:TOK_NAME { return 0; }
+  // keywords
+  -> "asm" { return 0; }
+  -> "auto" { return 0; }
+  -> "break" { return 0; }
+  -> "bool" { return 0; }
+  -> "case" { return 0; }
+  -> "catch" { return 0; }
+  -> "cdecl" { return 0; }
+  -> "char" { return 0; }
+  -> "class" { return 0; }
+  -> "const" { return 0; }
+  -> "const_cast" { return 0; }
+  -> "continue" { return 0; }
+  -> "default" { return 0; }
+  -> "delete" { return 0; }
+  -> "do" { return 0; }
+  -> "double" { return 0; }
+  -> "dynamic_cast" { return 0; }
+  -> "else" { return 0; }
+  -> "enum" { return 0; }
+  -> "explicit" { return 0; }
+  -> "export" { return 0; }
+  -> "extern" { return 0; }
+  -> "false" { return 0; }
+  -> "float" { return 0; }
+  -> "for" { return 0; }
+  -> "friend" { return 0; }
+  -> "goto" { return 0; }
+  -> "if" { return 0; }
+  -> "inline" { return 0; }
+  -> "int" { return 0; }
+  -> "long" { return 0; }
+  -> "mutable" { return 0; }
+  -> "namespace" { return 0; }
+  -> "new" { return 0; }
+  -> "operator" { return 0; }
+  -> "pascal" { return 0; }
+  -> "private" { return 0; }
+  -> "protected" { return 0; }
+  -> "public" { return 0; }
+  -> "register" { return 0; }
+  -> "reinterpret_cast" { return 0; }
+  -> "return" { return 0; }
+  -> "short" { return 0; }
+  -> "signed" { return 0; }
+  -> "sizeof" { return 0; }
+  -> "static" { return 0; }
+  -> "static_cast" { return 0; }
+  -> "struct" { return 0; }
+  -> "switch" { return 0; }
+  -> "template" { return 0; }
+  -> "this" { return 0; }
+  -> "throw" { return 0; }
+  -> "true" { return 0; }
+  -> "try" { return 0; }
+  -> "typedef" { return 0; }
+  -> "typeid" { return 0; }
+  -> "typename" { return 0; }
+  -> "union" { return 0; }
+  -> "unsigned" { return 0; }
+  -> "using" { return 0; }
+  -> "virtual" { return 0; }
+  -> "void" { return 0; }
+  -> "volatile" { return 0; }
+  -> "wchar_t" { return 0; }
+  -> "while" { return 0; }
+  // don't know if I need to allow these; gcc 2.95.3 doesn't like them
+  //  // GNU extensions
+  //  TOK___ATTRIBUTE__,       "__attribute__",             :    n
+  //  TOK___FUNCTION__,        "__FUNCTION__",              :    n
+  //  TOK___LABEL__,           "__label__",                 :    n
+  //  TOK___PRETTY_FUNCTION__, "__PRETTY_FUNCTION__",       :    n
+  //  TOK___TYPEOF__,          "__typeof__",                :    n
+}
+
+nonterm CommaSepExpressionListOpt {
+  -> empty { return 0; }
+  -> el:ExpressionList { return 0; }
+}
+
+nonterm AttributeParameters {
+//    -> id:Identifier "," exprs:CommaSepExpressionListOpt { return 0; }
+  // NOTE: the below includes the above, except that the first
+  // expression, if an identifier, should not be typechecked as an
+  // E_varaible, since it need not match a declared name; first it
+  // should be checked against know attribute parameters (maybe?).
+  -> exprs:CommaSepExpressionListOpt { return 0; }
+}
+
+nonterm Attribute {
+  -> empty { return 0; }
+  -> w:AttributeWord { return 0; }
+  -> w:AttributeWord "(" ap:AttributeParameters ")" { return 0; }
+}
+
+nonterm AttributeList {
+  -> at:Attribute { return 0; }
+  -> ap:AttributeList "," at:Attribute { return 0; }
+}
+
+nonterm AttributeSpecifier {
+  -> "__attribute__" "(" "(" ap:AttributeList ")" ")" { return 0; }
+}
+
+nonterm AttributeSpecifierList {
+  -> as:AttributeSpecifier { return 0; }
+  -> asl:AttributeSpecifierList as:AttributeSpecifier { return 0; }
+}
+
+// sm: removed this because its use leads to extra conflicts, and
+// the eventual path will be to put all of the attribute stuff into
+// a gcc extension module, where it will be a bunch of extra rules,
+// rather than optional modifications of exiting rules
+//  nonterm AttributeSpecifierListOpt {
+//    -> empty { return 0; }
+//    -> asl:AttributeSpecifierList { return 0; }
+//  }

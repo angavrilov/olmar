@@ -87,6 +87,7 @@ void doit(int argc, char **argv)
        "    printTypedAST      print AST with type info\n"
        "    tcheck             print typechecking info\n"
        "    nohashline         ignore #line when reporting locations\n"
+       "    prettyPrint        echo input as pretty-printed C++\n"
        "");
 
     if (tracingSys("nohashline")) {

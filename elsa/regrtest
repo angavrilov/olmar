@@ -189,8 +189,6 @@ for fn in                                                                 \
   t0103.cc   t0104.cc  t0105.cc  t0106.cc   t0107.cc   t0108.cc  t0109.cc \
   t0110.cc   t0111.cc  t0112.cc  t0113.cc   t0114.cc   t0115.cc  t0116.cc \
   t0117.cc   t0118.cc  t0119.cc  t0120.cc   t0121.cc   t0122.cc  t0123.cc \
-  t0124.cc   t0125.cc  t0126.c   t0127.cc   t0128.cc   t0129.cc  t0130.cc \
-  t0131.cc   t0132.cc  t0133.c \
     ; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
@@ -198,7 +196,18 @@ for fn in                                                                 \
   runTest ./ccparse -tr mustBeUnambiguous$TR_EXTRA in/$fn
 done
 
+# examples from C++ standard
 for fn in in/std/*.cc; do
+  runTest ./ccparse "$fn"
+done
+
+# gnu extensions
+for fn in in/gnu/*.c?; do
+  runTest ./ccparse "$fn"
+done
+
+# c99 extensions
+for fn in in/c99/*.c; do
   runTest ./ccparse "$fn"
 done
 
@@ -223,8 +232,13 @@ list=`echo " \
                                             t0100.cc   t0101.cc  t0102.cc
                        t0105.cc  t0106.cc
                                                                  t0123.cc
-  t0124.cc                                  t0128.cc   t0129.cc  t0130.cc
-  t0131.cc   t0132.cc  t0133.c \
+  gnu/t0124.cc                            
+  gnu/t0128.cc   
+  gnu/t0129.cc  
+  gnu/t0130.cc
+  gnu/t0131.cc   
+  gnu/t0132.cc  
+  c99/t0133.c \
   " | fmt -1 | sed 's|^[ 	]*|in/|'`
 runTest perl ./idemcheck -d outdir $list
 

@@ -76,20 +76,23 @@ $(TOK_FILES): cc_tokens.tok $(ELKHOUND)/make-token-files
 
 
 # run astgen to generate the AST implementation
-CC_AST_MODS := cc.ast cc_tcheck.ast cc_print.ast cfg.ast
+CC_AST_MODS := cc.ast cc_tcheck.ast cc_print.ast cfg.ast gnu.ast
 cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
 	$(AST)/astgen -occ.ast.gen $(CC_AST_MODS)
 
 
 # run elkhound to generate the parser
-cc.gr.gen.h cc.gr.gen.cc: cc.gr cc_tokens.ids $(ELKHOUND)/elkhound
-	$(ELKHOUND)/elkhound -v -o cc.gr.gen cc.gr
+CC_GR_MODS := cc.gr gnu.gr
+cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
+	$(ELKHOUND)/elkhound -v -o cc.gr.gen $(CC_GR_MODS)
 
 
 # list of modules needed for the parser; ideally they're in an order
-# that finds serious compilation problems earliest
+# that finds serious compilation problems earliest (it's ok to
+# rearrange as different parts of the code are in flux)
 CCPARSE_OBJS := \
   $(LEXER_OBJS) \
+  gnu.o \
   cfg.o \
   cc_env.o \
   cc_type.o \
