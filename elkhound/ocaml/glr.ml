@@ -13,10 +13,10 @@ open Parsetables     (* action/goto/etc. *)
 let traceParse:bool = true
 
 (* when true, keep some statistics useful for performance evaluation *)
-let accounting = true
+let accounting:bool = true
 
 (* when true, we call the user's keep() functions *)
-let use_keep = true
+let use_keep:bool = true
 
 
 (* NOTE: in some cases, more detailed comments can be found in
@@ -105,13 +105,17 @@ and tReductionPathQueue = {
   (* pool of path objects *)
   pathPool: tPath tObjectPool;
 
-  (* TODO: when tables are encapsulated, we need a pointer to them here *)
+  (* need our own copy of the tables pointer *)
+  rpqTables: tParseTables;      (* name can't collide with tGLR.tables.. ! *)
 }
 
 
 (* GLR parser object *)
 (* some mutable fields are for hack in 'makeGLR' *)
 and tGLR = {
+  (* parse tables from the grammar *)
+  tables: tParseTables;
+
   (* for debugging, so I can ask for token descriptions in places *)
   mutable lexerPtr: tLexerInterface option;
 
@@ -261,7 +265,7 @@ end
 
 let getNodeSymbol (ths: tStackNode) : tSymbolId =
 begin
-  stateSymbol.(ths.state)
+  ths.glr.tables.stateSymbol.(ths.state)
 end
 
 let deallocSemanticValues (ths: tStackNode) : unit =
@@ -289,10 +293,12 @@ begin
     if (!numStackNodesAllocd > !maxStackNodesAllocd) then (
       maxStackNodesAllocd := !numStackNodesAllocd;
     );
-    (Printf.printf "(!!!) init stack node: num=%d max=%d\n"
-                   !numStackNodesAllocd
-                   !maxStackNodesAllocd);
-    (flush stdout);
+    (*
+      (Printf.printf "(!!!) init stack node: num=%d max=%d\n"
+                     !numStackNodesAllocd
+                     !maxStackNodesAllocd);
+      (flush stdout);
+    *)
   );
 end
 
@@ -310,10 +316,12 @@ begin
 
   if (accounting) then (
     (decr numStackNodesAllocd);
-    (Printf.printf "(...) deinit stack node: num=%d max=%d\n"
-                   !numStackNodesAllocd
-                   !maxStackNodesAllocd);
-    (flush stdout);
+    (*
+      (Printf.printf "(...) deinit stack node: num=%d max=%d\n"
+                     !numStackNodesAllocd
+                     !maxStackNodesAllocd);
+      (flush stdout);
+    *)
   );
 end
 
@@ -456,9 +464,10 @@ end
 
 
 (* ----------------------------- GLR --------------------------------- *)
-let rec makeGLR() : tGLR =
-begin                        
+let rec makeGLR (tablesIn: tParseTables) : tGLR =
+begin
   let glr:tGLR = {
+    tables = tablesIn;
     lexerPtr = None;
     topmostParsers = ((Obj.magic 0) : tStackNode tArrayStack);  (* HACK!! *)
     toPass = (Array.make cMAX_RHSLEN cNULL_SVAL);
@@ -483,14 +492,18 @@ begin
    * some fields 'option' but that would not properly reflect the design.
    * So I prefer this local (if gross) hack to something that pollutes the
    * design itself.
+   *
+   * In fact, I *did* use the 'option' approach for tSiblingLink.sib,
+   * and it is indeed a pain.
    *)
+
   let dummyNode:tStackNode = (emptyStackNode glr) in
   let dummyLink:tSiblingLink = (makeSiblingLink None cNULL_SVAL) in
 
   glr.topmostParsers <- (new tArrayStack dummyNode);
   glr.prevTopmost <- (new tArrayStack dummyNode);
   glr.stackNodePool <- (new tObjectPool (fun () -> (emptyStackNode glr)));
-  glr.pathQueue <- (makeReductionPathQueue dummyNode dummyLink);
+  glr.pathQueue <- (makeReductionPathQueue tablesIn dummyNode dummyLink);
 
   glr
 end
@@ -634,7 +647,7 @@ begin
     (fun parsr ->
      begin
        let tt:int = (curToken glr) in
-       let action:tActionEntry = (getActionEntry (*tables*) parsr.state tt) in
+       let action:tActionEntry = (getActionEntry glr.tables parsr.state tt) in
        let actions:int = (rwlEnqueueReductions glr parsr action None(*sibLink*)) in
        
        if (actions = 0) then (
@@ -671,8 +684,8 @@ begin
 
     if (not (lastToDie = cSTATE_INVALID)) then (
       (Printf.printf "In state %d, I expected one of these tokens:\n" lastToDie);
-      for i = 0 to (numTerms - 1) do
-        let act:int = (getActionEntry (*tables*) lastToDie i) in
+      for i = 0 to (glr.tables.numTerms - 1) do
+        let act:int = (getActionEntry glr.tables lastToDie i) in
         if (not (isErrorAction (*tables*) act)) then (
           (Printf.printf "  [%d] %s\n" i (lexer#tokenKindDesc i));
         );
@@ -719,7 +732,7 @@ begin
     arr.(1) <- (grabTopSval glr last);            (* EOF's sval *)
 
     (* reduce *)
-    treeTop := (doReductionAction glr finalProductionIndex arr);
+    treeTop := (doReductionAction glr glr.tables.finalProductionIndex arr);
 
     (* before pool goes away.. *)
     (decParserList glr.topmostParsers);
@@ -753,9 +766,9 @@ end
 and canMakeProgress (glr: tGLR) (parsr: tStackNode) : bool =
 begin
   let entry:int =
-    (getActionEntry (*tables*) parsr.state (curToken glr)) in
+    (getActionEntry glr.tables parsr.state (curToken glr)) in
     
-  (isShiftAction (*tables*) entry) ||
+  (isShiftAction glr.tables entry) ||
   (isReduceAction (*tables*) entry) ||
   (not (isErrorAction (*tables*) entry))
 end
@@ -799,14 +812,14 @@ begin
 end
 
 
-and makeReductionPathQueue (dummyNode: tStackNode) (dummyLink: tSiblingLink) 
-  : tReductionPathQueue =
+and makeReductionPathQueue (tablesIn: tParseTables) (dummyNode: tStackNode) 
+                           (dummyLink: tSiblingLink) : tReductionPathQueue =
 begin
   let allocator() : tPath = (makePath dummyNode dummyLink) in
   {
     top = None;
     pathPool = (new tObjectPool allocator);
-    (*tables*)
+    rpqTables = tablesIn;
   }
 end
 
@@ -823,7 +836,7 @@ end
 and insertPathCopy (ths:tReductionPathQueue) (src: tPath) 
                    (leftEdge: tStackNode) : unit =
 begin
-  let rhsLen:int = (getProdInfo_rhsLen (*tables*) src.prodIndex) in
+  let rhsLen:int = (getProdInfo_rhsLen ths.rpqTables src.prodIndex) in
 
   (* make a new node *)
   let p:tPath = (ths.pathPool#alloc()) in
@@ -880,12 +893,12 @@ begin
   )
   else (
     (* equal start columns, compare nonterm ids *)
-    let p1NtIndex:int = (getProdInfo_lhsIndex p1.prodIndex) in
-    let p2NtIndex:int = (getProdInfo_lhsIndex p2.prodIndex) in
+    let p1NtIndex:int = (getProdInfo_lhsIndex ths.rpqTables p1.prodIndex) in
+    let p2NtIndex:int = (getProdInfo_lhsIndex ths.rpqTables p2.prodIndex) in
     
     (* check nonterm order *)
-    let ord1:int = (getNontermOrdinal p1NtIndex) in
-    let ord2:int = (getNontermOrdinal p2NtIndex) in
+    let ord1:int = (getNontermOrdinal ths.rpqTables p1NtIndex) in
+    let ord2:int = (getNontermOrdinal ths.rpqTables p2NtIndex) in
     
     ord1 < ord2
   )
@@ -918,8 +931,8 @@ begin
     let path:tPath = (dequeue glr.pathQueue) in
     
     (* production info *)
-    let rhsLen:int = (getProdInfo_rhsLen path.prodIndex) in
-    let lhsIndex:int = (getProdInfo_lhsIndex path.prodIndex) in
+    let rhsLen:int = (getProdInfo_rhsLen glr.tables path.prodIndex) in
+    let lhsIndex:int = (getProdInfo_lhsIndex glr.tables path.prodIndex) in
     
     if (traceParse) then (
       (Printf.printf "state %d, reducing by production %d (rhsLen=%d), back to state %d\n"
@@ -968,7 +981,7 @@ begin
         (glr.topmostParsers#iter
           (fun parsr ->
             let action:tActionEntry =
-              (getActionEntry (*tables*) parsr.state (curToken glr)) in
+              (getActionEntry glr.tables parsr.state (curToken glr)) in
             ignore (rwlEnqueueReductions glr parsr action newLink)
           ));
       );
@@ -986,7 +999,7 @@ and rwlShiftNonterminal (glr: tGLR) (leftSibling: tStackNode) (lhsIndex: int)
 begin
   (* consult goto table to find where to go upon "shifting" the nonterminal *)
   let rightSiblingState:tStateId =
-    (decodeGoto (getGotoEntry leftSibling.state lhsIndex) lhsIndex) in
+    (decodeGoto (getGotoEntry glr.tables leftSibling.state lhsIndex) lhsIndex) in
     
   if (traceParse) then (
     (Printf.printf "state %d, shift nonterm %d, to state %d\n"
@@ -1070,7 +1083,7 @@ begin
       
       (* enqueue this new parser's reductions *)
       let action:tActionEntry =
-        (getActionEntry (*tables*) rightSibling.state (curToken glr)) in
+        (getActionEntry glr.tables rightSibling.state (curToken glr)) in
       ignore (rwlEnqueueReductions glr rightSibling action None(*siblink*));
           
       (* caller doesn't need to do anything more *)
@@ -1085,7 +1098,7 @@ and rwlEnqueueReductions (glr: tGLR) (parsr: tStackNode) (action: tActionEntry)
 begin
   (checkLocalInvariants parsr);
 
-  if (isShiftAction (*tables*) action) then (
+  if (isShiftAction glr.tables action) then (
     (* do nothing, only looking for reductions *)
     1
   )
@@ -1093,7 +1106,7 @@ begin
     let prodIndex = (decodeReduce (*tables*) action parsr.state) in
 
     (* production info *)
-    let rhsLen:int = (getProdInfo_rhsLen prodIndex) in
+    let rhsLen:int = (getProdInfo_rhsLen glr.tables prodIndex) in
     (xassert (rhsLen >= 0));       (* paranoia *)
 
     (* make a prototype path; used to control recursion *)
@@ -1206,13 +1219,13 @@ begin
     
     (* can this parser shift? *)
     let action:tActionEntry =
-      (getActionEntry (*tables*) leftSibling.state (curToken glr)) in
+      (getActionEntry glr.tables leftSibling.state (curToken glr)) in
       
     (* if we find a shift, this will be set to something valid *)
     let newState: tStateId ref = ref cSTATE_INVALID in
     
     (* consult action table, looking for shifts *)
-    if (isShiftAction (*tables*) action) then (
+    if (isShiftAction glr.tables action) then (
       (* unambiguous shift *)
       newState := (decodeShift (*tables*) action (curToken glr));
     )

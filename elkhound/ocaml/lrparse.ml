@@ -51,7 +51,7 @@ begin
   (!stateStack).(!stackLen - 1)
 end
 
-let parse (lex:tLexerInterface) : int =
+let parse (lex:tLexerInterface) (tables:tParseTables) : int =
 begin
   (* initial state *)
   (pushStateSval 0 (Obj.repr 0));
@@ -71,10 +71,10 @@ begin
     (flush stdout);
 
     (* read from action table *)
-    let act:tActionEntry = (getActionEntry state tt) in
+    let act:tActionEntry = (getActionEntry tables state tt) in
 
     (* shift? *)
-    if (isShiftAction act) then (
+    if (isShiftAction tables act) then (
       let dest:tStateId = (decodeShift act tt) in   (* destination state *)
       (pushStateSval dest (lex#getSval()));
 
@@ -88,8 +88,8 @@ begin
     (* reduce? *)
     else if (isReduceAction act) then (
       let rule:int = (decodeReduce act state) in    (* reduction rule *)
-      let ruleLen:int = prodInfo_rhsLen.(rule) in
-      let lhs:int = prodInfo_lhsIndex.(rule) in
+      let ruleLen:int = (getProdInfo_rhsLen tables rule) in
+      let lhs:int = (getProdInfo_lhsIndex tables rule) in
 
       (* make an array of semantic values for the action rule; this does
        * an extra copy if we're already using a linear stack, but will
@@ -111,7 +111,7 @@ begin
       let newTopState:int = (topState()) in
 
       (* get new state *)
-      let dest:tStateId = (decodeGoto (getGotoEntry newTopState lhs) lhs) in
+      let dest:tStateId = (decodeGoto (getGotoEntry tables newTopState lhs) lhs) in
       (pushStateSval dest sval);
 
       (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
