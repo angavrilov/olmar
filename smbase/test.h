@@ -12,6 +12,10 @@
 
 
 // reports uncaught exceptions
+//
+// 12/30/02: I used to print "uncaught exception: " before
+// printing the exception, but this is meaningless to the
+// user and the message usually has enough info anyway
 #define USUAL_MAIN                              \
 int main()                                      \
 {                                               \
@@ -20,7 +24,7 @@ int main()                                      \
     return 0;                                   \
   }                                             \
   catch (xBase &x) {                            \
-    cout << "exception caught: " << x << endl;  \
+    cout << x << endl;                          \
     return 4;                                   \
   }                                             \
 }
@@ -34,7 +38,7 @@ int main(int argc, char *argv[])                \
     return 0;                                   \
   }                                             \
   catch (xBase &x) {                            \
-    cout << "exception caught: " << x << endl;  \
+    cout << x << endl;                          \
     return 4;                                   \
   }                                             \
 }
