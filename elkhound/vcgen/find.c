@@ -27,13 +27,15 @@ void find(int *A, int N, int f)
     // f is between n and m, and both m and n are pivot points
     // (everything left is less than everything right)
     thmprv_invariant
-      offset(A) == 0 && length(object(A)) == N+1 &&  
+      offset(A) == 0 && length(object(A)) == N+1 &&
       1 <= f && f <= N &&
 
       1 <= m && m <= f && f <= n && n <= N &&
       (thmprv_forall int p, q;
         ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-        ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) ;
+        ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
+
+      m < n ;
 
     int r = A[f];    // approximation of the f-th element
     int i = m;
@@ -56,17 +58,21 @@ void find(int *A, int N, int f)
           ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
           ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
-        m <= i &&
-        j <= n &&
+        m <= i && i < n &&
+        m < j && j <= n &&
         (thmprv_forall int p;
           (1 <= p && p < i) ==> (A[p] <= r)) &&
         (thmprv_forall int q;
           (j < q && q <= N) ==> (r <= A[q])) &&
 
+        m < n &&
+
         //r == A[f] &&
         true;
 
-      while (A[i] < r && (i < n /*HACK*/)) {
+      while (A[i] < r) {
+        thmprv_assume i < n;     // HACK
+
         thmprv_invariant
           //i < f &&
 
@@ -78,21 +84,24 @@ void find(int *A, int N, int f)
             ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
             ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
-          m <= i &&          // same invariant as above..
-          j <= n &&
+          m <= i && i < n &&         // same invariant as above..
+          m < j && j <= n &&
           (thmprv_forall int p;
             (1 <= p && p < i) ==> (A[p] <= r)) &&
           (thmprv_forall int q;
             (j < q && q <= N) ==> (r <= A[q])) &&
 
+          m < n &&
+
           //r == A[f] &&
-          i < n &&         // HACK
           A[i] < r ;        // loop guard, plus
 
         i = i+1;    // skip past small-enough elts
       }
 
-      while (r < A[j] && (m < j /*HACK*/)) {
+      while (r < A[j]) {
+        thmprv_assume m < j;        // HACK
+
         thmprv_invariant
           //f < j &&
 
@@ -104,21 +113,22 @@ void find(int *A, int N, int f)
             ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
             ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
-          m <= i &&          // same invariant as above..
-          j <= n &&
+          m <= i && i <= n &&         // almost same invariant as above..
+          m < j && j <= n &&
           (thmprv_forall int p;
             (1 <= p && p < i) ==> (A[p] <= r)) &&
           (thmprv_forall int q;
             (j < q && q <= N) ==> (r <= A[q])) &&
 
+          m < n &&
+
           //r == A[f] &&
-          m < j &&         // HACK
           r < A[j] ;        // loop guard, plus
 
         j = j-1;    // skip past large-enough elts
       }
 
-      thmprv_assert
+      thmprv_invariant
         offset(A) == 0 && length(object(A)) == N+1 &&
         1 <= f && f <= N &&
 
@@ -127,12 +137,14 @@ void find(int *A, int N, int f)
           ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
           ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
-        m <= i &&
-        j <= n &&
+        m <= i && i <= n &&
+        m <= j && j <= n &&
         (thmprv_forall int p;
           (1 <= p && p < i) ==> (A[p] <= r)) &&
         (thmprv_forall int q;
-          (j < q && q <= N) ==> (r <= A[q])) ;
+          (j < q && q <= N) ==> (r <= A[q])) &&
+          
+        m < n ;
 
       thmprv_assert A[j] <= r && r <= A[i];
 

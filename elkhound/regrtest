@@ -189,6 +189,8 @@ vcgentb struct.c
 vcgen loop1.c
 vcgen corrcond.c
 vcgentb npktsmall.c
+vcgen cutpt.c
+vcgen nestwhile.c
 
 
 # final arithmetic to report result

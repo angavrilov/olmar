@@ -154,7 +154,13 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
 // eval 'expr' in a predicate (theorem-proving) context
 Predicate *vcgenPredicate(AEnv &env, Expression *expr, int path)
 {
-  xassert(path == 0);
+  if (path != 0) {
+    // used to be just an assertion, but then I needed more info...
+    cout << "(path=" << path
+         << ") predicate expr problem: " << expr->toString() << endl;
+    xfailure("bad mojo");
+  }
+
   IN_PREDICATE(env);
   return expr->vcgenPred(env, path);
 }
@@ -213,7 +219,7 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
         // is 's' an invariant?
         if (s->isS_invariant()) {
           // terminate the path & prove the invariant
-          env.prove(vcgenPredicate(env, s->asS_invariantC()->expr, index),
+          env.prove(vcgenPredicate(env, s->asS_invariantC()->expr, exprPath),   // bugfix: had "index" where meant "exprPath" (it's like vcgen call above)
                     stringc << "invariant at " << s->loc.toString());
         }
         else {

@@ -265,7 +265,8 @@ class Statement (SourceLocation loc) {
   public string successorsToString() const;
 
   // number of paths from this statement; counts all the various
-  // paths through expressions
+  // paths through expressions, *including* expressions within
+  // this node
   public int numPaths;
   ctor numPaths=0;
 

@@ -214,7 +214,9 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
   // validate 'index'
   int exprPaths = countExprPaths(node, isContinue);
   xassert(exprPaths >= 1);
-  xassert(0 <= index && index < (node->numPaths * exprPaths));
+  xassert(0 <= index && index < node->numPaths);
+    // this used to say node->numPaths * exprPaths, but it seems clear
+    // that numPaths *already* includes the contribution from exprPaths
 
   // print this node
   cout << "    " << node->loc.toString() << ": "
@@ -246,8 +248,12 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
       void *np = iter.data();
       Statement const *s = nextPtrStmt(np);
 
+      // how many paths lead from 's'?  usually just s->numPaths, but
+      // if it is a path cutpoint then there's exactly one path from 's'
+      int pathsFromS = s->isS_invariant()? s->numPaths : 1;
+
       // are we going to follow 's'?
-      if (index < s->numPaths) {
+      if (index < pathsFromS) {
         // yes; is 's' an invariant?
         if (s->isS_invariant()) {
           // terminate the path
@@ -263,7 +269,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
 
       else {
         // no; factor out s's contribution to the path index
-        index -= s->numPaths;
+        index -= pathsFromS;
       }
     }
 
