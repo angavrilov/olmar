@@ -3688,13 +3688,13 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   env.setLoc(loc);                   
   
   // typecheck the nested name
-  nestedName->tcheck(env);
+  nestedName->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // enforce [cppstd 8.3.3 para 3]
   if (dt.type->isReference()) {
     env.error("you can't make a pointer-to-member refer to a reference type");
     return;
-    
+
     // there used to be some recovery code here, but I decided it was
     // better to just bail entirely rather than tcheck into 'base' with
     // broken invariants
@@ -3709,7 +3709,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   // (previously I used lookupPQCompound, but I believe that is wrong
   // because this is a lookup of a nested-name-specifier (8.3.3) and
   // such lookups are done in the variable space (3.4.3))
-  Variable *ctVar = env.lookupPQVariable(nestedName, LF_ONLY_TYPES);
+  Variable *ctVar = env.lookupPQ_one(nestedName, LF_ONLY_TYPES);
   if (!ctVar) {
     env.error(stringc
       << "cannot find type `" << nestedName->toString()
