@@ -905,9 +905,27 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   if (keyword == TI_ENUM) {
     EnumType *et = env.lookupPQEnum(name);
     if (!et) {
-      return env.error(stringc
-        << "there is no enum called `" << *name << "'",
-        EF_DISAMBIGUATES);
+      if (env.lang.isCplusplus) {
+        return env.error(stringc
+                         << "there is no enum called `" << *name << "'",
+                         EF_DISAMBIGUATES);
+      } else {
+        // gcc allows you in C mode to make a typedef to an enum that
+        // doesn't exist yet; this code copied from
+        // TS_enumSpec::itcheck(), but I'm not sure if it warrants
+        // factoring out as I had to modify it a bit.
+        StringRef name0 = name->asPQ_name()->name;
+        et = new EnumType(name0);
+        Type *ret = env.makeType(loc, et);
+        env.addEnum(et);
+        // make the implicit typedef
+        Variable *tv = env.makeVariable(loc, name0, ret, DF_TYPEDEF | DF_IMPLICIT);
+        et->typedefVar = tv;
+        // FIX: in TS_enumSpec::itcheck() Scott has an 'if' wrapped
+        // around this that has no consequences
+        env.addVariable(tv);
+        return ret;
+      }
     }
 
     this->atype = et;          // annotation
@@ -1423,27 +1441,35 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
-  EnumType *et = new EnumType(name);
-  Type *ret = env.makeType(loc, et);
+  EnumType *et = NULL;
+  Type *ret = NULL;
+  if (name) {
+    et = env.lookupPQEnum(new PQ_name(env.loc(), name));
+  }
+  if (et) {
+    ret = env.makeType(loc, et);
+  } else {
+    et = new EnumType(name);
+    ret = env.makeType(loc, et);
+    if (name) {
+      env.addEnum(et);
+
+      // make the implicit typedef
+      Variable *tv = env.makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
+      et->typedefVar = tv;
+      if (!env.addVariable(tv)) {
+        // this isn't really an error, because in C it would have
+        // been allowed, so C++ does too [ref?]
+        //return env.error(stringc
+        //  << "implicit typedef associated with enum " << et->name
+        //  << " conflicts with an existing typedef or variable",
+        //  true /*disambiguating*/);
+      }
+    }
+  }
 
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
     iter->tcheck(env, et, ret);
-  }
-
-  if (name) {
-    env.addEnum(et);
-
-    // make the implicit typedef
-    Variable *tv = env.makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
-    et->typedefVar = tv;
-    if (!env.addVariable(tv)) {
-      // this isn't really an error, because in C it would have
-      // been allowed, so C++ does too [ref?]
-      //return env.error(stringc
-      //  << "implicit typedef associated with enum " << et->name
-      //  << " conflicts with an existing typedef or variable",
-      //  true /*disambiguating*/);
-    }
   }
 
   this->etype = et;           // annotation
