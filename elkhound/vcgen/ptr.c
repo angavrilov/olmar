@@ -16,3 +16,18 @@ void foo()
 }
   
 
+
+void bar()
+{
+  int x, y;
+  int *p = &x;
+  int *q = &y;
+          
+  *p = 5;
+  *q = 7;
+
+  thmprv_assert x == 5;
+  thmprv_assert y == 7;
+
+
+}

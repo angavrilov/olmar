@@ -65,7 +65,8 @@ class Predicate {
   // predicate symbols (but would Simplify accept them?)
   -> P_relation(AbsValue const *e1, RelationOp op, AbsValue const *e2);
 
-  // distinction: leaving out for now
+  // distinction: like O(n^2) disequalities
+  -> P_distinct(ASTList<AbsValue> terms);
 
   // negation of a predicate
   -> P_not(Predicate p);
@@ -154,6 +155,16 @@ impl_verbatim {
     e1->toSexp(sb);
     sb << " ";
     e2->toSexp(sb);
+    sb << ")";
+  }
+
+  void P_distinct::toSexp(stringBuilder &sb) const
+  {
+    sb << "(DISTINCT";
+    FOREACH_ASTLIST(AbsValue, terms, iter) {
+      sb << " ";
+      iter.data()->toSexp(sb);
+    }
     sb << ")";
   }
 
@@ -260,10 +271,17 @@ impl_verbatim {
       return false;
     }
 
-    if (pred->isP_relation()) {
-      P_relation const *r = pred->asP_relationC();
-      walkAbsValue(innerVis, r->e1);
-      walkAbsValue(innerVis, r->e2);
+    ASTSWITCHC(Predicate, pred) {
+      ASTCASEC(P_relation, r) {
+        walkAbsValue(innerVis, r->e1);
+        walkAbsValue(innerVis, r->e2);
+      }
+      ASTNEXTC(P_distinct, d) {
+        FOREACH_ASTLIST(AbsValue, d->terms, iter) {
+          walkAbsValue(innerVis, iter.data());
+        }
+      }
+      ASTENDCASEC
     }
 
     return true;

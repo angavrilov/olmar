@@ -50,6 +50,7 @@ void VariablePrinter::dump()
 AEnv::AEnv(StringTable &table)
   : ints(),
     facts(new P_and(NULL)),
+    memVars(),
     counter(1),
     stringTable(table)
 {
@@ -66,6 +67,7 @@ void AEnv::clear()
 {
   ints.empty();
   facts->conjuncts.deleteAll();
+  memVars.empty();
   
   // initialize the environment with a fresh variable for memory
   set(str("mem"), freshVariable("initial contents of memory"));
@@ -192,6 +194,14 @@ void AEnv::prove(AbsValue const *expr)
   // map the goal into a predicate
   Predicate *goal = exprToPred(expr);
 
+  // add the fact that all known local variable addresses are distinct
+  P_distinct *addrs = new P_distinct(NULL);
+  for (StringSObjDict<AbsValue>::Iter iter(memVars);
+       !iter.isDone(); iter.next()) {
+    addrs->terms.append(iter.value());
+  }
+  facts->conjuncts.prepend(addrs);
+
   // build an implication with all our known facts on the left
   // (temporarily let this object think it owns 'facts')
   P_impl implication(facts, goal);
@@ -219,7 +229,7 @@ void AEnv::prove(AbsValue const *expr)
 
   if (printPredicate) {
     VariablePrinter vp;
-    
+
     FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
       cout << "  fact: " << iter.data()->toSexpString() << "\n";
       walkValuePredicate(vp, iter.data());
@@ -230,6 +240,9 @@ void AEnv::prove(AbsValue const *expr)
     // print out variable map
     vp.dump();
   }
+
+  // pull the distinction fact back out
+  facts->conjuncts.deleteFirst();
 
   // if I did it right, 'implication' contains properly
   // recursively owned substructures..

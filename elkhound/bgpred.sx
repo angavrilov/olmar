@@ -11,4 +11,13 @@
       value
     ))
 
+  ; reading from a different location from last written
+  (FORALL (mem addr1 addr2 value)     
+    (IMPLIES
+      (NEQ addr1 addr2)
+      (EQ
+        (select (update mem addr1 value) addr2)
+        (select mem addr2)
+      )))
+
 ))
