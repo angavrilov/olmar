@@ -890,6 +890,7 @@ failparse k0025.cc "fully-namespace-qualified base class initialization"
 failparse k0026.cc "template argument default value from another template class"
 failparse k0027.cc "reprSize of a sizeless array"
 failparse k0028.cc "definition of member function declared in another namespace"
+failparse k0029.cc 'ambiguous overload "char* const*" vs "char const* const*"'
 
 # ---- END: lots of tests ----
 
