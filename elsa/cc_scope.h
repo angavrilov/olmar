@@ -52,7 +52,11 @@ private:     // data
   StringSObjDict<Variable> variables;
   // dsw: variables in the order they were added; I need this for
   // struct initializers
-  SObjList<Variable> variables_in_order;
+  SObjList<Variable> data_variables_in_order;
+  // dsw: map from names to indicies into data_variables_in_order;
+  // this is needed to support compound initializeres with mixed
+  // descriptor-ed and non-descriptor-ed initializers
+  StringSObjDict<int> name_pos;
   
   // compounds: map name -> CompoundType
   StringSObjDict<CompoundType> compounds;
@@ -116,9 +120,10 @@ public:      // funcs
   // in; additionally, I'm not so sure that lookupVariable() really
   // does what I want
   StringSObjDict<Variable> &get_variables() {return variables;}
-  SObjList<Variable> &get_variables_in_order() {return variables_in_order;}
+  SObjList<Variable> &get_data_variables_in_order() {return data_variables_in_order;}
+  StringSObjDict<int> &get_name_pos() {return name_pos;}
   StringSObjDict<Variable> const &get_variablesC() const {return variables;}
-  SObjList<Variable> const &get_variables_in_orderC() const {return variables_in_order;}
+  SObjList<Variable> const &get_data_variables_in_orderC() const {return data_variables_in_order;}
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)

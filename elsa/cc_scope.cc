@@ -105,7 +105,15 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     v->setFlag(DF_GLOBAL);
   }
 
-  variables_in_order.append(v);
+  // if is a data member, not a method, static data, or a typedef
+  if (!v->type->isFunctionType() && !v->hasFlag(DF_STATIC) && !v->hasFlag(DF_TYPEDEF)) {
+    // FIX: Do I want this here as well?
+//      ! (v0->hasFlag(DF_ENUMERATOR)
+    // FIX: Don't know how to avoid making an int on the heap, as that
+    // is the way that the templatized class StringSObjDict is set up.
+    name_pos.add(v->name, new int(data_variables_in_order.count()));// garbage? is it ever deleted?
+    data_variables_in_order.append(v);
+  }
   return insertUnique(variables, v->name, v, changeCount, forceReplace);
 }
 
