@@ -19,7 +19,7 @@ enum TypeIntr {
 };
 
 extern char const * const typeIntrNames[NUM_TYPEINTRS];    // "struct", ...
-string toString(TypeIntr tr);
+char const *toString(TypeIntr tr);
 
 
 // --------------------- CVFlags ---------------------
@@ -156,7 +156,7 @@ enum UnaryOp {
 };
 
 extern char const * const unaryOpNames[NUM_UNARYOPS];     // "+", ...
-string toString(UnaryOp op);
+char const *toString(UnaryOp op);
 
 
 // unary operator with a side effect
@@ -169,7 +169,7 @@ enum EffectOp {
 };
 
 extern char const * const effectOpNames[NUM_EFFECTOPS];   // "++", ...
-string toString(EffectOp op);
+char const *toString(EffectOp op);
 bool isPostfix(EffectOp op);
 
 
@@ -210,7 +210,7 @@ enum BinaryOp {
 };
 
 extern char const * const binaryOpNames[NUM_BINARYOPS];   // "*", ..
-string toString(BinaryOp op);
+char const *toString(BinaryOp op);
 
 bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>
 bool isRelational(BinaryOp op);              // == thru >=
@@ -229,7 +229,7 @@ enum AccessKeyword {
 };
 
 extern char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS];
-string toString(AccessKeyword key);
+char const *toString(AccessKeyword key);
 
 // ---------------- cast keywords -------------
 enum CastKeyword {
@@ -242,7 +242,7 @@ enum CastKeyword {
 };
 
 extern char const * const castKeywordNames[NUM_CAST_KEYWORDS];
-string toString(CastKeyword key);
+char const *toString(CastKeyword key);
 
 
 // --------------- overloadable operators --------
@@ -258,7 +258,7 @@ enum OverloadableOp {
 };
 
 extern char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS];
-string toString(OverloadableOp op);
+char const *toString(OverloadableOp op);
 
 
 // -------------------- uber modifiers -----------------

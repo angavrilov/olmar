@@ -16,10 +16,10 @@ char const * const typeIntrNames[NUM_TYPEINTRS] = {
 };
 
 #define MAKE_TOSTRING(T, limit, array)        \
-  string toString(T index)                    \
+  char const *toString(T index)               \
   {                                           \
     xassert((unsigned)index < limit);         \
-    return string(array[index]);              \
+    return array[index];                      \
   }
 
 MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
