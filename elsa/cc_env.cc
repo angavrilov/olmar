@@ -349,8 +349,14 @@ SourceLoc Env::loc() const
 
 
 // -------- insertion --------
-Scope *Env::acceptingScope()
+Scope *Env::acceptingScope(DeclFlags df)
 {
+  if (lang.noInnerClasses && 
+      (df & (DF_TYPEDEF | DF_ENUMERATOR))) {
+    // C mode: typedefs and enumerators go into the outer scope
+    return outerScope();
+  }
+
   Scope *s = scopes.first();    // first in list
   if (s->canAcceptNames) {
     return s;    // common case
@@ -360,7 +366,7 @@ Scope *Env::acceptingScope()
   if (s->canAcceptNames) {
     return s;
   }
-                                                                   
+
   // since non-accepting scopes should always be just above
   // an accepting scope
   xfailure("had to go more than two deep to find accepting scope");
@@ -405,7 +411,7 @@ Scope *Env::enclosingScope()
 }
 
 
-bool Env::addVariable(Variable *v, Scope * /*nullable*/ scope, bool forceReplace)
+bool Env::addVariable(Variable *v, bool forceReplace)
 {
   if (disambErrorsSuppressChanges()) {
     // the environment is not supposed to be modified by an ambiguous
@@ -415,18 +421,15 @@ bool Env::addVariable(Variable *v, Scope * /*nullable*/ scope, bool forceReplace
     return true;    // don't cause further errors; pretend it worked
   }
 
-  if (!scope) scope = acceptingScope();
-  registerVariable(v);
-  if (!scope->addVariable(v, forceReplace)) {
-    return false;
-  }
-
-  return true;
+  Scope *s = acceptingScope(v->flags);
+  s->registerVariable(v);
+  return s->addVariable(v, forceReplace);
 }
+
 
 void Env::registerVariable(Variable *v)
 {
-  Scope *s = acceptingScope();
+  Scope *s = acceptingScope(v->flags);
   s->registerVariable(v);
 }
 
@@ -440,11 +443,11 @@ bool Env::addCompound(CompoundType *ct)
     return true;
   }
 
-  return acceptingScope()->addCompound(ct);
+  return typeAcceptingScope()->addCompound(ct);
 }
 
 
-bool Env::addEnum(EnumType *et, Scope * /*nullable*/ scope)
+bool Env::addEnum(EnumType *et)
 {
   // like above
   if (disambErrorsSuppressChanges()) {
@@ -453,8 +456,7 @@ bool Env::addEnum(EnumType *et, Scope * /*nullable*/ scope)
     return true;
   }
 
-  if (!scope) scope = acceptingScope();
-  return scope->addEnum(et);
+  return typeAcceptingScope()->addEnum(et);
 }
 
 

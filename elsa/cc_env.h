@@ -122,8 +122,10 @@ public:      // funcs
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
 
-  // innermost scope that can accept names
-  Scope *acceptingScope();
+  // innermost scope that can accept names; the decl flags might
+  // be used to choose exactly which scope to use
+  Scope *acceptingScope(DeclFlags df = DF_NONE);
+  Scope *typeAcceptingScope() { return acceptingScope(DF_TYPEDEF); }
 
   // innermost non-class, non-template, non-function-prototype scope
   Scope *outerScope();
@@ -140,9 +142,9 @@ public:      // funcs
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
   // 'forceReplace' true, silently replace instead)
-  bool addVariable(Variable *v, Scope * /*nullable*/ scope=NULL, bool forceReplace=false);
+  bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
-  bool addEnum(EnumType *et, Scope * /*nullable*/ scope=NULL);
+  bool addEnum(EnumType *et);
 
   // like 'addVariable' in that the 'scope' field gets set, but
   // nothing is added to the maps

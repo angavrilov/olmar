@@ -1180,11 +1180,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     }
 
     // no existing compound; make a new one
-    Scope *destScope = env.acceptingScope();
-    if (env.lang.noInnerClasses) {
-      // put it in the outer scope always
-      destScope = env.outerScope();
-    }
+    Scope *destScope = env.typeAcceptingScope();
     ret = env.makeNewCompound(ct, destScope, stringName,
                               loc, keyword, false /*forward*/);
     this->ctype = ct;              // annotation
@@ -1410,17 +1406,12 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   if (name) {
-    Scope *destScope = env.acceptingScope();
-    if (env.lang.noInnerClasses) {
-      // put it in the outer scope always
-      destScope = env.outerScope();
-    }
-    env.addEnum(et, destScope);
+    env.addEnum(et);
 
     // make the implicit typedef
     Variable *tv = env.makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
     et->typedefVar = tv;
-    if (!env.addVariable(tv, destScope)) {
+    if (!env.addVariable(tv)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]
       //return env.error(stringc
@@ -1529,12 +1520,7 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
   //     { enum { x = x }; }
   //   Here, the enumerator x is initialized with the value of the
   //   constant x, namely 12. ]"
-  Scope *destScope = env.acceptingScope();
-  if (env.lang.noInnerClasses) {
-    // put it in the outer scope always
-    destScope = env.outerScope();
-  }
-  if (!env.addVariable(var, destScope)) {
+  if (!env.addVariable(var)) {
     env.error(stringc
       << "enumerator " << name << " conflicts with an existing variable "
       << "or typedef by the same name");
@@ -1859,7 +1845,7 @@ realStart:
 
   // scope in which to insert the name, and to look for pre-existing
   // declarations
-  Scope *scope = env.acceptingScope();
+  Scope *scope = env.acceptingScope(dt.dflags);
 
   // friend?
   bool isFriend = (dt.dflags & DF_FRIEND);

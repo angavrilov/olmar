@@ -25,7 +25,8 @@ public:
   bool implicitFuncVariable;
                       
   // when true, and we see a class declaration inside something,
-  // pretend it was at toplevel scope anyway
+  // pretend it was at toplevel scope anyway; this also applies to
+  // enums, enumerators and typedefs
   bool noInnerClasses;
 
   // when true, an uninitialized global data object is typechecked as

@@ -5,10 +5,14 @@ struct Outer {
   struct Inner {     // not really!
     int x;
   };
+  enum InnerEnum { InnerEnumerator };
   int y;
+  typedef int InnerTypedef;
 };
 
 int foo(struct Inner *i)
-{  
-  return i->x;
+{
+  enum InnerEnum gotcha;
+  InnerTypedef z;
+  return i->x + InnerEnumerator;
 }

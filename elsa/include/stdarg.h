@@ -1,3 +1,10 @@
+// stdarg.h
+// variable-argument function support macros
+
+// This file was written by dsw; I (sm) haven't looked at it,
+// and I don't know what strategy is envisioned for handling
+// these during type checking.
+
 #ifndef __STDARG_H
 #define __STDARG_H
 
