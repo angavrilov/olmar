@@ -1,0 +1,127 @@
+#!/usr/bin/perl -w
+# perf: run performance tests on Elkhound
+
+use strict 'subs';
+
+# number of iterations to do, and take the median
+$iters = 1;
+
+
+# process arguments
+while (@ARGV) {
+  my $arg = $ARGV[0];
+  if ($arg eq "-iters") {
+    $iters = $ARGV[1];
+    shift @ARGV;
+    shift @ARGV;
+  }
+  elsif ($arg eq "-help") {
+    usage();
+    exit(0);
+  }
+  else {
+    print STDERR ("unknown argument: $arg\n");
+    usage();
+    exit(2);
+  }
+}
+
+sub usage {
+  print(<<"EOF");
+usage: $0 [options]
+
+This script runs the Elkhound performance tests.
+
+options:
+  -iters <n>     : run each test n times, taking medians
+  -help          : print this message
+EOF
+}
+
+
+
+# mozilla tests
+sub testMozilla {
+  # make sure the files are there
+  run("make cc.in/big >/dev/null");
+
+  my $format = "%-30s %6s %6s %6s\n";
+  printf($format, "module", "lines", "parse", "tcheck");
+  printf($format, "-" x 30, "-" x 6, "-" x 6, "-" x 6);
+
+  my @modules = (
+    'nsUnicodeToTeXCMRt1.i',
+    'nsAtomTable.i',
+    'nsCLiveconnectFactory.i',
+    'nsSOAPPropertyBag.i',
+    'nsMsgServiceProvider.i',
+    'nsHTMLEditRules.i'
+  );
+  foreach my $fn (@modules) {
+    my $lines = linesInFile("cc.in/big/$fn");
+
+    my @parse = ();
+    my @tcheck = ();
+
+    for (my $run=0; $run < $iters; $run++) {
+      my @output = run("cc/ccparse cc.in/big/$fn");
+      #print(@output);
+      for $line (@output) {
+        if (($tmp) = ($line =~ m/done parsing \((\d+) ms/)) {
+          push @parse, $tmp;
+        }
+        if (($tmp) = ($line =~ m/done type checking \((\d+) ms/)) {
+          push @tcheck, $tmp;
+        }
+      }
+    }
+
+    printf($format, $fn, $lines, median(@parse), median(@tcheck));
+  }
+}
+
+testMozilla();
+
+
+
+sub run {
+  my ($cmd) = @_;
+  @ret = `$cmd`;
+  my $code = $?;
+  if ($code != 0) {
+    print STDERR ("failed: $cmd\n");
+    exit(2);
+  }
+  return @ret;
+}
+
+
+#print("median: ", median(1,2,35,2,1), "\n");
+#print("median: ", median(5,4,3,2,1), "\n");
+#exit(0);
+
+sub median {
+  my (@vals) = @_;
+
+  # sort in numerically ascending order
+  my @sorted = sort {$a <=> $b} @vals;
+  #print("sorted: ", join(',', @sorted), "\n");
+  my $len = @vals;
+  #print("len: $len\n");
+
+  my $index = int($len / 2);
+  #print("index: $index\n");
+  return $sorted[$index];
+}
+
+
+sub linesInFile {
+  my ($fname) = @_;
+  open(IN, "<$fname") or die("can't open $fname: $!\n");
+  my $ret = 0;
+  while (<IN>) {
+    $ret++;
+  }
+  close(IN) or die;
+  return $ret;
+}

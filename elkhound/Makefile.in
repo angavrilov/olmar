@@ -439,6 +439,16 @@ examples: all
 	cd examples/cdecl; make
 
 
+# rule to decompress one of the big examples
+cc.in/big/%.i: cc.in/big/gz/%.i.gz
+	gunzip -c <$^ >$@
+
+# decompress all of them which haven't already been decompressed
+.PHONY: cc.in/big
+cc.in/big: $(patsubst cc.in/big/gz/%.i.gz,cc.in/big/%.i,$(wildcard cc.in/big/gz/*.gz))
+	@echo made cc.in/big
+
+
 # ----------------------------- EFa -----------------------
 # input for EFa
 triv/efa.in:

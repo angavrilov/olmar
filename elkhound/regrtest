@@ -229,6 +229,7 @@ for fn in cc.in/std/*.cc; do
   runTest cc/ccparse "$fn"
 done
 
+make cc.in/big
 for fn in cc.in/big/*.i; do
   runTest cc/ccparse "$fn"
 done
