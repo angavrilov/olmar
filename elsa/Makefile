@@ -143,7 +143,10 @@ CHK_CCEX += Test_315hello.c
 CHK_CHAP += ch5/ex3.cc
 CHK_CHAP += ch5/ex4.cc
 
+#Line 5, col 90: Parse error at ;
+#Sent to Scott Oct 21
 #CHK_CHAP += ch7/overload.cc
+
 #CHK_CHAP += ch7/va_args_ex.c
 
 #CHK_CHAP += ch8/dc_except.cc
