@@ -2,6 +2,15 @@
 // code for implconv.h
 
 #include "implconv.h"      // this module
+#include "cc_env.h"        // Env
+#include "variable.h"      // Variable
+#include "overload.h"      // resolveOverload
+
+
+// prototypes
+StandardConversion tryCallCtor
+  (Variable const *var, SpecialExpr special, Type const *src);
+
 
 
 // ------------------- ImplicitConversion --------------------
@@ -18,7 +27,7 @@ void ImplicitConversion::addStdConv(StandardConversion newScs)
 
 
 void ImplicitConversion
-  ::addUserConv(StandardConversion first, Variable *userFunc,
+  ::addUserConv(StandardConversion first, Variable const *userFunc,
                 StandardConversion second)
 {
   if (kind != IC_NONE) {
@@ -81,15 +90,15 @@ ImplicitConversion getImplicitConversion
         // multiple ctors, resolve overloading
         GrowArray<ArgumentInfo> argTypes(1);
         argTypes[0] = ArgumentInfo(special, src);
-        ctor = resolveOverload(env, ctorSet->overload->set, argTypes);
+        ctor = resolveOverload(env, ctor->overload->set, argTypes);
       }
       
       if (ctor) {
         // only one ctor now.. can we call it?
-        StandardConversion first = tryCallCtor(ctorSet, special, src);
+        StandardConversion first = tryCallCtor(ctor, special, src);
         if (first != SC_ERROR) {
           // success
-          ret.addUserConv(first, ctorSet, SC_IDENTITY);
+          ret.addUserConv(first, ctor, SC_IDENTITY);
         }
       }
     }
@@ -110,7 +119,8 @@ StandardConversion tryCallCtor
   int numParams = ft->params.count();
   if (numParams == 0) {
     if (ft->acceptsVarargs) {
-      return SC_ELLIPSIS;
+      // I'm not sure about this.. there's no SC_ELLIPSIS..
+      return SC_IDENTITY;
     }
     else {
       return SC_ERROR;

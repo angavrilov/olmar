@@ -7,9 +7,34 @@
 // code, so it's likely there are omissions and deviations.
 
 #include "overload.h"      // this module
-#include "env.h"           // Env
+#include "cc_env.h"        // Env
 #include "variable.h"      // Variable
 #include "cc_type.h"       // Type, etc.
+
+
+// prototypes
+Candidate * /*owner*/ makeCandidate
+  (Env &env, Variable *var, GrowArray<ArgumentInfo> &args);
+Candidate *pickWinner(ObjArrayStack<Candidate> &candidates,
+                      GrowArray<ArgumentInfo> &args,
+                      int low, int high);
+int compareCandidates(Candidate const *left, Candidate const *right,
+                      GrowArray<ArgumentInfo> &args);
+int compareConversions(ArgumentInfo const &src,
+  ImplicitConversion const &left, Type const *leftDest,
+  ImplicitConversion const &right, Type const *rightDest);
+int compareStandardConversions
+  (ArgumentInfo const &leftSrc, StandardConversion left, Type const *leftDest,
+   ArgumentInfo const &rightSrc, StandardConversion right, Type const *rightDest);
+bool convertsPtrToBool(Type const *src, Type const *dest);
+bool isPointerToCompound(Type const *type, CompoundType const *&ct);
+bool isReferenceToCompound(Type const *type, CompoundType const *&ct);
+bool isPointerToCompoundMember(Type const *type, CompoundType const *&ct);
+bool isBelow(CompoundType const *low, CompoundType const *high);
+bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
+                     CompoundType const *RS, CompoundType const *RD);
+
+
 
 
 Variable *resolveOverload(
@@ -41,7 +66,7 @@ Variable *resolveOverload(
 
   // now verify that the picked winner is in fact better than any
   // of the other candidates (since the order is not necessarily linear)
-  for (int i=0; i < candidates.size(); i++) {
+  for (int i=0; i < candidates.length(); i++) {
     if (candidates[i] == winner) {
       continue;    // skip it, no need to compare to itself
     }
@@ -67,16 +92,16 @@ Variable *resolveOverload(
 // Candidate; return NULL if the function isn't viable; this
 // implements cppstd 13.3.2
 Candidate * /*owner*/ makeCandidate
-  (Env &env, Variable *var, ArrayStack<ArgumentInfo> &args)
+  (Env &env, Variable *var, GrowArray<ArgumentInfo> &args)
 {
-  Owner<Candidate> c(new Candidate(var, args.length()));
+  Owner<Candidate> c(new Candidate(var, args.size()));
 
   FunctionType *ft = var->type->asFunctionType();
 
   // simultaneously iterate over parameters and arguments
   SObjListIter<Variable> paramIter(ft->params);
   int argIndex = 0;
-  while (!paramIter.isDone() && argIndex < args.length()) {
+  while (!paramIter.isDone() && argIndex < args.size()) {
     ImplicitConversion ics =
       getImplicitConversion(env, args[argIndex].special, args[argIndex].type,
                             paramIter.data()->type);
@@ -89,12 +114,12 @@ Candidate * /*owner*/ makeCandidate
   }
 
   // extra arguments?
-  if (argIndex < args.length()) {
+  if (argIndex < args.size()) {
     if (ft->acceptsVarargs) {
       // fill remaining with IC_ELLIPSIS
       ImplicitConversion ellipsis;
       ellipsis.addEllipsisConv();
-      while (argIndex < args.length()) {
+      while (argIndex < args.size()) {
         c->conversions[argIndex] = ellipsis;
         argIndex++;
       }
@@ -285,9 +310,9 @@ int compareConversions(ArgumentInfo const &src,
 }
 
 
-inline void swap(Type const *&t1, Type const *&t2)
+inline void swap(CompoundType const *&t1, CompoundType const *&t2)
 {
-  Type const *temp = t1;
+  CompoundType const *temp = t1;
   t1 = t2;
   t2 = temp;
 }
@@ -349,11 +374,11 @@ int compareStandardConversions
   // hierarchy
   // -------------
   //   void           treated as a semantic super-root for this analysis
-  //     \
+  //     \            .
   //      A           syntactic root, i.e. least-derived class of {A,B,C}
-  //       \
-  //        B
-  //         \
+  //       \          .
+  //        B         .
+  //         \        .
   //          C       most-derived class of {A,B,C}
   //
   // (the analysis does allow for classes to appear in between these three)
@@ -440,7 +465,7 @@ int compareStandardConversions
       switch (L->getTag()) {
         default: xfailure("bad tag");
 
-        case T_POINTER: {
+        case Type::T_POINTER: {
           PointerType const *lpt = L->asPointerTypeC();
           PointerType const *rpt = R->asPointerTypeC();
 
@@ -456,8 +481,8 @@ int compareStandardConversions
           break;
         }
 
-        case T_FUNCTION:
-        case T_ARRAY:    
+        case Type::T_FUNCTION:
+        case Type::T_ARRAY:
           if (L->equals(R)) {
             return ret;      // decision so far is final
           }
@@ -465,7 +490,7 @@ int compareStandardConversions
             return 0;        // different types, can't compare
           }
 
-        case T_POINTERTOMEMBER: {
+        case Type::T_POINTERTOMEMBER: {
           PointerToMemberType const *lptm = L->asPointerToMemberTypeC();
           PointerToMemberType const *rptm = R->asPointerToMemberTypeC();
 
@@ -473,14 +498,18 @@ int compareStandardConversions
             return 0;        // not subset, therefore no decision
           }
 
-          L = lptm->inClass;
-          R = rptm->inClass;
+          if (lptm->inClass != rptm->inClass) {
+            return 0;        // different types, can't compare
+          }
+
+          L = lptm->atType;
+          R = rptm->atType;
           break;
         }
       }
     }
 
-    if (!L->asCVAtomicType() || !R->asCVAtomicType()) {
+    if (!L->isCVAtomicType() || !R->isCVAtomicType()) {
       return 0;              // different types, can't compare
     }
 
@@ -537,13 +566,24 @@ bool isPointerToCompound(Type const *type, CompoundType const *&ct)
 
 // allows both C& and C, returning C in 'ct'
 bool isReferenceToCompound(Type const *type, CompoundType const *&ct)
-{
-  if (type->isReference()) {
-    type = type->asPointerTypeC()->atType;
-  }
+{ 
+  type = type->asRvalC();
 
   if (type->isCompoundType()) {
     ct = type->asCompoundTypeC();
+    return true;
+  }
+
+  return false;
+}
+
+
+bool isPointerToCompoundMember(Type const *type, CompoundType const *&ct)
+{
+  type = type->asRvalC();
+
+  if (type->isPointerToMemberType()) {
+    ct = type->asPointerToMemberTypeC()->inClass;
     return true;
   }
 

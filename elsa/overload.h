@@ -23,6 +23,8 @@ public:
   Type const *type;             // type of argument
 
 public:
+  ArgumentInfo()
+    : special(SE_NONE), type(NULL) {}
   ArgumentInfo(SpecialExpr s, Type const *t)
     : special(s), type(t) {}
   ArgumentInfo(ArgumentInfo const &obj)

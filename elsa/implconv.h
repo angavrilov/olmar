@@ -25,7 +25,7 @@ public:    // data
   StandardConversion scs;       // "standard conversion sequence"
 
   // for IC_USER_DEFINED
-  Variable *user;               // (serf) the ctor or conversion operator function
+  Variable const *user;         // the ctor or conversion operator function
   StandardConversion scs2;      // second conversion sequence (convert return value of 'user' to param type)
 
 public:    // funcs
@@ -33,14 +33,14 @@ public:    // funcs
     : kind(IC_NONE), scs(SC_IDENTITY), user(NULL), scs2(SC_IDENTITY) {}
   ImplicitConversion(ImplicitConversion const &obj)
     : DMEMB(kind), DMEMB(scs), DMEMB(user), DMEMB(scs2) {}
-    
+
   // for determining whether the conversion attempt succeeded
   operator bool () const { return kind != IC_NONE; }
-  
+
   // add specific conversion possibilities; automatically kicks
   // over to IC_AMBIGUOUS if there's already a conversion
   void addStdConv(StandardConversion scs);
-  void addUserConv(StandardConversion first, Variable *user, 
+  void addUserConv(StandardConversion first, Variable const *user, 
                    StandardConversion second);
   void addEllipsisConv();
 };
