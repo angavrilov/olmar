@@ -3,6 +3,42 @@
 
 use strict 'subs';
 
+# default location of smbase relative to this package
+$SMBASE = "../smbase";
+$req_smcv = 1.01;            # required sm_config version number
+
+# -------------- BEGIN common block ---------------
+# do an initial argument scan to find if smbase is somewhere else
+for (my $i=0; $i < @ARGV; $i++) {
+  my ($d) = ($ARGV[$i] =~ m/-*smbase=(.*)/);
+  if (defined($d)) {
+    $SMBASE = $d;
+  }
+}
+
+# try to load the sm_config module
+eval {
+  push @INC, ($SMBASE);
+  require sm_config;
+};
+if ($@) {
+  die("$@" .     # ends with newline, usually
+      "\n" .
+      "I looked for smbase in \"$SMBASE\".\n" .
+      "\n" .
+      "You can explicitly specify the location of smbase with the -smbase=<dir>\n" .
+      "command-line argument.\n");
+}
+
+# check version number
+$smcv = get_sm_config_version();
+if ($smcv < $req_smcv) {
+  die("This package requires version $req_smcv of sm_config, but found\n" .
+      "only version $smcv.\n");
+}
+# -------------- END common block ---------------
+
+
 $| = 1;     # autoflush
 
 # defaults
@@ -302,6 +338,10 @@ if (! -f "$AST/asthelp.h") {
 # etags: see elsa/configure.pl
 
 
+# ---------------- misc -----------------
+$PERL = get_PERL_variable();
+
+
 # ------------------ config.summary -----------------
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
@@ -364,6 +404,7 @@ EOF
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@SMBASE\@|$SMBASE|g" \\
     -e "s|\@AST\@|$AST|g" \\
+    -e "s|\@PERL\@|$PERL|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing

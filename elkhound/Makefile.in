@@ -18,6 +18,10 @@ LIBSMBASE := $(SMBASE)/libsmbase.a
 LIBAST    := $(AST)/libast.a
 ASTGEN    := $(AST)/astgen
 
+# external tools
+PERL := @PERL@
+MYFLEX := $(PERL) $(SMBASE)/run-flex.pl
+
 
 # remake the generated Makefile if its inputs have changed
 Makefile: Makefile.in
@@ -97,6 +101,15 @@ support-set := \
   c/lexer1yy.o \
   c/lexer2.o
 
+#-include $(support-set:.o=.d)
+#
+# The above include is deliberately missing.  There is a problem with
+# the generated .d files when the source lives in a directory other
+# than the current one, and I have not tracked down precisely when and
+# why this occurs.  Unfortunately, it means that some changes
+# (especially in smbase) require a 'make clean'...
+
+
 # ---------------------- generic rules ----------------------
 # intermediate files for an ast spec
 # (this have been commented-out and instantiated with the specific
@@ -168,12 +181,7 @@ trivbison-deps := trivbison.o trivlex.o lexer2.o libelkhound.a
 # grammar lexer
 # like in ast/, need to replace forward decl with proper #include
 gramlex.yy.cc: gramlex.lex
-	flex -o$@ gramlex.lex
-	mv $@ gramlex.tmp
-	sed -e 's/class istream;/#include <iostream.h>/' \
-            -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
-	  <gramlex.tmp >$@
-	rm gramlex.tmp
+	$(MYFLEX) -o$@ gramlex.lex
 
 # grammar description AST (manual instantiation of above
 # commented-out pattern rule)
