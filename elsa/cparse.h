@@ -13,6 +13,7 @@ class ParseEnv {
 public:
   StringRef intType;              // "int"
   ObjList<StringHash> types;      // stack of hashes which identify names of types
+  StringTable &str;               // string table
 
 public:
   ParseEnv(StringTable &table);

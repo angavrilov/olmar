@@ -55,7 +55,8 @@ enum DeclFlags {
   DF_REGISTER    = 0x00000040,
   DF_STATIC      = 0x00000080,
   DF_EXTERN      = 0x00000100,
-  DF_SOURCEFLAGS = 0x000801FF,    // all flags that come from source declarations
+  DF_EXPLICIT    = 0x00100000,
+  DF_SOURCEFLAGS = 0x001801FF,    // all flags that come from source declarations
 
   // flags on Variables
   DF_ENUMVAL     = 0x00000200,    // true for values in an 'enum'
@@ -68,12 +69,12 @@ enum DeclFlags {
   DF_UNIVERSAL   = 0x00010000,    // (requires DF_LOGIC) universally-quantified variable
   DF_EXISTENTIAL = 0x00020000,    // (requires DF_LOGIC) existentially-quantified
   DF_FIELD       = 0x00040000,    // true for fields of structures
-  
+
   // syntactic declaration extensions
   DF_PREDICATE   = 0x00080000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x000FFFFF,
-  NUM_DECLFLAGS  = 20             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x001FFFFF,
+  NUM_DECLFLAGS  = 21             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
@@ -105,6 +106,7 @@ enum SimpleTypeId {
   ST_LONG_DOUBLE,
   ST_VOID,
   ST_ELLIPSIS,                       // used to encode vararg functions
+  ST_CDTOR,                          // "return type" for ctors and dtors
   ST_ERROR,                          // this type is returned for typechecking errors
   NUM_SIMPLE_TYPES,
   ST_BITMASK = 0xFF                  // for extraction for OR with CVFlags
@@ -181,6 +183,10 @@ enum BinaryOp {
 
   BIN_ASSIGN,    // = (used to denote simple assignments in AST, as opposed to (say) "+=")
 
+  // C++ operators
+  BIN_DOT_STAR,    // .*
+  BIN_ARROW_STAR,  // ->*
+
   // theorem prover extension
   BIN_IMPLIES,   // ==>
 
@@ -192,6 +198,41 @@ string toString(BinaryOp op);
 
 bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>
 bool isRelational(BinaryOp op);              // == thru >=
+
+
+// ---------------- access control ------------
+enum AccessKeyword {
+  AK_PUBLIC,
+  AK_PROTECTED,
+  AK_PRIVATE,
+  AK_UNSPECIFIED,      // not explicitly specified; typechecking changes it later
+  
+  NUM_ACCESS_KEYWORDS
+};
+
+
+// ---------------- cast keywords -------------
+enum CastKeyword {
+  CK_DYNAMIC,
+  CK_STATIC,
+  CK_REINTERPRET,
+  CK_CONST,
+  
+  NUM_CAST_KEYWORDS
+};
+
+
+// --------------- overloadable operators --------
+// these are just the operators that are overloadable
+// but aren't already listed in one of the lists above
+enum OverloadableOp {
+  OVL_COMMA,      // ,
+  OVL_ARROW,      // ->
+  OVL_PARENS,     // ( )
+  OVL_BRACKETS,   // [ ]
+  
+  NUM_OVERLOADABLE_OPS
+};
 
 
 #endif // CC_FLAGS_H

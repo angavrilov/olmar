@@ -100,6 +100,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "existential",
   "field",
   "predicate",    // 19
+  "explicit",
 };
 
 
@@ -137,9 +138,8 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "float",               4,    false   },
   { "double",              8,    false   },
   { "long double",         10,   false   },
-
-  // gnu: sizeof(void) is 1
-  { "void",                1,    false   },
+  { "void",                1,    false   },    // gnu: sizeof(void) is 1
+  { "<cdtor>",             0,    false   },
   { "...",                 0,    false   },
   { "<error>",             0,    false   },
 };
@@ -201,6 +201,9 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   "||",
 
   "=",
+
+  ".*",
+  "->*",
 
   "==>"
 };
