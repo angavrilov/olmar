@@ -8,7 +8,7 @@
 #include "cc_lang.h"     // CCLang
 #include "strutil.h"     // suffixEquals
 #include "overload.h"    // selectBestCandidate_templCompoundType
-#include "matchtype.h"   // MatchType, atLeastAsSpecificAs
+#include "matchtype.h"   // MatchType
 
 
 inline ostream& operator<< (ostream &os, SourceLoc sl)
@@ -51,7 +51,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool leftAtLeastAsSpec;
     {
       MatchTypes match(tfac);
-      if (match.atLeastAsSpecificAs(larg->value.t, rarg->value.t, match.ASA_TOP)) {
+      if (match.match(larg->value.t, rarg->value.t, match.MT_TOP)) {
         leftAtLeastAsSpec = true;
       } else {
         leftAtLeastAsSpec = false;
@@ -61,7 +61,7 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     bool rightAtLeastAsSpec;
     {
       MatchTypes match(tfac);
-      if (match.atLeastAsSpecificAs(rarg->value.t, larg->value.t, match.ASA_TOP)) {
+      if (match.match(rarg->value.t, larg->value.t, match.MT_TOP)) {
         rightAtLeastAsSpec = true;
       } else {
         rightAtLeastAsSpec = false;
@@ -1276,7 +1276,7 @@ Scope *Env::lookupOneQualifier(
     // I'm lazy for now
     error(stringc
       << "cannot find scope name `" << qual << "'",
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     return NULL;
   }
 
@@ -1499,12 +1499,12 @@ Variable *Env::findTemplPrimaryForSignature
     // possible.
     MatchTypes match(tfac);
     StringSObjDict<STemplateArgument> bindings;
-    if (match.atLeastAsSpecificAs
+    if (match.match
         (signature,
          var0->type,
          // FIX: I don't know if this should be top or not or if it
          // matters.
-         match.ASA_TOP)) {
+         match.MT_TOP)) {
       if (candidatePrim) {
         xfailure("ambiguous attempt to lookup "
                  "overloaded function template primary from specialization");
@@ -1611,7 +1611,7 @@ Variable *Env::lookupPQVariable_function_with_args(
           xassert(expr->isE_variable());
           bound->setReference(expr->asE_variable()->var);
         } else {
-          error("unimplemented: unhandled kind of template argument");
+          unimp("unhandled kind of template argument");
           return NULL;
         }
         match.bindings.add(param->name, bound);
@@ -1624,7 +1624,8 @@ Variable *Env::lookupPQVariable_function_with_args(
         error(stringc
               << "`" << param->name << "' is a " << paramKind
               << " parameter, but `" << arg->argString() << "' is a "
-              << argKind << " argument");
+              << argKind << " argument",
+              EF_STRONG);
       }
       paramIter.adv();
       argIter.adv();
@@ -1640,20 +1641,19 @@ Variable *Env::lookupPQVariable_function_with_args(
   SObjListIterNC<Variable> paramIter(var->type->asFunctionType()->params);
   FAKELIST_FOREACH_NC(ArgExpression, funcArgs, arg) {
     if (paramIter.isDone()) {
-      error("during function template instantiation: "
-            "too many arguments for parameters");
+      error("during function template instantiation: too many arguments for parameters");
       return NULL;
     }
     Variable *param = paramIter.data();
     static int count0 = 0;
     count0++;
-    bool argUnifies = match.atLeastAsSpecificAs
-      (arg->getType(), param->type, match.ASA_TOP);
+    bool argUnifies = match.match(arg->getType(), param->type, match.MT_TOP);
     if (!argUnifies) {
       error(stringc << "during function template instantiation: "
             << " argument " << i << " `" << arg->getType()->toString() << "'"
             << " is incompatable with parameter, `"
-            << param->type->toString() << "'");
+            << param->type->toString() << "'",
+            EF_STRONG);
       return NULL;        // FIX: return a variable of type error?
     }
     ++i;
@@ -1661,7 +1661,7 @@ Variable *Env::lookupPQVariable_function_with_args(
   }
   if (!paramIter.isDone()) {
     error("function template instantiation has too few arguments "
-          "for template parameters");
+          "for template parameters", EF_STRONG);
     return NULL;
   }
 
@@ -1676,9 +1676,9 @@ Variable *Env::lookupPQVariable_function_with_args(
     STemplateArgument *sta = match.bindings.queryif(templPIter.data()->name);
     if (!sta) {
       error(stringc << "No argument for parameter `" << templPIter.data()->name << "'",
-            //true          // dsw: seems to me should be disambiguating
-            false           // sm: I disagree... do you have an example input demonstrating the need?
-            );
+            EF_STRONG);
+      // dsw: seems to me should be disambiguating
+      // sm: I disagree... do you have an example input demonstrating the need?
       haveAllArgs = false;
     }
     sargs.append(sta);
@@ -1746,7 +1746,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
       error(stringc
         << name->qualifierString() << " has no member called `"
         << name->getName() << "'",
-        false /*disambiguating*/);
+        EF_NONE);
       return NULL;
     }
   }
@@ -1799,7 +1799,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
         error(stringc
           << "`" << var->name << "' is a class template, but template "
           << "arguments were not supplied",
-          true /*disambiguating*/);
+          EF_DISAMBIGUATES);
         return NULL;
       }
 
@@ -1813,7 +1813,6 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
         //
         // in fact, as I suspected, it is wrong; using-directives can
         // create aliases (e.g. t0194.cc)
-
         return instantiateTemplate_astArgs(loc(), scope, var, NULL /*inst*/,
                                            final->asPQ_templateC()->args);
       }
@@ -1839,9 +1838,8 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
       // disambiguates the same example as above, but selects
       // the opposite interpretation
       error(stringc
-        << "`" << var->name << "' is not a template, but template "
-        << "arguments were supplied",
-        true /*disambiguating*/);
+        << "`" << var->name << "' is not a template, but template arguments were supplied",
+        EF_DISAMBIGUATES);
       return NULL;
     }
   }
@@ -1894,7 +1892,7 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
         << name->getName() << "'",
-        true /*disambiguating*/);
+        EF_DISAMBIGUATES);
       return NULL;
     }
 
@@ -1932,7 +1930,7 @@ EnumType *Env::lookupPQEnum(PQName const *name, LookupFlags flags)
       error(stringc
         << name->qualifierString() << " has no enum called `"
         << name->getName() << "'",
-        true /*disambiguating*/);
+        EF_DISAMBIGUATES);
       return NULL;
     }
 
@@ -2110,8 +2108,7 @@ static bool doesUnificationRequireBindings
 {
   // re-unify and check that no bindings get added
   MatchTypes match(tfac);
-  bool unifies = match.atLeastAsSpecificAs_STemplateArgument_list
-    (sargs, arguments, match.ASA_NONE);
+  bool unifies = match.match(sargs, arguments, match.MT_NONE);
   xassert(unifies);             // should of course still unify
   // bindings should be trivial for a complete specialization
   // or instantiation
@@ -2195,7 +2192,7 @@ void Env::insertBindingsForPrimary
         binding->value = value0;
       }
       else {
-        error(stringc << "STemplateArgument objects that are of kind other than "
+        unimp(stringc << "STemplateArgument objects that are of kind other than "
               "STA_INT are not implemented: " << sarg->toString());
         return;
       }
@@ -2210,7 +2207,7 @@ void Env::insertBindingsForPrimary
       error(stringc
             << "`" << param->name << "' is a " << paramKind
             << " parameter, but `" << sarg->toString() << "' is a "
-            << argKind << " argument");
+            << argKind << " argument", EF_STRONG);
     }
 
     paramIter.adv();
@@ -2222,7 +2219,7 @@ void Env::insertBindingsForPrimary
   xassert(paramIter.isDone());
   if (!argIter.isDone()) {
     error(stringc
-          << "too many template arguments to `" << baseV->name << "'");
+          << "too many template arguments to `" << baseV->name << "'", EF_STRONG);
   }
 }
 
@@ -2238,7 +2235,7 @@ void Env::insertBindingsForPartialSpec
     if (!arg) {
       error(stringc
             << "during partial specialization parameter `" << param->name
-            << "' not bound in inferred bindings");
+            << "' not bound in inferred bindings", EF_STRONG);
       return;
     }
 
@@ -2272,7 +2269,7 @@ void Env::insertBindingsForPartialSpec
         binding->value->asE_intLit()->i = arg->value.i;
         addVariable(binding);
       } else {
-        error(stringc
+        unimp(stringc
               << "non-integer non-type non-template template arguments not implemented");
       }
     }
@@ -2284,7 +2281,7 @@ void Env::insertBindingsForPartialSpec
             << "`" << param->name << "' is a " << paramKind
             // FIX: might do better than what toString() gives
             << " parameter, but `" << arg->toString() << "' is a "
-            << argKind << " argument");
+            << argKind << " argument", EF_STRONG);
     }
   }
 
@@ -2310,7 +2307,7 @@ void Env::templArgsASTtoSTA
     // dsw: I did not write the non-standard English usage above
     TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
     if (!ta->sarg.hasValue()) {
-      error(stringc << "TemplateArgument has no value " << ta->argString());
+      error(stringc << "TemplateArgument has no value " << ta->argString(), EF_STRONG);
       return;
     }
     sargs.append(&(ta->sarg));
@@ -2348,10 +2345,10 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
     Variable *var0 = iter.data();
     TemplateInfo *templInfo0 = var0->templateInfo();
     // Sledgehammer time.
+    xassert(templInfo0);        // should have templateness
     if (templInfo0->isMutant()) continue;
     MatchTypes match(tfac);
-    if (match.atLeastAsSpecificAs_STemplateArgument_list
-        (sargs, templInfo0->arguments, match.ASA_NONE)) {
+    if (match.match(sargs, templInfo0->arguments, match.MT_NONE)) {
       templCandidates.candidates.push(var0);
     }
   }
@@ -2368,7 +2365,7 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
   // we should deal with that error
   if (!bestV) {
     // FIX: what is the right thing to do here?
-    error(stringc << "ambiguous attempt to instantiate template");
+    error(stringc << "ambiguous attempt to instantiate template", EF_STRONG);
     return NULL;
   }
   // otherwise, use the best one
@@ -2469,8 +2466,7 @@ Scope *Env::prepArgScopeForTemlCloneTcheck
     // unify again to compute the bindings again since we forgot
     // them already    
     MatchTypes match(tfac);
-    match.atLeastAsSpecificAs_STemplateArgument_list
-      (sargs, baseV->templateInfo()->arguments, match.ASA_NONE);
+    match.match(sargs, baseV->templateInfo()->arguments, match.MT_NONE);
     if (tracingSys("template")) {
       cout << "bindings generated by unification with partial-specialization "
         "specialization-pattern" << endl;
@@ -2595,13 +2591,18 @@ Variable *Env::instantiateTemplate
     instName = baseV->type->asCompoundType()->name;
   } else {
     xassert(baseV->type->isFunctionType());
-    // FIX: We assume for now that function templates cannot be
-    // forward declared
-    baseForward = false;
+    Declaration *declton = baseV->templateInfo()->declSyntax;
+    if (declton) {
+      Declarator *decltor = declton->decllist->first();
+      xassert(decltor);
+      baseForward = (decltor->context == DC_TD_PROTO);
+    } else {
+      baseForward = false;
+    }
     instName = baseV->name;     // FIX: just something for now
   }
 
-  // The non-NULL instV is marked as no longer forwarded before being
+  // A non-NULL instV is marked as no longer forwarded before being
   // passed in.
   if (instV) {
     xassert(!baseForward);
@@ -2615,7 +2616,11 @@ Variable *Env::instantiateTemplate
   ObjList<Scope> poppedScopes;
   SObjList<Scope> pushedScopes;
   Scope *argScope = NULL;
-  if (!baseForward) {           // don't mess with it if not going to tcheck anything
+  // don't mess with it if not going to tcheck anything; we need it in
+  // either case for function types
+  bool changedToTemplateArgScope = false;
+  if (!(baseForward && baseV->type->isCompoundType())) {
+    changedToTemplateArgScope = true;
     argScope = prepArgScopeForTemlCloneTcheck
       (poppedScopes, pushedScopes, foundScope, baseV, sargs);
   }
@@ -2636,18 +2641,30 @@ Variable *Env::instantiateTemplate
   } else {
     xassert(baseV->type->isFunctionType());
     Function *baseSyntax = baseV->funcDefn;
-    // FIX: this
-    if (!baseSyntax) {
-      cout << locStr()
-           << " Attempt to instantiate a forwarded template function;"
-           << " forward template functions are not implemented yet."
-           << "  (declSyntax=" << baseV->templInfo->declSyntax << ")"
-           << endl;
-      xassert(0);
+    if (baseForward) {
+      copyFun = NULL;
+    } else {
+      if (!baseSyntax) {
+        // this means that we are in an instantiation request for a
+        // function that has not been forwarded and is not done having
+        // its body typechecked; I'm pretty sure this can only be
+        // typechecking the body of the definition of a template that
+        // is calling itself; I've decided when typechecking the body
+        // of a template that calls itself, to just halt the recursion
+        // by returning the baseV.  Note that this should not effect
+        // situations where we are fullfilling an instantiation
+        // request.
+        //
+        // FIX: this is duplication of step 6 below; it would be
+        // better if this were done with cdtors on a class to get the
+        // try/finally effect
+        if (changedToTemplateArgScope) {
+          unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
+        }
+        return baseV;
+      }
+      copyFun = baseSyntax->clone();
     }
-    xassert(baseSyntax);
-    xassert(!baseForward);      // FIX: for now can't forward function templates
-    copyFun = baseSyntax->clone();
   }
 
   // FIX: merge these
@@ -2726,44 +2743,45 @@ Variable *Env::instantiateTemplate
       }
     } else {
       xassert(baseV->type->isFunctionType());
-      // sm: what gives?  we're just cloning the template's type?
-      // then it will be full of TypeVariables, and cloning the
-      // AST will have been pointless!
-      //
-      // It seems to me the sequence should be something like this:
+      // sm: It seems to me the sequence should be something like this:
       //   1. bind template parameters to concrete types
+      //        dsw: this has been done already above
       //   2. tcheck the declarator portion, thus yielding a FunctionType
       //      that refers to concrete types (not TypeVariables), and
       //      also yielding a Variable that can be used to name it
-      //   3. add said Variable to the list of instantiations, so if the
-      //      function recursively calls itself we'll be ready
-      //   4. tcheck the function body
-
-      // as far as I can tell, it suffices to clone the function type
-      // FIX: arg, no Function::loc
-      SourceLoc copyLoc = SL_UNKNOWN;
-      Type *type = tfac.cloneFunctionType(baseV->type->asFunctionType());
-
-      // sm: TODO: the following comment has been copied verbatim from
-      // above; that is not good
-      //
-      // make a fake implicit typedef; this class and its typedef
-      // won't actually appear in the environment directly, but making
-      // the implicit typedef helps ensure uniformity elsewhere; also
-      // must be done before type checking since it's the typedefVar
-      // field which is returned once the instantiation is found via
-      // 'instantiations'
-      instV = makeVariable
-        (copyLoc, instName, type,
-         // FIX: I don't know what flags should go here but DF_TYPEDEF isn't one of them
-//           DF_TYPEDEF | DF_IMPLICIT
-         baseV->flags
-         );
-      xassert(copyFun);         // FIX: we don't deal with function forwarding yet
-      // FIX: this seems like a much more natural way to do things,
-      // but it doesn't work because nameAndParams->var doesn't exist
-      // until after typechecking.
-//        instV = copyFun->nameAndParams->var;
+      //        dsw: this is done here
+      if (copyFun) {
+        xassert(!baseForward);
+        // NOTE: 1) the whole point is that we don't check the body,
+        // and 2) it is very important that we do not add the variable
+        // to the namespace, otherwise the primary is masked if the
+        // template body refers to itself
+        copyFun->tcheck(*this, false /*checkBody*/,
+                        false /*reallyAddVariable*/, NULL /*prior*/);
+        instV = copyFun->nameAndParams->var;
+        //   3. add said Variable to the list of instantiations, so if the
+        //      function recursively calls itself we'll be ready
+        //        dsw: this is done below
+        //   4. tcheck the function body
+        //        dsw: this is done further below.
+      } else {
+        xassert(baseForward);
+        // We do have to clone the forward declaration before
+        // typechecking.
+        Declaration *fwdDecl = baseV->templateInfo()->declSyntax;
+        xassert(fwdDecl);
+        // use the same context again but make sure it is well defined
+        xassert(fwdDecl->decllist->count() == 1);
+        DeclaratorContext ctxt = fwdDecl->decllist->first()->context;
+        xassert(ctxt != DC_UNKNOWN);
+        Declaration *copyDecl = fwdDecl->clone();
+        xassert(changedToTemplateArgScope);
+        copyDecl->tcheck(*this, ctxt,
+                         false /*reallyAddVariable*/, NULL /*prior*/);
+        xassert(copyDecl->decllist->count() == 1);
+        Declarator *copyDecltor = copyDecl->decllist->first();
+        instV = copyDecltor->var;
+      }
     }
 
     xassert(instV);
@@ -2789,6 +2807,7 @@ Variable *Env::instantiateTemplate
 
   if (copyCpd || copyFun) {
     xassert(!baseForward);
+    xassert(changedToTemplateArgScope);
 
     // we are about to tcheck the cloned AST.. it might be that we were
     // in the context of an ambiguous expression when the need for
@@ -2818,12 +2837,10 @@ Variable *Env::instantiateTemplate
         xassert(copyFun);
         copyFun->funcType = instV->type->asFunctionType();
         xassert(scope()->isGlobalTemplateScope());
-        copyFun->tcheck(*this,
-                        true      // checkBody
-                        );
-        // since instV != copyFun->nameAndParams->var, we have to do
-        // this manually here as well
-        instV->funcDefn = copyFun;
+        // NOTE: again we do not add the variable to the namespace
+        copyFun->tcheck(*this, true /*checkBody*/,
+                        false /*reallyAddVariable*/, instV /*prior*/);
+        xassert(instV->funcDefn == copyFun);
       }
     }
 
@@ -2831,40 +2848,20 @@ Variable *Env::instantiateTemplate
       cout << "--------- typed clone of " 
            << instName << sargsToString(sargs) << " ------------\n";
       if (copyCpd) copyCpd->debugPrint(cout, 0);
-      else if (copyFun) copyFun->debugPrint(cout, 0);
-      // FIX: "else xfailure()" here ?
+      if (copyFun) copyFun->debugPrint(cout, 0);
     }
-
-    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
   } else {
     xassert(baseForward);
   }
 
+  // 6 **** Undo the scope, reversing step 2
+  if (changedToTemplateArgScope) {
+    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
+  }
   // make sure we haven't forgotten these
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
 
-  // 6 **** Attach the template info to the newly created
-  // instantiation and return it.
-
-  // FIX: make this more uniform with CompoundType.  The assymetry is
-  // probably somehow due to the fact that for a class, the
-  // CompoundType object is the real source of identity, whereas for a
-  // function, it is the Variable.
-  Variable *ret = NULL;
-  if (baseV->type->isFunctionType()) {
-    // FIX: no forwarding yet
-    xassert(copyFun->nameAndParams->var);
-    ret = copyFun->nameAndParams->var;
-    xassert(!ret->templateInfo());
-    ret->setTemplateInfo(instV->templateInfo());
-  } else {
-    ret = instV;
-  }
-  xassert(ret->templateInfo());
-  // this fails because when one template is instantiated within
-  // another, you get a mutant instance; see in/t0036.cc:22
-//    xassert(ret->templateInfo()->isCompleteSpecOrInstantiation());
-  return ret;
+  return instV;
 }
 
 
@@ -2917,21 +2914,24 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 
 
 // -------- diagnostics --------
-Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
+Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
 {
+  bool disambiguates = !!(eflags & EF_DISAMBIGUATES);
   string instLoc = instLocStackString();
   trace("error") << (disambiguates? "[d] " : "")
                  << toString(L) << ": " << msg << instLoc << endl;
-  if (!disambiguateOnly || disambiguates) {
-    errors.addError(new ErrorMsg(L, msg,
-      disambiguates ? EF_DISAMBIGUATES : EF_NONE, instLoc));
+  bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
+  if (report) {
+    errors.addError
+      (new ErrorMsg
+       (L, msg, disambiguates ? EF_DISAMBIGUATES : EF_NONE, instLoc));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
-Type *Env::error(char const *msg, bool disambiguates)
+Type *Env::error(char const *msg, ErrorFlags eflags)
 {
-  return error(loc(), msg, disambiguates);
+  return error(loc(), msg, eflags);
 }
 
 
@@ -2975,7 +2975,7 @@ Type *Env::error(Type *t, char const *msg)
   }
   else {
     // report; clashes never disambiguate
-    return error(msg, false /*disambiguates*/);
+    return error(msg, EF_NONE);
   }
 }
 
@@ -3250,7 +3250,8 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   // make new declaration, taking to account various restrictions
   Variable *newVar = createDeclaration(loc, name, type, origVar->flags,
-                                       scope, enclosingClass, prior, overloadSet);
+                                       scope, enclosingClass, prior, overloadSet,
+                                       true /*reallyAddVariable*/);
   if (origVar->templateInfo()) {
     newVar->setTemplateInfo(new TemplateInfo(*origVar->templateInfo()));
   }
@@ -3338,7 +3339,11 @@ Variable *Env::createDeclaration(
   Scope *scope,             // scope into which to insert it
   CompoundType *enclosingClass,   // scope->curCompound, or NULL for a hack that is actually wrong anyway (!)
   Variable *prior,          // pre-existing variable with same name and type, if any
-  OverloadSet *overloadSet  // set into which to insert it, if that's what to do
+  OverloadSet *overloadSet, // set into which to insert it, if that's what to do
+  // should we really add the variable to the scope?  if false, don't
+  // register the variable anywhere, which is a situation that occurs
+  // in template instantiation
+  bool reallyAddVariable
 ) {
   // if this gets set, we'll replace a conflicting variable
   // when we go to do the insertion
@@ -3471,13 +3476,21 @@ Variable *Env::createDeclaration(
     // one we're trying to declare here, we have a conflict (I'm trying
     // to implement 7.3.3 para 11); I try to determine whether they
     // are the same or different based on the scopes in which they appear
-    if (!sameScopes(prior->skipAlias()->scope, scope)) {
-      error(type, stringc
-        << "prior declaration of `" << name
-        << "' at " << prior->loc
-        << " refers to a different entity, so it conflicts with "
-        << "the one being declared here");
-      goto makeDummyVar;
+    //
+    // this is only a problem if the prior is supposed to exist in a
+    // scope somewhere which was passed down to us, which is not the
+    // case if !reallyAddVariable, where it might exist only in the
+    // instantiation list of some template primary; FIX: this isn't
+    // quite so elegant
+    if (reallyAddVariable) {
+      if (!sameScopes(prior->skipAlias()->scope, scope)) {
+        error(type, stringc
+              << "prior declaration of `" << name
+              << "' at " << prior->loc
+              << " refers to a different entity, so it conflicts with "
+              << "the one being declared here");
+        goto makeDummyVar;
+      }
     }
 
     // ok, use the prior declaration, but update the 'loc'
@@ -3522,24 +3535,26 @@ noPriorDeclaration:
   // set up the variable's 'scope' field
   scope->registerVariable(newVar);
 
-  if (overloadSet) {
-    // don't add it to the environment (another overloaded version
-    // is already in the environment), instead add it to the overload set
-    //
-    // dsw: don't add it if it is a template specialization
-    if (!(dflags & DF_TEMPL_SPEC)) {
-      overloadSet->addMember(newVar);
-      newVar->overload = overloadSet;
+  if (reallyAddVariable) {
+    if (overloadSet) {
+      // don't add it to the environment (another overloaded version
+      // is already in the environment), instead add it to the overload set
+      //
+      // dsw: don't add it if it is a template specialization
+      if (!(dflags & DF_TEMPL_SPEC)) {
+        overloadSet->addMember(newVar);
+        newVar->overload = overloadSet;
+      }
     }
-  }
-  else if (!type->isError()) {
-    if (disambErrorsSuppressChanges()) {
-      TRACE("env", "not adding D_name `" << name <<
-                   "' because there are disambiguating errors");
-    }
-    else {
-      scope->addVariable(newVar, forceReplace);
-      addedNewVariable(scope, newVar);
+    else if (!type->isError()) {
+      if (disambErrorsSuppressChanges()) {
+        TRACE("env", "not adding D_name `" << name <<
+              "' because there are disambiguating errors");
+      }
+      else {
+        scope->addVariable(newVar, forceReplace);
+        addedNewVariable(scope, newVar);
+      }
     }
   }
 

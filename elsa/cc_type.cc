@@ -1138,6 +1138,10 @@ bool BaseType::isReference() const
 }
 #endif // 0
 
+bool BaseType::isReferenceToConst() const {
+  return isReferenceType() && asReferenceTypeC()->atType->isConst();
+}
+
 Type *BaseType::getAtType() const
 {
   if (isPointerType()) {
@@ -1955,9 +1959,24 @@ TemplateInfo::~TemplateInfo()
 
 void TemplateInfo::setMyPrimary(TemplateInfo *prim) 
 {
+  xassert(!myPrimary);
   xassert(prim);
   xassert(prim->isPrimary());
   myPrimary = prim;
+}
+
+
+TemplateInfo *TemplateInfo::getMyPrimary() const
+{
+  // changed my mind about making getMyPrimary() idempotent on
+  // primaries
+//    if (!myPrimary) {
+//      xassert(isPrimary());
+//      return const_cast<TemplateInfo*>(this);
+//    } else {
+//      xassert(!isPrimary());
+  return myPrimary;
+//    }
 }
 
 

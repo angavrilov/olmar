@@ -120,6 +120,13 @@ public:      // data
   // infinite looping in template instantiation
   ArrayStack<SourceLoc> instantiationLocStack;
 
+  // stack of TemplateDeclarations we are inside of; inside the
+  // definition of a template body, you are not in "real" code, you
+  // are in "might-be" code, a sort of never-never land for
+  // typechecking; you might want to change your behavior in such
+  // situations; not used for now but I leave it checked in
+//    SObjStack<TemplateDeclaration> templateDeclarationStack;
+
   // string table for making new strings
   StringTable &str;
 
@@ -463,8 +470,8 @@ public:      // funcs
   // ----- END: template instantiation stuff -----
 
   // diagnostic reports; all return ST_ERROR type
-  Type *error(SourceLoc L, char const *msg, bool disambiguates=false);
-  Type *error(char const *msg, bool disambiguates=false);
+  Type *error(SourceLoc L, char const *msg, ErrorFlags eflags = EF_NONE);
+  Type *error(char const *msg, ErrorFlags eflags = EF_NONE);
   Type *warning(char const *msg);
   Type *unimp(char const *msg);
 
@@ -548,7 +555,8 @@ public:      // funcs
     Scope *scope,
     CompoundType *enclosingClass,
     Variable *prior,
-    OverloadSet *overloadSet
+    OverloadSet *overloadSet,
+    bool reallyAddVariable
   );
 
   // create a "using declaration" alias

@@ -1,78 +1,118 @@
 // matchtype.cc
 // code for matchtype.h
 
+// FIX: I match too liberally: A pointer to a const pointer will match
+// a pointer to a non-const pointer, even though they shouldn't since
+// the const-ness differs and not at the top.
+
 #include "matchtype.h"       // this module
 #include "variable.h"        // Variable
 
+
+bool VoidPairSet::lookup(void *a, void *b, bool insertIfMissing) {
+  Pair const p0(a, b);          // stack temporary
+  unsigned int h = p0.hashvalue();
+  ObjList<Pair> *pairList =
+    reinterpret_cast<ObjList<Pair>*>
+    (setMap.get(reinterpret_cast<void*>(h)));
+  if (!pairList) {
+    if (insertIfMissing) {
+      pairList = new ObjList<Pair>;
+      pairList->prepend(new Pair(p0));
+      setMap.add(reinterpret_cast<void*>(h), pairList);
+      ObjList<Pair> *pairList0 =
+        reinterpret_cast<ObjList<Pair>*>
+        (setMap.get(reinterpret_cast<void*>(h)));
+      xassert(pairList0 == pairList);
+    }
+    return false;
+  }
+  // It is mighty rare you are going to have to iterate over this loop
+  // more than once.
+  if (pairList->count() > 1) {
+    cout << "VoidPairSet: Wow!" << endl;
+  }
+  FOREACH_OBJLIST(Pair, *pairList, iter) {
+    Pair const *p1 = iter.data();
+    xassert(h == p1->hashvalue());
+    if (p0.equals(p1)) return true;
+  }
+  // This is super rare too.
+  cout << "VoidPairSet: Amazing!" << endl;
+  if (insertIfMissing) {
+    pairList->prepend(new Pair(p0));
+  }
+  return false;
+}
+
+
+// ---------------------- match ---------------------
 
 MatchTypes::~MatchTypes()
 {}
 
 
-bool MatchTypes::atLeastAsSpecificAs_STemplateArgument_list
-  (SObjList<STemplateArgument> &list1,
-   ObjList<STemplateArgument> &list2, // NOTE: Assymetry in the list serf/ownerness
-   Flags asaFlags)
+bool MatchTypes::match
+  (SObjList<STemplateArgument> &listA,
+   ObjList<STemplateArgument> &listB, // NOTE: Assymetry in the list serf/ownerness
+   MFlags mFlags)
 {
-  xassert(!(asaFlags & ASA_TOP));
+  xassert(!(mFlags & MT_TOP));
 
-  SObjListIterNC<STemplateArgument> iter1(list1);
-  ObjListIterNC<STemplateArgument> iter2(list2);
+  SObjListIterNC<STemplateArgument> iterA(listA);
+  ObjListIterNC<STemplateArgument> iterB(listB);
 
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument *sta1 = iter1.data();
-    STemplateArgument *sta2 = iter2.data();
-    if (!atLeastAsSpecificAs(sta1, sta2, asaFlags)) {
+  while (!iterA.isDone() && !iterB.isDone()) {
+    STemplateArgument *sA = iterA.data();
+    STemplateArgument *sB = iterB.data();
+    if (!match(sA, sB, mFlags)) {
       return false;
     }
 
-    iter1.adv();
-    iter2.adv();
+    iterA.adv();
+    iterB.adv();
   }
 
-  return iter1.isDone() && iter2.isDone();
+  return iterA.isDone() && iterB.isDone();
 }
 
 
 // FIX: EXACT COPY OF THE CODE ABOVE.  Have to figure out how to fix
 // that.  NOTE: the SYMMETRY in the list serf/ownerness.
-bool MatchTypes::atLeastAsSpecificAs_STemplateArgument_list
-  (ObjList<STemplateArgument> &list1,
-   ObjList<STemplateArgument> &list2,
-   Flags asaFlags)
+bool MatchTypes::match
+  (ObjList<STemplateArgument> &listA,
+   ObjList<STemplateArgument> &listB,
+   MFlags mFlags)
 {
-  xassert(!(asaFlags & ASA_TOP));
+  xassert(!(mFlags & MT_TOP));
 
-  ObjListIterNC<STemplateArgument> iter1(list1);
-  ObjListIterNC<STemplateArgument> iter2(list2);
+  ObjListIterNC<STemplateArgument> iterA(listA);
+  ObjListIterNC<STemplateArgument> iterB(listB);
 
-  while (!iter1.isDone() && !iter2.isDone()) {
-    STemplateArgument *sta1 = iter1.data();
-    STemplateArgument *sta2 = iter2.data();
-    if (!atLeastAsSpecificAs(sta1, sta2, asaFlags)) {
+  while (!iterA.isDone() && !iterB.isDone()) {
+    STemplateArgument *sA = iterA.data();
+    STemplateArgument *sB = iterB.data();
+    if (!match(sA, sB, mFlags)) {
       return false;
     }
 
-    iter1.adv();
-    iter2.adv();
+    iterA.adv();
+    iterB.adv();
   }
 
-  return iter1.isDone() && iter2.isDone();
+  return iterA.isDone() && iterB.isDone();
 }
 
 
-bool MatchTypes::atLeastAsSpecificAs
-  (TemplateInfo *concrete, TemplateInfo *tinfo,
-   Flags asaFlags)
+bool MatchTypes::match(TemplateInfo *a, TemplateInfo *b, MFlags mFlags)
 {
-  xassert(!(asaFlags & ASA_TOP));
-
-  // is tinfo from the same primary even?
-  if (!concrete->myPrimary ||
-      (concrete->myPrimary != tinfo->myPrimary)) return false;
-  // are we at least as specific as tinfo?
-  return atLeastAsSpecificAs_STemplateArgument_list
-    (concrete->arguments, tinfo->arguments, asaFlags);
+  xassert(!(mFlags & MT_TOP));
+  // are we from the same primary even?
+  TemplateInfo *ati = a->getMyPrimary();
+  TemplateInfo *bti = b->getMyPrimary();
+  if (!ati || (ati != bti)) return false;
+  // do we match?
+  return match(a->arguments, b->arguments, mFlags);
 }
 
 
@@ -99,39 +139,34 @@ bool MatchTypes::unifyIntToVar(int i0, Variable *v1)
 }
 
 
-bool MatchTypes::atLeastAsSpecificAs
-  (STemplateArgument *concrete,
-   STemplateArgument const *obj,
-   Flags asaFlags)
+bool MatchTypes::match(STemplateArgument *a, STemplateArgument const *b, MFlags mFlags)
 {
-  xassert(!(asaFlags & ASA_TOP));
+  xassert(!(mFlags & MT_TOP));
 
-  switch (concrete->kind) {
+  switch (a->kind) {
   case STemplateArgument::STA_TYPE:                // type argument
-    if (STemplateArgument::STA_TYPE != obj->kind) return false;
-    return atLeastAsSpecificAs
-      (concrete->value.t,
-       obj->value.t,
-       // FIX: I have no idea why this cast is necessary here but not
-       // for other flag enums
-       //
-       // sm: b/c you need to add ENUM_BITWISE_OPS at decl..
-       // which I have now done
-       /*(Flags)*/ (asaFlags | ASA_TOP) );
+    if (STemplateArgument::STA_TYPE != b->kind) return false;
+    return match(a->value.t, b->value.t,
+                 // FIX: I have no idea why this cast is necessary
+                 // here but not for other flag enums
+                 //
+                 // sm: b/c you need to add ENUM_BITWISE_OPS at decl..
+                 // which I have now done
+                 /*(MFlags)*/ (mFlags | MT_TOP) );
     break;
 
-  case STemplateArgument::STA_INT:                 // int or enum argument
-    if (STemplateArgument::STA_INT == obj->kind) {
-      return concrete->value.i == obj->value.i;
-    } else if (STemplateArgument::STA_REFERENCE == obj->kind) {
-      return unifyIntToVar(concrete->value.i, obj->value.v);
+  case STemplateArgument::STA_INT: // int or enum argument
+    if (STemplateArgument::STA_INT == b->kind) {
+      return a->value.i == b->value.i;
+    } else if (STemplateArgument::STA_REFERENCE == b->kind) {
+      return unifyIntToVar(a->value.i, b->value.v);
     } else {
       return false;
     }
     break;
 
-  case STemplateArgument::STA_REFERENCE:           // reference to global object
-    if (STemplateArgument::STA_INT == obj->kind) {
+  case STemplateArgument::STA_REFERENCE: // reference to global object
+    if (STemplateArgument::STA_INT == b->kind) {
       // you can't unify a reference with an int
       return false;
     }
@@ -139,16 +174,16 @@ bool MatchTypes::atLeastAsSpecificAs
     xfailure("reference arguments unimplemented");
     break;
 
-  case STemplateArgument::STA_POINTER:             // pointer to global object
+  case STemplateArgument::STA_POINTER: // pointer to global object
     // FIX:
     xfailure("pointer arguments unimplemented");
 
-  case STemplateArgument::STA_MEMBER:              // pointer to class member
+  case STemplateArgument::STA_MEMBER: // pointer to class member
     // FIX:
     xfailure("pointer to member arguments unimplemented");
     break;
 
-  case STemplateArgument::STA_TEMPLATE:            // template argument (not implemented)
+  case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
     // FIX:
     xfailure("STemplateArgument::STA_TEMPLATE non implemented");
     break;
@@ -159,8 +194,6 @@ bool MatchTypes::atLeastAsSpecificAs
   }
 }
 
-
-// ---------------------- atLeastAsSpecificAs ---------------------
 
 void bindingsGdb(StringSObjDict<STemplateArgument> &bindings)
 {
@@ -204,53 +237,52 @@ class CVFlagsIter {
 //   2 - Below top level, the are matched exactly; a) lack of matching
 //   means a failure to match; b) those matched are subtracted and the
 //   remaining attached to the typevar.
-bool MatchTypes::unifyToTypeVar(Type *t0,
-                               Type *t1,
-                               Flags asaFlags)
+bool MatchTypes::unifyToTypeVar(Type *a, Type *b, MFlags mFlags)
 {
-  TypeVariable *tv = t1->asTypeVariable();
-  STemplateArgument *targ1 = bindings.queryif(tv->name);
-  // is this type variable already bound?
-  if (targ1) {
-    // check that the current value matches the bound value
-    // FIX: the EF_IGNORE_PARAM_CV is just a guess
-    Type::EqFlags eqFlags0 = Type::EF_IGNORE_PARAM_CV;
-    if (asaFlags & ASA_TOP) eqFlags0 |= Type::EF_IGNORE_TOP_CV;
-    return targ1->kind==STemplateArgument::STA_TYPE
-      && t0->equals(targ1->value.t, eqFlags0);
+  TypeVariable *tvb = b->asTypeVariable();
+  STemplateArgument *targb = bindings.queryif(tvb->name);
+  // if 'b' is already bound, resolve to its binding and recurse
+  if (targb) {
+    // Please note that it is an important part of the design that
+    // pairs are cached and checked for in the top-level match
+    // function just so that we can do this here and not worry about
+    // infinite loops.
+    return targb->kind==STemplateArgument::STA_TYPE
+      && match(a, targb->value.t, mFlags & ~MT_TOP);
   }
+
   // otherwise, bind it
-  STemplateArgument *targ0 = new STemplateArgument;
+  STemplateArgument *targa = new STemplateArgument;
 
   // deal with CV qualifier strangness;
   // dsw: Const should be removed from the language because of things
   // like this!  I mean, look at it!
-  CVFlags t0cv = t0->getCVFlags();
+  CVFlags acv = a->getCVFlags();
   // partition qualifiers into normal ones and Scott's funky qualifier
   // extensions that aren't const or volatile
-  CVFlags t0cvNormal = t0cv &  (CV_CONST | CV_NONE);
-  CVFlags t0cvScott  = t0cv & ~(CV_CONST | CV_NONE);
-  if (asaFlags & ASA_TOP) {
+  CVFlags acvNormal = acv &  (CV_CONST | CV_NONE);
+  CVFlags acvScott  = acv & ~(CV_CONST | CV_NONE);
+  if (mFlags & MT_TOP) {
     // if we are at the top level, remove all CV qualifers before
     // binding; ignore the qualifiers on the type variable as they are
     // irrelevant
-    t0 = tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, t0, NULL /*syntax*/);
+    a = tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, a, NULL /*syntax*/);
   } else {
     // if we are below the top level, subtract off the CV qualifiers
     // that match; if we get a negative qualifier set (arg lacks a
     // qualifer that the param has) we fail to match
     CVFlags finalFlags = CV_NONE;
 
-    CVFlags t1cv = t1->getCVFlags();
+    CVFlags bcv = b->getCVFlags();
     // partition qualifiers again
-    CVFlags t1cvNormal = t1cv &  (CV_CONST | CV_NONE);
-//      CVFlags t1cvScott  = t1cv & ~(CV_CONST | CV_NONE);
+    CVFlags bcvNormal = bcv &  (CV_CONST | CV_NONE);
+//      CVFlags bcvScott  = bcv & ~(CV_CONST | CV_NONE);
     // Lets kill a mosquito with a hydraulic wedge
     for(CVFlagsIter cvIter; !cvIter.isDone(); cvIter.adv()) {
       CVFlags curFlag = cvIter.data();
-      int t0flagInt = (t0cvNormal & curFlag) ? 1 : 0;
-      int t1flagInt = (t1cvNormal & curFlag) ? 1 : 0;
-      int flagDifference = t0flagInt - t1flagInt;
+      int aflagInt = (acvNormal & curFlag) ? 1 : 0;
+      int bflagInt = (bcvNormal & curFlag) ? 1 : 0;
+      int flagDifference = aflagInt - bflagInt;
       if (flagDifference < 0) {
         return false;           // can't subtract a flag that isn't there
       }
@@ -260,264 +292,261 @@ bool MatchTypes::unifyToTypeVar(Type *t0,
       // otherwise, the flags match
     }
 
-    // if there's been a change, must (shallow) clone t0 and apply new
+    // if there's been a change, must (shallow) clone a and apply new
     // CV qualifiers
-    t0 = tfac.setCVQualifiers
+    a = tfac.setCVQualifiers
       (SL_UNKNOWN,
-       finalFlags | t0cvScott,  // restore Scott's funkyness
-       t0,
+       finalFlags | acvScott,  // restore Scott's funkyness
+       a,
        NULL /*syntax*/
        );
   }
 
-  targ0->setType(t0);
-  bindings.add(tv->name, targ0);
+  targa->setType(a);
+  bindings.add(tvb->name, targa);
   return true;
 }
 
 
 //  // helper function for when we find an int var
-//  static bool unifyToIntVar(Type *t0,
-//                            Type *t1,
+//  static bool unifyToIntVar(Type *a,
+//                            Type *b,
 //                            StringSObjDict<STemplateArgument> &bindings,
-//                            Flags asaFlags)
+//                            MFlags mFlags)
 //  {
 //  }
 
 
-bool MatchTypes::match_cva(CVAtomicType *concrete, Type *t,
-                          Flags asaFlags)
+bool MatchTypes::match_cva(CVAtomicType *a, Type *b, MFlags mFlags)
 {
-  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
-    t = t->asReferenceType()->atType;
+  //   A non-ref, B ref to const: B's ref goes away
+  if (b->isReferenceToConst()) return match(a, b->getAtType(), mFlags);
+  //   A non-ref, B ref to non-const: failure to unify
+  else if (b->isReference()) return false;
+
+  if (b->isTypeVariable()) return unifyToTypeVar(a, b, mFlags);
+  if (a->isTypeVariable()) {
+    TypeVariable *tva = a->asTypeVariable();
+    STemplateArgument *targa = bindings.queryif(tva->name);
+    // if 'a' is already bound, resolve to its binding and recurse
+    if (targa) {
+      // Please note that it is an important part of the design that
+      // pairs are cached and checked for in the top-level match
+      // function just so that we can do this here and not worry about
+      // infinite loops.
+      return targa->kind==STemplateArgument::STA_TYPE
+        && match(targa->value.t, b, mFlags & ~MT_TOP);
+    }
+    return false;               // if unbound we fail
   }
-  // I'm tempted to do this, but when I test it, it ends up testing
-  // false in the end anyway.  It is hard to construct a test for it,
-  // so I don't have one checked in.
-//    if (isTypeVariable() && !t->isTypeVariable()) {
-//      return false;
-//    }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(concrete, t, asaFlags);
-  }
-  if (t->isCVAtomicType()) {
-    bool isCpdTemplate = concrete->isCompoundType() && concrete->asCompoundType()->typedefVar->isTemplate();
-    bool tIsCpdTemplate = t->isCompoundType() && t->asCompoundType()->typedefVar->isTemplate();
+
+  if (b->isCVAtomicType()) {
+    bool isCpdTemplate = a->isCompoundType()
+      && a->asCompoundType()->typedefVar->isTemplate();
+    bool tIsCpdTemplate = b->isCompoundType()
+      && b->asCompoundType()->typedefVar->isTemplate();
     if (isCpdTemplate && tIsCpdTemplate) {
       return
-        atLeastAsSpecificAs(concrete->asCompoundType()->typedefVar->templateInfo(),
-                            t->asCompoundType()->typedefVar->templateInfo(),
-                            (asaFlags & ~ASA_TOP));
+        match(a->asCompoundType()->typedefVar->templateInfo(),
+              b->asCompoundType()->typedefVar->templateInfo(),
+              mFlags & ~MT_TOP);
     } else if (!isCpdTemplate && !tIsCpdTemplate) {
-      return concrete->equals(t);
+      // I don't want to call BaseType::equals() at all since I'm
+      // essentially duplicating my version of that; however I do need
+      // to be able to ask if to AtomicType-s are equal.
+      bool atomicMatches = a->asCVAtomicType()->atomic->equals(b->asCVAtomicType()->atomic);
+      if (mFlags & MT_TOP) {
+        return atomicMatches;
+      } else {
+        CVFlags const mask = CV_VOLATILE & CV_CONST; // ignore other kinds of flags
+        return ((a->asCVAtomicType()->cv & mask) == (b->asCVAtomicType()->cv & mask))
+          && atomicMatches;
+      }
     }
     // if there is a mismatch, they definitely don't match
   }
   return false;
 }
 
-bool MatchTypes::match_ptr_ref(Type *concrete, Type *t,
-                               Flags asaFlags)
+
+bool MatchTypes::match_ref(ReferenceType *a, Type *b, MFlags mFlags)
 {
   // The policy on references and unification is as follows.
   //   A non-ref, B ref to const: B's ref goes away
   //   A non-ref, B ref to non-const: failure to unify
+  //     do those in each function
   //   A ref, B non-ref: A's ref-ness silently goes away.
   //   A ref, B ref: the ref's match and unification continues below.
-
-  // unify the reference-ness
-  Type *thisType = concrete;
-  if (concrete->isReference() && !t->isReference()) {
-    thisType = concrete->asRval();
-  }
-  else if (!concrete->isReference() &&
-           t->isReference() && t->asReferenceType()->atType->isConst()) {
-    t = t->asReferenceType()->atType;
-  }
-
-  xassert(thisType->isReference() == t->isReference());
-
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(thisType, t, asaFlags);
-  }
-  if (t->getTag() == thisType->getTag() &&
-      t->isPtrOrRef()) {
-    return atLeastAsSpecificAs
-      (thisType->getAtType(),
-       t->getAtType(), (asaFlags & ~ASA_TOP) );
-  }
-  if (concrete == thisType) {
-    return false;               // there is no progress to make
-  }
-  return
-    atLeastAsSpecificAs(thisType, t,
-                        // I don't know if this is right or not, but
-                        // for now I consider that if you unreference
-                        // that you are still considered to be a the
-                        // top level
-                        asaFlags);
+  //     do those here
+  if (b->isReference()) b = b->getAtType();
+  return match(a->getAtType(), b,
+               // I don't know if this is right or not, but for now I
+               // consider that if you unreference that you are still
+               // considered to be a the top level
+               mFlags);
 }
 
-bool MatchTypes::match_func(FunctionType *concrete, Type *t,
-                           Flags asaFlags)
-{
-  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
-    t = t->asReferenceType()->atType;
-  }
 
-  if (t->isPointer()) {
+bool MatchTypes::match_ptr(PointerType *a, Type *b, MFlags mFlags)
+{
+  //   A non-ref, B ref to const: B's ref goes away
+  if (b->isReferenceToConst()) return match(a, b->getAtType(), mFlags);
+  //   A non-ref, B ref to non-const: failure to unify
+  else if (b->isReference()) return false;
+
+  if (b->isTypeVariable()) return unifyToTypeVar(a, b, mFlags);
+
+  if (b->isPointer()) return match(a->getAtType(), b->getAtType(), mFlags & ~MT_TOP);
+  return false;
+}
+
+
+bool MatchTypes::match_func(FunctionType *a, Type *b, MFlags mFlags)
+{
+  //   A non-ref, B ref to const: B's ref goes away
+  if (b->isReferenceToConst()) return match(a, b->getAtType(), mFlags);
+  //   A non-ref, B ref to non-const: failure to unify
+  else if (b->isReference()) return false;
+
+  if (b->isTypeVariable()) return unifyToTypeVar(a, b, mFlags);
+
+  if (b->isPointer()) {
     // cppstd 14.8.2.1 para 2: "If P is not a reference type: --
     // ... If A is a function type, the pointer type produced by the
     // function-to-pointer standard conversion (4.3) is used in place
     // of A for type deduction"; rather than wrap the function type in
-    // a pointer, I'll just unwrap the pointer-ness of 't' and keep
+    // a pointer, I'll just unwrap the pointer-ness of 'b' and keep
     // going down.
-    return atLeastAsSpecificAs(concrete, 
-                               t->asPointerType()->atType,
-                               (asaFlags & ~ASA_TOP));
+    return match(a, b->getAtType(), mFlags & ~MT_TOP);
   }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(concrete, t, asaFlags);
-  }
-  if (t->isFunctionType()) {
-    FunctionType *ft = t->asFunctionType();
+
+  if (b->isFunctionType()) {
+    FunctionType *ft = b->asFunctionType();
 
     // check all the parameters
-    if (concrete->params.count() != ft->params.count()) {
+    if (a->params.count() != ft->params.count()) {
       return false;
     }
-    SObjListIterNC<Variable> iter0(concrete->params);
-    SObjListIterNC<Variable> iter1(ft->params);
+    SObjListIterNC<Variable> iter0(a->params);
+    SObjListIterNC<Variable> iterA(ft->params);
     for(;
         !iter0.isDone();
-        iter0.adv(), iter1.adv()) {
+        iter0.adv(), iterA.adv()) {
       Variable *var0 = iter0.data();
-      Variable *var1 = iter1.data();
+      Variable *var1 = iterA.data();
       xassert(!var0->hasFlag(DF_TYPEDEF)); // should not be possible
       xassert(!var1->hasFlag(DF_TYPEDEF)); // should not be possible
-      if (!atLeastAsSpecificAs
+      if (!match
           (var0->type, var1->type,
            // FIX: I don't know if this is right: are we at the top
            // level again when we recurse down into the parameters of
            // a function type that is itself an argument?
-           (asaFlags | ASA_TOP) )) {
+           mFlags | MT_TOP )) {
         return false; // conjunction
       }
     }
-    xassert(iter1.isDone());
+    xassert(iterA.isDone());
 
     // check the return type
-    return atLeastAsSpecificAs
-      (concrete->retType, ft->retType,
+    return match
+      (a->retType, ft->retType,
        // FIX: I don't know if this is right: are we at the top level
        // again when we recurse down into the rerturn value (just as
        // with the parameters) of a function type that is itself an
        // argument?
-       (asaFlags | ASA_TOP) );
+       mFlags | MT_TOP);
   }
   return false;
 }
 
-bool MatchTypes::match_array
-  (ArrayType *concrete, Type *t,
-   Flags asaFlags)
+
+bool MatchTypes::match_array(ArrayType *a, Type *b, MFlags mFlags)
 {
-  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
-    t = t->asReferenceType()->atType;
-  }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(concrete, t, asaFlags);
-  }
-  if (t->isPointer()
-      && (asaFlags & ASA_TOP)
-      ) {
+  //   A non-ref, B ref to const: B's ref goes away
+  if (b->isReferenceToConst()) return match(a, b->getAtType(), mFlags);
+  //   A non-ref, B ref to non-const: failure to unify
+  else if (b->isReference()) return false;
+
+  if (b->isTypeVariable()) return unifyToTypeVar(a, b, mFlags);
+
+  if (b->isPointer() && (mFlags & MT_TOP)) {
     // cppstd 14.8.2.1 para 2: "If P is not a reference type: -- if A
     // is an array type, the pointer type produced by the
     // array-to-pointer standard conversion (4.2) is used in place of
     // A for type deduction"; however, this only seems to apply at the
     // top level; see cppstd 14.8.2.4 para 13.
-    return atLeastAsSpecificAs(concrete->eltType,
-                               t->asPointerType()->atType,
-                               (asaFlags & ~ASA_TOP) );
+    return match(a->eltType,
+                 b->asPointerType()->atType,
+                 mFlags & ~MT_TOP);
   }
-  if (t->isArrayType()) {
-    ArrayType *tArray = t->asArrayType();
-    bool baseUnifies =
-      atLeastAsSpecificAs(concrete->eltType,
-                          tArray->eltType,
-                          (asaFlags & ~ASA_TOP) );
-    return baseUnifies;
+
+  // FIX: if we are not at the top level then the array indicies
+  // should be matched as well when we do Object STemplateArgument
+  // matching
+  if (b->isArrayType()) {
+    return match(a->eltType, b->asArrayType()->eltType, mFlags & ~MT_TOP);
   }
   return false;
 }
 
-bool MatchTypes::match_ptm(PointerToMemberType *concrete, Type *t,
-                          Flags asaFlags)
+
+bool MatchTypes::match_ptm(PointerToMemberType *a, Type *b, MFlags mFlags)
 {
-  if (t->isReference() && t->asReferenceType()->atType->isConst()) {
-    t = t->asReferenceType()->atType;
-  }
-  if (t->isTypeVariable()) {
-    return unifyToTypeVar(concrete, t, asaFlags);
-  }
-  if (t->isPointerToMemberType()) {
+  //   A non-ref, B ref to const: B's ref goes away
+  if (b->isReferenceToConst()) return match(a, b->getAtType(), mFlags);
+  //   A non-ref, B ref to non-const: failure to unify
+  else if (b->isReference()) return false;
+
+  if (b->isTypeVariable()) return unifyToTypeVar(a, b, mFlags);
+
+  if (b->isPointerToMemberType()) {
     // FIX: should there be some subtyping polymorphism here?
 
     // I have to wrap the CompoundType in a CVAtomicType just so I can
-    // do the unification
-    CVAtomicType *inClassNATcvAtomic =
-      tfac.makeCVAtomicType(SL_UNKNOWN, concrete->inClassNAT, CV_NONE);
-    CVAtomicType *t_inClassNATcvAtomic =
-      tfac.makeCVAtomicType(SL_UNKNOWN, t->asPointerToMemberType()->inClassNAT, CV_NONE);
-    bool inClassUnifies;
-    if (t_inClassNATcvAtomic->isTypeVariable()) {
-      inClassUnifies =
-        unifyToTypeVar(inClassNATcvAtomic, t_inClassNATcvAtomic, asaFlags);
-    } else {
-      inClassUnifies =
-        atLeastAsSpecificAs(inClassNATcvAtomic,
-                            t_inClassNATcvAtomic,
-                            (asaFlags & ~ASA_TOP));
-    }
-    return inClassUnifies &&
-      atLeastAsSpecificAs(concrete->atType,
-                          t->asPointerToMemberType()->atType,
-                          (asaFlags & ~ASA_TOP));
+    // do the unification;
+    //
+    // DO NOT MAKE THESE ON THE STACK as one might be a type variable
+    // and the other then would get unified into permanent existence
+    // on the heap
+    CVAtomicType *a_inClassNATcvAtomic =
+      tfac.makeCVAtomicType(SL_UNKNOWN, a->inClassNAT, CV_NONE);
+    CVAtomicType *b_inClassNATcvAtomic =
+      tfac.makeCVAtomicType(SL_UNKNOWN, b->asPointerToMemberType()->inClassNAT, CV_NONE);
+    return
+      match(a_inClassNATcvAtomic, b_inClassNATcvAtomic, mFlags & ~MT_TOP)
+      && match(a->atType, b->getAtType(), mFlags & ~MT_TOP);
   }
   return false;
 }
 
 
-bool MatchTypes::atLeastAsSpecificAs(Type *concrete, Type *pattern,
-                                     Flags asaFlags)
+bool MatchTypes::match(Type *a, Type *b, MFlags mFlags)
 {
-  switch (concrete->getTag()) {
+  // prevent infinite loops;
+  //
+  // FIX: we use the pointer identity of the type here; it makes me
+  // worry about two things:
+  //
+  // First, if someone ever switched to multiple inheritance, then
+  // casting the static type up and down could actually change the
+  // pointer and make this miss something; I think this is unlikely to
+  // be a problem as I add and check right here in the same spot using
+  // the same pointers;
+  //
+  // Second, the semantics of this will change if hash-consing is ever
+  // implemented, and would be different in client code (Oink) where
+  // hash-consing is turned off.
+  if (typePairSet.in(a, b)) return true;
+  else typePairSet.put(a, b);
+  // roll our own dynamic dispatch
+  switch (a->getTag()) {
     default: xfailure("bad tag");
-
-    case Type::T_ATOMIC:
-      return match_cva(concrete->asCVAtomicType(),
-        pattern, asaFlags);
-
-    case Type::T_POINTER:
-    case Type::T_REFERENCE:
-      // it is probably not optimal to be treating ptr and ref
-      // uniformly here, but it's a consequence of recently having had
-      // them be represented by the same subclass; so, if you are
-      // inclined to separate them, go ahead
-      return match_ptr_ref(concrete,
-        pattern, asaFlags);
-
-    case Type::T_FUNCTION:
-      return match_func(concrete->asFunctionType(),
-        pattern, asaFlags);
-
-    case Type::T_ARRAY:
-      return match_array(concrete->asArrayType(),
-        pattern, asaFlags);
-
-    case Type::T_POINTERTOMEMBER:
-      return match_ptm(concrete->asPointerToMemberType(),
-        pattern, asaFlags);
+    case Type::T_ATOMIC:          return match_cva(a->asCVAtomicType(),        b, mFlags);
+    case Type::T_POINTER:         return match_ptr(a->asPointerType(),         b, mFlags);
+    case Type::T_REFERENCE:       return match_ref(a->asReferenceType(),       b, mFlags);
+    case Type::T_FUNCTION:        return match_func(a->asFunctionType(),       b, mFlags);
+    case Type::T_ARRAY:           return match_array(a->asArrayType(),         b, mFlags);
+    case Type::T_POINTERTOMEMBER: return match_ptm(a->asPointerToMemberType(), b, mFlags);
   }
 }
 

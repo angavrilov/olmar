@@ -77,7 +77,8 @@ void TranslationUnit::tcheck(Env &env)
 {
   static int tform = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
-    TRACE("topform", ++tform);
+    ++tform;
+    TRACE("topform", tform);
     iter.data()->tcheck(env);
   }
 }
@@ -93,7 +94,8 @@ void TF_decl::tcheck(Env &env)
 void TF_func::tcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env, true /*checkBody*/,
+            true /*reallyAddVariable*/, NULL /*prior*/);
 }
 
 void TF_template::tcheck(Env &env)
@@ -212,7 +214,8 @@ void TF_namespaceDecl::tcheck(Env &env)
 
 
 // --------------------- Function -----------------
-void Function::tcheck(Env &env, bool checkBody)
+void Function::tcheck(Env &env, bool checkBody,
+                      bool reallyAddVariable, Variable *prior)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
@@ -231,8 +234,10 @@ void Function::tcheck(Env &env, bool checkBody)
   Declarator::Tcheck dt(retTypeSpec,
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
+  dt.reallyAddVariable = reallyAddVariable;
+  dt.prior = prior;
   nameAndParams = nameAndParams->tcheck(env, dt);
-  
+
   // location for random purposes..
   SourceLoc loc = nameAndParams->var->loc;
 
@@ -240,7 +245,7 @@ void Function::tcheck(Env &env, bool checkBody)
     env.error(stringc
       << "function declarator must be of function type, not `"
       << dt.type->toString() << "'",
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     return;
   }
 
@@ -363,6 +368,17 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // this is a function definition; add a pointer from the
   // associated Variable
+  //
+  // WARNING: Due to the way function templates are instantiated it is
+  // important to NOT move this line ABOVE this other line which is
+  // above.
+  //    if (!checkBody) {
+  //      return;
+  //    }
+  // That is, it is important for the var of a function Declarator to
+  // not have a funcDefn until after its whole body has been
+  // typechecked.  See comment after 'if (!baseSyntax)' in
+  // Env::instantiateTemplate()
   nameAndParams->var->funcDefn = this;
 }
 
@@ -378,7 +394,7 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
     env.error(stringc
       << context << " are only valid for class member "
       << "functions (constructors in particular)",
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     return NULL;
   }
 
@@ -387,7 +403,7 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
   if (nameAndParams->var->name != env.constructorSpecialName) {
     env.error(stringc
       << context << " are only valid for constructors",
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     return NULL;
   }
 
@@ -568,7 +584,8 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env, DeclaratorContext context)
+void Declaration::tcheck(Env &env, DeclaratorContext context,
+                         bool reallyAddVariable, Variable *prior)
 {
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
@@ -599,6 +616,8 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags, context);
+    dt1.reallyAddVariable = reallyAddVariable;
+    dt1.prior = prior;
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     if (dt1.var && dt1.var->templInfo) {
@@ -624,6 +643,11 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
       Type *dupType = env.tfac.cloneType(specType);
 
       Declarator::Tcheck dt2(dupType, dflags, context);
+      // so far these are only being used for template situations
+      // which only have one declarator
+      xassert(reallyAddVariable);
+      xassert(!prior);
+
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -746,13 +770,13 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     // "variable" were the only one.
     return env.error(stringc
       << "there is no typedef called `" << *name << "'",
-      disambiguates);
+      (disambiguates? EF_DISAMBIGUATES: EF_NONE) );
   }
 
   if (!v->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
       << "variable name `" << *name << "' used as if it were a type",
-      disambiguates);
+      (disambiguates? EF_DISAMBIGUATES: EF_NONE) );
   }
 
   // TODO: access control check
@@ -807,7 +831,7 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << " was templatized with parameters "
       << prior->templateInfo()->paramsToCString()
       << " but the this one is not templatized",
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     return false;
   }
 
@@ -817,7 +841,7 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
       << scope->curTemplateParams->paramsToCString(),
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     delete scope->curTemplateParams;
     scope->curTemplateParams = NULL;
     return false;
@@ -883,7 +907,7 @@ bool mergeParameterLists(Env &env, CompoundType *prior,
         << "' but this one has parameter `"
         << src->name << "' of type `" << src->type->toString()
         << "', and these are not equivalent",
-        true /*disambiguating*/);
+        EF_DISAMBIGUATES);
       return false;
     }
 
@@ -932,7 +956,7 @@ bool mergeParameterLists(Env &env, CompoundType *prior,
       << pluraln(dest->params.count(), "parameter")
       << ", but this one has "
       << pluraln(src->params.count(), "parameter"),
-      true /*disambiguating*/);
+      EF_DISAMBIGUATES);
     return false;
   }
 }
@@ -949,7 +973,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     if (!et) {
       return env.error(stringc
         << "there is no enum called `" << *name << "'",
-        true /*disambiguating*/);
+        EF_DISAMBIGUATES);
     }
 
     this->atype = et;          // annotation
@@ -1256,7 +1280,7 @@ void TS_classSpec::tcheckIntoCompound(
       if (!baseVar) {
         env.error(stringc
           << "no class called `" << *(iter->name) << "' was found",
-          false /*disambiguating*/);
+          EF_NONE);
         continue;
       }
       xassert(baseVar->hasFlag(DF_TYPEDEF));    // that's what LF_ONLY_TYPES means
@@ -1367,7 +1391,8 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       // tcheck of an inline member function
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
-      f->tcheck(env, true /*checkBody*/);
+      f->tcheck(env, true /*checkBody*/,
+                true /*reallyAddVariable*/, NULL /*prior*/);
 
       // remove DF_INLINE_DEFN so if I clone this later I can play the
       // same trick again (TODO: what if we decide to clone while down
@@ -1759,7 +1784,8 @@ void MR_func::tcheck(Env &env)
   // members have been added to the class, so that the potential
   // scope of all class members includes all function bodies
   // [cppstd sec. 3.3.6]
-  f->tcheck(env, false /*checkBody*/);
+  f->tcheck(env, false /*checkBody*/,
+            true /*reallyAddVariable*/, NULL /*prior*/);
 
   checkMemberFlags(env, f->dflags);
 }
@@ -2467,7 +2493,7 @@ realStart:
         << "a grouped parameter declarator; ambiguity resolution should "
         << "pick a different interpretation, so if the end user ever "
         << "sees this message then there's a bug in my typechecker",
-        true /*disambiguating*/);
+        EF_DISAMBIGUATES);
       goto makeDummyVar;
     }
   }
@@ -2527,7 +2553,9 @@ realStart:
   // has this variable already been declared?
   //Variable *prior = NULL;    // moved to the top
 
-  if (name->hasQualifiers()) {
+  if (dt.prior) {
+    prior = dt.prior;
+  } else if (name->hasQualifiers()) {
     // TODO: I think this is wrong, but I'm not sure how.  For one
     // thing, it's very similar to what happens below for unqualified
     // names; could those be unified?  Second, the thing above about
@@ -2618,6 +2646,17 @@ realStart:
     checkOperatorOverload(env, dt, loc, name, scope);
   }
 
+  // dsw: If this function "has the responsibility of adding a
+  // variable called 'name' to the environment" then if dt.prior
+  // exists, I can skip the rest of this.  I am getting really weird
+  // errors by trying to push through and on top of that I just don't
+  // understand why try.  We have what we want already and we don't
+  // wanted it added to the environment.
+  if (dt.prior) {
+    dt.var = dt.prior;
+    return;
+  }
+
   // check for overloading
   OverloadSet *overloadSet =
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
@@ -2625,7 +2664,8 @@ realStart:
 
   // make a new variable; see implementation for details
   dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
-                                 scope, enclosingClass, prior, overloadSet);
+                                 scope, enclosingClass, prior, overloadSet,
+                                 dt.reallyAddVariable /*reallyAddVariable*/);
 }
 
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
@@ -2803,7 +2843,19 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   }
 
   // grab the template parameters before entering the parameter scope
-  TemplateInfo *templateInfo = env.takeFTemplateInfo();
+  TemplateInfo *templateInfo;
+  // take template info from the environment exactly when we are
+  // making a new variable; otherwise we may stomp on an existing and
+  // perfectly good templateInfo in that existing variable when we set
+  // the template info below; also, in situations where dt.prior is
+  // defined, I think the template info has already been taken so we
+  // would take nothing this time anyway.
+  if (dt.prior) {
+    xassert(!dt.reallyAddVariable);
+    templateInfo = dt.prior->templateInfo();
+  } else {
+    templateInfo = env.takeFTemplateInfo();
+  }
 
   // make a new scope for the parameter list
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
@@ -2902,14 +2954,25 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // if this variable is a specialization, then mark it as such so
   // that in particular it doesn't get added to the overload set of
   // its primary during typechecking below
-  if (templateInfo &&
-      (templateInfo->isCompleteSpecOrInstantiation() ||
-       templateInfo->isPartialSpec())
-      ) {
-    dt.dflags |= DF_TEMPL_SPEC;
+  if (templateInfo) {
+    if (templateInfo->isMutant()) {
+      // strange case that happens when one function template body
+      // instantiates another; make sure that this concern it
+      // irrelevant since nothing will get added to the scope
+      xassert(!dt.reallyAddVariable);
+    } else if (templateInfo->isCompleteSpecOrInstantiation() ||
+               templateInfo->isPartialSpec()) {
+      dt.dflags |= DF_TEMPL_SPEC;
+    }
   }
   base->tcheck(env, dt, inGrouping);
-  dt.var->setTemplateInfo(templateInfo);
+
+  // see above at 'env.takeFTemplateInfo()'
+  if (dt.prior) {
+    xassert(!dt.reallyAddVariable);
+  } else {
+    dt.var->setTemplateInfo(templateInfo);
+  }
 }
 
 
@@ -3046,7 +3109,7 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   int n;
   if (!bits->constEval(env, n)) {
     env.error("bitfield size must be a constant",
-              false /*disambiguates*/);
+              EF_NONE);
   }
 
   // TODO: record the size of the bit field somewhere; but
@@ -3230,7 +3293,7 @@ Statement *Statement::tcheck(Env &env)
   }
   
   // unknown ambiguity situation
-  env.error("unknown statement ambiguity", false /*disambiguates*/);
+  env.error("unknown statement ambiguity", EF_NONE);
   return this;
 }
 
@@ -3816,13 +3879,13 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
     // See the note in TS_name::itcheck.
     return env.error(name->loc, stringc
       << "there is no variable called `" << *name << "'",
-      false /*disambiguates*/);
+      EF_NONE);
   }
 
   if (v->hasFlag(DF_TYPEDEF)) {
     return env.error(name->loc, stringc
       << "`" << *name << "' used as a variable, but it's actually a typedef",
-      true /*disambiguates*/);
+      EF_DISAMBIGUATES);
   }
        
   // TODO: access control check
@@ -4856,7 +4919,7 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 
   // help disambiguate t0182.cc
   if (op == BIN_LESS && e1->type->isFunctionType()) {
-    return env.error("cannot apply '<' to a function", true /*disambiguating*/);
+    return env.error("cannot apply '<' to a function", EF_DISAMBIGUATES);
   }
 
   // check for operator overloading
@@ -5652,6 +5715,9 @@ void TemplateDeclaration::tcheck(Env &env)
 {
   // Note: This code has been partially copied to TD_tmember::itcheck (below).
 
+  // Second to the right, and straight on till morning
+//    env.templateDeclarationStack.push(this);
+
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
 
@@ -5686,6 +5752,10 @@ void TemplateDeclaration::tcheck(Env &env)
 
   // remove the template argument scope
   env.exitScope(paramScope);
+
+  // exiting never-never land
+//    TemplateDeclaration *was = env.templateDeclarationStack.pop();
+//    xassert(was == this);
 }
 
 
@@ -5693,7 +5763,8 @@ void TD_func::itcheck(Env &env)
 {
   // check the function definition; internally this will get
   // the template parameters attached to the function type
-  f->tcheck(env, true /*checkBody*/);
+  f->tcheck(env, true /*checkBody*/,
+            true /*reallyAddVariable*/, NULL /*prior*/);
 
   // dsw: Template function specializations (both complete and
   // partial) have to get registered into the namespace somewhere.
@@ -5848,7 +5919,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
     if (!env.addVariable(var)) {
       env.error(stringc
         << "duplicate template parameter `" << name << "'",
-        false /*disambiguates*/);
+        EF_NONE);
     }
   }
 

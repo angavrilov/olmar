@@ -223,7 +223,7 @@ NODE *resolveAmbiguity(
     // now complain; mark it 'disambiguating' so that we'll see
     // this show up even in template code
     env.error("more than one ambiguous alternative succeeds",
-              true /*disambiguates*/);
+              EF_DISAMBIGUATES);
     return ths;
   }            
   

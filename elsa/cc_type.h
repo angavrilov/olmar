@@ -612,6 +612,7 @@ public:     // funcs
   // pointer/reference stuff
   bool isPointer() const { return isPointerType(); }
   bool isReference() const { return isReferenceType(); }
+  bool isReferenceToConst() const;
   bool isLval() const { return isReference(); }// C terminology
 
   // allow some degree of unified handling of PointerType and ReferenceType
@@ -1023,10 +1024,12 @@ public:    // data
   // the entire declaration; so here it is
   Declaration *declSyntax;          // (serf AST)
 
+private:                        // go through the accessors
   // The primary of this template info if we are a specialization or
   // an instantiation; NULL if we are a primary.
   TemplateInfo *myPrimary;
 
+public:
   // NOTE: There is an over-orthogonalization here.  The semantics of
   // instantiations and arguments are as follows; all other
   // combinations are illegal.  The astute reader will note that there
@@ -1138,6 +1141,8 @@ public:    // funcs
 
   // just sets 'myPrimary', plus a couple assertions regarding 'prim'
   void setMyPrimary(TemplateInfo *prim);
+  // return 'myPrimary'
+  TemplateInfo *getMyPrimary() const;
 
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;

@@ -19,14 +19,17 @@ enum ErrorFlags {
   // have a switch to disable them
   EF_WARNING       = 0x01,
 
+  // this error will not be supressed
+  EF_STRONG        = 0x02,
+
   // when this is true, the error message should be considered
   // when disambiguation; when it's false, it's not a sufficiently
   // severe error to warrant discarding an ambiguous alternative;
   // for the most part, only environment lookup failures are
   // considered to disambiguate
-  EF_DISAMBIGUATES = 0x02,
+  EF_DISAMBIGUATES = 0x04,
 
-  EF_ALL           = 0x03
+  EF_ALL           = 0x07
 };
 ENUM_BITWISE_OR(ErrorFlags)
 

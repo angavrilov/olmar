@@ -69,7 +69,8 @@ class Function {
 
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
-  public void tcheck(Env &env, bool checkBody);
+  public void tcheck(Env &env, bool checkBody,
+                     bool reallyAddVariable, Variable *prior);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
@@ -102,7 +103,8 @@ class MemberInit {
 
 
 class Declaration {                                   
-  public void tcheck(Env &env, DeclaratorContext context);
+  public void tcheck(Env &env, DeclaratorContext context,
+                     bool reallyAddVariable = true, Variable *prior = NULL);
 }
 
 
@@ -291,6 +293,23 @@ class Declarator {
 
     // syntactic context
     DeclaratorContext context;
+
+    // should we really add the variable to the scope?  if false,
+    // don't register the variable anywhere, which is a situation that
+    // occurs in template instantiation
+    bool reallyAddVariable;
+
+    // should be non-NULL only if reallyAddVariable is false; Not only
+    // do we not want to add a variable to the scope, we also want you
+    // to not even create one at all and use this one instead; This is
+    // useful for typechecking function template instantiations.
+    //
+    // Note that the semantics cannot be combined with
+    // reallyAddVariable since there are 3 situations:
+    //   make and add to scope,
+    //   make and don't add to scope, and
+    //   don't make and don't add to scope.
+    Variable *prior;
     
   public:
     Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
@@ -300,6 +319,8 @@ class Declarator {
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
       , context     (dc)
+      , reallyAddVariable (true)
+      , prior       (NULL)
     {}
     Tcheck(Tcheck const &obj)
       : var         (obj.var)
@@ -308,6 +329,8 @@ class Declarator {
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
       , context     (obj.context)
+      , reallyAddVariable(obj.reallyAddVariable)
+      , prior       (obj.prior)
     {}
     Tcheck& operator= (Tcheck const &obj) {
       var         = obj.var;
@@ -316,6 +339,8 @@ class Declarator {
       size_E_new  = obj.size_E_new;
       funcSyntax  = obj.funcSyntax;
       context     = obj.context;
+      reallyAddVariable = obj.reallyAddVariable;
+      prior       = obj.prior;
       return *this;
     }
 
