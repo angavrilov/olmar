@@ -223,7 +223,7 @@ string rightMangle(Type const *t, bool innerParen)
       int ct=0;
       SFOREACH_OBJLIST(Variable, ft->params, iter) {
         ct++;
-        if (ft->isMember() && ct==1) {
+        if (ft->isMethod() && ct==1) {
           // don't actually print the first parameter;
           // the 'm' stands for nonstatic member function
           // sb << "/""*m: " << iter.data()->type->toString() << " *""/ ";
@@ -231,7 +231,7 @@ string rightMangle(Type const *t, bool innerParen)
 	  sb << "/""*m*""/ ";
           continue;
         }
-        if (ct >= 3 || (!ft->isMember() && ct>=2)) {
+        if (ct >= 3 || (!ft->isMethod() && ct>=2)) {
           sb << ", ";
         }
         sb << mangleVariable(iter.data());

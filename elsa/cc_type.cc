@@ -1248,7 +1248,7 @@ bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
 
   if (!(flags & EF_STAT_EQ_NONSTAT)) {
     // check that either both are nonstatic methods, or both are not
-    if (isMember() != obj->isMember()) {
+    if (isMethod() != obj->isMethod()) {
       return false;
     }
   }
@@ -1283,8 +1283,8 @@ bool FunctionType::equalParameterLists(FunctionType const *obj,
   // but the other does not (can arise if EF_STAT_EQ_NONSTAT has
   // been specified)
   {
-    bool m1 = this->isMember();
-    bool m2 = obj->isMember();
+    bool m1 = this->isMethod();
+    bool m2 = obj->isMethod();
     bool ignore = flags & EF_IGNORE_IMPLICIT;
     if (m1 && (!m2 || ignore)) {
       iter1.adv();
@@ -1387,7 +1387,7 @@ void FunctionType::addThisParam(Variable *param)
 {
   xassert(param->type->isReference());
   xassert(param->hasFlag(DF_PARAMETER));
-  xassert(!isMember());
+  xassert(!isMethod());
   params.prepend(param);
   flags |= FF_METHOD;
 }
@@ -1398,7 +1398,7 @@ void FunctionType::doneParams()
 
 Variable const *FunctionType::getThisC() const
 {
-  xassert(isMember());
+  xassert(isMethod());
   Variable const *ret = params.firstC();
   xassert(ret->getTypeC()->isReference());
   return ret;
@@ -1406,7 +1406,7 @@ Variable const *FunctionType::getThisC() const
 
 CVFlags FunctionType::getThisCV() const
 {
-  if (isMember()) {
+  if (isMethod()) {
     // expect 'this' to be of type 'SomeClass cv &', and
     // dig down to get that 'cv'
     return getThisC()->type->asPointerType()->atType->asCVAtomicType()->cv;
@@ -1468,13 +1468,13 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   int ct=0;
   SFOREACH_OBJLIST(Variable, params, iter) {
     ct++;
-    if (isMember() && ct==1) {
+    if (isMethod() && ct==1) {
       // don't actually print the first parameter;
       // the 'm' stands for nonstatic member function
       sb << "/""*m: " << iter.data()->type->toString() << " *""/ ";
       continue;
     }
-    if (ct >= 3 || (!isMember() && ct>=2)) {
+    if (ct >= 3 || (!isMethod() && ct>=2)) {
       sb << ", ";
     }
     sb << iter.data()->toStringAsParameter();

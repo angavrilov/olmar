@@ -193,7 +193,7 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // is this a nonstatic member function?
-  if (funcType->isMember()) {
+  if (funcType->isMethod()) {
     this->thisVar = funcType->getThis();
     
     // this would be redundant--the parameter list already got
@@ -1746,7 +1746,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // If it is a function, is it virtual?
   if (var->type->isFunctionType()
-      && var->type->asFunctionType()->isMember()
+      && var->type->asFunctionType()->isMethod()
       && !var->hasFlag(DF_VIRTUAL)) {
 //      printf("var->name: %s\n", var->name);
 //      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
@@ -1763,14 +1763,14 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         //               base_iter.data()->ct->name);
         Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
         xassert(var2 != var);
-        if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMember()) {
+        if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMethod()) {
           if (Variable *var_overload =
               var2->getOverloadSet()->findByType
               (var->type->asFunctionType(),
                var->type->asFunctionType()->getThisCV())) {
             xassert(var_overload != var);
             xassert(var_overload->type->isFunctionType());
-            xassert(var_overload->type->asFunctionType()->isMember());
+            xassert(var_overload->type->asFunctionType()->isMethod());
             if (var_overload->hasFlag(DF_VIRTUAL)) {
               // then we inherit the virtuality
               var->setFlag(DF_VIRTUAL);
@@ -2337,7 +2337,7 @@ realStart:
         !isConstructor &&               // ctors don't have a 'this' param
         !(dt.dflags & DF_STATIC) &&
         (!name->hasQualifiers() ||
-         prior->type->asFunctionTypeC()->isMember())) {
+         prior->type->asFunctionTypeC()->isMethod())) {
       TRACE("memberFunc", "member function: " << *name);
 
       // add the implicit 'this' parameter
@@ -3669,7 +3669,7 @@ static bool allNonTemplates(FakeList<ICExpression> *args)
 static bool allNonMethods(SObjList<Variable> &set)
 {
   SFOREACH_OBJLIST(Variable, set, iter) {
-    if (iter.data()->type->asFunctionType()->isMember()) return false;
+    if (iter.data()->type->asFunctionType()->isMethod()) return false;
   }
   return true;
 }
@@ -3680,7 +3680,7 @@ static bool allMethods(SObjList<Variable> &set)
 {
   SFOREACH_OBJLIST(Variable, set, iter) {
 //      cout << "iter.data()->type->asFunctionType() " << iter.data()->type->asFunctionType()->toCString() << endl;
-    if (!iter.data()->type->asFunctionType()->isMember()) return false;
+    if (!iter.data()->type->asFunctionType()->isMethod()) return false;
   }
   return true;
 }
@@ -4623,7 +4623,7 @@ static Type *makePTMType(Env &env, E_variable *e_var)
   
   // this is essentially a consequence of not being static
   if (e_var->type->asRval()->isFunctionType()) {
-    xassert(e_var->type->asRval()->asFunctionType()->isMember());
+    xassert(e_var->type->asRval()->asFunctionType()->isMethod());
   }
 
   // cppstd: 8.3.3 para 3, can't be cv void

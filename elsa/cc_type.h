@@ -731,9 +731,6 @@ public:
   bool isConstructor() const          { return !!(flags & FF_CTOR); }
   bool isDestructor() const           { return !!(flags & FF_DTOR); }
 
-  // this is the old name; use 'isMethod' instead (more descriptive)
-  bool isMember() const               { return !!(flags & FF_METHOD); }
-
   bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
