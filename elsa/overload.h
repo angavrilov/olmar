@@ -83,7 +83,10 @@ public:
   // how big to make 'conversions'
   Candidate(Variable *v, int numArgs);
   ~Candidate();
-                                        
+
+  // true if one of the conversions is IC_AMBIGUOUS
+  bool hasAmbigConv() const;
+
   // debugging
   void conversionDescriptions() const;
 };

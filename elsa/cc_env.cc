@@ -271,6 +271,37 @@ void Env::setupOperatorOverloading()
   // bool operator!= (T, T);
   addBuiltinBinaryOp(BIN_NOTEQUAL, rvalFilter, pointerOrEnumOrPTM);
 
+  // ---- 13.6 para 17 ----
+  // LR operator% (L,R);
+  addBuiltinBinaryOp(BIN_MOD,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
+  // LR operator& (L,R);
+  addBuiltinBinaryOp(BIN_BITAND,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
+  // LR operator^ (L,R);
+  addBuiltinBinaryOp(BIN_BITXOR,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
+  // LR operator| (L,R);
+  addBuiltinBinaryOp(BIN_BITOR,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
+  // L operator<< (L,R);
+  addBuiltinBinaryOp(BIN_LSHIFT,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
+  // L operator>> (L,R);
+  addBuiltinBinaryOp(BIN_RSHIFT,
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
+    getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
+
   exitScope(dummyScope);
 
   // the default constructor for ArrayStack will have allocated 10

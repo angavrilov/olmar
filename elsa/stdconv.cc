@@ -125,7 +125,8 @@ bool isIntegerNumeric(Type const *t, SimpleType const *tSimple)
 {
   if (tSimple) {
     return isIntegerType(tSimple->type) ||
-           tSimple->type == ST_BOOL;
+           tSimple->type == ST_BOOL ||
+           tSimple->type == ST_PROMOTED_INTEGRAL;
   }
 
   // TODO: bitfields are also a valid integer conversion source,
@@ -138,14 +139,19 @@ bool isIntegerNumeric(Type const *t, SimpleType const *tSimple)
 bool isNumeric(Type const *t, SimpleType const *tSimple)
 {
   return isIntegerNumeric(t, tSimple) ||
-         (tSimple && isFloatType(tSimple->type));
+         (tSimple && isFloatType(tSimple->type)) ||
+         (tSimple && tSimple->type == ST_PROMOTED_ARITHMETIC);
 }
 
 
 // cppstd 13.6 para 2
+bool isPromotedIntegral(SimpleTypeId id)
+{
+  return ST_INT <= id && id <= ST_UNSIGNED_LONG_INT;
+}
 bool isPromotedArithmetic(SimpleTypeId id)
 {
-  return ST_INT <= id && id <= ST_UNSIGNED_LONG_INT ||
+  return isPromotedIntegral(id) ||
          ST_FLOAT <= id && id <= ST_LONG_DOUBLE;
 }
 
@@ -598,6 +604,12 @@ StandardConversion getStandardConversion
   SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
   SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
 
+  if (destSimple && destSimple->type == ST_PROMOTED_INTEGRAL &&
+      srcSimple && isPromotedIntegral(srcSimple->type)) {
+    // polymorphic match
+    return conv.ret;
+  }
+
   if (destSimple && destSimple->type == ST_PROMOTED_ARITHMETIC &&
       srcSimple && isPromotedArithmetic(srcSimple->type)) {
     // polymorphic match
@@ -667,6 +679,7 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
   SimpleTypeId did = destSimple? dest->asSimpleTypeC()->type : ST_ERROR;
 
   if (did == ST_INT ||
+      did == ST_PROMOTED_INTEGRAL ||
       did == ST_PROMOTED_ARITHMETIC) {
     // paragraph 1: char/short -> int
     // implementation choice: I assume char is 8 bits and short

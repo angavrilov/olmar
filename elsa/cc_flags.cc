@@ -172,7 +172,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "<dependent>",            0,    false,  false, },
 
 
-
+  { "<prom_int>",             0,    false,  false, },
   { "<prom_arith>",           0,    false,  false, },
 
   { "<any_obj>",              0,    false,  false, },

@@ -162,7 +162,7 @@ enum SimpleTypeId {
   ST_DEPENDENT,              // depdenent on an uninstantiated template parameter type
   
   // for polymorphic built-in operators (cppstd 13.6)
-  //ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
+  ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
   ST_PROMOTED_ARITHMETIC,    // promoted integral + float,double,longdouble
   //ST_ARITHMETIC,             // every simple type except bool & void
   ST_ANY_OBJ_TYPE,           // any object (non-function, non-void) type

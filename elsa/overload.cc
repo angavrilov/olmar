@@ -23,6 +23,17 @@ Candidate::~Candidate()
 {}
 
 
+bool Candidate::hasAmbigConv() const
+{
+  for (int i=0; i < conversions.size(); i++) {
+    if (conversions[i].isAmbiguous()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 void Candidate::conversionDescriptions() const
 {
   for (int i=0; i < conversions.size(); i++) {
@@ -223,8 +234,25 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
   }
 
   OVERLOADTRACE(toString(loc)
-    << ": selected " << winner->var->toString() 
+    << ": selected " << winner->var->toString()
     << " at " << toString(winner->var->loc));
+
+  if (winner->hasAmbigConv()) {
+    // At least one of the conversions required for the winning candidate
+    // is ambiguous.  This might actually mean, had we run the algorithm
+    // as specified in the spec, that there's an ambiguity among the
+    // candidates, since I fold some of that into the selection of the
+    // conversion, for polymorphic built-in operator candidates.  Therefore,
+    // this situation should appear to the caller the same as when we
+    // definitely do have ambiguity among the candidates.
+    if (errors) {
+      errors->addError(new ErrorMsg(
+        loc, "ambiguous overload or ambiguous conversion", EF_NONE));
+    }
+    OVERLOADTRACE("ambiguous overload or ambiguous conversion");
+    wasAmbig = true;
+    return NULL;
+  }
 
   return winner->var;
 }
