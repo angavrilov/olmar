@@ -355,7 +355,7 @@ any T' not equal to T, such that U and V can convert to T':
   V->T' is not better than V->T, and
   either
     U->T is better than U->T', or
-    V->T is better than V->T'
+    V->T is better than V->T' (or both are better)
 
 (These rules paraphrase the relevant parts of 13.3.3 paragraph 1.)
 Applying equation ($$) above, rewrite this as
@@ -378,12 +378,14 @@ the only possible instantiation of T that could yield a winning
 candidate function, if the arguments are converted to U and V.
 
 Based on the characterization of R given above, computing the LUB is
-fairly easy.  For single-level pointers or pointers to member, we need
-the LUB in the class hierarchy, which is straightforward to compute.
-Then in all cases, we simply union the cv flags (only down to the
-first non-pointer, non-pointer-to-member type constructor).  That is,
-R's LUB is a product of underlying LUBs, just as the order itself is 
-a product of underlying orders.
+fairly easy.  For single-level pointers, we need the LUB in the class
+hierarchy, which is straightforward to compute.  For single-level
+pointers to members, we need the greatest lower bound (GLB); but see
+the note about this at the end.  Then in all cases, we simply union
+the cv flags (only down to the first non-pointer,
+non-pointer-to-member type constructor).  That is, R's LUB is a
+product of underlying LUBs, just as the order itself is a product of
+underlying orders.
 
 But not all pairs of types have a LUB.  First, there might not be
 any types to which both can convert; 'int*' and 'int' are such
@@ -495,3 +497,90 @@ correct analysis?  Might there be hidden ambiguities or other problems
 due to the incomplete analysis?  Or is this a good practical corner to
 cut?  I have relatively little experience with programs that make
 heavy use of conversion operators, so I just don't know.
+
+
+--- GLB in the class hierarchy ---
+
+The greatest lower bound (GLB) is a bit of a pain to compute, for two
+reasons.  First, this is the only place that the GLB is relevant to
+type checking in C++, so the necessary map (parent -> children)
+doesn't already exist in the type checker implementation.  Adding this
+map is not hard, but care should be taken to ensure this map isn't
+mistaken for the whole-program version: any one translation unit need
+not contain all classes.
+
+Second, because classes may be added at any time, GLB queries cannot
+be memoized in the obvious way.  The query memoization infrastructure
+needs to be able to partly invalidate its old results when new classes
+are added.  (This is essentially a single-translation-unit version of
+the problem identified in the previous paragraph: the GLB changes as
+you see more code.)
+
+Finally, I think the need for GLB is evidence of a language design
+mistake.  Consider this example that requires the GLB:
+
+  struct A { int x; };         //      A   B        .
+  struct B { int y; };         //       \ /         .
+  struct C : A,B { int z; };   //        C          .
+
+  // use some operator functions so that the compiler's
+  // static-semantic decisions have run-time consequences
+  struct PTMA {
+    operator int A::* ();      // return pointer to member of A
+  };
+  struct PTMB {
+    operator int B::* ();      // return pointer to member of B
+  };
+
+  bool f()
+  {
+    PTMA a;
+    PTMB b;
+
+    // equivalent to:
+    //   return  a.operator A::*()  ==  b.operator B::*();
+    // where the two arguments are converted to int C::* for comparison,
+    // i.e. the chosen candidate operator function is
+    //   bool operator== (int C::*, int C::*);
+    return a==b;
+  }
+
+In the first place, note that the equality could never be true when
+the original classes are not related by inheritance.  But then suppose
+that we follow this code (in the same translation unit) with:
+
+  //      A  B        .
+  //      |\/|        .
+  //      |/\|        .
+  //      C  D        .
+  struct D : A,B { int w; };
+
+  bool g()
+  {
+    PTMA a;
+    PTMB b;
+
+    // error!  cannot decide whether to convert the arguments to
+    // int C::* or int D::*; that is, these candidates conflict:
+    //   bool operator== (int C::*, int C::*);
+    //   bool operator== (int D::*, int D::*);
+    return a==b;
+  }
+
+Now, function g() is no more bizarre than f() was--its comparison is
+also guaranteed to be false--and yet the compiler must reject it.  The
+programmer is forced to be aware of the *entire* class hierarchy visible
+at each program point where the GLB might come into play, and not just
+those classes (and their superclasses) that the programmer is actually
+using.
+
+It's not clear to me what the best language fix is.  I think that
+pointer-to-member (with its current semantics) should not be in the
+language at all (it's the one feature I would remove if I could).
+But given its presence, I don't see a quick fix to (e.g.) 13.6.
+
+Side note: In Elsa, I don't implement the GLB analysis.  If the
+classes in single-level pointer-to-member aren't equal, I reject the
+pair.  I pity the fool whose code this breaks.  I'd be surprised if
+such code even exists, outside C++ test suites.
+
