@@ -1073,7 +1073,11 @@ nonterm[IDeclarator*] DirectDeclarator {
 // my terminology.)
 nonterm[PQName*] PQDtorName {
   -> "~" n:TypeName              [ return new PQ_name(str(stringc << "~" << n)); ]
-  -> q:Qualifier rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
+
+  // as above for PQName_no_colon_colon, I'm temporarily removing an
+  // ambiguity that relates to namespaces (e.g. "::F::~F()")
+  //-> q:Qualifier rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
+  -> q:TypeName "::" rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
 }
