@@ -194,7 +194,6 @@ NODE *resolveAmbiguity(
     }
     env.errors.addError(new ErrorMsg(
       loc, "---- END: messages from an ambiguity ----", EF_NONE));
-    goto return_ths;
   }
 
   else if (numOk == 1) {
@@ -207,13 +206,9 @@ NODE *resolveAmbiguity(
     // and warnings); errors associated with other alternatives will
     // be deleted automatically
     env.errors.takeMessages(altErrors[lastOkIndex]);
-
-    // break the ambiguity link (if any) in 'lastOk', so if someone
-    // comes along and tchecks this again we can skip the last part
-    // of the ambiguity list
-    const_cast<NODE*&>(lastOk->ambiguity) = NULL;
+    
+    // select 'lastOk'
     ths = lastOk;
-    goto return_ths;
   }
 
   else {
@@ -225,10 +220,18 @@ NODE *resolveAmbiguity(
     // this show up even in template code
     env.error("more than one ambiguous alternative succeeds",
               EF_DISAMBIGUATES);
-    goto return_ths;
   }
 
-return_ths:
+  // 2005-03-27: I moved this down here so that we always resolve
+  // the ambiguity, even when there is no basis for choosing.  The
+  // failed resolution will still generate an error, but this way
+  // subsequent stages will find an unambiguous AST (in/t0459.cc).
+  //
+  // break the ambiguity link (if any) in 'lastOk', so if someone
+  // comes along and tchecks this again we can skip the last part
+  // of the ambiguity list
+  const_cast<NODE*&>(ths->ambiguity) = NULL;
+
   // cleanup the array if necessary
   if (numAlts > NOMINAL_MAX_ALT) {
     delete[] altErrors;
