@@ -41,22 +41,28 @@ public:
   // selectors
   int count() const                     { return list.count(); }
   bool isEmpty() const                  { return list.isEmpty(); }
-
   T *nth(int which)                     { return (T*)list.nth(which); }
-  T const *nthc(int which) const        { return (T const*)list.nth(which); }
-
-  bool contains(T const *item) const    { return list.contains(item); }
-  int indexOf(T const *item) const      { return list.indexOf(item); }
+  T const *nthC(int which) const        { return (T const*)list.nth(which); }
 
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
-  void insertAt(T *newitem, int index)	{ list.insertAt(newitem, index); }
+  void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
 
   // removal
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
   void deleteAt(int index)              { delete (T*)list.removeAt(index); }
   void deleteAll();
+
+  // list-as-set: selectors
+  int indexOf(T const *item) const      { return list.indexOf((void*)item); }
+  bool contains(T const *item) const    { return list.contains((void*)item); }
+
+  // list-as-set: mutators
+  bool prependUnique(T *newitem)        { return list.prependUnique(newitem); }
+  bool appendUnique(T *newitem)         { return list.appendUnique(newitem); }
+  void removeItem(T const *item)        { list.removeItem((void*)newitem); }    // whether the arg should be const is debatable..
+  bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)newitem); }
 
   // complex modifiers
   void insertionSort(Diff diff, void *extra=NULL)   { list.insertionSort((VoidDiff)diff, extra); }
@@ -79,33 +85,14 @@ void ObjList<T>::deleteAll()
 }
 
 
-// for traversing the list without modifying it (neither nodes nor structure)
-// NOTE: no list-modification fns should be called on 'list' while this
-//       iterator exists
-template <class T>
-class ObjListIter {
-protected:
-  VoidListIter iter;	  // underlying iterator
-
-public:
-  ObjListIter(ObjList<T> const &list) : iter(list.list) {}
-  ~ObjListIter()                      {}
-
-  void reset(ObjList<T> const &list)  { iter.reset(list.list); }
-
-  // iterator actions
-  bool isDone() const                 { return iter.isDone(); }
-  void adv()                          { iter.adv(); }
-  T const *data() const	       	      { return (T const*)iter.data(); }
-};
-
-
 // for traversing the list and modifying it (nodes and/or structure)
 // NOTE: no list-modification fns should be called on 'list' while this
 //       iterator exists, and only one such iterator should exist for
 //       any given list
 template <class T>
 class ObjListMutator {
+  friend ObjListIter<T>;
+
 protected:
   VoidListMutator mut;       // underlying mutator
 
@@ -114,6 +101,13 @@ public:
   ~ObjListMutator()                     {}
 
   void reset()                          { mut.reset(); }
+
+  // iterator copying; safe *only* until one of the mutators modifies
+  // the list structure (by inserting or removing), at which time all
+  // other iterators might be in limbo
+  ObjListMutator(ObjListMutator const &obj)             : mut(obj.mut) {}
+  ObjListMutator& operator=(ObjListMutator const &obj)  { mut = obj.mut;  return *this; }
+    // requires that 'this' and 'obj' already refer to the same 'list'
 
   // iterator actions
   bool isDone() const                   { return mut.isDone(); }
@@ -145,5 +139,40 @@ public:
   // debugging
   bool invariant() const                { return mut.invariant(); }
 };
+
+#define MUTATE_EACH_OBJLIST(T, list, iter) \
+  for(ObjListMutator<T> iter(list); !iter.isDone(); iter.adv())
+
+
+// for traversing the list without modifying it (neither nodes nor structure)
+// NOTE: no list-modification fns should be called on 'list' while this
+//       iterator exists
+template <class T>
+class ObjListIter {
+protected:
+  VoidListIter iter;      // underlying iterator
+
+public:
+  ObjListIter(ObjList<T> const &list) : iter(list.list) {}
+  ~ObjListIter()                      {}
+
+  void reset(ObjList<T> const &list)  { iter.reset(list.list); }
+
+  // iterator copying; generally safe
+  ObjListIter(ObjListIter const &obj)             : iter(obj.iter) {}
+  ObjListIter& operator=(ObjListIter const &obj)  { iter = obj.iter;  return *this; }
+
+  // but copying from a mutator is less safe; see above
+  ObjListIter(ObjListMutator<T> &obj)             : iter(obj.mut) {}
+
+  // iterator actions
+  bool isDone() const                 { return iter.isDone(); }
+  void adv()                          { iter.adv(); }
+  T const *data() const               { return (T const*)iter.data(); }
+};
+
+#define FOREACH_OBJLIST(T, list, iter) \
+  for(ObjListIter<T> iter(list); !iter.isDone(); iter.adv())
+
 
 #endif // __OBJLIST_H

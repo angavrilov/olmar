@@ -29,19 +29,19 @@ tests-files = nonport voidlist tobjlist bit2d growbuf
 tests: ${tests-files}
 
 # test the nonportable routines
-nonport: nonport.cpp
+nonport: nonport.cpp nonport.h
 	${link} -o nonport -DTEST_NONPORT nonport.cpp ${linkend}
 
-voidlist: voidlist.cc ${THISLIBRARY}
+voidlist: voidlist.cc voidlist.h ${THISLIBRARY}
 	${link} -o voidlist -DTEST_VOIDLIST voidlist.cc ${THISLIBRARY} ${linkend}
 
-tobjlist: tobjlist.cc voidlist.o ${THISLIBRARY}
+tobjlist: tobjlist.cc objlist.h voidlist.o ${THISLIBRARY}
 	${link} -o tobjlist tobjlist.cc voidlist.o ${THISLIBRARY} ${linkend}
 
-bit2d: bit2d.cc ${THISLIBRARY}
+bit2d: bit2d.cc bit2d.h ${THISLIBRARY}
 	${link} -o bit2d -DTEST_BIT2D bit2d.cc ${THISLIBRARY} ${linkend}
 
-growbuf: growbuf.cc ${THISLIBRARY}
+growbuf: growbuf.cc growbuf.h ${THISLIBRARY}
 	${link} -o growbuf -DTEST_GROWBUF growbuf.cc ${THISLIBRARY} ${linkend}
 
 check: ${tests-files}

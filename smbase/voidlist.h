@@ -18,6 +18,11 @@ public:
 };
 
 
+// forward decls for 'friend' decls
+class VoidListIter;
+class VoidListMutator;
+
+
 // The difference function should return <0 if left should come before
 // right, 0 if they are equivalent, and >0 if right should come before
 // left.  For example, if we are sorting numbers into ascending order,
@@ -29,8 +34,8 @@ typedef int (*VoidDiff)(void *left, void *right, void *extra);
 // the list won't attempt to delete(), compare them, or anything else
 class VoidList {
 private:
-  friend class VoidListIter;
-  friend class VoidListMutator;
+  friend VoidListIter;
+  friend VoidListMutator;
 
 protected:
   VoidNode *top;                     // (owner) first node, or NULL if list is empty
@@ -45,11 +50,7 @@ public:
   // selectors
   int count() const;                 // # of items in list
   bool isEmpty() const               { return top == NULL; }
-
   void *nth(int which) const;        // get particular item, 0 is first (item must exist)
-  int indexOf(void *item) const;     // returns index of *first* occurrance, or -1 if not present
-  bool contains(void *item) const    // true if the item appears in the list
-    { return indexOf(item) >= 0; }
 
   // insertion
   void prepend(void *newitem);       // insert at front
@@ -60,6 +61,17 @@ public:
   // removal
   void *removeAt(int index);         // remove from list (must exist), and return removed item
   void removeAll();
+
+  // list-as-set: selectors
+  int indexOf(void *item) const;     // returns index of *first* occurrance, or -1 if not present
+  bool contains(void *item) const    // true if the item appears in the list
+    { return indexOf(item) >= 0; }
+
+  // list-as-set: mutators
+  bool prependUnique(void *newitem); // prepend only if not already there
+  bool appendUnique(void *newitem);  // append   "            "
+  void removeItem(void *item);       // remove first occurrance -- must exist
+  bool removeIfPresent(void *item);  // remove first occurrance; return true if changed
 
   // complex modifiers
   void insertionSort(VoidDiff diff, void *extra=NULL);
@@ -75,31 +87,13 @@ public:
 };
 
 
-// for traversing the list without modifying it
-// NOTE: no list-modification fns should be called on 'list' while this
-//       iterator exists
-class VoidListIter {
-protected:
-  VoidNode *p;                        // (serf) current item
-
-public:
-  VoidListIter(VoidList const &list)  { reset(list); }
-  ~VoidListIter()                     {}
-
-  void reset(VoidList const &list)    { p = list.top; }
-
-  // iterator actions
-  bool isDone() const                 { return p == NULL; }
-  void adv()                          { p = p->next; }
-  void *data() const                  { return p->data; }
-};
-
-
 // for traversing the list and modifying it
 // NOTE: no list-modification fns should be called on 'list' while this
 //       iterator exists, and only one such iterator should exist for
 //       any given list
 class VoidListMutator {
+  friend VoidListIter;
+
 protected:
   VoidList &list; 	  // underlying list
   VoidNode *prev;         // (serf) previous node; NULL if at list's head
@@ -109,11 +103,19 @@ public:
   VoidListMutator(VoidList &lst)   : list(lst) { reset(); }
   ~VoidListMutator()               {}
 
-  void reset()                     { prev=NULL; current=list.top; }
+  void reset()                     { prev = NULL;  current = list.top; }
+
+  // iterator copying; safe *only* until one of the mutators modifies
+  // the list structure (by inserting or removing), at which time all
+  // other iterators might be in limbo
+  VoidListMutator(VoidListMutator const &obj)
+    : list(obj.list), prev(obj.prev), current(obj.current) {}
+  VoidListMutator& operator=(VoidListMutator const &obj);
+    // requires that 'this' and 'obj' already refer to the same 'list'
 
   // iterator actions
   bool isDone() const              { return current == NULL; }
-  void adv()                       { prev=current; current = current->next; }
+  void adv()                       { prev = current;  current = current->next; }
   void *data()                     { return current->data; }
 
   // insertion
@@ -137,8 +139,36 @@ public:
 
   // debugging
   bool invariant() const
-    { return (prev->next == current && current != list.top) ||
+    { return (prev->next == current  &&  current != list.top) ||
              (prev==NULL && current==list.top); }
 };
+
+
+// for traversing the list without modifying it
+// NOTE: no list-modification fns should be called on 'list' while this
+//       iterator exists
+class VoidListIter {
+protected:
+  VoidNode *p;                        // (serf) current item
+
+public:
+  VoidListIter(VoidList const &list)  { reset(list); }
+  ~VoidListIter()                     {}
+
+  void reset(VoidList const &list)    { p = list.top; }
+
+  // iterator copying; generally safe
+  VoidListIter(VoidListIter const &obj)             { p = obj.p; }
+  VoidListIter& operator=(VoidListIter const &obj)  { p = obj.p;  return *this; }
+
+  // but copying from a mutator is less safe; see above
+  VoidListIter(VoidListMutator &obj)  { p = obj.current; }
+
+  // iterator actions
+  bool isDone() const                 { return p == NULL; }
+  void adv()                          { p = p->next; }
+  void *data() const                  { return p->data; }
+};
+
 
 #endif // __VOIDLIST_H

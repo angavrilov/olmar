@@ -32,19 +32,6 @@ void *VoidList::nth(int which) const
 }
 
 
-// get the index of an item's first occurrance
-int VoidList::indexOf(void *item) const
-{			  
-  int index = 0;
-  for (VoidNode *p = top; p != NULL; p = p->next, index++) {
-    if (p->data == item) {
-      return index;
-    }
-  }
-  return -1;
-}
-
-
 // return false if list fails integrity check
 bool VoidList::invariant() const
 {
@@ -89,7 +76,7 @@ void VoidList::append(void *newitem)
   if (!top) {
     prepend(newitem);
   }
-  else {	   
+  else {
     VoidNode *p;
     for (p = top; p->next; p = p->next)
       {}
@@ -128,6 +115,79 @@ void VoidList::insertAt(void *newitem, int index)
     p->next = n;
   }
 }
+
+
+// ----------------- list-as-set stuff -------------------
+// get the index of an item's first occurrance
+int VoidList::indexOf(void *item) const
+{
+  int index = 0;
+  for (VoidNode *p = top; p != NULL; p = p->next, index++) {
+    if (p->data == item) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+
+bool VoidList::prependUnique(void *newitem)
+{
+  if (!contains(newitem)) {
+    prepend(newitem);
+    return true;
+  }
+  else {
+    return false;   // no change
+  }
+}
+
+
+bool VoidList::appendUnique(void *newitem)
+{
+  if (!top) {
+    prepend(newitem);
+    return true;
+  }
+
+  // walk to the end of list, while checking to
+  // see if 'newitem' is already in the list
+  VoidNode *p;
+  for (p = top; p->next; p = p->next) {
+    if (p->data == newitem) {
+      return false;      // item is already on list; no change
+    }
+  }
+  if (p->data == newitem) {
+    return false;
+  }
+
+  p->next = new VoidNode(newitem);
+  return true;
+}
+
+
+bool VoidList::removeIfPresent(void *item)
+{
+  // for now, not a real fast implementation
+  int index = indexOf(item);
+  if (index == -1) {
+    return false;   // not there
+  }
+  else {
+    removeAt(index);
+    return true;
+  }
+}
+
+
+void VoidList::removeItem(void *item)
+{
+  bool wasThere = removeIfPresent(item);
+  xassert(wasThere);
+}
+
+// ----------------- end of list-as-set stuff -------------------
 
 
 void *VoidList::removeAt(int index)
@@ -344,6 +404,21 @@ void VoidList::debugPrint() const
 
 
 // --------------- VoidListMutator ------------------
+VoidListMutator& 
+  VoidListMutator::operator=(VoidListMutator const &obj)
+{			      
+  // we require that the underlying lists be the same
+  // because we can't reset the 'list' reference if they
+  // aren't
+  xassert(&list == &obj.list);
+  
+  prev = obj.prev;
+  current = obj.current;
+
+  return *this;
+}
+
+
 void VoidListMutator::insertBefore(void *item)
 {
   if (prev == NULL) {
@@ -489,6 +564,45 @@ void entry()
              list.indexOf(d) == 2 &&
              list.invariant()
            );
+           
+    // test mutator s
+    {
+      VoidListMutator mut(list);
+      mut.adv();
+	// now it's pointing at b
+      mut.insertAfter(c);
+	// now list is (a b c d) and mut points at b still
+      verifySorted(list);
+      mut.remove();
+	// now list is (a c d) and mut points at c
+      xassert(mut.data() == c);
+
+      // copy the mutator
+      VoidListMutator mut2(mut);
+      mut2.adv();
+      xassert(mut.data() == c  &&  mut2.data() == d);
+
+      // copy to a normal iterator
+      VoidListIter iter(mut);
+      iter.adv();
+      xassert(iter.data() == d);
+      iter.adv();
+      xassert(iter.isDone()  &&  mut.data() == c);
+
+      PRINT(list);
+    }
+
+    // test appendUnique and prependUnique
+    // list starts as (a c d)
+    xassert(list.appendUnique(c) == false &&
+            list.prependUnique(d) == false &&
+            list.prependUnique(b) == true);
+      // now it is (b a c d)
+    list.removeItem(a);
+    xassert(list.removeIfPresent(a) == false);
+      // now it is (b c d)
+    verifySorted(list);
+    PRINT(list);
   }
 
   // this hits most of the remaining code
