@@ -3,6 +3,7 @@
    */
 
 "__builtin_constant_p" return tok(TOK_BUILTIN_CONSTANT_P);
+"__alignof"            return tok(TOK___ALIGNOF__);
 "__alignof__"          return tok(TOK___ALIGNOF__);
 
 "__attribute"          return tok(TOK___ATTRIBUTE__);
