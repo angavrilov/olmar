@@ -247,7 +247,7 @@ cexp-dep := glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
 cexp3-dep := cexp3.gr.gen.o $(cexp-dep)
 cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
-	./cexp3 cexp3.bin cexp3.in1 | tee tmp.out
+	./cexp3 cexp3.bin in/cexp3.in1 | tee tmp.out
 	grep 'result: 0x7' tmp.out
 
 # intermediate files for a grammar
@@ -279,7 +279,7 @@ cexp3b.gr: cexp3.gr
 cexp3b-dep := cexp3b.gr.gen.o $(cexp-dep)
 cexp3b: $(cexp3b-dep)
 	$(link) -o cexp3b $(cexp3b-dep)
-	./cexp3b cexp3b.bin cexp3.in1 | tee tmp.out
+	./cexp3b cexp3b.bin in/cexp3.in1 | tee tmp.out
 	grep 'result: 0x7' tmp.out
 
 # intermediate files for cdecl
@@ -293,8 +293,8 @@ cexp3b: $(cexp3b-dep)
 cdecl-dep := cdecl.gen.o glrmain.o libglr.a $(libraries)
 cdecl: $(cdecl-dep)
 	$(link) -o cdecl $(cdecl-dep)
-	./cdecl cdecl.bin cdecl.in1
-	./cdecl -tr cdecl cdecl.bin cdecl.in1 | grep -v progress > tmp
+	./cdecl cdecl.bin in/cdecl.in1
+	./cdecl -tr cdecl cdecl.bin in/cdecl.in1 | grep -v progress > tmp
 	diff cdecl.out1 tmp
 
 # intermediate files for cdecl2
@@ -308,8 +308,8 @@ cdecl: $(cdecl-dep)
 cdecl2-dep := cdecl2.gen.o glrmain.o libglr.a $(libraries)
 cdecl2: $(cdecl2-dep)
 	$(link) -o cdecl2 $(cdecl2-dep)
-	./cdecl2 cdecl2.bin cdecl.in1
-	./cdecl2 -tr cdecl cdecl2.bin cdecl.in1 | grep -v progress > tmp
+	./cdecl2 cdecl2.bin in/cdecl.in1
+	./cdecl2 -tr cdecl cdecl2.bin in/cdecl.in1 | grep -v progress > tmp
 	diff cdecl.out1 tmp
 
 #.PRECIOUS: cdecl2
@@ -604,7 +604,7 @@ clean:
 
 # regression tests
 check-cexp2: cexp2
-	./cexp2 cexp2.bin cexp2.in2
+	./cexp2 cexp2.bin in/cexp2.in2
 
 check: check-cexp2 ccgr gramanl
 	./gramanl --testRW ffollow
