@@ -464,6 +464,11 @@ PQName const *D_pointer::getDeclaratorIdC() const
   return base->getDeclaratorIdC();
 }
 
+PQName const *D_reference::getDeclaratorIdC() const
+{
+  return base->getDeclaratorIdC();
+}
+
 PQName const *D_func::getDeclaratorIdC() const
 {
   return base->getDeclaratorIdC();

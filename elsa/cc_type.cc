@@ -2314,14 +2314,15 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
 
 
 Type *TypeFactory::syntaxPointerType(SourceLoc loc,
-  bool isPtr, CVFlags cv, Type *type, D_pointer *)
+  CVFlags cv, Type *type, D_pointer *)
 {
-  if (isPtr) {
-    return makePointerType(loc, cv, type);
-  }
-  else {
-    return makeReferenceType(loc, type);
-  }
+  return makePointerType(loc, cv, type);
+}
+
+Type *TypeFactory::syntaxReferenceType(SourceLoc loc,
+  Type *type, D_reference *)
+{
+  return makeReferenceType(loc, type);
 }
 
 

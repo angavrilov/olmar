@@ -43,6 +43,7 @@ class TS_classSpec;       // cc.ast
 class Expression;         // cc.ast
 class TemplateArgument;   // cc.ast
 class D_pointer;          // cc.ast
+class D_reference;        // cc.ast
 class D_func;             // cc.ast
 class D_ptrToMember;      // cc.ast
 class TypeSpecifier;      // cc.ast
@@ -1148,11 +1149,10 @@ public:
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
   // this to make sense
-  //
-  // returns either PointerType or ReferenceType
   virtual Type *syntaxPointerType(SourceLoc loc,
-    bool isPtr, CVFlags cv, Type *underlying,
-    D_pointer * /*nullable*/ syntax);
+    CVFlags cv, Type *underlying, D_pointer * /*nullable*/ syntax);
+  virtual Type *syntaxReferenceType(SourceLoc loc,
+    Type *underlying, D_reference * /*nullable*/ syntax);
 
   // similar for a function type; the parameters will be added by
   // the caller after this function returns

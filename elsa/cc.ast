@@ -339,9 +339,11 @@ class IDeclarator(SourceLoc loc) {
   -> D_name(PQName /*nullable*/ name);
 
   // "*x" (as in "int *x")
-  -> D_pointer(bool isPtr,  // true for "*", false for "&"
-               CVFlags cv,  // optional qualifiers applied to ptr/ref type
+  -> D_pointer(CVFlags cv,  // optional qualifiers applied to ptr type
                IDeclarator base);
+
+  // "&x"
+  -> D_reference(IDeclarator base);
 
   // "f(int)"
   -> D_func(IDeclarator base,                       // D_name of function, typically
@@ -360,9 +362,6 @@ class IDeclarator(SourceLoc loc) {
   -> D_bitfield(PQName /*nullable*/ name, Expression bits);
 
   // "X::*p"
-  // I don't unify this with D_pointer because ptr-to-member requires
-  // an extra field (nestedName), and ptr-to-member is rare
-  // dsw: and ptr-to-member has nothing to do with pointer
   -> D_ptrToMember(PQName nestedName, CVFlags cv, IDeclarator base);
 
   // declarator grouping operator: it's semantically irrelevant

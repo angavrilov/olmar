@@ -365,7 +365,7 @@ class IDeclarator {
   pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
 
   // returns true if there is a D_grouping that does not have
-  // any D_pointer or D_ptrToMember inside it
+  // any D_pointer, D_reference or D_ptrToMember inside it
   public bool hasInnerGrouping() const;
 
   -> D_func {

@@ -2167,7 +2167,7 @@ static Variable *declareNewVariable(
   // contains various information about 'name', notably its type
   Declarator::Tcheck &dt,
 
-  // true if we're a D_grouping is innermost to a D_pointer
+  // true if we're a D_grouping is innermost to a D_pointer/D_reference
   bool inGrouping,
 
   // source location where 'name' appeared
@@ -3023,18 +3023,35 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
   possiblyConsumeFunctionType(env, dt);
 
   if (dt.type->isReference()) {
-    env.error(stringc
-      << "cannot create a "
-      << (isPtr? "pointer" : "reference")
-      << " to a reference");
+    env.error("cannot create a pointer to a reference");
   }
   else {
     // apply the pointer type constructor
     if (!dt.type->isError()) {
-      dt.type = env.tfac.syntaxPointerType(loc, isPtr, cv, dt.type, this);
+      dt.type = env.tfac.syntaxPointerType(loc, cv, dt.type, this);
     }
   }
-  
+
+  // recurse
+  base->tcheck(env, dt);
+}
+
+// almost identical to D_pointer ....
+void D_reference::tcheck(Env &env, Declarator::Tcheck &dt)
+{
+  env.setLoc(loc);
+  possiblyConsumeFunctionType(env, dt);
+
+  if (dt.type->isReference()) {
+    env.error("cannot create a reference to a reference");
+  }
+  else {
+    // apply the reference type constructor
+    if (!dt.type->isError()) {
+      dt.type = env.tfac.syntaxReferenceType(loc, dt.type, this);
+    }
+  }
+
   // recurse
   base->tcheck(env, dt);
 }
@@ -3447,7 +3464,6 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 }
 
 
-// this function is very similar to D_pointer::tcheck
 void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);                   
@@ -3547,6 +3563,10 @@ bool IDeclarator::hasInnerGrouping() const
       case D_POINTER:
         ret = false;
         p = p->asD_pointerC()->base;
+        break;
+      case D_REFERENCE:
+        ret = false;
+        p = p->asD_referenceC()->base;
         break;
       case D_PTRTOMEMBER:
         ret = false;
