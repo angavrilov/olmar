@@ -5297,8 +5297,7 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   // abbreviated processing for dependent lookups
   if (dependentArgs) {
     if (fevar && fevar->nondependentVar) {
-      // kill the 'nondependent' lookup; this is wrong, since it needs
-      // to be folded into a consolidated arg+overload resolve...
+      // kill the 'nondependent' lookup
       TRACE("dependent", toString(fevar->name->loc) <<
         ": killing the nondependency of " << fevar->nondependentVar->name);
       fevar->nondependentVar = NULL;

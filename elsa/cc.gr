@@ -152,6 +152,34 @@ public:
     }
     return new D_array(loc, base, size);
   }
+
+  bool isGlobalScopeQualified(PQName const *pq)
+  {
+    return pq->isPQ_qualifier() &&
+           pq->asPQ_qualifierC()->qualifier == NULL;
+  }
+                       
+  // Filter out declarations of the form "TYPENAME ::NAME", since
+  // other front-ends would regard the TYPENAME as a qualifier.  
+  //
+  // The performance could be improved by doing static disambiguation,
+  // however that is a little tricky because the productions involved
+  // conflict with several rules, and I need to resolve conflicts with
+  // just certain pairs of rules.  So, until I implement a more
+  // precise form of static disambiguation in Elkhound, I will just
+  // resort to runtime filtering.
+  bool keepDeclaration(Declaration *d)
+  {
+    if ((d->spec->isTS_name() ||
+         d->spec->isTS_elaborated()) &&      // in/t0274.cc
+        d->decllist->isNotEmpty() &&
+        isGlobalScopeQualified(d->decllist->firstC()->decl->getDeclaratorIdC())) {
+      SourceLoc loc = d->decllist->firstC()->decl->loc;
+      TRACE("cancel", loc << ": TYPENAME ::NAME");
+      return false;
+    }
+    return true;
+  }
 };
 
 } // verbatim
@@ -336,13 +364,6 @@ nonterm(PQName*) PQualifiedId {
   -> "template" n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
        { targs->prepend(new TA_templateUsed());
          return new PQ_qualifier(loc, n, targs, id); }
-}
-
-// variant of IdExpression which doesn't allow leading "::"; this is
-// to temporarily remove the ambiguity with defining functions
-// declared in the global namespace
-nonterm(PQName*) IdExpression_no_colon_colon {
-  -> id:PQualifiedId                  { return id; }
 }
 
 
@@ -935,6 +956,10 @@ nonterm(Declaration*) BlockDeclaration {
 // ok, why is the InitDeclaratorList optional?
 //   for declaring classes and enums
 nonterm(Declaration*) SimpleDeclaration {
+  fun keep(d) {
+    return keepDeclaration(d);     // e.g. in/t0057.cc
+  }
+
   // destructive action on 'spec'
   //e.g.: int                x                  ;
   -> spec:DeclSpecifier list:InitDeclaratorList ";"
@@ -1160,7 +1185,7 @@ nonterm(TypeSpecifier*) TypeSpecifier {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm(PQName*) PQTypeName {
-  -> n:PQTypeName_ncc              
+  -> n:PQTypeName_ncc
        { return n; }
   -> "::" n:PQTypeName_ncc
        { return new PQ_qualifier(loc, NULL /*qualifier*/, NULL /*targs*/, n); }
@@ -1168,7 +1193,7 @@ nonterm(PQName*) PQTypeName {
 
 // no-colon-colon
 nonterm(PQName*) PQTypeName_ncc {
-  -> n:Identifier                    
+  -> n:Identifier
        { return new PQ_name(loc, n); }
   -> id:TemplateId
        { return id; }
@@ -1359,7 +1384,7 @@ nonterm(IDeclarator*) DirectDeclarator {
   // declarator binds a new name, so it shadows any prior definitions;
   // note: this rule handles constructor names!
   // note: this also handles operator names!
-  -> n:IdExpression_no_colon_colon
+  -> n:IdExpression//_no_colon_colon
        { return new D_name(loc, n); }
 
   // dtor
@@ -1594,11 +1619,10 @@ nonterm(Function*) FunctionDefinition {
   // it can be a definition of a function G in the global scope, with
   // return type F
   //
-  // for now I've removed this ambiguity by not allowing declarator
-  // D_names to have the "::" qualifier (but E_variables still can),
-  // but I'll have to reintroduce it to handle namespaces
-  //fun merge(L,R) { xfailure("attempt to merge function defns"); return L; }
-  
+  // cppstd isn't clear about this, but both gcc and icc eagerly consume
+  // "::" after an identifier, so I cancel a function definition if the
+  // retspec is a typedef and the name begins with "::"
+
   // in/c/t0015.c contains some code that is not legal C++, though it
   // is legal K&R C, but which nonetheless triggers a FunctionDefinition
   // merge in C++ mode:
@@ -1611,6 +1635,11 @@ nonterm(Function*) FunctionDefinition {
   {
     if (!f->nameAndParams->bottomIsDfunc()) {
       TRACE("cancel", "rejecting FunctionDefinition w/o D_func at bottom");
+      return false;
+    }
+    else if (f->retspec->isTS_name() &&
+             isGlobalScopeQualified(f->nameAndParams->decl->getDeclaratorIdC())) {
+      TRACE("cancel", "rejecting TYPENAME ::NAME");     // e.g. in/t0015.cc
       return false;
     }
     else {
@@ -1787,6 +1816,10 @@ nonterm(Member*) MemberDeclaration {
              // name, and this might be ambiguous with a constructor
              // declaration, so cancel it
              TRACE("cancel", loc << ": declaration of embedded self class instance");
+             return NULL;
+           }
+           if (isGlobalScopeQualified(list->firstC()->decl->getDeclaratorIdC())) {
+             TRACE("cancel", loc << ": TYPENAME ::NAME");     // e.g. in/t0037.cc
              return NULL;
            }
          }
@@ -2129,6 +2162,8 @@ nonterm(OperatorName*) Operator {
 //}
 
 nonterm(TemplateDeclaration*) TemplateDeclaration {
+  fun keep(d) { return d!=NULL; }
+
   // these are the std's rules for template declarations and specializations:
   //   -> ExportOpt "template" "<" TemplateParameterList ">" Declaration;
   //   -> "template" "<" ">" Declaration;
@@ -2152,6 +2187,9 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
   // define more than one static member in a single decl)
   -> plist:TemplatePreamble spec:DeclSpecifier nameParams:InitDeclarator ";"
        { spec->decllist = FakeList<Declarator>::makeList(nameParams);
+         if (!keepDeclaration(spec)) {      // in/t0185.cc
+           return NULL;
+         }
          return new TD_proto(plist, spec); }
 
   // definition of a template classe
