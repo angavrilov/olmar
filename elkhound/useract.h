@@ -21,7 +21,11 @@ class SourceLocation;      // fileloc.h
 //    is they're a little easier to recognize by visual inspection;
 // -  each occurrance of this type is marked as to whether it is
 //    owner or serf; note that "owner" can mean reference-counted
-typedef void *SemanticValue;
+//typedef void *SemanticValue;
+typedef unsigned long SemanticValue;     // experiment..
+
+// name of a null sval; can't use "NULL" because of __null weirdness in gcc-3...
+#define NULL_SVAL 0
 
 
 // package of functions; the user will create an instance of a class

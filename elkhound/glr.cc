@@ -261,7 +261,7 @@ int StackNode::maxStackNodesAllocd=0;
 StackNode::StackNode()
   : state(STATE_INVALID),
     leftSiblings(),
-    firstSib(NULL, NULL  SOURCELOCARG( SourceLocation() ) ),
+    firstSib(NULL, NULL_SVAL  SOURCELOCARG( SourceLocation() ) ),
     referenceCount(0),
     determinDepth(0),
     glr(NULL)
@@ -571,7 +571,7 @@ PathCollectionState::ReductionPath& PathCollectionState::ReductionPath
   obj.finalState = NULL;
 
   sval = obj.sval;
-  obj.sval = NULL;
+  obj.sval = NULL_SVAL;
 
   SOURCELOC( loc = obj.loc; )
 
@@ -1579,7 +1579,7 @@ inline void GLR::doReduction(StackNode *parser,
                           rpath.sval  SOURCELOCARG( rpath.loc ) );
 
       // nullify 'sval' to mark it as consumed
-      rpath.sval = NULL;
+      rpath.sval = NULL_SVAL;
     } // for each path
   }
   

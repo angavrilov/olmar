@@ -19,7 +19,7 @@ UserActions::ReductionActionFunc TrivialUserActions::getReductionAction()
 STATICDEF SemanticValue TrivialUserActions::doReductionAction(
   UserActions *, int , SemanticValue const *
   SOURCELOCARG( SourceLocation const & ) )
-  { return NULL; }
+  { return NULL_SVAL; }
 
 SemanticValue TrivialUserActions::duplicateTerminalValue(
   int , SemanticValue sval)

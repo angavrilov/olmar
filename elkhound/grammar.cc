@@ -24,7 +24,7 @@ StringTable grammarStringTable;
 
 
 // ---------------------- Symbol --------------------
-Symbol::Symbol(LocString const &n, bool t, bool e = false)
+Symbol::Symbol(LocString const &n, bool t, bool e)
   : name(n),
     isTerm(t),
     isEmptyString(e),

@@ -32,7 +32,11 @@ AST    := ../ast
 
 # translation process variables
 libraries   := $(SMBASE)/libsmbase.a
-includes    := -I$(SMBASE) -I$(AST) -I.
+includes    := -I$(SMBASE) -I$(AST)
+
+# needed for gcc-2 when compiling things in cc2/
+includes    += -I.
+
 ccflags     := -g -Wall @CCFLAGS@
 no-warnings := -w
 makelib     := ar -r
@@ -59,6 +63,9 @@ ccflags += -DNO_GLR_SOURCELOC
 
 # even fewer debugging checks
 #ccflags += -DNDEBUG_NO_ASSERTIONS
+
+# for gcc-3
+ccflags += -Wno-deprecated
 
 # turn on to enable bison's debugging features
 #YYDEBUG := -DYYDEBUG=1
@@ -167,8 +174,12 @@ lexer2: $(lexer2-dep) lexer2.h
 	$(link) -o lexer2 -DTEST_LEXER2 $(lexer2-dep)
 
 # grammar lexer
+# like in ast/, need to replace forward decl with proper #include
 gramlex.yy.cc: gramlex.lex
-	flex -ogramlex.yy.cc gramlex.lex                     
+	flex -o$@ gramlex.lex
+	mv $@ gramlex.tmp
+	sed 's/class istream;/#include <iostream.h>/' <gramlex.tmp >$@
+	rm gramlex.tmp
 
 # should be redundant with new dependency system
 #gramlex.yy.o: $(AST)/gramlex.h $(AST)/gramlex.cc grampar.codes.h
@@ -249,13 +260,15 @@ cexp3.gr.gen.o: cexp3ast.ast.gen.h
 #	$(AST)/astgen cexp3ast.ast
 
 # parser and semantic analyzer for cexp3.gr
+# the egrep below is because there's a bug in gcc-2's 'cout',
+# which prints ints in hex even when it shouldn't ...
 cexp-dep := glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
             cc_lang.o libglr.a $(libraries)
 cexp3-dep := cexp3.gr.gen.o $(cexp-dep)
 cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
 	./cexp3 cexp3.bin in/cexp3.in1 | tee tmp.out
-	grep 'result: 0x7' tmp.out
+	egrep 'result: (0x)?7' tmp.out
 
 # intermediate files for a grammar
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
@@ -287,7 +300,7 @@ cexp3b-dep := cexp3b.gr.gen.o $(cexp-dep)
 cexp3b: $(cexp3b-dep)
 	$(link) -o cexp3b $(cexp3b-dep)
 	./cexp3b cexp3b.bin in/cexp3.in1 | tee tmp.out
-	grep 'result: 0x7' tmp.out
+	egrep 'result: (0x)?7' tmp.out
 
 # intermediate files for cdecl
 # (superceded by pattern rule)
@@ -398,7 +411,7 @@ bccgr.y: cc.gr.gen.y
 	mv $*.tab.c $*.tab.c.orig
 	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
 	rm $*.tab.c.orig
-	g++ -c -g -o $*.tab.o -Wall -O2 -I. -DNDEBUG $(YYDEBUG) $*.tab.c
+	g++ -c -g -o $*.tab.o -Wall -O2 -DNDEBUG $(YYDEBUG) $*.tab.c
 
 bccgr.tab.o: bccgr.h
 

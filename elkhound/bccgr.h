@@ -11,7 +11,7 @@ extern "C" {
 #endif // __cplusplus
             
 // functions called by Bison-parser
-void yyerror();
+void yyerror(char const *msg);
 int yylex();
 
 // Bison-parser entry

@@ -275,7 +275,7 @@ public:    // types
 
   public:
     ReductionPath()
-      : finalState(NULL), sval(NULL)  SOURCELOCARG( loc() ) {}
+      : finalState(NULL_SVAL), sval(NULL_SVAL)  SOURCELOCARG( loc() ) {}
     ~ReductionPath();
 
     // begin using this
