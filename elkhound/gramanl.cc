@@ -17,6 +17,7 @@
 
 #include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
+#include <stdio.h>       // printf
 
 
 // for now, we'll just have these be global variables; if I later
@@ -2255,6 +2256,9 @@ STATICDEF bool ItemSet::equalKey(ItemSet const *key1, ItemSet const *key2)
 void GrammarAnalysis::constructLRItemSets()
 {
   bool tr = tracingSys("lrsets");
+  int smallPassCt = 0;
+
+  enum { BIG_VALUE = 5 };
 
   // item sets yet to be processed; item sets are simultaneously in
   // both the hash and the list, or not in either
@@ -2281,7 +2285,7 @@ void GrammarAnalysis::constructLRItemSets()
   // since these items will be re-used over and over, filling it now
   // ensures good locality on those accesses (assuming malloc returns
   // objects close together)
-  enum { INIT_LIST_LEN = 100 };
+  enum { INIT_LIST_LEN = BIG_VALUE };
   for (int i=0; i<INIT_LIST_LEN; i++) {
     // this is a dummy item; it allocates the bitmap for 'lookahead',
     // but those bits and the 'dprod' pointer will be overwritten
@@ -2292,7 +2296,7 @@ void GrammarAnalysis::constructLRItemSets()
 
   // similar to the scratch state, make a scratch array for the
   // kernel CRC computation
-  GrowArray<DottedProduction const*> kernelCRCArray(100);
+  GrowArray<DottedProduction const*> kernelCRCArray(BIG_VALUE);
 
   // start by constructing closure of first production
   // (basically assumes first production has start symbol
@@ -2336,6 +2340,11 @@ void GrammarAnalysis::constructLRItemSets()
                       << " nonkernel items" << endl;
     }
 
+    static int uberPassCt = 0;
+    smallPassCt = 0;
+
+    bool mustCloseMyself = false;
+
     // for each production in the item set where the
     // dot is not at the right end
     //
@@ -2345,10 +2354,16 @@ void GrammarAnalysis::constructLRItemSets()
     int passCt=0;    // 0=kernelItems, 1=nonkernelItems
     while (passCt < 2) {
       if (passCt++ == 1) {
+        uberPassCt++;
+        printf("uberPassCt = %d\n", uberPassCt);
         itemIter.reset(itemSet->nonkernelItems);
       }
 
       for (; !itemIter.isDone(); itemIter.adv()) {
+        // touch the lists
+        itemSet->kernelItems.count();
+        itemSet->nonkernelItems.count();
+
         LRItem const *item = itemIter.data();
         if (item->isDotAtEnd()) continue;
 
@@ -2396,6 +2411,8 @@ void GrammarAnalysis::constructLRItemSets()
           inDoneList = true;    // used if 'already' != NULL
         }
 
+        smallPassCt++;
+
         // have it?
         if (already != NULL) {
           // we already have a state with at least equal kernel items, not
@@ -2412,7 +2429,15 @@ void GrammarAnalysis::constructLRItemSets()
             CHECK_MALLOC_STATS("mergeLookaheadsInto");
 
             // this changed 'already'; recompute its closure
-            itemSetClosure(*already);                 
+            if (already != itemSet) {
+              itemSetClosure(*already);
+            }
+            else {
+              // DANGER!  I'm already iterating over 'itemSet's item lists,
+              // and if I execute the closure algorithm it will invalidate
+              // my iterator.  so, postpone it
+              mustCloseMyself = true;
+            }
 
             // and reconsider all of the states reachable from it
             if (!inDoneList) {
@@ -2473,6 +2498,12 @@ void GrammarAnalysis::constructLRItemSets()
 
       } // for each item
     } // 0=kernel, 1=nonkernel
+
+    // now that we're finished iterating over the items, I can do the
+    // postponed closure
+    if (mustCloseMyself) {
+      itemSetClosure(*itemSet);
+    }
 
     CHECK_MALLOC_STATS("end of item set loop");
   } // for each item set
