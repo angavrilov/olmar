@@ -35,6 +35,7 @@
 #include "fakelist.h"     // FakeList
 #include "srcloc.h"       // SourceLoc
 #include "exc.h"          // xBase
+#include "serialno.h"     // INHERIT_SERIAL_BASE
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
@@ -63,29 +64,6 @@ class STemplateArgument;
 class ClassTemplateInfo;
 class TypeFactory;
 class BasicTypeFactory;
-
-
-#ifndef USE_SERIAL_NUMBERS
-  // The idea here is that it's sometimes difficult during debugging
-  // to keep track of the various Type objects floating around, and
-  // virtual addresses are not so stable.  So, by turning on
-  // USE_SERIAL_NUMBERS, every Type object will get a unique
-  // serial number, and (some of) the print routines will print the
-  // number.  Normally this should be off since it uses memory and
-  // makes the printouts ugly.
-  //
-  // NOTE: Currently, the tracing flag "serialNumbers" must be set
-  // for the printouts to include the serial numbers.
-  //
-  // default to off; can turn on via "./configure -useSerialNumbers"
-  #define USE_SERIAL_NUMBERS 0
-#endif
-
-#ifdef USE_SERIAL_NUMBERS
-  #if USE_SERIAL_NUMBERS!=0 && USE_SERIAL_NUMBERS!=1
-    #error USE_SERIAL_NUMBERS defined but not 0 or 1
-  #endif
-#endif
 
 
 // --------------------- atomic types --------------------------
@@ -416,7 +394,9 @@ public:     // funcs
 // generic constructed type; to allow client analyses to annotate the
 // description of types, this class is inherited by "Type", the class
 // that all of the rest of the parser regards as being a "type"
-class BaseType {    // note: clients should refer to Type, not BaseType
+//
+// note: clients should refer to Type, not BaseType
+class BaseType INHERIT_SERIAL_BASE {
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
 
@@ -439,11 +419,6 @@ public:     // data
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
-
-#if USE_SERIAL_NUMBERS
-  static int globalSerialNumber;       // global counter to ensure uniqueness
-  int serialNumber;                    // this object's serial number
-#endif // USE_SERIAL_NUMBERS
 
   // when true (the default is false), types are printed in ML-like
   // notation instead of C notation by AtomicType::toString and
@@ -558,11 +533,6 @@ public:     // funcs
   // value, and unequal types are likely to have different values
   unsigned hashValue() const;
   virtual unsigned innerHashValue() const = 0;
-
-  #if USE_SERIAL_NUMBERS
-    static int incSerialNumber();
-    static string printSerialNo(int serialNumber);
-  #endif // USE_SERIAL_NUMBERS
 
   // print the string according to 'printAsML'
   string toString() const;

@@ -812,29 +812,11 @@ int TypeVariable::reprSize() const
 // -------------------- BaseType ----------------------
 ALLOC_STATS_DEFINE(BaseType)
 
-#if USE_SERIAL_NUMBERS
-int BaseType::globalSerialNumber = 0;
-
-// semantically, just "++"; but here anyway to make it easier to put
-// in conditional breakpoints for specific type ids
-int BaseType::incSerialNumber()
-{
-  // NOTE: Please leave it this this way.  I need the local "sn"
-  // variable for gdb conditional breakpoints to be easy to write.
-  // Thank you.
-  int sn = BaseType::globalSerialNumber++;
-  return sn;
-}
-#endif
-
 bool BaseType::printAsML = false;
 
 
 BaseType::BaseType()
   : typedefAliases()     // initially empty
-  #if USE_SERIAL_NUMBERS
-  , serialNumber(incSerialNumber())
-  #endif
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -948,18 +930,6 @@ string cvToString(CVFlags cv)
     return string("");
   }
 }
-
-
-#if USE_SERIAL_NUMBERS
-string BaseType::printSerialNo(int serialNumber)
-{            
-  if (tracingSys("serialNumbers")) {
-    return stringc << "t" << serialNumber;
-  } else {
-    return "";     // don't print them.. messes up idempotency among other things
-  }
-}
-#endif // USE_SERIAL_NUMBERS
 
 
 void BaseType::gdb() const
@@ -2131,7 +2101,7 @@ string TypeVariable::toMLString() const
 void BaseType::putSerialNo(stringBuilder &sb) const
 {
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo(serialNumber) << "-";
+    sb << printSerialNo("t", serialNumber, "-");
   #endif
 }
 

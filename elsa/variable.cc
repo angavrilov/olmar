@@ -7,25 +7,8 @@
 
 
 // ---------------------- Variable --------------------
-#if USE_SERIAL_NUMBERS
-// semantically, just "++"; but here anyway to make it easier to put
-// in conditional breakpoints for specific type ids
-int Variable::incSerialNumber()
-{
-  // NOTE: Please leave it this this way.  I need the local "sn"
-  // variable for gdb conditional breakpoints to be easy to write.
-  // Thank you.
-  int sn = Type::globalSerialNumber++;
-  return sn;
-}
-#endif
-
 Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
-  :
-  #if USE_SERIAL_NUMBERS
-    serialNumber(incSerialNumber()),
-  #endif
-    loc(L),
+  : loc(L),
     name(n),
     type(t),
     flags(f),
@@ -121,23 +104,11 @@ string Variable::toCStringAsParameter() const
 }
 
 
-#if USE_SERIAL_NUMBERS
-string Variable::printSerialNo(int serialNumber)
-{            
-  if (tracingSys("serialNumbers")) {
-    return stringc << "v" << serialNumber;
-  } else {
-    return "";     // don't print them.. messes up idempotency among other things
-  }
-}
-#endif // USE_SERIAL_NUMBERS
-
-
 string Variable::toMLString() const
 {
   stringBuilder sb;
   #if USE_SERIAL_NUMBERS
-    sb << printSerialNo(serialNumber) << "-";
+    sb << printSerialNo("v", serialNumber, "-");
   #endif
   char const *name0 = "<no_name>";
   if (name) {

@@ -4998,6 +4998,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // sm: sort of.. the rules are spelled out in cppstd 5.16.  there's
   // no provision for computing the least common ancestor in the class
   // hierarchy, but the rules *are* nonetheless complex
+
   return th->type;
 }
 

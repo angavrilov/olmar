@@ -221,9 +221,7 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
   f->funcType = env.tfac.cloneType(var->type)->asFunctionType();
 
   if (ft->isMethod()) {
-    // dsw: had to change this so that the f's receiver matched that
-    // of its funcType; remove when you see this
-//      f->receiver = ft->getReceiver();
+    // f's receiver should match that of its funcType
     f->receiver = f->funcType->getReceiver();
   }
 
