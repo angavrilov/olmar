@@ -586,6 +586,7 @@ testparse t0350.cc
 testparse t0351.cc
 failparse t0352.cc "cannot parse; nasty example; gcc-3 cannot handle either"
 failparse t0353.cc "cannot parse; even nastier example"
+testparse t0354.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
