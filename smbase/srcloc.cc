@@ -588,7 +588,20 @@ void SourceLocManager::decodeOffset(
 
 void SourceLocManager::decodeLineCol(
   SourceLoc loc, char const *&filename, int &line, int &col)
-{
+{ 
+  if (!this) {
+    // didn't initialize a loc manager.. but maybe we can survive?
+    if (loc == SL_UNKNOWN) {
+      filename = "<noloc>";
+      line = 1;
+      col = 1;
+      return;
+    }
+    else {
+      xfailure("you have to create a SourceLocManager in your main() function");
+    }
+  }
+
   // check for static
   if (isStatic(loc)) {
     StaticLoc const *s = getStatic(loc);
