@@ -9,7 +9,7 @@ class A {
 }
 
 class B(string name) {
-  public int x;  ctor x=0;
+  public int x = 0;
 
   -> B_one(int y);
   -> B_two(char c);

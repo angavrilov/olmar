@@ -33,7 +33,7 @@ tool.  It's also in the file <a href="demo.ast">demo.ast</a>.
   }
 
   class B(string name) {
-    public int x;  ctor x=0;
+    public int x = 0;
 
     -> B_one(int y);
     -> B_two(char c);
@@ -52,9 +52,9 @@ but I extended them in several ways:
 <ul>
 <li>You can have fields that are present in all variants; the 'name'
     field of class B, above, is an example.
-<li>You can have fields that are not set in the constructor, but
-    instead behave like mutable annotations.  The 'x' field of class B
-    is an example.
+<li>You can have fields that are not initialized by arguments to the 
+    constructor, but instead have a default value, and behave like mutable 
+    annotations.  The 'x' field of class B is an example.
 <li>The fields that <em>are</em> set in the constructor can have default
     values, using C++'s usual mechanism, so it's possible to add a field
     without having to rewrite every occurrence of a call to the

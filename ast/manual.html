@@ -20,6 +20,11 @@ heterogeneous trees to make abstract syntax trees for compilers.  This
 page is its documentation.  <a href="index.html">Another page</a>
 describes the module structure of its implementation.
 
+<p>Fair warning: The astgen input language was developed "bottom up",
+adding features and wrinkles as needs arose.  Consequently, it is
+fairly concise in practice, but sort of awkard to describe.  There are
+several instances of incomplete orthogonalization ("irregularities").
+It's probably time for a redesign; but for now it is what it is.
 
 <h2>1. Input description</h2>
 
@@ -307,7 +312,7 @@ unioned with the base in the obvious way:
 
 <p>
 There can be multiple extension modules, and they are added in the
-order specified.
+order specified on the command line.
 
 
 <h2>3. Visitor Interface</h2>
