@@ -2902,9 +2902,11 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // make new declaration, taking to account various restrictions
   Variable *newVar = createDeclaration(loc, name, type, origVar->flags,
                                        scope, enclosingClass, prior, overloadSet);
+  #if 0     // 2005-02-23: share the referent's templateInfo
   if (origVar->templateInfo()) {
     newVar->setTemplateInfo(new TemplateInfo(*origVar->templateInfo()));
   }
+  #endif // 0
 
   if (newVar == prior) {
     // found that the name/type named an equivalent entity

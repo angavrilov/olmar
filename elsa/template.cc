@@ -2690,7 +2690,7 @@ void Env::transferTemplateMemberInfo_membert
   // 'destVar' is a partial instantiation of 'srcVar' with 'args'
   TemplateInfo *srcTI = srcVar->templateInfo();
   xassert(srcTI);
-  TemplateInfo *destTI = destVar->templInfo;
+  TemplateInfo *destTI = destVar->templateInfo();
   xassert(destTI);
 
   if (destTI->isInstantiation() || destTI->isPartialInstantiation()) {

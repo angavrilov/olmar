@@ -103,9 +103,14 @@ public:    // data
   // is SK_UNKNOWN
   ScopeKind scopeKind;
 
+private:      // data
   // for templates, this is the list of template parameters and other
   // template stuff; for a primary it includes a list of
   // already-instantiated versions
+  //
+  // this is private to force clients to go through templateInfo(),
+  // which skips aliases, as aliases now share templateInfos with
+  // the things they are aliases of
   TemplateInfo *templInfo;      // (owner)
 
 protected:    // funcs
