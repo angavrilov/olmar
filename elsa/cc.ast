@@ -248,8 +248,9 @@ verbatim {
 // built with type constructors (typedef'd types may have been built
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
-class TypeSpecifier {
-  public Qualifiers *q;   ctor { q=new Qualifiers(); };
+class TypeSpecifier(PQName name, SourceLocation loc) {
+  public Qualifiers *q;
+  ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
   public enum CVFlags cv; ctor { cv=CV_NONE; };
 
   public void printExtras(ostream &os, int indent) const;
@@ -267,19 +268,18 @@ class TypeSpecifier {
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so
   // we don't regard an error as disambiguating
-  -> TS_name(PQName name, bool typenameUsed);
+  -> TS_name(// moved to superclass: PQName name,
+             bool typenameUsed);
 
   -> TS_simple(SimpleTypeId id);           // int or char or float or ..
 
   -> TS_elaborated(                        // "class Foo"
-       SourceLocation loc,
-       TypeIntr keyword,
-       PQName name
+       TypeIntr keyword
+       // moved to superclass: PQName name
      );
 
   // class definition
   -> TS_classSpec(                         // "class { ... }"
-       SourceLocation loc,
        TypeIntr keyword,                     // "class", "struct", "union"
 
        // 'name' is the user-provided name, if any.
@@ -289,7 +289,7 @@ class TypeSpecifier {
        //   - it could be a definition or specialization of a class
        //     declared in another namespace
        // See cppstd 14.5.4 para 6 for an example of both at once.
-       PQName /*nullable*/ name,
+       // moved to superclass: PQName /*nullable*/ name,
 
        FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
@@ -298,8 +298,8 @@ class TypeSpecifier {
      }
 
   -> TS_enumSpec(                          // "enum { ... }"
-       SourceLocation loc,
-       StringRef /*nullable*/ name,          // name of enum, if any
+       // moved to superclass and changed to a PQname:
+       // StringRef /*nullable*/ name,          // name of enum, if any
        FakeList<Enumerator> *elts            // elements of the enumeration
      );
 }
@@ -475,7 +475,7 @@ class Declarator (
 // once typechecking determines what type is denoted;
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
-class IDeclarator {
+class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
   // external interface; add the type constructor represented by this
   // IDeclarator to 'dt.type' and then make a Variable to represent
   // it; put the variable into the environment if appropriate
@@ -491,24 +491,28 @@ class IDeclarator {
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
   // (dtor names start with "~"); it's also used for operator names
-  -> D_name(SourceLocation loc,
-            PQName /*nullable*/ name);
+  -> D_name(// moved to superclass: PQName /*nullable*/ name
+           );
 
   // "*x" (as in "int *x")
-  -> D_pointer(bool isPtr,  // true for "*", false for "&"
+  -> D_pointer(QualifierLiterals *ql,
+               bool isPtr,  // true for "*", false for "&"
                CVFlags cv,  // optional qualifiers applied to ptr/ref type
-               IDeclarator base) {
-    public Qualifiers *q; ctor q=new Qualifiers();
+               IDeclarator base)
+  {
+     public Qualifiers *q;
+     ctor { q = new Qualifiers((name?name->getName():"__null_pointer"), loc, ql); };
   }
 
   // "f(int)"
-  -> D_func(SourceLocation loc,
+  -> D_func(QualifierLiterals *ql,
             IDeclarator base,                       // D_name of function, typically
             FakeList<ASTTypeId> *params,            // params with optional default values
             CVFlags cv,                             // optional "const" for member functions
             ExceptionSpec /*nullable*/ exnSpec)     // throwable exceptions
   {
-    public Qualifiers *q; ctor q=new Qualifiers();
+     public Qualifiers *q;
+     ctor { q = new Qualifiers((name?name->getName():"__null_function"), loc, ql); };
   }
 
   // "a[5]" or "b[]"
@@ -519,7 +523,7 @@ class IDeclarator {
   // I use a PQName here instead of a StringRef for uniformity
   // (so every IDeclarator ends with a PQName); there are never
   // qualifiers on a bitfield name
-  -> D_bitfield(SourceLocation loc, PQName /*nullable*/ name,
+  -> D_bitfield(// moved to superclass: PQName /*nullable*/ name,
                 Expression bits);
 }
 

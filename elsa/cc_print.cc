@@ -340,7 +340,7 @@ void TS_enumSpec::print(PrintEnv &env)
   env << q->toString();
   env << toString(cv);
   env << "enum ";
-  if (name) env << toString(name);
+  if (name) env << toString(name->getName());
   codeout co(env, "", "{\n", "}");
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
     iter->print(env);
