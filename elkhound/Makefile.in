@@ -167,7 +167,8 @@ trivbison-deps := trivbison.o trivlex.o lexer2.o libelkhound.a
 gramlex.yy.cc: gramlex.lex
 	flex -o$@ gramlex.lex
 	mv $@ gramlex.tmp
-	sed -e 's/class istream;/#include <iostream.h>/' <gramlex.tmp >$@
+	sed -e 's/class istream;/#include <iostream.h>/' \
+	  <gramlex.tmp >$@
 	rm gramlex.tmp
 
 # bison implementation of grammar parser.

@@ -7,6 +7,7 @@
 
 #include "array.h"        // ArrayStack
 #include "bit2d.h"        // Bit2d
+#include <iostream.h>     // ostream
 
 class Flatten;            // flatten.h
 class EmitCode;           // emitcode.h
@@ -16,6 +17,9 @@ class Symbol;             // grammar.h
 // integer id for an item-set DFA state; I'm using an 'enum' to
 // prevent any other integers from silently flowing into it
 enum StateId { STATE_INVALID=-1 };
+
+inline ostream& operator<< (ostream &os, StateId id)
+  { return os << (int)id; }
 
 
 // encodes an action in 'action' table; see 'actionTable'

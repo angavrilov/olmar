@@ -61,7 +61,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   SET_VAR(numNonterms);
   SET_VAR(numStates);
   SET_VAR(numProds);
-  out << "  ret->startState = (StateId)" << startState << ";\n";
+  out << "  ret->startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
   #undef SET_VAR
   out << "\n";

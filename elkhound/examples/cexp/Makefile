@@ -16,7 +16,8 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/c -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
-CCFLAGS := -g -Wall -Wno-deprecated
+#CCFLAGS := -g -Wall -Wno-deprecated
+CCFLAGS := $(shell $(SMBASE)/config.summary | grep BASE_FLAGS | sed 's/^.*: *//')
 
 # linking flags
 LDFLAGS := $(LIBELKHOUND) $(AST)/libast.a $(SMBASE)/libsmbase.a
