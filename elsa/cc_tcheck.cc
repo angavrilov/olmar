@@ -3665,7 +3665,7 @@ Type *E_binary::itcheck(Env &env)
     break;
 
   case BIN_ASSIGN:    // = (used to denote simple assignments in AST, as opposed to (say) "+=")
-    // default behavior of returning the left side is close enough for now.
+    xfailure("why isn't this in E_assign?");
     break;
 
   // C++ operators
