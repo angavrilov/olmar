@@ -141,6 +141,17 @@ void doit(int argc, char **argv)
     }
   }
 
+  // dsw: Tree walk ****************
+#ifdef TWALK
+  {
+      cout << endl;
+      traceProgress() << "dsw tree walk...\n";
+      Env env(strTable, lang);
+      unit->twalk(env);
+      traceProgress() << "dsw tree walk... done\n";
+      cout << endl;
+  }
+#endif
   
   // test AST cloning
   if (tracingSys("testClone")) {

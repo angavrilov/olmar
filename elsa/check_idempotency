@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+# -*-perl-*-
+use strict;
+
+# Test the idempotency of the C++ parser.
+
+# Daniel S. Wilkerson dsw@cs.berkeley.edu
+
+my $parser = "./ccparse_twalk";
+die "No executable file: $parser\n" unless -x $parser;
+my @inputfiles = ();
+
+for(@ARGV) {
+    s/\s*\#.*$//;               # delete comments
+    s/^\s*//;                   # delete leading whitespace
+    s/\s*$//;                   # delete trailing whitespace
+    next if /^\s*$/;            # skip blank lines
+    if (/^(\S+)$/) {
+        push @inputfiles, $1;
+    } else {
+        die "Malformed line: $_";
+    }
+}
+
+sub run_command ($) {
+    my ($command) = @_;
+#      print "$command\n";
+    my $res = system $command;
+    if ($res!=0) {
+        my $exit_value  = $res >> 8;
+        my $signal_num  = $res & 127;
+        my $dumped_core = $res & 128;
+        print "**** abnormal exit: exit_value $exit_value, ";
+        print "signal_num $signal_num, dumped_core $dumped_core";
+        print "\n";
+        next;
+    }
+}
+
+#  my %idempotent = ();
+my $numinputs = 0;
+my $numpass = 0;
+for my $inputfile(@inputfiles) {
+    print "$inputfile\n";
+    die "No such file $inputfile\n" unless -f "$inputfile";
+    ++$numinputs;
+
+    my $outputfile = "$inputfile.out";
+    run_command "$parser $inputfile | ./chop_out > $outputfile";
+
+    my $outputfile2 = "${outputfile}2";
+    run_command "$parser $outputfile | ./chop_out > $outputfile2";
+
+    my $diff_command = "diff -u $outputfile $outputfile2";
+#    print "$diff_command\n";
+    my $diff_res = system $diff_command;
+    if ($diff_res == 0) {
+#          $idempotent{$outputfile}++;
+        ++$numpass;
+    }
+}
+
+#  for my $inputfile(keys $idempotent) {
+#  }
+
+print "";
+print "Num inputs $numinputs\n";
+print "Num pass   $numpass\n";
+
+if ($numinputs==$numpass) {
+    print "PASS\n";
+    exit 0;
+} else {
+    print "FAIL\n";
+    exit 1;
+}

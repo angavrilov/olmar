@@ -1,0 +1,22 @@
+#!/usr/bin/perl -w
+# -*-perl-*-
+use strict;
+
+# Chop out part of a file.
+
+# Daniel S. Wilkerson dsw@cs.berkeley.edu
+
+my $start = "---- TranslationUnit START ----\n";
+my $stop  = "---- TranslationUnit STOP ----\n";
+
+while(<STDIN>) {
+    last if $_ eq $start;
+}
+
+while(<STDIN>) {
+    last if $_ eq $stop;
+    print;
+}
+
+while(<STDIN>) {
+}
