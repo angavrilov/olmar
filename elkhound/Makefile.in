@@ -1,11 +1,16 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
+# temorary
+#CC_QUAL := 1
+
 ifdef CC_QUAL
   CC_QUAL_EXE := cc/cc_qual/cc_qual
 else
   CC_QUAL_EXE :=
 endif
+
+#tmp: cc/cc_qual/cc_qualifiers.o
 
 # the astgen-generated files need to come first because otherwise
 # the build doesn't go through properly.. I investigated a better
@@ -209,11 +214,11 @@ cc-set := \
   cc/treeout.o \
   cc/variable.o \
   cc/ccparse.o \
-  cc/dswutil.o
+  cc/dswutil.o \
+  cc/qual_type.o \
+  cc/qual_var.o
 
 # disabled for now
-#  cc/qual_type.o \
-#  cc/qual_var.o \
 #  cc/qual_tcheck.o
 
 ifdef CC_QUAL

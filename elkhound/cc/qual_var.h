@@ -5,31 +5,32 @@
 #define QUAL_VAR_H
 
 #include "sobjlist.h"     // SObjList
+#include "variable.h"     // Variable
 
-class Variable;           // variable.h
 class Type_Q;             // qual_type.h
 
-class Variable_Q {
-public:               
-  // the corresponding Variable that this annotates;
-  // invariant: var->q == this
-  Variable *var;            // (serf)
-
-  // Q++Qual-aware type of this variable
-  Type_Q *qtype;            // (serf)
-
+class Variable_Q : public Variable {
+public:
   // global list of all instances
   static SObjList<Variable_Q> instances;
 
 public:
-  Variable_Q(Variable *v, Type_Q *t);
+  Variable_Q(SourceLocation const &L, StringRef n,
+             Type_Q *t, DeclFlags f,
+             bool put_into_instances_list=true
+             );
   ~Variable_Q();
 
-  Variable_Q *deepClone() const;
-
-  // check the homomorphism invariants, failing an assertion
-  // if they don't hold
-  void checkHomomorphism() const;
+  // Q++Qual-aware type of this variable
+  Type_Q const *qtypeC() const;
+  Type_Q *qtype()
+    { return const_cast<Type_Q*>(qtypeC()); }
 };
+
+
+// cast with potential for runtime check in the future
+inline Variable_Q *asVariable_Q(Variable *v)
+  { return static_cast<Variable_Q*>(v); }
+
 
 #endif // QUAL_VAR_H

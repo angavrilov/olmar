@@ -362,13 +362,7 @@ void Function::tcheck(Env &env, bool checkBody)
     // function is a member of; if the function has been declared
     // with some 'cv' flags, then those become attached to the
     // pointed-to type; the pointer itself is always 'const'
-    Type *thisType;
-    {
-      CVAtomicType *tmpcvat = env.makeCVAtomicType(ct, funcType->cv);
-      xassert(!tmpcvat->q);
-      tmpcvat->q = deepClone(funcType->q);
-      thisType = env.makePtrOperType(PO_POINTER, CV_CONST, tmpcvat);
-    }
+    Type *thisType = env.tfac.makeTypeOf_this(ct, funcType);
 
     // add the implicit 'this' parameter (the pointer is an AST annotation)
     thisVar = env.makeVariable(nameAndParams->var->loc, env.str("this"),
@@ -712,12 +706,17 @@ void PQ_template::tcheck(Env &env)
 // --------------------- TypeSpecifier --------------
 Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
-  Type *ret = env.applyCVToType(cv, itcheck(env, dflags));
-  return applyQualifierLiteralsToType(q, ret);
+  Type *t = itcheck(env, dflags);
+  Type *ret = env.tfac.applyCVToType(cv, t, this);
+  if (!ret) {
+    return env.error(t, stringc
+      << "cannot apply const/volatile to type `" << t->toString() << "'");
+  }
+  return ret;
 }
 
 
-Type *TS_name::itcheck(Env &env, DeclFlags dflags)    
+Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
   name->tcheck(env);
 
@@ -749,14 +748,9 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
       disambiguates);
   }
 
-  Type *ret = env.applyCVToType(cv, var->type);
-  if (!ret) {
-    return env.error(ret, stringc
-      << "cannot apply const/volatile to type `" << ret->toString() << "'");
-  }
-  else {
-    return applyQualifierLiteralsToType(q, ret);
-  }
+  // there used to be a call to applyCV here, but that's redundant
+  // since the caller (tcheck) calls it too
+  return var->type;
 }
 
 
@@ -1551,14 +1545,7 @@ Type *makeConversionOperType(Env &env, OperatorName *o,
     // (since we've verified none of the other info is interesting);
     // in particular, fill in the conversion destination type as
     // the function's return type
-    FunctionType *ft =env.makeFunctionType(destType, specFunc->cv);
-//    StringRef name = "__unamed_function";
-//    {
-//      PQName const * declaratorId = getDeclaratorId();
-//      if (declaratorId) name = declaratorId->getName();
-//    }
-    xassert(!ft->q);
-    ft->q = deepClone(specFunc->q);
+    FunctionType *ft = env.tfac.makeSimilarFunctionType(destType, specFunc);
     ft->templateParams = env.takeTemplateParams();
 
     return ft;
@@ -2057,13 +2044,18 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
   }
   else {
     // apply the pointer type constructor
+    #if AFTER
+    dt.type = dt.type->isError()? dt.type :
+      env.tfac.syntaxPointerType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type, this);
+
+    #else
 //      StringRef name = "__unamed_pointer";
 //      {
 //        PQName const * declaratorId = getDeclaratorId();
 //        if (declaratorId) name = declaratorId->getName();
 //      }
 
-    Type *tmp_type = env.makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
+    Type *tmp_type = env.tfac.makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
     if (tmp_type->isError()) dt.type = tmp_type;
     else {
       PointerType * tmp_ptrtype = dynamic_cast<PointerType *>(tmp_type);
@@ -2074,6 +2066,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
       pt->q = deepClone(q);
       dt.type = pt;
     }
+    #endif
 
     // annotation
     this->type = dt.type;
@@ -2141,9 +2134,11 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 //      PQName const * declaratorId = getDeclaratorId();
 //      if (declaratorId) name = declaratorId->getName();
 //    }
-  FunctionType *ft = env.makeFunctionType(dt.type, cv);
+  FunctionType *ft = env.tfac.syntaxFunctionType(dt.type, cv, this);
+  #if BEFORE
   xassert(!ft->q);
   ft->q = deepClone(q);
+  #endif
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
@@ -2806,7 +2801,7 @@ Type *makeLvalType(Env &env, Type *underlying)
     return underlying;
   }
   else {
-    return env.makeRefType(underlying);
+    return env.tfac.makeRefType(underlying);
   }
 }
 
@@ -2906,13 +2901,7 @@ Type *E_funCall::itcheck(Env &env)
   // with the function parameters
 
   // type of the expr is type of the return value
-
-  // This is off because Scott removed my ability to clone types.
-//  #ifdef DISTINCT_CVATOMIC_TYPES
-//    return t->asFunctionTypeC().retType->deepClone();
-//  #else
-  return t->asFunctionTypeC().retType;
-//  #endif
+  return env.tfac.cloneType(t->asFunctionTypeC().retType);
 }
 
 

@@ -11,15 +11,16 @@
 SObjList<Variable_Q> Variable_Q::instances;
 
 
-Variable_Q::Variable_Q(Variable *v, Type_Q *t)
-  : var(v), qtype(t)
+Variable_Q::Variable_Q(SourceLocation const &L, StringRef n,
+                       Type_Q *t, DeclFlags f,
+                       bool put_into_instances_list)
+  : Variable(L, n, t->type(), f)
 {
-  instances.prepend(this);
-
-  checkHomomorphism();
-
-  // no!  See checkHomomorphism, below.
-  //xassert(!v->q);
+  // sm: dsw's modifications to variable.cc didn't actually do
+  // this check, but I'm assuming he intended to
+  if (put_into_instances_list) {
+    instances.prepend(this);
+  }
 }
 
 Variable_Q::~Variable_Q()
@@ -36,44 +37,17 @@ Variable_Q::~Variable_Q()
     first = false;
   }
 
-  instances.removeAt(instances.indexOf(this));
+  int index = instances.indexOf(this);
+  if (index >= 0) {
+    instances.removeAt(index);
+  }
+  else {
+    // put_into_instances_list must have been false on creation
+  }
 }
 
 
-Variable_Q *Variable_Q::deepClone() const
+Type_Q const *Variable_Q::qtypeC() const
 {
-  return new Variable_Q(var, qtype->deepClone());
-}
-
-                                                      
-// this is defined in cc_tcheck.cc.. bit of a hack
-// but there's not a great place to declare it, and I'm
-// not sure whether it's precisely what I want
-bool almostEqualTypes(Type const *t1, Type const *t2);
-
-void Variable_Q::checkHomomorphism() const
-{
-  // annotation relation is 1-1
-  //xassert(var->q == this);
-  //
-  // update: No it's not!  The whole point of having Variable_Q
-  // be a separate object is to allow for the possibility of
-  // having more than one Variable_Q per Variable.  And in fact,
-  // the deepClone of function types causes exactly this, when
-  // it clones the parameters.
-  //
-  // That calls into question the wisdom of having a pointer in
-  // Variable to Variable_Q, of course.  But that's the way it
-  // worked before: the AST nodes had a single Variable pointer,
-  // even when they were being cloned.  So there may well be a
-  // design error here, but I didn't introduce it by separating
-  // Variable into Variable and Variable_Q.
-
-  // our notion of the variable's type should correspond with
-  // the C++ tcheck's notion of its type (except we allow
-  // some variance in array size matching)
-  xassert(almostEqualTypes(qtype->type(), var->type));
-
-  // and that type should be self-consistent
-  qtype->checkHomomorphism();
+  return asType_QC(type);
 }

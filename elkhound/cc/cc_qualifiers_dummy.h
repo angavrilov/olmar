@@ -38,6 +38,7 @@ Qualifiers *deepClone(Qualifiers *q);
 Qualifiers *deepCloneLiterals(Qualifiers *q);
 Type *applyQualifierLiteralsToType(Qualifiers *q, Type *baseType);
 
-void nameSubtypeQualifiers(Variable *v);
+class Variable_Q;
+void nameSubtypeQualifiers(Variable_Q *v);
 
 #endif // CC_QUALIFIERS_DUMMY_H

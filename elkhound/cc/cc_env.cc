@@ -20,14 +20,14 @@ string ErrorMsg::toString() const
 
 
 // --------------------- Env -----------------
-Env::Env(StringTable &s, CCLang &L, TypeFactory &tfac)
+Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   : scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
     errors(),
     str(s),
     lang(L),
-    tfactory(tfac),
+    tfac(tf),
     madeUpVariables(),
 
     // filled in below; initialized for definiteness
@@ -48,7 +48,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tfac)
   CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
-  type_info_const_ref = makeRefType(makeCVAtomicType(ct, CV_CONST));
+  type_info_const_ref = tfac.makeRefType(makeCVAtomicType(ct, CV_CONST));
 
   // some special names; pre-computed (instead of just asking the
   // string table for it each time) because in certain situations
@@ -972,6 +972,7 @@ bool Env::setDisambiguateOnly(bool newVal)
 }
 
 
+#if 0
 CVAtomicType *Env::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
   { return tfactory.makeCVAtomicType(atomic, cv); }
 
@@ -990,6 +991,21 @@ Type *Env::applyCVToType(CVFlags cv, Type *baseType)
 ArrayType *Env::setArraySize(ArrayType *type, int size)
   { return tfactory.setArraySize(type, size); }
 
+Type *Env::makeRefType(Type *underlying)
+  { return tfactory.makeRefType(underlying); }
+
+PointerType *Env::syntaxPointerType(
+  PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax)
+  { return tfactory.syntaxPointerType(op, cv, underlying, syntax); }
+
+FunctionType *Env::syntaxFunctionType(
+  Type *retType, CVFlags cv, D_function *syntax)
+  { return tfactory.syntaxFunctionType(
+
+PointerType *Env::makeTypeOf_this(
+  CompoundType *classType, FunctionType *methodType);
+
+
 Type *Env::cloneType(Type *src)
   { return tfactory.cloneType(src); }
 
@@ -999,3 +1015,4 @@ Variable *Env::makeVariable(SourceLocation const &L, StringRef n,
 
 Variable *Env::cloneVariable(Variable *src)
   { return tfactory.cloneVariable(src); }
+#endif // 0

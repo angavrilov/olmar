@@ -21,7 +21,7 @@ class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
 // the entire semantic analysis state
-class Env : public TypeFactory {
+class Env {
 private:     // data
   // stack of lexical scopes; first is innermost
   // NOTE: if a scope has curCompound!=NULL, then this list does *not* own
@@ -56,7 +56,7 @@ public:      // data
   CCLang &lang;
 
   // interface for making types
-  TypeFactory &tfactory;
+  TypeFactory &tfac;
 
   // client analyses may need to get ahold of all the Variables that I
   // made up, so this is a list of them; these don't include Variables
@@ -177,17 +177,29 @@ public:      // funcs
   bool setDisambiguateOnly(bool val);
   bool onlyDisambiguating() const { return disambiguateOnly; }
   
-  // TypeFactory funcs; all of these simply delegate to 'tfactory'
-  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
-  virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
-  virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
-  virtual ArrayType *makeArrayType(Type *eltType, int size = -1);
-  virtual Type *applyCVToType(CVFlags cv, Type *baseType);
-  virtual ArrayType *setArraySize(ArrayType *type, int size);
-  virtual Type *cloneType(Type *src);
-  virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
-                                 Type *t, DeclFlags f);
-  virtual Variable *cloneVariable(Variable *src);
+  // TypeFactory funcs; all of these simply delegate to 'tfac'
+  CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)
+    { return tfac.makeCVAtomicType(atomic, cv); }
+  PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType)
+    { return tfac.makePointerType(op, cv, atType); }
+  FunctionType *makeFunctionType(Type *retType, CVFlags cv)
+    { return tfac.makeFunctionType(retType, cv); }
+  ArrayType *makeArrayType(Type *eltType, int size = -1)
+    { return tfac.makeArrayType(eltType, size); }
+
+  Variable *makeVariable(SourceLocation const &L, StringRef n,
+                         Type *t, DeclFlags f)
+    { return tfac.makeVariable(L, n, t, f); }
+
+  CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE)
+    { return tfac.getSimpleType(st, cv); }
+  CVAtomicType *makeType(AtomicType *atomic)
+    { return tfac.makeType(atomic); }
+  Type *makePtrType(Type *type)
+    { return tfac.makePtrType(type); }
+
+  // others are more obscure, so I'll just call into 'tfac' directly
+  // in the places I call them
 };
 
 

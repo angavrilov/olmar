@@ -24,6 +24,11 @@
 #ifndef CC_TYPE_H
 #define CC_TYPE_H
 
+// until the switch is complete, this would go back to the
+// situation where Type was annotated with Qualifiers directly
+#define BEFORE 0
+#define AFTER (!BEFORE)
+
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
 #include "sobjlist.h"     // SObjList
@@ -39,6 +44,9 @@ class Env;                // cc_env.h
 class TS_classSpec;       // cc.ast
 class Expression;         // cc.ast
 class TemplateArgument;   // cc.ast
+class D_pointer;          // cc.ast
+class D_func;             // cc.ast
+class TypeSpecifier;      // cc.ast
 
 // fwd in this file
 class SimpleType;
@@ -60,11 +68,13 @@ class BasicTypeFactory;
 void cc_type_checker();
 
 
+#if BEFORE
 // dsw: This is opaque here.
 class Qualifiers;
 string toString(Qualifiers *q);
 Qualifiers *deepClone(Qualifiers *q);
 Qualifiers *deepCloneLiterals(Qualifiers *q);
+#endif
 
 
 // --------------------- atomic types --------------------------
@@ -255,14 +265,12 @@ public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
   typedef bool (*TypePred)(Type const *t);
 
+#if BEFORE
 private:     // data
   // the type which is the reference to this type, lazily constructed
-  friend class BasicTypeFactory;     
+  friend class BasicTypeFactory;
   PointerType *refType;
-
-  public:                       // dsw: I'll get rid of this in a bit.
-Type *getRefType();
-
+#endif
 
 private:    // funcs
   string idComment() const;
@@ -279,6 +287,7 @@ protected:  // funcs
 public:     // funcs
   virtual ~Type();
 
+  // TODO: remove this
   int getId() const { return (int)this; }
 
   virtual Tag getTag() const = 0;
@@ -317,7 +326,9 @@ public:     // funcs
   // true if any constructor satisfies 'pred'
   virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
+  #if BEFORE
   virtual Qualifiers *&getQualifiersPtr() = 0;
+  #endif
 
   // some common queries
   bool isSimpleType() const;
@@ -367,16 +378,28 @@ public:     // funcs
 class CVAtomicType : public Type {
 public:     // data
   AtomicType *atomic;          // (serf) underlying type
+  #if BEFORE
   Qualifiers *q;
+  #endif
   CVFlags cv;                  // const/volatile
 
 private:    // funcs
-  string atomicIdComment() const;
+  string atomicIdComment() const;    // TODO: remove this
 
 protected:
   friend class BasicTypeFactory;
   CVAtomicType(AtomicType *a, CVFlags c)
-    : atomic(a), q(NULL), cv(c) {}
+    : atomic(a),
+      #if BEFORE
+      q(NULL),  
+      #endif
+      cv(c) {}
+                                       
+  #if AFTER
+  // need this to make an array of them
+  CVAtomicType(CVAtomicType const &obj)
+    : atomic(obj.atomic), cv(obj.cv) {}
+  #endif
 
 public:
   bool innerEquals(CVAtomicType const *obj) const;
@@ -387,7 +410,9 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
+  #if BEFORE
   Qualifiers *&getQualifiersPtr() {return q;}
+  #endif
 };
 
 
@@ -400,14 +425,14 @@ enum PtrOper {
 class PointerType : public Type {
 public:     // data
   PtrOper op;                  // "*" or "&"
+  #if BEFORE
   Qualifiers *q;
+  #endif
   CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
   Type *atType;                // (serf) type of thing pointed-at
 
 protected:  // funcs
   friend class BasicTypeFactory;
-
-  public:                       // dsw: will get rid of this
   PointerType(PtrOper o, CVFlags c, Type *a);
 
 public:
@@ -420,7 +445,9 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
+  #if BEFORE
   Qualifiers *&getQualifiersPtr() {return q;}
+  #endif
 };
 
 
@@ -441,7 +468,9 @@ public:     // types
 
 public:     // data
   Type *retType;               // (serf) type of return value
+  #if BEFORE
   Qualifiers *q;
+  #endif
   CVFlags cv;                  // const/volatile for class member fns
   SObjList<Variable> params;   // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
@@ -450,9 +479,7 @@ public:     // data
   // for template functions, this is the list of template parameters
   TemplateParams *templateParams;    // (owner)
 
-  // Scott, I'll take this out later but right now I need my code to build.
-  public:
-//  protected:  // funcs
+protected:  // funcs
   friend class BasicTypeFactory;
   FunctionType(Type *retType, CVFlags cv);
 
@@ -469,8 +496,8 @@ public:
   bool isTemplate() const { return templateParams!=NULL; }
 
   // more specialized printing, for C++Qual syntax
-  string rightStringUpToQualifiers(bool innerParen) const;
-  string rightStringAfterQualifiers() const;
+  virtual string rightStringUpToQualifiers(bool innerParen) const;
+  virtual string rightStringAfterQualifiers() const;
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
@@ -479,7 +506,9 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
+  #if BEFORE
   Qualifiers *&getQualifiersPtr() {return q;}
+  #endif
 };
 
 
@@ -487,7 +516,9 @@ public:
 class ArrayType : public Type {
 public:
   Type *eltType;               // (serf) type of the elements
+  #if BEFORE
   Qualifiers *q;
+  #endif
   bool hasSize;                // true if a size is specified
   int size;                    // specified size, if 'hasSize'
 
@@ -497,9 +528,17 @@ private:
 protected:
   friend class BasicTypeFactory;
   ArrayType(Type *e, int s)
-    : eltType(e), q(NULL), hasSize(true), size(s) { checkWellFormedness(); }
+    : eltType(e),
+      #if BEFORE
+      q(NULL),  
+      #endif
+      hasSize(true), size(s) { checkWellFormedness(); }
   ArrayType(Type *e)
-    : eltType(e), q(NULL), hasSize(false), size(-1) { checkWellFormedness(); }
+    : eltType(e),
+      #if BEFORE
+      q(NULL),  
+      #endif
+      hasSize(false), size(-1) { checkWellFormedness(); }
 
 public:
   bool innerEquals(ArrayType const *obj) const;
@@ -511,7 +550,9 @@ public:
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
+  #if BEFORE
   Qualifiers *&getQualifiersPtr() {return q;}
+  #endif
 };
 
 
@@ -597,14 +638,19 @@ public:
   virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv)=0;
   virtual ArrayType *makeArrayType(Type *eltType, int size = -1)=0;
 
-  // ---- create a type based on another one ----
-  // given a type, qualify it with 'cv'; return NULL
-  // if the base type cannot be so qualified
-  virtual Type *applyCVToType(CVFlags cv, Type *baseType)=0;
+  // ---- clone types ----
+  virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src)=0;
+  virtual PointerType *clonePointerType(PointerType *src)=0;
+  virtual FunctionType *cloneFunctionType(FunctionType *src)=0;
+  virtual ArrayType *cloneArrayType(ArrayType *src)=0;
+  Type *cloneType(Type *src);       // switch, clone, return
 
-  // given an array type with no size, return one that is
-  // the same except its size is as specified
-  virtual ArrayType *setArraySize(ArrayType *type, int size)=0;
+  // ---- create a type based on another one ----
+  // given a type, qualify it with 'cv'; return NULL if the base type
+  // cannot be so qualified; I pass the syntax from which the 'cv'
+  // flags were derived, for the benefit of extension analyses
+  virtual Type *applyCVToType(CVFlags cv, Type *baseType,
+                              TypeSpecifier *syntax);
 
   // this is called in a few specific circumstances when we want to
   // know the reference type corresponding to some variable; the
@@ -614,9 +660,28 @@ public:
   // 'underlying' is ST_ERROR then this must return ST_ERROR
   virtual Type *makeRefType(Type *underlying);
 
-  // TODO: break this into various contexts of re-use
-  virtual Type *cloneType(Type *src)=0;
-  
+  // build a pointer type from a syntactic description; here I allow
+  // the factory to know the name of an AST node, but the default
+  // implementation will not use it, so it need not be linked in for
+  // this to make sense
+  virtual PointerType *syntaxPointerType(
+    PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax);
+
+  // similar for a function type; the parameters will be added by
+  // the caller after this function returns
+  virtual FunctionType *syntaxFunctionType(
+    Type *retType, CVFlags cv, D_func *syntax);
+
+  // given a class and a method, build the type of the 'this' pointer
+  virtual PointerType *makeTypeOf_this(
+    CompoundType *classType, FunctionType *methodType);
+
+  // given a function type and a return type, make a new function
+  // type which has the same qualifiers as the given one, but otherwise
+  // is unrelated
+  virtual FunctionType *makeSimilarFunctionType(
+    Type *retType, FunctionType *similar);
+
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.
@@ -640,13 +705,15 @@ public:
 
   // make a ptr-to-'type' type; returns generic Type instead of
   // PointerType because sometimes I return fixed(ST_ERROR)
-  Type *makePtrOperType(PtrOper op, CVFlags cv, Type *type);
   inline Type *makePtrType(Type *type)
-    { return makePtrOperType(PO_POINTER, CV_NONE, type); }
+    { return type->isError()? type : makePointerType(PO_POINTER, CV_NONE, type); }
 
-  // map a simple type into its CVAtomicType (with no const or
-  // volatile) representative
+  // map a simple type into its CVAtomicType representative
   CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE);
+
+  // given an array type with no size, return one that is
+  // the same except its size is as specified
+  ArrayType *setArraySize(ArrayType *type, int size);
 };
 
 
@@ -655,10 +722,12 @@ public:
 // to objects of further-derived classes
 class BasicTypeFactory : public TypeFactory {
 private:   // data
+  #if AFTER
   // global array of non-const, non-volatile built-ins; it's expected
   // to be treated as read-only, but enforcement (naive 'const' would
   // not work because Type* aren't const above)
-  //static CVAtomicType unqualifiedSimple[NUM_SIMPLE_TYPES];
+  static CVAtomicType unqualifiedSimple[NUM_SIMPLE_TYPES];
+  #endif
 
 public:    // funcs
   // TypeFactory funcs
@@ -666,10 +735,13 @@ public:    // funcs
   virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
   virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
   virtual ArrayType *makeArrayType(Type *eltType, int size);
-  virtual Type *applyCVToType(CVFlags cv, Type *baseType);
-  virtual ArrayType *setArraySize(ArrayType *type, int size);
+  
+  virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
+  virtual PointerType *clonePointerType(PointerType *src);
+  virtual FunctionType *cloneFunctionType(FunctionType *src);
+  virtual ArrayType *cloneArrayType(ArrayType *src);
+
   virtual Type *makeRefType(Type *underlying);
-  virtual Type *cloneType(Type *src);
   virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
                                  Type *t, DeclFlags f);
   virtual Variable *cloneVariable(Variable *src);
