@@ -187,6 +187,9 @@ public:      // data
   // when true, function template bodies are instantiated
   bool doFunctionTemplateBodyInstantiation;
 
+  // when true, compare arguments to parameters at call sites
+  bool doCompareArgsToParams;
+
   // when non-NULL, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via
   // an an 'asm' directive (see TF_asm::itcheck)

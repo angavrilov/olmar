@@ -24,7 +24,7 @@ void f()
   int *x;
 
   a.foo2(x);
-  a.foo();
+  a.foo(x);
 }
 
 // EOF

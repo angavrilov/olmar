@@ -7,5 +7,5 @@ int main()
 {
   int tok;
   char *delim;
-  tok = strtok(((void *)0) , delim);
+  tok = strtok(((char *)0) , delim);
 }

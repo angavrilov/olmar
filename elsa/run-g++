@@ -6,5 +6,5 @@ if [ "$1" = "" ]; then
   exit 0
 fi
 
-echo $HOME/opt/gcc-3.4.0/bin/g++ -o /dev/null -c -w "$*"
-exec $HOME/opt/gcc-3.4.0/bin/g++ -o /dev/null -c -w "$*"
+echo $HOME/opt/gcc-3.4.0/bin/g++ -o /dev/null -c -w "$@"
+exec $HOME/opt/gcc-3.4.0/bin/g++ -o /dev/null -c -w "$@"

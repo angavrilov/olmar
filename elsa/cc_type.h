@@ -874,7 +874,7 @@ public:     // data
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is '__receiver'
   //
-  // TODO: change to an array
+  // TODO (performance): change to an array
   SObjList<Variable> params;
 
   // allowable exceptions, if not NULL

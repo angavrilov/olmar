@@ -7,7 +7,7 @@ void f(int (C)) {}           // void f(int (*fp)(C c)) {}
 int g(C);
 
 void foo() {
-  f(1);                      // error: cannot convert 1 to function pointer
+  //ERROR(1): f(1);          // error: cannot convert 1 to function pointer
   f(g);                      // OK
 }
 

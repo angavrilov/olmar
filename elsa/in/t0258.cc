@@ -58,8 +58,11 @@ A<int>::B<float> b;
 
 void f()
 {
-  b.foo();
-  b.bar();
+  int *ip;
+  float *fp;
+
+  b.foo(ip, fp);
+  b.bar(ip, fp);
 
   return 1;
 }

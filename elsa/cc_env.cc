@@ -365,6 +365,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doOperatorOverload(!tracingSys("doNotOperatorOverload") && lang.allowOverloading),
     
     doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
+                          
+    // this can be turned off with its own flag, or in C mode (since I
+    // have not implemented any of the relaxed C rules)
+    doCompareArgsToParams(!tracingSys("doNotCompareArgsToParams") && L.isCplusplus),
                                                               
     collectLookupResults(NULL),
     
@@ -448,10 +452,13 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // the mozilla tests use it, and I won't want to make them only
   // active in gnu mode ..
   //
+  // 9/23/04: I made the 'p' argument be '<any type>' instead of 'void *'
+  // since in C++ not all types can be converted to 'void*'.
+  //
   // for GNU compatibility
-  // void *__builtin_next_arg(void *p);
+  // void *__builtin_next_arg(void const *p);
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
-                      t_voidptr, "p");
+                      getSimpleType(SL_INIT, ST_ANY_TYPE), "p");
 
   if (lang.isC99) {
     // sm: I found this; it's a C99 feature: 6.2.5, para 2.  It's
@@ -1016,11 +1023,7 @@ FunctionType *Env::makeUndeclFuncType()
   // makeCVAtomicType() which in oink calls new.
   Type *ftRet = tfac.getSimpleType(loc(), ST_INT, CV_NONE);
   FunctionType *ft = makeFunctionType(loc(), ftRet);
-  Variable *p = makeVariable(loc(),
-                             NULL /*name*/,
-                             tfac.getSimpleType(loc(), ST_ELLIPSIS, CV_NONE),
-                             DF_PARAMETER);
-  ft->addParam(p);
+  ft->flags |= FF_VARARGS;
   ft->doneParams();
   return ft;
 }
@@ -2972,14 +2975,12 @@ static bool isImplicitKandRFuncType(FunctionType *ft)
   if (!retType->isCVAtomicType()) return false;
   if (!retType->asCVAtomicType()->isSimpleType()) return false;
   if (retType->asCVAtomicType()->asSimpleTypeC()->type != ST_INT) return false;
-  // is the parameter list an ellipsis?
-  SObjList<Variable> &params = ft->params;
-  if (params.count() != 1) return false;
-  if (!params.first()->type->isEllipsis()) return false;
+
+  // does it accept varargs?
+  if (ft->params.count() != 0) return false;
+  if (!ft->acceptsVarargs()) return false;
+
   return true;
-  
-  // sm: A true FunctionType should never have an ST_ELLIPSIS parameter.
-  // Instead, mark the FunctionType as FF_VARARGS.
 }
 
 

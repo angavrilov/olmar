@@ -2951,6 +2951,14 @@ Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
         Variable const *sp = iter.data();
         Variable *rp = makeVariable(sp->loc, sp->name,
           applyArgumentMapToType(map, sp->type), sp->flags);
+          
+        if (sp->value) {
+          // TODO: I should be substituting the template parameters
+          // in the default argument too... but for now I will just
+          // use it without modification
+          rp->value = sp->value;
+        }
+
         rft->addParam(rp);
       }
       rft->doneParams();
@@ -3011,6 +3019,7 @@ Type *Env::applyArgumentMapToAtomicType
 
     STemplateArgument const *replacement = map.get(stv->name);
     if (!replacement) {
+      // TODO: I think these should be user errors ...
       xfailure(stringc << "applyArgumentMapToAtomicType: the type name `"
                        << stv->name << "' is not bound");
     }
@@ -3045,10 +3054,32 @@ Type *Env::applyArgumentMapToAtomicType
         args.append(rta);
       }
       else {
-        // TODO: need mapping for non-type params too, but that
-        // requires first fixing the fact that we don't properly
-        // represent them
-        args.append(sta->shallowClone());
+        // handle the one case that sort of works; STA_REFERENCE is (for
+        // the moment; this is a bug) used as a catch-call
+        if (sta->kind == STemplateArgument::STA_REFERENCE) {
+          StringRef varName = sta->value.v->name;
+          STemplateArgument const *replacement = map.get(varName);
+          if (!replacement) {
+            // TODO: I think these should be user errors ...
+            //
+            // TODO: it is possible this really is a concrete
+            // reference argument, instead of being an abstract
+            // parameter, but we have no way of telling the difference
+            // in the current (broken) design
+            xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
+                             << varName << "' is not bound");
+          }
+          else if (replacement->isType()) {
+            xfailure(stringc << "applyArgumentMapToAtomicType: the non-type name `"
+                             << varName << "' is bound to a type argument");
+          }
+
+          args.append(replacement->shallowClone());
+        }
+        else {
+          // the argument is already concrete
+          args.append(sta->shallowClone());
+        }
       }
     }
 

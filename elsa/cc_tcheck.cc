@@ -4441,7 +4441,7 @@ static Variable *outerResolveOverload(Env &env,
       }
     }
 
-    env.error(stringc << "cannot find conversion operator yielding `" 
+    env.error(stringc << "cannot find conversion operator yielding `"
                       << namedType->toString() << "'");
     return NULL;
   }
@@ -4892,6 +4892,61 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // suspect it was a good function to call.
 
   FunctionType *ft = t->asFunctionType();
+
+  // compare argument types to parameters
+  if (env.doCompareArgsToParams) {
+    SObjListIterNC<Variable> paramIter(ft->params);
+    int paramIndex = 1;
+    FakeList<ArgExpression> *argIter = args;
+
+    // for now, skip receiver object
+    //
+    // TODO (elaboration, admission): consider the receiver object as well
+    if (ft->isMethod()) {
+      paramIter.adv();
+    }
+
+    // iterate over both lists
+    for (; !paramIter.isDone() && !argIter->isEmpty();
+         paramIter.adv(), paramIndex++, argIter = argIter->butFirst()) {
+      Variable *param = paramIter.data();
+      ArgExpression *arg = argIter->first();
+
+      // try to convert the argument to the parameter
+      ImplicitConversion ic = getImplicitConversion(env,
+        arg->getSpecial(),
+        arg->getType(),
+        param->type,
+        false /*destIsReceiver*/);
+      if (!ic) {
+        env.error(stringc
+          << "cannot convert argument type `" << arg->getType()->toString()
+          << "' to parameter " << paramIndex 
+          << " type `" << param->type->toString() << "'");
+      }
+
+      // TODO (elaboration): if 'ic' involves a user-defined
+      // conversion, then modify the AST to make that explicit
+    }
+
+    if (argIter->isEmpty()) {
+      // check that all remaining parameters have default arguments
+      for (; !paramIter.isDone(); paramIter.adv(), paramIndex++) {
+        if (!paramIter.data()->value) {
+          env.error(stringc
+            << "no argument supplied for parameter " << paramIndex);
+        }
+        else {
+          // TODO (elaboration): modify the call site to explicitly
+          // insert the default-argument expression (is that possible?
+          // might it run into problems with evaluation contexts?)
+        }
+      }
+    }
+    else if (paramIter.isDone() && !ft->acceptsVarargs()) {
+      env.error("too many arguments supplied");
+    }
+  }
 
   // type of the expr is type of the return value
   return ft->retType;
