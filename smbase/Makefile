@@ -38,9 +38,10 @@ objlist.h: xobjlist.h
 	chmod a-w objlist.h
 
 # -------------- main target --------------
-# testing a malloc with debug info
+# testing a new malloc
+# add the -DDEBUG flag to turn on additional checks
 malloc.o: malloc.c
-	gcc -c -g -DDEBUG malloc.c
+	gcc -c -g malloc.c
 
 # library itself
 library-objs = \
