@@ -43,7 +43,12 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
      "The Practice of Programming", section 2.9 */
   unsigned h = 0;
   for (; *key != '\0'; key += 1) {
-    h = ( h << 5 ) - h + *key;       // h*31 + *key
+    // old
+//      h = ( h << 5 ) - h + *key;       // h*31 + *key
+    // this one is better because it does the multiply last; otherwise
+    // the last byte has no hope of modifying the high order bits
+    h += *key;
+    h = ( h << 5 ) - h;         // h *= 31
   }
   return h;
 
