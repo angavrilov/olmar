@@ -2127,14 +2127,6 @@ Variable *Env::applyPQNameTemplateArguments
         return NULL;       // error already reported
       }
 
-      #if 0    // experiment
-      // if any of the arguments are dependent, then the whole
-      // instantiation is dependent
-      if (hasDependentArgs(sargs)) {
-        return dependentTypeVar;
-      }                     
-      #endif // 0
-
       // if the template arguments are not concrete, then create
       // a PsuedoInstantiation
       if (containsTypeVariables(sargs)) {
