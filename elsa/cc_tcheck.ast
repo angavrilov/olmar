@@ -246,6 +246,10 @@ class Declarator {
     // is this a declarator for a temporary?
     bool isTemporary;
 
+    // dsw: copied from ASTTypeId::isParameter because I need to know
+    // and for some reason the dflags don't get a DF_PARAMETER
+    bool isParameter;
+
     // syntactic context
     enum Context {
       CTX_ORDINARY  = 0x0,     // no particular context
@@ -256,18 +260,30 @@ class Declarator {
     } context;
 
   public:
-    Tcheck(Type *t, DeclFlags d, bool isMember0, bool isTemporary0)
-      : var(NULL), type(t), dflags(d),
-        size_E_new(NULL), funcSyntax(NULL),
-        isMember(isMember0),
-        isTemporary(isTemporary0),
-        context(CTX_ORDINARY) {}
+    Tcheck(Type *t, DeclFlags d,
+           bool isMember0, bool isTemporary0, bool isParameter0
+           )
+      : var         (NULL)
+      , type        (t)
+      , dflags      (d)
+      , size_E_new  (NULL)
+      , funcSyntax  (NULL)
+      , isMember    (isMember0)
+      , isTemporary (isTemporary0)
+      , isParameter (isParameter0)
+      , context     (CTX_ORDINARY)
+    {}
     Tcheck(Tcheck const &obj)
-      : var(obj.var), type(obj.type), dflags(obj.dflags),
-        size_E_new(obj.size_E_new), funcSyntax(obj.funcSyntax),
-        isMember(obj.isMember),
-        isTemporary(obj.isTemporary),
-        context(obj.context) {}
+      : var         (obj.var)
+      , type        (obj.type)
+      , dflags      (obj.dflags)
+      , size_E_new  (obj.size_E_new)
+      , funcSyntax  (obj.funcSyntax)
+      , isMember    (obj.isMember)
+      , isTemporary (obj.isTemporary)
+      , isParameter (obj.isParameter)
+      , context     (obj.context)
+    {}
 
     Tcheck& operator= (Tcheck const &obj) {
       var         = obj.var;
@@ -278,6 +294,7 @@ class Declarator {
       funcSyntax  = obj.funcSyntax;
       isMember    = obj.isMember;
       isTemporary = obj.isTemporary;
+      isParameter = obj.isParameter;
       return *this;
     }
 
@@ -297,7 +314,11 @@ class Declarator {
   // alternatives was selected
   public /*no_ignore*/ Declarator *tcheck(Env &env, Tcheck &dt);
   public void mid_tcheck(Env &env, Tcheck &dt);
-  public void elaborateCDtors(Env &env, bool isMember, bool isTemporary, bool isStatic);
+  public void elaborateCDtors(Env &env,
+                              bool isMember,
+                              bool isTemporary,
+                              bool isParameter,
+                              DeclFlags dflags);
 }
 
 

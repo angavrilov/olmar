@@ -142,6 +142,12 @@ public:      // data
   char const * const e_newNamePrefix;
   int const e_newNamePrefixLen;
 
+  // the suffix used to generate shadow names; NOTE: it is important
+  // that this string contain at least one character that is not
+  // allowed in an user-identifier.
+  char const * const shadowSuffix;
+  int const shadowSuffixLen;
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -275,6 +281,9 @@ public:      // funcs
   
   // like the above, but wrap it in a ClassTemplateInfo
   ClassTemplateInfo * /*owner*/ takeTemplateClassInfo(StringRef baseName);
+
+  // make a shadow typedef var for the given var in the given scope
+  void makeShadowTypedef(Variable *tv, Scope *scope);
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming

@@ -65,7 +65,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     e_newSerialNumber(0),
     e_newNamePrefix("e_new-name-"),
-    e_newNamePrefixLen(strlen(e_newNamePrefix))
+    e_newNamePrefixLen(strlen(e_newNamePrefix)),
+
+    shadowSuffix("-shadow"),
+    shadowSuffixLen(strlen(shadowSuffix))
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
@@ -1412,6 +1415,27 @@ ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 }
 
 
+void Env::makeShadowTypedef(Variable *tv, // typedef var
+                            Scope *scope)
+{
+  xassert(tv->hasFlag(DF_TYPEDEF));
+  char *shadowName0 = strdup(stringc << tv->name << shadowSuffix);
+  TRACE("env", "making shadow typedef variable `" << shadowName0 <<
+        "' for `" << tv->name <<
+        "' to `" << shadowName0 << "' because a non-typedef var is masking it");
+  // shadow shouldn't exist
+  xassert(!scope->lookupVariable(shadowName0, *this, LF_INNER_ONLY));
+  tv->name = shadowName0;
+  // I think this should always do nothing since done before
+  scope->registerVariable(tv);  // FIX: dupliation OK?
+  bool actuallyAdded = scope->addVariable(tv, false);
+  xassert(actuallyAdded);       // should have gotten added even with no force replace
+  xassert(tv == scope->lookupVariable(shadowName0, *this, LF_INNER_ONLY));
+  // FIX: do this? it is a no-op but has some intended semantics
+  addedNewVariable(scope, tv);  // FIX: duplication OK?
+}
+
+
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
@@ -1440,8 +1464,13 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
       //  << "implicit typedef associated with " << ct->keywordAndName()
       //  << " conflicts with an existing typedef or variable",
       //  true /*disambiguating*/);
-    }
-    else {
+      if (disambErrorsSuppressChanges()) {
+        TRACE("env", "not actually making shadow typedef variable for `"
+              << tv->name << "' because there are disambiguating errors (2)");
+      } else {
+        makeShadowTypedef(tv, scope);
+      }
+    } else {
       addedNewVariable(scope, tv);
     }
   }
@@ -1485,13 +1514,17 @@ Variable *Env::instantiateClassTemplate
     }
   }
 
+  // dsw: UPDATE: the below is CHANGED!  instName is now **not** for
+  // debugging only.  It must be the base name.
+
   // render the template arguments into a string that we can use
   // as the name of the instantiated class; my plan is *not* that
   // this string serve as the unique ID, but rather that it be
   // a debugging aid only
-  StringRef instName = str.add(stringc << base->name << sargsToString(sargs));
+  StringRef instName = base->name;
+  StringRef instNameOld = str.add(stringc << base->name << sargsToString(sargs));
   trace("template") << (base->forward? "(forward) " : "")
-                    << "instantiating class: " << instName << endl;
+                    << "instantiating class: " << instNameOld << endl;
 
   // remove scopes from the environment until the innermost
   // scope on the scope stack is the same one that the template

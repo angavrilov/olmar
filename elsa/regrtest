@@ -263,11 +263,7 @@ T="$T t0074.cc"
 T="$T t0075.cc"
 T="$T t0076.cc"
 T="$T t0077.cc"
-
-# Arg, Scott's inner class/variable/namespace design provides
-# conveniently for a collision here.
-# T="$T t0078.cc"
-
+T="$T t0078.cc"
 T="$T t0079.cc"
 T="$T t0080.cc"
 T="$T t0081.cc"
@@ -310,17 +306,7 @@ T="$T t0114.cc"
 T="$T t0115.cc"
 T="$T t0116.cc"
 T="$T t0117.cc"
-
-# update: Arg, this is bad: This one passes now even though I haven't
-# fixed the test.  Scott says use the tracing flag "overload" to watch
-# overloading happen.
-# This is a real bug in the test!
-#  in/t0118.cc:139:5: error: no viable candidate for function call
-#  in/t0118.cc:200:5: error: no viable candidate for function call
-#  in/t0118.cc:210:5: error: no viable candidate for function call
-#  in/t0118.cc:216:6: error: no viable candidate for function call
 T="$T t0118.cc"
-
 T="$T t0119.cc"
 T="$T t0120.cc"
 T="$T t0121.cc"
@@ -387,12 +373,19 @@ failTest "need overload resolution with templates" \
 
 
 # another set of tests, generally isolated by Daniel
+
+# FIX: I think this is breaking due to the way that we deal with
+# naming specialized templates: my theory is it is because we pass in
+# the syntax with which they were named, which in a different context
+# might not typecheck the same way.
+#    d0026.cc                                     
+
 for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
   d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
   d0016.cc d0017.cc d0018.cc d0019.cc d0020.cc \
-  d0021.cc                                     \
+  d0021.cc d0022.cc d0023.cc d0024.cc d0025.cc \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
 done
@@ -478,15 +471,19 @@ done
 #    runTest ./ccparse -tr $TR_FLAGS "$fn"
 #  done
 
+# FIX:
+# minimized to d0026.cc
+#    in/big/nsAtomTable.i           
+
+#    in/big/nsSOAPPropertyBag.i     
+#    in/big/nsCLiveconnectFactory.i 
+#    in/big/nsHTMLEditRules.i       
+#    in/big/nsMsgServiceProvider.i  
+#    in/big/nsUnicodeToTeXCMRt1.i   
+
 $MAKE in/big
 for fn in \
   in/big/nonport.i               \
-  in/big/nsUnicodeToTeXCMRt1.i   \
-  in/big/nsAtomTable.i           \
-  in/big/nsSOAPPropertyBag.i     \
-  in/big/nsCLiveconnectFactory.i \
-  in/big/nsHTMLEditRules.i       \
-  in/big/nsMsgServiceProvider.i  \
 ; do
   runTest ./ccparse -tr $TR_FLAGS "$fn"
 done

@@ -116,7 +116,9 @@ NamedAtomicType::NamedAtomicType(StringRef n)
   : name(n),
     typedefVar(NULL),
     access(AK_PUBLIC)
-{}
+{
+//    cout << "creating NamedAtomicType name '" << *n << "'" << endl;
+}
 
 NamedAtomicType::~NamedAtomicType()
 {
@@ -627,22 +629,32 @@ void CompoundType::addLocalConversionOp(Variable *op)
 PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
 {
   xassert(curCompound);
-  if (name0) {
-    name0 =
-      new PQ_qualifier(loc, curCompound->name,
-                       (templateInfo
-                        ? templateInfo->argumentSyntax
-                        : FakeList<TemplateArgument>::emptyList()),
-                       name0);
-  } else {
-    // dang it Scott, why the templatization asymmetry between
-    // PQ_name/template on one hand and PQ_qualifier on the other?
-    if (templateInfo) {
-      name0 = new PQ_template(loc, curCompound->name, templateInfo->argumentSyntax);
+  xassert(typedefVar);
+  {
+    char *typedefVarName = strdup(typedefVar->name); // garbage
+//      cout
+//        << "curCompound->name '" << curCompound->name
+//        << "' typedefVar->name '" << typedefVar->name << "'"
+//        << "' typedefVarName '" << typedefVarName << "'"
+//        << endl;
+    if (name0) {
+      name0 =
+        new PQ_qualifier(loc, typedefVarName,
+                         (templateInfo
+                          ? templateInfo->argumentSyntax
+                          : FakeList<TemplateArgument>::emptyList()),
+                         name0);
     } else {
-      name0 = new PQ_name(loc, curCompound->name);
+      // dang it Scott, why the templatization asymmetry between
+      // PQ_name/template on one hand and PQ_qualifier on the other?
+      if (templateInfo) {
+        name0 = new PQ_template(loc, typedefVarName, templateInfo->argumentSyntax);
+      } else {
+        name0 = new PQ_name(loc, typedefVarName);
+      }
     }
   }
+
   if (parentScope) {
     xassert(parentScope->curCompound);
     return parentScope->curCompound->PQ_fullyQualifiedName(loc, name0);

@@ -166,8 +166,11 @@ void Function::tcheck(Env &env, bool isMember, bool checkBody)
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)),
-                        isMember,
-                        false);
+                        isMember, // isMember
+                        false,  // isTemporary
+                        // The *function* is not a parameter
+                        false   // isParameter
+                        );
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -366,6 +369,7 @@ void Function::tcheck_memberInits(Env &env)
           iter->ctorVar = ctor;
           // FIX: do this; we need a variable for when it is a base class
           // the var is the MemberInit::member
+//            xassert(!ctorStatement);
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
         } else {
           xassert(!ctor);
@@ -463,6 +467,7 @@ void Function::tcheck_memberInits(Env &env)
       // FIX: do this; we need a variable for when it is a base class
       // the var is Function::retVar; NOTE: the types won't match so
       // watch out.
+//            xassert(!ctorStatement);
 //            ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
     } else {
       xassert(!ctor);
@@ -489,7 +494,8 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env, bool isMember,
+void Declaration::tcheck(Env &env,
+                         bool isMember,
                          bool isTemporary // FIX: I don't think this is necessary any more
                          )
 {
@@ -525,7 +531,13 @@ void Declaration::tcheck(Env &env, bool isMember,
   // each declarator..)
   if (decllist) {
     // check first declarator
-    Declarator::Tcheck dt1(specType, dflags, isMember, isTemporary);
+    Declarator::Tcheck dt1(specType, dflags,
+                           isMember,
+                           isTemporary,
+                           // Parameter Declarators are not within
+                           // Declarations, but in ASTTypeIds
+                           false // isParameter
+                           );
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
@@ -536,7 +548,13 @@ void Declaration::tcheck(Env &env, bool isMember,
       Type *dupType = env.tfac.cloneType(specType);
 
       xassert(!isTemporary);
-      Declarator::Tcheck dt2(dupType, dflags, isMember, isTemporary);
+      Declarator::Tcheck dt2(dupType, dflags,
+                             isMember,
+                             isTemporary,
+                             // Parameter Declarators are not within
+                             // Declarations, but in ASTTypeIds
+                             false // isParameter
+                             );
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -576,7 +594,8 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags,
                         false,  // isMember
-                        false   // isTemporary
+                        false,  // isTemporary
+                        tc.isParameter // isParameter
                         );
   dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
                tc.isParameter? Declarator::Tcheck::CTX_PARAM :
@@ -685,6 +704,7 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   }
 
   if (!var->hasFlag(DF_TYPEDEF)) {
+//      cout << "A: variable name `" << *name << "' used as if it were a type" << endl;
     return env.error(stringc
       << "variable name `" << *name << "' used as if it were a type",
       disambiguates);
@@ -1259,10 +1279,10 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
         decliter->elaborateCDtors(env,
-                                  true /*isMember*/,
-                                  false /*isTemporary*/,
-                                  ((d0->dflags & DF_STATIC)!=0) /*isStatic*/
-                                  );
+                                  true, // isMember
+                                  false, // isTemporary
+                                  false, // FIX: can a TS_classSpec be a parameter?
+                                  d0->dflags);
       }
     }
   }
@@ -1812,10 +1832,9 @@ static Statement *makeCtorStatement
 {
   xassert(var);                 // this is never for a temporary
   xassert(!var->hasFlag(DF_TYPEDEF));
+  PQName *name0 = type->asCompoundType()->PQ_fullyQualifiedName(env.loc());
   E_constructor *ector0 =
-    new E_constructor(new TS_name(env.loc(),
-                                  type->asCompoundType()->PQ_fullyQualifiedName(env.loc()),
-                                  false),
+    new E_constructor(new TS_name(env.loc(), name0, false),
                       args);
   // this way the E_constructor::itcheck() can tell that it is not for
   // a temporary
@@ -1916,22 +1935,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       goto ifInitEnd;
     }
 
-    // dsw: Arg, do I have to deal with this?
     // TODO: in the case of class data members, delay checking the
-    // initializer until the entire class body has been scanned
+    // initializer until the entire class body has been scanned; dsw:
+    // I think this is fixed now; the init typechecking, etc. code
+    // that was here is now in elaborateCDtors.
 
-    init->tcheck(env, type);
-
-    // remember the initializing value, for const values
-    if (init->isIN_expr()) {
-      var->value = init->asIN_exprC()->e;
-    }
-
-    // use the initializer size to refine array types
-    // array initializer case
-    var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
-    // array compound literal initializer case
-    var->type = computeArraySizeFromLiteral(env, var->type, init);
+    // **** NOTE: The init typechecking code was here; is now in
+    // elaborateCDtors().
 
     // jump here if we find an error in the init code above and report
     // it but want to keep going
@@ -1993,14 +2003,35 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //             sourceLocManager->getLine(var->loc),
 //             (var->hasFlag(DF_VIRTUAL)?"YES":"NO"));
 //    }
+
+  // Non-members aren't going to get a second pass over them, so we
+  // just call elaborateCDtors() now for them.
+  if (!dt.isMember) {
+    elaborateCDtors(env,
+                    dt.isMember,
+                    dt.isTemporary,
+                    dt.isParameter,
+                    dt.dflags);
+  }
 }
 
 
 void Declarator::elaborateCDtors(Env &env,
                                  bool isMember,
                                  bool isTemporary,
-                                 bool isStatic)
+                                 bool isParameter,
+                                 DeclFlags dflags)
 {
+  // FIX: compute this rather than asserting it
+  // FIX: fails for in/t0009.cc !
+//    xassert( ((dflags & DF_MEMBER) != 0) == isMember );
+  // FIX: maybe this could never have worked
+//    bool isParameter  = (dflags & DF_PARAMETER)!=0;
+  bool isStatic = (dflags & DF_STATIC)!=0;
+
+  // temporaries are never parameters
+  if (isTemporary) xassert(!isParameter);
+
   // dsw: Should this lookup be cached during mid_tcheck() above?
 
   // NOTE: there seems to be some inevitable duplication of effort
@@ -2027,6 +2058,7 @@ void Declarator::elaborateCDtors(Env &env,
 
   // check the name is a temp name
   if (isTemporary) {
+    xassert(!isParameter);
     StringRef declBaseName = declaratorId->getName();
     xassert(static_cast<signed>(strlen(declBaseName)) >= env.tempNamePrefixLen);
     xassert(strncmp(env.tempNamePrefix,
@@ -2034,101 +2066,135 @@ void Declarator::elaborateCDtors(Env &env,
                     env.tempNamePrefixLen)==0);
   }
 
-  xassert(!ctorStatement);
+  // This was moved here from Declarator::mid_tcheck()
   if (init) {
-    if (isMember && !isStatic) {
-      // special case: virtual methods can have an initializer that is
-      // the int constant "0", which means they are abstract.  I could
-      // check for the value "0", but I don't bother.
-      if (! (var->type->isFunctionType()
-             && var->type->asFunctionType()->isMethod()
-             && var->hasFlag(DF_VIRTUAL))) {
-        env.error(env.loc(), "initializer not allowed for a non-static member declaration");
-      }
-      // but we still shouldn't make a ctor for this function from the
-      // "0".
-      goto ifInitEnd;
-    }
-    if (isMember && isStatic && !type->isConst()) {
-      env.error(env.loc(), "initializer not allowed for a non-const static member declaration");
-      goto ifInitEnd;
+    init->tcheck(env, type);
+
+    // remember the initializing value, for const values
+    if (init->isIN_expr()) {
+      var->value = init->asIN_exprC()->e;
     }
 
-    // TODO: check the initializer for compatibility with
-    // the declared type
-
-    // TODO: check compatibility with dflags; e.g. we can't allow
-    // an initializer for a global variable declared with 'extern'
-
-    // dsw: or a typedef
-    if (var->hasFlag(DF_TYPEDEF)) {
-      // dsw: FIX: should the return value get stored somewhere?
-      // FIX: the loc is probably wrong
-      env.error(env.loc(), "initializer not allowed for a typedef");
-      goto ifInitEnd;
-    }
-
-    // dsw: Arg, do I have to deal with this?
-    // TODO: in the case of class data members, delay checking the
-    // initializer until the entire class body has been scanned
-
-    xassert(!isTemporary);
-    // make the call to the ctor; FIX: Are there other things to check
-    // in the if clause, like whether this is a typedef?
-    if (type->isCompoundType() &&
-        (init->isIN_expr() || init->isIN_compound())
-        ) {
-      xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-      // just call the no-arg ctor; FIX: this is questionable; we
-      // haven't decided what should really happen for an IN_expr
-      // and it is undefined what should happen for an IN_compound
-      // since it is a C99-ism.
-      ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
-    } else if (init->isIN_ctor()) {
-      xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-      // FIX: What should we do for non-CompoundTypes?
-      if (type->isCompoundType()) {
-        ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-      }
-    }
-
-    // jump here if we find an error in the init code above and report
-    // it but want to keep going
-  ifInitEnd: ;                  // must have a statement here
+    // use the initializer size to refine array types
+    // array initializer case
+    var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+    // array compound literal initializer case
+    var->type = computeArraySizeFromLiteral(env, var->type, init);
   }
-  else /* init is NULL */
+
+  xassert(!ctorStatement);
+  if (!isParameter) {
+    if (init) {
+      if (isMember && !isStatic) {
+        // special case: virtual methods can have an initializer that is
+        // the int constant "0", which means they are abstract.  I could
+        // check for the value "0", but I don't bother.
+        if (! (var->type->isFunctionType()
+               && var->type->asFunctionType()->isMethod()
+               && var->hasFlag(DF_VIRTUAL))) {
+          env.error(env.loc(), "initializer not allowed for a non-static member declaration");
+        }
+        // but we still shouldn't make a ctor for this function from the
+        // "0".
+        goto ifInitEnd;
+      }
+      if (isMember && isStatic && !type->isConst()) {
+        env.error(env.loc(), "initializer not allowed for a non-const static member declaration");
+        goto ifInitEnd;
+      }
+
+      // TODO: check the initializer for compatibility with
+      // the declared type
+
+      // TODO: check compatibility with dflags; e.g. we can't allow
+      // an initializer for a global variable declared with 'extern'
+
+      // dsw: or a typedef
+      if (var->hasFlag(DF_TYPEDEF)) {
+        // dsw: FIX: should the return value get stored somewhere?
+        // FIX: the loc is probably wrong
+        env.error(env.loc(), "initializer not allowed for a typedef");
+        goto ifInitEnd;
+      }
+
+      // dsw: Arg, do I have to deal with this?
+      // TODO: in the case of class data members, delay checking the
+      // initializer until the entire class body has been scanned
+
+      xassert(!isTemporary);
+      // make the call to the ctor; FIX: Are there other things to check
+      // in the if clause, like whether this is a typedef?
+      if (init->isIN_ctor()) {
+        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+        // FIX: What should we do for non-CompoundTypes?
+        if (type->isCompoundType()) {
+          xassert(!ctorStatement);
+          ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+        }
+      } else if (type->isCompoundType()) {
+        if (init->isIN_expr()) {
+          xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+          // just call the one-arg ctor; FIX: this is questionable; we
+          // haven't decided what should really happen for an IN_expr
+          xassert(!ctorStatement);
+          ctorStatement =
+            makeCtorStatement(env, var, type,
+                              FakeList<Expression>::makeList(init->asIN_expr()->e));
+        } else if (init->isIN_compound()) {
+          xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
+          // just call the one-arg ctor; FIX: this is questionable; it
+          // is undefined what should happen for an IN_compound since
+          // it is a C99-ism.
+          xassert(!ctorStatement);
+          ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+        }
+      }
+
+      // jump here if we find an error in the init code above and report
+      // it but want to keep going
+    ifInitEnd: ;                  // must have a statement here
+    }
+    else /* init is NULL */
+      if (type->isCompoundType() &&
+          !var->hasFlag(DF_TYPEDEF) &&
+          !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
+          !isTemporary &&
+          !isMember &&
+          !( (dflags & DF_EXTERN)!=0 ) // not extern
+          ) {
+        // call the no-arg ctor; for temporaries do nothing since this is
+        // a temporary, it will be initialized later
+        xassert(!ctorStatement);
+        ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+      }
+
+    // if isTemporary we don't want to make a ctor since by definition
+    // the temporary will be initialized later
+    if (isTemporary ||
+        (isMember && !(isStatic && type->isConst())) ||
+        ( (dflags & DF_EXTERN)!=0 ) // extern
+        ) {
+      xassert(!ctorStatement);
+    } else if (type->isCompoundType() &&
+               !var->hasFlag(DF_TYPEDEF) &&
+               !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
+               (!isMember ||
+                (isStatic && type->isConst() && init)) &&
+               !( (dflags & DF_EXTERN)!=0 ) // not extern
+               ) {
+      xassert(ctorStatement);
+    }
+
+    // make the dtorStatement
     if (type->isCompoundType() &&
         !var->hasFlag(DF_TYPEDEF) &&
         !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-        !isTemporary &&
-        !isMember) {
-    // call the no-arg ctor; for temporaries do nothing since this is
-    // a temporary, it will be initialized later
-    ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
-  }
-
-  // if isTemporary we don't want to make a ctor since by definition
-  // the temporary will be initialized later
-  if (isTemporary ||
-      (isMember && !(isStatic && type->isConst()))) {
-    xassert(!ctorStatement);
-  } else if (type->isCompoundType() &&
-             !var->hasFlag(DF_TYPEDEF) &&
-             !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-             (!isMember ||
-              (isStatic && type->isConst() && init))
-             ) {
-    xassert(ctorStatement);
-  }
-
-  // make the dtorStatement
-  if (type->isCompoundType() &&
-      !var->hasFlag(DF_TYPEDEF) &&
-      !(decl->isD_name() && !decl->asD_name()->name) // that is, not an abstract decl
-      ) {
-    dtorStatement = makeDtorStatement(env, type);
-  } else {
-    xassert(!dtorStatement);
+        !( (dflags & DF_EXTERN)!=0 ) // not extern
+        ) {
+      dtorStatement = makeDtorStatement(env, type);
+    } else {
+      xassert(!dtorStatement);
+    }
   }
 
   if (qualifiedScope) {
@@ -2793,6 +2859,30 @@ realStart:
         TRACE("env",    "replacing implicit typedef of " << prior->name
                      << " at " << prior->loc << " with new decl at "
                      << loc);
+
+        // Make the shadow name
+        {
+          xassert(strcmp(unqualifiedName, prior->name) == 0);
+          xassert(!overloadSet);  // typedefs shouldn't be subject to overloading
+          // The above code is so complicated that I don't know what
+          // the scope is where I should enter the new name; it seems
+          // that for a typedef it is always here.
+          xassert(prior == scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY));
+
+          // FIX: I don't know if I'm skipping the right code here in
+          // the presence of errors; this is copied from the insertion
+          // code later in this method.
+          if (!dt.type->isError()) {
+            if (env.disambErrorsSuppressChanges()) {
+              TRACE("env", "not actually making shadow typedef variable for `"
+                    << prior->name << "' because there are disambiguating errors (1)");
+            } else {
+              env.makeShadowTypedef(prior, scope);
+            }
+          }
+        }
+
+        // now finish adding the new variable
         forceReplace = true;
         goto noPriorDeclaration;
       }
@@ -4391,10 +4481,10 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                        );
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
     decliter->elaborateCDtors(env,
-                              true /*isMember*/,
-                              true /*isTemporary*/,
-                              ((declaration0->dflags & DF_STATIC)!=0) /*isStatic*/
-                              );
+                              true, // isMember
+                              true, // isTemporary
+                              false, // isParameter; temporaries are never parameters 
+                              declaration0->dflags);
   }
   // don't do this for now:
 //    xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
@@ -5575,6 +5665,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     // local scope
     env.addVariable(var);
     xassert(ctorArgs);
+    xassert(!ctorStatement);
     ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
   }
 
