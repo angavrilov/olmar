@@ -1,3 +1,6 @@
+// ambiguous lookup of base class constructor with constructor of same class
+// with different template argument
+
 // Assertion failed: !ambiguity, file cc.ast.gen.cc line 2726
 
 // originally found in package aspell
