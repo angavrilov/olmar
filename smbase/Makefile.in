@@ -7,10 +7,10 @@ all: gensrc $(THIS)
 
 
 # C preprocessor, compiler and linker
-CC := gcc
+CC := @CC@
 
 # C++ compiler, etc.
-CXX := g++
+CXX := @CXX@
 
 # flags for the C and C++ compilers (and preprocessor)
 CFLAGS  := @CFLAGS@
@@ -225,7 +225,7 @@ cycles: cycles.h cycles.c
 	$(TESTCC) -o cycles -DTEST_CYCLES cycles.c
 
 crc: crc.cpp
-	$(TESTCXX) -o crc -DTEST_CRC crc.cpp
+	$(TESTCXX) -o crc $(CCFLAGS) -DTEST_CRC crc.cpp
 
 srcloc: srcloc.cc $(THIS)
 	$(TESTCXX) -o srcloc -DTEST_SRCLOC srcloc.cc $(TESTFLAGS)

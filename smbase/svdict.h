@@ -39,6 +39,7 @@ private:    // types
     static char const *getKey(Node const *n);
   };
 
+public:     // types
   // function for general foreach; return false to continue,
   // true to stop iterating
   typedef bool (*ForeachFn)(string const &key, void *value, void *extra);
@@ -46,7 +47,6 @@ private:    // types
   // function type to delete void*s while emptying
   typedef void (*DelFn)(void *value);
 
-public:     // types
   // Note: some care must be taken when dealing with Iters, because
   //       they can be invalidated when held across modifications to
   //       structure of the underlying dictionary

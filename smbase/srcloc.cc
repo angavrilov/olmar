@@ -934,7 +934,7 @@ void testHashMap()
 }
 
 
-void entry(int argc, char **argv)
+void entry(int argc, char ** /*argv*/)
 {
   traceAddSys("progress");
   traceProgress() << "begin" << endl;

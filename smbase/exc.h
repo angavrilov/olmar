@@ -9,9 +9,9 @@
 #include "typ.h"         // bool
 #include "xassert.h"     // xassert, for convenience for #includers
 #include "str.h"         // string
+#include <iostream.h>    // ostream
 
 // forward declarations
-class ostream;
 class stringBuilder;
 
 

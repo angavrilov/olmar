@@ -44,6 +44,9 @@ void trstr(char const *sysName, char const *traceString);
 // dsw: tracing *bidirectionally* configurable from the command line:
 // it may be turned on *or* off: any definition other than '0' counts
 // as true, such as -DDO_TRACE=1 or just -DDO_TRACE
+#ifndef DO_TRACE
+  #define DO_TRACE 0
+#endif
 #if DO_TRACE != 0
   #define TRACE(tag, exp) trace(tag) << exp << endl /* user ; */
 #else

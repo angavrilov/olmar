@@ -24,7 +24,7 @@ char const * const xSysError::reasonStrings[] = {
 };
 
 
-STATICDEF char const * const xSysError::
+STATICDEF char const *xSysError::
   getReasonString(xSysError::Reason r)
 {
   // at compile-time, verify consistency between enumeration and string array

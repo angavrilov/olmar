@@ -266,7 +266,7 @@ public:      // funcs
     { xassert(!isStatic(base)); return toLoc(toInt(base) + colOffset); }
   static SourceLoc advLine(SourceLoc base)     // from end of line to beginning of next
     { xassert(!isStatic(base)); return toLoc(toInt(base) + 1); }
-  static SourceLoc advText(SourceLoc base, char const *text, int textLen)
+  static SourceLoc advText(SourceLoc base, char const * /*text*/, int textLen)
     { xassert(!isStatic(base)); return toLoc(toInt(base) + textLen); }
 
   // decode

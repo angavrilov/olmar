@@ -15,7 +15,7 @@ int writeAll(int fd, void const *buf, int len)
 {
   int written = 0;
   while (written < len) {
-    int result = write(fd, buf+written, len-written);
+    int result = write(fd, ((char const*)buf)+written, len-written);
     if (result < 0) {
       return 0;    // failure
     }

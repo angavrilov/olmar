@@ -47,6 +47,9 @@ elsif (substr($ARGV[0], 0, 2) eq '-o') {
 @ARGV = grep(!/^-Wall$/, @ARGV);    # remove -Wall
 push @ARGV, "-w";                   # add -w
 
+# icc hack: remove -wd too
+@ARGV = grep(!/^-wd/, @ARGV);       # remove -wdXXX
+
 
 # invoke gcc's preprocessor to discover dependencies:
 #   -MM   output Makefile rule, ignoring "#include <...>" lines

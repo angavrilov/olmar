@@ -70,7 +70,7 @@ public:    // funcs
     // sets 'sysmsg' to the system's message string, if possible
     // [nonportable implementation]
 
-  static char const * const getReasonString(Reason r);
+  static char const *getReasonString(Reason r);
     // translate a Reason into a string (if r is invalid, a string
     // saying to will be returned)
 

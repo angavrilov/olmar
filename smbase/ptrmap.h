@@ -63,7 +63,7 @@ public:      // iterators
 
 // a set based on PtrMap
 template <class KEY>
-class PtrSet : PtrMap<KEY, KEY> {
+class PtrSet : private PtrMap<KEY, KEY> {
   public:
   PtrSet() {}
   ~PtrSet() {}

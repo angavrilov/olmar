@@ -86,7 +86,7 @@ void BPText::render(BPRender &mgr)
 }
 
 
-void BPText::debugPrint(ostream &os, int ind) const
+void BPText::debugPrint(ostream &os, int /*ind*/) const
 {
   os << "text(" << quoted(text) << ")";
 }
@@ -117,7 +117,7 @@ bool BPBreak::isBreak() const
   return enabled;
 }
 
-void BPBreak::debugPrint(ostream &os, int ind) const
+void BPBreak::debugPrint(ostream &os, int /*ind*/) const
 {
   os << "break(en=" << (int)enabled << ", ind=" << indent << ")";
 }

@@ -16,13 +16,19 @@ options:
   -debugheap         turn on heap usage debugging
   -traceheap         print messages on each malloc and free
   -ccflag <arg>      add <arg> to gcc command line
+  -CC <cmd>          use <cmd> as the C compiler
+  -CXX <cmd>         use <cmd> as the C++ compiler
 EOF
+# this option is obscure, so I won't print it in the usage string
+# -icc               turn on options for Intel's compiler
 }
 
 # autoflush so progress reports work
 $| = 1;
 
 # defaults
+$CC = "gcc";
+$CXX = "g++";
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
 $CCFLAGS = ();
 $DEBUG_HEAP = 0;
@@ -30,7 +36,17 @@ $TRACE_HEAP = 0;
 $debug = 0;
 $use_dash_g = 1;
 $allow_dash_O2 = 1;
+              
 
+# get an argument to an option
+sub getNextArg {              
+  if (@ARGV == 0) {
+    die("option requies an argument\n");
+  }
+  my $ret = $ARGV[0];
+  shift @ARGV;
+  return $ret;
+}
 
 # process command-line arguments
 while (@ARGV) {
@@ -52,8 +68,14 @@ while (@ARGV) {
     push @CCFLAGS, $arg;
   }
   elsif ($arg eq "-ccflag") {
-    push @CCFLAGS, $ARGV[0];
-    shift @ARGV;
+    push @CCFLAGS, getNextArg();
+  }
+
+  elsif ($arg eq "-CC") {
+    $CC = getNextArg();
+  }
+  elsif ($arg eq "-CXX") {
+    $CXX = getNextArg();
   }
 
   elsif ($arg eq "-d" ||
@@ -84,6 +106,26 @@ while (@ARGV) {
   }
   elsif ($arg eq "-traceheap") {
     $TRACE_HEAP = 1;
+  }
+
+  # 9/19/04: I spent some time getting smbase to build under 
+  # the Intel C++ 8.1 compiler; these are the options I used.
+  elsif ($arg eq "-icc") {
+    # compiler executables
+    $CC = "icc";
+    $CXX = "icpc";
+
+    # diagnostic suppression:
+    #  444: Wants virtual destructors
+    #  1418: external definition with no prior declaration
+    #  810: Conversion might lose sig.digs (can't suppress with cast!)
+    #  271: trailing comma is nonstandard
+    #  981: operands are evaluated in unspecified order
+    #  279: controlling expression is constant
+    #  383: value copied to temporary, reference to temporary used
+    #  327: NULL reference is not allowed
+    #  1419: external declaration in primary source file
+    push @CCFLAGS, "-wd444,1418,810,271,981,279,383,327,1419";
   }
 
   else {
@@ -118,12 +160,12 @@ $wd = `pwd`;
 chomp($wd);
 
 print("Testing C++ compiler ...\n");
-$cmd = "g++ -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
+$cmd = "$CXX -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
 if (system($cmd)) {
   # maybe problem is -Wno-deprecated?
   printf("Trying without -Wno-deprecated ...\n");
   $BASE_FLAGS =~ s| -Wno-deprecated||;
-  $cmd = "g++ -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
+  $cmd = "$CXX -o testcout $BASE_FLAGS $CCFLAGS testcout.cc";
   if (system($cmd)) {
     print(<<"EOF");
 
@@ -182,6 +224,7 @@ echo "smbase configuration summary:"
 echo "  debug:       $debug"
 echo ""
 echo "Compile flags:"
+echo "  Compilers:   $CC, $CXX"
 echo "  BASE_FLAGS:  $BASE_FLAGS"
 echo "  CCFLAGS:     $CCFLAGS"
 echo "  DEBUG_HEAP:  $DEBUG_HEAP"
@@ -229,6 +272,8 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@CFLAGS\@|$CFLAGS|g" \\
     -e "s|\@DEBUG_HEAP\@|$DEBUG_HEAP|g" \\
     -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
+    -e "s|\@CC\@|$CC|g" \\
+    -e "s|\@CXX\@|$CXX|g" \\
   <Makefile.in >>Makefile
 
 # discourage editing ..

@@ -26,7 +26,7 @@ public:     // types
 
   // constants
   enum {
-    defaultSize = 33,
+    defaultSize = 33
   };
 
 private:    // data

@@ -4,8 +4,8 @@
 //   can pass the entire object as a single word
 // Scott McPeak, 1995-2000  This file is public domain.
 
-#ifndef __STR_H
-#define __STR_H
+#ifndef STR_H
+#define STR_H
 
 #include "typ.h"         // bool
 #include <iostream.h>	 // istream, ostream
@@ -15,7 +15,17 @@ class Flatten;           // flatten.h
 
 // certain unfortunate implementation decisions by some compilers
 // necessitate avoiding the name 'string'
-#define string mystring
+//
+// 9/19/04: I originally made this definition to work around a problem
+// with Borland C++ 4.5.  It causes a problem when using the new
+// standard library, since the name clashes with std::string.  A
+// simple solution is to remove the #definition and let namespaces do
+// their job.  Since Intel's headers are the only ones that provoke
+// the problem I'll confine it to that case for now.  Eventually I
+// will do the same for gcc.
+#if !defined(__INTEL_COMPILER)
+  #define string mystring
+#endif
 
 class string {
 protected:     // data
@@ -246,5 +256,4 @@ string stringf(char const *format, ...);
 string vstringf(char const *format, va_list args);
 
 
-#endif // __STR_H
-
+#endif // STR_H

@@ -265,7 +265,7 @@ public:
 #define NO_OBJECT_COPIES(name)   \
   private:                       \
     name(name&);                 \
-    void operator=(name&);
+    void operator=(name&) /*user ;*/
 
 
 #endif // __MACROS_H

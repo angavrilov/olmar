@@ -89,10 +89,13 @@ inline T max(T const &a, T const &b)
 // dsw: selfcheck *bidirectionally* configurable from the command line: it
 // may be turned on *or* off: any definition other than '0' counts as
 // true, such as -DDO_SELFCHECK=1 or just -DDO_SELFCHECK
+#ifndef DO_SELFCHECK
+  #define DO_SELFCHECK 0
+#endif
 #if DO_SELFCHECK != 0
-#  define SELFCHECK() selfCheck()
+  #define SELFCHECK() selfCheck()
 #else
-#  define SELFCHECK() ((void)0)
+  #define SELFCHECK() ((void)0)
 #endif
 
 

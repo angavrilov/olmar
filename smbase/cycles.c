@@ -107,7 +107,7 @@ int main()
 {
   #ifdef __GNUC__
     unsigned long long v = getCycles_ll();
-    printf("getCycles: %lld\n", v);
+    printf("getCycles: %llu\n", v);
   #endif // __GNUC__
 
   // this segment should work on any compiler, by virtue

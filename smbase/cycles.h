@@ -16,7 +16,7 @@ void getCycles(unsigned *lowp, unsigned *highp);
 #ifdef __GNUC__
 // if we're using gcc, so the 'long long' type is available,
 // here's a more convenient version
-unsigned long long getCycles_ll();
+unsigned long long getCycles_ll(void);
 #endif
 
 

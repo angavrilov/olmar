@@ -147,6 +147,7 @@ static void infiniteRecursion()
 {
   char buf[1024];
   buf[0] = 4;
+  buf[1] = buf[0];     // silence an icc warning
   buf[1023] = 6;
   infiniteRecursion();
 }
