@@ -4,6 +4,8 @@
 
 // Parse error (state 253) at [
 
+// ERR-MATCH: Parse error.*at \[$
+
 int main() {
     int ** pointer_array = new (int*)[42];
 }

@@ -6,6 +6,8 @@
 
 
 // ----------------
+// ERR-MATCH: cannot convert.*\Q(*)[4]\E
+
 void bar(const float M[4][4]);
 void bar2(const float (*M)[4]);
 
@@ -64,7 +66,7 @@ void callee3(array5_of_array4_of_cint param);
 void caller3()
 {
   array5_of_array4_of_int a;
-  
+
   // both argument and parameter have their outermost level
   // of arrayness converted to pointers
   callee3(a);

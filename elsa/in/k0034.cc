@@ -4,6 +4,8 @@
 
 // error: duplicate definition for `i' of type `int'
 
+// ERR-MATCH: duplicate definition
+
 int main()
 {
     union {int i;};

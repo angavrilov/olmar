@@ -4,6 +4,8 @@
 
 // originally found in package amsynth
 
+// ERR-MATCH: could not find namespace `(?:\::)?std'
+
 using namespace std;
 
 using namespace ::std;

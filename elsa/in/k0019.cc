@@ -2,6 +2,8 @@
 
 // originally found in package apollon
 
+// ERR-MATCH: Parse error.*at <$
+
 template <typename T>
 struct S1 {
     S1<T>() {}

@@ -3,6 +3,9 @@
 // originally found in package apt
 
 // error: left side of .* must be a class or reference to a class
+
+// ERR-MATCH: left side of [.][*] must be a class
+
 template <class T> void foo() {
     T t;
     int (T::*bar)() = &T::barfunc;

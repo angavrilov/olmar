@@ -5,6 +5,8 @@
 
 // originally found in package gcl
 
+// ERR-MATCH: merge nonterm KandRFunctionDefinition
+
 typedef struct {} S;
 
 S (foo)(x)

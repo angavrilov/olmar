@@ -4,6 +4,8 @@
 
 // k0047.cc:14:36: error: there is no type called `T'
 
+// ERR-MATCH: there is no type called
+
 template <class T> struct S1 {
     operator T*();
 };

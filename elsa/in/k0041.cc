@@ -4,6 +4,8 @@
 
 // Assertion failed: (unsigned)i < (unsigned)sz, file ../smbase/array.h line 66
 
+// ERR-MATCH: \QAssertion failed: (unsigned)i < (unsigned)sz\E
+
 struct S1 {
     struct S2;
 };

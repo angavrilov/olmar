@@ -4,6 +4,8 @@
 
 // error: Parse error (state 499) at &&
 
+// ERR-MATCH: Parse error .*at &&
+
 int main()
 {
     void *a = &&x;

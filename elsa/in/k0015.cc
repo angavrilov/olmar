@@ -4,6 +4,8 @@
 
 // originally found in package aiksaurus
 
+// ERR-MATCH: merge nonterm HandlerParameter
+
 namespace N {
     struct exception {
     };

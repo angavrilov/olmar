@@ -4,4 +4,6 @@
 
 // a.i:2:1: error: duplicate modifier: const
 
+// ERR-MATCH: duplicate modifier:
+
 const const int x;

@@ -1,6 +1,8 @@
 
 // example program using __builtin_va_* functions
 
+// ERR-MATCH: __builtin_va
+
 int printf(const char*, ...);
 
 int foo(int count, ...) {

@@ -5,6 +5,8 @@
 // error: cannot convert argument type `int (*&)() throw()' to parameter 1
 // type `int (*)()'
 
+// ERR-MATCH: cannot convert argument type `.*throw\(\)'
+
 int bar1 (int (*func) ());
 int bar2 (int (*func) () throw());
 

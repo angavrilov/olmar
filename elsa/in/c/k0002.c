@@ -2,7 +2,10 @@
 
 // originally found in package diff
 
+// ERR-MATCH: create incomplete class
+
 // ok at global scope
+
 struct S s;
 
 // not ok if static (well, gcc allows it, so whatever)

@@ -12,6 +12,8 @@
 // there is no type called `foo<T>'
 // ---- END: messages from an ambiguity ----
 
+// ERR-MATCH: used as a variable, but it's actually a type
+
 struct S {
     template<typename F> friend const F& foo(int);
 };

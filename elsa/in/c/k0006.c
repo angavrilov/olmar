@@ -4,6 +4,8 @@
 
 // a.i:4:1: Parse error (state 954) at {
 
+// ERR-MATCH: Parse error.*at {
+
 static inline foo()
 {
     return 0;

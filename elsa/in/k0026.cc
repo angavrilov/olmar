@@ -4,6 +4,8 @@
 
 // Assertion failed: newHead->next == NULL, file ../ast/fakelist.h line 81
 
+// ERR-MATCH: Assertion failed: newHead->next
+
 template <typename T> struct B {
     static const int value = true;
 };

@@ -4,6 +4,8 @@
 
 // originally found in package bzip2
 
+// ERR-MATCH: (cannot evaluate.*as a template integer argument|cannot apply template args to non-template)
+
 struct S{ int z; } *s;
 
 int foo() {

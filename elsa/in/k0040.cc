@@ -4,6 +4,8 @@
 
 // Assertion failed: key != NULL, file vptrmap.cc line 58
 
+// ERR-MATCH: \QAssertion failed: key != NULL, file vptrmap\E
+
 template <class> struct S1;
 
 typedef S1<int> s1;

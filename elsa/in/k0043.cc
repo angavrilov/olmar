@@ -4,6 +4,8 @@
 
 // c.ii:9:12: Parse error (state 676) at .
 
+// ERR-MATCH: Parse error.*at ([.]|->)$
+
 struct S1 {
     int foo() { return 0; }
 } s1, *ps2;

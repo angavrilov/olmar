@@ -5,6 +5,8 @@
 // (expected-token info not available due to nondeterministic mode)
 // a.ii:5:15: Parse error (state -1) at =
 
+// ERR-MATCH: Parse error.*at =$
+
 int main() {
     int i;
     char str[i=4];

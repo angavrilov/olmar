@@ -9,6 +9,8 @@
 // for inherited templated version:
 //   Assertion failed: kind() == PQ_NAME, file cc.ast.gen.cc line 552
 
+// ERR-MATCH: Assertion failed: kind.. == PQ_NAME
+
 struct S1 {
     int S1::varName;
 };

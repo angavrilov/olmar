@@ -5,6 +5,8 @@
 // error: `S1' used as a variable, but it's actually a type
 // error: `T' used as a variable, but it's actually a type
 
+// ERR-MATCH: used as a variable, but it's actually a type
+
 template<typename T>
 T foo(int) {}
 

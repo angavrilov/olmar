@@ -2,6 +2,8 @@
 
 // originally found in package e2fsprogs
 
+// ERR-MATCH: Parse error.*at long$
+
 typedef int fooint;
 
 // sm: I copied this test to in/gnu/dC0014.c; now the

@@ -2,6 +2,8 @@
 
 // originally found in package centericq
 
+// ERR-MATCH: Parse error.* at ::$
+
 namespace N {
     struct S1 {
         S1() {}

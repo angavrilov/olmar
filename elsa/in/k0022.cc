@@ -4,9 +4,11 @@
 
 // originally found in package kdelibs
 
+// ERR-MATCH: there is no type called
 
 
 // ---- defn then decl ----
+
 template <class K1> struct S1 {
 };
 
@@ -53,7 +55,7 @@ template <class T2>
 int bar(T2 t);
 
 int b()
-{    
+{
   int x;
   return bar(x);
 }

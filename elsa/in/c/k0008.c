@@ -9,6 +9,8 @@
 // a.i:10:19: error: variable name `func' used as if it were a type
 // Assertion failed: unexpected ASTTypeId ambiguity, file cc_tcheck.cc line 864
 
+// ERR-MATCH: as if it were a type
+
 int func(int x) {
     return x;
 }

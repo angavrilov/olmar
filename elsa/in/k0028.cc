@@ -5,6 +5,8 @@
 // error: function definition of `S::foo' must appear in a namespace that
 // encloses the original declaration
 
+// ERR-MATCH: must appear in a namespace
+
 namespace NS1 {
     struct S {
         int foo();

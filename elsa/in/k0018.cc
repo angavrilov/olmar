@@ -4,6 +4,8 @@
 
 // originally found in package anjuta
 
+// ERR-MATCH: Assertion failed: isArrayType
+
 struct S {
     void f(int a[] = __null);
 };

@@ -2,6 +2,8 @@
 
 // originally found in package tcl8.4
 
+// ERR-MATCH: multiply defined enum
+
 void foo()
 {
     enum option { a=1 };

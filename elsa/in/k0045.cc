@@ -6,5 +6,7 @@
 // type `void ()(void *p) throw()', but this one uses `void ()(void
 // */*anon*/)'
 
+// ERR-MATCH: prior declaration of `operator delete'
+
 void operator delete(void *) {
 }

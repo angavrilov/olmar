@@ -2,6 +2,8 @@
 
 // originally found in package aconnectgui
 
+// ERR-MATCH: ambiguous overload
+
 struct S1
 {
     S1(char * const * D)

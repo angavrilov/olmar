@@ -4,6 +4,8 @@
 
 // originally found in package qt-x11-free
 
+// ERR-MATCH: can only delete pointers
+
 template <class T> struct S1 {
     static void foo() {
         void * x = 0;
