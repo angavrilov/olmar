@@ -271,7 +271,9 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
 "__extension__" {
-  whitespace();                 /* check this */
+  /* treat this like a token, in that nonseparating checks are done,
+   * but don't yield it to the parser */
+  (void)tok(TOK___EXTENSION__);
 }
 
   /* identifier: e.g. foo */

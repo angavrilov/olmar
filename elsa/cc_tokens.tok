@@ -153,6 +153,7 @@ TOK___FUNCTION__,        "__FUNCTION__",              :    n
 TOK___LABEL__,           "__label__",                 :    n
 TOK___PRETTY_FUNCTION__, "__PRETTY_FUNCTION__",       :    n
 TOK___TYPEOF__,          "__typeof__",                :    n
+TOK___EXTENSION__,       "__extension__",             :    n
 
 // my extensions
 TOK_OWNER,               "owner_ptr_qualifier",       :    n
