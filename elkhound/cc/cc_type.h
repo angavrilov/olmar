@@ -486,6 +486,11 @@ public:
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);
+  
+  // called when we're done adding parameters to this function
+  // type, thus any Type annotation system can assume the
+  // function type is now completely described
+  virtual void doneParams();
 
   bool isTemplate() const { return templateParams!=NULL; }
 

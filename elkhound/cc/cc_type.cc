@@ -800,6 +800,9 @@ void FunctionType::addParam(Variable *param)
   params.append(param);
 }
 
+void FunctionType::doneParams()
+{}
+
 
 string FunctionType::leftString(bool innerParen) const
 {
