@@ -3106,14 +3106,14 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       int actions = (shiftDest? 1 : 0) + reductions.count();
       if (actions >= 2) {
         // make a new ambiguous-action entry-set
-        cellAction = tables->beginAmbig(actions);
+        cellAction = tables->beginAmbig(actions, state->id);
 
         // fill in the actions
         if (shiftDest) {
-          tables->addAmbig(cellAction, tables->encodeShift(shiftDest->id));
+          tables->addAmbig(cellAction, tables->encodeShift(shiftDest->id, termId));
         }
         SFOREACH_PRODUCTION(reductions, prodIter) {
-          tables->addAmbig(cellAction, tables->encodeReduce(prodIter.data()->prodIndex));
+          tables->addAmbig(cellAction, tables->encodeReduce(prodIter.data()->prodIndex, state->id));
         }
         
         tables->finishAmbig(cellAction);
@@ -3123,11 +3123,11 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
         // single action
         if (shiftDest) {
           xassert(reductions.count() == 0);
-          cellAction = tables->encodeShift(shiftDest->id);
+          cellAction = tables->encodeShift(shiftDest->id, termId);
         }
         else if (reductions.isNotEmpty()) {
           xassert(reductions.count() == 1);
-          cellAction = tables->encodeReduce(reductions.first()->prodIndex);
+          cellAction = tables->encodeReduce(reductions.first()->prodIndex, state->id);
         }
         else {
           cellAction = tables->encodeError();
@@ -3550,7 +3550,7 @@ void GrammarAnalysis::lrParse(char const *input)
     // see what kind of action it is
     if (tables->isShiftAction(action)) {
       // shift
-      StateId destState = tables->decodeShift(action);
+      StateId destState = tables->decodeShift(action, symbol->termIndex);
 
       // push current state and symbol
       state = destState;
@@ -3568,7 +3568,7 @@ void GrammarAnalysis::lrParse(char const *input)
 
     else if (tables->isReduceAction(action)) {
       // reduce
-      int prodIndex = tables->decodeReduce(action);
+      int prodIndex = tables->decodeReduce(action, state);
       ParseTables::ProdInfo const &info = tables->getProdInfo(prodIndex);
 
       // it is here that an action or tree-building step would
@@ -3613,18 +3613,18 @@ void GrammarAnalysis::lrParse(char const *input)
         << "; possible actions:\n";
 
       // get actions
-      ActionEntry *entry = tables->decodeAmbigAction(action);
+      ActionEntry *entry = tables->decodeAmbigAction(action, state);
 
       // explain each one
       for (int i=0; i<entry[0]; i++) {
         action = entry[i+1];
         if (tables->isShiftAction(action)) {
           trace("parse") << "  shift, and move to state "
-                         << tables->decodeShift(action) << endl;
+                         << tables->decodeShift(action, symbol->termIndex) << endl;
         }
         else if (tables->isReduceAction(action)) {
           trace("parse") << "  reduce by rule id "
-                         << tables->decodeReduce(action) << endl;
+                         << tables->decodeReduce(action, state) << endl;
         }
         else {
           // no other alternative makes sense

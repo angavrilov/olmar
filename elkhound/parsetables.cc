@@ -12,16 +12,36 @@
 #include <stdlib.h>         // qsort
 
 
+// array index code
+enum { UNASSIGNED = -1 };
+
+
 ParseTables::ParseTables(int t, int nt, int s, int p, StateId start, int final)
 {
   alloc(t, nt, s, p, start, final);
+}
+    
+template <class T>
+void allocInitArray(T *&arr, int size, T init)
+{
+  arr = new T[size];
+  for (int i=0; i<size; i++) {
+    arr[i] = init;
+  }
+}
+
+template <class T>
+void allocZeroArray(T *&arr, int size)
+{
+  arr = new T[size];
+  memset(arr, 0, sizeof(arr[0]) * size);
 }
 
 void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 {
   owning = true;
 
-  temp = new TempData;
+  temp = new TempData(s);
 
   numTerms = t;
   numNonterms = nt;
@@ -31,17 +51,13 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   actionCols = numTerms;
   actionRows = numStates;
 
-  actionTable = new ActionEntry[actionTableSize()];
-  memset(actionTable, 0, sizeof(actionTable[0]) * actionTableSize());
+  allocZeroArray(actionTable, actionTableSize());
 
-  gotoTable = new GotoEntry[gotoTableSize()];
-  memset(gotoTable, 0, sizeof(gotoTable[0]) * gotoTableSize());
+  allocZeroArray(gotoTable, gotoTableSize());
 
-  prodInfo = new ProdInfo[numProds];
-  memset(prodInfo, 0, sizeof(prodInfo[0]) * numProds);
+  allocZeroArray(prodInfo, numProds);
 
-  stateSymbol = new SymbolId[numStates];
-  memset(stateSymbol, 0, sizeof(stateSymbol[0]) * numStates);
+  allocZeroArray(stateSymbol, numStates);
 
   // table of ambiguous actions is NULL until someone fills in the
   // whole thing; since we don't know how many there might be, we
@@ -52,26 +68,34 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   startState = start;
   finalProductionIndex = final;
 
-  nontermOrder = new NtIndex[nontermOrderSize()];
-  memset(nontermOrder, 0, sizeof(nontermOrder[0]) * nontermOrderSize());
+  allocZeroArray(nontermOrder, nontermOrderSize());
 
   if (ENABLE_CRS_COMPRESSION) {
-    firstWithTerminal = new StateId[numTerms];
-    memset(firstWithTerminal, 0, sizeof(firstWithTerminal[0]) * numTerms);
-
-    firstWithNonterminal = new StateId[numNonterms];
-    memset(firstWithNonterminal, 0, sizeof(firstWithNonterminal[0]) * numNonterms);
+    allocZeroArray(firstWithTerminal, numTerms);
+    allocZeroArray(firstWithNonterminal, numNonterms);
   }
   else {
     firstWithTerminal = NULL;
     firstWithNonterminal = NULL;
   }
 
+  bigProductionListSize = 0;
   bigProductionList = NULL;
-  productionsForState = NULL;
+  if (ENABLE_CRS_COMPRESSION) {
+    allocZeroArray(productionsForState, numStates);
+  }
+  else {
+    productionsForState = NULL;
+  }
 
+  bigAmbigPtrTableSize = 0;
   bigAmbigPtrTable = NULL;
-  ambigStateTable = NULL;
+  if (ENABLE_CRS_COMPRESSION) {
+    allocZeroArray(ambigStateTable, numStates);
+  }
+  else {
+    ambigStateTable = NULL;
+  }
 
   // # of bytes, but rounded up to nearest 32-bit boundary
   errorBitsRowSize = ((numTerms+31) >> 5) * 4;
@@ -122,10 +146,17 @@ ParseTables::~ParseTables()
 }
 
 
-ParseTables::TempData::TempData()
+ParseTables::TempData::TempData(int numStates)
   : ambigTable(),
-    recentAmbig(0)
-{}
+    recentAmbig(0),
+    bigProductionList(),
+    productionsForState(numStates),
+    bigAmbigPtrTable(),
+    ambigStateTable(numStates)
+{
+  productionsForState.setAll(UNASSIGNED);
+  ambigStateTable.setAll(UNASSIGNED);
+}
 
 ParseTables::TempData::~TempData()
 {}
@@ -162,9 +193,101 @@ ParseTables::ParseTables(bool o)
 }
 
 
-ActionEntry ParseTables::beginAmbig(int numActions)
+#if ENABLE_CRS_COMPRESSION
+ActionEntry makeAE(ActionEntryKind k, int index)
 {
-  temp->recentAmbig = encodeAmbig(temp->ambigTable.length());
+  xassert((unsigned)index <= AE_MAXINDEX); // must fit into 6 bits for my encoding
+  return k | index;
+}
+#endif
+
+
+ActionEntry ParseTables::encodeShift(StateId destState, int shiftedTermId)
+{
+  #if ENABLE_CRS_COMPRESSION
+    int delta = destState - firstWithTerminal[shiftedTermId];
+    return makeAE(AE_SHIFT, delta);
+  #else
+    return validateAction(+destState+1);
+  #endif
+}
+
+
+ActionEntry ParseTables::encodeReduce(int prodId, StateId inWhatState)
+{
+  #if ENABLE_CRS_COMPRESSION
+    int begin = temp->productionsForState[inWhatState];
+    int end = temp->bigProductionList.length();
+    if (begin == UNASSIGNED) {
+      // starting a new set of per-state productions
+      temp->productionsForState[inWhatState] = end;
+      temp->bigProductionList.push(prodId);
+      return AE_REDUCTION | 0 /*first in set*/;
+    }
+    else {
+      // continuing a set; search for existing 'prodId' in that set
+      int delta;
+      for (int i=begin; i<end; i++) {
+        if (temp->productionsForState[i] == prodId) {
+          // re-use this offset
+          delta = i-begin;
+          goto encode;
+        }
+      }
+
+      // not found: add another production id to this set
+      temp->bigProductionList.push(prodId);
+      delta = end-begin;
+
+    encode:
+      return makeAE(AE_REDUCTION, delta);
+    }
+
+  #else
+    return validateAction(-prodId-1);
+  #endif
+}
+
+
+ActionEntry ParseTables::encodeAmbig(int ambigId, StateId inWhatState)
+{
+  #if ENABLE_CRS_COMPRESSION
+    int begin = temp->ambigStateTable[inWhatState];
+    int end = temp->bigAmbigPtrTable.length();
+    if (begin == UNASSIGNED) {
+      // starting a new set of per-state ambiguous actions
+      temp->ambigStateTable[inWhatState] = end;
+      temp->bigAmbigPtrTable.push(ambigId);
+      return AE_AMBIGUOUS | 0 /*first in set*/;
+    }
+    else {
+      // continuing a set; in this case, we don't search for a
+      // duplicate because 'ambigId's are assigned monotonically
+      // so there would not be one
+      temp->bigAmbigPtrTable.push(ambigId);
+      int delta = end-begin;
+      return makeAE(AE_AMBIGUOUS, delta);
+    }
+
+  #else
+    return validateAction(numStates+ambigId+1);
+  #endif
+}
+
+
+ActionEntry ParseTables::encodeError() const
+{
+  #if ENABLE_CRS_COMPRESSION
+    return makeAE(AE_ERROR, 0);
+  #else
+    return validateAction(0);
+  #endif
+}
+
+
+ActionEntry ParseTables::beginAmbig(int numActions, StateId inState)
+{
+  temp->recentAmbig = encodeAmbig(temp->ambigTable.length(), inState);
 
   // first element is the # of actions
   temp->ambigTable.push(numActions);
@@ -185,15 +308,47 @@ void ParseTables::finishAmbig(ActionEntry ambigHeader)
 }
 
 
+// simple alloc + copy
+template <class T>
+void copyArray(int &len, T *&dest, ArrayStack<T> const &src)
+{
+  len = src.length();
+  dest = new T[len];
+  memcpy(dest, src.getArray(), sizeof(T) * len);
+}
+
+// given an array 'src' of indices relative to 'base', allocate the
+// array 'dest' and fill it in with actual pointers into 'base'
+template <class T>
+void copyIndexPtrArray(int len, T **&dest, T *base, ArrayStack<int> const &src)
+{
+  dest = new T* [len];
+  for (int i=0; i<len; i++) {
+    dest[i] = base + src[i];
+  }
+}
+
 void ParseTables::finishTables()
 {
-  // copy the ambiguous actions               
-  {
-    int len = temp->ambigTable.length();
-    ambigTableSize = len;
-    ambigTable = new ActionEntry[len];
-    memcpy(ambigTable, temp->ambigTable.getArray(),
-           sizeof(ActionEntry) * len);
+  // copy the ambiguous actions
+  copyArray(ambigTableSize, ambigTable, temp->ambigTable);
+
+  if (ENABLE_CRS_COMPRESSION) {
+    // transfer bigProductionList
+    copyArray(bigProductionListSize, bigProductionList, temp->bigProductionList);
+
+    // transfer productionsForState, translating indices into pointers
+    copyIndexPtrArray(numStates, productionsForState, bigProductionList,
+                      temp->productionsForState);
+
+    // bigAmbigPtrTable
+    bigAmbigPtrTableSize = temp->bigAmbigPtrTable.length();
+    copyIndexPtrArray(bigAmbigPtrTableSize, bigAmbigPtrTable, ambigTable,
+                      temp->bigAmbigPtrTable);
+
+    // ambigStateTable
+    copyIndexPtrArray(numStates, ambigStateTable, bigAmbigPtrTable,
+                      temp->ambigStateTable);
   }
 
   delete temp;
@@ -619,7 +774,7 @@ int ParseTables::colorTheGraph(int *color, Bit2d &graph)
     xassert(color[i] != UNASSIGNED);
     os << " " << color[i];
   }
-  
+
   os << "\n";
 
   return usedColors;
@@ -638,7 +793,8 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
   }
 
   bool printHex = 0==strcmp(typeName, "ErrorBitsEntry");
-  
+  bool needCast = 0==strcmp(typeName, "StateId");
+
   if (size * sizeof(*table) > 50) {    // suppress small ones
     out << "  // storage size: " << size * sizeof(*table) << " bytes\n";
     if (size % rowLength == 0) {
@@ -650,6 +806,10 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
   for (int i=0; i<size; i++) {
     if (i % rowLength == 0) {    // one row per state
       out << "\n    ";
+    }
+
+    if (needCast) {
+      out << "(" << typeName << ")";
     }
 
     if (printHex) {
@@ -679,6 +839,17 @@ stringBuilder& operator<< (stringBuilder &sb, ParseTables::ProdInfo const &info)
 }
 
 
+// like 'emitTable', but also set a local called 'tableName'
+template <class EltType>
+void emitTable2(EmitCode &out, EltType const *table, int size, int rowLength,
+                char const *typeName, char const *tableName)
+{
+  string tempName = stringc << tableName << "_static";
+  emitTable(out, table, size, rowLength, typeName, tempName);
+  out << "  " << tableName << " = " << tempName << ";\n\n";
+}
+
+
 template <class EltType>
 void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
                      char const *typeName, char const *tableName, char const *baseName)
@@ -694,7 +865,7 @@ void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
 
   // at run time, interpret the offsets table
   out << "  for (int i=0; i < " << size << "; i++) {\n"
-      << "    " << tableName << "[i] = " 
+      << "    " << tableName << "[i] = "
       << baseName << " + " << tableName << "_offsets[i];\n"
       << "  }\n";
 }
@@ -703,9 +874,9 @@ void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
 // emit code for a function which, when compiled and executed, will
 // construct this same table (except the constructed table won't own
 // the table data, since it will point to static program data)
-void ParseTables::emitConstructionCode(EmitCode &out, 
+void ParseTables::emitConstructionCode(EmitCode &out,
   char const *className, char const *funcName)
-{                
+{
   // must have already called 'finishTables'
   xassert(!temp);
 
@@ -734,37 +905,33 @@ void ParseTables::emitConstructionCode(EmitCode &out,
   SET_VAR(ambigTableSize);
   out << "  startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
+  SET_VAR(bigProductionListSize);
+  SET_VAR(bigAmbigPtrTableSize);
   SET_VAR(errorBitsRowSize);
   SET_VAR(uniqueErrorRows);
   #undef SET_VAR
   out << "\n";
 
   // action table, one row per state
-  emitTable(out, actionTable, actionTableSize(), actionCols,
-            "ActionEntry", "actionTable0");
-  out << "  actionTable = actionTable0;\n\n";
+  emitTable2(out, actionTable, actionTableSize(), actionCols,
+             "ActionEntry", "actionTable");
 
   // goto table, one row per state
-  emitTable(out, gotoTable, gotoTableSize(), numNonterms,
-            "GotoEntry", "gotoTable0");
-  out << "  gotoTable = gotoTable0;\n\n";
+  emitTable2(out, gotoTable, gotoTableSize(), numNonterms,
+             "GotoEntry", "gotoTable");
 
   // production info, arbitrarily 16 per row
-  emitTable(out, prodInfo, numProds, 16, "ParseTables::ProdInfo", "prodInfo0");
-  out << "  prodInfo = prodInfo0;\n\n";
+  emitTable2(out, prodInfo, numProds, 16, "ParseTables::ProdInfo", "prodInfo");
 
   // state symbol map, arbitrarily 16 per row
-  emitTable(out, stateSymbol, numStates, 16, "SymbolId", "stateSymbol0");
-  out << "  stateSymbol = stateSymbol0;\n\n";
+  emitTable2(out, stateSymbol, numStates, 16, "SymbolId", "stateSymbol");
 
   // ambigTable
-  emitTable(out, ambigTable, ambigTableSize, 16, "ActionEntry", "ambigTable0");
-  out << "  ambigTable = ambigTable0;\n\n";
+  emitTable2(out, ambigTable, ambigTableSize, 16, "ActionEntry", "ambigTable");
 
   // nonterminal order
-  emitTable(out, nontermOrder, nontermOrderSize(), 16,
-            "NtIndex", "nontermOrder0");
-  out << "  nontermOrder = nontermOrder0;\n\n";
+  emitTable2(out, nontermOrder, nontermOrderSize(), 16,
+             "NtIndex", "nontermOrder");
 
   // errorBits
   if (!errorBits) {
@@ -772,10 +939,8 @@ void ParseTables::emitConstructionCode(EmitCode &out,
     out << "  errorBitsPointers = NULL;\n";
   }
   else {
-    emitTable(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
-              "ErrorBitsEntry", "errorBits0");
-    out << "  errorBits = errorBits0;\n";
-    out << "\n";
+    emitTable2(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
+               "ErrorBitsEntry", "errorBits");
 
     emitOffsetTable(out, errorBitsPointers, errorBits, numStates,
                     "ErrorBitsEntry*", "errorBitsPointers", "errorBits");
@@ -787,9 +952,8 @@ void ParseTables::emitConstructionCode(EmitCode &out,
     out << "  actionIndexMap = NULL;\n";
   }
   else {
-    emitTable(out, actionIndexMap, numTerms, 16,
-              "TermIndex", "actionIndexMap0");
-    out << "  actionIndexMap = actionIndexMap0;\n";
+    emitTable2(out, actionIndexMap, numTerms, 16,
+               "TermIndex", "actionIndexMap");
   }
   out << "\n";
 
@@ -803,14 +967,34 @@ void ParseTables::emitConstructionCode(EmitCode &out,
   }
   out << "\n";
 
-  // misc CRS-related things (all NULL for now)
-  out << "  firstWithTerminal = NULL;\n"
-      << "  firstWithNonterminal = NULL;\n"
-      << "  bigProductionList = NULL;\n"
-      << "  productionsForState = NULL;\n"
-      << "  bigAmbigPtrTable = NULL;\n"
-      << "  ambigStateTable = NULL;\n"
-      ;
+  if (ENABLE_CRS_COMPRESSION) {
+    emitTable2(out, firstWithTerminal, numTerms, 16,
+               "StateId", "firstWithTerminal");
+
+    emitTable2(out, firstWithNonterminal, numNonterms, 16,
+               "StateId", "firstWithNonterminal");
+
+    emitTable2(out, bigProductionList, bigProductionListSize, 16,
+               "ProdIndex", "bigProductionList");
+
+    emitOffsetTable(out, productionsForState, bigProductionList, numStates,
+                    "ProdIndex*", "productionsForState", "bigProductionList");
+                    
+    emitOffsetTable(out, bigAmbigPtrTable, ambigTable, bigAmbigPtrTableSize,
+                    "ActionEntry*", "bigAmbigPtrTable", "ambigTable");
+                    
+    emitOffsetTable(out, ambigStateTable, bigAmbigPtrTable, numStates,
+                    "ActionEntry**", "ambigStateTable", "bigAmbigPtrTable");
+  }
+  else {
+    out << "  firstWithTerminal = NULL;\n"
+        << "  firstWithNonterminal = NULL;\n"
+        << "  bigProductionList = NULL;\n"
+        << "  productionsForState = NULL;\n"
+        << "  bigAmbigPtrTable = NULL;\n"
+        << "  ambigStateTable = NULL;\n"
+        ;
+  }
 
   out << "}\n"
       << "\n"

@@ -25,9 +25,16 @@ inline ostream& operator<< (ostream &os, StateId id)
 
 // encodes an action in 'action' table; see 'actionTable'
 #if ENABLE_CRS_COMPRESSION
-  // high bits: 00 = shift, 10 = reduce, 01 = ambiguous, 11 = error
-  // (if EEF is off)
-  //
+  // high bits encoding
+  enum ActionEntryKind {
+    AE_MASK      = 0xC0,    // selection mask
+    AE_SHIFT     = 0x00,    // 00 = shift
+    AE_REDUCE    = 0x80,    // 10 = reduce
+    AE_AMBIGUOUS = 0xA0,    // 01 = ambiguous
+    AE_ERROR     = 0xC0,    // 11 = error (if EEF is off)
+    AE_MAXINDEX  = 63       // maximum value of lower bits
+  };
+
   // remaining 6 bits:
   //
   //   shift: desination state, encoded as an offset from the
@@ -40,6 +47,7 @@ inline ostream& operator<< (ostream &os, StateId id)
   //   ambiguous entries index into this array.  first indexed
   //   entry is the count of how many actions follow
   typedef unsigned char ActionEntry;
+  ActionEntry makeAE(ActionEntryKind k, int index);
 #else
   // each entry is one of:
   //   +N+1, 0 <= N < numStates:         shift, and go to state N
@@ -102,8 +110,19 @@ private:    // types
     // most recently created ambiguous action
     ActionEntry recentAmbig;
 
+    // nascent bigProductionList
+    ArrayStack<ProdIndex> bigProductionList;
+    
+    // nascent productionsForState, except using integer offsets from
+    // start of 'bigProductionList' instead of direct pointers into it
+    ArrayStack<int> productionsForState;
+
+    // nascent versions of ambig tables, again with integer offsets
+    ArrayStack<int> bigAmbigPtrTable;
+    ArrayStack<int> ambigStateTable;
+
   public:   // funcs
-    TempData();
+    TempData(int numStates);
     ~TempData();
   };
 
@@ -194,11 +213,13 @@ protected:  // data
   // Part (b):  The production indices that appear on a given row
   // are collected together.  (This is called (c) by [DDH]; I don't
   // have a counterpart to their (b).)
+  int bigProductionListSize;
   ProdIndex *bigProductionList;          // (nullable owner*) array into which 'productionsForState' points
-  ProdIndex **productionsForState;       // (nullable owner to serf) state -> prod
+  ProdIndex **productionsForState;       // (nullable owner to serf) state -> stateProdIndex -> prodIndex
   //
   // Part (c):  Pointers into 'ambigTable' are are collected together in
   // per-state lists as well.
+  int bigAmbigPtrTableSize;
   ActionEntry **bigAmbigPtrTable;        // (nullable owner)
   ActionEntry ***ambigStateTable;        // (nullable owner) state -> (ambigStateTableIndex -> ActionEntry*)
 
@@ -295,18 +316,14 @@ public:     // funcs
     { gotoEntry(stateId, nontermId) = got; }
 
   // encode actions
-  ActionEntry encodeShift(StateId stateId) const
-    { return validateAction(+stateId+1); }
-  ActionEntry encodeReduce(int prodId) const
-    { return validateAction(-prodId-1); }
-  ActionEntry encodeAmbig(int ambigId) const
-    { return validateAction(numStates+ambigId+1); }
-  ActionEntry encodeError() const
-    { return validateAction(0); }
+  ActionEntry encodeShift(StateId destState, int shiftedTermId);
+  ActionEntry encodeReduce(int prodId, StateId inWhatState);
+  ActionEntry encodeAmbig(int ambigId, StateId inWhatState);
+  ActionEntry encodeError() const;
   ActionEntry validateAction(int code) const;
 
   // encode ambiguous actions
-  ActionEntry beginAmbig(int numActions);
+  ActionEntry beginAmbig(int numActions, StateId inWhatState);
   void addAmbig(ActionEntry ambigHeader, ActionEntry newAction);
   void finishAmbig(ActionEntry ambigHeader);
 
@@ -371,22 +388,45 @@ public:     // funcs
   }
 
   // decode actions
-  bool isShiftAction(ActionEntry code) const
-    { return code > 0 && code <= numStates; }
-  static StateId decodeShift(ActionEntry code)
-    { return (StateId)(code-1); }
-  static bool isReduceAction(ActionEntry code)
-    { return code < 0; }
-  static int decodeReduce(ActionEntry code)
-    { return -(code+1); }
-  static bool isErrorAction(ActionEntry code)
-    { return code == 0; }
+  #if !ENABLE_CRS_COMPRESSION
+    bool isShiftAction(ActionEntry code) const
+      { return code > 0 && code <= numStates; }
+    static StateId decodeShift(ActionEntry code, int /*shiftedTerminal*/)
+      { return (StateId)(code-1); }
+    static bool isReduceAction(ActionEntry code)
+      { return code < 0; }
+    static int decodeReduce(ActionEntry code, StateId /*inState*/)
+      { return -(code+1); }
+    static bool isErrorAction(ActionEntry code)
+      { return code == 0; }
 
-  // ambigAction is only other choice; this yields a pointer to
-  // an array of actions, the first of which says how many actions
-  // there are
-  ActionEntry *decodeAmbigAction(ActionEntry code) const
-    { return ambigTable + (code-1-numStates); }
+    // ambigAction is only other choice; this yields a pointer to
+    // an array of actions, the first of which says how many actions
+    // there are
+    ActionEntry *decodeAmbigAction(ActionEntry code, StateId /*inState*/) const
+      { return ambigTable + (code-1-numStates); }
+
+  #else
+    static bool isShiftAction(ActionEntry code) const {
+      return (code & AE_MASK) == AE_SHIFT;
+    }
+    StateId decodeShift(ActionEntry code, int shiftedTerminal) {
+      return firstWithTerminal[shiftedTerminal] + (code & AE_MAXINDEX);
+    }
+    static bool isReduceAction(ActionEntry code) {
+      return (code & AE_MASK) == AE_REDUCE;
+    }
+    static int decodeReduce(ActionEntry code, StateId inState) {
+      return productionsForState[inState][code & AE_MAXINDEX];
+    }
+    static bool isErrorAction(ActionEntry code) {
+      return (code & AE_MASK) == AE_ERROR;
+    }
+
+    ActionEntry *decodeAmbigAction(ActionEntry code, StateId inState) const {
+      return ambigStateTable[inState][code & AE_MAXINDEX];
+    }
+  #endif
 
   // decode gotos
   GotoEntry getGotoEntry(StateId stateId, int nontermId)

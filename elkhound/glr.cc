@@ -973,7 +973,7 @@ STATICDEF bool GLR
       // however I can only measure ~1% performance difference
       if (tables->isReduceAction(action)) {
         ACCOUNTING( localDetReduce++; )
-        int prodIndex = tables->decodeReduce(action);
+        int prodIndex = tables->decodeReduce(action, parser->state);
         ParseTables::ProdInfo const &prodInfo = tables->getProdInfo(prodIndex);
         int rhsLen = prodInfo.rhsLen;
         if (rhsLen <= parser->determinDepth) {
@@ -1227,7 +1227,7 @@ STATICDEF bool GLR
         ACCOUNTING( localDetShift++; )
 
         // can shift unambiguously
-        StateId newState = tables->decodeShift(action);
+        StateId newState = tables->decodeShift(action, lexer.type);
 
         TRSPARSE("state " << parser->state <<
                  ", (unambig) shift token " << lexer.tokenDesc() <<
@@ -2035,7 +2035,7 @@ int GLR::rwlEnqueueReductions(StackNode *parser, ActionEntry action,
   }
   else if (tables->isReduceAction(action)) {
     // reduce
-    int prodIndex = tables->decodeReduce(action);
+    int prodIndex = tables->decodeReduce(action, parser->state);
 
     // get information about the production we'll use
     ParseTables::ProdInfo const &info = tables->getProdInfo(prodIndex);
@@ -2061,7 +2061,7 @@ int GLR::rwlEnqueueReductions(StackNode *parser, ActionEntry action,
   }
   else {
     // ambiguous; check for reductions
-    ActionEntry *entry = tables->decodeAmbigAction(action);
+    ActionEntry *entry = tables->decodeAmbigAction(action, parser->state);
     for (int i=0; i<entry[0]; i++) {
       rwlEnqueueReductions(parser, entry[i+1], mustUseLink);
     }
@@ -2161,7 +2161,7 @@ void GLR::rwlShiftTerminals()
     // consult action table, looking only for shifts
     if (tables->isShiftAction(action)) {
       // unambiguous shift
-      newState = tables->decodeShift(action);
+      newState = tables->decodeShift(action, lexerPtr->type);
     }
     else if (tables->isReduceAction(action) ||
              tables->isErrorAction(action)) {
@@ -2170,14 +2170,14 @@ void GLR::rwlShiftTerminals()
     }
     else {
       // nondeterministic; get actions
-      ActionEntry *entry = tables->decodeAmbigAction(action);
+      ActionEntry *entry = tables->decodeAmbigAction(action, leftSibling->state);
 
       // do each one
       for (int i=0; i<entry[0]; i++) {
         action = entry[i+1];
         if (tables->isShiftAction(action)) {
           // a shift was among the conflicted actions
-          newState = tables->decodeShift(action);
+          newState = tables->decodeShift(action, lexerPtr->type);
           break;
         }
       }
