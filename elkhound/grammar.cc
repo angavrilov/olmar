@@ -133,8 +133,9 @@ void xferSerfPtrToList(Flatten &flat, T *&ptr, ObjList<T> &masterList)
   }
 }
 
-
-void computedInt(Flatten &flat, int &variable, int value)
+                  
+template <class T>
+void computedValue(Flatten &flat, T &variable, T value)
 {
   if (flat.writing()) {
     // check it
@@ -475,6 +476,9 @@ Production::~Production()
 
 
 Production::Production(Flatten &flat)
+  : left(NULL),
+    treeCompare(NULL),
+    dprods(NULL)
 {}
 
 void Production::xfer(Flatten &flat)
@@ -486,7 +490,7 @@ void Production::xfer(Flatten &flat)
   actions.xfer(flat);
 
   // it's not used yet
-  xassert(treeCompare == NULL);
+  computedValue(flat, treeCompare, (AExprNode*)NULL);
 
   // skip literal code: functions
 
@@ -732,19 +736,25 @@ string Production::rhsString() const
 }
 
 
-string Production::toStringWithActions() const
+string Production::toStringMore(bool printActions, bool printCode) const
 {
   stringBuilder sb;
-  sb << toString() << "\n"
-     << actions.toString(this)
-     << conditions.toString(this)
-     ;
-     
-  for (LitCodeDict::Iter iter(functions);
-       !iter.isDone(); iter.next()) {
-    sb << "  fun " << iter.key() << "{ "
-       << iter.value()->code << " }\n";
+  sb << toString() << "\n";
+  
+  if (printActions) {
+    sb << actions.toString(this)
+       << conditions.toString(this)
+       ;
   }
+
+  if (printCode) {
+    for (LitCodeDict::Iter iter(functions);
+         !iter.isDone(); iter.next()) {
+      sb << "  fun " << iter.key() << "{ "
+         << iter.value()->code << " }\n";
+    }
+  }
+
   return sb;
 }
 
@@ -814,6 +824,36 @@ Grammar::~Grammar()
 }
 
 
+void Grammar::xfer(Flatten &flat)
+{
+  // owners
+  flat.checkpoint(0xC7AB4D86);
+  xferObjList(flat, nonterminals);
+  xferObjList(flat, terminals);
+  xferObjList(flat, productions);
+
+  // emptyString is const
+
+  // skip the literal code and the base class, because the intent is
+  // to read/write grammars *after* the C++ code has been emitted:
+  // 'semanticsPrologue', 'semanticsEpilogue', 'treeNodeBaseClass'
+
+  // serfs
+  flat.checkpoint(0x8580AAD2);
+
+  MUTATE_EACH_OBJLIST(Nonterminal, nonterminals, nt) {
+    nt.data()->xferSerfs(flat, *this);
+  }
+  MUTATE_EACH_OBJLIST(Production, productions, p) {
+    p.data()->xferSerfs(flat, *this);
+  }
+
+  xferSerfPtrToList(flat, startSymbol, nonterminals);
+
+  flat.checkpoint(0x2874DB95);
+}
+
+
 int Grammar::numTerminals() const
 {
   return terminals.count();
@@ -826,12 +866,12 @@ int Grammar::numNonterminals() const
 }
 
 
-void Grammar::printProductions(ostream &os) const
+void Grammar::printProductions(ostream &os, bool actions, bool code) const
 {
   os << "Grammar productions:\n";
   for (ObjListIter<Production> iter(productions);
        !iter.isDone(); iter.adv()) {
-    os << " " << iter.data()->toStringWithActions();
+    os << " " << iter.data()->toStringMore(actions, code);
   }
 }
 
@@ -1405,37 +1445,6 @@ bool Grammar::parseProduction(ProductionList &prods, StrtokParse const &tok)
   // done, so add the production
   prods.append(prod);
   return true;
-}
-
-
-// ------------------ Grammar::xfer -------------------
-void Grammar::xfer(Flatten &flat)
-{
-  // owners
-  flat.checkpoint(0xC7AB4D86);
-  xferObjList(flat, nonterminals);
-  xferObjList(flat, terminals);
-  xferObjList(flat, productions);
-
-  // emptyString is const
-
-  // skip the literal code and the base class, because the intent is
-  // to read/write grammars *after* the C++ code has been emitted:
-  // 'semanticsPrologue', 'semanticsEpilogue', 'treeNodeBaseClass'
-
-  // serfs
-  flat.checkpoint(0x8580AAD2);
-
-  MUTATE_EACH_OBJLIST(Nonterminal, nonterminals, nt) {
-    nt.data()->xferSerfs(flat, *this);
-  }
-  MUTATE_EACH_OBJLIST(Production, productions, p) {
-    p.data()->xferSerfs(flat, *this);
-  }
-
-  xferSerfPtrToList(flat, startSymbol, nonterminals);
-
-  flat.checkpoint(0x2874DB95);
 }
 
 

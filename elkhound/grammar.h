@@ -315,7 +315,7 @@ public:	    // funcs
   //   A -> B c D
   //     %action { A.x = B.x }
   //     %condition { B.y > D.y }
-  string toStringWithActions() const;
+  string toStringMore(bool printActions, bool printCode) const;
 
 // ------ annotation ------
 private:    // data
@@ -445,7 +445,8 @@ public:     // funcs
 
   // ---------- outputting a grammar --------------
   // print the current list of productions
-  void printProductions(ostream &os) const;
+  void printProductions(ostream &os, bool printActions=true,
+                                     bool printProductions=true) const;
 
   // emit C++ code to construct this grammar later
   void emitSelfCC(ostream &os) const;

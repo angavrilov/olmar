@@ -1083,12 +1083,6 @@ void readGrammarFile(Grammar &g, char const *fname)
     traceProgress() << "parsing grammar AST..\n";
     astParseGrammar(g, treeTop);
 
-    // and print that
-    if (tracingSys("grammar")) {
-      traceProgress() << "printing grammar source..\n";
-      g.printProductions(cout);
-    }
-
     // then check grammar properties; throws exception
     // on failure
     traceProgress() << "checking grammar well-formedness..\n";
@@ -1108,16 +1102,65 @@ void readGrammarFile(Grammar &g, char const *fname)
 // ----------------------- test code -----------------------
 #ifdef TEST_GRAMPAR
 
+#include "bflatten.h"     // BFlatten
+#include <stdlib.h>       // system
+
 int main(int argc, char **argv)
 {
+  traceAddSys("progress");
   TRACE_ARGS();
 
-  traceAddSys("progress");
-  //traceAddSys("grammar");
+  // read the file
+  Grammar g1;
+  readGrammarFile(g1, argc>=2? argv[1] : NULL /*stdin*/);
 
-  Grammar g;
-  readGrammarFile(g, argc>=2? argv[1] : NULL /*stdin*/);
+  // and print the grammar
+  char const g1Fname[] = "grammar.g1.tmp";
+  traceProgress() << "printing initial grammar to " << g1Fname << "\n";
+  {
+    ofstream out(g1Fname);
+    g1.printProductions(out, false /*actions*/, false /*code*/);
+  }
 
+  // write it to a binary file
+  char const binFname[] = "grammar.bin.tmp";
+  traceProgress() << "writing initial grammar to " << binFname << "\n";
+  {
+    BFlatten flat(binFname, false /*reading*/);
+    g1.xfer(flat);
+  }
+
+  // read it back
+  traceProgress() << "reading grammar from " << binFname << "\n";
+  Grammar g2;
+  {
+    BFlatten flat(binFname, true /*reading*/);
+    g2.xfer(flat);
+  }
+
+  // print that too
+  char const g2Fname[] = "grammar.g2.tmp";
+  traceProgress() << "printing just-read grammar to " << g2Fname << "\n";
+  {
+    ofstream out(g2Fname);
+    g2.printProductions(out, false /*actions*/, false /*code*/);
+  }
+
+  // compare the two written files
+  int result = system(stringc << "diff " << g1Fname << " " << g2Fname);
+  if (result != 0) {
+    cout << "the two ascii representations differ!!\n";
+    return 4;
+  }
+
+  // remove the temp files
+  if (!tracingSys("keep-tmp")) {
+    remove(g1Fname);
+    remove(g2Fname);
+    remove(binFname);
+  }
+
+  cout << "successfully parsed, printed, wrote, and read a grammar!\n";
   return 0;
 }
 
