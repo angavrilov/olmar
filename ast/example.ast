@@ -1,0 +1,14 @@
+// example.ast
+// demonstrate a few features; I use this a testbed for features
+
+class Node (
+  int x,
+  int y
+) {
+  public Node *next;
+  ctor next=NULL;
+}
+
+class NodeList (
+  FakeList<Node> *list
+);

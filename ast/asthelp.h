@@ -5,6 +5,7 @@
 #define ASTHELP_H
 
 #include "astlist.h"     // ASTList
+#include "fakelist.h"    // FakeList
 #include "str.h"         // string
 #include "locstr.h"      // LocString
 
@@ -145,6 +146,25 @@ void debugPrintList(ASTList<string> const &list, char const *name,
                     ostream &os, int indent);
 void debugPrintList(ASTList<LocString> const &list, char const *name,
                     ostream &os, int indent);
+
+
+#define PRINT_FAKE_LIST(T, list) \
+  debugPrintFakeList(list, #list, os, indent)     /* user ; */
+
+template <class T>
+void debugPrintFakeList(FakeList<T> const *list, char const *name,
+                        ostream &os, int indent)
+{
+  ind(os, indent) << name << ":\n";
+  {
+    FAKELIST_FOREACH(T, list, iter) {
+      iter->debugPrint(os, indent+2);
+    }
+  }
+}
+
+// note that we never make FakeLists of strings, since of course
+// strings do not have a 'next' pointer
 
 
 #define PRINT_SUBTREE(tree)                     \

@@ -29,6 +29,7 @@ public:
   bool isTreeNodePtr(char const *type);
 
   bool isListType(char const *type);
+  bool isFakeListType(char const *type);
   bool isTreeListType(char const *type);
   string extractListType(char const *type);
 
@@ -96,8 +97,17 @@ bool Gen::isTreeNode(char const *base)
 // is this type a use of my ASTList template?
 bool Gen::isListType(char const *type)
 {
-  // do a fairly coarse analysis..
+  // do a fairly coarse analysis.. (the space before "<" is
+  // there because the type string is actually parsed by the
+  // grammar, and as it assembles it back into a string it
+  // inserts a space after every name-like token)
   return 0==strncmp(type, "ASTList <", 9);
+}
+
+// similar for FakeList
+bool Gen::isFakeListType(char const *type)
+{
+  return 0==strncmp(type, "FakeList <", 9);
 }
 
 // is it a list type, with the elements being tree nodes?
@@ -106,11 +116,13 @@ bool Gen::isTreeListType(char const *type)
   return isListType(type) && isTreeNode(type+9);
 }
 
-// given a type for which 'isListType' returns true, extract
-// the type in the template argument angle brackets
+// given a type for which 'is[Fake]ListType' returns true, extract
+// the type in the template argument angle brackets; this is used
+// to get the name of the type so we can pass it to the macros
+// which print list contents
 string Gen::extractListType(char const *type)
 {
-  xassert(isListType(type));
+  xassert(isListType(type) || isFakeListType(type));
   char const *langle = strchr(type, '<');
   char const *rangle = strchr(type, '>');
   xassert(langle && rangle);
@@ -658,6 +670,11 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
       // in ASTList<> is compatible with the printing regime here
       out << "  PRINT_LIST(" << extractListType(arg.type) << ", "
                              << arg.name << ");\n";
+    }
+    else if (isFakeListType(arg.type)) {
+      // similar printing approach for FakeLists
+      out << "  PRINT_FAKE_LIST(" << extractListType(arg.type) << ", "
+                                  << arg.name << ");\n";
     }
     else if (isTreeNode(arg.type) ||
              (isTreeNodePtr(arg.type) && arg.owner)) {

@@ -31,7 +31,7 @@ LIBSMBASE := $(SMBASE)/libsmbase.a
 LINKEND   := $(LIBSMBASE)
 
 # default target
-all: agrampar astgen
+all: agrampar astgen example.o
 
 # unfortunately, the way bison.simple declares YYSTYPE precludes a proper
 # declaration of yylex(), unless I modify it as below; the 'grep' is so
@@ -77,6 +77,10 @@ astgen: $(agrampar-dep) agrampar.o astgen.o $(LIBSMBASE)
 ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
 	$(link) -o ccsstr -DTEST_CCSSTR ccsstr.cc \
                 reporterr.o embedded.o $(linkend)
+
+# simple ast spec file
+example.cc: astgen example.ast
+	./astgen example.ast
 
 clean:
 	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr towner
