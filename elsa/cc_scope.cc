@@ -108,7 +108,14 @@ bool Scope::addCompound(CompoundType *ct)
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
 
   ct->access = curAccess;
-  return insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/);
+  if (insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/)) {
+    // WORKAROUND: add it to a list also..
+    innerClasses.append(ct);
+    return true;
+  }             
+  else {
+    return false;
+  }
 }
 
 
