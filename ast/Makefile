@@ -1,18 +1,20 @@
 # Makefile for ast project
 # see license.txt for copyright and terms of use
 
+default_target: all
+
+# directories of other software
 SMBASE  := ../smbase
 
-CXX      := g++
-CXXFLAGS := -Wall -g
 
-# for gcc-2
-#CXXFLAGS += -I.
+# C++ preprocessor, compiler and linker
+CXX := g++
 
-CXXFLAGS += -I$(SMBASE) $(EXTRAARGS)
+# flags for C++ compiler
+CXXFLAGS := -g -Wall -I$(SMBASE)
 
+# make warnings into errors
 CXXFLAGS += -Werror
-
 
 # to enable profiling
 #CXXFLAGS += -pg
@@ -22,6 +24,16 @@ CXXFLAGS += -Wno-deprecated
 
 # to turn on optimizer
 CXXFLAGS += -O2 -DNDEBUG
+
+# for gcc-2
+#CXXFLAGS += -I.
+
+# flags for the linker
+LDFLAGS := -g -Wall $(SMBASE)/libsmbase.a
+
+CXXFLAGS += 
+
+
 
 COMPILE  := $(CXX) -c $(CXXFLAGS)
 
