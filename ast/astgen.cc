@@ -958,7 +958,7 @@ void HGen::emitVisitorInterface()
   SFOREACH_OBJLIST(TF_class, allClasses, iter) {
     TF_class const *c = iter.data();
 
-    out << "  void visit" << c->super->name << "("
+    out << "  virtual void visit" << c->super->name << "("
         <<   c->super->name << " *obj);\n";
   }
   out << "};\n\n";
