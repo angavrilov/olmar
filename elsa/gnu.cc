@@ -24,9 +24,9 @@
 void Env::addGNUBuiltins()
 {
   Type *t_void = getSimpleType(SL_INIT, ST_VOID);
-  Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
+//    Type *t_voidconst = getSimpleType(SL_INIT, ST_VOID, CV_CONST);
   Type *t_voidptr = makePtrType(SL_INIT, t_void);
-  Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
+//    Type *t_voidconstptr = makePtrType(SL_INIT, t_voidconst);
 
   Type *t_int = getSimpleType(SL_INIT, ST_INT);
   Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
@@ -49,11 +49,13 @@ void Env::addGNUBuiltins()
   // void __builtin_stdarg_start(__builtin_va_list __list, char const *__format);
   // trying this instead:
   // void __builtin_stdarg_start(__builtin_va_list __list, void const *__format);
-  declareFunction2arg(t_void, "__builtin_stdarg_start",
+  // nope; see in/d0120.cc.  It doesn't work if the arg to '__format' is an int.
+  // ironically, making it vararg does work
+  declareFunction1arg(t_void, "__builtin_stdarg_start",
                       var__builtin_va_list->type, "__list",
 //                        t_charconstptr, "__format",
-                      t_voidconstptr, "__format",
-                      FF_NONE, NULL);
+//                        t_voidconstptr, "__format",
+                      FF_VARARGS, NULL);
 
   // void __builtin_va_end(__builtin_va_list __list);
   declareFunction1arg(t_void, "__builtin_va_end",
