@@ -266,6 +266,12 @@ public:
   // comments at top of glr.cc for more details.)
   ArrayStack<StackNode*> activeParsers;     // (refct list)
 
+  // index: StateId -> index in 'activeParsers' of unique parser
+  // with that state, or INDEX_NO_PARSER if none has that state
+  typedef unsigned char ParserIndexEntry;
+  enum { INDEX_NO_PARSER = 255 };
+  ParserIndexEntry *parserIndex;            // (owner)
+
   // this is for assigning unique ids to stack nodes
   int nextStackNodeId;
   enum { initialStackNodeId = 1 };
@@ -335,6 +341,7 @@ private:    // funcs
   StackNode *makeStackNode(StateId state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
+  void addActiveParser(StackNode *parser);
 
 public:     // funcs
   GLR(UserActions *userAct);

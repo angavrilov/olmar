@@ -145,6 +145,10 @@
   #define D(stmt) ((void)0)
 #endif
 
+// can turn this on to experiment.. but right now it 
+// actually makes things slower.. (!)
+//#define USE_PARSER_INDEX
+
 
 // the transition to array-based implementations requires I specify
 // initial sizes (they all grow as needed though)
@@ -390,6 +394,7 @@ bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
 GLR::GLR(UserActions *user)
   : userAct(user),
     activeParsers(),
+    parserIndex(NULL),
     nextStackNodeId(initialStackNodeId),
     currentTokenColumn(0),
     currentTokenClass(NULL),
@@ -409,6 +414,9 @@ GLR::~GLR()
 {
   decParserList(activeParsers);
   decParserList(parserWorklist);
+  if (parserIndex) {
+    delete[] parserIndex;
+  }
 }
 
 
@@ -416,7 +424,7 @@ void GLR::clearAllStackNodes()
 {
   nextStackNodeId = initialStackNodeId;
   currentTokenColumn = 0;
-  
+
   // the stack nodes themselves are now reference counted, so they
   // should already be cleared if we're between parses
 }
@@ -474,12 +482,24 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   traceProgress() << "parsing...\n";
   clearAllStackNodes();
 
+  // build the parser index (I do this regardless of whether I'm going
+  // to use it, because up here it makes no performance difference,
+  // and I'd like as little code as possible being #ifdef'd)
+  if (parserIndex) {
+    delete[] parserIndex;
+  }
+  parserIndex = new ParserIndexEntry[numItemSets()];
+  {
+    for (int i=0; i<numItemSets(); i++) {
+      parserIndex[i] = INDEX_NO_PARSER;
+    }
+  }
+
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
   StackNode *first = makeStackNode(startState->id);
-  activeParsers.push(first);
-  first->incRefCt();
-
+  addActiveParser(first);
+  
   // we will queue up shifts and process them all at the end (pulled
   // out of loop so I don't deallocate the array between tokens)
   ArrayStack<PendingShift> pendingShifts;                  // starts empty
@@ -645,6 +665,30 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   #endif // 0
 
   return true;
+}
+
+
+// add a new parser to the 'activeParsers' list, maintaing
+// related invariants
+void GLR::addActiveParser(StackNode *parser)
+{
+  activeParsers.push(parser);
+  parser->incRefCt();
+
+  // I implemented this index, and then discovered it made no difference
+  // (actually, slight degradation) in performance; so for now it will 
+  // be an optional design choice, off by default
+  #ifdef USE_PARSER_INDEX
+    // fill in the state id index; if the assertion here ever fails, it
+    // means there are more than 255 active parsers; either the grammer
+    // is highly ambiguous by mistake, or else ParserIndexEntry needs to
+    // be re-typedef'd to something bigger than 'char'
+    int index = activeParsers.length()-1;   // index just used
+    xassert(index < INDEX_NO_PARSER);
+
+    xassert(parserIndex[parser->state] == INDEX_NO_PARSER);
+    parserIndex[parser->state] = index;
+  #endif // USE_PARSER_INDEX
 }
 
 
@@ -1061,8 +1105,8 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
-    activeParsers.push(rightSibling);
-    rightSibling->incRefCt();
+    addActiveParser(rightSibling);
+
     parserWorklist.push(rightSibling);
     rightSibling->incRefCt();
 
@@ -1076,7 +1120,14 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 {
   // clear the active-parsers list; we rebuild it in this fn
-  decParserList(activeParsers);
+  for (int i=0; i < activeParsers.length(); i++) {
+    StackNode *parser = activeParsers[i];
+    #ifdef USE_PARSER_INDEX
+      xassert(parserIndex[parser->state] == i);
+      parserIndex[parser->state] = INDEX_NO_PARSER;
+    #endif // USE_PARSER_INDEX
+    parser->decRefCt();
+  }
   activeParsers.empty();
 
   // foreach (leftSibling, newState) in pendingShifts
@@ -1105,8 +1156,7 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
       rightSibling = makeStackNode(newState);
 
       // and add it to the active parsers
-      activeParsers.push(rightSibling);
-      rightSibling->incRefCt();
+      addActiveParser(rightSibling);
     }
 
     // either way, add the sibling link now
@@ -1120,14 +1170,24 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 // if an active parser is at 'state', return it; otherwise
 // return NULL
 StackNode *GLR::findActiveParser(StateId state)
-{                                              
-  for (int i=0; i < activeParsers.length(); i++) {
-    StackNode *node = activeParsers[i];
-    if (node->state == state) {
-      return node;
+{
+  #ifdef USE_PARSER_INDEX
+    int index = parserIndex[state];
+    if (index != INDEX_NO_PARSER) {
+      return activeParsers[index];
     }
-  }
-  return NULL;
+    else {
+      return NULL;
+    }
+  #else
+    for (int i=0; i < activeParsers.length(); i++) {
+      StackNode *node = activeParsers[i];
+      if (node->state == state) {
+        return node;
+      }
+    }
+    return NULL;
+  #endif
 }
 
 
