@@ -125,6 +125,21 @@ void S_assert::vcgen(AEnv &env) VCGEN_CONST
   env.prove(v);
 }
 
+void S_assume::vcgen(AEnv &env) VCGEN_CONST
+{
+  // evaluate
+  IntValue *v = expr->vcgen(env);            
+  xassert(v); 
+  
+  // remember it as a known fact
+  env.addFact(v);
+}
+
+void S_invariant::vcgen(AEnv &env) VCGEN_CONST
+{
+  // ignore for now
+}
+
 
 // ---------------------- Expression -----------------
 IntValue *E_intLit::vcgen(AEnv &env) VCGEN_CONST

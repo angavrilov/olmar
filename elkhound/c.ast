@@ -196,6 +196,8 @@ class Statement {
   
   // theorem prover extensions
   -> S_assert(Expression expr);
+  -> S_assume(Expression expr);
+  -> S_invariant(Expression expr);
 }
 
 

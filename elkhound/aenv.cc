@@ -5,21 +5,25 @@
 #include "c.ast.gen.h"          // C ast
 #include "absval.ast.gen.h"     // IntValue & children
 #include "prover.h"             // runProver
-#include "predicate.ast.gen.h"  // Predicate
+#include "predicate.ast.gen.h"  // Predicate, P_and
 
 AEnv::AEnv(StringTable &table)
   : ints(),
+    facts(new P_and(NULL)),
     counter(1),
     stringTable(table)
 {}
 
 AEnv::~AEnv()
-{}
+{
+  delete facts;
+}
 
 
 void AEnv::clear()
 {
   ints.empty();
+  facts->conjuncts.deleteAll();
 }
 
 
@@ -57,7 +61,7 @@ IntValue *AEnv::freshIntVariable(char const *why)
 // add lots of inference rules about e.g. '<' in the expression
 // domain); returns owner pointer
 Predicate *exprToPred(IntValue const *expr)
-{                      
+{
   // make one instance of this, so I can circumvent
   // allocation issues for this one
   static IVint const zero(0);
@@ -105,7 +109,7 @@ Predicate *exprToPred(IntValue const *expr)
                     new P_impl(new P_not(exprToPred(c->cond)),
                                exprToPred(c->el)));
     }
-    
+
     ASTENDCASEC
   }
 
@@ -116,27 +120,43 @@ Predicate *exprToPred(IntValue const *expr)
 }
 
 
+void AEnv::addFact(IntValue *expr)
+{
+  facts->conjuncts.append(exprToPred(expr));
+}
+
+
 void AEnv::prove(IntValue const *expr)
 {
-  // map the expression into a predicate
-  Predicate *pred = exprToPred(expr);
+  // map the goal into a predicate
+  Predicate *goal = exprToPred(expr);
 
-  // map that into an sexp
-  stringBuilder sb;
-  pred->toSexp(sb);
-  
-  // run the prover
-  if (runProver(sb)) {
-    cout << "proved:\n";
+  // build an implication with all our known facts on the left
+  // (temporarily let this object think it owns 'facts')
+  P_impl implication(facts, goal);
+  facts = NULL;
+
+  // map this into an sexp
+  string implSexp = implication.toSexpString();
+
+  // restore proper ownership of 'facts'
+  facts = implication.premise->asP_and();
+  implication.premise = NULL;
+
+  // run the prover on that predicate
+  if (runProver(implSexp)) {
+    cout << "predicate proved\n";
   }
   else {
     cout << "predicate NOT proved:\n";
+    FOREACH_ASTLIST(Predicate, facts->conjuncts, iter) {
+      cout << "  fact: " << iter.data()->toSexpString() << "\n";
+    }
+    cout << "  goal: " << goal->toSexpString() << "\n";
   }
-  cout << "  " << sb << endl;
 
-  // if I did it right, 'pred' is an owner pointer to properly
+  // if I did it right, 'implication' contains properly
   // recursively owned substructures..
-  delete pred;
 }
 
 

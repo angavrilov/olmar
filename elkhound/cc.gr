@@ -527,6 +527,8 @@ nonterm[Statement*] Statement {
   
   // theorem prover extensions
   -> "thmprv_assert" e:Expression ";"   [ return new S_assert(e); ]
+  -> "thmprv_assume" e:Expression ";"   [ return new S_assume(e); ]
+  -> "thmprv_invariant" e:Expression ";" [ return new S_invariant(e); ]
 }
 
 nonterm[Statement*] ExpressionStatement {

@@ -501,6 +501,17 @@ void S_assert::tcheck(Env &env)
   checkBoolean(env, type, expr);
 }
 
+void S_assume::tcheck(Env &env)
+{
+  checkBoolean(env, expr->tcheck(env), expr);
+}
+
+void S_invariant::tcheck(Env &env)
+{
+  checkBoolean(env, expr->tcheck(env), expr);
+}
+
+
 
 // ------------------ Expression::tcheck --------------------
 Type const *Expression::tcheck(Env &env)

@@ -36,7 +36,9 @@ impl_verbatim {
 }
 
 
-class Predicate {
+class Predicate {                    
+  // build an s-exp (symbolic expression) out of this predicate
+  public string toSexpString() const;
   pure_virtual void toSexp(stringBuilder &sb) const;
 
   // --------------- "literals" --------------
@@ -109,7 +111,14 @@ impl_verbatim {
     return p;
   }
 
-  
+
+  string Predicate::toSexpString() const
+  {
+    stringBuilder sb;
+    toSexp(sb);
+    return sb;
+  }
+
   // -------------------- toSexp -------------------------
   void P_lit::toSexp(stringBuilder &sb) const
   {

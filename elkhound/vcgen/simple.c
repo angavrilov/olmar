@@ -27,5 +27,9 @@ void bar(int y)
                 y==0? y+6==6 :
                       y+1>1  ;
 
+  //thmprv_assert y + z > 7;    // can't prove, which is right
+  thmprv_assume y > 6;
+  thmprv_assert y + z > 7;
+
   z = foo(z+3);
 }

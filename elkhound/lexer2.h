@@ -160,6 +160,8 @@ enum Lexer2TokenType {
 
   // theorem prover extensions
   L2_THMPRV_ASSERT,
+  L2_THMPRV_ASSUME,
+  L2_THMPRV_INVARIANT,
   L2_IMPLIES,
   L2_THMPRV_PRE,
   L2_THMPRV_POST,
