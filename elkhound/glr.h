@@ -126,10 +126,15 @@ public:
   // that's now it was originally, but I figured out the hard
   // way that's wrong (more info in compiler.notes.txt))
   SemanticValue sval;
+  
+  // every time I hand this value to a reduction function, I
+  // increment the value (if the value is 0, then this object
+  // is the only one which has a reference to it)
+  int svalRefCt;
 
 public:
   SiblingLink(StackNode *s, SemanticValue sv)
-    : sib(s), sval(sv) {}
+    : sib(s), sval(sv), svalRefCt(0) {}
   ~SiblingLink();
 };
 
@@ -182,6 +187,15 @@ public:	   // data
   // the last one we collect when starting from the reduction state
   // and popping symbols as we move left
   SemanticValue *poppedSymbols;
+
+  // also collect reference count pointers, so they can be incremented
+  // each time the corresponding semantic value ends up being used
+  int *svalRefCts;
+  
+  // yet more: collect the symbols associated with each of the
+  // semantic values, as this info is needed to call the 'dup'
+  // functions
+  Symbol const *svalSymbols;
 
   // as reduction possibilities are encountered, we record them here
   ObjList<ReductionPath> paths;

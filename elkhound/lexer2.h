@@ -170,7 +170,7 @@ public:
     char charValue;		 // for L2_CHAR_LITERALs
     StringRef strValue;          // for L2_NAMEs and L2_STRING_LITERALs; refers to Lexer2::idTable
     SemanticValue sval;          // union with above means we can extract from this
-  };
+  };            
 
   // TODO: handle strings with embedded nulls
 

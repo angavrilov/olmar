@@ -135,6 +135,28 @@
 #include <fstream.h>     // ofstream
 
 
+// ------------- front ends to user code ---------------
+SemanticValue duplicateSemanticValue(Symbol const *sym, SemanticValue sval)
+{
+  if (sym->isTerminal()) {
+    return duplicateTerminalValue(sym->asTerminalC().termIndex, sval);
+  }
+  else {
+    return duplicateNontermValue(sym->asNonterminalC().ntIndex, sval);
+  }
+}
+
+void deallocateSemanticValue(Symbol const *sym, SemanticValue sval)
+{
+  if (sym->isTerminal()) {
+    return deallocateTerminalValue(sym->asTerminalC().termIndex, sval);
+  }
+  else {
+    return deallocateNontermValue(sym->asNonterminalC().ntIndex, sval);
+  }
+}
+
+
 // ----------------------- StackNode -----------------------
 int StackNode::numStackNodesAllocd=0;
 int StackNode::maxStackNodesAllocd=0;
@@ -156,6 +178,16 @@ StackNode::~StackNode()
   if (!unwinding()) {
     xassert(numStackNodesAllocd >= 0);
     xassert(referenceCount == 0);
+  }
+
+  // explicitly deallocate siblings, so I can deallocate their
+  // semantic values if necessary (this requires knowing the
+  // associated symbol, which the SiblinkLinks don't know)
+  while (leftSiblings.isNotEmpty()) {
+    Owner<SiblingLink> sib(leftSiblings.removeAt(0));
+    if (sib->svalRefCt == 0 && sib->sval) {
+      deallocateSemanticValue(getSymbolC(), sib->sval);
+    }
   }
 }
 
@@ -205,19 +237,33 @@ PendingShift::~PendingShift()
 // ------------------ PathCollectionState -----------------
 PathCollectionState::PathCollectionState(Production const *p, int start)
   : startStateId(start),
-    poppedSymbols(new SemanticValue[p->rhsLength()]),
     paths(),      // initially empty
     production(p)
-{}
+{
+  int len = p->rhsLength();
+                                        
+  // possible optimization: allocate these once, using the largest length
+  // of any production, when parsing starts
+  poppedSymbols = new SemanticValue[len];
+  svalRefCts = new int[len];
+  svalSymbols = new Symbol const *[len];
+}
 
 PathCollectionState::~PathCollectionState()
 {
   delete[] poppedSymbols;
+  delete[] svalRefCts;
+  delete[] svalSymbols;
 }
 
 PathCollectionState::ReductionPath::~ReductionPath()
 {
-  // TODO: deal with sval deallocation here, if necessary
+  if (sval) {                                               
+    // this should be very unusual, since 'sval' is consumed
+    // (and nullified) soon after the ReductionPath is created
+    cout << "interesting: using ~ReductionPath's deallocator on " << sval << endl;
+    deallocateSemanticValue(finalState->getSymbolC(), sval);
+  }
 }
 
 
@@ -533,6 +579,9 @@ int GLR::doAllPossibleReductions(StackNode *parser,
 
       // this is like shifting the reduction's LHS onto 'finalParser'
       glrShiftNonterminal(rpath->finalState, prod.data(), rpath->sval);
+      
+      // nullify 'sval' to mark it as consumed
+      rpath->sval = NULL;
     } // for each path
   } // for each possible reduction
 
@@ -563,7 +612,7 @@ int GLR::doAllPossibleReductions(StackNode *parser,
  *
  * ([GLR] called this 'do-reductions' and 'do-limited-reductions')
  */
-void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
+bool GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                                 StackNode *currentNode, SiblingLink *mustUseLink)
 {
   // inefficiency: all this mechanism is somewhat overkill, given that
@@ -586,6 +635,17 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
         << endl;
     }
 
+    // before calling the user, duplicate any needed values
+    for (int i=0; i < pcs.production->rhsLength(); i++) {
+      int &ct = *(pcs.svalRefCts[i]);
+      ct++;                      // increment sval reference count
+      if (ct > 1) {
+        // after the first use, call dup to get the rest
+        pcs.poppedSymbols[i] =
+          duplicateSemanticValue(pcs.svalSymbols[i], pcs.poppedSymbols[i]);
+      }
+    }
+
     // we've popped the required number of symbols; call the
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
@@ -605,6 +665,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       // TREEBUILD: we are collecting 'treeNode' for the purpose
       // of handing it to the user's reduction routine
       pcs.poppedSymbols[popsRemaining-1] = sibling.data()->sval;
+      pcs.svalRefCts[popsRemaining-1] = &(sibling.data()->svalRefCt);
+      pcs.svalSymbols[popsRemaining-1] = currentNode->getSymbolC();
 
       // recurse one level deeper, having traversed this link
       if (sibling.data() == mustUseLink) {
