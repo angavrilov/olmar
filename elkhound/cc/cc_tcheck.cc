@@ -1,8 +1,13 @@
 // cc_tcheck.cc            see license.txt for copyright and terms of use
-// C++ typechecker, implemented as methods declared in cc.ast
+// C++ typechecker, implemented as methods declared in cc_tcheck.ast
 
 // Throughout, references are made to the ANSI C++ Standard:
-//   TODO: find a proper citation!
+//
+// International Organization for Standardization.
+// ISO/IEC 14882:1998: Programming languages -- C++.
+// International Organization for Standardization, Geneva,
+// Switzerland, September 1998.
+//
 // These references are all marked with the string "cppstd".
 
 #include "cc.ast.gen.h"     // C++ AST
