@@ -63,9 +63,9 @@ Variable *resolveOverload(
   SObjList<Variable> &varList,
   GrowArray<ArgumentInfo> &args)
 {
-  OverloadResolver or(env, loc, errors, flags, args, varList.count());
-  or.processCandidates(varList);
-  return or.resolve();
+  OverloadResolver r(env, loc, errors, flags, args, varList.count());
+  r.processCandidates(varList);
+  return r.resolve();
 }
 
 
@@ -91,6 +91,17 @@ void OverloadResolver::processCandidate(Variable *v)
                       " at " << toString(c->var->loc) <<
                       c->conversionDescriptions(indent));
     candidates.push(c);
+  }
+}
+
+
+void OverloadResolver::processPossiblyOverloadedVar(Variable *v)
+{
+  if (v->overload) {
+    processCandidates(v->overload->set);
+  }
+  else {
+    processCandidate(v);
   }
 }
 

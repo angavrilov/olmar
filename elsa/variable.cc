@@ -85,6 +85,12 @@ OverloadSet *Variable::getOverloadSet()
 }
 
 
+int Variable::overloadSetSize() const
+{
+  return overload? overload->count() : 1;
+}
+
+
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
   : set()

@@ -95,6 +95,11 @@ public:      // funcs
       errors(er),
       flags(f),
       args(a),
+      
+      // this estimate does not have to be perfect; if it's high,
+      // then more space will be allocated than necessary; if it's
+      // low, then the 'candidates' array will have to be resized
+      // at some point; it's entirely a performance issue
       candidates(numCand)
   {}
   ~OverloadResolver();
@@ -103,6 +108,10 @@ public:      // funcs
   // ones to the 'candidates' list
   void processCandidates(SObjList<Variable> &varList);
   void processCandidate(Variable *v);
+
+  // if 'v' has an overload set, then process that; otherwise, just
+  // process 'v' alone
+  void processPossiblyOverloadedVar(Variable *v);
 
   // run the tournament to decide among the candidates; returns
   // NULL if there is no clear winner

@@ -3231,6 +3231,20 @@ void tcheckFakeExprList(FakeList<ICExpression> *list, Env &env)
 }
 
 
+static bool hasNamedFunction(Expression *e)
+{
+  return e->isE_variable() || e->isE_fieldAcc();
+}
+
+static Variable *getNamedFunction(Expression *e)
+{
+  if (e->isE_variable()) { return e->asE_variable()->var; }
+  if (e->isE_fieldAcc()) { return e->asE_fieldAcc()->field; }
+  xfailure("no named function");
+  return NULL;   // silence warning
+}
+
+
 Type *E_funCall::itcheck(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
@@ -3329,9 +3343,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
       int expectLine;
       if (args->count() == 2 &&
           args->first()->expr->isE_funCall() &&
-          args->first()->expr->asE_funCall()->func->isE_variable() &&
+          hasNamedFunction(args->first()->expr->asE_funCall()->func) &&
           args->nth(1)->expr->constEval(env, expectLine)) {
-        Variable *chosen = args->first()->expr->asE_funCall()->func->asE_variable()->var;
+        Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
         int actualLine = sourceLocManager->getLine(chosen->loc);
         if (expectLine != actualLine) {
           env.error(stringc
@@ -3526,6 +3540,11 @@ Type *E_effect::itcheck(Env &env, Expression *&replacement)
 }
 
 
+inline ArgumentInfo argInfo(Expression *e)
+{
+  return ArgumentInfo(e->getSpecial(), e->type);
+}
+
 Type *E_binary::itcheck(Env &env, Expression *&replacement)
 {
   e1->tcheck(env, e1);
@@ -3534,30 +3553,79 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   Type *lhsType = e1->type->asRval();
   Type *rhsType = e2->type->asRval();
 
-  #if 0     // work in progress
   // check for operator overloading; only limited cases for now
   if (env.doOverload &&
       op == BIN_PLUS &&
-      (lhsType->isCompoundType() || rhsType->isCompoundType)) {
+      (lhsType->isCompoundType() || rhsType->isCompoundType())) {
+    TRACE("opovl", "found overloadable BIN_PLUS instance");
+
+    // collect argument information
+    GrowArray<ArgumentInfo> args(2);
+    args[0] = argInfo(e1);
+    args[1] = argInfo(e2);
+
+    // prepare the overload resolver
+    OverloadResolver resolver(env, env.loc(), &env.errors,
+                              OF_NONE, args, 10 /*numCand*/);
+
     // collect candidates: cppstd 13.3.1.2 para 3
 
     // member candidates
-    Variable *member = NULL;
     if (lhsType->isCompoundType()) {
-      member = lhsType->lookupVariable(env.operatorPlusName, env);
+      Variable *member = lhsType->asCompoundType()->
+        lookupVariable(env.operatorPlusName, env);
+      if (member) {
+        TRACE("opovl", member->overloadSetSize() << " member candidates");
+        resolver.processPossiblyOverloadedVar(member);
+      }
     }
 
     // non-member candidates; this lookup ignores member functions
     Variable *nonmember = env.lookupVariable(env.operatorPlusName, LF_SKIP_CLASSES);
+    if (nonmember) {
+      TRACE("opovl", nonmember->overloadSetSize() << " non-member candidates");
+      resolver.processPossiblyOverloadedVar(nonmember);
+    }
 
     // built-in candidates
     // TODO: add support for polymorphic candidates and user-defined
     // conversion functions
 
+    // pick one
+    Variable *winner = resolver.resolve();
+    if (winner) {
+      TRACE("opovl", "chose candidate at " << toString(winner->loc));
 
-
-
-  #endif // 0
+      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
+                                         env.operatorPlusName);
+      if (winner->hasFlag(DF_MEMBER)) {
+        // replace 'a+b' with 'a.operator+(b)'
+        replacement = new E_funCall(
+          // function to invoke
+          new E_fieldAcc(e1, pqo),
+          // arguments
+          FakeList<ICExpression>::makeList(new ICExpression(e2))
+        );
+      }
+      else {
+        // (assume it's not a built-in, since that's not implemented)
+        // replace 'a+b' with '::operator+(a,b)'
+        // (TODO: that's wrong in the presence of namespaces)
+        replacement = new E_funCall(
+          // function to invoke
+          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/, 
+                                          NULL /*targs*/, pqo)),
+          // arguments
+          FakeList<ICExpression>::makeList(new ICExpression(e2))
+          ->prepend(new ICExpression(e1))
+        );
+      }
+      
+      // for now, just re-check the whole thing
+      replacement->tcheck(env, replacement);
+      return replacement->type;
+    }
+  }
 
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {

@@ -109,6 +109,10 @@ public:
 
   // create an overload set if it doesn't exist, and return it
   OverloadSet *getOverloadSet();
+  
+  // number of elements in the overload set, or 1 if there is no
+  // overload set
+  int overloadSetSize() const;
 
   // some ad-hoc thing
   string toString() const;
