@@ -123,15 +123,15 @@ terminals {
 
   token[float*] L2_FLOAT_LITERAL {
     // yields are destructive
-    dup(f) [ return new float(*f); ]
-    del(f) [ delete f; ]
+    fun dup(f) [ return new float(*f); ]
+    fun del(f) [ delete f; ]
   }
 
   token[char] L2_CHAR_LITERAL ;
 
   token[StringRef] L2_NAME {
-    dup(n) [ return n; ]
-    del(n) []
+    fun dup(n) [ return n; ]
+    fun del(n) []
   }
 
   token[StringRef] L2_TYPE_NAME;
@@ -185,8 +185,8 @@ nonterm LeaveScope -> empty     [
 // ------------- identifiers -------------------
 // simple string of characters
 nonterm[StringRef] Identifier {
-  dup(n) [ return n; ]
-  del(n) []
+  fun dup(n) [ return n; ]
+  fun del(n) []
   -> n:L2_NAME          [ return n; ]
 }
 
@@ -207,7 +207,7 @@ nonterm[StringRef] Identifier {
 
 // ------ A.3 Basic Concepts ------
 nonterm[TranslationUnit*] TranslationUnit {
-  dup(n) [ return NULL; ]    // prevent multi-yield
+  fun dup(n) [ return NULL; ]    // prevent multi-yield
 
   -> empty                                [ return new TranslationUnit(NULL); ]
 
@@ -321,7 +321,7 @@ nonterm[Expression*] PostfixExpression {
   //   x(y)
   // can either be a function call (x is a function)
   // or a constructor call (x is a type)
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:PrimaryExpression 
        [ return e; ]
@@ -424,7 +424,7 @@ nonterm[Expression*] UnaryExpression {
   //   sizeof(x)
   // could either be size of an expression 'x', or
   // size of a type called 'x'
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:PostfixExpression         [ return e; ]
 
@@ -521,7 +521,7 @@ nonterm[Expression*] CastExpression {
   //   (x)(y)
   // could either be a call to function 'x' with argument 'y', or
   // it could be a cast to type 'x' of the expression 'y'
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:UnaryExpression
        [ return e; ]
@@ -536,7 +536,7 @@ nonterm[Expression*] BinaryExpression {
   //   (x) & (y)
   // could either be the bitwise AND of expressions x and y, or
   // it could be the address of expression y, cast to type x
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> e:CastExpression                                    [ return e; ]
 
@@ -637,7 +637,7 @@ nonterm[Statement*] Statement {
   //   x(y);
   // can either be an Expression statement (constructor call)
   // or a BlockDeclaration (declare variable y, of type x)
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> n:Identifier ":" s:Statement 
        [ return new S_label(loc, n, s); ]
@@ -742,7 +742,7 @@ nonterm[Statement*] ForInitStatement {
   // ambiguous:
   //   x * y = z
   // could be an expression or a declaration
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> s:ExpressionStatement     [ return s; ]
   -> s:SimpleDeclaration       [ return new S_decl(loc, s); ]
@@ -836,7 +836,7 @@ nonterm[Declaration*] SimpleDeclaration {
 //   -> UberModifierSeqOpt PQTypeName UberModifierSeqOpt
 // because the latter would cause shift/reduce conflicts.
 nonterm[Declaration*] DeclSpecifier {
-  dup(d) [ return NULL; ]    // prevent multi-yield
+  fun dup(d) [ return NULL; ]    // prevent multi-yield
 
   // TS_name: triggered by PQTypeName
   -> n:PQTypeName m2:UberModifierSeqOpt
@@ -875,7 +875,7 @@ nonterm[Declaration*] DeclSpecifier {
 
 // choose among TS_elaborated, TS_classSpec and TS_enumSpec
 nonterm[TypeSpecifier*] ElaboratedOrSpecifier {
-  dup(n) [ return NULL; ]              // prevent multi-yield
+  fun dup(n) [ return NULL; ]              // prevent multi-yield
 
   -> s:ElaboratedTypeSpecifier [ return s; ]
   -> s:ClassSpecifier          [ return s; ]
@@ -1111,7 +1111,7 @@ nonterm[Declarator*] InitDeclarator {
   // which itself is a call to the constructor for "int", or it could be
   // declaring a function called "m" with an integer parameter called "n",
   // the latter surrounded by a redundant set of parens
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> d:Declarator                       // (int)  x
        [ return new Declarator(d, NULL); ]
@@ -1153,7 +1153,7 @@ nonterm CommaOpt {
 }
 
 nonterm[IN_compound*] InitializerList {
-  dup(i) [ return NULL; ]     // prevent multi-yield
+  fun dup(i) [ return NULL; ]     // prevent multi-yield
 
   -> init:InitializerClause
        [ IN_compound *list = new IN_compound(NULL);
@@ -1372,7 +1372,7 @@ nonterm[ASTTypeId*] ParameterDeclaration {
   // AbstractDeclarator
   //
   // see D_name_tcheck in tcheck.cc for resolution
-  merge(L,R) [ L->addAmbiguity(R); return L; ]
+  fun merge(L,R) [ L->addAmbiguity(R); return L; ]
 
   -> RegisterOpt s:TypeSpecifier d:Declarator
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
@@ -1411,7 +1411,7 @@ nonterm[Function*] FunctionDefinition {
   // for now I've removed this ambiguity by not allowing declarator
   // D_names to have the "::" qualifier (but E_variables still can),
   // but I'll have to reintroduce it to handle namespaces
-  merge(L,R) [ xfailure("attempt to merge function defns"); return L; ]
+  fun merge(L,R) [ xfailure("attempt to merge function defns"); return L; ]
 
 
   // destructive action on 'r'
@@ -1532,7 +1532,7 @@ nonterm[enum TypeIntr] ClassKey {
 // I'm using an encapsulated ASTList to avoid right recursion,
 // since there are often many members of classes
 nonterm[MemberList*] MemberDeclarationSeqOpt {
-  dup(m) [ return NULL; ]       // prevent multi-yield
+  fun dup(m) [ return NULL; ]       // prevent multi-yield
 
   -> empty
        [ return new MemberList(NULL); ]
@@ -1560,7 +1560,7 @@ nonterm SemicolonOpt {
 }
 
 nonterm[Member*] MemberDeclaration {
-  keep(m) [ return m!=NULL; ]
+  fun keep(m) [ return m!=NULL; ]
 
   // destructive action on 'spec'
   // member fn decl, or data member
