@@ -100,16 +100,7 @@ public:     // funcs
 
   // print in C notation
   virtual string toCString() const = 0;
-
-  // print in a Cil notation, using integer ids
-  // for all references to other types
-  virtual string toCilString(int depth=1) const = 0;
-
-  // print in Cil with C notation in comments
-  string toString(int depth=1) const;
-
-  // name of this type for references in Cil output
-  virtual string uniqueName() const = 0;
+  string toString() const { return toCString(); }
 
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
@@ -136,8 +127,6 @@ public:     // funcs
   // AtomicType interface
   virtual Tag getTag() const { return T_SIMPLE; }
   virtual string toCString() const;
-  virtual string toCilString(int depth) const;
-  virtual string uniqueName() const;
   virtual int reprSize() const;
 };
 
@@ -152,9 +141,6 @@ public:     // data
 public:
   NamedAtomicType(StringRef name);
   ~NamedAtomicType();
-
-  // globally unique name derived from 'name' and 'id'
-  virtual string uniqueName() const;
 };
 
 
@@ -191,7 +177,6 @@ public:      // funcs
   // AtomicType interface
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toCString() const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 
   string toStringWithFields() const;
@@ -257,7 +242,6 @@ public:     // funcs
   // AtomicType interface
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toCString() const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
@@ -314,6 +298,7 @@ public:     // funcs
   // for a variable of that type
   string toCString() const;
   string toCString(char const *name) const;
+  string toString() const { return toCString(); }
 
   // the left/right business is to allow us to print function
   // and array types in C's syntax; if 'innerParen' is true then
@@ -321,10 +306,6 @@ public:     // funcs
   // paretheses
   virtual string leftString(bool innerParen=true) const = 0;
   virtual string rightString(bool innerParen=true) const;    // default: returns ""
-
-  // same alternate syntaxes as AtomicType
-  virtual string toCilString(int depth=1) const = 0;
-  string toString(int depth=1) const;
 
   // size of representation
   virtual int reprSize() const = 0;
@@ -400,7 +381,6 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString(bool innerParen=true) const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
@@ -432,7 +412,6 @@ public:
   virtual Tag getTag() const { return T_POINTER; }
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
@@ -490,7 +469,6 @@ public:
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
@@ -544,7 +522,6 @@ public:
   virtual Tag getTag() const { return T_ARRAY; }
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
 
@@ -562,7 +539,6 @@ public:
   // AtomicType interface
   virtual Tag getTag() const { return T_TYPEVAR; }
   virtual string toCString() const;
-  virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -725,9 +701,6 @@ public:
 // update: it turns out the latest gdbs are capable of using the
 // toString method directly!  but I'll leave this here anyway.
 char *type_toString(Type const *t);
-
-char *type_toCilString(Type const *t);
-
 
 
 #endif // CC_TYPE_H
