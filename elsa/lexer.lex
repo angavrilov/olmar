@@ -126,6 +126,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "char"             return tok(TOK_CHAR);
 "class"            return tok(TOK_CLASS);
 "const"            return tok(TOK_CONST);
+"__const"          return tok(TOK_CONST);
 "__const__"        return tok(TOK_CONST);
 "const_cast"       return tok(TOK_CONST_CAST);
 "continue"         return tok(TOK_CONTINUE);
