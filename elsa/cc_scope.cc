@@ -436,11 +436,149 @@ CompoundType const *Scope::lookupCompoundC(StringRef name, LookupFlags /*flags*/
   return compounds.queryif(name);
 }
 
-EnumType const *Scope::lookupEnumC(StringRef name, LookupFlags /*flags*/) const
-{
-  // TODO: implement base class lookup for EnumTypes
 
-  return enums.queryif(name);
+EnumType const *Scope::lookupEnumC(StringRef name, Env &env, LookupFlags flags) const
+{
+  if (flags & LF_INNER_ONLY) {
+    xfailure("what the heck?");
+//      return vfilterC(enums.queryif(name), flags);
+  }
+
+  PQ_name wrapperName(SL_UNKNOWN, name);
+  EnumType const *ret = lookupPQEnumC(&wrapperName, env, flags);
+  if (ret) return ret;
+
+  return NULL;
+}
+
+
+EnumType const *Scope
+  ::lookupPQEnumC(PQName const *name, Env &env, LookupFlags flags) const
+{
+  EnumType const *v1 = NULL;
+
+  // [cppstd sec. 10.2]: class members hide all members from
+  // base classes
+  if (!name->hasQualifiers()) {
+//      cout << "lookupPQEnumC enums" << endl;
+//      for (StringSObjDict<EnumType>::IterC iter(enums); !iter.isDone(); iter.next()) {
+//        cout << "\t" << iter.key() << "=";
+//        iter.value()->gdb();
+//        cout << endl;
+//      }
+//      cout << "name->getName() " << name->getName() << endl;
+
+    // FIX: some kind of filter required?
+//      v1 = vfilterC(enums.queryif(name->getName()), flags);
+    v1 = enums.queryif(name->getName());
+
+    // FIX: do this for enums?
+//      if (!(flags & LF_QUALIFIED)) {
+//        // 7.3.4 para 1: "active using" edges are a source of additional
+//        // declarations that can satisfy an unqualified lookup
+//        if (activeUsingEdges.isNotEmpty()) {
+//          v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
+//        }
+//      }
+//      else {
+//        // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
+//        // if we haven't already found the name
+//        if (!v1 && usingEdges.isNotEmpty()) {
+//          v1 = searchUsingEdges(name->getName(), env, flags);
+//        }
+//      }
+
+    if (v1) {
+      return v1;
+    }
+  }
+
+  if (!curCompound) {
+    // nowhere else to look
+    return NULL;
+  }
+
+  // [ibid] if I can find a class member by looking in multiple
+  // base classes, then it's ambiguous and the program has
+  // an error
+  //
+  // to implement this, I'll walk the list of base classes,
+  // keeping in 'ret' the latest successful lookup, and if I
+  // find another successful lookup then I'll complain
+
+  // recursively examine the subobject hierarchy
+  CompoundType const *v1Base = NULL;
+  curCompound->clearSubobjVisited();
+  lookupPQEnumC_considerBase(name, env, flags,
+                             v1, v1Base, &curCompound->subobj);
+
+  return v1;
+}
+
+// helper for lookupPQEnumC; if we find a suitable enum, set v1/v1Base
+// to refer to it; if we find an ambiguity, report that
+void Scope::lookupPQEnumC_considerBase
+  (PQName const *name, Env &env, LookupFlags flags,  // stuff from caller
+   EnumType const *&v1,                              // best so far
+   CompoundType const *&v1Base,                      // where 'v1' was found
+   BaseClassSubobj const *v2Subobj) const            // where we're looking now 
+{
+  if (v2Subobj->visited) return;
+  v2Subobj->visited = true;
+
+  CompoundType const *v2Base = v2Subobj->ct;
+
+  // if we're looking for a qualified name, and the outermost
+  // qualifier matches this base class, then consume it
+  if (name->hasQualifiers() &&
+      name->asPQ_qualifierC()->qualifier == v2Base->name) {
+    name = name->asPQ_qualifierC()->rest;
+  }
+
+  if (!name->hasQualifiers()) {
+    // look in 'v2Base' for the field
+    // FIX: filter for enums?
+//      EnumType const *v2 = vfilterC(v2Base->enums.queryif(name->getName()), flags);
+    EnumType const *v2 = v2Base->enums.queryif(name->getName());
+    if (v2) {
+      TRACE("lookup",    "found " << v2Base->name << "::"
+                      << name->toString());
+
+      if (v1) {
+        // FIX: do this for enums?
+//          if (v1 == v2 && 
+//              (v1->hasFlag(DF_STATIC) || v1->hasFlag(DF_TYPEDEF))) {
+//            // they both refer to the same static entity; that's ok
+//            // (10.2 para 2); ALSO: we believe this exception should
+//            // apply to types also (DF_TYPEDEF), though the standard
+//            // does not explicitly say so (in/t0166.cc is testcase)
+//            return;
+//          }
+
+        // ambiguity
+        env.error(stringc
+          << "reference to `" << *name << "' is ambiguous, because "
+          << "it could either refer to "
+          << v1Base->name << "::" << *name << " or "
+          << v2Base->name << "::" << *name);
+        return;
+      }
+
+      // found one; copy it into 'v1', my "best so far"
+      v1 = v2;
+      v1Base = v2Base;
+      
+      // this name hides any in base classes, so this arm of the
+      // search stops here
+      return;
+    }
+  }
+
+  // name is still qualified, or we didn't find it; recursively
+  // look into base classes of 'v2Subobj'
+  SFOREACH_OBJLIST(BaseClassSubobj, v2Subobj->parents, iter) {
+    lookupPQEnumC_considerBase(name, env, flags, v1, v1Base, iter.data());
+  }
 }
 
 

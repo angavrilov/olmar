@@ -156,9 +156,14 @@ public:      // data
   SourceLoc curLoc;                   // latest AST location marker seen
 
 private:     // funcs
-  void Scope::lookupPQVariableC_considerBase
+  void lookupPQVariableC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
      Variable const *&v1, CompoundType const *&v1Base,
+     BaseClassSubobj const *v2Subobj) const;
+  void lookupPQEnumC_considerBase
+    (PQName const *name, Env &env, LookupFlags flags,
+     EnumType const *&v1,
+     CompoundType const *&v1Base,
      BaseClassSubobj const *v2Subobj) const;
 
   // more using-directive stuff
@@ -234,19 +239,20 @@ public:      // funcs
   // passed for the purpose of reporting ambiguity errors
   Variable const *lookupVariableC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
   CompoundType const *lookupCompoundC(StringRef name, LookupFlags f=LF_NONE) const;
-  EnumType const *lookupEnumC(StringRef name, LookupFlags f=LF_NONE) const;
+  EnumType const *lookupEnumC(StringRef name, Env &env, LookupFlags f=LF_NONE) const;
 
   // lookup of a possibly-qualified name; used for member access
   // like "a.B::f()"
   Variable const *lookupPQVariableC(PQName const *name, Env &env, LookupFlags f=LF_NONE) const;
+  EnumType const *lookupPQEnumC(PQName const *name, Env &env, LookupFlags flags) const;
 
   // non-const versions..
   Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<Variable*>(lookupVariableC(name, env, f)); }
   CompoundType *lookupCompound(StringRef name, LookupFlags f=LF_NONE)
     { return const_cast<CompoundType*>(lookupCompoundC(name, f)); }
-  EnumType *lookupEnum(StringRef name, LookupFlags f=LF_NONE)
-    { return const_cast<EnumType*>(lookupEnumC(name, f)); }
+  EnumType *lookupEnum(StringRef name, Env &env, LookupFlags f=LF_NONE)
+    { return const_cast<EnumType*>(lookupEnumC(name, env, f)); }
   Variable *lookupPQVariable(PQName const *name, Env &env, LookupFlags f=LF_NONE)
     { return const_cast<Variable*>(lookupPQVariableC(name, env, f)); }
 

@@ -1045,7 +1045,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   name->tcheck(env);
 
   if (keyword == TI_ENUM) {
-    EnumType *et = env.lookupPQEnum(name);
+    EnumType *et = env.lookupPQEnum(name, env);
     if (!et) {
       if (!env.lang.allowIncompleteEnums ||
           name->hasQualifiers()) {
@@ -1574,7 +1574,7 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 
   if (env.lang.allowIncompleteEnums && name) {
     // is this referring to an existing forward-declared enum?
-    et = env.lookupEnum(name);
+    et = env.lookupEnum(name, env);
     if (et) {
       ret = env.makeType(loc, et);
       if (!et->valueIndex.isEmpty()) {
@@ -6429,7 +6429,7 @@ void ND_usingDecl::tcheck(Env &env)
       }
     }
 
-    EnumType *origEnum = origScope->lookupEnum(origVar->name);
+    EnumType *origEnum = origScope->lookupEnum(origVar->name, env);
     if (origEnum) {
       // alias the enum tag
       env.addEnum(origEnum);

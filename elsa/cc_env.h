@@ -373,8 +373,8 @@ public:      // funcs
   CompoundType *lookupPQCompound(PQName const *name, LookupFlags f=LF_NONE);
   CompoundType *lookupCompound  (StringRef name,     LookupFlags f=LF_NONE);
 
-  EnumType *lookupPQEnum(PQName const *name, LookupFlags f=LF_NONE);
-  EnumType *lookupEnum  (StringRef name,     LookupFlags f=LF_NONE);
+  EnumType *lookupPQEnum(PQName const *name, Env &env, LookupFlags f=LF_NONE);
+  EnumType *lookupEnum  (StringRef name,     Env &env, LookupFlags f=LF_NONE);
 
   // name + template args = inst
   Variable *applyPQNameTemplateArguments

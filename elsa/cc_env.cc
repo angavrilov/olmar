@@ -2174,14 +2174,14 @@ CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
   return NULL;    // not found
 }
 
-EnumType *Env::lookupPQEnum(PQName const *name, LookupFlags flags)
+EnumType *Env::lookupPQEnum(PQName const *name, Env &env, LookupFlags flags)
 {
   // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    EnumType *ret = scope->lookupEnum(name->getName(), flags);
+    EnumType *ret = scope->lookupEnum(name->getName(), env, flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no enum called `"
@@ -2193,18 +2193,18 @@ EnumType *Env::lookupPQEnum(PQName const *name, LookupFlags flags)
     return ret;
   }
 
-  return lookupEnum(name->getName(), flags);
+  return lookupEnum(name->getName(), env, flags);
 }
 
-EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
+EnumType *Env::lookupEnum(StringRef name, Env &env, LookupFlags flags)
 {
   if (flags & LF_INNER_ONLY) {
-    return acceptingScope()->lookupEnum(name, flags);
+    return acceptingScope()->lookupEnum(name, env, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    EnumType *et = iter.data()->lookupEnum(name, flags);
+    EnumType *et = iter.data()->lookupEnum(name, env, flags);
     if (et) {
       return et;
     }
