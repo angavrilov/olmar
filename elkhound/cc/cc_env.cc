@@ -29,8 +29,12 @@ Env::Env(StringTable &s, CCLang &L)
     lang(L),                      
     
     // filled in below; initialized for definiteness
-    type_info_const_ref(NULL),
+    type_info_const_ref(NULL), 
+
     conversionOperatorName(NULL),
+    constructorSpecialName(NULL),
+    functionOperatorName(NULL),
+
     dependentTypeVar(NULL),
     errorVar(NULL)
 {
@@ -52,6 +56,7 @@ Env::Env(StringTable &s, CCLang &L)
   // lexed as single names)
   conversionOperatorName = str("conversion-operator");
   constructorSpecialName = str("constructor-special");
+  functionOperatorName = str("operator()");
 
   dependentTypeVar = new Variable(HERE_SOURCELOC, str("<dependentTypeVar>"),
                                   getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
