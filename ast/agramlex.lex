@@ -131,10 +131,12 @@ SLWHITE   [ \t]
 ">"                TOK_UPD_COL;  return TOK_RANGLE;
 "*"                TOK_UPD_COL;  return TOK_STAR;
 "&"                TOK_UPD_COL;  return TOK_AMPERSAND;
+"="                TOK_UPD_COL;  return TOK_EQUALS;
 
 "class"            TOK_UPD_COL;  return TOK_CLASS;
 "option"           TOK_UPD_COL;  return TOK_OPTION;
 "new"              TOK_UPD_COL;  return TOK_NEW;
+"enum"             TOK_UPD_COL;  return TOK_ENUM;
 
   /* --------- embedded text --------- */
 ("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual") {
@@ -151,24 +153,17 @@ SLWHITE   [ \t]
              /*[2] == 'r'*/TOK_PURE_VIRTUAL ;
 }
 
-("verbatim"|"impl_verbatim"|"enum") {
+("verbatim"|"impl_verbatim") {
   TOK_UPD_COL;
 
   // need to see one more token before we begin embedded processing
-  if (yytext[0] == 'e') {
-    embedStart = '=';
-    embedFinish = ',';
-  }
-  else {
-    embedStart = '{';
-    embedFinish = '}';
-  }
+  embedStart = '{';
+  embedFinish = '}';
 
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
   return yytext[0]=='v'? TOK_VERBATIM :
-         yytext[0]=='i'? TOK_IMPL_VERBATIM :
-                         TOK_ENUM;
+                         TOK_IMPL_VERBATIM ;
 }
 
 "custom" {
@@ -183,13 +178,12 @@ SLWHITE   [ \t]
 }
 
   /* punctuation that can start embedded code */
-("{"|"=") {
+"{" {
   TOK_UPD_COL;
   if (yytext[0] == embedStart) {
     BEGIN(EMBED);
   }
-  return yytext[0]=='{'? TOK_LBRACE :
-                         TOK_EQUALS ;
+  return TOK_LBRACE;
 }
 
 
@@ -197,7 +191,7 @@ SLWHITE   [ \t]
    * was computed in the opening punctuation */
 <EMBED>{
   /* no special significance to lexer */
-  [^;},\n]+ {
+  [^;}\n]+ {
     UPD_COL;
     embedded->handle(yytext, yyleng, embedFinish);
   }
@@ -208,31 +202,17 @@ SLWHITE   [ \t]
   }
 
   /* possibly closing delimiter */
-  ("}"|";"|",") {
+  ("}"|";") {
     UPD_COL;
-    
-    if (embedStart == '=' && yytext[0] == '}') {
-      // end of embeddeds that correspond to 'enum'
-      embedStart = 0;
-    }
 
-    // we're done if we're at a zero nesting level, and either the
-    // delimiter matches, or (special case) we see '}' when looking
-    // for the ending ',' of an enumerator
-    if (embedded->zeroNesting() &&
-        (yytext[0] == embedFinish ||
-         (yytext[0] == '}' && embedFinish == ','))) {
+    // we're done if we're at a zero nesting level and the
+    // delimiter matches ...
+    if (embedded->zeroNesting() && yytext[0] == embedFinish) {
       // done
       BEGIN(INITIAL);
 
-      if (embedStart == '=') {
-        // for '=', prepare for another; detection is turned off by
-        // the explicit check above
-      }
-      else {
-        // all else, turn off embedded detection
-        embedStart = 0;
-      }
+      // turn off embedded detection
+      embedStart = 0;
 
       // put back delimeter so parser will see it
       yyless(yyleng-1);
@@ -257,12 +237,6 @@ SLWHITE   [ \t]
 
   /* -------- name literal --------- */
 {LETTER}({LETTER}|{DIGIT})* {
-  // hack: for enumerators, I need to reset 'embedded', but only
-  // after the lexeme has been taken
-  if (embedStart == '=') {
-    embedded->reset();
-  }
-
   // get text from yytext and yyleng
   TOK_UPD_COL;
   return TOK_NAME;

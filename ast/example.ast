@@ -37,10 +37,11 @@ class Super (int x) {
 
 enum AnEnum { AE_ONE, AE_TWO };
 
+// eliminated explicit enumerator values...
 enum AnotherEnum {
   anotherone, 
-  anothertwo = 0x04,
-  anotherthree = anotherone     // oops! can't trim whitespace
+  anothertwo,
+  anotherthree
 };
 
 class UsesEnum {

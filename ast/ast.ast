@@ -28,9 +28,11 @@ class ToplevelForm {
   // a generic option: first word specifies the kind of option, and
   // additional words (if any) are arguments
   -> TF_option(string name, ASTList<string> args);
-  
-  // enumeration
-  -> TF_enum(string name, ASTList<Enumerator> enumerators);
+
+  // enumeration (at one point I had support for explicit enumerator
+  // values, but decided that if the user wants that, they should put
+  // the enum in a 'verbatim' section instead)
+  -> TF_enum(string name, ASTList<string> enumerators);
 }
 
 // a definition of a grammar terminal or nonterminal
@@ -76,10 +78,6 @@ class Annotation {
 
 // something that has to be passed to create a constructor
 class CtorArg (bool owner, string type, string name, string defaultValue);
-
-// a value in an enumeration; if 'value' is not the empty string, then
-// it is literal code that defines the value of 'name'
-class Enumerator (string name, string value);
 
 
 // ------------------- extra implementation helpers ------------------
