@@ -302,20 +302,7 @@ void Designator::setNext(Designator *newNext)
 // gnu extension, or for S_function::icfg to go up and do some surgery
 // on edges that have already been added, which I consider to be too
 // weird.
-void S_function::icfg(CFGEnv &env)
-{
-  // any pending 'next's should not be resolved as pointing into the
-  // function definition, but instead as pointing at whatever follows
-  // it
-  env.pushNexts();
-
-  computeFunctionCFG(env, f);
-  // dsw: I am tempted to do this but env.pendingNexts is private,
-  // which suggests that perhaps it is not what you want.  It seems
-  // that the meaning of 'nexts' is that there shouldn't be any here
-//    xassert(env.pendingNexts.isEmpty());
-
-  // merge current pending nexts (which should be empty) with those
-  // saved above
-  env.popNexts();
-}
+//
+// Scott says: "the entire S_function::icfg can be empty, just like
+// S_skip."
+void S_function::icfg(CFGEnv &env) {}
