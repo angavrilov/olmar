@@ -93,11 +93,11 @@ public:      // data
   Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
 
-  // polymorphic built-in operator functions
-  Variable *operatorPlusVar;            // (serf)
-
   // dsw: Can't think of a better way to do this, sorry.
   Variable *var__builtin_constant_p;
+
+  // polymorphic built-in operator functions
+  Variable *operatorPlusVar;            // (serf)
 
   TranslationUnit *tunit;
   
@@ -112,14 +112,30 @@ private:     // funcs
   //CompoundType *instantiateClass(
   //  CompoundType *tclass, FakeList<TemplateArgument> *args);
 
-  Variable *declareFunction0arg(Type *retType, char const *funcName,
-                                Type * /*nullable*/ exnType,
-                                FunctionFlags flags);
-  void declareFunction1arg(Type *retType, char const *funcName,
-                           Type *arg1Type, char const *arg1Name,
-                           Type * /*nullable*/ exnType);
+  // these are intended to help build the initialization-time stuff,
+  // not build functions that result from the user's input syntax
+  Variable *declareFunctionNargs(
+    Type *retType, char const *funcName,
+    Type **argTypes, char const **argNames, int numArgs,
+    FunctionFlags flags, 
+    Type * /*nullable*/ exnType);
 
-  StringRef declareSpecialFunction(char const *name);
+  Variable *declareFunction0arg(Type *retType, char const *funcName,
+                                FunctionFlags flags = FF_NONE,
+                                Type * /*nullable*/ exnType = NULL);
+
+  Variable *declareFunction1arg(Type *retType, char const *funcName,
+                                Type *arg1Type, char const *arg1Name,
+                                FunctionFlags flags = FF_NONE,
+                                Type * /*nullable*/ exnType = NULL);
+
+  Variable *declareFunction2arg(Type *retType, char const *funcName,
+                                Type *arg1Type, char const *arg1Name,
+                                Type *arg2Type, char const *arg2Name,
+                                FunctionFlags flags = FF_NONE,
+                                Type * /*nullable*/ exnType = NULL);
+
+  Variable *declareSpecialFunction(char const *name);
 
   CompoundType *findEnclosingTemplateCalled(StringRef name);
 

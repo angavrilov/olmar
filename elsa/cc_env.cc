@@ -46,15 +46,17 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     errorTypeVar(NULL),
     errorVar(NULL),
 
+    var__builtin_constant_p(NULL),
+
     operatorPlusVar(NULL),
 
-    var__builtin_constant_p(NULL),
     tunit(tunit0),
 
     doOverload(tracingSys("doOverload"))
 {
   // slightly less verbose
-  #define HERE HERE_SOURCELOC
+  //#define HERE HERE_SOURCELOC     // old
+  #define HERE SL_INIT              // decided I prefer this
 
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
@@ -105,41 +107,53 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
                       t_size_t, "sz",
-                      t_bad_alloc);
+                      FF_NONE, t_bad_alloc);
 
   // void* operator new[](std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new[]",
                       t_size_t, "sz",
-                      t_bad_alloc);
+                      FF_NONE, t_bad_alloc);
 
   // void operator delete (void *p) throw();
   declareFunction1arg(t_void, "operator delete",
                       t_voidptr, "p",
-                      t_void);
+                      FF_NONE, t_void);
 
   // void operator delete[] (void *p) throw();
   declareFunction1arg(t_void, "operator delete[]",
                       t_voidptr, "p",
-                      t_void);
+                      FF_NONE, t_void);
 
   // for GNU compatibility
   // void *__builtin_next_arg(void *p);
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
-                      t_voidptr, "p",
-                      NULL /*exnType*/);
+                      t_voidptr, "p");
 
   // dsw: This is a form, not a function, since it takes an expression
   // AST node as an argument; however, I need a function that takes no
   // args as a placeholder for it sometimes.
-  var__builtin_constant_p =
-    declareFunction0arg(getSimpleType(HERE, ST_INT), "__builtin_constant_p",
-                        NULL /*exnType*/,
-                        FF_VARARGS);
+  var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
 
   // for testing various modules
-  special_getStandardConversion = declareSpecialFunction("__getStandardConversion");
-  special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion");
-  special_testOverload = declareSpecialFunction("__testOverload");
+  special_getStandardConversion = declareSpecialFunction("__getStandardConversion")->name;
+  special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
+  special_testOverload = declareSpecialFunction("__testOverload")->name;
+
+  // I want to declare some functions, but I don't want them entered
+  // into the environment for name lookup; so I'll make a throwaway
+  // Scope for them to go into; NOTE that this assumes that Scopes do
+  // not delete the Variables they contain (if at some point they
+  // acquire that behavior, I can have a method in Scope to clear
+  // the Variables without deleting them)
+  Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/, 
+    "dummy scope for built-in operator functions");
+
+  operatorPlusVar = declareFunction2arg(
+    t_void /*irrelevant*/, "operator +",
+    getSimpleType(SL_INIT, ST_INT /*ST_PROMOTED_ARITHMETIC*/), "x",
+    getSimpleType(SL_INIT, ST_INT /*ST_PROMOTED_ARITHMETIC*/), "y");
+
+  exitScope(dummyScope);
 
   #undef HERE
 
@@ -187,83 +201,82 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 }
 
 
-Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
-                                   Type * /*nullable*/ exnType,
-                                   FunctionFlags flags)
+Variable *Env::declareFunctionNargs(
+  Type *retType, char const *funcName,
+  Type **argTypes, char const **argNames, int numArgs,
+  FunctionFlags flags, 
+  Type * /*nullable*/ exnType)
 {
-  // clone the types so client analyses can treat them independently
-  retType  = tfac.cloneType(retType);
-  if (exnType) {
-    exnType = tfac.cloneType(exnType);
-  }
-
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
+  FunctionType *ft = makeFunctionType(SL_INIT, tfac.cloneType(retType));
   ft->flags |= flags;
+
+  for (int i=0; i < numArgs; i++) {
+    Variable *p = makeVariable(SL_INIT, str(argNames[i]),
+                               tfac.cloneType(argTypes[i]), DF_PARAMETER);
+    ft->addParam(p);
+  }
 
   if (exnType) {
     ft->exnSpec = new FunctionType::ExnSpec;
 
     // slightly clever hack: say "throw()" by saying "throw(void)"
     if (!exnType->isSimple(ST_VOID)) {
-      ft->exnSpec->types.append(exnType);
+      ft->exnSpec->types.append(tfac.cloneType(exnType));
     }
   }
+
   ft->doneParams();
 
-  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeVariable(SL_INIT, str(funcName), ft, DF_NONE);
   addVariable(var);
 
   return var;
 }
 
 
-void Env::declareFunction1arg(Type *retType, char const *funcName,
-                              Type *arg1Type, char const *arg1Name,
-                              Type * /*nullable*/ exnType)
-{
-  // clone the types so client analyses can treat them independently
-  retType  = tfac.cloneType(retType);
-  arg1Type = tfac.cloneType(arg1Type);
-  if (exnType) {
-    exnType = tfac.cloneType(exnType);
-  }
-
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
-  Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
-
-  ft->addParam(p);
-  if (exnType) {
-    ft->exnSpec = new FunctionType::ExnSpec;
-
-    // slightly clever hack: say "throw()" by saying "throw(void)"
-    if (!exnType->isSimple(ST_VOID)) {
-      ft->exnSpec->types.append(exnType);
-    }
-  }
-  ft->doneParams();
-
-  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
-  addVariable(var);
-}
-
-
 // this declares a function that accepts any # of arguments,
-// and returns 'void'
-StringRef Env::declareSpecialFunction(char const *name)
-{                                                     
-  Type *t_void = getSimpleType(HERE_SOURCELOC, ST_VOID);
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, t_void);
-  ft->flags |= FF_VARARGS;
-  ft->doneParams();
-
-  StringRef ret = str(name);
-  Variable *var = makeVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
-  addVariable(var);
-  
-  return ret;
+// and returns 'int'
+Variable *Env::declareSpecialFunction(char const *name)
+{
+  return declareFunction0arg(getSimpleType(SL_INIT, ST_INT), name, FF_VARARGS);
 }
 
-  
+
+Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  return declareFunctionNargs(retType, funcName,
+                              NULL /*argTypes*/, NULL /*argNames*/, 0 /*numArgs*/,
+                              flags, exnType);
+}
+
+
+Variable *Env::declareFunction1arg(Type *retType, char const *funcName,
+                                   Type *arg1Type, char const *arg1Name,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  return declareFunctionNargs(retType, funcName,
+                              &arg1Type, &arg1Name, 1 /*numArgs*/,
+                              flags, exnType);
+}
+
+
+Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
+                                   Type *arg1Type, char const *arg1Name,
+                                   Type *arg2Type, char const *arg2Name,
+                                   FunctionFlags flags,
+                                   Type * /*nullable*/ exnType)
+{
+  Type *types[2] = { arg1Type, arg2Type };
+  char const *names[2] = { arg1Name, arg2Name };
+  return declareFunctionNargs(retType, funcName,
+                              types, names, 2 /*numArgs*/,
+                              flags, exnType);
+}
+
+
 FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 {
   FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));

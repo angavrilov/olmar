@@ -3381,15 +3381,23 @@ Type *E_funCall::inner2_itcheck(Env &env)
     if (funcName == env.special_testOverload) {
       int expectLine;
       if (args->count() == 2 &&
-          args->first()->expr->isE_funCall() &&
-          hasNamedFunction(args->first()->expr->asE_funCall()->func) &&
           args->nth(1)->expr->constEval(env, expectLine)) {
-        Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
-        int actualLine = sourceLocManager->getLine(chosen->loc);
-        if (expectLine != actualLine) {
-          env.error(stringc
-            << "expected overload to choose function on line "
-            << expectLine << ", but it chose line " << actualLine);
+
+        if (args->first()->expr->isE_funCall() &&
+            hasNamedFunction(args->first()->expr->asE_funCall()->func)) {
+          // resolution yielded a function call
+          Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
+          int actualLine = sourceLocManager->getLine(chosen->loc);
+          if (expectLine != actualLine) {
+            env.error(stringc
+              << "expected overload to choose function on line "
+              << expectLine << ", but it chose line " << actualLine);
+          }
+        }
+        else if (expectLine != 0) {
+          // resolution yielded something else
+          env.error("expected overload to choose a function, but it "
+                    "chose a non-function");
         }
 
         // propagate return type
@@ -3630,42 +3638,42 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     }
 
     // built-in candidates
-    // TODO: add support for polymorphic candidates and user-defined
-    // conversion functions
+    resolver.processCandidate(env.operatorPlusVar);
 
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
       TRACE("overload", "chose candidate at " << toString(winner->loc));
 
-      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
-                                         env.operatorPlusName);
-      if (winner->hasFlag(DF_MEMBER)) {
-        // replace 'a+b' with 'a.operator+(b)'
-        replacement = new E_funCall(
-          // function to invoke
-          new E_fieldAcc(e1, pqo),
-          // arguments
-          FakeList<ICExpression>::makeList(new ICExpression(e2))
-        );
+      if (winner != env.operatorPlusVar) {
+        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
+                                           env.operatorPlusName);
+        if (winner->hasFlag(DF_MEMBER)) {
+          // replace 'a+b' with 'a.operator+(b)'
+          replacement = new E_funCall(
+            // function to invoke
+            new E_fieldAcc(e1, pqo),
+            // arguments
+            FakeList<ICExpression>::makeList(new ICExpression(e2))
+          );
+        }
+        else {
+          // replace 'a+b' with '::operator+(a,b)'
+          // (TODO: that's wrong in the presence of namespaces)
+          replacement = new E_funCall(
+            // function to invoke
+            new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+                                            NULL /*targs*/, pqo)),
+            // arguments
+            FakeList<ICExpression>::makeList(new ICExpression(e2))
+            ->prepend(new ICExpression(e1))
+          );
+        }
+
+        // for now, just re-check the whole thing
+        replacement->tcheck(env, replacement);
+        return replacement->type;
       }
-      else {
-        // (assume it's not a built-in, since that's not implemented)
-        // replace 'a+b' with '::operator+(a,b)'
-        // (TODO: that's wrong in the presence of namespaces)
-        replacement = new E_funCall(
-          // function to invoke
-          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/, 
-                                          NULL /*targs*/, pqo)),
-          // arguments
-          FakeList<ICExpression>::makeList(new ICExpression(e2))
-          ->prepend(new ICExpression(e1))
-        );
-      }
-      
-      // for now, just re-check the whole thing
-      replacement->tcheck(env, replacement);
-      return replacement->type;
     }
   }
 

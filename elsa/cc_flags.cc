@@ -164,10 +164,16 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "double",                 8,    false,  true,  },
   { "long double",           10,    false,  true,  },
   { "void",                   1,    false,  false, },    // gnu: sizeof(void) is 1
+  
+
   { "...",                    0,    false,  false, },
   { "/*cdtor*/",              0,    false,  false, },    // dsw: don't want to print <cdtor>
   { "<error>",                0,    false,  false, },
   { "<dependent>",            0,    false,  false, },
+  
+  
+  
+  { "<prom_arith>",           0,    false,  false, },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)

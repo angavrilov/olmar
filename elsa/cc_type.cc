@@ -80,10 +80,13 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_DOUBLE),
   SimpleType(ST_LONG_DOUBLE),
   SimpleType(ST_VOID),
+
   SimpleType(ST_ELLIPSIS),
   SimpleType(ST_CDTOR),
   SimpleType(ST_ERROR),
   SimpleType(ST_DEPENDENT),
+  
+  SimpleType(ST_PROMOTED_ARITHMETIC),
 };
 
 string SimpleType::toCString() const
@@ -1704,10 +1707,13 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_DOUBLE)
   CVAT(ST_LONG_DOUBLE)
   CVAT(ST_VOID)
+
   CVAT(ST_ELLIPSIS)
   CVAT(ST_CDTOR)
   CVAT(ST_ERROR)
   CVAT(ST_DEPENDENT)
+
+  CVAT(ST_PROMOTED_ARITHMETIC)
   #undef CVAT
 };
 

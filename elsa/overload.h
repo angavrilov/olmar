@@ -84,7 +84,7 @@ public:      // data
 
 private:     // funcs
   Candidate * /*owner*/ makeCandidate(Variable *var);
-  //Candidate *pickWinner(int low, int high);
+  void printArgInfo();
 
 public:      // funcs
   OverloadResolver(Env &en, SourceLoc L, ErrorList *er,
@@ -101,7 +101,9 @@ public:      // funcs
       // low, then the 'candidates' array will have to be resized
       // at some point; it's entirely a performance issue
       candidates(numCand)
-  {}
+  {
+    printArgInfo();
+  }
   ~OverloadResolver();
 
   // public for 'tournament'

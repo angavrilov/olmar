@@ -117,6 +117,7 @@ char const *toString(ScopeKind sk);
 // when it is meaningless to query a given property of a given type
 // (like whether a floating-point type is unsigned)
 enum SimpleTypeId {
+  // types that exist in C++
   ST_CHAR,
   ST_UNSIGNED_CHAR,
   ST_SIGNED_CHAR,
@@ -125,8 +126,8 @@ enum SimpleTypeId {
   ST_UNSIGNED_INT,
   ST_LONG_INT,
   ST_UNSIGNED_LONG_INT,
-  ST_LONG_LONG,                      // GNU extension
-  ST_UNSIGNED_LONG_LONG,             // GNU extension
+  ST_LONG_LONG,              // GNU extension
+  ST_UNSIGNED_LONG_LONG,     // GNU extension
   ST_SHORT_INT,
   ST_UNSIGNED_SHORT_INT,
   ST_WCHAR_T,
@@ -134,12 +135,24 @@ enum SimpleTypeId {
   ST_DOUBLE,
   ST_LONG_DOUBLE,
   ST_VOID,
-  ST_ELLIPSIS,                       // used to encode vararg functions
-  ST_CDTOR,                          // "return type" for ctors and dtors
-  ST_ERROR,                          // this type is returned for typechecking errors
-  ST_DEPENDENT,                      // depdenent on an uninstantiated template parameter type
+
+  // codes I use as a kind of implementation hack
+  ST_ELLIPSIS,               // used to encode vararg functions
+  ST_CDTOR,                  // "return type" for ctors and dtors
+  ST_ERROR,                  // this type is returned for typechecking errors
+  ST_DEPENDENT,              // depdenent on an uninstantiated template parameter type
+  
+  // for polymorphic built-in operators (cppstd 13.6)
+  //ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
+  ST_PROMOTED_ARITHMETIC,    // promoted integral + float,double,longdouble
+  //ST_ARITHMETIC,             // every simple type except bool & void
+  //ST_ANY_OBJ_TYPE,           // any object (non-function) type
+  //ST_ANY_TYPE,               // any type, including functions
+  //ST_ENUM_TYPE,              // any 'enum' type
+  // ... there are more, and I'm not sure what the ones I have mean ...
+
   NUM_SIMPLE_TYPES,
-  ST_BITMASK = 0xFF                  // for extraction for OR with CVFlags
+  ST_BITMASK = 0xFF          // for extraction for OR with CVFlags
 };
 
 // info about each simple type

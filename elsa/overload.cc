@@ -65,7 +65,13 @@ Variable *resolveOverload(
   GrowArray<ArgumentInfo> &args)
 {
   OverloadResolver r(env, loc, errors, flags, args, varList.count());
-                    
+  r.processCandidates(varList);
+  return r.resolve();
+}
+
+
+void OverloadResolver::printArgInfo()
+{
   IFDEBUG(
     if (tracingSys("overload")) {
       cout << "%%% overload:   arguments:\n";
@@ -76,9 +82,6 @@ Variable *resolveOverload(
       }
     }
   )
-
-  r.processCandidates(varList);
-  return r.resolve();
 }
 
 
@@ -770,10 +773,15 @@ ImplicitConversion getConversionOperator(
 
   // look up any conversion operators
   Variable *set = srcClass->lookupVariable(env.conversionOperatorName, env);
-  if (set && set->overload) {    // for now, only if overloaded
-    SFOREACH_OBJLIST_NC(Variable, set->overload->set, iter) {
-      Variable *v = iter.data();
-      resolver.potentialCandidate(v);
+  if (set) {
+    if (set->overload) {
+      SFOREACH_OBJLIST_NC(Variable, set->overload->set, iter) {
+        Variable *v = iter.data();
+        resolver.potentialCandidate(v);
+      }
+    }
+    else {
+      resolver.potentialCandidate(set);
     }
   }
 

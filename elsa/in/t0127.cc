@@ -11,17 +11,31 @@ public:
 void operator+(A &a, A &b);         // 11
 void operator+(B &a, B &b);         // 12
 
-void f()                            // 14
+void some_random_crap();            // 14
+
+// the built-in operators are all non-functions, and 0 is my code for that
+enum { BUILTIN=0 };
+
+class C {
+public:
+  operator int ();                  // 21
+};
+
+
+void f()
 {
   A a1,a2;
   B b1,b2;
+  C c;
 
   // turn on overload resolution
-  __testOverload(f(), 14);
+  __testOverload(some_random_crap(), 14);
 
   __testOverload(a1+a2, 11);
-  
+
   __testOverload(b1+b2, 12);
 
   __testOverload(b1+a1, 8);
+
+  __testOverload(c+1, BUILTIN);
 }

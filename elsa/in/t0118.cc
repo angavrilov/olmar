@@ -44,10 +44,10 @@ struct A {
 };
 
 struct B {
-  B(A const &);               // line 47
+  B(A const &);                    // line 47
 };
 
-struct C : A {
+struct C : A {   operator int();   // line 50
 };
 
 
@@ -61,7 +61,7 @@ struct E {
   operator float();    // line 61
 };
 
-struct F {                    
+struct F {
   operator bool ();               // line 65
   operator char ();               // line 66
   operator signed char ();        // line 67
@@ -115,6 +115,8 @@ void f()
                           IC_USER_DEFINED, SC_IDENTITY, 47, SC_IDENTITY);
   __getImplicitConversion((C&)c, (B)b,
                           IC_USER_DEFINED, SC_PTR_CONV, 47, SC_IDENTITY);
+  __getImplicitConversion(c, (int)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 50, SC_IDENTITY);
 
   // operator conversions
   D d;
