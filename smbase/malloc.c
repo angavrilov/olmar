@@ -1628,7 +1628,31 @@ Void_t* public_rEALLOc(Void_t* m, size_t bytes) {
   if (MALLOC_PREACTION != 0) {
     return 0;
   }
-  m = rEALLOc(m, bytes);
+  #ifdef DEBUG_HEAP
+    if (!m) {
+      m = public_mALLOc(bytes);
+    }
+    else {
+      // get previous size of user data
+      size_t prevSize = *((size_t*)(m - ZONE_SIZE - sizeof(size_t))) -
+                        (2*ZONE_SIZE + sizeof(size_t));
+
+      // make new mem, copy
+      Void_t *newMem = public_mALLOc(bytes);
+      memcpy(newMem, m, prevSize<bytes? prevSize : bytes);
+      
+      // don't deallocate
+
+      #ifdef TRACE_MALLOC_CALLS
+        fprintf(stderr, "realloc(%p, %d) (prevSize=%d) yielded %p\n",
+                        m, bytes, prevSize, newMem);
+      #endif
+
+      m = newMem;
+    }
+  #else
+    m = rEALLOc(m, bytes);
+  #endif
   if (MALLOC_POSTACTION != 0) {
   }
   return m;
@@ -4322,7 +4346,13 @@ Void_t* cALLOc(n_elements, elem_size) size_t n_elements; size_t elem_size;
   unsigned long nclears;
   INTERNAL_SIZE_T* d;
 
-  Void_t* mem = mALLOc(n_elements * elem_size);
+  #ifdef DEBUG_HEAP
+    Void_t* mem = public_mALLOc(n_elements * elem_size);
+    memset(mem, 0, n_elements * elem_size);
+    return mem;
+  #else
+    Void_t* mem = mALLOc(n_elements * elem_size);
+  #endif
 
   if (mem != 0) {
     p = mem2chunk(mem);

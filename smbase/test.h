@@ -17,6 +17,7 @@
 // printing the exception, but this is meaningless to the
 // user and the message usually has enough info anyway
 #define USUAL_MAIN                              \
+void entry();                                   \
 int main()                                      \
 {                                               \
   try {                                         \
@@ -31,6 +32,7 @@ int main()                                      \
 
 // same as above, but with command-line args
 #define ARGS_MAIN                               \
+void entry(int argc, char *argv[]);             \
 int main(int argc, char *argv[])                \
 {                                               \
   try {                                         \
