@@ -86,10 +86,9 @@ void f()
   extern int const intArrC[];
   __getStandardConversion((int [3])0, (int*)0, SC_ARRAY_TO_PTR);
   __getStandardConversion(intArr, (int*)0, SC_ARRAY_TO_PTR);
-  // moved these to t0117b.cc and gnu/t0117c.cc with different answers
-//    __getStandardConversion("abc", (char const*)0, SC_ARRAY_TO_PTR);
-//    __getStandardConversion(L"abc", (wchar_t const*)0, SC_ARRAY_TO_PTR);
-//    __getStandardConversion("abc", (char*)0, SC_ARRAY_TO_PTR|SC_QUAL_CONV);
+  __getStandardConversion("abc", (char const*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion(L"abc", (wchar_t const*)0, SC_ARRAY_TO_PTR);
+  __getStandardConversion("abc", (char*)0, SC_ARRAY_TO_PTR|SC_QUAL_CONV);
 
   __getStandardConversion(intArrC, (int*)0, SC_ERROR);
   __getStandardConversion((int (&)[])0, (int*)0, SC_ARRAY_TO_PTR);

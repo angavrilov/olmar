@@ -166,7 +166,7 @@ void CCLang::GNU_Cplusplus()
   allowMemberWithClassName = true;
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = true;
-  stringLitCharsAreConst = false; // experimental results show false
+
   declareGNUBuiltins = true;
   lvalueFlowsThroughCastInC = false; // not for C++
   condMayHaveNonThrowVoidValues = false; // not for C++
