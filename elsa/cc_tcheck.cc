@@ -1606,8 +1606,8 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
     }
   }
 
-  // no exception: strict equality (well, signature equality)
-  return t1->equals(t2, Type::EF_SIGNATURE);
+  // no exception: strict equality (well, toplevel param cv can differ)
+  return t1->equals(t2, Type::EF_IGNORE_PARAM_CV);
 }
 
 
@@ -1692,6 +1692,10 @@ static void D_name_tcheck(
   // false until I somehow call doneParams() for function types
   bool consumedFunction = false;
 
+  // scope in which to insert the name, and to look for pre-existing
+  // declarations
+  Scope *scope = env.acceptingScope(dt.dflags);
+
   goto realStart;
 
   // This code has a number of places where very different logic paths
@@ -1719,14 +1723,10 @@ static void D_name_tcheck(
     // though the 'name' is not NULL
     dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
 
-    // a bit of error recovery: if we clashed with a prior declaration,
-    // and that one was in a named scope, then make our fake variable
-    // also appear to be in that scope (this helps for parsing
-    // constructor definitions, even when the declarator has a type
-    // clash)
-    if (prior && prior->scope) {
-      dt.var->scope = prior->scope;
-    }
+    // set up the variable's 'scope' field as if it were properly
+    // entered into the scope; this is for error recovery, in particular
+    // for going on to check the bodies of methods
+    scope->registerVariable(dt.var);
 
     return;
   }
@@ -1751,10 +1751,6 @@ realStart:
     dt.var = env.makeVariable(loc, NULL, dt.type, dt.dflags);
     return;
   }
-
-  // scope in which to insert the name, and to look for pre-existing
-  // declarations
-  Scope *scope = env.acceptingScope(dt.dflags);
 
   // friend?
   bool isFriend = (dt.dflags & DF_FRIEND);

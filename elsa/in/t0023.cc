@@ -13,5 +13,5 @@ class Exc;
 
 void bar() throw(Exc);
 
-//ERROR1: void bar();    // conflicting declaration
+//ERROR(1): void bar();    // conflicting declaration
 

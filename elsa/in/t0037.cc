@@ -11,5 +11,5 @@ public:
   // publish 'x' despite private inheritance
   Super::x;                                 
   
-  //ERROR1: y;     // missing superclass
+  //ERROR(1): y;     // missing superclass
 };

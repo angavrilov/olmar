@@ -302,6 +302,19 @@ void Env::setupOperatorOverloading()
     getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL),
     getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL));
 
+  // ---- 13.6 para 23 ----
+  // TODO: bool operator! (bool);
+
+  // bool operator&& (bool, bool);
+  addBuiltinBinaryOp(BIN_AND,
+    getSimpleType(SL_INIT, ST_BOOL),
+    getSimpleType(SL_INIT, ST_BOOL));
+
+  // bool operator|| (bool, bool);
+  addBuiltinBinaryOp(BIN_OR,
+    getSimpleType(SL_INIT, ST_BOOL),
+    getSimpleType(SL_INIT, ST_BOOL));
+
   exitScope(dummyScope);
 
   // the default constructor for ArrayStack will have allocated 10
@@ -469,7 +482,7 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 
 void Env::exitScope(Scope *s)
 {
-  trace("env") << locStr() << ": exited scope\n";
+  trace("env") << locStr() << ": exited " << toString(s->scopeKind) << " scope\n";
   Scope *f = scopes.removeFirst();
   xassert(s == f);
   delete f;

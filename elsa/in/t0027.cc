@@ -4,7 +4,7 @@
 // forward decl
 template <class T> class Foo;
 
-//ERROR2: template <class TT, class YY> class Foo;     // inconsistent
+//ERROR(2): template <class TT, class YY> class Foo;     // inconsistent
 
 template <class T>
 class Foo {
@@ -15,7 +15,7 @@ public:
   T get();
 };
 
-//ERROR1: template <class TT> class Foo {};   // already defined
+//ERROR(1): template <class TT> class Foo {};   // already defined
 
 template <class T>
 T Foo<T>::put()
@@ -23,13 +23,13 @@ T Foo<T>::put()
   return 3;
 }
 
-//ERROR2: template <class T> T Foo::get() { return 3; }   // needs template args
+//ERROR(2): template <class T> T Foo::get() { return 3; }   // needs template args
 
 int main()
 {
   Foo<int> h;
   h.x;
-  //ERROR3: h.y;   // no field
+  //ERROR(3): h.y;   // no field
   
   Foo<int*> g;
   *( g.x );        // will complain that 'typename T' isn't a pointer..

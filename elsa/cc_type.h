@@ -398,17 +398,60 @@ public:     // funcs
   DOWNCAST_FN(ArrayType)
   DOWNCAST_FN(PointerToMemberType)
 
-  // flags to control how "equal" the types must be
-  enum EqFlags {
-    EF_EXACT           = 0x00,     // complete equality
+  // flags to control how "equal" the types must be; also see
+  // note above FunctionType::innerEquals
+  enum EqFlags {                   
+    // complete equality; this is the default; note that we are
+    // checking for *type* equality, rather than equality of the
+    // syntax used to denote it, so we do *not* compare:
+    //   - function parameter names
+    //   - typedef usage
+    EF_EXACT           = 0x00,
 
-    EF_SIGNATURE       = 0x01,     // function signatures equivalence
-    EF_IGNORE_TOP_CV   = 0x02,     // ok if toplevel cv flags differ
-    EF_SKIPTHIS        = 0x04,     // skip any 'this' params at top level
-    EF_SIMILAR         = 0x08,     // 4.4 para 4: cv can differ up to first non-ptr, non-ptr-to-member ctor
+    // ----- basic behaviors -----
+    // when comparing function types, do not check whether the
+    // return types are equal
+    EF_IGNORE_RETURN   = 0x01,
 
-    EF_ALL             = 0x0F,     // all flags set to 1
+    // when comparing function types, if one is a nonstatic member
+    // function and the other is not, then do not (necessarily)
+    // call them unequal
+    EF_STAT_EQ_NONSTAT = 0x02,    // static can equal nonstatic
 
+    // when comparing function types, only compare the explicit
+    // parameters; this does *not* imply EF_STATE_EQ_NONSTAT
+    EF_IGNORE_IMPLICIT = 0x04,
+
+    // ignore the topmost cv qualifications of all parameters in
+    // parameter lists throughout the type
+    EF_IGNORE_PARAM_CV = 0x08,
+
+    // ignore the topmost cv qualification of the two types compared
+    EF_IGNORE_TOP_CV   = 0x10,
+
+    // when comparing function types, ignore the exception specs
+    EF_IGNORE_EXN_SPEC = 0x20,
+
+    // allow the cv qualifications to differ up to the first type
+    // constructor that is not a pointer or pointer-to-member; this
+    // is cppstd 4.4 para 4 "similar"; implies EF_IGNORE_TOP_CV
+    EF_SIMILAR         = 0x40,
+
+    // ----- combined behaviors -----
+    // all flags set to 1
+    EF_ALL             = 0x7F,
+
+    // signature equivalence for the purpose of detecting whether
+    // two declarations refer to the same entity (as opposed to two
+    // overloaded entities)
+    EF_SIGNATURE       = (
+      EF_IGNORE_RETURN |       // can't overload on return type
+      EF_IGNORE_PARAM_CV |     // param cv doesn't matter
+      EF_STAT_EQ_NONSTAT |     // can't overload on static vs. nonstatic
+      EF_IGNORE_EXN_SPEC       // can't overload on exn spec
+    ),
+
+    // ----- combinations useful to the equality implementation -----
     // this is the set of flags that allow CV variance within the
     // current type constructor
     EF_OK_DIFFERENT_CV = (EF_IGNORE_TOP_CV | EF_SIMILAR),
@@ -416,7 +459,7 @@ public:     // funcs
     // this is the set of flags that automatically propagate down
     // the type tree equality checker; others are suppressed once
     // the first type constructor looks at them
-    EF_PROP            = EF_SIGNATURE,
+    EF_PROP            = EF_IGNORE_PARAM_CV,
     
     // these flags are propagated below ptr and ptr-to-member
     EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
@@ -666,7 +709,7 @@ public:
   // if the 'this' parameter (if any) is ignored in both function
   // types, am I equal to 'obj'?
   bool equalOmittingThisParam(FunctionType const *obj) const
-    { return innerEquals(obj, EF_SKIPTHIS); }
+    { return innerEquals(obj, EF_STAT_EQ_NONSTAT | EF_IGNORE_IMPLICIT); }
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);

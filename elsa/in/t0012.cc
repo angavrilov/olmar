@@ -16,10 +16,10 @@ public:
 int Foo::x = 5;
 
 // violation of ODR
-//ERROR1: int Foo::x = 5;
+//ERROR(1): int Foo::x = 5;
 
 // can't define nonstatic data members
-//ERROR2: int Foo::y = 7;
+//ERROR(2): int Foo::y = 7;
 
 
 int main()
@@ -35,9 +35,9 @@ int Foo::func()
 }
 
 
-//ERROR3: int Foo::func() {  return 18; }
+//ERROR(3): int Foo::func() {  return 18; }
 
-//ERROR4: void Foo::func2() {}
+//ERROR(4): void Foo::func2() {}
 
 
 // I think this doesn't work during printing..

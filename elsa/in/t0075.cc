@@ -12,7 +12,7 @@ int blah[5][4] = { 0 };
 
 
 extern int borg[3];
-//ERROR1: int borg[4] = { 7 };   // mismatch
+//ERROR(1): int borg[4] = { 7 };   // mismatch
 
 class Foo {
 public:

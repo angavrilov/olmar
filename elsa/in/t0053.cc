@@ -22,7 +22,7 @@ int Foo::Bar::f()
   int x;
  
   x = E1_VAL;      // ok
-  //ERROR1: x = E2_VAL;      // can't look into Foo::Another without qualifier
+  //ERROR(1): x = E2_VAL;      // can't look into Foo::Another without qualifier
   
   return x;
 }

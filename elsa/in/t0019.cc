@@ -9,7 +9,7 @@ public:
 class C {
 public:
   int z;
-  //ERROR1: int x;     // ambiguous
+  //ERROR(1): int x;     // ambiguous
   
   C() : z(9) {}
 };
@@ -36,5 +36,5 @@ public:
 class G : public B, public E {
 public:
   // this one won't work because the virtual is missing along one path
-  //ERROR2: int f4() { return x; }    // ambiguous
+  //ERROR(2): int f4() { return x; }    // ambiguous
 };

@@ -28,5 +28,5 @@ Baz *z;
 // but this won't work because it's captured by the paramter scope
 void h(struct Frozz { int y; } *q);
 
-//ERROR1: Frozz *qq;
+//ERROR(1): Frozz *qq;
 

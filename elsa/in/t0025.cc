@@ -35,7 +35,7 @@ int A::B::f()
   return 6;
 }
 
-//ERROR1: int A::B::h() {   return 66; }   // undeclared
+//ERROR(1): int A::B::h() {   return 66; }   // undeclared
 
 double x;
 

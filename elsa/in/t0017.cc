@@ -13,7 +13,7 @@ public:
 
 Foo::Foo(int z) : x( (z) & (z) ), y(4) {}
 
-//ERROR1: Foo::Foo(Foo *f) {}
+//ERROR(1): Foo::Foo(Foo *f) {}
 
 Foo::Foo(double d)
 try

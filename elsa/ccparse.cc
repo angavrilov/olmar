@@ -50,9 +50,7 @@ SimpleTypeId ParseEnv::uberSimpleType(SourceLoc loc, UberModifiers m)
     case UM_LONG_LONG:                         return ST_LONG_LONG;
 
     default:
-      cout << toString(loc) << ": error: malformed type: "
-           << toString(m) << endl;
-      errors++;
+      error(loc, stringc << "malformed type: " << toString(m));
       return ST_ERROR;
   }
 }
@@ -65,7 +63,7 @@ UberModifiers ParseEnv
   if (m1 & m2 & UM_LONG) {
     // were there already two 'long's?
     if ((m1 | m2) & UM_LONG_LONG) {
-      cout << toString(loc) << ": error: too many `long's" << endl;
+      error(loc, "too many `long's");
     }
 
     // make it look like only m1 had 'long long' and neither had 'long'
@@ -76,9 +74,7 @@ UberModifiers ParseEnv
   // any duplicate flags?
   UberModifiers dups = (UberModifiers)(m1 & m2);
   if (dups) {
-    cout << toString(loc) << ": error: duplicate modifier: "
-         << toString(dups) << endl;
-    errors++;
+    error(loc, stringc << "duplicate modifier: " << toString(dups));
   }
   
   return (UberModifiers)(m1 | m2);
@@ -88,6 +84,13 @@ UberModifiers ParseEnv
 LocString * /*owner*/ ParseEnv::ls(SourceLoc loc, char const *name)
 {
   return new LocString(loc, str(name));
+}
+
+
+void ParseEnv::error(SourceLoc loc, char const *msg)
+{
+  cout << toString(loc) << ": error: " << msg << endl;
+  errors++;
 }
 
 

@@ -10,6 +10,6 @@ class Foo {
 public:
   int g(int);
   int g(double);
-  //ERROR1: int g(int);
-  //ERROR2: char g(int);
+  //ERROR(1): int g(int);
+  //ERROR(2): char g(int);
 };

@@ -49,6 +49,9 @@ public:
   
   // generate a LocString suitable for use during parsing
   LocString * /*owner*/ ls(SourceLoc loc, char const *name);
+  
+  // report an error
+  void error(SourceLoc loc, char const *msg);
 };
 
 

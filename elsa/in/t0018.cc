@@ -7,7 +7,7 @@ int main()
 {
   Foo *x;
   
-  //ERROR1: x->y;   // incomplete type
+  //ERROR(1): x->y;   // incomplete type
 
 }
 
@@ -23,6 +23,6 @@ void f(Foo *, int) {}
 
 // since Foo from above is same Foo as here, we'll
 // get an error about duplicate definitions
-//ERROR2: void f(Foo *) {}     // duplicate definition
+//ERROR(2): void f(Foo *) {}     // duplicate definition
 
 

@@ -1,9 +1,9 @@
-// cc.in72
+// t0072.cc
 // declmodifiers after type specifier word
 
 const static int x = 4;
 
-//ERROR1: const const int q;    // duplicate 'const'
+//ERROR(1): const const int q;    // duplicate 'const'
 
 unsigned int r;
 
@@ -22,10 +22,10 @@ void foo()
 }
 
 
-//ERROR3: long float g;    // malformed type
+//ERROR(3): long float g;    // malformed type
                        
 // too many!
-//ERROR4: long long long LLL;
-//ERROR5: long long long long LLLL;
-//ERROR6: long long long long long LLLL;
+//ERROR(4): long long long LLL;
+//ERROR(5): long long long long LLLL;
+//ERROR(6): long long long long long LLLL;
 

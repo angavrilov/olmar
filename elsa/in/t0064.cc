@@ -11,11 +11,11 @@ int Foo::f()
 
 
 // no!
-//ERROR1: int g(void x);
+//ERROR(1): int g(void x);
 
 // no!
-//ERROR2: int h(void, int);
+//ERROR(2): int h(void, int);
 
 // no!
-//ERROR3: int i(void = 4);
+//ERROR(3): int i(void = 4);
 

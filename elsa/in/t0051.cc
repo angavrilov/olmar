@@ -17,7 +17,7 @@ int main()
 {
   C c;
 
-  //ERROR1:*/ c.f();      // ambiguous
+  //ERROR(1):*/ c.f();      // ambiguous
 
   c.A::f();   // ok
   c.B::f();   // ok

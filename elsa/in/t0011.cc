@@ -9,7 +9,7 @@ int y;
 extern int y;
 
 extern int x;
-//ERROR1: int x;
+//ERROR(1): int x;
 
 int foo();
 int foo();
@@ -23,7 +23,7 @@ int foo()
 int foo();
 
 
-//ERROR2: int foo() { return 4; }
+//ERROR(2): int foo() { return 4; }
 
 
 int foo2(int q);

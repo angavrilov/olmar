@@ -1032,36 +1032,58 @@ FunctionType::~FunctionType()
 }
 
 
+// NOTE:  This function (and the parameter comparison function that
+// follows) is at the core of the overloadability analysis; it's
+// complicated.  The set of EqFlags has been carefully chosen to try
+// to make it as transparent as possible, but there is still
+// significant subtlety.
+//
+// If you modify what goes on here, be sure to
+//   (a) add your own regression test (or modify an existing one) to 
+//       check your intended functionality, for the benefit of future
+//       maintenance efforts, and
+//   (b) make sure the existing tests still pass!
+//
+// Of course, this advice holds for almost any code, but this one is
+// sufficiently central to warrant a reminder.
 bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
 {
-  // I do not compare the special-function flags because I see no
-  // need, and this code didn't used to do that check because it
-  // didn't know about those properties
+  // I do not compare 'FunctionType::flags' explicitly since their
+  // meaning is generally a summary of other information, or of the
+  // name (which is irrelevant to the type)
 
-  if (flags & EF_SIGNATURE) {
-    if (isMember() == obj->isMember()) {
-      // if both are nonstatic members, or neither is, then we
-      // simply compare all parameters (unless explicitly told
-      // to EF_SKIPTHIS by the caller), so flags are unchanged
-    }
-    else {
-      // if one is a nonstatic member and the other is a static member,
-      // then comparison ignores the 'this' param on the nonstatic one
-      // [cppstd 13.1 para 2]
-      flags |= EF_SKIPTHIS;
+  if (!(flags & EF_IGNORE_RETURN)) {
+    // check return type
+    if (!retType->equals(obj->retType, flags & EF_PROP)) {
+      return false;
     }
   }
 
-  if (retType->equals(obj->retType, flags & EF_PROP) &&
-      ((flags & EF_SKIPTHIS) || (isMember() == obj->isMember())) &&
-      acceptsVarargs() == obj->acceptsVarargs()) {
-    // so far so good, try the parameters
-    return equalParameterLists(obj, flags) &&
-           equalExceptionSpecs(obj);
+  if (!(flags & EF_STAT_EQ_NONSTAT)) {
+    // check that either both are nonstatic methods, or both are not
+    if (isMember() != obj->isMember()) {
+      return false;
+    }
   }
-  else {
+
+  // check that both are variable-arg, or both are not
+  if (acceptsVarargs() != obj->acceptsVarargs()) {
     return false;
   }
+
+  // check the parameter lists
+  if (!equalParameterLists(obj, flags)) {
+    return false;
+  }
+  
+  if (!(flags & EF_IGNORE_EXN_SPEC)) {
+    // check the exception specs
+    if (!equalExceptionSpecs(obj)) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 bool FunctionType::equalParameterLists(FunctionType const *obj,
@@ -1070,18 +1092,27 @@ bool FunctionType::equalParameterLists(FunctionType const *obj,
   SObjListIter<Variable> iter1(this->params);
   SObjListIter<Variable> iter2(obj->params);
 
-  // skip the 'this' parameters if desired
-  if (flags & EF_SKIPTHIS) {
-    if (this->isMember()) iter1.adv();
-    if (obj->isMember()) iter2.adv();
+  // skip the 'this' parameter(s) if desired, or if one has it
+  // but the other does not (can arise if EF_STAT_EQ_NONSTAT has
+  // been specified)
+  {
+    bool m1 = this->isMember();
+    bool m2 = obj->isMember();
+    bool ignore = flags & EF_IGNORE_IMPLICIT;
+    if (m1 && (!m2 || ignore)) {
+      iter1.adv();
+    }
+    if (m2 && (!m1 || ignore)) {
+      iter2.adv();
+    }
   }
 
   // this takes care of FunctionType::innerEquals' obligation
   // to suppress non-propagated flags after consumption
   flags &= EF_PROP;
 
-  if (flags & EF_SIGNATURE) {
-    // allow toplevel cv flags to differ
+  if (flags & EF_IGNORE_PARAM_CV) {
+    // allow toplevel cv flags on parameters to differ
     flags |= EF_IGNORE_TOP_CV;
   }
 

@@ -5,7 +5,9 @@ class Gronk {
 };
 
 //typedef class Gronk Gronk;    // implicit
-//ERROR3: typedef class Whammy Gronk;    // implicit
+
+// this isn't an error..
+//typedef class Whammy Gronk;    // implicit
 
 int main()
 {
@@ -17,6 +19,9 @@ int main()
 
 
 typedef int x;
-//ERROR1: typedef int x;
-//ERROR2: typedef double x;
+
+// it turns out this isn't actually an error in C++
+typedef int x;
+
+//ERROR(2): typedef double x;
 

@@ -16,7 +16,7 @@ int main()
 int foo()
 {
   // better not still be able to see 'ret' ..
-  //ERROR1: return ret;     // undeclared
+  //ERROR(1): return ret;     // undeclared
 }
 
 
@@ -36,7 +36,7 @@ void someFunc()
 
 char *anotherFunc()
 {     
-  //ERROR2: return mStr;
+  //ERROR(2): return mStr;
 }
 
 

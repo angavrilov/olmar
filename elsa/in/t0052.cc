@@ -13,7 +13,7 @@ struct F : public A{};
 void f()
 {
   E e;
-  //ERROR1: e.B::a = 0;     // ambiguous
+  //ERROR(1): e.B::a = 0;     // ambiguous
   e.C::B::a = 0;            // ok
 
   F f;
