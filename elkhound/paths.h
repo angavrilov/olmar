@@ -31,4 +31,8 @@ void printExprPath(int index, Initializer const *init);
 int countPaths(Env &env, Expression *ths);
 void printPath(int index, Expression const *ths);
 
+// starting from a point above 'stmt', how many paths go into 'stmt'
+// (and possibly beyond)?
+int numPathsThrough(Statement const *stmt);
+
 #endif // PATHS_H

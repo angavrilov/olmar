@@ -6,6 +6,7 @@
 (DEFPRED (inDegree0 mem field obj))
 (DEFPRED (inDegree1 mem field obj referrerObj))
 (DEFPRED (hasTypeNode obj))
+(DEFPRED (freshObj obj mem))
 
 (BG_PUSH (AND
 

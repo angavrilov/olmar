@@ -196,6 +196,10 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
   // treat the declaration as an assignment; the variable was added
   // to the abstract environment in TF_func::vcgen
   env.updateVar(var, value);
+  
+  // add facts about the variable and its value which are a
+  // consequence of being declared at this point
+  env.addDeclarationFacts(var, value);
 }
 
 
@@ -283,12 +287,14 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
   }
   else {
     // consider each choice
+    // largely DUPLICATED from paths.cc:printPathFrom
     for (VoidListIter iter(successors); !iter.isDone(); iter.adv()) {
       void *np = iter.data();
       Statement const *s = nextPtrStmt(np);
+      int pathsFromS = numPathsThrough(s);
 
       // are we going to follow 's'?
-      if (index < s->numPaths) {
+      if (index < pathsFromS) {
         // yes; vcgen 'node', telling it 's' as the continuation
         vcgen(env, isContinue, exprPath, s);
         if (env.inconsistent) {
@@ -313,7 +319,7 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
 
       else {
         // no; factor out s's contribution to the path index
-        index -= s->numPaths;
+        index -= pathsFromS;
       }
     }
 
@@ -435,6 +441,7 @@ void S_for::vcgen(STMT_VCGEN_PARAMS) const
     env.addFact(pred, stringc << "true guard of 'for' at " << loc.toString());
   }
   else {
+    xassert(next == this->next);
     env.addFalseFact(pred, stringc << "false guard of 'for' at " << loc.toString());
   }
 }
@@ -480,13 +487,13 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
       // (if it's global we get to assume it's 0... not implemented..)
       // UPDATE: now that TF_func::vcgen does a pre-instantiation of
       // all locals, this should not be needed
-      //initVal = env.freshVariable(d->var->name,
-      //  stringc << "UNINITialized value of var " << d->var->name);
-      continue;
+      // UPDATE2: putting it back as I try to sort this out..
+      initVal = env.freshVariable(d->var->name,
+        stringc << "UNINITialized value of var " << d->var->name);
     }
 
     // add a binding for the variable
-    dcltr.data()->vcgen(env, initVal);
+    d->vcgen(env, initVal);
   }
 
   // if we entered the loop at all, this ensures the last iteration
@@ -968,6 +975,12 @@ AbsValue *E_cast::vcgen(AEnv &env, int path) const
     }
   }
 
+  if (!ctype->type->asRval()->isOwnerPtr() &&
+      expr->type->asRval()->isOwnerPtr()) {
+    // OWNER: if casting from owner to nonowner, select 'ptr' field
+    v = env.avGetElt(env.avOwnerField_ptr(), v);
+  }
+
   return v;
 }
 
@@ -1092,6 +1105,34 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
       src->type->isSimple(ST_INT)) {
     // encode as pointer: some integer offset from the null object
     v = env.avPointer(env.avInt(0), v);                           
+  }
+
+  // HACK: if both the target and source are owners, and the source
+  // is a dereference of another pointer, then I need to deaden the
+  // state of the owner stored in memory (proper solution: do lvals
+  // right)
+  if (target->type->asRval()->isOwnerPtr() &&
+      src->type->asRval()->isOwnerPtr() &&
+      src->isE_deref()) {
+    E_deref const *srcDeref = src->asE_derefC();
+    if (src->numPaths != 0) {    // no side effects
+      cout << "WARNING: unhandled ownership transfer: " << toString() << "\n";
+    }
+    else {
+      trace("owner") << "deadening state of owner read through pointer\n";
+
+      // get address of the owner pointer losing ownership
+      AbsValue *addr = srcDeref->ptr->vcgen(env, 0 /*path*/);
+
+      // update its 'state' field
+      env.setMem(env.avUpdate(env.getMem(),        // starting memory
+        env.avObject(addr), env.avOffset(addr),    // object to modify
+        env.avSetElt(                              // new value
+          env.avOwnerField_state(),                  // modify 'state' field
+          v,                                         // prior tuple value
+          env.avOwnerState_dead()                    // new state is 'dead'
+        )));
+    }
   }
 
   if (target->isE_variable()) {

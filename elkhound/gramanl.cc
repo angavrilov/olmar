@@ -4439,9 +4439,15 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
     out << "      return oldTokenType;\n";
   }
   else {
-    out << "      cout << \"there is no action to " << actUpon << " id \"\n"
-           "           << " << switchVar << " << endl;\n"
-           "      abort();\n";
+    out << "      cout << \"WARNING: there is no action to " << actUpon << " id \"\n"
+           "           << " << switchVar << " << endl;\n";
+    if (whichFunc == 2) {    
+      // merge
+      out << "      abort();\n";
+    }
+    else {
+      // for 'del', just drop it on the floor (with a warning)
+    }
   }
 
   out << "  }\n"

@@ -24,14 +24,33 @@ struct OwnerPtrMeta {      // name is special
 int offset(int *ptr);
 int *object(int *ptr);
 int length(int *obj);
+thmprv_predicate int/*bool*/ freshObj(int *obj, int *mem);
+
+#define VALID_INTPTR(ptr)        \
+  (ptr != (int*)0 &&             \
+   offset(ptr) == 0 &&           \
+   length(object(ptr)) == 4)
 
 int * owner allocFunc()
-  thmprv_post(result.ptr != (int*)0 &&
-              offset(result.ptr) == 0 &&
-              length(object(result.ptr)) == 4 &&
-              result.state == OWNING);
+  thmprv_pre(int *pre_mem = mem; true)
+  thmprv_post(
+    // returns a valid pointer
+    VALID_INTPTR(result.ptr) &&
+    // returns an owner pointer
+    result.state == OWNING &&
+    // to a new object
+    freshObj(object(result), pre_mem) &&
+    // and does not modify anything reachable from pre_mem
+    pre_mem == mem
+  );
 
 void deallocFunc(int * owner q)
-  thmprv_pre(q.state == OWNING);
+  thmprv_pre(int *pre_mem = mem; 
+             //freshObj(object(q), pre_mem) &&
+             q.state == OWNING)
+  thmprv_post(// I treat dealloc as no-op, as if I had a garbage
+              // collector; this would actually be *sound*, if I
+              // uncommented the 'fresh' precondition (!)
+              pre_mem == mem);
 
 #endif // OWNER1_H

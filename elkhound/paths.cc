@@ -207,6 +207,15 @@ void printPaths(TF_func const *func)
 }
 
 
+int numPathsThrough(Statement const *stmt)
+{
+  // how many paths lead from 'stmt'?  usually just s->numPaths, but
+  // if it is a path cutpoint then there's exactly one path from 'stmt'
+  int ret = stmt->isS_invariant()? 1 : stmt->numPaths;
+  return ret;
+}
+
+
 // want 'path' to detect circularity (for debugging);
 // this function has similar structure to 'countPathsFrom', above
 void printPathFrom(SObjList<Statement /*const*/> &path, int index,
@@ -245,19 +254,19 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
   }
   else {
     // consider each choice
+    // largely COPIED to vcgen.cc:Statement::vcgenPath
     for (VoidListIter iter(successors); !iter.isDone(); iter.adv()) {
       void *np = iter.data();
       Statement const *s = nextPtrStmt(np);
-
-      // how many paths lead from 's'?  usually just s->numPaths, but
-      // if it is a path cutpoint then there's exactly one path from 's'
-      int pathsFromS = s->isS_invariant()? 1 : s->numPaths;
+      int pathsFromS = numPathsThrough(s);
 
       // are we going to follow 's'?
       if (index < pathsFromS) {
         // yes; is 's' an invariant?
         if (s->isS_invariant()) {
-          // terminate the path
+          // terminate the path; print final node
+          cout << "    " << s->loc.toString() << ": "
+               << s->kindName() << endl;
           cout << "    path ends at an invariant\n";
         }
         else {

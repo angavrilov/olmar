@@ -161,6 +161,10 @@ public:      // funcs
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
 
+  // add facts about the variable and its value which are a
+  // consequence of being declared to have 'value'
+  void addDeclarationFacts(Variable const *var, AbsValue *value);
+
   // add an assumption to pathFacts which says that no memory location
   // currently points to 'v'; useful after an allocation, when 'v'
   // stands for the address of the newly allocated object

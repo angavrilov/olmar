@@ -1,0 +1,70 @@
+; misc.sx    -*- Lisp -*-
+; miscellanous experiments...
+
+
+bg_push (
+  (EQ (length addr_arr_77) 5)
+  (DISTINCT addr_arr_97 0)
+  (EQ (length addr_arr_97) 5)
+  (>= i_108 0)
+  (FORALL (j_232 )
+    (IMPLIES
+      (AND (<= 0 j_232) (< j_232 i_108))
+      (EQ (getElt 1 (select mem_142
+                            (object (+ (pointer addr_arr_97 0) j_232))
+                            (offset (+ (pointer addr_arr_97 0) j_232))
+                    ))
+          1)))
+
+  (FORALL (j_233 ) (IMPLIES (AND (<= i_108 j_233) (< j_233 5)) (EQ (getElt 1 (select mem_142 (object (+ (pointer addr_arr_97 0) j_233)) (offset (+ (pointer addr_arr_97 0) j_233)))) 2)))
+  (FORALL (j_234 ) (IMPLIES (AND (<= i_108 j_234) (< j_234 5)) (AND (NEQ (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_234)) (offset (+ (pointer addr_arr_97 0) j_234)))) (pointer 0 0)) (EQ (offset (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_234)) (offset (+ (pointer addr_arr_97 0) j_234))))) 0) (EQ (length (object (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_234)) (offset (+ (pointer addr_arr_97 0) j_234)))))) 4))))
+  (EQ (getElt 1 tmpOwner_6) 1)
+  (FORALL (j_235 ) (IMPLIES (AND (<= 0 j_235) (< j_235 5)) (EQ (getElt 1 (select mem_142 (object (+ (pointer addr_arr_97 0) j_235)) (offset (+ (pointer addr_arr_97 0) j_235)))) 2)))
+  (FORALL (j_236 ) (IMPLIES (AND (<= 0 j_236) (< j_236 5)) (AND (NEQ (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_236)) (offset (+ (pointer addr_arr_97 0) j_236)))) (pointer 0 0)) (EQ (offset (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_236)) (offset (+ (pointer addr_arr_97 0) j_236))))) 0) (EQ (length (object (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_236)) (offset (+ (pointer addr_arr_97 0) j_236)))))) 4))))
+  (>= i_108 0)
+  (< i_108 5)
+  (FORALL (j_233 ) (IMPLIES (AND (<= i_108 j_233) (< j_233 5)) (EQ (getElt 1 (select mem_142 (object (+ (pointer addr_arr_97 0) j_233)) (offset (+ (pointer addr_arr_97 0) j_233)))) 2)))
+  (FORALL (j_234 ) (IMPLIES (AND (<= i_108 j_234) (< j_234 5)) (AND (NEQ (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_234)) (offset (+ (pointer addr_arr_97 0) j_234)))) (pointer 0 0)) (EQ (offset (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_234)) (offset (+ (pointer addr_arr_97 0) j_234))))) 0) (EQ (length (object (getElt 0 (select mem_142 (object (+ (pointer addr_arr_97 0) j_234)) (offset (+ (pointer addr_arr_97 0) j_234)))))) 4))))
+  (EQ mem_144 mem_143)
+  (EQ mem_142 mem_145)
+  (NOT (< (+ i_108 1) 5))
+)
+
+valid "i==4" (
+  (EQ i_108 4)
+)
+
+valid "goal2" (
+  (FORALL (j_237 )
+    (IMPLIES
+      (AND (<= 0 j_237) (< j_237 4))
+      (EQ (getElt 1 (select mem_145
+                            (object (+ (pointer addr_arr_97 0) j_237))
+                            (offset (+ (pointer addr_arr_97 0) j_237))
+                    ))
+          1)))
+)
+
+; valid "goal1" (
+;   (FORALL (j_112 )
+;     (IMPLIES
+;       (AND (<= 0 j_112) (< j_112 4))
+;       (EQ
+;         (getElt 1 (select mem_133
+;                           (object (+ (pointer addr_arr_81 0) j_112))
+;                           (offset (+ (pointer addr_arr_81 0) j_112))
+;                   ))
+;         2)))
+; )
+
+; valid "goal" (
+;   (FORALL (j_112 )
+;     (IMPLIES
+;       (AND (<= 0 j_112) (< j_112 5))
+;       (EQ
+;         (getElt 1 (select mem_133
+;                           (object (+ (pointer addr_arr_81 0) j_112))
+;                           (offset (+ (pointer addr_arr_81 0) j_112))
+;                   ))
+;         2)))
+; )

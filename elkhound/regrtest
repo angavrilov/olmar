@@ -222,6 +222,10 @@ if ! $vcgenOnly; then
 fi
 
 
+# --------------- test Simplify directly ----------------
+runTest ./test-Simplify.pl simp-ex/indegree.sx
+
+
 # --------------- test the program verifier ---------------
 vcgen() {
   runTest ./ccgr cc.bin vcgen/$1
@@ -266,7 +270,8 @@ vcgen callfind.c
 
 vcgen node.i
 vcgen owner1.i
-        
+./ccgr -tr disableFactFlow cc.bin vcgen/owner2.i
+
 # this one is my main performance tester
 runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in4d
 

@@ -155,6 +155,9 @@ AbsValue *AEnv::get(Variable const *var)
   // about that variable.. so we'll make up a new logic variable
   // to talk about it
 
+  // UPDATE: the circumstances where we get here are somewhat confusing,
+  // and currently in flux..
+
   // convenience
   StringRef name = var->name;
   xassert(name);    // otherwise how did it get referred-to?
@@ -214,24 +217,6 @@ AbsValue *AEnv::get(Variable const *var)
       // than as symbolic whole-array values... the value we yield
       // will be the address of the array (I guess, relying on the
       // implicit coercion between arrays and pointers..)
-      
-      ArrayType const &at = type->asArrayTypeC();
-      if (at.eltType->isOwnerPtr()) {
-        // OWNER: arrays of owners get initialized to the dead state
-        trace("owner") << "initializing array of owners to dead\n"; 
-        
-        // thmprv_forall(int j; 0<=j && j<length(addr) ==> addr[j].state==DEAD)
-        AVvar *j = freshVariable("j", "quantifier for array index");
-        addFact(P_forall(new ASTList<AVvar>(j),
-                         new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
-                                           new P_relation(j, RE_LESS, avLength(addr))),
-                                    P_equal(avGetElt(avOwnerField_state(),
-                                                     avSelect(getMem(), addr, j)),
-                                            avOwnerState_dead())
-                                   )
-                        ),
-                "initial dead state of array of owners");
-      }
     }
 
     int size = 1;         // default for non-arrays
@@ -256,15 +241,44 @@ AbsValue *AEnv::get(Variable const *var)
     // model the variable as a simple, named, unaliasable variable
     set(var, value);
     
-    if (var->type->isOwnerPtr()) {
-      // OWNER: initialize 'state' to DEAD(1)
-      trace("owner") << "initializing state of " << name << " to DEAD\n";
-      addFact(P_equal(avGetElt(avOwnerField_state(), value),
-                      avOwnerState_dead()),
-              stringc << "initial state of owner pointer " << name);
-    }
-
     return value;
+  }
+}
+
+
+void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
+{
+  StringRef name = var->name;
+  Type const *type = var->type;
+
+  if (type->isOwnerPtr()) {
+    // OWNER: initialize 'state' to DEAD (1)
+    trace("owner") << "initializing state of " << name << " to dead\n";
+    addFact(P_equal(avGetElt(avOwnerField_state(), value),
+                    avOwnerState_dead()),
+            stringc << "initial state of owner pointer " << name);
+  }
+
+  if (type->isArrayType()) {
+    ArrayType const &at = type->asArrayTypeC();
+    AbsValue *addr = get(var);      // need the object's address; 'value' isn't it
+
+    if (at.eltType->isOwnerPtr()) {
+      // OWNER: arrays of owners get initialized to the dead state
+      trace("owner") << "initializing array of owners to dead\n";
+
+      // thmprv_forall(int j; 0<=j && j<length(addr) ==> addr[j].state==DEAD)
+      AVvar *j = freshVariable("j", "quantifier for array index");
+      addFact(P_forall(new ASTList<AVvar>(j),
+                       new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
+                                         new P_relation(j, RE_LESS, avLength(addr))),
+                                  P_equal(avGetElt(avOwnerField_state(),
+                                                   avSelect(getMem(), addr, j)),
+                                          avOwnerState_dead())
+                                 )
+                      ),
+              "initial dead state of array of owners");
+    }
   }
 }
 
@@ -392,7 +406,8 @@ void AEnv::forgetAcrossCall(E_funCall const *call)
 
   // any current values for global variables are forgotten
   FOREACH_BINDING(av) {
-    if (av->decl->isGlobal() || av->decl->hasAddrTaken()) {
+    if ((av->decl->isGlobal() || av->decl->hasAddrTaken()) &&
+        av->decl != mem) {     // don't blow away 'mem' again!
       updateVar(av->decl, freshVariable(av->decl->name,
         stringc << "value of " << av->decl->name
                 << " after modified by call: " << thisCallSyntax));
@@ -408,13 +423,23 @@ void AEnv::setMem(AbsValue *newMem)
   // because this way the various updates to memory are broken apart,
   // instead of collapsed into one mammoth upd(upd(upd(...))) expression
 
-  // make up a new variable
-  AVvar *newMemVar = freshVariable("mem", "updated memory");
-  
-  // say that it's equal to the 'newMem' value
-  pathFacts->append(
-    P_equal(newMemVar, newMem));
-    
+  AVvar *newMemVar;
+  if (!newMem->isAVvar()) {
+    // make up a new variable
+    newMemVar = freshVariable("mem", "updated memory");
+
+    // say that it's equal to the 'newMem' value
+    addFact(P_equal(newMemVar, newMem),
+            "fresh mem var equals update(..)");
+  }
+  else {
+    // if the new value is itself a simple variable, just bind it;
+    // this happens when the value is being set from a function
+    // postcondition, where we already made up one variable to stand
+    // for the value as it comes back from the function
+    newMemVar = newMem->asAVvar();
+  }
+
   // update our notion of memory to refer to the new variable
   set(mem, newMemVar);
 }
