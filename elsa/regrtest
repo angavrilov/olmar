@@ -642,6 +642,7 @@ failparse d0108.cc "struct member with the same name as the struct"
 failparse d0109.cc "'using' same namespace twice causes error"
 failparse d0110.cc "class specialization without 'template' prefix?"
 failparse d0111.cc "templatized member type not accessible?"
+failparse d0112.cc "some template dependent name problem"
 # ---- END: lots of tests ----
 
 
