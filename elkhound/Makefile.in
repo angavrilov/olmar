@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar
+temporary: check-makefiles grampar gramanl
 
 # main targets
 all: check-makefiles ccgr
@@ -78,7 +78,7 @@ attrexpr.o: grampar.codes.h
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep = gramanl.cc ${grammar-set} ${common} ${grampar-set} \
-              ccwrite.o emitcode.o glrtree.o lexer2stub.o
+              emitcode.o lexer2stub.o
 gramanl: ${gramanl-dep} grammar.h gramanl.h 
 	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 

@@ -239,7 +239,7 @@ class Production {
 public:     // types
   class RHSElt {
   public:
-    Symbol const *sym;          // (serf) rhs element symbol
+    Symbol *sym;                // (serf) rhs element symbol
 
     // tags applied to the symbols for purposes of unambiguous naming in
     // actions, and for self-commenting value as role indicators; an
@@ -247,7 +247,7 @@ public:     // types
     string tag;                 // tag for this symbol; can be ""
 
   public:
-    RHSElt(Symbol const *s, char const *t) : sym(s), tag(t) {}
+    RHSElt(Symbol *s, char const *t) : sym(s), tag(t) {}
     ~RHSElt();
     
     RHSElt(Flatten&);
@@ -278,6 +278,12 @@ public:	    // funcs
 
   // number of nonterminals on RHS
   int numRHSNonterminals() const;
+
+  // true if the given symbol appears in 'right'
+  bool rhsHasSymbol(Symbol const *sym) const;
+
+  // retrieve the RHS as a list of symbols, rather than as a list of RHSElts
+  void getRHSSymbols(SymbolList &output) const;
 
   #if 0
     // find an action that sets the named attribute; return
@@ -334,7 +340,7 @@ public:	    // funcs
 private:    // data
   int numDotPlaces;             // after finished(): equals rhsLength()+1
   DottedProduction *dprods;     // (owner) array of dotted productions
-  
+
 public:     // data
   int prodIndex;                // unique production id
 };
@@ -347,6 +353,9 @@ typedef SObjListIter<Production> ProductionListIter;
 #define SFOREACH_PRODUCTION(list, iter) SFOREACH_OBJLIST(Production, list, iter)
 #define SMUTATE_EACH_PRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(Production, list, iter)
 
+typedef ObjList<Production::RHSElt> RHSEltList;
+typedef ObjListIter<Production::RHSElt> RHSEltListIter;
+typedef ObjListMutator<Production::RHSElt> RHSEltListMutator;
 
 // ---------------- DottedProduction --------------------
 // a production, with an indicator that says how much of this

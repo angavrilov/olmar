@@ -65,3 +65,5 @@ qp.cpp
 agrampar.tab.c
 grampar.codes.h
 *.tmp
+cexp3.cc
+cexp3.bin

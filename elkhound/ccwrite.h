@@ -1,6 +1,8 @@
 // ccwrite.h
 // emit C++ code to implement semantic functions
 
+#error This module is obsolete; gramanl emits the C++ code now.
+
 #ifndef __CCWRITE_H
 #define __CCWRITE_H
 

@@ -11,6 +11,7 @@
 #include "crc.h"         // crc32
 #include "flatutil.h"    // Flatten, xfer helpers
 #include "grampar.h"     // readGrammarFile
+#include "emitcode.h"    // EmitCode
 
 #include <fstream.h>     // ofstream
 
@@ -279,11 +280,11 @@ int itemDiff(DottedProduction const *a, DottedProduction const *b, void*)
   if (ret) { return ret; }
 
   // RHS indices
-  SObjListIter<Symbol> aIter(aProd->right);
-  SObjListIter<Symbol> bIter(bProd->right);
+  RHSEltListIter aIter(aProd->right);
+  RHSEltListIter bIter(bProd->right);
 
   while (!aIter.isDone() && !bIter.isDone()) {
-    ret = symbolIndex(aIter.data()) - symbolIndex(bIter.data());
+    ret = symbolIndex(aIter.data()->sym) - symbolIndex(bIter.data()->sym);
     if (ret) { return ret; }
     
     aIter.adv();
@@ -731,22 +732,22 @@ bool GrammarAnalysis::canDeriveEmpty(Nonterminal const *nonterm) const
 }
 
 
-bool GrammarAnalysis::sequenceCanDeriveEmpty(SymbolList const &list) const
+bool GrammarAnalysis::sequenceCanDeriveEmpty(RHSEltList const &list) const
 {
-  SymbolListIter iter(list);
+  RHSEltListIter iter(list);
   return iterSeqCanDeriveEmpty(iter);
 }
 
-bool GrammarAnalysis::iterSeqCanDeriveEmpty(SymbolListIter iter) const
+bool GrammarAnalysis::iterSeqCanDeriveEmpty(RHSEltListIter iter) const
 {
   // look through the sequence beginning with 'iter'; if any members cannot
   // derive emptyString, fail
   for (; !iter.isDone(); iter.adv()) {
-    if (iter.data()->isTerminal()) {
+    if (iter.data()->sym->isTerminal()) {
       return false;    // terminals can't derive emptyString
     }
 
-    if (!canDeriveEmpty(&( iter.data()->asNonterminalC() ))) {
+    if (!canDeriveEmpty(&( iter.data()->sym->asNonterminalC() ))) {
       return false;    // nonterminal that can't derive emptyString
     }
   }
@@ -893,10 +894,10 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
 
       // iterate over RHS symbols, seeing if the LHS can derive that
       // RHS symbol (by itself)
-      for (SymbolListIter rightSym(prod->right);
+      for (RHSEltListIter rightSym(prod->right);
            !rightSym.isDone(); rightSym.adv()) {
 
-        if (rightSym.data()->isTerminal()) {
+        if (rightSym.data()->sym->isTerminal()) {
           // if prod->left derives a string containing a terminal,
           // then it can't derive any nontermial alone (using this
           // production, at least) -- empty is considered a nonterminal
@@ -904,7 +905,7 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
         }
 
         // otherwise, it's a nonterminal
-        Nonterminal const &rightNT = rightSym.data()->asNonterminalC();
+        Nonterminal const &rightNT = rightSym.data()->sym->asNonterminalC();
 
         // check if we already know that LHS derives rightNT
         if (canDerive(prod->left, &rightNT)) {
@@ -917,14 +918,14 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
           // this to be true, every symbol that comes after rightSym
           // must be able to derive emptySymbol (we've already verified
           // by now that every symbol to the *left* can derive empty)
-          SymbolListIter afterRightSym(rightSym);
+          RHSEltListIter afterRightSym(rightSym);
           bool restDeriveEmpty = true;
           for (afterRightSym.adv();    // *after* right symbol
                !afterRightSym.isDone(); afterRightSym.adv()) {
 
-            if (afterRightSym.data()->isTerminal()  ||
+            if (afterRightSym.data()->sym->isTerminal()  ||
                   // if it's a terminal, it can't derive emptyString
-                !canDeriveEmpty(&( afterRightSym.data()->asNonterminalC() ))) {
+                !canDeriveEmpty(&( afterRightSym.data()->sym->asNonterminalC() ))) {
                   // this symbol can't derive empty string (or, we don't
                   // yet know that it can), so we conclude that prod->left
                   // can't derive rightSym
@@ -1055,14 +1056,16 @@ void GrammarAnalysis::computeFirst()
 // the 'destList', which isn't const; similarly for 'this'
 // (what I'd like here is to say that 'sequence' and 'this' are const
 // if 'destList' can't modify the things it contains)
-void GrammarAnalysis::firstOfSequence(TerminalList &destList, SymbolList &sequence)
+void GrammarAnalysis::firstOfSequence(TerminalList &destList, 
+                                      RHSEltList &sequence)
 {
-  SymbolListMutator iter(sequence);
+  RHSEltListMutator iter(sequence);
   firstOfIterSeq(destList, iter);
 }
 
 // similar to above, 'sym' needs to be a mutator
-void GrammarAnalysis::firstOfIterSeq(TerminalList &destList, SymbolListMutator sym)
+void GrammarAnalysis::firstOfIterSeq(TerminalList &destList,
+                                     RHSEltListMutator sym)
 {
   int numTerms = numTerminals();     // loop invariant
 
@@ -1070,14 +1073,14 @@ void GrammarAnalysis::firstOfIterSeq(TerminalList &destList, SymbolListMutator s
   // preceeding members can derive emptyString
   for (; !sym.isDone(); sym.adv()) {
     // LHS -> x alpha   means x is in First(LHS)
-    if (sym.data()->isTerminal()) {
-      destList.append(&( sym.data()->asTerminal() ));
+    if (sym.data()->sym->isTerminal()) {
+      destList.append(&( sym.data()->sym->asTerminal() ));
       break;    // stop considering RHS members since a terminal
                 // effectively "hides" all further symbols from First
     }
 
     // sym must be a nonterminal
-    Nonterminal const &nt = sym.data()->asNonterminalC();
+    Nonterminal const &nt = sym.data()->sym->asNonterminalC();
 
     // anything already in nt's First should be added to destList:
     // for each element in First(nt)
@@ -1113,11 +1116,11 @@ void GrammarAnalysis::computeFollow()
       Production *prod = prodIter.data();
 
       // for each RHS nonterminal member
-      SMUTATE_EACH_SYMBOL(prod->right, rightSym) {
-        if (rightSym.data()->isTerminal()) continue;
+      MUTATE_EACH_OBJLIST(Production::RHSElt, prod->right, rightSym) {
+        if (rightSym.data()->sym->isTerminal()) continue;
 
         // convenient alias
-        Nonterminal &rightNT = rightSym.data()->asNonterminal();
+        Nonterminal &rightNT = rightSym.data()->sym->asNonterminal();
 
         // I'm not sure what it means to compute Follow(emptyString),
         // so let's just not do so
@@ -1127,7 +1130,7 @@ void GrammarAnalysis::computeFollow()
 
         // an iterator pointing to the symbol just after
         // 'rightSym' will be useful below
-        SymbolListMutator afterRightSym(rightSym);
+        RHSEltListMutator afterRightSym(rightSym);
         afterRightSym.adv();    // NOTE: 'isDone()' may be true now
 
         // rule 1:
@@ -1811,7 +1814,7 @@ bool GrammarAnalysis::
     // if 'prod' has 'nonterminal' on RHS, that would certainly
     // lead to looping (though it's not the only way -- consider
     // mutual recursion), so don't even consider it
-    if (prod->right.contains(nonterminal)) {
+    if (prod->rhsHasSymbol(nonterminal)) {
       continue;
     }
 
@@ -1840,7 +1843,9 @@ bool GrammarAnalysis::
 
   // now, the chosen rule provides a RHS, which is a sequence of
   // terminals and nonterminals; recursively reduce that sequence
-  bool retval = rewriteAsTerminalsHelper(output, best->right, reducedStack);
+  SymbolList bestRHS;
+  best->getRHSSymbols(bestRHS);
+  bool retval = rewriteAsTerminalsHelper(output, bestRHS, reducedStack);
 
   // remove myself from stack
   Nonterminal *temp = reducedStack.removeAt(0);
@@ -2245,11 +2250,20 @@ void GrammarAnalysis::runAnalyses()
   //pretendUsed(a,b,c,d,e, S,A,B,C,D);
 }
 
+  
+// yield the name of the inline function for this production; naming
+// design motivated by desire to make debugging easier
+string actionFuncName(Production const &prod)
+{
+  return stringc << "action" << prod.prodIndex
+                 << "_" << prod.left->name;
+}
+
 
 // emit the user's action code to a file
 void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
 {
-  ofstream out(fname);
+  EmitCode out(fname);
   if (!out) {
     throw_XOpen(fname);
   }
@@ -2258,33 +2272,63 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
   out << "// *** DO NOT EDIT BY HAND ***\n";
   out << "// automatically generated by gramanl, from " << srcFname << "\n";
   out << "\n";
-                         
+  out << "#include <assert.h>\n";
+  out << "\n";
+
   // iterate over productions, emitting inline action functions
   {FOREACH_OBJLIST(Production, g.productions, iter) {
     Production const &prod = *(iter.data());
-    
-    out << "inline " << prod.left->type << " action" << prod.prodIndex << "(";
-    
+
+    // there's no syntax for a typeless nonterminal, so this shouldn't
+    // be triggerable by the user
+    xassert(prod.left->type);
+
+    // put the production in comments above the defn
+    out << "/""* " << prod.toString() << " */\n";
+
+    out << "static inline " << prod.left->type << " "
+        << actionFuncName(prod) << "(";
+
     // iterate over RHS elements, emitting formals for each with a tag
-    ObjListIter<string> tag(prod.rightTags);     // iter over tags
-    SObjListIter<Symbol> sym(prod.right);        // iter over symbols
-    while (
-    
-    
-    #error WAS HERE
+    int ct=0;
+    FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
+      Production::RHSElt const &elt = *(rhsIter.data());
+      if (elt.tag.length() == 0) continue;
 
+      if (ct++ > 0) {
+        out << ", ";
+      }
 
-    FOREACH_OBJLIST(string, prod.rightTags, tag) {
-      if (tag.data()->length() == 0) continue;
+      if (!elt.sym->type) {
+        cout << "Production with action code at " << prod.action.locString()
+             << " has tag `" << elt.tag << "' on a symbol with no type.\n";
+        out << "__error_no_type__";     // will make compiler complain
+      }
+      else {
+        out << elt.sym->type;
+      }
 
+      // the tag becomes the formal parameter's name
+      out << " " << elt.tag;
+    }
 
+    out << ")\n";
+    out << "{\n";
 
+    // now insert the user's code, to execute in this environment of
+    // properly-typed semantic values; the final brace is on the same
+    // line so errors reported at the last brace go to user code
+    out << lineDirective(prod.action);
+    out << prod.action << " }\n";
 
+    out << restoreLine;
+    out << "\n";
+  }}
 
+  out << "\n";
 
-
-  // main action function
-  out << "void *doReductionAction(int productionId, void *semanticValues)\n";
+  // main action function; calls the inline functions emitted above
+  out << "void *doReductionAction(int productionId, void **semanticValues)\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
 
@@ -2293,14 +2337,37 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
     Production const &prod = *(iter.data());
 
     out << "    case " << prod.prodIndex << ":\n";
-    out << "      "
+    out << "      return (void*)" << actionFuncName(prod) << "(";
 
+    // iterate over RHS elements, emitting arguments for each with a tag
+    int index=-1;    // index into 'semanticValues'
+    int ct=0;
+    FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
+      Production::RHSElt const &elt = *(rhsIter.data());
 
+      // we have semantic values in the array for all RHS elements,
+      // even if they didn't get a tag
+      index++;
 
+      if (elt.tag.length() == 0) continue;
 
+      if (ct++ > 0) {
+        out << ", ";
+      }
 
+      // cast void* to proper type
+      out << "(" << elt.sym->type << ")(semanticValues[" << index << "])";
+    }
 
+    out << ");\n";
+  }
 
+  out << "    default:\n";
+  out << "      assert(!\"invalid production code\");\n";
+  out << "      return NULL;   /* silence warning */\n";
+  out << "  }\n";
+  out << "}\n";
+}
 
 
 #ifdef GRAMANL_MAIN
@@ -2313,7 +2380,6 @@ int main()
 }
 #endif // 0
 
-#include "ccwrite.h"      // emitSemFun{Impl,Decl}File
 #include "grampar.h"      // readGrammarFile
 #include "bflatten.h"     // BFlatten
 #include <stdio.h>        // remove
@@ -2344,9 +2410,9 @@ int main(int argc, char **argv)
   
   bool printCode = true;
 
-
+  string grammarFname = stringc << prefix << ".gr";
   GrammarAnalysis g;
-  readGrammarFile(g, stringc << prefix << ".gr");
+  readGrammarFile(g, grammarFname);
   g.printProductions(trace("grammar") << endl);
 
   g.runAnalyses();
@@ -2362,12 +2428,15 @@ int main(int argc, char **argv)
   }
 
   // emit some C++ code
-  string headerFname = stringc << prefix << ".h";
+  //string headerFname = stringc << prefix << ".h";
   string implFname = stringc << prefix << ".cc";
   traceProgress() << "emitting C++ code to "
-                  << headerFname << " and " << implFname << " ...\n";
-  emitSemFunImplFile(implFname, headerFname, &g);
-  emitSemFunDeclFile(headerFname, &g);
+                  //<< headerFname << " and "
+                  << implFname << " ...\n";
+  //emitSemFunImplFile(implFname, headerFname, &g);
+  //emitSemFunDeclFile(headerFname, &g);
+
+  emitActionCode(g, implFname, grammarFname);
 
   // write the analyzed grammar to a file
   string binFname = stringc << prefix << ".bin";

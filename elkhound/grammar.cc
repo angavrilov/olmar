@@ -270,6 +270,25 @@ int Production::numRHSNonterminals() const
 }
 
 
+bool Production::rhsHasSymbol(Symbol const *sym) const
+{
+  FOREACH_OBJLIST(RHSElt, right, iter) {
+    if (iter.data()->sym == sym) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void Production::getRHSSymbols(SymbolList &output) const
+{
+  FOREACH_OBJLIST(RHSElt, right, iter) {
+    output.append(iter.data()->sym);
+  }
+}
+
+
 void Production::append(Symbol *sym, char const *tag)
 {
   // my new design decision (6/26/00 14:24) is to disallow the

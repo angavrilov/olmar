@@ -12,6 +12,8 @@
 
 // see glr.h for references and more info
 
+#error I do not intend to use this right now.
+
 #ifndef __GLRTREE_H
 #define __GLRTREE_H
 
