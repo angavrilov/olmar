@@ -218,7 +218,7 @@ public:
     { ensureIndexDoubler(len++); return top(); }
   T &popAlt()     // returns item popped
     { return operator[](--len); }
-    
+
   // items stored
   int length() const
     { return len; }
@@ -331,6 +331,84 @@ void ObjArrayStack<T>::deleteTopSeveral(int ct)
     delete pop();
   }
 }
+
+
+// ------------------ ArrayStackEmbed --------------------
+// this is like ArrayStack, but the first 'n' elements
+// are stored embedded in this object, instead of allocated
+// on the heap; in some circumstances, this lets us avoid
+// allocating memory in common cases
+template <class T, int n>
+class ArrayStackEmbed {
+private:      // data
+  // embedded storage
+  T embed[n];
+
+  // heap-allocated storage
+  GrowArray<T> heap;
+
+  // total number of elements in the stack; if this
+  // exceeds 'n', then heap.arr is non-NULL
+  int len;
+
+private:      // funcs
+  void bc(int i) const    // bounds-check an index
+    { xassert((unsigned)i < (unsigned)len); }
+
+public:       // funcs
+  ArrayStackEmbed()
+    : /*embed is default-init'd*/
+      heap(0),    // initially a NULL ptr
+      len(0)
+  {}
+  ~ArrayStackEmbed()
+  {}              // heap auto-deallocs its internal data
+  
+  void push(T const &val)
+  { 
+    if (len < n) {
+      embed[len++] = val;
+    }
+    else {
+      heap.setIndexDoubler(len++ - n, val); 
+    }
+  }
+
+  T pop() 
+  {                
+    xassert(len > 0);
+    if (len <= n) {
+      return embed[--len];
+    }
+    else {
+      return heap[--len - n];
+    }
+  }
+
+  int length() const
+    { return len; }
+  bool isEmpty() const
+    { return len==0; }
+  bool isNotEmpty() const
+    { return !isEmpty(); }
+
+  // direct element access
+  T const &getElt(int i) const
+  { 
+    bc(i);
+    if (i < n) {
+      return embed[i];
+    }
+    else {
+      return heap[i - n];
+    }
+  }
+
+  T const& operator[] (int i) const
+    { return getElt(i); }
+  T & operator[] (int i)
+    { return const_cast<T&>(getElt(i)); }
+};
 
 
 #endif // ARRAY_H
