@@ -267,6 +267,29 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 }
 
 
+// Below, each time I extract the CV flags from the 'dest' type,
+// I use this function.  Whenever 'dest' names a polymorphic type,
+// I pretend it has the same CV flags as the source so we don't
+// get spurious mismatches.
+CVFlags getDestCVFlags(Type const *dest, CVFlags srcCV)
+{
+  CVFlags destCV = dest->getCVFlags();
+
+  // 9/23/04: If the destination type is polymorphic, then pretend
+  // the flags match.
+  if (dest->isSimpleType()) {
+    SimpleTypeId id = dest->asSimpleTypeC()->type;
+    if (id == ST_ANY_OBJ_TYPE ||
+        id == ST_ANY_NON_VOID ||
+        id == ST_ANY_TYPE) {
+      destCV = srcCV;
+    }
+  }
+
+  return destCV;
+}
+
+
 // one of the goals of this function is to *not* construct any
 // intermediate Type objects; I should be able to do this computation
 // without allocating, and if I can then that avoids interaction
@@ -326,12 +349,16 @@ StandardConversion getStandardConversion
 
     conv.ret |= SC_ARRAY_TO_PTR;
 
+    // note: even if we strip a reference here, we do not say it
+    // is SC_LVAL_TO_RVAL (why? because I can't represent that.. and
+    // I hope that that is right...)
+
     src = src->asRvalC()->asArrayTypeC()->eltType;
     dest = dest->asPointerTypeC()->atType;
 
     // do one level of qualification conversion checking
     CVFlags scv = src->getCVFlags();
-    CVFlags dcv = dest->getCVFlags();
+    CVFlags dcv = getDestCVFlags(dest, scv);
 
     if (srcSpecial == SE_STRINGLIT &&
         scv == CV_CONST &&
@@ -356,7 +383,10 @@ StandardConversion getStandardConversion
 
     dest = dest->asPointerTypeC()->atType;
 
-    if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
+    CVFlags scv = src->getCVFlags();
+    CVFlags dcv = getDestCVFlags(dest, scv);
+
+    if (conv.stripPtrCtor(scv, dcv))
       { return conv.ret; }
   }
 
@@ -411,19 +441,8 @@ StandardConversion getStandardConversion
         // i.e. pairing the * with the cv one level down in their
         // descriptive patterns
         CVFlags srcCV = src->getCVFlags();
-        CVFlags destCV = dest->getCVFlags();
+        CVFlags destCV = getDestCVFlags(dest, srcCV);
         
-        // 9/23/04: If the destination type is polymorphic, then pretend
-        // the flags match.
-        if (dest->isSimpleType()) {
-          SimpleTypeId id = dest->asSimpleTypeC()->type;
-          if (id == ST_ANY_OBJ_TYPE ||
-              id == ST_ANY_NON_VOID ||
-              id == ST_ANY_TYPE) {
-            destCV = srcCV;
-          }
-        }
-
         if (conv.stripPtrCtor(srcCV, destCV, isReference))
           { return conv.ret; }
 
@@ -493,7 +512,10 @@ StandardConversion getStandardConversion
         src = s->atType;
         dest = d->atType;
 
-        if (conv.stripPtrCtor(src->getCVFlags(), dest->getCVFlags()))
+        CVFlags scv = src->getCVFlags();
+        CVFlags dcv = getDestCVFlags(dest, scv);
+
+        if (conv.stripPtrCtor(scv, dcv))
           { return conv.ret; }
 
         break;

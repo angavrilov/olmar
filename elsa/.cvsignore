@@ -34,6 +34,7 @@ quicktest
 tlexer
 gprof.out
 moz.parse.out
+moz.gcc.out
 parse.log
 regrtest.log
 gendoc
@@ -55,3 +56,6 @@ tmp.i
 tmp.i.ok
 semgrep
 lex.backup
+aborted
+history.txt
+tmp2*
