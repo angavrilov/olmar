@@ -233,7 +233,7 @@ class Declarator {
     Expression *size_E_new;
 
     // if this is non-NULL, then it points at the D_func responsible
-    // for creating 'type, a FunctionType; this is used to determine
+    // for creating 'type', a FunctionType; this is used to determine
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
