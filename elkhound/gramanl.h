@@ -17,12 +17,6 @@
 #ifndef __GRAMANL_H
 #define __GRAMANL_H
 
-#define HASHCLOSURE     // use a hashtable for item set closure
-#define HASHLRITEMSETS  // use a hashtable for lr item set construction
-
-// note: the !HASHCLOSURE case hasn't been maintained in a while..
-// will probably delete it soon
-
 #include "grammar.h"    // Grammar and friends
 #include "ohashtbl.h"   // OwnerHashTable
 #include "okhashtbl.h"  // OwnerKHashTable
@@ -169,12 +163,10 @@ public:    // funcs
   int prodIndex() const
     { return getProd()->prodIndex; }
 
-#ifdef HASHCLOSURE
   // stuff for insertion into a hash table
   static unsigned hash(DottedProduction const *key);
   static DottedProduction const *dataToKey(LRItem *dp);
   static bool dpEqual(DottedProduction const *key1, DottedProduction const *key2);
-#endif /* HASHCLOSURE */
 
   void print(ostream &os, GrammarAnalysis const &g) const;
 };
@@ -484,15 +476,10 @@ private:    // funcs
   // let's try this .. it needs to access 'itemSets'
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
-#ifndef HASHCLOSURE
-  void singleItemClosure(ItemSet &itemSet, ObjList<LRItem> &worklist,
-                         LRItem const *item);
-#else /* HASHCLOSURE */
   void singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
                          SObjList<LRItem> &worklist,
                          OwnerKHashTable<LRItem, DottedProduction> &workhash,
                          LRItem const *item);
-#endif /* HASHCLOSURE */
 
 public:	    // funcs
   GrammarAnalysis();
