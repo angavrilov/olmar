@@ -198,6 +198,67 @@ Run the regression tests.
 
 
 <p>
+Interesting subdirectories:
+<p>
+<ul>
+
+<li><a href="asfsdf">asfsdf</a>:
+Contains a few examples written for the ASF+SDF meta-framework, for
+performance comparison with Elkhound.
+
+<li><a href="c">c</a>:                          
+
+Contains a C parser written in Elkhound.  The grammar is almost free
+of shift/reduce conflicts.  It uses the lexer hack (feedback from the
+symbol table into the lexer) to distinguish variables from types.  The
+lexer itself is very slow (just bad engineering).  This parser could
+be evolved into something useful in its own right, but at this time
+it's mostly just a test of Elkhound's deterministic parser.
+
+<li><a href="cc2">cc2</a>:
+This is a C++ parser that uses the C++ Standard's grammar without
+modification.  Consequently, it has many shift/reduce and
+reduce/reduce conflicts, and also many true ambiguities.  This grammar
+is not a very good grammar to use for parsing C++ input; rather, it's
+essentially the skeleton on which the standard's English description
+hangs.  Nevertheless, it's useful because it will output exactly the
+parse tree (ambiguities and all) that the standard grammar induces,
+and this can then be compared to similar output from Elsa
+
+<li><a href="examples">examples</a>:
+Contains three example parsers written with Elkhound:
+
+  <ul>
+
+  <li><a href="examples/arith">examples/arith</a>:
+  Simple parser for arithmetic expressions.  This example was intended
+  to introduce a new user to some of Elkhound's syntax and semantics.
+
+  <li><a href="examples/cdecl">examples/cdecl</a>:
+  This contains an abstracted fragment of the C grammar, demonstrating the
+  ambiguity between variable and type names.  The accompanying code
+  resolves the ambiguity using reduction cancellation.
+  
+  <li><a href="examples/cexp">examples/cexp</a>:
+  This has two examples of parsing C expressions.  The examples are
+  old and don't show much; I used them to test Elkhound during early
+  development.
+  
+  </ul>
+  
+<li><a href="in">in</a>:
+This has a bunch of inputs for various testing grammars.
+
+<li><a href="triv">triv</a>:
+This is a collection of micro-grammars for performance and correctness
+testing.  The name "triv" comes from the fact that they all use the
+trival lexer, i.e. a lexer that yields every character as a separate
+token.
+
+</ul>
+
+
+<p>
   <a href="http://validator.w3.org/check/referer"><img border="0"
       src="http://www.w3.org/Icons/valid-html401"
       alt="Valid HTML 4.01!" height="31" width="88"></a>
