@@ -76,6 +76,8 @@
   TF_option *tfOption;
   ASTList<string> *stringList;
   TF_enum *tfEnum;
+  ASTList<Enumerator> *enumeratorList;
+  Enumerator *enumerator;
 }
 
 %type <file> StartSymbol
@@ -90,6 +92,8 @@
 %type <tfOption> Option
 %type <stringList> OptionArgs
 %type <tfEnum> Enum
+%type <enumeratorList> EnumeratorSeq
+%type <enumerator> Enumerator
 
 
 /* ===================== productions ======================= */
@@ -251,9 +255,25 @@ OptionArgs: /*empty*/
           ;
 
 /* yields TF_enum */
-Enum: "enum" TOK_NAME Embedded
-        { $$ = new TF_enum(unbox($2), unbox($3)); }
+Enum: "enum" TOK_NAME "{" EnumeratorSeq "}"
+        { $$ = new TF_enum(unbox($2), $4); }
+    | "enum" TOK_NAME "{" EnumeratorSeq "," "}"
+        { $$ = new TF_enum(unbox($2), $4); }
     ;
+
+/* yields ASTList<Enumerator> */
+EnumeratorSeq: Enumerator
+                 { $$ = new ASTList<Enumerator>($1); }
+             | EnumeratorSeq "," Enumerator
+                 { ($$=$1)->append($3); }
+             ;
+
+/* yields Enumerator */
+Enumerator: TOK_NAME "=" TOK_EMBEDDED_CODE
+              { $$ = new Enumerator(unbox($1), unbox($3)); }
+          | TOK_NAME
+              { $$ = new Enumerator(unbox($1), string("")); }
+          ;
 
 
 %%

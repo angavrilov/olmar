@@ -75,7 +75,7 @@ private:     // data
   SourceLoc tokenStartLoc;         // location of start of current token
 
   // support for embedded code
-  bool expectingEmbedded;          // true when certain punctuation triggers
+  char embedStart;                 // if nonzero, punctuation that triggers
                                    // embedded processing
   char embedFinish;                // which character ends the embedded section
   int embedMode;                   // TOK_FUNDECL_BODY or TOK_FUN_BODY

@@ -209,6 +209,7 @@ DEFN_AST_DOWNCASTS(ToplevelForm, TF_enum, TF_ENUM)
 
 TF_enum::~TF_enum()
 {
+  enumerators.deleteAll();
 }
 
 void TF_enum::debugPrint(ostream &os, int indent) const
@@ -218,7 +219,7 @@ void TF_enum::debugPrint(ostream &os, int indent) const
   ToplevelForm::debugPrint(os, indent);
 
   PRINT_STRING(name);
-  PRINT_STRING(body);
+  PRINT_LIST(Enumerator, enumerators);
 }
 
 void TF_enum::xmlPrint(ostream &os, int indent) const
@@ -228,7 +229,7 @@ void TF_enum::xmlPrint(ostream &os, int indent) const
   ToplevelForm::xmlPrint(os, indent);
 
   XMLPRINT_STRING(name);
-  XMLPRINT_STRING(body);
+  XMLPRINT_LIST(Enumerator, enumerators);
   XMLPRINT_FOOTER(TF_enum);
 
 }
@@ -237,7 +238,7 @@ TF_enum *TF_enum::clone() const
 {
   TF_enum *ret = new TF_enum(
     name,
-    body
+    cloneASTList(enumerators)
   );
   return ret;
 }
@@ -414,6 +415,39 @@ CtorArg *CtorArg::clone() const
 }
 
 
+// ------------------ Enumerator -------------------
+// *** DO NOT EDIT ***
+Enumerator::~Enumerator()
+{
+}
+
+void Enumerator::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(Enumerator);
+
+  PRINT_STRING(name);
+  PRINT_STRING(value);
+}
+
+void Enumerator::xmlPrint(ostream &os, int indent) const
+{
+  XMLPRINT_HEADER(Enumerator);
+
+  XMLPRINT_STRING(name);
+  XMLPRINT_STRING(value);
+  XMLPRINT_FOOTER(Enumerator);
+}
+
+Enumerator *Enumerator::clone() const
+{
+  Enumerator *ret = new Enumerator(
+    name,
+    value
+  );
+  return ret;
+}
+
+
 // *** DO NOT EDIT ***
 
 
@@ -421,14 +455,14 @@ CtorArg *CtorArg::clone() const
 
 string toString(AccessCtl acc)
 {
-  char const *arr[] = { 
-    "public", 
-    "private", 
+  char const *arr[] = {
+    "public",
+    "private",
     "protected",
     "ctor",
     "dtor",
     "pure_virtual"
-  };              
+  };
   STATIC_ASSERT(TABLESIZE(arr) == NUM_ACCESSCTLS);
   xassert((unsigned)acc < NUM_ACCESSCTLS);
   return string(arr[acc]);

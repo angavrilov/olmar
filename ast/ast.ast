@@ -29,8 +29,8 @@ class ToplevelForm {
   // additional words (if any) are arguments
   -> TF_option(string name, ASTList<string> args);
   
-  // just an enumeration, emitted verbatim
-  -> TF_enum(string name, string body);
+  // enumeration
+  -> TF_enum(string name, ASTList<Enumerator> enumerators);
 }
 
 // a definition of a grammar terminal or nonterminal
@@ -77,6 +77,10 @@ class Annotation {
 // something that has to be passed to create a constructor
 class CtorArg (bool owner, string type, string name, string defaultValue);
 
+// a value in an enumeration; if 'value' is not the empty string, then
+// it is literal code that defines the value of 'name'
+class Enumerator (string name, string value);
+
 
 // ------------------- extra implementation helpers ------------------
 impl_verbatim {
@@ -85,14 +89,14 @@ impl_verbatim {
 
 string toString(AccessCtl acc)
 {
-  char const *arr[] = { 
-    "public", 
-    "private", 
+  char const *arr[] = {
+    "public",
+    "private",
     "protected",
     "ctor",
     "dtor",
     "pure_virtual"
-  };              
+  };
   STATIC_ASSERT(TABLESIZE(arr) == NUM_ACCESSCTLS);
   xassert((unsigned)acc < NUM_ACCESSCTLS);
   return string(arr[acc]);

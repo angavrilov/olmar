@@ -20,6 +20,7 @@ class Annotation;
 class UserDecl;
 class CustomCode;
 class CtorArg;
+class Enumerator;
 
 
 // *** DO NOT EDIT ***
@@ -161,10 +162,10 @@ public:      // funcs
 class TF_enum : public ToplevelForm {
 public:      // data
   string name;
-  string body;
+  ASTList <Enumerator > enumerators;
 
 public:      // funcs
-  TF_enum(string _name, string _body) : ToplevelForm(), name(_name), body(_body) {
+  TF_enum(string _name, ASTList <Enumerator > *_enumerators) : ToplevelForm(), name(_name), enumerators(_enumerators) {
   }
   virtual ~TF_enum();
 
@@ -307,6 +308,28 @@ public:      // funcs
   char const *kindName() const { return "CtorArg"; }
 
   CtorArg *clone() const;
+
+  void debugPrint(ostream &os, int indent) const;
+  void xmlPrint(ostream &os, int indent) const;
+
+};
+
+
+
+// *** DO NOT EDIT ***
+class Enumerator {
+public:      // data
+  string name;
+  string value;
+
+public:      // funcs
+  Enumerator(string _name, string _value) : name(_name), value(_value) {
+  }
+  ~Enumerator();
+
+  char const *kindName() const { return "Enumerator"; }
+
+  Enumerator *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
   void xmlPrint(ostream &os, int indent) const;

@@ -100,6 +100,16 @@ int agrampar_yylex(YYSTYPE *lvalp, void *parseParam)
       lvalp->str = NULL;
   }
 
+  static bool traceIt = tracingSys("tokens");
+  if (traceIt) {
+    ostream &os = trace("tokens");
+    os << lexer.curLocStr() << ": " << code;
+    if (lvalp->str) {
+      os << ", \"" << *(lvalp->str) << "\"";
+    }
+    os << "\n";
+  }
+
   return code;
 }
 

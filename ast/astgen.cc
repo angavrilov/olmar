@@ -202,6 +202,20 @@ public:         // funcs
 };
 
 
+bool anyValues(TF_enum const *e)
+{
+  FOREACH_ASTLIST(Enumerator, e->enumerators, iter) {
+    Enumerator const *en = iter.data();
+
+    if (en->value.length()) {
+      return true;
+    }
+  }
+  
+  // none have values specified
+  return false;
+}
+
 // emit header code for an entire AST spec file
 void HGen::emitFile()
 {
@@ -254,11 +268,31 @@ void HGen::emitFile()
       case ToplevelForm::TF_CLASS:
         emitTFClass(*( form.data()->asTF_classC() ));
         break;
-        
+
       case ToplevelForm::TF_ENUM: {
         TF_enum const *e = form.data()->asTF_enumC();
-        doNotEdit();
-        out << "enum " << e->name << " {" << e->body << "};\n\n";
+        out << "enum " << e->name << " {\n";
+        FOREACH_ASTLIST(Enumerator, e->enumerators, iter) {
+          Enumerator const *en = iter.data();
+
+          out << "  " << en->name;
+          if (en->value.length()) {
+            out << " = " << en->value;
+          }
+          out << ",\n";
+        }
+        out << "};\n\n";
+
+        // For now, I only make a toString() if none of the
+        // enumerators have values, and consequently I can see that
+        // their values are from 0 up to the max.  I might extend this
+        // at some point to detect enumerations that define sets using
+        // one bit per element, but that's quite a bit harder, and not
+        // needed right now.
+        if (!anyValues(e)) {
+          out << "char const *toString(" << e->name << ");\n\n";
+        }
+
         break;
       }
 
@@ -608,6 +642,25 @@ void CGen::emitFile()
       }
       ASTNEXTC(TF_class, c) {
         emitTFClass(*c);
+      }
+      ASTNEXTC(TF_enum, e) {
+        if (!anyValues(e)) {
+          out << "char const *toString(" << e->name << " x)\n"
+              << "{\n"
+              << "  static char const * const map[] = {\n";
+          FOREACH_ASTLIST(Enumerator, e->enumerators, iter) {
+            Enumerator const *en = iter.data();
+            out << "    \"" << en->name << "\",\n";
+          }     
+          out << "  };\n"
+              << "  xassert((unsigned)x < TABLESIZE(map));\n"
+              << "  return map[x];\n"
+              << "};\n"
+              << "\n"
+              << "\n"
+              ;
+        }
+        break;
       }
       ASTENDCASECD
     }

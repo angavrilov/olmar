@@ -40,7 +40,7 @@ enum AnEnum { AE_ONE, AE_TWO };
 enum AnotherEnum {
   anotherone, 
   anothertwo = 0x04,
-  anotherthree = anotherone
+  anotherthree = anotherone     // oops! can't trim whitespace
 };
 
 class UsesEnum {
