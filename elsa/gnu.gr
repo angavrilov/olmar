@@ -76,6 +76,13 @@ nonterm(Expression*) ParenthesizedExpression {
        { return new E_grouping(e); }
 }
 
+nonterm(Expression*) ConditionalExpression {
+  // In gcc it is legal to omit the 'then' part;
+  // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
+  -> cond:BinaryExpression "?" /*th:Expression*/ ":" el:AssignmentExpression 
+       { return new E_cond(cond, NULL, el); }
+}
+
 
 nonterm(Statement*) Statement {
   -> n:Identifier ":" attrspec:AttributeSpecifierList s:Statement

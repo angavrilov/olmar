@@ -955,7 +955,11 @@ void E_cond::iprint(PrintEnv &env)
   olayer ol("E_cond::iprint");
   cond->print(env);
   env << "?";
-  th->print(env);
+  // In gcc it is legal to omit the 'then' part;
+  // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
+  if (th) {
+    th->print(env);
+  }
   env << ":";
   el->print(env);
 }

@@ -5069,7 +5069,11 @@ Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
 {
   cond->tcheck(env, cond);
-  th->tcheck(env, th);
+  // In gcc it is legal to omit the 'then' part;
+  // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
+  if (th) {
+    th->tcheck(env, th);
+  }
   el->tcheck(env, el);
   
   // TODO: verify 'cond' makes sense in a boolean context
@@ -5081,7 +5085,11 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // no provision for computing the least common ancestor in the class
   // hierarchy, but the rules *are* nonetheless complex
 
-  return th->type;
+  if (th) {
+    return th->type;
+  } else {
+    return cond->type;
+  }
 }
 
 
@@ -5384,7 +5392,13 @@ bool Expression::constEval(string &msg, int &result) const
       if (!c->cond->constEval(msg, result)) return false;
 
       if (result) {
-        return c->th->constEval(msg, result);
+        // In gcc it is legal to omit the 'then' part;
+        // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
+        if (c->th) {
+          return c->th->constEval(msg, result);
+        } else {
+          return result;
+        }
       }
       else {
         return c->el->constEval(msg, result);
@@ -5443,7 +5457,9 @@ bool Expression::hasUnparenthesizedGT() const
       
     ASTNEXTC(E_cond, c)
       return c->cond->hasUnparenthesizedGT() ||
-             c->th->hasUnparenthesizedGT() ||
+      // In gcc it is legal to omit the 'then' part;
+      // http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Conditionals.html#Conditionals
+             (c->th ? c->th->hasUnparenthesizedGT() : false) ||
              c->el->hasUnparenthesizedGT();
              
     ASTNEXTC(E_assign, a)
