@@ -6,6 +6,15 @@
 #include "dataflow.h"    // DataflowEnv
 
 
+// ----------------------- Variable ---------------------------
+string Variable::toString() const
+{
+  // don't care about printing the declflags right now
+  return type->toString(name);
+}
+
+
+// --------------------------- Env ----------------------------
 SimpleType const *Env::simpleBuiltins = NULL;
 CVAtomicType const *Env::builtins = NULL;
 
@@ -18,7 +27,8 @@ Env::Env(DataflowEnv *d)
     intermediates(),
     errors(),
     trialBalloon(false),
-    denv(d)
+    denv(d),
+    referenceCt(0)
 {
   // init of global data (won't be freed)
   if (!builtins) {
@@ -48,8 +58,11 @@ Env::Env(Env *p)
     intermediates(),
     errors(),
     trialBalloon(false),
-    denv(p->denv)
-{}
+    denv(p->denv),
+    referenceCt(0)
+{
+  p->referenceCt++;
+}
 
 
 Env::~Env()
@@ -58,10 +71,18 @@ Env::~Env()
     // if we're carrying any errors, deliver them to the
     // containing environment
     parent->errors.concat(errors);
+    
+    // and decrement its refct
+    parent->referenceCt--;
   }
   else {
     // may as well print errors
     flushLocalErrors(cout);
+  }
+  
+  if (referenceCt != 0) {
+    // I have this now, but not the time to track it down
+    printf("warning: deleting environment with refct %d\n", referenceCt);
   }
 }
 
@@ -463,4 +484,17 @@ bool Env::isTrialBalloon() const
          (parent && parent->isTrialBalloon());
 }
 
+
+string Env::toString() const
+{
+  stringBuilder sb;
+  
+  // for now, just the variables
+  StringObjDict<Variable>::Iter iter(variables);
+  for (; !iter.isDone(); iter.next()) {
+    sb << iter.value()->toString() << " ";
+  }
+  
+  return sb;
+}
 

@@ -39,6 +39,8 @@ public:     // data
 public:     // funcs
   Variable(char const *n, DeclFlags d, Type const *t)
     : name(n), declFlags(d), type(t) {}
+    
+  string toString() const;
 };
 
 
@@ -54,7 +56,7 @@ private:    // data
 
   // parent environment; failed lookups in this environment go
   // to the parent before failing altogether
-  Env * const parent;
+  Env * const parent;               // (serf)
 
   // counter for synthesizing names of anonymous structures;
   // only the counter in the toplevel environment is used
@@ -84,6 +86,9 @@ private:    // data
 
   // pointer to current dataflow environment
   DataflowEnv *denv;
+
+  // (debugging) reference count of # of nested environments pointing at me
+  int referenceCt;
 
 private:    // funcs
   void grab(Type *t);
@@ -174,6 +179,9 @@ public:     // funcs
   // support for analysis routines
   StringObjDict<Variable> &getVariables() { return variables; }
   DataflowEnv &getDenv() { return *denv; }
+  
+  // debugging
+  string toString() const;
 };
 
 

@@ -8,6 +8,8 @@
 #include "str.h"        // string
 #include "objlist.h"    // ObjList
 
+class Env;              // cc_env.h
+
 
 // --------------------- atomic types --------------------------
 // C's built-in scalar types
@@ -84,17 +86,24 @@ public:     // types
 public:     // data
   Keyword keyword;      // keyword used to introduce the type
   string name;          // name of this compound
-  bool incomplete;      // true if only forward-declared
-
-  // todo: represent members
+  Env *env;             // (owner) members; NULL while only forward-declared
 
 public:     // funcs
+  // create an incomplete (forward-declared) compound
   CompoundType(Keyword keyword, char const *name);
+  ~CompoundType();
+
+  // make it complete
+  void makeComplete(Env *parentEnv);
+  
+  bool isComplete() const { return env != NULL; }
 
   static char const *keywordName(Keyword k);
 
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toString() const;
+  
+  string toStringWithFields() const;
 };
 
 

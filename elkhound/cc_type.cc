@@ -2,6 +2,8 @@
 // code for cc_type.h
 
 #include "cc_type.h"    // this module
+#include "cc_env.h"     // Env
+
 
 bool isValid(SimpleTypeId id)
 {
@@ -52,8 +54,22 @@ string SimpleType::toString() const
 CompoundType::CompoundType(Keyword k, char const *n)
   : keyword(k),
     name(n),
-    incomplete(true)
+    env(NULL)
 {}
+ 
+CompoundType::~CompoundType()
+{
+  if (env) {
+    delete env;
+  }
+}
+
+
+void CompoundType::makeComplete(Env *parentEnv)
+{
+  xassert(!env);
+  env = new Env(parentEnv);
+}
 
 
 STATICDEF char const *CompoundType::keywordName(Keyword k)
@@ -70,6 +86,22 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 string CompoundType::toString() const
 {
   return stringc << keywordName(keyword) << " " << name;
+}
+  
+
+// watch out for circular pointers (recursive types) here!
+// (already bitten once ..)
+string CompoundType::toStringWithFields() const
+{
+  stringBuilder sb;
+  sb << toString();
+  if (isComplete()) {
+    sb << " { " << env->toString() << "};";
+  }
+  else {
+    sb << ";";
+  }
+  return sb;
 }
 
 
