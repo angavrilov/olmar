@@ -736,7 +736,20 @@ void E_fieldAcc::itwalk(Env &env)
   olayer ol("E_fieldAcc::itwalk");
   obj->twalk(env);
   global_code_out << ".";
-  global_code_out << field->name;
+  if (field) {
+    global_code_out << field->name;
+  }
+  else {
+    // the 'field' remains NULL if we're in a template
+    // function and the 'obj' is dependent on the template
+    // arguments.. there are probably a few other places
+    // lurking that will need similar treatment, because
+    // typechecking of templates is very incomplete and in
+    // any event when checking the template *itself* (as
+    // opposed to an instantiation) we never have enough
+    // information to fill in all the variable references..
+    global_code_out << fieldName->toString();
+  }
 }
 
 void E_sizeof::itwalk(Env &env)
