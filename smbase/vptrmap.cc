@@ -235,13 +235,14 @@ int doubleCompar(void const *dp1, void const *dp2)
 }
 
 
-void entry()
+void test1()
 {
+  printf("test1: testing PtrMap\n");
+
   enum { ITERS1=10, ITERS2MAX=2000 };
 
   double avgprobes[ITERS1];
 
-  printf("testing vptrmap\n");
   printf("  iter  iters  entries  lookups  probes  avgprobes\n");
   printf("  ----  -----  -------  -------  ------  ---------\n");
 
@@ -337,6 +338,54 @@ void entry()
   printf("median avgprobe: %g\n", avgprobes[ITERS1/2]);
 
   //malloc_stats();
+}
+
+
+struct A {
+  int x;
+  A(int x0) : x(x0) {}
+};
+
+void test2()
+{
+  printf("test2: testing PtrSet\n");
+
+  PtrSet<A> s;
+  xassert(s.isEmpty());
+  xassert(s.getNumEntries() == 0);
+
+  A *a1 = new A(1);
+  s.add(a1);
+  xassert(s.isNotEmpty());
+  xassert(s.getNumEntries() == 1);
+
+  A *a2 = new A(2);
+  s.add(a2);
+  xassert(s.isNotEmpty());
+  xassert(s.getNumEntries() == 2);
+
+  xassert(s.contains(a1));
+  xassert(s.contains(a2));
+
+  s.empty();                    // make empty
+
+  xassert(!s.contains(a1));
+  xassert(!s.contains(a2));
+  xassert(s.isEmpty());
+  xassert(s.getNumEntries() == 0);
+
+  A *a3 = new A(3);
+  s.add(a3);
+  xassert(s.isNotEmpty());
+  xassert(s.getNumEntries() == 1);
+}
+
+
+void entry()
+{
+  printf("testing vptrmap\n");
+  test1();
+  test2();
   printf("vptrmap is ok\n");
 }
 

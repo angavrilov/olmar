@@ -60,4 +60,29 @@ public:      // iterators
 };
 
 
+// a set based on PtrMap
+template <class KEY>
+class PtrSet : PtrMap<KEY, KEY> {
+  public:
+  PtrSet() {}
+  ~PtrSet() {}
+
+  // query # of mapped entries
+  int getNumEntries() const        { return PtrMap<KEY, KEY>::getNumEntries(); }
+  bool isEmpty() const             { return PtrMap<KEY, KEY>::isEmpty(); }
+  bool isNotEmpty() const          { return PtrMap<KEY, KEY>::isNotEmpty(); }
+
+  // if this key has a mapping, return it; otherwise, return NULL
+  bool contains(KEY const *key) const { return PtrMap<KEY, KEY>::get(key)!=NULL; }
+
+  // add key to the set
+  void add(KEY *key) { PtrMap<KEY, KEY>::add(key, key); }
+
+  // make the set empty; FIX: this would be better named makeEmpty(),
+  // as it could be confused with the meaning of isEmpty(); however I
+  // reflect the naming of PtrMap, where the same criticism applies.
+  void empty()                     { PtrMap<KEY, KEY>::empty(); }
+};
+
+
 #endif // PTRMAP_H
