@@ -791,7 +791,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   #endif
 
   // get ready..
-  traceProgress() << "parsing...\n";
+  traceProgress(2) << "parsing...\n";
   clearAllStackNodes();
 
   // this should be reset to NULL on all exit paths..
