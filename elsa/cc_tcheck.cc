@@ -8196,7 +8196,8 @@ void ND_usingDecl::tcheck(Env &env)
   // see if there is a name in the tag space of the same scope
   // where 'origVar' was found
   Variable *tag = origScope->lookup_one(origVar->name, env,
-                                        LF_SUPPRESS_ERROR | LF_QUERY_TAGS);
+                                        LF_SUPPRESS_ERROR | LF_QUERY_TAGS |
+                                        (name->hasQualifiers()? LF_QUALIFIED : LF_NONE));
   if (tag) {
     env.addTypeTag(tag);
   }

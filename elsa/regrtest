@@ -905,17 +905,25 @@ failparse k0030.cc '"and" and "or" keywords'
 failparse k0031.cc "weird function typedefs used in a class"
 failparse k0032.cc "converting <integral>& to integral"
 failparse k0033.cc "casting function pointer with throw() to/from no throw"
-failparse k0034.cc "undefined instanceless unions repeating members"
+
+# sm: invalid, strange gcc bug (not worth supporting, icc does not)
+#failparse k0034.cc "undefined instanceless unions repeating members"
+
 failparse k0035.cc "ambiguous int+sizeof(struct{})"
 failparse k0036.cc "taking the address of a string (?!)"
 failparse k0037.cc "new array of pointers"
 testparse k0038.cc #"templatized struct as template parameter to function"
-failparse k0039.cc "funky namespace resolution after 'using namespace'"
+testparse k0039.cc #"funky namespace resolution after 'using namespace'"
 failparse k0040.cc "instantiating a template with unnamed template parameter"
 failparse k0041.cc "inner struct defined inline in an inner struct not defined inline"
 failparse k0042.cc "computed array size expression as an assignment"
 failparse k0043.cc "voiding the result of a member call"
-failparse k0044.cc "template super class member variable"
+
+# sm: this is not valid C++; perhaps we should keep a separate
+# set of tests of "legacy" C++ that worked in older gcc, just
+# in case we decide to support it at some point?
+#failparse k0044.cc "template super class member variable"
+
 failparse k0045.cc "'operator delete' redeclared without throw()"
 failparse k0046.cc "anonymous inline struct fields"
 failparse k0046a.cc "anonymous struct fields in a union"

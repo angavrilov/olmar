@@ -234,6 +234,9 @@ bool Scope::addEnum(EnumType *et)
 
 bool Scope::addTypeTag(Variable *tag)
 {
+  xassert(tag->type->isEnumType() ||
+          tag->type->isCompoundType());
+
   tag->setAccess(curAccess);
   return insertUnique(typeTags, tag->name, tag, changeCount, false /*forceReplace*/);
 }
@@ -738,6 +741,10 @@ Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
 
 void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
 {
+  // this is so legacy calls will honor 'set' (I plan to eventually
+  // get rid of LF_LOOKUP_SET entirely)
+  flags |= LF_LOOKUP_SET;
+
   // check in our local map
   Variable *v = lookupSingleVariable(name, flags);
 
@@ -1135,10 +1142,10 @@ Variable *Scope::searchActiveUsingEdges
 {
   // just consider the set of "active using" edges
   for (int i=0; i<activeUsingEdges.length(); i++) {
-    Scope const *s = activeUsingEdges[i];
+    Scope *s = activeUsingEdges[i];
 
     // look for 'name' in 's'
-    Variable *v = vfilter(s->variables.get(name), flags);
+    Variable *v = s->lookupSingleVariable(name, flags);
     if (v) {
       if (foundViaUsingEdge(candidates, env, flags, v, vfound /*IN/OUT*/)) {
         return v;
@@ -1170,7 +1177,7 @@ Variable *Scope::searchUsingEdges
     black.push(s);
 
     // does 's' have the name?
-    Variable *v = vfilter(s->variables.get(name), flags);
+    Variable *v = s->lookupSingleVariable(name, flags);
     if (v) {
       if (foundViaUsingEdge(candidates, env, flags, v, vfound /*IN/OUT*/)) {
         return v;
