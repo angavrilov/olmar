@@ -70,6 +70,9 @@ public:
     // print why
 };
 
+// equivalent to THROW(xBase(msg))
+void xbase(char const *msg);
+
 
 // thrown by _xassert_fail, declared in xassert.h
 // throwing this corresponds to detecting a bug in the program

@@ -68,6 +68,12 @@ void xBase::insert(ostream &os) const
 }
 
 
+void xbase(char const *msg)
+{
+  THROW(xBase(msg));
+}
+
+
 // ------------------- x_assert -----------------
 x_assert::x_assert(char const *cond, char const *fname, int line)
   : xBase(stringb(

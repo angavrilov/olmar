@@ -49,7 +49,7 @@ typedef signed char signed_byte;
 
 
 // often-useful number-of-entries function
-#define TABLESIZE(tbl) (sizeof(tbl)/sizeof((tbl)[0]))
+#define TABLESIZE(tbl) ((int)(sizeof(tbl)/sizeof((tbl)[0])))
 
 
 // concise way to loop on an integer range

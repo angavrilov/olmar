@@ -79,13 +79,23 @@ string &string::setlength(int length)
 
 int string::compareTo(string const &src) const
 {
-  xassert(s && src.s);
-  return strcmp(s, src.s);
+  return compareTo(src.s);
 }
 
 int string::compareTo(char const *src) const
 {
-  xassert(s && src);
+  if (!s || !src) {
+    // yet again I'm forced the deal with these nonideal
+    // possibilities...
+    
+    if (!s && !src) {
+      return 0;    // equal
+    }
+    else {
+      return s - src;
+    }
+  }
+
   return strcmp(s, src);
 }
 
@@ -186,17 +196,23 @@ void stringBuilder::adjustend(char* newend)
   xassert(s <= newend  &&  newend < s + size);
 
   end = newend;
+  *end = 0;        // sm 9/29/00: maintain invariant
 }
 
 
 stringBuilder& stringBuilder::operator&= (char const *tail)
 {
-  int len = strlen(tail);
+  append(tail, strlen(tail));
+  return *this;
+}
+
+void stringBuilder::append(char const *tail, int len)
+{
   ensure(length() + len);
 
-  strcpy(end, tail);
+  memcpy(end, tail, len);
   end += len;
-  return *this;
+  *end = 0;
 }
 
 

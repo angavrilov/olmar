@@ -151,9 +151,15 @@ public:
   // concatenation, which is the purpose of this class
   stringBuilder& operator&= (char const *tail);
 
-  // sorta a mixture of Java compositing and C++ i/o strstream
+  // useful for appending substrings or strings with NUL in them
+  void append(char const *tail, int length);
+
+  // sort of a mixture of Java compositing and C++ i/o strstream
+  // (need the coercion version (like int) because otherwise gcc
+  // spews mountains of f-ing useless warnings)
   stringBuilder& operator << (char const *text) { return operator&=(text); }
   stringBuilder& operator << (char c);
+  stringBuilder& operator << (unsigned char c) { return operator<<((char)c); }
   stringBuilder& operator << (long i);
   stringBuilder& operator << (unsigned long i);
   stringBuilder& operator << (int i) { return operator<<((long)i); }

@@ -21,5 +21,11 @@ string trimWhitespace(char const *str);
 string encodeWithEscapes(char const *src, int len);
 
 
+// decode an escaped string; throw xFormat if there is a problem
+// with the escape syntax; if 'delim' is specified, it will also
+// make sure there are no unescaped instances of that
+void decodeEscapes(string &dest, int &destLen, char const *src,
+                   char delim = 0);
+
 
 #endif // __STRUTIL_H

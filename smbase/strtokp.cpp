@@ -82,6 +82,22 @@ string StrtokParse::
 }
 
 
+string StrtokParse::
+  join(int firstTok, int lastTok, char const *separator) const
+{
+  stringBuilder sb;
+  
+  for (int i=firstTok; i<=lastTok; i++) {
+    if (i > firstTok) {
+      sb << separator;
+    }
+    sb << tokv(i);
+  }
+  
+  return sb;
+}
+
+
 int StrtokParse::offset(int which) const
 {
   return tokv(which) - (char const*)buf;

@@ -38,6 +38,10 @@ public:
     // returned (without any separators); must be that firstTok <=
     // lastTok
 
+  string join(int firstTok, int lastTok, char const *separator) const;
+    // return a string created by concatenating the given range of tokens
+    // together with 'separator' in between them
+
   int offset(int which) const;
     // return a value that, when added to the original 'str' parameter,
     // yields a pointer to where tokv(which) is, as a substring, in that string

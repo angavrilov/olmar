@@ -71,6 +71,7 @@ unsigned long crc32(unsigned char const *data, int length)
 {
   if (!made_table) {
     gen_crc_table();
+    made_table = 1;
   }
 
   return update_crc(0xFFFFFFFF, (char*)data, length);

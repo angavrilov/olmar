@@ -38,6 +38,7 @@ no-warnings = -w
 link = g++ ${ccflags} ${defines} ${includes}
 linkend = ${libraries}
 makelib = ar -r
+ranlib = ranlib
 
 
 # --- conversion targets ---
