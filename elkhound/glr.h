@@ -75,7 +75,8 @@ public:
   // the LR state the parser is in when this node is at the
   // top ("at the top" means that nothing, besides perhaps itself,
   // is pointing to it)
-  ItemSet const * const state;                 // (serf)
+  //ItemSet const * const state;                 // (serf)
+  StateId state;       // now it is an id
 
   // each leftSibling points to a stack node in one possible
   // LR stack.  if there is more than one, it means two or more
@@ -86,16 +87,17 @@ public:
   // so we can deallocate stack nodes earlier
   int referenceCount;
 
-  // somewhat nonideal: I need to store the userActions in every stack
-  // node, just so I can deallocate the semantic value if necessary..
-  UserActions *userAct;
+  // somewhat nonideal: I need access to the 'userActions' to
+  // deallocate semantic values when refCt hits zero, and I need
+  // to map states to state-symbols for the same reason
+  GLR *glr;
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
   static int maxStackNodesAllocd;
 
 public:     // funcs
-  StackNode(int id, int tokenColumn, ItemSet const *state, UserActions *user);
+  StackNode(int nodeId, int tokenColumn, StateId state, GLR *glr);
   ~StackNode();
 
   // add a new link with the given tree node; return the link
@@ -106,7 +108,7 @@ public:     // funcs
   // the symbol shifted or reduced-to to get to this state
   // (this used to be a data member, but there are at least
   // two ways to compute it, so there's no need to store it)
-  Symbol const *getSymbolC() const;
+  SymbolId getSymbolC() const;
 
   // reference count stuff
   void incRefCt() { referenceCount++; }
@@ -154,10 +156,11 @@ public:
   RCPtr<StackNode> parser;
 
   // which state is it ready to shift into?
-  ItemSet const * const shiftDest;            // (serf)
+  //ItemSet const * const shiftDest;            // (serf)
+  StateId shiftDest;
 
 public:
-  PendingShift(StackNode *p, ItemSet const *s)
+  PendingShift(StackNode *p, StateId s)
     : parser(p), shiftDest(s) {}
   ~PendingShift();
 };
@@ -189,24 +192,24 @@ public:    // types
 public:	   // data
   // ---- stuff that changes ----
   // id of the state we started in (where the reduction was applied)
-  int startStateId;
+  StateId startStateId;
 
   // we collect paths into this array, which is maintained as we
   // enter/leave recursion; the 0th item is the leftmost, i.e.
   // the last one we collect when starting from the reduction state
   // and popping symbols as we move left;
   SiblingLink **siblings;        // (owner ptr to array of serfs)
-  Symbol const **symbols;        // (owner ptr to array of serfs)
+  SymbolId *symbols;             // (owner ptr to array)
 
   // as reduction possibilities are encountered, we record them here
   ObjList<ReductionPath> paths;
 
   // ---- stuff constant across a series of DFSs ----
-  // this is the production we're trying to reduce by
-  Production const * const production;
+  // this is the (index of the) production we're trying to reduce by
+  int prodIndex;
 
 public:	   // funcs
-  PathCollectionState(Production const *p, int start);
+  PathCollectionState(int prodIndex, int rhsLen, StateId start);
   ~PathCollectionState();
 };
 
@@ -260,23 +263,27 @@ public:
 
 private:    // funcs
   // comments in glr.cc
-  SemanticValue duplicateSemanticValue(Symbol const *sym, SemanticValue sval);
-  void deallocateSemanticValue(Symbol const *sym, SemanticValue sval);
+  SemanticValue duplicateSemanticValue(SymbolId sym, SemanticValue sval);
+  void deallocateSemanticValue(SymbolId sym, SemanticValue sval);
   SemanticValue grabTopSval(StackNode *node);
 
-  int glrParseAction(StackNode *parser,
+  int glrParseAction(StackNode *parser, ActionEntry action,
                      ObjList<PendingShift> &pendingShifts);
-  int postponeShift(StackNode *parser,
-                    ObjList<PendingShift> &pendingShifts);
-  int doAllPossibleReductions(StackNode *parser,
-                              SiblingLink *mustUseLink);
+  void postponeShift(StackNode *parser,
+                     ObjList<PendingShift> &pendingShifts,
+                     StateId shiftDest);
+  void doAllPossibleReductions(StackNode *parser, ActionEntry action,
+                               SiblingLink *sibLink);
+  void doReduction(StackNode *parser,
+                   SiblingLink *mustUseLink,
+                   int prodIndex);
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
-  void glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
+  void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                            SemanticValue sval, SourceLocation const &loc);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
-  StackNode *findActiveParser(ItemSet const *state);
-  StackNode *makeStackNode(ItemSet const *state);
+  StackNode *findActiveParser(StateId state);
+  StackNode *makeStackNode(StateId state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
 

@@ -191,6 +191,10 @@ public:    // funcs
 
 
 // ---------------- ItemSet -------------------
+// integer id; as an experiment I'm using an 'enum' to prevent
+// any other integers from silently flowing into it
+enum StateId {};
+
 // a set of dotted productions, and the transitions between
 // item sets, as in LR(0) set-of-items construction
 class ItemSet {
@@ -235,7 +239,7 @@ private:    // data
 public:	    // data
   // numerical state id, should be unique among item sets
   // in a particular grammar's sets
-  int id;
+  StateId id;
 
   // it's useful to have a BFS tree superimposed on the transition
   // graph; for example, it makes it easy to generate sample inputs
@@ -257,7 +261,7 @@ private:    // funcs
   void deleteNonReductions(ObjList<LRItem> &list);
 
 public:     // funcs
-  ItemSet(int id, int numTerms, int numNonterms);
+  ItemSet(StateId id, int numTerms, int numNonterms);
   ~ItemSet();
 
   ItemSet(Flatten&);
@@ -359,8 +363,18 @@ public:     // funcs
 // ---------------------- ParseTables ----------------------
 // encodes an action in 'action' table; see 'actionTable'
 typedef signed short ActionEntry;
+
 // encodes a destination state in 'gotoTable'
 typedef unsigned short GotoEntry;
+
+// encodes either terminal index N (as N+1) or
+// nonterminal index N (as -N-1), or 0 for no-symbol
+typedef signed short SymbolId;
+inline bool symIsTerm(SymbolId id) { return id > 0; }
+inline int symAsTerm(SymbolId id) { return id-1; }
+inline bool symIsNonterm(SymbolId id) { return id < 0; }
+inline int symAsNonterm(SymbolId id) { return -(id+1); }
+
 
 // the parse tables are the traditional action/goto, plus the list
 // of ambiguous actions, plus any more auxilliary tables useful during
@@ -433,7 +447,7 @@ public:     // funcs
     { return numStates * numNonterms; }
 
   // encode actions
-  ActionEntry encodeShift(int stateId) const
+  ActionEntry encodeShift(StateId stateId) const
     { return validateAction(+stateId+1); }
   ActionEntry encodeReduce(int prodId) const
     { return validateAction(-prodId-1); }
@@ -442,12 +456,12 @@ public:     // funcs
   ActionEntry encodeError() const
     { return validateAction(0); }
   ActionEntry validateAction(int code) const;
-                 
+
   // decode actions
   bool isShiftAction(ActionEntry code) const
     { return code > 0 && code <= numStates; }
-  int decodeShift(ActionEntry code) const
-    { return code-1; }
+  StateId decodeShift(ActionEntry code) const
+    { return (StateId)(code-1); }
   bool isReduceAction(ActionEntry code) const
     { return code < 0; }
   int decodeReduce(ActionEntry code) const
@@ -459,15 +473,15 @@ public:     // funcs
     { return code-1-numStates; }
 
   // encode gotos
-  GotoEntry encodeGoto(int stateId) const
+  GotoEntry encodeGoto(StateId stateId) const
     { return validateGoto(stateId); }
   GotoEntry encodeGotoError() const
     { return validateGoto(numStates); }
   GotoEntry validateGoto(int code) const;
 
   // decode gotos
-  int decodeGoto(GotoEntry code) const
-    { return code; }
+  StateId decodeGoto(GotoEntry code) const
+    { return (StateId)code; }
 };
 
 

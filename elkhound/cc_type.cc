@@ -1035,14 +1035,16 @@ int ArrayType::reprSize() const
 // ------------------ test -----------------
 void cc_type_checker()
 {                                    
+  #ifndef NDEBUG
   // verify the fixed[] arrays
   // it turns out this is probably redundant, since the compiler will
   // complain if I leave out an entry, now that the classes do not have
   // default constructors! yes!
   for (int i=0; i<NUM_SIMPLE_TYPES; i++) {
     assert(SimpleType::fixed[i].type == i);
-    
+
     SimpleType const *st = (SimpleType const*)(CVAtomicType::fixed[i].atomic);
     assert(st && st->type == i);
   }
+  #endif // NDEBUG
 }

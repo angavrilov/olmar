@@ -319,7 +319,7 @@ void LRItem::print(ostream &os, GrammarAnalysis const &g) const
 
 
 // ----------------- ItemSet -------------------
-ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
+ItemSet::ItemSet(StateId anId, int numTerms, int numNonterms)
   : kernelItems(),
     nonkernelItems(),
     termTransition(NULL),      // inited below
@@ -416,7 +416,7 @@ void ItemSet::xfer(Flatten &flat)
   flat.xferInt(numDotsAtEnd);
   flat.xferLong((long&)kernelItemsCRC);
 
-  flat.xferInt(id);
+  flat.xferInt((int&)id);
 }
 
 
@@ -2248,7 +2248,8 @@ void GrammarAnalysis
 // -------------- START of construct LR item sets -------------------
 ItemSet *GrammarAnalysis::makeItemSet()
 {
-  return new ItemSet(nextItemSetId++, numTerminals(), numNonterminals());
+  return new ItemSet((StateId)(nextItemSetId++), 
+                     numTerminals(), numNonterminals());
 }
 
 void GrammarAnalysis::disposeItemSet(ItemSet *is)
@@ -2411,7 +2412,7 @@ void GrammarAnalysis::constructLRItemSets()
   // make a new state, and if it turns out we really do need a new
   // state, then the kernel items in this one will be copied elsewhere
   Owner<ItemSet> scratchState(
-    new ItemSet(-1 /*id*/, numTerms, numNonterms));
+    new ItemSet((StateId)-1 /*id*/, numTerms, numNonterms));
 
   // fill the scratch state with lots of kernel items to start with;
   // since these items will be re-used over and over, filling it now
