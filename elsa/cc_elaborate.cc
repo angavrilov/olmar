@@ -510,9 +510,10 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
 
   StringRef srcNameS = env.str.add("__other");
 
-  // FIX: this is wrong for arrays
   SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
     Variable *var = const_cast<Variable *>(iter.data());
+    // skip arrays for now; FIX: do something correct here
+    if (var->type->isArrayType()) continue;
     MemberInit *mi = makeCopyCtorMemberInit
       (new PQ_name(loc, var->name), srcNameS, var->name, loc);
     inits = inits->prepend(mi);
@@ -933,9 +934,10 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
     }
   }
 
-  // FIX: this is wrong for arrays
   SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
     Variable *var = const_cast<Variable *>(iter.data());
+    // skip arrays for now; FIX: do something correct here
+    if (var->type->isArrayType()) continue;
     stmts->append(make_S_expr_memberCopyAssign(env, var->name));
   }
 
