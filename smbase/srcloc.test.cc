@@ -1,6 +1,9 @@
 // srcloc.test.cc            see license.txt for copyright and terms of use
 // test input
 
+#include <stdio.h>      // fprintf
+#include <string.h>     // memcpy
+
 // This is not a real source file, it is simply some test input for
 // the srcloc module to consume.  Originally, srcloc.cc simply used
 // its own source code for this purpose, but it turns out that some
@@ -11,16 +14,6 @@
 // So, the solution was to simply create this test input file, with
 // most of the #includes simply commented-out or replaced with ones
 // that should be portable.
-
-//#include "srcloc.h"     // this module
-//#include "autofile.h"   // AutoFILE
-//#include "array.h"      // ArrayStack
-//#include "syserr.h"     // xsyserror
-//#include "trace.h"      // traceProgress
-//#include "hashline.h"   // HashLineMap
-
-#include <stdio.h>      // fprintf
-#include <string.h>     // memcpy
 
 
 // this parameter controls the frequency of Markers in 

@@ -233,10 +233,8 @@ private:     // funcs
 
   File *findFile(char const *name);
   File *getFile(char const *name);
-
-  public:                       // dsw: I need this so I have an object to annotate with a VoidVoidDict
+                                
   File *findFileWithLoc(SourceLoc loc);
-  private:
   StaticLoc const *getStatic(SourceLoc loc);
 
 public:      // funcs
@@ -300,7 +298,7 @@ public:      // funcs
 extern SourceLocManager *sourceLocManager;
 
 // dsw: So that gdb can find it please DO NOT inline this; also the
-// unique public name is intensional: I don't want gdb doing
+// unique public name is intentional: I don't want gdb doing
 // overloading and sometimes getting it wrong, which it does
 string locToStr(SourceLoc sl);
 

@@ -828,6 +828,40 @@ string locString(char const *fname, int line, int col)
 }
 
 
+void buildHashMap(SourceLocManager::File *pp, char const *fname, int &expanderLine)
+{
+  expanderLine = 0;
+  AutoFILE fp(fname, "rb");
+
+  enum { SZ=256 };
+  char buf[SZ];
+  int ppLine=0;
+  while (fgets(buf, SZ, fp)) {
+    if (buf[strlen(buf)-1] == '\n') {
+      ppLine++;
+    }
+
+    if (0==memcmp(buf, "int blah_de_blah", 16)) {
+      expanderLine = ppLine;
+    }
+
+    if (buf[0]!='#') continue;
+
+    // break into tokens at whitespace (this isn't exactly
+    // right, because the file names can have quoted spaces,
+    // but it will do for testing purposes)
+    StrtokParse tok(buf, " \r\n");
+    if (tok < 3) continue;
+
+    int origLine = atoi(tok[1]);
+    char const *tok2 = tok[2];
+    string origFname = substring(tok2+1, strlen(tok2)-2);  // remove quotes
+    pp->addHashLine(ppLine, origLine, origFname.c_str());
+  }
+  pp->doneAdding();
+}
+
+
 void testHashMap()
 {
   // run the preprocessor
@@ -840,36 +874,7 @@ void testHashMap()
 
   // read srcloc.tmp and install the hash maps
   int expanderLine=0;
-  {
-    AutoFILE fp("srcloc.tmp", "rb");
-
-    enum { SZ=256 };
-    char buf[SZ];
-    int ppLine=0;
-    while (fgets(buf, SZ, fp)) {
-      if (buf[strlen(buf)-1] == '\n') {
-        ppLine++;
-      }
-
-      if (0==memcmp(buf, "int blah_de_blah", 16)) {
-        expanderLine = ppLine;
-      }
-
-      if (buf[0]!='#') continue;
-                                       
-      // break into tokens at whitespace (this isn't exactly
-      // right, because the file names can have quoted spaces,
-      // but it will do for testing purposes)
-      StrtokParse tok(buf, " \r\n");
-      if (tok < 3) continue;
-
-      int origLine = atoi(tok[1]);
-      char const *tok2 = tok[2];
-      string origFname = substring(tok2+1, strlen(tok2)-2);  // remove quotes
-      pp->addHashLine(ppLine, origLine, origFname.c_str());
-    }
-    pp->doneAdding();
-  }
+  buildHashMap(pp, "srcloc.tmp", expanderLine);
 
   // the 2nd line in the pp source should correspond to the
   // first line in the orig src
@@ -924,6 +929,20 @@ void testHashMap()
 }
 
 
+void testHashMap2()
+{
+  SourceLocManager::File *pp = mgr.getInternalFile("srcloc.test2.cc");
+
+  int expanderLine=0;
+  buildHashMap(pp, "srcloc.test2.cc", expanderLine);
+
+  for (int ppLine = 1; ppLine <= pp->numLines; ppLine++) {
+    SourceLoc loc = mgr.encodeLineCol("srcloc.test2.cc", ppLine, 1);
+    cout << "ppLine " << ppLine << ": " << toString(loc) << endl;
+  }
+}
+
+
 void entry(int argc, char ** /*argv*/)
 {
   traceAddSys("progress");
@@ -958,6 +977,7 @@ void entry(int argc, char ** /*argv*/)
   
   cout << "\n";
   testHashMap();
+  testHashMap2();
 
   cout << "srcloc is ok\n";
 }
