@@ -148,6 +148,7 @@ CCPARSE_OBJS := \
   matchtype.o \
   cc_env.o \
   cc_tcheck.o \
+  implint.o \
   serialno.o \
   cc_scope.o \
   cc_elaborate.o \
