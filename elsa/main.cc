@@ -2,7 +2,7 @@
 // entry-point module for a program that parses C++
 
 #include <iostream.h>     // cout
-#include <stdlib.h>       // exit, getenv
+#include <stdlib.h>       // exit, getenv, abort
 
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
@@ -255,9 +255,18 @@ void doit(int argc, char **argv)
         // print all the locations on the scope stack; this is sometimes
         // useful when the env.locStr refers to some template code that
         // was instantiated from somewhere else
+        //
+        // (unfortunately, env.instantiationLocStack isn't an option b/c
+        // it will have been cleared by the automatic invocation of
+        // destructors unwinding the stack...)
         cout << env.locationStackString();
       }
-      exit(4);
+
+      // I changed from using exit(4) here to using abort() because
+      // that way the multitest.pl script can distinguish them; the
+      // former is reserved for orderly exits, and signals (like
+      // SIGABRT) mean that something went really wrong
+      abort();
     }
     traceProgress() << "done type checking ("
                     << (getMilliseconds() - tcheckStart)
@@ -449,7 +458,7 @@ int main(int argc, char **argv)
   }
   catch (xBase &x) {
     cout << x << endl;
-    return 4;
+    abort();
   }
 
   //malloc_stats();
