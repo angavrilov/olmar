@@ -2125,6 +2125,11 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
   }
   activeParsers.empty();
 
+  // to solve the multi-yield problem for tokens, I'll remember
+  // the previously-created sibling link (if any), and dup the
+  // sval in that link as needed
+  SiblingLink *prev = NULL;
+
   // foreach (leftSibling, newState) in pendingShifts
   while (pendingShifts.isNotEmpty()) {
     RCPtr<StackNode> leftSibling(pendingShifts.top().parser);
@@ -2150,18 +2155,31 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
       addActiveParser(rightSibling);
     }
 
+    SemanticValue sval = lexerPtr->sval;
+    if (prev) {
+      // the 'sval' we just grabbed has already been claimed by
+      // 'prev->sval'; get a fresh one by duplicating the latter
+      sval = userAct->duplicateTerminalValue(lexerPtr->type, prev->sval);
+      
+      TRSACTION("  " << userAct->terminalDescription(lexerPtr->type, sval) <<
+                " is (@lexer) DUP of " <<
+                userAct->terminalDescription(lexerPtr->type, prev->sval));
+    }
+
     // TODO: BUG: I am not duplicating semantic values of tokens here,
     // even though there's a possibility that multiple states could
     // shift.  For the moment I will ignore it since I'm working on
     // something else and I can't completely assure myself that adding
     // the dup() couldn't break something.. also I'm not yet sure
     // when/if a del() should accompany the dup()s.
+    //
+    // UPDATE: fixed?
 
     // either way, add the sibling link now
     //TRSACTION("grabbed token sval " << lexerPtr->sval);
-    rightSibling->addSiblingLink(leftSibling, lexerPtr->sval
-                                 SOURCELOCARG( lexerPtr->loc ) );
-                                 
+    prev = rightSibling->addSiblingLink(leftSibling, sval
+                                        SOURCELOCARG( lexerPtr->loc ) );
+
     // adding this sibling link cannot violate the determinDepth
     // invariant of some other node, because all of the nodes created
     // or added-to during shifting do not have anything pointing at

@@ -52,13 +52,15 @@ ranlib      := ranlib
 # when uncommented, we get profiling info
 #ccflags += -pg
 
+#ALLOW_DEBUG := 1
+
 OPTIMIZATION_FLAGS :=
 ifdef ALLOW_DEBUG
   # enable action trace in glr parser
   OPTIMIZATION_FLAGS += -DACTION_TRACE
 else
   # turn on the optimizer
-  #OPTIMIZATION_FLAGS += -O2 -DNDEBUG
+  OPTIMIZATION_FLAGS += -O2 -DNDEBUG
 endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
