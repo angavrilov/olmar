@@ -68,17 +68,8 @@ void ToplevelForm::debugPrint(ostream &os, int indent) const
 {}
 
 
-TF_verbatim const *ToplevelForm::asTF_verbatimC() const
-{
-  xassert(kind() == TF_VERBATIM);
-  return (TF_verbatim const*)this;
-}
-
-ASTClass const *ToplevelForm::asASTClassC() const
-{
-  xassert(kind() == ASTCLASS);
-  return (ASTClass const*)this;
-}
+DEFN_AST_DOWNCASTS(ToplevelForm, TF_verbatim, TF_VERBATIM)
+DEFN_AST_DOWNCASTS(ToplevelForm, ASTClass, ASTCLASS)
 
 
 void TF_verbatim::debugPrint(ostream &os, int indent) const

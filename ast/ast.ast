@@ -2,7 +2,6 @@
 // ast definition for an ast definition
 
 verbatim {
-  #include "astlist.h"     // ASTList
   #include "str.h"         // string
 }
 

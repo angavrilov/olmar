@@ -6,6 +6,7 @@
 #include "trace.h"         // TRACE_ARGS
 #include "owner.h"         // Owner
 #include "ckheap.h"        // checkHeap
+#include "strutil.h"       // replace, translate, localTimeString
 
 #include <string.h>        // strncmp
 
@@ -27,13 +28,41 @@ private:        // funcs
 
 public:         // funcs
   Gen(ostream &os) : out(os) {}
-  void emitFile(ASTSpecFile const &file);
+  void emitFile(ASTSpecFile const &file, char const *srcFname);
 };
 
 
 // emit header code for an entire AST spec file
-void Gen::emitFile(ASTSpecFile const &file)
+void Gen::emitFile(ASTSpecFile const &file, char const *srcFname)
 {
+  // compute destination file name from source file name
+  string base = replace(srcFname, ".ast", "");
+  string destFname = base & ".gen.h";
+  string includeLatch = translate(destFname, "a-z.", "A-Z_");
+
+  // header of comments
+  out << "// " << destFname << "\n";
+  out << "// *** DO NOT EDIT ***\n";
+  out << "// generated automatically by astgen, from " << srcFname << "\n";
+  out << "//   on " << localTimeString() << "\n";
+  out << "\n";
+  out << "#ifndef " << includeLatch << "\n";
+  out << "#define " << includeLatch << "\n";
+  out << "\n";
+  out << "#include \"asthelp.h\"        // helpers for generated code\n";
+  out << "\n";
+
+  // forward-declare all the classes
+  out << "// fwd decls\n";
+  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
+    ASTClass const *c = form.data()->ifASTClassC();
+    if (c) {
+      out << "class " << c->name << ";\n";
+    }
+  }
+  out << "\n";
+
+  // process each directive
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
     switch (form.data()->kind()) {
       case ToplevelForm::TF_VERBATIM:
@@ -47,7 +76,11 @@ void Gen::emitFile(ASTSpecFile const &file)
       default:
         xfailure("bad AST kind code");
     }
+
+    out << "\n";
   }
+  
+  out << "#endif // " << includeLatch << "\n";
 }
 
 
@@ -89,7 +122,7 @@ void Gen::emitASTClass(ASTClass const &cls)
     FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
       cout << ctor.data()->kindName() << ", ";
     }
-    out << "";
+    out << "NUM_KINDS };\n";
 
     out << "  virtual Kind kind() const = 0;\n\n";
   }
@@ -99,12 +132,9 @@ void Gen::emitASTClass(ASTClass const &cls)
     FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
       // declare the const downcast
       ASTCtor const &c = *(ctor.data());
-      out << "  " << c.name << " const *as" << c.name << "C() const;\n";
-
-      // define the non-const version as a wrapper on the const version
-      out << "  " << c.name << " *as" << c.name << "()\n";
-      out << "    { return const_cast<" << c.name << "*>(as" << c.name << "()); }\n\n";
+      out << "  DECL_AST_DOWNCAST(" << c.name << ")\n";
     }
+    out << "\n";
   }
 
   emitCommonFuncs(virt);
@@ -112,7 +142,7 @@ void Gen::emitASTClass(ASTClass const &cls)
   emitUserDecls(cls.decls);
 
   // close the declaration of the parent class
-  out << "};\n";
+  out << "};\n\n";
 
   // print declarations for all child classes
   {
@@ -133,7 +163,7 @@ void Gen::emitCtorFields(ASTList<CtorArg> const &args)
   // go over the arguments in the ctor and declare fields for them
   {
     FOREACH_ASTLIST(CtorArg, args, arg) {
-      out << "  " << arg.data()->type << " " << arg.data()->name << "\n";
+      out << "  " << arg.data()->type << " " << arg.data()->name << ";\n";
     }
   }
   out << "\n";
@@ -200,6 +230,7 @@ void Gen::emitCommonFuncs(char const *virt)
 {
   // declare the one function they all have
   out << "  " << virt << "void debugPrint(ostream &os, int indent) const;\n";
+  out << "\n";
 }
 
 // emit user-supplied declarations
@@ -220,18 +251,20 @@ void Gen::visitCtor(ASTClass const &parent, ASTCtor const &ctor)
 
   // destructor
   out << "  virtual ~" << ctor.name << "() {}\n";
+  out << "\n";
 
   // type tag
   out << "  virtual Kind kind() const { return " << ctor.kindName() << "; }\n";
-  out << "  enum { TYPE_TAG = " << ctor.kindName() << " };\n\n";
+  out << "  enum { TYPE_TAG = " << ctor.kindName() << " };\n";
+  out << "\n";
 
   // common functions
-  emitCommonFuncs("virtual");
+  emitCommonFuncs("virtual ");
 
   emitUserDecls(ctor.decls);
-  
+
   // close the decl
-  out << "};\n";
+  out << "};\n\n";
 }
 
 
@@ -251,7 +284,7 @@ void entry(int argc, char **argv)
 
   // generated the header
   Gen g(cout);
-  g.emitFile(*ast);
+  g.emitFile(*ast, argv[1]);
 }
 
 ARGS_MAIN

@@ -9,7 +9,8 @@ COMPILE = $(CXX) -c $(CXXFLAGS)
 
 LDFLAGS = -Wall -g
 LINK = $(CXX) $(LDFLAGS)
-LINKEND = $(SMBASE)/libsmbase.a
+LIBSMBASE = $(SMBASE)/libsmbase.a
+LINKEND = $(LIBSMBASE)
 
 # default target
 all: agrampar astgen
@@ -41,9 +42,9 @@ $(PARSGEN)/%.o: $(PARSGEN)/%.cc
 
 agrampar-dep = $(PARSGEN)/gramlex.o agrampar.tab.o $(PARSGEN)/ccsstr.o \
                $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.o ast.hand.o
-agrampar: $(agrampar-dep) agrampar.cc
+agrampar: $(agrampar-dep) agrampar.cc $(LIBSMBASE) 
 	$(LINK) -o agrampar $(CXXFLAGS) $(agrampar-dep) \
                 -DTEST_AGRAMPAR agrampar.cc $(LINKEND)
 
-astgen: $(agrampar-dep) agrampar.o astgen.o
+astgen: $(agrampar-dep) agrampar.o astgen.o $(LIBSMBASE) 
 	$(LINK) -o astgen $(agrampar-dep) agrampar.o astgen.o $(LINKEND)

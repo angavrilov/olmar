@@ -4,10 +4,7 @@
 #ifndef AST_HAND_H
 #define AST_HAND_H
 
-#include <iostream.h>    // ostream
-
-  #include "astlist.h"     // ASTList
-  #include "str.h"         // string
+#include "asthelp.h"     // helpers for generated code
 
 // fwd decls
 class ASTSpecFile;
@@ -18,6 +15,8 @@ class UserDecl;
 class ASTCtor;
 class CtorArg;
 
+
+  #include "str.h"         // string
 
 class ASTSpecFile {
 public:
@@ -39,13 +38,8 @@ public:
   enum Kind { TF_VERBATIM, ASTCLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
-  TF_verbatim const *asTF_verbatimC() const;
-  TF_verbatim *asTF_verbatim() 
-    { return const_cast<TF_verbatim*>(asTF_verbatimC()); }
-
-  ASTClass const *asASTClassC() const;
-  ASTClass *asASTClass()
-    { return const_cast<ASTClass*>(asASTClass()); }
+  DECL_AST_DOWNCASTS(TF_verbatim)
+  DECL_AST_DOWNCASTS(ASTClass)
 
   virtual void debugPrint(ostream &os, int indent) const;
 };
@@ -142,6 +136,5 @@ public:
 
   void debugPrint(ostream &os, int indent) const;
 };
-
 
 #endif // AST_HAND_H
