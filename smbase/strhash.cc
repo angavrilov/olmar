@@ -49,6 +49,10 @@ StringHash::~StringHash()
 
 STATICDEF unsigned StringHash::coreHash(char const *key)
 {
+  // dsw: not sure if this is the best place for it, but an assertion
+  // failure is better than a segfault
+  xassert(key);
+
   // some more references:
   
   // http://www.cs.yorku.ca/~oz/hash.html
