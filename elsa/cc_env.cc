@@ -159,8 +159,6 @@ Env::~Env()
       delete s;
     }
   }
-
-  errors.deleteAll();
 }
 
 
@@ -1203,7 +1201,7 @@ Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
 {
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
-    errors.prepend(new ErrorMsg(L, msg, 
+    errors.addError(new ErrorMsg(L, msg, 
       disambiguates ? EF_DISAMBIGUATES : EF_NONE));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
@@ -1219,7 +1217,7 @@ Type *Env::warning(char const *msg)
 {
   trace("error") << "warning: " << msg << endl;
   if (!disambiguateOnly) {
-    errors.prepend(new ErrorMsg(loc(), msg, EF_WARNING));
+    errors.addError(new ErrorMsg(loc(), msg, EF_WARNING));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -1231,7 +1229,7 @@ Type *Env::unimp(char const *msg)
   // segfault (deref'ing NULL) right after printing this
   cout << "unimplemented: " << msg << endl;
 
-  errors.prepend(new ErrorMsg(
+  errors.addError(new ErrorMsg(
     loc(), stringc << "unimplemented: " << msg, EF_NONE));
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -1262,17 +1260,6 @@ bool Env::setDisambiguateOnly(bool newVal)
   bool ret = disambiguateOnly;
   disambiguateOnly = newVal;
   return ret;
-}
-
-
-STATICDEF bool Env::listHasDisambErrors(ObjList<ErrorMsg> const &list)
-{
-  FOREACH_OBJLIST(ErrorMsg, list, iter) {
-    if (iter.data()->disambiguates()) {
-      return true;     // has at least one disambiguating error
-    }
-  }
-  return false;        // no disambiguating errors
 }
 
 

@@ -213,20 +213,18 @@ void test_getImplicitConversion(
   int expectedKind, int expectedSCS, int expectedUserLine, int expectedSCS2)
 {
   // grab existing error messages
-  ObjList<ErrorMsg> existing;
-  existing.concat(env.errors);
+  ErrorList existing;
+  existing.takeMessages(env.errors);
 
   // run our function
   ImplicitConversion actual = getImplicitConversion(env, special, src, dest);
 
   // turn any resulting messags into warnings, so I can see their
   // results without causing the final exit status to be nonzero
-  FOREACH_OBJLIST_NC(ErrorMsg, env.errors, iter) {
-    iter.data()->flags |= EF_WARNING;
-  }
-
+  env.errors.markAllAsWarnings();
+  
   // put the old messages back
-  env.errors.concat(existing);
+  env.errors.takeMessages(existing);
 
   // did it behave as expected?
   bool matches = matchesExpectation(actual, expectedKind, expectedSCS,

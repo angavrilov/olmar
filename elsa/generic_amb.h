@@ -72,8 +72,8 @@ NODE *resolveAmbiguity(
   EXTRA &callerExtra)
 {
   // grab the existing list of error messages
-  ObjList<ErrorMsg> existingErrors;
-  existingErrors.concat(env.errors);
+  ErrorList existingErrors;
+  existingErrors.takeMessages(env.errors);
 
   // having stolen the existing errors, we now tell the environment
   // we're in a disambiguation pass so it knows that any disambiguating
@@ -91,7 +91,7 @@ NODE *resolveAmbiguity(
     }
   }
 
-  TRACE("disamb", 
+  TRACE("disamb",
     toString(loc) << ": ambiguous " << nodeTypeName
                   << " with " << numAlts << " alternatives");
 
@@ -99,7 +99,7 @@ NODE *resolveAmbiguity(
   // various alternatives
   enum { MAX_ALT = 3 };
   xassert(numAlts <= MAX_ALT);
-  ObjList<ErrorMsg> altErrors[MAX_ALT];
+  ErrorList altErrors[MAX_ALT];
 
   // copy the caller's 'extra' so we can make untainted copies
   // for each iteration
@@ -112,24 +112,24 @@ NODE *resolveAmbiguity(
   int lastOkIndex = -1;
   for (NODE *alt = ths; alt != NULL; alt = alt->ambiguity, altIndex++) {
     int beforeChange = env.getChangeCount();
-    
+
     TRACE("disamb",
           toString(loc) << ": considering " << ambiguousNodeName(alt));
-                  
+
     // tcheck 'alt'
     EXTRA extra(origExtra);
     alt->mid_tcheck(env, extra);
 
     // move that run's errors into a per-alternative list
-    altErrors[altIndex].concat(env.errors);
+    altErrors[altIndex].takeMessages(env.errors);
 
     // did that alternative succeed?
     if (noDisambErrors(altErrors[altIndex])) {
       // yes; update our success trackers
       numOk++;
       lastOk = alt;
-      lastOkIndex = altIndex;            
-      
+      lastOkIndex = altIndex;
+
       // copy that alternative's 'extra' to the caller's
       callerExtra = extra;
 
@@ -158,7 +158,7 @@ NODE *resolveAmbiguity(
         // parse, so I'll just insert one more (non-disambiguating)
         // error, so this entire interpretation line has to be rejected
         // one way or another
-        altErrors[altIndex].prepend(new ErrorMsg(
+        altErrors[altIndex].addError(new ErrorMsg(
           loc, "a rejected alternative modified this environment", EF_NONE));
       }
 
@@ -176,13 +176,14 @@ NODE *resolveAmbiguity(
       toString(loc) << ": ambiguous " << nodeTypeName << ": all bad");
 
     // put all the errors in and also a note about the ambiguity
+    env.errors.takeMessages(existingErrors);
+    env.errors.addError(new ErrorMsg(
+      loc, "---- BEGIN: messages from an ambiguity ----", EF_NONE));
     for (int i=0; i<numAlts; i++) {
-      env.errors.concat(altErrors[i]);
+      env.errors.takeMessages(altErrors[i]);
     }
-    env.errors.append(new ErrorMsg(
-      loc, "following messages from an ambiguity", EF_NONE));
-    env.errors.concat(existingErrors);
-    env.error("previous messages from an ambiguity with bad alternatives");
+    env.errors.addError(new ErrorMsg(
+      loc, "---- END: messages from an ambiguity ----", EF_NONE));
     return ths;
   }
 
@@ -192,13 +193,13 @@ NODE *resolveAmbiguity(
       toString(loc) << ": ambiguous " << nodeTypeName
                     << ": selected " << ambiguousNodeName(lastOk));
 
-    // put back its errors (non-disambiguating, and warnings);
-    // errors associated with other alternatives will be deleted
-    // automatically
-    env.errors.concat(altErrors[lastOkIndex]);
-
     // put back pre-existing errors
-    env.errors.concat(existingErrors);
+    env.errors.takeMessages(existingErrors);
+
+    // put back succeeding alternative's errors (non-disambiguating,
+    // and warnings); errors associated with other alternatives will
+    // be deleted automatically
+    env.errors.takeMessages(altErrors[lastOkIndex]);
 
     // break the ambiguity link (if any) in 'lastOk', so if someone
     // comes along and tchecks this again we can skip the last part
@@ -213,7 +214,7 @@ NODE *resolveAmbiguity(
       toString(loc) << ": ambiguous " << nodeTypeName << ": multiple good!");
 
     // first put back the old errors
-    env.errors.concat(existingErrors);
+    env.errors.takeMessages(existingErrors);
 
     // now complain; mark it 'disambiguating' so that we'll see
     // this show up even in template code

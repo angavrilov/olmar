@@ -15,7 +15,7 @@
 #include "cc_ast.h"       // C++ ast components
 #include "variable.h"     // Variable (r)
 #include "cc_scope.h"     // Scope
-#include "cc_err.h"       // ErrorMsg
+#include "cc_err.h"       // ErrorList
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -47,11 +47,10 @@ public:      // data
   // this is used for certain kinds of error reporting and suppression
   int disambiguationNestingLevel;
 
-  // stack of error messages; the first one is the latest
-  // one inserted; during disambiguation, I'll remember where
-  // the top was before each alternative, so I can leave this
-  // stack with only the ones from one particular interpretation
-  ObjList<ErrorMsg> errors;
+  // list of error messages; during disambiguation, the existing
+  // list is set aside, so 'errors' only has errors from the
+  // disambiguation we're doing now (if any)
+  ErrorList errors;
 
   // string table for making new strings
   StringTable &str;
@@ -223,8 +222,7 @@ public:      // funcs
 
   // return true if the given list of errors contain any which
   // are disambiguating errors
-  static bool listHasDisambErrors(ObjList<ErrorMsg> const &list);
-  bool hasDisambErrors() const { return listHasDisambErrors(errors); }
+  bool hasDisambErrors() const { return errors.hasDisambErrors(); }
   
   // return true if environment modifications should be suppressed
   // because of disambiguating errors

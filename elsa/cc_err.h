@@ -8,6 +8,8 @@
 #include "str.h"       // string
 #include "srcloc.h"    // SourceLoc
 
+#include <ostream.h>   // ostream
+
 
 // flags on errors
 enum ErrorFlags {
@@ -51,94 +53,54 @@ public:
 };
 
 
-// simple interface for reporting errors, so I can break a dependency
-// cycle
-#if 0
-class ErrorReporter {
+// list of errors; a reference to this will be passed to functions
+// that want to report errors to the user
+class ErrorList {
+private:           
+  // the error objects are actually stored in reverse order, such
+  // that (effectively) appending is fast and prepending is slow;
+  // this field is private because I want to isolate knowledge of
+  // this reverse ordering
+  ObjList<ErrorMsg> list;
+
 public:
-  virtual void reportError(char const *msg)=0;
-};
-#endif // 0
+  ErrorList();       // empty list initially
+  ~ErrorList();      // deallocates error objects
 
+  // add an error to the end of list (actually the beginning of
+  // 'list', but clients don't know that, nor should they care)
+  void addError(ErrorMsg * /*owner*/ obj);
 
+  // add an error to the beginning; this is unusual, and generally
+  // should only be done when it is known that there aren't very
+  // many error objects in the list
+  void prependError(ErrorMsg * /*owner*/ obj);
 
+  // take all of the error messages in 'src'; this operation leaves
+  // 'src' empty, and takes time no more than proportional to the
+  // length of the 'src' list; it's O(1) if 'this' is empty
+  void takeMessages(ErrorList &src);         // append
+  
+  // this one takes time proportional to 'this' list
+  void prependMessages(ErrorList &src);      // prepend 
 
+  // mark all of the messages with EF_WARNING
+  void markAllAsWarnings();
 
+  // delete all of the existing messages
+  void deleteAll() { list.deleteAll(); }
 
+  // various counts of error objects
+  int count() const;            // total
+  int numErrors() const;        // # that are not EF_WARNING
+  int numWarnings() const;      // # that *are* EF_WARNING
+  
+  // true if any are EF_DISAMBIGUATES
+  bool hasDisambErrors() const;
 
-
-
-
-
-
-
-#if 0
-
-// each kind of semantic error has its own code; this enum is
-// declared outside SemanticError to reduce verbosity of naming
-// the codes (i.e. no "SemanticError::" needed)
-enum SemanticErrorCode {
-  SE_DUPLICATE_VAR_DECL,
-    // duplicate variable declaration
-    //   varName: the variable declared more than once
-
-  SE_UNDECLARED_VAR,
-    // use of an undeclared variable
-    //   varName: the name that wasn't declared
-
-  SE_GENERAL,
-    // error not more precisely classified
-    //   msg: describes the problem
-
-  SE_INTERNAL_ERROR,
-    // internal parser error
-    //   msg: describes problem
-
-  NUM_CODES
+  // print all the errors, one per line, in order
+  void print(ostream &os) const;
 };
 
-
-// semantic error object
-class SemanticError {
-public:     // data
-  // node where the error was detected; useful for printing
-  // location in input file
-  CCTreeNode const *node;
-
-  // what is wrong, in a general sense
-  SemanticErrorCode code;
-
-  // code-specific fields
-  string msg;                 // some general message
-  string varName;             // name of a relevant variable
-
-public:     // funcs
-  // construct a blank error object; usually additional fields
-  // should then be filled-in
-  SemanticError(CCTreeNode const *node, SemanticErrorCode code);
-
-  SemanticError(SemanticError const &obj);
-  ~SemanticError();
-
-  SemanticError& operator= (SemanticError const &obj);
-
-  // combine the various data into a single string explaining
-  // the problem and where it occurred
-  string whyStr() const;
-};
-
-
-// exception object to carry a SemanticError
-class XSemanticError : public xBase {
-public:     // data
-  SemanticError err;
-
-public:     // funcs
-  XSemanticError(SemanticError const &err);
-  XSemanticError(XSemanticError const &obj);
-  ~XSemanticError();
-};
-
-#endif // 0
 
 #endif // CC_ERR_H

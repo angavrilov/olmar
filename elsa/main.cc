@@ -188,15 +188,8 @@ void doit(int argc, char **argv)
                     << (getMilliseconds() - tcheckStart) 
                     << " ms)\n";
 
-    int numErrors=0, numWarnings=0;
-    FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
-      if (iter.data()->isWarning()) {
-        numWarnings++;
-      }
-      else {
-        numErrors++;
-      }
-    }
+    int numErrors = env.errors.numErrors();
+    int numWarnings = env.errors.numWarnings();
 
     // do this now so that 'printTypedAST' will include CFG info
     #ifdef CFG_EXTENSION
@@ -224,11 +217,8 @@ void doit(int argc, char **argv)
       traceProgress() << "end of second tcheck\n";
     }
 
-    // print errors and warnings in reverse order
-    env.errors.reverse();
-    FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
-      cout << iter.data()->toString() << "\n";
-    }
+    // print errors and warnings
+    env.errors.print(cout);
 
     cout << "typechecking results:\n"
          << "  errors:   " << numErrors << "\n"

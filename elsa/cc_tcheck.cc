@@ -32,9 +32,9 @@
 
 
 // return true if the list contains no disambiguating errors
-bool noDisambErrors(ObjList<ErrorMsg> const &list)
+bool noDisambErrors(ErrorList const &list)
 {
-  return !Env::listHasDisambErrors(list);
+  return !list.hasDisambErrors();
 }
 
 
@@ -2961,8 +2961,8 @@ void Expression::tcheck(Env &env, Expression *&replacement)
     TRACE("disamb", toString(loc) << ": ambiguous: E_funCall vs. E_constructor");
 
     // grab errors
-    ObjList<ErrorMsg> existing;
-    existing.concat(env.errors);
+    ErrorList existing;
+    existing.takeMessages(env.errors);
 
     // common case: function call
     TRACE("disamb", toString(loc) << ": considering E_funCall");
@@ -2971,7 +2971,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // ok, finish up; it's safe to assume that the E_constructor
       // interpretation would fail if we tried it
       TRACE("disamb", toString(loc) << ": selected E_funCall");
-      env.errors.concat(existing);
+      env.errors.prependMessages(existing);
       call->type = call->inner2_itcheck(env);
       call->ambiguity = NULL;
       replacement = call;
@@ -2979,8 +2979,8 @@ void Expression::tcheck(Env &env, Expression *&replacement)
     }
 
     // grab the errors from trying E_funCall
-    ObjList<ErrorMsg> funCallErrors;
-    funCallErrors.concat(env.errors);
+    ErrorList funCallErrors;
+    funCallErrors.takeMessages(env.errors);
 
     // try the E_constructor interpretation
     TRACE("disamb", toString(loc) << ": considering E_constructor");
@@ -2988,7 +2988,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
     if (noDisambErrors(env.errors)) {
       // ok, finish up
       TRACE("disamb", toString(loc) << ": selected E_constructor");
-      env.errors.concat(existing);
+      env.errors.prependMessages(existing);
       ctor->type = ctor->inner2_itcheck(env);
       ctor->ambiguity = NULL;
       replacement = ctor;
@@ -2998,9 +2998,9 @@ void Expression::tcheck(Env &env, Expression *&replacement)
     // both failed.. just leave the errors from the function call
     // interpretation since that's the more likely intent
     env.errors.deleteAll();
-    env.errors.concat(funCallErrors);
-    env.errors.concat(existing);
-    
+    env.errors.takeMessages(existing);
+    env.errors.takeMessages(funCallErrors);
+
     // finish up
     replacement = this;     // redundant but harmless
     return;
