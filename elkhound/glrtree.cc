@@ -11,9 +11,9 @@
     struct wes_ast_node ** children;
   };
 
-  // .. I am a gratuitous change to observe propagation ..
+  // this was a problem ..
+  //#include "cc_tree.h"    // TODO: why did we need this?
 
-  #include "cc_tree.h"    // TODO: why did we need this?
   // in wes-world, using #include <string.h> to get strdup() leads
   // to far too many problems ...
   char *wes_strdup(const char *s) {
@@ -355,10 +355,9 @@ struct wes_ast_node * NonterminalNode::camlAST(void) const
     struct wes_ast_node * retval;
     retval = reductions.firstC()->camlAST();
     {
-	CCTreeNode * c = (CCTreeNode *) this;
-	if (c->isJustInt) {
+        if (getIsJustInt()) {
 	    // memory leak
-	    retval->name = wes_strdup( stringc << "L2_INT_LITERAL " << c->theInt );
+	    retval->name = wes_strdup( stringc << "L2_INT_LITERAL " << getTheInt() );
 	    retval->children = NULL;
 	    retval->num_children = 0;
 	}
@@ -371,7 +370,7 @@ struct wes_ast_node * NonterminalNode::camlAST(void) const
 void NonterminalNode::printParseTree(ostream &os, int indent, bool asSexp) const
 {
   if (getIsJustInt()) {
-    os << "*\b";  // excessive cleverness
+    os << "[" << getTheInt() << "]";
   }
 
   int parses = reductions.count();

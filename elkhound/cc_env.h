@@ -31,8 +31,9 @@ enum DeclFlags {
   // other stuff that's convenient for me
   DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
   DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
+  DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
 
-  ALL_DECLFLAGS  = 0x03FF,
+  ALL_DECLFLAGS  = 0x0FFF,
 };
 
 
@@ -44,11 +45,10 @@ public:     // data
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
   int enumValue;             // if isEnumValue(), its numerical value
-  bool initialized;          // true if has been declared with an initializer (or, for functions, with code)
 
 public:     // funcs
   Variable(char const *n, DeclFlags d, Type const *t)
-    : name(n), declFlags(d), type(t), enumValue(0), initialized(false) {}
+    : name(n), declFlags(d), type(t), enumValue(0) {}
 
   string toString() const;
 
@@ -57,8 +57,11 @@ public:     // funcs
   //   - 'type' points to the enum itself
   //   - 'enumValue' gives the constant value
   bool isEnumValue() const { return declFlags & DF_ENUMVAL; }
-  
+
   bool isGlobal() const { return declFlags & DF_GLOBAL; }
+  
+  bool isInitialized() const { return declFlags & DF_INITIALIZED; }
+  void sayItsInitialized() { declFlags = (DeclFlags)(declFlags | DF_INITIALIZED); }
 };
 
 

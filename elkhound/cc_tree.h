@@ -74,6 +74,7 @@ public:      // funcs
   
   // NonterminalNode funcs
   virtual bool getIsJustInt() const { return isJustInt; }
+  virtual int getTheInt() const { return theInt; }
   
   // Cil constructors where the tree node is implicit
   #define MKCILCTOR0(rettype,name) \

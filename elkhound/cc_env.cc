@@ -502,7 +502,7 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
              ((flags & DF_EXTERN) && (prev->declFlags & DF_EXTERN)) ||
              ((flags & DF_STATIC) && (prev->declFlags & DF_STATIC))
            )
-           && (!prev->initialized || !initialized)
+           && (!prev->isInitialized() || !initialized)
          ) {
         // ok
         ret = prev;
@@ -521,8 +521,10 @@ Variable *Env::declareVariable(CCTreeNode const *node, char const *name,
 
       ret = addVariable(name, flags, type);
     }
-
-    ret->initialized = ret->initialized || initialized;
+         
+    if (initialized) {
+      ret->sayItsInitialized();
+    }
   }
 
   else {
