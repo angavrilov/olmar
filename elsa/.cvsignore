@@ -38,7 +38,6 @@ moz.gcc.out
 parse.log
 regrtest.log
 gendoc
-*.diff
 lexer.lex
 delta*
 diff
