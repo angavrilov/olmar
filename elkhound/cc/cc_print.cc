@@ -20,6 +20,12 @@
 // output
 twalk_output_stream twalk_layer_out(cout, getenv("TWALK_VERBOSE"));
 //  twalk_output_stream twalk_layer_out(cout, true);
+
+// This is a dummy global so that this file will compile both in
+// default mode and in qualifiers mode.
+class dummy_type;               // This does nothing.
+dummy_type *q;
+string toString(class dummy_type*) {return "";}
   
 // sm: folded this into the PrintEnv
 //SourceLocation current_loc;
@@ -303,21 +309,21 @@ void PQ_template::print(PrintEnv &env)
 void TS_name::print(PrintEnv &env)
 {
   olayer ol("TS_name");
-  env << toString(q);
+  env << toString(q);           // see string toString(class dummy_type*) above
   name->print(env);
 }
 
 void TS_simple::print(PrintEnv &env)
 {
   olayer ol("TS_simple");
-  env << toString(q);
+  env << toString(q);           // see string toString(class dummy_type*) above
 }
 
 void TS_elaborated::print(PrintEnv &env)
 {
   olayer ol("TS_elaborated");
   env.current_loc = loc;
-  env << toString(q);
+  env << toString(q);           // see string toString(class dummy_type*) above
   env << toString(keyword) << " ";
   name->print(env);
 }
@@ -325,7 +331,7 @@ void TS_elaborated::print(PrintEnv &env)
 void TS_classSpec::print(PrintEnv &env)
 {
   olayer ol("TS_classSpec");
-  env << toString(q);
+  env << toString(q);           // see string toString(class dummy_type*) above
   env << toString(cv);
   env << toString(keyword) << " ";
   if (name) env << name->toString();
@@ -347,7 +353,7 @@ void TS_classSpec::print(PrintEnv &env)
 void TS_enumSpec::print(PrintEnv &env)
 {
   olayer ol("TS_classSpec");
-  env << q->toString();
+  env << toString(q);           // see string toString(class dummy_type*) above
   env << toString(cv);
   env << "enum ";
   if (name) env << name;
