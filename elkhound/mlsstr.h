@@ -6,6 +6,7 @@
 #define MLSSTR_H
 
 #include "embedded.h"      // EmbeddedLang
+#include "array.h"         // ArrayStack
 
 class MLSubstrateTest;
 
@@ -15,17 +16,28 @@ private:
     ST_NORMAL,       // normal text
     ST_STRING,       // inside a string literal
     ST_CHAR,         // inside a char literal
-    ST_COMMENT,      // inside a comment
     ST_APOSTROPHE1,  // last char was an apostrophe
     ST_APOSTROPHE2,  // char before last was an apostrophe
     NUM_STATES
   } state;
-  int nesting;       // depth of paren/bracket/brace nesting
-  int comNesting;    // depth of comment nesting (in ST_COMMENT)
-  char prev;         // previous character
+  ArrayStack<char> delims; // stack of paren/bracket/brace delimiters
+  int comNesting;          // depth of comment nesting; 0 means not in comment
+  char prev;               // previous character
+
+  // NOTE: Because ocaml wants (**) to be usable to comment out
+  // arbitrary code sequences, the comment-ness is mostly orthogonal
+  // to other lexing state.  e.g., the syntax (* "(*" *) will be
+  // parsed as a (complete) comment.
 
   // so test code can interrogate internal state
   friend class MLSubstrateTest;
+
+private:
+  // depth of delimiter nesting
+  int nesting() const { return delims.length(); }
+  
+  // whether we are in a comment
+  bool inComment() const { return comNesting>0; }
 
 public:
   MLSubstrate(ReportError *err = NULL);

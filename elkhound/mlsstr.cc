@@ -20,7 +20,7 @@ MLSubstrate::MLSubstrate(ReportError *err)
 void MLSubstrate::reset(int initNest)
 {
   state = ST_NORMAL;
-  nesting = initNest;
+  delims.empty();
   comNesting = 0;
   prev = 0;
   text.setlength(0);
@@ -36,25 +36,42 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
   text.append(str, len);
 
   for (; len>0; len--,str++) {
+  process_char_again:
     switch (state) {
       case ST_NORMAL:
         switch (*str) {
           case '{':
           case '(':
           case '[':
-            nesting++;
+            if (!inComment()) {
+              delims.push(*str);
+            }
             break;
 
           case '}':
           case ')':
           case ']':
-            if (nesting == 0) {
+            if (inComment()) {
+              if (prev == '*' && *str == ')') {
+                comNesting--;
+              }
+            }
+            else if (nesting() == 0) {
               err->reportError(stringc
                 << "unexpected closing delimiter `" << *str
                 << "' -- probably due to missing `" << finalDelim << "'");
             }
             else {
-              nesting--;
+              char o = delims.top();
+              char c = *str;
+              if (!(( o=='{' && c=='}' ) ||
+                    ( o=='(' && c==')' ) ||
+                    ( o=='[' && c==']' ))) {
+                err->reportError(stringc
+                  << "opening delimiter `" << o
+                  << "' does not match closing delimiter `" << c << "'");
+              }
+              delims.pop();
             }
             break;
 
@@ -63,15 +80,22 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
             break;
 
           case '\'':
-            state = ST_APOSTROPHE1;
+            if (isalnum(prev) || prev=='_' || prev=='\'') {
+              // this is a prime on a variable name; stay in normal mode
+            }
+            else {
+              state = ST_APOSTROPHE1;
+            }
             break;
 
           case '*':
             if (prev == '(') {
-              state = ST_COMMENT;
-              xassert(comNesting == 0);
-              xassert(nesting > 0);
-              nesting--;     // undo 'nesting++' from the '('
+              if (comNesting == 0) {
+                // undo 'delims.push()' from the '('
+                xassert(nesting() > 0);
+                delims.pop();
+              }
+              comNesting++;
 
               // if the next char is ')', i.e. input was "(*)", do
               // not allow it to use this '*' to finish the comment
@@ -90,7 +114,7 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
         //
         //   - If the input is (apostrophe, char, apostrophe), it is
         //     a character literal.
-        ///  - If the input is (apostrophe, baclskash), it is the start
+        //   - If the input is (apostrophe, backslash), it is the start
         //     of a a character literal.
         //   - Any other occurrence of apostrophe starts a type variable.
         if (*str == '\\') {
@@ -105,10 +129,12 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
         if (*str == '\'') {
           state = ST_NORMAL;    // finishes the character literal
         }
-        else {
-          state = ST_NORMAL;    // whole thing is a type variable
+        else {                  
+          // whole thing is a type variable; but if *str is something
+          // like ')' then we need to consider its effects on nesting
+          state = ST_NORMAL;
+          goto process_char_again;
         }
-        // (it is intentional that the two cases do the same thing)
         break;
 
       case ST_STRING:
@@ -119,16 +145,22 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
             state = ST_NORMAL;
           }
           else if (*str == '\n') {
-            err->reportError("unterminated string or char literal");
+            // actually, ocaml allows unescaped newlines in string literals
+            //err->reportError("unterminated string or char literal");
           }
+        }
+        else {
+          prev = 0;      // the backslash cancels any specialness of *str
+          continue;
         }
         break;
 
+      #if 0   // old
       case ST_COMMENT:
         if (prev == '(' && *str == '*') {
           comNesting++;
           prev = 0;      // like above
-          continue;                   
+          continue;
         }
         else if (prev == '*' && *str == ')') {
           xassert(comNesting >= 0);
@@ -142,6 +174,7 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
           }
         }
         break;
+      #endif // 0
 
       default:
         xfailure("unknown state");
@@ -154,7 +187,7 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
 
 bool MLSubstrate::zeroNesting() const
 {
-  return state == ST_NORMAL && nesting == 0;
+  return state == ST_NORMAL && nesting() == 0 && !inComment();
 }
 
 
@@ -211,8 +244,9 @@ string MLSubstrate::getDeclName() const
 // can grant it access to private fields
 class Test {
 public:
-  void feed(ML &ml, char const *src);
-  void test(char const *src, ML::State state, int nesting, 
+  void feed(ML &ml, char const *src, bool allowErrors = false);
+  void silentFeed(ML &ml, char const *src);
+  void test(char const *src, ML::State state, int nesting,
             int comNesting, char prev);
   void normal(char const *src, int nesting);
   void str(char const *src, int nesting, bool bs);
@@ -220,15 +254,28 @@ public:
   void no(char const *src);
   void name(char const *body, char const *n);
   void badname(char const *body);
-  int main();
+  void bad(char const *body);
+  int main(int argc, char *argv[]);
 };
 
 
 #define min(a,b) ((a)<(b)?(a):(b))
 
-void Test::feed(ML &ml, char const *src)
+void Test::feed(ML &ml, char const *src, bool allowErrors)
 {
+  int origErrors = simpleReportError.errors;
+
   cout << "trying: " << src << endl;
+  silentFeed(ml, src);
+
+  if (!allowErrors &&
+      origErrors != simpleReportError.errors) {
+    xfailure(stringc << "caused error: " << src);
+  }
+}
+
+void Test::silentFeed(ML &ml, char const *src)
+{
   while (*src) {
     // feed it in 10 char increments, to test split processing too
     int len = min(strlen(src), 10);
@@ -245,7 +292,8 @@ void Test::test(char const *src, ML::State state, int nesting,
   feed(ml, src);
 
   if (!( ml.state == state &&
-         ml.nesting == nesting &&
+         ml.nesting() == nesting &&
+         ml.comNesting == comNesting &&
          ml.prev == prev )) {
     xfailure(stringc << "failed on src: " << src);
   }
@@ -300,15 +348,52 @@ void Test::badname(char const *body)
   feed(ml, body);
   try {
     ml.getDeclName();
-    xfailure("got a name when it shoudn't have!");
+    xbase("got a name when it shoudn't have!");
   }
   catch (...)
     {}
 }
 
-
-int Test::main()
+void Test::bad(char const *body)
 {
+  int origErrors = simpleReportError.errors;
+
+  ML ml;
+  feed(ml, body, true /*allowErrors*/);
+
+  if (origErrors == simpleReportError.errors) {
+    xbase(stringc << "should have caused an error: " << body);
+  }
+}
+
+
+int Test::main(int argc, char *argv[])
+{
+  if (argc >= 2) {
+    // analyze the files passed as an argument, expecting them to be
+    // complete caml source files, ending in normal mode with all
+    // delimiters closed         
+    for (int i=1; i<argc; i++) {
+      string text = readStringFromFile(argv[i]);
+      
+      ML ml;
+      silentFeed(ml, text.c_str());
+
+      if (ml.state != ML::ST_NORMAL) {
+        xbase(stringc << argv[i] << ": ended in state " << (int)ml.state);
+      }
+      if (ml.nesting() != 0) {
+        xbase(stringc << argv[i] << ": ended with nesting " << ml.nesting());
+      }
+      if (simpleReportError.errors != 0) {
+        xbase(stringc << argv[i] << ": caused errors");
+      }
+
+      cout << argv[i] << ": ok\n";
+    }
+    return 0;
+  }
+
   normal("int main()", 0);
   normal("int main() { hi", 1);
   normal("int main() { hi {", 2);
@@ -329,26 +414,41 @@ int Test::main()
   str("main() { printf(\"hello \\", 2, true);
   str("main() { printf(\"hello \\ world", 2, false);
   str("main() { printf(\"hello \\ world\", \"hi", 2, false);
+  
+  // escaped newline
+  normal("main() { printf(\"hello \\\n world\"); }", 0);
+
+  // newlines do not have to be escaped!
+  normal("main() { printf(\"hello \n world\"); }", 0);
 
   test("\"a\" 'b' (", ML::ST_NORMAL, 1, 0, '(');
-  test("\"a\" '\n' (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" '\\n' (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" '\\\\' (", ML::ST_NORMAL, 1, 0, '(');
 
   // here, the "'b" is to be treated as a type variable
   test("\"a\" 'b (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" ('b) (", ML::ST_NORMAL, 1, 0, '(');
+
+  // and here it is a prime ending the name of a variable
+  test("\"a\" b' (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" (b') (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" let b=b' (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" let b=b'' (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" let b=b''' (", ML::ST_NORMAL, 1, 0, '(');
 
   // test comments, particularly testing
   test("(", ML::ST_NORMAL, 1, 0, '(');
-  test("(*", ML::ST_COMMENT, 0, 0, 0);
-  test("(*)", ML::ST_COMMENT, 0, 0, ')');
-  test("(*)(", ML::ST_COMMENT, 0, 0, '(');
-  test("(*)(*", ML::ST_COMMENT, 0, 1, 0);
-  test("(*)(*)", ML::ST_COMMENT, 0, 1, ')');
-  test("(*)(*)*", ML::ST_COMMENT, 0, 1, '*');
-  test("(*)(*)*)", ML::ST_COMMENT, 0, 0, ')');
-  test("(*)(*)*)*", ML::ST_COMMENT, 0, 0, '*');
+  test("(*", ML::ST_NORMAL, 0, 1, 0);
+  test("(*)", ML::ST_NORMAL, 0, 1, ')');
+  test("(*)(", ML::ST_NORMAL, 0, 1, '(');
+  test("(*)(*", ML::ST_NORMAL, 0, 2, 0);
+  test("(*)(*)", ML::ST_NORMAL, 0, 2, ')');
+  test("(*)(*)*", ML::ST_NORMAL, 0, 2, '*');
+  test("(*)(*)*)", ML::ST_NORMAL, 0, 1, ')');
+  test("(*)(*)*)*", ML::ST_NORMAL, 0, 1, '*');
   test("(*)(*)*)*)", ML::ST_NORMAL, 0, 0, ')');
-  
-  test("(*(*(*(*", ML::ST_COMMENT, 0, 4, 0);
+
+  test("(*(*(*(*", ML::ST_NORMAL, 0, 4, 0);
 
   yes("main() {}");
   yes("main() { printf(\"foo\", 3, 4 (*yep{*)); }");
@@ -359,6 +459,7 @@ int Test::main()
   yes("\"[[[\"");
   yes("*");
   yes("(* [ / * [ *)");
+  yes("(* \"(*\" *)");     // quoted open-comment ignored
 
   no("\"");
   no("(");
@@ -371,7 +472,7 @@ int Test::main()
   badname("  (");
   badname("  ");
   badname("");
-  badname(")");
+  bad(")");
   badname("main");
 
   cout << "\nmlsstr: all tests PASSED\n";
@@ -379,10 +480,17 @@ int Test::main()
   return 0;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-  Test t;
-  return t.main();
+  //xBase::logExceptions = false;
+  try {
+    Test t;
+    return t.main(argc, argv);
+  }
+  catch (xBase &x) {
+    cout << endl << x << endl;
+    return 10;
+  }
 }
 
 #endif // TEST_MLSSTR
