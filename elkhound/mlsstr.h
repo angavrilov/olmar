@@ -16,6 +16,8 @@ private:
     ST_STRING,       // inside a string literal
     ST_CHAR,         // inside a char literal
     ST_COMMENT,      // inside a comment
+    ST_APOSTROPHE1,  // last char was an apostrophe
+    ST_APOSTROPHE2,  // char before last was an apostrophe
     NUM_STATES
   } state;
   int nesting;       // depth of paren/bracket/brace nesting

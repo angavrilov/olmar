@@ -63,7 +63,7 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
             break;
 
           case '\'':
-            state = ST_CHAR;
+            state = ST_APOSTROPHE1;
             break;
 
           case '*':
@@ -72,14 +72,43 @@ void MLSubstrate::handle(char const *str, int len, char finalDelim)
               xassert(comNesting == 0);
               xassert(nesting > 0);
               nesting--;     // undo 'nesting++' from the '('
-              
+
               // if the next char is ')', i.e. input was "(*)", do
               // not allow it to use this '*' to finish the comment
-              prev = 0;                                            
+              prev = 0;
               continue;
             }
             break;
         }
+        break;
+
+      case ST_APOSTROPHE1:
+        // While the OCaml manual does not specify how to disambiguate
+        // between character literals and type variables, the ocaml
+        // lexer (parsing/lexer.mll) uses (approximately) the
+        // following rules:
+        //
+        //   - If the input is (apostrophe, char, apostrophe), it is
+        //     a character literal.
+        ///  - If the input is (apostrophe, baclskash), it is the start
+        //     of a a character literal.
+        //   - Any other occurrence of apostrophe starts a type variable.
+        if (*str == '\\') {
+          state = ST_CHAR;
+        }
+        else {
+          state = ST_APOSTROPHE2;
+        }
+        break;
+        
+      case ST_APOSTROPHE2:
+        if (*str == '\'') {
+          state = ST_NORMAL;    // finishes the character literal
+        }
+        else {
+          state = ST_NORMAL;    // whole thing is a type variable
+        }
+        // (it is intentional that the two cases do the same thing)
         break;
 
       case ST_STRING:
@@ -234,8 +263,11 @@ void Test::str(char const *src, int nesting, bool bs)
   test(src, ML::ST_STRING, nesting, 0, prev);
 
   // repeat the test with single-tick
-  string another = replace(src, "\"", "\'");
-  test(another, ML::ST_CHAR, nesting, 0, prev);
+  //
+  // 2005-01-25: No, OCaml's character-literal rules do not treat
+  // quote and apostrophe similarly.
+  //string another = replace(src, "\"", "\'");
+  //test(another, ML::ST_CHAR, nesting, 0, prev);
 }
 
 
@@ -299,6 +331,10 @@ int Test::main()
   str("main() { printf(\"hello \\ world\", \"hi", 2, false);
 
   test("\"a\" 'b' (", ML::ST_NORMAL, 1, 0, '(');
+  test("\"a\" '\n' (", ML::ST_NORMAL, 1, 0, '(');
+
+  // here, the "'b" is to be treated as a type variable
+  test("\"a\" 'b (", ML::ST_NORMAL, 1, 0, '(');
 
   // test comments, particularly testing
   test("(", ML::ST_NORMAL, 1, 0, '(');
