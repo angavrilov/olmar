@@ -286,7 +286,9 @@ void doit(int argc, char **argv)
     // interface that analyses could hook in to.  That could be augmented
     // by a parsing mode that parsed each function, analyzed it, and then
     // immediately discarded its AST.
-    numErrors += computeUnitCFG(unit);
+    if (numErrors == 0) {
+      numErrors += computeUnitCFG(unit);
+    }
     #endif // CFG_EXTENSION
 
     // print abstract syntax tree annotated with types
@@ -299,7 +301,7 @@ void doit(int argc, char **argv)
       structurePrint(unit);
     }
 
-    if (tracingSys("secondTcheck")) {
+    if (numErrors==0 && tracingSys("secondTcheck")) {
       // this is useful to measure the cost of disambiguation, since
       // now the tree is entirely free of ambiguities
       traceProgress() << "beginning second tcheck...\n";

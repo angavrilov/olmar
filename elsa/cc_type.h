@@ -56,6 +56,7 @@ class CompoundType;
 class BaseClass;
 class EnumType;
 class TypeVariable;
+class PseudoInstantiation;
 class CVAtomicType;
 class PointerType;
 class ReferenceType;
@@ -79,7 +80,7 @@ extern TypeFactory * global_tfac;
 // modifiers can be stripped away; see types.txt
 class AtomicType {
 public:     // types
-  enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, T_TYPEVAR, NUM_TAGS };
+  enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, T_TYPEVAR, T_PSEUDOINSTANTIATION, NUM_TAGS };
 
 public:     // funcs
   AtomicType();
@@ -90,6 +91,7 @@ public:     // funcs
   bool isCompoundType() const { return getTag() == T_COMPOUND; }
   bool isEnumType() const     { return getTag() == T_ENUM; }
   bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
+  bool isPseudoInstantiation() const { return getTag() == T_PSEUDOINSTANTIATION; }
   virtual bool isNamedAtomicType() const;    // default impl returns false
 
   // see smbase/macros.h
@@ -98,6 +100,7 @@ public:     // funcs
   DOWNCAST_FN(CompoundType)
   DOWNCAST_FN(EnumType)
   DOWNCAST_FN(TypeVariable)
+  DOWNCAST_FN(PseudoInstantiation)
 
   // this is type equality, *not* coercibility -- e.g. if
   // we say "extern type1 x" and then "extern type2 x" we
@@ -407,6 +410,36 @@ public:     // funcs
 };
 
 
+// denote a class template with arguments supplied, so it's like an
+// instantiation, but some of those arguments contain type variables,
+// so this does not denote a single concrete type; this appears in
+// template definitions only
+//
+// actually it might not contain type variables but instead only
+// contain non-type argument variables; the point is we don't have
+// enough information to do a concrete instantiation
+class PseudoInstantiation : public AtomicType {
+public:      // data
+  // class template primary to which we are adding arguments
+  CompoundType *primary;
+
+  // the arguments, some of which contain type variables
+  ObjList<STemplateArgument> args;
+
+public:      // funcs
+  PseudoInstantiation(CompoundType *p);
+  ~PseudoInstantiation();
+
+  // AtomicType interface
+  virtual Tag getTag() const { return T_PSEUDOINSTANTIATION; }
+  virtual string toCString() const;
+  virtual string toMLString() const;
+  virtual int reprSize() const;
+};
+
+
+// ------------------- constructed types -------------------------
+
 // ---- Type predicates ----
 // dsw: It caused too much difficulty in the Oink build process to
 // have these as members of class Type.
@@ -430,7 +463,6 @@ public:
 };
 
 
-// ------------------- constructed types -------------------------
 // generic constructed type; to allow client analyses to annotate the
 // description of types, this class is inherited by "Type", the class
 // that all of the rest of the parser regards as being a "type"
@@ -686,6 +718,9 @@ public:     // funcs
   CompoundType *ifCompoundType();        // NULL or corresp. compound
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
+
+  // and PseudoInstantiation ...
+  bool isPseudoInstantiation() const { return isCVAtomicType(AtomicType::T_PSEUDOINSTANTIATION); }
 
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
@@ -1054,10 +1089,13 @@ public:    // funcs
 // this is the information regarding its template-ness
 class TemplateInfo : public TemplateParams {
 public:    // data
-  // name of the least-specialized ("primary") template; this is used
-  // to detect when a name is the name of the template we're inside
-  // (this is NULL for TemplateInfos attached to FunctionTypes)
-  StringRef baseName;
+  // every TemplateInfo is associated 1-to-1 with some Variable,
+  // and this is the associated Variable; this value is initially
+  // NULL, and set by Variable::setTemplateInfo
+  //
+  // TODO: make TemplateInfo inherit from Variable instead of
+  // using two connected objects
+  Variable *var;
 
   // whereas for classes the 'baseName' suffices to create a
   // forward-declared version of the object, functions need
@@ -1187,9 +1225,14 @@ public:
   SourceLoc instLoc;
 
 public:    // funcs
-  TemplateInfo(StringRef baseName, SourceLoc instLoc);
+  TemplateInfo(SourceLoc instLoc);
   TemplateInfo(TemplateInfo const &obj);
   ~TemplateInfo();
+
+  // name of the least-specialized ("primary") template; this is used
+  // to detect when a name is the name of the template we're inside
+  // (this is NULL for TemplateInfos attached to FunctionTypes)
+  StringRef getBaseName() const;
 
   // just sets 'myPrimary', plus a couple assertions regarding 'prim'
   void setMyPrimary(TemplateInfo *prim);
@@ -1211,7 +1254,13 @@ public:    // funcs
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;
 
-  // check the arguments contain type variables
+  // select either the primary or one of the specializations, based
+  // on the supplied arguments; these arguments will likely contain
+  // type variables; e.g., given "T*", select specialization C<T*>;
+  // return NULL if no matching definition found
+  Variable *getPrimaryOrSpecialization(SObjList<STemplateArgument> const &sargs);
+
+  // true if the arguments contain type variables
   bool argumentsContainTypeVariables() const;
 
   // dsw: check the arguments contain type or object (say, int)
@@ -1289,9 +1338,9 @@ public:
   void setPointer(Variable *v)   { kind=STA_POINTER;   value.v=v; }
   void setMember(Variable *v)    { kind=STA_MEMBER;    value.v=v; }
 
-  bool isObject();               // "non-type non-template" in the spec
-  bool isType()                  { return kind==STA_TYPE;         }
-  bool isTemplate()              { return kind==STA_TEMPLATE;     }
+  bool isObject() const;         // "non-type non-template" in the spec
+  bool isType() const            { return kind==STA_TYPE;         }
+  bool isTemplate() const        { return kind==STA_TEMPLATE;     }
 
   bool hasValue() const { return kind!=STA_NONE; }
 

@@ -892,11 +892,14 @@ void Env::templArgsASTtoSTA
     // this is a problem with const-polymorphism again
     TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
     if (!ta->sarg.hasValue()) {
-      error(stringc << "TemplateArgument has no value " << ta->argString(), EF_STRONG);
-      return;
+      // sm: 7/24/04: This used to be a user error, but I think it should
+      // be an assertion because it is referring to internal implementation
+      // details, not anything the user knows about.
+      xfailure(stringc << "TemplateArgument has no value " << ta->argString());
     }
-    sargs.append(&(ta->sarg));
+    sargs.prepend(&(ta->sarg));     // O(1)
   }
+  sargs.reverse();                  // O(n)
 }
 
 
@@ -1349,10 +1352,7 @@ Variable *Env::instantiateTemplate
   if (!instV) {
     // copy over the template arguments so we can recognize this
     // instantiation later
-    StringRef name = baseV->type->isCompoundType()
-      ? baseV->type->asCompoundType()->name    // no need to call 'str', 'name' is already a StringRef
-      : NULL;
-    TemplateInfo *instTInfo = new TemplateInfo(name, loc);
+    TemplateInfo *instTInfo = new TemplateInfo(loc);
     instTInfo->instantiatedFrom = baseV;
     SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
       instTInfo->arguments.append(new STemplateArgument(*iter.data()));
@@ -1663,7 +1663,7 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 
     if (s->curCompound &&
         s->curCompound->templateInfo() &&
-        s->curCompound->templateInfo()->baseName == name) {
+        s->curCompound->templateInfo()->getBaseName() == name) {
       return s->curCompound;
     }
   }
@@ -1980,8 +1980,14 @@ void instantiateRemainingMethods(Env &env, TranslationUnit *tunit)
   // typechecking of.  Also, I expect that the definitions will all
   // have been seen.  Therefore, I can just typecheck all of the
   // function bodies at the end of typechecking the translation unit.
-  EnsureFuncBodiesTcheckedVisitor visitor(env);
-  tunit->traverse(visitor);
+  //
+  // sm: Only do this if tchecking doesn't have any errors yet,
+  // b/c the assertions in the traversal will be potentially invalid
+  // if errors were found
+  if (env.numErrors() == 0) {
+    EnsureFuncBodiesTcheckedVisitor visitor(env);
+    tunit->traverse(visitor);
+  }
 }
 
 

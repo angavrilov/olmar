@@ -43,6 +43,7 @@ DOWNCAST_IMPL(AtomicType, NamedAtomicType)
 DOWNCAST_IMPL(AtomicType, CompoundType)
 DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
+DOWNCAST_IMPL(AtomicType, PseudoInstantiation)
 
 
 void AtomicType::gdb() const
@@ -871,10 +872,10 @@ string TypeVariable::toCString() const
   // circumstances.. so I'll suppress it in the general case and add
   // it explicitly when printing the few constructs that allow it
   //return stringc << "/*typename*/ " << name;
-  return stringc << "/*typevar "
+  return stringc << "/""*typevar"
 //                   << "typedefVar->serialNumber:"
 //                   << (typedefVar ? typedefVar->serialNumber : -1)
-                 << "*/:" << name;
+                 << "*/" << name;
 }
 
 int TypeVariable::reprSize() const
@@ -884,6 +885,29 @@ int TypeVariable::reprSize() const
   // this happens when we're typechecking a template class, without
   // instantiating it, and we want to verify that some size expression
   // is constant.. so make up a number
+  return 4;
+}
+
+
+// -------------------- PseudoInstantiation ------------------
+PseudoInstantiation::PseudoInstantiation(CompoundType *p)
+  : primary(p),
+    args()        // empty initially
+{}
+
+PseudoInstantiation::~PseudoInstantiation()
+{}
+
+string PseudoInstantiation::toCString() const
+{
+  return stringc << primary->name << sargsToString(args);
+}
+
+int PseudoInstantiation::reprSize() const
+{
+  // it shouldn't matter what we say here, since the query will only
+  // be made in the context of checking (but not instantiating) a
+  // template definition body
   return 4;
 }
 
@@ -1249,9 +1273,7 @@ bool typeIsError(Type const *t)
 
 bool BaseType::containsErrors() const
 {
-  // hmm.. bit of hack..
-  return static_cast<Type const *>(this)->
-    anyCtorSatisfiesF(typeIsError);
+  return anyCtorSatisfiesF(typeIsError);
 }
 
 
@@ -1259,13 +1281,13 @@ bool typeHasTypeVariable(Type const *t)
 {
   return t->isTypeVariable() ||
          (t->isCompoundType() &&
-          t->asCompoundTypeC()->isTemplate());
+          t->asCompoundTypeC()->isTemplate()) ||
+         t->isPseudoInstantiation();
 }
 
 bool BaseType::containsTypeVariables() const
 {
-  return static_cast<Type const *>(this)->
-    anyCtorSatisfiesF(typeHasTypeVariable);
+  return anyCtorSatisfiesF(typeHasTypeVariable);
 }
 
 
@@ -1281,8 +1303,7 @@ bool hasVariable(Type const *t)
 
 bool BaseType::containsVariables() const
 {
-  return static_cast<Type const *>(this)->
-    anyCtorSatisfiesF(hasVariable);
+  return anyCtorSatisfiesF(hasVariable);
 }
 
 
@@ -1986,9 +2007,9 @@ bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
 
 
 // ------------------ TemplateInfo -------------
-TemplateInfo::TemplateInfo(StringRef name, SourceLoc il)
+TemplateInfo::TemplateInfo(SourceLoc il)
   : TemplateParams(),
-    baseName(name),
+    var(NULL),
     declSyntax(NULL),
     myPrimary(NULL),
     instantiatedFrom(NULL),
@@ -2000,7 +2021,7 @@ TemplateInfo::TemplateInfo(StringRef name, SourceLoc il)
 
 TemplateInfo::TemplateInfo(TemplateInfo const &obj)
   : TemplateParams(obj),
-    baseName(obj.baseName),
+    var(NULL),                // caller must call Variable::setTemplateInfo
     myPrimary(obj.myPrimary),
     instantiations(obj.instantiations),      // suspicious... oh well
     arguments(),                             // copied below
@@ -2016,6 +2037,17 @@ TemplateInfo::TemplateInfo(TemplateInfo const &obj)
 
 TemplateInfo::~TemplateInfo()
 {}
+
+
+StringRef TemplateInfo::getBaseName() const
+{
+  if (var->type->isCompoundType()) {
+    return var->type->asCompoundType()->name;
+  }
+  else {
+    return NULL;     // function template
+  }
+}
 
 
 void TemplateInfo::setMyPrimary(TemplateInfo *prim) 
@@ -2135,6 +2167,52 @@ bool TemplateInfo::equalArguments
 }
 
 
+Variable *TemplateInfo::getPrimaryOrSpecialization
+  (SObjList<STemplateArgument> const &sargs)
+{
+  // primary?
+  //
+  // I can't just test for 'sargs' equalling 'this->arguments',
+  // because for the primary, the latter is always empty.
+  //
+  // So I'm just going to test that 'sargs' consists entirely
+  // of toplevel type variables, which isn't exactly right ...
+  bool allToplevelVars = true;
+  SFOREACH_OBJLIST(STemplateArgument, sargs, argIter) {
+    STemplateArgument const *arg = argIter.data();
+
+    if (arg->isType()) {
+      if (!arg->getType()->isTypeVariable()) {
+        allToplevelVars = false;
+      }
+    }
+    else {
+      // we do not (yet) have a proper way of distinguishing object
+      // placeholders from true concrete objects in template
+      // arguments..... so just assume it's toplevel
+    }
+  }
+  if (allToplevelVars) {
+    return var;
+  }
+
+  // specialization?
+  //
+  // (for now, since specializations and instantiations are mixed
+  // together, search the combined list and hope for no confusion to
+  // arise)
+  SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
+    Variable *spec = iter.data();
+    if (spec->templateInfo()->equalArguments(sargs)) {
+      return spec;
+    }
+  }
+
+  // no matching specialization
+  return NULL;
+}
+
+
 bool TemplateInfo::argumentsContainTypeVariables() const
 {
   FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
@@ -2224,6 +2302,7 @@ void TemplateInfo::debugPrint(int depth)
 {
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "TemplateInfo";
+  StringRef baseName = getBaseName();
   if (baseName) {
     cout << ", baseName: " << baseName;
   } else {
@@ -2282,7 +2361,8 @@ STemplateArgument *STemplateArgument::shallowClone() const
 }
 
 
-bool STemplateArgument::isObject() {
+bool STemplateArgument::isObject() const
+{
   switch (kind) {
   default:
     xfailure("illegal STemplateArgument kind"); break;
@@ -2614,6 +2694,12 @@ string EnumType::toMLString() const
 string TypeVariable::toMLString() const
 {
   return stringc << "typevar-'" << string(name) << "'";
+}
+
+string PseudoInstantiation::toMLString() const
+{
+  return stringc << "psuedoinstantiation-'" << primary->name << "'"
+                 << sargsToString(args);      // sm: ?
 }
 
 //  Constructed

@@ -1433,6 +1433,19 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
   }
 }
 
+                                                                 
+// return true if the semantic template arguments in 'args' are not
+// all concrete
+bool containsTypeVariables(ASTList<TemplateArgument> const &args)
+{
+  FOREACH_ASTLIST(TemplateArgument, args, iter) {
+    if (iter.data()->sarg.containsVariables()) {
+      return true;
+    }
+  }
+  return false;     // all are concrete
+}
+
 
 // This returns the scope named by the qualifier portion of
 // 'qualifier', or NULL if there is an error.  In the latter
@@ -1444,7 +1457,8 @@ Scope *Env::lookupOneQualifier(
   Scope *startingScope,          // where does search begin?  NULL means current environment
   PQ_qualifier const *qualifier, // will look up the qualifier on this name
   bool &dependent,               // set to true if we have to look inside a TypeVariable
-  bool &anyTemplates)            // set to true if we look in uninstantiated templates
+  bool &anyTemplates,            // set to true if we look in uninstantiated templates
+  LookupFlags lflags)
 {
   // get the first qualifier
   StringRef qual = qualifier->qualifier;
@@ -1466,9 +1480,10 @@ Scope *Env::lookupOneQualifier(
   // however, this still is not quite right, see cppstd 3.4.3 para 1
   //
   // update: LF_TYPES_NAMESPACES now gets it right, I think
+  lflags |= LF_TYPES_NAMESPACES;
   Variable *qualVar = startingScope==NULL?
-    lookupVariable(qual, LF_TYPES_NAMESPACES) :
-    startingScope->lookupVariable(qual, *this, LF_TYPES_NAMESPACES);
+    lookupVariable(qual, lflags) :
+    startingScope->lookupVariable(qual, *this, lflags);
   if (!qualVar) {
     // I'd like to include some information about which scope
     // we were looking in, but I don't want to be computing
@@ -1533,12 +1548,55 @@ Scope *Env::lookupOneQualifier(
         // has not been done, so I typecheck the PQName now in
         // Declarator::mid_tcheck() before this is called
 
-        Variable *inst = instantiateTemplate_astArgs
+        // obtain a list of semantic arguments
+        SObjList<STemplateArgument> sargs;
+        templArgsASTtoSTA(qualifier->targs, sargs);
+
+        if (lflags & LF_DECLARATOR) {
+          // Since we're in a declarator, the template arguments are
+          // being supplied for the purpose of denoting an existing
+          // template primary or specialization, *not* to cause
+          // instantiation.  For example, we're looking up "C<T>" in
+          //
+          //   template <class T>
+          //   int C<T>::foo() { ... }
+          //
+          // So, as 'ct' is the primary, look in it to find the proper
+          // specialization (or the primary).
+          Variable *primaryOrSpec =
+            ct->templateInfo()->getPrimaryOrSpecialization(sargs);
+          if (!primaryOrSpec) {   
+            // I'm calling this disambiguating because I do so above,
+            // when looking up just 'qual'; it's not clear that this
+            // is the right thing to do
+            //
+            // update: t0185.cc triggers this error.. so as a hack I'm
+            // going to make it non-disambiguating, so that in
+            // template code it will be ignored.  The right solution
+            // is to treat member functions of template classes as
+            // being independent template entities.
+            error(stringc << "cannot find template primary or specialization `"
+                          << qualifier->toString() << "'",
+                  /*old:EF_DISAMBIGUATES*/ EF_NONE);
+            return ct;     // recovery: use the primary
+          }
+          return primaryOrSpec->type->asCompoundType();
+        }
+
+        // if the template arguments are not concrete, then this is
+        // a dependent name, e.g. "C<T>::foo"
+        if (containsTypeVariables(qualifier->targs)) {
+          dependent = true;
+          return NULL;
+        }
+
+        Variable *inst = instantiateTemplate
           (loc(),               // FIX: ???
            (ct->typedefVar->scope ? ct->typedefVar->scope : globalScope()), // FIX: ???
            ct->typedefVar,
            NULL /*instV*/,
-           qualifier->targs);
+           NULL /*bestV*/,
+           sargs);
         xassert(inst);
         ct = inst->type->asCompoundType();
 
@@ -1596,10 +1654,10 @@ Scope *Env::lookupOneQualifier(
 }
 
 
-bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name)
+bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name, LookupFlags lf)
 {
   bool dummy1, dummy2;
-  return getQualifierScopes(scopes, name, dummy1, dummy2);
+  return getQualifierScopes(scopes, name, dummy1, dummy2, lf);
 }
 
 // 4/22/04: After now implementing and testing this code, I'm
@@ -1613,7 +1671,7 @@ bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name)
 // stop?  I'll wait until I see some failing code before exploring
 // this more.
 bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-  bool &dependent, bool &anyTemplates)
+  bool &dependent, bool &anyTemplates, LookupFlags lflags)
 {
   if (!name) {
     // this code evolved from code that behaved this way, and
@@ -1629,7 +1687,7 @@ bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
 
     // use the new inner-loop function
     scope = lookupOneQualifier(scope, qualifier,
-                               dependent, anyTemplates);
+                               dependent, anyTemplates, lflags);
     if (!scope) {
       // stop searching and return what we have
       return false;
@@ -1683,6 +1741,8 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
     scope = lookupQualifiedScope(name, dependent, anyTemplates);
     if (!scope) {
       if (dependent) {
+        TRACE("dependent", name->toString());
+
         // tried to look into a template parameter
         if (flags & LF_TYPENAME) {
           return dependentTypeVar;    // user claims it's a type
@@ -1979,7 +2039,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo(StringRef baseName)
 
   Scope *s = scope();
   if (s->curTemplateParams) {
-    ret = new TemplateInfo(baseName, loc());
+    ret = new TemplateInfo(/*baseName,*/ loc());
     ret->params.concat(s->curTemplateParams->params);
     delete s->curTemplateParams;
     s->curTemplateParams = NULL;

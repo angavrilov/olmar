@@ -354,15 +354,17 @@ public:      // funcs
     Scope *startingScope,
     PQ_qualifier const *qualifier,
     bool &dependent,
-    bool &anyTemplates);
+    bool &anyTemplates,
+    LookupFlags lflags = LF_NONE);
 
   // run through the sequence of qualifiers on 'name',
   // adding each named scope in turn to 'scopes';
   // 'dependent' and 'anyTemplates' are as above;
   // returns false (and adds an error message) on error
   bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-    bool &dependent, bool &anyTemplates);
-  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name);
+    bool &dependent, bool &anyTemplates, LookupFlags lf = LF_NONE);
+  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
+    LookupFlags lf = LF_NONE);
 
   // extend/retract entire scope sequences
   void extendScopeSeq(ScopeSeq const &scopes);

@@ -65,6 +65,12 @@ string mangleAtomic(AtomicType const *t)
 
     case AtomicType::T_TYPEVAR:
       return string("TVAR");      // dsw: my replacement for an actual name
+      
+    case AtomicType::T_PSEUDOINSTANTIATION:
+      // sm: not clear what should happen here; I think in fact
+      // that pseudoinstantiations should not be "linker visible"
+      // so it won't matter
+      return t->toString();
   }
 }
 

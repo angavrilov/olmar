@@ -291,7 +291,8 @@ void Function::tcheck(Env &env, bool checkBody,
       // keeping the surrounding stuff, though, because it has that
       // error report above, and simply to avoid disturbing existing
       // (working) mechanism
-      env.getQualifierScopes(qualifierScopes, nameAndParams->getDeclaratorId());
+      env.getQualifierScopes(qualifierScopes, nameAndParams->getDeclaratorId(),
+                             LF_DECLARATOR);
       env.extendScopeSeq(qualifierScopes);
 
       // the innermost scope listed in 'qualifierScopes'
@@ -853,7 +854,7 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     // means we prefer to report the error as if the interpretation as
     // "variable" were the only one.
     return env.error(stringc
-      << "there is no typedef called `" << *name << "'", eflags);
+      << "there is no type called `" << *name << "'", eflags);
   }
 
   if (!v->hasFlag(DF_TYPEDEF)) {
@@ -1708,11 +1709,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // getQualifierScopes(); the method for getting it returns a pointer
   // to const, which is not what the typechecking code wants.
   // Therefore, I see no way to avoid the const_cast.
+  #warning Digging down and repeatedly tchecking the declarator id is bad
   PQName *name = const_cast<PQName*>(decl->getDeclaratorId());
   if (name) {
     name->tcheck(env);
   }
-  env.getQualifierScopes(qualifierScopes, name);
+  env.getQualifierScopes(qualifierScopes, name, LF_DECLARATOR);
   env.extendScopeSeq(qualifierScopes);
 
   if (init) dt.dflags |= DF_INITIALIZED;
@@ -2426,7 +2428,7 @@ realStart:
       // the stack because for now I don't want to know what gets
       // dtored when a TemplateInfo goes away and if that will be a
       // problem; FIX: see if this can be done more efficiently.
-      TemplateInfo *sTemplArgsHolder = new TemplateInfo(NULL /*baseName*/, SL_UNKNOWN /*instLoc*/);
+      TemplateInfo *sTemplArgsHolder = new TemplateInfo(SL_UNKNOWN /*instLoc*/);
       if (dt.ASTTemplArgs) {
         env.initArgumentsFromASTTemplArgs(sTemplArgsHolder, *dt.ASTTemplArgs);
       }

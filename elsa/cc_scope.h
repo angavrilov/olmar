@@ -38,17 +38,12 @@ enum LookupFlags {
   LF_QUALIFIED       = 0x040,   // context is a qualified lookup
   LF_TEMPL_PRIMARY   = 0x080,   // return template primary rather than instantiating it
   LF_IMPL_DECL_FUNC  = 0x100,   // K&R implicitly declare functions that are not found
+  LF_DECLARATOR      = 0x200,   // context is a declarator name lookup; for templates, this means to pick the primary or a specialization, but don't instantiate
 
-  LF_ALL_FLAGS       = 0x1FF,   // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0x3FF,   // bitwise OR of all flags
 };
 
-// experiment: will this work?  yes
-inline LookupFlags operator| (LookupFlags f1, LookupFlags f2)
-  { return (LookupFlags)((int)f1 | (int)f2); }
-inline LookupFlags operator& (LookupFlags f1, LookupFlags f2)
-  { return (LookupFlags)((int)f1 & (int)f2); }
-inline LookupFlags operator~ (LookupFlags f)
-  { return (LookupFlags)((~(int)f) & LF_ALL_FLAGS); }
+ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
 
 
 // information about a single scope: the names defined in it,

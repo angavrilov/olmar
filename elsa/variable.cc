@@ -125,6 +125,16 @@ void Variable::setTemplateInfo(TemplateInfo *templInfo0)
 {
   templInfo = templInfo0;
   xassert(!(templInfo && !templInfo->isMutant() && notQuantifiedOut()));
+  
+  // complete the association
+  if (templInfo) {
+    templInfo->var = this;
+  }
+  else {
+    // this happens when we're not in a template at all, but the
+    // parser just takes the pending template info (which is NULL)
+    // and passes it in here anyway
+  }
 }
 
 
