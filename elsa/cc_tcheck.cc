@@ -852,7 +852,11 @@ Type *TS_typeof_expr::itcheck(Env &env, DeclFlags dflags)
 {
   // FIX: dflags discarded?
   expr->tcheck(expr, env);
-  return expr->type; // ->asRval();  // FIX: check the asRval()
+  // FIX: check the asRval(); A use in kernel suggests it should be
+  // there as otherwise you get "error: cannot create a pointer to a
+  // reference" when used to specify the type in a declarator that
+  // comes from a de-reference (which yeilds a reference).
+  return expr->type->asRval();
 }
 
 
