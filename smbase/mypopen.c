@@ -84,11 +84,18 @@ int popen_pipes(int *parentWritesChild, int *parentReadsChild,
   int childWritesParent;
   int childWritesStderr;
   int childPid;
+  int stderrToStdout = 0;
 
   // create pipes
   makePipe(&childReadsParent, parentWritesChild);
   makePipe(parentReadsChild, &childWritesParent);
-  if (readChildStderr) {
+  if (parentReadsChild == readChildStderr) {
+    // caller wants child stdout and stderr going to same place
+    stderrToStdout = 1;
+    *readChildStderr = *parentReadsChild;
+    readChildStderr = NULL;     // most of the code behaves as if stderr isn't being changed
+  }
+  else if (readChildStderr) {
     makePipe(readChildStderr, &childWritesStderr);
   }
 
@@ -131,9 +138,10 @@ int popen_pipes(int *parentWritesChild, int *parentReadsChild,
     }
 
     // now, duplicate the pipe fds to stdin/stdout
-    if (dup2(childReadsParent, STDIN) < -1    ||
-        dup2(childWritesParent, STDOUT)	< -1  ||
-        (readChildStderr && dup2(childWritesStderr, STDERR) < -1)) {
+    if (dup2(childReadsParent, STDIN) < -1                         ||
+        dup2(childWritesParent, STDOUT)	< -1                       ||
+        (readChildStderr && dup2(childWritesStderr, STDERR) < -1)  ||
+        (stderrToStdout && dup2(childWritesParent, STDERR) < -1)   ) {
       die("dup2");
     }
 
@@ -242,6 +250,37 @@ int main()
     }
   }
 
+  // also fails, but with stdout and stderr going to same pipe
+  {
+    int in, out;
+    int len;
+    char const *argv[] = { "does_not_exist", NULL };
+    int pid = popen_execvp(&in, &out, &out, argv[0], argv);
+    printf("out==err: child pid is %d\n", pid);
+
+    printf("waiting for error message...\n");
+    len = read(out, buf, 78);
+    if (len < 0) {
+      die("read");
+    }
+    if (buf[len-1] != '\n') {
+      buf[len++] = '\n';
+    }
+    buf[len] = 0;
+    printf("error string: %s", buf);   // should include newline from perror
+
+    close(in);
+    close(out);
+
+    printf("waiting for child to exit..\n");
+    if (wait(&stat) < 1) {
+      perror("wait");
+    }
+    else {
+      printf("child exited with status %d\n", stat);
+    }
+  }
+  
   printf("mypopen worked!\n");
   return 0;
 }

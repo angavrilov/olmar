@@ -17,7 +17,9 @@ typedef void (*execFunction)(void *extraArgs);
 
 // generic popen with generic exec function; the first two int* must
 // not be NULL, but the third can be NULL (in which case stderr will
-// not be redirected)
+// not be redirected); alternatively, if 'childStderr' ==
+// 'parentReadsChild', then the child's stderr will be directed to the
+// same pipe as its stdout
 int popen_pipes(int *parentWritesChild, int *parentReadsChild,
                 int *childStderr,
                 execFunction func, void *extraArgs);
