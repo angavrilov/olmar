@@ -1378,12 +1378,17 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
   }
 
   if (name) {
-    env.addEnum(et);
+    Scope *destScope = env.acceptingScope();
+    if (env.lang.noInnerClasses) {
+      // put it in the outer scope always
+      destScope = env.outerScope();
+    }
+    env.addEnum(et, destScope);
 
     // make the implicit typedef
     Variable *tv = env.makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
     et->typedefVar = tv;
-    if (!env.addVariable(tv)) {
+    if (!env.addVariable(tv, destScope)) {
       // this isn't really an error, because in C it would have
       // been allowed, so C++ does too [ref?]
       //return env.error(stringc
@@ -1492,7 +1497,12 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
   //     { enum { x = x }; }
   //   Here, the enumerator x is initialized with the value of the
   //   constant x, namely 12. ]"
-  if (!env.addVariable(var)) {
+  Scope *destScope = env.acceptingScope();
+  if (env.lang.noInnerClasses) {
+    // put it in the outer scope always
+    destScope = env.outerScope();
+  }
+  if (!env.addVariable(var, destScope)) {
     env.error(stringc
       << "enumerator " << name << " conflicts with an existing variable "
       << "or typedef by the same name");

@@ -366,7 +366,7 @@ Scope *Env::enclosingScope()
 }
 
 
-bool Env::addVariable(Variable *v, bool forceReplace)
+bool Env::addVariable(Variable *v, Scope * /*nullable*/ scope, bool forceReplace)
 {
   if (disambErrorsSuppressChanges()) {
     // the environment is not supposed to be modified by an ambiguous
@@ -376,9 +376,9 @@ bool Env::addVariable(Variable *v, bool forceReplace)
     return true;    // don't cause further errors; pretend it worked
   }
 
-  Scope *s = acceptingScope();
+  if (!scope) scope = acceptingScope();
   registerVariable(v);
-  if (!s->addVariable(v, forceReplace)) {
+  if (!scope->addVariable(v, forceReplace)) {
     return false;
   }
 
@@ -405,7 +405,7 @@ bool Env::addCompound(CompoundType *ct)
 }
 
 
-bool Env::addEnum(EnumType *et)
+bool Env::addEnum(EnumType *et, Scope * /*nullable*/ scope)
 {
   // like above
   if (disambErrorsSuppressChanges()) {
@@ -414,7 +414,8 @@ bool Env::addEnum(EnumType *et)
     return true;
   }
 
-  return acceptingScope()->addEnum(et);
+  if (!scope) scope = acceptingScope();
+  return scope->addEnum(et);
 }
 
 

@@ -134,9 +134,9 @@ public:      // funcs
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
   // 'forceReplace' true, silently replace instead)
-  bool addVariable(Variable *v, bool forceReplace=false);
+  bool addVariable(Variable *v, Scope * /*nullable*/ scope=NULL, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
-  bool addEnum(EnumType *et);
+  bool addEnum(EnumType *et, Scope * /*nullable*/ scope=NULL);
 
   // like 'addVariable' in that the 'scope' field gets set, but
   // nothing is added to the maps
