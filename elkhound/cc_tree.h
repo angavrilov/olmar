@@ -7,12 +7,10 @@
 #include "glrtree.h"    // NonterminalNode
 #include "exc.h"        // xBase
 #include "cc_env.h"     // Env
+#include "cil.h"        // Cil constructors
 
 class Condition_Node;
 class DataflowVar;
-class CilExpr;
-class CilContext;
-class CilLval;
 
 class CCTreeNode : public NonterminalNode {
 public:      // data
@@ -76,6 +74,56 @@ public:      // funcs
   
   // NonterminalNode funcs
   virtual bool getIsJustInt() const { return isJustInt; }
+  
+  // Cil constructors where the tree node is implicit
+  #define MKCILCTOR0(rettype,name) \
+    rettype *name()                \
+      { return ::name(this); }
+  #define MKCILCTOR1(rettype,name,arg1type,arg1name) \
+    rettype *name(arg1type arg1name)                 \
+      { return ::name(this, arg1name); }
+  #define MKCILCTOR2(rettype,name,arg1type,arg1name,arg2type,arg2name) \
+    rettype *name(arg1type arg1name, arg2type arg2name)                \
+      { return ::name(this, arg1name, arg2name); }
+  #define MKCILCTOR3(rettype,name,arg1type,arg1name,arg2type,arg2name,arg3type,arg3name) \
+    rettype *name(arg1type arg1name, arg2type arg2name, arg3type arg3name)               \
+      { return ::name(this, arg1name, arg2name, arg3name); }
+
+  MKCILCTOR1(CilExpr,  newIntLit,  int,val)
+  MKCILCTOR2(CilExpr,  newUnaryExpr,  UnaryOp,op, CilExpr*,expr)
+  MKCILCTOR3(CilExpr,  newBinExpr,  BinOp,op, CilExpr*,e1, CilExpr*,e2)
+  MKCILCTOR2(CilExpr,  newCastExpr,  Type const*,type, CilExpr*,expr)
+  MKCILCTOR1(CilExpr,  newAddrOfExpr,  CilLval*,lval)
+
+  MKCILCTOR1(CilLval,  newVarRef,  Variable*,var)
+  MKCILCTOR1(CilLval,  newDeref,  CilExpr*,ptr)
+  MKCILCTOR2(CilLval,  newFieldRef,  CilLval*,record, Variable*,field)
+  MKCILCTOR2(CilLval,  newCastLval,  Type const*,type, CilLval*,lval)
+  MKCILCTOR2(CilLval,  newArrayAccess,  CilExpr*,array, CilExpr*,index)
+
+  MKCILCTOR1(CilExpr,  newVarRefExpr,  Variable*,var)
+
+  MKCILCTOR2(CilInst,  newAssignInst,  CilLval*,lval, CilExpr*,expr)
+  MKCILCTOR2(CilFnCall,  newFnCall,  CilLval*,result, CilExpr*,fn)
+
+  MKCILCTOR2(CilStmt,  newWhileLoop,  CilExpr*,expr, CilStmt*,body)
+  MKCILCTOR3(CilStmt,  newIfThenElse,  CilExpr*,cond, CilStmt*,thenBranch, CilStmt*,elseBranch)
+  MKCILCTOR1(CilStmt,  newLabel,  LabelName,label)
+  MKCILCTOR1(CilStmt,  newGoto,  LabelName,label)
+  MKCILCTOR1(CilStmt,  newReturn,  CilExpr*,expr)
+  MKCILCTOR2(CilStmt,  newSwitch,  CilExpr*,expr, CilStmt*,body)
+  MKCILCTOR1(CilStmt,  newCase,  int,val)
+  MKCILCTOR0(CilStmt,  newDefault)
+  MKCILCTOR1(CilStmt,  newInst,  CilInst*,inst)
+
+  MKCILCTOR2(CilStmt,  newAssign,  CilLval*,lval, CilExpr*,expr)
+
+  MKCILCTOR0(CilCompound, newCompound);
+
+  #undef MKCILCTOR0
+  #undef MKCILCTOR1
+  #undef MKCILCTOR2
+  #undef MKCILCTOR3
 };
 
 

@@ -111,7 +111,7 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
     // corrupt the main one we're working on
     Env newEnv(passedEnv);
     newEnv.setTrialBalloon(true);
-    CilFnDefn dummyDefn(NULL);
+    CilFnDefn dummyDefn(this, NULL);
     CilContext newCtxt(ctxt, dummyDefn);
     newCtxt.isTrial = true;
     try {

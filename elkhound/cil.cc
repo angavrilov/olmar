@@ -9,6 +9,7 @@
 #include "cc_type.h"    // Type, etc.
 #include "cc_env.h"     // Env
 #include "macros.h"     // STATICASSERT
+#include "cc_tree.h"    // CCTreeNode
 
 #include <stdlib.h>     // rand
 #include <string.h>     // memset
@@ -20,6 +21,19 @@ LabelName newTmpLabel()
   // TODO2: fix this sorry hack
   return stringc << "tmplabel" << (rand() % 1000);
 }
+
+
+// ------------ CilThing --------------
+string CilThing::locString() const
+{  
+  return treeNode->locString();
+}
+
+string CilThing::locComment() const
+{                                  
+  return stringc << "                  // " << locString() << "\n";
+}
+
 
 
 // ------------ operators -------------
@@ -66,8 +80,9 @@ void validate(UnaryOp op)
 int CilExpr::numAllocd = 0;
 int CilExpr::maxAllocd = 0;
 
-CilExpr::CilExpr(ETag t)
-  : etag(t)
+CilExpr::CilExpr(CCTreeNode *tn, ETag t)
+  : CilThing(tn),
+    etag(t)
 {
   INC_HIGH_WATER(numAllocd, maxAllocd);
 
@@ -176,24 +191,25 @@ CilExpr *CilExpr::clone() const
     default: xfailure("bad tag");
 
     case T_LITERAL:
-      return newIntLit(lit.value);
-    
+      return newIntLit(treeNode, lit.value);
+
     case T_LVAL:
       return lval->clone();
-      
-    case T_UNOP: 
-      return newUnaryExpr(unop.op, unop.exp->clone());
+
+    case T_UNOP:
+      return newUnaryExpr(treeNode, unop.op, unop.exp->clone());
 
     case T_BINOP:
-      return newBinExpr(binop.op,
+      return newBinExpr(treeNode,
+                        binop.op,
                         binop.left->clone(),
                         binop.right->clone());
-                           
+
     case T_CASTE:
-      return newCastExpr(caste.type, caste.exp->clone());
-      
+      return newCastExpr(treeNode, caste.type, caste.exp->clone());
+
     case T_ADDROF:
-      return newAddrOfExpr(addrof.lval->clone());
+      return newAddrOfExpr(treeNode, addrof.lval->clone());
   }
 }
 
@@ -223,53 +239,53 @@ string CilExpr::toString() const
 }
 
 
-CilExpr *newIntLit(int val)
+CilExpr *newIntLit(CCTreeNode *tn, int val)
 {
-  CilExpr *ret = new CilExpr(CilExpr::T_LITERAL);
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_LITERAL);
   ret->lit.value = val;
   return ret;
 }
 
-CilExpr *newUnaryExpr(UnaryOp op, CilExpr *expr)
+CilExpr *newUnaryExpr(CCTreeNode *tn, UnaryOp op, CilExpr *expr)
 {
-  CilExpr *ret = new CilExpr(CilExpr::T_UNOP);
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_UNOP);
   ret->unop.op = op;
   ret->unop.exp = expr;
   return ret;
 }
 
-CilExpr *newBinExpr(BinOp op, CilExpr *e1, CilExpr *e2)
+CilExpr *newBinExpr(CCTreeNode *tn, BinOp op, CilExpr *e1, CilExpr *e2)
 {
-  CilExpr *ret = new CilExpr(CilExpr::T_BINOP);
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_BINOP);
   ret->binop.op = op;
   ret->binop.left = e1;
   ret->binop.right = e2;
   return ret;
 }
 
-CilExpr *newCastExpr(Type const *type, CilExpr *expr)
+CilExpr *newCastExpr(CCTreeNode *tn, Type const *type, CilExpr *expr)
 {
-  CilExpr *ret = new CilExpr(CilExpr::T_CASTE);
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_CASTE);
   ret->caste.type = type;
   ret->caste.exp = expr;
   return ret;
 }
 
-CilExpr *newAddrOfExpr(CilLval *lval)
+CilExpr *newAddrOfExpr(CCTreeNode *tn, CilLval *lval)
 {
-  CilExpr *ret = new CilExpr(CilExpr::T_ADDROF);
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_ADDROF);
   ret->addrof.lval = lval;
   return ret;
 }
 
 
 // ------------------- CilLval -------------------
-CilLval::CilLval(LTag tag)
-  : CilExpr(CilExpr::T_LVAL),
+CilLval::CilLval(CCTreeNode *tn, LTag tag)
+  : CilExpr(tn, CilExpr::T_LVAL),
     ltag(tag)
 {
   validate(ltag);
-  
+
   // clear fields
   memset(&fieldref, 0, sizeof(fieldref));
 }
@@ -277,7 +293,7 @@ CilLval::CilLval(LTag tag)
 
 CilLval::~CilLval()
 {
-  // the tricky thing here is when a CilLval gets destroyed, 
+  // the tricky thing here is when a CilLval gets destroyed,
   // either ~CilLval *or* ~CilExpr gets called -- in the latter
   // case, ~CilExpr will in turn call ~CilLval (which, either
   // way, in turn calls ~CilExpr)
@@ -300,7 +316,7 @@ CilLval::~CilLval()
       delete arrayelt.array;
       delete arrayelt.index;
       break;
-      
+
     INCL_SWITCH
   }
 }
@@ -333,19 +349,24 @@ CilLval *CilLval::clone() const
     default: xfailure("bad tag");
 
     case T_VARREF:
-      return newVarRef(varref.var);
+      return newVarRef(treeNode, varref.var);
 
     case T_DEREF:
-      return newDeref(deref.addr->clone());
+      return newDeref(treeNode, deref.addr->clone());
 
     case T_FIELDREF:
-      return newFieldRef(fieldref.record->clone(), fieldref.field);
+      return newFieldRef(treeNode, 
+                         fieldref.record->clone(), 
+                         fieldref.field);
 
     case T_CASTL:
-      return newCastLval(castl.type, castl.lval->clone());
+      return newCastLval(treeNode,
+                         castl.type,
+                         castl.lval->clone());
 
     case T_ARRAYELT:
-      return newArrayAccess(arrayelt.array->clone(),
+      return newArrayAccess(treeNode,
+                            arrayelt.array->clone(),
                             arrayelt.index->clone());
   }
 }
@@ -371,55 +392,55 @@ string CilLval::toString() const
 }
 
 
-CilLval *newVarRef(Variable *var)
+CilLval *newVarRef(CCTreeNode *tn, Variable *var)
 {
   // must be an lvalue
   xassert(!var->isEnumValue());
 
-  CilLval *ret = new CilLval(CilLval::T_VARREF);
+  CilLval *ret = new CilLval(tn, CilLval::T_VARREF);
   ret->varref.var = var;
   return ret;
 }
 
-CilExpr *newVarRefExpr(Variable *var)
+CilExpr *newVarRefExpr(CCTreeNode *tn, Variable *var)
 {
   if (var->isEnumValue()) {
     // since Cil doesn't have enums, instead generate a literal
-    return newIntLit(var->enumValue);
+    return newIntLit(tn, var->enumValue);
   }
   else {
     // usual case
-    return newVarRef(var);
+    return newVarRef(tn, var);
   }
 }
 
 
-CilLval *newDeref(CilExpr *ptr)
+CilLval *newDeref(CCTreeNode *tn, CilExpr *ptr)
 {
-  CilLval *ret = new CilLval(CilLval::T_DEREF);
+  CilLval *ret = new CilLval(tn, CilLval::T_DEREF);
   ret->deref.addr = ptr;
   return ret;
 }
 
-CilLval *newFieldRef(CilLval *record, Variable *field)
+CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field)
 {
-  CilLval *ret = new CilLval(CilLval::T_FIELDREF);
+  CilLval *ret = new CilLval(tn, CilLval::T_FIELDREF);
   ret->fieldref.record = record;
   ret->fieldref.field = field;
   return ret;
 }
 
-CilLval *newCastLval(Type const *type, CilLval *lval)
+CilLval *newCastLval(CCTreeNode *tn, Type const *type, CilLval *lval)
 {
-  CilLval *ret = new CilLval(CilLval::T_CASTL);
+  CilLval *ret = new CilLval(tn, CilLval::T_CASTL);
   ret->castl.type = type;
   ret->castl.lval = lval;
   return ret;
 }
 
-CilLval *newArrayAccess(CilExpr *array, CilExpr *index)
+CilLval *newArrayAccess(CCTreeNode *tn, CilExpr *array, CilExpr *index)
 {
-  CilLval *ret = new CilLval(CilLval::T_ARRAYELT);
+  CilLval *ret = new CilLval(tn, CilLval::T_ARRAYELT);
   ret->arrayelt.array = array;
   ret->arrayelt.index = index;
   return ret;
@@ -430,8 +451,9 @@ CilLval *newArrayAccess(CilExpr *array, CilExpr *index)
 int CilInst::numAllocd = 0;
 int CilInst::maxAllocd = 0;
 
-CilInst::CilInst(ITag tag)
-  : itag(tag)
+CilInst::CilInst(CCTreeNode *tn, ITag tag)
+  : CilThing(tn),
+    itag(tag)
 {
   INC_HIGH_WATER(numAllocd, maxAllocd);
 
@@ -506,7 +528,9 @@ CilInst *CilInst::clone() const
       xfailure("bad tag");
 
     case T_ASSIGN:
-      return newAssignInst(assign.lval->clone(), assign.expr->clone());
+      return newAssignInst(treeNode,
+                           assign.lval->clone(), 
+                           assign.expr->clone());
 
     case T_CALL:
       return call->clone();
@@ -540,7 +564,8 @@ void CilInst::printTree(int ind, ostream &os) const
 
     case T_ASSIGN:
       os << "assign " << assign.lval->toString()
-         << " := " << assign.expr->toString() << " ;\n";
+         << " := " << assign.expr->toString() 
+         << ";" << locComment();
       break;
 
     case NUM_ITAGS:
@@ -549,10 +574,10 @@ void CilInst::printTree(int ind, ostream &os) const
 }
 
 
-CilInst *newAssignInst(CilLval *lval, CilExpr *expr)
+CilInst *newAssignInst(CCTreeNode *tn, CilLval *lval, CilExpr *expr)
 {
   xassert(lval && expr);
-  CilInst *ret = new CilInst(CilInst::T_ASSIGN);
+  CilInst *ret = new CilInst(tn, CilInst::T_ASSIGN);
   xassert(lval->isLval());    // stab in the dark ..
   ret->assign.lval = lval;
   ret->assign.expr = expr;
@@ -561,8 +586,8 @@ CilInst *newAssignInst(CilLval *lval, CilExpr *expr)
 
 
 // -------------------- CilFnCall -------------------
-CilFnCall::CilFnCall(CilLval *r, CilExpr *f)
-  : CilInst(CilInst::T_CALL),
+CilFnCall::CilFnCall(CCTreeNode *tn, CilLval *r, CilExpr *f)
+  : CilInst(tn, CilInst::T_CALL),
     result(r),
     func(f),
     args()      // initially empty
@@ -593,8 +618,8 @@ CilLval *nullableCloneLval(CilLval *src)
 
 CilFnCall *CilFnCall::clone() const
 {
-  CilFnCall *ret = new CilFnCall(nullableCloneLval(result),
-                                 func->clone());
+  CilFnCall *ret = 
+    new CilFnCall(treeNode, nullableCloneLval(result), func->clone());
 
   FOREACH_OBJLIST(CilExpr, args, iter) {
     ret->args.append(iter.data()->clone());
@@ -612,7 +637,7 @@ void CilFnCall::printTree(int ind, ostream &os) const
     os << result->toString() << " ";
   }
   os << ":= " << func->toString()
-     << " withargs";
+     << "( ";
 
   int ct=0;
   FOREACH_OBJLIST(CilExpr, args, iter) {
@@ -622,7 +647,7 @@ void CilFnCall::printTree(int ind, ostream &os) const
     os << " " << iter.data()->toString();
   }
 
-  os << " ;\n";
+  os << ") ;" << locComment();
 }
 
 
@@ -632,9 +657,9 @@ void CilFnCall::appendArg(CilExpr *arg)
 }
 
 
-CilFnCall *newFnCall(CilLval *result, CilExpr *fn)
+CilFnCall *newFnCall(CCTreeNode *tn, CilLval *result, CilExpr *fn)
 {
-  return new CilFnCall(result, fn);
+  return new CilFnCall(tn, result, fn);
 }
 
 
@@ -642,8 +667,9 @@ CilFnCall *newFnCall(CilLval *result, CilExpr *fn)
 int CilStmt::numAllocd = 0;
 int CilStmt::maxAllocd = 0;
 
-CilStmt::CilStmt(STag tag)
-  : stag(tag)
+CilStmt::CilStmt(CCTreeNode *tn, STag tag)
+  : CilThing(tn),
+    stag(tag)
 {
   INC_HIGH_WATER(numAllocd, maxAllocd);
 
@@ -758,34 +784,38 @@ CilStmt *CilStmt::clone() const
       return comp->clone();
 
     case T_LOOP:
-      return newWhileLoop(loop.cond->clone(), loop.body->clone());
+      return newWhileLoop(treeNode, 
+                          loop.cond->clone(), 
+                          loop.body->clone());
 
     case T_IFTHENELSE:
-      return newIfThenElse(ifthenelse.cond->clone(),
+      return newIfThenElse(treeNode,
+                           ifthenelse.cond->clone(),
                            ifthenelse.thenBr->clone(),
                            ifthenelse.elseBr->clone());
 
     case T_LABEL:
-      return newLabel(*(label.name));
+      return newLabel(treeNode, *(label.name));
 
     case T_JUMP:
-      return newGoto(*(jump.dest));
+      return newGoto(treeNode, *(jump.dest));
 
     case T_RET:
-      return newReturn(nullableCloneExpr(ret.expr));
+      return newReturn(treeNode, nullableCloneExpr(ret.expr));
 
     case T_SWITCH:
-      return newSwitch(switchStmt.expr->clone(),
+      return newSwitch(treeNode, 
+                       switchStmt.expr->clone(),
                        switchStmt.body->clone());
 
     case T_CASE:
-      return newCase(caseStmt.value);
+      return newCase(treeNode, caseStmt.value);
 
     case T_INST:
-      return newInst(inst.inst->clone());  
+      return newInst(treeNode, inst.inst->clone());
 
     case T_DEFAULT:
-      return newDefault();
+      return newDefault(treeNode);
   }
 
   xfailure("bad tag");
@@ -811,13 +841,15 @@ void CilStmt::printTree(int ind, ostream &os) const
       // handled above already; not reached
 
     case T_LOOP:
-      os << "while ( " << loop.cond->toString() << " ) {\n";
+      os << "while ( " << loop.cond->toString() 
+         << " ) {" << locComment();
       loop.body->printTree(ind+2, os);
       indent(ind, os) << "}\n";
       break;
 
     case T_IFTHENELSE:
-      os << "if ( " << ifthenelse.cond->toString() << ") {\n";
+      os << "if ( " << ifthenelse.cond->toString()
+         << ") {" << locComment();
       ifthenelse.thenBr->printTree(ind+2, os);
       indent(ind, os) << "}\n";
       indent(ind, os) << "else {\n";
@@ -826,11 +858,13 @@ void CilStmt::printTree(int ind, ostream &os) const
       break;
 
     case T_LABEL:
-      os << "label " << *(label.name) << " :\n";
+      os << "label " << *(label.name)
+         << " :" << locComment();
       break;
 
     case T_JUMP:
-      os << "goto " << *(jump.dest) << " ;\n";
+      os << "goto " << *(jump.dest)
+         << " ;" << locComment();
       break;
 
     case T_RET:
@@ -838,21 +872,23 @@ void CilStmt::printTree(int ind, ostream &os) const
       if (ret.expr) {
         os << " " << ret.expr->toString();
       }
-      os << " ;\n";
+      os << " ;" << locComment();
       break;
 
     case T_SWITCH:
-      os << "switch (" << switchStmt.expr->toString() << ") {\n";
+      os << "switch (" << switchStmt.expr->toString()
+         << ") {" << locComment();
       switchStmt.body->printTree(ind+2, os);
       indent(ind, os) << "}\n";
       break;
 
     case T_CASE:
-      os << "case " << caseStmt.value << ":\n";
+      os << "case " << caseStmt.value 
+         << ":" << locComment();
       break;
 
     case T_DEFAULT:
-      os << "default:\n";
+      os << "default:" << locComment();
       break;
 
     case NUM_STAGS:
@@ -861,79 +897,79 @@ void CilStmt::printTree(int ind, ostream &os) const
 }
 
 
-CilStmt *newWhileLoop(CilExpr *expr, CilStmt *body)
+CilStmt *newWhileLoop(CCTreeNode *tn, CilExpr *expr, CilStmt *body)
 {
   xassert(expr && body);
-  CilStmt *ret = new CilStmt(CilStmt::T_LOOP);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_LOOP);
   ret->loop.cond = expr;
   ret->loop.body = body;
   return ret;
 }
 
-CilStmt *newIfThenElse(CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch)
+CilStmt *newIfThenElse(CCTreeNode *tn, CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch)
 {
   xassert(cond && thenBranch && elseBranch);
-  CilStmt *ret = new CilStmt(CilStmt::T_IFTHENELSE);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_IFTHENELSE);
   ret->ifthenelse.cond = cond;
   ret->ifthenelse.thenBr = thenBranch;
   ret->ifthenelse.elseBr = elseBranch;
   return ret;
 }
 
-CilStmt *newLabel(LabelName label)
+CilStmt *newLabel(CCTreeNode *tn, LabelName label)
 {
-  CilStmt *ret = new CilStmt(CilStmt::T_LABEL);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_LABEL);
   ret->label.name = new LabelName(label);
   return ret;
 }
 
-CilStmt *newGoto(LabelName label)
+CilStmt *newGoto(CCTreeNode *tn, LabelName label)
 {
-  CilStmt *ret = new CilStmt(CilStmt::T_JUMP);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_JUMP);
   ret->jump.dest = new LabelName(label);
   return ret;
 }
 
-CilStmt *newReturn(CilExpr *expr /*nullable*/)
+CilStmt *newReturn(CCTreeNode *tn, CilExpr *expr /*nullable*/)
 {
-  CilStmt *ret = new CilStmt(CilStmt::T_RET);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_RET);
   ret->ret.expr = expr;
   return ret;
 }
 
-CilStmt *newSwitch(CilExpr *expr, CilStmt *body)
+CilStmt *newSwitch(CCTreeNode *tn, CilExpr *expr, CilStmt *body)
 {
   xassert(expr && body);
-  CilStmt *ret = new CilStmt(CilStmt::T_SWITCH);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_SWITCH);
   ret->switchStmt.expr = expr;
   ret->switchStmt.body = body;
   return ret;
 }
 
-CilStmt *newCase(int val)
+CilStmt *newCase(CCTreeNode *tn, int val)
 {
-  CilStmt *ret = new CilStmt(CilStmt::T_CASE);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_CASE);
   ret->caseStmt.value = val;
   return ret;
 }
 
-CilStmt *newDefault()
+CilStmt *newDefault(CCTreeNode *tn)
 {
-  CilStmt *ret = new CilStmt(CilStmt::T_DEFAULT);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_DEFAULT);
   return ret;
 }
 
-CilStmt *newInst(CilInst *inst)
-{  
+CilStmt *newInst(CCTreeNode *tn, CilInst *inst)
+{
   xassert(inst);
-  CilStmt *ret = new CilStmt(CilStmt::T_INST);
+  CilStmt *ret = new CilStmt(tn, CilStmt::T_INST);
   ret->inst.inst = inst;
   return ret;
 }
 
-CilStmt *newAssign(CilLval *lval, CilExpr *expr)
+CilStmt *newAssign(CCTreeNode *tn, CilLval *lval, CilExpr *expr)
 {
-  return newInst(newAssignInst(lval, expr));
+  return newInst(tn, newAssignInst(tn, lval, expr));
 }
 
 
@@ -970,8 +1006,8 @@ void CilStatements::printTreeNoBraces(int ind, ostream &os) const
 
 
 // ----------------- CilCompound ---------------------
-CilCompound::CilCompound()
-  : CilStmt(CilStmt::T_COMPOUND)
+CilCompound::CilCompound(CCTreeNode *tn)
+  : CilStmt(tn, CilStmt::T_COMPOUND)
 {}
 
 CilCompound::~CilCompound()
@@ -982,7 +1018,7 @@ CilCompound::~CilCompound()
 
 CilCompound *CilCompound::clone() const
 {
-  CilCompound *ret = new CilCompound();
+  CilCompound *ret = new CilCompound(treeNode);
 
   FOREACH_OBJLIST(CilStmt, stmts, iter) {
     ret->append(iter.data()->clone());
@@ -993,7 +1029,7 @@ CilCompound *CilCompound::clone() const
 
 
 void CilCompound::printTree(int ind, ostream &os) const
-{                            
+{
   // removed braces and indentation because there isn't
   // local scope in Cil, but these make it look like
   // there is, at times
@@ -1003,9 +1039,9 @@ void CilCompound::printTree(int ind, ostream &os) const
 }
 
 
-CilCompound *newCompound()
+CilCompound *newCompound(CCTreeNode *tn)
 {
-  return new CilCompound();
+  return new CilCompound(tn);
 }
 
 
@@ -1202,7 +1238,7 @@ void CilFnDefn::printTree(int ind, ostream &os, bool stmts) const
 {
   os << "fundecl " << var->name
      << " : " << var->type->toString();
-  indent(ind, os) << " {\n";
+  indent(ind, os) << " {" << locComment();
 
   // print locals
   SFOREACH_OBJLIST(Variable, locals, iter) {

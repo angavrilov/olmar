@@ -58,7 +58,7 @@ int foo()
 
   a = (b , c);        // comma operator (lower prec. than '=' !)
   
-myLabel: x=y;         // labelled statement
+myLabel: x=y;         // labeled statement
 
   if (a++) {            // if-then
     b = c;

@@ -15,6 +15,7 @@ class FunctionType;    // cc_type.h
 class Env;             // cc_env.h
 class Variable;        // cc_env.h
 class BBContext;       // stmt2bb.cc
+class CCTreeNode;      // cc_tree.h
 
 // fwd for this file
 class CilExpr;
@@ -31,11 +32,28 @@ typedef string LabelName;
 LabelName newTmpLabel();
 
 
+// ------------ CilThing -------------
+// I want to put pointers back into the parse tree
+// in all these nodes; perhaps other things may be
+// common to Cil things and could go here too
+class CilThing {
+public:
+  CCTreeNode *treeNode;       // (serf) ptr to tree node that generated this
+ 
+public:
+  CilThing(CCTreeNode *tn) : treeNode(tn) {}
+  ~CilThing() {}
+  
+  string locString() const;
+  string locComment() const;
+};
+
+
 // ====================== Expression Language =====================
 // --------------- operators ----------------
 // TODO: for now, I don't distinguish e.g. unsigned
 // and signed operations
-enum BinOp { 
+enum BinOp {
   OP_PLUS, OP_MINUS, OP_TIMES, OP_DIVIDE, OP_MOD,
   OP_LSHIFT, OP_RSHIFT,
   OP_LT, OP_GT, OP_LTE, OP_GTE,
@@ -59,7 +77,7 @@ void validate(UnaryOp op);
 // not be modifiable -- unlike Lvalues, below; CilExprs form trees,
 // where parents own children; thus, there can be *no* sharing of
 // subtrees between different CilExprs
-class CilExpr {
+class CilExpr : public CilThing {
 public:      // types
   enum ETag { T_LITERAL, T_LVAL, T_UNOP, T_BINOP,
               T_CASTE, T_ADDROF, NUM_ETAGS };
@@ -107,7 +125,7 @@ public:      // data
 public:      // funcs
   // the ctor just accepts a tag; caller must fill in the
   // other fields
-  CilExpr(ETag tag);
+  CilExpr(CCTreeNode *tn, ETag tag);
   ~CilExpr();
   
   // we need the 'env' argument because we may have to
@@ -136,11 +154,11 @@ inline Type const *typeOf(CilExpr const *expr, Env *env)
 inline bool isLval(CilExpr const *expr) { return expr->isLval(); }
 inline CilLval *asLval(CilExpr *expr) { return expr->asLval(); }
 
-CilExpr *newIntLit(int val);
-CilExpr *newUnaryExpr(UnaryOp op, CilExpr *expr);
-CilExpr *newBinExpr(BinOp op, CilExpr *e1, CilExpr *e2);
-CilExpr *newCastExpr(Type const *type, CilExpr *expr);
-CilExpr *newAddrOfExpr(CilLval *lval);
+CilExpr *newIntLit(CCTreeNode *tn, int val);
+CilExpr *newUnaryExpr(CCTreeNode *tn, UnaryOp op, CilExpr *expr);
+CilExpr *newBinExpr(CCTreeNode *tn, BinOp op, CilExpr *e1, CilExpr *e2);
+CilExpr *newCastExpr(CCTreeNode *tn, Type const *type, CilExpr *expr);
+CilExpr *newAddrOfExpr(CCTreeNode *tn, CilLval *lval);
 
 
 // ------------------- CilLval -------------------
@@ -185,7 +203,7 @@ public:      // data
   };
 
 public:      // funcs
-  CilLval(LTag tag);       // caller must fill in right fields
+  CilLval(CCTreeNode *tn, LTag tag);       // caller must fill in right fields
   ~CilLval();
 
   Type const *getType(Env *env) const;
@@ -196,15 +214,15 @@ public:      // funcs
   string toString() const;  
 };
 
-CilLval *newVarRef(Variable *var);
-CilLval *newDeref(CilExpr *ptr);
-CilLval *newFieldRef(CilLval *record, Variable *field);
-CilLval *newCastLval(Type const *type, CilLval *lval);
-CilLval *newArrayAccess(CilExpr *array, CilExpr *index);
+CilLval *newVarRef(CCTreeNode *tn, Variable *var);
+CilLval *newDeref(CCTreeNode *tn, CilExpr *ptr);
+CilLval *newFieldRef(CCTreeNode *tn, CilLval *record, Variable *field);
+CilLval *newCastLval(CCTreeNode *tn, Type const *type, CilLval *lval);
+CilLval *newArrayAccess(CCTreeNode *tn, CilExpr *array, CilExpr *index);
 
 // lile 'newVarRef', except it's allowed to replace
 // references to constants with the associated literal
-CilExpr *newVarRefExpr(Variable *var);
+CilExpr *newVarRefExpr(CCTreeNode *tn, Variable *var);
 
 
 // ====================== Instruction Language =====================
@@ -215,7 +233,7 @@ CilExpr *newVarRefExpr(Variable *var);
 // control flow constructs, since my intuition is that
 // will be more uniform -- we'll see; CilInsts own all
 // the CilExprs *and* CilInsts they point to
-class CilInst {
+class CilInst : public CilThing {
 public:      // types
   enum ITag {
     // simple imperatives
@@ -243,7 +261,7 @@ public:      // data
   static int maxAllocd;
 
 public:      // funcs
-  CilInst(ITag tag);        // caller fills in fields
+  CilInst(CCTreeNode *tn, ITag tag);        // caller fills in fields
   ~CilInst();
 
   static void validate(ITag tag);
@@ -255,7 +273,7 @@ public:      // funcs
   void printTree(int indent, ostream &os) const;
 };
 
-CilInst *newAssignInst(CilLval *lval, CilExpr *expr);
+CilInst *newAssignInst(CCTreeNode *tn, CilLval *lval, CilExpr *expr);
 
 
 class CilFnCall : public CilInst {
@@ -266,7 +284,7 @@ public:     // data
   ObjList<CilExpr> args;   // list of arguments
 
 public:     // funcs
-  CilFnCall(CilLval *result, CilExpr *expr);
+  CilFnCall(CCTreeNode *tn, CilLval *result, CilExpr *expr);
   ~CilFnCall();
 
   CilFnCall *clone() const;
@@ -275,7 +293,7 @@ public:     // funcs
   void appendArg(CilExpr *arg);
 };
 
-CilFnCall *newFnCall(CilLval *result, CilExpr *fn);    // args appended later
+CilFnCall *newFnCall(CCTreeNode *tn, CilLval *result, CilExpr *fn);    // args appended later
 
 
 // ====================== Statement Language =====================
@@ -284,7 +302,7 @@ CilFnCall *newFnCall(CilLval *result, CilExpr *fn);    // args appended later
 // instructions; instructions are leaves, and statements
 // are both internal nodes and leaves; statements encode
 // flow of control
-class CilStmt {
+class CilStmt : public CilThing {
 public:      // types
   enum STag {
     // control flow constructs ("loop"="while", "jump"="goto")
@@ -358,7 +376,7 @@ public:      // data
   static int maxAllocd;
 
 public:      // funcs
-  CilStmt(STag stag);        // caller fills in fields
+  CilStmt(CCTreeNode *tn, STag stag);        // caller fills in fields
   ~CilStmt();
 
   static void validate(STag stag);
@@ -368,25 +386,25 @@ public:      // funcs
   CilStmt *clone() const;
 
   void printTree(int indent, ostream &os) const;
-  
+
   // translaton
-  CilBB * /*owner*/ translateToBB(BBContext &ctxt, 
+  CilBB * /*owner*/ translateToBB(BBContext &ctxt,
                                   CilBB * /*owner*/ next) const;
 };
 
-CilStmt *newWhileLoop(CilExpr *expr, CilStmt *body);
-CilStmt *newIfThenElse(CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch);
-CilStmt *newLabel(LabelName label);
-CilStmt *newGoto(LabelName label);
-CilStmt *newReturn(CilExpr *expr /*nullable*/);
-CilStmt *newSwitch(CilExpr *expr, CilStmt *body);
-CilStmt *newCase(int val);
-CilStmt *newDefault();
-CilStmt *newInst(CilInst *inst);
+CilStmt *newWhileLoop(CCTreeNode *tn, CilExpr *expr, CilStmt *body);
+CilStmt *newIfThenElse(CCTreeNode *tn, CilExpr *cond, CilStmt *thenBranch, CilStmt *elseBranch);
+CilStmt *newLabel(CCTreeNode *tn, LabelName label);
+CilStmt *newGoto(CCTreeNode *tn, LabelName label);
+CilStmt *newReturn(CCTreeNode *tn, CilExpr *expr /*nullable*/);
+CilStmt *newSwitch(CCTreeNode *tn, CilExpr *expr, CilStmt *body);
+CilStmt *newCase(CCTreeNode *tn, int val);
+CilStmt *newDefault(CCTreeNode *tn);
+CilStmt *newInst(CCTreeNode *tn, CilInst *inst);
 
 // since it's common, here's an assign that wraps
 // up its arguments into a CilStmt
-CilStmt *newAssign(CilLval *lval, CilExpr *expr);
+CilStmt *newAssign(CCTreeNode *tn, CilLval *lval, CilExpr *expr);
 
 
 // sequential list of statements
@@ -408,7 +426,7 @@ public:    // funcs
 // from CilInst to CilCompound
 class CilCompound : public CilStmt, public CilStatements {
 public:    // funcs
-  CilCompound();
+  CilCompound(CCTreeNode *tn);
   ~CilCompound();
 
   CilCompound *clone() const;
@@ -417,7 +435,7 @@ public:    // funcs
                                   CilBB * /*owner*/ next) const;
 };
 
-CilCompound *newCompound();
+CilCompound *newCompound(CCTreeNode *tn);
 
 
 // ====================== Basic Block Language =====================
@@ -426,7 +444,7 @@ CilCompound *newCompound();
 // by one or more outgoing control flow edges; when there
 // are multiple outgoing edges, the edge to choose is controlled
 // by associated guard expressions
-class CilBB {                     
+class CilBB {
 public:     // types
   enum BTag {
     T_RETURN, T_IF, T_SWITCH, T_JUMP,
@@ -513,7 +531,7 @@ public:
 // ====================== Program Language =====================
 // ---------------------- CilFnDefn -----------------
 // a function definition -- name, type, and code
-class CilFnDefn {
+class CilFnDefn : public CilThing {
 public:
   Variable *var;               // (serf) name, type
   CilCompound bodyStmt;        // fn body code as statements
@@ -523,8 +541,8 @@ public:
   CilBB *startBB;              // (serf) starting basic block
 
 public:
-  CilFnDefn(Variable *v)
-    : var(v) {}
+  CilFnDefn(CCTreeNode *tn, Variable *v)
+    : CilThing(tn), var(v), bodyStmt(tn) {}
   ~CilFnDefn();
                                               
   // stmts==true: print statements
