@@ -70,7 +70,7 @@ class Function {
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
   public void tcheck(Env &env, bool checkBody,
-                     bool reallyAddVariable, Variable *prior);
+                     bool reallyAddVariable, Variable *priorTemplInst);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
@@ -104,7 +104,8 @@ class MemberInit {
 
 class Declaration {                                   
   public void tcheck(Env &env, DeclaratorContext context,
-                     bool reallyAddVariable = true, Variable *prior = NULL);
+                     bool reallyAddVariable = true,
+                     Variable *priorTemplInst = NULL);
 }
 
 
@@ -309,7 +310,7 @@ class Declarator {
     //   make and add to scope,
     //   make and don't add to scope, and
     //   don't make and don't add to scope.
-    Variable *prior;
+    Variable *priorTemplInst;
     
   public:
     Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
@@ -320,7 +321,7 @@ class Declarator {
       , funcSyntax  (NULL)
       , context     (dc)
       , reallyAddVariable (true)
-      , prior       (NULL)
+      , priorTemplInst(NULL)
     {}
     Tcheck(Tcheck const &obj)
       : var         (obj.var)
@@ -330,7 +331,7 @@ class Declarator {
       , funcSyntax  (obj.funcSyntax)
       , context     (obj.context)
       , reallyAddVariable(obj.reallyAddVariable)
-      , prior       (obj.prior)
+      , priorTemplInst(obj.priorTemplInst)
     {}
     Tcheck& operator= (Tcheck const &obj) {
       var         = obj.var;
@@ -340,7 +341,7 @@ class Declarator {
       funcSyntax  = obj.funcSyntax;
       context     = obj.context;
       reallyAddVariable = obj.reallyAddVariable;
-      prior       = obj.prior;
+      priorTemplInst = obj.priorTemplInst;
       return *this;
     }
 

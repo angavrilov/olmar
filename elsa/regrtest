@@ -192,7 +192,7 @@ testparse() {
   runTest perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
 }
 failparse() {
-  failTest "$2" perl ./multitest.pl ./ccparse -tr doOperatorOverload,$TR_FLAGS in/$1
+  failTest "$2" perl ./multitest.pl ./ccparse -tr shortMTRecDepthLimit,doOperatorOverload,$TR_FLAGS in/$1
 }
 
 # ---- BEGIN: lots of tests ----
@@ -469,6 +469,23 @@ testparse d0055.cc
 testparse d0056.cc
 testparse d0057.cc
 testparse d0058.cc
+testparse d0059.cc
+testparse d0060.cc
+testparse d0061.cc
+failparse d0062.cc "during type matching, recursion depth exceeded the limit"
+failparse d0063.cc "during type matching, recursion depth exceeded the limit"
+# the array size is actually there
+#  in/d0064.cc:4:37: error: array size must be positive (inst from in/d0064.cc:32:8)
+#  testparse d0064.cc
+# not sure what this one should do
+#  in/d0065.cc:3:34: error: TemplateArgument has no value  ( (I)+ (1))
+#  testparse d0065.cc
+testparse d0066.cc
+testparse d0067.cc
+# this one passes, but I'm not sure its right; I think it is
+# instantiating the class template A twice since it is a mutant,
+# thought perhaps it shouldn't
+testparse d0068.cc
 # ---- END: lots of tests ----
 
 

@@ -15,22 +15,6 @@ inline ostream& operator<< (ostream &os, SourceLoc sl)
   { return os << toString(sl); }
 
 
-// for debugging purposes
-// sm: TODO: consolidate this with bindingsGdb!
-void printBindings(StringSObjDict<STemplateArgument> &bindings)
-{
-  cout << "bindings: " << endl;
-  for(StringSObjDict<STemplateArgument>::Iter iter(bindings);
-      !iter.isDone();
-      iter.next()) {
-    string key = iter.key();
-    STemplateArgument *value = iter.value();
-    cout << "\t" << key << ":" << value->toString() << endl;
-  }
-  cout << "end bindings" << endl;
-}
-
-
 TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
   (STemplateArgument *larg, STemplateArgument *rarg)
 {
@@ -50,8 +34,8 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     // check if left is at least as specific as right
     bool leftAtLeastAsSpec;
     {
-      MatchTypes match(tfac);
-      if (match.match(larg->value.t, rarg->value.t, match.MT_TOP)) {
+      MatchTypes match(tfac, MatchTypes::MM_WILD);
+      if (match.match_Type(larg->value.t, rarg->value.t, match.MT_TOP)) {
         leftAtLeastAsSpec = true;
       } else {
         leftAtLeastAsSpec = false;
@@ -60,8 +44,8 @@ TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
     // check if right is at least as specific as left
     bool rightAtLeastAsSpec;
     {
-      MatchTypes match(tfac);
-      if (match.match(rarg->value.t, larg->value.t, match.MT_TOP)) {
+      MatchTypes match(tfac, MatchTypes::MM_WILD);
+      if (match.match_Type(rarg->value.t, larg->value.t, match.MT_TOP)) {
         rightAtLeastAsSpec = true;
       } else {
         rightAtLeastAsSpec = false;
@@ -178,6 +162,8 @@ int TemplCandidates::compareCandidates(Variable const *left, Variable const *rig
 // --------------------- Env -----------------
                                  
 int throwClauseSerialNumber = 0; // don't make this a member of Env
+
+TD_class instFwdClassesTDSDummy(NULL, NULL); // arguments are meaningless
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
@@ -984,6 +970,21 @@ CompoundType *Env::getEnclosingCompound()
 #endif // 0
 
 
+Env::TemplTcheckMode Env::getTemplTcheckMode() const {
+  if (templateDeclarationStack.isEmpty()
+      || templateDeclarationStack.topC() == &instFwdClassesTDSDummy) {
+    return TTM_1NORMAL;
+  }
+  // we are in a template declaration
+  if (funcDeclStack.isEmpty()) return TTM_3TEMPL_DEF;
+  // we are in a function declaration somewhere
+  if (funcDeclStack.topC()->isInitializer()) return TTM_3TEMPL_DEF;
+  // we are in a function declaration and not in a default argument
+  xassert(funcDeclStack.topC()->isD_func());
+  return TTM_2TEMPL_FUNC_DECL;
+}
+
+
 void Env::setLoc(SourceLoc loc)
 {
   TRACE("loc", "setLoc: " << toString(loc));
@@ -1501,9 +1502,8 @@ Variable *Env::findTemplPrimaryForSignature
     //
     // FIX: I don't know if this is really as precise a lookup as is
     // possible.
-    MatchTypes match(tfac);
-    StringSObjDict<STemplateArgument> bindings;
-    if (match.match
+    MatchTypes match(tfac, MatchTypes::MM_WILD);
+    if (match.match_Type
         (signature,
          var0->type,
          // FIX: I don't know if this should be top or not or if it
@@ -1519,6 +1519,139 @@ Variable *Env::findTemplPrimaryForSignature
     }
   }
   return candidatePrim;
+}
+
+
+bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
+                                        MatchTypes &match)
+{
+  SObjListIterNC<Variable> paramIter(var->templateInfo()->params);
+  ASTListIter<TemplateArgument> argIter(args);
+  while (!paramIter.isDone() && !argIter.isDone()) {
+    Variable *param = paramIter.data();
+
+    // no bindings yet and param names unique
+    //
+    // FIX: maybe I shouldn't assume that param names are
+    // unique; then this would be a user error
+    if (param->type->isTypeVariable()) {
+      xassert(!match.bindings.getTypeVar(param->type->asTypeVariable()));
+    } else {
+      // for, say, int template parameters
+      xassert(!match.bindings.getObjVar(param));
+    }
+
+    TemplateArgument const *arg = argIter.data();
+
+    // FIX: when it is possible to make a TA_template, add
+    // check for it here.
+    //              xassert("Template template parameters are not implemented");
+
+    if (param->hasFlag(DF_TYPEDEF) && arg->isTA_type()) {
+      STemplateArgument *bound = new STemplateArgument;
+      bound->setType(arg->asTA_typeC()->type->getType());
+      match.bindings.putTypeVar(param->type->asTypeVariable(), bound);
+    }
+    else if (!param->hasFlag(DF_TYPEDEF) && arg->isTA_nontype()) {
+      STemplateArgument *bound = new STemplateArgument;
+      Expression *expr = arg->asTA_nontypeC()->expr;
+      if (expr->getType()->isIntegerType()) {
+        int staticTimeValue;
+        bool constEvalable = expr->constEval(*this, staticTimeValue);
+        if (!constEvalable) {
+          // error already added to the environment
+          return false;
+        }
+        bound->setInt(staticTimeValue);
+      } else if (expr->getType()->isReference()) {
+        // Subject: Re: why does STemplateArgument hold Variables?
+        // From: Scott McPeak <smcpeak@eecs.berkeley.edu>
+        // To: "Daniel S. Wilkerson" <dsw@eecs.berkeley.edu>
+        // The Variable is there because STA_REFERENCE (etc.)
+        // refer to (linker-visible) symbols.  You shouldn't
+        // be making an STemplateArgument out of an expression
+        // directly; if the template parameter is
+        // STA_REFERENCE (etc.) then dig down to find the
+        // Variable the programmer wants to use.
+        //
+        // haven't tried to exhaustively enumerate what kinds
+        // of expressions this could be; handle other types as
+        // they come up
+        xassert(expr->isE_variable());
+        bound->setReference(expr->asE_variable()->var);
+      } else {
+        unimp("unhandled kind of template argument");
+        return false;
+      }
+      match.bindings.putObjVar(param, bound);
+    }
+    else {
+      // mismatch between argument kind and parameter kind
+      char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
+      char const *argKind = arg->isTA_type()? "type" : "non-type";
+      // FIX: make a provision for template template parameters here
+      error(stringc
+            << "`" << param->name << "' is a " << paramKind
+            << " parameter, but `" << arg->argString() << "' is a "
+            << argKind << " argument",
+            EF_STRONG);
+    }
+    paramIter.adv();
+    argIter.adv();
+  }
+  return true;
+}
+
+
+bool Env::inferTemplArgsFromFuncArgs(Variable *var, FakeList<ArgExpression> *funcArgs,
+                                     MatchTypes &match)
+{
+  if (tracingSys("template")) {
+    cout << "Deducing template arguments from function arguments" << endl;
+  }
+  // FIX: make this work for vararg functions
+  int i = 1;            // for error messages
+  ArgExpression *argIterCur = funcArgs->first();
+  SFOREACH_OBJLIST_NC(Variable, var->type->asFunctionType()->params, paramIter) {
+    Variable *param = paramIter.data();
+    xassert(param);
+    // we could run out of args and it would be ok as long as we
+    // have default arguments for the rest of the parameters
+    if (argIterCur) {
+      Expression *arg = argIterCur->expr;
+      if (!arg) {
+        error(stringc << "during function template instantiation: too few arguments to " <<
+              var->name, EF_STRONG);
+        return false;
+      }
+      bool argUnifies = match.match_Type(arg->getType(), param->type, match.MT_TOP);
+      if (!argUnifies) {
+        error(stringc << "during function template instantiation: "
+              << " argument " << i << " `" << arg->getType()->toString() << "'"
+              << " is incompatable with parameter, `"
+              << param->type->toString() << "'",
+              EF_STRONG);
+        return false;             // FIX: return a variable of type error?
+      }
+    } else {
+      // we don't use the default arugments for template arugment
+      // inference, but there should be one anyway.
+      if (!param->value) {
+        error(stringc << "during function template instantiation: too few arguments to " <<
+              var->name, EF_STRONG);
+        return false;
+      }
+    }
+    ++i;
+    // advance the argIterCur if there is one
+    if (argIterCur) argIterCur = argIterCur->next;
+  }
+  if (argIterCur) {
+    error(stringc << "during function template instantiation: too many arguments to " <<
+          var->name, EF_STRONG);
+    return false;
+  }
+  return true;
 }
 
 
@@ -1544,6 +1677,14 @@ Variable *Env::lookupPQVariable_function_with_args(
     return NULL;
   }
 
+  // if we are inside a function definition, just return the primary
+  TemplTcheckMode ttm = getTemplTcheckMode();
+  xassert(ttm != TTM_2TEMPL_FUNC_DECL);
+  if (ttm == TTM_3TEMPL_DEF) {
+    xassert(var->templateInfo()->isPrimary());
+    return var;
+  }
+
   PQName const *final = name->getUnqualifiedNameC();
 
   // duck overloading
@@ -1564,110 +1705,13 @@ Variable *Env::lookupPQVariable_function_with_args(
   xassert(var->templateInfo()->isPrimary());
 
   // 'match.bindings' are the bindings we will use to instantiate
-  MatchTypes match(tfac);
+  MatchTypes match(tfac, MatchTypes::MM_BIND);
 
   if (final->isPQ_template()) {
-    // load the bindings with any explicit template arguments
-    SObjListIter<Variable> paramIter(var->templateInfo()->params);
-    ASTListIter<TemplateArgument> argIter(final->asPQ_templateC()->args);
-    while (!paramIter.isDone() && !argIter.isDone()) {
-      Variable const *param = paramIter.data();
-      // FIX: maybe I shouldn't assume that param names are
-      // unique; then this would be a user error
-      xassert(!match.bindings.queryif(param->name)); // no bindings yet and param names unique
-
-      TemplateArgument const *arg = argIter.data();
-
-      // FIX: when it is possible to make a TA_template, add
-      // check for it here.
-//              xassert("Template template parameters are not implemented");
-
-      if (param->hasFlag(DF_TYPEDEF) && arg->isTA_type()) {
-        STemplateArgument *bound = new STemplateArgument;
-        bound->setType(arg->asTA_typeC()->type->getType());
-        match.bindings.add(param->name, bound);
-      }
-      else if (!param->hasFlag(DF_TYPEDEF) && arg->isTA_nontype()) {
-        STemplateArgument *bound = new STemplateArgument;
-        Expression *expr = arg->asTA_nontypeC()->expr;
-        if (expr->getType()->isIntegerType()) {
-          int staticTimeValue;
-          bool constEvalable = expr->constEval(*this, staticTimeValue);
-          if (!constEvalable) {
-            // error already added to the environment
-            return NULL;
-          }
-          bound->setInt(staticTimeValue);
-        } else if (expr->getType()->isReference()) {
-          // Subject: Re: why does STemplateArgument hold Variables?
-          // From: Scott McPeak <smcpeak@eecs.berkeley.edu>
-          // To: "Daniel S. Wilkerson" <dsw@eecs.berkeley.edu>
-          // The Variable is there because STA_REFERENCE (etc.)
-          // refer to (linker-visible) symbols.  You shouldn't
-          // be making an STemplateArgument out of an expression
-          // directly; if the template parameter is
-          // STA_REFERENCE (etc.) then dig down to find the
-          // Variable the programmer wants to use.
-          //
-          // haven't tried to exhaustively enumerate what kinds
-          // of expressions this could be; handle other types as
-          // they come up
-          xassert(expr->isE_variable());
-          bound->setReference(expr->asE_variable()->var);
-        } else {
-          unimp("unhandled kind of template argument");
-          return NULL;
-        }
-        match.bindings.add(param->name, bound);
-      }
-      else {
-        // mismatch between argument kind and parameter kind
-        char const *paramKind = param->hasFlag(DF_TYPEDEF)? "type" : "non-type";
-        char const *argKind = arg->isTA_type()? "type" : "non-type";
-        // FIX: make a provision for template template parameters here
-        error(stringc
-              << "`" << param->name << "' is a " << paramKind
-              << " parameter, but `" << arg->argString() << "' is a "
-              << argKind << " argument",
-              EF_STRONG);
-      }
-      paramIter.adv();
-      argIter.adv();
-    }
+    if (!loadBindingsWithExplTemplArgs(var, final->asPQ_templateC()->args, match)) return NULL;
   }
 
-  // infer template arguments from the function arguments
-  if (tracingSys("template")) {
-    cout << "Deducing template arguments from function arguments" << endl;
-  }
-  // FIX: make this work for vararg functions
-  int i = 1;            // for error messages
-  SObjListIterNC<Variable> paramIter(var->type->asFunctionType()->params);
-  FAKELIST_FOREACH_NC(ArgExpression, funcArgs, arg) {
-    if (paramIter.isDone()) {
-      error("during function template instantiation: too many arguments for parameters");
-      return NULL;
-    }
-    Variable *param = paramIter.data();
-    static int count0 = 0;
-    count0++;
-    bool argUnifies = match.match(arg->getType(), param->type, match.MT_TOP);
-    if (!argUnifies) {
-      error(stringc << "during function template instantiation: "
-            << " argument " << i << " `" << arg->getType()->toString() << "'"
-            << " is incompatable with parameter, `"
-            << param->type->toString() << "'",
-            EF_STRONG);
-      return NULL;        // FIX: return a variable of type error?
-    }
-    ++i;
-    paramIter.adv();
-  }
-  if (!paramIter.isDone()) {
-    error("function template instantiation has too few arguments "
-          "for template parameters", EF_STRONG);
-    return NULL;
-  }
+  if (!inferTemplArgsFromFuncArgs(var, funcArgs, match)) return NULL;
 
   // put the bindings in a list in the right order; FIX: I am
   // rather suspicious that the set of STemplateArgument-s
@@ -1676,13 +1720,17 @@ Variable *Env::lookupPQVariable_function_with_args(
   SObjList<STemplateArgument> sargs;
   // try to report more than just one at a time if we can
   bool haveAllArgs = true;
-  SFOREACH_OBJLIST(Variable, var->templateInfo()->params, templPIter) {
-    STemplateArgument *sta = match.bindings.queryif(templPIter.data()->name);
+  SFOREACH_OBJLIST_NC(Variable, var->templateInfo()->params, templPIter) {
+    Variable *param = templPIter.data();
+    STemplateArgument *sta = NULL;
+    if (param->type->isTypeVariable()) {
+      sta = match.bindings.getTypeVar(param->type->asTypeVariable());
+    } else {
+      sta = match.bindings.getObjVar(param);
+    }
     if (!sta) {
       error(stringc << "No argument for parameter `" << templPIter.data()->name << "'",
             EF_STRONG);
-      // dsw: seems to me should be disambiguating
-      // sm: I disagree... do you have an example input demonstrating the need?
       haveAllArgs = false;
     }
     sargs.append(sta);
@@ -2111,8 +2159,8 @@ static bool doesUnificationRequireBindings
    ObjList<STemplateArgument> &arguments)
 {
   // re-unify and check that no bindings get added
-  MatchTypes match(tfac);
-  bool unifies = match.match(sargs, arguments, match.MT_NONE);
+  MatchTypes match(tfac, MatchTypes::MM_BIND);
+  bool unifies = match.match_Lists(sargs, arguments, match.MT_NONE);
   xassert(unifies);             // should of course still unify
   // bindings should be trivial for a complete specialization
   // or instantiation
@@ -2229,13 +2277,18 @@ void Env::insertBindingsForPrimary
 
 
 void Env::insertBindingsForPartialSpec
-  (Variable *baseV, StringSObjDict<STemplateArgument> &bindings)
+  (Variable *baseV, MatchBindings &bindings)
 {
-  for(SObjListIter<Variable> paramIter(baseV->templateInfo()->params);
+  for(SObjListIterNC<Variable> paramIter(baseV->templateInfo()->params);
       !paramIter.isDone();
       paramIter.adv()) {
-    Variable const *param = paramIter.data();
-    STemplateArgument *arg = bindings.queryif(param->name);
+    Variable *param = paramIter.data();
+    STemplateArgument *arg = NULL;
+    if (param->type->isTypeVariable()) {
+      arg = bindings.getTypeVar(param->type->asTypeVariable());
+    } else {
+      arg = bindings.getObjVar(param);
+    }
     if (!arg) {
       error(stringc
             << "during partial specialization parameter `" << param->name
@@ -2342,6 +2395,21 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
     baseV->templateInfo()->debugPrint();
   }
 
+  // map the typechecking mode to the type matching mode
+  MatchTypes::MatchMode matchMode = MatchTypes::MM_NONE;
+  switch(getTemplTcheckMode()) {
+  default: xfailure("bad mode"); break;
+  case TTM_1NORMAL:
+    matchMode = MatchTypes::MM_BIND;
+    break;
+  case TTM_2TEMPL_FUNC_DECL:
+    matchMode = MatchTypes::MM_ISO;
+    break;
+  case TTM_3TEMPL_DEF:
+    xfailure("findMostSpecific: shouldn't be here TTM_3TEMPL_DEF mode");
+    break;
+  }
+
   // iterate through all of the instantiations and build up an
   // ObjArrayStack<Candidate> of candidates
   TemplCandidates templCandidates(tfac);
@@ -2351,8 +2419,9 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
     // Sledgehammer time.
     xassert(templInfo0);        // should have templateness
     if (templInfo0->isMutant()) continue;
-    MatchTypes match(tfac);
-    if (match.match(sargs, templInfo0->arguments, match.MT_NONE)) {
+    // see if this candidate matches
+    MatchTypes match(tfac, matchMode);
+    if (match.match_Lists(sargs, templInfo0->arguments, match.MT_NONE)) {
       templCandidates.candidates.push(var0);
     }
   }
@@ -2496,6 +2565,7 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 // it would be better to encapsulate the mechanism than to share it
 // by threading two distinct flow paths through the same code.
 //
+//
 // dsw: There are three dimensions to the space of paths through this
 // code.
 //
@@ -2514,6 +2584,26 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 // going to instantiate the primary and not the specialization,
 // because if the specialization comes after the instantiation point,
 // it is not relevant anyway.
+//
+//
+// dsw: We have three typechecking modes:
+//
+//   1) normal: template instantiations are done fully;
+//
+//   2) template function declaration: declarations are instantiated
+//   but not definitions;
+//
+//   3) template definition: template instantiation request just result
+//   in the primary being returned.
+//
+// Further, inside template definitions, default arguments are not
+// typechecked and function template calls do not attempt to infer
+// their template arguments from their function arguments.
+//
+// Two stacks in Env allow us to distinguish these modes record when
+// the type-checker is typechecking a node below a TemplateDeclaration
+// and a D_func/Initializer respectively.  See the implementation of
+// Env::getTemplTcheckMode() for the details.
 Variable *Env::instantiateTemplate
   (SourceLoc loc, Scope *foundScope,
    Variable *baseV, Variable *instV,
@@ -2530,6 +2620,13 @@ Variable *Env::instantiateTemplate
   // we bind arguments and immediately throw them away (i.e. when an
   // instantiation already exists), but I don't see any good
   // alternatives.
+
+  xassert(baseV->templateInfo()->isPrimary());
+  // if we are in a template definition typechecking mode just return
+  // the primary
+  if (getTemplTcheckMode() == TTM_3TEMPL_DEF) {
+    return baseV;
+  }
 
   // maintain the inst loc stack (ArrayStackPopper is in smbase/array.h)
   ArrayStackPopper<SourceLoc> pusher_popper(instantiationLocStack, loc /*pushVal*/);
@@ -2577,10 +2674,13 @@ Variable *Env::instantiateTemplate
   } else {
     xassert(baseV->type->isFunctionType());
     Declaration *declton = baseV->templateInfo()->declSyntax;
-    if (declton) {
+    if (declton && !baseV->funcDefn) {
       Declarator *decltor = declton->decllist->first();
       xassert(decltor);
+      // FIX: is this still necessary?
       baseForward = (decltor->context == DC_TD_PROTO);
+      // lets find out
+      xassert(baseForward);
     } else {
       baseForward = false;
     }
@@ -2611,13 +2711,14 @@ Variable *Env::instantiateTemplate
     if (baseV->templateInfo()->isPartialSpec()) {
       // unify again to compute the bindings again since we forgot
       // them already    
-      MatchTypes match(tfac);
-      match.match(sargs, baseV->templateInfo()->arguments, match.MT_NONE);
-      if (tracingSys("template")) {
-        cout << "bindings generated by unification with partial-specialization "
-          "specialization-pattern" << endl;
-        printBindings(match.bindings);
-      }
+      MatchTypes match(tfac, MatchTypes::MM_BIND);
+      match.match_Lists(sargs, baseV->templateInfo()->arguments, match.MT_NONE);
+      // FIX: this
+//        if (tracingSys("template")) {
+//          cout << "bindings generated by unification with partial-specialization "
+//            "specialization-pattern" << endl;
+//          printBindings(match.bindings);
+//        }
       insertBindingsForPartialSpec(baseV, match.bindings);
     } else {
       xassert(baseV->templateInfo()->isPrimary());
@@ -2809,22 +2910,27 @@ Variable *Env::instantiateTemplate
     xassert(!baseForward);
     xassert(changedToTemplateArgScope);
 
-    // we are about to tcheck the cloned AST.. it might be that we were
-    // in the context of an ambiguous expression when the need for
-    // instantiated arose, but we want the tchecking below to proceed
-    // as if it were not ambiguous (it isn't ambiguous, it just might 
-    // be referenced from a context that is)      
+    // we are about to tcheck the cloned AST.. it might be that we
+    // were in the context of an ambiguous expression when the need
+    // for instantiated arose, but we want the tchecking below to
+    // proceed as if it were not ambiguous (it isn't ambiguous, it
+    // just might be referenced from a context that is)
     //
-    // so, the following object will temporarily set the level to 0, 
+    // so, the following object will temporarily set the level to 0,
     // and restore its original value when the block ends
     {
       DisambiguateNestingTemp nestTemp(*this, 0);
 
       if (instV->type->isCompoundType()) {
+        // FIX: unlike with function templates, we can't avoid
+        // typechecking the compound type clone when not in 'normal'
+        // mode because otherwise implicit members such as ctors don't
+        // get elaborated into existence
+//          if (getTemplTcheckMode() == TTM_1NORMAL) { . . .
         xassert(copyCpd);
         // invoke the TS_classSpec typechecker, giving to it the
-        // CompoundType we've built to contain its declarations; for now
-        // I don't support nested template instantiation
+        // CompoundType we've built to contain its declarations; for
+        // now I don't support nested template instantiation
         copyCpd->ctype = instV->type->asCompoundType();
         copyCpd->tcheckIntoCompound(*this, DF_NONE, copyCpd->ctype, false /*inTemplate*/,
                                     NULL /*containingClass*/);
@@ -2834,13 +2940,17 @@ Variable *Env::instantiateTemplate
         //      deMutantify(baseV);
       } else {
         xassert(instV->type->isFunctionType());
-        xassert(copyFun);
-        copyFun->funcType = instV->type->asFunctionType();
-        xassert(scope()->isGlobalTemplateScope());
-        // NOTE: again we do not add the variable to the namespace
-        copyFun->tcheck(*this, true /*checkBody*/,
-                        false /*reallyAddVariable*/, instV /*prior*/);
-        xassert(instV->funcDefn == copyFun);
+        // if we are in a template definition, don't typecheck the
+        // cloned function body
+        if (getTemplTcheckMode() == TTM_1NORMAL) {
+          xassert(copyFun);
+          copyFun->funcType = instV->type->asFunctionType();
+          xassert(scope()->isGlobalTemplateScope());
+          // NOTE: again we do not add the variable to the namespace
+          copyFun->tcheck(*this, true /*checkBody*/,
+                          false /*reallyAddVariable*/, instV /*prior*/);
+          xassert(instV->funcDefn == copyFun);
+        }
       }
     }
 
@@ -2885,6 +2995,10 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 
 void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 {
+  // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
+  // purposes of instantiating the forward classes
+  StackMaintainer<TemplateDeclaration> sm(templateDeclarationStack, &instFwdClassesTDSDummy);
+
   SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
     Variable *instV = iter.data();
     xassert(instV->templateInfo());

@@ -18,9 +18,11 @@
 #include "cc_err.h"       // ErrorList
 #include "array.h"        // ArrayStack, ArrayStackEmbed
 #include "builtinops.h"   // CandidateSet
+#include "matchtype.h"    // MatchType
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
+class MatchTypes;         // matchtype.h
 
 
 // sm: TODO: I think this class should be defined in overload.h
@@ -79,6 +81,67 @@ class TemplCandidates {
 typedef ArrayStackEmbed<Scope*, 2> ScopeSeq;
 
 
+// utility class for maintaining a first-class sub-stack of the AST
+// stack isomorphic to the stackframe stack
+template<class T>
+class StackMaintainer {
+  SObjStack<T> &s;
+  T *obj;
+
+  StackMaintainer(StackMaintainer&); // forbid copying
+
+  public:
+  explicit StackMaintainer(SObjStack<T> &s0, T *obj0)
+    : s(s0)
+    , obj(obj0)
+  {
+    s.push(obj);
+  }
+
+  ~StackMaintainer() {
+    T *obj0 = s.pop();
+    xassert(obj0 == obj);
+  }
+};
+
+
+// need a superclass of D_func and Initializer
+class FuncDeclThing {
+  enum FDTType {
+    FDT_NONE,
+    FDT_D_func,
+    FDT_Initializer,
+  };
+  FDTType t;
+  union {
+    D_func *dfunc;
+    Initializer *init;
+  };
+  public:
+  FuncDeclThing(D_func *dfunc0)     : t(FDT_D_func),      dfunc(dfunc0) {}
+  FuncDeclThing(Initializer *init0) : t(FDT_Initializer), init(init0)   {}
+  bool isD_func() const      {return t == FDT_D_func;}
+  bool isInitializer() const {return t == FDT_Initializer;}
+  D_func *asD_func() const {
+    xassert(isD_func());
+    return dfunc;
+  }
+  Initializer *asInitializer() const {
+    xassert(isInitializer());
+    return init;
+  }
+};
+
+
+// this strange creature is so that we have something to put on the
+// stack inside instantiateForwardClasses() so that we can push it
+// onto the templateDeclarationStack to temporarily supress
+// TTM_3TEMPL_DEF and return to TTM_1NORMAL for purposes of
+// instantiating the forward classes; FIX: maybe should do something
+// like FuncDeclThing but what a lot of work
+extern TD_class instFwdClassesTDSDummy;
+
+
 // the entire semantic analysis state
 class Env {
 protected:   // data
@@ -120,12 +183,17 @@ public:      // data
   // infinite looping in template instantiation
   ArrayStack<SourceLoc> instantiationLocStack;
 
-  // stack of TemplateDeclarations we are inside of; inside the
-  // definition of a template body, you are not in "real" code, you
-  // are in "might-be" code, a sort of never-never land for
-  // typechecking; you might want to change your behavior in such
-  // situations; not used for now but I leave it checked in
-//    SObjStack<TemplateDeclaration> templateDeclarationStack;
+  // stack of TemplateDeclaration-s; inside the definition of a
+  // template body, you are not in "real" code, you are in "might-be"
+  // code, a sort of never-never land for typechecking; you might want
+  // to change your behavior in such situations.
+  SObjStack<TemplateDeclaration> templateDeclarationStack;
+
+  // stack of D_func-s; inside a D_func, except for in Initializers
+  // (default arguments), we are in a strange mode where we need to do
+  // template *declaration* instantiation but not *definition*
+  // instantiation.
+  SObjStack<FuncDeclThing> funcDeclStack;
 
   // string table for making new strings
   StringTable &str;
@@ -312,6 +380,20 @@ public:      // funcs
   // scopes are opened; this is for using-directives
   void refreshScopeOpeningEffects();
 
+
+  // template typechecking modes; see comment at the top of the
+  // implementation of Env::instantiateTemplate()
+  enum TemplTcheckMode {
+    TTM_UNDEF            = 0,
+    TTM_1NORMAL          = 1,
+    TTM_2TEMPL_FUNC_DECL = 2,
+    TTM_3TEMPL_DEF       = 3,
+  };
+
+  // return the current mode
+  TemplTcheckMode getTemplTcheckMode() const;
+
+
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc
   SourceLoc loc() const;                     // gets scope()->curLoc
@@ -341,6 +423,13 @@ public:      // funcs
   // for now I'm just trying to factor them out of lookup..
   Variable *lookupPQVariable_primary_resolve
     (PQName const *name, LookupFlags flags, FunctionType *signature);
+
+  // load the bindings with any explicit template arguments; return true if successful
+  bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
+                                     MatchTypes &match);
+  // infer template arguments from the function arguments; return true if successful
+  bool inferTemplArgsFromFuncArgs(Variable *var, FakeList<ArgExpression> *funcArgs,
+                                  MatchTypes &match);
   Variable *lookupPQVariable_function_with_args
     (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
 
@@ -423,7 +512,7 @@ public:      // funcs
   // the parameters and retrieve their bindings; insert these into the
   // scope
   void insertBindingsForPartialSpec
-    (Variable *baseV, StringSObjDict<STemplateArgument> &bindings);
+    (Variable *baseV, MatchBindings &bindings);
 
   void templArgsASTtoSTA
     (ASTList<TemplateArgument> const &arguments,

@@ -1242,7 +1242,6 @@ public:
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
-void bindingsGdb(StringSObjDict<STemplateArgument> &bindings);
 
 
 // ------------------- type factory -------------------

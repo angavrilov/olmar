@@ -215,7 +215,7 @@ void TF_namespaceDecl::tcheck(Env &env)
 
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, bool checkBody,
-                      bool reallyAddVariable, Variable *prior)
+                      bool reallyAddVariable, Variable *priorTemplInst)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
@@ -235,7 +235,7 @@ void Function::tcheck(Env &env, bool checkBody,
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
   dt.reallyAddVariable = reallyAddVariable;
-  dt.prior = prior;
+  dt.priorTemplInst = priorTemplInst;
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   // location for random purposes..
@@ -585,7 +585,8 @@ void Function::tcheck_handlers(Env &env)
 
 // -------------------- Declaration -------------------
 void Declaration::tcheck(Env &env, DeclaratorContext context,
-                         bool reallyAddVariable, Variable *prior)
+                         bool reallyAddVariable,
+                         Variable *priorTemplInst)
 {
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
@@ -617,7 +618,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags, context);
     dt1.reallyAddVariable = reallyAddVariable;
-    dt1.prior = prior;
+    dt1.priorTemplInst = priorTemplInst;
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     if (dt1.var && dt1.var->templInfo) {
@@ -646,7 +647,7 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
       // so far these are only being used for template situations
       // which only have one declarator
       xassert(reallyAddVariable);
-      xassert(!prior);
+      xassert(!priorTemplInst);
 
       prev->next = prev->next->tcheck(env, dt2);
 
@@ -2125,6 +2126,10 @@ void Declarator::tcheck_init(Env &env)
 {
   xassert(init);
 
+  // record that we are in an initializer
+  FuncDeclThing dfuncFDT(init);
+  StackMaintainer<FuncDeclThing> sm(env.funcDeclStack, &dfuncFDT);
+
   init->tcheck(env, type);
 
   // TODO: check the initializer for compatibility with
@@ -2553,8 +2558,8 @@ realStart:
   // has this variable already been declared?
   //Variable *prior = NULL;    // moved to the top
 
-  if (dt.prior) {
-    prior = dt.prior;
+  if (dt.priorTemplInst) {
+    prior = dt.priorTemplInst;
   } else if (name->hasQualifiers()) {
     // TODO: I think this is wrong, but I'm not sure how.  For one
     // thing, it's very similar to what happens below for unqualified
@@ -2652,8 +2657,8 @@ realStart:
   // errors by trying to push through and on top of that I just don't
   // understand why try.  We have what we want already and we don't
   // wanted it added to the environment.
-  if (dt.prior) {
-    dt.var = dt.prior;
+  if (dt.priorTemplInst) {
+    dt.var = dt.priorTemplInst;
     return;
   }
 
@@ -2761,6 +2766,10 @@ static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 
 void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
+  // record that we are in a function declaration
+  FuncDeclThing dfuncFDT(this);
+  StackMaintainer<FuncDeclThing> sm(env.funcDeclStack, &dfuncFDT);
+
   env.setLoc(loc);
   possiblyConsumeFunctionType(env, dt);
 
@@ -2850,9 +2859,9 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // the template info below; also, in situations where dt.prior is
   // defined, I think the template info has already been taken so we
   // would take nothing this time anyway.
-  if (dt.prior) {
+  if (dt.priorTemplInst) {
     xassert(!dt.reallyAddVariable);
-    templateInfo = dt.prior->templateInfo();
+    templateInfo = dt.priorTemplInst->templateInfo();
   } else {
     templateInfo = env.takeFTemplateInfo();
   }
@@ -2968,10 +2977,13 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   base->tcheck(env, dt, inGrouping);
 
   // see above at 'env.takeFTemplateInfo()'
-  if (dt.prior) {
+  if (dt.priorTemplInst) {
     xassert(!dt.reallyAddVariable);
   } else {
-    dt.var->setTemplateInfo(templateInfo);
+    // don't stomp on an existing template info
+    if (!dt.var->templateInfo()) {
+      dt.var->setTemplateInfo(templateInfo);
+    }
   }
 }
 
@@ -5715,8 +5727,8 @@ void TemplateDeclaration::tcheck(Env &env)
 {
   // Note: This code has been partially copied to TD_tmember::itcheck (below).
 
-  // Second to the right, and straight on till morning
-//    env.templateDeclarationStack.push(this);
+  // Second star to the right, and straight on till morning
+  StackMaintainer<TemplateDeclaration> sm(env.templateDeclarationStack, this);
 
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
@@ -5752,10 +5764,6 @@ void TemplateDeclaration::tcheck(Env &env)
 
   // remove the template argument scope
   env.exitScope(paramScope);
-
-  // exiting never-never land
-//    TemplateDeclaration *was = env.templateDeclarationStack.pop();
-//    xassert(was == this);
 }
 
 

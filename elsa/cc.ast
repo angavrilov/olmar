@@ -633,7 +633,7 @@ class Initializer (SourceLoc loc) {
 class TemplateDeclaration (
   FakeList<TemplateParameter> *params
 ) {
-  // declare a template function
+  // define a template function
   -> TD_func(Function f);
 
   // declare a template function prototype
