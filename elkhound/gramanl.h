@@ -34,14 +34,16 @@ class GrammarAnalysis;
 class DottedProduction {
 // ------ representation ------
 private:    // data
-  // TODO: why is 'prod' not const?
   Production *prod;              // (serf) the base production
   int dot;                       // 0 means it's before all RHS symbols, 1 means after first, etc.
-  bool dotAtEnd;                 // performance optimization
 
   unsigned char *lookahead;      // bitmap of lookahead, indexed by terminal id
                                  // lsb of byte 0 is index 0
   int lookaheadLen;              // # of bytes in 'lookahead'
+
+// -------- annotation ----------
+private:
+  bool dotAtEnd;                 // performance optimization
 
 public:     // data
   // printing customization: when non-NULL only print lookahead if
@@ -229,6 +231,9 @@ public:     // funcs
   // ---- item mutations ----
   // add a kernel item; used while constructing the state
   void addKernelItem(DottedProduction * /*owner*/ item);
+  
+  // after adding all kernel items, call this
+  void sortKernelItems();
 
   // add a nonkernel item; used while computing closure; this
   // item must not already be in the item set

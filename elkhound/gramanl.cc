@@ -96,7 +96,7 @@ DottedProduction::DottedProduction(Flatten &flat)
 void DottedProduction::xfer(Flatten &flat)
 {
   flat.xferInt(dot);
-  flat.xferBool(dotAtEnd);   
+  flat.xferBool(dotAtEnd);
 
   flat.xferInt(lookaheadLen);
 
@@ -182,20 +182,19 @@ int symbolIndex(Symbol const *s)
 
 // compare two items in an arbitrary (but deterministic) way so that
 // sorting will always put a list of items into the same order, for
-// comparison purposes
+// comparison purposes; this doesn't consider the lookahead
 STATICDEF int DottedProduction::
   diff(DottedProduction const *a, DottedProduction const *b, void*)
 {
-  // check for simple equality..
-  if (a == b) {
-    return 0;
-  }
-
-  // I want the sorting order to be preserved across read/write,
-  // so I do a real compare now, not just address diff
+  // check the prodIndex first
+  int ret = a->prod->prodIndex - b->prod->prodIndex;
+  if (ret) { return ret; }
 
   // 'dot'
-  int ret = a->dot - b->dot;
+  ret = a->dot - b->dot;
+  return ret;
+  
+  #if 0    // old stuff
   if (ret) { return ret; }
 
   Production const *aProd = a->prod;
@@ -227,7 +226,7 @@ STATICDEF int DottedProduction::
   if (!aIter.isDone() && bIter.isDone()) {
     return 1;
   }
-    
+
   // needs a grammar to print them ...
   //cout << "a: "; a->print(cout);
   //cout << "\nb: "; b->print(cout);
@@ -236,12 +235,14 @@ STATICDEF int DottedProduction::
   // one way this can be caused is if the grammar input file actually
   // has the same production listed twice
   xfailure("two productions with diff addrs are equal!");
+  #endif // 0
 }
 
 
 bool DottedProduction::equalNoLA(DottedProduction const &obj) const
 {
-  return diff(this, &obj, NULL) == 0;
+  return dot == obj.dot &&
+         prod == obj.prod;
 }
 
 
@@ -559,9 +560,13 @@ void ItemSet::addKernelItem(DottedProduction *item)
 {
   // add it
   kernelItems.appendUnique(item);
+}
 
+
+void ItemSet::sortKernelItems()
+{
   // sort the items to facilitate equality checks
-  kernelItems.insertionSort(DottedProduction::diff);
+  kernelItems.mergeSort(DottedProduction::diff);
 
   // note: the caller must call changedItems
 }
@@ -812,7 +817,7 @@ void ItemSet::changedItems()
 
   // -- compute CRC of kernel items --
   // we will crc the prod/dot fields, using the pointer representation
-  // of 'prod'; assumes the items already been sorted!
+  // of 'prod'; assumes the items have already been sorted!
   int numKernelItems = kernelItems.count();
   struct PD {
     Production *prod;     // serf
@@ -1923,6 +1928,7 @@ ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *
   xassert(appendCt > 0);
 
   // we added stuff
+  ret->sortKernelItems();
   ret->changedItems();
 
   // return built itemset
@@ -1975,6 +1981,7 @@ void GrammarAnalysis::constructLRItemSets()
       = new DottedProduction(*this, productions.first(), 0 /*dot at left*/);
     //firstDP->laAdd(0 /*eof token id*/);
     is->addKernelItem(firstDP);
+    is->sortKernelItems();                    // redundant, but can't hurt
     itemSetClosure(*is);                      // calls changedItems internally
 
     // this makes the initial pending itemSet
@@ -2655,7 +2662,7 @@ bool GrammarAnalysis::
 
   // try each in turn until one succeeds; this effectively uses
   // backtracking when one fails
-  bool retval;
+  bool retval = false;
   SFOREACH_PRODUCTION(candidates, candIter) {
     Production const *prod = candIter.data();
 
