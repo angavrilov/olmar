@@ -1604,8 +1604,8 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 //   static int y[] = (int []) {1, 2, 3};
 // which is equivalent to:
 //   static int y[] = {1, 2, 3};
-Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_type,
-                                       Type *src_type, Initializer *init)
+Type *Env::computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
+                                            Type *src_type, Initializer *init)
 {
   if (tgt_type->isArrayType() &&
       init->isIN_compound()) {
@@ -1614,13 +1614,13 @@ Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_ty
                    
     // count the initializers; this is done via the environment
     // so the designated-initializer extension can intercept
-    int initLen = env.countInitializers(env.loc(), src_type, cpd);
+    int initLen = countInitializers(loc(), src_type, cpd);
 
     if (!at->hasSize()) {
       // replace the computed type with another that has
       // the size specified; the location isn't perfect, but
       // getting the right one is a bit of work
-      tgt_type = env.tfac.setArraySize(tgt_loc, at, initLen);
+      tgt_type = tfac.setArraySize(tgt_loc, at, initLen);
     }
     else {
       // TODO: cppstd wants me to check that there aren't more
@@ -1861,7 +1861,7 @@ void Declarator::tcheck_init(Env &env)
 
   // use the initializer size to refine array types
   // array initializer case
-  var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+  var->type = env.computeArraySizeFromCompoundInit(var->loc, var->type, type, init);
   // array compound literal initializer case
   var->type = computeArraySizeFromLiteral(env, var->type, init);
 

@@ -568,7 +568,10 @@ public:      // funcs
   // call site with type makeUndeclFuncType() above
   Variable *makeUndeclFuncVar(StringRef name);
 
-                                         
+  // see implementation; this is here b/c gnu.cc wants to call it
+  Type *computeArraySizeFromCompoundInit(SourceLoc tgt_loc, Type *tgt_type,
+                                         Type *src_type, Initializer *init);
+
   // ------------ template instantiation stuff ------------
   // the following methods are implemented in template.cc
 private:     // template funcs
