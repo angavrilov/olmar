@@ -138,7 +138,7 @@ terminals {
     prec  200 TOK_PREFER_REDUCE;
     prec  190 "const" "volatile" "else" "[";
 
-    right 120 ".*" "->*";
+    left  120 ".*" "->*";     // 7/07/03: changed from "right".. why was it that way?
     left  110 "*" "/" "%";
     left  100 "+" "-";
     left   90 "<<" ">>";
@@ -337,7 +337,7 @@ nonterm(Expression*) PostfixExpression {
        { return new E_constructor(spec, a); }
 
   // field access
-  -> p:PostfixExpression "."  n:IdExpression
+  -> p:PostfixExpression "." n:IdExpression
        { return new E_fieldAcc(p, n); }
 
   // deref + field access

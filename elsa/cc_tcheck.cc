@@ -1471,7 +1471,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       && !var->hasFlag(DF_VIRTUAL)) {
 //      printf("var->name: %s\n", var->name);
 //      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
-    // find the next variable up the heirarchy
+    // find the next variable up the hierarchy
     if (env.scope()->curCompound) {
       FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
         // FIX: Should I skip it for private inheritance?  Hmm,

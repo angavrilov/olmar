@@ -200,8 +200,9 @@ public:      // data
   // classes from which this one inherits; 'const' so you have to
   // use 'addBaseClass', but public to make traversal easy
   const ObjList<BaseClass> bases;
-  // dsw: classes that inherit from this class; NOT owner list; don't
-  // append because it is slow
+
+  // dsw: classes that inherit from this class; NOT owner list; also
+  // maintained by 'addBaseClass'
   SObjList<CompoundType> subclasses;
 
   // collected virtual base class subobjects
