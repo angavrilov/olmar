@@ -195,7 +195,7 @@ void GrowArray<T>::eidLoop(int index)
 // This is an array where some of the array is unused.  Specifically,
 // it maintains a 'length', and elements 0 up to length-1 are
 // considered used, whereas length up to size-1 are unused.  The
-// expected use is as a stack, which adds a new (used) element.
+// expected use is as a stack, where "push" adds a new (used) element.
 template <class T>
 class ArrayStack : public GrowArray<T> {
 private:
@@ -286,7 +286,7 @@ public:      // funcs
 // I want const polymorphism!
 
                         
-// pop a value off a stack at end of scope
+// pop (and discard) a value off a stack at end of scope
 template <class T>
 class ArrayStackPopper {
 private:
@@ -346,7 +346,7 @@ void ObjArrayStack<T>::deleteTopSeveral(int ct)
 }
 
 
-// ------------------ ArrayStackEmbed --------------------
+// ------------------------- ArrayStackEmbed --------------------------
 // This is like ArrayStack, but the first 'n' elements are stored
 // embedded in this object, instead of allocated on the heap; in some
 // circumstances, this lets us avoid allocating memory in common cases.

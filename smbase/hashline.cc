@@ -61,7 +61,7 @@ void HashLineMap::doneAdding()
 // so it's not a problem
 void HashLineMap::map(int ppLine, int &origLine, char const *&origFname) const
 {
-  // check for a ppLine that preceeds any in the array
+  // check for a ppLine that precedes any in the array
   if (directives.isEmpty() ||
       ppLine < directives[0].ppLine) {
     // it simply refers to the pp file

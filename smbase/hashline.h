@@ -40,7 +40,7 @@ private:    // data
   string ppFname;
 
   // map for canonical storage of orig filenames; I don't rely on
-  // an external string table because I won't want the extra
+  // an external string table because I don't want the extra
   // dependency
   StringObjDict<string> filenames;
 
