@@ -33,6 +33,7 @@ class OverloadSet;             // below
 class Scope;                   // scope
 class Expression;              // cc.ast
 class Function;                // cc.ast
+class BasicTypeFactory;        // cc_type.h
 
 class Variable : public VariableAnnot {
 #if CC_QUAL
@@ -48,7 +49,7 @@ public:    // data
   SourceLocation loc;     // location of the name in the source text
 
   StringRef name;         // name introduced (possibly NULL for abstract declarators)
-  Type const *type;       // type of the variable
+  Type *type;             // type of the variable
   DeclFlags flags;        // various flags
 
   // associated value for constant literals, e.g. "const int five = 5;"
@@ -71,12 +72,15 @@ public:    // data
   // use even after it's lexically closed
   Scope *scope;           // (nullable serf)
 
-public:    // funcs
+protected:    // funcs
+  friend class BasicTypeFactory;
   Variable(SourceLocation const &L, StringRef n,
-           Type const *t, DeclFlags f);
+           Type *t, DeclFlags f);
+
+public:
   ~Variable();
 
-  Variable *deepClone() const;
+  //Variable *deepClone() const;
 
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { flags = (DeclFlags)(flags | f); }

@@ -43,7 +43,7 @@ protected:
   // to access it which knows what type it should refer to; these
   // are 'const' because the design of the Type hierarchy is that
   // Type objects aren't mutable after creation
-  Type const *correspType;
+  Type *correspType;
 
 public:
   // sm: all of the constructed type nodes had a single 'q' variable
@@ -51,8 +51,7 @@ public:
   Qualifiers *q;
 
 public:
-  Type_Q(Type const *corresp);
-  Type_Q(Type_Q const &obj);
+  Type_Q(Type *corresp);
   virtual ~Type_Q();
 
   // roll-my-own RTTI
@@ -71,7 +70,7 @@ public:
 
   // corresponding Type, when we don't yet know which derived
   // type it really is
-  Type const *type() const { return correspType; }
+  Type *type() const { return correspType; }
 
   // clone the constructed type structure
   virtual Type_Q *deepClone() const=0;
@@ -104,11 +103,10 @@ public:
 // a leaf of a constructed type tree
 class CVAtomicType_Q : public Type_Q {
 public:
-  CVAtomicType_Q(CVAtomicType const *corresp) : Type_Q(corresp) {}
-  CVAtomicType_Q(CVAtomicType_Q const &obj)   : Type_Q(obj) {}
+  CVAtomicType_Q(CVAtomicType *corresp) : Type_Q(corresp) {}
 
-  CVAtomicType const *type() const
-    { return static_cast<CVAtomicType const*>(correspType); }
+  CVAtomicType *type() const
+    { return static_cast<CVAtomicType*>(correspType); }
 
   // Type_Q funcs
   virtual Tag getTag() const { return T_ATOMIC; }
@@ -129,13 +127,11 @@ private:
   void checkInvars() const;
 
 public:
-  PointerType_Q(PointerType const *corresp, Type_Q *at)
+  PointerType_Q(PointerType *corresp, Type_Q *at)
     : Type_Q(corresp), atType(at) { checkInvars(); }
-  PointerType_Q(PointerType_Q const &obj)
-    : Type_Q(obj), atType(obj.atType) { checkInvars(); }
 
-  PointerType const *type() const
-    { return static_cast<PointerType const*>(correspType); }
+  PointerType *type() const
+    { return static_cast<PointerType*>(correspType); }
 
   // Type_Q funcs
   virtual Tag getTag() const { return T_POINTER; }
@@ -154,12 +150,11 @@ public:
   SObjList<Variable_Q> params;    // parameter info, including types
 
 public:
-  FunctionType_Q(FunctionType const *corresp, Type_Q *retType);
-  // sm: why no copy ctor?  don't know.  for now I'm not fixing it.
+  FunctionType_Q(FunctionType *corresp, Type_Q *retType);
   virtual ~FunctionType_Q();
 
-  FunctionType const *type() const
-    { return static_cast<FunctionType const*>(correspType); }
+  FunctionType *type() const
+    { return static_cast<FunctionType*>(correspType); }
 
   // Type_Q funcs
   virtual Tag getTag() const { return T_FUNCTION; }
@@ -179,11 +174,11 @@ private:
   void checkInvars() const;
 
 public:
-  ArrayType_Q(ArrayType const *corresp, Type_Q *elt)
+  ArrayType_Q(ArrayType *corresp, Type_Q *elt)
     : Type_Q(corresp), eltType(elt) { checkInvars(); }
 
-  ArrayType const *type() const
-    { return static_cast<ArrayType const*>(correspType); }
+  ArrayType *type() const
+    { return static_cast<ArrayType*>(correspType); }
 
   // Type_Q funcs
   virtual Tag getTag() const { return T_ARRAY; }
@@ -197,7 +192,7 @@ public:
 
 // --------------------- type constructors ----------------
 
-inline CVAtomicType_Q *makeType_Q(AtomicType const *atomic)
+inline CVAtomicType_Q *makeType_Q(AtomicType *atomic)
   { return new CVAtomicType_Q(makeType(atomic)); }
 
 inline Type_Q *makeRefType_Q(Type_Q *type)
@@ -212,7 +207,7 @@ CVAtomicType_Q *getSimpleType_Q(SimpleTypeId id, CVFlags cv = CV_NONE);
 // describes.  (In a pinch one might even use it for that purpose if
 // it's certain the user type doesn't have any interesting
 // qualifiers.)
-Type_Q *buildQualifierFreeType_Q(Type const *t);
+Type_Q *buildQualifierFreeType_Q(Type *t);
 
 
 

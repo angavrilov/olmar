@@ -11,10 +11,6 @@ Type_Q::Type_Q(Type const *corresp)
   : refType(NULL), correspType(corresp), q(NULL)
 {}
 
-Type_Q::Type_Q(Type_Q const &obj)
-  : refType(NULL), correspType(obj.correspType), q(::deepClone(q)) 
-{}
-
 Type_Q::~Type_Q()
 {
   // sm: should 'q' be regarded as an owner?

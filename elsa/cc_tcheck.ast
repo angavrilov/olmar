@@ -43,7 +43,7 @@ class Function {
   // and therefore might have differently-named parameters, I'll add
   // another field specifically for a version of the FunctionType
   // which has the parameters for *this* definition
-  public FunctionType const *funcType;
+  public FunctionType *funcType;
   ctor funcType = NULL;
 
   // since the body of the function (if a class member) may refer
@@ -69,7 +69,7 @@ class MemberInit {
   public Variable *member;  ctor member=NULL;
 
   // if it's a base class ctor call, tcheck will set this instead
-  public CompoundType const *base;  ctor base=NULL;
+  public CompoundType *base;  ctor base=NULL;
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -102,7 +102,7 @@ class ASTTypeId {
   public ASTTypeId *tcheck(Env &env, Tcheck &tc);
   public void mid_tcheck(Env &env, Tcheck &tc);
 
-  public Type const *getType() const;      // can use after calling 'tcheck'
+  public Type *getType() const;      // can use after calling 'tcheck'
 }
 
 
@@ -115,8 +115,8 @@ class PQName {
 class TypeSpecifier {
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
-  public Type const *tcheck(Env &env, DeclFlags dflags);
-  pure_virtual Type const *itcheck(Env &env, DeclFlags dflags);
+  public Type *tcheck(Env &env, DeclFlags dflags);
+  pure_virtual Type *itcheck(Env &env, DeclFlags dflags);
 
   // since several of the type specifiers use names, and names are
   // scoped, but we don't want later analyses to have to know about
@@ -129,16 +129,16 @@ class TypeSpecifier {
      }
 
   -> TS_elaborated {
-       public NamedAtomicType const *atype;  ctor atype=NULL;
+       public NamedAtomicType *atype;  ctor atype=NULL;
      }
 
   -> TS_classSpec {
-       public CompoundType const *ctype;  ctor ctype=NULL;
+       public CompoundType *ctype;  ctor ctype=NULL;
        private void tcheckFunctionBodies(Env &env);
      }
 
   -> TS_enumSpec {
-       public EnumType const *etype;  ctor etype=NULL;
+       public EnumType *etype;  ctor etype=NULL;
      }
 }
 
@@ -148,7 +148,7 @@ class BaseClassSpec {
   custom debugPrint { printExtras(os, indent); }
 
   // the type named by the 'name'
-  public CompoundType const *type;  ctor type=NULL;
+  public CompoundType *type;  ctor type=NULL;
 }
 
 
@@ -179,7 +179,7 @@ class Enumerator {
 class Declarator {
   public Variable *var;                // (serf) computed information: name, type, etc.
   ctor var=NULL;
-  public Type const *type;
+  public Type *type;
   ctor type=NULL;
 
   public void printExtras(ostream &os, int indent) const;
@@ -202,7 +202,7 @@ class Declarator {
     // end, because var->type might be a function type from a
     // prototype (with the prototype's parameter names) while this
     // field will be the constructed type with its own names
-    Type const *type;
+    Type *type;
 
     // these are the declflags attached to the outer declaration
     DeclFlags dflags;
@@ -221,7 +221,7 @@ class Declarator {
     } context;
 
   public:
-    Tcheck(Type const *t, DeclFlags d)
+    Tcheck(Type *t, DeclFlags d)
       : var(NULL), type(t), dflags(d),
         size_E_new(NULL), context(CTX_ORDINARY) {}
     Tcheck(Tcheck const &obj)
@@ -256,7 +256,7 @@ class IDeclarator {
   // write down the type denoted by this type constructor, in
   // conjunction with the constructors that surround it, and the
   // type specifier
-  public Type const *type;  ctor type=NULL;
+  public Type *type;  ctor type=NULL;
 
   // external interface; add the type constructor represented by this
   // IDeclarator to 'dt.type' and then make a Variable to represent
@@ -306,12 +306,12 @@ class Expression {
   public void mid_tcheck(Env &env, int &);
 
   // per-type checker; return type this expression eval's to
-  pure_virtual Type const *itcheck(Env &env);
+  pure_virtual Type *itcheck(Env &env);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
   // same expression should stop and look for an ambiguous alt.
-  public Type const *type;
+  public Type *type;
   ctor type=NULL;
 
   // const-eval; for now very simple; will add an error message to
@@ -353,7 +353,7 @@ class Expression {
 class Initializer {
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
-  //pure_virtual void tcheck(Env &env, Type const *type);
+  //pure_virtual void tcheck(Env &env, Type *type);
 
   // simpler tcheck for now..
   pure_virtual void tcheck(Env &env);
@@ -365,7 +365,7 @@ class TemplateDeclaration {
   pure_virtual void itcheck(Env &env);
 
   -> TD_class {
-       public Type const *type;  ctor type=NULL;     // defined type
+       public Type *type;  ctor type=NULL;     // defined type
 
        public void printExtras(ostream &os, int indent) const;
        custom debugPrint { printExtras(os, indent); }
@@ -376,7 +376,7 @@ class TemplateDeclaration {
 class TemplateParameter {
   // stand-in for the type used when checking the body; it's
   // always a CVAtomic wrapped around a TypeVariable
-  public CVAtomicType const *type;  ctor type=NULL;
+  public CVAtomicType *type;  ctor type=NULL;
 
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
 }

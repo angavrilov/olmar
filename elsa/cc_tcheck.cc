@@ -17,13 +17,6 @@
   #define D(stuff) stuff
 #endif
 
-// dsw: getSimpleType() has two arguments when I use it
-#ifdef DISTINCT_CVATOMIC_TYPES
-  #define GET_SIMPLE_TYPE(TYPE, QUAL) getSimpleType(TYPE, QUAL)
-#else
-  #define GET_SIMPLE_TYPE(TYPE, QUAL) getSimpleType(TYPE)
-#endif
-
 
 // ------------- generic ambiguity resolution -------------
 // return true if the list contains no disambiguating errors
@@ -304,7 +297,7 @@ void Function::tcheck(Env &env, bool checkBody)
   bool inTemplate = env.scope()->curTemplateParams != NULL;
   
   // get return type
-  Type const *retTypeSpec = retspec->tcheck(env, dflags);
+  Type *retTypeSpec = retspec->tcheck(env, dflags);
 
   // construct the full type of the function; this will set
   // nameAndParams->var, which includes a type, but that type might
@@ -324,7 +317,7 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // grab the definition type for later use
-  funcType = &( dt.type->asFunctionTypeC() );
+  funcType = &( dt.type->asFunctionType() );
 
   if (!checkBody) {
     return;
@@ -363,23 +356,23 @@ void Function::tcheck(Env &env, bool checkBody)
   if (nameAndParams->var->scope &&
       nameAndParams->var->scope->curCompound &&
       !nameAndParams->var->hasFlag(DF_STATIC)) {
-    CompoundType const *ct = nameAndParams->var->scope->curCompound;
+    CompoundType *ct = nameAndParams->var->scope->curCompound;
 
     // make a type which is a pointer to the class that this
     // function is a member of; if the function has been declared
     // with some 'cv' flags, then those become attached to the
     // pointed-to type; the pointer itself is always 'const'
-    Type const *thisType;
+    Type *thisType;
     {
-      CVAtomicType *tmpcvat = makeCVType(ct, funcType->cv);
+      CVAtomicType *tmpcvat = env.makeCVAtomicType(ct, funcType->cv);
       xassert(!tmpcvat->q);
       tmpcvat->q = deepClone(funcType->q);
-      thisType = makePtrOperType(PO_POINTER, CV_CONST, tmpcvat);
+      thisType = env.makePtrOperType(PO_POINTER, CV_CONST, tmpcvat);
     }
 
     // add the implicit 'this' parameter (the pointer is an AST annotation)
-    thisVar = new Variable(nameAndParams->var->loc, env.str("this"),
-                           thisType, DF_NONE);
+    thisVar = env.makeVariable(nameAndParams->var->loc, env.str("this"),
+                               thisType, DF_NONE);
     env.addVariable(thisVar);
   }
 
@@ -516,7 +509,7 @@ void Function::tcheck_memberInits(Env &env)
         << "`" << *name << "' does not denote any class");
       continue;
     }
-    CompoundType const *baseClass = baseVar->type->asCompoundType();
+    CompoundType *baseClass = baseVar->type->asCompoundType();
 
     // is this class a direct base, and/or an indirect virtual base?
     bool directBase = false;
@@ -616,7 +609,7 @@ void Declaration::tcheck(Env &env)
   }
 
   // check the specifier in the prevailing environment
-  Type const *specType = spec->tcheck(env, dflags);
+  Type *specType = spec->tcheck(env, dflags);
 
   // ---- the following code is adopted from tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
@@ -632,7 +625,7 @@ void Declaration::tcheck(Env &env)
     while (prev->next) {
 #if DISTINCT_CVATOMIC_TYPES
       // dsw: I would clone the type if I knew how.
-      Type const *specType = spec->tcheck(env, dflags);
+      Type *specType = spec->tcheck(env, dflags);
 #endif
       Declarator::Tcheck dt2(specType, dflags);
       prev->next = prev->next->tcheck(env, dt2);
@@ -669,7 +662,7 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
   // check type specifier
-  Type const *specType = spec->tcheck(env, DF_NONE);
+  Type *specType = spec->tcheck(env, DF_NONE);
                          
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, DF_NONE);
@@ -687,7 +680,7 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 }
 
 
-Type const *ASTTypeId::getType() const
+Type *ASTTypeId::getType() const
 {
   return decl->var->type;
 }
@@ -717,14 +710,14 @@ void PQ_template::tcheck(Env &env)
 
 
 // --------------------- TypeSpecifier --------------
-Type const *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
+Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
-  Type const *ret = applyCVToType(cv, itcheck(env, dflags));
+  Type *ret = env.applyCVToType(cv, itcheck(env, dflags));
   return applyQualifierLiteralsToType(q, ret);
 }
 
 
-Type const *TS_name::itcheck(Env &env, DeclFlags dflags)    
+Type *TS_name::itcheck(Env &env, DeclFlags dflags)    
 {
   name->tcheck(env);
 
@@ -756,7 +749,7 @@ Type const *TS_name::itcheck(Env &env, DeclFlags dflags)
       disambiguates);
   }
 
-  Type const *ret = applyCVToType(cv, var->type);
+  Type *ret = env.applyCVToType(cv, var->type);
   if (!ret) {
     return env.error(ret, stringc
       << "cannot apply const/volatile to type `" << ret->toString() << "'");
@@ -767,10 +760,9 @@ Type const *TS_name::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-Type const *TS_simple::itcheck(Env &env, DeclFlags dflags)
+Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 {
-  // dsw: const?
-  return getSimpleType(id);
+  return env.getSimpleType(id, cv);
 }
 
 
@@ -834,14 +826,14 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
 }
 
 
-Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
+Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
   name->tcheck(env);
 
   if (keyword == TI_ENUM) {
-    EnumType const *et = env.lookupPQEnum(name);
+    EnumType *et = env.lookupPQEnum(name);
     if (!et) {
       return env.error(stringc
         << "there is no enum called `" << *name << "'",
@@ -849,7 +841,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     }
 
     this->atype = et;          // annotation
-    return makeType(et);
+    return env.makeType(et);
   }
 
   CompoundType *ct = NULL;
@@ -864,7 +856,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     ct = env.lookupCompound(name->getName(), LF_INNER_ONLY);
     if (!ct) {
       // make a forward declaration
-      Type const *ret =
+      Type *ret =
          env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
                              loc, keyword, true /*forward*/);
       this->atype = ct;        // annotation
@@ -879,7 +871,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
           << *name << "', but that's actually a " << toString(ct->keyword));
       }
       this->atype = ct;        // annotation
-      return makeType(ct);
+      return env.makeType(ct);
     }
   }
 
@@ -909,7 +901,7 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     // Note that due to the exclusion of DF_FRIEND above I'm actually
     // handling 'friend' here, despite what the standard says..
     Scope *scope = env.outerScope();
-    Type const *ret =
+    Type *ret =
        env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
                            true /*forward*/);
     this->atype = ct;           // annotation
@@ -943,11 +935,11 @@ Type const *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   }
 
   this->atype = ct;              // annotation
-  return makeType(ct);
+  return env.makeType(ct);
 }
 
 
-Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
+Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
@@ -988,7 +980,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // see if the environment already has this name
   CompoundType *ct = 
     stringName? env.lookupCompound(stringName, LF_INNER_ONLY) : NULL;
-  Type const *ret;
+  Type *ret;
   if (ct && !templateArgs) {
     // check that the keywords match
     if ((int)ct->keyword != (int)keyword) {
@@ -1026,7 +1018,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     verifyCompatibleTemplates(env, ct);
 
     this->ctype = ct;           // annotation
-    ret = makeType(ct);
+    ret = env.makeType(ct);
   }
 
   else if (ct && templateArgs) {
@@ -1044,7 +1036,7 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     ClassTemplateInfo *specialTI = ct->templateInfo = env.takeTemplateClassInfo();
     xassert(specialTI);
     this->ctype = ct;           // annotation
-    ret = makeType(ct);
+    ret = env.makeType(ct);
 
     // add this type to the primary's list of specializations; we are not
     // going to add 'ct' to the environment, so the only way to find the
@@ -1156,8 +1148,8 @@ Type const *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     StringRef dtorName = env.str(stringc << "~" << stringName);
     if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
       // add a dtor declaration: ~Class();
-      FunctionType *ft = new FunctionType(getSimpleType(ST_CDTOR), CV_NONE);
-      Variable *v = new Variable(loc, dtorName, ft, DF_NONE);
+      FunctionType *ft = env.makeFunctionType(env.getSimpleType(ST_CDTOR), CV_NONE);
+      Variable *v = env.makeVariable(loc, dtorName, ft, DF_NONE);
       env.addVariable(v);
       
       // put it on the list of made-up variables since there are
@@ -1253,12 +1245,12 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 }
 
 
-Type const *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
+Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
 {
   env.setLoc(loc);
 
   EnumType *et = new EnumType(name?name->getName():NULL);
-  Type *ret = makeType(et);
+  Type *ret = env.makeType(et);
 
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
     iter->tcheck(env, et, ret);
@@ -1268,7 +1260,7 @@ Type const *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
     env.addEnum(et);
 
     // make the implicit typedef
-    Variable *tv = new Variable(loc, name->getName(), ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+    Variable *tv = env.makeVariable(loc, name->getName(), ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
     et->typedefVar = tv;
     if (!env.addVariable(tv)) {
       // this isn't really an error, because in C it would have
@@ -1357,7 +1349,7 @@ void MR_publish::tcheck(Env &env)
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 {
-  var = new Variable(loc, name, parentType, DF_ENUMERATOR);
+  var = env.makeVariable(loc, name, parentType, DF_ENUMERATOR);
 
   enumValue = parentEnum->nextValue;
   if (expr) {
@@ -1497,12 +1489,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // use the initializer size to refine array types
     if (var->type->isArrayType() &&
         init->isIN_compound()) {
-      ArrayType const &at = var->type->asArrayTypeC();
+      ArrayType &at = var->type->asArrayType();
       IN_compound const *cpd = init->asIN_compoundC();
       if (!at.hasSize) {
         // replace the computed type with another that has
         // the size specified
-        var->type = new ArrayType(at.eltType, cpd->inits.count());
+        var->type = env.makeArrayType(at.eltType, cpd->inits.count());
       }
       else {
         // TODO: cppstd wants me to check that there aren't more
@@ -1527,8 +1519,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //  ------------------ IDeclarator ------------------
 // given an unqualified name which might refer to a conversion
 // operator, rewrite the type if it is
-Type const *makeConversionOperType(Env &env, OperatorName *o,
-                                   Type const *spec)
+Type *makeConversionOperType(Env &env, OperatorName *o,
+                                   Type *spec)
 {
   if (!o->isON_conversion()) {
     // no change for non-conversion operators
@@ -1539,7 +1531,7 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
 
     ASTTypeId::Tcheck tc;
     c->type = c->type->tcheck(env, tc);
-    Type const *destType = c->type->getType();
+    Type *destType = c->type->getType();
 
     // need a function which returns 'destType', but has the
     // other characteristics gathered into 'spec'; make sure
@@ -1548,7 +1540,7 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
       env.error("conversion operator must be a function");
       return spec;
     }
-    FunctionType const *specFunc = &( spec->asFunctionTypeC() );
+    FunctionType *specFunc = &( spec->asFunctionType() );
 
     if (specFunc->params.isNotEmpty() || specFunc->acceptsVarargs) {
       env.error("conversion operator cannot accept arguments");
@@ -1559,7 +1551,7 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
     // (since we've verified none of the other info is interesting);
     // in particular, fill in the conversion destination type as
     // the function's return type
-    FunctionType *ft = new FunctionType(destType, specFunc->cv);
+    FunctionType *ft =env.makeFunctionType(destType, specFunc->cv);
 //    StringRef name = "__unamed_function";
 //    {
 //      PQName const * declaratorId = getDeclaratorId();
@@ -1659,7 +1651,7 @@ static void D_name_tcheck(
     // object, so we can continue making progress diagnosing errors
     // in the program; this won't be entered in the environment, even
     // though the 'name' is not NULL
-    dt.var = new Variable(loc, unqualifiedName, dt.type, dt.dflags);
+    dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
 
     // a bit of error recovery: if we clashed with a prior declaration,
     // and that one was in a named scope, then make our fake variable
@@ -1688,7 +1680,7 @@ static void D_name_tcheck(
 realStart:
   if (!name) {
     // no name, nothing to enter in environment
-    dt.var = new Variable(loc, NULL, dt.type, dt.dflags);
+    dt.var = env.makeVariable(loc, NULL, dt.type, dt.dflags);
     return;
   }
 
@@ -1706,7 +1698,7 @@ realStart:
       // or will be declared before it is used; no need to contemplate
       // adding a declaration, so just make the required Variable
       // and be done with it
-      dt.var = new Variable(loc, unqualifiedName, dt.type, dt.dflags);
+      dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
       return;
     }
     else {
@@ -1876,8 +1868,8 @@ realStart:
       dt.type->isFunctionType() &&
       !prior->type->equals(dt.type)) {
     // potential overloading situation; get the two function types
-    FunctionType const *priorFt = &( prior->type->asFunctionTypeC() );
-    FunctionType const *specFt = &( dt.type->asFunctionTypeC() );
+    FunctionType *priorFt = &( prior->type->asFunctionType() );
+    FunctionType *specFt = &( dt.type->asFunctionType() );
 
     // (BUG: this isn't the exact criteria for allowing overloading,
     // but it's close)
@@ -2021,7 +2013,7 @@ noPriorDeclaration:
   // no prior declaration, make a new variable and put it
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
-  dt.var = new Variable(loc, unqualifiedName, dt.type, dt.dflags);
+  dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
   
   // set up the variable's 'scope' field
   scope->registerVariable(dt.var);
@@ -2071,10 +2063,10 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 //        if (declaratorId) name = declaratorId->getName();
 //      }
 
-    Type const *tmp_type = makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
+    Type *tmp_type = env.makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
     if (tmp_type->isError()) dt.type = tmp_type;
     else {
-      PointerType const * tmp_ptrtype = dynamic_cast<PointerType const *>(tmp_type);
+      PointerType * tmp_ptrtype = dynamic_cast<PointerType *>(tmp_type);
       xassert(tmp_ptrtype);
       PointerType *pt = const_cast<PointerType *>(tmp_ptrtype);
       xassert(pt);
@@ -2128,13 +2120,13 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 // implement cppstd 8.3.5 para 3:
 //   "array of T" -> "pointer to T"
 //   "function returning T" -> "pointer to function returning T"
-static Type const *normalizeParameterType(Type const *t)
+static Type *normalizeParameterType(Env &env, Type *t)
 {
   if (t->isArrayType()) {
-    return makePtrType(t->asArrayTypeC().eltType);
+    return env.makePtrType(t->asArrayType().eltType);
   }
   if (t->isFunctionType()) {
-    return makePtrType(t);
+    return env.makePtrType(t);
   }
   return t;
 }
@@ -2149,7 +2141,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 //      PQName const * declaratorId = getDeclaratorId();
 //      if (declaratorId) name = declaratorId->getName();
 //    }
-  FunctionType *ft = new FunctionType (dt.type, cv);
+  FunctionType *ft = env.makeFunctionType(dt.type, cv);
   xassert(!ft->q);
   ft->q = deepClone(q);
   ft->templateParams = env.takeTemplateParams();
@@ -2182,7 +2174,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       continue;
     }
 
-    Type const *paramType = normalizeParameterType(v->type);
+    Type *paramType = normalizeParameterType(env, v->type);
     Parameter *p = new Parameter(v->name, paramType, v);
     
     // get the default argument, if any
@@ -2250,7 +2242,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     // we're in a new[] (E_new) type-id
     if (!size) {
       env.error("new[] must have an array size specified");
-      at = new ArrayType(dt.type);    // error recovery
+      at = env.makeArrayType(dt.type);    // error recovery
     }
     else {
       if (base->isD_name()) {
@@ -2274,11 +2266,11 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         int sz;
         if (!size->constEval(env, sz)) {
           // error has already been reported; this is for error recovery
-          at = new ArrayType(dt.type);
+          at = env.makeArrayType(dt.type);
         }
         else {
           // constuct the type
-          at = new ArrayType(dt.type, sz);
+          at = env.makeArrayType(dt.type, sz);
         }
       }
     }
@@ -2291,15 +2283,15 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     if (size) {
       int sz;
       if (!size->constEval(env, sz)) {
-        at = new ArrayType(dt.type);     // error recovery
+        at = env.makeArrayType(dt.type);     // error recovery
       }
       else {
-        at = new ArrayType(dt.type, sz);
+        at = env.makeArrayType(dt.type, sz);
       }
     }
     else {
       // no size
-      at = new ArrayType(dt.type);
+      at = env.makeArrayType(dt.type);
     }
   }
 
@@ -2753,7 +2745,7 @@ void Expression::mid_tcheck(Env &env, int &)
   }
 
   // check it, and store the result
-  Type const *t = itcheck(env);
+  Type *t = itcheck(env);
   
   // elaborate the AST by storing the computed type, *unless*
   // we're only disambiguating (because in that case many of
@@ -2772,56 +2764,55 @@ void Expression::mid_tcheck(Env &env, int &)
 }
 
 
-Type const *E_boolLit::itcheck(Env &env)
+Type *E_boolLit::itcheck(Env &env)
 {
-  return GET_SIMPLE_TYPE(ST_BOOL, CV_CONST);
+  return env.getSimpleType(ST_BOOL, CV_CONST);
 }
 
-Type const *E_intLit::itcheck(Env &env)
+Type *E_intLit::itcheck(Env &env)
 {
   // TODO: what about unsigned and/or long literals?
   // TODO: sm: I am not sure that "5" has type "int const".. this
   // might affect overload resolution
-  return GET_SIMPLE_TYPE(ST_INT, CV_CONST);
+  return env.getSimpleType(ST_INT, CV_CONST);
 }
 
-Type const *E_floatLit::itcheck(Env &env)
+Type *E_floatLit::itcheck(Env &env)
 {                                
   // TODO: doubles
-  return GET_SIMPLE_TYPE(ST_FLOAT, CV_CONST);
+  return env.getSimpleType(ST_FLOAT, CV_CONST);
 }
 
-Type const *E_stringLit::itcheck(Env &env)
+Type *E_stringLit::itcheck(Env &env)
 {                                                                     
-  // TODO: should be char const *, not char *
-  return new PointerType(PO_POINTER, CV_NONE, GET_SIMPLE_TYPE(ST_CHAR, CV_CONST));
+  return env.makePointerType(PO_POINTER, CV_NONE, env.getSimpleType(ST_CHAR, CV_CONST));
 }
 
-Type const *E_charLit::itcheck(Env &env)
+Type *E_charLit::itcheck(Env &env)
 {                               
   // TODO: unsigned
-  return GET_SIMPLE_TYPE(ST_CHAR, CV_CONST);
+  return env.getSimpleType(ST_CHAR, CV_CONST);
 }
 
 
-Type const *makeLvalType(Type const *underlying)
+Type *makeLvalType(Env &env, Type *underlying)
 {
   if (underlying->isLval()) {
     // this happens for example if a variable is declared to
     // a reference type
-    return underlying; 
+    return underlying;
   }
   else if (underlying->isFunctionType()) {
     // don't make references to functions
     return underlying;
   }
   else {
-    return makeRefType(underlying);
+    return env.makeRefType(underlying);
   }
 }
 
 
-Type const *E_variable::itcheck(Env &env)
+Type *E_variable::itcheck(Env &env)
 {
   name->tcheck(env);
   var = env.lookupPQVariable(name);
@@ -2842,7 +2833,7 @@ Type const *E_variable::itcheck(Env &env)
   }
 
   // return a reference because this is an lvalue
-  return makeLvalType(var->type);
+  return makeLvalType(env, var->type);
 }
 
 
@@ -2871,12 +2862,12 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
   return ret;
 }
 
-Type const *E_funCall::itcheck(Env &env)
+Type *E_funCall::itcheck(Env &env)
 {
   func->tcheck(func, env);
   args = tcheckFakeExprList(args, env);
 
-  Type const *t = func->type->asRval();
+  Type *t = func->type->asRval();
   
   // automatically coerce function pointers into functions
   if (t->isPointerType()) {
@@ -2884,7 +2875,7 @@ Type const *E_funCall::itcheck(Env &env)
   }
 
   // check for operator()
-  CompoundType const *ct = t->ifCompoundType();
+  CompoundType *ct = t->ifCompoundType();
   if (ct) {
     Variable const *funcVar = ct->getNamedFieldC(env.functionOperatorName, env);
     if (funcVar) {
@@ -2924,7 +2915,7 @@ Type const *E_funCall::itcheck(Env &env)
 }
 
 
-Type const *E_constructor::itcheck(Env &env)
+Type *E_constructor::itcheck(Env &env)
 {
   type = spec->tcheck(env, DF_NONE);
   args = tcheckFakeExprList(args, env);
@@ -2937,14 +2928,14 @@ Type const *E_constructor::itcheck(Env &env)
 
 
 // cppstd sections: 5.2.5 and 3.4.5
-Type const *E_fieldAcc::itcheck(Env &env)
+Type *E_fieldAcc::itcheck(Env &env)
 {
   obj->tcheck(obj, env);
   fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
 
   // get the type of 'obj', and make sure it's a compound
-  Type const *rt = obj->type->asRval();
-  CompoundType const *ct = rt->ifCompoundType();
+  Type *rt = obj->type->asRval();
+  CompoundType *ct = rt->ifCompoundType();
   if (!ct) {
     // maybe it's a type variable because we're accessing a field
     // of a template parameter?
@@ -2984,7 +2975,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   // type of expression is type of field; possibly as an lval
   if (obj->type->isLval() &&
       !field->type->isFunctionType()) {
-    return makeLvalType(field->type);
+    return makeLvalType(env, field->type);
   }
   else {
     return field->type;
@@ -2992,7 +2983,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
 }
 
 
-Type const *E_sizeof::itcheck(Env &env)
+Type *E_sizeof::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
 
@@ -3007,21 +2998,21 @@ Type const *E_sizeof::itcheck(Env &env)
   // const (like with local arrays that use a variable to determine
   // their size at runtime).  Therefore, not making const.
   return expr->type->isError()?
-           expr->type : getSimpleType(ST_UNSIGNED_INT);
+           expr->type : env.getSimpleType(ST_UNSIGNED_INT);
 }
 
 
-Type const *E_unary::itcheck(Env &env)
+Type *E_unary::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
 
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: consider the possibility of operator overloading
-  return getSimpleType(ST_INT);
+  return env.getSimpleType(ST_INT);
 }
 
 
-Type const *E_effect::itcheck(Env &env)
+Type *E_effect::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
 
@@ -3032,14 +3023,14 @@ Type const *E_effect::itcheck(Env &env)
 }
 
 
-Type const *E_binary::itcheck(Env &env)
+Type *E_binary::itcheck(Env &env)
 {
   e1->tcheck(e1, env);
   
   // if the LHS is an array, coerce it to a pointer
-  Type const *lhsType = e1->type->asRval();
+  Type *lhsType = e1->type->asRval();
   if (lhsType->isArrayType()) {
-    lhsType = makePtrType(lhsType->asArrayTypeC().eltType);
+    lhsType = env.makePtrType(lhsType->asArrayType().eltType);
   }
 
   e2->tcheck(e2, env);
@@ -3050,14 +3041,14 @@ Type const *E_binary::itcheck(Env &env)
 }
 
 
-Type const *E_addrOf::itcheck(Env &env)
+Type *E_addrOf::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
                                          
   // ok to take addr of function; special-case it so as
   // not to weaken what 'isLval' means
   if (expr->type->isFunctionType()) {
-    return makePtrType(expr->type);
+    return env.makePtrType(expr->type);
   }
 
   if (!expr->type->isLval()) {
@@ -3065,36 +3056,36 @@ Type const *E_addrOf::itcheck(Env &env)
       << "cannot take address of non-lvalue `" 
       << expr->type->toString() << "'");
   }
-  PointerType const &pt = expr->type->asPointerTypeC();
+  PointerType &pt = expr->type->asPointerType();
   xassert(pt.op == PO_REFERENCE);      // that's what isLval checks
 
   // change the "&" into a "*"
-  return makePtrType(pt.atType);
+  return env.makePtrType(pt.atType);
 }
 
 
-Type const *E_deref::itcheck(Env &env)
+Type *E_deref::itcheck(Env &env)
 {
   ptr->tcheck(ptr, env);
 
-  Type const *rt = ptr->type->asRval();
+  Type *rt = ptr->type->asRval();
   if (rt->isPointerType()) {
-    PointerType const &pt = rt->asPointerTypeC();
+    PointerType &pt = rt->asPointerType();
     xassert(pt.op == PO_POINTER);   // otherwise not rval!
 
     // dereferencing yields an lvalue
-    return makeLvalType(pt.atType);
+    return makeLvalType(env, pt.atType);
   }
 
   // implicit coercion of array to pointer for dereferencing
   if (rt->isArrayType()) {
-    return makeLvalType(rt->asArrayTypeC().eltType);
+    return makeLvalType(env, rt->asArrayType().eltType);
   }
 
   // check for "operator*" (and "operator[]" since I unfortunately
   // currently map [] into * and +)
   if (rt->ifCompoundType()) {
-    CompoundType const *ct = rt->ifCompoundType();
+    CompoundType *ct = rt->ifCompoundType();
     if (ct->lookupVariableC(env.str("operator*"), env) ||
         ct->lookupVariableC(env.str("operator[]"), env)) {
       // ok.. gee what type?  would have to do the full deal, and
@@ -3103,7 +3094,7 @@ Type const *E_deref::itcheck(Env &env)
       // make it ST_ERROR then that will suppress further complaints
 
       // dsw: const?
-      return getSimpleType(ST_ERROR);    // TODO: fix this!
+      return env.getSimpleType(ST_ERROR);    // TODO: fix this!
     }
   }
 
@@ -3112,11 +3103,11 @@ Type const *E_deref::itcheck(Env &env)
   // off the error message for now..
   //return env.error(rt, stringc
   //  << "cannot derefence non-pointer `" << rt->toString() << "'");
-  return getSimpleType(ST_ERROR);
+  return env.getSimpleType(ST_ERROR);
 }
 
 
-Type const *E_cast::itcheck(Env &env)
+Type *E_cast::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
@@ -3128,7 +3119,7 @@ Type const *E_cast::itcheck(Env &env)
 }
 
 
-Type const *E_cond::itcheck(Env &env)
+Type *E_cond::itcheck(Env &env)
 {
   cond->tcheck(cond, env);
   th->tcheck(th, env);
@@ -3141,7 +3132,7 @@ Type const *E_cond::itcheck(Env &env)
 }
 
 
-Type const *E_comma::itcheck(Env &env)
+Type *E_comma::itcheck(Env &env)
 {
   e1->tcheck(e1, env);
   e2->tcheck(e2, env);
@@ -3150,21 +3141,21 @@ Type const *E_comma::itcheck(Env &env)
 }
 
 
-Type const *E_sizeofType::itcheck(Env &env)
+Type *E_sizeofType::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   atype = atype->tcheck(env, tc);
-  Type const *t = atype->getType();
+  Type *t = atype->getType();
   size = t->reprSize();
 
   // dsw: I think under some gnu extensions perhaps sizeof's aren't
   // const (like with local arrays that use a variable to determine
   // their size at runtime).  Therefore, not making const.
-  return t->isError()? t : getSimpleType(ST_UNSIGNED_INT);
+  return t->isError()? t : env.getSimpleType(ST_UNSIGNED_INT);
 }
 
 
-Type const *E_assign::itcheck(Env &env)
+Type *E_assign::itcheck(Env &env)
 {
   target->tcheck(target, env);
   src->tcheck(src, env);
@@ -3176,7 +3167,7 @@ Type const *E_assign::itcheck(Env &env)
 }
 
 
-Type const *E_new::itcheck(Env &env)
+Type *E_new::itcheck(Env &env)
 {
   placementArgs = tcheckFakeExprList(placementArgs, env);
 
@@ -3190,7 +3181,7 @@ Type const *E_new::itcheck(Env &env)
   atype = atype->tcheck(env, tc);
 
   // grab the type of the objects to allocate
-  Type const *t = atype->getType();
+  Type *t = atype->getType();
 
   if (ctorArgs) {
     ctorArgs->list = tcheckFakeExprList(ctorArgs->list, env);
@@ -3198,26 +3189,26 @@ Type const *E_new::itcheck(Env &env)
 
   // TODO: check for a constructor in 't' which accepts these args
   
-  return makePtrType(t);
+  return env.makePtrType(t);
 }
 
 
-Type const *E_delete::itcheck(Env &env)
+Type *E_delete::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
 
-  Type const *t = expr->type->asRval();
+  Type *t = expr->type->asRval();
   if (!t->isPointer()) {
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
   }
 
   // dsw: const?
-  return getSimpleType(ST_VOID);
+  return env.getSimpleType(ST_VOID);
 }
 
 
-Type const *E_throw::itcheck(Env &env)
+Type *E_throw::itcheck(Env &env)
 {
   if (expr) {
     expr->tcheck(expr, env);
@@ -3226,11 +3217,11 @@ Type const *E_throw::itcheck(Env &env)
     // TODO: make sure that we're inside a 'catch' clause
   }
   // dsw: const?
-  return getSimpleType(ST_VOID);
+  return env.getSimpleType(ST_VOID);
 }
 
 
-Type const *E_keywordCast::itcheck(Env &env)
+Type *E_keywordCast::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   ctype = ctype->tcheck(env, tc);
@@ -3243,14 +3234,14 @@ Type const *E_keywordCast::itcheck(Env &env)
 }
 
 
-Type const *E_typeidExpr::itcheck(Env &env)
+Type *E_typeidExpr::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
   return env.type_info_const_ref;
 }
 
 
-Type const *E_typeidType::itcheck(Env &env)
+Type *E_typeidType::itcheck(Env &env)
 {
   ASTTypeId::Tcheck tc;
   ttype = ttype->tcheck(env, tc);
@@ -3280,7 +3271,7 @@ bool Expression::constEval(Env &env, int &result) const
       if (v->var->hasFlag(DF_ENUMERATOR)) {
         // this is an enumerator; find the corresponding
         // enum type, and look up the name to find the value
-        EnumType const &et = v->var->type->asCVAtomicTypeC().atomic->asEnumTypeC();
+        EnumType &et = v->var->type->asCVAtomicType().atomic->asEnumType();
         EnumType::Value const *val = et.getValue(v->var->name);
         xassert(val);    // otherwise the type information is wrong..
         result = val->value;
@@ -3351,7 +3342,7 @@ bool Expression::constEval(Env &env, int &result) const
     ASTNEXTC(E_cast, c)
       if (!c->expr->constEval(env, result)) return false;
 
-      Type const *t = c->ctype->getType();
+      Type *t = c->ctype->getType();
       if (t->isIntegerType()) {
         return true;       // ok
       }
@@ -3505,8 +3496,8 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 
   // introduce 'name' into the environment as a typedef for the
   // type variable
-  CVAtomicType const *fullType = makeType(tvar);
-  Variable *var = new Variable(loc, name, fullType, DF_TYPEDEF);
+  CVAtomicType *fullType = env.makeType(tvar);
+  Variable *var = env.makeVariable(loc, name, fullType, DF_TYPEDEF);
   tvar->typedefVar = var;
   if (!env.addVariable(var)) {
     env.error(stringc

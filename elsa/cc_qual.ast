@@ -113,7 +113,7 @@ class IDeclarator {
   // and store it in the 'dtor' pointer's 'qtype' field;
   // 'typeSoFar' is the type denoted by the specifier and
   // any other surrounding declarator fragments
-  pure_virtual void qualTcheck(Declarator *dtor, Type_Q *typeSoFar);
+  //pure_virtual void qualTcheck(Declarator *dtor, Type_Q *typeSoFar);
 
   -> D_pointer(QualifierLiterals *ql)
   {

@@ -21,7 +21,7 @@ class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
 // the entire semantic analysis state
-class Env {
+class Env : public TypeFactory {
 private:     // data
   // stack of lexical scopes; first is innermost
   // NOTE: if a scope has curCompound!=NULL, then this list does *not* own
@@ -55,6 +55,9 @@ public:      // data
   // language options in effect
   CCLang &lang;
 
+  // interface for making types
+  TypeFactory &tfactory;
+
   // client analyses may need to get ahold of all the Variables that I
   // made up, so this is a list of them; these don't include Variables
   // built for parameters of function types, but the functions
@@ -62,7 +65,7 @@ public:      // data
   SObjList<Variable> madeUpVariables;
 
   // type for typeid expression
-  Type const *type_info_const_ref;      // (serf)
+  Type *type_info_const_ref;      // (serf)
 
   // special names
   StringRef conversionOperatorName;
@@ -75,14 +78,14 @@ public:      // data
 
 private:     // funcs
   CompoundType *instantiateClass(
-    CompoundType const *tclass, FakeList<TemplateArgument> *args);
+    CompoundType *tclass, FakeList<TemplateArgument> *args);
 
-  void declareFunction1arg(Type const *retType, char const *funcName,
-                           Type const *arg1Type, char const *arg1Name,
-                           Type const *exnType);
+  void declareFunction1arg(Type *retType, char const *funcName,
+                           Type *arg1Type, char const *arg1Name,
+                           Type *exnType);
 
 public:      // funcs
-  Env(StringTable &str, CCLang &lang);
+  Env(StringTable &str, CCLang &lang, TypeFactory &tfac);
   ~Env();
 
   int getChangeCount() const { return scopeC()->getChangeCount(); }
@@ -157,22 +160,34 @@ public:      // funcs
 
   // introduce a new compound type name; return the constructed
   // CompoundType's pointer in 'ct', after inserting it into 'scope'
-  Type const *makeNewCompound(CompoundType *&ct, Scope *scope,
-                              StringRef name, SourceLocation const &loc,
-                              TypeIntr keyword, bool forward);
+  Type *makeNewCompound(CompoundType *&ct, Scope *scope,
+                        StringRef name, SourceLocation const &loc,
+                        TypeIntr keyword, bool forward);
 
   // diagnostic reports; all return ST_ERROR type
-  Type const *error(char const *msg, bool disambiguates=false);
-  Type const *warning(char const *msg);
-  Type const *unimp(char const *msg);
+  Type *error(char const *msg, bool disambiguates=false);
+  Type *warning(char const *msg);
+  Type *unimp(char const *msg);
 
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR
-  Type const *error(Type const *t, char const *msg);
+  Type *error(Type *t, char const *msg);
 
   // set 'disambiguateOnly' to 'val', returning prior value
   bool setDisambiguateOnly(bool val);
   bool onlyDisambiguating() const { return disambiguateOnly; }
+  
+  // TypeFactory funcs; all of these simply delegate to 'tfactory'
+  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
+  virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
+  virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
+  virtual ArrayType *makeArrayType(Type *eltType, int size = -1);
+  virtual Type *applyCVToType(CVFlags cv, Type *baseType);
+  virtual ArrayType *setArraySize(ArrayType *type, int size);
+  virtual Type *cloneType(Type *src);
+  virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
+                                 Type *t, DeclFlags f);
+  virtual Variable *cloneVariable(Variable *src);
 };
 
 
