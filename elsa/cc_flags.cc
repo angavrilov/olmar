@@ -32,6 +32,7 @@ MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
 char const * const cvFlagNames[NUM_CVFLAGS] = {
   "const",
   "volatile",
+  "restrict",
   "owner"
 };
 

@@ -1314,6 +1314,14 @@ nonterm(IDeclarator*) DirectDeclarator {
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
        { return new D_array(loc, d, sz); }
 
+  // array with qualifier in the brackets; see the version for
+  // DirectAbstractDeclarator for comments
+  -> d:DirectDeclarator "[" q:CVQualifierSeq "]"
+    {
+      // FIX: CVQualifierSeq goes on the array
+      return new D_array(loc, d, NULL /*size*/);
+    }
+
   // precedence grouping; must be recorded in the AST for disambiguation
   -> "(" d:Declarator ")"
        { return new D_grouping(loc, d); }
@@ -1383,6 +1391,7 @@ nonterm(enum CVFlags) CVQualifierSeq {
 nonterm(enum CVFlags) CVQualifier {
   -> "const"                 { return CV_CONST; }
   -> "volatile"              { return CV_VOLATILE; }
+  -> "__restrict__"          { return CV_RESTRICT; }
 }
 
 
@@ -1438,6 +1447,14 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
        { return new D_array(loc, d, sz); }
+
+  // array with qualifier in the brackets (the rumors are C99)
+  -> d:DirectAbstractDeclaratorOpt "[" q:CVQualifierSeq "]"
+    {
+      // FIX: Ben says the CVQualifierSeq goes on the array itself,
+      // just as if the array were a pointer and it was on the pointer
+      return new D_array(loc, d, NULL /*size*/);
+    }
 
   // precedence grouping; shouldn't need to record this in AST, but
   // I will for consistency with Declarator

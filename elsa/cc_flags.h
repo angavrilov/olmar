@@ -45,11 +45,12 @@ enum CVFlags {
   CV_NONE     = 0x0000,
   CV_CONST    = 0x0400,
   CV_VOLATILE = 0x0800,
-  CV_OWNER    = 0x1000,     // experimental extension
-  CV_ALL      = 0x1C00,
+  CV_RESTRICT = 0x1000,     // dsw: C99 I think
+  CV_OWNER    = 0x2000,     // experimental extension
+  CV_ALL      = 0x2C00,
 
   CV_SHIFT_AMOUNT = 10,     // shift right this many bits before counting for cvFlagNames
-  NUM_CVFLAGS = 3           // # bits set to 1 in CV_ALL
+  NUM_CVFLAGS = 4           // # bits set to 1 in CV_ALL
 };
 
 extern char const * const cvFlagNames[NUM_CVFLAGS];      // 0="const", 1="volatile", 2="owner"

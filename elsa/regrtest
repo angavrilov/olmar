@@ -542,6 +542,8 @@ testparse d0072.cc
 testparse d0073.cc
 failparse d0074.cc "(fill in a reason here)"
 testparse d0075.cc
+testparse d0076.cc
+testparse d0077.cc
 # ---- END: lots of tests ----
 
 

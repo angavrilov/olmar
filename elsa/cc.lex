@@ -165,6 +165,10 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "public"           return tok(TOK_PUBLIC);
 "register"         return tok(TOK_REGISTER);
 "reinterpret_cast" return tok(TOK_REINTERPRET_CAST);
+  /* FIX: we need to add this but turn it on only in C99 mode; also
+     since it is a real keyword, rename TOK___RESTRICT__ to
+     TOK_RESTRICT */
+  /*  "restrict"         return tok(TOK___RESTRICT__); */
 "return"           return tok(TOK_RETURN);
 "short"            return tok(TOK_SHORT);
 "signed"           return tok(TOK_SIGNED);

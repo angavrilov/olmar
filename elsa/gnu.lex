@@ -8,11 +8,11 @@
 "__attribute"          return tok(TOK___ATTRIBUTE__);
 "__attribute__"        return tok(TOK___ATTRIBUTE__);
 "__label__"            return tok(TOK___LABEL__);
+"__restrict"           return tok(TOK___RESTRICT__);
+"__restrict__"         return tok(TOK___RESTRICT__);
 "typeof"               return tok(TOK___TYPEOF__);
 "__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
-"__restrict"           return tok(TOK___RESTRICT__);
-"__restrict__"         return tok(TOK___RESTRICT__);
 "__builtin_expect"     return tok(TOK___BUILTIN_EXPECT);
 "__builtin_va_arg"     return tok(TOK___BUILTIN_VA_ARG);
 

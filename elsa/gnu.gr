@@ -480,7 +480,10 @@ nonterm AttributeList {
 
 nonterm AttributeSpecifier {
   -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
-  -> "__restrict__" ;       // probably not the right way to handle this ..
+  // dsw: restrict is not a gnu extension as far as I understand it;
+  // it is a C99-ism at least.  I put this in with const and volatile
+  // in CVQualifier
+//    -> "__restrict__" ;       // probably not the right way to handle this ..
 }
 
 nonterm AttributeSpecifierList {
