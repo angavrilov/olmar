@@ -6,26 +6,14 @@ THIS := libsmbase.a
 all: gensrc $(THIS)
 
 
-# C preprocess, compiler and linker
+# C preprocessor, compiler and linker
 CC := gcc
 
 # C++ compiler, etc.
 CXX := g++
 
 # flags for the C and C++ compilers (and preprocessor)
-CCFLAGS := -g -Wall -D__LINUX__ -D__UNIX__
-
-# make warnings into errors so I always get a chance to fix them
-CCFLAGS += -Werror
-
-# for gcc-3
-CCFLAGS += -Wno-deprecated
-
-# when uncommented, we get profiling info
-#CCFLAGS += -pg
-
-# optimizer...
-CCFLAGS += -O2 -DNDEBUG
+CCFLAGS := @CCFLAGS@
 
 # flags for the linker
 LDFLAGS := -g -Wall libsmbase.a

@@ -33,3 +33,6 @@ tsobjlist
 *.i
 srcloc
 gprof.out
+config.status
+config.summary
+hide
