@@ -2182,24 +2182,20 @@ STATICDEF bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const 
 
 
 // keys and data are the same
-STATICDEF void const *ItemSet::dataToKey(ItemSet *data)
+STATICDEF ItemSet const *ItemSet::dataToKey(ItemSet *data)
 {
   return data;
 }
 
-STATICDEF unsigned ItemSet::hash(void const *key)
+STATICDEF unsigned ItemSet::hash(ItemSet const *key)
 {
-  ItemSet const *is = (ItemSet const*)key;
-  unsigned crc = is->kernelItemsCRC;
+  unsigned crc = key->kernelItemsCRC;
   return HashTable::lcprngHashFn((void*)crc);
 }
 
-STATICDEF bool ItemSet::equalKey(void const *key1, void const *key2)
+STATICDEF bool ItemSet::equalKey(ItemSet const *key1, ItemSet const *key2)
 {
-  ItemSet const *is1 = (ItemSet const*)key1;
-  ItemSet const *is2 = (ItemSet const*)key2;
-  
-  return *is1 == *is2;
+  return *key1 == *key2;
 }
 
 
@@ -2211,7 +2207,7 @@ void GrammarAnalysis::constructLRItemSets()
 
   // item sets yet to be processed; item sets are simultaneously in
   // both the hash and the list, or not in either
-  OwnerHashTable<ItemSet> itemSetsPending(
+  OwnerKHashTable<ItemSet, ItemSet> itemSetsPending(
     &ItemSet::dataToKey,
     &ItemSet::hash,
     &ItemSet::equalKey);
@@ -2221,7 +2217,7 @@ void GrammarAnalysis::constructLRItemSets()
   ArrayStack<ItemSet*> pendingList(100);
 
   // item sets with all outgoing links processed
-  OwnerHashTable<ItemSet> itemSetsDone(
+  OwnerKHashTable<ItemSet, ItemSet> itemSetsDone(
     &ItemSet::dataToKey,
     &ItemSet::hash,
     &ItemSet::equalKey);
@@ -2441,7 +2437,7 @@ void GrammarAnalysis::constructLRItemSets()
   // we're done constructing item sets, so move all of them out
   // of the 'itemSetsDone' hash and into 'this->itemSets'
   try {
-    for (OwnerHashTableIter<ItemSet> iter(itemSetsDone);
+    for (OwnerKHashTableIter<ItemSet, ItemSet> iter(itemSetsDone);
          !iter.isDone(); iter.adv()) {
       itemSets.prepend(iter.data());
     }

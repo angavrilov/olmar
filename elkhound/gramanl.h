@@ -329,9 +329,9 @@ public:     // funcs
   void removeShift(Terminal const *sym);
 
   // ------ hashtable stuff --------
-  static void const *dataToKey(ItemSet *data);
-  static unsigned hash(void const *key);
-  static bool equalKey(void const *key1, void const *key2);
+  static ItemSet const *dataToKey(ItemSet *data);
+  static unsigned hash(ItemSet const *key);
+  static bool equalKey(ItemSet const *key1, ItemSet const *key2);
 
   // ---- debugging ----
   void writeGraph(ostream &os, GrammarAnalysis const &g) const;
