@@ -72,6 +72,11 @@ int A_bin::eval(Env &env)
   }
 }
 
+int A_group::eval(Env &env)
+{
+  return a->eval(env);
+}
+
 
 // -------------------- BExp -------------------
 bool B_lit::eval(Env &env)

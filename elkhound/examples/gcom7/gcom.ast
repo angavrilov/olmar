@@ -32,6 +32,7 @@ class AExp {
   -> A_lit(int n);
   -> A_var(string x);
   -> A_bin(AExp a1, AOp op, AExp a2);
+  -> A_group(AExp a);
 }
 
 // boolean expressions
