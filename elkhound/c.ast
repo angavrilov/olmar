@@ -270,13 +270,19 @@ class Expression {
   public Type const *type;
   ctor type=NULL;
 
+  // record the # of paths through this expression; 0 means the
+  // expression has no side effects (so 1 path but it doesn't
+  // count in some situations)
+  public int numPaths;
+  ctor numPaths=0;
+  protected void recordSideEffect() {
+    numPaths = max(numPaths, 1);
+  };
+
+  // print numPaths and type
+  public string extrasToString() const;
   custom debugPrint {
-    if (type) {
-      ind(os, indent) << "type: " << type->toCString() << "\n";
-    }
-    else {
-      ind(os, indent) << "type: (null)\n";
-    }
+    ind(os, indent) << extrasToString() << "\n";
   }
 
   // inner typechecker which does not have to store its result

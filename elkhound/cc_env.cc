@@ -222,6 +222,7 @@ Env::Env(StringTable &table)
     enums(),
     enumerators(),
     errors(0),
+    warnings(0),
     compoundStack(),
     currentRetType(NULL),
     inPredicate(false),
@@ -643,6 +644,13 @@ void Env::err(char const *str)
 {
   cout << "error: " << str << endl;
   errors++;
+}
+
+
+void Env::warn(char const *str)
+{
+  cout << "warning: " << str << endl;
+  warnings++;
 }
 
 

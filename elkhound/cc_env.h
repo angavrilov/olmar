@@ -137,6 +137,7 @@ private:    // data
   // -------------- miscellaneous ---------------
   // count of reported errors
   int errors;
+  int warnings;
 
   // stack of compounds being constructed
   SObjList<CompoundType> compoundStack;
@@ -218,6 +219,7 @@ public:     // funcs
   // ------------------ error/warning reporting -----------------
   // report an error
   virtual void err(char const *str);
+  void warn(char const *str);
 
   // report an error, and throw an exception
   void errThrow(char const *str);
