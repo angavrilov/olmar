@@ -1152,6 +1152,7 @@ Type *BaseType::getAtType() const
   }
   else if (isFunctionType()) {
     // Scott, I see no way around this const cast
+    // sm: remove this case!
     return const_cast<BaseType*>(this)->asFunctionType();
   }
   else {

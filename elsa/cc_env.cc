@@ -253,7 +253,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
   type_info_const_ref = 
-    tfac.makeReferenceTypeIdem(HERE, makeCVAtomicType(HERE, ct, CV_CONST));
+    tfac.makeReferenceType(HERE, makeCVAtomicType(HERE, ct, CV_CONST));
 
   dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
@@ -432,8 +432,8 @@ void Env::setupOperatorOverloading()
     Type *T = getSimpleType(SL_INIT, ST_ARITHMETIC);
     Type *Tv = getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE);
 
-    Type *Tr = tfac.makeReferenceTypeIdem(SL_INIT, T);
-    Type *Tvr = tfac.makeReferenceTypeIdem(SL_INIT, Tv);
+    Type *Tr = tfac.makeReferenceType(SL_INIT, T);
+    Type *Tvr = tfac.makeReferenceType(SL_INIT, Tv);
 
     // VQ T& operator++ (VQ T&);
     addBuiltinUnaryOp(OP_PLUSPLUS, Tr);
@@ -449,8 +449,8 @@ void Env::setupOperatorOverloading()
     Type *T = getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL);
     Type *Tv = getSimpleType(SL_INIT, ST_ARITHMETIC_NON_BOOL, CV_VOLATILE);
 
-    Type *Tr = tfac.makeReferenceTypeIdem(SL_INIT, T);
-    Type *Tvr = tfac.makeReferenceTypeIdem(SL_INIT, Tv);
+    Type *Tr = tfac.makeReferenceType(SL_INIT, T);
+    Type *Tvr = tfac.makeReferenceType(SL_INIT, Tv);
 
     // VQ T& operator-- (VQ T&);
     addBuiltinUnaryOp(OP_MINUSMINUS, Tr);
@@ -468,8 +468,8 @@ void Env::setupOperatorOverloading()
     Type *Tp = tfac.makePointerType(SL_INIT, CV_NONE, T);
     Type *Tpv = tfac.makePointerType(SL_INIT, CV_VOLATILE, T);
 
-    Type *Tpr = tfac.makeReferenceTypeIdem(SL_INIT, Tp);
-    Type *Tpvr = tfac.makeReferenceTypeIdem(SL_INIT, Tpv);
+    Type *Tpr = tfac.makeReferenceType(SL_INIT, Tp);
+    Type *Tpvr = tfac.makeReferenceType(SL_INIT, Tpv);
 
     // T* VQ & operator++ (T* VQ &);
     addBuiltinUnaryOp(OP_PLUSPLUS, Tpr);
@@ -631,8 +631,8 @@ void Env::setupOperatorOverloading()
     Type *L = getSimpleType(SL_INIT, ST_ARITHMETIC);
     Type *Lv = getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE);
 
-    Type *Lr = tfac.makeReferenceTypeIdem(SL_INIT, L);
-    Type *Lvr = tfac.makeReferenceTypeIdem(SL_INIT, Lv);
+    Type *Lr = tfac.makeReferenceType(SL_INIT, L);
+    Type *Lvr = tfac.makeReferenceType(SL_INIT, Lv);
 
     Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
 
@@ -671,8 +671,8 @@ void Env::setupOperatorOverloading()
     Type *Tp = tfac.makePointerType(SL_INIT, CV_NONE, T);
     Type *Tpv = tfac.makePointerType(SL_INIT, CV_VOLATILE, T);
 
-    Type *Tpr = tfac.makeReferenceTypeIdem(SL_INIT, Tp);
-    Type *Tpvr = tfac.makeReferenceTypeIdem(SL_INIT, Tpv);
+    Type *Tpr = tfac.makeReferenceType(SL_INIT, Tp);
+    Type *Tpvr = tfac.makeReferenceType(SL_INIT, Tpv);
 
     // T* VQ & operator+= (T* VQ &, ptrdiff_t);
     addBuiltinBinaryOp(OP_PLUSEQ, Tpr, t_ptrdiff_t);
@@ -689,8 +689,8 @@ void Env::setupOperatorOverloading()
     Type *L = getSimpleType(SL_INIT, ST_INTEGRAL, CV_NONE);
     Type *Lv = getSimpleType(SL_INIT, ST_INTEGRAL, CV_VOLATILE);
 
-    Type *Lr = tfac.makeReferenceTypeIdem(SL_INIT, L);
-    Type *Lvr = tfac.makeReferenceTypeIdem(SL_INIT, Lv);
+    Type *Lr = tfac.makeReferenceType(SL_INIT, L);
+    Type *Lvr = tfac.makeReferenceType(SL_INIT, Lv);
     
     Type *R = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
     
@@ -2598,8 +2598,8 @@ Variable *Env::instantiateTemplate
     // we are about to tcheck the cloned AST.. it might be that we were
     // in the context of an ambiguous expression when the need for
     // instantiated arose, but we want the tchecking below to proceed
-    // as if it were not ambiguous (it isn't, it just might be referenced
-    // from a context that is)      
+    // as if it were not ambiguous (it isn't ambiguous, it just might 
+    // be referenced from a context that is)      
     //
     // so, the following object will temporarily set the level to 0, 
     // and restore its original value when the block ends

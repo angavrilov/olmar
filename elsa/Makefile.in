@@ -255,9 +255,12 @@ TAGS:
 
 
 # -------------------- count source lines -------------------
-
 # This should give the right answer even after a "make all", since we
 # filter the generated files.
+#
+# sm: I haven't carefully inspected the set of files counted,
+# and it appears to not count cc_tokens.tok (which it should).
+# I don't care about fixing right now it though.
 
 GENREGEX := '\.gen\.\|lexer\.yy\|cc_tokens'
 .PHONY: count-loc

@@ -605,8 +605,11 @@ public:     // funcs
   bool isOwnerPtr() const;
   bool isMethod() const;                       // function and method
 
+  // (some of the following are redundant but I want them anyway, to
+  // continue with the pattern that isXXX is for language concepts and
+  // isXXXType is for implementation concepts)
+
   // pointer/reference stuff
-  // FIX: this is now redundant so we can get rid of it
   bool isPointer() const { return isPointerType(); }
   bool isReference() const { return isReferenceType(); }
   bool isLval() const { return isReference(); }// C terminology
@@ -1336,12 +1339,17 @@ public:
                               TypeSpecifier * /*nullable*/ syntax);
 
   // this is called in a few specific circumstances when we want to
-  // know the reference type corresponding to some variable; The name
-  // means make a reference type to this in an idempotent way; the
-  // analysis may need to do something other than a straightforward
-  // "makeReferenceType(underlying)" (which is the default behavior);
-  // this also has the semantics that if 'underlying' is ST_ERROR then
-  // this must return ST_ERROR
+  // know the reference type corresponding to some variable (or
+  // lvalue, more generally); The name means make a reference type to
+  // this in an idempotent way; the analysis may need to do something
+  // other than a straightforward "makeReferenceType(underlying)"
+  // (which is the default behavior); this also has the semantics that
+  // if 'underlying' is ST_ERROR then this must return ST_ERROR
+  //
+  // sm: The existence of the "idem" part of the semantics again
+  // exposes the strained relationship between cc_type and Oink.
+  // Someday I'm gonna clean all this crap up, and this function will
+  // die.
   virtual Type *makeReferenceTypeIdem(SourceLoc loc, Type *underlying);
 
   // build a pointer type from a syntactic description; here I allow
