@@ -142,6 +142,8 @@ public:      // funcs
     { return const_cast<CompoundType*>(lookupCompoundC(name, f)); }
   EnumType *lookupEnum(StringRef name, LookupFlags f=LF_NONE)
     { return const_cast<EnumType*>(lookupEnumC(name, f)); }
+  Variable *lookupPQVariable(PQName const *name, Env &env, LookupFlags f=LF_NONE)
+    { return const_cast<Variable*>(lookupPQVariableC(name, env, f)); }
 
   // for iterating over the variables
   StringSObjDict<Variable>::IterC getVariableIter() const
@@ -159,7 +161,7 @@ public:      // funcs
   int private_compoundTop() const
     { return compounds.private_getTopAddr(); }
 
-  // dsw: needed this and this was a natual place to put it
+  // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
   string fullyQualifiedName();

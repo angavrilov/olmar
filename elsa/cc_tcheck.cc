@@ -1988,6 +1988,7 @@ noPriorDeclaration:
     }
     else {
       scope->addVariable(dt.var, forceReplace);
+      env.addedNewVariable(scope, dt.var);
     }
   }
 
@@ -3346,7 +3347,7 @@ Type *E_fieldAcc::itcheck(Env &env)
   }
 
   // look for the named field
-  field = ct->lookupPQVariableC(fieldName, env);
+  field = ct->lookupPQVariable(fieldName, env);
   if (!field) {
     return env.error(rt, stringc
       << "there is no member called `" << *fieldName

@@ -317,8 +317,11 @@ string Lexer::tokenDesc() const
   }
 }
 
+string Lexer::tokenKindDesc(int kind) const
+{
+  // static table only
+  return toString((TokenType)kind);
+}
 
 
-
-
-
+// EOF

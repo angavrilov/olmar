@@ -427,7 +427,13 @@ bool Env::addVariable(Variable *v, bool forceReplace)
 
   Scope *s = acceptingScope(v->flags);
   s->registerVariable(v);
-  return s->addVariable(v, forceReplace);
+  if (s->addVariable(v, forceReplace)) {
+    addedNewVariable(s, v);
+    return true;
+  }
+  else {
+    return false;
+  }
 }
 
 
@@ -965,6 +971,9 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
       //  << " conflicts with an existing typedef or variable",
       //  true /*disambiguating*/);
     }
+    else {
+      addedNewVariable(scope, tv);
+    }
   }
 
   return ret;
@@ -1291,6 +1300,9 @@ int Env::countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd)
 {
   return cpd->inits.count();
 }
+
+void Env::addedNewVariable(Scope *, Variable *)
+{}
 
 
 // EOF

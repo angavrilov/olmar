@@ -303,6 +303,10 @@ StandardConversion getStandardConversion
       // converted to 'char*' (w/o 'const'); we'll already have
       // converted 'char const []' to 'char const *', so this just
       // adds the qualification conversion
+      //
+      // TODO: it might be nice to have a CCLang option to disable
+      // this, so that we could get soundness at the expense of
+      // compatibility with legacy code
       conv.ret |= SC_QUAL_CONV;
       scv = CV_NONE;   // avoid error in stripPtrCtor, below
     }
@@ -586,6 +590,15 @@ StandardConversion getStandardConversion
 // overload resolution.  Since this distinction is implementation-
 // dependent, I envision that users might replace this function with
 // an implementation that better suits them.
+//
+// NOTE:  One way to get a conservative analysis that never silently
+// chooses among potentially-ambiguous choices is to make this always
+// return false.
+//
+// Another idea:  It would be nice to have a set of tests such that
+// by running the tests one could determine what choices a given compiler
+// makes, so that this function could be modified accordingly to
+// imitate that behavior.
 bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
 {
   bool srcSimple = src->isSimpleType();

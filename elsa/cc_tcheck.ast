@@ -393,7 +393,7 @@ class Expression {
      }
 
   -> E_fieldAcc {
-       public Variable const *field;
+       public Variable *field;      // sm: why did I have this 'const'?
        ctor field=NULL;
        custom clone { ret->field = field; }
      }
