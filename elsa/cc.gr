@@ -708,7 +708,7 @@ nonterm[TopForm*] Declaration {
   -> t:TemplateDeclaration   [ return new TF_template(loc, t); ]
   //-> ExplicitInstantiation;
   //-> ExplicitSpecialization;
-  //-> LinkageSpecification ;
+  -> s:LinkageSpecification  [ return s; ]
   //-> NamespaceDefinition;
 }
 
@@ -968,7 +968,7 @@ nonterm[FakeList<Enumerator>*] EnumeratorListOpt {
 
 
 nonterm[Enumerator*] EnumeratorDefinition {
-  -> name:Identifier 
+  -> name:Identifier
        [ return new Enumerator(loc, name, NULL /*expr*/); ]
   -> name:Identifier "=" expr:ConstantExpression
        [ return new Enumerator(loc, name, expr); ]
@@ -977,10 +977,13 @@ nonterm[Enumerator*] EnumeratorDefinition {
 
 nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
-//nonterm LinkageSpecification {
-//  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" ;
-//  -> "extern" L2_STRING_LITERAL d:Declaration ;
-//} 
+nonterm[TF_linkage*] LinkageSpecification {
+  -> "extern" n:L2_STRING_LITERAL "{" tu:TranslationUnit "}"
+       [ return new TF_linkage(loc, n, tu); ]
+
+  -> "extern" n:L2_STRING_LITERAL tf:Declaration
+       [ return new TF_linkage(loc, n, new TranslationUnit(new ASTList<TopForm>(tf))); ]
+}
 
 // ------ A.7 Declarators ------
 // -- declarator --

@@ -60,6 +60,9 @@ class TopForm (SourceLocation loc) {
 
   // template functions or template classes
   -> TF_template(TemplateDeclaration td);
+  
+  // linkage specification enclosing a bunch of forms
+  -> TF_linkage(StringRef linkageType, TranslationUnit forms);
 }
 
 
