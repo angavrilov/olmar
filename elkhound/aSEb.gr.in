@@ -7,7 +7,6 @@
 // E -> /*epsilon*/
 
 terminals {
-  0  : EOF ;
   65 : a   ;
   66 : b   ;
 }

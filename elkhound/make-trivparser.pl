@@ -44,6 +44,9 @@ while (defined($line = <STDIN>)) {
   if ($line =~ /^\s*terminals/) {
     preamble();
     print($line);
+    
+    # add EOF terminal
+    print("  0 : EOF ;\n");
     next;
   }
 
@@ -62,11 +65,22 @@ while (defined($line = <STDIN>)) {
     next;
   }
 
+  # add actions to rules without them
   ($space, $rule) = ($line =~ /^(\s*)(->[^;]*);\s*$/);
-  if (defined($rule)) {  
+  if (defined($rule)) {
     $len = length($space) + length($rule);
-    print($space, $rule, " " x (20-$len), 
+    print($space, $rule, " " x (30-$len),
           "[ cout << \"reduced by $curNT $rule\\n\"; return 0; ]\n");
+    next;
+  }
+  
+  # expand terminals
+  ($letter, $comment) = ($line =~ m'^\s*([a-z])\s*(//.*)?$');   #'
+  if (defined($letter)) {
+    if (!defined($comment)) {
+      $comment = "";
+    }
+    printf("  %d : $letter ;   $comment\n", ord(uc($letter)));
     next;
   }
   

@@ -21,10 +21,13 @@
 #  run
 
 #file gramanl
-#set args aSEb
+#set args -tr conflict,lrtable ite
 
-file aSEb.gr.exe
-set args aSEb.in1
+file ite.gr.exe
+set args -tr parse ite.in3
+
+#file aSEb.gr.exe
+#set args aSEb.in1
 
 
 #file cexp3b

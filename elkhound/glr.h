@@ -97,10 +97,11 @@ public:
   //ItemSet const * const state;                 // (serf)
   StateId state;       // now it is an id
 
-  // each leftSibling points to a stack node in one possible
-  // LR stack.  if there is more than one, it means two or more
-  // LR stacks have been joined at this point.  this is the
-  // parse-time representation of ambiguity
+  // each leftSibling points to a stack node in one possible LR stack.
+  // if there is more than one, it means two or more LR stacks have
+  // been joined at this point.  this is the parse-time representation
+  // of ambiguity (actually, unambiguous grammars or inputs do
+  // sometimes lead to multiple siblings)
   ObjList<SiblingLink> leftSiblings;           // this is a set
 
   // the *first* sibling is simply embedded directly into the

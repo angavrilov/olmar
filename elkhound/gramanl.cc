@@ -2681,13 +2681,11 @@ void GrammarAnalysis::printItemSets(ostream &os) const
 {
   FOREACH_OBJLIST(ItemSet, itemSets, itemSet) {
     os << "State " << itemSet.data()->id
-       << ", sample input: " << sampleInput(itemSet.data())
-       << endl
-       << "  and left context: " << leftContextString(itemSet.data())
-       << endl
+       << ", sample input: " << sampleInput(itemSet.data()) << "\n"
+       << "  and left context: " << leftContextString(itemSet.data()) << "\n"
        ;
-
     itemSet.data()->print(os, *this);
+    os << "\n\n";
   }
 }
 
@@ -3973,9 +3971,11 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   // print the item sets
   if (setsOutput) {
     traceProgress() << "printing item sets to " << setsFname << " ..." << endl;
+    *setsOutput << "NOTE: Item set numbers can change depending on what flags\n"
+                << "are passed to 'gramanl'!\n";
     printItemSets(*setsOutput);
   }
-  
+
   // print information about all tokens
   if (setsOutput) {
     *setsOutput << "terminals:\n";

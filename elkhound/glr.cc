@@ -991,7 +991,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     incParserList(parserWorklist);
 
     // work through the worklist
-    RCPtr<StackNode> lastToDie = NULL;
+    StateId lastToDie = STATE_INVALID;
     while (parserWorklist.isNotEmpty()) {
       RCPtr<StackNode> parser = parserWorklist.pop();     // dequeue
       parser->decRefCt();     // no longer on worklist
@@ -1011,7 +1011,43 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
       if (actions == 0) {
         TRSPARSE("parser in state " << parser->state << " died");
-        lastToDie = parser;          // for reporting the error later if necessary
+        lastToDie = parser->state;          // for reporting the error later if necessary
+        
+        // in the if-then-else grammar, I have a parser which dies but
+        // then gets merged with something else, prompting a request
+        // for the user's merge function; to avoid this, kill it early.
+        // first verify my assumptions: it should be on 'activeParsers'
+        // and pointed-to by 'parser
+        xassert(parser->referenceCount == 2);
+        
+        // the only reason nodes are retained on 'activeParsers' is so if
+        // some other node gets a new sibling link, the finished parsers
+        // can be reconsidered; but new sibling links never enable a parser
+        // to act where it couldn't before (among other things, we don't
+        // even look at siblings when deciding whether to act), so we should
+        // go ahead and eliminate this parser from all lists now
+        int last = activeParsers.length()-1;
+        for (int i=0; i <= last; i++) {
+          if (activeParsers[i] == parser) {
+            // remove it; if it's not last in the list, swap it with
+            // the last one to maintain contiguity
+            if (i < last) {
+              activeParsers[i] = activeParsers[last];
+              // (no need to actually copy 'i' into 'last')
+            }
+            activeParsers.pop();     // removes a reference to 'parser'
+            parser->decRefCt();      // so decrement reference count
+            break;
+          }
+        }
+
+        // verify we got it
+        xassert(parser->referenceCount == 1);
+
+        // now when 'parser' passes out of scope, it will be deallocated,
+        // and will not interfere with another parser reaching the same
+        // state (incidentally, another parser reaching the same state will
+        // suffer the same fate this one did.. nothing useful to do about it)
       }
       else if (actions > 1) {
         TRSPARSE("parser in state " << parser->state <<
@@ -1031,17 +1067,17 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                                          (Lexer2TokenType)classifiedType) 
            << endl;
 
-      if (lastToDie == NULL) {
+      if (lastToDie == STATE_INVALID) {
         // I'm not entirely confident it has to be nonnull..
-        cout << "what the?  lastToDie is NULL??\n";
+        cout << "what the?  lastToDie is STATE_INVALID??\n";
       }
       else {
         // print out the context of that parser
-        cout << "last parser (state " << lastToDie->state << ") to die had:\n"
+        cout << "last parser (state " << lastToDie << ") to die had:\n"
              << "  sample input: " 
-             << sampleInput(getItemSet(lastToDie->state)) << "\n"
+             << sampleInput(getItemSet(lastToDie)) << "\n"
              << "  left context: " 
-             << leftContextString(getItemSet(lastToDie->state)) << "\n";
+             << leftContextString(getItemSet(lastToDie)) << "\n";
       }
 
       return false;
@@ -1616,6 +1652,14 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
     D(trsSval << "grabbed token sval " << currentTokenValue << endl);
     rightSibling->addSiblingLink(leftSibling, currentTokenValue
                                  SOURCELOCARG( currentTokenLoc ) );
+                                 
+    // adding this sibling link cannot violate the determinDepth
+    // invariant of some other node, because all of the nodes created
+    // or added-to during shifting do not have anything pointing at
+    // them, so in particular nothing points to 'rightSibling'; a simple
+    // check of this is to check the reference count and verify it is 1,
+    // the 1 being for the 'activeParsers' list it is on
+    xassert(rightSibling->referenceCount == 1);
   }
 }
 

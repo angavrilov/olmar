@@ -98,3 +98,7 @@ gdb.log
 aSEb.bin
 aSEb.gr.gen.*
 aSEb.gr
+ndebug
+ite.bin
+ite.gr
+ite.gr.gen.*

@@ -47,7 +47,7 @@ ccflags += -Werror
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -240,11 +240,12 @@ cexp3: $(cexp3-dep)
 	grep 'result: 0x7' tmp.out
 
 # intermediate files for a grammar
+# TRGRAMANL: extra trace flags specified by user; starts with "," if defined
 # ('chmod a-w' is so I don't accidentally edit it)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
 %.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc.tok gramanl
 	rm -f $*.gr.gen.*
-	./gramanl -tr conflict $*
+	./gramanl -tr conflict$(TRGRAMANL) $*
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
 
 # intermediate files for an ast spec
