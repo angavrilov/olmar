@@ -225,6 +225,7 @@ struct Incomplete;
 void makeIncomplete(Incomplete &x)
 {
   //ERROR(44): 0, Incomplete(1,2,3);
+  //ERROR(441): new Incomplete;
 
   //ERROR(45): sizeof(Incomplete);
   //ERROR(46): sizeof(x);

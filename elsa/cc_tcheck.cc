@@ -7420,11 +7420,11 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 
   // grab the type of the objects to allocate
   Type *t = atype->getType();
-      
-  // cannot allocate incomplete types
-  if (!env.ensureCompleteType("create an object of", t)) {
-    return env.makePtrType(SL_UNKNOWN, t);     // error recovery
-  }
+
+  // if the named type is an incomplete type, that will already have
+  // been detected and reported (when 'atype' was tchecked), and 't'
+  // will be the error type, which is safe to propagate into the code
+  // below and beyond
 
   // The AST has the capability of recording whether argument parens
   // (the 'new-initializer' in the terminology of cppstd)
