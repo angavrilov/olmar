@@ -71,14 +71,25 @@ public:
 
 public:
   SourceLocation(SourceFile *f = NULL) : file(f) {}
-  SourceLocation(FileLocation const &floc, SourceFile *f);
-  SourceLocation(SourceLocation const &obj);
+  SourceLocation(FileLocation const &floc, SourceFile *f)
+    : FileLocation(floc),
+      file(f)
+  {}
+  SourceLocation(SourceLocation const &obj)
+    : FileLocation(obj),
+      file(obj.file)
+  {}
   ~SourceLocation() {}
 
   SourceLocation(Flatten&) {}
   void xfer(Flatten &flat);
 
-  SourceLocation& operator= (SourceLocation const &obj);
+  SourceLocation& operator= (SourceLocation const &obj)
+  {
+    FileLocation::operator=(obj);
+    file = obj.file;
+    return *this;
+  }
 
   // can return NULL
   char const *fname() const;

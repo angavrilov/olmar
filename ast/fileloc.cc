@@ -58,25 +58,6 @@ SourceFile::~SourceFile()
 
 
 // ------------------- SourceLocation --------------------
-SourceLocation::SourceLocation(SourceLocation const &obj)
-  : FileLocation(obj),
-    file(obj.file)
-{}
-
-SourceLocation& SourceLocation::operator= (SourceLocation const &obj)
-{
-  FileLocation::operator=(obj);
-  file = obj.file;
-  return *this;
-}
-
-
-SourceLocation::SourceLocation(FileLocation const &floc, SourceFile *f)
-  : FileLocation(floc),
-    file(f)
-{}
-
-
 void SourceLocation::xfer(Flatten &flat)
 {
   if (flat.writing()) { 
