@@ -251,7 +251,7 @@ verbatim {
 class TypeSpecifier(PQName name, SourceLocation loc) {
   public Qualifiers *q;
 //    ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
-  ctor { q = new Qualifiers("__anonymous_TypeSpecifier", loc, NULL); };
+  ctor { q = new Qualifiers("__anonymous_TypeSpecifier", loc, 1 /*default to global*/, NULL); };
   public enum CVFlags cv; ctor { cv=CV_NONE; };
 
   public void printExtras(ostream &os, int indent) const;
@@ -503,7 +503,7 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
   {
      public Qualifiers *q;
 //       ctor { q = new Qualifiers((name?name->getName():"__null_pointer"), loc, ql); };
-     ctor { q = new Qualifiers("__anonymous_pointer", loc, NULL, ql); };
+     ctor { q = new Qualifiers("__anonymous_pointer", loc, 1 /*default to global*/, NULL, ql); };
   }
 
   // "f(int)"
@@ -515,7 +515,7 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
   {
      public Qualifiers *q;
 //       ctor {q = new Qualifiers((name?name->getName():"__null_function"), loc, ql);};
-     ctor {q = new Qualifiers("__anonymous_function", loc, NULL, ql);};
+     ctor {q = new Qualifiers("__anonymous_function", loc, 1 /*default to global*/, NULL, ql);};
   }
 
   // "a[5]" or "b[]"
