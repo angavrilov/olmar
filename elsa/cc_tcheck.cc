@@ -3629,6 +3629,9 @@ Type *E_binary::itcheck(Env &env)
   case BIN_GREATER:             // >
   case BIN_LESSEQ:              // <=
   case BIN_GREATEREQ:           // >=
+
+  case BIN_AND:                 // &&
+  case BIN_OR:                  // ||
     return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
     break;
 
@@ -3659,8 +3662,6 @@ Type *E_binary::itcheck(Env &env)
   case BIN_BITAND:              // &
   case BIN_BITXOR:              // ^
   case BIN_BITOR:               // |
-  case BIN_AND:                 // &&
-  case BIN_OR:                  // ||
     // default behavior of returning the left side is close enough for now.
     break;
 
