@@ -60,7 +60,7 @@ agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 
 %.o: %.cc
 	$(COMPILE) $*.cc
-	@$(SMBASE)/depend.sh $(CXXFLAGS) $< > $*.d
+	@$(SMBASE)/depend.pl $(CXXFLAGS) $< > $*.d
 
 # removed fileloc.o
 agrampar-dep = gramlex.o agrampar.tab.o ccsstr.o \
