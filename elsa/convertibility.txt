@@ -277,6 +277,19 @@ proof (not that I've tried much).  In any case, it's close enough that
 I'm confident if a discrepancy is found, it won't be difficult to hack
 around it in the implementation.
 
+Update: Here's one counterexample: If the hierarchy is
+
+         A
+        /
+       B
+      /
+     C
+
+then the conversion "B* -> A*" is better than "C* -> A*" (13.3.3.2
+para 4), but (A*,A*) is not in the nonreflexive R.  This doesn't
+appear to compromise the analysis, but I'm not sure how to build the
+argument.
+
 
 --- Application to operator overload resolution ---
 

@@ -5,17 +5,6 @@
 int dummy();           // line 5
 void ddummy() { __testOverload(dummy(), 5); }
 
-//         A          .
-//        / \         .
-//       B   C        .
-//        \ / \       .
-//         E   D      .
-struct A {};
-struct B : A {};
-struct C : A {};
-struct E : B, C {};
-struct D : C {};
-
 //        F     G     .
 //        | \ / |     .
 //        | / \ |     .
@@ -107,6 +96,41 @@ int f3()
 }
 
 
+
+
+
+//         A          .
+//        / \         .
+//       B   C        .
+//      /     \       .
+//     E       D      .
+struct A {};
+struct B : A {};
+struct C : A {};
+struct D : C {};
+struct E : B {};
+
+struct BE {
+  operator B* ();
+  operator E* ();
+};
+
+struct CD {
+  operator C* ();
+  operator D* ();
+};
+
+int f4()
+{
+  BE be;
+  CD cd;
+  
+  // this should cause multiple instantiations of
+  //   operator- (A*,A*)
+  // though ultimately it's the only viable candidate, and
+  // the conversions are unambiguous
+  return be-cd;
+}
 
 
 

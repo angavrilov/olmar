@@ -5,11 +5,41 @@
 #define BUILTINOPS_H
 
 #include "cc_flags.h"      // BinaryOp
+#include "thashtbl.h"      // THashTable
 
 class Type;                // cc_type.h
 class Variable;            // variable.h
 class Env;                 // cc_env.h
 class OverloadResolver;    // overload.h
+
+
+// a single instantiated candidate; this structure allows us to
+// re-use instantiations
+class InstCandidate {
+public:      // data
+  Type *type;       // the type with which the pattern was instantiated
+  Variable *inst;   // the instantiation itself
+  
+  // clever hack: to ensure that each instantiated candidate is only
+  // given to the overload resolution procedure once, I keep track
+  // of how many times a given candidate set has requested 
+  // instantiation, and update the instances with the latest time
+  // they were instantiated
+  unsigned generation;
+
+public:      // funcs
+  InstCandidate(Type *t, Variable *i)
+    : type(t),
+      inst(i),
+      generation(0)
+  {}
+
+  // hashtable accessor functions
+  static Type const *getKeyFn(InstCandidate *ic);
+  static unsigned hashFn(Type const *t);
+  static bool equalFn(Type const *t1, Type const *t2);
+};
+
 
 // a set of candidates, usually one line of 13.6; since many of the
 // sets in 13.6 are infinite, and the finite ones are large, the
@@ -31,6 +61,13 @@ public:      // types
   // is not used to instantiate the pattern
   typedef bool (*PostFilter)(Type *t);
 
+private:     // data
+  // instantiations that already exist, so we can re-use them
+  THashTable<Type, InstCandidate> instantiations;
+
+  // instantiation of the ambiguous candidate
+  Variable *ambigInst;
+
 public:      // data
   // if this is non-NULL, the candidate is represented by
   // a single polymorphic function
@@ -41,12 +78,17 @@ public:      // data
   // a pattern rule
   PreFilter pre;
   PostFilter post;
-  
+
   // if true, then this is a pattern rule for an assignment
   // operator; this affects how instantiation is done
   bool isAssignment;
-  
+
+  // count of the number of times instantiation has happened
+  unsigned generation;
+
 private:     // funcs
+  void instantiateCandidate(Env &env,
+    OverloadResolver &resolver, OverloadableOp op, Type *T);
   void addAmbigCandidate(Env &env, OverloadResolver &resolver,
     OverloadableOp op);
   void instantiateArrowStar(Env &env,

@@ -7,19 +7,46 @@
 #include "overload.h"      // getConversionOperators, OverloadResolver
 
 
+// ----------------- InstCandidate -----------------
+STATICDEF Type const *InstCandidate::getKeyFn(InstCandidate *ic)
+{
+  return ic->type;
+}
+
+STATICDEF unsigned InstCandidate::hashFn(Type const *t)
+{
+  return 6;//t->hashValue();
+}
+
+STATICDEF bool InstCandidate::equalFn(Type const *t1, Type const *t2)
+{
+  return t1->equals(t2);
+}
+
+
 // ------------------ CandidateSet -----------------
 CandidateSet::CandidateSet(Variable *v)
-  : poly(v),
+  : instantiations(&InstCandidate::getKeyFn,
+                   &InstCandidate::hashFn,
+                   &InstCandidate::equalFn),
+    ambigInst(NULL),
+    poly(v),
     pre(NULL),
     post(NULL),
-    isAssignment(false)
+    isAssignment(false),
+    generation(0)
 {}
 
 CandidateSet::CandidateSet(PreFilter r, PostFilter o, bool a)
-  : poly(NULL),
+  : instantiations(&InstCandidate::getKeyFn,
+                   &InstCandidate::hashFn,
+                   &InstCandidate::equalFn),
+    ambigInst(NULL),
+    poly(NULL),
     pre(r),
     post(o),
-    isAssignment(a)
+    isAssignment(a),
+    generation(0)            
 {}
 
 
@@ -49,20 +76,15 @@ void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
   }
 }
 
-// add 't' to 'instTypes', but only if it isn't already present
-void addTypeUniquely(SObjList<Type> &instTypes, Type *t)
-{
-  SFOREACH_OBJLIST(Type, instTypes, iter) {
-    if (iter.data()->equals(t)) {
-      return;   // already present
-    }
-  }
-  instTypes.append(t);
-}
-
 void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
   OverloadableOp op, Type *lhsType, Type *rhsType)
 {
+  // for this to overflow, I'd have to do 2^31 instantiations in a
+  // single translation unit, which is very unlikely since the AST
+  // that triggers that instantiation would have to be much larger
+  // than 2^31 bytes
+  generation++;
+
   if (poly) {
     // polymorphic candidates are easy
     resolver.processCandidate(poly);
@@ -99,9 +121,6 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
   //
   // See also: convertibility.txt
 
-  // set of types with which to instantiate T
-  SObjList<Type> instTypes;      // called 'S' in the comments above
-
   // collect all of the operator functions rettypes from lhs and rhs
   SObjList<Type> lhsRets, rhsRets;
   getConversionOperatorResults(env, lhsRets, lhsType);
@@ -117,7 +136,7 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
       // instantiate with the types to which the LHS convert, to
       // get a complete set (i.e. no additional instantiations
       // would change the answer)
-      addTypeUniquely(instTypes, lhsRet);
+      instantiateCandidate(env, resolver, op, lhsRet);
       continue;
     }
 
@@ -132,27 +151,36 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
         addAmbigCandidate(env, resolver, op);
       }
       else if (lub && post(lub)) {
-        // add the LUB to our list of to-instantiate types
-        addTypeUniquely(instTypes, lub);
+        // instantiate with this type
+        instantiateCandidate(env, resolver, op, lub);
       }
     }
   }
+}
 
-  // instantiate T with all the types we've collected
-  SFOREACH_OBJLIST_NC(Type, instTypes, iter) {
-    // PLAN:  Right now, I just leak a bunch of things.  To fix this, I
-    // want maintain a pool of Variables for use as instantiated
-    // candidates.  When I instantiate (say) operator-(T,T) with a
-    // specific T, I rewrite an existing one from the pool, or else make
-    // a new one if the pool is exhausted.  Later I put all the elements
-    // back into the pool.
 
-    Type *T = iter.data();
+void CandidateSet::instantiateCandidate(Env &env,
+  OverloadResolver &resolver, OverloadableOp op, Type *T)
+{
+  // have we already built an instantiated candidate?
+  InstCandidate *ic = instantiations.get(T);
+  if (ic) {
+    // did we already give it to this resolver?
+    if (ic->generation == generation) {
+      // yes, don't do so again
+      OVERLOADTRACE("cset: already given to resolver: " << T->toString());
+      return;
+    }
 
+    OVERLOADTRACE("cset: already instantiated: " << T->toString());
+  }
+
+  else {
+    // need to make a new instantiaton
     if (!isAssignment) {
       // parameters are symmetric
-      Variable *v = env.createBuiltinBinaryOp(op, T, T);
-      resolver.processCandidate(v);
+      ic = new InstCandidate(T,
+        env.createBuiltinBinaryOp(op, T, T));
     }
 
     else {
@@ -160,18 +188,22 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
       // one with volatile and one without
       //
       // update: now that I directly instantiate the LHS types,
-      // without first stripping their volatile-ness, I don't need
-      // to add volatile versions of types that don't already have
-      // volatile versions present
-      //Type *Tv = env.tfac.applyCVToType(SL_INIT, CV_VOLATILE, T, NULL /*syntax*/);
-
-      Type *Tr = env.tfac.makeRefType(SL_INIT, T);
-      //Type *Tvr = env.tfac.makeRefType(SL_INIT, Tv);
-
-      resolver.processCandidate(env.createBuiltinBinaryOp(op, Tr, T));
-      //resolver.processCandidate(env.createBuiltinBinaryOp(op, Tvr, T));
+      // without first stripping their volatile-ness, I don't need to
+      // instantiate volatile versions of types that don't already
+      // have volatile versions present
+      Type *Tref = env.tfac.makeRefType(SL_INIT, T);
+      ic = new InstCandidate(T,
+        env.createBuiltinBinaryOp(op, Tref, T));
     }
+
+    instantiations.add(T, ic);
+
+    OVERLOADTRACE("cset: made new instantiation: " << T->toString());
   }
+
+  // give it to the resolver
+  ic->generation = generation;
+  resolver.processCandidate(ic->inst);
 }
 
 
@@ -188,9 +220,14 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
 void CandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolver,
   OverloadableOp op)
 {
-  Type *t_void = env.getSimpleType(SL_INIT, ST_VOID);
-  Variable *v = env.createBuiltinBinaryOp(op, t_void, t_void);
-  resolver.addAmbiguousBinaryCandidate(v);
+  // it doesn't matter if I give this to the resolver more than once,
+  // because it's already ambiguous
+
+  if (!ambigInst) {
+    Type *t_void = env.getSimpleType(SL_INIT, ST_VOID);
+    ambigInst = env.createBuiltinBinaryOp(op, t_void, t_void);
+  }
+  resolver.addAmbiguousBinaryCandidate(ambigInst);
 }
 
 
