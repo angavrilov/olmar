@@ -540,6 +540,7 @@ clean: gcom-clean
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr gramlex cyctimer
 	rm -f grampar.output grampar tlexer
+	rm -f gramlex.yy.cc
 	rm -f libelkhound.a
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd cc2; rm -f $(CLEAN_PATTERNS)
@@ -556,9 +557,8 @@ distclean: clean
 	rm -rf gendoc
 	rm -f c.in/c.in4{c,d}
 
-# 'clean', plus remove distributed output files from flex/bison
+# 'clean', plus remove distributed output files from bison
 toolclean: clean
-	rm -f gramlex.yy.cc
 	rm -f grampar.tab.cc grampar.tab.h grampar.codes.h
 	$(MAKE) -C examples/arith toolclean
 	$(MAKE) -C c toolclean
