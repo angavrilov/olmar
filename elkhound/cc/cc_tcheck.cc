@@ -34,8 +34,8 @@ void Function::tcheck(Env &env)
 {
   // construct the type of the function
   Type const *retTypeSpec = retspec->tcheck(env);
-  nameParams->tcheck(env, retTypeSpec);
-  nameParams->var->addFlags(dflags);
+  nameParams->tcheck(env, retTypeSpec, 
+                     (DeclFlags)(dflags | DF_DEFINITION));
 
   if (! nameParams->var->type->isFunctionType() ) {
     env.error("function declarator must be of function type");
@@ -68,16 +68,7 @@ void Declaration::tcheck(Env &env)
   Type const *specType = spec->tcheck(env);
 
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
-    iter->tcheck(env, specType);
-    Variable *v = iter->var;
-    v->addFlags(dflags);
-
-    // are we inside a class member list?  if so, then
-    // add this to the class
-    CompoundType *ct = env.scope()->curCompound;
-    if (ct) {
-      ct->addField(v->name, v->type, v);
-    }
+    iter->tcheck(env, specType, dflags);
   }
 }
 
@@ -86,7 +77,7 @@ void Declaration::tcheck(Env &env)
 void ASTTypeId::tcheck(Env &env)
 {
   Type const *specType = spec->tcheck(env);
-  decl->tcheck(env, specType);
+  decl->tcheck(env, specType, DF_NONE);
 }
 
 
@@ -311,38 +302,36 @@ void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 
 
 // -------------------- Declarator --------------------
-void Declarator::tcheck(Env &env, Type const *spec)
+void Declarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
   // get the variable from the IDeclarator
-  var = decl->tcheck(env, spec);
+  var = decl->tcheck(env, spec, dflags);
 
-  // cppstd, sec. 3.3.1: The point of declaration for a name is
-  // immediately after its complete declarator (clause 8) and before
-  // its initializer (if any), except as noted below.
+  // cppstd, sec. 3.3.1: 
+  //   "The point of declaration for a name is immediately after 
+  //   its complete declarator (clause 8) and before its initializer 
+  //   (if any), except as noted below."
   // (where "below" talks about enumerators, class members, and
   // class names)
-  if (var->name != NULL &&
-      !var->type->isError()) {
-    env.addVariable(var);
-  }
-  else {
-    // abstract declarator, no name entered into the environment
-  }  
-  
-  // NOTE: if we're declaring a typedef, it will be added here
-  // *without* DF_TYPEDEF, and then that flag will be added
-  // by the caller (Declaration::tcheck)
+  //
+  // However, since the bottom of the recursion for IDeclarators
+  // is always D_name, it's equivalent to add the name to the
+  // environment then instead of here.
 
   if (init) {
     // TODO: check the initializer for compatibility with
     // the declared type
+    
+    // TODO: check compatibility with dflags; e.g. we can't allow
+    // an initializer for a global variable declared with 'extern'
+
     init->tcheck(env);
   }
 }
 
 
 //  ------------------ IDeclarator ------------------
-Variable *IDeclarator::tcheck(Env &env, Type const *spec)
+Variable *IDeclarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
   // apply the stars left to right; the leftmost is the innermost
   FAKELIST_FOREACH_NC(PtrOperator, stars, iter) {
@@ -351,32 +340,112 @@ Variable *IDeclarator::tcheck(Env &env, Type const *spec)
   }
 
   // now go inside and apply the specific type constructor
-  return itcheck(env, spec);
+  return itcheck(env, spec, dflags);
 }
 
 
-Variable *D_name::itcheck(Env &env, Type const *spec)
+Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
   env.setLoc(loc);
-
-  if (name && name->getQualifiers().isNotEmpty()) {
-    env.unimp("qualifiers on declarator");
+  
+  if (!name) {
+    // no name, nothing to enter in environment
+    return new Variable(loc, NULL, spec, dflags);
   }
 
-  // the declflags are filled in as DF_NONE here, but they might
-  // get filled in later by the enclosing Declaration
-  return new Variable(loc, name? name->name : NULL, spec, DF_NONE);
+  // if we're not in a class member list, and the type is not a
+  // function type, and 'extern' is not specified, then this is
+  // a definition
+  if (!env.scope()->curCompound &&
+      !spec->isFunctionType() &&
+      !(dflags & DF_EXTERN)) {
+    dflags = (DeclFlags)(dflags | DF_DEFINITION);
+  }
+
+  if (!name->hasQualifiers()) {
+    // has this name already been declared in the innermost scope?
+    Variable *prior = env.lookupVariable(name->name, true /*innerOnly*/);
+    if (prior) {
+      // check for violation of the One Definition Rule
+      if (prior->hasFlag(DF_DEFINITION) &&
+          (dflags & DF_DEFINITION)) {
+        env.error(stringc
+          << "duplicate definition for `" << *name << "'");
+        return new Variable(loc, name->name, spec, dflags);
+      }
+
+      // check that the types match
+      if (!prior->type->equals(spec)) {
+        env.error(stringc
+          << "prior declaration of `" << *name << "' had type `"
+          << prior->type->toString() << "', but this one uses `"
+          << spec->toString() << "'");
+        return new Variable(loc, name->name, spec, dflags);
+      }
+
+      // ok, use the prior declaration, but update the 'loc'
+      // if this is the definition
+      if (dflags & DF_DEFINITION) {
+        trace("odr") << "def'n at " << loc.toString()
+                     << " overrides decl at " << prior->loc.toString()
+                     << endl;
+        prior->loc = loc;
+        prior->setFlag(DF_DEFINITION);
+        prior->clearFlag(DF_EXTERN);
+      }
+      return prior;
+    }
+
+    // no prior declaration, make a new variable and put it
+    // into the environment (see comments in Declarator::tcheck
+    // regarding point of declaration)
+    Variable *var = new Variable(loc, name->name, spec, dflags);
+    if (!var->type->isError()) {
+      env.addVariable(var);
+    }
+
+    // are we inside a class member list?  if so, then
+    // add this to the class
+    CompoundType *ct = env.scope()->curCompound;
+    if (ct) {
+      if (ct->getNamedField(var->name)) {
+        env.error(stringc
+          << "duplicate declaration of class member `" << *name << "'");
+      }
+      else {
+        ct->addField(var->name, var->type, var);
+      }
+    }
+
+    else {
+      // not inside a class member list; set the DF_DEFINITION
+      // flag for variables that don't say DF_EXTERN
+      if (!var->type->isFunctionType() &&
+          !(dflags & DF_EXTERN)) {
+        var->setFlag(DF_DEFINITION);
+      }
+    }
+
+    return var;
+  }
+
+  else {
+    // the name has qualifiers, which means it *must* be
+    // declared somewhere
+    env.unimp("qualifiers on declarator");
+    return NULL;
+  }
 }
 
 
-Variable *D_operator::itcheck(Env &env, Type const *spec)
+Variable *D_operator::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
   env.unimp("operator declarator");
   return NULL;    // will trigger segfault if used..
 }
 
 
-Variable *D_func::itcheck(Env &env, Type const *retSpec)
+Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
 {
   env.setLoc(loc);
 
@@ -398,14 +467,14 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec)
   if (exnSpec) {
     env.unimp("exception specification");
   }
-  
+
   // now that we've constructed this function type, pass it as
   // the 'base' on to the next-lower declarator
-  return base->tcheck(env, ft);
+  return base->tcheck(env, ft, dflags);
 }
 
 
-Variable *D_array::itcheck(Env &env, Type const *eltSpec)
+Variable *D_array::itcheck(Env &env, Type const *eltSpec, DeclFlags dflags)
 {
   ArrayType *at;
   if (!size) {
@@ -421,11 +490,11 @@ Variable *D_array::itcheck(Env &env, Type const *eltSpec)
     }
   }
 
-  return base->tcheck(env, at);
+  return base->tcheck(env, at, dflags);
 }
 
 
-Variable *D_bitfield::itcheck(Env &env, Type const *spec)
+Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
   env.unimp("bitfield");
   return NULL;

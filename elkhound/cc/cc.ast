@@ -217,9 +217,8 @@ class Enumerator (
 ) {
   public Enumerator *next;  ctor next=NULL;     // FakeList link
 
-  public Variable *var;                 // (owner) introduction record
+  public Variable *var;                 // (serf) introduction record
   ctor var=NULL;
-  dtor delete var;
                                                           
   // we pass both the base 'enum' and the Type wrapped around it,
   // since both are needed and it's slightly expensive to compute
@@ -237,9 +236,8 @@ class Declarator (
   Initializer init                     // (nullable) optional data initializer
 ) {
   // not commented-out because something in cc_env.cc refers to it..
-  public Variable *var;                // (owner) computed information: name, type, etc.
+  public Variable *var;                // (serf) computed information: name, type, etc.
   ctor var=NULL;
-  dtor delete var;
 
   public Declarator *next;  ctor next=NULL;     // FakeList link
 
@@ -248,8 +246,11 @@ class Declarator (
 
   // determine the type denoted by the combination of 'spec' and the
   // type constructors in this declarator, then make a Variable which
-  // has that type and store it in 'var'
-  public void tcheck(Env &env, Type const *spec/*, DeclFlags dflags*/);
+  // has that type and store it in 'var'; if this declarator refers to
+  // something that is *already* declared (like a function with a 
+  // prior prototype), the 'var' field will be shared among the
+  // various declarations; if not, put it into the environment
+  public void tcheck(Env &env, Type const *spec, DeclFlags dflags);
 }
 
 
@@ -267,10 +268,11 @@ class IDeclarator {
 
   // external interface; adds 'stars' before calling 'itcheck';
   // add the type constructor represented by this IDeclarator to
-  // 'spec' and then make a Variable to represent it
-  public Variable *tcheck(Env &env, Type const *spec);
+  // 'spec' and then make a Variable to represent it; put the
+  // variable into the environment if appropriate
+  public Variable * /*owner*/ tcheck(Env &env, Type const *spec, DeclFlags dflags);
 
-  pure_virtual Variable *itcheck(Env &env, Type const *spec);
+  pure_virtual Variable * /*owner*/ itcheck(Env &env, Type const *spec, DeclFlags dflags);
 
   // dig down and find the name being declared; may return NULL
   //pure_virtual StringRef getName() const;
@@ -289,12 +291,7 @@ class IDeclarator {
             IDeclarator base,                       // D_name of function, typically
             FakeList<ASTTypeId> *params,            // params with optional default values
             CVFlags cv,                             // optional "const" for member functions
-            ExceptionSpec /*nullable*/ exnSpec) {   // throwable exceptions
-       // variable synthesized to give a name to the return value
-       public Variable *result;        // (owner)
-       ctor result=NULL;
-       dtor delete result;
-     }
+            ExceptionSpec /*nullable*/ exnSpec);    // throwable exceptions
 
   // "a[5]" or "b[]"
   -> D_array(IDeclarator base, Expression /*nullable*/ size);

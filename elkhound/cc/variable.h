@@ -14,6 +14,10 @@
 //   - structure fields
 //   - enumeration values
 //   - typedef'd names (though these are translated-away early on)
+//
+// I've decided that, rather than AST nodes trying to own Variables,
+// Variables will live in a separate pool (like types) so the AST
+// nodes can properly share them at will.
 
 #ifndef VARIABLE_H
 #define VARIABLE_H
@@ -39,6 +43,7 @@ public:    // funcs
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { flags = (DeclFlags)(flags | f); }
   void addFlags(DeclFlags f) { setFlag(f); }
+  void clearFlag(DeclFlags f) { flags = (DeclFlags)(flags & ~f); }
 
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return flags & DF_ADDRTAKEN; }
