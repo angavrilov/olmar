@@ -29,6 +29,7 @@ public:
   bool isTreeNodePtr(char const *type);
 
   bool isListType(char const *type);
+  bool isTreeListType(char const *type);
   string extractListType(char const *type);
 
   // shared output sequences
@@ -97,6 +98,12 @@ bool Gen::isListType(char const *type)
 {
   // do a fairly coarse analysis..
   return 0==strncmp(type, "ASTList <", 9);
+}
+
+// is it a list type, with the elements being tree nodes?
+bool Gen::isTreeListType(char const *type)
+{
+  return isListType(type) && isTreeNode(type+9);
 }
 
 // given a type for which 'isListType' returns true, extract
@@ -590,11 +597,23 @@ void CGen::emitDestructor(ASTClass const &cls)
   FOREACH_ASTLIST(CtorArg, cls.args, argiter) {
     CtorArg const &arg = *(argiter.data());
 
-    if (isListType(arg.type)) {
+    if (isTreeListType(arg.type)) {
       // explicitly destroy list elements, because it's easy to do, and
       // because if there is a problem, it's much easier to see its
       // role in a debugger backtrace
       out << "  " << arg.name << ".deleteAll();\n";
+    }
+    else if (isListType(arg.type)) {
+      // we don't own the list elements; it's *essential* to
+      // explicitly remove the elements; this is a hack, since the
+      // ideal solution is to make a variant of ASTList which is
+      // explicitly serf pointers.. the real ASTList doesn't have
+      // a removeAll method (since it's an owner list), and rather
+      // than corrupting that interface I'll emit the code each time..
+      out << "  while (" << arg.name << ".isNotEmpty()) {\n"
+          << "    " << arg.name << ".removeFirst();\n"
+          << "  }\n";
+      //out << "  " << arg.name << ".removeAll();\n";
     }
     else if (arg.owner || isTreeNode(arg.type)) {
       out << "  delete " << arg.name << ";\n";
@@ -614,6 +633,8 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
       out << "  PRINT_STRING(" << arg.name << ");\n";
     }
     else if (isListType(arg.type)) {
+      // for now, I'll continue to assume that any class that appears
+      // in ASTList<> is compatible with the printing regime here
       out << "  PRINT_LIST(" << extractListType(arg.type) << ", "
                              << arg.name << ");\n";
     }
