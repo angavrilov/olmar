@@ -1086,7 +1086,6 @@ void Env::unPrepArgScopeForTemlCloneTcheck
   // pull off the dummy, and check it's what we expect
   Scope *dummy = scopes.first();
   xassert(dummy->scopeKind == SK_EAT_TEMPL_INST);
-  xassert(dummy->getNumVariables() == 0);    // the instantiation only (for the moment suppressed)
   exitScope(dummy);
 
   // restore the original scope structure
@@ -1419,8 +1418,7 @@ Variable *Env::instantiateTemplate
         // and 2) it is very important that we do not add the variable
         // to the namespace, otherwise the primary is masked if the
         // template body refers to itself
-        copyFun->tcheck(*this, false /*checkBody*/,
-                        false /*reallyAddVariable*/, funcFwdInstV /*prior*/);
+        copyFun->tcheck(*this, false /*checkBody*/, funcFwdInstV /*prior*/);
         instV = copyFun->nameAndParams->var;
         //   3. add said Variable to the list of instantiations, so if the
         //      function recursively calls itself we'll be ready
@@ -1440,8 +1438,7 @@ Variable *Env::instantiateTemplate
         Declaration *copyDecl = fwdDecl->clone();
         xassert(argScope);
         xassert(!funcFwdInstV);
-        copyDecl->tcheck(*this, ctxt,
-                         false /*reallyAddVariable*/, NULL /*prior*/);
+        copyDecl->tcheck(*this, ctxt, NULL /*prior*/);
         xassert(copyDecl->decllist->count() == 1);
         Declarator *copyDecltor = copyDecl->decllist->first();
         instV = copyDecltor->var;
@@ -1607,7 +1604,6 @@ Variable *Env::instantiateTemplate
           // checkBody=false anyway just for uniformity.
           copyFuncDefn->tcheck(*this,
                                false /*checkBody*/,
-                               false /*reallyAddVariable*/,
                                funcDefnInstV /*prior*/);
           // pase in the definition for later use
           xassert(!funcDefnInstV->funcDefn);
@@ -1626,8 +1622,7 @@ Variable *Env::instantiateTemplate
           copyFun->funcType = instV->type->asFunctionType();
           xassert(scope()->isGlobalTemplateScope());
           // NOTE: again we do not add the variable to the namespace
-          copyFun->tcheck(*this, true /*checkBody*/,
-                          false /*reallyAddVariable*/, instV /*prior*/);
+          copyFun->tcheck(*this, true /*checkBody*/, instV /*prior*/);
           xassert(instV->funcDefn == copyFun);
         }
       }
@@ -1786,7 +1781,6 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   xassert(funcDefn0 == tcheckCtxt->func);
   funcDefn0->tcheck(*this,
                     true /*checkBody*/,
-                    false /*reallyAddVariable*/,
                     v /*prior*/);
   // should still be true
   xassert(v->funcDefn == funcDefn0);

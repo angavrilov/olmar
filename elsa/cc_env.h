@@ -474,8 +474,7 @@ public:      // funcs
     Scope *scope,
     CompoundType *enclosingClass,
     Variable *prior,
-    OverloadSet *overloadSet,
-    bool reallyAddVariable
+    OverloadSet *overloadSet
   );
 
   // compare types for equality; see extensive comment at

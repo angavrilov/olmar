@@ -72,8 +72,7 @@ class Function {
 
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
-  public void tcheck(Env &env, bool checkBody,
-                     bool reallyAddVariable, Variable *priorTemplInst);
+  public void tcheck(Env &env, bool checkBody, Variable *priorTemplInst);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
@@ -107,7 +106,6 @@ class MemberInit {
 
 class Declaration {                                   
   public void tcheck(Env &env, DeclaratorContext context,
-                     bool reallyAddVariable = true,
                      Variable *priorTemplInst = NULL);
 }
 
@@ -317,11 +315,6 @@ class Declarator {
     // syntactic context
     DeclaratorContext context;
 
-    // should we really add the variable to the scope?  if false,
-    // don't register the variable anywhere, which is a situation that
-    // occurs in template instantiation
-    bool reallyAddVariable;
-
     // should be non-NULL only if reallyAddVariable is false; Not only
     // do we not want to add a variable to the scope, we also want you
     // to not even create one at all and use this one instead; This is
@@ -332,6 +325,8 @@ class Declarator {
     //   make and add to scope,
     //   make and don't add to scope, and
     //   don't make and don't add to scope.
+    //
+    // 7/22/04: 'reallyAddVariable' is gone
     Variable *priorTemplInst;
     
   public:
@@ -343,7 +338,6 @@ class Declarator {
       , funcSyntax  (NULL)
       , ASTTemplArgs (NULL)
       , context     (dc)
-      , reallyAddVariable (true)
       , priorTemplInst(NULL)
     {}
     Tcheck(Tcheck const &obj)
@@ -354,7 +348,6 @@ class Declarator {
       , funcSyntax  (obj.funcSyntax)
       , ASTTemplArgs (obj.ASTTemplArgs)
       , context     (obj.context)
-      , reallyAddVariable(obj.reallyAddVariable)
       , priorTemplInst(obj.priorTemplInst)
     {}
     Tcheck& operator= (Tcheck const &obj) {
@@ -365,7 +358,6 @@ class Declarator {
       funcSyntax  = obj.funcSyntax;
       ASTTemplArgs = obj.ASTTemplArgs;
       context     = obj.context;
-      reallyAddVariable = obj.reallyAddVariable;
       priorTemplInst = obj.priorTemplInst;
       return *this;
     }

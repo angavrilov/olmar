@@ -95,8 +95,7 @@ void TF_decl::tcheck(Env &env)
 void TF_func::tcheck(Env &env)
 {
   env.setLoc(loc);
-  f->tcheck(env, true /*checkBody*/,
-            true /*reallyAddVariable*/, NULL /*prior*/);
+  f->tcheck(env, true /*checkBody*/, NULL /*prior*/);
 }
 
 void TF_template::tcheck(Env &env)
@@ -216,7 +215,7 @@ void TF_namespaceDecl::tcheck(Env &env)
 
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, bool checkBody,
-                      bool reallyAddVariable, Variable *priorTemplInst)
+                      Variable *priorTemplInst)
 {
   // are we in a template function?
   bool inTemplate = env.scope()->curTemplateParams != NULL;
@@ -235,7 +234,6 @@ void Function::tcheck(Env &env, bool checkBody,
   Declarator::Tcheck dt(retTypeSpec,
                         dflags | (checkBody? DF_DEFINITION : DF_NONE),
                         DC_FUNCTION);
-  dt.reallyAddVariable = reallyAddVariable;
   dt.priorTemplInst = priorTemplInst;
   nameAndParams = nameAndParams->tcheck(env, dt);
   // this seems like it should be being done, but if I want this, I
@@ -635,7 +633,6 @@ void Function::tcheck_handlers(Env &env)
 
 // -------------------- Declaration -------------------
 void Declaration::tcheck(Env &env, DeclaratorContext context,
-                         bool reallyAddVariable,
                          Variable *priorTemplInst)
 {
   // if we're declaring an anonymous type, and there are
@@ -667,7 +664,6 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags, context);
-    dt1.reallyAddVariable = reallyAddVariable;
     dt1.priorTemplInst = priorTemplInst;
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
@@ -733,7 +729,6 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
       Declarator::Tcheck dt2(dupType, dflags, context);
       // so far these are only being used for template situations
       // which only have one declarator
-      xassert(reallyAddVariable);
       xassert(!priorTemplInst);
 
       prev->next = prev->next->tcheck(env, dt2);
@@ -1364,7 +1359,6 @@ void TS_classSpec::tcheckFunctionBodies
       if (reallyTcheckFunctionBodies) {
         f->tcheck(env,
                   true /*checkBody*/,
-                  true /*reallyAddVariable*/,
                   NULL /*prior*/);
       } else {
         Variable *fvar = f->nameAndParams->var;
@@ -1513,8 +1507,7 @@ void MR_func::tcheck(Env &env)
   // members have been added to the class, so that the potential
   // scope of all class members includes all function bodies
   // [cppstd sec. 3.3.6]
-  f->tcheck(env, false /*checkBody*/,
-            true /*reallyAddVariable*/, NULL /*prior*/);
+  f->tcheck(env, false /*checkBody*/, NULL /*prior*/);
 
   checkMemberFlags(env, f->dflags);
 }
@@ -2448,8 +2441,7 @@ realStart:
 
   // make a new variable; see implementation for details
   dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
-                                 scope, enclosingClass, prior, overloadSet,
-                                 dt.reallyAddVariable /*reallyAddVariable*/);
+                                 scope, enclosingClass, prior, overloadSet);
   // FIX: was this valid? turn this back on?
 //    if (dt.priorTemplInst) {
 //      xassert(dt.var == dt.priorTemplInst);
@@ -2644,7 +2636,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // defined, I think the template info has already been taken so we
   // would take nothing this time anyway.
   if (dt.priorTemplInst) {
-    xassert(!dt.reallyAddVariable);
     templateInfo = dt.priorTemplInst->templateInfo();
   } else {
     // FIX: I think this is seriously broken in the case of
@@ -2763,7 +2754,6 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
       // strange case that happens when one function template body
       // instantiates another; make sure that this concern it
       // irrelevant since nothing will get added to the scope
-      xassert(!dt.reallyAddVariable);
     } else if (templateInfo->isCompleteSpecOrInstantiation() ||
                templateInfo->isPartialSpec()) {
       dt.dflags |= DF_TEMPL_SPEC;
@@ -2774,7 +2764,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 
   // see above at 'env.takeFTemplateInfo()'
   if (dt.priorTemplInst) {
-    xassert(!dt.reallyAddVariable);
+    //xassert(!dt.reallyAddVariable);
   } else {
     // don't stomp on an existing template info
     if (!dt.var->templateInfo()) {
@@ -5580,8 +5570,7 @@ void TD_func::itcheck(Env &env)
 {
   // check the function definition; internally this will get
   // the template parameters attached to the function type
-  f->tcheck(env, true /*checkBody*/,
-            true /*reallyAddVariable*/, NULL /*prior*/);
+  f->tcheck(env, true /*checkBody*/, NULL /*prior*/);
 
   // dsw: Template function specializations (both complete and
   // partial) have to get registered into the namespace somewhere.

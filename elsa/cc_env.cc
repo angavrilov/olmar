@@ -1021,8 +1021,7 @@ Variable *Env::makeUndeclFuncVar(StringRef name)
     (loc(), name,
      makeUndeclFuncType(), DF_FORWARD,
      globalScope(), NULL /*enclosingClass*/,
-     NULL /*prior*/, NULL /*overloadSet*/,
-     true /*reallyAddVariable*/);
+     NULL /*prior*/, NULL /*overloadSet*/);
 }
 
 
@@ -2434,8 +2433,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 
   // make new declaration, taking to account various restrictions
   Variable *newVar = createDeclaration(loc, name, type, origVar->flags,
-                                       scope, enclosingClass, prior, overloadSet,
-                                       true /*reallyAddVariable*/);
+                                       scope, enclosingClass, prior, overloadSet);
   if (origVar->templateInfo()) {
     newVar->setTemplateInfo(new TemplateInfo(*origVar->templateInfo()));
   }
@@ -2523,23 +2521,8 @@ Variable *Env::createDeclaration(
   Scope *scope,             // scope into which to insert it
   CompoundType *enclosingClass,   // scope->curCompound, or NULL for a hack that is actually wrong anyway (!)
   Variable *prior,          // pre-existing variable with same name and type, if any
-  OverloadSet *overloadSet, // set into which to insert it, if that's what to do
-
-  // should we really add the variable to the scope?  if false, don't
-  // register the variable anywhere, which is a situation that occurs
-  // in template instantiation
-  // 
-  // sm: I don't like this solution.  It threads a small piece of context
-  // through many unrelated interfaces.  I suggest simply making a dummy
-  // scope for the variable to go in.  The same fix should work for the 
-  // 'priorTemplInst' that got added in similar places.
-  #warning I do not like reallyAddVariable.
-  bool reallyAddVariable
+  OverloadSet *overloadSet  // set into which to insert it, if that's what to do
 ) {
-  // 'reallyAddVariable' should now be redundant with adding to
-  // a dummy scope
-  xassert(!reallyAddVariable == (scope->scopeKind==SK_EAT_TEMPL_INST));
-
   // if this gets set, we'll replace a conflicting variable
   // when we go to do the insertion
   bool forceReplace = false;
@@ -2677,15 +2660,15 @@ Variable *Env::createDeclaration(
     // case if !reallyAddVariable, where it might exist only in the
     // instantiation list of some template primary; FIX: this isn't
     // quite so elegant
-    if (reallyAddVariable) {
-      if (!sameScopes(prior->skipAlias()->scope, scope)) {
-        error(type, stringc
-              << "prior declaration of `" << name
-              << "' at " << prior->loc
-              << " refers to a different entity, so it conflicts with "
-              << "the one being declared here");
-        goto makeDummyVar;
-      }
+    //
+    // 7/22/04: 'reallyAddVariable' is gone
+    if (!sameScopes(prior->skipAlias()->scope, scope)) {
+      error(type, stringc
+            << "prior declaration of `" << name
+            << "' at " << prior->loc
+            << " refers to a different entity, so it conflicts with "
+            << "the one being declared here");
+      goto makeDummyVar;
     }
 
     // ok, use the prior declaration, but update the 'loc'
@@ -2731,26 +2714,24 @@ noPriorDeclaration:
   // set up the variable's 'scope' field
   scope->registerVariable(newVar);
 
-  if (reallyAddVariable) {
-    if (overloadSet) {
-      // don't add it to the environment (another overloaded version
-      // is already in the environment), instead add it to the overload set
-      //
-      // dsw: don't add it if it is a template specialization
-      if (!(dflags & DF_TEMPL_SPEC)) {
-        overloadSet->addMember(newVar);
-        newVar->overload = overloadSet;
-      }
+  if (overloadSet) {
+    // don't add it to the environment (another overloaded version
+    // is already in the environment), instead add it to the overload set
+    //
+    // dsw: don't add it if it is a template specialization
+    if (!(dflags & DF_TEMPL_SPEC)) {
+      overloadSet->addMember(newVar);
+      newVar->overload = overloadSet;
     }
-    else if (!type->isError()) {
-      if (disambErrorsSuppressChanges()) {
-        TRACE("env", "not adding D_name `" << name <<
-              "' because there are disambiguating errors");
-      }
-      else {
-        scope->addVariable(newVar, forceReplace);
-        addedNewVariable(scope, newVar);
-      }
+  }
+  else if (!type->isError()) {
+    if (disambErrorsSuppressChanges()) {
+      TRACE("env", "not adding D_name `" << name <<
+            "' because there are disambiguating errors");
+    }
+    else {
+      scope->addVariable(newVar, forceReplace);
+      addedNewVariable(scope, newVar);
     }
   }
 
