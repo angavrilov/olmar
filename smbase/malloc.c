@@ -1446,7 +1446,9 @@ void     public_mSTATs();
 
 #ifndef DEFAULT_MMAP_MAX
 #if HAVE_MMAP
-#define DEFAULT_MMAP_MAX       (65536)
+// sm: I want this to be the size of my mmap ptr array
+#define DEFAULT_MMAP_MAX       (200)
+//#define DEFAULT_MMAP_MAX       (65536)
 #else
 #define DEFAULT_MMAP_MAX       (0)
 #endif
@@ -1995,7 +1997,8 @@ nextchunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 /* Ptr to next physical malloc_chunk. */
 #define next_chunk(p) ((mchunkptr)( ((char*)(p)) + ((p)->size & ~PREV_INUSE) ))
 
-/* Ptr to previous physical malloc_chunk */
+/* Ptr to previous physical malloc_chunk (only valid if the previous
+ * chunk is not in use, i.e. prev_inuse(p) is true) */
 #define prev_chunk(p) ((mchunkptr)( ((char*)(p)) - ((p)->prev_size) ))
 
 /* Treat space at ptr + offset as a chunk */
@@ -2087,10 +2090,13 @@ nextchunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 typedef struct malloc_chunk* mbinptr;
 
-/* addressing -- note that bin_at(0) does not exist */
+/* addressing -- note that bin_at(0) is never used */
+/*   (i)<<1: we multiply by 2 since each bin header is a fd/bk pair */
+/*   - SIZE_SZ<<1: subtract 2 words to pretend there's a complete chunk,
+ *                 when in fact only fd/bk are there */
 #define bin_at(m, i) ((mbinptr)((char*)&((m)->bins[(i)<<1]) - (SIZE_SZ<<1)))
 
-/* analog of ++bin */
+/* analog of bin+1: return the next bin by skipping this bin's fd/bk */
 #define next_bin(b)  ((mbinptr)((char*)(b) + (sizeof(mchunkptr)<<1)))
 
 /* Reminders about list directionality within bins */
@@ -2110,6 +2116,8 @@ typedef struct malloc_chunk* mbinptr;
 
     Bins for sizes < 512 bytes contain chunks of all the same size, spaced
     8 bytes apart. Larger bins are approximately logarithmically spaced:
+    (sm: the first 'spaced' seems to refer to the bin header spacing,
+    while the 2nd refers to the spacing between *sizes* of chunks?)
 
     64 bins of size       8
     32 bins of size      64
@@ -2301,11 +2309,6 @@ typedef struct malloc_chunk* mfastbinptr;
 */
 
 
-/* sm: my stuff */
-static unsigned int numMallocCalls = 0;
-static unsigned int numFreeCalls = 0;
-
-
 struct malloc_state {
 
   /* The maximum chunk size to be eligible for fastbin */
@@ -2315,12 +2318,13 @@ struct malloc_state {
   mfastbinptr      fastbins[NFASTBINS];
 
   /* Base of the topmost chunk -- not otherwise kept in a bin */
+  /* the 'top' node is always free; you segfault if you ask */
   mchunkptr        top;
 
   /* The remainder from the most recent split of a small request */
   mchunkptr        last_remainder;
 
-  /* Normal bins packed as described above */
+  /* Normal bins packed as described above; bin 0 is not used */
   mchunkptr        bins[NBINS * 2];
 
   /* Bitmap of bins */
@@ -2345,6 +2349,20 @@ struct malloc_state {
   INTERNAL_SIZE_T  max_sbrked_mem;
   INTERNAL_SIZE_T  max_mmapped_mem;
   INTERNAL_SIZE_T  max_total_mem;
+
+  /* sm: my stuff */
+  unsigned int numMallocCalls;       /* # of calls to malloc */
+  unsigned int numFreeCalls;         /* # of calls to free */
+                                     
+  /* physically first chunk, for walking; for this to be useful,
+   * we must have gotten contiguous memory from sbrk().. */
+  mchunkptr firstChunk;
+  
+  /* maintain information about up to 200 mmap regions, for
+   * the purpose of walking them; 'n_mmaps' will tell us the
+   * next available slot in this array */
+  #define NUM_MMAP_PTRS 200
+  mchunkptr mmapPtrs[NUM_MMAP_PTRS];     /* array of pointers */
 };
 
 typedef struct malloc_state *mstate;
@@ -2687,18 +2705,20 @@ static void do_check_malloc_state()
       assert(p == 0);
 
     while (p != 0) {
-      /* each chunk claims to be inuse */
+      /* each chunk claims to be inuse, though it really is not,
+       * from the outside client's perspective */
       do_check_inuse_chunk(p);
       total += chunksize(p);
       /* chunk belongs in this bin */
       assert(fastbin_index(chunksize(p)) == i);
+      /* sm: despite being marked as 'inuse', their 'fd' fields are valid? */
       p = p->fd;
     }
   }
 
   if (total != 0)
     assert(have_fastchunks(av));
-  else if (!have_fastchunks(av))
+  if (!have_fastchunks(av))     /* sm: bugfix: removed 'else' */
     assert(total == 0);
 
   /* check normal bins */
@@ -2711,7 +2731,7 @@ static void do_check_malloc_state()
       empty = last(b) == b;
       if (!binbit)
         assert(empty);
-      else if (!empty)
+      if (!empty)               /* sm: removed another 'else' */
         assert(binbit);
     }
 
@@ -2845,16 +2865,20 @@ static Void_t* sYSMALLOc(nb, av) INTERNAL_SIZE_T nb; mstate av;
           set_head(p, size|IS_MMAPPED);
         }
         
+        /* sm: add this pointer to my array */
+        assert(av->n_mmaps < NUM_MMAP_PTRS);
+        av->mmapPtrs[av->n_mmaps] = p;
+
         /* update statistics */
-        
-        if (++av->n_mmaps > av->max_n_mmaps) 
+
+        if (++av->n_mmaps > av->max_n_mmaps)
           av->max_n_mmaps = av->n_mmaps;
-        
+
         sum = av->mmapped_mem += size;
-        if (sum > (unsigned long)(av->max_mmapped_mem)) 
+        if (sum > (unsigned long)(av->max_mmapped_mem))
           av->max_mmapped_mem = sum;
         sum += av->sbrked_mem;
-        if (sum > (unsigned long)(av->max_total_mem)) 
+        if (sum > (unsigned long)(av->max_total_mem))
           av->max_total_mem = sum;
 
         check_chunk(p);
@@ -2950,14 +2974,17 @@ static Void_t* sYSMALLOc(nb, av) INTERNAL_SIZE_T nb; mstate av;
         
         /* We do not need, and cannot use, another sbrk call to find end */
         snd_brk = brk + size;
-        
-        /* 
-           Record that we no longer have a contiguous sbrk region. 
+
+        /*
+           Record that we no longer have a contiguous sbrk region.
            After the first time mmap is used as backup, we do not
            ever rely on contiguous space since this could incorrectly
            bridge regions.
         */
         set_noncontiguous(av);
+        
+        /* sm: I don't update my mmapPtrs array here because I don't expect
+         * it to happen, and because I don't know what to do if it does */
       }
     }
   }
@@ -3239,7 +3266,7 @@ Void_t* mALLOc(size_t bytes)
   #ifdef TRACE_MALLOC_CALLS
   printf("malloc(%d)\n", bytes);
   #endif
-  numMallocCalls++;
+  av->numMallocCalls++;
 
   /*
     Convert request size to internal form by adding SIZE_SZ bytes
@@ -3575,10 +3602,18 @@ Void_t* mALLOc(size_t bytes)
     }
 
     /* 
-       Otherwise, relay to handle system-dependent cases 
+       Otherwise, relay to handle system-dependent cases
     */
-    else 
-      return sYSMALLOc(nb, av);    
+    else {
+      Void_t *ret = sYSMALLOc(nb, av);
+      mchunkptr retchunk = mem2chunk(ret);
+      if (!av->firstChunk ||
+          retchunk < av->firstChunk) {
+        /* new 'first' */
+        av->firstChunk = retchunk;
+      }                          
+      return ret;
+    }
   }
 }
 
@@ -3608,7 +3643,7 @@ void fREe(mem) Void_t* mem;
   #ifdef TRACE_MALLOC_CALLS
   printf("free(%p)\n", mem);
   #endif
-  numFreeCalls++;
+  av->numFreeCalls++;
 
 
   /* free(0) has no effect */
@@ -3735,6 +3770,23 @@ void fREe(mem) Void_t* mem;
 #if HAVE_MMAP
       int ret;
       INTERNAL_SIZE_T offset = p->prev_size;
+
+      /* sm: update my array */
+      {
+        /* find which slot the mmap'd chunk was using */
+        int i;
+        for (i=0; i < av->n_mmaps; i++) {
+          if (av->mmapPtrs[i] == p) {
+            break;    /* found it */
+          }
+        }
+        assert(i < av->n_mmaps);    /* otherwise it's not in the array! */
+
+        /* copy the last ptr into the slot occupied by this one,
+         * thereby maintaining contiguity */
+        av->mmapPtrs[i] = av->mmapPtrs[av->n_mmaps-1];
+      }
+
       av->n_mmaps--;
       av->mmapped_mem -= (size + offset);
       ret = munmap((char*)p - offset, size + offset);
@@ -4574,7 +4626,7 @@ void mSTATs()
   {
     unsigned long free, reserved, committed;
     vminfo (&free, &reserved, &committed);
-    fprintf(stderr, "free bytes       = %10lu\n", 
+    fprintf(stderr, "free bytes       = %10lu\n",
             free);
     fprintf(stderr, "reserved bytes   = %10lu\n", 
             reserved);
@@ -4592,8 +4644,11 @@ void mSTATs()
           (unsigned long)(mi.uordblks + mi.hblkhd));
 
   /* sm: my stats */
-  fprintf(stderr, "total malloc calls = %u\n", numMallocCalls);
-  fprintf(stderr, "total free calls = %u\n", numFreeCalls);
+  {
+    mstate av = get_malloc_state();
+    fprintf(stderr, "total malloc calls = %u\n", av->numMallocCalls);
+    fprintf(stderr, "total free calls = %u\n", av->numFreeCalls);
+  }
 
 
 #ifdef WIN32
@@ -5307,6 +5362,75 @@ void checkHeapNode(void *node)
 
   p = mem2chunk(node);
   check_inuse_chunk(p);
+}
+
+
+// sm: print information about all in-use blocks
+void walk_malloc_heap()
+{
+  // start from the first chunk and just walk...
+  mstate av = get_malloc_state();
+  mchunkptr p;
+  int i;
+
+  printf("Contents of malloc heap:\n");
+
+  p = av->firstChunk;
+  if (!p) {
+    printf("  Malloc has not been initialized.\n");
+    return;
+  }
+  
+  // rather than go hunting through the fastbins
+  // on small blocks, let's empty the fastbins now
+  malloc_consolidate(av);
+
+  for (;;) {
+    int size = chunksize(p);
+    if (p != av->top &&     // top is always free (and segfault for asking)
+        inuse(p)) {
+        
+      #if 0     // not needed now that I'm using malloc_consolidate, above
+      // it looks to be in use.. but it might be in a fastbin, so
+      // let's go check
+      mfastbinptr bin = NULL;
+      if (size <= av->max_fast) {      // extra bits ok due to 'size' alignment
+        bin = av->fastbins[fastbin_index(size)];
+        while (bin != NULL) {
+          if (bin == p) {
+            // here it is, it's really free
+            printf("  Free (fastbin) chunk at %p, size %d\n", p, size);
+          }
+          break;
+        }
+      }
+
+      if (bin == NULL)
+      #endif // 0
+
+      // either the size is beyond what is put into fastbins, or else
+      // we looked but didn't find it in the fastbin -- it's really inuse
+      printf("  Block at %p, size %d\n", chunk2mem(p), size);
+    }
+    else {
+      printf("  Free chunk at %p, size %d\n", p, size);
+    }
+
+    // done?
+    if (p == av->top) {
+      break;
+    }
+
+    // no, go to next chunk
+    assert(p < next_chunk(p));    // prevent inf loops
+    p = next_chunk(p);
+  }
+
+  // check the mmap regions
+  for (i=0; i < av->n_mmaps; i++) {
+    p = av->mmapPtrs[i];
+    printf("  Block (mmap) at %p, size %d\n", p, chunksize(p));
+  }
 }
 
 

@@ -1,6 +1,5 @@
 
-file bit2d
+file testmalloc
 
-break main
-break breaker
+break malloc
 run

@@ -15,3 +15,5 @@ trdelete
 bflatten
 mysig
 Makefile.base.mk
+testmalloc
+
