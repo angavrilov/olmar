@@ -4612,7 +4612,16 @@ Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
     size = expr->type->asRval()->reprSize();
   } 
   catch (XReprSize &e) {
-    return env.error(e.why());  // jump out with an error
+    // You are allowed to take the size of an array that has dynamic
+    // size; FIX: is this the right place to handle it?  Perhaps
+    // ArrayType::reprSize() would be better.
+    if (expr->type->asRval()->isArrayType()
+        && expr->type->asRval()->asArrayType()->size == ArrayType::DYN_SIZE) {
+      size = ArrayType::DYN_SIZE;
+      env.warning("taking the sizeof a dynamically-sized array");
+    } else {
+      return env.error(e.why());  // jump out with an error
+    }
   }
   TRACE("sizeof", "sizeof(" << expr->exprToString() <<
                   ") is " << size);
