@@ -1311,19 +1311,20 @@ Type const *E_assign::itcheck(Env &env)
 }
 
 
-Type const *E_forall::itcheck(Env &env)
+Type const *E_quantifier::itcheck(Env &env)
 {
   if (!env.inPredicate) {
     env.err("forall is only allowed inside thmprv predicates");
   }
-                   
+
   // add declared variables to the environment
-  env.enterScope();                           
+  env.enterScope();
   FOREACH_ASTLIST_NC(Declaration, decls, iter) {
     Declaration *d = iter.data();
 
-    // mark all these as universal
-    d->dflags = (DeclFlags)(d->dflags | DF_UNIVERSAL);
+    // mark all these as universal/existential
+    d->dflags = (DeclFlags)
+      (d->dflags | (forall? DF_UNIVERSAL : DF_EXISTENTIAL));
 
     d->tcheck(env);
   }
@@ -1334,7 +1335,8 @@ Type const *E_forall::itcheck(Env &env)
   // I really want this to be an int.. in fact I want it to be
   // bool, but that type doesn't exist (yet?)
   if (!type->isSimple(ST_INT)) {
-    env.err(stringc << "type of forall predicate should be int, not "
+    env.err(stringc << "type of " << (forall? "forall" : "exists")
+                    << " predicate should be int, not "
                     << type->toString());
   }
 
@@ -1459,7 +1461,7 @@ int E_cond::constEval(Env &env) const { return xnonconst(); }
 int E_comma::constEval(Env &env) const { return xnonconst(); }
 int E_assign::constEval(Env &env) const { return xnonconst(); }
 int E_new::constEval(Env &env) const { return xnonconst(); }
-int E_forall::constEval(Env &env) const { return xnonconst(); }
+int E_quantifier::constEval(Env &env) const { return xnonconst(); }
 
 
 // -------------------- Expression::toString --------------------
@@ -1545,10 +1547,10 @@ string E_assign::toString() const
   }
 }
 
-string E_forall::toString() const
+string E_quantifier::toString() const
 {
   stringBuilder sb;
-  sb << "thmprv_forall ";
+  sb << (forall? "thmprv_forall(" : "thmprv_exists(");
 
   FOREACH_ASTLIST(Declaration, decls, outer) {
     FOREACH_ASTLIST(Declarator, outer.data()->decllist, inner) {
@@ -1558,7 +1560,7 @@ string E_forall::toString() const
     }
   }
 
-  sb << pred->toString();
+  sb << pred->toString() << ")";
   return sb;
 }
 

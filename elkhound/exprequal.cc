@@ -153,8 +153,9 @@ bool equalExpr(OwnerHashTable<VariablePair> &equiv,
              equalExpr(equiv, L.target, R.target) &&
              equalExpr(equiv, L.src, R.src);
 
-    DOUBLECASEC(E_forall)
-      if (L.decls.count() != R.decls.count()) {
+    DOUBLECASEC(E_quantifier)
+      if (L.forall != R.forall ||
+          L.decls.count() != R.decls.count()) {
         return false;
       }
 

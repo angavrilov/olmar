@@ -58,7 +58,7 @@ void walkExpression(ExpressionVisitor &vis, Expression const *root)
       walkExpression(vis, e->target);
       walkExpression(vis, e->src);
 
-    ASTNEXTC(E_forall, e)
+    ASTNEXTC(E_quantifier, e)
       walkExpression(vis, e->pred);
 
     ASTENDCASECD

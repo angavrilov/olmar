@@ -190,7 +190,7 @@ nonterm[Expression*] PrimaryExpression {
   -> e:PQVarName
        [ return new E_variable(e); ]
 
-  -> "(" e:ThmprvPredicate ")"
+  -> e:ThmprvPredicate
        [ return e; ]
 
   // GNU extension
@@ -1617,8 +1617,9 @@ nonterm[ThmprvAttr*] OneThmprvAttr {
        [ return new ThmprvAttr(name, args); ]
 }
 
-// note that all ThmprvPredicates occur in parentheses
 nonterm[Expression*] ThmprvPredicate {
-  -> "thmprv_forall" d:DeclList e:Expression
-       [ return new E_forall(d, e); ]
+  -> "thmprv_forall" "(" d:DeclList e:Expression ")"
+       [ return new E_quantifier(d, e, true /*forall*/); ]
+  -> "thmprv_exists" "(" d:DeclList e:Expression ")"
+       [ return new E_quantifier(d, e, false /*forall*/); ]
 }

@@ -597,7 +597,7 @@ int countPaths(Env &env, Expression *ths)
       SIDE_EFFECT();                              // clearly this expr has a side effect
       numPaths = mult(numPaths, ths->target->numPaths1());       // add paths through target
     }
-    ASTNEXT(E_forall, ths) {
+    ASTNEXT(E_quantifier, ths) {
       xfailure("shouldn't get here because only allowed in predicates");
       PRETEND_USED(ths);
     }

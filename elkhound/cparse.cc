@@ -33,7 +33,10 @@ void ParseEnv::addType(StringRef type)
 {
   StringHash *h = types.first();
   if (h->get(type)) {
-    cout << "duplicate entry for " << type << " -- will ignore\n";
+    // this happens for C++ code which has both the implicit
+    // and explicit typedefs (and/or, explicit 'class Foo' mentions
+    // in places)
+    //cout << "duplicate entry for " << type << " -- will ignore\n";
   }
   else {
     h->add(type, (void*)type);

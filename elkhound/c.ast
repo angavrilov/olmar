@@ -445,13 +445,13 @@ class Expression {
   -> E_new(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
-  // incremental assignment, like a += 3
+  // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
   -> E_assign(Expression target, BinaryOp op, Expression src);
-  
-  // thmprv extensions
-  // forall binds some declared variables, which are thereby universally
-  // quantified in 'pred'
-  -> E_forall(ASTList<Declaration> decls, Expression pred);
+
+  // thmprv extensions a quantifier binds some declared variables,
+  // which are then interpreted as either universally (forall=true) or
+  // existentially (forall=false) quantified in 'pred'
+  -> E_quantifier(ASTList<Declaration> decls, Expression pred, bool forall);
 }
 
 

@@ -957,12 +957,12 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
 }
 
 
-AbsValue *E_forall::vcgen(AEnv &env, int path) const
-{                                  
+AbsValue *E_quantifier::vcgen(AEnv &env, int path) const
+{
   // this is quite nonideal, but at the moment I don't know exactly
   // what syntactic rule to use, so I just wait until the problem
   // shows up, and then bomb
-  xfailure("can't use forall in a non-obviously-boolean context");
+  xfailure("can't use quantifier(forall/exists) in a non-obviously-boolean context");
   return NULL;   // silence warning
 }
 
@@ -1189,14 +1189,14 @@ Predicate *E_assign::vcgenPred(AEnv &env, int path) const
 }
 
 
-Predicate *E_forall::vcgenPred(AEnv &env, int path) const
+Predicate *E_quantifier::vcgenPred(AEnv &env, int path) const
 {
   // analyze the body; this will cause all the quantified
   // variables to be instantiaged in AEnv::get
   Predicate *body = pred->vcgenPred(env, path);
-                                           
+
   // gather up the quantifiers
-  P_forall *ret = new P_forall(NULL, body);
+  P_quantifier *ret = new P_quantifier(NULL, body, forall);
 
   FOREACH_ASTLIST(Declaration, decls, outer) {
     FOREACH_ASTLIST(Declarator, outer.data()->decllist, inner) {

@@ -15,7 +15,7 @@ void find(int *A, int N, int f)
     offset(A) == 0 && length(object(A)) == N+1 &&   // plus 1 to allow 1-based indexing
     1 <= f && f <= N)
   thmprv_post(
-    (thmprv_forall int p, q;
+    thmprv_forall(int p, q;
       (1 <= p && p <= f && f <= q && q <= N) ==>
         (A[p] <= A[f] && A[f] <= A[q])))
 {
@@ -31,7 +31,7 @@ void find(int *A, int N, int f)
       1 <= f && f <= N &&
 
       1 <= m && m <= f && f <= n && n <= N &&
-      (thmprv_forall int p, q;
+      thmprv_forall(int p, q;
         ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
         ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
@@ -54,15 +54,15 @@ void find(int *A, int N, int f)
         1 <= f && f <= N &&
 
         1 <= m && m <= f && f <= n && n <= N &&
-        (thmprv_forall int p, q;
+        thmprv_forall(int p, q;
           ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
           ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
         m <= i && i < n &&
         m < j && j <= n &&
-        (thmprv_forall int p;
+        thmprv_forall(int p;
           (1 <= p && p < i) ==> (A[p] <= r)) &&
-        (thmprv_forall int q;
+        thmprv_forall(int q;
           (j < q && q <= N) ==> (r <= A[q])) &&
 
         m < n &&
@@ -80,15 +80,15 @@ void find(int *A, int N, int f)
           1 <= f && f <= N &&
 
           1 <= m && m <= f && f <= n && n <= N &&
-          (thmprv_forall int p, q;
+          thmprv_forall(int p, q;
             ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
             ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
           m <= i && i < n &&         // same invariant as above..
           m < j && j <= n &&
-          (thmprv_forall int p;
+          thmprv_forall(int p;
             (1 <= p && p < i) ==> (A[p] <= r)) &&
-          (thmprv_forall int q;
+          thmprv_forall(int q;
             (j < q && q <= N) ==> (r <= A[q])) &&
 
           m < n &&
@@ -109,15 +109,15 @@ void find(int *A, int N, int f)
           1 <= f && f <= N &&
 
           1 <= m && m <= f && f <= n && n <= N &&
-          (thmprv_forall int p, q;
+          thmprv_forall(int p, q;
             ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
             ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
           m <= i && i <= n &&         // almost same invariant as above..
           m < j && j <= n &&
-          (thmprv_forall int p;
+          thmprv_forall(int p;
             (1 <= p && p < i) ==> (A[p] <= r)) &&
-          (thmprv_forall int q;
+          thmprv_forall(int q;
             (j < q && q <= N) ==> (r <= A[q])) &&
 
           m < n &&
@@ -133,15 +133,15 @@ void find(int *A, int N, int f)
         1 <= f && f <= N &&
 
         1 <= m && m <= f && f <= n && n <= N &&
-        (thmprv_forall int p, q;
+        thmprv_forall(int p, q;
           ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
           ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
         m <= i && i <= n &&
         m <= j && j <= n &&
-        (thmprv_forall int p;
+        thmprv_forall(int p;
           (1 <= p && p < i) ==> (A[p] <= r)) &&
-        (thmprv_forall int q;
+        thmprv_forall(int q;
           (j < q && q <= N) ==> (r <= A[q])) &&
 
         m < n ;

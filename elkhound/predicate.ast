@@ -85,8 +85,7 @@ class Predicate {
   -> P_iff(Predicate p1, Predicate p2);
 
   // quantification
-  -> P_forall(ASTList<AVvar> variables, Predicate body);
-  -> P_exists(ASTList<AVvar> variables, Predicate body);
+  -> P_quantifier(ASTList<AVvar> variables, Predicate body, bool forall);
 
   // ordering: not yet
   // labelled predicates: not yet
@@ -274,14 +273,9 @@ impl_verbatim {
     sb << ")";
   }
 
-  void P_forall::toSexp(stringBuilder &sb) const
+  void P_quantifier::toSexp(stringBuilder &sb) const
   {
-    quantifiedToSexp(sb, "FORALL", variables, body);
-  }
-
-  void P_exists::toSexp(stringBuilder &sb) const
-  {
-    quantifiedToSexp(sb, "EXISTS", variables, body);
+    quantifiedToSexp(sb, forall? "FORALL" : "EXISTS", variables, body);
   }
 
 
@@ -324,12 +318,8 @@ impl_verbatim {
         walkPredicate(vis, i->p2);
       }
 
-      ASTNEXTC(P_forall, fa) {
+      ASTNEXTC(P_quantifier, fa) {
         walkPredicate(vis, fa->body);
-      }
-
-      ASTNEXTC(P_exists, ex) {
-        walkPredicate(vis, ex->body);
       }
 
       ASTENDCASECD

@@ -19,20 +19,20 @@ int main()
   for (x=0; x<5; x=x+1) {
     thmprv_invariant
       0 <= x && x < 5 &&
-      (thmprv_forall int i;
+      thmprv_forall(int i;
         (0 <= i && i < x) ==> arr[i] == i);
 
     arr[x] = x;
   }
 
   thmprv_assert
-    (thmprv_forall int i;
+    thmprv_forall(int i;
       (0 <= i && i < 5) ==> arr[i] == i);
 
   for (x=4; x>=0; x=x-1) {
     thmprv_invariant
       0 <= x && x <= 4 &&
-      (thmprv_forall int i;
+      thmprv_forall(int i;
         (0 <= i && i < 5) ==> arr[i] == i);
 
     assert(arr[x] == x);
