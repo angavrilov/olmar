@@ -17,7 +17,8 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     scopeKind(sk),
     namespaceVar(NULL),
     usingEdges(0),            // the arrays start as NULL b/c in the
-    activeUsingEdges(0),      // common case the sets are empty
+    usingEdgesRefct(0),       // common case the sets are empty
+    activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
     curFunction(NULL),
@@ -242,15 +243,20 @@ Variable const *Scope
 //      }
 //      cout << "name->getName() " << name->getName() << endl;
     v1 = vfilterC(variables.queryif(name->getName()), flags);
-    
-    // 7.3.4 para 1: "active using" edges are a source of additional
-    // declarations that can satisfy an unqualified lookup
-    //
-    // TODO: this is not right because I get in here even for
-    // qualified lookups, after having stripped the outer qualifiers
-    // (right?)
-    if (activeUsingEdges.isNotEmpty()) {
-      v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
+
+    if (!(flags & LF_QUALIFIED)) {
+      // 7.3.4 para 1: "active using" edges are a source of additional
+      // declarations that can satisfy an unqualified lookup
+      if (activeUsingEdges.isNotEmpty()) {
+        v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
+      }
+    }
+    else {
+      // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
+      // if we haven't already found the name
+      if (!v1 && usingEdges.isNotEmpty()) {
+        v1 = searchUsingEdges(name->getName(), env, flags);
+      }
     }
 
     if (v1) {
@@ -439,6 +445,7 @@ void Scope::addUsingEdge(Scope *target)
               << " to " << target->desc());
 
   usingEdges.push(target);
+  target->usingEdgesRefct++;
 }
 
 
@@ -573,14 +580,12 @@ void Scope::getUsingClosure(ArrayStack<Scope*> &dest)
   // process the gray set until empty
   while (gray.isNotEmpty()) {
     Scope *s = gray.pop();
+    black.push(s);
 
     // add 's' to the desination list, except that 'this' is excluded
     if (s != this) {
       dest.push(s);
     }
-
-    // done with 's'
-    black.push(s);
 
     // push the "using" edges' targets
     for (int i=0; i < s->usingEdges.length(); i++) {
@@ -596,16 +601,20 @@ Variable const *Scope::searchActiveUsingEdges
   // just consider the set of "active using" edges
   for (int i=0; i<activeUsingEdges.length(); i++) {
     Scope const *s = activeUsingEdges[i];
-    
+
     // look for 'name' in 's'
     Variable const *v = vfilterC(s->variables.queryif(name), flags);
     if (v) {
       if (vfound) {
         if (!sameEntity(vfound, v)) {
+          // BUG: If 'vfound' and 'v' are functions, then we're supposed
+          // to build a set of declarations!  That would require modifying
+          // all of my lookup interfaces to be able to return arbitrary
+          // sets.  I'll have to think about this...
           env.error(stringc
             << "ambiguous lookup: `" << vfound->fullyQualifiedName()
             << "' vs. `" << v->fullyQualifiedName() << "'");
-            
+
           // originally I kept going in hopes of reporting more
           // interesting things, but now that the same scope can
           // appear multiple times on the active-using list, I
@@ -624,8 +633,58 @@ Variable const *Scope::searchActiveUsingEdges
 }
 
 
+// another DFS; 3.4.3.2 para 2
+Variable const *Scope::searchUsingEdges
+  (StringRef name, Env &env, LookupFlags flags) const
+{
+  // set of scopes already searched
+  ArrayStack<Scope*> black;
+
+  // stack of scopes remaining to be searched in the DFS
+  ArrayStack<Scope*> gray;
+
+  // initial condition
+  gray.push(const_cast<Scope*>(this));   // elim'ng this cast would require some work..
+  Variable const *vfound = NULL;
+
+  // process the gray set until empty
+  while (gray.isNotEmpty()) {
+    Scope *s = gray.pop();
+    black.push(s);
+
+    // does 's' have the name?
+    Variable const *v = vfilterC(s->variables.queryif(name), flags);
+    if (v) {
+      if (vfound) {
+        if (!sameEntity(vfound, v)) {
+          // this is WRONG: I need to collect a set if it's a function type
+          env.error(stringc
+            << "ambiguous lookup: `" << vfound->fullyQualifiedName()
+            << "' vs. `" << v->fullyQualifiedName() << "'");
+          return v;
+        }
+      }
+      else {
+        vfound = v;
+      }
+    }
+
+    // if 's' does *not* have the name, then push the things it
+    // points to
+    else {
+      // push the "using" edges' targets
+      for (int i=0; i < s->usingEdges.length(); i++) {
+        pushIfWhite(black, gray, s->usingEdges[i]);
+      }
+    }
+  }
+
+  return vfound;
+}
+
+
 // true if this scope is a member of the global scope
-bool Scope::immediateGlobalScopeChild() 
+bool Scope::immediateGlobalScopeChild()
 {
   Variable *v = getTypedefName();
   return v && v->hasFlag(DF_GLOBAL);

@@ -233,6 +233,10 @@ public:      // funcs
   // return the innermost scope that contains both the current
   // scope and 'target'
   Scope *findEnclosingScope(Scope *target);
+                                    
+  // bit of a hack: recompute what happens when all the active
+  // scopes are opened; this is for using-directives
+  void refreshScopeOpeningEffects();
 
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc

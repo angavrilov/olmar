@@ -33,8 +33,9 @@ enum LookupFlags {
   LF_SKIP_CLASSES    = 0x08,    // skip class scopes
   LF_ONLY_NAMESPACES = 0x10,    // ignore non-namespace names
   LF_TYPES_NAMESPACES= 0x20,    // ignore non-type, non-namespace names
+  LF_QUALIFIED       = 0x40,    // context is a qualified lookup
 
-  LF_ALL_FLAGS       = 0x3F,    // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0xFF,    // bitwise OR of all flags
 };
 
 // experiment: will this work?  yes
@@ -106,7 +107,7 @@ public:      // data
   Variable *namespaceVar;
 
   // --------------- for using-directives ----------------
-  // possible optim:  For most scopes, these three arrays waste 12
+  // possible optim:  For most scopes, these three arrays waste 13
   // words of storage.  I could collect them into a separate structure
   // and just keep a pointer here, making it non-NULL only when
   // something gets put into an array.
@@ -114,6 +115,11 @@ public:      // data
   // set of "using" edges; these affect lookups transitively when
   // other scopes have active edges to this one
   ArrayStack<Scope*> usingEdges;
+
+  // this is the in-degree of the usingEdges network; it is used to
+  // tell when a scope has someone using it, because that means we
+  // may need to recompute the active-using edges
+  int usingEdgesRefct;
 
   // set of "active using" edges; these directly influence lookups
   // in this scope
@@ -144,6 +150,8 @@ private:     // funcs
   void scheduleActiveUsingEdge(Env &env, Scope *target);
   Variable const *searchActiveUsingEdges
     (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const;
+  Variable const *searchUsingEdges
+    (StringRef name, Env &env, LookupFlags flags) const;
   void getUsingClosure(ArrayStack<Scope*> &dest);
 
 protected:   // funcs

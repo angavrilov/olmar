@@ -4,9 +4,9 @@ todo.txt    -*- outline -*-
 
 This is a list of incomplete aspects of the Elsa C++ front end.
 
-See also the various places in the sources marked "TODO".  This list
-is meant to be a summary of the major things not done, but there are
-plenty of little things not mentioned here.
+See also the various places in the sources marked "TODO" and "BUG".
+This list is meant to be a summary of the major things not done, but
+there are plenty of little things not mentioned here.
 
 ** Emacs outline-mode keybindings
 
@@ -75,7 +75,7 @@ a flag to diagnose use of deprecated features.
 
 ** Exception specs
 
-No checking is done w.r.t. of exception specs.
+No checking is done w.r.t. exception specs.
 
 ** Globals without initializers
 
@@ -160,9 +160,6 @@ some cases
 
 * Namespaces
 
-In general, namespaces are not implemented.  (Actually, now they
-partially are.)
-
 ** Synthesized calls
 
 In a few places, I synthesize e.g. "::operator~(a)", intending to get
@@ -182,19 +179,35 @@ in the "std" namespace as they should be.
 
 I haven't done anything with friends, esp. 7.3.1.2 para 3.
 
+** using-directive overload sets
+
+To implement 3.4.3.2 para 2 and 7.3.4 para 5, name lookup and overload
+resolution in the presence of "using directives", I need my lookup
+functions to be capable of returning sets of declarations that are not
+all in the same scope.  Currently that is impossible, requiring
+significant design changes to accomodate.  :(
+
 * Templates
 
 The template implementation is very incomplete.  This affects several
 other parts of the front end, like overload resolution, which take
 the attitude that if templates are involved then little or no analysis
-is performed.
+is performed.  Templates *are* syntactically disambiguated, however.
 
 ** Grammar
 
 The standard grammar has a number of places where the keyword
 "template" is allowed, and has some meaning, but currently our grammar
-(cc.gr) does not allow it.  At least one of those places is probably
-why we can't handle member templates (e.g. 7.3.3c.cc) at all.
+(cc.gr) does not allow it.  
+
+** Member templates
+
+At least one of those grammar omissions is probably why we can't
+handle member templates (e.g. 7.3.3c.cc) at all.
+
+** Partial specializations
+
+Template partial specializations are not implemented.
 
 * Single-pass design
 

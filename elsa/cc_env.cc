@@ -746,6 +746,33 @@ void Env::retractScope(Scope *s)
   // we don't own 's', so don't delete it
 }
 
+      
+// this should be a rare event
+void Env::refreshScopeOpeningEffects()
+{
+  TRACE("env", "refreshScopeOpeningEffects");
+
+  // tell all scopes they should consider themselves closed,
+  // starting with the innermost
+  {
+    FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+      iter.data()->closedScope();
+    }
+  }
+
+  // tell all scopes they should consider themselves opened,
+  // starting with the outermost
+  scopes.reverse();
+  {
+    FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+      iter.data()->openedScope(*this);
+    }
+  }
+
+  // all done
+  scopes.reverse();
+}
+
 
 #if 0   // does this even work?
 CompoundType *Env::getEnclosingCompound()
@@ -1236,7 +1263,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
     }
 
     // look inside the final scope for the final name
-    var = scope->lookupVariable(name->getName(), *this, flags);
+    var = scope->lookupVariable(name->getName(), *this, flags | LF_QUALIFIED);
     if (!var) {
       if (anyTemplates) {
         // maybe failed due to incompleteness of specialization implementation;

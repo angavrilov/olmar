@@ -5729,14 +5729,23 @@ void ND_usingDir::tcheck(Env &env)
   // edge from the current scope to the target scope, if the current
   // one has a name (and thus could be the target of another 'using
   // namespace')
+  //
+  // update: for recomputation to work, I need to add the edge
+  // regardless of whether 'cur' has a name
   Scope *cur = env.scope();
-  if (cur->hasName()) {
-    cur->addUsingEdge(target);
-  }
+  cur->addUsingEdge(target);
 
-  // add the effect of a single "using" edge, which includes
-  // a transitive closure computation
-  cur->addUsingEdgeTransitively(env, target);
+  if (cur->usingEdgesRefct == 0) {
+    // add the effect of a single "using" edge, which includes
+    // a transitive closure computation
+    cur->addUsingEdgeTransitively(env, target);
+  }
+  else {
+    // someone is using me, which means their transitive closure
+    // is affected, etc.  let's just recompute the whole network
+    // of active-using edges
+    env.refreshScopeOpeningEffects();
+  }
 }
 
 
