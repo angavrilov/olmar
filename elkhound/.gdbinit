@@ -21,7 +21,7 @@
 #  run
 
 file gramanl
-set args cc
+set args cexp3
 
 #  file cexp2
 #  set args cexp2.bin cexp.in1

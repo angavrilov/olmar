@@ -75,13 +75,17 @@ static bool const LALR1 = true;
 
 
 // ----------------- DottedProduction ------------------
+#if 0    // used?
 DottedProduction::DottedProduction(DottedProduction const &obj)
 {
   prod = obj.prod;
   dot = obj.dot;
   afterDot = obj.afterDot;
-}
-           
+  firstSet = obj.firstSet;
+  canDeriveEmpty = obj.canDeriveEmpty;
+}                
+#endif // 0
+
 
 DottedProduction::DottedProduction()
 {
@@ -93,6 +97,7 @@ void DottedProduction::init()
   prod = NULL;
   dot = -1;
   afterDot = NULL;
+  canDeriveEmpty = false;
 }
 
 
@@ -157,7 +162,7 @@ bool DottedProduction::isEqual(DottedProduction const &obj) const
 {
   return dot == obj.dot &&
          prod == obj.prod;
-}    
+}
 #endif // 0
 
 
@@ -1657,6 +1662,27 @@ void GrammarAnalysis::firstOfIterSeq(TerminalSet &destList,
 }
 
 
+void GrammarAnalysis::computeDProdFirsts()
+{
+  // for each production..
+  FOREACH_PRODUCTION(productions, prodIter) {
+    // for each dotted production where the dot is not at the end..
+    int rhsLen = prodIter.data()->rhsLength();
+    for (int posn=0; posn <= rhsLen; posn++) {
+      DottedProduction *dprod = getDProd_nc(prodIter.data(), posn);
+
+      // compute its first
+      RHSEltListIter symIter(dprod->getProd()->right, posn);
+      dprod->firstSet.reset(numTerms);
+      firstOfIterSeq(dprod->firstSet, symIter);
+
+      // can it derive empty?
+      dprod->canDeriveEmpty = iterSeqCanDeriveEmpty(symIter);
+    }
+  }
+}
+
+
 void GrammarAnalysis::computeFollow()
 {
   int numTerms = numTerminals();
@@ -1981,14 +2007,16 @@ void GrammarAnalysis::
     DottedProduction const *newDP = getDProd(&prod, 0 /*dot at left*/);
 
     // get beta (what follows B in 'item')
-    RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
+    //RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
+    DottedProduction const *beta = nextDProd(item->dprod);
 
     // get First(beta) -> new item's lookahead
-    newItemLA.clear();
-    firstOfIterSeq(newItemLA, beta);
+    newItemLA = beta->firstSet;
+    //newItemLA.clear();
+    //firstOfIterSeq(newItemLA, beta);
 
     // if beta ->* epsilon, add LA
-    if (iterSeqCanDeriveEmpty(beta)) {
+    if (beta->canDeriveEmpty) {
       newItemLA.merge(item->lookahead);
     }
 
@@ -3389,6 +3417,9 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
 
   traceProgress(1) << "first...\n";
   computeFirst();
+  computeDProdFirsts();
+
+  // TODO: rewrite computeFollow to use precomputed First info
 
   traceProgress(1) << "follow...\n";
   computeFollow();

@@ -43,16 +43,25 @@ private:    // data
   int dot;                       // 0 means it's before all RHS symbols, 1 means after first, etc.
 
 // -------- annotation ----------
-private:
+private:    // data
   // performance optimization: NULL if dot at end, or else pointer
   // to the symbol right after the dot
   Symbol *afterDot;
-            
+
+public:     // data    
+  // First of the sentential form that follows the dot; this set
+  // is computed by GrammarAnalysis::computeDProdFirsts
+  TerminalSet firstSet;
+  
+  // also computed by computeDProdFirsts, this is true if the
+  // sentential form can derive epsilon (the empty string)
+  bool canDeriveEmpty;
+
 private:    // funcs
   void init();
 
 public:	    // funcs
-  DottedProduction(DottedProduction const &obj);
+  //DottedProduction(DottedProduction const &obj);
 
   // need the grammar passed during creation so we know how big
   // to make 'lookahead'
@@ -405,11 +414,14 @@ private:    // funcs
   void computeReachable();
   void computeReachableDFS(Nonterminal *nt);
   void resetFirstFollow();
+  void computeDProdFirsts();
 
   // ---- dotted productions ----
   void createDottedProductions();
   void deleteDottedProductions();
   DottedProduction const *getDProd(Production const *prod, int posn) const;
+  DottedProduction *getDProd_nc(Production const *prod, int posn)
+    { return const_cast<DottedProduction*>(getDProd(prod, posn)); }
 
   // given a dprod, yield the one obtained by moving the dot one
   // place to the right

@@ -234,7 +234,7 @@ private:    // funcs
     { return ((unsigned)terminalId % 8); }
 
 public:     // funcs
-  TerminalSet(int numTerms);                   // allocate new set, initially empty
+  TerminalSet(int numTerms=0);                   // allocate new set, initially empty
   TerminalSet(TerminalSet const &obj);
   ~TerminalSet();
 
