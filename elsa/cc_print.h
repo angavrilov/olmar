@@ -14,7 +14,7 @@ string make_indentation(int n);
 string indent_message(int n, string s);
 
 class code_output_stream {
-  std::ostream *out;
+  ostream *out;
   stringBuilder *sb;
 
   // true, write to 'sb'; false, write to 'out'
@@ -26,7 +26,7 @@ class code_output_stream {
   int buffered_newlines;
 
 public:
-  code_output_stream(std::ostream &out)
+  code_output_stream(ostream &out)
     : out(&out), sb(NULL), using_sb(false), depth(0), buffered_newlines(0) {}
   code_output_stream(stringBuilder &sb)
     : out(NULL), sb(&sb), using_sb(true), depth(0), buffered_newlines(0) {
@@ -162,7 +162,7 @@ class codeout {
 };
 
 class twalk_output_stream {
-  std::ostream &out;
+  ostream &out;
 //    FILE *out
   bool on;
   int depth;
@@ -184,7 +184,7 @@ class twalk_output_stream {
   }
 
   public:
-  twalk_output_stream(std::ostream &out, bool on = true)
+  twalk_output_stream(ostream &out, bool on = true)
 //    twalk_output_stream(FILE *out, bool on = true)
     : out(out), on(on), depth(0) {}
 
