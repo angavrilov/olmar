@@ -2219,12 +2219,28 @@ Variable *Env::lookupVariable_set(LookupSet &candidates,
     Scope *s = iter.data();
     if ((flags & LF_SKIP_CLASSES) && s->isClassScope()) {
       continue;
+    }   
+    
+    if (s->isDelegated()) {
+      // though 's' appears physically here, it is searched in a different order
+      continue;
     }
 
+    // look in 's'
     Variable *v = s->lookupVariable_set(candidates, name, *this, flags);
     if (v) {
       foundScope = s;
       return v;
+    }
+
+    // is 's' connected to a delegated scope?
+    Scope *delegated = s->getDelegationPointer();
+    if (delegated) {
+      v = delegated->lookupVariable_set(candidates, name, *this, flags);
+      if (v) {
+        foundScope = s;     // not 'delegated'
+        return v;
+      }
     }
   }
   return NULL;    // not found

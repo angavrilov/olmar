@@ -75,10 +75,12 @@ bool Scope::isDelegated() const
 }
 
 
-bool Scope::hasDelegationPointer() const
+Scope *Scope::getDelegationPointer() const
 {
-  return curCompound &&
-         curCompound->parameterizingScope;
+  if (curCompound) {
+    return curCompound->parameterizingScope;
+  }
+  return NULL;
 }
 
 Scope *Scope::getAndNullifyDelegationPointer()
@@ -315,12 +317,6 @@ Variable *Scope::lookupPQVariable_set
   (LookupSet &candidates, PQName const *name,
    Env &env, LookupFlags flags)
 {
-  if (isDelegated()) {
-    // this is a scope for which lookup has been delegated to the
-    // parameterized entity, so do not respond to requests here
-    return NULL;
-  }
-
   return lookupPQVariable_inner(candidates, name, env, flags);
 }
 
@@ -377,15 +373,7 @@ Variable *Scope::lookupPQVariable_inner
   lookupPQVariable_considerBase(name, env, flags,
                                 v1, v1Subobj, &curCompound->subobj);
 
-  if (!v1) {
-    // not in any base class; delegate to parameterizingScope, if any
-    if (hasDelegationPointer()) {
-      // delegate, skipping its delegation check
-      return curCompound->parameterizingScope->
-        lookupPQVariable_inner(candidates, name, env, flags);
-    }
-  }
-  else {
+  if (v1) {
     candidates.addsIf(v1, flags);
   }
 

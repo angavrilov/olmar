@@ -22,15 +22,17 @@ My analysis is independent, however.
 
 
 There are four kinds of scope chaining mechanisms:
-  - syntactic nesting for the current scope (Env::scopes)
-  - syntactic nesting for non-current scopes (Scope::parentScope)
-  - namespace 'using' directives (Scope::usingEdges)
-  - base classes (CompoundType::bases)
+  1. syntactic nesting for the current scope (Env::scopes)
+  2. syntactic nesting for non-current scopes (Scope::parentScope)
+  3. namespace 'using' directives (Scope::usingEdges)
+  4. base classes (CompoundType::bases)
 
-Env is responsible for following the first two chains, for unqualified
-lookup.  Scope is responsible for following the next two.
-LF_INNER_ONLY currently disables following of *all* four chains,
-though I may have to refine that.
+Env is responsible for internally following chains 1 and 2; they are
+(only) used for unqualified lookup.  Scope is responsible for
+following chains 3 and 4; Env delegates to Scope as necessary.
+Consequently, using Scope::lookup disables use of chains 1 and 2.
+LF_IGNORE_USING disables chain 3.  LF_INNER_ONLY disables all four
+chains.  Currently, nothing disables chain 4 by itself.
 
 
 
@@ -38,7 +40,6 @@ though I may have to refine that.
 
 -----------------------------------------------------------
 How does name lookup for function all syntax (E_funCall) work?
-2005-02-18 03:55
 
 Note that context-specific name lookup only occurs if the 'func' is an
 E_variable or an E_fieldAcc.  Both contain a PQName, here called 'name'.
@@ -91,11 +92,37 @@ overload resolution as necessary.  It does these steps:
       deduction (using the 'eargs') to determine the remaining template
       parameters (14.8.2, 14.8.2.1).  If any incompatibility is found,
       or not all template arguments have been determined, remove the
-      candidate.  Otherwise, replace the candidate with its (fully 
+      candidate.  Otherwise, replace the candidate with its (fully
       concrete) instantiation Variable.
 
   * Use 'eargs' to do overload resolution (13.3) to select the best
     candidate from the refined candidate set.
+
+
+-------------------------------------------------------
+How does lookup within a Scope work?
+
+Lookup within a scope has input:
+  - StringRef name     : name of symbol to look up
+  - Env env            : for error reporting (if not LF_SUPPRESS_ERROR)
+  - LookupFlags flags  : lookup modifiers
+And has output:
+  - LookupSet &set     : set of entities referred to by 'name'
+  
+First, Scope::variables or Scope::typeTags is queried, depending
+on LF_QUERY_TAGS.  If this yields a hit, the resulting variable's
+overload set (if any) is expanded, and the results returned.
+
+Next, if this Scope is a namespace, the 'using' directive edges
+are considered, as per 7.3.4 and 3.4.3.2.
+
+Finally, if this Scope is a class, its base classes are searched
+according to 10.2.
+
+
+
+
+
 
 
 EOF

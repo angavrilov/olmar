@@ -212,7 +212,9 @@ public:      // funcs
   bool isDelegated() const;
 
   // true if this scope is CompoundType and delegates to another
-  bool hasDelegationPointer() const;
+  bool hasDelegationPointer() const
+    { return !!getDelegationPointer(); }
+  Scope *getDelegationPointer() const;
   Scope *getAndNullifyDelegationPointer();
   void setDelegationPointer(Scope *s);
 
