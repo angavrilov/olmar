@@ -1160,7 +1160,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // 8/09/04: moved this below 'makeNewCompound' so the params
     // aren't regarded as inherited
     if (env.scope()->isTemplateParamScope()) {
-      env.scope()->setParameterizedPrimary(ct->typedefVar);
+      env.scope()->setParameterizedPrimary(primary->typedefVar);
     }
 
     // dsw: need to register it at least, even if it isn't added to

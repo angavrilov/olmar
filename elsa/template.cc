@@ -246,6 +246,7 @@ TemplateThingKind TemplateInfo::getKind() const
     if (!isPartialInstantiation()) {
       xassert(arguments.isEmpty());
     }
+    xassert(hasMainOrInheritedParameters());
     return TTK_PRIMARY;
   }
 
