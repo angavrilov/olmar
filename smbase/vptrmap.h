@@ -1,15 +1,15 @@
 // vptrmap.h
 // map from void* to void*
-// based partly on hashtbl.h
+// interface based partly on hashtbl.h
 
 // Design considerations:
 //
 // Keys are pointers to objects.  They are likely to have the same
-// high bits (page) and low bits (alignment), and be distinguished
-// primarily by the bits in the middle.  No key is NULL.
+// high bits (page) and low bits (alignment), and thus be
+// distinguished primarily by the bits in the middle.  No key is NULL.
 //
-// Deletion is never done.  To delete some mappings you have to
-// rebuild the table.
+// Deletion of a single mapping is not supported.  To delete some
+// mappings you have to rebuild the table.
 //
 // No adversary is present; hash function is fixed in advance.
 
@@ -42,7 +42,7 @@ private:     // data
   int numEntries;
 
   // number of outstanding iterators; used to check that we don't
-  // modify the table while one is out (experimental)
+  // modify the table while one is active (experimental)
   int iterators;
 
 public:      // data
@@ -54,7 +54,7 @@ public:      // data
   static int probes;
 
 private:     // funcs
-  // 'bits' becomes tableSizeBits; alsoe set hashTable and tableSize
+  // 'bits' becomes tableSizeBits; also set hashTable and tableSize
   void alloc(int bits);
 
   // multiplicative hash function
@@ -62,7 +62,7 @@ private:     // funcs
 
   // return the first entry in key's probe sequence that has either
   // a NULL key or a key equal to 'key'
-  Entry &VoidPtrMap::findEntry(void *key) const;
+  Entry &findEntry(void *key) const;
 
   // make the table twice as big, and move all the entries into
   // that new table
@@ -71,6 +71,7 @@ private:     // funcs
   // not allowed
   VoidPtrMap(VoidPtrMap&);
   void operator=(VoidPtrMap&);
+  void operator==(VoidPtrMap&);
 
 public:      // funcs
   VoidPtrMap();              // empty map
