@@ -48,3 +48,7 @@ ex
 examples
 checkin
 multitest.tmp
+log
+multidelta.log
+tmp.i
+tmp.i.ok

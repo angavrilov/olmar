@@ -407,6 +407,7 @@ testparse t0203.cc
 testparse t0204.cc
 testparse t0205.cc
 testparse t0206.cc
+failparse t0207.cc "default type args to templates"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

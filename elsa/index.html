@@ -18,9 +18,7 @@ Elsa is a C and C++ parser.  It is based on the <a
 href="../elkhound/index.html">Elkhound</a> parser generator.  It lexes
 and parses input C/C++ code into an abstract syntax tree.  It does
 some type checking, in the interest of elaborating the meaning of
-constructs, but it does not (yet?) reject all invalid programs.  The
-only major C++ features still not implemented are namespaces and
-template partial specializations.
+constructs, but it does not (yet?) reject all invalid programs.
 
 <p>
 To download Elkhound and Elsa, see the
@@ -278,6 +276,12 @@ several variations obtained by un-commenting certain lines.
 
 <li><a href="regrtest">regrtest</a>:
 Regression tests.
+
+<li><a href="run-delta-loop">run-delta-loop</a>:
+Minimize <tt>tmp.i</tt> exhibiting some specified error message.
+
+<li><a href="test-for-error">test-for-error</a>:
+Test for exhibition of a particular error; used by run-delta-loop.
 
 <li><a href="test-parse">test-parse</a>:
 Script to parse a file, making sure the parse is unambiguous.
