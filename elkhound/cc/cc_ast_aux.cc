@@ -100,6 +100,9 @@ void IDeclarator::printExtras(ostream &os, int indent) const
 }
 
 
+//PQName const *D_name::getDeclaratorId
+
+
 // -------------------- PtrOperator --------------------
 string PtrOperator::toString() const
 {
