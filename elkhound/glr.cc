@@ -154,6 +154,10 @@
   #define TRSPARSE_DECL(stuff)
 #endif
 
+// these disable featurs of mini-LR for performance testing
+#define USE_ACTIONS 1
+#define USE_RECLASSIFY 1
+
 // can turn this on to experiment.. but right now it 
 // actually makes things slower.. (!)
 //#define USE_PARSER_INDEX
@@ -657,7 +661,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     )
 
     // token reclassification
-    #if 1     // reclassification enabled
+    #if USE_RECLASSIFY
       int classifiedType = userAct->reclassifyToken(currentToken->type,
                                                     currentToken->sval);
     #else     // this is what bccgr does
@@ -712,6 +716,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
           // pop off 'rhsLen' stack nodes, collecting as many semantic
           // values into 'toPass'
+          // NOTE: this loop is the innermost inner loop of the entire
+          // parser engine -- even *one* branch inside the loop body
+          // costs about 30% end-to-end performance loss!
           toPass.ensureIndexDoubler(rhsLen-1);
           for (int i=rhsLen-1; i>=0; i--) {
             // grab 'parser's only sibling link
@@ -724,7 +731,12 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
             // another action routine (avoiding that overhead is
             // another advantage to the LR mode).
             toPass[i] = sib.sval;
-            sib.sval = NULL;                  // link no longer owns the value
+
+            // not necessary:
+            //   sib.sval = NULL;                  // link no longer owns the value
+            // this assignment isn't necessary because the usual treatment
+            // of NULL is to ignore it, and I manually ignore *any* value
+            // in the inline-expanded code below
 
             // if it has a valid source location, grab it
             SOURCELOC(
@@ -747,13 +759,22 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
             // expand "parser->decRefCt();"           // deinit 'parser', dealloc 'sib'
             {
               parser->decrementAllocCounter();
-              
+
               // I previously had a test for "parser->firstSib.sval != NULL",
               // but that can't happen because I set it to NULL above!
               // (as the alias sib.sval)
+              // update: now I don't even set it to NULL because the code here
+              // has been changed to ignore *any* value
 
               // cancelled(1) effect: next->decRefCt();
               parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+
+              // possible optimization: I could eliminiate
+              // "firstSib.sib=NULL" if I consistently modified all
+              // creation of stack nodes to treat sib as a dead value:
+              // right after creation I would make sure the new
+              // sibling value *overwrites* sib, and no attempt is
+              // made to decrement a refct on the dead value
 
               stackNodePool.deallocNoDeinit(parser);
             }
@@ -769,7 +790,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
           // call the user's action function (TREEBUILD)
           SemanticValue sval =
-          #if 1    // user actions enabled
+          #if USE_ACTIONS
             userAct->doReductionAction(prodIndex, toPass.getArray()
                                        SOURCELOCARG( leftEdge ) );
           #else
