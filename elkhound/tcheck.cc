@@ -36,13 +36,21 @@ void TranslationUnit::tcheck(Env &env)
 
 
 // --------------------- TopForm ---------------------
-void TF_decl::tcheck(Env &env)
+void TopForm::tcheck(Env &env)
+{
+  env.pushLocation(&loc);
+  itcheck(env);
+  env.popLocation();
+}
+
+
+void TF_decl::itcheck(Env &env)
 {
   decl->tcheck(env);
 }
 
 
-void TF_func::tcheck(Env &env)
+void TF_func::itcheck(Env &env)
 {
   Type const *r = retspec->tcheck(env);
   Type const *f = nameParams->tcheck(env, r, dflags);
@@ -455,6 +463,8 @@ StringRef D_bitfield::getName() const
 // ----------------------- Statement ---------------------
 void Statement::tcheck(Env &env)
 {
+  env.pushLocation(&loc);
+
   // the default actions here are suitable for most kinds of
   // statements, but there are exceptions which require special
   // treatment, and that is elaborated below
@@ -467,6 +477,8 @@ void Statement::tcheck(Env &env)
 
   // do inner typecheck
   itcheck(env);
+  
+  env.popLocation();
 }
 
 

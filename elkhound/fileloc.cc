@@ -123,7 +123,12 @@ string SourceLocation::toString() const
 
 string SourceLocation::likeGccToString() const
 {
-  return stringc << fname() << ":" << line << ": (col " << col << ") ";
+  if (validLoc()) {
+    return stringc << fname() << ":" << line << ":" << col << ": ";
+  }
+  else {
+    return string("");
+  }
 }
 
 

@@ -31,8 +31,9 @@ class TranslationUnit (ASTList<TopForm> topForms) {
 }
 
 // a toplevel form
-class TopForm {
-  pure_virtual void tcheck(Env &env);
+class TopForm (SourceLocation loc) {
+  public void tcheck(Env &env);
+  pure_virtual void itcheck(Env &env);
   pure_virtual void vcgen(AEnv &env) const;
 
   -> TF_decl(Declaration decl);        // includes function prototypes

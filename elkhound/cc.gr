@@ -584,7 +584,7 @@ nonterm[Statement*] ForInitStatement {
 //} 
 
 nonterm[TopForm*] Declaration {
-  -> d:BlockDeclaration      [ return new TF_decl(d); ]
+  -> d:BlockDeclaration      [ return new TF_decl(loc, d); ]
   -> d:FunctionDefinition    [ return d; ]
   //-> TemplateDeclaration ;
   //-> d:LinkageSpecification ;
@@ -1144,7 +1144,7 @@ nonterm[TF_func*] FunctionDefinition {
   // return type      name/params   body
   -> r:DeclSpecifier  d:Declarator  b:FunctionBody
        [
-         TF_func *ret = new TF_func(r->dflags, r->spec, new Declarator(d, NULL), b);
+         TF_func *ret = new TF_func(loc, r->dflags, r->spec, new Declarator(d, NULL), b);
          r->spec = NULL;    // stole it above
          delete r;          // was just a carrier of dflags/spec
          return ret;

@@ -86,7 +86,7 @@ public:
   // "file %s, line %d, col %d"
   string toString() const;
                                  
-  // "<file>:<line>: (col <col>) "
+  // "<file>:<line>:<col>: ", or "" if no loc info
   string likeGccToString() const;
 };
 

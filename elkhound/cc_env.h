@@ -145,6 +145,9 @@ private:    // data
   // current function's return type
   Type const *currentRetType;
 
+  // stack of source locations considered 'current'
+  SObjStack<SourceLocation /*const*/> locationStack;
+
 public:     // data
   // true in predicate expressions
   bool inPredicate;
@@ -239,6 +242,10 @@ public:     // funcs
   Type const *getCurrentRetType()       { return currentRetType; }
 
   bool isGlobalEnv() const              { return scopes.count() <= 1; }
+
+  void pushLocation(SourceLocation const *loc);
+  void popLocation()                    { locationStack.pop(); }
+  SourceLocation currentLoc() const;
 
 
   // --------------- type construction -----------------

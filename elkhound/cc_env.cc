@@ -225,6 +225,7 @@ Env::Env(StringTable &table)
     warnings(0),
     compoundStack(),
     currentRetType(NULL),
+    locationStack(),
     inPredicate(false),
     strTable(table)
 {
@@ -642,14 +643,16 @@ Type const *Env::promoteTypes(BinaryOp op, Type const *t1, Type const *t2)
 // --------------------- error/warning reporting ------------------
 void Env::err(char const *str)
 {
-  cout << "error: " << str << endl;
+  cout << currentLoc().likeGccToString()
+       << "error: " << str << endl;
   errors++;
 }
 
 
 void Env::warn(char const *str)
 {
-  cout << "warning: " << str << endl;
+  cout << currentLoc().likeGccToString() 
+       << "warning: " << str << endl;
   warnings++;
 }
 
@@ -665,6 +668,24 @@ void Env::errIf(bool condition, char const *str)
 {
   if (condition) {
     errThrow(str);
+  }
+}
+
+
+// ------------------- translation context -------------------
+void Env::pushLocation(SourceLocation const *loc)
+{ 
+  locationStack.push(const_cast<SourceLocation*>(loc));
+}
+
+
+SourceLocation Env::currentLoc() const
+{
+  if (locationStack.isEmpty()) {
+    return SourceLocation();      // no loc info
+  }
+  else {
+    return *(locationStack.topC());
   }
 }
 
