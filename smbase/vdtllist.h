@@ -46,7 +46,7 @@ public:
   VoidList::isNotEmpty;
   VoidList::nth;
   VoidList::first;
-  void *last() const                 { xassert(tail); return tail; }
+  void *last() const                 { xassert(tail); return tail->data; }
 
   // insertion
   void prepend(void *newitem);
