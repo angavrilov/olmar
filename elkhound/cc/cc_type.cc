@@ -749,6 +749,30 @@ bool Type::isCDtorFunction() const
 }
 
 
+bool typeIsError(Type const *t)
+{
+  return t->isError();
+}
+
+bool Type::containsErrors() const
+{
+  return anyCtorSatisfies(typeIsError);
+}
+
+
+bool typeHasTypeVariable(Type const *t)
+{
+  return t->isTypeVariable() ||
+         (t->ifCompoundType() &&
+          t->ifCompoundType()->isTemplate());
+}
+
+bool Type::containsTypeVariables() const
+{
+  return anyCtorSatisfies(typeHasTypeVariable);
+}
+
+
 // ----------------- CVAtomicType ----------------
 CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
   CVAtomicType(&SimpleType::fixed[ST_CHAR],               CV_NONE),
@@ -826,9 +850,9 @@ int CVAtomicType::reprSize() const
 }
 
 
-bool CVAtomicType::containsErrors() const
+bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 {
-  return isError();    // i.e. is SimpleType(ST_ERROR)
+  return pred(this);
 }
 
 
@@ -893,9 +917,10 @@ int PointerType::reprSize() const
 }
 
 
-bool PointerType::containsErrors() const
+bool PointerType::anyCtorSatisfies(TypePred pred) const
 {
-  return atType->containsErrors();
+  return pred(this) ||
+         atType->anyCtorSatisfies(pred);
 }
 
 
@@ -906,10 +931,10 @@ FunctionType::ExnSpec::~ExnSpec()
 }
 
 
-bool FunctionType::ExnSpec::containsErrors() const
+bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 {
   SFOREACH_OBJLIST(Type const, types, iter) {
-    if (iter.data()->containsErrors()) {
+    if (iter.data()->anyCtorSatisfies(pred)) {
       return true;
     }
   }
@@ -1132,24 +1157,26 @@ int FunctionType::reprSize() const
 }
 
 
-bool parameterListContainsErrors(ObjList<Parameter> const &params)
+bool parameterListCtorSatisfies(Type::TypePred pred, 
+                                ObjList<Parameter> const &params)
 {
   FOREACH_OBJLIST(Parameter, params, iter) {
-    if (iter.data()->type->containsErrors()) {
+    if (iter.data()->type->anyCtorSatisfies(pred)) {
       return true;
     }
   }
   return false;
 }
 
-
-bool FunctionType::containsErrors() const
+bool FunctionType::anyCtorSatisfies(TypePred pred) const
 {
-  return retType->containsErrors() ||
-         parameterListContainsErrors(params) ||
-         (exnSpec && exnSpec->containsErrors()) ||
-         (templateParams && templateParams->containsErrors());
+  return pred(this) ||
+         retType->anyCtorSatisfies(pred) ||
+         parameterListCtorSatisfies(pred, params) ||
+         (exnSpec && exnSpec->anyCtorSatisfies(pred)) ||
+         (templateParams && templateParams->anyCtorSatisfies(pred));
 }
+
 
 
 // -------------------- Parameter -----------------
@@ -1205,9 +1232,9 @@ bool TemplateParams::equalTypes(TemplateParams const *obj) const
 }
 
 
-bool TemplateParams::containsErrors() const
+bool TemplateParams::anyCtorSatisfies(Type::TypePred pred) const
 {
-  return parameterListContainsErrors(params);
+  return parameterListCtorSatisfies(pred, params);
 }
 
 
@@ -1302,9 +1329,10 @@ int ArrayType::reprSize() const
 }
 
 
-bool ArrayType::containsErrors() const
+bool ArrayType::anyCtorSatisfies(TypePred pred) const
 {
-  return eltType->containsErrors();
+  return pred(this) ||
+         eltType->anyCtorSatisfies(pred);
 }
 
 

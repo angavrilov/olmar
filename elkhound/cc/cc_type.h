@@ -230,6 +230,7 @@ public:     // funcs
 class Type {
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
+  typedef bool (*TypePred)(Type const *t);
 
 private:    // funcs
   string idComment() const;
@@ -273,10 +274,9 @@ public:     // funcs
   // size of representation
   virtual int reprSize() const = 0;
 
-  // this is true if any of the type *constructors* on this type
-  // refer to ST_ERROR; we don't dig down inside e.g. members of
-  // referred-to classes
-  virtual bool containsErrors() const=0;
+  // filter on all type constructors (i.e. non-atomic types); return
+  // true if any constructor satisfies 'pred'
+  virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
   // some common queries
   bool isSimpleType() const;
@@ -288,7 +288,7 @@ public:     // funcs
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
-  bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
+  //bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
   bool isOwnerPtr() const;
 
@@ -306,6 +306,14 @@ public:     // funcs
   bool isTemplateClass() const;
 
   bool isCDtorFunction() const;
+
+  // this is true if any of the type *constructors* on this type
+  // refer to ST_ERROR; we don't dig down inside e.g. members of
+  // referred-to classes
+  bool containsErrors() const;
+
+  // similar for TypeVariable
+  bool containsTypeVariables() const;
 
   ALLOC_STATS_DECLARE
 };
@@ -337,7 +345,7 @@ public:     // funcs
   virtual string leftString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
-  virtual bool containsErrors() const;
+  virtual bool anyCtorSatisfies(TypePred pred) const;
 };
 
 
@@ -366,7 +374,7 @@ public:
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
-  virtual bool containsErrors() const;
+  virtual bool anyCtorSatisfies(TypePred pred) const;
 };
 
 
@@ -382,7 +390,7 @@ public:     // types
     ExnSpec() {}
     ~ExnSpec();
     
-    bool containsErrors() const;
+    bool anyCtorSatisfies(Type::TypePred pred) const;
   };
 
 public:     // data
@@ -414,7 +422,7 @@ public:     // funcs
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
-  virtual bool containsErrors() const;
+  virtual bool anyCtorSatisfies(TypePred pred) const;
 };
 
 
@@ -457,7 +465,7 @@ public:
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
-  virtual bool containsErrors() const;
+  virtual bool anyCtorSatisfies(TypePred pred) const;
 };
 
 
@@ -486,7 +494,7 @@ public:
 
   string toString() const;
   bool equalTypes(TemplateParams const *obj) const;
-  bool containsErrors() const;
+  bool anyCtorSatisfies(Type::TypePred pred) const;
 };
 
 

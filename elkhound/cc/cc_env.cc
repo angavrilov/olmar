@@ -357,14 +357,15 @@ Variable *Env::lookupPQVariable(PQName const *name)
     else if (var->type->isTemplateClass() &&
              var->hasFlag(DF_TYPEDEF)) {
       // ok; a typedef referring to a template class
-      
+      #if 0    // disabling template instantiation for now..
       // instantiate it
       CompoundType *instantiatedCt
         = instantiateClass(var->type->ifCompoundType(),
                            name->getUnqualifiedName()->asPQ_templateC()->args);
-                           
+
       // get the typedef variable for it
       var = instantiatedCt->typedefVar;
+      #endif // 0
     }
     else {
       // I'm not sure if I really need to make this disambiguating
@@ -639,7 +640,8 @@ Type const *Env::unimp(char const *msg)
 
 Type const *Env::error(Type const *t, char const *msg)
 {
-  if (t->shouldSuppressClashes()) {
+  if (t->containsErrors() ||
+      t->containsTypeVariables()) {   // hack until template stuff fully working
     // no report
     return getSimpleType(ST_ERROR);
   }

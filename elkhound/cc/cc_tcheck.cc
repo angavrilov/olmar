@@ -1037,6 +1037,22 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
 }
 
 
+// make sure a given ctor name matches the class it's in
+bool ctorNameMatches(char const *ctorName, char const *className)
+{
+  // is 'className' an instiated template name?
+  char const *angle = strchr(className, '<');
+  if (angle) {
+    // yes, compare only up to that character
+    return string(className, angle-className).equals(ctorName);
+  }
+  else {
+    // regular string comparison
+    return 0==strcmp(className, ctorName);
+  }
+}
+
+
 // This function is perhaps the most complicated in this entire
 // module.  It has the responsibility of adding a variable called
 // 'name', with type 'spec', to the environment.  But to do this it
@@ -1133,9 +1149,9 @@ realStart:
 
     // can't rely on string table for comparison because 'className'
     // might be pointing into the middle of one the table's strings
-    if (0!=strcmp(ct->name, className)) {
+    if (!ctorNameMatches(className, ct->name)) {
       env.error(stringc
-        << fnKind << " `" << *name << "' not match the name `"
+        << fnKind << " `" << *name << "' does not match the name `"
         << ct->name << "', the class in whose scope it appears",
         true /*disambiguates*/);
       goto makeDummyVar;
@@ -1276,7 +1292,13 @@ realStart:
     // check for violation of the One Definition Rule
     if (prior->hasFlag(DF_DEFINITION) &&
         (dt.dflags & DF_DEFINITION)) {
-      env.error(stringc
+      // HACK: if the type refers to type variables, then let it slide
+      // because it might be Foo<int> vs. Foo<float> but my simple-
+      // minded template implementation doesn't know they're different
+      //
+      // actually, I just added TypeVariables to 'Type::containsErrors',
+      // so the error message will be suppressed automatically
+      env.error(prior->type, stringc
         << "duplicate definition for `" << *name 
         << "' of type `" << prior->type->toString()
         << "'; previous at " << prior->loc.toString());
