@@ -16,8 +16,6 @@
 #include "ast_build.h"         // makeExprList1, etc.
 #include "trace.h"             // TRACE
 
-#include <stdio.h>             // printf
-
 
 // ---------------------- FullExpressionAnnot ---------------------
 FullExpressionAnnot::FullExpressionAnnot()
@@ -1421,7 +1419,13 @@ void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
 {
   xassert(ct);                  // can't be a stand-alone function
 
-  xassert(!func->dtorStatement); // ensure idempotency
+  if (func->dtorStatement) { 
+    // sm: previously, cc_tcheck.cc would only call this function
+    // when 'dtorStatement' was NULL; but I don't want cc_tcheck.cc
+    // to depend on cc_elaborate.ast, so I will just test in here
+    // and call the function unconditionally
+    return;
+  }
 
   // We add to the statements in *forward* order, unlike when adding
   // to MemberInitializers, but since this is a dtor, not a ctor, we
@@ -1459,6 +1463,13 @@ void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
   // above.  From looking at the data structures, it seems that it
   // shouldn't matter.
   func->dtorStatement = new S_compound(env.loc(), dtorStatements);
+  
+  // sm: I moved this 'tcheck' call from the (only) call site in cc_tcheck.cc
+  // down here, to remove a dependency of cc_tcheck.cc on cc_elaborate.ast
+  func->dtorStatement->tcheck(env);
+//      cout << "**** elaborated dtor" << endl;
+//      func->debugPrint(cout, 0);
+//      cout << "**** elaborated dtor done" << endl;
 }
 
 MR_func *makeDtorBody(Env &env, CompoundType *ct)

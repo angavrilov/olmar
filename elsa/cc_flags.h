@@ -92,7 +92,7 @@ enum DeclFlags {
   DF_BUILTIN     = 0x00002000,    // true for e.g. __builtin_constant_p -- don't emit later
   DF_LOGIC       = 0x00004000,    // true for logic variables
   DF_ADDRTAKEN   = 0x00008000,    // true if it's address has been (or can be) taken
-  DF_PARAMETER   = 0x00010000,    // true if this is a function parameter
+  DF_PARAMETER   = 0x00010000,    // true if this is a function parameter or a handler "parameter"
   DF_UNIVERSAL   = 0x00020000,    // (requires DF_LOGIC) universally-quantified variable
   DF_EXISTENTIAL = 0x00040000,    // (requires DF_LOGIC) existentially-quantified
   DF_MEMBER      = 0x00080000,    // true for members of classes (data, static data, functions)

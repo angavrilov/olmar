@@ -64,8 +64,20 @@ class ClassTemplateInfo;
 class TypeFactory;
 class BasicTypeFactory;
 
-#ifndef USE_TYPE_SERIAL_NUMBERS    
-  // default to off; can turn on via ./configure
+
+#ifndef USE_TYPE_SERIAL_NUMBERS
+  // The idea here is that it's sometimes difficult during debugging
+  // to keep track of the various Type objects floating around, and
+  // virtual addresses are not so stable.  So, by turning on
+  // USE_TYPE_SERIAL_NUMBERS, every Type object will get a unique
+  // serial number, and (some of) the print routines will print the
+  // number.  Normally this should be off since it uses memory and
+  // makes the printouts ugly.
+  //
+  // NOTE: Currently, the environment variable "PRINT_TYPE_SERIAL_NUMBER"
+  // must be set for the printouts to include the serial numbers.
+  //
+  // default to off; can turn on via "./configure -useTypeSerialNumbers"
   #define USE_TYPE_SERIAL_NUMBERS 0
 #endif
 
@@ -401,11 +413,10 @@ public:     // data
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
   //typedef bool (*TypePred)(Type const *t);
                   
-  #if USE_TYPE_SERIAL_NUMBERS
-  // for debugging
-  static int globalSerialNumber;
-  int serialNumber;
-  #endif // USE_TYPE_SERIAL_NUMBERS
+#if USE_TYPE_SERIAL_NUMBERS
+  static int globalSerialNumber;       // global counter to ensure uniqueness
+  int serialNumber;                    // this object's serial number
+#endif // USE_TYPE_SERIAL_NUMBERS
 
 private:    // disallowed
   BaseType(BaseType&);

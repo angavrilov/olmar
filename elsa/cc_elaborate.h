@@ -6,7 +6,6 @@
 
 // NOTE: can't just #include cc.ast, b/c cc.ast #includes this
 
-#include "sobjlist.h"     // SObjList
 #include "astlist.h"      // ASTList
 #include "fakelist.h"     // FakeList
 

@@ -25,7 +25,6 @@
 #include "macros.h"         // Restorer
 
 #include <stdlib.h>         // strtoul, strtod
-#include <stdio.h>          // printf
 
 // D(): debug code
 #ifdef NDEBUG
@@ -306,9 +305,12 @@ void Function::tcheck(Env &env, bool checkBody)
     xassert(inClass);
     SourceLoc loc = nameAndParams->var->loc;
     Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, CV_NONE, NULL /*syntax*/);
+    
+    // store in the AST; should not already have something there
     xassert(!ctorThisLocalVar);
     ctorThisLocalVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
-    xassert(ctorThisLocalVar->type->isPointerType());
+
+    xassert(ctorThisLocalVar->type->isPointerType());   // paranoia
     env.addVariable(ctorThisLocalVar);
   }
 
@@ -340,14 +342,8 @@ void Function::tcheck(Env &env, bool checkBody)
 
   // if it is a dtor, add the calls to the superclass and member dtors
   // at the end of the body
-  if (funcType->isDestructor() &&
-      !dtorStatement) {
-    // FIX: turn this back on
+  if (env.doElaboration && funcType->isDestructor()) {
     completeDtorCalls(env, this, inClass);
-    dtorStatement->tcheck(env);
-//      cout << "**** elaborated dtor" << endl;
-//      this->debugPrint(cout, 0);
-//      cout << "**** elaborated dtor done" << endl;
   }
 
   // check the body in the new scope as well
@@ -1968,6 +1964,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
 //      printf("var->name: %s\n", var->name);
 //      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
+
     // find the next variable up the hierarchy
     FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
       // FIX: Should I skip it for private inheritance?  Hmm,
