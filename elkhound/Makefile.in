@@ -485,7 +485,7 @@ CLEAN_PATTERNS := \
 clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr gramlex.yy.cc gramlex cyctimer
-	rm -f grampar.tab.* grampar
+	rm -f grampar.tab.* grampar tlexer
 	rm -f libelkhound.a
 	rm -f grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
