@@ -5,6 +5,8 @@
 # in each of the subdirs; users can then go customize
 # as desired
 
+# (tweak to test cvs commit)
+
 # bail on error
 set -e
 
