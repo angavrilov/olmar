@@ -237,6 +237,9 @@ public:
   // fill the array's internal storage
   void setLength(int L) { len = L; }
 
+  // consolidate allocated space to match length
+  void consolidate() { setSize(length()); }
+
   // swap
   void swapWith(ArrayStack<T> &obj) {
     GrowArray<T>::swapWith(obj);
@@ -298,6 +301,9 @@ public:     // funcs
 
   void deleteTopSeveral(int ct);
   void deleteAll()           { deleteTopSeveral(length()); }
+  
+  // will not delete any items
+  void consolidate()         { arr.consolidate(); }
 };
 
 
