@@ -291,29 +291,6 @@ bool TemplateInfo::isInstOfPartialSpec() const
 }
 
 
-#if 0
-StringRef TemplateInfo::getBaseName() const
-{
-  if (var && var->type->isCompoundType()) {
-    return var->type->asCompoundType()->name;
-  }
-  else {
-    return NULL;     // function template (or 'var' not set yet)
-  }
-}
-
-
-void TemplateInfo::setMyPrimary(TemplateInfo *prim)
-{
-  xassert(prim);                // argument must be non-NULL
-  xassert(prim->isPrimary());   // myPrimary can only be a primary
-  xassert(!myPrimary);          // can only do this once
-  xassert(isNotPrimary());      // can't set myPrimary of a primary
-  myPrimary = prim;
-}
-#endif // 0
-
-
 // this is idempotent
 TemplateInfo const *TemplateInfo::getPrimaryC() const
 {
@@ -374,77 +351,6 @@ ObjList<STemplateArgument> &TemplateInfo::getArgumentsToPrimary()
     return arguments;
   }
 }
-
-
-#if 0
-Variable *TemplateInfo::addInstantiation(TypeFactory &tfac, Variable *inst0,
-                                         bool suppressDup)
-{
-  xassert(inst0);
-  xassert(inst0->templateInfo());
-  inst0->templateInfo()->setMyPrimary(this);
-  // check that we don't match something that is already on the list
-  // FIX: I suppose we should turn this off since it makes it quadratic
-
-  // FIX: could do this if we had an Env
-//    xassert(!getInstThatMatchesArgs(env, inst->templateInfo()->arguments));
-
-  bool inst0IsMutant = inst0->templateInfo()->isMutant();
-  SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
-    Variable *inst1 = iter.data();
-    MatchTypes match(tfac, MatchTypes::MM_ISO);
-    bool unifies = match.match_Lists
-      (inst1->templateInfo()->arguments,
-       inst0->templateInfo()->arguments,
-       2 /*matchDepth*/);
-    if (unifies) {
-      if (inst0IsMutant) {
-        xassert(inst1->templateInfo()->isMutant());
-        // Note: Never remove duplicate mutants; isomorphic mutants
-        // are not interchangable.
-      } else {
-        xassert(!inst1->templateInfo()->isMutant());
-        // other, non-mutant instantiations should never be duplicated
-        //        xassert(!unifies);
-        xassert(suppressDup);
-        return inst1;
-      }
-    }
-  }
-
-  instantiations.append(inst0);
-  return inst0;
-}
-
-
-SObjList<Variable> &TemplateInfo::getInstantiations()
-{
-  return instantiations;
-}
-
-
-Variable *TemplateInfo::getInstantiationOfVar(TypeFactory &tfac, Variable *var)
-{
-  xassert(var->templateInfo());
-  ObjList<STemplateArgument> &varTArgs = var->templateInfo()->arguments;
-  Variable *matchingVar = NULL;
-  SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
-    Variable *candidate = iter.data();
-    MatchTypes match(tfac, MatchTypes::MM_ISO);
-    // FIX: I use MT_NONE only because the matching is supposed to be
-    // exact.  If you wanted the standard effect of const/volatile not
-    // making a difference at the top of a parameter type, you would
-    // have to match each parameter separately
-    if (!match.match_Type(var->type, candidate->type, 2 /*matchDepth*/)) continue;
-    if (!match.match_Lists(varTArgs, candidate->templateInfo()->arguments, 2 /*matchDepth*/)) {
-      continue;
-    }
-    xassert(!matchingVar);      // shouldn't be in there twice
-    matchingVar = iter.data();
-  }
-  return matchingVar;
-}
-#endif // 0
 
 
 bool equalArgumentLists(TypeFactory &tfac,
@@ -1018,88 +924,6 @@ Env::TemplTcheckMode Env::getTemplTcheckMode() const
 }
 
 
-#if 0   // not needed
-// FIX: this lookup doesn't do very well for overloaded function
-// templates where one primary is more specific than the other; the
-// more specific one matches both itself and the less specific one,
-// and this gets called ambiguous
-Variable *Env::lookupPQVariable_primary_resolve(
-  PQName const *name, LookupFlags flags, FunctionType *signature,
-  MatchTypes::MatchMode matchMode)
-{
-  // only makes sense in one context; will push this spec around later
-  xassert(flags & LF_TEMPL_PRIMARY);
-
-  // first, call the version that does *not* do overload selection
-  Variable *var = lookupPQVariable(name, flags);
-
-  if (!var) return NULL;
-  OverloadSet *oloadSet = var->getOverloadSet();
-  if (oloadSet->count() > 1) {
-    xassert(var->type->isFunctionType()); // only makes sense for function types
-    // FIX: Somehow I think this isn't right
-    var = findTemplPrimaryForSignature(oloadSet, signature, matchMode);
-    if (!var) {
-      // FIX: sometimes I just want to know if there is one; not sure
-      // this is always an error.
-//        error("function template specialization does not match "
-//              "any primary in the overload set");
-      return NULL;
-    }
-  }
-  return var;
-}
-#endif // 0
-
-
-Variable *Env::findTemplPrimaryForSignature
-  (OverloadSet *oloadSet,
-   FunctionType *signature,
-   MatchTypes::MatchMode matchMode)
-{
-  if (!signature) {
-    xfailure("This is one more place where you need to add a signature "
-             "to the call to Env::lookupPQVariable() to deal with function "
-             "template overload resolution");
-    return NULL;
-  }
-
-  Variable *candidatePrim = NULL;
-  SFOREACH_OBJLIST_NC(Variable, oloadSet->set, iter) {
-    Variable *var0 = iter.data();
-    // skip non-template members of the overload set
-    if (!var0->isTemplate()) continue;
-
-    TemplateInfo *tinfo = var0->templateInfo();
-    xassert(tinfo);
-    xassert(tinfo->isPrimary()); // can only have primaries at the top level
-
-    // check that the function type could be a special case of the
-    // template primary
-    //
-    // FIX: I don't know if this is really as precise a lookup as is
-    // possible.
-    MatchTypes match(tfac, matchMode);
-    if (match.match_Type
-        (signature,
-         var0->type
-         // FIX: I don't know if this should be top or not or if it
-         // matters.
-         )) {
-      if (candidatePrim) {
-        error("ambiguous attempt to lookup "
-              "overloaded function template primary from specialization",
-              EF_STRONG);
-        return candidatePrim;            // error recovery
-      } else {
-        candidatePrim = var0;
-      }
-    }
-  }
-  return candidatePrim;
-}
-
-
 void Env::initArgumentsFromASTTemplArgs
   (TemplateInfo *tinfo,
    ASTList<TemplateArgument> const &templateArgs)
@@ -1112,53 +936,6 @@ void Env::initArgumentsFromASTTemplArgs
     tinfo->arguments.append(new STemplateArgument(targ->sarg));
   }
 }
-
-
-bool Env::checkIsoToASTTemplArgs
-  (ObjList<STemplateArgument> &templateArgs0,
-   ASTList<TemplateArgument> const &templateArgs1)
-{
-  MatchTypes match(tfac, MatchTypes::MM_ISO);
-  ObjListIterNC<STemplateArgument> iter0(templateArgs0);
-  FOREACH_ASTLIST(TemplateArgument, templateArgs1, iter1) {
-    if (iter0.isDone()) return false;
-    TemplateArgument const *targ = iter1.data();
-    xassert(targ->sarg.hasValue());
-    STemplateArgument sta(targ->sarg);
-    if (!match.match_STA(iter0.data(), &sta, 2 /*matchDepth*/)) return false;
-    iter0.adv();
-  }
-  return iter0.isDone();
-}
-
-
-#if 0    // borked
-Variable *Env::getInstThatMatchesArgs
-  (TemplateInfo *tinfo, SObjList<STemplateArgument> &arguments, Type *type0)
-{
-  Variable *prevInst = NULL;
-  SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
-    Variable *instantiation = iter.data();
-    if (type0 && !instantiation->getType()->equals(type0)) continue;
-    MatchTypes match(tfac, MatchTypes::MM_ISO);
-    bool unifies = match.match_Lists
-      (instantiation->templateInfo()->arguments, arguments, 2 /*matchDepth*/);
-    if (unifies) {
-      if (instantiation->templateInfo()->isMutant() &&
-          prevInst->templateInfo()->isMutant()) {
-        // if one mutant matches, more may, so just use the first one
-        continue;
-      }
-      // any other combination of double matching is an error; that
-      // is, I don't think you can get a non-mutant instance in more
-      // than once
-      xassert(!prevInst);
-      prevInst = instantiation;
-    }
-  }
-  return prevInst;
-}
-#endif // 0
 
 
 bool Env::loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
@@ -1340,16 +1117,6 @@ bool Env::getFuncTemplArgs
     return false;
   }
 
-  #if 0     // wrong place for this
-  // a partial instantiation provides some of the template arguments
-  // on its own, before matching provides the rest
-  ObjListIter<STemplateArgument> piArgIter(varTI->arguments);
-  if (varTI->isPartialInstantiation()) {
-    // and the parameters are found in the original
-    varTI = varTI->partialInstantiationOf->templateInfo();
-  }
-  #endif // 0
-
   // put the bindings in a list in the right order
   bool haveAllArgs = true;
 
@@ -1381,17 +1148,6 @@ void Env::getFuncTemplArgs_oneParamList
 {
   SFOREACH_OBJLIST(Variable, paramList, templPIter) {
     Variable const *param = templPIter.data();
-
-    #if 0     // wrong place
-    if (!piArgIter.isDone()) {
-      // the partial instantiation provides this argument
-      sargs.append(piArgIter.data()->shallowClone());
-      TRACE("template", "partial inst provided arg " << piArgIter.data()->toString() <<
-                        " for param " << param->name);
-      piArgIter.adv();
-      continue;
-    }
-    #endif // 0
 
     STemplateArgument const *sta = NULL;
     if (param->type->isTypeVariable()) {
@@ -1496,23 +1252,6 @@ Variable *Env::lookupPQVariable_applyArgs(
   // so we omit them here
   return instantiateFunctionTemplate(loc(), primary, sargs);
 }
-
-
-#if 0
-static bool doesUnificationRequireBindings
-  (TypeFactory &tfac,
-   SObjList<STemplateArgument> &sargs,
-   ObjList<STemplateArgument> &arguments)
-{
-  // re-unify and check that no bindings get added
-  MatchTypes match(tfac, MatchTypes::MM_BIND);
-  bool unifies = match.match_Lists(sargs, arguments, 2 /*matchDepth*/);
-  xassert(unifies);             // should of course still unify
-  // bindings should be trivial for a complete specialization
-  // or instantiation
-  return !match.bindings.isEmpty();
-}    
-#endif // 0
 
 
 // insert bindings into SK_TEMPLATE_ARG scopes, from template
@@ -1797,41 +1536,6 @@ void Env::mapPrimaryArgsToSpecArgs_oneParamList(
 }
 
 
-#if 0
-void Env::insertBindings(Variable *baseV, SObjList<STemplateArgument> &sargs)
-{
-  if (baseV->templateInfo()->isPartialSpec()) {
-    // unify again to compute the bindings again since we forgot
-    // them already
-    MatchTypes match(tfac, MatchTypes::MM_BIND);
-    SObjList<STemplateArgument> partialSpecArgs;   // pointers into 'match.bindings'
-
-    // map the arguments to what the primary can use
-    mapPrimaryArgsToSpecArgs(baseV, match, partialSpecArgs, sargs);
-
-    // use them
-    insertTemplateArgBindings(baseV, partialSpecArgs);
-  }
-  else {
-    xassert(baseV->templateInfo()->isPrimary());
-    insertTemplateArgBindings(baseV, sargs);
-  }
-
-  // having inserted these bindings, turn off name acceptance to simulate
-  // the behavior of TemplateDeclaration::tcheck
-  Scope *s = scope();
-  xassert(s->scopeKind == SK_TEMPLATE_ARGS);
-  s->canAcceptNames = false;
-}
-
-void Env::insertBindings(Variable *baseV, ObjList<STemplateArgument> &sargs)
-{
-  // little hack...
-  insertBindings(baseV, objToSObjList(sargs));
-}
-#endif // 0
-
-
 // go over the list of arguments, and make a list of semantic
 // arguments
 bool Env::templArgsASTtoSTA
@@ -1861,20 +1565,6 @@ bool Env::templArgsASTtoSTA
   
   return true;
 }
-
-
-#if 0
-Variable *Env::instantiateTemplate_astArgs
-  (SourceLoc loc, Scope *foundScope,
-   Variable *baseV, Variable *instV,
-   ASTList<TemplateArgument> const &astArgs)
-{
-  SObjList<STemplateArgument> sargs;
-  templArgsASTtoSTA(astArgs, sargs);
-  #error check return value
-  return instantiateTemplate(loc, foundScope, baseV, instV, NULL /*bestV*/, sargs);
-}    
-#endif // 0
 
 
 // TODO: can this be removed?  what goes wrong if we use MM_BIND
@@ -2069,6 +1759,208 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 }
 
 
+// --------------- function template instantiation ------------
+// Get or create an instantiation Variable for a function template.
+// Note that this does *not* instantiate the function body; instead,
+// instantiateFunctionBody() has that responsibility.
+Variable *Env::instantiateFunctionTemplate
+  (SourceLoc loc,                              // location of instantiation request
+   Variable *primary,                          // template primary to instantiate
+   SObjList<STemplateArgument> const &sargs)   // arguments to apply to 'primary'
+{
+  TemplateInfo *primaryTI = primary->templateInfo();
+  xassert(primaryTI->isPrimary());
+
+  // look for a (complete) specialization that matches
+  Variable *spec = findCompleteSpecialization(primaryTI, sargs);
+  if (spec) {
+    return spec;      // use it
+  }
+
+  // look for an existing instantiation that has the right arguments
+  Variable *inst = findInstantiation(primaryTI, sargs);
+  if (inst) {
+    return inst;      // found it; that's all we need
+  }
+
+  // since we didn't find an existing instantiation, we have to make
+  // one from scratch
+  TRACE("template", "instantiating func decl: " <<
+                    primary->fullyQualifiedName() << sargsToString(sargs));
+
+  // I don't need this, right?
+  // isolate context
+  //InstantiationContextIsolator isolator(*this, loc);
+
+  // bind the parameters in an STemplateArgumentMap
+  STemplateArgumentCMap map;
+  bindParametersInMap(map, primaryTI, sargs);
+
+  // compute the type of the instantiation by applying 'map' to
+  // the templatized type
+  Type *instType = applyArgumentMapToType(map, primary->type);
+
+  // create the representative Variable
+  inst = makeInstantiationVariable(primary, instType);
+
+  // TODO: fold the following three activities into
+  // 'makeInstantiationVariable'
+
+  // annotate it with information about its templateness
+  TemplateInfo *instTI = new TemplateInfo(loc, inst);
+  instTI->copyArguments(sargs);
+
+  // insert into the instantiation list of the primary
+  primaryTI->addInstantiation(inst);
+
+  // this is an instantiation
+  xassert(instTI->isInstantiation());
+
+  return inst;
+}
+
+Variable *Env::instantiateFunctionTemplate
+  (SourceLoc loc,
+   Variable *primary,
+   ObjList<STemplateArgument> const &sargs)
+{
+  return instantiateFunctionTemplate(loc, primary,
+    objToSObjListC(sargs));
+}
+
+
+void Env::ensureFuncBodyTChecked(Variable *instV)
+{
+  if (!instV) {
+    return;      // error recovery
+  }
+  if (!instV->type->isFunctionType()) {
+    // I'm not sure what circumstances can cause this, but it used
+    // to be that all call sites to this function were guarded by
+    // this 'isFunctionType' check, so I pushed it inside
+    return;
+  }
+
+  TemplateInfo *instTI = instV->templateInfo();
+  if (!instTI) {
+    // not a template instantiation
+    return;
+  }
+  if (!instTI->isCompleteSpecOrInstantiation()) {
+    // not an instantiation; this might be because we're in
+    // the middle of tchecking a template definition, so we
+    // just used a function template primary sort of like
+    // a PseudoInstantiation; skip checking it
+    return;
+  }
+  if (instTI->instantiateBody) {
+    // we've already seen this request, so either the function has
+    // already been instantiated, or else we haven't seen the
+    // definition yet so there's nothing we can do
+    return;
+  }
+
+  // acknowledge the request
+  instTI->instantiateBody = true;
+
+  // what template am I an instance of?
+  Variable *baseV = instTI->instantiationOf;
+  if (!baseV) {
+    // This happens for explicit complete specializations.  It's
+    // not clear whether such things should have templateInfos
+    // at all, but there seems little harm, so I'll just bail in
+    // that case
+    return;
+  }
+
+  // have we seen a definition of it?
+  if (!baseV->funcDefn) {
+    // nope, nothing we can do yet
+    TRACE("template", "want to instantiate func body: " << 
+                      instV->toQualifiedString() << 
+                      ", but cannot because have not seen defn");
+    return;
+  }
+
+  // ok, at this point we're committed to going ahead with
+  // instantiating the function body
+  instantiateFunctionBody(instV);
+}
+
+void Env::instantiateFunctionBody(Variable *instV)
+{
+  TRACE("template", "instantiating func body: " << instV->toQualifiedString());
+  
+  // reconstruct a few variables from above
+  TemplateInfo *instTI = instV->templateInfo();
+  Variable *baseV = instTI->instantiationOf;
+
+  // someone should have requested this
+  xassert(instTI->instantiateBody);
+
+  // isolate context
+  InstantiationContextIsolator isolator(*this, loc());
+
+  // defnScope: the scope where the function definition appeared.
+  Scope *defnScope;
+
+  // do we have a function definition already?
+  if (instV->funcDefn) {
+    // inline definition
+    defnScope = instTI->defnScope;
+  }
+  else {
+    // out-of-line definition; must clone the primary's definition
+    instV->funcDefn = baseV->funcDefn->clone();
+    defnScope = baseV->templateInfo()->defnScope;
+  }
+
+  // set up the scopes in a way similar to how it was when the
+  // template definition was first seen
+  ObjList<Scope> poppedScopes;
+  SObjList<Scope> pushedScopes;
+  Scope *argScope = prepArgScopeForTemlCloneTcheck
+    (poppedScopes, pushedScopes, defnScope);
+
+  // bind the template arguments in scopes so that when we tcheck the
+  // body, lookup will find them
+  insertTemplateArgBindings(baseV, instTI->arguments);
+
+  // push the declaration scopes for inline definitions, since
+  // we don't get those from the declarator (that is in fact a
+  // mistake of the current implementation; eventually, we should
+  // 'pushDeclarationScopes' regardless of DF_INLINE_DEFN)
+  if (instV->funcDefn->dflags & DF_INLINE_DEFN) {
+    pushDeclarationScopes(instV, defnScope);
+  }
+
+  // check the body, forcing it to use 'instV'
+  instV->funcDefn->tcheck(*this, true /*checkBody*/, instV);
+
+  if (instV->funcDefn->dflags & DF_INLINE_DEFN) {
+    popDeclarationScopes(instV, defnScope);
+  }
+
+  if (argScope) {
+    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
+  }
+  xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
+}
+
+
+void Env::instantiateForwardFunctions(Variable *primary)
+{
+  SFOREACH_OBJLIST_NC(Variable, primary->templateInfo()->instantiations, iter) {
+    Variable *inst = iter.data();
+    
+    if (inst->templateInfo()->instantiateBody) {
+      instantiateFunctionBody(inst);
+    }
+  }
+}
+
+
+// ----------------- class template instantiation -------------
 // Get or create an instantiation Variable for a class template.
 // Note that this does *not* instantiate the class body; instead,
 // instantiateClassBody() has that responsibility.
@@ -2280,6 +2172,27 @@ void Env::instantiateClassBody(Variable *inst)
 }
 
 
+// this is for 14.7.1 para 4 only
+void Env::ensureClassBodyInstantiated(CompoundType *ct)
+{
+  if (!ct->isComplete() && ct->isInstantiation()) {
+    instantiateClassBody(ct->typedefVar);
+  }
+}
+
+
+void Env::instantiateForwardClasses(Variable *baseV)
+{
+  // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
+  // purposes of instantiating the forward classes
+  Restorer<TemplTcheckMode> restoreMode(tcheckMode, TTM_1NORMAL);
+
+  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
+    instantiateClassBody(iter.data());
+  }
+}
+
+
 // return false on error
 bool Env::supplyDefaultTemplateArguments
   (TemplateInfo *primaryTI,
@@ -2372,612 +2285,6 @@ STemplateArgument *Env::makeDefaultTemplateArgument
 }
 
 
-#if 0
-static bool doSTemplArgsContainVars(SObjList<STemplateArgument> &sargs)
-{
-  SFOREACH_OBJLIST_NC(STemplateArgument, sargs, iter) {
-    if (iter.data()->containsVariables()) return true;
-  }
-  return false;
-}
-#endif // 0
-
-
-#if 0     // disabled
-// see comments in cc_env.h
-//
-// sm: TODO: I think this function should be split into two, one for
-// classes and one for functions.  To the extent they share mechanism
-// it would be better to encapsulate the mechanism than to share it
-// by threading two distinct flow paths through the same code.
-//
-//
-// dsw: There are three dimensions to the space of paths through this
-// code.
-//
-// 1 - class or function template
-//
-// 2 - baseForward: true exactly when we are typechecking a forward
-// declaration and not a definition.
-//
-// 3 - instV: non-NULL when
-//   a) a template primary was forward declared
-//   b) it has now been defined
-//   c) it has forwarded instantiations (& specializations?)  which
-//   when they were instantiated, did not find a specialization and so
-//   they are now being instantiated
-// Note the test 'if (!instV)' below.  In this case, we are always
-// going to instantiate the primary and not the specialization,
-// because if the specialization comes after the instantiation point,
-// it is not relevant anyway.
-//
-//
-// dsw: We have three typechecking modes, enum Env::TemplTcheckMode:
-//
-//   TTM_1NORMAL:
-//     This mode is for when you are in normal code.
-//     Template instantiations are done fully.
-//
-//   TTM_2TEMPL_FUNC_DECL:
-//     This mode is for when you're in the parameter list (D_func)
-//     of a function template.
-//     Template declarations are instantiated but not definitions.
-//     This is necessary so type matching may be done for template
-//     argument inference when template functions are called.
-//
-//   TTM_3TEMPL_DEF:
-//     This mode is for when you're in the body of a function template.
-//     Template instantiation requests just result in the primary being
-//     returned; nothing is instantiated.
-//
-// Further, inside template definitions, default arguments are not
-// typechecked and function template calls do not attempt to infer
-// their template arguments from their function arguments.
-//
-// Two stacks in Env allow us to distinguish these modes record when
-// the type-checker is typechecking a node below a TemplateDeclaration
-// and a D_func/Initializer respectively.  See the implementation of
-// Env::getTemplTcheckMode() for the details.
-Variable *Env::instantiateTemplate
-  (SourceLoc loc,
-   Scope *foundScope,
-   Variable *baseV,
-   Variable *instV,
-   Variable *bestV,
-   SObjList<STemplateArgument> &primaryArgs,
-   Variable *funcFwdInstV)
-{
-  if (baseV->type->isFunctionType()) {
-    xfailure("don't call this for function templates");
-  }
-
-  // NOTE: There is an ordering bug here, e.g. it fails t0209.cc.  The
-  // problem here is that we choose an instantiation (or create one)
-  // based only on the arguments explicitly present.  Since default
-  // arguments are delayed until later, we don't realize that C<> and
-  // C<int> are the same class if it has a default argument of 'int'.
-  //
-  // The fix I think is to insert argument bindings first, *then*
-  // search for or create an instantiation.  In some cases this means
-  // we bind arguments and immediately throw them away (i.e. when an
-  // instantiation already exists), but I don't see any good
-  // alternatives.
-
-  xassert(baseV->templateInfo()->isPrimary());
-  // if we are in a template definition typechecking mode just return
-  // the primary
-  TemplTcheckMode tcheckMode = getTemplTcheckMode();
-  if (tcheckMode == TTM_3TEMPL_DEF) {
-    return baseV;
-  }
-
-  // isolate context
-  InstantiationContextIsolator isolator(*this, loc);
-
-  // 1 **** what template are we going to instanitate?  We now find
-  // the instantiation/specialization/primary most specific to the
-  // template arguments we have been given.  If it is a complete
-  // specialization, we use it as-is.  If it is a partial
-  // specialization, we reassign baseV.  Otherwise we fall back to the
-  // primary.  At the end of this section if we have not returned then
-  // baseV is the template to instantiate.
-
-  Variable *oldBaseV = baseV;   // save baseV for other uses later
-  // has this class already been instantiated?
-  if (!instV) {
-    // Search through the instantiations of this primary and do an
-    // argument/specialization pattern match.
-    if (!bestV) {
-      // FIX: why did I do this?  It doesn't work.
-//        if (tcheckMode == TTM_2TEMPL_FUNC_DECL) {
-//          // in mode 2, just instantiate the primary
-//          bestV = baseV;
-//        }
-      bestV = findMostSpecific(baseV, primaryArgs);
-      // if no bestV then the lookup was ambiguous, error has been reported
-      if (!bestV) return NULL;
-    }
-    if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
-      return bestV;
-    }
-    baseV = bestV;              // baseV is saved in oldBaseV above
-  }
-  // there should be something non-trivial to instantiate
-  xassert(baseV->templateInfo()->argumentsContainVariables()
-          // or the special case of a primary, which doesn't have
-          // arguments but acts as if it did
-          || baseV->templateInfo()->isPrimary()
-          );
-
-  // render the template arguments into a string that we can use
-  // as the name of the instantiated class; my plan is *not* that
-  // this string serve as the unique ID, but rather that it be
-  // a debugging aid only
-  StringRef instName = str(stringc << baseV->name << sargsToString(primaryArgs));
-
-  // sm: what does this block do?  compute baseForward?  what is that?
-  bool baseForward = false;
-  bool sTemplArgsContainVars = doSTemplArgsContainVars(primaryArgs);
-  if (baseV->type->isCompoundType()) {
-    if (tcheckMode == TTM_2TEMPL_FUNC_DECL) {
-      // This ad-hoc condition is to prevent a class template
-      // instantiation in mode 2 that happens to not have any
-      // quantified template variables from being treated as
-      // forwarded.  Otherwise, what will happen is that if the
-      // same template arguments are seen in mode 3, the class will
-      // not be re-instantiated and a normal mode 3 class will have
-      // no body.  To see this happen turn of the next line and run
-      // in/d0060.cc and watch it fail.  Now comment out the 'void
-      // g(E<A> &a)' in d0060.cc and run again and watch it pass.
-      if (sTemplArgsContainVars) {
-        // don't instantiate the template in a function template
-        // definition parameter list
-        baseForward = true;
-      }
-    } else {
-      baseForward = baseV->type->asCompoundType()->forward;
-    }
-  } else {
-    xassert(baseV->type->isFunctionType());
-    // we should never get here in TTM_2TEMPL_FUNC_DECL mode
-    xassert(tcheckMode != TTM_2TEMPL_FUNC_DECL);
-    Declaration *declton = baseV->templateInfo()->declSyntax;
-    if (declton && !baseV->funcDefn) {
-      Declarator *decltor = declton->decllist->first();
-      xassert(decltor);
-      // FIX: is this still necessary?
-      baseForward = (decltor->context == DC_TD_PROTO);
-      // lets find out
-      xassert(baseForward);
-    } else {
-      baseForward = false;
-    }
-  }
-
-  // A non-NULL instV is marked as no longer forwarded before being
-  // passed in.
-  if (instV) {
-    xassert(!baseForward);
-  }
-  TRACE("template", (baseForward ? "(forward) " : "") << "instantiating "
-                 << (baseV->type->isCompoundType()? "class: " : "function: ")
-                 << baseV->fullyQualifiedName() << sargsToString(primaryArgs));
-
-  // if 'baseV' is a partial specialization, then transform the arguments
-  // from being arguments to the primary into arguments to the partial spec
-  MatchTypes match(tfac, MatchTypes::MM_BIND);   // will own new STemplateArguments (if any)
-  SObjList<STemplateArgument> partialSpecArgs;   // pointers into 'match.bindings'
-  SObjList<STemplateArgument> *sargs;            // args to use below
-  if (baseV->templateInfo()->isPartialSpec()) {
-    mapPrimaryArgsToSpecArgs(baseV, match, partialSpecArgs, primaryArgs);
-    sargs = &partialSpecArgs;
-
-    // refine the above report
-    TRACE("template", (baseForward ? "(forward) " : "") << "instantiating "
-                   << "class partial specialization "
-                   << baseV->type->toString() << " with arguments "
-                   << sargsToString(partialSpecArgs));
-  }
-  else {
-    // not a partial spec, use the arguments we already have
-    sargs = &primaryArgs;
-  }
-
-  // 2 **** Prepare the argument scope for template instantiation
-
-  // pick a different 'foundScope' if we have a Function definition
-  // to use (TODO: how many uses of 'foundScope' can I now remove?)
-  if (baseV &&
-      baseV->funcDefn) {
-    foundScope = baseV->funcDefn->defnScope;
-  }
-
-  ObjList<Scope> poppedScopes;
-  SObjList<Scope> pushedScopes;
-  Scope *argScope = NULL;
-  // don't mess with it if not going to tcheck anything; we need it in
-  // either case for function types
-  if (!(baseForward && baseV->type->isCompoundType())) {
-    argScope = prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, foundScope);
-    insertTemplateArgBindings(baseV, *sargs);
-    
-    // let's try setting the association for argument scopes here,
-    // to reduce guesswork later
-    //
-    // actually, 'insertBindings' sets the parameterized primaries for
-    // all of the inherited param scopes, so we just need to set the
-    // last one
-    //
-    // use 'oldBaseV' since that really is the primary, whereas
-    // 'baseV' might be a partial specialization
-    scope()->setParameterizedPrimary(oldBaseV);
-  }
-
-  // 3 **** make a copy of the template definition body AST (unless
-  // this is a forward declaration)
-
-  TS_classSpec *copyCpd = NULL;
-  TS_classSpec *cpdBaseSyntax = NULL; // need this below
-  Function *copyFun = NULL;
-  if (baseV->type->isCompoundType()) {
-    cpdBaseSyntax = baseV->type->asCompoundType()->syntax;
-    if (baseForward) {
-      copyCpd = NULL;
-    } else {
-      xassert(cpdBaseSyntax);
-      copyCpd = cpdBaseSyntax->clone();
-    }
-  } else {
-    xassert(baseV->type->isFunctionType());
-    Function *baseSyntax = baseV->funcDefn;
-    if (baseForward) {
-      copyFun = NULL;
-    } else {
-      xassert(baseSyntax);
-      copyFun = baseSyntax->clone();
-    }
-  }
-
-  // FIX: merge these
-  if (copyCpd && tracingSys("cloneAST")) {
-    cout << "--------- clone of " << instName << " ------------\n";
-    copyCpd->debugPrint(cout, 0);
-  }
-  if (copyFun && tracingSys("cloneAST")) {
-    cout << "--------- clone of " << instName << " ------------\n";
-    copyFun->debugPrint(cout, 0);
-  }
-
-  // 4 **** make the Variable that will represent the instantiated
-  // class during typechecking of the definition; this allows template
-  // classes that refer to themselves and recursive function templates
-  // to work.  The variable is assigned to instV; if instV already
-  // exists, this work does not need to be done: the template was
-  // previously forwarded and that forwarded definition serves the
-  // purpose.
-
-  if (!instV) {
-    // copy over the template arguments so we can recognize this
-    // instantiation later
-    TemplateInfo *instTInfo = new TemplateInfo(loc);
-    SFOREACH_OBJLIST(STemplateArgument, *sargs, iter) {
-      instTInfo->arguments.append(new STemplateArgument(*iter.data()));
-    }
-
-    // record the location which provoked this instantiation; this
-    // information will be useful if it turns out we can only to a
-    // forward-declaration here, since later when we do the delayed
-    // instantiation, 'loc' will be only be available because we
-    // stashed it here
-    //instTInfo->instLoc = loc;
-    // actually, this is now part of the constructor argument above, 
-    // but I'll leave the comment
-
-    // FIX: Scott, its almost as if you just want to clone the type
-    // here.
-    //
-    // sm: No, I want to type-check the instantiated cloned AST.  The
-    // resulting type will be quite different, since it will refer to
-    // concrete types instead of TypeVariables.
-    if (baseV->type->isCompoundType()) {
-      // 1/21/03: I had been using 'instName' as the class name, but
-      // that causes problems when trying to recognize constructors
-      CompoundType *baseVCpdType = baseV->type->asCompoundType();
-      CompoundType *instVCpdType = tfac.makeCompoundType(baseVCpdType->keyword,
-                                                         baseVCpdType->name);
-      instVCpdType->instName = instName; // stash it here instead
-      instVCpdType->forward = baseForward;
-      instVCpdType->parentScope = baseVCpdType->parentScope;
-
-      // wrap the compound in a regular type
-      SourceLoc copyLoc = copyCpd ? copyCpd->loc : SL_UNKNOWN;
-      Type *type = makeType(copyLoc, instVCpdType);
-
-      // make a fake implicit typedef; this class and its typedef
-      // won't actually appear in the environment directly, but making
-      // the implicit typedef helps ensure uniformity elsewhere; also
-      // must be done before type checking since it's the typedefVar
-      // field which is returned once the instantiation is found via
-      // 'instantiations'
-      instV = makeVariable(copyLoc, baseV->name, type,
-                           DF_TYPEDEF | DF_IMPLICIT);
-      instVCpdType->typedefVar = instV;
-
-      if (lang.compoundSelfName) {
-        // also make the self-name, which *does* go into the scope
-        // (testcase: t0167.cc)
-        Variable *var2 = makeVariable(copyLoc, baseV->name, type,
-                                      DF_TYPEDEF | DF_SELFNAME);
-        instVCpdType->addUniqueVariable(var2);
-        addedNewVariable(instVCpdType, var2);
-      }
-
-      baseV->templateInfo()->addInstantiation(instV);
-    } else {
-      xassert(baseV->type->isFunctionType());
-      // sm: It seems to me the sequence should be something like this:
-      //   1. bind template parameters to concrete types
-      //        dsw: this has been done already above
-      //   2. tcheck the declarator portion, thus yielding a FunctionType
-      //      that refers to concrete types (not TypeVariables), and
-      //      also yielding a Variable that can be used to name it
-      //        dsw: this is done here
-      if (copyFun) {
-        xassert(!baseForward);
-        // NOTE: 1) the whole point is that we don't check the body,
-        // and 2) it is very important that we do not add the variable
-        // to the namespace, otherwise the primary is masked if the
-        // template body refers to itself
-        tcheckFunctionInstanceDecl_setVar(*this, copyFun, funcFwdInstV);
-        instV = copyFun->nameAndParams->var;
-        //   3. add said Variable to the list of instantiations, so if the
-        //      function recursively calls itself we'll be ready
-        //        dsw: this is done below
-        //   4. tcheck the function body
-        //        dsw: this is done further below.
-      } else {
-        xassert(baseForward);
-        // We do have to clone the forward declaration before
-        // typechecking.
-        Declaration *fwdDecl = baseV->templateInfo()->declSyntax;
-        xassert(fwdDecl);
-        // use the same context again but make sure it is well defined
-        xassert(fwdDecl->decllist->count() == 1);
-        DeclaratorContext ctxt = fwdDecl->decllist->first()->context;
-        xassert(ctxt != DC_UNKNOWN);
-        Declaration *copyDecl = fwdDecl->clone();
-        xassert(argScope);
-        xassert(!funcFwdInstV);
-        copyDecl->tcheck(*this, ctxt);
-        xassert(copyDecl->decllist->count() == 1);
-        Declarator *copyDecltor = copyDecl->decllist->first();
-        instV = copyDecltor->var;
-      }
-    }
-
-    xassert(instV);
-    xassert(foundScope);
-    foundScope->registerVariable(instV);
-
-    // tell the base template about this instantiation; this has to be
-    // done before invoking the type checker, to handle cases where the
-    // template refers to itself recursively (which is very common)
-    //
-    // dsw: this is the one place where I use oldBase instead of base;
-    // looking at the other code above, I think it is the only one
-    // where I should, but I'm not sure.
-    xassert(oldBaseV->templateInfo() && oldBaseV->templateInfo()->isPrimary());
-    // dsw: this had to be moved down here as you can't get the
-    // typedefVar until it exists
-    instV->setTemplateInfo(instTInfo);
-    if (funcFwdInstV) {
-      // addInstantiation would have done this
-      instV->templateInfo()->setMyPrimary(oldBaseV->templateInfo());
-    } else {
-      // NOTE: this can mutate instV if instV is a duplicated mutant
-      // in the instantiation list; FIX: perhaps find another way to
-      // prevent creating duplicate mutants in the first place; this
-      // is quite wasteful if we have cloned an entire class of AST
-      // only to throw it away again
-      Variable *newInstV = oldBaseV->templateInfo()->
-        addInstantiation(tfac, instV, true /*suppressDup*/);
-      if (newInstV != instV) {
-        // don't do stage 5 below; just use the newInstV and be done
-        // with it
-        copyCpd = NULL;
-        copyFun = NULL;
-        instV = newInstV;
-      }
-      xassert(instV->templateInfo()->getMyPrimaryIdem() == oldBaseV->templateInfo());
-    }
-    xassert(instTInfo->isNotPrimary());
-    xassert(instTInfo->getMyPrimaryIdem() == oldBaseV->templateInfo());
-  }
-
-  // 5 **** typecheck the cloned AST
-
-  if (copyCpd || copyFun) {
-    xassert(!baseForward);
-    xassert(argScope);
-
-    if (instV->type->isCompoundType()) {
-      // FIX: unlike with function templates, we can't avoid
-      // typechecking the compound type clone when not in 'normal'
-      // mode because otherwise implicit members such as ctors don't
-      // get elaborated into existence
-//          if (getTemplTcheckMode() == TTM_1NORMAL) { . . .
-      xassert(copyCpd);
-      // invoke the TS_classSpec typechecker, giving to it the
-      // CompoundType we've built to contain its declarations; for
-      // now I don't support nested template instantiation
-      copyCpd->ctype = instV->type->asCompoundType();
-
-      // check 'copyCpd->name', to assist in pretty printing
-      copyCpd->name->tcheck(*this);
-
-      // preserve the baseV and sargs so that when the member
-      // function bodies are typechecked later we have them
-      copyCpd->tcheckIntoCompound
-        (*this,
-         DF_NONE,
-         copyCpd->ctype,
-         false /*inTemplate*/,
-         // that's right, really check the member function bodies
-         // exactly when we are instantiating something that is not
-         // a complete specialization; if it *is* a complete
-         // specialization, then the tcheck will be done later, say,
-         // when the function is used
-         sTemplArgsContainVars /*reallyTcheckFunctionBodies*/,
-         NULL /*containingClass*/);
-      // this is turned off because it doesn't work: somewhere the
-      // mutants are actually needed; Instead we just avoid them
-      // above.
-      //      deMutantify(baseV);
-
-      // Now, we've just tchecked the clone in an environment that
-      // makes all the type variables map to concrete types, so we
-      // now have a nice, ordinary, non-template class with a bunch
-      // of members.  But there is information stored in the
-      // original AST that needs to be transferred over to the
-      // clone, namely information about out-of-line definitions.
-      // We need both the Function pointers and the list of template
-      // params used at the definition site (since we have arguments
-      // but don't know what names to bind them to).  So, walk over
-      // both member lists, transferring information as necessary.
-      transferTemplateMemberInfo(loc, cpdBaseSyntax, copyCpd, *sargs);
-
-      #if 0     // old
-      // find the funcDefn's for all of the function declarations
-      // and then instantiate them; FIX: do the superclass members
-      // also?
-      FOREACH_ASTLIST_NC(Member, cpdBaseSyntax->members->list, memIter) {
-        Member *mem = memIter.data();
-        if (!mem->isMR_decl()) continue;
-        Declaration *decltn = mem->asMR_decl()->d;
-        Declarator *decltor = decltn->decllist->first();
-        // this seems to happen with anonymous enums
-        if (!decltor) continue;
-        if (!decltor->var->type->isFunctionType()) continue;
-        xassert(decltn->decllist->count() == 1);
-        Function *funcDefn = decltor->var->funcDefn;
-        // skip functions that haven't been defined yet; hopefully
-        // they'll be defined later and if they are, their
-        // definitions will be patched in then
-        if (!funcDefn) continue;
-        // I need to instantiate this funcDefn.  This means: 1)
-        // clone it; [NOTE: this is not being done: 2) all the
-        // arguments are already in the scope, but if the definition
-        // named them differently, it won't work, so throw out the
-        // current template scope and make another]; then 3) just
-        // typecheck it.
-        Function *copyFuncDefn = funcDefn->clone();
-        // find the instantiation of the cloned declaration that
-        // goes with it; FIX: this seems brittle to me; I'd rather
-        // have something like a pointer from the cloned declarator
-        // to the one it was cloned from.
-        Variable *funcDefnInstV = instV->type->asCompoundType()->lookupVariable
-          (decltor->var->name, *this,
-           LF_INNER_ONLY |
-           // this shouldn't be necessary, but if it turns out to be
-           // a function template, we don't want it instantiated
-           LF_TEMPL_PRIMARY);
-        xassert(funcDefnInstV);
-        xassert(funcDefnInstV->name == decltor->var->name);
-        if (funcDefnInstV->templateInfo()) {
-          // FIX: I don't know what to do with function template
-          // members of class templates just now, but what we do
-          // below is probably wrong, so skip them
-          continue;
-        }
-        xassert(!funcDefnInstV->funcDefn);
-
-        // FIX: I wonder very much if the right thing is happening
-        // to the scopes at this point.  I think all the current
-        // scopes up to the global scope need to be removed, and
-        // then the template scope re-created, and then typecheck
-        // this.  The extra scopes are probably harmless, but
-        // shouldn't be there.
-
-        // urk, there's nothing to do here.  The declaration has
-        // already been tchecked, and we don't want to tcheck the
-        // definition yet, so we can just point the var at the
-        // cloned definition; I'll run the tcheck with
-        // checkBody=false anyway just for uniformity.
-        //
-        // sm: once again trying it with this disabled... it should
-        // not be necessary, since we should automatically find
-        // 'funcFwdInstV' when tchecking the defn for real
-        //tcheckFunctionInstanceDecl_setVar(*this, copyFuncDefn, funcFwdInstV);
-
-        // paste in the definition for later use
-        xassert(!funcDefnInstV->funcDefn);
-        funcDefnInstV->funcDefn = copyFuncDefn;
-      }
-      #endif // 0
-    } else {
-      xassert(instV->type->isFunctionType());
-      // if we are in a template definition, don't typecheck the
-      // cloned function body
-      if (tcheckMode == TTM_1NORMAL) {
-        xassert(copyFun);
-        copyFun->funcType = instV->type->asFunctionType();
-
-        // sm: why assert this?  t0231.cc is an example of good
-        // code that causes it to fail
-        //xassert(scope()->isGlobalTemplateScope());
-
-        // NOTE: again we do not add the variable to the namespace
-        //
-        // sm: all that is necessary is to check the body, not the
-        // declarator again
-        xassert(instV == copyFun->nameAndParams->var);
-        copyFun->tcheckBody(*this);
-        xassert(instV->funcDefn == copyFun);
-      }
-    }
-
-    if (tracingSys("cloneTypedAST")) {
-      cout << "--------- typed clone of " << instName << " ------------\n";
-      if (copyCpd) copyCpd->debugPrint(cout, 0);
-      if (copyFun) copyFun->debugPrint(cout, 0);
-    }
-  }
-  // this else case can now happen if we find that there was a
-  // duplicated instV and therefore jump out during stage 4
-//    } else {
-//      xassert(baseForward);
-//    }
-
-  // 6 **** Undo the scope, reversing step 2
-  if (argScope) {
-    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
-    argScope = NULL;
-  }
-  // make sure we haven't forgotten these
-  xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
-
-  return instV;
-}
-
-
-// variant that accepts an ObjList of arguments
-Variable *Env::instantiateTemplate
-  (SourceLoc loc,
-   Scope *foundScope,
-   Variable *baseV,
-   Variable *instV,
-   Variable *bestV,
-   ObjList<STemplateArgument> &sargs,
-   Variable *funcFwdInstV)
-{
-  // hack it with a cast
-  return instantiateTemplate(loc, foundScope, baseV, instV, bestV,
-                             objToSObjList(sargs),
-                             funcFwdInstV);
-}
-#endif // 0
-
-
 // transfer template info from members of 'source' to corresp.
 // members of 'dest'; 'dest' is a clone of 'source'
 void Env::transferTemplateMemberInfo
@@ -3004,20 +2311,6 @@ void Env::transferTemplateMemberInfo
         if (srcVar->type->isFunctionType()) {
           // srcVar -> destVar
           transferTemplateMemberInfo_one(instLoc, srcVar, destVar, sargs);
-
-          #if 0    // funcDefn handled differently now
-          // transfer knowledge about the function definition, if any
-          if (srcVar->funcDefn) {
-            // clone the definition
-            destVar->funcDefn = srcVar->funcDefn->clone();
-
-            // copy over one result from the tcheck of the original
-            destVar->funcDefn->defnScope = srcVar->funcDefn->defnScope;
-
-            // but don't instantiate it until we have to
-            destVar->setFlag(DF_DELAYED_INST);
-          }
-          #endif // 0
         }
 
         // TODO: what about nested classes?
@@ -3166,302 +2459,6 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
     }
   }
   return NULL;     // not found
-}
-
-
-#if 0
-void Env::provideDefForFuncTemplDecl
-  (Variable *forward, TemplateInfo *primaryTI, Function *f)
-{
-  xassert(forward);
-  xassert(primaryTI);
-  xassert(forward->templateInfo()->getPrimary() == primaryTI);
-  xassert(primaryTI->isPrimary());
-  Variable *fVar = f->nameAndParams->var;
-  // update things in the declaration; I copied this from
-  // Env::createDeclaration()
-  TRACE("odr", "def'n of " << forward->name
-        << " at " << toString(f->getLoc())
-        << " overrides decl at " << toString(forward->loc));
-  forward->loc = f->getLoc();
-  forward->setFlag(DF_DEFINITION);
-  forward->clearFlag(DF_EXTERN);
-  forward->clearFlag(DF_FORWARD); // dsw: I added this
-  // make this idempotent
-  if (forward->funcDefn) {
-    xassert(forward->funcDefn == f);
-  } else {
-    forward->funcDefn = f;
-    if (tracingSys("template")) {
-      cout << "definition of function template " << fVar->toString()
-           << " attached to previous forwarded declaration" << endl;
-      primaryTI->debugPrint();
-    }
-  }
-  // make this idempotent
-  if (fVar->templateInfo()->getPrimary()) {
-    xassert(fVar->templateInfo()->getPrimary() == primaryTI);
-  } else {
-    fVar->templateInfo()->setMyPrimary(primaryTI);
-  }
-}
-#endif // 0
-
-
-void Env::ensureFuncBodyTChecked(Variable *instV)
-{
-  if (!instV) {
-    return;      // error recovery
-  }
-  if (!instV->type->isFunctionType()) {
-    // I'm not sure what circumstances can cause this, but it used
-    // to be that all call sites to this function were guarded by
-    // this 'isFunctionType' check, so I pushed it inside
-    return;
-  }
-
-  TemplateInfo *instTI = instV->templateInfo();
-  if (!instTI) {
-    // not a template instantiation
-    return;
-  }
-  if (!instTI->isCompleteSpecOrInstantiation()) {
-    // not an instantiation; this might be because we're in
-    // the middle of tchecking a template definition, so we
-    // just used a function template primary sort of like
-    // a PseudoInstantiation; skip checking it
-    return;
-  }
-  if (instTI->instantiateBody) {
-    // we've already seen this request, so either the function has
-    // already been instantiated, or else we haven't seen the
-    // definition yet so there's nothing we can do
-    return;
-  }
-
-  // acknowledge the request
-  instTI->instantiateBody = true;
-
-  // what template am I an instance of?
-  Variable *baseV = instTI->instantiationOf;
-  if (!baseV) {
-    // This happens for explicit complete specializations.  It's
-    // not clear whether such things should have templateInfos
-    // at all, but there seems little harm, so I'll just bail in
-    // that case
-    return;
-  }
-
-  // have we seen a definition of it?
-  if (!baseV->funcDefn) {
-    // nope, nothing we can do yet
-    TRACE("template", "want to instantiate func body: " << 
-                      instV->toQualifiedString() << 
-                      ", but cannot because have not seen defn");
-    return;
-  }
-
-  // ok, at this point we're committed to going ahead with
-  // instantiating the function body
-  instantiateFunctionBody(instV);
-}
-
-void Env::instantiateFunctionBody(Variable *instV)
-{
-  TRACE("template", "instantiating func body: " << instV->toQualifiedString());
-  
-  // reconstruct a few variables from above
-  TemplateInfo *instTI = instV->templateInfo();
-  Variable *baseV = instTI->instantiationOf;
-
-  // someone should have requested this
-  xassert(instTI->instantiateBody);
-
-  // isolate context
-  InstantiationContextIsolator isolator(*this, loc());
-
-  // defnScope: the scope where the function definition appeared.
-  Scope *defnScope;
-
-  // do we have a function definition already?
-  if (instV->funcDefn) {
-    // inline definition
-    defnScope = instTI->defnScope;
-  }
-  else {
-    // out-of-line definition; must clone the primary's definition
-    instV->funcDefn = baseV->funcDefn->clone();
-    defnScope = baseV->templateInfo()->defnScope;
-  }
-
-  // set up the scopes in a way similar to how it was when the
-  // template definition was first seen
-  ObjList<Scope> poppedScopes;
-  SObjList<Scope> pushedScopes;
-  Scope *argScope = prepArgScopeForTemlCloneTcheck
-    (poppedScopes, pushedScopes, defnScope);
-
-  // bind the template arguments in scopes so that when we tcheck the
-  // body, lookup will find them
-  insertTemplateArgBindings(baseV, instTI->arguments);
-
-  // push the declaration scopes for inline definitions, since
-  // we don't get those from the declarator (that is in fact a
-  // mistake of the current implementation; eventually, we should
-  // 'pushDeclarationScopes' regardless of DF_INLINE_DEFN)
-  if (instV->funcDefn->dflags & DF_INLINE_DEFN) {
-    pushDeclarationScopes(instV, defnScope);
-  }
-
-  // check the body, forcing it to use 'instV'
-  instV->funcDefn->tcheck(*this, true /*checkBody*/, instV);
-
-  if (instV->funcDefn->dflags & DF_INLINE_DEFN) {
-    popDeclarationScopes(instV, defnScope);
-  }
-
-  if (argScope) {
-    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
-  }
-  xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
-}
-
-
-void Env::instantiateForwardFunctions(Variable *primary)
-{
-  SFOREACH_OBJLIST_NC(Variable, primary->templateInfo()->instantiations, iter) {
-    Variable *inst = iter.data();
-    
-    if (inst->templateInfo()->instantiateBody) {
-      instantiateFunctionBody(inst);
-    }
-  }
-
-  #if 0   // old
-  TemplateInfo *primaryTI = primary->templateInfo();
-  xassert(primaryTI);
-  xassert(primaryTI->isPrimary());
-
-  // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
-  // purposes of instantiating the forward function templates
-  Restorer<TemplTcheckMode> restoreMode(tcheckMode, TTM_1NORMAL);
-
-  // Find all the places where this declaration was instantiated,
-  // where this function template specialization was
-  // called/instantiated after it was declared but before it was
-  // defined.  In each, now instantiate with the same template
-  // arguments and fill in the funcDefn; UPDATE: see below, but now we
-  // check that the definition was already provided rather than
-  // providing one.
-  SFOREACH_OBJLIST_NC(Variable, primaryTI->getInstantiations(), iter) {
-    Variable *instV = iter.data();
-    TemplateInfo *instTI = instV->templateInfo();
-    xassert(instTI);
-    xassert(instTI->isNotPrimary());
-    if (instTI->instantiatedFrom != forward) continue;
-    // should not have a funcDefn as it is instantiated from a forward
-    // declaration that does not yet have a definition and we checked
-    // that above already
-    xassert(!instV->funcDefn);
-
-    // instantiate this definition
-    SourceLoc instLoc = instTI->instLoc;
-
-    // sm: case 1: some calling context I don't quite understand; leave
-    // the behavior as-is
-    if (forward != primary) {
-      Variable *instWithDefn = instantiateTemplate
-        (instLoc,
-         // FIX: I don't know why it is possible for the primary here to
-         // not have a scope, but it is.  Since 1) we are in the scope
-         // of the definition that we want to instantiate, and 2) from
-         // experiments with gdb, I have to put the definition of the
-         // template in the same scope as the declaration, I conclude
-         // that I can use the same scope as we are in now
-  //         primary->scope,    // FIX: ??
-         // UPDATE: if the primary is in the global scope, then I
-         // suppose its scope might be NULL; I don't remember the rule
-         // for that.  So, maybe it's this:
-  //         primary->scope ? primary->scope : env.globalScope()
-         scope(),
-         primary,
-         NULL /*instV; only used by instantiateForwardClasses; this
-                seems to be a fundamental difference*/,
-         forward /*bestV*/,
-         instV->templateInfo()->arguments,
-         // don't actually add the instantiation to the primary's
-         // instantiation list; we will do that below
-         instV
-         );
-      // previously the instantiation of the forward declaration
-      // 'forward' produced an instantiated declaration; we now provide
-      // a definition for it; UPDATE: we now check that when the
-      // definition of the function was typechecked that a definition
-      // was provided for it, since we now re-use the declaration's var
-      // in the defintion declartion (the first pass when
-      // checkBody=false).
-      //
-      // FIX: I think this works for functions the definition of which
-      // is going to come after the instantiation request of the
-      // containing class template since I think both of these will be
-      // NULL; we will find out
-      xassert(instV->funcDefn == instWithDefn->funcDefn);
-    }
-
-    // sm: case 2: a context I do understand, namely the instantiation
-    // of function bodies that had to be postponed because the template
-    // definition hadn't been provided
-    else {
-      if (instTI->instantiateBody) {     // body was requested at some point
-        instantiateFunctionBody(instV);
-      }
-    }
-  }
-  #endif // 0
-}
-
-
-void Env::instantiateForwardClasses(Variable *baseV)
-{
-  // temporarily supress TTM_3TEMPL_DEF and return to TTM_1NORMAL for
-  // purposes of instantiating the forward classes
-  Restorer<TemplTcheckMode> restoreMode(tcheckMode, TTM_1NORMAL);
-
-  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
-    instantiateClassBody(iter.data());
-
-    #if 0
-    Variable *instV = iter.data();
-    xassert(instV->templateInfo());
-    CompoundType *inst = instV->type->asCompoundType();
-    // this assumption is made below
-    xassert(inst->templateInfo() == instV->templateInfo());
-
-    if (inst->forward) {
-      TRACE("template", "instantiating previously forward " << inst->name);
-      inst->forward = false;
-
-      // this location was stored back when the template was
-      // forward-instantiated
-      SourceLoc instLoc = inst->templateInfo()->instLoc;
-
-      instantiateTemplate(instLoc,
-                          scope,
-                          baseV,
-                          instV /*use this one*/,
-                          NULL /*bestV*/,
-                          inst->templateInfo()->arguments
-                          );
-    }
-    else {
-      // this happens in e.g. t0079.cc, when the template becomes
-      // an instantiation of itself because the template body
-      // refers to itself with template arguments supplied
-
-      // update: maybe not true anymore?
-    }
-    #endif // 0
-  }
 }
 
 
@@ -3739,57 +2736,6 @@ bool Env::isomorphicTypes(Type *a, Type *b)
 }
 
 
-#if 0     // not using ...
-// compute a map from the names used in the parameter lists of 'source'
-// to those used in the lists of 'target'
-void Env::computeRenamingMap(StringRefMap &map, TemplateInfo *source, TemplateInfo *target)
-{
-  xfailure("do not use this");
-
-  // main params
-  computeRenamingMap(map, source->params, target->params);
-
-  // inherited params
-  ObjListIterNC<InheritedTemplateParams> srcIter(source->inheritedParams);
-  ObjListIterNC<InheritedTemplateParams> tgtIter(target->inheritedParams);
-  for (; !srcIter.isDone() && !tgtIter.isDone();
-         srcIter.adv(), tgtIter.adv()) {
-    // check that the params are inherited from same thing (this check
-    // might be too strict...)
-    xassert(srcIter.data()->enclosing == tgtIter.data()->enclosing);
-
-    computeRenamingMap(map, srcIter.data()->params, tgtIter.data()->params);
-  }
-  xassert(srcIter.isDone() && tgtIter.isDone());    // should be same length
-}
-
-void Env::computeRenamingMap(StringRefMap &map, SObjList<Variable> &source, SObjList<Variable> &target)
-{
-  SObjListIter<Variable> srcIter(source);
-  SObjListIter<Variable> tgtIter(target);
-  for (; !srcIter.isDone() && !tgtIter.isDone();
-         srcIter.adv(), tgtIter.adv()) {
-    StringRef s = srcIter.data()->name;
-    StringRef t = tgtIter.data()->name;
-    if (s != t) {
-      // map 's' to 't'
-      StringRef existing = map.get(s);
-      if (!existing) {
-        map.add(s, t);
-      }
-      else {
-        // if already mapped, should be mapped to same thing
-        // (TODO: this should probably be a user error; make a test
-        // case to demonstrate)
-        xassert(existing == t);
-      }
-    }
-  }
-  xassert(srcIter.isDone() && tgtIter.isDone());    // should be same length
-}
-#endif // 0
-
-
 Type *Env::applyArgumentMapToType(STemplateArgumentCMap &map, Type *origSrc)
 {
   // my intent is to not modify 'origSrc', so I will use 'src', except
@@ -3951,114 +2897,6 @@ Type *Env::applyArgumentMapToAtomicType
     // here means to use the original unchanged
     return NULL;
   }
-}
-
-
-#if 0       // not using
-void Env::applyVariableMapToTemplateScopes(StringRefMap &map)
-{
-  xfailure("do not use this");
-
-  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    Scope *s = iter.data();
-
-    if (s->isTemplateParamScope()) {
-      s->applyVariableMap(map);
-    }
-  }
-}
-
-void Scope::applyVariableMap(StringRefMap &map)
-{
-  for (StringSObjDict<Variable>::Iter iter(variables);
-       !iter.isDone(); iter.next()) {
-    // holy crap!  I'm storing strings in my scopes!  oh well....
-    // TODO: change to using PtrMap
-    Variable *v = iter.value();
-    StringRef replacement = map.get(v->name);
-    if (replacement) {
-      // leave the name intact, but change which TypeVariable it
-      // maps to
-      xassert(v->type->isTypeVariable());
-      TRACE("template", "in " << desc() <<
-                        ", changing binding for type var " << v->name <<
-                        " from " << v->type->asTypeVariable()->name <<
-                        " to " << replacement);
-
-      xfailure("oops, need a tfac ...");
-      //v->type = new TypeVariable(replacement);
-    }
-  }
-}
-#endif // 0
-
-
-// Get or create an instantiation Variable for a function template.
-// Note that this does *not* instantiate the function body; instead,
-// instantiateFunctionBody() has that responsibility.
-Variable *Env::instantiateFunctionTemplate
-  (SourceLoc loc,                              // location of instantiation request
-   Variable *primary,                          // template primary to instantiate
-   SObjList<STemplateArgument> const &sargs)   // arguments to apply to 'primary'
-{
-  TemplateInfo *primaryTI = primary->templateInfo();
-  xassert(primaryTI->isPrimary());
-
-  // look for a (complete) specialization that matches
-  Variable *spec = findCompleteSpecialization(primaryTI, sargs);
-  if (spec) {
-    return spec;      // use it
-  }
-
-  // look for an existing instantiation that has the right arguments
-  Variable *inst = findInstantiation(primaryTI, sargs);
-  if (inst) {
-    return inst;      // found it; that's all we need
-  }
-
-  // since we didn't find an existing instantiation, we have to make
-  // one from scratch
-  TRACE("template", "instantiating func decl: " <<
-                    primary->fullyQualifiedName() << sargsToString(sargs));
-
-  // I don't need this, right?
-  // isolate context
-  //InstantiationContextIsolator isolator(*this, loc);
-
-  // bind the parameters in an STemplateArgumentMap
-  STemplateArgumentCMap map;
-  bindParametersInMap(map, primaryTI, sargs);
-
-  // compute the type of the instantiation by applying 'map' to
-  // the templatized type
-  Type *instType = applyArgumentMapToType(map, primary->type);
-
-  // create the representative Variable
-  inst = makeInstantiationVariable(primary, instType);
-
-  // TODO: fold the following three activities into
-  // 'makeInstantiationVariable'
-
-  // annotate it with information about its templateness
-  TemplateInfo *instTI = new TemplateInfo(loc, inst);
-  instTI->copyArguments(sargs);
-
-  // insert into the instantiation list of the primary
-  primaryTI->addInstantiation(inst);
-
-  // this is an instantiation
-  xassert(instTI->isInstantiation());
-
-  return inst;
-}
-
-Variable *Env::instantiateFunctionTemplate
-  (SourceLoc loc,
-   Variable *primary,
-   ObjList<STemplateArgument> const &sargs)
-{
-  return instantiateFunctionTemplate(loc, primary,
-    objToSObjListC(sargs));
 }
 
 
@@ -4317,15 +3155,6 @@ Variable *Env::makeSpecializationVariable
   xassert(ti->isSpecialization());
 
   return spec;
-}
-
-
-// this is for 14.7.1 para 4 only
-void Env::ensureClassBodyInstantiated(CompoundType *ct)
-{
-  if (!ct->isComplete() && ct->isInstantiation()) {
-    instantiateClassBody(ct->typedefVar);
-  }
 }
 
 

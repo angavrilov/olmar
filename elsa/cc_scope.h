@@ -307,9 +307,6 @@ public:      // funcs
   // set 'parameterizedPrimary', checking a few things in the process
   void setParameterizedPrimary(Variable *primary);
        
-  // see implementation, in template.cc
-  void applyVariableMap(StringRefMap &map);
-
   // for debugging, a quick description of this scope
   string desc() const;
   void gdb() const;
