@@ -1,7 +1,7 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
-all: cc/cc_tcheck.o cc/cc.gr.gen.h cc/cc.ast.gen.h cc/cc_env.o cc/cc_scope.o cc/cc_type.o \
+all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/cc_tcheck.o cc/cc_env.o cc/cc_scope.o cc/cc_type.o \
      cc/c.ast.gen.h glr.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
      cc/cc.ast.gen.h cc/ccparse cc/ccparset glrmain.o
 	@echo BUILD FINISHED
@@ -44,7 +44,7 @@ ranlib      := ranlib
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # enable action trace in glr parser
 #ccflags += -DACTION_TRACE

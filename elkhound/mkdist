@@ -34,8 +34,11 @@ cd parsgen
 ./regrtest
 
 # blow away the test directory
-cd ../..
-rm -rf $distname
+if [ "$1" != "-keep" ]; then
+  cd ../..
+  rm -rf $distname
+fi
+
 
 
 
