@@ -80,6 +80,9 @@ void f()
   __getStandardConversion("abc", (char*)0, SC_ARRAY_TO_PTR|SC_QUAL_CONV);
 
   __getStandardConversion((int const [])0, (int*)0, SC_ERROR);
+  
+  // not syntactically possible
+  //__getStandardConversion((int [] &)0, (int*)0, SC_ARRAY_TO_PTR);
 
   // function to pointer
   typedef int func(int*);

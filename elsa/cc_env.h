@@ -28,6 +28,17 @@ protected:   // data
   // it.  otherwise it does own it.
   ObjList<Scope> scopes;
 
+  public:
+  // dsw: Stack of defined functions.  It is maintained exactly in
+  // Function::tcheck(), pushing before checking the body and popping
+  // afterward.  It is read in E_funCall so that we know the 'this'
+  // argument for method calls.  I'm not sure if this can be computed
+  // from your stack of scopes above so I will try both and assert
+  // that they are always equal.  Feel free to remove this if you are
+  // sure of a better way.
+  SObjStack<Function> functionStack;
+
+  protected:
   // list of named scopes (i.e. namespaces)
   //StringObjDict<Scope> namespaces;    // not implemented yet
 
@@ -141,6 +152,12 @@ public:      // funcs
   // innermost scope that can accept names, *other* than
   // the one we're in now
   Scope *enclosingScope();
+  // return the nearest enclosing class scope
+  CompoundType *enclosingClassScope();
+
+  // returns true iff anywhere above us on the scope stack is a
+  // template scope
+  bool inTemplate();
 
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc
@@ -243,6 +260,9 @@ public:      // funcs
   FunctionType *makeDestructorFunctionType(SourceLoc loc);
 
   // TypeFactory funcs; all of these simply delegate to 'tfac'
+  Type *makeRefType(Type *underlying)
+    { return tfac.makeRefType(loc(), underlying); }
+
   CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
     { return tfac.makeCVAtomicType(loc, atomic, cv); }
   PointerType *makePointerType(SourceLoc loc, PtrOper op, CVFlags cv, Type *atType)

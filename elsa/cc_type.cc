@@ -810,6 +810,15 @@ bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 }
 
 
+bool CVAtomicType::isTemplateRec() const {
+  if (atomic->isTypeVariable()) return true;
+  if (atomic->isCompoundType()) {
+    return atomic->asCompoundTypeC()->isTemplate();
+  }
+  return false;
+}
+
+
 string CVAtomicType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;

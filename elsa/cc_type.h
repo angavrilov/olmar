@@ -473,6 +473,9 @@ public:     // funcs
 
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
+  // dsw: need a way of telling if there is a template anywhere down
+  // inside the type
+  virtual bool isTemplateRec() const = 0;
 
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
@@ -537,6 +540,8 @@ public:
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
+  bool isTemplateRec() const;
+
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString(bool innerParen=true) const;
@@ -566,6 +571,8 @@ public:
   bool innerEquals(PointerType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
+
+  bool isTemplateRec() const {return atType->isTemplateRec();}
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
@@ -638,6 +645,8 @@ public:
   bool isConstructor() const          { return !!(flags & FF_CTOR); }
   bool isDestructor() const           { return !!(flags & FF_DTOR); }
 
+  bool isTemplateRec() const {return isTemplate();}
+
   bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
@@ -703,6 +712,8 @@ public:
 
   bool hasSize() const { return size != NO_SIZE; }
 
+  bool isTemplateRec() const {return eltType->isTemplateRec();}
+
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
   virtual string leftString(bool innerParen=true) const;
@@ -729,6 +740,8 @@ protected:
 public:
   bool innerEquals(PointerToMemberType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
+
+  bool isTemplateRec() const {return atType->isTemplateRec();}
 
   // Type interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }

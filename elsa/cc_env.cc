@@ -399,6 +399,24 @@ Scope *Env::enclosingScope()
 }
 
 
+CompoundType *Env::enclosingClassScope()
+{
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    if (iter.data()->curCompound) return iter.data()->curCompound;
+  }
+  return NULL;
+}
+
+
+bool Env::inTemplate()
+{
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    if (iter.data()->scopeKind == SK_TEMPLATE) return true;
+  }
+  return false;
+}
+
+
 bool Env::addVariable(Variable *v, bool forceReplace)
 {
   if (disambErrorsSuppressChanges()) {
