@@ -7,6 +7,8 @@
 #include "strutil.h"        // quoted
 #include "trace.h"          // trace
 
+#define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
+
 
 void checkBoolean(Env &env, Type const *c, Expression const *e)
 {
@@ -55,27 +57,31 @@ void TF_func::tcheck(Env &env)
     env.addVariable(p->name, DF_NONE, p->type);
   }
 
-  // TODO: verify the pre/post don't have side effects
+  // (TODO) verify the pre/post don't have side effects, and
+  // limit syntax somewhat
+  {    
+    IN_PREDICATE(env);
 
-  // check the precondition
-  Expression *pre = ftype()->precondition;
-  if (pre) {
-    checkBoolean(env, pre->tcheck(env), pre);
-  }
-
-  // and the postcondition
-  Expression *post = ftype()->postcondition;
-  if (post) {
-    // the postcondition has 'result' available, as the type
-    // of the return value                              
-    env.enterScope();
-    if (! ftype()->retType->isVoid()) {
-      env.addVariable(env.strTable.add("result"), DF_NONE, r);
+    // check the precondition
+    Expression *pre = ftype()->precondition;
+    if (pre) {
+      checkBoolean(env, pre->tcheck(env), pre);
     }
 
-    checkBoolean(env, post->tcheck(env), post);
+    // and the postcondition
+    Expression *post = ftype()->postcondition;
+    if (post) {
+      // the postcondition has 'result' available, as the type
+      // of the return value                              
+      env.enterScope();
+      if (! ftype()->retType->isVoid()) {
+        env.addVariable(env.strTable.add("result"), DF_NONE, r);
+      }
 
-    env.leaveScope();
+      checkBoolean(env, post->tcheck(env), post);
+
+      env.leaveScope();
+    }
   }
 
   // check the body in the new environment
@@ -501,7 +507,7 @@ void S_decl::tcheck(Env &env)
 
 void S_assert::tcheck(Env &env)
 {
-  // TODO: verify the expression has no side effects
+  IN_PREDICATE(env);
 
   Type const *type = expr->tcheck(env);
   checkBoolean(env, type, expr);
@@ -509,6 +515,8 @@ void S_assert::tcheck(Env &env)
 
 void S_assume::tcheck(Env &env)
 {
+  IN_PREDICATE(env);
+
   checkBoolean(env, expr->tcheck(env), expr);
 }
 
@@ -525,7 +533,7 @@ Type const *Expression::tcheck(Env &env)
   return type = itcheck(env);
 }
 
-         
+
 Type const *fixed(SimpleTypeId id)
 {
   return &CVAtomicType::fixed[id];
@@ -603,6 +611,11 @@ Type const *E_funCall::itcheck(Env &env)
   }
   FunctionType const *ftype = &( maybe->asFunctionTypeC() );
 
+  if (env.inPredicate) {
+    env.errIf(!func->isE_variable(),
+      "within predicates, function applications must be simple");
+  }
+
   ObjListIter<FunctionType::Param> param(ftype->params);
 
   // check argument types
@@ -654,6 +667,10 @@ Type const *E_unary::itcheck(Env &env)
   checkBoolean(env, t, expr);
 
   // TODO: verify argument to ++/-- is an lvalue..
+             
+  if (env.inPredicate && hasSideEffect(op)) {
+    env.err("cannot have side effects in predicates");
+  }
 
   // assume these unary operators to not widen their argument
   return t;
@@ -666,8 +683,8 @@ Type const *E_binary::itcheck(Env &env)
   Type const *t2 = e2->tcheck(env);
 
   checkBoolean(env, t1, e1);     // pointer is acceptable here..
-  checkBoolean(env, t2, e2);  
-                                  
+  checkBoolean(env, t2, e2);
+
   // e.g. (short,long) -> long
   return env.promoteTypes(op, t1, t2);
 }
@@ -760,8 +777,12 @@ Type const *E_assign::itcheck(Env &env)
 
   // TODO: check that 'ttype' is an lvalue
 
+  if (env.inPredicate) {
+    env.err("cannot have side effects in predicates");
+  }
+
   env.checkCoercible(stype, ttype);
-  
+
   return ttype;
 }
 
@@ -775,6 +796,10 @@ Type const *E_arithAssign::itcheck(Env &env)
   // TODO: this isn't quite right.. I should first compute
   // the promotion of stype,ttype, then verify this can
   // in turn be coerced back to ttype.. (?)
+
+  if (env.inPredicate) {
+    env.err("cannot have side effects in predicates");
+  }
 
   // they both need to be integers
   if (!stype->isIntegerType() ||

@@ -89,6 +89,9 @@ private:    // data
   Type const *currentRetType;
 
 public:     // data
+  // true in predicate expressions
+  bool inPredicate;
+
   // string table for making up new names
   StringTable &strTable;
 

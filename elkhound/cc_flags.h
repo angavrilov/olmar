@@ -113,10 +113,12 @@ inline string toString(SimpleTypeId id)
 
 // ---------------------------- UnaryOp ---------------------------
 enum UnaryOp {
+  // side-effecting ops must be first
   UNY_POSTINC,   // ++ (postfix)
   UNY_POSTDEC,   // -- (postfix)
   UNY_PREINC,    // ++
   UNY_PREDEC,    // --
+
   UNY_SIZEOF,    // sizeof
   UNY_PLUS,      // +
   UNY_MINUS,     // -
@@ -127,6 +129,7 @@ enum UnaryOp {
 
 extern char const * const unaryOpNames[NUM_UNARYOPS];     // "++", ...
 string toString(UnaryOp op);
+bool hasSideEffect(UnaryOp op);
 
 
 // ------------------------ BinaryOp --------------------------

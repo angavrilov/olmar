@@ -13,7 +13,7 @@ class P_and;               // predicate.ast
 class AEnv {
 private:     // data
   // environment maps program variable names to abstract domain values
-  StringSObjDict<AbsValue> ints;
+  StringSObjDict<AbsValue> bindings;
 
   // (owner) set of known facts, as a big conjunction
   P_and *facts;
@@ -25,6 +25,10 @@ private:     // data
   int counter;
 
 public:      // data
+  // true when we're analyzing a predicate; among other things,
+  // this changes how function applications are treated
+  bool inPredicate;
+
   // need access to the string table to make new names
   StringTable &stringTable;
 

@@ -48,10 +48,11 @@ void VariablePrinter::dump()
 
 // ------------------- AEnv -----------------
 AEnv::AEnv(StringTable &table)
-  : ints(),
+  : bindings(),
     facts(new P_and(NULL)),
     memVars(),
     counter(1),
+    inPredicate(false),
     stringTable(table)
 {
   clear();
@@ -65,7 +66,7 @@ AEnv::~AEnv()
 
 void AEnv::clear()
 {
-  ints.empty();
+  bindings.empty();
   facts->conjuncts.deleteAll();
   memVars.empty();
   
@@ -76,16 +77,16 @@ void AEnv::clear()
 
 void AEnv::set(StringRef name, AbsValue *value)
 {
-  if (ints.isMapped(name)) {
-    ints.remove(name);
+  if (bindings.isMapped(name)) {
+    bindings.remove(name);
   }
-  ints.add(name, value);
+  bindings.add(name, value);
 }
 
 
 AbsValue *AEnv::get(StringRef name)
 {
-  return ints.queryf(name);
+  return bindings.queryf(name);
 }
 
 
@@ -267,7 +268,7 @@ AbsValue *AEnv::avUpdate(AbsValue *mem, AbsValue *addr, AbsValue *newValue)
 
 void AEnv::print()
 {
-  for (StringSObjDict<AbsValue>::Iter iter(ints);
+  for (StringSObjDict<AbsValue>::Iter iter(bindings);
        !iter.isDone(); iter.next()) {
     string const &name = iter.key();
     AbsValue const *value = iter.value();

@@ -8,6 +8,8 @@
 #include "sobjlist.h"           // SObjList
 #include "trace.h"              // tracingSys
 
+#define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
+
 
 // use for places that aren't implemented yet
 AbsValue *avTodo()
@@ -34,6 +36,8 @@ void TF_func::vcgen(AEnv &env) const
 {
   FunctionType const &ft = *(ftype());
 
+  traceProgress() << "analyzing " << name() << " ...\n";
+
   // clear anything left over in env
   env.clear();
 
@@ -41,7 +45,7 @@ void TF_func::vcgen(AEnv &env) const
   FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
     FunctionType::Param const *p = iter.data();
 
-    if (p->name && p->type->isIntegerType()) {
+    if (p->name) {
       // the function parameter's initial value is represented
       // by a logic variable of the same name
       env.set(p->name, new AVvar(p->name,
@@ -49,8 +53,12 @@ void TF_func::vcgen(AEnv &env) const
     }
   }
 
+  // let pre_mem be the name of memory now
+  env.set(env.str("pre_mem"), env.getMem());
+
   // add the precondition as an assumption
   if (ft.precondition) {
+    IN_PREDICATE(env);
     env.addFact(ft.precondition->vcgen(env));
   }
 
@@ -72,6 +80,7 @@ void TF_func::vcgen(AEnv &env) const
   // prove the postcondition now holds
   // ASSUMPTION: none of the parameters have been changed
   if (ft.postcondition) {
+    IN_PREDICATE(env);
     env.prove(ft.postcondition->vcgen(env));
   }
 }
@@ -161,16 +170,24 @@ void S_return::vcgen(AEnv &env) const
 void S_goto::vcgen(AEnv &env) const {}
 
 
-void S_decl::vcgen(AEnv &env) const 
+void S_decl::vcgen(AEnv &env) const
 {
   decl->vcgen(env);
 }
 
 
+// eval 'expr' in a predicate context
+AbsValue *vcgenPredicate(AEnv &env, Expression *expr)
+{
+  IN_PREDICATE(env);
+  return expr->vcgen(env);
+}
+
+
 void S_assert::vcgen(AEnv &env) const
-{                                
+{
   // map the expression to my abstract domain
-  AbsValue *v = expr->vcgen(env);            
+  AbsValue *v = vcgenPredicate(env, expr);
   xassert(v);     // already checked it was boolean
 
   // try to prove it (is not equal to 0)
@@ -180,8 +197,8 @@ void S_assert::vcgen(AEnv &env) const
 void S_assume::vcgen(AEnv &env) const
 {
   // evaluate
-  AbsValue *v = expr->vcgen(env);            
-  xassert(v); 
+  AbsValue *v = vcgenPredicate(env, expr);
+  xassert(v);
   
   // remember it as a known fact
   env.addFact(v);
@@ -227,13 +244,8 @@ AbsValue *E_arrayAcc::vcgen(AEnv &env) const
 {
   // having a good answer here would require having an abstract value
   // to tell me about the structure of the array
-  if (type->isIntegerType()) {
-    return env.freshVariable(stringc
-             << "array access: " << toString());
-  }
-  else {
-    return avTodo();
-  }
+  return env.freshVariable(stringc
+           << "array access: " << toString());
 }
 
 
@@ -249,6 +261,16 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
   FunctionType const &ft = func->type->asFunctionTypeC();
 
+  // --------------- predicate: fn symbol application ----------------
+  if (env.inPredicate) {
+    StringRef funcName = func->asE_variable()->name;
+    AVfunc *f = new AVfunc(funcName, NULL);
+    while (argExps.isNotEmpty()) {
+      f->args.append(argExps.removeAt(0));
+    }
+    return f;
+  }
+
   // -------------- build an environment for pre/post ----------------
   // the pre- and postconditions get evaluated to an abstract value in
   // an environment containing only parameters (and in the case of the
@@ -256,6 +278,7 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
   // globals, but right now I don't have globals in the abstract
   // environment..
   AEnv newEnv(env.stringTable);
+  newEnv.inPredicate = true;       // will only be used to eval pre/post
 
   // bind the parameters in the new environment
   SObjListMutator<AbsValue> argExpIter(argExps);
@@ -273,6 +296,12 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
     argExpIter.adv();
   }
+  
+  // let mem = current-mem
+  newEnv.setMem(env.getMem());
+  
+  // let pre_mem = mem
+  newEnv.set(env.str("pre_mem"), newEnv.getMem());
 
   // ----------------- prove precondition ---------------
   if (ft.precondition) {
@@ -291,8 +320,8 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
   // ----------------- assume postcondition ---------------
   // make a new variable to stand for the value returned
-  AbsValue *result = avTodo();
-  if (type->isIntegerType()) {
+  AbsValue *result = NULL;
+  if (!ft.retType->isVoid()) {
     result = env.freshVariable(stringc
                << "function call result: " << toString());
 
@@ -321,13 +350,8 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 AbsValue *E_fieldAcc::vcgen(AEnv &env) const
 {
   // good results here would require abstract values for structures
-  if (type->isIntegerType()) {
-    return env.freshVariable(stringc
-             << "structure field access: " << toString());
-  }
-  else {
-    return avTodo();
-  }
+  return env.freshVariable(stringc
+           << "structure field access: " << toString());
 }
 
 
@@ -372,13 +396,8 @@ AbsValue *E_deref::vcgen(AEnv &env) const
 
 AbsValue *E_cast::vcgen(AEnv &env) const
 {
-  // I can sustain integer->integer casts..
-  if (type->isIntegerType() && expr->type->isIntegerType()) {
-    return expr->vcgen(env);
-  }
-  else {
-    return avTodo();
-  }
+  // I don't know what account I should take of casts..
+  return expr->vcgen(env);
 }
 
 

@@ -77,6 +77,7 @@ Env::Env(StringTable &table)
     errors(0),
     compoundStack(),
     currentRetType(NULL),
+    inPredicate(false),
     strTable(table)
 {
   enterScope();

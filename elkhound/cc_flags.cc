@@ -156,6 +156,11 @@ char const * const unaryOpNames[NUM_UNARYOPS] = {
 
 MAKE_TOSTRING(UnaryOp, NUM_UNARYOPS, unaryOpNames)
 
+bool hasSideEffect(UnaryOp op)
+{
+  return op <= UNY_PREDEC;
+}
+
 
 // ---------------------- BinaryOp -------------------------
 char const * const binaryOpNames[NUM_BINARYOPS] = {
