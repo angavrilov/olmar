@@ -1,7 +1,7 @@
 # .gdbinit
 
-file grampar
-set args cexp2.gr
+file gramanl
+set args cexp2
 
 break main
 break breaker

@@ -16,7 +16,9 @@
 #include <string.h>     // strchr, strrchr
 
 // for maintaining column count
-#define UPD_COL   fileState.col += yyleng;
+#define TOKEN_START  tokenStartLoc = fileState /* user ; */
+#define UPD_COL      fileState.col += yyleng  /* user ; */
+#define TOK_UPD_COL  TOKEN_START; UPD_COL  /* user ; */
 
 %}
 
@@ -77,13 +79,14 @@ SLWHITE   [ \t]
 }
 
 [ \t\f\v]+ {
-  UPD_COL
+  UPD_COL;
 }
 
   /* -------- comments -------- */
 "/*" {
   /* C-style comments */
-  UPD_COL
+  TOKEN_START;
+  UPD_COL;
   commentStartLine = fileState.line;
   BEGIN(C_COMMENT);
 }
@@ -91,13 +94,13 @@ SLWHITE   [ \t]
 <C_COMMENT>{
   "*/" {
     /* end of comment */
-    UPD_COL
+    UPD_COL;
     BEGIN(INITIAL);
   }
 
   . {
     /* anything but slash-star or newline -- eat it */
-    UPD_COL
+    UPD_COL;
   }
 
   "\n" {
@@ -105,7 +108,7 @@ SLWHITE   [ \t]
   }
 
   <<EOF>> {
-    UPD_COL      // <<EOF>> yyleng is 1!
+    UPD_COL;      // <<EOF>> yyleng is 1!
     errorUnterminatedComment();
     return TOK_EOF;
   }
@@ -114,61 +117,49 @@ SLWHITE   [ \t]
 
 "//".*"\n" {
   /* C++-style comment -- eat it */
+  TOKEN_START;
   newLine();
 }
 
 
   /* -------- punctuators, operators, keywords --------- */
-  /* first, punctuation that can start embedded code */
-("{"|"=") {
-  UPD_COL
-  if (expectingEmbedded) {
-    expectingEmbedded = false;
-    embedFinish = (yytext[0] == '{' ? '}' : ';');
-    BEGIN(FUN);
-  }
-  return yytext[0] == '{' ? TOK_LBRACE : TOK_EQUAL;
-}
+"}"                TOK_UPD_COL;  return TOK_RBRACE;
+":"                TOK_UPD_COL;  return TOK_COLON;
+";"                TOK_UPD_COL;  return TOK_SEMICOLON;
+"->"               TOK_UPD_COL;  return TOK_ARROW;
+"|"                TOK_UPD_COL;  return TOK_VERTBAR;
+":="               TOK_UPD_COL;  return TOK_COLONEQUALS;
+"("                TOK_UPD_COL;  return TOK_LPAREN;
+")"                TOK_UPD_COL;  return TOK_RPAREN;
+"."                TOK_UPD_COL;  return TOK_DOT;
+","                TOK_UPD_COL;  return TOK_COMMA;
 
+"||"               TOK_UPD_COL;  return TOK_OROR;
+"&&"               TOK_UPD_COL;  return TOK_ANDAND;
+"!="               TOK_UPD_COL;  return TOK_NOTEQUAL;
+"=="               TOK_UPD_COL;  return TOK_EQUALEQUAL;
+">="               TOK_UPD_COL;  return TOK_GREATEREQ;
+"<="               TOK_UPD_COL;  return TOK_LESSEQ;
+">"                TOK_UPD_COL;  return TOK_GREATER;
+"<"                TOK_UPD_COL;  return TOK_LESS;
+"-"                TOK_UPD_COL;  return TOK_MINUS;
+"+"                TOK_UPD_COL;  return TOK_PLUS;
+"%"                TOK_UPD_COL;  return TOK_PERCENT;
+"/"                TOK_UPD_COL;  return TOK_SLASH;
+"*"                TOK_UPD_COL;  return TOK_ASTERISK;
+"?"                TOK_UPD_COL;  return TOK_QUESTION;
 
-  /* now just normal stuff */
-"}"                UPD_COL  return TOK_RBRACE;
-":"                UPD_COL  return TOK_COLON;
-";"                UPD_COL  return TOK_SEMICOLON;
-"->"               UPD_COL  return TOK_ARROW;
-"|"                UPD_COL  return TOK_VERTBAR;
-":="               UPD_COL  return TOK_COLONEQUALS;
-"("                UPD_COL  return TOK_LPAREN;
-")"                UPD_COL  return TOK_RPAREN;
-"."                UPD_COL  return TOK_DOT;
-","                UPD_COL  return TOK_COMMA;
-
-"||"               UPD_COL  return TOK_OROR;
-"&&"               UPD_COL  return TOK_ANDAND;
-"!="               UPD_COL  return TOK_NOTEQUAL;
-"=="               UPD_COL  return TOK_EQUALEQUAL;
-">="               UPD_COL  return TOK_GREATEREQ;
-"<="               UPD_COL  return TOK_LESSEQ;
-">"                UPD_COL  return TOK_GREATER;
-"<"                UPD_COL  return TOK_LESS;
-"-"                UPD_COL  return TOK_MINUS;
-"+"                UPD_COL  return TOK_PLUS;
-"%"                UPD_COL  return TOK_PERCENT;
-"/"                UPD_COL  return TOK_SLASH;
-"*"                UPD_COL  return TOK_ASTERISK;
-"?"                UPD_COL  return TOK_QUESTION;
-
-"terminals"        UPD_COL  return TOK_TERMINALS;
-"nonterm"          UPD_COL  return TOK_NONTERM;
-"formGroup"        UPD_COL  return TOK_FORMGROUP;
-"form"             UPD_COL  return TOK_FORM;
-"attr"             UPD_COL  return TOK_ATTR;
-"action"           UPD_COL  return TOK_ACTION;
-"condition"        UPD_COL  return TOK_CONDITION;
+"terminals"        TOK_UPD_COL;  return TOK_TERMINALS;
+"nonterm"          TOK_UPD_COL;  return TOK_NONTERM;
+"formGroup"        TOK_UPD_COL;  return TOK_FORMGROUP;
+"form"             TOK_UPD_COL;  return TOK_FORM;
+"attr"             TOK_UPD_COL;  return TOK_ATTR;
+"action"           TOK_UPD_COL;  return TOK_ACTION;
+"condition"        TOK_UPD_COL;  return TOK_CONDITION;
 
   /* --------- embedded semantic functions --------- */
 "fundecl" {
-  UPD_COL
+  TOK_UPD_COL;
   BEGIN(FUNDECL);
   embedded->reset();
   embedFinish = ';';
@@ -177,7 +168,7 @@ SLWHITE   [ \t]
 }
 
 ("fun"|"prologue"|"epilogue") {
-  UPD_COL
+  TOK_UPD_COL;
 
   // one or two tokens must be processed before we start the embedded
   // stuff; the parser will ensure they are there, and then this flag
@@ -192,31 +183,52 @@ SLWHITE   [ \t]
                          TOK_EPILOGUE;
 }
 
+  /* punctuation that can start embedded code */
+("{"|"=") {
+  TOK_UPD_COL;
+  if (expectingEmbedded) {
+    expectingEmbedded = false;
+    embedFinish = (yytext[0] == '{' ? '}' : ';');
+    BEGIN(FUN);
+  }
+  return yytext[0] == '{' ? TOK_LBRACE : TOK_EQUAL;
+}
+
+
+  /* no TOKEN_START here; we'll use the tokenStartLoc that
+   * was computed in the opening punctuation */
 <FUNDECL,FUN>{
   [^;}\n]+ {
-    UPD_COL
+    UPD_COL;
     embedded->handle(yytext, yyleng);
-  }     
-  
+  }
+
   "\n" {
     newLine();
     embedded->handle(yytext, yyleng);
   }
 
   ("}"|";") {
-    UPD_COL
+    UPD_COL;
     if (yytext[0] == embedFinish &&
         embedded->zeroNesting()) {
       // done
       BEGIN(INITIAL);
 
+      // adjust tokenStartLoc; we get into embedded mode
+      // from a single-char token ('{' or '='), and tokenStartLoc
+      // currently has that token's location; since lexer 1
+      // is supposed to partition the input, I want it right
+      tokenStartLoc.col++;
+
       // put back delimeter
       yyless(yyleng-1);
-      
+      fileState.col--;
+
       // tell the 'embedded' object whether the text just
       // added is to be considered an expression or a
       // complete function body
-      embedded->exprOnly = 
+      embedded->exprOnly =
         (embedMode == TOK_FUN_BODY &&
          embedFinish == ';');
 
@@ -233,7 +245,7 @@ SLWHITE   [ \t]
 
   /* ---------- includes ----------- */
 "include" {
-  UPD_COL
+  TOK_UPD_COL;    /* hence no TOKEN_START in INCLUDE area */
   BEGIN(INCLUDE);
 }
 
@@ -241,7 +253,7 @@ SLWHITE   [ \t]
   {SLWHITE}*"("{SLWHITE}*{DQUOTE}{STRCHR}+{DQUOTE}{SLWHITE}*")" {
     /* e.g.: ("filename") */
     /* file name to include */
-    UPD_COL
+    UPD_COL;
 
     /* find quotes */
     char const *leftq = strchr(yytext, '"');
@@ -258,7 +270,7 @@ SLWHITE   [ \t]
 
   {ANY}      {
     /* anything else: malformed */
-    UPD_COL
+    UPD_COL;
     errorMalformedInclude();
 
     /* rudimentary error recovery.. */
@@ -268,7 +280,7 @@ SLWHITE   [ \t]
 
 <EAT_TO_NEWLINE>{
   .+ {
-    UPD_COL
+    UPD_COL;
     /* not newline, eat it */
   }
 
@@ -282,27 +294,27 @@ SLWHITE   [ \t]
   /* -------- name literal --------- */
 {LETTER}({LETTER}|{DIGIT})* {
   /* get text from yytext and yyleng */
-  UPD_COL
+  TOK_UPD_COL;
   return TOK_NAME;
 }
 
   /* -------- numeric literal ------ */
 {DIGIT}+ {
-  UPD_COL
+  TOK_UPD_COL;
   integerLiteral = strtoul(yytext, NULL, 10 /*radix*/);
   return TOK_INTEGER;
 }
 
   /* ----------- string literal ----- */
 {DQUOTE}{STRCHR}*{DQUOTE} {
-  UPD_COL
+  TOK_UPD_COL;
   stringLiteral = string(yytext+1, yyleng-2);        // strip quotes
   return TOK_STRING;
 }
 
   /* --------- illegal ------------- */
 {ANY} {
-  UPD_COL
+  TOK_UPD_COL;
   errorIllegalCharacter(yytext[0]);
 }
 

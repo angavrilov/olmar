@@ -153,6 +153,7 @@ string CCSubstrate::getFuncBody() const
   }
   else {
     // slightly harder
+    // NOTE: this contradicts goal of a strict input partition..
     return stringc << "return " << text << ";";
   }
 }

@@ -369,8 +369,11 @@ string Production::toStringWithActions() const
      << actions.toString(this)
      << conditions.toString(this)
      ;
-  if (functions.isNotEmpty()) {
-    sb << "  " << functions.toString() << "\n";
+     
+  for (LitCodeDict::Iter iter(functions);
+       !iter.isDone(); iter.next()) {
+    sb << "  fun " << iter.key() << "{ "
+       << iter.value()->code << " }\n";
   }
   return sb;
 }
@@ -741,14 +744,23 @@ void ItemSet::writeGraph(ostream &os) const
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : startSymbol(NULL),
-    emptyString("empty")
+    emptyString("empty"),
+    semanticsPrologue(NULL),
+    semanticsEpilogue(NULL)
 {
   emptyString.isEmptyString = true;
 }
 
 
 Grammar::~Grammar()
-{}
+{
+  if (semanticsPrologue) {
+    delete semanticsPrologue;
+  }
+  if (semanticsEpilogue) {
+    delete semanticsEpilogue;
+  }
+}
 
 
 int Grammar::numTerminals() const

@@ -3,7 +3,7 @@
 # main targets
 all: gramanl
 
-everything: gramanl glr lexer1 lexer2 grampar
+everything: gramanl glr lexer1 lexer2 grampar cexp2
 
 # directories
 SMBASE = /home/scott/wrk/lib/smbase
@@ -17,7 +17,7 @@ includes = -I${SMBASE}
 include ${SMBASE}/Makefile.base.mk
 
 # sets of related object files
-grammar-set = grammar.o action.o cond.o attr.o attrexpr.o
+grammar-set = grammar.o action.o cond.o attr.o attrexpr.o litcode.o
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o gramast.o ccsstr.o
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
@@ -55,8 +55,9 @@ gramlex.yy.cc: gramlex.h gramlex.cc gramlex.lex grampar.tab.h
 	flex -ogramlex.yy.cc gramlex.lex                     
 
 # grammar lexer test program
-gramlex: gramlex.yy.cc gramlex.cc gramlex.h ${common}
-	${link} -o gramlex -DTEST_GRAMLEX gramlex.yy.cc gramlex.cc trace.o ${linkend}
+gramlex-dep = gramlex.yy.cc gramlex.cc fileloc.o ccsstr.o ${common}
+gramlex: gramlex.h ${gramlex-dep}
+	${link} -o gramlex -DTEST_GRAMLEX ${gramlex-dep} ${linkend}
 
 # grammar parser
 grampar.tab.cc grampar.tab.h: grampar.y

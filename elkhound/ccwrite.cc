@@ -57,6 +57,13 @@ string headerFileLatch(char const *fname)
 }
 
 
+string lineDirective(SourceLocation const &loc)
+{
+  return stringc << "#line " << loc.line
+                 << " \"" << loc.file->filename << "\"\n";
+}
+
+
 // ----------------- code emitters -----------------
 // emit the C++ code for a nonterminal's semantic functions
 void emitSemFuns(ostream &os, Grammar const *g,
@@ -80,13 +87,14 @@ void emitSemFuns(ostream &os, Grammar const *g,
      ;
 
   // loop over all declared functions
-  for (StringDict::IterC declaration(nonterm->funDecls);
+  for (LitCodeDict::Iter declaration(nonterm->funDecls);
        !declaration.isDone(); declaration.next()) {
     string name = declaration.key();
-    string decl = declaration.value();
+    LiteralCode const *decl = declaration.value();
 
     // write the function prologue
-    os << semFuncDecl(name, decl, nonterm) << "\n"
+    os << lineDirective(decl->loc)
+       << semFuncDecl(name, decl->code, nonterm) << "\n"
           "{\n"
           "  switch (onlyProductionIndex()) {\n"
           ;
@@ -96,7 +104,7 @@ void emitSemFuns(ostream &os, Grammar const *g,
       Production const *prod = prodIter.data();
       if (prod->left != nonterm) { continue; }
 
-      string body = prod->functions.queryf(name);
+      LiteralCode const *body = prod->functions.queryfC(name);
 
       // write the header for this production's action
       xassert(prod->prodIndex != -1);    // otherwise we forgot to set it
@@ -132,7 +140,8 @@ void emitSemFuns(ostream &os, Grammar const *g,
       // write the user's code
       os << "\n"
          << "      // begin user code\n"
-         << body
+         << lineDirective(body->loc)
+         << body->code
          << "      // end user code\n"
          << "      break;\n"    // catch missing returns, or for void fns
          << "    }\n"
@@ -163,13 +172,14 @@ void emitClassDecl(ostream &os, Nonterminal const *nonterm)
      ;
 
   // loop over all declared functions
-  for (StringDict::IterC declaration(nonterm->funDecls);
+  for (LitCodeDict::Iter declaration(nonterm->funDecls);
        !declaration.isDone(); declaration.next()) {
     string name = declaration.key();
-    string decl = declaration.value();
+    LiteralCode const *decl = declaration.value();
 
     // emit declaration
-    os << "  " << decl << ";    // " << name << "\n";
+    os << lineDirective(decl->loc)
+       << "  " << decl->code << ";    // " << name << "\n";
   }
 
   // type declaration epilogue
@@ -237,11 +247,14 @@ void emitSemFunImplFile(char const *fname, char const *headerFname,
   // type map
   g->emitTypeCtorMap(os);
 
-  os << "// -------- user-supplied semantics epilogue --------\n"
-     << g->semanticsEpilogue
-     << "\n"
-     << "\n"
-     << "// end of " << fname << "\n";
+  if (g->semanticsEpilogue != NULL) {
+    os << "// -------- user-supplied semantics epilogue --------\n"
+       << lineDirective(g->semanticsEpilogue->loc)
+       << g->semanticsEpilogue->code
+       << "\n"
+       << "\n"
+       << "// end of " << fname << "\n";
+  }
 }
 
 
@@ -263,13 +276,17 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
      << "\n"
      << "#include \"glrtree.h\"     // NonterminalNode\n"
      << "\n"
-     << "\n"
-     << "// ------------ user-supplied prologue ----------\n"
-     << g->semanticsPrologue
-     << "\n"
-     << "\n"
-     << "// --------- generated class declarations --------\n"
-     ;
+     << "\n";
+             
+  if (g->semanticsPrologue != NULL) {
+    os << "// ------------ user-supplied prologue ----------\n"
+       << lineDirective(g->semanticsPrologue->loc)
+       << g->semanticsPrologue->code
+       << "\n"
+       << "\n";
+  }
+
+  os << "// --------- generated class declarations --------\n";
 
   // class declarations
   FOREACH_OBJLIST(Nonterminal, g->nonterminals, iter) {

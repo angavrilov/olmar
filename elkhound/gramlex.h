@@ -95,6 +95,8 @@ private:     // data
   FileState fileState;             // state for file we're lexing now
   ObjList<FileState> fileStack;    // stack of files we will return to
 
+  SourceLocation tokenStartLoc;    // location of start of current token
+
   // support for embedded code
   bool expectingEmbedded;          // true when certain punctuation triggers
                                    // embedded processing
@@ -103,6 +105,7 @@ private:     // data
   EmbeddedLang *embedded;          // (owner) the processor
 
 public:      // data
+  // todo: can eliminate commentStartLine in favor of tokenStartLoc?
   int commentStartLine;            // for reporting unterminated C comments
   int integerLiteral;              // to store number literal value
   string stringLiteral;            // string in quotes, minus the quotes
@@ -112,7 +115,7 @@ public:      // data
   //   const char *YYText();           // start of matched text
   //   int YYLeng();                   // number of matched characters
 
-private:     // funcs                      
+private:     // funcs
   // called when a newline is encountered
   void newLine() { fileState.newLine(); }
 
@@ -143,10 +146,10 @@ public:      // funcs
   int yylexInc();
 
   // info about location of current token
-  char const *curFname() const { return fileState.fname(); }
-  int curLine() const { return fileState.line; }
-  int curCol() const;
-  SourceLocation const &curLoc() const { return fileState; }
+  char const *curFname() const { return tokenStartLoc.fname(); }
+  int curLine() const { return tokenStartLoc.line; }
+  int curCol() const { return tokenStartLoc.col; }
+  SourceLocation const &curLoc() const { return tokenStartLoc; }
   string curLocStr() const;    // string with file/line/col
 
   // error reporting; called by the lexer code

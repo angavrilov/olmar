@@ -57,6 +57,7 @@ GrammarLexer::GrammarLexer(char const *fname, istream *source)
   : yyFlexLexer(source),
     fileState(sourceFileList.open(fname), source),
     fileStack(),
+    tokenStartLoc(),
     expectingEmbedded(false),
     embedFinish(0),
     embedMode(0),
@@ -156,17 +157,9 @@ string GrammarLexer::curDeclName() const
 }
 
 
-int GrammarLexer::curCol() const
-{
-  // we want to report the *start* column, not the column
-  // after the last character
-  return fileState.col - curLen();
-}
-
-
 string GrammarLexer::curLocStr() const
 {
-  return fileState.toString();
+  return curLoc().toString();
 }
 
 
@@ -251,6 +244,7 @@ bool GrammarLexer::hasPendingFiles() const
 int main(int argc)
 {
   GrammarLexer lexer;
+  traceAddSys("lex");
 
   cout << "go!\n";
 
@@ -261,17 +255,25 @@ int main(int argc)
       break;
     }
 
-    if (code != TOK_INCLUDE) {
-      cout << "token at " << lexer.curLocStr()
-           << ": code=" << code
-           << ", text: " << lexer.curToken().pcharc()
-           << endl;
-    }
-    else {
-      // if I use yylexInc above, this is never reached
-      cout << "include at " << lexer.curLocStr()
-           << ": filename is `" << lexer.includeFileName.pcharc()
-           << "'\n";
+    switch (code) {
+      case TOK_INCLUDE:
+        // if I use yylexInc above, this is never reached
+        cout << "include at " << lexer.curLocStr()
+             << ": filename is `" << lexer.includeFileName.pcharc()
+             << "'\n";
+        break;
+
+      case TOK_FUNDECL_BODY:
+      case TOK_FUN_BODY:
+        cout << "embedded code at " << lexer.curLocStr()
+             << ": " << lexer.curFuncBody()
+             << endl;
+
+      default:
+        cout << "token at " << lexer.curLocStr()
+             << ": code=" << code
+             << ", text: " << lexer.curToken().pcharc()
+             << endl;
     }
   }
 

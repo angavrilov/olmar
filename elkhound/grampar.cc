@@ -61,6 +61,21 @@ AExprNode *checkSpecial(Environment &env, Production *prod,
 
 
 
+// really a static semantic error, more than a parse error..
+void astParseError(ASTNode const *node, char const *msg)
+{
+  SourceLocation loc;
+  if (node->leftmostLoc(loc)) {
+    xfailure(stringc << "near " << loc.toString() << ", at "
+                     << node->toString() << ": " << msg);
+  }
+  else {
+    xfailure(stringc << "(?loc) "
+                     << node->toString() << ": " << msg);
+  }
+}
+
+
 ASTIntLeaf const *asIntLeafC(ASTNode const *n)
 {
   xassert(n->type == AST_INTEGER);
@@ -106,6 +121,20 @@ ObjList<ASTNode> const &nodeList(ASTNode const *n, int type)
   return n->asInternalC().children;
 }
 
+SourceLocation nodeSrcLoc(ASTNode const *n)
+{
+  SourceLocation ret;
+  if (!n->leftmostLoc(ret)) {
+    astParseError(n, "no source location");
+  }
+  return ret;
+}
+
+LiteralCode *nodeLitCode(ASTNode const *n)
+{
+  return new LiteralCode(nodeSrcLoc(n), nodeString(n));
+}
+
 
 int childInt(ASTNode const *n, int c)
   { return nodeInt(nthChild(n, c)); }
@@ -115,21 +144,10 @@ string childString(ASTNode const *n, int c)
   { return nodeString(nthChild(n, c)); }
 ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
   { return nodeList(nthChild(n, c), type); }
-
-
-// really a static semantic error, more than a parse error..
-void astParseError(ASTNode const *node, char const *msg)
-{
-  SourceLocation loc;
-  if (node->leftmostLoc(loc)) {
-    xfailure(stringc << "near " << loc.toString() << ", at "
-                     << node->toString() << ": " << msg);
-  }
-  else {
-    xfailure(stringc << "(?loc) "
-                     << node->toString() << ": " << msg);
-  }
-}
+SourceLocation childSrcLoc(ASTNode const *n, int c)
+  { return nodeSrcLoc(nthChild(n, c)); }
+LiteralCode *childLitCode(ASTNode const *n, int c)
+  { return nodeLitCode(nthChild(n, c)); }
 
 
 // to put at the end of a switch statement after all the
@@ -176,17 +194,17 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
       }
 
       case AST_PROLOGUE:
-        if (g.semanticsPrologue.length() != 0) {
+        if (g.semanticsPrologue != NULL) {
           astParseError(node, "prologue already defined");
         }
-        g.semanticsPrologue = childString(node, 0);
+        g.semanticsPrologue = childLitCode(node, 0);
         break;
 
       case AST_EPILOGUE:
-        if (g.semanticsEpilogue.length() != 0) {
+        if (g.semanticsEpilogue != NULL) {
           astParseError(node, "epilogue already defined");
         }
-        g.semanticsEpilogue = childString(node, 0);
+        g.semanticsEpilogue = childLitCode(node, 0);
         break;
 
       case AST_NONTERM: {
@@ -244,8 +262,8 @@ void astParseGroupBody(Environment &prevEnv, Nonterminal *nt,
       case AST_FUNDECL:
         if (attrDeclAllowed) {
           nt->funDecls.add(
-            childName(node, 0),      // declared name
-            childString(node, 1));   // declaration body
+            childName(node, 0),         // declared name
+            childLitCode(node, 1));     // declaration body
         }
         else {
           // cannot happen with current grammar
@@ -398,7 +416,7 @@ void astParseForm(Environment &env, Nonterminal *nt,
     }
 
     // make sure all fundecls have implementations
-    for (StringDict::IterC iter(nt->funDecls); 
+    for (LitCodeDict::Iter iter(nt->funDecls);
          !iter.isDone(); iter.next()) {
       char const *name = iter.key();
       if (!prod->hasFunction(name)) {
@@ -432,8 +450,8 @@ void astParseFormBodyElt(Environment &env, Production *prod,
       // allow function declarations in form bodies because it's
       // convenient for nonterminals that only have one form..
       prod->left->funDecls.add(
-        childName(n, 0),      // declared name
-        childString(n, 1));   // declaration body
+        childName(n, 0),       // declared name
+        childLitCode(n, 1));   // declaration body
       break;
 
     case AST_FUNCTION:
@@ -505,8 +523,7 @@ void astParseFunction(Environment &env, Production *prod,
     }
   }
 
-  string body = childString(func, 1);
-  prod->functions.add(name, body);
+  prod->functions.add(name, childLitCode(func, 1));
 }
 
 

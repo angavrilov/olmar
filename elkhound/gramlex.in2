@@ -7,4 +7,11 @@ some stuff
 
 { include("gramlex.in3") }
 
+fundecl int foo();
+
+fun foo { 
+  return 4; 
+}
+fun bar = 5;
+
 end of gramlex.in2

@@ -21,17 +21,17 @@
 #ifndef __GRAMMAR_H
 #define __GRAMMAR_H
 
-#include <iostream.h>  // ostream
+#include <iostream.h>    // ostream
 
-#include "str.h"       // string
-#include "objlist.h"   // ObjList
-#include "sobjlist.h"  // SObjList
-#include "util.h"      // OSTREAM_OPERATOR, INTLOOP
-#include "action.h"    // Actions
-#include "cond.h"      // Conditions
-#include "strdict.h"   // StringDict
+#include "str.h"         // string
+#include "objlist.h"     // ObjList
+#include "sobjlist.h"    // SObjList
+#include "util.h"        // OSTREAM_OPERATOR, INTLOOP
+#include "action.h"      // Actions
+#include "cond.h"        // Conditions
+#include "litcode.h"     // LitCodeDict
 
-class StrtokParse;     // strtokp.h
+class StrtokParse;       // strtokp.h
 
 // fwds defined below
 class Symbol;
@@ -152,7 +152,7 @@ public:     // data
   // declarations of functions, as a dictionary: name -> declBody; the
   // text of the declaration is stored because it is needed when
   // emitting substrate code
-  StringDict funDecls;
+  LitCodeDict funDecls;
 
 public:     // funcs
   Nonterminal(char const *name);
@@ -213,7 +213,7 @@ public:	    // data
   // extras
   Conditions conditions;       	// every condition must be satisfied for a rule to be used
   Actions actions;              // when used, a rule has these effects
-  StringDict functions;         // semantic functions: name -> body
+  LitCodeDict functions;        // semantic functions: name -> body
 
 public:	    // funcs
   Production(Nonterminal *left, char const *leftTag);
@@ -484,8 +484,8 @@ public:	    // data
 
   // extra user-supplied source in the embedded language,
   // meant to appear in the generated semantic-functions files
-  string semanticsPrologue;      // top of .h file
-  string semanticsEpilogue;      // bottom of .cc file
+  LiteralCode *semanticsPrologue;      // (owner) top of .h file
+  LiteralCode *semanticsEpilogue;      // (owner) bottom of .cc file
 
 private:    // funcs
   // obsolete parsing functions
