@@ -206,6 +206,7 @@ Type *TypeFactory_Q::applyQualifiersToType(
   Type_Q *qbaseType = asType_Q(baseType);
 
   // extract qualifier literals from syntax
+  // FIX: This should be literals
   Qualifiers *q = syntax->q;
 
   if (!q || !q->ql) {
@@ -237,9 +238,12 @@ Type *TypeFactory_Q::applyQualifiersToType(
     //          else xassert(!ret->ql);
 
     // dsw: FIX: this is being applied in a way with typedefs as
-    // to doubly-annotate.
+    // to doubly-annotate.  Scott says this is fixed.  CHECK.
     //          cout << "OLD: " << (ret->ql?ret->ql->toString():string("(null)")) << endl;
     //          cout << "BEING APPLIED: " << ql->toString() << endl;
+
+    // FIX: This should be replaced by applying the qualifierliterals
+    // to the type_Q.  DON'T CLONE AGAIN.
     if (q) ret->q = Qualifiers_deepClone(q, ret->q);
     //          // find the end of the list and copy the QualifierLiterals there
     //          QualifierLiterals **qlp;
