@@ -156,7 +156,6 @@ if ($code != 0) {
 }
 
 
-# I don't think there are GNU-specific things in my Makefile
 print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 
 exit(0);
