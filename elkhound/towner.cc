@@ -4,6 +4,16 @@
 #include "owner.h"    // module to test
 #include <stdio.h>    // printf
 
+class Foo;
+void someCrap(Foo *f)
+{
+  //delete f;
+  // good -- egcs-1.1.2 doesn't allow this, so I won't accidentally
+  // get destructors missed because of forward decls (like could
+  // happen with Borland)
+}
+
+
 // a simple class to play with
 class Foo {
 public:

@@ -2,7 +2,6 @@
 // code for glrtree.h
 
 #include "glrtree.h"     // this module
-#include "lexer2.h"      // Lexer2Token
 
 
 // convenient indented output
@@ -40,12 +39,23 @@ NonterminalNode const &TreeNode::asNontermC() const
 }
 
 
+TreeNode const *TreeNode::walkTree(WalkFn func, void *extra) const
+{
+  if (func(this, extra)) {
+    return this;
+  }
+  else {
+    return NULL;
+  }
+}  
+
+
 string TreeNode::unparseString() const
-{              
+{
   // get terms
   SObjList<TerminalNode> terms;
   getGroundTerms(terms);
-  
+
   // render as string
   stringBuilder sb;
 
@@ -166,6 +176,24 @@ Symbol const *NonterminalNode::getSymbolC() const
 }
 
 
+TreeNode const *NonterminalNode::walkTree(WalkFn func, void *extra) const
+{
+  TreeNode const *n;
+
+  // me
+  n = TreeNode::walkTree(func, extra);
+  if (n) { return n; }
+
+  // alternatives for children; for now, just walk all alternatives
+  // equally
+  FOREACH_OBJLIST(Reduction, reductions, red) {
+    n = red.data()->walkTree(func, extra);
+    if (n) { return n; }
+  }
+  return NULL;
+}
+
+
 void NonterminalNode::printParseTree(ostream &os, int indent) const
 {
   int parses = reductions.count();
@@ -267,6 +295,17 @@ Reduction::~Reduction()
 {}
 
 
+TreeNode const *Reduction::walkTree(TreeNode::WalkFn func, void *extra) const
+{
+  // walk children
+  SFOREACH_OBJLIST(TreeNode, children, iter) {
+    TreeNode const *n = iter.data()->walkTree(func, extra);
+    if (n) { return n; }
+  }
+  return NULL;
+}
+
+
 void Reduction::printParseTree(Attributes const &attr,
                                ostream &os, int indent) const
 {
@@ -301,9 +340,20 @@ void Reduction::getGroundTerms(SObjList<TerminalNode> &dest) const
 }
 
 
+// ---------------------- ParseTree --------------------
+ParseTree::ParseTree()
+  : lexer2(),
+    treeNodes(),
+    top(NULL)
+{}
+
+ParseTree::~ParseTree()
+{}
+
+
 // --------------------- AttrContext -------------------
 AttrContext::~AttrContext()
-{		  
+{
   // common case is that red is, in fact, NULL at this point
   if (red != NULL) {
     delete red;

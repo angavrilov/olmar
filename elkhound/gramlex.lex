@@ -215,11 +215,18 @@ SLWHITE   [ \t]
       // done
       BEGIN(INITIAL);
 
-      // adjust tokenStartLoc; we get into embedded mode
-      // from a single-char token ('{' or '='), and tokenStartLoc
-      // currently has that token's location; since lexer 1
-      // is supposed to partition the input, I want it right
-      tokenStartLoc.col++;
+      // adjust tokenStartLoc
+      if (embedMode == TOK_FUN_BODY) {
+        // we get into embedded mode from a single-char token ('{' or
+        // '='), and tokenStartLoc currently has that token's location;
+        // since lexer 1 is supposed to partition the input, I want it
+        // right
+        tokenStartLoc.col++;
+      }
+      else {
+        // here we get into embedded from 'fundecl'
+        tokenStartLoc.col += 7;
+      }
 
       // put back delimeter
       yyless(yyleng-1);

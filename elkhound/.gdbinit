@@ -1,7 +1,7 @@
 # .gdbinit
 
 file gramanl
-set args cexp2
+set args cc
 
 break main
 break breaker

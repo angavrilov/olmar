@@ -64,6 +64,10 @@ public:     // funcs
   // no location information in this subtree
   virtual bool leftmostLoc(SourceLocation &loc) const;
 
+  // sligtly different interface to 'leftmostLoc'
+  bool hasLeftmostLoc() const;
+  SourceLocation getLeftmostLoc() const;     // asserts that it exists
+
   // debugging: print as indented tree
   virtual void debugPrint(ostream &os, int indent) const;
 

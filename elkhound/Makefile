@@ -21,7 +21,7 @@ grammar-set = grammar.o action.o cond.o attr.o attrexpr.o litcode.o
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o gramast.o ccsstr.o
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
-          lexer2.o
+          lexer2.o parssppt.o
 common = trace.o
 
 # ------ targets -------
@@ -85,10 +85,11 @@ ccsstr: ccsstr.cc ccsstr.h
 	${link} -o ccsstr -DTEST_CCSSTR ccsstr.cc ${linkend}
 
 # intermediate files for cexp2
+# ('chmod a-w' is so I don't accidentally edit them)
 cexp2.cc cexp2.h: cexp2.gr gramanl
 	rm -f cexp2.{h,cc}
 	./gramanl cexp2
-	chmod u-w cexp2.cc cexp2.h
+	chmod a-w cexp2.cc cexp2.h
 
 # parser and semantic analyzer for cexp2.gr
 cexp2-dep = cexp2.cc ${grammar-set} ${common} ${grampar-set} \
@@ -96,10 +97,24 @@ cexp2-dep = cexp2.cc ${grammar-set} ${common} ${grampar-set} \
 cexp2: ${cexp2-dep} cexp2.h
 	${link} -o cexp2 ${cexp2-dep} ${linkend}
 
+# intermediate files for ccgr
+cc.cc cc.h: cc.gr gramanl
+	rm -f cc.{h,cc}
+	./gramanl cc
+	chmod a-w cc.cc cc.h
+
+# parser and semantic analyzer for cc.gr
+# (called the target 'ccgr' instead of 'cc' to avoid name collision)
+ccgr-dep = cc.cc ${grammar-set} ${common} ${grampar-set} \
+           ${glr-set}
+ccgr: ${ccgr-dep} cc.h
+	${link} -o ccgr ${ccgr-dep} ${linkend}
+
 clean:
 	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
 	rm -f lexer2 grampar.tab.* grampar a.out
-	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2
+	rm -f cexp2.sem ccsstr cexp2.{h,cc} cexp2 cc.{h,cc} ccgr
+	rm -f towner cc.gr.ps
 
 # --------------- random other stuff --------------------
 # printable version of the C++ grammar; removes the '// C++' tags

@@ -6,6 +6,7 @@
 
 #include "typ.h"        // NULL
 #include "sobjlist.h"   // SObjList
+#include "exc.h"        // xBase
 
 // fwd decl
 class ASTNode;
@@ -91,6 +92,25 @@ public:
 // parse file 'fname' into grammar 'g', throwing exceptions
 // if there are problems
 void readGrammarFile(Grammar &g, char const *fname);
+
+
+// thrown when there is an error parsing the AST
+class XASTParse : public xBase {
+public:    // data
+  // node at or near failure
+  ASTNode const *node;
+
+  // what is wrong
+  string message;
+                   
+private:   // funcs
+  static string constructMsg(ASTNode const *node, char const *msg);
+
+public:    // funcs
+  XASTParse(ASTNode const *node, char const *msg);
+  XASTParse(XASTParse const &obj);
+  ~XASTParse();
+};
 
 
 #endif // __GRAMPAR_H

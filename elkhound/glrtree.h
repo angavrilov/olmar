@@ -17,10 +17,9 @@
 
 #include "grammar.h"     // Symbol, Production, etc.
 #include "attr.h"        // Attributes
+#include "lexer2.h"      // Lexer2, Lexer2Token
+#include "owner.h"       // Owner
 
-
-// fwds from other files
-class Lexer2Token;       // lexer2.h; a token from the input file
 
 // forward decls for things declared below
 class TreeNode;          // abstract parse tree (graph) node
@@ -32,6 +31,11 @@ class Reduction;         // inside NonterminalNode, reduction choices
 // abstract constituent of a parse graph
 // ([GLR] calls these "tree nodes" also)
 class TreeNode {
+public:     // types                                        
+  // called with each node; returns false to continue
+  // walking or true to stop
+  typedef bool (*WalkFn)(TreeNode const *node, void *extra);
+
 public:	    // data
   // attributes associated with the node
   Attributes attr;
@@ -53,6 +57,11 @@ public:	    // funcs
 
   NonterminalNode const &asNontermC() const;
   NonterminalNode &asNonterm() { return const_cast<NonterminalNode&>(asNontermC()); }
+
+  // walk the tree, calling 'func' on each node encountered (in order),
+  // until it returns true; returns the tree node at which 'func' retruned
+  // true, or NULL if it never did
+  virtual TreeNode const *walkTree(WalkFn func, void *extra=NULL) const;
 
   // ambiguity report
   virtual TerminalNode const *getLeftmostTerminalC() const = 0;
@@ -123,7 +132,7 @@ public:
   // assuming there is no ambiguity, get the single Reduction;
   // if there is not 1 reduction, xassert
   Reduction const *only() const;
-  
+
   // same assumption; nice pre-chewed calls for
   // emitted code
   int onlyProductionIndex() const;
@@ -133,6 +142,7 @@ public:
   // TreeNode stuff
   virtual bool isTerm() const { return false; }
   virtual Symbol const *getSymbolC() const;
+  virtual TreeNode const *walkTree(WalkFn func, void *extra=NULL) const;
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
@@ -158,9 +168,28 @@ public:
   ~Reduction();
 
   void printParseTree(Attributes const &attr, ostream &os, int indent) const;
+  TreeNode const *walkTree(TreeNode::WalkFn func, void *extra=NULL) const;
   void ambiguityReport(ostream &os) const;
 
   void getGroundTerms(SObjList<TerminalNode> &dest) const;
+};
+
+
+// a self-contained parse tree (or parse DAG, as the case may be)
+struct ParseTree {
+public:
+  // we need a place to put the ground tokens
+  Owner<Lexer2> lexer2;
+
+  // and a list of tree nodes to own
+  ObjList<TreeNode> treeNodes;
+
+  // and one node designated as the top of the tree
+  TreeNode const *top;
+
+public:
+  ParseTree();
+  ~ParseTree();
 };
 
 
@@ -182,12 +211,11 @@ public:
   Attributes const &parentAttrC() const { return att; }
 
   // access with modification
-  Reduction &reduction() { return *red; }       	
+  Reduction &reduction() { return *red; }
   Attributes &parentAttr() { return att; }
-  
+
   // transfer of ownership (nullifies 'red')
   Reduction *grabReduction();
 };
-
 
 #endif // __GLRTREE_H

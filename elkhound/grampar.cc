@@ -13,7 +13,7 @@
 #include <fstream.h>     // ifstream
 
 
-// ------------ mapping a grammar AST into a Grammar object -----------
+// ------------------------- Environment ------------------------
 Environment::Environment(Grammar &G)
   : g(G),
     prevEnv(NULL),
@@ -35,6 +35,38 @@ Environment::~Environment()
 {}
 
 
+// -------------------- XASTParse --------------------
+STATICDEF string XASTParse::
+  constructMsg(ASTNode const *node, char const *msg)
+{
+  if (node->hasLeftmostLoc()) {
+    return stringc << "near " << node->getLeftmostLoc().toString()
+                   << ", at " << node->toString() << ": " << msg;
+  }
+  else {
+    return stringc << "(?loc) at "
+                   << node->toString() << ": " << msg;
+  }
+}
+
+XASTParse::XASTParse(ASTNode const *n, char const *m)
+  : xBase(constructMsg(n, m)),
+    node(n),
+    message(m)
+{}
+
+
+XASTParse::XASTParse(XASTParse const &obj)
+  : xBase(obj),
+    DMEMB(node),
+    DMEMB(message)
+{}
+
+XASTParse::~XASTParse()
+{}
+
+
+// -------------------- AST parser support ---------------------
 // fwd-decl of parsing fns
 void astParseGrammar(Grammar &g, ASTNode const *treeTop);
 void astParseNonterminalBody(Environment &env, Nonterminal *nt,
@@ -64,15 +96,7 @@ AExprNode *checkSpecial(Environment &env, Production *prod,
 // really a static semantic error, more than a parse error..
 void astParseError(ASTNode const *node, char const *msg)
 {
-  SourceLocation loc;
-  if (node->leftmostLoc(loc)) {
-    xfailure(stringc << "near " << loc.toString() << ", at "
-                     << node->toString() << ": " << msg);
-  }
-  else {
-    xfailure(stringc << "(?loc) "
-                     << node->toString() << ": " << msg);
-  }
+  THROW(XASTParse(node, msg));
 }
 
 
@@ -155,6 +179,20 @@ LiteralCode *childLitCode(ASTNode const *n, int c)
 #define END_TYPE_SWITCH(node) default: astParseError(node, "bad type") /* user ; */
 
 
+// to put as the catch block; so far it's kind of ad-hoc where
+// I actually put 'try' blocks..
+#define CATCH_APPLY_CONTEXT(node)       \
+  catch (XASTParse &x) {                \
+    /* leave unchanged */               \
+    throw x;                            \
+  }                                     \
+  catch (xBase &x) {                    \
+    /* add context */                   \
+    astParseError(node, x.why());       \
+    throw 0;     /* silence warning */  \
+  }
+
+
 // ---------------------- AST "parser" --------------------------
 void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 {
@@ -167,70 +205,76 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
   FOREACH_OBJLIST(ASTNode, nodeList(treeTop, AST_TOPLEVEL), iter) {
     // at this level it's always an internal node
     ASTInternal const *node = &(iter.data()->asInternalC());
+    try {     
 
-    switch (node->type) {
-      case AST_TERMINALS: {
-        // loop over the terminal declarations
-        FOREACH_OBJLIST(ASTNode, node->children, termIter) {
-          ASTInternal const *term = &( termIter.data()->asInternalC() );
-          xassert(term->type == AST_TERMDECL);
+      switch (node->type) {
+        case AST_TERMINALS: {
+          // loop over the terminal declarations
+          FOREACH_OBJLIST(ASTNode, node->children, termIter) {
+            try {
+              ASTInternal const *term = &( termIter.data()->asInternalC() );
+              xassert(term->type == AST_TERMDECL);
 
-          // process the terminal declaration
-          int code = childInt(term, 0);
-          string name = childName(term, 1);
-          bool ok;
-          if (term->numChildren() == 3) {
-            ok = env.g.declareToken(name, code, quoted(childString(term, 2)));
+              // process the terminal declaration
+              int code = childInt(term, 0);
+              string name = childName(term, 1);
+              bool ok;
+              if (term->numChildren() == 3) {
+                ok = env.g.declareToken(name, code, quoted(childString(term, 2)));
+              }
+              else {
+                ok = env.g.declareToken(name, code, NULL /*alias*/);
+              }
+
+              if (!ok) {
+                astParseError(node, "token already declared");
+              }
+            } // try
+            CATCH_APPLY_CONTEXT(termIter.data())
+          } // for(terminal)
+          break;
+        }
+
+        case AST_PROLOGUE:
+          if (g.semanticsPrologue != NULL) {
+            astParseError(node, "prologue already defined");
+          }
+          g.semanticsPrologue = childLitCode(node, 0);
+          break;
+
+        case AST_EPILOGUE:
+          if (g.semanticsEpilogue != NULL) {
+            astParseError(node, "epilogue already defined");
+          }
+          g.semanticsEpilogue = childLitCode(node, 0);
+          break;
+
+        case AST_NONTERM: {
+          string name = childName(node, 0);
+
+          // TODO: need to check that this wasn't already declared; the code
+          // below doesn't work because another rule could simply have
+          // *referred* to this nonterminal
+          //if (g.findNonterminal(name)) {
+          //  astParseError(nthChild(node, 0), "nonterminal already declared");
+          //}
+
+          Nonterminal *nt = g.getOrMakeNonterminal(name);
+          if (nthChild(node, 1)->type == AST_FORM) {
+            // simple "nonterm A -> B C D" form
+            astParseForm(env, nt, nthChild(node, 1));
           }
           else {
-            ok = env.g.declareToken(name, code, NULL /*alias*/);
+            astParseNonterminalBody(env, nt, childList(node, 1, AST_NTBODY));
           }
-
-          if (!ok) {
-            astParseError(node, "token already declared");
-          }
+          break;
         }
-        break;
-      }
 
-      case AST_PROLOGUE:
-        if (g.semanticsPrologue != NULL) {
-          astParseError(node, "prologue already defined");
-        }
-        g.semanticsPrologue = childLitCode(node, 0);
-        break;
-
-      case AST_EPILOGUE:
-        if (g.semanticsEpilogue != NULL) {
-          astParseError(node, "epilogue already defined");
-        }
-        g.semanticsEpilogue = childLitCode(node, 0);
-        break;
-
-      case AST_NONTERM: {
-        string name = childName(node, 0);
-        
-        // TODO: need to check that this wasn't already declared; the code
-        // below doesn't work because another rule could simply have
-        // *referred* to this nonterminal
-        //if (g.findNonterminal(name)) {
-        //  astParseError(nthChild(node, 0), "nonterminal already declared");
-        //}
-
-        Nonterminal *nt = g.getOrMakeNonterminal(name);
-        if (nthChild(node, 1)->type == AST_FORM) {
-          // simple "nonterm A -> B C D" form
-          astParseForm(env, nt, nthChild(node, 1));
-        }
-        else {
-          astParseNonterminalBody(env, nt, childList(node, 1, AST_NTBODY));
-        }
-        break;
-      }
-
-      END_TYPE_SWITCH(node);
-    }
-  }
+        END_TYPE_SWITCH(node);
+      } // switch
+    } // try
+    CATCH_APPLY_CONTEXT(node)
+  } // for(toplevel form)
 }
 
 
@@ -246,52 +290,57 @@ void astParseGroupBody(Environment &prevEnv, Nonterminal *nt,
   // process each body element
   FOREACH_OBJLIST(ASTNode, bodyList, iter) {
     ASTNode const *node = iter.data();
+    try {
+      switch (node->type) {
+        case AST_ATTR:
+          if (attrDeclAllowed) {
+            nt->attributes.append(new string(childName(node, 0)));
+          }
+          else {
+            // should never happen with current grammar, but if I collapse
+            // the grammar then it might..
+            astParseError(node, "can only declare attributes in nonterminals");
+          }
+          break;
 
-    switch (node->type) {
-      case AST_ATTR:
-        if (attrDeclAllowed) {
-          nt->attributes.append(new string(childName(node, 0)));
+        case AST_FUNDECL:
+          if (attrDeclAllowed) {
+            nt->funDecls.add(
+              childName(node, 0),         // declared name
+              childLitCode(node, 1));     // declaration body
+          }
+          else {
+            // cannot happen with current grammar
+            astParseError(node, "can only declare functions in nonterminals");
+          }
+          break;
+
+        case AST_ACTION:
+        case AST_CONDITION:
+        case AST_FUNCTION:
+        case AST_FUNEXPR:
+          // just grab a pointer; will parse for real when a production
+          // uses this inherited action
+          // NOTE: must prepend here because the list is walked in order
+          // when adding inherited items to productions, and later
+          // additions must shadow earlier ones
+          env.inherited.prepend(const_cast<ASTNode*>(node));
+          break;
+
+        case AST_FORM:
+          astParseForm(env, nt, node);
+          break;
+
+        case AST_FORMGROUPBODY: {
+          astParseFormgroup(env, nt, node->asInternalC().children);
+          break;
         }
-        else {
-          // should never happen with current grammar, but if I collapse
-          // the grammar then it might..
-          astParseError(node, "can only declare attributes in nonterminals");
-        }
-        break;
 
-      case AST_FUNDECL:
-        if (attrDeclAllowed) {
-          nt->funDecls.add(
-            childName(node, 0),         // declared name
-            childLitCode(node, 1));     // declaration body
-        }
-        else {
-          // cannot happen with current grammar
-          astParseError(node, "can only declare functions in nonterminals");
-        }
-        break;
-
-      case AST_ACTION:
-      case AST_CONDITION:
-      case AST_FUNCTION:
-      case AST_FUNEXPR:
-        // just grab a pointer; will parse for real when a production
-        // uses this inherited action
-        env.inherited.append(const_cast<ASTNode*>(node));
-        break;
-
-      case AST_FORM:
-        astParseForm(env, nt, node);
-        break;
-
-      case AST_FORMGROUPBODY: {
-        astParseFormgroup(env, nt, node->asInternalC().children);
-        break;
+        END_TYPE_SWITCH(node);
       }
-
-      END_TYPE_SWITCH(node);
-    }
-  }
+    } // try
+    CATCH_APPLY_CONTEXT(node)
+  } // for(body elt)
 }
 
 
@@ -311,156 +360,169 @@ void astParseFormgroup(Environment &env, Nonterminal *nt,
 void astParseForm(Environment &env, Nonterminal *nt,
                   ASTNode const *formNode)
 {
-  xassert(formNode->type == AST_FORM);
+  try {
+    xassert(formNode->type == AST_FORM);
 
-  // every alternative separated by "|" requires the entire treatment
-  FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHSALTS), altIter) {
-    ASTNode const *rhsListNode = altIter.data();
+    // every alternative separated by "|" requires the entire treatment
+    FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHSALTS), altIter) {
+      ASTNode const *rhsListNode = altIter.data();
 
-    // build a production; use 'this' as the tag for LHS elements
-    Production *prod = new Production(nt, "this");
+      // build a production; use 'this' as the tag for LHS elements
+      Production *prod = new Production(nt, "this");
 
-    // first, deal with RHS elements
-    FOREACH_OBJLIST(ASTNode, nodeList(rhsListNode, AST_RHS), iter) {
-      ASTNode const *n = iter.data();
-      string symName;
-      string symTag;
-      bool tagValid = false;
-      switch (n->type) {
-        case AST_NAME:
-          symName = nodeName(n);
-          break;
-          
-        case AST_TAGGEDNAME:
-          symName = childName(n, 1);
-          symTag = childName(n, 0);
-          tagValid = true;
-          break;
-          
-        case AST_STRING:
-          symName = quoted(nodeString(n));
-          break;
-          
-        END_TYPE_SWITCH(n);
+      // first, deal with RHS elements
+      FOREACH_OBJLIST(ASTNode, nodeList(rhsListNode, AST_RHS), iter) {
+        ASTNode const *n = iter.data();
+        string symName;
+        string symTag;
+        bool tagValid = false;
+        switch (n->type) {
+          case AST_NAME:
+            symName = nodeName(n);
+            break;
+
+          case AST_TAGGEDNAME:
+            symName = childName(n, 1);
+            symTag = childName(n, 0);
+            tagValid = true;
+            break;
+
+          case AST_STRING:
+            symName = quoted(nodeString(n));
+            break;
+
+          END_TYPE_SWITCH(n);
+        }
+
+        // see which (if either) thing this name already is
+        Terminal *term = env.g.findTerminal(symName);
+        Nonterminal *nonterm = env.g.findNonterminal(symName);
+        xassert(!( term && nonterm ));     // better not be both!
+
+        // some syntax rules
+        if (n->type == AST_STRING  &&  !term) {
+          astParseError(n, "terminals must be declared");
+        }
+
+        // I eliminated this rule because I need the tags to
+        // be able to refer to tokens in semantic functions
+        //if (n->type == AST_TAGGEDNAME  &&  term) {
+        //  astParseError(n, "can't tag a terminal");
+        //}
+
+        // decide which symbol to put in the production
+        Symbol *s;
+        if (nonterm) {
+          s = nonterm;            // could do these two with a bitwise OR
+        }                         // if I were feeling extra clever today
+        else if (term) {
+          s = term;
+        }
+        else {
+          // not declared as either; I require all tokens to be
+          // declared, so this must be a new nonterminal
+          s = env.g.getOrMakeNonterminal(symName);
+        }
+
+        if (s->isEmptyString) {
+          // "empty" is a syntactic convenience; it doesn't get
+          // added to the production
+        }
+        else {
+          // add it to the production
+          prod->append(s, tagValid? (char const*)symTag : (char const*)NULL);
+        }
       }
-      
-      // see which (if either) thing this name already is
-      Terminal *term = env.g.findTerminal(symName);
-      Nonterminal *nonterm = env.g.findNonterminal(symName);
-      xassert(!( term && nonterm ));     // better not be both!
 
-      // some syntax rules
-      if (n->type == AST_STRING  &&  !term) {
-        astParseError(n, "terminals must be declared");
-      }
-        
-      // I eliminated this rule because I need the tags to
-      // be able to refer to tokens in semantic functions
-      //if (n->type == AST_TAGGEDNAME  &&  term) {
-      //  astParseError(n, "can't tag a terminal");
-      //}
+      // after constructing the production we need to do this
+      // no we don't -- GrammarAnalysis takes care of it (and
+      // complains if we do)
+      //prod->finished();
 
-      // decide which symbol to put in the production
-      Symbol *s;
-      if (nonterm) {
-        s = nonterm;            // could do these two with a bitwise OR
-      }                         // if I were feeling extra clever today
-      else if (term) {
-        s = term;
+      // deal with formBody (we evaluate it once for each alternative form)
+      if (formNode->asInternalC().numChildren() == 2) {
+        // iterate over form body elements
+        FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
+          astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
+        }
       }
       else {
-        // not declared as either; I require all tokens to be
-        // declared, so this must be a new nonterminal
-        s = env.g.getOrMakeNonterminal(symName);
+        // no form body
       }
 
-      if (s->isEmptyString) {
-        // "empty" is a syntactic convenience; it doesn't get
-        // added to the production
+      // grab stuff inherited from the environment
+      SFOREACH_OBJLIST(ASTNode, env.inherited, iter) {
+        astParseFormBodyElt(env, prod, iter.data(), true /*dupsOk*/);
       }
-      else {
-        // add it to the production
-        prod->append(s, tagValid? (char const*)symTag : (char const*)NULL);
+
+      // make sure all attributes have actions
+      FOREACH_OBJLIST(string, nt->attributes, attrIter) {
+        char const *attr = attrIter.data()->pcharc();
+        if (!prod->actions.getAttrActionFor(attr)) {
+          astParseError(formNode,
+            stringc << "rule " << prod->toString()
+                    << " has no action for `" << attr << "'");
+        }
       }
-    }
 
-    // after constructing the production we need to do this
-    // no we don't -- GrammarAnalysis takes care of it (and
-    // complains if we do)
-    //prod->finished();
-
-    // deal with formBody (we evaluate it once for each alternative form)
-    if (formNode->asInternalC().numChildren() == 2) {
-      // iterate over form body elements
-      FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
-        astParseFormBodyElt(env, prod, iter.data(), false /*dupsOk*/);
+      // make sure all fundecls have implementations
+      for (LitCodeDict::Iter iter(nt->funDecls);
+           !iter.isDone(); iter.next()) {
+        char const *name = iter.key();
+        if (!prod->hasFunction(name)) {
+          astParseError(formNode,
+            stringc << "rule " << prod->toString()
+                    << " has no implementation for `" << name << "'");
+        }
       }
-    }
-    else {
-      // no form body
-    }
 
-    // grab stuff inherited from the environment
-    SFOREACH_OBJLIST(ASTNode, env.inherited, iter) {
-      astParseFormBodyElt(env, prod, iter.data(), true /*dupsOk*/);
-    }
+      // add production to grammar
+      env.g.addProduction(prod);
 
-    // make sure all attributes have actions
-    FOREACH_OBJLIST(string, nt->attributes, attrIter) {
-      char const *attr = attrIter.data()->pcharc();
-      if (!prod->actions.getAttrActionFor(attr)) {
-        astParseError(formNode,
-          stringc << "rule " << prod->toString()
-                  << " has no action for `" << attr << "'");
-      }
-    }
-
-    // make sure all fundecls have implementations
-    for (LitCodeDict::Iter iter(nt->funDecls);
-         !iter.isDone(); iter.next()) {
-      char const *name = iter.key();
-      if (!prod->hasFunction(name)) {
-        astParseError(formNode,
-          stringc << "rule " << prod->toString()
-                  << " has no implementation for `" << name << "'");
-      }
-    }
-
-    // add production to grammar
-    env.g.addProduction(prod);
-
-  } // end of for-each alternative
+    } // end of for-each alternative
+  } // try
+  CATCH_APPLY_CONTEXT(formNode)
 }
 
 
 void astParseFormBodyElt(Environment &env, Production *prod,
                          ASTNode const *n, bool dupsOk)
 {
-  switch (n->type) {
-    case AST_ACTION:
-      astParseAction(env, prod, n, dupsOk);
-      break;
+  try {
+    switch (n->type) {
+      case AST_ACTION:
+        astParseAction(env, prod, n, dupsOk);
+        break;
 
-    case AST_CONDITION:
-      prod->conditions.conditions.append(
-        astParseCondition(env, prod, n));
-      break;
+      case AST_CONDITION:
+        prod->conditions.conditions.append(
+          astParseCondition(env, prod, n));
+        break;
 
-    case AST_FUNDECL:    
-      // allow function declarations in form bodies because it's
-      // convenient for nonterminals that only have one form..
-      prod->left->funDecls.add(
-        childName(n, 0),       // declared name
-        childLitCode(n, 1));   // declaration body
-      break;
+      case AST_FUNDECL: {
+        // allow function declarations in form bodies because it's
+        // convenient for nonterminals that only have one form..
+        string name = childName(n, 0);
+        if (!prod->left->funDecls.isMapped(name)) {
+          prod->left->funDecls.add(
+            name,                  // declared name
+            childLitCode(n, 1));   // declaration body
+        }
+        else {
+          astParseError(n, "duplicate function declaration");
+        }
+        break;
+      }
 
-    case AST_FUNCTION:
-    case AST_FUNEXPR:
-      astParseFunction(env, prod, n, dupsOk);
-      break;
+      case AST_FUNCTION:
+      case AST_FUNEXPR:
+        astParseFunction(env, prod, n, dupsOk);
+        break;
 
-    END_TYPE_SWITCH(n);
+      END_TYPE_SWITCH(n);
+    }
   }
+  CATCH_APPLY_CONTEXT(n)
 }
 
 

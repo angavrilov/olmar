@@ -128,6 +128,7 @@
 #include "lexer1.h"      // Lexer1
 #include "lexer2.h"      // Lexer2
 #include "grampar.h"     // readGrammarFile
+#include "parssppt.h"    // treeMain
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -1150,7 +1151,7 @@ void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
     printProductions(trace("grammar") << endl);
     runAnalyses();
 
-    
+
     // parse input
     glrParseNamedFile(lexer2, inputFname);
 
@@ -1158,51 +1159,36 @@ void GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
 }
 
 
+ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
+                                    char const *inputFname,
+                                    char const *symOfInterestName)
+{ 
+  // parse
+  GLR g;
+  Owner<ParseTree> ptree(new ParseTree);
+  ptree->lexer2 = new Lexer2;
+  g.glrParseFrontEnd(*(ptree->lexer2), grammarFname, inputFname, symOfInterestName);
+
+  // transfer everything to 'ptree'
+  ptree->top = g.getParseTree();
+  ptree->treeNodes.concat(g.treeNodes);
+
+  return ptree.xfr();
+}
+
+
 #ifdef GLR_MAIN
 
 int main(int argc, char **argv)
 {
-  // remember program name
-  char const *progName = argv[0];
-
-  // parameters
-  char const *symOfInterestName = NULL;
-
-  // process args
-  while (argc >= 2) {
-    if (traceProcessArg(argc, argv)) {
-      continue;
-    }
-    else if (0==strcmp(argv[1], "-sym") && argc >= 3) {
-      symOfInterestName = argv[2];
-      argc -= 2;
-      argv += 2;
-    }
-    else {
-      break;     // didn't find any more options
-    }
-  }
-
   traceAddSys("progress");
   //traceAddSys("parse-tree");
 
-  if (argc != 3) {
-    cout << "usage: " << progName << " [options] grammar-file input-file\n"
-            "  options:\n"
-            "    -tr <sys>:  turn on tracing for the named subsystem\n"
-            "    -sym <sym>: name the \"symbol of interest\"\n"
-            ;
-    return 0;
-  }
+  delete treeMain(argc, argv);
 
-  GLR g;
-  Lexer2 lexer2;
-  g.glrParseFrontEnd(lexer2, argv[1], argv[2], symOfInterestName);
   return 0;
 }
 #endif // GLR_MAIN
-
-
 
 // ------------------------- trash --------------------------
 #if 0

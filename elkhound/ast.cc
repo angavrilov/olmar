@@ -46,6 +46,22 @@ bool ASTNode::leftmostLoc(SourceLocation &loc) const
 }
 
 
+bool ASTNode::hasLeftmostLoc() const
+{
+  SourceLocation dummy;
+  return leftmostLoc(dummy);
+}
+
+SourceLocation ASTNode::getLeftmostLoc() const
+{
+  SourceLocation ret;
+  if (!leftmostLoc(ret)) {
+    xfailure("this node has not leftmost location");
+  }
+  return ret;
+}
+
+
 static void doIndent(ostream &os, int indent)
 {
   loopi(indent) {

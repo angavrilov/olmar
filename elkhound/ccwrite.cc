@@ -135,6 +135,12 @@ void emitSemFuns(ostream &os, Grammar const *g,
              << tag << " = getOnlyChildToken(" << childNum
              << ");\n";
         }
+        
+        // and make sure we don't get unused-var warnings; we generate
+        // a binding for every tagged var, without regard to whether that
+        // tag is actually used in the semantic function, since it's too
+        // hard to find out whether tags are used
+        os << "      PRETEND_USED(" << tag << ");\n";
       }
 
       // write the user's code
@@ -275,6 +281,7 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
      << "#define " << headerFileLatch(fname) << "\n"
      << "\n"
      << "#include \"glrtree.h\"     // NonterminalNode\n"
+     << "#include \"parssppt.h\"    // parser support routines\n"
      << "\n"
      << "\n";
              
@@ -286,9 +293,16 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
        << "\n";
   }
 
-  os << "// --------- generated class declarations --------\n";
+  // forward declarations so the member fn decls in the classes
+  // can refer to any tree node class
+  os << "// --------------- forward decls -----------------\n";
+  FOREACH_OBJLIST(Nonterminal, g->nonterminals, iter) {
+    os << "class " << nodeTypeName(iter.data()) << ";\n";
+  }
+  os << "\n\n";
 
   // class declarations
+  os << "// --------- generated class declarations --------\n";
   FOREACH_OBJLIST(Nonterminal, g->nonterminals, iter) {
     emitClassDecl(os, iter.data());
   }
