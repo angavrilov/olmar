@@ -34,6 +34,7 @@ tlexer
 gprof.out
 moz.parse.out
 parse.log
+regrtest.log
 gendoc
 deattribute
 deattribute.cc
