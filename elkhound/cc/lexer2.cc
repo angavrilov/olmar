@@ -9,7 +9,7 @@
 #include "glrconfig.h"   // SOURCELOC
 
 #include <stdlib.h>      // strtoul
-
+#include <string.h>      // strlen, strcmp
 
 // ------------------ token type descriptions ----------------------
 struct Lexer2TokenTypeDesc
