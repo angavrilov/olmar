@@ -1291,9 +1291,9 @@ Variable *Env::instantiateTemplate
   if (instV) {
     xassert(!baseForward);
   }
-  TRACE("template",    (baseForward ? "(forward) " : "")
-                    << "instantiating class: "
-                    << instName << sargsToString(sargs));
+  TRACE("template", (baseForward ? "(forward) " : "") << "instantiating "
+                 << (baseV->type->isCompoundType()? "class: " : "function: ")
+                 << instName << sargsToString(sargs));
 
   // 2 **** Prepare the argument scope for template instantiation
 
@@ -1377,10 +1377,12 @@ Variable *Env::instantiateTemplate
     if (baseV->type->isCompoundType()) {
       // 1/21/03: I had been using 'instName' as the class name, but
       // that causes problems when trying to recognize constructors
-      CompoundType *instVCpdType = tfac.makeCompoundType(baseV->type->asCompoundType()->keyword,
-                                                         baseV->type->asCompoundType()->name);
+      CompoundType *baseVCpdType = baseV->type->asCompoundType();
+      CompoundType *instVCpdType = tfac.makeCompoundType(baseVCpdType->keyword,
+                                                         baseVCpdType->name);
       instVCpdType->instName = instName; // stash it here instead
       instVCpdType->forward = baseForward;
+      instVCpdType->parentScope = baseVCpdType->parentScope;
 
       // wrap the compound in a regular type
       SourceLoc copyLoc = copyCpd ? copyCpd->loc : SL_UNKNOWN;
@@ -1394,15 +1396,15 @@ Variable *Env::instantiateTemplate
       // 'instantiations'
       instV = makeVariable(copyLoc, instName, type,
                            DF_TYPEDEF | DF_IMPLICIT);
-      instV->type->asCompoundType()->typedefVar = instV;
+      instVCpdType->typedefVar = instV;
 
       if (lang.compoundSelfName) {
         // also make the self-name, which *does* go into the scope
         // (testcase: t0167.cc)
         Variable *var2 = makeVariable(copyLoc, instName, type,
                                       DF_TYPEDEF | DF_SELFNAME);
-        instV->type->asCompoundType()->addUniqueVariable(var2);
-        addedNewVariable(instV->type->asCompoundType(), var2);
+        instVCpdType->addUniqueVariable(var2);
+        addedNewVariable(instVCpdType, var2);
       }
     } else {
       xassert(baseV->type->isFunctionType());
@@ -1756,17 +1758,50 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
     return;
   }
 
-//    // ****************
-//    // attempt to compute the members of instCtxt
-//    {
-//      xassert(instCtxt->instV->templateInfo()->getMyPrimaryIdem()
-//              == instCtxt->baseV->templateInfo());
-//      // FIX: turn this back on
-//  //      xassert( ((SObjList<STemplateArgument>&) instCtxt->instV->templateInfo()->arguments)
-//  //               .equalAsPointerLists(*(instCtxt->sargs)));
-//    }
-  
-//    // ****************
+  TRACE("template", "instantiating member: " << v->fullyQualifiedName());
+
+  // ****************
+  // attempt to compute the members of instCtxt
+  {
+    xassert(instCtxt->baseV ==
+            instCtxt->instV->templateInfo()->instantiatedFrom);
+
+    xassert(instCtxt->foundScope == instCtxt->baseV->scope);
+
+    // confirm that instCtxt->sargs and instV->templateInfo()->arguments
+    // are the same
+    SObjListIter<STemplateArgument> iter1(*(instCtxt->sargs));
+    ObjListIter<STemplateArgument> iter2(instCtxt->instV->templateInfo()->arguments);
+    while (!iter1.isDone() && !iter2.isDone()) {
+      xassert(iter1.data()->equals(iter2.data()));
+      iter1.adv();
+      iter2.adv();
+    }
+    xassert(iter1.isDone() == iter2.isDone());
+
+    //xassert( ((SObjList<STemplateArgument>&) instCtxt->instV->templateInfo()->arguments)
+    //         .equalAsPointerLists(*(instCtxt->sargs)));
+
+    xassert(tcheckCtxt->func == funcDefn0);
+    xassert(tcheckCtxt->foundScope == instCtxt->foundScope);
+
+    if (funcDefn0->dflags & DF_INLINE_DEFN) {
+      // confirm that tcheckCtxt->pss is just v->scope->parentScope sequence
+      Scope *s = v->scope;
+      SFOREACH_OBJLIST(Scope, tcheckCtxt->pss->scopes, iter) {
+        // maybe this is reversed?
+        xassert(iter.data() == s);
+        s = s->parentScope;
+      }
+      xassert(s == NULL || s == instCtxt->foundScope);   // end of parentScope sequence
+    }
+    else {
+      // for out-of-line functions, pss is always empty
+      xassert(tcheckCtxt->pss->scopes.isEmpty());
+    }
+  }
+
+  // ****************
 
   // OK, seems it can be a partial specialization as well
 //    xassert(instCtxt->baseV->templateInfo()->isPrimary());

@@ -191,10 +191,7 @@ void TF_namespaceDefn::tcheck(Env &env)
     // TODO: if name is NULL, we need to add an "active using" edge
     // from the surrounding scope to s
     
-    if (env.scope()->isNamespace()) {
-      // current scope has a name, hook up parent link for new namespace
-      s->parentScope = env.scope();
-    }
+    env.setParentScope(s);
   }
 
   // check the namespace body in its scope
@@ -1106,6 +1103,9 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // because at the top scope I don't know the scopeKind
     env.typeAcceptingScope()->registerVariable(ct->typedefVar);
 
+    // similarly, the parentScope should be set properly
+    env.setParentScope(ct);
+
     this->ctype = ct;           // annotation
 
     // 'makeNewCompound' will already have put the template *parameters*
@@ -1371,10 +1371,16 @@ void TS_classSpec::tcheckFunctionBodies
       // preserve the instantiation context
       f->nameAndParams->var->setInstCtxts(instCtxt, tcheckCtxt);
 
-      // remove DF_INLINE_DEFN so if I clone this later I can play the
-      // same trick again (TODO: what if we decide to clone while down
-      // in 'f->tcheck'?)
-      f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
+      if (instCtxt) {
+        // leave DF_INLINE_DEFN because we've delayed actually
+        // tchecking 'f'
+      }
+      else {
+        // remove DF_INLINE_DEFN so if I clone this later I can play the
+        // same trick again (TODO: what if we decide to clone while down
+        // in 'f->tcheck'?)
+        f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
+      }
     }
     else if (iter.data()->isMR_decl()) {
       Declaration *d0 = iter.data()->asMR_decl()->d;

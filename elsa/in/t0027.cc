@@ -20,7 +20,8 @@ public:
 template <class T>
 T Foo<T>::put()
 {
-  return 3;
+  //return 3;
+  return x;     // require Foo<T>::x to be in scope
 }
 
 // TODO: sm: apparently when I first wrote this test I accidentally

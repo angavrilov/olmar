@@ -225,7 +225,9 @@ string Variable::toMLString() const
 string Variable::fullyQualifiedName() const
 {
   stringBuilder tmp;
-  if (scope) tmp << scope->fullyQualifiedName();
+  if (scope && !scope->isGlobalScope()) {
+    tmp << scope->fullyQualifiedName();
+  }
   tmp << "::" << name;        // NOTE: not mangled
   return tmp;
 }

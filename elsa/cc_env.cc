@@ -1068,6 +1068,7 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
   Scope *newScope = new Scope(sk, getChangeCount(), loc());
+  setParentScope(newScope);
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
@@ -1076,6 +1077,21 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
   newScope->openedScope(*this);
 
   return newScope;
+}
+                                  
+// set the 'parentScope' field of a scope about to be pushed
+void Env::setParentScope(Scope *s)                          
+{
+  // 'parentScope' has to do with (qualified) lookup, for which the
+  // template scopes are supposed to be transparent
+  setParentScope(s, nonTemplateScope());
+}
+
+void Env::setParentScope(Scope *s, Scope *parent)
+{
+  if (parent->isPermanentScope()) {
+    s->parentScope = parent;
+  }
 }
 
 void Env::exitScope(Scope *s)
@@ -1306,21 +1322,27 @@ CompoundType *Env::enclosingClassScope()
 }
 
 
+Scope *Env::nonTemplateScope()
+{
+  ObjListIterNC<Scope> iter(scopes);
+  while (iter.data()->scopeKind == SK_TEMPLATE ||
+         iter.data()->scopeKind == SK_EAT_TEMPL_INST) {
+    iter.adv();
+  }
+
+  return iter.data();
+}
+
 bool Env::currentScopeAboveTemplEncloses(Scope const *s)
 {
-  if (scope()->scopeKind == SK_TEMPLATE) {
-    // when we are doing instantiation of the definition of a
-    // function member of a templatized class, we end up in this
-    // situation
-    int i = 1;
-    if (scopes.nth(1)->scopeKind == SK_EAT_TEMPL_INST) {
-      // also skip the dummy scope
-      i++;
-    }
-    return scopes.nth(i)->encloses(s);
-  } else {
-    return currentScopeEncloses(s);
-  }
+  // Skip over template binding and inst-eating scopes for the
+  // purpose of this check.
+  //
+  // We used to use somewhat more precise scope-skipping code, but
+  // when a function instantiates its forward-declared instances it
+  // happens to leave its parameter scope on the stack, which makes
+  // perfectly precise skipping code complicated.
+  return nonTemplateScope()->encloses(s);
 }
 
 
@@ -2122,6 +2144,9 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            TypeIntr keyword, bool forward)
 {
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
+  if (scope) {
+    setParentScope(ct, scope);
+  }
 
   ct->forward = forward;
   if (name && scope) {

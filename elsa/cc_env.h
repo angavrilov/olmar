@@ -287,6 +287,9 @@ public:      // funcs
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE); }
 
+  // innermost scope that is neither SK_TEMPLATE nor SK_EAT_TEMPL_INST
+  Scope *nonTemplateScope();
+
   // if we are in a template scope, go up one and then call
   // currentScopeEncloses(); FIX: I suspect this is not general enough
   // for what I really want
@@ -298,6 +301,11 @@ public:      // funcs
   // return the innermost scope that contains both the current
   // scope and 'target'
   Scope *findEnclosingScope(Scope *target);
+
+  // set 'parentScope' for new scope 's', depending on whether
+  // 'parent' is a scope that should be pointed at
+  void setParentScope(Scope *s, Scope *parent);
+  void setParentScope(Scope *s);     // compute 'parent' using current scope
 
   // bit of a hack: recompute what happens when all the active
   // scopes are opened; this is for using-directives
@@ -850,9 +858,17 @@ class TemplCandidates {
 
 // preserve a template instantiation context
 struct InstContext {
+  // the template (primary or partial specialization) that is being
+  // instantiated
   Variable *baseV;
+  
+  // the particular instantiation of 'baseV'
   Variable *instV;
+  
+  // the scope in which 'baseV' was found by lookup
   Scope *foundScope;
+
+  // the template arguments being supplied to 'baseV' to create 'instV'
   SObjList<STemplateArgument> *sargs;
 
   InstContext
@@ -874,8 +890,15 @@ struct PartialScopeStack {
 
 // preserve the function typechecking context
 struct FuncTCheckContext {
+  // the cloned body of the function to instantiate; clone corresponds
+  // to 'instV'
   Function *func;
+  
+  // once again, scope in which 'baseV' was found
   Scope *foundScope;
+
+  // sequence of scopes from 'foundScope' to the scope immediately
+  // containing the definition of 'func'
   PartialScopeStack *pss;
 
   FuncTCheckContext(Function *func, Scope *foundScope, PartialScopeStack *pss);

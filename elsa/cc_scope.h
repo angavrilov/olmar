@@ -11,6 +11,7 @@
 #include "strtable.h"     // StringRef
 #include "sobjlist.h"     // SObjList
 #include "array.h"        // ArrayStack
+#include "serialno.h"     // INHERIT_SERIAL_BASE
 
 // NOTE: We cannot #include cc_type.h b/c cc_type.h #includes cc_scope.h.
 
@@ -48,7 +49,7 @@ ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
 
 // information about a single scope: the names defined in it,
 // any "current" things being built (class, function, etc.)
-class Scope {
+class Scope INHERIT_SERIAL_BASE {
 private:     // types
   // for recording information about "active using" edges that
   // need to be cancelled at scope exit
@@ -176,6 +177,12 @@ public:      // funcs
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
   bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
   bool isNamespace() const          { return scopeKind == SK_NAMESPACE; }
+
+  // true if this scope is guaranteed to stick around until the end of
+  // the translation unit, and hence child scopes' 'parentScope' field
+  // and Variable::scope should be set to point at it
+  bool isPermanentScope() const;
+
   // are we in a template scope that is in a global scope?
   bool isGlobalTemplateScope() const;
   // are we in a scope that at some point above is an uninstantiated

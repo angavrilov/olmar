@@ -41,6 +41,14 @@ Scope::~Scope()
 }
 
 
+bool Scope::isPermanentScope() const
+{
+  return isGlobalScope() ||
+         isNamespace() ||
+         (curCompound && curCompound->name);
+}
+
+
 // -------- insertion --------
 template <class T>
 bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
@@ -62,10 +70,10 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 }
 
 
-bool Scope::isGlobalTemplateScope() const {
-  // dsw: FIX: I can never remember your dang scope invariant; is this
-  // right?
-  return isTemplateScope() && !parentScope;
+bool Scope::isGlobalTemplateScope() const 
+{
+  return isTemplateScope() && 
+         (parentScope && parentScope->isGlobalScope());
 }
 
 
@@ -170,11 +178,6 @@ bool Scope::addCompound(CompoundType *ct)
 
   TRACE("env", "added " << toString(ct->keyword) << " " << ct->name);
 
-  // set up ct's parent scope if appropriate
-  if (getTypedefName()) {
-    ct->parentScope = this;
-  }
-
   ct->access = curAccess;
   return insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/);
 }
@@ -209,19 +212,13 @@ void Scope::registerVariable(Variable *v)
     // been added to a function scope
   }
 
-  if (curCompound) {
-    if (curCompound->name) {
-      // since the scope has a name, let the variable point at it
-      v->scope = this;
-    }
-  
-    // take access control from scope's current setting
-    v->access = curAccess;
+  if (isPermanentScope()) {
+    v->scope = this;
   }
 
-  if (scopeKind == SK_NAMESPACE) {
-    // point at enclosing namespace (Q: even for anon namespaces?)
-    v->scope = this;
+  if (curCompound) {
+    // take access control from scope's current setting
+    v->access = curAccess;
   }
 
   if (isGlobalScope()
@@ -470,10 +467,6 @@ bool Scope::encloses(Scope const *s) const
   // the scope parent links
 
   Scope const *me = this;
-  if (me->isGlobalScope()) {
-    me = NULL;     // null 'parentScope' means it's in global
-  }
-
   while (s && s!=me) {
     s = s->parentScope;
   }
@@ -490,25 +483,37 @@ bool Scope::enclosesOrEq(Scope const *s) const
 
 string Scope::desc() const
 {
-  if (curCompound) {
-    return curCompound->keywordAndName();
-  }
+  stringBuilder sb;
 
-  Variable const *v = getTypedefNameC();
-  if (v) {
-    return stringc << toString(scopeKind) << " " << v->name;
-  }
-  else if (isGlobalScope()) {
-    return "global scope";
+  if (curCompound) {
+    sb << curCompound->keywordAndName();
   }
   else {
-    return stringc << "anonymous " << toString(scopeKind) 
-                   << " scope at " << stringf("%p", this);
+    Variable const *v = getTypedefNameC();
+    if (v) {
+      sb << toString(scopeKind) << " " << v->name;
+    }
+    else if (isGlobalScope()) {
+      sb << "global scope";
+    }
+    else {
+      sb << "anonymous " << toString(scopeKind) << " scope";
+    }
   }
+
+  // address or serial number
+  #if USE_SERIAL_NUMBERS
+    sb << " #" << serialNumber;
+  #else
+    sb << " at " << stringf("%p", this);
+  #endif
+  
+  return sb;
 }
 
 
-void Scope::gdb() const {
+void Scope::gdb() const 
+{
   cout << desc() << endl;
 }
 
@@ -760,20 +765,19 @@ Variable const *Scope::searchUsingEdges
 // true if this scope is a member of the global scope
 bool Scope::immediateGlobalScopeChild()
 {
-  Variable *v = getTypedefName();
-  return v && v->hasFlag(DF_GLOBAL);
+  return parentScope && parentScope->isGlobalScope();
 }
 
 // are we in a scope where the parent chain terminates in a global?
 // That is, can fullyQualifiedName() be called on this scope without
 // failing?
-bool Scope::linkerVisible() 
+bool Scope::linkerVisible()
 {
   if (parentScope) {
     return parentScope->linkerVisible();
   }
   else {
-    return immediateGlobalScopeChild();
+    return isGlobalScope();
   }
 }
 
@@ -783,10 +787,15 @@ bool Scope::linkerVisible()
 // idea is not practical.
 // FIX: This is wrong as it does not take into account template
 // arguments; Should be moved into CompoundType and done right.
-string Scope::fullyQualifiedName() 
+string Scope::fullyQualifiedName()
 {
+  // 7/28/04: I just changed things so that children of the global
+  // scope have a non-NULL 'parentScope', and then adjusted this
+  // code so it works like it used to.  I suspect this code could
+  // be simplified in light of the new invariant.
+
   stringBuilder sb;
-  if (parentScope) {
+  if (parentScope && !parentScope->isGlobalScope()) {
     sb = parentScope->fullyQualifiedName();
   }
   else {
