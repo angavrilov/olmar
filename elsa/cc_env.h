@@ -466,6 +466,7 @@ public:      // funcs
   // diagnostic reports; all return ST_ERROR type
   Type *error(SourceLoc L, char const *msg, ErrorFlags eflags = EF_NONE);
   Type *error(char const *msg, ErrorFlags eflags = EF_NONE);
+  Type *warning(SourceLoc L, char const *msg);
   Type *warning(char const *msg);
   Type *unimp(char const *msg);
 
@@ -494,7 +495,7 @@ public:      // funcs
 
   // number of errors; intended to be called after type checking,
   // to see how many errors (if any) resulted
-  int numErrors() const { return errors.count(); }
+  int numErrors() const { return errors.numErrors(); }
 
   // This is the error mode used for errors that I want to be
   // EF_STRONG (reported even in templates) while implementing new

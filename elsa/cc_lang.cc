@@ -6,6 +6,19 @@
 #include <string.h>      // memset
 
 
+static void enableWarning(Bool3 &b)
+{
+  if (b == B3_TRUE) {
+    b = B3_WARN;
+  }
+}
+
+void CCLang::enableAllWarnings()
+{
+  enableWarning(allowImplicitFunctionDecls);
+}
+
+
 // ---------------------- ANSI and K&R C ----------------------
 void CCLang::ANSI_C89()
 {
@@ -27,7 +40,7 @@ void CCLang::ANSI_C89()
   assumeNoSizeArrayHasSizeOne = false;
   allowOverloading = false;
   compoundSelfName = false;
-  allowImplicitFunctionDecls = true;        // C89 does not require prototypes
+  allowImplicitFunctionDecls = B3_TRUE;        // C89 does not require prototypes
   allowImplicitInt = true;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
@@ -69,7 +82,7 @@ void CCLang::ANSI_C99()
 
   // removed C89 features
   allowImplicitInt = false;
-  allowImplicitFunctionDecls = false;
+  allowImplicitFunctionDecls = B3_FALSE;
 }
 
 
@@ -143,7 +156,7 @@ void CCLang::ANSI_Cplusplus()
   allowOverloading = true;
   compoundSelfName = true;
 
-  allowImplicitFunctionDecls = false;
+  allowImplicitFunctionDecls = B3_FALSE;
   allowImplicitInt = false;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;

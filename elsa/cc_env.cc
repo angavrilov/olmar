@@ -3772,10 +3772,15 @@ Type *Env::error(char const *msg, ErrorFlags eflags)
 
 Type *Env::warning(char const *msg)
 {
+  return warning(loc(), msg);
+}
+
+Type *Env::warning(SourceLoc loc, char const *msg)
+{
   string instLoc = instLocStackString();
   TRACE("error", "warning: " << msg << instLoc);
   if (!disambiguateOnly) {
-    errors.addError(new ErrorMsg(loc(), msg, EF_WARNING, instLoc));
+    errors.addError(new ErrorMsg(loc, msg, EF_WARNING, instLoc));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }

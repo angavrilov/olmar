@@ -4616,6 +4616,10 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
       // variable with signature "int ()(...)" which is what I recall as
       // the correct signature for such an implicit variable.
       if (env.lang.allowImplicitFunctionDecls && (flags & LF_IMPL_DECL_FUNC)) {
+        if (env.lang.allowImplicitFunctionDecls == B3_WARN) {
+          env.warning(name->loc, stringc << "implicit declaration of `" << *name << "'");
+        }
+
         // this should happen in C mode only so name must be a PQ_name
         v = env.makeImplicitDeclFuncVar(name->asPQ_name()->name);
       }

@@ -9,6 +9,17 @@
 #ifndef CCLANG_H
 #define CCLANG_H
 
+
+// This type is used for options that nominally either allow or
+// disallow some syntax, but can also trigger a warning.  Values of
+// this type are intended to be tested like booleans in most places.
+enum Bool3 {
+  B3_FALSE = 0,      // syntax not allowed
+  B3_TRUE = 1,       // accepted silently
+  B3_WARN = 2,       // accept with a warning
+};
+
+
 class CCLang {
 public:
   // catch-call for behaviors that are unique to C++ but aren't
@@ -96,7 +107,7 @@ public:
   // when true, allow a function call to a function that has never
   // been declared, implicitly declaring the function in the global
   // scope; this is for C89 (and earlier) support
-  bool allowImplicitFunctionDecls;
+  Bool3 allowImplicitFunctionDecls;
 
   // when true, allow function definitions that omit any return type
   // to implicitly return 'int'.
@@ -154,7 +165,10 @@ public:
 public:
   CCLang() { ANSI_C89(); }
 
-  // these are additive incremental
+  // set any B3_TRUE to B3_WARN
+  void enableAllWarnings();
+
+  // the following are additive incremental
 
   // enable gcc C features
   void GNU_C_extensions();
