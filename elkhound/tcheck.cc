@@ -1182,8 +1182,13 @@ Type const *E_binary::itcheck(Env &env)
   checkBoolean(env, t1, e1);     // pointer is acceptable here..
   checkBoolean(env, t2, e2);
 
-  // e.g. (short,long) -> long
-  return env.promoteTypes(op, t1, t2);
+  if (isRelational(op) || isPredicateCombinator(op)) {
+    return fixed(ST_INT);        // really want 'bool' ..
+  }
+  else {
+    // e.g. (short,long) -> long
+    return env.promoteTypes(op, t1, t2);
+  }
 }
 
 

@@ -1,7 +1,7 @@
 # .gdbinit   -*- sh -*-
 
 # needed for Squish
-set width 0
+#set width 0
 
 file ccgr
 #set args -tr printPaths,printTypedAST,stopAfterTCheck,tcheck cc.bin tcheck/loops.c
@@ -10,7 +10,7 @@ file ccgr
 
 #set args -tr factflow cc.bin vcgen/find2.c
 
-set args -tr stopAfterTCheck cc.bin c.in3
+set args -tr stopAfterTCheck cc.bin vcgen/node.c
 
 #set args cc.bin test-bad-tmp.c
 
