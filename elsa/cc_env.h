@@ -79,28 +79,6 @@ public:      // data
   // infinite looping in template instantiation
   ArrayStack<SourceLoc> instantiationLocStack;
 
-  // ----- BEGIN: tcheck mode stacks -----
-  // stack of TemplateDeclaration-s; inside the definition of a
-  // template body, you are not in "real" code, you are in "might-be"
-  // code, a sort of never-never land for typechecking; you might want
-  // to change your behavior in such situations.
-  SObjStack<TemplateDeclaration> templateDeclarationStack;
-
-  // this strange creature is so that we have something to put on the
-  // stack inside instantiateForwardClasses() so that we can push it
-  // onto the templateDeclarationStack to temporarily supress
-  // TTM_3TEMPL_DEF and return to TTM_1NORMAL for purposes of
-  // instantiating the forward classes; FIX: maybe should do something
-  // like FuncDeclThing but what a lot of work
-  static TD_class mode1Dummy;
-
-  // stack of D_func-s and/or Initializers; inside a D_func, except
-  // for in Initializers (default arguments), we are in a strange mode
-  // where we need to do template *declaration* instantiation but not
-  // *definition* instantiation.
-  SObjStack<FuncDeclThing> funcDeclStack;
-  // ----- END: tcheck mode stacks -----
-
   // string table for making new strings
   StringTable &str;
 
@@ -193,6 +171,28 @@ public:      // data
   // an an 'asm' directive (see TF_asm::itcheck)
   StringRef collectLookupResults;
 
+  // ----- BEGIN: tcheck mode stacks -----
+  // stack of TemplateDeclaration-s; inside the definition of a
+  // template body, you are not in "real" code, you are in "might-be"
+  // code, a sort of never-never land for typechecking; you might want
+  // to change your behavior in such situations.
+  SObjStack<TemplateDeclaration> templateDeclarationStack;
+
+  // this strange creature is so that we have something to put on the
+  // stack inside instantiateForwardClasses() so that we can push it
+  // onto the templateDeclarationStack to temporarily supress
+  // TTM_3TEMPL_DEF and return to TTM_1NORMAL for purposes of
+  // instantiating the forward classes; FIX: maybe should do something
+  // like FuncDeclThing but what a lot of work
+  static TD_class mode1Dummy;
+
+  // stack of D_func-s and/or Initializers; inside a D_func, except
+  // for in Initializers (default arguments), we are in a strange mode
+  // where we need to do template *declaration* instantiation but not
+  // *definition* instantiation.
+  SObjStack<FuncDeclThing> funcDeclStack;
+  // ----- END: tcheck mode stacks -----
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -233,8 +233,6 @@ private:     // funcs
 
   Variable *declareSpecialFunction(char const *name);
 
-  CompoundType *findEnclosingTemplateCalled(StringRef name);
-
   void setupOperatorOverloading();
 
   void addBuiltinUnaryOp(OverloadableOp op, Type *x);
@@ -248,8 +246,8 @@ private:     // funcs
   // this is an internal function that should only be called by
   // Env::lookupPQVariable(PQName const *name, LookupFlags f, Scope
   // *&scope) and no one else
-  Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
-                                           Scope *&scope);
+  Variable *lookupPQVariable_internal(PQName const *name, LookupFlags flags,
+                                      Scope *&scope);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -309,24 +307,6 @@ public:      // funcs
   // scopes are opened; this is for using-directives
   void refreshScopeOpeningEffects();
 
-  // clone the part of the scope stack from the current up to the foundScope
-  PartialScopeStack *shallowClonePartialScopeStack(Scope *foundScope);
-  // so I can put methods on PartialScopeStack which seems more natural to me
-  friend struct PartialScopeStack;
-
-
-  // template typechecking modes; see comment at the top of the
-  // implementation of Env::instantiateTemplate()
-  enum TemplTcheckMode {
-    TTM_UNDEF            = 0,
-    TTM_1NORMAL          = 1,
-    TTM_2TEMPL_FUNC_DECL = 2,
-    TTM_3TEMPL_DEF       = 3,
-  };
-
-  // return the current mode
-  TemplTcheckMode getTemplTcheckMode() const;
-
 
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc
@@ -353,44 +333,6 @@ public:      // funcs
   // using this interface
   void addVariableWithOload(Variable *prevLookup, Variable *v);
 
-  // some extensions to lookupPQVariable that I want to move elsewhere;
-  // for now I'm just trying to factor them out of lookup..
-  Variable *lookupPQVariable_primary_resolve
-    (PQName const *name, LookupFlags flags, FunctionType *signature,
-     MatchTypes::MatchMode matchMode);
-
-  // initialize the arguments from an AST list of TempateArgument-s
-  void initArgumentsFromASTTemplArgs
-    (TemplateInfo *tinfo,
-     ASTList<TemplateArgument> const &templateArgs);
-  // check that if you made STemplateArguments from templateArgs that
-  // they would be isomorphic to those alread in tinfo->arguments
-  bool checkIsoToASTTemplArgs
-    (ObjList<STemplateArgument> &templateArgs0,
-     ASTList<TemplateArgument> const &templateArgs1);
-  // get the instantiation that matches the arguments
-  Variable *getInstThatMatchesArgs
-    (TemplateInfo *tinfo, ObjList<STemplateArgument> &arguments, Type *type0=NULL);
-
-  // load the bindings with any explicit template arguments; return true if successful
-  bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
-                                     MatchTypes &match);
-  // infer template arguments from the function arguments; return true if successful
-  bool inferTemplArgsFromFuncArgs(Variable *var,
-                                  TypeListIter &argsListIter,
-//                                    FakeList<ArgExpression> *funcArgs,
-                                  MatchTypes &match,
-                                  bool reportErrors);
-  // get both the explicit and implicit function template arguments
-  bool getFuncTemplArgs
-    (MatchTypes &match,
-     SObjList<STemplateArgument> &sargs,
-     PQName const *final,
-     Variable *var,
-     TypeListIter &argListIter,
-     bool reportErrors);
-  Variable *lookupPQVariable_function_with_args
-    (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
 
   // lookup in the environment (all scopes); return NULL if can't
   // find the name
@@ -456,97 +398,6 @@ public:      // funcs
                         StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
 
-  // ----- BEGIN: template instantiation stuff -----
-  // for the instantiation of a primary template, simultaneously
-  // iterate over the parameters and arguments, creating bindings from
-  // params to args
-  //
-  // FIX: the assymetry in the way the bindings are passed to
-  // insertBindingsForPrimary() and insertBindingsForPartialSpec() is
-  // gratuitous
-  void insertBindingsForPrimary
-    (Variable *baseV, SObjList<STemplateArgument> &sargs);
-
-  // for the instantiation of a partial specialization, iterate over
-  // the parameters and retrieve their bindings; insert these into the
-  // scope
-  void insertBindingsForPartialSpec
-    (Variable *baseV, MatchBindings &bindings);
-
-  // insert bindings for either partial specialization or for a
-  // primary by delegating to one of the two above
-  void insertBindings
-    (Variable *baseV, SObjList<STemplateArgument> &sargs);
-
-  void templArgsASTtoSTA
-    (ASTList<TemplateArgument> const &arguments,
-     SObjList<STemplateArgument> &sargs);
-
-  // Given a primary, find the most specific specialization for the
-  // given template arguments 'sargs'; for full generality we allow
-  // the primary itself as a "trivial specialization" and may return
-  // that.
-  Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs);
-
-  // Prepare the argument scope for the present typechecking of the
-  // cloned AST for effecting the instantiation of the template;
-  // Please see Scott's extensive comments at the implementation.
-  Scope *prepArgScopeForTemlCloneTcheck
-    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope);
-
-  // Undo prepArgScopeForTemlCloneTcheck().
-  void unPrepArgScopeForTemlCloneTcheck
-    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
-
-  // instantate 'base' with arguments 'sargs', and return the implicit
-  // typedef Variable associated with the resulting type; 'foundScope'
-  // is the scope in which 'base' was found; if 'instV' is not NULL
-  // then we already have a compound for this instantiation (from a
-  // forward declaration), so use that one; 'loc' is the location of
-  // the code that caused instantiation, for use in the inst loc
-  // stack; 'bestV' is the template primary or specialization to use
-  // to do the instantiation overriding the argument matching
-  // tournament if non-NULL; we only add the instantiation to the
-  // primary's instantiation list if 'addTheInstV' is true
-  Variable *instantiateTemplate
-    (SourceLoc loc,
-     // I'm pretty sure that this is not relevant for later
-     // instantiations of declarations that were forwarded
-     Scope *foundScope,
-     Variable *baseV,
-     Variable *instV,
-     Variable *bestV,
-     SObjList<STemplateArgument> &sargs,
-     Variable *funcFwdInstV=NULL);
-
-  // variant of the above, which (for convenience) first converts
-  // the AST representation of the arguments into STemplateArguments
-  Variable *instantiateTemplate_astArgs
-    (SourceLoc loc, Scope *foundScope,
-     Variable *baseV, Variable *instV,
-     ASTList<TemplateArgument> const &astArgs);
-
-  // pick the MatchMode appropriate for the the TemplTcheckMode
-  MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
-
-  // given a previously forwarded function template declaration and a
-  // defintion that we have just found for it, attach that definition
-  // to it and clean up a few things
-  void provideDefForFuncTemplDecl
-    (Variable *forward, TemplateInfo *primaryTI, Function *f);
-
-  void ensureFuncMemBodyTChecked(Variable *funcDefnInstV);
-
-  // given a template function that was just made non-forward,
-  // instantiate all of its forward-declared instances; NOTE: neither
-  // the API nor the implementation is not as parallel to
-  // instantiateForwardClasses() as you might at first suspect
-  void instantiateForwardFunctions(Variable *forward, Variable *primary);
-
-  // given a template class that was just made non-forward,
-  // instantiate all of its forward-declared instances
-  void instantiateForwardClasses(Scope *scope, Variable *baseV);
-  // ----- END: template instantiation stuff -----
 
   // diagnostic reports; all return ST_ERROR type
   Type *error(SourceLoc L, char const *msg, ErrorFlags eflags = EF_NONE);
@@ -727,12 +578,167 @@ public:      // funcs
   // call site with type makeUndeclFuncType() above
   Variable *makeUndeclFuncVar(StringRef name);
 
+                                         
+  // ------------ template instantiation stuff ------------
+  // the following methods are implemented in template.cc
+private:     // template funcs
+  CompoundType *findEnclosingTemplateCalled(StringRef name);
+
+public:      // template funcs
+  // clone the part of the scope stack from the current up to the foundScope
+  PartialScopeStack *shallowClonePartialScopeStack(Scope *foundScope);
+  // so I can put methods on PartialScopeStack which seems more natural to me
+  friend struct PartialScopeStack;
+
+
+  // template typechecking modes; see comment at the top of the
+  // implementation of Env::instantiateTemplate()
+  enum TemplTcheckMode {
+    TTM_UNDEF            = 0,
+    TTM_1NORMAL          = 1,
+    TTM_2TEMPL_FUNC_DECL = 2,
+    TTM_3TEMPL_DEF       = 3,
+  };
+
+  // return the current mode
+  TemplTcheckMode getTemplTcheckMode() const;
+
+  // some extensions to lookupPQVariable that I want to move elsewhere;
+  // for now I'm just trying to factor them out of lookup..
+  Variable *lookupPQVariable_primary_resolve
+    (PQName const *name, LookupFlags flags, FunctionType *signature,
+     MatchTypes::MatchMode matchMode);
+
+  // initialize the arguments from an AST list of TempateArgument-s
+  void initArgumentsFromASTTemplArgs
+    (TemplateInfo *tinfo,
+     ASTList<TemplateArgument> const &templateArgs);
+  // check that if you made STemplateArguments from templateArgs that
+  // they would be isomorphic to those alread in tinfo->arguments
+  bool checkIsoToASTTemplArgs
+    (ObjList<STemplateArgument> &templateArgs0,
+     ASTList<TemplateArgument> const &templateArgs1);
+  // get the instantiation that matches the arguments
+  Variable *getInstThatMatchesArgs
+    (TemplateInfo *tinfo, ObjList<STemplateArgument> &arguments, Type *type0=NULL);
+
+  // load the bindings with any explicit template arguments; return true if successful
+  bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
+                                     MatchTypes &match);
+  // infer template arguments from the function arguments; return true if successful
+  bool inferTemplArgsFromFuncArgs(Variable *var,
+                                  TypeListIter &argsListIter,
+//                                    FakeList<ArgExpression> *funcArgs,
+                                  MatchTypes &match,
+                                  bool reportErrors);
+  // get both the explicit and implicit function template arguments
+  bool getFuncTemplArgs
+    (MatchTypes &match,
+     SObjList<STemplateArgument> &sargs,
+     PQName const *final,
+     Variable *var,
+     TypeListIter &argListIter,
+     bool reportErrors);
+  Variable *lookupPQVariable_function_with_args
+    (PQName const *name, LookupFlags flags, FakeList<ArgExpression> *funcArgs);
+
   // find the template primary that matches the template args,
   // returning NULL if does not exist; calls xfailure() for now if it
   // is ambiguous
   Variable *findTemplPrimaryForSignature(OverloadSet *oloadSet,
                                          FunctionType *signature,
                                          MatchTypes::MatchMode matchMode);
+                                         
+  // for the instantiation of a primary template, simultaneously
+  // iterate over the parameters and arguments, creating bindings from
+  // params to args
+  //
+  // FIX: the assymetry in the way the bindings are passed to
+  // insertBindingsForPrimary() and insertBindingsForPartialSpec() is
+  // gratuitous
+  void insertBindingsForPrimary
+    (Variable *baseV, SObjList<STemplateArgument> &sargs);
+
+  // for the instantiation of a partial specialization, iterate over
+  // the parameters and retrieve their bindings; insert these into the
+  // scope
+  void insertBindingsForPartialSpec
+    (Variable *baseV, MatchBindings &bindings);
+
+  // insert bindings for either partial specialization or for a
+  // primary by delegating to one of the two above
+  void insertBindings
+    (Variable *baseV, SObjList<STemplateArgument> &sargs);
+
+  void templArgsASTtoSTA
+    (ASTList<TemplateArgument> const &arguments,
+     SObjList<STemplateArgument> &sargs);
+
+  // Given a primary, find the most specific specialization for the
+  // given template arguments 'sargs'; for full generality we allow
+  // the primary itself as a "trivial specialization" and may return
+  // that.
+  Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs);
+
+  // Prepare the argument scope for the present typechecking of the
+  // cloned AST for effecting the instantiation of the template;
+  // Please see Scott's extensive comments at the implementation.
+  Scope *prepArgScopeForTemlCloneTcheck
+    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope);
+
+  // Undo prepArgScopeForTemlCloneTcheck().
+  void unPrepArgScopeForTemlCloneTcheck
+    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
+
+  // instantate 'base' with arguments 'sargs', and return the implicit
+  // typedef Variable associated with the resulting type; 'foundScope'
+  // is the scope in which 'base' was found; if 'instV' is not NULL
+  // then we already have a compound for this instantiation (from a
+  // forward declaration), so use that one; 'loc' is the location of
+  // the code that caused instantiation, for use in the inst loc
+  // stack; 'bestV' is the template primary or specialization to use
+  // to do the instantiation overriding the argument matching
+  // tournament if non-NULL; we only add the instantiation to the
+  // primary's instantiation list if 'addTheInstV' is true
+  Variable *instantiateTemplate
+    (SourceLoc loc,
+     // I'm pretty sure that this is not relevant for later
+     // instantiations of declarations that were forwarded
+     Scope *foundScope,
+     Variable *baseV,
+     Variable *instV,
+     Variable *bestV,
+     SObjList<STemplateArgument> &sargs,
+     Variable *funcFwdInstV=NULL);
+
+  // variant of the above, which (for convenience) first converts
+  // the AST representation of the arguments into STemplateArguments
+  Variable *instantiateTemplate_astArgs
+    (SourceLoc loc, Scope *foundScope,
+     Variable *baseV, Variable *instV,
+     ASTList<TemplateArgument> const &astArgs);
+
+  // pick the MatchMode appropriate for the the TemplTcheckMode
+  MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
+
+  // given a previously forwarded function template declaration and a
+  // defintion that we have just found for it, attach that definition
+  // to it and clean up a few things
+  void provideDefForFuncTemplDecl
+    (Variable *forward, TemplateInfo *primaryTI, Function *f);
+
+  void ensureFuncMemBodyTChecked(Variable *funcDefnInstV);
+
+  // given a template function that was just made non-forward,
+  // instantiate all of its forward-declared instances; NOTE: neither
+  // the API nor the implementation is not as parallel to
+  // instantiateForwardClasses() as you might at first suspect
+  void instantiateForwardFunctions(Variable *forward, Variable *primary);
+
+  // given a template class that was just made non-forward,
+  // instantiate all of its forward-declared instances
+  void instantiateForwardClasses(Scope *scope, Variable *baseV);
+
 };
 
 
@@ -801,7 +807,15 @@ public:
 };
 
 
-// ---------- dsw's helpers -------------
+// FIX: these should probably be methods on Env.
+bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
+bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
+void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
+
+
+// ---------- template instantiation helpers -------------
+// implementations for what follows are in template.cc
+
 // sm: I moved the following declarations down from the top of this
 // file.  I prefer to have class Env come first, since it is the
 // main class in this module.  Then helpers can come after, in any
@@ -921,12 +935,6 @@ class FuncDeclThing {
 };
 
 
-// FIX: these should probably be methods on Env.
-bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
-bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
-void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
-
-
 // preserve a template instantiation context
 struct InstContext {
   Variable *baseV;
@@ -959,6 +967,10 @@ struct FuncTCheckContext {
 
   FuncTCheckContext(Function *func, Scope *foundScope, PartialScopeStack *pss);
 };
+
+
+// implemented in template.cc
+void instantiateRemainingMethods(Env &env, TranslationUnit *tunit);
 
 
 #endif // CC_ENV_H

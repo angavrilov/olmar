@@ -71,43 +71,6 @@ string ambiguousNodeName(ASTTypeId const *n)
 }
 
 
-// go over all of the function bodies and make sure they have been
-// typechecked
-class EnsureFuncBodiesTcheckedVisitor : public ASTTemplVisitor {
-  Env &env;
-public:
-  EnsureFuncBodiesTcheckedVisitor(Env &env0) : env(env0) {}
-  bool visitFunction(Function *f);
-  bool visitDeclarator(Declarator *d);
-};
-
-bool EnsureFuncBodiesTcheckedVisitor::visitFunction(Function *f) {
-  xassert(f->nameAndParams->var);
-  env.ensureFuncMemBodyTChecked(f->nameAndParams->var);
-  return true;
-}
-
-bool EnsureFuncBodiesTcheckedVisitor::visitDeclarator(Declarator *d) {
-//    printf("EnsureFuncBodiesTcheckedVisitor::visitDeclarator d:%p\n", d);
-  // a declarator can lack a var if it is just the declarator for the
-  // ASTTypeId of a type, such as in "operator int()".
-  if (!d->var) {
-    // I just want to check something that will make sure that this
-    // didn't happen because the enclosing function body never got
-    // typechecked
-    xassert(d->context == DC_UNKNOWN);
-//      xassert(d->decl);
-//      xassert(d->decl->isD_name());
-//      xassert(!d->decl->asD_name()->name);
-  } else {
-    if (d->var->type->isFunctionType()) {
-      env.ensureFuncMemBodyTChecked(d->var);
-    }
-  }
-  return true;
-}
-
-
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
 {
@@ -118,27 +81,7 @@ void TranslationUnit::tcheck(Env &env)
     iter.data()->tcheck(env);
   }
 
-  // Given the current architecture, it is impossible to ensure that
-  // all called functions have had their body tchecked.  This is
-  // because if implicit calls to existing functions.  That is, one
-  // user-written (not implicitly defined) function f() that is
-  // tchecked implicitly calls another function g() that is
-  // user-written, but the call is elaborated into existence.  This
-  // means that we don't see the call to g() until the elaboration
-  // stage, but by then typechecking is over.  However, since the
-  // definition of g() is user-written, not implicitly defined, it
-  // does indeed need to be tchecked.  Therefore, at the end of a
-  // translation unit, I simply typecheck all of the function bodies
-  // that have not yet been typechecked.  If this doesn't work then we
-  // really need to change something non-trivial.
-  //  
-  // It seems that we are ok for now because it is only function
-  // members of templatized classes that we are delaying the
-  // typechecking of.  Also, I expect that the definitions will all
-  // have been seen.  Therefore, I can just typecheck all of the
-  // function bodies at the end of typechecking the translation unit.
-  EnsureFuncBodiesTcheckedVisitor visitor(env);
-  this->traverse(visitor);
+  instantiateRemainingMethods(env, this);
 }
 
 
@@ -954,163 +897,8 @@ Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 }
 
 
-// this is defined just below, but I want it there (not here)
-bool mergeParameterLists(Env &env, CompoundType *prior,
-                         TemplateParams *dest, TemplateParams const *src);
-
-// we (may) have just encountered some syntax which declares
-// some template parameters, but found that the declaration
-// matches a prior declaration with (possibly) some other template
-// parameters; verify that they match (or complain), and then
-// discard the ones stored in the environment (if any)
-//
-// return false if there is some problem, true if it's all ok
-// (however, this value is ignored at the moment)
-bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
-{
-  Scope *scope = env.scope();
-  if (!scope->curTemplateParams && !prior->isTemplate()) {
-    // neither talks about templates, forget the whole thing
-    return true;
-  }
-
-  if (!scope->curTemplateParams && prior->isTemplate()) {
-    env.error(stringc
-      << "prior declaration of " << prior->keywordAndName()
-      << " at " << prior->typedefVar->loc
-      << " was templatized with parameters "
-      << prior->templateInfo()->paramsToCString()
-      << " but the this one is not templatized",
-      EF_DISAMBIGUATES);
-    return false;
-  }
-
-  if (scope->curTemplateParams && !prior->isTemplate()) {
-    env.error(stringc
-      << "prior declaration of " << prior->keywordAndName()
-      << " at " << prior->typedefVar->loc
-      << " was not templatized, but this one is, with parameters "
-      << scope->curTemplateParams->paramsToCString(),
-      EF_DISAMBIGUATES);
-    delete scope->curTemplateParams;
-    scope->curTemplateParams = NULL;
-    return false;
-  }
-
-  // now we know both declarations have template parameters;
-  // check them for naming equivalent types
-  //
-  // furthermore, fix the names in 'prior' in case they differ
-  // with those of 'scope->curTemplateParams'
-  //
-  // even more, merge their default arguments
-  bool ret = mergeParameterLists(
-    env, prior,
-    prior->templateInfo(),       // dest
-    scope->curTemplateParams);   // src
-
-  // clean up 'curTemplateParams' regardless
-  delete scope->curTemplateParams;
-  scope->curTemplateParams = NULL;
-
-  return ret;
-}
-
-
-// context: I have previously seen a (forward) template
-// declaration, such as
-//   template <class S> class C;             // dest
-//                   ^
-// and I want to modify it to use the same names as another
-// declaration later on, e.g.
-//   template <class T> class C { ... };     // src
-//                   ^
-// since in fact I am about to discard the parameters that
-// come from 'src' and simply keep using the ones from
-// 'dest' for future operations, including processing the
-// template definition associated with 'src'
-bool mergeParameterLists(Env &env, CompoundType *prior,
-                         TemplateParams *dest, TemplateParams const *src)
-{
-  TRACE("template", "mergeParameterLists: prior=" << prior->name
-    << ", dest=" << dest->paramsToCString()
-    << ", src=" << src->paramsToCString());
-
-  // keep track of whether I've made any naming changes
-  // (alpha conversions)
-  bool anyNameChanges = false;
-
-  SObjListIterNC<Variable> destIter(dest->params);
-  SObjListIter<Variable> srcIter(src->params);
-  for (; !destIter.isDone() && !srcIter.isDone();
-       destIter.adv(), srcIter.adv()) {
-    Variable *dest = destIter.data();
-    Variable const *src = srcIter.data();
-
-    // are the types equivalent?
-    if (!dest->type->equals(src->type)) {
-      env.error(stringc
-        << "prior declaration of " << prior->keywordAndName()
-        << " at " << prior->typedefVar->loc
-        << " was templatized with parameter `"
-        << dest->name << "' of type `" << dest->type->toString()
-        << "' but this one has parameter `"
-        << src->name << "' of type `" << src->type->toString()
-        << "', and these are not equivalent",
-        EF_DISAMBIGUATES);
-      return false;
-    }
-
-    // what's up with their default arguments?
-    if (dest->value && src->value) {
-      // this message could be expanded...
-      env.error("cannot specify default value of template parameter more than once");
-      return false;
-    }
-
-    // there is a subtle problem if the prior declaration has a
-    // default value which refers to an earlier template parameter,
-    // but the name of that parameter has been changed
-    if (anyNameChanges &&              // earlier param changed
-        dest->value) {                 // prior has a value
-      // leave it as a to-do for now; a proper implementation should
-      // remember the name substitutions done so far, and apply them
-      // inside the expression for 'dest->value'
-      xfailure("unimplemented: alpha conversion inside default values"
-               " (workaround: use consistent names in template parameter lists)");
-    }
-
-    // merge their default values
-    if (src->value && !dest->value) {
-      dest->value = src->value;
-    }
-
-    // do they use the same name?
-    if (dest->name != src->name) {
-      // make the names the same
-      TRACE("template", "changing parameter " << dest->name
-        << " to " << src->name);
-      anyNameChanges = true;
-      dest->name = src->name;
-    }
-  }
-
-  if (srcIter.isDone() && destIter.isDone()) {
-    return true;   // ok
-  }
-  else {
-    env.error(stringc
-      << "prior declaration of " << prior->keywordAndName()
-      << " at " << prior->typedefVar->loc
-      << " was templatized with " 
-      << pluraln(dest->params.count(), "parameter")
-      << ", but this one has "
-      << pluraln(src->params.count(), "parameter"),
-      EF_DISAMBIGUATES);
-    return false;
-  }
-}
-
+// implemented in template.cc
+bool verifyCompatibleTemplates(Env &env, CompoundType *prior);
 
 Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 {
