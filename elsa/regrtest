@@ -366,8 +366,7 @@ T="$T t0150.cc"
 T="$T t0153.cc"
 T="$T t0154.cc"
 
-# SK_UNKNOWN again
-# T="$T t0155.cc"
+T="$T t0155.cc"
 
 for fn in $T; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
