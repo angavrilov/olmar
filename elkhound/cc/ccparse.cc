@@ -18,7 +18,9 @@
 #include "cc_print.h"     // PrintEnv
 #ifdef CC_QUAL
   #include "cc_qual/cc_qual.h"
+  #include "cc_qual/cqual_iface.h"
 #else
+  #include "qualifiers.h"
   #include "cc_qual_dummy.h"
 #endif
 //  #include "cc_flatten.h"   // FlattenEnv
@@ -73,18 +75,25 @@ void doit(int argc, char **argv)
     ParseTables *tables = make_CCGr_tables();
     tree.tables = tables;
 
-    if (!treeMain(tree, argc, argv,
-          "  additional flags for ccgr:\n"
-          "    malloc_stats       print malloc stats every so often\n"
-          "    stopAfterParse     stop after parsing\n"
-          "    printAST           print AST after parsing\n"
-          "    stopAfterTCheck    stop after typechecking\n"
-          "    printTypedAST      print AST with type info\n"
-          "    tcheck             print typechecking info\n"
-          "")) {
-      // parse error
-      exit(2);
-    }
+    char const *positionalArg = processArgs
+      (argc, argv, 
+       "  additional flags for ccgr:\n"
+       "    malloc_stats       print malloc stats every so often\n"
+       "    stopAfterParse     stop after parsing\n"
+       "    printAST           print AST after parsing\n"
+       "    stopAfterTCheck    stop after typechecking\n"
+       "    printTypedAST      print AST with type info\n"
+       "    tcheck             print typechecking info\n"
+       "");
+    maybeUseTrivialActions(tree);
+
+    if (tracingSys("cc_qual")) {
+      // FIX: pass this in on the command line; wrote Scott
+      init_cc_qual("cc_qual/cqual/config/lattice");
+      cc_qual_flag = 1;
+    } else cc_qual_flag = 0;
+
+    if (!toplevelParse(tree, positionalArg)) exit(2); // parse error
 
     traceProgress(2) << "final parse result: " << treeTop << endl;
     unit = (TranslationUnit*)treeTop;
@@ -161,26 +170,30 @@ void doit(int argc, char **argv)
     }
   }
 
-  // dsw: pretty printing
-  if (tracingSys("prettyPrint")) {
-      cout << endl;
-      traceProgress() << "dsw pretty print...\n";
-      PrintEnv env(cout);
-      cout << "---- START ----" << endl;
-      cout << "// -*-c++-*-" << endl;
-      unit->print(env);
-      env.finish();
-      cout << "---- STOP ----" << endl;
-      traceProgress() << "dsw pretty print... done\n";
-      cout << endl;
-  }
-
   // dsw: cc_qual
   if (tracingSys("cc_qual")) {
-      traceProgress() << "dsw cc_qual...\n";
-      QualEnv env(cout);
-      unit->qual(env);
-      traceProgress() << "dsw cc_qual... done\n";
+    xassert(cc_qual_flag);       // should have been set above
+    traceProgress() << "dsw cc_qual...\n";
+    // done above
+    //        init_cc_qual("cc_qual/cqual/config/lattice");
+    QualEnv env;
+    unit->qual(env);
+    finish_cc_qual();
+    traceProgress() << "dsw cc_qual... done\n";
+  }
+
+  // dsw: pretty printing
+  if (tracingSys("prettyPrint")) {
+    cout << endl;
+    traceProgress() << "dsw pretty print...\n";
+    PrintEnv env(cout);
+    cout << "---- START ----" << endl;
+    cout << "// -*-c++-*-" << endl;
+    unit->print(env);
+    env.finish();
+    cout << "---- STOP ----" << endl;
+    traceProgress() << "dsw pretty print... done\n";
+    cout << endl;
   }
 
   // test AST cloning

@@ -35,6 +35,9 @@ enum Lexer2TokenType {
   L2_STRING_LITERAL,
   L2_CHAR_LITERAL,
 
+  // dsw: user-defined qualifiers
+  L2_UDEF_QUAL,
+
   // keywords
   L2_ASM,
   L2_AUTO,

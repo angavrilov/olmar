@@ -14,11 +14,11 @@ all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
 # would not change *what* this Makefile creates, only the *order*
 # in which things are made
 .PHONY: workingFiles
+ifdef CC_QUAL
+  workingFiles: cc/cc_qual/cc_qual.o
+endif
 workingFiles: cc/cc_tcheck.o cc/cc_print.o
 #workingFiles: cc/cc_flatten.o
-ifdef CC_QUAL
-workingFiles: cc/cc_qual.o
-endif
 
 # some junk I was building a while ago..
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
@@ -40,6 +40,12 @@ AST    := ../ast
 # translation process variables
 libraries   := $(SMBASE)/libsmbase.a
 includes    := -I$(SMBASE) -I$(AST) -Icc
+ifdef CC_QUAL
+# dsw: don't know why this doesn't work, but I have never actually
+# tried this feature of make before.
+#  cc/cc_qual/cc_qual.o: includes += -I cc_qual/cqual/src -I cc_qual/cqual/src/libcompat
+  includes += -I cc/cc_qual/cqual/src -I cc/cc_qual/cqual/src/libcompat
+endif
 
 # needed for gcc-2 when compiling things in cc2/
 includes    += -I.
@@ -60,6 +66,7 @@ ranlib      := ranlib
 # thing.
 ifdef CC_QUAL
   ccflags += -DCC_QUAL
+  ccflags += -DDISTINCT_CVATOMIC_TYPES
 endif
 
 OPTIMIZATION_FLAGS :=
@@ -195,11 +202,13 @@ cc-set := \
   cc/cc_print.o \
   cc/cc_ast_aux.o \
   cc/treeout.o \
-  cc/variable.o
+  cc/variable.o \
+  cc/qualifiers.o
 ifdef CC_QUAL
-cc-set += cc/cc_qual/cc_qual.o
+  cc-set += cc/cc_qual/cc_qual.o
+  cc-set += cc/cc_qual/cqual_iface.o
 else
-cc-set += cc/cc_qual_dummy.o
+  cc-set += cc/cc_qual_dummy.o
 endif
 -include $(filter-out $(AST)/%, $(cc-set:.o=.d))
 
@@ -321,9 +330,20 @@ cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbas
 .PRECIOUS: cc/ccgr
 
 # stand-alone executable for parsing C++
-cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
+CQUAL_DEPS :=
+ifdef CC_QUAL
+  CQUAL_DEPS += cc/cc_qual/cqual.a
+  CQUAL_DEPS += cc/cc_qual/libregions.a
+endif
+cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	$(link) -o $@ $^
+ifndef CC_QUAL
 	./$@ c.in/c.in1
+endif
+# dsw: Note on the above: I need to be able to build it without
+# running it, due to the directory where I have to build it.  This
+# will be fixed when I can pass in the lattice configuration file on
+# the command-line.
 
 # same grammar, but building entire parse tree instead
 cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc/cc.tok elkhound
@@ -333,7 +353,7 @@ cc/cct.gr.gen.cc cc/cct.gr.gen.h cc/cct.gr.gen.y: cc/cc.gr cc/cc.tok elkhound
 	chmod a-w cc/cct.gr*
 
 cc/ccparset: cc/ccparset.o cc/cct.gr.gen.o $(cc-set) ptreenode.o \
-             libelkhound.a $(SMBASE)/libsmbase.a
+             libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	g++ -o $@ $(ccflags) $^
 
 # bison parser from the same grammar; the 'sed' is because Bison
@@ -404,18 +424,18 @@ trivparse-deps := trivmain.cc ptreenode.o trivlex.o $(support-set) \
 	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
 
 # new C++ parser
-cc2/cc2.exe: cc2/cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a
+cc2/cc2.exe: cc2/cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	g++ -o $@ $(ccflags) $^
 
 # new C++ grammar with treebuilding actions
-cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc/cc.tok elkhound
+cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc/cc.tok elkhound $(CQUAL_DEPS)
 	rm -f cc2/cc2t*
 	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
 	./elkhound -tr treebuild$(TRGRAMANL) cc2/cc2t
 	chmod a-w cc2/cc2t.gr*
 
 # new C++ parser with treebuilding
-cc2/cc2t.exe: cc2/cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a
+cc2/cc2t.exe: cc2/cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libelkhound.a $(SMBASE)/libsmbase.a $(CQUAL_DEPS)
 	g++ -o $@ $(ccflags) $^
 
 

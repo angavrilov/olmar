@@ -146,6 +146,11 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   BEGIN(INITIAL);
 }
 
+  /* dsw: user-defined qualifier; example: $tainted */
+\${ALNUM}+ {
+  lexer.emit(L1_UDEF_QUAL, yytext, yyleng);
+}
+
   /* final, error */
 <ST_STRING>{EOL}   |
 <ST_STRING><<EOF>> {

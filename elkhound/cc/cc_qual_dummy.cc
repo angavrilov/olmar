@@ -2,10 +2,20 @@
 // code for cc_qual.h
 
 // This is a dummy tree walk that is a front end for a C++ version of
-// cqual.  Adapted from cc_tcheck.cc by Daniel Wilkerson
-// dsw@cs.berkeley.edu
+// cqual.  It provides dummy definitions for everything delcared in
+// cc_qual_dummy.h and cc.ast.  Adapted from cc_tcheck.cc by Daniel
+// Wilkerson dsw@cs.berkeley.edu
 
-#include "cc_qual_dummy.h"      // this module
+#include "qualifiers.h"         // this module
+#include "cc.ast.gen.h"         // C++ AST; this module
+
+void init_cc_qual(char *config_file) {
+  printf("DUMMY INIT config_file: %s\n", config_file);
+}
+
+void finish_cc_qual() {
+  printf("DUMMY FINISH\n");
+}
 
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::qual(QualEnv &env)

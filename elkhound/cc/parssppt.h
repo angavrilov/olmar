@@ -38,10 +38,17 @@ public:
 };
 
 
-// given grammar and input, yield a parse tree
-// returns false on error
-bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
-                   char const *inputFname, char const *symOfInterestName);
+// dsw: what is this?
+//  // given grammar and input, yield a parse tree
+//  // returns false on error
+//  bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
+//                     char const *inputFname, char const *symOfInterestName);
+
+bool toplevelParse(ParseTreeAndTokens &ptree, char const *inputFname);
+
+char *processArgs(int argc, char **argv, char const *additionalInfo = NULL);
+
+void maybeUseTrivialActions(ParseTreeAndTokens &ptree);
 
 // useful for simple treewalkers; false on error
 bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,

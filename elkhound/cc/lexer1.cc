@@ -34,6 +34,7 @@ char const *l1Tok2String(Lexer1TokenType tok)
     "L1_INT_LITERAL",
     "L1_FLOAT_LITERAL",
     "L1_STRING_LITERAL",
+    "L1_UDEF_QUAL",             // dsw: user-defined qualifier: $tainted
     "L1_CHAR_LITERAL",
     "L1_OPERATOR",
     "L1_PREPROCESSOR",

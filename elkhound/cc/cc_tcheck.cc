@@ -312,8 +312,13 @@ void Function::tcheck(Env &env, bool checkBody)
     // function is a member of; if the function has been declared
     // with some 'cv' flags, then those become attached to the
     // pointed-to type; the pointer itself is always 'const'
-    Type const *thisType =
-      makePtrOperType(PO_POINTER, CV_CONST, makeCVType(ct, funcType->cv));
+    Type const *thisType;
+    {
+      CVAtomicType *tmpcvat = makeCVType(ct, funcType->cv);
+      xassert(!tmpcvat->q);
+      tmpcvat->q = deepClone(funcType->q);
+      thisType = makePtrOperType(PO_POINTER, CV_CONST, tmpcvat);
+    }
 
     // add the implicit 'this' parameter
     Variable *ths = new Variable(nameAndParams->var->loc, env.str("this"),
@@ -621,7 +626,8 @@ void PQ_template::tcheck(Env &env)
 // --------------------- TypeSpecifier --------------
 Type const *TypeSpecifier::tcheck(Env &env)
 {
-  return applyCVToType(cv, itcheck(env));
+  Type const *ret = applyCVToType(cv, itcheck(env));
+  return applyQualifierLiteralsToType(q, ret);
 }
 
 
@@ -663,7 +669,7 @@ Type const *TS_name::itcheck(Env &env)
       << "cannot apply const/volatile to type `" << ret->toString() << "'");
   }
   else {
-    return ret;
+    return applyQualifierLiteralsToType(q, ret);
   }
 }
 
@@ -1397,6 +1403,13 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
     // in particular, fill in the conversion destination type as
     // the function's return type
     FunctionType *ft = new FunctionType(destType, specFunc->cv);
+//    StringRef name = "__unamed_function";
+//    {
+//      PQName const * declaratorId = getDeclaratorId();
+//      if (declaratorId) name = declaratorId->getName();
+//    }
+    xassert(!ft->q);
+    ft->q = deepClone(specFunc->q);
     ft->templateParams = env.takeTemplateParams();
 
     return ft;
@@ -1840,7 +1853,23 @@ void D_pointer::tcheck(Env &env, DeclaratorTcheck &dt)
   }
   else {
     // apply the pointer type constructor
-    dt.type = makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
+//      StringRef name = "__unamed_pointer";
+//      {
+//        PQName const * declaratorId = getDeclaratorId();
+//        if (declaratorId) name = declaratorId->getName();
+//      }
+
+    Type const *tmp_type = makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
+    if (tmp_type->isError()) dt.type = tmp_type;
+    else {
+      PointerType const * tmp_ptrtype = dynamic_cast<PointerType const *>(tmp_type);
+      xassert(tmp_ptrtype);
+      PointerType *pt = const_cast<PointerType *>(tmp_ptrtype);
+      xassert(pt);
+      xassert(!pt->q);
+      pt->q = deepClone(q);
+      dt.type = pt;
+    }
   }
 
   // recurse
@@ -1876,7 +1905,14 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
 
-  FunctionType *ft = new FunctionType(dt.type, cv);
+//    StringRef name = "__unamed_function";
+//    {
+//      PQName const * declaratorId = getDeclaratorId();
+//      if (declaratorId) name = declaratorId->getName();
+//    }
+  FunctionType *ft = new FunctionType (dt.type, cv);
+  xassert(!ft->q);
+  ft->q = deepClone(q);
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list

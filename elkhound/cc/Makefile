@@ -457,6 +457,13 @@ CHK_OTHER1 += laundering/test2.cc
 
 #CHK_OTHER1 += tests/Barrier_Test.merged.c
 
+CHK_QUAL :=
+CHK_QUAL += cc.in200
+CHK_QUAL += cc.in200b
+CHK_QUAL += cc.in201
+CHK_QUAL += cc.in202
+CHK_QUAL += cc.in202ok
+
 .PHONY: idemcheck
 idemcheck: idem/cc.in idem/cc_examples idem/chap idem/other1
 
@@ -464,13 +471,19 @@ DIR_CCIN := ../cc.in/
 .PHONY: idem/cc.in
 idem/cc.in:; ./idemcheck -d outdir $(addprefix $(DIR_CCIN),$(CHK_CCIN))
 
+.PHONY: idem/qual
+idem/qual:; ./idemcheck -d outdir $(addprefix $(DIR_CCIN),$(CHK_QUAL))
+
 DIR_CCEX := ../../cure_cpp/cc_examples/
 .PHONY: idem/cc_examples
 idem/cc_examples:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CCEX))
+
 # .PHONY: idem/calc
 # idem/calc:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CALC))
+
 .PHONY: idem/chap
 idem/chap:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CHAP))
+
 .PHONY: idem/other1
 idem/other1:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_OTHER1))
 

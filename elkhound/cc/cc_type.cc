@@ -4,7 +4,6 @@
 #include "cc_type.h"    // this module
 #include "trace.h"      // tracingSys
 #include "variable.h"   // Variable
-
 #include <assert.h>     // assert
 
 
@@ -651,7 +650,10 @@ string Type::toCString() const
     // special case a single atomic type, so as to avoid
     // printing an extra space
     CVAtomicType const &atomic = asCVAtomicTypeC();
-    return stringc << atomic.atomic->toCString() << cvToString(atomic.cv);
+    return stringc
+      << atomic.atomic->toCString()
+      << ::toString(atomic.q)
+      << cvToString(atomic.cv);
   }
   else {
     return stringc << idComment() << leftString() << rightString();
@@ -861,6 +863,7 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
   stringBuilder s;
   s << atomicIdComment();
   s << atomic->toCString();
+  s << ::toString(q);
   s << cvToString(cv);
   
   // this is the only mandatory space in the entire syntax
@@ -874,7 +877,9 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
 
 string CVAtomicType::toCilString(int depth) const
 {
-  return stringc << cvToString(cv) << " atomic "
+  return stringc << ::toString(q)
+                 << cvToString(cv)
+                 << " atomic "
                  << recurseCilString(atomic, depth);
 }
 
@@ -901,7 +906,7 @@ bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type const *a)
-  : op(o), cv(c), atType(a) 
+  : op(o), q(NULL), cv(c), atType(a) 
 {
   // since references are always immutable, it makes no sense to
   // apply const or volatile to them
@@ -929,6 +934,7 @@ string PointerType::leftString(bool /*innerParen*/) const
     s << "(";
   }
   s << (op==PO_POINTER? "*" : "&");
+  s << ::toString(q);
   s << cvToString(cv);
   return s;
 }
@@ -947,7 +953,8 @@ string PointerType::rightString(bool /*innerParen*/) const
 
 string PointerType::toCilString(int depth) const
 {
-  return stringc << cvToString(cv)
+  return stringc << ::toString(q)
+                 << cvToString(cv)
                  << (op==PO_POINTER? "ptrto " : "refto ")
                  << recurseCilString(atType, depth);
 }
@@ -1000,6 +1007,7 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 // -------------------- FunctionType -----------------
 FunctionType::FunctionType(Type const *r, CVFlags c)
   : retType(r),
+    q(NULL),
     cv(c),
     params(),
     acceptsVarargs(false),
@@ -1035,6 +1043,10 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
 
 bool FunctionType::equalParameterLists(FunctionType const *obj) const
 {
+  // dsw: FIX: The comment below makes no sense to me.  If it *is*
+  // legal to overload with different cv qualifiers, then why does it
+  // cause us to return false?  Anyway, omitting checking for
+  // QualifierLiterals here.
   if (cv != obj->cv) {
     // the 'cv' qualifier is really attached to the 'this' parameter;
     // it's important to check this here, since disequality of
@@ -1142,6 +1154,7 @@ string FunctionType::rightString(bool innerParen) const
   sb << ")";
 
   // qualifiers
+  sb << ::toString(q);
   if (cv) {
     sb << " " << ::toString(cv);
   }
@@ -1444,8 +1457,7 @@ CVAtomicType *makeType(AtomicType const *atomic)
 
 CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv)
 {
-  CVAtomicType *ret = new CVAtomicType(atomic, cv);
-  return ret;
+  return new CVAtomicType(atomic, cv);
 }
 
 
@@ -1530,15 +1542,18 @@ Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
     return type;
   }
 
-  PointerType *ret = new PointerType(op, cv, type);
-  return ret;
+  return new PointerType(op, cv, type);
 }
 
 
 CVAtomicType const *getSimpleType(SimpleTypeId st)
 {
   xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
+#ifdef DISTINCT_CVATOMIC_TYPES
+  return new CVAtomicType(&SimpleType::fixed[st], CV_NONE);
+#else
   return &(CVAtomicType::fixed[st]);
+#endif
 }
 
 
