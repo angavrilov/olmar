@@ -267,6 +267,7 @@ enum DeclaratorContext {
 class Declarator {
   // entity declared by this declarator
   public Variable *var = NULL;          // (serf) computed information: name, type, etc.
+  custom clone { ret->var = var; }
 
   // This field need not be identical to 'var->type'; the 'type' here
   // comes directly from the declartor syntax, but 'var' might refer
