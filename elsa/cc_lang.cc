@@ -13,6 +13,7 @@ void CCLang::KandR_C()
   emptyParamsMeansPureVarargFunc = true;
   complainUponBadDeref = true;
   strictArraySizeRequirements = false;
+  allowOverloading = false;
 }
 
 void CCLang::ANSI_C()
@@ -25,6 +26,7 @@ void CCLang::ANSI_C()
   emptyParamsMeansPureVarargFunc = false;
   complainUponBadDeref = true;
   strictArraySizeRequirements = false;
+  allowOverloading = false;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -35,10 +37,12 @@ void CCLang::ANSI_Cplusplus()
   noInnerClasses = false;
   uninitializedGlobalDataIsCommon = false;
   emptyParamsMeansPureVarargFunc = false;
-  
+
   // these aren't exactly ANSI C++; they might be "pragmatic C++"
-  // for the current state of the parser 
+  // for the current state of the parser
   complainUponBadDeref = false;
   strictArraySizeRequirements = false;
+
+  allowOverloading = true;
 }
 

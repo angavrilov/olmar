@@ -1899,7 +1899,8 @@ realStart:
 
   // check for overloading
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
-  if (!name->hasQualifiers() &&
+  if (env.lang.allowOverloading &&
+      !name->hasQualifiers() &&
       prior &&
       prior->type->isFunctionType() &&
       dt.type->isFunctionType()) {

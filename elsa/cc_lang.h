@@ -49,6 +49,10 @@ public:
   // when true, require all array sizes to be positive; when false,
   // 0-length arrays are allowed as class/struct fields
   bool strictArraySizeRequirements;
+  
+  // when true, we allow overloaded function declarations (same name,
+  // different signature)
+  bool allowOverloading;
 
 public:
   CCLang() { ANSI_C(); }
