@@ -4400,7 +4400,7 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
   E_stringLit *p = this;
   while (p) {
     len += strlen(p->text) - 2;   // don't include surrounding quotes
-    if (id==ST_WCHAR_T) len--;    // don't count 'L' if present
+    if (p->text[0]=='L') len--;   // don't count 'L' if present
     p = p->continuation;
   }
 
