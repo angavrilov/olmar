@@ -945,7 +945,11 @@ bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
       return aBin->op == bBin->op &&
              matchExpr(aBin->e1, bBin->e1) &&
              matchExpr(aBin->e2, bBin->e2);
-             
+
+    ASTNEXT2C(E_unary, aUny, bUny)
+      return aUny->op == bUny->op &&
+             matchExpr(aUny->expr, bUny->expr);
+
     ASTNEXT2C(E_intLit, aLit, bLit)
       return aLit->i == bLit->i;
       
@@ -959,6 +963,9 @@ bool MatchTypes::matchExpr(Expression const *a, Expression const *b)
         return true;      // same logical parameter
       }
       return false;
+
+    ASTNEXT2C(E_sizeofType, aSzt, bSzt)
+      return match0(aSzt->atype->getType(), bSzt->atype->getType(), 0 /*depth*/);
 
     ASTDEFAULT2C
       return false;
