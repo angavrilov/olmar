@@ -229,10 +229,19 @@ void Env::setupOperatorOverloading()
   // TODO: T& operator[] (ptrdiff_t, T*);
 
   // ---- 13.6 para 14 ----
-  addPatternBuiltin(BIN_MINUS, new CandidateSet(rvalIsPointer, pointerToObject));
+  addBuiltinBinaryOp(BIN_MINUS, rvalIsPointer, pointerToObject);
+
+  // ---- 13.6 para 15 ----
+  addBuiltinBinaryOp(BIN_LESS, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(BIN_GREATER, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(BIN_LESSEQ, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(BIN_GREATEREQ, rvalFilter, pointerOrEnum);
+  // 15 & 16
+  addBuiltinBinaryOp(BIN_EQUAL, rvalFilter, pointerOrEnumOrPTM);
+  addBuiltinBinaryOp(BIN_NOTEQUAL, rvalFilter, pointerOrEnumOrPTM);
 
   exitScope(dummyScope);
-  
+
   // the default constructor for ArrayStack will have allocated 10
   // items in each array; go back and resize them to their current
   // length (since that won't change after this point)
@@ -243,10 +252,16 @@ void Env::setupOperatorOverloading()
 
 void Env::addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y)
 {
-  addPatternBuiltin(op, new CandidateSet(createBuiltinBinaryOp(op, x, y)));
+  addBuiltinBinaryOp(op, new CandidateSet(createBuiltinBinaryOp(op, x, y)));
 }
 
-void Env::addPatternBuiltin(BinaryOp op, CandidateSet * /*owner*/ cset)
+void Env::addBuiltinBinaryOp(BinaryOp op, CandidateSet::PreFilter pre,
+                                          CandidateSet::PostFilter post)
+{
+  addBuiltinBinaryOp(op, new CandidateSet(pre, post));
+}
+
+void Env::addBuiltinBinaryOp(BinaryOp op, CandidateSet * /*owner*/ cset)
 {
   builtinBinaryOperator[op].push(cset);
 }

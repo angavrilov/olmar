@@ -3824,11 +3824,11 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   Type *lhsType = e1->type->asRval();
   Type *rhsType = e2->type->asRval();
 
-  // check for operator overloading; only limited cases for now
-  // (TODO: lhs or rhs enum triggers overload resolution)
+  // check for operator overloading
   if (env.doOperatorOverload &&
       isOverloadable(op) &&
-      (lhsType->isCompoundType() || rhsType->isCompoundType())) {
+      (lhsType->isCompoundType() || lhsType->isEnumType() ||
+       rhsType->isCompoundType() || rhsType->isEnumType())) {
     OVERLOADINDTRACE("found overloadable " << toString(op) <<
                      " near " << env.locStr());
     StringRef opName = env.binaryOperatorName[op];

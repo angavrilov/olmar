@@ -332,6 +332,24 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   // decision so far
   int ret = 0;
 
+  // is exactly one candidate a built-in operator?
+  if ((int)left->var->hasFlag(DF_BUILTIN) +
+      (int)right->var->hasFlag(DF_BUILTIN) == 1) {
+    // 13.6 para 1 explains that if a user-written candidate and a
+    // built-in candidate have the same signature, then the built-in
+    // candidate is hidden; I implement this by saying that the
+    // user-written candidate always wins
+    if (left->var->type->equals(right->var->type, Type::EF_SIGNATURE)) {
+      // same signatures; who wins?
+      if (left->var->hasFlag(DF_BUILTIN)) {
+        return +1;     // right is user-written, it wins
+      }
+      else {
+        return -1;     // left is user-written, it wins
+      }
+    }
+  }
+
   // iterate over parameters too, since we need to know the
   // destination type in some cases
   FunctionType const *leftFunc = left->var->type->asFunctionTypeC();

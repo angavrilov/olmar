@@ -149,8 +149,11 @@ private:     // funcs
   CompoundType *findEnclosingTemplateCalled(StringRef name);
 
   void setupOperatorOverloading();
+
   void addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
-  void addPatternBuiltin(BinaryOp op, CandidateSet * /*owner*/ cset);
+  void addBuiltinBinaryOp(BinaryOp op, CandidateSet::PreFilter pre,
+                                       CandidateSet::PostFilter post);
+  void addBuiltinBinaryOp(BinaryOp op, CandidateSet * /*owner*/ cset);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);

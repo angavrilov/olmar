@@ -56,9 +56,14 @@ public:      // funcs
 };
    
 
-// some filters
+// some pre filters
+Type *rvalFilter(Type *t);
 Type *rvalIsPointer(Type *t);
+
+// some post filters
 bool pointerToObject(Type *t);
+bool pointerOrEnum(Type *t);
+bool pointerOrEnumOrPTM(Type *t);
 
 
 #endif // BUILTINOPS_H

@@ -165,6 +165,12 @@ Type *rvalIsPointer(Type *t)
   }
 }
 
+Type *rvalFilter(Type *t)
+{
+  return t->asRval();
+}
+
+
 bool pointerToObject(Type *t)
 {
   // the pre-filter already guarantees that only pointer types
@@ -177,6 +183,16 @@ bool pointerToObject(Type *t)
   else {
     return true;
   }
+}
+
+bool pointerOrEnum(Type *t)
+{
+  return t->isPointer() || t->isEnumType();
+}
+
+bool pointerOrEnumOrPTM(Type *t)
+{
+  return t->isPointer() || t->isEnumType() || t->isPointerToMemberType();
 }
 
 
