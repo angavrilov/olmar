@@ -87,7 +87,8 @@ while (defined($line = <STDIN>)) {
 
     # add a rule for merging
     if ($ptree) {
-      print("  merge(t1, t2)   [ return new PTreeNode(PTREENODE_MERGE, t1, t2); ]\n",
+      print(#"  merge(t1, t2)   [ return new PTreeNode(PTREENODE_MERGE, t1, t2); ]\n",
+            "  merge(t1, t2)   [ t1->addAlternative(t2); return t1; ]\n",
             "  del(t)          []\n",
             "  dup(t)          [ return t; ]\n",
             "\n");

@@ -52,7 +52,7 @@ public:
   //    function in case of local ambiguity; 'sval' is a serf
   //  - the return value will be yielded (if necessary) to the next
   //    consumer action function, and is an owner ptr
-  //  - possible strategies:
+  //  - some possible strategies:
   //    - return NULL, in which case it is probably an error for the
   //      value to be passed to another action (i.e. the grammar needs
   //      to be LALR(1) near this semantic value); in this case, 'del'
@@ -80,6 +80,13 @@ public:
   // it should return a value to be used in the place where they conflict'
   // both 'left' and 'right' are owner pointers, and the return value
   // is also an owner pointer
+  //
+  // NOTE: the 'left' value is always the node which came first, and
+  // might even have been yielded to another reduction already
+  // (depending on the grammar), whereas the 'right' value is always a
+  // node which was just created, and has definitely *not* been
+  // yielded to anything (this fact is critical to solving the general
+  // yield-then-merge problem)
   virtual SemanticValue mergeAlternativeParses(
     int ntIndex, SemanticValue left, SemanticValue right)=0;
 

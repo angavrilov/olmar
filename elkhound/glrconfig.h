@@ -10,6 +10,7 @@
 #ifndef GLRCONFIG_H
 #define GLRCONFIG_H
 
+
 // when NO_GLR_SOURCELOC is #defined, we disable all support for
 // automatically propagating source location information in the
 // parser; user actions can still refer to 'loc', but they just get
@@ -28,5 +29,29 @@
 
   #define NOSOURCELOC(stuff)
 #endif
+
+
+// when enabled, NODE_COLUMN tracks in each stack node the
+// appropriate column to display it for in debugging dump
+#ifdef ENABLE_NODE_COLUMNS
+  #define NODE_COLUMN(stuff) stuff
+#else
+  #define NODE_COLUMN(stuff)
+#endif
+
+
+// when enabled, YIELD_COUNT keeps track of the number of times a
+// given semantic value is yielded; this is useful for warning the
+// user when a merge is performed but one of the merged values has
+// already been yielded to another semantic action, which implies
+// that the induced parse forest is incomplete
+#define DISABLE_YIELD_COUNT
+#ifndef DISABLE_YIELD_COUNT
+  #define YIELD_COUNT(stuff) stuff
+#else
+  #define YIELD_COUNT(stuff)
+#endif
+
+
 
 #endif // GLRCONFIG_H

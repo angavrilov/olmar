@@ -1,0 +1,14 @@
+// EEb.gr.in   -*- c++ -*-
+// a simple ambiguous arithmetic grammar
+
+// E -> E + E | b
+
+terminals {
+  p        // plus
+  b
+}
+
+nonterm E {
+  -> a:E p b:E;
+  -> b;
+}

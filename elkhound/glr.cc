@@ -142,6 +142,7 @@
 #include <fstream.h>     // ofstream
 
 // D(..) is code to execute for extra debugging info
+//#define EXTRA_CHECKS
 #ifdef EXTRA_CHECKS
   #define D(stmt) stmt
 #else
@@ -238,7 +239,9 @@ inline SiblingLink::SiblingLink(StackNode *s, SemanticValue sv
                                 SOURCELOCARG( SourceLocation const &L ) )
   : sib(s), sval(sv)
     SOURCELOCARG( loc(L) )
-{}
+{
+  YIELD_COUNT( yieldCount = 0; )
+}
 
 SiblingLink::~SiblingLink()
 {}
@@ -345,7 +348,10 @@ inline void StackNode
   firstSib.sib.setWithoutUpdateRefct(leftSib);
 
   firstSib.sval = sval;
+
+  // initialize some other fields
   SOURCELOC( firstSib.loc = loc; )
+  YIELD_COUNT( firstSib.yieldCount = 0; )
 }
 
 
@@ -680,10 +686,7 @@ inline StackNode *GLR::makeStackNode(StateId state)
   StackNode *sn = stackNodePool.alloc();
   sn->init(state, this);
 
-  #ifdef STACK_NODE_COLUMNS
-    // only do this when we need to, since it's in the inner loop
-    sn->column = globalNodeColumn;
-  #endif
+  NODE_COLUMN( sn->column = globalNodeColumn; )
 
   return sn;
 }
@@ -722,7 +725,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   long startParseTime = getMilliseconds();
   unsigned long long startParseCycles = getCycles_ll();
   clearAllStackNodes();
-  bool doDumpGSS = tracingSys("dumpGSS");
+  #ifndef NDEBUG
+    bool doDumpGSS = tracingSys("dumpGSS");
+  #endif
 
   // build the parser index (I do this regardless of whether I'm going
   // to use it, because up here it makes no performance difference,
@@ -739,7 +744,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
-  globalNodeColumn = 0;
+  NODE_COLUMN( globalNodeColumn = 0; )
   StackNode *first = makeStackNode(startState->id);
   addActiveParser(first);
 
@@ -906,8 +911,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           #else
             NULL;
           #endif
-          D(trsSval << "reduced via production " << pcs.prodIndex
-                    << ", yielding " << sval << endl);
+          D(trsSval << "[miniLR] reduced via production " << prodIndex
+                    << ", user returned " << sval << endl);
 
           // now, push a new state; essentially, shift prodInfo.lhsIndex.
           // do "glrShiftNonterminal(parser, prodInfo.lhsIndex, sval, leftEdge);",
@@ -961,9 +966,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                  ", (unambig) shift token " << currentTokenClass->name <<
                  ", to state " << newState);
 
-        #ifdef STACK_NODE_COLUMNS
-          globalNodeColumn++;
-        #endif
+        NODE_COLUMN( globalNodeColumn++; )
 
         StackNode *rightSibling = makeStackNode(newState);
         rightSibling->addFirstSiblingLink_noRefCt(
@@ -1448,6 +1451,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
       D(trsSval << "dup'd " << toPass[i] << " to pass, yielding "
                 << sib->sval << " to store" << endl);
+      YIELD_COUNT( sib->yieldCount++; )
     }
 
     // we've popped the required number of symbols; call the
@@ -1457,7 +1461,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       userAct->doReductionAction(pcs.prodIndex, toPass.getArray()
                                  SOURCELOCARG( leftEdge ) );
     D(trsSval << "reduced via production " << pcs.prodIndex
-              << ", yielding " << sval << endl);
+              << ", user returned " << sval << endl);
     //delete[] toPass;
 
     // see if the user wants to keep this reduction
@@ -1497,8 +1501,8 @@ void GLR::collectPathLink(PathCollectionState &pcs, int popsRemaining,
                           SiblingLink *linkToAdd)
 {
   // the symbol on the sibling link is being popped;
-  // TREEBUILD: we are collecting 'treeNode' for the purpose
-  // of handing it to the user's reduction routine
+  // TREEBUILD: we are collecting 'linkToAdd' for the purpose
+  // of handing its semantic value to the user's reduction routine
   pcs.siblings[popsRemaining] = linkToAdd;
   pcs.symbols[popsRemaining] = currentNode->getSymbolC();
 
@@ -1573,14 +1577,30 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
         deallocateSemanticValue(rightSibling->getSymbolC(), sval);
         return;
       }
+        
+      // remember previous value, for debugging printout or yield
+      // count warning; optimizer will merge them if both are enabled
+      D(SemanticValue old = sibLink->sval);
+      YIELD_COUNT(SemanticValue old2 = sibLink->sval);
 
       // call the user's code to merge, and replace what we have
       // now with the merged version
-      D(SemanticValue old = sibLink->sval);
       sibLink->sval = userAct->mergeAlternativeParses(lhsIndex,
                                                       sibLink->sval, sval);
+
       D(trsSval << "merged " << old << " and " << sval
                 << ", yielding " << sibLink->sval << endl);
+
+      YIELD_COUNT(
+        if (old2 != sibLink->sval &&
+            sibLink->yieldCount > 0) {
+          cout << "warning: incomplete parse forest: " << (void*)old2
+               << " has already been yielded, but it now has been "
+               << "merged with " << (void*)sval << " to make "
+               << (void*)(sibLink->sval) << " (lhsIndex="
+               << lhsIndex << ")" << endl;
+        }
+      )
 
       // ok, done
       return;
@@ -1687,9 +1707,7 @@ bool GLR::canMakeProgress(StackNode *parser)
 
 void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 {
-  #ifdef STACK_NODE_COLUMNS
-    globalNodeColumn++;
-  #endif
+  NODE_COLUMN( globalNodeColumn++; )
 
   // clear the active-parsers list; we rebuild it in this fn
   for (int i=0; i < activeParsers.length(); i++) {
@@ -1817,8 +1835,8 @@ void GLR::dumpGSSEdge(FILE *dest, StackNode const *src,
                                   StackNode const *target) const
 {
   fprintf(dest, "e %d_%p_%d %d_%p_%d\n",
-                src->column, src, src->state,
-                target->column, target, target->state);
+                0 NODE_COLUMN( + src->column ), src, src->state,
+                0 NODE_COLUMN( + target->column ), target, target->state);
 }
 
 

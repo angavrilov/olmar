@@ -1,7 +1,8 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: sexp ccgr bccgr aSEb.gr.exe ssxmain.exe ssx.in
+temporary: sexp ccgr bccgr aSEb.gr.exe SSx.tree.gr.exe ssx.in \
+           EEb.tree.gr.exe eeb.in
 
 # main targets
 all: ccgr
@@ -47,7 +48,7 @@ endif
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -401,11 +402,30 @@ trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
 	  $^ $(linkend)
 
-# parser for S -> S S x | x
-ssxmain.exe: SSx.tree.gr.gen.o ptreenode.o ssxmain.o trivlex.o lexer2.o libglr.a
-	g++ -o $@ $(ccflags) $^ $(linkend)
 
-# input for ssxmain
+# input for EEb
+eeb.in:
+	mkdir eeb.in
+	perl -e 'foreach $$n (1, 2, 3, 10, 20, 50, 100, 200, 300, 400, 500) {  \
+	           open(OUT, ">eeb.in/$$n.in") or die $!;    \
+	           print OUT "B";                            \
+	           for($$i=0; $$i < $$n; $$i++) {            \
+	             print OUT ("PB");                       \
+	           }                                         \
+	           close(OUT);                               \
+	         }'
+
+# performance test for EEb
+eeb.perf.txt:
+	rm -f $@
+#	for n in 10 20 50 100 200 300 400 500; do
+	for n in 10 20 50 100 200; do \
+	  ./EEb.tree.gr.exe -tr progress -count eeb.in/$$n.in 2>&1 | \
+	    sed "s/^/$$n: /" >> $@ ; \
+	done
+
+
+# input for SSx
 ssx.in:
 	mkdir ssx.in
 	perl -e 'for($$n=1; $$n <= 99; $$n += 2) {           \
@@ -415,6 +435,29 @@ ssx.in:
 	           }                                         \
 	           close(OUT);                               \
 	         }'
+
+# performance test for SSx
+ssx.perf.txt:
+	rm -f $@
+	for n in 15 25 35 45 55 65 75 85 99; do \
+	  ./SSx.tree.gr.exe -tr progress -count ssx.in/$$n.in 2>&1 | \
+	    sed "s/^/$$n: /" >> $@ ; \
+	done
+
+
+
+# input for SSSx
+sssx.in:
+	mkdir sssx.in
+	perl -e 'for($$n=1; $$n <= 99; $$n += 1) {           \
+	           open(OUT, ">sssx.in/$$n.in") or die $!;    \
+	           for($$i=0; $$i < $$n; $$i++) {            \
+	             print OUT ("X");                        \
+	           }                                         \
+	           close(OUT);                               \
+	         }'
+
+
 
 # test program for 'sexp' module
 sexp: sexp.ast.gen.o sexp.cc $(AST)/fileloc.o $(AST)/asthelp.o
@@ -428,7 +471,7 @@ clean:
 	rm -f *.gen.*
 	rm -f cdecl.bin cdecl cexp3.bin cexp3
 	rm -f *.d *.exe
-	rm -rf ssx.in
+	rm -rf ssx.in sssx.in eeb.in
 
 # regression tests
 check-cexp2: cexp2

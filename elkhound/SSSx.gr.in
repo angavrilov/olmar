@@ -1,0 +1,14 @@
+// SSSx.gr.in   -*- c++ -*-
+// second nondeterministic grammar from even-faster
+
+// S -> S S S x | S x | x
+
+terminals {
+  x
+}
+
+nonterm S {
+  -> a:S b:S c:S x;
+  -> a:S x;
+  -> x;
+}

@@ -1,0 +1,10 @@
+5: cycles: 249842
+15: cycles: 521435
+25: cycles: 1479563
+35: cycles: 4580909
+45: cycles: 8536117
+55: cycles: 16167090
+65: cycles: 27220080
+75: cycles: 48466440
+85: cycles: 74226510
+99: cycles: 140182065

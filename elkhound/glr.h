@@ -39,6 +39,7 @@
 #define __GLR_H
 
 #include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
+#include "glrconfig.h"   // SOURCELOC
 #include "owner.h"       // Owner
 #include "rcptr.h"       // RCPtr
 #include "useract.h"     // UserActions, SemanticValue
@@ -78,6 +79,14 @@ public:
   // at this stack node; this is in essence part of the semantic
   // value, but automatically propagated by the parser
   SOURCELOC( SourceLocation loc; )
+
+  // number of times this 'sval' has been yielded; this is used
+  // to track cases where we yield a value and then merge it
+  // (which means the induced parse forest is incomplete)
+  YIELD_COUNT( int yieldCount; )
+
+  // if you add additional fields, they need to be inited in the
+  // constructor *and* in StackNode::addFirstSiblingLink_noRefCt
 
 public:
   SiblingLink(StackNode *s, SemanticValue sv
@@ -137,14 +146,11 @@ public:
     StackNode *nextInFreeList;
   };
 
-  #define STACK_NODE_COLUMNS
-  #ifdef STACK_NODE_COLUMNS
-    // ordinal position of the token that was being processed
-    // when this stack node was created; this information is useful
-    // for laying out the nodes when visualizing the GSS, but is
-    // not used by the parsing algorithm itself
-    int column;
-  #endif
+  // ordinal position of the token that was being processed
+  // when this stack node was created; this information is useful
+  // for laying out the nodes when visualizing the GSS, but is
+  // not used by the parsing algorithm itself
+  NODE_COLUMN( int column; )
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
@@ -389,8 +395,8 @@ public:
   bool trSval;                              // tracingSys("sval")
   ostream &trsSval;                         // trace("sval")
 
-  // used when STACK_NODE_COLUMNS is true
-  int globalNodeColumn;
+  // track column for new nodes
+  NODE_COLUMN( int globalNodeColumn; )
 
 private:    // funcs
   // comments in glr.cc
