@@ -53,7 +53,12 @@ mechanism.
 <p>
 Note that the automaton only includes the pointer type constructor "*"
 and function type constructor "()".  I have left out references ("&"),
-arrays ("[]"), and pointer to member ("::*") for simplicity.
+arrays ("[]"), and pointer to member ("<i>class</i>::*") for
+simplicity.  I have also left out the possibility of a parameter list
+being empty; adding it is a matter of splitting "Parameter" into
+"FirstParameter" (rightparen enabled) and "NextParameter" (reached by
+comma; rightparen not enabled), but I decided it's more clutter than
+it's worth here.
 
 <p>
 From here, I will consider in turn three complications that Elsa must
@@ -82,7 +87,7 @@ same place.  This choice, between "(" as a grouping punctuator and
 "(" as the function type constructor, is resolved in the C++ standard
 (section 8.2 paragraph 7, plus some deduction) by looking at the
 token <em>after</em> the "(" in question.  If it a type keyword, or
-an identifier that names a type (in the current scope), then the
+an identifier that names a type (in the current scope), or a rightparen, then the
 function type constructor interpretation is preferred.  Otherwise,
 the grouping punctuator interpretation is used.  Example:
 <pre>
@@ -92,6 +97,8 @@ the grouping punctuator interpretation is used.  Example:
   int f(  int (x)  );        // same type as above
 
   int g(  int (y)  );        // 'g' accepts an integer
+  
+  int h(  int ()  );         // 'h' accepts a function
 </pre>
 
 <h2>Complication 2: Constructor Initializers</h2>
