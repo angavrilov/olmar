@@ -5,6 +5,7 @@
 #include "trace.h"       // tracingSys
 #include "ckheap.h"      // heapCheck
 #include "strtable.h"    // StringTable
+#include "cc_lang.h"     // CCLang
 
 
 // --------------------- CFGEnv -----------------------
@@ -163,7 +164,7 @@ ScopedEnv::~ScopedEnv()
 
 
 // --------------------------- Env ----------------------------
-Env::Env(StringTable &table)
+Env::Env(StringTable &table, CCLang &alang)
   : scopes(),
     typedefs(),
     compounds(),
@@ -175,7 +176,8 @@ Env::Env(StringTable &table)
     currentFunction(NULL),
     locationStack(),
     inPredicate(false),
-    strTable(table)
+    strTable(table),
+    lang(alang)
 {
   enterScope();
 
@@ -314,7 +316,7 @@ void Env::addTypedef(StringRef name, Type const *type)
     // it's typical to do this explicitly as well.  apparently g++
     // does what I'm about to do: permit it when the typedef names
     // the same type
-    if (prev->equals(type)) {
+    if (lang.tagsAreTypes && prev->equals(type)) {
       // allow it, like g++ does
       return;
     }

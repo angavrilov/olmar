@@ -4,6 +4,7 @@
 #include <iostream.h>     // cout
 #include <stdlib.h>       // exit
 
+#include "ccgrmain.h"     // this module, sorta..
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "ckheap.h"       // malloc_stats
@@ -14,6 +15,7 @@
 #include "aenv.h"         // AEnv
 #include "strutil.h"      // plural
 #include "factflow.h"     // factFlow
+#include "cc_lang.h"      // CCLang
 
 
 // globals that allow AEnv's to be created wherever ...
@@ -29,9 +31,6 @@ void if_malloc_stats()
 }
 
 
-// defined by the user somewhere
-UserActions *makeUserActions(StringTable &table);
-
 void doit(int argc, char **argv)
 {
   traceAddSys("progress");
@@ -43,13 +42,17 @@ void doit(int argc, char **argv)
   StringTable strTable;
   globalStringTable = &strTable;
 
+  // parsing language options
+  CCLang lang;
+  lang.ANSI_Cplusplus();
+
 
   // --------------- parse --------------
   TranslationUnit *unit;
   {
     SemanticValue treeTop;
     ParseTreeAndTokens tree(treeTop, strTable);
-    UserActions *user = makeUserActions(tree.lexer2.idTable);
+    UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
     tree.userAct = user;
     if (!treeMain(tree, argc, argv,
           "  additional flags for ccgr:\n"
@@ -100,7 +103,7 @@ void doit(int argc, char **argv)
   // ---------------- typecheck -----------------
   {
     traceProgress() << "type checking...\n";
-    Env env(strTable);
+    Env env(strTable, lang);
     env.addVariable(mem.name, &mem);
     unit->tcheck(env);
     traceProgress(2) << "done type checking\n";
@@ -175,44 +178,3 @@ int main(int argc, char **argv)
 
   return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          //                            ==============================
-          //    *   *   *   *   *   *   ==============================
-          //      *   *   *   *   *
-          //    *   *   *   *   *   *   ==============================
-          //      *   *   *   *   *     ==============================
-          //    *   *   *   *   *   *
-          //      *   *   *   *   *     ==============================
-          //    *   *   *   *   *   *   ==============================
-          //      *   *   *   *   *
-          //    *   *   *   *   *   *   ==============================
-          //                            ==============================
-          //
-          //   =======================================================
-          //   =======================================================
-          //
-          //   =======================================================
-          //   =======================================================
-          //
-          //   =======================================================
-          //   =======================================================
-
-          //   This symbol is *unique*: it stands, among other things,
-          //   for the right to protest (burn) this symbol.
-

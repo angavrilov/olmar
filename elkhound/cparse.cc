@@ -8,8 +8,6 @@
 ParseEnv::ParseEnv(StringTable &table)
 {
   intType = table.add("int");
-
-  tagsAreTypes = false;
 }
 
 ParseEnv::~ParseEnv()

@@ -14,9 +14,6 @@ public:
   StringRef intType;              // "int"
   ObjList<StringHash> types;      // stack of hashes which identify names of types
 
-  // language options which affect parsing behavior
-  bool tagsAreTypes;
-
 public:
   ParseEnv(StringTable &table);
   ~ParseEnv();

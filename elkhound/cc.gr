@@ -13,25 +13,31 @@ verbatim CCGr [
 #include "cparse.h"       // ParseEnv
 #include "trace.h"        // trace
 #include "c.ast.gen.h"    // C abstract syntax
+#include "cc_lang.h"      // CCLang
 
 #define D(msg) \
   trace("cc") << msg << endl
 
 class CCGr : public UserActions, public ParseEnv {
-public:    // data 
+public:    // data
   StringRef strRefAttr;         // "attr"
+  CCLang &lang;
 
 public:    // funcs
-  CCGr(StringTable &table)
-    : ParseEnv(table), strRefAttr(table.add("attr")) {}
+  CCGr(StringTable &table, CCLang &alang)
+    : ParseEnv(table),
+      strRefAttr(table.add("attr")),
+      lang(alang) {}
 
 private:
   #include "cc.gr.gen.h"
+  
+  void declareClassTag(StringRef tagName);
 };
 
-UserActions *makeUserActions(StringTable &table)
+UserActions *makeUserActions(StringTable &table, CCLang &lang)
 {
-  return new CCGr(table);
+  return new CCGr(table, lang);
 }
 
 // when this is the last element in a parameter list, the function
@@ -40,6 +46,15 @@ ASTTypeId *ellipsisTypeId()
 {
   return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
                        new Declarator(new D_name(SourceLocation(), NULL, NULL), NULL));
+}
+
+void CCGr::declareClassTag(StringRef tagName)
+{
+  // TYPE/NAME
+  if (lang.tagsAreTypes) {
+    D("defined new struct/class tag as type " << tagName);
+    addType(tagName);
+  }
 }
 
 ]
@@ -725,7 +740,10 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 
 
 nonterm[TS_elaborated*] ElaboratedTypeSpecifier {
-  -> k:ClassKeyword n:AnyName   [ return new TS_elaborated(k, n); ]
+  -> k:ClassKeyword n:AnyName   [
+       declareClassTag(n);
+       return new TS_elaborated(k, n);
+     ]
   -> "enum" n:AnyName           [ return new TS_elaborated(TI_ENUM, n); ]
 }
 
@@ -1033,7 +1051,9 @@ nonterm[IDeclarator*] TypedefDeclarator {
 }
 
 nonterm[IDeclarator*] DirectTypedefDeclarator {
-  -> n:VariableName [
+  // changed from VariableName because this is a binding introduction
+  // so it doesn't matter what its previous association might have been
+  -> n:AnyName [
        // TYPE/NAME
        D("defined new typedef name " << n);
        addType(n);
@@ -1201,11 +1221,7 @@ nonterm[TS_classSpec*] ClassSpecifier ->
 nonterm[StringRef] ClassNameOpt {
   -> empty     [ return NULL; ]
   -> n:AnyName [
-       // TYPE/NAME
-       if (tagsAreTypes) {
-         D("defined new struct " << n);
-         addType(n);
-       }
+       declareClassTag(n);
        return n;
      ]
 }

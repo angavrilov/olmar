@@ -9,9 +9,8 @@
 #include "ckheap.h"       // malloc_stats
 #include "grammar.h"      // grammarStringTable
 #include "fileloc.h"      // sourceFileList
-
-// defined by the user somewhere
-UserActions *makeUserActions(StringTable &table);
+#include "ccgrmain.h"     // makeUserActions
+#include "cc_lang.h"      // CCLang
 
 void doit(int argc, char **argv)
 {
@@ -20,7 +19,8 @@ void doit(int argc, char **argv)
 
   SemanticValue treeTop;
   ParseTreeAndTokens tree(treeTop);
-  UserActions *user = makeUserActions(tree.lexer2.idTable);
+  CCLang lang;
+  UserActions *user = makeUserActions(tree.lexer2.idTable, lang);
   tree.userAct = user;
   if (!treeMain(tree, argc, argv)) {
     // parse error

@@ -302,7 +302,7 @@ cdecl2: $(cdecl2-dep)
 ccgr-dep := cc.gr.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
             absval.ast.gen.o vcgen.o aenv.o prover.o \
             predicate.ast.gen.o paths.o $(cc-set) postorder.o \
-            factflow.o exprvisit.o exprequal.o
+            factflow.o exprvisit.o exprequal.o cc_lang.o
 # don't generate dependencies for *.gen.o, since it makes 'make' think
 # it needs to rebuild a bunch of stuff just to calculate dependencies
 #-include $(filter-out %.gen.d, $(ccgr-dep:.o=.d))

@@ -16,6 +16,7 @@
 #include "variable.h"     // Variable
 
 class StringTable;        // strtable.h
+class CCLang;             // cc_lang.h
 
 
 // thrown by some error functions
@@ -160,6 +161,9 @@ public:     // data
   // string table for making up new names
   StringTable &strTable;
 
+  // language options
+  CCLang &lang;
+
 private:    // funcs
   void grab(Type const *t) {}
   void grabAtomic(AtomicType const *t) {}
@@ -168,7 +172,7 @@ private:    // funcs
 
 public:     // funcs
   // empty toplevel environment
-  Env(StringTable &table);
+  Env(StringTable &table, CCLang &lang);
   ~Env();
 
   // scope manipulation
