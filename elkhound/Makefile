@@ -3,7 +3,7 @@
 # main targets
 all: grampar
 
-everything: grammar glr lexer1 lexer2 grampar
+everything: gramanl glr lexer1 lexer2 grampar
 
 # directories
 SMBASE = /home/scott/wrk/lib/smbase
@@ -22,14 +22,14 @@ common = trace.o
 
 # ------ targets -------
 # SLR(1) parser
-grammar-dep = gramanl.cc ${grammar-set} ${common}
-grammar: ${grammar-dep} grammar.h gramanl.h 
-	${link} -o grammar -DGRAMANL_MAIN ${grammar-dep} ${linkend}
+gramanl-dep = gramanl.cc ${grammar-set} ${common}
+gramanl: ${gramanl-dep} grammar.h gramanl.h 
+	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 
 # GLR parser built on top of SLR(1) parser
 glr-dep = glr.cc ${grammar-set} ${common} gramanl.o glrtree.o \
           lexer1.o lexer1yy.o lexer2.o grampar.tab.o gramlex.yy.o \
-          grampar.o gramlex.o ast.o fileloc.o gramast.o
+          grampar.o gramlex.o ast.o fileloc.o gramast.o ccsstr.o
 glr: ${glr-dep} glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 
@@ -80,7 +80,7 @@ ccsstr: ccsstr.cc ccsstr.h
 	${link} -o ccsstr -DTEST_CCSSTR ccsstr.cc ${linkend}
 
 clean:
-	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
+	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
 	rm -f lexer2 grampar.tab.* grampar a.out
 
 # --------------- random other stuff --------------------

@@ -480,6 +480,7 @@ public:	    // data
   ObjList<Production> tokSeqAmbList;
 
 private:    // funcs
+  // obsolete parsing functions
   bool parseAnAction(char const *keyword, char const *insideBraces,
                      Production *lastProduction);
 
@@ -522,7 +523,8 @@ public:     // funcs
   // dump syntax is identical to my (current) input syntax!)
   void printAsBison(ostream &os) const;
 
-  // ---- grammar parsing ----
+  // ---- grammar parsing (obsolete) ----
+  // these are retained because a few test codes use them
   bool readFile(char const *fname);
 
   // parse a line like "LHS -> R1 R2 R3", return false on parse error
