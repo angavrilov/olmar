@@ -137,7 +137,7 @@ cc.ast.gen.h cc.ast.gen.cc: $(CC_AST_MODS) $(AST)/astgen
 # run elkhound to generate the parser
 TOCLEAN += cc.gr.gen.h cc.gr.gen.cc
 cc.gr.gen.h cc.gr.gen.cc: $(CC_GR_MODS) cc_tokens.ids $(ELKHOUND)/elkhound
-	$(ELKHOUND)/elkhound -v -o cc.gr.gen $(CC_GR_MODS)
+	$(ELKHOUND)/elkhound -v -tr lrtable -o cc.gr.gen $(CC_GR_MODS)
 
 
 # list of modules needed for the parser; ideally they're in an order

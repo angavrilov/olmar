@@ -109,6 +109,11 @@ nonterm(Declaration*) SimpleDeclaration {
   // the number of S/R conflicts, presumably because it's inheriting the
   // conflicts from 'SimpleDeclaration'; a possible TODO is to make
   // the production more specific to remove those conflicts
+  
+  // here's one for things like (in/gnu/g0002.cc)
+  //   extern template class allocator<char>;
+  -> "extern" "template" decl:SimpleDeclaration
+       { return decl; }      // ?
 }
 
 
