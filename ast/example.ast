@@ -11,6 +11,9 @@ option visitor ExampleVisitor;
 // emit the xmlPrint stuff too
 option xmlPrint;
 
+// and gdb
+option gdb;
+
 class Node (
   int x,
   int y

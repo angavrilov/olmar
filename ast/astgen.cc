@@ -29,6 +29,9 @@ SObjList<TF_class> allClasses;
 // true if the user wants the xmlPrint stuff
 bool wantXMLPrint = false;
 
+// true if the user wants the gdb() functions
+bool wantGDB = false;
+
 
 // ------------------ shared gen functions ----------------------
 class Gen {
@@ -430,6 +433,10 @@ void HGen::emitTFClass(TF_class const &cls)
   out << "\n";
 
   emitCommonFuncs(virt);
+  
+  if (wantGDB) {
+    out << "  void gdb() const;\n\n";
+  }
 
   emitUserDecls(cls.super->decls);
 
@@ -808,6 +815,14 @@ void CGen::emitTFClass(TF_class const &cls)
 
   out << "}\n";
   out << "\n";
+
+  // gdb()
+  if (wantGDB) {
+    out << "void " << cls.super->name << "::gdb() const\n"
+        << "  { debugPrint(cout, 0); }\n"
+        << "\n"
+        ;
+  }
 
   // dsw: xmlPrint
   if (wantXMLPrint) {
@@ -1548,6 +1563,9 @@ void entry(int argc, char **argv)
         }
         else if (op->name.equals("xmlPrint")) {
           wantXMLPrint = true;
+        }
+        else if (op->name.equals("gdb")) {
+          wantGDB = true;
         }
         else {
           cout << "unknown option: " << op->name << endl;
