@@ -24,7 +24,6 @@ literalCode "prologue" {
   // places I haven't implemented the Cil translation
   CilExpr *todoCilExpr();
   CilInst *todoCilInst();
-  Variable *todoVariable();
   
   // this is for places where there is no value
   // for a construct
@@ -360,8 +359,7 @@ nonterm PQVarName : HasTypeName, HasDeclName, HasType {
   fun typeCheck {
     // each of the remaining rules requires some more sophisticated
     // way of naming symbols
-    reportError(env, "typeCheck unimplemented for complicated names");
-    return todoVariable();
+    throwError("typeCheck unimplemented for complicated names");
   }
 
   -> OperatorFunctionId     { action colonColon := 0; }
@@ -441,59 +439,52 @@ nonterm PostfixExpression : ExprBase {
     }
   }
 
-  // field access
-  -> p:PostfixExpression "." n:PQVarName {
+
+  // field access or deref + field access
+  -> p:PostfixExpression op:FieldAccessOp n:PQVarName {
     fun typeCheck {
       // check the left side
       Owner<CilExpr> record; record = p.typeCheck(env, inst);
 
       // look up its type
       Type const *type = record->getType(env);
+
+      if (op.unparseString().equals("->")) {      // HACK!
+        // deref the type
+        if (!type->isPointerType()) {
+          throwError(stringc
+            << "left side of `->' (" << record->toString()
+            << ") must be a *pointer* to a struct; its type is "
+            << type->toString());
+        }
+
+        // deref
+        record = newDeref(record.xfr());
+        type = type->asPointerTypeC().atType;
+      }
+       
+      // the type should be a structure whose fields we can access
       if (!( type->isCVAtomicType() &&
              type->asCVAtomicTypeC().atomic->isCompoundType() )) {
-        throwError("left side of `.' must be a struct");
+        throwError(stringc <<
+          "left side of `" << op.unparseString() <<
+          "' must be a struct");
       }
       CompoundType const &ctype =
         type->asCVAtomicTypeC().atomic->asCompoundTypeC();
+
+      if (ctype.env == NULL) {
+        throwError(stringc
+          << "can't access field of " << record->toString()
+          << " because its type (" << ctype.toString()
+          << ") is incomplete (it's only forward-declared)");
+      }
 
       // check the right side in the context of the
       // struct we just found
       Owner<Variable> field; field = n.typeCheck(ctype.env);
 
       return newFieldRef(record.xfr(), field.xfr());
-    }
-  }
-
-  // deref + field access
-  -> p:PostfixExpression "->" n:PQVarName {
-    fun typeCheck {
-      // check the left side
-      Owner<CilExpr> record; record = p.typeCheck(env, inst);
-
-      // look up its type, expecting a pointer
-      Type const *type = record->getType(env);
-      if (!type->isPointerType()) {
-        throwError(stringc
-          << "left side of `->' (" << record->toString()
-          << ") must be a *pointer* to a struct; its type is "
-          << type->toString());
-      }
-      
-      // deref
-      record = newDeref(record.xfr());
-      type = type->asPointerTypeC().atType;
-
-      // look up the type of the thing it points to
-      if (!( type->isCVAtomicType() &&
-             type->asCVAtomicTypeC().atomic->isCompoundType() )) {
-        throwError("left side of `->' must be a pointer to a *struct*");
-      }
-      CompoundType const &ctype =
-        type->asCVAtomicTypeC().atomic->asCompoundTypeC();
-
-      // check the field in environment of the struct
-      Variable *field = n.typeCheck(ctype.env);
-      return newFieldRef(record.xfr(), field);
     }
   }
 
@@ -536,8 +527,9 @@ nonterm PostfixExpression : ExprBase {
 }
 
 // TODO: revise grammar syntax so I can name productions
-// directly, and avoid this silly indirection
-nonterm IncOp -> "++" | "--";
+// directly, and avoid these silly indirections
+nonterm IncOp -> "++" | "--";                  
+nonterm FieldAccessOp -> "." | "->";
 
 nonterm ExpressionList {
   fundecl void typeCheck(Env *passedEnv, CilInstructions &inst, CilFnCall *call);
@@ -1675,7 +1667,18 @@ nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
         // kill the localEnv so it doesn't continue to
         // point to 'env', which may well be destroyed during
         // the unwind process before 'localEnv' is
-        localEnv.del();
+        //localEnv.del();
+        
+        // different strategy: the problem with deleting localEnv
+        // is we could have pointers from below pointing at us;
+        // this happens if e.g. we have two children, and the
+        // left child typeChecks *and* has its own scope; then
+        // that scope will point at us; if the right child then
+        // fails to segfault, we execute this code; so now my
+        // strategy is to simply break the parent link; I still
+        // need to rethink my whole approach to environments ...
+        localEnv->killParentLink();
+
         throw;
       }
     }
@@ -1697,7 +1700,14 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
       }
       env->flushLocalErrors(cout);
 
-      return s.typeCheck(env, inst);
+      try {
+        return s.typeCheck(env, inst);
+      }
+      catch (XSemanticError &x) {
+        env->report(x.err);
+        env->flushLocalErrors(cout);
+        return noCilValue();
+      }
     }
 
     fun getCFG {
@@ -2632,8 +2642,8 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       }       
       
       catch (...) {
-        // kill new scope
-        localEnv.del();
+        // see above
+        localEnv->killParentLink();
         throw;
       }
     }
@@ -2896,7 +2906,8 @@ nonterm Handler : Checkable, ScopeNode {
         return noCilValue();
       }
       catch (...) {
-        localEnv.del();           // preemptively kill scope
+        // see above
+        localEnv->killParentLink();
         throw;
       }
     }
@@ -2989,22 +3000,21 @@ bool processNode(TreeNode const *n, void*)
 
 CilExpr *todoCilExpr()
 {
-  return NULL;
+  // rather than segfaulting, let's make something reasonable
+  return newIntLit(12345678);    // hopefully recognizable
 }
 
 CilInst *todoCilInst()
 {
-  return NULL;
-}
-
-Variable *todoVariable()
-{  
-  return NULL;
+  return newLabel("unimplementedInst");
 }
 
 
 int fakemain(int argc, char *argv[])
 {
+  // by default, print progress reports
+  traceAddSys("progress");
+
   // do this before creating the first environment
   // (this messes up the usage string printed by treeMain
   // but who cares)

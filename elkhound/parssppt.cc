@@ -50,8 +50,6 @@ void treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
     }
   }
 
-  traceAddSys("progress");
-
   if (argc != 3) {
     cout << "usage: " << progName << " [options] grammar-file input-file\n"
             "  options:\n"

@@ -102,7 +102,23 @@ void traceAddMultiSys(char const *systemNames)
 {
   StrtokParse tok(systemNames, ",");
   loopi(tok) {
-    traceAddSys(tok[i]);
+    if (tok[i][0] == '-') {
+      // treat a leading '-' as a signal to *remove*
+      // a tracing flag, e.g. from some defaults specified
+      // statically      
+      char const *name = tok[i]+1;
+      if (tracingSys(name)) {      // be forgiving here
+        traceRemoveSys(name);
+      }
+      else {
+        cout << "Currently, `" << name << "' is not being traced.\n";
+      }
+    }
+    
+    else {
+      // normal behavior: add things to the trace list
+      traceAddSys(tok[i]);
+    }
   }
 }
 

@@ -45,12 +45,12 @@ struct S { int m; };
 
 void lvals()
 {
-  int x,y,z;
+  int x,y,z,*ip;
   int a[3];
   S s, *sp;
 
   x = y;
-  *x = z;
+  *ip = z;
   s.m = z;
   sp->m = 5;
   (char)x = z;

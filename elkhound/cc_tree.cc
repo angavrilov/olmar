@@ -17,7 +17,11 @@ void CCTreeNode::declareVariable(Env *env, char const *name,
   if (!env->declareVariable(name, flags, type)) {
     SemanticError err(this, SE_DUPLICATE_VAR_DECL);
     err.varName = name;
-    env->report(err);
+    
+    //env->report(err);
+    
+    // as an experiment, let's try throwing this
+    THROW(XSemanticError(err));
   }
 }
 
