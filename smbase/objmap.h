@@ -48,7 +48,7 @@ public:      // iterators
   class IterC {
   private:     // data
     // underlying iterator state
-    PtrMap<KEY,VALUE>::Iter iter;
+    typename PtrMap<KEY,VALUE>::Iter iter;
 
   public:      // fucs
     IterC(ObjMap<KEY,VALUE> const &map)   : iter(map.map) {}
@@ -66,7 +66,7 @@ public:      // iterators
   class Iter {
   private:     // data
     // underlying iterator state
-    PtrMap<KEY,VALUE>::Iter iter;
+    typename PtrMap<KEY,VALUE>::Iter iter;
 
   public:      // fucs
     Iter(ObjMap<KEY,VALUE> &map)          : iter(map.map) {}
@@ -89,7 +89,7 @@ void ObjMap<KEY,VALUE>::empty()
   // delete the values; enclose in {} so the iterator goes
   // away before the table is modified
   {
-    PtrMap<KEY,VALUE>::Iter iter(map);
+    typename PtrMap<KEY,VALUE>::Iter iter(map);
     for (; !iter.isDone(); iter.adv()) {
       delete iter.value();
     }
