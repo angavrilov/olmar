@@ -155,7 +155,7 @@ if (system("type etags >/dev/null 2>&1")) {
   print("not found\n");
   $ETAGS = "true";       # 'true' is a no-op
 }
-elsif (system("etags --help | grep -- --members")) {
+elsif (system("etags --help | grep -- --members >/dev/null")) {
   # has it, but it does not know about the --members option
   print("etags\n");
   $ETAGS = "etags";
