@@ -138,10 +138,7 @@ void foo()
   c.c3();
   
   A<int>::C<int>::F<int> f;
-  
-  // this breaks the test; it should be turned back on 
-  // once t0438a.cc works
-  //f.f1();
+  f.f1();
 
   A<int>::C<int>::G g;
   g.g1();

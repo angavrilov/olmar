@@ -1540,22 +1540,24 @@ void Env::insertTemplateArgBindings
   // a block of arguments at the beginning, and then we use 'sargs'
   SObjList<STemplateArgument> expandedSargs;
   if (baseVTI->isPartialInstantiation()) {
-    // copy partial inst args first
-    FOREACH_OBJLIST_NC(STemplateArgument, baseVTI->arguments, iter) {
-      expandedSargs.append(iter.data());
+    // put 'sargs' in initially
+    expandedSargs = sargs;
+
+    // in/t0438a.cc: the partial instantiation chain may be longer
+    // than one element, so need a loop here
+    while (baseVTI->isPartialInstantiation()) {
+      // put partial inst args first
+      SObjList<STemplateArgument> const &piArgs =
+        objToSObjListC(baseVTI->arguments);
+      expandedSargs.prependAll(piArgs);
+
+      // finally, set 'baseVTI' to point at the original template,
+      // since it has the parameter list for the definition
+      baseVTI = baseVTI->partialInstantiationOf->templateInfo();
     }
 
-    // then 'sargs'
-    SFOREACH_OBJLIST_NC(STemplateArgument, sargs, iter2) {
-      expandedSargs.append(iter2.data());
-    }
-    
     // now, reset the iterator to walk the expanded list instead
     argIter.reset(expandedSargs);
-    
-    // finally, set 'baseVTI' to point at the original template,
-    // since it has the parameter list for the definition
-    baseVTI = baseVTI->partialInstantiationOf->templateInfo();
   }
 
   // does the definition parameter list differ from the declaration

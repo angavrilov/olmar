@@ -217,8 +217,8 @@ public:    // data
   // instantiation is a template function that is in most respects a
   // template primary.  However, it does not have its own independent
   // definition, rather the definition is provided by
-  // 'partialInstantiatedFrom'.  Moreover, a partial instantiation
-  // carries 'arguments' that are to be applied to the template it it
+  // 'partialInstantiationOf'.  Moreover, a partial instantiation
+  // carries 'arguments' that are to be applied to the template it
   // is a partial instance of, with remaining arguments supplied by
   // the partial instance's own parameters.
   Variable * const partialInstantiationOf;      // (serf)

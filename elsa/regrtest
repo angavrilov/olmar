@@ -680,7 +680,7 @@ testparse_strict t0434.cc
 failparse_strict t0435.cc "need for ArrayType with dependent size"
 failparse t0436.cc "pointer-to-member names processed in wrong order"
 testparse_strict t0437.cc
-failparse t0438a.cc "triply-nested templates don't work"
+testparse_strict t0438a.cc
 testparse_strict t0438.cc
 failparse t0439.cc "default args in explicit spec"
 failparse t0440.cc "default args in explicit spec + DQTs"
