@@ -4656,7 +4656,7 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags flags)
 {
-  SObjList<Variable> dummy;
+  LookupSet dummy;
   return itcheck_var_set(env, replacement, flags, dummy);
 }
 
@@ -4669,9 +4669,7 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
   if (v) {
     var = v;
-    if (flags & LF_LOOKUP_SET) {
-      prependUniqueEntities(candidates, v);
-    }
+    candidates.addsIf(v, flags);
   }
   else {
     // do lookup normally
@@ -5275,7 +5273,7 @@ void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
   }
 }
 
-Type *E_funCall::inner2_itcheck(Env &env, SObjList<Variable> &candidates)
+Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
 {
   // check the argument list
   args = tcheckArgExprList(args, env);

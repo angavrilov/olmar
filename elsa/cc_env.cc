@@ -3932,7 +3932,7 @@ void Env::associatedScopeLookup(LookupSet &candidates, StringRef name,
 // some lookup yielded 'var'; add its candidates to 'candidates'
 void Env::addCandidates(LookupSet &candidates, Variable *var)
 {
-  prependUniqueEntities(candidates, var);
+  candidates.adds(var);
 }
 
 

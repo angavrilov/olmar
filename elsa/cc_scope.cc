@@ -301,52 +301,6 @@ bool hasAncestor(BaseClassSubobj const *child, BaseClassSubobj const *ancestor)
 }
 
 
-
-// -------- lookup --------                            
-// vfilter: variable filter
-// implements variable-filtering aspect of the flags; the idea
-// is you never query 'variables' without wrapping the call
-// in a filter
-Variable const *vfilterC(Variable const *v, LookupFlags flags)
-{
-  if (!v) return v;
-
-  if ((flags & LF_ONLY_TYPES) &&
-      !v->hasFlag(DF_TYPEDEF)) {
-    return NULL;
-  }
-
-  if ((flags & LF_ONLY_NAMESPACES) &&
-      !v->hasFlag(DF_NAMESPACE)) {
-    return NULL;
-  }
-
-  if ((flags & LF_TYPES_NAMESPACES) &&
-      !v->hasFlag(DF_TYPEDEF) &&
-      !v->hasFlag(DF_NAMESPACE)) {
-    return NULL;
-  }
-
-  if (!(flags & LF_SELFNAME) &&
-      v->hasFlag(DF_SELFNAME)) {
-    // the selfname is not visible b/c LF_SELFNAME not specified
-    return NULL;
-  }
-                                                        
-  // I actually think it would be adequate to just check for
-  // DF_BOUND_TARG...
-  if ((flags & LF_TEMPL_PARAM) &&
-      !v->hasAnyFlags(DF_BOUND_TARG | DF_TEMPL_PARAM)) {
-    return NULL;
-  }
-
-  return v;
-}
-
-Variable *vfilter(Variable *v, LookupFlags flags)
-  { return const_cast<Variable*>(vfilterC(v, flags)); }
-
-
 // the lookup semantics here are a bit complicated; relevant tests
 // include t0099.cc and std/3.4.5.cc
 Variable *Scope
@@ -379,17 +333,7 @@ Variable *Scope::lookupPQVariable_inner
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
   if (!name->hasQualifiers()) {
-//      cout << "lookupPQVariableC variables" << endl;
-//      for (StringSObjDict<Variable>::IterC iter(variables); !iter.isDone(); iter.next()) {
-//        cout << "\t" << iter.key() << "=";
-//        iter.value()->gdb();
-//        cout << endl;
-//      }
-//      cout << "name->getName() " << name->getName() << endl;
-    v1 = vfilter(variables.get(name->getName()), flags);
-    if (v1 && (flags & LF_LOOKUP_SET)) {
-      prependUniqueEntities(candidates, v1);
-    }
+    v1 = candidates.filter(variables.get(name->getName()), flags);
 
     if (!(flags & LF_IGNORE_USING)) {
       if (!(flags & LF_QUALIFIED)) {
@@ -440,8 +384,8 @@ Variable *Scope::lookupPQVariable_inner
         lookupPQVariable_inner(candidates, name, env, flags);
     }
   }
-  else if (flags & LF_LOOKUP_SET) {
-    prependUniqueEntities(candidates, v1);
+  else {
+    candidates.addsIf(v1, flags);
   }
 
   return v1;
@@ -540,11 +484,7 @@ Variable *Scope::lookupVariable_set
   (LookupSet &candidates, StringRef name, Env &env, LookupFlags flags)
 {
   if (flags & LF_INNER_ONLY) {
-    Variable *ret = vfilter(variables.get(name), flags);
-    if (ret && (flags & LF_LOOKUP_SET)) {
-      prependUniqueEntity(candidates, ret);
-    }
-    return ret;
+    return candidates.filter(variables.get(name), flags);
   }
 
   PQ_name wrapperName(SL_UNKNOWN, name);
@@ -972,7 +912,7 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
 {
   if (vfound) {
     if (!sameEntity(vfound, v)) {
-      if ((flags & LF_LOOKUP_SET) &&
+      if ((flags & LF_LOOKUP_SET) &&    // prepared to handle lookup sets
           v->type->isFunctionType() &&
           vfound->type->isFunctionType()) {
         // ok; essentially they form an overload set
@@ -995,9 +935,7 @@ bool Scope::foundViaUsingEdge(LookupSet &candidates, Env &env, LookupFlags flags
     vfound = v;
   }
 
-  if (flags & LF_LOOKUP_SET) {
-    prependUniqueEntities(candidates, v);
-  }
+  candidates.addsIf(v, flags);
 
   return false;
 }
