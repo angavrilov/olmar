@@ -1071,7 +1071,7 @@ STATICDEF bool GLR
     // try to cache a few values in locals (this didn't help any..)
     //ActionEntry const * const actionTable = this->tables->actionTable;
     //int const numTerms = this->tables->numTerms;
-  WHAT WHAT?
+
   tryDeterministic:
     // --------------------- mini-LR parser -------------------------
     // optimization: if there's only one active parser, and the
@@ -2470,7 +2470,7 @@ void ReductionPathQueue::insertPathCopy(Path const *src, StackNode *leftEdge)
   p->startColumn = leftEdge->column;
 
   // copy the path info
-  for (int i = prodInfo.rhsLen; i>=0; i--) {
+  for (int i = prodInfo.rhsLen-1; i>=0; i--) {
     p->sibLinks[i] = src->sibLinks[i];
     p->symbols[i] = src->symbols[i];
   }
@@ -2489,8 +2489,8 @@ void ReductionPathQueue::insertPathCopy(Path const *src, StackNode *leftEdge)
     }
 
     // insert
-    top->next = prev->next;
-    prev->next = top;
+    p->next = prev->next;
+    prev->next = p;
   }
 }
 
@@ -2660,26 +2660,25 @@ void GLR::ytmReductionAlgorithm(
     if (USE_KEEP &&
         !userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
       TRSACTION("    CANCELLED " << lhsDesc);
-      pathQueue.deletePath(path);
-      break;
     }
+    else {
+      // shift the nonterminal with its reduced semantic value
+      SiblingLink *newLink =
+        glrShiftNonterminal(path->leftEdgeNode, prodInfo.lhsIndex,
+                            sval  SOURCELOCARG( leftEdge ) );
 
-    // shift the nonterminal with its reduced semantic value
-    SiblingLink *newLink =
-      glrShiftNonterminal(path->leftEdgeNode, prodInfo.lhsIndex,
-                          sval  SOURCELOCARG( leftEdge ) );
+      if (newLink) {
+        // for each 'finished' parser (i.e. those which were not added
+        // to the worklist by the most recent 'glrShiftNonterminal'), ...
+        for (int i=0; i < activeParsers.length(); i++) {
+          StackNode *parser = activeParsers[i];
+          if (parserListContains(parserWorklist, parser)) continue;
 
-    if (newLink) {
-      // for each 'finished' parser (i.e. those which were not added
-      // to the worklist by the most recent 'glrShiftNonterminal'), ...
-      for (int i=0; i < activeParsers.length(); i++) {
-        StackNode *parser = activeParsers[i];
-        if (parserListContains(parserWorklist, parser)) continue;
-
-        // ... do any reduce actions that are now enabled
-        ActionEntry action =
-          tables->actionEntry(parser->state, lexerPtr->type);
-        ytmLimitedReductions(parser, action, newLink);
+          // ... do any reduce actions that are now enabled
+          ActionEntry action =
+            tables->actionEntry(parser->state, lexerPtr->type);
+          ytmLimitedReductions(parser, action, newLink);
+        }
       }
     }
 
