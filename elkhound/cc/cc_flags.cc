@@ -145,6 +145,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "...",                 0,    false   },
   { "/*cdtor*/",           0,    false   },    // dsw: don't want to print <cdtor>
   { "<error>",             0,    false   },
+  { "<dependent>",         0,    false   },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)

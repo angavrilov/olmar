@@ -87,7 +87,8 @@ public:      // funcs
 
   void registerVariable(Variable *v);
 
-  // lookup; these return NULL if the name isn't found
+  // lookup; these return NULL if the name isn't found; 'env' is
+  // passed for the purpose of reporting ambiguity errors
   Variable const *lookupVariableC(StringRef name, bool innerOnly, Env &env) const;
   CompoundType const *lookupCompoundC(StringRef name, bool innerOnly) const;
   EnumType const *lookupEnumC(StringRef name, bool innerOnly) const;

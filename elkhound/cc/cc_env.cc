@@ -30,17 +30,19 @@ Env::Env(StringTable &s, CCLang &L)
     
     // filled in below; initialized for definiteness
     type_info_const_ref(NULL),
-    conversionOperatorName(NULL)
+    conversionOperatorName(NULL),
+    dependentTypeVar(NULL)
 {
   // create first scope
-  scopes.prepend(new Scope(0 /*changeCount*/, SourceLocation()));
-  
+  SourceLocation emptyLoc;
+  scopes.prepend(new Scope(0 /*changeCount*/, emptyLoc));
+
   // create the typeid type
   CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
   type_info_const_ref = makeRefType(makeCVType(ct, CV_CONST));
-  
+
   // some special names; pre-computed (instead of just asking the
   // string table for it each time) because in certain situations
   // I compare against them frequently; the main criteria for
@@ -49,6 +51,9 @@ Env::Env(StringTable &s, CCLang &L)
   // lexed as single names)
   conversionOperatorName = str("conversion-operator");
   constructorSpecialName = str("constructor-special");
+
+  dependentTypeVar = new Variable(emptyLoc, str("<dependentTypeVar>"),
+                                  getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
 
   // create declarations for some built-in operators
 
@@ -244,6 +249,12 @@ bool Env::addEnum(EnumType *et)
 // -------- lookup --------
 Scope *Env::lookupQualifiedScope(PQName const *name)
 {
+  bool dummy;
+  return lookupQualifiedScope(name, dummy);
+}
+
+Scope *Env::lookupQualifiedScope(PQName const *name, bool &dependent)
+{
   // this scope keeps track of which scope we've identified
   // so far, given how many qualifiers we've processed;
   // initially it is NULL meaning we're still at the default,
@@ -258,15 +269,31 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
     if (!qual) {
       // this is a reference to the global scope, i.e. the scope
       // at the bottom of the stack
-      scope = scopes.last();     
-      
+      scope = scopes.last();
+
       // should be syntactically impossible to construct bare "::"
       // with template arguments
       xassert(!qualifier->targs);
     }
 
     else {
-      // look for a class called 'qual' in scope-so-far
+      // check for a special case: a qualifier that refers to
+      // a template parameter
+      {
+        Variable *qualVar =
+          scope==NULL? lookupVariable(qual, false /*innerOnly*/) :
+                       scope->lookupVariable(qual, false /*innerOnly*/, *this);
+        if (qualVar &&
+            qualVar->hasFlag(DF_TYPEDEF) &&
+            qualVar->type->isTypeVariable()) {
+          // we're looking inside an uninstantiated template parameter
+          // type; the lookup fails, but no error is generated here
+          dependent = true;     // tell the caller what happened
+          return NULL;
+        }
+      }
+
+      // look for a class called 'qual' in scope-so-far; since the
       CompoundType *ct =
         scope==NULL? lookupCompound(qual, false /*innerOnly*/) :
                      scope->lookupCompound(qual, false /*innerOnly*/);
@@ -323,10 +350,17 @@ Variable *Env::lookupPQVariable(PQName const *name)
 
   if (name->hasQualifiers()) {
     // look up the scope named by the qualifiers
-    Scope *scope = lookupQualifiedScope(name);
+    bool dependent = false;
+    Scope *scope = lookupQualifiedScope(name, dependent);
     if (!scope) {
-      // error has already been reported
-      return NULL;
+      if (dependent) {
+        // tried to look into a template parameter
+        return dependentTypeVar;
+      }
+      else {
+        // error has already been reported
+        return NULL;
+      }
     }
 
     // look inside the final scope for the final name
@@ -656,6 +690,11 @@ Type const *Env::unimp(char const *msg)
 
 Type const *Env::error(Type const *t, char const *msg)
 {
+  if (t->isSimple(ST_DEPENDENT)) {
+    // no report, propagate dependentness
+    return t;
+  }
+
   if (t->containsErrors() ||
       t->containsTypeVariables()) {   // hack until template stuff fully working
     // no report

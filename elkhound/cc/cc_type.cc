@@ -130,6 +130,7 @@ SimpleType const SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_ELLIPSIS),
   SimpleType(ST_CDTOR),
   SimpleType(ST_ERROR),
+  SimpleType(ST_DEPENDENT),
 };
 
 string SimpleType::toCString() const
@@ -838,6 +839,7 @@ CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
   CVAtomicType(&SimpleType::fixed[ST_ELLIPSIS],           CV_NONE),
   CVAtomicType(&SimpleType::fixed[ST_CDTOR],              CV_NONE),
   CVAtomicType(&SimpleType::fixed[ST_ERROR],              CV_NONE),
+  CVAtomicType(&SimpleType::fixed[ST_DEPENDENT],          CV_NONE),
 };
 
 
