@@ -6,3 +6,5 @@ bison.simple
 a.out
 agrampar
 astgen
+*.d
+

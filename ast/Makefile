@@ -1,16 +1,16 @@
 # Makefile for ast project
 
-PARSGEN = ../parsgen
-SMBASE = ../../lib/smbase
+SMBASE  := ../../lib/smbase
 
-CXX = g++
-CXXFLAGS = -Wall -g -I. -I$(PARSGEN) -I$(SMBASE) $(EXTRAARGS)
-COMPILE = $(CXX) -c $(CXXFLAGS)
+CXX      := g++
+CXXFLAGS := -Wall -g -I. -I$(SMBASE) $(EXTRAARGS)
+CXXFLAGS += -Werror
+COMPILE  := $(CXX) -c $(CXXFLAGS)
 
-LDFLAGS = -Wall -g
-LINK = $(CXX) $(LDFLAGS)
-LIBSMBASE = $(SMBASE)/libsmbase.a
-LINKEND = $(LIBSMBASE)
+LDFLAGS   := -Wall -g
+LINK      := $(CXX) $(LDFLAGS)
+LIBSMBASE := $(SMBASE)/libsmbase.a
+LINKEND   := $(LIBSMBASE)
 
 # default target
 all: agrampar astgen
@@ -28,21 +28,23 @@ agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h agrampar.
 	rm tmp
 	grep '#define' agrampar.tab.h > agrampar.codes.h
 
-agramlex.yy.cc: $(PARSGEN)/gramlex.h agramlex.lex agrampar.codes.h
+agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 	flex -oagramlex.yy.cc agramlex.lex
 
-$(PARSGEN)/%.o: $(PARSGEN)/%.cc
-	make -C $(PARSGEN) check-makefiles $*.o
+#$(PARSGEN)/%.o: $(PARSGEN)/%.cc
+#	make -C $(PARSGEN) check-makefiles $*.o
 
 %.o: %.cc
 	$(COMPILE) $*.cc
 
-%.o: %.c
-	$(COMPILE) $*.c
+%.d: %.cc
+	$(SMBASE)/depend.sh $(CXXFLAGS) $< > $@
 
-agrampar-dep = $(PARSGEN)/gramlex.o agrampar.tab.o $(PARSGEN)/ccsstr.o \
-               $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.hand.o \
-               asthelp.o $(PARSGEN)/strtable.o
+agrampar-dep = gramlex.o agrampar.tab.o ccsstr.o \
+               fileloc.o agramlex.yy.o embedded.o ast.hand.o \
+               asthelp.o strtable.o
+-include $(agrampar-dep:.o=.d)
+
 agrampar: $(agrampar-dep) agrampar.cc $(LIBSMBASE) 
 	$(LINK) -o agrampar $(CXXFLAGS) $(agrampar-dep) \
                 -DTEST_AGRAMPAR agrampar.cc $(LINKEND)
@@ -51,4 +53,4 @@ astgen: $(agrampar-dep) agrampar.o astgen.o $(LIBSMBASE)
 	$(LINK) -o astgen $(agrampar-dep) agrampar.o astgen.o $(LINKEND)
 
 clean:
-	rm -f *.o agrampar astgen agrampar.tab.* tmp
+	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d

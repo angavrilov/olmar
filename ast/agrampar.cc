@@ -38,7 +38,7 @@ string *appendStr(string *left, string *right)
 
 CtorArg *parseCtorArg(char const *origStr)
 {
-  CtorArg *ret = new CtorArg(false, NULL, NULL);
+  CtorArg *ret = new CtorArg(false, "", "");
 
   // strip leading and trailing whitespace
   string str = trimWhitespace(origStr);
