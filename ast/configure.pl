@@ -41,7 +41,7 @@ if ($smcv < $req_smcv) {
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
-$CCFLAGS = ();
+@CCFLAGS = ();
 $debug = 0;
 $use_dash_g = 1;
 $allow_dash_O2 = 1;
@@ -154,11 +154,7 @@ if (! -f "$SMBASE/nonport.h") {
 # I've removed that.
 
 # use smbase's $BASE_FLAGS if I can find them
-$smbase_flags = `$SMBASE/config.summary 2>/dev/null | grep BASE_FLAGS`;
-if (defined($smbase_flags)) {
-  ($BASE_FLAGS = $smbase_flags) =~ s|^.*: *||;
-  chomp($BASE_FLAGS);
-}
+get_smbase_BASE_FLAGS();
 
 
 # etags: see elsa/configure.pl
