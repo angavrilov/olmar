@@ -27,6 +27,10 @@ public:
   // after the last newline in 'sb'
   int curCol;
 
+  // text to begin every line with; not counted towards column
+  // counts; defaults to ""
+  string lineStartText;
+
 public:
   BPRender();
   ~BPRender();
@@ -40,7 +44,7 @@ public:
 
   // add some text (that doesn't include newlines) to the output
   void add(char const *text);
-  
+
   // add a newline, plus indentation to get to column 'ind'
   void breakLine(int ind);
 
@@ -48,10 +52,14 @@ public:
   // with the empty string
   string takeString() {
     string ret(sb);
-    sb.clear();
+    reset();
     return ret;
   }
-  
+
+  // just clear the buffer to its original state; must do this
+  // manually after changing 'lineStartText'
+  void reset();
+
   // take the tree out of a boxprint builder, convert it to a string,
   // and delete the tree
   string takeAndRender(BoxPrint &bld);

@@ -11,11 +11,19 @@
 BPRender::BPRender()
   : sb(),         // initially empty
     margin(72),   
-    curCol(0)
+    curCol(0),
+    lineStartText("")
 {}
 
 BPRender::~BPRender()
 {}
+
+
+void BPRender::reset()
+{
+  sb.clear();
+  sb << lineStartText;
+}
 
 
 void BPRender::add(char const *text)
@@ -27,7 +35,7 @@ void BPRender::add(char const *text)
 
 void BPRender::breakLine(int ind)
 {
-  sb << "\n";
+  sb << "\n" << lineStartText;
 
   for (int i=0; i < ind; i++) {
     sb << ' ';
