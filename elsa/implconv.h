@@ -55,7 +55,8 @@ public:    // funcs
 
 
 // given two types, find an implicit conversion between them, or
-// return IC_NONE if none exists
+// return IC_NONE if none exists (do *not* insert error messages
+// into the environment, either way)
 ImplicitConversion getImplicitConversion(
   Env &env,            // type checking environment
   SpecialExpr special, // properties of the source expression

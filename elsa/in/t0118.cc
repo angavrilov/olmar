@@ -47,7 +47,7 @@ void f()
   __getImplicitConversion((int)0, (int)0, 
                           IC_STANDARD, SC_IDENTITY, 0, 0);
   __getImplicitConversion((int)0, (int &)0, 
-                          IC_NONE, 0,0,0);
+                          IC_STANDARD, SC_IDENTITY,0,0);
                           
   // until I test overload resolution, there's not much interesting
   // to do here..

@@ -76,8 +76,10 @@ class MemberInit {
 }
 
 
-class Declaration {
-  public void tcheck(Env &env);        // adds declared variables to env
+class Declaration {                                   
+  // adds declared variables to env; 'isMember' means that this
+  // declaration appears just inside a class body
+  public void tcheck(Env &env, bool isMember = false);
 }
 
 
@@ -214,21 +216,29 @@ class Declarator {
     // the size's AST node pointer here; then E_new can collect it
     Expression *size_E_new;
 
+    // if this is non-NULL, then it points at the D_func responsible
+    // for creating 'type, a FunctionType; this is used to determine
+    // the cv flags of the implicit 'this' parameter of member functions
+    D_func *funcSyntax;
+
     // syntactic context
     enum Context {
       CTX_ORDINARY  = 0x0,     // no particular context
       CTX_E_NEW     = 0x1,     // inside an E_new
       CTX_PARAM     = 0x2,     // in a parameter declarator
       CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
+      //CTX_MEMBER    = 0x8,     // toplevel member declarator
     } context;
 
   public:
     Tcheck(Type *t, DeclFlags d)
       : var(NULL), type(t), dflags(d),
-        size_E_new(NULL), context(CTX_ORDINARY) {}
+        size_E_new(NULL), funcSyntax(NULL),
+        context(CTX_ORDINARY) {}
     Tcheck(Tcheck const &obj)
       : var(obj.var), type(obj.type), dflags(obj.dflags),
-        size_E_new(obj.size_E_new), context(obj.context) {}
+        size_E_new(obj.size_E_new), funcSyntax(obj.funcSyntax),
+        context(obj.context) {}
 
     Tcheck& operator= (Tcheck const &obj) {
       var = obj.var;
@@ -236,12 +246,17 @@ class Declarator {
       dflags = obj.dflags;
       size_E_new = obj.size_E_new;
       context = obj.context;
+      funcSyntax = funcSyntax;
       return *this;
     }
 
-    // manipulate CTX_GROUPING
-    void setInGrouping()   { context = (Context)(context | CTX_GROUPING); }
-    void clearInGrouping() { context = (Context)(context & ~CTX_GROUPING); }
+    // manipulate context
+    void setInGrouping()    { context = (Context)(context | CTX_GROUPING); }
+    void clearInGrouping()  { context = (Context)(context & ~CTX_GROUPING); }
+    
+    // TODO: delete these, and their call sites
+    void setMember()        { /*context = (Context)(context | CTX_MEMBER);*/ }
+    void clearMember()      { /*context = (Context)(context & ~CTX_MEMBER);*/ }
   };
 
   // determine the type denoted by the combination of 'dt.type' and
@@ -268,7 +283,16 @@ class IDeclarator {
   // IDeclarator to 'dt.type' and then make a Variable to represent
   // it; put the variable into the environment if appropriate
   pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
-  
+
+  -> D_func {
+       // I want to know which D_funcs are members of classes (whether
+       // static or not), but it's not sufficient to just check my
+       // environment context since I get confused by pointers to
+       // functions.. so I set this to true in MR_decl::tcheck and
+       // MR_func::tcheck
+       public bool isMember;  ctor isMember=false;
+     }
+
   -> D_array {
        // client analyses find it difficult to know whether this
        // D_array means "array" or "new[] size", so I'm going to

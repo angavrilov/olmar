@@ -47,3 +47,37 @@ int x3c = __testOverload(f3(2.3), 40);
 int x3d = __testOverload(f3(2, 3), 41);
 
 
+int f4(int x = 5);                        // line 50
+int f4(float);                            // line 51
+
+int x4a = __testOverload(f4(), 50);
+int x4b = __testOverload(f4(3), 50);
+int x4c = __testOverload(f4(3.5), 51);
+//ERROR(3): int x4d = f4(2,3);            // "no viable"
+
+
+class Src { public: Src(int); };
+struct Dest {
+  Dest(Src const &);                      // line 61
+  Dest(E1);                               // line 62 
+};
+
+int f5(int);                              // line 65
+int f5(Dest);                             // line 66
+int f5(E1);                               // line 67
+
+int x5a = __testOverload(f5(2), 65);          // no ctor is viable
+int x5b = __testOverload(f5(Dest(e1)), 66);   // SC_IDENTITY
+int x5c = __testOverload(f5(Src(2)), 66);     // convert via ctor
+int x5d = __testOverload(f5(e1), 67);         // ctor is viable, but not best
+
+
+
+
+
+
+
+
+
+
+// eof

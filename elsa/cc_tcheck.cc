@@ -353,6 +353,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
+  if (env.scope()->curCompound) { dt.setMember(); }
   nameAndParams = nameAndParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -375,10 +376,16 @@ void Function::tcheck(Env &env, bool checkBody)
   // by extending that scope so the function body can access
   // the class's members; that scope won't actually be modified,
   // and in fact we can check that by watching the change counter
-  int prevChangeCount = 0;   // silence warning
-  if (nameAndParams->var->scope) {
-    env.extendScope(nameAndParams->var->scope);
-    prevChangeCount = env.getChangeCount();
+  int prevChangeCount = 0;        // initialize it, to silence a warning
+  CompoundType *inClass = NULL;
+  {
+    Scope *s = nameAndParams->var->scope;
+    if (s) {
+      inClass = s->curCompound;   // might be NULL, that's ok
+
+      env.extendScope(s);
+      prevChangeCount = env.getChangeCount();
+    }
   }
 
   // the parameters will have been entered into the parameter
@@ -394,12 +401,22 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // is this a nonstatic member function?
-  if (funcType->isMember) {
+  if (funcType->isMember()) {
     this->thisVar = funcType->getThis();
     
     // this would be redundant--the parameter list already got
     // added to the environment, and it included 'this'
     //env.addVariable(thisVar);
+  }
+
+  // constructors have a 'this' local variable, even though they
+  // do not have a 'this' parameter
+  if (nameAndParams->var->name == env.constructorSpecialName) {
+    xassert(inClass);
+    SourceLoc loc = nameAndParams->var->loc;
+    Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, CV_NONE, NULL /*syntax*/);
+    Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
+    env.addVariable(thisVar);
   }
 
   // have to check the member inits after adding the parameters
@@ -622,7 +639,7 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env)
+void Declaration::tcheck(Env &env, bool isMember)
 {
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
@@ -653,6 +670,7 @@ void Declaration::tcheck(Env &env)
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags);
+    if (isMember) dt1.setMember();
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
     // check subsequent declarators
@@ -663,6 +681,7 @@ void Declaration::tcheck(Env &env)
       Type *dupType = env.tfac.cloneType(specType);
 
       Declarator::Tcheck dt2(dupType, dflags);
+      if (isMember) dt2.setMember();
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -1406,7 +1425,7 @@ void MR_decl::tcheck(Env &env)
 
   // the declaration knows to add its variables to
   // the curCompound
-  d->tcheck(env);
+  d->tcheck(env, true /*isMember*/);
 
   checkMemberFlags(env, d->dflags);
 }
@@ -1628,10 +1647,27 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 }
 
 
-//  ------------------ IDeclarator ------------------
+// ------------------ IDeclarator ------------------
+// This function is called whenever a constructed type is passed to a
+// lower-down IDeclarator which *cannot* accept member function types.
+void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
+{
+  if (dt.funcSyntax) {
+    if (dt.funcSyntax->cv != CV_NONE) {
+      env.error("cannot have const/volatile on nonmember functions");
+    }
+    dt.funcSyntax = NULL;
+
+    // close the parameter list
+    dt.type->asFunctionType()->doneParams();
+  }
+}
+
+
+#if 0     // obsolete
 // given an unqualified name which might refer to a conversion
 // operator, rewrite the type if it is
-Type *makeConversionOperType(Env &env, SourceLoc loc, 
+Type *makeConversionOperType(Env &env, SourceLoc loc,
                              OperatorName *o, Type *spec)
 {
   if (!o->isON_conversion()) {
@@ -1653,15 +1689,17 @@ Type *makeConversionOperType(Env &env, SourceLoc loc,
       return spec;
     }
     FunctionType *specFunc = spec->asFunctionType();
-          
+
+    #if 0    // I do things in a different order now, so the check is wrong
     // I'm not sure if this can actually happen..
     if (!specFunc->isMember) {
       env.error("conversion operator must be a member function");
       return spec;
     }
+    #endif // 0
 
-    if (specFunc->params.count()!=1  ||   // for 'this'
-        specFunc->acceptsVarargs) {
+    if (specFunc->params.count()!=0  ||
+        specFunc->acceptsVarargs()) {
       env.error("conversion operator cannot accept arguments");
       return spec;
     }
@@ -1671,7 +1709,7 @@ Type *makeConversionOperType(Env &env, SourceLoc loc,
     // in particular, fill in the conversion destination type as
     // the function's return type
     FunctionType *ft = env.tfac.makeSimilarFunctionType(loc, destType, specFunc);
-    ft->addParam(specFunc->getThis());
+    //ft->addParam(specFunc->getThis());   // now happens in D_name_tcheck
     ft->templateParams = env.takeTemplateParams();
 
     return ft;
@@ -1693,6 +1731,7 @@ bool ctorNameMatches(char const *ctorName, char const *className)
     return 0==strcmp(className, ctorName);
   }
 }
+#endif // 0
 
 
 // wrapper around similarly-named TypeFactory function
@@ -1724,7 +1763,7 @@ bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
   // NOTE: equivalence of 'f(int)' and 'f(int const)' is handled
   // above, by 'normalizeSignature'
 
-  if (ft1->isMember == ft2->isMember) {
+  if (ft1->isMember() == ft2->isMember()) {
     // if both are nonstatic members, or neither is, then we
     // simply compare all parameters
     return ft1->equalParameterLists(ft2);
@@ -1792,6 +1831,9 @@ static void D_name_tcheck(
   // constructor names
   StringRef unqualifiedName = name? name->getName() : NULL;
 
+  // false until I somehow call doneParams() for function types
+  bool consumedFunction = false;
+
   goto realStart;
 
   // This code has a number of places where very different logic paths
@@ -1803,6 +1845,10 @@ static void D_name_tcheck(
 
   makeDummyVar:
   {
+    if (!consumedFunction) {
+      possiblyConsumeFunctionType(env, dt);
+    }
+
     // the purpose of this is to allow the caller to have a workable
     // object, so we can continue making progress diagnosing errors
     // in the program; this won't be entered in the environment, even
@@ -1829,7 +1875,7 @@ static void D_name_tcheck(
     env.error(dt.type, stringc
       << "prior declaration of `" << *name
       << "' at " << prior->loc
-      << " had type `" << prior->type->toString() 
+      << " had type `" << prior->type->toString()
       << "', but this one uses `" << dt.type->toString() << "'");
     goto makeDummyVar;
   }
@@ -1842,6 +1888,7 @@ realStart:
 
   if (!name) {
     // no name, nothing to enter into environment
+    possiblyConsumeFunctionType(env, dt);
     dt.var = env.makeVariable(loc, NULL, dt.type, dt.dflags);
     return;
   }
@@ -1851,7 +1898,8 @@ realStart:
   Scope *scope = env.acceptingScope();
 
   // friend?
-  if (dt.dflags & DF_FRIEND) {
+  bool isFriend = (dt.dflags & DF_FRIEND);
+  if (isFriend) {
     // TODO: somehow remember the access control implications
     // of the friend declaration
 
@@ -1860,6 +1908,7 @@ realStart:
       // or will be declared before it is used; no need to contemplate
       // adding a declaration, so just make the required Variable
       // and be done with it
+      possiblyConsumeFunctionType(env, dt);     // TODO: can't befriend cv members..
       dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
       return;
     }
@@ -1893,7 +1942,7 @@ realStart:
     }
   }
 
-  // anonymous union?
+  // member of an anonymous union?
   if (scope->curCompound &&
       scope->curCompound->keyword == CompoundType::K_UNION &&
       scope->curCompound->name == NULL) {
@@ -1902,6 +1951,19 @@ realStart:
     scope = env.enclosingScope();
   }
 
+  // constructor?
+  bool isConstructor = dt.type->isFunctionType() &&
+                       dt.type->asFunctionTypeC()->isConstructor();
+  if (isConstructor) {
+    // if I just use the class name as the name of the constructor,
+    // then that will hide the class's name as a type, which messes
+    // everything up.  so, I'll kludge together another name for
+    // constructors (one which the C++ programmer can't type) and
+    // just make sure I always look up constructors under that name
+    unqualifiedName = env.constructorSpecialName;
+  }
+
+  #if 0    // obsoleted by functionality in D_func::itcheck
   if (name->getUnqualifiedNameC()->isPQ_operator()) {
     // conversion operators require that I play some games
     // with the type
@@ -1943,24 +2005,28 @@ realStart:
     }
 
     if (unqualifiedName[0] != '~') {    // ctor
-      // ok, last bit of housekeeping: if I just use the class name
-      // as the name of the constructor, then that will hide the
-      // class's name as a type, which messes everything up.  so,
-      // I'll kludge together another name for constructors (one
-      // which the C++ programmer can't type) and just make sure I
-      // always look up constructors under that name
+      isConstructor = true;
+
+      // if I just use the class name as the name of the constructor,
+      // then that will hide the class's name as a type, which messes
+      // everything up.  so, I'll kludge together another name for
+      // constructors (one which the C++ programmer can't type) and
+      // just make sure I always look up constructors under that name
       unqualifiedName = env.constructorSpecialName;
     }
   }
+  #endif // 0
 
   // are we in a class member list?  we can't be in a member
   // list if the name is qualified (and if it's qualified then
   // a class scope has been pushed, so we'd be fooled)
+  // TODO: this is wrong because qualified names can appear in
+  // class member lists..
   CompoundType *enclosingClass =
     name->hasQualifiers()? NULL : scope->curCompound;
 
   // if we're in the scope of a class at all then we're DF_MEMBER
-  if (scope->curCompound) {
+  if (scope->curCompound && !isFriend) {
     dt.dflags |= DF_MEMBER;
   }
 
@@ -2008,12 +2074,12 @@ realStart:
       // yet whether it's supposed to be a static member or a
       // nonstatic member; this is determined by finding a function
       // whose signature (ignoring 'this' parameter, if any) matches
-      prior = prior->overload->findByType(dtft);
+      prior = prior->overload->findByType(dtft, dt.funcSyntax->cv);
       if (!prior) {
         env.error(dt.type, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
           << dt.type->toString() << "' doesn't match any of the "
-          << prior->overload->set.count() 
+          << prior->overload->set.count()
           << " declared overloaded instances");
         goto makeDummyVar;
       }
@@ -2029,38 +2095,73 @@ realStart:
         goto makeDummyVar;
       }
 
+      #if 0      // shouldn't be needed anymore
       // if the prior declaration is for a static method of a class,
       // then the computed type we have so far is wrong because
-      // DF_STATIC won't have been syntactically present at the definition;
-      // note that this must be done *after* overload resolution because
-      // it's legal to have both static and nonstatic overloaded functions
-      // (t0098.cc is a testcase)
+      // DF_STATIC won't have been syntactically present at the
+      // definition; note that this must be done *after* figuring out
+      // which overloaded instance this is, because it's legal to have
+      // both static and nonstatic overloaded functions (t0098.cc is a
+      // testcase)
       if (prior->type->isFunctionType() &&
           dt.type->isFunctionType() &&
           prior->hasFlag(DF_STATIC)) {
-        xassert(!prior->type->asFunctionType()->isMember);
-        xassert(dt.type->asFunctionType()->isMember);
+        xassert(!prior->type->asFunctionType()->isMember());
+        xassert(dt.type->asFunctionType()->isMember());
 
         // make the correct type
         dt.type = env.tfac.makeIntoStaticMember(dt.type->asFunctionType());
       }
+      #endif // 0
     }
   }
   else {
     // has this name already been declared in the innermost scope?
     prior = scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY);
-    
+
     if (prior &&
         prior->overload &&
         dt.type->isFunctionType()) {
       // set 'prior' to the previously-declared member that has
       // the same signature, if one exists
-      Variable *match = prior->overload->findByType(dt.type->asFunctionTypeC());
+      Variable *match = prior->overload->findByType(dt.type->asFunctionTypeC(),
+                                                    dt.funcSyntax->cv);
       if (match) {
         prior = match;
       }
     }
   }
+
+  // is this a nonstatic member function?
+  if (dt.type->isFunctionType()) {
+    if (scope->curCompound &&
+        !isFriend &&
+        !isConstructor &&               // ctors don't have a 'this' param
+        !(dt.dflags & DF_STATIC) &&
+        (!name->hasQualifiers() ||
+         prior->type->asFunctionTypeC()->isMember())) {
+      TRACE("memberFunc", "member function: " << *name);
+
+      // make the implicit 'this' parameter
+      CompoundType *inClass = scope->curCompound;
+      xassert(dt.funcSyntax);
+      CVFlags thisCV = dt.funcSyntax->cv;
+      Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, thisCV, dt.funcSyntax);
+      Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
+
+      // add it to the function type
+      FunctionType *ft = dt.type->asFunctionType();
+      ft->addThisParam(thisVar);
+      
+      // close it
+      ft->doneParams();
+    }
+    else {
+      TRACE("memberFunc", "non-member function: " << *name);
+      possiblyConsumeFunctionType(env, dt);
+    }
+  }
+  consumedFunction = true;
 
   // check for overloading
   OverloadSet *overloadSet = NULL;    // null until valid overload seen
@@ -2197,7 +2298,7 @@ noPriorDeclaration:
   // into the environment (see comments in Declarator::tcheck
   // regarding point of declaration)
   dt.var = env.makeVariable(loc, unqualifiedName, dt.type, dt.dflags);
-  
+
   // set up the variable's 'scope' field
   scope->registerVariable(dt.var);
 
@@ -2223,9 +2324,13 @@ noPriorDeclaration:
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
+
   if (name) {
     name->tcheck(env);
   }
+
+  // do *not* call 'possiblyConsumeFunctionType', since D_name_tcheck
+  // will do so if necessary, and in a different way
 
   this->type = dt.type;     // annotation
   D_name_tcheck(env, dt, loc, name);
@@ -2238,6 +2343,9 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt)
 
 void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 {
+  env.setLoc(loc);
+  possiblyConsumeFunctionType(env, dt);
+
   if (dt.type->isReference()) {
     env.error(stringc
       << "cannot create a "
@@ -2257,6 +2365,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // turn off CTX_GROUPING
   dt.clearInGrouping();
+  dt.clearMember();
 
   // recurse
   base->tcheck(env, dt);
@@ -2291,7 +2400,7 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 
   return ret;
 }
- 
+
 // implement cppstd 8.3.5 para 3:
 //   "array of T" -> "pointer to T"
 //   "function returning T" -> "pointer to function returning T"
@@ -2299,9 +2408,6 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 // overloadings), strip toplevel cv qualifiers
 static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 {
-  //switch (t->getTag()) {
-  //  case Type::T_ATOMIC:
-
   if (t->isArrayType()) {
     return env.makePtrType(loc, t->asArrayType()->eltType);
   }
@@ -2315,31 +2421,89 @@ static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
+  possiblyConsumeFunctionType(env, dt);
 
-  FunctionType *ft;
+  FunctionFlags specialFunc = FF_NONE;
 
-  // is this a nonstatic member function?
-  if (env.scope()->curCompound &&
-      !(dt.dflags & (DF_STATIC | DF_FRIEND))) {
-    // yes; make the implicit "this" parameter
-    CompoundType *inClass = env.scope()->curCompound;
-    Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, cv, this);
-    Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_NONE);
+  // handle "fake" return type ST_CDTOR
+  if (dt.type->isSimple(ST_CDTOR)) {
+    // get the name being declared
+    D_name *dname;
+    PQName *name;
+    {
+      // get the D_name one level down (skip D_groupings)
+      IDeclarator *idecl = base;
+      while (idecl->isD_grouping()) {
+        idecl = idecl->asD_grouping()->base;
+      }
+      xassert(idecl->isD_name());    // grammar should ensure this
+      dname = idecl->asD_name();
 
-    // make a nonstatic member function type
-    ft = env.tfac.syntaxMemberFunctionType(loc, dt.type, thisVar, this);
-  }
-  else {
-    // check that no 'cv' flags are specified
-    if (cv) {
-      env.error("cannot specify const/volatile on nonmember functions, nor "
-                "static member functions");
+      // skip qualifiers
+      name = dname->name->getUnqualifiedName();
     }
 
-    // make an ordinary function type
-    ft = env.tfac.syntaxFunctionType(loc, dt.type, this);
+    // conversion operator (grammar ensures must be ON_conversion)
+    if (name->isPQ_operator()) {
+      ON_conversion *conv = name->asPQ_operator()->o->asON_conversion();
+
+      if (params->isNotEmpty()) {
+        env.error("conversion operator cannot accept arguments");
+      }
+
+      // compute the named type; this becomes the return type
+      ASTTypeId::Tcheck tc;
+      conv->type = conv->type->tcheck(env, tc);
+      dt.type = conv->type->getType();
+      specialFunc = FF_CONVERSION;
+    }
+
+    // constructor or destructor
+    else {
+      StringRef nameString = name->asPQ_name()->name;
+      CompoundType *inClass = env.scope()->curCompound;
+
+      // destructor
+      if (nameString[0] == '~') {
+        if (!inClass) {
+          env.error("destructors must be class members");
+        }
+        else if (0!=strcmp(nameString+1, inClass->name)) {
+          env.error(stringc
+            << "destructor name `" << nameString
+            << "' must match the class name `" << inClass->name << "'");
+        }
+
+        // return type is 'void'
+        dt.type = env.getSimpleType(dname->loc, ST_VOID);
+        specialFunc = FF_DTOR;
+      }
+
+      // constructor
+      else {
+        // I'm not sure if either of the following two error conditions
+        // can occur, because I don't parse something as a ctor unless
+        // some very similar conditions hold
+        if (!inClass) {
+          env.error("constructors must be class members");
+        }
+        else if (nameString != inClass->name) {
+          env.error(stringc
+            << "constructor name `" << nameString
+            << "' must match the class name `" << inClass->name << "'");
+        }
+
+        // return type is same as class type
+        dt.type = env.makeType(dname->loc, inClass);
+        specialFunc = FF_CTOR;
+      }
+    }
   }
-  //FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, cv, this);
+
+  // build the function type
+  FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this);
+  ft->flags = specialFunc;
+  dt.funcSyntax = this;
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
@@ -2364,7 +2528,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
         // same as empty param list
         break;
       }
-      env.error("cannot have parameter of type `void', unless is is "
+      env.error("cannot have parameter of type `void', unless it is "
                 "the only parameter, has no parameter name, and has "
                 "no default value");
       continue;
@@ -2372,8 +2536,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
     if (v->type->isSimple(ST_ELLIPSIS)) {
       // no need for as careful checking as for ST_VOID, since the
-      // grammar ensures it's last, etc.
-      ft->acceptsVarargs = true;
+      // grammar ensures it's last if it appears at all
+      ft->flags |= FF_VARARGS;
       break;
     }
 
@@ -2402,9 +2566,12 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   if (exnSpec) {
     ft->exnSpec = exnSpec->tcheck(env);
   }
-  
+
   // call this after attaching the exception spec, if any
-  ft->doneParams();
+  //ft->doneParams();
+  // update: doneParams() is done by 'possiblyConsumeFunctionType'
+  // or 'D_name_tcheck', depending on what declarator is next in
+  // the chain
 
   // now that we've constructed this function type, pass it as
   // the 'base' on to the next-lower declarator
@@ -2416,7 +2583,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
 void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
 {
-  ArrayType *at;
+  env.setLoc(loc);
+  possiblyConsumeFunctionType(env, dt);
 
   // check restrictions in cppstd 8.3.4 para 1
   if (dt.type->isReference()) {
@@ -2442,6 +2610,8 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
     // typecheck the 'size' expression
     size->tcheck(size, env);
   }
+
+  ArrayType *at;
 
   if (dt.context == Declarator::Tcheck::CTX_E_NEW) {
     // we're in a new[] (E_new) type-id
@@ -2503,6 +2673,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
   // having added this D_array's contribution to the type, pass
   // that on to the next declarator
   dt.type = at;
+  dt.clearMember();
   this->type = dt.type;       // annotation
   base->tcheck(env, dt);
 }
@@ -2511,6 +2682,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
 void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
+  possiblyConsumeFunctionType(env, dt);
 
   if (name) {
     // shouldn't be necessary, but won't hurt
@@ -2542,6 +2714,12 @@ void D_bitfield::tcheck(Env &env, Declarator::Tcheck &dt)
 // this function is very similar to D_pointer::tcheck
 void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 {
+  env.setLoc(loc);                   
+  
+  // TODO: this is probably wrong; how do I represent pointers to
+  // member functions whose implicit 'this' is a reference to const?
+  possiblyConsumeFunctionType(env, dt);
+
   // typecheck the nested name
   nestedName->tcheck(env);
 
@@ -2580,6 +2758,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // turn off CTX_GROUPING
   dt.clearInGrouping();
+  dt.clearMember();
 
   // recurse
   base->tcheck(env, dt);
@@ -2588,6 +2767,11 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 
 void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt)
 {
+  env.setLoc(loc);
+
+  // don't call 'possiblyConsumeFunctionType', since the
+  // D_grouping is supposed to be transparent
+
   // the whole purpose of this AST node is to communicate
   // this one piece of context
   dt.setInGrouping();

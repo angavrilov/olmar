@@ -120,7 +120,15 @@ ImplicitConversion getImplicitConversion
         // consider user-defined conversions
         GrowArray<ArgumentInfo> argTypes(1);
         argTypes[0] = ArgumentInfo(special, src);
-        ctor = resolveOverload(env, OF_NO_USER, ctor->overload->set, argTypes);
+        TRACE("overload", "  overloaded call to constructor " << ct->name);
+        ctor = resolveOverload(env, OF_NO_USER|OF_NO_ERRORS,
+                               ctor->overload->set, argTypes);
+        if (ctor) {
+          TRACE("overload", "  selected constructor at " << toString(ctor->loc));
+        }
+        else {
+          TRACE("overload", "  no constructor matches");
+        }
       }
       
       if (ctor) {
@@ -148,7 +156,7 @@ StandardConversion tryCallCtor
 
   int numParams = ft->params.count();
   if (numParams == 0) {
-    if (ft->acceptsVarargs) {
+    if (ft->acceptsVarargs()) {
       // I'm not sure about this.. there's no SC_ELLIPSIS..
       return SC_IDENTITY;
     }

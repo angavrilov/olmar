@@ -133,6 +133,7 @@ class PQName {
   public string qualifierString() const;
   public string toString() const;
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
+  public friend ostream& operator<< (ostream &os, PQName const &obj) { return os << obj.toString(); };
 
   // retrieve a StringRef for the underlying name, be it a PQ_name or
   // a PQ_operator

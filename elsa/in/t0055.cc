@@ -4,7 +4,9 @@
 template <class T>
 class A {
 public:
+  int f();
   A(T t);
+  int g();
 };
 
 class B : A<int> {

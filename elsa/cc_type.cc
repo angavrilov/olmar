@@ -750,11 +750,13 @@ bool Type::isTemplateClass() const
          asCompoundTypeC()->isTemplate();
 }
 
+#if 0
 bool Type::isCDtorFunction() const
 {
   return isFunctionType() &&
          asFunctionTypeC()->retType->isSimple(ST_CDTOR);
-}
+}    
+#endif // 0
 
 
 bool typeIsError(Type const *t)
@@ -918,11 +920,10 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 
 
 // -------------------- FunctionType -----------------
-FunctionType::FunctionType(Type *r, bool i)
-  : retType(r),
-    isMember(i),
+FunctionType::FunctionType(Type *r)
+  : flags(FF_NONE),
+    retType(r),
     params(),
-    acceptsVarargs(false),
     exnSpec(NULL),
     templateParams(NULL)
 {}
@@ -941,9 +942,13 @@ FunctionType::~FunctionType()
 
 bool FunctionType::innerEquals(FunctionType const *obj, bool skipThis) const
 {
+  // I do not compare the special-function flags because I see no
+  // need, and this code didn't used to do that check because it
+  // didn't know about those properties
+
   if (retType->equals(obj->retType) &&
-      ((isMember == obj->isMember) || skipThis) &&
-      acceptsVarargs == obj->acceptsVarargs) {
+      ((isMember() == obj->isMember()) || skipThis) &&
+      acceptsVarargs() == obj->acceptsVarargs()) {
     // so far so good, try the parameters
     return equalParameterLists(obj, skipThis) &&
            equalExceptionSpecs(obj);
@@ -953,15 +958,15 @@ bool FunctionType::innerEquals(FunctionType const *obj, bool skipThis) const
   }
 }
 
-bool FunctionType::equalParameterLists(FunctionType const *obj, 
+bool FunctionType::equalParameterLists(FunctionType const *obj,
                                        bool skipThis) const
 {
   SObjListIter<Variable> iter1(this->params);
   SObjListIter<Variable> iter2(obj->params);
     
   // skip the 'this' parameters if desired
-  if (skipThis && this->isMember) iter1.adv();
-  if (skipThis && obj->isMember) iter2.adv();
+  if (skipThis && this->isMember()) iter1.adv();
+  if (skipThis && obj->isMember()) iter2.adv();
 
   for (; !iter1.isDone() && !iter2.isDone();
        iter1.adv(), iter2.adv()) {
@@ -1011,19 +1016,26 @@ void FunctionType::addParam(Variable *param)
   params.append(param);
 }
 
+void FunctionType::addThisParam(Variable *param)
+{                       
+  xassert(!isMember());
+  params.prepend(param);
+  flags |= FF_MEMBER;
+}
+
 void FunctionType::doneParams()
 {}
 
 
 Variable const *FunctionType::getThisC() const
 {
-  xassert(isMember);
+  xassert(isMember());
   return params.firstC();
 }
 
 CVFlags FunctionType::getThisCV() const
 {
-  if (isMember) {
+  if (isMember()) {
     // expect 'this' to be of type 'SomeClass cv * const', and
     // dig down to get that 'cv'
     return getThisC()->type->asPointerType()->atType->asCVAtomicType()->cv;
@@ -1044,9 +1056,14 @@ string FunctionType::leftString(bool innerParen) const
   }
 
   // return type and start of enclosing type's description
+  if (flags & (FF_CONVERSION | FF_CTOR | FF_DTOR)) {
+    // don't print the return type, it's implicit
+  }
+  else {
+    sb << retType->leftString();
+  }
 
   // NOTE: we do *not* propagate 'innerParen'!
-  sb << retType->leftString();
   if (innerParen) {
     sb << "(";
   }
@@ -1077,19 +1094,19 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   int ct=0;
   SFOREACH_OBJLIST(Variable, params, iter) {
     ct++;
-    if (isMember && ct==1) {
+    if (isMember() && ct==1) {
       // don't actually print the first parameter
       // the 'm' stands for nonstatic member function
       sb << "/*m*/ ";
       continue;
     }
-    if (ct >= 3 || (!isMember && ct>=2)) {
+    if (ct >= 3 || (!isMember() && ct>=2)) {
       sb << ", ";
     }
     sb << iter.data()->toStringAsParameter();
   }
 
-  if (acceptsVarargs) {
+  if (acceptsVarargs()) {
     if (ct++ > 0) {
       sb << ", ";
     }
@@ -1546,15 +1563,7 @@ PointerType *TypeFactory::syntaxPointerType(SourceLoc loc,
 FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
   Type *retType, D_func *syntax)
 {
-  return makeFunctionType(loc, retType, false /*isMember*/);
-}
-
-FunctionType *TypeFactory::syntaxMemberFunctionType(SourceLoc loc,
-  Type *retType, Variable *thisVar, D_func *syntax)
-{
-  FunctionType *ft = makeFunctionType(loc, retType, true /*isMember*/);
-  ft->addParam(thisVar);
-  return ft;
+  return makeFunctionType(loc, retType);
 }
 
 
@@ -1562,7 +1571,8 @@ PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
   CompoundType *inClass, CVFlags cv, Type *atType, D_ptrToMember *syntax)
 {
   return makePointerToMemberType(loc, inClass, cv, atType);
-}  
+}
+
 
 PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
   CompoundType *classType, CVFlags cv, D_func *syntax)
@@ -1575,8 +1585,9 @@ PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
 FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
-  FunctionType *ret = makeFunctionType(loc, retType, similar->isMember);
-  ret->acceptsVarargs = similar->acceptsVarargs;
+  FunctionType *ret = 
+    makeFunctionType(loc, retType);
+  ret->flags = similar->flags & ~FF_MEMBER;     // isMember is like a parameter
   if (similar->exnSpec) {
     ret->exnSpec = new FunctionType::ExnSpec(*similar->exnSpec);
   }
@@ -1587,12 +1598,14 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
 }
 
 
+#if 0   // obsolete
 FunctionType *TypeFactory::makeIntoStaticMember(FunctionType *orig)
 {
   orig->isMember = false;
   orig->params.removeFirst();
   return orig;
-}
+}                  
+#endif // 0
 
 
 CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
@@ -1772,9 +1785,9 @@ PointerType *BasicTypeFactory::makePointerType(SourceLoc,
 
 
 FunctionType *BasicTypeFactory::makeFunctionType(SourceLoc,
-  Type *retType, bool isMember)
+  Type *retType)
 {
-  return new FunctionType(retType, isMember);
+  return new FunctionType(retType);
 }
 
 

@@ -227,8 +227,8 @@ public:      // funcs
     { return tfac.makeCVAtomicType(loc, atomic, cv); }
   PointerType *makePointerType(SourceLoc loc, PtrOper op, CVFlags cv, Type *atType)
     { return tfac.makePointerType(loc, op, cv, atType); }
-  FunctionType *makeFunctionType(SourceLoc loc, Type *retType, bool isMember)
-    { return tfac.makeFunctionType(loc, retType, isMember); }
+  FunctionType *makeFunctionType(SourceLoc loc, Type *retType)
+    { return tfac.makeFunctionType(loc, retType); }
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
 

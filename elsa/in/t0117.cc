@@ -54,9 +54,12 @@ void f()
   // I can't tell if this is really supposed to be an error.. and
   // for now my implementation doesn't classify it as such
   //__getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
+  
+  // I now allow reference bindings to things that aren't necessarily
+  // bindable; another check should find non-bindable rvalues..
+  __getStandardConversion((int)0, (int &)0, SC_IDENTITY);
+  __getStandardConversion((int*)0, (int *&)0, SC_IDENTITY);
 
-  __getStandardConversion((int)0, (int &)0, SC_ERROR);
-  __getStandardConversion((int*)0, (int *&)0, SC_ERROR);
   __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
 
   // I'm inferring the following from the second example in

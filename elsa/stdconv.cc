@@ -277,6 +277,15 @@ StandardConversion getStandardConversion
     
     // am I supposed to check cv flags?
   }
+  else if (!src->isReference() && dest->isReference()) {
+    // binding an object to a reference.. as far as I can
+    // tell, this is transparent to the overload process, but
+    // might be considered illegal during call-site type
+    // checking if the dest is not a const reference..
+    // I'll just strip the dest reference and hope for the
+    // best
+    dest = dest->asPointerTypeC()->atType;
+  }
   else if (src->isArrayType() && dest->isPointer()) {
     conv.ret |= SC_ARRAY_TO_PTR;
 

@@ -421,7 +421,7 @@ public:     // funcs
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
 
-  bool isCDtorFunction() const;
+  //obsolete: bool isCDtorFunction() const;
 
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
@@ -496,6 +496,19 @@ public:
 };
 
 
+// some flags that can be associated with function types
+enum FunctionFlags {
+  FF_NONE        = 0x00,       // nothing special
+  FF_MEMBER      = 0x01,       // function is a nonstatic member
+  FF_VARARGS     = 0x02,       // accepts variable # of arguments
+  FF_CONVERSION  = 0x04,       // conversion operator function
+  FF_CTOR        = 0x08,       // constructor
+  FF_DTOR        = 0x10,       // destructor
+  FF_ALL         = 0x1F,       // all flags set to 1
+};
+ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
+
+
 // type of a function
 class FunctionType : public Type {
 public:     // types
@@ -513,25 +526,36 @@ public:     // types
   };
 
 public:     // data
-  Type *retType;               // (serf) type of return value
-  bool isMember;               // true for nonstatic member functions, 
-                               // in which case the first parameter is 'this'
-  SObjList<Variable> params;   // list of function parameters
-  bool acceptsVarargs;         // true if add'l args are allowed
-  ExnSpec *exnSpec;            // (nullable owner) allowable exceptions if not NULL
+  // various boolean properties
+  FunctionFlags flags;
+
+  // type of return value
+  Type *retType;                     // (serf)
+
+  // list of function parameters; if (flags & FF_MEMBER) then the
+  // first parameter is 'this'
+  SObjList<Variable> params;
+
+  // allowable exceptions, if not NULL
+  ExnSpec *exnSpec;                  // (nullable owner)
 
   // for template functions, this is the list of template parameters
   TemplateParams *templateParams;    // (owner)
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  
-  // if you call this with 'isMember' set to true, you must also
-  // add the 'this' parameter (ideally, immediately)
-  FunctionType(Type *retType, bool isMember);
+
+  FunctionType(Type *retType);
 
 public:
   virtual ~FunctionType();
+
+  // interpretations of flags
+  bool isMember() const               { return !!(flags & FF_MEMBER); }
+  bool acceptsVarargs() const         { return !!(flags & FF_VARARGS); }
+  bool isConversionOperator() const   { return !!(flags & FF_CONVERSION); }
+  bool isConstructor() const          { return !!(flags & FF_CTOR); }
+  bool isDestructor() const           { return !!(flags & FF_DTOR); }
 
   bool innerEquals(FunctionType const *obj, bool skipThis=false) const;
   bool equalParameterLists(FunctionType const *obj, bool skipThis=false) const;
@@ -544,6 +568,9 @@ public:
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);
+
+  // add the implicit 'this' param; sets 'isMember()' to true
+  void addThisParam(Variable *param);
 
   // called when we're done adding parameters to this function
   // type, thus any Type annotation system can assume the
@@ -764,12 +791,16 @@ public:
   // experience with this I can't be more precise)
   virtual CVAtomicType *makeCVAtomicType(SourceLoc loc,
     AtomicType *atomic, CVFlags cv)=0;
+
   virtual PointerType *makePointerType(SourceLoc loc,
     PtrOper op, CVFlags cv, Type *atType)=0;
+
   virtual FunctionType *makeFunctionType(SourceLoc loc,
-    Type *retType, bool isMember)=0;
+    Type *retType)=0;
+
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size = ArrayType::NO_SIZE)=0;
+
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
     CompoundType *inClass, CVFlags cv, Type *atType)=0;
 
@@ -781,6 +812,9 @@ public:
   virtual ArrayType *cloneArrayType(ArrayType *src)=0;
   virtual PointerToMemberType *clonePointerToMemberType(PointerToMemberType *src)=0;
   Type *cloneType(Type *src);       // switch, clone, return
+
+  // NOTE: all 'syntax' pointers are nullable, since there are contexts
+  // where I don't have an AST node to pass
 
   // ---- create a type based on another one ----
   // given a type, qualify it with 'cv'; return NULL if the base type
@@ -803,38 +837,44 @@ public:
   // implementation will not use it, so it need not be linked in for
   // this to make sense
   virtual PointerType *syntaxPointerType(SourceLoc loc,
-    PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax);
+    PtrOper op, CVFlags cv, Type *underlying, 
+    D_pointer * /*nullable*/ syntax);
 
   // similar for a function type; the parameters will be added by
   // the caller after this function returns
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
-    Type *retType, D_func *syntax);
+    Type *retType, D_func * /*nullable*/ syntax);
 
+  #if 0  // obsolete
   // this version is for nonstatic member functions; you have to
   // pass the 'this' variable
   virtual FunctionType *syntaxMemberFunctionType(SourceLoc loc,
-    Type *retType, Variable *thisVar, D_func *syntax);
+    Type *retType, Variable *thisVar, D_func * /*nullable*/ syntax);
+  #endif // 0
 
   // and another for pointer-to-member
   virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,
-    CompoundType *inClass, CVFlags cv, Type *atType, D_ptrToMember *syntax);
+    CompoundType *inClass, CVFlags cv, Type *atType, 
+    D_ptrToMember * /*nullable*/ syntax);
 
-  // given a class, build the type of the 'this' pointer
+  // given a class, build the type of the 'this' parameter
   // 1/19/03: it should be a *reference* type
   virtual PointerType *makeTypeOf_this(SourceLoc loc,
-    CompoundType *classType, CVFlags cv, D_func *syntax);
+    CompoundType *inClass, CVFlags cv, D_func * /*nullable*/ syntax);
 
-  // given a function type and a return type, make a new function
-  // type which is like it but has not explicit parameters; i.e.,
-  // copy all fields except 'params'
+  // given a function type and a return type, make a new function type
+  // which is like it but has no parameters; i.e., copy all fields
+  // except 'params'
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
+  #if 0   // obsolete
   // given a function type just created under the assumption that it
   // is a nonstatic member, make it into a static member by
   // removing the 'this' parameter; it should be safe to mutate 'orig'
   // because it was just created and hasn't been stored elsewhere
   virtual FunctionType *makeIntoStaticMember(FunctionType *orig);
+  #endif // 0
 
   // function signature normalization; see comments above the
   // default implementation in cc_type.cc
@@ -893,7 +933,7 @@ public:    // funcs
   virtual PointerType *makePointerType(SourceLoc loc, 
     PtrOper op, CVFlags cv, Type *atType);
   virtual FunctionType *makeFunctionType(SourceLoc loc,
-    Type *retType, bool isMember);
+    Type *retType);
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size);
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,

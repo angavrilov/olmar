@@ -51,7 +51,7 @@ public:
   ~Candidate();
                                         
   // debugging
-  string conversionDescriptions() const;
+  string conversionDescriptions(char const *indent) const;
 };
 
 
@@ -59,7 +59,12 @@ public:
 enum OverloadFlags {
   OF_NONE        = 0x00,           // nothing special
   OF_NO_USER     = 0x01,           // don't consider user-defined conversions
+  OF_NO_ERRORS   = 0x02,           // don't insert error messages into the environment
+  OF_ALL         = 0x03,           // all flags
 };
+
+ENUM_BITWISE_OPS(OverloadFlags, OF_ALL);
+
 
 // resolve the overloading, return the selected candidate; if nothing
 // matches or there's an ambiguity, adds an error to 'env' and returns

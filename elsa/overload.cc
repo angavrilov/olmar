@@ -23,12 +23,12 @@ Candidate::~Candidate()
 {}
 
 
-string Candidate::conversionDescriptions() const
+string Candidate::conversionDescriptions(char const *indent) const
 {
   stringBuilder sb;
-  
+
   for (int i=0; i < conversions.size(); i++) {
-    sb << "\n%%% overload:     " << toString(conversions[i]);
+    sb << "\n%%% overload:   " << indent << toString(conversions[i]);
   }
   
   return sb;
@@ -66,24 +66,29 @@ Variable *resolveOverload(
   OverloadFlags flags,
   SObjList<Variable> &varList,
   GrowArray<ArgumentInfo> &args)
-{
+{                   
+  // for debug printing
+  char const *indent = (flags & OF_NO_USER)? "    " : "  ";
+
   // generate a sequence of candidates ("viable functions"), in an
   // array
   ObjArrayStack<Candidate> candidates(varList.count());
   SFOREACH_OBJLIST_NC(Variable, varList, iter) {
     Candidate *c = makeCandidate(env, flags, iter.data(), args);
     if (c) {
-      TRACE("overload", "  candidate: " << c->var->toString() <<
+      TRACE("overload", indent << "candidate: " << c->var->toString() <<
                         " at " << toString(c->var->loc) <<
-                        c->conversionDescriptions());
+                        c->conversionDescriptions(indent));
       candidates.push(c);
     }
   }
 
   if (candidates.isEmpty()) {
-    // TODO: expand this message greatly: explain which functions
-    // are candidates, and why each is not viable
-    env.error("no viable candidate for function call");
+    if (!( flags & OF_NO_ERRORS )) {
+      // TODO: expand this message greatly: explain which functions
+      // are candidates, and why each is not viable
+      env.error("no viable candidate for function call");
+    }
     return NULL;
   }
 
@@ -105,8 +110,10 @@ Variable *resolveOverload(
     else {
       // not better, so there is no function that is better than
       // all others
-      // TODO: expand this message
-      env.error("ambiguous overload, no function is better than all others");
+      if (!( flags & OF_NO_ERRORS )) {
+        // TODO: expand this message
+        env.error("ambiguous overload, no function is better than all others");
+      }
       return NULL;
     }
   }
@@ -140,6 +147,9 @@ Candidate * /*owner*/ makeCandidate
         ics.addStdConv(scs);
         c->conversions[argIndex] = ics;
       }
+      else {
+        return NULL;
+      }
     }
     else {
       // consider both standard and user-defined
@@ -160,7 +170,7 @@ Candidate * /*owner*/ makeCandidate
 
   // extra arguments?
   if (argIndex < args.size()) {
-    if (ft->acceptsVarargs) {
+    if (ft->acceptsVarargs()) {
       // fill remaining with IC_ELLIPSIS
       ImplicitConversion ellipsis;
       ellipsis.addEllipsisConv();
@@ -678,121 +688,3 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
   return false;
 }
-
-
-
-
-
-
-
-
-
-// -------------- trash ----------------
-#if 0
-// is 'left' better than 'right'?  applied after some of
-// the symmetric checks have failed to decide
-bool betterStandardConversion
-  (ArgumentInfo const &leftSrc, StandardConversion left, Type const *leftDest,
-   ArgumentInfo const &rightSrc, StandardConversion right, Type const *rightDest)
-{
-
-
-
-
-
-
-    CompoundType const *rightSrcCt;
-
-
-    if (isPointerToCompound(leftSrc.type, leftSrcCt) &&
-        isPointerToCompound(rightSrc.type, rightSrcCt) &&
-        isPointerToVoid(rightDest)) {
-      // Child* -> Parent* is better than Child* -> void*
-      // Q: what about cv flags?
-      CompoundType const *leftDestCt;
-      if (isPointerToCompound(leftDest, leftDestCt) &&
-          leftSrcCt == rightSrcCt &&
-          leftSrcCt->hasBaseClass(leftDestCt)) {
-        return true;
-      }
-
-      // Parent* -> void* is better than Child* -> void*
-      // Q: what about cv flags?
-      if (isPointerToVoid(leftDest) &&
-          rightSrcCt->hasBaseClass(leftSrcCt)) {
-        return true;
-      }
-    }
-  }
-
-  // 13.3.3.2 para 4, bullet 3, sub-bullets 1 and 2:
-  //   GrandChild* -> Child* is better than GrandChild* -> Parent*
-  //   GrandChild& -> Child& is better than GrandChild& -> Parent&
-  for (int pass=0; pass < 2; pass++) {
-    // on first pass use one function, second pass use the other
-    bool (*checkFunc)(Type const *type, CompoundType const *&ct) =
-      pass==0 ? &isPointerToCompound
-              : &isReferenceToCompound;
-
-    CompoundType const *grandchild;
-    CompoundType const *child;
-    CompoundType const *grandchild2;
-    CompoundType const *parent;
-    if (checkFunc(leftSrc.type, grandchild) &&
-        checkFunc(leftDest, child) &&
-        checkFunc(rightSrc.type, grandchild2) &&
-        checkFunc(rightDest, parent) &&
-        grandchild == grandchild2 &&
-        grandchild->hasBaseClass(child) &&
-        child->hasBaseClass(parent)) {
-      return true;
-    }
-  }
-
-  // 13.3.3.2 para 4, bullet 3, sub-bullets 5 and 6:
-  //   Child* -> Parent* is better than GrandChild* -> Parent*
-  //   Child& -> Parent& is better than GrandChild& -> Parent&
-  for (int pass=0; pass < 2; pass++) {
-    // on first pass use one function, second pass use the other
-    bool (*checkFunc)(Type const *type, CompoundType const *&ct) =
-      pass==0 ? &isPointerToCompound
-              : &isReferenceToCompound;
-
-    CompoundType const *grandchild;
-    CompoundType const *child;
-    CompoundType const *grandchild2;
-    CompoundType const *parent;
-    if (checkFunc(leftSrc.type, grandchild) &&
-        checkFunc(leftDest, child) &&
-        checkFunc(rightSrc.type, grandchild2) &&
-        checkFunc(rightDest, parent) &&
-        grandchild == grandchild2 &&
-        grandchild->hasBaseClass(child) &&
-        child->hasBaseClass(parent)) {
-      return true;
-    }
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}
-
-
-
-
-
-#endif // 0, trash

@@ -179,7 +179,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
     exnType = tfac.cloneType(exnType);
   }
 
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType, false /*isMember*/);
+  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
   Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
@@ -206,8 +206,8 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
 StringRef Env::declareSpecialFunction(char const *name)
 {                                                     
   Type *t_void = getSimpleType(HERE_SOURCELOC, ST_VOID);
-  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, t_void, false /*isMember*/);
-  ft->acceptsVarargs = true;
+  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, t_void);
+  ft->flags |= FF_VARARGS;
   ft->doneParams();
 
   StringRef ret = str(name);
@@ -221,7 +221,7 @@ StringRef Env::declareSpecialFunction(char const *name)
   
 FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
 {
-  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR), false /*isMember*/);
+  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
   ft->doneParams();
   return ft;
 }
@@ -1073,7 +1073,7 @@ Variable *Env::instantiateClassTemplate
 
   // render the template arguments into a string that we can use
   // as the name of the instantiated class; my plan is *not* that
-  // this string server as the unique ID, but rather that it be
+  // this string serve as the unique ID, but rather that it be
   // a debugging aid only
   StringRef instName = str.add(stringc << base->name << sargsToString(sargs));
   trace("template") << (base->forward? "(forward) " : "")
@@ -1162,7 +1162,9 @@ Variable *Env::instantiateClassTemplate
   // make the CompoundType that will represent the instantiated class,
   // if we don't already have one
   if (!inst) {
-    inst = new CompoundType(base->keyword, instName);
+    // 1/21/03: I had been using 'instName' as the class name, but that
+    // causes problems when trying to recognize constructors
+    inst = new CompoundType(base->keyword, base->name);
     inst->forward = base->forward;
 
     // copy over the template arguments so we can recognize this
