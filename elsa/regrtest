@@ -224,6 +224,8 @@ T="$T t0035.cc"
 T="$T t0036.cc"
 T="$T t0037.cc"
 
+# FIXED!
+
 # This one is very strange.  First, the function f and method foo()
 # are irrelevant; remove them.  Note that there is no way to seperate
 # StringDict and Iter such that one is before the other.  Now, note
@@ -235,7 +237,7 @@ T="$T t0037.cc"
 # Also, it fails in a different way if StringDict is passed as a
 # parameter by value instead of by reference.
 
-# T="$T t0038.cc"
+T="$T t0038.cc"
 
 T="$T t0039.cc"
 T="$T t0040.cc"
@@ -258,10 +260,12 @@ T="$T t0051.cc"
 T="$T t0052.cc"
 T="$T t0053.cc"
 
+# FIXED!
 # I must have messed up putting in the template arguments to a PQName somewhere.
 #  in/t0054.cc:17:5: error: too few template arguments to `A' (and partial specialization is not implemented)
 #  in/t0054.cc:19:11: error: class `A' is a template, you have to supply template arguments
-# T="$T t0054.cc"
+
+T="$T t0054.cc"
 
 T="$T t0055.cc"
 T="$T t0056.cc"
@@ -271,14 +275,11 @@ T="$T t0059.cc"
 T="$T t0060.cc"
 T="$T t0061.cc"
 
+# Hmm, this should be working.
 # We only add the implicit cdtors after the first pass over the
 # members.  Don't know how to fix that one.
-#  in/t0062.cc:34:14: error: no viable candidate for function call
-#  in/t0062.cc:34:14: error: ::Foo:: has no member called `~Foo'
-#  in/t0062.cc:34:14: error: there is no variable called `::Foo::~Foo'
 #  in/t0062.cc:39:14: error: no viable candidate for function call
-#  in/t0062.cc:39:14: error: ::Foo:: has no member called `~Foo'
-#  in/t0062.cc:39:14: error: there is no variable called `::Foo::~Foo'
+#  in/t0062.cc:39:14: error: no viable candidate for function call
 # T="$T t0062.cc"
 
 T="$T t0063.cc"
@@ -297,6 +298,7 @@ T="$T t0075.cc"
 T="$T t0076.cc"
 T="$T t0077.cc"
 
+# Nope.
 #  in/t0078.cc:7:5: error: variable name `::Foo::hash' used as if it were a type
 #  in/t0078.cc:7:5: error: cannot find scope name `hash'
 #  in/t0078.cc:7:5: error: there is no variable called `::Foo::hash::~hash'
@@ -342,16 +344,19 @@ T="$T t0114.cc"
 T="$T t0115.cc"
 T="$T t0116.cc"
 T="$T t0117.cc"
+
+# Arg, this is bad: This one passes now even though I haven't fixed the test.
 # This is a real bug in the test!
 #  in/t0118.cc:139:5: error: no viable candidate for function call
 #  in/t0118.cc:200:5: error: no viable candidate for function call
 #  in/t0118.cc:210:5: error: no viable candidate for function call
 #  in/t0118.cc:216:6: error: no viable candidate for function call
-# T="$T t0118.cc"
+T="$T t0118.cc"
+
 T="$T t0119.cc"
 # I don't seem to typecheck enum args to ctors
 #  child died with signal SEGV
-#  T="$T t0120.cc"
+# T="$T t0120.cc"
 T="$T t0121.cc"
 T="$T t0122.cc"
 T="$T t0123.cc"
@@ -360,7 +365,7 @@ T="$T t0125.cc"
 #   0126: work in progress
 # T="$T t0126.cc"
 #  child died with signal SEGV
-#  T="$T t0127.cc"
+# T="$T t0127.cc"
 T="$T t0128.cc"
 T="$T t0129.cc"
 T="$T t0130.cc"
