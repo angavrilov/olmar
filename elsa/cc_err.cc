@@ -3,6 +3,7 @@
 
 #include "cc_err.h"      // this module
 #include "trace.h"       // tracingSys
+#include "strutil.h"     // trimWhitespace
 
 
 // ----------------- ErrorMsg -----------------
@@ -12,11 +13,23 @@ ErrorMsg::~ErrorMsg()
 
 string ErrorMsg::toString() const
 {
-  return stringc << ::toString(loc)
-                 << ((flags & EF_WARNING)? ": warning: " :
-                     (flags & EF_STRONG_WARNING)? ": warning(error): " :
-                     ": error: ")
-                 << msg << instLoc;
+  stringBuilder sb;
+  sb << ::toString(loc)
+     << ((flags & EF_WARNING)? ": warning: " :
+         (flags & EF_STRONG_WARNING)? ": warning(error): " :
+         ": error: ")
+     << msg;
+
+  if (instLoc[0] && strchr(sb.c_str(), '\n')) {
+    // for a multi-line message, put instLoc on its own line
+    // and with no leading whitespace
+    sb << "\n" << trimWhitespace(instLoc);
+  }
+  else {
+    sb << instLoc;
+  }
+  
+  return sb;
 }
 
 

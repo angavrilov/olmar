@@ -708,10 +708,14 @@ Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
   // than any of those it faced
   Candidate const *winner = selectBestCandidate(*this, (Candidate const*)NULL);
   if (!winner) {
-    // TODO: expand this message
     if (errors) {
-      errors->addError(new ErrorMsg(
-        loc, "ambiguous overload, no function is better than all others", EF_NONE));
+      stringBuilder sb;
+      sb << "ambiguous overload; candidates:";
+      for (int i=0; i<candidates.length(); i++) {
+        Variable *v = candidates[i]->var;
+        sb << "\n  " << v->loc << ": " << v->toQualifiedString();
+      }
+      errors->addError(new ErrorMsg(loc, sb, EF_NONE));
     }
     OVERLOADTRACE("ambiguous overload");
     wasAmbig = true;

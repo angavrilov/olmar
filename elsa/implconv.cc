@@ -165,6 +165,20 @@ ImplicitConversion getImplicitConversion
     }
   }
 
+  // 13.3.3.1p6: derived-to-base conversion? (acts like a standard
+  // conversion for overload resolution, but is not a "real" standard
+  // conversion, because in actuality a constructor call is involved)
+  if (dest->isCompoundType() &&
+      src->asRval()->isCompoundType()) {
+    CompoundType *destCt = dest->asCompoundType();
+    CompoundType *srcCt = src->asRval()->asCompoundType();
+    
+    if (srcCt->hasBaseClass(destCt)) {
+      ret.addStdConv(SC_DERIVED_TO_BASE);
+      return ret;
+    }
+  }
+
   // check for a constructor to make the dest type; for this to
   // work, the dest type must be a class type or a const reference
   // to one
