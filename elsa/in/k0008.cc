@@ -1,4 +1,4 @@
-// addresses of labels and goto
+// addresses of labels and computed goto
 
 // originally found in package procps
 

@@ -856,19 +856,19 @@ testparse d0121.cc
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
 
-failparse k0001.cc "(add reason here)"
-failparse k0002.cc "(add reason here)"
-failparse k0003.cc "(add reason here)"
-failparse k0004.cc "(add reason here)"
-failparse k0005.cc "(add reason here)"
-failparse k0006.cc "(add reason here)"
-failparse k0007.cc "(add reason here)"
-failparse k0008.cc "(add reason here)"
-failparse k0009.cc "(add reason here)"
-failparse k0010.cc "(add reason here)"
-testparse k0011.cc
-testparse k0012.cc
-failparse k0013.cc "(add reason here)"
+failparse k0001.cc "left side of .* must be a class or reference to a class"
+failparse k0002.cc "template function declared in another class (as a friend)"
+failparse k0003.cc "template argument from static const member of template class"
+failparse k0004.cc "non-typename template argument"
+failparse k0005.cc "declaring a constructor with class name"
+failparse k0006.cc "error: E_alignofType is not constEval'able"
+failparse k0007.cc "error: E_floatLit is not constEval'able"
+failparse k0008.cc "addresses of labels and computed goto"
+failparse k0009.cc "clash between function and instantiated template parameter member"
+failparse k0010.cc "type sizes used in compile-time assertions"
+testparse k0011.cc "ambiguous s->z < 1 || 2 > (3)"
+testparse k0012.cc "merge nonterm ConditionalExpression"
+failparse k0013.cc "cannot convert argument type `float (*)[4]' to parameter 1 type `float const (*)[4]'"
 
 # ---- END: lots of tests ----
 
@@ -949,8 +949,6 @@ if $use_gnu; then
   testparse gnu/d0092.cc
   testparse gnu/d0093.cc
   testparse gnu/d0094.cc
-
-  # testparse gnu/k0001.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do
@@ -1058,12 +1056,12 @@ testCparse c/dC0017.c
 testCparse gnu/d0122.c
 testCparse c/d0124b.c
 
-failCparse c/k0001.c "(add reason here)"
-failCparse c/k0002.c "(add reason here)"
-testCparse c/k0003.c
-failCparse c/k0004.c "(add reason here)"
-failCparse c/k0005.c "(add reason here)"
-failCparse c/k0011.c "(add reason here)"
+failCparse c/k0001.c "typedef int fooint; typedef fooint long;"
+failCparse c/k0002.c "attempt to create an object of incomplete class `S'"
+testCparse c/k0003.c "old-style function decl with parentheses around func name"
+failCparse c/k0004.c "merge nonterm MemberDeclaration"
+failCparse c/k0005.c "multiply defined enum `option'"
+failCparse c/k0011.c "ambiguous s->z < 1 || 2 > (3)"
 
 # is K&R built?
 use_kandr=false

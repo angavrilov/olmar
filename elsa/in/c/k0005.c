@@ -1,4 +1,4 @@
-//ERROR: multiply defined enum `option'
+// error: multiply defined enum `option'
 
 // originally found in package tcl8.4
 
