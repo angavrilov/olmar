@@ -100,11 +100,15 @@ support-set := \
 
 # ---------------------- generic rules ----------------------
 # intermediate files for an ast spec
-.PRECIOUS: %.ast.gen.cc %.ast.gen.h
-%.ast.gen.cc %.ast.gen.h: %.ast $(AST)/astgen
-	rm -f $*.ast.gen.*
-	$(AST)/astgen -o$*.ast.gen $*.ast
-	chmod a-w $*.ast.gen.h $*.ast.gen.cc
+# (this have been commented-out and instantiated with the specific
+# rules for gramast.ast, because I only need once instance, and
+# because the cygwin version of make-3.80 fails to recognize the
+# applicability of this pattern for some reason)
+# .PRECIOUS: %.ast.gen.cc %.ast.gen.h
+# %.ast.gen.cc %.ast.gen.h: %.ast $(AST)/astgen
+# 	rm -f $*.ast.gen.*
+# 	$(AST)/astgen -o$*.ast.gen $*.ast
+# 	chmod a-w $*.ast.gen.h $*.ast.gen.cc
 
 # intermediate files for a grammar
 # TRGRAMANL: extra trace flags specified by user; starts with "," if defined
@@ -170,6 +174,14 @@ gramlex.yy.cc: gramlex.lex
 	sed -e 's/class istream;/#include <iostream.h>/' \
 	  <gramlex.tmp >$@
 	rm gramlex.tmp
+
+# grammar description AST (manual instantiation of above
+# commented-out pattern rule)
+.PRECIOUS: gramast.ast.gen.cc gramast.ast.gen.h
+gramast.ast.gen.cc gramast.ast.gen.h: gramast.ast $(AST)/astgen
+	rm -f gramast.ast.gen.*
+	$(AST)/astgen -ogramast.ast.gen gramast.ast
+	chmod a-w gramast.ast.gen.h gramast.ast.gen.cc
 
 # bison implementation of grammar parser.
 # I have to make some changes to the generated output so it will compile

@@ -7,6 +7,15 @@
 #include "ohashtbl.h"          // OwnerHashTable
 #include "c_type.h"            // Type::equals
 
+#ifdef __CYGWIN__
+  // as reported by Jim Nichols:
+  // bizarre: under cygwin's gcc-3.2, "_L" is the name
+  // of a macro that expands to "02"... (!)  Since _L is
+  // used as an identifier name below, hack it:
+  #undef _L
+#endif // __CYGWIN__
+
+
 // ------------------- VariablePair ---------------
 struct VariablePair {
 public:    // data
