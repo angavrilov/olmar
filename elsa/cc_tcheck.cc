@@ -1763,6 +1763,15 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     tcheck_init(env);
   }
 
+  // not sure what's the best place to test this, nor what the
+  // exact rule is; let's try this...
+  if (isVariableDC(dt.context) &&
+      !dt.hasFlag(DF_EXTERN) &&
+      type->isArrayType() &&
+      type->asArrayType()->size == ArrayType::NO_SIZE) {
+    env.error("array must have a size in variable declaration");
+  }
+
   // pull the scope back out of the stack; if this is a
   // declarator attached to a function definition, then
   // Function::tcheck will re-extend it for analyzing
@@ -1853,11 +1862,18 @@ void Declarator::tcheck_init(Env &env)
     var->value = init->asIN_exprC()->e;
   }
 
+  Type *origType = var->type;
+
   // use the initializer size to refine array types
   // array initializer case
   var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
   // array compound literal initializer case
   var->type = computeArraySizeFromLiteral(env, var->type, init);
+
+  // update 'type' if necessary
+  if (origType != var->type) {
+    type = env.tfac.cloneType(var->type);
+  }
 }
 
 
@@ -2517,76 +2533,91 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 
   // handle "fake" return type ST_CDTOR
   if (dt.type->isSimple(ST_CDTOR)) {
-    // get the name being declared
-    D_name *dname;
-    PQName *name;
-    {
-      // get the D_name one level down (skip D_groupings)
-      IDeclarator *idecl = base;
-      while (idecl->isD_grouping()) {
-        idecl = idecl->asD_grouping()->base;
-      }
-      xassert(idecl->isD_name());    // grammar should ensure this
-      dname = idecl->asD_name();
-
-      // skip qualifiers
-      name = dname->name->getUnqualifiedName();
-    }
-
-    // conversion operator (grammar ensures must be ON_conversion)
-    if (name->isPQ_operator()) {
-      ON_conversion *conv = name->asPQ_operator()->o->asON_conversion();
-
-      if (params->isNotEmpty()) {
-        env.error("conversion operator cannot accept arguments");
-      }
-
-      // compute the named type; this becomes the return type
-      ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
-      conv->type = conv->type->tcheck(env, tc);
-      dt.type = conv->type->getType();
-      specialFunc = FF_CONVERSION;
-    }
-
-    // constructor or destructor
-    else {
-      StringRef nameString = name->asPQ_name()->name;
-      CompoundType *inClass = env.acceptingScope()->curCompound;
-
-      // destructor
-      if (nameString[0] == '~') {
-        if (!inClass) {
-          env.error("destructors must be class members");
+    if (env.lang.isCplusplus) {
+      // get the name being declared
+      D_name *dname;
+      PQName *name;
+      {
+        // get the D_name one level down (skip D_groupings)
+        IDeclarator *idecl = base;
+        while (idecl->isD_grouping()) {
+          idecl = idecl->asD_grouping()->base;
         }
-        else if (0!=strcmp(nameString+1, inClass->name)) {
-          env.error(stringc
-            << "destructor name `" << nameString
-            << "' must match the class name `" << inClass->name << "'");
+        xassert(idecl->isD_name());    // grammar should ensure this
+        dname = idecl->asD_name();
+
+        // skip qualifiers
+        name = dname->name->getUnqualifiedName();
+      }
+
+      // conversion operator (grammar ensures must be ON_conversion)
+      if (name->isPQ_operator()) {
+        ON_conversion *conv = name->asPQ_operator()->o->asON_conversion();
+
+        if (params->isNotEmpty()) {
+          env.error("conversion operator cannot accept arguments");
         }
 
-        // return type is 'void'
-        dt.type = env.getSimpleType(dname->loc, ST_VOID);
-        specialFunc = FF_DTOR;
+        // compute the named type; this becomes the return type
+        ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
+        conv->type = conv->type->tcheck(env, tc);
+        dt.type = conv->type->getType();
+        specialFunc = FF_CONVERSION;
       }
 
-      // constructor
+      // constructor or destructor
       else {
-        // I'm not sure if either of the following two error conditions
-        // can occur, because I don't parse something as a ctor unless
-        // some very similar conditions hold
-        if (!inClass) {
-          env.error("constructors must be class members");
-          return;    // otherwise would segfault below..
-        }
-        else if (nameString != inClass->name) {
-          env.error(stringc
-            << "constructor name `" << nameString
-            << "' must match the class name `" << inClass->name << "'");
+        StringRef nameString = name->asPQ_name()->name;
+        CompoundType *inClass = env.acceptingScope()->curCompound;
+
+        // destructor
+        if (nameString[0] == '~') {
+          if (!inClass) {
+            env.error("destructors must be class members");
+          }
+          else if (0!=strcmp(nameString+1, inClass->name)) {
+            env.error(stringc
+              << "destructor name `" << nameString
+              << "' must match the class name `" << inClass->name << "'");
+          }
+
+          // return type is 'void'
+          dt.type = env.getSimpleType(dname->loc, ST_VOID);
+          specialFunc = FF_DTOR;
         }
 
-        // return type is same as class type
-        dt.type = env.makeType(dname->loc, inClass);
-        specialFunc = FF_CTOR;
+        // constructor
+        else {
+          // I'm not sure if either of the following two error conditions
+          // can occur, because I don't parse something as a ctor unless
+          // some very similar conditions hold
+          if (!inClass) {
+            env.error("constructors must be class members");
+            return;    // otherwise would segfault below..
+          }
+          else if (nameString != inClass->name) {
+            env.error(stringc
+              << "constructor name `" << nameString
+              << "' must match the class name `" << inClass->name << "'");
+          }
+
+          // return type is same as class type
+          dt.type = env.makeType(dname->loc, inClass);
+          specialFunc = FF_CTOR;
+        }
+      }
+    }
+    
+    else {     // C
+      if (env.lang.allowImplicitIntRetType) {
+        // surely this is not adequate, as implicit-int applies to
+        // all declarations, not just those that appear in function
+        // definitions... I think the rest of the implementation is
+        // in Oink?
+        dt.type = env.getSimpleType(loc, ST_INT);
+      }
+      else {
+        env.error("support for omitted return type is currently off");
       }
     }
   }
@@ -2826,19 +2857,21 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     // specified; there are some contexts which require a type (like
     // definitions), but we'll report those errors elsewhere
     if (size) {
+      // try to evaluate the size to a constant
       int sz;
-      string msg;
-      if (! ( (dt.context == DC_S_DECL)
-              // The first one will still return false for the case of
-              // the gnu extension where stack allocated arrays are
-              // allowed to have their size determined at runtime but
-              // won't print an error.  FIX GNU: perhaps this should
-              // only be allowed when a GNU flag is set.
-              ? size->constEval(msg, sz)
-              : size->constEval(env, sz)
-            )
-          ) {
-        at = env.makeArrayType(loc, dt.type, ArrayType::NO_SIZE);
+      string errorMsg;
+      if (!size->constEval(errorMsg, sz)) {
+        // size didn't evaluate to a constant
+        sz = ArrayType::NO_SIZE;
+        if (dt.context == DC_S_DECL &&
+            env.lang.allowDynamicallySizedArrays) {
+          // allow it anyway
+          sz = ArrayType::DYN_SIZE;
+        }
+        else if (errorMsg.length() > 0) {
+          // report the error
+          env.error(errorMsg);
+        }
       }
       else {
         // check restrictions on array size (c.f. cppstd 8.3.4 para 1)
@@ -2859,9 +2892,9 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
             }
           }
         }
-
-        at = env.makeArrayType(loc, dt.type, sz);
       }
+
+      at = env.makeArrayType(loc, dt.type, sz);
     }
     else {
       // no size
@@ -4203,9 +4236,29 @@ Type *E_funCall::inner2_itcheck(Env &env)
 // special hooks for testing internal algorithms; returns a type
 // for the entire E_funCall expression if it recognizes the form
 // and typechecks it in its entirety
+//
+// actually, the arguments have already been tchecked ...
 static Type *internalTestingHooks
   (Env &env, StringRef funcName, FakeList<ArgExpression> *args)
 {
+  // check the type of an expression
+  if (funcName == env.special_checkType) {
+    if (args->count() == 2) {
+      Type *t1 = args->nth(0)->getType();
+      Type *t2 = args->nth(1)->getType();
+      if (t1->equals(t2)) {
+        // ok
+      }
+      else {
+        env.error(stringc << "checkType: `" << t1->toString() 
+                          << "' != `" << t2->toString() << "'");
+      }
+    }
+    else {
+      env.error("invalid call to __checkType");
+    }
+  }
+
   // test vector for 'getStandardConversion'
   if (funcName == env.special_getStandardConversion) {
     int expect;

@@ -969,7 +969,10 @@ public:
 // type of an array
 class ArrayType : public Type {
 public:       // types
-  enum { NO_SIZE = -1 };
+  enum { 
+    NO_SIZE = -1,              // no size specified
+    DYN_SIZE = -2              // GNU extension: size is not a constant
+  };
 
 public:       // data
   Type *eltType;               // (serf) type of the elements
@@ -986,7 +989,7 @@ protected:
 public:
   bool innerEquals(ArrayType const *obj, EqFlags flags) const;
 
-  bool hasSize() const { return size != NO_SIZE; }
+  bool hasSize() const { return size >= 0; }
 
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }

@@ -448,6 +448,7 @@ testparse t0224.cc
 testparse t0225.cc
 testparse t0226.cc
 testparse t0227.cc
+testparse t0228.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -648,9 +649,9 @@ fi
 
 # test the parser in C mode
 for fn in \
-  t0001.c t0002.c t0003.c t0004.c t0005.c \
+  t0001.c t0002.c t0003.c t0004.c t0005.c t0006.c \
     ; do
-  runTest ./ccparse -tr c_lang in/c/$fn
+  runTest perl ./multitest.pl ./ccparse -tr c_lang in/c/$fn
 done
 
 

@@ -115,7 +115,7 @@ void doit(int argc, char **argv)
 
   // parsing language options
   CCLang lang;
-  lang.ANSI_Cplusplus();
+  lang.GNU_Cplusplus();
 
 
   // --------------- parse --------------
@@ -160,7 +160,7 @@ void doit(int argc, char **argv)
     }
 
     if (tracingSys("c_lang")) {
-      lang.ANSI_C();
+      lang.GNU_C();
     }
 
     SemanticValue treeTop;

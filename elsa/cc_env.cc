@@ -322,6 +322,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     string__PRETTY_FUNCTION__(str("__PRETTY_FUNCTION__")),
 
     // these are done below because they have to be declared as functions too
+    special_checkType(NULL),
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
     special_testOverload(NULL),
@@ -482,6 +483,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   #endif // GNU_EXTENSION
 
   // for testing various modules
+  special_checkType = declareSpecialFunction("__checkType")->name;
   special_getStandardConversion = declareSpecialFunction("__getStandardConversion")->name;
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
   special_testOverload = declareSpecialFunction("__testOverload")->name;

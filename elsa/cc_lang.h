@@ -90,6 +90,10 @@ public:
   // when true, allow function definitions that omit any return type
   // to implicitly return 'int'.
   bool allowImplicitIntRetType;
+  
+  // GNU extension: when true, allow local variable arrays to have
+  // sizes that are not constant
+  bool allowDynamicallySizedArrays;
 
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
@@ -102,9 +106,19 @@ public:
 public:
   CCLang() { ANSI_C(); }
 
+  // The predefined settings below are something of a best-effort at
+  // reasonable starting configurations.  Users are encouraged to
+  // explicitly set fields after activating a predefined setting to
+  // get a specific setting.
+
   void KandR_C();           // settings for K&R C
-  void ANSI_C();            // settings for ANSI C
-  void ANSI_Cplusplus();    // settings for ANSI C++
+  void ANSI_C();            // settings for ANSI C89
+  void ANSI_C99();          // settings for ANSI C99
+  void GNU_C();             // settings for GNU C
+  void GNU_KandR_C();       // GNU C + K&R compatibility
+
+  void ANSI_Cplusplus();    // settings for ANSI C++ 89
+  void GNU_Cplusplus();     // settings for GNU C++
 };
 
 #endif // CCLANG_H

@@ -124,6 +124,7 @@ public:      // data
 
   // ---- END: special names ----
 
+  StringRef special_checkType;
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
   StringRef special_testOverload;

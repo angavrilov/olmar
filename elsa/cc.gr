@@ -1565,31 +1565,14 @@ nonterm(Function*) FunctionDefinition {
        }
   -> /*no modifier*/     d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        {
-         if (lang.allowImplicitIntRetType) {
-           // in some kinds of C mode, is a function with an implicit
-           // int return value.  FIX: I suppose it should be an parse
-           // error if 'c' is non-empty.
-           return new Function(
-             DF_NONE,
-             new TS_simple(loc, ST_INT), // no return type defaults to 'int'
-             new Declarator(d, NULL),
-             NULL,              // no ctor member inits
-             b,
-             NULL
-           );
-         } else {
-           // FIX: I don't know what will happen
-           xassert(lang.isCplusplus);
-           // in C++ mode, is a constructor definition.
-           return new Function(
-             DF_NONE,
-             new TS_simple(loc, ST_CDTOR),
-             new Declarator(d, NULL),
-             c,
-             b,
-             NULL
-           );
-         }
+         return new Function(
+           DF_NONE,
+           new TS_simple(loc, ST_CDTOR),
+           new Declarator(d, NULL),
+           c,
+           b,
+           NULL
+         );
        }
 
   // ctor with a try block

@@ -3,6 +3,28 @@
 
 #include "cc_lang.h"     // this module
 
+void CCLang::ANSI_C()
+{
+  tagsAreTypes = false;
+  recognizeCppKeywords = false;
+  implicitFuncVariable = false;
+  gccFuncBehavior = GFB_none;
+  noInnerClasses = true;
+  uninitializedGlobalDataIsCommon = true;
+  emptyParamsMeansPureVarargFunc = false;
+  complainUponBadDeref = true;
+  strictArraySizeRequirements = false;
+  allowOverloading = false;
+  compoundSelfName = false;
+  allowCallToUndeclFunc = false;
+  allow_KR_ParamOmit = false;
+  allowImplicitIntRetType = true;
+  allowDynamicallySizedArrays = false;
+
+  isCplusplus = false;
+  isC99 = false;
+}
+
 void CCLang::KandR_C()
 {
   ANSI_C();
@@ -13,41 +35,43 @@ void CCLang::KandR_C()
   allowImplicitIntRetType = true;
 }
 
-void CCLang::ANSI_C()
+void CCLang::ANSI_C99()
 {
-  tagsAreTypes = false;
-  recognizeCppKeywords = false;
+  ANSI_C();
+
   implicitFuncVariable = true;
-  gccFuncBehavior = GFB_string;         // gcc <= 3.3 compatibility by default
-  noInnerClasses = true;
-  uninitializedGlobalDataIsCommon = true;
-  emptyParamsMeansPureVarargFunc = false;
-  complainUponBadDeref = true;
-  strictArraySizeRequirements = false;
-  allowOverloading = false;
-  compoundSelfName = false;
-  allowCallToUndeclFunc = false;
-  allow_KR_ParamOmit = false;
-
-  // FIX: 1) If this is right, the 'allowImplicitIntRetType = true' in
-  // K&R above is redundant; 2) I don't know if this is right, but
-  // looking at the ANSI C grammar I can find just now, it looks as
-  // though it is: http://www.lysator.liu.se/c/ANSI-C-grammar-y.html;
-  // 3) if you change this to false then you will get an assertion
-  // failure in the parser when it thinks its C++ and goes to make a
-  // constructor and then realizes it isn't C++.
-  allowImplicitIntRetType = true;
-
-  isCplusplus = false;
+  allowImplicitIntRetType = false;
   isC99 = true;
 }
+
+void CCLang::GNU_C()
+{
+  ANSI_C99();
+
+  allowImplicitIntRetType = true;
+  gccFuncBehavior = GFB_string;
+  allowDynamicallySizedArrays = true;
+}
+
+void CCLang::GNU_KandR_C()
+{
+  KandR_C();
+
+  implicitFuncVariable = true;
+  gccFuncBehavior = GFB_string;
+  allowDynamicallySizedArrays = true;
+  
+  // this seems wrong, but Oink's tests want it this way...
+  isC99 = true;
+}
+
 
 void CCLang::ANSI_Cplusplus()
 {
   tagsAreTypes = true;
   recognizeCppKeywords = true;
   implicitFuncVariable = false;
-  gccFuncBehavior = GFB_variable;       // g++ compatibility by default
+  gccFuncBehavior = GFB_none;
   noInnerClasses = false;
   uninitializedGlobalDataIsCommon = false;
   emptyParamsMeansPureVarargFunc = false;
@@ -67,3 +91,16 @@ void CCLang::ANSI_Cplusplus()
   isCplusplus = true;
   isC99 = false;
 }
+
+void CCLang::GNU_Cplusplus()
+{
+  ANSI_Cplusplus();
+
+  gccFuncBehavior = GFB_variable;
+  
+  // is this really right?  Oink tests it like it is ...
+  allowDynamicallySizedArrays = true;
+}
+
+
+// EOF
