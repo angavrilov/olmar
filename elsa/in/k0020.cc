@@ -6,7 +6,13 @@
 
 template <class T> struct S1 {
     static void foo() {
-        void * x;
+        void * x = 0;
         delete (T)x;
     }
 };
+
+void f()
+{
+  S1<int*>::foo();
+}
+

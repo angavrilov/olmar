@@ -7601,8 +7601,12 @@ Type *E_delete::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
-  Type *t = expr->type->asRval();
-  if (!t->isPointer()) {
+  Type *t = expr->type->asRval();   
+
+  if (t->isGeneralizedDependent()) {
+    // fine; in/k0020.cc
+  }
+  else if (!t->isPointer()) {
     env.error(t, stringc
       << "can only delete pointers, not `" << t->toString() << "'");
   }
