@@ -4,20 +4,20 @@
 int x;
 
 void addone()
-  thmprv_pre 
-    int pre_x = x; true;
-  thmprv_post
-    x == pre_x + 1;
+  thmprv_pre (
+    int pre_x = x; true )
+  thmprv_post (
+    x == pre_x + 1 )
 {
   x = x + 1;
 }
 
 void bar()
-  thmprv_pre
+  thmprv_pre (
     int pre_x = x;
-    x > 0;
-  thmprv_post
-    x == pre_x;
+    x > 0 )
+  thmprv_post (
+    x == pre_x )
 {}
 
 int main()

@@ -11,22 +11,22 @@ int length(int *obj);
 // all elements larger than f are to the right of it, i.e.:
 //   for all p,q: (1 <= p <= f <= q <= N) ==> (A[p] <= A[f] <= A[q])
 void find(int *A, int N, int f)
-  thmprv_pre
+  thmprv_pre(
     offset(A) == 0 && length(object(A)) == N+1 &&   // plus 1 to allow 1-based indexing
-    1 <= f && f <= N;
-  thmprv_post
+    1 <= f && f <= N)
+  thmprv_post(
     (thmprv_forall int p, q;
       (1 <= p && p <= f && f <= q && q <= N) ==>
-        (A[p] <= A[f] && A[f] <= A[q]));
+        (A[p] <= A[f] && A[f] <= A[q])))
 {
   int m = 1;         // works its way from the left
   int n = N;         // .. from the right
-           
+
   // while there's still disorganized stuff between m and n ..
   while (m < n) {
     // f is between n and m, and both m and n are pivot points
     // (everything left is less than everything right)
-    thmprv_invariant
+    thmprv_invariant(
       //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
       //RDNDT: 1 <= f && f <= N &&
 
@@ -36,7 +36,7 @@ void find(int *A, int N, int f)
         ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q]))) &&
 
       //RDNDT: m < n ;
-      true;
+      true);
 
     int r = A[f];    // approximation of the f-th element
     int i = m;
@@ -48,7 +48,7 @@ void find(int *A, int N, int f)
     while (i <= j) {
       // i and j are working inward from m and n, and both i and j
       // are half-pivots: one side of each is all less than r
-      thmprv_invariant
+      thmprv_invariant(
         //RDNDT: i <= j &&
 
         //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
@@ -69,12 +69,12 @@ void find(int *A, int N, int f)
         //RDNDT: m < n &&
 
         //r == A[f] &&
-        true;
+        true);
 
       while (A[i] < r) {
-        thmprv_assume i < n;     // HACK
+        thmprv_assume(i < n);     // HACK
 
-        thmprv_invariant
+        thmprv_invariant(
           //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
           //RDNDT: 1 <= f && f <= N &&
 
@@ -96,7 +96,7 @@ void find(int *A, int N, int f)
 
           //r == A[f] &&
           //RDNDT: A[i] < r ;        // loop guard, plus
-          true;
+          true);
 
         i = i+1;    // skip past small-enough elts
 
@@ -107,9 +107,9 @@ void find(int *A, int N, int f)
       }
 
       while (r < A[j]) {
-        thmprv_assume m < j;        // HACK
+        thmprv_assume(m < j);        // HACK
 
-        thmprv_invariant
+        thmprv_invariant(
           //RDNDT: offset(A) == 0 && length(object(A)) == N+1 &&
           //RDNDT: 1 <= f && f <= N &&
 
@@ -134,7 +134,7 @@ void find(int *A, int N, int f)
 
           //r == A[f] &&
           //RDNDT: r < A[j] ;        // loop guard, plus
-          true;
+          true);
 
         j = j-1;    // skip past large-enough elts
 
@@ -144,7 +144,7 @@ void find(int *A, int N, int f)
         //SLOWINFER:     (j < q && q <= N) ==> (r <= A[q]));
       }
 
-      thmprv_invariant
+      thmprv_invariant(
         // these two are not redundant, because of nonstrict vs strict
         //SLOWINFER: i <= n && m <= j &&
 
@@ -166,10 +166,10 @@ void find(int *A, int N, int f)
         //RDNDT:   (j < q && q <= N) ==> (r <= A[q])) &&
 
         //RDNDT: m < n ;
-        true;
+        true);
 
-      thmprv_assume A[j] <= r && r <= A[i];     // TEMPORARY HACK
-      thmprv_assert A[j] <= r && r <= A[i];
+      thmprv_assume(A[j] <= r && r <= A[i]);     // TEMPORARY HACK
+      //thmprv_assert(A[j] <= r && r <= A[i]);
 
       // if A[j] is left of A[i], swap them
       if (i <= j) {
@@ -177,7 +177,7 @@ void find(int *A, int N, int f)
         (w = A[i], A[i] = A[j], A[j] = w);
 
         // verify that now they're in the right order
-        thmprv_assert A[i] <= r && r <= A[j];
+        thmprv_assert(A[i] <= r && r <= A[j]);
 
         // possibly I could get this with calls to Simplfy during inference?
         //SLOWINFER: thmprv_assert
@@ -209,6 +209,28 @@ void find(int *A, int N, int f)
     }
   }
 }
+
+
+int printf(char const *fmt, ...);
+
+int main()
+{
+  int arr[11] = { 0,    // index 1 to 10
+    5, 8, 1, 45, 3, 7, 9, 2, 8, 12 };
+  int i;
+
+  find(arr, 10, 6);
+
+  printf("result:");
+  for (i=1; i<=10; i=i+1) {
+    thmprv_invariant(i >= 1);
+    printf(" %d", arr[i]);
+  }
+  printf("\n");
+
+  return 0;
+}
+
 
 
 

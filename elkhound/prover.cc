@@ -5,6 +5,7 @@
 #include "str.h"       // stringc
 #include "mypopen.h"   // popen_execvp
 #include "unixutil.h"  // readString, writeAll
+#include "trace.h"     // trace
 
 #include <stdio.h>     // perror, FILE stuff
 #include <string.h>    // strstr
@@ -13,6 +14,8 @@ bool runProver(char const *str)
 {
   static bool opened = false;             // true once we've opened the process
   static int toSimplify, fromSimplify;    // pipe file descriptors
+
+  trace("prover") << str << endl;
 
   if (!opened) {
     // open Simplify as a child process, with pipes to communicate
@@ -59,21 +62,24 @@ bool runProver(char const *str)
   }
 
   // read Simplify's response
-  char response[80];
-  if (!readString(fromSimplify, response, 80)) {
-    perror("read from Simplify");
-    exit(2);
-  }
+  for (;;) {
+    char response[80];
+    if (!readString(fromSimplify, response, 80)) {
+      perror("read from Simplify");
+      exit(2);
+    }
 
-  if (strstr(response, "Invalid")) {
-    return false;          // formula is not proven
-  }
-  if (strstr(response, "Valid")) {
-    return true;           // formula is proven
-  }
+    if (strstr(response, "Invalid")) {
+      return false;          // formula is not proven
+    }
+    if (strstr(response, "Valid")) {
+      return true;           // formula is proven
+    }
 
-  fprintf(stderr, "unexpected response from Simplify:\n");
-  fprintf(stderr, "%s\n", response);
-  exit(2);
-  return false;            // not reached; silence warning
+    //printf("unexpected response from Simplify:\n");
+    //printf("%s\n", response);
+
+    // go back and read some more; this "triggerless quantifier body"
+    // thing is coming up..
+  }
 }

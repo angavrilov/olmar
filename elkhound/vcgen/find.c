@@ -11,13 +11,13 @@ int length(int *obj);
 // all elements larger than f are to the right of it, i.e.:
 //   for all p,q: (1 <= p <= f <= q <= N) ==> (A[p] <= A[f] <= A[q])
 void find(int *A, int N, int f)
-  thmprv_pre
+  thmprv_pre(
     offset(A) == 0 && length(object(A)) == N+1 &&   // plus 1 to allow 1-based indexing
-    1 <= f && f <= N;
-  thmprv_post
+    1 <= f && f <= N)
+  thmprv_post(
     (thmprv_forall int p, q;
       (1 <= p && p <= f && f <= q && q <= N) ==>
-        (A[p] <= A[f] && A[f] <= A[q]));
+        (A[p] <= A[f] && A[f] <= A[q])))
 {
   int m = 1;         // works its way from the left
   int n = N;         // .. from the right

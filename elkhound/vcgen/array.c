@@ -8,7 +8,7 @@ int offset(int *ptr);
 
 void init(int *a)
   //thmprv_pre length(object(a))==5 && offset(a)==0;
-  thmprv_pre 0 <= offset(a) && offset(a)+5 <= length(object(a));
+  thmprv_pre( 0 <= offset(a) && offset(a)+5 <= length(object(a)) )
 {
   a[0] = 0;
   a[1] = 1;

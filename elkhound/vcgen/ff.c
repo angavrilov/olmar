@@ -2,7 +2,7 @@
 // testing factflow mechanism
 
 void foo(int x, int j)
-  thmprv_pre 0 <= x && x < 5;
+  thmprv_pre(0 <= x && x < 5)
 {
   int arr[5];
   while (x < 5) {

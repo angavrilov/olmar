@@ -12,7 +12,7 @@ void assert(int b)
 
 int main()
 {
-  int x;
+  int x, y;
   int arr[10];
 
   #define equalsIndexTo(len)                      \
@@ -30,15 +30,15 @@ int main()
 
   thmprv_assert equalsIndexTo(5);
 
-  for (x=4; x>=0; x=x-1) {
+  for (y=4; y>=0; y=y-1) {
     thmprv_invariant
-      //0 <= x &&
-      x <= 4 &&
+      //0 <= y &&
+      y <= 4 &&
       //(thmprv_forall int i;
       // (0 <= i && i < 5) ==> arr[i] == i) &&
       true;
 
-    assert(arr[x] == x);
+    assert(arr[y] == y);
   }
 
   return 0;

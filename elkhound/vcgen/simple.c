@@ -3,8 +3,8 @@
 
 // here's a function which demands its argument be greater than 3
 int foo(int x)
-  thmprv_pre x > 3;
-  thmprv_post result == x-3;
+  thmprv_pre( x > 3 )
+  thmprv_post( result == x-3 )
 {
   return x-3;
 }

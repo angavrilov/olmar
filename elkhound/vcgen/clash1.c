@@ -8,16 +8,16 @@
  */
 // NUMERRORS 1
 int bar(int x)          // 10
-  thmprv_pre int pre_x=x; true;
-  thmprv_post result == (pre_x*2)+1;
+  thmprv_pre( int pre_x=x; true )
+  thmprv_post( result == (pre_x*2)+1 )
 {
     x = x * 2;          // 20
     return x+1;         // return 21
 }
 
 int foo(int x)          // 5
-  thmprv_pre int pre_x=x; true;
-  thmprv_post result == (pre_x*2)*2 + 1 + 1;
+  thmprv_pre( int pre_x=x; true )
+  thmprv_post( result == (pre_x*2)*2 + 1 + 1 )
 {
     x = x * 2;          // 10
     x = bar(x);         // bar(10) = 21

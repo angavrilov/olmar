@@ -36,10 +36,10 @@ int select(int *mem, int *obj, int offset);
 int update(int *mem, int *obj, int offset, int value);
 
 void inc(int *x)
-  thmprv_pre int *pre_mem = mem; 
-    offset(x) >= 0 && offset(x) < length(object(x));
-  thmprv_post mem == update(pre_mem, object(x), offset(x),
-                              select(pre_mem, object(x), offset(x))+1);
+  thmprv_pre( int *pre_mem = mem;
+    offset(x) >= 0 && offset(x) < length(object(x)) )
+  thmprv_post( mem == update(pre_mem, object(x), offset(x),
+                              select(pre_mem, object(x), offset(x))+1) )
 {
   *x = *x + 1;
 }

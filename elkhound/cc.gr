@@ -1543,9 +1543,9 @@ nonterm[ASTList<FuncAnnotation>*] FuncAnnotationsOpt {
 }
 
 nonterm[FuncAnnotation*] FuncAnnotation {
-  -> "thmprv_pre"  d:DeclListOpt e:Expression ";"
+  -> "thmprv_pre" "(" d:DeclListOpt e:Expression ")"
        [ return new FA_precondition(d, e); ]
-  -> "thmprv_post" e:Expression ";"
+  -> "thmprv_post" "(" e:Expression ")"
        [ return new FA_postcondition(e); ]
 }
 

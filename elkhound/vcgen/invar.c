@@ -2,8 +2,8 @@
 // messing with invariant points
 
 int f(int x)
-  thmprv_pre x > 10;
-  thmprv_post result > 40;
+  thmprv_pre(x > 10)
+  thmprv_post(result > 40)
 {
   int y = x;
   thmprv_assert y > 10;
@@ -14,8 +14,8 @@ int f(int x)
 
   y = y + 10;
 
-  thmprv_assert y > 30;   
-  
+  thmprv_assert y > 30;
+
   return y + 10;
 }
 
@@ -25,9 +25,9 @@ int offset(int *ptr);
 int length(int *obj);
 
 int sum(int *array, int len)
-  thmprv_pre 
+  thmprv_pre(
     offset(array) == 0 &&
-    length(object(array)) == len;
+    length(object(array)) == len )
   // don't know what to say about result..
 {                                           
   int tot = 0;

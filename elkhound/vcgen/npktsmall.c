@@ -6,30 +6,30 @@
 int lockState;
 
 void Lock()
-  thmprv_pre lockState == 0;
-  thmprv_post lockState == 1;;
+  thmprv_pre( lockState == 0 )
+  thmprv_post( lockState == 1 );
 //{
 //  lockState = 1;
 //}
 
 void Unlock()
-  thmprv_pre lockState == 1;
-  thmprv_post lockState == 0;;
+  thmprv_pre( lockState == 1 )
+  thmprv_post( lockState == 0 );
 //{
 //  lockState = 0;
 //}
 
 // nondeterministic choice
 int choice()
-  thmprv_pre
-    int pre_lockState = lockState; true;
-  thmprv_post
-    lockState == pre_lockState;
+  thmprv_pre (
+    int pre_lockState = lockState; true )
+  thmprv_post (
+    lockState == pre_lockState )
   ;
 
 int main ()
-  thmprv_pre lockState == 0;
-  thmprv_post lockState == 0;
+  thmprv_pre( lockState == 0 )
+  thmprv_post( lockState == 0 )
 {
     int nPacketsOld, nPackets;
 

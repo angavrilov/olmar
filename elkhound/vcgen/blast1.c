@@ -2,17 +2,17 @@
 // basically testing ability to see into functions
 
 int id(int w)
-  thmprv_post result == w;
+  thmprv_post(result == w)
 {
     return w;
 }
 int inc2(int w)
-  thmprv_post result == w+2;
+  thmprv_post(result == w+2)
 {
     return w+2;
 }
 int inc3(int w)
-  thmprv_post result == w+3;
+  thmprv_post(result == w+3)
 {
     return w+3;
 }
@@ -23,7 +23,7 @@ int inc3(int w)
 // indirection means I evaluate applications before considering
 // truth or falsity
 void assert(int b)
-  thmprv_pre b;
+  thmprv_pre(b)
 {}
 
 int main()

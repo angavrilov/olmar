@@ -13,7 +13,7 @@ int *changed(int *mem, int *obj);
 
 
 void strcpy(char *dest, char const *src)
-  thmprv_pre
+  thmprv_pre (
     // bind a name to the pre-state's memory
     int *pre_mem = mem;
 
@@ -30,9 +30,9 @@ void strcpy(char *dest, char const *src)
     // (not counting the null, but using '<', I avoid a "+1")
     (firstZero(mem, object(src)) - offset(src)) <  // # of bytes to copy (not incl. null)
       (length(object(dest)) - offset(dest))        // space remaining
-    ;
+  )
 
-  thmprv_post
+  thmprv_post (
     // memory will change, but only in 'dest'
     mem == changed(pre_mem, object(dest)) &&
 
@@ -40,12 +40,12 @@ void strcpy(char *dest, char const *src)
     (firstZero(mem, object(dest)) - offset(dest)) ==
       (firstZero(mem, object(src)) - offset(src))
                    // could also say pre_mem  ^^^; above assertion verifies they are same
-    ;
+  )
 ;
 
 
 void strcat(char *dest, char const *src)
-  thmprv_pre
+  thmprv_pre (
     // bind a name to the pre-state's memory
     int *pre_mem = mem;
 
@@ -65,9 +65,9 @@ void strcat(char *dest, char const *src)
     // is no room left (b/c firstZero is an index)
     (firstZero(mem, object(src)) - offset(src)) <    // # of bytes to copy (not incl. null)
       (length(object(dest)) - firstZero(mem, object(dest)))  // space after 0
-    ;
+  )
 
-  thmprv_post
+  thmprv_post (
     // memory will change, but only in 'dest'
     mem == changed(pre_mem, object(dest)) &&
 
@@ -75,7 +75,7 @@ void strcat(char *dest, char const *src)
     (firstZero(mem, object(dest)) - offset(dest)) ==
       (firstZero(pre_mem, object(src)) + (firstZero(mem, object(src)) - offset(src)))
                         // could also say pre_mem  ^^^; above assertion verifies they are same
-    ;
+  )
 ;
 
 

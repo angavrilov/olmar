@@ -2,11 +2,13 @@
 // simple example of writing then reading via a loop
 
 void assert(int b)
-  thmprv_pre 
+  thmprv_pre (
     int pre_mem = mem;
-    b;
-  thmprv_post
-    mem == pre_mem;
+    b
+  )
+  thmprv_post (
+    mem == pre_mem
+  )
 {}
 
 int main()

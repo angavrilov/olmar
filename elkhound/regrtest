@@ -195,6 +195,7 @@ vcgen memswap.c
 vcgen ff.c
 vcgen find.c
 vcgen find2.c
+vcgen callfind.c
 
 
 # final arithmetic to report result

@@ -11,16 +11,18 @@ int update(int *mem, int *obj, int offset, int value);
 //int validPointer(int *ptr);
 
 void foo(int *ptr, int *x)
-  thmprv_pre
+  thmprv_pre (
     int *pre_mem = mem;
     //validPointer(ptr) && validPointer(x) &&
     offset(ptr) >= 0 && offset(ptr) < length(object(ptr)) &&
     offset(x) >= 0 && offset(x) < length(object(x)) &&
-    ptr != x;
-  thmprv_post
-    mem == update(update(pre_mem, 
+    ptr != x 
+  )
+  thmprv_post (
+    mem == update(update(pre_mem,
              object(ptr), offset(ptr), 5),
-             object(x), offset(x), 7);
+             object(x), offset(x), 7)
+  )
 {
   *ptr = 5;
   *x = 7;

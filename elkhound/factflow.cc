@@ -37,8 +37,8 @@ public:
   int proven;             // # of successful proofs
 
 public:
-  Section(char const *n)
-    : name(n), acc(0), attempts(0), proven(0) {}
+  Section(char const *n) : name(n) { clear(); }
+  void clear() { acc=0; attempts=0; proven=0; }
 
   string toString() const;
 };
@@ -214,8 +214,8 @@ bool factsImply(SObjList<Expression /*const*/> const &facts,
   if (!miniProve(aenv, candidate, "testing for fact-set intersection",
                  intersection)) {
     trace("factflw2")
-      << "    fact " << candidate->toString()
-      << " invalidated by intersection; premises: "
+      << "      invalidated fact " << candidate->toString()
+      << " by intersection; premises: "
       << factListString(facts) << endl;
     return false;
   }
@@ -269,6 +269,11 @@ void factFlow(TF_func &func)
 {
   trace("factflow") << "processing function " << func.name() << endl;
   long startTime = getMilliseconds();
+  
+  int i;
+  for (i=0; i < TABLESIZE(sections); i++) {
+    sections[i]->clear();
+  }
 
   // initialize the worklist with a reverse postorder enumeration
   NextPtrList worklist;
@@ -475,7 +480,7 @@ void factFlow(TF_func &func)
   }
     
   long totalSimp = 0;
-  for (int i=0; i < TABLESIZE(sections); i++) {
+  for (i=0; i < TABLESIZE(sections); i++) {
     totalSimp += sections[i]->acc;
   }
 
@@ -707,8 +712,8 @@ void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr)
     if (invalidateExpr(fact, expr)) {
       // remove this fact because 'expr' invalidated it
       trace("factflw2")
-        << "    fact " << fact->toString()
-        << " potentially invalidated by " << expr->toString() << endl;
+        << "      invalidated(?) fact " << fact->toString()
+        << " by " << expr->toString() << endl;
       mut.remove();
     }
     else {
