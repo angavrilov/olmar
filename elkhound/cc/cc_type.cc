@@ -678,6 +678,12 @@ bool Type::isOwnerPtr() const
   return isPointer() && ((asPointerTypeC().cv & CV_OWNER) != 0);
 }
 
+bool Type::isCVAtomicType(AtomicType::Tag tag) const
+{
+  return isCVAtomicType() &&
+         asCVAtomicTypeC().atomic->getTag() == tag;
+}
+
 bool Type::isPointer() const
 {
   return isPointerType() && asPointerTypeC().op == PO_POINTER;
@@ -846,7 +852,13 @@ FunctionType::Param::~Param()
 
 string FunctionType::Param::toString() const
 {
-  return type->toCString(name);
+  if (type->isTypeVariable()) {
+    // avoid printing the name twice
+    return type->toCString();
+  }
+  else {
+    return type->toCString(name);
+  }
 }
 
 
@@ -863,7 +875,8 @@ FunctionType::FunctionType(Type const *r, CVFlags c)
     cv(c),
     params(),
     acceptsVarargs(false),
-    exnSpec(NULL)
+    exnSpec(NULL),
+    templateParams(NULL)
 {}
 
 
@@ -943,8 +956,25 @@ void FunctionType::addParam(Param *param)
 
 string FunctionType::leftString() const
 {
+  stringBuilder sb;
+
+  // template parameters
+  if (templateParams) {
+    sb << "template <";
+    int ct=0;
+    FOREACH_OBJLIST(FunctionType::Param, templateParams->params, iter) {
+      if (ct++ > 0) {
+        sb << ", ";
+      }
+      sb << iter.data()->toString();
+    }
+    sb << "> ";
+  }
+
   // return type and start of enclosing type's description
-  return stringc << retType->leftString() << " (";
+  sb << retType->leftString() << " (";
+  
+  return sb;
 }
 
 string FunctionType::rightString() const

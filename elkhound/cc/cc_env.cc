@@ -328,6 +328,15 @@ EnumType *Env::lookupPQEnum(PQName const *name)
 }
 
 
+TemplateParams * /*owner*/ Env::takeTemplateParams()
+{
+  Scope *s = scope();
+  TemplateParams *ret = s->templateParams;
+  s->templateParams = NULL;
+  return ret;
+}
+
+
 // -------- diagnostics --------
 Type const *Env::error(char const *msg, bool disambiguates)
 {
