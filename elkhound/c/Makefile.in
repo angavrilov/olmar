@@ -35,7 +35,7 @@ LDFLAGS := -g -Wall $(libraries)
 # compile .cc in this directory to a .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
 # ----------------------- lexer2 -------------------
@@ -107,7 +107,7 @@ bcparse.y: c.gr.gen.y
 	echo '%{' >$@
 	echo '#include "bcparse.h"' >>$@
 	echo '%}' >>$@
-	sed 's/File L2_EOF/File/' <c.gr.gen.y >>$@
+	sed -e 's/File L2_EOF/File/' <c.gr.gen.y >>$@
 
 # run Bison; the 'sed' command is to silence a spurious warning about
 # 'yyval' being used uninitialized; I also compile here (instead of

@@ -4,7 +4,7 @@
 use strict 'subs';
 
 # defaults
-$BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+$BASE_FLAGS = "-g -Wall -D__UNIX__";
 $CCFLAGS = ();
 $debug = 0;
 $loc = 1;
@@ -18,7 +18,7 @@ $AST = "../ast";
 
 sub usage {
   print(<<"EOF");
-usage: $0 [options]
+usage: ./configure [options]
 options:
   -h:                print this message
   -debug,-nodebug:   enable/disable debugging options [disabled]
@@ -141,8 +141,24 @@ if ($os eq "Linux") {
   push @CCFLAGS, "-D__LINUX__";
 }
 
-# smash the list together to make a string
-$CCFLAGS = join(' ', @CCFLAGS);
+
+# ------------------ compiler tests ---------------
+# get g++ version (it's a lot easier just to test the version
+# number than to craft various kinds of compilation tests)
+@lines = `g++ --version`;
+checkExitCode($?);
+$gccver = $lines[0];
+
+# g++-3?
+if ($gccver =~ m/^3\./) {
+  # suppress warnings about deprecation
+  push @CCFLAGS, "-Wno-deprecated";
+}
+else {
+  # every compiler wants -I., except gcc-3, who not only doesn't
+  # need it, but will emit a warning if I specify it
+  push @CCFLAGS, "-I.";
+}
 
 
 # ------------------ check for needed components ----------------
@@ -162,6 +178,10 @@ if (! -f "$AST/asthelp.h") {
 
 
 # ------------------ config.summary -----------------
+# smash the list together to make a string
+$CCFLAGS = join(' ', @CCFLAGS);
+
+
 # create a program to summarize the configuration
 open(OUT, ">config.summary") or die("can't make config.summary");
 print OUT (<<"OUTER_EOF");
@@ -276,8 +296,14 @@ print("\nYou can now run make, usually called 'make' or 'gmake'.\n");
 exit(0);
 
 
+# ------------------ subroutines --------------
 sub run {
   my $code = system(@_);
+  checkExitCode($code);
+}
+
+sub checkExitCode {
+  my ($code) = @_;
   if ($code != 0) {
     # hopefully the command has already printed a message,
     # I'll just relay the status code
@@ -288,4 +314,13 @@ sub run {
       exit($code & 127);
     }
   }
+}
+
+
+sub slurpFile {
+  my ($fname) = @_;
+  open(IN, "<$fname") or die("can't open $fname: $!\n");
+  my @ret = <IN>;
+  close(IN) or die;
+  return @ret;
 }

@@ -39,8 +39,7 @@ CXX := g++
 
 # flags for the C and C++ compilers (and preprocessor)
 # "-Ic" is needed for binaries which use $(support-set)
-# "-I." is needed for gcc-2 when compiling things in cc2/
-CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -Ic -I.
+CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -Ic
 
 # flags for the linker
 libraries := $(LIBAST) $(LIBSMBASE)
@@ -55,7 +54,7 @@ RANLIB := ranlib
 # compile .cc to .o
 %.o: %.cc
 	$(CXX) -c -o $@ $< $(CCFLAGS)
-	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
+	@perl $(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) >$*.d
 
 
 # ----------------- sets of related object files ---------------------
@@ -123,7 +122,7 @@ support-set := \
 	echo '%{' >$@
 	echo '#include "trivbison.h"' >>$@
 	echo '%}' >>$@
-	sed 's/"EOF" {/{/' <$*.gr.gen.y >>$@
+	sed -e 's/"EOF" {/{/' <$*.gr.gen.y >>$@
 
 # run Bison; the 'sed' command is to silence a spurious warning about
 # 'yyval' being used uninitialized; I also compile here (instead of
@@ -143,12 +142,12 @@ support-set := \
 .PRECIOUS: %.gr %.tree.gr
 %.gr: %.gr.in make-trivparser.pl
 	rm -f $@
-	./make-trivparser.pl $(notdir $*) <$*.gr.in >$@
+	perl ./make-trivparser.pl $(notdir $*) <$*.gr.in >$@
 	chmod a-w $@
 
 %.tree.gr: %.gr.in make-trivparser.pl
 	rm -f $@
-	./make-trivparser.pl -ptree $(notdir $*) <$*.gr.in >$@
+	perl ./make-trivparser.pl -ptree $(notdir $*) <$*.gr.in >$@
 	chmod a-w $@
 
 # make a parser for testing some grammar, using trivial lexer
@@ -168,7 +167,7 @@ trivbison-deps := trivbison.o trivlex.o lexer2.o libelkhound.a
 gramlex.yy.cc: gramlex.lex
 	flex -o$@ gramlex.lex
 	mv $@ gramlex.tmp
-	sed 's/class istream;/#include <iostream.h>/' <gramlex.tmp >$@
+	sed -e 's/class istream;/#include <iostream.h>/' <gramlex.tmp >$@
 	rm gramlex.tmp
 
 # bison implementation of grammar parser.
@@ -182,7 +181,7 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 	    -e 's/__attribute__ ((__unused__))//' \
 	  <tmp >grampar.tab.cc
 	mv -f grampar.tab.h tmp
-	sed 's/typedef union {/typedef union YYSTYPE {/' <tmp >grampar.tab.h
+	sed -e 's/typedef union {/typedef union YYSTYPE {/' <tmp >grampar.tab.h
 	rm tmp
 	grep '# *define' grampar.tab.h >grampar.codes.h
 
@@ -190,7 +189,7 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 # new C++ grammar with treebuilding actions
 cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr c/c.tok elkhound
 	rm -f cc2/cc2t*
-	sed 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
+	sed -e 's/cc2\.gr\.gen\.h/cc2t.gr.gen.h/' <cc2/cc2.gr >cc2/cc2t.gr
 	./elkhound -v -tr treebuild$(TRGRAMANL) -o cc2/cc2t.gr.gen cc2/cc2t.gr
 	chmod a-w cc2/cc2t.gr*
 
@@ -205,7 +204,7 @@ cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr c/c.tok elkho
 # compilation succeeds.
 
 extradep.mk:
-	./find-extra-deps *.d cc2/*.d >$@
+	perl ./find-extra-deps *.d cc2/*.d >$@
 
 -include extradep.mk
 
@@ -427,11 +426,11 @@ gendoc:
 
 # dependencies for 'elkhound', the parser generator executable
 gendoc/elkhound_dep.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) gramanl.cc >$@
+	perl $(SMBASE)/scan-depends.pl -r -I$(AST) gramanl.cc >$@
 
 # dependencies for 'glr.h', the entry point to the runtime library
 gendoc/glr.dot:
-	$(SMBASE)/scan-depends.pl -r -I$(AST) glr.h >$@
+	perl $(SMBASE)/scan-depends.pl -r -I$(AST) glr.h >$@
 
 # check to see if they have dot
 .PHONY: dot

@@ -75,7 +75,9 @@ log() {
 
 # run a single test, and bail if it fails
 runTest() {
-  if ! runTestInternal "$@"; then
+  if runTestInternal "$@"; then
+    true
+  else
     if [ $contin = 0 ]; then
       exit 2
     fi
