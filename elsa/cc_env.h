@@ -87,11 +87,17 @@ public:      // data
   Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
 
+  // dsw: Can't think of a better way to do this, sorry.
+  Variable *var__builtin_constant_p;
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
   //  CompoundType *tclass, FakeList<TemplateArgument> *args);
 
+  Variable * declareFunction0arg(Type *retType, char const *funcName,
+                                 Type * /*nullable*/ exnType,
+                                 FunctionFlags flags);
   void declareFunction1arg(Type *retType, char const *funcName,
                            Type *arg1Type, char const *arg1Name,
                            Type * /*nullable*/ exnType);

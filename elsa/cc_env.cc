@@ -141,6 +141,14 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
                       t_voidptr, "p",
                       NULL /*exnType*/);
 
+  // dsw: This is a form, not a function, since it takes an expression
+  // AST node as an argument; however, I need a function that takes no
+  // args as a placeholder for it sometimes.
+  var__builtin_constant_p =
+    declareFunction0arg(getSimpleType(HERE, ST_INT), "__builtin_constant_p",
+                        NULL /*exnType*/,
+                        FF_VARARGS);
+
   // for testing various modules
   special_getStandardConversion = declareSpecialFunction("__getStandardConversion");
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion");
@@ -165,6 +173,38 @@ Env::~Env()
   }
 
   errors.deleteAll();
+}
+
+
+// dsw: needed this
+Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
+                                   Type * /*nullable*/ exnType,
+                                   FunctionFlags flags)
+{
+  // clone the types so client analyses can treat them independently
+  retType  = tfac.cloneType(retType);
+  if (exnType) {
+    exnType = tfac.cloneType(exnType);
+  }
+
+  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
+  ft->flags |= flags;
+
+  if (exnType) {
+    ft->exnSpec = new FunctionType::ExnSpec;
+
+    // slightly clever hack: say "throw()" by saying "throw(void)"
+    if (!exnType->isSimple(ST_VOID)) {
+      ft->exnSpec->types.append(exnType);
+    }
+  }
+  ft->doneParams();
+
+  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  addVariable(var);
+  madeUpVariables.append(var);
+
+  return var;
 }
 
 
