@@ -261,10 +261,12 @@ public:      // funcs
   // that come from templates, but all arguments have been supplied)
   bool isTemplate() const;
 
-  TemplateInfo *templateInfo();
+  // manipulate 'templateInfo' which is now in Variable
+  TemplateInfo *templateInfo() const;
   void setTemplateInfo(TemplateInfo *templInfo0);
 
-  Variable *getTypedefVar();
+  // same as 'typedefVar' but with a bunch of assertions...
+  Variable *getTypedefVar() const;
 
   // true if the class has RTTI/vtable
   bool hasVirtualFns() const;

@@ -134,7 +134,7 @@ public:
   bool isTemplate() const { return isTemplateFunction() || isTemplateClass(); }
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
-  TemplateInfo *templateInfo();
+  TemplateInfo *templateInfo() const;
   void setTemplateInfo(TemplateInfo *templInfo0);
 
   // variable's type.. same as the public 'type' field..

@@ -41,7 +41,7 @@ bool Variable::isTemplateFunction() const
 {
   return type &&
          type->isFunctionType() &&
-         const_cast<Variable*>(this)->templateInfo() &&
+         templateInfo() &&
          !hasFlag(DF_TYPEDEF);
 }
 
@@ -49,11 +49,11 @@ bool Variable::isTemplateClass() const
 {
   return hasFlag(DF_TYPEDEF) &&
          type->isCompoundType() &&
-         const_cast<Variable*>(this)->templateInfo();
+         templateInfo();
 }
 
 
-TemplateInfo *Variable::templateInfo()
+TemplateInfo *Variable::templateInfo() const
 {
   return templInfo;
 }

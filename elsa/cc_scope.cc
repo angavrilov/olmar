@@ -201,6 +201,10 @@ void Scope::registerVariable(Variable *v)
       // FIX: is this right?  dsw: if we are in a template scope that
       // is in a global scope, you are effectively also a global
       // unless you are a template parameter
+      //
+      // sm: TODO: what is going on here?  why does this matter?  what
+      // is being set DF_GLOBAL that wouldn't otherwise?  who pays
+      // attention that flag?
       || (isGlobalTemplateScope() && !v->hasFlag(DF_PARAMETER))
       ) {
     v->setFlag(DF_GLOBAL);

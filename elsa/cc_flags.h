@@ -83,8 +83,7 @@ enum DeclFlags {
   DF_FRIEND      = 0x00000100,
   DF_TYPEDEF     = 0x00000200,
   DF_NAMESPACE   = 0x04000000,    // names of namespaces
-  DF_TEMPL_SPEC  = 0x20000000,    // name is a template specialization
-  DF_SOURCEFLAGS = 0x240003FF,    // all flags that come from keywords in the source
+  DF_SOURCEFLAGS = 0x040003FF,    // all flags that come from keywords in the source
 
   // semantic flags on Variables
   DF_ENUMERATOR  = 0x00000400,    // true for values in an 'enum' (enumerators in the terminology of the C++ standard)
@@ -104,6 +103,7 @@ enum DeclFlags {
   DF_TEMPORARY   = 0x01000000,    // temporary variable introduced by elaboration
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
+  DF_TEMPL_SPEC  = 0x20000000,    // name is a template specialization
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)

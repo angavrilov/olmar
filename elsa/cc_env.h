@@ -22,10 +22,12 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
+// sm: TODO: I think this class should be defined in overload.h
 // holder for the CompoundType template candidates
 class TemplCandidates {
   public:
-  ObjArrayStack<Variable> candidates;
+  // sm: changed ObjArrayStack to ArrayStack so is not owner
+  ArrayStack<Variable*> candidates;
 
   TemplCandidates() {}
 
@@ -33,6 +35,7 @@ class TemplCandidates {
   TemplCandidates(TemplCandidates const &); // forbid copying
 
   public:
+  #if 0    // obsolete by above change to ArrayStack
   ~TemplCandidates() {
     // IMPORTANT: Since ObjArrayStack seems to be an owner container,
     // I have to empty it out before it dtors.
@@ -40,6 +43,7 @@ class TemplCandidates {
       candidates.pop();
     }
   }
+  #endif // 0
 
   private:
   // Compare two STemplateArgument-s; There are four possible answers:
@@ -309,6 +313,10 @@ public:      // funcs
   // this is the real lookup function; specify a function signature
   // for when disambiguation between overloaded function templates is
   // required
+  //
+  // sm: TODO: what is going on here?  lookup should return an
+  // overload set if something is overloaded, and then the
+  // overload set can be queried with the signature .. ?
   Variable *lookupPQVariable(PQName const *name, LookupFlags f, FunctionType *signature);
 
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);

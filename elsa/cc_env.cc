@@ -1387,6 +1387,11 @@ Variable *Env::lookupPQVariable(PQName const *name,
     if (var->isTemplate()) {
       // dsw: I need a way to get the template without instantiating
       // it.
+      //
+      // sm: TODO: I think this code should, in the LF_TEMPL_PRIMARY case,
+      // simply return 'var'.  Then, the caller can use 'signature' itself,
+      // rather than passing it in here.  In that case, LF_TEMPL_PRIMARY
+      // just means "don't apply template arguments".
       if (flags & LF_TEMPL_PRIMARY) {
         OverloadSet *oloadSet = var->getOverloadSet();
         if (oloadSet->count() > 1) {
@@ -1420,7 +1425,11 @@ Variable *Env::lookupPQVariable(PQName const *name,
       if (var->isTemplateClass()) {
         // apply the template arguments to yield a new type based
         // on the template
+        
+        // sm: I think this assertion should be removed.  It asserts
+        // a fact that is only tangentially related to the code at hand.
         xassert(var->type->asCompoundType()->getTypedefVar() == var);
+
         return instantiateTemplate(scope, var, final->asPQ_templateC()->args, NULL /*inst*/);
       }
       else if (var->isTemplateFunction()) {
@@ -1866,6 +1875,11 @@ void Env::insertBindingsForPartialSpec
 
 
 // see comments in cc_env.h
+//
+// sm: TODO: I think this function should be split into two, one for
+// classes and one for functions.  To the extent they share mechanism
+// it would be better to encapsulate the mechanism than to share it
+// by threading two distinct flow paths through the same code.
 Variable *Env::instantiateTemplate
   (Scope *foundScope, Variable *baseV, 
    ASTList<TemplateArgument> const &arguments, Variable *instV)
@@ -2060,7 +2074,7 @@ Variable *Env::instantiateTemplate
     // copy over the template arguments so we can recognize this
     // instantiation later
     StringRef name = baseV->type->isCompoundType()
-      ? str(baseV->type->asCompoundType()->name)
+      ? baseV->type->asCompoundType()->name    // no need to call 'str', 'name' is already a StringRef
       : NULL;
     TemplateInfo *instTInfo = new TemplateInfo(name);
     {
@@ -2075,6 +2089,10 @@ Variable *Env::instantiateTemplate
 
     // FIX: Scott, its almost as if you just want to clone the type
     // here.
+    //
+    // sm: No, I want to type-check the instantiated cloned AST.  The
+    // resulting type will be quite different, since it will refer to
+    // concrete types instead of TypeVariables.
     if (baseV->type->isCompoundType()) {
       // 1/21/03: I had been using 'instName' as the class name, but
       // that causes problems when trying to recognize constructors
@@ -2106,11 +2124,27 @@ Variable *Env::instantiateTemplate
         addedNewVariable(instV->type->asCompoundType(), var2);
       }
     } else if (baseV->type->isFunctionType()) {
+      // sm: what gives?  we're just cloning the template's type?
+      // then it will be full of TypeVariables, and cloning the
+      // AST will have been pointless!
+      //
+      // It seems to me the sequence should be something like this:
+      //   1. bind template parameters to concrete types
+      //   2. tcheck the declarator portion, thus yielding a FunctionType
+      //      that refers to concrete types (not TypeVariables), and
+      //      also yielding a Variable that can be used to name it
+      //   3. add said Variable to the list of instantiations, so if the
+      //      function recursively calls itself we'll be ready
+      //   4. tcheck the function body
+
       // as far as I can tell, it suffices to clone the function type
       // FIX: arg, no Function::loc
       SourceLoc copyLoc = SL_UNKNOWN;
       Type *type = tfac.cloneFunctionType(baseV->type->asFunctionType());
 
+      // sm: TODO: the following comment has been copied verbatim from
+      // above; that is not good
+      //
       // make a fake implicit typedef; this class and its typedef
       // won't actually appear in the environment directly, but making
       // the implicit typedef helps ensure uniformity elsewhere; also

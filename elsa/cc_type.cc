@@ -205,25 +205,28 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 
 bool CompoundType::isTemplate() const
 {
-  TemplateInfo *tinfo = const_cast<CompoundType*>(this)->templateInfo();
+  TemplateInfo *tinfo = templateInfo();
   return tinfo != NULL  &&
          tinfo->params.isNotEmpty();
 }
 
 
-Variable *CompoundType::getTypedefVar() {
+Variable *CompoundType::getTypedefVar() const
+{
   xassert(typedefVar);
   xassert(typedefVar->type);
-  xassert(typedefVar->type->asCompoundType() == this);
+  xassert(typedefVar->type->asCompoundTypeC() == this);
   return typedefVar;
 }
 
 
-TemplateInfo *CompoundType::templateInfo() {
+TemplateInfo *CompoundType::templateInfo() const
+{
   return getTypedefVar()->templateInfo();
 }
 
-void CompoundType::setTemplateInfo(TemplateInfo *templInfo0) {
+void CompoundType::setTemplateInfo(TemplateInfo *templInfo0)
+{
   return getTypedefVar()->setTemplateInfo(templInfo0);
 }
 
@@ -248,7 +251,7 @@ string CompoundType::toCString() const
 {
   stringBuilder sb;
 
-  TemplateInfo *tinfo = const_cast<CompoundType*>(this)->templateInfo();
+  TemplateInfo *tinfo = templateInfo();
   bool hasParams = tinfo && tinfo->params.isNotEmpty();
   if (hasParams) {
     sb << tinfo->paramsToCString() << " ";
@@ -1162,7 +1165,7 @@ bool hasVariable(Type const *t)
 {
   if (t->isTypeVariable()) return true;
   if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
-    return const_cast<Type*>(t)->asCompoundType()->templateInfo()->argumentsContainVariables();
+    return t->asCompoundTypeC()->templateInfo()->argumentsContainVariables();
   }
   // FIX: Extend for function types
   return false;
@@ -2343,7 +2346,7 @@ string CompoundType::toMLString() const
       
 //    bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
 //    if (hasParams) {
-  TemplateInfo *tinfo = const_cast<CompoundType*>(this)->templateInfo();
+  TemplateInfo *tinfo = templateInfo();
   if (tinfo) {
     sb << tinfo->paramsToMLString();
   }
