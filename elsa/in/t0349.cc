@@ -6,6 +6,9 @@ template <class T>
 struct AS {
   T const& operator[] (int i) const;
   T      & operator[] (int i)      ;
+
+  void foo(int i)
+    { operator[](i); }
 };
 
 // no problem
