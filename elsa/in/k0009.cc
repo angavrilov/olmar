@@ -1,5 +1,7 @@
 // clash between function and instantiated template parameter member
 
+// originally found in package netkit-telnet
+
 // error: during argument-dependent lookup of `foo', found non-function of
 // type `int' in class B at 0x82258b8
 

@@ -1,8 +1,6 @@
 // template argument from static const member of template class
 
-// originally found in:
-//   package: apt
-//   file: acqprogress.cc
+// originally found in package apt
 
 // error: ` (A<T1, T2>::foo)' must lookup to a variable with a value for it to
 // be a variable template reference argument

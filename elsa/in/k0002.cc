@@ -1,8 +1,6 @@
 // template function declared in another class (as a friend)
 
-// originally found in:
-//   package: apt
-//   file: sha1.cc
+// originally found in package apt
 
 // ---- BEGIN: messages from an ambiguity ----
 // there is no variable called `foo'
