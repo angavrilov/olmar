@@ -86,6 +86,7 @@ while [ "$1" != "" ]; do
       exit 2
       ;;
   esac
+  shift
 done
 
 
