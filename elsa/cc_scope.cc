@@ -163,19 +163,12 @@ Variable *vfilter(Variable *v, LookupFlags flags)
   { return const_cast<Variable*>(vfilterC(v, flags)); }
 
 
-// this sets 'crossVirtual' to true if we had to cross a
-// virtual inheritance boundary to find the name; otherwise
-// it leaves 'crossVirtual' unchanged
+// the lookup semantics here are a bit complicated; relevant tests
+// include t0099.cc and std/3.4.5.cc
 Variable const *Scope
   ::lookupPQVariableC(PQName const *name, Env &env, LookupFlags flags) const
 {
   Variable const *v1 = NULL;
-
-  // if the qualifier names my own compound, strip it
-  if (name->hasQualifiers() &&
-      name->asPQ_qualifierC()->qualifier == curCompound->name) {
-    name = name->asPQ_qualifierC()->rest;
-  }
 
   // [cppstd sec. 10.2]: class members hide all members from
   // base classes
@@ -198,162 +191,75 @@ Variable const *Scope
   // to implement this, I'll walk the list of base classes,
   // keeping in 'ret' the latest successful lookup, and if I
   // find another successful lookup then I'll complain
-  
-  // first look among nonvirtual bases
+
+  // recursively examine the subobject hierarchy
   CompoundType const *v1Base = NULL;
-  FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {
-    if (iter.data()->isVirtual) continue;
-
-    lookupPQVariableC_considerBase(name, env, flags, v1, v1Base, iter.data()->ct);
-  }
-
-  // then among virtual bases, if allowed
-  if (!(flags & LF_IGNORE_VIRTUAL)) {
-    FOREACH_OBJLIST(BaseClass, curCompound->virtualBases, iter) {
-      lookupPQVariableC_considerBase(name, env, flags, v1, v1Base, iter.data()->ct);
-    }
-  }
+  curCompound->clearSubobjVisited();
+  lookupPQVariableC_considerBase(name, env, flags,
+                                 v1, v1Base, &curCompound->subobj);
 
   return v1;
 }
 
-
 // helper for lookupPQVariableC; if we find a suitable variable, set
 // v1/v1Base to refer to it; if we find an ambiguity, report that
 void Scope::lookupPQVariableC_considerBase
-  (PQName const *name, Env &env, LookupFlags flags,
-   Variable const *&v1, CompoundType const *&v1Base,
-   CompoundType const *v2Base) const
+  (PQName const *name, Env &env, LookupFlags flags,  // stuff from caller
+   Variable const *&v1,                              // best so far
+   CompoundType const *&v1Base,                      // where 'v1' was found
+   BaseClassSubobj const *v2Subobj) const            // where we're looking now 
 {
+  if (v2Subobj->visited) return;
+  v2Subobj->visited = true;
+
+  CompoundType const *v2Base = v2Subobj->ct;
+
   // if we're looking for a qualified name, and the outermost
   // qualifier matches this base class, then consume it
-  PQName const *innerName = name;
   if (name->hasQualifiers() &&
       name->asPQ_qualifierC()->qualifier == v2Base->name) {
-    innerName = name->asPQ_qualifierC()->rest;
-    
-    // since we've consumed a qualifier, it's like doing a fresh
-    // lookup in that class
-    flags = flags & ~LF_IGNORE_VIRTUAL;
-
-    // TODO: the above is a bit of a hack.  I finally see the right
-    // solution, to actually build the diamond (or whatever) and
-    // just keep 'seen' bits in the BaseClass nodes.. but for now
-    // this should work
-    
-    // no it does not work, but the only thing that doesn't work is
-    // explicitly-qualified fields in the presence of weird virtual
-    // inheritance, e.g. in/std/3.4.5.cc.  I think the right solution
-    // is to build, for *each* class, its complete inheritance
-    // hierarchy with sharing for diamond shapes.  until I do that
-    // this lookup will be broken.
-  }
-  else {
-    // examination of virtual bases is handled in the outer loop,
-    // so don't look at them in the recursive step
-    flags = flags | LF_IGNORE_VIRTUAL;
+    name = name->asPQ_qualifierC()->rest;
   }
 
-  Variable const *v2 =
-    v2Base->lookupPQVariableC(innerName, env, flags);
-  if (!v2) {
-    return;
-  }
+  if (!name->hasQualifiers()) {
+    // look in 'v2Base' for the field
+    Variable const *v2 =
+      vfilterC(v2Base->variables.queryif(name->getName()), flags);
+    if (v2) {
+      trace("lookup") << "found " << v2Base->name << "::"
+                      << name->toString() << endl;
 
-  trace("lookup") << "found " << v2Base->name << "::" << name << endl;
+      if (v1) {
+        if (v1 == v2 && v1->hasFlag(DF_STATIC)) {
+          // they both refer to the same static entity; that's ok
+          return;
+        }
 
-  if (v1) {
-    if (v1 == v2 && v1->hasFlag(DF_STATIC)) {
-      // they both refer to the same static entity; that's ok
+        // ambiguity
+        env.error(stringc
+          << "reference to `" << *name << "' is ambiguous, because "
+          << "it could either refer to "
+          << v1Base->name << "::" << *name << " or "
+          << v2Base->name << "::" << *name);
+        return;
+      }
+
+      // found one; copy it into 'v1', my "best so far"
+      v1 = v2;
+      v1Base = v2Base;
+      
+      // this name hides any in base classes, so this arm of the
+      // search stops here
       return;
     }
-
-    // ambiguity
-    env.error(stringc
-      << "reference to `" << *name << "' is ambiguous, because "
-      << "it could either refer to "
-      << v1Base->name << "::" << *name << " or "
-      << v2Base->name << "::" << *name);
-    return;
   }
 
-  // found one; copy it into 'v1', my "best so far"
-  v1 = v2;
-  v1Base = v2Base;
+  // name is still qualified, or we didn't find it; recursively
+  // look into base classes of 'v2Subobj'
+  SFOREACH_OBJLIST(BaseClassSubobj, v2Subobj->parents, iter) {
+    lookupPQVariableC_considerBase(name, env, flags, v1, v1Base, iter.data());
+  }
 }
-
-
-
-
-  #if 0   // old
-  CompoundType const *v1Base = NULL;
-  bool v1CrossVirtual = false;
-  FOREACH_OBJLIST(BaseClass, curCompound->bases, iter) {
-    CompoundType const *v2Base = iter.data()->ct;
-    bool v2CrossVirtual = iter.data()->isVirtual;
-
-    // if we're looking for a qualified name, and the outermost
-    // qualifier matches this base class, then consume it
-    PQName const *innerName = name;
-    if (name->hasQualifiers() &&
-        name->asPQ_qualifierC()->qualifier == v2Base->name) {
-      innerName = name->asPQ_qualifierC()->rest;
-    }
-
-    Variable const *v2 =
-      v2Base->lookupPQVariableC(innerName, v2CrossVirtual, env, flags);
-    if (!v2) {
-      continue;
-    }
-
-    trace("lookup") << "found " << v2Base->name << "::" << name
-                    << ", crossed virtual: " << v2CrossVirtual << endl;
-
-    if (v1) {
-      if (v1 == v2 && v1->hasFlag(DF_STATIC)) {
-        // they both refer to the same static entity; that's ok
-        continue;
-      }
-
-      if (v1 == v2 && v1CrossVirtual && v2CrossVirtual) {
-        // they both refer to the same entity and both inheritance
-        // paths cross a virtual inheritance edge; ok
-        // (I hope this analysis is sound.. it's kind of hard to
-        // reason about..)
-        continue;
-      }
-
-      // ambiguity
-      env.error(stringc
-        << "reference to `" << *name << "' is ambiguous, because "
-        << "it could either refer to "
-        << v1Base->name << "::" << *name << " or "
-        << v2Base->name << "::" << *name);
-      continue;
-    }
-
-    // found one; copy it into 'v1', my "best so far"
-    v1 = v2;
-    v1Base = v2Base;
-    v1CrossVirtual = v2CrossVirtual;
-  }
-
-  // if we found something, tell the caller whether we crossed
-  // a virtual inheritance boundary
-  if (v1) {
-    crossVirtual = v1CrossVirtual;
-  }
-  #endif // 0
-
-
-#if 0  // old
-Variable const *Scope
-  ::lookupPQVariableC(PQName const *name, Env &env, LookupFlags flags) const
-{
-  bool dummy;
-  return lookupPQVariableC(name, dummy, env, flags);
-}            
-#endif // 0
 
 
 Variable const *Scope

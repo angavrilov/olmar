@@ -13,10 +13,7 @@ struct F : public A{};
 void f()
 {
   E e;
-  
-  // sm: I can't handle this because my inheritance hierarchy
-  // name lookup is *still* broken..  
-  //e.B::a = 0;        // OK, only one A::a in E
+  e.B::a = 0;        // OK, only one A::a in E
 
   F f;
   f.A::a = 1;        // OK, A::a is a member of F

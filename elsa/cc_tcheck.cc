@@ -385,29 +385,10 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // is this a nonstatic member function?
-  #if 0    // old; remove me
-    if (nameAndParams->var->scope &&
-        nameAndParams->var->scope->curCompound &&
-        !nameAndParams->var->hasFlag(DF_STATIC)) {
-      CompoundType *ct = nameAndParams->var->scope->curCompound;
-
-      // make a type which is a pointer to the class that this
-      // function is a member of; if the function has been declared
-      // with some 'cv' flags, then those become attached to the
-      // pointed-to type; the pointer itself is always 'const'
-      SourceLoc loc = nameAndParams->var->loc;
-      Type *thisType = env.tfac.makeTypeOf_this(loc, ct, funcType);
-
-      // add the implicit 'this' parameter (the pointer is an AST annotation)
-      thisVar = env.makeVariable(loc, env.str("this"), thisType, DF_NONE);
-      env.addVariable(thisVar);
-    }
-  #else
-    if (funcType->isMember) {
-      this->thisVar = funcType->getThis();
-      env.addVariable(thisVar);
-    }
-  #endif
+  if (funcType->isMember) {
+    this->thisVar = funcType->getThis();
+    env.addVariable(thisVar);
+  }
 
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
@@ -1150,6 +1131,20 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       
       // annotate the AST with the type we found
       iter->type = base;
+    }
+    
+    // we're finished constructing the inheritance hierarchy
+    if (tracingSys("printHierarchies")) {
+      string h1 = ct->renderSubobjHierarchy();
+      cout << "// ----------------- " << ct->name << " -------------------\n";
+      cout << h1;
+             
+      // for debugging; this checks that the 'visited' flags are being
+      // cleared properly, among other things
+      string h2 = ct->renderSubobjHierarchy();
+      if (!h1.equals(h2)) {
+        cout << "WARNING: second rendering doesn't match first!\n";
+      }
     }
   }
 
@@ -3134,7 +3129,7 @@ Type *E_fieldAcc::itcheck(Env &env)
   if (!field) {
     return env.error(rt, stringc
       << "there is no member called `" << *fieldName
-      << "' in " << obj->type->toString());
+      << "' in " << rt->toString());
   }
 
   // should not be a type

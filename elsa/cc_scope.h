@@ -14,6 +14,7 @@
 class Env;                // cc_env.h
 class Variable;           // variable.h
 class CompoundType;       // cc_type.h
+class BaseClassSubobj;    // cc_type.h
 class EnumType;           // cc_type.h
 class Function;           // cc.ast
 class TemplateParams;     // cc_type.h
@@ -26,9 +27,8 @@ enum LookupFlags {
   LF_NONE            = 0,
   LF_INNER_ONLY      = 0x01,    // only look in the innermost scope
   LF_ONLY_TYPES      = 0x02,    // ignore (skip over) non-type names
-  LF_IGNORE_VIRTUAL  = 0x04,    // for internal use by lookupPQVariableC
 
-  LF_ALL_FLAGS       = 0x07,    // bitwise OR of all flags
+  LF_ALL_FLAGS       = 0x03,    // bitwise OR of all flags
 };
 
 // experiment: will this work?
@@ -37,7 +37,7 @@ inline LookupFlags operator| (LookupFlags f1, LookupFlags f2)
 inline LookupFlags operator& (LookupFlags f1, LookupFlags f2)
   { return (LookupFlags)((int)f1 & (int)f2); }
 inline LookupFlags operator~ (LookupFlags f)
-  { return (LookupFlags)(~(int)f); }
+  { return (LookupFlags)((~(int)f) & LF_ALL_FLAGS); }
 
 
 // information about a single scope: the names defined in it,
@@ -97,7 +97,7 @@ private:     // funcs
   void Scope::lookupPQVariableC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
      Variable const *&v1, CompoundType const *&v1Base, 
-     CompoundType const *v2Base) const;
+     BaseClassSubobj const *v2Subobj) const;
 
 public:      // funcs
   Scope(int changeCount, SourceLoc initLoc);

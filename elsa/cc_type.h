@@ -142,6 +142,43 @@ public:
 };
 
 
+// represent a base class
+class BaseClass {
+public:
+  CompoundType *ct;          // (serf) the base class itself
+  AccessKeyword access;      // access mode of the inheritance
+  bool isVirtual;            // true for virtual inheritance
+
+public:
+  BaseClass(BaseClass const &obj)
+    : DMEMB(ct), DMEMB(access), DMEMB(isVirtual) {}
+  BaseClass(CompoundType *c, AccessKeyword a, bool v)
+    : ct(c), access(a), isVirtual(v) {}
+};
+
+// represent an instance of a base class in a particular class'
+// inheritance hierarchy; it is these things that represent things
+// like diamond inheritance patterns; the terminology comes from
+// [cppstd 10.1 para 4]
+class BaseClassSubobj : public BaseClass {
+public:
+  // classes that this one inherits from; non-owning since the
+  // 'parents' links form a DAG, not a tree; in fact I regard
+  // this list as an owner of exactly those sub-objects whose
+  // inheritance is *not* virtual
+  SObjList<BaseClassSubobj> parents;
+
+  // for visit-once-only traversals
+  mutable bool visited;
+
+public:
+  BaseClassSubobj(BaseClass const &base);
+  ~BaseClassSubobj();
+                           
+  // name and virtual address to uniquely identify this object
+  string canonName() const;
+};
+
 // represent a user-defined compound type; the members of the
 // compound are whatever has been entered in the Scope
 class CompoundType : public NamedAtomicType, public Scope {
@@ -157,11 +194,12 @@ public:      // data
   // use 'addBaseClass', but public to make traversal easy
   const ObjList<BaseClass> bases;
 
-  // collected virtual base class subobjects; by traversing 'bases'
-  // and 'virtualBases', and ignoring all virtual inheritance links
-  // in this forest, you are guaranteed to traverse every "base
-  // class subobject" [cppstd 10.1 para 4] exactly once
-  ObjList<BaseClass> virtualBases;
+  // collected virtual base class subobjects
+  ObjList<BaseClassSubobj> virtualBases;
+
+  // this is the root of the subobject hierarchy diagram
+  // invariant: subobj.ct == this
+  BaseClassSubobj subobj;
 
   // for template classes, this is the list of template parameters,
   // and a list of already-instantiated versions
@@ -172,13 +210,16 @@ public:      // data
   TS_classSpec *syntax;               // (serf)
 
 private:     // funcs
-  void collectVirtualBases(BaseClass const *root, AccessKeyword access);
+  void makeSubobjHierarchy(BaseClassSubobj *subobj, BaseClass const *newBase);
 
-  BaseClass const *findVirtualSubobjectC(CompoundType const *ct) const;
-  BaseClass *findVirtualSubobject(CompoundType *ct)
-    { return const_cast<BaseClass*>(findVirtualSubobjectC(ct)); }
+  BaseClassSubobj const *findVirtualSubobjectC(CompoundType const *ct) const;
+  BaseClassSubobj *findVirtualSubobject(CompoundType *ct)
+    { return const_cast<BaseClassSubobj*>(findVirtualSubobjectC(ct)); }
 
-  int countNonvirtualBaseClassSubobjects(CompoundType const *ct) const;
+  static void clearVisited_helper(BaseClassSubobj const *subobj);
+
+  static void getSubobjects_helper
+    (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj);
 
 public:      // funcs
   // create an incomplete (forward-declared) compound
@@ -216,24 +257,22 @@ public:      // funcs
   bool hasVirtualBase(CompoundType const *ct) const
     { return !!findVirtualSubobjectC(ct); }
 
+  // set all the 'visited' fields to false in the subobject hierarchy
+  void clearSubobjVisited() const;
+
+  // collect all of the subobjects into a list; each subobject
+  // appears exactly once
+  void getSubobjects(SObjList<BaseClassSubobj const> &dest) const;
+
+  // render the subobject hierarchy to a 'dot' graph
+  string renderSubobjHierarchy() const;
+
   // how many times does 'ct' appear as a subobject?
   // returns 1 if ct==this
   int countBaseClassSubobjects(CompoundType const *ct) const;
 };
 
 string toString(CompoundType::Keyword k);
-
-// represent a base class
-class BaseClass {
-public:
-  CompoundType *ct;          // (serf) the base class itself
-  AccessKeyword access;      // access mode of the inheritance
-  bool isVirtual;            // true for virtual inheritance
-  
-public:
-  BaseClass(CompoundType *c, AccessKeyword a, bool v)
-    : ct(c), access(a), isVirtual(v) {}
-};
 
 
 // represent an enumerated type
@@ -453,7 +492,6 @@ public:     // types
 
 public:     // data
   Type *retType;               // (serf) type of return value
-  //CVFlags cv;                  // const/volatile for class member fns
   bool isMember;               // true for nonstatic member functions, 
                                // in which case the first parameter is 'this'
   SObjList<Variable> params;   // list of function parameters

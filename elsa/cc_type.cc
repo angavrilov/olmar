@@ -113,6 +113,37 @@ NamedAtomicType::~NamedAtomicType()
 }
 
 
+// ---------------- BaseClassSubobj ----------------
+BaseClassSubobj::BaseClassSubobj(BaseClass const &base)
+  : BaseClass(base),
+    parents(),       // start with an empty list
+    visited(false)   // may as well init; clients expected to clear as needed
+{}
+
+
+BaseClassSubobj::~BaseClassSubobj()
+{
+  // I don't think this code has been tested..
+
+  // virtual parent objects are owned by the containing class'
+  // 'virtualBases' list, but nonvirtual parents are owned
+  // by the hierarchy nodes themselves (i.e. me)
+  while (parents.isNotEmpty()) {
+    BaseClassSubobj *parent = parents.removeFirst();
+
+    if (!parent->isVirtual) {
+      delete parent;
+    }
+  }
+}
+
+
+string BaseClassSubobj::canonName() const
+{
+  return stringc << ct->name << " (" << (void*)this << ")";
+}
+
+
 // ------------------ CompoundType -----------------
 CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
@@ -120,6 +151,8 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     forward(true),
     keyword(k),
     bases(),
+    virtualBases(),
+    subobj(BaseClass(this, AK_PUBLIC, false /*isVirtual*/)),
     templateInfo(NULL),
     syntax(NULL)
 {
@@ -223,56 +256,169 @@ void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
   // add the new base; override 'const' so we can modify the list
   const_cast<ObjList<BaseClass>&>(bases).append(newBase);
 
-  // traverse into 'newBase' to find direct virtual bases
-  collectVirtualBases(newBase, AK_PUBLIC);
+  // replicate 'newBase's inheritance hierarchy in the subobject
+  // hierarchy, representing virtual inheritance with explicit sharing
+  makeSubobjHierarchy(&subobj, newBase);
 }
 
-// recursive walk through an inheritance DAG
-void CompoundType::collectVirtualBases(BaseClass const *root, AccessKeyword access)
+// all of this is done in the context of one class, the one whose
+// tree we're building, so we can access its 'virtualBases' list
+void CompoundType::makeSubobjHierarchy(
+  // the root of the subobject hierarchy we're adding to
+  BaseClassSubobj *subobj,
+
+  // the base class to add to subobj's hierarchy
+  BaseClass const *newBase)
 {
-  // monotonic contribution from root's access
-  if (root->access > access) {
-    access = root->access;     // reduce access
-  }
+  if (newBase->isVirtual) {
+    // does 'newBase' correspond to an already-existing virtual base?
+    BaseClassSubobj *vbase = findVirtualSubobject(newBase->ct);
+    if (vbase) {
+      // yes it's already a virtual base; just point 'subobj'
+      // at the existing instance
+      subobj->parents.append(vbase);
 
-  // is this a virtual base class?
-  if (root->isVirtual) {
-    // is it already on the list?
-    BaseClass *v = findVirtualSubobject(root->ct);
-    if (v) {
-      // yes it's already on the list, but this is a second access path,
-      // so the subobject's accessibility is the least restrictive of
-      // the two [cppstd 11.7 para 1]
-      if (v->access < access) {
-        v->access = access;    // increase access
+      // we're incorporating 'newBase's properties into 'vbase';
+      // naturally both should already be marked as virtual
+      xassert(vbase->isVirtual);
+
+      // grant access according to the least-restrictive link
+      if (newBase->access < vbase->access) {
+        vbase->access = newBase->access;    // make it less restrictive
       }
-    }
-    else {
-      // not already on the list, add it (the 'isVirtual' flag will be
-      // ignored, but setting it to 'true' seems the most sensible thing)
-      virtualBases.append(new BaseClass(root->ct, access, true /*isVirtual*/));
+
+      // no need to recursively examine 'newBase' since the presence
+      // of 'vbase' in 'virtualBases' means we already incorporated
+      // its inheritance structure
+      return;
     }
   }
 
-  // descend into root's bases; presumably 'root->ct' has already had
-  // its virtual bases collected, but I'm not going to take advantage
-  // of that
-  FOREACH_OBJLIST(BaseClass, root->ct->bases, iter) {
-    collectVirtualBases(iter.data(), access);
+  // represent newBase in the subobj hierarchy
+  BaseClassSubobj *newBaseObj = new BaseClassSubobj(*newBase);
+  subobj->parents.append(newBaseObj);
+
+  // if we just added a new virtual base, remember it
+  if (newBaseObj->isVirtual) {
+    virtualBases.append(newBaseObj);
+  }
+
+  // put all of newBase's base classes into newBaseObj
+  FOREACH_OBJLIST(BaseClass, newBase->ct->bases, iter) {
+    makeSubobjHierarchy(newBaseObj, iter.data());
   }
 }
 
 
 // simple scan of 'virtualBases'
-BaseClass const *CompoundType::findVirtualSubobjectC
+BaseClassSubobj const *CompoundType::findVirtualSubobjectC
   (CompoundType const *ct) const
 {
-  FOREACH_OBJLIST(BaseClass, virtualBases, iter) {
+  FOREACH_OBJLIST(BaseClassSubobj, virtualBases, iter) {
     if (iter.data()->ct == ct) {
       return iter.data();
     }
   }
   return NULL;   // not found
+}
+
+  
+// fundamentally, this takes advantage of the ownership scheme,
+// where nonvirtual bases form a tree, and the 'virtualBases' list
+// gives us additional trees of internally nonvirtual bases
+void CompoundType::clearSubobjVisited() const
+{
+  // clear the 'visited' flags in the nonvirtual bases
+  clearVisited_helper(&subobj);
+
+  // clear them in the virtual bases
+  FOREACH_OBJLIST(BaseClassSubobj, virtualBases, iter) {
+    clearVisited_helper(iter.data());
+  }
+}
+
+STATICDEF void CompoundType::clearVisited_helper
+  (BaseClassSubobj const *subobj)
+{
+  subobj->visited = false;
+  
+  // recursively clear flags in the *nonvirtual* bases
+  SFOREACH_OBJLIST(BaseClassSubobj, subobj->parents, iter) {
+    if (!iter.data()->isVirtual) {
+      clearVisited_helper(iter.data());
+    }
+  }
+}
+
+
+// interpreting the subobject hierarchy recursively is sometimes a bit
+// of a pain, especially when the client doesn't care about the access
+// paths, so this allows a more natural iteration by collecting them
+// all into a list; this function provides a prototypical example of
+// how to interpret the structure recursively, when that is necessary
+void CompoundType::getSubobjects(SObjList<BaseClassSubobj const> &dest) const
+{
+  // reverse before also, in case there happens to be elements
+  // already on the list, so those won't change order
+  dest.reverse();
+
+  clearSubobjVisited();
+  getSubobjects_helper(dest, &subobj);
+
+  // reverse the list since it was constructed in reverse order
+  dest.reverse();
+}
+
+STATICDEF void CompoundType::getSubobjects_helper
+  (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj)
+{
+  if (subobj->visited) return;
+  subobj->visited = true;
+
+  dest.prepend(subobj);
+
+  SFOREACH_OBJLIST(BaseClassSubobj, subobj->parents, iter) {
+    getSubobjects_helper(dest, iter.data());
+  }
+}
+
+
+string CompoundType::renderSubobjHierarchy() const
+{
+  stringBuilder sb;
+  sb << "// subobject hierarchy for " << name << "\n"
+     << "digraph \"Subobjects\" {\n"
+     ;
+
+  SObjList<BaseClassSubobj const> objs;
+  getSubobjects(objs);
+
+  // look at all the subobjects
+  SFOREACH_OBJLIST(BaseClassSubobj const, objs, iter) {
+    BaseClassSubobj const *obj = iter.data();
+
+    sb << "  \"" << obj->canonName() << "\" [\n"
+       << "    label = \"" << obj->ct->name
+                  << "\\n" << ::toString(obj->access) << "\"\n"
+       << "  ]\n"
+       ;
+
+    // render 'obj's base class links
+    SFOREACH_OBJLIST(BaseClassSubobj, obj->parents, iter) {
+      BaseClassSubobj const *parent = iter.data();
+
+      sb << "  \"" << parent->canonName() << "\" -> \"" 
+                   << obj->canonName() << "\" [\n";
+      if (parent->isVirtual) {
+        sb << "    style = dashed\n";    // virtual inheritance: dashed link
+      }
+      sb << "  ]\n";
+    }
+  }
+
+  sb << "}\n\n";
+
+  return sb;
 }
 
 
@@ -283,53 +429,15 @@ string toString(CompoundType::Keyword k)
 }
 
 
-#if 0      // supplanted by simpler inline definition; TODO: remove me
-bool CompoundType::hasVirtualBase(CompoundType const *ct) const
-{
-  FOREACH_OBJLIST(BaseClass, bases, iter) {
-    BaseClass const *b = iter.data();
-
-    // is this a virtual base?
-    if (b->ct == ct && b->isVirtual) {
-      return true;
-    }
-
-    // does it have a virtual base?
-    if (b->ct->hasVirtualBase(ct)) {
-      return true;
-    }
-  }
-  return false;
-}
-#endif // 0
-
-
 int CompoundType::countBaseClassSubobjects(CompoundType const *ct) const
 {
-  // start with the nonvirtual bases
-  int count = countNonvirtualBaseClassSubobjects(ct);
-
-  // check among virtual subobjects too
-  FOREACH_OBJLIST(BaseClass, virtualBases, iter2) {
-    count += iter2.data()->ct->countBaseClassSubobjects(ct);
-  }
-
-  return count;
-}
-
-
-int CompoundType::countNonvirtualBaseClassSubobjects(CompoundType const *ct) const
-{
-  // I'll say that I count as a subobject of myself
-  if (this == ct) {
-    return 1;    // could not possibly be a subobject further down
-  }
-
-  // check for nonvirtual bases among nonvirtual bases
+  SObjList<BaseClassSubobj const> objs;
+  getSubobjects(objs);
+    
   int count = 0;
-  FOREACH_OBJLIST(BaseClass, bases, iter) {
-    if (!iter.data()->isVirtual) {
-      count += iter.data()->ct->countNonvirtualBaseClassSubobjects(ct);
+  SFOREACH_OBJLIST(BaseClassSubobj const, objs, iter) {
+    if (iter.data()->ct == ct) {
+      count++;
     }
   }
 

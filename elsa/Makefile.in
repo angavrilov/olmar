@@ -1,7 +1,7 @@
 # Makefile.in
 # this is the Makefile for Elsa, the Elkhound-based C++ Parser
 
-#tmp: cc_scope.o
+#tmp: cc_type.o cc_scope.o cc_tcheck.o
 
 # main target: a C++ parser
 all: tlexer ccparse quicktest
