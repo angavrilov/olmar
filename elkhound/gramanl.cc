@@ -3617,149 +3617,20 @@ void pretendUsed(...)
 
 void GrammarAnalysis::exampleGrammar()
 {
-  // for now, let's use a hardcoded grammar
+  // at one time I was using this to verify my LR item set
+  // construction code; this function isn't even called anymore..
+  readGrammarFile(*this, "examples/asu419.gr");
 
-
-
-  #if 0
-    // grammar 4.13 of [ASU] (p.191)
-    parseLine("Start  ->  S $                ");
-    parseLine("S  ->  i E t S S'   |  a      ");
-    parseLine("S' ->  e S          |  empty  ");
-    parseLine("E  ->  b                      ");
-  #endif // 0
-
-
-  #if 0
-    // grammar 4.11 of [ASU] (p.189), designed to show First and Follow
-    parseLine("S  ->  E $                ");
-    parseLine("E  ->  T E'               ");
-    parseLine("E' ->  + T E'  | empty    ");
-    parseLine("T  ->  F T'               ");
-    parseLine("T' ->  * F T'  | empty    ");
-    parseLine("F  ->  ( E )   | id       ");
-  #endif // 0
-
-
-  #if 0
-    // terminals: "a", "b", .. "e"
-    char const termLetters[] = "abcde";
-    Terminal *terms[5];
-    loopi(5) {
-      char s[2];          // will be e.g. "b\0"
-      s[0] = termLetters[i];
-      s[1] = 0;
-      terms[i] = new Terminal(s);
-      terminals.append(terms[i]);
-    }
-
-    // give then convenient names
-    Terminal *a = terms[0];
-    Terminal *b = terms[1];
-    Terminal *c = terms[2];
-    Terminal *d = terms[3];
-    Terminal *e = terms[4];
-
-    // nonterminals
-    char const * const nontermNames[] = {
-      "Start", "A", "B", "C", "D"
-    };
-    Nonterminal *nonterms[5];
-    loopi(5) {
-      nonterms[i] = new Nonterminal(nontermNames[i]);
-      nonterminals.append(nonterms[i]);
-    }
-
-    // give them convenient names
-    Nonterminal *S = nonterms[0];
-    Nonterminal *A = nonterms[1];
-    Nonterminal *B = nonterms[2];
-    Nonterminal *C = nonterms[3];
-    Nonterminal *D = nonterms[4];
-
-    // start symbol
-    startSymbol = S;
-
-    // productions
-    #define E  S
-    #define Ep A
-    #define T  B
-    #define Tp C
-    #define F  D
-    #define plus a
-    #define times b
-    #define lparen c
-    #define rparen d
-    #define id e
-    addProduction(E,  /* -> */   T, Ep,               NULL);
-    addProduction(Ep, /* -> */   plus, T, Ep,         NULL);
-    addProduction(Ep, /* -> */   &emptyString,        NULL);
-    addProduction(T,  /* -> */   F, Tp,               NULL);
-    addProduction(Tp, /* -> */   times, F, Tp,        NULL);
-    addProduction(Tp, /* -> */   &emptyString,        NULL);
-    addProduction(F,  /* -> */   lparen, E, rparen,   NULL);
-    addProduction(F,  /* -> */   id,                  NULL);
-  #endif // 0
-
-  #if 0
-    addProduction(S,  /* -> */   A, B, A, C,    NULL);
-    addProduction(A,  /* -> */   B,             NULL);
-    addProduction(B,  /* -> */   &emptyString,  NULL);
-    addProduction(C,  /* -> */   A, D,          NULL);
-    addProduction(D,  /* -> */   a,             NULL);
-  #endif // 0
-
-  #if 0
-    addProduction(S,  /* -> */   A, B, A, C,    NULL);
-    addProduction(A,  /* -> */   &emptyString,  NULL);
-    addProduction(B,  /* -> */   C, D, C,       NULL);
-    addProduction(C,  /* -> */   &emptyString,  NULL);
-    addProduction(D,  /* -> */   a,             NULL);
-  #endif // 0
-
-  #if 1
-    #if 0
-      // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
-      parseLine("E' ->  E $                ");
-      parseLine("E  ->  E + T  |  T        ");
-      parseLine("T  ->  T * F  |  F        ");
-      parseLine("F  ->  ( E )  |  id       ");
-    #else
-      // get that grammar from a file instead
-      readGrammarFile(*this, "asu419.gr");
-    #endif
-
-    char const *input[] = {
-      " id                 $",
-      " id + id            $",
-      " id * id            $",
-      " id + id * id       $",
-      " id * id + id       $",
-      " ( id + id ) * id   $",
-      " id + id + id       $",
-      " id + ( id + id )   $"
-    };
-  #endif // 0/1
-
-  #if 0
-    // [ASU] grammar 4.20, p.229: more sets-of-items
-    parseLine("S' ->  S $                 ");
-    parseLine("S  ->  L = R               ");
-    parseLine("S  ->  R                   ");
-    parseLine("L  ->  * R                 ");
-    parseLine("L  ->  id                  ");
-    parseLine("R  ->  L                   ");
-
-    char const *input[] = {
-      " id                 $",
-      " id = id            $",
-      " * id = id          $",
-      " id = * id          $",
-      " * id = * id        $",
-      " * * id = * * id    $"
-    };
-  #endif // 0
-
+  char const *input[] = {
+    " id                 $",
+    " id + id            $",
+    " id * id            $",
+    " id + id * id       $",
+    " id * id + id       $",
+    " ( id + id ) * id   $",
+    " id + id + id       $",
+    " id + ( id + id )   $"
+  };
 
   // verify we got what we expected
   printProductions(trace("grammar") << endl);

@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: cc/c.ast.gen.h glr.o cc/ccgr cc2.exe cc2t.exe bccgr cexp3
+all: cc/c.ast.gen.h glr.o cc/ccgr cc2.exe cc2t.exe cc/bccgr cexp3
 
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -393,7 +393,7 @@ endif
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
-bccgr.y: cc/cc.gr.gen.y
+cc/bccgr.y: cc/cc.gr.gen.y
 	echo '%{' >$@
 	echo '#include "bccgr.h"' >>$@
 	echo '%}' >>$@
@@ -420,13 +420,13 @@ bccgr.y: cc/cc.gr.gen.y
 	rm $*.tab.c.orig
 	g++ -c -g -o $*.tab.o -Wall -O2 -DNDEBUG $(YYDEBUG) $*.tab.c
 
-bccgr.tab.o: bccgr.h
+cc/bccgr.tab.o: cc/bccgr.h
 
-bccgr: bccgr.cc bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
+cc/bccgr: cc/bccgr.cc cc/bccgr.tab.o cc/lexer1.o cc/lexer1yy.o cc/lexer2.o \
        $(AST)/fileloc.o $(AST)/strtable.o cc/cc_lang.o cyctimer.o \
        $(SMBASE)/libsmbase.a
-	g++ -o bccgr $(ccflags) $(includes) $(YYDEBUG) $^
-	./bccgr c.in/c.in1
+	g++ -o $@ $(ccflags) $(includes) $(YYDEBUG) $^
+	cc/bccgr c.in/c.in1
 
 # run the trivial-grammar helper
 .PRECIOUS: %.gr %.tree.gr
@@ -682,8 +682,8 @@ clean:
 	rm -f gramanl glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
 	rm -f cc/lexer2 grampar.tab.* grampar
 	rm -f cexp2.sem cexp2 cc/cc.bin cc/ccgr cc/libccgr.a libglr.a
-	rm -f cdecl cexp3 bccgr cdecl2 cexp3b cexp3b.gr
-	rm -f bccgr.y cc/cc.tok grampar.codes.h
+	rm -f cdecl cexp3 cc/bccgr cdecl2 cexp3b cexp3b.gr
+	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd cc; rm -f $(CLEAN_PATTERNS)
 	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr

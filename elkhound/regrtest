@@ -225,7 +225,7 @@ runTest make examples
 
 
 # bison performance test
-runTest ./bccgr c.in/c.in4d
+runTest cc/bccgr c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison
 runTest cc/ccgr -tr trivialActions,stopAfterParse cc.bin c.in/c.in4d
