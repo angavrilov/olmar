@@ -467,10 +467,6 @@ if $use_gnu; then
 fi
 
 # idempotency checks; known problems:
-#   19, 20, 37: when pretty printing the elaborated dtor body, the
-#     normally implicit calls to the superclass (or a member) that were
-#     added become explicit.  When parsing this again and printing
-#     again, the are added *again*, causing a diff failure.
 #   25: Scope operator not being printed before using type.
 #   27, 28: Templates not being printed correctly when the template
 #           arguments are used within the template.
@@ -482,10 +478,10 @@ fi
 list=`echo " \
   t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc
   t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc
-  t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc
+  t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc   t0019.cc  t0020.cc
   t0021.cc   t0022.cc  t0023.cc  t0024.cc              t0026.cc
              t0029.cc            t0030a.cc  t0030b.cc  t0031.cc  t0032.cc
-  t0033.cc                                             t0038.cc  t0039.cc
+  t0033.cc                                  t0037.cc   t0038.cc  t0039.cc
   t0040.cc   t0041.cc  t0042.cc  t0043.cc
                                             t0100.cc   t0101.cc  t0102.cc
                        t0105.cc  t0106.cc
@@ -498,17 +494,15 @@ if $use_gnu; then
   #   125: inline assembly not printed
   #   126: attributes not printed
   #   127: typeof not printed
-  #   gnu/130, c99/133: when pretty printing the elaborated dtor body, the
-  #     normally implicit calls to the superclass (or a member) that were
-  #     added become explicit.  When parsing this again and printing
-  #     again, the are added *again*, causing a diff failure.
   # note that the 'sed' command includes a literal tab character..
   list=`echo " \
     gnu/t0124.cc
     gnu/t0128.cc
     gnu/t0129.cc
+    gnu/t0130.cc
     gnu/t0131.cc
-    gnu/t0132.cc \
+    gnu/t0132.cc
+    c99/t0133.c  \
     " | fmt -1 | sed 's|^[ 	]*|in/|'`
   runTest perl ./idemcheck -d outdir $list
 fi

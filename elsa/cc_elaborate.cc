@@ -1340,21 +1340,16 @@ static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
   return new S_expr(loc, fullexpr);
 }
 
-// sm: This should be fixed.  It appends the statements to the body,
-// where they would be skipped by an exception throw or even a simple
-// 'return' statement.  Instead, add a 'dtorStatement' to Function,
-// and put these there, when the semantics that (like 
-// Declarator::dtorStatement) it is executed when the function exits
-// (however that happens).
 void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
 {
-  xassert(!func->dtorElaborated); // ensure idempotency
   xassert(ct);                  // can't be a stand-alone function
+
+  xassert(!func->dtorStatement); // ensure idempotency
 
   // We add to the statements in *forward* order, unlike when adding
   // to MemberInitializers, but since this is a dtor, not a ctor, we
   // *do* have to do it in reverse.
-  SObjStack<S_expr> dtorStmts;
+  SObjStack<S_expr> dtorStmtsReverse;
 
   FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
     BaseClass *base = const_cast<BaseClass*>(iter.data());
@@ -1366,7 +1361,7 @@ void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
     // but the logic is so complex I'm just going to omit it for now
     // and err on the side of not calling enough initializers
     if (!ct->hasVirtualBase(base->ct)) {
-      dtorStmts.push(make_S_expr_superclassDtor(env, base));
+      dtorStmtsReverse.push(make_S_expr_superclassDtor(env, base));
     }
   }
 
@@ -1374,15 +1369,19 @@ void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
     Variable *var = iter.data();
     if (!wantsMemberInit(var)) continue;
     if (!var->type->isCompoundType()) continue;
-    dtorStmts.push(make_S_expr_memberDtor(env, var->name, var->type->asCompoundType()));
+    dtorStmtsReverse.push(make_S_expr_memberDtor(env, var->name, var->type->asCompoundType()));
   }
 
   // reverse and append to the statements list
-  while (!dtorStmts.isEmpty()) {
-    func->body->stmts.append(dtorStmts.pop());
+  ASTList<Statement> *dtorStatements = new ASTList<Statement>();
+  while (!dtorStmtsReverse.isEmpty()) {
+    dtorStatements->append(dtorStmtsReverse.pop());
   }
-
-  func->dtorElaborated = true;
+  // FIX: I can't figure out the bug right now, but in/t0019.cc fails
+  // with a seg fault if I put this line *before* the while loop
+  // above.  From looking at the data structures, it seems that it
+  // shouldn't matter.
+  func->dtorStatement = new S_compound(env.loc(), dtorStatements);
 }
 
 MR_func *makeDtorBody(Env &env, CompoundType *ct)

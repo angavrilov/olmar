@@ -332,7 +332,7 @@ void Function::tcheck(Env &env, bool checkBody)
   // if it is a dtor, add the calls to the superclass and member dtors
   // at the end of the body
   if (funcType->isDestructor() &&
-      !dtorElaborated) {
+      !dtorStatement) {
     // FIX: turn this back on
     completeDtorCalls(env, this, inClass);
 //      cout << "**** elaborated dtor" << endl;
