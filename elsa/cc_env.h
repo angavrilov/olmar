@@ -932,6 +932,7 @@ public:
 };
 
 
+// FIX: move this somewhere else
 bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
 bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
