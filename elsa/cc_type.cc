@@ -288,7 +288,12 @@ void CompoundType::setTemplateInfo(TemplateInfo *templInfo0)
 
 bool CompoundType::hasVirtualFns() const
 {
-  // TODO: this fails to consider members inherited from base classes ...
+  // TODO: this fails to consider members inherited from base classes
+  // ...
+  // UPDATE dsw: I think the code in Declarator::mid_tcheck() is
+  // supposed to push the virtuality down at least for those function
+  // members that implicitly inherit their virtuality from the fact
+  // that they override a virtual member in their superclass.
 
   for (StringRefMap<Variable>::Iter iter(getVariableIter());
        !iter.isDone(); iter.adv()) {
