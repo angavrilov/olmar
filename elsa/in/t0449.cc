@@ -80,4 +80,27 @@ typedef int Func(int);
 //ERROR(13): Func const cfunc;
 
 
+// ------------------
+//ERROR(14): friend 
+class MyFriend {
+  int x;
+};
+
+
+// ------------------
+//ERROR(15): template <class T>
+union CrazyUnion {
+  int x;
+};
+
+
+// ------------------
+//ERROR(16): enum B::Blah blah;
+
+
+// ------------------
+enum SomeEnum { SE_ONE };
+//ERROR(17): enum SomeEnum { SE_TWO };
+
+
 // EOF

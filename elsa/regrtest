@@ -835,6 +835,9 @@ for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
 done
 
+# for the benefit of gcov
+runTest ./ccparse -tr printHierarchies in/std/3.4.5.cc
+
 # more in another (private) repository, if present
 if [ -f ../cppstdex/regrtest_inner ]; then
   source ../cppstdex/regrtest_inner
@@ -1018,6 +1021,7 @@ if $use_gnu; then
   testCparse gnu/t0126.c
   testCparse gnu/d0095.c
   testCparse gnu/c0001.c
+  testCparse gnu/c0002.c
 
   testCparse gnu/dC0001.c # hex floating-point literals
   testCparse gnu/dC0002.c # arrays of no length are assumed to have one element

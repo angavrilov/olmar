@@ -1,5 +1,5 @@
 // t0452.cc
-// coverage: template declarators
+// coverage: template stuff
 
 //ERROR(1): template <class T>
 //ERROR(1): int A<T>::foo() { return 2; }
@@ -20,7 +20,12 @@ struct A {
 
 template <class T>
 template <class U>
-int A<T>::B<U>::foo() { return 3; }
+int A<T>::B<U>::foo() 
+{
+  int x;
+  //ERROR(6): x = sizeof(typename INT);
+  return x;
+}
 
 template <class T>
 template <class U>
@@ -67,6 +72,19 @@ int A<T>::template B<U>::foo2() { return 3; }
 // wrong template arg
 //ERROR(5): template <class T1>
 //ERROR(5): int A<T2>::f() { return 4; }
+
+
+
+struct S {
+  int x;
+};
+
+//ERROR(7): template <>
+//ERROR(7): struct S<int> { int y; };
+
+
+//ERROR(8): template <>
+//ERROR(8): struct A<nonexist> { int z; };
 
 
 // EOF

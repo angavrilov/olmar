@@ -64,4 +64,11 @@ struct F : A, B, D {
 };
 
 
+
+// incomplete base class
+struct G;
+//ERROR(11): struct C6 : G {};
+
+
+
 // EOF

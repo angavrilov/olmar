@@ -1680,6 +1680,8 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
 
 // filter that keeps only strong messages
+//
+// gcov-begin-ignore
 bool strongMsgFilter(ErrorMsg *msg)
 {
   if (msg->flags & (EF_STRONG | EF_STRONG_WARNING)) {
@@ -1693,6 +1695,7 @@ bool strongMsgFilter(ErrorMsg *msg)
     return false;
   }
 }
+// gcov-end-ignore
 
 
 // type check once we know what 'ct' is; this is also called
@@ -1810,7 +1813,7 @@ void TS_classSpec::tcheckIntoCompound(
       // cleared properly, among other things
       string h2 = ct->renderSubobjHierarchy();
       if (!h1.equals(h2)) {
-        cout << "WARNING: second rendering doesn't match first!\n";
+        xfailure("second rendering doesn't match first");
       }
     }
   }
@@ -1873,7 +1876,7 @@ void TS_classSpec::tcheckIntoCompound(
   if (ct->isTemplate()) {
     if (!env.doReportTemplateErrors) {
       // remove all messages that are not 'strong'
-      env.errors.filter(strongMsgFilter);
+      env.errors.filter(strongMsgFilter);      // gcov-ignore
     }
 
     // now put back the saved messages
@@ -1921,7 +1924,7 @@ Type *TS_enumSpec::itcheck(Env &env, DeclFlags dflags)
       ret = env.makeType(loc, et);
       if (!et->valueIndex.isEmpty()) {
         // if it has values, it's definitely been defined already
-        env.error(stringc << "mulitply defined enum `" << name << "'");
+        env.error(stringc << "multiply defined enum `" << name << "'");
         return ret;      // ignore this defn
       }
     }
