@@ -2049,9 +2049,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
         NONMEMBER | TWOPARAMS,                      // OP_MOD
         NONMEMBER | TWOPARAMS,                      // OP_LSHIFT
         NONMEMBER | TWOPARAMS,                      // OP_RSHIFT
-        // dsw: I changed this to ANYPARAMS from TWOPARAMS because it
-        // can be operator address-of also, which takes one param.
-        NONMEMBER | ANYPARAMS,                      // OP_BITAND
+        NONMEMBER | TWOPARAMS | ONEPARAM/*13.5p2*/, // OP_BITAND
         NONMEMBER | TWOPARAMS,                      // OP_BITXOR
         NONMEMBER | TWOPARAMS,                      // OP_BITOR
 
