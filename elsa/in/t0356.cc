@@ -5,6 +5,7 @@
 namespace N {
   class B {};
   void g(B);
+  int h;
 }
 
 class A {
@@ -12,5 +13,9 @@ public:
   void f() {
     N::B b;
     g(b);
+
+    //ERROR(1): g(b,1);
+    
+    //ERROR(2): h(b);
   }
 };

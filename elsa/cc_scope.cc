@@ -378,18 +378,20 @@ Variable const *Scope
 //      cout << "name->getName() " << name->getName() << endl;
     v1 = vfilterC(variables.get(name->getName()), flags);
 
-    if (!(flags & LF_QUALIFIED)) {
-      // 7.3.4 para 1: "active using" edges are a source of additional
-      // declarations that can satisfy an unqualified lookup
-      if (activeUsingEdges.isNotEmpty()) {
-        v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
+    if (!(flags & LF_IGNORE_USING)) {
+      if (!(flags & LF_QUALIFIED)) {
+        // 7.3.4 para 1: "active using" edges are a source of additional
+        // declarations that can satisfy an unqualified lookup
+        if (activeUsingEdges.isNotEmpty()) {
+          v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
+        }
       }
-    }
-    else {
-      // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
-      // if we haven't already found the name
-      if (!v1 && usingEdges.isNotEmpty()) {
-        v1 = searchUsingEdges(name->getName(), env, flags);
+      else {
+        // 3.4.3.2 para 2: do a DFS on the "using" edge graph, but only
+        // if we haven't already found the name
+        if (!v1 && usingEdges.isNotEmpty()) {
+          v1 = searchUsingEdges(name->getName(), env, flags);
+        }
       }
     }
 

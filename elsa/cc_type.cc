@@ -125,7 +125,8 @@ SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_ERROR),
   SimpleType(ST_DEPENDENT),
   SimpleType(ST_IMPLINT),
-  
+  SimpleType(ST_NOTFOUND),
+
   SimpleType(ST_PROMOTED_INTEGRAL),
   SimpleType(ST_PROMOTED_ARITHMETIC),
   SimpleType(ST_INTEGRAL),
@@ -2451,6 +2452,7 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
   CVAT(ST_ERROR)
   CVAT(ST_DEPENDENT)
   CVAT(ST_IMPLINT)
+  CVAT(ST_NOTFOUND)
 
   CVAT(ST_PROMOTED_INTEGRAL)
   CVAT(ST_PROMOTED_ARITHMETIC)

@@ -44,8 +44,10 @@ enum LookupFlags {
   LF_DEPENDENT        = 0x0800,   // the lookup is in a dependent context
   LF_TEMPL_PARAM      = 0x1000,   // return only template parameter/argument names
   LF_SUPPRESS_ERROR   = 0x2000,   // during lookup, don't emit errors
+  LF_SUPPRESS_NONEXIST= 0x4000,   // suppress "does not exist" errors
+  LF_IGNORE_USING     = 0x8000,   // 3.4.2p3: ignore using-directives
 
-  LF_ALL_FLAGS        = 0x3FFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS        = 0xFFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h

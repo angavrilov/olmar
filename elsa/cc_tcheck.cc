@@ -41,13 +41,25 @@
 // forwards in this file
 static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
+
+static Variable *outerResolveOverload_explicitSet(
+  Env &env,
+  PQName * /*nullable*/ finalName,
+  SourceLoc loc,
+  StringRef varName,
+  Type *receiverType,
+  FakeList<ArgExpression> *args,
+  SObjList<Variable> &candidates);
+
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
+
 Type *resolveOverloadedUnaryOperator(
   Env &env,
   Expression *&replacement,
   //Expression *ths,
   Expression *expr,
   OverloadableOp op);
+
 
 
 // return true if the list contains no disambiguating errors
@@ -4626,13 +4638,23 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
         v = env.makeImplicitDeclFuncVar(name->asPQ_name()->name);
       }
       else {
-        // 10/23/02: I've now changed this to non-disambiguating,
-        // prompted by the need to allow template bodies to call
-        // undeclared functions in a "dependent" context [cppstd 14.6
-        // para 8].  See the note in TS_name::itcheck.
-        return env.error(name->loc, stringc
-                         << "there is no variable called `" << *name << "'",
-                         EF_NONE);
+        if (flags & LF_SUPPRESS_NONEXIST) {
+          // return a special type and do not insert an error message;
+          // this is like a pending error that the caller should
+          // resolve, either by making it a real error or (by using
+          // argument dependent lookup) fix; ST_NOTFOUND shoult never
+          // appear in the output of type checking
+          return env.getSimpleType(name->loc, ST_NOTFOUND);
+        }
+        else {
+          // 10/23/02: I've now changed this to non-disambiguating,
+          // prompted by the need to allow template bodies to call
+          // undeclared functions in a "dependent" context [cppstd 14.6
+          // para 8].  See the note in TS_name::itcheck.
+          return env.error(name->loc, stringc
+                           << "there is no variable called `" << *name << "'",
+                           EF_NONE);
+        }
       }
     }
     xassert(v);
@@ -4768,6 +4790,19 @@ static Variable *outerResolveOverload(Env &env,
     return var;
   }
 
+  return outerResolveOverload_explicitSet(env, finalName, loc, var->name,
+                                          receiverType, args, var->overload->set);
+}
+
+static Variable *outerResolveOverload_explicitSet(
+  Env &env,
+  PQName * /*nullable*/ finalName,
+  SourceLoc loc,
+  StringRef varName,
+  Type *receiverType,
+  FakeList<ArgExpression> *args,
+  SObjList<Variable> &candidates)
+{
   // special case: does 'finalName' directly name a particular
   // conversion operator?  e.g. in/t0226.cc
   if (finalName &&
@@ -4777,7 +4812,7 @@ static Variable *outerResolveOverload(Env &env,
     Type *namedType = conv->type->getType();
 
     // find the operator in the overload set
-    SFOREACH_OBJLIST_NC(Variable, var->overload->set, iter) {
+    SFOREACH_OBJLIST_NC(Variable, candidates, iter) {
       Type *iterRet = iter.data()->type->asFunctionType()->retType;
       if (iterRet->equals(namedType)) {
         return iter.data();
@@ -4790,11 +4825,11 @@ static Variable *outerResolveOverload(Env &env,
   }
 
   OVERLOADINDTRACE(::toString(loc)
-        << ": overloaded(" << var->overload->set.count()
-        << ") call to " << var->name);      // if I make this fully qualified, d0053.cc fails...
+        << ": overloaded(" << candidates.count()
+        << ") call to " << varName);      // if I make this fully qualified, d0053.cc fails...
 
   // are any members of the set (nonstatic) methods?
-  bool anyMethods = !allNonMethods(var->overload->set);
+  bool anyMethods = !allNonMethods(candidates);
 
   // fill an array with information about the arguments
   GrowArray<ArgumentInfo> argInfo(args->count() + (anyMethods?1:0) );
@@ -4836,7 +4871,7 @@ static Variable *outerResolveOverload(Env &env,
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
                          anyMethods? OF_METHODS : OF_NONE,
-                         var->overload->set, finalName, argInfo, wasAmbig);
+                         candidates, finalName, argInfo, wasAmbig);
 }
 
 
@@ -5079,6 +5114,18 @@ Type *E_funCall::itcheck_x(Env &env, Expression *&replacement)
   return inner2_itcheck(env);
 }
 
+#if 0      // don't need this now, but I might want it again later
+Expression *&skipGroupsRef(Expression *&e)
+{
+  if (e->isE_grouping()) {
+    return skipGroupsRef(e->asE_grouping()->expr);
+  }
+  else {
+    return e;
+  }
+}
+#endif // 0
+
 void E_funCall::inner1_itcheck(Env &env)
 {
   // dsw: I need to know the arguments before I'm asked to instantiate
@@ -5091,47 +5138,57 @@ void E_funCall::inner1_itcheck(Env &env)
   // near the declarations of inner1/2 in cc_tcheck.ast.
   //args = tcheckArgExprList(args, env);
 
-  Expression *f = func->skipGroups();
-  if (f->isE_variable()) {
+  // 2005-02-11: Doing this simplifies a number of things.  In general
+  // I think I should move towards a strategy of eliminating
+  // E_groupings wherever I can do so.  Eventually, I'd like it to be
+  // the case that no E_groupings survive type checking.
+  func = func->skipGroups();
+
+  // nominal flags if we're calling a named function
+  LookupFlags specialFlags = LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC;
+
+  if (func->isE_variable()) {
     // tell the E_variable *not* to do instantiation of
-    // templates, because that will need to wait until 
+    // templates, because that will need to wait until
     // we see the argument types
     //
     // what follows is essentially Expression::tcheck
     // specialized to E_variable, but with a special lookup
     // flag passed
-    E_variable *evar = f->asE_variable();
+    E_variable *evar = func->asE_variable();
     xassert(!evar->ambiguity);
-    Type *t = evar->itcheck_var(env, f, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC);
-    // dsw: FIX: I don't think I can avoid this re-implementation of
-    // Expression::skipGroups() here in order to make the replacement
-    // work
-    if (!t->isError()) {
-      Expression **ptsToEvar = &func;
-      while((*ptsToEvar)->isE_grouping()) {
-        ptsToEvar = &( (*ptsToEvar)->asE_grouping()->expr );
-      }
-      *ptsToEvar = f;           // what we wanted
+
+    if (evar->name->isPQ_name()) {
+      // Unqualified name being looked up in the context of a function
+      // call; cppstd 3.4.2 applies, which is implemented in
+      // inner2_itcheck.  So, here, we don't report an error because
+      // inner2 will do another lookup and report an error if that one
+      // fails too.
+      specialFlags |= LF_SUPPRESS_NONEXIST;
     }
-    // get the type
-    func->type = evar->type = env.tfac.cloneType(t);
+
+    func->type = env.tfac.cloneType(
+      evar->itcheck_var(env, func, specialFlags));
   }
-  else if (f->isE_fieldAcc()) {
+  else if (func->isE_fieldAcc()) {
     // similar handling for member function templates
-    E_fieldAcc *eacc = f->asE_fieldAcc();
+    E_fieldAcc *eacc = func->asE_fieldAcc();
     xassert(!eacc->ambiguity);
-    func->type = eacc->type = env.tfac.cloneType(
-      eacc->itcheck_fieldAcc(env, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC));
+    func->type = env.tfac.cloneType(
+      eacc->itcheck_fieldAcc(env, specialFlags));
   }
   else {
     // do the general thing
     func->tcheck(env, func);
+    return;
   }
 }
        
 // defined below inner2_itcheck
-static bool argumentDependentReLookup(Env &env, Variable *&var, PQName *pqname, 
+static bool dependentInstantiation(Env &env, Variable *&var, PQName *pqname, 
   Type *&nodeType, Expression *receiver, FakeList<ArgExpression> *args);
+static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
+                                         FakeList<ArgExpression> *args);
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
@@ -5146,8 +5203,11 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // with both overload resolution and template instantiation.  Right
   // now we do instantiation up here and overload resolution down below,
   // but they will not interact correctly.
+                                 
+  // TODO: assuming this never fails, remove the "->skipGroups" below
+  xassert(!func->isE_grouping());
 
-  // argument-dependent re-lookup and function template instantiation
+  // dependent name function template instantiation
   if (func->skipGroups()->isE_variable()) {
     E_variable *evar = func->skipGroups()->asE_variable();
     if (dependentArgs && evar->nondependentVar) {
@@ -5158,9 +5218,14 @@ Type *E_funCall::inner2_itcheck(Env &env)
       evar->nondependentVar = NULL;
     }
 
-    if (!argumentDependentReLookup(env, evar->var, evar->name, evar->type,
-                                   NULL /*receiver*/, args)) {
-      return evar->type;    // is ST_ERROR
+    if (evar->type->isSimple(ST_NOTFOUND)) {
+      // this is a delayed error to handle 3.4.2; keep going
+    }
+    else {
+      if (!dependentInstantiation(env, evar->var, evar->name, evar->type,
+                                  NULL /*receiver*/, args)) {
+        return evar->type;    // is ST_ERROR
+      }
     }
   }
   else if (func->skipGroups()->isE_fieldAcc()) {
@@ -5169,8 +5234,8 @@ Type *E_funCall::inner2_itcheck(Env &env)
       return env.dependentType();
     }
 
-    if (!argumentDependentReLookup(env, eacc->field, eacc->fieldName, eacc->type,
-                                   eacc->obj, args)) {
+    if (!dependentInstantiation(env, eacc->field, eacc->fieldName, eacc->type,
+                                eacc->obj, args)) {
       return eacc->type;    // is ST_ERROR
     }
   }
@@ -5231,9 +5296,19 @@ Type *E_funCall::inner2_itcheck(Env &env)
     if (func->isE_variable()) {
       E_variable *evar = func->asE_variable();
       
-      Variable *chosen = 
-        outerResolveOverload(env, evar->name, evar->name->loc, evar->var, 
-                             env.implicitReceiverType(), args);
+      // do we need to do another lookup, a-la cppstd 3.4.2?
+      Variable *chosen;
+      if (evar->name->isPQ_name() &&             // unqualified name, and
+          (evar->type->isSimple(ST_NOTFOUND) ||  //   lookup failed, or
+           !evar->var->isMember())) {            //   lookup found a nonmember
+        // must do lookup according to 3.4.2
+        chosen = argumentDependentLookup(env, evar, args);
+      }
+      else {
+        chosen = outerResolveOverload(env, evar->name, evar->name->loc, evar->var,
+                                      env.implicitReceiverType(), args);
+      }
+
       if (chosen) {
         // rewrite AST to reflect choice
         //
@@ -5394,7 +5469,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
 }
 
 // return false on error
-bool argumentDependentReLookup(Env &env,
+//
+// This implements part of 14.6.4, dependent name resolution
+bool dependentInstantiation(Env &env,
   Variable *&var,         // IN: primary; OUT: instantiated
   PQName *pqname,         // name originally used to find 'var'
   Type *&nodeType,        // Expression node 'type' field to modify
@@ -5431,6 +5508,214 @@ bool argumentDependentReLookup(Env &env,
     nodeType = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
     return false;
   }
+}
+
+
+// get scopes associated with 'type'; cppstd 3.4.2 para 2
+//
+// this could perhaps be made faster by using a hash table set
+void getAssociatedScopes(SObjList<Scope> &associated, Type *type)
+{
+  switch (type->getTag()) {
+    default:
+      xfailure("bad type tag");
+
+    case Type::T_ATOMIC: {
+      AtomicType *atomic = type->asCVAtomicType()->atomic;
+      switch (atomic->getTag()) {
+        default:
+          // other cases: nothing
+          return;
+
+        case AtomicType::T_SIMPLE:
+          // bullet 1: nothing
+          return;
+
+        case AtomicType::T_COMPOUND: {
+          CompoundType *ct = atomic->asCompoundType();
+          if (ct->keyword != CompoundType::K_UNION) {
+            if (!ct->isInstantiation()) {
+              // bullet 2: the class, all base classes, and definition scopes
+
+              // class + bases
+              SObjList<BaseClassSubobj const> bases;
+              ct->getSubobjects(bases);
+
+              // put them into 'associated'
+              SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
+                CompoundType *base = iter.data()->ct;
+                associated.prependUnique(base);
+
+                // get definition namespace too
+                if (base->parentScope) {
+                  associated.prependUnique(base->parentScope);
+                }
+                else {
+                  // parent is not named.. I'm pretty sure in this case
+                  // any names that should be found will be found by
+                  // ordinary lookup, so it will not matter whether the
+                  // parent scope of 'base' gets added to 'associated'
+                }
+              }
+            }
+            else {
+              // bullet 7: template instantiation: definition scope plus
+              // associated scopes of template type arguments
+              
+              // definition scope
+              if (ct->parentScope) {
+                associated.prependUnique(ct->parentScope);
+              } 
+
+              // look at template arguments
+              TemplateInfo *ti = ct->templateInfo();
+              xassert(ti);
+              FOREACH_OBJLIST(STemplateArgument, ti->arguments, iter) {
+                STemplateArgument const *arg = iter.data();
+                if (arg->isType()) {
+                  getAssociatedScopes(associated, arg->getType());
+                }
+                else if (arg->isTemplate()) {
+                  // TODO: implement this
+                }
+              }
+            }
+          }
+          else {
+            // bullet 3 (union): definition scope
+            if (ct->parentScope) {
+              associated.prependUnique(ct->parentScope);
+            }
+          }
+          break;
+        }
+
+        case AtomicType::T_ENUM: {
+          // bullet 3 (enum): definition scope
+          EnumType *et = atomic->asEnumType();
+          if (et->typedefVar &&        // ignore anonymous enumerations...
+              et->typedefVar->scope) {
+            associated.prependUnique(et->typedefVar->scope);
+          }
+          break;
+        }
+      }
+      break;
+    }
+    
+    case Type::T_REFERENCE:
+      // implicitly skipped as being an lvalue
+    case Type::T_POINTER:
+    case Type::T_ARRAY:
+      // bullet 4: skip to atType
+      getAssociatedScopes(associated, type->getAtType());
+      break;
+
+    case Type::T_FUNCTION: {
+      // bullet 5: recursively look at param/return types
+      FunctionType *ft = type->asFunctionType();
+      getAssociatedScopes(associated, ft->retType);
+      SFOREACH_OBJLIST(Variable, ft->params, iter) {
+        getAssociatedScopes(associated, iter.data()->type);
+      }
+      break;
+    }
+
+    case Type::T_POINTERTOMEMBER: {
+      // bullet 6/7: the 'inClassNAT', plus 'atType'
+      PointerToMemberType *ptm = type->asPointerToMemberType();
+      if (ptm->inClassNAT->isCompoundType()) {
+        associated.prependUnique(ptm->inClassNAT->asCompoundType());
+      }
+      getAssociatedScopes(associated, ptm->atType);
+      break;
+    }
+  }
+}
+
+
+// cppstd 3.4.2, plus a call to overload resolution
+static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
+                                         FakeList<ArgExpression> *args)
+{
+  // let me disable this entire mechanism, to measure its performance
+  //
+  // 2005-02-11: On in/big/nsHTMLEditRules, I see no measurable difference
+  static bool enabled = !tracingSys("disableArgDepLookup");
+
+  // union over all arguments of "associated" namespaces and classes
+  SObjList<Scope> associated;
+  if (enabled) {
+    FAKELIST_FOREACH(ArgExpression, args, argIter) {
+      getAssociatedScopes(associated, argIter->getType());
+    }
+  }
+
+  // we only get here for unqualified names
+  StringRef name = fvar->name->asPQ_name()->name;
+
+  if (associated.isEmpty()) {
+    if (!fvar->var) {
+      // this error was originally found during ordinary lookup, but
+      // we suppressed it; now is the time to report it
+      fvar->type = env.error(fvar->name->loc, stringc <<
+                             "there is no function called `" << name << "'",
+                             EF_NONE);
+      return NULL;
+    }
+
+    // easy case, just do the normal thing
+    return outerResolveOverload(env, fvar->name, fvar->name->loc, fvar->var,
+                                env.implicitReceiverType(), args);
+  }
+
+  // build a set of candidates; start with what ordinary lookup found
+  SObjList<Variable> candidates;
+  if (fvar->var) {
+    fvar->var->getOverloadList(candidates);
+  }
+
+  // 3.4.2 para 3: ignore 'using' directives for these lookups
+  LookupFlags flags = LF_IGNORE_USING;
+
+  // now start piling in additional candidates from the lookups in
+  // the various "associated" scopes
+  SFOREACH_OBJLIST_NC(Scope, associated, scopeIter) {
+    Scope *s = scopeIter.data();
+
+    // lookup
+    Variable *v = s->lookupVariable(name, env, flags);
+
+    // toss them into the set
+    if (v) {
+      if (!v->type->isFunctionType()) {
+        env.error(fvar->name->loc, stringc
+          << "during argument-dependent lookup of `" << name
+          << "', found non-function of type `" << v->type->toString()
+          << "' in " << s->desc());
+      }
+      else {
+        SObjList<Variable> tmp;
+        v->getOverloadList(tmp);
+        SFOREACH_OBJLIST_NC(Variable, tmp, iter) {
+          candidates.prependUnique(iter.data());
+        }
+      }
+    }
+  }
+
+  // if no candidates, then (like above) we need to report the error
+  if (candidates.isEmpty()) {
+    fvar->type = env.error(fvar->name->loc, stringc <<
+                           "there is no function called `" << name << "'",
+                           EF_NONE);
+    return NULL;
+  }
+
+  // throw the whole mess at overload resolution
+  return outerResolveOverload_explicitSet
+    (env, fvar->name, fvar->name->loc, name,
+     env.implicitReceiverType(), args, candidates);
 }
 
 

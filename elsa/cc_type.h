@@ -288,7 +288,7 @@ public:      // funcs
   // template
   bool isInstantiation() const;
 
-  // manipulate 'templateInfo' which is now in Variable
+  // manipulate 'templateInfo', which is now stored in the 'typedefVar'
   TemplateInfo *templateInfo() const;
   void setTemplateInfo(TemplateInfo *templInfo0);
 

@@ -159,6 +159,7 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "<error>",                0,    S(STF_NONE)                 },
   { "<dependent>",            0,    S(STF_NONE)                 },
   { "<implicit-int>",         0,    S(STF_NONE)                 },
+  { "<notfound>",             0,    S(STF_NONE)                 },
 
 
   { "<prom_int>",             0,    S(STF_NONE)                 },
