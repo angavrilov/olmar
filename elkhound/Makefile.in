@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: glr.o ccgr cc2.exe cc2t.exe bccgr
+all: c.ast.gen.h glr.o ccgr cc2.exe cc2t.exe bccgr cexp3
 
 temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -56,10 +56,10 @@ endif
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
-ccflags += -DNO_GLR_SOURCELOC
+#ccflags += -DNO_GLR_SOURCELOC
 
 # even fewer debugging checks
 #ccflags += -DNDEBUG_NO_ASSERTIONS
@@ -102,31 +102,68 @@ linkend := $(libraries)
 
 # sets of related object files
 # files needed to represent a grammar in memory
-grammar-set := grammar.o $(AST)/locstr.o asockind.o
+grammar-set := \
+  $(AST)/locstr.o \
+  asockind.o \
+  grammar.o
 -include $(filter-out $(AST)/%, $(grammar-set:.o=.d))
 
 # in addition to grammar-set, files needed to parse a grammar description
-grampar-set := grampar.tab.o gramlex.yy.o grampar.o $(AST)/gramlex.o \
-               $(AST)/fileloc.o $(AST)/ccsstr.o $(AST)/embedded.o \
-               gramast.ast.gen.o $(AST)/strtable.o $(AST)/asthelp.o \
-               emitcode.o
-#-include $(filter-out $(AST)/% %.gen.d %.tab.d, $(grampar-set:.o=.d))
+grampar-set := \
+  $(AST)/asthelp.o \
+  $(AST)/ccsstr.o \
+  $(AST)/embedded.o \
+  $(AST)/fileloc.o \
+  $(AST)/gramlex.o \
+  $(AST)/strtable.o \
+  emitcode.o \
+  gramast.ast.gen.o \
+  gramlex.yy.o \
+  grampar.o \
+  grampar.tab.o
 -include $(filter-out $(AST)/%, $(grampar-set:.o=.d))
 
-# in addition to grammar-set, file needed to do GLR parsing of C/C++ code
-glr-set := gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
-           useract.o cyctimer.o cc_lang.o parsetables.o
--include $(glr-set:.o=.d)
+# minimal runtime files needed to do GLR parsing; these get
+# combined to form libglr.a, the Elkhound runtime library
+glr-set := \
+  $(AST)/fileloc.o \
+  cyctimer.o \
+  glr.o \
+  parsetables.o \
+  useract.o
+-include $(filter-out $(AST)/%, $(glr-set:.o=.d))
 
-# files involved in translating parsed C/C++ code
-#cc-set := cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
-#          stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
-cc-set := cparse.o cc_type.o cc_env.o
--include $(cc-set:.o=.d)
+# some (mostly) language-independent parsing support files which
+# are shared by several of the test parsers (e.g. cexp3)
+support-set := \
+  $(AST)/asthelp.o \
+  $(AST)/strtable.o \
+  cc_lang.o \
+  lexer1.o \
+  lexer1yy.o \
+  lexer2.o \
+  parssppt.o
+-include $(filter-out $(AST)/%, $(support-set:.o=.d))
 
-# stuff needed everywhere
-common := 
-#-include $(common:.o=.d)
+# files for parsing C/C++ code with the cc.gr or cc2.gr grammars;
+# since this set is used with both grammars, I don't include either
+# grammar in the set itself
+cc-set := \
+  $(support-set) \
+  c.ast.gen.o \
+  cc_env.o \
+  cc_flags.o \
+  cc_type.o \
+  cparse.o \
+  exprequal.o \
+  exprvisit.o \
+  paths.o \
+  postorder.o \
+  stubs.o \
+  tcheck.o \
+  treeout.o \
+  variable.o
+-include $(filter-out $(AST)/%, $(cc-set:.o=.d))
 
 # how to compile a .o in an adjacent directory (looser dependency
 # tracking across directories...)
@@ -134,41 +171,33 @@ common :=
 $(AST)/%.o: $(AST)/%.cc
 	make -C $(AST) $*.o
 
-# some random dependencies
-# update: should be unnecessary if .d stuff works
-#attrexpr.o: grampar.codes.h
-
 # a few random .o files which don't appear anyplace above, but I need
 # to make sure their dependency info (if it exists) gets included
-random-obj := lexer2stub.o glrtree.o parsstub.o cexp2.o cexp3.gen.o \
+random-obj := lexer2stub.o parsstub.o cexp2.o cexp3.gen.o \
               glrmain.o cexp3mrg.o cexp3ast.gen.o cdecl.gen.o \
               ccgrmain.o
 -include $(random-obj:.o=.d)
 
+# extra dependencies
+gramlex.yy.o: grampar.codes.h
+
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
-gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(common) $(grampar-set) \
+gramanl-dep := gramanl.cc gramexpl.o $(grammar-set) $(grampar-set) \
                lexer2stub.o parsetables.o $(libraries)
 gramanl: $(gramanl-dep) grammar.h gramanl.h
 	$(link) -o gramanl -DGRAMANL_MAIN $(gramanl-dep)
-
-# (obsolete) GLR parser built on top of SLR(1) parser
-glr-dep := glr.cc $(grammar-set) $(common) $(grampar-set) gramanl.o \
-           glrtree.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
-           parsstub.o $(AST)/strtable.o parsetables.o $(libraries)
-glr: $(glr-dep) glr.h
-	$(link) -o glr -DGLR_MAIN $(glr-dep)
 
 lexer1yy.cc: lexer1.lex lexer1.h
 	flex lexer1.lex
 
 # first pass lexer
-lexer1-dep := lexer1.cc $(common) lexer1yy.o fileloc.o $(libraries)
+lexer1-dep := lexer1.cc lexer1yy.o fileloc.o $(libraries)
 lexer1: $(lexer1-dep)
 	$(link) -o lexer1 -DTEST_LEXER1 $(lexer1-dep)
 
 # second pass lexer
-lexer2-dep := lexer2.cc $(common) lexer1.o lexer1yy.o $(AST)/fileloc.o \
+lexer2-dep := lexer2.cc lexer1.o lexer1yy.o $(AST)/fileloc.o \
               $(AST)/strtable.o cc_lang.o $(libraries)
 lexer2: $(lexer2-dep) lexer2.h
 	$(link) -o lexer2 -DTEST_LEXER2 $(lexer2-dep)
@@ -181,11 +210,8 @@ gramlex.yy.cc: gramlex.lex
 	sed 's/class istream;/#include <iostream.h>/' <gramlex.tmp >$@
 	rm gramlex.tmp
 
-# should be redundant with new dependency system
-#gramlex.yy.o: $(AST)/gramlex.h $(AST)/gramlex.cc grampar.codes.h
-
 # grammar lexer test program
-gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/fileloc.o $(AST)/ccsstr.o $(common) \
+gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/fileloc.o $(AST)/ccsstr.o \
                $(AST)/embedded.o $(libraries)
 gramlex: gramlex.h $(gramlex-dep)
 	$(link) -o gramlex -DTEST_GRAMLEX $(gramlex-dep)
@@ -201,7 +227,7 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 	grep '# *define' grampar.tab.h > grampar.codes.h
 
 # grammar parser test program
-grampar: grampar.cc $(grammar-set) $(common) gramlex.yy.o grampar.tab.o \
+grampar: grampar.cc $(grammar-set) gramlex.yy.o grampar.tab.o \
          $(AST)/gramlex.o ast.o $(AST)/fileloc.o gramast.ast.gen.o $(AST)/ccsstr.o \
          lexer2stub.o $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
          $(libraries)
@@ -216,7 +242,7 @@ cc.tok: lexer2
 	./lexer2 myparser > cc.tok
 
 # C expression (sort of) evaluator
-cexp2-sem-dep := cexp2.sem.cc $(grammar-set) $(common) $(glr-set) \
+cexp2-sem-dep := cexp2.sem.cc $(grammar-set) $(glr-set) \
                  $(grampar-set) $(libraries)
 cexp2.sem: $(cexp2-sem-dep)
 	$(link) -o cexp2.sem -DTEST_CEXP2_SEM $(cexp2-sem-dep)
@@ -229,13 +255,13 @@ cexp2.cc cexp2.h: cexp2.gr gramanl
 	chmod a-w cexp2.cc cexp2.h
 
 # parser and semantic analyzer for cexp2.gr
-cexp2-dep := cexp2.o $(grammar-set) $(common) $(grampar-set) \
+cexp2-dep := cexp2.o $(grammar-set) $(grampar-set) \
              $(glr-set) $(libraries)
 cexp2: $(cexp2-dep) cexp2.h
 	$(link) -o cexp2 $(cexp2-dep)
 
 # glr parsing engine
-libglr-dep := $(grammar-set) $(common) $(grampar-set) $(glr-set)
+libglr-dep := $(glr-set)
 libglr.a: $(libglr-dep)
 	rm -f libglr.a
 	ar -r libglr.a $(libglr-dep)
@@ -263,7 +289,7 @@ cexp3.gr.gen.o: cexp3ast.ast.gen.h
 # the egrep below is because there's a bug in gcc-2's 'cout',
 # which prints ints in hex even when it shouldn't ...
 cexp-dep := glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
-            cc_lang.o libglr.a $(libraries)
+            $(support-set) libglr.a $(libraries)
 cexp3-dep := cexp3.gr.gen.o $(cexp-dep)
 cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
@@ -332,32 +358,6 @@ cdecl2: $(cdecl2-dep)
 	./cdecl2 -tr cdecl cdecl2.bin in/cdecl.in1 | grep -v progress > tmp
 	diff out/cdecl.out1 tmp
 
-#.PRECIOUS: cdecl2
-
-# intermediate files for ccgr (the chmod is to make it harder
-# to accidentally start editing files that are automatically 
-# generated)
-# (superceded by pattern rule)
-#cc.gr.gen.cc cc.gr.gen.h: cc.gr cc.tok gramanl
-#	rm -f cc.gr.gen.*
-#	./gramanl -tr conflict cc
-#	chmod a-w cc.gr.gen.*
-
-# AUXDEPEND (should be redundant)
-cc.gr.gen.o: c.ast.gen.h
-
-# (called the target 'ccgr' instead of 'cc' to avoid name collision)
-# tried moving cc.o to end so the most expensive part would get
-# done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
-ccgr-dep := cc.gr.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
-            paths.o $(cc-set) postorder.o stubs.o \
-            exprvisit.o exprequal.o cc_lang.o treeout.o
-
-# don't generate dependencies for *.gen.o, since it makes 'make' think
-# it needs to rebuild a bunch of stuff just to calculate dependencies
-#-include $(filter-out %.gen.d, $(ccgr-dep:.o=.d))
--include $(ccgr-dep:.o=.d)
-
 # don't delete these because error messages often point into them
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
 
@@ -365,16 +365,15 @@ ccgr-dep := cc.gr.gen.o c.ast.gen.o cc_flags.o tcheck.o variable.o \
 # easier importing into ocaml
 # turns out if you don't remove the library, there's a possibility
 # of old object files staying in it .. !
-libccgr.a: $(ccgr-dep) libglr.a
+libccgr.a: cc.gr.gen.o $(cc-set) libglr.a
 	cp -f libglr.a libccgr.a
-	ar -r libccgr.a $(ccgr-dep)
+	ar -r libccgr.a cc.gr.gen.o $(cc-set)
 	ranlib libccgr.a
 
-# stand-alone executable; sync is to prevent annoying interactive
-# delay caused by sync few seconds later
+# stand-alone executable
 ifeq ($(ocaml), no)
-ccgr: libccgr.a ccgrmain.o $(SMBASE)/libsmbase.a
-	$(link) -o ccgr ccgrmain.o libccgr.a $(linkend)
+ccgr: ccgrmain.o libccgr.a $(SMBASE)/libsmbase.a
+	$(link) -o ccgr $^
 	./ccgr cc.bin c.in/c.in1
 else
 ccgr:
@@ -433,7 +432,8 @@ bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
 	chmod a-w $@
 
 # make a parser for testing some grammar, using trivial lexer
-trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
+trivparse-deps := trivmain.cc ptreenode.o trivlex.o $(support-set) \
+                  libglr.a
 %.gr.exe: %.gr.gen.o $(trivparse-deps)
 	g++ -o $@ $(ccflags) $(includes) -DGRAMMAR_NAME=\"$*.bin\" \
 	  $^ $(linkend)
@@ -445,8 +445,8 @@ trivparse-deps = trivmain.cc ptreenode.o trivlex.o lexer2.o libglr.a
 	g++ -o $@ $(ccflags) $(includes) $^ $(linkend)
 
 # new C++ parser
-cc2.exe: cc2main.o cc2/cc2.gr.gen.o ptreenode.o libglr.a
-	g++ -o $@ $(ccflags) $^ $(linkend)
+cc2.exe: cc2main.o $(cc-set) cc2/cc2.gr.gen.o ptreenode.o libglr.a $(SMBASE)/libsmbase.a
+	g++ -o $@ $(ccflags) $^
 
 # new C++ grammar with treebuilding actions
 cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok gramanl
@@ -456,8 +456,8 @@ cc2/cc2t.gr.gen.cc cc2/cc2t.gr.gen.h cc2/cc2t.gr.gen.y: cc2/cc2.gr cc.tok graman
 	chmod a-w cc2/cc2t.gr*
 
 # new C++ parser with treebuilding
-cc2t.exe: cc2main.o cc2/cc2t.gr.gen.o ptreenode.o libglr.a
-	g++ -o $@ $(ccflags) $^ $(linkend)
+cc2t.exe: cc2main.o $(cc-set) cc2/cc2t.gr.gen.o ptreenode.o libglr.a $(SMBASE)/libsmbase.a
+	g++ -o $@ $(ccflags) $^
 
 
 # stuff in examples directory
@@ -619,30 +619,22 @@ triv/sssx.notree.perf.txt:
 
 # -------------------- clean, check, etc. ------------------
 clean:
-	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
+	rm -f *.o *~ *.d *.exe *.gen.* *.bin *.tab.* *.output
+	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex
 	rm -f lexer2 grampar.tab.* grampar a.out
 	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a libglr.a
 	rm -f cc.gr.ps
-	rm -f *.exe *.gen.* *.bin *.tab.* *.output
 	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b
 	rm -f bccgr.y cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out
-	rm -f *.d *.exe
 	cd triv; rm -f *.exe *.gen.* *.bin *.tab.* *.output *.y *.gr
 
 distclean:
 	rm -f Makefile
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 
-# regression tests
-check-cexp2: cexp2
-	./cexp2 cexp2.bin in/cexp2.in2
-
-check: check-cexp2 ccgr gramanl
-	./gramanl --testRW ffollow
-	./ccgr cc.bin c.in/c.in1
-	@echo ./ccgr cc.bin c.in/c.in4 DOES NOT WORK
-	./ccgr cc.bin qpmouse.cpp
+check: all
+	./regrtest
 	@echo ""
 	@echo "Regression tests passed."
 

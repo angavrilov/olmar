@@ -35,30 +35,31 @@
  *          LR (GLR) algorithm.]
  */
 
-#ifndef __GLR_H
-#define __GLR_H
+#ifndef GLR_H
+#define GLR_H
 
-#include "glrconfig.h"   // SOURCELOC
-#include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
-#include "owner.h"       // Owner
-#include "rcptr.h"       // RCPtr
-#include "useract.h"     // UserActions, SemanticValue
-#include "objpool.h"     // ObjectPool, GrowArray
+#include "glrconfig.h"     // SOURCELOC
+#include "parsetables.h"   // StateId
+#include "owner.h"         // Owner
+#include "rcptr.h"         // RCPtr
+#include "useract.h"       // UserActions, SemanticValue
+#include "objpool.h"       // ObjectPool, GrowArray
+#include "objlist.h"       // ObjList
+#include "fileloc.h"       // SourceLocation
 
-#include <stdio.h>       // FILE
+#include <stdio.h>         // FILE
+#include <iostream.h>      // ostream
 
 
 // fwds from other files
-//class Lexer2Token;       // lexer2.h
-//class Lexer2;            // lexer2.h
-class LexerInterface;    // lexerint.h
-class CycleTimer;        // cyctimer.h
+class LexerInterface;      // lexerint.h
+class CycleTimer;          // cyctimer.h
 
 // forward decls for things declared below
-class StackNode;         // unit of parse state
-class SiblingLink;       // connections between stack nodes
-class PendingShift;      // for postponing shifts.. may remove
-class GLR;               // main class for GLR parsing
+class StackNode;           // unit of parse state
+class SiblingLink;         // connections between stack nodes
+class PendingShift;        // for postponing shifts.. may remove
+class GLR;                 // main class for GLR parsing
 
 
 // a pointer from a stacknode to one 'below' it (in the LR
@@ -466,4 +467,4 @@ public:     // funcs
 };
 
 
-#endif // __GLR_H
+#endif // GLR_H

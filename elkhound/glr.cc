@@ -134,6 +134,7 @@
 #include "lexerint.h"    // LexerInterface
 #include "test.h"        // PVAL
 #include "cyctimer.h"    // CycleTimer
+#include "sobjlist.h"    // SObjList
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -1438,7 +1439,7 @@ SemanticValue GLR::doReductionAction(
 {
   // get the function pointer and invoke it; possible optimization
   // is to cache the function pointer in the GLR object
-  return (userAct->getReductionAction())(userAct, productionId, svals  SOURCELOC(loc));
+  return (userAct->getReductionAction())(userAct, productionId, svals  SOURCELOCARG(loc));
 }
 
 

@@ -1,7 +1,6 @@
 // trivmain.cc
 // main() for use with trivlex, and grammars which just test
 // parsing properties
-//
 
 #ifndef GRAMMAR_NAME
   #error set preprocessor symbol GRAMMAR_NAME to the name of the .bin grammar file

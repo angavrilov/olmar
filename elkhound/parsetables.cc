@@ -241,9 +241,6 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
 
 ParseTables *readParseTablesFile(char const *fname)
 {
-  // before using 'xfer' we have to tell it about the string table
-  flattenStrTable = &grammarStringTable;
-
   // assume it's a binary grammar file and try to
   // read it in directly
   traceProgress() << "reading parse tables file " << fname << endl;

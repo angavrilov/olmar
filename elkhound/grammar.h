@@ -45,7 +45,7 @@ class Grammar;
 // transitional definitions
 typedef StringObjDict<LocString> LitCodeDict;
 typedef LocString LiteralCode;
-   
+
 
 // everywhere in the Grammar specification we have a StringRef, it
 // refers to this string table

@@ -7,7 +7,6 @@
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "ckheap.h"       // malloc_stats
-#include "grammar.h"      // grammarStringTable
 #include "fileloc.h"      // sourceFileList
 #include "ccgrmain.h"     // makeUserActions
 #include "cc_lang.h"      // CCLang
@@ -34,7 +33,6 @@ void doit(int argc, char **argv)
 
   // global cleanup
   delete user;
-  grammarStringTable.clear();
   sourceFileList.clear();
   traceRemoveAll();
 }

@@ -12,17 +12,11 @@
 #include "fileloc.h"      // sourceFileList
 #include "c.ast.gen.h"    // C ast
 #include "cc_env.h"       // Env
-//#include "aenv.h"         // AEnv
 #include "strutil.h"      // plural
-//#include "factflow.h"     // factFlow
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
 #include "gramanl.h"      // ParseTables
 
-
-// globals that allow AEnv's to be created wherever ...
-StringTable *globalStringTable;
-Variable const *globalMemVariable;
 
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
@@ -53,7 +47,6 @@ void doit(int argc, char **argv)
 
   // string table for storing parse tree identifiers
   StringTable strTable;
-  globalStringTable = &strTable;
 
   // parsing language options
   CCLang lang;
@@ -93,7 +86,6 @@ void doit(int argc, char **argv)
 
     delete user;
     delete tables;
-    grammarStringTable.clear();
   }
 
   checkHeap();
@@ -113,7 +105,6 @@ void doit(int argc, char **argv)
   Variable mem(dummyLoc, strTable.add("mem"),
                new PointerType(PO_POINTER, CV_NONE,
                  &CVAtomicType::fixed[ST_INT]), DF_NONE);
-  globalMemVariable = &mem;
 
   // ---------------- typecheck -----------------
   {
