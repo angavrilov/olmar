@@ -2256,9 +2256,8 @@ STATICDEF bool ItemSet::equalKey(ItemSet const *key1, ItemSet const *key2)
 void GrammarAnalysis::constructLRItemSets()
 {
   bool tr = tracingSys("lrsets");
-  int smallPassCt = 0;
 
-  enum { BIG_VALUE = 5 };
+  enum { BIG_VALUE = 100 };
 
   // item sets yet to be processed; item sets are simultaneously in
   // both the hash and the list, or not in either
@@ -2340,9 +2339,7 @@ void GrammarAnalysis::constructLRItemSets()
                       << " nonkernel items" << endl;
     }
 
-    static int uberPassCt = 0;
-    smallPassCt = 0;
-
+    // see below; this is part of a fix for a *very* subtle heisenbug
     bool mustCloseMyself = false;
 
     // for each production in the item set where the
@@ -2354,16 +2351,10 @@ void GrammarAnalysis::constructLRItemSets()
     int passCt=0;    // 0=kernelItems, 1=nonkernelItems
     while (passCt < 2) {
       if (passCt++ == 1) {
-        uberPassCt++;
-        printf("uberPassCt = %d\n", uberPassCt);
         itemIter.reset(itemSet->nonkernelItems);
       }
 
       for (; !itemIter.isDone(); itemIter.adv()) {
-        // touch the lists
-        itemSet->kernelItems.count();
-        itemSet->nonkernelItems.count();
-
         LRItem const *item = itemIter.data();
         if (item->isDotAtEnd()) continue;
 
@@ -2410,8 +2401,6 @@ void GrammarAnalysis::constructLRItemSets()
           already = itemSetsDone.get(withDotMoved);
           inDoneList = true;    // used if 'already' != NULL
         }
-
-        smallPassCt++;
 
         // have it?
         if (already != NULL) {
@@ -2499,13 +2488,15 @@ void GrammarAnalysis::constructLRItemSets()
       } // for each item
     } // 0=kernel, 1=nonkernel
 
+    CHECK_MALLOC_STATS("end of item set loop");
+
     // now that we're finished iterating over the items, I can do the
     // postponed closure
     if (mustCloseMyself) {
       itemSetClosure(*itemSet);
+      UPDATE_MALLOC_STATS();
     }
 
-    CHECK_MALLOC_STATS("end of item set loop");
   } // for each item set
 
   // we're done constructing item sets, so move all of them out
