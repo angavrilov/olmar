@@ -8054,6 +8054,12 @@ void IN_ctor::tcheck(Env &env, Type *type)
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::tcheck(Env &env)
 {
+  // disallow templates inside functions
+  if (env.enclosingKindScope(SK_FUNCTION)) {
+    env.error("template declaration in function or local class");
+    return;
+  }
+
   // if this is a complete specialization put nothing on the stack as
   // we are still in normal code
   bool inCompleteSpec = params->isEmpty();
