@@ -106,18 +106,22 @@ while (defined($line = <STDIN>)) {
   }
 
   # add actions to rules without them
-  ($space, $rule) = ($line =~ /^(\s*)(->[^;]*);\s*$/);
+  ($space, $rule) = ($line =~ /^(\s*)(->.*);\s*$/);
   if (defined($rule)) {
     $len = length($space) + length($rule);
     print($space, $rule, " " x (25-$len));
+    
+    # text of the rule with quotes escaped
+    ($ruleText = $rule) =~ s/\"/\\\"/g;
+
     if ($ptree) {
-      print("[ return new PTreeNode(\"$curNT $rule\"");
+      print("[ return new PTreeNode(\"$curNT $ruleText\"");
 
       # work through the rule RHS, finding subtrees to attach
       $tail = substr($rule, 2);      # remove the leading "->"
       for(;;) {
         my ($unused, $tag, $symbol, $rest) =
-          ($tail =~ m/\s*(([a-z][a-zA-Z]*):)?([a-zA-Z]+)\s*(.*)/);
+          ($tail =~ m/\s*(([a-z][a-zA-Z_0-9]*):)?([a-zA-Z]+)\s*(.*)/);
         if (!defined($symbol)) {
           last;
         }
@@ -132,7 +136,7 @@ while (defined($line = <STDIN>)) {
       print("); ]\n");
     }
     else {
-      print("[ cout << \"reduced by $curNT $rule\\n\"; return ++count; ]\n");
+      print("[ cout << \"reduced by $curNT $ruleText\\n\"; return ++count; ]\n");
     }
     next;
   }
@@ -140,7 +144,7 @@ while (defined($line = <STDIN>)) {
   # expand terminals (single letter with *no* semicolon, and possibly
   # a comment); this avoids having to remember the ascii code for some
   # letter..
-  ($letter, $comment) = ($line =~ m'^\s*([a-z])\s*(//.*)?$');   #'
+  ($letter, $comment) = ($line =~ m|^\s*([a-z])\s*(//.*)?$|);
   if (defined($letter)) {
     if (!defined($comment)) {
       $comment = "";

@@ -40,3 +40,7 @@ EEb.gr.gen.*
 DeclExpr.bin
 DeclExpr.gr
 DeclExpr.gr.gen.*
+angle.gr
+angle.gr.gen.*
+angle.tree.gr
+angle.tree.gr.gen.*

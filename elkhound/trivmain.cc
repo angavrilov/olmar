@@ -150,9 +150,10 @@ int entry(int argc, char *argv[])
     return 2;
   }
 
+  PTreeNode *top = (PTreeNode*)treeTop;
+
   // count # of parses
   if (count) {
-    PTreeNode *top = (PTreeNode*)treeTop;
     TreeCount numParses = top->countTrees();
     cout << "num parses: " << numParses << endl;
 
@@ -163,7 +164,7 @@ int entry(int argc, char *argv[])
     if (0==strcmp(GRAMMAR_NAME, "triv/SSSx.tree.bin")) {
       should = sssxCount(inputLen);
     }
-    
+
     if (should != 0) {
       cout << "should be: " << should << endl;
       if (should != numParses) {
@@ -173,6 +174,10 @@ int entry(int argc, char *argv[])
   }
   cout << "tree nodes: " << PTreeNode::allocCount
        << endl;
+       
+  if (tracingSys("printTree")) {
+    top->printTree(cout);
+  }
 
   return 0;
 }

@@ -189,6 +189,7 @@ testTrivGrammar CNI 1
 testTrivGrammar ESb 1
 testTrivGrammar CAdB 1
 testTrivGrammar EEb 1 2 3
+testTrivGrammar angle 1 2 3 4 5
 
 #runTest $MAKE aSEb.gr.exe
 #runTest ./aSEb.gr.exe aSEb.in1
