@@ -599,6 +599,11 @@ sub ld_wrapper {
     die("$0: $progName died with signal $ld_signal_num\n");
   }
 
+  # were we merely getting the version?
+  if (grep {m/^(-v|-V|--version)$/} @av) {
+    exit(0);
+  }
+
   # find the output file name
   my $outfile = "";
   for (my $i=0; $i < @av; ++$i) {

@@ -8,14 +8,26 @@ use FileHandle;                # FileHandle
 use Fcntl qw(SEEK_SET);        # for FileHandle random seeks
 use Fcntl ':mode';             # for S_IFDIR
 
+$verbose = 0;
+
+for (; @ARGV > 0 && $ARGV[0] =~ m/^-/; shift @ARGV) {
+  my $opt = $ARGV[0];
+
+  if ($opt eq "-v") {
+    $verbose = 1;
+  }
+  else {
+    die("unknown option: $opt\n");
+  }
+}
+
 if (@ARGV == 0) {
   print(<<"EOF");
-usage: $0 executable-file
+usage: $0 [-v] executable-file
 EOF
   exit(0);
 }
 
-$verbose = 1;
 $execFname = $ARGV[0];
 
 $origCwd = `pwd`;
@@ -201,9 +213,11 @@ foreach my $u (@unintercepted) {
   }
 }
 
-print("unintercepted ($nonstandard nonstandard):\n");
-foreach my $u (@unintercepted) {
-  print("  $u\n");
+if ($verbose) {
+  print("unintercepted ($nonstandard nonstandard):\n");
+  foreach my $u (@unintercepted) {
+    print("  $u\n");
+  }
 }
 
 
@@ -379,104 +393,85 @@ if ($verbose) {
 # using "--" and sometimes "-" for what appear to be multiletter 
 # options.  There could well be bugs in my interpretation.
 
-# this is the set of one-letter options that take an additional arg
-$ldOneLetterOpts = "aAbcefFGhlLmoRTuyY";
+# After an initial attempt, I have discovered that parsing ld's
+# arguments is as hard as parsing gcc's arguments.  GNU ld tries to be
+# compatible with a dozen or so different system linkers, with
+# incompatible argument languages.  It's a messy pile of ad-hoc
+# guesses and heuristics, further affected by the -m (linker
+# emulation) option.
+#                   
+# Therefore I am switching strategies: I will only retain a few
+# options that (1) I can reliably parse, and (2) I estimate have a
+# high likelihood of being relevant.
 
-# this is the set of multi-letter options that take add'l
-@ldMultiLetterOpts = (
-  "architecture",
-  "format",
-  "mri-script",
-  "entry",
-  "auxiliary",
-  "filter",
-  "gpsize",
-  "soname",
-  "library",
-  "library-path",
-  "output",
-  "just-symbols",
-  "script",
-  "undefined",
-  "trace-symbol",
-  "assert",
-  "defsym",
-  "dynamic-linker",
-  "Map",
-  "oformat",
-  "retain-symbols-file",
-  "rpath",
-  "rpath-link",
-  "split-by-reloc",
-  "Tbss",
-  "Tdata",
-  "Ttext",
-  "version-script",
-  "wrap"
-);
-            
-@newLdCommand = ($ldCommand[0]);
-for (my $i=1; $i < @ldCommand; $i++) {
+$keepNext = 1;         # retain /usr/bin/ld
+
+for (my $i=0; $i < @ldCommand; $i++) {
   my $opt = $ldCommand[$i];
-  
+
+  # forced to keep this option?
+  if ($keepNext) {
+    push @newLdCommand, ($opt);
+    $keepNext = 0;
+    next;
+  }
+
+  # drop all non-arguments
+  if ($opt !~ m|^-|) {
+    next;
+  }
+
   # drop --trace
   if ($opt eq "-t" || $opt eq "--trace") {
     next;
   }
 
-  # does this option take an argument?
-  my $takesArg = 0;
-  if ($opt =~ m|^--([^=]+)=(.*)$|) {
-    # argument is explicitly provided
-  }
-  elsif ($opt =~ m|^--([^=]+)$|) {
-    my $name = $1;
-    if (grep { $_ eq $name } @ldMultiLetterOpts) {
-      # takes an arg and no argument is here
-      $takesArg = 1;
-    }
-    else {
-      # does not take an argument
-    }
-  }
-  elsif ($opt =~ m|^-(.)(.*)$|) {
-    my $name = $1;
-    if ($2) {
-      # argument explicitly provided
-    }
-    elsif ($ldOneLetterOpts =~ m|$name|) {
-      # takes an arg, none here
-      $takesArg = 1;
-    }
-    else {
-      # does not take arg
-    }
-  }
-  else {
-    # Does not begin with "-"; it is either an object file or
-    # a linker script.  In the former case, I definitely want
-    # to drop it.  In the latter, I think I usually want to
-    # drop, but there could be circumstances where I am wrong...
-    next;
-  }
-
   # drop -l and -L and -o
   if ($opt =~ m/^(-l|-L|-o|--library|--library-path|--output)/) {
-    $i += $takesArg;
+    # unless we are really unlucky, the argument to these options
+    # (if provided as a separate element of @ldCommand) will be
+    # classified as a non-argument and dropped, without having
+    # to do extra work
     next;
   }
 
-  # keep everything else
-  push @newLdCommand, ($opt);
-  if ($takesArg) {
-    $i++;
-    if ($i == @ldCommand) {
-      warn("$0: I think ld option $opt takes an argument, " .
-           "but the argument list ended right after it!\n");
-      last;
-    }
-    push @newLdCommand, ($ldCommand[$i]);
+  # non-argument forms that might be needed...
+  if ($opt =~ m/^-d[cp]?$/ ||
+      $opt =~ m/^-[EinNr]$/ ||
+      $opt =~ m/^-?-(export-dynamic|shared|Bshareable|Ur)$/ ||
+      $opt =~ m/^--(nmagic|omagic|relocateable|traditional-format)$/) {
+    push @newLdCommand, ($opt);
+    next;
   }
+
+  # argument-taking single-letter forms that might be needed
+  if ($opt =~ m/^-[efhmu](.*)$/) {
+    push @newLdCommand, ($opt);
+    if (!$1) {
+      $keepNext = 1;
+    }
+    next;
+  }
+
+  # argument-taking double-dash multiletter forms that might be needed
+  if ($opt =~ m/^--(entry|undefined|defsym|wrap)(=.*)?$/) {
+    push @newLdCommand, ($opt);
+    if (!$2) {
+      $keepNext = 1;
+    }
+    next;
+  }
+
+  # argument-taking single- or double-dash multiletter forms
+  if ($opt =~ m/^-?-(soname|dynamic-linker|Tbss|Tdata|Ttext)(=.*)?$/) {
+    push @newLdCommand, ($opt);
+    if (!$2) {
+      $keepNext = 1;
+    }
+    next;
+  }
+
+  # drop everything else
 }
 
 
@@ -509,7 +504,7 @@ foreach my $r (@rebuiltObjs) {
 }
 
 # summarize results
-print("Successfully rebuilt $reconstructedExec.\n");
+print("Rebuilt $reconstructedExec.\n");
 printf("There were %d unintercepted sources, of which %d are nonstandard.\n",
        $#unintercepted+1, $nonstandard);
 exit(0);
