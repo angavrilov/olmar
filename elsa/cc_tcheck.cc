@@ -61,6 +61,8 @@ Type *resolveOverloadedUnaryOperator(
   Expression *expr,
   OverloadableOp op);
 
+void compareCtorArgsToParams(Env &env, Variable *ctor, FakeList<ArgExpression> *args);
+
 
 
 // return true if the list contains no disambiguating errors
@@ -695,7 +697,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
         ctorVar = env.storeVar(
           outerResolveOverload_ctor(env, env.loc(), v->type, args,
                                     env.doOverload()));
-        env.ensureFuncBodyTChecked(ctorVar);
+        compareCtorArgsToParams(env, ctorVar, args);
       }
 
       // TODO: check that the passed arguments are consistent
@@ -792,7 +794,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
                               baseVar->type,
                               args,
                               env.doOverload()));
-  env.ensureFuncBodyTChecked(ctorVar);
+  compareCtorArgsToParams(env, ctorVar, args);
 }
 
 
@@ -1810,7 +1812,7 @@ void TS_classSpec::tcheckIntoCompound(
   // do it above 'addCompilerSuppliedDecls', since the presence of
   // default args affects whether (e.g.) a copy ctor exists.
   {
-    DefaultArgumentChecker checker(env);
+    DefaultArgumentChecker checker(env, ct->isInstantiation());
     traverse(checker);
   }
 
@@ -5026,11 +5028,14 @@ void ArgExpression::mid_tcheck(Env &env, int &)
 }
 
 
-void compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args)
+// returns the # of default args used
+int compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *args)
 {
+  int defaultArgsUsed = 0;
+
   if (!env.doCompareArgsToParams ||
       (ft->flags & FF_NO_PARAM_INFO)) {
-    return;
+    return defaultArgsUsed;
   }
 
   SObjListIterNC<Variable> paramIter(ft->params);
@@ -5089,11 +5094,26 @@ void compareArgsToParams(Env &env, FunctionType *ft, FakeList<ArgExpression> *ar
         // TODO (elaboration): modify the call site to explicitly
         // insert the default-argument expression (is that possible?
         // might it run into problems with evaluation contexts?)
+        defaultArgsUsed++;
       }
     }
   }
   else if (paramIter.isDone() && !ft->acceptsVarargs()) {
     env.error("too many arguments supplied");
+  }
+  
+  return defaultArgsUsed;
+}
+
+void compareCtorArgsToParams(Env &env, Variable *ctor, FakeList<ArgExpression> *args)
+{
+  env.ensureFuncBodyTChecked(ctor);
+
+  if (ctor) {
+    int defaultArgsUsed = compareArgsToParams(env, ctor->type->asFunctionType(), args);
+    if (defaultArgsUsed) {
+      env.instantiateDefaultArgs(ctor, defaultArgsUsed);
+    }
   }
 }
 
@@ -5620,7 +5640,17 @@ Type *E_funCall::inner2_itcheck(Env &env, LookupSet &candidates)
   // compare argument types to parameters (not guaranteed by overload
   // resolution since it might not have been done, and even if done,
   // uses more liberal rules)
-  compareArgsToParams(env, ft, args);
+  int defaultArgsUsed = compareArgsToParams(env, ft, args);
+
+  // instantiate default args
+  if (defaultArgsUsed) {
+    if (fevar) {
+      env.instantiateDefaultArgs(fevar->var, defaultArgsUsed);
+    }
+    else if (feacc) {
+      env.instantiateDefaultArgs(feacc->field, defaultArgsUsed);
+    }
+  }
 
   // type of the expr is type of the return value
   return ft->retType;
@@ -5862,13 +5892,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   Variable *ctor = outerResolveOverload_ctor(env, env.loc(), type, args,
                                              env.doOverload());
   ctorVar = env.storeVar(ctor);
-  env.ensureFuncBodyTChecked(ctor);
-
-  // make sure the argument types are compatible
-  // with the constructor parameters
-  if (ctor) {
-    compareArgsToParams(env, ctor->type->asFunctionType(), args);
-  }
+  compareCtorArgsToParams(env, ctor, args);
 
   return type;
 }
@@ -7209,7 +7233,7 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
     // int; I assume that ctor0 being NULL is the correct behavior in
     // that case
     ctorVar = env.storeVar(ctor0);
-    env.ensureFuncBodyTChecked(ctor0);
+    compareCtorArgsToParams(env, ctor0, ctorArgs->list);
   }
 
   return env.makePtrType(SL_UNKNOWN, t);
@@ -7661,7 +7685,7 @@ void IN_ctor::tcheck(Env &env, Type *type)
   args = tcheckArgExprList(args, env);
   ctorVar = env.storeVar(
     outerResolveOverload_ctor(env, loc, type, args, env.doOverload()));
-  env.ensureFuncBodyTChecked(ctorVar);
+  compareCtorArgsToParams(env, ctorVar, args);
 }
 
 

@@ -841,6 +841,9 @@ public:      // template funcs
   // instantiate all of its forward-declared instances
   void instantiateForwardFunctions(Variable *primary);
 
+  // ensure that at least 'neededDefaults' default args are available
+  void instantiateDefaultArgs(Variable *instV, int neededDefaults);
+
   // class template instantiation chain
   Variable *instantiateClassTemplate               // inst decl 1
     (SourceLoc loc,
@@ -990,9 +993,11 @@ public:
 class DefaultArgumentChecker : public ASTVisitor {
 public:
   Env &env;
+  bool isInstantiation;
 
 public:
-  DefaultArgumentChecker(Env &e) : env(e) {}
+  DefaultArgumentChecker(Env &e, bool i)
+    : env(e), isInstantiation(i) {}
 
   virtual bool visitIDeclarator(IDeclarator *obj);
 };

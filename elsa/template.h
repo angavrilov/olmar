@@ -208,6 +208,10 @@ public:    // data
   // true if we have seen syntax that demands an instantiation
   // of the body, not just the declaration
   bool instantiateBody;
+  
+  // for a template function, number of default arguments that have
+  // not yet been instantiated
+  int uninstantiatedDefaultArgs;
 
 private:     // funcs
   // can modify the 'const' fields, for updates

@@ -4054,8 +4054,22 @@ bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
   // of Declarators.
   if (obj->isD_func()) {
     FAKELIST_FOREACH(ASTTypeId, obj->asD_func()->params, iter) {
-      if (iter->decl->init) {
-        iter->decl->tcheck_init(env);
+      Declarator *d = iter->decl;
+      if (d->init) {
+        if (!isInstantiation) {
+          // usual thing
+          d->tcheck_init(env);
+        }
+        else {
+          // if this is an instantiation, then we want to postpone
+          // instantiating the default arguments until the method
+          // is called (cppstd 14.7.1 para 11); we remove the default
+          // arg from the AST and attach it to the Variable
+          xassert(d->init->isIN_expr());    // should be parse failure otherwise, I think
+          IN_expr *ie = d->init->asIN_expr();
+          d->var->value = ie->e;
+          ie->e = NULL;
+        }
       }
     }
   }

@@ -192,7 +192,8 @@ TemplateInfo::TemplateInfo(SourceLoc il, Variable *v)
     argumentsToPrimary(),
     defnScope(NULL),
     definitionTemplateInfo(NULL),
-    instantiateBody(false)
+    instantiateBody(false),
+    uninstantiatedDefaultArgs(0)
 {
   if (v) {
     // this sets 'this->var' too
@@ -216,7 +217,8 @@ TemplateInfo::TemplateInfo(TemplateInfo const &obj)
     argumentsToPrimary(),                    // copied below
     defnScope(NULL),
     definitionTemplateInfo(NULL),
-    instantiateBody(false)
+    instantiateBody(false),
+    uninstantiatedDefaultArgs(obj.uninstantiatedDefaultArgs)
 {
   // inheritedParams
   FOREACH_OBJLIST(InheritedTemplateParams, obj.inheritedParams, iter2) {
@@ -1904,6 +1906,238 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 }
 
 
+// ---------------- default argument instantiation ----------------
+// find the D_func with parameters for 'func'
+D_func *getD_func(Function *func)
+{
+  // find innermost D_func
+  D_func *dfunc = NULL;
+  for (IDeclarator *d = func->nameAndParams->decl;
+       !d->isD_name();
+       d = d->getBase()) {
+    if (d->isD_func()) {
+      dfunc = d->asD_func();
+    }
+  }
+  xassert(dfunc);
+
+  return dfunc;
+}
+
+
+// Remove any default argument expressions from the parameters in
+// 'func'.  Later, as the default arguments are instantiated, we
+// will re-insert them.  That way we maintain the invariants that
+// (1) only tcheck'd syntax hangs off of a Function, and (2) the
+// Variable::value for a parameter is equal to the initializing
+// expression hanging off the associated Declarator.
+void removeDefaultArgs(Function *func)
+{
+  D_func *dfunc = getD_func(func);
+
+  // clean the default arguments (just leak them)
+  FAKELIST_FOREACH(ASTTypeId, dfunc->params, iter) {
+    iter->decl->init = NULL;
+  }
+}
+
+
+// Take all of the default argument expressions in 'primary', and
+// attach clones of them to 'inst'.  Also, take note in 'instTI' of
+// how many there are, so we know which ones are instantiated and
+// which ones are uninstantiated (initially, they are all
+// uninstantiated).
+void cloneDefaultArguments(Variable *inst, TemplateInfo *instTI,
+                           Variable *primary)
+{
+  FunctionType *instFt = inst->type->asFunctionType();
+  FunctionType *primaryFt = primary->type->asFunctionType();
+
+  SObjListIterNC<Variable> instParam(instFt->params);
+  SObjListIterNC<Variable> primaryParam(primaryFt->params);
+
+  for (; !instParam.isDone() && !primaryParam.isDone();
+       instParam.adv(), primaryParam.adv()) {
+    if (primaryParam.data()->value) {
+      instParam.data()->value = primaryParam.data()->value->clone();
+      instTI->uninstantiatedDefaultArgs++;
+    }
+    else {
+      // they are supposed to be contiguous at the end of the list, and
+      // prior tchecking should have ensured this
+      //
+      // actually, even if we reported the error, we might have
+      // continued to get here... what then?  not sure yet
+      xassert(instTI->uninstantiatedDefaultArgs == 0);
+    }
+  }
+
+  xassert(instParam.isDone() && primaryParam.isDone());
+}
+
+
+int countParamsWithDefaults(FunctionType *ft)
+{
+  int ret = 0;
+  SFOREACH_OBJLIST(Variable, ft->params, iter) {
+    if (iter.data()->value) {
+      ret++;
+    }
+  }
+  return ret;
+}
+
+
+// Given that all but 'instTI->uninstantiatedDefaultArgs' default args
+// have been instantiated, attach them to the function definition, if
+// there is one.
+void syncDefaultArgsWithDefinition(Variable *instV, TemplateInfo *instTI)
+{
+  if (!instV->funcDefn || !instTI->instantiateBody) {
+    return;
+  }
+
+  D_func *dfunc = getD_func(instV->funcDefn);
+
+  // iterate over both parameter lists (syntactic and semantic)
+  FakeList<ASTTypeId> *syntactic(dfunc->params);
+  SObjListIterNC<Variable> semantic(instV->type->asFunctionType()->params);
+  int skipped = 0;
+  for (; syntactic && !semantic.isDone();
+       syntactic = syntactic->butFirst(), semantic.adv()) {
+    Variable *sem = semantic.data();
+    if (!sem->value) {
+      continue;
+    }
+
+    if (skipped < instTI->uninstantiatedDefaultArgs) {
+      skipped++;
+      continue;
+    }
+
+    Declarator *d = syntactic->first()->decl;
+    if (d->init) {
+      continue;       // already transferred
+    }
+
+    d->init = new IN_expr(sem->loc /* not perfect, but it will do */,
+                          sem->value);
+  }
+}
+
+
+// cppstd 14.7.1 para 11
+//
+// 'neededDefaults' says how many default arguments were needed at
+// some call site.  We will use that to determine how many default
+// arguments need to be instantiated (which may be 0).
+void Env::instantiateDefaultArgs(Variable *instV, int neededDefaults)
+{
+  if (!instV->isInstantiation()) {
+    return;
+  }
+  TemplateInfo *instTI = instV->templateInfo();
+
+  if (instTI->uninstantiatedDefaultArgs == 0) {
+    return;       // nothing more we could instantiate anyway
+  }
+
+  // which parameters have default args?
+  FunctionType *ft = instV->type->asFunctionType();
+  int haveDefaults = 0;
+  int noDefaults = 0;
+  {
+    SFOREACH_OBJLIST(Variable, ft->params, iter) {
+      if (iter.data()->value) {
+        haveDefaults++;
+      }
+      else {
+        noDefaults++;
+      }
+    }
+  }
+  xassert(instTI->uninstantiatedDefaultArgs <= haveDefaults);
+
+  // expected scenario:
+  //                           <-- m ---><-- n --->
+  //                           <---uninstDefaults->
+  //                                     <--neededDefaults->
+  //   params:  0-------------|-----------------------------|
+  //            <-noDefaults-> <--------haveDefaults------->
+  //
+  // 'n' is the number of defaults to instantiate
+  int m = haveDefaults - neededDefaults;
+  int n = instTI->uninstantiatedDefaultArgs - m;
+  if (m < 0 || n <= 0) {
+    return;
+  }
+  
+  TRACE("template", "instantiating " << pluraln(n, "argument") <<
+                    ", starting at arg " << (noDefaults+m) << ", in func decl: " <<
+                    instV->toQualifiedString());
+  
+  // declScope: the scope where the function declaration appeared
+  Variable *baseV = instTI->instantiationOf;
+  Scope *declScope = baseV->scope;
+  xassert(declScope);
+
+  // ------- BEGIN: duplicated from below -------
+  // isolate context
+  InstantiationContextIsolator isolator(*this, loc());
+
+  // set up the scopes in a way similar to how it was when the
+  // template definition was first seen
+  ObjList<SavedScopePair> poppedScopes;
+  SObjList<Scope> pushedScopes;
+  prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, declScope);
+
+  // bind the template arguments in scopes so that when we tcheck the
+  // body, lookup will find them
+  insertTemplateArgBindings(baseV, instTI->arguments);
+
+  // push the declaration scopes for inline definitions, since
+  // we don't get those from the declarator (that is in fact a
+  // mistake of the current implementation; eventually, we should
+  // 'pushDeclarationScopes' regardless of DF_INLINE_DEFN)
+  bool inlineDefn = instV->funcDefn &&
+                    (instV->funcDefn->dflags & DF_INLINE_DEFN);
+  if (inlineDefn) {
+    pushDeclarationScopes(instV, declScope);
+  }
+  // ------- END: duplicated from below -------
+
+  // tcheck some of the args
+  for (int i = noDefaults+m; i < noDefaults+n+m; i++) {
+    Variable *param = ft->params.nth(i);
+    if (param->value) {
+      param->value->tcheck(*this, param->value);
+      instTI->uninstantiatedDefaultArgs--;
+    }
+    else {
+      // program is in error (e.g., default args not contiguous at the
+      // end), hopefully this has already been reported and we just
+      // skip it
+    }
+  }
+
+  // if there is an instantiated definition, attach the newly tcheck'd
+  // default arg exprs to it
+  syncDefaultArgsWithDefinition(instV, instTI);
+
+  // ------- BEGIN: duplicated from below -------
+  // remove the template argument scopes
+  deleteTemplateArgBindings();
+
+  if (inlineDefn) {
+    popDeclarationScopes(instV, declScope);
+  }
+
+  unPrepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes);
+  xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
+  // ------- END: duplicated from below -------
+}
+
+
 // --------------- function template instantiation ------------
 // Get or create an instantiation Variable for a function template.
 // Note that this does *not* instantiate the function body; instead,
@@ -1963,6 +2197,9 @@ Variable *Env::instantiateFunctionTemplate
 
   // this is an instantiation
   xassert(instTI->isInstantiation());
+
+  // clone default argument expressions from the primary
+  cloneDefaultArguments(inst, instTI, primary);
 
   return inst;
 }
@@ -2070,6 +2307,9 @@ void Env::instantiateFunctionBody(Variable *instV)
     defnScope = baseV->templateInfo()->defnScope;
   }
 
+  // remove default argument expressions from the clone parameters
+  removeDefaultArgs(instV->funcDefn);
+
   // set up the scopes in a way similar to how it was when the
   // template definition was first seen
   ObjList<SavedScopePair> poppedScopes;
@@ -2090,6 +2330,11 @@ void Env::instantiateFunctionBody(Variable *instV)
 
   // check the body, forcing it to use 'instV'
   instV->funcDefn->tcheck(*this, instV);
+  
+  // if we have already tcheck'd some default args, e.g., because we
+  // saw uses of the template before seeing the definition, transfer
+  // them over now
+  syncDefaultArgsWithDefinition(instV, instTI);
 
   // remove the template argument scopes
   deleteTemplateArgBindings();
@@ -2677,6 +2922,12 @@ void Env::transferTemplateMemberInfo_one
   TemplateInfo *srcTI = srcVar->templateInfo();
   xassert(srcTI);
   srcTI->addInstantiation(destVar);
+  
+  // set 'destTI->uninstantiatedDefaultArgs'
+  if (destVar->type->isFunctionType()) {
+    destTI->uninstantiatedDefaultArgs = 
+      countParamsWithDefaults(destVar->type->asFunctionType());
+  }
 }
 
 

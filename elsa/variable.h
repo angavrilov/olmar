@@ -67,6 +67,10 @@ public:    // data
 
   // associated value for constant literals, e.g. "const int five = 5;",
   // or default value for function parameters
+  //
+  // if this Variable is a parameter of a template function, then this
+  // 'value' might not have been tchecked; you have to look at the
+  // associated TemplateInfo::uninstantiatedDefaultArgs to find out
   Expression *value;      // (nullable serf)
 
   // default value for template parameters; see TODO at end
