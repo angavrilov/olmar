@@ -2284,7 +2284,7 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
     xassert(prod.left->type);
 
     // put the production in comments above the defn
-    out << "/""* " << prod.toString() << " */\n";
+    out << "// " << prod.toString() << "\n";
 
     out << "static inline " << prod.left->type << " "
         << actionFuncName(prod) << "(";
@@ -2364,7 +2364,7 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
 
   out << "    default:\n";
   out << "      assert(!\"invalid production code\");\n";
-  out << "      return NULL;   /* silence warning */\n";
+  out << "      return NULL;   // silence warning\n";
   out << "  }\n";
   out << "}\n";
 }
