@@ -101,6 +101,9 @@ public:      // data
   // language options in effect
   CCLang &lang;
 
+  // type for typeid expression
+  Type const *type_info_const_ref;      // (serf)
+
 public:      // function
   Env(StringTable &str, CCLang &lang);
   ~Env();

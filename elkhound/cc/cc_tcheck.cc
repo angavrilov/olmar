@@ -1323,16 +1323,14 @@ Type const *E_keywordCast::itcheck(Env &env)
 Type const *E_typeidExpr::itcheck(Env &env)
 {
   expr = expr->tcheck(env);
-  
-  return env.unimp("RTTI typeid of an expr");
+  return env.type_info_const_ref;
 }
 
 
 Type const *E_typeidType::itcheck(Env &env)
 {
   type->tcheck(env);
-
-  return env.unimp("RTTI typeid of a type");
+  return env.type_info_const_ref;
 }
 
 

@@ -1,0 +1,30 @@
+// cc.in14
+// a few of the obscure expression kinds
+
+typedef char y;
+
+int main()
+{
+  int x, *p;
+
+  // E_constructor
+  x = int(6);
+
+  // E_new
+  p = new int;
+
+  // E_delete
+  delete p;
+
+  // E_keywordCast
+  x = const_cast<int>(x);
+  x = dynamic_cast<int>(x);
+  x = static_cast<int>(x);
+  x = reinterpret_cast<int>(x);
+
+  // E_typeidExpr
+  typeid(x);
+  
+  // E_typeidType
+  typeid(y);
+}
