@@ -45,7 +45,7 @@ agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h agrampar.
 	mv -f agrampar.tab.h tmp
 	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > agrampar.tab.h
 	rm tmp
-	grep '#define' agrampar.tab.h > agrampar.codes.h
+	grep '#[[:space:]]*define' agrampar.tab.h > agrampar.codes.h
 
 # have to use sed to change the forward declaration of 'istream'
 # into an #include, so the std:: namespace doesn't cause a problem
