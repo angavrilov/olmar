@@ -2876,6 +2876,9 @@ void GrammarAnalysis::resolveConflicts(
     actions -= subsetDirectiveResolution(state, sym, reductions);
   }
 
+  static char const *conflictSym = getenv("CONFLICT_SYMBOL");
+  bool canPrint = !conflictSym || 0==strcmp(sym->name, conflictSym);
+
   // after the disambiguation, maybe now there's no conflicts?
   // or, if conflicts remain, did we get at least that many warning
   // suppressions?
@@ -2884,7 +2887,7 @@ void GrammarAnalysis::resolveConflicts(
   }
   else {
     // print conflict info
-    if (!printedConflictHeader) {
+    if (canPrint && !printedConflictHeader) {
       trace("conflict")
         << "--------- state " << state->id << " ----------\n"
         << "left context: " << leftContextString(state)
@@ -2895,12 +2898,16 @@ void GrammarAnalysis::resolveConflicts(
       printedConflictHeader = true;
     }
 
-    trace("conflict")
-      << "conflict for symbol " << sym->name
-      << endl;
+    if (canPrint) {
+      trace("conflict")
+        << "conflict for symbol " << sym->name
+        << endl;
+     }
 
     if (shiftDest) {
-      trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
+      if (canPrint) {
+        trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
+      }
       sr++;                 // shift/reduce conflict
       rr += actions - 2;    // any reduces beyond first are r/r errors
     }
@@ -2908,8 +2915,10 @@ void GrammarAnalysis::resolveConflicts(
       rr += actions - 1;    // all reduces beyond first are r/r errors
     }
 
-    SFOREACH_PRODUCTION(reductions, prod) {
-      trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
+    if (canPrint) {
+      SFOREACH_PRODUCTION(reductions, prod) {
+        trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
+      }
     }
   }
 
