@@ -43,7 +43,7 @@ ranlib      := ranlib
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 # enable action trace in glr parser
 #ccflags += -DACTION_TRACE
@@ -264,7 +264,7 @@ libelkhound.a: $(glr-set)
 .PRECIOUS: %.gr.gen.cc %.gr.gen.h
 %.gr.gen.cc %.gr.gen.h %.gr.gen.y: %.gr cc/cc.tok elkhound
 	rm -f $*.gr.gen.*
-	./elkhound -tr NOconflict$(TRGRAMANL) $*
+	./elkhound -tr bison,NOconflict$(TRGRAMANL) $*
 	chmod a-w $*.gr.gen.h $*.gr.gen.cc
 
 # intermediate files for an ast spec

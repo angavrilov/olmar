@@ -4526,11 +4526,13 @@ int main(int argc, char **argv)
 
   // write the analyzed grammar to a file
   string binFname = stringc << prefix << ".bin";
-  traceProgress() << "writing binary grammar file " << binFname << endl;
-  writeParseTablesFile(g.tables, binFname);
+  if (testRW || tracingSys("binaryGrammar")) {
+    traceProgress() << "writing binary grammar file " << binFname << endl;
+    writeParseTablesFile(g.tables, binFname);
+  }
 
   // write it in a bison-compatible format as well
-  {                     
+  if (tracingSys("bison")) {                     
     string bisonFname = stringc << prefix << ".gr.gen.y";
     traceProgress() << "writing bison-compatible grammar to " << bisonFname << endl;
     ofstream out(bisonFname);
