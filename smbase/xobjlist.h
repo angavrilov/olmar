@@ -180,7 +180,7 @@ void ObjList<T>::deleteAll()
 //       any given list
 template <class T>
 class mutatorName {
-  friend iterName<T>;
+  friend class iterName<T>;
 
 protected:
   VoidListMutator mut;       // underlying mutator

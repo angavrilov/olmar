@@ -18,9 +18,9 @@ private:    // data
   ArrayStack<T*> stack;
 
 public:     // funcs
-  OwnerKHashArray(OwnerKHashTable<T,K>::GetKeyFn gk, 
-                  OwnerKHashTable<T,K>::HashFn hf, 
-                  OwnerKHashTable<T,K>::EqualKeyFn ek,
+  OwnerKHashArray(typename OwnerKHashTable<T,K>::GetKeyFn gk,
+                  typename OwnerKHashTable<T,K>::HashFn hf,
+                  typename OwnerKHashTable<T,K>::EqualKeyFn ek,
                   int initSize = HashTable::defaultSize)
     : hash(gk, hf, ek, initSize),
       stack(initSize)

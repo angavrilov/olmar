@@ -40,8 +40,8 @@ typedef int (*VoidDiff)(void *left, void *right, void *extra);
 // (well, some comparison has creeped in now... but only via VoidDiff)
 class VoidList {
 private:
-  friend VoidListIter;
-  friend VoidListMutator;
+  friend class VoidListIter;
+  friend class VoidListMutator;
 
 protected:
   VoidNode *top;                     // (owner) first node, or NULL if list is empty
@@ -136,7 +136,7 @@ public:
 //       iterator exists, and only one such iterator should exist for
 //       any given list
 class VoidListMutator {
-  friend VoidListIter;
+  friend class VoidListIter;
 
 protected:
   VoidList &list; 	  // underlying list

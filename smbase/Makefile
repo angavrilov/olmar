@@ -15,6 +15,9 @@ ranlib      := ranlib
 # make warnings into errors so I always get a chance to fix them
 ccflags += -Werror
 
+# for gcc-3
+ccflags += -Wno-deprecated
+
 # when uncommented, we get profiling info
 #ccflags += -pg
 
@@ -133,13 +136,13 @@ bflatten: bflatten.cc bflatten.h $(THISLIBRARY)
 	$(link) -o bflatten -DTEST_BFLATTEN bflatten.cc $(THISLIBRARY) $(linkend)
 
 mysig: mysig.cc mysig.h $(THISLIBRARY)
-	gcc -Wall -g -o mysig -DTEST_MYSIG mysig.cc $(THISLIBRARY) $(linkend)
+	g++ -Wall -g -o mysig -DTEST_MYSIG mysig.cc $(THISLIBRARY) $(linkend)
 
 testmalloc: testmalloc.cc $(THISLIBRARY)
-	gcc -Wall -g -o testmalloc testmalloc.cc $(THISLIBRARY) $(linkend)
+	g++ -Wall -g -o testmalloc testmalloc.cc $(THISLIBRARY) $(linkend)
 
 mypopen: mypopen.c mypopen.h
-	g++ -Wall -g -o mypopen -DTEST_MYPOPEN mypopen.c
+	gcc -Wall -g -o mypopen -DTEST_MYPOPEN mypopen.c
 
 # this test is only useful when malloc is compiled with DEBUG_HEAP
 tmalloc: tmalloc.c
@@ -152,7 +155,7 @@ cycles: cycles.h cycles.c
 	gcc -Wall -g -o cycles -DTEST_CYCLES cycles.c
 
 crc: crc.cpp
-	gcc -Wall -g -o crc -DTEST_CRC crc.cpp
+	g++ -Wall -g -o crc -DTEST_CRC crc.cpp
 
 check: $(tests-files)
 	./nonport

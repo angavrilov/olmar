@@ -123,7 +123,7 @@ public:
 //       any given list
 template <class T>
 class SObjListMutator {
-  friend SObjListIter<T>;
+  friend class SObjListIter<T>;
 
 protected:
   VoidListMutator mut;       // underlying mutator

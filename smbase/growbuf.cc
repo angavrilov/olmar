@@ -3,6 +3,8 @@
 
 #include "growbuf.h"      // this module
 
+#include <string.h>       // memcpy
+
 void GrowBuffer::append(byte const *str, int len)
 {
   // test length

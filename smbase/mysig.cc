@@ -4,6 +4,7 @@
 #include "mysig.h"      // this module
 
 #include <string.h>     // strsignal
+#include <stdlib.h>     // exit
 #include <unistd.h>     // sleep
 #include <stdio.h>      // printf
 

@@ -133,7 +133,7 @@ void ObjList<T>::deleteAll()
 //       any given list
 template <class T>
 class ObjListMutator {
-  friend ObjListIter<T>;
+  friend class ObjListIter<T>;
 
 protected:
   VoidListMutator mut;       // underlying mutator

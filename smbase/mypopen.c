@@ -8,6 +8,7 @@
 #include <stdlib.h>     // exit, perror
 #include <stdio.h>      // printf
 #include <unistd.h>     // pipe, read, etc.
+#include <string.h>     // strlen
 #include <sys/types.h>  // pid_t
 #include <sys/wait.h>   // wait
 
@@ -163,7 +164,7 @@ int main()
   // try cat
   {
     int in, out;
-    char *argv[] = { "cat", NULL };
+    char const *argv[] = { "cat", NULL };
     int pid = popen_execvp(&in, &out, NULL, argv[0], argv);
     printf("child pid is %d\n", pid);
 
@@ -213,7 +214,7 @@ int main()
   {
     int in, out, err;
     int len;
-    char *argv[] = { "does_not_exist", NULL };
+    char const *argv[] = { "does_not_exist", NULL };
     int pid = popen_execvp(&in, &out, &err, argv[0], argv);
     printf("child pid is %d\n", pid);
 

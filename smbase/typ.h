@@ -29,15 +29,33 @@ typedef signed char signed_byte;
 
 
 // min, max
-#ifndef __MINMAX_DEFINED
-# ifndef min
-#  define min(a,b) ((a)<(b)?(a):(b))
-# endif
-# ifndef max
-#  define max(a,b) ((a)>(b)?(a):(b))
-# endif
-# define __MINMAX_DEFINED
-#endif // __MINMAX_DEFINED
+#undef min
+#undef max
+       
+template <class T>
+inline T min(T const &a, T const &b)
+{
+  return a<b? a:b;
+}
+
+template <class T>
+inline T max(T const &a, T const &b)
+{
+  return a>b? a:b;
+}
+
+
+#if 0   // old
+  #ifndef __MINMAX_DEFINED
+  # ifndef min
+  #  define min(a,b) ((a)<(b)?(a):(b))
+  # endif
+  # ifndef max
+  #  define max(a,b) ((a)>(b)?(a):(b))
+  # endif
+  # define __MINMAX_DEFINED
+  #endif // __MINMAX_DEFINED
+#endif // 0
 
 
 // tag for definitions of static member functions; there is no

@@ -310,13 +310,13 @@ string localTimeString()
 }
 
 
-string basename(char const *src)
+string sm_basename(char const *src)
 {
   char const *sl = strrchr(src, '/');   // locate last slash
   if (sl && sl[1] == 0) {
     // there is a slash, but it is the last character; ignore it
     // (this behavior is what /bin/basename does)
-    return basename(string(src, strlen(src)-1));
+    return sm_basename(string(src, strlen(src)-1));
   }
 
   if (sl) {
@@ -393,7 +393,7 @@ void trVector(char const *in, char const *srcSpec, char const *destSpec, char co
 void basenameVector(char const *in, char const *out)
 {
   printf("basenameVector(%s, %s)\n", in, out);
-  string result = basename(in);
+  string result = sm_basename(in);
   xassert(result.equals(out));
 }
 

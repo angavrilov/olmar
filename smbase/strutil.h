@@ -55,7 +55,8 @@ string localTimeString();
 
 
 // given a directory name like "a/b/c", return "c"
-string basename(char const *src);
+// renamed from 'basename' because of conflict with something in string.h
+string sm_basename(char const *src);
 
 // given a directory name like "a/b/c", return "a/b"; if 'src' contains
 // no slashes at all, return "."
