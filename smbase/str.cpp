@@ -15,19 +15,25 @@
 
 
 // ----------------------- string ---------------------
+// ideally the compiler would arrange for 'empty', and the
+// "" it points to, to live in a read-only section of mem..;
+// but I can't declare it 'char const *' because I assign
+// it to 's' in many places..
+char * const string::empty = "";
+
+
 string::string(char const *src, int length)
 {
-  s=0;
-  setlength(length);       // setlength already has the +1
+  s=empty;
+  setlength(length);       // setlength already has the +1; sets final NUL
   memcpy(s, src, length);
-  //s[length] = 0;     	   // this was redundant, no?
 }
 
 
 void string::dup(char const *src)
 {
-  if (!src) {
-    s = 0;
+  if (!src || src[0]=0) {
+    s = empty;
   }
   else {
     s = new char[ strlen(src) + 1 ];
@@ -38,7 +44,7 @@ void string::dup(char const *src)
 
 void string::kill()
 {
-  if (s) {
+  if (s != empty) {
     delete s;
   }
 }
@@ -46,7 +52,8 @@ void string::kill()
 
 int string::length() const
 {
-  return s? strlen(s) : 0;
+  xassert(s);
+  return strlen(s);
 }
 
 bool string::contains(char c) const
@@ -69,10 +76,16 @@ string string::substring(int startIndex, int len) const
 string &string::setlength(int length)
 {
   kill();
-  s = new char[ length+1 ];
-  xassert(s);
-  s[length] = 0;
-  s[0] = 0;
+  if (length > 0) {
+    s = new char[ length+1 ];
+    xassert(s);
+    s[length] = 0;      // final NUL in expectation of 'length' chars
+    s[0] = 0;           // in case we just wanted to set allocated length
+  }
+  else {
+    xassert(length == 0);     // negative wouldn't make sense
+    s = empty;
+  }
   return *this;
 }
 
@@ -84,18 +97,9 @@ int string::compareTo(string const &src) const
 
 int string::compareTo(char const *src) const
 {
-  if (!s || !src) {
-    // yet again I'm forced the deal with these nonideal
-    // possibilities...
-    
-    if (!s && !src) {
-      return 0;    // equal
-    }
-    else {
-      return s - src;
-    }
+  if (src == NULL) {
+    src = empty;
   }
-
   return strcmp(s, src);
 }
 
@@ -124,14 +128,7 @@ void string::readdelim(istream &is, char const *delim)
 
 void string::write(ostream &os) const
 {
-  if (s != NULL) {
-    os << s;     // standard char* writing routine
-  }
-  else {
-    // I still debate the decision to allow s to be NULL,
-    // but if I am going to, I should support it behaving
-    // like "", I think.. (so I do nothing here)
-  }
+  os << s;     // standard char* writing routine
 }
 
 
@@ -323,6 +320,8 @@ int main()
   test(0);
   test((unsigned long)(-1));
   test(1);
+
+  cout << "tests passed\n";
 
   return 0;
 }

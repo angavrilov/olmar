@@ -16,7 +16,9 @@
 
 class string {
 protected:     // data
-  char *s;     	       	       	       // string contents; allowed to be NULL
+  // 10/12/00: switching to never letting s be NULL
+  char *s;     	       	       	       // string contents; never NULL
+  static char * const empty;           // a global ""; should never be modified
 
 protected:     // funcs
   void dup(char const *source);        // copies, doesn't dealloc first
@@ -26,14 +28,14 @@ public:	       // funcs
   string(string const &src) { dup(src.s); }
   string(char const *src) { dup(src); }
   string(char const *src, int length);    // grab a substring
-  string(int length) { s=0; setlength(length); }
-  string() { s=0; }
+  string(int length) { s=empty; setlength(length); }
+  string() { s=empty; }
 
   ~string() { kill(); }
 
   // simple queries
   int length() const;  	       	// returns number of non-null chars in the string; length of "" is 0
-  bool isempty() const { return !s || s[0]==0; }
+  bool isempty() const { return s[0]==0; }
   bool contains(char c) const;
 
   // array-like access

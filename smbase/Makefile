@@ -54,6 +54,9 @@ strdict: strdict.cc strdict.h ${THISLIBRARY}
 svdict: svdict.cc svdict.h ${THISLIBRARY}
 	${link} -o svdict -DTEST_SVDICT svdict.cc ${THISLIBRARY} ${linkend}
 
+str: str.cpp str.h ${THISLIBRARY}
+	${link} -o str -DTEST_STR str.cpp ${THISLIBRARY} ${linkend}
+
 check: ${tests-files}
 	./nonport
 	./voidlist
@@ -62,6 +65,7 @@ check: ${tests-files}
 	./growbuf
 	./strdict
 	./svdict
+	./str
 	@echo
 	@echo "make check: all the tests PASSED"
 
