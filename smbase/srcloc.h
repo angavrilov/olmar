@@ -174,6 +174,11 @@ private:     // data
   // next static (negative) location
   SourceLoc nextStaticLoc;
 
+public:      // data
+  // number of static locations at which we print a warning message;
+  // defaults to 100
+  int maxStaticLocs;
+
 private:     // funcs
   // let File know about these functions
   friend class SourceLocManager::File;

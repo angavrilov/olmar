@@ -308,7 +308,8 @@ SourceLocManager::SourceLocManager()
     recent(NULL),
     statics(),
     nextLoc(toLoc(1)),
-    nextStaticLoc(toLoc(0))
+    nextStaticLoc(toLoc(0)),
+    maxStaticLocs(100)
 {
   if (!sourceLocManager) {
     sourceLocManager = this;
@@ -396,6 +397,22 @@ SourceLoc SourceLocManager::encodeLineCol(
 
 SourceLoc SourceLocManager::encodeStatic(StaticLoc const &obj)
 {
+  if (-toInt(nextStaticLoc) == maxStaticLocs) {
+    // Each distinct static location should correspond to a single
+    // place in the source code.  If one place in the source is creating
+    // a given static location over and over, that's bad because it
+    // quickly leads to poor performance when storing and decoding them.
+    // Instead, make one and re-use it.
+    //
+    // If this message is being printed because the program is just
+    // really big and has lots of distinct static locations, then you
+    // can increase maxStaticLocs manually.
+    fprintf(stderr,
+      "Warning: You've created %d static locations, which is symptomatic\n"
+      "of a bug.  See %s, line %d.\n",
+      maxStaticLocs, __FILE__, __LINE__);
+  }
+
   // save this location
   statics.append(new StaticLoc(obj));
 
@@ -641,10 +658,15 @@ void testFile(char const *fname)
 }
 
 
-void entry()
+void entry(int argc, char **argv)
 {
   traceAddSys("progress");
   traceProgress() << "begin" << endl;
+
+  if (argc >= 2) {
+    // set maxStaticLocs low to test the warning
+    mgr.maxStaticLocs = 1;
+  }
 
   // test my source code
   testFile("srcloc.cc");
@@ -670,7 +692,7 @@ void entry()
   cout << "srcloc is ok\n";
 }
 
-USUAL_MAIN
+ARGS_MAIN
 
 
 #endif // TEST_SRCLOC
