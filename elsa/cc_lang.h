@@ -161,7 +161,7 @@ public:
   bool lvalueFlowsThroughCast;
   
   // MSVC bug compatibility: allow implicit int for operator functions
-  bool allowImplicitIntForOperators;
+  Bool3 allowImplicitIntForOperators;
   
   // gcc bug compatibility: allow qualified member declarations
   Bool3 allowQualifiedMemberDeclarations;

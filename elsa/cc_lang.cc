@@ -16,6 +16,7 @@ static void enableWarning(Bool3 &b)
 void CCLang::enableAllWarnings()
 {
   enableWarning(allowImplicitFunctionDecls);
+  enableWarning(allowImplicitIntForOperators);
   enableWarning(allowQualifiedMemberDeclarations);
   enableWarning(allowModifiersWithTypedefNames);
 }
@@ -58,7 +59,7 @@ void CCLang::ANSI_C89()
   // C99 spec: Section 6.5.4, footnote 85: "A cast does not yield an lvalue".
   lvalueFlowsThroughCast = false;
   
-  allowImplicitIntForOperators = false;
+  allowImplicitIntForOperators = B3_FALSE;
   allowQualifiedMemberDeclarations = B3_FALSE;
   allowModifiersWithTypedefNames = B3_FALSE;
 }
@@ -175,7 +176,7 @@ void CCLang::ANSI_Cplusplus()
   allowNewlinesInStringLits = false;
   stringLitCharsAreConst = true; // Cppstd says they are const.
   lvalueFlowsThroughCast = false;
-  allowImplicitIntForOperators = false;
+  allowImplicitIntForOperators = B3_FALSE;
   allowQualifiedMemberDeclarations = B3_FALSE;
   allowModifiersWithTypedefNames = B3_FALSE;
 }
@@ -203,7 +204,7 @@ void CCLang::GNU_Cplusplus()
 // -------------------------- MSVC ---------------------
 void CCLang::MSVC_bug_compatibility()
 {
-  allowImplicitIntForOperators = true;
+  allowImplicitIntForOperators = B3_TRUE;
 }
 
 

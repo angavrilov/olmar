@@ -432,7 +432,7 @@ nonterm(Declaration*) DeclSpecifier {
      {
        diagnose3(lang.allowModifiersWithTypedefNames, loc,
                  "typedef and type keyword in a single type "
-                 "specifier is a gcc2 bug");
+                 "specifier (gcc2 bug accepts it)");
        return new Declaration(uberDeclFlags(m2),
          new_TS_name(loc, uberCVFlags(m2), n, false /*typename*/), NULL);
      }
@@ -441,7 +441,7 @@ nonterm(Declaration*) DeclSpecifier {
      {
        diagnose3(lang.allowModifiersWithTypedefNames, loc,
                  "typedef and type keyword in a single type "
-                 "specifier is a gcc2 bug");
+                 "specifier (gcc2 bug accepts it)");
        UberModifiers m = uberCombine(loc, m1, m2);
        return new Declaration(uberDeclFlags(m),
          new_TS_name(loc, uberCVFlags(m), n, false /*typename*/), NULL);

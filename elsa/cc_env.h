@@ -18,6 +18,7 @@
 #include "array.h"        // ArrayStack, ArrayStackEmbed
 #include "builtinops.h"   // CandidateSet
 #include "matchtype.h"    // MatchType, STemplateArgumentCMap
+#include "cc_lang.h"      // Bool3
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -468,6 +469,7 @@ public:      // funcs
   Type *warning(SourceLoc L, rostring msg);
   Type *warning(rostring msg);
   Type *unimp(rostring msg);
+  void diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags = EF_NONE);
 
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR

@@ -3475,9 +3475,9 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
           specialFunc = FF_CONVERSION;
         }
         else {
-          if (!env.lang.allowImplicitIntForOperators) {
-            env.error(stringc << "cannot declare `" << name->toString() << "' with no return type");
-          }
+          env.diagnose3(env.lang.allowImplicitIntForOperators, name->loc,
+                        stringc << "cannot declare `" << name->toString() 
+                                << "' with no return type (MSVC bug accepts it)");
           dt.type = env.getSimpleType(SL_UNKNOWN, ST_INT);     // recovery
         }
       }

@@ -4845,12 +4845,9 @@ void Env::checkForQualifiedMemberDeclarator(Declarator *decl)
   //    its class, ..." (emphasis mine)
 
   // complain
-  if (lang.allowQualifiedMemberDeclarations == B3_WARN) {
-    warning(name->loc, "qualified name is not allowed in member declaration");
-  }
-  else if (lang.allowQualifiedMemberDeclarations == B3_FALSE) {
-    error(name->loc, "qualified name is not allowed in member declaration");
-  }
+  diagnose3(lang.allowQualifiedMemberDeclarations, name->loc,
+            "qualified name is not allowed in member declaration "
+            "(gcc bug accepts it)");
   
   // skip the qualifiers
   do {
@@ -5191,6 +5188,17 @@ void Env::addError(ErrorMsg * /*owner*/ obj)
   }
 
   ErrorList::addError(obj);
+}
+
+
+void Env::diagnose3(Bool3 b, SourceLoc L, rostring msg, ErrorFlags eflags)
+{
+  if (b == B3_WARN) {
+    warning(L, msg);
+  }
+  else if (b == B3_FALSE) {
+    error(L, msg, eflags);
+  }
 }
 
 
