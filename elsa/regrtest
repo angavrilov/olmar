@@ -909,6 +909,7 @@ failparse k0036.cc "taking the address of a string (?!)"
 failparse k0037.cc "new array of pointers"
 testparse k0038.cc #"templatized struct as template parameter to function"
 failparse k0039.cc "funky namespace resolution after 'using namespace'"
+failparse k0040.cc "instantiating a template with unnamed template parameter"
 
 ### </quarl-testcases-c++>
 
