@@ -6457,10 +6457,14 @@ SpecialExpr Expression::getSpecial() const
   ASTSWITCHC(Expression, this) {
     ASTCASEC(E_intLit, i)
       return i->i==0? SE_ZERO : SE_NONE;
-     
+
     ASTNEXTC1(E_stringLit)
       return SE_STRINGLIT;
-      
+
+    // 9/23/04: oops, forgot this
+    ASTNEXTC(E_grouping, e)
+      return e->expr->getSpecial();
+
     ASTDEFAULTC
       return SE_NONE;
 

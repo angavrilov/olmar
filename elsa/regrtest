@@ -536,6 +536,7 @@ testparse t0298.cc
 testparse t0299.cc
 testparse t0300.cc
 testparse t0301.cc
+testparse t0302.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
