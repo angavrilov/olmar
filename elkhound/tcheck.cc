@@ -446,7 +446,7 @@ void /*Type const * */D_name::itcheck(Env &env, Type const *base,
   }
   else {
     if (dflags & DF_TYPEDEF) {
-      env.addTypedef(name, var);
+      env.addTypedef(name, var->type);
     }
     else {
       env.addVariable(name, var);

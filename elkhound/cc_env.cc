@@ -305,15 +305,13 @@ Variable *Env::getVariable(StringRef name, bool innerOnly)
 
 
 // ------------------- typedef -------------------------
-void Env::addTypedef(StringRef name, Variable *decl)
+void Env::addTypedef(StringRef name, Type const *type)
 {
-  xassert(decl->flags & DF_TYPEDEF);
-
   if (getTypedef(name)) {
     errThrow(stringc
       << "duplicate typedef for `" << name << "'");
   }
-  typedefs.add(name, const_cast<Type*>(decl->type));
+  typedefs.add(name, const_cast<Type*>(type));
 }
 
 

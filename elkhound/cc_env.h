@@ -191,8 +191,9 @@ public:     // funcs
   Variable *getVariable(StringRef name, bool innerOnly=false);
 
   // ----------- typedefs -------------
-  // add a new typedef; error to collide
-  void addTypedef(StringRef name, Variable *decl);
+  // add a new typedef; error to collide;
+  // after this call, the program can use 'name' as an alias for 'type'
+  void addTypedef(StringRef name, Type const *type);
 
   // return named type or NULL if no mapping
   Type const *getTypedef(StringRef name);

@@ -218,7 +218,7 @@ struct GNUKeywordMap {
   { "friend", L2_NAME },
   { "mutable", L2_NAME },
   { "namespace", L2_NAME },
-  { "new", L2_NAME },
+  //{ "new", L2_NAME },     // back to recognizing 'new'
   { "operator", L2_NAME },
   { "private", L2_NAME },
   { "protected", L2_NAME },
