@@ -6148,7 +6148,17 @@ Type *E_effect::itcheck_x(Env &env, Expression *&replacement)
 
   // TODO: make sure 'expr' is compatible with given operator
 
-  return expr->type->asRval();
+  // dsw: FIX: check that the arugment is an lvalue.
+
+  // Cppstd 5.2.6 "Increment and decrement: The value obtained by
+  // applying a postfix ++ ... .  The result is an rvalue."; Cppstd
+  // 5.3.2 "Increment and decrement: The operand of prefix ++ ... .
+  // The value ... is an lvalue."
+  Type *ret = expr->type->asRval();
+  if (op == EFF_PREINC || op == EFF_PREDEC) {
+    ret = env.makeReferenceType(env.loc(), ret);
+  }
+  return ret;
 }
 
 
