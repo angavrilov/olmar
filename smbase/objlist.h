@@ -40,9 +40,13 @@ public:
 
   // selectors
   int count() const                     { return list.count(); }
+  bool isEmpty() const                  { return list.isEmpty(); }
+
   T *nth(int which)                     { return (T*)list.nth(which); }
   T const *nthc(int which) const        { return (T const*)list.nth(which); }
-  bool isEmpty() const                  { return list.isEmpty(); }
+
+  bool contains(T const *item) const    { return list.contains(item); }
+  int indexOf(T const *item) const      { return list.indexOf(item); }
 
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
