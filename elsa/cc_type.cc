@@ -692,20 +692,20 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
   }
 }
 
-// sm: We only allow overloading when the types are different.  If
-// this function were to return true, then the type checker would
-// consider this a duplicate definition and complain.  Since this
-// function instead returns false, the type checker thinks a different
-// function (with a different type signature) is being defined (or
-// declared, but definitions are the interesting case).
 bool FunctionType::equalParameterLists(FunctionType const *obj) const
 {
   if (cv != obj->cv) {
-    // the 'cv' qualifier is really attached to the 'this' parameter;
-    // it's important to check this here, since disequality of
-    // parameter lists is part of the criteria for allowing
-    // overloading, and it *is* legal to overload with different 'cv'
-    // flags on a class method
+    // The 'cv' qualifier is really attached to the 'this' parameter.
+    // It's important to check this here, since disequality of
+    // parameter lists (including 'this') is part of the criteria for
+    // allowing overloading, and it *is* legal to overload with
+    // different 'cv' flags on a class method.
+    //
+    // In this case, since they are different we'll return false, so
+    // the type checker will think a different function is being
+    // declared.  Were we to return true, the type checker might think
+    // the same function was being defined twice, since the types would
+    // appear to be the same.
     return false;
   }
 
