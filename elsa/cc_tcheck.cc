@@ -4361,6 +4361,7 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                     );
 
   // typecheck it
+  int numErrors = env.numErrors();
   declaration0->tcheck(env,
                        false,   // isMember
                        true     // isTemporary
@@ -4372,6 +4373,7 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                               ((declaration0->dflags & DF_STATIC)!=0) /*isStatic*/
                               );
   }
+  xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
 
   return declaration0;
 }
