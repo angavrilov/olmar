@@ -999,7 +999,16 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
   // check that the keywords match; these 'keyword's are different
   // types, but they agree for the three relevant values
   if ((int)keyword != (int)ct->keyword) {
-    goto keywordComplaint;
+    // I made the struct/class confusion only be a warning because gcc
+    // allows it
+    if ( (keyword==TI_STRUCT && ct->keyword==CompoundType::K_CLASS)
+         || (keyword==TI_CLASS && ct->keyword==CompoundType::K_STRUCT) ) {
+      return env.warning(stringc
+        << "you asked for a " << toString(keyword) << " called `"
+        << *name << "', but that's actually a " << toString(ct->keyword));
+    } else {
+      goto keywordComplaint;
+    }
   }
 
   if (name->getUnqualifiedName()->isPQ_template()) {
