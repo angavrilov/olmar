@@ -116,6 +116,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* operators, punctuators and keywords: tokens with one spelling */
 "asm"              return tok(TOK_ASM);
+"__asm__"          return tok(TOK_ASM);
 "auto"             return tok(TOK_AUTO);
 "break"            return tok(TOK_BREAK);
 "bool"             return tok(TOK_BOOL);
@@ -125,6 +126,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "char"             return tok(TOK_CHAR);
 "class"            return tok(TOK_CLASS);
 "const"            return tok(TOK_CONST);
+"__const__"        return tok(TOK_CONST);
 "const_cast"       return tok(TOK_CONST_CAST);
 "continue"         return tok(TOK_CONTINUE);
 "default"          return tok(TOK_DEFAULT);
@@ -144,6 +146,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "goto"             return tok(TOK_GOTO);
 "if"               return tok(TOK_IF);
 "inline"           return tok(TOK_INLINE);
+"__inline__"       return tok(TOK_INLINE);
 "int"              return tok(TOK_INT);
 "long"             return tok(TOK_LONG);
 "mutable"          return tok(TOK_MUTABLE);
@@ -159,6 +162,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "return"           return tok(TOK_RETURN);
 "short"            return tok(TOK_SHORT);
 "signed"           return tok(TOK_SIGNED);
+"__signed__"       return tok(TOK_SIGNED);
 "sizeof"           return tok(TOK_SIZEOF);
 "static"           return tok(TOK_STATIC);
 "static_cast"      return tok(TOK_STATIC_CAST);
@@ -178,6 +182,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "virtual"          return tok(TOK_VIRTUAL);
 "void"             return tok(TOK_VOID);
 "volatile"         return tok(TOK_VOLATILE);
+"__volatile__"     return tok(TOK_VOLATILE);
 "wchar_t"          return tok(TOK_WCHAR_T);
 "while"            return tok(TOK_WHILE);
 
@@ -235,6 +240,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "__FUNCTION__"         return tok(TOK___FUNCTION__);
 "__label__"            return tok(TOK___LABEL__);
 "__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
+ /* Perhaps we should have "typeof" as well? */
 "__typeof__"           return tok(TOK___TYPEOF__);
 
 "thmprv_assert"        return tok(TOK_THMPRV_ASSERT);
@@ -257,6 +263,10 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 ".." {
   yyless(1);     /* put back all but 1; this is inexpensive */
   return tok(TOK_ELLIPSIS);
+}
+
+"__extension__" {
+  whitespace();                 /* check this */
 }
 
   /* identifier: e.g. foo */
