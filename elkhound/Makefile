@@ -15,6 +15,9 @@ includes = -I${SMBASE}
 # when uncommented, we get profiling info
 #ccflags = -pg
 
+# optimizer...
+ccflags = -O2
+
 # pull in base stuff
 include ${SMBASE}/Makefile.base.mk
 

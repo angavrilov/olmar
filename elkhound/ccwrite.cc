@@ -205,9 +205,9 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
         // each RHS element with a tag needs that tag bound
         if (sym->isNonterminal()) {
           // e.g.: B_Node const &b = *((B_Node const *)getOnlyChild(0));
-          os << "      " << nodeTypeName(sym) << " const &"
+          os << "      " << nodeTypeName(sym) << " &"
              << tag << " = *((" << nodeTypeName(sym)
-             << " const *)getOnlyChild(" << childNum
+             << " *)getOnlyChild(" << childNum
              << "));\n";
         }
         else {

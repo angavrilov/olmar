@@ -51,7 +51,7 @@ nonterm Checkable {
   //   - check type consistency, and report errors where
   //     inconsistencies are found
   //   - add new symbols to the environment, with their types
-  fundecl void typeCheck(Env &env) const;
+  fundecl void typeCheck(Env &env);
         
 /*
   // the problem is I can't call 'typeCheck' unless I have
@@ -139,14 +139,14 @@ nonterm TranslationUnit : Checkable {
 nonterm HasVarsDecld {
   // check that all the used variables are declared, and report
   // those that are unused
-  fundecl void varsDecld(Env &env) const;
+  fundecl void varsDecld(Env &env);
   fun varsDecld {}
 }
 
 // base class for expressions
 nonterm ExprBase : HasVarsDecld {
   // return the integer this expression evaluates to at compile time
-  fundecl int intEval(Env &env) const;
+  fundecl int intEval(Env &env);
   fun intEval { throwError("not a constant integer expression"); }
 }
 
@@ -177,7 +177,7 @@ nonterm Literal : ExprBase {
 nonterm HasTypeName {
   // return either a complete type description, or part
   // of one to be concatenated in context
-  fundecl string typeName() const;
+  fundecl string typeName();
 
   // default implementation: just yield the original input
   fun typeName = unparseString();
@@ -185,7 +185,7 @@ nonterm HasTypeName {
 
 nonterm HasDeclName {
   // retrieve the name of the variable being declared
-  fundecl string getDeclName() const;
+  fundecl string getDeclName();
 
   // again, for now, take the easy road
   fun getDeclName = unparseString();
@@ -340,7 +340,7 @@ nonterm UnaryExpression : ExprBase {
 
 nonterm UnaryOperator {
   // return this operator's effect on integer value 'val'
-  fundecl int intEval(int val) const;
+  fundecl int intEval(int val);
 
   -> "*" | "&"     { fun intEval { throwError("can't apply this operator to an integer"); } }
   -> "+"           { fun intEval = val; }
@@ -432,7 +432,7 @@ nonterm BinaryOperator {
   action  leftAssoc := 1;
                                                  
   // return this operator's effect on integers
-  fundecl int intEval(int left, int right) const;
+  fundecl int intEval(int left, int right);
 
   // highest precedence
   formGroup {
@@ -756,12 +756,12 @@ nonterm SimpleDeclaration : Checkable {
 
 nonterm HasDeclFlags {
   // return the set of declaration flags present here
-  fundecl DeclFlags getDeclFlags() const;
+  fundecl DeclFlags getDeclFlags();
 }
 
 nonterm HasType {
   // return the Type represented by this syntax
-  fundecl Type const *getType(Env &env) const;
+  fundecl Type const *getType(Env &env);
 }
 
 nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
@@ -797,7 +797,7 @@ nonterm DeclModifierOpt : HasDeclFlags {
 
 nonterm HasCVFlags {
   // return all const/volatile at this level
-  fundecl CVFlags getCVFlags() const;
+  fundecl CVFlags getCVFlags();
 }
 
 nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
@@ -886,7 +886,7 @@ nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
 nonterm SimpleTypeBase : HasType {
   // helper to get the simple type spec, to cut down on
   // syntactic verbiage
-  fundecl SimpleTypeId getst() const;
+  fundecl SimpleTypeId getst();
   fun getst { internalError("can't call me"); }
 
   fun getType {
@@ -1000,7 +1000,7 @@ nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasCVFlags {
 
 
 nonterm EnumSpecifier : HasType {
-  fundecl string getEnumName() const;
+  fundecl string getEnumName();
 
   fun getType {
     // get preliminary info
@@ -1056,7 +1056,7 @@ nonterm HasDeclare {
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env &env, DeclFlags flags, Type const *type) const;
+  fundecl void declare(Env &env, DeclFlags flags, Type const *type);
 }
 
 nonterm InitDeclaratorList : HasDeclare {
@@ -1119,18 +1119,18 @@ nonterm HasDeclType {
   // retrieve the type associated with this declaration, where
   // 'type' is the type as built so far (inherited from the
   // specifier, or constructed by parsing type constructors)
-  fundecl Type const *getDeclType(Env &env, Type const *type) const;
+  fundecl Type const *getDeclType(Env &env, Type const *type);
 }
 
 nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
   // get the node that has the function parameters, or NULL if this
   // isn't a function declaration
-  fundecl ParameterDeclarationClause_Node const *getFnParams() const;
+  fundecl ParameterDeclarationClause_Node *getFnParams();
   fun getFnParams = NULL;
 
   // return the type name string for the return type, if this is
   // a function declaration
-  fundecl string retTypeName() const;
+  fundecl string retTypeName();
   fun retTypeName { internalError("not a function type"); }
 
   // name of variable or function being declared
@@ -1192,9 +1192,9 @@ nonterm Declarator : DeclaratorBase {
 
 nonterm DirectDeclarator : DeclaratorBase {
   // for arrays
-  fundecl bool hasSize() const;             // true if a size is specified
+  fundecl bool hasSize();             // true if a size is specified
   fun hasSize = false;
-  fundecl int getSize(Env &env) const;      // get declared size
+  fundecl int getSize(Env &env);      // get declared size
   fun getSize { internalError("can't call getSize"); }
 
   -> n:PQVarName GNUAttribute |       // GNU extension
@@ -1287,7 +1287,7 @@ nonterm DirectDeclarator : DeclaratorBase {
 
 nonterm PtrOperator : HasCVFlags {
   // return which of the two "pointer" operators this is
-  fundecl PtrOper getPtrOper() const;
+  fundecl PtrOper getPtrOper();
 
   // c++ std mentions something with "::" as well, I don't know what that means
   -> "*" q:CVQualifierSeqOpt {
@@ -1315,6 +1315,7 @@ nonterm CVQualifierSeq : HasTypeName, HasCVFlags {
 nonterm CVQualifier : HasTypeName, HasCVFlags {
   -> "const"            { fun getCVFlags = CV_CONST; }
   -> "volatile"         { fun getCVFlags = CV_VOLATILE; }
+  -> "owner"            { fun getCVFlags = CV_OWNER; }
   -> GNUAttribute       { fun getCVFlags = CV_NONE; }     // GNU extension
 }
 
@@ -1384,14 +1385,14 @@ nonterm DirectAbstractDeclarator : HasTypeName, HasDeclType {
 
 nonterm HasPrintSig {
   // print to cout some part of the function signature
-  fundecl void printSig() const;
+  fundecl void printSig();
 }
 
 
 // -- parameters in declarations --
 nonterm HasArgTypes {
   // accumulate the types of the arguments and store them in 'fnType'
-  fundecl void getArgTypes(Env &env, FunctionType *fnType) const;
+  fundecl void getArgTypes(Env &env, FunctionType *fnType);
 }
 
 nonterm ParameterDeclarationClause : HasPrintSig, HasArgTypes {
@@ -1439,8 +1440,8 @@ nonterm ParameterDeclarationList : HasPrintSig, HasArgTypes {
 }
 
 nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
-  fundecl bool hasName() const;
-  fundecl string getDeclName() const;
+  fundecl bool hasName();
+  fundecl string getDeclName();
 
   fun typeName = stringc << s.typeName() << d.typeName();
 
@@ -1504,7 +1505,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig {
       cout << d.getDeclName() << ": returns "
            << r.typeName() << d.retTypeName() << ", arg types: ";
 
-      ParameterDeclarationClause_Node const *pdc = d.getFnParams();
+      ParameterDeclarationClause_Node *pdc = d.getFnParams();
       xassert(pdc);    // otherwise isFunction had to be 0
       pdc->printSig();
       cout << endl;
@@ -1597,13 +1598,13 @@ nonterm ClassSpecifier : HasType ->
 }
 
 nonterm ClassNameOpt {
-  fundecl string getName() const;
+  fundecl string getName();
   -> empty         { fun getName = ""; }
   -> n:ClassName   { fun getName = n.getName(); }
 }
 
 nonterm ClassKeyword {
-  fundecl CompoundType::Keyword getKeyword() const;
+  fundecl CompoundType::Keyword getKeyword();
   -> "class"       { fun getKeyword = CompoundType::K_CLASS; }
   -> "struct"      { fun getKeyword = CompoundType::K_STRUCT; }
   -> "union"       { fun getKeyword = CompoundType::K_UNION; }
@@ -1612,7 +1613,7 @@ nonterm ClassKeyword {
 
 nonterm MemberDeclBase {
   // add info in this subtree to the compound we're building
-  fundecl void addMemberInfo(Env &env, CompoundType *compound, AccessMode access) const;
+  fundecl void addMemberInfo(Env &env, CompoundType *compound, AccessMode access);
 
   // for now, just eat it
   fun addMemberInfo {}

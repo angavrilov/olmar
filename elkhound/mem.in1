@@ -1,0 +1,21 @@
+// mem.in1
+// simple functions that manage memory
+
+int * owner malloc();
+void free(int * owner p);
+
+void ok()
+{
+  int * owner p;
+  p = malloc();
+  if (p != NULL) {
+    *p = 5;
+    free(p);
+  }
+}
+
+void leaks()
+{
+  int * owner p;
+  p = malloc();
+}

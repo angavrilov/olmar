@@ -156,7 +156,8 @@ enum CVFlags {
   CV_NONE     = 0,
   CV_CONST    = 1,
   CV_VOLATILE = 2,
-  CV_BOTH     = 3
+  CV_OWNER    = 4,
+  CV_ALL      = 7
 };
 
 // essentially just a wrapper around an atomic type, but

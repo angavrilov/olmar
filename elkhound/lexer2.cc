@@ -155,6 +155,7 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_LBRACE),               "{", true },
   { N(L2_RBRACE),               "}", true },
   { N(L2___ATTRIBUTE__),        "__attribute__", true },
+  { N(L2_OWNER),                "owner", true },
 };
 
 #undef N

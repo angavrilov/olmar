@@ -122,6 +122,9 @@ string cvToString(CVFlags cv)
   if (cv & CV_VOLATILE) {
     sb << " volatile";
   }
+  if (cv & CV_OWNER) {
+    sb << " owner";
+  }
   return sb;
 }
 
