@@ -14,6 +14,7 @@
 // (not required by Borland C++ 4.5, but GNU wants it...)
 template <class T> class ObjListIter;
 template <class T> class ObjListMutator;
+template <class T> class ObjListIterNC;
 
 
 // the list is considered to own all of the items; it is an error to insert
@@ -24,6 +25,7 @@ class ObjList {
 private:
   friend class ObjListIter<T>;
   friend class ObjListMutator<T>;
+  friend class ObjListIterNC<T>;
 
 protected:
   VoidList list;                        // list itself
@@ -217,6 +219,38 @@ public:
 
 #define FOREACH_OBJLIST(T, list, iter) \
   for(ObjListIter< T > iter(list); !iter.isDone(); iter.adv())
+
+
+// intermediate to the above two, this allows modification of the
+// objects stored on the list, but not the identity or order of
+// the objects in the list
+template <class T>
+class ObjListIterNC {
+protected:
+  VoidListIter iter;      // underlying iterator
+
+public:
+  ObjListIterNC(ObjList<T> &list) : iter(list.list) {}
+  ObjListIterNC(ObjList<T> &list, int pos) : iter(list.list, pos) {}
+  ~ObjListIterNC()                     {}
+
+  void reset(ObjList<T> &list)         { iter.reset(list.list); }
+
+  // iterator copying; generally safe
+  ObjListIterNC(ObjListIterNC const &obj)             : iter(obj.iter) {}
+  ObjListIterNC& operator=(ObjListIterNC const &obj)  { iter = obj.iter;  return *this; }
+
+  // but copying from a mutator is less safe; see above
+  ObjListIterNC(ObjListMutator<T> &obj)               : iter(obj.mut) {}
+
+  // iterator actions
+  bool isDone() const                   { return iter.isDone(); }
+  void adv()                            { iter.adv(); }
+  T *data() const                       { return (T*)iter.data(); }
+};
+
+#define FOREACH_OBJLIST_NC(T, list, iter) \
+  for(ObjListIterNC< T > iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // OBJLIST_H

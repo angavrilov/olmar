@@ -19,6 +19,7 @@ m4_define(includeLatch, makeName(OBJLIST_H))m4_dnl
 m4_define(className, makeName(ObjList))m4_dnl
 m4_define(iterName, makeName(ObjListIter))m4_dnl
 m4_define(mutatorName, makeName(ObjListMutator))m4_dnl
+m4_define(iterNameNC, makeName(ObjListIterNC))m4_dnl
 m4_changequote(, )m4_dnl              // so quotes are not quoted..
 m4_changequote([[[, ]]])m4_dnl        // reduce likelihood of confusion
 // NOTE: automatically generated from xobjlist.h -- do not edit directly
@@ -35,6 +36,7 @@ m4_changequote([[[, ]]])m4_dnl        // reduce likelihood of confusion
 // (not required by Borland C++ 4.5, but GNU wants it...)
 template <class T> class iterName;
 template <class T> class mutatorName;
+template <class T> class iterNameNC;
 
 
 outputCond([[[m4_dnl      // sobjlist
@@ -50,6 +52,7 @@ class className {
 private:
   friend class iterName<T>;
   friend class mutatorName<T>;
+  friend class iterNameNC<T>;
 
 protected:
   VoidList list;                        // list itself
@@ -266,6 +269,38 @@ public:
 
 #define makeName(FOREACH_OBJLIST)(T, list, iter) \
   for(iterName< T > iter(list); !iter.isDone(); iter.adv())
+
+
+// intermediate to the above two, this allows modification of the
+// objects stored on the list, but not the identity or order of
+// the objects in the list
+template <class T>
+class iterNameNC {
+protected:
+  VoidListIter iter;      // underlying iterator
+
+public:
+  iterNameNC[[[]]](className<T> &list) : iter(list.list) {}
+  iterNameNC[[[]]](className<T> &list, int pos) : iter(list.list, pos) {}
+  ~iterNameNC[[[]]]()                     {}
+
+  void reset(className<T> &list)         { iter.reset(list.list); }
+
+  // iterator copying; generally safe
+  iterNameNC[[[]]](iterNameNC const &obj)             : iter(obj.iter) {}
+  iterNameNC& operator=(iterNameNC const &obj)  { iter = obj.iter;  return *this; }
+
+  // but copying from a mutator is less safe; see above
+  iterNameNC[[[]]](mutatorName<T> &obj)               : iter(obj.mut) {}
+
+  // iterator actions
+  bool isDone() const                   { return iter.isDone(); }
+  void adv()                            { iter.adv(); }
+  T *data() const                       { return (T*)iter.data(); }
+};
+
+#define makeName(FOREACH_OBJLIST_NC)(T, list, iter) \
+  for(iterNameNC< T > iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // includeLatch

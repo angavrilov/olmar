@@ -14,6 +14,7 @@
 // (not required by Borland C++ 4.5, but GNU wants it...)
 template <class T> class SObjListIter;
 template <class T> class SObjListMutator;
+template <class T> class SObjListIterNC;
 
 
 // the list is considered to not own any of the items; it's ok to
@@ -23,6 +24,7 @@ class SObjList {
 private:
   friend class SObjListIter<T>;
   friend class SObjListMutator<T>;
+  friend class SObjListIterNC<T>;
 
 protected:
   VoidList list;                        // list itself
@@ -204,6 +206,38 @@ public:
 
 #define SFOREACH_OBJLIST(T, list, iter) \
   for(SObjListIter< T > iter(list); !iter.isDone(); iter.adv())
+
+
+// intermediate to the above two, this allows modification of the
+// objects stored on the list, but not the identity or order of
+// the objects in the list
+template <class T>
+class SObjListIterNC {
+protected:
+  VoidListIter iter;      // underlying iterator
+
+public:
+  SObjListIterNC(SObjList<T> &list) : iter(list.list) {}
+  SObjListIterNC(SObjList<T> &list, int pos) : iter(list.list, pos) {}
+  ~SObjListIterNC()                     {}
+
+  void reset(SObjList<T> &list)         { iter.reset(list.list); }
+
+  // iterator copying; generally safe
+  SObjListIterNC(SObjListIterNC const &obj)             : iter(obj.iter) {}
+  SObjListIterNC& operator=(SObjListIterNC const &obj)  { iter = obj.iter;  return *this; }
+
+  // but copying from a mutator is less safe; see above
+  SObjListIterNC(SObjListMutator<T> &obj)               : iter(obj.mut) {}
+
+  // iterator actions
+  bool isDone() const                   { return iter.isDone(); }
+  void adv()                            { iter.adv(); }
+  T *data() const                       { return (T*)iter.data(); }
+};
+
+#define SFOREACH_OBJLIST_NC(T, list, iter) \
+  for(SObjListIterNC< T > iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // SOBJLIST_H
