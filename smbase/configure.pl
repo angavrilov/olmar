@@ -13,8 +13,7 @@ options:
   -devel             add options useful while developing smbase
   -debugheap         turn on heap usage debugging
   -traceheap         print messages on each malloc and free
-  <op>:              add a given option to the gcc command line,
-                       including forms: -W*, -pg, -D*, -O*
+  -ccflag <arg>      add <arg> to gcc command line
 EOF
 }
 
@@ -47,6 +46,10 @@ while (@ARGV) {
   # be added to CCFLAGS
   elsif ($arg =~ m/^(-W|-pg$|-D|-O)/) {
     push @CCFLAGS, $arg;
+  }
+  elsif ($arg eq "-ccflag") {
+    push @CCFLAGS, $ARGV[0];
+    shift @ARGV;
   }
 
   elsif ($arg eq "-d" ||
