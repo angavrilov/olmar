@@ -124,6 +124,9 @@ string toString(DeclFlags df);
 
 ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
 
+inline bool operator>= (DeclFlags df1, DeclFlags df2)
+  { return (df1 & df2) == df2; }
+
 // helper of possibly general purpose
 string bitmapString(int bitmap, char const * const *names, int numflags);
 

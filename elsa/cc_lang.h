@@ -122,14 +122,13 @@ public:
   // when true, "_Bool" is a built-in type keyword (C99)
   bool predefined_Bool;
 
+  // when true, a function definition with 'extern' and 'inline'
+  // keywords is treated like a prototype
+  bool treatExternInlineAsPrototype;
+
   // declare the various GNU __builtin functions; see
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;
-
-  // allow bizarre extern-inline function behavior where a function
-  // can be defined twice and the first will simply be ignored if it
-  // is declared to be extern inline
-  bool allowGnuExternInlineFuncReplacement;
 
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split

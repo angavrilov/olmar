@@ -286,6 +286,22 @@ void Function::tcheck(Env &env, Variable *instV)
 {                               
   bool checkBody = env.checkFunctionBodies;
 
+  if (env.lang.treatExternInlineAsPrototype &&
+      dflags >= (DF_EXTERN | DF_INLINE)) {
+    // gcc treats extern-inline function definitions specially:
+    //
+    //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html
+    //
+    // I will essentially ignore them (just treat them like a
+    // prototype), thus modeling the dynamic semantics of gcc when
+    // optimization is turned off.  My nominal stance is that any
+    // program that has an extern-inline definition that is different
+    // from the ordinary (external) definition has undefined behavior.
+    // A possible future extension is to check that such definitions
+    // agree.
+    checkBody = false;
+  }
+
   if (env.secondPassTcheck) {
     // for the second pass, just force the use of the
     // variable computed in the first pass

@@ -43,6 +43,7 @@ class Expression {
 // ----------- gcc compound literals -----------
 class Expression {
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Compound-Literals.html
+  // and C99 6.5.2.5
   -> E_compoundLit(ASTTypeId stype, IN_compound init) {
        // help for dealing with expressions being tchecked more than once
        public bool tcheckedType = false;
