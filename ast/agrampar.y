@@ -50,6 +50,8 @@
 %token TOK_PRIVATE "private"
 %token TOK_PROTECTED "protected"
 %token TOK_VERBATIM "verbatim"
+%token TOK_CTOR "ctor"
+%token TOK_DTOR "dtor"
 
 
 /* ======================== types ========================== */

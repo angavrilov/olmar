@@ -135,13 +135,15 @@ SLWHITE   [ \t]
 "class"            TOK_UPD_COL;  return TOK_CLASS;
 
   /* --------- embedded text --------- */
-("public"|"protected"|"private") {
+("public"|"protected"|"private"|"ctor"|"dtor") {
   TOK_UPD_COL;
   BEGIN(EMBED);
   embedded->reset();
   embedFinish = ';';
   embedMode = TOK_EMBEDDED_CODE;
-  return yytext[2] == 'b'? TOK_PUBLIC :
+  return yytext[0]=='c'?   TOK_CTOR :
+         yytext[0]=='d'?   TOK_DTOR :
+         yytext[2] == 'b'? TOK_PUBLIC :
          yytext[2] == 'o'? TOK_PROTECTED :
                            TOK_PRIVATE ;
 }
