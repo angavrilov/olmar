@@ -40,3 +40,4 @@ Makefile
 hashline
 srcloc.tmp
 gendoc
+testcout
