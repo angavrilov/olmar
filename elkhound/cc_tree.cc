@@ -3,7 +3,6 @@
 
 #include "cc_tree.h"     // this module
 #include "dataflow.h"    // DataflowEnv, etc.
-#include "cc.h"          // for simplify()
 
 
 // --------------------- CCTreeNode ----------------------
@@ -166,34 +165,6 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
   xassert(reductions.count() == 1);
   return (this->*func)(passedEnv, ctxt);
 }
-
-
-#if 0    // unfinished..
-void CCTreeNode::simplify()
-{
-  if (reductions.count() != 1) {
-    cout << locString() << ": not simplifying because it's ambiguous\n";
-    return;
-  }
-  Reduction *red = first();
-
-  // simplify sizeof
-  if (getLHS()->name.equals("UnaryExpression") &&
-      // size of expression or size of type
-      (red->children.count() == 2 || red->children.count() == 4) &&
-      red->children.first()->isTerm() &&
-      red->children.first()->asTerm().token->type == L2_SIZEOF) {
-    // see if we know its value
-    UnaryExpression_Node *ue = (UnaryExpression_Node*)this;
-    try {
-      int sz = ue->intEval(env);
-
-      // it didn't throw -- we know the value; synthesize a
-      // simpler tree here in place of the existing 'sizeof' expr
-      reductions.empty();
-
-      red = new Reduction(  /* oops! */
-#endif // 0
 
 
 // ---------------------- analysis routines --------------------
