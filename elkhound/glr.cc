@@ -806,7 +806,7 @@ void GLR::buildParserIndex()
 // limit of what gcc-2.95.3 is capable of optimizing well; I've already
 // pulled quite a bit of functionality into separate functions to try
 // to reduce the register pressure, but it's still near the limit;
-// if you do something to cross a pressure, threshold, performance drops
+// if you do something to cross a pressure threshold, performance drops
 // 25% so watch out!
 bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
@@ -882,6 +882,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     // from various other GLR functions.  Everything here appears in
     // at least one other place, so modifications will usually have
     // to be done in both places.
+    //
+    // This code is the inner loop of the parsing algorithm, so it's
+    // a bit hairy for its performance optimizations.
     if (activeParsers.length() == 1) {
       StackNode *parser = activeParsers[0];
       xassertdb(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
