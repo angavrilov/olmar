@@ -69,6 +69,9 @@ public:     // funcs
   
   // bitwise AND
   void intersectWith(BitArray const &obj);
+                                 
+  // true if there is any pair of bits 2n,2n+1 where both are set
+  bool anyEvenOddBitPair() const;
 
   // debug check
   void selfCheck() const;

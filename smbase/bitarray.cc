@@ -125,6 +125,22 @@ void BitArray::intersectWith(BitArray const &obj)
 }
 
 
+// it's a little strange to export this function, since it is not
+// very general-purpose, but that is the price of encapsulation
+bool BitArray::anyEvenOddBitPair() const
+{
+  int allocd = allocdBytes();
+  for (int i=0; i<allocd; i++) {
+    unsigned char b = bits[i];
+    if (b & (b >> 1) & 0x55) {        // 01010101
+      return true;
+    }
+  }
+  
+  return false;    // no such pair
+}
+
+
 BitArray stringToBitArray(char const *src)
 {
   int len = strlen(src);
@@ -278,6 +294,20 @@ void testUnionIntersection(char const *s1, char const *s2)
 }
 
 
+void testAnyEvenOddBitPair(char const *s, bool expect)
+{
+  BitArray b = stringToBitArray(s);
+  bool answer = b.anyEvenOddBitPair();
+  if (answer != expect) {
+    static char const *boolName[] = { "false", "true" };
+    cout << "     s: " << s << endl;
+    cout << "answer: " << boolName[answer] << endl;
+    cout << "expect: " << boolName[expect] << endl;
+    xbase("test anyEvenOddBitPair failed");
+  }
+}
+
+
 void entry()
 {
         //            1111111111222222222233333333334444444444555555555566
@@ -322,6 +352,18 @@ void entry()
 
   testUnionIntersection("0000111111000001111110000011110000",
                         "1111000000111110000001111100001111");
+            
+  testAnyEvenOddBitPair("0000", false);
+  testAnyEvenOddBitPair("0001", false);
+  testAnyEvenOddBitPair("0010", false);
+  testAnyEvenOddBitPair("0100", false);
+  testAnyEvenOddBitPair("1000", false);
+  testAnyEvenOddBitPair("0110", false);
+  testAnyEvenOddBitPair("1110", true);
+  testAnyEvenOddBitPair("0111", true);
+  testAnyEvenOddBitPair("1111", true);
+  testAnyEvenOddBitPair("11110", true);
+  testAnyEvenOddBitPair("01100", false);
 
   cout << "bitarray is ok\n";
 }
