@@ -98,7 +98,7 @@ value cil_thing_location(CilThing *thing)
     CAMLparam0();
     CAMLlocal1(result);
 
-    SourceLocation const *loc = thing->treeNode->loc();
+    SourceLocation const *loc = thing->loc();
     if (loc) {
         result = ocaml_location(loc->line, loc->col,
                                 !loc->fname()? "unknown" : loc->fname());

@@ -156,7 +156,7 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
 
   #ifdef WES_OCAML_LINKAGE
     if (state.wes->want_cil) {
-        state.wes->result_list = (struct wes_list *) cil_program_to_ocaml(&prog);
+        state.wes->result_list = (struct wes_list *) cil_program_to_ocaml(&state.prog);
         register_global_root((value *)&(state.wes->result_list));
     } else {
         struct wes_list * new_cell = new struct wes_list;
