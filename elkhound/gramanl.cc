@@ -2527,9 +2527,30 @@ bool GrammarAnalysis::
 
 // for rewriting into sequences of terminals, we prefer rules with
 // fewer nonterminals on the RHS, and then (to break ties) rules with
-// fewer RHS symbols altogether
-int compareProductionsForRewriting(Production const *p1, Production const *p2, void*)
-{
+// fewer RHS symbols altogether; overriding all of this, if one
+// production's RHS contains a symbol already expanded, and the other
+// does not, then prefer the RHS which hasn't already been expanded
+int compareProductionsForRewriting(Production const *p1, Production const *p2, 
+                                   void *extra)
+{                                             
+  ProductionList *reductionStack = (ProductionList*)extra;
+   
+  bool p1RHSSeen=false, p2RHSSeen=false;
+  SFOREACH_PRODUCTION(*reductionStack, iter) {
+    if (p1->rhsHasSymbol( iter.data()->left )) {
+      p1RHSSeen = true;
+    }
+    if (p2->rhsHasSymbol( iter.data()->left )) {
+      p2RHSSeen = true;
+    }
+  }                                     
+  
+  if (p1RHSSeen != p2RHSSeen) {  
+    // e.g.: p1RHSSeen=true, so p2 is preferred; this will yield +1,
+    // meaning p1>p2, so p2 comes first in an increasing order sort
+    return (int)p1RHSSeen - (int)p2RHSSeen;
+  }
+
   return priorityCompare(p1->numRHSNonterminals(), p2->numRHSNonterminals(),
                          p1->rhsLength(), p2->rhsLength());
 }
@@ -2572,7 +2593,7 @@ bool GrammarAnalysis::
   }
 
   // sort them into order of preference
-  candidates.mergeSort(compareProductionsForRewriting);
+  candidates.mergeSort(compareProductionsForRewriting, &reductionStack);
 
   // try each in turn until one succeeds; this effectively uses
   // backtracking when one fails
