@@ -195,7 +195,8 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* whitespace */
-[ \t\n\f\v]+  {
+  /* 10/20/02: added '\r' to accomodate files coming from Windows */
+[ \t\n\f\v\r]+  {
   lexer.emit(L1_WHITESPACE, yytext, yyleng);
 }
 
@@ -207,7 +208,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* ------- C comment --------- */
   /* initial */
-"/*"     {
+"/""*"     {
   collector.setFromBlock(yytext, yyleng);
   BEGIN(ST_C_COMMENT);
 }
