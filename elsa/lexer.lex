@@ -26,6 +26,15 @@
 /* generate a c++ lexer */
 %option c++
 
+/* use the "fast" algorithm with no table compression */
+%option full                                            
+
+/* utilize character equivalence classes */
+%option ecs
+
+/* the scanner is never interactive */
+%option never-interactive
+
 /* and I will define the class */
 %option yyclass="Lexer"
 
@@ -95,10 +104,6 @@ SPTAB         [ \t]
 
 /* preprocessor "character" -- any but escaped newline */
 PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
-
-
-/* ---------------- start conditions ------------------ */
-%x ST_C_COMMENT
 
 
 /* ------------- token definition rules --------------- */
@@ -247,6 +252,12 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "thmprv_decl"          return tok(TOK_THMPRV_DECL);
 "thmprv_predicate"     return tok(TOK_THMPRV_PREDICATE);
 
+  /* this rule is to avoid backing up in the lexer 
+   * when there are two dots but not three */
+".." {
+  yyless(1);     /* put back all but 1; this is inexpensive */
+  return tok(TOK_ELLIPSIS);
+}
 
   /* identifier: e.g. foo */
 {LETTER}{ALNUM}* {
@@ -260,13 +271,33 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   return svalTok(TOK_INT_LITERAL);
 }
 
+  /* hex literal with nothing after the 'x' */
+[0][xX] {
+  err("hexadecimal literal with nothing after the 'x'");
+  return svalTok(TOK_INT_LITERAL);
+}
+
   /* floating literal */
 {DIGITS}"."{DIGITS}?([eE]{SIGN}?{DIGITS})?{FLOAT_SUFFIX}?   |
 {DIGITS}"."?([eE]{SIGN}?{DIGITS})?{FLOAT_SUFFIX}?	    |
 "."{DIGITS}([eE]{SIGN}?{DIGITS})?{FLOAT_SUFFIX}?	    {
   return svalTok(TOK_FLOAT_LITERAL);
 }
+
+  /* floating literal with no digits after the 'e' */
+{DIGITS}"."{DIGITS}?[eE]{SIGN}?   |
+{DIGITS}"."?[eE]{SIGN}?           |
+"."{DIGITS}[eE]{SIGN}?            {
+  err("floating literal with no digits after the 'e'");
   
+  /* in recovery rules like this it's best to yield the best-guess
+   * token type, instead of some TOK_ERROR, so the parser can still
+   * try to make sense of the input; having reported the error is
+   * sufficient to ensure that later stages won't try to interpret
+   * the lexical text of this token as a floating literal */
+  return svalTok(TOK_FLOAT_LITERAL);
+}
+
   /* string literal */
 "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{QUOTE} {
   return svalTok(TOK_STRING_LITERAL);
@@ -279,8 +310,10 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* unterminated string literal; maximal munch causes
-   * us to prefer either of the above two rules when possible */
-"L"?{QUOTE}({STRCHAR}|{ESCAPE})* {
+   * us to prefer either of the above two rules when possible;
+   * the trailing optional backslash is needed so the scanner
+   * won't back up in that case */
+"L"?{QUOTE}({STRCHAR}|{ESCAPE})*{BACKSL}? {
   err("unterminated string literal");
   yyterminate();
 }
@@ -298,7 +331,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* unterminated character literal */
-"L"?{TICK}({CCCHAR}|{ESCAPE})*  {
+"L"?{TICK}({CCCHAR}|{ESCAPE})*{BACKSL}?  {
   err("unterminated character literal");
   yyterminate();
 }
@@ -323,7 +356,8 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* other preprocessing: ignore it */
-"#"{PPCHAR}*({BACKSL}{NL}{PPCHAR}*)*   {
+  /* trailing optional baskslash to avoid backing up */
+"#"{PPCHAR}*({BACKSL}{NL}{PPCHAR}*)*{BACKSL}?   {
   // treat it like whitespace, ignoring it otherwise
   whitespace();
 }
@@ -340,33 +374,16 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   whitespace();
 }
 
-  /* ------- C comment --------- */
-  /* initial */
-"/""*"     {
-  whitespace();
-  BEGIN(ST_C_COMMENT);
-}
-
-  /* continuation */
-<ST_C_COMMENT>([^*]|"*"[^/])*   {
+  /* C comment */
+"/""*"([^*]|"*"[^/])*"*/"     {
   whitespace();
 }
 
-  /* final */
-<ST_C_COMMENT>"*/"     {
-  whitespace();
-  BEGIN(INITIAL);
-}
-
-  /* matches a single "*" at end of file */
-<ST_C_COMMENT>"*" {
-  whitespace();
-}
-
-  /* final, error */
-<ST_C_COMMENT><<EOF>>     {
+  /* unterminated C comment */
+"/""*"([^*]|"*"[^/])*"*"     |
+"/""*"([^*]|"*"[^/])*        {
   err("unterminated /**/ comment");
-  yyterminate();
+  whitespace();
 }
 
   /* illegal */

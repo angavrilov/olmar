@@ -1700,9 +1700,10 @@ static void D_name_tcheck(
     // name, but their types are different; we only jump here *after*
     // ruling out the possibility of function overloading
     env.error(dt.type, stringc
-      << "prior declaration of `" << *name << "' had type `"
-      << prior->type->toString() << "', but this one uses `"
-      << dt.type->toString() << "'");
+      << "prior declaration of `" << *name
+      << "' at " << prior->loc
+      << " had type `" << prior->type->toString() 
+      << "', but this one uses `" << dt.type->toString() << "'");
     goto makeDummyVar;
   }
 
@@ -1826,13 +1827,18 @@ realStart:
   CompoundType *enclosingClass =
     name->hasQualifiers()? NULL : scope->curCompound;
 
+  // if we're in the scope of a class at all then we're DF_MEMBER
+  if (scope->curCompound) {
+    dt.dflags |= DF_MEMBER;
+  }
+
   // if we're not in a class member list, and the type is not a
   // function type, and 'extern' is not specified, then this is
   // a definition
   if (!enclosingClass &&
       !dt.type->isFunctionType() &&
       !(dt.dflags & DF_EXTERN)) {
-    dt.dflags = (DeclFlags)(dt.dflags | DF_DEFINITION);
+    dt.dflags |= DF_DEFINITION;
   }
 
   // has this variable already been declared?
@@ -1875,14 +1881,28 @@ realStart:
       }
     }
 
-    // this intends to be the definition of a class member; make sure
-    // the code doesn't try to define a nonstatic data member
-    if (prior->hasFlag(DF_MEMBER) &&
-        !prior->type->isFunctionType() &&
-        !prior->hasFlag(DF_STATIC)) {
-      env.error(stringc
-        << "cannot define nonstatic data member `" << *name << "'");
-      goto makeDummyVar;
+    if (prior->hasFlag(DF_MEMBER)) {
+      // this intends to be the definition of a class member; make sure
+      // the code doesn't try to define a nonstatic data member
+      if (!prior->type->isFunctionType() &&
+          !prior->hasFlag(DF_STATIC)) {
+        env.error(stringc
+          << "cannot define nonstatic data member `" << *name << "'");
+        goto makeDummyVar;
+      }
+
+      // if the prior declaration is for a static method of a class,
+      // then the computed type we have so far is wrong because
+      // DF_STATIC won't have been syntactically present at the definition
+      if (prior->type->isFunctionType() &&
+          dt.type->isFunctionType() &&
+          prior->hasFlag(DF_STATIC)) {
+        xassert(!prior->type->asFunctionType()->isMember);
+        xassert(dt.type->asFunctionType()->isMember);
+
+        // make the correct type
+        dt.type = env.tfac.makeIntoStaticMember(dt.type->asFunctionType());
+      }
     }
   }
   else {

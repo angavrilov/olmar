@@ -709,6 +709,12 @@ public:
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
+  // given a function type just created under the assumption that it
+  // is a nonstatic member, make it into a static member by
+  // removing the 'this' parameter; it should be safe to mutate 'orig'
+  // because it was just created and hasn't been stored elsewhere
+  virtual FunctionType *makeIntoStaticMember(FunctionType *orig);
+
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.

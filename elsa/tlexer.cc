@@ -17,7 +17,7 @@ void entry(int argc, char **argv)
   TRACE_ARGS()
 
   if (argc != 2) {
-    cout << "usage: " << progName << " input.i\n";
+    cout << "usage: " << progName << " [-tr tokens] input.i\n";
     return;
   }
   traceAddSys("progress");

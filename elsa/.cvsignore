@@ -30,3 +30,5 @@ tmp
 tmp.in
 quicktest
 tlexer
+gprof.out
+moz.parse.out

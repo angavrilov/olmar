@@ -911,7 +911,8 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
     ct++;
     if (isMember && ct==1) {
       // don't actually print the first parameter
-      //sb << "/*member*/ ";
+      // the 'm' stands for nonstatic member function
+      sb << "/*m*/ ";
       continue;
     }
     if (ct >= 3 || (!isMember && ct>=2)) {
@@ -1312,6 +1313,14 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
   return makeFunctionType(loc, retType, similar->isMember);
+}
+
+
+FunctionType *TypeFactory::makeIntoStaticMember(FunctionType *orig)
+{
+  orig->isMember = false;
+  orig->params.removeFirst();
+  return orig;
 }
 
 

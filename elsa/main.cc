@@ -12,7 +12,6 @@
 #include "cc_env.h"       // Env
 #include "cc.ast.gen.h"   // C++ AST (r)
 #include "cc_lang.h"      // CCLang
-#include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
 #include "cc.gr.gen.h"    // CCParse
@@ -34,11 +33,6 @@ void doit(int argc, char **argv)
   traceAddSys("progress");
   //traceAddSys("parse-tree");
 
-  // this is useful for emacs' outline mode, because if the file
-  // doesn't begin with a heading, it collapses the starting messages
-  // and doesn't like to show them again
-  treeOut(1) << "beginning of output      -*- outline -*-\n";
-
   if_malloc_stats();
 
   SourceLocManager mgr;
@@ -56,7 +50,7 @@ void doit(int argc, char **argv)
   {
     char const *inputFname = processArgs
       (argc, argv,
-       "  additional flags for ccgr:\n"
+       "  additional flags for ccparse:\n"
        "    malloc_stats       print malloc stats every so often\n"
        "    parseTree          make a parse tree and print that, only\n"
        "    stopAfterParse     stop after parsing\n"
@@ -64,7 +58,12 @@ void doit(int argc, char **argv)
        "    stopAfterTCheck    stop after typechecking\n"
        "    printTypedAST      print AST with type info\n"
        "    tcheck             print typechecking info\n"
+       "    nohashline         ignore #line when reporting locations\n"
        "");
+
+    if (tracingSys("nohashline")) {
+      sourceLocManager->useHashLines = false;
+    }
 
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);

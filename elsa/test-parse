@@ -15,7 +15,7 @@ while [ "$1" != "" ]; do
 
   # see if the parser thinks it worked
   echo "./ccparse $fname"
-  if ./ccparse -tr mustBeUnambiguous "$fname"; then
+  if ./ccparse -tr mustBeUnambiguous,nohashline "$fname"; then
     # ok
     true
   else

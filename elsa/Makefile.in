@@ -37,7 +37,7 @@ CCFLAGS := @CCFLAGS@ -I$(SMBASE) -I$(AST) -I$(ELKHOUND)
 
 # flags for the linker
 libraries := $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
-LDFLAGS := -g -Wall $(libraries)
+LDFLAGS := @LDFLAGS@ $(libraries)
 
 
 # compile .cc in this directory to a .o
@@ -55,7 +55,7 @@ LEXER_OBJS := \
 -include $(LEXER_OBJS:.o=.d)
 
 # program to test the lexer alone
-tlexer: tlexer.o $(LEXER_OBJS)
+tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 	$(CXX) -o $@ tlexer.o $(LEXER_OBJS) $(LDFLAGS)
 
 
@@ -103,7 +103,7 @@ CCPARSE_OBJS := \
 -include $(CCPARSE_OBJS:.o=.d)
 
 # parser binary
-ccparse: $(CCPARSE_OBJS)
+ccparse: $(CCPARSE_OBJS) $(libraries)
 	$(CXX) -o $@ $(CCPARSE_OBJS) $(LDFLAGS)
 
 
