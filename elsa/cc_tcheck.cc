@@ -1848,24 +1848,20 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // is always D_name, it's equivalent to add the name to the
   // environment then instead of here.
 
-//    // check the name is a temp name
-//    if (dt.isTemporary) {
-//      xassert(type->isCompoundType());
-//      xassert(type->asCompoundType()->name);
-//      xassert(static_cast<signed>(strlen(type->asCompoundType()->name)) >= env.tempNamePrefixLen);
-//      xassert(strncmp(env.tempNamePrefix,
-//                      type->asCompoundType()->name,
-//                      env.tempNamePrefixLen)==0);
-//    }
-
-//    xassert(!ctorStatement);
   if (init) {
 
     // dsw: I'm leaving these checks in here as well
 
     if (dt.isMember) {
-      env.error(env.loc(), "initializer not allowed for a member declaration");
-      goto ifInitEnd;
+      // special case: virtual methods can have an initializer that is
+      // the int constant "0", which means they are abstract.  I could
+      // check for the value "0", but I don't bother.
+      if (! (var->type->isFunctionType()
+             && var->type->asFunctionType()->isMethod()
+             && var->hasFlag(DF_VIRTUAL))) {
+        env.error(env.loc(), "initializer not allowed for a member declaration");
+        goto ifInitEnd;
+      }
     }
 
     // TODO: check the initializer for compatibility with
@@ -1899,67 +1895,10 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // array compound literal initializer case
     var->type = computeArraySizeFromLiteral(env, var->type, init);
 
-//      xassert(!dt.isTemporary);
-//      // make the call to the ctor; FIX: Are there other things to check
-//      // in the if clause, like whether this is a typedef?
-//      if (type->isCompoundType() &&
-//          (init->isIN_expr() || init->isIN_compound())
-//          ) {
-//        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-//        // just call the no-arg ctor; FIX: this is questionable; we
-//        // haven't decided what should really happen for an IN_expr
-//        // and it is undefined what should happen for an IN_compound
-//        // since it is a C99-ism.
-//        ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
-//      } else if (init->isIN_ctor()) {
-//        xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-//        // FIX: What should we do for non-CompoundTypes?
-//        if (type->isCompoundType()) {
-//          ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
-//        }
-//      }
-
     // jump here if we find an error in the init code above and report
     // it but want to keep going
   ifInitEnd: ;                  // must have a statement here
   }
-//    else /* init is NULL */
-//      if (type->isCompoundType() &&
-//          !var->hasFlag(DF_TYPEDEF) &&
-//          !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-//          !dt.isTemporary) {
-//      // call the no-arg ctor; for temporaries do nothing since this is
-//      // a temporary, it will be initialized later
-
-//        // Why doesn't this fail?!  The implicit no-arg ctor for a class
-//        // is only added after the first pass over the class, so any
-//        // members that refer to them won't find them during lookup.
-//  // class Foo {
-//  //    // No constructor for Foo
-//  //    static Foo an_instance;
-
-//      ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
-//    }
-
-  // if dt.isTemporary we don't want to make a ctor since by
-  // definition the temporary will be initialized later
-//    if (dt.isTemporary) xassert(!ctorStatement);
-//    else if (type->isCompoundType() &&
-//             !var->hasFlag(DF_TYPEDEF) &&
-//             !(decl->isD_name() && !decl->asD_name()->name) // that is, not an abstract decl
-//             ) {
-//      xassert(ctorStatement);
-//    }
-
-//    // make the dtorStatement
-//    if (type->isCompoundType() &&
-//        !var->hasFlag(DF_TYPEDEF) &&
-//        !(decl->isD_name() && !decl->asD_name()->name) // that is, not an abstract decl
-//        ) {
-//      dtorStatement = makeDtorStatement(env, type);
-//    } else {
-//      xassert(!dtorStatement);
-//    }
 
   if (qualifiedScope) {
     // pull the scope back out of the stack; if this is a
@@ -2060,7 +1999,16 @@ void Declarator::elaborateCDtors(Env &env,
   xassert(!ctorStatement);
   if (init) {
     if (isMember && !isStatic) {
-      env.error(env.loc(), "initializer not allowed for a non-static member declaration");
+      // special case: virtual methods can have an initializer that is
+      // the int constant "0", which means they are abstract.  I could
+      // check for the value "0", but I don't bother.
+      if (! (var->type->isFunctionType()
+             && var->type->asFunctionType()->isMethod()
+             && var->hasFlag(DF_VIRTUAL))) {
+        env.error(env.loc(), "initializer not allowed for a non-static member declaration");
+      }
+      // but we still shouldn't make a ctor for this function from the
+      // "0".
       goto ifInitEnd;
     }
     if (isMember && isStatic && !type->isConst()) {
@@ -2118,14 +2066,6 @@ void Declarator::elaborateCDtors(Env &env,
         !isMember) {
     // call the no-arg ctor; for temporaries do nothing since this is
     // a temporary, it will be initialized later
-
-      // Why doesn't this fail?!  The implicit no-arg ctor for a class
-      // is only added after the first pass over the class, so any
-      // members that refer to them won't find them during lookup.
-// class Foo {
-//    // No constructor for Foo
-//    static Foo an_instance;
-
     ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
   }
 

@@ -479,26 +479,27 @@ done
 #    runTest ./ccparse -tr $TR_FLAGS "$fn"
 #  done
 
-# FIX: Only this one passes
 $MAKE in/big
 for fn in \
 in/big/nonport.i \
+in/big/nsUnicodeToTeXCMRt1.i \
 ; do
   runTest ./ccparse -tr $TR_FLAGS "$fn"
 done
 
-# These are failing:
+# FIX: These are failing:
 
 # This one has been minimized to in/d0018.cc
 #  in/big/nsAtomTable.i
+# Fails the same as nsAtomTable.i above.
+#  in/big/nsSOAPPropertyBag.i
 
 # This one has been minimized to in/d0019.cc
-# in/big/nsCLiveconnectFactory.i
-
+#  in/big/nsCLiveconnectFactory.i
+# These fail with the same error message as nsCLiveconnectFactory.i
+# above.
 #  in/big/nsHTMLEditRules.i
 #  in/big/nsMsgServiceProvider.i
-#  in/big/nsSOAPPropertyBag.i
-#  in/big/nsUnicodeToTeXCMRt1.i
 
 
 # final arithmetic to report result
