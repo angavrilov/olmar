@@ -5,6 +5,7 @@ use strict 'subs';
 
 # defaults
 $BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
+$default_hash = "-DWILKERSON_GOLDSMITH_HASH";
 $CCFLAGS = ();
 $debug = 0;
 $use_dash_g = 1;
@@ -108,6 +109,11 @@ $os = `uname -s`;
 chomp($os);
 if ($os eq "Linux") {
   push @CCFLAGS, "-D__LINUX__";
+}
+
+# if haven't seen a hashfunction by now, use the default
+if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
+  push @CCFLAGS, $default_hash;
 }
 
 # smash the list together to make a string

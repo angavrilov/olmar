@@ -7,6 +7,7 @@ $| = 1;     # autoflush
 
 # defaults
 $BASE_FLAGS = "-Wall -D__UNIX__";
+$default_hash = "-DWILKERSON_GOLDSMITH_HASH";
 # dsw: yes, I didn't use your %flags thing 
 $use_dash_g = 1;
 $allow_dash_O2 = 1;
@@ -253,6 +254,11 @@ if ($gccver =~ m/\(GCC\) 3\./) {
   push @CCFLAGS, "-Wno-deprecated";
 }
 
+
+# if haven't seen a hashfunction by now, use the default
+if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
+  push @CCFLAGS, $default_hash;
+}
 
 # smash the list together to make a string
 $CCFLAGS = join(' ', @CCFLAGS);
