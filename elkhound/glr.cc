@@ -871,7 +871,7 @@ STATICDEF bool GLR
   // the stack node pool is a local variable of this function for
   // fastest access by the mini-LR core; other parts of the algorihthm
   // can access it using a pointer stored in the GLR class (caller
-  // nullifies this pointer to prevent dangling references)
+  // nullifies this pointer afterward to prevent dangling references)
   ObjectPool<StackNode> stackNodePool(30);
   glr.stackNodePool = &stackNodePool;
 
@@ -1767,9 +1767,11 @@ void GLR::rwlProcessWorklist()
       }
     )
 
-    // before calling the user, duplicate any needed values
+    // before calling the user, duplicate any needed values; this loop
+    // goes from right to left backwards so that 'leftEdge' is
+    // computed properly
     toPass.ensureIndexDoubler(rhsLen-1);
-    for (int i=0; i < rhsLen; i++) {
+    for (int i=rhsLen-1; i >= 0; i--) {
       SiblingLink *sib = path->sibLinks[i];
 
       // we're about to yield sib's 'sval' to the reduction action
@@ -1777,9 +1779,9 @@ void GLR::rwlProcessWorklist()
 
       // continue building rhs desc
       ACTION( rhsDescription =
-        stringc << rhsDescription
+        stringc << symbolDescription(path->symbols[i], userAct, sib->sval)
                 << " "
-                << symbolDescription(path->symbols[i], userAct, sib->sval);
+                << rhsDescription;
       )
 
       // left edge?  or, have all previous tokens failed to yield
