@@ -1992,7 +1992,9 @@ bool TemplateInfo::argumentsContainVariables() const
   FOREACH_OBJLIST(STemplateArgument, arguments, iter) {
     STemplateArgument const *sta = iter.data();
     if (sta->kind == STemplateArgument::STA_TYPE) {
-      return sta->value.t->containsVariables();
+      if (sta->value.t->containsVariables()) {
+        return true;
+      }
     } else if (sta->kind == STemplateArgument::STA_REFERENCE) {
       // FIX: I am not at all sure that my interpretation of what
       // STemplateArgument::kind == STA_REFERENCE means; I think it

@@ -294,7 +294,7 @@ testparse t0090.cc
 testparse t0091.cc
 testparse t0092.cc
 testparse t0093.cc
-failparse t0094.cc 'weird g++ iomanip.h <> syntax'
+failparse t0094.cc "weird g++ iomanip.h <> syntax"
 testparse t0095.cc
 testparse t0096.cc
 testparse t0097.cc
@@ -401,6 +401,7 @@ testparse t0197.cc
 testparse t0198.cc
 failparse t0199.cc "unimplemented: alpha conv + default arg"
 failparse t0200.cc "unimplemented: default type args"
+testparse t0201.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
