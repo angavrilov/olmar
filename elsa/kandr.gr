@@ -21,7 +21,8 @@ verbatim {
 
 // only allow K&R func defns at toplevel
 nonterm(TopForm*) Declaration {
-  -> k:KandRFunctionDefinition     { return new TF_func(loc, k); }
+  -> k:KandRFunctionDefinition             { return new TF_func(loc, k); }
+  -> k:KandRFunctionDefinition_implInt     { return new TF_func(loc, k); }
 }
 
 nonterm(Function*) KandRFunctionDefinition {
@@ -36,7 +37,10 @@ nonterm(Function*) KandRFunctionDefinition {
     {
       return makeKandRdefn(loc, rds, id, ds, b);
     }
+}
 
+// split from above so ambiguity will bubble up to the Declaration level
+nonterm(Function*) KandRFunctionDefinition_implInt {
   // no return type!      name/params
   ->                      id:KandRDeclarator
   //     parameters in K&R style
@@ -49,7 +53,7 @@ nonterm(Function*) KandRFunctionDefinition {
       xassert(lang.allowImplicitInt);
 
       // the return type defaults to int
-      Declaration *rds = new Declaration(DF_NONE, new TS_simple(loc, ST_INT), NULL);
+      Declaration *rds = new Declaration(DF_NONE, new TS_simple(loc, ST_IMPLINT), NULL);
       return makeKandRdefn(loc, rds, id, ds, b);
     }
 
@@ -57,7 +61,7 @@ nonterm(Function*) KandRFunctionDefinition {
   -> "static" id:KandRDeclarator ds:KandRSimpleDeclarationSeq b:FunctionBody
     {
       xassert(lang.allowImplicitInt);
-      Declaration *rds = new Declaration(DF_STATIC, new TS_simple(loc, ST_INT), NULL);
+      Declaration *rds = new Declaration(DF_STATIC, new TS_simple(loc, ST_IMPLINT), NULL);
       return makeKandRdefn(loc, rds, id, ds, b);
     }
 }

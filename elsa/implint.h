@@ -45,10 +45,15 @@
 // templatized resolution procedure below automatically selects the
 // appropriate one.
 
+bool isImplicitInt(TypeSpecifier *ts)
+{
+  return ts->isTS_simple() &&
+         ts->asTS_simple()->id == ST_IMPLINT;
+}
+
 bool hasImplicitInt(ASTTypeId *a, Declarator *&declarator)
 {
-  if (a->spec->isTS_simple() &&
-      a->spec->asTS_simple()->id == ST_IMPLINT) {
+  if (isImplicitInt(a->spec)) {
     declarator = a->decl;
     xassert(declarator);
     return true;
@@ -58,8 +63,7 @@ bool hasImplicitInt(ASTTypeId *a, Declarator *&declarator)
 
 bool hasImplicitInt(Declaration *d, Declarator *&declarator)
 {
-  if (d->spec->isTS_simple() &&
-      d->spec->asTS_simple()->id == ST_IMPLINT) {
+  if (isImplicitInt(d->spec)) {
     declarator = d->decllist->first();
     xassert(declarator);
     return true;
@@ -71,6 +75,13 @@ bool hasImplicitInt(TopForm *tf, Declarator *&declarator)
 {
   if (tf->isTF_decl()) {
     return hasImplicitInt(tf->asTF_decl()->decl, declarator);
+  }
+  if (tf->isTF_func()) {
+    Function *f = tf->asTF_func()->f;
+    if (isImplicitInt(f->retspec)) {
+      declarator = f->nameAndParams;
+      return true;
+    }
   }
   return false;
 }
@@ -144,7 +155,7 @@ NODE *resolveImplIntAmbig(Env &env, NODE *node)
           xassert(s2->ambiguity == s0);
           s2->ambiguity = s2->ambiguity->ambiguity;
           // we do the whole thing over again in case there are two
-          // implicit-int interpretations even thought we think that
+          // implicit-int interpretations even though we think that
           // is not possible
           return node;
         }

@@ -11,3 +11,9 @@ S (foo)(x)
     int x;
 {
 }
+
+
+// similar, but this time using implicit-int
+/*implint*/ functionName(paramName)
+  int paramName;
+{}
