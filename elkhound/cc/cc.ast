@@ -487,6 +487,9 @@ class Expression {
   -> E_variable(PQName name) {
        public Variable *var;      // (serf) binding introduction of this name
        ctor var=NULL;
+
+       public void printExtras(ostream &os, int indent) const;
+       custom debugPrint { printExtras(os, indent); }
      }
 
   -> E_funCall(Expression func, FakeList<Expression> *args);

@@ -401,7 +401,7 @@ void Env::addCompoundField(CompoundType *ct, Variable *decl)
   }
 
   ct->addField(decl->name, decl->type, decl);
-  decl->setFlag(DF_FIELD);
+  decl->setFlag(DF_MEMBER);
 }
 
 

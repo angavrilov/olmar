@@ -128,8 +128,45 @@ bool Env::addEnum(EnumType *et)
 // -------- lookup --------
 Variable *Env::lookupPQVariable(PQName const *name) const
 {
-  if (!name->getQualifiers().isEmpty()) {
-    cout << "warning: ignoring qualifiers\n";
+  if (name->hasQualifiers()) {
+    SObjList<char const> const &qualifiers = name->getQualifiers();
+
+    // hack for reporting unimplemented features
+    Env &ths = const_cast<Env&>(*this);
+
+    // make sure there's only one qualifier
+    if (qualifiers.count() != 1) {
+      ths.unimp("more than one qualifier");
+      return NULL;
+    }
+
+    // get the first qualifier
+    StringRef qual = name->getQualifiers().firstC();
+    if (!qual) {
+      ths.unimp("bare `::' qualifier");
+      return NULL;
+    }
+
+    // look for a class called 'qual'
+    CompoundType *ct = lookupCompound(qual, false /*innerOnly*/);
+    if (!ct) {
+      // can't do this because I claimed to be a 'const' method..
+      // maybe I should have a value-return 'string' param?
+      //error(stringc
+      //  << "cannot find class `" << qual << "' for `" << *name << "'");
+      return NULL;
+    }
+
+    // look inside that class for 'name->name'
+    CompoundType::Field const *field = ct->getNamedField(name->name);
+    if (!field) {
+      //error(stringc
+      //  << ct->keywordAndName() << " has no member called `"
+      //  << name->name << "'");
+      return NULL;
+    }
+
+    return field->decl;
   }
 
   return lookupVariable(name->name, false /*innerOnly*/);
@@ -484,7 +521,7 @@ void Env::addCompoundField(CompoundType *ct, Variable *decl)
   }
 
   ct->addField(decl->name, decl->type, decl);
-  decl->setFlag(DF_FIELD);
+  decl->setFlag(DF_MEMBER);
 }
 
 

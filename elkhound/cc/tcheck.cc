@@ -1085,7 +1085,7 @@ Type const *E_variable::itcheck(Env &env)
 
   // if this is a global, annotate the current function to say
   // it is referenced
-  if (v->hasFlag(DF_GLOBAL) || v->hasFlag(DF_FIELD)) {
+  if (v->hasFlag(DF_GLOBAL) || v->hasFlag(DF_MEMBER)) {
     TF_func *f = env.getCurrentFunction();
     if (f) {                          // might not be in a function
       f->globalRefs.appendUnique(v);    // append if not already present
@@ -1094,7 +1094,7 @@ Type const *E_variable::itcheck(Env &env)
 
   // if it's a field, then we're actually talking about its offset
   // (as long as we don't have static fields..)
-  if (v->hasFlag(DF_FIELD)) {
+  if (v->hasFlag(DF_MEMBER)) {
     return fixed(ST_INT);
   }
 

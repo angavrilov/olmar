@@ -70,7 +70,7 @@ enum DeclFlags {
   DF_PARAMETER   = 0x00008000,    // true if this is a function parameter
   DF_UNIVERSAL   = 0x00010000,    // (requires DF_LOGIC) universally-quantified variable
   DF_EXISTENTIAL = 0x00020000,    // (requires DF_LOGIC) existentially-quantified
-  DF_FIELD       = 0x00040000,    // true for fields of structures
+  DF_MEMBER      = 0x00040000,    // true for members of classes (data, static data, functions)
   DF_DEFINITION  = 0x00200000,    // set once we've seen this Variable's definition
 
   // syntactic declaration extensions

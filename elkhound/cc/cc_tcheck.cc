@@ -363,84 +363,110 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     dflags = (DeclFlags)(dflags | DF_DEFINITION);
   }
 
-  if (!name->hasQualifiers()) {
+  // has this variable already been declared?
+  Variable *prior = NULL;
+
+  if (name->hasQualifiers()) {
+    // the name has qualifiers, which means it *must* be
+    // declared somewhere
+    prior = env.lookupPQVariable(name);
+    if (!prior) {
+      env.error(stringc
+        << "undeclared identifier `" << *name << "'");
+
+    makeDummyVar:
+      // the purpose of this is to allow the caller to have a workable
+      // object, so we can continue making progress diagnosing errors
+      // in the program; this won't be entered in the environment, even
+      // though the 'name' is not NULL
+      return new Variable(loc, name->name, spec, dflags);
+    }
+    
+    // this intends to be the definition of a class member; make sure
+    // the code doesn't try to define a nonstatic data member
+    if (prior->hasFlag(DF_MEMBER) &&
+        !prior->type->isFunctionType() &&
+        !prior->hasFlag(DF_STATIC)) {
+      env.error(stringc
+        << "cannot define nonstatic data member `" << *name << "'");
+      goto makeDummyVar;
+    }
+  }
+  else {
     // has this name already been declared in the innermost scope?
-    Variable *prior = env.lookupVariable(name->name, true /*innerOnly*/);
-    if (prior) {
-      // check for violation of the One Definition Rule
-      if (prior->hasFlag(DF_DEFINITION) &&
-          (dflags & DF_DEFINITION)) {
-        env.error(stringc
-          << "duplicate definition for `" << *name << "'");
-        return new Variable(loc, name->name, spec, dflags);
-      }
+    prior = env.lookupVariable(name->name, true /*innerOnly*/);
+  }
 
-      // check that the types match
-      if (!prior->type->equals(spec)) {
-        env.error(stringc
-          << "prior declaration of `" << *name << "' had type `"
-          << prior->type->toString() << "', but this one uses `"
-          << spec->toString() << "'");
-        return new Variable(loc, name->name, spec, dflags);
-      }
-
-      // ok, use the prior declaration, but update the 'loc'
-      // if this is the definition
-      if (dflags & DF_DEFINITION) {
-        trace("odr") << "def'n at " << loc.toString()
-                     << " overrides decl at " << prior->loc.toString()
-                     << endl;
-        prior->loc = loc;
-        prior->setFlag(DF_DEFINITION);
-        prior->clearFlag(DF_EXTERN);
-      }
-      return prior;
+  // did we find something?
+  if (prior) {
+    // check for violation of the One Definition Rule
+    if (prior->hasFlag(DF_DEFINITION) &&
+        (dflags & DF_DEFINITION)) {
+      env.error(stringc
+        << "duplicate definition for `" << *name << "'");
+      goto makeDummyVar;
     }
 
-    // no prior declaration, make a new variable and put it
-    // into the environment (see comments in Declarator::tcheck
-    // regarding point of declaration)
-    Variable *var = new Variable(loc, name->name, spec, dflags);
-    if (!var->type->isError()) {
-      env.addVariable(var);
+    // check that the types match
+    if (!prior->type->equals(spec)) {
+      env.error(stringc
+        << "prior declaration of `" << *name << "' had type `"
+        << prior->type->toString() << "', but this one uses `"
+        << spec->toString() << "'");
+      goto makeDummyVar;
     }
 
-    // are we inside a class member list?  if so, then
-    // add this to the class
-    CompoundType *ct = env.scope()->curCompound;
-    if (ct) {
-      if (ct->getNamedField(var->name)) {
-        env.error(stringc
-          << "duplicate declaration of class member `" << *name << "'");
-      }
-      else {                                 
-        AccessKeyword access = env.scope()->curAccess;
-        trace("env") << "added " << toString(access)
-                     << " field `" << var->name
-                     << "' of type `" << var->type->toString()
-                     << "' to " << ct->keywordAndName() << endl;
-        ct->addField(var->name, env.scope()->curAccess, var->type, var);
-      }
+    // ok, use the prior declaration, but update the 'loc'
+    // if this is the definition
+    if (dflags & DF_DEFINITION) {
+      trace("odr") << "def'n at " << loc.toString()
+                   << " overrides decl at " << prior->loc.toString()
+                   << endl;
+      prior->loc = loc;
+      prior->setFlag(DF_DEFINITION);
+      prior->clearFlag(DF_EXTERN);
     }
+    return prior;
+  }
 
+  // no prior declaration, make a new variable and put it
+  // into the environment (see comments in Declarator::tcheck
+  // regarding point of declaration)
+  Variable *var = new Variable(loc, name->name, spec, dflags);
+  if (!var->type->isError()) {
+    env.addVariable(var);
+  }
+
+  // are we inside a class member list?  if so, then
+  // add this to the class
+  CompoundType *ct = env.scope()->curCompound;
+  if (ct) {
+    if (ct->getNamedField(var->name)) {
+      env.error(stringc
+        << "duplicate declaration of class member `" << *name << "'");
+    }
     else {
-      // not inside a class member list; set the DF_DEFINITION
-      // flag for variables that don't say DF_EXTERN
-      if (!var->type->isFunctionType() &&
-          !(dflags & DF_EXTERN)) {
-        var->setFlag(DF_DEFINITION);
-      }
+      AccessKeyword access = env.scope()->curAccess;
+      trace("env") << "added " << toString(access)
+                   << " field `" << var->name
+                   << "' of type `" << var->type->toString()
+                   << "' to " << ct->keywordAndName() << endl;
+      ct->addField(var->name, env.scope()->curAccess, var->type, var);
+      var->setFlag(DF_MEMBER);
     }
-
-    return var;
   }
 
   else {
-    // the name has qualifiers, which means it *must* be
-    // declared somewhere
-    env.unimp("qualifiers on declarator");
-    return NULL;
+    // not inside a class member list; set the DF_DEFINITION
+    // flag for variables that don't say DF_EXTERN
+    if (!var->type->isFunctionType() &&
+        !(dflags & DF_EXTERN)) {
+      var->setFlag(DF_DEFINITION);
+    }
   }
+
+  return var;
+
 }
 
 

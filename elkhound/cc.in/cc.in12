@@ -1,0 +1,25 @@
+// cc.in12
+// experiments with qualifiers
+
+class Foo {
+public:
+  static int x;
+  int y;
+};
+
+// qualifiers on a declarator, so it refers to
+// something which has already been declared
+int Foo::x = 5;
+
+// violation of ODR
+//ERROR1: int Foo::x = 5;
+
+// can't define nonstatic data members
+//ERROR2: int Foo::y = 7;
+
+
+int main()
+{
+  // qualifiers on an E_variable
+  return Foo::x;
+}

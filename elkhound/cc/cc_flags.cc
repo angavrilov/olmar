@@ -80,28 +80,28 @@ string toString(CVFlags cv)
 
 // ------------------- DeclFlags --------------
 char const * const declFlagNames[NUM_DECLFLAGS] = {
-  "inline",       // 0
+  "inline",         // 0
   "virtual",
   "friend",
   "mutable",
-  "typedef",      // 4
+  "typedef",        // 4
   "auto",
   "register",
   "static",
   "extern",
-  "enumval",      // 9
-  "global",
-  "initialized",
-  "builtin",
-  "logic",
-  "addrtaken",    // 14
-  "parameter",
-  "universal",
-  "existential",
-  "field",
-  "predicate",    // 19
+  "<enumerator>",   // 9
+  "<global>",
+  "<initialized>",
+  "<builtin>",
+  "<logic>",
+  "<addrtaken>",    // 14
+  "<parameter>",
+  "<universal>",
+  "<existential>",
+  "<member>",
+  "<predicate>",    // 19
   "explicit",
-  "definition",
+  "<definition>",
 };
 
 
