@@ -4834,6 +4834,9 @@ int inner_entry(int argc, char **argv)
   // the default naming scheme
   string prefix;
 
+  // true to use ML, false to use C
+  bool useML = false;
+
   while (argv[0] && argv[0][0] == '-') {
     char const *op = argv[0]+1;
     if (0==strcmp(op, "tr")) {
@@ -4855,6 +4858,10 @@ int inner_entry(int argc, char **argv)
       cout << "The testRW option has been removed because I wasn't using\n"
               "it, and the code that implements it has bit-rotted.\n";
       exit(3);
+    }
+    else if (0==strcmp(op, "ocaml")) {
+      SHIFT;
+      useML = true;
     }
     else {
       cout << "unknown option: " << argv[0] << endl;
@@ -4878,6 +4885,7 @@ int inner_entry(int argc, char **argv)
             "  -v              : print stages of processing\n"
             "  -o <prefix>     : name outputs <prefix>.h and <prefix>.cc\n"
             "                    (default is filename.gen.h, filename.gen.cc)\n"
+            "  -ocaml          : generate ocaml parser instead of C++ parser\n"
             ;
     return 0;
   }
@@ -4892,11 +4900,11 @@ int inner_entry(int argc, char **argv)
   // parse the grammar
   string grammarFname = argv[0];
   SHIFT;
-  Owner<GrammarAST> ast(parseGrammarFile(grammarFname));
+  Owner<GrammarAST> ast(parseGrammarFile(grammarFname, useML));
 
   // parse and merge its extension modules
   while (argv[0]) {
-    Owner<GrammarAST> ext(parseGrammarFile(argv[0]));
+    Owner<GrammarAST> ext(parseGrammarFile(argv[0], useML));
 
     traceProgress() << "merging module: " << argv[0] << endl;
     mergeGrammar(ast, ext);
@@ -4906,6 +4914,9 @@ int inner_entry(int argc, char **argv)
 
   // parse the AST into a Grammar
   GrammarAnalysis g;
+  if (useML) {
+    g.targetLang = "OCaml";
+  }
   parseGrammarAST(g, ast);
   ast.del();              // done with it
 
@@ -4921,7 +4932,7 @@ int inner_entry(int argc, char **argv)
     return 2;
   }
 
-  if (!g.targetLang.equals("OCaml")) {
+  if (!useML) {
     // emit some C++ code
     string hFname = stringc << prefix << ".h";
     string ccFname = stringc << prefix << ".cc";

@@ -13,6 +13,7 @@
 #include "strutil.h"         // quoted
 #include "grampar.tab.h"     // token constant codes, union YYSTYPE
 #include "array.h"           // GrowArray
+#include "mlsstr.h"          // MLSubstrate
 
 #include <fstream.h>         // ifstream
 #include <ctype.h>           // isspace, isalnum
@@ -215,7 +216,14 @@ void astParseOptions(Grammar &g, GrammarAST *ast)
           g.expectedUNRTerms = value;
         }
         else if (name.equals("lang_OCaml")) {
-          g.targetLang = "OCaml";
+          //g.targetLang = "OCaml";
+          //
+          // I'm retarded.. I need to know if we're parsing ocaml *before*
+          // we actually parse it, otherwise I can't skip the embedded
+          // action fragments properly!
+          astParseError(name, "The `lang_OCaml' option has been replaced with "
+                              "the `-ocaml' command-line switch.  Please use "
+                              "that instead.  (Sorry for the inconvenience.)");
         }
         else {
           astParseError(name, "unknown option name");
@@ -1039,7 +1047,7 @@ void mergeGrammar(GrammarAST *base, GrammarAST *ext)
 // ---------------- external interface -------------------
 bool isGramlexEmbed(int code);     // defined in gramlex.lex
 
-GrammarAST *parseGrammarFile(char const *fname)
+GrammarAST *parseGrammarFile(char const *fname, bool useML)
 {
   #ifndef NDEBUG
   if (tracingSys("yydebug")) {
@@ -1047,26 +1055,40 @@ GrammarAST *parseGrammarFile(char const *fname)
   }
   #endif // NDEBUG
 
-  Owner<GrammarLexer> lexer;
+  // open input file
   Owner<ifstream> in;
   if (fname == NULL) {
-    // stdin
-    lexer = new GrammarLexer(isGramlexEmbed, grammarStringTable);
+    fname = "<stdin>";
   }
   else {
-    // file
     in = new ifstream(fname);
     if (!*in) {
       xsyserror("open", stringc << "error opening input file " << fname);
     }
-    lexer = new GrammarLexer(isGramlexEmbed, grammarStringTable, fname, in.xfr());
   }
 
-  ParseParams params(*lexer);
+  // choose embedded language              
+  EmbeddedLang *embed = NULL;
+  if (useML) {
+    embed = new MLSubstrate;
+  }
+  
+  // build lexer
+  GrammarLexer lexer(isGramlexEmbed,
+                     grammarStringTable,
+                     fname,
+                     in.xfr(),
+                     embed);
+  if (embed) {
+    // install the refined error reporter
+    embed->err = &lexer.altReporter;
+  }
+
+  ParseParams params(lexer);
 
   traceProgress() << "parsing grammar source: " << fname << endl;
   int retval = grampar_yyparse(&params);
-  if (retval==0 && lexer->errors==0) {
+  if (retval==0 && lexer.errors==0) {
     GrammarAST *ret = params.treeTop;
 
     if (tracingSys("printGrammarAST")) {
@@ -1112,7 +1134,7 @@ void parseGrammarAST(Grammar &g, GrammarAST *treeTop)
 void readGrammarFile(Grammar &g, char const *fname)
 {
   // make sure the tree gets deleted
-  Owner<GrammarAST> treeTop(parseGrammarFile(fname));
+  Owner<GrammarAST> treeTop(parseGrammarFile(fname, false /*useML*/));
 
   parseGrammarAST(g, treeTop);
 

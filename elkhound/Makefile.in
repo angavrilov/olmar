@@ -2,7 +2,7 @@
 # see license.txt for copyright and terms of use
 
 # I uncomment this temporarily to just build certain modules
-#tmp: parsetables.o elkhound libelkhound.a ocaml
+#tmp: mlsstr
 
 # main targets: elkhound, and some examples
 all: elkhound libelkhound.a TAGS arith c cc2/cc2.exe
@@ -66,6 +66,7 @@ grammar-set := \
 # and emit action code
 grampar-set := \
   emitcode.o \
+  mlsstr.o \
   genml.o \
   gramast.ast.gen.o \
   gramlex.yy.o \
@@ -231,6 +232,10 @@ gramlex: ../ast/gramlex.h $(gramlex-dep) $(libraries)
 # cycle timer test
 cyctimer: cyctimer.cc cyctimer.h
 	$(CXX) -o $@ -DTEST_CYCTIMER $(CCFLAGS) cyctimer.cc $(LDFLAGS)
+
+# ML lexical parser
+mlsstr: mlsstr.cc mlsstr.h
+	$(CXX) -o $@ -DTEST_MLSSTR $(CCFLAGS) mlsstr.cc $(LDFLAGS)
 
 
 # -------------------- exported library ----------------
@@ -563,7 +568,8 @@ toolclean: clean
 	$(MAKE) -C examples/arith toolclean
 	$(MAKE) -C c toolclean
 
-check: all
+check: all mlsstr
+	./mlsstr
 	MAKE=$(MAKE) ./regrtest
 	@echo ""
 	@echo "Regression tests passed."

@@ -31,7 +31,7 @@ OCAMLOPTFLAGS := $(OCAMLCFLAGS)
 # cygwin bug...
 #%.ml: %.gr $(ELKHOUND)/elkhound
 %.ml: %.gr
-	$(ELKHOUND)/elkhound -v $*.gr
+	$(ELKHOUND)/elkhound -ocaml -v $*.gr
 	rm -f $*.mli
 
 # run ocamllex on a lex spec
@@ -99,6 +99,8 @@ check:
 	echo "2+3" | ./main arith glr
 	echo "2+3" | ./main een glr
 	echo "2+3+4" | ./main een glr ptree
+	@echo ""
+	@echo Tests PASSED
 
 clean:
 	rm -f *.cmo *.cmi *.d *.cmx *.dx

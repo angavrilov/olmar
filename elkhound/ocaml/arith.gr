@@ -1,8 +1,7 @@
 // arith.gr
 // parser for a very simple language of arithmetic expressions
-
 // testing example for OCaml backend
-option lang_OCaml;
+
 
 context_class arith {
 public:

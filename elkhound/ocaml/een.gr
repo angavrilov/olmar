@@ -1,8 +1,6 @@
 // een.gr
 // test of ambiguous grammars in OCaml backend
 
-option lang_OCaml;
-
 context_class een {
 public:
 };

@@ -101,7 +101,7 @@ public:
 void readGrammarFile(Grammar &g, char const *fname);
 
 // just do the parsing stage
-GrammarAST *parseGrammarFile(char const *fname);
+GrammarAST *parseGrammarFile(char const *fname, bool useML);
 
 // merge two grammar descriptions; neither argument is consumed,
 // but subtrees of the 2nd argument get moved into the first tree
