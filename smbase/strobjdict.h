@@ -63,9 +63,9 @@ public:     // funcs
   bool queryC(char const *key, T const *&value) const  { return dict.query(key, (void*&)value); }
   bool query(char const *key, T *&value)               { return queryC(key, (T const*&)value); }
 
-  T const *queryfC(char const *key) const              { return (T const *)dict.queryf(key); }
-  T * /*serf*/ queryf(char const *key)                 { return (T*)queryfC(key); }
-  T * /*serf*/ queryif(char const *key)                { return (T*)queryif(key); }
+  T const *queryfC(char const *key) const              { return (T const *)dict.queryfC(key); }
+  T * /*serf*/ queryf(char const *key)                 { return (T*)dict.queryf(key); }
+  T * /*serf*/ queryif(char const *key)                { return (T*)dict.queryif(key); }
 
   bool isMapped(char const *key) const                 { return dict.isMapped(key); }
 
