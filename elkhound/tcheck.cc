@@ -314,7 +314,14 @@ Type const *D_name::itcheck(Env &env, Type const *base, DeclFlags dflags, Declar
     }
     else {
       Variable *v = env.addVariable(name, dflags, base);
-      v->declarator = declarator;
+      if (v) {
+        v->declarator = declarator;
+      }
+      else {
+        // currently, the only condition for addVariable returning null
+        // is when we've added a field to a struct, for which a Variable
+        // structure isn't created.. so I guess we just do nothing
+      }
     }
   }
 

@@ -3,7 +3,7 @@
 #set width 200
 
 file ccgr
-set args cc.bin vcgen/str.c
+set args -tr printTypedAST,stopAfterTCheck,tcheck cc.bin c.in3
 
 #  break main
 #  break breaker

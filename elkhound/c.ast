@@ -191,7 +191,7 @@ class Statement {
   ctor nextContinue = false;
 
   custom debugPrint {
-    ind(os, indent) << "this=" << (void*)this 
+    ind(os, indent) << "this=" << (void*)this
                     << ", next=" << (void*)next
                     << ", cont=" << (nextContinue? "true" : "false")
                     << endl;
@@ -208,6 +208,8 @@ class Statement {
   -> S_switch(Expression expr, Statement branches) {
        // pointers to all of the cases (& default) in this switch
        public SObjList<Statement> cases;
+       public string casesToString() const;
+       custom debugPrint { ind(os, indent) << casesToString() << endl; }
      }
   -> S_while(Expression cond, Statement body);
   -> S_doWhile(Statement body, Expression cond);
@@ -329,3 +331,20 @@ class FuncAnnotation {
   -> FA_precondition(ASTList<Declaration> decls, Expression expr);
   -> FA_postcondition(Expression expr);
 }
+
+
+// ------------- misc --------------
+impl_verbatim {
+  string S_switch::casesToString() const
+  {
+    stringBuilder sb;
+    sb << "cases:";
+
+    SFOREACH_OBJLIST(Statement, cases, iter) {
+      sb << " " << (void*)(iter.data());
+    }
+
+    return sb;
+  }
+}
+
