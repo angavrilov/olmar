@@ -6939,6 +6939,10 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
         lhsType = lhsType->asPointerType()->atType;
       }
 
+      if (lhsType->isGeneralizedDependent()) {
+        return env.dependentType();    // in/k0001.cc
+      }
+
       // left side should be a class
       CompoundType *lhsClass = lhsType->ifCompoundType();
       if (!lhsClass) {

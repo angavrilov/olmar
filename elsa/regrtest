@@ -861,7 +861,7 @@ testparse d0121.cc
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
 
-failparse k0001.cc "left side of .* must be a class or reference to a class"
+testparse k0001.cc #"left side of .* must be a class or reference to a class"
 testparse k0002.cc #"template function declared in another class (as a friend)"
 failparse k0003.cc "template argument from static const member of template class"
 failparse k0004.cc "non-typename template argument"
