@@ -3618,9 +3618,20 @@ Type *E_binary::itcheck(Env &env)
     lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
   }
 
+  // dsw: deal with pointer arithmetic correctly: p is a pointer; Note
+  // that case p + 1 is handled correctly by the default behavior
+  // case: 1 + p
+  if (op==BIN_PLUS && rhsType->isPointerType() && lhsType->isIntegerType()) {
+    return env.tfac.cloneType(rhsType);
+  }
+  // case: p1 - p2
+  if (op==BIN_MINUS && rhsType->isIntegerType() && lhsType->isIntegerType()) {
+    return env.getSimpleType(SL_UNKNOWN, ST_INT);
+  }
+
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: consider the possibility of operator overloading
-  return lhsType;      // works for pointer arith..
+  return env.tfac.cloneType(lhsType);
 }
 
 
