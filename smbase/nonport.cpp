@@ -50,7 +50,10 @@
 #include <sys/stat.h>     // chmod, mode macros
 #include <time.h>         // tzset, localtime, time
 #include <iostream.h>     // cout
-#include <dirent.h>       // opendir
+
+#if !defined(__WIN32__) || defined(__BORLANDC__)
+  #include <dirent.h>       // opendir
+#endif
 
 #include "nonport.h"      // this module
 
@@ -328,7 +331,7 @@ void applyToDirContents(char const *dirName,
   //     trash section)
   // DOB: VC doesn't have opendir-
   //  I think this is the only way to do it in the Win32 API
-  #if defined(WIN32) && !defined(__BORLANDC__)
+  #if defined(__WIN32__) && !defined(__BORLANDC__)
     struct _finddata_t fb;
     char* buf = new char[strlen(dirName)+5];
     strcpy(buf, dirName);
@@ -382,7 +385,7 @@ bool isDirectory(char const *path)
     fail("stat", path);
     return false;
   }
-  #if defined(WIN32) && !defined(__BORLANDC__)
+  #if defined(__WIN32__) && !defined(__BORLANDC__)
     return !!(st.st_mode & _S_IFDIR); // this is how it works for VC
   #else
     return S_ISDIR(st.st_mode);

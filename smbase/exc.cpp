@@ -70,7 +70,8 @@ void xBase::insert(ostream &os) const
 
 void xbase(char const *msg)
 {
-  THROW(xBase(msg));
+  xBase x(msg);
+  THROW(x);
 }
 
 
@@ -150,7 +151,8 @@ XOpen::~XOpen()
 
 void throw_XOpen(char const *fname)
 {
-  THROW(XOpen(fname));
+  XOpen x(fname);
+  THROW(x);
 }
 
 

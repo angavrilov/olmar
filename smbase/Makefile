@@ -21,6 +21,13 @@ veryclean: clean
 	rm -f ${tests-files}
 	rm -f *.a
 
+# remove crap that vc makes
+vc-clean:
+	rm -f *.plg *.[ip]db *.pch
+
+# not sure what I had in mind...
+Makefile.base.mk: Makefile.base.mk.in
+	cp Makefile.base.mk.in Makefile.base.mk
 
 # -------- experimenting with m4 for related files -------
 # I don't delete these during make clean because I don't want

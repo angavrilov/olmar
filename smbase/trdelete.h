@@ -4,8 +4,14 @@
 //   things from it, but a poor implementation choice by Borland makes this
 //   too costly in terms of performance
 
-#ifndef __TRDELETE_H
-#define __TRDELETE_H
+#ifdef _MSC_VER
+  // this module doesn't work under msvc, I don't care to figure out why
+  #define TRDELETE_H      // make it omit this file
+  #define TRASHINGDELETE  // and all references to it a no-op
+#endif
+
+#ifndef TRDELETE_H
+#define TRDELETE_H
 
 #include <stddef.h>      // size_t
 
@@ -18,4 +24,4 @@ void trashingDeleteArr(void *blk, size_t size);
   void operator delete(void *blk, size_t size) { trashingDelete(blk, size); }       \
   void operator delete[](void *blk, size_t size) { trashingDeleteArr(blk, size); }
 
-#endif // __TRDELETE_H
+#endif // TRDELETE_H
