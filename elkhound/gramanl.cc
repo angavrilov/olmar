@@ -3147,11 +3147,16 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   reportUnexpected(sr, expectedSR, "shift/reduce conflicts");
   reportUnexpected(rr, expectedRR, "reduce/reduce conflicts");
 
-  // report on cyclicity
+  // report on cyclicity, and set ambiguity flags
   for (int nontermId=0; nontermId<numNonterms; nontermId++) {
     Nonterminal const *nonterminal = getNonterminal(nontermId);
     if (nonterminal->cyclic) {
       cout << "grammar symbol " << nonterminal->name << " is cyclic\n";
+    }                                            
+    
+    if (nonterminal->mergeCode) {
+      // assume that nonterminals with merge() functions are ambiguous
+      tables->markAmbiguous(nontermId);
     }
   }
 
