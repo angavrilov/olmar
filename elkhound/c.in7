@@ -1,0 +1,23 @@
+// c.in7
+// testcases for translator: exercise all the
+// translation code in cc.gr
+
+int fn0();
+int fn1(int g);
+int fn2(int g, int h);
+int fn3(int g, int h, int i);
+
+int foo()
+{
+  int a,b,c,x,y,z,arr[4];
+
+  a = 5;              // PrimaryExpression -> Literal
+                      // and PQVarName -> VariableName
+
+  x = arr[1];         // PostfixExpression -> array ref
+  arr[2] = y;
+
+  x = fn0();          // PostifxExpression -> fn call
+  y = fn1(x);
+  z = fn2(x, y);
+}
