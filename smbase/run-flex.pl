@@ -98,7 +98,7 @@ if ($nobackup) {
 
 # don't want to give the impression that the only thing that was
 # done was running flex, as I echoed that command line
-print("$0: modifying $outputFile\n");
+print("modifying $outputFile\n");
 
 # read the flex-generated output into memory
 open(IN, "<$outputFile") or die("cannot read $outputFile: $!\n");
