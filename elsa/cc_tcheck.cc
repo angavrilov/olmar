@@ -3433,13 +3433,7 @@ void Handler::tcheck(Env &env)
 Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 {
   env.fullExpressionAnnotStack.push(this);
-  Scope *scope = NULL;
-  // FIX: I don't know if this is right, but it is certainly wrong to
-  // make a function scope for a temporary for a global expression
-  // (such a the ctor in a delaration of a global).
-  if (!env.scope()->isGlobalScope()) {
-    scope = env.enterScope(SK_FUNCTION, "full expression");
-  }
+  Scope *scope = env.enterScope(SK_FUNCTION, "full expression");
   // come to think of it, there shouldn't be any declarations yet;
   // they get constructed during the typechecking later
   xassert(declarations.isEmpty());
@@ -3454,9 +3448,7 @@ Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 
 void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
 {
-  if (!env.scope()->isGlobalScope()) {
-    env.exitScope(scope);
-  }
+  env.exitScope(scope);
   env.fullExpressionAnnotStack.pop();
 }
 
