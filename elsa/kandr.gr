@@ -7,8 +7,8 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 142;
-option reduce_reduce_conflicts 116;
+option shift_reduce_conflicts 132;
+option reduce_reduce_conflicts 110;
 
 
 // this verbatim section is appended to the one in cc.gr
@@ -19,7 +19,12 @@ verbatim {
 
 // KandR stuff ****************************************************************
 
-nonterm(Function*) FunctionDefinition {
+// only allow K&R func defns at toplevel
+nonterm(TopForm*) Declaration {
+  -> k:KandRFunctionDefinition     { return new TF_func(loc, k); }
+}
+
+nonterm(Function*) KandRFunctionDefinition {
   // K&R function:
 
   // return type        name/params
@@ -151,6 +156,25 @@ nonterm(IDeclarator*) KandRDirectDeclarator {
            kAndR_params
            );
       }
+      
+  // sm: for in/c/k0003.c; the KandR declarator structure is
+  // pretty messed up, but when I made a few tweaks it introduced
+  // quite a few conflicts...
+  -> "(" d:KandRIdExpression ")"     // name of function, in parens
+         // Scott said don't allow the empty list
+     "(" kAndR_params:KandRIdentifierList ")"// parameters
+//       ql:QLiterals                      // qualifier literals
+//       cv:CVQualifierSeqOpt
+      { return new_D_func_kandr
+          (lang,
+           loc,
+           d,
+           NULL/* no normal params*/,
+           CV_NONE /*cv*/,
+           NULL /*exception spec*/,
+           kAndR_params
+           );
+      }
 
   // function declarator; the return type comes from the type
   // specifier that precedes this
@@ -206,7 +230,7 @@ nonterm(PQ_name*) KandRIdentifier {
 // covered by the existing syntax for constructors; but if the
 // 'static' keyword is used, that isn't legal for ctors, so we
 // need a special rule
-nonterm(Function*) FunctionDefinition {
+nonterm(Function*) ImplIntFunctionDefinition {
   // make it look like the existing ctor AST, since those get
   // converted into implicit-int
   -> "static" d:Declarator b:FunctionBody
@@ -226,6 +250,10 @@ nonterm(TopForm*) Declaration {
   fun keep(x) { return x!=NULL; }
 
   fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  // only allow implicit-int func defns at toplevel
+  -> f:ImplIntFunctionDefinition
+    { return new TF_func(loc, f); }
 
   -> m1:UberModifierSeqOpt /*implicit-int*/ list:InitDeclaratorList ";"
     {
