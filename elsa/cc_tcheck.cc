@@ -1685,6 +1685,13 @@ void MR_usingDecl::tcheck(Env &env)
   decl->tcheck(env);
 }
 
+void MR_template::tcheck(Env &env)
+{
+  // maybe this will "just work"? crossing fingers..
+  env.setLoc(loc);
+  d->tcheck(env);
+}
+
 
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)

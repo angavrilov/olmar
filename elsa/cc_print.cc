@@ -432,6 +432,12 @@ void MR_usingDecl::print(PrintEnv &env)
   decl->print(env);
 }
 
+void MR_template::print(PrintEnv &env)
+{
+  olayer ol("MR_template");
+  d->print(env);
+}
+
 
 // -------------------- Enumerator --------------------
 void Enumerator::print(PrintEnv &env)

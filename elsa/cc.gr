@@ -1739,6 +1739,10 @@ nonterm(Member*) MemberDeclaration {
   // note above that "explicit" and "virtual" can't be mixed because the former
   // is for ctors only and the latter can't be used with ctors (so a later stage
   // of processing will filter it out)
+  
+  // member template
+  -> d:TemplateDeclaration
+       { return new MR_template(loc, d); }
 }
 
 nonterm(FakeList<Declarator>*) MemberDeclaratorList {

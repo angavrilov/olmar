@@ -261,6 +261,7 @@ class Member (SourceLoc loc) {
   -> MR_access(AccessKeyword k);        // section header
   -> MR_publish(PQName name);           // publish a superclass member
   -> MR_usingDecl(ND_usingDecl decl);   // namespace "using" declaration
+  -> MR_template(TemplateDeclaration d);// member template...
 }
 
 
