@@ -275,14 +275,15 @@ public:      // funcs
 // I want const polymorphism!
 
                         
+// pop a value off a stack at end of scope
 template <class T>
 class ArrayStackPopper {
 private:
   ArrayStack<T> &stk;
-  
+
 public:
   ArrayStackPopper(ArrayStack<T> &s) : stk(s) {}
-  ArrayStackPopper(ArrayStack<T> &s, T const &pushVal) 
+  ArrayStackPopper(ArrayStack<T> &s, T const &pushVal)
     : stk(s) { stk.push(pushVal); }
   ~ArrayStackPopper()
     { stk.pop(); }
