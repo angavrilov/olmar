@@ -2312,21 +2312,30 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     dt.type = env.errorType();        // recovery
   }
 
-  // is this an explicit specialization?  look for the innermost scope
-  // being "template <>"
-  bool isExplicitSpec = 
-    templatizableContext &&                      // e.g. toplevel
-    enclosingScope->isTemplateParamScope() &&    // "template <...>" above
-    !enclosingScope->parameterizedPrimary &&     // that's mine, not my class' (need to wait until after name->tcheck to test this)
-    enclosingScope->templateParams.isEmpty();    // just "template <>"
-
-  if (isExplicitSpec) {
+  // this this a specialization?
+  if (templatizableContext &&                      // e.g. toplevel
+      enclosingScope->isTemplateParamScope() &&    // "template <...>" above
+      !enclosingScope->parameterizedPrimary) {     // that's mine, not my class' (need to wait until after name->tcheck to test this)
     if (dt.type->isFunctionType()) {
-      dt.existingVar = env.makeExplicitFunctionSpecialization
-                         (decl->loc, dt.dflags, name, dt.type->asFunctionType());
-      if (dt.existingVar) {
-        enclosingScope->setParameterizedPrimary
-          (dt.existingVar->templateInfo()->getPrimary()->var);
+      // complete specialization?
+      if (enclosingScope->templateParams.isEmpty()) {    // just "template <>"
+        xassert(!dt.existingVar);
+        dt.existingVar = env.makeExplicitFunctionSpecialization
+                           (decl->loc, dt.dflags, name, dt.type->asFunctionType());
+        if (dt.existingVar) {
+          enclosingScope->setParameterizedPrimary
+            (dt.existingVar->templateInfo()->getPrimary()->var);
+        }
+      }
+
+      else {
+        // either a partial specialization, or a primary; since the
+        // former doesn't exist for functions, there had better not
+        // be any template arguments on the function name
+        if (name->getUnqualifiedName()->isPQ_template()) {
+          env.error("function template partial specialization is not allowed",
+                    EF_STRONG);
+        }
       }
     }
     else {
@@ -2340,11 +2349,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     }
   }
 
-  // TODO: w.r.t. declareNewVariable, collapse 'dt', etc.
-  //
-  // make a Variable, add it to the environment
   bool callerPassedInstV = false;
   if (!dt.existingVar) {
+    // make a Variable, add it to the environment
     var = env.storeVar(
       declareNewVariable(env, dt, decl->hasInnerGrouping(), decl->loc, name));
   }
