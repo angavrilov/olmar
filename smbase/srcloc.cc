@@ -362,6 +362,17 @@ void SourceLocManager::File::addHashLine
   hashLines->addHashLine(ppLine, origLine, origFname);
 }
 
+void SourceLocManager::File::doneAdding()
+{ 
+  if (hashLines) {
+    hashLines->doneAdding();
+  }
+  else {
+    // nothing to consolidate, the NULL pointer is valid and
+    // will cause the map to be ignored, so do nothing
+  }
+}
+
 
 // ----------------------- StaticLoc -------------------
 SourceLocManager::StaticLoc::~StaticLoc()
@@ -838,6 +849,7 @@ void testHashMap()
       string origFname = string(tok2+1, strlen(tok2)-2);  // remove quotes
       pp->addHashLine(ppLine, origLine, origFname);
     }
+    pp->doneAdding();
 
     fclose(fp);
   }

@@ -148,6 +148,7 @@ public:      // types
     // call this time each time a #line directive is encountered;
     // same semantics as HashLineMap::addHashLine
     void addHashLine(int ppLine, int origLine, char const *origFname);
+    void doneAdding();
   };
 
   // this is used for SourceLocs where the file isn't reliably
