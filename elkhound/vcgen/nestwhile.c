@@ -14,6 +14,18 @@ void find(int f)
 }
 
 
+void find2(int f)
+{
+  while (f) {
+    thmprv_invariant
+      true ;
+
+    if (f) {
+    }
+    else if (f) {
+    }
+  }
+}
 
 
 

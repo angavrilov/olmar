@@ -250,7 +250,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
 
       // how many paths lead from 's'?  usually just s->numPaths, but
       // if it is a path cutpoint then there's exactly one path from 's'
-      int pathsFromS = s->isS_invariant()? s->numPaths : 1;
+      int pathsFromS = s->isS_invariant()? 1 : s->numPaths;
 
       // are we going to follow 's'?
       if (index < pathsFromS) {
