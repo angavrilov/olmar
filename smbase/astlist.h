@@ -8,13 +8,15 @@
 #include "vdtllist.h"     // VoidTailList
 
 template <class T> class ASTListIter;
+template <class T> class ASTListIterNC;
 
 // a list which owns the items in it (will deallocate them), and
 // has constant-time access to the last element
 template <class T>
 class ASTList {
 private:
-  friend class ASTListIter<T>;
+  friend class ASTListIter<T>;        
+  friend class ASTListIterNC<T>;
 
 protected:
   VoidTailList list;                    // list itself
@@ -102,6 +104,32 @@ public:
 
 #define FOREACH_ASTLIST(T, list, iter) \
   for(ASTListIter<T> iter(list); !iter.isDone(); iter.adv())
+
+
+// version of the above, but for non-const-element traversal
+template <class T>
+class ASTListIterNC {
+protected:
+  VoidTailListIter iter;      // underlying iterator
+
+public:
+  ASTListIterNC(ASTList<T> &list)      : iter(list.list) {}
+  ~ASTListIterNC()                     {}
+
+  void reset(ASTList<T> &list)         { iter.reset(list.list); }
+
+  // iterator copying; generally safe
+  ASTListIterNC(ASTListIterNC const &obj)             : iter(obj.iter) {}
+  ASTListIterNC& operator=(ASTListIterNC const &obj)  { iter = obj.iter;  return *this; }
+
+  // iterator actions
+  bool isDone() const                   { return iter.isDone(); }
+  void adv()                            { iter.adv(); }
+  T *data() const                       { return (T*)iter.data(); }
+};
+
+#define FOREACH_ASTLIST_NC(T, list, iter) \
+  for(ASTListIterNC<T> iter(list); !iter.isDone(); iter.adv())
 
 
 #endif // ASTLIST_H
