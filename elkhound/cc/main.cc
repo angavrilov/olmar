@@ -140,7 +140,8 @@ void doit(int argc, char **argv)
   // ---------------- typecheck -----------------
   {
     traceProgress() << "type checking...\n";
-    Env env(strTable, lang);
+    BasicTypeFactory tfac;
+    Env env(strTable, lang, tfac);
     unit->tcheck(env);
     traceProgress() << "done type checking\n";
 
@@ -148,7 +149,7 @@ void doit(int argc, char **argv)
       // this is useful to measure the cost of disambiguation, since
       // now the tree is entirely free of ambiguities
       traceProgress() << "beginning second tcheck...\n";
-      Env env2(strTable, lang);
+      Env env2(strTable, lang, tfac);
       unit->tcheck(env2);
       traceProgress() << "end of second tcheck\n";
     }
@@ -202,9 +203,10 @@ void doit(int argc, char **argv)
       return;
     }
 
+    #if 0
     // C++Qual-aware type checker
     traceProgress() << "C++Qual-aware type checker...\n";
-    
+
     // little bit of a hack: I need to make a Variable_Q to
     // correspond to env.dependentTypeVar
     try {
@@ -212,7 +214,8 @@ void doit(int argc, char **argv)
     }
     catch (XNotSupported &x) {
       cout << x.why() << endl;
-    }
+    }    
+    #endif // 0
   }
 
   // dsw: cc_qual

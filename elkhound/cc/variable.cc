@@ -9,7 +9,7 @@ SObjList<Variable> Variable::instances;
 #endif
 
 // ---------------------- Variable --------------------
-Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlags f)
+Variable::Variable(SourceLocation const &L, StringRef n, Type *t, DeclFlags f)
   : loc(L),
     name(n),
     type(t),
@@ -28,19 +28,6 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
 
 Variable::~Variable()
 {}
-
-
-Variable *Variable::deepClone() const {
-  Variable *tmp = new Variable(loc
-                               ,name // don't see a reason to clone the name
-                               ,type->deepClone()
-                               ,flags // an enum, so nothing to clone
-                               );
-  // tmp->overload left as NULL as set by the ctor; not cloned
-  tmp->access = access;         // an enum, so nothing to clone
-  tmp->scope = scope;           // don't see a reason to clone the scope
-  return tmp;
-}
 
 
 string Variable::toString() const

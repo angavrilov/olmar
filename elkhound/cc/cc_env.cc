@@ -20,13 +20,14 @@ string ErrorMsg::toString() const
 
 
 // --------------------- Env -----------------
-Env::Env(StringTable &s, CCLang &L)
+Env::Env(StringTable &s, CCLang &L, TypeFactory &tfac)
   : scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
     errors(),
     str(s),
     lang(L),
+    tfactory(tfac),
     madeUpVariables(),
 
     // filled in below; initialized for definiteness
@@ -47,7 +48,7 @@ Env::Env(StringTable &s, CCLang &L)
   CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
-  type_info_const_ref = makeRefType(makeCVType(ct, CV_CONST));
+  type_info_const_ref = makeRefType(makeCVAtomicType(ct, CV_CONST));
 
   // some special names; pre-computed (instead of just asking the
   // string table for it each time) because in certain situations
@@ -59,29 +60,29 @@ Env::Env(StringTable &s, CCLang &L)
   constructorSpecialName = str("constructor-special");
   functionOperatorName = str("operator()");
 
-  dependentTypeVar = new Variable(HERE_SOURCELOC, str("<dependentTypeVar>"),
+  dependentTypeVar = makeVariable(HERE_SOURCELOC, str("<dependentTypeVar>"),
                                   getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
   madeUpVariables.append(dependentTypeVar);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
-  errorVar = new Variable(HERE_SOURCELOC, str("<errorVar>"),
+  errorVar = makeVariable(HERE_SOURCELOC, str("<errorVar>"),
                           getSimpleType(ST_ERROR), DF_NONE);
   madeUpVariables.append(errorVar);
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
-  Type const *t_void = getSimpleType(ST_VOID);
-  Type const *t_voidptr = makePtrType(t_void);
+  Type *t_void = getSimpleType(ST_VOID);
+  Type *t_voidptr = makePtrType(t_void);
 
   // note: my stddef.h typedef's size_t to be 'int', so I use
   // 'int' directly here instead of size_t
-  Type const *t_int = getSimpleType(ST_INT);
+  Type *t_int = getSimpleType(ST_INT);
 
   // but I do need a class called 'bad_alloc'..
   //   class bad_alloc;
   CompoundType *dummyCt;
-  Type const *t_bad_alloc =
+  Type *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE_SOURCELOC,
                     TI_CLASS, true /*forward*/);
 
@@ -131,12 +132,12 @@ Env::~Env()
 }
 
 
-void Env::declareFunction1arg(Type const *retType, char const *funcName,
-                              Type const *arg1Type, char const *arg1Name,
-                              Type const *exnType)
+void Env::declareFunction1arg(Type *retType, char const *funcName,
+                              Type *arg1Type, char const *arg1Name,
+                              Type *exnType)
 {
-  FunctionType *ft = new FunctionType(retType, CV_NONE);
-  Variable *p = new Variable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
+  FunctionType *ft = makeFunctionType(retType, CV_NONE);
+  Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
 
@@ -149,7 +150,7 @@ void Env::declareFunction1arg(Type const *retType, char const *funcName,
       ft->exnSpec->types.append(exnType);
     }
   }
-  Variable *var = new Variable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
   madeUpVariables.append(var);
 }
@@ -508,8 +509,8 @@ CompoundType *Env::
       xassert(argIter);
 
       // get the types for each
-      Type const *userType = userArg->asTA_typeC()->getType();
-      Type const *specialType = specialArg->asTA_typeC()->getType();
+      Type *userType = userArg->asTA_typeC()->getType();
+      Type *specialType = specialArg->asTA_typeC()->getType();
 
       // unify them
       if (!tuEnv.unify(userType, specialType)) {
@@ -732,7 +733,7 @@ TemplateParams * /*owner*/ Env::takeTemplateParams()
 // create an instantiated type and associated typedef Variable, and
 // return the type
 CompoundType *Env::instantiateClass(
-  CompoundType const *tclass, FakeList<TemplateArgument> *args)
+  CompoundType *tclass, FakeList<TemplateArgument> *args)
 {
   // uniformity with other code..
   Env &env = *this;
@@ -800,7 +801,7 @@ CompoundType *Env::instantiateClass(
     // make a variable that typedef's the argument type to be
     // the parameter name
     Variable *argVar
-      = new Variable(param->decl->loc, param->name,
+      = makeVariable(param->decl->loc, param->name,
                      arg->type->getType(), DF_TYPEDEF);
     if (!argScope->addVariable(argVar)) {
       // I actually think this can't happen because I'd have
@@ -834,7 +835,7 @@ CompoundType *Env::instantiateClass(
   // the environment, callers like to have Variables that
   // stand for types, so make one
   ret->typedefVar
-    = new Variable(tclass->typedefVar->loc, instNameRef,
+    = makeVariable(tclass->typedefVar->loc, instNameRef,
                    makeType(ret), DF_TYPEDEF);
 
   return ret;
@@ -875,9 +876,9 @@ ClassTemplateInfo *Env::takeTemplateClassInfo()
 }
 
 
-Type const *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
-                                 StringRef name, SourceLocation const &loc,
-                                 TypeIntr keyword, bool forward)
+Type *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
+                           StringRef name, SourceLocation const &loc,
+                           TypeIntr keyword, bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
 
@@ -891,8 +892,8 @@ Type const *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
   }
 
   // make the implicit typedef
-  Type const *ret = makeType(ct);
-  Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+  Type *ret = makeType(ct);
+  Variable *tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
   ct->typedefVar = tv;
   if (name) {
     if (!scope->addVariable(tv)) {
@@ -910,7 +911,7 @@ Type const *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
 
 
 // -------- diagnostics --------
-Type const *Env::error(char const *msg, bool disambiguates)
+Type *Env::error(char const *msg, bool disambiguates)
 {
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
@@ -921,7 +922,7 @@ Type const *Env::error(char const *msg, bool disambiguates)
 }
 
 
-Type const *Env::warning(char const *msg)
+Type *Env::warning(char const *msg)
 {
   trace("error") << "warning: " << msg << endl;
   if (!disambiguateOnly) {
@@ -932,7 +933,7 @@ Type const *Env::warning(char const *msg)
 }
 
 
-Type const *Env::unimp(char const *msg)
+Type *Env::unimp(char const *msg)
 {
   // always print this immediately, because in some cases I will
   // segfault (deref'ing NULL) right after printing this
@@ -944,7 +945,7 @@ Type const *Env::unimp(char const *msg)
 }
 
 
-Type const *Env::error(Type const *t, char const *msg)
+Type *Env::error(Type *t, char const *msg)
 {
   if (t->isSimple(ST_DEPENDENT)) {
     // no report, propagate dependentness
@@ -971,3 +972,30 @@ bool Env::setDisambiguateOnly(bool newVal)
 }
 
 
+CVAtomicType *Env::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
+  { return tfactory.makeCVAtomicType(atomic, cv); }
+
+PointerType *Env::makePointerType(PtrOper op, CVFlags cv, Type *atType)
+  { return tfactory.makePointerType(op, cv, atType); }
+
+FunctionType *Env::makeFunctionType(Type *retType, CVFlags cv)
+  { return tfactory.makeFunctionType(retType, cv); }
+
+ArrayType *Env::makeArrayType(Type *eltType, int size)
+  { return tfactory.makeArrayType(eltType, size); }
+
+Type *Env::applyCVToType(CVFlags cv, Type *baseType)
+  { return tfactory.applyCVToType(cv, baseType); }
+
+ArrayType *Env::setArraySize(ArrayType *type, int size)
+  { return tfactory.setArraySize(type, size); }
+
+Type *Env::cloneType(Type *src)
+  { return tfactory.cloneType(src); }
+
+Variable *Env::makeVariable(SourceLocation const &L, StringRef n,
+                            Type *t, DeclFlags f)
+  { return tfactory.makeVariable(L, n, t, f); }
+
+Variable *Env::cloneVariable(Variable *src)
+  { return tfactory.cloneVariable(src); }

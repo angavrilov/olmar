@@ -36,7 +36,7 @@ string toString(Qualifiers *q);
 string toString (QualifierLiterals *const &);
 Qualifiers *deepClone(Qualifiers *q);
 Qualifiers *deepCloneLiterals(Qualifiers *q);
-Type const *applyQualifierLiteralsToType(Qualifiers *q, Type const *baseType);
+Type *applyQualifierLiteralsToType(Qualifiers *q, Type *baseType);
 
 void nameSubtypeQualifiers(Variable *v);
 

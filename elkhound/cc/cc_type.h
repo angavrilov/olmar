@@ -54,6 +54,8 @@ class ArrayType;
 class Type;
 class TemplateParams;
 class ClassTemplateInfo;
+class TypeFactory;
+class BasicTypeFactory;
 
 // static data consistency checker
 void cc_type_checker();
@@ -120,10 +122,13 @@ public:     // funcs
 // there are exactly as many of these objects as there are built-in types
 class SimpleType : public AtomicType {
 public:     // data
-  SimpleTypeId type;
+  SimpleTypeId const type;
 
-  // global read-only array for each built-in type
-  static SimpleType const fixed[NUM_SIMPLE_TYPES];
+  // global read-only array for each built-in type        
+  // (read-only is enforced by making all of SimpleType's members
+  // const, rather then the objects themselves, because doing the
+  // latter would clash AtomicType pointers not being const below)
+  static SimpleType fixed[NUM_SIMPLE_TYPES];
 
 public:     // funcs
   SimpleType(SimpleTypeId t) : type(t) {}
@@ -229,14 +234,14 @@ public:     // types
   class Value {
   public:
     StringRef name;           // the thing whose name is being defined
-    EnumType const *type;     // enum in which it was declared
+    EnumType *type;           // enum in which it was declared
     int value;                // value it's assigned to
 
     // similar to fields, I keep a record of where this came from
     Variable *decl;           // (nullable serf)
 
   public:
-    Value(StringRef n, EnumType const *t, int v, Variable *d);
+    Value(StringRef n, EnumType *t, int v, Variable *d);
     ~Value();
   };
 
@@ -263,22 +268,33 @@ public:     // funcs
 // ------------------- constructed types -------------------------
 // generic constructed type
 class Type {
-private:     // data
-  Type *refType; // the type which is the reference to this type, lazily constructed
-
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
   typedef bool (*TypePred)(Type const *t);
 
+private:     // data
+  // the type which is the reference to this type, lazily constructed
+  friend class BasicTypeFactory;     
+  PointerType *refType;
+
 private:    // funcs
   string idComment() const;
 
-public:     // funcs
+private:    // disallowed
+  Type(Type&);
+
+protected:  // funcs
+  // the constructor of Type and its immediate descendents is
+  // protected because I want to force all object creation to
+  // go through the factory (below)
   Type();
+
+public:     // funcs
   virtual ~Type();
 
-  virtual Type *deepClone() const = 0;
-  Type *getRefTypeTo();
+  // I'm replacing these with factory calls
+  //virtual Type *deepClone() const = 0;
+  //Type *getRefTypeTo();
 
   int getId() const { return (int)this; }
 
@@ -335,15 +351,16 @@ public:     // funcs
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const { return isSimple(ST_DEPENDENT); }
   //bool shouldSuppressClashes() const { return isError() || isTypeVariable(); }
-  CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
-  CompoundType const *asCompoundType() const;     // fail assertion if not
+  CompoundType *ifCompoundType();        // NULL or corresp. compound
+  CompoundType const *asCompoundTypeC() const; // fail assertion if not
+  CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
   bool isOwnerPtr() const;
 
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer
   bool isReference() const;
   bool isLval() const { return isReference(); }    // C terminology
-  Type const *asRval() const;            // if I am a reference, return referrent type
+  Type *asRval();                        // if I am a reference, return referrent type
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
@@ -370,23 +387,20 @@ public:     // funcs
 // also with optional const/volatile flags
 class CVAtomicType : public Type {
 public:     // data
-  AtomicType const *atomic;    // (serf) underlying type
+  AtomicType *atomic;          // (serf) underlying type
   Qualifiers *q;
   CVFlags cv;                  // const/volatile
-
-  // global read-only array of non-const, non-volatile built-ins
-  static CVAtomicType const fixed[NUM_SIMPLE_TYPES];
 
 private:    // funcs
   string atomicIdComment() const;
 
-public:     // funcs
-  CVAtomicType(AtomicType const *a, CVFlags c)
+protected:
+  friend class BasicTypeFactory;
+  CVAtomicType(AtomicType *a, CVFlags c)
     : atomic(a), q(NULL), cv(c) {}
-  CVAtomicType(CVAtomicType const &obj)
-    : DMEMB(atomic), q(::deepClone(obj.q)), DMEMB(cv) {}
 
-  CVAtomicType *deepClone() const;
+public:
+  //CVAtomicType *deepClone() const;
 
   bool innerEquals(CVAtomicType const *obj) const;
 
@@ -408,18 +422,18 @@ enum PtrOper {
 
 // type of a pointer or reference
 class PointerType : public Type {
-public:
+public:     // data
   PtrOper op;                  // "*" or "&"
   Qualifiers *q;
   CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
-  Type const *atType;          // (serf) type of thing pointed-at
+  Type *atType;                // (serf) type of thing pointed-at
+
+protected:  // funcs
+  friend class BasicTypeFactory;
+  PointerType(PtrOper o, CVFlags c, Type *a);
 
 public:
-  PointerType(PtrOper o, CVFlags c, Type const *a);
-  PointerType(PointerType const &obj)
-    : DMEMB(op), q(::deepClone(obj.q)), DMEMB(cv), DMEMB(atType) {}
-
-  PointerType *deepClone() const;
+  //PointerType *deepClone() const;
 
   bool innerEquals(PointerType const *obj) const;
 
@@ -441,17 +455,17 @@ public:     // types
   // list of exception types that can be thrown
   class ExnSpec {
   public:
-    SObjList<Type const> types;
+    SObjList<Type> types;
 
   public:
     ExnSpec() {}
     ~ExnSpec();
-    
+
     bool anyCtorSatisfies(Type::TypePred pred) const;
   };
 
 public:     // data
-  Type const *retType;         // (serf) type of return value
+  Type *retType;               // (serf) type of return value
   Qualifiers *q;
   CVFlags cv;                  // const/volatile for class member fns
   ObjList<Parameter> params;   // list of function parameters
@@ -461,11 +475,14 @@ public:     // data
   // for template functions, this is the list of template parameters
   TemplateParams *templateParams;    // (owner)
 
-public:     // funcs
-  FunctionType(Type const *retType, CVFlags cv);
+protected:  // funcs
+  friend class BasicTypeFactory;
+  FunctionType(Type *retType, CVFlags cv);
+
+public:
   virtual ~FunctionType();
 
-  FunctionType *deepClone() const;
+  //FunctionType *deepClone() const;
 
   bool innerEquals(FunctionType const *obj) const;
   bool equalParameterLists(FunctionType const *obj) const;
@@ -497,7 +514,7 @@ public:     // funcs
 class Parameter {
 public:
   StringRef name;              // can be NULL to mean unnamed
-  Type const *type;            // (serf) type of the parameter
+  Type *type;                  // (serf) type of the parameter
 
   // syntactic introduction
   Variable *decl;              // (serf)
@@ -505,10 +522,10 @@ public:
   // 'defaultArgument' has been moved into decl->value
 
 public:
-  Parameter(StringRef n, Type const *t, Variable *d)
+  Parameter(StringRef n, Type *t, Variable *d)
     : name(n), type(t), decl(d) {}
   ~Parameter();
-  Parameter *deepClone() const;
+  //Parameter *deepClone() const;
 
   string toString() const;
 };
@@ -517,7 +534,7 @@ public:
 // type of an array
 class ArrayType : public Type {
 public:
-  Type const *eltType;         // (serf) type of the elements
+  Type *eltType;               // (serf) type of the elements
   Qualifiers *q;
   bool hasSize;                // true if a size is specified
   int size;                    // specified size, if 'hasSize'
@@ -525,13 +542,15 @@ public:
 private:
   void checkWellFormedness() const;
 
-public:
-  ArrayType(Type const *e, int s)
+protected:
+  friend class BasicTypeFactory;
+  ArrayType(Type *e, int s)
     : eltType(e), q(NULL), hasSize(true), size(s) { checkWellFormedness(); }
-  ArrayType(Type const *e)
+  ArrayType(Type *e)
     : eltType(e), q(NULL), hasSize(false), size(-1) { checkWellFormedness(); }
 
-  ArrayType *deepClone() const;
+public:
+  //ArrayType *deepClone() const;
 
   bool innerEquals(ArrayType const *obj) const;
 
@@ -600,50 +619,137 @@ public:    // funcs
 };
 
 
-//--------------- lots of useful type constructors ---------------
-// given an AtomicType, wrap it in a CVAtomicType
-// with no const or volatile qualifiers
-CVAtomicType *makeType(AtomicType const *atomic);
+// ------------------- type factory -------------------
+// The type factory is used for constructing objects that represent
+// C++ types.  The reasons for using a factory instead of direct
+// construction include:
+//   - Type have a complicated and unpredictable sharing structure,
+//     which makes recursive deallocation impossible.  The factory
+//     is thus given responsibility for deallocation of all objects
+//     created by that factory.
+//   - Types are intended to be immutable, and thus referentially
+//     transparent.  This enables the optimization of "hash consing"
+//     where multiple requests for the same equivalent object yield
+//     the exact same object.  The factory is responsible for
+//     maintaining the data structures necessary for this, and for
+//     choosing whether to do so at all.
+//   - It is often desirable to annotate Types, but the base Type
+//     hierarchy should be free from any particular annotations.
+//     The factory allows one to derive subclasses of Type to add
+//     such annotations, without modifying creation sites.
 
-// given an AtomicType, wrap it in a CVAtomicType
-// with specified const or volatile qualifiers
-CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv);
+// first, we have the abstract interface of a TypeFactory
+class TypeFactory {
+public:
+  virtual ~TypeFactory() {}      // silence stupid compiler warnings
 
-// given a type, qualify it with 'cv'; return NULL
-// if the base type cannot be so qualified
-Type const *applyCVToType(CVFlags cv, Type const *baseType);
+  // ---- constructors for the basic types ----
+  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)=0;
+  virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType)=0;
+  virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv)=0;
+  virtual ArrayType *makeArrayType(Type *eltType, int size = -1)=0;
 
-// given an array type with no size, return one that is
-// the same except its size is as specified
-ArrayType const *setArraySize(ArrayType const *type, int size);
+  // ---- create a type based on another one ----
+  // given a type, qualify it with 'cv'; return NULL
+  // if the base type cannot be so qualified
+  virtual Type *applyCVToType(CVFlags cv, Type *baseType)=0;
 
-// make a ptr-to-'type' type; returns generic Type instead of
-// PointerType because sometimes I return fixed(ST_ERROR)
-Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
-inline Type const *makePtrType(Type const *type)
-  { return makePtrOperType(PO_POINTER, CV_NONE, type); }
-inline Type const *makeRefType(Type const *type)
-  {
-    // If you'd prefer, we could make getRefTypeTo() have a const this
-    // pointer and declare the refType field in class Type to be
-    // mutable.
-    return const_cast<Type*>(type)->getRefTypeTo();
-//    makePtrOperType(PO_REFERENCE, CV_NONE, type);
-  }
+  // given an array type with no size, return one that is
+  // the same except its size is as specified
+  virtual ArrayType *setArraySize(ArrayType *type, int size)=0;
 
-// map a simple type into its CVAtomicType (with no const or
-// volatile) representative
-#ifdef DISTINCT_CVATOMIC_TYPES
-CVAtomicType const *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE);
-#else
-CVAtomicType const *getSimpleType(SimpleTypeId st);
-#endif
+  // this is called in a few specific circumstances when we want to
+  // know the reference type corresponding to some variable; the
+  // analysis may need to do something other than a straightforward
+  // "makePointerType(PO_REFERENCE, CV_CONST, underlying)" (which is
+  // the default behavior); this also has the semantics that if
+  // 'underlying' is ST_ERROR then this must return ST_ERROR
+  virtual Type *makeRefType(Type *underlying);
+
+  // TODO: break this into various contexts of re-use
+  virtual Type *cloneType(Type *src)=0;
+  
+  // ---- similar functions for Variable ----
+  // Why not make a separate factory?
+  //   - It's inconvenient to have two.
+  //   - Every application I can think of will want to define both
+  //     or neither.
+  //   - Variable is used by Type and vice-versa.. they could have
+  //     both been defined in cc_type.h
+  virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
+                                 Type *t, DeclFlags f)=0;
+  virtual Variable *cloneVariable(Variable *src)=0;
+
+
+  // ---- convenience functions ----
+  // these functions are implemented in TypeFactory directly, in
+  // terms of the interface above, so they're not virtual
+
+  // given an AtomicType, wrap it in a CVAtomicType
+  // with no const or volatile qualifiers
+  CVAtomicType *makeType(AtomicType *atomic)
+    { return makeCVAtomicType(atomic, CV_NONE); }
+
+  // given an AtomicType, wrap it in a CVAtomicType
+  // with specified const or volatile qualifiers
+  //virtual CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv)=0;
+
+  // make a ptr-to-'type' type; returns generic Type instead of
+  // PointerType because sometimes I return fixed(ST_ERROR)
+  Type *makePtrOperType(PtrOper op, CVFlags cv, Type *type);
+  inline Type *makePtrType(Type *type)
+    { return makePtrOperType(PO_POINTER, CV_NONE, type); }
+    
+  #if 0
+  inline Type *makeRefType(Type *type)
+    {
+  //    return type->getRefTypeTo();
+      return makePtrOperType(PO_REFERENCE, CV_NONE, type);
+    }
+  #endif // 0
+
+  // map a simple type into its CVAtomicType (with no const or
+  // volatile) representative
+  CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE);
+};
+
+
+// this is an implementation of the above interface which
+// returns the actual Type-derived objects defined, as opposed
+// to objects of further-derived classes
+class BasicTypeFactory : public TypeFactory {
+private:   // data
+  // global array of non-const, non-volatile built-ins; it's expected
+  // to be treated as read-only, but enforcement (naive 'const' would
+  // not work because Type* aren't const above)
+  //static CVAtomicType unqualifiedSimple[NUM_SIMPLE_TYPES];
+
+private:   // funcs
+  Parameter *cloneParam(Parameter *src);
+
+public:
+  // TypeFactory funcs
+  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
+  virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
+  virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
+  virtual ArrayType *makeArrayType(Type *eltType, int size);
+  virtual Type *applyCVToType(CVFlags cv, Type *baseType);
+  virtual ArrayType *setArraySize(ArrayType *type, int size);
+  virtual Type *makeRefType(Type *underlying);
+  virtual Type *cloneType(Type *src);
+  virtual Variable *makeVariable(SourceLocation const &L, StringRef n,
+                                 Type *t, DeclFlags f);
+  virtual Variable *cloneVariable(Variable *src);
+};
 
 
 // ------ for debugging ------
 // The idea here is you say "print type_toString(x)" in gdb, where 'x'
 // is a pointer to some type.  The pointer that is returned will be
 // printed as a string by gdb.
+//
+// update: it turns out the latest gdbs are capable of using the
+// toString method directly!  but I'll leave this here anyway.
 char *type_toString(Type const *t);
 
 char *type_toCilString(Type const *t);
