@@ -553,8 +553,7 @@ string Production::toStringMore(bool printCode) const
 Grammar::Grammar()
   : startSymbol(NULL),
     emptyString(LocString(SourceLocation(), "empty"),    // no location
-                true /*isEmptyString*/),
-    parseParamPresent(false)
+                true /*isEmptyString*/)
 {}
 
 
@@ -572,11 +571,8 @@ void Grammar::xfer(Flatten &flat)
 
   // emptyString is const
 
-  verbatim.xfer(flat);      
-
-  flat.xferBool(parseParamPresent);
-  parseParamType.xfer(flat);
-  parseParamName.xfer(flat);
+  actionClassName.xfer(flat);
+  verbatim.xfer(flat);
 
   // serfs
   flat.checkpoint(0x8580AAD2);

@@ -1,7 +1,7 @@
 // cdecl.gr
 // demonstration of resolving C ident/type ambiguity
 
-verbatim [
+verbatim ParseEnv [
 
 #include <iostream.h>      // cout
 #include "trace.h"         // trace
@@ -16,26 +16,34 @@ verbatim [
 
 
 // parsing action state
-class ParseEnv {
+class ParseEnv : public UserActions {
 public:
   StringRef intType;              // "int"
   ObjList<StringHash> types;      // stack of hashes which identify names of types
 
 public:
-  ParseEnv(ParseTreeAndTokens &ptree);
+  ParseEnv(StringTable &table);
   ~ParseEnv();
 
   void enterScope();
   void leaveScope();
   void addType(StringRef type);
   bool isType(StringRef name);
+
+  // declarations for the generated code
+  USER_ACTION_FUNCTIONS
+  #include "cdecl.gen.h"
 };
 
 
-ParseEnv::ParseEnv(ParseTreeAndTokens &ptree)
+UserActions *makeUserActions(StringTable &table)
 {
-  intType = ptree.lexer2.idTable.add("int");
-  ptree.parseParam = this;
+  return new ParseEnv(table);
+}
+
+ParseEnv::ParseEnv(StringTable &table)
+{
+  intType = table.add("int");
 }
 
 ParseEnv::~ParseEnv()
@@ -83,6 +91,7 @@ bool ParseEnv::isType(StringRef name)
 }
 
 
+#if 0
 void doit(int argc, char **argv)
 {
   traceAddSys("progress");
@@ -104,13 +113,9 @@ int main(int argc, char **argv)
 
   return 0;
 }
+#endif // 0
 
 ] // end verbatim
-
-
-// declare type and name of an extra parameter passed in at the top
-// of parsing and propagated to all user functions
-parse_param [ParseEnv *] env;
 
 
 terminals {
@@ -126,12 +131,12 @@ terminals {
 
 nonterm[int] Start -> Stmts L2_EOF  [
   D("exiting scope and program");
-  env->leaveScope();
+  leaveScope();
   R0;
 ]
 
 nonterm[int] Stmts {
-  -> empty         [ D("entering scope"); env->enterScope(); R0; ]
+  -> empty         [ D("entering scope"); enterScope(); R0; ]
   -> Stmts Stmt    [ R0; ]
 }
 
@@ -146,29 +151,29 @@ nonterm[int] Stmt {
 
   -> "typedef" t:TypeName n:L2_NAME ";" [    // typedef: introduce type name
        D("typedef of " << n << " as type " << t);
-       env->addType(n);
+       addType(n);
        R0;
      ]
 
   -> "{" Stmts "}"                      [    // scope
-       D("exiting scope"); env->leaveScope(); R0;
+       D("exiting scope"); leaveScope(); R0;
      ]
 }
 
 nonterm[StringRef] VarName {
-  keep(n)          [ return !env->isType(n); ]
+  keep(n)          [ return !isType(n); ]
 
   -> n:L2_NAME     [ return n; ]
 }
 
 nonterm[StringRef] TypeName {
-  keep(n)          [ return env->isType(n); ]
+  keep(n)          [ return isType(n); ]
 
   -> n:L2_NAME     [ return n; ]
 
   // this is a little bit of a hack, but in some sense it's valid
   // to regard the global strings as another stringtable.. of course,
   // equality won't work, but I don't need it for the moment
-  -> L2_INT        [ return env->intType; ]
+  -> L2_INT        [ return intType; ]
 }
 

@@ -41,7 +41,7 @@
 #include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
 #include "owner.h"       // Owner
 #include "rcptr.h"       // RCPtr
-#include "useract.h"     // SemanticValue
+#include "useract.h"     // UserActions, SemanticValue
 
 
 // fwds from other files
@@ -86,16 +86,16 @@ public:
   // so we can deallocate stack nodes earlier
   int referenceCount;
 
-  // somewhat nonideal: I need to store the parseParam in every stack
+  // somewhat nonideal: I need to store the userActions in every stack
   // node, just so I can deallocate the semantic value if necessary..
-  void *parseParam;
+  UserActions *userAct;
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
   static int maxStackNodesAllocd;
 
 public:     // funcs
-  StackNode(int id, int tokenColumn, ItemSet const *state, void *parseParam);
+  StackNode(int id, int tokenColumn, ItemSet const *state, UserActions *user);
   ~StackNode();
 
   // add a new link with the given tree node; return the link
@@ -206,9 +206,9 @@ public:	   // funcs
 // differs from GrammarAnalysis in that the latter should have
 // stuff useful across a wide range of possible analyses
 class GLR : public GrammarAnalysis {
-public:            
-  // user-specified parameter value
-  void *parseParam;
+public:
+  // user-specified actions
+  UserActions *userAct;
 
   // ---- parser state between tokens ----
   // Every node in this set is (the top of) a parser that might
@@ -261,7 +261,7 @@ private:    // funcs
   void clearAllStackNodes();
 
 public:     // funcs
-  GLR();
+  GLR(UserActions *userAct);
   ~GLR();
 
   // 'main' for testing this class; returns false on error;

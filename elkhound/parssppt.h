@@ -6,7 +6,7 @@
 #define __PARSSPPT_H
 
 #include "lexer2.h"       // Lexer2
-#include "useract.h"      // SemanticValue
+#include "useract.h"      // SemanticValue, UserAction
 
 
 // ----------------- helpers for analysis drivers ---------------
@@ -18,9 +18,9 @@ public:
 
   // we need a place to put the ground tokens
   Lexer2 lexer2;
-  
+
   // parse parameter
-  void *parseParam;
+  UserActions *userAct;
 
 public:
   ParseTreeAndTokens(SemanticValue &top);

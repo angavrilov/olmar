@@ -10,7 +10,7 @@
 ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top)
   : treeTop(top),
     lexer2(),
-    parseParam(NULL)
+    userAct(NULL)
 {}
 
 ParseTreeAndTokens::~ParseTreeAndTokens()
@@ -21,9 +21,9 @@ ParseTreeAndTokens::~ParseTreeAndTokens()
 bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname, char const *symOfInterestName)
 {
-  // parse
-  GLR glr;
-  glr.parseParam = ptree.parseParam;
+  // parse 
+  xassert(ptree.userAct != NULL);    // must have been set by now
+  GLR glr(ptree.userAct);
   return glr.glrParseFrontEnd(ptree.lexer2, ptree.treeTop,
                               grammarFname, inputFname, 
                               symOfInterestName);

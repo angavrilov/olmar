@@ -61,7 +61,8 @@ grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               gramast.gen.o strtable.o ../ast/asthelp.o emitcode.o
 
 # in addition to grammar-set, file needed to do GLR parsing of C/C++ code
-glr-set = gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o
+glr-set = gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
+          useract.o
 
 # files involved in translating parsed C/C++ code
 #cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
@@ -170,51 +171,55 @@ cexp2: ${cexp2-dep} cexp2.h
 
 # intermediate files for cexp3
 # ('chmod a-w' is so I don't accidentally edit it)
-cexp3.cc: cexp3.gr gramanl cexp3ast.gen.h
-	rm -f cexp3.cc
+cexp3.gen.cc cexp3.gen.h: cexp3.gr gramanl
+	rm -f cexp3.gen.*
 	./gramanl cexp3
-	chmod a-w cexp3.cc
+	chmod a-w cexp3.gen.*
+
+cexp3.gen.o: cexp3ast.gen.h
 
 # ast for cexp3
 cexp3ast.gen.cc cexp3ast.gen.h: cexp3ast.ast ../ast/astgen
 	../ast/astgen cexp3ast.ast
 
 # parser and semantic analyzer for cexp3.gr
-cexp3-dep = cexp3.o ${grammar-set} ${common} ${grampar-set} \
+cexp3-dep = cexp3.gen.o ${grammar-set} ${common} ${grampar-set} \
             ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
 cexp3: ${cexp3-dep} ${libraries}
 	${link} -o cexp3 ${cexp3-dep} ${linkend}
 	./cexp3 cexp3.bin cexp3.in1
 
 # intermediate files for cdecl
-cdecl.cc: cdecl.gr gramanl
-	rm -f cdecl.cc
+cdecl.gen.cc cdecl.gen.h: cdecl.gr gramanl
+	rm -f cdecl.gen.*
 	./gramanl cdecl
-	chmod a-w cdecl.cc
+	chmod a-w cdecl.gen.*
 
 # ast for cdecl
 #cdeclast.gen.cc cdeclast.gen.h: cdeclast.ast ../ast/astgen
 #	../ast/astgen cdeclast.ast
 
 # parser and semantic analyzer for cdecl.gr
-cdecl-dep = cdecl.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set}
+cdecl-dep = cdecl.gen.o ${grammar-set} ${common} ${grampar-set} \
+            ${glr-set} glrmain.o
 cdecl: ${cdecl-dep} ${libraries}
 	${link} -o cdecl ${cdecl-dep} ${linkend}
 	./cdecl cdecl.bin cdecl.in1
+	./cdecl -tr cdecl cdecl.bin cdecl.in1 | grep -v progress > tmp
+	diff cdecl.out1 tmp >/dev/null
 
 # intermediate files for ccgr (the chmod is to make it harder
 # to accidentally start editing files that are automatically 
 # generated)
-cc.cc: cc.gr cc.tok gramanl
-	rm -f cc.cc
+cc.gen.cc cc.gen.h: cc.gr cc.tok gramanl
+	rm -f cc.gen.*
 	./gramanl cc
-	chmod a-w cc.cc
+	chmod a-w cc.gen.*
 
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
-ccgr-dep = cc.o ${grammar-set} ${common} ${grampar-set} \
+ccgr-dep = cc.gen.o ${grammar-set} ${common} ${grampar-set} \
            ${glr-set} ${cc-set}
 
 # parser and semantic analyzer for cc.gr, rolled up as a library for

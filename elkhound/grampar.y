@@ -82,7 +82,6 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_NONTERM "nonterm"
 %token TOK_VERBATIM "verbatim"
 %token TOK_PRECEDENCE "precedence"
-%token TOK_PARSE_PARAM "parse_param"
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
 // and interpret them after lexing
@@ -93,7 +92,6 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %union {
   int num;
   LocString *str;
-  ParseParam *parseParam;
 
   Terminals *terminals;
   ASTList<TermDecl> *termDecls;
@@ -115,8 +113,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 }
 
 %type <num> StartSymbol
-%type <str> Type Verbatim Action
-%type <parseParam> ParseParam
+%type <str> Type Action
 
 %type <terminals> Terminals
 %type <termDecls> TermDecls
@@ -143,31 +140,19 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %%
 
 /* The actions in this file simply build an Abstract Syntax Tree (AST)
- * for later processing.  This keeps the grammar uncluttered, and is
- * an experiment -- my parser will do this automatically.  */
+ * for later processing. */
 
 
 /* start symbol */
 /* yields: int (dummy value) */
-StartSymbol: Verbatim ParseParam Terminals Nonterminals
+StartSymbol: "verbatim" TOK_NAME TOK_LIT_CODE Terminals Nonterminals
                {
                  // return the AST tree top to the caller
-                 ((ParseParams*)parseParam)->treeTop = new GrammarAST($1, $2, $3, $4);
+                 ((ParseParams*)parseParam)->treeTop = 
+                   new GrammarAST($2, $3, $4, $5);
                  $$ = 0;
                }
            ;
-
-/* yields: LocString */
-Verbatim: /* empty */                    { $$ = noloc(""); }
-        | "verbatim" TOK_LIT_CODE        { $$ = $2; }
-        ;
-
-/* yields: ParseParam */
-ParseParam: /* empty */                  
-            { $$ = new ParseParam(false /*present*/, noloc(""), noloc("")); }
-          | "parse_param" TOK_LIT_CODE TOK_NAME ";"
-            { $$ = new ParseParam(true /*present*/, $2, $3); }
-          ;
 
 
 /* ------ terminals ------ */
@@ -177,7 +162,7 @@ ParseParam: /* empty */
  * all of the terminals that will appear in the rules
  */
 /* yields: Terminals */
-Terminals: "terminals" "{" TermDecls TermTypes Precedence "}" 
+Terminals: "terminals" "{" TermDecls TermTypes Precedence "}"
              { $$ = new Terminals($3, $4, $5); }
          ;
 

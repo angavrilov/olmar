@@ -9,7 +9,6 @@
 // *** DO NOT EDIT ***
 GrammarAST::~GrammarAST()
 {
-  delete param;
   delete terms;
   nonterms.deleteAll();
 }
@@ -18,26 +17,10 @@ void GrammarAST::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(GrammarAST);
 
+  PRINT_GENERIC(className);
   PRINT_GENERIC(verbatimCode);
-  PRINT_SUBTREE(param);
   PRINT_SUBTREE(terms);
   PRINT_LIST(NontermDecl, nonterms);
-}
-
-
-// ------------------ ParseParam -------------------
-// *** DO NOT EDIT ***
-ParseParam::~ParseParam()
-{
-}
-
-void ParseParam::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(ParseParam);
-
-  PRINT_BOOL(present);
-  PRINT_GENERIC(type);
-  PRINT_GENERIC(name);
 }
 
 

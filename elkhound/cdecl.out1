@@ -1,0 +1,11 @@
+%%% cdecl: entering scope
+%%% cdecl: declaration of x, type int
+%%% cdecl: call of foo with arg y
+%%% cdecl: entering scope
+%%% cdecl: declaration of x, type int
+%%% cdecl: typedef of integer as type int
+%%% cdecl: declaration of y, type integer
+%%% cdecl: exiting scope
+%%% cdecl: call of integer with arg z
+%%% cdecl: exiting scope and program
+final parse result: (nil)

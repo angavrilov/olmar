@@ -5,10 +5,20 @@
 // the C++ grammar should parse C ok
 
 
-verbatim [
+verbatim CCGr [
 
 #include "strtable.h"     // StringRef
 #include "cc_type.h"      // type identifiers like ST_CHAR
+
+class CCGr : public UserActions {
+  USER_ACTION_FUNCTIONS
+  #include "cc.gen.h"
+};
+
+UserActions *makeUserActions(StringTable &)
+{
+  return new CCGr;
+}
 
 ]
 
@@ -49,33 +59,14 @@ nonterm StartSymbol -> TranslationUnit L2_EOF;
 
 
 // ------------- identifier ambiguity -------------------
-// identifiers can play a number of roles, and this is the
+// identifiers can play two primary roles, and this is the
 // source of problems parsing C and C++
-// (here, "variable" means variable or function; it names
-// an object that exists at runtime)
 
-// typedef int <name>
-nonterm TypedefName -> n:L2_NAME   ;
+// name of a type; introduced by class, struct, union, enum, typedef
+nonterm TypeName -> n:L2_NAME   ;
 
-// enum <name> { ... }
-nonterm EnumName -> n:L2_NAME      ;
-
-// enum foo { ..., <name>, ... }
-nonterm EnumValueName -> n:L2_NAME ;     // called 'enumerator' in spec
-
-// class <name> { ... }
-nonterm ClassName -> n:L2_NAME     ;
-
-// template<...> class <name> { ... }
-nonterm TemplateName -> n:L2_NAME  ;
-
-// int <name>;
-// void <name>() { ... }
+// name of a variable or function; introduced by a declaration
 nonterm VariableName -> n:L2_NAME  ;
-
-// <name>: ...
-// goto <name>;
-nonterm LabelName -> n:L2_NAME     ;
 
 
 // ---------------- higher-level syntax -----------------
@@ -349,7 +340,7 @@ nonterm ConstantExpression -> e:ConditionalExpression ;
 // ------ A.5 Statements ------
 // labeled-statement
 nonterm Statement {
-  -> n:LabelName ":" s:Statement ;
+  -> n:L2_NAME ":" s:Statement ;
 
   // had to remove the statement because I found linux kernel
   // code that has "case:" immediately followed by "}"
@@ -401,7 +392,7 @@ nonterm Statement {
 
   -> "return" ";" ;
 
-  -> "goto" n:LabelName ";" ;
+  -> "goto" n:L2_NAME ";" ;
 
   // declaration-statement
   -> s:BlockDeclaration ;
@@ -580,7 +571,7 @@ nonterm SimpleTypeSpecifier {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm PQTypeName {
-  -> n:L2_NAME ;
+  -> n:TypeName ;
   -> TemplateId ;
   -> Qualifier n:PQTypeName ;
 }
@@ -624,7 +615,7 @@ nonterm SimpleCVTypeSpecifier {
 
 nonterm EnumSpecifier {
   -> "enum" "{" list:EnumeratorListOpt "}" ;
-  -> "enum" n:EnumName "{" list:EnumeratorListOpt "}" ;
+  -> "enum" n:L2_NAME "{" list:EnumeratorListOpt "}" ;
 }
 
 
@@ -642,8 +633,8 @@ nonterm EnumeratorListOpt {
 
 
 nonterm EnumeratorDefinition {
-  -> name:EnumValueName ;
-  -> name:EnumValueName "=" expr:ConstantExpression ;
+  -> name:L2_NAME ;
+  -> name:L2_NAME "=" expr:ConstantExpression ;
 }
 
 
@@ -870,7 +861,7 @@ nonterm ClassSpecifier ->
 
 nonterm ClassNameOpt {
   -> empty         ;
-  -> n:ClassName   ;
+  -> n:L2_NAME     ;
 }
 
 nonterm ClassKeyword {

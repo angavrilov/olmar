@@ -38,8 +38,7 @@ semimpl.cc
 cexp2.cc
 cexp2.h
 cexp2
-cc.h
-cc.cc
+cc.gen.*
 ccgr
 rel
 trcptr
@@ -65,10 +64,10 @@ qp.cpp
 agrampar.tab.c
 grampar.codes.h
 *.tmp
-cexp3.cc
+cexp3.gen.*
 cexp3.bin
 cexp3
 cexp3ast.gen.*
-cdecl.cc
+cdecl.gen.*
 cdecl.bin
 cdecl

@@ -386,13 +386,11 @@ public:	    // data
   // nice to treat empty like any other symbol
   Nonterminal emptyString;
 
+  // name of the class into which the action functions are placed
+  LocString actionClassName;
+
   // extra verbatim code to be inserted at top of impl file
   LocString verbatim;
-
-  // extra parsing parameter
-  bool parseParamPresent;               // true if present
-  LocString parseParamType;             // type
-  LocString parseParamName;             // name for use in action functions
 
 public:     // funcs
   Grammar();                            // set everything manually

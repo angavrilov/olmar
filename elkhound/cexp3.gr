@@ -1,13 +1,24 @@
 // cexp3.gr
 // another go at C expressions, with user-supplied actions
 
-verbatim [
+verbatim Cexp3 [
   #include <iostream.h>      // cout
   #include "cexp3ast.gen.h"  // Exp
   #include "trace.h"         // trace
+  #include "useract.h"       // UserActions
 
   #define D(msg) \
     trace("exptree") << msg << endl
+
+  class Cexp3 : public UserActions {
+    USER_ACTION_FUNCTIONS
+    #include "cexp3.gen.h"
+  };
+  
+  UserActions *makeUserActions(StringTable &)
+  {
+    return new Cexp3;
+  }
 ]
 
 /*

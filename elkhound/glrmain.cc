@@ -8,6 +8,9 @@
 #include "grammar.h"      // grammarStringTable
 #include "fileloc.h"      // sourceFileList
 
+// defined by the user somewhere
+UserActions *makeUserActions(StringTable &table);
+
 void doit(int argc, char **argv)
 {
   traceAddSys("progress");
@@ -15,11 +18,14 @@ void doit(int argc, char **argv)
 
   SemanticValue treeTop;
   ParseTreeAndTokens tree(treeTop);
+  UserActions *user = makeUserActions(tree.lexer2.idTable);
+  tree.userAct = user;
   treeMain(tree, argc, argv);
 
   cout << "final parse result: " << treeTop << endl;
 
   // global cleanup
+  delete user;
   grammarStringTable.clear();
   sourceFileList.clear();
   traceRemoveAll();
