@@ -1550,6 +1550,15 @@ bool E_delete::elaborate(ElabVisitor &env)
   // and aborted before calling us if it wasn't.
   PointerType *to = t->asPointerType();
   if (to->atType->isCompoundType()) {
+    if (!to->atType->asCompoundType()->isComplete()) {
+      // 10/03/04: cppstd 5.3.5 para 5 explains that, while it *is*
+      // legal to delete an incomplete type, the destructor (once the
+      // type is completed) must be trivial (otherwise the program has
+      // undefined behavior); so Elsa will assume that the dtor is in
+      // fact trivial
+      return true;
+    }
+
     // use orig in elaboration, clone stays behind
     Expression *origExpr = expr;
     expr = env.cloneExpr(expr);

@@ -38,6 +38,20 @@ EOF
 }
 
 
+sub equalsYesNo {
+  my ($optName, $arg) = @_;
+  if ($arg eq "=yes") {
+    return "yes";
+  }
+  elsif ($arg eq "=no") {
+    return "no";
+  }
+  else {
+    die "-$optName option must be followed by =yes or =no\n";
+  }
+}
+
+
 # process command-line arguments
 $originalArgs = join(' ', @ARGV);
 while (@ARGV) {
@@ -97,15 +111,11 @@ while (@ARGV) {
     $ELKHOUND = $tmp;
   }
 
-  elsif (($tmp) = ($arg =~ m/^-gnu=(.*)$/)) {
-    $USE_GNU = $tmp;
+  elsif (($tmp) = ($arg =~ m/^-gnu(.*)$/)) {
+    $USE_GNU = equalsYesNo("gnu", $tmp);
   }
-  elsif (($tmp) = ($arg =~ m/^-gnu$/)) {
-    die "-gnu option must be followed by =yes or =no\n";
-  }
-
-  elsif (($tmp) = ($arg =~ m/^-kandr=(.*)$/)) {
-    $USE_KANDR = $tmp;
+  elsif (($tmp) = ($arg =~ m/^-kandr(.*)$/)) {
+    $USE_KANDR = equalsYesNo("kandr", $tmp);
   }
 
   elsif ($arg eq "-useSerialNumbers") {
