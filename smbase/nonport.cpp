@@ -669,6 +669,16 @@ int main(int argc, char **argv)
 {
   nonportFail = testingFail;
 
+  char s[4];
+  s[0] = '-';
+  s[1] = 'l';
+  s[2] = 's';
+  s[3] = 0;
+  if (0!=strcmp(s, "-ls")) {
+    printf("strcmp failed!\n");
+    return 4;
+  }
+
   // process arguments
   bool interactive = false;
   for (int i=1; i<argc; i++) {
