@@ -225,10 +225,9 @@ Type const *TS_classSpec::tcheck(Env &env)
   }
 
   // open a scope, and install 'ct' as the compound which is
-  // being built
-  env.enterScope();
-  env.scope()->curCompound = ct;
-  env.scope()->curAccess = (keyword==TI_CLASS? AK_PRIVATE : AK_PUBLIC);
+  // being built; in fact, 'ct' itself is a scope, so we use
+  // that directly
+  env.extendScope(ct);
 
   // look at members: first pass is to enter them into the environment
   FOREACH_ASTLIST_NC(Member, members->list, iter) {
@@ -250,7 +249,9 @@ Type const *TS_classSpec::tcheck(Env &env)
     }
   }
 
-  env.exitScope();
+  // now retract the class scope from the stack of scopes; do
+  // *not* destroy it!
+  env.retractScope(ct);
 
   return ret;
 }
@@ -445,7 +446,8 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     }
     else {
       // ok, allow the overload
-      trace("ovl") << "overloaded: `" << prior->type->toString()
+      trace("ovl") << "overloaded `" << prior->name 
+                   << "': `" << prior->type->toString()
                    << "' and `" << spec->toString() << "'\n";
       overloadSet = prior->getOverloadSet();
       prior = NULL;    // so we don't consider this to be the same
@@ -515,36 +517,7 @@ Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     env.addVariable(var);
   }
 
-  // are we inside a class member list?  if so, then
-  // add this to the class
-  if (enclosingClass) {
-    if (enclosingClass->getNamedField(var->name)) {
-      env.error(stringc
-        << "duplicate declaration of class member `" << *name << "'");
-    }
-    else {
-      AccessKeyword access = env.scope()->curAccess;
-      trace("env") << "added " << toString(access)
-                   << " field `" << var->name
-                   << "' of type `" << var->type->toString()
-                   << "' to " << enclosingClass->keywordAndName() << endl;
-      var->access = access;
-      var->setFlag(DF_MEMBER);
-      enclosingClass->addField(var);
-    }
-  }
-
-  else {
-    // not inside a class member list; set the DF_DEFINITION
-    // flag for variables that don't say DF_EXTERN
-    if (!var->type->isFunctionType() &&
-        !(dflags & DF_EXTERN)) {
-      var->setFlag(DF_DEFINITION);
-    }
-  }
-
   return var;
-
 }
 
 

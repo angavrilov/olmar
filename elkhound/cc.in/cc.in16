@@ -6,3 +6,8 @@ int f(int);
 int f(double);
 
 
+class Foo {
+public:
+  int g(int);
+  int g(double);
+};

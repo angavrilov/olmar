@@ -38,8 +38,20 @@ Env::Env(StringTable &s, CCLang &L)
 }
 
 Env::~Env()
-{
-  scopes.deleteAll();
+{ 
+  // delete the scopes one by one, so we can skip any
+  // which are in fact not owned
+  while (scopes.isNotEmpty()) {
+    Scope *s = scopes.removeFirst();
+    if (s->curCompound) {
+      // this isn't one we own
+    }
+    else {
+      // we do own this one
+      delete s;
+    }
+  }
+
   errors.deleteAll();
 }
 
@@ -54,6 +66,22 @@ void Env::exitScope()
 {
   trace("env") << "exited scope\n";
   delete scopes.removeFirst();
+}
+
+
+void Env::extendScope(Scope *s)
+{
+  trace("env") << "extending scope at " << (void*)s << "\n";
+  scopes.prepend(s);
+  s->curLoc = loc();
+}
+
+void Env::retractScope(Scope *s)
+{ 
+  trace("env") << "retracting scope at " << (void*)s << "\n";
+  Scope *first = scopes.removeFirst();
+  xassert(first == s);
+  // we don't own 's', so don't delete it
 }
 
 
@@ -92,11 +120,24 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 
 bool Env::addVariable(Variable *v)
 {
-  trace("env") << "added variable `" << v->name
-               << "' of type `" << v->type->toString()
-               << "' at " << v->loc.toString() << endl;
-
   Scope *s = scope();
+
+  if (!s->curCompound) {
+    // variable outside a class
+    trace("env") << "added variable `" << v->name
+                 << "' of type `" << v->type->toString()
+                 << "' at " << v->loc.toString() << endl;
+  }
+  else {
+    // class member
+    v->access = s->curAccess;
+    trace("env") << "added " << toString(v->access)
+                 << " field `" << v->name
+                 << "' of type `" << v->type->toString()
+                 << "' at " << v->loc.toString()
+                 << " to " << s->curCompound->keywordAndName() << endl;
+  }
+
   return insertUnique(s->variables, v->name, v, s->changeCount);
 }
 
@@ -105,6 +146,7 @@ bool Env::addCompound(CompoundType *ct)
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
 
   Scope *s = scope();
+  ct->access = s->curAccess;
   return insertUnique(s->compounds, ct->name, ct, s->changeCount);
 }
 
@@ -113,6 +155,7 @@ bool Env::addEnum(EnumType *et)
   trace("env") << "added enum " << et->name << endl;
 
   Scope *s = scope();
+  et->access = s->curAccess;
   return insertUnique(s->enums, et->name, et, s->changeCount);
 }
 

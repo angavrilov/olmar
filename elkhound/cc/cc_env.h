@@ -49,6 +49,8 @@ public:
 class Env {
 private:     // data
   // stack of lexical scopes; first is innermost
+  // NOTE: if a scope has curCompound!=NULL, then this list does *not* own
+  // it.  otherwise it does own it.
   ObjList<Scope> scopes;
 
   // list of named scopes (i.e. namespaces)
@@ -79,6 +81,8 @@ public:      // function
   // scopes
   void enterScope();
   void exitScope();
+  void extendScope(Scope *s);     // push onto stack, but don't own
+  void retractScope(Scope *s);    // paired with extendScope()
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
 
