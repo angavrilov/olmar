@@ -723,12 +723,13 @@ nonterm[Declaration*] SimpleDeclaration {
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";"
        [ spec->decllist = list; return spec; ]
 
-  -> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";"
-       [
-         spec->dflags = (DeclFlags)(spec->dflags | DF_TYPEDEF);
-         spec->decllist = list;
-         return spec;
-       ]
+  // this is now redundant because DeclSpecifier allows "typedef"
+  //-> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";"
+  //     [
+  //       spec->dflags = (DeclFlags)(spec->dflags | DF_TYPEDEF);
+  //       spec->decllist = list;
+  //       return spec;
+  //     ]
 
   // gnu; specifically for linux printk declaration
   //-> GNUAttribute decl:SimpleDeclaration ;
@@ -744,26 +745,40 @@ nonterm[Declaration*] SimpleDeclaration {
 // I return a Declaration object with an empty decllist, as a proxy
 // for returning dflags and spec as a pair
 nonterm[Declaration*] DeclSpecifier {
-  -> "inline" m:DeclModifier s:TypeSpecifier
-       [ return new Declaration((DeclFlags)(DF_INLINE | m), s, NULL); ]
-
-  -> m:DeclModifier "inline" s:TypeSpecifier
-       [ return new Declaration((DeclFlags)(DF_INLINE | m), s, NULL); ]
-
-  -> m:DeclModifier s:TypeSpecifier
+  -> m:DeclModifierSeq s:TypeSpecifier
        [ return new Declaration(m, s, NULL); ]
 
-  -> "inline" s:TypeSpecifier
-       [ return new Declaration(DF_INLINE, s, NULL); ]
-
-  -> s:TypeSpecifier 
+  -> s:TypeSpecifier
        [ return new Declaration(DF_NONE, s, NULL); ]
 }
 
-// my analysis (informal and ad-hoc) indicates that none of these can
-// be used together; "inline" is pulled out because it can be used
-// with "virtual", "static", "friend", and possibly "extern"; I
-// consider all this preferable to just allowing a "word soup"
+// at one point I was trying to make the parser enforce rules about
+// which modifiers could go together and the fact that each one can't
+// occur more than once, but that got to be unwieldy.. so now I allow
+// any sequence, and the typechecker will have to rule out bad
+// combinations (and for now no one can enforce the no-duplication
+// rule..)
+nonterm[enum DeclFlags] DeclModifierSeq {
+  // subtle: I originally wrote this as DeclModifierSeqOpt, and that
+  // nearly tripled the # of shift/reduce conflicts, because the
+  // parser was forced to decide too early whether to do an epsilon
+  // reduction; pushing the epsilon choice up one level (where it is
+  // no longer an epsilon choice per-se) got me back to 59, which is
+  // where it's been hovering.  Of course, because of GLR, this was
+  // only a performance optimization.
+
+  -> m:DeclModifier
+       [ return m; ]
+  -> seq:DeclModifierSeq m:DeclModifier
+       [ DeclFlags ret = (DeclFlags)(seq | m);
+         if (ret == seq) {
+           // this will do for now
+           cout << "warning: duplicate decl modifier\n";
+         }
+         return ret;
+       ]
+}
+
 nonterm[enum DeclFlags] DeclModifier {
   -> "virtual"     [ return DF_VIRTUAL;  ]
   -> "friend"      [ return DF_FRIEND;   ]
@@ -772,6 +787,8 @@ nonterm[enum DeclFlags] DeclModifier {
   -> "register"    [ return DF_REGISTER; ]
   -> "static"      [ return DF_STATIC;   ]
   -> "extern"      [ return DF_EXTERN;   ]
+  -> "inline"      [ return DF_INLINE;   ]
+  -> "typedef"     [ return DF_TYPEDEF;  ]
 
   -> "thmprv_predicate"   [ return DF_PREDICATE; ]
 }
