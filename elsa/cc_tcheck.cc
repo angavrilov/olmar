@@ -3256,6 +3256,16 @@ Type *makeLvalType(Env &env, Type *underlying)
 }
 
 
+Type *E_compoundLit::itcheck(Env &env)
+{
+  ASTTypeId::Tcheck tc;
+  stype = stype->tcheck(env, tc);
+  init->tcheck(env);
+  // TODO: check that the cast (literal) makes sense
+  return stype->getType();
+}
+
+
 Type *E_variable::itcheck(Env &env)
 {
   name->tcheck(env);

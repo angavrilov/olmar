@@ -492,7 +492,7 @@ class Expression {
   -> E_stringLit(StringRef text, E_stringLit continuation = NULL);
   -> E_charLit(StringRef text);
 
-  //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
+  -> E_compoundLit(ASTTypeId stype, IN_compound init);
 
   // variable reference; 'name' might be "this"
   -> E_variable(SourceLoc loc, PQName name);

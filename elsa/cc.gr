@@ -249,15 +249,15 @@ nonterm(Expression*) PrimaryExpression {
   -> "(" cs:CompoundStatement ")"
        { return new E_statement(cs); }
 
-  // gnu extension: "constructor expression"
+  // GNU extension: "Compound Literal"
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Compound-Literals.html#Compound%20Literals
   // (notation for literal struct values)
   // e.g.:
-  //   struct Foo { int x; int y; };
-  //   struct Foo myfoo;
+  //   struct Foo { int x; int y; } myfoo;
   //   myfoo = (struct Foo) { 4, 5 };        <-- here
   // which would assign x=4 and y=5 in 'myfoo'
-  //-> "(" t:TypeId ")" i:CompoundInitializer
-  //     { return new E_structLit(t, i); }
+  -> "(" t:TypeId ")" i:CompoundInitializer
+       { return new E_compoundLit(t, i); }
 }
 
 nonterm(Expression*) Literal {

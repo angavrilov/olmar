@@ -753,6 +753,16 @@ void E_charLit::iprint(PrintEnv &env)
   env << text;
 }
 
+void E_compoundLit::iprint(PrintEnv &env)
+{
+  olayer ol("E_compoundLit::iprint");
+  {
+    codeout co(env, "", "(", ")");
+    stype->print(env);
+  }
+  init->print(env);
+}
+
 void E_variable::iprint(PrintEnv &env)
 {
   olayer ol("E_variable::iprint");
