@@ -420,8 +420,6 @@ void DataBlock::readFromFile(char const *fname)
 // ------------- self test code --------------
 #ifdef DATABLOK_TEST
 
-#include "exc.h"         // exceptions
-
 int doit()
 {
   // nest everything so the dtors are inside

@@ -178,4 +178,26 @@ check: $(tests-files)
 	@echo
 	@echo "make check: all the tests PASSED"
 
+
+# ------------------- documentation -------------------------
+# main dependencies for the library; some ubiquitous dependencies
+# are omitted to avoid too much clutter
+dependencies.dot:
+	./scan-depends.pl -r -Xxassert.h -Xtest.h -Xtyp.h -Xmacros.h \
+		growbuf.h tobjpool.cc strdict.h voidlist.h svdict.h \
+		warn.cpp mysig.h tobjlist.cc >$@
+
+# use 'dot' to lay out the graph
+# http://www.research.att.com/sw/tools/graphviz/
+%.ps: %.dot
+	dot -Tps <$^ >$@
+
+# use 'convert' to make a PNG image with resolution not to exceed
+# 1000 in X or 700 in Y ('convert' will preserve aspect ratio); this
+# also antialiases, so it looks very nice (it's hard to reproduce
+# this using 'gs' alone)
+%.png: %.ps
+	convert -geometry 1000x700 $^ $@
+
+
 # end of Makefile

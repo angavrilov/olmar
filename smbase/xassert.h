@@ -1,12 +1,14 @@
 // xassert.h
 // replacement for assert that throws an exception on failure
-// (x_assert_fail and xfailure_func are in exc.cc)
+// (x_assert_fail and xfailure_func are in exc.cpp)
 // Scott McPeak, 1997-1998  This file is public domain.
 
 #ifndef __XASSERT_H
 #define __XASSERT_H
 
 #include "macros.h"     // NORETURN
+
+// linkdepend: exc.cpp
 
 void x_assert_fail(char const *cond, char const *file, int line) NORETURN;
 

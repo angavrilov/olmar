@@ -1,0 +1,315 @@
+// dependency graph automatically produced by ./scan-depends.pl
+
+digraph "Dependencies" {
+  "growbuf.h" [
+    color = white
+  ]
+  "growbuf.cc" [
+  ]
+  "growbuf.h" -> "growbuf.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "datablok.h" [
+    color = white
+  ]
+  "growbuf.h" -> "datablok.h" [
+  ]
+  "tobjpool.cc" [
+  ]
+  "objpool.h" [
+    color = white
+  ]
+  "tobjpool.cc" -> "objpool.h" [
+  ]
+  "strdict.h" [
+    color = white
+  ]
+  "strdict.cc" [
+  ]
+  "strdict.h" -> "strdict.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "str.h" [
+    color = white
+  ]
+  "strdict.h" -> "str.h" [
+  ]
+  "voidlist.h" [
+    color = white
+  ]
+  "voidlist.cc" [
+  ]
+  "voidlist.h" -> "voidlist.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "trdelete.h" [
+    color = white
+  ]
+  "voidlist.h" -> "trdelete.h" [
+  ]
+  "svdict.h" [
+    color = white
+  ]
+  "svdict.cc" [
+  ]
+  "svdict.h" -> "svdict.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "svdict.h" -> "str.h" [
+  ]
+  "strhash.h" [
+    color = white
+  ]
+  "svdict.h" -> "strhash.h" [
+  ]
+  "warn.cpp" [
+  ]
+  "warn.h" [
+    color = white
+  ]
+  "warn.cpp" -> "warn.h" [
+    weight = 10
+  ]
+  "breaker.h" [
+    color = white
+  ]
+  "warn.cpp" -> "breaker.h" [
+  ]
+  "mysig.h" [
+    color = white
+  ]
+  "mysig.cc" [
+  ]
+  "mysig.h" -> "mysig.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "tobjlist.cc" [
+  ]
+  "objlist.h" [
+    color = white
+  ]
+  "tobjlist.cc" -> "objlist.h" [
+  ]
+  "tobjlist.cc" -> "breaker.h" [
+  ]
+  "growbuf.cc" -> "growbuf.h" [
+    weight = 10
+  ]
+  "datablok.cpp" [
+  ]
+  "datablok.h" -> "datablok.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "array.h" [
+    color = white
+  ]
+  "objpool.h" -> "array.h" [
+  ]
+  "strdict.cc" -> "strdict.h" [
+    weight = 10
+  ]
+  "str.cpp" [
+  ]
+  "str.h" -> "str.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "voidlist.cc" -> "voidlist.h" [
+    weight = 10
+  ]
+  "voidlist.cc" -> "breaker.h" [
+  ]
+  "voidlist.cc" -> "str.h" [
+  ]
+  "ckheap.h" [
+    color = white
+  ]
+  "voidlist.cc" -> "ckheap.h" [
+  ]
+  "trdelete.cc" [
+  ]
+  "trdelete.h" -> "trdelete.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "svdict.cc" -> "svdict.h" [
+    weight = 10
+  ]
+  "strhash.cc" [
+  ]
+  "strhash.h" -> "strhash.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "hashtbl.h" [
+    color = white
+  ]
+  "strhash.h" -> "hashtbl.h" [
+  ]
+  "warn.h" -> "warn.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "breaker.cpp" [
+  ]
+  "breaker.h" -> "breaker.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "mysig.cc" -> "mysig.h" [
+    weight = 10
+  ]
+  "objlist.h" -> "voidlist.h" [
+  ]
+  "datablok.cpp" -> "datablok.h" [
+    weight = 10
+  ]
+  "exc.h" [
+    color = white
+  ]
+  "datablok.cpp" -> "exc.h" [
+  ]
+  "crc.h" [
+    color = white
+  ]
+  "datablok.cpp" -> "crc.h" [
+  ]
+  "syserr.h" [
+    color = white
+  ]
+  "datablok.cpp" -> "syserr.h" [
+  ]
+  "str.cpp" -> "str.h" [
+    weight = 10
+  ]
+  "str.cpp" -> "ckheap.h" [
+  ]
+  "flatten.h" [
+    color = white
+  ]
+  "str.cpp" -> "flatten.h" [
+  ]
+  "trdelete.cc" -> "trdelete.h" [
+    weight = 10
+  ]
+  "trdelete.cc" -> "breaker.h" [
+  ]
+  "strhash.cc" -> "strhash.h" [
+    weight = 10
+  ]
+  "trace.h" [
+    color = white
+  ]
+  "strhash.cc" -> "trace.h" [
+  ]
+  "strhash.cc" -> "crc.h" [
+  ]
+  "hashtbl.cc" [
+  ]
+  "hashtbl.h" -> "hashtbl.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "breaker.cpp" -> "breaker.h" [
+    weight = 10
+  ]
+  "exc.cpp" [
+  ]
+  "exc.h" -> "exc.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "exc.h" -> "breaker.h" [
+  ]
+  "exc.h" -> "str.h" [
+  ]
+  "crc.cpp" [
+  ]
+  "crc.h" -> "crc.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "syserr.cpp" [
+  ]
+  "syserr.h" -> "syserr.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "syserr.h" -> "exc.h" [
+  ]
+  "flatten.cc" [
+  ]
+  "flatten.h" -> "flatten.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "flatten.h" -> "trdelete.h" [
+  ]
+  "trace.cc" [
+  ]
+  "trace.h" -> "trace.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "hashtbl.cc" -> "hashtbl.h" [
+    weight = 10
+  ]
+  "exc.cpp" -> "exc.h" [
+    weight = 10
+  ]
+  "syserr.cpp" -> "syserr.h" [
+    weight = 10
+  ]
+  "nonport.h" [
+    color = white
+  ]
+  "syserr.cpp" -> "nonport.h" [
+  ]
+  "flatten.cc" -> "flatten.h" [
+    weight = 10
+  ]
+  "flatten.cc" -> "exc.h" [
+  ]
+  "trace.cc" -> "trace.h" [
+    weight = 10
+  ]
+  "trace.cc" -> "objlist.h" [
+  ]
+  "trace.cc" -> "str.h" [
+  ]
+  "strtokp.h" [
+    color = white
+  ]
+  "trace.cc" -> "strtokp.h" [
+  ]
+  "trace.cc" -> "nonport.h" [
+  ]
+  "nonport.cpp" [
+  ]
+  "nonport.h" -> "nonport.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "strtokp.cpp" [
+  ]
+  "strtokp.h" -> "strtokp.cpp" [
+    style = dashed
+    weight = 10
+  ]
+  "strtokp.h" -> "str.h" [
+  ]
+  "nonport.cpp" -> "nonport.h" [
+    weight = 10
+  ]
+  "strtokp.cpp" -> "strtokp.h" [
+    weight = 10
+  ]
+  "strtokp.cpp" -> "exc.h" [
+  ]
+}
