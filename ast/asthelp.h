@@ -108,7 +108,7 @@
   case type::TYPE_TAG: {                              \
     type *var = switch_nodeptr->as##type();
 
-#define ASTNEXT1(typec)                               \
+#define ASTNEXT1(type)                                \
     break;                                            \
   } /* end previous case */                           \
   case type::TYPE_TAG: {
