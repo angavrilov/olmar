@@ -2821,10 +2821,14 @@ void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
 
   // ok, we're not in an exceptional circumstance, so the type
   // must be complete; if we have an error, what will we say?
-  char const *action =
-    dt.context==DC_EXCEPTIONSPEC? "name in exception spec" :
-    dt.context==DC_E_CAST?        "cast to" :
-           /* catch-all */        "create an object of" ;
+  char const *action = 0;
+  switch (dt.context) {                           
+    default /*catch-all*/:     action = "create an object of"; break;
+    case DC_EXCEPTIONSPEC:     action = "name in exception spec"; break;
+    case DC_E_KEYWORDCAST:     // fallthru
+    case DC_E_CAST:            action = "cast to"; break;
+    case DC_E_SIZEOFTYPE:      action = "compute size of"; break;
+  }
 
   // check it
   if (!env.ensureCompleteType(action, dt.type)) {
@@ -6300,38 +6304,64 @@ Type *E_arrow::itcheck_arrow_set(Env &env, Expression *&replacement,
 }
 
 
+// Evaluate a 'sizeof' applied to type 't', store the result in
+// 'size', and return the type of the 'sizeof' expression itself.
+// If 't' was derived from an expression, it is passed as 'expr'.
+Type *sizeofType(Env &env, Type *t, int &size, Expression * /*nullable*/ expr)
+{
+  // 5.3.3p2: want type underneath any reference
+  t = t->asRval();
+  
+  // 5.3.3p1: must be complete
+  env.ensureCompleteType("compute size of", t);
+
+  try {
+    size = t->reprSize();
+    TRACE("sizeof", "sizeof(" << (expr? expr->exprToString() : t->toString()) <<
+                    ") is " << size);
+  }
+  catch (XReprSize &e) {
+    if (t->isArrayType()) {
+      ArrayType *at = t->asArrayType();
+      if (at->size == ArrayType::DYN_SIZE) {
+        // There are at least two reasonable approaches to handling
+        // dynamically-sized arrays.  One is to just make sure that
+        // an analysis can recognize them and handle them specially
+        // if necessary.  That is what Elsa is doing.  (An analysis
+        // can recognize ArrayType::DYN_SIZE.)
+        //
+        // The other approach would be to translate them away, using
+        // lower-level concepts.  However, this would (IMO) make more
+        // of a mess than is beneficial (using alloca, or perhaps even
+        // malloc), so we don't.
+        size = 0;
+
+        env.warning("taking the sizeof a dynamically-sized array");
+        TRACE("sizeof", "sizeof(" << expr->exprToString() <<
+                        ") is dynamic..");
+      }
+      else if (at->size == ArrayType::NO_SIZE &&
+               env.lang.assumeNoSizeArrayHasSizeOne) {
+        // just hacking this for now
+        return sizeofType(env, at->eltType, size, expr);
+      }
+      else {
+        return env.error(e.why());  // jump out with an error
+      }
+    }
+  }
+
+  // 5.3.3p6: result is of type 'size_t'; most systems (including my
+  // elsa/include/stddef.h header) make that the same as 'unsigned';
+  // in any case, it must be an unsigned integer type (c99, 7.17p2)
+  return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+}
+
 Type *E_sizeof::itcheck_x(Env &env, Expression *&replacement)
 {
   expr->tcheck(env, expr);
 
-  try {
-    size = expr->type->asRval()->reprSize();
-    TRACE("sizeof", "sizeof(" << expr->exprToString() <<
-                    ") is " << size);
-  }
-  catch (XReprSize &e) {
-    // dsw: You are allowed to take the size of an array that has dynamic
-    // size; FIX: is this the right place to handle it?  Perhaps
-    // ArrayType::reprSize() would be better.
-    //
-    // sm: This seems like an ok place to me.  
-    if (expr->type->asRval()->isArrayType()
-        && expr->type->asRval()->asArrayType()->size == ArrayType::DYN_SIZE) {
-      // sm: don't do this; 'size' is interpreted as an integer and
-      // no one expects to interpret it as an ArrayType::size, so this
-      // just sets the size to -2!
-      //size = ArrayType::DYN_SIZE;
-      env.warning("taking the sizeof a dynamically-sized array");
-      TRACE("sizeof", "sizeof(" << expr->exprToString() <<
-                      ") is dynamic..");
-    } else {
-      return env.error(e.why());  // jump out with an error
-    }
-  }
-
-  // TODO: is this right?
-  return expr->type->isError()?
-           expr->type : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+  return sizeofType(env, expr->type, size, expr);
 }
 
 
@@ -6702,14 +6732,10 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
     return replacement->type;
   }
 
-  // get types of arguments, converted to rval
+  // get types of arguments, converted to rval, and normalized with
+  // array-to-pointer and function-to-pointer conversions
   Type *lhsType = env.operandRval(e1->type);
   Type *rhsType = env.operandRval(e2->type);
-  
-  // if the LHS is an array, coerce it to a pointer
-  if (lhsType->isArrayType()) {
-    lhsType = env.makePtrType(SL_UNKNOWN, lhsType->asArrayType()->eltType);
-  }
 
   switch (op) {
     default: xfailure("illegal op code"); break;
@@ -6834,46 +6860,32 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-// someone took the address of 'e_var', and we must compute
+// someone took the address of 'var', and we must compute
 // the PointerToMemberType of that construct
-static Type *makePTMType(Env &env, E_variable *e_var)
+static Type *makePTMType(Env &env, Variable *var, SourceLoc loc)
 {
-  // shouldn't even get here unless e_var->name is qualified
-  xassert(e_var->name->hasQualifiers());
-
-  // dsw: It is inelegant to recompute the var here, but I don't want
-  // to just ignore the typechecking that already computed a type for
-  // the expr and use the var exclusively, which is what would happen
-  // if I just passed in the var.
-  Variable *var0 = e_var->var;
-  xassert(var0);
-  xassert(var0->scope);
-
   // cppstd: 8.3.3 para 3, can't be static
-  xassert(!var0->hasFlag(DF_STATIC));
+  xassert(!var->hasFlag(DF_STATIC));
   
   // this is essentially a consequence of not being static
-  if (e_var->type->asRval()->isFunctionType()) {
-    xassert(e_var->type->asRval()->asFunctionType()->isMethod());
+  if (var->type->isFunctionType()) {
+    xassert(var->type->asFunctionType()->isMethod());
   }
 
   // cppstd: 8.3.3 para 3, can't be cv void
-  if (e_var->type->isVoid()) {
-    return env.error(var0->loc, "attempted to make a pointer to member to void");
+  if (var->type->isVoid()) {
+    return env.error(loc, "attempted to make a pointer to member to void");
   }
-  // cppstd: 8.3.3 para 3, can't be a reference;
-  // NOTE: This does *not* say e_var->type->isReference(), since an
-  // E_variable expression will have reference type when the variable
-  // itself is not a reference.
-  if (var0->type->isReference()) {
-    return env.error(var0->loc, "attempted to make a pointer to member to a reference");
+  // cppstd: 8.3.3 para 3, can't be a reference
+  if (var->type->isReference()) {
+    return env.error(loc, "attempted to make a pointer to member to a reference");
   }
 
-  CompoundType *inClass0 = var0->scope->curCompound;
+  CompoundType *inClass0 = var->scope->curCompound;
   xassert(inClass0);
 
   return env.tfac.makePointerToMemberType
-    (SL_UNKNOWN, inClass0, CV_NONE, e_var->type->asRval());
+    (SL_UNKNOWN, inClass0, CV_NONE, var->type);
 }
 
 Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
@@ -6926,7 +6938,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
   }
 
   // 14.6.2.2 para 1
-  if (expr->type->isGeneralizedDependent()) {
+  if (expr->type->containsGeneralizedDependent()) {
     return env.dependentType();
   }
 
@@ -6942,7 +6954,7 @@ Type *E_addrOf::itcheck_addrOf_set(Env &env, Expression *&replacement,
 
     if (evar->var->isMember() &&
         !evar->var->isStatic()) {
-      return makePTMType(env, evar);
+      return makePTMType(env, evar->var, evar->name->loc);
     }
   }
 
@@ -6997,49 +7009,10 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
     return makeLvalType(env, rt->asArrayType()->eltType);
   }
 
-  // check for "operator*" (and "operator[]" since I currently map
-  // 'x[y]' into '*(x+y)')
-  if (rt->isCompoundType()) {
-    CompoundType *ct = rt->asCompoundType();
-    if (ct->lookupVariable(env.operatorName[OP_STAR], env)) {
-      // replace this Expression node with one that looks like
-      // an explicit call to the overloaded operator*
-      replacement = new E_funCall(
-        // function: ptr.operator*
-        new E_fieldAcc(ptr, new PQ_operator(SL_UNKNOWN, new ON_operator(OP_STAR),
-                                            env.operatorName[OP_STAR])),
-        // arguments: ()
-        FakeList<ArgExpression>::emptyList()
-      );
-
-      // now, tcheck this new Expression
-      replacement->tcheck(env, replacement);
-      return replacement->type;
-    }
-
-    // this is an older hack..
-    if (ct->lookupVariable(env.operatorName[OP_BRACKETS], env)) {
-      // ok.. gee what type?  would have to do the full deal, and
-      // would likely get it wrong for operator[] since I don't have
-      // the right info to do an overload calculation.. well, if I
-      // make it ST_ERROR then that will suppress further complaints
-      return env.getSimpleType(SL_UNKNOWN, ST_ERROR);    // TODO: fix this!
-    }
-  }
-
-  if (env.lang.complainUponBadDeref) {
-    // TODO: "dereference" is misspelled; not fixing right now since
-    // we're in the middle of binning errors
-    return env.error(rt, stringc
-      << "cannot derefence non-pointer `" << rt->toString() << "'");
-  }
-  else {
-    // unfortunately, I get easily fooled by overloaded functions and
-    // end up concluding the wrong types.. so I'm simply going to turn
-    // off the error message for now..
-    return env.getSimpleType(SL_UNKNOWN, ST_ERROR);
-  }
+  return env.error(rt, stringc
+    << "cannot dereference non-pointer `" << rt->toString() << "'");
 }
+
 
 Type *E_cast::itcheck_x(Env &env, Expression *&replacement)
 {
@@ -7385,15 +7358,8 @@ Type *E_sizeofType::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_SIZEOFTYPE);
   atype = atype->tcheck(env, tc);
-  Type *t = atype->getType();
-  try {
-    size = t->reprSize();
-  }
-  catch (XReprSize &e) {
-    t = env.error(e.why());
-  }
 
-  return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+  return sizeofType(env, atype->getType(), size, NULL /*expr*/);
 }
 
   

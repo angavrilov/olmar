@@ -35,7 +35,6 @@ void CCLang::ANSI_C89()
   noInnerClasses = true;
   uninitializedGlobalDataIsCommon = true;
   emptyParamsMeansNoInfo = true;
-  complainUponBadDeref = true;
   strictArraySizeRequirements = false;
   assumeNoSizeArrayHasSizeOne = false;
   allowOverloading = false;
@@ -147,9 +146,6 @@ void CCLang::ANSI_Cplusplus()
   uninitializedGlobalDataIsCommon = false;
   emptyParamsMeansNoInfo = false;
 
-  // these aren't exactly ANSI C++; they might be "pragmatic C++"
-  // for the current state of the parser
-  complainUponBadDeref = false;
   strictArraySizeRequirements = true;
   assumeNoSizeArrayHasSizeOne = false;
 

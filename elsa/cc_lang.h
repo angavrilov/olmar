@@ -81,12 +81,6 @@ public:
   // treated as supplying no parameter information (C99 6.7.5.3 para 14)
   bool emptyParamsMeansNoInfo;
 
-  // when false, we do not complain if someone tries to dereference a
-  // non-pointer.. this is done to overcome the lack of full support
-  // for overloading, which causes me to compute the wrong types
-  // sometimes (defaults to true, but is false in C++ mode for now)
-  bool complainUponBadDeref;
-
   // when true, require all array sizes to be positive; when false,
   // 0-length arrays are allowed as class/struct fields
   //
@@ -95,6 +89,10 @@ public:
 
   // when true, assume arrays with no size are of size 1 and issue a
   // warning
+  //
+  // TODO: This is not the proper way to handle C's rules for arrays.
+  // See C99 6.9.2p2, 6.9.2e5, 6.7p7 and 6.7p16.  What we have now
+  // is just a hack for the sake of expedience.
   bool assumeNoSizeArrayHasSizeOne;
 
   // when true, we allow overloaded function declarations (same name,

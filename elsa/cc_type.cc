@@ -2086,14 +2086,6 @@ string ArrayType::rightString(bool /*innerParen*/) const
 int ArrayType::reprSize() const
 {
   if (!hasSize()) {
-    // dsw: FIX: figure out a way to predicate this; how to get a
-    // reference to env in here without creating a global or messing
-    // with the reprSize API
-//      if (env.lang.assumeNoSizeArrayHasSizeOne) {
-//        env.warning(stringc << "array of no size assumed to have one element; "
-//                << "a different size might be given later, but this is a one-pass analysis");
-    return eltType->reprSize();
-//      }
     throw_XReprSize();
   }
 

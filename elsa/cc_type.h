@@ -496,7 +496,7 @@ public:     // types
     T_REFERENCE,          // int &
     T_FUNCTION,           // int ()(int, float)
     T_ARRAY,              // int [3]
-    T_POINTERTOMEMBER     // C::*int
+    T_POINTERTOMEMBER     // int C::*
   };
 
 public:     // data

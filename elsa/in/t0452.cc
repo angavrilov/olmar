@@ -101,6 +101,11 @@ int C<int>::x = 5;
 //ERROR(9): int y<int>;
 
 
+template <class T>
+void dependentPTM(T *t)
+{
+  &T::x;     // dependent PTM type
+}
 
 
 

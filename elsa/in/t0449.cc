@@ -150,7 +150,7 @@ struct E {
 };
  
 // grouping parens on a ctor declarator
-(E::E)()
+(E::E)()      // icc rejects this!
 {}
 
 
@@ -183,6 +183,8 @@ int *makeSomeInts(int x)
   //ERROR(37): return new (int[/*oops*/]);
 
   //ERROR(38): return new int[4][x];
+  
+  return 0;
 }
 
 
@@ -214,6 +216,84 @@ void charStuff()
   
   x = 'a';                  // ok
   //ERROR(43): x = '';      // not ok
+}
+
+
+// ------------------
+struct Incomplete;
+
+void makeIncomplete(Incomplete &x)
+{
+  //ERROR(44): 0, Incomplete(1,2,3);
+
+  //ERROR(45): sizeof(Incomplete);
+  //ERROR(46): sizeof(x);
+}
+
+
+// ------------------
+int overloadedFunc();
+int overloadedFunc(int);
+
+void useOverloadedFunc()
+{
+  overloadedFunc(2);       // ok
+  
+  //ERROR(47): overloadedFunc++;        // not ok
+}
+
+
+// ------------------
+void coerceArrayToPtr()
+{
+  int a[3];
+  int *p = 0;
+  
+  a < p;
+}
+
+
+// ------------------
+struct H {
+  int x;
+  
+  int &intref;
+  //ERROR(55): void v;           // needed below
+  
+  H();
+};
+
+void dotStar()
+{
+  int x = 0;
+  int *p = 0;
+  int H::*ptm = 0;
+  H *bp = 0;
+
+  bp->*ptm;                      // ok
+  //ERROR(48): x.*ptm;
+  //ERROR(49): x->*ptm;
+  //ERROR(50): p->*ptm;
+  //ERROR(51): bp->*x;
+
+  //ERROR(52): void H::*ptmVoid = 0;
+  //ERROR(53): int& H::*ptmRef = 0;
+
+  &H::x;                         // ok
+  //ERROR(54): &H::intref;       // not ok
+  //ERROR(55): &H::v;            // not ok
+}
+
+
+// ------------------
+void derefFuncType()
+{
+  typedef int (*Func)(int);
+  Func f = 0;
+  
+  f(3);          // ok
+  (*f)(3);       // ok
+  (**f)(3);      // ok
 }
 
 

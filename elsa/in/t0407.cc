@@ -2,7 +2,7 @@
 // testing 5.2.5
 
 // icc fails to reject tests: 8
-// gcc fails to reject tests: 5 8
+// gcc fails to reject tests: 5 8 16
 
 
 struct A {
@@ -12,7 +12,7 @@ struct A {
     };
 
     int b;
-    
+
     void g(int);
     void g(int,int);
   };
@@ -24,6 +24,10 @@ struct A {
 
   void f(int);
   void f(int,int);
+
+  struct N { int q; };
+  struct N2 { int q; };
+  struct N3 { int q; };
 };
 
 typedef int INT2;
@@ -36,6 +40,13 @@ struct E : A {
 };
 
 int x;
+
+namespace N {};
+int N2(int);
+int N3;
+
+template <class T>
+struct F {};
 
 void foo()
 {
@@ -88,19 +99,47 @@ void foo()
   //ERROR(14): b.A::f(1);           // wrong class
   
   //ERROR(15): a.INT;               // type
-  
+
   E e;
   e.A::f(1);
-  
+
   (a).f(1);
   ((a)).f(1);
-  
-  A *p;
+
+  A *p = 0;
   p->f(1);
   (p->f)(1);
   (*p).f(1);
   (*(p)).f(1);
   ((*(p))).f(1);
+
+  // The following syntax has a *nasty* consequence: gcc believes that
+  // 'N' refers to A::N, while icc believes it refers to ::N!  Thus,
+  // they both allow it but with different semantics!  (As it happens,
+  // I did not put a 'q' member in ::N, so icc ends up rejecting the
+  // program.  Actually, I'm not sure if I could ever convince icc to
+  // completely accept the syntax; how would a member of ::N be legal
+  // to use as a field of 'n', with type A::N?)
+
+  A::N n;
+  //ERROR(16): n.N::q;              // different: namespace vs. class
+  
+  // the following two *are* legal, because qualified lookup
+  // does not consider object and function names
+
+  A::N2 n2;
+  n2.N2::q;            // function vs. class
+
+  A::N3 n3;
+  n3.N3::q;            // object vs. class
+               
+  //ERROR(17): a.~N2();
+  //ERROR(18): a.~N3();
+
+  //ERROR(19): x.::AAA::~INT2();
+  //ERROR(20): x.::F<int>::~INT2();
+  //ERROR(21): x.~nonexist();
+  //ERROR(22): a.~nonexist();
 }
 
 

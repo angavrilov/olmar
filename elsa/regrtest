@@ -875,6 +875,7 @@ if $use_gnu; then
   testparse gnu/g0018.cc
   testparse gnu/g0019.cc
   # g0020.cc is documentation
+  testparse gnu/g0021.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc
