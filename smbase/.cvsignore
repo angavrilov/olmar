@@ -22,3 +22,5 @@ strutil
 *.~DE
 *.LIB
 *.lib
+*.d
+

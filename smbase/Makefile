@@ -2,32 +2,54 @@
 
 # main target
 THISLIBRARY = libsmbase.a
-all: gensrc ${THISLIBRARY}
+all: gensrc $(THISLIBRARY)
 
-# when uncommented, the program emits profiling info
-#ccflags = -pg
+# translation process variables
+libraries   := 
+includes    := 
+ccflags     := -g -Wall -D__LINUX__ -D__UNIX__
+no-warnings := -w
+makelib     := ar -r
+ranlib      := ranlib
+
+# make warnings into errors so I always get a chance to fix them
+#ccflags += -Werror
+
+# when uncommented, we get profiling info
+#ccflags += -pg
 
 # optimizer...
-#ccflags = -O2
+#ccflags += -O2
 
-# pull in basic stuff
-include Makefile.base.mk
+compile := g++ -c $(ccflags) $(includes)
+link    := g++ $(ccflags) $(includes)
+linkend := $(libraries)
+
+# compile .cc to .o
+%.o : %.cc
+	$(compile) $< -o $@
+
+%.o : %.cpp
+	$(compile) $< -o $@
+
+# generate compile dependency information for a .cc file
+%.d : %.cc
+	./depend.sh $(ccflags) $(includes) $< > $@
+
+%.d : %.cpp
+	./depend.sh $(ccflags) $(includes) $< > $@
 
 # delete compiling/editing byproducts
 clean:
-	rm -f *.o *~
+	rm -f *.o *~ *.d
 
 veryclean: clean
-	rm -f ${tests-files}
+	rm -f $(tests-files)
 	rm -f *.a
 
 # remove crap that vc makes
 vc-clean:
 	rm -f *.plg *.[ip]db *.pch
-
-# not sure what I had in mind...
-Makefile.base.mk: Makefile.base.mk.in
-	cp Makefile.base.mk.in Makefile.base.mk
 
 # -------- experimenting with m4 for related files -------
 # I don't delete these during make clean because I don't want
@@ -52,7 +74,7 @@ malloc.o: malloc.c
 	gcc -c -g -O3 -DDEBUG -DNO_TRACE_MALLOC_CALLS malloc.c
 
 # mysig needs some flags to *not* be set ....
-mysig.o: mysig.cc
+mysig.o: mysig.cc mysig.h
 	gcc -c -g mysig.cc
 
 # library itself
@@ -62,58 +84,60 @@ library-objs = \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
   trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
   stringset.o
-${THISLIBRARY}: ${library-objs}
-	${makelib} libsmbase.a ${library-objs}
-	${ranlib} libsmbase.a
+-include $(library-objs:.o=.d)
+
+$(THISLIBRARY): $(library-objs)
+	$(makelib) libsmbase.a $(library-objs)
+	$(ranlib) libsmbase.a
 
 # ---------- module tests ----------------
 # test program targets
 tests-files = nonport voidlist tobjlist bit2d growbuf testmalloc
-tests: ${tests-files}
+tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h
-	${link} -o nonport -DTEST_NONPORT nonport.cpp ${linkend}
+	$(link) -o nonport -DTEST_NONPORT nonport.cpp $(linkend)
 
-voidlist: voidlist.cc voidlist.h ${THISLIBRARY}
-	${link} -o voidlist -DTEST_VOIDLIST voidlist.cc ${THISLIBRARY} ${linkend}
+voidlist: voidlist.cc voidlist.h $(THISLIBRARY)
+	$(link) -o voidlist -DTEST_VOIDLIST voidlist.cc $(THISLIBRARY) $(linkend)
 
-tobjlist: tobjlist.cc objlist.h voidlist.o ${THISLIBRARY}
-	${link} -o tobjlist tobjlist.cc voidlist.o ${THISLIBRARY} ${linkend}
+tobjlist: tobjlist.cc objlist.h voidlist.o $(THISLIBRARY)
+	$(link) -o tobjlist tobjlist.cc voidlist.o $(THISLIBRARY) $(linkend)
 
-bit2d: bit2d.cc bit2d.h ${THISLIBRARY}
-	${link} -o bit2d -DTEST_BIT2D bit2d.cc ${THISLIBRARY} ${linkend}
+bit2d: bit2d.cc bit2d.h $(THISLIBRARY)
+	$(link) -o bit2d -DTEST_BIT2D bit2d.cc $(THISLIBRARY) $(linkend)
 
-growbuf: growbuf.cc growbuf.h ${THISLIBRARY}
-	${link} -o growbuf -DTEST_GROWBUF growbuf.cc ${THISLIBRARY} ${linkend}
+growbuf: growbuf.cc growbuf.h $(THISLIBRARY)
+	$(link) -o growbuf -DTEST_GROWBUF growbuf.cc $(THISLIBRARY) $(linkend)
 
-strdict: strdict.cc strdict.h ${THISLIBRARY}
-	${link} -o strdict -DTEST_STRDICT strdict.cc ${THISLIBRARY} ${linkend}
+strdict: strdict.cc strdict.h $(THISLIBRARY)
+	$(link) -o strdict -DTEST_STRDICT strdict.cc $(THISLIBRARY) $(linkend)
 
-svdict: svdict.cc svdict.h ${THISLIBRARY}
-	${link} -o svdict -DTEST_SVDICT svdict.cc ${THISLIBRARY} ${linkend}
+svdict: svdict.cc svdict.h $(THISLIBRARY)
+	$(link) -o svdict -DTEST_SVDICT svdict.cc $(THISLIBRARY) $(linkend)
 
-str: str.cpp str.h ${THISLIBRARY}
-	${link} -o str -DTEST_STR str.cpp ${THISLIBRARY} ${linkend}
+str: str.cpp str.h $(THISLIBRARY)
+	$(link) -o str -DTEST_STR str.cpp $(THISLIBRARY) $(linkend)
 
-strutil: strutil.cc strutil.h ${THISLIBRARY}
-	${link} -o strutil -DTEST_STRUTIL strutil.cc ${THISLIBRARY} ${linkend}
+strutil: strutil.cc strutil.h $(THISLIBRARY)
+	$(link) -o strutil -DTEST_STRUTIL strutil.cc $(THISLIBRARY) $(linkend)
 
-strhash: strhash.cc strhash.h ${THISLIBRARY}
-	${link} -o strhash -DTEST_STRHASH strhash.cc ${THISLIBRARY} ${linkend}
+strhash: strhash.cc strhash.h $(THISLIBRARY)
+	$(link) -o strhash -DTEST_STRHASH strhash.cc $(THISLIBRARY) $(linkend)
 
-trdelete: trdelete.cc trdelete.h ${THISLIBRARY}
-	${link} -o trdelete -DTEST_TRDELETE trdelete.cc ${THISLIBRARY} ${linkend}
+trdelete: trdelete.cc trdelete.h $(THISLIBRARY)
+	$(link) -o trdelete -DTEST_TRDELETE trdelete.cc $(THISLIBRARY) $(linkend)
 
-bflatten: bflatten.cc bflatten.h ${THISLIBRARY}
-	${link} -o bflatten -DTEST_BFLATTEN bflatten.cc ${THISLIBRARY} ${linkend}
+bflatten: bflatten.cc bflatten.h $(THISLIBRARY)
+	$(link) -o bflatten -DTEST_BFLATTEN bflatten.cc $(THISLIBRARY) $(linkend)
 
-mysig: mysig.cc mysig.h ${THISLIBRARY}
-	gcc -Wall -g -o mysig -DTEST_MYSIG mysig.cc ${THISLIBRARY} ${linkend}
+mysig: mysig.cc mysig.h $(THISLIBRARY)
+	gcc -Wall -g -o mysig -DTEST_MYSIG mysig.cc $(THISLIBRARY) $(linkend)
 
-testmalloc: testmalloc.cc ${THISLIBRARY}
-	gcc -Wall -g -o testmalloc testmalloc.cc ${THISLIBRARY} ${linkend}
+testmalloc: testmalloc.cc $(THISLIBRARY)
+	gcc -Wall -g -o testmalloc testmalloc.cc $(THISLIBRARY) $(linkend)
 
-check: ${tests-files}
+check: $(tests-files)
 	./nonport
 	./voidlist
 	./tobjlist
