@@ -767,7 +767,30 @@ void E_new::itwalk(Env &env)
     codeout co("", "(", ")");
     twalkFakeExprList(placementArgs, env);
   }
-  atype->twalk(env);
+
+  if (!arraySize) {
+    // no array size, normal type-id printing is fine
+    atype->twalk(env);
+  }
+  else {
+    // sm: to correctly print new-declarators with array sizes, we
+    // need to dig down a bit, because the arraySize is printed right
+    // where the variable name would normally go in an ordinary
+    // declarator
+    //
+    // for example, suppose the original syntax was
+    //   new int [n][5];
+    // the type-id of the object being allocated is read as
+    // "array of 5 ints" and 'n' of them are created; so:
+    //   "array of 5 ints"->leftString()   is "int"
+    //   arraySize->twalk()                is "n"
+    //   "array of 5 ints"->rightString()  is "[5]"
+    Type const *t = atype->decl->var->type;   // type-id in question
+    global_code_out << " " << t->leftString() << " [";
+    arraySize->twalk(env);
+    global_code_out << "]" << t->rightString();
+  }
+
   if (ctorArgs) {
     codeout co("", "(", ")");
     twalkFakeExprList(ctorArgs->list, env);
