@@ -4687,32 +4687,28 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
   // elaborate 'this->'
   if (var->isMember() && !var->isStatic() &&
       // dsw: have to rule out situations like this in in/t0087.cc:
-      // int A::*p = &A::x;
+      //
+      //   int A::*p = &A::x;
+      //
+      // sm: this is a bug, since just being qualified does not mean
+      // the name refers to a pointer-to-member
       name->isPQ_name()) {
-    Expression *thisRef = new E_deref(new E_this);
-    {
-      Expression *thisRef0 = thisRef;
-      thisRef->tcheck(env, thisRef);
-      xassert(thisRef0 == thisRef);
-    }
-    xassert(thisRef->asE_deref()->ptr->asE_this()->receiver);
+    // make *this
+    E_this *ths = new E_this;
+    Expression *thisRef = new E_deref(ths);
+    thisRef->tcheck(env, thisRef);
+    xassert(ths->receiver);
+
     // this name will never be typechecked as the variable has already
     // been looked up
-    E_fieldAcc *efieldAcc0 = new E_fieldAcc(thisRef, new PQ_name(env.loc(), var->name));
-    replacement = efieldAcc0;
-    efieldAcc0->field = var;
-    // dsw: Copied from E_fieldAcc::itcheck_fieldAcc(); seemed to
-    // small to factor out and the function you would factor it to
-    // doesn't seem to fit the other functions here;
-    //
-    // type of expression is type of field; possibly as an lval
-    if (efieldAcc0->obj->type->isLval() &&
-        !efieldAcc0->field->type->isFunctionType()) {
-      efieldAcc0->type = makeLvalType(env, env.tfac.cloneType(efieldAcc0->field->type));
-    }
-    else {
-      efieldAcc0->type = env.tfac.cloneType(efieldAcc0->field->type);
-    }
+    E_fieldAcc *efieldAcc = new E_fieldAcc(thisRef, name);
+    replacement = efieldAcc;
+    efieldAcc->field = var;
+
+    // E_fieldAcc::itcheck_fieldAcc() does something a little more
+    // complicated, but we don't need that since the situation is
+    // more constrained here
+    efieldAcc->type = makeLvalType(env, env.tfac.cloneType(var->type));
   }
 
   // return a reference because this is an lvalue
