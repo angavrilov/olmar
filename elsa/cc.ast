@@ -100,7 +100,9 @@ class Declaration (
 );
 
 
-// just one complete type; appears in parameter decls and in casts
+// just one complete type; appears in parameter decls and in casts; the
+// main difference between an ASTTypeId and a Declaration is that the
+// former can have only one declarator, while the latter can have several
 class ASTTypeId (
   TypeSpecifier spec,        // "int"
   Declarator decl            // this will be abstract sometimes (e.g. casts)
