@@ -37,6 +37,7 @@ int incSerialNumber()
   // for conditional breakpoints
   int sn = globalSerialNumber++;
 
+  // NOTE: put the breakpoint ABOVE the previous line, NOT HERE!
   return sn;
 }
 
