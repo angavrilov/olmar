@@ -4377,7 +4377,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   //
   // sm: why would it become redundant?  it is still needed for
   // nonmember function templates, and for member function templates
-  // that are static. right?
+  // that are static, right?
   if (func->isE_variable()) {
     // if it is a pointer to a function that function should get
     // instantiated when its address is taken

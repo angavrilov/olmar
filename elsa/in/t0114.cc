@@ -12,18 +12,18 @@ template <class T>
 class Bar
 {
     public:
-//        typedef T*         pointer;
-//        typedef const T*   const_pointer;
+      typedef T*         pointer;
+      typedef const T*   const_pointer;
 
-//        typedef T&         reference;
-//        typedef const T&   const_reference;
+      typedef T&         reference;
+      typedef const T&   const_reference;
 
 
-//        pointer
-//        address( reference r ) const;
+      pointer
+      address( reference r ) const;
 
-//        const_pointer
-//        address( const_reference r ) const;
+      const_pointer
+      address( const_reference r ) const;
       
       void addr(int &r) const;
       void addr(int const &r) const;
