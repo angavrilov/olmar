@@ -2766,6 +2766,7 @@ void GrammarAnalysis::computeBFSTree()
 
 
 // --------------- parse table construction -------------------
+#if 0     // obsolete
 // compare two productions by precedence
 static int productionPrecCompare(Production const *p1, Production const *p2, void*)
 {
@@ -2779,6 +2780,7 @@ static int productionPrecCompare(Production const *p1, Production const *p2, voi
     return 0;
   }
 }
+#endif // 0
 
 
 // given some potential parse actions, apply available disambiguation
@@ -2845,6 +2847,34 @@ void GrammarAnalysis::resolveConflicts(
 
   // static disambiguation for R/R conflicts
   if (reductions.count() > 1) {
+    // find the highest precedence
+    int highestPrec = 0;
+    SFOREACH_PRODUCTION(reductions, iter) {
+      int p = iter.data()->precedence;
+      
+      if (p && p>highestPrec) {
+        highestPrec = p;
+      }
+    }
+    
+    // remove any productions that are lower than 'highestPrec'
+    SObjListMutator<Production> mut(reductions);
+    while (!mut.isDone()) {
+      int p = mut.data()->precedence;
+      
+      if (p && p<highestPrec) {
+        trace("prec")
+          << "in state " << state->id << ", R/R conflict on token "
+          << sym->name << ", removed production " << *(mut.data())
+          << " because " << p << "<" << highestPrec << endl;
+        mut.remove();
+      }
+      else {
+        mut.adv();
+      }
+    }
+
+    #if 0    // totally wrong
     // sort the reductions so the lowest precedence reductions are
     // first, then higher precedences, and finally reductions that
     // lack any precedence (use insertion sort since I expect that
@@ -2869,6 +2899,7 @@ void GrammarAnalysis::resolveConflicts(
         << "in state " << state->id << ", R/R conflict on token "
         << sym->name << ", removed production " << *p1 << endl;
     }
+    #endif // 0
   }
                                                       
   // additional R/R resolution using subset directives
