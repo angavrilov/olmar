@@ -475,7 +475,7 @@ bool VoidList::isSorted(VoidDiff diff, void *extra) const
 }
 
 
-// attach tail's nodes to this, empty tail
+// attach tail's nodes to this; empty the tail
 void VoidList::concat(VoidList &tail)
 {
   if (!top) {
