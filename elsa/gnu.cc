@@ -5,7 +5,7 @@
 #include "cc_env.h"           // Env
 #include "cc_print.h"         // olayer, PrintEnv
 #include "generic_amb.h"      // resolveAmbiguity, etc.
-
+#include "cc_tcheck.h"        // computeArraySizeFromCompoundInit
 
 // -------------------- tcheck --------------------
 ASTTypeof *ASTTypeof::tcheck(Env &env, DeclFlags dflags)
@@ -58,8 +58,9 @@ Type *E_compoundLit::itcheck(Env &env)
   ASTTypeId::Tcheck tc;
   stype = stype->tcheck(env, tc);
   init->tcheck(env);
+  
+  return computeArraySizeFromCompoundInit(env, env.loc(), stype->getType(), stype->getType(), init);
   // TODO: check that the cast (literal) makes sense
-  return stype->getType();
 }
 
 

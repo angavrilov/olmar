@@ -7,6 +7,8 @@
 // split for this file
 
 verbatim {
+  #define GNU_EXTENSION         // this extension module is active
+
   #include <limits.h>           // INT_MIN
 }
 

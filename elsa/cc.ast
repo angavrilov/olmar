@@ -37,11 +37,7 @@ option visitor ASTVisitor;
 // an entire file (with included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and
 // there's never a multiple-yield problem with toplevel forms
-class TranslationUnit (ASTList<TopForm> topForms,
-                       // dsw: I need a loc to get a
-                       // SourceLocManager::File object from for this
-                       // TranslationUnit
-                       SourceLoc loc);
+class TranslationUnit (ASTList<TopForm> topForms);
 
 // a toplevel form
 class TopForm (SourceLoc loc) {

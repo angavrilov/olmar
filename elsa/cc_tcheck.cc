@@ -723,7 +723,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
       // make a forward declaration
       Type *ret =
          env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
-                             loc, keyword, true /*forward*/);
+                             loc, keyword, true /*forward*/, false /*madeUpVar*/);
       this->atype = ct;        // annotation
       return ret;
     }
@@ -768,7 +768,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     Scope *scope = env.outerScope();
     Type *ret =
        env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
-                           true /*forward*/);
+                           true /*forward*/, false /*madeUpVar*/);
     this->atype = ct;           // annotation
     return ret;
   }
@@ -904,7 +904,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // make a new type, since a specialization is a distinct template
     // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                              false /*forward*/);
+                              false /*forward*/, false /*madeUpVar*/);
     this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
@@ -937,7 +937,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // no existing compound; make a new one
     Scope *destScope = env.typeAcceptingScope();
     ret = env.makeNewCompound(ct, destScope, stringName,
-                              loc, keyword, false /*forward*/);
+                              loc, keyword, false /*forward*/, false /*madeUpVar*/);
     this->ctype = ct;              // annotation
   }
 
@@ -1329,6 +1329,60 @@ Declarator *Declarator::tcheck(Env &env, Tcheck &dt)
 }
 
 
+// array initializer case
+//   static int y[] = {1, 2, 3};
+Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_type,
+                                       Type *src_type, Initializer *init)
+{
+  if (tgt_type->isArrayType() &&
+      init->isIN_compound()) {
+    ArrayType *at = tgt_type->asArrayType();
+    IN_compound const *cpd = init->asIN_compoundC();
+                   
+    // count the initializers; this is done via the environment
+    // so the designated-initializer extension can intercept
+    int initLen = env.countInitializers(env.loc(), src_type, cpd);
+
+    if (!at->hasSize()) {
+      // replace the computed type with another that has
+      // the size specified; the location isn't perfect, but
+      // getting the right one is a bit of work
+      tgt_type = env.tfac.setArraySize(tgt_loc, at, initLen);
+    }
+    else {
+      // TODO: cppstd wants me to check that there aren't more
+      // initializers than the array's specified size, but I
+      // don't want to do that check since I might have an error
+      // in my const-eval logic which could break a Mozilla parse
+      // if my count is short
+    }
+  }
+  return tgt_type;
+}
+
+// array compound literal initializer case
+// http://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Compound-Literals.html#Compound%20Literals
+//   static int y[] = (int []) {1, 2, 3};
+// is equivalent to:
+//   static int y[] = {1, 2, 3};
+Type *computeArraySizeFromCompoundLiteral(Env &env, Type *tgt_type, Initializer *init)
+{
+#ifdef GNU_EXTENSION
+  // E_compoundLit is the part of the gnu extension that this is
+  // computing the array type size for
+  if (tgt_type->isArrayType() &&
+      !tgt_type->asArrayType()->hasSize() &&
+      init->isIN_expr() &&
+      init->asIN_expr()->e->type->isArrayType() &&
+      init->asIN_expr()->e->type->asArrayType()->hasSize() &&
+      init->asIN_expr()->e->isE_compoundLit()) {
+    tgt_type = env.tfac.cloneType(init->asIN_expr()->e->type);
+    xassert(tgt_type->asArrayType()->hasSize());
+  }
+#endif // GNU_EXTENSION
+  return tgt_type;
+}
+
 void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 {
   // cppstd sec. 3.4.3 para 3:
@@ -1394,31 +1448,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     if (init->isIN_expr()) {
       var->value = init->asIN_exprC()->e;
     }
-    
-    // use the initializer size to refine array types
-    if (var->type->isArrayType() &&
-        init->isIN_compound()) {
-      ArrayType *at = var->type->asArrayType();
-      IN_compound const *cpd = init->asIN_compoundC();
-                   
-      // count the initializers; this is done via the environment
-      // so the designated-initializer extension can intercept
-      int initLen = env.countInitializers(cpd);
 
-      if (!at->hasSize()) {
-        // replace the computed type with another that has
-        // the size specified; the location isn't perfect, but
-        // getting the right one is a bit of work
-        var->type = env.tfac.setArraySize(var->loc, at, initLen);
-      }
-      else {
-        // TODO: cppstd wants me to check that there aren't more
-        // initializers than the array's specified size, but I
-        // don't want to do that check since I might have an error
-        // in my const-eval logic which could break a Mozilla parse
-        // if my count is short
-      }
-    }
+    // use the initializer size to refine array types
+
+    // array initializer case
+    var->type = computeArraySizeFromCompoundInit(env, var->loc, var->type, type, init);
+    // array compound literal initializer case
+    var->type = computeArraySizeFromCompoundLiteral(env, var->type, init);
   }
 
   if (qualifiedScope) {
@@ -2151,7 +2187,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   // build the function type; I do this after type checking the parameters
   // because it's convenient if 'syntaxFunctionType' can use the results
   // of checking them
-  FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this);
+  FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this, env.tunit);
   ft->flags = specialFunc;
   dt.funcSyntax = this;
   ft->templateParams = templateParams;

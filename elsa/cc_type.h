@@ -197,11 +197,6 @@ public:      // data
   // without also updating that map
   SObjList<Variable> dataMembers;
 
-  // dsw: map from names to indicies into data_variables_in_order;
-  // this is needed to support compound initializeres with mixed
-  // descriptor-ed and non-descriptor-ed initializers
-  StringSObjDict<int> name_pos;        // sm: delete me
-
   // classes from which this one inherits; 'const' so you have to
   // use 'addBaseClass', but public to make traversal easy
   const ObjList<BaseClass> bases;
@@ -241,7 +236,7 @@ private:     // funcs
 protected:   // funcs
   // create an incomplete (forward-declared) compound
   // experiment: force creation of these to go through the factory too
-  CompoundType(Keyword keyword, StringRef name, TranslationUnit *tunit);
+  CompoundType(Keyword keyword, StringRef name);
   friend class TypeFactory;
   
   // override no-op implementation in Scope
@@ -879,7 +874,7 @@ public:
   // provide a default implementation in TypeFactory to avoid having
   // to change the interface w.r.t. cc_qual
   virtual CompoundType *makeCompoundType
-    (CompoundType::Keyword keyword, StringRef name, TranslationUnit *tunit);
+    (CompoundType::Keyword keyword, StringRef name);
 
   // ---- constructors for the constructed types ----
   // the 'loc' being passed is the start of the syntactic construct
@@ -939,7 +934,7 @@ public:
   // similar for a function type; the parameters will be added by
   // the caller after this function returns
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
-    Type *retType, D_func * /*nullable*/ syntax);
+    Type *retType, D_func * /*nullable*/ syntax, TranslationUnit *tunit);
 
   // and another for pointer-to-member
   virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,

@@ -192,7 +192,7 @@ public:      // funcs
   // (if that is not NULL)
   Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
-                        TypeIntr keyword, bool forward);
+                        TypeIntr keyword, bool forward, bool madeUpVar);
 
   // instantate 'base' with 'arguments', and return the implicit
   // typedef Variable associated with the resulting type; 'scope'
@@ -247,9 +247,11 @@ public:      // funcs
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
 
-  Variable *makeVariable(SourceLoc L, StringRef n,
-                         Type *t, DeclFlags f)
+  Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     { return tfac.makeVariable(L, n, t, f, tunit); }
+  // dsw: made up Variable-s don't get a TranslationUnit so I can tell them apart
+  Variable *makeMadeUpVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
+    { return tfac.makeVariable(L, n, t, f, NULL); }
 
   CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE)
     { return tfac.getSimpleType(loc, st, cv); }
@@ -273,7 +275,7 @@ public:      // funcs
   virtual void addedNewCompound(CompoundType *ct);
                                                         
   // return # of array elements initialized
-  virtual int countInitializers(IN_compound const *cpd);
+  virtual int countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd);
 };
 
 

@@ -60,12 +60,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   {                               
     // among other things, SK_GLOBAL causes Variables inserted into
     // this scope to acquire DF_GLOBAL
-    Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc, tunit);
+    Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
     scopes.prepend(s);
   }
 
   // create the typeid type
-  CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"), tunit);
+  CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
   type_info_const_ref = tfac.makeRefType(HERE,
@@ -82,21 +82,21 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   functionOperatorName = str("operator()");
   thisName = str("this");
 
-  dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
+  dependentTypeVar = makeMadeUpVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
   madeUpVariables.append(dependentTypeVar);
 
-  dependentVar = makeVariable(HERE, str("<dependentVar>"),
+  dependentVar = makeMadeUpVariable(HERE, str("<dependentVar>"),
                               getSimpleType(HERE, ST_DEPENDENT), DF_NONE);
   madeUpVariables.append(dependentVar);
 
-  errorTypeVar = makeVariable(HERE, str("<errorTypeVar>"),
+  errorTypeVar = makeMadeUpVariable(HERE, str("<errorTypeVar>"),
                               getSimpleType(HERE, ST_ERROR), DF_TYPEDEF);
   madeUpVariables.append(errorTypeVar);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
-  errorVar = makeVariable(HERE, str("<errorVar>"),
+  errorVar = makeMadeUpVariable(HERE, str("<errorVar>"),
                           getSimpleType(HERE, ST_ERROR), DF_NONE);
   madeUpVariables.append(errorVar);
 
@@ -114,7 +114,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   CompoundType *dummyCt;
   Type *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE,
-                    TI_CLASS, true /*forward*/);
+                    TI_CLASS, true /*forward*/, true /*madeUpVar*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
@@ -201,7 +201,7 @@ Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
   }
   ft->doneParams();
 
-  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
   madeUpVariables.append(var);
 
@@ -221,7 +221,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
   }
 
   FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
-  Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
+  Variable *p = makeMadeUpVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
 
@@ -236,7 +236,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
   }
   ft->doneParams();
 
-  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
   madeUpVariables.append(var);
 }
@@ -252,7 +252,7 @@ StringRef Env::declareSpecialFunction(char const *name)
   ft->doneParams();
 
   StringRef ret = str(name);
-  Variable *var = makeVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
+  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
   addVariable(var);
   madeUpVariables.append(var);                                   
   
@@ -274,7 +274,7 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
-  Scope *newScope = new Scope(sk, getChangeCount(), loc(), tunit);
+  Scope *newScope = new Scope(sk, getChangeCount(), loc());
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
@@ -933,9 +933,9 @@ ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
-                           TypeIntr keyword, bool forward)
+                           TypeIntr keyword, bool forward, bool madeUpVar)
 {
-  ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name, tunit);
+  ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
   // transfer template parameters
   ct->templateInfo = takeTemplateClassInfo(name);
@@ -948,7 +948,12 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // make the implicit typedef
   Type *ret = makeType(loc, ct);
-  Variable *tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+  Variable *tv;
+  if (madeUpVar) {
+    tv = makeMadeUpVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+  } else {
+    tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+  }
   ct->typedefVar = tv;
   if (name && scope) {
     scope->registerVariable(tv);
@@ -1094,7 +1099,7 @@ Variable *Env::instantiateClassTemplate
   if (!inst) {
     // 1/21/03: I had been using 'instName' as the class name, but that
     // causes problems when trying to recognize constructors
-    inst = tfac.makeCompoundType(base->keyword, base->name, tunit);
+    inst = tfac.makeCompoundType(base->keyword, base->name);
     inst->instName = instName;     // stash it here instead
     inst->forward = base->forward;
 
@@ -1282,7 +1287,7 @@ void Env::checkFuncAnnotations(FunctionType *, D_func *)
 void Env::addedNewCompound(CompoundType *)
 {}
 
-int Env::countInitializers(IN_compound const *cpd)
+int Env::countInitializers(SourceLoc loc, Type *type, IN_compound const *cpd)
 {
   return cpd->inits.count();
 }

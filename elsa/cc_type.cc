@@ -145,9 +145,9 @@ string BaseClassSubobj::canonName() const
 
 
 // ------------------ CompoundType -----------------
-CompoundType::CompoundType(Keyword k, StringRef n, TranslationUnit *tunit)
+CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
-    Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/, tunit),
+    Scope(SK_CLASS, 0 /*changeCount*/, SL_UNKNOWN /*dummy loc*/),
     forward(true),
     keyword(k),
     bases(),
@@ -270,17 +270,6 @@ void CompoundType::afterAddVariable(Variable *v)
   // if is a data member, not a method, static data, or a typedef
   if (!v->type->isFunctionType() &&
       !(v->flags & (DF_STATIC | DF_TYPEDEF | DF_ENUMERATOR))) {
-
-    // FIX: Don't know how to avoid making an int on the heap, as that
-    // is the way that the templatized class StringSObjDict is set up.
-    name_pos.add(v->name, new int(dataMembers.count()));// garbage? is it ever deleted?
-
-    // sm: No, the int won't ever be deleted.  If you use
-    // StringObjDict then it will.  However, I think name_pos should
-    // be deleted in favor of linear searches on 'dataMembers', and in
-    // either case the data structure (or lack thereof) should be
-    // hidden behind a query function.
-
     dataMembers.append(v);
   }
 }
@@ -1526,9 +1515,9 @@ CVFlags PointerToMemberType::getCVFlags() const
 
 // ---------------------- TypeFactory ---------------------
 CompoundType *TypeFactory::makeCompoundType
-  (CompoundType::Keyword keyword, StringRef name, TranslationUnit *tunit)
+  (CompoundType::Keyword keyword, StringRef name)
 {
-  return new CompoundType(keyword, name, tunit);
+  return new CompoundType(keyword, name);
 }
 
 
@@ -1638,7 +1627,7 @@ PointerType *TypeFactory::syntaxPointerType(SourceLoc loc,
 
 
 FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
-  Type *retType, D_func *syntax)
+  Type *retType, D_func *syntax, TranslationUnit *tunit)
 {
   return makeFunctionType(loc, retType);
 }

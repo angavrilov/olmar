@@ -205,7 +205,7 @@ nonterm(StringRef) Identifier {
 nonterm(TranslationUnit*) TranslationUnit {
   fun dup(n) { return NULL; }    // prevent multi-yield
 
-  -> empty                                { return new TranslationUnit(NULL, loc); }
+  -> empty                                { return new TranslationUnit(NULL); }
 
   // destructive action on 't'
   -> t:TranslationUnit d:Declaration      { t->topForms.append(d); return t; }
