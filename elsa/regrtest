@@ -542,6 +542,8 @@ testparse d0072.cc
 testparse d0073.cc
 failparse d0074.cc "(fill in a reason here)"
 testparse d0075.cc
+failparse d0079.cc "parse error if 'template' used before template instantiation"
+failparse d0080.cc "don't know"
 # ---- END: lots of tests ----
 
 
@@ -597,7 +599,9 @@ if $use_gnu; then
   testparse gnu/t0130.cc
   testparse gnu/t0131.cc
   testparse gnu/t0132.cc
+
   testparse gnu/d0076.cc
+  failparse gnu/d0078.cc "anonymous unions not handled right somehow"
 
   # test c99 extensions
   for fn in in/c99/*.c; do
