@@ -866,6 +866,7 @@ testparse k0002.cc #"template function declared in another class (as a friend)"
 failparse k0003.cc "template argument from static const member of template class"
 failparse k0004.cc "non-typename template argument"
 failparse k0005.cc "declaring a constructor with class name"
+failparse k0005a.cc "declaring variables and member functions with class name"
 failparse k0006.cc "error: E_alignofType is not constEval'able"
 testparse k0007.cc
 # renamed k0008.cc to gnu/g0022.cc because it is a GNU feature
