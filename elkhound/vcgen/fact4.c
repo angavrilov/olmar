@@ -1,5 +1,5 @@
-// fact3.c
-// factorial with explicit iteration, from n to 1
+// fact4.c
+// factorial with explicit iteration, from 1 to n
 
 // mathematical function
 int factorial(int n);
@@ -15,12 +15,13 @@ int fact(int n)
 {
   int r = 1;
   int i;
-  
-  for (i = n; i > 0; i=i-1) {
-    thmprv_invariant(
-      factorial(i) * r == factorial(n)
-    );
+
+  for (i = 1; i <= n; i=i+1) {
     r = r * i;
+    thmprv_invariant(
+      i >= 1 &&
+      r == factorial(i)
+    );
   }
 
   return r;

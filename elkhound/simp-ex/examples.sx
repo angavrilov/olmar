@@ -255,3 +255,39 @@ valid "fact3b" (
   (EQ (* (factorial (- i_16 1)) (* r_3 i_16)) (factorial n_18))
 )
 bg_pop
+
+
+; ----------------------- fact4.c ----------------------
+bg_push (
+  (DISTINCT 0)
+  (uncheckedAccess mem_16)
+  (EQ r_5 (factorial i_13))
+  (>= n_15 0)
+  (<= i_13 n_15)
+  (<= (+ i_13 1) n_15)
+  (>= (+ i_13 1) 1)
+)
+valid "implications" (
+  (EQ (factorial (+ i_13 1))
+      (* (+ i_13 1) (factorial (- (+ i_13 1) 1))))
+)
+valid "implications2" (
+  (EQ (- (+ i_13 1) 1) i_13)
+  (EQ (factorial (+ i_13 1))
+      (* (+ i_13 1) (factorial i_13)))
+  (EQ (factorial (+ i_13 1))
+      (* (+ i_13 1) r_5))
+  (EQ (factorial (+ i_13 1))
+      (* r_5 (+ i_13 1)))
+)
+valid "goal" (
+  (IMPLIES
+    (AND
+;      (EQ (- (+ i_13 1) 1) i_13)
+;      (EQ (factorial (+ i_13 1))
+;          (* (+ i_13 1) (factorial i_13)))
+    )
+    (EQ (* r_5 (+ i_13 1)) (factorial (+ i_13 1)))
+  )
+)
+bg_pop

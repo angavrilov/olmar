@@ -50,6 +50,10 @@
     (EQ (* (* i j) k)
         (* j (* k i))
     ))
+  
+  ; and I have always said I didn't want to axiomatize arithmetic...
+  (FORALL (x y) (EQ (* x y) (* y x)))
+  (FORALL (x n) (EQ (- (+ x n) n) x))
 
 ;   ; ------------- tuple: "pointer" ---------------
 ;   ; how to take apart a pointer
