@@ -3775,6 +3775,18 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
       // this should happen in C mode only so name must be a PQ_name
       v = env.makeUndeclFuncVar(name->asPQ_name()->name);
     } else {
+      #ifdef GNU_EXTENSION
+      // dsw: I need a way of handling builtins; there are too many to
+      // add manually
+      // FIX: these should be somewhere else
+      char const * const builtin = "__builtin";
+      int const builtin_len = strlen(builtin);
+      if (name->isPQ_name() &&
+          strncmp(name->asPQ_name()->name, builtin, builtin_len)==0) {
+        v = env.makeUndeclFuncVar(name->asPQ_name()->name);
+      } else {
+      #endif // GNU_EXTENSION
+
       // 10/23/02: I've now changed this to non-disambiguating,
       // prompted by the need to allow template bodies to call
       // undeclared functions in a "dependent" context [cppstd 14.6
@@ -3782,6 +3794,11 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
       return env.error(name->loc, stringc
                        << "there is no variable called `" << *name << "'",
                        EF_NONE);
+
+      #ifdef GNU_EXTENSION
+      } // goes with the 'if (name->isPQ_name() && ...' above
+      #endif // GNU_EXTENSION
+
     }
   }
   xassert(v);
