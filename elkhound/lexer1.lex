@@ -29,11 +29,8 @@
   // used for 2nd and 3rd arguments to lexer1Emit
   #define COLLECTOR (char*)collector.getDataC(), collector.getDataLen()
   
-  // declare the external interface to the lexer
-  #define YY_DECL int lexer1_lex(Lexer1 &lexer, FILE *inputFile)
-
-  // what to do when lexer starts lexing a new file
-  #define YY_USER_INIT lexer1_in = inputFile;
+  // declare the interface to the lexer
+  #define YY_DECL int lexer1_inner_lex(Lexer1 &lexer)
 
 
 /***************/
@@ -241,6 +238,13 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 /* extra code */
 /**************/
 
+
+/* wrapper around main lex routine to do init */
+int lexer1_lex(Lexer1 &lexer, FILE *inputFile)
+{
+  yyrestart(inputFile);
+  return lexer1_inner_lex(lexer);
+}
 
 
 

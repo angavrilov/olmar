@@ -3,6 +3,12 @@
 struct page { int x; };
 struct pte_t { int y; };
 
+struct Mystruct {
+  int a;
+  float b;
+  char c;
+};
+
 int foo ( )
 {
   putc(EOF);
@@ -12,6 +18,10 @@ int foo ( )
 
   int dest, a, b;
   ( dest )  = ( a )  & ( b ) ;     // AMBIGUOUS (no longer!)
+
+  sizeof(dest);
+  sizeof(bar);
+  sizeof(Mystruct);
 
   int nr;
   nr = ((((  nr  )+ (8*sizeof(long)) -1)/ (8*sizeof(long)) ) *sizeof(long)) ;   // AMBIGUOUS
@@ -25,5 +35,11 @@ int foo ( )
     + ((unsigned long)( page )- ((unsigned long)(0xC0000000 ) ) ) ;   // AMBIGUOUS
 
   enum E { a,b,c };
+  
+  Mystruct *p;
+  sizeof(*p);
+  sizeof(p);
+
+  return sizeof(Mystruct);
 }
 

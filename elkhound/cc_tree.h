@@ -17,13 +17,21 @@ public:      // data
   // names that appear in this node or subtrees
   Env *env;
 
+  // yet another cute hack: if the subtree represented
+  // by this node is effectively just a literal integer
+  // (for example, "sizeof(int)"), we mark isJustInt
+  // true and set theInt to its value
+  bool isJustInt;
+  int theInt;
+
 private:     // funcs
   // analysis helpers
   DataflowVar *getOwnerPtr(char const *name);
 
 public:      // funcs
   CCTreeNode(Reduction *red)
-    : NonterminalNode(red), env(NULL) {}
+    : NonterminalNode(red), env(NULL),
+      isJustInt(false), theInt(-1) {}
 
   // do the declaration, and report an error if it happens
   void declareVariable(Env *env, char const *name,
@@ -41,6 +49,9 @@ public:      // funcs
 
   // throw an internal error
   void internalError(char const *msg) const NORETURN;
+
+  // set the "just an int" value
+  void setTheInt(int val) { isJustInt=true; theInt=val; }
 
   // analysis entry points
   void ana_free(string varName);

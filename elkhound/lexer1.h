@@ -68,7 +68,8 @@ public:
 };
 
 
-// external interface to lexer
+// external interface to lexer; parses the entire token
+// stream into 'lexer' object
 int lexer1_lex(Lexer1 &lexer, FILE *inputFile);
 
 

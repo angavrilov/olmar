@@ -82,7 +82,7 @@ Env::~Env()
   
   if (referenceCt != 0) {
     // I have this now, but not the time to track it down
-    printf("warning: deleting environment with refct %d\n", referenceCt);
+    cout << "warning: deleting environment with refct " << referenceCt << endl;
   }
 }
 

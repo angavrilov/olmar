@@ -179,8 +179,21 @@ nonterm HasVarsDecld {
   }
 }
 
+nonterm HasType {
+  // return the Type represented by this syntax
+  fundecl Type const *getType(Env *passedEnv);
+  literalCode "prefix" getType {
+    env = passedEnv;
+  }
+
+  // by default, and on error cases:
+  fun getType {
+    throwError("I don't know this kind of expression's type");
+  }
+}
+
 // base class for expressions
-nonterm ExprBase : HasVarsDecld {
+nonterm ExprBase : HasVarsDecld, HasType {
   // return the integer this expression evaluates to at compile time
   fundecl int intEval(Env *passedEnv);
   fun intEval { throwError("not a constant integer expression"); }
@@ -191,22 +204,30 @@ nonterm ExprBase : HasVarsDecld {
 
 
 nonterm PrimaryExpression : ExprBase {
-  -> e:Literal                  { fun intEval = e.intEval(env); }
+  -> e:Literal {
+    fun intEval = e.intEval(env);
+    fun getType = e.getType(env);
+  }
+
   -> "this"                     {}
-  
+
   formGroup {
     fun varsDecld { e.varsDecld(env); }
+    fun getType = e.getType(env);
     -> "(" e:Expression ")"       { fun intEval = e.intEval(env); }
     -> e:PQVarName                {}
   }
-  
+
   // GNU extension
   -> "(" s:CompoundStatement ")"
     { fun varsDecld { s.typeCheck(env); } }
 }
 
 nonterm Literal : ExprBase {
-  -> i:L2_INT_LITERAL    { fun intEval = i.intValue; }
+  -> i:L2_INT_LITERAL {
+    fun intEval = i.intValue;
+    fun getType = env->getSimpleType(ST_INT);
+  }
   -> L2_FLOAT_LITERAL | L2_STRING_LITERAL | L2_CHAR_LITERAL ;
 }
 
@@ -233,7 +254,7 @@ nonterm HasDeclName {
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
-nonterm PQVarName : HasTypeName, HasDeclName, HasVarsDecld {
+nonterm PQVarName : HasTypeName, HasDeclName, HasVarsDecld, HasType {
   // 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
   // the leftmost token in the tree matched; this is important because
   // declarators aren't allowed to have the bare "::" qualifier
@@ -248,12 +269,24 @@ nonterm PQVarName : HasTypeName, HasDeclName, HasVarsDecld {
         env->report(err);
       }
     }
+    
+    fun getType {
+      if (!env->isDeclaredVar(n.getName())) {
+        throwError("tried to get type of an undeclared identifier");
+      }
+      else {
+        Variable *v = env->getVariable(n.getName());
+        xassert(v);    
+        xassert(v->type);    // having trouble with gdb ... !
+        return v->type;
+      }
+    }
   }
 
   fun varsDecld {
     // each of the remaining rules requires some more sophisticated
     // way of naming symbols
-    reportError(env, "varsDecld unimplemented");
+    reportError(env, "varsDecld unimplemented for complicated names");
   }
 
   -> OperatorFunctionId     { action colonColon := 0; }
@@ -277,8 +310,9 @@ nonterm Qualifier {
 
 
 nonterm PostfixExpression : ExprBase {
-  -> e:PrimaryExpression { 
+  -> e:PrimaryExpression {
     fun intEval = e.intEval(env);
+    fun getType = e.getType(env);
     fun varsDecld { e.varsDecld(env); }
   }
                                                          
@@ -370,21 +404,66 @@ nonterm UnaryExpression : ExprBase {
 
   formGroup {
     fun varsDecld { e.varsDecld(env); }
+    //fun getType = e.getType(env);
 
-    -> e:PostfixExpression                 { fun intEval = e.intEval(env); }
+    -> e:PostfixExpression { 
+      fun intEval = e.intEval(env);
+      fun getType = e.getType(env);
+    }
+
     -> "++" e:CastExpression           ;
     -> "--" e:CastExpression           ;
-    -> "sizeof" e:UnaryExpression      ;       // size of expression
+
+    // size of expression
+    -> "sizeof" e:UnaryExpression {
+      fun intEval {
+        Type const *type = e.getType(env);
+        xassert(type);
+        return type->reprSize();
+      }
+
+      fun varsDecld {
+        e.varsDecld(env);
+
+        ostream &os = trace("sizeof") << locString() << ": sizeof(expr) is ";
+        try {       
+          int s = intEval(env);
+          os << s << endl;
+          setTheInt(s);
+        }
+        catch (xBase &x) {
+          os << "unknown (reason: " << x << ")\n";
+        }
+      }
+
+      fun getType = e.getType(env);
+    }
+
     -> e:DeleteExpression              ;
   }
 
-  -> op:UnaryOperator e:CastExpression   { 
+  -> op:UnaryOperator e:CastExpression   {
     fun intEval = op.intEval(e.intEval(env));
-    
+
     fun varsDecld {
       e.varsDecld(env);
       if (op.unparseString().equals("*")) {    // hack ...
         e.ana_checkDeref();
+      }
+    }
+
+    fun getType {
+      if (op.unparseString().equals("*")) {    // hack hack HACK!!!
+        Type const *derefd = e.getType(env);
+        if (!derefd->isPointerType()) {
+          throwError("don't dereference things that aren't pointers");
+        }
+        PointerType const &pt = derefd->asPointerTypeC();
+        
+        return pt.atType;      // type of thing pointed at
+      }
+      else {
+        throwError("it's a unary operator I don't handle yet for getType");
       }
     }
   }
@@ -392,6 +471,26 @@ nonterm UnaryExpression : ExprBase {
   -> "sizeof" "(" t:TypeId ")" {               // size of type
     fun varsDecld {
       t.getType(env);     // just make sure it's a valid type, for disambiguation
+
+      ostream &os = trace("sizeof") << locString() << ": sizeof(type) is ";
+      try {
+        int s = intEval(env);
+        os << s << endl;
+        setTheInt(s);
+      }
+      catch (xBase &x) {
+        os << "unknown (reason: " << x << ")\n";
+      }
+    }
+
+    fun intEval {
+      Type const *type = t.getType(env);
+      if (type) {
+        return type->reprSize();
+      }
+      else {
+        throwError("unknown type");
+      }
     }
   }
 
@@ -437,15 +536,21 @@ nonterm DeleteExpression : HasVarsDecld {
 
 nonterm CastExpression : ExprBase {
 
-  -> e:UnaryExpression { 
+  -> e:UnaryExpression {
     fun intEval = e.intEval(env);
     fun varsDecld { e.varsDecld(env); }
+    fun getType = e.getType(env);
   }
 
   -> "(" t:TypeId ")" e:CastExpression {
     fun varsDecld {
       t.getType(env);       // ignore return; just verify it is a type
       e.varsDecld(env);
+    }
+
+    fun getType {
+      // should check castability ...
+      return t.getType(env);
     }
   }
 }
@@ -464,6 +569,7 @@ nonterm BinaryExpression : ExprBase {
 
     fun intEval = e.intEval(env);
     fun varsDecld { e.varsDecld(env); }
+    fun getType = e.getType(env);
   }
 
   -> left:BinaryExpression op:BinaryOperator right:BinaryExpression {
@@ -476,9 +582,13 @@ nonterm BinaryExpression : ExprBase {
                  this.prec < left.prec;            // right associative
 
     fun intEval = op.intEval(left.intEval(env), right.intEval(env));
-    fun varsDecld { 
-      left.varsDecld(env); 
-      right.varsDecld(env); 
+    fun varsDecld {
+      left.varsDecld(env);
+      right.varsDecld(env);
+    }
+    
+    fun getType {
+      return left.getType(env);      // more omitted consistency checks ...
     }
   }
 }
@@ -565,6 +675,7 @@ nonterm ConditionalExpression : ExprBase {
   -> e:BinaryExpression {
     fun intEval = e.intEval(env);
     fun varsDecld { e.varsDecld(env); }
+    fun getType = e.getType(env);
   }
 
   -> cond:BinaryExpression "?" th:Expression ":" el:AssignmentExpression {
@@ -579,10 +690,16 @@ nonterm ConditionalExpression : ExprBase {
       return c ? t : e;
     }
 
-    fun varsDecld { 
+    fun varsDecld {
       cond.varsDecld(env);
       th.varsDecld(env);
       el.varsDecld(env);
+    }
+    
+    fun getType {
+      // a consistency check would be in order .. but I don't 
+      // have a type equality predicate yet ..
+      return el.getType(env);
     }
   }
 }
@@ -593,6 +710,7 @@ nonterm ConditionalExpression : ExprBase {
 nonterm AssignmentExpression : ExprBase {
   formGroup {
     fun varsDecld { e.varsDecld(env); }
+    fun getType = e.getType(env);
 
     -> e:ConditionalExpression   { fun intEval = e.intEval(env); }
     -> e:ThrowExpression ;
@@ -615,6 +733,12 @@ nonterm AssignmentExpression : ExprBase {
         }
       }
     }
+
+    fun getType {
+      // .. here I should check that e2's type can be coerced to
+      // e1's type, but wtf ...
+      return e2.getType(env);
+    }
   }
 }
 
@@ -628,11 +752,15 @@ nonterm Expression : ExprBase {
   -> ae:AssignmentExpression {
     fun intEval = ae.intEval(env);
     fun varsDecld { ae.varsDecld(env); }
+    fun getType = ae.getType(env);
   }
   -> e:Expression "," ae:AssignmentExpression {
     // choosing again to evaluate everything..
     fun intEval = e.intEval(env), ae.intEval(env);
     fun varsDecld { e.varsDecld(env); ae.varsDecld(env); }
+    
+    // type of ',' is last one in sequence ..
+    fun getType = ae.getType(env);
   }
 }
 
@@ -940,6 +1068,7 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
     }
 
     -> "return" e:Expression ";" {
+      fun typeCheck { varsDecld(env); }
       fun varsDecld { e.varsDecld(env); }
 
       fun getCFG {
@@ -1121,14 +1250,6 @@ nonterm SimpleDeclaration : Checkable {
 nonterm HasDeclFlags {
   // return the set of declaration flags present here
   fundecl DeclFlags getDeclFlags();
-}
-
-nonterm HasType {
-  // return the Type represented by this syntax
-  fundecl Type const *getType(Env *passedEnv);
-  literalCode "prefix" getType {
-    env = passedEnv;
-  }
 }
 
 nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
@@ -2175,10 +2296,12 @@ nonterm ExceptionDeclaration : Checkable {
   -> "..."                                ;  // anything
 }
 
-nonterm ThrowExpression : HasVarsDecld {
+nonterm ThrowExpression : HasVarsDecld, HasType {
   -> "throw" ;
-  -> "throw" e:AssignmentExpression 
-    { fun varsDecld { e.varsDecld(env); } }
+  -> "throw" e:AssignmentExpression { 
+    fun varsDecld { e.varsDecld(env); }
+    fun getType = e.getType(env);
+  }
 }
 
 
@@ -2295,7 +2418,7 @@ int fakemain(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-  fakemain(argc, argv);
+  //fakemain(argc, argv);
   return fakemain(argc, argv);
 }
 

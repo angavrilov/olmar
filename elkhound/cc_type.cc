@@ -38,6 +38,28 @@ char const *simpleTypeName(SimpleTypeId id)
 }
 
 
+int simpleTypeReprSize(SimpleTypeId id)
+{
+  int const arr[] = {
+    1, 1, 1,              // char
+    4,                    // bool
+    4, 4,                 // int
+    4, 4,                 // long
+    8, 8,                 // long long
+    2, 2,                 // short
+    2,                    // wchar
+    4,                    // float
+    8,                    // double
+    10,                   // long double
+    0                     // void
+  };
+  STATIC_ASSERT(TABLESIZE(arr) == NUM_SIMPLE_TYPES);
+  
+  xassert(isValid(id));
+  return arr[id];
+}
+
+
 // ------------------ AtomicType -----------------
 AtomicType::~AtomicType()
 {}
@@ -47,6 +69,12 @@ AtomicType::~AtomicType()
 string SimpleType::toString() const
 {
   return simpleTypeName(type);
+}
+
+
+int SimpleType::reprSize() const
+{
+  return simpleTypeReprSize(type);
 }
 
 
@@ -105,7 +133,48 @@ string CompoundType::toStringWithFields() const
 }
 
 
+int CompoundType::reprSize() const
+{
+  int total = 0;
+  StringObjDict<Variable>::Iter iter(env->getVariables());
+  for (; !iter.isDone(); iter.next()) {
+    int membSize = iter.value()->type->reprSize();
+    if (keyword == K_UNION) {
+      // representation size is max over field sizes
+      total = max(total, membSize);
+    }
+    else {
+      // representation size is sum over field sizes
+      total += membSize;
+    }
+  }
+  return total;
+}
+
+
+// ---------------- EnumType ------------------
+EnumType::~EnumType()
+{}
+
+
+string EnumType::toString() const
+{
+  return stringc << "enum " << name;
+}
+
+
+int EnumType::reprSize() const
+{
+  // this is the usual choice
+  return simpleTypeReprSize(ST_INT);
+}
+
+
 // --------------- Type ---------------
+Type::~Type()
+{}
+
+
 CAST_MEMBER_IMPL(Type, CVAtomicType)
 CAST_MEMBER_IMPL(Type, PointerType)
 CAST_MEMBER_IMPL(Type, FunctionType)
@@ -126,22 +195,6 @@ string Type::rightString() const
 {
   return "";
 }
-
-
-// ---------------- EnumType ------------------
-EnumType::~EnumType()
-{}
-
-
-string EnumType::toString() const
-{
-  return stringc << "enum " << name;
-}
-
-
-// --------------------- Type ---------------------
-Type::~Type()
-{}
 
 
 // ----------------- CVAtomicType ----------------
@@ -166,6 +219,12 @@ string CVAtomicType::leftString() const
 }
 
 
+int CVAtomicType::reprSize() const
+{
+  return atomic->reprSize();
+}
+
+
 // ------------------- PointerType ---------------
 string PointerType::leftString() const
 {
@@ -177,6 +236,13 @@ string PointerType::leftString() const
 string PointerType::rightString() const
 {
   return atType->rightString();
+}
+
+
+int PointerType::reprSize() const
+{
+  // a typical value ..
+  return 4;
 }
 
 
@@ -251,6 +317,14 @@ string FunctionType::rightString() const
 }
 
 
+int FunctionType::reprSize() const
+{
+  // thinking here about how this works when we're summing
+  // the fields of a class ...
+  return 0;
+}
+
+
 // -------------------- ArrayType ------------------
 string ArrayType::leftString() const
 {
@@ -271,4 +345,17 @@ string ArrayType::rightString() const
   sb << eltType->rightString();
 
   return sb;
+}
+
+
+int ArrayType::reprSize() const
+{
+  if (hasSize) {
+    return eltType->reprSize() * size;
+  }
+  else {
+    // or should I throw an exception ..?
+    cout << "warning: reprSize of a sizeless array\n";
+    return 0;
+  }
 }

@@ -36,6 +36,7 @@ enum SimpleTypeId {
 
 bool isValid(SimpleTypeId id);                     // bounds check
 char const *simpleTypeName(SimpleTypeId id);       // e.g. "unsigned char"
+int simpleTypeReprSize(SimpleTypeId id);           // size of representation
 
 
 // interface to types that are atomic in the sense that no
@@ -53,6 +54,9 @@ public:     // funcs
   bool isEnum() const { return getTag() == T_ENUM; }
   
   virtual string toString() const = 0;
+  
+  // size this type's representation occupies in memory
+  virtual int reprSize() const = 0;
 };
 
 
@@ -69,6 +73,7 @@ public:     // funcs
 
   virtual Tag getTag() const { return T_SIMPLE; }
   virtual string toString() const;
+  virtual int reprSize() const;
 };
 
 
@@ -95,14 +100,15 @@ public:     // funcs
 
   // make it complete
   void makeComplete(Env *parentEnv);
-  
+
   bool isComplete() const { return env != NULL; }
 
   static char const *keywordName(Keyword k);
 
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toString() const;
-  
+  virtual int reprSize() const;
+
   string toStringWithFields() const;
 };
 
@@ -120,6 +126,7 @@ public:
 
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toString() const;
+  virtual int reprSize() const;
 };
 
 
@@ -157,6 +164,9 @@ public:     // funcs
   // and array types in C's syntax
   virtual string leftString() const = 0;
   virtual string rightString() const;    // default: returns ""
+  
+  // size of representation
+  virtual int reprSize() const = 0;
 };
 
 
@@ -181,12 +191,13 @@ public:
     : atomic(a), cv(c) {}
   CVAtomicType(CVAtomicType const &obj)
     : DMEMB(atomic), DMEMB(cv) {}
-    
+
   // just so I can make one static array of them...
   CVAtomicType() : atomic(NULL), cv(CV_NONE) {}
 
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
+  virtual int reprSize() const;
 };
 
 
@@ -211,6 +222,7 @@ public:
   virtual Tag getTag() const { return T_POINTER; }
   virtual string leftString() const;
   virtual string rightString() const;
+  virtual int reprSize() const;
 };
 
 
@@ -225,7 +237,7 @@ public:
 public:
   Parameter(Type const *t) : name(""), type(t) {}
   ~Parameter();
-  
+
   string toString() const;
 };
 
@@ -248,6 +260,7 @@ public:
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString() const;
   virtual string rightString() const;
+  virtual int reprSize() const;
 };
 
 
@@ -267,6 +280,7 @@ public:
   virtual Tag getTag() const { return T_ARRAY; }
   virtual string leftString() const;
   virtual string rightString() const;
+  virtual int reprSize() const;
 };
 
 
