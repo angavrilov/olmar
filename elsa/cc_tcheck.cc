@@ -252,9 +252,8 @@ void Function::tcheck(Env &env, bool checkBody)
   // if this function was originally declared in another scope
   // (main example: it's a class member function), then start
   // by extending that scope so the function body can access
-  // the class's members; that scope won't actually be modified,
-  // and in fact we can check that by watching the change counter
-  int prevChangeCount = 0;        // initialize it, to silence a warning
+  // the class's members
+  ScopeSeq qualifierScopes;
   CompoundType *inClass = NULL;
   {
     Scope *s = nameAndParams->var->scope;
@@ -264,15 +263,27 @@ void Function::tcheck(Env &env, bool checkBody)
       // current scope must enclose 's':
       //   - if 's' is a namespace, 7.3.1.2 para 2 says so
       //   - if 's' is a class, 9.3 para 2 says so
-      // example of violation: in/std/7.3.1.2b.cc, error 2  
-      if (!env.currentScopeEncloses(s)) {
+      // example of violation: in/std/7.3.1.2b.cc, error 2
+      bool encloses = env.currentScopeEncloses(s);
+      if (!encloses) {
         env.error(stringc
           << "function definition of `" << *(nameAndParams->getDeclaratorId())
           << "' must appear in a namespace that encloses the original declaration");
       }
 
-      env.extendScope(s);
-      prevChangeCount = env.getChangeCount();
+      // these two lines are the key to this whole block..  I'm
+      // keeping the surrounding stuff, though, because it has that
+      // error report above, and simply to avoid disturbing existing
+      // (working) mechanism
+      env.getQualifierScopes(qualifierScopes, nameAndParams->getDeclaratorId());
+      env.extendScopeSeq(qualifierScopes);
+
+      // the innermost scope listed in 'qualifierScopes'
+      // should be the same one in which the variable was
+      // declared (could this be triggered by user code?)
+      if (encloses && qualifierScopes.isNotEmpty()) {
+        xassert(s == qualifierScopes.top());
+      }
     }
   }
 
@@ -346,11 +357,8 @@ void Function::tcheck(Env &env, bool checkBody)
   env.exitScope(bodyScope);
 
   // stop extending the named scope, if there was one
-  if (nameAndParams->var->scope) {
-    xassert(prevChangeCount == env.getChangeCount());
-    env.retractScope(nameAndParams->var->scope);
-  }
-  
+  env.retractScopeSeq(qualifierScopes);
+
   // this is a function definition; add a pointer from the
   // associated Variable
   nameAndParams->var->funcDefn = this;
@@ -1942,7 +1950,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   //
   // to implement this, I'll find the declarator's qualified
   // scope ahead of time and add it to the scope stack
-  Scope *qualifierScope = openQualifierScope(env);
+  //
+  // 4/21/04: in fact, I need the entire sequence of scopes
+  // in the qualifier, since all of them need to be visible
+  ScopeSeq qualifierScopes;
+  env.getQualifierScopes(qualifierScopes, decl->getDeclaratorId());
+  env.extendScopeSeq(qualifierScopes);
 
   if (init) dt.dflags |= DF_INITIALIZED;
 
@@ -1988,7 +2001,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       // like
       //   C c(5);
       // except the latter isn't always syntactically allowed (e.g. CN_decl)
-      
+
       // take out the IN_expr
       IN_expr *inexpr = init->asIN_expr();
       Expression *e = inexpr->e;
@@ -2012,13 +2025,11 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     tcheck_init(env);
   }
 
-  if (qualifierScope) {
-    // pull the scope back out of the stack; if this is a
-    // declarator attached to a function definition, then
-    // Function::tcheck will re-extend it for analyzing
-    // the function body
-    env.retractScope(qualifierScope);
-  }
+  // pull the scope back out of the stack; if this is a
+  // declarator attached to a function definition, then
+  // Function::tcheck will re-extend it for analyzing
+  // the function body
+  env.retractScopeSeq(qualifierScopes);
 
   // If it is a function, is it virtual?
   if (inClassBody
@@ -2080,30 +2091,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   }
 }
 
-Scope *Declarator::openQualifierScope(Env &env)
-{
-  PQName const *declaratorId = decl->getDeclaratorId();
-  Scope *qualifiedScope = NULL;
-  if (declaratorId &&     // i.e. not abstract
-      declaratorId->hasQualifiers()) {
-    // look up the scope named by the qualifiers
-    qualifiedScope = env.lookupQualifiedScope(declaratorId);
-    if (!qualifiedScope) {
-      // the environment will have already reported the
-      // problem; go ahead and check the declarator in the
-      // unqualified (normal) scope; it's about the best I
-      // could imagine doing as far as error recovery goes
-    }
-    else {
-      // ok, put the scope we found into the scope stack
-      // so the declarator's names will get its benefit
-      env.extendScope(qualifiedScope);
-      return qualifiedScope;
-    }
-  }
-  
-  return NULL;   // didn't extend
-}
 
 // pulled out so it could be done in pass 1 or pass 2
 void Declarator::tcheck_init(Env &env)

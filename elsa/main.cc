@@ -244,6 +244,7 @@ void doit(int argc, char **argv)
     Env env(strTable, lang, tfac, unit);
     try {
       unit->tcheck(env);
+      xassert(env.scope()->isGlobalScope());
     }
     catch (xBase &x) {
       // typically an assertion failure from the tchecker; catch it here

@@ -1217,157 +1217,226 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
   return lookupQualifiedScope(name, dummy1, dummy2);
 }
 
-Scope *Env::lookupQualifiedScope(PQName const *name, 
+Scope *Env::lookupQualifiedScope(PQName const *name,
                                  bool &dependent, bool &anyTemplates)
+{ 
+  ScopeSeq scopes;
+  if (!getQualifierScopes(scopes, name, dependent, anyTemplates)) {
+    return NULL;
+  }
+  else {
+    return scopes.pop();     // last one added
+  }
+}
+
+
+// This returns the scope named by the qualifier portion of
+// 'qualifier', or NULL if there is an error.  In the latter
+// case, an error message is also inserted, unless the lookup
+// failed becaue of dependence on a template parameter, in
+// which case 'dependent' is set to true and no error message
+// is inserted.
+Scope *Env::lookupOneQualifier(
+  Scope *startingScope,          // where does search begin?  NULL means current environment
+  PQ_qualifier const *qualifier, // will look up the qualifier on this name
+  bool &dependent,               // set to true if we have to look inside a TypeVariable
+  bool &anyTemplates)            // set to true if we look in uninstantiated templates
 {
-  // this scope keeps track of which scope we've identified
-  // so far, given how many qualifiers we've processed;
-  // initially it is NULL meaning we're still at the default,
-  // lexically-enclosed scope
-  Scope *scope = NULL;
+  // get the first qualifier
+  StringRef qual = qualifier->qualifier;
+  if (!qual) {      // i.e. "::" qualifier
+    // should be syntactically impossible to construct bare "::"
+    // with template arguments
+    xassert(qualifier->targs.isEmpty());
 
-  do {
-    PQ_qualifier const *qualifier = name->asPQ_qualifierC();
+    // this is a reference to the global scope, i.e. the scope
+    // at the bottom of the stack
+    return scopes.last();
+  }
 
-    // get the first qualifier
-    StringRef qual = qualifier->qualifier;
-    if (!qual) {
-      // this is a reference to the global scope, i.e. the scope
-      // at the bottom of the stack
-      scope = scopes.last();
+  // look for a class called 'qual' in 'startingScope'; look in the
+  // *variables*, not the *compounds*, because it is legal to make
+  // a typedef which names a scope, and use that typedef'd name as
+  // a qualifier
+  //
+  // however, this still is not quite right, see cppstd 3.4.3 para 1
+  //
+  // update: LF_TYPES_NAMESPACES now gets it right, I think
+  Variable *qualVar = startingScope==NULL?
+    lookupVariable(qual, LF_TYPES_NAMESPACES) :
+    startingScope->lookupVariable(qual, *this, LF_TYPES_NAMESPACES);
+  if (!qualVar) {
+    // I'd like to include some information about which scope
+    // we were looking in, but I don't want to be computing
+    // intermediate scope names for successful lookups; also,
+    // I am still considering adding some kind of scope->name()
+    // functionality, which would make this trivial.
+    //
+    // alternatively, I could just re-traverse the original name;
+    // I'm lazy for now
+    error(stringc
+      << "cannot find scope name `" << qual << "'",
+      true /*disambiguating*/);
+    return NULL;
+  }
 
-      // should be syntactically impossible to construct bare "::"
-      // with template arguments
-      xassert(qualifier->targs.isEmpty());
+  // this is what LF_TYPES_NAMESPACES means
+  xassert(qualVar->hasFlag(DF_TYPEDEF) || qualVar->hasFlag(DF_NAMESPACE));
+
+  // case 1: qualifier refers to a type
+  if (qualVar->hasFlag(DF_TYPEDEF)) {
+    // check for a special case: a qualifier that refers to
+    // a template parameter
+    if (qualVar->type->isTypeVariable()) {
+      // we're looking inside an uninstantiated template parameter
+      // type; the lookup fails, but no error is generated here
+      dependent = true;     // tell the caller what happened
+      return NULL;
     }
 
-    else {
-      // look for a class called 'qual' in scope-so-far; look in the
-      // *variables*, not the *compounds*, because it is legal to make
-      // a typedef which names a scope, and use that typedef'd name as
-      // a qualifier
-      //
-      // however, this still is not quite right, see cppstd 3.4.3 para 1
-      //
-      // update: LF_TYPES_NAMESPACES now gets it right, I think
-      Variable *qualVar =
-        scope==NULL? lookupVariable(qual, LF_TYPES_NAMESPACES) :
-                     scope->lookupVariable(qual, *this, LF_TYPES_NAMESPACES);
-      if (!qualVar) {
-        // I'd like to include some information about which scope
-        // we were looking in, but I don't want to be computing
-        // intermediate scope names for successful lookups; also,
-        // I am still considering adding some kind of scope->name()
-        // functionality, which would make this trivial.
-        //
-        // alternatively, I could just re-traverse the original name;
-        // I'm lazy for now
+    if (!qualVar->type->isCompoundType()) {
+      error(stringc
+        << "typedef'd name `" << qual << "' doesn't refer to a class, "
+        << "so it can't be used as a scope qualifier");
+      return NULL;
+    }
+    CompoundType *ct = qualVar->type->asCompoundType();
+
+    if (ct->isTemplate()) {
+      anyTemplates = true;
+    }
+
+    // This is the same check as below in lookupPQVariable; why
+    // is the mechanism duplicated?  It seems my scope lookup
+    // code should be a special case of general variable lookup..
+    if (qualVar->hasFlag(DF_SELFNAME)) {
+      // don't check anything, assume it's a reference to the
+      // class I'm in (testcase: t0168.cc)
+    }
+
+    // check template argument compatibility
+    else if (qualifier->targs.isNotEmpty()) {
+      if (!ct->isTemplate()) {
         error(stringc
-          << "cannot find scope name `" << qual << "'",
-          true /*disambiguating*/);
-        return NULL;
-      }
-                                                                              
-      // this is what LF_TYPES_NAMESPACES means
-      xassert(qualVar->hasFlag(DF_TYPEDEF) || qualVar->hasFlag(DF_NAMESPACE));
-                                         
-      // case 1: qualifier refers to a type
-      if (qualVar->hasFlag(DF_TYPEDEF)) {
-        // check for a special case: a qualifier that refers to
-        // a template parameter
-        if (qualVar->type->isTypeVariable()) {
-          // we're looking inside an uninstantiated template parameter
-          // type; the lookup fails, but no error is generated here
-          dependent = true;     // tell the caller what happened
-          return NULL;
-        }
+          << "class `" << qual << "' isn't a template");
+        // recovery: use the scope anyway
+      }   
 
-        // the const_cast here is unfortunate, but I don't see an
-        // easy way around it
-        CompoundType *ct =
-          const_cast<CompoundType*>(qualVar->type->ifCompoundType());
-        if (!ct) {
-          error(stringc
-            << "typedef'd name `" << qual << "' doesn't refer to a class, "
-            << "so it can't be used as a scope qualifier");
-          return NULL;
-        }
+      else {
+        // TODO: maybe put this back in
+        //ct = checkTemplateArguments(ct, qualifier->targs);
 
-        if (ct->isTemplate()) {
-          anyTemplates = true;
-        }
+        // for now, restricted form of specialization selection to
+        // get in/t0154.cc through
+        if (qualifier->targs.count() == 1) {
+          SFOREACH_OBJLIST_NC(Variable, ct->templateInfo()->instantiations, iter) {
+            Variable *special = iter.data();
+            if (!special->templateInfo()->arguments.count() == 1) continue;
 
-        // This is the same check as below in lookupPQVariable; why
-        // is the mechanism duplicated?  It seems my scope lookup
-        // code should be a special case of general variable lookup..
-        if (qualVar->hasFlag(DF_SELFNAME)) {
-          // don't check anything, assume it's a reference to the
-          // class I'm in (testcase: t0168.cc)
-        }
-
-        // check template argument compatibility
-        else if (qualifier->targs.isNotEmpty()) {
-          if (!ct->isTemplate()) {
-            error(stringc
-              << "class `" << qual << "' isn't a template");
-            // recovery: use the scope anyway
-          }   
-
-          else {
-            // TODO: maybe put this back in
-            //ct = checkTemplateArguments(ct, qualifier->targs);
-
-            // for now, restricted form of specialization selection to
-            // get in/t0154.cc through
-            if (qualifier->targs.count() == 1) {
-              SFOREACH_OBJLIST_NC(Variable, ct->templateInfo()->instantiations, iter) {
-                Variable *special = iter.data();
-                if (!special->templateInfo()->arguments.count() == 1) continue;
-
-                if (qualifier->targs.firstC()->sarg.equals(
-                      special->templateInfo()->arguments.first())) {
-                  // found the specialization or existing instantiation!
-                  xassert(special->type->isCompoundType());
-                  ct = special->type->asCompoundType();
-                  break;
-                }
-              }
+            if (qualifier->targs.firstC()->sarg.equals(
+                  special->templateInfo()->arguments.first())) {
+              // found the specialization or existing instantiation!
+              xassert(special->type->isCompoundType());
+              ct = special->type->asCompoundType();
+              break;
             }
-
           }
         }
 
-        else if (ct->isTemplate()) {
-          error(stringc
-            << "class `" << qual
-            << "' is a template, you have to supply template arguments");
-          // recovery: use the scope anyway
-        }
-
-        // TODO: actually check that there are the right number
-        // of arguments, of the right types, etc.
-
-        // now that we've found it, that's our active scope
-        scope = ct;
-      }
-      
-      // case 2: qualifier refers to a namespace
-      else /*DF_NAMESPACE*/ {
-        if (qualifier->targs.isNotEmpty()) {
-          error(stringc << "namespace `" << qual << "' can't accept template args");
-        }
-        
-        // the namespace becomes the active scope
-        scope = qualVar->scope;
-        xassert(scope);
       }
     }
 
+    else if (ct->isTemplate()) {
+      error(stringc
+        << "class `" << qual
+        << "' is a template, you have to supply template arguments");
+      // recovery: use the scope anyway
+    }
+
+    // TODO: actually check that there are the right number
+    // of arguments, of the right types, etc.
+
+    // now that we've found it, that's our active scope
+    return ct;
+  }
+
+  // case 2: qualifier refers to a namespace
+  else /*DF_NAMESPACE*/ {
+    if (qualifier->targs.isNotEmpty()) {
+      error(stringc << "namespace `" << qual << "' can't accept template args");
+    }
+
+    // the namespace becomes the active scope
+    xassert(qualVar->scope);
+    return qualVar->scope;
+  }
+}
+
+
+bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name)
+{
+  bool dummy1, dummy2;
+  return getQualifierScopes(scopes, name, dummy1, dummy2);
+}
+
+// 4/22/04: After now implementing and testing this code, I'm
+// convinced it is wrong, because it only creates the sequence of
+// scopes syntactically present.  But, both typedefs and namespace
+// aliases can create ways of naming an inner scope w/o syntactically
+// naming all the enclosing scopes, and hence this code would not get
+// those enclosing scopes either.  I think perhaps a simple fix would
+// be to dig down to the bottom scope and then traverse the
+// 'parentScope' links to fill in the 'scopes' sequence.. but where to
+// stop?  I'll wait until I see some failing code before exploring
+// this more.
+bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
+  bool &dependent, bool &anyTemplates)
+{
+  if (!name) {
+    // this code evolved from code that behaved this way, and
+    // there seems little harm in allowing it to continue
+    return true;    // add nothing to 'scopes'
+  }
+
+  // begin searching from the current environment
+  Scope *scope = NULL;
+
+  while (name->hasQualifiers()) {
+    PQ_qualifier const *qualifier = name->asPQ_qualifierC();
+
+    // use the new inner-loop function
+    scope = lookupOneQualifier(scope, qualifier,
+                               dependent, anyTemplates);
+    if (!scope) {
+      // stop searching and return what we have
+      return false;
+    }
+
+    // save this scope
+    scopes.push(scope);
+
     // advance to the next name in the sequence
     name = qualifier->rest;
-  } while (name->hasQualifiers());
+  }
 
-  return scope;
+  return true;
+}
+
+
+void Env::extendScopeSeq(ScopeSeq const &scopes)
+{
+  for (int i=0; i < scopes.length(); i++) {
+    extendScope(scopes[i]);
+  }
+}
+
+void Env::retractScopeSeq(ScopeSeq const &scopes)
+{
+  // do this one backwards, to reverse the effects
+  // of 'extendScopeSeq'
+  for (int i = scopes.length()-1; i>=0; i--) {
+    retractScope(scopes[i]);
+  }
 }
 
 

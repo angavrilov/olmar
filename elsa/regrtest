@@ -405,7 +405,7 @@ testparse t0201.cc
 testparse t0202.cc
 testparse t0203.cc
 testparse t0204.cc
-failparse t0205.cc "more problems with scope push/pop during inst"
+testparse t0205.cc
 testparse t0206.cc
 
 # another set of tests, generally isolated by Daniel

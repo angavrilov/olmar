@@ -16,11 +16,12 @@
 #include "variable.h"     // Variable (r)
 #include "cc_scope.h"     // Scope
 #include "cc_err.h"       // ErrorList
-#include "array.h"        // ArrayStack
+#include "array.h"        // ArrayStack, ArrayStackEmbed
 #include "builtinops.h"   // CandidateSet
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
+
 
 // sm: TODO: I think this class should be defined in overload.h
 // holder for the CompoundType template candidates
@@ -70,6 +71,13 @@ class TemplCandidates {
   //   +1 if right is better
   int compareCandidates(Variable const *left, Variable const *right);
 };
+
+
+// type of collection to hold a sequence of scopes
+// for nested qualifiers; it can hold up to 2 scopes
+// before resorting to heap allocation
+typedef ArrayStackEmbed<Scope*, 2> ScopeSeq;
+
 
 // the entire semantic analysis state
 class Env {
@@ -354,6 +362,25 @@ public:      // funcs
   Scope *lookupQualifiedScope(PQName const *name,
     bool &dependent, bool &anyTemplates);
   Scope *lookupQualifiedScope(PQName const *name);
+
+  // lookup a single qualifier; see comments at definition cc_env.cc
+  Scope *lookupOneQualifier(
+    Scope *startingScope,
+    PQ_qualifier const *qualifier,
+    bool &dependent,
+    bool &anyTemplates);
+
+  // run through the sequence of qualifiers on 'name',
+  // adding each named scope in turn to 'scopes';
+  // 'dependent' and 'anyTemplates' are as above;
+  // returns false (and adds an error message) on error
+  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name,
+    bool &dependent, bool &anyTemplates);
+  bool getQualifierScopes(ScopeSeq &scopes, PQName const *name);
+
+  // extend/retract entire scope sequences
+  void extendScopeSeq(ScopeSeq const &scopes);
+  void retractScopeSeq(ScopeSeq const &scopes);
 
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL; this is for

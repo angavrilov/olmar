@@ -403,14 +403,19 @@ Variable const *Scope
   Variable const *ret = lookupPQVariableC(&wrapperName, env, flags);
   if (ret) return ret;
 
-  // no qualifiers and not found yet; look in parent scope
-  // [cppstd 3.4.1 para 8]
-  if (parentScope) {
-    return parentScope->lookupVariableC(name, env, flags);
-  }
-  else {
-    return NULL;
-  }
+  // previously, I had code here which traversed the 'parentScope'
+  // link to find additional places to look for 'name'; however, that
+  // is very bad because:
+  //   - the caller (typically Env::lookupVariable) is already iterating
+  //     through the scope stack, so this will defeat that function's
+  //     'foundScope' return value
+  //   - the 'parentScope' link is NULL for unnamed scopes (at least in
+  //     the current design), so searching along that path leads to
+  //     different behavior depending on whether things are named
+  //
+  // so, if we do not find the name here, we just stop; the caller is
+  // responsible for checking in parent scopes, etc.
+  return NULL;
 }
 
 
