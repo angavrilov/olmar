@@ -220,6 +220,12 @@ public:
   inline Type& operator|= (Type &f1, Type f2)   \
     { return f1 = f1 | f2; }
 
+#define ENUM_BITWISE_XOR(Type)                  \
+  inline Type operator^ (Type f1, Type f2)      \
+    { return (Type)((int)f1 ^ (int)f2); }       \
+  inline Type& operator^= (Type &f1, Type f2)   \
+    { return f1 = f1 ^ f2; }
+
 #define ENUM_BITWISE_NOT(Type, ALL)             \
   inline Type operator~ (Type f)                \
     { return (Type)((~(int)f) & ALL); }
@@ -227,6 +233,7 @@ public:
 #define ENUM_BITWISE_OPS(Type, ALL)             \
   ENUM_BITWISE_AND(Type)                        \
   ENUM_BITWISE_OR(Type)                         \
+  ENUM_BITWISE_XOR(Type)                        \
   ENUM_BITWISE_NOT(Type, ALL)
 
 
