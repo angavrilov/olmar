@@ -627,6 +627,7 @@ testparse d0100.cc
 testparse d0101.cc
 failparse d0102.cc "one templatized class can't find the typedef in its superclass"
 failparse d0103.cc "Parse error"
+failparse d0104.cc "name lookup ambiguity"
 # ---- END: lots of tests ----
 
 
