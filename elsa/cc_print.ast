@@ -3,106 +3,108 @@
 // syntax from the AST
 
 verbatim {
-  class PrintEnv;            // cc_print.h
+  class PrintEnv;               // cc_print.h
+  class CodeOutStream;          // cc_print.h
 }
 
 
 class TranslationUnit {
   // This is the toplevel entry point to the pretty printer.
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class TopForm {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Function {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Declaration {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class ASTTypeId {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class PQName {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 verbatim {
   // so clients outside cc_print.cc can print these lists; this
   // does *not* print the surrounding angle brackets
-  void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args);
+  void printTemplateArgumentFakeList
+    (PrintEnv &env, CodeOutStream &out, FakeList<TemplateArgument> *args);
 }
 
 
 class TypeSpecifier {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class BaseClassSpec {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Member {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Enumerator {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Declarator {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class IDeclarator {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class ExceptionSpec {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Statement {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
+  pure_virtual void iprint(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Condition {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Handler {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class FullExpression {
-  public void print(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class Expression {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
+  pure_virtual void iprint(PrintEnv &env, CodeOutStream &out);
 
   public string exprToString() const;
   public string asString() const { return exprToString(); };
@@ -116,26 +118,26 @@ verbatim {
 
 
 class Initializer {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class TemplateDeclaration {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
+  public void print(PrintEnv &env, CodeOutStream &out);
+  pure_virtual void iprint(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class TemplateParameter {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class TemplateArgument {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }
 
 
 class NamespaceDecl {
-  pure_virtual void print(PrintEnv &env);
+  pure_virtual void print(PrintEnv &env, CodeOutStream &out);
 }

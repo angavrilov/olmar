@@ -10,140 +10,243 @@
 
 #include <iostream.h>           // ostream
 
-// indents the source code sent to it
-class CodeOutputStream {
-  ostream *out;
-  stringBuilder *sb;
-
-  // true, write to 'sb'; false, write to 'out'
-  bool using_sb;
-
-  // depth of indentation
-  int depth;
-  // number of buffered trailing newlines
-  int buffered_newlines;
-
+// this virtual semi-abstract class is intended to act as a
+// "superclass" for ostream, stringBuilder, and any other "output
+// stream" classes
+class OutStream {
   public:
-  CodeOutputStream(ostream &out);
-  CodeOutputStream(stringBuilder &sb);
-  ~CodeOutputStream();
+  virtual ~OutStream() {}
 
-  void finish();
-  void up();
-  void down();
-  void flush();
+  // special-case methods
+  virtual OutStream & operator << (ostream& (*manipfunc)(ostream& outs)) = 0;
+  virtual void flush() = 0;
 
-  #define MAKE_INSERTER(type)                          \
-    CodeOutputStream & operator << (type message) {  \
-      if (using_sb) *sb << message;                    \
-      else *out << message;                            \
-      flush();                                         \
-      return *this;                                    \
-    }
+  // special method to support rostring
+  virtual OutStream & operator << (rostring message) = 0;
 
+  // generic methods
+  #define MAKE_INSERTER(type) \
+    virtual OutStream &operator << (type message) = 0;
+  MAKE_INSERTER(char const *)
   MAKE_INSERTER(bool)
   MAKE_INSERTER(int)
   MAKE_INSERTER(unsigned int)
   MAKE_INSERTER(long)
   MAKE_INSERTER(unsigned long)
   MAKE_INSERTER(double)
-
   #undef MAKE_INSERTER
+};
 
+class StringBuilderOutStream : public OutStream {
+  stringBuilder &buffer;
+
+  public:
+  StringBuilderOutStream(stringBuilder &buffer0) : buffer(buffer0) {}
+
+  // special-case methods
+  virtual StringBuilderOutStream & operator << (ostream& (*manipfunc)(ostream& outs)) {
+    buffer << "\n";             // assume that it is endl
+    return *this;
+  }
+  virtual void flush() {}       // no op
+
+  // special method to support rostring
+  virtual OutStream & operator << (rostring message) {return operator<< (message.c_str());}
+
+  // generic methods
+  #define MAKE_INSERTER(type)        \
+    virtual StringBuilderOutStream &operator << (type message) \
+    {                                \
+      buffer << message;             \
+      return *this;                  \
+    }
+  MAKE_INSERTER(char const *)
+  MAKE_INSERTER(bool)
+  MAKE_INSERTER(int)
+  MAKE_INSERTER(unsigned int)
+  MAKE_INSERTER(long)
+  MAKE_INSERTER(unsigned long)
+  MAKE_INSERTER(double)
+  #undef MAKE_INSERTER
+};
+
+class OStreamOutStream : public OutStream {
+  ostream &out;
+
+  public:
+  OStreamOutStream(ostream &out0) : out(out0) {}
+
+  // special-case methods
+  virtual OStreamOutStream & operator << (ostream& (*manipfunc)(ostream& outs)) {
+    out << manipfunc;
+    return *this;
+  }
+  virtual void flush() { out.flush(); }
+
+  // special method to support rostring
+  virtual OutStream & operator << (rostring message) {return operator<< (message.c_str());}
+
+  // generic methods
+  #define MAKE_INSERTER(type)        \
+    virtual OStreamOutStream &operator << (type message) \
+    {                                \
+      out << message;                \
+      return *this;                  \
+    }
+  MAKE_INSERTER(char const *)
+  MAKE_INSERTER(bool)
+  MAKE_INSERTER(int)
+  MAKE_INSERTER(unsigned int)
+  MAKE_INSERTER(long)
+  MAKE_INSERTER(unsigned long)
+  MAKE_INSERTER(double)
+  #undef MAKE_INSERTER
+};
+
+// indents the source code sent to it
+class CodeOutStream : public OutStream {
+  OutStream &out;           // output to here
+  int depth;                    // depth of indentation
+  int buffered_newlines;        // number of buffered trailing newlines
+
+  public:
+  CodeOutStream(OutStream &out0)
+    : out(out0), depth(0), buffered_newlines(0)
+  {}
+  virtual ~CodeOutStream();
+
+  // manipulate depth
+  virtual void up()   {depth--;}
+  virtual void down() {depth++;}
+
+  // indentation and formatting support
   static string makeIndentation(int n);
   static string indentMessage(int n, rostring s);
-
+  void finish();
   void rawPrintAndIndent(string s);
 
-  CodeOutputStream & operator << (char const *message);
-  CodeOutputStream & operator << (ostream& (*manipfunc)(ostream& outs));
-  CodeOutputStream & operator << (rostring message);
-  // provide access to the built string
-  stringBuilder const &getString() const;
+  // OutStream methods
+  CodeOutStream & operator << (ostream& (*manipfunc)(ostream& outs));
+  void flush() { out.flush(); }
+  CodeOutStream & operator << (char const *message);
+
+  // special method to support rostring
+  virtual CodeOutStream & operator << (rostring message) {return operator<< (message.c_str());}
+
+  // generic methods
+  #define MAKE_INSERTER(type)                     \
+    CodeOutStream & operator << (type message) {  \
+      out << message;                             \
+      return *this;                               \
+    }
+  MAKE_INSERTER(bool)
+  MAKE_INSERTER(int)
+  MAKE_INSERTER(unsigned int)
+  MAKE_INSERTER(long)
+  MAKE_INSERTER(unsigned long)
+  MAKE_INSERTER(double)
+  #undef MAKE_INSERTER
 };
 
 // print paired delimiters, the second one is delayed until the end of
 // the stack frame; that is, it is printed in the destructor.
 class PairDelim {
-  char const *close;
-  CodeOutputStream &out;
+  char const *close;            // FIX: why can't I use an rostring?
+  CodeOutStream &out;
+
   public:
-  PairDelim(CodeOutputStream &out, rostring message, rostring open, char const *close = "");
-  PairDelim(CodeOutputStream &out, rostring message);
+  PairDelim(CodeOutStream &out, rostring message, rostring open, char const *close);
+  PairDelim(CodeOutStream &out, rostring message);
   ~PairDelim();
 };
 
 // an output stream for printing comments that will indent them
 // according to the level of the tree walk
-class TreeWalkOutputStream {
-  ostream &out;
+class TreeWalkOutStream : public OutStream {
+  OutStream &out;
   bool on;
   int depth;
 
   public:
-  TreeWalkOutputStream(ostream &out, bool on = true);
+  TreeWalkOutStream(OutStream &out, bool on = true)
+    : out(out), on(on), depth(0)
+  {}
+
+  public:
+  // manipulate depth
+  virtual void down() {++depth;}
+  virtual void up()   {--depth;}
 
   private:
+  // indentation and formatting support
   void indent();
 
   public:
-  void flush();
-  TreeWalkOutputStream & operator << (char *message);
-  TreeWalkOutputStream & operator << (ostream& (*manipfunc)(ostream& outs));
-  void down();
-  void up();
+  // OutStream methods
+  virtual TreeWalkOutStream & operator << (ostream& (*manipfunc)(ostream& outs));
+  virtual void flush() { out.flush(); }
+
+  // special method to support rostring
+  virtual TreeWalkOutStream & operator << (rostring message) {return operator<< (message.c_str());}
+
+  // generic methods
+  #define MAKE_INSERTER(type)                     \
+    TreeWalkOutStream & operator << (type message) { \
+      if (on) {                                   \
+        indent();                                 \
+        out << message;                           \
+      }                                           \
+      return *this;                               \
+    }
+  MAKE_INSERTER(char const *)
+  MAKE_INSERTER(bool)
+  MAKE_INSERTER(int)
+  MAKE_INSERTER(unsigned int)
+  MAKE_INSERTER(long)
+  MAKE_INSERTER(unsigned long)
+  MAKE_INSERTER(double)
+  #undef MAKE_INSERTER
 };
 
-extern TreeWalkOutputStream treeWalkOut;
+extern TreeWalkOutStream treeWalkOut;
 
 // a class to make on the stack at ever frame of the tree walk that
 // will automatically manage the indentation level of the
-// TreeWalkOutputStream given
+// TreeWalkOutStream given
 class TreeWalkDebug {
-  TreeWalkOutputStream &out;
+  TreeWalkOutStream &out;
   public:
-  TreeWalkDebug(char *message, TreeWalkOutputStream &out = treeWalkOut);
+  TreeWalkDebug(char *message, TreeWalkOutStream &out = treeWalkOut);
   ~TreeWalkDebug();
 };
 
-// This class knows how to print out Types to a stringBuilder or as a
-// string; Underneath, the type is printed to a string builder; this
-// design is necessary for situations where the order in which the
-// tree is visited is not the same as the order in which they must be
-// output; FIX: it would be best if instead of being forced to make a
-// string and return it, if there were a superclass of OStream and
-// stringBuilder so it could just print the output to it directly so
-// that we avoid a layer of buffering when the printing and visiting
-// order are the same.  That is an optimization I will leave for
-// later.
+// This class knows how to print out Types
 class TypePrinter {
   public:
-  // this method does the work
-  virtual void print(Type *, stringBuilder &, char const *name = NULL);
-  // convenience method
-  virtual string print(Type *, char const *name = NULL);
+  virtual ~TypePrinter() {}
+  virtual void print(OutStream &out, Type const *type, char const *name = NULL);
 };
 
 // global context for a pretty-print
 struct PrintEnv {
-  CodeOutputStream &out;
   TypePrinter &typePrinter;
   SourceLoc loc;
   
   public:
-  PrintEnv(CodeOutputStream &out0, TypePrinter &typePrinter0)
-    : out(out0)
-    , typePrinter(typePrinter0)
+  PrintEnv(TypePrinter &typePrinter0)
+    : typePrinter(typePrinter0)
     , loc(SL_UNKNOWN)
   {}
 };
 
-#define PRINT_AST(AST)               \
-  do {                               \
-    PrintEnv penv(cout);             \
-    if (AST) AST->print(penv);       \
-    else cout << "(PRINT_AST:null)"; \
-    cout << endl;                    \
+#define PRINT_AST(AST)                \
+  do {                                \
+    OutStream out0(cout);         \
+    TypePrinter typePrinter0;         \
+    PrintEnv penv0(typePrinter0);     \
+    if (AST) AST->print(penv0, out0); \
+    else out0 << "(PRINT_AST:null)";  \
+    out0 << endl;                     \
   } while(0)
 
 #endif // CC_PRINT_H

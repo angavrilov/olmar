@@ -538,7 +538,7 @@ bool E_gnuMinMax::extHasUnparenthesizedGT()
 
 
 // ------------------------ print --------------------------
-void TS_typeof::print(PrintEnv &env)
+void TS_typeof::print(PrintEnv &env, CodeOutStream &out)
 {
   xassert(0);                   // I'll bet this is never called.
 //    TreeWalkDebug treeDebug("TS_typeof_expr");
@@ -565,131 +565,131 @@ void ASTTypeof::addAmbiguity(ASTTypeof *alt)
 }
 
 
-void S_function::iprint(PrintEnv &env)
+void S_function::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("S_function::iprint");
-  f->print(env);
+  f->print(env, out);
 }
 
 
-void S_rangeCase::iprint(PrintEnv &env)
+void S_rangeCase::iprint(PrintEnv &env, CodeOutStream &out)
 {                    
   TreeWalkDebug treeDebug("S_rangeCase::iprint");
-  env.out << "case";
-  exprLo->print(env);
-  env.out << "...";
-  exprHi->print(env);
-  env.out << ":";
-  s->print(env);
+  out << "case";
+  exprLo->print(env, out);
+  out << "...";
+  exprHi->print(env, out);
+  out << ":";
+  s->print(env, out);
 }
 
 
-void S_computedGoto::iprint(PrintEnv &env)
+void S_computedGoto::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("S_computedGoto::iprint");
-  env.out << "goto *";
-  target->print(env);
-  env.out << ";\n";
+  out << "goto *";
+  target->print(env, out);
+  out << ";\n";
 }
 
 
-void E_compoundLit::iprint(PrintEnv &env)
+void E_compoundLit::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E_compoundLit::iprint");
   {
-    PairDelim pair(env.out, "", "(", ")");
-    stype->print(env);
+    PairDelim pair(out, "", "(", ")");
+    stype->print(env, out);
   }
-  init->print(env);
+  init->print(env, out);
 }
 
-void E___builtin_constant_p::iprint(PrintEnv &env)
+void E___builtin_constant_p::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E___builtin_constant_p::iprint");
-  PairDelim pair(env.out, "__builtin_constant_p", "(", ")");
-  expr->print(env);
+  PairDelim pair(out, "__builtin_constant_p", "(", ")");
+  expr->print(env, out);
 }
 
-void E___builtin_va_arg::iprint(PrintEnv &env)
+void E___builtin_va_arg::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E___builtin_va_arg::iprint");
-  PairDelim pair(env.out, "__builtin_va_arg", "(", ")");
-  expr->print(env);
-  env.out << ", ";
-  atype->print(env);
+  PairDelim pair(out, "__builtin_va_arg", "(", ")");
+  expr->print(env, out);
+  out << ", ";
+  atype->print(env, out);
 }
 
-void E_alignofType::iprint(PrintEnv &env)
+void E_alignofType::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E_alignofType::iprint");
-  PairDelim pair(env.out, "__alignof__", "(", ")");
-  atype->print(env);
+  PairDelim pair(out, "__alignof__", "(", ")");
+  atype->print(env, out);
 }
 
-void E_statement::iprint(PrintEnv &env)
+void E_statement::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E_statement::iprint");
-  PairDelim pair(env.out, "", "(", ")");
-  s->iprint(env);
+  PairDelim pair(out, "", "(", ")");
+  s->iprint(env, out);
 }
 
-void E_gnuCond::iprint(PrintEnv &env)
+void E_gnuCond::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E_gnuCond::iprint");
-  PairDelim pair(env.out, "", "(", ")");
-  cond->print(env);
-  env.out << " ?: ";
-  el->print(env);
+  PairDelim pair(out, "", "(", ")");
+  cond->print(env, out);
+  out << " ?: ";
+  el->print(env, out);
 }
 
-void E_gnuMinMax::iprint(PrintEnv &env)
+void E_gnuMinMax::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E_gnuMinMax::iprint");
-  PairDelim pair(env.out, "", "(", ")");
-  e1->print(env);
-  env.out << (isMin? " <? " : " >? ");
-  e2->print(env);
+  PairDelim pair(out, "", "(", ")");
+  e1->print(env, out);
+  out << (isMin? " <? " : " >? ");
+  e2->print(env, out);
 }
 
-void E_addrOfLabel::iprint(PrintEnv &env)
+void E_addrOfLabel::iprint(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("E_addrOfLabel::iprint");
-  env.out << "&&" << labelName;
+  out << "&&" << labelName;
 }
 
 
 // prints designators in the new C99 style, not the obsolescent ":"
 // style
-static void print_DesignatorList(PrintEnv &env, FakeList<Designator> *dl) {
+static void print_DesignatorList(PrintEnv &env, CodeOutStream &out, FakeList<Designator> *dl) {
   xassert(dl);
-  FAKELIST_FOREACH_NC(Designator, dl, d) d->print(env);
-  env.out << "=";
+  FAKELIST_FOREACH_NC(Designator, dl, d) d->print(env, out);
+  out << "=";
 }
 
-void IN_designated::print(PrintEnv &env)
+void IN_designated::print(PrintEnv &env, CodeOutStream &out)
 {
-  print_DesignatorList(env, designator_list);
-  init->print(env);
+  print_DesignatorList(env, out, designator_list);
+  init->print(env, out);
 }
 
 // -------------------- Designator ---------------
 
-void FieldDesignator::print(PrintEnv &env)
+void FieldDesignator::print(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("FieldDesignator");
   xassert(id);
-  env.out << "." << id;
+  out << "." << id;
 }
 
-void SubscriptDesignator::print(PrintEnv &env)
+void SubscriptDesignator::print(PrintEnv &env, CodeOutStream &out)
 {
   TreeWalkDebug treeDebug("SubscriptDesignator");
   xassert(idx_expr);
-  PairDelim pair(env.out, "", "[", "]");
-  idx_expr->print(env);
+  PairDelim pair(out, "", "[", "]");
+  idx_expr->print(env, out);
   if (idx_expr2) {
-    env.out << " ... ";
-    idx_expr2->print(env);
+    out << " ... ";
+    idx_expr2->print(env, out);
   }
 }
 
