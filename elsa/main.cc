@@ -68,6 +68,10 @@ public:
       E_variable *e = obj->asE_variable();
       sb << " " << e->var->name << " " << toLCString(e->var->loc);
     }
+    else if (obj->isE_fieldAcc()) {
+      E_fieldAcc *e = obj->asE_fieldAcc();
+      sb << " " << e->field->name << " " << toLCString(e->field->loc);
+    }
     return true;
   }
 };

@@ -2065,14 +2065,29 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // check for overloading
   OverloadSet *overloadSet = getOverloadForDeclaration(prior, type);
 
-  // 7.3.3 para 11 says it's ok for two aliases to conflict
+  // are we heading for a conflict with an alias?
   if (prior &&
       prior->usingAlias &&
-      prior->type->isFunctionType() &&
+      !prior->hasFlag(DF_TYPEDEF) &&
       !sameScopes(prior->skipAlias()->scope, scope)) {
-    // turn it into an overloading situation
-    overloadSet = prior->getOverloadSet();
-    prior = NULL;
+    // 7.3.3 para 11 says it's ok for two aliases to conflict when
+    // not in class scope; I assume they have to be functions for
+    // this to be allowed
+    if (!enclosingClass &&
+        prior->type->isFunctionType()) {
+      // turn it into an overloading situation
+      overloadSet = prior->getOverloadSet();
+      prior = NULL;
+    }
+
+    // if we are in class scope, call it an error now; that way I know
+    // down in 'createDeclaration' that if 'prior' is an alias, then
+    // we are *not* trying to create another alias
+    else if (enclosingClass) {
+      // this error message could be more informative...
+      error(stringc << "alias `" << name << "' conflicts with another alias");
+      return;
+    }
   }
 
   // make new declaration, taking to account various restrictions
@@ -2223,11 +2238,34 @@ Variable *Env::createDeclaration(
       if (enclosingClass &&
           !(dflags & DF_INLINE_DEFN) &&
           !prior->hasFlag(DF_IMPLICIT)) {    // allow implicit typedef to be hidden
-        error(stringc
-          << "duplicate member declaration of `" << name
-          << "' in " << enclosingClass->keywordAndName()
-          << "; previous at " << toString(prior->loc));
-        goto makeDummyVar;
+        if (!prior->usingAlias) {
+          error(stringc
+            << "duplicate member declaration of `" << name
+            << "' in " << enclosingClass->keywordAndName()
+            << "; previous at " << toString(prior->loc));
+          goto makeDummyVar;
+        }
+        else {
+          // The declaration we're trying to make conflicts with an alias
+          // imported from a base class.  7.3.3 para 12 says that's ok,
+          // that the new declaration effectively replaces the old.
+          TRACE("env", "hiding imported alias " << prior->name);
+          
+          // Go in and change the variable to update what it means.
+          // This isn't the cleanest thing in the world, but the
+          // alternative involves pulling the old Variable ('prior')
+          // out of the scope (easy) and the overload sets (hard), and
+          // then substituting the new one for it.
+          prior->loc = loc;
+          // name remains unchanged
+          prior->type = type;
+          prior->setFlagsTo(dflags);
+          prior->funcDefn = NULL;
+          // overload can stay the same
+          prior->usingAlias = NULL;
+          scope->registerVariable(prior);
+          return prior;
+        }
       }
     }
 
