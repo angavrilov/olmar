@@ -108,6 +108,11 @@ public:
 
   // equal items in equal positions
   bool equalAsLists(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
+  
+  // if equal, returns 0; otherwise, return order (-1/+1) according to
+  // the first differing pair of elements; a shorter (but otherwise
+  // idential list) will compare as being less
+  int compareAsLists(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;
 
   // last-as-set: comparisons (NOT efficient)
   bool equalAsSets(VoidList const &otherList, VoidDiff diff, void *extra=NULL) const;

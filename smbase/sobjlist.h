@@ -95,6 +95,8 @@ public:
   // equal items in equal positions
   bool equalAsLists(SObjList const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }
+  int compareAsLists(SObjList const &otherList, Diff diff, void *extra=NULL) const
+    { return list.compareAsLists(otherList.list, (VoidDiff)diff, extra); }
 
   // last-as-set: comparisons (NOT efficient)
   bool equalAsSets(SObjList const &otherList, Diff diff, void *extra=NULL) const

@@ -133,6 +133,8 @@ outputCond([[[m4_dnl    // sobjlist
   // equal items in equal positions
   bool equalAsLists(className const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }
+  int compareAsLists(className const &otherList, Diff diff, void *extra=NULL) const
+    { return list.compareAsLists(otherList.list, (VoidDiff)diff, extra); }
 
   // last-as-set: comparisons (NOT efficient)
   bool equalAsSets(className const &otherList, Diff diff, void *extra=NULL) const

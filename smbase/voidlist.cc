@@ -546,16 +546,22 @@ VoidList& VoidList::operator= (VoidList const &src)
 
 bool VoidList::equalAsLists(VoidList const &otherList, VoidDiff diff, void *extra) const
 {
+  return 0==compareAsLists(otherList, diff, extra);
+}
+
+int VoidList::compareAsLists(VoidList const &otherList, VoidDiff diff, void *extra) const
+{
   VoidListIter mine(*this);
   VoidListIter his(otherList);
-  
+
   while (!mine.isDone() && !his.isDone()) {
-    if (0==diff(mine.data(), his.data(), extra)) {
+    int cmp = diff(mine.data(), his.data(), extra);
+    if (cmp == 0) {
       // they are equal; keep going
     }
     else {
-      // unequal
-      return false;
+      // unequal, return which way comparison went
+      return cmp;
     }
 
     mine.adv();
@@ -563,10 +569,11 @@ bool VoidList::equalAsLists(VoidList const &otherList, VoidDiff diff, void *extr
   }
 
   if (!mine.isDone() || !his.isDone()) {
-    return false;     // unequal lengths
+    // unequal lengths: shorter compares as less
+    return mine.isDone()? -1 : +1;
   }
 
-  return true;        // everything matches
+  return 0;        // everything matches
 }
 
 
