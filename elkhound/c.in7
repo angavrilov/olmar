@@ -82,10 +82,11 @@ myLabel: x=y;         // labeled statement
   for (a=0; a<5; a++) { // for
     y=z;
   }
-
-  for (int i=0; i; ) {  // for with decl in initializer slot
-    i=7;
-  }
+  
+  // C++ only
+  //for (int i=0; i; ) {  // for with decl in initializer slot
+  //  i=7;
+  //} 
 
   return 6;             // return with arg
   return;               // return w/o arg

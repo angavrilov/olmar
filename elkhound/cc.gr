@@ -790,7 +790,7 @@ nonterm[ASTList<Enumerator>*] EnumeratorList {
   -> def:EnumeratorDefinition
        [ return new ASTList<Enumerator>(def); ]
   -> list:EnumeratorList "," def:EnumeratorDefinition
-       [ list->append(def); return NULL; ]
+       [ list->append(def); return list; ]
 }
 
 nonterm[ASTList<Enumerator>*] EnumeratorListOpt {
@@ -1176,7 +1176,7 @@ nonterm[ASTList<Declaration>*] MemberDeclarationSeqOpt {
        [ return new ASTList<Declaration>(); ]
 
   -> list:MemberDeclarationSeqOpt decl:MemberDeclaration
-       [ list->append(decl); return NULL; ]
+       [ list->append(decl); return list; ]
 
   //-> AccessSpecifier ":" MemberDeclarationSeqOpt ;
 }

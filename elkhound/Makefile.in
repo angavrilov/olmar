@@ -273,7 +273,7 @@ libccgr.a: ${ccgr-dep} libglr.a
 	ranlib libccgr.a
 
 # stand-alone executable
-ccgr: libccgr.a glrmain.o
+ccgr: libccgr.a glrmain.o $(SMBASE)/libsmbase.a
 NOCAMLINCL	${link} -o ccgr glrmain.o libccgr.a ${linkend}
 NOCAMLINCL	./ccgr cc.bin c.in1
 OCAMLINCL	@echo "we don't build ccgr in ocaml mode"
