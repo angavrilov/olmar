@@ -622,11 +622,12 @@ Type const *Env::promoteTypes(BinaryOp op, Type const *t1, Type const *t2)
 
 
 // --------------------- error/warning reporting ------------------
-void Env::err(char const *str)
+Type const *Env::err(char const *str)
 {
   cout << currentLoc().likeGccToString()
        << ": error: " << str << endl;
   errors++;
+  return fixed(ST_ERROR);
 }
 
 

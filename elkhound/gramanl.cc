@@ -4102,8 +4102,8 @@ void emitUserCode(EmitCode &out, LocString const &code)
 char const *typeString(char const *type, LocString const &tag)
 {
   if (!type) {
-    cout << "Production tag \"" << tag << "\" at "
-         << tag.locString() << " on a symbol with no type.\n";
+    cout << tag.locString() << ": Production tag \"" << tag
+         << " on a symbol with no type.\n";
     return "__error_no_type__";     // will make compiler complain
   }
   else {

@@ -97,8 +97,8 @@ bool runProver(char const *str)
       return true;           // formula is proven
     }
 
-    //printf("unexpected response from Simplify:\n");
-    //printf("%s\n", response);
+    printf("unexpected response from Simplify:\n");
+    printf("%s\n", response);
 
     // go back and read some more; this "triggerless quantifier body"
     // thing is coming up..

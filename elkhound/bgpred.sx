@@ -2,6 +2,10 @@
 ; background predicate for running Simplify
 
 (PROMPT_OFF)
+
+(DEFPRED (inDegree0 mem field obj))
+(DEFPRED (inDegree1 mem field obj referrerObj))
+
 (BG_PUSH (AND
 
   ; ---------------- misc -----------------
@@ -155,30 +159,165 @@
       )
     ))
 
-;   ; ------------ new stuff for structure field modeling ----------
-;   ; structure fields (in the new approach) are modeled like big
-;   ; arrays, indexed by their containing object.  this makes it
-;   ; impossible to model some kinds of scenarios involving pointers
-;   ; into structure interiors, but I don't care about them now
-
-;   ; read the most recent update to a field "array": if the last
-;   ; change was to say that p->field = q, then reading p->field
-;   ; yields q
-;   (FORALL (fieldMap obj value)
-;     (EQ
-;       (selectField (updateField fieldMap obj value) obj)
-;       value
-;     )
-;   )
-
-;   ; read past an update to a different object
-;   (FORALL (fieldMap skipObj skipVal readObj)
+; this section causes Simplify to drop into an infinite loop    
+;   ; -------------------- theory: node in-degree --------------------
+;   ; how the in-degree changes across a memory update
+;   ;   mem0: initial memory configuration
+;   ;   mem1: memory after the update
+;   ;   next: field whose in-degree is being tested
+;   ;   offset: the field written by the update
+;   ;   a: object whose in-degree is of interest
+;   ;   b: object whose 'offset' field was changed
+;   ;   x: object to which b's next field pointed in mem0
+;   ;   y: object to which b's offset field now points, in mem1
+;   ;   n: in-degree of 'a' in mem0
+;   ;   m: in-degree of 'a' in mem1
+;   (FORALL (mem0 mem1 next ofs a b x y n m)
 ;     (IMPLIES
-;       (NEQ skipObj readObj)
-;       (EQ
-;         (selectField (updateField fieldMap skipObj skipVal) readObj)
-;         (selectField fieldMap readObj)
+;       (AND
+;         (EQ (select mem0 b next) x)          ; b->next == x, in mem0
+;         (EQ (inDegree mem0 next a) n)        ; n things point to a, in mem0
+;         (EQ mem1 (update mem0 b ofs y))      ; b->ofs := y (to form mem1)
+;         (EQ (inDegree mem1 next a) m)        ; m things point to a, in mem1
+;       )
+;       (AND
+;         (IMPLIES (NEQ ofs next) (EQ n m))      ; different field?  no change
+;         (IMPLIES (EQ ofs next) (AND            ; same field...
+;           (IMPLIES (NEQ a x) (AND                ; b previously didn't point at a
+;             (IMPLIES (EQ a y) (EQ m (+ n 1)))      ; b now points at a; inDegree++
+;             (IMPLIES (NEQ a y) (EQ m n))           ; b still doesn't point at a; no change
+;           ))
+;           (IMPLIES (EQ a x) (AND                 ; b previously pointed at a
+;             (IMPLIES (EQ a y) (EQ m n))            ; b still points at a; no change
+;             (IMPLIES (NEQ a y) (EQ m (- n 1)))     ; b now points elsewhere; inDegree--
+;           ))
+;         ))
 ;       )
 ;     ))
+
+  ; ==================== new in-degree predicates ================
+  ; --------------------------- inDegree0 ------------------------
+  ; inDegree0: state that a particular node has nothing pointing to
+  ; it, w.r.t. some field
+  ;(DEFPRED (inDegree0 mem field obj))
+  ;  mem: memory state in which this claim is true
+  ;  field: offset of the field in question
+  ;  obj: object whose in-degree is 0
+
+  ; inDegree0-no-point: nothing else points to it; I don't write
+  ; this as IFF because I don't want Simplify to try to use this to
+  ; *prove* inDegree0
+  (FORALL (mem field obj)
+    (IMPLIES
+      (inDegree0 mem field obj)
+      (FORALL (otherObj)
+        (NEQ
+          (select mem otherObj field)
+          obj
+        ))
+    ))
+
+  ; inDegree0-surv-otherObj: survives updates which don't install
+  ; pointers to the object in question
+  (FORALL (mem field obj referrerObj otherObj otherOfs)
+    (IMPLIES
+      (AND
+        (inDegree0 mem field obj)
+        (NEQ otherObj obj)
+      )
+      (inDegree0
+        (update mem referrerObj field (pointer otherObj otherOfs))
+        field obj)
+    ))
+
+  ; inDegree0-surv-otherField: it also survives updates to other fields
+  (FORALL (mem field obj referrerObj otherObj otherOfs otherField)
+    (IMPLIES
+      (AND
+        (inDegree0 mem field obj)
+        (NEQ otherField field)
+      )
+      (inDegree0
+        (update mem referrerObj otherField (pointer otherObj otherOfs))
+        field obj)
+    ))
+
+
+  ; --------------------------- inDegree1 ------------------------
+  ; inDegree1: exactly one thing points to an object, and we give that
+  ; thing a name
+  ;(DEFPRED (inDegree1 mem field obj referrerObj))
+  ;   referrerObj: object whose 'field' field points at 'obj'
+
+  ; one obvious implication: referrerObj->field == obj
+  (FORALL (mem field obj referrerObj)
+    (IMPLIES
+      (inDegree1 mem field obj referrerObj)
+      (EQ
+        (select mem referrerObj field)
+        obj
+      )
+    ))
+
+  ; another implication: nothing besides 'referrerObj' points at it
+  (FORALL (mem field obj referrerObj)
+    (IMPLIES
+      (inDegree1 mem field obj referrerObj)
+      (FORALL (otherObj)
+        (IMPLIES
+          (NEQ otherObj referrerObj)
+          (NEQ
+            (select mem otherObj field)
+            obj
+          )))
+    ))
+
+  ; inDegree1 survives updates that don't mention obj or referrerObj
+  (FORALL (mem field obj referrerObj srcObj destObj destOfs)
+    (IMPLIES
+      (AND
+        (inDegree1 mem field obj referrerObj)
+        (NEQ srcObj referrerObj)
+        (NEQ destObj obj)
+      )
+      (inDegree1
+        (update mem srcObj field (pointer destObj destOfs))
+        field obj referrerObj)
+    ))
+
+  ; and again, survives updates to different fields
+  (FORALL (mem field obj referrerObj srcObj destObj destOfs otherField)
+    (IMPLIES
+      (AND
+        (inDegree1 mem field obj referrerObj)
+        (NEQ field otherField)
+      )
+      (inDegree1
+        (update mem srcObj otherField (pointer destObj destOfs))
+        field obj referrerObj)
+    ))
+
+  ; ---------------- inDegree0 -> inDegree1 --------------------
+  ; how inDegree0 becomes inDegree1
+  ; Q: should I explicitly make the offset 0 here?
+  (FORALL (mem field obj referrerObj)
+    (IMPLIES
+      (inDegree0 mem field obj)                           ; in-degree was 0
+      (inDegree1
+        (update mem referrerObj field (pointer obj 0))    ; referrer changed
+        field obj referrerObj)                            ; so conclude inDegree1
+    ))
+
+  ; ---------------- inDegree1 -> inDegree0 --------------------
+  (FORALL (mem field obj referrerObj otherObj otherOfs)
+    (IMPLIES                                          
+      (AND
+        (inDegree1 mem field obj referrerObj)
+        (NEQ obj otherObj)
+      )
+      (inDegree0
+        (update mem referrerObj field (pointer otherObj otherOfs))
+        field obj)
+    ))
 
 ))

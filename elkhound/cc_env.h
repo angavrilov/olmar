@@ -73,7 +73,7 @@ public:     // funcs
   virtual ~CFGEnv();
 
   // must be defined in child class
-  virtual void err(char const *str)=0;
+  virtual Type const *err(char const *str)=0;
 
   // manipulate a stack of lists of nodes whose 'next' link
   // needs to be set
@@ -237,7 +237,7 @@ public:     // funcs
 
   // ------------------ error/warning reporting -----------------
   // report an error ('str' should *not* have a newline)
-  virtual void err(char const *str);
+  virtual Type const *err(char const *str);    // returns fixed(ST_ERROR)
   void warn(char const *str);
 
   // versions which explicitly specify a location

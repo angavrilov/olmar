@@ -188,7 +188,11 @@ nonterm[Expression*] PrimaryExpression {
        [ return e; ]
 
   -> e:PQVarName
-       [ return new E_variable(e); ]
+       [ return new E_variable(e, NULL /*scope*/); ]
+
+  // qualified variable; a special case of what PQVarName originally covered
+  -> scope:TypeName "::" name:AnyName
+       [ return new E_variable(name, scope); ]
 
   -> e:ThmprvPredicate
        [ return e; ]
@@ -1576,23 +1580,31 @@ nonterm[ASTList<FuncAnnotation>*] FuncAnnotationsOpt {
 }
 
 nonterm[FuncAnnotation*] FuncAnnotation {
-  -> "thmprv_pre" "(" d:DeclListOpt e:Expression ")"
+  -> "thmprv_pre" "(" d:FADeclListOpt e:Expression ")"
        [ return new FA_precondition(d, e); ]
   -> "thmprv_post" "(" e:Expression ")"
        [ return new FA_postcondition(e); ]
 }
 
-nonterm[ASTList<Declaration>*] DeclListOpt {
+nonterm[ASTList<Declaration>*] FADeclListOpt {
   -> empty
        [ return new ASTList<Declaration>(); ]
-  -> list:DeclList
+  -> list:FADeclList
        [ return list; ]
 }
 
-nonterm[ASTList<Declaration>*] DeclList {
-  -> d:SimpleDeclaration
+// syntax "thmprv_bind" is to disambiguate a declaration (which always
+// starts with a TypeName) from a qualified variable expression (which
+// also starts with a TypeName)
+nonterm[ASTList<Declaration>*] FADeclList {
+  // ambiguity will result in a cancelled reduction here when the
+  // parser speculates a leading TypeName is for a qualified variable;
+  // note that no sharing will have been introduced
+  del(list) [ delete list; ]
+
+  -> /*"thmprv_bind"*/ d:SimpleDeclaration
        [ return new ASTList<Declaration>(d); ]
-  -> list:DeclList d:SimpleDeclaration
+  -> list:FADeclList /*"thmprv_bind"*/ d:SimpleDeclaration
        [ list->append(d); return list; ]
 }
 
@@ -1618,8 +1630,8 @@ nonterm[ThmprvAttr*] OneThmprvAttr {
 }
 
 nonterm[Expression*] ThmprvPredicate {
-  -> "thmprv_forall" "(" d:DeclList e:Expression ")"
+  -> "thmprv_forall" "(" d:FADeclList e:Expression ")"
        [ return new E_quantifier(d, e, true /*forall*/); ]
-  -> "thmprv_exists" "(" d:DeclList e:Expression ")"
+  -> "thmprv_exists" "(" d:FADeclList e:Expression ")"
        [ return new E_quantifier(d, e, false /*forall*/); ]
 }

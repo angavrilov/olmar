@@ -1,0 +1,62 @@
+; indegree.sx    -*- Lisp -*-
+; experiments relating to in-degree
+
+; -------------------- inDegree0 -----------------------
+valid "inDegree0-surv-otherObj" (
+  (IMPLIES
+    (AND
+      (DISTINCT obj1 obj2 obj3)
+      (inDegree0 mem0 next obj1)
+      (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
+    )
+    (inDegree0 mem1 next obj1)
+  )
+)
+
+notvalid "inDegree0-surv-otherObj" (
+  (IMPLIES
+    (AND
+      ;(DISTINCT obj1 obj2 obj3)
+      (inDegree0 mem0 next obj1)
+      (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
+    )
+    (inDegree0 mem1 next obj1)
+  )
+)
+
+notvalid "inDegree0-surv-otherObj" (
+  (IMPLIES
+    (AND
+      (DISTINCT obj1 obj2 obj3)
+      (inDegree0 mem0 next obj1)
+      (EQ mem1 (update mem0 obj2 next (pointer obj1 0)))
+    )
+    (inDegree0 mem1 next obj1)
+  )
+)
+
+
+valid "inDegree0-surv-otherField" (
+  (IMPLIES
+    (AND
+      (DISTINCT next next2)
+      (inDegree0 mem0 next obj1)
+      (EQ mem1 (update mem0 obj2 next2 (pointer obj3 0)))
+    )
+    (inDegree0 mem1 next obj1)
+  )
+)
+
+notvalid "inDegree0-surv-otherField" (
+  (IMPLIES
+    (AND
+      ;(DISTINCT next next2)
+      (inDegree0 mem0 next obj1)
+      (EQ mem1 (update mem0 obj2 next2 (pointer obj3 0)))
+    )
+    (inDegree0 mem1 next obj1)
+  )
+)
+
+
+; ------------------ inDegree1 ------------------------

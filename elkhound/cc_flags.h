@@ -58,7 +58,7 @@ enum DeclFlags {
   DF_SOURCEFLAGS = 0x000001FF,    // all flags that come from source declarations
 
   // flags on Variables
-  DF_ENUMVAL     = 0x00000200,    // not really a decl flag, but a Variable flag..
+  DF_ENUMVAL     = 0x00000200,    // true for values in an 'enum'
   DF_GLOBAL      = 0x00000400,    // set for globals, unset for locals
   DF_INITIALIZED = 0x00000800,    // true if has been declared with an initializer (or, for functions, with code)
   DF_BUILTIN     = 0x00001000,    // true for e.g. __builtin_constant_p -- don't emit later
@@ -78,7 +78,11 @@ string toString(DeclFlags df);
 
 
 // ------------------------- SimpleTypeId ----------------------------
-// C's built-in scalar types
+// C's built-in scalar types; the representation deliberately does
+// *not* imply any orthogonality of properties (like long vs signed);
+// separate query functions can determine such properties, or signal
+// when it is meaningless to query a given property of a given type
+// (like whether a floating-point type is unsigned)
 enum SimpleTypeId {
   ST_CHAR,
   ST_UNSIGNED_CHAR,
@@ -172,7 +176,7 @@ enum BinaryOp {
   BIN_AND,       // &&
   BIN_OR,        // ||
 
-  BIN_ASSIGN,    // = (used to denote simple assignmentments in AST)
+  BIN_ASSIGN,    // = (used to denote simple assignments in AST, as opposed to (say) "+=")
 
   // theorem prover extension
   BIN_IMPLIES,   // ==>

@@ -279,6 +279,7 @@ public:     // funcs
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
+  CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
 
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer
@@ -316,6 +317,9 @@ public:     // funcs
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
 };
+
+inline Type const *fixed(SimpleTypeId id)
+  { return &CVAtomicType::fixed[id]; }
 
 
 // "*" vs "&"

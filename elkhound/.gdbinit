@@ -3,10 +3,10 @@
 # needed for Squish
 #set width 0
 
-#file ccgr
+file ccgr
 #set args cc.bin c.in1
 
-#set args -tr predicates cc.bin vcgen/struct.c
+set args cc.bin vcgen/struct.c
 
 #set args -tr factflow cc.bin vcgen/find2.c
 
@@ -21,10 +21,10 @@
 #  run
 
 #file gramanl
-#set args -tr parse
+#set args -tr parse cc
  
-file cexp3b
-set args -tr refct,sval cexp3b.bin cexp3.in1
+#file cexp3b
+#set args -tr refct,sval cexp3b.bin cexp3.in1
 
 #file ccgr
 #set args -tr trivialActions,stopAfterParse cc.bin c.in1

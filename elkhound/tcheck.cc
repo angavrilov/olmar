@@ -12,12 +12,6 @@
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
 
-Type const *fixed(SimpleTypeId id)
-{
-  return &CVAtomicType::fixed[id];
-}
-
-
 void checkBoolean(Env &env, Type const *t, Expression const *e)
 {
   // if a reference type is being used as an atomic, unwrap the reference
@@ -1039,10 +1033,38 @@ Type const *makeReference(Env &env, Type const *type)
 
 Type const *E_variable::itcheck(Env &env)
 {
-  Variable *v = env.getVariable(name);
-  if (!v) {
-    env.err(stringc << "undeclared variable: " << name);
-    return fixed(ST_ERROR);
+  Variable *v;       // will point to the binding introduction
+
+  if (scopeName) {
+    // look up the scope qualifier; should be a typedef name (since in C++
+    // all class and struct tags are automatically typedef names too)
+    Type const *scopeType = env.getTypedef(scopeName);
+    if (!scopeType) {
+      return env.err(stringc << "unknown type in qualifier: " << scopeName);
+    }
+
+    // the type should be a struct (an enum would be conceivable, but
+    // redundant..)
+    CompoundType const *ct = scopeType->ifCompoundType();
+    if (!ct || (ct->keyword == CompoundType::K_UNION)) {
+      return env.err(stringc << "qualifier must be struct or class, in " 
+                             << toString());
+    }
+
+    // look up the field the user asked for
+    CompoundType::Field const *f = ct->getNamedField(name);
+    if (!f) {
+      return env.err(stringc << "unknown field: " << toString());
+    }
+    v = f->decl;
+    xassert(v);    // I think this should be non-null by now
+  }
+
+  else {           // no scope qualifier
+    v = env.getVariable(name);
+    if (!v) {
+      return env.err(stringc << "undeclared variable: " << name);
+    }
   }
 
   // connect this name reference to its binding introduction
@@ -1057,9 +1079,15 @@ Type const *E_variable::itcheck(Env &env)
   // it is referenced
   if (v->hasFlag(DF_GLOBAL) || v->hasFlag(DF_FIELD)) {
     TF_func *f = env.getCurrentFunction();
-    if (f) {                          // might not be in a function 
+    if (f) {                          // might not be in a function
       f->globalRefs.appendUnique(v);    // append if not already present
     }
+  }
+
+  // if it's a field, then we're actually talking about its offset
+  // (as long as we don't have static fields..)
+  if (v->hasFlag(DF_FIELD)) {
+    return fixed(ST_INT);
   }
 
   // see makeReference's definition above
@@ -1502,8 +1530,16 @@ string E_charLit::toString() const
   { return stringc << "'" << c << "'"; }
 //string E_structLit::toString() const
 //  { return stringc << "(..some type..){ ... }"; }
+
 string E_variable::toString() const
-  { return stringc << name; }
+{
+  if (!scopeName) {
+    return stringc << name;
+  }
+  else {
+    return stringc << scopeName << "::" << name;
+  }
+}
 
 string E_funCall::toString() const
 {

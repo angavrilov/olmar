@@ -28,7 +28,7 @@ class Variable {
 public:    // data
   SourceLocation loc;     // location of the name (declaration) in the source text
   StringRef name;         // name introduced
-  Type const *type;       // associated type
+  Type const *type;       // type of the variable
   DeclFlags flags;        // various flags
 
 public:    // funcs

@@ -38,8 +38,8 @@ STATICDEF string XASTParse::
   constructMsg(LocString const &tok, char const *msg)
 {
   if (tok.validLoc()) {
-    return stringc << "near " << tok
-                   << ", at " << tok.toString() << ": " << msg;
+    return stringc << tok.toString() << ": near " << tok
+                   << ", " << msg;
   }
   else {
     return stringc << "(?loc): " << msg;

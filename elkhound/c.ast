@@ -417,8 +417,11 @@ class Expression {
   -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
   -> E_charLit(char c);
   //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
-
-  -> E_variable(StringRef name) {
+                                               
+  // variable reference; scopeName can be NULL, or the name of a type
+  // of which 'name' is a member; at some point 'scopeName' will need to
+  // be extended to permit nested qualifiers
+  -> E_variable(StringRef name, StringRef scopeName) {
        public Variable *var;      // (serf) binding introduction of this name
        ctor var=NULL;
      }

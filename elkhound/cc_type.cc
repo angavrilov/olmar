@@ -617,13 +617,19 @@ bool Type::isIntegerType() const
 
 bool Type::isCompoundTypeOf(CompoundType::Keyword keyword) const
 {
+  CompoundType const *ct = ifCompoundType();
+  return ct && ct->keyword == keyword;
+}
+
+CompoundType const *Type::ifCompoundType() const
+{
   if (isCVAtomicType()) {
     AtomicType const *at = asCVAtomicTypeC().atomic;
     if (at->isCompoundType()) {
-      return at->asCompoundTypeC().keyword == keyword;
+      return &( at->asCompoundTypeC() );
     }
   }
-  return false;
+  return NULL;
 }
 
 bool Type::isPointer() const

@@ -336,6 +336,20 @@ void AEnv::assumeNoFieldPointsTo(AbsValue *v)
         v,
         avSelect(getMem(), objVar, ofsVar)
       )));
+                                            
+  // need one more due to Simplify name capture bug
+  AVvar *ofsVar2 = freshVariable("ofs",
+    "introduced for quantifying over inDegree offsets in assumeNoFieldPointsTo()");
+
+  // state that the inDegree is 0
+  // (FORALL (ofs)
+  //   (EQ 0 (inDegree <current memory> ofs <v>)))
+  pathFacts->append(
+    P_forall(new ASTList<AVvar>(ofsVar2),
+      P_equal(
+        new AVint(0),
+        avInDegree(getMem(), ofsVar2, v)
+      )));
 }
 
 

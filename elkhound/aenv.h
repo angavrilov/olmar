@@ -238,6 +238,9 @@ public:      // funcs
   AbsValue *avGetElt(AbsValue *fieldIndex, AbsValue *obj)
     { return avFunc2("getElt", fieldIndex, obj); }
 
+  AbsValue *avInDegree(AbsValue *mem, AbsValue *ofs, AbsValue *obj)
+    { return avFunc3("inDegree", mem, ofs, obj); }
+
   AbsValue *avFunc1(char const *func, AbsValue *v1);
   AbsValue *avFunc2(char const *func, AbsValue *v1, AbsValue *v2);
   AbsValue *avFunc3(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3);
