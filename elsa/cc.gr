@@ -1326,7 +1326,7 @@ nonterm(Declarator*) InitDeclarator {
 }
 
 nonterm(Initializer*) Initializer {
-  -> "=" i:InitializerClause
+  -> "=" i:SimpleInitializerClause
        { return i; }
 
   -> "(" args:ExpressionList ")"
