@@ -974,7 +974,9 @@ GrammarAnalysis::GrammarAnalysis()
     cyclic(false),
     symOfInterest(NULL),
     errors(0),
-    tables(NULL)
+    tables(NULL),
+    firstWithTerminal(NULL),
+    firstWithNonterminal(NULL)
 {}
 
 
@@ -1005,6 +1007,13 @@ GrammarAnalysis::~GrammarAnalysis()
   
   if (tables) {
     delete tables;
+  }
+  
+  if (firstWithTerminal) {
+    delete[] firstWithTerminal;
+  }
+  if (firstWithNonterminal) {
+    delete[] firstWithNonterminal;
   }
 }
 
@@ -2962,6 +2971,87 @@ bool isAmbiguousNonterminal(Symbol const *sym)
   return false;
 }
 
+  
+// The purpose of this function is to number the states (which have up
+// to this point been numbered arbitrarily) in such a way that all
+// states that have a given symbol on incoming arcs will be numbered
+// consecutively.  This is part of the table compression schemes
+// described in the Dencker et. al. paper (see parsetables.h).
+void GrammarAnalysis::renumberStates()
+{
+  // this function should not have already been called (it's not really
+  // a problem if it has been, but I don't expect it)
+  xassert(!firstWithTerminal && !firstWithNonterminal);
+  
+  // allocate the maps
+  firstWithTerminal = new ItemSet* [numTerms];
+  memset(firstWithTerminal, 0, sizeof(ItemSet*) * numTerms);
+  firstWithNonterminal = new ItemSet* [numNonterms];
+  memset(firstWithNonterminal, 0, sizeof(ItemSet*) * numNonterms);
+
+  int numStates = itemSets.count();
+
+  // old state code -> new state code
+  Array<StateId> newCode(numStates);
+  newCode.setAll(STATE_INVALID, numStates);  // all are unassigned initially
+
+  // assume that state 0 is the start state; and it will keep its code
+  // (it's the unique state that has no incoming arcs)
+  xassert(startState->id == 0);              // if this isn't true, this code can be fixed to accomodate
+  newCode[0] = startState->id;
+
+  // will assign codes sequentially from here on out
+  int nextCode = 1;
+
+  // assign new codes to all states
+  assignStateCodes(true /*terminals*/, newCode, nextCode);
+  assignStateCodes(false /*terminals*/, newCode, nextCode);
+
+  xassert(nextCode == numStates);
+
+  // renumber the states
+  FOREACH_OBJLIST_NC(ItemSet, itemSets, iter) {
+    ItemSet *set = iter.data();
+    StateId nc = newCode[set->id];
+    xassert(nc != STATE_INVALID);       // verify this code got assigned
+    set->id = nc;
+  }
+}
+
+void GrammarAnalysis::assignStateCodes
+  (bool terminals, StateId *newCode, int &nextCode)
+{
+  // this algorithm takes time O(n*m) where n is # of states and m is
+  // # of symbols, which is the same time complexity as simply
+  // scanning all entries of the parse tables
+
+  int limit = terminals? numTerms : numNonterms;
+  ItemSet **firstWith = terminals? firstWithTerminal : firstWithNonterminal;
+
+  for (int t=0; t<limit; t++) {
+    bool first = true;
+    FOREACH_OBJLIST_NC(ItemSet, itemSets, iter) {
+      Symbol const *s = iter.data()->getStateSymbolC();
+      if (!s) {
+        xassert(iter.data() == startState);
+        continue;
+      }
+
+      if ((terminals? s->isTerminal() : s->isNonterminal()) &&
+          s->getTermOrNontermIndex() == t) {
+        int oldId = iter.data()->id;
+        xassert(newCode[oldId] == STATE_INVALID);
+        newCode[oldId] = (StateId)(nextCode++);
+
+        if (first) {
+          firstWith[t] = iter.data();
+        }
+        first = false;
+      }
+    }
+  }
+}
+
 
 void GrammarAnalysis::computeParseTables(bool allowAmbig)
 {
@@ -3751,6 +3841,9 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   // LR stuff
   traceProgress(1) << "LR item sets...\n";
   constructLRItemSets();
+
+  //traceProgress(1) << "state renumbering...\n";
+  renumberStates();
 
   traceProgress(1) << "parse tables...\n";
   computeParseTables(!tracingSys("deterministic"));

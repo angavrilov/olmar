@@ -416,6 +416,12 @@ public:	    // data
   // parse tables
   ParseTables *tables;                  // (owner)
 
+  // map from symbol to the state of the first state (in id order)
+  // that has that symbol on its incoming arcs; this is set by
+  // renumberStates(); it's NULL until then
+  ItemSet **firstWithTerminal;          // (owner) termIndex -> State
+  ItemSet **firstWithNonterminal;       // (owner) ntIndex -> State
+
 private:    // funcs
   // ---- analyis init ----
   // call this after grammar is completely built
@@ -493,6 +499,9 @@ private:    // funcs
     bool &printedConflictHeader, // (inout) true once we've printed the state header
     int &sr, int &rr);           // (inout) counts of S/R and R/R conflicts, resp.
   void computeParseTables(bool allowAmbig);
+
+  void renumberStates();
+  void assignStateCodes(bool terminals, StateId *newCode, int &nextCode);
 
   void computeBFSTree();
 

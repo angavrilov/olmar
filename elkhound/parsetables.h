@@ -154,6 +154,9 @@ public:     // data
   //    http://citeseer.nj.nec.com/context/27540/0 (not in database)
   //    ~/doc/papers/p546-dencker.pdf (from ACM DL)
 
+  // Code Reduction Scheme (CRS):
+  // See gramanl.cc, GrammarAnalysis::renumberStates().
+
   // Error Entry Factoring (EEF):
   //
   // Factor out all the error entries into their own bitmap.  Then
