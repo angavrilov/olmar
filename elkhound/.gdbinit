@@ -1,9 +1,9 @@
 # .gdbinit
 
 file ccgr
-set args cc.gr qpmouse.i
+set args cc.gr c.in3
 
 break main
-#break breaker
+break breaker
 run
 

@@ -2,7 +2,6 @@
 // code for glrtree.h
 
 #include "glrtree.h"     // this module
-#include "ckheap.h"      // checkHeap
 
 
 // convenient indented output
@@ -32,6 +31,11 @@ TreeNode::~TreeNode()
 {
   numTreeNodesAllocd--;
 }
+
+
+// the base class doesn't actually have such a pointer
+void TreeNode::killParentLink()
+{}
 
 
 TerminalNode const &TreeNode::asTermC() const
@@ -187,33 +191,12 @@ NonterminalNode::NonterminalNode(Reduction *red)
 }
 
 
-bool paranoid=false;
-
 NonterminalNode::~NonterminalNode()
 {
-  if (paranoid) {
-    checkHeap();
-  }
-  
-  //selfCheck(true /*selfOnly*/);        // DEBUG
-
-  if (paranoid) {
-    checkHeap();
-  }
-  
   // kill reductions one at a time so I can find a bug ...
   while (reductions.isNotEmpty()) {
-    if (paranoid) {
-      checkHeap();
-    }
     Reduction *r = reductions.removeAt(0);
-    if (paranoid) {
-      checkHeap();
-    }
     delete r;
-    if (paranoid) {
-      checkHeap();
-    }
   }
 }
 

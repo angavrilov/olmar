@@ -376,7 +376,7 @@ void emitSemFunImplFile(char const *fname, char const *headerFname,
      << "// NOTE: automatically generated file -- editing inadvisable\n"
      << "\n"
      << "#include \"" << headerFname << "\"   // user's declarations\n"
-     << "#include \"ckheap.h\"          // checkHeap\n"
+     //<< "#include \"ckheap.h\"          // checkHeap\n"
      << "\n"
      << "\n"
      ;

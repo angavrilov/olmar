@@ -72,10 +72,35 @@ Env::Env(Env *p)
 
 Env::~Env()
 {
-  // this was a huge bug: again accessing parent, when I
-  // don't maintain the invariant of parent being alive ..
+  killParentLink();
+  
+  // explicitly free things .. this isn't necessary except that
+  // some of them have Environments internally, and that makes
+  // my refct nonzero if I don't free them now
+  compounds.empty();
+  enums.empty();
+  typedefs.empty();
+  variables.empty();
+  intermediates.deleteAll();
+  errors.deleteAll();
 
-  if (false /*parent*/) {
+  if (referenceCt != 0) {
+    // print a message so I know what the reference count was even if
+    // I'm not in the debugger
+    cout << "ABOUT TO FAIL: destroying Env at " << this << " with refct="
+         << referenceCt << endl;
+  }
+
+  // not fixing this led to a very long search for a memory corruption
+  // bug; I thought letting 'parent' pointers to me dangle wouldn't
+  // cause a problem, but that was very wrong ..
+  xassert(referenceCt == 0);
+}
+
+
+void Env::killParentLink()
+{
+  if (parent) {
     // if we're carrying any errors, deliver them to the
     // containing environment
     parent->errors.concat(errors);
@@ -84,31 +109,16 @@ Env::~Env()
     parent->referenceCt--;
     trace("refct") << "destroying Env at " << this << "; parent is "
                    << parent << " with new refct=" << parent->referenceCt << endl;
+                   
+    // parent link is now gone; this is the only line that's allowed
+    // to reassign 'parent', so I leave it declared const and just
+    // cast it here
+    const_cast<Env*&>(parent) = NULL; 
   }
   else {
     // may as well print errors
-    //flushLocalErrors(cout);      // TODO
+    flushLocalErrors(cout);
   }
-
-  if (referenceCt != 0) {
-    // it turns out this happens, because I throw away trees by deleting
-    // nodes on a list, and that list might be in any order.. so as yet
-    // I'm undecided about whether to try to fix it
-    trace("refct") << "warning: destroying Env at " << this << " with refct="
-                   << referenceCt << endl;
-  }
-  
-  // debugging ...
-  #if 0
-  checkHeap();
-  compounds.empty();
-  enums.empty();
-  typedefs.empty();
-  variables.empty();
-  intermediates.deleteAll();
-  errors.deleteAll();
-  checkHeap();
-  #endif // 0
 }
 
 

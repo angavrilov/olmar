@@ -102,6 +102,12 @@ public:     // funcs
   Env(Env *parent);        // nested environment
   ~Env();
 
+  // close this environment's link with its parent; this must
+  // intended to be done before either is deallocated (it is
+  // automatically done in ~Env, but sometimes we need to
+  // deallocate the parent before the child)
+  void killParentLink();
+
   // given an AtomicType, wrap it in a CVAtomicType
   // with no const or volatile qualifiers
   CVAtomicType *makeType(AtomicType const *atomic);

@@ -17,10 +17,6 @@ literalCode "prologue" {
   #include "cc_tree.h"   // CCTreeNode
   #include "cc_cfg.h"    // CFG, etc.
   #include "dataflow.h"  // DataflowEnv
-  #include "ckheap.h"    // checkHeap
-  
-  // hack..
-  extern bool paranoid;
 }
 treeNodeBase "CCTreeNode";
 
@@ -145,12 +141,6 @@ nonterm TranslationUnit : Checkable {
     // run the analysis on this piece of the tree
     typeCheck(env);
 
-    bool goSlow = (getLeftmostTerminalC()->token->loc.line == -2 /*666*/);
-    if (goSlow) {
-      breaker();     // line where I'm having problems ..
-      checkHeap();
-    }
-
     // this is, more or less, the product of the analysis
     printTree();
 
@@ -192,38 +182,17 @@ nonterm TranslationUnit : Checkable {
     this->reductions.prepend(leftReduction);
     leftNT->reductions.prepend(red);
 
-    // more debugging .... let's see if the selfCheck holds
-    // on all the nodes before I go delete any of them
-    #if 0
-    FOREACH_OBJLIST(TreeNode, tree.treeNodes, iter) {
-      iter.data()->selfCheck(true);        // DEBUG
-    }    
-    #endif // 0
-
-    #if 0
     // blow away all the other tree nodes; this deletes everything
     // except 'this' and its newly-acquired 'leftReduction'
-    if (goSlow) {
-      cout << "going slowly!\n";
-      paranoid = true;
-      checkHeap();
-      //tree.treeNodes.deleteAll();
-      while (tree.treeNodes.isNotEmpty()) {
-        TreeNode *tn = tree.treeNodes.removeAt(0);
-        cout << "deleting tree node " << tn
-             //<< " at " << tn->locString()       // this refers to children too!
-             << ": " << tn->getSymbolC()->name
-             << endl;
-        checkHeap();
-        delete tn;
-        checkHeap();
-      }
-      checkHeap();
+
+    // we must kill the parent links first (this is, in essence
+    // the *big* *fix* to my earlier corruption errors)
+    MUTATE_EACH_OBJLIST(TreeNode, tree.treeNodes, iter) {
+      iter.data()->killParentLink();
     }
-    else {
-      tree.treeNodes.deleteAll();
-    }    
-    #endif // 0
+
+    // now do the real deallocations
+    tree.treeNodes.deleteAll();
   }
 }
 
@@ -1215,6 +1184,14 @@ nonterm ExpressionStatement : Checkable, HasCFG {
 // base class for nodes that establish a new scope
 nonterm ScopeNode {
   datadecl Owner<Env> localEnv;
+
+  // this overrides a virtual method in CCTreeNode  
+  fundecl void killParentLink();
+  fun killParentLink {
+    if (localEnv) {
+      localEnv->killParentLink();
+    }
+  }
 }
 
 nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
@@ -2472,9 +2449,6 @@ int fakemain(int argc, char *argv[])
   // but who cares)
   while (traceProcessArg(argc, argv))
     {}
-
-  // is heap valid now?
-  checkHeap();
 
   try {
     // this program's exception-handling structure is mature

@@ -48,6 +48,11 @@ public:     // funcs
   virtual ~TreeNode();
   TRASHINGDELETE
 
+  // essentially a "prepare to delete" function .. there's some
+  // conceptual inelegance having this here, but let's go with
+  // it for the moment
+  virtual void killParentLink();
+
   // returns the representative symbol (terminal or nonterminal)
   virtual Symbol const *getSymbolC() const = 0;
 
