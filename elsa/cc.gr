@@ -160,7 +160,7 @@ terminals {
   precedence {
     // high precedence
     prec L2_PREFER_REDUCE;
-    prec "const" "volatile" "owner" "__attribute__" "else";
+    prec "const" "volatile" "owner" "__attribute__" "else" "[";
 
     right ".*" "->*";
     left "*" "/" "%";
@@ -1664,10 +1664,23 @@ nonterm[OperatorName*] OperatorFunctionId {
 // this nonterm is only used in the OperatorFunctionId context,
 // so go ahead and have it return a full OperatorName
 nonterm[OperatorName*] Operator {
-  -> "new"             [ return new ON_newDel(true /*isNew*/, false /*isArray*/); ]
-  -> "delete"          [ return new ON_newDel(false, false); ]
-  -> "new" "[" "]"     [ return new ON_newDel(true, true); ]
-  -> "delete" "[" "]"  [ return new ON_newDel(false, true); ]
+  // ambiguity:
+  //   void operator delete [] () ;
+  // could be operator "delete[]", or
+  // it could be an array of operator "delete"
+  //
+  // to resolve this I'll specify that the parser should always
+  // prefer to shift when it has seen "new" or "delete" and the
+  // lookahead token is "["
+
+  -> "new"                    precedence(L2_PREFER_SHIFT)
+       [ return new ON_newDel(true /*isNew*/, false /*isArray*/); ]
+  -> "delete"                 precedence(L2_PREFER_SHIFT)
+       [ return new ON_newDel(false, false); ]
+  -> "new" "[" "]"
+       [ return new ON_newDel(true, true); ]
+  -> "delete" "[" "]"
+       [ return new ON_newDel(false, true); ]
 
   -> "*"  [ return new ON_binary(BIN_MULT); ]
   -> "/"  [ return new ON_binary(BIN_DIV); ]
