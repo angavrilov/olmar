@@ -9,7 +9,7 @@
 # syntax should be isolated and added to this file.
 #
 # The basic procedure for adding tests is to find the section that has
-# tests for the language (C++, C, GNU extensions, etc.) the test uses, 
+# tests for the language (C++, C, GNU extensions, etc.) the test uses,
 # and append a line of the form
 #
 #   testparse foo.cc
@@ -856,11 +856,18 @@ testparse d0121.cc
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
 
-# testparse k0001.cc
-# testparse k0002.cc
-# testparse k0003.cc
-# testparse k0004.cc
-# testparse k0005.cc
+testparse k0001.cc
+testparse k0002.cc
+testparse k0003.cc
+testparse k0004.cc
+testparse k0005.cc
+testparse k0006.cc
+testparse k0007.cc
+testparse k0008.cc
+testparse k0009.cc
+testparse k0010.cc
+testparse k0011.cc
+testparse k0012.cc
 
 # ---- END: lots of tests ----
 
@@ -948,6 +955,8 @@ if $use_gnu; then
   for fn in in/c99/*.c; do
     runTest ./ccparse -tr c_lang,$TR_FLAGS "$fn"
   done
+
+  testparse gnu/k0001.cc
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
@@ -1048,6 +1057,10 @@ testCparse c/dC0017.c
 testCparse gnu/d0122.c
 testCparse c/d0124b.c
 
+testCparse c/k0001.c
+testCparse c/k0002.c
+testCparse c/k0003.c
+testCparse c/k0011.c
 
 # is K&R built?
 use_kandr=false
