@@ -209,7 +209,8 @@ class TypeSpecifier {
 
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
-  pure_virtual Type const *tcheck(Env &env);
+  public Type const *tcheck(Env &env);
+  pure_virtual Type const *itcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
 
