@@ -22,7 +22,7 @@ ccflags += -Wno-deprecated
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2 -DNDEBUG
+ccflags += -O2 -DNDEBUG
 
 compile := g++ -c $(ccflags) $(includes)
 link    := g++ $(ccflags) $(includes)
