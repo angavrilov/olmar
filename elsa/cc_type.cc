@@ -896,6 +896,7 @@ string PointerType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;
   s << atType->leftString();
+  s << "(";
   s << (op==PO_POINTER? " *" : " &");
   s << cvToString(cv);
   return s;
@@ -903,7 +904,10 @@ string PointerType::leftString(bool /*innerParen*/) const
 
 string PointerType::rightString(bool /*innerParen*/) const
 {
-  return atType->rightString();
+  stringBuilder s;
+  s << ")";
+  s << atType->rightString();
+  return s;
 }
 
 
