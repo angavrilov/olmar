@@ -4,6 +4,9 @@
 #include "variable.h"      // this module
 #include "cc_type.h"       // Type
 
+#if CC_QUAL
+SObjList<Variable> Variable::instances;
+#endif
 
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlags f)
@@ -16,6 +19,9 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
     scope(NULL)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
+#if CC_QUAL
+  instances.append(this);
+#endif
 }
 
 Variable::~Variable()

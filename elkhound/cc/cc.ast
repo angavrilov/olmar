@@ -250,7 +250,8 @@ verbatim {
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(PQName name, SourceLocation loc) {
   public Qualifiers *q;
-  ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
+//    ctor { q = new Qualifiers((name?name->getName():"__null_TypeSpecifier"), loc); };
+  ctor { q = new Qualifiers("__anonymous_TypeSpecifier", loc); };
   public enum CVFlags cv; ctor { cv=CV_NONE; };
 
   public void printExtras(ostream &os, int indent) const;
@@ -501,7 +502,8 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
                IDeclarator base)
   {
      public Qualifiers *q;
-     ctor { q = new Qualifiers((name?name->getName():"__null_pointer"), loc, ql); };
+//       ctor { q = new Qualifiers((name?name->getName():"__null_pointer"), loc, ql); };
+     ctor { q = new Qualifiers("__anonymous_pointer", loc, ql); };
   }
 
   // "f(int)"
@@ -512,7 +514,8 @@ class IDeclarator(PQName /*nullable*/ name, SourceLocation loc) {
             ExceptionSpec /*nullable*/ exnSpec)     // throwable exceptions
   {
      public Qualifiers *q;
-     ctor { q = new Qualifiers((name?name->getName():"__null_function"), loc, ql); };
+//       ctor {q = new Qualifiers((name?name->getName():"__null_function"), loc, ql);};
+     ctor {q = new Qualifiers("__anonymous_function", loc, ql);};
   }
 
   // "a[5]" or "b[]"

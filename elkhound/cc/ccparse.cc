@@ -170,17 +170,28 @@ void doit(int argc, char **argv)
   }
 
   // dsw: cc_qual
+#ifdef CC_QUAL
   if (tracingSys("cc_qual")) {
     xassert(cc_qual_flag);       // should have been set above
     traceProgress() << "dsw cc_qual...\n";
     // done above
     //        init_cc_qual("cc_qual/cqual/config/lattice");
     QualEnv env;
+    // insert the names into all the Qualifiers objects
+    printf("**************** insert the names into all the Qualifiers objects\n");
+    SFOREACH_OBJLIST_NC(Variable, Variable::instances, variable_iter) {
+      nameSubtypeQualifiers(variable_iter.data());
+    }
+    printf("**************** Qualifiers::insertInstancesIntoGraph()\n");
     Qualifiers::insertInstancesIntoGraph();
+    printf("**************** unit->qual(env)\n");
     unit->qual(env);
+    printf("**************** finish_cc_qual()\n");
     finish_cc_qual();
+    printf("**************** qual done\n");
     traceProgress() << "dsw cc_qual... done\n";
   }
+#endif
 
   // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
