@@ -926,6 +926,7 @@ failparse k0050.cc "definition of a function without 'const' on a basic type"
 failparse k0051.cc "defining static-member array without array size"
 failparse k0052.cc "operator& returning other pointer type"
 failparse k0053.cc "calling a function with a pointer to an undefined template class"
+failparse k0054.cc "constructor member initialization without namespace qualifier"
 
 ### </quarl-testcases-c++>
 
