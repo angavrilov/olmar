@@ -702,11 +702,17 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
+  // this is actually a no-op since there can't be any edges for
+  // a new scope, but I do it for uniformity
+  newScope->openedScope(*this);
+
   return newScope;
 }
 
 void Env::exitScope(Scope *s)
 {
+  s->closedScope();
+
   trace("env") << locStr() << ": exited " << toString(s->scopeKind) << " scope\n";
   Scope *f = scopes.removeFirst();
   xassert(s == f);
@@ -727,10 +733,14 @@ void Env::extendScope(Scope *s)
   Scope *prevScope = scope();
   scopes.prepend(s);
   s->curLoc = prevScope->curLoc;
+
+  s->openedScope(*this);
 }
 
 void Env::retractScope(Scope *s)
 {
+  s->closedScope();
+
   if (s->curCompound) {
     trace("env") << locStr() << ": retracting scope "
                  << s->curCompound->keywordAndName() << "\n";
@@ -862,22 +872,24 @@ CompoundType *Env::enclosingClassScope()
 }
 
 
-bool Env::currentScopeEncloses(Scope *s)
+bool Env::currentScopeEncloses(Scope const *s)
 {
-  // in all situations where this is relevant, 's' has named parent
-  // scopes (since we found it by qualified lookup), so just walk
-  // the tree
+  return scope()->encloses(s);
+}
 
-  Scope *cur = scope();
-  if (cur->isGlobalScope()) {
-    cur = NULL;     // null 'parentScope' means its in global
+
+Scope *Env::findEnclosingScope(Scope *target)
+{
+  // walk up stack of scopes, looking for first one that
+  // encloses 'target'
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    if (iter.data()->encloses(target)) {
+      return iter.data();
+    }
   }
 
-  while (s && s!=cur) {
-    s = s->parentScope;
-  }
-
-  return s == cur;
+  xfailure("findEnclosingScope: no scope encloses target!");
+  return NULL;
 }
 
 

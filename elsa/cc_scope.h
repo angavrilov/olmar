@@ -10,6 +10,7 @@
 #include "srcloc.h"       // SourceLoc
 #include "strtable.h"     // StringRef
 #include "sobjlist.h"     // SObjList
+#include "array.h"        // ArrayStack
 
 class Env;                // cc_env.h
 class Variable;           // variable.h
@@ -48,8 +49,24 @@ inline LookupFlags operator~ (LookupFlags f)
 // information about a single scope: the names defined in it,
 // any "current" things being built (class, function, etc.)
 class Scope {
+private:     // types
+  // for recording information about "active using" edges that
+  // need to be cancelled at scope exit
+  class ActiveEdgeRecord {
+  public:
+    Scope *source, *target;     // edge exists from source to target
+    
+  public:
+    ActiveEdgeRecord()
+      : source(NULL), target(NULL) {}
+    ActiveEdgeRecord(Scope *s, Scope *t)
+      : source(s), target(t) {}
+      
+    ActiveEdgeRecord& operator= (ActiveEdgeRecord const &obj)
+      { source=obj.source; target=obj.target; return *this; }
+  };
+
 private:     // data
-  // ----------------- name spaces --------------------
   // variables: name -> Variable
   // note: this includes typedefs (DF_TYPEDEF is set), and it also
   // includes enumerators (DF_ENUMERATOR is set)
@@ -87,6 +104,24 @@ public:      // data
   // if this is a namespace, this points to the variable used to
   // find the namespace during lookups
   Variable *namespaceVar;
+
+  // --------------- for using-directives ----------------
+  // possible optim:  For most scopes, these three arrays waste 12
+  // words of storage.  I could collect them into a separate structure
+  // and just keep a pointer here, making it non-NULL only when
+  // something gets put into an array.
+
+  // set of "using" edges; these affect lookups transitively when
+  // other scopes have active edges to this one
+  ArrayStack<Scope*> usingEdges;
+
+  // set of "active using" edges; these directly influence lookups
+  // in this scope
+  ArrayStack<Scope*> activeUsingEdges;
+  
+  // set of "active using" edges in other scopes that need to be
+  // retracted once this scope exits
+  ArrayStack<ActiveEdgeRecord> outstandingActiveEdges;
 
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
@@ -172,12 +207,33 @@ public:      // funcs
 
   // if this scope has a name, return the typedef variable that
   // names it; otherwise, return NULL
-  Variable *getTypedefName();
+  Variable const *getTypedefNameC() const;
+  Variable *getTypedefName() { return const_cast<Variable*>(getTypedefNameC()); }
+  bool hasName() const { return scopeKind==SK_CLASS || scopeKind==SK_NAMESPACE; }
+
+  // true if this scope encloses (has as a nested scope) 's'
+  bool encloses(Scope const *s) const;
+
+  // stuff for using-directives
+  void addUsingEdge(Scope *target);
+  void addActiveUsingEdge(Scope *target);
+  void removeActiveUsingEdge(Scope *target);
+  void scheduleActiveUsingEdge(Env &env, Scope *target);
+  Variable const *searchUsingEdges
+    (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const;
+                                  
+  // indication of scope open/close so we can maintain the
+  // connection between "using" and "active using" edges
+  void openedScope(Env &env);
+  void closedScope();
 
   // dsw: needed this and this was a natural place to put it
   bool immediateGlobalScopeChild();
   bool linkerVisible();
   string fullyQualifiedName();
+  
+  // for debugging, a quick description of this scope
+  string desc() const;
 };
 
 

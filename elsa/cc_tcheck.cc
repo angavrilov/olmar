@@ -5705,7 +5705,28 @@ void ND_usingDecl::tcheck(Env &env)
 
 void ND_usingDir::tcheck(Env &env)
 {
-  // TODO
+  // find the namespace we're talking about
+  Variable *targetVar = env.lookupPQVariable(name, LF_ONLY_NAMESPACES);
+  if (!targetVar) {
+    env.error(stringc
+      << "could not find namespace `" << *name << "'");
+    return;
+  }
+  xassert(targetVar->isNamespace());   // meaning of LF_ONLY_NAMESPACES
+  Scope *target = targetVar->scope;
+  
+  // to implement transitivity of 'using namespace', add a "using"
+  // edge from the current scope to the target scope, if the current
+  // one has a name (and thus could be the target of another 'using
+  // namespace')
+  Scope *cur = env.scope();
+  if (cur->hasName()) {
+    cur->addUsingEdge(target);
+  }
+
+  // add an "active using" edge from somewhere to 'target', and
+  // arrange for it to go away when 'cur' does
+  cur->scheduleActiveUsingEdge(env, target);
 }
 
 

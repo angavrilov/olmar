@@ -222,7 +222,11 @@ public:      // funcs
     { return !!enclosingKindScope(SK_TEMPLATE); }
 
   // true if the current scope contains 's' as a nested scope
-  bool currentScopeEncloses(Scope *s);
+  bool currentScopeEncloses(Scope const *s);
+  
+  // return the innermost scope that contains both the current
+  // scope and 'target'
+  Scope *findEnclosingScope(Scope *target);
 
   // source location tracking
   void setLoc(SourceLoc loc);                // sets scope()->curLoc

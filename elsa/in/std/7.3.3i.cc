@@ -4,7 +4,7 @@
 int dummy();             // line 4
 void ddummy() { __testOverload(dummy(), 4); }
 
-asm("collectLookupResults __testOverload 1:1 dummy 4:5 f 16:8");
+asm("collectLookupResults f=16");
 
 namespace B {
   void f(int);
@@ -13,7 +13,7 @@ namespace B {
 namespace C {
   void f(int);
   void f(double);
-  void f(char);               // 16:8
+  void f(char);               // line 16
 }
 
 void h()

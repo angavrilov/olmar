@@ -61,17 +61,26 @@ public:
   
 public:
   NameChecker() {}
-  virtual ~NameChecker() {}    // idiocy
-  virtual bool visitExpression(Expression *obj) 
+  virtual ~NameChecker() {}    // gcc idiocy
+
+  virtual bool visitExpression(Expression *obj)
   {
+    Variable *v = NULL;
     if (obj->isE_variable()) {
-      E_variable *e = obj->asE_variable();
-      sb << " " << e->var->name << " " << toLCString(e->var->loc);
+      v = obj->asE_variable()->var;
     }
     else if (obj->isE_fieldAcc()) {
-      E_fieldAcc *e = obj->asE_fieldAcc();
-      sb << " " << e->field->name << " " << toLCString(e->field->loc);
+      v = obj->asE_fieldAcc()->field;
     }
+    
+    // this output format is designed to minimize the effect of
+    // changes to unrelated details
+    if (v &&
+        0!=strcmp("__testOverload", v->name) &&
+        0!=strcmp("dummy", v->name)) {
+      sb << " " << v->name << "=" << sourceLocManager->getLine(v->loc);
+    }
+
     return true;
   }
 };

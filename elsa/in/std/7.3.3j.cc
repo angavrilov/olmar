@@ -4,7 +4,7 @@
 int dummy();             // line 4
 void ddummy() { __testOverload(dummy(), 4); }
 
-asm("collectLookupResults __testOverload 1:1 dummy 4:5 f 18:8 p 27:11 f 11:16 p 27:11 g 12:8 p 27:11 g 21:8 p 27:11");
+asm("collectLookupResults f=18 p=27 f=11 p=27 g=12 p=27 g=21 p=27");
 
 struct B {
   virtual void f(int);

@@ -16,6 +16,9 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     parentScope(),
     scopeKind(sk),
     namespaceVar(NULL),
+    usingEdges(0),            // the arrays start as NULL b/c in the
+    activeUsingEdges(0),      // common case the sets are empty
+    outstandingActiveEdges(0),
     curCompound(NULL),
     curFunction(NULL),
     curTemplateParams(NULL),
@@ -239,6 +242,13 @@ Variable const *Scope
 //      }
 //      cout << "name->getName() " << name->getName() << endl;
     v1 = vfilterC(variables.queryif(name->getName()), flags);
+    
+    // 7.3.4 para 1: "active using" edges are a source of additional
+    // declarations that can satisfy an unqualified lookup
+    if (activeUsingEdges.isNotEmpty()) {
+      v1 = searchUsingEdges(name->getName(), env, flags, v1);
+    }
+
     if (v1) {
       return v1;
     }
@@ -368,7 +378,7 @@ EnumType const *Scope::lookupEnumC(StringRef name, LookupFlags /*flags*/) const
 }
 
 
-Variable *Scope::getTypedefName()
+Variable const *Scope::getTypedefNameC() const
 {
   if (scopeKind == SK_CLASS) {
     return curCompound->typedefVar;
@@ -377,6 +387,193 @@ Variable *Scope::getTypedefName()
     return namespaceVar;
   }
   return NULL;
+}
+
+
+bool Scope::encloses(Scope const *s) const
+{
+  // in all situations where this is relevant, 's' has named parent
+  // scopes (since we found it by qualified lookup), so just walk
+  // the scope parent links
+
+  Scope const *me = this;
+  if (me->isGlobalScope()) {
+    me = NULL;     // null 'parentScope' means it's in global
+  }
+
+  while (s && s!=me) {
+    s = s->parentScope;
+  }
+
+  return s == me;
+}
+
+
+string Scope::desc() const
+{
+  Variable const *v = getTypedefNameC();
+  if (v) {
+    return stringc << toString(scopeKind) << " " << v->name;
+  }
+  else if (isGlobalScope()) {
+    return "global scope";
+  }
+  else {
+    return stringc << "anonymous " << toString(scopeKind) 
+                   << " scope at " << stringf("%p", this);
+  }
+}
+
+
+void Scope::addUsingEdge(Scope *target)
+{
+  TRACE("using", "added using-edge from " << desc()
+              << " to " << target->desc());
+
+  usingEdges.push(target);
+}
+
+
+void Scope::addActiveUsingEdge(Scope *target)
+{
+  TRACE("using", "added active-using-edge from " << desc()
+              << " to " << target->desc());
+
+  activeUsingEdges.push(target);
+}
+
+void Scope::removeActiveUsingEdge(Scope *target)
+{
+  TRACE("using", "removing active-using-edge from " << desc()
+              << " to " << target->desc());
+
+  if (activeUsingEdges.top() == target) {
+    // we're in luck
+    activeUsingEdges.pop();
+  }
+  else {
+    // find the element that has 'target'
+    for (int i=0; i<activeUsingEdges.length(); i++) {
+      if (activeUsingEdges[i] == target) {
+        // found it, swap with the top element
+        Scope *top = activeUsingEdges.pop();
+        activeUsingEdges[i] = top;
+        return;
+      }
+    }
+    
+    xfailure("attempt to remove active-using edge not in the set");
+  }
+}
+
+
+void Scope::scheduleActiveUsingEdge(Env &env, Scope *target)
+{
+  // find the innermost scope that contains both 'this' and 'target',
+  // as this is effectively where target's declarations appear while
+  // we're in this scope
+  Scope *enclosing = env.findEnclosingScope(target);
+  enclosing->addActiveUsingEdge(target);
+
+  // schedule it for removal later
+  outstandingActiveEdges.push(ActiveEdgeRecord(enclosing, target));
+}
+
+
+void Scope::openedScope(Env &env)
+{          
+  // all "using" edges give rise to "active using" edges
+  for (int i=0; i<usingEdges.length(); i++) {
+    scheduleActiveUsingEdge(env, usingEdges[i]);
+  }
+}
+
+void Scope::closedScope()
+{
+  // remove the "active using" edges I previously added
+  while (outstandingActiveEdges.isNotEmpty()) {
+    ActiveEdgeRecord rec = outstandingActiveEdges.pop();
+
+    // hmm.. I notice that I could just have computed 'source'
+    // again like I did above..
+
+    rec.source->removeActiveUsingEdge(rec.target);
+  }
+}
+
+                        
+// search the lists instead of maintaining state in the Scope
+// objects, to keep things simple; if the profiler tells me
+// to make this faster, I can put colors into the objects
+static void pushIfWhite(ArrayStack<Scope const*> const &black,
+                        ArrayStack<Scope const*> &gray,
+                        Scope const *s)
+{
+  // in the black list?
+  int i;
+  for (i=0; i<black.length(); i++) {
+    if (black[i] == s) {
+      return;
+    }
+  }
+
+  // in the gray list?
+  for (i=0; i<gray.length(); i++) {
+    if (gray[i] == s) {
+      return;
+    }
+  }
+
+  // not in either, color is effectively white, so push it
+  gray.push(s);
+}
+
+// DFS over the network of using-directive edges
+Variable const *Scope::searchUsingEdges
+  (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const
+{
+  // set of scopes already searched
+  ArrayStack<Scope const*> black;
+
+  // stack of scopes remaining to be searched in the DFS
+  ArrayStack<Scope const*> gray;
+  
+  // the caller already searched among my variables
+  black.push(this);
+
+  // we follow the "active using" edges from 'this' to initialize
+  // the stack; after that, we'll use the "using" edges
+  for (int i=0; i<activeUsingEdges.length(); i++) {
+    pushIfWhite(black, gray, activeUsingEdges[i]);
+  }
+
+  // process the gray set until empty
+  while (gray.isNotEmpty()) {
+    Scope const *s = gray.pop();
+
+    // look for 'name' in 's'
+    Variable const *v = vfilterC(s->variables.queryif(name), flags);
+    if (v) {
+      if (vfound) {
+        env.error(stringc
+          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
+          << "' vs `" << v->fullyQualifiedName() << "'");
+      }
+      else {
+        vfound = v;
+      }
+    }
+
+    // done with 's'
+    black.push(s);
+
+    // push the "using" edges' targets
+    for (int i=0; i < s->usingEdges.length(); i++) {
+      pushIfWhite(black, gray, usingEdges[i]);
+    }
+  }
+
+  return vfound;
 }
 
 
@@ -417,7 +614,8 @@ string Scope::fullyQualifiedName()
     }
   }          
 
-  xassert(curCompound);
-  sb << "::" << curCompound->name;
+  Variable *v = getTypedefName();
+  xassert(v);
+  sb << "::" << v->name;
   return sb;
 }

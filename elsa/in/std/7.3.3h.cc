@@ -4,10 +4,10 @@
 int dummy();             // line 4
 void ddummy() { __testOverload(dummy(), 4); }
 
-asm("collectLookupResults __testOverload 1:1 dummy 4:5 f 18:8 g 19:8 x 10:7");
+asm("collectLookupResults f=18 g=19 x=10");
 
 namespace A {
-  int x;                        // 10:7
+  int x;                        // line 10
 }
 
 namespace B {
@@ -15,8 +15,8 @@ namespace B {
   struct g { };
   struct x { };
   void f(int);
-  void f(double);               // 18:8
-  void g(char);                 // OK: hides struct g (19:8)
+  void f(double);               // line 18
+  void g(char);                 // OK: hides struct g   (line 19)
 }
 
 void func()

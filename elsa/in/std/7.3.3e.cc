@@ -1,11 +1,11 @@
 // 7.3.3e.cc
 
-asm("collectLookupResults f 5:6 g 8:8");
+asm("collectLookupResults f=5 g=8");
 
-void f();            // 5:6
+void f();            // line 5
 
 namespace A {
-  void g();          // 8:8
+  void g();          // line 8
 }
 
 namespace X {
