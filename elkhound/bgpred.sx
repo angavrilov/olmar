@@ -5,6 +5,7 @@
 
 (DEFPRED (inDegree0 mem field obj))
 (DEFPRED (inDegree1 mem field obj referrerObj))
+(DEFPRED (hasTypeNode obj))
 
 (BG_PUSH (AND
 
@@ -254,12 +255,12 @@
     (IMPLIES
       (inDegree1 mem field obj referrerObj)
       (EQ
-        (select mem referrerObj field)
+        (object (select mem referrerObj field))
         obj
       )
     ))
 
-  ; another implication: nothing besides 'referrerObj' points at it
+  ; inDegree1-none-other: nothing besides 'referrerObj' points at it
   (FORALL (mem field obj referrerObj)
     (IMPLIES
       (inDegree1 mem field obj referrerObj)
@@ -267,7 +268,7 @@
         (IMPLIES
           (NEQ otherObj referrerObj)
           (NEQ
-            (select mem otherObj field)
+            (object (select mem otherObj field))
             obj
           )))
     ))
@@ -310,6 +311,7 @@
     ))
 
   ; ---------------- inDegree1 -> inDegree0 --------------------
+  ; inDegree1-to-inDegree0
   (FORALL (mem field obj referrerObj otherObj otherOfs)
     (IMPLIES                                          
       (AND

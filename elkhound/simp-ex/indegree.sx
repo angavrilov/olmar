@@ -63,7 +63,7 @@ valid "inDegree0-no-point in mem1" (
 )
 
 
-; ------------------ inDegree1 ------------------------
+; ------------- inDegree0 to inDegree1 ----------------
 valid "inDegree0-to-inDegree1" (
   (inDegree1 mem1 next obj3 obj2)
 )
@@ -72,6 +72,8 @@ notvalid "inDegree0-to-inDegree1" (
   (inDegree1 mem1 next obj1 obj2)
 )
 
+
+; ------------------ inDegree1 ------------------------
 valid "inDegree1-surv-otherObj" (
   (IMPLIES
     (EQ mem2 (update mem1 obj3 next (pointer obj1 0)))
@@ -86,9 +88,90 @@ notvalid "inDegree1-surv-otherObj" (
   )
 )
 
-;valid "inDegree1-surv-otherField" (
-;  (IMPLIES
-;    (EQ mem2b (update mem1 obj1 otherField (pointer obj3
+valid "inDegree1-surv-otherField" (
+  (IMPLIES
+    (EQ mem2c (update mem1 obj1 otherField (pointer obj3 0)))
+    (inDegree1 mem2c next obj3 obj2)
+  )
+)
+
+notvalid "inDegree1-surv-otherField" (
+  (IMPLIES
+    (EQ mem2d (update mem1 obj1 ambigField (pointer obj3 0)))
+    (inDegree1 mem2d next obj3 obj2)
+  )
+)
+
+bg_push (
+  (inDegree1 memFoo next obj1 obj2)
+)
+
+valid "inDegree1-one-point" (
+  (EQ (object (select memFoo obj2 next)) obj1)
+)
+
+notvalid "inDegree1-one-point" (
+  (EQ (object (select memFoo obj3 next)) obj1)
+)
+
+valid "inDegree1-none-other" (
+  (NEQ (object (select memFoo obj3 next)) obj1)
+)
+
+bg_pop
+bg_pop
+
+; -------------- inDegree1 to inDegree0 -----------------
+bg_push (
+  ; three distinct objects
+  (DISTINCT 0 obj1 obj2 obj3)
+
+  ; two distinct fields
+  (DISTINCT next otherField)
+
+  ; initially obj1 points to obj2
+  (inDegree1 mem0 next obj2 obj1)
+
+  ; then obj1 is changed
+  (EQ mem1 (update mem0 obj1 next (pointer 0 0)))
+)
+
+valid "inDegree1-to-inDegree0" (
+  (inDegree0 mem1 next obj2)
+)
+
+notvalid "inDegree1-to-inDegree0" (
+  (inDegree0 mem1 next obj1)
+)
+        
 
 
-;valid "inDegree1-one-point" (
+(IMPLIES
+  (AND
+    (DISTINCT 0)
+
+    (EQ (offset head_19) 0)
+    (NEQ (object head_19) 0)
+    (hasTypeNode (object head_19))
+    (OR (inDegree0 mem_40 next_32 (object head_19)) (EXISTS (refObj_55 ) (inDegree1 mem_40 next_32 (object head_19) refObj_55)))
+    (IMPLIES (NEQ (select mem_40 (object head_19) next_32) (pointer 0 0)) (hasTypeNode (object (select mem_40 (object head_19) next_32))))
+
+    (EQ (offset toAdd_19) 0)
+    (NEQ (object toAdd_19) 0)
+    (hasTypeNode (object toAdd_19))
+    (OR (inDegree0 mem_40 next_32 (object toAdd_19)) (EXISTS (refObj_56 ) (inDegree1 mem_40 next_32 (object toAdd_19) refObj_56)))
+    (IMPLIES (NEQ (select mem_40 (object toAdd_19) next_32) (pointer 0 0)) (hasTypeNode (object (select mem_40 (object toAdd_19) next_32))))
+
+    (inDegree0 mem_40 next_32 (object toAdd_19))
+    
+    (EQ somePtr (select mem_40 (object p_14) (+ (offset p_14) next_32)))
+
+    (NEQ somePtr (pointer 0 0))
+
+    (EQ (select mem_40 (object somePtr) (+ (offset somePtr) next_32)) (pointer 0 0))
+
+    (EQ mem_41 (update mem_40 (object somePtr) (+ (offset somePtr) next_32) toAdd_19))
+  )
+  (EXISTS (refObj_58 )
+    (inDegree1 mem_41 next_32 (object toAdd_19) refObj_58))
+)

@@ -207,7 +207,7 @@ Predicate *vcgenPredicate(AEnv &env, Expression *expr, int path)
     // used to be just an assertion, but then I needed more info...
     cout << "(path=" << path
          << ") predicate expr problem: " << expr->toString() << endl;
-    xfailure("bad mojo");
+    xfailure("nonzero path count in vcgenPredicate");
   }
 
   IN_PREDICATE(env);
@@ -1118,8 +1118,32 @@ Predicate *E_charLit::vcgenPred(AEnv &env, int path) const
 
 Predicate *E_variable::vcgenPred(AEnv &env, int path) const
   { return vcgenPredDefault(env, path); }
+  
+
 Predicate *E_funCall::vcgenPred(AEnv &env, int path) const
-  { return vcgenPredDefault(env, path); }
+{
+  E_variable const *funcVar = func->ifE_variableC();
+  if (funcVar) {                        
+    // is this function specially declared to be a predicate that
+    // Simplify knows about?
+    if (funcVar->var->hasFlag(DF_PREDICATE)) {
+      // yes, so emit directly
+      xassert(path==0);
+
+      // collect the list of argument values
+      ASTList<AbsValue> *avArgs = new ASTList<AbsValue>;
+      FOREACH_ASTLIST(Expression, args, iter) {
+        avArgs->append(iter.data()->vcgen(env, path));
+      }
+      return new P_named(funcVar->var->name, avArgs);
+    }
+  }
+
+  // not a simple function name, or not the right kind
+  return vcgenPredDefault(env, path); 
+}
+
+
 Predicate *E_fieldAcc::vcgenPred(AEnv &env, int path) const
   { return vcgenPredDefault(env, path); }
 Predicate *E_sizeof::vcgenPred(AEnv &env, int path) const

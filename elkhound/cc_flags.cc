@@ -98,14 +98,15 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "parameter",
   "universal",
   "existential",
-  "field",        // 18
+  "field",
+  "predicate",    // 19
 };
 
 
 string toString(DeclFlags df)
 { 
   // make sure I haven't added a flag without adding a string for it
-  xassert(declFlagNames[NUM_DECLFLAGS]-1 != NULL);
+  xassert(declFlagNames[NUM_DECLFLAGS-1] != NULL);
 
   return bitmapString(df, declFlagNames, NUM_DECLFLAGS);
 }

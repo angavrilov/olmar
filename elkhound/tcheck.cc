@@ -209,7 +209,8 @@ void Declaration::tcheck(Env &env)
         df == DF_STATIC ||
         df == DF_EXTERN ||
         df == DF_UNIVERSAL ||
-        df == DF_EXISTENTIAL) {
+        df == DF_EXISTENTIAL ||
+        df == DF_PREDICATE) {
       // ok
     }
     else {

@@ -55,7 +55,7 @@ enum DeclFlags {
   DF_REGISTER    = 0x00000040,
   DF_STATIC      = 0x00000080,
   DF_EXTERN      = 0x00000100,
-  DF_SOURCEFLAGS = 0x000001FF,    // all flags that come from source declarations
+  DF_SOURCEFLAGS = 0x000801FF,    // all flags that come from source declarations
 
   // flags on Variables
   DF_ENUMVAL     = 0x00000200,    // true for values in an 'enum'
@@ -68,9 +68,12 @@ enum DeclFlags {
   DF_UNIVERSAL   = 0x00010000,    // (requires DF_LOGIC) universally-quantified variable
   DF_EXISTENTIAL = 0x00020000,    // (requires DF_LOGIC) existentially-quantified
   DF_FIELD       = 0x00040000,    // true for fields of structures
+  
+  // syntactic declaration extensions
+  DF_PREDICATE   = 0x00080000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x0007FFFF,
-  NUM_DECLFLAGS  = 19             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x000FFFFF,
+  NUM_DECLFLAGS  = 20             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

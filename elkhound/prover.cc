@@ -82,7 +82,8 @@ bool runProver(char const *str)
     writeAll(predicateLog, "\n", 1);
   }
 
-  // read Simplify's response
+  // read Simplify's response                
+  bool printedInput = false;
   for (;;) {
     char response[80];
     if (!readString(fromSimplify, response, 80)) {
@@ -99,6 +100,12 @@ bool runProver(char const *str)
 
     printf("unexpected response from Simplify:\n");
     printf("%s\n", response);
+    
+    if (!printedInput) {
+      printf("input which caused that response:\n");
+      printf("%s\n", str);
+      printedInput = true;
+    }
 
     // go back and read some more; this "triggerless quantifier body"
     // thing is coming up..

@@ -116,7 +116,7 @@ sub prove {
 
   # say what's going on
   $predicateCt++;
-  print("$predicateCt: ");
+  printf("%3d: ", $predicateCt);
   if ($comment) {
     print("$comment... ");
   }

@@ -695,6 +695,8 @@ nonterm[enum DeclFlags] DeclModifier {
   -> "register"    [ return DF_REGISTER; ]
   -> "static"      [ return DF_STATIC;   ]
   -> "extern"      [ return DF_EXTERN;   ]
+
+  -> "thmprv_predicate"   [ return DF_PREDICATE; ]
 }
 
 

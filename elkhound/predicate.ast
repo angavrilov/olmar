@@ -94,8 +94,11 @@ class Predicate {
   // quantification
   -> P_quantifier(ASTList<AVvar> variables, Predicate body, bool forall);
 
+  // named predicates, uninterpreted by Simplify
+  -> P_named(StringRef name, ASTList<AbsValue> args);
+
   // ordering: not yet
-  // labelled predicates: not yet
+  // labeled predicates: not yet
 }
 
 
@@ -299,6 +302,16 @@ impl_verbatim {
   void P_quantifier::toSexp(stringBuilder &sb) const
   {
     quantifiedToSexp(sb, forall? "FORALL" : "EXISTS", variables, body);
+  }
+
+  void P_named::toSexp(stringBuilder &sb) const
+  {
+    sb << "(" << name;
+    FOREACH_ASTLIST(AbsValue, args, iter) {
+      sb << " ";
+      iter.data()->toSexp(sb);
+    }
+    sb << ")";
   }
 
 
