@@ -1,4 +1,4 @@
-// implint.h
+// implint.h            see license.txt for copyright and terms of use
 // ambiguity resolution for implicit-int
 
 /*
