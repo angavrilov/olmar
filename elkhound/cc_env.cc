@@ -49,17 +49,18 @@ Env::Env(DataflowEnv *d)
     }
     builtins = b;
 
-    declareVariable(NULL, "__builtin_constant_p", DF_NONE,
-      makeFunctionType_1arg(
-        getSimpleType(ST_INT),                          // return type
-        CV_NONE,
-        getSimpleType(ST_INT), "potentialConstant"),    // arg type
-        true /*initialized*/);
-
     // I'm not sure what this is.. let's try not defining it here..
     //declareVariable(NULL, "__end_of_fixed_addresses", DF_NONE,
     //  getSimpleType(ST_INT));
   }
+
+
+  declareVariable(NULL, "__builtin_constant_p", DF_NONE,
+    makeFunctionType_1arg(
+      getSimpleType(ST_INT),                          // return type
+      CV_NONE,
+      getSimpleType(ST_INT), "potentialConstant"),    // arg type
+      true /*initialized*/);
 
   trace("refct") << "created toplevel Env at " << this << "\n";
 }

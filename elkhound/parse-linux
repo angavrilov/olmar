@@ -5,6 +5,6 @@ cd testcases/linux
 
 for fname in *.cpp ; do
   echo "------------ $fname -------------"
-  ../../ccgr ../../cc.bin $fname 2>&1 | tee out/$fname.out
+  ../../ccgr -tr sizeof ../../cc.bin $fname 2>&1 | tee out/$fname.out
 done
 

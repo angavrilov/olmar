@@ -890,7 +890,6 @@ string symbolSequenceToString(SymbolList const &list)
       sb << " ";
     }
 
-    // TODO: properly define toString as a virtual func to do this:
     if (sym.data()->isTerminal()) {
       sb << sym.data()->asTerminalC().toString();
     }
