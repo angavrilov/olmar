@@ -63,7 +63,7 @@ enum AnEnum { AE_ONE, AE_TWO, AE_THREE };
 
 // eliminated explicit enumerator values...
 enum AnotherEnum {
-  anotherone, 
+  anotherone,
   anothertwo,
   anotherthree
 };
@@ -91,6 +91,11 @@ class InheritsSomething : public Base1 {
 class HasLastArgs(int x)(int w) {
   -> Hla1(int y);
   -> Hla2(int y, int z);
+}
+
+class SomethingElse(int x, int y) {
+  custom substituteClone 
+    { return new SomethingElse(x,y); /*my own clone() code*/ }
 }
 
 

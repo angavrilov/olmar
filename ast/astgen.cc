@@ -831,7 +831,7 @@ public:
                       bool isOwner, rostring type, rostring name);
 
   void emitXmlPrintCtorArgs(ASTList<CtorArg> const &args);
-  void emitCustomCode(ASTList<Annotation> const &list, rostring tag);
+  bool emitCustomCode(ASTList<Annotation> const &list, rostring tag);
 
   void emitCloneCtorArg(CtorArg const *arg, int &ct);
   void emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args);
@@ -1071,17 +1071,22 @@ void CGen::emitTFClass(TF_class const &cls)
 }
 
 
-void CGen::emitCustomCode(ASTList<Annotation> const &list, rostring tag)
+bool CGen::emitCustomCode(ASTList<Annotation> const &list, rostring tag)
 {
+  bool emitted = false;
+
   FOREACH_ASTLIST(Annotation, list, iter) {
     CustomCode const *cc = iter.data()->ifCustomCodeC();
     if (cc && cc->qualifier.equals(tag)) {
       out << "  " << cc->code << ";\n";
+      emitted = true;
 
       // conceptually mutable..
       const_cast<bool&>(cc->used) = true;
     }
   }
+
+  return emitted;
 }
 
 
@@ -1277,34 +1282,40 @@ void CGen::emitCloneCtorArgs(int &ct, ASTList<CtorArg> const &args)
 
 void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
 {
-  string const &name = sub? sub->name : super->name;
+  ASTClass const *myClass = sub? sub : super;
+  string const &name = myClass->name;
   out << name << " *" << name << "::clone() const\n"
       << "{\n"
-      << "  " << name << " *ret = new " << name << "(";
+      ;
 
-  // clone each of the superclass ctor arguments
-  int ct=0;
-  emitCloneCtorArgs(ct, super->args);
+  if (!emitCustomCode(myClass->decls, "substituteClone")) {
+    out << "  " << name << " *ret = new " << name << "(";
 
-  // and likewise for the subclass ctor arguments
-  if (sub) {
-    emitCloneCtorArgs(ct, sub->args);
-    emitCloneCtorArgs(ct, sub->lastArgs);
+    // clone each of the superclass ctor arguments
+    int ct=0;
+    emitCloneCtorArgs(ct, super->args);
+
+    // and likewise for the subclass ctor arguments
+    if (sub) {
+      emitCloneCtorArgs(ct, sub->args);
+      emitCloneCtorArgs(ct, sub->lastArgs);
+    }
+
+    emitCloneCtorArgs(ct, super->lastArgs);
+
+    out << "\n"
+        << "  );\n";
+
+    // custom clone code
+    emitCustomCode(super->decls, "clone");
+    if (sub) {
+      emitCustomCode(sub->decls, "clone");
+    }
+
+    out << "  return ret;\n";
   }
 
-  emitCloneCtorArgs(ct, super->lastArgs);
-
-  out << "\n"
-      << "  );\n";
-
-  // custom clone code
-  emitCustomCode(super->decls, "clone");
-  if (sub) {
-    emitCustomCode(sub->decls, "clone");
-  }
-
-  out << "  return ret;\n"
-      << "}\n"
+  out << "}\n"
       << "\n";
 }
 
