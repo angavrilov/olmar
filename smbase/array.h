@@ -150,8 +150,17 @@ public:
     { setIndexDoubler(len++, val); }
   T pop()
     { return operator[](--len); }
-  T top() const
+  T const &top() const
     { return operator[](len-1); }
+  T &top()
+    { return operator[](len-1); }
+
+  // alternate interface, where init/deinit is done explicitly
+  // on returned references
+  T &pushAlt()    // returns newly accessible item
+    { ensureIndexDoubler(len++); return top(); }
+  T &popAlt()     // returns item popped
+    { return operator[](--len); }
 
   int length() const
     { return len; }
