@@ -22,6 +22,9 @@ clean:
 	rm -f bccgr.y cc.tok
 	rm -f ccparse_twalk
 
+# ****************
+# Check idempotency of ccparse -tr prettyPrint on files in parsgen/cc.in.
+
 TOCHECK :=
 TOCHECK += cc.in1
 TOCHECK += cc.in2
@@ -98,7 +101,7 @@ TOCHECK += cc.in40
 TOCHECK += cc.in41
 TOCHECK += cc.in42
 
-# That's all.
+# That's all for parsgen/cc.in.
 
 .PHONY: idem/check
 idem/check: idem/clean
@@ -107,6 +110,39 @@ idem/check: idem/clean
 .PHONY: idem/clean
 idem/clean:
 	rm -f $(addprefix ../cc.in/,cc.*.out_raw cc.*.out cc.*.out2_raw cc.*.out2 cc.*.diff)
+
+# ****************
+# Check idempotency of ccparse -tr prettyPrint on C and C++ files in
+# cure_cpp/cc_examples.
+
+TOCHECK2 :=
+
+# ccparse doesn't seem to find and parse include files?  It doesn't
+# seem to take a -I flag.
+# TOCHECK2 += ./Box.cc
+
+# TOCHECK2 += ./JustHello.c
+# TOCHECK2 += ./JustWorld.c
+TOCHECK2 += ./Test_005true.c
+# TOCHECK2 += ./Test_010hello.c
+TOCHECK2 += ./Test_105true.cc
+# TOCHECK2 += ./Test_110hello.cc
+# TOCHECK2 += ./Test_210box.cc
+# TOCHECK2 += ./Test_220tbox.cc
+# TOCHECK2 += ./Test_310hello.c
+# TOCHECK2 += ./Test_315hello.c
+# TOCHECK2 += ./Test_320hello_tbox.cc
+# TOCHECK2 += ./Test_325hello_tbox.cc
+
+TESTDIR2 := ../../cure_cpp/cc_examples/
+idem/check2: idem/clean2
+	./check_idempotency $(addprefix $(TESTDIR2),$(TOCHECK2))
+
+.PHONY: idem/clean2
+idem/clean2:
+	rm -f $(addprefix $(TESTDIR2),$(foreach XXX,*.c *.cc,$(addprefix $(XXX),.out_raw .out .out2_raw .out2 .diff)))
+
+# ****************
 
 # Check in the things I work on.
 DSW_STUFF := Makefile cc_twalk.cc cc.ast check_idempotency chop_out
