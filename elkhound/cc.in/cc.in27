@@ -1,0 +1,25 @@
+// cc.in27
+// template classes
+
+// forward decl
+template <class TT> class Foo;
+
+//ERROR2: template <class TT, class YY> class Foo;     // inconsistent
+
+template <class T>
+class Foo {
+public:
+  T x;
+};
+
+//ERROR1: template <class TT> class Foo {};   // already defined
+
+int main()
+{
+  Foo<int> h;
+  h.x;
+  //ERROR3: h.y;   // no field
+}
+
+
+

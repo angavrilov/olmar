@@ -24,6 +24,7 @@ class TypeVariable;
 class CVAtomicType;
 class PointerType;
 class FunctionType;
+class Parameter;
 class TemplateParams;
 class ArrayType;
 class Type;
@@ -131,12 +132,16 @@ public:      // data
   Keyword const keyword;      // keyword used to introduce the type
   ObjList<BaseClass> bases;   // classes from which this one inherits
 
+  // for template classes, this is the list of template parameters
+  TemplateParams *templateParams;    // (owner)
+
 public:      // funcs
   // create an incomplete (forward-declared) compound
   CompoundType(Keyword keyword, StringRef name);
   ~CompoundType();
 
   bool isComplete() const { return !forward; }
+  bool isTemplate() const { return templateParams != NULL; }
 
   static char const *keywordName(Keyword k);
 
@@ -296,8 +301,10 @@ public:     // funcs
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
+  bool isCompoundType() const { return isCVAtomicType(AtomicType::T_COMPOUND); }
   
   bool isTemplateFunction() const;
+  bool isTemplateClass() const;
 
   ALLOC_STATS_DECLARE
 };
@@ -361,28 +368,11 @@ public:
 // type of a function
 class FunctionType : public Type {
 public:     // types
-  // formal parameter to a function or function type
-  class Param {
-  public:
-    StringRef name;              // can be NULL to mean unnamed
-    Type const *type;            // (serf) type of the parameter
-
-    // syntactic introduction
-    Variable *decl;              // (serf)
-
-  public:
-    Param(StringRef n, Type const *t, Variable *d)
-      : name(n), type(t), decl(d) {}
-    ~Param();
-
-    string toString() const;
-  };
-
   // list of exception types that can be thrown
   class ExnSpec {
   public:
     SObjList<Type const> types;
-    
+
   public:
     ExnSpec() {}
     ~ExnSpec();
@@ -391,7 +381,7 @@ public:     // types
 public:     // data
   Type const *retType;         // (serf) type of return value
   CVFlags cv;                  // const/volatile for class member fns
-  ObjList<Param> params;       // list of function parameters
+  ObjList<Parameter> params;   // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
   ExnSpec *exnSpec;            // (nullable owner) allowable exceptions if not NULL
 
@@ -407,7 +397,7 @@ public:     // funcs
   bool equalExceptionSpecs(FunctionType const *obj) const;
 
   // append a parameter to the (ordinary) parameters list
-  void addParam(Param *param);
+  void addParam(Parameter *param);
 
   bool isTemplate() const { return templateParams!=NULL; }
 
@@ -419,13 +409,34 @@ public:     // funcs
 };
 
 
-class TemplateParams {
+// formal parameter to a function or function type
+class Parameter {
 public:
-  ObjList<FunctionType::Param> params;
+  StringRef name;              // can be NULL to mean unnamed
+  Type const *type;            // (serf) type of the parameter
+
+  // syntactic introduction
+  Variable *decl;              // (serf)
 
 public:
-  TemplateParams() {};
+  Parameter(StringRef n, Type const *t, Variable *d)
+    : name(n), type(t), decl(d) {}
+  ~Parameter() {}
+
+  string toString() const;
+};
+
+
+class TemplateParams {
+public:
+  ObjList<Parameter> params;
+
+public:
+  TemplateParams() {}
   ~TemplateParams();
+  
+  string toString() const;
+  bool equalTypes(TemplateParams const *obj) const;
 };
 
 
