@@ -276,6 +276,8 @@ private:     // funcs
 
   Scope *createScope(ScopeKind sk);
 
+  void mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type);
+
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract

@@ -3260,16 +3260,10 @@ Variable *Env::createDeclaration(
     // type of the alias the user wanted to introduce, but which
     // was found to be equivalent to the previous declaration
 
-    // TODO: if 'type' refers to a function type, and it has
-    // some default arguments supplied, then:
-    //   - it should only be adding new defaults, not overriding
-    //     any from a previous declaration
-    //   - the new defaults should be merged into the type retained
-    //     in 'prior->type', so that further uses in this translation
-    //     unit will have the benefit of the default arguments
-    //   - the resulting type should have all the default arguments
-    //     contiguous, and at the end of the parameter list
-    // reference: cppstd, 8.3.6
+    // 10/03/04: merge default arguments
+    if (lang.isCplusplus && type->isFunctionType()) {
+      mergeDefaultArguments(loc, prior, type->asFunctionType());
+    }
 
     // TODO: enforce restrictions on successive declarations'
     // DeclFlags; see cppstd 7.1.1, around para 7
@@ -3313,6 +3307,60 @@ noPriorDeclaration:
   }
 
   return newVar;
+}
+
+
+// if 'type' refers to a function type, and it has some default
+// arguments supplied, then:
+//   - it should only be adding new defaults, not overriding
+//     any from a previous declaration
+//   - the new defaults should be merged into the type retained
+//     in 'prior->type', so that further uses in this translation
+//     unit will have the benefit of the default arguments
+//   - the resulting type should have all the default arguments
+//     contiguous, and at the end of the parameter list
+// reference: cppstd, 8.3.6
+void Env::mergeDefaultArguments(SourceLoc loc, Variable *prior, FunctionType *type)
+{
+  SObjListIterNC<Variable> priorParam(prior->type->asFunctionType()->params);
+  SObjListIterNC<Variable> newParam(type->params);
+
+  bool seenSomeDefaults = false;
+
+  int paramCt = 1;
+  for(; !priorParam.isDone() && !newParam.isDone();
+      priorParam.adv(), newParam.adv(), paramCt++) {
+    Variable *p = priorParam.data();
+    Variable *n = newParam.data();
+
+    if (n->value) {
+      seenSomeDefaults = true;
+      
+      if (p->value) {
+        error(loc, stringc
+          << "declaration of `" << prior->name
+          << "' supplies a redundant default argument for parameter "
+          << paramCt);
+      }
+      else {
+        // augment 'p' with 'n->value'
+        //
+        // TODO: what are the scoping issues w.r.t. evaluating
+        // default arguments?
+        p->value = n->value;
+      }
+    }
+    else if (!p->value && seenSomeDefaults) {
+      error(loc, stringc
+        << "declaration of `" << prior->name
+        << "' supplies some default arguments, but no default for later parameter "
+        << paramCt << " has been supplied");
+    }
+  }
+
+  // both parameter lists should end simultaneously, otherwise why
+  // did I conclude they are declaring the same entity?
+  xassert(priorParam.isDone() && newParam.isDone());
 }
 
 
