@@ -113,6 +113,9 @@ $derivedClassName = "";
 # text (lines) of methods to copy
 @methodCopies = ();
 
+# additional lines to move past the end of the methodCopies
+@movedLines = ();
+
 # begin translating the generated file, making the changes outlined above
 for ($i=0; $i < @lines; $i++) {
   $line = $lines[$i];
@@ -130,8 +133,14 @@ for ($i=0; $i < @lines; $i++) {
     next;
   }
 
+  if ($makeMethodCopies &&
+      $line =~ m/\#undef yytext_ptr/) {
+    push @movedLines, ($line);
+    next;
+  }
+
   if ($state == 1) {
-    if ($lines[$i+1] =~ m/^static void \*yy_flex_alloc/) {
+    if ($lines[$i+1] =~ m/^(static )?void \*(yy_flex_alloc|yyalloc)/) {
       $state++;
       print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
       next;
@@ -139,7 +148,7 @@ for ($i=0; $i < @lines; $i++) {
   }
 
   elsif ($state == 2) {
-    if ($line =~ m/^static void yy_flex_free/) {
+    if ($line =~ m/^(static )?void (yy_flex_free|yyfree)/) {
       $state++;
       $i++;
       print OUT ($line .
@@ -235,6 +244,8 @@ for ($i=0; $i < @lines; $i++) {
           print OUT ($copyLine);
         }
         print OUT ("// END method copies for $derivedClassName\n");
+        
+        print OUT (@movedLines);
       }
     }
   }
