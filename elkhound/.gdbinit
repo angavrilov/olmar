@@ -23,8 +23,8 @@
 #file gramanl
 #set args cc
 
-file bccgr
-set args c.in1
+file ccgr
+set args -tr trivialActions,stopAfterParse cc.bin c.in1
 
 #  file cexp2
 #  set args cexp2.bin cexp.in1

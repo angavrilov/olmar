@@ -479,7 +479,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     }
   }
 
-  traceProgress(2) << "done parsing\n";
+  traceProgress() << "done parsing\n";
   trace("parse") << "Parse succeeded!\n";
 
 

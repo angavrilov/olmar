@@ -36,6 +36,24 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
 }
 
 
+// hack: need classifier to act like the one for Bison
+class SimpleActions : public TrivialUserActions {
+public:
+  virtual int reclassifyToken(int oldTokenType, SemanticValue sval);
+};
+
+int SimpleActions::reclassifyToken(int type, SemanticValue)
+{
+  if (type == L2_NAME) {
+    return L2_VARIABLE_NAME;
+  }
+  else {
+    return type;
+  }
+}
+
+
+
 // useful for simple treewalkers
 bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
               char const *additionalInfo)
@@ -78,5 +96,11 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
     exit(0);
   }
 
+  if (tracingSys("trivialActions")) {
+    // replace current actions with trivial actions
+    //delete ptree.userAct;      // the caller does this
+    ptree.userAct = new SimpleActions;
+    cout << "using trivial (er, simple..) actions\n";
+  }
   return toplevelParse(ptree, argv[1], argv[2]);
 }

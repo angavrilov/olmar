@@ -88,7 +88,8 @@ public:
   
   // every time a token is pulled from the lexer, this reclassifier is
   // used to give the user a chance to reinterpret the token, before it
-  // is used for reduction lookahead comparisons
+  // is used for reduction lookahead comparisons; it returns the 
+  // reclassified token type, or 'oldTokenType' to leave it unchanged
   virtual int reclassifyToken(int oldTokenType, SemanticValue sval)=0;
 };
 
@@ -115,5 +116,13 @@ public:
   virtual bool keepNontermValue(int nontermId, SemanticValue sval);    \
                                                                        \
   virtual int reclassifyToken(int oldTokenType, SemanticValue sval);
+
+  
+// a useraction class which has only trivial actions
+class TrivialUserActions : public UserActions {
+public:
+  USER_ACTION_FUNCTIONS
+};
+
 
 #endif // USERACT_H
