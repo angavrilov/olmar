@@ -22,6 +22,9 @@
 
 class StringVoidDict {
 private:    // types
+  // 3/16/03: I believe the reason I stored the information both in a
+  // hash table and in a linked list is to be able to support efficient
+  // alphabetical iteration
   class Node {
   public:
     Node *next;
