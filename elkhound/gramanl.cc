@@ -1781,34 +1781,34 @@ void GrammarAnalysis::computePredictiveParsingTable()
 // isn't noticeably faster on cc.gr ...
 
 #ifdef HASHCLOSURE
+// these hashtables are keyed using the DottedProduction,
+// but yield LRItems as values
+
 // for storing dotted productions in a hash table, this is
-// the hash function itself; it is sensitive only to the
-// 'dprod' part
-STATICDEF unsigned LRItem::hash(void const *key)
+// the hash function itself
+STATICDEF unsigned LRItem::hash(DottedProduction const *key)
 {
-  LRItem const *dp = (LRItem const*)key;
+  //DottedProduction const *dp = (DottedProduction const*)key;
 
   // on the assumption few productions have 20 RHS elts..
   //int val = dp->dot + (20 * dp->prod->prodIndex);
 
   // just use the address.. they're all shared..
-  return HashTable::lcprngHashFn((void*)dp->dprod);
+  return HashTable::lcprngHashFn((void*)key);
 }
 
-// given the data, yield the key (easy, they're the same)
-STATICDEF void const *LRItem::dataToKey(LRItem *dp)
+// given the data, yield the key
+STATICDEF DottedProduction const *LRItem::dataToKey(LRItem *it)
 {
-  return dp;
+  return it->dprod;
 }
 
-// compare two dotted productions for equality; again, only
-// sensitive to the 'dprod' parts
-STATICDEF bool LRItem::dpEqual(void const *key1, void const *key2)
+// compare two dotted production keys for equality; since dotted
+// productions are shared, pointer equality suffices
+STATICDEF bool LRItem::dpEqual(DottedProduction const *key1, 
+                               DottedProduction const *key2)
 {
-  LRItem const *dp1 = (LRItem const*)key1;
-  LRItem const *dp2 = (LRItem const*)key2;
-
-  return dp1->dprod == dp2->dprod;
+  return key1 == key2;
 }
 
 
@@ -1825,14 +1825,14 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
   // hashtable, list of items still yet to close; items are
   // simultaneously in both the hash and the list, or not in either
-  OwnerHashTable<LRItem> workhash(
+  OwnerKHashTable<LRItem, DottedProduction> workhash(
     &LRItem::dataToKey,
     &LRItem::hash,
     &LRItem::dpEqual, 13);
   SObjList<LRItem> worklist;
 
   // and another for the items we've finished
-  OwnerHashTable<LRItem> finished(
+  OwnerKHashTable<LRItem, DottedProduction> finished(
     &LRItem::dataToKey,
     &LRItem::hash,
     &LRItem::dpEqual, 13);
@@ -1840,7 +1840,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
   // put all the nonkernels we have into 'finished'
   while (itemSet.nonkernelItems.isNotEmpty()) {
     LRItem *dp = itemSet.nonkernelItems.removeFirst();
-    finished.add(dp, dp);
+    finished.add(dp->dprod, dp);
   }
 
   // first, close the kernel items -> work{list,hash}
@@ -1855,12 +1855,12 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
     // pull the first production
     LRItem *item = worklist.removeFirst();
-    workhash.remove(item);
+    workhash.remove(item->dprod);
 
     // put it into list of 'done' items; this way, if this
     // exact item is generated during closure, it will be
     // seen and re-inserted (instead of duplicated)
-    finished.add(item, item);
+    finished.add(item->dprod, item);
 
     // close it -> worklist
     singleItemClosure(finished, worklist, workhash, item);
@@ -1868,7 +1868,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
   // move everything from 'finished' to the nonkernel items list
   try {
-    for (OwnerHashTableIter<LRItem> iter(finished);
+    for (OwnerKHashTableIter<LRItem, DottedProduction> iter(finished);
          !iter.isDone(); iter.adv()) {
       // temporarily, the item is owned both by the hashtable
       // and the list
@@ -1895,9 +1895,9 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
 
 void GrammarAnalysis::
-  singleItemClosure(OwnerHashTable<LRItem> &finished,
+  singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
                     SObjList<LRItem> &worklist,
-                    OwnerHashTable<LRItem> &workhash,
+                    OwnerKHashTable<LRItem, DottedProduction> &workhash,
                     LRItem const *item)
 {
   bool const tr = tracingSys("closure");
@@ -1939,42 +1939,42 @@ void GrammarAnalysis::
     // invariant of the indexed productions list
     xassert(prod.left == B);
 
-    // construct "B -> . gamma, First(beta LA)"
-    Owner<LRItem> dp;
-    {
-      dp = new LRItem(numTerms, getDProd(&prod, 0 /*dot at left*/));
+    // construct "B -> . gamma, First(beta LA)";
+    // except, don't actually build it until later; in the meantime,
+    // determine which DP and lookahead it would use if created
+    DottedProduction const *newDP = getDProd(&prod, 0 /*dot at left*/);
 
-      // get beta (what follows B in 'item')
-      RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
+    // get beta (what follows B in 'item')
+    RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
 
-      // get First(beta)
-      TerminalSet firstBeta(numTerminals());
-      firstOfIterSeq(firstBeta, beta);
+    // get First(beta) -> new item's lookahead
+    TerminalSet newItemLA(numTerminals());
+    firstOfIterSeq(newItemLA, beta);
 
-      // add those elements to dp's lookahead
-      dp->lookahead.merge(firstBeta);
-
-      // if beta ->* epsilon, add LA
-      if (iterSeqCanDeriveEmpty(beta)) {
-        dp->lookahead.merge(item->lookahead);
-      }
-
-      if (tr) {
-        trs << "      built dprod ";
-        dp->print(trs, *this);
-        trs << endl;
-      }
+    // if beta ->* epsilon, add LA
+    if (iterSeqCanDeriveEmpty(beta)) {
+      newItemLA.merge(item->lookahead);
     }
 
-    // is it already there?
+    if (tr) {
+      trs << "      built item ";
+      // this is what LRItem::print would do if I actually
+      // constructed the object
+      newDP->print(trs);
+      trs << ", ";
+      newItemLA.print(trs, *this);
+      trs << endl;
+    }
+
+    // is 'newDP' already there?
     // check in working and finished tables
     bool inDoneList = false;
-    LRItem *already = finished.get(dp.get());
+    LRItem *already = finished.get(newDP);
     if (already) {
       inDoneList = true;
     }
     else {
-      already = workhash.get(dp.get());
+      already = workhash.get(newDP);
     }
 
     if (already) {
@@ -1987,7 +1987,7 @@ void GrammarAnalysis::
 
       // but the new item may have additional lookahead
       // components, so merge them with the old
-      if (already->laMerge(*dp)) {
+      if (already->lookahead.merge(newItemLA)) {
         // merging changed 'already'
         if (tr) {
           trs << "      (chg) merged it to make ";
@@ -1998,9 +1998,9 @@ void GrammarAnalysis::
         if (inDoneList) {
           // pull from the 'done' list and put in worklist, since the
           // lookahead changed
-          finished.remove(already);
+          finished.remove(already->dprod);
           worklist.prepend(already);
-          workhash.add(already, already);
+          workhash.add(already->dprod, already);
         }
         else {
           // 'already' is in the worklist, so that's fine
@@ -2009,19 +2009,17 @@ void GrammarAnalysis::
       else {
         trs << "      this dprod already existed" << endl;
       }
-
-      // don't need the new dotted production (would have happened
-      // anyway at fn end, wanted to make this more explicit)
-      dp.del();
     }
     else {
-      // it's not already there, so add it to worklist
+      // it's not already there, so add it to worklist (but first
+      // actually create it!)
+      LRItem *newItem = new LRItem(numTerms, newDP);
+      newItem->lookahead.copy(newItemLA);
       if (tr) {
         trs << "      this dprod is new, queueing it to add" << endl;
       }
-      worklist.prepend(dp);
-      LRItem *temp = dp.xfr();
-      workhash.add(temp, temp);    // only one argument is accepting an owner ptr..
+      worklist.prepend(newItem);
+      workhash.add(newItem->dprod, newItem);
     }
   } // for each production
 }

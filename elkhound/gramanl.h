@@ -21,6 +21,7 @@
 
 #include "grammar.h"    // Grammar and friends
 #include "ohashtbl.h"   // OwnerHashTable
+#include "okhashtbl.h"  // OwnerKHashTable
 
 // forward decls
 class Bit2d;            // bit2d.h
@@ -166,9 +167,9 @@ public:    // funcs
 
 #ifdef HASHCLOSURE
   // stuff for insertion into a hash table
-  static unsigned hash(void const *key);
-  static void const *dataToKey(LRItem *dp);
-  static bool dpEqual(void const *key1, void const *key2);
+  static unsigned hash(DottedProduction const *key);
+  static DottedProduction const *dataToKey(LRItem *dp);
+  static bool dpEqual(DottedProduction const *key1, DottedProduction const *key2);
 #endif /* HASHCLOSURE */
 
   void print(ostream &os, GrammarAnalysis const &g) const;
@@ -482,9 +483,9 @@ private:    // funcs
   void singleItemClosure(ItemSet &itemSet, ObjList<LRItem> &worklist,
                          LRItem const *item);
 #else /* HASHCLOSURE */
-  void singleItemClosure(OwnerHashTable<LRItem> &finished,
+  void singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
                          SObjList<LRItem> &worklist,
-                         OwnerHashTable<LRItem> &workhash,
+                         OwnerKHashTable<LRItem, DottedProduction> &workhash,
                          LRItem const *item);
 #endif /* HASHCLOSURE */
 
