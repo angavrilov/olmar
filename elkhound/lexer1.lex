@@ -246,7 +246,14 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 int lexer1_lex(Lexer1 &lexer, FILE *inputFile)
 {
   yyrestart(inputFile);
-  return lexer1_inner_lex(lexer);
+  
+  // this collects all the tokens
+  int ret = lexer1_inner_lex(lexer);
+             
+  // prevent leaking the big buffer
+  yy_delete_buffer(yy_current_buffer);
+
+  return ret;
 }
 
 
