@@ -53,6 +53,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     // builtin{Un,Bin}aryOperator[] start as arrays of empty
     // arrays, and then have things added to them below
+    builtinUnaryOperatorStar(NULL),   // but also inited below
 
     tunit(tunit0),
 
@@ -174,6 +175,11 @@ void Env::setupOperatorOverloading()
 
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
+
+  // ---- 13.6 para 6,7 ----
+  // T& operator* (T*);
+  builtinUnaryOperatorStar = createBuiltinUnaryOp(binaryOperatorName[BIN_MULT],
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_NON_VOID)));
 
   // ---- 13.6 para 8 ----
   // T* operator+ (T*);
@@ -1539,14 +1545,20 @@ Type *Env::implicitReceiverType()
 
 void Env::addBuiltinUnaryOp(UnaryOp op, Type *x)
 {
+  builtinUnaryOperator[op].push(
+    createBuiltinUnaryOp(unaryOperatorName[op], x));
+}
+
+Variable *Env::createBuiltinUnaryOp(StringRef opName, Type *x)
+{
   Type *t_void = getSimpleType(SL_INIT, ST_VOID);
 
   Variable *v = declareFunction1arg(
-    t_void /*irrelevant*/, unaryOperatorName[op],
+    t_void /*irrelevant*/, opName,
     x, "x");
   v->setFlag(DF_BUILTIN);
 
-  builtinUnaryOperator[op].push(v);
+  return v;
 }
 
 

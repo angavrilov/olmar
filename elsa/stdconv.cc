@@ -497,16 +497,26 @@ StandardConversion getStandardConversion
 
   // ---------------- group 2 --------------
 
-  if (dest->isSimple(ST_ANY_TYPE)) {
-    // polymorphic match
-    return conv.ret;
-  }
+  if (dest->isSimpleType()) {
+    SimpleTypeId destId = dest->asSimpleTypeC()->type;
+    
+    if (destId == ST_ANY_TYPE) {
+      // polymorphic match
+      return conv.ret;
+    }
 
-  if (dest->isSimple(ST_ANY_OBJ_TYPE) &&
-      !src->isFunctionType() &&
-      !src->isVoid()) {
-    // polymorphic match
-    return conv.ret;    
+    if (destId == ST_ANY_NON_VOID &&
+        !src->isVoid()) {
+      // polymorphic match
+      return conv.ret;
+    }
+
+    if (destId == ST_ANY_OBJ_TYPE &&
+        !src->isFunctionType() &&
+        !src->isVoid()) {
+      // polymorphic match
+      return conv.ret;
+    }
   }
 
   // if both types have not arrived at CVAtomic, then they

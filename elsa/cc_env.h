@@ -105,6 +105,7 @@ public:      // data
   // built-in operator function sets, indexed by operator
   ArrayStack<Variable*> builtinUnaryOperator[NUM_UNARYOPS];
   ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_BINARYOPS];
+  Variable *builtinUnaryOperatorStar;
 
   TranslationUnit *tunit;
   
@@ -328,6 +329,7 @@ public:      // funcs
   // in the places I call them
                                                               
   // create a built-in candidate for operator overload resolution
+  Variable *createBuiltinUnaryOp(StringRef opName, Type *x);
   Variable *createBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
 
   // points of extension: These functions do nothing in the base

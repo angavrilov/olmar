@@ -4341,6 +4341,60 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
 Type *E_deref::itcheck(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
+             
+  // check for overloading
+  if (env.doOperatorOverload &&
+      (ptr->type->asRval()->isCompoundType() ||
+       ptr->type->asRval()->isEnumType())) {
+    OVERLOADINDTRACE("found overloadable unary operator* near " << env.locStr());
+    StringRef opName = env.binaryOperatorName[BIN_MULT];   // hack
+
+    // argument information
+    GrowArray<ArgumentInfo> args(1);
+    args[0] = argInfo(ptr);
+
+    // prepare resolver
+    OverloadResolver resolver(env, env.loc(), &env.errors,
+                              OF_NONE, args);
+
+    // user-defined candidates
+    resolver.addUserOperatorCandidates(ptr->type, opName);
+
+    // built-in candidates
+    resolver.processCandidate(env.builtinUnaryOperatorStar);
+
+    // pick the best candidate
+    Variable *winner = resolver.resolve();
+    if (winner && !winner->hasFlag(DF_BUILTIN)) {
+      // unfortunate hack
+      OperatorName *oname = new ON_binary(BIN_MULT);
+
+      PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
+      if (winner->hasFlag(DF_MEMBER)) {
+        // replace '*a' with 'a.operator*()'
+        replacement = new E_funCall(
+          new E_fieldAcc(ptr, pqo),                // function
+          FakeList<ICExpression>::emptyList()      // arguments
+        );
+      }
+      else {
+        // replace '*a' with '::operator*(a)'
+        // TODO: that is wrong if namespaces exist
+        replacement = new E_funCall(
+          // function to invoke
+          new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
+                                          NULL /*targs*/, pqo)),
+          // arguments
+          FakeList<ICExpression>::makeList(new ICExpression(ptr))
+        );
+      }
+
+      // for now, just re-check the whole thing
+      replacement->tcheck(env, replacement);
+      return replacement->type;
+    }
+  }
+
 
   Type *rt = ptr->type->asRval();
   if (rt->isFunctionType()) {
