@@ -1,7 +1,7 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
-#tmp: cc/cc.gr.gen.h
+#tmp: cc/cc_type.o cc/cc_env.o cc/cc_tcheck.o
 
 # the astgen-generated files need to come first because otherwise
 # the build doesn't go through properly.. I investigated a better
@@ -95,7 +95,7 @@ linkend := $(libraries)
 .PRECIOUS: %.o
 %.o: %.cc
 	$(compile) -o $@ $<
-	$(SMBASE)/depend.pl -o $@ $< $(ccflags) $(includes) > $*.d
+	@$(SMBASE)/depend.pl -o $@ $< $(ccflags) $(includes) > $*.d
 
 # compile things in $(AST) but putting their .o files here; applies to:
 #   locstr.cc
@@ -106,7 +106,7 @@ linkend := $(libraries)
 #   strtable.cc
 %.o: $(AST)/%.cc
 	$(compile) -o $@ $<
-	$(SMBASE)/depend.pl -o $@ $< $(ccflags) $(includes) > $*.d
+	@$(SMBASE)/depend.pl -o $@ $< $(ccflags) $(includes) > $*.d
 
 # sets of related object files
 # files needed to represent a grammar in memory

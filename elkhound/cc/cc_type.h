@@ -568,12 +568,20 @@ public:
   virtual ~TypeFactory() {}      // silence stupid compiler warnings
 
   // ---- constructors for the basic types ----
-  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)=0;
-  virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType)=0;
-  virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv)=0;
-  virtual ArrayType *makeArrayType(Type *eltType, int size = ArrayType::NO_SIZE)=0;
+  // the 'loc' being passed is the start of the syntactic construct
+  // which causes the type to be created or needed (until I get more
+  // experience with this I can't be more precise)
+  virtual CVAtomicType *makeCVAtomicType(SourceLoc loc,
+    AtomicType *atomic, CVFlags cv)=0;
+  virtual PointerType *makePointerType(SourceLoc loc,
+    PtrOper op, CVFlags cv, Type *atType)=0;
+  virtual FunctionType *makeFunctionType(SourceLoc loc,
+    Type *retType, CVFlags cv)=0;
+  virtual ArrayType *makeArrayType(SourceLoc loc,
+    Type *eltType, int size = ArrayType::NO_SIZE)=0;
 
   // ---- clone types ----
+  // when types are cloned, their location is expected to be copied too
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src)=0;
   virtual PointerType *clonePointerType(PointerType *src)=0;
   virtual FunctionType *cloneFunctionType(FunctionType *src)=0;
@@ -584,7 +592,7 @@ public:
   // given a type, qualify it with 'cv'; return NULL if the base type
   // cannot be so qualified; I pass the syntax from which the 'cv'
   // flags were derived, for the benefit of extension analyses
-  virtual Type *applyCVToType(CVFlags cv, Type *baseType,
+  virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                               TypeSpecifier *syntax);
 
   // this is called in a few specific circumstances when we want to
@@ -593,28 +601,28 @@ public:
   // "makePointerType(PO_REFERENCE, CV_CONST, underlying)" (which is
   // the default behavior); this also has the semantics that if
   // 'underlying' is ST_ERROR then this must return ST_ERROR
-  virtual Type *makeRefType(Type *underlying);
+  virtual Type *makeRefType(SourceLoc loc, Type *underlying);
 
   // build a pointer type from a syntactic description; here I allow
   // the factory to know the name of an AST node, but the default
   // implementation will not use it, so it need not be linked in for
   // this to make sense
-  virtual PointerType *syntaxPointerType(
+  virtual PointerType *syntaxPointerType(SourceLoc loc,
     PtrOper op, CVFlags cv, Type *underlying, D_pointer *syntax);
 
   // similar for a function type; the parameters will be added by
   // the caller after this function returns
-  virtual FunctionType *syntaxFunctionType(
+  virtual FunctionType *syntaxFunctionType(SourceLoc loc,
     Type *retType, CVFlags cv, D_func *syntax);
 
   // given a class and a method, build the type of the 'this' pointer
-  virtual PointerType *makeTypeOf_this(
+  virtual PointerType *makeTypeOf_this(SourceLoc loc,
     CompoundType *classType, FunctionType *methodType);
 
   // given a function type and a return type, make a new function
   // type which has the same qualifiers as the given one, but otherwise
   // is unrelated
-  virtual FunctionType *makeSimilarFunctionType(
+  virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 
   // ---- similar functions for Variable ----
@@ -635,20 +643,20 @@ public:
 
   // given an AtomicType, wrap it in a CVAtomicType
   // with no const or volatile qualifiers
-  CVAtomicType *makeType(AtomicType *atomic)
-    { return makeCVAtomicType(atomic, CV_NONE); }
+  CVAtomicType *makeType(SourceLoc loc, AtomicType *atomic)
+    { return makeCVAtomicType(loc, atomic, CV_NONE); }
 
   // make a ptr-to-'type' type; returns generic Type instead of
   // PointerType because sometimes I return fixed(ST_ERROR)
-  inline Type *makePtrType(Type *type)
-    { return type->isError()? type : makePointerType(PO_POINTER, CV_NONE, type); }
+  inline Type *makePtrType(SourceLoc loc, Type *type)
+    { return type->isError()? type : makePointerType(loc, PO_POINTER, CV_NONE, type); }
 
   // map a simple type into its CVAtomicType representative
-  CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE);
+  CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE);
 
   // given an array type with no size, return one that is
   // the same except its size is as specified
-  ArrayType *setArraySize(ArrayType *type, int size);
+  ArrayType *setArraySize(SourceLoc loc, ArrayType *type, int size);
 };
 
 
@@ -664,17 +672,20 @@ private:   // data
 
 public:    // funcs
   // TypeFactory funcs
-  virtual CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv);
-  virtual PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType);
-  virtual FunctionType *makeFunctionType(Type *retType, CVFlags cv);
-  virtual ArrayType *makeArrayType(Type *eltType, int size);
+  virtual CVAtomicType *makeCVAtomicType(SourceLoc loc, 
+    AtomicType *atomic, CVFlags cv);
+  virtual PointerType *makePointerType(SourceLoc loc, 
+    PtrOper op, CVFlags cv, Type *atType);
+  virtual FunctionType *makeFunctionType(SourceLoc loc, 
+    Type *retType, CVFlags cv);
+  virtual ArrayType *makeArrayType(SourceLoc loc,
+    Type *eltType, int size);
 
   virtual CVAtomicType *cloneCVAtomicType(CVAtomicType *src);
   virtual PointerType *clonePointerType(PointerType *src);
   virtual FunctionType *cloneFunctionType(FunctionType *src);
   virtual ArrayType *cloneArrayType(ArrayType *src);
 
-  virtual Type *makeRefType(Type *underlying);
   virtual Variable *makeVariable(SourceLoc L, StringRef n,
                                  Type *t, DeclFlags f);
   virtual Variable *cloneVariable(Variable *src);

@@ -178,25 +178,25 @@ public:      // funcs
   bool onlyDisambiguating() const { return disambiguateOnly; }
   
   // TypeFactory funcs; all of these simply delegate to 'tfac'
-  CVAtomicType *makeCVAtomicType(AtomicType *atomic, CVFlags cv)
-    { return tfac.makeCVAtomicType(atomic, cv); }
-  PointerType *makePointerType(PtrOper op, CVFlags cv, Type *atType)
-    { return tfac.makePointerType(op, cv, atType); }
-  FunctionType *makeFunctionType(Type *retType, CVFlags cv)
-    { return tfac.makeFunctionType(retType, cv); }
-  ArrayType *makeArrayType(Type *eltType, int size = -1)
-    { return tfac.makeArrayType(eltType, size); }
+  CVAtomicType *makeCVAtomicType(SourceLoc loc, AtomicType *atomic, CVFlags cv)
+    { return tfac.makeCVAtomicType(loc, atomic, cv); }
+  PointerType *makePointerType(SourceLoc loc, PtrOper op, CVFlags cv, Type *atType)
+    { return tfac.makePointerType(loc, op, cv, atType); }
+  FunctionType *makeFunctionType(SourceLoc loc, Type *retType, CVFlags cv)
+    { return tfac.makeFunctionType(loc, retType, cv); }
+  ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
+    { return tfac.makeArrayType(loc, eltType, size); }
 
   Variable *makeVariable(SourceLoc L, StringRef n,
                          Type *t, DeclFlags f)
     { return tfac.makeVariable(L, n, t, f); }
 
-  CVAtomicType *getSimpleType(SimpleTypeId st, CVFlags cv = CV_NONE)
-    { return tfac.getSimpleType(st, cv); }
-  CVAtomicType *makeType(AtomicType *atomic)
-    { return tfac.makeType(atomic); }
-  Type *makePtrType(Type *type)
-    { return tfac.makePtrType(type); }
+  CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE)
+    { return tfac.getSimpleType(loc, st, cv); }
+  CVAtomicType *makeType(SourceLoc loc, AtomicType *atomic)
+    { return tfac.makeType(loc, atomic); }
+  Type *makePtrType(SourceLoc loc, Type *type)
+    { return tfac.makePtrType(loc, type); }
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
