@@ -609,6 +609,7 @@ if $use_gnu; then
   testparse gnu/d0082.cc
   testparse gnu/d0085.cc
   testparse gnu/d0086.cc
+  testparse gnu/d0089.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do

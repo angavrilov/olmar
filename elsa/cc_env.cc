@@ -473,6 +473,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     declareFunction1arg(t_void, "__builtin_va_end",
                         var__builtin_va_list->type, "__list");
 
+    // void *__builtin_alloca(int __len);
+    declareFunction1arg(t_voidptr, "__builtin_alloca",
+                        t_int, "__len");
+
     // char *__builtin_strchr(char const *str, int ch);
     declareFunction2arg(t_charptr, "__builtin_strchr",
                         t_charconstptr, "str",
