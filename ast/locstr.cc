@@ -37,6 +37,7 @@ LocString::LocString(Flatten&)
 
 void LocString::xfer(Flatten &flat)
 {
+  xassert(flattenStrTable);
   flattenStrTable->xfer(flat, str);
 }
 
