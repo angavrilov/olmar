@@ -19,16 +19,37 @@ enum TokenCode {
   TOK_LPAREN,              // "("
   TOK_RPAREN,              // ")"
 
-//    // for BExp
-//    TOK_TRUE,                // "true"
-//    TOK_FALSE,               // "false"
-//    TOK_EQUAL,               // "="
-//    TOK_NOT,
+  // for BExp
+  TOK_TRUE,                // "true"
+  TOK_FALSE,               // "false"
+  TOK_EQUAL,               // "="
+  TOK_LESS,                // "<"
+  TOK_NOT,                 // "!"
+  TOK_AND,                 // elkhound doesn't like quoted backslashes
+  TOK_OR,
+
+  // for Stmt
+  TOK_SKIP,                // "skip"
+  TOK_ABORT,               // "abort"
+  TOK_PRINT,               // "print"
+  TOK_ASSIGN,              // ":="
+  TOK_SEMI,                // ";"
+  TOK_IF,                  // "if"
+  TOK_FI,                  // "fi"
+  TOK_DO,                  // "do"
+  TOK_OD,                  // "od"
+  
+  // for GCom
+  TOK_ARROW,               // "->"
+  TOK_FATBAR,              // "#"
 };
 
 
 // read characters from stdin, yield tokens for the parser
 class Lexer : public LexerInterface {
+private:
+  static void fail(char const *msg);
+
 public:
   // function that retrieves the next token from
   // the input stream

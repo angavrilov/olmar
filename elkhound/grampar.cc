@@ -494,7 +494,9 @@ void synthesizeStartRule(GrammarAST *ast)
   ASTList<RHSElt> *rhs = new ASTList<RHSElt>();
   rhs->append(rhs1);
   rhs->append(rhs2);
-  ProdDecl *startProd = new ProdDecl(rhs, LIT_STR(" return top; ").clone());
+  char const *action = firstNT->type.equals("void")? " return; " :
+                                                     " return top; ";
+  ProdDecl *startProd = new ProdDecl(rhs, LIT_STR(action).clone());
 
   // build an even earlier start symbol
   TF_nonterm *earlyStartNT

@@ -213,7 +213,7 @@ TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
 
 /* yields: LocString */
 Type: TOK_LIT_CODE                    { $$ = $1; }
-    | /* empty */                     { $$ = noloc("int"); }
+    | /* empty */                     { $$ = noloc("void"); }
     ;
 
 /* yields: ASTList<TermType> */
@@ -298,7 +298,7 @@ Production: "->" RHS Action                { $$ = new ProdDecl($2, $3); }
 
 /* yields: LocString */
 Action: TOK_LIT_CODE                       { $$ = $1; }
-      | ";"                                { $$ = noloc("return 0;"); }
+      | ";"                                { $$ = noloc("return;"); }
       ;
 
 /* yields: ASTList<RHSElt> */

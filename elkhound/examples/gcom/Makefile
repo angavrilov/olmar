@@ -35,9 +35,9 @@ parser: $(PARSER_OBJS)
 	g++ -o $@ $(PARSER_OBJS) $(LDFLAGS)
 
 check:
-	echo "2 + 3 + 4" | ./lexer
-	echo "2 + 3 + 4" | ./parser
-	echo "2 + 3 + 4" | ./parser -tree
+	echo "x := 2 + 3 + 4; print x" | ./lexer
+	echo "x := 2 + 3 + 4; print x" | ./parser
+	echo "x := 2 + 3 + 4; print x" | ./parser -tree
 
 clean:
 	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc

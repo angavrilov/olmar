@@ -20,7 +20,7 @@ if ($ARGV[0] eq "-ptree") {
 $name = $ARGV[0];
 
 
-$nodeType = "";
+$nodeType = "[int]";
 if ($ptree) {
   $nodeType = "[PTreeNode*]";
 }

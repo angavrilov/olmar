@@ -2861,8 +2861,8 @@ void GrammarAnalysis::resolveConflicts(
 
 void reportUnexpected(int value, int expectedValue, char const *desc)
 {
-  if ((expectedValue==-1 && value>0) ||
-      (expectedValue != value)) {
+  if ((expectedValue == -1 && value>0) ||
+      (expectedValue != -1 && expectedValue != value)) {
     cout << value << " " << desc;
     if (expectedValue != -1) {
       cout << " (expected " << expectedValue << ")";
@@ -4184,6 +4184,18 @@ void emitUserCode(EmitCode &out, LocString const &code, bool braces)
 }
 
 
+// bit of a hack: map "void" to "SemanticValue" so that the compiler
+// won't mind when I try to declare parameters of that type
+char const *notVoid(char const *type)
+{
+  if (0==strcmp(type, "void")) {
+    return "SemanticValue";
+  }
+  else {
+    return type;
+  }
+}
+
 // yield the given type, but if it's NULL, then yield
 // something to use instead
 char const *typeString(char const *type, LocString const &tag)
@@ -4194,7 +4206,7 @@ char const *typeString(char const *type, LocString const &tag)
     return "__error_no_type__";     // will make compiler complain
   }
   else {
-    return type;
+    return notVoid(type);
   }
 }
 
@@ -4356,7 +4368,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     Production const &prod = *(iter.data());
 
     out << "    case " << prod.prodIndex << ":\n";
-    out << "      return (SemanticValue)ths->" << actionFuncName(prod) << "(" 
+    out << "      return (SemanticValue)(ths->" << actionFuncName(prod) << "("
         SOURCELOC( << "loc" )
         ;
 
@@ -4386,6 +4398,14 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
         out << "(int)";
       }
       out << "(semanticValues[" << index << "])";
+    }
+
+    out << ")";     // end of argument list
+
+    if (0==strcmp(prod.left->type, "void")) {
+      // cute hack: turn the expression into a comma expression, with
+      // the value returned being 0
+      out << ", 0";
     }
 
     out << ");\n";
@@ -4537,10 +4557,10 @@ void emitDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
   }
 
   if (nonterm && nonterm->mergeCode) {
-    emitFuncDecl(g, out, dcl, sym.type,
+    emitFuncDecl(g, out, dcl, notVoid(sym.type),
       stringc << "merge_" << sym.name
-              << "(" << sym.type << " " << nonterm->mergeParam1
-              << ", " << sym.type << " " << nonterm->mergeParam2 << ") ");
+              << "(" << notVoid(sym.type) << " " << nonterm->mergeParam1
+              << ", " << notVoid(sym.type) << " " << nonterm->mergeParam2 << ") ");
     emitUserCode(out, nonterm->mergeCode);
   }
 
@@ -4579,7 +4599,7 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
       out << "    case " << sym.getTermOrNontermIndex() << ":\n";
       out << replace(replace(templateCode,
                "$symName", sym.name),
-               "$symType", sym.type);
+               "$symType", notVoid(sym.type));
     }
   }
 

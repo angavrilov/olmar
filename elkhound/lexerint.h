@@ -35,6 +35,14 @@ public:     // data
   SourceLoc loc;
 
 public:     // funcs
+  LexerInterface()
+    : type(0),
+      sval(0),
+      loc(SL_UNKNOWN)
+  {}
+  virtual ~LexerInterface() {}
+
+
   // retrieve the next token; the lexer should respond by filling in
   // the above fields with new values, to describe the next token; the
   // lexer indicates end of file by putting 0 into 'type'; when the
@@ -51,9 +59,6 @@ public:     // funcs
   // the result of a method lookup this wouldn't be necessary.
   virtual NextTokenFunc getTokenFunc() const=0;
 
-  // allow destruction with interface pointer only
-  virtual ~LexerInterface() {}
-  
   
   // The following functions are called to help create diagnostic
   // reports.  They should describe the current token (the one

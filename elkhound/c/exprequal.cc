@@ -7,14 +7,6 @@
 #include "ohashtbl.h"          // OwnerHashTable
 #include "c_type.h"            // Type::equals
 
-#ifdef __CYGWIN__
-  // as reported by Jim Nichols:
-  // bizarre: under cygwin's gcc-3.2, "_L" is the name
-  // of a macro that expands to "02"... (!)  Since _L is
-  // used as an identifier name below, hack it:
-  #undef _L
-#endif // __CYGWIN__
-
 
 // ------------------- VariablePair ---------------
 struct VariablePair {
@@ -57,10 +49,11 @@ bool equalExpr(OwnerHashTable<VariablePair> &equiv,
     return false;
   }
 
-  // another convenience in C: macros!
+  // I had been using _L as a variable name, but that causes problems
+  // on some cygwin and solaris installations, so I changed it to LLL
   #define DOUBLECASEC(type)                       \
-    ASTNEXTC(type, _L)                            \
-    type const &L = *_L;                          \
+    ASTNEXTC(type, LLL)                           \
+    type const &L = *LLL;                         \
     type const &R = *(right->as##type##C());
 
   // performance note: in general, I try to discover that the nodes are
@@ -70,8 +63,8 @@ bool equalExpr(OwnerHashTable<VariablePair> &equiv,
   // since the tags are equal, a switch on the left's type also
   // analyzes right's type
   ASTSWITCHC(Expression, left) {
-    ASTCASEC(E_intLit, _L)      // note this expands to an "{" among other things
-      E_intLit const &L = *_L;
+    ASTCASEC(E_intLit, LLL)     // note this expands to an "{" among other things
+      E_intLit const &L = *LLL;
       E_intLit const &R = *(right->asE_intLitC());
       return L.i == R.i;
 

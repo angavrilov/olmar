@@ -31,7 +31,7 @@ void Lexer::nextToken(LexerInterface *lex)
     case '*': lex->type = TOK_TIMES; return;
     case '(': lex->type = TOK_LPAREN; return;
     case ')': lex->type = TOK_RPAREN; return;
-  };
+  }
   
   // integer literal
   if (isdigit(ch)) {

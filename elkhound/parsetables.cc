@@ -1081,7 +1081,14 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
 
   int rowNumWidth = stringf("%d", size / rowLength /*round down*/).length();
 
-  out << "  static " << typeName << " " << tableName << "[" << size << "] = {";
+  // I make tables 'const' because that way the OS loader might be
+  // smart enough to share them (on a read-only basis) across multiple
+  // processes started from the same executable.  But I immediately
+  // cast them to non-const, since ParseTables doesn't declare
+  // pointers-to-const (since it also has methods to modify the tables
+  // at parser generation time).
+
+  out << "  static " << typeName << " const " << tableName << "[" << size << "] = {";
   int row = 0;
   for (int i=0; i<size; i++) {
     if (i % rowLength == 0) {    // one row per state
@@ -1126,7 +1133,8 @@ void emitTable2(EmitCode &out, EltType const *table, int size, int rowLength,
 {
   string tempName = stringc << tableName << "_static";
   emitTable(out, table, size, rowLength, typeName, tempName);
-  out << "  " << tableName << " = " << tempName << ";\n\n";
+  out << "  " << tableName << " = const_cast<" << typeName << "*>(" 
+      << tempName << ");\n\n";
 }
 
 
