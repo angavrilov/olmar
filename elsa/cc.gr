@@ -62,7 +62,7 @@ option defaultMergeAborts;
 option shift_reduce_conflicts 37;
 option reduce_reduce_conflicts 47;
 option unreachable_nonterminals 0;
-option unreachable_terminals 29;
+option unreachable_terminals 28;
 
 verbatim {
 
