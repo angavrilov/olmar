@@ -680,7 +680,7 @@ nonterm(Statement*) Statement {
   // or a BlockDeclaration (declare variable y, of type x)
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
-  -> n:Identifier ":" attrspec:AttributeSpecifierOpt s:Statement 
+  -> n:Identifier ":" attrspec:AttributeSpecifierListOpt s:Statement 
        { return new S_label(loc, n, s); }
 
   -> "case" e:ConstantExpression ":" s:Statement
@@ -2278,12 +2278,10 @@ nonterm AttributeWord {
   //  TOK___TYPEOF__,          "__typeof__",                :    n
 }
 
-
 nonterm CommaSepExpressionListOpt {
   -> empty { return 0; }
   -> el:ExpressionList { return 0; }
 }
-
 
 nonterm AttributeParameters {
 //    -> id:Identifier "," exprs:CommaSepExpressionListOpt { return 0; }
@@ -2294,26 +2292,27 @@ nonterm AttributeParameters {
   -> exprs:CommaSepExpressionListOpt { return 0; }
 }
 
-
 nonterm Attribute {
   -> empty { return 0; }
   -> w:AttributeWord { return 0; }
   -> w:AttributeWord "(" ap:AttributeParameters ")" { return 0; }
 }
 
-
 nonterm AttributeList {
   -> at:Attribute { return 0; }
   -> ap:AttributeList "," at:Attribute { return 0; }
 }
 
-
 nonterm AttributeSpecifier {
   -> "__attribute__" "(" "(" ap:AttributeList ")" ")" { return 0; }
 }
 
-
-nonterm AttributeSpecifierOpt {
-  -> empty { return 0; }
+nonterm AttributeSpecifierList {
   -> as:AttributeSpecifier { return 0; }
+  -> asl:AttributeSpecifierList as:AttributeSpecifier { return 0; }
+}
+ 
+nonterm AttributeSpecifierListOpt {
+  -> empty { return 0; }
+  -> asl:AttributeSpecifierList { return 0; }
 }
