@@ -8,12 +8,12 @@
 #undef NULL
 #define NULL 0
 
-#undef offsetof
-#define offsetof(objtype, field) (&(((objtype*)0)->field))
-
 typedef signed int ptrdiff_t;
 
-typedef signed int size_t;
+typedef unsigned int size_t;
+
+#undef offsetof
+#define offsetof(objtype, field) ((size_t)(&(((objtype*)0)->field)))
 
 // for parsing C code
 #ifndef __cplusplus

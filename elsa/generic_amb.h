@@ -188,7 +188,7 @@ NODE *resolveAmbiguity(
     // none of the alternatives checked out
     TRACE("disamb",
       toString(loc) << ": ambiguous " << nodeTypeName << ": all bad");
-    breaker();
+    //breaker();  // nsFastLoadFile.i provokes this many times, but all benign (?)
 
     // put all the errors in and also a note about the ambiguity
     env.errors.takeMessages(existingErrors);

@@ -10,6 +10,10 @@
 
 typedef void *va_list;
 
+// sm: this is for compatibility with glibc, which seems to assume
+// it is using gcc's names
+typedef va_list __gnuc_va_list;
+
 void va_start(va_list, void *);
 
 void */*THE TYPECHECKER SHOULD OVERRIDE THIS*/ __va_arg(va_list, int);

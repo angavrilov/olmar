@@ -455,10 +455,12 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
   bool isTemporary =   var->hasFlag(DF_TEMPORARY);
   // these are properties of the declaration and the variable and
   // should match
-  bool isMember =      dflags & DF_MEMBER;
-  xassert(isMember ==    var->hasFlag(DF_MEMBER));
-  bool isStatic =      dflags & DF_STATIC;
-  xassert(isStatic ==    var->hasFlag(DF_STATIC));
+  //
+  // sm: at least in t0318.cc, they do not; the Variable has the
+  // correct info, whereas the declaration merely has what was
+  // syntactically present and/or obvious
+  bool isMember =      var->hasFlag(DF_MEMBER);
+  bool isStatic =      var->hasFlag(DF_STATIC);
   // this used to check if the *var* had an extern flag, which is not
   // correct because if there is a later declaration in the file for
   // the same variable that is *not* extern then the flag DF_EXTERN
@@ -567,7 +569,9 @@ void Declarator::elaborateCDtors(ElabVisitor &env, DeclFlags dflags)
       (isMember && !(isStatic && type->isConst())) ||
       isExtern
       ) {
-    xassert(!ctorStatement);
+    // sm: I really have no idea what the rationale here is, and it
+    // is wrong (t0318.cc) anyway, so I'm nerfing this.
+    //xassert(!ctorStatement);
   } else if (!isAbstract &&
              (!isMember ||
               (isStatic && type->isConst() && init)) &&

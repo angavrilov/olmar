@@ -422,11 +422,14 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   Type *t_size_t = getSimpleType(SL_INIT, ST_INT);
 
   // but I do need a class called 'bad_alloc'..
-  //   class bad_alloc {};
+  //   class bad_alloc;
+  //
+  // 9/26/04: I had been *defining* bad_alloc here, but gcc defines
+  // the class in new.h so I am following suit.
   CompoundType *dummyCt;
   Type *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), SL_INIT,
-                    TI_CLASS, false /*forward*/);
+                    TI_CLASS, true /*forward*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",

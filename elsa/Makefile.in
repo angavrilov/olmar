@@ -208,6 +208,8 @@ in/big/%.i: in/big/gz/%.i.gz
 	perl -i -lpe 's|^(\W*)(char ip_opts\[40\];)\W*$$|$$1//$$2|' $@
 # change "((void *)0)" to "0" to compensate for a bad NULL macro somewhere...
 	perl -i -lpe 's|\(\(void \*\)0\)|0|' $@
+# define bad_alloc, don't just declare it
+	perl -i -lpe 's|class bad_alloc;|class bad_alloc {};|' $@
 
 # decompress all of them which haven't already been decompressed
 .PHONY: in/big
