@@ -204,7 +204,7 @@ testTrivGrammar angle 1 2 3 4 5
 # (for now) is only in Elsa, so don't try it unless that script is 
 # in a usual place
 if [ -x ../elsa/multitest.pl ]; then
-  runTest ../elsa/multitest.pl ./elkhound ffollow.gr ffollow_ext.gr
+  runTest perl ../elsa/multitest.pl ./elkhound ffollow.gr ffollow_ext.gr
 fi
 
 
