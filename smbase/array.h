@@ -7,6 +7,30 @@
 #include "xassert.h"      // xassert
 
 
+// -------------------- Array ----------------------
+// same as C's built-in array, but automatically deallocates
+template <class T>
+class Array {
+private:     // data
+  T *arr;
+
+private:     // not allowed
+  Array(Array&);
+  void operator=(Array&);
+
+public:
+  Array(int len) : arr(new T[len]) {}
+  ~Array() { delete[] arr; }
+  
+  T const &operator[] (int i) const { return arr[i]; }
+  T &operator[] (int i) { return arr[i]; }
+
+  operator T const* () const { return arr; }
+  operator T const* () { return arr; }
+  operator T * () { return arr; }
+};
+
+
 // ------------------ GrowArray --------------------
 // this class implements an array of T's; it automatically expands
 // when 'ensureAtLeast' or 'ensureIndexDoubler' is used; it does not
