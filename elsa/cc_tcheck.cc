@@ -3238,6 +3238,34 @@ void S_return::itcheck(Env &env)
     
     // TODO: verify that 'expr' is compatible with the current
     // function's declared return type
+
+    FunctionType *ft = env.scope()->curFunction->funcType;
+    xassert(ft);
+    // FIX: check that ft->retType is non-NULL; I'll put an assert for now
+    xassert(ft->retType);
+    if (ft->retType->isCompoundType()) {
+      // This is an instance of return by value of a compound type.
+      // We accomplish this by calling the copy ctor.
+
+      // get the target of the constructor function
+      Variable *retVal = env.getRetVal(ft);
+      xassert(retVal->getType()->equals(ft->retType));
+
+      // get the arguments of the constructor function
+      FakeList<ArgExpression> *args0 =
+        FakeList<ArgExpression>::makeList(new ArgExpression(expr->expr));
+      xassert(args0->count() == 1);
+
+      // make the constructor function
+      E_constructor *tmpE_ctor = makeCtorExpr(env, retVal, ft->retType, args0);
+      xassert(tmpE_ctor);       // FIX: what happens if there is no such compatable copy ctor?
+
+      // Recall that expr is a FullExpression, so we re-use it,
+      // "floating" it above the ctorExpression made above
+      expr->expr = tmpE_ctor;
+      ctorExpr = expr;
+      expr = NULL;              // prevent two representations of the return value
+    }
   }
   
   else {

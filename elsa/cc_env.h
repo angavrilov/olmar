@@ -364,6 +364,9 @@ public:      // funcs
   Type *makeRefType(Type *underlying)
     { return tfac.makeRefType(loc(), underlying); }
 
+  // dsw: I don't know where to put this, so I'll put it here
+  Variable *getRetVal(FunctionType *ft);
+
   // (this does the work of the old 'makeMadeUpVariable')
   Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 

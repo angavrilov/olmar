@@ -1202,6 +1202,7 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 FunctionType::FunctionType(Type *r)
   : flags(FF_NONE),
     retType(r),
+    retVal(0),                  // accessed through Env::getRetVal(), which idempotently ctors it
     params(),
     exnSpec(NULL),
     templateParams(NULL)

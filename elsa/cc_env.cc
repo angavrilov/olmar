@@ -596,6 +596,16 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 }
 
 
+Variable *Env::getRetVal(FunctionType *ft)
+{
+  if (!ft->retVal) {
+    // FIX: this name is not in the name table
+    ft->retVal = makeVariable(loc(), "<retVal>", tfac.cloneType(ft->retType), DF_PARAMETER);
+  }
+  return ft->retVal;
+}
+
+
 Variable *Env::declareFunctionNargs(
   Type *retType, char const *funcName,
   Type **argTypes, char const **argNames, int numArgs,

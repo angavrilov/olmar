@@ -52,6 +52,20 @@ class IDeclarator {
 }
 
 
+class Statement {
+  -> S_return() {
+    // This is for the copy ctor that is needed when you do a return
+    // by value of a CompoundType.  It always will copy into the
+    // *FunctionType::retVal for the function that it is in.
+
+    // update: don't do this
+//      public Statement *ctorStatement = NULL;
+    // an S_return already has a FullExpression, so do this:
+    public FullExpression *ctorExpr = NULL;
+  }
+}
+
+
 class FullExpression {
   public FullExpressionAnnot annot;
 }

@@ -38,7 +38,11 @@ E_constructor *makeCtorExpr
                       args);
   ector0->artificial = true;
   // this way the E_constructor::itcheck() can tell that it is not for
-  // a temporary
+  // a temporary; update: I think the previous sentence is now wrong,
+  // and it is due to the artificial flag that it can tell; however I
+  // think I need the var set here for a different reason; not
+  // investigating this now; just wanted to note that the comment is
+  // probably wrong.
   ector0->var = var;
   return ector0;
 }

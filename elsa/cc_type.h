@@ -725,7 +725,11 @@ public:     // data
   // nothing for the type checker to "check".  If an analysis would
   // like to have a Variable here, it's free to add it in its derived
   // version of FunctionType.
-  //Variable *retVal;
+  //
+  // dsw: update; we do need this here so that in S_return::itcheck()
+  // the copy ctor that is called when a CompoundType is returned by
+  // value has a target
+  Variable *retVal;
 
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is 'this'
