@@ -424,6 +424,15 @@ public:      // funcs
   Variable *lookupPQVariable_primary_resolve
     (PQName const *name, LookupFlags flags, FunctionType *signature);
 
+  // initialize the arguments from an AST list of TempateArgument-s
+  void initArgumentsFromASTTemplArgs
+    (TemplateInfo *tinfo,
+     ASTList<TemplateArgument> const &templateArgs);
+  // check that if you made STemplateArguments from templateArgs that
+  // they would be isomorphic to those alread in tinfo->arguments
+  bool checkIsoASTTemplArgs
+    (TemplateInfo *tinfo,
+     ASTList<TemplateArgument> const &templateArgs);
   // load the bindings with any explicit template arguments; return true if successful
   bool loadBindingsWithExplTemplArgs(Variable *var, ASTList<TemplateArgument> const &args,
                                      MatchTypes &match);

@@ -1471,6 +1471,7 @@ Variable *Env::lookupPQVariable_primary_resolve(
       return NULL;
     }
   }
+  // this should not be a user error
   xassert(var->templateInfo()->isPrimary());
   return var;
 }
@@ -1518,6 +1519,39 @@ Variable *Env::findTemplPrimaryForSignature
     }
   }
   return candidatePrim;
+}
+
+
+void Env::initArgumentsFromASTTemplArgs
+  (TemplateInfo *tinfo,
+   ASTList<TemplateArgument> const &templateArgs)
+{
+  xassert(tinfo);
+  xassert(tinfo->arguments.count() == 0); // don't use this if there are already arguments
+  FOREACH_ASTLIST(TemplateArgument, templateArgs, iter) {
+    TemplateArgument const *targ = iter.data();
+    xassert(targ->sarg.hasValue());
+    tinfo->arguments.append(new STemplateArgument(targ->sarg));
+  }
+}
+
+
+bool Env::checkIsoASTTemplArgs
+  (TemplateInfo *tinfo,
+   ASTList<TemplateArgument> const &templateArgs)
+{
+  xassert(tinfo);
+  MatchTypes match(tfac, MatchTypes::MM_ISO);
+  ObjListIterNC<STemplateArgument> iter1(tinfo->arguments);
+  FOREACH_ASTLIST(TemplateArgument, templateArgs, iter2) {
+    if (iter1.isDone()) return false;
+    TemplateArgument const *targ = iter2.data();
+    xassert(targ->sarg.hasValue());
+    STemplateArgument sta(targ->sarg);
+    if (!match.match_STA(iter1.data(), &sta, match.MT_NONE)) return false;
+    iter1.adv();
+  }
+  return iter1.isDone();
 }
 
 
@@ -3615,6 +3649,7 @@ Variable *Env::createDeclaration(
       prior->loc = loc;
       prior->setFlag(DF_DEFINITION);
       prior->clearFlag(DF_EXTERN);
+      prior->clearFlag(DF_FORWARD); // dsw: I added this
     }
 
     // prior is a ptr to the previous decl/def var; type is the

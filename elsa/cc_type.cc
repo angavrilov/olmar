@@ -2028,6 +2028,29 @@ SObjList<Variable> &TemplateInfo::getInstantiations()
 }
 
 
+Variable *TemplateInfo::getInstantiationOfVar(Variable *var)
+{
+  xassert(var->templateInfo());
+  ObjList<STemplateArgument> &varTArgs = var->templateInfo()->arguments;
+  Variable *matchingVar = NULL;
+  SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
+    Variable *candidate = iter.data();
+    MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+    // FIX: I use MT_NONE only because the matching is supposed to be
+    // exact.  If you wanted the standard effect of const/volatile not
+    // making a difference at the top of a parameter type, you would
+    // have to match each parameter separately
+    if (!match.match_Type(var->type, candidate->type, match.MT_NONE)) continue;
+    if (!match.match_Lists2(varTArgs, candidate->templateInfo()->arguments, match.MT_NONE)) {
+      continue;
+    }
+    xassert(!matchingVar);      // shouldn't be in there twice
+    matchingVar = iter.data();
+  }
+  return matchingVar;
+}
+
+
 bool TemplateInfo::equalArguments
   (SObjList<STemplateArgument> const &list) const
 {

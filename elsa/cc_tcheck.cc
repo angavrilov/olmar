@@ -666,17 +666,13 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
         } else {
           // if this is a forward declaration for a specialization /
           // instantiation, it should not be in the namespace but
-          // should be in the instantiation list of 'previous'
-          Variable *var0 = NULL;
-          SFOREACH_OBJLIST_NC(Variable, previous->templateInfo()->getInstantiations(), iter) {
-            MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
-            if (match.match_Type(dt1.var->type, iter.data()->type, match.MT_TOP)) {
-              // shouldn't be in there twice
-              xassert(!var0);
-              var0 = iter.data();
-            }
+          // should be put into the instantiation list of 'previous',
+          // but only if it is not already there
+          Variable *var0 = previous->templateInfo()->getInstantiationOfVar(dt1.var);
+          if (!var0) {
+            xassert(!dt1.var->funcDefn); // pure declaration, not definition
+            previous->templateInfo()->addInstantiation(dt1.var);
           }
-          xassert(!var0);       // should be in there
         }
       }
     }
@@ -2713,6 +2709,13 @@ realStart:
   dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
                                  scope, enclosingClass, prior, overloadSet,
                                  dt.reallyAddVariable /*reallyAddVariable*/);
+
+  // put in the template args if there are any
+  if (name->isPQ_template()) {
+    // save these so we can attach the arguments after the template
+    // info object is created
+    dt.ASTTemplArgs = &name->asPQ_templateC()->args;
+  }
 }
 
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
@@ -2905,6 +2908,10 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     xassert(!dt.reallyAddVariable);
     templateInfo = dt.priorTemplInst->templateInfo();
   } else {
+    // FIX: I think this is seriously broken in the case of
+    // typechecking a function template instantiation and just by
+    // accident doesn't show up in any of our tests; maybe it is not
+    // possible for it to go wrong, but it sure is weird.
     templateInfo = env.takeFTemplateInfo();
   }
 
@@ -3025,6 +3032,23 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     // don't stomp on an existing template info
     if (!dt.var->templateInfo()) {
       dt.var->setTemplateInfo(templateInfo);
+      if (dt.ASTTemplArgs) {
+        // some disambiguation situations don't end up attaching a
+        // template info: elsa/in/d0005.cc
+        if (!dt.var->templateInfo()) {
+          // FIX: this can happen if we have gone down the wrong
+          // branch of a disambiguation.  It can also happen if we are
+          // in a function template instantiation where we are
+          // typechecking the cloned AST.  Since it isn't easy to
+          // check for this second case, I just avoid it.  All I
+          // really need the arguments for is when we are creating a
+          // declaration so that when we find the definition later we
+          // can match them up.
+//            xassert(env.hasDisambErrors());
+        } else {
+          env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(), *dt.ASTTemplArgs);
+        }
+      }
     }
   }
 }
@@ -5830,7 +5854,9 @@ void TD_func::itcheck(Env &env)
   // do we have template arguments? that is, are we a specialization?
   // If so, hang us off of the appropriate primary.  If we are a
   // primary, skip the whole thing because we got entered into the
-  // namespace during the tcheck() above.
+  // namespace during the tcheck() above.  Remember to look to see if
+  // we have already been declared and if so, to re-use the
+  // declaration and not duplicate it.
   PQName const *unqual = name->getUnqualifiedNameC();
   if (unqual->isPQ_template()) {
     PQ_template const *t = unqual->asPQ_templateC();
@@ -5855,18 +5881,39 @@ void TD_func::itcheck(Env &env)
     // only way to find the specialization is to go through the
     // primary template
     Variable *fVar = f->nameAndParams->var;
-    FOREACH_ASTLIST(TemplateArgument, templateArgs, iter) {
-      TemplateArgument const *targ = iter.data();
-      xassert(targ->sarg.hasValue());
-      fVar->templateInfo()->arguments.append(new STemplateArgument(targ->sarg));
-    }
-    primaryTI->addInstantiation(fVar);
-    
-    if (tracingSys("template")) {
-      cout << "TS_classSpec::itcheck: "
-           << "template typechecked, appending to instantiations of primary"
-           << endl;
-      primaryTI->debugPrint();
+    env.checkIsoASTTemplArgs(fVar->templateInfo(), templateArgs);
+
+    // is there already a forward declaration for it?
+    Variable *forward = primaryTI->getInstantiationOfVar(fVar);
+    if (forward) {
+      if (forward->funcDefn) {
+        env.error(stringc << "duplicate definition of specialization for " << fVar->toString());
+      } else {
+        // update things in the declaration; I copied this from
+        // Env::createDeclaration()
+        TRACE("odr",    "def'n of " << forward->name
+              << " at " << toString(f->getLoc())
+              << " overrides decl at " << toString(forward->loc));
+        forward->loc = f->getLoc();
+        forward->setFlag(DF_DEFINITION);
+        forward->clearFlag(DF_EXTERN);
+        forward->clearFlag(DF_FORWARD); // dsw: I added this
+        forward->funcDefn = f;
+        if (tracingSys("template")) {
+          cout << "TS_classSpec::itcheck: "
+               << "definition of " << fVar->toString()
+               << " attached to previous forwarded declaration" << endl;
+          primaryTI->debugPrint();
+        }
+      }
+    } else {
+      primaryTI->addInstantiation(fVar);
+      if (tracingSys("template")) {
+          cout << "TS_classSpec::itcheck: "
+               << "definition of " << fVar->toString()
+               << " appended to instantiation of primary" << endl;
+        primaryTI->debugPrint();
+      }
     }
   }
 }

@@ -292,6 +292,12 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
+    // if the name of the Declarator was a PQ_template, then save its
+    // template arguments so that later when the template info is
+    // created for the variable we can convert them into
+    // STemplateArguments and attach them
+    ASTList<TemplateArgument> const *ASTTemplArgs;
+
     // syntactic context
     DeclaratorContext context;
 
@@ -319,6 +325,7 @@ class Declarator {
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
+      , ASTTemplArgs (NULL)
       , context     (dc)
       , reallyAddVariable (true)
       , priorTemplInst(NULL)
@@ -329,6 +336,7 @@ class Declarator {
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
+      , ASTTemplArgs (obj.ASTTemplArgs)
       , context     (obj.context)
       , reallyAddVariable(obj.reallyAddVariable)
       , priorTemplInst(obj.priorTemplInst)
@@ -339,6 +347,7 @@ class Declarator {
       dflags      = obj.dflags;
       size_E_new  = obj.size_E_new;
       funcSyntax  = obj.funcSyntax;
+      ASTTemplArgs = obj.ASTTemplArgs;
       context     = obj.context;
       reallyAddVariable = obj.reallyAddVariable;
       priorTemplInst = obj.priorTemplInst;

@@ -151,21 +151,12 @@ private:                        // funcs
   bool match_array (ArrayType *a,           Type *b, MFlags mFlags);
   bool match_ptm   (PointerToMemberType *a, Type *b, MFlags mFlags);
 
-  // does listA match listB pairwise?  NOTE: the SYMMETRY in the list
-  // serf/ownerness in contrast to the other function for operating on
-  // lists of STemplateArgument-s below.
-  bool match_Lists2(ObjList<STemplateArgument> &listA,
-                    ObjList<STemplateArgument> &listB,
-                    MFlags mFlags);
-
   // check 1) if 'a' is a specialization/instantiation of the same
   // primary as 'b', and 2) the instantiation arguments of 'a' matches
   // that of 'b' pairwise
   bool match_TInfo(TemplateInfo *a, TemplateInfo *b, MFlags mFlags);
 
   bool unifyIntToVar(int i0, Variable *v1);
-
-  bool match_STA(STemplateArgument *a, STemplateArgument const *b, MFlags mFlags);
 
   // internal method for checking if Type 'a' matches Type 'b'.
   bool match0(Type *a, Type *b, MFlags mFlags);
@@ -177,11 +168,20 @@ public:
   // top level entry for checking if Type 'a' matches Type 'b'.
   bool match_Type(Type *a, Type *b, MFlags mFlags);
 
+  bool match_STA(STemplateArgument *a, STemplateArgument const *b, MFlags mFlags);
+
   // does listA match listB pairwise?  NOTE: asymmetry in the list
   // serf/ownerness of the first and second arguments.
   bool match_Lists(SObjList<STemplateArgument> &listA,
                    ObjList<STemplateArgument> &listB,
                    MFlags mFlags);
+
+  // does listA match listB pairwise?  NOTE: the SYMMETRY in the list
+  // serf/ownerness in contrast to the other function for operating on
+  // lists of STemplateArgument-s below.
+  bool match_Lists2(ObjList<STemplateArgument> &listA,
+                    ObjList<STemplateArgument> &listB,
+                    MFlags mFlags);
 };
 
 

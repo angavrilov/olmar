@@ -1161,6 +1161,10 @@ public:    // funcs
   // only use this for iteration, not appending!  Don't know a good
   // way to enforce that
   SObjList<Variable> &getInstantiations();
+  // get the instantiation that matches 'var' in type (types are
+  // MM_ISO) and in template arguments; handy for finding the previous
+  // declaration of a function to hook up the definition to
+  Variable *getInstantiationOfVar(Variable *var);
 
   // true if 'list' contains equivalent semantic arguments
   bool equalArguments(SObjList<STemplateArgument> const &list) const;
