@@ -167,12 +167,33 @@ void Nonterminal::print(ostream &os) const
 }
 
 
+// -------------------- Production::RHSElt -------------------------
+Production::RHSElt::~RHSElt()
+{}
+
+
+Production::RHSElt::RHSElt(Flatten &flat)
+  : sym(NULL),
+    tag(flat)
+{}
+
+void Production::RHSElt::xfer(Flatten &flat)
+{
+  tag.xfer(flat);
+}
+
+void Production::RHSElt::xferSerfs(Flatten &flat, Grammar &g)
+{
+  xferSerfPtr(flat, sym);
+}
+
+
+
 // -------------------- Production -------------------------
 Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
-    right(),
     leftTag(Ltag),
-    rightTags(),
+    right(),
     numDotPlaces(-1),    // so the check in getDProd will fail
     dprods(NULL),
     prodIndex(-1)
@@ -195,10 +216,10 @@ Production::Production(Flatten &flat)
 void Production::xfer(Flatten &flat)
 {
   leftTag.xfer(flat);
-  xferObjList(flat, rightTags);
+  xferObjList(flat, right);
+  action.xfer(flat);
 
   flat.xferInt(prodIndex);
-  action.xfer(flat);
 }
 
 void Production::xferSerfs(Flatten &flat, Grammar &g)
@@ -208,19 +229,16 @@ void Production::xferSerfs(Flatten &flat, Grammar &g)
   xferSerfPtrToList(flat, const_cast<Nonterminal*&>(left),
                           g.nonterminals);
 
-  // xfer 'right'
-  {
-    ObjList<Symbol> *lists[2];
-    lists[0] = & (ObjList<Symbol>&)(g.terminals);
-    lists[1] = & (ObjList<Symbol>&)(g.nonterminals);
-    xferSObjList_multi(flat, right, lists, 2);
+  // xfer right's 'sym' pointers
+  MUTATE_EACH_OBJLIST(RHSElt, right, iter) {
+    iter.data()->xferSerfs(flat, g);
   }
 
   // compute 'numDotPlaces' and 'dprods'
   if (flat.reading()) {
     finished();
   }
-  
+
   // to allow pointers to 'dprods', register them
   loopi(numDotPlaces) {
     flat.noteOwner(dprods+i);
@@ -230,22 +248,21 @@ void Production::xferSerfs(Flatten &flat, Grammar &g)
 
 int Production::rhsLength() const
 {
-  if (!right.isEmpty() &&
-      right.nthC(0)->isEmptyString) {
-    return 0;    // length is considered 0 for 'blah -> empty'
+  if (!right.isEmpty()) {                  
+    // I used to have code here which handled this situation by returning 0;
+    // since it should now never happen, I'll check that here instead
+    xassert(!right.nthC(0)->sym->isEmptyString);
   }
-  else {
-    return right.count();
-  }
+
+  return right.count();
 }
 
 
 int Production::numRHSNonterminals() const
 {
   int ct = 0;
-  SFOREACH_SYMBOL(right, sym) {
-    if (!sym.data()->isEmptyString &&
-        sym.data()->isNonterminal()) {
+  FOREACH_OBJLIST(RHSElt, right, iter) {
+    if (iter.data()->sym->isNonterminal()) {
       ct++;
     }
   }
@@ -260,17 +277,13 @@ void Production::append(Symbol *sym, char const *tag)
   // productions
   xassert(!sym->isEmptyString);
 
-  right.append(sym);
-  rightTags.append(new string(tag));
+  right.append(new RHSElt(sym, tag));
 }
 
 
 void Production::finished()
 {
   xassert(dprods == NULL);    // otherwise we leak
-
-  // invariant check
-  xassert(right.count() == rightTags.count());
 
   // compute 'dprods'
   numDotPlaces = rhsLength()+1;
@@ -319,10 +332,10 @@ int Production::findTag(char const *tag) const
   }
 
   // walk RHS list looking for a match
-  ObjListIter<string> tagIter(rightTags);
+  ObjListIter<RHSElt> tagIter(right);
   int index=1;
   for(; !tagIter.isDone(); tagIter.adv(), index++) {
-    if (tagCompare( *(tagIter.data()) , tag )) {
+    if (tagCompare(tagIter.data()->tag, tag)) {
       return index;
     }
   }
@@ -353,7 +366,7 @@ string Production::symbolTag(int index) const
 
   // find index in RHS list
   index--;
-  return *(rightTags.nthC(index));
+  return string(right.nthC(index)->tag);
 }
 
 
@@ -366,7 +379,7 @@ Symbol const *Production::symbolByIndexC(int index) const
 
   // find index in RHS list
   index--;
-  return right.nthC(index);
+  return right.nthC(index)->sym;
 }
 
 
@@ -403,30 +416,26 @@ string Production::rhsString() const
 
   if (right.isNotEmpty()) {
     // print the RHS symbols
-    ObjListIter<string> tagIter(rightTags);
-    SymbolListIter symIter(right);
     int ct=0;
-    for(; !symIter.isDone() && !tagIter.isDone();
-          symIter.adv(), tagIter.adv()) {
+    FOREACH_OBJLIST(RHSElt, right, iter) {
+      RHSElt const &elt = *(iter.data());
+
       if (ct++ > 0) {
         sb << " ";
       }
 
       string symName;
-      if (symIter.data()->isNonterminal()) {
-        symName = symIter.data()->name;
+      if (elt.sym->isNonterminal()) {
+        symName = elt.sym->name;
       }
       else {
         // print terminals as aliases if possible
-        symName = symIter.data()->asTerminalC().toString();
+        symName = elt.sym->asTerminalC().toString();
       }
 
       // print tag if present
-      sb << taggedName(symName, *(tagIter.data()));
+      sb << taggedName(symName, elt.tag);
     }
-
-    // verify both lists were same length
-    xassert(symIter.isDone() && tagIter.isDone());
   }
 
   else {
@@ -446,7 +455,7 @@ string Production::toStringMore(bool printCode) const
   if (printCode && !action.isNull()) {
     sb << "\t\t[" << action.strref() << "]";
   }
-  
+
   sb << "\n";
 
   return sb;
@@ -462,7 +471,7 @@ void DottedProduction::setProdAndDot(Production *p, int d) /*mutable*/
   const_cast<Production*&>(prod) = p;
   const_cast<int&>(dot) = d;
   const_cast<bool&>(dotAtEnd) = (dot == prod->rhsLength());
-  
+
   // it's worth mentioning: the reason for all of this is to be
   // able to compute 'dotAtEnd', which it turns out was a
   // significant time consumer according to the profiler
@@ -470,12 +479,14 @@ void DottedProduction::setProdAndDot(Production *p, int d) /*mutable*/
 
 Symbol const *DottedProduction::symbolBeforeDotC() const
 {
-  return prod->right.nthC(0);
+  xassert(!isDotAtStart());
+  return prod->right.nthC(dot-1)->sym;      // this used to say nthC(0) .. ?
 }
 
 Symbol const *DottedProduction::symbolAfterDotC() const
 {
-  return prod->right.nthC(dot);
+  xassert(!isDotAtEnd());
+  return prod->right.nthC(dot)->sym;
 }
 
 
@@ -484,12 +495,12 @@ void DottedProduction::print(ostream &os) const
   os << prod->left->name << " ->";
 
   int position = 0;
-  for (SymbolListIter iter(prod->right);
+  for (ObjListIter<Production::RHSElt> iter(prod->right);
        !iter.isDone(); iter.adv(), position++) {
     if (position == dot) {
       os << " .";
     }
-    os << " " << iter.data()->name;
+    os << " " << iter.data()->sym->name;
   }
   if (position == dot) {
     os << " .";
@@ -654,13 +665,14 @@ void Grammar::printAsBison(ostream &os) const
         }
 
         // print RHS symbols
-        SFOREACH_SYMBOL(prod.data()->right, sym) {
-          if (sym.data() != &emptyString) {
-            if (sym.data()->isTerminal()) {
-              os << " \"" << sym.data()->name << "\"";
+        FOREACH_OBJLIST(Production::RHSElt, prod.data()->right, symIter) {
+          Symbol const *sym = symIter.data()->sym;
+          if (sym != &emptyString) {
+            if (sym->isTerminal()) {
+              os << " \"" << sym->name << "\"";
             }
             else {
-              os << " " << sym.data()->name;
+              os << " " << sym->name;
             }
           }
         }

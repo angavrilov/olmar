@@ -64,3 +64,4 @@ gprof.out
 qp.cpp
 agrampar.tab.c
 grampar.codes.h
+*.tmp

@@ -236,31 +236,30 @@ inline ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
 // a rewrite rule
 class Production {
 // ------ representation ------
+public:     // types
+  class RHSElt {
+  public:
+    Symbol const *sym;          // (serf) rhs element symbol
+
+    // tags applied to the symbols for purposes of unambiguous naming in
+    // actions, and for self-commenting value as role indicators; an
+    // empty tag ("") is allowed and means there is no tag
+    string tag;                 // tag for this symbol; can be ""
+
+  public:
+    RHSElt(Symbol const *s, char const *t) : sym(s), tag(t) {}
+    ~RHSElt();
+    
+    RHSElt(Flatten&);
+    void xfer(Flatten &flat);
+    void xferSerfs(Flatten &flat, Grammar &g);
+  };
+
 public:	    // data
   // fundamental context-free grammar (CFG) component
   Nonterminal * const left;     // (serf) left hand side; must be nonterminal
-  SymbolList right;             // (serf) right hand side; terminals & nonterminals
-
-  // tags applied to the symbols for purposes of unambiguous naming in
-  // actions, and for self-commenting value as role indicators; an
-  // empty tag (NULL or "") is allowed and means there is no tag
   string leftTag;      	       	// tag for LHS symbol
-  ObjList<string> rightTags;    // tag for each RHS symbol, in order
-
-  // NOTE: 'right' and 'rightTags' should always have the same number of
-  // elements.  they are public to avoid syntactic (and possible runtime,
-  // if repr. changes) overhead of access via member fn.  use 'append' to
-  // add new elements.
-
-  #if 0
-    // disambiguation during tree-building
-    Conditions conditions;        // every condition must be satisfied for a rule to be used
-    Actions actions;              // when used, a rule has these effects
-    AExprNode *treeCompare;       // (owner) tree comparison routine
-
-    // semantics and post-tree-build disambiguation
-    LitCodeDict functions;        // semantic functions: name -> body
-  #endif // 0
+  ObjList<RHSElt> right;        // right hand side; terminals & nonterminals
 
   // user-supplied reduction action code
   LocString action;
