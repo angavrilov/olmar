@@ -523,7 +523,7 @@ testparse t0286.cc
 testparse t0287.cc
 failparse t0288.cc "ambiguous function template instantiation (not minimized)"
 testparse t0289.cc # "repeated using declarations"
-failparse t0290.cc "problem matching definition and decl with <dependent>"
+testparse t0290.cc
 testparse t0291.cc
 testparse t0292.cc
 testparse t0293.cc
@@ -763,9 +763,10 @@ testparse d0108.cc
 testparse d0109.cc # "duplicate 'using' declaration"
 failparse d0110.cc "class specialization without 'template' prefix?"
 testparse d0111.cc # "failure to use 'typename' when defining static member"
-failparse d0112.cc "template dependent name problem"
+# sm: this is invalid input; gcc-3.4.3 rejects it too
+#failparse d0112.cc "template dependent name problem"
 testparse d0113.cc
-failparse d0114.cc "dependent return type prevents associating defn with decl"
+testparse d0114.cc
 # sm: this is invalid input
 #failparse d0115.cc "gcc-2 bug: cannot find standard namespace"
 testparse d0116.cc

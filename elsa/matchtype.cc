@@ -660,6 +660,10 @@ bool MatchTypes::match_func(FunctionType *a, Type *b, int matchDepth)
       return false;   // differing number of params
     }
 
+    if (hasEFlag(Type::EF_IGNORE_RETURN)) {
+      return true;
+    }
+
     // check the return type
     return match0
       (a->retType, ftb->retType,

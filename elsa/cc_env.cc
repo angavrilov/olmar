@@ -2960,8 +2960,16 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
     FunctionType *iterft = iter.data()->type->asFunctionType();
 
     // check the parameters other than '__receiver'
-    if (!equivalentTypes(iterft, ft, Type::EF_STAT_EQ_NONSTAT |
-                                     Type::EF_IGNORE_IMPLICIT)) {
+    Type::EqFlags eflags = Type::EF_STAT_EQ_NONSTAT | Type::EF_IGNORE_IMPLICIT;
+
+    if (inUninstTemplate()) {
+      // do not check the return types; we can diagnose a mismatch
+      // when the template is instantiated, and it is sometimes
+      // hard to tell when they match (in/t0290.cc)
+      eflags |= Type::EF_IGNORE_RETURN;
+    }
+
+    if (!equivalentTypes(iterft, ft, eflags)) {
       continue;    // not the one we want
     }
 
