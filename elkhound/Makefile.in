@@ -277,9 +277,27 @@ c.in/c.in4d: c.in/c.in4c
 arith: elkhound libelkhound.a
 	$(MAKE) -C examples/arith
 
-examples: all glrmain.o arith
+examples: all glrmain.o arith gcom
 	$(MAKE) -C examples/cexp
 	$(MAKE) -C examples/cdecl
+
+
+# ---------------------------- gcom -----------------------
+# guarded command example from tutorial
+.PHONY: gcom gcom-clean
+gcom:
+	$(MAKE) -C examples/gcom1 all check
+	$(MAKE) -C examples/gcom4 all check
+	$(MAKE) -C examples/gcom5 all check
+	$(MAKE) -C examples/gcom all check
+	$(MAKE) -C examples/gcom7 all check
+
+gcom-clean:
+	$(MAKE) -C examples/gcom1 clean
+	$(MAKE) -C examples/gcom4 clean
+	$(MAKE) -C examples/gcom5 clean
+	$(MAKE) -C examples/gcom clean
+	$(MAKE) -C examples/gcom7 clean
 
 
 # ----------------------------- EFa -----------------------
@@ -505,7 +523,7 @@ CLEAN_PATTERNS := \
   a.out \
   core
 
-clean:
+clean: gcom-clean
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr gramlex.yy.cc gramlex cyctimer
 	rm -f grampar.tab.* grampar tlexer
