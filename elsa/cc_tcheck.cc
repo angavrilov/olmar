@@ -931,7 +931,13 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   // sm: update: I thought this might happen.  Using typedefs means
   // dealing with scoping, so we need to keep all the typedefs (and
   // make typedef shadow names) so that at least one will be in scope.
-  var->type->typedefAliases.append(var);
+  //
+  // dsw: per our discussion, this has been disabled
+  if (var->type->isEnumType() ||
+      var->type->containsVariables()
+      ) {
+    var->type->typedefAliases.append(var);
+  }
 
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too

@@ -1269,7 +1269,7 @@ FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
 
 Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 {
-  TRACE("env", << locStr() << ": entered scope for " << forWhat);
+  TRACE("env", locStr() << ": entered scope for " << forWhat);
 
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
@@ -1288,7 +1288,7 @@ void Env::exitScope(Scope *s)
 {
   s->closedScope();
 
-  TRACE("env", << locStr() << ": exited " << s->desc());
+  TRACE("env", locStr() << ": exited " << s->desc());
   Scope *f = scopes.removeFirst();
   xassert(s == f);
   delete f;
@@ -1297,7 +1297,7 @@ void Env::exitScope(Scope *s)
 
 void Env::extendScope(Scope *s)
 {
-  TRACE("env", << locStr() << ": extending " << s->desc());
+  TRACE("env", locStr() << ": extending " << s->desc());
 
   Scope *prevScope = scope();
   scopes.prepend(s);
@@ -1308,7 +1308,7 @@ void Env::extendScope(Scope *s)
 
 void Env::retractScope(Scope *s)
 {
-  TRACE("env", << locStr() << ": retracting " << s->desc());
+  TRACE("env", locStr() << ": retracting " << s->desc());
 
   s->closedScope();
 
@@ -1588,7 +1588,7 @@ bool Env::addVariable(Variable *v, bool forceReplace)
   if (disambErrorsSuppressChanges()) {
     // the environment is not supposed to be modified by an ambiguous
     // alternative that fails
-    TRACE("env", << "not adding variable `" << v->name
+    TRACE("env",    "not adding variable `" << v->name
                  << "' because there are disambiguating errors");
     return true;    // don't cause further errors; pretend it worked
   }
@@ -1637,7 +1637,7 @@ bool Env::addCompound(CompoundType *ct)
 {
   // like above
   if (disambErrorsSuppressChanges()) {
-    TRACE("env", << "not adding compound `" << ct->name
+    TRACE("env",    "not adding compound `" << ct->name
                  << "' because there are disambiguating errors");
     return true;
   }
@@ -1650,7 +1650,7 @@ bool Env::addEnum(EnumType *et)
 {
   // like above
   if (disambErrorsSuppressChanges()) {
-    TRACE("env", << "not adding enum `" << et->name
+    TRACE("env",    "not adding enum `" << et->name
                  << "' because there are disambiguating errors");
     return true;
   }
@@ -2382,7 +2382,7 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
       if (!final->isPQ_template()) {
         // cppstd 14.6.1 para 1: if the name refers to a template
         // in whose scope we are, then it need not have arguments
-        TRACE("template", << "found bare reference to enclosing template: "
+        TRACE("template",    "found bare reference to enclosing template: "
                           << var->name);
         return var;
       }
@@ -3348,7 +3348,7 @@ Variable *Env::instantiateTemplate
   if (instV) {
     xassert(!baseForward);
   }
-  TRACE("template", << (baseForward ? "(forward) " : "")
+  TRACE("template",    (baseForward ? "(forward) " : "")
                     << "instantiating class: "
                     << instName << sargsToString(sargs));
 
@@ -3746,7 +3746,7 @@ void Env::provideDefForFuncTemplDecl
   Variable *fVar = f->nameAndParams->var;
   // update things in the declaration; I copied this from
   // Env::createDeclaration()
-  TRACE("odr",    "def'n of " << forward->name
+  TRACE("odr", "def'n of " << forward->name
         << " at " << toString(f->getLoc())
         << " overrides decl at " << toString(forward->loc));
   forward->loc = f->getLoc();
@@ -3947,7 +3947,7 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
     xassert(inst->templateInfo() == instV->templateInfo());
 
     if (inst->forward) {
-      TRACE("template", << "instantiating previously forward " << inst->name);
+      TRACE("template", "instantiating previously forward " << inst->name);
       inst->forward = false;
       
       // this location was stored back when the template was
@@ -3979,7 +3979,7 @@ Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
 {
   bool disambiguates = !!(eflags & EF_DISAMBIGUATES);
   string instLoc = instLocStackString();
-  TRACE("error", << (disambiguates? "[d] " : "")
+  TRACE("error",    (disambiguates? "[d] " : "")
                  << toString(L) << ": " << msg << instLoc);
   bool report = (eflags & EF_DISAMBIGUATES) || (eflags & EF_STRONG) || (!disambiguateOnly);
   if (report) {
@@ -3999,7 +3999,7 @@ Type *Env::error(char const *msg, ErrorFlags eflags)
 Type *Env::warning(char const *msg)
 {
   string instLoc = instLocStackString();
-  TRACE("error", << "warning: " << msg << instLoc);
+  TRACE("error", "warning: " << msg << instLoc);
   if (!disambiguateOnly) {
     errors.addError(new ErrorMsg(loc(), msg, EF_WARNING, instLoc));
   }
