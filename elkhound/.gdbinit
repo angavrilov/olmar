@@ -6,7 +6,7 @@
 file ccgr
 #set args cc.bin c.in1
 
-set args -tr predicates cc.bin vcgen/node2.i
+set args -tr predicates cc.bin vcgen/owner1.i
 
 #set args -tr factflow cc.bin vcgen/find2.c
 

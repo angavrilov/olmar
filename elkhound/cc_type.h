@@ -176,8 +176,8 @@ public:      // funcs
   string keywordAndName() const { return toCString(); }
 
   int numFields() const;
-  Field const *getNthField(int index) const;
-  Field const *getNamedField(StringRef name) const;
+  Field const *getNthField(int index) const;         // must exist
+  Field const *getNamedField(StringRef name) const;  // returns NULL if doesn't exist
 
   Field *addField(StringRef name, Type const *type, 
                   /*nullable*/ Variable *d);
@@ -280,6 +280,7 @@ public:     // funcs
   bool isVoid() const { return isSimple(ST_VOID); }
   bool isError() const { return isSimple(ST_ERROR); }
   CompoundType const *ifCompoundType() const;     // NULL or corresp. compound
+  bool isOwnerPtr() const;
 
   // pointer/reference stuff
   bool isPointer() const;                // as opposed to reference or non-pointer

@@ -109,7 +109,7 @@ terminals {
     left "+" "-";
     left "*" "/" "%";
 
-    prec "const" "volatile" "__attribute__" "else";
+    prec "const" "volatile" "owner" "__attribute__" "else";
     prec L2_PREFER_REDUCE;
     // high precedence
   }
@@ -1036,6 +1036,7 @@ nonterm[enum CVFlags] CVQualifierSeq {
 nonterm[enum CVFlags] CVQualifier {
   -> "const"        [ return CV_CONST; ]
   -> "volatile"     [ return CV_VOLATILE; ]
+  -> "owner"        [ return CV_OWNER; ]
 }
 
 

@@ -632,6 +632,11 @@ CompoundType const *Type::ifCompoundType() const
   return NULL;
 }
 
+bool Type::isOwnerPtr() const
+{
+  return isPointer() && ((asPointerTypeC().cv & CV_OWNER) != 0);
+}
+
 bool Type::isPointer() const
 {
   return isPointerType() && asPointerTypeC().op == PO_POINTER;

@@ -1152,12 +1152,23 @@ Type const *E_fieldAcc::itcheck(Env &env)
   lhstype = lhstype->asRval();
 
   CompoundType const *ctype;
-  try {
-    ctype = &( lhstype->asCVAtomicTypeC().atomic->asCompoundTypeC() );
+
+  // OWNER: treat all access to owner pointer fields as if they were
+  // accesses to struct OwnerPtrMeta
+  if (lhstype->isOwnerPtr()) {
+    // get the special declaration of owner metadata
+    ctype = env.getCompound(env.str("OwnerPtrMeta"));
+    if (!ctype) {
+      return env.err("can't find struct OwnerPtrMeta");
+    }
   }
-  catch (...) {
-    env.err(stringc << obj->toString() << " is not a compound type");
-    return fixed(ST_ERROR);
+  else {
+    try {
+      ctype = &( lhstype->asCVAtomicTypeC().atomic->asCompoundTypeC() );
+    }
+    catch (...) {
+      return env.err(stringc << obj->toString() << " is not a compound type");
+    }
   }
 
   // get corresponding Field; this sets the 'field' member of E_fieldAcc

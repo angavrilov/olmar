@@ -955,6 +955,21 @@ AbsValue *E_new::vcgen(AEnv &env, int path) const
 }
 
 
+// return true if this variable's value is modeled as a tuple
+// which cannot have interior pointers
+bool modelAsTuple(Variable *var)
+{    
+  // old condition
+  if (var->hasAddrTaken()) { return false; }
+  if (var->type->isStructType()) { return true; }
+
+  // OWNER: model owner pointers this way too
+  if (var->type->isOwnerPtr()) { return true; }
+  
+  return false;
+}
+
+
 AbsValue *E_assign::vcgen(AEnv &env, int path) const
 {
   int modulus = src->numPaths1();
@@ -1009,8 +1024,7 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
     if (fldAcc->obj->isE_variable()) {
       Variable *var = fldAcc->obj->asE_variable()->var;
 
-      if (var->type->isStructType() &&
-          !var->hasAddrTaken()) {
+      if (modelAsTuple(var)) {
         // modeled as an unaliased tuple
 
         // get current (whole) structure value
