@@ -4,20 +4,36 @@
 (PROMPT_OFF)
 (BG_PUSH (AND
 
-  ; reading from the same location as was last written
-  (FORALL (mem addr value)
+  ; how to take apart a pointer
+  (FORALL (b f)
     (EQ
-      (select (update mem addr value) addr)
+      (object (pointer b f))
+      b
+    ))
+
+  (FORALL (b f)
+    (EQ
+      (offset (pointer b f))
+      f
+    ))
+
+  ; reading from the same location as was last written
+  (FORALL (mem obj ofs value)
+    (EQ
+      (select (update mem obj ofs value) obj ofs)
       value
     ))
 
   ; reading from a different location from last written
-  (FORALL (mem addr1 addr2 value)     
+  (FORALL (mem obj1 obj2 ofs1 ofs2 value)
     (IMPLIES
-      (NEQ addr1 addr2)
+      (OR 
+        (NEQ obj1 obj2)      ; different objects
+        (NEQ ofs1 ofs2)      ; different offsets
+      )
       (EQ
-        (select (update mem addr1 value) addr2)
-        (select mem addr2)
+        (select (update mem obj1 ofs1 value) obj2 ofs2)
+        (select mem obj2 ofs2)
       )))
 
 ))

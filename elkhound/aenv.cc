@@ -282,14 +282,29 @@ void AEnv::discard(AbsValue *)    {}
 AbsValue *AEnv::dup(AbsValue *v)  { return v; }
 
 
-AbsValue *AEnv::avSelect(AbsValue *mem, AbsValue *addr)
+AbsValue *AEnv::avFunc5(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4, AbsValue *v5)
 {
-  return avFunc2(str("select"), mem, addr);
+  return ::avFunc5(str(func), v1, v2, v3, v4, v5);
 }
 
-AbsValue *AEnv::avUpdate(AbsValue *mem, AbsValue *addr, AbsValue *newValue)
+AbsValue *AEnv::avFunc4(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4)
 {
-  return avFunc3(str("update"), mem, addr, newValue);
+  return ::avFunc4(str(func), v1, v2, v3, v4);
+}
+
+AbsValue *AEnv::avFunc3(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3)
+{
+  return ::avFunc3(str(func), v1, v2, v3);
+}
+
+AbsValue *AEnv::avFunc2(char const *func, AbsValue *v1, AbsValue *v2)
+{
+  return ::avFunc2(str(func), v1, v2);
+}
+
+AbsValue *AEnv::avFunc1(char const *func, AbsValue *v1)
+{
+  return ::avFunc1(str(func), v1);
 }
 
 

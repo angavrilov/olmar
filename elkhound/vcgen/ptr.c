@@ -29,13 +29,17 @@ void bar()
 
 
 int *mem;
-//int *pre_mem;
-int select(int *mem, int *addr);
-int update(int *mem, int *addr, int value);
+int *object(int *ptr);
+int offset(int *ptr);
+int length(int *obj);
+int select(int *mem, int *obj, int offset);
+int update(int *mem, int *obj, int offset, int value);
 
 void inc(int *x)
-  thmprv_pre int *pre_mem = mem; true;
-  thmprv_post mem == update(pre_mem, x, select(pre_mem, x)+1);
+  thmprv_pre int *pre_mem = mem; 
+    offset(x) >= 0 && offset(x) < length(object(x));
+  thmprv_post mem == update(pre_mem, object(x), offset(x),
+                              select(pre_mem, object(x), offset(x))+1);
 {
   *x = *x + 1;
 }
@@ -51,6 +55,6 @@ void callInc()
 
   thmprv_assert x == 7;
 
-  thmprv_assume false;
-  thmprv_assert 1 == 2;
+  //thmprv_assume false;
+  //thmprv_assert 1 == 2;
 }

@@ -80,8 +80,25 @@ public:      // funcs
   StringRef str(char const *s) const { return stringTable.add(s); }
   
   // syntactic sugar for absvals
-  AbsValue *avSelect(AbsValue *mem, AbsValue *addr);
-  AbsValue *avUpdate(AbsValue *mem, AbsValue *addr, AbsValue *newValue);
+  AbsValue *avSelect(AbsValue *mem, AbsValue *obj, AbsValue *offset)
+    { return avFunc3("select", mem, obj, offset); }
+  AbsValue *avUpdate(AbsValue *mem, AbsValue *obj, AbsValue *offset, AbsValue *newValue)
+    { return avFunc4("update", mem, obj, offset, newValue); }
+  AbsValue *avPointer(AbsValue *obj, AbsValue *offset)
+    { return avFunc2("pointer", obj, offset); }
+  AbsValue *avObject(AbsValue *ptr)
+    { return avFunc1("object", ptr); }
+  AbsValue *avOffset(AbsValue *ptr)
+    { return avFunc1("offset", ptr); }
+  AbsValue *avLength(AbsValue *obj)
+    { return avFunc1("length", obj); }
+
+  AbsValue *avFunc1(char const *func, AbsValue *v1);
+  AbsValue *avFunc2(char const *func, AbsValue *v1, AbsValue *v2);
+  AbsValue *avFunc3(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3);
+  AbsValue *avFunc4(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4);
+  AbsValue *avFunc5(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4, AbsValue *v5);
+
 
   // debugging
   void print();

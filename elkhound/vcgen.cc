@@ -116,14 +116,28 @@ void Declarator::vcgen(AEnv &env) const
       value = new AVvar(name, stringc << "UNINITialized value of var " << name);
     }
     
-    if (addrTaken) {
+    if (addrTaken || type->isArrayType()) {
       // model this variable as a location in memory; make up a name
       // for its address
       AbsValue *addr = env.addMemVar(name);
 
       // state that, right now, that memory location contains 'value'
       env.addFact(new AVbinary(value, BIN_EQUAL,
-        env.avSelect(env.getMem(), addr)));
+        env.avSelect(env.getMem(), addr, new AVint(0))));
+
+      // variables have length 1
+      int size = 1;             
+
+      if (type->isArrayType() && type->asArrayTypeC().hasSize) {
+        // state that the length is whatever the array length is
+        // (if the size isn't specified I have to get it from the
+        // initializer, but that will be TODO for now)
+        size = type->asArrayTypeC().size;
+      }
+
+      // remember the length
+      env.addFact(new AVbinary(env.avLength(addr), BIN_EQUAL,
+                               new AVint(size)));
     }
 
     else {
@@ -248,17 +262,31 @@ AbsValue *E_variable::vcgen(AEnv &env) const
   }
   else {
     // memory variable: return an expression which will read it out of memory
-    return env.avSelect(env.getMem(), env.getMemVarAddr(name));
+    return env.avSelect(env.getMem(), env.getMemVarAddr(name), new AVint(0));
   }
 }
 
 
 AbsValue *E_arrayAcc::vcgen(AEnv &env) const
 {
-  // having a good answer here would require having an abstract value
-  // to tell me about the structure of the array
-  return env.freshVariable(stringc
-           << "array access: " << toString());
+  AbsValue *i = index->vcgen(env);
+
+  if (arr->isE_variable()) {
+    AbsValue *object = env.getMemVarAddr(arr->asE_variable()->name);
+    
+    // emit a proof obligation for safe access
+    env.prove(new AVbinary(i, BIN_GREATEREQ, new AVint(0)), "array lower bound");
+    env.prove(new AVbinary(i, BIN_LESS, env.avLength(object)), "array upper bound");
+    
+    // yield whatever is in that location
+    return env.avSelect(env.getMem(), object, i);
+  }
+  else {
+    cout << "unhandled array access\n";
+
+    return env.freshVariable(stringc
+             << "array access: " << toString());
+  }
 }
 
 
@@ -399,7 +427,9 @@ AbsValue *E_binary::vcgen(AEnv &env) const
 AbsValue *E_addrOf::vcgen(AEnv &env) const
 {
   if (expr->isE_variable()) {                            
-    return env.getMemVarAddr(expr->asE_variable()->name);
+    return avFunc2(env.str("pointer"),
+                   env.getMemVarAddr(expr->asE_variable()->name), // obj
+                   new AVint(0));                                 // offset
   }
   else {
     cout << "warning: unhandled addrof: " << toString() << endl;
@@ -412,7 +442,7 @@ AbsValue *E_deref::vcgen(AEnv &env) const
 {
   AbsValue *addr = ptr->vcgen(env);
   
-  return env.avSelect(env.getMem(), addr);
+  return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
 }
 
 
@@ -469,8 +499,9 @@ AbsValue *E_assign::vcgen(AEnv &env) const
       env.set(name, v);
     }
     else {
-      // memory variable: memory changes
-      env.setMem(env.avUpdate(env.getMem(), env.getMemVarAddr(name), v));
+      // memory variable: memory changes    
+      env.setMem(env.avUpdate(env.getMem(), env.getMemVarAddr(name), 
+                              new AVint(0) /*offset*/, v));
     }
   }
   else if (target->isE_deref()) {
@@ -478,7 +509,8 @@ AbsValue *E_assign::vcgen(AEnv &env) const
     AbsValue *targetAddr = target->asE_deref()->ptr->vcgen(env);
 
     // memory changes
-    env.setMem(env.avUpdate(env.getMem(), targetAddr, v));
+    env.setMem(env.avUpdate(env.getMem(), env.avObject(targetAddr),
+                            env.avOffset(targetAddr), v));
   }
   else {
     cout << "warning: unhandled assignment: " << toString() << endl;
