@@ -48,7 +48,7 @@ string indent_message(int n, string message) {
 //   C()                    // ctor inside class C
 //   operator delete[]()
 //   char operator()        // conversion operator to 'char'
-string declaration_toString(
+string declaration_toString (
   // declflags present in source; not same as 'var->flags' because
   // the latter is a mixture of flags present in different
   // declarations
@@ -109,6 +109,11 @@ string declaration_toString(
       sb << scope_thing;
       sb << finalName;
       s << type->toCString(sb);
+//        if (type->isTemplateClass()) {
+//          cout << "TEMPLATE CLASS" << endl;
+//        } else if (type->isTemplateFunction()) {
+//          cout << "TEMPLATE FUNCTION" << endl;
+//        }
     } else {
       s << type->toCString(finalName);
     }
@@ -121,6 +126,7 @@ string declaration_toString(
 // more specialized version of the previous function
 string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
 {
+  olayer ol("var_toString");
   return declaration_toString(var->flags, var->type, pqname, var);
 }
 
@@ -156,12 +162,14 @@ void TF_func::print(PrintEnv &env)
 
 void TF_template::print(PrintEnv &env)
 {
+  olayer ol("TF_template");
   env.current_loc = loc;
   td->print(env);
 }
 
 void TF_linkage::print(PrintEnv &env)
 {
+  olayer ol("TF_linkage");
   env.current_loc = loc;
   forms->print(env);
 }
@@ -282,15 +290,18 @@ void PQ_template::print(PrintEnv &env)
 // --------------------- TypeSpecifier --------------
 void TS_name::print(PrintEnv &env)
 {
+  olayer ol("TS_name");
   name->print(env);
 }
 
 void TS_simple::print(PrintEnv &env)
 {
+  olayer ol("TS_simple");
 }
 
 void TS_elaborated::print(PrintEnv &env)
 {
+  olayer ol("TS_elaborated");
   env.current_loc = loc;
   env << toString(keyword) << " ";
   name->print(env);
@@ -332,6 +343,7 @@ void TS_enumSpec::print(PrintEnv &env)
 
 // BaseClass
 void BaseClassSpec::print(PrintEnv &env) {
+  olayer ol("BaseClassSpec");
   if (isVirtual) env << "virtual ";
   if (access!=AK_UNSPECIFIED) env << toString(access) << " ";
   env << name->toString();
@@ -360,12 +372,14 @@ void MR_access::print(PrintEnv &env)
 
 void MR_publish::print(PrintEnv &env)
 {
+  olayer ol("MR_publish");
   env << name->toString() << ";\n";
 }
 
 // -------------------- Enumerator --------------------
 void Enumerator::print(PrintEnv &env)
 {
+  olayer ol("Enumerator");
   env << name;
   if (expr) {
     env << "=";
@@ -378,6 +392,11 @@ void Enumerator::print(PrintEnv &env)
 void Declarator::print(PrintEnv &env)
 {
   olayer ol("Declarator");
+//    if (var->type->isTemplateClass()) {
+//      env << "/*TEMPLATE CLASS*/" << endl;
+//    } else if (var->type->isTemplateFunction()) {
+//      env << "/*TEMPLATE FUNCTION*/" << endl;
+//    }
   env << var_toString(var, decl->getDeclaratorId());
   D_bitfield *b = dynamic_cast<D_bitfield*>(decl);
   if (b) {
@@ -420,20 +439,20 @@ void Statement::print(PrintEnv &env)
 // no-op
 void S_skip::iprint(PrintEnv &env)
 {
-  olayer ol("S_skip::itprint");
+  olayer ol("S_skip::iprint");
   env << ";\n";
 }
 
 void S_label::iprint(PrintEnv &env)
 {
-  olayer ol("S_label::itprint");
+  olayer ol("S_label::iprint");
   env << name << ":";
   s->print(env);
 }
 
 void S_case::iprint(PrintEnv &env)
 {                    
-  olayer ol("S_case::itprint");
+  olayer ol("S_case::iprint");
   env << "case";
   expr->print(env);
   env << ":";
@@ -442,21 +461,21 @@ void S_case::iprint(PrintEnv &env)
 
 void S_default::iprint(PrintEnv &env)
 {
-  olayer ol("S_default::itprint");
+  olayer ol("S_default::iprint");
   env << "default:";
   s->print(env);
 }
 
 void S_expr::iprint(PrintEnv &env)
 {
-  olayer ol("S_expr::itprint");
+  olayer ol("S_expr::iprint");
   expr->print(env);
   env << ";\n";
 }
 
 void S_compound::iprint(PrintEnv &env)
 { 
-  olayer ol("S_compound::itprint");
+  olayer ol("S_compound::iprint");
   codeout co(env, "", "{\n", "}\n");
   FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     iter.data()->print(env);
@@ -465,7 +484,7 @@ void S_compound::iprint(PrintEnv &env)
 
 void S_if::iprint(PrintEnv &env)
 {
-  olayer ol("S_if::itprint");
+  olayer ol("S_if::iprint");
   {
     codeout co(env, "if", "(", ")");
     cond->print(env);
@@ -477,7 +496,7 @@ void S_if::iprint(PrintEnv &env)
 
 void S_switch::iprint(PrintEnv &env)
 {
-  olayer ol("S_switch::itprint");
+  olayer ol("S_switch::iprint");
   {
     codeout co(env, "switch", "(", ")");
     cond->print(env);
@@ -487,7 +506,7 @@ void S_switch::iprint(PrintEnv &env)
 
 void S_while::iprint(PrintEnv &env)
 {
-  olayer ol("S_while::itprint");
+  olayer ol("S_while::iprint");
   {
     codeout co(env, "while", "(", ")");
     cond->print(env);
@@ -497,7 +516,7 @@ void S_while::iprint(PrintEnv &env)
 
 void S_doWhile::iprint(PrintEnv &env)
 {
-  olayer ol("S_doWhile::itprint");
+  olayer ol("S_doWhile::iprint");
   {
     codeout co(env, "do");
     body->print(env);
@@ -511,7 +530,7 @@ void S_doWhile::iprint(PrintEnv &env)
 
 void S_for::iprint(PrintEnv &env)
 {
-  olayer ol("S_for::itprint");
+  olayer ol("S_for::iprint");
   {
     codeout co(env, "for", "(", ")");
     init->print(env);
@@ -526,21 +545,21 @@ void S_for::iprint(PrintEnv &env)
 
 void S_break::iprint(PrintEnv &env)
 {
-  olayer ol("S_break::itprint");
+  olayer ol("S_break::iprint");
   env << "break";
   env << ";\n";
 }
 
 void S_continue::iprint(PrintEnv &env)
 {
-  olayer ol("S_continue::itprint");
+  olayer ol("S_continue::iprint");
   env << "continue";
   env << ";\n";
 }
 
 void S_return::iprint(PrintEnv &env)
 {
-  olayer ol("S_return::itprint");
+  olayer ol("S_return::iprint");
   env << "return";
   if (expr) expr->print(env);
   env << ";\n";
@@ -550,7 +569,7 @@ void S_goto::iprint(PrintEnv &env)
 {
   // dsw: When doing a control-flow pass, keep a current function so
   // we know where to look for the label.
-  olayer ol("S_goto::itprint");
+  olayer ol("S_goto::iprint");
   env << "goto ";
   env << target;
   env << ";\n";
@@ -558,14 +577,14 @@ void S_goto::iprint(PrintEnv &env)
 
 void S_decl::iprint(PrintEnv &env)
 {
-  olayer ol("S_decl::itprint");
+  olayer ol("S_decl::iprint");
   decl->print(env);
   //      env << ";\n";
 }
 
 void S_try::iprint(PrintEnv &env)
 {
-  olayer ol("S_try::itprint");
+  olayer ol("S_try::iprint");
   env << "try";
   body->print(env);
   FAKELIST_FOREACH_NC(Handler, handlers, iter) {
@@ -619,6 +638,7 @@ void Expression::print(PrintEnv &env)
 
 string Expression::exprToString() const
 {              
+  olayer ol("Expression::exprToString");
   stringBuilder sb;
   PrintEnv env(sb);
   
@@ -650,37 +670,37 @@ char *expr_toString(Expression *e)
 
 void E_boolLit::iprint(PrintEnv &env)
 {
-  olayer ol("E_boolLit::itprint");
+  olayer ol("E_boolLit::iprint");
   env << b;
 }
 
 void E_intLit::iprint(PrintEnv &env)
 {
-  olayer ol("E_intLit::itprint");
+  olayer ol("E_intLit::iprint");
   env << i;
 }
 
 void E_floatLit::iprint(PrintEnv &env)
 {                                
-  olayer ol("E_floatLit::itprint");
+  olayer ol("E_floatLit::iprint");
   env << f;
 }
 
 void E_stringLit::iprint(PrintEnv &env)
 {                                                                     
-  olayer ol("E_stringLit::itprint");
+  olayer ol("E_stringLit::iprint");
   env << "\"" << encodeWithEscapes(s) << "\"";
 }
 
 void E_charLit::iprint(PrintEnv &env)
 {                               
-  olayer ol("E_charLit::itprint");
+  olayer ol("E_charLit::iprint");
   env << "'" << encodeWithEscapes(&c, 1) << "'";
 }
 
 void E_variable::iprint(PrintEnv &env)
 {
-  olayer ol("E_variable::itprint");
+  olayer ol("E_variable::iprint");
   env << name->qualifierString();
   env << var->name;
 }
@@ -698,7 +718,7 @@ void printFakeExprList(FakeList<Expression> *list, PrintEnv &env)
 
 void E_funCall::iprint(PrintEnv &env)
 {
-  olayer ol("E_funCall::itprint");
+  olayer ol("E_funCall::iprint");
   func->print(env);
   codeout co(env, "", "(", ")");
   printFakeExprList(args, env);
@@ -706,7 +726,7 @@ void E_funCall::iprint(PrintEnv &env)
 
 void E_constructor::iprint(PrintEnv &env)
 {
-  olayer ol("E_constructor::itprint");
+  olayer ol("E_constructor::iprint");
   env << type->toString();
   codeout co(env, "", "(", ")");
   printFakeExprList(args, env);
@@ -714,7 +734,7 @@ void E_constructor::iprint(PrintEnv &env)
 
 void E_fieldAcc::iprint(PrintEnv &env)
 {
-  olayer ol("E_fieldAcc::itprint");
+  olayer ol("E_fieldAcc::iprint");
   obj->print(env);
   env << ".";
   if (field) {
@@ -735,7 +755,7 @@ void E_fieldAcc::iprint(PrintEnv &env)
 
 void E_sizeof::iprint(PrintEnv &env)
 {
-  olayer ol("E_sizeof::itprint");
+  olayer ol("E_sizeof::iprint");
   // NOTE parens are no necessary because its an expression, not a
   // type.
   env << "sizeof";
@@ -745,14 +765,14 @@ void E_sizeof::iprint(PrintEnv &env)
 // dsw: unary expression?
 void E_unary::iprint(PrintEnv &env)
 {
-  olayer ol("E_unary::itprint");
+  olayer ol("E_unary::iprint");
   env << toString(op);
   expr->print(env);
 }
 
 void E_effect::iprint(PrintEnv &env)
 {
-  olayer ol("E_effect::itprint");
+  olayer ol("E_effect::iprint");
   if (!isPostfix(op)) env << toString(op);
   expr->print(env);
   if (isPostfix(op)) env << toString(op);
@@ -761,7 +781,7 @@ void E_effect::iprint(PrintEnv &env)
 // dsw: binary operator.
 void E_binary::iprint(PrintEnv &env)
 {
-  olayer ol("E_binary::itprint");
+  olayer ol("E_binary::iprint");
   e1->print(env);
   env << toString(op);
   e2->print(env);
@@ -769,14 +789,14 @@ void E_binary::iprint(PrintEnv &env)
 
 void E_addrOf::iprint(PrintEnv &env)
 {
-  olayer ol("E_addrOf::itprint");
+  olayer ol("E_addrOf::iprint");
   env << "&";
   expr->print(env);
 }
 
 void E_deref::iprint(PrintEnv &env)
 {
-  olayer ol("E_deref::itprint");
+  olayer ol("E_deref::iprint");
   env << "*";
   ptr->print(env);
 }
@@ -784,7 +804,7 @@ void E_deref::iprint(PrintEnv &env)
 // C-style cast
 void E_cast::iprint(PrintEnv &env)
 {
-  olayer ol("E_cast::itprint");
+  olayer ol("E_cast::iprint");
   {
     codeout co(env, "", "(", ")");
     ctype->print(env);
@@ -795,7 +815,7 @@ void E_cast::iprint(PrintEnv &env)
 // ? : syntax
 void E_cond::iprint(PrintEnv &env)
 {
-  olayer ol("E_cond::itprint");
+  olayer ol("E_cond::iprint");
   cond->print(env);
   env << "?";
   th->print(env);
@@ -805,7 +825,7 @@ void E_cond::iprint(PrintEnv &env)
 
 void E_comma::iprint(PrintEnv &env)
 {
-  olayer ol("E_comma::itprint");
+  olayer ol("E_comma::iprint");
   e1->print(env);
   env << ",";
   e2->print(env);
@@ -813,14 +833,14 @@ void E_comma::iprint(PrintEnv &env)
 
 void E_sizeofType::iprint(PrintEnv &env)
 {
-  olayer ol("E_sizeofType::itprint");
+  olayer ol("E_sizeofType::iprint");
   codeout co(env, "sizeof", "(", ")"); // NOTE yes, you do want the parens because argument is a type.
   atype->print(env);
 }
 
 void E_assign::iprint(PrintEnv &env)
 {
-  olayer ol("E_assign::itprint");
+  olayer ol("E_assign::iprint");
   target->print(env);
   if (op!=BIN_ASSIGN) env << toString(op);
   env << "=";
@@ -829,7 +849,7 @@ void E_assign::iprint(PrintEnv &env)
 
 void E_new::iprint(PrintEnv &env)
 {
-  olayer ol("E_new::itprint");
+  olayer ol("E_new::iprint");
   if (colonColon) env << "::";
   env << "new ";
   if (placementArgs) {
@@ -868,7 +888,7 @@ void E_new::iprint(PrintEnv &env)
 
 void E_delete::iprint(PrintEnv &env)
 {
-  olayer ol("E_delete::itprint");
+  olayer ol("E_delete::iprint");
   if (colonColon) env << "::";
   env << "delete";
   if (array) env << "[]";
@@ -877,7 +897,7 @@ void E_delete::iprint(PrintEnv &env)
 
 void E_throw::iprint(PrintEnv &env)
 {
-  olayer ol("E_throw::itprint");
+  olayer ol("E_throw::iprint");
   env << "throw";
   if (expr) expr->print(env);
 }
@@ -885,7 +905,7 @@ void E_throw::iprint(PrintEnv &env)
 // C++-style cast
 void E_keywordCast::iprint(PrintEnv &env)
 {
-  olayer ol("E_keywordCast::itprint");
+  olayer ol("E_keywordCast::iprint");
   env << toString(key);
   {
     codeout co(env, "", "<", ">");
@@ -898,7 +918,7 @@ void E_keywordCast::iprint(PrintEnv &env)
 // RTTI: typeid(expression)
 void E_typeidExpr::iprint(PrintEnv &env)
 {
-  olayer ol("E_typeidExpr::itprint");
+  olayer ol("E_typeidExpr::iprint");
   codeout co(env, "typeid", "(", ")");
   expr->print(env);
 }
@@ -906,7 +926,7 @@ void E_typeidExpr::iprint(PrintEnv &env)
 // RTTI: typeid(type)
 void E_typeidType::iprint(PrintEnv &env)
 {
-  olayer ol("E_typeidType::itprint");
+  olayer ol("E_typeidType::iprint");
   codeout co(env, "typeid", "(", ")");
   type->print(env);
 }
@@ -938,6 +958,7 @@ void IN_compound::print(PrintEnv &env)
 
 void IN_ctor::print(PrintEnv &env)
 {
+  olayer ol("IN_ctor");
   printFakeExprList(args, env);
 }
 
@@ -947,6 +968,7 @@ void IN_ctor::print(PrintEnv &env)
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::print(PrintEnv &env)
 { 
+  olayer ol("TemplateDeclaration");
   // sm: the declared variable knows it is a template, and
   // knows what its parameters are, so it will print that
   // stuff (e.g. "template <...>")
@@ -956,6 +978,7 @@ void TemplateDeclaration::print(PrintEnv &env)
 
 void TD_func::iprint(PrintEnv &env)
 {
+  olayer ol("TD_func");
   f->print(env);
 }
 
@@ -981,6 +1004,7 @@ void TD_class::iprint(PrintEnv &env)
 // sm: this isn't used..
 void TP_type::print(PrintEnv &env)
 {
+  olayer ol("TP_type");
   env << "class " << name;
                           
   if (defaultType) {

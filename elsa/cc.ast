@@ -34,6 +34,7 @@ verbatim {
 
   class Env;                 // cc_env.h
   class PrintEnv;            // cc_print.h
+//    class FlattenEnv;          // cc_flatten.h
 } // end verbatim
 
 // included in generated source file
@@ -54,12 +55,15 @@ class TranslationUnit (ASTList<TopForm> topForms) {
   
   // pretty printer
   public void print(PrintEnv &env);
+
+//    public void flatten(FlattenEnv &env);
 }
 
 // a toplevel form
 class TopForm (SourceLocation loc) {
   pure_virtual void tcheck(Env &env);
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
                                        
   // includes function prototypes
   -> TF_decl(Declaration decl);
@@ -111,6 +115,7 @@ class Function (
   private void tcheck_handlers(Env &env);
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 }
 
 class MemberInit (
@@ -132,6 +137,7 @@ class Declaration (
 ) {
   public void tcheck(Env &env);        // adds declared variables to env
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 }
 
 // just one complete type; appears in parameter decls and in casts
@@ -168,6 +174,7 @@ class ASTTypeId (
   public void mid_tcheck(Env &env, Expression **&sizeExpr);
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
   
   public Type const *getType() const;      // can use after calling 'tcheck'
 }
@@ -193,6 +200,7 @@ class PQName {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 
 
   // outer qualifier applied to some inner PQName, plus an optional
@@ -289,6 +297,7 @@ class BaseClassSpec (
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 }
 
 
@@ -306,6 +315,7 @@ class Member (SourceLocation loc) {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 }
 
 // a binding of a name to a constant value
@@ -333,6 +343,7 @@ class Enumerator (
   public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 }
 
 
@@ -435,6 +446,7 @@ class Declarator (
   public void mid_tcheck(Env &env, DeclaratorTcheck &dt);
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 }
 
 
@@ -453,6 +465,7 @@ class IDeclarator {
   pure_virtual PQName const *getDeclaratorId() const;
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
@@ -493,6 +506,7 @@ class ExceptionSpec (
   public FunctionType::ExnSpec *tcheck(Env &env);
 
   public void print(PrintEnv &env);
+//    public void flatten(FlattenEnv &env);
 }
 
 // names for operator and conversion functions
@@ -559,6 +573,9 @@ class Statement (SourceLocation loc) {
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
 
+//    public void flatten(FlattenEnv &env);
+//    pure_virtual void iflatten(FlattenEnv &env);
+
   // e.g. "S_if@4:5" -- kind, line, col
   //public string kindLocString() const;
 
@@ -594,6 +611,7 @@ class Condition {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 }
 
 // exception handler
@@ -608,6 +626,7 @@ class Handler (
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 }
 
 
@@ -653,6 +672,9 @@ class Expression {
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
   public string exprToString() const;
+
+//    public void flatten(FlattenEnv &env);
+//    pure_virtual void iflatten(FlattenEnv &env);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
@@ -774,6 +796,7 @@ class Initializer {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
@@ -808,6 +831,9 @@ class TemplateDeclaration (
   public void print(PrintEnv &env);
   pure_virtual void iprint(PrintEnv &env);
 
+//    public void flatten(FlattenEnv &env);
+//    pure_virtual void iflatten(FlattenEnv &env);
+
   // declare a template function
   -> TD_func(Function f);
   
@@ -828,6 +854,7 @@ class TemplateParameter (SourceLocation loc) {
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
@@ -846,6 +873,7 @@ class TemplateArgument {
   pure_virtual void tcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
+//    pure_virtual void flatten(FlattenEnv &env);
 
   // return a canonical string for this template argument,
   // such that different arguments get different strings
