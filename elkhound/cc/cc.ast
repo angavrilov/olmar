@@ -517,7 +517,7 @@ class Expression {
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
   -> E_fieldAcc(Expression obj, PQName fieldName) {
-       public Variable *field;
+       public Variable const *field;
        ctor field = NULL;
      }
 
