@@ -29,6 +29,8 @@ sub run_only ($$) {
     my ($command, $outfile) = @_;
     my $realcommand = "$command >> $outfile";
 #    print "RUN: $realcommand\n";
+    unlink $outfile;
+    die if -f $outfile;
     my $res = system "$realcommand";
     if ($res!=0) {
         my $exit_value  = $res >> 8;
@@ -42,7 +44,6 @@ sub run_only ($$) {
 
 sub run_command ($$) {
     my ($command, $outfile) = @_;
-    unlink $outfile;
     my $realcommand = "$command >> $outfile";
     $outfile2command{$outfile} = $realcommand;
     push @outfiles, $outfile;
