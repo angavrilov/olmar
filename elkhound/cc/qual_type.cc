@@ -191,10 +191,10 @@ Type_Q *TypeFactory_Q::cloneType_Q(Type_Q *src)
 }
 
 
-// This is an attempt to imitate applyQualifiersToType() for our general
+// This is an attempt to imitate applyCVToType() for our general
 // qualifiers.  Yes, there is a lot of commented-out code so the
-// context of applyQualifiersToType() is present.
-Type *TypeFactory_Q::applyQualifiersToType(
+// context of applyCVToType() is present.
+Type *TypeFactory_Q::applyCVToType(
   CVFlags cv, Type *baseType, TypeSpecifier *syntax)
 {
   if (baseType->isError()) {
@@ -202,7 +202,7 @@ Type *TypeFactory_Q::applyQualifiersToType(
   }
 
   // apply 'cv' the same way the default factory does
-  baseType = TypeFactory::applyQualifiersToType(cv, baseType, syntax);
+  baseType = TypeFactory::applyCVToType(cv, baseType, syntax);
   Type_Q *qbaseType = asType_Q(baseType);
 
   // extract qualifier literals from syntax

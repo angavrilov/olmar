@@ -280,7 +280,7 @@ public:    // funcs
   virtual FunctionType *cloneFunctionType(FunctionType *src);
   virtual ArrayType *cloneArrayType(ArrayType *src);
 
-  virtual Type *applyQualifiersToType(CVFlags cv, Type *baseType, TypeSpecifier *syntax);
+  virtual Type *applyCVToType(CVFlags cv, Type *baseType, TypeSpecifier *syntax);
   virtual Type *makeRefType(Type *underlying);
 
   virtual PointerType *syntaxPointerType(

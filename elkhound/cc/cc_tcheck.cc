@@ -617,11 +617,11 @@ void Declaration::tcheck(Env &env)
     // check subsequent declarators
     Declarator *prev = decllist->first();
     while (prev->next) {
-#if DISTINCT_CVATOMIC_TYPES
-      // dsw: I would clone the type if I knew how.
-      Type *specType = spec->tcheck(env, dflags);
-#endif
-      Declarator::Tcheck dt2(specType, dflags);
+      // some analyses don't want the type re-used, so let
+      // the factory clone it if it wants to
+      Type *dupType = env.tfac.cloneType(specType);
+
+      Declarator::Tcheck dt2(dupType, dflags);
       prev->next = prev->next->tcheck(env, dt2);
 
       prev = prev->next;
@@ -707,7 +707,7 @@ void PQ_template::tcheck(Env &env)
 Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
   Type *t = itcheck(env, dflags);
-  Type *ret = env.tfac.applyQualifiersToType(cv, t, this);
+  Type *ret = env.tfac.applyCVToType(cv, t, this);
   if (!ret) {
     return env.error(t, stringc
       << "cannot apply const/volatile to type `" << t->toString() << "'");
@@ -1976,10 +1976,9 @@ realStart:
       prior->clearFlag(DF_EXTERN);
     }
 
-    // FIX:
-    // prior is a ptr to the previous decl/def var
-    // dt.type is the type that was constructed for the current decl/def
-    // prior->type deeply accumulates the qualifiers of dt.type
+    // prior is a ptr to the previous decl/def var; dt.type is the
+    // type that was constructed for the current decl/def prior->type
+    // deeply accumulates the qualifiers of dt.type
     
     // TODO: if 'dt.type' refers to a function type, and it has
     // some default arguments supplied, then:
@@ -2859,14 +2858,12 @@ Type *E_funCall::itcheck(Env &env)
       << "' as a function");
   }
 
-  // FIX: Do disambiguation here.  If the func is an e_variable
-  // (function was called by name) then look at the e_varable var
-  // field: it will contain the overload set.  The var field of the
-  // e_variable should be changed to point at the variable of the
-  // actual function called.
+  // TODO: Take into account possibility of operator overloading: If
+  // the func is an e_variable (function was called by name) then look
+  // at the e_varable var field: it will contain the overload set.
+  // The var field of the e_variable should be changed to point at the
+  // variable of the actual function called.
 
-  // TODO: take into account possibility of operator overloading
-  
   // TODO: I currently translate array deref into ptr arith plus
   // ptr deref; that makes it impossible to overload [] !
 

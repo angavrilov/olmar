@@ -218,9 +218,6 @@ cc-set := \
   cc/qual_type.o \
   cc/qual_var.o
 
-# disabled for now
-#  cc/qual_tcheck.o
-
 ifdef CC_QUAL
   cc-set += cc/cc_qual/cc_qualifiers.o
   cc-set += cc/cc_qual/cc_qual_walk.o
