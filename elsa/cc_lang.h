@@ -128,6 +128,13 @@ public:
   // (unescaped) newline characters in them
   bool allowNewlinesInStringLits;
 
+  // dsw: C99 std 6.4.5p5: "For character string literals, the array
+  // elements have type char...."; Cppstd 2.13.4p1: "An ordinary
+  // string literal has type "array of const char" and static storage
+  // duration"; But empirical results show that even in C++, gcc makes
+  // string literals arrays of (nonconst) chars.
+  bool stringLitCharsAreConst;
+
   // declare the various GNU __builtin functions; see
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;

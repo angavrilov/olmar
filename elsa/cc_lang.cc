@@ -36,6 +36,7 @@ void CCLang::ANSI_C89()
   condMayHaveNonThrowVoidValues = false;
   treatExternInlineAsPrototype = false;
   allowNewlinesInStringLits = false;
+  stringLitCharsAreConst = false; // Didn't check C89; C99 says they are non-const
 
   isCplusplus = false;
   predefined_Bool = false;
@@ -147,6 +148,7 @@ void CCLang::ANSI_Cplusplus()
   predefined_Bool = false;
   treatExternInlineAsPrototype = false;
   allowNewlinesInStringLits = false;
+  stringLitCharsAreConst = true; // Cppstd says they are const.
   declareGNUBuiltins = false;
 
   isCplusplus = true;
@@ -164,6 +166,7 @@ void CCLang::GNU_Cplusplus()
   allowMemberWithClassName = true;
   allowExternCThrowMismatch = true;
   allowImplicitIntForMain = true;
+  stringLitCharsAreConst = false; // experimental results show false
   declareGNUBuiltins = true;
   lvalueFlowsThroughCastInC = false; // not for C++
   condMayHaveNonThrowVoidValues = false; // not for C++

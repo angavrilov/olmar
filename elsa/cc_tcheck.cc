@@ -4460,7 +4460,11 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
     p = p->continuation;
   }
 
-  Type *charConst = env.getSimpleType(SL_UNKNOWN, id, CV_CONST);
+  CVFlags stringLitCharCVFlags = CV_NONE;
+  if (env.lang.stringLitCharsAreConst) {
+    stringLitCharCVFlags = CV_CONST;
+  }
+  Type *charConst = env.getSimpleType(SL_UNKNOWN, id, stringLitCharCVFlags);
   return env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
 }
 
