@@ -516,6 +516,9 @@ testparse t0284.cc
 testparse t0285.cc
 testparse t0286.cc
 testparse t0287.cc
+failparse t0288.cc "ambiguous function template instantiation (not minimized)"
+failparse t0289.cc "repeated using things"
+failparse t0290.cc "problem matching definition and decl with <dependent>"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

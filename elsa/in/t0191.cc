@@ -3,6 +3,8 @@
 //
 // similar to t0189.cc, but it is a nested class of a
 // template class
+//
+// needed for ostream
 
 template <class T>
 struct A {
