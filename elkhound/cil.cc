@@ -527,7 +527,7 @@ CilInst *CilInst::clone() const
       return newFunDecl(fundecl.func, fundecl.body->clone());
 
     case T_ASSIGN:
-      return newAssign(assign.lval->clone(), assign.lval->clone());
+      return newAssign(assign.lval->clone(), assign.expr->clone());
 
     case T_CALL:
       return call->clone();
@@ -812,10 +812,13 @@ CilCompound *CilCompound::clone() const
 
 
 void CilCompound::printTree(int ind, ostream &os) const
-{
-  indent(ind, os) << "{\n";
-  printTreeNoBraces(ind+2, os);
-  indent(ind, os) << "}\n";
+{                            
+  // removed braces and indentation because there isn't
+  // local scope in Cil, but these make it look like
+  // there is, at times
+  //indent(ind, os) << "{\n";
+  printTreeNoBraces(ind/*+2*/, os);
+  //indent(ind, os) << "}\n";
 }
 
 

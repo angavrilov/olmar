@@ -639,8 +639,19 @@ nonterm UnaryExpression : ExprBase {
     fun intEval { throwError("can't intEval"); }
 
     fun typeCheck {
+      // check arg
       Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
+      
+      // check that it's a pointer type
+      Type const *type = typeOf(expr, env);
+      if (!type->isPointerType()) {
+        throwError(stringc
+          << "the `*' operator is for dereferencing pointers; `"
+          << expr->toString() << "' has type " << type->toString());
+      }
+
       e.ana_checkDeref();
+      
       return newDeref(expr.xfr());
     }
 
