@@ -260,23 +260,32 @@ PendingShift::~PendingShift()
 
 
 // ------------------ PathCollectionState -----------------
-PathCollectionState::PathCollectionState(int pi, int len, StateId start)
-  : startStateId(start),
-    paths(),      // initially empty
-    prodIndex(pi)
-{
-  // possible optimization: allocate these once, using the largest length
-  // of any production, when parsing starts; do the same for 'toPass'
-  // in collectReductionPaths
-  siblings = new SiblingLink *[len];
-  symbols = new SymbolId[len];
-}
+PathCollectionState::PathCollectionState()
+  : startStateId(STATE_INVALID),
+    siblings(10),
+    symbols(10),
+    paths()
+{}
 
 PathCollectionState::~PathCollectionState()
+{}
+
+
+void PathCollectionState::init(int pi, int len, StateId start)
 {
-  delete[] siblings;
-  delete[] symbols;
+  startStateId = start;
+  paths.deleteAll();        // paths must start empty
+  prodIndex = pi;
+
+  // IN PROGRESS:
+    // possible optimization: allocate these once, using the largest length
+    // of any production, when parsing starts; do the same for 'toPass'
+    // in collectReductionPaths
+
+  siblings.ensureAtLeast(len);
+  symbols.ensureAtLeast(len);
 }
+
 
 PathCollectionState::ReductionPath::~ReductionPath()
 {
@@ -325,6 +334,8 @@ GLR::GLR(UserActions *user)
     currentTokenClass(NULL),
     currentTokenValue(NULL),
     parserWorklist(),
+    pcsStack(),
+    pcsStackHeight(0),
     trParse(tracingSys("parse")),
     trsParse(trace("parse")),
     trSval(tracingSys("sval")),
@@ -700,36 +711,52 @@ void GLR::doReduction(StackNode *parser,
 
   // step 1: collect all paths of length 'rhsLen' that start at
   // 'parser', via DFS
-  PathCollectionState pcs(prodIndex, rhsLen, parser->state);
-  collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
+  //PathCollectionState pcs(prodIndex, rhsLen, parser->state);
+  if (pcsStackHeight == pcsStack.length()) {
+    // need a new pcs instance, since the existing ones are being
+    // used by my (recursive) callers
+    pcsStack.push(new PathCollectionState);
+  }
+  PathCollectionState &pcs = *( pcsStack[pcsStackHeight++] );
+  try {
+    pcs.init(prodIndex, rhsLen, parser->state);
+    collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
 
-  // invariant: poppedSymbols' length is equal to the recursion
-  // depth in 'popStackSearch'; thus, should be empty now
-  // update: since it's now an array, this is implicitly true
-  //xassert(pcs.poppedSymbols.isEmpty());
+    // invariant: poppedSymbols' length is equal to the recursion
+    // depth in 'popStackSearch'; thus, should be empty now
+    // update: since it's now an array, this is implicitly true
+    //xassert(pcs.poppedSymbols.isEmpty());
 
-  // terminology:
-  //   - a 'reduction' is a grammar rule plus the TreeNode children
-  //     that constitute the RHS
-  //   - a 'path' is a reduction plus the parser (StackNode) that is
-  //     at the end of the sibling link path (which is essentially the
-  //     parser we're left with after "popping" the reduced symbols)
+    // terminology:
+    //   - a 'reduction' is a grammar rule plus the TreeNode children
+    //     that constitute the RHS
+    //   - a 'path' is a reduction plus the parser (StackNode) that is
+    //     at the end of the sibling link path (which is essentially the
+    //     parser we're left with after "popping" the reduced symbols)
 
-  // step 2: process those paths
-  // ("mutate" because need non-const access to rpath->finalState)
-  for (int i=0; i < pcs.paths.length(); i++) {
-    PathCollectionState::ReductionPath *rpath = pcs.paths[i];
+    // step 2: process those paths
+    // ("mutate" because need non-const access to rpath->finalState)
+    for (int i=0; i < pcs.paths.length(); i++) {
+      PathCollectionState::ReductionPath *rpath = pcs.paths[i];
 
-    // I'm not sure what is the best thing to call an 'action' ...
-    //actions++;
+      // I'm not sure what is the best thing to call an 'action' ...
+      //actions++;
 
-    // this is like shifting the reduction's LHS onto 'finalParser'
-    glrShiftNonterminal(rpath->finalState, info.lhsIndex,
-                        rpath->sval, rpath->loc);
+      // this is like shifting the reduction's LHS onto 'finalParser'
+      glrShiftNonterminal(rpath->finalState, info.lhsIndex,
+                          rpath->sval, rpath->loc);
 
-    // nullify 'sval' to mark it as consumed
-    rpath->sval = NULL;
-  } // for each path
+      // nullify 'sval' to mark it as consumed
+      rpath->sval = NULL;
+    } // for each path
+  }
+  
+  // make sure the height gets propely decremented in any situation
+  catch (...) {
+    pcsStackHeight--;
+    throw;
+  }
+  pcsStackHeight--;
 }
 
 

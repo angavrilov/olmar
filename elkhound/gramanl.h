@@ -193,7 +193,7 @@ public:    // funcs
 // ---------------- ItemSet -------------------
 // integer id; as an experiment I'm using an 'enum' to prevent
 // any other integers from silently flowing into it
-enum StateId {};
+enum StateId { STATE_INVALID=-1 };
 
 // a set of dotted productions, and the transitions between
 // item sets, as in LR(0) set-of-items construction

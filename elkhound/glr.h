@@ -198,8 +198,11 @@ public:	   // data
   // enter/leave recursion; the 0th item is the leftmost, i.e.
   // the last one we collect when starting from the reduction state
   // and popping symbols as we move left;
-  SiblingLink **siblings;        // (owner ptr to array of serfs)
-  SymbolId *symbols;             // (owner ptr to array)
+  GrowArray<SiblingLink*> siblings;     // (array of serfs)
+  GrowArray<SymbolId> symbols;
+
+  //SiblingLink **siblings;        // (owner ptr to array of serfs)
+  //SymbolId *symbols;             // (owner ptr to array)
 
   // as reduction possibilities are encountered, we record them here
   ObjArrayStack<ReductionPath> paths;
@@ -209,8 +212,10 @@ public:	   // data
   int prodIndex;
 
 public:	   // funcs
-  PathCollectionState(int prodIndex, int rhsLen, StateId start);
+  PathCollectionState();
   ~PathCollectionState();
+
+  void init(int prodIndex, int rhsLen, StateId start);
 };
 
 
@@ -252,6 +257,18 @@ public:
   // on this token
   ArrayStack<StackNode*> parserWorklist;    // (refct list)
 
+  // ---- scratch space re-used at token-level (or finer) granularity ----
+  // to be regarded as a local variable of GLR::doReduction; since
+  // doReduction can call itself recursively (to handle new reductions
+  // enabled by adding a sibling link), this is a stack
+  ObjArrayStack<PathCollectionState> pcsStack;
+  
+  // pushing and popping using the ObjArrayStack interface would
+  // defeat the purpose of pulling this out; pcsStackHeight gives the
+  // next entry to use, and we only push a new entry onto pcsStack if
+  // pcsStackHeight > pcsStack.length
+  int pcsStackHeight;
+
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports
   // there is significant expense to computing the debug strings
@@ -292,7 +309,7 @@ public:     // funcs
   // yielded 'treeTop' is an owner (if a pointer)
   bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
                         char const *grammarFname, char const *inputFname);
-                         
+
   // parse, using the token stream in 'lexer2', and store the final
   // semantic value in 'treeTop'
   bool glrParse(Lexer2 const &lexer2, SemanticValue &treeTop);
