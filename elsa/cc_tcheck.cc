@@ -293,6 +293,35 @@ void TF_namespaceDecl::itcheck(Env &env)
 }
 
 
+// ------------------- DefaultArgumentChecker -----------------
+// 2005-02-17:  Added this.
+class DefaultArgumentChecker : public ASTVisitor {
+public:
+  Env &env;
+
+public:
+  DefaultArgumentChecker(Env &e) : env(e) {}
+
+  virtual bool visitIDeclarator(IDeclarator *obj);
+};
+
+bool DefaultArgumentChecker::visitIDeclarator(IDeclarator *obj)
+{
+  // I do this from D_func to be sure I am only getting Declarators
+  // that represent parameters, as opposed to random other uses
+  // of Declarators.
+  if (obj->isD_func()) {
+    FAKELIST_FOREACH(ASTTypeId, obj->asD_func()->params, iter) {
+      if (iter->decl->init) {
+        iter->decl->tcheck_init(env);
+      }
+    }
+  }
+
+  return true;    // traverse into children
+}
+
+
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, Variable *instV)
 {                               
@@ -304,6 +333,15 @@ void Function::tcheck(Env &env, Variable *instV)
     xassert(!instV);
     xassert(nameAndParams->var);
     instV = nameAndParams->var;
+
+    // except, we need to tcheck any default arguments
+    //
+    // Q: Will this cause us to tcheck default arguments to template
+    // functions once per instantiation?  Is that even wrong?  Right
+    // now we don't do much with default arguments so it is not
+    // clear what the right strategy is.
+    DefaultArgumentChecker checker(env);
+    nameAndParams->traverse(checker);
 
     if (checkBody) {
       instV->setFlag(DF_DEFINITION);
@@ -1840,9 +1878,6 @@ void TS_classSpec::tcheckIntoCompound(
 // all function bodies.  That means that we have to wait until all
 // the members have been added to the class scope before checking any
 // of the function bodies.  Pass 1 does the former, pass 2 the latter.
-//
-// TODO: I'm pretty sure I erroneously process default arguments during
-// pass 1 ...
 void TS_classSpec::tcheckFunctionBodies(Env &env)
 { 
   xassert(env.checkFunctionBodies);
@@ -1921,6 +1956,12 @@ void MR_decl::tcheck(Env &env)
     if (d->spec->isTS_classSpec()) {
       d->spec->asTS_classSpec()->tcheck(env, d->dflags);
     }
+    else {
+      // actually, need to tcheck default arguments too
+      DefaultArgumentChecker checker(env);
+      d->traverse(checker);
+    }
+
     return;
   }
 
@@ -3028,7 +3069,18 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // sm: You're right; I had thought 3.3.6 said that member scopes
   // included *all* initializers, but it does not, so such scopes only
   // include *subsequent* initializers, hence pass 1 is the right time.
-  if (init) {
+  //
+  // 2005-02-17:  I think I Now I understand.  3.3.6 para 1 bullet 1
+  // says that *default arguments* must be tchecked in pass 2, and
+  // that may have been the original intent.  I am changing it so
+  // default arguments are skipped here (checked by
+  // DefaultArgumentChecker); *member initializers* will continue to
+  // be tcheck'd in pass 1.  Testcase: in/t0369.cc.
+  if (dt.context == DC_D_FUNC &&
+      !env.checkFunctionBodies /*pass 1*/) {
+    // skip it
+  }
+  else if (init) {
     // TODO: check the initializer for compatibility with
     // the declared type
 
@@ -3120,9 +3172,6 @@ void Declarator::tcheck_init(Env &env)
   // TODO: check compatibility with dflags; e.g. we can't allow
   // an initializer for a global variable declared with 'extern'
 
-  // TODO: in the case of class data members, delay checking the
-  // initializer until the entire class body has been scanned
-      
   // remember the initializing value, for const values
   if (init->isIN_expr()) {
     var->value = init->asIN_exprC()->e;
