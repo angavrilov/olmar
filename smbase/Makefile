@@ -2,54 +2,52 @@
 # see license.txt for copyright and terms of use
 
 # main target
-THISLIBRARY = libsmbase.a
-all: gensrc $(THISLIBRARY)
+THIS := libsmbase.a
+all: gensrc $(THIS)
 
-# translation process variables
-libraries   := 
-includes    := 
-ccflags     := -g -Wall -D__LINUX__ -D__UNIX__
-no-warnings := -w
-makelib     := ar -r
-ranlib      := ranlib
+
+# C preprocess, compiler and linker
+CC := gcc
+
+# C++ compiler, etc.
+CXX := g++
+
+# flags for the C and C++ compilers (and preprocessor)
+CCFLAGS := -g -Wall -D__LINUX__ -D__UNIX__
 
 # make warnings into errors so I always get a chance to fix them
-ccflags += -Werror
+CCFLAGS += -Werror
 
 # for gcc-3
-ccflags += -Wno-deprecated
+CCFLAGS += -Wno-deprecated
 
 # when uncommented, we get profiling info
-#ccflags += -pg
+#CCFLAGS += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+CCFLAGS += -O2 -DNDEBUG
 
-compile := g++ -c $(ccflags) $(includes)
-link    := g++ $(ccflags) $(includes)
-linkend := $(libraries)
+# flags for the linker
+LDFLAGS := -g -Wall libsmbase.a
+
+
+# some other tools
+AR     := ar
+RANLIB := ranlib
+
 
 # compile .cc to .o
-%.o : %.cc
-	$(compile) $< -o $@
-	@./depend.pl $(ccflags) $(includes) $< > $*.d
+%.o: %.cc
+	$(CXX) -c -o $@ $< $(CCFLAGS)
+	@./depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
-%.o : %.cpp
-	$(compile) $< -o $@
-	@./depend.pl $(ccflags) $(includes) $< > $*.d
+%.o: %.cpp
+	$(CXX) -c -o $@ $< $(CCFLAGS)
+	@./depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
-%.o : %.c
-	gcc -c $(ccflags) $(includes) $< -o $@
+%.o: %.c
+	$(CC) -c -o $@ $< $(CCFLAGS)
 
-# delete compiling/editing byproducts
-clean:
-	rm -f *.o *~ *.d gmon.out
-	rm -f $(tests-files)
-	rm -f *.a
-
-# remove crap that vc makes
-vc-clean:
-	rm -f *.plg *.[ip]db *.pch
 
 # -------- experimenting with m4 for related files -------
 # I don't delete these during make clean because I don't want
@@ -66,105 +64,142 @@ objlist.h: xobjlist.h
 	m4 -Dm4_output=objlist.h --prefix-builtins xobjlist.h > objlist.h
 	chmod a-w objlist.h
 
+
 # -------------- main target --------------
-# testing a new malloc
-# add the -DDEBUG flag to turn on doug lea's additional checks
-# add the -DDEBUG_HEAP flag to turn on my zone-based protection
-# add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
-# normally -O3 is specified
+# Doug Lea's malloc:
+#   add the -DDEBUG flag to turn on doug lea's additional checks
+#   add the -DDEBUG_HEAP flag to turn on my zone-based protection
+#   add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
+#   normally -O3 is specified
 malloc.o: malloc.c
-	gcc -c -g -O3 -DNO_DEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
+	$(CC) -c -g -O3 -DNO_DEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc mysig.h
-	gcc -c -g mysig.cc
+	$(CC) -c -g mysig.cc
 
 # library itself
-library-objs := \
-  breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
-  syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
-  strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
-  trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
-  stringset.o mypopen.o unixutil.o cycles.o bitarray.o srcloc.o
--include $(library-objs:.o=.d)
+OBJS := \
+  bflatten.o \
+  bit2d.o \
+  bitarray.o \
+  breaker.o \
+  crc.o \
+  cycles.o \
+  datablok.o \
+  exc.o \
+  flatten.o \
+  growbuf.o \
+  hashtbl.o \
+  malloc.o \
+  missing.o \
+  mypopen.o \
+  mysig.o \
+  nonport.o \
+  point.o \
+  srcloc.o \
+  str.o \
+  strdict.o \
+  strhash.o \
+  stringset.o \
+  strtokp.o \
+  strutil.o \
+  svdict.o \
+  syserr.o \
+  trace.o \
+  trdelete.o \
+  unixutil.o \
+  vdtllist.o \
+  voidlist.o \
+  warn.o
+-include $(OBJS:.o=.d)
 
-$(THISLIBRARY): $(library-objs)
-	$(makelib) libsmbase.a $(library-objs)
-	$(ranlib) libsmbase.a
+$(THIS): $(OBJS)
+	$(AR) -r $(THIS) $(OBJS)
+	$(RANLIB) $(THIS)
+
 
 # ---------- module tests ----------------
 # test program targets
-tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
-               strdict svdict str strutil trdelete bflatten mysig \
-               testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
-               srcloc
-tests: $(tests-files)
+TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
+         strdict svdict str strutil trdelete bflatten mysig \
+         testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
+         srcloc
+tests: $(TESTS)
 
+# command to compile and link
+TESTCC  := $(CC) -g -Wall
+TESTCXX := $(CXX) -g -Wall
+
+# this goes at the end of most commands which builds a test binary
+TESTFLAGS := $(CCFLAGS) $(LDFLAGS)
+
+# this one is explicitly *not* linked against $(THIS)
 nonport: nonport.cpp nonport.h
-	$(link) -o nonport -DTEST_NONPORT nonport.cpp $(linkend)
+	$(TESTCXX) -o nonport -DTEST_NONPORT nonport.cpp $(CCFLAGS)
 
-voidlist: voidlist.cc voidlist.h $(THISLIBRARY)
-	$(link) -o voidlist -DTEST_VOIDLIST voidlist.cc $(THISLIBRARY) $(linkend)
+voidlist: voidlist.cc voidlist.h $(THIS)
+	$(TESTCXX) -o voidlist -DTEST_VOIDLIST voidlist.cc $(TESTFLAGS)
 
-tobjlist: tobjlist.cc objlist.h voidlist.o $(THISLIBRARY)
-	$(link) -o tobjlist tobjlist.cc voidlist.o $(THISLIBRARY) $(linkend)
+tobjlist: tobjlist.cc objlist.h voidlist.o $(THIS)
+	$(TESTCXX) -o tobjlist tobjlist.cc voidlist.o $(TESTFLAGS)
 
-tsobjlist: tsobjlist.cc sobjlist.h voidlist.o $(THISLIBRARY)
-	$(link) -o $@ tsobjlist.cc voidlist.o $(THISLIBRARY) $(linkend)
+tsobjlist: tsobjlist.cc sobjlist.h voidlist.o $(THIS)
+	$(TESTCXX) -o $@ tsobjlist.cc voidlist.o $(TESTFLAGS)
 
-bit2d: bit2d.cc bit2d.h $(THISLIBRARY)
-	$(link) -o bit2d -DTEST_BIT2D bit2d.cc $(THISLIBRARY) $(linkend)
+bit2d: bit2d.cc bit2d.h $(THIS)
+	$(TESTCXX) -o bit2d -DTEST_BIT2D bit2d.cc $(TESTFLAGS)
 
-growbuf: growbuf.cc growbuf.h $(THISLIBRARY)
-	$(link) -o growbuf -DTEST_GROWBUF growbuf.cc $(THISLIBRARY) $(linkend)
+growbuf: growbuf.cc growbuf.h $(THIS)
+	$(TESTCXX) -o growbuf -DTEST_GROWBUF growbuf.cc $(TESTFLAGS)
 
-strdict: strdict.cc strdict.h $(THISLIBRARY)
-	$(link) -o strdict -DTEST_STRDICT strdict.cc $(THISLIBRARY) $(linkend)
+strdict: strdict.cc strdict.h $(THIS)
+	$(TESTCXX) -o strdict -DTEST_STRDICT strdict.cc $(TESTFLAGS)
 
-svdict: svdict.cc svdict.h $(THISLIBRARY)
-	$(link) -o svdict -DTEST_SVDICT svdict.cc $(THISLIBRARY) $(linkend)
+svdict: svdict.cc svdict.h $(THIS)
+	$(TESTCXX) -o svdict -DTEST_SVDICT svdict.cc $(TESTFLAGS)
 
-str: str.cpp str.h $(THISLIBRARY)
-	$(link) -o str -DTEST_STR str.cpp $(THISLIBRARY) $(linkend)
+str: str.cpp str.h $(THIS)
+	$(TESTCXX) -o str -DTEST_STR str.cpp $(TESTFLAGS)
 
-strutil: strutil.cc strutil.h $(THISLIBRARY)
-	$(link) -o strutil -DTEST_STRUTIL strutil.cc $(THISLIBRARY) $(linkend)
+strutil: strutil.cc strutil.h $(THIS)
+	$(TESTCXX) -o strutil -DTEST_STRUTIL strutil.cc $(TESTFLAGS)
 
-strhash: strhash.cc strhash.h $(THISLIBRARY)
-	$(link) -o strhash -DTEST_STRHASH strhash.cc $(THISLIBRARY) $(linkend)
+strhash: strhash.cc strhash.h $(THIS)
+	$(TESTCXX) -o strhash -DTEST_STRHASH strhash.cc $(TESTFLAGS)
 
-trdelete: trdelete.cc trdelete.h $(THISLIBRARY)
-	$(link) -o trdelete -DTEST_TRDELETE trdelete.cc $(THISLIBRARY) $(linkend)
+trdelete: trdelete.cc trdelete.h $(THIS)
+	$(TESTCXX) -o trdelete -DTEST_TRDELETE trdelete.cc $(TESTFLAGS)
 
-bflatten: bflatten.cc bflatten.h $(THISLIBRARY)
-	$(link) -o bflatten -DTEST_BFLATTEN bflatten.cc $(THISLIBRARY) $(linkend)
+bflatten: bflatten.cc bflatten.h $(THIS)
+	$(TESTCXX) -o bflatten -DTEST_BFLATTEN bflatten.cc $(TESTFLAGS)
 
-mysig: mysig.cc mysig.h $(THISLIBRARY)
-	g++ -Wall -g -o mysig -DTEST_MYSIG mysig.cc $(THISLIBRARY) $(linkend)
+mysig: mysig.cc mysig.h $(THIS)
+	$(TESTCXX) -o mysig -DTEST_MYSIG mysig.cc $(TESTFLAGS)
 
-testmalloc: testmalloc.cc $(THISLIBRARY)
-	g++ -Wall -g -o testmalloc testmalloc.cc $(THISLIBRARY) $(linkend)
+testmalloc: testmalloc.cc $(THIS)
+	$(TESTCXX) -o testmalloc testmalloc.cc $(TESTFLAGS)
 
 mypopen: mypopen.c mypopen.h
-	gcc -Wall -g -o mypopen -DTEST_MYPOPEN mypopen.c
+	$(TESTCC) -o mypopen -DTEST_MYPOPEN mypopen.c
 
 # this test is only useful when malloc is compiled with DEBUG_HEAP
 tmalloc: tmalloc.c
-	gcc -Wall -g -o tmalloc tmalloc.c $(THISLIBRARY)
+	$(TESTCC) -o tmalloc tmalloc.c $(TESTFLAGS)
 
 tobjpool: tobjpool.cc objpool.h
-	g++ -Wall -g -o tobjpool tobjpool.cc $(THISLIBRARY)
+	$(TESTCXX) -o tobjpool tobjpool.cc $(TESTFLAGS)
 
 cycles: cycles.h cycles.c
-	gcc -Wall -g -o cycles -DTEST_CYCLES cycles.c
+	$(TESTCC) -o cycles -DTEST_CYCLES cycles.c
 
 crc: crc.cpp
-	g++ -Wall -g -o crc -DTEST_CRC crc.cpp
+	$(TESTCXX) -o crc -DTEST_CRC crc.cpp
 
-srcloc: srcloc.cc $(THISLIBRARY)
-	g++ -Wall -g $(ccflags) -o srcloc -DTEST_SRCLOC srcloc.cc $(THISLIBRARY)
+srcloc: srcloc.cc $(THIS)
+	$(TESTCXX) -o srcloc -DTEST_SRCLOC srcloc.cc $(TESTFLAGS)
 
-check: $(tests-files)
+check: $(TESTS)
 	./nonport
 	./voidlist
 	./tobjlist
@@ -178,7 +213,7 @@ check: $(tests-files)
 	./trdelete
 	./bflatten
 	./mysig
-	./testmalloc 2>&1 | tail
+	./testmalloc >/dev/null 2>&1
 	./mypopen
 	./tobjpool
 	./cycles
@@ -207,6 +242,18 @@ dependencies.dot:
 # this using 'gs' alone)
 %.png: %.ps
 	convert -geometry 1000x700 $^ $@
+
+
+# --------------------- clean --------------------
+# delete compiling/editing byproducts
+clean:
+	rm -f *.o *~ *.d gmon.out
+	rm -f $(TESTS)
+	rm -f *.a
+
+# remove crap that vc makes
+vc-clean:
+	rm -f *.plg *.[ip]db *.pch
 
 
 # end of Makefile
