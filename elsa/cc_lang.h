@@ -104,6 +104,10 @@ public:
   // it declares that an enum called Foo will be defined later
   bool allowIncompleteEnums;
 
+  // declare the various GNU __builtin functions; see
+  // Env::addGNUBuiltins in gnu.cc
+  bool declareGNUBuiltins;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need

@@ -27,6 +27,7 @@ void CCLang::ANSI_C()
   allowImplicitInt = true;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
+  declareGNUBuiltins = false;
 
   isCplusplus = false;
   isC99 = false;
@@ -58,7 +59,8 @@ void CCLang::GNU_C()
   allowImplicitInt = true;
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
-  
+  declareGNUBuiltins = true;
+
   // I'm just guessing this is GNU only.... yep:
   // http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Incomplete-Enums.html
   allowIncompleteEnums = true;
@@ -100,6 +102,7 @@ void CCLang::ANSI_Cplusplus()
   allowImplicitInt = false;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
+  declareGNUBuiltins = false;
 
   isCplusplus = true;
   isC99 = false;
@@ -113,6 +116,8 @@ void CCLang::GNU_Cplusplus()
 
   // is this really right?  Oink tests it like it is ...
   allowDynamicallySizedArrays = true;
+
+  declareGNUBuiltins = true;
 }
 
 

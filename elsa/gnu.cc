@@ -7,6 +7,165 @@
 #include "generic_amb.h"      // resolveAmbiguity, etc.
 
 
+// --------------------------- Env ---------------------------------
+// Caveat: All of the uses of GNU builtin functions arise from
+// preprocessing with the gcc compiler's headers.  Strictly speaking,
+// this is inappropriate, as Elsa is a different implementation and
+// has its own compiler-specific headers (in the include/ directory).
+// But in practice people don't often seem to be willing to adjust
+// their build process enough to actually use Elsa's headers, and
+// insist on using the gcc headers since that's what (e.g.) gcc -E
+// finds by default.  Therefore Elsa makes a best-effort attempt to
+// accept the resulting files, even though they are gcc-specific (and
+// sometimes specific to a particular *version* of gcc).  This
+// function is part of that effort.
+//
+// See http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Other-Builtins.html
+void Env::addGNUBuiltins()
+{
+  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+  Type *t_voidptr = makePtrType(SL_INIT, t_void);
+
+  Type *t_int = getSimpleType(SL_INIT, ST_INT);
+  //Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
+  Type *t_char = getSimpleType(SL_INIT, ST_CHAR);
+  Type *t_charconst = getSimpleType(SL_INIT, ST_CHAR, CV_CONST);
+  Type *t_charptr = makePtrType(SL_INIT, t_char);
+  Type *t_charconstptr = makePtrType(SL_INIT, t_charconst);
+
+  // dsw: This is a form, not a function, since it takes an expression
+  // AST node as an argument; however, I need a function that takes no
+  // args as a placeholder for it sometimes.
+  var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
+
+  // typedef void *__builtin_va_list;
+  Variable *var__builtin_va_list =
+    makeVariable(SL_INIT, str("__builtin_va_list"),
+                 t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
+  addVariable(var__builtin_va_list);
+
+  // void __builtin_stdarg_start(__builtin_va_list __list, char const *__format);
+  declareFunction2arg(t_void, "__builtin_stdarg_start",
+                      var__builtin_va_list->type, "__list",
+                      t_charconstptr, "__format",
+                      FF_NONE, NULL);
+
+  // void __builtin_va_end(__builtin_va_list __list);
+  declareFunction1arg(t_void, "__builtin_va_end",
+                      var__builtin_va_list->type, "__list");
+
+  // void *__builtin_alloca(int __len);
+  declareFunction1arg(t_voidptr, "__builtin_alloca",
+                      t_int, "__len");
+
+  // char *__builtin_strchr(char const *str, int ch);
+  declareFunction2arg(t_charptr, "__builtin_strchr",
+                      t_charconstptr, "str",
+                      t_int, "ch",
+                      FF_NONE, NULL);
+
+  // char *__builtin_strpbrk(char const *str, char const *accept);
+  declareFunction2arg(t_charptr, "__builtin_strpbrk",
+                      t_charconstptr, "str",
+                      t_charconstptr, "accept",
+                      FF_NONE, NULL);
+
+  // char *__builtin_strchr(char const *str, int ch);
+  declareFunction2arg(t_charptr, "__builtin_strrchr",
+                      t_charconstptr, "str",
+                      t_int, "ch",
+                      FF_NONE, NULL);
+
+  // char *__builtin_strstr(char const *haystack, char const *needle);
+  declareFunction2arg(t_charptr, "__builtin_strstr",
+                      t_charconstptr, "haystack",
+                      t_charconstptr, "needle",
+                      FF_NONE, NULL);
+
+  // we made some attempts to get accurate prototypes for the above
+  // functions, but at some point just started using "int ()(...)"
+  // as the type; the set below all get this generic type
+
+  static char const * const arr[] = {
+    // group 1: ?
+    //"alloca",
+    "bcmp",
+    "bzero",
+    "index",
+    "rindex",
+    "ffs",
+    "fputs_unlocked",
+    "printf_unlocked",
+    "fprintf_unlocked",
+
+    // group 2: C99
+    "conj",
+    "conjf",
+    "conjl",
+    "creal",
+    "crealf",
+    "creall",
+    "cimag",
+    "cimagf",
+    "cimagl",
+    "llabs",
+    "imaxabs",
+
+    // group 3: C99 / reserved C89
+    "cosf",
+    "cosl",
+    "fabsf",
+    "fabsl",
+    "sinf",
+    "sinl",
+    "sqrtf",
+    "sqrtl",
+
+    // group 4: C89
+    "abs",
+    "cos",
+    "fabs",
+    "fprintf",
+    "fputs",
+    "labs",
+    "memcmp",
+    "memcpy",
+    "memset",
+    "printf",
+    "sin",
+    "sqrt",
+    "strcat",
+    //"strchr",
+    "strcmp",
+    "strcpy",
+    "strcspn",
+    "strlen",
+    "strncat",
+    "strncmp",
+    "strncpy",
+    //"strpbrk",
+    //"strrchr",
+    "strspn",
+    //"strstr",
+
+    // group 5: C99 floating point comparison macros
+    "isgreater",
+    "isgreaterequal",
+    "isless",
+    "islessequal",
+    "islessgreater",
+    "isunordered",
+    
+    // one more for good measure
+    "prefetch",
+  };
+  
+  for (int i=0; i < TABLESIZE(arr); i++) {
+    makeUndeclFuncVar(str(stringc << "__builtin_" << arr[i]));
+  }
+}
+
+
 // -------------------- tcheck --------------------
 ASTTypeof *ASTTypeof::tcheck(Env &env, DeclFlags dflags)
 {

@@ -566,7 +566,6 @@ testparse d0088.cc
 testparse d0089.cc
 testparse d0090.cc
 testparse d0091.cc
-testparse d0092.cc
 testparse d0097.cc
 # ---- END: lots of tests ----
 
@@ -633,6 +632,7 @@ if $use_gnu; then
   testparse gnu/d0085.cc
   testparse gnu/d0086.cc
   testparse gnu/d0089.cc
+  testparse gnu/d0092.cc
   testparse gnu/d0093.cc
   testparse gnu/d0094.cc
 

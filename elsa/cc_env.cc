@@ -451,61 +451,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   }
 
   #ifdef GNU_EXTENSION
-    Type *t_int = getSimpleType(SL_INIT, ST_INT);
-    //Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
-    Type *t_char = getSimpleType(SL_INIT, ST_CHAR);
-    Type *t_charconst = getSimpleType(SL_INIT, ST_CHAR, CV_CONST);
-    Type *t_charptr = makePtrType(SL_INIT, t_char);
-    Type *t_charconstptr = makePtrType(SL_INIT, t_charconst);
-
-    // dsw: This is a form, not a function, since it takes an expression
-    // AST node as an argument; however, I need a function that takes no
-    // args as a placeholder for it sometimes.
-    var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
-
-    // typedef void *__builtin_va_list;
-    Variable *var__builtin_va_list = 
-      makeVariable(SL_INIT, str("__builtin_va_list"),
-                   t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL);
-    addVariable(var__builtin_va_list);
-
-    // void __builtin_stdarg_start(__builtin_va_list __list, char const *__format);
-    declareFunction2arg(t_void, "__builtin_stdarg_start",
-                        var__builtin_va_list->type, "__list",
-                        t_charconstptr, "__format",
-                        FF_NONE, NULL);
-
-    // void __builtin_va_end(__builtin_va_list __list);
-    declareFunction1arg(t_void, "__builtin_va_end",
-                        var__builtin_va_list->type, "__list");
-
-    // void *__builtin_alloca(int __len);
-    declareFunction1arg(t_voidptr, "__builtin_alloca",
-                        t_int, "__len");
-
-    // char *__builtin_strchr(char const *str, int ch);
-    declareFunction2arg(t_charptr, "__builtin_strchr",
-                        t_charconstptr, "str",
-                        t_int, "ch",
-                        FF_NONE, NULL);
-
-    // char *__builtin_strpbrk(char const *str, char const *accept);
-    declareFunction2arg(t_charptr, "__builtin_strpbrk",
-                        t_charconstptr, "str",
-                        t_charconstptr, "accept",
-                        FF_NONE, NULL);
-
-    // char *__builtin_strchr(char const *str, int ch);
-    declareFunction2arg(t_charptr, "__builtin_strrchr",
-                        t_charconstptr, "str",
-                        t_int, "ch",
-                        FF_NONE, NULL);
-
-    // char *__builtin_strstr(char const *haystack, char const *needle);
-    declareFunction2arg(t_charptr, "__builtin_strstr",
-                        t_charconstptr, "haystack",
-                        t_charconstptr, "needle",
-                        FF_NONE, NULL);
+    if (lang.declareGNUBuiltins) {
+      addGNUBuiltins();
+    }
   #endif // GNU_EXTENSION
 
   // for testing various modules

@@ -236,6 +236,8 @@ private:     // funcs
 
   Variable *declareSpecialFunction(char const *name);
 
+  void addGNUBuiltins();
+
   void setupOperatorOverloading();
 
   void addBuiltinUnaryOp(OverloadableOp op, Type *x);
