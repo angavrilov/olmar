@@ -1,6 +1,13 @@
 // find.c
 // C.A.R. Hoare's "Proof of a Program: FIND", CACM, January 1971
 
+// hide all my stuff from gcc; my tool ignores #defines altogether
+#define thmprv_pre(x)
+#define thmprv_post(x)
+#define thmprv_assert(x)
+#define thmprv_assume(x)
+#define thmprv_invariant(x)
+
 int *object(int *ptr);
 int offset(int *ptr);
 int length(int *obj);
