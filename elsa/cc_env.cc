@@ -1682,7 +1682,9 @@ Scope *Env::lookupOneQualifier_useArgs(
 
         // obtain a list of semantic arguments
         SObjList<STemplateArgument> sargs;
-        templArgsASTtoSTA(qualifier->targs, sargs);
+        if (!templArgsASTtoSTA(qualifier->targs, sargs)) {
+          return ct;      // error already reported; recovery: use primary
+        }
 
         if ((lflags & LF_DECLARATOR) &&
             containsTypeVariables(qualifier->targs)) {    // fix t0185.cc?  seems to...
@@ -1841,8 +1843,9 @@ bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
     }
     else {
       // save this class scope
-      xassert(qualifier->denotedScopeVar->type->isCompoundType());
-      scopes.push(qualifier->denotedScopeVar->type->asCompoundType());
+      Type *dsvType = qualifier->denotedScopeVar->type;
+      xassert(dsvType->isCompoundType());
+      scopes.push(dsvType->asCompoundType());
     }
 
     // advance to the next name in the sequence
@@ -1997,7 +2000,9 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
         // obtain a list of semantic arguments
         PQ_template const *tqual = final->asPQ_templateC();
         SObjList<STemplateArgument> sargs;
-        templArgsASTtoSTA(tqual->args, sargs);
+        if (!templArgsASTtoSTA(tqual->args, sargs)) {
+          return NULL;       // error already reported
+        }
 
         // if any of the arguments are dependent, then the whole
         // instantiation is dependent
@@ -2031,7 +2036,9 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
                                                          
           // make a list of semantic template args
           SObjList<STemplateArgument> sargs;
-          templArgsASTtoSTA(final->asPQ_templateC()->args, sargs);
+          if (!templArgsASTtoSTA(final->asPQ_templateC()->args, sargs)) {
+            return NULL;      // error already reporeted
+          }
 
           return instantiateFunctionTemplate(loc(), var, sargs);
         }

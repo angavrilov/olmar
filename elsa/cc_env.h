@@ -738,8 +738,9 @@ public:      // template funcs
   void insertBindings      // a variant for an ObjList ...
     (Variable *baseV, ObjList<STemplateArgument> &sargs);
   #endif // 0
-
-  void templArgsASTtoSTA
+      
+  // return false if some of the arguments had errors
+  bool templArgsASTtoSTA
     (ASTList<TemplateArgument> const &arguments,
      SObjList<STemplateArgument> &sargs);
 

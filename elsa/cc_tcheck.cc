@@ -917,6 +917,9 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
   else {
     if (denotedScope->curCompound) {
       denotedScopeVar = denotedScope->curCompound->typedefVar;
+      
+      // must be a complete type [ref?] (t0245.cc)
+      env.ensureCompleteType("use as qualifier", denotedScopeVar->type);
     }
     else if (denotedScope->isGlobalScope()) {
       denotedScopeVar = env.globalScopeVar;
@@ -2754,6 +2757,7 @@ realStart:
       SObjList<STemplateArgument> sargs;
       if (name->isPQ_template()) {
         env.templArgsASTtoSTA(name->asPQ_templateC()->args, sargs);
+        #error if i put this back in, check the return value
       }
 
       Variable *prevInst = env.getInstThatMatchesArgs

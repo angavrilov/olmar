@@ -1832,7 +1832,7 @@ void Env::insertBindings(Variable *baseV, ObjList<STemplateArgument> &sargs)
 
 // go over the list of arguments, and make a list of semantic
 // arguments
-void Env::templArgsASTtoSTA
+bool Env::templArgsASTtoSTA
   (ASTList<TemplateArgument> const &arguments,
    SObjList<STemplateArgument> &sargs)
 {
@@ -1846,11 +1846,18 @@ void Env::templArgsASTtoSTA
       // sm: 7/24/04: This used to be a user error, but I think it should
       // be an assertion because it is referring to internal implementation
       // details, not anything the user knows about.
-      xfailure(stringc << "TemplateArgument has no value " << ta->argString());
+      //xfailure(stringc << "TemplateArgument has no value " << ta->argString());
+      //
+      // sm: 8/10/04: push reporting/handling obligation back to
+      // caller; this can happen when a template argument has an error
+      // (e.g., refers to an undeclared identifier) (t0245.cc, error 1)
+      return false;
     }
     sargs.prepend(&(ta->sarg));     // O(1)
   }
   sargs.reverse();                  // O(n)
+  
+  return true;
 }
 
 
@@ -1862,6 +1869,7 @@ Variable *Env::instantiateTemplate_astArgs
 {
   SObjList<STemplateArgument> sargs;
   templArgsASTtoSTA(astArgs, sargs);
+  #error check return value
   return instantiateTemplate(loc, foundScope, baseV, instV, NULL /*bestV*/, sargs);
 }    
 #endif // 0
@@ -4272,7 +4280,9 @@ Variable *Env::makeExplicitFunctionSpecialization
   SObjList<STemplateArgument> nameArgs;
   if (name->getUnqualifiedName()->isPQ_template()) {
     pqtemplate = name->getUnqualifiedName()->asPQ_template();
-    templArgsASTtoSTA(pqtemplate->args, nameArgs);
+    if (!templArgsASTtoSTA(pqtemplate->args, nameArgs)) {
+      return NULL;       // error already reported
+    }
   }
 
   // get set of overloaded names (might be singleton)
