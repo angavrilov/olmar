@@ -245,6 +245,7 @@ char const *toString(BinaryOp op);
 bool isPredicateCombinator(BinaryOp op);     // &&, ||, ==>, <==>
 bool isRelational(BinaryOp op);              // == thru >=
 bool isInequality(BinaryOp op);              // <, >, <=, >=
+bool isOverloadable(BinaryOp op);
 
 
 // ---------------- access control ------------

@@ -260,6 +260,12 @@ bool isInequality(BinaryOp op)
   return BIN_LESS <= op && op <= BIN_GREATEREQ;
 }
 
+bool isOverloadable(BinaryOp op)
+{
+  return BIN_EQUAL <= op && op <= BIN_OR ||
+         op == BIN_ARROW_STAR;
+}
+
 
 // ------------------- AccessKeyword -------------------
 char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {

@@ -3604,10 +3604,11 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   Type *rhsType = e2->type->asRval();
 
   // check for operator overloading; only limited cases for now
+  // (TODO: lhs or rhs enum triggers overload resolution)
   if (env.doOverload &&
-      op == BIN_PLUS &&
+      (op==BIN_PLUS || op==BIN_MINUS) &&
       (lhsType->isCompoundType() || rhsType->isCompoundType())) {
-    TRACE("overload", "found overloadable BIN_PLUS instance");
+    TRACE("overload", "found overloadable " << toString(op));
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
@@ -3618,12 +3619,14 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE, args, 10 /*numCand*/);
 
+    StringRef opName = 
+      op==BIN_PLUS? env.operatorPlusName : env.operatorMinusName;
+
     // collect candidates: cppstd 13.3.1.2 para 3
 
     // member candidates
     if (lhsType->isCompoundType()) {
-      Variable *member = lhsType->asCompoundType()->
-        lookupVariable(env.operatorPlusName, env);
+      Variable *member = lhsType->asCompoundType()->lookupVariable(opName, env);
       if (member) {
         //TRACE("opovl", member->overloadSetSize() << " member candidates");
         resolver.processPossiblyOverloadedVar(member);
@@ -3631,16 +3634,23 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     }
 
     // non-member candidates; this lookup ignores member functions
-    Variable *nonmember = env.lookupVariable(env.operatorPlusName, LF_SKIP_CLASSES);
+    Variable *nonmember = env.lookupVariable(opName, LF_SKIP_CLASSES);
     if (nonmember) {
       //TRACE("opovl", nonmember->overloadSetSize() << " non-member candidates");
       resolver.processPossiblyOverloadedVar(nonmember);
     }
 
     // built-in candidates
-    resolver.processCandidate(env.operatorPlusVar);
-    resolver.processCandidate(env.operatorPlusVar2);
-    resolver.processCandidate(env.operatorPlusVar3);
+    if (op==BIN_PLUS) {
+      resolver.processCandidate(env.operatorPlusVar);
+      resolver.processCandidate(env.operatorPlusVar2);
+      resolver.processCandidate(env.operatorPlusVar3);
+    }
+    else {
+      resolver.processCandidate(env.operatorMinusVar);
+      resolver.processCandidate(env.operatorMinusVar2);
+      resolver.processCandidate(env.operatorMinusVar3);
+    }
 
     // pick one
     Variable *winner = resolver.resolve();
@@ -3648,8 +3658,7 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       TRACE("overload", "chose candidate at " << toString(winner->loc));
 
       if (!winner->hasFlag(DF_BUILTIN)) {
-        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_PLUS), 
-                                           env.operatorPlusName);
+        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(op), opName);
         if (winner->hasFlag(DF_MEMBER)) {
           // replace 'a+b' with 'a.operator+(b)'
           replacement = new E_funCall(

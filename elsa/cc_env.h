@@ -82,6 +82,7 @@ public:      // data
   StringRef functionOperatorName;
   StringRef thisName;
   StringRef operatorPlusName;
+  StringRef operatorMinusName;
 
   StringRef special_getStandardConversion;
   StringRef special_getImplicitConversion;
@@ -100,6 +101,9 @@ public:      // data
   Variable *operatorPlusVar;
   Variable *operatorPlusVar2;
   Variable *operatorPlusVar3;
+  Variable *operatorMinusVar;
+  Variable *operatorMinusVar2;
+  Variable *operatorMinusVar3;
 
   TranslationUnit *tunit;
   

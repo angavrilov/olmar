@@ -36,6 +36,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     functionOperatorName(str("operator()")),
     thisName(str("this")),
     operatorPlusName(str("operator+")),
+    operatorMinusName(str("operator-")),
 
     special_getStandardConversion(NULL),
     special_getImplicitConversion(NULL),
@@ -51,6 +52,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     operatorPlusVar(NULL),
     operatorPlusVar2(NULL),
     operatorPlusVar3(NULL),
+    operatorMinusVar(NULL),
+    operatorMinusVar2(NULL),
+    operatorMinusVar3(NULL),
 
     tunit(tunit0),
 
@@ -160,6 +164,12 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "y");
   operatorPlusVar->setFlag(DF_BUILTIN);
 
+  operatorMinusVar = declareFunction2arg(
+    t_void /*irrelevant*/, "operator -",
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "x",
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "y");
+  operatorMinusVar->setFlag(DF_BUILTIN);
+
   // 13.6 para 13
   operatorPlusVar2 = declareFunction2arg(
     t_void, "operator +",
@@ -172,6 +182,18 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     t_ptrdiff_t, "x",
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "y");
   operatorPlusVar3->setFlag(DF_BUILTIN);
+
+  operatorMinusVar2 = declareFunction2arg(
+    t_void, "operator -",
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
+    t_ptrdiff_t, "y");
+  operatorMinusVar2->setFlag(DF_BUILTIN);
+
+  operatorMinusVar3 = declareFunction2arg(
+    t_void, "operator -",
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "x",
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)), "y");
+  operatorMinusVar3->setFlag(DF_BUILTIN);
 
   exitScope(dummyScope);
 

@@ -30,6 +30,7 @@ class E {
 public:
   operator int ();                  // 31
   operator int* ();                 // 32
+  void operator-(A &a);             // 33
 };
 
 void f()
@@ -57,4 +58,11 @@ void f()
   __testOverload(1+d, BUILTIN);
 
   //ERROR(1): __testOverload(e+1, BUILTIN);    // ambiguous
+                   
+  // BIN_MINUS
+  __testOverload(e-a1, 33);
+  __testOverload(c-1, BUILTIN);
+  __testOverload(d-1, BUILTIN);
+  __testOverload(d-d, BUILTIN);
+  //ERROR(2): __testOverload(1-d, BUILTIN);    // no viable
 }
