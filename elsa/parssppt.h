@@ -1,4 +1,4 @@
-// parssppt.h
+// parssppt.h            see license.txt for copyright and terms of use
 // parser-support routines, for use at runtime while processing
 // the generated Parse tree
 //

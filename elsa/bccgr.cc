@@ -1,4 +1,4 @@
-// bccgr.cc
+// bccgr.cc            see license.txt for copyright and terms of use
 // driver for bison parser for cc.gr
 
 #include "bccgr.h"      // this module

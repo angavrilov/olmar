@@ -1,4 +1,4 @@
-// treeout.h
+// treeout.h            see license.txt for copyright and terms of use
 // interface for printing trees; very small right now
 
 // the idea is to print ascii marked in a way that Emacs' outline

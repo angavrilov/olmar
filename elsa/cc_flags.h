@@ -1,4 +1,4 @@
-// cc_flags.h
+// cc_flags.h            see license.txt for copyright and terms of use
 // enumerated flags for parsing C
 
 #ifndef CC_FLAGS_H

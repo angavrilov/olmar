@@ -1,4 +1,4 @@
-// cc_type.h
+// cc_type.h            see license.txt for copyright and terms of use
 // compile-type representation of C++ types
 // see types.txt
 

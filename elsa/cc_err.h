@@ -1,4 +1,4 @@
-// cc_err.h
+// cc_err.h            see license.txt for copyright and terms of use
 // objects for representing errors in C++ code
 
 #error I do not want to use this yet

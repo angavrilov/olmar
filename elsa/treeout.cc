@@ -1,4 +1,4 @@
-// treeout.cc
+// treeout.cc            see license.txt for copyright and terms of use
 // code for treeout.h
 
 #include "treeout.h"     // this module

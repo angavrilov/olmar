@@ -1,4 +1,4 @@
-// exprvisit.h
+// exprvisit.h            see license.txt for copyright and terms of use
 // Expression visitor
 
 #ifndef EXPRVISIT_H

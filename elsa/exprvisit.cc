@@ -1,4 +1,4 @@
-// exprvisit.cc
+// exprvisit.cc            see license.txt for copyright and terms of use
 // code for exprvisit.h
 
 #include "exprvisit.h"       // this module

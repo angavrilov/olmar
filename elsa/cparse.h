@@ -1,4 +1,4 @@
-// cparse.h
+// cparse.h            see license.txt for copyright and terms of use
 // data structures used during parsing of C code
 
 #ifndef CPARSE_H

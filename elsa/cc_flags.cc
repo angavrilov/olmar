@@ -1,4 +1,4 @@
-// cc_flags.cc
+// cc_flags.cc            see license.txt for copyright and terms of use
 // code for cc_flags.h
 
 #include "cc_flags.h"     // this module

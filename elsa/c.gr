@@ -1,4 +1,4 @@
-// cc.gr
+// cc.gr            see license.txt for copyright and terms of use
 // my attempt to implement a grammar for C++
 
 // I'm actually trying to use this single file for both C and C++;

@@ -1,4 +1,4 @@
-// variable.h           
+// variable.h                       see license.txt for copyright and terms of use
 // information about a name
 //
 // Every binding introduction (e.g. declaration) of a name will own

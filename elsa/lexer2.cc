@@ -1,4 +1,4 @@
-// lexer2.cc
+// lexer2.cc            see license.txt for copyright and terms of use
 // code for lexer2.h
 
 #include "lexer2.h"      // this module

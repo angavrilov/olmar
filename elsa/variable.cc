@@ -1,4 +1,4 @@
-// variable.cc
+// variable.cc            see license.txt for copyright and terms of use
 // code for variable.h
 
 #include "variable.h"      // this module

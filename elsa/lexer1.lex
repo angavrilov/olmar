@@ -1,4 +1,4 @@
-/* lexer1.lex
+/* lexer1.lex            see license.txt for copyright and terms of use
    flex scanner for Lexer 1 of C++ compiler
    see lexer1.txt for specification */
 

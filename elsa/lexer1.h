@@ -1,4 +1,4 @@
-// lexer1.h
+// lexer1.h            see license.txt for copyright and terms of use
 // Lexer 1: tokenize a single file, no translations
 // see lexer1.txt
 

@@ -1,4 +1,4 @@
-// c_type.cc
+// c_type.cc            see license.txt for copyright and terms of use
 // code for c_type.h
 
 #include "c_type.h"     // this module

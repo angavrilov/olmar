@@ -1,4 +1,4 @@
-// ccparse.cc
+// ccparse.cc            see license.txt for copyright and terms of use
 // entry-point module for a program that parses C++
 
 #include <iostream.h>     // cout

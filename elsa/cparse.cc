@@ -1,4 +1,4 @@
-// cparse.cc
+// cparse.cc            see license.txt for copyright and terms of use
 // code for cparse.h
 
 #include <iostream.h>    // cout

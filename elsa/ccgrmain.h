@@ -1,4 +1,4 @@
-// ccgrmain.h
+// ccgrmain.h            see license.txt for copyright and terms of use
 // some prototypes I don't have a good place for, related
 // to starting up the parser
 
