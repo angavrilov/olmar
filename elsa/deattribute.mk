@@ -5,7 +5,7 @@ deattribute: deattribute.o
 
 .PRECIOUS: deattribute.cc
 deattribute.cc: deattribute.lex
-	flex -o$@ $<
+	flex -s -o$@ $<
 	mv $@ lexer.tmp
 	sed -e 's/class istream;/#include <iostream.h>/' <lexer.tmp >$@
 	rm lexer.tmp

@@ -68,6 +68,9 @@ SPACE [ \t\r\n\f\v]
 <CURLY>"}" {pop(); emit();}
 <PAREN>")" {pop(); emit();}
 
+<INITIAL,PAREN>"}" { fprintf(stderr, "unexpected '%s' at line %d\n", yytext, yylineno); exit(1); }
+<INITIAL,CURLY>")" { fprintf(stderr, "unexpected '%s' at line %d\n", yytext, yylineno); exit(1); }
+
   /* attributes */
 <ATTRIBUTE>"("  {BEGIN(ATTROPEN1); emit();}
 <ATTROPEN1>"("  {BEGIN(ATTROPEN2); emit();}
@@ -98,8 +101,10 @@ SPACE [ \t\r\n\f\v]
   "__attribute__" {diag("<ATTR>"); push(ATTRIBUTE); ++attr_nesting; emit();}
 
   /* anything else */
-  (.|\n) { emit(); }
+  [^})] { emit(); }
 }
+
+<*>(.|\n) { fprintf(stderr, "unexpected character at line %d\n", yylineno); exit(1); }
 
 %%
 
