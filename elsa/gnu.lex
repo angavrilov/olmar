@@ -84,9 +84,13 @@
 "__restrict__"         return tok(TOK_RESTRICT);
 "__inline"             return tok(TOK_INLINE);
 "__inline__"           return tok(TOK_INLINE);
+"__signed"             return tok(TOK_SIGNED);
 "__signed__"           return tok(TOK_SIGNED);
 "__volatile"           return tok(TOK_VOLATILE);
 "__volatile__"         return tok(TOK_VOLATILE);
+
+"<?"                   return tok(TOK_MIN_OP);
+">?"                   return tok(TOK_MAX_OP);
 
   /* C99 stuff */
 "restrict"             return tok(TOK_RESTRICT);

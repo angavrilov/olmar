@@ -5,6 +5,7 @@
 #include "cc_env.h"           // Env
 #include "cc_print.h"         // olayer, PrintEnv
 #include "generic_amb.h"      // resolveAmbiguity, etc.
+#include "stdconv.h"          // usualArithmeticConversions
 
 
 // --------------------------- Env ---------------------------------
@@ -328,6 +329,33 @@ Type *E_gnuCond::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+// cc_tcheck.cc
+bool isArithmeticOrEnumType(Type *t);
+
+Type *E_gnuMinMax::itcheck_x(Env &env, Expression *&replacement)
+{
+  e1->tcheck(env, e1);
+  e2->tcheck(env, e2);
+
+  // I do not know what the correct type is, but I've only seen this
+  // done for arithmetic types, so behave like ?: would when both
+  // arguments are arithmetic
+  Type *t1 = e1->type->asRval();
+  Type *t2 = e2->type->asRval();
+  if (isArithmeticOrEnumType(t1) && isArithmeticOrEnumType(t2)) {
+    return usualArithmeticConversions(env.tfac, t1, t2);
+  }
+  else {
+    char const *op = isMin? "<?" : ">?";
+    Type *bad = isArithmeticOrEnumType(t1)? t2 : t1;
+    char const *side = (bad==t1)? "left" : "right";
+    return env.error(bad, stringc
+      << "expected " << side << " argument to " << op
+      << " to be of arithmetic type, not `" << bad->toString() << "'");
+  }
+}
+
+
 static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
   e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
@@ -362,7 +390,7 @@ bool E_gnuCond::extConstEval(string &msg, int &result) const
   if (!cond->constEval(msg, result)) return false;
 
   if (result) {
-    return result;
+    return true;
   }
   else {
     return el->constEval(msg, result);
@@ -373,6 +401,28 @@ bool E_gnuCond::extHasUnparenthesizedGT() const
 {
   return cond->hasUnparenthesizedGT() ||
          el->hasUnparenthesizedGT();
+}
+
+
+bool E_gnuMinMax::extConstEval(string &msg, int &result) const
+{
+  int r1, r2;
+  if (!e1->constEval(msg, r1)) return false;
+  if (!e2->constEval(msg, r2)) return false;
+
+  if (isMin) {
+    result = r1<r2? r1 : r2;
+  }
+  else {
+    result = r1>r2? r1 : r2;
+  }
+  return true;
+}
+
+bool E_gnuMinMax::extHasUnparenthesizedGT() const
+{
+  return e1->hasUnparenthesizedGT() ||
+         e2->hasUnparenthesizedGT();
 }
 
 
@@ -458,6 +508,15 @@ void E_gnuCond::iprint(PrintEnv &env)
   cond->print(env);
   env << " ?: ";
   el->print(env);
+}
+
+void E_gnuMinMax::iprint(PrintEnv &env)
+{
+  olayer ol("E_gnuMinMax::iprint");
+  codeout co(env, "", "(", ")");
+  e1->print(env);
+  env << (isMin? " <? " : " >? ");
+  e2->print(env);
 }
 
 // prints designators in the new C99 style, not the obsolescent ":"

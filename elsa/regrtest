@@ -746,6 +746,7 @@ if $use_gnu; then
   # g0016.cc is documentation, not a test
   testparse gnu/g0017.cc
   testparse gnu/g0018.cc
+  testparse gnu/g0019.cc
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

@@ -124,7 +124,7 @@ while (defined($line = <IN>)) {
     # modify command string to send output to tmp.i
     if ($line !~ s/-o \S+/-o tmp.i/) {
       # no -o option, add one
-      $line =~ s/^$s /$s -o tmp.i /;
+      $line .= " -o tmp.i";
     }
 
     # modify command to preprocess instead of compile

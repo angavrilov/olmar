@@ -20,6 +20,7 @@
 //   - gcc misc: __FUNCTION__, __alignof__, etc.
 //   - gcc dangling labels: "{ ... foo: }"
 //   - gcc typeof
+//   - gcc C++ min and max operators ">?" and "<?"
 //   - gcc asm with register constraints, etc.
 //   - gcc asm labels: "int foo asm("myfoo") = 2"
 //   - C99 designated initializers: "... = { .x=..., .y=... }"
@@ -38,6 +39,11 @@ terminals {
   precedence {
     // see note at end regarding implementation of __attribute__
     prec  190 "__attribute__" "restrict";
+    
+    // the experimentation I did in in/gnu/g0019.cc suggests that
+    // these operators go between "<<"/">>" and "<"/">" in precedence,
+    // and are left associative
+    left   85 "<?" ">?";
   }
 }
 
@@ -230,6 +236,16 @@ nonterm(FullExpression*) TypeofExpr {
 nonterm(ASTTypeId*) TypeofType {
   -> "__typeof__" "(" t:TypeId ")"
        { return t; }
+}
+
+
+// ----------- gcc C++ min and max operators -----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Min-and-Max.html
+nonterm(Expression*) BinExp_high {
+  -> left:BinExp_high "<?" right:BinExp_high
+       { return new E_gnuMinMax(left, true /*isMin*/, right); }
+  -> left:BinExp_high ">?" right:BinExp_high
+       { return new E_gnuMinMax(left, false /*isMin*/, right); }
 }
 
 

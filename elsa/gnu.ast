@@ -115,6 +115,16 @@ class TypeSpecifier {
 }
 
 
+// ----------- gcc C++ min and max operators -----------
+class Expression {
+  // isMin: true for '<?', false for '>?'
+  -> E_gnuMinMax(Expression e1, bool isMin, Expression e2) {
+       public virtual bool extConstEval(string &msg, int &result) const;
+       public virtual bool extHasUnparenthesizedGT() const;
+     }
+}
+
+
 // ----------- gcc asm -----------
 // (no AST extension b/c extra info dropped on floor)
 
