@@ -4977,7 +4977,7 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
   // to make this work in some pathological cases (d0026.cc,
   // t0156.cc), we need to iterate over the list of typedef aliases
   // until we find the one that will tcheck to 'type'
-  SFOREACH_OBJLIST_NC(Variable, type->typedefAliases, iter) {
+  FOREACH_SASTLIST_NC(Variable, type->typedefAliases, iter) {
     Variable *alias = iter.data();
 
     TRACE("buildTypedefSpecifier",

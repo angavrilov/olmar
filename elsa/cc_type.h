@@ -27,6 +27,8 @@
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
 #include "sobjlist.h"     // SObjList
+#include "astlist.h"      // ASTList
+#include "sastlist.h"     // SASTList
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StringSObjDict
@@ -386,7 +388,7 @@ public:     // types
   };
 
 public:     // data
-  ObjList<Value> values;              // values in this enumeration
+  ASTList<Value> values;              // values in this enumeration
   StringSObjDict<Value> valueIndex;   // name-based lookup
   int nextValue;                      // next value to assign to elements automatically
 
@@ -436,7 +438,7 @@ public:     // data
   // names instead of their normal form.
   //
   // TODO: Now that elaboration doesn't need this, remove it.
-  SObjList<Variable> typedefAliases;
+  SASTList<Variable> typedefAliases;
 
   // moved this declaration into Type, along with the declaration of
   // 'anyCtorSatisfies', so as not to leak the name "BaseType"
