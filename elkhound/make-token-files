@@ -178,6 +178,7 @@ print H (<<"EOF");
 
 // map TokenType to its spelling or description
 extern char const * const tokenNameTable[];
+extern int const tokenNameTableSize;
 
 // map TokenType to a bitwise OR of TokenFlags
 extern unsigned char tokenFlagTable[];
@@ -190,6 +191,12 @@ EOF
 $flagsList = join('', @flagsList);
 print CC (<<"EOF");
 };  // tokenNameTable[]
+
+// this is provided to allow a consistency check between the generated
+// .h file and generated .cc file
+int const tokenNameTableSize =
+  sizeof(tokenNameTable) / sizeof(tokenNameTable[0]);
+
 
 unsigned char tokenFlagTable[] = {
 $flagsList
