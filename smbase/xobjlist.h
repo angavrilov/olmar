@@ -1,39 +1,66 @@
+m4_dnl // xobjlist.h
+m4_dnl // template file to be processed with m4 to generate one
+m4_dnl // of wrappers around VoidList
+m4_dnl
+m4_changequote([, ])m4_dnl      // for this section
+m4_changecom[]m4_dnl            // no m4 "comments"
+m4_ifelse(m4_output, sobjlist.h, [m4_dnl
+// sobjlist.h
+// serf list of arbitrary objects
+m4_define(makeName, S[$1])m4_dnl
+m4_define(outputCond, [$1])m4_dnl       // select 1st arg
+], [m4_dnl
 // objlist.h
 // owner list of arbitrary dynamically-allocated objects
+m4_define(makeName, [$1])m4_dnl
+m4_define(outputCond, [$2])m4_dnl       // select 2nd arg
+])m4_dnl
+m4_define(includeLatch, makeName(OBJLIST_H))m4_dnl
+m4_define(className, makeName(ObjList))m4_dnl
+m4_define(iterName, makeName(ObjListIter))m4_dnl
+m4_define(mutatorName, makeName(ObjListMutator))m4_dnl
+m4_changequote(, )m4_dnl              // so quotes are not quoted..
+m4_changequote([[[, ]]])m4_dnl        // reduce likelihood of confusion
 // NOTE: automatically generated from xobjlist.h -- do not edit directly
 
 // Author: Scott McPeak, 2000
 
-#ifndef OBJLIST_H
-#define OBJLIST_H
+#ifndef includeLatch
+#define includeLatch
 
 #include "voidlist.h"    // VoidList
 
 
-// forward declarations of template classes, so we can befriend them in ObjList
+// forward declarations of template classes, so we can befriend them in className
 // (not required by Borland C++ 4.5, but GNU wants it...)
-template <class T> class ObjListIter;
-template <class T> class ObjListMutator;
+template <class T> class iterName;
+template <class T> class mutatorName;
 
 
+outputCond([[[m4_dnl      // sobjlist
+// the list is considered to not own any of the items; it's ok to
+// insert items multiple times or into multiple lists
+]]], [[[m4_dnl            // objlist
 // the list is considered to own all of the items; it is an error to insert
 // an item into more than one such list, or to insert an item more than once
 // into any such list
+]]])m4_dnl
 template <class T>
-class ObjList {
+class className {
 private:
-  friend class ObjListIter<T>;
-  friend class ObjListMutator<T>;
+  friend class iterName<T>;
+  friend class mutatorName<T>;
 
 protected:
   VoidList list;                        // list itself
 
 private:
-  ObjList(ObjList const &obj) {}      // not allowed
+  className[[[]]](className const &obj) {}      // not allowed
 
 public:
-  ObjList()                            :list() {}
-  ~ObjList()                             { deleteAll(); }
+  className[[[]]]()                            :list() {}
+  ~className[[[]]]()                        m4_dnl
+     outputCond({}    /* all items removed */, { deleteAll(); })
 
   // The difference function should return <0 if left should come before
   // right, 0 if they are equivalent, and >0 if right should come before
@@ -61,8 +88,12 @@ public:
 
   // removal
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
+outputCond([[[m4_dnl     // sobjlist
+  void removeAll()                      { list.removeAll(); }
+]]], [[[m4_dnl           // objlist
   void deleteAt(int index)              { delete (T*)list.removeAt(index); }
   void deleteAll();
+]]])m4_dnl
 
   // list-as-set: selectors
   int indexOf(T const *item) const      { return list.indexOf((void*)item); }
@@ -83,25 +114,30 @@ public:
   bool isSorted(Diff diff, void *extra=NULL) const  { return list.isSorted((VoidDiff)diff, extra); }
 
   // multiple lists
-  void concat(ObjList &tail)                       { list.concat(tail.list); }
+  void concat(className &tail)                       { list.concat(tail.list); }
+outputCond([[[m4_dnl    // sobjlist
+  void appendAll(className const &tail)              { list.appendAll(tail.list); }
+  className& operator= (className const &src)         { list = src.list; return *this; }
+]]], [[[m4_dnl          // objlist
   // (we do *not* have operator= here, nor appendAll, since these are supposed to be owner lists)
+]]])m4_dnl
 
   // equal items in equal positions
-  bool equalAsLists(ObjList const &otherList, Diff diff, void *extra=NULL) const
+  bool equalAsLists(className const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsLists(otherList.list, (VoidDiff)diff, extra); }
 
   // last-as-set: comparisons (NOT efficient)
-  bool equalAsSets(ObjList const &otherList, Diff diff, void *extra=NULL) const
+  bool equalAsSets(className const &otherList, Diff diff, void *extra=NULL) const
     { return list.equalAsSets(otherList.list, (VoidDiff)diff, extra); }
-  bool isSubsetOf(ObjList const &otherList, Diff diff, void *extra=NULL) const
+  bool isSubsetOf(className const &otherList, Diff diff, void *extra=NULL) const
     { return list.isSubsetOf(otherList.list, (VoidDiff)diff, extra); }
   bool containsByDiff(T const *item, Diff diff, void *extra=NULL) const
     { return list.containsByDiff((void*)item, (VoidDiff)diff, extra); }
 
   // treating the pointer values themselves as the basis for comparison
-  bool equalAsPointerLists(ObjList const &otherList) const
+  bool equalAsPointerLists(className const &otherList) const
     { return list.equalAsPointerLists(otherList.list); }
-  bool equalAsPointerSets(ObjList const &otherList) const
+  bool equalAsPointerSets(className const &otherList) const
     { return list.equalAsPointerSets(otherList.list); }
 
   // debugging
@@ -109,6 +145,7 @@ public:
 };
 
 
+outputCond(, [[[m4_dnl      // objlist
 template <class T>
 void ObjList<T>::deleteAll()
 {
@@ -118,28 +155,29 @@ void ObjList<T>::deleteAll()
 }
 
 
+]]])m4_dnl
 // for traversing the list and modifying it (nodes and/or structure)
 // NOTE: no list-modification fns should be called on 'list' while this
 //       iterator exists, and only one such iterator should exist for
 //       any given list
 template <class T>
-class ObjListMutator {
-  friend ObjListIter<T>;
+class mutatorName {
+  friend iterName<T>;
 
 protected:
   VoidListMutator mut;       // underlying mutator
 
 public:
-  ObjListMutator(ObjList<T> &lst)     : mut(lst.list) { reset(); }
-  ~ObjListMutator()                    {}
+  mutatorName[[[]]](className<T> &lst)     : mut(lst.list) { reset(); }
+  ~mutatorName[[[]]]()                    {}
 
   void reset()                          { mut.reset(); }
 
   // iterator copying; safe *only* until one of the mutators modifies
   // the list structure (by inserting or removing), at which time all
   // other iterators might be in limbo
-  ObjListMutator(ObjListMutator const &obj)             : mut(obj.mut) {}
-  ObjListMutator& operator=(ObjListMutator const &obj)  { mut = obj.mut;  return *this; }
+  mutatorName[[[]]](mutatorName const &obj)             : mut(obj.mut) {}
+  mutatorName& operator=(mutatorName const &obj)  { mut = obj.mut;  return *this; }
     // requires that 'this' and 'obj' already refer to the same 'list'
 
   // iterator actions
@@ -166,37 +204,39 @@ public:
     // 'current' is removed from the list and returned, and whatever was
     // next becomes the new 'current'
 
+outputCond(, [[[m4_dnl    // sobjlist
   void deleteIt()                       { delete (T*)mut.remove(); }
     // same as remove(), except item is deleted also
 
+]]])m4_dnl
   // debugging
   bool invariant() const                { return mut.invariant(); }
 };
 
-#define MUTATE_EACH_OBJLIST(T, list, iter) \
-  for(ObjListMutator<T> iter(list); !iter.isDone(); iter.adv())
+#define makeName(MUTATE_EACH_OBJLIST)(T, list, iter) \
+  for(mutatorName<T> iter(list); !iter.isDone(); iter.adv())
 
 
 // for traversing the list without modifying it (neither nodes nor structure)
 // NOTE: no list-modification fns should be called on 'list' while this
 //       iterator exists
 template <class T>
-class ObjListIter {
+class iterName {
 protected:
   VoidListIter iter;      // underlying iterator
 
 public:
-  ObjListIter(ObjList<T> const &list) : iter(list.list) {}
-  ~ObjListIter()                       {}
+  iterName[[[]]](className<T> const &list) : iter(list.list) {}
+  ~iterName[[[]]]()                       {}
 
-  void reset(ObjList<T> const &list)   { iter.reset(list.list); }
+  void reset(className<T> const &list)   { iter.reset(list.list); }
 
   // iterator copying; generally safe
-  ObjListIter(ObjListIter const &obj)             : iter(obj.iter) {}
-  ObjListIter& operator=(ObjListIter const &obj)  { iter = obj.iter;  return *this; }
+  iterName[[[]]](iterName const &obj)             : iter(obj.iter) {}
+  iterName& operator=(iterName const &obj)  { iter = obj.iter;  return *this; }
 
   // but copying from a mutator is less safe; see above
-  ObjListIter(ObjListMutator<T> &obj)             : iter(obj.mut) {}
+  iterName[[[]]](mutatorName<T> &obj)             : iter(obj.mut) {}
 
   // iterator actions
   bool isDone() const                   { return iter.isDone(); }
@@ -204,8 +244,8 @@ public:
   T const *data() const                 { return (T const*)iter.data(); }
 };
 
-#define FOREACH_OBJLIST(T, list, iter) \
-  for(ObjListIter<T> iter(list); !iter.isDone(); iter.adv())
+#define makeName(FOREACH_OBJLIST)(T, list, iter) \
+  for(iterName<T> iter(list); !iter.isDone(); iter.adv())
 
 
-#endif // OBJLIST_H
+#endif // includeLatch

@@ -2,7 +2,7 @@
 
 # main target
 THISLIBRARY = libsmbase.a
-all: ${THISLIBRARY}
+all: ${THISLIBRARY} gensrc
 
 # when uncommented, the program emits profiling info
 #ccflags = -pg
@@ -20,15 +20,17 @@ veryclean: clean
 
 
 # -------- experimenting with m4 for related files -------
-sobjlst.h: xobjlist.h
-	rm -f sobjlst.h
-	m4 -Dm4_output=sobjlst.h --prefix-builtins xobjlist.h > sobjlst.h
-	chmod a-w sobjlst.h
+gensrc: sobjlist.h objlist.h
 
-objlst.h: xobjlist.h
-	rm -f objlst.h
-	m4 -Dm4_output=objlst.h --prefix-builtins xobjlist.h > objlst.h
-	chmod a-w objlst.h
+sobjlist.h: xobjlist.h
+	rm -f sobjlist.h
+	m4 -Dm4_output=sobjlist.h --prefix-builtins xobjlist.h > sobjlist.h
+	chmod a-w sobjlist.h
+
+objlist.h: xobjlist.h
+	rm -f objlist.h
+	m4 -Dm4_output=objlist.h --prefix-builtins xobjlist.h > objlist.h
+	chmod a-w objlist.h
 
 # -------------- main target --------------
 # library itself

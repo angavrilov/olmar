@@ -1,10 +1,11 @@
 // sobjlist.h
 // serf list of arbitrary objects
+// NOTE: automatically generated from xobjlist.h -- do not edit directly
 
 // Author: Scott McPeak, 2000
 
-#ifndef __SOBJLIST_H
-#define __SOBJLIST_H
+#ifndef SOBJLIST_H
+#define SOBJLIST_H
 
 #include "voidlist.h"    // VoidList
 
@@ -31,7 +32,7 @@ private:
 
 public:
   SObjList()                            :list() {}
-  ~SObjList()                           {}    // all items removed
+  ~SObjList()                             {}    /* all items removed */
 
   // The difference function should return <0 if left should come before
   // right, 0 if they are equivalent, and >0 if right should come before
@@ -194,4 +195,4 @@ public:
   for(SObjListIter<T> iter(list); !iter.isDone(); iter.adv())
 
 
-#endif // __SOBJLIST_H
+#endif // SOBJLIST_H
