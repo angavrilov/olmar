@@ -315,7 +315,6 @@ public:     // funcs
   bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const { return isSimple(ST_DEPENDENT); }
-  bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   CompoundType *ifCompoundType();        // NULL or corresp. compound
   CompoundType const *asCompoundTypeC() const; // fail assertion if not
   CompoundType *asCompoundType() { return const_cast<CompoundType*>(asCompoundTypeC()); }
