@@ -217,7 +217,8 @@ Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
     base = env.makePtrOperType(PO_POINTER, iter.data()->cv, base);
   }
 
-  return itcheck(env, base, dflags);
+  // call inner function, and assign result to 'type' (& return that)
+  return type = itcheck(env, base, dflags);
 }
 
 

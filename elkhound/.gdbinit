@@ -3,7 +3,7 @@
 #set width 200
 
 file ccgr
-set args cc.bin c.in7
+set args cc.bin c.in4
 
 #  break main
 #  break breaker

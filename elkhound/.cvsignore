@@ -79,3 +79,5 @@ adecl.bin
 adecl
 cexp3b*
 c.ast.gen.*
+gramast.ast.gen.*
+absval.ast.gen.*

@@ -7,8 +7,9 @@ verbatim {
 }
 
 class IntValue {            
-  // logic variable: unknown but definite integer value
-  -> IVvar(StringRef name);
+  // logic variable: unknown but definite integer value;
+  // 'why' states what this variable stands for, or why it was created
+  -> IVvar(StringRef name, string why);
 
   // literal integer
   -> IVint(int i);

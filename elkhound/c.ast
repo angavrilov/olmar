@@ -60,6 +60,7 @@ class Declaration (
   ASTList<Declarator> decllist         // e.g. "x=3, y"
 ) {
   public void tcheck(Env &env);
+  public void vcgen(AEnv &env);
 }
 
 // just one complete type; appears in parameter decls and in casts
@@ -120,7 +121,8 @@ class Enumerator (
 class Declarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, left to right
   public Initializer *init;            // (nullable) optional data initializer
-  ctor { init=NULL; };
+  public Type const *type;             // computed type for this declarator
+  ctor { init=NULL; type=NULL; };
 
   // external interface; adds 'stars' before calling 'itcheck'
   public Type const *tcheck(Env &env, Type const *base, DeclFlags dflags);

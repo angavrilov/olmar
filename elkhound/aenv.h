@@ -4,7 +4,7 @@
 #ifndef AENV_H
 #define AENV_H
 
-#include "strobjdict.h"    // StringObjDict
+#include "strsobjdict.h"   // StringSObjDict
 #include "strtable.h"      // StringRef
 
 class IntValue;            // absval.ast
@@ -12,10 +12,13 @@ class IntValue;            // absval.ast
 class AEnv {
 private:
   // environment maps program variable names to abstract domain values
-  StringObjDict<IntValue> ints;
+  StringSObjDict<IntValue> ints;
 
   // need access to the string table to make new names
   StringTable &stringTable;
+
+  // monotonic integer for making new names
+  int counter;
 
 public:
   AEnv(StringTable &table);

@@ -11,6 +11,7 @@
 #include "fileloc.h"      // sourceFileList
 #include "c.ast.gen.h"    // C ast
 #include "cc_env.h"       // Env
+#include "aenv.h"         // AEnv
 
 // defined by the user somewhere
 UserActions *makeUserActions(StringTable &table);
@@ -19,12 +20,12 @@ void doit(int argc, char **argv)
 {
   traceAddSys("progress");
   //traceAddSys("parse-tree");
-  
+
   malloc_stats();
 
   // string table for storing parse tree identifiers
   StringTable strTable;
-  
+
 
   // --------------- parse --------------
   TranslationUnit *unit;
@@ -54,24 +55,26 @@ void doit(int argc, char **argv)
 
 
   // ---------------- typecheck -----------------
-  cout << "type checking...\n";
-  Env env;
-  unit->tcheck(env);
-  cout << "done type checking\n";
+  {
+    cout << "type checking...\n";
+    Env env;
+    unit->tcheck(env);
+    cout << "done type checking\n";
 
-  // print abstract syntax tree annotated with types
-  unit->debugPrint(cout, 0);
-
+    // print abstract syntax tree annotated with types
+    unit->debugPrint(cout, 0);
+  }
 
 
   // --------------- abstract interp ------------
-  cout << "abstract interpretation...\n";
-  AEnv env(strTable);
+  {
+    cout << "abstract interpretation...\n";
+    AEnv env(strTable);
 
-  unit->vcgen(env);
-  
-  cout << "done with abs interp\n";
+    unit->vcgen(env);
 
+    cout << "done with abs interp\n";
+  }
 
 
   //malloc_stats();

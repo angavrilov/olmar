@@ -261,7 +261,8 @@ cc.gen.o: cparse.h
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
-ccgr-dep = cc.gen.o c.ast.gen.o cc_flags.o tcheck.o ${cc-set}
+ccgr-dep = cc.gen.o c.ast.gen.o cc_flags.o tcheck.o \
+           absval.ast.gen.o vcgen.o aenv.o ${cc-set}
 
 # parser and semantic analyzer for cc.gr, rolled up as a library for
 # easier importing into ocaml

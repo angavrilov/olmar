@@ -4,6 +4,7 @@
 #include "c.ast.gen.h"          // C ast
 #include "absval.ast.gen.h"     // abstract domain values
 #include "aenv.h"               // AEnv
+#include "cc_type.h"            // FunctionType, etc.
 
 
 // ------------------- TranslationUnit ---------------------
@@ -32,16 +33,32 @@ void TF_func::vcgen(AEnv &env)
     if (p->name && p->type->isIntegerType()) {
       // the function parameter's initial value is represented
       // by a logic variable of the same name
-      env.set(p->name, new IVvar(p->name));
+      env.set(p->name, new IVvar(p->name,
+        stringc << "initial value of parameter " << p->name));
     }
   }
 
   // now interpret the function body
   body->vcgen(env);
-  
+
   // print the results
   cout << "interpretation after " << name << ":\n";
   env.print();
+}
+
+
+// --------------------- Declaration --------------------
+void Declaration::vcgen(AEnv &env)
+{
+  FOREACH_ASTLIST_NC(Declarator, decllist, iter) {
+    Declarator *dr = iter.data();
+
+    StringRef name = dr->getName();
+    if (name && dr->type->isIntegerType()) {
+      env.set(name, new IVvar(name,
+        stringc << "initial value of local " << name));
+    }
+  }
 }
 
 
@@ -57,7 +74,7 @@ void S_default::vcgen(AEnv &env) {}
 void S_expr::vcgen(AEnv &env)
 {        
   // evaluate and discard
-  delete expr->vcgen(env);
+  env.discard(expr->vcgen(env));
 }
 
 void S_compound::vcgen(AEnv &env)
@@ -76,7 +93,12 @@ void S_break::vcgen(AEnv &env) {}
 void S_continue::vcgen(AEnv &env) {}
 void S_return::vcgen(AEnv &env) {}
 void S_goto::vcgen(AEnv &env) {}
-void S_decl::vcgen(AEnv &env) {}
+
+
+void S_decl::vcgen(AEnv &env) 
+{
+  decl->vcgen(env);
+}
 
 
 // ---------------------- Expression -----------------
@@ -153,13 +175,13 @@ IntValue *E_fieldAcc::vcgen(AEnv &env)
 IntValue *E_unary::vcgen(AEnv &env)
 {
   // TODO: deal with ++, --
-  return IVunary(op, expr->vcgen(env));
+  return env.grab(new IVunary(op, expr->vcgen(env)));
 }
 
 IntValue *E_binary::vcgen(AEnv &env)
 {
   // TODO: deal with &&, ||
-  return IVbinary(e1->vcgen(env), op, e2->vcgen(env));
+  return env.grab(new IVbinary(e1->vcgen(env), op, e2->vcgen(env)));
 }
 
 
@@ -190,6 +212,9 @@ IntValue *E_cast::vcgen(AEnv &env)
   // I can sustain integer->integer casts..
   if (type->isIntegerType() && expr->type->isIntegerType()) {
     return expr->vcgen(env);
+  }
+  else {
+    return NULL;
   }
 }
 
@@ -231,8 +256,8 @@ IntValue *E_assign::vcgen(AEnv &env)
   IntValue *v = src->vcgen(env);
 
   // since I have no reasonable hold on pointers yet, I'm only
-  // going to keep track of assignments to variables
-  if (target->isE_variable()) {
+  // going to keep track of assignments to (integer) variables
+  if (target->isE_variable() && type->isIntegerType()) {
     // this removes the old mapping
     env.set(target->asE_variable()->name, v);
   }
