@@ -694,6 +694,7 @@ testparse t0445.cc
 testparse t0446.cc
 testparse t0447.cc
 testparse t0448.cc
+testparse t0449.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -1087,15 +1088,17 @@ failnsparse() {
   failTest "$2" ./ccparse -tr $TR_FLAGS "$1"
 }
 
-# put shorter tests first
-testnsparse in/big/nonport.i
+if [ "$DISABLE_BIG_TESTS" = "" ]; then
+  # put shorter tests first
+  testnsparse in/big/nonport.i
 
-testnsparse in/big/nsUnicodeToTeXCMRt1.i
-testnsparse in/big/nsAtomTable.i
-testnsparse in/big/nsSOAPPropertyBag.i
-testnsparse in/big/nsCLiveconnectFactory.i
-testnsparse in/big/nsHTMLEditRules.i
-testnsparse in/big/nsMsgServiceProvider.i
+  testnsparse in/big/nsUnicodeToTeXCMRt1.i
+  testnsparse in/big/nsAtomTable.i
+  testnsparse in/big/nsSOAPPropertyBag.i
+  testnsparse in/big/nsCLiveconnectFactory.i
+  testnsparse in/big/nsHTMLEditRules.i
+  testnsparse in/big/nsMsgServiceProvider.i
+fi
 
 else
   # Even though my in/big/gz/nsAtomTable.i.gz has the right md5sum,

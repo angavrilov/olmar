@@ -475,7 +475,7 @@ public:      // funcs
 
   // just return ST_ERROR
   Type *errorType();
-  
+
   // similarly for ST_DEPENDENT
   Type *dependentType();
 
@@ -501,9 +501,12 @@ public:      // funcs
   // features, but EF_NONE (not reported in templates) when trying to
   // get big testcases through.
   ErrorFlags maybeEF_STRONG() const;
-         
+
   // report on unsearched base classes; "" if none
   string unsearchedDependentBases();
+
+  // return value for (some...) erroneous lookups
+  Variable *lookupErrorObject(LookupFlags flags);
 
   // when true, the type checker does overload resolution
   bool doOverload() const;

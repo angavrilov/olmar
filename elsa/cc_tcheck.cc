@@ -89,13 +89,6 @@ string ambiguousNodeName(Declarator const *n)
   }
 }
 
-// and ASTTypeIds are also special
-int countD_funcs(ASTTypeId const *n);
-string ambiguousNodeName(ASTTypeId const *n)
-{
-  return stringc << "ASTTypeId with D_func depth " << countD_funcs(n);
-}
-
 
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
@@ -190,8 +183,7 @@ void applyExternC(TopForm *form, DeclFlags flags)
     ASTCASE(TF_decl, d)   d->decl->dflags |= flags;
     ASTNEXT(TF_func, f)   f->f->dflags |= flags;
     // just ignore other forms
-    ASTDEFAULT
-    ASTENDCASE
+    ASTENDCASED
   }
 }
 
@@ -381,23 +373,11 @@ void Function::tcheck(Env &env, Variable *instV)
                         DC_FUNCTION);
   dt.existingVar = instV;
   nameAndParams = nameAndParams->tcheck(env, dt);
-  if (!nameAndParams->var) {
-    return;                     // error should have already been reported
-  }
+  xassert(nameAndParams->var);
 
-  // this seems like it should be being done, but if I want this, I
-  // should first write a test that fails if I don't do it
-//    if (!nameAndParams->var->funcDefn) {
-//      nameAndParams->var->funcDefn = this;
-//    }
-
-  if (! dt.type->isFunctionType() ) {
-    env.error(stringc
-      << "function declarator must be of function type, not `"
-      << dt.type->toString() << "'",
-      EF_DISAMBIGUATES);
-    return;
-  }
+  // the FunctionDefinition production in cc.gr rejects any parse
+  // that does not have a D_func as the innermost declarator
+  xassert(dt.type->isFunctionType());
 
   // grab the definition type for later use
   funcType = dt.type->asFunctionType();
@@ -414,18 +394,11 @@ void Function::tcheck(Env &env, Variable *instV)
   // information is needed to instantiate it
   if (nameAndParams->var->templateInfo()) {
     Scope *s = env.nonTemplateScope();
-    if (s->isPermanentScope()) {
-      nameAndParams->var->templateInfo()->defnScope = s;
-    }
-    else {
-      // If I just point 'defnScope' at 's' anyway, it might even
-      // work, but it would violate my invariant that we only point at
-      // permanent scopes.
-      //
-      // Actually, my grammar currently doesn't allow local templates,
-      // so this is probably a non-issue.
-      env.warning("local template instantiation is not currently implemented");
-    }
+    nameAndParams->var->templateInfo()->defnScope = s;
+
+    // for this to fail, the template would have to be at block
+    // scope, but that is not allowed by the grammar
+    xassert(s->isPermanentScope());
   }
 
   if (checkBody) {
@@ -923,8 +896,11 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
   if (ret) {
     return ret->tcheck(env, tc);
   }
-
-  return resolveAmbiguity(this, env, "ASTTypeId", false /*priority*/, tc);
+  
+  // as far as I can tell, the only ambiguities in ASTTypeId are
+  // due to implicit-int, therefore this should not be reached
+  xfailure("unexpected ASTTypeId ambiguity");
+  //return resolveAmbiguity(this, env, "ASTTypeId", false /*priority*/, tc);
 }
 
 void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
@@ -1448,7 +1424,8 @@ CompoundType *checkClasskeyAndName(
           return NULL;
         }
         else {
-          env.error(stringc << "`" << *name << "' is not a struct/class/union");
+          env.error(tag->type, stringc 
+            << "`" << *name << "' is not a struct/class/union");
           return NULL;
         }
       }
@@ -2379,6 +2356,8 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 // longer done at the bottom of the IDeclarator chain, but instead is
 // done right after processing the IDeclarator,
 // Declarator::mid_tcheck.
+//
+// Note that this function *cannot* return NULL.
 static Variable *declareNewVariable(
   // environment in which to do general lookups
   Env &env,
@@ -2430,10 +2409,6 @@ static Variable *declareNewVariable(
     if (!consumedFunction) {
       possiblyConsumeFunctionType(env, dt);
     }
-
-    // 2005-03-07: though there is only one call site, and that call
-    // site (apparently?) can handle NULL returns, the returned value
-    // gets stored in the AST and then would break other things..
 
     // the purpose of this is to allow the caller to have a workable
     // object, so we can continue making progress diagnosing errors
@@ -3017,11 +2992,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
       possiblyConsumeFunctionType(env, dt);
     }
   }
+  xassert(var);
 
-  if (!var) {
-    env.retractScopeSeq(qualifierScopes);
-    return;      // an error was found and reported; bail rather than die later
-  }
   type = env.tfac.cloneType(dt.type);
   context = dt.context;
 
@@ -3932,7 +3904,7 @@ Statement *Statement::tcheck(Env &env)
   }
 
   Statement *ret = resolveImplIntAmbig(env, this);
-  if(ret) {
+  if (ret) {
     return ret->tcheck(env);
   }
 

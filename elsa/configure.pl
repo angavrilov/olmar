@@ -61,7 +61,7 @@ options:
   -no-dash-g         disable -g
   -no-dash-O2        disable -O2
   -prof              enable profiling
-  -gcov              enable coverage testing for certain modules
+  -gcov=<mods>       enable coverage testing modules <mods>
   -devel             add options useful while developing (-Werror)
   -gnu=yes/no        enable GNU extensions? [$USE_GNU]
   -kandr=yes/no      enable K&R extensions? [$USE_KANDR]
@@ -133,9 +133,8 @@ while (@ARGV) {
     push @LDFLAGS, "-pg";
   }
   
-  elsif ($arg eq "-gcov") {
-    # for now, hardcode the set of modules to apply coverage to
-    $GCOV_MODS = "cc_tcheck";
+  elsif ($arg =~ m/^-gcov=(.*)$/) {
+    $GCOV_MODS = $1;
   }
 
   elsif ($arg eq "-devel") {

@@ -2130,7 +2130,7 @@ Variable *Env::applyPQNameTemplateArguments
         << "`" << var->name << "' is a class template, but template "
         << "arguments were not supplied",
         EF_DISAMBIGUATES);
-      return NULL;
+      return lookupErrorObject(flags);
     }
 
     if (var->isTemplateClass()) {
@@ -4734,6 +4734,29 @@ void Env::checkTemplateKeyword(PQName *name)
     // rise to ambiguity, so reject it
     env.error("dependent template scope name requires 'template' keyword",
               EF_DISAMBIGUATES | EF_STRONG);
+  }
+}
+
+
+// A lookup has caused an error, and we want to return an error object
+// to distinguish this from a lookup that simply fails to find a name.
+//
+// Currently, lookup functions always return NULL when something is not
+// found, but have an ad-hoc and inconsistent mix of behaviors when a
+// lookup is erroneous, including:
+//   - returning NULL
+//   - returning a related object, like a template primary
+//   - returning error[Type]Var
+// I would like to transition to a scheme that consistently uses error
+// objects for erroneous lookups, but my plan for the moment is to do
+// so incrementally.
+Variable *Env::lookupErrorObject(LookupFlags flags)
+{
+  if (flags & (LF_ONLY_TYPES | LF_TYPENAME | LF_QUERY_TAGS)) {
+    return errorTypeVar;
+  }
+  else {
+    return errorVar;
   }
 }
 
