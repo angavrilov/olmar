@@ -1055,7 +1055,7 @@ STATICDEF bool GLR
     TRSPARSE(
            "------- "
         << "processing token " << lexer.tokenDesc()
-        << ", " << activeParsers.length() << " active parsers"
+        << ", " << glr.activeParsers.length() << " active parsers"
         << " -------"
     )
 
@@ -2805,6 +2805,9 @@ void GLR::rwlEnqueueReductions(
 
   // kick off the recursion
   rwlRecursiveEnqueue(proto, rhsLen, parser, mustUseLink);
+  
+  // deallocate the prototype
+  pathQueue.deletePath(proto);
 }
 
 

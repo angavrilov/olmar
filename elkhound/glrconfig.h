@@ -19,7 +19,7 @@
 
 // original state worklist (SWL) core
 #ifndef USE_SWL_CORE
-  #define USE_SWL_CORE 1
+  #define USE_SWL_CORE 0
 #endif
 
 // use delayed state heuristic in SWL?
@@ -29,12 +29,12 @@
 
 // new reduction worklist (RWL) core
 #ifndef USE_RWL_CORE
-  #define USE_RWL_CORE 0
+  #define USE_RWL_CORE 1
 #endif
 
 // ordnary LR core
 #ifndef USE_MINI_LR
-  #define USE_MINI_LR 1
+  #define USE_MINI_LR 0
 #endif
 
 
