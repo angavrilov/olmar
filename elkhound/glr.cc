@@ -861,14 +861,18 @@ STATICDEF bool GLR
     bool doDumpGSS = tracingSys("dumpGSS");
   #endif
 
-  // lexer token function
-  LexerInterface::NextTokenFunc nextToken = lexer.getTokenFunc();
-
   // pull a bunch of things out of 'glr' so they'll be accessible from
   // the stack frame instead of having to indirect into the 'glr' object
   UserActions *userAct = glr.userAct;
   ParseTables *tables = glr.tables;
   ArrayStack<StackNode*> &activeParsers = glr.activeParsers;
+
+  // lexer token function
+  LexerInterface::NextTokenFunc nextToken = lexer.getTokenFunc();
+
+  // reduction action function
+  UserActions::ReductionActionFunc reductionAction = 
+    userAct->getReductionAction();
 
   // the stack node pool is a local variable of this function for
   // fastest access by the mini-LR core; other parts of the algorihthm
@@ -1178,8 +1182,8 @@ STATICDEF bool GLR
           // call the user's action function (TREEBUILD)
           SemanticValue sval =
           #if USE_ACTIONS
-            userAct->doReductionAction(prodIndex, toPass /*.getArray()*/
-                                       SOURCELOCARG( leftEdge ) );
+            reductionAction(userAct, prodIndex, toPass /*.getArray()*/
+                            SOURCELOCARG( leftEdge ) );
           #else
             NULL;
           #endif
@@ -1424,6 +1428,16 @@ void GLR::printParseErrorMessage(StateId lastToDie)
 }
 
 
+SemanticValue GLR::doReductionAction(
+  int productionId, SemanticValue const *svals
+  SOURCELOCARG( SourceLocation const &loc ) )
+{
+  // get the function pointer and invoke it; possible optimization
+  // is to cache the function pointer in the GLR object
+  return (userAct->getReductionAction())(userAct, productionId, svals  SOURCELOC(loc));
+}
+
+
 // pulled from glrParse() to reduce register pressure
 bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
 {
@@ -1450,7 +1464,7 @@ bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
   trsSval << "handing toplevel sval " << arr[0]
           << " and " << arr[1]
           << " to top start's reducer\n";
-  treeTop = userAct->doReductionAction(
+  treeTop = doReductionAction(
               //getItemSet(last->state)->getFirstReduction()->prodIndex,
               tables->finalProductionIndex,
               arr
@@ -1756,8 +1770,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
     SemanticValue sval = 
-      userAct->doReductionAction(pcs.prodIndex, toPass.getArray()
-                                 SOURCELOCARG( leftEdge ) );
+      doReductionAction(pcs.prodIndex, toPass.getArray()
+                        SOURCELOCARG( leftEdge ) );
     D(trsSval << "reduced via production " << pcs.prodIndex
               << ", user returned " << sval << endl);
     //delete[] toPass;

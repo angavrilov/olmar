@@ -41,9 +41,14 @@ public:
   //  - 'loc' is the location of the left edge of the parse subtree
   //  - this fn returns the semantic value for the reduction; this return
   //    value is an owner pointer
-  virtual SemanticValue doReductionAction(
-    int productionId, SemanticValue const *svals
-    SOURCELOCARG( SourceLocation const &loc ) )=0;
+  typedef SemanticValue (*ReductionActionFunc)(
+    UserActions *context,         // parser context class object
+    int productionId,             // production being used to reduce
+    SemanticValue const *svals    // array of semantic values
+    SOURCELOCARG( SourceLocation const &loc ) );
+                                                     
+  // get the actual function; two-step to avoid virtual call in inner loop
+  virtual ReductionActionFunc getReductionAction()=0;
 
   // duplication of semantic values:
   //  - the given 'sval' is about to be passed to a reduction action
@@ -105,11 +110,9 @@ public:
 
 
 // for derived classes, the list of functions to be declared
-// (this macro used by the generated code)
+// (this macro is used by the generated code)
 #define USER_ACTION_FUNCTIONS                                          \
-  virtual SemanticValue doReductionAction(                             \
-    int productionId, SemanticValue const *svals                       \
-    SOURCELOCARG( SourceLocation const &loc ) );                       \
+  virtual ReductionActionFunc getReductionAction();                    \
                                                                        \
   virtual SemanticValue duplicateTerminalValue(                        \
     int termId, SemanticValue sval);                                   \
@@ -133,6 +136,10 @@ public:
 class TrivialUserActions : public UserActions {
 public:
   USER_ACTION_FUNCTIONS
+  static SemanticValue doReductionAction(
+    UserActions *ths,
+    int productionId, SemanticValue const *svals
+    SOURCELOCARG( SourceLocation const &loc ) );
 };
 
 

@@ -4024,6 +4024,13 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   dcl << "\n";
   dcl << "USER_ACTION_FUNCTIONS      // see useract.h\n";
   dcl << "\n";
+  dcl << "// declare the actual action function\n";
+  dcl << "static SemanticValue " << g.actionClassName << "::doReductionAction(\n"
+      << "  " << g.actionClassName << " *ths,\n"
+      << "  int productionId, SemanticValue const *semanticValues"
+      SOURCELOC( << ",\n  SourceLocation const &loc" )
+      << ");\n"; 
+  dcl << "\n";
 
   EmitCode out(ccFname);
   if (!out) {
@@ -4176,7 +4183,8 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
   out << "\n";
 
   // main action function; calls the inline functions emitted above
-  out << "SemanticValue " << g.actionClassName << "::doReductionAction(\n"
+  out << "/*static*/ SemanticValue " << g.actionClassName << "::doReductionAction(\n"
+      << "  " << g.actionClassName << " *ths,\n"
       << "  int productionId, SemanticValue const *semanticValues"
       SOURCELOC( << ",\n  SourceLocation const &loc" )
       << ")\n";
@@ -4188,7 +4196,7 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     Production const &prod = *(iter.data());
 
     out << "    case " << prod.prodIndex << ":\n";
-    out << "      return (SemanticValue)" << actionFuncName(prod) << "(" 
+    out << "      return (SemanticValue)ths->" << actionFuncName(prod) << "(" 
         SOURCELOC( << "loc" )
         ;
 
@@ -4228,6 +4236,16 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
   out << "      return (SemanticValue)0;   // silence warning\n";
   out << "  }\n";
   out << "}\n";
+
+
+  // now emit the UserActions function which returns the doReductionAction
+  // function pointer
+  out << "\n";
+  out << "UserActions::ReductionActionFunc " << g.actionClassName << "::getReductionAction()\n";
+  out << "{\n";
+  out << "  return (ReductionActionFunc)&" << g.actionClassName << "::doReductionAction;\n";
+  out << "}\n";
+
 }
 
 

@@ -2,6 +2,7 @@
 // code for useract.h
 
 #include "useract.h"     // this module
+#include "typ.h"         // STATICDEF
 
 #include <stdlib.h>      // NULL
 
@@ -10,8 +11,13 @@ UserActions::~UserActions()
 
 
 // ----------------- TrivialUserActions --------------------
-SemanticValue TrivialUserActions::doReductionAction(
-  int , SemanticValue const * 
+UserActions::ReductionActionFunc TrivialUserActions::getReductionAction()
+{
+  return &TrivialUserActions::doReductionAction;
+}
+
+STATICDEF SemanticValue TrivialUserActions::doReductionAction(
+  UserActions *, int , SemanticValue const *
   SOURCELOCARG( SourceLocation const & ) )
   { return NULL; }
 

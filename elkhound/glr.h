@@ -447,6 +447,9 @@ private:    // funcs
   bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
   bool nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts);
   static bool innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop);
+  SemanticValue doReductionAction(
+    int productionId, SemanticValue const *svals
+    SOURCELOCARG( SourceLocation const &loc ) );
 
 public:     // funcs
   GLR(UserActions *userAct, ParseTables *tables);
