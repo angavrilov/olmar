@@ -2418,9 +2418,25 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         at = env.makeArrayType(loc, dt.type);     // error recovery
       }
       else {
-        if (sz <= 0) {
-          env.error(loc, "array size must be positive");
+        // check restrictions on array size (c.f. cppstd 8.3.4 para 1)
+        if (env.lang.strictArraySizeRequirements) {
+          if (sz <= 0) {
+            env.error(loc, "array size must be positive");
+          }
         }
+        else {
+          if (env.scope()->scopeKind == SK_CLASS) {
+            if (sz < 0) {
+              env.error(loc, "member array size must be nonnegative");
+            }
+          }
+          else {
+            if (sz <= 0) {
+              env.error(loc, "array size must be positive");
+            }
+          }
+        }
+
         at = env.makeArrayType(loc, dt.type, sz);
       }
     }

@@ -45,6 +45,10 @@ public:
   // for overloading, which causes me to compute the wrong types
   // sometimes (defaults to true, but is false in C++ mode for now)
   bool complainUponBadDeref;
+  
+  // when true, require all array sizes to be positive; when false,
+  // 0-length arrays are allowed as class/struct fields
+  bool strictArraySizeRequirements;
 
 public:
   CCLang() { ANSI_C(); }
