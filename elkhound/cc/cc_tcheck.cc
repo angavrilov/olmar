@@ -2204,15 +2204,30 @@ Type const *E_deref::itcheck(Env &env)
   ptr = ptr->tcheck(env);
 
   Type const *rt = ptr->type->asRval();
-  if (!rt->isPointerType()) {
-    return env.error(rt, stringc
-      << "cannot derefence non-pointer `" << rt->toString() << "'");
-  }
-  PointerType const &pt = rt->asPointerTypeC();
-  xassert(pt.op == PO_POINTER);   // otherwise not rval!
+  if (rt->isPointerType()) {
+    PointerType const &pt = rt->asPointerTypeC();
+    xassert(pt.op == PO_POINTER);   // otherwise not rval!
 
-  // dereferencing yields an lvalue
-  return makeLvalType(pt.atType);
+    // dereferencing yields an lvalue
+    return makeLvalType(pt.atType);
+  }
+     
+  // check for "operator*" (and "operator[]" since I unfortunately
+  // currently map [] into * and +)
+  if (rt->ifCompoundType()) {
+    CompoundType const *ct = rt->ifCompoundType();
+    if (ct->lookupVariableC(env.str("operator*"), false /*innerOnly*/, env) ||
+        ct->lookupVariableC(env.str("operator[]"), false /*innerOnly*/, env)) {
+      // ok.. gee what type?  would have to do the full deal, and
+      // would likely get it wrong for operator[] since I don't have
+      // the right info to do an overload calculation.. well, if I
+      // make it ST_ERROR then that will suppress further complaints
+      return getSimpleType(ST_ERROR);    // TODO: fix this!
+    }
+  }
+
+  return env.error(rt, stringc
+    << "cannot derefence non-pointer `" << rt->toString() << "'");
 }
 
 
