@@ -15,22 +15,13 @@ while [ "$1" != "" ]; do
 
   # see if the parser thinks it worked
   echo "cc/ccparse $fname"
-  if cc/ccparse "$fname"; then
+  if cc/ccparse -tr mustBeUnambiguous "$fname"; then
     # ok
     true
   else
     code=$?
     echo "$fname: had errors"
     exit $code
-  fi
-
-  # now print the AST and see if it's unambiguous
-  echo "cc/ccparse -tr printTypedAST $fname"
-  if cc/ccparse -tr printTypedAST "$fname" | grep ambiguous >/dev/null; then
-    echo "$fname: had some ambiguities after typechecking"
-    exit 4
-  else
-    echo "$fname: ok"
   fi
 done
 

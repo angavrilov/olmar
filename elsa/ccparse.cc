@@ -3,10 +3,12 @@
 
 #include "ccparse.h"      // this module
 #include "fileloc.h"      // SourceLocation
+#include "cc.ast.gen.h"   // ASTVisitor
 
 #include <iostream.h>     // cout
 
 
+// ----------------------- ParseEnv -----------------------
 SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m)
 {
   m = (UberModifiers)(m & UM_TYPEKEYS);
@@ -83,4 +85,45 @@ UberModifiers ParseEnv
   return (UberModifiers)(m1 | m2);
 }
 
+
+// ---------------------- AmbiguityChecker -----------------
+// check for ambiguities
+class AmbiguityChecker : public ASTVisitor {
+public:
+  int ambiguousNodes;    // count of nodes with non-NULL ambiguity links
+  
+public:
+  AmbiguityChecker() : ambiguousNodes(0) {}
+  
+  // check each of the kinds of nodes that have ambiguity links
+  bool visitASTTypeId(ASTTypeId *obj);
+  bool visitDeclarator(Declarator *obj);
+  bool visitStatement(Statement *obj);
+  bool visitExpression(Expression *obj);
+};
+
+
+#define VISIT(type)                             \
+  bool AmbiguityChecker::visit##type(type *obj) \
+  {                                             \
+    if (obj->ambiguity) {                       \
+      ambiguousNodes++;                         \
+    }                                           \
+    return true;                                \
+  }
+
+VISIT(ASTTypeId)
+VISIT(Declarator)
+VISIT(Statement)
+VISIT(Expression)
+
+#undef VISIT
+
+
+int numAmbiguousNodes(TranslationUnit *unit)
+{
+  AmbiguityChecker c;
+  unit->traverse(c);
+  return c.ambiguousNodes;
+}
 
