@@ -2,15 +2,17 @@
 
 # directories
 ELKHOUND := ../..
+AST      := ../../../ast
 SMBASE   := ../../../smbase
 
 # libraries
 LIBELKHOUND := $(ELKHOUND)/libelkhound.a
+LIBAST      := $(AST)/libast.a
 LIBSMBASE   := $(SMBASE)/libsmbase.a
 
 # compilation flags
-CCFLAGS := -g -Wall -I$(ELKHOUND) -I$(SMBASE)
-LDFLAGS := -g -Wall $(LIBELKHOUND) $(LIBSMBASE)
+CCFLAGS := -g -Wall -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
+LDFLAGS := -g -Wall $(LIBELKHOUND) $(LIBAST) $(LIBSMBASE)
 
 # default make targets
 all: lexer parser
@@ -28,9 +30,12 @@ lexer: lexer.cc
 gcom.h gcom.cc: gcom.gr tokens.tok
 	$(ELKHOUND)/elkhound gcom.gr
 
-parser.o: gcom.h
+ast.h ast.cc: gcom.ast
+	$(AST)/astgen -o ast gcom.ast
 
-PARSER_OBJS := lexer.o parser.o gcom.o
+parser.o: gcom.h ast.h
+
+PARSER_OBJS := lexer.o parser.o gcom.o ast.o eval.o
 parser: $(PARSER_OBJS)
 	g++ -o $@ $(PARSER_OBJS) $(LDFLAGS)
 
@@ -40,5 +45,5 @@ check:
 	echo "x := 2 + 3 + 4; print x" | ./parser -tree
 
 clean:
-	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc
+	rm -f lexer parser *.o tokens.tok gcom.h gcom.cc ast.h ast.cc
 

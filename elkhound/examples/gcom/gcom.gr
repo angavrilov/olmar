@@ -3,15 +3,24 @@
 
 verbatim {
   #include "str.h"        // stringf
+  #include "ast.h"        // AST declarations
+
   #include <stdlib.h>     // getenv, atoi, setenv
   #include <stdio.h>      // printf
 }
 
 // the parser context class is useful in large examples;
 // an empty one will suffice here
-context_class GCom : public UserActions {
+context_class GComContext : public UserActions {
 public:
-  // empty for now
+  // given a lexer-allocated string, make a 'string', and
+  // deallocate the lexer-created copy
+  static inline string copyAndFree(char *x)
+  {
+    string ret(x);
+    delete x;
+    return ret;
+  }
 };
 
 // pull in the tokens generated from lexer.h
@@ -36,97 +45,45 @@ terminals {
 
 
 // now the grammar; the first symbol is the start symbol
-nonterm Start {
-  -> Stmt;
+nonterm(Stmt*) Start {
+  -> s:Stmt                       { return s; }
 }
 
 
-nonterm(int) AExp {
-  -> n:TOK_LITERAL         { return n; }
-  -> a1:AExp "+" a2:AExp   { return a1 + a2; }
-  -> a1:AExp "-" a2:AExp   { return a1 - a2; }
-  -> a1:AExp "*" a2:AExp   { return a1 * a2; }
-  -> "(" a:AExp ")"        { return a; }
-
-  // interpret identifiers using environment variables; it's
-  // a bit of a hack, and we'll do something better later
-  -> x:TOK_IDENTIFIER {
-       char const *envp = getenv(x);
-       if (envp) {
-         return atoi(envp);
-       }
-       else {
-         return 0;      // not defined, call it 0
-       }
-     }
-}
-        
-
-nonterm(bool) BExp {
-  -> "true"                     { return true; }
-  -> "false"                    { return false; }
-  -> a1:AExp "=" a2:AExp        { return a1 == a2; }
-  -> a1:AExp "<" a2:AExp        { return a1 < a2; }
-  -> "!" b:BExp                 { return !b; }
-  -> b1:BExp TOK_AND b2:BExp    { return b1 && b2; }
-  -> b1:BExp TOK_OR  b2:BExp    { return b1 || b2; }
-  -> "(" b:BExp ")"             { return b; }
+nonterm(AExp*) AExp {
+  -> n:TOK_LITERAL                { return new A_lit(n); }
+  -> x:TOK_IDENTIFIER             { return new A_var(copyAndFree(x)); }
+  -> a1:AExp "+" a2:AExp          { return new A_bin(a1, AO_PLUS, a2); }
+  -> a1:AExp "-" a2:AExp          { return new A_bin(a1, AO_MINUS, a2); }
+  -> a1:AExp "*" a2:AExp          { return new A_bin(a1, AO_TIMES, a2); }
+  -> "(" a:AExp ")"               { return a; }
 }
 
-           
-nonterm Stmt {
-  -> "skip" {
-       // no-op
-     }
 
-  -> "abort" {
-       printf("abort command executed\n");
-       exit(0);
-     }
-
-  -> "print" x:TOK_IDENTIFIER {
-       char const *envp = getenv(x);
-       printf("%s is %d\n", x, envp? atoi(envp) : 0);
-     }
-
-  -> x:TOK_IDENTIFIER ":=" a:AExp {
-       // like above, use the environment variables
-       setenv(x, stringf("%d", a), 1 /*overwrite*/);
-     }
-
-  -> Stmt ";" Stmt {
-       // sequencing is automatic
-     }
-
-  -> "if" g:GCom "fi" {
-       if (!g) {
-         printf("'if' command had no enabled alternatives; aborting\n");
-         exit(0);
-       }
-     }
-
-  -> "do" GCom "od" {
-       // There's no way to get the parser to loop; that's not its job.
-       // For now, we'll just treat it like an 'if' that doesn't mind
-       // when no alternative is enabled.  Later, we'll build a tree
-       // and do this right.
-     }
+nonterm(BExp*) BExp {
+  -> "true"                       { return new B_lit(true); }
+  -> "false"                      { return new B_lit(false); }
+  -> a1:AExp "=" a2:AExp          { return new B_pred(a1, BP_EQUAL, a2); }
+  -> a1:AExp "<" a2:AExp          { return new B_pred(a1, BP_LESS, a2); }
+  -> "!" b:BExp                   { return new B_not(b); }
+  -> b1:BExp TOK_AND b2:BExp      { return new B_bin(b1, BO_AND, b2); }
+  -> b1:BExp TOK_OR  b2:BExp      { return new B_bin(b1, BO_OR, b2); }
+  -> "(" b:BExp ")"               { return b; }
 }
 
-                  
-// a guarded command returns true if it found an enabled guard, and
-// false otherwise
-nonterm(bool) GCom {
-  -> b:BExp "->" Stmt {
-       // Like for 'do', there is no way to tell the parser not to
-       // parse part of its input, so the statement will be executed
-       // regardless of the value of 'b'.  Again, this will be fixed
-       // in a later version of this example.  For now, we can at
-       // least indicate whether the guard succeeded.
-       return b;
-     }
-     
-  -> g1:GCom "#" g2:GCom {
-       return g1 || g2;
-     }
+
+nonterm(Stmt*) Stmt {
+  -> "skip"                       { return new S_skip; }
+  -> "abort"                      { return new S_abort; }
+  -> "print" x:TOK_IDENTIFIER     { return new S_print(copyAndFree(x)); }
+  -> x:TOK_IDENTIFIER ":=" a:AExp { return new S_assign(copyAndFree(x), a); }
+  -> s1:Stmt ";" s2:Stmt          { return new S_seq(s1, s2); }
+  -> "if" g:GCom "fi"             { return new S_if(g); }
+  -> "do" g:GCom "od"             { return new S_do(g); }
+}
+
+
+nonterm(GCom*) GCom {
+  -> b:BExp "->" s:Stmt           { return new G_stmt(b, s); }
+  -> g1:GCom "#" g2:GCom          { return new G_seq(g1, g2); }
 }

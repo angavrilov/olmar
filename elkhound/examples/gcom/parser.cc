@@ -6,6 +6,8 @@
 #include "glr.h"       // GLR
 #include "ptreenode.h" // PTreeNode
 #include "ptreeact.h"  // ParseTreeLexer, ParseTreeActions
+#include "ast.h"       // Stmt, etc.
+#include "eval.h"      // Env
 
 #include <string.h>    // strcmp
 
@@ -14,13 +16,14 @@ int main(int argc, char *argv[])
 {
   // use "-tree" command-line arg to print the tree
   bool printTree = argc==2 && 0==strcmp(argv[1], "-tree");
+  bool printAST  = argc==2 && 0==strcmp(argv[1], "-ast");
 
   // create and initialize the lexer
   Lexer lexer;
   lexer.nextToken(&lexer);
 
   // create the parser context object
-  GCom gcom;
+  GComContext gcom;
 
   if (printTree) {
     // wrap the lexer and actions with versions that make a parse tree
@@ -41,7 +44,7 @@ int main(int argc, char *argv[])
     PTreeNode *ptn = (PTreeNode*)result;
     ptn->printTree(cout, PTreeNode::PF_EXPAND);
   }
-  
+
   else {
     // initialize the parser
     GLR glr(&gcom, gcom.makeTables());
@@ -53,8 +56,21 @@ int main(int argc, char *argv[])
       return 2;
     }
 
-    // print result
-    printf("result: %d\n", (int)result);
+    // result is an AST node
+    Stmt *top = (Stmt*)result;
+    
+    if (printAST) {
+      top->debugPrint(cout, 0);
+    }
+
+    // evaluate
+    printf("evaluating...\n");
+    Env env;
+    top->eval(env);
+    printf("program terminated normally\n");
+               
+    // recursively deallocate the tree
+    delete top;
   }
 
   return 0;

@@ -1016,6 +1016,7 @@ parser to skip sections of input, nor loop over the input.
   result: 0
 </pre>
 
+<a name="sec8">
 <h2>8. Building an AST</h2>
 
 <p>To demonstrate some of the more sophisticated features of
@@ -1025,11 +1026,333 @@ syntax tree (AST), instead of evaluating the program directly.  This
 will involve the use of another tool, <tt>astgen</tt>, which is
 useful in its own right.
 
+<a name="sec8.1">
+<h3>8.1 &nbsp; AST definition</h3>
+
+<p>The input to <tt>astgen</tt> consists of a sequence of class
+declarations.  Inside each class is one or more subclass
+declarations, that will become nodes in the AST.  The file
+<a href="examples/gcom/gcom.ast"><tt>gcom.ast</tt></a> begins
+with a few enumerations, and then has the classes:
+
+<pre>
+  // arithmetic expressions
+  class AExp {
+    pure_virtual int eval(Env &amp;env);
+
+    -&gt; A_lit(int n);
+    -&gt; A_var(string x);
+    -&gt; A_bin(AExp a1, AOp op, AExp a2);
+  }
+
+  // boolean expressions
+  class BExp {
+    pure_virtual bool eval(Env &amp;env);
+
+    -&gt; B_lit(bool b);
+    -&gt; B_pred(AExp a1, BPred op, AExp a2);
+    -&gt; B_not(BExp b);
+    -&gt; B_bin(BExp b1, BOp op, BExp b2);
+  }
+
+  // statements
+  class Stmt {
+    pure_virtual void eval(Env &amp;env);
+
+    -&gt; S_skip();
+    -&gt; S_abort();
+    -&gt; S_print(string x);
+    -&gt; S_assign(string x, AExp a);
+    -&gt; S_seq(Stmt s1, Stmt s2);
+    -&gt; S_if(GCom g);
+    -&gt; S_do(GCom g);
+  }
+
+  // guarded commands
+  class GCom {
+    // returns true if it finds an enabled alternative, false o.w.
+    pure_virtual bool eval(Env &amp;env);
+
+    -&gt; G_stmt(BExp b, Stmt s);
+    -&gt; G_seq(GCom g1, GCom g2);
+  }
+</pre>
+
+<p>Then, <tt>astgen</tt> will produce two files that contain
+full C++ class definitions for the AST nodes.  See
+<a href="../ast/index.html">the ast page</a> for more information.
+
+<pre>
+  $ ../../../ast/astgen -o ast gcom.ast
+  writing ast.h...
+  writing ast.cc...
+</pre>
+
+<a name="sec8.2">
+<h3>8.2 &nbsp; AST-building grammar actions</h3>
+
+<p>Next, we modify the grammar to build these AST components,
+instead of evaluating the program directly; the result is
+<a href="examples/gcom/gcom.gr"><tt>gcom.gr</tt></a>.
+The only slightly tricky part is that we deallocate the strings
+allocated by the lexer when they are consumed.  The rules are
+otherwise straightforward:
+
+<pre>
+  nonterm(AExp*) AExp {
+    -&gt; n:TOK_LITERAL                { return new A_lit(n); }
+    -&gt; x:TOK_IDENTIFIER             { return new A_var(copyAndFree(x)); }
+    -&gt; a1:AExp "+" a2:AExp          { return new A_bin(a1, AO_PLUS, a2); }
+    -&gt; a1:AExp "-" a2:AExp          { return new A_bin(a1, AO_MINUS, a2); }
+    -&gt; a1:AExp "*" a2:AExp          { return new A_bin(a1, AO_TIMES, a2); }
+    -&gt; "(" a:AExp ")"               { return a; }
+  }
 
 
+  nonterm(BExp*) BExp {
+    -&gt; "true"                       { return new B_lit(true); }
+    -&gt; "false"                      { return new B_lit(false); }
+    -&gt; a1:AExp "=" a2:AExp          { return new B_pred(a1, BP_EQUAL, a2); }
+    -&gt; a1:AExp "<" a2:AExp          { return new B_pred(a1, BP_LESS, a2); }
+    -&gt; "!" b:BExp                   { return new B_not(b); }
+    -&gt; b1:BExp TOK_AND b2:BExp      { return new B_bin(b1, BO_AND, b2); }
+    -&gt; b1:BExp TOK_OR  b2:BExp      { return new B_bin(b1, BO_OR, b2); }
+    -&gt; "(" b:BExp ")"               { return b; }
+  }
 
 
+  nonterm(Stmt*) Stmt {
+    -&gt; "skip"                       { return new S_skip; }
+    -&gt; "abort"                      { return new S_abort; }
+    -&gt; "print" x:TOK_IDENTIFIER     { return new S_print(copyAndFree(x)); }
+    -&gt; x:TOK_IDENTIFIER ":=" a:AExp { return new S_assign(copyAndFree(x), a); }
+    -&gt; s1:Stmt ";" s2:Stmt          { return new S_seq(s1, s2); }
+    -&gt; "if" g:GCom "fi"             { return new S_if(g); }
+    -&gt; "do" g:GCom "od"             { return new S_do(g); }
+  }
 
+
+  nonterm(GCom*) GCom {
+    -&gt; b:BExp "-&gt;" s:Stmt           { return new G_stmt(b, s); }
+    -&gt; g1:GCom "#" g2:GCom          { return new G_seq(g1, g2); }
+  }
+</pre>
+
+<p>Do not be confused by the double meaning of names like "AExp".
+Inside the parentheses, they refer to a C++ class name; outside,
+they refer to a grammar nonterminal.  Since grammar nonterminal
+names do not automatically become type names anywhere, there is
+no conflict.
+
+<p>Digression: Notice the difference between a parse tree and an AST.
+In the AST, we do not need nodes for the grouping parentheses (they
+are only an aid to the parser), and we are free to consolide similar
+nodes like the binary arithmetic expressions.  In general, the AST
+should reflect semantics more than syntax, whereas the parse tree
+necessarily reflects the syntax directly.  A good AST design is a key
+ingredient in a good language analysis program, since it serves as the
+communication medium between the parser and every other analysis that
+follows.
+
+<h3>8.3 &nbsp; Evaluation</h3>
+
+<p>We're ready to write the evaluation rules as methods of the AST
+nodes.  Those methods are declared in <tt>gcom.ast</tt> like:
+
+<pre>
+  pure_virtual int eval(Env &amp;env);
+</pre>
+
+<p>This declaration means that in class AExp, <tt>eval</tt> is
+pure (no definition).  Further, <tt>astgen</tt> will insert
+declarations for <tt>eval</tt> into each of the subclasses
+<tt>A_lit</tt>, <tt>A_var</tt> and <tt>A_bin</tt>.  Thus, we
+only need to implement them.
+
+<p><a href="examples/gcom/eval.h"><tt>eval.h</tt></a> declares
+class <tt>Env</tt>, which contains variable bindings; we're not
+using the program's environment variables anymore.
+
+<pre>
+  class Env {
+  private:
+    // map: name -&gt; value
+    TStringHash&lt;Binding&gt; map;
+
+  public:
+    Env();
+    ~Env();
+
+    int get(char const *x);
+    void set(char const *x, int val);
+  };
+</pre>
+
+<p>Then,
+<a href="examples/gcom/eval.cc"><tt>eval.cc</tt></a> has the
+implementations of the <tt>eval</tt> routines.  Here are the
+evaluation rules for AExp; the others are straightforward as
+well:
+
+<pre>
+  int A_lit::eval(Env &amp;env)
+  {
+    return n;
+  }
+
+  int A_var::eval(Env &amp;env)
+  {
+    return env.get(x);
+  }
+
+  int A_bin::eval(Env &amp;env)
+  {
+    switch (op) {
+      default:       assert(!"bad code");
+      case AO_PLUS:  return a1-&gt;eval(env) + a2-&gt;eval(env);
+      case AO_MINUS: return a1-&gt;eval(env) - a2-&gt;eval(env);
+      case AO_TIMES: return a1-&gt;eval(env) * a2-&gt;eval(env);
+    }
+  }
+</pre>
+
+<a name="#sec8.4">
+<h3>8.4 &nbsp; Modifications to the driver</h3>
+
+<p>We need a few modifications to the driver,
+<a href="examples/gcom/parser.cc"><tt>parser.cc</tt></a>.
+We need two more headers:
+
+<pre>
+  #include "ast.h"       // Stmt, etc.
+  #include "eval.h"      // Env
+</pre>
+
+<p>I've added a command-line option to print the AST (in addition
+to the one already there to print the parse tree):
+
+<pre>
+  bool printAST  = argc==2 &amp;&amp; 0==strcmp(argv[1], "-ast");
+</pre>
+
+<p>I changed the context class name to avoid a clash with an
+AST node name:
+
+<pre>
+  GComContext gcom;
+</pre>
+
+<p>And finally we have the code to print and evaluate the tree.  One
+of <tt>astgen</tt>'s features is that it supplies the <tt>debugPrint</tt>
+method automatically.
+
+<pre>
+  // result is an AST node
+  Stmt *top = (Stmt*)result;
+
+  if (printAST) {
+    top-&gt;debugPrint(cout, 0);
+  }
+
+  // evaluate
+  printf("evaluating...\n");
+  Env env;
+  top-&gt;eval(env);
+  printf("program terminated normally\n");
+
+  // recursively deallocate the tree
+  delete top;
+</pre>
+                                  
+<a name="sec8.5">
+<h3>8.5 &nbsp; A few examples</h3>
+
+<p>Let's try it on a few examples!
+
+<p><a href="examples/gcom/in1"><tt>in1</tt></a> just prints 5
+(here I also told it to print the AST):
+
+<pre>
+  $ cat in1
+  x := 5;
+  print x
+
+  $ ./parser -ast &lt;in1
+  S_seq:
+    S_assign:
+      x = "x"
+      A_lit:
+        n = 5
+    S_print:
+      x = "x"
+  evaluating...
+  x is 5
+  program terminated normally
+</pre>
+
+<p><a href="examples/gcom/in2"><tt>in2</tt></a> counts to 10:
+
+<pre>
+  $ cat in2
+  x := 0;
+  do x &lt; 10 -&gt;
+    print x;
+    x := x + 1
+  od;
+  print x
+
+  scott:~/wrk/cplr/elkhound/examples/gcom$ ./parser &lt;in2
+  evaluating...
+  x is 0
+  x is 1
+  x is 2
+  x is 3
+  x is 4
+  x is 5
+  x is 6
+  x is 7
+  x is 8
+  x is 9
+  x is 10
+  program terminated normally
+</pre>
+
+<p><a href="examples/gcom/in3"><tt>in3</tt></a> computes the greatest
+common divisor of two numbers:
+
+<pre>
+  $ cat in3
+  x := 152;
+  y := 104;
+  do !(x = y) -&gt;
+    print x;
+    print y;
+    if x &lt; y -&gt; y := y - x #
+       y &lt; x -&gt; x := x - y fi
+  od;
+  print x
+
+  $ ./parser &lt;in3
+  evaluating...
+  x is 152
+  y is 104
+  x is 48
+  y is 104
+  x is 48
+  y is 56
+  x is 48
+  y is 8
+  x is 40
+  y is 8
+  x is 32
+  y is 8
+  x is 24
+  y is 8
+  x is 16
+  y is 8
+  x is 8
+  program terminated normally
+</pre>
 
 
 
