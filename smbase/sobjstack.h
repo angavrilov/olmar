@@ -8,7 +8,7 @@
 
 template <class T>
 class SObjStack {
-private:      // data
+public:       // data
   // will implement the stack as a list, with prepend and removeAt(0)
   SObjList<T> list;
 
