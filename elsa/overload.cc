@@ -1529,6 +1529,12 @@ CompoundType *ifPtrToCompound(Type *t)
   return NULL;
 }
 
+bool isPointerToVoid(Type *t)
+{
+  return t->isPointerType() &&
+         t->getAtType()->isVoid();
+}
+
 Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
 {
   wasAmbig = false;
@@ -1577,14 +1583,24 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
     }
   }
 
+  // convert ptr-to-non-class to void*?
+  if ((isPointerToVoid(t1) && t2->isPointerType()) ||
+      (isPointerToVoid(t2) && t1->isPointerType())) {
+    // since qualifier conversions can only add qualifiers, the LUB type
+    // must be a ptr-to-void with the union of the atType cv flags
+    CVFlags cv = t1->getAtType()->getCVFlags() | t2->getAtType()->getCVFlags();
+    return env.tfac.makePointerType(SL_UNKNOWN, CV_NONE,
+      env.tfac.getSimpleType(SL_UNKNOWN, ST_VOID, cv));
+  }
+
   // TODO: I should check for pointer-to-members that are compatible
   // by the existence of a greatest-upper-bound in the class hierarchy,
   // for example:
   //      A   B     .
   //       \ /      .
-  //        C       . 
+  //        C       .
   // LUB(int A::*, int B::*) should be int C::*
-  // 
+  //
   // However, that's a bit of a pain to do, since it means maintaining
   // the inverse of the 'hasBaseClass' relationship.  Also, I would not
   // be able to follow the simple pattern used for pointer-to-class,
@@ -1592,7 +1608,7 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   // need to flow into the general cv LUB analysis below.
   //
   // Since this situation should be extremely rare, I won't bother for
-  // now.
+  // now.  (See also convertibility.txt.)
 
   // ok, inheritance is irrelevant; I need to see if types
   // are "similar" (4.4 para 4)
