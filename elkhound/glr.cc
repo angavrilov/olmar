@@ -264,8 +264,7 @@ PathCollectionState::PathCollectionState()
   : startStateId(STATE_INVALID),
     siblings(10),
     symbols(10),
-    paths(10),
-    numPaths(0)
+    paths(10)
 {}
 
 PathCollectionState::~PathCollectionState()
@@ -275,7 +274,7 @@ PathCollectionState::~PathCollectionState()
 void PathCollectionState::init(int pi, int len, StateId start)
 {
   startStateId = start;
-  xassert(numPaths==0); // paths must start empty
+  xassert(paths.length()==0); // paths must start empty
   prodIndex = pi;
 
   // IN PROGRESS:
@@ -290,9 +289,8 @@ void PathCollectionState::init(int pi, int len, StateId start)
 
 void PathCollectionState::deinit()
 {
-  while (numPaths > 0) {
-    paths[numPaths-1].deinit();
-    numPaths--;
+  while (paths.isNotEmpty()) {
+    paths.popAlt().deinit();
   }
 }
 
@@ -300,8 +298,7 @@ void PathCollectionState::deinit()
 void PathCollectionState
   ::addReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L)
 {
-  paths.ensureIndexDoubler(numPaths);
-  paths[numPaths++].init(f, s, L);
+  paths.pushAlt().init(f, s, L);
 }
 
 
@@ -774,7 +771,7 @@ void GLR::doReduction(StackNode *parser,
 
     // step 2: process those paths
     // ("mutate" because need non-const access to rpath->finalState)
-    for (int i=0; i < pcs.numPaths; i++) {
+    for (int i=0; i < pcs.paths.length(); i++) {
       PathCollectionState::ReductionPath &rpath = pcs.paths[i];
 
       // I'm not sure what is the best thing to call an 'action' ...

@@ -218,8 +218,7 @@ public:	   // data
   //SymbolId *symbols;             // (owner ptr to array)
 
   // as reduction possibilities are encountered, we record them here
-  GrowArray<ReductionPath> paths;
-  int numPaths;                    // # of entries in 'paths' we're using
+  ArrayStack<ReductionPath> paths;
 
   // ---- stuff constant across a series of DFSs ----
   // this is the (index of the) production we're trying to reduce by
