@@ -255,10 +255,10 @@ void astParseTerminals(Environment &env, Terminals const &terms)
 
   // precedence specifications
   {
-    int level = 0;
+    int level = terms.prec.count()+1;   // from 'count' down to 1
     FOREACH_ASTLIST(PrecSpec, terms.prec, iter) {
       PrecSpec const &spec = *(iter.data());
-      level++;
+      level--;
 
       FOREACH_ASTLIST(LocString, spec.tokens, tokIter) {
         LocString const &tokName = *(tokIter.data());

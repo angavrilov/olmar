@@ -58,10 +58,10 @@ terminals {
   // I mark with 'PREC' lines to be removed to yield a version
   // which disambiguates using 'merge'
   precedence {
-    // low precedence
-    left "+";                  // PREC
-    left "*";                  // PREC
     // high precedence
+    left "*";                  // PREC
+    left "+";                  // PREC
+    // low precedence
   }
 }
 
