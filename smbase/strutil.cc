@@ -176,7 +176,7 @@ string encodeWithEscapes(char const *p, int len)
 
 
 string encodeWithEscapes(char const *p)
-{ 
+{
   return encodeWithEscapes(p, strlen(p));
 }
 
@@ -215,9 +215,12 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
     // advance past backslash
     src++;
 
-    // see if it's a simple one-char backslash code
+    // see if it's a simple one-char backslash code;
+    // start at 1 so we do *not* use the '\0' code since
+    // that's actually a special case of \0123', and
+    // interferes with the latter
     int i;
-    for (i=0; i<TABLESIZE(escapes); i++) {
+    for (i=1; i<TABLESIZE(escapes); i++) {
       if (escapes[i].escape == *src) {
         sb << escapes[i].actual;
         destLen++;
@@ -404,6 +407,16 @@ void trVector(char const *in, char const *srcSpec, char const *destSpec, char co
   xassert(result.equals(out));
 }
 
+void decodeVector(char const *in, char const *out, int outLen)
+{
+  printf("decodeVector: \"%s\"\n", in);
+  string dest;
+  int destLen;
+  decodeEscapes(dest, destLen, in, '\0' /*delim, ignored*/, false /*allowNewlines*/);
+  xassert(destLen == outLen);
+  xassert(0==memcmp(out, dest.pcharc(), destLen));
+}
+
 void basenameVector(char const *in, char const *out)
 {
   printf("basenameVector(%s, %s)\n", in, out);
@@ -436,6 +449,11 @@ void entry()
   trVector("foo", "a-z", "A-Z", "FOO");
   trVector("foo BaR", "a-z", "A-Z", "FOO BAR");
   trVector("foo BaR", "m-z", "M-Z", "fOO BaR");
+
+  decodeVector("\\r\\n", "\r\n", 2);
+  decodeVector("abc\\0def", "abc\0def", 7);
+  decodeVector("\\033", "\033", 1);
+  decodeVector("\\x33", "\x33", 1);
 
   basenameVector("a/b/c", "c");
   basenameVector("abc", "abc");
