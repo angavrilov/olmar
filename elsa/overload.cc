@@ -138,6 +138,19 @@ void OverloadResolver::processPossiblyOverloadedVar(Variable *v)
 }
 
 
+void OverloadResolver::addAmbiguousBinaryCandidate(Variable *v)
+{
+  Candidate *c = new Candidate(v, 2);
+  c->conversions[0].addAmbig();
+  c->conversions[1].addAmbig();
+
+  OVERLOADINDTRACE("candidate: ambiguous-arguments placeholder");
+  IFDEBUG( c->conversionDescriptions(); )
+  
+  candidates.push(c);
+}
+
+
 // this is a simple tournament, as suggested in footnote 123,
 // cppstd 13.3.3 para 2
 template <class RESOLVER, class CANDIDATE>

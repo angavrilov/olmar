@@ -120,9 +120,23 @@ bool CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
       bool wasAmbig;
       Type *lub = computeLUB(env, lhsRet, rhsRet, wasAmbig);
       if (wasAmbig) {
-        // if any LUB is ambiguous, then the final overload analysis
+        // If any LUB is ambiguous, then the final overload analysis
         // over the infinite set of instantiations would also have
-        // been ambiguous
+        // been ambiguous.
+        //
+        // But it's not so simple as yielding an error; see
+        // in/t0140.cc for an example of why.  What we need to do is
+        // yield a candidate that will be ambiguous unless it's
+        // beaten by a candidate that is better than any of the
+        // built-in instantiations (e.g. a member operator).
+        //
+        // I defer to the overload module to make such a candidate;
+        // here I just say what I want
+        Type *t_void = env.getSimpleType(SL_INIT, ST_VOID);
+        Variable *v = instantiatePattern(env, op, t_void);
+        resolver.addAmbiguousBinaryCandidate(v);
+
+        #if 0    // this wrong
         env.error(stringc
           << "In resolving operator" << toString(op)
           << ", LHS can convert to "
@@ -131,6 +145,7 @@ bool CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
           << rhsRet->toString()
           << ", but their LUB is ambiguous");
         return false;
+        #endif // 0
       }
       else if (lub && post(lub)) {
         // add the LUB to our list of to-instantiate types
@@ -145,6 +160,8 @@ bool CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
     resolver.processCandidate(v);
   }
 
+  // TODO: make this return void if it really can only
+  // return true
   return true;
 }
 

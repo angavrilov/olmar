@@ -165,6 +165,10 @@ public:      // funcs
   // process 'v' alone
   void processPossiblyOverloadedVar(Variable *v);
 
+  // add a candidate that has two ambiguous user-defined conversions
+  // for its arguments to 'v'
+  void addAmbiguousBinaryCandidate(Variable *v);
+
   // run the tournament to decide among the candidates; returns
   // NULL if there is no clear winner
   Variable *resolve(bool &wasAmbig);
