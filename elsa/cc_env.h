@@ -23,17 +23,17 @@ class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
 // holder for the CompoundType template candidates
-class TemplCompoundType {
+class TemplCandidates {
   public:
-  ObjArrayStack<CompoundType> candidates;
+  ObjArrayStack<Variable> candidates;
 
-  TemplCompoundType() {}
+  TemplCandidates() {}
 
   private:
-  TemplCompoundType(TemplCompoundType const &); // forbid copying
+  TemplCandidates(TemplCandidates const &); // forbid copying
 
   public:
-  ~TemplCompoundType() {
+  ~TemplCandidates() {
     // IMPORTANT: Since ObjArrayStack seems to be an owner container,
     // I have to empty it out before it dtors.
     while (candidates.isNotEmpty()) {
@@ -56,13 +56,13 @@ class TemplCompoundType {
   public:
   // compare two different templates (primary / specialization /
   // instantiation) to see which is more specific; used by
-  // instantiateClassTemplate() to decide which to use for a given
+  // instantiateTemplate() to decide which to use for a given
   // instantiation request
   // return:
   //   -1 if left is better
   //    0 if they are indistinguishable
   //   +1 if right is better
-  int compareCandidates(CompoundType const *left, CompoundType const *right);
+  int compareCandidates(Variable const *left, Variable const *right);
 };
 
 // the entire semantic analysis state
@@ -301,8 +301,16 @@ public:      // funcs
   // using this interface
   void addVariableWithOload(Variable *prevLookup, Variable *v);
 
-  // lookup in the environment (all scopes); return NULL if can't find
-  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
+  // lookup in the environment (all scopes); return NULL if can't
+  // find; dsw: this one is now a wrapper
+  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE) {
+    return lookupPQVariable(name, f, NULL);
+  }
+  // this is the real lookup function; specify a function signature
+  // for when disambiguation between overloaded function templates is
+  // required
+  Variable *lookupPQVariable(PQName const *name, LookupFlags f, FunctionType *signature);
+
   Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
   
   // this variant returns the Scope in which the name was found
@@ -348,27 +356,27 @@ public:      // funcs
   // iterate over the parameters and arguments, creating bindings from
   // params to args
   void insertBindingsForPrimary
-    (CompoundType *base, ASTList<TemplateArgument> const &arguments);
+    (Variable *baseV, ASTList<TemplateArgument> const &arguments);
 
   // for the instantiation of a partial specialization, iterate over
   // the parameters and retrieve their bindings; insert these into the
   // scope
   void insertBindingsForPartialSpec
-    (CompoundType *base, StringSObjDict<STemplateArgument> &bindings);
+    (Variable *baseV, StringSObjDict<STemplateArgument> &bindings);
 
   // instantate 'base' with 'arguments', and return the implicit
   // typedef Variable associated with the resulting type; 'scope'
   // is the scope in which 'base' was found; if 'inst' is not
   // NULL then we already have a compound for this instantiation
   // (from a forward declaration), so use that one
-  Variable *instantiateClassTemplate(
-    Scope *scope, CompoundType *base,
+  Variable *instantiateTemplate(
+    Scope *scope, Variable *baseV,
     ASTList<TemplateArgument> const &arguments, 
-    CompoundType *inst);
+    Variable *instV);
 
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances
-  void instantiateForwardClasses(Scope *scope, CompoundType *base);
+  void instantiateForwardClasses(Scope *scope, Variable *baseV);
 
   // diagnostic reports; all return ST_ERROR type
   Type *error(SourceLoc L, char const *msg, bool disambiguates=false);

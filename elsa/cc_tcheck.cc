@@ -773,7 +773,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateInfo->paramsToCString()
+      << prior->templateInfo()->paramsToCString()
       << " but the this one is not templatized",
       true /*disambiguating*/);
     return;
@@ -796,7 +796,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
   // given to the parameters don't matter; the current
   // declaration's names have already been entered into the
   // template-parameter scope)
-  if (scope->curTemplateParams->equalParamTypes(prior->templateInfo)) {
+  if (scope->curTemplateParams->equalParamTypes(prior->templateInfo())) {
     // ok
   }
   else {
@@ -804,7 +804,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateInfo->paramsToCString()
+      << prior->templateInfo()->paramsToCString()
       << " but this one has parameters "
       << scope->curTemplateParams->paramsToCString()
       << ", and these are not equivalent",
@@ -1014,7 +1014,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 
   else if (ct && templateArgs) {
     CompoundType *primary = ct;
-    TemplateInfo *primaryTI = primary->templateInfo;
+    TemplateInfo *primaryTI = primary->templateInfo();
 
     // this is supposed to be a specialization
     if (!primaryTI) {
@@ -1036,16 +1036,16 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // add this type to the primary's list of specializations; we are not
     // going to add 'ct' to the environment, so the only way to find the
     // specialization is to go through the primary template
-    primaryTI->instantiations.append(ct);
+    primaryTI->instantiations.append(ct->getTypedefVar());
 
     // 'makeNewCompound' will already have put the template *parameters*
     // into 'specialTI', but not the template arguments
-    // TODO: this is copied from Env::instantiateClassTemplate; collapse it
+    // TODO: this is copied from Env::instantiateTemplate(); collapse it
     {
       FOREACH_ASTLIST_NC(TemplateArgument, *templateArgs, _iter) {
         TemplateArgument *iter = _iter.data();
         xassert(iter->sarg.hasValue());
-        ct->templateInfo->arguments.append(new STemplateArgument(iter->sarg));
+        ct->templateInfo()->arguments.append(new STemplateArgument(iter->sarg));
       }
 
       // dsw: I need to have the argumentSyntax around so that if I
@@ -1064,7 +1064,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       // rebuilding the arguments in Env::make_PQ_fullyQualifiedName.
       // So in fact this assignment is now not necessary, but it
       // won't hurt either.
-      ct->templateInfo->argumentSyntax = templateArgs;
+      ct->templateInfo()->argumentSyntax = templateArgs;
     }
 
     
@@ -1096,7 +1096,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // we might have had forward declarations of template
     // instances that now can be made non-forward by tchecking
     // this syntax
-    env.instantiateForwardClasses(env.acceptingScope(), ct);
+    env.instantiateForwardClasses(env.acceptingScope(), ct->getTypedefVar());
   }
 
   return ret;
@@ -1115,6 +1115,15 @@ void TS_classSpec::tcheckIntoCompound(
   xassert(ctype);
 
   // let me map from compounds to their AST definition nodes
+  //
+  // FIX: how can this fail?
+  //    xassert(inTemplate == !!ct->templateInfo());
+  //
+  // update: this can fail because in Env::instantiateTemplate() Scott
+  // decided to call this function with inTemplate == false; not sure
+  // why, but I'll bet I shouldn't change it, so I'll weaken the
+  // assertion.
+  if (inTemplate) xassert(ct->templateInfo());
   ct->syntax = this;
 
   // only report serious errors while checking the class,
@@ -1352,10 +1361,11 @@ static bool isRefToCt(Type const *t, CompoundType *ct)
 // volatile X&, or const volatile X&, and either there are no other
 // parameters or else all other parameters have default arguments
 // (8.3.6)."
-bool isCopyConstructor(FunctionType const *ft, CompoundType *ct)
+bool isCopyConstructor(Variable const *funcVar, CompoundType *ct)
 {
+  FunctionType *ft = funcVar->type->asFunctionType();
   if (!ft->isConstructor()) return false; // is a ctor?
-  if (ft->isTemplate()) return false; // non-template?
+  if (funcVar->isTemplate()) return false; // non-template?
   if (ft->params.isEmpty()) return false; // has at least one arg?
 
   // is the first parameter a ref to the class type?
@@ -1380,10 +1390,11 @@ bool isCopyConstructor(FunctionType const *ft, CompoundType *ct)
 // X::operator= is a non-static non-template member function of class
 // X with exactly one parameter of type X, X&, const X&, volatile X&
 // or const volatile X&."
-bool isCopyAssignOp(FunctionType const *ft, CompoundType *ct)
+bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct)
 {
+  FunctionType *ft = funcVar->type->asFunctionType();
   if (!ft->isMethod()) return false; // is a non-static member?
-  if (ft->isTemplate()) return false; // non-template?
+  if (funcVar->isTemplate()) return false; // non-template?
   if (ft->params.count() != 2) return false; // has two args, 1) this and 2) other?
 
   // the second parameter; the first is "this"
@@ -1398,7 +1409,7 @@ bool isCopyAssignOp(FunctionType const *ft, CompoundType *ct)
 }
 
 
-typedef bool (*MemberFnTest)(FunctionType const *ft, CompoundType *ct);
+typedef bool (*MemberFnTest)(Variable const *funcVar, CompoundType *ct);
 
 // test for any match among a variable's overload set
 bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
@@ -1411,7 +1422,7 @@ bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
 
   if (!v->overload) {
     // singleton set
-    if (test(v->type->asFunctionType(), ct)) {
+    if (test(v, ct)) {
       return true;
     }
   }
@@ -1419,7 +1430,7 @@ bool testAmongOverloadSet(MemberFnTest test, Variable *v, CompoundType *ct)
     // more than one element; note that the original 'v' is always
     // among the elements of this list
     SFOREACH_OBJLIST_NC(Variable, v->overload->set, iter) {
-      if (test(iter.data()->type->asFunctionType(), ct)) {
+      if (test(iter.data(), ct)) {
         return true;
       }
     }
@@ -2717,7 +2728,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, this, env.tunit);
   ft->flags = specialFunc;
   dt.funcSyntax = this;
-  ft->templateInfo = templateInfo;
+  // moved below where dt.var exists
+//    ft->templateInfo = templateInfo;
 
   // add them, now that the list has been disambiguated
   int ct=0;
@@ -2796,7 +2808,18 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // the 'base' on to the next-lower declarator
   dt.type = ft;
   this->type = dt.type;       // annotation
+
+  // if this variable is a specialization, then mark it as such so
+  // that in particular it doesn't get added to the overload set of
+  // its primary during typechecking below
+  if (templateInfo &&
+      (templateInfo->isCompleteSpecOrInstantiation() ||
+       templateInfo->isPartialSpec())
+      ) {
+    dt.dflags |= DF_TEMPL_SPEC;
+  }
   base->tcheck(env, dt, inGrouping);
+  dt.var->setTemplateInfo(templateInfo);
 }
 
 
@@ -3721,18 +3744,19 @@ static bool areYou_helper(Type const *t)
 {   
   switch (t->getTag()) {
     case Type::T_ATOMIC: {
-      CVAtomicType const *c = t->asCVAtomicTypeC();
+      CVAtomicType *c = const_cast<CVAtomicType*>(t->asCVAtomicTypeC());
       return c->isDependent() ||
              c->isTypeVariable() ||
              // NOTE NOTE NOTE! This is not the same as asking
              // ct->isTemplate(), which seems to return false if it was a
              // template but was then instantiated.  Hopefully this one will
              // catch even instantiated templates.
-             (c->isCompoundType() && c->asCompoundTypeC()->templateInfo);
+             (c->isCompoundType() && c->asCompoundType()->templateInfo());
     }
 
-    case Type::T_FUNCTION:
-      return t->asFunctionTypeC()->isTemplate();
+    // FIX: FUNC TEMPLATE LOSS
+//      case Type::T_FUNCTION:
+//        return t->asFunctionTypeC()->isTemplate();
       
     default:
       // the original code asked 'isDependent' for all the nodes,
@@ -3755,9 +3779,10 @@ bool areYouOrHaveYouEverBeenATemplate(Type const *t)
 static bool allNonTemplateFunctions(SObjList<Variable> &set)
 {
   SFOREACH_OBJLIST(Variable, set, iter) {
-    FunctionType *ft = iter.data()->type->asFunctionType();
+    Variable const *funcVar = iter.data();
+    FunctionType *ft = funcVar->type->asFunctionType();
     xassert(ft);
-    if (ft->isTemplate()) return false;
+    if (funcVar->isTemplate()) return false;
     SFOREACH_OBJLIST(Variable, ft->params, param_iter) {
       if (areYouOrHaveYouEverBeenATemplate(param_iter.data()->type)) return false;
     }
@@ -5518,6 +5543,63 @@ void TD_func::itcheck(Env &env)
   // check the function definition; internally this will get
   // the template parameters attached to the function type
   f->tcheck(env, true /*checkBody*/);
+
+  // dsw: Template function specializations (both complete and
+  // partial) have to get registered into the namespace somewhere.
+  // For compound types it is done in TS_classSpec::itcheck() (from
+  // which the code below is imitated), but I wonder why it isn't in
+  // TD_class.  This seems to be the proper place for it to be done
+  // for Functions.  Note that we can't do it down inside Function, as
+  // that is called to typecheck cloned templates by
+  // instantiateTemplate().
+
+  PQName *name = const_cast<PQName*>(f->nameAndParams->decl->getDeclaratorId());
+
+  // do we have template arguments? that is, are we a specialization?
+  // If so, hang us off of the appropriate primary.  If we are a
+  // primary, skip the whole thing because we got entered into the
+  // namespace during the tcheck() above.
+  PQName *unqual = name->getUnqualifiedName();
+  if (unqual->isPQ_template()) {
+    PQ_template *t = unqual->asPQ_template();
+    ASTList<TemplateArgument> *templateArgs = &(t->args);
+    xassert(templateArgs);
+
+    FunctionType *funcType = f->nameAndParams->type->asFunctionType();
+    xassert(funcType);
+    Variable *primary = env.lookupPQVariable(name, LF_TEMPL_PRIMARY, funcType);
+    if (!primary) {
+      env.error("cannot specialize a template that hasn't been declared");
+      return;
+    }
+
+    TemplateInfo *primaryTI = primary->templateInfo();
+    if (!primaryTI) {
+      env.error("attempt to specialize a non-template");
+      return;
+    }
+    xassert(primaryTI->isPrimary());
+
+    // add this type to the primary's list of specializations; the
+    // only way to find the specialization is to go through the
+    // primary template
+    Variable *fVar = f->nameAndParams->var;
+    primaryTI->instantiations.append(fVar);
+    // TODO: this is copied from Env::instantiateTemplate(); collapse it
+    FOREACH_ASTLIST_NC(TemplateArgument, *templateArgs, iter) {
+      TemplateArgument *targ = iter.data();
+      xassert(targ->sarg.hasValue());
+      fVar->templateInfo()->arguments.append(new STemplateArgument(targ->sarg));
+    }
+    fVar->templateInfo()->argumentSyntax = templateArgs;
+    
+    if (tracingSys("template")) {
+      cout << "TS_classSpec::itcheck: "
+           << "template typechecked, appending to instantiations of primary"
+           << endl;
+      primaryTI->gdb();
+    }
+  }
 }
 
 

@@ -218,10 +218,6 @@ public:      // data
   // those that have been inherited but not then hidden
   SObjList<Variable> conversionOperators;
 
-  // for template classes, this is the list of template parameters,
-  // and a list of already-instantiated versions
-  TemplateInfo *templateInfo;         // (owner)
-
   // if this class is a template instantiation, 'instName' is
   // the class name plus a rendering of the arguments; otherwise
   // it's the same as 'name'; this is for debugging
@@ -229,6 +225,7 @@ public:      // data
 
   // AST node that describes this class; used for implementing
   // templates (AST pointer)
+  // dsw: used for other purposes also
   TS_classSpec *syntax;               // (serf)
 
 private:     // funcs
@@ -263,6 +260,11 @@ public:      // funcs
   // template arguments to be supplied (i.e. not true for classes
   // that come from templates, but all arguments have been supplied)
   bool isTemplate() const;
+
+  TemplateInfo *templateInfo();
+  void setTemplateInfo(TemplateInfo *templInfo0);
+
+  Variable *getTypedefVar();
 
   // true if the class has RTTI/vtable
   bool hasVirtualFns() const;
@@ -609,9 +611,6 @@ public:     // funcs
   TypeVariable *asTypeVariable();
   bool isCompoundType() const { return isCVAtomicType(AtomicType::T_COMPOUND); }
 
-  bool isTemplateFunction() const;
-  bool isTemplateClass() const;
-
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
   // referred-to classes
@@ -780,9 +779,6 @@ public:     // data
   // allowable exceptions, if not NULL
   ExnSpec *exnSpec;                  // (nullable owner)
 
-  // for template functions
-  TemplateInfo *templateInfo;        // (owner)
-
 protected:  // funcs
   friend class BasicTypeFactory;
 
@@ -831,8 +827,6 @@ public:
   // default implementation does nothing, but other analyses may want
   // to.
   virtual void registerRetVal(Variable *retVal);
-
-  bool isTemplate() const { return templateInfo!=NULL; }
 
   Variable const *getReceiverC() const;  // 'isMember' must be true
   Variable *getReceiver() { return const_cast<Variable*>(getReceiverC()); }
@@ -997,7 +991,7 @@ public:    // data
   // is a PRIMARY; the specializations or instantiations of a
   // specialization, S, go under the instantiations of S's primary, P,
   // NOT under S's instantiations
-  SObjList<CompoundType> instantiations;
+  SObjList<Variable> instantiations;
 
   // if this is an instantiation or specialization, then this is the
   // list of template arguments; note that an argument for a

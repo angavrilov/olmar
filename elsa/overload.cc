@@ -262,9 +262,9 @@ CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
 
 // dsw: I put this here so that I didn't have to put the whole
 // selectBestCandidate() templatized function into overload.h
-CompoundType *selectBestCandidate_templCompoundType(TemplCompoundType &resolver)
+Variable *selectBestCandidate_templCompoundType(TemplCandidates &resolver)
 {
-  CompoundType *dummy = NULL; // dsw: this dummy idiom is dumb
+  Variable *dummy = NULL; // dsw: this dummy idiom is dumb
   return selectBestCandidate(resolver, dummy);
 }
 
@@ -502,12 +502,14 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   // the specialization syntax or just an instance of a template..
   // I'm going to use the latter interpretation since I think it
   // makes more sense
-  if (!leftFunc->isTemplate() && rightFunc->isTemplate()) {
-    return -1;     // left is non-template
-  }
-  else if (leftFunc->isTemplate() && !rightFunc->isTemplate()) {
-    return +1;     // right is non-template
-  }
+  //
+  // FIX: FUNC TEMPLATE LOSS
+//    if (!leftFunc->isTemplate() && rightFunc->isTemplate()) {
+//      return -1;     // left is non-template
+//    }
+//    else if (leftFunc->isTemplate() && !rightFunc->isTemplate()) {
+//      return +1;     // right is non-template
+//    }
   
   // TODO: next rule talks about comparing templates to find out
   // which is more specialized

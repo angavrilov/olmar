@@ -29,7 +29,7 @@ void printBindings(StringSObjDict<STemplateArgument> &bindings)
 }
 
 
-TemplCompoundType::STemplateArgsCmp TemplCompoundType::compareSTemplateArgs
+TemplCandidates::STemplateArgsCmp TemplCandidates::compareSTemplateArgs
   (STemplateArgument *larg, STemplateArgument *rarg)
 {
   xassert(larg->kind == rarg->kind);
@@ -107,11 +107,11 @@ TemplCompoundType::STemplateArgsCmp TemplCompoundType::compareSTemplateArgs
 }
 
 
-int TemplCompoundType::compareCandidates(CompoundType const *left, CompoundType const *right)
+int TemplCandidates::compareCandidates(Variable const *left, Variable const *right)
 {
-  TemplateInfo *lti = left->templateInfo;
+  TemplateInfo *lti = const_cast<Variable*>(left)->templateInfo();
   xassert(lti);
-  TemplateInfo *rti = right->templateInfo;
+  TemplateInfo *rti = const_cast<Variable*>(right)->templateInfo();
   xassert(rti);
 
   // I do not even put the primary into the set so it should never
@@ -1253,14 +1253,15 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
             // for now, restricted form of specialization selection to
             // get in/t0154.cc through
             if (qualifier->targs.count() == 1) {
-              SFOREACH_OBJLIST_NC(CompoundType, ct->templateInfo->instantiations, iter) {
-                CompoundType *special = iter.data();
-                if (!special->templateInfo->arguments.count() == 1) continue;
+              SFOREACH_OBJLIST_NC(Variable, ct->templateInfo()->instantiations, iter) {
+                Variable *special = iter.data();
+                if (!special->templateInfo()->arguments.count() == 1) continue;
 
                 if (qualifier->targs.firstC()->sarg.equals(
-                      special->templateInfo->arguments.first())) {
+                      special->templateInfo()->arguments.first())) {
                   // found the specialization or existing instantiation!
-                  ct = special;
+                  xassert(special->type->isCompoundType());
+                  ct = special->type->asCompoundType();
                   break;
                 }
               }
@@ -1303,7 +1304,9 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
 }
 
 
-Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
+Variable *Env::lookupPQVariable(PQName const *name,
+                                LookupFlags flags,
+                                FunctionType *signature)
 {
   Variable *var;
 
@@ -1371,8 +1374,8 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
       else {
         // TODO: if the template arguments match the current
         // (DF_SELFNAME) declaration, then we're talking about 'var',
-        // otherwise we go through instantiateClassTemplate; for now
-        // I'm just going to assume we're talking about 'var'
+        // otherwise we go through instantiateTemplate(); for now I'm
+        // just going to assume we're talking about 'var'
         return var;
       }
     }
@@ -1381,8 +1384,28 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
     // arguments were supplied; note that you're only *required*
     // to pass arguments for template classes, since template
     // functions can infer their arguments
-    if (var->isTemplateClass()) {
-      if (!final->isPQ_template()) {
+    if (var->isTemplate()) {
+      // dsw: I need a way to get the template without instantiating
+      // it.
+      if (flags & LF_TEMPL_PRIMARY) {
+        OverloadSet *oloadSet = var->getOverloadSet();
+        if (oloadSet->count() > 1) {
+          xassert(var->type->isFunctionType()); // only makes sense for function types
+          // FIX: Somehow I think this isn't right
+          var = oloadSet->findTemplPrimaryForSignature(signature);
+          if (!var) {
+            error("function template specialization does not match "
+                  "any primary in the overload set");
+            return NULL;
+          }
+        }
+        xassert(var->templateInfo()->isPrimary());
+        return var;
+      }
+
+      if (!final->isPQ_template()
+          && var->isTemplateClass() // can be infered for template functions, so we duck
+          ) {
         // this disambiguates
         //   new Foo< 3 > +4 > +5;
         // which could absorb the '3' as a template argument or not,
@@ -1393,12 +1416,43 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
           true /*disambiguating*/);
         return NULL;
       }
-      else {
+
+      if (var->isTemplateClass()) {
         // apply the template arguments to yield a new type based
         // on the template
-        return instantiateClassTemplate(scope, var->type->asCompoundType(),
-                                        final->asPQ_templateC()->args, NULL /*inst*/);
+        xassert(var->type->asCompoundType()->getTypedefVar() == var);
+        return instantiateTemplate(scope, var, final->asPQ_templateC()->args, NULL /*inst*/);
       }
+      else if (var->isTemplateFunction()) {
+        // apply the template arguments to yield a new type based
+        // on the template
+        //
+        // FIX: implement this
+        if (final->isPQ_name()) {
+          if (tracingSys("template")) {
+            cout << "Duck unimplemented instantiation of function template "
+                 << "with no explicit template arguments"
+                 << endl;
+          }
+        } else {
+          OverloadSet *oloadSet = var->getOverloadSet();
+          if (oloadSet->count() > 1) {
+            xassert(var->type->isFunctionType()); // only makes sense for function types
+            // FIX: the correctness of this depends on someone doing
+            // overload resolution later, which I don't think is being
+            // done.
+            return var;
+            // FIX: this isn't right; do overload resolution later;
+            // otherwise you get a null signature being passed down
+            // here during E_variable::itcheck_x()
+//              var = oloadSet->findTemplPrimaryForSignature(signature);
+//              // FIX: make this a user error, or delete it
+//              xassert(var);
+          }
+          xassert(var->templateInfo()->isPrimary());
+          return instantiateTemplate(scope, var, final->asPQ_templateC()->args, NULL /*inst*/);
+        }
+      } else xfailure("this can't happen");
     }
     else if (!var->isTemplate() &&
              final->isPQ_template()) {
@@ -1614,9 +1668,6 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 {
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
-  // transfer template parameters
-  ct->templateInfo = takeCTemplateInfo(name);
-
   ct->forward = forward;
   if (name && scope) {
     bool ok = scope->addCompound(ct);
@@ -1640,6 +1691,10 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   Type *ret = makeType(loc, ct);
   Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
   ct->typedefVar = tv;
+
+  // transfer template parameters
+  ct->setTemplateInfo(takeCTemplateInfo(name));
+
   if (name && scope) {
     scope->registerVariable(tv);
     if (!scope->addVariable(tv)) {
@@ -1683,9 +1738,9 @@ static bool doesUnificationRequireBindings
 
 
 void Env::insertBindingsForPrimary
-  (CompoundType *base, ASTList<TemplateArgument> const &arguments)
+  (Variable *baseV, ASTList<TemplateArgument> const &arguments)
 {
-  SObjListIter<Variable> paramIter(base->templateInfo->params);
+  SObjListIter<Variable> paramIter(baseV->templateInfo()->params);
   ASTListIter<TemplateArgument> argIter(arguments);
   while (!paramIter.isDone() && !argIter.isDone()) {
     Variable const *param = paramIter.data();
@@ -1733,19 +1788,19 @@ void Env::insertBindingsForPrimary
 
   if (!paramIter.isDone()) {
     error(stringc
-          << "too few template arguments to `" << base->name << "'");
+          << "too few template arguments to `" << baseV->type->asCompoundType()->name << "'");
   }
   else if (!argIter.isDone()) {
     error(stringc
-          << "too many template arguments to `" << base->name << "'");
+          << "too many template arguments to `" << baseV->type->asCompoundType()->name << "'");
   }
 }
 
 
 void Env::insertBindingsForPartialSpec
-  (CompoundType *base, StringSObjDict<STemplateArgument> &bindings)
+  (Variable *baseV, StringSObjDict<STemplateArgument> &bindings)
 {
-  for(SObjListIter<Variable> paramIter(base->templateInfo->params);
+  for(SObjListIter<Variable> paramIter(baseV->templateInfo()->params);
       !paramIter.isDone();
       paramIter.adv()) {
     Variable const *param = paramIter.data();
@@ -1811,11 +1866,11 @@ void Env::insertBindingsForPartialSpec
 
 
 // see comments in cc_env.h
-Variable *Env::instantiateClassTemplate
-  (Scope *foundScope, CompoundType *base, 
-   ASTList<TemplateArgument> const &arguments, CompoundType *inst)
+Variable *Env::instantiateTemplate
+  (Scope *foundScope, Variable *baseV, 
+   ASTList<TemplateArgument> const &arguments, Variable *instV)
 {
-  CompoundType *oldBase = base; // save this for other uses later
+  Variable *oldBaseV = baseV;   // save this for other uses later
 
   // go over the list of arguments, and make a list of
   // semantic arguments
@@ -1834,54 +1889,59 @@ Variable *Env::instantiateClassTemplate
   }
 
   // has this class already been instantiated?
-  if (!inst) {
+  if (!instV) {
     // Search through the instantiations of this primary and do an
     // argument/specialization pattern match.
 
-    // base should be a template primary
-    xassert(base->templateInfo->isPrimary());
+    // baseV should be a template primary
+    xassert(baseV->templateInfo()->isPrimary());
     if (tracingSys("template")) {
-      cout << "Env::instantiateClassTemplate: "
+      cout << "Env::instantiateTemplate: "
            << "template instantiation, searching instantiations of primary"
            << endl;
-      base->templateInfo->gdb();
+      baseV->templateInfo()->gdb();
     }
 
     // iterate through all of the instantiations and build up an
     // ObjArrayStack<Candidate> of candidates
-    TemplCompoundType tct;
-    SFOREACH_OBJLIST_NC(CompoundType, base->templateInfo->instantiations, iter) {
-      CompoundType *inst0 = iter.data();
+    TemplCandidates templCandidates;
+    SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
+      Variable *var0 = iter.data();
+      TemplateInfo *templInfo0 = var0->templateInfo();
       // Sledgehammer time.
-      if (inst0->templateInfo->isMutant()) continue;
+      if (templInfo0->isMutant()) continue;
       // FIX: I think I should change this to StringObjDict, as the
       // values (but not the keys) should get deleted when bindings
       // goes out of scope
       StringSObjDict<STemplateArgument> bindings;
-      if (TemplateInfo::atLeastAsSpecificAs(sargs, inst0->templateInfo->arguments, bindings)) {
-        tct.candidates.push(inst0);
+      if (TemplateInfo::atLeastAsSpecificAs(sargs, templInfo0->arguments, bindings)) {
+        templCandidates.candidates.push(var0);
       }
     }
 
     // if there are any candidates to try, select the best; otherwise
     // there are no candidates so we just use the primary, which is
     // already the default
-    if (!tct.candidates.isEmpty()) {
-      CompoundType *best = selectBestCandidate_templCompoundType(tct);
+    if (!templCandidates.candidates.isEmpty()) {
+      Variable *bestV = selectBestCandidate_templCompoundType(templCandidates);
 
       // if there is not best candidiate, then the call is ambiguous
       // and we should deal with that error; otherwise, use the best
       // one
-      if (best) {
+      if (bestV) {
         // if the best is an instantiation, return it
-        if (best->templateInfo->isCompleteSpecOrInstantiation()) {
-          xassert(!doesUnificationRequireBindings(sargs, best->templateInfo->arguments));
-          return best->typedefVar;
+        if (bestV->templateInfo()->isCompleteSpecOrInstantiation()) {
+          xassert(!doesUnificationRequireBindings(sargs, bestV->templateInfo()->arguments));
+          // FIX: factor this out
+          if (bestV->type->isCompoundType()) {
+            xassert(bestV->type->asCompoundType()->getTypedefVar() == bestV);
+          }
+          return bestV;
         }
 
         // otherwise it is a partial specialization; we instantiate it
         // below
-        base = best;            // base is saved in oldBase above
+        baseV = bestV;          // baseV is saved in oldBaseV above
       } else {
         // FIX: what is the right thing to do here?
         error(stringc << "ambiguous attempt to instantiate template");
@@ -1892,10 +1952,10 @@ Variable *Env::instantiateClassTemplate
   }
 
   // there should be something non-trivial to instantiate
-  xassert(base->templateInfo->argumentsContainVariables()
+  xassert(baseV->templateInfo()->argumentsContainVariables()
           // or the special case of a primary, which doesn't have
           // arguments but acts as if it did
-          || base->templateInfo->isPrimary()
+          || baseV->templateInfo()->isPrimary()
           );
 
   // render the template arguments into a string that we can use
@@ -1905,10 +1965,20 @@ Variable *Env::instantiateClassTemplate
   //
   // dsw: UPDATE: now it's used during type construction for
   // elaboration, so has to be just the base name
-  StringRef instName = base->name;
-  trace("template") << (base->forward? "(forward) " : "")
+  bool baseForward;
+  StringRef instName;
+  if (baseV->type->isCompoundType()) {
+    baseForward = baseV->type->asCompoundType()->forward;
+    instName = baseV->type->asCompoundType()->name;
+  } else if (baseV->type->isFunctionType()) {
+    // FIX: We assume for now that function templates cannot be
+    // forward declared
+    baseForward = false;
+    instName = baseV->name;     // FIX: just something for now
+  } else xfailure("illegal template type");
+  trace("template") << (baseForward ? "(forward) " : "")
                     << "instantiating class: "
-                    << base->name << sargsToString(sargs) << endl;
+                    << instName << sargsToString(sargs) << endl;
 
   // remove scopes from the environment until the innermost
   // scope on the scope stack is the same one that the template
@@ -1919,7 +1989,7 @@ Variable *Env::instantiateClassTemplate
   // *contains* (or equals) the defining scope
   ObjList<Scope> innerScopes;
   Scope *argScope = NULL;
-  if (!base->forward) {      // don't mess with it if not going to tcheck anything
+  if (!baseForward) {           // don't mess with it if not going to tcheck anything
     while (!scopes.first()->enclosesOrEq(foundScope)) {
       innerScopes.prepend(scopes.removeFirst());
       if (scopes.isEmpty()) {
@@ -1930,52 +2000,138 @@ Variable *Env::instantiateClassTemplate
     // make a new scope for the template arguments
     argScope = enterScope(SK_TEMPLATE, "template argument bindings");
 
-    if (base->templateInfo->isPartialSpec()) {
+    if (baseV->templateInfo()->isPartialSpec()) {
       // unify again to compute the bindings again since we forgot
       // them already
       StringSObjDict<STemplateArgument> bindings;
-      TemplateInfo::atLeastAsSpecificAs(sargs, base->templateInfo->arguments, bindings);
+      TemplateInfo::atLeastAsSpecificAs(sargs, baseV->templateInfo()->arguments, bindings);
       if (tracingSys("template")) {
         cout << "bindings generated by unification with partial-specialization "
           "specialization-pattern" << endl;
         printBindings(bindings);
       }
-      insertBindingsForPartialSpec(base, bindings);
+      insertBindingsForPartialSpec(baseV, bindings);
     } else {
-      xassert(base->templateInfo->isPrimary());
-      insertBindingsForPrimary(base, arguments);
+      xassert(baseV->templateInfo()->isPrimary());
+      insertBindingsForPrimary(baseV, arguments);
     }
   }
 
   // make a copy of the template definition body AST (unless this
   // is a forward declaration)
-  TS_classSpec *copy = base->forward? NULL : base->syntax->clone();
-  if (copy && tracingSys("cloneAST")) {
-    cout << "--------- clone of " << base->name << " ------------\n";
-    copy->debugPrint(cout, 0);
+  TS_classSpec *copyCpd = NULL;
+  Function *copyFun = NULL;
+  if (baseV->type->isCompoundType()) {
+    TS_classSpec *baseSyntax = baseV->type->asCompoundType()->syntax;
+    if (baseForward) {
+      copyCpd = NULL;
+    } else {
+      xassert(baseSyntax);
+      copyCpd = baseSyntax->clone();
+    }
+  } else if (baseV->type->isFunctionType()) {
+    Function *baseSyntax = baseV->funcDefn;
+    // FIX: this
+    if (!baseSyntax) {
+      cout << locStr()
+           << " Attempt to instantiate a forwarded template function;"
+           << " forward template functions are not implemented yet."
+           << endl;
+      xassert(0);
+    }
+    xassert(baseSyntax);
+    xassert(!baseForward);      // FIX: for now can't forward function templates
+    copyFun = baseSyntax->clone();
+  }
+
+  // FIX: merge these
+  if (copyCpd && tracingSys("cloneAST")) {
+    cout << "--------- clone of " << instName << " ------------\n";
+    copyCpd->debugPrint(cout, 0);
+  }
+  if (copyFun && tracingSys("cloneAST")) {
+    cout << "--------- clone of " << instName << " ------------\n";
+    copyFun->debugPrint(cout, 0);
   }
 
   // make the CompoundType that will represent the instantiated class,
   // if we don't already have one
-  if (!inst) {
-    // 1/21/03: I had been using 'instName' as the class name, but that
-    // causes problems when trying to recognize constructors
-    inst = tfac.makeCompoundType(base->keyword, base->name);
-    inst->instName = instName;     // stash it here instead
-    inst->forward = base->forward;
-
+  if (!instV) {
     // copy over the template arguments so we can recognize this
     // instantiation later
-    inst->templateInfo = new TemplateInfo(base->name);
+    StringRef name = baseV->type->isCompoundType()
+      ? str(baseV->type->asCompoundType()->name)
+      : NULL;
+    TemplateInfo *instTInfo = new TemplateInfo(name);
     {
       SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
-        inst->templateInfo->arguments.append(new STemplateArgument(*iter.data()));
+        instTInfo->arguments.append(new STemplateArgument(*iter.data()));
       }
 
-      // remember the argument syntax too, in case this is a
-      // forward declaration
-      inst->templateInfo->argumentSyntax = &arguments;
+      // remember the argument syntax too, in case this is a forward
+      // declaration
+      instTInfo->argumentSyntax = &arguments;
     }
+
+    // FIX: Scott, its almost as if you just want to clone the type
+    // here.
+    if (baseV->type->isCompoundType()) {
+      // 1/21/03: I had been using 'instName' as the class name, but
+      // that causes problems when trying to recognize constructors
+      CompoundType *instVCpdType = tfac.makeCompoundType(baseV->type->asCompoundType()->keyword,
+                                                         baseV->type->asCompoundType()->name);
+      instVCpdType->instName = instName; // stash it here instead
+      instVCpdType->forward = baseForward;
+
+      // wrap the compound in a regular type
+      SourceLoc copyLoc = copyCpd ? copyCpd->loc : SL_UNKNOWN;
+      Type *type = makeType(copyLoc, instVCpdType);
+
+      // make a fake implicit typedef; this class and its typedef
+      // won't actually appear in the environment directly, but making
+      // the implicit typedef helps ensure uniformity elsewhere; also
+      // must be done before type checking since it's the typedefVar
+      // field which is returned once the instantiation is found via
+      // 'instantiations'
+      instV = makeVariable(copyLoc, instName, type,
+                           DF_TYPEDEF | DF_IMPLICIT);
+      instV->type->asCompoundType()->typedefVar = instV;
+
+      if (lang.compoundSelfName) {
+        // also make the self-name, which *does* go into the scope
+        // (testcase: t0167.cc)
+        Variable *var2 = makeVariable(copyLoc, instName, type,
+                                      DF_TYPEDEF | DF_SELFNAME);
+        instV->type->asCompoundType()->addUniqueVariable(var2);
+        addedNewVariable(instV->type->asCompoundType(), var2);
+      }
+    } else if (baseV->type->isFunctionType()) {
+      // as far as I can tell, it suffices to clone the function type
+      // FIX: arg, no Function::loc
+      SourceLoc copyLoc = SL_UNKNOWN;
+      Type *type = tfac.cloneFunctionType(baseV->type->asFunctionType());
+
+      // make a fake implicit typedef; this class and its typedef
+      // won't actually appear in the environment directly, but making
+      // the implicit typedef helps ensure uniformity elsewhere; also
+      // must be done before type checking since it's the typedefVar
+      // field which is returned once the instantiation is found via
+      // 'instantiations'
+      instV = makeVariable
+        (copyLoc, instName, type,
+         // FIX: I don't know what flags should go here but DF_TYPEDEF isn't one of them
+//           DF_TYPEDEF | DF_IMPLICIT
+         baseV->flags
+         );
+      xassert(copyFun);         // FIX: we don't deal with function forwarding yet
+      // FIX: this seems like a much more natural way to do things,
+      // but it doesn't work because nameAndParams->var doesn't exist
+      // until after typechecking.
+//        instV = copyFun->nameAndParams->var;
+    } else xfailure("illegal template type");
+
+    xassert(instV);
+    foundScope->registerVariable(instV);
 
     // tell the base template about this instantiation; this has to be
     // done before invoking the type checker, to handle cases where the
@@ -1984,47 +2140,44 @@ Variable *Env::instantiateClassTemplate
     // dsw: this is the one place where I use oldBase instead of base;
     // looking at the other code above, I think it is the only one
     // where I should, but I'm not sure.
-    xassert(oldBase->templateInfo && oldBase->templateInfo->isPrimary());
-    oldBase->templateInfo->instantiations.append(inst);
+    xassert(oldBaseV->templateInfo() && oldBaseV->templateInfo()->isPrimary());
+    oldBaseV->templateInfo()->instantiations.append(instV);
 
-    // wrap the compound in a regular type
-    SourceLoc copyLoc = copy? copy->loc : SL_UNKNOWN;
-    Type *type = makeType(copyLoc, inst);
-
-    // make a fake implicit typedef; this class and its typedef won't
-    // actually appear in the environment directly, but making the
-    // implicit typedef helps ensure uniformity elsewhere; also must be
-    // done before type checking since it's the typedefVar field which
-    // is returned once the instantiation is found via 'instantiations'
-    Variable *var = makeVariable(copyLoc, instName, type,
-                                 DF_TYPEDEF | DF_IMPLICIT);
-    inst->typedefVar = var;
-    foundScope->registerVariable(var);
-
-    if (lang.compoundSelfName) {
-      // also make the self-name, which *does* go into the scope
-      // (testcase: t0167.cc)
-      Variable *var2 = makeVariable(copyLoc, instName, type,
-                                    DF_TYPEDEF | DF_SELFNAME);
-      inst->addUniqueVariable(var2);
-      addedNewVariable(inst, var2);
-    }
+    // dsw: this had to be moved down here as you can't get the
+    // typedefVar until it exists
+    instV->setTemplateInfo(instTInfo);
   }
 
-  if (copy) {
-    // invoke the TS_classSpec typechecker, giving to it the
-    // CompoundType we've built to contain its declarations; for
-    // now I don't support nested template instantiation
-    copy->ctype = inst;
-    copy->tcheckIntoCompound(*this, DF_NONE, inst, false /*inTemplate*/,
-                             NULL /*containingClass*/);
-    // this is turned off because it doesn't work: somewhere the
-    // mutants are actually needed; Instead we just avoid them above.
-//      deMutantify(base);
+  if (copyCpd || copyFun) {
+    if (instV->type->isCompoundType()) {
+      xassert(copyCpd);
+      // invoke the TS_classSpec typechecker, giving to it the
+      // CompoundType we've built to contain its declarations; for now
+      // I don't support nested template instantiation
+      copyCpd->ctype = instV->type->asCompoundType();
+      copyCpd->tcheckIntoCompound(*this, DF_NONE, copyCpd->ctype, false /*inTemplate*/,
+                                  NULL /*containingClass*/);
+      // this is turned off because it doesn't work: somewhere the
+      // mutants are actually needed; Instead we just avoid them
+      // above.
+      //      deMutantify(baseV);
+    } else if (instV->type->isFunctionType()) {
+      xassert(copyFun);
+      copyFun->funcType = instV->type->asFunctionType();
+      xassert(scope()->isGlobalTemplateScope());
+      copyFun->tcheck(*this,
+                      true      // checkBody
+                      );
+      // since instV != copyFun->nameAndParams->var, we have to do
+      // this manually here as well
+      instV->funcDefn = copyFun;
+    }
 
     if (tracingSys("cloneTypedAST")) {
-      cout << "--------- typed clone of " << base->name << " ------------\n";
-      copy->debugPrint(cout, 0);
+      cout << "--------- typed clone of " << instName << " ------------\n";
+      if (copyCpd) copyCpd->debugPrint(cout, 0);
+      else if (copyFun) copyFun->debugPrint(cout, 0);
+      // FIX: "else xfailure()" here ?
     }
 
     // remove the argument scope
@@ -2036,7 +2189,25 @@ Variable *Env::instantiateClassTemplate
     }
   }
 
-  return inst->typedefVar;
+  // FIX: make this more uniform with CompoundType.  The assymetry is
+  // probably somehow due to the fact that for a class, the
+  // CompoundType object is the real source of identity, whereas for a
+  // function, it is the Variable.
+  Variable *ret = NULL;
+  if (baseV->type->isFunctionType()) {
+    // FIX: no forwarding yet
+    xassert(copyFun->nameAndParams->var);
+    ret = copyFun->nameAndParams->var;
+    xassert(!ret->templateInfo());
+    ret->setTemplateInfo(instV->templateInfo());
+  } else {
+    ret = instV;
+  }
+  xassert(ret->templateInfo());
+  // this fails because when one template is instantiated within
+  // another, you get a mutant instance; see in/t0036.cc:22
+//    xassert(ret->templateInfo()->isCompleteSpecOrInstantiation());
+  return ret;
 }
 
 
@@ -2049,8 +2220,8 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
     Scope const *s = iter.data();
 
     if (s->curCompound &&
-        s->curCompound->templateInfo &&
-        s->curCompound->templateInfo->baseName == name) {
+        s->curCompound->templateInfo() &&
+        s->curCompound->templateInfo()->baseName == name) {
       return s->curCompound;
     }
   }
@@ -2058,17 +2229,18 @@ CompoundType *Env::findEnclosingTemplateCalled(StringRef name)
 }
 
 
-void Env::instantiateForwardClasses(Scope *scope, CompoundType *base)
+void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 {
-  SFOREACH_OBJLIST_NC(CompoundType, base->templateInfo->instantiations, iter) {
-    CompoundType *inst = iter.data();
-    xassert(inst->templateInfo);
+  SFOREACH_OBJLIST_NC(Variable, baseV->templateInfo()->instantiations, iter) {
+    Variable *instV = iter.data();
+    xassert(instV->templateInfo());
+    CompoundType *inst = instV->type->asCompoundType();
 
     if (inst->forward) {
       trace("template") << "instantiating previously forward " << inst->name << "\n";
       inst->forward = false;
-      instantiateClassTemplate(scope, base, *(inst->templateInfo->argumentSyntax),
-                               inst /*use this one*/);
+      instantiateTemplate(scope, baseV, *(inst->templateInfo()->argumentSyntax),
+                          instV /*use this one*/);
     }
     else {
       // this happens in e.g. t0079.cc, when the template becomes
@@ -2411,6 +2583,9 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // make new declaration, taking to account various restrictions
   Variable *newVar = createDeclaration(loc, name, type, origVar->flags,
                                        scope, enclosingClass, prior, overloadSet);
+  if (origVar->templateInfo()) {
+    newVar->setTemplateInfo(new TemplateInfo(*origVar->templateInfo()));
+  }
 
   if (newVar == prior) {
     // found that the name/type named an equivalent entity
@@ -2682,8 +2857,12 @@ noPriorDeclaration:
   if (overloadSet) {
     // don't add it to the environment (another overloaded version
     // is already in the environment), instead add it to the overload set
-    overloadSet->addMember(newVar);
-    newVar->overload = overloadSet;
+    //
+    // dsw: don't add it if it is a template specialization
+    if (!(dflags & DF_TEMPL_SPEC)) {
+      overloadSet->addMember(newVar);
+      newVar->overload = overloadSet;
+    }
   }
   else if (!type->isError()) {
     if (disambErrorsSuppressChanges()) {
@@ -2832,9 +3011,9 @@ PQName *Env::make_PQ_possiblyTemplatizedName
 ASTList<TemplateArgument> *Env::make_PQ_templateArgs(Scope *s)
 {
   ASTList<TemplateArgument> *targs = new ASTList<TemplateArgument>;
-  if (s->curCompound && s->curCompound->templateInfo) {
+  if (s->curCompound && s->curCompound->templateInfo()) {
     FOREACH_ASTLIST(TemplateArgument,
-                    *(s->curCompound->templateInfo->argumentSyntax), iter) {
+                    *(s->curCompound->templateInfo()->argumentSyntax), iter) {
       // hack..
       TemplateArgument *ta = const_cast<TemplateArgument*>(iter.data());
 

@@ -176,7 +176,6 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     virtualBases(),
     subobj(BaseClass(this, AK_PUBLIC, false /*isVirtual*/)),
     conversionOperators(),
-    templateInfo(NULL),
     instName(n),
     syntax(NULL)
 {
@@ -187,8 +186,9 @@ CompoundType::CompoundType(Keyword k, StringRef n)
 CompoundType::~CompoundType()
 {
   //bases.deleteAll();    // automatic, and I'd need a cast to do it explicitly because it's 'const' now
-  if (templateInfo) {
-    delete templateInfo;
+  if (templateInfo()) {
+    delete templateInfo();
+    setTemplateInfo(NULL);      // dsw: I don't like pointers to deleted objects
   }
 }
 
@@ -204,9 +204,27 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 }
 
 bool CompoundType::isTemplate() const
-{ 
-  return templateInfo != NULL  &&
-         templateInfo->params.isNotEmpty();
+{
+  TemplateInfo *tinfo = const_cast<CompoundType*>(this)->templateInfo();
+  return tinfo != NULL  &&
+         tinfo->params.isNotEmpty();
+}
+
+
+Variable *CompoundType::getTypedefVar() {
+  xassert(typedefVar);
+  xassert(typedefVar->type);
+  xassert(typedefVar->type->asCompoundType() == this);
+  return typedefVar;
+}
+
+
+TemplateInfo *CompoundType::templateInfo() {
+  return getTypedefVar()->templateInfo();
+}
+
+void CompoundType::setTemplateInfo(TemplateInfo *templInfo0) {
+  return getTypedefVar()->setTemplateInfo(templInfo0);
 }
 
 
@@ -229,13 +247,14 @@ bool CompoundType::hasVirtualFns() const
 string CompoundType::toCString() const
 {
   stringBuilder sb;
-      
-  bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
+
+  TemplateInfo *tinfo = const_cast<CompoundType*>(this)->templateInfo();
+  bool hasParams = tinfo && tinfo->params.isNotEmpty();
   if (hasParams) {
-    sb << templateInfo->paramsToCString() << " ";
+    sb << tinfo->paramsToCString() << " ";
   }
 
-  if (!templateInfo || hasParams) {   
+  if (!tinfo || hasParams) {   
     // only say 'class' if this is like a class definition, or
     // if we're not a template, since template instantiations
     // usually don't include the keyword 'class' (this isn't perfect..
@@ -1111,18 +1130,6 @@ bool BaseType::isCVAtomicType(AtomicType::Tag tag) const
          asCVAtomicTypeC()->atomic->getTag() == tag;
 }
 
-bool BaseType::isTemplateFunction() const
-{
-  return isFunctionType() &&
-         asFunctionTypeC()->isTemplate();
-}
-
-bool BaseType::isTemplateClass() const
-{
-  return isCompoundType() &&
-         asCompoundTypeC()->isTemplate();
-}
-
 
 bool typeIsError(Type const *t)
 {
@@ -1155,7 +1162,7 @@ bool hasVariable(Type const *t)
 {
   if (t->isTypeVariable()) return true;
   if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
-    return t->asCompoundTypeC()->templateInfo->argumentsContainVariables();
+    return const_cast<Type*>(t)->asCompoundType()->templateInfo()->argumentsContainVariables();
   }
   // FIX: Extend for function types
   return false;
@@ -1369,8 +1376,7 @@ FunctionType::FunctionType(Type *r)
   : flags(FF_NONE),
     retType(r),
     params(),
-    exnSpec(NULL),
-    templateInfo(NULL)
+    exnSpec(NULL)
 {}
 
 
@@ -1378,9 +1384,6 @@ FunctionType::~FunctionType()
 {
   if (exnSpec) {
     delete exnSpec;
-  }
-  if (templateInfo) {
-    delete templateInfo;
   }
 }
 
@@ -1624,10 +1627,11 @@ string FunctionType::leftString(bool innerParen) const
 {
   stringBuilder sb;
 
+  // FIX: FUNC TEMPLATE LOSS
   // template parameters
-  if (templateInfo) {
-    sb << templateInfo->paramsToCString() << " ";
-  }
+//    if (templateInfo) {
+//      sb << templateInfo->paramsToCString() << " ";
+//    }
 
   // return type and start of enclosing type's description
   if (flags & (/*FF_CONVERSION |*/ FF_CTOR | FF_DTOR)) {
@@ -1754,8 +1758,9 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
   return pred(this) ||
          retType->anyCtorSatisfies(pred) ||
          parameterListCtorSatisfies(pred, params) ||
-         (exnSpec && exnSpec->anyCtorSatisfies(pred)) ||
-         (templateInfo && templateInfo->anyParamCtorSatisfies(pred));
+         (exnSpec && exnSpec->anyCtorSatisfies(pred));
+  // FIX: FUNC TEMPLATE LOSS
+//      || (templateInfo && templateInfo->anyParamCtorSatisfies(pred));
 }
 
 
@@ -1970,10 +1975,9 @@ bool TemplateInfo::isPrimary() const {
 
 bool TemplateInfo::isPartialSpec() const {
   xassert(!isMutant());
-  bool ret = params.isNotEmpty() && arguments.isNotEmpty();
+  bool ret = params.isNotEmpty() && argumentsContainVariables();
   if (ret) {
     xassert(instantiations.isEmpty());
-    xassert(argumentsContainVariables());
   }
   return ret;
 }
@@ -1981,10 +1985,9 @@ bool TemplateInfo::isPartialSpec() const {
 
 bool TemplateInfo::isCompleteSpecOrInstantiation() const {
   xassert(!isMutant());
-  bool ret = params.isEmpty() && arguments.isNotEmpty();
+  bool ret = params.isEmpty() && !argumentsContainVariables();
   if (ret) {
     xassert(instantiations.isEmpty());
-    xassert(!argumentsContainVariables());
   }
   return ret;
 }
@@ -1993,7 +1996,13 @@ bool TemplateInfo::isCompleteSpecOrInstantiation() const {
 void TemplateInfo::gdb(int depth)
 {
   for (int i=0; i<depth; ++i) cout << "  ";
-  cout << "TemplateInfo, baseName: " << baseName << endl;
+  cout << "TemplateInfo";
+  if (baseName) {
+    cout << ", baseName: " << baseName;
+  } else {
+    cout << ", null base name";
+  }
+  cout << endl;
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "params:" << endl;
   SFOREACH_OBJLIST(Variable, params, iter) {
@@ -2001,11 +2010,11 @@ void TemplateInfo::gdb(int depth)
   }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "instantiations:" << endl;
-  SFOREACH_OBJLIST_NC(CompoundType, instantiations, iter) {
-    CompoundType *ct = iter.data();
+  SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
+    Variable *var = iter.data();
     for (int i=0; i<depth; ++i) cout << "  ";
-    ct->gdb();
-    ct->templateInfo->gdb(depth+1);
+    var->gdb();
+    var->templateInfo()->gdb(depth+1);
   }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "arguments:" << endl;
@@ -2334,8 +2343,9 @@ string CompoundType::toMLString() const
       
 //    bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
 //    if (hasParams) {
-  if (templateInfo) {
-    sb << templateInfo->paramsToMLString();
+  TemplateInfo *tinfo = const_cast<CompoundType*>(this)->templateInfo();
+  if (tinfo) {
+    sb << tinfo->paramsToMLString();
   }
 
 //    if (!templateInfo || hasParams) {   
@@ -2411,9 +2421,10 @@ string PointerType::toMLString() const
 string FunctionType::toMLString() const
 {
   stringBuilder sb;
-  if (templateInfo) {
-    sb << templateInfo->paramsToMLString();
-  }
+  // FIX: FUNC TEMPLATE LOSS
+//    if (templateInfo) {
+//      sb << templateInfo->paramsToMLString();
+//    }
   putSerialNo(sb);
   if (flags & FF_CTOR) {
     sb << "ctor-";
@@ -2545,7 +2556,7 @@ bool PointerType::atLeastAsSpecificAs(Type *t, StringSObjDict<STemplateArgument>
   if (t->isTypeVariable()) {
     return unifyToTypeVar(this, t, bindings);
   }
-  if (t->isPointerType()) {
+  if (t->isPointerType() && op==t->asPointerType()->op) {
     return atType->atLeastAsSpecificAs(t->asPointerType()->atType, bindings);
   }
   return false;
@@ -2751,9 +2762,6 @@ FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   ret->flags = similar->flags & ~FF_METHOD;     // isMethod is like a parameter
   if (similar->exnSpec) {
     ret->exnSpec = new FunctionType::ExnSpec(*similar->exnSpec);
-  }
-  if (similar->templateInfo) {
-    ret->templateInfo = new TemplateInfo(*similar->templateInfo);
   }
   return ret;
 }

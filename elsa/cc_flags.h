@@ -83,7 +83,8 @@ enum DeclFlags {
   DF_FRIEND      = 0x00000100,
   DF_TYPEDEF     = 0x00000200,
   DF_NAMESPACE   = 0x04000000,    // names of namespaces
-  DF_SOURCEFLAGS = 0x040003FF,    // all flags that come from keywords in the source
+  DF_TEMPL_SPEC  = 0x20000000,    // name is a template specialization
+  DF_SOURCEFLAGS = 0x240003FF,    // all flags that come from keywords in the source
 
   // semantic flags on Variables
   DF_ENUMERATOR  = 0x00000400,    // true for values in an 'enum' (enumerators in the terminology of the C++ standard)
@@ -107,8 +108,8 @@ enum DeclFlags {
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x1FFFFFFF,
-  NUM_DECLFLAGS  = 29             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x3FFFFFFF,
+  NUM_DECLFLAGS  = 30             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

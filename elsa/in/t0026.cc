@@ -8,7 +8,9 @@ int f(T &t)
 
   int q = T(z);    // ctor call
 
-  int y = t.x;
+  // this error is correct:
+  // non-compound `int' doesn't have fields to access
+//    int y = t.x;
 }
 
 

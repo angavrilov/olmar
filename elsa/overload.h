@@ -14,7 +14,7 @@ class Env;
 class Variable;
 class Type;
 class ErrorList;
-class TemplCompoundType;
+class TemplCandidates;
 
 
 // debugging output support
@@ -188,7 +188,7 @@ public:      // funcs
 
 // dsw: not sure where this should go, but for now I'll put it here;
 // see the implementation for more notes
-CompoundType *selectBestCandidate_templCompoundType(TemplCompoundType &resolver);
+Variable *selectBestCandidate_templCompoundType(TemplCandidates &resolver);
 
 
 // resolve the overloading, return the selected candidate; if nothing

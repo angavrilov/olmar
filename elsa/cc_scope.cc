@@ -62,6 +62,13 @@ bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
 }
 
 
+bool Scope::isGlobalTemplateScope() const {
+  // dsw: FIX: I can never remember your dang scope invariant; is this
+  // right?
+  return isTemplateScope() && !parentScope;
+}
+
+
 // This function should not modify 'v'; any changes to 'v' should
 // instead be done by 'registerVariable'.
 bool Scope::addVariable(Variable *v, bool forceReplace)
@@ -190,7 +197,12 @@ void Scope::registerVariable(Variable *v)
     v->scope = this;
   }
 
-  if (isGlobalScope()) {
+  if (isGlobalScope()
+      // FIX: is this right?  dsw: if we are in a template scope that
+      // is in a global scope, you are effectively also a global
+      // unless you are a template parameter
+      || (isGlobalTemplateScope() && !v->hasFlag(DF_PARAMETER))
+      ) {
     v->setFlag(DF_GLOBAL);
   }
 }
@@ -746,43 +758,45 @@ string Scope::fullyQualifiedName()
   Variable *v = getTypedefName();
   xassert(v);
   sb << "::" << v->name;
-  if (curCompound && curCompound->templateInfo) {
-    sb << "<";
-    bool firstTime = true;
-    FOREACH_OBJLIST(STemplateArgument, curCompound->templateInfo->arguments, iter) {
-      if (firstTime) firstTime = false;
-      else sb << ", ";
-      switch(iter.data()->kind) {
-      default:
-        xfailure("Illegal STemplateArgument::kind");
-        break;
+
+  // return if no templates are involved
+  if (!curCompound || !(curCompound->templateInfo())) return sb;
+  TemplateInfo *tinfo = curCompound->templateInfo();
+  sb << "<";
+  bool firstTime = true;
+  FOREACH_OBJLIST(STemplateArgument, tinfo->arguments, iter) {
+    if (firstTime) firstTime = false;
+    else sb << ", ";
+    switch(iter.data()->kind) {
+    default:
+      xfailure("Illegal STemplateArgument::kind");
+      break;
         
-      case STemplateArgument::STA_NONE:
-        xfailure("STA_NONE should never occur here");
-//          sb << "-NONE"; break;
-        break;
+    case STemplateArgument::STA_NONE:
+      xfailure("STA_NONE should never occur here");
+      //          sb << "-NONE"; break;
+      break;
 
-      case STemplateArgument::STA_TYPE:
-        sb << "TYPE-" << mangle(iter.data()->value.t);
-        break;
+    case STemplateArgument::STA_TYPE:
+      sb << "TYPE-" << mangle(iter.data()->value.t);
+      break;
 
-      case STemplateArgument::STA_INT:
-        sb << "INT-" << iter.data()->value.i;
-        break;
+    case STemplateArgument::STA_INT:
+      sb << "INT-" << iter.data()->value.i;
+      break;
 
     case STemplateArgument::STA_REFERENCE: // reference to global object
     case STemplateArgument::STA_POINTER: // pointer to global object
     case STemplateArgument::STA_MEMBER: // pointer to class member
-        sb << "OBJECT-" << mangle(iter.data()->value.v->type);
-        break;
+      sb << "OBJECT-" << mangle(iter.data()->value.v->type);
+      break;
 
     case STemplateArgument::STA_TEMPLATE: // template argument (not implemented)
       xfailure("STA_TEMPLATE is not implemented");
       break;
 
-      }
     }
-    sb << ">";
   }
+  sb << ">";
   return sb;
 }

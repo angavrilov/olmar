@@ -36,6 +36,7 @@ enum LookupFlags {
   LF_ONLY_NAMESPACES = 0x10,    // ignore non-namespace names
   LF_TYPES_NAMESPACES= 0x20,    // ignore non-type, non-namespace names
   LF_QUALIFIED       = 0x40,    // context is a qualified lookup
+  LF_TEMPL_PRIMARY   = 0x80,    // return template primary rather than instantiating it
 
   LF_ALL_FLAGS       = 0xFF,    // bitwise OR of all flags
 };
@@ -176,6 +177,8 @@ public:      // funcs
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
   bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
   bool isNamespace() const          { return scopeKind == SK_NAMESPACE; }
+  // are we in a template scope that is in a global scope?
+  bool isGlobalTemplateScope() const;
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)

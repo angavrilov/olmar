@@ -45,6 +45,7 @@ class Scope;                   // cc_scope.h
 class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
+class TemplateInfo;            // cc_type.h
 
 class Variable INHERIT_SERIAL_BASE {
 public:    // data
@@ -95,6 +96,11 @@ public:    // data
   // is SK_UNKNOWN
   ScopeKind scopeKind;
 
+  // for templates, this is the list of template parameters and other
+  // template stuff; for a primary it includes a list of
+  // already-instantiated versions
+  TemplateInfo *templInfo;      // (owner)
+
 protected:    // funcs
   friend class BasicTypeFactory;
   Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
@@ -128,6 +134,8 @@ public:
   bool isTemplate() const { return isTemplateFunction() || isTemplateClass(); }
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
+  TemplateInfo *templateInfo();
+  void setTemplateInfo(TemplateInfo *templInfo0);
 
   // variable's type.. same as the public 'type' field..
   Type *getType() { return type; }
@@ -186,6 +194,11 @@ public:
   int count() const { return set.count(); }
 
   Variable *findByType(FunctionType const *ft, CVFlags receiverCV);
+
+  // find the template primary that matches the template args,
+  // returning NULL if does not exist; calls xfailure() for now if it
+  // is ambiguous
+  Variable *findTemplPrimaryForSignature(FunctionType *signature);
 };
 
 

@@ -10,7 +10,7 @@ Type *computeArraySizeFromCompoundInit(Env &env, SourceLoc tgt_loc, Type *tgt_ty
                                        Type *src_type, Initializer *init);
 bool areYouOrHaveYouEverBeenATemplate(Type const *t);
 
-bool isCopyConstructor(FunctionType const *ft, CompoundType *ct);
-bool isCopyAssignOp(FunctionType const *ft, CompoundType *ct);
+bool isCopyConstructor(Variable const *funcVar, CompoundType *ct);
+bool isCopyAssignOp(Variable const *funcVar, CompoundType *ct);
 
 #endif // CC_TCHECK_H

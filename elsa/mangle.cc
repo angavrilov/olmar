@@ -18,16 +18,16 @@ string mangleAtomic(AtomicType const *t)
     }
 
     case AtomicType::T_COMPOUND: {
-      CompoundType const *ct = t->asCompoundTypeC();
+      CompoundType *ct = const_cast<AtomicType*>(t)->asCompoundType();
 
       stringBuilder sb;
 
-      bool hasParams = ct->templateInfo && ct->templateInfo->params.isNotEmpty();
+      bool hasParams = ct->templateInfo() && ct->templateInfo()->params.isNotEmpty();
       if (hasParams) {
-        sb << mangleTemplateParams(ct->templateInfo) << " ";
+        sb << mangleTemplateParams(ct->templateInfo()) << " ";
       }
 
-      if (!ct->templateInfo || hasParams) {
+      if (!ct->templateInfo() || hasParams) {
         // only say 'class' if this is like a class definition, or
         // if we're not a template, since template instantiations
         // usually don't include the keyword 'class' (this isn't perfect..
@@ -130,10 +130,11 @@ string leftMangle(Type const *t, bool innerParen)
       
       stringBuilder sb;
 
+      // FIX: FUNC TEMPLATE LOSS
       // template parameters
-      if (ft->templateInfo) {
-        sb << mangleTemplateParams(ft->templateInfo) << " ";
-      }
+//        if (ft->templateInfo) {
+//          sb << mangleTemplateParams(ft->templateInfo) << " ";
+//        }
 
       // return type and start of enclosing type's description
       if (ft->flags & (/*FF_CONVERSION |*/ FF_CTOR | FF_DTOR)) {
