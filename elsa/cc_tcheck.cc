@@ -3698,8 +3698,11 @@ Type *E_cond::itcheck(Env &env)
   
   // TODO: verify 'cond' makes sense in a boolean context
   // TODO: verify 'th' and 'el' return the same type
-  
-  return th->type;
+  // dsw: shouldn't the type of the expression should be the least
+  // upper bound (lub) of the types?
+  // dsw: I need the type to be distinct here.
+  return env.tfac.cloneType(th->type);
+//    return th->type;
 }
 
 
