@@ -1464,6 +1464,54 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // the function body
     env.retractScope(qualifiedScope);
   }
+
+  // If it is a function, is it virtual?
+  if (var->type->isFunctionType()
+      && var->type->asFunctionType()->isMember()
+      && !var->hasFlag(DF_VIRTUAL)) {
+//      printf("var->name: %s\n", var->name);
+//      printf("env.scope->curCompound->name: %s\n", env.scope()->curCompound->name);
+    // find the next variable up the heirarchy
+    if (env.scope()->curCompound) {
+      FOREACH_OBJLIST(BaseClass, env.scope()->curCompound->bases, base_iter) {
+        // FIX: Should I skip it for private inheritance?  Hmm,
+        // experiments on g++ indicate that private inheritance does not
+        // prevent the virtuality from coming through.  Ben agrees.
+
+        // FIX: deal with ambiguity if we find more than one
+        // FIX: is there something to do for virtual inheritance?
+        //        printf("iterating over base base_iter.data()->ct->name: %s\n",
+        //               base_iter.data()->ct->name);
+        Variable *var2 = base_iter.data()->ct->lookupVariable(var->name, env);
+        xassert(var2 != var);
+        if (var2 && var2->type->isFunctionType() && var2->type->asFunctionType()->isMember()) {
+          if (Variable *var_overload =
+              var2->getOverloadSet()->findByType
+              (var->type->asFunctionType(),
+               var->type->asFunctionType()->getThisCV())) {
+            xassert(var_overload != var);
+            xassert(var_overload->type->isFunctionType());
+            xassert(var_overload->type->asFunctionType()->isMember());
+            if (var_overload->hasFlag(DF_VIRTUAL)) {
+              // then we inherit the virtuality
+              var->setFlag(DF_VIRTUAL);
+              // FIX: We could actually break out of the loop at this
+              // point
+            }
+          }
+        }
+      }
+    }
+  }
+
+//    // for debugging confirmation
+//    if (var->type->isFunctionType()
+//        && var->type->asFunctionType()->isMember()) {
+//      printf("non-static member function var->name: %s, line: %d, virtual %s\n",
+//             var->name,
+//             sourceLocManager->getLine(var->loc),
+//             (var->hasFlag(DF_VIRTUAL)?"YES":"NO"));
+//    }
 }
 
 
@@ -1768,7 +1816,9 @@ realStart:
         env.error(dt.type, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
           << dt.type->toString() << "' doesn't match any of the "
-          << prior->overload->set.count()
+                  // dsw: this code is only called if prior is NULL,
+                  // so I don't know what you mean by dereferencing it
+//            << prior->overload->set.count()
           << " declared overloaded instances");
         goto makeDummyVar;
       }
