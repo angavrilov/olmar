@@ -1038,8 +1038,8 @@ void D_array::itcheck(Env &env, DeclaratorTcheck &dt)
     }
     else {
       // TODO: do a true const-eval of the expression
-      env.error("array size isn't (obviously) a constant",
-                false /*disambiguates*/);
+      env.warning("array size isn't (obviously) a constant");
+      at = new ArrayType(dt.type);
     }
   }
 
@@ -1261,7 +1261,9 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
     for (int i=0; i<numAlts; i++) {
       env.errors.concat(altErrors[i]);
     }
-    env.errors.append(new ErrorMsg("following messages from an ambiguity", loc));
+    env.errors.append(new ErrorMsg(
+      "following messages from an ambiguity", false /*isWarning*/,
+      loc, false /*disambiguates*/));
     env.errors.concat(existingErrors);
     env.error("previous messages from an ambiguity with bad alternatives");
     return ths;

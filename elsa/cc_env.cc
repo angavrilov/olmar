@@ -94,8 +94,9 @@ void Env::extendScope(Scope *s)
   else {
     trace("env") << "extending scope at " << (void*)s << "\n";
   }
+  Scope *prevScope = scope();
   scopes.prepend(s);
-  s->curLoc = loc();
+  s->curLoc = prevScope->curLoc;
 }
 
 void Env::retractScope(Scope *s)
@@ -434,7 +435,8 @@ Type const *Env::error(char const *msg, bool disambiguates)
 {
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
-    errors.prepend(new ErrorMsg(stringc << "error: " << msg, loc(), disambiguates));
+    errors.prepend(new ErrorMsg(
+      stringc << "error: " << msg, false /*isWarning*/, loc(), disambiguates));
   }
   return getSimpleType(ST_ERROR);
 }
@@ -444,19 +446,21 @@ Type const *Env::warning(char const *msg)
 {
   trace("error") << "warning: " << msg << endl;
   if (!disambiguateOnly) {
-    errors.prepend(new ErrorMsg(stringc << "warning: " << msg, loc()));
+    errors.prepend(new ErrorMsg(
+      stringc << "warning: " << msg, true /*isWarning*/, loc(), false /*disambiguates*/));
   }
   return getSimpleType(ST_ERROR);
 }
 
 
 Type const *Env::unimp(char const *msg)
-{ 
+{
   // always print this immediately, because in some cases I will
   // segfault (deref'ing NULL) right after printing this
   cout << "unimplemented: " << msg << endl;
 
-  errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg, loc()));
+  errors.prepend(new ErrorMsg(
+    stringc << "unimplemented: " << msg, false /*isWarning*/, loc(), false /*disambiguates*/));
   return getSimpleType(ST_ERROR);
 }
 

@@ -15,6 +15,7 @@
 class ErrorMsg {
 public:
   string msg;
+  bool isWarning;
   SourceLocation loc;
 
   // when this is true, the error message should be considered
@@ -25,8 +26,8 @@ public:
   bool disambiguates;
 
 public:
-  ErrorMsg(char const *m, SourceLocation const &L, bool d=false)
-    : msg(m), loc(L), disambiguates(d) {}
+  ErrorMsg(char const *m, bool w, SourceLocation const &L, bool d)
+    : msg(m), isWarning(w), loc(L), disambiguates(d) {}
   ~ErrorMsg();
 
   string toString() const;
