@@ -1682,7 +1682,10 @@ Type *getNormalizedSignature(Env &env, Type *orig)
 // if their names are the same then they refer to the same function,
 // not two overloaded instances
 bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
-{
+{          
+  return ft1->innerEquals(ft2, Type::EF_SIGNATURE);
+
+  #if 0  // old
   // NOTE: equivalence of 'f(int)' and 'f(int const)' is handled
   // above, by 'normalizeSignature'
 
@@ -1697,6 +1700,7 @@ bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
     // [cppstd 13.1 para 2]
     return ft1->equalParameterLists(ft2, true /*skipThis*/);
   }
+  #endif // 0
 }
 
 

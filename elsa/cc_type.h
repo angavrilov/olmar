@@ -357,10 +357,26 @@ public:     // funcs
   DOWNCAST_FN(ArrayType)
   DOWNCAST_FN(PointerToMemberType)
 
+  // flags to control how "equal" the types must be
+  enum EqFlags {
+    EF_EXACT           = 0x00,     // complete equality
+
+    EF_SIGNATURE       = 0x01,     // function signatures equivalence
+    EF_IGNORE_TOP_CV   = 0x02,     // ok if toplevel cv flags differ
+    EF_SKIPTHIS        = 0x04,     // skip any 'this' params at top level
+
+    EF_ALL             = 0x07,     // all flags set to 1
+
+    // this is the set of flags that automatically propagate down
+    // the type tree equality checker; others are suppressed once
+    // the first type constructor looks at them
+    EF_PROP            = EF_SIGNATURE
+  };
+
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
   // objects, once their tags have been established to be equal
-  bool equals(Type const *obj) const;
+  bool equals(Type const *obj, EqFlags flags = EF_EXACT) const;
 
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
@@ -432,6 +448,8 @@ public:     // funcs
   ALLOC_STATS_DECLARE
 };
 
+ENUM_BITWISE_OPS(Type::EqFlags, Type::EF_ALL)
+
 
 // essentially just a wrapper around an atomic type, but
 // also with optional const/volatile flags
@@ -450,7 +468,7 @@ protected:
     : atomic(obj.atomic), cv(obj.cv) {}
 
 public:
-  bool innerEquals(CVAtomicType const *obj) const;
+  bool innerEquals(CVAtomicType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
@@ -480,7 +498,7 @@ protected:  // funcs
   PointerType(PtrOper o, CVFlags c, Type *a);
 
 public:
-  bool innerEquals(PointerType const *obj) const;
+  bool innerEquals(PointerType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
   bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
@@ -555,14 +573,14 @@ public:
   bool isConstructor() const          { return !!(flags & FF_CTOR); }
   bool isDestructor() const           { return !!(flags & FF_DTOR); }
 
-  bool innerEquals(FunctionType const *obj, bool skipThis=false) const;
-  bool equalParameterLists(FunctionType const *obj, bool skipThis=false) const;
+  bool innerEquals(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
+  bool equalParameterLists(FunctionType const *obj, EqFlags flags = EF_EXACT) const;
   bool equalExceptionSpecs(FunctionType const *obj) const;
 
   // if the 'this' parameter (if any) is ignored in both function
   // types, am I equal to 'obj'?
   bool equalOmittingThisParam(FunctionType const *obj) const
-    { return innerEquals(obj, true /*skipThis*/); }
+    { return innerEquals(obj, EF_SKIPTHIS); }
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);
@@ -613,7 +631,7 @@ protected:
     : eltType(e), size(s) { checkWellFormedness(); }
 
 public:
-  bool innerEquals(ArrayType const *obj) const;
+  bool innerEquals(ArrayType const *obj, EqFlags flags) const;
 
   bool hasSize() const { return size != NO_SIZE; }
 
@@ -641,7 +659,7 @@ protected:
   PointerToMemberType(CompoundType *c, CVFlags c, Type *a);
 
 public:
-  bool innerEquals(PointerToMemberType const *obj) const;
+  bool innerEquals(PointerToMemberType const *obj, EqFlags flags) const;
   bool isConst() const { return !!(cv & CV_CONST); }
 
   // Type interface

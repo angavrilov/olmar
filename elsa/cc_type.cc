@@ -561,7 +561,7 @@ DOWNCAST_IMPL(Type, ArrayType)
 DOWNCAST_IMPL(Type, PointerToMemberType)
 
 
-bool Type::equals(Type const *obj) const
+bool Type::equals(Type const *obj, EqFlags flags) const
 {
   if (getTag() != obj->getTag()) {
     return false;
@@ -570,7 +570,7 @@ bool Type::equals(Type const *obj) const
   switch (getTag()) {
     default: xfailure("bad tag");
     #define C(tag,type) \
-      case tag: return ((type const*)this)->innerEquals((type const*)obj);
+      case tag: return ((type const*)this)->innerEquals((type const*)obj, flags);
     C(T_ATOMIC, CVAtomicType)
     C(T_POINTER, PointerType)
     C(T_FUNCTION, FunctionType)
@@ -776,10 +776,10 @@ bool Type::containsTypeVariables() const
 
 
 // ----------------- CVAtomicType ----------------
-bool CVAtomicType::innerEquals(CVAtomicType const *obj) const
+bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 {
   return atomic->equals(obj->atomic) &&
-         cv == obj->cv;
+         ((flags & EF_IGNORE_TOP_CV) || (cv == obj->cv));
 }
 
 
@@ -830,11 +830,15 @@ PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
 }
 
 
-bool PointerType::innerEquals(PointerType const *obj) const
+bool PointerType::innerEquals(PointerType const *obj, EqFlags flags) const
 {
+  // note how EF_IGNORE_TOP_CV allows *this* type's cv flags to differ,
+  // but it's immediately suppressed once we go one level down; this
+  // behavior repeated in all 'innerEquals' methods
+
   return op == obj->op &&
-         cv == obj->cv &&
-         atType->equals(obj->atType);
+         ((flags & EF_IGNORE_TOP_CV) || (cv == obj->cv)) &&
+         atType->equals(obj->atType, flags & EF_PROP);
 }
 
 
@@ -932,17 +936,31 @@ FunctionType::~FunctionType()
 }
 
 
-bool FunctionType::innerEquals(FunctionType const *obj, bool skipThis) const
+bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
 {
   // I do not compare the special-function flags because I see no
   // need, and this code didn't used to do that check because it
   // didn't know about those properties
 
-  if (retType->equals(obj->retType) &&
-      ((isMember() == obj->isMember()) || skipThis) &&
+  if (flags & EF_SIGNATURE) {
+    if (isMember() == obj->isMember()) {
+      // if both are nonstatic members, or neither is, then we
+      // simply compare all parameters (unless explicitly told
+      // to EF_SKIPTHIS by the caller), so flags are unchanged
+    }
+    else {
+      // if one is a nonstatic member and the other is a static member,
+      // then comparison ignores the 'this' param on the nonstatic one
+      // [cppstd 13.1 para 2]
+      flags |= EF_SKIPTHIS;
+    }
+  }
+
+  if (retType->equals(obj->retType, flags & EF_PROP) &&
+      ((flags & EF_SKIPTHIS) || (isMember() == obj->isMember())) &&
       acceptsVarargs() == obj->acceptsVarargs()) {
     // so far so good, try the parameters
-    return equalParameterLists(obj, skipThis) &&
+    return equalParameterLists(obj, flags) &&
            equalExceptionSpecs(obj);
   }
   else {
@@ -951,20 +969,31 @@ bool FunctionType::innerEquals(FunctionType const *obj, bool skipThis) const
 }
 
 bool FunctionType::equalParameterLists(FunctionType const *obj,
-                                       bool skipThis) const
+                                       EqFlags flags) const
 {
   SObjListIter<Variable> iter1(this->params);
   SObjListIter<Variable> iter2(obj->params);
-    
+
   // skip the 'this' parameters if desired
-  if (skipThis && this->isMember()) iter1.adv();
-  if (skipThis && obj->isMember()) iter2.adv();
+  if (flags & EF_SKIPTHIS) {
+    if (this->isMember()) iter1.adv();
+    if (obj->isMember()) iter2.adv();
+  }
+
+  // this takes care of FunctionType::innerEquals' obligation
+  // to suppress non-propagated flags after consumption
+  flags &= EF_PROP;
+
+  if (flags & EF_SIGNATURE) {
+    // allow toplevel cv flags to differ
+    flags |= EF_IGNORE_TOP_CV;
+  }
 
   for (; !iter1.isDone() && !iter2.isDone();
        iter1.adv(), iter2.adv()) {
     // parameter names do not have to match, but
     // the types do
-    if (iter1.data()->type->equals(iter2.data()->type)) {
+    if (iter1.data()->type->equals(iter2.data()->type, flags)) {
       // ok
     }
     else {
@@ -1322,9 +1351,9 @@ void ArrayType::checkWellFormedness() const
 }
 
 
-bool ArrayType::innerEquals(ArrayType const *obj) const
+bool ArrayType::innerEquals(ArrayType const *obj, EqFlags flags) const
 {
-  if (!( eltType->equals(obj->eltType) &&
+  if (!( eltType->equals(obj->eltType, flags & EF_PROP) &&
          hasSize() == obj->hasSize() )) {
     return false;
   }
@@ -1392,11 +1421,11 @@ PointerToMemberType::PointerToMemberType(CompoundType *i, CVFlags c, Type *a)
 }
 
 
-bool PointerToMemberType::innerEquals(PointerToMemberType const *obj) const
+bool PointerToMemberType::innerEquals(PointerToMemberType const *obj, EqFlags flags) const
 {
   return inClass == obj->inClass &&
-         cv == obj->cv &&
-         atType->equals(obj->atType);
+         ((flags & EF_IGNORE_TOP_CV) || (cv == obj->cv)) &&
+         atType->equals(obj->atType, flags & EF_PROP);
 }
 
 
