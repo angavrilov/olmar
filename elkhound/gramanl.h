@@ -87,7 +87,7 @@ private:    // funcs
   void itemSetClosure(ItemSet &itemSet);
   ItemSet *makeItemSet();
   void disposeItemSet(ItemSet *is);
-  ItemSet *moveDot(ItemSet const *source, Symbol const *symbol);
+  ItemSet *moveDotNoClosure(ItemSet const *source, Symbol const *symbol);
   ItemSet *findItemSetInList(ObjList<ItemSet> &list,
                              ItemSet const *itemSet);
   static bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);

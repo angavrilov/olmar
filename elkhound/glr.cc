@@ -500,6 +500,10 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling,
       // however, I do need to add a new reduction node to the link
       sibLink->treeNode->asNonterm().addReduction(reduction);
 
+      // NOTE: it is here that we are bringing the tops of two
+      // alternative parses together; thus, it is a place
+      // disambiguation might be applied
+
       // and since we didn't add a link, there is no potential for new
       // paths
     }

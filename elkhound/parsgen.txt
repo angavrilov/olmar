@@ -11,6 +11,9 @@ tracing strings:
   pred-table:    predictive parsing table
   item-sets:     the LR parsing table (item sets)
   progress:      poor-man's profiler (prints at each major phase)
+  profiling:     slightly more detailed profiling info
+  conflict:      SLR conflict printout
+  
   
 
 

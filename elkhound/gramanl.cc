@@ -12,6 +12,24 @@
 #include <fstream.h>     // ofstream
 
 
+// should make a new module for this
+class Timer {
+  long start;
+  long &accumulator;
+
+public:
+  Timer(long &acc) : accumulator(acc)
+    { start = getMilliseconds(); }
+  ~Timer()
+    { accumulator += getMilliseconds() - start; }
+};
+
+
+// profiling
+long totalms=0, movedotms=0, findms=0, closurems=0, getallitemsms=0;
+long closureNewItemsMS=0, wastedMoveDotMS=0;
+
+
 GrammarAnalysis::GrammarAnalysis()
   : derivable(NULL),
     indexedNonterms(NULL),
@@ -607,9 +625,18 @@ void GrammarAnalysis::computePredictiveParsingTable()
 }
 
 
+void timedGetAllItems(ItemSet const &itemSet, DProductionList &items)
+{
+  Timer timer(getallitemsms);
+  itemSet.getAllItems(items);
+}
+
+
 // [ASU] figure 4.33, p.223
 void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 {
+  Timer closureTimer(closurems);
+
   // while no changes
   int changes = 1;
   while (changes > 0) {
@@ -620,7 +647,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
     // grab the current set of items
     DProductionList items;
-    itemSet.getAllItems(items);
+    timedGetAllItems(itemSet, items);
 
     // for each item A -> alpha . B beta in itemSet
     SFOREACH_DOTTEDPRODUCTION(items, itemIter) {            // (constness ok)
@@ -630,6 +657,8 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
       if (item->isDotAtEnd()) continue;
       Symbol const *B = item->symbolAfterDotC();
       if (B->isTerminal()) continue;
+
+      Timer timer(closureNewItemsMS);
 
       // for each production B -> gamma
       MUTATE_EACH_PRODUCTION(productions, prod) {           // (constness)
@@ -646,9 +675,12 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     // add the new items (we don't do this while iterating because my
     // iterator interface says not to, even though it would work with
     // my current implementation)
-    SMUTATE_EACH_DOTTEDPRODUCTION(newItems, item) {
-      itemSet.addNonkernelItem(item.data());	            // (constness)
-      changes++;
+    {
+      Timer timer(closureNewItemsMS);
+      SMUTATE_EACH_DOTTEDPRODUCTION(newItems, item) {
+	itemSet.addNonkernelItem(item.data());	            // (constness)
+	changes++;
+      }
     }
   } // while changes
 }
@@ -671,9 +703,9 @@ void GrammarAnalysis::disposeItemSet(ItemSet *is)
 
 
 // yield a new itemset by moving the dot across the productions
-// in 'source' that have 'symbol' to the right of the dot; then
+// in 'source' that have 'symbol' to the right of the dot; do *not*
 // compute the closure
-ItemSet *GrammarAnalysis::moveDot(ItemSet const *source, Symbol const *symbol)
+ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symbol)
 {
   ItemSet *ret = makeItemSet();
 
@@ -703,9 +735,6 @@ ItemSet *GrammarAnalysis::moveDot(ItemSet const *source, Symbol const *symbol)
   // be easy to simply return null (after dealloc'ing ret)
   xassert(appendCt > 0);
 
-  // compute closure of resulting set
-  itemSetClosure(*ret);
-
   // return built itemset
   return ret;
 }
@@ -734,18 +763,6 @@ STATICDEF bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const 
 }
 
 
-class Timer {
-  long start;
-  long &accumulator;
-     
-public:
-  Timer(long &acc) : accumulator(acc)
-    { start = getMilliseconds(); }
-  ~Timer()
-    { accumulator += getMilliseconds() - start; }
-};
-
-
 // [ASU] fig 4.34, p.224
 // puts the finished parse tables into 'itemSetsDone'
 void GrammarAnalysis::constructLRItemSets()
@@ -770,11 +787,6 @@ void GrammarAnalysis::constructLRItemSets()
     // this makes the initial pending itemSet
     itemSetsPending.append(is);              // (ownership transfer)
   }
-
-
-  // profiling
-  long totalms=0, movedotms=0, findms=0;
-
 
   // for each pending item set
   while (!itemSetsPending.isEmpty()) {
@@ -811,9 +823,11 @@ void GrammarAnalysis::constructLRItemSets()
       // compute the itemSet produced by moving the dot
       // across 'sym' and taking the closure
       ItemSet *withDotMoved;
+      long thisMoveDotMS=0;
       {
         Timer moveTimer(movedotms);
-        withDotMoved = moveDot(itemSet, sym);
+        Timer another(thisMoveDotMS);
+        withDotMoved = moveDotNoClosure(itemSet, sym);
       }
 
       // inefficiency: we go all the way to materialize the
@@ -833,12 +847,16 @@ void GrammarAnalysis::constructLRItemSets()
       if (already != NULL) {
         // we already have it, so throw away one we made
         disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
+        wastedMoveDotMS += thisMoveDotMS;
 
         // and use existing one for setting the transition function
         withDotMoved = already;
       }
       else {
-        // we don't already have it, so add it to 'pending'
+        // we don't already have it; finish it by computing its closure
+        itemSetClosure(*withDotMoved);
+
+        // then add it to 'pending'
         itemSetsPending.append(withDotMoved);
       }
 
@@ -848,11 +866,15 @@ void GrammarAnalysis::constructLRItemSets()
     } // for each item
   } // for each item set
 
-  
+
   trace("profiling")
     << "total=" << totalms
     << " movedot=" << movedotms
     << " find=" << findms
+    << " closure=" << closurems
+//    << " getallitems=" << getallitemsms
+    << " closureNewItems=" << closureNewItemsMS
+    << " wastedMoveDot=" << wastedMoveDotMS
     << endl;
 
 
