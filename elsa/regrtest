@@ -901,7 +901,7 @@ if $use_gnu; then
   testCparse gnu/c0001.c
 
   testCparse gnu/dC0001.c # hex floating-point literals
-  testCparse gnu/dC0002.c # arrays of no length are assumed to have length 1
+  testCparse gnu/dC0002.c # arrays of no length are assumed to have one element
   testCparse gnu/dC0003.c # noInnerClasses: use a struct then define it but inside another
   testCparse gnu/dC0004.c # can take address of const E_compoundLit
   testCparse gnu/dC0005.c # extern inline functions

@@ -3655,8 +3655,7 @@ bool Env::ensureCompleteType(char const *action, Type *type)
   if (type->isArrayType() &&
       type->asArrayType()->size == ArrayType::NO_SIZE) {
     if (lang.assumeNoSizeArrayHasSizeOne) {
-      type->asArrayType()->size = 1;
-      warning(stringc << "array of no size assumed to have one element");
+      warning(stringc << "array of no size assumed to be a complete type");
       return true;
     } else {
       // 8.3.4 para 1: this is an incomplete type
