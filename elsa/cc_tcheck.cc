@@ -27,6 +27,8 @@
 #include "macros.h"         // Restorer
 
 #include <stdlib.h>         // strtoul, strtod
+#include <ctype.h>          // isdigit
+#include <limits.h>         // INT_MAX, UINT_MAX, LONG_MAX
 
 // D(): debug code
 #ifdef NDEBUG
@@ -4222,12 +4224,160 @@ Type *E_boolLit::itcheck_x(Env &env, Expression *&replacement)
   return env.getSimpleType(SL_UNKNOWN, ST_BOOL);
 }
 
+
+// return true if type 'id' can represent value 'i'
+bool canRepresent(SimpleTypeId id, unsigned long i)
+{
+  // I arbitrarily choose to make this determination according to the
+  // representations available under the compiler that compiles Elsa,
+  // since that's convenient and likely to correspond with what
+  // happens when the source code in question is "really" compiled.
+
+  switch (id) {
+    default: xfailure("bad type id");
+
+    case ST_INT:                 return i <= INT_MAX;
+    case ST_UNSIGNED_INT:        return i <= UINT_MAX;
+    case ST_LONG_INT:            return i <= LONG_MAX;
+
+    case ST_UNSIGNED_LONG_INT:
+    case ST_LONG_LONG:
+    case ST_UNSIGNED_LONG_LONG:
+      // I don't want to force the host compiler to have 'long long',
+      // so I'm just going to claim that every value is representable
+      // by these three types.  Also, given that I passed 'i' in as
+      // 'unsigned long', it's pretty much a given that it will be
+      // representable.
+      return true;
+  }
+}
+
 Type *E_intLit::itcheck_x(Env &env, Expression *&replacement)
 {
-  // TODO: this is wrong; see cppstd 2.13.1 para 2
-  i = strtoul(text, NULL /*endp*/, 0 /*radix*/);
-  return env.getSimpleType(SL_UNKNOWN, ST_INT);
+  // cppstd 2.13.1 para 2
+
+  char const *p = text;
+
+  // what radix? (and advance 'p' past it)
+  int radix = 10;
+  if (*p == '0') {
+    p++;
+    if (*p == 'x' || *p == 'X') {
+      radix = 16;
+      p++;
+    }
+    else {
+      radix = 8;
+    }
+  }
+
+  // what value? (tacit assumption: host compiler's 'unsigned long'
+  // is big enough to make these distinctions)
+  i = strtoul(p, NULL /*endp*/, radix);
+
+  // what suffix?
+  while (isdigit(*p)) {
+    p++;
+  }
+  bool hasU = false;
+  int hasL = 0;
+  if (*p == 'u' || *p == 'U') {
+    hasU = true;
+    p++;
+  }
+  if (*p == 'l' || *p == 'L') {
+    hasL = 1;
+    p++;
+    if (*p == 'l' || *p == 'L') {
+      hasL = 2;
+      p++;
+    }
+  }
+  if (*p == 'u' || *p == 'U') {
+    hasU = true;
+  }
+
+  // The radix and suffix determine a sequence of types, and we choose
+  // the smallest from the sequence that can represent the given value.
+
+  // There are three nominal sequences, one containing unsigned types,
+  // one with only signed types, and one with both.  In the tables
+  // below, I will represent a sequence by pointing into one or the
+  // other nominal sequence; the pointed-to element is the first
+  // element in the effective sequence.  Sequences terminate with
+  // ST_VOID.
+  static SimpleTypeId const signedSeq[] = {
+    ST_INT,                 // 0
+    ST_LONG_INT,            // 1
+    ST_LONG_LONG,           // 2
+    ST_VOID
+  };
+  static SimpleTypeId const unsignedSeq[] = {
+    ST_UNSIGNED_INT,        // 0
+    ST_UNSIGNED_LONG_INT,   // 1
+    ST_UNSIGNED_LONG_LONG,  // 2
+    ST_VOID
+  };
+  static SimpleTypeId const mixedSeq[] = {
+    ST_INT,                 // 0
+    ST_UNSIGNED_INT,        // 1
+    ST_LONG_INT,            // 2
+    ST_UNSIGNED_LONG_INT,   // 3
+    ST_LONG_LONG,           // 4
+    ST_UNSIGNED_LONG_LONG,  // 5
+    ST_VOID
+  };
+
+  // The following table layout is inspired by the table in C99
+  // 6.4.4.1 para 5.
+
+  // C99: (hasU + 2*hasL) x isNotDecimal -> typeSequence
+  static SimpleTypeId const * const c99Map[6][2] = {
+      // radix:  decimal              hex/oct
+    // suffix:
+    /* none */ { signedSeq+0,         mixedSeq+0 },
+    /* U */    { unsignedSeq+0,       unsignedSeq+0 },
+    /* L */    { signedSeq+1,         mixedSeq+2 },
+    /* UL */   { unsignedSeq+1,       unsignedSeq+1 },
+    /* LL */   { signedSeq+2,         mixedSeq+4 },
+    /* ULL */  { unsignedSeq+2,       unsignedSeq+2 }
+  };
+
+  // The difference is in C++, the radix is only relevant when there
+  // is no suffix.  Also, cppstd doesn't specify anything for 'long
+  // long' (since that type does not exist in that language), so I'm
+  // extrapolating its rules to that case.  Entries in the cppMap
+  // that differ from c99Map are marked with "/*d*/".
+
+  // C++: (hasU + 2*hasL) x isNotDecimal -> typeSequence
+  static SimpleTypeId const * const cppMap[6][2] = {
+      // radix:  decimal              hex/oct
+    // suffix:
+    /* none */ { signedSeq+0,         mixedSeq+0 },
+    /* U */    { unsignedSeq+0,       unsignedSeq+0 },
+    /* L */    { mixedSeq+2/*d*/,     mixedSeq+2 },
+    /* UL */   { unsignedSeq+1,       unsignedSeq+1 },
+    /* LL */   { mixedSeq+4/*d*/,     mixedSeq+4 },
+    /* ULL */  { unsignedSeq+2,       unsignedSeq+2 }
+  };
+
+  // compute the sequence to use
+  SimpleTypeId const *seq =
+    env.lang.isCplusplus? cppMap[hasU + 2*hasL][radix!=10] :
+                          c99Map[hasU + 2*hasL][radix!=10] ;
+
+  // At this point, we pick the type that is the first type in 'seq'
+  // that can represent the value.
+  SimpleTypeId id = *seq;
+  while (*(seq+1) != ST_VOID &&
+         !canRepresent(id, i)) {
+    seq++;
+    id = *seq;
+  }
+
+  return env.getSimpleType(SL_UNKNOWN, id);
 }
+
 
 Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
 {
@@ -4235,6 +4385,7 @@ Type *E_floatLit::itcheck_x(Env &env, Expression *&replacement)
   d = strtod(text, NULL /*endp*/);
   return env.getSimpleType(SL_UNKNOWN, ST_FLOAT);
 }
+
 
 Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
 {
@@ -4268,13 +4419,23 @@ void quotedUnescape(string &dest, int &destLen, char const *src,
 
 Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
 {
-  // TODO: wrong; cppstd 2.13.2 paras 1 and 2
+  // cppstd 2.13.2 paras 1 and 2
+
+  SimpleTypeId id = ST_CHAR;
+  
+  if (!env.lang.isCplusplus) {
+    // nominal type of character literals in C is int, not char
+    id = ST_INT;
+  }
 
   int tempLen;
   string temp;
 
   char const *srcText = text;
-  if (*srcText == 'L') srcText++;
+  if (*srcText == 'L') {
+    id = ST_WCHAR_T;
+    srcText++;
+  }
 
   quotedUnescape(temp, tempLen, srcText, '\'',
                  false /*allowNewlines*/);
@@ -4283,12 +4444,34 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
   }
   else if (tempLen > 1) {
     // below I only store the first byte
-    env.warning("wide character literals not properly implemented");
+    //
+    // technically, this is ok, since multicharacter literal values
+    // are implementation-defined; but Elsa is not so much its own
+    // implementation as an approximation of some nominal "real"
+    // compiler, which will no doubt do something smarter, so Elsa
+    // should too
+    env.warning("multicharacter literals not properly implemented");
+    if (id == ST_CHAR) {
+      // multicharacter non-wide character literal has type int
+      id = ST_INT;
+    }
   }
 
   c = (unsigned int)temp[0];
-  
-  return env.getSimpleType(SL_UNKNOWN, ST_CHAR);
+
+  if (!env.lang.isCplusplus && id == ST_WCHAR_T) {
+    // in C, 'wchar_t' is not built-in, it is defined; so we
+    // have to look it up
+    Variable *v = env.globalScope()->lookupVariable(env.str("wchar_t"), env);
+    if (!v) {
+      return env.error("you must #include <stddef.h> before using wchar_t");
+    }
+    else {
+      return v->type;
+    }
+  }
+
+  return env.getSimpleType(SL_UNKNOWN, id);
 }
 
 

@@ -1,5 +1,6 @@
 // t0341.cc
-// test where type of unary - must be computed properly
+// test where type of unary - must be computed properly.
+// then extended for 0L also
 
 class CPPValue {
 public:
@@ -17,4 +18,6 @@ void foo()
 
   0, CPPValue(x);
   0, CPPValue(-x);
+  
+  0, CPPValue(0L);
 }

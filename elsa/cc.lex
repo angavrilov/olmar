@@ -83,7 +83,7 @@ HEXDIGITS     ({HEXDIGIT}+)
 SIGN          ("+"|"-")
 
 /* integer suffix */
-/* added 'LL' option for GNU long long compatibility.. */
+/* added 'LL' option for gcc/c99 long long compatibility */
 ELL_SUFFIX    [lL]([lL]?)
 INT_SUFFIX    ([uU]{ELL_SUFFIX}?|{ELL_SUFFIX}[uU]?)
 
