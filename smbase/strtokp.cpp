@@ -7,23 +7,25 @@
 #include <string.h>     // strtok
 
 
-StrtokParse::StrtokParse(char const *str, char const *delim)
+StrtokParse::StrtokParse(rostring origStr, rostring origDelim)
+  : buf(strlen(origStr)+1)
 {
-  xassert(str != NULL);
+  char const *str = toCStr(origStr);
+  char const *delim = toCStr(origDelim);
 
   // make local copy
-  buf = str;
+  strcpy(buf, str);
 
   // parse it first time to count # of tokens
   int ct=0;
-  char *tok = strtok(buf.pchar(), delim);
+  char *tok = strtok(buf.ptr(), delim);
   while (tok) {
     ct++;
     tok = strtok(NULL, delim);
   }
 
   // restore buf
-  buf = str;
+  strcpy(buf, str);
 
   // allocate storage
   _tokc = ct;
@@ -37,7 +39,7 @@ StrtokParse::StrtokParse(char const *str, char const *delim)
 
   // parse it again, this time saving the values
   ct=0;
-  tok = strtok(buf.pchar(), delim);
+  tok = strtok(buf.ptr(), delim);
   while (tok) {
     _tokv[ct] = tok;
     ct++;
@@ -73,17 +75,17 @@ char const *StrtokParse::tokv(int which) const
 
 
 string StrtokParse::
-  reassemble(int firstTok, int lastTok, char const *original) const
+  reassemble(int firstTok, int lastTok, rostring original) const
 {
   int left = offset(firstTok);
   int right = offset(lastTok) + strlen(tokv(lastTok));
 
-  return string(original + left, right-left);
+  return substring(toCStr(original) + left, right-left);
 }
 
 
 string StrtokParse::
-  join(int firstTok, int lastTok, char const *separator) const
+  join(int firstTok, int lastTok, rostring separator) const
 {
   stringBuilder sb;
   

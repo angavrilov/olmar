@@ -4,6 +4,7 @@
 #include "smregexp.h"     // this module
 #include "str.h"          // string
 #include "exc.h"          // xbase
+#include "array.h"        // Array
 
 #include <stddef.h>       // size_t
 
@@ -28,10 +29,11 @@ static string regexpErrorString(regex_t const *pat, int code)
   int size = regerror(code, pat, NULL, 0);
 
   // get the string
-  string ret(size);
-  regerror(code, pat, ret.pchar(), size);
+  Array<char> buf(size);
+  regerror(code, pat, buf.ptr(), size);
+  buf[size] = 0;     // paranoia
 
-  return ret;
+  return string(buf);
 }
 
 // throw an exception
@@ -46,7 +48,7 @@ static void regexpError(regex_t const *pat, int code)
 // interpretation of 'impl' field
 #define PAT ((regex_t*&)impl)
 
-Regexp::Regexp(char const *exp, CFlags flags)
+Regexp::Regexp(rostring exp, CFlags flags)
 {
   PAT = new regex_t;
 
@@ -66,7 +68,7 @@ Regexp::Regexp(char const *exp, CFlags flags)
     if (flags & NOSUB) f |= REG_NOSUB;
   }
 
-  int code = regcomp(PAT, exp, f);
+  int code = regcomp(PAT, toCStr(exp), f);
   if (code) {
     // deallocate the pattern buffer before throwing the exception
     string msg = regexpErrorString(PAT, code);
@@ -88,7 +90,7 @@ void Regexp::err(int code)
 }
 
 
-bool Regexp::match(char const *str, EFlags flags)
+bool Regexp::match(rostring str, EFlags flags)
 {
   int f = 0;
   
@@ -101,7 +103,7 @@ bool Regexp::match(char const *str, EFlags flags)
     if (flags & NOTEOL) f |= REG_NOTEOL;
   }
 
-  int code = regexec(PAT, str, 0, NULL, f);
+  int code = regexec(PAT, toCStr(str), 0, NULL, f);
   if (code == 0) {
     return true;
   }
@@ -118,7 +120,7 @@ bool Regexp::match(char const *str, EFlags flags)
 
 
 // --------------- convenience functions ---------------
-bool regexpMatch(char const *str, char const *exp)
+bool regexpMatch(rostring str, rostring exp)
 {
   Regexp pat(exp, Regexp::NOSUB);
   return pat.match(str);

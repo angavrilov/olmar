@@ -31,6 +31,9 @@ public:
   operator T const* () { return arr; }
   operator T * () { return arr; }
   
+  T const *ptrC() const { return arr; }
+  T *ptr() { return arr; }
+
   T const* operator+ (int i) const { return arr+i; }
   T * operator+ (int i) { return arr+i; }
   

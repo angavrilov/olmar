@@ -4,6 +4,7 @@
 #include "strutil.h"     // this module
 #include "exc.h"         // xformat
 #include "autofile.h"    // AutoFILE
+#include "array.h"       // Array
 
 #include <ctype.h>       // isspace
 #include <string.h>      // strstr, memcmp
@@ -13,25 +14,23 @@
 
 
 // replace all instances of oldstr in src with newstr, return result
-string replace(char const *src, char const *oldstr, char const *newstr)
+string replace(rostring origSrc, rostring oldstr, rostring newstr)
 {
-  stringBuilder ret("");
+  stringBuilder ret;
+  char const *src = toCStr(origSrc);
 
   while (*src) {
-    char const *next = strstr(src, oldstr);
+    char const *next = strstr(src, toCStr(oldstr));
     if (!next) {
-      ret &= string(src);
+      ret << src;
       break;
     }
 
-    // make a substring out of the characters between src and next
-    string upto(src, next-src);
-
-    // add it to running string
-    ret &= upto;
+    // add the characters between src and next
+    ret << substring(src, next-src);
 
     // add the replace-with string
-    ret &= string(newstr);
+    ret << newstr;
 
     // move src to beyond replaced substring
     src += (next-src) + strlen(oldstr);
@@ -68,11 +67,11 @@ string expandRanges(char const *chars)
 }
 
 
-string translate(char const *src, char const *srcchars, char const *destchars)
+string translate(rostring origSrc, rostring srcchars, rostring destchars)
 {
   // first, expand range notation in the specification sequences
-  string srcSpec = expandRanges(srcchars);
-  string destSpec = expandRanges(destchars);
+  string srcSpec = expandRanges(toCStr(srcchars));
+  string destSpec = expandRanges(toCStr(destchars));
 
   // build a translation map
   char map[256];
@@ -87,8 +86,9 @@ string translate(char const *src, char const *srcchars, char const *destchars)
   }
 
   // run through 'src', applying 'map'
-  string ret(strlen(src));
-  char *dest = ret.pchar();
+  char const *src = toCStr(origSrc);
+  Array<char> ret(strlen(src)+1);
+  char *dest = ret.ptr();
   while (*src) {
     *dest = map[(unsigned char)*src];
     dest++;
@@ -96,17 +96,19 @@ string translate(char const *src, char const *srcchars, char const *destchars)
   }
   *dest = 0;    // final nul terminator
 
-  return ret;
+  return string(ret);
 }
 
 
 // why is this necessary?
-string stringToupper(char const *src)
+string stringToupper(rostring src)
   { return translate(src, "a-z", "A-Z"); }
 
 
-string trimWhitespace(char const *str)
-{
+string trimWhitespace(rostring origStr)
+{                                   
+  char const *str = toCStr(origStr);
+
   // trim leading whitespace
   while (isspace(*str)) {
     str++;
@@ -120,7 +122,7 @@ string trimWhitespace(char const *str)
   }
 
   // return it
-  return string(str, end-str);
+  return substring(str, end-str);
 }
 
 
@@ -176,26 +178,24 @@ string encodeWithEscapes(char const *p, int len)
 }
 
 
-string encodeWithEscapes(char const *p)
+string encodeWithEscapes(rostring p)
 {
-  return encodeWithEscapes(p, strlen(p));
+  return encodeWithEscapes(toCStr(p), strlen(p));
 }
 
 
-string quoted(char const *src)
+string quoted(rostring src)
 {
   return stringc << "\""
-                 << encodeWithEscapes(src, strlen(src))
+                 << encodeWithEscapes(src)
                  << "\"";
 }
 
 
-void decodeEscapes(string &dest, int &destLen, char const *src,
+void decodeEscapes(ArrayStack<char> &dest, rostring origSrc,
                    char delim, bool allowNewlines)
 {
-  // place to collect the string characters
-  stringBuilder sb;
-  destLen = 0;
+  char const *src = toCStr(origSrc);
 
   while (*src != '\0') {
     if (*src == '\n' && !allowNewlines) {
@@ -207,12 +207,11 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
 
     if (*src != '\\') {
       // easy case
-      sb << *src;
-      destLen++;
+      dest.push(*src);
       src++;
       continue;
-    }          
-          
+    }
+
     // advance past backslash
     src++;
 
@@ -223,8 +222,7 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
     int i;
     for (i=1; i<TABLESIZE(escapes); i++) {
       if (escapes[i].escape == *src) {
-        sb << escapes[i].actual;
-        destLen++;
+        dest.push(escapes[i].actual);
         src++;
         break;
       }
@@ -232,7 +230,7 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
     if (i < TABLESIZE(escapes)) {
       continue;
     }
-    
+
     if (*src == '\0') {
       xformat("backslash at end of string");
     }
@@ -268,8 +266,7 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
         xformat("invalid hex (\\x) escape");
       }
 
-      sb << (unsigned char)val;    // possible truncation..
-      destLen++;
+      dest.push((char)(unsigned char)val);    // possible truncation..
       src = endptr;
       continue;
     }
@@ -282,20 +279,13 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
     // this case
     //
     // copy character as if it had not been backslashed
-    sb << *src;
-    destLen++;
+    dest.push(*src);
     src++;
-  }
-
-  // copy to 'dest'
-  dest.setlength(destLen);       // this sets the NUL
-  if (destLen > 0) {
-    memcpy(dest.pchar(), sb.pchar(), destLen);
   }
 }
 
 
-string parseQuotedString(char const *text)
+string parseQuotedString(rostring text)
 {
   if (!( text[0] == '"' &&
          text[strlen(text)-1] == '"' )) {
@@ -303,13 +293,17 @@ string parseQuotedString(char const *text)
   }
 
   // strip the quotes
-  string noQuotes = string(text+1, strlen(text)-2);
-  
+  string noQuotes = substring(toCStr(text)+1, strlen(text)-2);
+
   // decode escapes
-  string ret;
-  int dummyLen;
-  decodeEscapes(ret, dummyLen, noQuotes, '"');
-  return ret;
+  ArrayStack<char> buf;
+  decodeEscapes(buf, noQuotes, '"');
+  buf.push(0 /*NUL*/);
+
+  // return string contents up to first NUL, which isn't necessarily
+  // the same as the one just pushed; by invoking this function, the
+  // caller is accepting responsibility for this condition
+  return string(buf.getArray());
 }
 
 
@@ -317,17 +311,19 @@ string localTimeString()
 {
   time_t t = time(NULL);
   char const *p = asctime(localtime(&t));
-  return string(p, strlen(p) - 1);     // strip final newline
+  return substring(p, strlen(p) - 1);     // strip final newline
 }
 
 
-string sm_basename(char const *src)
+string sm_basename(rostring origSrc)
 {
+  char const *src = toCStr(origSrc);
+
   char const *sl = strrchr(src, '/');   // locate last slash
   if (sl && sl[1] == 0) {
     // there is a slash, but it is the last character; ignore it
     // (this behavior is what /bin/basename does)
-    return sm_basename(string(src, strlen(src)-1));
+    return sm_basename(substring(src, strlen(src)-1));
   }
 
   if (sl) {
@@ -338,8 +334,10 @@ string sm_basename(char const *src)
   }
 }
 
-string dirname(char const *src)
-{
+string dirname(rostring origSrc)
+{                              
+  char const *src = toCStr(origSrc);
+
   char const *sl = strrchr(src, '/');   // locate last slash
   if (sl == src) {
     // last slash is leading slash
@@ -349,11 +347,11 @@ string dirname(char const *src)
   if (sl && sl[1] == 0) {
     // there is a slash, but it is the last character; ignore it
     // (this behavior is what /bin/dirname does)
-    return dirname(string(src, strlen(src)-1));
+    return dirname(substring(src, strlen(src)-1));
   }
 
   if (sl) {
-    return string(src, sl-src);     // everything before slash
+    return substring(src, sl-src);     // everything before slash
   }
   else {
     return string(".");
@@ -361,32 +359,32 @@ string dirname(char const *src)
 }
 
 
-// I will expand this definition as I go to get more knowledge about
-// English irregularities as I need it
-string plural(int n, char const *prefix)
+// I will expand this definition to use more knowledge about English
+// irregularities as I need it
+string plural(int n, rostring prefix)
 {
   if (n==1) {
-    return string(prefix);
+    return prefix;
   }
 
   if (0==strcmp(prefix, "was")) {
     return string("were");
   }
   if (prefix[strlen(prefix)-1] == 'y') {
-    return stringc << string(prefix, strlen(prefix)-1) << "ies";
+    return stringc << substring(prefix, strlen(prefix)-1) << "ies";
   }
   else {
     return stringc << prefix << "s";
   }
 }
 
-string pluraln(int n, char const *prefix)
+string pluraln(int n, rostring prefix)
 {
   return stringc << n << " " << plural(n, prefix);
 }
 
 
-string a_or_an(char const *noun)
+string a_or_an(rostring noun)
 {
   bool use_an = false;
 
@@ -422,36 +420,36 @@ char *copyToStaticBuffer(char const *s)
 }
 
 
-bool prefixEquals(char const *str, char const *prefix)
+bool prefixEquals(rostring str, rostring prefix)
 {
   int slen = strlen(str);
   int plen = strlen(prefix);
   return slen >= plen &&
-         0==memcmp(str, prefix, plen);
+         0==memcmp(toCStr(str), toCStr(prefix), plen);
 }
 
-bool suffixEquals(char const *str, char const *suffix)
+bool suffixEquals(rostring str, rostring suffix)
 {
   int slen = strlen(str);
   int ulen = strlen(suffix);    // sUffix
   return slen >= ulen &&
-         0==memcmp(str+slen-ulen, suffix, ulen);
+         0==memcmp(toCStr(str)+slen-ulen, toCStr(suffix), ulen);
 }
 
 
-void writeStringToFile(char const *str, char const *fname)
+void writeStringToFile(rostring str, rostring fname)
 {
-  AutoFILE fp(fname, "w");
+  AutoFILE fp(toCStr(fname), "w");
 
-  if (fputs(str, fp) < 0) {
+  if (fputs(toCStr(str), fp) < 0) {
     xbase("fputs: EOF");
   }
 }
 
 
-string readStringFromFile(char const *fname)
+string readStringFromFile(rostring fname)
 {
-  AutoFILE fp(fname, "r");
+  AutoFILE fp(toCStr(fname), "r");
 
   stringBuilder sb;
 
@@ -502,13 +500,13 @@ bool readLine(string &dest, FILE *fp)
 }
 
 
-string chomp(char const *src)
+string chomp(rostring src)
 {
-  if (src && src[strlen(src)-1] == '\n') {
-    return string(src, strlen(src)-1);
+  if (!src.empty() && src[strlen(src)-1] == '\n') {
+    return substring(src, strlen(src)-1);
   }
   else {
-    return string(src);
+    return src;
   }
 }
 
@@ -536,11 +534,10 @@ void trVector(char const *in, char const *srcSpec, char const *destSpec, char co
 void decodeVector(char const *in, char const *out, int outLen)
 {
   printf("decodeVector: \"%s\"\n", in);
-  string dest;
-  int destLen;
-  decodeEscapes(dest, destLen, in, '\0' /*delim, ignored*/, false /*allowNewlines*/);
-  xassert(destLen == outLen);
-  xassert(0==memcmp(out, dest.pcharc(), destLen));
+  ArrayStack<char> dest;
+  decodeEscapes(dest, in, '\0' /*delim, ignored*/, false /*allowNewlines*/);
+  xassert(dest.length() == outLen);
+  xassert(0==memcmp(out, dest.getArray(), dest.length()));
 }
 
 void basenameVector(char const *in, char const *out)

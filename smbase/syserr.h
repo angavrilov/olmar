@@ -54,8 +54,8 @@ public:     // data
   string context;
 
 public:    // funcs
-  xSysError(Reason r, int sysCode, char const *sysReason,
-            char const *syscall, char const *ctx);
+  xSysError(Reason r, int sysCode, rostring sysReason,
+            rostring syscall, rostring ctx);
   xSysError(xSysError const &obj);
   ~xSysError();
 
@@ -74,32 +74,26 @@ public:    // funcs
     // translate a Reason into a string (if r is invalid, a string
     // saying to will be returned)
 
-  static string constructWhyString(Reason r, char const *sysReason,
-                                   char const *syscall, char const *ctx);
+  static string constructWhyString(Reason r, rostring sysReason,
+                                   rostring syscall, rostring ctx);
     // construct the string we throw as the 'why' of xBase; if ctx is NULL,
     // the string doesn't include it
 
-  static void xsyserror(char const *syscallName, char const *context);
+  static void xsyserror(rostring syscallName, rostring context);
     // does the throw
 };
 
 
 // function that does the throw
-inline void xsyserror(char const *syscallName, char const *context = NULL)
-{
-  xSysError::xsyserror(syscallName, context);
-}
+void xsyserror(char const *syscallName);
+void xsyserror(rostring syscallName, rostring context);
 
 
 // get a representative string, for logging etc.
-string sysErrorCodeString(int systemErrorCode, char const *syscallName,
-                                               char const *context=NULL);
+string sysErrorCodeString(int systemErrorCode, rostring syscallName,
+                                               rostring context);
 
-inline string sysErrorString(char const *syscallName, char const *context=NULL)
-{
-  return sysErrorCodeString(xSysError::getSystemErrorCode(),
-                            syscallName, context);
-}
+string sysErrorString(char const *syscallName, char const *context=NULL);
 
 
 #endif // __SYSERR_H

@@ -19,6 +19,11 @@
 // (like pipes) because we consume the whole input when its line
 // counts are computed.
 
+// This module mostly uses 'char const *' for filenames instead of
+// 'rostring' because performance is important here; the lexer is
+// often calling into this module with its raw buffer pointers, and I
+// don't want any allocation happening then.
+
 #ifndef SRCLOC_H
 #define SRCLOC_H
 

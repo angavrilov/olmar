@@ -343,7 +343,7 @@ void readDataFromFile(char *inFileName) {
     if (in.eof()) break;
 //      // don't insert 0 length strings
 //      if (s->length() == 0) continue;
-    dataArray->append(strdup(s.pcharc()));
+    dataArray->append(strdup(s.c_str()));
   }
 }
 

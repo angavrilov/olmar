@@ -6,19 +6,20 @@
 #define __STRTOKP_H
 
 #include "str.h"       // string
+#include "array.h"     // Array
 #include <string.h>    // strlen
 
 class StrtokParse {
-  string buf;          // locally allocated storage
+  Array<char> buf;     // locally allocated storage; NUL terminated
   int _tokc;           // # of tokens found
-  char **_tokv;        // array of tokens themselves
+  char **_tokv;        // array of tokens themselves; NULL terminated
 
 private:
   void validate(int which) const;
     // throw an exception if which is invalid token
 
 public:
-  StrtokParse(char const *str, char const *delim);
+  StrtokParse(rostring str, rostring delim);
     // parse 'str' into tokens delimited by chars from 'delim'
 
   ~StrtokParse();
@@ -32,13 +33,13 @@ public:
   char const* operator[] (int which) const { return tokv(which); }
     // access to tokens; must make local copies to modify
 
-  string reassemble(int firstTok, int lastTok, char const *originalString) const;
+  string reassemble(int firstTok, int lastTok, rostring originalString) const;
     // return the substring of the original string spanned by the
     // given range of tokens; if firstTok==lastTok, only that token is
     // returned (without any separators); must be that firstTok <=
     // lastTok
 
-  string join(int firstTok, int lastTok, char const *separator) const;
+  string join(int firstTok, int lastTok, rostring separator) const;
     // return a string created by concatenating the given range of tokens
     // together with 'separator' in between them
 

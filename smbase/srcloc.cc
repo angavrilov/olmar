@@ -45,7 +45,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   // the lower level (e.g. cygwin) will do CRLF translation,
   // and whether that will be done consistently, if text mode
   // is requested
-  AutoFILE fp(name, "rb");
+  AutoFILE fp(toCStr(name), "rb");
 
   // the buffering that FILE would do would be wasted, so
   // make it unbuffered (if this causes a problem on some
@@ -554,13 +554,13 @@ void SourceLocManager::decodeOffset(
   // check for static
   if (isStatic(loc)) {
     StaticLoc const *s = getStatic(loc);
-    filename = s->name.pcharc();
+    filename = s->name.c_str();
     charOffset = s->offset;
     return;
   }
 
   File *f = findFileWithLoc(loc);
-  filename = f->name.pcharc();
+  filename = f->name.c_str();
   charOffset = toInt(loc) - toInt(f->startLoc);
   
   if (useHashLines && f->hashLines) {
@@ -610,14 +610,14 @@ void SourceLocManager::decodeLineCol(
   // check for static
   if (isStatic(loc)) {
     StaticLoc const *s = getStatic(loc);
-    filename = s->name.pcharc();
+    filename = s->name.c_str();
     line = s->line;
     col = s->col;
     return;
   }
 
   File *f = findFileWithLoc(loc);
-  filename = f->name.pcharc();
+  filename = f->name.c_str();
   int charOffset = toInt(loc) - toInt(f->startLoc);
   
   f->charToLineCol(charOffset, line, col);
@@ -884,8 +884,8 @@ void testHashMap()
 
       int origLine = atoi(tok[1]);
       char const *tok2 = tok[2];
-      string origFname = string(tok2+1, strlen(tok2)-2);  // remove quotes
-      pp->addHashLine(ppLine, origLine, origFname);
+      string origFname = substring(tok2+1, strlen(tok2)-2);  // remove quotes
+      pp->addHashLine(ppLine, origLine, origFname.c_str());
     }
     pp->doneAdding();
   }

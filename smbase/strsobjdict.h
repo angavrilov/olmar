@@ -100,6 +100,15 @@ public:     // funcs
 
   void empty()                                         { dict.empty(); }
 
+  // -------- parallel interface for 'rostring' --------
+  bool query(rostring key, T *&value) const { return query(key.c_str(), value); }
+  T *queryf(rostring key) const             { return queryf(key.c_str()); }
+  T *queryif(rostring key) const            { return queryif(key.c_str()); }
+  bool isMapped(rostring key) const         { return isMapped(key.c_str()); }
+  void add(rostring key, T *value)          { add(key.c_str(), value); }
+  T *modify(rostring key, T *newValue)      { return modify(key.c_str(), newValue); }
+  T *remove(rostring key)                   { return remove(key.c_str()); }
+
   // --------- iters -------------
   void foreach(ForeachFn func, void *extra=NULL) const
     { dict.foreach((StringVoidDict::ForeachFn)func, extra); }

@@ -10,25 +10,29 @@
 #include <string.h>         // strcmp
 #include <iostream.h>       // ostream << char*
 #include <assert.h>         // assert
+#include <unistd.h>         // write
 
 #include "xassert.h"        // xassert
 #include "ckheap.h"         // checkHeapNode
 #include "flatten.h"        // Flatten
 #include "nonport.h"        // vnprintf
-#include "unixutil.h"       // writeAll
+#include "array.h"          // Array
 
 
 // ----------------------- string ---------------------
-// ideally the compiler would arrange for 'empty', and the
-// "" it points to, to live in a read-only section of mem..;
-// but I can't declare it 'char const *' because I assign
-// it to 's' in many places..
-char * const string::empty = "";
+
+// put the empty string itself in read-only memory
+char const nul_byte = 0;
+
+// deliberately cast away the constness; I cannot declare
+// 'emptyString' to be const because it gets assigned to 's', but it
+// is nevertheless the intent that I never modify 'nul_byte'
+char * const string::emptyString = const_cast<char*>(&nul_byte);
 
 
-string::string(char const *src, int length)
+string::string(char const *src, int length, SmbaseStringFunc)
 {
-  s=empty;
+  s=emptyString;
   setlength(length);       // setlength already has the +1; sets final NUL
   memcpy(s, src, length);
 }
@@ -36,8 +40,11 @@ string::string(char const *src, int length)
 
 void string::dup(char const *src)
 {
-  if (!src || src[0]==0) {
-    s = empty;
+  // std::string does not accept NULL pointers
+  xassert(src != NULL);
+
+  if (src[0]==0) {
+    s = emptyString;
   }
   else {
     s = new char[ strlen(src) + 1 ];
@@ -48,14 +55,14 @@ void string::dup(char const *src)
 
 void string::kill()
 {
-  if (s != empty) {
+  if (s != emptyString) {
     delete s;
   }
 }
 
 
 string::string(Flatten&)
-  : s(empty)
+  : s(emptyString)
 {}
 
 void string::xfer(Flatten &flat)
@@ -83,7 +90,7 @@ string string::substring(int startIndex, int len) const
           len >= 0 &&
           startIndex + len <= length());
 
-  return string(s+startIndex, len);
+  return ::substring(s+startIndex, len);
 }
 
 
@@ -98,7 +105,7 @@ string &string::setlength(int length)
   }
   else {
     xassert(length == 0);     // negative wouldn't make sense
-    s = empty;
+    s = emptyString;
   }
   return *this;
 }
@@ -112,7 +119,7 @@ int string::compareTo(string const &src) const
 int string::compareTo(char const *src) const
 {
   if (src == NULL) {
-    src = empty;
+    src = emptyString;
   }
   return strcmp(s, src);
 }
@@ -120,7 +127,7 @@ int string::compareTo(char const *src) const
 
 string string::operator&(string const &tail) const
 {
-  string dest(length() + tail.length());
+  string dest(length() + tail.length(), SMBASE_STRING_FUNC);
   strcpy(dest.s, s);
   strcat(dest.s, tail.s);
   return dest;
@@ -148,9 +155,30 @@ void string::write(ostream &os) const
 
 void string::selfCheck() const
 { 
-  if (s != empty) {
+  if (s != emptyString) {
     checkHeapNode(s);
   }
+}
+
+
+// ----------------------- rostring ---------------------
+int strcmp(rostring s1, rostring s2)
+  { return strcmp(s1.c_str(), s2.c_str()); }
+int strcmp(rostring s1, char const *s2)
+  { return strcmp(s1.c_str(), s2); }
+int strcmp(char const *s1, rostring s2)
+  { return strcmp(s1, s2.c_str()); }
+
+
+char const *strstr(rostring haystack, char const *needle)
+{
+  return strstr(haystack.c_str(), needle);
+}
+
+
+string substring(char const *p, int n)
+{
+  return string(p, n, SMBASE_STRING_FUNC);
 }
 
 
@@ -384,10 +412,10 @@ string vstringf(char const *format, va_list args)
   int est = vnprintf(format, args);
                     
   // allocate space
-  string ret(est+1);
-  
+  Array<char> buf(est+1);
+
   // render the string
-  int len = vsprintf(ret.pchar(), format, args);
+  int len = vsprintf(buf, format, args);
 
   // check the estimate, and fail *hard* if it was low, to avoid any
   // possibility that this might become exploitable in some context
@@ -398,12 +426,12 @@ string vstringf(char const *format, va_list args)
     static char const msg[] =
       "fatal error: vnprintf failed to provide a conservative estimate,\n"
       "memory is most likely corrupted\n";
-    writeAll(2 /*stderr*/, msg, strlen(msg));
+    write(2 /*stderr*/, msg, strlen(msg));
     abort();
   }
-             
+
   // happy
-  return ret;
+  return string(buf);
 }
 
 

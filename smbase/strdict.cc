@@ -46,7 +46,7 @@ StringDict& StringDict::operator= (StringDict const &obj)
 
   Node *end = top;
   FOREACH_ITERC(obj, src) {
-    Node *newnode = new Node(src.key(), src.value());
+    Node *newnode = new Node(src.key().c_str(), src.value().c_str());
     if (!end) {
       // first element of list
       end = top = newnode;
@@ -385,8 +385,8 @@ void entry()
         string key = randStringRandLen(10);
         string value = randStringRandLen(30);
 
-        if (!dict.isMapped(key)) {
-          dict.add(key, value);
+        if (!dict.isMapped(key.c_str())) {
+          dict.add(key.c_str(), value.c_str());
           size++;
         }
         else {
@@ -402,7 +402,7 @@ void entry()
         }
 
         string key = randKey(dict);
-        dict.remove(key);
+        dict.remove(key.c_str());
         size--;
         break;
       }
@@ -410,7 +410,7 @@ void entry()
       case 2: {
         // check a random element that should not be there
         string key = randStringRandLen(10);
-        if (dict.isMapped(key)) {
+        if (dict.isMapped(key.c_str())) {
           collisions++;
         }
         break;
@@ -431,13 +431,13 @@ void entry()
         // modify it, then verify inequality
         if (!dict2.isEmpty()) {
           string key = randKey(dict2);
-          string value = dict2.queryf(key);
+          string value = dict2.queryf(key.c_str());
 
           if (myrandom(2) == 0) {
-            dict2.remove(key);
+            dict2.remove(key.c_str());
           }
           else {
-            dict2.modify(key, value & "x");
+            dict2.modify(key.c_str(), stringc << value << "x");
           }
           xassert(dict2 != dict);
         }
@@ -449,7 +449,7 @@ void entry()
         // random modification
         if (!dict.isEmpty()) {
           string key = randKey(dict);
-          dict.modify(key, randStringRandLen(30));
+          dict.modify(key.c_str(), randStringRandLen(30).c_str());
         }
         break;
       }

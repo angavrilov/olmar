@@ -4,12 +4,19 @@
 //   can pass the entire object as a single word
 // Scott McPeak, 1995-2000  This file is public domain.
 
+// 2005-03-01: See string.txt.  The plan is to evolve the class
+// towards compatibility with std::string, such that eventually
+// they will be interchangeable.  So far I have converted only
+// the most problematic constructs, those involving construction,
+// conversion, and internal pointers.
+
 #ifndef STR_H
 #define STR_H
 
 #include "typ.h"         // bool
 #include <iostream.h>	 // istream, ostream
 #include <stdarg.h>      // va_list
+#include <string.h>      // strcmp, etc.
 
 class Flatten;           // flatten.h
 
@@ -23,15 +30,25 @@ class Flatten;           // flatten.h
 // their job.  Since Intel's headers are the only ones that provoke
 // the problem I'll confine it to that case for now.  Eventually I
 // will do the same for gcc.
-#if !defined(__INTEL_COMPILER)
+//
+// 2005-02-28: Let's try getting rid of this.
+#if 0   //!defined(__INTEL_COMPILER)
   #define string mystring
 #endif
+
+
+// ------------------------- string ---------------------
+// This is used when I want to call a function in smbase::string
+// that does not exist or has different semantics in std::string.
+// That way for now I can keep using the function, but it is 
+// marked as incompatible.
+enum SmbaseStringFunc { SMBASE_STRING_FUNC };
 
 class string {
 protected:     // data
   // 10/12/00: switching to never letting s be NULL
   char *s;     	       	       	       // string contents; never NULL
-  static char * const empty;           // a global ""; should never be modified
+  static char * const emptyString;     // a global ""; should never be modified
 
 protected:     // funcs
   void dup(char const *source);        // copies, doesn't dealloc first
@@ -40,11 +57,20 @@ protected:     // funcs
 public:	       // funcs
   string(string const &src) { dup(src.s); }
   string(char const *src) { dup(src); }
-  string(char const *src, int length);    // grab a substring
-  string(int length) { s=empty; setlength(length); }
-  string() { s=empty; }
-
+  string() { s=emptyString; }
   ~string() { kill(); }
+
+  // for this one, use ::substring instead
+  string(char const *src, int length, SmbaseStringFunc);
+
+  // for this one, there are two alternatives:
+  //   - stringBuilder has nearly the same constructor interface
+  //     as string had, but cannot export a char* for writing 
+  //     (for the same reason string can't anymore); operator[] must
+  //     be used
+  //   - Array<char> is very flexible, but remember to add 1 to 
+  //     the length passed to its constructor!
+  string(int length, SmbaseStringFunc) { s=emptyString; setlength(length); }
 
   string(Flatten&);
   void xfer(Flatten &flat);
@@ -53,6 +79,9 @@ public:	       // funcs
   int length() const;  	       	// returns number of non-null chars in the string; length of "" is 0
   bool isempty() const { return s[0]==0; }
   bool contains(char c) const;
+  
+  // std::string has this instead; I will begin using slowly
+  bool empty() const { return isempty(); }
 
   // array-like access
   char& operator[] (int i) { return s[i]; }
@@ -62,10 +91,14 @@ public:	       // funcs
   string substring(int startIndex, int length) const;
 
   // conversions
-  //operator char* () { return s; }      // ambiguities...
-  operator char const* () const { return s; }
-  char *pchar() { return s; }
-  char const *pcharc() const { return s; }
+  #if 0    // removing these for more standard compliace
+    //operator char* () { return s; }      // ambiguities...
+    operator char const* () const { return s; }
+    char *pchar() { return s; }
+    char const *pcharc() const { return s; }
+  #else
+    char const *c_str() const { return s; }
+  #endif
 
   // assignment
   string& operator=(string const &src)
@@ -83,6 +116,7 @@ public:	       // funcs
   int compareTo(string const &src) const;
   int compareTo(char const *src) const;
   bool equals(char const *src) const { return compareTo(src) == 0; }
+  bool equals(string const &src) const { return compareTo(src) == 0; }
 
   #define MAKEOP(op)							       	 \
     bool operator op (string const &src) const { return compareTo(src) op 0; }	 \
@@ -128,9 +162,39 @@ public:	       // funcs
 };
 
 
-// replace() and trimWhiteSpace() have been moved to strutil.h
+// ------------------------ rostring ----------------------
+// My plan is to use this in places I currently use 'char const *'.
+typedef string const &rostring;
+
+// I have the modest hope that the transition to 'rostring' might be
+// reversible, so this function converts to 'char const *' but with a
+// syntax that could just as easily apply to 'char const *' itself
+// (and in that case would be the identity function).
+inline char const *toCStr(rostring s) { return s.c_str(); }
+
+// at the moment, if I do this it is a mistake, so catch it; this
+// function is not implemented anywhere
+void/*unusable*/ toCStr(char const *s);
+
+// I need some compatibility functions
+inline int strlen(rostring s) { return s.length(); }
+
+int strcmp(rostring s1, rostring s2);
+int strcmp(rostring s1, char const *s2);
+int strcmp(char const *s1, rostring s2);
+// string.h, above, provides:
+// int strcmp(char const *s1, char const *s2);
+
+char const *strstr(rostring haystack, char const *needle);
+
+// construct a string out of characters from 'p' up to 'p+n-1',
+// inclusive; resulting string length is 'n'
+string substring(char const *p, int n);
+inline string substring(rostring p, int n)
+  { return substring(p.c_str(), n); }
 
 
+// --------------------- stringBuilder --------------------
 // this class is specifically for appending lots of things
 class stringBuilder : public string {
 protected:
@@ -146,16 +210,23 @@ public:
   stringBuilder(int length=0);    // creates an empty string
   stringBuilder(char const *str);
   stringBuilder(char const *str, int length);
-  stringBuilder(string const &str) { dup((char const*)str); }
-  stringBuilder(stringBuilder const &obj) { dup((char const*)obj); }
+  stringBuilder(string const &str) { dup(str.c_str()); }
+  stringBuilder(stringBuilder const &obj) { dup(obj.c_str()); }
   ~stringBuilder() {}
 
   stringBuilder& operator= (char const *src);
-  stringBuilder& operator= (string const &s) { return operator= ((char const*)s); }
-  stringBuilder& operator= (stringBuilder const &s) { return operator= ((char const*)s); }
+  stringBuilder& operator= (string const &s) { return operator= (s.c_str()); }
+  stringBuilder& operator= (stringBuilder const &s) { return operator= (s.c_str()); }
 
   int length() const { return end-s; }
   bool isempty() const { return length()==0; }
+
+  // unlike 'string' above, I will allow stringBuilder to convert to
+  // char const * so I can continue to use 'stringc' to build strings
+  // for functions that accept char const *; this should not conflict
+  // with std::string, since I am explicitly using a different class
+  // (namely stringBuilder) when I use this functionality
+  operator char const * () const { return c_str(); }
 
   stringBuilder& setlength(int newlen);    // change length, forget current data
 
@@ -185,8 +256,7 @@ public:
   stringBuilder& indent(int amt);
 
   // sort of a mixture of Java compositing and C++ i/o strstream
-  // (need the coercion versions (like int) because otherwise gcc
-  // spews mountains of f-ing useless warnings)
+  stringBuilder& operator << (rostring text) { return operator&=(text.c_str()); }
   stringBuilder& operator << (char const *text) { return operator&=(text); }
   stringBuilder& operator << (char c);
   stringBuilder& operator << (unsigned char c) { return operator<<((char)c); }
@@ -229,6 +299,7 @@ public:
 };
 
 
+// ---------------------- misc utils ------------------------
 // the real strength of this entire module: construct strings in-place
 // using the same syntax as C++ iostreams.  e.g.:
 //   puts(stringb("x=" << x << ", y=" << y));

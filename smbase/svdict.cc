@@ -19,7 +19,7 @@
 
 STATICDEF char const *StringVoidDict::Node::getKey(StringVoidDict::Node const *n)
 {
-  return n->key.pcharc();
+  return n->key.c_str();
 }
 
 
@@ -56,7 +56,7 @@ StringVoidDict& StringVoidDict::operator= (StringVoidDict const &obj)
   FOREACH_ITERC(obj, src) {
     // const_cast needed because the resulting dictionary can now access
     // the data objects and modify them... hmm...
-    Node *newnode = new Node(src.key(), const_cast<void*>(src.value()));
+    Node *newnode = new Node(src.key().c_str(), const_cast<void*>(src.value()));
     if (!end) {
       // first element of list
       end = top = newnode;
@@ -65,7 +65,7 @@ StringVoidDict& StringVoidDict::operator= (StringVoidDict const &obj)
       // adding to end of nonempty list
       end = end->next = newnode;
     }
-    hash.add(newnode->key, newnode);
+    hash.add(newnode->key.c_str(), newnode);
   }
 
   SELFCHECK();
@@ -192,7 +192,7 @@ void *StringVoidDict::remove(char const *key)
     Node *temp = top;
     top = top->next;
     ret = temp->value;
-    hash.remove(temp->key);
+    hash.remove(temp->key.c_str());
     delete temp;
   }
 
@@ -212,7 +212,7 @@ void *StringVoidDict::remove(char const *key)
     Node *temp = p->next;
     p->next = p->next->next;
     ret = temp->value;
-    hash.remove(temp->key);
+    hash.remove(temp->key.c_str());
     delete temp;
   }
 
@@ -235,7 +235,7 @@ void StringVoidDict::emptyAndDel(DelFn func)
     if (func != NULL) {
       func(temp->value);
     }
-    hash.remove(temp->key);
+    hash.remove(temp->key.c_str());
     delete temp;
   }
 
@@ -355,7 +355,7 @@ void StringVoidDict::selfCheck() const
   // check counts, mappings
   int ct=0;
   for (Node *n = top; n != NULL; n = n->next, ct++) {
-    xassert(hash.get(n->key) == n);
+    xassert(hash.get(n->key.c_str()) == n);
   }
   xassert(hash.getNumEntries() == ct);
 }
@@ -444,8 +444,8 @@ void entry()
         string key = randStringRandLen(10);
         void *value = randVoidPtr();
 
-        if (!dict.isMapped(key)) {
-          dict.add(key, value);
+        if (!dict.isMapped(key.c_str())) {
+          dict.add(key.c_str(), value);
           size++;
         }
         else {
@@ -461,7 +461,7 @@ void entry()
         }
 
         string key = randKey(dict);
-        dict.remove(key);
+        dict.remove(key.c_str());
         size--;
         break;
       }
@@ -469,7 +469,7 @@ void entry()
       case 2: {
         // check a random element that should not be there
         string key = randStringRandLen(10);
-        if (dict.isMapped(key)) {
+        if (dict.isMapped(key.c_str())) {
           collisions++;
         }
         break;
@@ -490,13 +490,13 @@ void entry()
         // modify it, then verify inequality
         if (!dict2.isEmpty()) {
           string key = randKey(dict2);
-          void *value = dict2.queryf(key);
+          void *value = dict2.queryf(key.c_str());
 
           if (myrandom(2) == 0) {
-            dict2.remove(key);
+            dict2.remove(key.c_str());
           }
           else {
-            dict2.modify(key, (void*)((int)value + 24));
+            dict2.modify(key.c_str(), (void*)((int)value + 24));
           }
           xassert(dict2 != dict);
         }
@@ -508,7 +508,7 @@ void entry()
         // random modification
         if (!dict.isEmpty()) {
           string key = randKey(dict);
-          dict.modify(key, randVoidPtr());
+          dict.modify(key.c_str(), randVoidPtr());
         }
         break;
       }

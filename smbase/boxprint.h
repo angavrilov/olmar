@@ -43,7 +43,7 @@ public:
   int remainder() const { return margin - getCurCol(); }
 
   // add some text (that doesn't include newlines) to the output
-  void add(char const *text);
+  void add(rostring text);
 
   // add a newline, plus indentation to get to column 'ind'
   void breakLine(int ind);
@@ -102,7 +102,7 @@ public:
   string text;
 
 public:
-  BPText(char const *t);
+  BPText(rostring t);
   ~BPText();
 
   // BPElement funcs
@@ -240,8 +240,9 @@ public:      // funcs
   void append(BPElement *elt);
 
   // add BPText nodes to current box
-  BoxPrint& operator<< (int i);
+  BoxPrint& operator<< (rostring s);
   BoxPrint& operator<< (char const *s);
+  BoxPrint& operator<< (int i);
 
   // open/close boxes
   BoxPrint& operator<< (BPKind k);

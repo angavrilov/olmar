@@ -45,8 +45,8 @@ STATICDEF char const *xSysError::
 }
 
 
-xSysError::xSysError(xSysError::Reason r, int sysCode, char const *sysReason,
-                     char const *syscall, char const *ctx)
+xSysError::xSysError(xSysError::Reason r, int sysCode, rostring sysReason,
+                     rostring syscall, rostring ctx)
   : xBase(constructWhyString(r, sysReason, syscall, ctx)),
     reason(r),
     reasonString(getReasonString(r)),
@@ -58,11 +58,9 @@ xSysError::xSysError(xSysError::Reason r, int sysCode, char const *sysReason,
 
 
 STATICDEF string xSysError::
-  constructWhyString(xSysError::Reason r, char const *sysReason,
-                     char const *syscall, char const *ctx)
+  constructWhyString(xSysError::Reason r, rostring sysReason,
+                     rostring syscall, rostring ctx)
 {
-  xassert(syscall);
-
   // build string; start with syscall that failed
   stringBuilder sb;
   sb << syscall << ": ";
@@ -80,7 +78,7 @@ STATICDEF string xSysError::
   }
 
   // finally, the context
-  if (ctx != NULL) {
+  if (!ctx.empty()) {
     sb << ", " << ctx;
   }
   
@@ -104,7 +102,7 @@ xSysError::~xSysError()
 
 
 STATICDEF void xSysError::
-  xsyserror(char const *syscallName, char const *context)
+  xsyserror(rostring syscallName, rostring context)
 {
   // retrieve system error code
   int code = getSystemErrorCode();
@@ -120,15 +118,31 @@ STATICDEF void xSysError::
   THROW(obj);
 }
 
+void xsyserror(char const *syscallName)
+{
+  xSysError::xsyserror(syscallName, string(""));
+}
 
-string sysErrorCodeString(int systemErrorCode, char const *syscallName,
-                                               char const *context)
+void xsyserror(rostring syscallName, rostring context)
+{
+  xSysError::xsyserror(syscallName, context);
+}
+
+
+string sysErrorCodeString(int systemErrorCode, rostring syscallName,
+                                               rostring context)
 {
   string sysMsg;
   xSysError::Reason r = xSysError::portablize(systemErrorCode, sysMsg);
   return xSysError::constructWhyString(
            r, sysMsg,
            syscallName, context);
+}
+
+string sysErrorString(char const *syscallName, char const *context)
+{
+  return sysErrorCodeString(xSysError::getSystemErrorCode(),
+                            syscallName, context);
 }
 
 

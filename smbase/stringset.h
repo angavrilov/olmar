@@ -23,12 +23,15 @@ public:      // funcs
 
   // true if elt is in the set
   bool contains(char const *elt) const    { return elts.isMapped(elt); }
+  bool contains(rostring elt) const       { return contains(elt.c_str()); }
 
   // add elt to the set; ok if it's already there
   void add(char const *elt);
+  void add(rostring elt) { add(elt.c_str()); }
 
   // remove elt from the set; ok if it's not there now
   void remove(char const *elt);
+  void remove(rostring elt) { remove(elt.c_str()); }
 
   // empty the set
   void empty()                            { elts.empty(); }

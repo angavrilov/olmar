@@ -10,6 +10,10 @@
 
 // linkdepend: exc.cpp
 
+// this functions accepts raw 'char const *' instead of 'rostring'
+// because I do not want this interface to depend on str.h, and also
+// because I do not want the many call sites to have the overhead
+// of constructing and destructing temporary objects
 void x_assert_fail(char const *cond, char const *file, int line) NORETURN;
 
 // Ordinary 'xassert' *can* be turned off, but the nominal intent

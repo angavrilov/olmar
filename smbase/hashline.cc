@@ -6,7 +6,7 @@
 #include <string.h>        // memcpy
 
 
-HashLineMap::HashLineMap(char const *pf)
+HashLineMap::HashLineMap(rostring pf)
   : ppFname(pf),
     filenames(),     // empty
     directives(),    // empty
@@ -31,7 +31,7 @@ void HashLineMap::addHashLine(int ppLine, int origLine, char const *origFname)
     canon = new string(origFname);
     filenames.add(origFname, canon);
   }
-  origFname = canon->pcharc();
+  origFname = canon->c_str();
 
   // add the entry to the array
   directives.push(HashLine(ppLine, origLine, origFname));
@@ -66,7 +66,7 @@ void HashLineMap::map(int ppLine, int &origLine, char const *&origFname) const
       ppLine < directives[0].ppLine) {
     // it simply refers to the pp file
     origLine = ppLine;
-    origFname = ppFname.pcharc();
+    origFname = ppFname.c_str();
     return;
   }
 

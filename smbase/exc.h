@@ -52,38 +52,38 @@ bool unwinding_other(xBase const &x);
 // intent is to derive all exception objects from this
 class xBase {
 protected:
+  // the human-readable description of the exception
   string msg;
-    // the human-readable description of the exception
 
 public:
+  // initially true; when true, we write a record of the thrown exception
+  // to clog
   static bool logExceptions;
-    // initially true; when true, we write a record of the thrown exception
-    // to clog
 
+  // current # of xBases running about; used to support unrolling()
   static int creationCount;
-    // current # of xBases running about; used to support unrolling()
 
 public:
-  xBase(char const *m);    // create exception object with message 'm'
+  xBase(rostring m);       // create exception object with message 'm'
   xBase(xBase const &m);   // copy ctor
   virtual ~xBase();
 
-  char const *why() const
-    { return (char const*)msg; }
+  rostring why() const
+    { return msg; }
 
+  // print why
   void insert(ostream &os) const;
   friend ostream& operator << (ostream &os, xBase const &obj)
     { obj.insert(os); return os; }
-    // print why
-    
+
   // add a string describing what was going on at the time the
   // exception was thrown; this should be called with the innermost
   // context string first, i.e., in the normal unwind order
-  void addContext(char const *context);
+  void addContext(rostring context);
 };
 
 // equivalent to THROW(xBase(msg))
-void xbase(char const *msg) NORETURN;
+void xbase(rostring msg) NORETURN;
 
 
 // -------------------- x_assert -----------------------
@@ -95,12 +95,12 @@ class x_assert : public xBase {
   int lineno;                // line number
 
 public:
-  x_assert(char const *cond, char const *fname, int line);
+  x_assert(rostring cond, rostring fname, int line);
   x_assert(x_assert const &obj);
   ~x_assert();
 
-  char const *cond() const { return (char const *)condition; }
-  char const *fname() const { return (char const *)filename; }
+  rostring cond() const { return condition; }
+  rostring fname() const { return filename; }
   int line() const { return lineno; }
 };
 
@@ -113,15 +113,15 @@ class xFormat : public xBase {
   string condition;          // what is wrong with the input
 
 public:
-  xFormat(char const *cond);
+  xFormat(rostring cond);
   xFormat(xFormat const &obj);
   ~xFormat();
 
-  char const *cond() const { return (char const*)condition; }
+  rostring cond() const { return condition; }
 };
 
 // compact way to throw an xFormat
-void xformat(char const *condition) NORETURN;
+void xformat(rostring condition) NORETURN;
 
 // convenient combination of condition and human-readable message
 #define checkFormat(cond, message) \
@@ -141,12 +141,12 @@ public:
   string filename;
   
 public:
-  XOpen(char const *fname);
+  XOpen(rostring fname);
   XOpen(XOpen const &obj);
   ~XOpen();
 };
 
-void throw_XOpen(char const *fname) NORETURN;
+void throw_XOpen(rostring fname) NORETURN;
 
 
 // -------------------- XOpenEx ---------------------
@@ -157,16 +157,16 @@ public:
   string cause;        // errno-derived failure cause, e.g. "no such file"
 
 public:
-  XOpenEx(char const *fname, char const *mode, char const *cause);
+  XOpenEx(rostring fname, rostring mode, rostring cause);
   XOpenEx(XOpenEx const &obj);
   ~XOpenEx();
                                               
   // convert a mode string as into human-readable participle,
   // e.g. "r" becomes "reading"
-  static string interpretMode(char const *mode);
+  static string interpretMode(rostring mode);
 };
 
-void throw_XOpenEx(char const *fname, char const *mode, char const *cause) NORETURN;
+void throw_XOpenEx(rostring fname, rostring mode, rostring cause) NORETURN;
 
 
 // ------------------- XUnimp ---------------------
@@ -174,12 +174,12 @@ void throw_XOpenEx(char const *fname, char const *mode, char const *cause) NORET
 // allowed but not yet handled by the existing code
 class XUnimp : public xBase {
 public:
-  XUnimp(char const *msg);
+  XUnimp(rostring msg);
   XUnimp(XUnimp const &obj);
   ~XUnimp();
 };
 
-void throw_XUnimp(char const *msg) NORETURN;
+void throw_XUnimp(rostring msg) NORETURN;
 
 // throw XUnimp with file/line info
 void throw_XUnimp(char const *msg, char const *file, int line) NORETURN;
@@ -192,12 +192,12 @@ void throw_XUnimp(char const *msg, char const *file, int line) NORETURN;
 // error; it is not due to a bug in the program
 class XFatal : public xBase {
 public:
-  XFatal(char const *msg);
+  XFatal(rostring msg);
   XFatal(XFatal const &obj);
   ~XFatal();
 };
 
-void throw_XFatal(char const *msg) NORETURN;
+void throw_XFatal(rostring msg) NORETURN;
 
 
 #endif // EXC_H

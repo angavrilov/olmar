@@ -52,7 +52,7 @@ private:    // data
   int prev_ppLine;
 
 public:     // funcs
-  HashLineMap(char const *ppFname);
+  HashLineMap(rostring ppFname);
   ~HashLineMap();
 
   // call this time each time a #line directive is encountered;

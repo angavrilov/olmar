@@ -26,7 +26,7 @@ void BPRender::reset()
 }
 
 
-void BPRender::add(char const *text)
+void BPRender::add(rostring text)
 {
   int len = strlen(text);
   sb << text;
@@ -78,7 +78,7 @@ BPElement::~BPElement()
 
 
 // ------------------------- BPText ----------------------
-BPText::BPText(char const *t)
+BPText::BPText(rostring t)
   : text(t)
 {}
 
@@ -338,15 +338,21 @@ void BoxPrint::append(BPElement *elt)
 }
 
 
-BoxPrint& BoxPrint::operator<< (int i)
+BoxPrint& BoxPrint::operator<< (rostring s)
 {
-  return operator<< (stringc << i);
+  append(new BPText(s));
+  return *this;
 }
 
 BoxPrint& BoxPrint::operator<< (char const *s)
 {
   append(new BPText(s));
   return *this;
+}
+
+BoxPrint& BoxPrint::operator<< (int i)
+{
+  return operator<< (stringc << i);
 }
 
 

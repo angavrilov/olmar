@@ -15,7 +15,7 @@ bool xBase::logExceptions = true;
 int xBase::creationCount = 0;
 
 
-xBase::xBase(char const *m)
+xBase::xBase(rostring m)
   : msg(m)
 {
   if (logExceptions) {
@@ -68,14 +68,14 @@ void xBase::insert(ostream &os) const
 }
 
 
-void xbase(char const *msg)
+void xbase(rostring msg)
 {
   xBase x(msg);
   THROW(x);
 }
 
 
-void xBase::addContext(char const *context)
+void xBase::addContext(rostring context)
 {
   // for now, fairly simple
   msg = stringc << "while " << context << ",\n" << msg;
@@ -83,7 +83,7 @@ void xBase::addContext(char const *context)
 
 
 // ------------------- x_assert -----------------
-x_assert::x_assert(char const *cond, char const *fname, int line)
+x_assert::x_assert(rostring cond, rostring fname, int line)
   : xBase(stringb(
       "Assertion failed: " << cond <<
       ", file " << fname <<
@@ -112,7 +112,7 @@ void x_assert_fail(char const *cond, char const *file, int line)
 
 
 // --------------- xFormat ------------------
-xFormat::xFormat(char const *cond)
+xFormat::xFormat(rostring cond)
   : xBase(stringb("Formatting error: " << cond)),
     condition(cond)
 {}
@@ -126,7 +126,7 @@ xFormat::~xFormat()
 {}
 
 
-void xformat(char const *condition)
+void xformat(rostring condition)
 {
   xFormat x(condition);
   THROW(x);
@@ -134,7 +134,7 @@ void xformat(char const *condition)
 
 void formatAssert_fail(char const *cond, char const *file, int line)
 {
-  xFormat x(stringc << "format assertion failed, " 
+  xFormat x(stringc << "format assertion failed, "
                     << file << ":" << line << ": "
                     << cond);
   THROW(x);
@@ -142,7 +142,7 @@ void formatAssert_fail(char const *cond, char const *file, int line)
 
 
 // -------------------- XOpen -------------------
-XOpen::XOpen(char const *fname)
+XOpen::XOpen(rostring fname)
   : xBase(stringc << "failed to open file: " << fname),
     filename(fname)
 {}
@@ -156,7 +156,7 @@ XOpen::~XOpen()
 {}
 
 
-void throw_XOpen(char const *fname)
+void throw_XOpen(rostring fname)
 {
   XOpen x(fname);
   THROW(x);
@@ -164,7 +164,7 @@ void throw_XOpen(char const *fname)
 
 
 // -------------------- XOpenEx ---------------------
-XOpenEx::XOpenEx(char const *fname, char const *m, char const *c)
+XOpenEx::XOpenEx(rostring fname, rostring m, rostring c)
   : XOpen(fname),
     mode(m),
     cause(c)
@@ -184,7 +184,7 @@ XOpenEx::~XOpenEx()
 {}
 
 
-STATICDEF string XOpenEx::interpretMode(char const *mode)
+STATICDEF string XOpenEx::interpretMode(rostring mode)
 {
   if (mode[0]=='r') {
     if (mode[1]=='+') {
@@ -217,7 +217,7 @@ STATICDEF string XOpenEx::interpretMode(char const *mode)
 }
 
 
-void throw_XOpenEx(char const *fname, char const *mode, char const *cause)
+void throw_XOpenEx(rostring fname, rostring mode, rostring cause)
 {
   XOpenEx x(fname, mode, cause);
   THROW(x);
@@ -225,7 +225,7 @@ void throw_XOpenEx(char const *fname, char const *mode, char const *cause)
 
 
 // -------------------- XUnimp -------------------
-XUnimp::XUnimp(char const *msg)
+XUnimp::XUnimp(rostring msg)
   : xBase(stringc << "unimplemented: " << msg)
 {}
 
@@ -237,7 +237,7 @@ XUnimp::~XUnimp()
 {}
 
 
-void throw_XUnimp(char const *msg)
+void throw_XUnimp(rostring msg)
 {
   XUnimp x(msg);
   THROW(x);
@@ -255,7 +255,7 @@ void throw_XUnimp(char const *msg, char const *file, int line)
 // itself.  Doing so would unnecessarily alarm novice users, and the
 // fatal-ness is sufficiently expressed by the fact that an exception
 // is thrown, as opposed to simply printing the message and continuing.
-XFatal::XFatal(char const *msg)
+XFatal::XFatal(rostring msg)
   : xBase(stringc << "error: " << msg)
 {}
 
@@ -267,7 +267,7 @@ XFatal::~XFatal()
 {}
 
 
-void throw_XFatal(char const *msg)
+void throw_XFatal(rostring msg)
 {
   XFatal x(msg);
   THROW(x);

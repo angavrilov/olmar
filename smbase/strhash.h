@@ -3,6 +3,10 @@
 // the stored pointers can be used to derive the key, and
 // cannot be NULL
 
+// This module uses 'char const *' instead of 'rostring', because
+// it is at the core of some performance-critical modules (such
+// as StringTable) that don't want extra allocation going on.
+
 #ifndef STRHASH_H
 #define STRHASH_H
 

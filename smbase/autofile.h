@@ -1,6 +1,9 @@
 // autofile.h            see license.txt for copyright and terms of use
 // little wrapper around FILE*
 
+// I have chosen to use 'char const *' here instead of 'rostring'
+// to reduce dependencies on other modules ...
+
 #ifndef AUTOFILE_H
 #define AUTOFILE_H
 
