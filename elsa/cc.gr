@@ -986,7 +986,7 @@ nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
 // plays role of "TypeSpecifierSeq" in cppstd; this is a
 // version of DeclSpecifier restricted to only allow "const" and
 // "volatile" UberModifiers
-nonterm [TypeSpecifier*] TypeSpecifier {
+nonterm[TypeSpecifier*] TypeSpecifier {
   // TS_name
   -> n:PQTypeName cv2:UberCVQualifierSeqOpt
        [ return new_TS_name(loc, uberCVFlags(cv2), n, false /*typename*/); ]
