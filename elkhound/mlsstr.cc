@@ -385,6 +385,9 @@ int Test::main(int argc, char *argv[])
       if (ml.nesting() != 0) {
         xbase(stringc << argv[i] << ": ended with nesting " << ml.nesting());
       }
+      if (ml.inComment()) {
+        xbase(stringc << argv[i] << ": ended in a comment");
+      }
       if (simpleReportError.errors != 0) {
         xbase(stringc << argv[i] << ": caused errors");
       }
