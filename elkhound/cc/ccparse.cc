@@ -150,6 +150,7 @@ void doit(int argc, char **argv)
       cout << "---- START ----" << endl;
       cout << "// -*-c++-*-" << endl;
       unit->print(env);
+      env.finish();
       cout << "---- STOP ----" << endl;
       traceProgress() << "dsw tree walk... done\n";
       cout << endl;

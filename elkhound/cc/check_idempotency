@@ -52,7 +52,7 @@ sub run_command ($$) {
 
 sub dump_outfiles {
     for my $outfile(@outfiles) {
-        print "****************\n";
+        print "STAGE ****************\n";
         print "$outfile2command{$outfile}\n";
         system "cat $outfile";
     }
@@ -74,6 +74,7 @@ for my $name(@names) {
         # sm: added "-tr prettyPrint" to print the tree, since
         # I made that printing conditional upon the tracing flag
         my $flags = "-tr prettyPrint";
+#          my $cppflags = "-lang-c++";      # FIX: put include lines here.
         my $cppflags = "";      # FIX: put include lines here.
         run_command "cpp $cppflags $name", "$name.out_cpp";
         run_command "$parser $flags $name.out_cpp", "$name.out_raw";
