@@ -20,6 +20,7 @@ clean:
 	rm -f cc.bin ccgr ccparse libccgr.a 
 	rm -f bccgr
 	rm -f bccgr.y cc.tok
+	rm -f ccparse_twalk
 
 TOCHECK :=
 TOCHECK += cc.in1
@@ -33,28 +34,31 @@ TOCHECK += cc.in8
 TOCHECK += cc.in9
 TOCHECK += cc.in10
 
-# Using differen parameter var from prototype fails.
+# Using different parameter var from prototype fails.
 # TOCHECK += cc.in11
 
 TOCHECK += cc.in12
 TOCHECK += cc.in13
 
-#  p = new int[x]; ->
+# BUG: This is a real bug. FIXED.
+# p = new int[x]; ->
 # ( (p)= (new int []));
-# TOCHECK += cc.in14
 
-# this is getting printed before constructors and destructors: <cdtor>
+# NOT working again.
+#TOCHECK += cc.in14
+# Smaller version illustrating it.
+TOCHECK += cc.in14a
+
+# Won't print scope operator
 # TOCHECK += cc.in15
 
 TOCHECK += cc.in16
 
-# constructor again
+# Won't print scope operator
 # TOCHECK += cc.in17
 
 TOCHECK += cc.in18
-
-# constructor again
-# TOCHECK += cc.in19
+TOCHECK += cc.in19
 
 # "converstion-operator" being printed for converstion operators.
 # operator char ();
@@ -95,8 +99,7 @@ TOCHECK += cc.in29
 # union (null) {
 # TOCHECK += cc.in32
 
-# <cdtor> thing again
-#TOCHECK += cc.in33
+TOCHECK += cc.in33
 
 # Stopping here as there are too many errors.
 

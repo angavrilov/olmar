@@ -21,11 +21,24 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
 Variable::~Variable()
 {}
 
-
+#include <assert.h>
 string Variable::toString() const
 {
   // don't care about printing the declflags right now
-  return type->toCString(name? name : "");
+
+  const char *name0 = name;
+
+  // dsw: FIX: I think this is a mistake.  Down in at least one of the
+  // toCString-s that gets called, it is checking for null and
+  // printing "/*anon*/".  This defeats that.  Scott says this is OK.
+  name0 = name0 ? name0 : "";
+
+  if (strcmp(name0, "constructor-special")==0) {
+    name0 = scope->curCompound->name;
+    assert(name0);
+  }
+
+  return type->toCString(name0);
 }
 
 

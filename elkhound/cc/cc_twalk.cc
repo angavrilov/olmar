@@ -16,29 +16,36 @@ class code_output_stream {
 
   public:
   code_output_stream(std::ostream &out) : out(out) {}
+  void flush() {out.flush();}
 
   code_output_stream & operator << (const char *message) {
     out << message;
+    out.flush();
     return *this;
   }
   code_output_stream & operator << (bool message) {
     out << message;
+    out.flush();
     return *this;
   }
   code_output_stream & operator << (int message) {
     out << message;
+    out.flush();
     return *this;
   }
   code_output_stream & operator << (long message) {
     out << message;
+    out.flush();
     return *this;
   }
   code_output_stream & operator << (double message) {
     out << message;
+    out.flush();
     return *this;
   }
   code_output_stream & operator << (ostream& (*manipfunc)(ostream& outs)) {
     out << manipfunc;
+    out.flush();
     return *this;
   }
 };
@@ -65,24 +72,40 @@ class codeout {
 
 class twalk_output_stream {
   std::ostream &out;
+//    FILE *out
   bool on;
   int depth;
 
   private:
   void indent() {
     out << endl;
+//      fprintf(out, "\n");
+    out.flush();
+//      fflush(out);
     for(int i=0; i<depth; ++i) out << " ";
+//      for(int i=0; i<depth; ++i) fprintf(out, " ");
+    out.flush();
+//      fflush(out);
     out << ":::::";
+//      fprintf(out, ":::::");
+    out.flush();
+//      fflush(out);
   }
 
   public:
   twalk_output_stream(std::ostream &out, bool on = true)
+//    twalk_output_stream(FILE *out, bool on = true)
     : out(out), on(on), depth(0) {}
 
+  void flush() {out.flush();}
+//    void flush() {fflush(out);}
   twalk_output_stream & operator << (char *message) {
     if (on) {
       indent();
       out << message;
+//        fprintf(out, message);
+      out.flush();
+//        fflush(out);
     }
     return *this;
   }
@@ -97,6 +120,7 @@ class twalk_output_stream {
 // set this environment variable to see the twalk_layer debugging
 // output
 twalk_output_stream twalk_layer_out(cout, getenv("TWALK_VERBOSE"));
+//  twalk_output_stream twalk_layer_out(cout, true);
 
 class olayer {
   twalk_output_stream &out;
@@ -104,6 +128,7 @@ class olayer {
   olayer(char *message, twalk_output_stream &out = twalk_layer_out)
     : out(out) {
     out << message << endl;
+    out.flush();
     out.down();
   }
   ~olayer() {out.up();}
@@ -112,10 +137,14 @@ class olayer {
 SourceLocation current_loc;
 
 // print with only flags that were in the source
+//  string var_toString(Variable *var, string qualifierName) {
 string var_toString(Variable *var) {
-  return stringc << toString( (DeclFlags) (var->flags & DF_SOURCEFLAGS) )
-                 << " "
-                 << var->toString();
+  stringBuilder s;
+  s << toString( (DeclFlags) (var->flags & DF_SOURCEFLAGS) );
+  s << " ";
+//    s << var->type->toCString(qualifierName);
+  s << var->toString();
+  return s;
 }
 
 // ------------------- TranslationUnit --------------------
@@ -160,6 +189,7 @@ void Function::twalk(Env &env)
 {
   olayer ol("Function");
   global_code_out << var_toString(nameAndParams->var);
+//    nameParams->twalk(env);
   if (inits) twalk_memberInits(env);
   body->twalk(env);
   if (handlers) twalk_handlers(env);
@@ -180,6 +210,7 @@ void Function::twalk_memberInits(Env &env)
     // NOTE: eventually will be able to figure out if we are
     // initializing a base class or a member variable.  There will
     // be a field added to class MemberInit that will say.
+    codeout co(iter->name->toString(), "(", ")");
     twalkFakeExprList(iter->args, env);
   }
 }
@@ -292,8 +323,8 @@ void TS_enumSpec::twalk(Env &env)
 
 // BaseClass
 void BaseClassSpec::twalk(Env &) {
-  if (isVirtual) global_code_out << "virtual";
-  if (access!=AK_UNSPECIFIED) global_code_out << toString(access);
+  if (isVirtual) global_code_out << "virtual ";
+  if (access!=AK_UNSPECIFIED) global_code_out << toString(access) << " ";
   global_code_out << name->toString();
 }
 
@@ -336,6 +367,7 @@ void Declarator::twalk(Env &env)
 {
   olayer ol("Declarator");
   global_code_out << var_toString(var);
+//    var_toString(var, decl->getDeclaratorId()->toString());
   if (init) {
     global_code_out << "=";
     init->twalk(env);

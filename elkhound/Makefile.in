@@ -43,11 +43,14 @@ ranlib      := ranlib
 # when uncommented, we get profiling info
 #ccflags += -pg
 
-# optimizer...
-ccflags += -O2 -DNDEBUG
-
+OPTIMIZATION_FLAGS :=
+ifdef ALLOW_DEBUG
 # enable action trace in glr parser
-#ccflags += -DACTION_TRACE
+  OPTIMIZATION_FLAGS += -DACTION_TRACE
+else
+  OPTIMIZATION_FLAGS += -O2 -DNDEBUG
+endif
+ccflags += $(OPTIMIZATION_FLAGS)
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC
@@ -344,7 +347,8 @@ cc/bccgr.y: cc/c.gr.gen.y
 	mv $*.tab.c $*.tab.c.orig
 	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
 	rm $*.tab.c.orig
-	g++ -c -g -o $*.tab.o -Wall -O2 -DNDEBUG $(YYDEBUG) $*.tab.c
+	g++ -c -g -o $*.tab.o $(OPTIMIZATION_FLAGS) -Wall $(YYDEBUG) $*.tab.c
+
 
 cc/bccgr.tab.o: cc/bccgr.h
 

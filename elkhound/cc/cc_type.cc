@@ -627,9 +627,13 @@ string Type::toCString() const
 
 string Type::toCString(char const *name) const
 {
-  return stringc << idComment()
-                 << leftString() << " " << (name? name : "/*anon*/")
-                 << rightString();
+  stringBuilder s;
+  s << idComment();
+  s << leftString();
+  s << " ";
+  s << (name? name : "/*anon*/");
+  s << rightString();
+  return s;
 
   // removing the space causes wrong output:
   //   int (foo)(intz)
@@ -824,8 +828,11 @@ string CVAtomicType::atomicIdComment() const
 
 string CVAtomicType::leftString() const
 {
-  return stringc << atomicIdComment()
-                 << atomic->toCString() << cvToString(cv);
+  stringBuilder s;
+  s << atomicIdComment();
+  s << atomic->toCString();
+  s << cvToString(cv);
+  return s;
 }
 
 
@@ -1049,7 +1056,8 @@ string FunctionType::leftString() const
   }
 
   // return type and start of enclosing type's description
-  sb << retType->leftString() << " (";
+  sb << retType->leftString();
+  sb << " (";
   
   return sb;
 }
