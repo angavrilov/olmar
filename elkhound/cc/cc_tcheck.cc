@@ -850,6 +850,11 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
                             (innerIter.data());
 
   #endif // 0
+    if (!inner->syntax) {
+      // this happens when all we have is a forward decl
+      continue;
+    }
+
     trace("inner") << "checking bodies of " << inner->name << endl;
 
     // open the inner scope
