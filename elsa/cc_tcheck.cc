@@ -2042,16 +2042,18 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
 
         // 13.5.3
         TWOPARAMS,                                  // OP_ASSIGN
-        TWOPARAMS,                                  // OP_PLUSEQ
-        TWOPARAMS,                                  // OP_MINUSEQ
-        TWOPARAMS,                                  // OP_MULTEQ
-        TWOPARAMS,                                  // OP_DIVEQ
-        TWOPARAMS,                                  // OP_MODEQ
-        TWOPARAMS,                                  // OP_LSHIFTEQ
-        TWOPARAMS,                                  // OP_RSHIFTEQ
-        TWOPARAMS,                                  // OP_BITANDEQ
-        TWOPARAMS,                                  // OP_BITXOREQ
-        TWOPARAMS,                                  // OP_BITOREQ
+        
+        // 13.5.2 (these are handled as ordinary binary operators (13.5 para 9))
+        NONMEMBER | TWOPARAMS,                      // OP_PLUSEQ
+        NONMEMBER | TWOPARAMS,                      // OP_MINUSEQ
+        NONMEMBER | TWOPARAMS,                      // OP_MULTEQ
+        NONMEMBER | TWOPARAMS,                      // OP_DIVEQ
+        NONMEMBER | TWOPARAMS,                      // OP_MODEQ
+        NONMEMBER | TWOPARAMS,                      // OP_LSHIFTEQ
+        NONMEMBER | TWOPARAMS,                      // OP_RSHIFTEQ
+        NONMEMBER | TWOPARAMS,                      // OP_BITANDEQ
+        NONMEMBER | TWOPARAMS,                      // OP_BITXOREQ
+        NONMEMBER | TWOPARAMS,                      // OP_BITOREQ
 
         // 13.5.2
         NONMEMBER | TWOPARAMS,                      // OP_EQUAL
