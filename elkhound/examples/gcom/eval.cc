@@ -4,6 +4,7 @@
 #include "eval.h"        // this module
 #include "ast.h"         // AST declarations
 
+#include <stdlib.h>      // exit
 #include <assert.h>      // assert
 #include <stdio.h>       // printf
 
