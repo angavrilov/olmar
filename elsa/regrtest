@@ -610,8 +610,8 @@ testparse t0374.cc
 testparse t0375.cc
 testparse t0376.cc
 testparse t0377.cc
-failparse t0378.cc "buggy qualified lookup of ~ name"
-failparse t0379.cc "buggy qualified lookup involving a typedef"
+testparse t0378.cc
+failparse t0379.cc "buggy qualified lookup involving a typedef in a declarator"
 testparse t0380.cc
 failparse t0381.cc "should not allow elaborated type spec to refer to a typedef"
 failparse t0382.cc "fail to pull in enum tag from a using directive"

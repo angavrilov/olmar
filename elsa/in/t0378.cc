@@ -18,10 +18,16 @@ namespace N {
 void foo(A *a, N::C *c)
 {
   a->~A();         // explicit dtor call w/o qualification
-  a->A::~B();      // B is looked up in the scope of 'foo', *not* A (!)
+  a->~B();         // use the typedef
+
+  a->A::~A();      // qualified
   
-  // I believe the following is legal C++, but both icc and gcc reject it.
-  c->N::~C();      // C is looked up in the scope of N
+  // this this legal?  both icc and gcc accept it, but I do not know
+  // why; as far as I can tell, ~B should be looked up in the scope of
+  // A, which won't find anything
+  //a->A::~B();
+
+  c->N::C::~C();
 }
 
 

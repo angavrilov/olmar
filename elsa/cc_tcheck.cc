@@ -6234,7 +6234,15 @@ Type *E_fieldAcc::itcheck_fieldAcc_set(Env &env, LookupFlags flags,
 
       // get the destructor of the named class
       CompoundType *rhsClass = var1->type->asCompoundType();
-      rhsClass->lookup(candidates, fieldName->getName(), env, flags);
+      if (rhsFinalTypeName == rhsClass->name) {
+        // normal case, use the ~C we already have
+        rhsClass->lookup(candidates, fieldName->getName(), env, flags);
+      }
+      else {
+        // make another one to lookup the destructor (in/t0378.cc)
+        rhsClass->lookup(candidates, env.str(stringc << "~" << rhsClass->name),
+                         env, flags);
+      }
     }
 
     else {
