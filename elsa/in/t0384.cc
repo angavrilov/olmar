@@ -53,3 +53,9 @@ struct A {
   
   friend class N::Foo;
 };
+
+class QCollection
+{
+  typedef void *Item;
+  void inSort (QCollection::Item);
+};

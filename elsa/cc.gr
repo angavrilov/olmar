@@ -1568,6 +1568,17 @@ nonterm(Declarator*) ParameterDeclarator {
   // see D_name_tcheck in tcheck.cc for resolution
   fun merge(L,R) { L->addAmbiguity(R); return L; }
 
+  // as part of the TYPENAME ::NAME disambiguation, do not allow
+  // qualified names in parameter declarators (in/t0384.cc)
+  fun keep(d) {
+    PQName const *n = d->decl->getDeclaratorIdC();
+    if (n && n->hasQualifiers()) {
+      TRACE("cancel", d->decl->loc << ": qualified parameter declarator");
+      return false;
+    }
+    return true;
+  }
+
   -> d:Declarator
        { return new Declarator(d, NULL /*init*/); }
   -> d:Declarator "=" e:AssignmentExpression
