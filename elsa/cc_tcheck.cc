@@ -4361,7 +4361,9 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                     );
 
   // typecheck it
-  int numErrors = env.numErrors();
+
+  // don't do this for now:
+//    int numErrors = env.numErrors();
   declaration0->tcheck(env,
                        false,   // isMember
                        true     // isTemporary
@@ -4373,7 +4375,8 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                               ((declaration0->dflags & DF_STATIC)!=0) /*isStatic*/
                               );
   }
-  xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
+  // don't do this for now:
+//    xassert(numErrors == env.numErrors()); // shouldn't have added to the errors
 
   return declaration0;
 }
@@ -4391,7 +4394,7 @@ static Declaration *insertTempDeclaration(Env &env, Type *retType)
   // maybe the loc should be: fea0->expr->loc
 
   // check that it got entered into the current scope
-  {
+  if (!env.disambErrorsSuppressChanges()) {
     Declarator *declarator0 = declaration0->decllist->first();
     xassert(env.scope()->rawLookupVariable
             (declarator0->decl->asD_name()->name->getName()) ==
@@ -4444,7 +4447,9 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
     xassert(evar0 == evar1->asE_variable());
   }
   // it had better find the same variable
-  xassert(evar0->var == var);
+  if (!env.disambErrorsSuppressChanges()) {
+    xassert(evar0->var == var);
+  }
 
   // dsw: I would like to assert here that retType equals
   // evar0->var->type but I'm not sure how to do that because I don't

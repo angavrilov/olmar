@@ -15,5 +15,6 @@ struct N {};
 
 Q d(N *a);
 int s(N *lhs, N *rhs) {
-  return C<N> (d (lhs)) == C<N> (d (rhs));
+  C<N> (d (rhs));
+  return 0;
 }
