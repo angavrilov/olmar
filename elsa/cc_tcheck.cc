@@ -67,7 +67,10 @@ void Function::tcheck(Env &env, bool checkBody)
   env.scope()->curFunction = this;
   FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
   FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
-    env.addVariable(iter.data()->decl);
+    Variable *v = iter.data()->decl;
+    if (v->name) {
+      env.addVariable(v);
+    }
   }
 
   // have to check the member inits after adding the parameters
@@ -240,10 +243,11 @@ Type const *TS_simple::tcheck(Env &env)
 
 
 Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
-                            SourceLocation const &loc, TypeIntr keyword)
+                            SourceLocation const &loc, TypeIntr keyword,
+                            bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
-  ct->forward = false;
+  ct->forward = forward;
   bool ok = env.addCompound(ct);
   xassert(ok);     // already checked that it was ok
 
@@ -286,7 +290,8 @@ Type const *TS_elaborated::tcheck(Env &env)
         // rather elaborate rules for deciding in which contexts this is
         // right, but for now I'll just remark that my implementation
         // has a BUG since it doesn't quite conform)
-        return makeNewCompound(ct, env, name->getName(), loc, keyword);
+        return makeNewCompound(ct, env, name->getName(), loc, keyword,
+                               true /*forward*/);
       }
     }
 
@@ -328,7 +333,7 @@ Type const *TS_classSpec::tcheck(Env &env)
 
   else {
     // no existing compound; make a new one
-    ret = makeNewCompound(ct, env, name, loc, keyword);
+    ret = makeNewCompound(ct, env, name, loc, keyword, false /*forward*/);
   }
 
   // look at the base class specifications
@@ -1265,6 +1270,13 @@ Type const *E_fieldAcc::itcheck(Env &env)
   if (fieldName->hasQualifiers()) {
     // this also catches destructor invocations
     return env.unimp("fields with qualified names");
+  }
+
+  // make sure the type has been completed
+  if (!ct->isComplete()) {
+    return env.error(stringc
+      << "attempt to access a field of incomplete type "
+      << ct->keywordAndName());
   }
 
   // look for the named field
