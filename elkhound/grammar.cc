@@ -15,6 +15,10 @@
 // print a variable value
 #define PVAL(var) cout << " " << #var "=" << var;
 
+// experimenting..
+#define INTLOOP(var, start, maxPlusOne) \
+  for (int var = start; var < maxPlusOne; var++)
+
 
 // ---------------------- Symbol --------------------
 Symbol::~Symbol()
@@ -106,8 +110,74 @@ void Nonterminal::print() const
 
 
 // -------------------- Production -------------------------
-Production::~Production()
+Production::Production(Nonterminal *L)
+  : numDotPlaces(-1),    // so the check in getDProd will fail
+    dprods(NULL),
+    left(L)
 {}
+
+Production::~Production()
+{
+  if (dprods) {
+    delete[] dprods;
+  }
+}
+
+
+int Production::rhsLength() const
+{
+  if (!right.isEmpty() &&
+      right.nthC(0)->isEmptyString) {
+    return 0;    // length is considered 0 for 'blah -> empty'
+  }
+  else {
+    return right.count();
+  }
+}
+
+
+void Production::append(Symbol *sym)
+{
+  right.append(sym);
+}
+
+
+void Production::finished()
+{
+  xassert(dprods == NULL);    // otherwise we leak
+
+  // compute 'dprods'
+  numDotPlaces = rhsLength()+1;
+  dprods = new DottedProduction[numDotPlaces];
+
+  INTLOOP(dotPosn, 0, numDotPlaces) {
+    dprods[dotPosn].prod = this;
+    dprods[dotPosn].dot = dotPosn;
+  }
+
+  // The decision to represent dotted productions this way is driven
+  // by a couple factors.  Note that the principal alternative is to
+  // store (prod,dotPosn) pairs explicitly (presumably because two
+  // 16-bit values are sufficient, so it fits in a word), or even
+  // to try to store only dotPosn, and infer prod from context.
+  //
+  // First, letting each dotted production have a unique representation
+  // and therefore a unique address means that pointers to these can
+  // easily be stored in my list-as-set classes, with equality checks
+  // being simple pointer comparisons.  (This could be supported fairly
+  // easily, though, using list-as-set of word.)
+  //
+  // Second, should there ever arise the desire to store additional
+  // info with each dotted production, that option is easy to support.
+  // (So I guess this is the real reason.)
+}
+
+
+DottedProduction const *Production::getDProdC(int dotPlace) const
+{
+  xassert(0 <= dotPlace && dotPlace < numDotPlaces);
+  return &dprods[dotPlace];
+}
 
 
 void Production::print() const
@@ -117,6 +187,19 @@ void Production::print() const
   for (SymbolListIter iter(right); !iter.isDone(); iter.adv()) {
     cout << " " << iter.data()->name;
   }
+}
+
+
+// ----------------- DottedProduction ------------------
+bool DottedProduction::isDotAtEnd() const
+{
+  return dot == prod->rhsLength();
+}
+
+
+Symbol const *DottedProduction::symbolAfterDotC() const
+{
+  return prod->right.nthC(dot);
 }
 
 
@@ -138,11 +221,94 @@ void DottedProduction::print() const
 }
 
 
-void Production::append(Symbol *sym)
+// ----------------- ItemSet -------------------
+ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
+  : id(anId),
+    terms(numTerms),
+    nonterms(numNonterms)
 {
-  right.append(sym);
+  termTransition = new ItemSet* [terms];
+  nontermTransition = new ItemSet* [nonterms];
+
+  INTLOOP(t, 0, terms) {
+    termTransition[t] = (ItemSet*)NULL;      // means no transition on t
+  }
+  INTLOOP(n, 0, nonterms) {
+    nontermTransition[n] = (ItemSet*)NULL;
+  }
 }
 
+
+ItemSet::~ItemSet()
+{
+  delete[] termTransition;
+  delete[] nontermTransition;
+}
+
+
+int ItemSet::bcheckTerm(int index)
+{
+  xassert(0 <= index && index < terms);
+  return index;
+}
+
+int ItemSet::bcheckNonterm(int index)
+{
+  xassert(0 <= index && index < nonterms);
+  return index;
+}
+
+ItemSet *&ItemSet::refTransition(Symbol const *sym)
+{
+  if (sym->isTerminal()) {
+    Terminal const &t = sym->asTerminalC();
+    return termTransition[bcheckTerm(t.termIndex)];
+  }
+  else {
+    Nonterminal const &nt = sym->asNonterminalC();
+    return nontermTransition[bcheckNonterm(nt.ntIndex)];
+  }
+}
+
+
+ItemSet const *ItemSet::transitionC(Symbol const *sym) const
+{
+  return const_cast<ItemSet*>(this)->refTransition(sym);
+}
+
+
+void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
+{
+  refTransition(sym) = dest;
+}
+
+
+void ItemSet::print() const
+{
+  cout << "Item " << id << ":\n";
+    
+  // for each item
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *dprod = itemIter.data();
+
+    // print its text
+    cout << "  ";
+    dprod->print();
+    cout << "      ";
+
+    // print any transitions on its after-dot symbol
+    if (!dprod->isDotAtEnd()) {
+      ItemSet const *is = transitionC(dprod->symbolAfterDotC());
+      if (is == NULL) {
+        cout << "(no transition?!?!)";
+      }
+      else {
+        cout << "--> " << is->id;
+      }		 
+    }
+    cout << endl;
+  }
+}
 
 
 // ------------------ Grammar -----------------
@@ -154,7 +320,9 @@ Grammar::Grammar()
     startSymbol(NULL),
     emptyString("empty"),
     cyclic(false)
-{}
+{
+  emptyString.isEmptyString = true;
+}
 
 
 Grammar::~Grammar()
@@ -562,6 +730,12 @@ void Grammar::initializeAuxData()
   // initialize the derivable relation
   initDerivableRelation();
 
+  
+  // dotted productions
+  MUTATE_EACH_PRODUCTION(productions, prod) {
+    prod.data()->finished();
+  }
+
 
   // mark the grammar as initialized
   initialized = true;
@@ -857,7 +1031,7 @@ void Grammar::computeFollow()
 }
 
 
-// ASU alg 4.4, p.190
+// [ASU] alg 4.4, p.190
 void Grammar::computePredictiveParsingTable()
 {
   int numTerms = numTerminals();
@@ -893,10 +1067,6 @@ void Grammar::computePredictiveParsingTable()
   }
 
 
-  // experimenting..
-  #define INTLOOP(var, start, maxPlusOne) \
-    for (int var = start; var < maxPlusOne; var++)
-
   // print the resulting table:
   // for each nonterminal
   INTLOOP(nonterm, 0, numNonterms) {
@@ -922,6 +1092,288 @@ void Grammar::computePredictiveParsingTable()
 }
 
 
+// [ASU] figure 4.33, p.223
+void Grammar::itemSetClosure(DProductionList &itemSet)
+{
+  // while no changes
+  int changes = 1;
+  while (changes > 0) {
+    changes = 0;
+
+    // for each item A -> alpha . B beta in itemSet
+    SFOREACH_DOTTEDPRODUCTION(itemSet, itemIter) {          // (constness ok)
+      DottedProduction const *item = itemIter.data();
+
+      // get the symbol B (the one right after the dot)
+      if (item->isDotAtEnd()) continue;
+      Symbol const *B = item->symbolAfterDotC();
+      if (B->isTerminal()) continue;
+
+      // for each production B -> gamma
+      MUTATE_EACH_PRODUCTION(productions, prod) {	    // (constness)
+	if (prod.data()->left != B) continue;
+
+        // add B -> . gamma to the itemSet if not already there
+        changes += true==
+          itemSet.appendUnique(
+            prod.data()->getDProd(0 /*dot placement*/));    // (constness)
+
+      }	// for each production
+    } // for each item
+  } // while changes
+}
+  
+
+// -------------- START of construct LR item sets -------------------
+ItemSet *Grammar::makeItemSet()
+{
+  // highly nonideal id assignment, for now
+  static int nextId = 0;   // 0 to match [ASU]'s numbering
+
+  return new ItemSet(nextId++, numTerminals(), numNonterminals());
+}
+
+
+// yield a new itemset by moving the dot across the productions
+// in 'source' that have 'symbol' to the right of the dot; then
+// compute the closure
+ItemSet *Grammar::moveDot(ItemSet const *source, Symbol const *symbol)
+{
+  ItemSet *ret = makeItemSet();
+
+  // for each item
+  SFOREACH_DOTTEDPRODUCTION(source->items, dprodi) {
+    DottedProduction const *dprod = dprodi.data();
+
+    if (dprod->isDotAtEnd() ||
+        dprod->symbolAfterDotC() != symbol) {
+      continue;    // can't move dot
+    }		  
+    
+    // move the dot
+    DottedProduction *dotMoved =
+      dprod->prod->getDProd(dprod->dot + 1);   	  // (constness!)
+
+    // add the new item to the itemset I'm building
+    ret->items.append(dotMoved);
+  }
+  
+  // for now, verify we actually got something; though it would
+  // be easy to simply return null (after dealloc'ing ret)
+  xassert(ret->items.isNotEmpty());
+
+  // compute closure of resulting set
+  itemSetClosure(ret->items);
+
+  // return built itemset
+  return ret;
+}
+
+
+// if 'list' contains 'itemSet', return the equivalent copy
+// in 'list'; otherwise, return NULL
+// 'list' is non-const because might return an element of it
+ItemSet *Grammar::findItemSetInList(ObjList<ItemSet> &list,
+                                    ItemSet const *itemSet)
+{
+  // inefficiency: using iteration to check set membership
+
+  MUTATE_EACH_OBJLIST(ItemSet, list, iter) {
+    if (itemSetsEqual(iter.data(), itemSet)) {
+      return iter.data();
+    }
+  }
+  return NULL;
+}
+
+
+// true if 'small' is a subset of 'big'
+bool Grammar::itemSetContainsItemSet(ItemSet const *big,
+                                     ItemSet const *small)
+{
+  SFOREACH_DOTTEDPRODUCTION(small->items, iter) {
+    if (!big->items.contains(iter.data())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Grammar::itemSetsEqual(ItemSet const *is1, ItemSet const *is2)
+{
+  // inefficiency: n^2 set equality test
+  // inefficiency: linear set membership tests ('contains()')
+
+  // check that each is a subset of the other
+  return itemSetContainsItemSet(is1, is2) &&
+         itemSetContainsItemSet(is2, is1);
+}
+
+
+// [ASU] fig 4.34, p.224					
+// puts the finished parse tables into 'itemSetsDone'
+void Grammar::constructLRItemSets(ObjList<ItemSet> &itemSetsDone)
+{
+  // set of item sets
+  ObjList<ItemSet> itemSetsPending;    // yet to be processed
+    // (those in 'itemSetsDone' have all outgoing links processed)
+
+  // start by constructing closure of first production
+  // (basically assumes first production has start symbol
+  // on LHS, and no other productions have the start symbol
+  // on LHS)
+  {
+    ItemSet *is = makeItemSet();       	     // (owner)
+    is->items.append(productions.nth(0)->    // first production's ..
+                       getDProd(0));	     //   .. first dot placement
+    itemSetClosure(is->items);
+
+    // this makes the initial pending itemSet
+    itemSetsPending.append(is);		     // (ownership transfer)
+  }
+
+
+  // for each pending item set
+  while (!itemSetsPending.isEmpty()) {
+    ItemSet *itemSet = itemSetsPending.removeAt(0);    // dequeue   (owner; ownership transfer)
+
+    // put it in the done set; note that we must do this *before*
+    // the processing below, to properly handle self-loops
+    itemSetsDone.append(itemSet);                      // (ownership transfer; 'itemSet' becomes serf)
+
+    // for each production in the item set where the
+    // dot is not at the right end
+    SFOREACH_DOTTEDPRODUCTION(itemSet->items, dprodIter) {
+      DottedProduction const *dprod = dprodIter.data();
+      if (dprod->isDotAtEnd()) continue;
+
+      // get the symbol 'sym' after the dot (next to be shifted)
+      Symbol const *sym = dprod->symbolAfterDotC();
+	
+      // if we already have a transition for this symbol,
+      // there's nothing more to be done
+      if (itemSet->transitionC(sym) != NULL) {
+        continue;
+      }
+
+      // fixed: adding transition functions fixes this
+      // inefficiency: if several productions have X to the
+      // left of the dot, then we will 'moveDot' each time
+
+      // compute the itemSet produced by moving the dot
+      // across 'sym' and taking the closure
+      ItemSet *withDotMoved = moveDot(itemSet, sym);
+
+      // inefficiency: we go all the way to materialize the
+      // itemset before checking whether we already have it
+
+      // see if we already have it, in either set
+      ItemSet *already = findItemSetInList(itemSetsPending, withDotMoved);
+      if (already == NULL) {
+        already = findItemSetInList(itemSetsDone, withDotMoved);
+      }
+
+      // have it?
+      if (already != NULL) {
+        // we already have it, so throw away one we made
+        delete withDotMoved;
+
+        // and use existing one for setting the transition function
+        withDotMoved = already;
+      }
+      else {
+        // we don't already have it, so add it to 'pending'
+        itemSetsPending.append(withDotMoved);
+      }
+
+      // setup the transition function
+      itemSet->setTransition(sym, withDotMoved);
+
+    } // for each item
+  } // for each item set
+
+
+  // print each item set
+  FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
+    itemSet.data()->print();
+  }
+
+
+  // everything automatically thrown away
+}
+
+
+void Grammar::lrParse(ObjList<ItemSet> &itemSets, char const *input)
+{
+  // tokenize the input
+  StrtokParse tok(input);
+  
+  // parser state
+  int currentToken = 0;               // index of current token
+  ItemSet *state = itemSets.nth(0);   // current parser state
+  SObjList<ItemSet> stateStack;       // stack of parser states
+  SObjList<Symbol> symbolStack;       // stack of shifted symbols
+  
+  // for each token of input
+  while (currentToken < tok) {
+    // map the token text to a symbol
+    Symbol const *symbol = findSymbol(tok[currentToken]);
+
+    // see where a shift would go
+    ItemSet *shiftDest = state->transition(symbol);
+
+    // get all possible reductions where 'sym' is in Follow(LHS)
+    ProductionList reductions;
+    state->getPossibleReductions(reductions, symbol);
+
+    // case analysis
+    if (shiftDest != NULL &&
+        reductions.isEmpty()) {            // unambiguous shift
+      // push current state and symbol
+      stateStack.prepend(state);
+      symbolStack.prepend(symbol);
+
+      // move to new state
+      state = shiftDest;
+
+      // and to next input symbol
+      currentToken++;
+
+      // debugging
+      cout << "shifting " << symbol->name << ", moving to state "
+           << shiftDest->id << endl;
+    }
+
+    else if (shiftDest == NULL &&
+             reductions.count() == 1) {	   // unambiguous reduction
+      // get the production we're reducing by
+      Production *prod = reductions.nth(0);
+      	 
+      // it is here that an action or tree-building step would
+      // take place
+
+      // pop as many states and symbols off stacks as there
+      // are symbols on the right-hand side of 'prod'
+      INTLOOP(i, 0, prod->rhsLength()) {
+        stateStack.removeAt(0);
+        symbolStack.removeAt(0);
+      }
+
+      //
+
+
+
+
+
+
+
+
+
+
+
+// --------------- END of construct LR item sets -------------------
+
+
 // ---------------------------- main --------------------------------
 void pretendUsed(...)
 {}
@@ -931,16 +1383,19 @@ void Grammar::exampleGrammar()
 {
   // for now, let's use a hardcoded grammar
 
+  
 
-  // grammar 4.13 of ASU (p.191)
+  #if 0
+  // grammar 4.13 of [ASU] (p.191)
   parseLine("Start  ->  S $                ");
   parseLine("S  ->  i E t S S'   |  a      ");
   parseLine("S' ->  e S          |  empty  ");
   parseLine("E  ->  b                      ");
+  #endif // 0
 
 
   #if 0
-  // grammar 4.11 of ASU (p.189), designed to show First and Follow
+  // grammar 4.11 of [ASU] (p.189), designed to show First and Follow
   parseLine("S  ->  E $                ");
   parseLine("E  ->  T E'               ");
   parseLine("E' ->  + T E'  | empty    ");
@@ -1026,6 +1481,24 @@ void Grammar::exampleGrammar()
   addProduction(D,  /* -> */   a,             NULL);
   #endif // 0
 
+
+  #if 0	     
+  // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
+  parseLine("E' ->  E $                ");
+  parseLine("E  ->  E + T  |  T        ");
+  parseLine("T  ->  T * F  |  F        ");
+  parseLine("F  ->  ( E )  |  id       ");
+  #endif // 0								   
+  
+  // [ASU] grammar 4.20, p.229: more sets-of-items
+  parseLine("S' ->  S $                 ");
+  parseLine("S  ->  L = R               ");
+  parseLine("S  ->  R                   ");
+  parseLine("L  ->  * R                 ");
+  parseLine("L  ->  id                  ");
+  parseLine("R  ->  L                   ");
+
+
   // verify we got what we expected
   printProductions();
 
@@ -1045,9 +1518,34 @@ void Grammar::exampleGrammar()
   printSymbols(toObjList(nonterminals));
 
   derivable->print();
-  
+    
+  // testing closure
+  {  
+    // make a singleton set out of the first production, and
+    // with the dot at the start
+    DProductionList itemSet;
+    DottedProduction *kernel = productions.nth(0)->getDProd(0);  // (serf)
+    itemSet.append(kernel);
+
+    // compute its closure
+    itemSetClosure(itemSet);
+
+    // print it
+    cout << "Closure of: ";
+    kernel->print();
+    cout << endl;
+
+    SFOREACH_DOTTEDPRODUCTION(itemSet, dprod) {
+      cout << "  ";
+      dprod.data()->print();
+      cout << endl;
+    }
+  }
+
+  constructLRItemSets();
+
   // another analysis
-  computePredictiveParsingTable();
+  //computePredictiveParsingTable();
 
   // silence warnings
   //pretendUsed(a,b,c,d,e, S,A,B,C,D);

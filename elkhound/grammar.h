@@ -1,8 +1,15 @@
 // grammar.h
 // representation and algorithms for context-free grammars
 
+// references:
+//   [ASU]  Aho, Sethi Ullman.  Compilers: Principles,
+//          Techniques, and Tools.  Addison-Wesley,
+//          Reading, MA.  1986.  Second printing (3/88).
+
 #ifndef __GRAMMAR_H
 #define __GRAMMAR_H
+
+#include <iostream.h>  // ostream
 
 #include "str.h"       // string
 #include "objlist.h"   // ObjList
@@ -10,8 +17,19 @@
 
 // forward decls
 class Bit2d;           // bit2d.h
-class Terminal;        // below
-class Nonterminal;     // below
+
+// fwds defined below
+class Symbol;
+class Terminal;
+class Nonterminal;
+class Production;
+class DottedProduction;
+class Grammar;
+
+// this really should be in a more general place..
+#define OSTREAM_OPERATOR		    \
+  ostream &operator << (ostream &os) const  \
+    { print(os); return os; }
 
 
 // ---------------- Symbol --------------------
@@ -22,10 +40,11 @@ public:
   string const name;        // symbol's name in grammar
   bool const isTerm;        // true: terminal (only on right-hand sides of productions)
                             // false: nonterminal (can appear on left-hand sides)
+  bool isEmptyString;       // true only for the emptyString nonterminal
 
 public:
   Symbol(char const *n, bool t)
-    : name(n), isTerm(t) {}
+    : name(n), isTerm(t), isEmptyString(false) {}
   virtual ~Symbol();
 
   // uniform selectors
@@ -42,7 +61,9 @@ public:
     { return const_cast<Nonterminal&>(asNonterminalC()); }
 
   // debugging
-  virtual void print() const;    // print as '$name: isTerminal=$isTerminal' (no newline)
+  virtual void print(ostream &os) const;
+  OSTREAM_OPERATOR
+    // print as '$name: isTerminal=$isTerminal' (no newline)
 };
 
 // I have several needs for serf lists of symbols, so let's use this for now
@@ -62,14 +83,15 @@ typedef SObjListMutator<Symbol> SymbolListMutator;
 class Terminal : public Symbol {
 public:     // data
   // annotation done by algorithms
-  int termIndex;	 // terminal index - this terminal's id
+  int termIndex;         // terminal index - this terminal's id
 
 public:     // funcs
   Terminal(char const *name)
     : Symbol(name, true /*terminal*/),
       termIndex(-1) {}
 
-  virtual void print() const;
+  virtual void print(ostream &os) const;
+  OSTREAM_OPERATOR
 };
 
 typedef SObjList<Terminal> TerminalList;
@@ -100,7 +122,8 @@ public:     // funcs
   Nonterminal(char const *name);
   virtual ~Nonterminal();
 
-  virtual void print() const;
+  virtual void print(ostream &os) const;
+  OSTREAM_OPERATOR
 };
 
 typedef SObjList<Nonterminal> NonterminalList;
@@ -119,20 +142,36 @@ ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
 // ---------------- Production --------------------
 // a rewrite rule
 class Production {
+  // derived from key attribs
+  int numDotPlaces;             // after finished(): equals rhsLength()+1
+  DottedProduction *dprods;     // array of dotted productions
+
 public:
+  // key attribs
   Nonterminal *left;            // (serf) left hand side; must be nonterminal
   SymbolList right;             // (serf) right hand side; terminals & nonterminals
 
 public:
-  Production(Nonterminal *L)
-    : left(L) {}    // have to call append manually
+  Production(Nonterminal *L);   // have to call append manually
   ~Production();
+
+  // queries
+  int rhsLength() const;        // length *not* including emptySymbol, if present
 
   // append a RHS symbol
   void append(Symbol *sym);
 
+  // call this when production is built, so it can compute dprods
+  void finished();
+
+  // retrieve an item
+  DottedProduction const *getDProdC(int dotPlace) const;
+  DottedProduction *getDProd(int dotPlace)
+    { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
+
   // print to cout as 'A -> B c D' (no newline)
-  void print() const;
+  void print(ostream &os) const;
+  OSTREAM_OPERATOR
 };
 
 typedef SObjList<Production> ProductionList;
@@ -155,11 +194,21 @@ public:
   int dot;                 // 0 means it's before all RHS symbols, 1 means after first, etc.
 
 public:
+  DottedProduction()       // for later filling-in
+    : prod(NULL), dot(-1) {}
   DottedProduction(Production *p, int d)
     : prod(p), dot(d) {}
 
+  bool isDotAtEnd() const;
+
+  // dot must not be at the end
+  Symbol const *symbolAfterDotC() const;
+  Symbol *symbolAfterDot()
+    { return const_cast<Symbol*>(symbolAfterDotC()); }
+
   // print to cout as 'A -> B . c D' (no newline)
-  void print() const;
+  void print(ostream &os) const;
+  OSTREAM_OPERATOR
 };
 
 // (serf) lists of dotted productions
@@ -170,6 +219,52 @@ typedef SObjListIter<DottedProduction> DProductionListIter;
 #define MUTATE_EACH_DOTTEDPRODUCTION(list, iter) MUTATE_EACH_OBJLIST(DottedProduction, list, iter)
 #define SFOREACH_DOTTEDPRODUCTION(list, iter) SFOREACH_OBJLIST(DottedProduction, list, iter)
 #define SMUTATE_EACH_DOTTEDPRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(DottedProduction, list, iter)
+
+
+// ---------------- ItemSet -------------------
+// a set of dotted productions, and the transitions between
+// item sets, as in LR(0) set-of-items construction
+class ItemSet {
+public:
+  // numerical state id, should be unique among item sets
+  // in a particular grammar's sets
+  int id;
+
+  // the items (kernel items are recognized as the ones
+  // with the dot *not* at the left edge)
+  DProductionList items;
+
+  // transition function (where we go on shifts)
+  //   Map : (Terminal id or Nonterminal id)  -> ItemSet*
+  ItemSet **termTransition;
+  ItemSet **nontermTransition;
+
+  // bounds for above
+  int terms;
+  int nonterms;
+
+private:    // funcs
+  int bcheckTerm(int index);
+  int bcheckNonterm(int index);
+  ItemSet *&refTransition(Symbol const *sym);
+
+public:     // funcs
+  ItemSet(int id, int numTerms, int numNonterms);
+  ~ItemSet();
+
+  // query transition fn for an arbitrary symbol; returns
+  // NULL if no transition is defined
+  ItemSet const *transitionC(Symbol const *sym) const;
+  ItemSet *transitionC(Symbol *sym)
+    { return const_cast<ItemSet*>(transitionC(sym)); }
+
+  // set transition on 'sym' to be 'dest'
+  void setTransition(Symbol const *sym, ItemSet *dest);
+  
+  // debugging
+  void print(ostream &os) const;
+  OSTREAM_OPERATOR
+};
 
 
 // ---------------- Grammar --------------------
@@ -209,20 +304,6 @@ public:
   bool cyclic;
 
 private:
-  // ------- symbol access ------------
-  #define SYMBOL_ACCESS(Thing) 	       	       	       	    \
-    /* retrieve, return NULL if not there */		    \
-    Thing const *find##Thing##C(char const *name) const;    \
-    Thing *find##Thing(char const *name)		    \
-      { return const_cast<Thing*>(find##Thing##C(name)); }  \
-							    \
-    /* retrieve, or create it if not already there */	    \
-    Thing *getOrMake##Thing(char const *name);
-
-  SYMBOL_ACCESS(Symbol)	       // findSymbolC, findSymbol, getOrMakeSymbol
-  SYMBOL_ACCESS(Terminal)      //   likewise
-  SYMBOL_ACCESS(Nonterminal)   //   ..
-
   // -------- analyis init ---------
   // call this after grammar is completely built
   void initializeAuxData();
@@ -251,8 +332,22 @@ private:
   void computeFollow();
   bool addFollow(Nonterminal *NT, Terminal *term);
 
+  // --------- LR item sets ----------  
+  void itemSetClosure(DProductionList &itemSet);
+    // non-const because have to add dotted productions to the list
+  ItemSet *makeItemSet();
+  ItemSet *moveDot(ItemSet const *source, Symbol const *symbol);
+  ItemSet *findItemSetInList(ObjList<ItemSet> &list,
+                             ItemSet const *itemSet);
+  bool itemSetContainsItemSet(ItemSet const *big,
+                              ItemSet const *small);
+  bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);
+  void constructLRItemSets();
+
   // misc
   void computePredictiveParsingTable();
+    // non-const because have to add productions to lists
+
 
 
 public:
@@ -281,6 +376,22 @@ public:
   bool parseLine(char const *grammarLine);
 
 
+  // ------- symbol access ------------
+  #define SYMBOL_ACCESS(Thing)                              \
+    /* retrieve, return NULL if not there */                \
+    Thing const *find##Thing##C(char const *name) const;    \
+    Thing *find##Thing(char const *name)                    \
+      { return const_cast<Thing*>(find##Thing##C(name)); }  \
+                                                            \
+    /* retrieve, or create it if not already there */       \
+    Thing *getOrMake##Thing(char const *name);
+
+  SYMBOL_ACCESS(Symbol)        // findSymbolC, findSymbol, getOrMakeSymbol
+  SYMBOL_ACCESS(Terminal)      //   likewise
+  SYMBOL_ACCESS(Nonterminal)   //   ..
+  #undef SYMBOL_ACCESS
+
+  
   // ----------------- grammar queries -----------------------
   int numTerminals() const;
   int numNonterminals() const;
