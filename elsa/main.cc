@@ -242,7 +242,17 @@ void doit(int argc, char **argv)
     traceProgress(2) << "type checking...\n";
     long tcheckStart = getMilliseconds();
     Env env(strTable, lang, tfac, unit);
-    unit->tcheck(env);
+    try {
+      unit->tcheck(env);
+    }
+    catch (xBase &x) {
+      // typically an assertion failure from the tchecker; catch it here
+      // so we can print the errors, and something about the location
+      env.errors.print(cout);
+      cout << x << endl;
+      cout << "Failure probably related to code near " << env.locStr() << endl;
+      exit(4);
+    }
     traceProgress() << "done type checking ("
                     << (getMilliseconds() - tcheckStart)
                     << " ms)\n";

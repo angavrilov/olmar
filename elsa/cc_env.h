@@ -162,6 +162,7 @@ public:      // data
   Variable *errorVar;                   // (serf)
 
   // dsw: Can't think of a better way to do this, sorry.
+  // sm: Do what?  Who uses this?  I don't see any uses in Elsa.
   Variable *var__builtin_constant_p;
 
   // operator function names, indexed by the operators they overload

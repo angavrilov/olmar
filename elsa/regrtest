@@ -480,9 +480,18 @@ fi
                 
 if $use_gnu; then
   # test gnu extensions
-  for fn in in/gnu/*.c?; do
-    runTest ./ccparse -tr $TR_FLAGS "$fn"
-  done
+  testparse gnu/g0001.cc
+  testparse gnu/g0002.cc
+  testparse gnu/g0003.cc
+
+  testparse gnu/t0124.cc
+  testparse gnu/t0125.cc
+  testparse gnu/t0127.cc
+  testparse gnu/t0128.cc
+  testparse gnu/t0129.cc
+  testparse gnu/t0130.cc
+  testparse gnu/t0131.cc
+  testparse gnu/t0132.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do

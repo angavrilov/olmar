@@ -305,15 +305,21 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
                       t_voidptr, "p",
                       FF_NONE, t_void);
 
-  // for GNU compatibility
-  // void *__builtin_next_arg(void *p);
-  declareFunction1arg(t_voidptr, "__builtin_next_arg",
-                      t_voidptr, "p");
+  #ifdef GNU_EXTENSION
+    // for GNU compatibility
+    // void *__builtin_next_arg(void *p);
+    declareFunction1arg(t_voidptr, "__builtin_next_arg",
+                        t_voidptr, "p");
 
-  // dsw: This is a form, not a function, since it takes an expression
-  // AST node as an argument; however, I need a function that takes no
-  // args as a placeholder for it sometimes.
-  var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
+    // dsw: This is a form, not a function, since it takes an expression
+    // AST node as an argument; however, I need a function that takes no
+    // args as a placeholder for it sometimes.
+    var__builtin_constant_p = declareSpecialFunction("__builtin_constant_p");
+
+    // typedef void *__builtin_va_list;
+    addVariable(makeVariable(SL_INIT, str("__builtin_va_list"), 
+                             t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
+  #endif // GNU_EXTENSION
 
   // for testing various modules
   special_getStandardConversion = declareSpecialFunction("__getStandardConversion")->name;
