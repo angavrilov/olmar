@@ -261,6 +261,10 @@ void TF_namespaceDefn::itcheck(Env &env)
     
     env.setParentScope(s);
   }
+  else {
+    // 's' is uninitialized!
+    xfailure("broken like a mofo!");
+  }
 
   // check the namespace body in its scope
   env.extendScope(s);
