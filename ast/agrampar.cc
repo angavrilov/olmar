@@ -8,6 +8,7 @@
 #include "trace.h"           // tracing debugging functions
 #include "owner.h"           // Owner
 #include "strutil.h"         // trimWhitespace
+#include "strtable.h"        // StringTable
 
 #include <string.h>          // strncmp
 #include <ctype.h>           // isalnum
@@ -101,6 +102,8 @@ void agrampar_yyerror(char const *msg, void *parseParam)
 
 
 // ---------------- external interface -------------------
+StringTable stringTable;
+
 ASTSpecFile *readAbstractGrammar(char const *fname)
 {
   if (tracingSys("yydebug")) {
@@ -111,7 +114,7 @@ ASTSpecFile *readAbstractGrammar(char const *fname)
   Owner<ifstream> in;
   if (fname == NULL) {
     // stdin
-    lexer = new GrammarLexer(isAGramlexEmbed);
+    lexer = new GrammarLexer(isAGramlexEmbed, stringTable);
   }
   else {
     // file
@@ -120,7 +123,7 @@ ASTSpecFile *readAbstractGrammar(char const *fname)
       throw_XOpen(fname);
     }
     trace("tmp") << "in is " << in.get() << endl;
-    lexer = new GrammarLexer(isAGramlexEmbed, fname, in.xfr());
+    lexer = new GrammarLexer(isAGramlexEmbed, stringTable, fname, in.xfr());
   }
 
   ASTParseParams params(*lexer);

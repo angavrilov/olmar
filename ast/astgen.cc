@@ -24,7 +24,8 @@ public:
   Gen(char const *srcFname, char const *destFname, ASTSpecFile const &file);
   ~Gen();
 
-  // type queries
+  // type queries                      
+  bool isTreeNode(char const *type);
   bool isTreeNodePtr(char const *type);
 
   bool isListType(char const *type);
@@ -56,27 +57,35 @@ bool Gen::isTreeNodePtr(char const *type)
     // is pointer type; get base type
     string base = trimWhitespace(string(type, strlen(type)-1));
 
-    // search among defined classes for this name
-    FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
-      ASTClass const *c = form.data()->ifASTClassC();
-      if (!c) continue;
+    return isTreeNode(base);
+  }
 
-      if (c->name == base) {
-        // found it in a superclass
+  // not a pointer type
+  return false;
+}
+
+
+bool Gen::isTreeNode(char const *base)
+{
+  // search among defined classes for this name
+  FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
+    ASTClass const *c = form.data()->ifASTClassC();
+    if (!c) continue;
+
+    if (c->name.equals(base)) {
+      // found it in a superclass
+      return true;
+    }
+
+    // check the subclasses
+    FOREACH_ASTLIST(ASTCtor, c->ctors, ctor) {
+      if (ctor.data()->name.equals(base)) {
+        // found it in a subclass
         return true;
-      }
-
-      // check the subclasses
-      FOREACH_ASTLIST(ASTCtor, c->ctors, ctor) {
-        if (ctor.data()->name == base) {
-          // found it in a subclass
-          return true;
-        }
       }
     }
   }
 
-  // not a pointer type, or else failed to find it among defined classes
   return false;
 }
 
@@ -269,7 +278,13 @@ void HGen::emitCtorFields(ASTList<CtorArg> const &args)
   // go over the arguments in the ctor and declare fields for them
   {
     FOREACH_ASTLIST(CtorArg, args, arg) {
-      out << "  " << arg.data()->type << " " << arg.data()->name << ";\n";
+      char const *star = "";
+      if (isTreeNode(arg.data()->type)) {
+        // make it a pointer in the concrete representation
+        star = "*";
+      }
+
+      out << "  " << arg.data()->type << " " << star << arg.data()->name << ";\n";
     }
   }
   out << "\n";
@@ -291,12 +306,20 @@ void HGen::emitCtorDefn(char const *className, ASTList<CtorArg> const &args)
         if (ct++ > 0) {
           out << ", ";
         }
-
-        out << arg.data()->type << " ";
-        if (isListType(arg.data()->type)) {
-          // lists are constructed by passing pointers
+          
+        char const *type = arg.data()->type;
+        out << type << " ";
+        if (isListType(type) ||
+            isTreeNode(type) ||
+            0==strcmp(type, "LocString")) {
+          // lists and subtrees and LocStrings are constructed by passing pointers
+          trace("putStar") << "putting star for " << type << endl;
           out << "*";
         }
+        else {
+          trace("putStar") << "NOT putting star for " << type << endl;
+        }
+
         out << "_" << arg.data()->name;      // prepend underscore to param's name
       }
     }
@@ -482,7 +505,7 @@ void CGen::emitDestructor(char const *clsname, ASTList<CtorArg> const &args)
       // role in a debugger backtrace
       out << "  " << arg.name << ".deleteAll();\n";
     }
-    else if (arg.owner) {
+    else if (arg.owner || isTreeNode(arg.type)) {
       out << "  delete " << arg.name << ";\n";
     }
   }
@@ -503,7 +526,9 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
       out << "  PRINT_LIST(" << extractListType(arg.type) << ", "
                              << arg.name << ");\n";
     }
-    else if (isTreeNodePtr(arg.type)) {
+    else if (isTreeNode(arg.type) ||
+             (isTreeNodePtr(arg.type) && arg.owner)) {
+      // don't print subtrees that are possibly shared or circular
       out << "  PRINT_SUBTREE(" << arg.name << ");\n";
     }
     else if (arg.type.equals("bool")) {

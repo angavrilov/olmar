@@ -5,5 +5,5 @@ file astgen
 break main
 break breaker
 #set args -tr tmp tiny.ast
-set args ast.ast
+set args ../parsgen/gramast.ast
 run

@@ -1,4 +1,4 @@
-agrampar.tab.?
+agrampar.tab.*
 agrampar.output
 agrampar.codes.h
 agramlex.yy.cc
@@ -6,4 +6,3 @@ bison.simple
 a.out
 agrampar
 astgen
-
