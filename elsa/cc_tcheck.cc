@@ -2868,8 +2868,8 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
               // The first one will still return false for the case of
               // the gnu extension where stack allocated arrays are
               // allowed to have their size determined at runtime but
-              // won't print an error.  FIX: perhaps this should only
-              // be allowed when a GNU flag is set.
+              // won't print an error.  FIX GNU: perhaps this should
+              // only be allowed when a GNU flag is set.
               ? size->constEval(msg, sz)
               : size->constEval(env, sz)
             )
