@@ -592,6 +592,7 @@ testparse t0356.cc
 testparse t0357.cc
 testparse t0358.cc
 testparse t0359.cc
+testparse t0360.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

@@ -5179,12 +5179,13 @@ void E_funCall::inner1_itcheck(Env &env)
     return;
   }
 }
-       
+
 // defined below inner2_itcheck
-static bool dependentInstantiation(Env &env, Variable *&var, PQName *pqname, 
+static bool dependentInstantiation(Env &env, Variable *&var, PQName *pqname,
   Type *&nodeType, Expression *receiver, FakeList<ArgExpression> *args);
 static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
                                          FakeList<ArgExpression> *args);
+static bool shouldUseArgDepLookup(E_variable *evar);
 
 Type *E_funCall::inner2_itcheck(Env &env)
 {
@@ -5291,12 +5292,11 @@ Type *E_funCall::inner2_itcheck(Env &env)
     // simple E_funCall to a named function
     if (func->isE_variable()) {
       E_variable *evar = func->asE_variable();
-      
+
       // do we need to do another lookup, a-la cppstd 3.4.2?
       Variable *chosen;
       if (evar->name->isPQ_name() &&             // unqualified name, and
-          (evar->type->isSimple(ST_NOTFOUND) ||  //   lookup failed, or
-           !evar->var->isMember())) {            //   lookup found a nonmember
+          shouldUseArgDepLookup(evar)) {         // (other tests pass)
         // must do lookup according to 3.4.2
         chosen = argumentDependentLookup(env, evar, args);
       }
@@ -5712,6 +5712,34 @@ static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
   return outerResolveOverload_explicitSet
     (env, fvar->name, fvar->name->loc, name,
      env.implicitReceiverType(), args, candidates);
+}
+
+
+static bool shouldUseArgDepLookup(E_variable *evar)
+{
+  if (evar->type->isSimple(ST_NOTFOUND)) {
+    // lookup failed; use it
+    return true;
+  }
+
+  if (!evar->type->isFunctionType()) {
+    // We found a non-function, like an (function) object or a
+    // function pointer.  The standard seems to say that even in
+    // this case we do arg-dependent lookup, but I think that is a
+    // little strange, and it does not work in the current
+    // implementation because we end up doing overload resolution
+    // with the object name as a candidate, and that messes up
+    // everything (how should it work???).  So I am just going to
+    // let it go.  A testcase is in/t0360.cc.
+    return false;
+  }
+
+  if (evar->var->isMember()) {
+    // found a member function; we do *not* use arg-dep lookup
+    return false;
+  }
+
+  return true;
 }
 
 
