@@ -1278,5 +1278,10 @@ void Env::checkFuncAnnotations(FunctionType *, D_func *)
 void Env::addedNewCompound(CompoundType *)
 {}
 
+int Env::countInitializers(IN_compound const *cpd)
+{
+  return cpd->inits.count();
+}
+
 
 // EOF

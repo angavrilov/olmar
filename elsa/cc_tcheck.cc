@@ -1385,9 +1385,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // TODO: check compatibility with dflags; e.g. we can't allow
     // an initializer for a global variable declared with 'extern'
 
-    // TODO: in the case of class member functions, delay checking
-    // the initializer until the entire class body has been scanned
-    // UPDATE: what?  what the hell was I thinking about?
+    // TODO: in the case of class data members, delay checking the
+    // initializer until the entire class body has been scanned
 
     init->tcheck(env);
 
@@ -1400,22 +1399,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     if (var->type->isArrayType() &&
         init->isIN_compound()) {
       ArrayType *at = var->type->asArrayType();
-      // dsw: turned the use of this off below, so commenting this out
-      // to prevent the unused warning
-//        IN_compound const *cpd = init->asIN_compoundC();
+      IN_compound const *cpd = init->asIN_compoundC();
+                   
+      // count the initializers; this is done via the environment
+      // so the designated-initializer extension can intercept
+      int initLen = env.countInitializers(cpd);
+
       if (!at->hasSize()) {
         // replace the computed type with another that has
         // the size specified; the location isn't perfect, but
         // getting the right one is a bit of work
-
-        // dsw: your count is incorrect in the presence of nontrivial
-        // compound initializers.  I have figured out this problem,
-        // but for now it is only implemented in cc_qual/qual_walk.cc;
-        // Perhaps I could refactor the code and we could share it;
-        // then you could have correct sizes here; This incorrect size
-        // is messing up my code so I'm turning it off.
-//          var->type = env.tfac.setArraySize(var->loc, at, cpd->inits.count());
-        xassert(at->size == ArrayType::NO_SIZE);// dsw: just make sure
+        var->type = env.tfac.setArraySize(var->loc, at, initLen);
       }
       else {
         // TODO: cppstd wants me to check that there aren't more
@@ -3351,9 +3345,6 @@ Type *E_sizeof::itcheck(Env &env)
                   ") is " << size);
 
   // TODO: is this right?
-  // dsw: I think under some gnu extensions perhaps sizeof's aren't
-  // const (like with local arrays that use a variable to determine
-  // their size at runtime).  Therefore, not making const.
   return expr->type->isError()?
            expr->type : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
 }
