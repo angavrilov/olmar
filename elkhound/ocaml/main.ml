@@ -298,8 +298,7 @@ type tPath = {
   (* corresponding array of symbol ids to interpret svals *)
   symbols: tSymbolId array ref;
 
-  (* when this path is in the queue, this link points to the
-   * next path in dequeueing order *)
+  (* next path in dequeueing order *)
   mutable next: tPath;
 }
 
@@ -307,6 +306,24 @@ type tPath = {
 type tReductionPathQueue = {
   (* head of the list, first to dequeue *)
   mutable top: tPath;
+  
+  (* pool of path objects *)
+  pathPool: tPath tObjectPool;
+  
+  (* TODO: when tables are encapsulated, we need a pointer to them here *)
+}
+
+          
+(* GLR parser object *)
+class tGLR =
+object (self)
+  (* ---- data ---- *)
+  
+  (* for debugging, so I can ask for token descriptions in places *)
+  mutable lexerPtr: tLexerInterface;
+  
+  (* set of topmost parser nodes *)
+  topmostParsers: tStackNode tArrayStack;
 
 
 
@@ -320,151 +337,6 @@ type tReductionPathQueue = {
 
 
 
-
-
-
-let stateStack : tStateId array ref = ref (Array.make 10 0)
-let svalStack : Obj.t array ref = ref (Array.make 10 (Obj.repr 0))
-let stackLen : int ref = ref 0
-
-let pushStateSval (state : tStateId) (sval : Obj.t) : unit =
-begin
-  if ((Array.length !stateStack) = !stackLen) then (
-    (* must make it bigger *)
-    let newStateStack : tStateId array = (Array.make (!stackLen * 2) 0) in
-    let newSvalStack : Obj.t array = (Array.make (!stackLen * 2) (Obj.repr 0)) in
-
-    (* copy *)
-    (Array.blit
-      !stateStack           (* source array *)
-      0                     (* source start position *)
-      newStateStack         (* dest array *)
-      0                     (* dest start position *)
-      !stackLen             (* number of elements to copy *)
-    );
-    (Array.blit
-      !svalStack            (* source array *)
-      0                     (* source start position *)
-      newSvalStack          (* dest array *)
-      0                     (* dest start position *)
-      !stackLen             (* number of elements to copy *)
-    );
-
-    (* switch from old to new *)
-    stateStack := newStateStack;
-    svalStack := newSvalStack;
-  );
-
-  (* put new element into the stack at the end *)
-  (!stateStack).(!stackLen) <- state;
-  (!svalStack).(!stackLen) <- sval;
-  (incr stackLen);
-end
-
-let topState() : tStateId =
-begin
-  (!stateStack).(!stackLen - 1)
-end
-
-let parse (lex:tLexerInterface) : int =
-begin
-  (* get first token *)
-  (lex#getToken());
-
-  (* initial state *)
-  (pushStateSval 0 (Obj.repr 0));
-
-  (* loop over all tokens until EOF and stack has just start symbol *)
-  while (not ((lex#getTokType()) = 0)) ||
-        (!stackLen > 2) do
-    let tt:int = (lex#getTokType()) in        (* token type *)
-    let state:tStateId = (topState()) in      (* current state *)
-
-    (Printf.printf "state=%d tokType=%d sval=%d desc=\"%s\"\n"
-                   state
-                   tt
-                   (lex#getIntSval())
-                   (lex#tokenDesc())
-                 );
-    (flush stdout);
-
-    (* read from action table *)
-    let act:int = actionTable.(state*actionCols + tt) in
-
-    (* shift? *)
-    if (0 < act && act <= numStates) then (
-      let dest:tStateId = act-1 in            (* destination state *)
-      (pushStateSval dest (lex#getSval()));
-
-      (* next token *)
-      (lex#getToken());
-
-      (Printf.printf "shift to state %d\n" dest);
-      (flush stdout);
-    )
-
-    (* reduce? *)
-    else if (act < 0) then (
-      let rule:int = -(act+1) in              (* reduction rule *)
-      let ruleLen:int = prodInfo_rhsLen.(rule) in
-      let lhs:int = prodInfo_lhsIndex.(rule) in
-
-      (* make an array of semantic values for the action rule; this does
-       * an extra copy if we're already using a linear stack, but will
-       * be needed for GLR so I'll do it this way *)
-      let svalArray : Obj.t array = (Array.make ruleLen (Obj.repr 0)) in
-      (Array.blit
-        !svalStack            (* source array *)
-        (!stackLen - ruleLen) (* source start position *)
-        svalArray             (* dest array *)
-        0                     (* dest start position *)
-        ruleLen               (* number of elements to copy *)
-      );
-
-      (* invoke user's reduction action *)
-      let sval:Obj.t = (reductionAction rule svalArray) in
-
-      (* pop 'ruleLen' elements *)
-      stackLen := (!stackLen - ruleLen);
-      let newTopState:int = (topState()) in
-
-      (* get new state *)
-      let dest:tStateId = gotoTable.(newTopState*gotoCols + lhs) in
-      (pushStateSval dest sval);
-
-      (Printf.printf "reduce by rule %d (len=%d, lhs=%d), goto state %d\n"
-                     rule ruleLen lhs dest);
-      (flush stdout);
-    )
-
-    (* error? *)
-    else if (act = 0) then (
-      (Printf.printf "parse error in state %d\n" state);
-      (flush stdout);
-      (failwith "parse error");
-    )
-
-    (* bad code? *)
-    else (
-      (failwith "bad action code");
-    );
-  done;
-
-  (* print final parse stack *)
-  (Printf.printf "final parse stack (up is top):\n");
-  let i:int ref = ref (pred !stackLen) in
-  while (!i >= 0) do
-    (Printf.printf "  %d\n" (!stateStack).(!i));
-    (decr i);
-  done;
-  (flush stdout);
-
-  (* return value: sval of top element *)
-  let topSval:Obj.t = (!svalStack).(!stackLen - 1) in
-
-  (* assume is int for now *)
-  (Obj.obj topSval : int)
-end
 
 
 (* --------------------- main -------------------- *)

@@ -10,12 +10,13 @@ all: tobjpool main
 
 # dependencies
 ALL_MODULES = \
+  arraystack.cmo \
   objpool.cmo \
   tobjpool.cmo \
   main.cmo
 -include $(ALL_MODULES:.cmo=.d)
 
-tobjpool: objpool.cmo tobjpool.cmo
+tobjpool: arraystack.cmo objpool.cmo tobjpool.cmo
 	ocamlc -o $@ -g $^
 
 main: main.cmo
