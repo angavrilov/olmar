@@ -108,12 +108,6 @@ if ($os eq "Linux") {
   push @CCFLAGS, "-D__LINUX__";
 }
 
-# if haven't seen a hashfunction by now, use the default
-# sm: ... the only thing sensitive to this is strhash.cc, in smbase!
-#  if (!grep (/^-D.*_HASH$/, @CCFLAGS)) {
-#    push @CCFLAGS, $default_hash;
-#  }
-
 # smash the list together to make a string
 $CCFLAGS = join(' ', @CCFLAGS);
 
