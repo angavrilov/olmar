@@ -102,3 +102,4 @@ gss.*.g
 .gdbinit
 gprof2.out
 cyctimer
+diff*
