@@ -306,6 +306,7 @@ void Function::tcheck(Env &env, bool checkBody)
     ctorReceiver = env.receiverParameter(loc, inClass, CV_NONE,
                                          NULL /*syntax*/);
 
+    // FIX: dsw: why not isReference() ?
     xassert(ctorReceiver->type->isPointerType());   // paranoia
     env.addVariable(ctorReceiver);
   }
