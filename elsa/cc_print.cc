@@ -233,11 +233,18 @@ TreeWalkDebug::~TreeWalkDebug()
   out.up();
 }
 
-// **** class PrintEnv
+// **** class TypePrinter
 
-void PrintEnv::printType(Type *type)
+void TypePrinter::print(Type *type, stringBuilder &sb)
 {
-  out << type->toString();
+  sb << type->toString();
+}
+
+string TypePrinter::print(Type *type)
+{
+  stringBuilder sb;
+  print(type, sb);
+  return sb;
 }
 
 // ****************
@@ -298,9 +305,6 @@ string declaration_toString (
   }
 
   else {
-    //s << var->type->toCString(qualifierName);
-    //s << var->toString();
-//      s << type->toCString(finalName);
     if (finalName) {
       string scope_thing = string("");
       if (pqname) {
@@ -430,11 +434,6 @@ void TF_namespaceDecl::print(PrintEnv &env)
 void Function::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Function");
-  //env.out << var_toString(nameAndParams->var, nameAndParams->decl->decl->getDeclaratorId());
-
-  // instead of walking 'nameAndParams', use 'funcType' to
-  // get accurate parameter names
-  //nameAndParams->print(env);
 
   env.out <<
     declaration_toString(dflags, funcType,
@@ -518,7 +517,7 @@ void Declaration::print(PrintEnv &env)
 void ASTTypeId::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("ASTTypeId");
-  env.out << getType()->toString();
+  env.out << env.typePrinter.print(getType());
   if (decl->getDeclaratorId()) {
     env.out << " ";
     decl->getDeclaratorId()->print(env);
@@ -703,18 +702,13 @@ void Enumerator::print(PrintEnv &env)
 void Declarator::print(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("Declarator");
-//    if (var->type->isTemplateClass()) {
-//      env.out << "/*TEMPLATE CLASS*/" << endl;
-//    } else if (var->type->isTemplateFunction()) {
-//      env.out << "/*TEMPLATE FUNCTION*/" << endl;
-//    }
+
   env.out << var_toString(var, decl->getDeclaratorId());
   D_bitfield *b = dynamic_cast<D_bitfield*>(decl);
   if (b) {
     env.out << ":";
     b->bits->print(env);
   }
-//    var_toString(var, decl->getDeclaratorId()->toString());
   if (init) {
     IN_ctor *ctor = dynamic_cast<IN_ctor*>(init);
     if (ctor) {
@@ -983,7 +977,8 @@ string Expression::exprToString() const
   TreeWalkDebug treeDebug("Expression::exprToString");
   stringBuilder sb;
   CodeOutputStream codeOut(sb);
-  PrintEnv env(codeOut);
+  TypePrinter typePrinter;
+  PrintEnv env(codeOut, typePrinter);
   
   // sm: I think all the 'print' methods should be 'const', but
   // I'll leave such a change up to this module's author (dsw)
@@ -1138,7 +1133,7 @@ void E_funCall::iprint(PrintEnv &env)
 void E_constructor::iprint(PrintEnv &env)
 {
   TreeWalkDebug treeDebug("E_constructor::iprint");
-  env.out << type->toString();
+  env.out << env.typePrinter.print(type);
   PairDelim pair(env.out, "", "(", ")");
   printArgExprList(args, env);
 }
@@ -1497,7 +1492,8 @@ void TD_decl::iprint(PrintEnv &env)
       SFOREACH_OBJLIST(Variable, ti->instantiations, iter) {
         Variable const *instV = iter.data();
 
-        env.out << "// " << instV->type->toString();
+        env.out << "// ";
+        env.out << env.typePrinter.print(instV->type);
         CompoundType *instCT = instV->type->asCompoundType();
         if (instCT->syntax) {
           env.out << "\n";

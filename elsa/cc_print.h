@@ -106,21 +106,36 @@ class TreeWalkDebug {
   ~TreeWalkDebug();
 };
 
+// This class knows how to print out Types to a stringBuilder or as a
+// string; Underneath, the type is printed to a string builder; this
+// design is necessary for situations where the order in which the
+// tree is visited is not the same as the order in which they must be
+// output; FIX: it would be best if instead of being forced to make a
+// string and return it, if there were a superclass of OStream and
+// stringBuilder so it could just print the output to it directly so
+// that we avoid a layer of buffering when the printing and visiting
+// order are the same.  That is an optimization I will leave for
+// later.
+class TypePrinter {
+  public:
+  // this method does the work
+  virtual void print(Type *, stringBuilder &);
+  // convenience method
+  virtual string print(Type *);
+};
 
 // global context for a pretty-print
-class PrintEnv {
-  public:
+struct PrintEnv {
   CodeOutputStream &out;
+  TypePrinter &typePrinter;
   SourceLoc loc;
   
   public:
-  PrintEnv(CodeOutputStream &out0)
+  PrintEnv(CodeOutputStream &out0, TypePrinter &typePrinter0)
     : out(out0)
+    , typePrinter(typePrinter0)
     , loc(SL_UNKNOWN)
   {}
-  virtual ~PrintEnv() {}
-
-  virtual void printType(Type *);
 };
 
 #define PRINT_AST(AST)               \
