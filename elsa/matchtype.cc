@@ -454,25 +454,27 @@ bool MatchTypes::match_ptm(PointerToMemberType *a, Type *b, int matchDepth)
   else if (b->isReference()) return false;
 
   if (b->isTypeVariable()) return match_rightTypeVar(a, b, matchDepth);
-
   if (b->isPointerToMemberType()) {
-    // FIX: should there be some subtyping polymorphism here?
-
-    // I have to wrap the CompoundType in a CVAtomicType just so I can
-    // do the unification;
-    //
-    // DO NOT MAKE THESE ON THE STACK as one might be a type variable
-    // and the other then would get unified into permanent existence
-    // on the heap
-    CVAtomicType *a_inClassNATcvAtomic =
-      tfac.makeCVAtomicType(SL_UNKNOWN, a->inClassNAT, CV_NONE);
-    CVAtomicType *b_inClassNATcvAtomic =
-      tfac.makeCVAtomicType(SL_UNKNOWN, b->asPointerToMemberType()->inClassNAT, CV_NONE);
-    return
-      match0(a_inClassNATcvAtomic, b_inClassNATcvAtomic, 0 /*matchDepth*/)
-      && match0(a->atType, b->getAtType(), 2 /*matchDepth*/);
+    return match_Atomic(a->inClassNAT, b->asPointerToMemberType()->inClassNAT, 0 /*matchDepth*/)
+    && match0(a->atType, b->getAtType(), 2 /*matchDepth*/);
   }
   return false;
+}
+
+
+bool MatchTypes::match_Atomic(AtomicType *a, AtomicType *b, int matchDepth)
+{
+  // FIX: should there be some subtyping polymorphism here?
+  //
+  // I have to wrap the CompoundType in a CVAtomicType just so I can
+  // do the unification;
+  //
+  // DO NOT MAKE THESE ON THE STACK as one might be a type variable
+  // and the other then would get unified into permanent existence
+  // on the heap
+  CVAtomicType *aCv = tfac.makeCVAtomicType(SL_UNKNOWN, a, CV_NONE);
+  CVAtomicType *bCv = tfac.makeCVAtomicType(SL_UNKNOWN, b, CV_NONE);
+  return match0(aCv, bCv, matchDepth);
 }
 
 
@@ -520,7 +522,17 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth)
   // were equal and both primaries that they would fail to match
 //    if (!ati || (ati != bti)) return false;
   if (ati != bti) return false;
+
   // do we match?
+  //
+  // If b is a primary then any a with the same priary (namely b) will
+  // match it.  FIX: I wonder if we are going to omit some bindings
+  // getting created in the the modes that create bindings by doing
+  // this?
+  //
+  // FIX: I treat mutants just like anything else; I think this is
+  // right
+  if ((!b->isMutant()) && b->isPrimary()) return true;
   return match_Lists2(a->arguments, b->arguments, matchDepth);
 }
 

@@ -283,7 +283,7 @@ void Function::tcheck(Env &env, bool checkBody,
       //   - if 's' is a namespace, 7.3.1.2 para 2 says so
       //   - if 's' is a class, 9.3 para 2 says so
       // example of violation: in/std/7.3.1.2b.cc, error 2
-      bool encloses = env.currentScopeEncloses(s);
+      bool encloses = env.currentScopeAboveTemplEncloses(s);
       if (!encloses) {
         env.error(stringc
           << "function definition of `" << *(nameAndParams->getDeclaratorId())
@@ -301,7 +301,19 @@ void Function::tcheck(Env &env, bool checkBody,
       // should be the same one in which the variable was
       // declared (could this be triggered by user code?)
       if (encloses && qualifierScopes.isNotEmpty()) {
-        xassert(s == qualifierScopes.top());
+        // I had to weaken this assertion to deal with the difference
+        // between the template scope and its instantiation which
+        // occurs when a function member of a class template is
+        // instantiated and typechecked
+//          xassert(s == qualifierScopes.top());
+        if (s != qualifierScopes.top()) {
+          MatchTypes match(env.tfac, MatchTypes::MM_WILD);
+          CompoundType *sCpd = s->curCompound;
+          xassert(sCpd);
+          CompoundType *qCpd = qualifierScopes.top()->curCompound;
+          xassert(qCpd);
+          xassert(match.match_Atomic(sCpd, qCpd, 0 /*matchDepth*/));
+        }
       }
     }
   }
@@ -2713,17 +2725,72 @@ realStart:
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
     env.getOverloadForDeclaration(prior, dt.type);
 
-  // make a new variable; see implementation for details
-  dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
-                                 scope, enclosingClass, prior, overloadSet,
-                                 dt.reallyAddVariable /*reallyAddVariable*/);
-
+  // dsw: moved this up here since I need it below
+  //
   // put in the template args if there are any
   if (name->isPQ_template()) {
     // save these so we can attach the arguments after the template
     // info object is created
     dt.ASTTemplArgs = &name->asPQ_templateC()->args;
   }
+
+  // For function templates at least we need to intercept template
+  // specializations (at least complete specializiations, since this
+  // only really matters for the instantiations and there is never all
+  // call to instantiate template for a complete specialization) so
+  // that they do not make another variable for their definition of
+  // there is already one for their declaration; What will happen
+  // otherwise for function templates is that they will appear to be
+  // in the overload set of their primary, which is what the lookup
+  // for 'prior' found above.
+  if (overloadSet && dt.type->isFunctionType()) {
+    // FIX: other places I used MM_WILD, but I think MM_BIND is
+    // probably right; UPDATE: MM_BIND doesn't work because the
+    // signature might contain type variables, which is not allowed
+    Variable *prim = env.findTemplPrimaryForSignature
+      (overloadSet, dt.type->asFunctionType(), MatchTypes::MM_WILD);
+    if (prim) {
+      xassert(prim->templateInfo());
+      xassert(prim->templateInfo()->isPrimary());
+
+      // This is just a temporary.  I make this on the heap instead of
+      // the stack because for now I don't want to know what gets
+      // dtored when a TemplateInfo goes away and if that will be a
+      // problem; FIX: see if this can be done more efficiently.
+      TemplateInfo *sTemplArgsHolder = new TemplateInfo(NULL /*baseName*/, SL_UNKNOWN /*instLoc*/);
+      if (dt.ASTTemplArgs) {
+        env.initArgumentsFromASTTemplArgs(sTemplArgsHolder, *dt.ASTTemplArgs);
+      }
+
+      Variable *prevInst = NULL;
+      SFOREACH_OBJLIST_NC(Variable, prim->templateInfo()->getInstantiations(), iter) {
+        Variable *candidate = iter.data();
+        if (candidate->getType()->equals(dt.type)) {
+          MatchTypes match(env.tfac, MatchTypes::MM_ISO);
+          bool unifies = match.match_Lists2
+            (candidate->templateInfo()->arguments,
+             sTemplArgsHolder->arguments, 2 /*matchDepth*/);
+          if (unifies) {
+            xassert(!prevInst); // I don't think you can get an instance in more than once
+            prevInst = candidate;
+          }
+        }
+      }
+      if (prevInst) {
+        prior = prevInst;
+      }
+    }
+  }
+
+  // make a new variable; see implementation for details
+  dt.var = env.createDeclaration(loc, unqualifiedName, dt.type, dt.dflags,
+                                 scope, enclosingClass, prior, overloadSet,
+                                 dt.reallyAddVariable /*reallyAddVariable*/);
+  // FIX: was this valid? turn this back on?
+//    if (dt.priorTemplInst) {
+//      xassert(dt.var == dt.priorTemplInst);
+//  //      return;
+//    }
 }
 
 void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
@@ -3031,6 +3098,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
       dt.dflags |= DF_TEMPL_SPEC;
     }
   }
+
   base->tcheck(env, dt, inGrouping);
 
   // see above at 'env.takeFTemplateInfo()'
@@ -5910,13 +5978,16 @@ void TD_func::itcheck(Env &env)
     Variable *forward = primaryTI->getInstantiationOfVar(fVar);
     if (forward) {
       xassert(forward->templateInfo()->getMyPrimaryIdem() == primaryTI);
-      if (forward->funcDefn) {
-        env.error(stringc << "duplicate definition of specialization for " << fVar->toString());
-        return;
-      } else {
-        env.provideDefForFuncTemplDecl(forward, primaryTI, f);
-        env.instantiateForwardFunctions(forward, primary);
-      }
+      xassert(forward->funcDefn == f);
+      // FIX: It would be nice if we could still detect this, but not
+      // this way any more.
+//        if (forward->funcDefn) {
+//          env.error(stringc << "duplicate definition of specialization for " << fVar->toString());
+//          return;
+//        } else {
+      env.provideDefForFuncTemplDecl(forward, primaryTI, f);
+      env.instantiateForwardFunctions(forward, primary);
+//        }
     } else {
       primaryTI->addInstantiation(fVar);
       if (tracingSys("template")) {
@@ -5937,7 +6008,7 @@ void TD_func::itcheck(Env &env)
     xassert(primaryTI->isPrimary());
     if (fVar->funcDefn) {
       if (fVar->funcDefn != f) {
-        env.error(stringc << "Duplicate definition of function template priary " << fVar->name);
+        env.error(stringc << "Duplicate definition of function template primary " << fVar->name);
         return;
       }
       // nothing to do; we must have been the original definition

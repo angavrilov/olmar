@@ -80,6 +80,9 @@ class TemplCandidates {
 // before resorting to heap allocation
 typedef ArrayStackEmbed<Scope*, 2> ScopeSeq;
 
+// need to be able to print these out
+void gdbScopeSeq(ScopeSeq &ss);
+
 
 // utility class for maintaining a first-class sub-stack of the AST
 // stack isomorphic to the stackframe stack; Note that the fact that
@@ -333,6 +336,7 @@ private:     // funcs
                                              bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
+public:      // funcs
   // find the template primary that matches the template args,
   // returning NULL if does not exist; calls xfailure() for now if it
   // is ambiguous
@@ -340,7 +344,6 @@ private:     // funcs
                                          FunctionType *signature,
                                          MatchTypes::MatchMode matchMode);
 
-public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
 
@@ -378,6 +381,11 @@ public:      // funcs
 
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE); }
+
+  // if we are in a template scope, go up one and then call
+  // currentScopeEncloses(); FIX: I suspect this is not general enough
+  // for what I really want
+  bool currentScopeAboveTemplEncloses(Scope const *s);
 
   // true if the current scope contains 's' as a nested scope
   bool currentScopeEncloses(Scope const *s);
@@ -534,6 +542,11 @@ public:      // funcs
   void insertBindingsForPartialSpec
     (Variable *baseV, MatchBindings &bindings);
 
+  // insert bindings for either partial specialization or for a
+  // primary by delegating to one of the two above
+  void insertBindings
+    (Variable *baseV, SObjList<STemplateArgument> &sargs);
+
   void templArgsASTtoSTA
     (ASTList<TemplateArgument> const &arguments,
      SObjList<STemplateArgument> &sargs);
@@ -548,8 +561,7 @@ public:      // funcs
   // cloned AST for effecting the instantiation of the template;
   // Please see Scott's extensive comments at the implementation.
   Scope *prepArgScopeForTemlCloneTcheck
-    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes,
-     Scope *foundScope, Variable *baseV, SObjList<STemplateArgument> &sargs);
+    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope);
 
   // Undo prepArgScopeForTemlCloneTcheck().
   void unPrepArgScopeForTemlCloneTcheck
@@ -574,7 +586,7 @@ public:      // funcs
      Variable *instV,
      Variable *bestV,
      SObjList<STemplateArgument> &sargs,
-     bool addTheInstV = true);
+     Variable *funcFwdInstV=NULL);
 
   // variant of the above, which (for convenience) first converts
   // the AST representation of the arguments into STemplateArguments

@@ -30,7 +30,7 @@
 //     calls match_STA()
 //   match_STA()
 //     class match_Type()
-//   match_Type() and match_rightTypeVar()
+//   match_Type() and match_rightTypeVar() and match_Atomic()
 //     call none
 
 // FIX: I match too liberally: A pointer to a const pointer will match
@@ -182,6 +182,7 @@ public:
 
   // top level entry for checking if Type 'a' matches Type 'b'.
   bool match_Type(Type *a, Type *b, int matchDepth = 0);
+  bool match_Atomic(AtomicType *a, AtomicType *b, int matchDepth);
 
   bool match_STA(STemplateArgument *a, STemplateArgument const *b, int matchDepth = 0);
 

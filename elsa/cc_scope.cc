@@ -495,6 +495,11 @@ string Scope::desc() const
 }
 
 
+void Scope::gdb() const {
+  cout << desc() << endl;
+}
+
+
 void Scope::addUsingEdge(Scope *target)
 {
   TRACE("using", "added using-edge from " << desc()
