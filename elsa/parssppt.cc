@@ -5,7 +5,8 @@
 #include "glr.h"          // toplevelParse
 #include "trace.h"        // traceProcessArg
 #include "syserr.h"       // xsyserror
-#include <stdlib.h>
+
+#include <stdlib.h>       // exit
 
 
 // ---------------------- ParseTree --------------------
@@ -148,7 +149,8 @@ char *processArgs(int argc, char **argv, char const *additionalInfo) {
   return argv[1];
 }
 
-void maybeUseTrivialActions(ParseTreeAndTokens &ptree) {
+void maybeUseTrivialActions(ParseTreeAndTokens &ptree) 
+{
   if (tracingSys("trivialActions")) {
     // replace current actions with trivial actions
     //delete ptree.userAct;      // the caller does this

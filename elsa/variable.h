@@ -31,6 +31,7 @@ class Type;               // cc_type.h
 class OverloadSet;        // below
 class Scope;              // scope
 class Expression;         // cc.ast
+class Function;           // cc.ast
 
 class Variable {
 #if CC_QUAL
@@ -51,6 +52,10 @@ public:    // data
 
   // associated value for constant literals, e.g. "const int five = 5;"
   Expression *value;      // (nullable serf)
+
+  // associated function definition; if NULL, either this thing isn't
+  // a function or we never saw a definition
+  Function *funcDefn;
 
   // if this name has been overloaded, then this will be a pointer
   // to the set of overloaded names; otherwise it's NULL
