@@ -723,7 +723,7 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
       // make a forward declaration
       Type *ret =
          env.makeNewCompound(ct, env.acceptingScope(), name->getName(),
-                             loc, keyword, true /*forward*/, false /*madeUpVar*/);
+                             loc, keyword, true /*forward*/);
       this->atype = ct;        // annotation
       return ret;
     }
@@ -767,8 +767,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
     // handling 'friend' here, despite what the standard says..
     Scope *scope = env.outerScope();
     Type *ret =
-       env.makeNewCompound(ct, scope, name->getName(), loc, keyword,
-                           true /*forward*/, false /*madeUpVar*/);
+       env.makeNewCompound(ct, scope, name->getName(), loc, keyword, 
+                           true /*forward*/);
     this->atype = ct;           // annotation
     return ret;
   }
@@ -904,7 +904,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // make a new type, since a specialization is a distinct template
     // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
-                              false /*forward*/, false /*madeUpVar*/);
+                              false /*forward*/);
     this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
@@ -937,7 +937,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // no existing compound; make a new one
     Scope *destScope = env.typeAcceptingScope();
     ret = env.makeNewCompound(ct, destScope, stringName,
-                              loc, keyword, false /*forward*/, false /*madeUpVar*/);
+                              loc, keyword, false /*forward*/);
     this->ctype = ct;              // annotation
   }
 
@@ -1062,7 +1062,7 @@ void TS_classSpec::tcheckIntoCompound(
       // put it on the list of made-up variables since there are no
       // (e.g.) $tainted qualifiers (since the user didn't even type the
       // dtor's name)
-      env.madeUpVariables.append(v);
+      env.madeUpVariables.push(v);
     }
   }
 

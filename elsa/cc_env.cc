@@ -13,6 +13,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
+    ctorFinished(false),
+
     disambiguationNestingLevel(0),
     errors(),
     str(s),
@@ -44,6 +46,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     errorTypeVar(NULL),
     errorVar(NULL),
 
+    operatorPlusVar(NULL),
+
     var__builtin_constant_p(NULL),
     tunit(tunit0),
 
@@ -65,26 +69,22 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
-  type_info_const_ref = tfac.makeRefType(HERE,
-    makeCVAtomicType(HERE, ct, CV_CONST));
+  type_info_const_ref = 
+    tfac.makeRefType(HERE, makeCVAtomicType(HERE, ct, CV_CONST));
 
-  dependentTypeVar = makeMadeUpVariable(HERE, str("<dependentTypeVar>"),
+  dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
                                   getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
-  madeUpVariables.append(dependentTypeVar);
 
-  dependentVar = makeMadeUpVariable(HERE, str("<dependentVar>"),
+  dependentVar = makeVariable(HERE, str("<dependentVar>"),
                               getSimpleType(HERE, ST_DEPENDENT), DF_NONE);
-  madeUpVariables.append(dependentVar);
 
-  errorTypeVar = makeMadeUpVariable(HERE, str("<errorTypeVar>"),
+  errorTypeVar = makeVariable(HERE, str("<errorTypeVar>"),
                               getSimpleType(HERE, ST_ERROR), DF_TYPEDEF);
-  madeUpVariables.append(errorTypeVar);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
-  errorVar = makeMadeUpVariable(HERE, str("<errorVar>"),
+  errorVar = makeVariable(HERE, str("<errorVar>"),
                           getSimpleType(HERE, ST_ERROR), DF_NONE);
-  madeUpVariables.append(errorVar);
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
@@ -100,7 +100,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   CompoundType *dummyCt;
   Type *t_bad_alloc =
     makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE,
-                    TI_CLASS, true /*forward*/, true /*madeUpVar*/);
+                    TI_CLASS, true /*forward*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
@@ -142,6 +142,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_testOverload = declareSpecialFunction("__testOverload");
 
   #undef HERE
+
+  ctorFinished = true;
 }
 
 Env::~Env()
@@ -161,7 +163,30 @@ Env::~Env()
 }
 
 
-// dsw: needed this
+Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
+{
+  if (!ctorFinished) {
+    // the 'tunit' is NULL for the Variables introduced before analyzing
+    // the user's input
+    Variable *v = tfac.makeVariable(L, n, t, f, NULL);
+    
+    // such variables are entered into a special list, as long as
+    // they're not function parameters (since parameters are reachable
+    // from other made-up variables)
+    if (!(f & DF_PARAMETER)) {
+      madeUpVariables.push(v);
+    }
+    
+    return v;
+  }          
+  
+  else {
+    // usual case
+    return tfac.makeVariable(L, n, t, f, tunit);
+  }
+}
+
+
 Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
                                    Type * /*nullable*/ exnType,
                                    FunctionFlags flags)
@@ -185,9 +210,8 @@ Variable *Env::declareFunction0arg(Type *retType, char const *funcName,
   }
   ft->doneParams();
 
-  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
-  madeUpVariables.append(var);
 
   return var;
 }
@@ -205,9 +229,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
   }
 
   FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType);
-  Variable *p = makeMadeUpVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
-  // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
-  // and it's reachable through 'var' (below)
+  Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_PARAMETER);
 
   ft->addParam(p);
   if (exnType) {
@@ -220,9 +242,8 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
   }
   ft->doneParams();
 
-  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  Variable *var = makeVariable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
   addVariable(var);
-  madeUpVariables.append(var);
 }
 
 
@@ -236,9 +257,8 @@ StringRef Env::declareSpecialFunction(char const *name)
   ft->doneParams();
 
   StringRef ret = str(name);
-  Variable *var = makeMadeUpVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
+  Variable *var = makeVariable(HERE_SOURCELOC, ret, ft, DF_NONE);
   addVariable(var);
-  madeUpVariables.append(var);                                   
   
   return ret;
 }
@@ -928,7 +948,7 @@ ClassTemplateInfo *Env::takeTemplateClassInfo(StringRef baseName)
 
 Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
-                           TypeIntr keyword, bool forward, bool madeUpVar)
+                           TypeIntr keyword, bool forward)
 {
   ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
@@ -943,12 +963,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // make the implicit typedef
   Type *ret = makeType(loc, ct);
-  Variable *tv;
-  if (madeUpVar) {
-    tv = makeMadeUpVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
-  } else {
-    tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
-  }
+  Variable *tv = makeVariable(loc, name, ret, DF_TYPEDEF | DF_IMPLICIT);
   ct->typedefVar = tv;
   if (name && scope) {
     scope->registerVariable(tv);

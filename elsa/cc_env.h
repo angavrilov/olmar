@@ -42,6 +42,11 @@ protected:   // data
   // counter for constructing names for anonymous types
   int anonTypeCounter;
 
+  // initially false, this becomes true once Env::Env has finished;
+  // this is used to distinguish entities introduced automatically
+  // at the start from those that appeared in the input file
+  bool ctorFinished;
+
 public:      // data
   // nesting level of disambiguation passes; 0 means not disambiguating;
   // this is used for certain kinds of error reporting and suppression
@@ -64,8 +69,9 @@ public:      // data
   // client analyses may need to get ahold of all the Variables that I
   // made up, so this is a list of them; these don't include Variables
   // built for parameters of function types, but the functions
-  // themselves appear here so the parameters are reachable
-  SObjList<Variable> madeUpVariables;
+  // themselves appear here so the parameters are reachable (NOTE:
+  // at the moment, I don't think anyone is using this information)
+  ArrayStack<Variable*> madeUpVariables;
 
   // type for typeid expression
   Type *type_info_const_ref;      // (serf)
@@ -87,6 +93,9 @@ public:      // data
   Variable *errorTypeVar;               // (serf)
   Variable *errorVar;                   // (serf)
 
+  // polymorphic built-in operator functions
+  Variable *operatorPlusVar;            // (serf)
+
   // dsw: Can't think of a better way to do this, sorry.
   Variable *var__builtin_constant_p;
 
@@ -103,9 +112,9 @@ private:     // funcs
   //CompoundType *instantiateClass(
   //  CompoundType *tclass, FakeList<TemplateArgument> *args);
 
-  Variable * declareFunction0arg(Type *retType, char const *funcName,
-                                 Type * /*nullable*/ exnType,
-                                 FunctionFlags flags);
+  Variable *declareFunction0arg(Type *retType, char const *funcName,
+                                Type * /*nullable*/ exnType,
+                                FunctionFlags flags);
   void declareFunction1arg(Type *retType, char const *funcName,
                            Type *arg1Type, char const *arg1Name,
                            Type * /*nullable*/ exnType);
@@ -198,7 +207,7 @@ public:      // funcs
   // (if that is not NULL)
   Type *makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                         StringRef name, SourceLoc loc,
-                        TypeIntr keyword, bool forward, bool madeUpVar);
+                        TypeIntr keyword, bool forward);
 
   // instantate 'base' with 'arguments', and return the implicit
   // typedef Variable associated with the resulting type; 'scope'
@@ -252,11 +261,8 @@ public:      // funcs
   ArrayType *makeArrayType(SourceLoc loc, Type *eltType, int size = -1)
     { return tfac.makeArrayType(loc, eltType, size); }
 
-  Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
-    { return tfac.makeVariable(L, n, t, f, tunit); }
-  // dsw: made up Variable-s don't get a TranslationUnit so I can tell them apart
-  Variable *makeMadeUpVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
-    { return tfac.makeVariable(L, n, t, f, NULL); }
+  // (this does the work of the old 'makeMadeUpVariable')
+  Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);
 
   CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE)
     { return tfac.getSimpleType(loc, st, cv); }
