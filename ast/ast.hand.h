@@ -48,8 +48,8 @@ public:
   enum Kind { TF_VERBATIM, ASTCLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
-  DECL_AST_DOWNCASTS(TF_verbatim)
-  DECL_AST_DOWNCASTS(ASTClass)
+  DECL_AST_DOWNCASTS(TF_verbatim, TF_VERBATIM)
+  DECL_AST_DOWNCASTS(ASTClass, ASTCLASS)
 
   virtual void debugPrint(ostream &os, int indent) const;
 };

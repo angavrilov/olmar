@@ -13,13 +13,15 @@
 // ----------------- downcasts --------------------
 // the 'if' variants return NULL if the type isn't what's expected;
 // the 'as' variants throw an exception in that case
-#define DECL_AST_DOWNCASTS(type)                 \
+#define DECL_AST_DOWNCASTS(type, tag)            \
   type const *if##type##C() const;               \
   type *if##type()                               \
     { return const_cast<type*>(if##type##C()); } \
   type const *as##type##C() const;               \
   type *as##type()                               \
-    { return const_cast<type*>(as##type##C()); }
+    { return const_cast<type*>(as##type##C()); } \
+  bool is##type() const                          \
+    { return kind() == tag; }
 
 
 #define DEFN_AST_DOWNCASTS(superclass, type, tag)\

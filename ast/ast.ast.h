@@ -54,9 +54,9 @@ public:      // funcs
   enum Kind { TF_VERBATIM, TF_IMPL_VERBATIM, TF_CLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
-  DECL_AST_DOWNCASTS(TF_verbatim)
-  DECL_AST_DOWNCASTS(TF_impl_verbatim)
-  DECL_AST_DOWNCASTS(TF_class)
+  DECL_AST_DOWNCASTS(TF_verbatim, TF_VERBATIM)
+  DECL_AST_DOWNCASTS(TF_impl_verbatim, TF_IMPL_VERBATIM)
+  DECL_AST_DOWNCASTS(TF_class, TF_CLASS)
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -164,8 +164,8 @@ public:      // funcs
   enum Kind { USERDECL, CUSTOMCODE, NUM_KINDS };
   virtual Kind kind() const = 0;
 
-  DECL_AST_DOWNCASTS(UserDecl)
-  DECL_AST_DOWNCASTS(CustomCode)
+  DECL_AST_DOWNCASTS(UserDecl, USERDECL)
+  DECL_AST_DOWNCASTS(CustomCode, CUSTOMCODE)
 
   virtual void debugPrint(ostream &os, int indent) const;
 

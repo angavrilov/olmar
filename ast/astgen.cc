@@ -268,7 +268,7 @@ void HGen::emitTFClass(TF_class const &cls)
     FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
       // declare the const downcast
       ASTClass const &c = *(ctor.data());
-      out << "  DECL_AST_DOWNCASTS(" << c.name << ")\n";
+      out << "  DECL_AST_DOWNCASTS(" << c.name << ", " << c.kindName() << ")\n";
     }
     out << "\n";
   }
