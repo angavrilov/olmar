@@ -322,7 +322,7 @@ Expression -> AssignmentExpression | Expression "," AssignmentExpression
 ExpressionOpt -> empty | Expression
 
 # this is an expression with the additional requirement that
-# it be entirely evaluatable at compile time
+# it be entirely evaluable at compile time
 # (which is essentially a type property)
 ConstantExpression -> ConditionalExpression
 
