@@ -573,6 +573,11 @@ void CGen::emitTFClass(TF_class const &cls)
     // subclass debugPrint
     out << "void " << ctor.name << "::debugPrint(ostream &os, int indent) const\n";
     out << "{\n";
+    
+    // the debug print preempter is declared in the outer "class",
+    // but inserted into the print methods of the inner "constructors"
+    emitCustomCode(cls.super->decls, "preemptDebugPrint");
+
     out << "  PRINT_HEADER(" << ctor.name << ");\n";
     out << "\n";
 
