@@ -705,11 +705,13 @@ bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const *is2)
 
 // [ASU] fig 4.34, p.224
 // puts the finished parse tables into 'itemSetsDone'
-void GrammarAnalysis::constructLRItemSets(ObjList<ItemSet> &itemSetsDone)
+void GrammarAnalysis::constructLRItemSets()
 {
-  // set of item sets
-  ObjList<ItemSet> itemSetsPending;    // yet to be processed
-    // (those in 'itemSetsDone' have all outgoing links processed)
+  // sets of item sets
+  ObjList<ItemSet> itemSetsPending;            // yet to be processed
+
+  ObjList<ItemSet> &itemSetsDone = itemSets;   // all outgoing links processed
+    // (renamed-by-reference to make role clearer here)
 
   // start by constructing closure of first production
   // (basically assumes first production has start symbol
@@ -742,7 +744,7 @@ void GrammarAnalysis::constructLRItemSets(ObjList<ItemSet> &itemSetsDone)
 
       // get the symbol 'sym' after the dot (next to be shifted)
       Symbol const *sym = dprod->symbolAfterDotC();
-	
+
       // if we already have a transition for this symbol,
       // there's nothing more to be done
       if (itemSet->transitionC(sym) != NULL) {
@@ -797,7 +799,7 @@ void GrammarAnalysis::constructLRItemSets(ObjList<ItemSet> &itemSetsDone)
 // I've modified it to store one less item on the state stack
 // (not really as optimization, just it made more sense to
 // me that way)
-void GrammarAnalysis::lrParse(ObjList<ItemSet> &itemSets, char const *input)
+void GrammarAnalysis::lrParse(char const *input)
 {
   // tokenize the input
   StrtokParse tok(input, " \t");
@@ -935,7 +937,7 @@ void GrammarAnalysis::exampleGrammar()
 {
   // for now, let's use a hardcoded grammar
 
-  
+
 
   #if 0
     // grammar 4.13 of [ASU] (p.191)
@@ -1075,6 +1077,21 @@ void GrammarAnalysis::exampleGrammar()
   // verify we got what we expected
   printProductions(cout);
 
+
+  // run analyses
+  runAnalyses(); 
+  
+  
+  // do some test parses
+  INTLOOP(i, 0,	(int)TABLESIZE(input)) {
+    cout << "------ parsing: `" << input[i] << "' -------\n";
+    lrParse(input[i]);
+  }
+}
+
+
+void GrammarAnalysis::runAnalyses()
+{
   // precomputations
   initializeAuxData();
   computeWhatCanDeriveWhat();
@@ -1113,15 +1130,9 @@ void GrammarAnalysis::exampleGrammar()
     }
   }
 
-  
+
   // LR stuff
-  ObjList<ItemSet> itemSets;
-  constructLRItemSets(itemSets);
-  
-  INTLOOP(i, 0,	(int)TABLESIZE(input)) {
-    cout << "------ parsing: `" << input[i] << "' -------\n";
-    lrParse(itemSets, input[i]);
-  }
+  constructLRItemSets();
 
   // another analysis
   //computePredictiveParsingTable();

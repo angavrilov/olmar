@@ -9,13 +9,6 @@
 //          Techniques, and Tools.  Addison-Wesley,
 //          Reading, MA.  1986.  Second printing (3/88).
 //          [A classic reference for LR parsing.]
-//
-//   [GLR]  J. Rekers.  Parser Generation for Interactive
-//          Environments.  PhD thesis, University of
-//          Amsterdam, 1992.  Available by ftp from
-//          ftp.cwi.nl:/pub/gipe/reports as Rek92.ps.Z.
-//          [Contains a good description of the Generalized
-//          LR (GLR) algorithm.]
 
 
 #ifndef __GRAMANL_H
@@ -28,7 +21,7 @@ class Bit2d;            // bit2d.h
 
 
 class GrammarAnalysis : public Grammar {
-private:    // data
+protected:  // data
   // if entry i,j is true, then nonterminal i can derive nonterminal j
   // (this is a graph, represented (for now) as an adjacency matrix)
   enum { emptyStringIndex = 0 };
@@ -43,6 +36,9 @@ private:    // data
 
   // used to assign itemsets ids
   int nextItemSetId;
+
+  // the LR parsing tables
+  ObjList<ItemSet> itemSets;
 
 public:	    // data
   // true if any nonterminal can derive itself in 1 or more steps
@@ -89,8 +85,9 @@ private:    // funcs
   bool itemSetContainsItemSet(ItemSet const *big,
                               ItemSet const *small);
   bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);
-  void constructLRItemSets(ObjList<ItemSet> &itemSetsDone);
-  void lrParse(ObjList<ItemSet> &itemSets, char const *input);
+
+  void constructLRItemSets();
+  void lrParse(char const *input);
 
   // misc
   void computePredictiveParsingTable();
@@ -107,6 +104,10 @@ public:	    // funcs
   // overrides base class to add a little bit of the
   // annotated info
   void printProductions(ostream &os) const;
+
+  // when grammar is built, this runs all analyses and stores
+  // the results in this object's data fields
+  void runAnalyses();
 
 
   // ---- grammar queries ----
