@@ -99,11 +99,13 @@ public:
 
   // "<file>:<line>:<col>", or "" if no loc info
   string likeGccToString() const;
-  
+
   string toString() const { return likeGccToString(); }
-  
+
   friend stringBuilder& operator<< (stringBuilder &sb, SourceLocation const &obj)
     { return sb << obj.toString(); }
+  friend ostream& operator<< (ostream &os, SourceLocation const &obj)
+    { return os << obj.toString(); }
 };
 
 inline string toString(SourceLocation const &loc)
