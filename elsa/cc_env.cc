@@ -4029,6 +4029,19 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
                 associated.prependUnique(ct->parentScope);
               } 
 
+              // I am disabling this because:
+              //   - it fixes in/k0009.cc
+              //   - it is hard (though not impossible) to conjure a
+              //     situation where a name found in an argument's
+              //     associated scope could be used
+              //   - gcc and edg seem not to do it, at least as evidenced
+              //     by their acceptance of in/k0009.cc
+              // In general, arg-dep lookup is poorly tested right now.
+              // What I should do at some point is write a few dozen
+              // tests that hit all the corners, and determine the extent
+              // to which my interpretation of the standard agrees with
+              // gcc and edg.
+              #if 0     // disabled for now
               // look at template arguments
               TemplateInfo *ti = ct->templateInfo();
               xassert(ti);
@@ -4041,6 +4054,7 @@ void Env::getAssociatedScopes(SObjList<Scope> &associated, Type *type)
                   // TODO: implement this
                 }
               }
+              #endif // 0
             }
           }
           else {

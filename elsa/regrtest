@@ -869,7 +869,7 @@ failparse k0005.cc "declaring a constructor with class name"
 failparse k0006.cc "error: E_alignofType is not constEval'able"
 testparse k0007.cc
 failparse k0008.cc "addresses of labels and computed goto"
-failparse k0009.cc "clash between function and instantiated template parameter member"
+testparse k0009.cc #"clash between function and instantiated template parameter member"
 testparse k0010.cc
 testparse k0011.cc
 testparse k0012.cc
