@@ -185,10 +185,10 @@ EnumType *Env::lookupPQEnum(PQName const *name) const
 
 
 // -------- diagnostics --------
-Type const *Env::error(char const *msg)
+Type const *Env::error(char const *msg, bool disambiguates)
 {
   trace("error") << "error: " << msg << endl;
-  errors.prepend(new ErrorMsg(stringc << "error: " << msg, loc()));
+  errors.prepend(new ErrorMsg(stringc << "error: " << msg, loc(), disambiguates));
   return getSimpleType(ST_ERROR);
 }
 

@@ -27,10 +27,17 @@ class ErrorMsg {
 public:
   string msg;
   SourceLocation loc;
+  
+  // when this is true, the error message should be considered
+  // when disambiguation; when it's false, it's not a sufficiently
+  // severe error to warrant discarding an ambiguous alternative;
+  // for the most part, only environment lookup failures are
+  // considered to disambiguate
+  bool disambiguates;
 
 public:
-  ErrorMsg(char const *m, SourceLocation const &L) 
-    : msg(m), loc(L) {}
+  ErrorMsg(char const *m, SourceLocation const &L, bool d=false)
+    : msg(m), loc(L), disambiguates(d) {}
   ~ErrorMsg();
   
   string toString() const;
@@ -123,7 +130,7 @@ public:      // function
   EnumType *lookupPQEnum(PQName const *name) const;
 
   // diagnostic reports; all return ST_ERROR type
-  Type const *error(char const *msg);
+  Type const *error(char const *msg, bool disambiguates=false);
   Type const *warning(char const *msg);
   Type const *unimp(char const *msg);
 

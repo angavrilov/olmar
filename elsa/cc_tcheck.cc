@@ -104,12 +104,14 @@ Type const *TS_name::tcheck(Env &env)
   Variable *var = env.lookupPQVariable(name);
   if (!var) {
     return env.error(stringc
-      << "there is no typedef called `" << *name << "'");
+      << "there is no typedef called `" << *name << "'",
+      true /*disambiguates*/);
   }
 
   if (!var->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
-      << "variable name `" << *name << "' used as if it were a type");
+      << "variable name `" << *name << "' used as if it were a type",
+      true /*disambiguates*/);
   }
 
   Type const *ret = applyCVToType(cv, var->type);
@@ -331,8 +333,11 @@ void Declarator::tcheck(Env &env, Type const *spec)
   // *without* DF_TYPEDEF, and then that flag will be added
   // by the caller (Declaration::tcheck)
 
-  // TODO: check the initializer for compatibility with
-  // the declared type
+  if (init) {
+    // TODO: check the initializer for compatibility with
+    // the declared type
+    init->tcheck(env);
+  }
 }
 
 
@@ -432,6 +437,18 @@ Variable *D_bitfield::itcheck(Env &env, Type const *spec)
 // OperatorDeclarator
 
 // ---------------------- Statement ---------------------
+// return true if the list contains no disambiguating errors
+bool noDisambErrors(ObjList<ErrorMsg> const &list)
+{
+  FOREACH_OBJLIST(ErrorMsg, list, iter) {
+    if (iter.data()->disambiguates) {
+      return false;    // has at least one disambiguating error
+    }
+  }
+  return true;         // no disambiguating errors
+}
+
+
 // Generic ambiguity resolution:  We check all the alternatives,
 // and select the one which typechecks without errors.  If
 // 'priority' is true, then the alternatives are considered to be
@@ -468,14 +485,16 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
   int altIndex = 0;
   int numOk = 0;
   NODE *lastOk = NULL;
+  int lastOkIndex = -1;
   for (NODE *alt = ths; alt != NULL; alt = alt->ambiguity, altIndex++) {
     int beforeChange = env.getChangeCount();
     alt->mid_tcheck(env);
     altErrors[altIndex].concat(env.errors);
-    if (altErrors[altIndex].isEmpty()) {
+    if (noDisambErrors(altErrors[altIndex])) {
       numOk++;
       lastOk = alt;
-      
+      lastOkIndex = altIndex;
+
       if (priority) {
         // the alternatives are listed in priority order, so once an
         // alternative succeeds, stop and select it
@@ -509,9 +528,12 @@ NODE *resolveAmbiguity(NODE *ths, Env &env, char const *nodeTypeName,
     trace("disamb") << locStr << ": ambiguous " << nodeTypeName
                     << ": selected " << lastOk->kindName() << endl;
 
-    // since it has no errors, nothing to put back (TODO: warnings?)
-    // besides the errors which existed before; let the other errors
-    // go away with the array
+    // put back its errors (non-disambiguating, and warnings);
+    // errors associated with other alternatives will be deleted
+    // automatically
+    env.errors.concat(altErrors[lastOkIndex]);
+
+    // put back pre-existing errors
     env.errors.concat(existingErrors);
 
     // break the ambiguity link (if any) in 'lastOk', so if someone
@@ -839,12 +861,14 @@ Type const *E_variable::itcheck(Env &env)
   var = env.lookupPQVariable(name);
   if (!var) {
     return env.error(stringc
-      << "there is no variable called `" << *name << "'");
+      << "there is no variable called `" << *name << "'",
+      true /*disambiguates*/);
   }
 
   if (var->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
-      << "`" << *name << "' used as a variable, but it's actually a typedef");
+      << "`" << *name << "' used as a variable, but it's actually a typedef",
+      true /*disambiguates*/);
   }
 
   if (var->type->isFunctionType()) {
@@ -891,6 +915,11 @@ Type const *E_funCall::itcheck(Env &env)
       << "' as a function");
   }
 
+  // TODO: take into account possibility of operator overloading
+  
+  // TODO: I currently translate array deref into ptr arith plus
+  // ptr deref; that makes it impossible to overload [] !
+
   // TODO: make sure the argument types are compatible
   // with the function parameters
 
@@ -917,8 +946,36 @@ Type const *E_constructor::itcheck(Env &env)
 Type const *E_fieldAcc::itcheck(Env &env)
 {
   obj = obj->tcheck(env);
+  
+  // get the type of 'obj', and make sure it's a compound
+  Type const *rt = obj->type->asRval();
+  CompoundType const *ct = rt->ifCompoundType();
+  if (!ct) {
+    return env.error(stringc
+      << "non-compound `" << rt->toString()
+      << "' doesn't have fields to access");
+  }
 
-  return env.unimp("field access");
+  if (fieldName->hasQualifiers()) {
+    // this also catches destructor invocations
+    return env.unimp("fields with qualified names");
+  }
+
+  // look for the named field
+  CompoundType::Field const *field = ct->getNamedField(fieldName->name);
+  if (!field) {
+    return env.error(stringc
+      << "there is no field called `" << fieldName->name
+      << "' in " << obj->type->toString());
+  }
+
+  // type of expression is type of field; possibly as an lval
+  if (obj->type->isLval()) {
+    return makeRefType(field->type);
+  }
+  else {
+    return field->type;
+  }
 }
 
 
@@ -948,18 +1005,25 @@ Type const *E_effect::itcheck(Env &env)
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: make sure that 'expr' is an lvalue (reference type)
   // TODO: consider possibility of operator overloading
-  return getSimpleType(ST_INT);
+  return expr->type;
 }
 
 
 Type const *E_binary::itcheck(Env &env)
 {
   e1 = e1->tcheck(env);
+  
+  // if the LHS is an array, coerce it to a pointer
+  Type const *lhsType = e1->type->asRval();
+  if (lhsType->isArrayType()) {
+    lhsType = makePtrType(lhsType->asArrayTypeC().eltType);
+  }
+
   e2 = e2->tcheck(env);
 
   // TODO: make sure 'expr' is compatible with given operator
   // TODO: consider the possibility of operator overloading
-  return getSimpleType(ST_INT);
+  return lhsType;      // works for pointer arith..
 }
 
 
@@ -992,7 +1056,8 @@ Type const *E_deref::itcheck(Env &env)
   PointerType const &pt = rt->asPointerTypeC();
   xassert(pt.op == PO_POINTER);   // otherwise not rval!
 
-  return pt.atType;
+  // dereferencing yields an lvalue
+  return makeRefType(pt.atType);
 }
 
 
@@ -1141,7 +1206,22 @@ bool Expression::constEval(Env &env, int &result) const
 
 
 // ExpressionListOpt
-// Initializer
+
+// ----------------------- Initializer --------------------
+void IN_expr::tcheck(Env &env)
+{
+  e = e->tcheck(env);
+}
+
+
+void IN_compound::tcheck(Env &env)
+{
+  FOREACH_ASTLIST_NC(Initializer, inits, iter) {
+    iter.data()->tcheck(env);
+  }
+}
+
+
 // InitLabel
 
 
