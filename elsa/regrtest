@@ -784,7 +784,7 @@ if $use_gnu; then
 
   # test c99 extensions
   for fn in in/c99/*.c; do
-    runTest ./ccparse -tr $TR_FLAGS "$fn"
+    runTest ./ccparse -tr c_lang,$TR_FLAGS "$fn"
   done
 
 else # tests that only pass when not in gnu mode

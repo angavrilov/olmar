@@ -16,7 +16,7 @@
 # Then, the saved log can be examined for lines that begin with
 # "failing" to find the details on what failed.
 
-$SIG{INT} = \&bail;
+$SIG{INT} = \&sigIntHandler;
 
 $dry = 0;
 $minCt = 0;
@@ -153,6 +153,7 @@ while (defined($line = <IN>)) {
 
     if ($runCount > $maxCt) {
       bail();
+      exit(0);
     }
     if ($runCount < $minCt) {
       next;
@@ -183,6 +184,7 @@ while (defined($line = <IN>)) {
 close(IN);
 
 bail();
+exit(0);
 
 
 sub bail {
@@ -198,12 +200,15 @@ sub bail {
          $ppfail{'g++'}+$parsefail{'g++'}+$parseok{'g++'});
   timeStamp();
 
-  my $failures = $ppfail{'gcc'} + $ppfail{'g++'} + 
+  my $failures = $ppfail{'gcc'} + $ppfail{'g++'} +
                  $parsefail{'gcc'} + $parsefail{'g++'};
   print ("($failures failures)\n");
   print STDERR ("($failures failures)\n");
+}
 
-  exit(0);
+sub sigIntHandler {
+  bail();
+  exit(130);
 }
 
 
@@ -238,7 +243,7 @@ sub run {
       $expl = "signal $code";
       if ($code == 2) {
         # ctrl-c
-        bail();
+        sigIntHandler();
       }
     }
     printf("failing command ($expl): $cmd\n");
