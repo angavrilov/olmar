@@ -200,6 +200,14 @@ void Expression::printExtras(ostream &os, int indent) const
 }
 
 
+void E_variable::printExtras(ostream &os, int indent) const
+{           
+  if (var) {
+    ind(os, indent) << "var: refers to " << var->loc.toString() << "\n";
+  }
+}
+
+
 // ExpressionListOpt
 // Initializer
 // InitLabel
