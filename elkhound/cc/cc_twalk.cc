@@ -122,11 +122,9 @@ string var_toString(Variable *var) {
 void TranslationUnit::twalk(Env &env)
 {
   olayer ol("TranslationUnit");
-  global_code_out << "---- TranslationUnit START ----" << endl;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
     iter.data()->twalk(env);
   }
-  global_code_out << "---- TranslationUnit STOP ----" << endl;
 }
 
 // --------------------- TopForm ---------------------
