@@ -42,7 +42,6 @@
 
 #include "cc_type.h"            // Type hierarchy
 #include "ptrmap.h"             // PtrMap
-#include "strsobjdict.h"        // StringSObjDict
   
 
 // sm: 8/05/04: changed to using StringRef indices instead of

@@ -114,7 +114,7 @@ void CFGEnv::resolveGotos()
   // go over all the gotos and find their corresponding target
   while (gotos.isNotEmpty()) {
     S_goto *g = gotos.pop();
-    S_label *target = labels.queryif(g->target);
+    S_label *target = labels.get(g->target);
     if (target) {
       g->next = NextPtr(target, false);
     }
@@ -171,7 +171,7 @@ void CFGEnv::verifyFunctionEnd()
   xassert(breaks.count() == 1);
   xassert(breaks.top()->count() == 0);
 
-  xassert(labels.size() == 0);
+  xassert(labels.getNumEntries() == 0);
   xassert(gotos.isEmpty());
 
   xassert(switches.count() == 0);

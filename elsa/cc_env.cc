@@ -1119,9 +1119,9 @@ void Env::debugPrintScopes()
   for (int i=0; i<scopes.count(); ++i) {
     Scope *s = scopes.nth(i);
     cout << "scope " << i << ", " << s->desc() << endl;
-    for (StringSObjDict<Variable>::IterC iter = s->getVariableIter();
+    for (PtrMap<const char, Variable>::Iter iter = s->getVariableIter();
          !iter.isDone();
-         iter.next()) {
+         iter.adv()) {
       Variable *value = iter.value();
       cout << "  " << iter.key()
            << ": " << value->toString()

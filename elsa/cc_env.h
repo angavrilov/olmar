@@ -6,7 +6,6 @@
 
 #include "cc_type.h"      // Type, AtomicType, etc. (r)
 #include "strobjdict.h"   // StrObjDict
-#include "strsobjdict.h"  // StrSObjDict
 #include "owner.h"        // Owner
 #include "exc.h"          // xBase
 #include "sobjlist.h"     // SObjList

@@ -59,19 +59,15 @@ bool Scope::isPermanentScope() const
 
 // -------- insertion --------
 template <class T>
-bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
+bool insertUnique(PtrMap<const char, T> &table, char const *key, T *value,
                   int &changeCount, bool forceReplace)
 {
-  if (table.isMapped(key)) {
-    if (!forceReplace) {
-      return false;
-    }
-    else {
-      // remove the old mapping
-      table.remove(key);
-    }
+  if (!forceReplace && table.get(key)) {
+    return false;
   }
 
+  // NOTE: it is no longer necessary to remove before adding; add will
+  // just overwrite
   table.add(key, value);
   changeCount++;
   return true;
@@ -297,7 +293,7 @@ Variable const *Scope
 //        cout << endl;
 //      }
 //      cout << "name->getName() " << name->getName() << endl;
-    v1 = vfilterC(variables.queryif(name->getName()), flags);
+    v1 = vfilterC(variables.get(name->getName()), flags);
 
     if (!(flags & LF_QUALIFIED)) {
       // 7.3.4 para 1: "active using" edges are a source of additional
@@ -364,7 +360,7 @@ void Scope::lookupPQVariableC_considerBase
   if (!name->hasQualifiers()) {
     // look in 'v2Base' for the field
     Variable const *v2 =
-      vfilterC(v2Base->variables.queryif(name->getName()), flags);
+      vfilterC(v2Base->variables.get(name->getName()), flags);
     if (v2) {
       TRACE("lookup",    "found " << v2Base->name << "::"
                       << name->toString());
@@ -410,7 +406,7 @@ Variable const *Scope
   ::lookupVariableC(StringRef name, Env &env, LookupFlags flags) const
 {
   if (flags & LF_INNER_ONLY) {
-    return vfilterC(variables.queryif(name), flags);
+    return vfilterC(variables.get(name), flags);
   }
 
   PQ_name wrapperName(SL_UNKNOWN, name);
@@ -441,7 +437,7 @@ CompoundType const *Scope::lookupCompoundC(StringRef name, LookupFlags /*flags*/
   // (e.g. "class"), so the typedefs will be used and that's
   // covered by the above case for Variables)
 
-  return compounds.queryif(name);
+  return compounds.get(name);
 }
 
 
@@ -478,7 +474,7 @@ EnumType const *Scope
 
     // FIX: some kind of filter required?
 //      v1 = vfilterC(enums.queryif(name->getName()), flags);
-    v1 = enums.queryif(name->getName());
+    v1 = enums.get(name->getName());
 
     // FIX: do this for enums?
 //      if (!(flags & LF_QUALIFIED)) {
@@ -547,7 +543,7 @@ void Scope::lookupPQEnumC_considerBase
     // look in 'v2Base' for the field
     // FIX: filter for enums?
 //      EnumType const *v2 = vfilterC(v2Base->enums.queryif(name->getName()), flags);
-    EnumType const *v2 = v2Base->enums.queryif(name->getName());
+    EnumType const *v2 = v2Base->enums.get(name->getName());
     if (v2) {
       TRACE("lookup",    "found " << v2Base->name << "::"
                       << name->toString());
@@ -824,7 +820,7 @@ Variable const *Scope::searchActiveUsingEdges
     Scope const *s = activeUsingEdges[i];
 
     // look for 'name' in 's'
-    Variable const *v = vfilterC(s->variables.queryif(name), flags);
+    Variable const *v = vfilterC(s->variables.get(name), flags);
     if (v) {
       if (vfound) {
         if (!sameEntity(vfound, v)) {
@@ -874,7 +870,7 @@ Variable const *Scope::searchUsingEdges
     black.push(s);
 
     // does 's' have the name?
-    Variable const *v = vfilterC(s->variables.queryif(name), flags);
+    Variable const *v = vfilterC(s->variables.get(name), flags);
     if (v) {
       if (vfound) {
         if (!sameEntity(vfound, v)) {

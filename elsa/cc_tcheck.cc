@@ -1677,13 +1677,13 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 
   // check function bodies of any inner classes, too, since only
   // a non-inner class will call tcheckFunctionBodies directly
-  StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
+  PtrMap<const char, CompoundType>::Iter innerIter(ct->getCompoundIter());
 
   // if these print different answers, gcc has a bug
   TRACE("sm", "compound top: " << ct->private_compoundTop() << "\n" <<
               "iter current: " << innerIter.private_getCurrent());
 
-  for (; !innerIter.isDone(); innerIter.next()) {
+  for (; !innerIter.isDone(); innerIter.adv()) {
     CompoundType *inner = innerIter.value();
     if (!inner->syntax) {
       // this happens when all we have is a forward decl

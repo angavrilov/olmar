@@ -31,7 +31,6 @@
 #include "sastlist.h"     // SASTList
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
-#include "strsobjdict.h"  // StringSObjDict
 #include "strobjdict.h"   // StringObjDict
 #include "cc_scope.h"     // Scope
 #include "srcloc.h"       // SourceLoc
@@ -362,10 +361,10 @@ public:      // funcs
   // some special member functions; these might be NULL at early
   // stages of processing, but the type checker fills them in at some
   // point (addCompilerSuppliedDecls)
-  Variable *getDefaultCtor();         // C(); might be NULL at any time
-  Variable *getCopyCtor();            // C(C const &);
-  Variable *getAssignOperator();      // C& operator= (C const &);
-  Variable *getDtor();                // ~C();
+  Variable *getDefaultCtor(StringTable &str);    // C(); might be NULL at any time
+  Variable *getCopyCtor(StringTable &str);       // C(C const &);
+  Variable *getAssignOperator(StringTable &str); // C& operator= (C const &);
+  Variable *getDtor(StringTable &str);           // ~C();
 
   // call this when we're finished adding base classes and member
   // fields; it builds 'conversionOperators'; 'specialName' is the

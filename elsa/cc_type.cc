@@ -280,8 +280,11 @@ bool CompoundType::hasVirtualFns() const
 {
   // TODO: this fails to consider members inherited from base classes ...
 
-  for (StringSObjDict<Variable>::IterC iter(getVariableIter());
-       !iter.isDone(); iter.next()) {
+  for (PtrMap<const char, Variable>::Iter
+         // dsw: ultimately there is no IterC on class PtrMap, so I
+         // just use a const_cast for now.
+         iter(const_cast<CompoundType*>(this)->getVariableIter());
+       !iter.isDone(); iter.adv()) {
     Variable *var0 = iter.value();
     if (var0->hasFlag(DF_VIRTUAL)) {
       xassert(var0->getType()->asRval()->isFunctionType());
@@ -328,8 +331,9 @@ string CompoundType::toCString() const
 int CompoundType::reprSize() const
 {
   int total = 0;
-  for (StringSObjDict<Variable>::IterC iter(getVariableIter());
-       !iter.isDone(); iter.next()) {
+  for (PtrMap<const char, Variable>::Iter iter
+         (const_cast<CompoundType*>(this)->getVariableIter());
+       !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();
     // count nonstatic data members
     if (!v->type->isFunctionType() &&
@@ -362,8 +366,9 @@ int CompoundType::reprSize() const
 int CompoundType::numFields() const
 {                                                
   int ct = 0;
-  for (StringSObjDict<Variable>::IterC iter(getVariableIter());
-       !iter.isDone(); iter.next()) {
+  for (PtrMap<const char, Variable>::Iter iter
+         (const_cast<CompoundType*>(this)->getVariableIter());
+       !iter.isDone(); iter.adv()) {
     Variable *v = iter.value();
            
     // count nonstatic data members
@@ -748,9 +753,9 @@ static bool defaultCtorTest(CompoundType *ct, FunctionType *ft)
   return ft->paramsHaveDefaultsPast(0);
 }
 
-Variable *CompoundType::getDefaultCtor()
+Variable *CompoundType::getDefaultCtor(StringTable &str)
 {
-  return overloadSetFilter(this, rawLookupVariable("constructor-special"),
+  return overloadSetFilter(this, rawLookupVariable(str("constructor-special")),
                            defaultCtorTest);
 }
 
@@ -778,9 +783,9 @@ static bool copyCtorTest(CompoundType *ct, FunctionType *ft)
     ft->paramsHaveDefaultsPast(1);   // subsequent have defaults
 }
 
-Variable *CompoundType::getCopyCtor()
+Variable *CompoundType::getCopyCtor(StringTable &str)
 {
-  return overloadSetFilter(this, rawLookupVariable("constructor-special"),
+  return overloadSetFilter(this, rawLookupVariable(str("constructor-special")),
                            copyCtorTest);
 }
 
@@ -793,18 +798,19 @@ static bool assignOperatorTest(CompoundType *ct, FunctionType *ft)
     ft->paramsHaveDefaultsPast(2);   // subsequent have defaults
 }
 
-Variable *CompoundType::getAssignOperator()
+Variable *CompoundType::getAssignOperator(StringTable &str)
 {
-  return overloadSetFilter(this, rawLookupVariable("operator="),
+  return overloadSetFilter(this,
+                           rawLookupVariable(str("operator=")),
                            assignOperatorTest);
 }
 
 
-Variable *CompoundType::getDtor()
+Variable *CompoundType::getDtor(StringTable &str)
 {
   // synthesize the dtor name... maybe I should be using
   // "destructor-special" or something
-  return rawLookupVariable(stringc << "~" << name);
+  return rawLookupVariable(str(stringc << "~" << name));
 }
 
 

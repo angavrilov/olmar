@@ -8,7 +8,7 @@
 #include "sobjlist.h"     // SObjList
 #include "objstack.h"     // ObjStack
 #include "sobjstack.h"    // SObjStack
-#include "strsobjdict.h"  // StrSObjDict
+#include "ptrmap.h"       // PtrMap
 #include "strtable.h"     // StringRef
 #include "srcloc.h"       // SourceLoc
 
@@ -83,7 +83,7 @@ private:    // data
 
   ObjStack< SObjList<S_break> > breaks;
 
-  StringSObjDict<S_label> labels;       // goto targets
+  PtrMap<const char, S_label> labels;   // goto targets
   SObjStack<S_goto> gotos;              // goto sources (a set)
 
   SObjStack<S_switch> switches;

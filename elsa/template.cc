@@ -3364,8 +3364,8 @@ void Env::explicitlyInstantiate(Variable *var)
   }
 
   // member variables, functions
-  for (StringSObjDict<Variable>::IterC membIter(ct->getVariableIter());
-       !membIter.isDone(); membIter.next()) {
+  for (PtrMap<const char, Variable>::Iter membIter(ct->getVariableIter());
+       !membIter.isDone(); membIter.adv()) {
     Variable *memb = membIter.value();
 
     if (memb->templateInfo()) {
@@ -3374,8 +3374,8 @@ void Env::explicitlyInstantiate(Variable *var)
   }
 
   // inner classes
-  for (StringSObjDict<CompoundType>::IterC innerIter(ct->getCompoundIter());
-       !innerIter.isDone(); innerIter.next()) {
+  for (PtrMap<const char, CompoundType>::Iter innerIter(ct->getCompoundIter());
+       !innerIter.isDone(); innerIter.adv()) {
     CompoundType *inner = innerIter.value();
 
     explicitlyInstantiate(inner->typedefVar);

@@ -5,7 +5,6 @@
 #ifndef CC_SCOPE_H
 #define CC_SCOPE_H
 
-#include "strsobjdict.h"  // StrSObjDict
 #include "cc_flags.h"     // AccessKeyword
 #include "srcloc.h"       // SourceLoc
 #include "strtable.h"     // StringRef
@@ -78,13 +77,13 @@ private:     // data
   // variables: name -> Variable
   // note: this includes typedefs (DF_TYPEDEF is set), and it also
   // includes enumerators (DF_ENUMERATOR is set)
-  StringSObjDict<Variable> variables;
+  PtrMap<char const, Variable> variables;
 
   // compounds: map name -> CompoundType
-  StringSObjDict<CompoundType> compounds;
+  PtrMap<char const, CompoundType> compounds;
 
   // enums: map name -> EnumType
-  StringSObjDict<EnumType> enums;
+  PtrMap<char const, EnumType> enums;
 
   // per-scope change count
   int changeCount;
@@ -191,7 +190,7 @@ public:      // funcs
   int getChangeCount() const { return changeCount; }
 
   // this is actually for debugging only ....
-  int getNumVariables() const       { return variables.size(); }
+  int getNumVariables() const       { return variables.getNumEntries(); }
 
   // some syntactic sugar on the scope kind
   bool isGlobalScope() const        { return scopeKind == SK_GLOBAL; }
@@ -258,20 +257,25 @@ public:      // funcs
     { return const_cast<Variable*>(lookupPQVariableC(name, env, f)); }
 
   // for iterating over the variables
-  StringSObjDict<Variable>::IterC getVariableIter() const
-    { return StringSObjDict<Variable>::IterC(variables); }
+  PtrMap<char const, Variable>::Iter getVariableIter()
+    { return PtrMap<char const, Variable>::Iter(variables); }
 
   // and the inner classes
-  StringSObjDict<CompoundType>::IterC getCompoundIter() const
-    { return StringSObjDict<CompoundType>::IterC(compounds); }
+  PtrMap<char const, CompoundType>::Iter getCompoundIter()
+    { return PtrMap<char const, CompoundType>::Iter(compounds); }
 
   // lookup within the 'variables' map, without consulting base
   // classes, etc.; returns NULL if not found
   Variable *rawLookupVariable(char const *name)
-    { return variables.queryif(name); }
+    {
+      return variables.get(name);
+    }
 
-  int private_compoundTop() const
-    { return compounds.private_getTopAddr(); }
+  // dsw: this seems to be only for debugging and there is no
+  // corresponding member in the PtrMap dict, so I've just turned it
+  // off.
+//    int private_compoundTop() const
+//      { return compounds.private_getTopAddr(); }
 
   // if this scope has a name, return the typedef variable that
   // names it; otherwise, return NULL
