@@ -435,6 +435,9 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
   // resolve template arguments in 'name'
   name->tcheck(env);
 
+  // typecheck the arguments
+  tcheckArgExprList(args, env);
+
   // check for a member variable, since they have precedence over
   // base classes [para 2]; member inits cannot have qualifiers
   if (!name->hasQualifiers()) {
@@ -455,37 +458,14 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
       // annotate the AST
       member = env.storeVar(v);
 
-      if (v->type->isCompoundType()) {
-        if (env.doElaboration) {
-          ctorStatement = makeCtorStatement(env, member, v->type->asCompoundType(), args);
-          // dig down and get the ctorVar
-          ctorVar = env.storeVar
-            (ctorStatement->asS_expr()->expr->expr->asE_constructor()->ctorVar);
-        } else {
-          // typecheck the arguments
-          tcheckArgExprList(args, env);
+      // decide which of v's possible constructors is being used
+      ctorVar = env.storeVar(
+        outerResolveOverload_ctor(env, env.loc(), v->type, args,
+                                  reallyDoOverload(env, args)));
 
-          // decide which of v's possible constructors is being used
-          Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, args,
-                                                     reallyDoOverload(env, args));
-          if (ctor) {
-            ctorVar = env.storeVar(ctor);
-          }
-        }
-      } else {
-        // dsw: I had to do this to get rid of any ambiguities in the
-        // arguments.
-        // typecheck the arguments
-        tcheckArgExprList(args, env);
+      if (env.doElaboration && v->type->isCompoundType()) {
+        ctorStatement = makeCtorStatement(env, member, v->type->asCompoundType(), args);
       }
-
-      // I think with the implicit ctors added now, this should
-      // always succeed
-//        xassert(!!ctorVar == v->type->asRval()->isCompoundType());
-      // dsw: why the "->asRval()"; if it is not an rval, then it is a
-      // reference, and that means it is initialized like a common
-      // pointer
-      xassert(!!ctorVar == v->type->isCompoundType());
 
       // TODO: check that the passed arguments are consistent
       // with at least one constructor of the variable's type.
@@ -571,36 +551,20 @@ void MemberInit::tcheck(Env &env, Variable *ctorThisLocalVar, CompoundType *encl
   // in the initializer name and template arguments in the
   // base class list
 
-  if (env.doElaboration) {
-    ctorStatement = makeCtorStatement(env, ctorThisLocalVar, base, args);
-    // dig down and get the ctorVar
-    ctorVar = env.storeVar(ctorStatement->asS_expr()->expr->expr->asE_constructor()->ctorVar);
-  } else {
-    // typecheck the arguments
-    tcheckArgExprList(args, env);
-    
-    // determine which constructor is being called
-    Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
-                                               baseVar->type,
-                                               args,
-                                               reallyDoOverload(env, args));
-    if (ctor) {
-      ctorVar = env.storeVar(ctor);
-    }
-  }
-
-  // I think with the implicit ctors added now, this should always
-  // succeed
-//    xassert(!!ctorVar == baseVar->type->asRval()->isCompoundType());
-  xassert(!!ctorVar);
-  // dsw: 1) why the "->asRval()"; if it is not an rval, then it is a
-  // reference, and that means it is initialized like a common
-  // pointer.  2) I think that is impossible for a baseVar->type
-  // anwyay, otherwise this line above would fail:
-//    CompoundType *baseClass = baseVar->type->asCompoundType();
+  // determine which constructor is being called
+  ctorVar = env.storeVar(
+    outerResolveOverload_ctor(env, env.loc(),
+                              baseVar->type,
+                              args,
+                              reallyDoOverload(env, args)));
 
   // TODO: check that the passed arguments are consistent
-  // with at least one constructor in the base class
+  // with the chosen constructor
+
+  if (env.doElaboration) {
+    ctorStatement = makeCtorStatement(env, ctorThisLocalVar, base, args);
+  }
+
 }
 
 
@@ -3823,7 +3787,7 @@ static bool allMethods(SObjList<Variable> &set)
 // function ultimately chosen, pick one of the functions using
 // overload resolution; return NULL if overload resolution fails for
 // any reason. 'loc' is the location of the call site, for error
-// reporting purposes.
+// reporting purposes.  (The arguments have already been tcheck'd.)
 //
 // This function mediates between the type checker, which knows about
 // syntax and context, and the overload module's 'resolveOverload',
@@ -3900,7 +3864,7 @@ static Variable *outerResolveOverload_ctor
   Variable *ret = NULL;
   // dsw: FIX: should I be generating error messages if I get a weird
   // type here, or if I get a weird var below?
-  if (type->asRval()->isCompoundType()) {
+  if (type->isCompoundType()) {
     CompoundType *ct = type->asRval()->asCompoundType();
     Variable *ctor = ct->getNamedField(env.constructorSpecialName, env, LF_INNER_ONLY);
     xassert(ctor);
@@ -5110,11 +5074,9 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 
   if (ctorArgs) {
     tcheckArgExprList(ctorArgs->list, env);
-    Variable *ctor = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
-                                               reallyDoOverload(env, ctorArgs->list));
-    if (ctor) {
-      ctorVar = env.storeVar(ctor);
-    }
+    ctorVar = env.storeVar(
+      outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
+                                reallyDoOverload(env, ctorArgs->list)));
   }
 
   // TODO: check for a constructor in 't' which accepts these args
@@ -5330,21 +5292,17 @@ bool Expression::constEval(string &msg, int &result) const
       if (!c->expr->constEval(msg, result)) return false;
 
       Type *t = c->ctype->getType();
-      if (t->isIntegerType()) {
+      if (t->isIntegerType() ||
+          t->isPointer()) {             // for Linux kernel
         return true;       // ok
-      } else if (t->isPointerType()) {
-        PointerType *pt = t->asPointerType();
-        // also allow casting to pointers, as it occurs in the Linux kernel
-        if (pt->op==PO_POINTER) return true;
-        // but not to references
       }
-      // took out the "else" so that reference types would fall
-      // through to here
-      // TODO: this is probably not the right rule..
-      msg = stringc
-        << "in constant expression, can only cast to integer types, not `"
-        << t->toString() << "'";
-      return false;
+      else {
+        // TODO: this is probably not the right rule..
+        msg = stringc
+          << "in constant expression, can only cast to integer or pointer types, not `"
+          << t->toString() << "'";
+        return false;
+      }
 
     ASTNEXTC(E_cond, c)
       if (!c->cond->constEval(msg, result)) return false;
@@ -5517,10 +5475,8 @@ void IN_ctor::tcheck(Env &env, Type *type)
 {
   FullExpressionAnnot::StackBracket fea0(env, annot);
   tcheckArgExprList(args, env);
-  Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
-  if (ctor) {
-    ctorVar = env.storeVar(ctor);
-  }
+  ctorVar = env.storeVar(
+    outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args)));
 }
 
 

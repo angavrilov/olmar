@@ -774,6 +774,9 @@ public:
 
   // a hook for the verifier's printer
   virtual void extraRightmostSyntax(stringBuilder &sb) const;
+  
+  // hook for Oink
+  virtual void registerRetVal(Variable *retVal0) {}
 
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
@@ -782,8 +785,6 @@ public:
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
-
-  virtual void registerRetVal(Variable *retVal0) {}
 };
 
 

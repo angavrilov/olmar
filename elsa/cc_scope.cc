@@ -6,7 +6,7 @@
 #include "variable.h"     // Variable
 #include "cc_type.h"      // CompoundType
 #include "cc_env.h"       // doh.  Env::error
-#include "mangle.h"
+#include "mangle.h"       // mangle
 
 Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
   : variables(),

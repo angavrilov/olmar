@@ -410,7 +410,8 @@ public:      // funcs
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
                                     
   // pass Variable* through this before storing in the AST, so
-  // that the AST only has de-aliased pointers (if desired)
+  // that the AST only has de-aliased pointers (if desired);
+  // a NULL argument is passed through unchanged
   Variable *storeVar(Variable *var);
 
   // this version will do pass-through if 'var' or the thing to which

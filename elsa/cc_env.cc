@@ -2472,6 +2472,9 @@ Variable *Env::storeVar(Variable *var)
   // potentially implement a more flexible scheme where the analysis
   // could request that dealiasing not be done
 
+  // this works even when 'var' is NULL because 'skipAlias' is not a
+  // virtual function, and it internally checks for a NULL 'this'
+
   return var->skipAlias();
 }
 
