@@ -624,7 +624,7 @@ string Scope::desc() const
   }
   else {
     Variable const *v = getTypedefNameC();
-    if (v) {
+    if (v && v->name) {
       sb << toString(scopeKind) << " " << v->name;
     }
     else if (isGlobalScope()) {
@@ -1000,7 +1000,12 @@ string Scope::fullyQualifiedName(bool mangle)
   xassert(hasName());
   Variable *v = getTypedefName();
   xassert(v);
-  sb << "::" << v->name;
+  if (v->name) {
+    sb << "::" << v->name;
+  }
+  else {
+    sb << "/""*::anonymous@" << toString(v->loc) << "*/";    // anonymous namespaces
+  };
 
   // return if no templates are involved
   if (!curCompound || !(curCompound->templateInfo())) return sb;

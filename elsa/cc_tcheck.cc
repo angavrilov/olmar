@@ -241,13 +241,12 @@ void TF_namespaceDefn::itcheck(Env &env)
     // extend existing scope
     s = existing->scope;
   }
-  // dsw: I predicated this on name so that you don't try to add a
-  // variable with a NULL name to the namespace
-  #warning anonymous namespaces are now broken
-  else if (name) {
+  else {
     // make an entry in the surrounding scope to refer to the new namespace
     Variable *v = env.makeVariable(loc, name, NULL /*type*/, DF_NAMESPACE);
-    env.addVariable(v);
+    if (name) {
+      env.addVariable(v);
+    }
 
     // make new scope
     s = new Scope(SK_NAMESPACE, 0 /*changeCount; irrelevant*/, loc);
@@ -255,15 +254,18 @@ void TF_namespaceDefn::itcheck(Env &env)
 
     // point the variable at it so we can find it later
     v->scope = s;
-    
-    // TODO: if name is NULL, we need to add an "active using" edge
-    // from the surrounding scope to s
-    
+
+    // hook it into the scope tree; this must be done before the
+    // using edge is added, for anonymous scopes
     env.setParentScope(s);
-  }
-  else {
-    // 's' is uninitialized!
-    xfailure("broken like a mofo!");
+
+    // if name is NULL, we need to add an "active using" edge from the
+    // surrounding scope to 's'
+    if (!name) {
+      Scope *parent = env.scope();
+      parent->addUsingEdge(s);
+      parent->addUsingEdgeTransitively(env, s);
+    }
   }
 
   // check the namespace body in its scope

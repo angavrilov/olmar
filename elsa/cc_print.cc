@@ -216,11 +216,11 @@ void TF_namespaceDefn::print(PrintEnv &env)
 {
   olayer ol("TF_namespaceDefn");
   env.current_loc = loc;
-  env << "namespace " << name << " {\n";
+  env << "namespace " << (name? name : "/*anon*/") << " {\n";
   FOREACH_ASTLIST_NC(TopForm, forms, iter) {
     iter.data()->print(env);
   }
-  env << "} /""* namespace " << name << " */\n";
+  env << "} /""* namespace " << (name? name : "(anon)") << " */\n";
 }
 
 void TF_namespaceDecl::print(PrintEnv &env)
