@@ -1,6 +1,6 @@
 # Makefile for ast project
 
-SMBASE  := ../../lib/smbase
+SMBASE  := ../smbase
 
 CXX      := g++
 CXXFLAGS := -Wall -g -I. -I$(SMBASE) $(EXTRAARGS)
