@@ -93,12 +93,22 @@ void ASTClass::debugPrint(ostream &os, int indent) const
 
   PRINT_STRING(name);
   PRINT_LIST(CtorArg, args);
-  PRINT_LIST(UserDecl, decls);
+  PRINT_LIST(Annotation, decls);
 }
 
 
-// ------------------ UserDecl -------------------
+// ------------------ Annotation -------------------
 // *** DO NOT EDIT ***
+Annotation::~Annotation()
+{
+}
+
+void Annotation::debugPrint(ostream &os, int indent) const
+{
+}
+
+DEFN_AST_DOWNCASTS(Annotation, UserDecl, USERDECL)
+
 UserDecl::~UserDecl()
 {
 }
@@ -107,7 +117,25 @@ void UserDecl::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(UserDecl);
 
+  Annotation::debugPrint(os, indent);
+
   PRINT_GENERIC(access);
+  PRINT_STRING(code);
+}
+
+DEFN_AST_DOWNCASTS(Annotation, CustomCode, CUSTOMCODE)
+
+CustomCode::~CustomCode()
+{
+}
+
+void CustomCode::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(CustomCode);
+
+  Annotation::debugPrint(os, indent);
+
+  PRINT_STRING(qualifier);
   PRINT_STRING(code);
 }
 

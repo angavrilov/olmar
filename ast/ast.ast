@@ -25,7 +25,7 @@ class ToplevelForm {
 // a definition of a grammar terminal or nonterminal
 class ASTClass (string name,
                 ASTList<CtorArg> args,
-                ASTList<UserDecl> decls) {
+                ASTList<Annotation> decls) {
   // the name of the enum constant denoting this ctor, as distinguished
   // from its sibling ctors
   public string kindName() const;
@@ -49,9 +49,16 @@ verbatim {
   string toString(AccessCtl acc);      // defined in ast.cc
 }
 
-// verbatim declarations, plus an access qualifier, to be
-// copied into the a class declaration
-class UserDecl (AccessCtl access, string code);
+// additional user annotations
+class Annotation {
+  // verbatim declarations, plus an access qualifier, to be
+  // copied into the a class declaration
+  -> UserDecl (AccessCtl access, string code);
+
+  // verbatim code to be inserted somewhere; exactly where depends
+  // on the qualifier string
+  -> CustomCode (string qualifier, string code);
+}
 
 // something that has to be passed to create a constructor
 class CtorArg (bool owner, string type, string name);

@@ -14,7 +14,9 @@ class TF_verbatim;
 class TF_impl_verbatim;
 class TF_class;
 class ASTClass;
+class Annotation;
 class UserDecl;
+class CustomCode;
 class CtorArg;
 
 // *** DO NOT EDIT ***
@@ -115,10 +117,10 @@ class ASTClass {
 public:      // data
   string name;
   ASTList <CtorArg > args;
-  ASTList <UserDecl > decls;
+  ASTList <Annotation > decls;
 
 public:      // funcs
-  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <UserDecl > *_decls) : name(_name), args(_args), decls(_decls) {
+  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <Annotation > *_decls) : name(_name), args(_args), decls(_decls) {
   }
   ~ASTClass();
 
@@ -149,18 +151,55 @@ public:      // funcs
   string toString(AccessCtl acc);      // defined in ast.cc
 
 // *** DO NOT EDIT ***
-class UserDecl {
+class Annotation {
+public:      // data
+
+public:      // funcs
+  Annotation() {
+  }
+  virtual ~Annotation();
+
+  enum Kind { USERDECL, CUSTOMCODE, NUM_KINDS };
+  virtual Kind kind() const = 0;
+
+  DECL_AST_DOWNCASTS(UserDecl)
+  DECL_AST_DOWNCASTS(CustomCode)
+
+  virtual void debugPrint(ostream &os, int indent) const;
+
+};
+
+class UserDecl : public Annotation {
 public:      // data
   AccessCtl access;
   string code;
 
 public:      // funcs
-  UserDecl(AccessCtl _access, string _code) : access(_access), code(_code) {
+  UserDecl(AccessCtl _access, string _code) : Annotation(), access(_access), code(_code) {
   }
-  ~UserDecl();
+  virtual ~UserDecl();
 
+  virtual Kind kind() const { return USERDECL; }
+  enum { TYPE_TAG = USERDECL };
 
-  void debugPrint(ostream &os, int indent) const;
+  virtual void debugPrint(ostream &os, int indent) const;
+
+};
+
+class CustomCode : public Annotation {
+public:      // data
+  string qualifier;
+  string code;
+
+public:      // funcs
+  CustomCode(string _qualifier, string _code) : Annotation(), qualifier(_qualifier), code(_code) {
+  }
+  virtual ~CustomCode();
+
+  virtual Kind kind() const { return CUSTOMCODE; }
+  enum { TYPE_TAG = CUSTOMCODE };
+
+  virtual void debugPrint(ostream &os, int indent) const;
 
 };
 

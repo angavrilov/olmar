@@ -160,6 +160,17 @@ SLWHITE   [ \t]
   return yytext[0]=='v'? TOK_VERBATIM : TOK_IMPL_VERBATIM;
 }
 
+"custom" {
+  TOK_UPD_COL;
+  
+  expectingEmbedded = true;
+  embedded->reset();
+  embedFinish = ';';
+  embedMode = TOK_EMBEDDED_CODE;
+
+  return TOK_CUSTOM;
+}
+
   /* punctuation that can start embedded code */
 "{" {
   TOK_UPD_COL;

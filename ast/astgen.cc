@@ -33,7 +33,7 @@ public:
 
   // shared output sequences
   void doNotEdit();
-  void emitFiltered(ASTList<UserDecl> const &decls, AccessCtl mode,
+  void emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
                     char const *indent);
 };
 
@@ -121,13 +121,15 @@ void Gen::doNotEdit()
 }
 
 
-void Gen::emitFiltered(ASTList<UserDecl> const &decls, AccessCtl mode,
+void Gen::emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
                        char const *indent)
 {
-  FOREACH_ASTLIST(UserDecl, decls, iter) {
-    UserDecl const &decl = *(iter.data());
-    if (decl.access == mode) {
-      out << indent << decl.code << ";\n";
+  FOREACH_ASTLIST(Annotation, decls, iter) {
+    if (iter.data()->kind() == Annotation::USERDECL) {
+      UserDecl const &decl = *( iter.data()->asUserDeclC() );
+      if (decl.access == mode) {
+        out << indent << decl.code << ";\n";
+      }                                                     
     }
   }
 }
@@ -144,7 +146,7 @@ private:        // funcs
   void emitCtorFormal(int &ct, CtorArg const *arg);
   void emitCtorDefn(ASTClass const &cls, ASTClass const *parent);
   void emitCommonFuncs(char const *virt);
-  void emitUserDecls(ASTList<UserDecl> const &decls);
+  void emitUserDecls(ASTList<Annotation> const &decls);
   void emitCtor(ASTClass const &ctor, ASTClass const &parent);
 
 public:         // funcs
@@ -404,18 +406,21 @@ void HGen::emitCommonFuncs(char const *virt)
 }
 
 // emit user-supplied declarations
-void HGen::emitUserDecls(ASTList<UserDecl> const &decls)
+void HGen::emitUserDecls(ASTList<Annotation> const &decls)
 {
-  FOREACH_ASTLIST(UserDecl, decls, iter) {
-    UserDecl const &decl = *(iter.data());
-    if (decl.access == AC_PUBLIC ||
-        decl.access == AC_PRIVATE ||
-        decl.access == AC_PROTECTED) {
-      out << "  " << toString(decl.access) << ": " << decl.code << ";\n";
-    }
-    if (decl.access == AC_PUREVIRT) {
-      // this is the parent class: declare it pure virtual
-      out << "  public: virtual " << decl.code << "=0;\n";
+  FOREACH_ASTLIST(Annotation, decls, iter) {
+    // in the header, we only look at userdecl annotations
+    if (iter.data()->kind() == Annotation::USERDECL) {
+      UserDecl const &decl = *( iter.data()->asUserDeclC() );
+      if (decl.access == AC_PUBLIC ||
+          decl.access == AC_PRIVATE ||
+          decl.access == AC_PROTECTED) {
+        out << "  " << toString(decl.access) << ": " << decl.code << ";\n";
+      }
+      if (decl.access == AC_PUREVIRT) {
+        // this is the parent class: declare it pure virtual
+        out << "  public: virtual " << decl.code << "=0;\n";
+      }
     }
   }
 }
@@ -443,9 +448,10 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   emitUserDecls(ctor.decls);
   
   // emit implementation declarations for parent's pure virtuals
-  FOREACH_ASTLIST(UserDecl, parent.decls, iter) {
-    if (iter.data()->access == AC_PUREVIRT) {
-      out << "  public: virtual " << iter.data()->code << ";\n";
+  FOREACH_ASTLIST(Annotation, parent.decls, iter) {
+    UserDecl const *decl = iter.data()->ifUserDeclC();
+    if (decl && decl->access == AC_PUREVIRT) {
+      out << "  public: virtual " << decl->code << ";\n";
     }
   }
 
@@ -471,6 +477,7 @@ public:
   void emitTFClass(TF_class const &cls);
   void emitDestructor(ASTClass const &cls);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
+  void emitCustomCode(ASTList<Annotation> const &list, char const *tag);
 };
 
 
@@ -522,6 +529,7 @@ void CGen::emitTFClass(TF_class const &cls)
   }
 
   emitPrintCtorArgs(cls.super->args);
+  emitCustomCode(cls.super->decls, "debugPrint");
 
   out << "}\n";
   out << "\n";
@@ -550,12 +558,24 @@ void CGen::emitTFClass(TF_class const &cls)
     out << "\n";
 
     emitPrintCtorArgs(ctor.args);
+    emitCustomCode(ctor.decls, "debugPrint");
 
     out << "}\n";
     out << "\n";
   }
 
   out << "\n";
+}
+
+
+void CGen::emitCustomCode(ASTList<Annotation> const &list, char const *tag)
+{
+  FOREACH_ASTLIST(Annotation, list, iter) {
+    CustomCode const *cc = iter.data()->ifCustomCodeC();
+    if (cc && cc->qualifier.equals(tag)) {
+      out << "  " << cc->code << ";\n";
+    }
+  }
 }
 
 

@@ -54,6 +54,7 @@
 %token TOK_CTOR "ctor"
 %token TOK_DTOR "dtor"
 %token TOK_PURE_VIRTUAL "pure_virtual"
+%token TOK_CUSTOM "custom"
 
 
 /* ======================== types ========================== */
@@ -63,10 +64,11 @@
   ASTList<ToplevelForm> *formList;
   TF_class *tfClass;
   ASTList<CtorArg> *ctorArgList;
-  ASTList<UserDecl> *userDeclList;
+  ASTList<Annotation> *userDeclList;
   string *str;
   enum AccessCtl accessCtl;
   ToplevelForm *verbatim;
+  Annotation *annotation;
 }
 
 %type <file> StartSymbol
@@ -77,6 +79,7 @@
 %type <str> Arg ArgWord Embedded ArgList
 %type <accessCtl> Public
 %type <verbatim> Verbatim
+%type <annotation> Annotation
 
 
 /* ===================== productions ======================= */
@@ -119,10 +122,10 @@ ClassMembersOpt
       { ($$=$1)->ctors.append(new ASTClass(unbox($3), $5, NULL)); }
   | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" "{" CtorMembersOpt "}"
       { ($$=$1)->ctors.append(new ASTClass(unbox($3), $5, $8)); }
-  | ClassMembersOpt Public Embedded
-      { ($$=$1)->super->decls.append(new UserDecl($2, unbox($3))); }
+  | ClassMembersOpt Annotation
+      { ($$=$1)->super->decls.append($2); }
   ;
-
+  
 /* yields ASTList<CtorArg> */
 CtorArgsOpt
   : /* empty */
@@ -166,12 +169,20 @@ ArgList: Arg
            { $$ = appendStr($1, appendStr(box(","), $3)); }
        ;
 
-/* yields ASTList<UserDecl> */
+/* yields ASTList<Annotation> */
 CtorMembersOpt
   : /* empty */
-      { $$ = new ASTList<UserDecl>; }
+      { $$ = new ASTList<Annotation>; }
   | CtorMembersOpt Public Embedded
       { ($$=$1)->append(new UserDecl($2, unbox($3))); }
+  ;
+
+/* yields Annotation */
+Annotation
+  : Public Embedded
+      { $$ = new UserDecl($1, unbox($2)); }
+  | "custom" TOK_NAME Embedded
+      { $$ = new CustomCode(unbox($2), unbox($3)); }
   ;
 
 /* yields string */
@@ -193,9 +204,9 @@ Public
   ;
 
 /* yields TF_verbatim */
-Verbatim: TOK_VERBATIM Embedded
+Verbatim: "verbatim" Embedded
             { $$ = new TF_verbatim(unbox($2)); }
-        | TOK_IMPL_VERBATIM Embedded
+        | "impl_verbatim" Embedded
             { $$ = new TF_impl_verbatim(unbox($2)); }
         ;
 
