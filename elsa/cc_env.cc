@@ -181,7 +181,7 @@ Variable *Env::lookupPQVariable(PQName const *name)
     }
 
     // look inside that class for 'name->name'
-    Variable const *field = ct->getNamedFieldC(firstQ->getName());
+    Variable const *field = ct->getNamedFieldC(firstQ->getName(), *this);
     if (!field) {
       //error(stringc
       //  << ct->keywordAndName() << " has no member called `"
@@ -200,12 +200,12 @@ Variable *Env::lookupPQVariable(PQName const *name)
 Variable *Env::lookupVariable(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.first()->lookupVariable(name);
+    return scopes.first()->lookupVariable(name, *this);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    Variable *v = iter.data()->lookupVariable(name);
+    Variable *v = iter.data()->lookupVariable(name, *this); 
     if (v) {
       return v;
     }
@@ -281,12 +281,6 @@ Type const *Env::unimp(char const *msg)
   errors.prepend(new ErrorMsg(stringc << "unimplemented: " << msg, loc()));
   return getSimpleType(ST_ERROR);
 }
-
-
-
-
-
-
 
 
 

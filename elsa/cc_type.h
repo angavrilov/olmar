@@ -24,6 +24,7 @@ class PointerType;
 class FunctionType;
 class ArrayType;
 class Type;
+class Env;
 
 // static data consistency checker
 void cc_type_checker();
@@ -144,10 +145,10 @@ public:      // funcs
   int numFields() const;
 
   // returns NULL if doesn't exist
-  Variable const *getNamedFieldC(StringRef name) const
-    { return lookupVariableC(name); }
-  Variable *getNamedField(StringRef name)
-    { return lookupVariable(name); }
+  Variable const *getNamedFieldC(StringRef name, Env &env) const
+    { return lookupVariableC(name, env); }
+  Variable *getNamedField(StringRef name, Env &env)
+    { return lookupVariable(name, env); }
 
   void addField(Variable *v);
 };

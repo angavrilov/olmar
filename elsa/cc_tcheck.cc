@@ -146,7 +146,7 @@ void Function::tcheck_memberInits(Env &env)
     }
 
     // look for the given name in the class
-    Variable *v = enclosing->getNamedField(iter->name->getName());
+    Variable *v = enclosing->getNamedField(iter->name->getName(), env);
     if (v) {
       // typecheck the arguments
       iter->args = tcheckFakeExprList(iter->args, env);
@@ -1295,7 +1295,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   }
 
   // look for the named field
-  Variable const *field = ct->getNamedFieldC(fieldName->getName());
+  Variable const *field = ct->getNamedFieldC(fieldName->getName(), env);
   if (!field) {
     return env.error(stringc
       << "there is no field called `" << fieldName->getName()
