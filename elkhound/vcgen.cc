@@ -7,7 +7,7 @@
 #include "cc_type.h"            // FunctionType, etc.
 #include "sobjlist.h"           // SObjList
 #include "trace.h"              // tracingSys
-#include "strutil.h"            // quoted
+#include "strutil.h"            // quoted, plural
 #include "paths.h"              // countExprPaths
 
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
@@ -38,77 +38,149 @@ void TF_decl::vcgen(AEnv &env) const
 
 void TF_func::vcgen(AEnv &env) const
 {
+  env.currentFunc = this;
   FunctionType const &ft = *(ftype());
 
-  {
-    char const *paths = (numPaths==1? " path" : " paths");
-    traceProgress() << "analyzing " << name()
-                    << " (" << numPaths << paths << ") ...\n";
-  }
+  int numRoots = roots.count();
+  traceProgress() << "analyzing " << name()
+                  << " (" << numPaths << plural(numPaths, " path")
+                  << " total from " << numRoots << plural(numRoots, " root")
+                  << ") ...\n";
 
   // synthesized logic variable for return value
   env.result = nameParams->decl->asD_func()->result;
 
-  // for now, only run paths from the function start
-  for (int path=0; path < body->numPaths; path++) {
-    traceProgress() << "path " << path << ":\n";
+  // for each path...
+  int rootIndex=0;
+  SFOREACH_OBJLIST(Statement, roots, rootIter) {
+    Statement const *root = rootIter.data();
+    rootIndex++;
 
-    // clear anything left over in env
-    env.clear();
+    traceProgress() << "  root " << rootIndex << "/" << numRoots
+                    << ", " << root->numPaths
+                    << plural(root->numPaths, " path") << "\n";
 
-    // add the function parameters to the environment
-    SFOREACH_OBJLIST(Variable, params, iter) {
-      Variable const *v = iter.data();
+    // for each path from that root...
+    for (int path=0; path < root->numPaths; path++) {
+      traceProgress() << "    path " << path << "\n";
 
-      if (v->name) {
-        // the function parameter's initial value is represented
-        // by a logic variable of the same name
-        env.set(v, new AVvar(v->name,
-          stringc << "initial value of parameter " << v->name));
+      // ----------- build the abstract environment ----------
+      // clear anything left over in env
+      env.clear();
+
+      // add the function parameters to the environment
+      {SFOREACH_OBJLIST(Variable, params, iter) {
+        Variable const *v = iter.data();
+
+        if (v->name) {
+          // the function parameter's initial value is represented
+          // by a logic variable of the same name
+          env.set(v, new AVvar(v->name,
+            stringc << "starting value of parameter " << v->name));
+        }
+      }}
+
+      // add local variables to the environment
+      {SFOREACH_OBJLIST(Variable, locals, iter) {
+        Variable const *var = iter.data();
+        xassert(var->name);
+
+        // convenience
+        StringRef name = var->name;
+        Type const *type = var->type;
+
+        // locals start uninitialized; we make up a new logic variable
+        // for each one's initial value
+        AbsValue *value = new AVvar(name,
+          stringc << "starting value of variable " << name);
+
+        if (var->hasAddrTaken() || type->isArrayType()) {
+          // model this variable as a location in memory; make up a name
+          // for its address
+          AbsValue *addr = env.addMemVar(var);
+
+          if (!type->isArrayType()) {
+            // state that, right now, that memory location contains 'value'
+            env.addFact(new AVbinary(value, BIN_EQUAL,
+              env.avSelect(env.getMem(), addr, new AVint(0))));
+          }
+          else {
+            // will model array contents as elements in memory, rather
+            // than as symbolic whole-array values...
+            delete value;
+          }
+
+          int size = 1;         // default for non-arrays
+          if (type->isArrayType() && type->asArrayTypeC().hasSize) {
+            // state that the length is whatever the array length is
+            // (if the size isn't specified I have to get it from the
+            // initializer, but that will be TODO for now)
+            size = type->asArrayTypeC().size;
+          }
+
+          // remember the length, as a predicate in the set of known facts
+          env.addFact(new AVbinary(env.avLength(addr), BIN_EQUAL,
+                                   new AVint(size)));
+        }
+
+        else {
+          // model the variable as a simple, named, unaliasable variable
+          env.set(var, value);
+        }
+      }}
+
+      // add 'result' to the environment so we can record what value
+      // is actually returned; initially it has no defined value
+      if (!ft.retType->isVoid()) {
+        env.set(env.result, env.freshVariable("result", "UNDEFINED return value"));
       }
-    }
 
-    // let pre_mem be the name of memory now
-    // update: the user can bind this herself
-    //env.set(env.str("pre_mem"), env.getMem());
+      // let pre_mem be the name of memory now
+      // update: the user can bind this herself
+      //env.set(env.str("pre_mem"), env.getMem());
 
-    // add the precondition as an assumption
-    if (ft.precondition) {
-      IN_PREDICATE(env);
+      // ------------- establish set of known facts ---------------
+      // add the path's start predicate as an assumption
+      if (root == body) {
+        // root is start of function; precondition is start predicate
+        if (ft.precondition) {
+          IN_PREDICATE(env);
 
-      // add any precondition bindings
-      FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
-        iter.data()->vcgen(env);
+          // add any precondition bindings
+          FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
+            iter.data()->vcgen(env);
+          }
+
+          env.addFact(ft.precondition->expr->vcgen(env, 0 /*path*/));
+        }
+      }
+      else {
+        // the root should be an invariant statement, and that is
+        // the start predicate
+        S_invariant const *inv = root->asS_invariantC();
+
+        IN_PREDICATE(env);
+        env.addFact(inv->expr->vcgen(env, 0 /*path*/));
       }
 
-      env.addFact(ft.precondition->expr->vcgen(env, 0));
-    }
+      // -------------- interpret the code ------------
+      // now interpret the function body
+      SObjList<Statement /*const*/> stmtList;
+      root->vcgenPath(env, stmtList, path, false /*cont*/);
 
-    // add 'result' to the environment so we can record what value
-    // is actually returned; initially it has no defined value
-    if (!ft.retType->isVoid()) {
-      env.set(env.result, env.freshVariable("ret", "UNDEFINED return value"));
-    }
+      // NOTE: the path's termination predicate will be proven
+      // inside the vcgenPath call above
 
-    // now interpret the function body
-    SObjList<Statement /*const*/> stmtList;
-    body->vcgenPath(env, stmtList, path, false /*cont*/);
-
-    // print the results
-    if (tracingSys("absInterp")) {
-      cout << "interpretation after " << name() << ":\n";
-      env.print();
-    }
-
-    // prove the postcondition now holds
-    // ASSUMPTION: none of the parameters have been changed
-    if (ft.postcondition) {
-      IN_PREDICATE(env);
-      env.prove(ft.postcondition->expr->vcgen(env,0), "postcondition");
+      // print the results
+      if (tracingSys("absInterp")) {
+        cout << "interpretation path:\n";
+        env.print();
+      }
     }
   }
 
   env.result = NULL;
+  env.currentFunc = NULL;
 }
 
 
@@ -119,7 +191,13 @@ void Declaration::vcgen(AEnv &env) const
 {
   FOREACH_ASTLIST(Declarator, decllist, iter) {
     Declarator const *d = iter.data();
-    d->vcgen(env, d->init->vcgen(env, d->var->type, 0));
+    if (d->init) {
+      d->vcgen(env, d->init->vcgen(env, d->var->type, 0));
+    }
+    else {
+      // declarator's vcgen just acts like an assignment, so if
+      // there's no initializing expression, we don't do anything here
+    }
   }
 }
 
@@ -164,7 +242,8 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
     }
   }
   #endif // 0
-                             
+
+  #if 0     // moved into TF_func
   // convenience
   StringRef name = var->name;
   Type const *type = var->type;
@@ -207,6 +286,11 @@ void Declarator::vcgen(AEnv &env, AbsValue *value) const
       env.set(var, value);
     }
   }
+  #endif // 0
+  
+  // treat the declaration as an assignment; the variable was added
+  // to the abstract environment in TF_func::vcgen
+  env.updateVar(var, value);
 }
 
 
@@ -251,6 +335,13 @@ void Statement::vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
 
     // vcgen this statement, telling it no continuation path
     vcgen(env, isContinue, exprPath, NULL);
+    
+    // prove the function postcondition
+    FA_postcondition const *post = env.currentFunc->ftype()->postcondition;
+    if (post) {
+      IN_PREDICATE(env);
+      env.prove(post->expr->vcgen(env, 0 /*path*/), "postcondition");
+    }
   }
   else {
     // consider each choice
@@ -478,7 +569,11 @@ void S_assume::vcgen(STMT_VCGEN_PARAMS) const
 void S_invariant::vcgen(STMT_VCGEN_PARAMS) const
 {
   // we only call the 'vcgen' of an invariant at the *start* of a path
-  env.addFact(vcgenPredicate(env, expr, path));
+  //env.addFact(vcgenPredicate(env, expr, path));
+  
+  // update: I'll let the path driver take care of both adding premises,
+  // and proving obligations; so s_invariant itself just holds onto the
+  // expression
 }
 
 void S_thmprv::vcgen(STMT_VCGEN_PARAMS) const
@@ -529,6 +624,13 @@ AbsValue *E_structLit::vcgen(AEnv &env, int path) const { return avTodo(); }
 AbsValue *E_variable::vcgen(AEnv &env, int path) const
 {
   xassert(path==0);
+
+  if (var->type->isFunctionType()) {
+    // this is the name of a function.. let's say for each global
+    // function we have a logic variable of the same name which
+    // represents its address
+    return env.grab(new AVvar(var->name, "address of global function"));
+  }
 
   if (!env.isMemVar(var)) {
     // ordinary variable: look up the current abstract value for this

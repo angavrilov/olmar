@@ -81,18 +81,22 @@ void TF_func::itcheck(Env &env)
   {
     IN_PREDICATE(env);
 
-    // check the precondition (again; it was checked once when the
-    // declarator was checked, but we do it again to get the
-    // bindings)
+    // make bindings for precondition logic variables (they would
+    // have been added to the environment when typechecked above, 
+    // but then we closed that scope (why? not sure))
     FA_precondition *pre = ftype()->precondition;
     if (pre) {
       FOREACH_ASTLIST_NC(Declaration, pre->decls, iter) {
-        iter.data()->tcheck(env);
+        FOREACH_ASTLIST_NC(Declarator, iter.data()->decllist, iter2) {
+          Variable *var = iter2.data()->var;
+          env.addVariable(var->name, var);
+        }
       }
 
-      checkBoolean(env, pre->expr->tcheck(env), pre->expr);
+      //checkBoolean(env, pre->expr->tcheck(env), pre->expr);
     }
-
+                            
+    #if 0     // typechecking postconditions happens in D_func::tcheck
     // and the postcondition
     FA_postcondition *post = ftype()->postcondition;
     if (post) {
@@ -113,6 +117,7 @@ void TF_func::itcheck(Env &env)
 
       env.leaveScope();
     }
+    #endif // 0
   }
 
   // may as well check that things are as I expect *before* I muck with them
@@ -173,15 +178,18 @@ void Declaration::tcheck(Env &env)
 {
   // check the declflags for sanity
   // (for now, support only a very limited set)
-  if (dflags == DF_NONE ||
-      dflags == DF_TYPEDEF ||
-      dflags == DF_STATIC ||
-      dflags == DF_EXTERN) {
-    // ok
-  }
-  else {
-    env.err(stringc << "unsupported dflags: " << toString(dflags));
-    dflags = DF_NONE;
+  {
+    DeclFlags df = (DeclFlags)(dflags & DF_SOURCEFLAGS);
+    if (df == DF_NONE ||
+        df == DF_TYPEDEF ||
+        df == DF_STATIC ||
+        df == DF_EXTERN) {
+      // ok
+    }
+    else {
+      env.err(stringc << "unsupported dflags: " << toString(df));
+      dflags = (DeclFlags)(dflags & ~DF_SOURCEFLAGS);
+    }
   }
 
   // distinguish declarations of logic variables
@@ -406,7 +414,7 @@ void /*Type const * */D_name::itcheck(Env &env, Type const *base,
 }
 
 
-void /*Type const * */D_func::itcheck(Env &env, Type const *rettype, 
+void /*Type const * */D_func::itcheck(Env &env, Type const *rettype,
                                       DeclFlags dflags, Declarator *declarator)
 {
   // make the result variable
@@ -455,7 +463,7 @@ void /*Type const * */D_func::itcheck(Env &env, Type const *rettype,
         FOREACH_ASTLIST_NC(Declaration, pre->decls, iter) {
           iter.data()->tcheck(env);
         }
-        pre->expr->tcheck(env);
+        checkBoolean(env, pre->expr->tcheck(env), pre->expr);
 
         if (ft->precondition) {
           env.err("function already has a precondition");
@@ -468,8 +476,12 @@ void /*Type const * */D_func::itcheck(Env &env, Type const *rettype,
       ASTNEXT(FA_postcondition, post) {
         IN_PREDICATE(env);
 
+        // add the result variable to the environment, so the
+        // postcondition can refer to it
+        env.addVariable(result->name, result);
+
         // typecheck the postcondition
-        post->expr->tcheck(env);
+        checkBoolean(env, post->expr->tcheck(env), post->expr);
 
         if (ft->postcondition) {
           env.err("function already has a postcondition");

@@ -55,7 +55,7 @@ class TopForm (SourceLocation loc) {
        // list of all the path starting points
        public SObjList<Statement> roots;
 
-       // total # of paths from all roots
+       // total # of paths, the sum from all roots
        public int numPaths;
        ctor numPaths=0;
                                                

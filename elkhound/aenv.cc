@@ -72,6 +72,7 @@ AEnv::AEnv(StringTable &table, Variable const *m)
     typeFacts(new P_and(NULL)),
     mem(m),
     result(NULL),
+    currentFunc(NULL),
     seenStructs(),
     inPredicate(false),
     stringTable(table),

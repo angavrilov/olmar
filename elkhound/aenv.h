@@ -15,6 +15,7 @@ class P_and;               // predicate.ast
 class Predicate;           // predicate.ast
 class VariablePrinter;     // aenv.cc
 class Variable;            // variable.h
+class TF_func;             // c.ast
 
 
 // abstract variable: info maintained about program variables
@@ -64,6 +65,9 @@ public:      // data
 
   // name of the result variable
   Variable const *result;
+
+  // function we're currently in
+  TF_func const *currentFunc;
 
   // list of types we've codified with accessor functions
   StringSet seenStructs;

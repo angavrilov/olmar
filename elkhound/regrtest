@@ -143,6 +143,15 @@ for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
 done
 
 
+vcgen() {
+  runTest ./ccgr cc.bin vcgen/$1
+}
+
+vcgen if.c
+vcgen ptr.c
+vcgen invar.c
+
+
 # final arithmetic to report result
 echo ""
 echo "Successful tests:      $success"
@@ -150,6 +159,8 @@ echo "Failed as expected:    $failure"
 if [ $contin = 1 ]; then
   echo "Unexpected success:    $unexSuccess"
   echo "Unexpected failure:    $unexFailure"
-  cat $log
+  if [ -f "$log" ]; then
+    cat "$log"
+  fi
 fi
 

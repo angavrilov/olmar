@@ -7,6 +7,7 @@
 #include "sobjlist.h"    // SObjList
 #include "objlist.h"     // ObjList
 #include "cc_env.h"      // Env
+#include "trace.h"       // tracingSys
 
 
 // one thing to note about constness: when an AST node contains a field
@@ -122,8 +123,15 @@ int countPaths(Env &env, TF_func *func)
 int countPathsFrom(Env &env, SObjList<Statement> &path,
                    Statement *node, bool isContinue)
 {
-  if (path.contains(node)) {
+  if (node->kind() != Statement::S_INVARIANT &&
+      path.contains(node)) {
     env.warnLoc(node->loc, "circular path");
+    if (tracingSys("circular")) {
+      // print the circular path
+      SFOREACH_OBJLIST(Statement, path, iter) {
+        cout << "  " << iter.data()->loc.toString() << endl;
+      }
+    }
     return 1;
   }
 
@@ -184,12 +192,13 @@ void printPaths(TF_func const *func)
   // enumerate all paths from each root
   SFOREACH_OBJLIST(Statement, func->roots, iter) {
     Statement const *s = iter.data();
+    cout << "root at " << iter.data()->loc.toString() << ":\n";
 
     // the whole point of counting the paths was so I could
     // so easily get a handle on all of them, to be able to
     // write a nice loop like this:
     for (int i=0; i < s->numPaths; i++) {
-      cout << "path " << i << ":\n";
+      cout << "  path " << i << ":\n";
       SObjList<Statement /*const*/> path;
       printPathFrom(path, i, s, false /*isContinue*/);
     }
@@ -201,19 +210,19 @@ void printPaths(TF_func const *func)
 // this function has similar structure to 'countPathsFrom', above
 void printPathFrom(SObjList<Statement /*const*/> &path, int index,
                    Statement const *node, bool isContinue)
-{ 
+{
   // validate 'index'
   int exprPaths = countExprPaths(node, isContinue);
   xassert(exprPaths >= 1);
   xassert(0 <= index && index < (node->numPaths * exprPaths));
 
   // print this node
-  cout << "  " << node->loc.toString()
+  cout << "    " << node->loc.toString() << ": "
        << node->kindName() << endl;
 
   // debugging check
   if (path.contains(node)) {
-    cout << "  CIRCULAR path\n";
+    cout << "    CIRCULAR path\n";
     return;
   }
   path.prepend(const_cast<Statement*>(node));
@@ -229,7 +238,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
   if (successors.isEmpty()) {
     // this is a return statement (or otherwise end of function)
     xassert(index == 0);
-    cout << "path ends at a return\n";
+    cout << "    path ends at a return\n";
   }
   else {
     // consider each choice
@@ -242,7 +251,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
         // yes; is 's' an invariant?
         if (s->isS_invariant()) {
           // terminate the path
-          cout << "path ends at an invariant\n";
+          cout << "    path ends at an invariant\n";
         }
         else {
           // continue the path
@@ -457,6 +466,12 @@ int countPaths(Env &env, Expression *ths)
   // default: 1 path, no side effects, is already set: 0
   xassert(ths->numPaths == 0);
   int numPaths = 0;
+
+  // don't bother counting paths in predicates, where everything
+  // is side-effect-free
+  if (env.inPredicate) {
+    return 0;
+  }
 
   #define SIDE_EFFECT() numPaths = max(numPaths,1) /* user ; */
 

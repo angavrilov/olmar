@@ -54,6 +54,7 @@ enum DeclFlags {
   DF_REGISTER    = 0x0040,
   DF_STATIC      = 0x0080,
   DF_EXTERN      = 0x0100,
+  DF_SOURCEFLAGS = 0x01FF,    // all flags that come from source declarations
 
   // other stuff that's convenient for me
   DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
