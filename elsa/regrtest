@@ -403,7 +403,8 @@ failparse t0199.cc "unimplemented: alpha conv + default arg"
 failparse t0200.cc "unimplemented: default type args"
 testparse t0201.cc
 testparse t0202.cc
-failparse t0203.cc "tricky bug with namespaces and typename"
+testparse t0203.cc
+testparse t0204.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -477,6 +478,11 @@ runTest perl ./multitest.pl ./five-errors -tr doOperatorOverload in/t0151.cc
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
 done
+
+# more in another (private) repository, if present
+if [ -f ../cppstdex/regrtest_inner ]; then
+  source ../cppstdex/regrtest_inner
+fi
 
 # is the gnu extension built?
 use_gnu=false

@@ -2350,14 +2350,71 @@ Variable *Env::instantiateTemplate
   //
   // update: (e.g. t0188.cc) pop scopes until we reach one that
   // *contains* (or equals) the defining scope
-  ObjList<Scope> innerScopes;
+  //
+  // 4/20/04: Even more (e.g. t0204.cc), we need to push scopes
+  // to dig back down to the defining scope.  So the picture now
+  // looks like this:
+  //
+  //       global                   /---- this is "foundScope"
+  //         |                     /
+  //         namespace1           /   }
+  //         | |                 /    }- 2. push these: "pushedScopes"
+  //         | namespace11  <---/     }
+  //         |   |
+  //         |   template definition
+  //         |
+  //         namespace2               }
+  //           |                      }- 1. pop these: "poppedScopes"
+  //           namespace21            }
+  //             |
+  //             point of instantiation
+  //
+  // actually, it's *still* not right, because
+  //   - this allows the instantiation to see names declared in
+  //     'namespace11' that are below the template definition, and
+  //   - it's entirely wrong for dependent names, a concept I
+  //     largely ignore at this time
+  // however, I await more examples before continuing to refine
+  // my approximation to the extremely complex lookup rules
+  ObjList<Scope> poppedScopes;
+  SObjList<Scope> pushedScopes;
   Scope *argScope = NULL;
   if (!baseForward) {           // don't mess with it if not going to tcheck anything
+    // pop scope scopes
     while (!scopes.first()->enclosesOrEq(foundScope)) {
-      innerScopes.prepend(scopes.removeFirst());
+      poppedScopes.prepend(scopes.removeFirst());
       if (scopes.isEmpty()) {
         xfailure("emptied scope stack searching for defining scope");
       }
+    }
+
+    // make a list of the scopes to push; these form a path from our
+    // current scope to the 'foundScope'
+    Scope *s = foundScope;
+    while (s != scopes.first()) {
+      pushedScopes.prepend(s);
+      s = s->parentScope;
+      if (!s) {
+        if (scopes.first()->isGlobalScope()) {
+          // ok, hit the global scope in the traversal
+          break;
+        }
+        else {
+          xfailure("missed the current scope while searching up "
+                   "from the defining scope");
+        }
+      }
+    }
+
+    // now push them in list order, which means that 'foundScope'
+    // will be the last one to be pushed, and hence the innermost
+    // (I waited until now b/c this is the opposite order from the
+    // loop above that fills in 'pushedScopes')
+    SFOREACH_OBJLIST_NC(Scope, pushedScopes, iter) {
+      // Scope 'iter.data()' is now on both lists, but neither owns
+      // it; 'scopes' does not own Scopes that are named, as explained
+      // in the comments near its declaration (cc_env.h)
+      scopes.prepend(iter.data());
     }
 
     // make a new scope for the template arguments
@@ -2575,7 +2632,8 @@ Variable *Env::instantiateTemplate
     }
 
     if (tracingSys("cloneTypedAST")) {
-      cout << "--------- typed clone of " << instName << " ------------\n";
+      cout << "--------- typed clone of " 
+           << instName << sargsToString(sargs) << " ------------\n";
       if (copyCpd) copyCpd->debugPrint(cout, 0);
       else if (copyFun) copyFun->debugPrint(cout, 0);
       // FIX: "else xfailure()" here ?
@@ -2584,11 +2642,23 @@ Variable *Env::instantiateTemplate
     // remove the argument scope
     exitScope(argScope);
 
+    // restore the original scope structure
+    pushedScopes.reverse();
+    while (pushedScopes.isNotEmpty()) {
+      // make sure the ones we're removing are the ones we added
+      xassert(scopes.first() == pushedScopes.first());
+      scopes.removeFirst();
+      pushedScopes.removeFirst();
+    }
+
     // re-add the inner scopes removed above
-    while (innerScopes.isNotEmpty()) {
-      scopes.prepend(innerScopes.removeFirst());
+    while (poppedScopes.isNotEmpty()) {
+      scopes.prepend(poppedScopes.removeFirst());
     }
   }
+
+  // make sure we haven't forgotten these
+  xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
 
   // FIX: make this more uniform with CompoundType.  The assymetry is
   // probably somehow due to the fact that for a class, the

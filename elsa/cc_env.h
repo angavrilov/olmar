@@ -395,7 +395,7 @@ public:      // funcs
      SObjList<STemplateArgument> &sargs);
 
   // instantate 'base' with arguments 'sargs', and return the implicit
-  // typedef Variable associated with the resulting type; 'scope' is
+  // typedef Variable associated with the resulting type; 'foundScope' is
   // the scope in which 'base' was found; if 'inst' is not NULL then
   // we already have a compound for this instantiation (from a forward
   // declaration), so use that one; 'loc' is the location of the

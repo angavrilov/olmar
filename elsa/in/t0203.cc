@@ -15,7 +15,7 @@ namespace N
 
   template <class T>
   struct C {
-    typename B<int>::myint a;
+    typename B<T>::myint a;      // dependent name
   };
 }
 
