@@ -164,7 +164,7 @@ ArgWord
 
 /* yields string, and may have commas inside */
 ArgList: Arg
-           { $$ = $1 }
+           { $$ = $1; }
        | Arg "," ArgList
            { $$ = appendStr($1, appendStr(box(","), $3)); }
        ;

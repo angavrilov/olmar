@@ -70,7 +70,7 @@ CtorArg *parseCtorArg(char const *origStr)
 
 
 // Bison parser calls this to get a token
-int agrampar_yylex(union YYSTYPE *lvalp, void *parseParam)
+int agrampar_yylex(YYSTYPE *lvalp, void *parseParam)
 {
   ASTParseParams *par = (ASTParseParams*)parseParam;
   GrammarLexer &lexer = par->lexer;
