@@ -60,7 +60,9 @@ void Gen::emitFile(ASTSpecFile const &file)
   out << "// " << destFname << "\n";
   out << "// *** DO NOT EDIT ***\n";
   out << "// generated automatically by astgen, from " << srcFname << "\n";
-  out << "//   on " << localTimeString() << "\n";
+  // the inclusion of the date introduces gratuitous changes when the
+  // tool is re-run for whatever reason
+  //out << "//   on " << localTimeString() << "\n";
   out << "\n";
   out << "#ifndef " << includeLatch << "\n";
   out << "#define " << includeLatch << "\n";
@@ -74,6 +76,10 @@ void Gen::emitFile(ASTSpecFile const &file)
     ASTClass const *c = form.data()->ifASTClassC();
     if (c) {
       out << "class " << c->name << ";\n";
+      
+      FOREACH_ASTLIST(ASTCtor, c->ctors, ctor) {
+        out << "class " << ctor.data()->name << ";\n";
+      }
     }
   }
   out << "\n";
@@ -150,7 +156,7 @@ void Gen::emitASTClass(ASTClass const &cls)
     FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
       // declare the const downcast
       ASTCtor const &c = *(ctor.data());
-      out << "  DECL_AST_DOWNCAST(" << c.name << ")\n";
+      out << "  DECL_AST_DOWNCASTS(" << c.name << ")\n";
     }
     out << "\n";
   }

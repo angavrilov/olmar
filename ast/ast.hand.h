@@ -1,6 +1,11 @@
 // ast.hand.h
 // generated (by hand) from ast.ast
 
+#ifndef BOOTSTRAP
+  // in non-bootstrap mode, use the generated file
+  #include "ast.gen.h"
+#else     // ... bootstrap mode
+
 #ifndef AST_HAND_H
 #define AST_HAND_H
 
@@ -138,3 +143,5 @@ public:
 };
 
 #endif // AST_HAND_H
+
+#endif // BOOTSTRAP

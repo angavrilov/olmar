@@ -4,7 +4,7 @@ PARSGEN = ../parsgen
 SMBASE = ../../lib/smbase
 
 CXX = g++
-CXXFLAGS = -Wall -g -I. -I$(PARSGEN) -I$(SMBASE)
+CXXFLAGS = -Wall -g -I. -I$(PARSGEN) -I$(SMBASE) $(EXTRAARGS)
 COMPILE = $(CXX) -c $(CXXFLAGS)
 
 LDFLAGS = -Wall -g
@@ -48,3 +48,6 @@ agrampar: $(agrampar-dep) agrampar.cc $(LIBSMBASE)
 
 astgen: $(agrampar-dep) agrampar.o astgen.o $(LIBSMBASE) 
 	$(LINK) -o astgen $(agrampar-dep) agrampar.o astgen.o $(LINKEND)
+
+clean:
+	rm -f *.o agrampar astgen

@@ -1,7 +1,6 @@
 // ast.gen.h
 // *** DO NOT EDIT ***
 // generated automatically by astgen, from ast.ast
-//   on Fri Jul 27 14:21:58 2001
 
 #ifndef AST_GEN_H
 #define AST_GEN_H
@@ -11,6 +10,8 @@
 // fwd decls
 class ASTSpecFile;
 class ToplevelForm;
+class TF_verbatim;
+class ASTClass;
 class UserDecl;
 class ASTCtor;
 class CtorArg;
@@ -43,8 +44,8 @@ public:      // funcs
   enum Kind { TF_VERBATIM, ASTCLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
-  DECL_AST_DOWNCAST(TF_verbatim)
-  DECL_AST_DOWNCAST(ASTClass)
+  DECL_AST_DOWNCASTS(TF_verbatim)
+  DECL_AST_DOWNCASTS(ASTClass)
 
   virtual void debugPrint(ostream &os, int indent) const;
 
