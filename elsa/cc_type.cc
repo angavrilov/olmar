@@ -2262,62 +2262,23 @@ void TemplateInfo::debugPrint(int depth)
 STemplateArgument::STemplateArgument(STemplateArgument const &obj)
   : kind(obj.kind)
 {
-  #if 0     // old
-    // take advantage of representation uniformity
-    // dsw: Ugh, a hidden reinterpret_cast!
-    // sm: not really.. it's just a bit-for-bit copy, with the
-    // same interpretation to be applied to the source and
-    // destination
+  // sm: ok, fine; rather than have two copy ctors, I'll just change
+  // this one so there are no borderline language abuses...
+  if (kind == STA_TYPE) {
+    value.t = obj.value.t;
+  }
+  else if (kind == STA_INT) {
     value.i = obj.value.i;
-    value.v = obj.value.v;    // just in case ptrs and ints are diff't size
-  #else
-    // sm: ok, fine; rather than have two copy ctors, I'll just change
-    // this one so there are no borderline language abuses...
-    if (kind == STA_TYPE) {
-      value.t = obj.value.t;
-    }
-    else if (kind == STA_INT) {
-      value.i = obj.value.i;
-    }
-    else {
-      value.v = obj.value.v;
-    }
-  #endif
+  }
+  else {
+    value.v = obj.value.v;
+  }
 }
 
 
 STemplateArgument *STemplateArgument::shallowClone() const
 {
-  #if 0    // old; can we delete this now?
-    STemplateArgument *ret = new STemplateArgument();
-    switch (kind) {
-    default:
-    case STA_NONE:
-      xfailure("STemplateArgument with illegal or undefined kind");
-      break;
-    case STA_TYPE:
-      ret->setType(getType());
-      break;
-    case STA_INT:
-      ret->setInt(getInt());
-      break;
-    case STA_REFERENCE:
-      ret->setReference(getReference());
-      break;
-    case STA_POINTER:
-      ret->setPointer(getPointer());
-      break;
-    case STA_MEMBER:
-      ret->setMember(getMember());
-      break;
-    case STA_TEMPLATE:
-      xfailure("STemplateArgument STA_MEMBER unimplemented");
-      break;
-    }
-    return ret;
-  #else
-    return new STemplateArgument(*this);
-  #endif
+  return new STemplateArgument(*this);
 }
 
 
