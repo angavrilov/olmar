@@ -312,6 +312,7 @@ public:     // funcs
   bool isStructType() const { return isCompoundTypeOf(CompoundType::K_STRUCT); }
   bool isCompoundTypeOf(CompoundType::Keyword keyword) const;
   bool isVoid() const { return isSimple(ST_VOID); }
+  bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   bool isError() const { return isSimple(ST_ERROR); }
   bool isDependent() const { return isSimple(ST_DEPENDENT); }
   bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
