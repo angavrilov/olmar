@@ -20,8 +20,11 @@
 #  break breaker
 #  run
 
-file gramanl
-set args -tr parse
+#file gramanl
+#set args -tr parse
+ 
+file cexp3b
+set args -tr refct,sval cexp3b.bin cexp3.in1
 
 #file ccgr
 #set args -tr trivialActions,stopAfterParse cc.bin c.in1

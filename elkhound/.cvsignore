@@ -89,8 +89,7 @@ tmp*
 predicate.log
 cexp3.gr.gen.*
 regrtest.log
-cexp3ast.cc
-cexp3ast.h
+cexp3ast.ast.gen.*
 bccgr
 bccgr.output
 bccgr.tab.*

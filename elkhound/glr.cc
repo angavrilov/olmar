@@ -145,6 +145,7 @@
 // ------------- front ends to user code ---------------
 SemanticValue GLR::duplicateSemanticValue(SymbolId sym, SemanticValue sval)
 {
+  xassert(sym != 0);
   if (!sval) return sval;
 
   if (symIsTerm(sym)) {
@@ -158,6 +159,7 @@ SemanticValue GLR::duplicateSemanticValue(SymbolId sym, SemanticValue sval)
 void deallocateSemanticValue(SymbolId sym, UserActions *user,
                              SemanticValue sval)
 {
+  xassert(sym != 0);
   if (!sval) return;
 
   if (symIsTerm(sym)) {
@@ -203,7 +205,7 @@ StackNode::~StackNode()
   // associated symbol, which the SiblinkLinks don't know)
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
-    D(trsSval << "deleting sval " << sib->sval << endl);
+    D(trace("sval") << "deleting sval " << sib->sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, sib->sval);
   }
 }
@@ -211,9 +213,7 @@ StackNode::~StackNode()
 
 SymbolId StackNode::getSymbolC() const
 {
-  // TODO: fix me
-  //return glr->tables->stateSymbol[state];
-  return 0;
+  return glr->tables->stateSymbol[state];
 }
 
 

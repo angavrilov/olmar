@@ -43,7 +43,7 @@ ccflags += -Werror
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # flags on command line
 ccflags+= $(EXTRA)
@@ -59,8 +59,9 @@ linkend := $(libraries)
 #   fmt -1: list words one per line
 #   sed:    strip leading spaces
 #   sed:    add trailing colons
-%.o : %.cc
+%.o: %.cc
 	$(compile) $< -o $@
+	@echo "dependencies for $< > $*.d"
 	@$(depend) $< > $*.d
 	@cp -f $*.d $*.d.tmp
 	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
@@ -200,16 +201,16 @@ libglr.a: $(libglr-dep)
 
 # intermediate files for cexp3 (disambiguates using prec/assoc)
 # ('chmod a-w' is so I don't accidentally edit it)
-cexp3.gr.gen.cc cexp3.gr.gen.h: cexp3.gr cc.tok gramanl
-	rm -f cexp3.gr.gen.*
-	./gramanl cexp3
-	chmod a-w cexp3.gr.gen.{h,cc}
+#cexp3.gr.gen.cc cexp3.gr.gen.h: cexp3.gr cc.tok gramanl
+#	rm -f cexp3.gr.gen.*
+#	./gramanl cexp3
+#	chmod a-w cexp3.gr.gen.{h,cc}
 
-cexp3ast.h cexp3ast.cc: cexp3ast.ast
-	../../ast/astgen cexp3ast.ast
+#cexp3ast.h cexp3ast.cc: cexp3ast.ast
+#	../../ast/astgen cexp3ast.ast
 
 # AUXDEPEND
-cexp3.gen.o: cexp3ast.h
+cexp3.gr.gen.o: cexp3ast.ast.gen.h
 
 # ast for cexp3
 # (these rules should be superceded by pattern rule below)
@@ -217,28 +218,30 @@ cexp3.gen.o: cexp3ast.h
 #	$(AST)/astgen cexp3ast.ast
 
 # parser and semantic analyzer for cexp3.gr
-cexp3-dep := cexp3.gr.gen.o glrmain.o cexp3mrg.o cexp3ast.o \
+cexp3-dep := cexp3.gr.gen.o glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
              cc_lang.o libglr.a $(libraries)
 cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
-	./cexp3 cexp3.bin cexp3.in1
+	./cexp3 cexp3.bin cexp3.in1 | tee tmp.out
+	grep 'result: 0x7' tmp.out
 
 # intermediate files for a grammar
 # ('chmod a-w' is so I don't accidentally edit it)
+.PRECIOUS: %.gr.gen.cc %.gr.gen.h
 %.gr.gen.cc %.gr.gen.h: %.gr cc.tok gramanl
 	rm -f $*.gr.gen.*
 	./gramanl -tr conflict $*
 	chmod a-w $*.gr.gen.{h,cc}
 
 # intermediate files for an ast spec
+.PRECIOUS: %.ast.gen.cc %.ast.gen.h
 %.ast.gen.cc %.ast.gen.h: %.ast $(AST)/astgen
 	rm -f $*.ast.gen.*
 	$(AST)/astgen -b$*.ast.gen $*.ast
 	chmod a-w $*.ast.gen.{h,cc}
 
-# without this these get deleted when errors occur, and I can't
-# look at the offending source lines!
-.PRECIOUS: c.ast.gen.cc c.ast.gen.h
+# don't delete these things
+.PRECIOUS: cexp3b cexp3
 
 # cexp3b: disambiguation using 'merge'
 cexp3b.gr: cexp3.gr
@@ -247,10 +250,12 @@ cexp3b.gr: cexp3.gr
 	chmod a-w cexp3b.gr
 
 # parser and semantic analyzer for cexp3b.gr
-cexp3b-dep := cexp3b.gen.o glrmain.o cexp3mrg.o cexp3ast.gen.o libglr.a $(libraries)
+cexp3b-dep := cexp3b.gr.gen.o glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
+              cc_lang.o libglr.a $(libraries)
 cexp3b: $(cexp3b-dep)
 	$(link) -o cexp3b $(cexp3b-dep)
-	./cexp3b cexp3b.bin cexp3.in1
+	./cexp3b cexp3b.bin cexp3.in1 | tee tmp.out
+	grep 'result: 0x7' tmp.out
 
 # intermediate files for cdecl
 # (superceded by pattern rule)

@@ -971,6 +971,9 @@ void ParseTables::alloc(int t, int nt, int s, int p)
   
   prodInfo = new ProdInfo[numProds];
   memset(prodInfo, 0, sizeof(prodInfo[0]) * numProds);
+  
+  stateSymbol = new SymbolId[numStates];
+  memset(stateSymbol, 0, sizeof(stateSymbol[0]) * numStates);
 }
 
 
@@ -979,6 +982,7 @@ ParseTables::~ParseTables()
   delete[] actionTable;
   delete[] gotoTable;
   delete[] prodInfo;
+  delete[] stateSymbol;
 
   for (int i=0; i<numAmbig(); i++) {
     delete[] ambigAction[i];
@@ -990,7 +994,7 @@ ActionEntry ParseTables::validateAction(int code) const
 {
   // make sure that 'code' is representable; if this fails, most likely
   // there are more than 32k states or productions; in turn, the most
-  // likely cause of *that* would be the grammar is being generated 
+  // likely cause of *that* would be the grammar is being generated
   // automatically from some other specification; you can change the
   // typedefs of ActionEntry and GotoEntry in gramanl.h to get more
   // capacity
@@ -1015,6 +1019,15 @@ ParseTables::ParseTables(Flatten&)
   prodInfo = NULL;
 }
 
+     
+template <class T>
+void xferSimpleArray(Flatten &flat, T *array, int numElements)
+{
+  int len = sizeof(array[0]) * numElements;
+  flat.xferSimple(array, len);
+  flat.checkpoint(crc32((unsigned char const *)array, len));
+}
+
 void ParseTables::xfer(Flatten &flat)
 {
   flat.checkpoint(0x1B2D2F16);
@@ -1027,21 +1040,11 @@ void ParseTables::xfer(Flatten &flat)
   if (flat.reading()) {
     alloc(numTerms, numNonterms, numStates, numProds);
   }
-
-  // action
-  int actionLen = sizeof(actionTable[0]) * actionTableSize();
-  flat.xferSimple(actionTable, actionLen);
-  flat.checkpoint(crc32((unsigned char const*)actionTable, actionLen));
-
-  // goto
-  int gotoLen = sizeof(gotoTable[0]) * gotoTableSize();
-  flat.xferSimple(gotoTable, gotoLen);
-  flat.checkpoint(crc32((unsigned char const*)gotoTable, gotoLen));
-
-  // prodInfo
-  int infoLen = sizeof(prodInfo[0]) * numProds;
-  flat.xferSimple(prodInfo, infoLen);
-  flat.checkpoint(crc32((unsigned char const*)prodInfo, infoLen));
+           
+  xferSimpleArray(flat, actionTable, actionTableSize());
+  xferSimpleArray(flat, gotoTable, gotoTableSize());
+  xferSimpleArray(flat, prodInfo, numProds);
+  xferSimpleArray(flat, stateSymbol, numStates);
 
   // ambigAction
   if (flat.writing()) {
@@ -3240,6 +3243,10 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       // fill in entry
       tables->gotoEntry(state->id, nontermId) = cellGoto;
     }
+    
+    // get the state symbol
+    tables->stateSymbol[state->id] = 
+      encodeSymbolId(state->getStateSymbolC());
   }
 
   // report on conflict counts
@@ -3255,6 +3262,26 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     tables->prodInfo[p].rhsLen = prod->rhsLength();
     tables->prodInfo[p].lhsIndex = prod->left->ntIndex;
   }
+}
+
+
+SymbolId encodeSymbolId(Symbol const *sym)
+{
+  int ret;
+  if (!sym) {
+    ret = 0;
+  }
+  else if (sym->isTerminal()) {
+    ret = sym->asTerminalC().termIndex + 1;
+  }
+  else /*nonterminal*/ {
+    ret = - sym->asNonterminalC().ntIndex - 1;
+  }      
+  
+  // verify encoding is lossless
+  SymbolId ret2 = (SymbolId)ret;
+  xassert((int)ret2 == ret);
+  return ret2;
 }
 
 

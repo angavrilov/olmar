@@ -374,6 +374,7 @@ inline bool symIsTerm(SymbolId id) { return id > 0; }
 inline int symAsTerm(SymbolId id) { return id-1; }
 inline bool symIsNonterm(SymbolId id) { return id < 0; }
 inline int symAsNonterm(SymbolId id) { return -(id+1); }
+SymbolId encodeSymbolId(Symbol const *sym);
 
 
 // the parse tables are the traditional action/goto, plus the list
@@ -418,6 +419,10 @@ public:     // data
 
   // map production id to information about that production
   ProdInfo *prodInfo;                    // (owner ptr to array)
+
+  // map a state id to the symbol (terminal or nonterminal) which is
+  // shifted to arrive at that state
+  SymbolId *stateSymbol;                 // (owner)
 
   // ambiguous action table, indexed by ambigActionId; each entry is
   // a pointer to an array of signed short; the first number is the

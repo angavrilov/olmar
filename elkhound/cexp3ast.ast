@@ -15,7 +15,7 @@ class Exp {
   
   // whoever creates this object initially is its first owner,
   // hence the refct starts at 1
-  ctor { refCt=1; };
+  ctor { refCt=0; incRefCt(); };
 
   // number of nodes in this subtree, including myself
   public virtual int numNodes() const = 0;

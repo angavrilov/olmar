@@ -2,10 +2,10 @@
 // another go at C expressions, with user-supplied actions
 
 verbatim Cexp3 [
-  #include <iostream.h>      // cout
-  #include "cexp3ast.h"      // Exp
-  #include "trace.h"         // trace
-  #include "useract.h"       // UserActions
+  #include <iostream.h>            // cout
+  #include "cexp3ast.ast.gen.h"    // Exp
+  #include "trace.h"               // trace
+  #include "useract.h"             // UserActions
 
   #define D(msg) \
     trace("exptree") << msg << endl
