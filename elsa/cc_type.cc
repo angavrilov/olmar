@@ -9,6 +9,7 @@
 #include <assert.h>     // assert
 
 
+#if 0
 // dsw: I'll get rid of this in a bit.
 Type *Type::getRefType() {
   if (isError()) {return this;}
@@ -20,6 +21,7 @@ Type *Type::getRefType() {
   }
   return refType;
 }
+#endif // 0
 
 
 string makeIdComment(int id)
@@ -339,7 +341,9 @@ int TypeVariable::reprSize() const
 ALLOC_STATS_DEFINE(Type)
 
 Type::Type()
+  #if BEFORE
   : refType(NULL)
+  #endif
 {
   ALLOC_STATS_IN_CTOR
 }
@@ -401,7 +405,9 @@ string Type::toCString() const
     CVAtomicType const &atomic = asCVAtomicTypeC();
     return stringc
       << atomic.atomic->toCString()
+      #if BEFORE
       << ::toString(atomic.q)
+      #endif
       << cvToString(atomic.cv);
   }
   else {
@@ -585,8 +591,10 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
   s << atomicIdComment();
   s << atomic->toCString();
   s << cvToString(cv);
+  #if BEFORE
   s << ::toString(q);
-  
+  #endif
+
   // this is the only mandatory space in the entire syntax
   // for declarations; it separates the type specifier from
   // the declarator(s)
@@ -610,7 +618,11 @@ bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
-  : op(o), q(NULL), cv(c), atType(a)
+  : op(o),
+    #if BEFORE
+    q(NULL),  
+    #endif
+    cv(c), atType(a)
 {
   // since references are always immutable, it makes no sense to
   // apply const or volatile to them
@@ -639,7 +651,9 @@ string PointerType::leftString(bool /*innerParen*/) const
     s << "(";
   }
   s << (op==PO_POINTER? "*" : "&");
+  #if BEFORE
   s << ::toString(q);
+  #endif
   s << cvToString(cv);
   return s;
 }
@@ -691,7 +705,9 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 // -------------------- FunctionType -----------------
 FunctionType::FunctionType(Type *r, CVFlags c)
   : retType(r),
-    q(NULL),
+    #if BEFORE
+    q(NULL),  
+    #endif
     cv(c),
     params(),
     acceptsVarargs(false),
@@ -857,7 +873,9 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   sb << ")";
 
   // qualifiers
+  #if BEFORE
   sb << ::toString(q);
+  #endif
   if (cv) {
     sb << " " << ::toString(cv);
   }
@@ -1041,104 +1059,20 @@ bool ArrayType::anyCtorSatisfies(TypePred pred) const
 
 
 // ---------------------- TypeFactory ---------------------
-Type *TypeFactory::makeRefType(Type *underlying)
+Type *TypeFactory::cloneType(Type *src)
 {
-  if (underlying->isError()) {
-    return underlying;
-  }
-  else {
-    return makePointerType(PO_REFERENCE, CV_NONE, underlying);
-  }
-}
-
-
-Type *TypeFactory::makePtrOperType(PtrOper op, CVFlags cv, Type *type)
-{
-  if (type->isError()) {
-    return type;      // this is why this function doesn't return PointerType ...
-  }
-
-  return makePointerType(op, cv, type);
-}
-
-
-CVAtomicType *TypeFactory::getSimpleType(SimpleTypeId st, CVFlags cv)
-{
-  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
-  return makeCVAtomicType(&SimpleType::fixed[st], cv);
-}
-
-
-// -------------------- BasicTypeFactory ----------------------
-// this is for when I split Type from Type_Q
-#if 0
-CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
-  #define CVAT(id) \
-    CVAtomicType(&SimpleType::fixed[id], CV_NONE),
-  CVAT(ST_CHAR)
-  CVAT(ST_UNSIGNED_CHAR)
-  CVAT(ST_SIGNED_CHAR)
-  CVAT(ST_BOOL)
-  CVAT(ST_INT)
-  CVAT(ST_UNSIGNED_INT)
-  CVAT(ST_LONG_INT)
-  CVAT(ST_UNSIGNED_LONG_INT)
-  CVAT(ST_LONG_LONG)
-  CVAT(ST_UNSIGNED_LONG_LONG)
-  CVAT(ST_SHORT_INT)
-  CVAT(ST_UNSIGNED_SHORT_INT)
-  CVAT(ST_WCHAR_T)
-  CVAT(ST_FLOAT)
-  CVAT(ST_DOUBLE)
-  CVAT(ST_LONG_DOUBLE)
-  CVAT(ST_VOID)
-  CVAT(ST_ELLIPSIS)
-  CVAT(ST_CDTOR)
-  CVAT(ST_ERROR)
-  CVAT(ST_DEPENDENT)
-  #undef CVAT
-};
-
-CVAtomicType const *getSimpleType(SimpleTypeId st)
-{
-  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
-  return &(CVAtomicType::fixed[st]);
-}
-#endif // 0
-
-
-CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
-{
-  return new CVAtomicType(atomic, cv);
-}
-
-
-PointerType *BasicTypeFactory::makePointerType(PtrOper op, CVFlags cv, Type *atType)
-{
-  return new PointerType(op, cv, atType);
-}
-
-
-FunctionType *BasicTypeFactory::makeFunctionType(Type *retType, CVFlags cv)
-{
-  return new FunctionType(retType, cv);
-}
-
-
-ArrayType *BasicTypeFactory::makeArrayType(Type *eltType, int size)
-{                                     
-  if (size == -1) {
-    // unspecified size
-    return new ArrayType(eltType);
-  }
-  else {
-    return new ArrayType(eltType, size);
+  switch (src->getTag()) {
+    default: xfailure("bad type tag");
+    case Type::T_ATOMIC:    return cloneCVAtomicType(&( src->asCVAtomicType() ));
+    case Type::T_POINTER:   return clonePointerType(&( src->asPointerType() ));
+    case Type::T_FUNCTION:  return cloneFunctionType(&( src->asFunctionType() ));
+    case Type::T_ARRAY:     return cloneArrayType(&( src->asArrayType() ));
   }
 }
 
 
-
-Type *BasicTypeFactory::applyCVToType(CVFlags cv, Type *baseType)
+Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType, 
+                                 TypeSpecifier *)
 {
   if (baseType->isError()) {
     return baseType;
@@ -1200,11 +1134,144 @@ Type *BasicTypeFactory::applyCVToType(CVFlags cv, Type *baseType)
 }
 
 
-ArrayType *BasicTypeFactory::setArraySize(ArrayType *type, int size)
+Type *TypeFactory::makeRefType(Type *underlying)
 {
-  ArrayType *ret = new ArrayType(type->eltType, size);
-  return ret;
+  if (underlying->isError()) {
+    return underlying;
+  }
+  else {
+    return makePointerType(PO_REFERENCE, CV_NONE, underlying);
+  }
 }
+
+
+PointerType *TypeFactory::syntaxPointerType(
+  PtrOper op, CVFlags cv, Type *type, D_pointer *)
+{
+  return makePointerType(op, cv, type);
+}
+
+
+FunctionType *TypeFactory::syntaxFunctionType(
+  Type *retType, CVFlags cv, D_func *syntax)
+{
+  return makeFunctionType(retType, cv);
+}
+
+
+PointerType *TypeFactory::makeTypeOf_this(
+  CompoundType *classType, FunctionType *methodType)
+{
+  CVAtomicType *tmpcvat = makeCVAtomicType(classType, methodType->cv);
+  #if BEFORE
+  xassert(!tmpcvat->q);
+  tmpcvat->q = deepClone(funcType->q);
+  #endif
+  return makePointerType(PO_POINTER, CV_CONST, tmpcvat);
+}
+
+
+FunctionType *TypeFactory::makeSimilarFunctionType(
+  Type *retType, FunctionType *similar)
+{
+  FunctionType *ft = makeFunctionType(retType, similar->cv);
+  #if BEFORE
+//    StringRef name = "__unamed_function";
+//    {
+//      PQName const * declaratorId = getDeclaratorId();
+//      if (declaratorId) name = declaratorId->getName();
+//    }
+  xassert(!ft->q);
+  ft->q = deepClone(similar->q);
+  #endif
+  
+  return ft;
+}
+
+
+CVAtomicType *TypeFactory::getSimpleType(SimpleTypeId st, CVFlags cv)
+{
+  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
+  return makeCVAtomicType(&SimpleType::fixed[st], cv);
+}
+
+
+ArrayType *TypeFactory::setArraySize(ArrayType *type, int size)
+{
+  return makeArrayType(type->eltType, size);
+}
+
+
+// -------------------- BasicTypeFactory ----------------------
+// this is for when I split Type from Type_Q
+#if AFTER
+CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
+  #define CVAT(id) \
+    CVAtomicType(&SimpleType::fixed[id], CV_NONE),
+  CVAT(ST_CHAR)
+  CVAT(ST_UNSIGNED_CHAR)
+  CVAT(ST_SIGNED_CHAR)
+  CVAT(ST_BOOL)
+  CVAT(ST_INT)
+  CVAT(ST_UNSIGNED_INT)
+  CVAT(ST_LONG_INT)
+  CVAT(ST_UNSIGNED_LONG_INT)
+  CVAT(ST_LONG_LONG)
+  CVAT(ST_UNSIGNED_LONG_LONG)
+  CVAT(ST_SHORT_INT)
+  CVAT(ST_UNSIGNED_SHORT_INT)
+  CVAT(ST_WCHAR_T)
+  CVAT(ST_FLOAT)
+  CVAT(ST_DOUBLE)
+  CVAT(ST_LONG_DOUBLE)
+  CVAT(ST_VOID)
+  CVAT(ST_ELLIPSIS)
+  CVAT(ST_CDTOR)
+  CVAT(ST_ERROR)
+  CVAT(ST_DEPENDENT)
+  #undef CVAT
+};
+#endif // AFTER
+
+
+CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
+{
+  #if AFTER
+    if (cv==CV_NONE && atomic->isSimpleType()) {
+      // since these are very common, and ordinary Types are immutable,
+      // share them
+      SimpleType &st = atomic->asSimpleType();
+      xassert((unsigned)(st.type) < (unsigned)NUM_SIMPLE_TYPES);
+      return &(unqualifiedSimple[st.type]);
+    }
+  #endif
+  return new CVAtomicType(atomic, cv);
+}
+
+
+PointerType *BasicTypeFactory::makePointerType(PtrOper op, CVFlags cv, Type *atType)
+{
+  return new PointerType(op, cv, atType);
+}
+
+
+FunctionType *BasicTypeFactory::makeFunctionType(Type *retType, CVFlags cv)
+{
+  return new FunctionType(retType, cv);
+}
+
+
+ArrayType *BasicTypeFactory::makeArrayType(Type *eltType, int size)
+{                                     
+  if (size == -1) {
+    // unspecified size
+    return new ArrayType(eltType);
+  }
+  else {
+    return new ArrayType(eltType, size);
+  }
+}
+
 
 
 Type *BasicTypeFactory::makeRefType(Type *underlying)
@@ -1213,68 +1280,79 @@ Type *BasicTypeFactory::makeRefType(Type *underlying)
     return underlying;
   }
 
-  // use the 'refType' pointer so multiple requests for the
-  // "reference to" a given type always yield the same object
-  if (!underlying->refType) {
-    underlying->refType = makePointerType(PO_REFERENCE, CV_NONE, underlying);
-  }
-  return underlying->refType;
+  #if BEFORE
+    // use the 'refType' pointer so multiple requests for the
+    // "reference to" a given type always yield the same object
+    if (!underlying->refType) {
+      underlying->refType = makePointerType(PO_REFERENCE, CV_NONE, underlying);
+    }
+    return underlying->refType;
+  #else
+    return makePointerType(PO_REFERENCE, CV_NONE, underlying);
+  #endif
 }
+ 
 
-
-Type *BasicTypeFactory::cloneType(Type *src1)
+#if BEFORE
+CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
 {
-  switch (src1->getTag()) {
-    default: xfailure("bad tag");
-
-    case Type::T_ATOMIC: {
-      // NOTE: We don't clone the underlying AtomicType.
-      CVAtomicType *src = &( src1->asCVAtomicType() );
-      CVAtomicType *ret = new CVAtomicType(src->atomic, src->cv);
-      ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-      return ret;
-    }
-
-    case Type::T_POINTER: {
-      PointerType *src = &( src1->asPointerType() );
-      PointerType *ret = new PointerType(src->op, src->cv, cloneType(src->atType));
-      ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-      return ret;
-    }
-
-    case Type::T_FUNCTION: {
-      FunctionType *src = &( src1->asFunctionType() );
-      FunctionType *ret = new FunctionType(cloneType(src->retType), src->cv);
-      for (SObjListIterNC<Variable> param_iter(src->params);
-           !param_iter.isDone(); param_iter.adv()) {
-        ret->addParam(cloneVariable(param_iter.data()));
-    //      xassert(param_iter.data()->type ==
-    //              param_iter.data()->decl->type // the variable
-    //              );
-      }
-      ret->acceptsVarargs = src->acceptsVarargs;
-      // FIX: omit these for now.
-    //    ret->exnSpec = exnSpec->deepClone();
-    //    ret->templateParams = templateParams->deepClone();
-
-      ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-      return ret;
-    }
-
-    case Type::T_ARRAY: {
-      ArrayType *src = &( src1->asArrayType() );
-      ArrayType *ret;
-      if (src->hasSize) {
-        ret = new ArrayType(cloneType(src->eltType), src->size);
-      }
-      else {
-        ret = new ArrayType(cloneType(src->eltType));
-      }
-      ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
-      return ret;
-    }
-  }
+  // NOTE: We don't clone the underlying AtomicType.
+  CVAtomicType *ret = new CVAtomicType(src->atomic, src->cv);
+  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
+  return ret;
 }
+
+PointerType *BasicTypeFactory::clonePointerType(PointerType *src)
+{
+  PointerType *ret = new PointerType(src->op, src->cv, cloneType(src->atType));
+  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
+  return ret;
+}
+
+FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
+{
+  FunctionType *ret = new FunctionType(cloneType(src->retType), src->cv);
+  for (SObjListIterNC<Variable> param_iter(src->params);
+       !param_iter.isDone(); param_iter.adv()) {
+    ret->addParam(cloneVariable(param_iter.data()));
+//      xassert(param_iter.data()->type ==
+//              param_iter.data()->decl->type // the variable
+//              );
+  }
+  ret->acceptsVarargs = src->acceptsVarargs;
+  // FIX: omit these for now.
+//    ret->exnSpec = exnSpec->deepClone();
+//    ret->templateParams = templateParams->deepClone();
+
+  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
+  return ret;
+}
+
+ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
+{
+  ArrayType *ret;
+  if (src->hasSize) {
+    ret = new ArrayType(cloneType(src->eltType), src->size);
+  }
+  else {
+    ret = new ArrayType(cloneType(src->eltType));
+  }
+  ret->q = src->q ? deepCloneLiterals(src->q) : NULL;
+  return ret;
+}
+
+
+#else
+// Types are immutable, so cloning is pointless
+CVAtomicType *BasicTypeFactory::cloneCVAtomicType(CVAtomicType *src)
+  { return src; }
+PointerType *BasicTypeFactory::clonePointerType(PointerType *src)
+  { return src; }
+FunctionType *BasicTypeFactory::cloneFunctionType(FunctionType *src)
+  { return src; }
+ArrayType *BasicTypeFactory::cloneArrayType(ArrayType *src)
+  { return src; }
+#endif
 
 
 Variable *BasicTypeFactory::makeVariable(
@@ -1285,6 +1363,7 @@ Variable *BasicTypeFactory::makeVariable(
 
 Variable *BasicTypeFactory::cloneVariable(Variable *src)
 {
+  #if BEFORE
   Variable *ret = new Variable(src->loc
                                ,src->name // don't see a reason to clone the name
                                ,cloneType(src->type)
@@ -1294,6 +1373,11 @@ Variable *BasicTypeFactory::cloneVariable(Variable *src)
   ret->access = src->access;         // an enum, so nothing to clone
   ret->scope = src->scope;           // don't see a reason to clone the scope
   return ret;
+  
+  #else           
+  // immutable => don't clone
+  return src;                
+  #endif
 }
 
 

@@ -26,7 +26,9 @@
 #include "strtable.h"          // StringRef
 #include "cc_flags.h"          // DeclFlags
 #include "sobjlist.h"          // SObjList
-#include "variable_annot.h"    // VariableAnnot
+#if BEFORE
+  #include "variable_annot.h"    // VariableAnnot
+#endif
 
 class Type;                    // cc_type.h
 class OverloadSet;             // below
@@ -35,8 +37,12 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 
-class Variable : public VariableAnnot {
-#if CC_QUAL
+class Variable
+#if BEFORE
+  : public VariableAnnot
+#endif
+{
+#if BEFORE && CC_QUAL
 public:
   static SObjList<Variable> instances;
 #endif
@@ -74,13 +80,8 @@ public:    // data
 
 protected:    // funcs
   friend class BasicTypeFactory;
-
-  public:                       // dsw: Will fix this later
   Variable(SourceLocation const &L, StringRef n,
-           Type *t, DeclFlags f,
-           // Scott, I'll take this out but I need it for now.
-           bool put_into_instances_list=true
-           );
+           Type *t, DeclFlags f);
 
 public:
   ~Variable();

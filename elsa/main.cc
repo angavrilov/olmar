@@ -15,6 +15,8 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
+#include "qual_type.h"    // TypeFactory_Q
+#include "qual_var.h"     // Variable_Q
 #ifdef CC_QUAL
   #include "cc_qual/cc_qual_walk.h"
   #include "cc_qual/cqual_iface.h"
@@ -139,8 +141,11 @@ void doit(int argc, char **argv)
 
   // ---------------- typecheck -----------------
   {
+    // should work with either factory
+    //BasicTypeFactory tfac;
+    TypeFactory_Q tfac;
+
     traceProgress() << "type checking...\n";
-    BasicTypeFactory tfac;
     Env env(strTable, lang, tfac);
     unit->tcheck(env);
     traceProgress() << "done type checking\n";
@@ -228,7 +233,7 @@ void doit(int argc, char **argv)
     QualEnv env;
     // insert the names into all the Qualifiers objects
     printf("** insert the names into all the Qualifiers objects\n");
-    SFOREACH_OBJLIST_NC(Variable, Variable::instances, variable_iter) {
+    SFOREACH_OBJLIST_NC(Variable_Q, Variable_Q::instances, variable_iter) {
       nameSubtypeQualifiers(variable_iter.data());
     }
     printf("** Qualifiers::global_attach_funky_set_qualifiers()\n");
