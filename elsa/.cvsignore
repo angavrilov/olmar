@@ -11,7 +11,6 @@ bccgr
 *.tab.*
 bccgr.y
 ccparse
-ccparse_twalk
 ccparset
 cct.bin
 cct.gr
@@ -19,6 +18,3 @@ c.bin
 cparse
 hide*
 gmon.out
-
-# This is the interface between parsgen/cc and cqual
-cc_qual
