@@ -396,10 +396,9 @@ testparse d0023.cc
 testparse d0024.cc
 testparse d0025.cc
 testparse d0026.cc
-
 # FIX:
 failparse d0027.cc
-failparse d0028.cc
+testparse d0028.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do
@@ -490,7 +489,7 @@ failnsparse() {
 testnsparse in/big/nsAtomTable.i
 testnsparse in/big/nsSOAPPropertyBag.i
 failnsparse in/big/nsCLiveconnectFactory.i  "assertion: !var"
-failnsparse in/big/nsHTMLEditRules.i        "assertion: scopeKind==SK_UNKNOWN"
+failnsparse in/big/nsHTMLEditRules.i        "assertion: evar0->var == var"
 testnsparse in/big/nsMsgServiceProvider.i
 testnsparse in/big/nsUnicodeToTeXCMRt1.i
 

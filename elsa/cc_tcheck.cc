@@ -169,7 +169,8 @@ void Function::tcheck(Env &env, bool isMember, bool checkBody)
                         isMember, // isMember
                         false,  // isTemporary
                         // The *function* is not a parameter
-                        false   // isParameter
+                        false,  // isParameter
+                        false   // isE_new
                         );
   nameAndParams = nameAndParams->tcheck(env, dt);
 
@@ -536,7 +537,8 @@ void Declaration::tcheck(Env &env,
                            isTemporary,
                            // Parameter Declarators are not within
                            // Declarations, but in ASTTypeIds
-                           false // isParameter
+                           false,// isParameter
+                           false // isE_new
                            );
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
 
@@ -553,7 +555,8 @@ void Declaration::tcheck(Env &env,
                              isTemporary,
                              // Parameter Declarators are not within
                              // Declarations, but in ASTTypeIds
-                             false // isParameter
+                             false,// isParameter
+                             false // isE_new
                              );
       prev->next = prev->next->tcheck(env, dt2);
 
@@ -595,7 +598,8 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
   Declarator::Tcheck dt(specType, tc.dflags,
                         false,  // isMember
                         false,  // isTemporary
-                        tc.isParameter // isParameter
+                        tc.isParameter, // isParameter
+                        tc.newSizeExpr // isE_new: are we in an E_new?
                         );
   dt.context = tc.newSizeExpr? Declarator::Tcheck::CTX_E_NEW :
                tc.isParameter? Declarator::Tcheck::CTX_PARAM :
@@ -2009,8 +2013,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //    }
 
   // Non-members aren't going to get a second pass over them, so we
-  // just call elaborateCDtors() now for them.
-  if (!dt.isMember) {
+  // just call elaborateCDtors() now for them.  Don't elaborate the
+  // cdtors for the Declarator down inside an E_new
+  if (!dt.isMember && !dt.isE_new) {
     elaborateCDtors(env,
                     dt.isMember,
                     dt.isTemporary,

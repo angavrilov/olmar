@@ -246,9 +246,14 @@ class Declarator {
     // is this a declarator for a temporary?
     bool isTemporary;
 
-    // dsw: copied from ASTTypeId::isParameter because I need to know
-    // and for some reason the dflags don't get a DF_PARAMETER
+    // dsw: copied from ASTTypeId::Tcheck::isParameter because I need
+    // to know and for some reason the dflags don't get a DF_PARAMETER
     bool isParameter;
+
+    // is this declarator that sorry little runt of a one that should
+    // have been killed at birth down inside the ASTTypeId of an
+    // E_new?  true iff ASTTypeId::Tcheck::newSizeExpr != NULL
+    bool isE_new;
 
     // syntactic context
     enum Context {
@@ -261,7 +266,7 @@ class Declarator {
 
   public:
     Tcheck(Type *t, DeclFlags d,
-           bool isMember0, bool isTemporary0, bool isParameter0
+           bool isMember0, bool isTemporary0, bool isParameter0, bool isE_new0
            )
       : var         (NULL)
       , type        (t)
@@ -271,6 +276,7 @@ class Declarator {
       , isMember    (isMember0)
       , isTemporary (isTemporary0)
       , isParameter (isParameter0)
+      , isE_new     (isE_new0)
       , context     (CTX_ORDINARY)
     {}
     Tcheck(Tcheck const &obj)
@@ -282,6 +288,7 @@ class Declarator {
       , isMember    (obj.isMember)
       , isTemporary (obj.isTemporary)
       , isParameter (obj.isParameter)
+      , isE_new     (obj.isE_new)
       , context     (obj.context)
     {}
 
@@ -295,6 +302,7 @@ class Declarator {
       isMember    = obj.isMember;
       isTemporary = obj.isTemporary;
       isParameter = obj.isParameter;
+      isE_new     = obj.isE_new;
       return *this;
     }
 
