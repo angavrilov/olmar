@@ -31,6 +31,9 @@
   
   // declare the interface to the lexer
   #define YY_DECL int lexer1_inner_lex(Lexer1 &lexer)
+  
+  // this works around a problem with cygwin & fileno
+  #define YY_NEVER_INTERACTIVE 1
 
 
 /***************/

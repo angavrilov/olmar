@@ -202,7 +202,15 @@ CilExpr *newAddrOfExpr(CilExtraInfo tn, CilLval *lval);
 // things like take its address and modify its value
 class CilLval : public CilExpr {
 public:      // types
-  enum LTag { T_VARREF, T_DEREF, T_FIELDREF, T_CASTL, T_ARRAYELT, NUM_LTAGS };
+  enum LTag {
+    // these are the ones the from-C translator uses
+    T_VARREF, T_DEREF, T_FIELDREF, T_CASTL, T_ARRAYELT,
+    
+    // these are the ones for outputting Cil
+    //T_VAROFS, T_DEREFOFS,
+
+    NUM_LTAGS
+  };
 
 public:      // data
   LTag const ltag;         // tag ("L" for lval, so can still access CilExpr::tag)

@@ -60,7 +60,7 @@ fi
 # assume linux
 cd plat || exit
 echo "making symlink in plat ..."
-ln -s Makefile.linux Makefile. || exit
+ln -s Makefile.linux Makefile.
 cd ..
 
 
@@ -79,7 +79,7 @@ setupMakefile
 
 # make the symlink in parsgen to smbase
 echo "making symlink in parsgen ...."
-ln -s ../smbase . || exit
+ln -s ../smbase .
 
 cd ..
 
