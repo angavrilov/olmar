@@ -269,10 +269,8 @@ T="$T t0075.cc"
 T="$T t0076.cc"
 T="$T t0077.cc"
 
-# Nope.
-#  in/t0078.cc:7:5: error: variable name `::Foo::hash' used as if it were a type
-#  in/t0078.cc:7:5: error: cannot find scope name `hash'
-#  in/t0078.cc:7:5: error: there is no variable called `::Foo::hash::~hash'
+# Arg, Scott's inner class/variable/namespace design provides
+# conveniently for a collision here.
 # T="$T t0078.cc"
 
 T="$T t0079.cc"
@@ -290,7 +288,7 @@ T="$T t0090.cc"
 T="$T t0091.cc"
 T="$T t0092.cc"
 T="$T t0093.cc"
-#   0094: weird g++ iomanip.h "<>" syntax
+# Old: 0094: weird g++ iomanip.h "<>" syntax
 # T="$T t0094.cc"
 T="$T t0095.cc"
 T="$T t0096.cc"
@@ -325,16 +323,23 @@ T="$T t0117.cc"
 T="$T t0118.cc"
 
 T="$T t0119.cc"
-# I don't seem to typecheck enum args to ctors
+
+# I think this is some sort of thing where I'm trying to do
+# overloading before ambiguities are done being resolved.  See
+# test_oload1.cc and print it before typechecking.  The case where I
+# fail seems to be going down the path of the first ambiguity.
 #  child died with signal SEGV
 # T="$T t0120.cc"
+
 T="$T t0121.cc"
 T="$T t0122.cc"
 T="$T t0123.cc"
 T="$T t0124.cc"
 T="$T t0125.cc"
-#   0126: work in progress
+
+# Old: 0126: work in progress
 # T="$T t0126.cc"
+
 #  child died with signal SEGV
 # T="$T t0127.cc"
 T="$T t0128.cc"
@@ -369,9 +374,10 @@ T="$T t0142.cc"
 #  T="$T t0149.cc"
 #  T="$T t0150.cc"
 
-#   0151,0152: known bugs
+# Old: 0151,0152: known bugs
 # T="$T t0151.cc"
 # T="$T t0152.cc"
+
 T="$T t0153.cc"
 T="$T t0154.cc"
 T="$T t0155.cc"

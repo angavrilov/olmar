@@ -158,6 +158,7 @@ class TypeSpecifier {
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,
          bool inTemplate, CompoundType *containingClass);
+       private void addCompilerSuppliedDecls(Env &env);
        private void tcheckFunctionBodies(Env &env);
      }
 
