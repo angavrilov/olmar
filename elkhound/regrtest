@@ -233,7 +233,7 @@ done
 
 # --------- test C++ pretty-printer ---------
 # test files in cc.in
-runTest make -C cc idem/check
+runTest make -C cc idemcheck
 
 # test files in cure_cpp; this doesn't work now, because
 # the directory structure isn't the same.. move small examples
