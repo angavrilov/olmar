@@ -1961,7 +1961,14 @@ nonterm(Member*) MemberDeclaration {
   // declaration (with no definition) of a c/dtor or conversion
   // operator function
   -> d:CDtorProtoDecl
-       { return new MR_decl(loc, d); }
+       {
+         if (lang.allowImplicitInt) {
+           // in/c/k0004.c: ambiguity between constructor and implicit-int
+           TRACE("cancel", loc << ": constructor decl in implicit-int language");
+           return NULL;
+         }
+         return new MR_decl(loc, d);
+       }
 
   // note above that "explicit" and "virtual" can't be mixed because the former
   // is for ctors only and the latter can't be used with ctors (so a later stage
