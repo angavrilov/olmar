@@ -356,6 +356,9 @@ nonterm PrimaryExpression : ExprBase {
   // GNU extension
   -> "(" s:CompoundStatement ")"
     { fun typeCheck = s.typeCheck(env, inst); }
+    
+  // gnu: wtf is this rat bastard crap???
+  -> "(" "(" TypeId ")" "{" "(" Expression ")" "}" ")" ;
 }
 
 nonterm Literal : ExprBase {
@@ -465,7 +468,31 @@ nonterm PostfixExpression : ExprBase {
     fun typeCheck {
       Owner<CilExpr> array; array = p.typeCheck(env, inst);
       Owner<CilExpr> index; index = e.typeCheck(env, inst);
-      return newArrayAccess(array.xfr(), index.xfr());
+      
+      // don't check array index; could be many types
+      // (int, long, unsigned long...); TODO -- fix this
+      #if 0
+      Type const *type = typeOf(index, env);
+      if (!( type->isCVAtomicType() &&
+             type->asCVAtomicTypeC().atomic->isSimpleType() &&
+             type->asCVAtomicTypeC().atomic->asSimpleTypeC().type == ST_INT )) {
+        throwError(stringc ..);
+      }    
+      #endif // 0
+
+      if (typeOf(array, env)->isArrayType()) {
+        return newArrayAccess(array.xfr(), index.xfr());
+      }
+      else if (typeOf(array, env)->isPointerType()) {
+        // translate it to addition and derference
+        return newDeref(newBinExpr(OP_PLUS, array.xfr(), index.xfr()));
+      }
+      else {
+        throwError(stringc
+          << "expression `" << array->toString() << "' has type `"
+          << typeOf(array, env)->toString()
+          << "', but its should be an array or a pointer");
+      }
     }
   }
 
@@ -2266,11 +2293,15 @@ nonterm Initializer {
 }
 
 nonterm InitializerClause {
-  -> AssignmentExpression        ;   // scalar
-  -> "{" InitializerList "}"     ;   // array initializer
-  -> "{" InitializerList "," "}" ;   // useful syntactic quirk
-  -> "{" "}"                     ;   // ?  does this mean the array is zeroed?
+  -> AssignmentExpression                    ;   // scalar
+  -> InitCastOpt "{" InitializerList "}"     ;   // array/structure initializer
+  -> InitCastOpt "{" InitializerList "," "}" ;   // useful syntactic quirk
+  -> InitCastOpt "{" "}"                     ;   // ?  does this mean the array is zeroed?
 }
+
+// gnu extension
+// what the f does it even mean to cast an initializer element?
+nonterm InitCastOpt -> empty | "(" TypeId ")" ;
 
 nonterm InitializerList -> InitializerClause |
                            InitializerList "," InitializerClause ;

@@ -680,7 +680,12 @@ ParseTree::ParseTree()
 {}
 
 ParseTree::~ParseTree()
-{}
+{
+  // copied from cc.gr .. should wrap this up somewhere ..
+  MUTATE_EACH_OBJLIST(TreeNode, treeNodes, iter) {
+    iter.data()->killParentLink();
+  }
+}
 
 
 // --------------------- AttrContext -------------------
