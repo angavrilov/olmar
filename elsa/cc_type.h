@@ -396,6 +396,7 @@ protected:
 public:
   bool innerEquals(CVAtomicType const *obj) const;
   bool isConst() const { return !!(cv & CV_CONST); }
+  bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
@@ -424,6 +425,7 @@ protected:  // funcs
 public:
   bool innerEquals(PointerType const *obj) const;
   bool isConst() const { return !!(cv & CV_CONST); }
+  bool isVolatile() const { return !!(cv & CV_VOLATILE); }
 
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
