@@ -1804,6 +1804,19 @@ void TS_classSpec::tcheckIntoCompound(
   // let the CompoundType build additional indexes if it wants
   ct->finishedClassDefinition(env.conversionOperatorName);
 
+  // 2005-02-17: check default arguments first so they are available
+  // to all function bodies (hmmm... what if a default argument
+  // expression invokes a function that itself has default args,
+  // but appears later in the file?  how could that ever be handled
+  // cleanly?)
+  //
+  // 2005-02-18: Do this here instead of in 'tcheckFunctionBodies'
+  // for greater uniformity with template instantiation.
+  {
+    DefaultArgumentChecker checker(env);
+    traverse(checker);
+  }
+
   // second pass: check function bodies
   // (only if we're not in a context where this is supressed)
   if (env.checkFunctionBodies) {
@@ -1851,16 +1864,6 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
   // pass through a class definition
   Restorer<bool> r(env.secondPassTcheck, true);
   
-  // 2005-02-17: check default arguments first so they are available
-  // to all function bodies (hmmm... what if a default argument
-  // expression invokes a function that itself has default args,
-  // but appears later in the file?  how could that ever be handled
-  // cleanly?)
-  {
-    DefaultArgumentChecker checker(env);
-    traverse(checker);
-  }
-
   // check function bodies and elaborate ctors and dtors of member
   // declarations
   FOREACH_ASTLIST_NC(Member, members->list, iter) {

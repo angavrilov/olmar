@@ -2277,12 +2277,6 @@ void Env::instantiateClassBody(Variable *inst)
     instCT->syntax->tcheckIntoCompound(*this, DF_NONE, instCT);
   }
 
-  // 2005-02-17: tcheck the default arguments
-  {
-    DefaultArgumentChecker checker(env);
-    instCT->syntax->traverse(checker);
-  }
-
   // Now, we've just tchecked the clone in an environment that
   // makes all the type variables map to concrete types, so we
   // now have a nice, ordinary, non-template class with a bunch
