@@ -18,6 +18,18 @@ veryclean: clean
 	rm -f ${tests-files}
 	rm -f *.a
 
+
+# -------- experimenting with m4 for related files -------
+sobjlst.h: xobjlist.h
+	rm -f sobjlst.h
+	m4 -Dm4_output=sobjlst.h --prefix-builtins xobjlist.h > sobjlst.h
+	chmod a-w sobjlst.h
+
+objlst.h: xobjlist.h
+	rm -f objlst.h
+	m4 -Dm4_output=objlst.h --prefix-builtins xobjlist.h > objlst.h
+	chmod a-w objlst.h
+
 # -------------- main target --------------
 # library itself
 library-objs = \

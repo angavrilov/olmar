@@ -9,7 +9,7 @@
 #include "voidlist.h"    // VoidList
 
 
-// forward declarations of template classes, so we can befriend them in ObjList
+// forward declarations of template classes, so we can befriend them in SObjList
 // (not required by Borland C++ 4.5, but GNU wants it...)
 template <class T> class SObjListIter;
 template <class T> class SObjListMutator;
@@ -53,7 +53,7 @@ public:
   // insertion
   void prepend(T *newitem)              { list.prepend(newitem); }
   void append(T *newitem)               { list.append(newitem); }
-  void insertAt(T *newitem, int index)	{ list.insertAt(newitem, index); }
+  void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
   void insertSorted(T *newitem, Diff diff, void *extra=NULL)
     { list.insertSorted(newitem, (VoidDiff)diff, extra); }
 
@@ -68,8 +68,8 @@ public:
   // list-as-set: mutators
   bool prependUnique(T *newitem)        { return list.prependUnique(newitem); }
   bool appendUnique(T *newitem)         { return list.appendUnique(newitem); }
-  void removeItem(T const *item)        { list.removeItem((void*)newitem); }    // whether the arg should be const is debatable..
-  bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)newitem); }
+  void removeItem(T const *item)        { list.removeItem((void*)item); }    // whether the arg should be const is debatable..
+  bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)item); }
 
   // complex modifiers
   void reverse()                                    { list.reverse(); }
@@ -169,7 +169,7 @@ public:
 template <class T>
 class SObjListIter {
 protected:
-  VoidListIter iter;	  // underlying iterator
+  VoidListIter iter;      // underlying iterator
 
 public:
   SObjListIter(SObjList<T> const &list) : iter(list.list) {}
@@ -187,7 +187,7 @@ public:
   // iterator actions
   bool isDone() const                   { return iter.isDone(); }
   void adv()                            { iter.adv(); }
-  T const *data() const	       	        { return (T const*)iter.data(); }
+  T const *data() const                 { return (T const*)iter.data(); }
 };
 
 #define SFOREACH_OBJLIST(T, list, iter) \
