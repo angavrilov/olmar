@@ -58,6 +58,7 @@ public:      // funcs
   GrowArray(int initSz);
   ~GrowArray();
 
+  // allocated space
   int size() const { return sz; }
 
   // element access
@@ -203,9 +204,11 @@ public:
     { ensureIndexDoubler(len++); return top(); }
   T &popAlt()     // returns item popped
     { return operator[](--len); }
-
+    
+  // items stored
   int length() const
     { return len; }
+
   bool isEmpty() const
     { return len==0; }
   bool isNotEmpty() const

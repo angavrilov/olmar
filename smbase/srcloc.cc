@@ -402,6 +402,11 @@ SourceLocManager::SourceLocManager()
   SourceLoc u = encodeStatic(StaticLoc("<noloc>", 0,1,1));
   xassert(u == SL_UNKNOWN);
   PRETEND_USED(u);     // silence warning in case xasserts are turned off
+
+  // similarly for SL_INIT
+  u = encodeStatic(StaticLoc("<init>", 0,1,1));
+  xassert(u == SL_INIT);
+  PRETEND_USED(u);
 }
 
 SourceLocManager::~SourceLocManager()

@@ -39,7 +39,13 @@ class HashLineMap;    // hashline.h
 // would not allow variables of this type to be created
 // uninitialized.. that's the one drawback of calling this an 'enum'
 // instead of a 'class': I don't get to write a constructor.
-enum SourceLoc { SL_UNKNOWN=0 };
+enum SourceLoc {
+  // entity is defined within the translator's initialization code
+  SL_INIT=-1,
+  
+  // location is unknown for some reason
+  SL_UNKNOWN=0
+};
 
 
 // This class manages all the data associated with creating and
