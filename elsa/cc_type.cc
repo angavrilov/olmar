@@ -269,7 +269,12 @@ Variable *CompoundType::getTypedefVar() const
 {
   xassert(typedefVar);
   xassert(typedefVar->type);
-  xassert(typedefVar->type->asCompoundTypeC() == this);
+  if (typedefVar->type->isError()) {
+    // this is the error compound type
+  }
+  else {
+    xassert(typedefVar->type->asCompoundTypeC() == this);
+  }
   return typedefVar;
 }
 

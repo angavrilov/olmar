@@ -1417,7 +1417,7 @@ CompoundType *checkClasskeyAndName(
   CompoundType *ct = NULL;
   if (name) {
     // decide how the lookup should be performed
-    LookupFlags lflags = LF_NONE;
+    LookupFlags lflags = LF_QUERY_TAGS;
     if (!name->hasQualifiers() && (forward || definition)) {
       lflags |= LF_INNER_ONLY;
     }
@@ -1425,8 +1425,31 @@ CompoundType *checkClasskeyAndName(
       lflags |= LF_TEMPL_PRIMARY;
     }
 
-    // do it
-    ct = env.lookupPQCompound(name, lflags);
+    // do the lookup
+    if (dflags & DF_DEFINITION) {
+      // this is a lookup of the declarator-like type tag of a class
+      // definition; continue to use the old lookup mechanism for now
+      ct = env.lookupPQCompound(name, lflags);
+    }
+    else {
+      // this is a lookup of a use; see if the new mechanism can
+      // handle it
+      Variable *tag = env.lookupPQ_one(name, lflags);
+      if (tag) {
+        if (tag->type->isCompoundType()) {
+          ct = tag->type->asCompoundType();
+        } 
+        // not sure if I need this
+        //else if (tag->type->isSimple(ST_DEPENDENT)) {
+        //  // replicate the behavior of Env::lookupPQCompound
+        //  ct = NULL;
+        //}
+        else {
+          env.error(stringc << "`" << *name << "' is not a struct/class/union");
+          return NULL;
+        }
+      }
+    }
 
     // failed lookup is cause for immediate abort in a couple of cases
     if (!ct &&

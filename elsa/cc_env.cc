@@ -4141,6 +4141,7 @@ Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
 
   // lookup 'name' in 'scope'
   flags |= LF_QUALIFIER_LOOKUP;
+  flags &= ~LF_QUERY_TAGS;      // query-tags is only for the final component, not the qualifiers
   LookupSet set;
   unqualifiedLookup(set, scope, name, flags);
   if (set.isEmpty()) {

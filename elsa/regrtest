@@ -645,7 +645,7 @@ testparse t0409.cc
 testparse t0410.cc
 testparse t0411.cc
 testparse t0412.cc
-failparse t0413.cc "lookup of struct tags still uses old lookup mechanism"
+testparse t0413.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
