@@ -20,6 +20,11 @@ void f(int x, int y)
       // both void
       return y? g() : h();
 
+    case 11:
+      // error: void vs. non-void
+      //ERROR(1): return y? g() : 3;
+      //ERROR(2): return y? 3 : g();
+
     case 2:
       // second is throw
       x = (y? throw 2 : 3);
@@ -37,7 +42,7 @@ void f(int x, int y)
     case 5:
       // lvalue-to-rvalue
       jc(y? throw 2 : a);
-      //ERROR(1): j(y? throw 2 : a);    // rvalue after conversion
+      //ERROR(3): j(y? throw 2 : a);    // rvalue after conversion
       break;
 
     case 6:

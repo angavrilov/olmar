@@ -27,6 +27,11 @@ struct ConvBoth {
   operator int ();
 };
 
+struct ConvToCharOrShort {
+  operator char ();
+  operator short ();
+};
+
 void f(int x, int y)
 {
   Base b;
@@ -40,6 +45,7 @@ void f(int x, int y)
   ConvToIntRef toIntRef;
   ConvFromInt fromInt(1);
   ConvBoth both(1);
+  ConvToCharOrShort charShort;
 
   switch (x) {
     case 1:
@@ -89,7 +95,7 @@ void f(int x, int y)
       // can't convert in either direction
       //ERROR(5): (y? b : i);
       break;
-      
+
     case 9:
       // simple lval situation
       (y? i : j) = 9;
@@ -107,6 +113,13 @@ void f(int x, int y)
       (y? i : k);
       __checkType(y? i : k, (long)0);
       //(elsa doesn't detect) ERROR(7): (y? i : k) = 11;
+      break;
+      
+    case 12:
+      // ambiguous th->el or el->th conversion
+      (y? charShort : 'a'/*char*/);
+      //ERROR(6): (y? charShort : 1/*int*/);
+      //ERROR(7): (y? 1/*int*/ : charShort);
       break;
   }
 }
