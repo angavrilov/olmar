@@ -454,7 +454,15 @@ as equivalent to
     -&gt; B ;
   }
 </pre>
-Note that the nonterminal types, if specified, must be identical.
+
+
+<p>
+The nonterminal types, if specified, must be identical.  
+
+<p>
+Since Elkhound just concatenates the bodies, specification functions 
+(like <tt>merge()</tt>) must be given at most once across all
+continuations, and they apply to the whole (concatenated) nonterminal.
 
 <p>
 This feature is mostly useful for automatically-generated grammars,
