@@ -62,9 +62,14 @@ void validate(UnaryOp op)
 
 
 // -------------- CilExpr ------------
+int CilExpr::numAllocd = 0;
+int CilExpr::maxAllocd = 0;
+
 CilExpr::CilExpr(ETag t)
   : etag(t)
 {
+  INC_HIGH_WATER(numAllocd, maxAllocd);
+
   validate(etag);
 
   // for definiteness, blank the union fields
@@ -79,7 +84,7 @@ CilExpr::CilExpr(ETag t)
   }
 }
 
-      
+
 CilExpr::~CilExpr()
 {
   switch (etag) {
@@ -90,8 +95,8 @@ CilExpr::~CilExpr()
       // bones laid before the Altar of Efficiency grows yet higher ..
       if (lval) {
         CilLval *ths = lval;
-        lval = NULL;    // avoid infinite recursion
         ths->CilLval::~CilLval();
+        numAllocd++;    // counteract double call to this fn
       }
       break;
 
@@ -111,9 +116,11 @@ CilExpr::~CilExpr()
     case T_ADDROF:
       delete addrof.lval;
       break;
-      
+
     INCL_SWITCH
   }
+
+  numAllocd--;
 }
 
 
@@ -143,6 +150,14 @@ CilLval *CilExpr::asLval()
 STATICDEF void CilExpr::validate(ETag tag)
 {
   xassert(0 <= tag && tag < NUM_ETAGS);
+}
+
+
+STATICDEF void CilExpr::printAllocStats()
+{
+  cout << "cil expr nodes: " << numAllocd
+       << ", max  nodes: " << maxAllocd
+       << endl;
 }
 
 
@@ -181,7 +196,7 @@ string CilExpr::toString() const
 {
   switch (etag) {
     default: xfailure("bad tag");
-    case T_LITERAL:   return stringc << lit.value;
+    case T_LITERAL:   return stringc << (unsigned)lit.value;
     case T_LVAL:      return lval->toString();
     case T_UNOP:
       return stringc << "(" << unOpText(unop.op) << " "
@@ -253,19 +268,25 @@ CilLval::CilLval(LTag tag)
 
 CilLval::~CilLval()
 {
+  // the tricky thing here is when a CilLval gets destroyed, 
+  // either ~CilLval *or* ~CilExpr gets called -- in the latter
+  // case, ~CilExpr will in turn call ~CilLval (which, either
+  // way, in turn calls ~CilExpr)
+  lval = NULL;    // avoid infinite recursion when ~CilExpr is called
+
   switch (ltag) {
     case T_DEREF:
       delete deref.addr;
       break;
-      
+
     case T_FIELDREF:
       delete fieldref.record;
       break;
-      
+
     case T_CASTL:
       delete castl.lval;
       break;
-      
+
     case T_ARRAYELT:
       delete arrayelt.array;
       delete arrayelt.index;
@@ -366,24 +387,29 @@ CilLval *newArrayAccess(CilExpr *array, CilExpr *index)
 
 
 // ---------------------- CilInst ----------------
+int CilInst::numAllocd = 0;
+int CilInst::maxAllocd = 0;
+
 CilInst::CilInst(ITag tag)
   : itag(tag)
 {
+  INC_HIGH_WATER(numAllocd, maxAllocd);
+
   validate(itag);
-  
+
   // clear fields
   memset(&ifthenelse, 0, sizeof(ifthenelse));
-  
+
   // init some fields
   switch (itag) {
     case T_CALL:
       call = (CilFnCall*)this;
       break;
-      
+
     case T_COMPOUND:
       comp = (CilCompound*)this;
       break;
-      
+
     INCL_SWITCH
   }
 }
@@ -395,68 +421,78 @@ CilInst::~CilInst()
     case T_FUNDECL:
       delete fundecl.body;
       break;
-      
+
     case T_ASSIGN:
       delete assign.lval;
       delete assign.expr;
       break;
-      
+
     case T_CALL:
-      if (call) { 
+      if (call) {
         CilFnCall *ths = call;
-        call = NULL;          // prevent infinite recursion
         ths->CilFnCall::~CilFnCall();
+        numAllocd++;          // counteract double-call
       }
       break;
-      
+
     case T_FREE:
       delete free.addr;
       break;
-      
+
     case T_COMPOUND:
       if (comp) {
         CilCompound *ths = comp;
-        comp = NULL;          // prevent infinite recursion
         ths->CilCompound::~CilCompound();
+        numAllocd++;          // counteract double-call
       }
       break;
-      
+
     case T_LOOP:
       delete loop.cond;
       delete loop.body;
       break;
-      
+
     case T_IFTHENELSE:
       delete ifthenelse.cond;
       delete ifthenelse.thenBr;
       delete ifthenelse.elseBr;
       break;
-      
+
     case T_LABEL:
       delete label.name;
       break;
-      
+
     case T_JUMP:
       delete jump.dest;
       break;
-      
+
     case T_RET:
       if (ret.expr) {
         // I know 'delete' accepts NULL (and I rely on that
         // in other modules); I just like to emphasize when
         // something is nullable
         delete ret.expr;
-      }                         
+      }
       break;
-      
+
     INCL_SWITCH
   }
+
+  numAllocd--;
 }
 
 
 STATICDEF void CilInst::validate(ITag tag)
 {
   xassert(0 <= tag && tag < NUM_ITAGS);
+}
+
+
+STATICDEF void CilInst::printAllocStats()
+{
+  cout << "cil inst nodes: " << numAllocd
+       << ", max  nodes: " << maxAllocd
+       << endl;
 }
 
 
@@ -610,6 +646,7 @@ CilInst *newFunDecl(Variable *func, CilInst *body)
 CilInst *newAssign(CilLval *lval, CilExpr *expr)
 {
   CilInst *ret = new CilInst(CilInst::T_ASSIGN);
+  xassert(lval->isLval());    // stab in the dark ..
   ret->assign.lval = lval;
   ret->assign.expr = expr;
   return ret;
@@ -671,6 +708,8 @@ CilFnCall::CilFnCall(CilLval *r, CilExpr *f)
 
 CilFnCall::~CilFnCall()
 {
+  call = NULL;          // prevent infinite recursion
+  
   delete result;
   delete func;
   // args automatically deleted
@@ -733,13 +772,28 @@ void CilInstructions::append(CilInst *inst)
 }
 
 
+// the point of separating this from CilCompound::printTree
+// is to get a version which doesn't wrap braces around the
+// code; this is useful in cc.gr where I am artificially
+// creating compounds but they're all really at the same scope
+// (namely toplevel)
+void CilInstructions::printTreeNoBraces(int ind, ostream &os) const
+{
+  FOREACH_OBJLIST(CilInst, insts, iter) {
+    iter.data()->printTree(ind, os);
+  }
+}
+
+
 // ----------------- CilCompound ---------------------
 CilCompound::CilCompound()
   : CilInst(CilInst::T_COMPOUND)
 {}
 
 CilCompound::~CilCompound()
-{}
+{
+  comp = NULL;          // prevent infinite recursion
+}
 
 
 CilCompound *CilCompound::clone() const
@@ -757,9 +811,7 @@ CilCompound *CilCompound::clone() const
 void CilCompound::printTree(int ind, ostream &os) const
 {
   indent(ind, os) << "{\n";
-  FOREACH_OBJLIST(CilInst, insts, iter) {
-    iter.data()->printTree(ind+2, os);
-  }
+  printTreeNoBraces(ind+2, os);
   indent(ind, os) << "}\n";
 }
 

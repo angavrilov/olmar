@@ -1,7 +1,7 @@
 # .gdbinit
 
 file ccgr
-set args -tr cil-tree cc.gr c.in1
+set args -tr cil-tree,eh cc.gr tmp
 
 break main
 #break breaker

@@ -94,6 +94,9 @@ Env::~Env()
   // not fixing this led to a very long search for a memory corruption
   // bug; I thought letting 'parent' pointers to me dangle wouldn't
   // cause a problem, but that was very wrong ..
+  // NOTE: throwing an exception is somewhat dangerous, because
+  // if we happen to be here because we're unwinding the stack
+  // due to *another* exception throw, this will abort(3) the program
   xassert(referenceCt == 0);
 }
 

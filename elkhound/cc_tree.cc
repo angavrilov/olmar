@@ -81,7 +81,7 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilInstructions &inst,
     newEnv.setTrialBalloon(true);
     CilInstructions newInst;
     try {
-      (this->*func)(&newEnv, newInst);
+      delete (this->*func)(&newEnv, newInst);
     }
     catch (XSemanticError &x) {
       newEnv.report(x.err);

@@ -94,6 +94,10 @@ public:      // data
     } addrof;
   };
 
+  // count and high-water allocated nodes
+  static int numAllocd;
+  static int maxAllocd;
+
 public:      // funcs
   // the ctor just accepts a tag; caller must fill in the
   // other fields
@@ -110,6 +114,8 @@ public:      // funcs
 
   // throw an exception if 'tag' is out of range
   static void validate(ETag tag);
+  
+  static void printAllocStats();
 
   CilExpr *clone() const;     // deep copy
 
@@ -208,7 +214,7 @@ public:      // types
 
     // control flow constructs ("loop"="while", "jump"="goto")
     T_COMPOUND, T_LOOP, T_IFTHENELSE, T_LABEL, T_JUMP, T_RET,
-    
+
     NUM_ITAGS
   };
 
@@ -277,11 +283,16 @@ public:      // data
     } ret;
   };
 
+  // count and high-water allocated nodes
+  static int numAllocd;
+  static int maxAllocd;
+
 public:      // funcs
   CilInst(ITag tag);        // caller fills in fields
   ~CilInst();
 
   static void validate(ITag tag);
+  static void printAllocStats();
 
   // deep copy
   CilInst *clone() const;
@@ -330,6 +341,7 @@ public:    // funcs
   ~CilInstructions();
 
   void append(CilInst *inst);
+  void printTreeNoBraces(int indent, ostream &os) const;
 };
 
 

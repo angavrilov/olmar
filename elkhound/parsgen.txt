@@ -29,6 +29,7 @@ tracing strings:
   compounds:     print declarations of compounds
   typeCheck:     print something just before typechecking each toplevel form
   refct:         environment reference count ops
-  cil-tree:      print the Cil tree  
+  cil-tree:      print the Cil tree
+  eh:            print when exceptions are thrown  
 
 
