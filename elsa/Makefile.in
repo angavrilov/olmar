@@ -35,11 +35,11 @@ extradep.mk:
 
 # --------------------- extension modules ----------------------
 # base modules
-LEXER_MODS := cc.lex
-TOK_MODS := cc_tokens.tok
+LEXER_MODS  := cc.lex
+TOK_MODS    := cc_tokens.tok
 CC_AST_MODS := cc.ast
-CC_GR_MODS := cc.gr
-EXT_OBJS :=
+CC_GR_MODS  := cc.gr
+EXT_OBJS    :=
 
 # type checker
 CC_AST_MODS += cc_tcheck.ast
@@ -52,7 +52,7 @@ CC_AST_MODS += cfg.ast
 
 
 # optional: GNU language extension
-USE_GNU     := @USE_GNU@
+USE_GNU := @USE_GNU@
 ifeq ($(USE_GNU),yes)
   LEXER_MODS  += gnu.lex
   TOK_MODS    += gnu_ext.tok
