@@ -69,7 +69,8 @@ ImplicitConversion getImplicitConversion(
   Env &env,            // type checking environment
   SpecialExpr special, // properties of the source expression
   Type *src,           // source type
-  Type *dest           // destination type
+  Type *dest,          // destination type
+  bool destIsReceiver = false    // true if destination type is to be receiver object for method call
 );
 
 

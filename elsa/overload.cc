@@ -634,13 +634,14 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
   SObjListIter<Variable> paramIter(ft->params);
   int argIndex = 0;
   while (!paramIter.isDone() && argIndex < args.size()) {
-    if (flags & OF_NO_USER) {  
+    bool destIsReceiver = argIndex==0 && ft->isMethod();
+
+    if (flags & OF_NO_USER) {
       // only consider standard conversions
       StandardConversion scs =
-        getStandardConversion(NULL /*errorMsg*/, 
+        getStandardConversion(NULL /*errorMsg*/,
                               args[argIndex].special, args[argIndex].type,
-                              paramIter.data()->type,
-                              argIndex==0 && ft->isMethod() /*destIsReceiver*/);
+                              paramIter.data()->type, destIsReceiver);
       if (scs != SC_ERROR) {
         ImplicitConversion ics;
         ics.addStdConv(scs);
@@ -654,7 +655,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
       // consider both standard and user-defined
       ImplicitConversion ics =
         getImplicitConversion(env, args[argIndex].special, args[argIndex].type,
-                              paramIter.data()->type);
+                              paramIter.data()->type, destIsReceiver);
       if (ics) {
         c->conversions[argIndex] = ics;
       }

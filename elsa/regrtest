@@ -529,6 +529,7 @@ testparse t0291.cc
 testparse t0292.cc
 testparse t0293.cc
 testparse t0294.cc
+testparse t0295.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -863,7 +864,7 @@ testnsparse in/big/nsUnicodeToTeXCMRt1.i
 testnsparse in/big/nsAtomTable.i
 testnsparse in/big/nsSOAPPropertyBag.i
 testnsparse in/big/nsCLiveconnectFactory.i
-failnsparse in/big/nsHTMLEditRules.i "overload resoln problem"
+testnsparse in/big/nsHTMLEditRules.i
 testnsparse in/big/nsMsgServiceProvider.i
 
 

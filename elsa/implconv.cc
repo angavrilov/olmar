@@ -113,14 +113,14 @@ string ImplicitConversion::debugString() const
 
 // --------------------- getImplicitConversion ---------------
 ImplicitConversion getImplicitConversion
-  (Env &env, SpecialExpr special, Type *src, Type *dest)
+  (Env &env, SpecialExpr special, Type *src, Type *dest, bool destIsReceiver)
 {
   ImplicitConversion ret;
 
   // check for a standard sequence
   {
     StandardConversion scs =
-      getStandardConversion(NULL /*errorMsg*/, special, src, dest);
+      getStandardConversion(NULL /*errorMsg*/, special, src, dest, destIsReceiver);
     if (scs != SC_ERROR) {
       ret.addStdConv(scs);
       return ret;

@@ -299,8 +299,7 @@ StandardConversion getStandardConversion
 
     if (!destIsReceiver) {
       // are we trying to bind to a non-const reference?  if so,
-      // then we can't do it (cppstd 13.3.3.1.4 para 3); I haven't
-      // implemented the exception for the 'this' argument yet
+      // then we can't do it (cppstd 13.3.3.1.4 para 3)
       ReferenceType const *destPT = dest->asReferenceTypeC();
       if (!destPT->atType->isConst()) {
         // can't form the conversion
