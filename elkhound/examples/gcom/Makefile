@@ -41,7 +41,7 @@ parser: $(PARSER_OBJS)
 
 check:
 	echo "x := 2 + 3 + 4; print x" | ./lexer
-	echo "x := 2 + 3 + 4; print x" | ./parser
+	echo "x := 2 + 3 + 4; print x" | ./parser -ast
 	echo "x := 2 + 3 + 4; print x" | ./parser -tree
 
 clean:
