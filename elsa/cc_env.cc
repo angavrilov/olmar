@@ -1989,6 +1989,18 @@ bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
 }
 
 
+// little hack: Variables don't store pointers to the global scope,
+// they store NULL instead, so canonize the pointers by changing
+// global scope pointers to NULL before comparison
+bool sameScopes(Scope *s1, Scope *s2)
+{
+  if (s1 && s1->scopeKind == SK_GLOBAL) { s1 = NULL; }
+  if (s2 && s2->scopeKind == SK_GLOBAL) { s2 = NULL; }
+
+  return s1 == s2;
+}
+
+
 void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
 {
   Type *type = origVar->type;
@@ -2053,13 +2065,22 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
   // check for overloading
   OverloadSet *overloadSet = getOverloadForDeclaration(prior, type);
 
+  // 7.3.3 para 11 says it's ok for two aliases to conflict
+  if (prior &&
+      prior->usingAlias &&
+      prior->type->isFunctionType() &&
+      !sameScopes(prior->skipAlias()->scope, scope)) {
+    // turn it into an overloading situation
+    overloadSet = prior->getOverloadSet();
+    prior = NULL;
+  }
+
   // make new declaration, taking to account various restrictions
   Variable *newVar = createDeclaration(loc, name, type, origVar->flags,
                                        scope, enclosingClass, prior, overloadSet);
 
   if (newVar == prior) {
-    // found that 'newVar' named an equivalent entity already in this
-    // scope, so do nothing
+    // found that the name/type named an equivalent entity
     return;
   }
 
@@ -2245,6 +2266,19 @@ Variable *Env::createDeclaration(
           << "', but this one uses `" << type->toString() << "'");
         goto makeDummyVar;
       }
+    }
+
+    // if the prior declaration refers to a different entity than the
+    // one we're trying to declare here, we have a conflict (I'm trying
+    // to implement 7.3.3 para 11); I try to determine whether they
+    // are the same or different based on the scopes in which they appear
+    if (!sameScopes(prior->skipAlias()->scope, scope)) {
+      error(type, stringc
+        << "prior declaration of `" << name
+        << "' at " << prior->loc
+        << " refers to a different entity, so it conflicts with "
+        << "the one being declared here");
+      goto makeDummyVar;
     }
 
     // ok, use the prior declaration, but update the 'loc'
