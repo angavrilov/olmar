@@ -390,7 +390,15 @@ void astParseNonterm(Environment &env, ASTNode const *node,
       // primary inheritance implementation mechanism: simply re-parse
       // the definition of the base classes, but in the context of the
       // new nonterminal
-      astParseNonterm(env, base, nonterm);
+      try {
+        astParseNonterm(env, base, nonterm);
+      }
+      catch (XASTParse &x) {
+        // add additional context; parse errors in the base classes
+        // are usually actually caused by errors in the place where
+        // they're referenced, e.g. including a base class twice
+        THROW(XASTParse(classes, x.why()));
+      }
     }
   }
 
