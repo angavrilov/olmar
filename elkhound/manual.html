@@ -154,6 +154,35 @@ As a representative example, here is the <tt>classify</tt> function from
 <a href="http://www.gnu.org/software/bison/manual/html_node/Precedence.html">Bison has to say</a>,
 though that is pretty short.]
 
+<p>
+Ok, short version:
+
+<p>
+The user associates a precedence number and direction (left/right) with
+some tokens.  A rule gets a precedence number/direction from the rightmost
+terminal in that rule, or from an explicit 'precedence' declaration.
+
+<p>
+The resulting token and rule prec/assoc info is used during parser
+generation (only), to resolve shift/reduce and reduce/reduce conflicts.
+"Resolving" a conflict means removing one of the possible actions from the
+parse tables.  It is implemented in <tt>GrammarAnalysis::resolveConflicts()</tt>.
+
+<p>
+When a shift/reduce conflict is encountered between token and a rule, if
+the token has higher precedence, then a shift is used, otherwise a reduce
+is used.  If they have the same precedence, then the direction is
+consulted (a given precedence number is assumed to always have the same
+direction): 'left' associativity means to reduce, and 'right'
+associativity means to shift.
+
+<p>
+When a reduce/reduce conflict is encountered, the highest precedence rule
+is chosen.  (As I write this, I now realize that Bison doesn't do it, and
+wonder whether it's even a good idea.  Well anyway, it is what Elkhound
+does at the moment.)
+
+
 <h2>4. Nonterminals</h2>
 
 <p>
