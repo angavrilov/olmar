@@ -437,8 +437,8 @@ public:      // funcs
   // TS_name; or, return NULL if it has no such aliases
   TS_name *buildTypedefSpecifier(Type *type);
                                             
-  // make an AST node for an integer literal full expression
-  FullExpression *Env::buildIntegerLiteralFE(int i);
+  // make an AST node for an integer literal expression
+  Expression *buildIntegerLiteralExp(int i);
 };
 
 

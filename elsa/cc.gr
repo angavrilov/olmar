@@ -332,9 +332,7 @@ nonterm(Expression*) PostfixExpression {
   // almost always be ambiguous with function call, so the distinction
   // will have to be delayed until typechecking
   -> spec:CtorExpressionType a:ArgumentList
-       { return new E_constructor(spec, a,
-                                  false // artificial
-                                  ); }
+       { return new E_constructor(spec, a); }
 
   // field access
   -> p:PostfixExpression "." n:IdExpression
@@ -495,9 +493,9 @@ nonterm(IDeclarator*) NewDeclaratorOpt {
   -> d:DirectNewDeclarator               { return d; }
 }
 nonterm(IDeclarator*) DirectNewDeclarator {
-  -> /*abstract declarator*/ "[" sz:FullExpression "]"
+  -> /*abstract declarator*/ "[" sz:Expression "]"
        { return new D_array(loc, new D_name(loc, NULL), sz); }
-  -> d:DirectNewDeclarator "[" sz:ConstantFullExpression "]"
+  -> d:DirectNewDeclarator "[" sz:ConstantExpression "]"
        { return new D_array(loc, d, sz); }
 }
 
@@ -649,61 +647,36 @@ nonterm(Expression*) Expression {
        { return new E_binary(e, BIN_COMMA, ae); }
 }
 
-//  nonterm(Expression*) ExpressionOpt {
-//    // empty expression is a true no-op
-//    -> empty         { return new E_boolLit(true); }
-//    -> e:Expression  { return e; }
-//  }
+nonterm(Expression*) ExpressionOpt {
+  // empty expression is a true no-op
+  -> empty         { return new E_boolLit(true); }
+  -> e:Expression  { return e; }
+}
 
 // this is an expression with the additional requirement that
 // it be entirely evaluable to an int at compile time
 // (the name exists simply to help document that fact; the grammar
 // cannot enforce it)
-nonterm(Expression*) ConstantExpression -> e:ConditionalExpression 
-  { return e; }
-
-
-// An expression that is at the top of a maximal expression tree
-nonterm(FullExpression*) FullExpression {
-  -> e:Expression
-       { return new FullExpression(e); }
+nonterm(Expression*) ConstantExpression {
+  -> e:ConditionalExpression { return e; }
 }
 
-nonterm(FullExpression*) FullExpressionOpt {
-  // empty expression is a true no-op
-  -> empty         { return new FullExpression(new E_boolLit(true)); }
-  -> e:FullExpression  { return e; }
+nonterm(Expression*) ConstantExpressionOpt {
+  -> empty                   { return NULL; }
+  -> e:ConstantExpression    { return e; }
 }
 
-// Same thing for a constant expression
-nonterm(FullExpression*) ConstantFullExpression {
-  -> e:ConstantExpression
-       { return new FullExpression(e); }
-}
 
-// dsw: Damn this BNF non-orthogonality!
-nonterm(FullExpression*) ConstantFullExpressionOpt {
-  -> empty                     { return NULL; }
-  -> e:ConstantFullExpression  { return e; }
-}
-
-nonterm(FullExpression*) FullAssignmentExpression {
-  -> e:AssignmentExpression
-       { return new FullExpression(e); }
-}
-
-//  nonterm(FakeList<FullExpression>*) FullExpressionList {
-//    -> a:FullAssignmentExpression
-//         { return FakeList<FullExpression>::makeList(a); }
-//    -> a:FullAssignmentExpression "," e:FullExpressionList
-//         { a->setNext(e->first());
-//           return FakeList<FullExpression>::makeList(a); }
-//  }
-
-//  nonterm(FakeList<FullExpression>*) FullExpressionListOpt {
-//    -> empty                { return FakeList<FullExpression>::emptyList(); }
-//    -> e:FullExpressionList { return e; }
-//  }
+// sm: At one point we had a FullExpression nonterminal.  I decided to
+// switch to just inserting FullExpressions into the AST at the
+// appropriate points in the action code, since it's no less clear,
+// leads to less lines of grammar code, and will perform slightly
+// better that way.
+//
+// The same could be argued of ConstantExpression, but I do think it's
+// a little clearer to have a nonterminal instead of sprinkled
+// comments, and much less added code than FullExpression was.  It's a
+// matter of taste, I guess.
 
 
 // ------ A.5 Statements ------
@@ -718,7 +691,7 @@ nonterm(Statement*) Statement {
   -> n:Identifier ":" s:Statement
        { return new S_label(loc, n, s); }
 
-  -> "case" e:ConstantFullExpression ":" s:Statement
+  -> "case" e:ConstantExpression ":" s:Statement
        { return new S_case(loc, e, s); }
 
   -> "default" ":" s:Statement
@@ -747,20 +720,20 @@ nonterm(Statement*) Statement {
   -> "while" "(" e:Condition ")" s:Statement
        { return new S_while(loc, e, s); }
 
-  -> "do" s:Statement "while" "(" e:FullExpression ")" ";"
-       { return new S_doWhile(loc, s, e); }
+  -> "do" s:Statement "while" "(" e:Expression ")" ";"
+       { return new S_doWhile(loc, s, new FullExpression(e)); }
 
   // I might like to rework this so both semicolons appear here instead
-  // of buried in ForInitStatement.  this is also a good rule to use
-  // inline alternatives
-  -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:FullExpressionOpt ")" s2:Statement
-       { return new S_for(loc, s1, c, e, s2); }
+  // of buried in ForInitStatement; it's this way now because that is how
+  // the standard does it.  
+  -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement
+       { return new S_for(loc, s1, c, new FullExpression(e), s2); }
 
   -> "break" ";"                        { return new S_break(loc); }
 
   -> "continue" ";"                     { return new S_continue(loc); }
 
-  -> "return" e:FullExpression ";"      { return new S_return(loc, e); }
+  -> "return" e:Expression ";"          { return new S_return(loc, new FullExpression(e)); }
 
   -> "return" ";"                       { return new S_return(loc, NULL); }
 
@@ -778,7 +751,7 @@ nonterm(Statement*) Statement {
 
 nonterm(Statement*) ExpressionStatement {
   -> ";"                  { return new S_skip(loc); }
-  -> e:FullExpression ";" { return new S_expr(loc, e); }
+  -> e:Expression ";"     { return new S_expr(loc, new FullExpression(e)); }
 }
 
 nonterm(S_compound*) CompoundStatement {
@@ -803,8 +776,8 @@ nonterm(S_compound*) CompoundStmtSeq {
 
 // the guard of e.g. an 'if' statement
 nonterm(Condition*) Condition {
-  -> e:FullExpression      
-       { return new CN_expr(e); }
+  -> e:Expression
+       { return new CN_expr(new FullExpression(e)); }
 
   // variable declaration in the condition clause
   -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression
@@ -1144,7 +1117,7 @@ nonterm(FakeList<Enumerator>*) EnumeratorListOpt {
 nonterm(Enumerator*) EnumeratorDefinition {
   -> name:Identifier
        { return new Enumerator(loc, name, NULL /*expr*/); }
-  -> name:Identifier "=" expr:ConstantFullExpression
+  -> name:Identifier "=" expr:ConstantExpression
        { return new Enumerator(loc, name, expr); }
 }
 
@@ -1299,7 +1272,7 @@ nonterm(IDeclarator*) DirectDeclarator {
        { return new D_func(loc, d, params, cv, e); }
 
   // array with optional size
-  -> d:DirectDeclarator "[" sz:ConstantFullExpressionOpt "]"
+  -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
        { return new D_array(loc, d, sz); }
 
   // precedence grouping; must be recorded in the AST for disambiguation
@@ -1331,30 +1304,11 @@ nonterm(PQName*) PQDtorName {
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
 }
 
-//  nonterm(Expression*) ConstantExpressionOpt {
-//    -> empty                 { return NULL; }
-//    -> e:ConstantExpression  { return e; }
-//  }
-
 
 // syntax that precedes "*" in the pointer-to-member declarator syntax
 nonterm(PQName*) PtrToMemberName {
   -> n:IdExpression "::"    { return n; }
 }
-
-
-// previous attempt.. TODO: remove if the above works
-//  nonterm(PQName*) NestedNameSpecifier {
-//    -> n:Identifier "::" rest:NestedNameSpecifierOpt
-//         { return new PQ_qualifier(n, NULL /*targs*/, rest); }
-//    -> n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:NestedNameSpecifierOpt
-//         { return new PQ_qualifier(n, targs, rest); }
-//  }
-
-//  nonterm(PQName*) NestedNameSpecifierOpt {
-//    -> empty                  { return new PQ_empty(); }
-//    -> n:NestedNameSpecifier  { return n; }
-//  }
 
 
 // I'll leave this here because it's harmless and the cppstd has it;
@@ -1436,7 +1390,7 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
        { return new D_func(loc, d, args, cv, e); }
 
   // array with optional size
-  -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantFullExpressionOpt "]"
+  -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
        { return new D_array(loc, d, sz); }
 
   // precedence grouping; shouldn't need to record this in AST, but
@@ -1791,7 +1745,7 @@ nonterm(Declarator*) MemberDeclarator {
   -> d:Declarator "=" e:ConstantExpression     // pure, and member inits
        { return new Declarator(d, new IN_expr(loc, e)); }
 
-  -> n:IdentifierOpt ":" e:ConstantFullExpression // bitfield
+  -> n:IdentifierOpt ":" e:ConstantExpression // bitfield
        { return new Declarator(new D_bitfield(loc, n? new PQ_name(loc, n) : NULL, e),
                                NULL /*init*/); }
 }
@@ -2125,8 +2079,8 @@ nonterm(TemplateArgument*) TemplateArgument {
 
   -> t:TypeId                 { return new TA_type(t); }
 
-  -> e:FullAssignmentExpression {
-       if (e->expr->hasUnparenthesizedGT()) {
+  -> e:AssignmentExpression {
+       if (e->hasUnparenthesizedGT()) {
          // this is the wrong interpretation because template argument
          // expressions aren't allowed to have unparenthesized
          // greater-than operators [cppstd 14.1 para 15]

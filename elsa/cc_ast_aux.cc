@@ -272,9 +272,11 @@ PQName const *D_grouping::getDeclaratorId() const
   return base->getDeclaratorId();
 }
 
-
-// getD_func ****
-
+           
+// sm: I removed this because it's not general-purpose.  If a module
+// needs it, it should define its own dig-down function, not attach
+// it to IDeclarator.  Also, there are no calls to this function.
+#if 0
 D_func *D_name::getD_func()
 {
   return NULL;
@@ -309,8 +311,7 @@ D_func *D_grouping::getD_func()
 {
   return base->getD_func();
 }
-
-// ****
+#endif // 0
 
 
 IDeclarator *IDeclarator::skipGroups()
@@ -579,7 +580,7 @@ string TA_type::argString() const
 
 string TA_nontype::argString() const
 {
-  return expr->expr->exprToString();
+  return expr->exprToString();
 }   
 
 

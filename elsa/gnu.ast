@@ -96,11 +96,11 @@ class Designator (SourceLoc loc) {
 
   -> FieldDesignator(StringRef id);
 
-  -> SubscriptDesignator(FullExpression idx_expr, // taken from D_array
-                         FullExpression /*nullable*/ idx_expr2)
+  -> SubscriptDesignator(Expression idx_expr, // taken from D_array
+                         Expression /*nullable*/ idx_expr2)
   {
-    public int idx_computed;  ctor idx_computed  = INT_MIN; // index computed at compile time
-    public int idx_computed2; ctor idx_computed2 = INT_MIN; // index range end computed at compile time
+    public int idx_computed  = INT_MIN; // index computed at compile time
+    public int idx_computed2 = INT_MIN; // index range end computed at compile time
   }
 }
 

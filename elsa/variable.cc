@@ -2,7 +2,10 @@
 // code for variable.h
 
 #include "variable.h"      // this module
-#include "cc_type.h"       // Type
+#include "cc_type.h"       // Type  
+
+#include <string.h>        // strdup
+
 
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)

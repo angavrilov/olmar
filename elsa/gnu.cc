@@ -114,7 +114,7 @@ Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-static void compile_time_compute_int_expr(Env &env, FullExpression *e, int &x, char *error_msg) {
+static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
   e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
 }

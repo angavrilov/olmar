@@ -1846,9 +1846,8 @@ static E_constructor *makeCtorExpr
   PQName *name0 = env.make_PQ_fullyQualifiedName(type->asCompoundType());
   E_constructor *ector0 =
     new E_constructor(new TS_name(env.loc(), name0, false),
-                      args,
-                      true      // artificial
-                      );
+                      args);
+  ector0->artificial = true;
   // this way the E_constructor::itcheck() can tell that it is not for
   // a temporary
   ector0->var = var;
@@ -3347,11 +3346,7 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         // compile-time constant; this 'size' is not part of the type
         // of the objects being allocated, rather it is a dynamic
         // count of the number of objects to allocate
-
-        // NOTE: converting a FullExpression to an Expression here;
-        // Perhaps we should insert a check that the list of
-        // Declarations is empty?
-        dt.size_E_new = size->expr;
+        dt.size_E_new = size;
         this->isNewSize = true;     // annotation
 
         // now just call into the D_name to finish off the type; dt.type
@@ -3610,12 +3605,12 @@ Statement *Statement::tcheck(Env &env)
 }
 
 
-// it is too slow to have emacs reload cc.ast.gen.h just to display
+// dsw: it is too slow to have emacs reload cc.ast.gen.h just to display
 // the body of this method when I'm looking around in the stack in gdb
 void Statement::mid_tcheck(Env &env, int &)
 {
   itcheck(env);
-};
+}
 
 
 void S_skip::itcheck(Env &env)
@@ -6344,53 +6339,53 @@ void TA_nontype::itcheck(Env &env)
 
   // see cppstd 14.3.2 para 1
 
-  if (expr->getType()->isIntegerType() ||
-      expr->getType()->isBool() ||
-      expr->getType()->isEnumType()) {
+  if (expr->type->isIntegerType() ||
+      expr->type->isBool() ||
+      expr->type->isEnumType()) {
     int i;
     if (expr->constEval(env, i)) {
       sarg.setInt(i);
     }
     else {
       env.error(stringc
-        << "cannot evaluate `" << expr->expr->exprToString()
+        << "cannot evaluate `" << expr->exprToString()
         << "' as a template integer argument");
     }
   }
 
-  else if (expr->getType()->isReference()) {
-    if (expr->expr->isE_variable()) {
-      sarg.setReference(expr->expr->asE_variable()->var);
+  else if (expr->type->isReference()) {
+    if (expr->isE_variable()) {
+      sarg.setReference(expr->asE_variable()->var);
     }
     else {
       env.error(stringc
-        << "`" << expr->expr->exprToString() << " must be a simple variable "
+        << "`" << expr->exprToString() << " must be a simple variable "
         << "for it to be a template reference argument");
     }
   }
 
-  else if (expr->getType()->isPointer()) {
-    if (expr->expr->isE_addrOf() &&
-        expr->expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setPointer(expr->expr->asE_addrOf()->asE_variable()->var);
+  else if (expr->type->isPointer()) {
+    if (expr->isE_addrOf() &&
+        expr->asE_addrOf()->expr->isE_variable()) {
+      sarg.setPointer(expr->asE_addrOf()->asE_variable()->var);
     }
     else {
       env.error(stringc
-        << "`" << expr->expr->exprToString() << " must be the address of a "
+        << "`" << expr->exprToString() << " must be the address of a "
         << "simple variable for it to be a template pointer argument");
     }
   }
 
-  else if (expr->getType()->isPointerToMemberType()) {
+  else if (expr->type->isPointerToMemberType()) {
     // this check is identical to the case above, but combined with
     // the inferred type it checks for a different syntax
-    if (expr->expr->isE_addrOf() &&
-        expr->expr->asE_addrOf()->expr->isE_variable()) {
-      sarg.setMember(expr->expr->asE_addrOf()->asE_variable()->var);
+    if (expr->isE_addrOf() &&
+        expr->asE_addrOf()->expr->isE_variable()) {
+      sarg.setMember(expr->asE_addrOf()->asE_variable()->var);
     }
     else {
       env.error(stringc
-        << "`" << expr->expr->exprToString() << " must be the address of a "
+        << "`" << expr->exprToString() << " must be the address of a "
         << "class member for it to be a template pointer argument");
     }
   }
@@ -6399,9 +6394,9 @@ void TA_nontype::itcheck(Env &env)
   //else if (expr->type->isTypeVariable()) {
 
   else {
-    env.error(expr->getType(), stringc
-      << "`" << expr->expr->exprToString() << "' has type `"
-      << expr->getType()->toString() << "' but that's not an allowable "
+    env.error(expr->type, stringc
+      << "`" << expr->exprToString() << "' has type `"
+      << expr->type->toString() << "' but that's not an allowable "
       << "type for a template argument");
   }
 }

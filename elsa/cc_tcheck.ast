@@ -373,7 +373,7 @@ class Statement {
   // syntactically ambiguous choices
   public /*no_ignore*/ Statement *tcheck(Env &env);
 
-  public void mid_tcheck(Env &env, int &) { itcheck(env); };
+  public void mid_tcheck(Env &env, int &);
   pure_virtual void itcheck(Env &env);
 }
 

@@ -33,18 +33,6 @@ verbatim {
 option visitor ASTVisitor;
 
 
-// Objects with a FullExpressionAnnot have their own scope containing
-// both these declarations and their sub-expressions; The declarations
-// come semantically before the sub-expression
-class FullExpressionAnnot {
-  // I wonder if this clones correctly?
-  public ASTList<Declaration> declarations;
-
-  public Scope *tcheck_preorder(Env &env);
-  public void tcheck_postorder(Env &env, Scope *scope);
-}
-
-
 // ---------------- file -------------
 // an entire file (with included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and
@@ -100,13 +88,6 @@ class MemberInit (
   // standard way to make it possible to include something
   // in a FakeList; this line is repeated below in several places
   public MemberInit *next;  ctor next=NULL;     // FakeList link
-
-  // A single MemberInit seems very much like a single expression to
-  // me, since it is a ctor call and an IN_ctor is also
-  public FullExpressionAnnot annot;
-
-  // a MemberInit calls a ctor
-  public Statement *ctorStatement; ctor ctorStatement=NULL;
 }
 
 
@@ -242,16 +223,16 @@ class BaseClassSpec (
   AccessKeyword access,                 // public/protected/private
   PQName name                           // name of base class
 ) {
-  public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
+  public BaseClassSpec *next=NULL;     // FakeList link
 }
 
 // a binding of a name to a constant value
 class Enumerator (
   SourceLoc loc,                        // location
   StringRef name,                       // name of this constant
-  FullExpression /*nullable*/ expr      // constant expr, or NULL for "next"
+  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
-  public Enumerator *next;  ctor next=NULL;     // FakeList link
+  public Enumerator *next=NULL;     // FakeList link
 }
 
 
@@ -296,9 +277,6 @@ class Declarator (
 
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorId() const;
-
-  public Statement *ctorStatement; ctor ctorStatement = NULL;
-  public Statement *dtorStatement; ctor dtorStatement = NULL;
 }
 
 
@@ -310,8 +288,6 @@ class Declarator (
 class IDeclarator(SourceLoc loc) {
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
-  // dig down and get the D_func or return NULL
-  pure_virtual D_func *getD_func();
 
   // skip any toplevel grouping operators
   public IDeclarator *skipGroups();
@@ -333,14 +309,14 @@ class IDeclarator(SourceLoc loc) {
             ExceptionSpec /*nullable*/ exnSpec);    // throwable exceptions
 
   // "a[5]" or "b[]"
-  -> D_array(IDeclarator base, FullExpression /*nullable*/ size);
+  -> D_array(IDeclarator base, Expression /*nullable*/ size);
 
   // "c : 2"
   //
   // I use a PQName here instead of a StringRef for uniformity
   // (so every IDeclarator ends with a PQName); there are never
   // qualifiers on a bitfield name
-  -> D_bitfield(PQName /*nullable*/ name, FullExpression bits);
+  -> D_bitfield(PQName /*nullable*/ name, Expression bits);
 
   // "X::*p"
   // I don't unify this with D_pointer because ptr-to-member requires
@@ -399,7 +375,7 @@ class Statement (SourceLoc loc) {
 
   -> S_skip();      // nop; used whenever optional Statement is not present
   -> S_label(StringRef name, Statement s);
-  -> S_case(FullExpression expr, Statement s);
+  -> S_case(Expression expr, Statement s);
   -> S_default(Statement s);
   -> S_expr(FullExpression expr);   // expression evaluated for side effect
   -> S_compound(ASTList<Statement> stmts);        // using ASTList for performance, I never yield it in cc.gr
@@ -422,7 +398,7 @@ class Statement (SourceLoc loc) {
 // to declare a variable that will hold the condition's value for
 // the duration of the substatement(s)
 class Condition {
-  -> CN_expr(FullExpression expr); // simple expression
+  -> CN_expr(FullExpression expr);  // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
 }
 
@@ -447,11 +423,13 @@ class Handler (
 
 
 // ----------------- expressions -----------------
-
 // maximal expressions: the parent is not an expression
+// (cppstd 1.9 para 12)
 class FullExpression (Expression expr) {
-  // We do not make lists of FullExpressions
-  public FullExpressionAnnot annot;
+  // We do not make lists of FullExpressions.
+  
+  // nothing is needed here beyond the 'expr'; cc_elaborate.cc adds
+  // a FullExpressionAnnot object, however
 }
 
 // C expressions
@@ -494,17 +472,11 @@ class Expression {
   // 5/19/03: 'loc' field removed because 'name' has a location
   -> E_variable(PQName name);
 
-  -> E_funCall(Expression func, FakeList<Expression> *args) {
-    public Expression *retObj; ctor retObj = NULL;
-  }
+  -> E_funCall(Expression func, FakeList<Expression> *args);
 
   // call to constructor as an expression; the expression's overall
   // type says which type is being constructed
-  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args,
-                   bool artificial // did we manufacture it? needed during elaboration
-                   ) {
-    public Expression *retObj; ctor retObj = NULL;
-  }
+  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args);
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
@@ -530,17 +502,11 @@ class Expression {
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
            FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                      // type to allocate
-           ExpressionListOpt ctorArgs            // arguments to type's constructor (NULL if no ctor call syntax)
-           ) {
-    public Statement *ctorStatement; ctor ctorStatement=NULL;
-  }
+           ExpressionListOpt ctorArgs);          // arguments to type's constructor (NULL if no ctor call syntax)
 
   -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
               bool array,                        // true if "[]" follows "delete"
-              Expression expr                    // address of obj to deallocate
-              ) {
-    public Statement *dtorStatement; ctor dtorStatement=NULL;
-  }
+              Expression expr);                  // address of obj to deallocate
 
   -> E_throw(Expression /*nullable*/ expr);
 
@@ -563,6 +529,9 @@ class Expression {
 }
 
 
+// ICExpression was here
+
+
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
 // a NULL pointer to an ExpressionListOpt, while the former is a valid
@@ -576,7 +545,7 @@ class ExpressionListOpt (
 class Initializer (SourceLoc loc) {
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
-  public FullExpressionAnnot annot;
+  // TODO: put FullExpression in IN_expr and IN_ctor only
 
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
@@ -650,7 +619,7 @@ class TemplateArgument {
   -> TA_type(ASTTypeId type);
 
   // non-type arguments, corresponds to a TP_nontype parameter
-  -> TA_nontype(FullExpression expr);
+  -> TA_nontype(Expression expr);
 }
 
 verbatim {                                                     

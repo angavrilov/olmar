@@ -1,0 +1,80 @@
+// cc_elaborate.ast            see license.txt for copyright and terms of use
+// extension to cc.ast defining data for an elaboration pass
+
+// The concept of semantic elaboration is that we provide, for many
+// constructs in the language, equivalent alternative formulations in
+// terms of a smaller set of primitive operations.  Then, an analysis
+// can ignore the elaborated constructs' specified semantics, instead
+// using the elaboration annotation to understand them.
+//
+// Of course, an analysis is free to ignore the elaboration if the
+// original construct maps more naturally into its analysis domain.
+
+verbatim {
+  #include "cc_elaborate.h"      // FullExpressionAnnot
+}
+
+
+class MemberInit {
+  // A single MemberInit seems very much like a single expression to
+  // me, since it is a ctor call and an IN_ctor is also
+  public FullExpressionAnnot annot;
+
+  // a MemberInit calls a ctor
+  public Statement *ctorStatement; ctor ctorStatement=NULL;
+}
+
+
+class Declarator {
+  // each declarator has a construction statement, that does its
+  // initialization, and a destruction statement, that calls any
+  // needed destructors; the latter is to be evaluated when this
+  // declarator goes out of scope
+  public Statement *ctorStatement = NULL;
+  public Statement *dtorStatement = NULL;
+}
+
+
+class FullExpression {
+  public FullExpressionAnnot annot;
+}
+
+
+class Expression {
+  -> E_funCall {
+    // Pass by value (for class-valued objects) is elaborated by saying there
+    // is another function parameter, the 'return object'.  At the call site,
+    // we specify an object (reference) that will be bound to that parameter,
+    // and the function implementation is expected to write to that object.
+    public Expression *retObj = NULL;
+  }
+
+  -> E_constructor {        
+    // did we manufacture it? needed during elaboration
+    public bool artificial = false;
+
+    // similar to E_funCall; object being constructed
+    public Expression *retObj = NULL;
+  }
+  
+  -> E_new {
+    // this statement implements the 'new' operation in terms of more
+    // primitive concepts like allocation and calling the constructor;
+    // after elaboration, and analysis can just ignore the E_new and
+    // look at the 'ctorStatement' instead
+    public Statement *ctorStatement = NULL;
+  }
+
+  -> E_delete {
+    // this implementes destruction and deallocation
+    public Statement *dtorStatement = NULL;
+  }
+}
+
+
+class Initializer {
+  public FullExpressionAnnot annot;
+}
+
+
+// EOF

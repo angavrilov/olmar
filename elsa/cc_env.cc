@@ -1580,11 +1580,7 @@ Variable *Env::instantiateClassTemplate
                                             param->type, NULL /*syntax*/);
         Variable *binding = makeVariable(param->loc, param->name,
                                          bindType, DF_NONE);
-        // NOTE: we dig down into the FullExpression and just return
-        // the Expression.  Perhaps we should put an assertion here
-        // that there are no Declarations in the FullExpression that
-        // are being omitted here.
-        binding->value = arg->asTA_nontype()->expr->expr;
+        binding->value = arg->asTA_nontype()->expr;
         addVariable(binding);
       }
       else {                 
@@ -2182,7 +2178,7 @@ ASTTypeId *Env::inner_buildASTTypeId(Type *type, IDeclarator *surrounding)
       ArrayType *at = type->asArrayType();
       return inner_buildASTTypeId(at->eltType,
         new D_array(loc(), surrounding,
-          at->hasSize()? buildIntegerLiteralFE(at->size) : NULL));
+          at->hasSize()? buildIntegerLiteralExp(at->size) : NULL));
     }
 
     case Type::T_POINTERTOMEMBER: {
@@ -2241,10 +2237,10 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
 }
 
 
-FullExpression *Env::buildIntegerLiteralFE(int i)
+Expression *Env::buildIntegerLiteralExp(int i)
 {
   StringRef text = str(stringc << i);
-  return new FullExpression(new E_intLit(text));
+  return new E_intLit(text);
 }
 
 
