@@ -481,6 +481,9 @@ nonterm(Expression*) UnaryExpression {
   // size of type
   -> "sizeof" "(" t:TypeId ")"   { return new E_sizeofType(t); }
 
+  // dsw: some undocumented gcc extension
+  -> "__alignof__" "(" t:TypeId ")" { return new E_alignofType(t); }
+
   -> e:NewExpression             { return e; }
 }
 

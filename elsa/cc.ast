@@ -522,6 +522,7 @@ class Expression {
   //-> E_gnuCond(Expression cond, Expression el);
   -> E_comma(Expression e1, Expression e2);
   -> E_sizeofType(ASTTypeId atype);
+  -> E_alignofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)

@@ -911,6 +911,13 @@ void E_sizeofType::iprint(PrintEnv &env)
   atype->print(env);
 }
 
+void E_alignofType::iprint(PrintEnv &env)
+{
+  olayer ol("E_alignofType::iprint");
+  codeout co(env, "__alignof__", "(", ")");
+  atype->print(env);
+}
+
 void E_assign::iprint(PrintEnv &env)
 {
   olayer ol("E_assign::iprint");

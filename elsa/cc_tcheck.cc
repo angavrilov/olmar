@@ -3902,6 +3902,17 @@ Type *E_sizeofType::itcheck(Env &env)
 }
 
 
+Type *E_alignofType::itcheck(Env &env)
+{
+  ASTTypeId::Tcheck tc;
+  atype = atype->tcheck(env, tc);
+  Type *t = atype->getType();
+//    size = t->reprSize();
+
+  return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
+}
+
+
 Type *E_assign::itcheck(Env &env)
 {
   target->tcheck(target, env);
