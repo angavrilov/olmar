@@ -265,7 +265,7 @@ c.in/c.in4d: c.in/c.in4c
 
 # stuff in examples directory
 .PHONY: examples
-examples: all
+examples: all glrmain.o
 	cd examples/arith; make
 	cd examples/cexp; make
 	cd examples/cdecl; make
