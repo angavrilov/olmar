@@ -655,12 +655,12 @@ void astParseFunction(Environment &env, Production *prod,
 
     string name = childName(func, 0);
     if (!prod->left->hasFunDecl(name)) {
-      astParseError(func,
+      astParseError(nthChild(func, 0),
         stringc << "undeclared function: " << name);
     }
     if (prod->hasFunction(name)) {
       if (!dupsOk) {
-        astParseError(func,
+        astParseError(nthChild(func, 0),
           stringc << "duplicate function implementation: " << name);
       }
       else {

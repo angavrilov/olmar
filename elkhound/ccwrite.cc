@@ -159,7 +159,7 @@ void emitSemFuns(ostream &os, Grammar const *g,
     // rely on compiler warnings to catch missing 'return's
     os << "    default:\n"
           "      xfailure(\"bad production code\");\n"
-          "      throw 0;    // silence warning\n"
+          //"      throw 0;    // silence warning\n"
           "  }\n"
           "}\n\n\n"
           ;

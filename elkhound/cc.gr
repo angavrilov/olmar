@@ -10,6 +10,12 @@ terminals {
   include("cc.tok")
 }
 
+          
+// declarations for semantic functions
+prologue {                            
+  #include "env.h"    // Env
+}
+
 
 // dummy first rule
 nonterm StartSymbol -> TranslationUnit L2_EOF;
@@ -20,13 +26,17 @@ nonterm StartSymbol -> TranslationUnit L2_EOF;
 // source of problems parsing C and C++
 // (here, "variable" means variable or function; it names
 // an object that exists at runtime)
-nonterm TypedefName -> L2_NAME   ;
-nonterm EnumName -> L2_NAME      ;
-nonterm EnumValueName -> L2_NAME ;     // called 'enumerator' in spec
-nonterm ClassName -> L2_NAME     ;
-nonterm TemplateName -> L2_NAME  ;
-nonterm VariableName -> L2_NAME  ;
-nonterm LabelName -> L2_NAME     ;
+nonterm HasName {
+  fundecl string getName() const;
+  fun getName = n.strValue;
+}
+nonterm TypedefName : HasName -> L2_NAME   ;
+nonterm EnumName : HasName -> L2_NAME      ;
+nonterm EnumValueName : HasName -> L2_NAME ;     // called 'enumerator' in spec
+nonterm ClassName : HasName -> L2_NAME     ;
+nonterm TemplateName : HasName -> L2_NAME  ;
+nonterm VariableName : HasName -> L2_NAME  ;
+nonterm LabelName : HasName -> L2_NAME     ;
 
 
 // ---------------- higher-level syntax -----------------
@@ -69,7 +79,7 @@ nonterm Checkable {
 nonterm TranslationUnit : Checkable {
   -> empty;
   -> d:Declaration t:TranslationUnit
-    { d.typeCheck(env); t.typeCheck(env); }
+    { fun typeCheck { d.typeCheck(env); t.typeCheck(env); } }
 }
 
 // ------ A.4 Expressions ------
@@ -217,7 +227,7 @@ nonterm DeleteExpression -> "delete" CastExpression          |
 
 nonterm CastExpression : ExprBase {
   -> e:UnaryExpression      { fun intEval = e.intEval(env); }
-  -> "(" TypeId ")" CastExpression
+  -> "(" TypeId ")" CastExpression ;
 }
 
 // ++++ binary operator expression ++++
@@ -320,8 +330,22 @@ nonterm BinaryOperator {
 
 
 nonterm ConditionalExpression : ExprBase {
-  -> BinaryExpression ;
-  -> BinaryExpression "?" Expression ":" AssignmentExpression ;
+  -> e:BinaryExpression {
+    fun intEval = e.intEval(env);
+  }
+
+  -> cond:BinaryExpression "?" th:Expression ":" el:AssignmentExpression {
+    fun intEval {
+      // evaluate all of them first, so we get the check for the
+      // expression being const regardless of which way the test goes
+      // (this may in fact turn out to be wrong, but for now it's what
+      // I think it should be)
+      int c = cond.intEval(env);
+      int t = th.intEval(env);
+      int e = el.intEval(env);
+      return c ? t : e;
+    }
+  }
 }
 
 // why is conditional not allowed on left side of = ?  can I confirm
@@ -345,7 +369,8 @@ nonterm ExpressionOpt -> empty | Expression ;
 // this is an expression with the additional requirement that
 // it be entirely evaluable at compile time
 // (which is essentially a type property)
-nonterm ConstantExpression -> ConditionalExpression ;
+nonterm ConstantExpression : ExprBase -> e:ConditionalExpression
+  { fun intEval = e.intEval(env); }
 
 // ------ A.5 Statements ------
 // labeled-statement
@@ -410,17 +435,17 @@ nonterm ForInitStatement -> ExpressionStatement | SimpleDeclaration ;
 nonterm DeclarationSeqOpt -> empty | DeclarationSeqOpt Declaration ;
 
 nonterm Declaration : Checkable {
-  fun typeCheck { d.typeCheck(env); }
+  fun typeCheck {}    // for now
 
-  -> d:BlockDeclaration ;
-  -> d:FunctionDefinition ;
+  -> d:BlockDeclaration     { fun typeCheck { d.typeCheck(env); } }
+  -> FunctionDefinition ;
   //-> TemplateDeclaration ;
-  -> d:LinkageSpecification ;
+  -> LinkageSpecification ;
 }
 
 // C++ has other alternatives..
 nonterm BlockDeclaration : Checkable -> d:SimpleDeclaration
-  { d.typeCheck(env); }
+  { fun typeCheck { d.typeCheck(env); } }
 
 // is the DeclSpecifierSeq optional for implicit-int??
 //   no, it's for constructors, destructors, and conversion operators,
@@ -445,33 +470,56 @@ nonterm SimpleDeclaration : Checkable {
 // now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
 // the TypeId in a cast expression to contain a "const"
 
-nonterm DeclSpecifier : HasTypeName {
+nonterm HasDeclFlags {
+  // return the set of declaration flags present here
+  fundecl DeclFlags getDeclFlags() const;
+}
+
+nonterm HasType {
+  // return the Type represented by this syntax
+  fundecl Type* getType(Env &env) const;
+}
+
+nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
   fun typeName = s.typeName();
   fun getType = s.getType(env);
-  fun getDeclFlags = ...;
 
-  -> "inline" m:DeclModifierOpt s:TypeSpecifier |
-     m:DeclModifierOpt s:TypeSpecifier ;
+  -> "inline" m:DeclModifierOpt s:TypeSpecifier {
+    fun getDeclFlags = DF_INLINE | m.getDeclFlags();
+  }
+
+  -> m:DeclModifierOpt s:TypeSpecifier {
+    fun getDeclFlags = m.getDeclFlags();
+  }
 }
 
 // my analysis (informal and ad-hoc) indicates that none of these can
 // be used together; "inline" is pulled out because it can be used with
 // "virtual", "static", "friend", and possibly "extern"
-nonterm DeclModifierOpt -> empty |
-  "virtual" | "friend" | "mutable" |
-  "typedef" | "auto" | "register" | "static" | "extern";
+nonterm DeclModifierOpt : HasDeclFlags {
+  -> empty         { fun getDeclFlags = DF_NONE; }
+  -> "virtual"     { fun getDeclFlags = DF_VIRTUAL; }
+  -> "friend"      { fun getDeclFlags = DF_FRIEND; }
+  -> "mutable"     { fun getDeclFlags = DF_MUTABLE; }
+  -> "typedef"     { fun getDeclFlags = DF_TYPEDEF; }
+  -> "auto"        { fun getDeclFlags = DF_AUTO; }
+  -> "register"    { fun getDeclFlags = DF_REGISTER; }
+  -> "static"      { fun getDeclFlags = DF_STATIC; }
+  -> "extern"      { fun getDeclFlags = DF_EXTERN; }
+}
 
-  
+
 nonterm HasCVFlags {
   // return all const/volatile at this level
   fundecl CVFlags getCVFlags() const;
 }
 
-
-nonterm TypeSpecifier : HasTypeName, HasCVFlags {
+nonterm HasAtomicType {
   // return the atomic-type portion of this type
   fundecl AtomicType *getAtomicType(Env &env) const;
+}
 
+nonterm TypeSpecifier : HasTypeName, HasType, HasAtomicType, HasCVFlags {
   // generic implementation
   fun getType {
     AtomicType *atomic = getAtomicType(env);
@@ -484,18 +532,22 @@ nonterm TypeSpecifier : HasTypeName, HasCVFlags {
   fun getAtomicType = s.getAtomicType(env);
   fun getCVFlags = CV_NONE;
 
-  -> s:SimpleTypeSpecifier ;          // int
+  // these are the atomic types (see types.txt)
+  formGroup {
+    -> s:SimpleTypeSpecifier ;          // int
 
-  -> s:SimpleCVTypeSpecifier          // unsigned const char  (not good style, IMO)
-       { fun getCVFlags = s.getCVFlags(); }
+    -> s:SimpleCVTypeSpecifier          // unsigned const char  (not good style, IMO)
+         { fun getCVFlags = s.getCVFlags(); }
 
-  -> s:ElaboratedTypeSpecifier ;      // class foo  or  enum bar
+    -> s:ElaboratedTypeSpecifier ;      // class foo  or  enum bar
 
-  -> s:ClassSpecifier                 // class { ... }
-       { fun typeName = "class { ... }"; }
-  -> s:EnumSpecifier                  // enum { ... }
-       { fun typeName = "enum { ... }"; }
+    -> s:ClassSpecifier                 // class { ... }
+         { fun typeName = "class { ... }"; }
+    -> s:EnumSpecifier                  // enum { ... }
+         { fun typeName = "enum { ... }"; }
+  }
 
+  // these are: "CV* atomic-type" or "atomic-type CV*"
   formGroup {
     fun typeName = stringc << s.typeName() << " " << q.typeName();
 
@@ -512,16 +564,20 @@ nonterm TypeSpecifier : HasTypeName, HasCVFlags {
   }
 }
 
-nonterm ElaboratedTypeSpecifier : HasTypeName {
+nonterm ElaboratedTypeSpecifier : HasTypeName, HasAtomicType {
+  fundecl CompoundKind getCompoundKind() const;
+
   fun getAtomicType {
     // which kind of compound is this?
     CompoundKind ck = getCompoundKind();
 
-    // look up the name in the environment
+    // look up the name in the environment (or possibly
+    // create a new incomplete type, which is why 'ck' is
+    // passed)
     AtomicType *atomic = env.lookupAtomic(n.strValue, ck);
 
     // check consistency of prior declaration, if any
-    if (ck != atomic.getCompoundKind()) {
+    if (ck != atomic->getCompoundKind()) {
       error("compound kind mismatch");
     }
 
@@ -532,49 +588,60 @@ nonterm ElaboratedTypeSpecifier : HasTypeName {
   -> "enum" n:L2_NAME              { fun getCompoundKind = CK_ENUM; }
 }
 
-// this list comes from Table 7 (p.109) of the C++ standard
-// NOTE: this deviates from the language spec, which allows other
-// decl-specifiers to mix with the tokens here; I do not
-nonterm SimpleTypeSpecifier : HasTypeName {
 
+nonterm SimpleTypeBase {
   // helper to get the simple type spec, to cut down on
   // syntactic verbiage
   fundecl SimpleType getst() const;
+  fun getst { xfailure("can't call me"); }
 
   fun getAtomicType {
     return env.getSimpleType(getst());
   }
+}
+
+// this list comes from Table 7 (p.109) of the C++ standard
+// NOTE: this deviates from the language spec, which allows other
+// decl-specifiers to mix with the tokens here; I do not
+nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName, HasAtomicType {
+  fun typeName {
+    return simpleTypeName(getst());
+  }
 
   // the existence of this production is part of why parsing C is hard
-  -> n:PQTypeName              { fun getType = n.getType();    fun typeName = n.typeName(); }
+  -> n:PQTypeName {
+    fun getAtomicType = env.lookupAtomicType(n.typeName());
+    fun typeName = n.typeName();
+  }
 
-  -> "char"                    { fun getst = ST_CHAR;  fun typeName = "char"; }
-  -> "unsigned" "char"         { /*etc*/  fun typeName = "unsigned char"; }
-  -> "signed" "char"           { fun typeName = "signed char"; }
-  -> "bool"                    { fun typeName = "bool"; }
-  -> "unsigned"                { fun typeName = "unsigned int"; }
-  -> "unsigned" "int"          { fun typeName = "unsigned int"; }
-  -> "signed"                  { fun typeName = "int"; }
-  -> "signed" "int"            { fun typeName = "int"; }
-  -> "int"                     { fun typeName = "int"; }
-  -> "unsigned" "short" "int"  { fun typeName = "unsigned short int"; }
-  -> "unsigned" "short"        { fun typeName = "unsigned short int"; }
-  -> "unsigned" "long" "int"   { fun typeName = "unsigned long int"; }
-  -> "unsigned" "long"         { fun typeName = "unsigned long int"; }
-  -> "signed" "long" "int"     { fun typeName = "long int"; }
-  -> "signed" "long"           { fun typeName = "long int"; }
-  -> "long" "int"              { fun typeName = "long int"; }
-  -> "long"                    { fun typeName = "long int"; }
-  -> "signed" "short" "int"    { fun typeName = "short int"; }
-  -> "signed" "short"          { fun typeName = "short int"; }
-  -> "short" "int"             { fun typeName = "short int"; }
-  -> "short"                   { fun typeName = "short int"; }
-  -> "wchar_t"                 { fun typeName = "wchar_t"; }
-  -> "float"                   { fun typeName = "float"; }
-  -> "double"                  { fun typeName = "double"; }
-  -> "long" "double"           { fun typeName = "long double"; }
-  -> "void"                    { fun typeName = "void"; }
+  -> "char"                     { fun getst = ST_CHAR; }
+  -> "unsigned" "char"          { fun getst = ST_UNSIGNED_CHAR; }
+  -> "signed" "char"            { fun getst = ST_SIGNED_CHAR; }
+  -> "bool"                     { fun getst = ST_BOOL; }
+  -> "unsigned"                 { fun getst = ST_UNSIGNED_INT; }
+  -> "unsigned" "int"           { fun getst = ST_UNSIGNED_INT; }
+  -> "signed"                   { fun getst = ST_INT; }
+  -> "signed" "int"             { fun getst = ST_INT; }
+  -> "int"                      { fun getst = ST_INT; }
+  -> "unsigned" "short" "int"   { fun getst = ST_UNSIGNED_SHORT_INT; }
+  -> "unsigned" "short"         { fun getst = ST_UNSIGNED_SHORT_INT; }
+  -> "unsigned" "long" "int"    { fun getst = ST_UNSIGNED_LONG_INT; }
+  -> "unsigned" "long"          { fun getst = ST_UNSIGNED_LONG_INT; }
+  -> "signed" "long" "int"      { fun getst = ST_LONG_INT; }
+  -> "signed" "long"            { fun getst = ST_LONG_INT; }
+  -> "long" "int"               { fun getst = ST_LONG_INT; }
+  -> "long"                     { fun getst = ST_LONG_INT; }
+  -> "signed" "short" "int"     { fun getst = ST_SHORT_INT; }
+  -> "signed" "short"           { fun getst = ST_SHORT_INT; }
+  -> "short" "int"              { fun getst = ST_SHORT_INT; }
+  -> "short"                    { fun getst = ST_SHORT_INT; }
+  -> "wchar_t"                  { fun getst = ST_WCHAR_T; }
+  -> "float"                    { fun getst = ST_FLOAT; }
+  -> "double"                   { fun getst = ST_DOUBLE; }
+  -> "long" "double"            { fun getst = ST_LONG_DOUBLE; }
+  -> "void"                     { fun getst = ST_VOID; }
 }
+
 
 // I had been separating these into typedef/enum/class names, but
 // the parser can never distinguish, so the grammar shouldn't suggest
@@ -597,33 +664,33 @@ nonterm PQTypeName : HasTypeName {
 // I really should just fold these into the above, but my dislike for
 // the interleaving thing makes me try to keep the above decls more
 // or less "pure".. but I'll merge them at some point
-nonterm SimpleCVTypeSpecifier : HasTypeName {
-  fun typeName = stringc << baseTypeName() << " " << q.typeName();
+nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasAtomicType,
+                                HasCVFlags {
+  fun typeName {
+    return stringc << simpleTypeName(getst()) << " " << q.typeName();
+  }
 
   fun getCVFlags = q.getCVFlags();
 
-  // just for internal use, as a helper for typeName
-  fundecl string baseTypeName() const;
-
-  -> "unsigned" q:CVQualifierSeq "char"         { fun baseTypeName = "unsigned char"; }
-  -> "signed" q:CVQualifierSeq "char"           { fun baseTypeName = "signed char"; }
-  -> "unsigned" q:CVQualifierSeq "int"          { fun baseTypeName = "unsigned int"; }
-  -> "signed" q:CVQualifierSeq "int"            { fun baseTypeName = "int"; }
-  -> "unsigned" q:CVQualifierSeq "short" "int"  { fun baseTypeName = "unsigned short int"; }
-  -> "unsigned" "short" q:CVQualifierSeq "int"  { fun baseTypeName = "unsigned short int"; }
-  -> "unsigned" q:CVQualifierSeq "short"        { fun baseTypeName = "unsigned short int"; }
-  -> "unsigned" q:CVQualifierSeq "long" "int"   { fun baseTypeName = "unsigned long int"; }
-  -> "unsigned" "long" q:CVQualifierSeq "int"   { fun baseTypeName = "unsigned long int"; }
-  -> "unsigned" q:CVQualifierSeq "long"         { fun baseTypeName = "unsigned long int"; }
-  -> "signed" q:CVQualifierSeq "long" "int"     { fun baseTypeName = "long int"; }
-  -> "signed" "long" q:CVQualifierSeq "int"     { fun baseTypeName = "long int"; }
-  -> "signed" q:CVQualifierSeq "long"           { fun baseTypeName = "long int"; }
-  -> "long" q:CVQualifierSeq "int"              { fun baseTypeName = "long int"; }
-  -> "signed" q:CVQualifierSeq "short" "int"    { fun baseTypeName = "short int"; }
-  -> "signed" "short" q:CVQualifierSeq "int"    { fun baseTypeName = "short int"; }
-  -> "signed" q:CVQualifierSeq "short"          { fun baseTypeName = "short int"; }
-  -> "short" q:CVQualifierSeq "int"             { fun baseTypeName = "short int"; }
-  -> "long" q:CVQualifierSeq "double"           { fun baseTypeName = "long double"; }
+  -> "unsigned" q:CVQualifierSeq "char"         { fun getst = ST_UNSIGNED_CHAR; }
+  -> "signed" q:CVQualifierSeq "char"           { fun getst = ST_SIGNED_CHAR; }
+  -> "unsigned" q:CVQualifierSeq "int"          { fun getst = ST_UNSIGNED_INT; }
+  -> "signed" q:CVQualifierSeq "int"            { fun getst = ST_INT; }
+  -> "unsigned" q:CVQualifierSeq "short" "int"  { fun getst = ST_UNSIGNED_SHORT_INT; }
+  -> "unsigned" "short" q:CVQualifierSeq "int"  { fun getst = ST_UNSIGNED_SHORT_INT; }
+  -> "unsigned" q:CVQualifierSeq "short"        { fun getst = ST_UNSIGNED_SHORT_INT; }
+  -> "unsigned" q:CVQualifierSeq "long" "int"   { fun getst = ST_UNSIGNED_LONG_INT; }
+  -> "unsigned" "long" q:CVQualifierSeq "int"   { fun getst = ST_UNSIGNED_LONG_INT; }
+  -> "unsigned" q:CVQualifierSeq "long"         { fun getst = ST_UNSIGNED_LONG_INT; }
+  -> "signed" q:CVQualifierSeq "long" "int"     { fun getst = ST_LONG_INT; }
+  -> "signed" "long" q:CVQualifierSeq "int"     { fun getst = ST_LONG_INT; }
+  -> "signed" q:CVQualifierSeq "long"           { fun getst = ST_LONG_INT; }
+  -> "long" q:CVQualifierSeq "int"              { fun getst = ST_LONG_INT; }
+  -> "signed" q:CVQualifierSeq "short" "int"    { fun getst = ST_SHORT_INT; }
+  -> "signed" "short" q:CVQualifierSeq "int"    { fun getst = ST_SHORT_INT; }
+  -> "signed" q:CVQualifierSeq "short"          { fun getst = ST_SHORT_INT; }
+  -> "short" q:CVQualifierSeq "int"             { fun getst = ST_SHORT_INT; }
+  -> "long" q:CVQualifierSeq "double"           { fun getst = ST_LONG_DOUBLE; }
 }
 
 nonterm EnumSpecifier -> "enum" "{" EnumeratorListOpt "}" |
@@ -763,6 +830,12 @@ nonterm Declarator : DeclaratorBase {
 }
 
 nonterm DirectDeclarator : DeclaratorBase {
+  // for arrays
+  fundecl bool hasSize() const;     // true if a size is specified
+  fun hasSize = false;
+  fundecl int getSize() const;      // get declared size
+  fun getSize { xfailure("can't call getSize"); }
+
   -> n:PQVarName {
     action isFunction := 0;
 
@@ -805,9 +878,6 @@ nonterm DirectDeclarator : DeclaratorBase {
   formGroup {
     action isFunction := 0;
 
-    fundecl bool hasSize() const;     // true if a size is specified
-    fundecl int getSize() const;      // get declared size
-
     fun getDeclType {
       Type *arrType;
       if (hasSize()) {
@@ -816,7 +886,7 @@ nonterm DirectDeclarator : DeclaratorBase {
       else {
         arrType = env.makeArrayType(type);               // unknown size
       }
-      
+
       return d.getDeclType(env, arrType);
     }
 
@@ -829,8 +899,6 @@ nonterm DirectDeclarator : DeclaratorBase {
 
     // array of unspecified size
     -> d:DirectDeclarator "[" "]" {
-      fun hasSize = false;
-      fun getSize { xfailure("can't call getSize"); }
       fun typeName = stringc << d.typeName() << "[]";
     }
   }
@@ -866,6 +934,7 @@ nonterm PtrOperator : HasCVFlags {
 nonterm CVQualifierSeqOpt : HasCVFlags {
   -> empty              { fun getCVFlags = CV_NONE; }
   -> s:CVQualifierSeq   { fun getCVFlags = s.getCVFlags(); }
+}
 
 nonterm CVQualifierSeq : HasTypeName, HasCVFlags {
   -> q:CVQualifier                    { fun getCVFlags = q.getCVFlags(); }
@@ -963,13 +1032,13 @@ nonterm ParameterDeclarationList : HasPrintSig, HasArgTypes {
   }
 }
 
-nonterm ParameterDeclaration : HasTypeName {
+nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
   fundecl bool hasName() const;
   fundecl string getDeclName() const;
 
   fun typeName = stringc << s.typeName() << d.typeName();
 
-  fun getArgTypes {                  
+  fun getArgTypes {
     // type
     Type *specType = s.getType(env);
     Type *fullType = d.getType(env, specType);
@@ -1036,9 +1105,11 @@ nonterm FunctionDefinition : HasPrintSig {
     }
   }
 
+  // return type      name/params   body
   -> ExplicitOpt      d:Declarator  FunctionBody          // {c,d}tor
     { fun printSig { cout << d.name() << ": ctor or dtor\n"; } }
 
+  // return type      name/params   body
   -> ExplicitOpt      d:Declarator  ":" MemInitializerList FunctionBody   // ctor
     { fun printSig { cout << d.name() << ": ctor with init list\n"; } }
 }
@@ -1051,7 +1122,7 @@ nonterm ExplicitOpt -> "explicit" | empty ;
 // ------ A.8 Classes ------
 // I'm going to use the "class" terminology throughout, even though
 // C only has "struct" and "union"
-nonterm ClassSpecifier -> 
+nonterm ClassSpecifier : HasAtomicType -> 
   k:ClassKeyword n:ClassNameOpt base:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}" 
 {
   fun getAtomicType {
@@ -1070,16 +1141,28 @@ nonterm ClassSpecifier ->
 }
 
 nonterm ClassNameOpt {
+  fundecl string getName() const;
   -> empty         { fun getName = ""; }
   -> n:ClassName   { fun getName = n.getName(); }
+}
 
 nonterm ClassKeyword {
+  fundecl CompoundKind getCompoundKind() const;
   -> "class"       { fun getCompoundKind = CK_CLASS; }
   -> "struct"      { fun getCompoundKind = CK_STRUCT; }
   -> "union"       { fun getCompoundKind = CK_UNION; }
 }
 
-nonterm MemberDeclarationSeqOpt {
+
+nonterm MemberDeclBase {
+  // add info in this subtree to the compound we're building
+  fundecl void addMemberInfo(Env &env, AtomicType *compound, AccessMode access);
+  
+  // for now, just eat it
+  fun addMemberInfo {}
+}
+
+nonterm MemberDeclarationSeqOpt : MemberDeclBase {
   -> empty ;
   -> MemberDeclaration MemberDeclarationSeqOpt ;
   -> AccessSpecifier ":" MemberDeclarationSeqOpt ;
@@ -1087,7 +1170,7 @@ nonterm MemberDeclarationSeqOpt {
 
 nonterm AccessSpecifier -> "public" | "private" | "protected" ;
 
-nonterm MemberDeclaration {
+nonterm MemberDeclaration : MemberDeclBase {
   -> DeclSpecifier MemberDeclaratorList ";" ;    // member fn or data
   -> FunctionDefinition ";" ;                    // inline fn
   -> FunctionDefinition ;                        // syntactic tweak
