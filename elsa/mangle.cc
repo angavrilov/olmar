@@ -51,14 +51,15 @@ string mangleAtomic(AtomicType const *t)
     }
 
     case AtomicType::T_ENUM: {
-      //EnumType const *et = t->asEnumTypeC();    // unused for the moment
+      EnumType const *et = t->asEnumTypeC(); // unused for the moment
 
       stringBuilder sb;
       sb << "enum ";
       
       // sm: again, to fail to include the name is a bug
+      // dsw: yup
       //if (!(tsf & TTS_CANON)) {
-      //  sb << (name? name : "/*anonymous*/");
+      sb << (et->name? et->name : "/*anonymous*/");
       //}
 
       return sb;
