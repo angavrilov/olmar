@@ -87,11 +87,12 @@ TOCHECK += cc.in26
 
 TOCHECK += cc.in29
 
-# Anonymous classes and enums being printed incorrectly in different
-# ways.  Wrote Scott if this is the parser or the printer.
+# scope not printing.
 #TOCHECK += cc.in30
-# Smaller example of same problem.
-#TOCHECK += cc.in30a
+
+# Smaller examples of just anonymous classes and enums.
+TOCHECK += cc.in30a
+TOCHECK += cc.in30b
 
 TOCHECK += cc.in31
 TOCHECK += cc.in32
@@ -122,16 +123,11 @@ TOCHECK += cc.in43
 idem/check: idem/clean
 	./check_idempotency $(addprefix ../cc.in/,$(TOCHECK))
 
+TEST_SUFFIXES_TO_CLEAN := out_cpp out_raw out out2_raw out2 diff
+TEST_PATTERNS_TO_CLEAN := $(patsubst %,-o -name '*.%',$(TEST_SUFFIXES_TO_CLEAN))
 .PHONY: idem/clean
 idem/clean:
-	find ../cc.in -type f \
-	\( -name '*.out_cpp'  \
-	-o -name '*.out_raw'  -o -name '*.out' \
-	-o -name '*.out2_raw' -o -name '*.out2' \
-	-o -name '*.diff' \
-	-o -name '*.out_raw'  -o -name '*.out' \
-	-o -name '*.out2_raw' -o -name '*.out2' \
-	-o -name '*.diff' \) | xargs rm -f
+	find ../cc.in -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f
 
 # Check idempotency of ccparse -tr prettyPrint on C and C++ files in
 # cure_cpp/cc_examples.
@@ -142,17 +138,19 @@ TOCHECK2 :=
 
 TOCHECK2 += Box.cc
 
+# Check this:
+# __UNIX__ __LINUX__
 # Why this should be a parse error on the first pass, I don't know.
 # Line 1322, col 18: Parse error at wchar_t
 # typedef long int wchar_t;
-# TOCHECK2 += JustHello.c
+#TOCHECK2 += JustHello.c
 
 #TOCHECK2 += JustWorld.c
 TOCHECK2 += Test_005true.c
 #TOCHECK2 += Test_010hello.c
 TOCHECK2 += Test_105true.cc
 
-# anonymous structs not printing with {}.
+# ABOVE: anonymous structs not printing with {}.
 #TOCHECK2 += Test_110hello.cc
 
 #TOCHECK2 += Test_210box.cc
@@ -446,11 +444,4 @@ idem/check2: idem/clean2
 
 .PHONY: idem/clean2
 idem/clean2:
-	find $(TESTDIR2) -type f \
-	\( -name '*.out_cpp'  \
-	   -name '*.c.out_raw'   -o -name '*.c.out' \
-	-o -name '*.c.out2_raw'  -o -name '*.c.out2' \
-	-o -name '*.c.diff' \
-	-o -name '*.cc.out_raw'  -o -name '*.cc.out' \
-	-o -name '*.cc.out2_raw' -o -name '*.cc.out2' \
-	-o -name '*.cc.diff' \) | xargs rm -f
+	find $(TESTDIR2) -type f \( -false $(TEST_PATTERNS_TO_CLEAN) \) | xargs rm -f

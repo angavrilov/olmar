@@ -24,6 +24,22 @@ twalk_output_stream twalk_layer_out(cout, getenv("TWALK_VERBOSE"));
 // sm: folded this into the PrintEnv
 //SourceLocation current_loc;
 
+string make_indentation(int n) {
+  stringBuilder s;
+  for (int i=0; i<n; ++i) s << "  ";
+  return s;
+}
+
+string indent_message(int n, string message) {
+  stringBuilder s;
+  char *m = message.pchar();
+  int len = strlen(m);
+  for(int i=0; i<len; ++i) {
+    s << m[i];
+    if (m[i] == '\n') s << make_indentation(n);
+  }
+  return s;
+}
 
 // function for printing declarations (without the final semicolon);
 // handles a variety of declarations such as:
@@ -197,6 +213,9 @@ void Declaration::print(PrintEnv &env)
   if(spec->isTS_classSpec()) {
     spec->asTS_classSpec()->print(env);
   }
+  else if(spec->isTS_enumSpec()) {
+    spec->asTS_enumSpec()->print(env);
+  }
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
     // if there are decl flags that didn't get put into the
     // Variable (e.g. DF_EXTERN which gets turned off as soon
@@ -279,9 +298,14 @@ void TS_classSpec::print(PrintEnv &env)
 
 void TS_enumSpec::print(PrintEnv &env)
 {
-  env.current_loc = loc;
+  olayer ol("TS_classSpec");
+  env << toString(cv);
+  env << "enum ";
+  if (name) env << toString(name);
+  codeout co(env, "", "{\n", "};\n");
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
     iter->print(env);
+    env << "\n";
   }
 }
 
@@ -321,9 +345,12 @@ void MR_publish::print(PrintEnv &env)
 // -------------------- Enumerator --------------------
 void Enumerator::print(PrintEnv &env)
 {
+  env << name;
   if (expr) {
+    env << "=";
     expr->print(env);
   }
+  env << ", ";
 }
 
 // -------------------- Declarator --------------------
