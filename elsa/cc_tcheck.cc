@@ -1373,10 +1373,10 @@ Type *computeArraySizeFromCompoundLiteral(Env &env, Type *tgt_type, Initializer 
   if (tgt_type->isArrayType() &&
       !tgt_type->asArrayType()->hasSize() &&
       init->isIN_expr() &&
-      init->asIN_expr()->e->type->isArrayType() &&
-      init->asIN_expr()->e->type->asArrayType()->hasSize() &&
-      init->asIN_expr()->e->isE_compoundLit()) {
-    tgt_type = env.tfac.cloneType(init->asIN_expr()->e->type);
+      init->asIN_expr()->e->expr->type->isArrayType() &&
+      init->asIN_expr()->e->expr->type->asArrayType()->hasSize() &&
+      init->asIN_expr()->e->expr->isE_compoundLit()) {
+    tgt_type = env.tfac.cloneType(init->asIN_expr()->e->expr->type);
     xassert(tgt_type->asArrayType()->hasSize());
   }
 #endif // GNU_EXTENSION
@@ -3589,12 +3589,18 @@ Type *E_binary::itcheck(Env &env)
       // the return type is essentially the 'atType' of 'ptm'
       Type *ret = ptm->atType;
 
+      // 8.3.3 para 3: "A pointer to member shall not point to ... a
+      // member with reference type."  Scott says this can't happen
+      // here.
+      xassert(!ret->isReference());
+
+      // [cppstd 5.5 para 6]
       // but it might be an lvalue if it is a pointer to a data
       // member, and either
       //   - op==BIN_ARROW_STAR, or
-      //   - op==BIN_ARROW_DOT and 'e1->type' is an lvalue
+      //   - op==BIN_DOT_STAR and 'e1->type' is an lvalue
       if (op==BIN_ARROW_STAR ||
-          /*must be arrow_dot*/ e1->type->isLval()) {
+          /*must be DOT_STAR*/ e1->type->isLval()) {
         // this internally handles 'ret' being a function type
         ret = makeLvalType(env, ret);
       }
@@ -3607,15 +3613,107 @@ Type *E_binary::itcheck(Env &env)
   return env.tfac.cloneType(lhsType);
 }
 
+static Type *makePTMType(Env &env, Expression *expr)
+{
+  E_variable *e_var = expr->asE_variable();
+  // shouldn't even get here unless e_var->name is qualified
+  xassert(e_var->name->hasQualifiers());
+
+  // dsw: It is inelegant to recompute the var here, but I don't want
+  // to just ignore the typechecking that already computed aa type for
+  // the expr and use the var exclusively, which is what would happen
+  // if I just passed in the var.
+  Variable *var0 = e_var->var;
+  xassert(var0);
+  xassert(var0->scope);
+
+  // Spec: 8.3.3 para 3, can't be static
+  xassert(!var0->hasFlag(DF_STATIC));
+  // Spec: 8.3.3 para 3, can't be cv void
+  if (expr->type->isVoid()) {
+    return env.error(var0->loc, "attempted to make a pointer to member to cv void");
+  }
+  // Spec: 8.3.3 para 3, can't be a reference;
+  // NOTE: This does *not* say expr->type->isReference(), since an
+  // E_variable expression will have reference type when the variable
+  // itself is not a reference.
+  if (var0->type->isReference()) {
+    return env.error(var0->loc, "attempted to make a pointer to member to a reference");
+  }
+
+  CompoundType *inClass0 = dynamic_cast<CompoundType*>(var0->scope);
+  xassert(inClass0);
+
+  if (expr->type->asRval()->isFunctionType()) {
+    xassert(expr->type->asRval()->asFunctionType()->isMember());
+  }
+  return env.makePtrToMemberType(SL_UNKNOWN, inClass0, env.tfac.cloneType(expr->type->asRval()));
+}
 
 Type *E_addrOf::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
+  if (expr->type->isError()) return expr->type;
+
+  // dsw: I think you can only make a pointer to member by taking the
+  // address of 0 or more E_grouping-s wrapped around an E_variable.
+  bool making_ptr_to_member = false;
+  if (E_variable *e_var0 = expr->belowE_grouping()->ifE_variable()) {
+    xassert(e_var0->var);
+    if (e_var0->var->hasFlag(DF_MEMBER) &&
+        (!e_var0->var->hasFlag(DF_STATIC)) &&
+        // dsw: This is a must.  Consider the following situation:
+//          struct A {
+//            int x;
+//            void f() {
+//              // How do you know you aren't making a pointer to member
+//              // here?  Only because the name isn't fully qualified.
+//              int *y = &x;
+//            }
+//          };
+        // Spec 5.3.1 para 3: Nor is &unqualified-id a pointer to
+        // member, even within the scope of the unqualified-id's
+        // class.
+        e_var0->name->hasQualifiers() ) {
+//        cout << "type belowE_grouping: " << typeid(*(e_var0)).name() << endl;
+      making_ptr_to_member = true;
+      if (!expr->/*belowE_grouping()->*/isE_variable()) {
+        // that is, 1) we do want to make a pointer to member, but 2)
+        // there is at least one layer of parens around the argument
+        // of the "&".  This is an error, or perhaps just a normal
+        // pointer.  I'll call it an error.
+
+        //  Spec 5.3.1 para 3: [Note: that is, the expression
+        //  &(qualified-id), where the qualified-id is enclosed in
+        //  parentheses, does not form an expression of type "pointer
+        //  to member."
+        return env.error
+          (e_var0->var->loc,
+           "attempted to make a pointer to member to a qualified-id that is in parentheses."
+           "  You must remove the parentheses.");
+      }
+
+      // Continuing, the same paragraph points out that we are correct
+      // in creating a pointer to member only when the address-of
+      // operator ("&") is explicit:
+
+      //  Spec 5.3.1 para 3: Neither does qualified-id, because there
+      //  is no implicit conversion from a qualified-id for a
+      //  nonstatic member function the the type"pointer to member
+      //  function" as there is form an lvalue of a function type to
+      //  the type "pointer to function" (4.3).
+    }
+  }
 
   // ok to take addr of function; special-case it so as
   // not to weaken what 'isLval' means
   if (expr->type->isFunctionType()) {
-    return env.makePtrType(SL_UNKNOWN, expr->type);
+    if (making_ptr_to_member) {
+      xassert(expr->type->asFunctionType()->isMember());
+      return makePTMType(env, expr);
+    } else {
+      return env.makePtrType(SL_UNKNOWN, expr->type);
+    }
   }
 
   if (!expr->type->isLval()) {
@@ -3623,11 +3721,14 @@ Type *E_addrOf::itcheck(Env &env)
       << "cannot take address of non-lvalue `" 
       << expr->type->toString() << "'");
   }
-  PointerType *pt = expr->type->asPointerType();
-  xassert(pt->op == PO_REFERENCE);     // that's what isLval checks
-
-  // change the "&" into a "*"
-  return env.makePtrType(SL_UNKNOWN, pt->atType);
+  if (making_ptr_to_member) {
+    return makePTMType(env, expr);
+  } else {
+    PointerType *pt = expr->type->asPointerType();
+    xassert(pt->op == PO_REFERENCE); // that's what isLval checks
+    // change the "&" into a "*"
+    return env.makePtrType(SL_UNKNOWN, pt->atType);
+  }
 }
 
 

@@ -259,6 +259,8 @@ public:      // funcs
     { return tfac.makeType(loc, atomic); }
   Type *makePtrType(SourceLoc loc, Type *type)
     { return tfac.makePtrType(loc, type); }
+  Type *makePtrToMemberType(SourceLoc loc, CompoundType *inClass, Type *type)
+    { return tfac.makePtrToMemberType(loc, inClass, type); }
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them

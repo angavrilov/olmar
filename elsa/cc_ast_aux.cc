@@ -417,6 +417,15 @@ void Expression::printExtras(ostream &os, int indent) const
   }
 }
 
+// remove layers of parens: keep going down until the expression is
+// not an E_grouping and return that
+Expression *Expression::belowE_grouping()
+{
+  Expression *ret = this;
+  while (E_grouping *e_group = ret->ifE_grouping()) ret = e_group->expr;
+  return ret;
+}
+
 
 // ------------------- ICExpression -------------------------
 void ICExpression::setNext(ICExpression *newNext)
