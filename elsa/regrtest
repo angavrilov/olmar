@@ -877,7 +877,7 @@ testparse k0003.cc #"template argument from static const member of template clas
 failparse k0004.cc "non-typename template argument"
 testparse k0005.cc #"declaring a constructor with class name"
 testparse k0005a.cc #"declaring variables and member functions with class name"
-failparse k0006.cc "error: E_alignofType is not constEval'able"
+testparse k0006.cc #"error: E_alignofType is not constEval'able"
 testparse k0007.cc
 # renamed k0008.cc to gnu/g0022.cc because it is a GNU feature
 testparse k0009.cc #"clash between function and instantiated template parameter member"

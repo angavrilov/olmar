@@ -337,9 +337,19 @@ Type *E_alignofType::itcheck_x(Env &env, Expression *&replacement)
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_ALIGNOFTYPE);
   atype = atype->tcheck(env, tc);
   Type *t = atype->getType();
-  // dsw: If this is turned back on, be sure to catch the possible
-  // XReprSize exception and add its message to the env.error-s
-//    size = t->reprSize();
+  
+  env.ensureCompleteType("compute size of", t);
+
+  try {
+    // just assume that the type's size is its alignment; this may
+    // be a little conservative for 'double', and will be wrong for
+    // large structs, but at the moment it does not seem worthwhile
+    // to delve into the details of accurately computing this
+    alignment = t->reprSize();
+  }
+  catch (XReprSize &e) {
+    return env.error(e.why());
+  }
 
   return t->isError()? t : env.getSimpleType(SL_UNKNOWN, ST_UNSIGNED_INT);
 }
@@ -460,6 +470,14 @@ void IN_designated::tcheck(Env &env, Type *type)
 
 
 // ------------------ const-eval, etc. -------------------
+CValue E_alignofType::extConstEval(ConstEval &env) const
+{
+  CValue ret;
+  ret.setUnsigned(ST_UNSIGNED_INT, alignment);
+  return ret;
+}
+
+
 CValue E_gnuCond::extConstEval(ConstEval &env) const
 {
   CValue v = cond->constEval(env);
