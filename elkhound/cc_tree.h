@@ -10,6 +10,8 @@
 
 class Condition_Node;
 class DataflowVar;
+class CilExpr;
+class CilInstructions;
 
 class CCTreeNode : public NonterminalNode {
 public:      // data
@@ -38,9 +40,9 @@ public:      // funcs
   void declareVariable(Env *env, char const *name,
                        DeclFlags flags, Type const *type) const;
 
-  // attempt #1 at a general disambiguator...
-  typedef void (CCTreeNode::*DisambFn)(Env *env);
-  void disambiguate(Env *passedEnv, DisambFn func);
+  // attempt at a general disambiguator...
+  typedef CilExpr * (CCTreeNode::*DisambFn)(Env *env, CilInstructions &inst);
+  CilExpr *disambiguate(Env *passedEnv, CilInstructions &inst, DisambFn func);
 
   // construct a general error, and throw it
   void throwError(char const *msg) const NORETURN;

@@ -17,6 +17,7 @@ literalCode "prologue" {
   #include "cc_tree.h"   // CCTreeNode
   #include "cc_cfg.h"    // CFG, etc.
   #include "dataflow.h"  // DataflowEnv
+  #include "cil.h"       // CilXXX stuff (C Intermediate Language)
 }
 treeNodeBase "CCTreeNode";
 
@@ -56,7 +57,7 @@ nonterm Checkable {
   //   - return an expression ptr for the value of the
   //     language construct, when evaluated as an expression
   //     (deliberately vague here, for now..)
-  fundecl CilExpr *typeCheck(Env *passedEnv);
+  fundecl CilExpr *typeCheck(Env *passedEnv, CilInstructions &inst);
 
   // first thing in every typeCheck function
   literalCode "prefix" typeCheck {
@@ -85,10 +86,10 @@ nonterm Checkable {
 */
 
   // so for now default impl is to do nothing
-  fun typeCheck {}
+  fun typeCheck = NULL;
 }
 
-nonterm TranslationUnit : Checkable { 
+nonterm TranslationUnit : Checkable {
   // simple indirection so I can print just the d's
   fundecl void printTree();
   fun printTree {}      // NOP; never called
@@ -97,10 +98,10 @@ nonterm TranslationUnit : Checkable {
   
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
-      t.typeCheck(env);
-
+      delete t.typeCheck(env, inst);
+       
       try {
-        d.typeCheck(env);
+        delete d.typeCheck(env, inst);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
@@ -128,7 +129,7 @@ nonterm TranslationUnit : Checkable {
   // allow assembly at toplevel for gnu compatibility
   -> t:TranslationUnit a:GNUAsmStatement {
     fun typeCheck {
-      return t.typeCheck(env);
+      return t.typeCheck(env, inst);
     }
   }
 
@@ -150,10 +151,17 @@ nonterm TranslationUnit : Checkable {
     trace("typeCheck") << locString() << endl;
 
     // run the analysis on this piece of the tree
-    typeCheck(env);
+    CilCompound *cil = newCompound();
+    delete typeCheck(env, *cil);
 
     // this is, more or less, the product of the analysis
     printTree();
+    
+    // or this
+    if (tracingSys("cil-tree")) {
+      cil->printTree();
+    }
+    delete cil;
 
     // ---- throw away most of the tree now ----
     // grab a pointer to the left child reduction, which should be
@@ -241,15 +249,21 @@ nonterm PrimaryExpression : ExprBase {
   -> "this"                     {}
 
   formGroup {
-    fun typeCheck = e.typeCheck(env);
     fun getType = e.getType(env);
-    -> "(" e:Expression ")"       { fun intEval = e.intEval(env); }
-    -> e:PQVarName                {}
+
+    -> "(" e:Expression ")" {
+      fun intEval = e.intEval(env);
+      fun typeCheck = e.typeCheck(env, inst);
+    }
+
+    -> e:PQVarName {
+      fun typeCheck = newVarRef(e.typeCheck(env));
+    }
   }
 
   // GNU extension
   -> "(" s:CompoundStatement ")"
-    { fun typeCheck = s.typeCheck(env); }
+    { fun typeCheck = s.typeCheck(env, inst); }
 }
 
 nonterm Literal : ExprBase {
@@ -283,7 +297,12 @@ nonterm HasDeclName {
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
-nonterm PQVarName : HasTypeName, HasDeclName, Checkable, HasType {
+nonterm PQVarName : HasTypeName, HasDeclName, HasType {
+  fundecl VarName typeCheck(Env *passedEnv);
+  literalCode "prefix" typeCheck {
+    env = passedEnv;
+  }
+
   // 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
   // the leftmost token in the tree matched; this is important because
   // declarators aren't allowed to have the bare "::" qualifier
@@ -292,10 +311,12 @@ nonterm PQVarName : HasTypeName, HasDeclName, Checkable, HasType {
   -> n:VariableName {
     action colonColon := 0;
     fun typeCheck {
+      env = passedEnv;
       if (!env->isDeclaredVar(n.getName())) {
         SemanticError err(this, SE_UNDECLARED_VAR);
         err.varName = n.getName();
         env->report(err);
+        return "undeclared_var";     // good idea?
       }
       else {
         return n.getName();
@@ -319,6 +340,7 @@ nonterm PQVarName : HasTypeName, HasDeclName, Checkable, HasType {
     // each of the remaining rules requires some more sophisticated
     // way of naming symbols
     reportError(env, "typeCheck unimplemented for complicated names");
+    return "";      // silence warning
   }
 
   -> OperatorFunctionId     { action colonColon := 0; }
@@ -345,15 +367,15 @@ nonterm PostfixExpression : ExprBase {
   -> e:PrimaryExpression {
     fun intEval = e.intEval(env);
     fun getType = e.getType(env);
-    fun typeCheck = e.typeCheck(env);
+    fun typeCheck = e.typeCheck(env, inst);
   }
                                                          
   // array access
   -> p:PostfixExpression "[" e:Expression "]" {
     fun typeCheck {
-      CilExpr *array = p.typeCheck(env);
-      CilExpr *index = e.typeCheck(env);
-      return newCilArrayAccess(array, index);
+      CilExpr *array = p.typeCheck(env, inst);
+      CilExpr *index = e.typeCheck(env, inst);
+      return newArrayAccess(array, index);
     }
   }
 
@@ -361,14 +383,21 @@ nonterm PostfixExpression : ExprBase {
   -> p:PostfixExpression "(" e:ExpressionListOpt ")" {
     fun typeCheck {
       // check the fn name
-      CilExpr *fn = p.typeCheck(env);
-      
+      CilExpr *fn = p.typeCheck(env, inst);
+
+      // get its return type
+      Type const *retType = NULL;    // TODO1: typeOf(fn)->asFunctionTypeC().retType;
+
+      // need a temprary for the result
+      VarName result = newTmpVar();
+      inst.append(newVarDecl(result, retType));
+
       // make a CIL object to hold the call
-      CilFnCall *call = newCilFnCall(fn);  
-      
+      CilFnCall *call = newFnCall(newVarRef(result), fn);
+
       // check the arglist, adding the arguments to the
       // 'call' object
-      e.typeCheck(env, call);
+      e.typeCheck(env, inst, call);
 
       if (!env->isTrialBalloon() &&
           p.getLeftmostTerminalC()->token->unparseString().equals("free")) {
@@ -380,46 +409,43 @@ nonterm PostfixExpression : ExprBase {
           cout << locString() << ": can't analyze\n";
         }
       }
-      
-      return call;
+
+      // anything that uses this call can get the value
+      // from the temporary I created
+      return newVarRef(result);
     }
   }
 
   // field access
   -> p:PostfixExpression "." n:PQVarName {
     fun typeCheck {
-      p.typeCheck(env);
-      n.typeCheck(env);
-      return NULL;
+      CilExpr *record = p.typeCheck(env, inst);
+      VarName field = n.typeCheck(env);
+      return newFieldRef(record, field);
     }
   }
 
   // deref + field access
   -> p:PostfixExpression "->" n:PQVarName {
     fun typeCheck {
-      p.typeCheck(env);
-      n.typeCheck(env);
-      return NULL;
+      CilExpr *record = newDeref(p.typeCheck(env, inst));
+      VarName field = n.typeCheck(env);
+      return newFieldRef(record, field);
     }
   }
 
-  -> p:PostfixExpression op:"++"
-   | p:PostfixExpression op:"--" {
+  -> p:PostfixExpression op:IncOp {
     fun typeCheck {
-      CilExpr *exp = p.typeCheck(env, inst);
-      if (!isLval(exp)) {
-        reportError("expression is not an lvalue");
-      }
-      CilLval *lval = asLval(exp);
+      CilLval *lval = asLval(p.typeCheck(env, inst));
 
       // save old value
       VarName tmp = newTmpVar();
-      inst.append(newVarDecl(tmp, typeOf(exp)));
-      inst.append(newAssign(newVarRef(tmp), exp));
+      inst.append(newVarDecl(tmp, typeOf(lval)));
+      inst.append(newAssign(newVarRef(tmp), lval));
 
       // increment the expression
-      Binop op = op.unparseString()[0]=='+'? OP_PLUS : OP_MINUS;     // hack
-      inst.append(newAssign(lval, newBinExpr(op, exp, newIntLit(1))));
+      BinOp bop = (op.unparseString()[0]=='+')? OP_PLUS : OP_MINUS;     // hack
+      inst.append(newAssign(lval, newBinExpr(bop, lval, newIntLit(1))));
 
       // return a reference to the old value
       return newVarRef(tmp);
@@ -431,7 +457,7 @@ nonterm PostfixExpression : ExprBase {
   //-> PostfixExpression "->" PseudoDestructorName          ;
 
   formGroup {
-    fun typeCheck = e.typeCheck(env);
+    fun typeCheck = e.typeCheck(env, inst);
 
     -> "dynamic_cast"     "<" TypeId ">" "(" e:Expression ")" ;   // casts
     -> "static_cast"      "<" TypeId ">" "(" e:Expression ")" ;
@@ -443,31 +469,41 @@ nonterm PostfixExpression : ExprBase {
   //-> "typeid" "(" Expression ")"                          ;   // RTTI
   //-> "typeid" "(" TypeId ")"                              ;
 }
+             
+// TODO: revise grammar syntax so I can name productions
+// directly, and avoid this silly indirection
+nonterm IncOp -> "++" | "--";
 
 nonterm ExpressionList {
-  fundecl void typeCheck(Env *env, CilFnCall *call);
+  fundecl void typeCheck(Env *passedEnv, CilInstructions &inst, CilFnCall *call);
+  literalCode "prefix" typeCheck {
+    env = passedEnv;
+  }
 
   -> a:AssignmentExpression {
     fun typeCheck {
-      call->appendArg(a.typeCheck(env));
+      call->appendArg(a.typeCheck(env, inst));
     }
   }
 
   -> e:ExpressionList "," a:AssignmentExpression {
     fun typeCheck {
-      e.typeCheck(env, call);
-      call->appendArg(a.typeCheck(env));
+      e.typeCheck(env, inst, call);
+      call->appendArg(a.typeCheck(env, inst));
     }
   }
 }
 
 nonterm ExpressionListOpt {
-  fundecl void typeCheck(Env *env, CilFnCall *call);
+  fundecl void typeCheck(Env *passedEnv, CilInstructions &inst, CilFnCall *call);
+  literalCode "prefix" typeCheck {
+    env = passedEnv;
+  }
 
   -> empty
     { fun typeCheck {} }
   -> e:ExpressionList
-    { fun typeCheck { e.typeCheck(env, call); } }
+    { fun typeCheck { e.typeCheck(env, inst, call); } }
 }
 
 // I am pulling these out since PQVarName can be ~class
@@ -475,26 +511,26 @@ nonterm ExpressionListOpt {
 //PseudoDestructorName -> Qualifier PseudoDestructorName
 
 nonterm UnaryExpression : ExprBase {
+  // TODO: better abstraction of this mechanism
   literalCode "disamb" typeCheck {
-    disambiguate(passedEnv, (DisambFn)&UnaryExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, inst, (DisambFn)&UnaryExpression_Node::unamb_typeCheck);
   }
 
   formGroup {
-    fun typeCheck = e.typeCheck(env);
+    fun typeCheck = e.typeCheck(env, inst);
 
     -> e:PostfixExpression {
       fun intEval = e.intEval(env);
       fun getType = e.getType(env);
     }
 
-    -> "++" e:CastExpression
-     | "--" e:CastExpression {
+    -> op:IncOp e:CastExpression {
       fun typeCheck {
-        CilLval *lval = asLval(p.typeCheck(env, inst));
+        CilLval *lval = asLval(e.typeCheck(env, inst));
 
         // increment the expression
-        Binop op = op.unparseString()[0]=='+'? OP_PLUS : OP_MINUS;     // hack
-        inst.append(newAssign(lval, newBinExpr(op, lval, newIntLit(1))));
+        BinOp bop = op.unparseString()[0]=='+'? OP_PLUS : OP_MINUS;     // hack
+        inst.append(newAssign(lval, newBinExpr(bop, lval, newIntLit(1))));
 
         // return a reference to the incremented lval
         return lval;
@@ -510,7 +546,7 @@ nonterm UnaryExpression : ExprBase {
       }
 
       fun typeCheck {
-        e.typeCheck(env);
+        e.typeCheck(env, inst);
 
         ostream &os = trace("sizeof") << locString() << ": sizeof(expr) is ";
         try {
@@ -521,7 +557,7 @@ nonterm UnaryExpression : ExprBase {
         catch (xBase &x) {
           os << "unknown (reason: " << x << ")\n";
         }
-        
+
         return newIntLit(intEval(env));
       }
 
@@ -536,9 +572,9 @@ nonterm UnaryExpression : ExprBase {
     fun intEval { throwError("can't intEval"); }
 
     fun typeCheck {
-      CilExpr *ret = e.typeCheck(env);
+      CilExpr *expr = e.typeCheck(env, inst);
       e.ana_checkDeref();
-      return ret;
+      return newDeref(expr);
     }
 
     fun getType {
@@ -560,32 +596,32 @@ nonterm UnaryExpression : ExprBase {
     }
 
     -> "&" e:CastExpression {
-      fun intEval { throwError("can't apply this operator to an integer");
+      fun intEval { throwError("can't apply this operator to an integer"); }
 
       fun typeCheck {
-        CilLval *lval = asLval(e.typeCheck(env));
-        return newAddrOfExpr(lval)l
+        CilLval *lval = asLval(e.typeCheck(env, inst));
+        return newAddrOfExpr(lval);
       }
     }
 
     -> "+" e:CastExpression {
       fun intEval = e.intEval(env);
-      fun typeCheck = e.typeCheck(env);
+      fun typeCheck = e.typeCheck(env, inst);
     }
 
     -> "-" e:CastExpression {
       fun intEval = -e.intEval(env);
-      fun typeCheck = newUnaryExpr(OP_NEGATE, e.typeCheck(env));
+      fun typeCheck = newUnaryExpr(OP_NEGATE, e.typeCheck(env, inst));
     }
 
     -> "!" e:CastExpression {
       fun intEval = !e.intEval(env);
-      fun typeCheck = newUnaryExpr(OP_NOT, e.typeCheck(env));
+      fun typeCheck = newUnaryExpr(OP_NOT, e.typeCheck(env, inst));
     }
 
     -> "~" e:CastExpression {
       fun intEval = ~e.intEval(env);
-      fun typeCheck = newUnaryExpr(OP_BITNOT, e.typeCheck(env));
+      fun typeCheck = newUnaryExpr(OP_BITNOT, e.typeCheck(env, inst));
     }
   }
 
@@ -642,7 +678,7 @@ nonterm NewInitializerOpt -> empty | "(" ExpressionListOpt ")" ;
 // omitting possibility of initial "::"
 nonterm DeleteExpression : Checkable {
   fun typeCheck {
-    CilExpr *expr = e.typeCheck(env);
+    CilExpr *expr = e.typeCheck(env, inst);
     inst.append(newFreeInst(expr));
     return NULL;
   }
@@ -655,19 +691,19 @@ nonterm CastExpression : ExprBase {
 
   // added this to disambiguate fn calls and casts
   literalCode "disamb" typeCheck {
-    disambiguate(passedEnv, (DisambFn)&CastExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, inst, (DisambFn)&CastExpression_Node::unamb_typeCheck);
   }
 
   -> e:UnaryExpression {
     fun intEval = e.intEval(env);
-    fun typeCheck = e.typeCheck(env);
+    fun typeCheck = e.typeCheck(env, inst);
     fun getType = e.getType(env);
   }
 
   -> "(" t:TypeId ")" e:CastExpression {
     fun typeCheck {
-      Type *type = t.getType(env);
-      CilExpr *expr = e.typeCheck(env);
+      Type const *type = t.getType(env);
+      CilExpr *expr = e.typeCheck(env, inst);
       if (isLval(expr)) {
         return newCastLval(type, asLval(expr));
       }
@@ -689,7 +725,7 @@ nonterm BinaryExpression : ExprBase {
   attr prec;                  // precedence of binding (topmost) operator in expression
 
   literalCode "disamb" typeCheck {
-    disambiguate(passedEnv, (DisambFn)&BinaryExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, inst, (DisambFn)&BinaryExpression_Node::unamb_typeCheck);
   }
 
   -> e:CastExpression {
@@ -713,8 +749,8 @@ nonterm BinaryExpression : ExprBase {
     fun typeCheck {
       CilExpr *L = left.typeCheck(env, inst);
       CilExpr *R = right.typeCheck(env, inst);
-      BinaryOp op = op.getOp();
-      return newBinExpr(op, L, R);
+      BinOp bop = op.getOp();
+      return newBinExpr(bop, L, R);
     }
 
     fun getType {
@@ -735,7 +771,7 @@ nonterm BinaryOperator {
   fundecl int intEval(int left, int right);
 
   // return this operator's intermediate repr
-  fundecl BinaryOp getOp();
+  fundecl BinOp getOp();
 
   // highest precedence
   // (don't need .* and ->* right now...)
@@ -803,7 +839,7 @@ nonterm BinaryOperator {
 
 nonterm ConditionalExpression : ExprBase {
   literalCode "disamb" typeCheck {
-    disambiguate(passedEnv, (DisambFn)&ConditionalExpression_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, inst, (DisambFn)&ConditionalExpression_Node::unamb_typeCheck);
   }
 
   -> e:BinaryExpression {
@@ -828,26 +864,25 @@ nonterm ConditionalExpression : ExprBase {
       CilExpr *condExpr = cond.typeCheck(env, inst);
       
       // figure out what it will take to evaluate the 'then'
-      CilCompound *thenInsts = newCilCompound();
+      CilCompound *thenInsts = newCompound();
       CilExpr *thenExpr = th.typeCheck(env, *thenInsts);
 
       // simiarly for 'else'
-      CilCompound *elseInsts = newCilCompound();
+      CilCompound *elseInsts = newCompound();
       CilExpr *elseExpr = el.typeCheck(env, *elseInsts);
 
       // store result of evaluation in a temporary
       // TODO: check that the expression types match
       VarName tmp = newTmpVar();
-      CilVarDecl *decl = newVarDecl(tmp, typeOf(thenExpr));
-      inst.append(decl);
+      inst.append(newVarDecl(tmp, typeOf(thenExpr)));
 
       // append to each sequence an assignment from the
       // computed expression to the temporary
-      thenInsts->append(newAssign(newVarRef(tmp, thenExpr)));
-      elseInsts->append(newAssign(newVarRef(tmp, elseExpr)));
+      thenInsts->append(newAssign(newVarRef(tmp), thenExpr));
+      elseInsts->append(newAssign(newVarRef(tmp), elseExpr));
 
       // finally, append an if-then-else instruction
-      inst.append(newIfThenElse(condExpr, thenInsts, elseInsts);
+      inst.append(newIfThenElse(condExpr, thenInsts, elseInsts));
       
       // return a ref to the temporary, which can be used
       // as the value of the ?: expression
@@ -877,8 +912,8 @@ nonterm ConditionalExpression : ExprBase {
 
     fun typeCheck {
       // ??
-      delete cond.typeCheck(env);
-      return el.typeCheck(env);
+      delete cond.typeCheck(env, inst);
+      return el.typeCheck(env, inst);
     }
 
     fun getType {
@@ -912,7 +947,7 @@ nonterm AssignmentExpression : ExprBase {
     -> e1:BinaryExpression "=" e2:AssignmentExpression {
       fun typeCheck {
         // evaluation order?
-        CilExpr *lval = asLval(e1.typeCheck(env, inst));
+        CilLval *lval = asLval(e1.typeCheck(env, inst));
         CilExpr *expr = e2.typeCheck(env, inst);
 
         if (!env->isTrialBalloon() &&
@@ -935,18 +970,18 @@ nonterm AssignmentExpression : ExprBase {
     -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression {
       fun typeCheck {
         // evaluation order?
-        CilExpr *lval = asLval(e1.typeCheck(env, inst));
+        CilLval *lval = asLval(e1.typeCheck(env, inst));
         CilExpr *expr = e2.typeCheck(env, inst);
 
-        BinOp op = op.getOp();
-        inst.append(newAssign(lval, newBinExpr(op, lval, expr)));
+        BinOp bop = op.getOp();
+        inst.append(newAssign(lval, newBinExpr(bop, lval, expr)));
         return lval;
       }
     }
   }
 }
 
-nonterm AssignmentOperator -> {
+nonterm AssignmentOperator {
   fundecl BinOp getOp();
 
   -> "*="   { fun getOp = OP_TIMES; }
@@ -1014,7 +1049,7 @@ nonterm HasCFG {
 // labeled-statement
 nonterm Statement : Checkable, HasCFG {
   literalCode "disamb" typeCheck {
-    disambiguate(passedEnv, (DisambFn)&Statement_Node::unamb_typeCheck);
+    return disambiguate(passedEnv, inst, (DisambFn)&Statement_Node::unamb_typeCheck);
   }
 
   fun typeCheck = s.typeCheck(env, inst);
@@ -1043,7 +1078,7 @@ nonterm Statement : Checkable, HasCFG {
   // TODO: revise grammar syntax so I can have both, and simply
   // prefer the one with a statement..
   -> "case" e:ConstantExpression ":" /*s:Statement*/ {
-    // TODO: typeCheck
+    fun typeCheck = NULL;    // TODO: typeCheck
     fun getCFG {
       // just associate the expression with the edge, and return
       cfg.addCaseLabel(&e, edge);
@@ -1096,7 +1131,7 @@ nonterm Statement : Checkable, HasCFG {
         e.ana_applyConstraint(false /*negated*/);
 
         // flow through 'then' branch
-        CilCompound *thenInst = newCilCompound();
+        CilCompound *thenInst = newCompound();
         delete s.typeCheck(env, *thenInst);
 
         // grab resulting dataflow env
@@ -1114,7 +1149,7 @@ nonterm Statement : Checkable, HasCFG {
         
         // add the intermediate form of if-then-else, where
         // the else branch is empty
-        inst.append(newIfThenElse(cond, thenInst, newCilCompound()));
+        inst.append(newIfThenElse(cond, thenInst, newCompound()));
         return NULL;      // can't treat an if-then-else as a value
       }
     }
@@ -1134,7 +1169,7 @@ nonterm Statement : Checkable, HasCFG {
         e.ana_applyConstraint(false /*negated*/);
 
         // flow through 'then' branch
-        CilCompound *thenInst = newCilCompound();
+        CilCompound *thenInst = newCompound();
         delete s1.typeCheck(env, *thenInst);
 
         // grab resulting dataflow env
@@ -1148,7 +1183,7 @@ nonterm Statement : Checkable, HasCFG {
         e.ana_applyConstraint(true /*negated*/);
 
         // flow through 'else' branch
-        CilCompound *elseInst = newCilCompound();
+        CilCompound *elseInst = newCompound();
         delete s2.typeCheck(env, *elseInst);
 
         // merge the branches
@@ -1241,17 +1276,17 @@ nonterm Statement : Checkable, HasCFG {
         
         fun typeCheck {
           // get condition's imperative and non-imperative elements
-          CilCompound *condInst = newCilCompound();
+          CilCompound *condInst = newCompound();
           CilExpr *cond = e.typeCheck(env, *condInst);
 
           // get statement's imperatives
-          CilCompound *body = newCilCompound();
-          delete s.typeCheck(env, body);
+          CilCompound *body = newCompound();
+          delete s.typeCheck(env, *body);
 
           // TODO: break and continue
 
           // append the condition's imperative to the body
-          body->append(condInst.clone());
+          body->append(condInst->clone());
 
           // put condition's imperative just before loop ...
           inst.append(condInst);
@@ -1270,12 +1305,12 @@ nonterm Statement : Checkable, HasCFG {
         fun typeCheck {
           // make the body, and start with a label so we can jump
           // past the initial test on the first iteration
-          CilCompound *body = newCilCompound();
+          CilCompound *body = newCompound();
           LabelName topOfBody = newTmpLabel();
           body->append(newLabel(topOfBody));
 
           // get statement's imperatives
-          delete s.typeCheck(env, body);
+          delete s.typeCheck(env, *body);
 
           // get condition, putting its imperative at the end
           // of the body
@@ -1298,7 +1333,9 @@ nonterm Statement : Checkable, HasCFG {
     // this is a special-purpose rule intended for use with (unexpanded)
     // macros that, internally, contain a for loop; it is *not* part of
     // the C or C++ languages!
-    -> L2_NAME "(" e:ExpressionList ")" s:CompoundStatement ;
+    -> L2_NAME "(" e:ExpressionList ")" s:CompoundStatement {
+      fun typeCheck = NULL;       // TODO: implement?  eliminate?
+    }
   }
 
   // I might like to rework this so both semicolons appear here instead
@@ -1311,28 +1348,28 @@ nonterm Statement : Checkable, HasCFG {
       delete s1.typeCheck(env, inst);
       
       // grab condition and its imperative elements
-      CilCompound *condInst = newCilCompound();
+      CilCompound *condInst = newCompound();
       CilExpr *cond = c.typeCheck(env, *condInst);
 
       // TODO: break and continue
 
       // loop body
-      CilCompound *body = newCilCompound();
-      delete s2.typeCheck(env, body);
+      CilCompound *body = newCompound();
+      delete s2.typeCheck(env, *body);
 
       // increment expression; as if at end of body (except
       // for "continue" ..)
-      delete e.typeCheck(env, body);
+      delete e.typeCheck(env, *body);
 
       // stick test at end of body too
-      body->append(condInst.clone());
+      body->append(condInst->clone());
 
       // test imperative goes before loop body
       inst.append(condInst);
-      
+
       // then the loop body
-      inst.append(newWhileLoop(cond, body);
-      
+      inst.append(newWhileLoop(cond, body));
+
       return NULL;
     }
 
@@ -1397,6 +1434,7 @@ nonterm Statement : Checkable, HasCFG {
       fun typeCheck { 
         CilExpr *expr = e.typeCheck(env, inst);
         inst.append(newReturn(expr));
+        return NULL;
       }
 
       fun getCFG {
@@ -1410,6 +1448,7 @@ nonterm Statement : Checkable, HasCFG {
     -> "return" ";" {
       fun typeCheck {
         inst.append(newReturn(NULL));
+        return NULL;
       }
 
       fun getCFG {
@@ -1480,6 +1519,8 @@ nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
       CilExpr *ret = seq.typeCheck(localEnv, inst);
 
       ana_endScope(localEnv);
+      
+      return ret;
     }
 
     fun getCFG = seq.getCFG(cfg, edge);
@@ -1509,13 +1550,13 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
 }
 
 nonterm Condition : Checkable {
-  fun typeCheck = e.typeCheck(env, init);
+  fun typeCheck = e.typeCheck(env, inst);
 
   -> e:Expression ;
   -> spec:TypeSpecifier decl:Declarator "=" e:AssignmentExpression {
     fun typeCheck {
       // basic declaration handling
-      Type *declType = decl.getDeclType(env, spec.getType(env));
+      Type const *declType = decl.getDeclType(env, spec.getType(env));
       VarName var = decl.getDeclName();
       declareVariable(env, var, DF_NONE, declType);
 
@@ -1524,7 +1565,9 @@ nonterm Condition : Checkable {
 
       // initialize it
       CilExpr *initVal = e.typeCheck(env, inst);
-      inst.append(newAssign(var, initVal));
+      inst.append(newAssign(newVarRef(var), initVal));
+      
+      return NULL;
     }
   }
 }
@@ -1551,18 +1594,18 @@ nonterm ForInitStatement : Checkable, HasCFG {
 // ----- A.6 Declarations ------
 nonterm DeclarationSeqOpt : Checkable {
   -> empty {
-    fun typeCheck {}
+    fun typeCheck = NULL;
   }
   -> seq:DeclarationSeqOpt d:Declaration {
     fun typeCheck {
-      seq.typeCheck(env);
-      d.typeCheck(env);
+      delete seq.typeCheck(env, inst);
+      return d.typeCheck(env, inst);
     }
-  } 
+  }
 }
 
 nonterm Declaration : Checkable {
-  fun typeCheck { d.typeCheck(env); }
+  fun typeCheck = d.typeCheck(env, inst);
 
   -> GNUAttribute d:Declaration ;    // yet more
 
@@ -1574,8 +1617,8 @@ nonterm Declaration : Checkable {
 
 // C++ has other alternatives..
 nonterm BlockDeclaration : Checkable, HasCFG {
-  -> d:SimpleDeclaration { 
-    fun typeCheck { d.typeCheck(env); }
+  -> d:SimpleDeclaration {
+    fun typeCheck = d.typeCheck(env, inst);
   }
 }
 
@@ -1590,7 +1633,8 @@ nonterm SimpleDeclaration : Checkable {
     fun typeCheck {
       Type const *type = spec.getType(env);    // a complete type
       DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
-      list.declare(env, flags, type);
+      list.declare(env, inst, flags, type);
+      return NULL;
     }
   }
 }
@@ -1886,7 +1930,7 @@ nonterm LinkageSpecification : Checkable {
   // todo: actually record the linkage spec
   -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" |
      "extern" L2_STRING_LITERAL d:Declaration {
-    fun typeCheck { d.typeCheck(env); }
+    fun typeCheck = d.typeCheck(env, inst);
   }
 }
 
@@ -1899,7 +1943,8 @@ nonterm HasDeclare {
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env *passedEnv, DeclFlags flags, Type const *type);
+  fundecl void declare(Env *passedEnv, CilInstructions &inst, 
+                       DeclFlags flags, Type const *type);
   literalCode "prefix" declare {
     env = passedEnv;
   }
@@ -1907,20 +1952,20 @@ nonterm HasDeclare {
 
 nonterm InitDeclaratorList : HasDeclare {
   -> d:InitDeclarator {
-    fun declare { d.declare(env, flags, type); }
+    fun declare { d.declare(env, inst, flags, type); }
   }
 
   -> list:InitDeclaratorList "," d:InitDeclarator {
     fun declare {
-      list.declare(env, flags, type);
-      d.declare(env, flags, type);
+      list.declare(env, inst, flags, type);
+      d.declare(env, inst, flags, type);
     }
   }
 }
 
 nonterm InitDeclaratorListOpt : HasDeclare {
   -> empty                      { fun declare {} }
-  -> list:InitDeclaratorList    { fun declare { list.declare(env, flags, type); } }
+  -> list:InitDeclaratorList    { fun declare { list.declare(env, inst, flags, type); } }
 }
 
 nonterm InitDeclarator : HasDeclare {
@@ -1933,16 +1978,19 @@ nonterm InitDeclarator : HasDeclare {
 
     // put that pair into the environment
     declareVariable(env, name, flags, fullType);
+
+    // and add an intermediate form declaration too
+    inst.append(newVarDecl(name, fullType));
   }
 
-  // don't know what to do with the initializer at this point..
+  // don't know what to do with the initializer at this point.. (TODO)
   -> d:Declarator |                   // (int)  x
      d:Declarator Initializer ;       // (int)  x = 5
 }
 
 nonterm Initializer {
   -> "=" InitializerClause ;
-  
+
   // this causes an ambiguity with
   //   int fileno(FILE *f);
   // because it could be multiplication.. handling it isn't that
@@ -2361,7 +2409,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
   condition d.isFunction == 1;
 
   // this works for all the productions
-  
+
   // return type      name/params   body
   -> r:DeclSpecifier  d:Declarator  b:FunctionBody
    | r:DeclSpecifier  GNUAttribute d:Declarator  b:FunctionBody {    // arg..
@@ -2377,7 +2425,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 
     fun typeCheck {
       // typecheck the signature
-      Type const *type = d.getDeclType(env, (r.getType(env)));
+      Type const *type = d.getDeclType(env, r.getType(env));
 
       // must be a function type, otherwise the parser has
       // screwed up (in particular the 'isFunction' attribute)
@@ -2403,9 +2451,15 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       }
 
       // typecheck the body
-      b.typeCheck(localEnv);
+      CilCompound *body = newCompound();
+      delete b.typeCheck(localEnv, *body);
 
       ana_endScope(localEnv);
+
+      // intermediate form: for now, just another instruction ...
+      // perhaps I should separate out a language of declarations?
+      inst.append(newFunDecl(name, fnType, body));
+      return NULL;
     }
   }
 
@@ -2419,7 +2473,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 }
 
 nonterm FunctionBody : Checkable -> s:CompoundStatement {
-  fun typeCheck { s.typeCheck(env); }
+  fun typeCheck = s.typeCheck(env, inst);
 }
 
 nonterm ExplicitOpt -> "explicit" | empty ;
@@ -2528,8 +2582,19 @@ nonterm MemberDeclaration : MemberDeclBase {
   // of processing will filter it out)
 }
 
+nonterm HasDeclareNoSE {     // "SE" = "side effects"
+  // this function is defined for declarators, etc.; for each declarator
+  // in the subtree, combine 'type' with the additional type modifiers
+  // associated with the declarator (if any), and add the completed
+  // declaration, with 'flags', to 'env'
+  fundecl void declare(Env *passedEnv, DeclFlags flags, Type const *type);
+  literalCode "prefix" declare {
+    env = passedEnv;
+  }
+}
+
 // very similar to InitDeclaratorList
-nonterm MemberDeclaratorList : HasDeclare {
+nonterm MemberDeclaratorList : HasDeclareNoSE {
   -> d:MemberDeclarator {
     fun declare { d.declare(env, flags, type); }
   }
@@ -2542,7 +2607,7 @@ nonterm MemberDeclaratorList : HasDeclare {
   }
 }
 
-nonterm MemberDeclarator : HasDeclare {
+nonterm MemberDeclarator : HasDeclareNoSE {
   -> d:Declarator {
     fun declare {
       // this code is same as InitDeclarator
@@ -2619,20 +2684,23 @@ nonterm TemplateArgument -> Literal | TypeId ;
 
 
 // ------ A.13 Exception handling ------
-nonterm TryBlock : Checkable, HasCFG 
+// TODO: intermediate code gen for EH constructs
+// is *all* wrong
+
+nonterm TryBlock : Checkable, HasCFG
   -> "try" s:CompoundStatement h:HandlerSeq {
   fun typeCheck {
-    s.typeCheck(env);
-    h.typeCheck(env);
+    delete s.typeCheck(env, inst);
+    return h.typeCheck(env, inst);
   }
 }
 
 nonterm HandlerSeq : Checkable {
-  -> h:Handler { fun typeCheck { h.typeCheck(env); } }
+  -> h:Handler { fun typeCheck = h.typeCheck(env, inst); }
   -> h:Handler seq:HandlerSeq {
     fun typeCheck {
-      h.typeCheck(env);
-      seq.typeCheck(env);
+      delete h.typeCheck(env, inst);
+      return seq.typeCheck(env, inst);
     }
   }
 }
@@ -2642,10 +2710,12 @@ nonterm Handler : Checkable, ScopeNode {
     fun typeCheck {
       xassert(!localEnv);
       localEnv = new Env(env);    // scope
-      d.typeCheck(localEnv);
-      s.typeCheck(localEnv);
-      
+      delete d.typeCheck(localEnv, inst);
+      return s.typeCheck(localEnv, inst);
+
       ana_endScope(localEnv);
+
+      return NULL;
     }
   }
 }
@@ -2656,6 +2726,8 @@ nonterm ExceptionDeclaration : Checkable {
       Type const *type = d.getDeclType(env, s.getType(env));
       string name = d.getDeclName();
       declareVariable(env, name, DF_NONE, type);
+
+      return NULL;
     }
   }
 
@@ -2665,8 +2737,8 @@ nonterm ExceptionDeclaration : Checkable {
 
 nonterm ThrowExpression : Checkable, HasType {
   -> "throw" ;
-  -> "throw" e:AssignmentExpression { 
-    fun typeCheck { e.typeCheck(env); }
+  -> "throw" e:AssignmentExpression {
+    fun typeCheck = e.typeCheck(env, inst);
     fun getType = e.getType(env);
   }
 }

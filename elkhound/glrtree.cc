@@ -103,7 +103,7 @@ SourceLocation const *TreeNode::loc() const
 {
   TerminalNode const *t = getLeftmostTerminalC();
   if (t) {
-    return &(t->loc);
+    return &(t->token->loc);
   }
   else { 
     return NULL;
