@@ -380,12 +380,6 @@ bool Type::equals(Type const *obj) const
 }
 
 
-string Type::idComment() const
-{
-  return makeIdComment(getId());
-}
-
-
 string cvToString(CVFlags cv)
 {
   if (cv != CV_NONE) {
@@ -411,7 +405,7 @@ string Type::toCString() const
       << cvToString(atomic.cv);
   }
   else {
-    return stringc << idComment() << leftString() << rightString();
+    return stringc << leftString() << rightString();
   }
 }
 
@@ -430,7 +424,6 @@ string Type::toCString(char const *name) const
   #endif // 0
 
   stringBuilder s;
-  s << idComment();
   s << leftString(innerParen);
   s << (name? name : "/*anon*/");
   s << rightString(innerParen);
@@ -579,16 +572,9 @@ bool CVAtomicType::innerEquals(CVAtomicType const *obj) const
 }
 
 
-string CVAtomicType::atomicIdComment() const
-{
-  return makeIdComment(atomic->getId());
-}
-
-
 string CVAtomicType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;
-  s << atomicIdComment();
   s << atomic->toCString();
   s << cvToString(cv);
   #if BEFORE
