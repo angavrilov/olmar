@@ -422,11 +422,6 @@ E_variable *wrapVarWithE_variable(Env &env, Variable *var)
   if (!env.disambErrorsSuppressChanges()) {
     xassert(evar0->var == var);
   }
-
-  // dsw: I would like to assert here that retType equals
-  // evar0->var->type but I'm not sure how to do that because I don't
-  // know how to check equality of types.
-
   return evar0;
 }
 
