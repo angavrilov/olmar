@@ -96,6 +96,10 @@ if ($nobackup) {
   }
 }
 
+# don't want to give the impression that the only thing that was
+# done was running flex, as I echoed that command line
+print("$0: modifying $outputFile\n");
+
 # read the flex-generated output into memory
 open(IN, "<$outputFile") or die("cannot read $outputFile: $!\n");
 @lines = <IN>;
@@ -133,6 +137,9 @@ for ($i=0; $i < @lines; $i++) {
     next;
   }
 
+  # this 'undef' must be moved to after the copied methods because
+  # those methods refer to 'yytext_ptr', which is just a #define
+  # for 'yytext'
   if ($makeMethodCopies &&
       $line =~ m/\#undef yytext_ptr/) {
     push @movedLines, ($line);
