@@ -13,6 +13,7 @@
 "typeof"               return tok(TOK___TYPEOF__);
 "__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
+"__restrict__"         return tok(TOK___RESTRICT__);
 
 "__extension__" {
   /* treat this like a token, in that nonseparating checks are done,

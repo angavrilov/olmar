@@ -2,7 +2,7 @@
 // extension to cc.gr for GNU C/C++ language extensions
 
 // expected statistics
-option shift_reduce_conflicts 121;
+option shift_reduce_conflicts 125;
 option reduce_reduce_conflicts 70;
 
 
@@ -428,6 +428,7 @@ nonterm AttributeList {
 
 nonterm AttributeSpecifier {
   -> "__attribute__" "(" "(" ap:AttributeList ")" ")" ;
+  -> "__restrict__" ;       // probably not the right way to handle this ..
 }
 
 nonterm AttributeSpecifierList {

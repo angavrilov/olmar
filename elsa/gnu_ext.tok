@@ -19,3 +19,6 @@ TOK___LABEL__,           "__label__",                 :    n
 TOK___PRETTY_FUNCTION__, "__PRETTY_FUNCTION__",       :    n
 TOK___TYPEOF__,          "__typeof__",                :    n
 TOK___EXTENSION__,       "__extension__",             :    n
+
+// sm: this is presumably c99 but I'm putting it here anyway..
+TOK___RESTRICT__,        "__restrict__",              :    n
