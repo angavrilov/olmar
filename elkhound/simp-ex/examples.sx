@@ -198,3 +198,25 @@ valid "treeAdd" (
 ;   )
 )
 bg_pop
+
+
+; ------------------- fact2.c ----------------
+bg_push (
+  (EQ r_14 (sub r_index_10 r_rest_10))
+  (DISTINCT 0)
+  (uncheckedAccess mem_23)
+  (EQ r_16 (sub r_index_12 r_rest_12))
+  (okSelOffset mem_23 r_16)
+  (>= a_12 0)
+  (NOT (EQ a_12 0))
+  (uncheckedAccess mem_24)
+  (EQ mem_24 (updOffset mem_23 r_16 (factorial (- a_12 1))))
+  (EQ mem_25 (updOffset mem_24 r_16 (* a_12 (selOffset mem_24 r_16))))
+)
+valid "implications" (
+  (EQ mem_25 (updOffset mem_24 r_16 (factorial a_12)))
+)
+valid "goal" (
+  (EQ mem_25 (updOffset mem_23 r_16 (factorial a_12)))
+)
+bg_pop

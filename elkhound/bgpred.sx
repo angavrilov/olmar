@@ -498,6 +498,15 @@
       )
     ))
 
+  ; this is needed for reasoning about multiple writes to memory
+  ; at the same location, when the goal talks about memory as a whole
+  ; instead of the values at individual cells
+  (FORALL (mem ptr oldVal newVal)
+    (EQ
+      (updOffset (updOffset mem ptr oldVal) ptr newVal)
+      (updOffset mem ptr newVal)       ; can forget previous write
+    ))
+
   ; ----------------------- unrelated -------------------
   ; [unr1] unrelated: first indices differ
 ;   (FORALL (a rest1 b rest2)    ;(PATS (unrelated (sub a rest1) (sub b rest2)))

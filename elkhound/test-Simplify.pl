@@ -50,6 +50,7 @@ while (defined($line = <EXPER>)) {
     ($line =~ /^\s*(skip)?(not)?(valid)\s+(\"(.*)\"\s+)?\(\s*$/);
   if (defined($val)) {     # predicate
     my @pred = collectPred();
+    @pred = ("(AND\n", @pred, ")");
     if (!$skip) {          # "skip" is a way to comment-out
       if ($inv) {
         notvalid($comment, @pred);
