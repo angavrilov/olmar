@@ -234,7 +234,11 @@ runTest c/cparse -tr trivialActions,stopAfterParse,glrConfig,yieldVariableName \
 
 # bison performance test
 runTest $MAKE c.in/c.in4d
-runTest c/bcparse c.in/c.in4d
+
+# I've disable this one because I don't want to build bcparse
+# in my Elkhound distribution, since that is a dependency on
+# Bison
+#runTest c/bcparse c.in/c.in4d
 
 # this one is my main performance tester for comparison to bison
 runTest c/cparse -tr trivialActions,stopAfterParse,yieldVariableName \

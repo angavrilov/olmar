@@ -1,8 +1,8 @@
 # Makefile.in
 # this is the Makefile for the Elkhound-based C Parser
 
-# main targets: an Elkhound-based C parser, and a bison-based C parser
-all: cparse bcparse
+# main target: an Elkhound-based C parser
+all: cparse
 
 # directories of other software
 SMBASE   := @SMBASE@
@@ -100,6 +100,9 @@ cparse: $(CPARSE_OBJS)
 
 
 # ----------------------- bcparse ---------------------
+# NOTE: This target ('bcparse') is not built by default because
+# I don't want the default build to require Bison.
+
 # bison parser from the same grammar; the 'sed' is because Bison
 # already interpretes 0 as EOF, and if my rule names it explicitly
 # then it gets mad
@@ -133,11 +136,14 @@ bcparse: $(bcparse-deps) $(libraries)
 # -------------------- clean, etc. -------------------
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
-	rm -f bcparse.y lexer1yy.cc c.tok
+	rm -f bcparse.y c.tok
 	rm -f lexer2 cparse bcparse
 
 distclean: clean
 	rm -f Makefile config.status config.summary
+
+toolclean: clean
+	rm -f lexer1yy.cc
 
 check:
 	@echo "The C parser doesn't have an independent 'make check'."

@@ -544,7 +544,7 @@ clean: gcom-clean
 	cd cc2; rm -f $(CLEAN_PATTERNS)
 	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr
 	for dir in arith cdecl cexp; do \
-	  (cd examples/$$dir; make clean); \
+	  (cd examples/$$dir; $(MAKE) clean); \
 	done
 	$(MAKE) -C c clean
 	rm -f TAGS
@@ -560,7 +560,8 @@ distclean: clean
 toolclean: clean
 	rm -f gramlex.yy.cc
 	rm -f grampar.tab.cc grampar.tab.h grampar.codes.h
-	make -C examples/arith toolclean
+	$(MAKE) -C examples/arith toolclean
+	$(MAKE) -C c toolclean
 
 check: all
 	MAKE=$(MAKE) ./regrtest
