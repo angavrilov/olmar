@@ -99,13 +99,11 @@ public:      // data
   Variable *var__builtin_constant_p;
 
   // operator function names, indexed by the operators they overload
-  StringRef unaryOperatorName[NUM_UNARYOPS];
-  StringRef binaryOperatorName[NUM_BINARYOPS];
+  StringRef operatorName[NUM_OVERLOADABLE_OPS];
 
   // built-in operator function sets, indexed by operator
-  ArrayStack<Variable*> builtinUnaryOperator[NUM_UNARYOPS];
-  ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_BINARYOPS];
-  Variable *builtinUnaryOperatorStar;
+  ArrayStack<Variable*> builtinUnaryOperator[NUM_OVERLOADABLE_OPS];
+  ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_OVERLOADABLE_OPS];
 
   TranslationUnit *tunit;
   
@@ -153,12 +151,12 @@ private:     // funcs
 
   void setupOperatorOverloading();
 
-  void addBuiltinUnaryOp(UnaryOp op, Type *x);
+  void addBuiltinUnaryOp(OverloadableOp op, Type *x);
 
-  void addBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
-  void addBuiltinBinaryOp(BinaryOp op, CandidateSet::PreFilter pre,
-                                       CandidateSet::PostFilter post);
-  void addBuiltinBinaryOp(BinaryOp op, CandidateSet * /*owner*/ cset);
+  void addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
+  void addBuiltinBinaryOp(OverloadableOp op, CandidateSet::PreFilter pre,
+                                             CandidateSet::PostFilter post);
+  void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -329,8 +327,8 @@ public:      // funcs
   // in the places I call them
                                                               
   // create a built-in candidate for operator overload resolution
-  Variable *createBuiltinUnaryOp(StringRef opName, Type *x);
-  Variable *createBuiltinBinaryOp(BinaryOp op, Type *x, Type *y);
+  Variable *createBuiltinUnaryOp(OverloadableOp op, Type *x);
+  Variable *createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
 
   // points of extension: These functions do nothing in the base
   // Elsa parser, but can be overridden in client analyses to

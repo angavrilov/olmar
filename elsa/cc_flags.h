@@ -204,10 +204,14 @@ enum UnaryOp {
   NUM_UNARYOPS
 };
 
+inline bool validCode(UnaryOp op)
+  { return (unsigned)op < NUM_UNARYOPS; }
+
 extern char const * const unaryOpNames[NUM_UNARYOPS];     // "+", ...
 char const *toString(UnaryOp op);
 
 
+// ------------------------- EffectOp -------------------------
 // unary operator with a side effect
 enum EffectOp {
   EFF_POSTINC,   // ++ (postfix)
@@ -216,6 +220,9 @@ enum EffectOp {
   EFF_PREDEC,    // --
   NUM_EFFECTOPS
 };
+
+inline bool validCode(EffectOp op)
+  { return (unsigned)op < NUM_EFFECTOPS; }
 
 extern char const * const effectOpNames[NUM_EFFECTOPS];   // "++", ...
 char const *toString(EffectOp op);
@@ -274,9 +281,6 @@ bool isRelational(BinaryOp op);              // == thru >=
 bool isInequality(BinaryOp op);              // <, >, <=, >=
 bool isOverloadable(BinaryOp op);
                                                                      
-// yields things like "operator+"
-extern char const * const binaryOperatorFunctionNames[NUM_BINARYOPS];
-
 
 // ---------------- access control ------------
 // these are listed from least restrictive to most restrictive,
@@ -307,18 +311,89 @@ extern char const * const castKeywordNames[NUM_CAST_KEYWORDS];
 char const *toString(CastKeyword key);
 
 
-// --------------- overloadable operators --------
-// these are just the operators that are overloadable
-// but aren't already listed in one of the lists above
+// --------------- overloadable operators -------------            
+// This is all of the unary and binary operators that are overloadable
+// in C++.  While it repeats operators that are also declared above in
+// some form, it makes the design more orthogonal: the operators above
+// are for use in *expressions*, while these are for use in operator
+// *names*, and there is not a 1-1 correspondence.  In a few places,
+// I've deliberately used different names (e.g. OP_STAR) than the name
+// of the operator above, to emphasize that there's less intrinsic
+// meaning to the operator names here.
 enum OverloadableOp {
-  OVL_ARROW,      // ->
-  OVL_PARENS,     // ( )
+  // unary only
+  OP_NOT,          // !
+  OP_BITNOT,       // ~
+
+  // unary, but postfix version looks like 2-arg function
+  OP_PLUSPLUS,     // ++
+  OP_MINUSMINUS,   // --
+
+  // unary or binary
+  OP_PLUS,         // +
+  OP_MINUS,        // -
+  OP_STAR,         // *
+
+  // arithmetic
+  OP_DIV,          // /
+  OP_MOD,          // %
+  OP_LSHIFT,       // <<
+  OP_RSHIFT,       // >>
+  OP_BITAND,       // &
+  OP_BITXOR,       // ^
+  OP_BITOR,        // |
+
+  // arithmetic+assignment
+  OP_ASSIGN,       // =
+  OP_PLUSEQ,       // +=
+  OP_MINUSEQ,      // -=
+  OP_MULTEQ,       // *=
+  OP_DIVEQ,        // /=
+  OP_MODEQ,        // %=
+  OP_LSHIFTEQ,     // <<=
+  OP_RSHIFTEQ,     // >>=
+  OP_BITANDEQ,     // &=
+  OP_BITXOREQ,     // ^=
+  OP_BITOREQ,      // |=
+
+  // comparison
+  OP_EQUAL,        // ==
+  OP_NOTEQUAL,     // !=
+  OP_LESS,         // <
+  OP_GREATER,      // >
+  OP_LESSEQ,       // <=
+  OP_GREATEREQ,    // >=
+
+  // logical
+  OP_AND,          // &&
+  OP_OR,           // ||
+
+  // arrows
+  OP_ARROW,        // ->
+  OP_ARROW_STAR,   // ->*
+
+  // misc
+  OP_BRACKETS,     // []
+  OP_PARENS,       // ()
+  OP_COMMA,        // ,
 
   NUM_OVERLOADABLE_OPS
 };
 
-extern char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS];
+inline bool validCode(OverloadableOp op)
+  { return (unsigned)op < NUM_OVERLOADABLE_OPS; }
+
+extern char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS];    // "!", ...
 char const *toString(OverloadableOp op);
+
+// yields things like "operator+"
+extern char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS];
+
+// map from the other operator sets into the operator name that
+// would be used to overload it
+OverloadableOp toOverloadableOp(UnaryOp op);
+OverloadableOp toOverloadableOp(EffectOp op);
+OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment=false);
 
 
 // -------------------- uber modifiers -----------------

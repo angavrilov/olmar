@@ -20,7 +20,7 @@ CandidateSet::CandidateSet(PreFilter r, PostFilter o)
     post(o)
 {}
 
-Variable *CandidateSet::instantiatePattern(Env &env, BinaryOp op, Type *t)
+Variable *CandidateSet::instantiatePattern(Env &env, OverloadableOp op, Type *t)
 {
   // PLAN:  Right now, I just leak a bunch of things.  To fix this, I
   // want maintain a pool of Variables for use as instantiated
@@ -68,7 +68,7 @@ void addTypeUniquely(SObjList<Type> &instTypes, Type *t)
 }
 
 void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
-  BinaryOp op, Type *lhsType, Type *rhsType)
+  OverloadableOp op, Type *lhsType, Type *rhsType)
 {
   if (poly) {
     // polymorphic candidates are easy

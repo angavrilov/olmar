@@ -1910,39 +1910,52 @@ nonterm(OperatorName*) Operator {
   -> "delete" "[" "]"
        { return new ON_newDel(false, true); }
 
-  -> "*"  { return new ON_binary(BIN_MULT); }
-  -> "/"  { return new ON_binary(BIN_DIV); }
-  -> "%"  { return new ON_binary(BIN_MOD); }
-  -> "+"  { return new ON_binary(BIN_PLUS); }
-  -> "-"  { return new ON_binary(BIN_MINUS); }
-  -> "<<" { return new ON_binary(BIN_LSHIFT); }
-  -> ">>" { return new ON_binary(BIN_RSHIFT); }
-  -> "<"  { return new ON_binary(BIN_LESS); }
-  -> ">"  { return new ON_binary(BIN_GREATER); }
-  -> "<=" { return new ON_binary(BIN_LESSEQ); }
-  -> ">=" { return new ON_binary(BIN_GREATEREQ); }
-  -> "==" { return new ON_binary(BIN_EQUAL); }
-  -> "!=" { return new ON_binary(BIN_NOTEQUAL); }
-  -> "&"  { return new ON_binary(BIN_BITAND); }
-  -> "^"  { return new ON_binary(BIN_BITXOR); }
-  -> "|"  { return new ON_binary(BIN_BITOR); }
-  -> "&&" { return new ON_binary(BIN_AND); }
-  -> "||" { return new ON_binary(BIN_OR); }
-  -> ","  { return new ON_binary(BIN_COMMA); }
+  -> "!"     { return new ON_operator(OP_NOT); }
+  -> "~"     { return new ON_operator(OP_BITNOT); }
 
-  -> "[" "]" { return new ON_binary(BIN_BRACKETS); }
-  -> "->*"   { return new ON_binary(BIN_ARROW_STAR); }
+  -> "++"    { return new ON_operator(OP_PLUSPLUS); }
+  -> "--"    { return new ON_operator(OP_MINUSMINUS); }
 
-  -> op:AssignmentOperator  { return new ON_assign(op); }
+  -> "+"     { return new ON_operator(OP_PLUS); }
+  -> "-"     { return new ON_operator(OP_MINUS); }
+  -> "*"     { return new ON_operator(OP_STAR); }
 
-  -> "!"  { return new ON_unary(UNY_NOT); }
-  -> "~"  { return new ON_unary(UNY_BITNOT); }
+  -> "/"     { return new ON_operator(OP_DIV); }
+  -> "%"     { return new ON_operator(OP_MOD); }
+  -> "<<"    { return new ON_operator(OP_LSHIFT); }
+  -> ">>"    { return new ON_operator(OP_RSHIFT); }
+  -> "&"     { return new ON_operator(OP_BITAND); }
+  -> "^"     { return new ON_operator(OP_BITXOR); }
+  -> "|"     { return new ON_operator(OP_BITOR); }
 
-  -> "++" { return new ON_effect(EFF_PREINC); }
-  -> "--" { return new ON_effect(EFF_PREDEC); }
+  -> "="     { return new ON_operator(OP_ASSIGN); }
+  -> "+="    { return new ON_operator(OP_PLUSEQ); }
+  -> "-="    { return new ON_operator(OP_MINUSEQ); }
+  -> "*="    { return new ON_operator(OP_MULTEQ); }
+  -> "/="    { return new ON_operator(OP_DIVEQ); }
+  -> "%="    { return new ON_operator(OP_MODEQ); }
+  -> "<<="   { return new ON_operator(OP_LSHIFTEQ); }
+  -> ">>="   { return new ON_operator(OP_RSHIFTEQ); }
+  -> "&="    { return new ON_operator(OP_BITANDEQ); }
+  -> "^="    { return new ON_operator(OP_BITXOREQ); }
+  -> "|="    { return new ON_operator(OP_BITOREQ); }
 
-  -> "->"    { return new ON_overload(OVL_ARROW); }
-  -> "(" ")" { return new ON_overload(OVL_PARENS); }
+  -> "=="    { return new ON_operator(OP_EQUAL); }
+  -> "!="    { return new ON_operator(OP_NOTEQUAL); }
+  -> "<"     { return new ON_operator(OP_LESS); }
+  -> ">"     { return new ON_operator(OP_GREATER); }
+  -> "<="    { return new ON_operator(OP_LESSEQ); }
+  -> ">="    { return new ON_operator(OP_GREATEREQ); }
+
+  -> "&&"    { return new ON_operator(OP_AND); }
+  -> "||"    { return new ON_operator(OP_OR); }
+
+  -> "->"    { return new ON_operator(OP_ARROW); }
+  -> "->*"   { return new ON_operator(OP_ARROW_STAR); }
+
+  -> "[" "]" { return new ON_operator(OP_BRACKETS); }
+  -> "(" ")" { return new ON_operator(OP_PARENS); }
+  -> ","     { return new ON_operator(OP_COMMA); }
 }
 
 

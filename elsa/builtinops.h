@@ -41,7 +41,7 @@ public:      // data
   
 private:     // funcs
   // instantiate a pattern operator with a given type
-  Variable *instantiatePattern(Env &env, BinaryOp, Type *t);
+  Variable *instantiatePattern(Env &env, OverloadableOp, Type *t);
 
 public:      // funcs
   CandidateSet(Variable *v);
@@ -50,7 +50,7 @@ public:      // funcs
   // instantiate the pattern as many times as necessary, given the
   // argument types 'lhsType' and 'rhsType'
   void instantiateBinary(Env &env, OverloadResolver &resolver,
-    BinaryOp op, Type *lhsType, Type *rhsType);
+    OverloadableOp op, Type *lhsType, Type *rhsType);
 };
    
 

@@ -172,6 +172,25 @@ void OverloadResolver::
 }
 
 
+void OverloadResolver::addBuiltinUnaryCandidates(OverloadableOp op)
+{
+  ArrayStack<Variable*> &builtins = env.builtinUnaryOperator[op];
+  for (int i=0; i < builtins.length(); i++) {
+    processCandidate(builtins[i]);
+  }
+}
+
+
+void OverloadResolver::addBuiltinBinaryCandidates(OverloadableOp op,
+  Type *lhsType, Type *rhsType)
+{
+  ObjArrayStack<CandidateSet> &builtins = env.builtinBinaryOperator[op];
+  for (int i=0; i < builtins.length(); i++) {
+    builtins[i]->instantiateBinary(env, *this, op, lhsType, rhsType);
+  }
+}
+
+
 // this is a simple tournament, as suggested in footnote 123,
 // cppstd 13.3.3 para 2
 template <class RESOLVER, class CANDIDATE>

@@ -1516,6 +1516,20 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
 
 // ------------------ IDeclarator ------------------
+// this enum describes an operator; it really should be inside
+// 'checkOperatorOverload', but then I would not be able to
+// declare the operator functions that do bitwise manipulation...
+enum OperatorDesc {
+  OD_NONE    = 0x00,
+  NONMEMBER  = 0x01,      // can be a non-member function (anything can be a member function)
+  ONEPARAM   = 0x02,      // can accept one parameter
+  TWOPARAMS  = 0x04,      // can accept two parameters
+  ANYPARAMS  = 0x08,      // can accept any number of parameters
+  INCDEC     = 0x10,      // it's ++ or --
+  OD_ALL     = 0x1F,
+};
+ENUM_BITWISE_OPS(OperatorDesc, OD_ALL)
+
 // Check some restrictions regarding the use of 'operator'; might
 // add some errors to the environment, but otherwise doesn't
 // change anything.  Parameters are same as D_name_tcheck, plus
@@ -1525,7 +1539,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
                            Scope *scope)
 {
   if (!dt.type->isFunctionType()) {
-    env.error(loc, "operator names must be functions");
+    env.error(loc, "operators must be functions");
     return;
   }
   FunctionType *ft = dt.type->asFunctionType();
@@ -1541,13 +1555,7 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
     env.error(loc, "operator member functions cannot be static");
   }
 
-  // describe the operator
-  bool okNonmember = false;
-  bool okOneParam = false;
-  bool okTwoParams = false;
-  bool okAnyParams = false;
-
-  // (anything can be a member function)
+  OperatorDesc desc = OD_NONE;
 
   ASTSWITCHC(OperatorName, oname) {
     ASTCASEC(ON_newDel, n)
@@ -1555,87 +1563,98 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
       // don't check anything.. I haven't done anything with these yet
       return;
 
-    ASTNEXTC(ON_binary, b)
-      switch (b->op) {
-        default: break;
+    ASTNEXTC(ON_operator, o)
+      static OperatorDesc const map[] = {
+        // each group of similar operators is prefixed with a comment
+        // that says which section of cppstd specifies the restrictions
+        // that are enforced here
 
-        case BIN_PLUS:
-        case BIN_MINUS:
-        case BIN_MULT:     // for deref
-          okOneParam = true;
-          okTwoParams = true;
-          okNonmember = true;
-          break;
+        // 13.5.1
+        NONMEMBER | ONEPARAM,                       // OP_NOT
+        NONMEMBER | ONEPARAM,                       // OP_BITNOT
 
-        case BIN_EQUAL:
-        case BIN_NOTEQUAL:
-        case BIN_LESS:
-        case BIN_GREATER:
-        case BIN_LESSEQ:
-        case BIN_GREATEREQ:
-        case BIN_DIV:
-        case BIN_MOD:
-        case BIN_LSHIFT:
-        case BIN_RSHIFT:
-        case BIN_BITAND:
-        case BIN_BITXOR:
-        case BIN_BITOR:
-        case BIN_AND:
-        case BIN_OR:
-        case BIN_COMMA:
-        case BIN_ARROW_STAR:
-          okTwoParams = true;
-          okNonmember = true;
-          break;
+        // 13.5.7
+        NONMEMBER | ONEPARAM | TWOPARAMS | INCDEC,  // OP_PLUSPLUS
+        NONMEMBER | ONEPARAM | TWOPARAMS | INCDEC,  // OP_MINUSMINUS
 
-        case BIN_BRACKETS:
-          okTwoParams = true;
-          break;
-      }
+        // 13.5.1, 13.5.2
+        NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_PLUS
+        NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_MINUS
+        NONMEMBER | ONEPARAM | TWOPARAMS,           // OP_STAR
 
-    ASTNEXTC(ON_unary, u)
-      PRETEND_USED(u);
-      okOneParam = true;
-      okNonmember = true;
+        // 13.5.2
+        NONMEMBER | TWOPARAMS,                      // OP_DIV
+        NONMEMBER | TWOPARAMS,                      // OP_MOD
+        NONMEMBER | TWOPARAMS,                      // OP_LSHIFT
+        NONMEMBER | TWOPARAMS,                      // OP_RSHIFT
+        NONMEMBER | TWOPARAMS,                      // OP_BITAND
+        NONMEMBER | TWOPARAMS,                      // OP_BITXOR
+        NONMEMBER | TWOPARAMS,                      // OP_BITOR
 
-    ASTNEXTC(ON_effect, e)
-      PRETEND_USED(e);
-      okOneParam = true;
-      okTwoParams = true;     // for postfix versions
-      okNonmember = true;
+        // 13.5.3
+        TWOPARAMS,                                  // OP_ASSIGN
+        TWOPARAMS,                                  // OP_PLUSEQ
+        TWOPARAMS,                                  // OP_MINUSEQ
+        TWOPARAMS,                                  // OP_MULTEQ
+        TWOPARAMS,                                  // OP_DIVEQ
+        TWOPARAMS,                                  // OP_MODEQ
+        TWOPARAMS,                                  // OP_LSHIFTEQ
+        TWOPARAMS,                                  // OP_RSHIFTEQ
+        TWOPARAMS,                                  // OP_BITANDEQ
+        TWOPARAMS,                                  // OP_BITXOREQ
+        TWOPARAMS,                                  // OP_BITOREQ
 
-    ASTNEXTC(ON_assign, a)
-      PRETEND_USED(a);
-      okTwoParams = true;      
+        // 13.5.2
+        NONMEMBER | TWOPARAMS,                      // OP_EQUAL
+        NONMEMBER | TWOPARAMS,                      // OP_NOTEQUAL
+        NONMEMBER | TWOPARAMS,                      // OP_LESS
+        NONMEMBER | TWOPARAMS,                      // OP_GREATER
+        NONMEMBER | TWOPARAMS,                      // OP_LESSEQ
+        NONMEMBER | TWOPARAMS,                      // OP_GREATEREQ
 
-    ASTNEXTC(ON_overload, o)
-      if (o->op == OVL_ARROW) {
-        okOneParam = true;
-      }
-      else {
-        xassert(o->op == OVL_PARENS);
-        okAnyParams = true;
-      }
+        // 13.5.2
+        NONMEMBER | TWOPARAMS,                      // OP_AND
+        NONMEMBER | TWOPARAMS,                      // OP_OR
+
+        // 13.5.6
+        ONEPARAM,                                   // OP_ARROW
+
+        // 13.5.2
+        NONMEMBER | TWOPARAMS,                      // OP_ARROW_STAR
+
+        // 13.5.5
+        TWOPARAMS,                                  // OP_BRACKETS
+
+        // 13.5.4
+        ANYPARAMS,                                  // OP_PARENS
+
+        // 13.5.2
+        NONMEMBER | TWOPARAMS,                      // OP_COMMA
+      };
+      ASSERT_TABLESIZE(map, NUM_OVERLOADABLE_OPS);
+      xassert(validCode(o->op));
+      desc = map[o->op];
+      break;
 
     ASTNEXTC(ON_conversion, c)
       PRETEND_USED(c);
-      okOneParam = true;
+      desc = ONEPARAM;
 
     ASTENDCASECD
   }
 
-  if (!okAnyParams && !okOneParam && !okTwoParams) {
-    env.error(loc, stringc << strname << " cannot be overloaded");
-    return;
-  }
-
-  if (!scope->curCompound && !okNonmember) {
+  xassert(desc & (ONEPARAM | TWOPARAMS | ANYPARAMS));
+            
+  bool isMember = scope->curCompound != NULL;
+  if (!isMember && !(desc & NONMEMBER)) {
     env.error(loc, stringc << strname << " must be a member function");
   }
 
-  if (!okAnyParams) {
+  if (!(desc & ANYPARAMS)) {
     // count and check parameters
     int params = ft->params.count();     // includes implicit receiver
+    bool okOneParam = desc & ONEPARAM;
+    bool okTwoParams = desc & TWOPARAMS;
 
     if ((okOneParam && params==1) ||
         (okTwoParams && params==2)) {
@@ -1647,6 +1666,19 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
                       okTwoParams? "two parameters" :
                                    "one parameter" ;
       env.error(loc, stringc << strname << " must have " << howmany);
+    }
+
+    if ((desc & INCDEC) && (params==2)) {
+      // second parameter must have type 'int'
+      Type *t = ft->params.nth(1)->type;
+      if (!t->isSimple(ST_INT) ||
+          t->getCVFlags()!=CV_NONE) {
+        env.error(loc, stringc
+          << (isMember? "" : "second ")
+          << "parameter of " << strname
+          << " must have type `int', not `"
+          << t->toString() << "', if it is present");
+      }
     }
 
     // cannot have any default arguments
@@ -2734,62 +2766,16 @@ char const *ON_newDel::getOperatorName() const
                               "operator delete";
 }
 
-char const *ON_binary::getOperatorName() const
+char const *ON_operator::getOperatorName() const
 {
   xassert(validCode(op));
-  return binaryOperatorFunctionNames[op];
-}
-
-char const *ON_unary::getOperatorName() const
-{
-  switch (op) {
-    default:           xfailure("bad code");
-    case UNY_NOT:      return "operator!";
-    case UNY_BITNOT:   return "operator~";
-  }
-}
-
-char const *ON_effect::getOperatorName() const
-{
-  switch (op) {
-    default:            xfailure("bad code");
-    case EFF_PREINC:    return "operator++";
-    case EFF_PREDEC:    return "operator--";
-  }
-}
-
-char const *ON_assign::getOperatorName() const
-{
-  switch (op) {
-    default:            xfailure("bad code");
-    case BIN_ASSIGN:    return "operator=";
-    case BIN_MULT:      return "operator*=";
-    case BIN_DIV:       return "operator/=";
-    case BIN_MOD:       return "operator%=";
-    case BIN_PLUS:      return "operator+=";
-    case BIN_MINUS:     return "operator-=";
-    case BIN_LSHIFT:    return "operator<<=";
-    case BIN_RSHIFT:    return "operator>>=";
-    case BIN_BITAND:    return "operator&=";
-    case BIN_BITXOR:    return "operator^=";
-    case BIN_BITOR:     return "operator|=";
-    case BIN_AND:       return "operator&&=";
-    case BIN_OR:        return "operator||=";
-  }
-}
-
-char const *ON_overload::getOperatorName() const
-{
-  switch (op) {
-    default:             xfailure("bad code");
-    case OVL_ARROW:      return "operator->";
-    case OVL_PARENS:     return "operator()";
-  }
+  return operatorFunctionNames[op];
 }
 
 char const *ON_conversion::getOperatorName() const
 {                   
   // this is the sketchy one..
+  // update: but it seems to be fitting into the design just fine
   return "conversion-operator";
 }
 
@@ -3947,7 +3933,8 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
        expr->type->asRval()->isEnumType())) {
     OVERLOADINDTRACE("found overloadable unary " << toString(op) <<
                      " near " << env.locStr());
-    StringRef opName = env.unaryOperatorName[op];
+    OverloadableOp oop = toOverloadableOp(op);
+    StringRef opName = env.operatorName[oop];
 
     // argument information
     GrowArray<ArgumentInfo> args(1);
@@ -3961,21 +3948,14 @@ Type *E_unary::itcheck(Env &env, Expression *&replacement)
     resolver.addUserOperatorCandidates(expr->type, opName);
 
     // built-in candidates
-    ArrayStack<Variable*> &builtins = env.builtinUnaryOperator[op];
-    for (int i=0; i < builtins.length(); i++) {
-      resolver.processCandidate(builtins[i]);
-    }
-    
+    resolver.addBuiltinUnaryCandidates(oop);
+
     // pick the best candidate
     Variable *winner = resolver.resolve();
     if (winner && !winner->hasFlag(DF_BUILTIN)) {
-      // unfortunate hack
-      OperatorName *oname =
-        op==UNY_PLUS?  new ON_binary(BIN_PLUS) :
-        op==UNY_MINUS? new ON_binary(BIN_MINUS) :
-                       new ON_unary(op);
-
+      OperatorName *oname = new ON_operator(oop);
       PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
+
       if (winner->hasFlag(DF_MEMBER)) {
         // replace '~a' with 'a.operator~()'
         replacement = new E_funCall(
@@ -4034,7 +4014,8 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
        rhsType->isCompoundType() || rhsType->isEnumType())) {
     OVERLOADINDTRACE("found overloadable binary " << toString(op) <<
                      " near " << env.locStr());
-    StringRef opName = env.binaryOperatorName[op];
+    OverloadableOp oop = toOverloadableOp(op);
+    StringRef opName = env.operatorName[oop];
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
@@ -4049,23 +4030,17 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       resolver.emptyCandidatesIsOk = true;
     }
 
-    // collect candidates: cppstd 13.3.1.2 para 3
-    {
-      // user-defined candidates
-      resolver.addUserOperatorCandidates(lhsType, opName);
+    // user-defined candidates
+    resolver.addUserOperatorCandidates(lhsType, opName);
 
-      // built-in candidates
-      ObjArrayStack<CandidateSet> &builtins = env.builtinBinaryOperator[op];
-      for (int i=0; i < builtins.length(); i++) {
-        builtins[i]->instantiateBinary(env, resolver, op, lhsType, rhsType);
-      }
-    }
+    // built-in candidates
+    resolver.addBuiltinBinaryCandidates(oop, lhsType, rhsType);
 
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
       if (!winner->hasFlag(DF_BUILTIN)) {
-        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_binary(op), opName);
+        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_operator(oop), opName);
         if (winner->hasFlag(DF_MEMBER)) {
           // replace 'a+b' with 'a.operator+(b)'
           replacement = new E_funCall(
@@ -4341,13 +4316,15 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
 Type *E_deref::itcheck(Env &env, Expression *&replacement)
 {
   ptr->tcheck(env, ptr);
-             
+  
+  // TODO: collapse with E_unary           
+
   // check for overloading
   if (env.doOperatorOverload &&
       (ptr->type->asRval()->isCompoundType() ||
        ptr->type->asRval()->isEnumType())) {
     OVERLOADINDTRACE("found overloadable unary operator* near " << env.locStr());
-    StringRef opName = env.binaryOperatorName[BIN_MULT];   // hack
+    StringRef opName = env.operatorName[OP_STAR];
 
     // argument information
     GrowArray<ArgumentInfo> args(1);
@@ -4361,15 +4338,14 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
     resolver.addUserOperatorCandidates(ptr->type, opName);
 
     // built-in candidates
-    resolver.processCandidate(env.builtinUnaryOperatorStar);
+    resolver.addBuiltinUnaryCandidates(OP_STAR);
 
     // pick the best candidate
     Variable *winner = resolver.resolve();
     if (winner && !winner->hasFlag(DF_BUILTIN)) {
-      // unfortunate hack
-      OperatorName *oname = new ON_binary(BIN_MULT);
-
+      OperatorName *oname = new ON_operator(OP_STAR);
       PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, oname, opName);
+
       if (winner->hasFlag(DF_MEMBER)) {
         // replace '*a' with 'a.operator*()'
         replacement = new E_funCall(
@@ -4416,16 +4392,16 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
 
   // check for "operator*" (and "operator[]" since I unfortunately
   // currently map 'x[y]' into '*(x+y)' during parsing)
+  // TODO: actually, operator[] is no longer translated away..
   if (rt->isCompoundType()) {
     CompoundType *ct = rt->asCompoundType();
-    if (ct->lookupVariableC(env.str("operator*"), env)) {
+    if (ct->lookupVariableC(env.operatorName[OP_STAR], env)) {
       // replace this Expression node with one that looks like
-      // an explicit call to the overloaded operator* (misleadingly,
-      // that's encoded as BIN_MULT...)
+      // an explicit call to the overloaded operator*
       replacement = new E_funCall(
         // function: ptr.operator*
-        new E_fieldAcc(ptr, new PQ_operator(SL_UNKNOWN, new ON_binary(BIN_MULT),
-                                            env.str("operator*"))),
+        new E_fieldAcc(ptr, new PQ_operator(SL_UNKNOWN, new ON_operator(OP_STAR),
+                                            env.operatorName[OP_STAR])),
         // arguments: ()
         FakeList<ICExpression>::emptyList()
       );
@@ -4436,7 +4412,7 @@ Type *E_deref::itcheck(Env &env, Expression *&replacement)
     }
 
     // this is an older hack..
-    if (ct->lookupVariableC(env.str("operator[]"), env)) {
+    if (ct->lookupVariableC(env.operatorName[OP_BRACKETS], env)) {
       // ok.. gee what type?  would have to do the full deal, and
       // would likely get it wrong for operator[] since I don't have
       // the right info to do an overload calculation.. well, if I

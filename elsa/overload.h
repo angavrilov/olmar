@@ -173,6 +173,10 @@ public:      // funcs
   // type of the first argument and the name of the operator
   void addUserOperatorCandidates(Type *lhsType, StringRef opName);
 
+  // instantiate built-in candidates
+  void addBuiltinUnaryCandidates(OverloadableOp op);
+  void addBuiltinBinaryCandidates(OverloadableOp op,
+    Type *lhsType, Type *rhsType);
 
   // run the tournament to decide among the candidates; returns
   // NULL if there is no clear winner

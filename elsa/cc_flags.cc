@@ -26,29 +26,6 @@ MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
 
 
 // ---------------- CVFlags -------------
-#ifdef MLVALUE
-MAKE_ML_TAG(attribute, 0, AId)
-MAKE_ML_TAG(attribute, 1, ACons)
-
-MLValue cvToMLAttrs(CVFlags cv)
-{
-  // AId of string
-
-  MLValue list = mlNil();
-  if (cv & CV_CONST) {
-    list = mlCons(mlTuple1(attribute_AId, mlString("const")), list);
-  }
-  if (cv & CV_VOLATILE) {
-    list = mlCons(mlTuple1(attribute_AId, mlString("volatile")), list);
-  }
-  if (cv & CV_OWNER) {
-    list = mlCons(mlTuple1(attribute_AId, mlString("owner")), list);
-  }
-  return list;
-}
-#endif // MLVALUE
-
-
 char const * const cvFlagNames[NUM_CVFLAGS] = {
   "const",
   "volatile",
@@ -272,43 +249,6 @@ bool isOverloadable(BinaryOp op)
 }
 
 
-// some of these names can't be used in C++ because of restrictions
-// on what operators can be overloaded, but I'll define the names
-// anyway for uniformity
-char const * const binaryOperatorFunctionNames[NUM_BINARYOPS] = {
-  "operator==",
-  "operator!=",
-  "operator<",
-  "operator>",
-  "operator<=",
-  "operator>=",
-
-  "operator*",
-  "operator/",
-  "operator%",
-  "operator+",
-  "operator-",
-  "operator<<",
-  "operator>>",
-  "operator&",
-  "operator^",
-  "operator|",
-  "operator&&",
-  "operator||",
-  "operator,",
-
-  "operator[]",
-
-  "operator=",
-
-  "operator.*",
-  "operator->*",
-
-  "operator==>",
-  "operator<==>"
-};
-
-
 // ------------------- AccessKeyword -------------------
 char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {
   "public",
@@ -333,12 +273,219 @@ MAKE_TOSTRING(CastKeyword, NUM_CAST_KEYWORDS, castKeywordNames)
 
 // -------------------- OverloadableOp --------------------
 char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
+  "!",
+  "~",
+
+  "++",
+  "--",
+
+  "+",
+  "-",
+  "*",
+
+  "/",
+  "%",
+  "<<",
+  ">>",
+  "&",
+  "^",
+  "|",
+
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
+  "<<=",
+  ">>=",
+  "&=",
+  "^=",
+  "|=",
+
+  "==",
+  "!=",
+  "<",
+  ">",
+  "<=",
+  ">=",
+
+  "&&",
+  "||",
+
   "->",
+  "->*",
+
+  "[]",
   "()",
+  ",",
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)
 
+
+char const * const operatorFunctionNames[NUM_OVERLOADABLE_OPS] = {
+  "operator!",
+  "operator~",
+
+  "operator++",
+  "operator--",
+
+  "operator+",
+  "operator-",
+  "operator*",
+
+  "operator/",
+  "operator%",
+  "operator<<",
+  "operator>>",
+  "operator&",
+  "operator^",
+  "operator|",
+
+  "operator=",
+  "operator+=",
+  "operator-=",
+  "operator*=",
+  "operator/=",
+  "operator%=",
+  "operator<<=",
+  "operator>>=",
+  "operator&=",
+  "operator^=",
+  "operator|=",
+
+  "operator==",
+  "operator!=",
+  "operator<",
+  "operator>",
+  "operator<=",
+  "operator>=",
+
+  "operator&&",
+  "operator||",
+
+  "operator->",
+  "operator->*",
+
+  "operator[]",
+  "operator()",
+  "operator,",
+};
+
+
+OverloadableOp toOverloadableOp(UnaryOp op)
+{
+  static OverloadableOp const map[] = {
+    OP_PLUS,
+    OP_MINUS,
+    OP_NOT,
+    OP_BITNOT
+  };
+  ASSERT_TABLESIZE(map, NUM_UNARYOPS);
+  xassert(validCode(op));
+  return map[op];
+}
+
+OverloadableOp toOverloadableOp(EffectOp op)
+{
+  static OverloadableOp const map[] = {
+    OP_PLUSPLUS,
+    OP_MINUSMINUS,
+    OP_PLUSPLUS,
+    OP_MINUSMINUS,
+  };
+  ASSERT_TABLESIZE(map, NUM_EFFECTOPS);
+  xassert(validCode(op));
+  return map[op];
+}
+
+OverloadableOp toOverloadableOp(BinaryOp op, bool isAssignment=false)
+{ 
+  xassert(validCode(op));
+
+  // in the table, this means that an operator cannot be overloaded
+  #define BAD_ENTRY NUM_OVERLOADABLE_OPS
+  OverloadableOp ret = BAD_ENTRY;
+
+  if (!isAssignment) {
+    static OverloadableOp const map[] = {
+      OP_EQUAL,
+      OP_NOTEQUAL,
+      OP_LESS,
+      OP_GREATER,
+      OP_LESSEQ,
+      OP_GREATEREQ,
+
+      OP_STAR,
+      OP_DIV,
+      OP_MOD,
+      OP_PLUS,
+      OP_MINUS,
+      OP_LSHIFT,
+      OP_RSHIFT,
+      OP_BITAND,
+      OP_BITXOR,
+      OP_BITOR,
+      OP_AND,
+      OP_OR,
+      OP_COMMA,
+
+      OP_BRACKETS,
+
+      BAD_ENTRY,      // isAssignment is false
+
+      BAD_ENTRY,      // cannot overload
+      OP_ARROW_STAR,
+
+      BAD_ENTRY,      // extension..
+      BAD_ENTRY,
+    };
+    ASSERT_TABLESIZE(map, NUM_BINARYOPS);
+    ret = map[op];
+  }
+
+  else {
+    static OverloadableOp const map[] = {
+      BAD_ENTRY,
+      BAD_ENTRY,
+      BAD_ENTRY,
+      BAD_ENTRY,
+      BAD_ENTRY,
+      BAD_ENTRY,
+
+      OP_MULTEQ,
+      OP_DIVEQ,
+      OP_MODEQ,
+      OP_PLUSEQ,
+      OP_MINUSEQ,
+      OP_LSHIFTEQ,
+      OP_RSHIFTEQ,
+      OP_BITANDEQ,
+      OP_BITXOREQ,
+      OP_BITOREQ,
+      BAD_ENTRY,
+      BAD_ENTRY,
+      BAD_ENTRY,
+
+      BAD_ENTRY,
+
+      OP_ASSIGN,
+
+      BAD_ENTRY,
+      BAD_ENTRY,
+
+      BAD_ENTRY,
+      BAD_ENTRY,
+    };
+    ASSERT_TABLESIZE(map, NUM_BINARYOPS);
+    ret = map[op];
+  }
+  
+  xassert(ret != BAD_ENTRY);    // otherwise why did you try to map it?
+  return ret;
+
+  #undef BAD_ENTRY
+}
 
 // ------------------------ UberModifiers ---------------------
 char const * const uberModifierNames[UM_NUM_FLAGS] = {
