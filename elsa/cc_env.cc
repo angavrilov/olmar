@@ -181,30 +181,33 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
     // get the first qualifier
     StringRef qual = qualifier->qualifier;
     if (!qual) {
-      unimp("bare `::' qualifier");
-      return NULL;
+      // this is a reference to the global scope, i.e. the scope
+      // at the bottom of the stack
+      scope = scopes.last();
     }
 
-    // look for a class called 'qual' in scope-so-far
-    CompoundType *ct =
-      scope==NULL? lookupCompound(qual, false /*innerOnly*/) :
-                   scope->lookupCompound(qual, false /*innerOnly*/);
-    if (!ct) {
-      // I'd like to include some information about which scope
-      // we were looking in, but I don't want to be computing
-      // intermediate scope names for successful lookups; also,
-      // I am still considering adding some kind of scope->name()
-      // functionality, which would make this trivial.
-      //
-      // alternatively, I could just re-traverse the original name;
-      // I'm lazy for now
-      error(stringc
-        << "cannot find class `" << qual << "' for `" << *name << "'");
-      return NULL;
-    }
+    else {
+      // look for a class called 'qual' in scope-so-far
+      CompoundType *ct =
+        scope==NULL? lookupCompound(qual, false /*innerOnly*/) :
+                     scope->lookupCompound(qual, false /*innerOnly*/);
+      if (!ct) {
+        // I'd like to include some information about which scope
+        // we were looking in, but I don't want to be computing
+        // intermediate scope names for successful lookups; also,
+        // I am still considering adding some kind of scope->name()
+        // functionality, which would make this trivial.
+        //
+        // alternatively, I could just re-traverse the original name;
+        // I'm lazy for now
+        error(stringc
+          << "cannot find class `" << qual << "' for `" << *name << "'");
+        return NULL;
+      }
 
-    // now that we've found it, that's our active scope
-    scope = ct;
+      // now that we've found it, that's our active scope
+      scope = ct;
+    }
 
     // advance to the next name in the sequence
     name = qualifier->rest;
