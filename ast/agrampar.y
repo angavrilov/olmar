@@ -29,6 +29,7 @@
 /* ===================== tokens ============================ */
 /* tokens that have many lexical spellings */
 %token <str> TOK_NAME
+%token <str> TOK_INTLIT
 %token <str> TOK_EMBEDDED_CODE
 
 /* punctuators */
@@ -71,6 +72,7 @@
   ASTList<Annotation> *userDeclList;
   string *str;
   enum AccessCtl accessCtl;
+  AccessMod *accessMod;
   ToplevelForm *verbatim;
   Annotation *annotation;
   TF_option *tfOption;
@@ -87,10 +89,11 @@
 %type <userDeclList> CtorMembersOpt
 %type <str> Arg ArgWord Embedded ArgList
 %type <accessCtl> Public
+%type <accessMod> AccessMod
 %type <verbatim> Verbatim
 %type <annotation> Annotation
 %type <tfOption> Option
-%type <stringList> OptionArgs
+%type <stringList> StringList OptionArgs
 %type <tfEnum> Enum
 %type <enumeratorList> EnumeratorSeq
 %type <enumerator> Enumerator
@@ -154,7 +157,7 @@ ClassMembersOpt
       { ($$=$1)->super->decls.append($2); }
   ;
 
-/* empty ctor args can have parens or not, at user's disrection */  
+/* empty ctor args can have parens or not, at user's discretion */  
 /* yields ASTList<CtorArg> */
 CtorArgsOpt
   : /* empty */
@@ -187,6 +190,7 @@ Arg: ArgWord
 /* yields string */
 ArgWord
   : TOK_NAME         { $$ = appendStr($1, box(" ")); }
+  | TOK_INTLIT       { $$ = appendStr($1, box(" ")); }
   | "<" ArgList ">"  { $$ = appendStr(box("<"), appendStr($2, box(">"))); }
   | "*"              { $$ = box("*"); }
   | "&"              { $$ = box("&"); }
@@ -211,8 +215,10 @@ CtorMembersOpt
 
 /* yields Annotation */
 Annotation
-  : Public Embedded
-      { $$ = new UserDecl($1, unbox($2)); }
+  : AccessMod Embedded
+      { $$ = new UserDecl($1, unbox($2), ""); }
+  | AccessMod TOK_EMBEDDED_CODE "=" TOK_EMBEDDED_CODE ";"
+      { $$ = new UserDecl($1, unbox($2), unbox($4)); }
   | "custom" TOK_NAME Embedded
       { $$ = new CustomCode(unbox($2), unbox($3)); }
   ;
@@ -234,6 +240,20 @@ Public
   | "dtor"          { $$ = AC_DTOR; }
   | "pure_virtual"  { $$ = AC_PUREVIRT; }
   ;
+
+/* yield AccessMod */
+AccessMod: Public
+             { $$ = new AccessMod($1, NULL); }
+         | Public "(" StringList ")"
+             { $$ = new AccessMod($1, $3); }
+         ;
+
+/* yield ASTList<string> */
+StringList: TOK_NAME
+              { $$ = new ASTList<string>($1); }
+          | StringList "," TOK_NAME
+              { ($$=$1)->append($3); }
+          ;
 
 /* yields TF_verbatim */
 Verbatim: "verbatim" Embedded

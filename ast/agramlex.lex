@@ -65,6 +65,7 @@ SLWHITE   [ \t]
 /* --------------- start conditions ------------------- */
 %x C_COMMENT
 %x EMBED
+%x INITVAL
 
 
 /* ---------------------- rules ----------------------- */
@@ -124,7 +125,6 @@ SLWHITE   [ \t]
 ";"                TOK_UPD_COL;  return TOK_SEMICOLON;
 "->"               TOK_UPD_COL;  return TOK_ARROW;
 "("                TOK_UPD_COL;  return TOK_LPAREN;
-")"                TOK_UPD_COL;  return TOK_RPAREN;
 ","                TOK_UPD_COL;  return TOK_COMMA;
 
 "<"                TOK_UPD_COL;  return TOK_LANGLE;
@@ -139,11 +139,23 @@ SLWHITE   [ \t]
 "enum"             TOK_UPD_COL;  return TOK_ENUM;
 
   /* --------- embedded text --------- */
-("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual") {
+("public"|"protected"|"private"|"ctor"|"dtor"|"pure_virtual")("(")? {
   TOK_UPD_COL;
-  BEGIN(EMBED);
+  
+  // is a paren included?
+  if (yytext[yyleng-1] == '(') {
+    // don't drop into embedded just yet; wait for the ')'
+    embedStart = ')';
+    yyless(yyleng-1);
+    advCol(-1);
+  }
+  else {
+    BEGIN(EMBED);
+  }
+
   embedded->reset();
   embedFinish = ';';
+  allowInit = yytext[0]=='p';
   embedMode = TOK_EMBEDDED_CODE;
   return yytext[0]=='c'?   TOK_CTOR :
          yytext[0]=='d'?   TOK_DTOR :
@@ -159,6 +171,7 @@ SLWHITE   [ \t]
   // need to see one more token before we begin embedded processing
   embedStart = '{';
   embedFinish = '}';
+  allowInit = false;
 
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
@@ -171,6 +184,7 @@ SLWHITE   [ \t]
 
   embedStart = '{';
   embedFinish = '}';
+  allowInit = false;
   embedded->reset();
   embedMode = TOK_EMBEDDED_CODE;
 
@@ -178,12 +192,12 @@ SLWHITE   [ \t]
 }
 
   /* punctuation that can start embedded code */
-"{" {
+("{"|")") {
   TOK_UPD_COL;
   if (yytext[0] == embedStart) {
     BEGIN(EMBED);
   }
-  return TOK_LBRACE;
+  return yytext[0]=='{'? TOK_LBRACE : TOK_RPAREN;
 }
 
 
@@ -191,7 +205,7 @@ SLWHITE   [ \t]
    * was computed in the opening punctuation */
 <EMBED>{
   /* no special significance to lexer */
-  [^;}\n]+ {
+  [^;}=\n]+ {
     UPD_COL;
     embedded->handle(yytext, yyleng, embedFinish);
   }
@@ -202,17 +216,24 @@ SLWHITE   [ \t]
   }
 
   /* possibly closing delimiter */
-  ("}"|";") {
+  ("}"|";"|"=") {
     UPD_COL;
 
     // we're done if we're at a zero nesting level and the
     // delimiter matches ...
-    if (embedded->zeroNesting() && yytext[0] == embedFinish) {
+    if (embedded->zeroNesting() && embedFinishMatches(yytext[0])) {
       // done
       BEGIN(INITIAL);
 
-      // turn off embedded detection
-      embedStart = 0;
+      if (yytext[0] == '=') {
+        // switch to a special mode that will handle the '=' and
+        // jump right back into embedded mode
+        BEGIN(INITVAL);
+      }
+      else {
+        // turn off embedded detection
+        embedStart = 0;
+      }
 
       // put back delimeter so parser will see it
       yyless(yyleng-1);
@@ -235,11 +256,32 @@ SLWHITE   [ \t]
 }
 
 
+<INITVAL>{
+  "=" {
+    // yield the '=', switch back into embedded
+    BEGIN(EMBED);
+    embedded->reset();
+    allowInit = false;
+    return TOK_EQUALS;
+  }
+
+  {ANY} {
+    xfailure("somehow got a char other than '=' in INITVAL state");
+  }
+}
+
+
   /* -------- name literal --------- */
 {LETTER}({LETTER}|{DIGIT})* {
   // get text from yytext and yyleng
   TOK_UPD_COL;
   return TOK_NAME;
+}
+
+  /* --------- integer literal --------- */
+{DIGIT}+ {
+  TOK_UPD_COL;
+  return TOK_INTLIT;
 }
 
   /* --------- illegal ------------- */

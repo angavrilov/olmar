@@ -62,11 +62,20 @@ verbatim {
   string toString(AccessCtl acc);      // defined in ast.cc
 }
 
+// an access control keyword with optional modifier list
+class AccessMod(AccessCtl acc, ASTList<string> mods) {
+  // true if the given modifier is present
+  public bool hasMod(char const *mod) const;
+}
+
 // additional user annotations
 class Annotation {
   // verbatim declarations, plus an access qualifier, to be
-  // copied into the a class declaration
-  -> UserDecl (AccessCtl access, string code);
+  // copied into the a class declaration; also has an optional
+  // initializer (might be "")
+  -> UserDecl (AccessMod amod, string code, string init) {
+       public AccessCtl access() const { return amod->acc; };
+     }
 
   // verbatim code to be inserted somewhere; exactly where depends
   // on the qualifier string
@@ -77,7 +86,7 @@ class Annotation {
 }
 
 // something that has to be passed to create a constructor
-class CtorArg (bool owner, string type, string name, string defaultValue);
+class CtorArg (bool isOwner, string type, string name, string defaultValue);
 
 
 // ------------------- extra implementation helpers ------------------
@@ -111,6 +120,16 @@ string ASTClass::classKindName() const
     ret &= "KIND_";
   }
   return ret;
+}
+
+bool AccessMod::hasMod(char const *mod) const
+{
+  FOREACH_ASTLIST(string, mods, iter) {
+    if (iter.data()->equals(mod)) {
+      return true;
+    }
+  }
+  return false;      // not found
 }
 
 } // end verbatim_impl

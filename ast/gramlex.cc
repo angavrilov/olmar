@@ -81,6 +81,7 @@ GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
     embedMode(0),
     embedded(new CCSubstrate(altReporter)),
     embedTokTest(test),
+    allowInit(false),
     prevState(0),       // same as INITIAL, but this value isn't used
     integerLiteral(0),
     stringLiteral(""),
@@ -182,6 +183,13 @@ StringRef GrammarLexer::addString(char *str, int len) const
   else {
     return strtable.add(str);
   }
+}
+
+
+bool GrammarLexer::embedFinishMatches(char ch) const
+{
+  return ch == embedFinish ||
+         (allowInit && ch=='=');     // to handle initial value syntax
 }
 
 

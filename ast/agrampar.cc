@@ -45,7 +45,7 @@ CtorArg *parseCtorArg(char const *origStr)
 
   // check for owner flag
   if (0==strncmp(str, "owner", 5)) {
-    ret->owner = true;
+    ret->isOwner = true;
     str = str.substring(6, str.length() - 6);    // skip "owner "
   }
 
@@ -89,6 +89,7 @@ int agrampar_yylex(YYSTYPE *lvalp, void *parseParam)
   // yield semantic values for some things
   switch (code) {
     case TOK_NAME:
+    case TOK_INTLIT:
       lvalp->str = box(lexer.curToken());
       break;
 

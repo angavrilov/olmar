@@ -19,14 +19,6 @@ void ASTSpecFile::debugPrint(ostream &os, int indent) const
   PRINT_LIST(ToplevelForm, forms);
 }
 
-void ASTSpecFile::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(ASTSpecFile);
-
-  XMLPRINT_LIST(ToplevelForm, forms);
-  XMLPRINT_FOOTER(ASTSpecFile);
-}
-
 ASTSpecFile *ASTSpecFile::clone() const
 {
   ASTSpecFile *ret = new ASTSpecFile(
@@ -54,10 +46,6 @@ void ToplevelForm::debugPrint(ostream &os, int indent) const
 {
 }
 
-void ToplevelForm::xmlPrint(ostream &os, int indent) const
-{
-}
-
 DEFN_AST_DOWNCASTS(ToplevelForm, TF_verbatim, TF_VERBATIM)
 
 TF_verbatim::~TF_verbatim()
@@ -71,17 +59,6 @@ void TF_verbatim::debugPrint(ostream &os, int indent) const
   ToplevelForm::debugPrint(os, indent);
 
   PRINT_STRING(code);
-}
-
-void TF_verbatim::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(TF_verbatim);
-
-  ToplevelForm::xmlPrint(os, indent);
-
-  XMLPRINT_STRING(code);
-  XMLPRINT_FOOTER(TF_verbatim);
-
 }
 
 TF_verbatim *TF_verbatim::clone() const
@@ -105,17 +82,6 @@ void TF_impl_verbatim::debugPrint(ostream &os, int indent) const
   ToplevelForm::debugPrint(os, indent);
 
   PRINT_STRING(code);
-}
-
-void TF_impl_verbatim::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(TF_impl_verbatim);
-
-  ToplevelForm::xmlPrint(os, indent);
-
-  XMLPRINT_STRING(code);
-  XMLPRINT_FOOTER(TF_impl_verbatim);
-
 }
 
 TF_impl_verbatim *TF_impl_verbatim::clone() const
@@ -142,18 +108,6 @@ void TF_class::debugPrint(ostream &os, int indent) const
 
   PRINT_SUBTREE(super);
   PRINT_LIST(ASTClass, ctors);
-}
-
-void TF_class::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(TF_class);
-
-  ToplevelForm::xmlPrint(os, indent);
-
-  XMLPRINT_SUBTREE(super);
-  XMLPRINT_LIST(ASTClass, ctors);
-  XMLPRINT_FOOTER(TF_class);
-
 }
 
 TF_class *TF_class::clone() const
@@ -184,18 +138,6 @@ void TF_option::debugPrint(ostream &os, int indent) const
   PRINT_LIST(string, args);
 }
 
-void TF_option::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(TF_option);
-
-  ToplevelForm::xmlPrint(os, indent);
-
-  XMLPRINT_STRING(name);
-  XMLPRINT_LIST(string, args);
-  XMLPRINT_FOOTER(TF_option);
-
-}
-
 TF_option *TF_option::clone() const
 {
   TF_option *ret = new TF_option(
@@ -222,18 +164,6 @@ void TF_enum::debugPrint(ostream &os, int indent) const
 
   PRINT_STRING(name);
   PRINT_LIST(string, enumerators);
-}
-
-void TF_enum::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(TF_enum);
-
-  ToplevelForm::xmlPrint(os, indent);
-
-  XMLPRINT_STRING(name);
-  XMLPRINT_LIST(string, enumerators);
-  XMLPRINT_FOOTER(TF_enum);
-
 }
 
 TF_enum *TF_enum::clone() const
@@ -263,22 +193,39 @@ void ASTClass::debugPrint(ostream &os, int indent) const
   PRINT_LIST(Annotation, decls);
 }
 
-void ASTClass::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(ASTClass);
-
-  XMLPRINT_STRING(name);
-  XMLPRINT_LIST(CtorArg, args);
-  XMLPRINT_LIST(Annotation, decls);
-  XMLPRINT_FOOTER(ASTClass);
-}
-
 ASTClass *ASTClass::clone() const
 {
   ASTClass *ret = new ASTClass(
     name,
     cloneASTList(args),
     cloneASTList(decls)
+  );
+  return ret;
+}
+
+
+// ------------------ AccessMod -------------------
+// *** DO NOT EDIT ***
+AccessMod::~AccessMod()
+{
+  while (mods.isNotEmpty()) {
+    mods.removeFirst();
+  }
+}
+
+void AccessMod::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(AccessMod);
+
+  PRINT_GENERIC(acc);
+  PRINT_LIST(string, mods);
+}
+
+AccessMod *AccessMod::clone() const
+{
+  AccessMod *ret = new AccessMod(
+    acc,
+    shallowCloneASTList(mods)
   );
   return ret;
 }
@@ -299,14 +246,11 @@ void Annotation::debugPrint(ostream &os, int indent) const
 {
 }
 
-void Annotation::xmlPrint(ostream &os, int indent) const
-{
-}
-
 DEFN_AST_DOWNCASTS(Annotation, UserDecl, USERDECL)
 
 UserDecl::~UserDecl()
 {
+  delete amod;
 }
 
 void UserDecl::debugPrint(ostream &os, int indent) const
@@ -315,27 +259,17 @@ void UserDecl::debugPrint(ostream &os, int indent) const
 
   Annotation::debugPrint(os, indent);
 
-  PRINT_GENERIC(access);
+  PRINT_SUBTREE(amod);
   PRINT_STRING(code);
-}
-
-void UserDecl::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(UserDecl);
-
-  Annotation::xmlPrint(os, indent);
-
-  XMLPRINT_GENERIC(access);
-  XMLPRINT_STRING(code);
-  XMLPRINT_FOOTER(UserDecl);
-
+  PRINT_STRING(init);
 }
 
 UserDecl *UserDecl::clone() const
 {
   UserDecl *ret = new UserDecl(
-    access,
-    code
+    amod? amod->clone() : NULL,
+    code,
+    init
   );
   return ret;
 }
@@ -354,18 +288,6 @@ void CustomCode::debugPrint(ostream &os, int indent) const
 
   PRINT_STRING(qualifier);
   PRINT_STRING(code);
-}
-
-void CustomCode::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(CustomCode);
-
-  Annotation::xmlPrint(os, indent);
-
-  XMLPRINT_STRING(qualifier);
-  XMLPRINT_STRING(code);
-  XMLPRINT_FOOTER(CustomCode);
-
 }
 
 CustomCode *CustomCode::clone() const
@@ -388,27 +310,16 @@ void CtorArg::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(CtorArg);
 
-  PRINT_BOOL(owner);
+  PRINT_BOOL(isOwner);
   PRINT_STRING(type);
   PRINT_STRING(name);
   PRINT_STRING(defaultValue);
 }
 
-void CtorArg::xmlPrint(ostream &os, int indent) const
-{
-  XMLPRINT_HEADER(CtorArg);
-
-  XMLPRINT_BOOL(owner);
-  XMLPRINT_STRING(type);
-  XMLPRINT_STRING(name);
-  XMLPRINT_STRING(defaultValue);
-  XMLPRINT_FOOTER(CtorArg);
-}
-
 CtorArg *CtorArg::clone() const
 {
   CtorArg *ret = new CtorArg(
-    owner,
+    isOwner,
     type,
     name,
     defaultValue
@@ -448,6 +359,16 @@ string ASTClass::classKindName() const
     ret &= "KIND_";
   }
   return ret;
+}
+
+bool AccessMod::hasMod(char const *mod) const
+{
+  FOREACH_ASTLIST(string, mods, iter) {
+    if (iter.data()->equals(mod)) {
+      return true;
+    }
+  }
+  return false;      // not found
 }
 
 

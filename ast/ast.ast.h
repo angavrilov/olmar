@@ -16,6 +16,7 @@ class TF_class;
 class TF_option;
 class TF_enum;
 class ASTClass;
+class AccessMod;
 class Annotation;
 class UserDecl;
 class CustomCode;
@@ -45,7 +46,6 @@ public:      // funcs
   ASTSpecFile *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
-  void xmlPrint(ostream &os, int indent) const;
 
 };
 
@@ -75,7 +75,6 @@ public:      // funcs
   virtual ToplevelForm *clone() const=0;
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
 };
 
@@ -92,7 +91,6 @@ public:      // funcs
   enum { TYPE_TAG = TF_VERBATIM };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual TF_verbatim *clone() const;
 
@@ -111,7 +109,6 @@ public:      // funcs
   enum { TYPE_TAG = TF_IMPL_VERBATIM };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual TF_impl_verbatim *clone() const;
 
@@ -131,7 +128,6 @@ public:      // funcs
   enum { TYPE_TAG = TF_CLASS };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual TF_class *clone() const;
 
@@ -152,7 +148,6 @@ public:      // funcs
   enum { TYPE_TAG = TF_OPTION };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual TF_option *clone() const;
 
@@ -172,7 +167,6 @@ public:      // funcs
   enum { TYPE_TAG = TF_ENUM };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual TF_enum *clone() const;
 
@@ -197,7 +191,6 @@ public:      // funcs
   ASTClass *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
-  void xmlPrint(ostream &os, int indent) const;
 
   public:  string classKindName() const;
 };
@@ -223,6 +216,28 @@ public:      // funcs
   string toString(AccessCtl acc);      // defined in ast.cc
 
 // *** DO NOT EDIT ***
+class AccessMod {
+public:      // data
+  AccessCtl acc;
+  ASTList <string > mods;
+
+public:      // funcs
+  AccessMod(AccessCtl _acc, ASTList <string > *_mods) : acc(_acc), mods(_mods) {
+  }
+  ~AccessMod();
+
+  char const *kindName() const { return "AccessMod"; }
+
+  AccessMod *clone() const;
+
+  void debugPrint(ostream &os, int indent) const;
+
+  public:  bool hasMod(char const *mod) const;
+};
+
+
+
+// *** DO NOT EDIT ***
 class Annotation {
 public:      // data
 
@@ -243,17 +258,17 @@ public:      // funcs
   virtual Annotation *clone() const=0;
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
 };
 
 class UserDecl : public Annotation {
 public:      // data
-  AccessCtl access;
+  AccessMod *amod;
   string code;
+  string init;
 
 public:      // funcs
-  UserDecl(AccessCtl _access, string _code) : Annotation(), access(_access), code(_code) {
+  UserDecl(AccessMod *_amod, string _code, string _init) : Annotation(), amod(_amod), code(_code), init(_init) {
   }
   virtual ~UserDecl();
 
@@ -261,10 +276,10 @@ public:      // funcs
   enum { TYPE_TAG = USERDECL };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual UserDecl *clone() const;
 
+  public:  AccessCtl access() const { return amod->acc; };
 };
 
 class CustomCode : public Annotation {
@@ -282,7 +297,6 @@ public:      // funcs
   enum { TYPE_TAG = CUSTOMCODE };
 
   virtual void debugPrint(ostream &os, int indent) const;
-  virtual void xmlPrint(ostream &os, int indent) const;
 
   virtual CustomCode *clone() const;
 
@@ -294,13 +308,13 @@ public:      // funcs
 // *** DO NOT EDIT ***
 class CtorArg {
 public:      // data
-  bool owner;
+  bool isOwner;
   string type;
   string name;
   string defaultValue;
 
 public:      // funcs
-  CtorArg(bool _owner, string _type, string _name, string _defaultValue) : owner(_owner), type(_type), name(_name), defaultValue(_defaultValue) {
+  CtorArg(bool _isOwner, string _type, string _name, string _defaultValue) : isOwner(_isOwner), type(_type), name(_name), defaultValue(_defaultValue) {
   }
   ~CtorArg();
 
@@ -309,7 +323,6 @@ public:      // funcs
   CtorArg *clone() const;
 
   void debugPrint(ostream &os, int indent) const;
-  void xmlPrint(ostream &os, int indent) const;
 
 };
 

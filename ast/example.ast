@@ -8,6 +8,9 @@ verbatim {
 // I want a visitor, with the interface called ExampleVisitor
 option visitor ExampleVisitor;
 
+// emit the xmlPrint stuff too
+option xmlPrint;
+
 class Node (
   int x,
   int y
@@ -15,6 +18,9 @@ class Node (
   public Node *next;
   ctor next=NULL;
   
+  public(field) int w = 3;
+  public FakeList<Node> *listptr = NULL;
+
   custom traverse { next->traverse(vis); }
 }
 
@@ -30,8 +36,16 @@ class AnotherList (
 
 
 class Super (int x) {
+  protected(virtual) int foo();
+
+  public(owner) int *p = NULL;
+  
+  public(virtual) int onlyInSubclasses() = 0;
+  public(virtual) int everywhere();
+
   -> Sub1(int y);
   -> Sub2(int z);
+  -> SubWithDefault(int q = 5);
 }
 
 

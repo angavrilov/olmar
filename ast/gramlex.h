@@ -85,6 +85,7 @@ private:     // data
   int embedMode;                   // TOK_FUNDECL_BODY or TOK_FUN_BODY
   EmbeddedLang *embedded;          // (owner) the processor
   isEmbedTok embedTokTest;         // for printing diagnostics
+  bool allowInit;                  // true if embedded can have an initializer
 
   int prevState;                   // so /**/ doesn't change start state
 
@@ -119,6 +120,9 @@ private:     // funcs
   // adds a string with only the specified # of chars; writes (but
   // then restores) a null terminator if necessary, so 'str' isn't const
   StringRef addString(char *str, int len) const;
+                                        
+  // nominally true if 'ch' equals 'embedFinish', but with a niggle
+  bool embedFinishMatches(char ch) const;
 
 public:      // funcs
   // create a new lexer that will read from to named stream,

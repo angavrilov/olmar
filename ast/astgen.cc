@@ -9,6 +9,7 @@
 #include "strutil.h"       // replace, translate, localTimeString
 #include "sobjlist.h"      // SObjList
 #include "srcloc.h"        // SourceLocManager
+#include "strtokp.h"       // StrtokParse
 
 #include <string.h>        // strncmp
 #include <fstream.h>       // ofstream
@@ -24,6 +25,9 @@ inline bool wantVisitor() { return visitorName.length() != 0; }
 // list of all TF_classes in the input, useful for certain
 // applications which don't care about other forms
 SObjList<TF_class> allClasses;
+
+// true if the user wants the xmlPrint stuff
+bool wantXMLPrint = false;
 
 
 // ------------------ shared gen functions ----------------------
@@ -155,6 +159,40 @@ string Gen::extractListType(char const *type)
 }
 
 
+// given a string that comes from a user's declaration of a field
+// of a class, extract the type and the name; this assumes that,
+// syntactically, they separate cleanly (without the name in the
+// middle of the type syntax)
+void parseFieldDecl(string &type, string &name, char const *decl)
+{
+  // it's not trivial to extract the name of the field from
+  // its declaration.. so let's use a simple heuristic: it's
+  // probably the last sequence of non-whitespace alphanum chars
+  StrtokParse tok(decl, " \t*()[]<>,");
+  
+  // now, find the offset of the start of the last token
+  int ofs = tok.offset(tok.tokc()-1);
+  
+  // extract the parts
+  type = trimWhitespace(string(decl, ofs));
+  name = trimWhitespace(decl+ofs);
+}
+
+string extractFieldType(char const *decl)
+{
+  string t, n;
+  parseFieldDecl(t, n, decl);
+  return t;
+}
+
+string extractFieldName(char const *decl)
+{
+  string t, n;
+  parseFieldDecl(t, n, decl);
+  return n;
+}
+
+
 // I scatter this throughout the generated code as pervasive
 // reminders that these files shouldn't be edited -- I often
 // accidentally edit them and then have to backtrack and reapply
@@ -171,7 +209,7 @@ void Gen::emitFiltered(ASTList<Annotation> const &decls, AccessCtl mode,
   FOREACH_ASTLIST(Annotation, decls, iter) {
     if (iter.data()->kind() == Annotation::USERDECL) {
       UserDecl const &decl = *( iter.data()->asUserDeclC() );
-      if (decl.access == mode) {
+      if (decl.access() == mode) {
         out << indent << decl.code << ";\n";
       }                                                     
     }
@@ -438,6 +476,13 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
   }
 }
 
+ 
+// true if 'ud' seems to declare a function, as opposed to data
+bool isFuncDecl(UserDecl const *ud)
+{
+  return ud->amod->hasMod("virtual") ||
+         ud->amod->hasMod("func");
+}
 
 // emit the definition of the constructor itself
 void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
@@ -489,6 +534,23 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
         // initialize the field with the formal argument
         out << arg.data()->name << "(_" << arg.data()->name << ")";
       }
+
+      // initialize fields that have initializers
+      FOREACH_ASTLIST(Annotation, cls.decls, ann) {
+        if (!ann.data()->isUserDecl()) continue;
+        UserDecl const *ud = ann.data()->asUserDeclC();
+        if (ud->init.length() == 0) continue;
+        if (isFuncDecl(ud)) continue;       // don't do this for functions!
+
+        if (ct++ > 0) {
+          out << ", ";
+        }
+        else {
+          out << " : ";
+        }
+
+        out << extractFieldName(ud->code) << "(" << ud->init << ")";
+      }
     }
 
     // insert user's ctor code
@@ -503,7 +565,9 @@ void HGen::emitCommonFuncs(char const *virt)
 {
   // declare the functions they all have
   out << "  " << virt << "void debugPrint(ostream &os, int indent) const;\n";
-  out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
+  if (wantXMLPrint) {
+    out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
+  }
   
   if (wantVisitor()) {
     // visitor traversal entry point
@@ -520,12 +584,31 @@ void HGen::emitUserDecls(ASTList<Annotation> const &decls)
     // in the header, we only look at userdecl annotations
     if (iter.data()->kind() == Annotation::USERDECL) {
       UserDecl const &decl = *( iter.data()->asUserDeclC() );
-      if (decl.access == AC_PUBLIC ||
-          decl.access == AC_PRIVATE ||
-          decl.access == AC_PROTECTED) {
-        out << "  " << toString(decl.access) << ": " << decl.code << ";\n";
+      if (decl.access() == AC_PUBLIC ||
+          decl.access() == AC_PRIVATE ||
+          decl.access() == AC_PROTECTED) {
+        out << "  " << toString(decl.access()) << ": ";
+
+        if (decl.amod->hasMod("virtual")) {
+          out << "virtual ";
+        }
+        out << decl.code;
+
+        if (isFuncDecl(&decl) && decl.init.length() > 0) {
+          out << " = " << decl.init;     // the "=0" of a pure virtual function
+        }
+        out << ";";
+
+        // emit field flags as comments, to help debug astgen
+        if (decl.amod->mods.count()) {
+          out << "   //";
+          FOREACH_ASTLIST(string, decl.amod->mods, mod) {
+            out << " " << *(mod.data());
+          }
+        }
+        out << "\n";
       }
-      if (decl.access == AC_PUREVIRT) {
+      if (decl.access() == AC_PUREVIRT) {
         // this is the parent class: declare it pure virtual
         out << "  public: virtual " << decl.code << "=0;\n";
       }
@@ -562,8 +645,14 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   // emit implementation declarations for parent's pure virtuals
   FOREACH_ASTLIST(Annotation, parent.decls, iter) {
     UserDecl const *decl = iter.data()->ifUserDeclC();
-    if (decl && decl->access == AC_PUREVIRT) {
+    if (!decl) continue;
+    
+    if (decl->access() == AC_PUREVIRT) {
       out << "  public: virtual " << decl->code << ";\n";
+    }
+    else if (decl->amod->hasMod("virtual")) {
+      out << "  " << toString(decl->access()) 
+          << ": virtual " << decl->code << ";\n";
     }
   }
 
@@ -588,7 +677,12 @@ public:
   void emitFile();
   void emitTFClass(TF_class const &cls);
   void emitDestructor(ASTClass const &cls);
+  void emitDestroyField(bool isOwner, char const *type, char const *name);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
+  void emitPrintFields(ASTList<Annotation> const &decls);
+  void emitPrintField(char const *print,
+                      bool isOwner, char const *type, char const *name);
+
   void emitXmlPrintCtorArgs(ASTList<CtorArg> const &args);
   void emitCustomCode(ASTList<Annotation> const &list, char const *tag);
 
@@ -689,12 +783,13 @@ void CGen::emitTFClass(TF_class const &cls)
   // often much shorter (and more important) than the subtrees
   emitCustomCode(cls.super->decls, "debugPrint");
   emitPrintCtorArgs(cls.super->args);
+  emitPrintFields(cls.super->decls);
 
   out << "}\n";
   out << "\n";
 
   // dsw: xmlPrint
-  {
+  if (wantXMLPrint) {
     out << "void " << cls.super->name << "::xmlPrint(ostream &os, int indent) const\n";
     out << "{\n";
     if (!cls.hasChildren()) {
@@ -759,11 +854,12 @@ void CGen::emitTFClass(TF_class const &cls)
 
     emitCustomCode(ctor.decls, "debugPrint");
     emitPrintCtorArgs(ctor.args);
+    emitPrintFields(ctor.decls);
 
     out << "}\n";
     out << "\n";
 
-    {
+    if (wantXMLPrint) {
       // subclass xmlPrint
       out << "void " << ctor.name << "::xmlPrint(ostream &os, int indent) const\n";
       out << "{\n";
@@ -821,47 +917,63 @@ void CGen::emitDestructor(ASTClass const &cls)
 
   // user's code first
   emitFiltered(cls.decls, AC_DTOR, "  ");
-
+  
+  // constructor arguments
   FOREACH_ASTLIST(CtorArg, cls.args, argiter) {
     CtorArg const &arg = *(argiter.data());
+    emitDestroyField(arg.isOwner, arg.type, arg.name);
+  }
+                          
+  // owner fields
+  FOREACH_ASTLIST(Annotation, cls.decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    if (!ud->amod->hasMod("owner")) continue;
 
-    if (isTreeListType(arg.type)) {
-      // explicitly destroy list elements, because it's easy to do, and
-      // because if there is a problem, it's much easier to see its
-      // role in a debugger backtrace
-      out << "  " << arg.name << ".deleteAll();\n";
-    }
-    else if (isListType(arg.type)) {
-      if (0==strcmp(extractListType(arg.type), "LocString")) {
-        // these are owned even though they aren't actually tree nodes
-        out << "  " << arg.name << ".deleteAll();\n";
-        
-        // TODO: this analysis is duplicated below, during cloning;
-        // the astgen tool should do a better job of encapsulating
-        // the relationships (particularly owning/non-owning) between
-        // its parts, instead of doing ad-hoc type inspection in random
-        // places during emission
-      }
-      else {
-        // we don't own the list elements; it's *essential* to
-        // explicitly remove the elements; this is a hack, since the
-        // ideal solution is to make a variant of ASTList which is
-        // explicitly serf pointers.. the real ASTList doesn't have
-        // a removeAll method (since it's an owner list), and rather
-        // than corrupting that interface I'll emit the code each time..
-        out << "  while (" << arg.name << ".isNotEmpty()) {\n"
-            << "    " << arg.name << ".removeFirst();\n"
-            << "  }\n";
-        //out << "  " << arg.name << ".removeAll();\n";
-      }
-    }
-    else if (arg.owner || isTreeNode(arg.type)) {
-      out << "  delete " << arg.name << ";\n";
-    }
+    emitDestroyField(true /*isOwner*/,
+                     extractFieldType(ud->code),
+                     extractFieldName(ud->code));
   }
 
   out << "}\n";
   out << "\n";
+}
+
+void CGen::emitDestroyField(bool isOwner, char const *type, char const *name)
+{
+  if (isTreeListType(type)) {
+    // explicitly destroy list elements, because it's easy to do, and
+    // because if there is a problem, it's much easier to see its
+    // role in a debugger backtrace
+    out << "  " << name << ".deleteAll();\n";
+  }
+  else if (isListType(type)) {
+    if (0==strcmp(extractListType(type), "LocString")) {
+      // these are owned even though they aren't actually tree nodes
+      out << "  " << name << ".deleteAll();\n";
+
+      // TODO: this analysis is duplicated below, during cloning;
+      // the astgen tool should do a better job of encapsulating
+      // the relationships (particularly owning/non-owning) between
+      // its parts, instead of doing ad-hoc type inspection in random
+      // places during emission
+    }
+    else {
+      // we don't own the list elements; it's *essential* to
+      // explicitly remove the elements; this is a hack, since the
+      // ideal solution is to make a variant of ASTList which is
+      // explicitly serf pointers.. the real ASTList doesn't have
+      // a removeAll method (since it's an owner list), and rather
+      // than corrupting that interface I'll emit the code each time..
+      out << "  while (" << name << ".isNotEmpty()) {\n"
+          << "    " << name << ".removeFirst();\n"
+          << "  }\n";
+      //out << "  " << name << ".removeAll();\n";
+    }
+  }
+  else if (isOwner || isTreeNode(type)) {
+    out << "  delete " << name << ";\n";
+  }
 }
 
 
@@ -869,32 +981,53 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    if (arg.type.equals("string")) {
-      out << "  PRINT_STRING(" << arg.name << ");\n";
-    }
-    else if (isListType(arg.type)) {
-      // for now, I'll continue to assume that any class that appears
-      // in ASTList<> is compatible with the printing regime here
-      out << "  PRINT_LIST(" << extractListType(arg.type) << ", "
-                             << arg.name << ");\n";
-    }
-    else if (isFakeListType(arg.type)) {
-      // similar printing approach for FakeLists
-      out << "  PRINT_FAKE_LIST(" << extractListType(arg.type) << ", "
-                                  << arg.name << ");\n";
-    }
-    else if (isTreeNode(arg.type) ||
-             (isTreeNodePtr(arg.type) && arg.owner)) {
-      // don't print subtrees that are possibly shared or circular
-      out << "  PRINT_SUBTREE(" << arg.name << ");\n";
-    }
-    else if (arg.type.equals("bool")) {
-      out << "  PRINT_BOOL(" << arg.name << ");\n";
-    }
-    else {
-      // catch-all ..
-      out << "  PRINT_GENERIC(" << arg.name << ");\n";
-    }
+
+    emitPrintField("PRINT", arg.isOwner, arg.type, arg.name);
+  }
+}
+
+void CGen::emitPrintFields(ASTList<Annotation> const &decls)
+{
+  FOREACH_ASTLIST(Annotation, decls, iter) {
+    if (!iter.data()->isUserDecl()) continue;
+    UserDecl const *ud = iter.data()->asUserDeclC();
+    if (!ud->amod->hasMod("field")) continue;
+
+    emitPrintField("PRINT",
+                   ud->amod->hasMod("owner"),
+                   extractFieldType(ud->code),
+                   extractFieldName(ud->code));
+  }
+}
+
+void CGen::emitPrintField(char const *print,
+                          bool isOwner, char const *type, char const *name)
+{
+  if (0==strcmp(type, "string")) {
+    out << "  " << print << "_STRING(" << name << ");\n";
+  }
+  else if (isListType(type)) {
+    // for now, I'll continue to assume that any class that appears
+    // in ASTList<> is compatible with the printing regime here
+    out << "  " << print << "_LIST(" << extractListType(type) << ", "
+        << name << ");\n";
+  }
+  else if (isFakeListType(type)) {
+    // similar printing approach for FakeLists
+    out << "  " << print << "_FAKE_LIST(" << extractListType(type) << ", "
+        << name << ");\n";
+  }
+  else if (isTreeNode(type) ||
+           (isTreeNodePtr(type) && isOwner)) {
+    // don't print subtrees that are possibly shared or circular
+    out << "  " << print << "_SUBTREE(" << name << ");\n";
+  }
+  else if (0==strcmp(type, "bool")) {
+    out << "  " << print << "_BOOL(" << name << ");\n";
+  }
+  else {
+    // catch-all ..
+    out << "  " << print << "_GENERIC(" << name << ");\n";
   }
 }
 
@@ -903,36 +1036,8 @@ void CGen::emitXmlPrintCtorArgs(ASTList<CtorArg> const &args)
 {
   FOREACH_ASTLIST(CtorArg, args, argiter) {
     CtorArg const &arg = *(argiter.data());
-    if (arg.type.equals("string")) {
-      out << "  XMLPRINT_STRING(" << arg.name << ");\n";
-    }
-    else if (isListType(arg.type)) {
-      // for now, I'll continue to assume that any class that appears
-      // in ASTList<> is compatible with the printing regime here
-      out << "  XMLPRINT_LIST("
-          << extractListType(arg.type) << ", "
-          << arg.name << ");\n";
-    }
-    else if (isFakeListType(arg.type)) {
-      // similar printing approach for FakeLists
-      out << "  XMLPRINT_FAKE_LIST("
-          << extractListType(arg.type) << ", "
-          << arg.name << ");\n";
-    }
-    else if (isTreeNode(arg.type) ||
-             (isTreeNodePtr(arg.type) && arg.owner)) {
-      // dsw: This shared/circular property is going to be a fun one to check.
-      // don't print subtrees that are possibly shared or circular
-      out << "  XMLPRINT_SUBTREE(" << arg.name << ");\n";
-    }
-    else if (arg.type.equals("bool")) {
-      out << "  XMLPRINT_BOOL(" << arg.name << ");\n";
-    }
-    else {
-      // dsw: Not sure that this will fly with xml.
-      // catch-all ..
-      out << "  XMLPRINT_GENERIC(" << arg.name << ");\n";
-    }
+    
+    emitPrintField("XMLPRINT", arg.isOwner, arg.type, arg.name);
   }
 }
 
@@ -1376,6 +1481,9 @@ void entry(int argc, char **argv)
 
           // name of the visitor interface class
           visitorName = *( op->args.firstC() );
+        }
+        else if (op->name.equals("xmlPrint")) {
+          wantXMLPrint = true;
         }
         else {
           cout << "unknown option: " << op->name << endl;
