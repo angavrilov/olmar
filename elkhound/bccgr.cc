@@ -20,6 +20,8 @@ Lexer2Token const *lastTokenYielded = NULL;
 // parsing entry point
 int yyparse();
 
+
+#if 0     // previous interface
 // returns token types until EOF, at which point L2_EOF is returned
 int yylex()
 {
@@ -53,6 +55,29 @@ int yylex()
     lastTokenYielded = NULL;
     return L2_EOF;
   }
+}
+#endif // 0
+
+
+// returns token types until EOF, at which point L2_EOF is returned
+int yylex()
+{
+  int ret = lexer2.type;
+
+  // since my token reclassifier is hard to translate to
+  // Bison, I'll just yield variable names always, and only
+  // parse typedef-less C programs
+  if (ret == L2_NAME) {
+    ret = L2_VARIABLE_NAME;
+  }
+
+  if (ret != L2_EOF) {
+    // advance to next token
+    lexer2.nextToken();
+  }
+
+  // return one we just advanced past
+  return ret;
 }
 
 
@@ -115,6 +140,7 @@ int main(int argc, char *argv[])
   // do second phase lexer
   traceProgress() << "lexical analysis stage 2...\n";
   lexer2_lex(lexer2, lexer1, inputFname);
+  lexer2.beginReading();
 
   // start Bison-parser
   traceProgress() << "starting parse..." << endl;

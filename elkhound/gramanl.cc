@@ -3257,6 +3257,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     }
 
     // get the state symbol
+    xassert((unsigned)(state->id) < (unsigned)(tables->numStates));
     tables->stateSymbol[state->id] =
       encodeSymbolId(state->getStateSymbolC());
   }

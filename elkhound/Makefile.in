@@ -55,7 +55,7 @@ endif
 ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
-#ccflags += -DNO_GLR_SOURCELOC
+ccflags += -DNO_GLR_SOURCELOC
 
 # turn on to enable bison's debugging features
 #YYDEBUG := -DYYDEBUG=1

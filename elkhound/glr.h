@@ -344,6 +344,10 @@ public:
   ParseTables *tables;                      // (owner)
 
   // ---- parser state between tokens ----
+  // I keep a pointer to this so I can ask for token descriptions
+  // inside some of the helper functions
+  LexerInterface *lexerPtr;                 // (serf)
+
   // Every node in this set is (the top of) a parser that might
   // ultimately succeed to parse the input, or might reach a
   // point where it cannot proceed, and therefore dies.  (See
@@ -440,8 +444,9 @@ private:    // funcs
                                StackNode const *target) const;
   void printConfig() const;
   void buildParserIndex();
-  void printParseErrorMessage(LexerInterface &lexer, StateId lastToDie);
+  void printParseErrorMessage(StateId lastToDie);
   bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
+  bool nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts);
 
 public:     // funcs
   GLR(UserActions *userAct);

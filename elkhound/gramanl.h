@@ -475,13 +475,13 @@ public:     // funcs
   // decode actions
   bool isShiftAction(ActionEntry code) const
     { return code > 0 && code <= numStates; }
-  StateId decodeShift(ActionEntry code) const
+  static StateId decodeShift(ActionEntry code)
     { return (StateId)(code-1); }
-  bool isReduceAction(ActionEntry code) const
+  static bool isReduceAction(ActionEntry code)
     { return code < 0; }
-  int decodeReduce(ActionEntry code) const
+  static int decodeReduce(ActionEntry code)
     { return -(code+1); }
-  bool isErrorAction(ActionEntry code) const
+  static bool isErrorAction(ActionEntry code)
     { return code == 0; }
   // ambigAction is only other choice
   int decodeAmbigAction(ActionEntry code) const
@@ -495,7 +495,7 @@ public:     // funcs
   GotoEntry validateGoto(int code) const;
 
   // decode gotos
-  StateId decodeGoto(GotoEntry code) const
+  static StateId decodeGoto(GotoEntry code)
     { return (StateId)code; }
 };
 

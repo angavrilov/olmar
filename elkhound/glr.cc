@@ -311,6 +311,7 @@ inline void StackNode::deinit()
 
 inline SymbolId StackNode::getSymbolC() const
 {
+  xassertdb((unsigned)state < (unsigned)(glr->tables->numStates));
   return glr->tables->stateSymbol[state];
 }
 
@@ -603,6 +604,8 @@ bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
 
 GLR::GLR(UserActions *user)
   : userAct(user),
+    tables(NULL),
+    lexerPtr(NULL),
     activeParsers(),
     parserIndex(NULL),
     currentTokenType(0),
@@ -632,6 +635,10 @@ GLR::~GLR()
   if (parserIndex) {
     delete[] parserIndex;
   }
+  
+  // NOTE: must do this after the 'decParserList' calls above, because
+  // they refer to the tables!
+  delete tables;
 }
 
 
@@ -788,6 +795,9 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   #ifndef NDEBUG
     bool doDumpGSS = tracingSys("dumpGSS");
   #endif
+  
+  // this should be reset to NULL on all exit paths..
+  lexerPtr = &lexer;
 
   // build the parser index (I do this regardless of whether I'm going
   // to use it, because up here it makes no performance difference,
@@ -797,15 +807,19 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
   NODE_COLUMN( globalNodeColumn = 0; )
-  StackNode *first = makeStackNode(tables->startState);
-  addActiveParser(first);
+  {
+    StackNode *first = makeStackNode(tables->startState);
+    addActiveParser(first);
+  }
 
   // we will queue up shifts and process them all at the end (pulled
   // out of loop so I don't deallocate the array between tokens)
   ArrayStack<PendingShift> pendingShifts;                  // starts empty
 
   // for each input symbol
-  int tokenNumber = 0;
+  #ifndef NDEBUG
+    int tokenNumber = 0;
+  #endif
   for (;;) {
     // debugging
     TRSPARSE(
@@ -831,15 +845,15 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
       }
     #endif
     
-    // hmmm.. why am I suddenly so slow?
-    //register int localCurrentTokenType = currentTokenType;
-    #define localCurrentTokenType currentTokenType
-
     // get other info about the token
     currentTokenValue = lexer.sval;
     SOURCELOC( currentTokenLoc = lexer.loc; )
 
   #if USE_MINI_LR
+    // try to cache a few values in locals (this didn't help any..)
+    //ActionEntry const * const actionTable = this->tables->actionTable;
+    //int const numTerms = this->tables->numTerms;
+
   tryDeterministic:
     // --------------------- mini-LR parser -------------------------
     // optimization: if there's only one active parser, and the
@@ -858,7 +872,8 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
       StackNode *parser = activeParsers[0];
       xassertdb(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
       ActionEntry action =
-        tables->actionEntry(parser->state, localCurrentTokenType);
+        tables->actionEntry(parser->state, currentTokenType);
+        //actionTable[(parser->state)*numTerms + currentTokenType];
 
       // I decode reductions before shifts because:
       //   - they are 4x more common in my C grammar
@@ -885,7 +900,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
           // parser engine -- even *one* branch inside the loop body
           // costs about 30% end-to-end performance loss!
           toPass.ensureIndexDoubler(rhsLen-1);
-          for (int i=rhsLen-1; i>=0; i--) {
+          for (int i = rhsLen-1; i >= 0; i--) {
             // grab 'parser's only sibling link
             //SiblingLink *sib = parser->getUniqueLink();
             SiblingLink &sib = parser->firstSib;
@@ -1016,7 +1031,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
         StateId newState = tables->decodeShift(action);
 
         TRSPARSE("state " << parser->state <<
-                 ", (unambig) shift token " << currentTokenClass->name <<
+                 ", (unambig) shift token " << lexer.tokenDesc() <<
                  ", to state " << newState);
 
         NODE_COLUMN( globalNodeColumn++; )
@@ -1055,93 +1070,12 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
     // if we get here, we're dropping into the nondeterministic GLR
     // algorithm in its full glory
-    //cout << "not deterministic\n";
-
-    // ([GLR] called the code from here to the end of
-    // the loop 'parseword')
-
-    // paranoia
-    xassert(pendingShifts.length() == 0);
-
-    // put active parser tops into a worklist
-    decParserList(parserWorklist);      // about to empty the list
-    //parserWorklist = activeParsers;
-    {
-      parserWorklist.empty();
-      for (int i=0; i < activeParsers.length(); i++) {
-        parserWorklist.push(activeParsers[i]);
-      }
+    if (!nondeterministicParseToken(pendingShifts)) {
+      lexerPtr = NULL;
+      return false;
     }
-    incParserList(parserWorklist);
-
-    // work through the worklist
-    {
-      StateId lastToDie = STATE_INVALID;
-      while (parserWorklist.isNotEmpty()) {
-        RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
-        parser->decRefCt();     // no longer on worklist
-
-        // to count actions, first record how many parsers we have
-        // before processing this one
-        //int parsersBefore = parserWorklist.length() + pendingShifts.length();
-
-        // process this parser
-        ActionEntry action =      // consult the 'action' table
-          tables->actionEntry(parser->state, localCurrentTokenType);
-        int actions = glrParseAction(parser, action, pendingShifts);
-
-        // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
-        // provides a counterexample (the parser could reduce, but the state it
-        // reduces to could already exist, so we wouldn't observe the change
-        // by counting parsers)
-        // now observe change -- normal case is we now have one more
-        //int actions = (parserWorklist.length() + pendingShifts.length()) -
-        //                parsersBefore;
-
-        if (actions == 0) {
-          TRSPARSE("parser in state " << parser->state << " died");
-          lastToDie = parser->state;          // for reporting the error later if necessary
-
-          // in the if-then-else grammar, I have a parser which dies but
-          // then gets merged with something else, prompting a request
-          // for the user's merge function; to avoid this, kill it early.
-          // first verify my assumptions: it should be on 'activeParsers'
-          // and pointed-to by 'parser
-          xassertdb(parser->referenceCount == 2);
-
-          // the only reason nodes are retained on 'activeParsers' is so if
-          // some other node gets a new sibling link, the finished parsers
-          // can be reconsidered; but new sibling links never enable a parser
-          // to act where it couldn't before (among other things, we don't
-          // even look at siblings when deciding whether to act), so we should
-          // go ahead and eliminate this parser from all lists now
-          pullFromActiveParsers(parser);
-
-          // verify we got it
-          xassertdb(parser->referenceCount == 1);
-
-          // now when 'parser' passes out of scope, it will be deallocated,
-          // and will not interfere with another parser reaching the same
-          // state (incidentally, another parser reaching the same state will
-          // suffer the same fate this one did.. nothing useful to do about it)
-        }
-        else if (actions > 1) {
-          TRSPARSE("parser in state " << parser->state <<
-                   " split into " << actions << " parsers");
-        }
-      }
-
-      // process all pending shifts
-      glrShiftTerminals(pendingShifts);
-
-      // if all active parsers have died, there was an error
-      if (activeParsers.isEmpty()) {
-        printParseErrorMessage(lexer, lastToDie);
-        return false;
-      }
-    }
-
-  getNextToken:                         
+    
+  getNextToken:
     // was that the last token?
     if (lexer.type == 0) {
       break;
@@ -1149,7 +1083,9 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
     // get the next token
     lexer.nextToken();
-    tokenNumber++;
+    #ifndef NDEBUG
+      tokenNumber++;
+    #endif
   }
 
   bool ret = cleanupAfterParse(timer, treeTop);
@@ -1188,17 +1124,112 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
     //PVAL(computeDepthIters);
   #endif
 
+  lexerPtr = NULL;
   return ret;
 }
 
- 
-// pulled out of glrParse() to reduce register pressure
-void GLR::printParseErrorMessage(LexerInterface &lexer, StateId lastToDie)
+
+// return false if caller should return false; pulled out of
+// glrParse to reduce register pressure (but didn't help as
+// far as I can tell!)
+bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
 {
-  cout << "Line " << lexer.loc.line
-       << ", col " << lexer.loc.col
+  //cout << "not deterministic\n";
+
+  // ([GLR] called the code from here to the end of
+  // the loop 'parseword')
+
+  // paranoia
+  xassert(pendingShifts.length() == 0);
+
+  // put active parser tops into a worklist
+  decParserList(parserWorklist);      // about to empty the list
+  //parserWorklist = activeParsers;
+  {
+    parserWorklist.empty();
+    for (int i=0; i < activeParsers.length(); i++) {
+      parserWorklist.push(activeParsers[i]);
+    }
+  }
+  incParserList(parserWorklist);
+
+  // work through the worklist
+  StateId lastToDie = STATE_INVALID;
+  while (parserWorklist.isNotEmpty()) {
+    RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
+    parser->decRefCt();     // no longer on worklist
+
+    // to count actions, first record how many parsers we have
+    // before processing this one
+    //int parsersBefore = parserWorklist.length() + pendingShifts.length();
+
+    // process this parser
+    ActionEntry action =      // consult the 'action' table
+      tables->actionEntry(parser->state, currentTokenType);
+    int actions = glrParseAction(parser, action, pendingShifts);
+
+    // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
+    // provides a counterexample (the parser could reduce, but the state it
+    // reduces to could already exist, so we wouldn't observe the change
+    // by counting parsers)
+    // now observe change -- normal case is we now have one more
+    //int actions = (parserWorklist.length() + pendingShifts.length()) -
+    //                parsersBefore;
+
+    if (actions == 0) {
+      TRSPARSE("parser in state " << parser->state << " died");
+      lastToDie = parser->state;          // for reporting the error later if necessary
+
+      // in the if-then-else grammar, I have a parser which dies but
+      // then gets merged with something else, prompting a request
+      // for the user's merge function; to avoid this, kill it early.
+      // first verify my assumptions: it should be on 'activeParsers'
+      // and pointed-to by 'parser
+      xassertdb(parser->referenceCount == 2);
+
+      // the only reason nodes are retained on 'activeParsers' is so if
+      // some other node gets a new sibling link, the finished parsers
+      // can be reconsidered; but new sibling links never enable a parser
+      // to act where it couldn't before (among other things, we don't
+      // even look at siblings when deciding whether to act), so we should
+      // go ahead and eliminate this parser from all lists now
+      pullFromActiveParsers(parser);
+
+      // verify we got it
+      xassertdb(parser->referenceCount == 1);
+
+      // now when 'parser' passes out of scope, it will be deallocated,
+      // and will not interfere with another parser reaching the same
+      // state (incidentally, another parser reaching the same state will
+      // suffer the same fate this one did.. nothing useful to do about it)
+    }
+    else if (actions > 1) {
+      TRSPARSE("parser in state " << parser->state <<
+               " split into " << actions << " parsers");
+    }
+  }
+
+  // process all pending shifts
+  glrShiftTerminals(pendingShifts);
+
+  // if all active parsers have died, there was an error
+  if (activeParsers.isEmpty()) {
+    printParseErrorMessage(lastToDie);
+    return false;
+  }
+  else {
+    return true;
+  }
+}
+
+
+// pulled out of glrParse() to reduce register pressure
+void GLR::printParseErrorMessage(StateId lastToDie)
+{
+  cout << "Line " << lexerPtr->loc.line
+       << ", col " << lexerPtr->loc.col
        << ": Parse error at "
-       << lexer.tokenDescType(currentTokenType)
+       << lexerPtr->tokenDescType(currentTokenType)
        << endl;
 
   // removing this for now since keeping it would mean putting
@@ -1819,7 +1850,7 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 
     // debugging
     TRSPARSE("state " << leftSibling->state <<
-             ", shift token " << currentTokenClass->name <<
+             ", shift token " << lexerPtr->tokenDesc() <<
              ", to state " << newState);
 
     // if there's already a parser with this state
