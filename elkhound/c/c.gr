@@ -1,6 +1,12 @@
 // c.gr            see license.txt for copyright and terms of use
 // grammar for C
 
+// this is derived from the C++ grammar by commenting-out
+// some rules, and has not been maintained in a while
+
+// 1/08/03: commented-out all of the unreachable nonterminals
+// because bison-1.875 spews massive warnings when it sees them
+
 
 verbatim [
 
@@ -212,10 +218,10 @@ nonterm[StringRef] PQVarName {
   //-> q:Qualifier rhs:PQVarName ;
 }
 
-nonterm Qualifier {
-  -> "::" ;
-  -> TypeName "::" ;
-}
+//  nonterm Qualifier {
+//    -> "::" ;
+//    -> TypeName "::" ;
+//  }
 
 
 nonterm[Expression*] PostfixExpression {
@@ -329,26 +335,26 @@ nonterm[E_new*] NewExpression {
 
 // NewDeclaratorOpt is, as a regular expression:
 //   (PtrOperator)*  ("[" Expression "]")?  ("[" ConstExpression "]")*
-nonterm NewDeclaratorOpt {
-  -> empty ;
-  -> PtrOperator NewDeclaratorOpt ;
-  -> DirectNewDeclarator ;        // commit to at least one "[" ... "]"
-}
-nonterm DirectNewDeclarator {
-  -> "[" Expression "]" ;
-  -> DirectNewDeclarator "[" ConstantExpression "]" ;
-}
+//  nonterm NewDeclaratorOpt {
+//    -> empty ;
+//    -> PtrOperator NewDeclaratorOpt ;
+//    -> DirectNewDeclarator ;        // commit to at least one "[" ... "]"
+//  }
+//  nonterm DirectNewDeclarator {
+//    -> "[" Expression "]" ;
+//    -> DirectNewDeclarator "[" ConstantExpression "]" ;
+//  }
 
-nonterm NewInitializerOpt {
-  -> empty ;
-  -> "(" ExpressionListOpt ")" ;
-}
+//  nonterm NewInitializerOpt {
+//    -> empty ;
+//    -> "(" ExpressionListOpt ")" ;
+//  }
 
-// omitting possibility of initial "::"
-nonterm DeleteExpression {
-  -> "delete" e:CastExpression ;
-  -> "delete" "[" "]" e:CastExpression ;
-}
+//  // omitting possibility of initial "::"
+//  nonterm DeleteExpression {
+//    -> "delete" e:CastExpression ;
+//    -> "delete" "[" "]" e:CastExpression ;
+//  }
 
 nonterm[Expression*] CastExpression {
   -> e:UnaryExpression 
@@ -782,29 +788,29 @@ nonterm[StringRef] PQTypeName {
 // or less "pure".. but I'll probably merge them at some point
 //
 // I return an 'int' here because it's an OR of CVFlags and SimpleTypeId
-nonterm[int] SimpleCVTypeSpecifier {
-  -> "unsigned" q:CVQualifierSeq "char"         [ return q | ST_UNSIGNED_CHAR; ]
-  -> "signed" q:CVQualifierSeq "char"           [ return q | ST_SIGNED_CHAR; ]
-  -> "unsigned" q:CVQualifierSeq "int"          [ return q | ST_UNSIGNED_INT; ]
-  -> "signed" q:CVQualifierSeq "int"            [ return q | ST_INT; ]
-  -> "unsigned" q:CVQualifierSeq "short" "int"  [ return q | ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" "short" q:CVQualifierSeq "int"  [ return q | ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" q:CVQualifierSeq "short"        [ return q | ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" q:CVQualifierSeq "long" "int"   [ return q | ST_UNSIGNED_LONG_INT; ]
-  -> "unsigned" "long" q:CVQualifierSeq "int"   [ return q | ST_UNSIGNED_LONG_INT; ]
-  -> "unsigned" q:CVQualifierSeq "long"         [ return q | ST_UNSIGNED_LONG_INT; ]
-  -> "signed" q:CVQualifierSeq "long" "int"     [ return q | ST_LONG_INT; ]
-  -> "signed" "long" q:CVQualifierSeq "int"     [ return q | ST_LONG_INT; ]
-  -> "signed" q:CVQualifierSeq "long"           [ return q | ST_LONG_INT; ]
-  -> "long" q:CVQualifierSeq "int"              [ return q | ST_LONG_INT; ]
-  -> "signed" q:CVQualifierSeq "long" "long"    [ return q | ST_LONG_LONG; ]
-  -> "unsigned" q:CVQualifierSeq "long" "long"  [ return q | ST_UNSIGNED_LONG_LONG; ]
-  -> "signed" q:CVQualifierSeq "short" "int"    [ return q | ST_SHORT_INT; ]
-  -> "signed" "short" q:CVQualifierSeq "int"    [ return q | ST_SHORT_INT; ]
-  -> "signed" q:CVQualifierSeq "short"          [ return q | ST_SHORT_INT; ]
-  -> "short" q:CVQualifierSeq "int"             [ return q | ST_SHORT_INT; ]
-  -> "long" q:CVQualifierSeq "double"           [ return q | ST_LONG_DOUBLE; ]
-}
+//  nonterm[int] SimpleCVTypeSpecifier {
+//    -> "unsigned" q:CVQualifierSeq "char"         [ return q | ST_UNSIGNED_CHAR; ]
+//    -> "signed" q:CVQualifierSeq "char"           [ return q | ST_SIGNED_CHAR; ]
+//    -> "unsigned" q:CVQualifierSeq "int"          [ return q | ST_UNSIGNED_INT; ]
+//    -> "signed" q:CVQualifierSeq "int"            [ return q | ST_INT; ]
+//    -> "unsigned" q:CVQualifierSeq "short" "int"  [ return q | ST_UNSIGNED_SHORT_INT; ]
+//    -> "unsigned" "short" q:CVQualifierSeq "int"  [ return q | ST_UNSIGNED_SHORT_INT; ]
+//    -> "unsigned" q:CVQualifierSeq "short"        [ return q | ST_UNSIGNED_SHORT_INT; ]
+//    -> "unsigned" q:CVQualifierSeq "long" "int"   [ return q | ST_UNSIGNED_LONG_INT; ]
+//    -> "unsigned" "long" q:CVQualifierSeq "int"   [ return q | ST_UNSIGNED_LONG_INT; ]
+//    -> "unsigned" q:CVQualifierSeq "long"         [ return q | ST_UNSIGNED_LONG_INT; ]
+//    -> "signed" q:CVQualifierSeq "long" "int"     [ return q | ST_LONG_INT; ]
+//    -> "signed" "long" q:CVQualifierSeq "int"     [ return q | ST_LONG_INT; ]
+//    -> "signed" q:CVQualifierSeq "long"           [ return q | ST_LONG_INT; ]
+//    -> "long" q:CVQualifierSeq "int"              [ return q | ST_LONG_INT; ]
+//    -> "signed" q:CVQualifierSeq "long" "long"    [ return q | ST_LONG_LONG; ]
+//    -> "unsigned" q:CVQualifierSeq "long" "long"  [ return q | ST_UNSIGNED_LONG_LONG; ]
+//    -> "signed" q:CVQualifierSeq "short" "int"    [ return q | ST_SHORT_INT; ]
+//    -> "signed" "short" q:CVQualifierSeq "int"    [ return q | ST_SHORT_INT; ]
+//    -> "signed" q:CVQualifierSeq "short"          [ return q | ST_SHORT_INT; ]
+//    -> "short" q:CVQualifierSeq "int"             [ return q | ST_SHORT_INT; ]
+//    -> "long" q:CVQualifierSeq "double"           [ return q | ST_LONG_DOUBLE; ]
+//  }
 
 
 nonterm[TS_enumSpec*] EnumSpecifier {
@@ -839,7 +845,7 @@ nonterm[Enumerator*] EnumeratorDefinition {
 }
 
 
-nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
+//nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
 //nonterm LinkageSpecification {
 //  -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" ;
@@ -1178,10 +1184,10 @@ nonterm[TF_func*] FunctionDefinition {
 nonterm[S_compound*] FunctionBody -> s:CompoundStatement
   [ return s; ]
 
-nonterm ExplicitOpt {
-  -> "explicit" ;
-  -> empty ;
-}
+//  nonterm ExplicitOpt {
+//    -> "explicit" ;
+//    -> empty ;
+//  }
 
 
 // ------ A.8 Classes ------
@@ -1219,11 +1225,11 @@ nonterm[ASTList<Declaration>*] MemberDeclarationSeqOpt {
   //-> AccessSpecifier ":" MemberDeclarationSeqOpt ;
 }
 
-nonterm AccessSpecifier {
-  -> "public" ;
-  -> "private" ;
-  -> "protected" ;
-}
+//  nonterm AccessSpecifier {
+//    -> "public" ;
+//    -> "private" ;
+//    -> "protected" ;
+//  }
 
 nonterm[Declaration*] MemberDeclaration {
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"      // member fn or data
@@ -1267,90 +1273,90 @@ nonterm[IDeclarator*] MemberDeclarator {
 
 
 // ------ A.9 Derived classes ------
-nonterm BaseClauseOpt {
-  -> empty ;
-  -> ":" BaseSpecifierList ;
-}
+//  nonterm BaseClauseOpt {
+//    -> empty ;
+//    -> ":" BaseSpecifierList ;
+//  }
 
-nonterm BaseSpecifierList {
-  -> BaseSpecifier ;
-  -> BaseSpecifierList "," BaseSpecifier ;
-}
+//  nonterm BaseSpecifierList {
+//    -> BaseSpecifier ;
+//    -> BaseSpecifierList "," BaseSpecifier ;
+//  }
 
-nonterm BaseSpecifier -> VirtualOpt AccessSpecifierOpt PQClassName ;
-nonterm VirtualOpt {
-  -> empty ;
-  -> "virtual" ;
-}
-nonterm AccessSpecifierOpt {
-  -> empty ;
-  -> AccessSpecifier ;
-}
+//  nonterm BaseSpecifier -> VirtualOpt AccessSpecifierOpt PQClassName ;
+//  nonterm VirtualOpt {
+//    -> empty ;
+//    -> "virtual" ;
+//  }
+//  nonterm AccessSpecifierOpt {
+//    -> empty ;
+//    -> AccessSpecifier ;
+//  }
 
-nonterm PQClassName {
-  -> TypeName ;
-  -> Qualifier PQClassName ;
-}
+//  nonterm PQClassName {
+//    -> TypeName ;
+//    -> Qualifier PQClassName ;
+//  }
 
 
 // ------ A.10 Special member functions ------
-nonterm ConversionFunctionId -> "operator" ConversionTypeId ;
-nonterm ConversionTypeId -> TypeSpecifier ConversionDeclaratorOpt ;
-nonterm ConversionDeclaratorOpt {
-  -> empty ;
-  -> PtrOperator ConversionDeclaratorOpt ;
-}
+//  nonterm ConversionFunctionId -> "operator" ConversionTypeId ;
+//  nonterm ConversionTypeId -> TypeSpecifier ConversionDeclaratorOpt ;
+//  nonterm ConversionDeclaratorOpt {
+//    -> empty ;
+//    -> PtrOperator ConversionDeclaratorOpt ;
+//  }
 
-nonterm MemInitializerList {
-  -> MemInitializer ;
-  -> MemInitializer "," MemInitializerList ;
-}
+//  nonterm MemInitializerList {
+//    -> MemInitializer ;
+//    -> MemInitializer "," MemInitializerList ;
+//  }
 
-// std has a separate rule for base class ctor call, but that's not
-// a useful parsing distinction, so it just creates gratuitous
-// ambiguities, and I've eliminated it
-nonterm MemInitializer -> AnyName "(" ExpressionListOpt ")" ;     // member init
+//  // std has a separate rule for base class ctor call, but that's not
+//  // a useful parsing distinction, so it just creates gratuitous
+//  // ambiguities, and I've eliminated it
+//  nonterm MemInitializer -> AnyName "(" ExpressionListOpt ")" ;     // member init
 
 
 // ------ A.11 Overloading ------
-nonterm OperatorFunctionId -> "operator" Operator ;
+//  nonterm OperatorFunctionId -> "operator" Operator ;
 
-nonterm Operator {
-  -> "new" ;
-  -> "delete" ;
-  -> "new" "[" "]" ;
-  -> "delete" "[" "]" ;
+//  nonterm Operator {
+//    -> "new" ;
+//    -> "delete" ;
+//    -> "new" "[" "]" ;
+//    -> "delete" "[" "]" ;
 
-  -> "*"  ;
-  -> "/"  ;
-  -> "%"  ;
-  -> "+"  ;
-  -> "-"  ;
-  -> "<<" ;
-  -> ">>" ;
-  -> "<"  ;
-  -> ">"  ;
-  -> "<=" ;
-  -> ">=" ;
-  -> "==" ;
-  -> "!=" ;
-  -> "&"  ;
-  -> "^"  ;
-  -> "|"  ;
-  -> "&&" ;
-  -> "||" ;
+//    -> "*"  ;
+//    -> "/"  ;
+//    -> "%"  ;
+//    -> "+"  ;
+//    -> "-"  ;
+//    -> "<<" ;
+//    -> ">>" ;
+//    -> "<"  ;
+//    -> ">"  ;
+//    -> "<=" ;
+//    -> ">=" ;
+//    -> "==" ;
+//    -> "!=" ;
+//    -> "&"  ;
+//    -> "^"  ;
+//    -> "|"  ;
+//    -> "&&" ;
+//    -> "||" ;
 
-  -> AssignmentOperator   ;
+//    -> AssignmentOperator   ;
 
-  -> "!" ;
-  -> "~" ;
-  -> "," ;
-  -> "++" ;
-  -> "--" ;
-  -> "->" ;
-  -> "(" ")" ;
-  -> "[" "]" ;
-}
+//    -> "!" ;
+//    -> "~" ;
+//    -> "," ;
+//    -> "++" ;
+//    -> "--" ;
+//    -> "->" ;
+//    -> "(" ")" ;
+//    -> "[" "]" ;
+//  }
 
 
 // ------ A.12 Templates ------
@@ -1360,46 +1366,46 @@ nonterm Operator {
 //TemplateParameter -> TypeParameter | ParameterDeclaration
 
 
-nonterm TemplateId {
-  -> TypeName "<" TemplateArgumentList ">" ;
-  -> TypeName "<" ">" ;
-}
+//  nonterm TemplateId {
+//    -> TypeName "<" TemplateArgumentList ">" ;
+//    -> TypeName "<" ">" ;
+//  }
 
-nonterm TemplateArgumentList {
-  -> TemplateArgument ;
-  -> TemplateArgumentList "," TemplateArgument ;
-}
+//  nonterm TemplateArgumentList {
+//    -> TemplateArgument ;
+//    -> TemplateArgumentList "," TemplateArgument ;
+//  }
 
-nonterm TemplateArgument {
-  // where I have Literal the std has AssignmentExpression...
-  // std also mentions IdExpression here, which is my PQVarName.....
-  -> Literal ;
-  -> TypeId ;
-}
+//  nonterm TemplateArgument {
+//    // where I have Literal the std has AssignmentExpression...
+//    // std also mentions IdExpression here, which is my PQVarName.....
+//    -> Literal ;
+//    -> TypeId ;
+//  }
 
 
 // ------ A.13 Exception handling ------
-nonterm TryBlock -> "try" s:CompoundStatement h:HandlerSeq ;
+//  nonterm TryBlock -> "try" s:CompoundStatement h:HandlerSeq ;
 
-nonterm HandlerSeq {
-  -> h:Handler ;
-  -> h:Handler seq:HandlerSeq ;
-}
+//  nonterm HandlerSeq {
+//    -> h:Handler ;
+//    -> h:Handler seq:HandlerSeq ;
+//  }
 
-nonterm Handler
-  -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement ;
+//  nonterm Handler
+//    -> "catch" "(" d:ExceptionDeclaration ")" s:CompoundStatement ;
 
-nonterm ExceptionDeclaration {
-  -> s:TypeSpecifier d:Declarator ;          // named exception object
+//  nonterm ExceptionDeclaration {
+//    -> s:TypeSpecifier d:Declarator ;          // named exception object
 
-  -> TypeSpecifier AbstractDeclaratorOpt     ;  // unnamed exception object
-  -> "..."                                ;  // anything
-}
+//    -> TypeSpecifier AbstractDeclaratorOpt     ;  // unnamed exception object
+//    -> "..."                                ;  // anything
+//  }
 
-nonterm ThrowExpression {
-  -> "throw" ;
-  -> "throw" e:AssignmentExpression ;
-}
+//  nonterm ThrowExpression {
+//    -> "throw" ;
+//    -> "throw" e:AssignmentExpression ;
+//  }
 
 
 // ------------------- GNU extensions -------------------

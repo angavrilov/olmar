@@ -130,13 +130,12 @@ support-set := \
 # relying on another pattern rule) because I want to control exactly
 # how the compilation happens (to ensure the Bison-parser is compiled
 # with flags to make it a fair performance test with my own stuff)
-#
-# TODO: apparently bison-1.75 chooses its output files differently
-# than prior versions.. may have to detect that with ./configure
 %.tab.c %.tab.o %.tab.h: %.y
 	bison -d -v $*.y
 	mv $*.tab.c $*.tab.c.orig
-	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
+	sed -e 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' \
+	    -e 's/__attribute__ ((__unused__))//' \
+	  <$*.tab.c.orig >$*.tab.c
 	rm $*.tab.c.orig
 	g++ -c -g -o $*.tab.o -O2 -DNDEBUG -Wall $(YYDEBUG) $*.tab.c
 
@@ -179,7 +178,9 @@ gramlex.yy.cc: gramlex.lex
 grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 	bison -d -v grampar.y
 	mv -f grampar.tab.c tmp
-	sed 's/typedef union {/typedef union YYSTYPE {/' <tmp >grampar.tab.cc
+	sed -e 's/typedef union {/typedef union YYSTYPE {/' \
+	    -e 's/__attribute__ ((__unused__))//' \
+	  <tmp >grampar.tab.cc
 	mv -f grampar.tab.h tmp
 	sed 's/typedef union {/typedef union YYSTYPE {/' <tmp >grampar.tab.h
 	rm tmp

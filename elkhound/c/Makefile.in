@@ -114,13 +114,12 @@ bcparse.y: c.gr.gen.y
 # relying on another pattern rule) because I want to control exactly
 # how the compilation happens (to ensure the Bison-parser is compiled
 # with flags to make it a fair performance test with my own stuff)
-#
-# TODO: apparently bison-1.75 chooses its output files differently
-# than prior versions.. may have to detect that with ./configure
 %.tab.c %.tab.o %.tab.h: %.y
 	bison -d -v $*.y
 	mv $*.tab.c $*.tab.c.orig
-	sed 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' <$*.tab.c.orig >$*.tab.c
+	sed -e 's/YYSTYPE yyval;/YYSTYPE yyval = 0;/' \
+	    -e 's/__attribute__ ((__unused__))//' \
+	  <$*.tab.c.orig >$*.tab.c
 	rm $*.tab.c.orig
 	$(CXX) -c -g -o $*.tab.o -O2 -DNDEBUG -Wall $(YYDEBUG) $*.tab.c
 
