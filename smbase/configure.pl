@@ -9,6 +9,8 @@ usage: ./configure [options]
 options:
   -h:                print this message
   -debug,-nodebug:   enable/disable debugging options [disabled]
+  -no-dash-g         disable -g
+  -no-dash-O2        disable -O2
   -prof              enable profiling
   -devel             add options useful while developing smbase
   -debugheap         turn on heap usage debugging
@@ -21,11 +23,13 @@ EOF
 $| = 1;
 
 # defaults
-$BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
+$BASE_FLAGS = "-Wall -Wno-deprecated -D__UNIX__";
 $CCFLAGS = ();
 $DEBUG_HEAP = 0;
 $TRACE_HEAP = 0;
 $debug = 0;
+$use_dash_g = 1;
+$allow_dash_O2 = 1;
 
 
 # process command-line arguments
@@ -60,6 +64,13 @@ while (@ARGV) {
     $debug = 0;
   }
 
+  elsif ($arg eq "-no-dash-g") {
+    $use_dash_g = 0;
+  }
+  elsif ($arg eq "-no-dash-O2") {
+    $allow_dash_O2 = 0;
+  }
+
   elsif ($arg eq "-prof") {
     push @CCFLAGS, "-pg";
   }
@@ -82,8 +93,14 @@ while (@ARGV) {
 }
 
 if (!$debug) {
-  push @CCFLAGS, "-O2";
+  if ($allow_dash_O2) {
+    push @CCFLAGS, "-O2";
+  }
   push @CCFLAGS, "-DNDEBUG";
+}
+
+if ($use_dash_g) {
+  push @CCFLAGS, "-g";
 }
 
 $os = `uname -s`;
