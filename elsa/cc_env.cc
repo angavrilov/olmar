@@ -122,43 +122,11 @@ SourceLocation const &Env::loc() const
 
 
 // -------- insertion --------
-template <class T>
-bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
-                  int &changeCount)
-{
-  if (table.isMapped(key)) {
-    return false;
-  }
-  else {
-    table.add(key, value);
-    changeCount++;
-    return true;
-  }
-}
-
 bool Env::addVariable(Variable *v)
 {
   Scope *s = scope();
-
-  if (!s->curCompound) {
-    // variable outside a class
-    trace("env") << "added variable `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << v->loc.toString() << endl;
-  }
-  else {
-    // class member
-    v->access = s->curAccess;
-    trace("env") << "added " << toString(v->access)
-                 << " field `" << v->name
-                 << "' of type `" << v->type->toString()
-                 << "' at " << v->loc.toString()
-                 << " to " << s->curCompound->keywordAndName() << endl;
-
-  }
-
   registerVariable(v);
-  return insertUnique(s->variables, v->name, v, s->changeCount);
+  return s->addVariable(v);
 }
 
 void Env::registerVariable(Variable *v)
@@ -173,42 +141,32 @@ void Env::registerVariable(Variable *v)
 
 bool Env::addCompound(CompoundType *ct)
 {
-  trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
-
-  Scope *s = scope();
-  ct->access = s->curAccess;
-  return insertUnique(s->compounds, ct->name, ct, s->changeCount);
+  return scope()->addCompound(ct);
 }
+
 
 bool Env::addEnum(EnumType *et)
 {
-  trace("env") << "added enum " << et->name << endl;
-
-  Scope *s = scope();
-  et->access = s->curAccess;
-  return insertUnique(s->enums, et->name, et, s->changeCount);
+  return scope()->addEnum(et);
 }
 
 
 // -------- lookup --------
-Variable *Env::lookupPQVariable(PQName const *name) const
+Variable *Env::lookupPQVariable(PQName const *name)
 {
   if (name->hasQualifiers()) {
     PQ_qualifier const *firstQ = name->asPQ_qualifierC();
 
-    // hack for reporting unimplemented features
-    Env &ths = const_cast<Env&>(*this);
-
     // make sure there's only one qualifier
     if (firstQ->rest->hasQualifiers()) {
-      ths.unimp("more than one qualifier");
+      unimp("more than one qualifier");
       return NULL;
     }
 
     // get the first qualifier
     StringRef qual = firstQ->qualifier;
     if (!qual) {
-      ths.unimp("bare `::' qualifier");
+      unimp("bare `::' qualifier");
       return NULL;
     }
 
@@ -230,7 +188,7 @@ Variable *Env::lookupPQVariable(PQName const *name) const
       //  << name->name << "'");
       return NULL;
     }
-                                       
+
     // TODO: why do I have a constness clash here?  is this return
     // value ever modified to do more than add an overload set?
     return const_cast<Variable*>(field);
@@ -239,15 +197,15 @@ Variable *Env::lookupPQVariable(PQName const *name) const
   return lookupVariable(name->getName(), false /*innerOnly*/);
 }
 
-Variable *Env::lookupVariable(StringRef name, bool innerOnly) const
+Variable *Env::lookupVariable(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.firstC()->variables.queryif(name);
+    return scopes.first()->lookupVariable(name);
   }
 
   // look in all the scopes
-  FOREACH_OBJLIST(Scope, scopes, iter) {
-    Variable *v = iter.data()->variables.queryif(name);
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    Variable *v = iter.data()->lookupVariable(name);
     if (v) {
       return v;
     }
@@ -255,7 +213,7 @@ Variable *Env::lookupVariable(StringRef name, bool innerOnly) const
   return NULL;    // not found
 }
 
-CompoundType *Env::lookupPQCompound(PQName const *name) const
+CompoundType *Env::lookupPQCompound(PQName const *name)
 {
   if (name->hasQualifiers()) {
     cout << "warning: ignoring qualifiers\n";
@@ -264,15 +222,15 @@ CompoundType *Env::lookupPQCompound(PQName const *name) const
   return lookupCompound(name->getName(), false /*innerOnly*/);
 }
 
-CompoundType *Env::lookupCompound(StringRef name, bool innerOnly) const
+CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.firstC()->compounds.queryif(name);
+    return scopes.first()->lookupCompound(name);
   }
 
   // look in all the scopes
-  FOREACH_OBJLIST(Scope, scopes, iter) {
-    CompoundType *ct = iter.data()->compounds.queryif(name);
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    CompoundType *ct = iter.data()->lookupCompound(name);
     if (ct) {
       return ct;
     }
@@ -280,15 +238,15 @@ CompoundType *Env::lookupCompound(StringRef name, bool innerOnly) const
   return NULL;    // not found
 }
 
-EnumType *Env::lookupPQEnum(PQName const *name) const
+EnumType *Env::lookupPQEnum(PQName const *name)
 {
   if (name->hasQualifiers()) {
     cout << "warning: ignoring qualifiers\n";
   }
 
   // look in all the scopes
-  FOREACH_OBJLIST(Scope, scopes, iter) {
-    EnumType *et = iter.data()->enums.queryif(name->getName());
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    EnumType *et = iter.data()->lookupEnum(name->getName());
     if (et) {
       return et;
     }

@@ -167,7 +167,7 @@ class TypeSpecifier {
        SourceLocation loc,
        TypeIntr keyword,                     // "class", "struct", "union"
        StringRef /*nullable*/ name,          // user-provided name, if any
-       FakeList<BaseClass> *bases,           // base classes
+       FakeList<BaseClassSpec> *bases,       // base classes
        MemberList members                    // field and methods of the class
      );
 
@@ -177,13 +177,13 @@ class TypeSpecifier {
      );
 }
 
-// base class
-class BaseClass(
+// base class specification
+class BaseClassSpec (
   bool isVirtual,                       // true for virtual base classes
   AccessKeyword access,                 // public/protected/private
   PQName name                           // name of base class
 ) {
-  public BaseClass *next;  ctor next=NULL;     // FakeList link
+  public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
 }
 
 

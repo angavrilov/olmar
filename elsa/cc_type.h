@@ -17,6 +17,7 @@ class Variable;           // variable.h
 // fwd in this file
 class SimpleType;
 class CompoundType;
+class BaseClass;
 class EnumType;
 class CVAtomicType;
 class PointerType;
@@ -111,14 +112,6 @@ public:
 };
 
 
-// C++ class member access modes
-enum AccessMode {
-  AM_PUBLIC,
-  AM_PROTECTED,
-  AM_PRIVATE,
-  NUM_ACCESS_MODES
-};
-
 // represent a user-defined compound type; the members of the
 // compound are whatever has been entered in the Scope
 class CompoundType : public NamedAtomicType, public Scope {
@@ -129,6 +122,7 @@ public:      // types
 public:      // data
   bool forward;               // true when it's only fwd-declared
   Keyword const keyword;      // keyword used to introduce the type
+  ObjList<BaseClass> bases;   // classes from which this one inherits
 
 public:      // funcs
   // create an incomplete (forward-declared) compound
@@ -148,17 +142,29 @@ public:      // funcs
   string keywordAndName() const { return toCString(); }
 
   int numFields() const;
-                                            
+
   // returns NULL if doesn't exist
   Variable const *getNamedFieldC(StringRef name) const
-    { return variables.queryif(name); }
-  Variable *getNamedField(StringRef name) 
-    { return variables.queryif(name); }
+    { return lookupVariableC(name); }
+  Variable *getNamedField(StringRef name)
+    { return lookupVariable(name); }
 
   void addField(Variable *v);
 };
 
 string toString(CompoundType::Keyword k);
+
+// represent a base class
+class BaseClass {
+public:
+  CompoundType *ct;          // (serf) the base class itself
+  AccessKeyword access;      // access mode of the inheritance
+  bool isVirtual;            // true for virtual inheritance
+  
+public:
+  BaseClass(CompoundType *c, AccessKeyword a, bool v)
+    : ct(c), access(a), isVirtual(v) {}
+};
 
 
 // represent an enumerated type
