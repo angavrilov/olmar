@@ -406,6 +406,7 @@ testparse d0034.cc
 testparse d0035.cc
 testparse d0036.cc
 testparse d0037.cc
+testparse d0038.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do

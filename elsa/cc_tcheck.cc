@@ -1838,7 +1838,7 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
   return tgt_type;
 }
 
-static Statement *makeCtorStatement
+static E_constructor *makeCtorExpr
   (Env &env, Variable *var, Type *type, FakeList<Expression> *args)
 {
   xassert(var);                 // this is never for a temporary
@@ -1852,6 +1852,13 @@ static Statement *makeCtorStatement
   // this way the E_constructor::itcheck() can tell that it is not for
   // a temporary
   ector0->var = var;
+  return ector0;
+}
+
+static Statement *makeCtorStatement
+  (Env &env, Variable *var, Type *type, FakeList<Expression> *args)
+{
+  E_constructor *ector0 = makeCtorExpr(env, var, type, args);
   Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
   ctorStmt0->tcheck(env);
   return ctorStmt0;
@@ -4544,6 +4551,10 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                        false,   // isMember
                        true     // isTemporary
                        );
+
+  // FIX: what the heck am I doing here?  There should only be one.
+  xassert(declaration0->decllist->count() == 1);
+  // leave it for now
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
     decliter->elaborateCDtors(env,
                               true, // isMember
@@ -4631,6 +4642,63 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
   // know how to check equality of types.
 
   return evar0;
+}
+
+
+// For each parameter, if it is a CompoundType (pass by value) then 1)
+// make a temporary variable here for it that has a dtor but not a
+// ctor 2) for the corresponding argument, replace it with a comma
+// expression where a) the first part is an E_constructor for the
+// temporary that has one argument that is what was the arugment in
+// this slot and the ctor is the copy ctor, and b) E_variable for the
+// temporary
+FakeList<Expression> *E_funCall_argReplaceHelper
+  (Env &env,
+   FakeList<Expression> *args,
+   SObjListIterNC<Variable> &paramsIter)
+{
+  if (paramsIter.isDone()) {
+    // FIX: I suppose we could still have arguments here if there is a
+    // ellipsis at the end of the parameter list.  Can those be passed
+    // by value?
+//      xassert(args->empty());     // too many arguments
+    return args;
+  }
+  if (args->isEmpty()) {
+    // FIX: if (!paramsIter.isDone()) then have to deal with default
+    // arguments that are pass by value if such a thing is even
+    // possible.
+    return args;
+  }
+  Expression *arg = args->first();
+  FakeList<Expression> *argsButFirst = args->butFirst();
+  arg->next = NULL;             // truncate the list
+  Variable *param = paramsIter.data();
+  Type *paramType = param->getType();
+  if (paramType->isCompoundType()) {
+    // E_variable that points to the temporary
+    Declaration *declaration0 = insertTempDeclaration(env, paramType);
+    xassert(declaration0->decllist->count() == 1);
+    Variable *tempVar = declaration0->decllist->first()->var;
+    E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
+
+    // E_constructor for the temporary that calls the copy ctor for
+    // the temporary taking the real argument as the copy ctor
+    // argument.
+    E_constructor *ector = makeCtorExpr(env, tempVar, paramType,
+                                        FakeList<Expression>::makeList(arg));
+
+    // combine into a comma expression so we so both but return the
+    // value of the second
+    arg = new E_binary(ector, BIN_COMMA, byValueArg);
+    arg->tcheck(env, arg);
+  }
+
+  // do the rest of the list
+  paramsIter.adv();
+  FakeList<Expression> *newArgs =
+    E_funCall_argReplaceHelper(env, argsButFirst, paramsIter);
+  return newArgs->prepend(arg);
 }
 
 Type *E_funCall::inner2_itcheck(Env &env)
@@ -4751,6 +4819,18 @@ Type *E_funCall::inner2_itcheck(Env &env)
     xassert(declaration0->decllist->count() == 1);
     Variable *var0 = declaration0->decllist->first()->var;
     retObj = wrapVarWithE_variable(env, var0);
+  }
+
+  // Elaborate cdtors for CompoundType arguments being passed by
+  // value.
+  {
+    // ARG! Must iterate over the FakeList of arguments with
+    // replacement.  I'm just doing the Lisp trick of building a whole
+    // new list recursively.
+    SObjListIterNC<Variable> paramsIter(t->asFunctionType()->params);
+    int numArgs = args->count();
+    args = E_funCall_argReplaceHelper(env, args, paramsIter);
+    xassert(numArgs == args->count()); // sanity check
   }
 
   return retType;
