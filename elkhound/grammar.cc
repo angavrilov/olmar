@@ -106,6 +106,17 @@ void Nonterminal::print(ostream &os) const
 }
 
 
+bool Nonterminal::hasAttribute(char const *attr) const
+{
+  FOREACH_OBJLIST(string, attributes, iter) {
+    if (0==strcmp(iter.data()->pcharc(), attr)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // --------------------- quoted strings -------------------------
 // given a string that is surrounded by quotes, yield only the
 // characters inside the quotes.  eventually, I will support

@@ -11,15 +11,42 @@
 
 
 // ------------ mapping a grammar AST into a Grammar object -----------
+Environment::Environment(Grammar &G)
+  : g(G),
+    prevEnv(NULL),
+    sequenceVal(0)
+{}
+
+Environment::Environment(Environment &prev)
+  : g(prev.g),
+    prevEnv(&prev),
+    sequenceVal(prev.sequenceVal)
+{
+  // copy the actions and conditions to simplify searching them later
+  actions.appendAll(prev.actions);
+  conditions.appendAll(prev.conditions);
+}
+
+Environment::~Environment()
+{}
+
 
 // fwd-decl of parsing fns
 void astParseGrammar(Grammar &g, ASTNode const *treeTop);
-void astParseNonterm(Grammar &g, Nonterminal *nt, Environment &env,
+void astParseNonterm(Environment &env, Nonterminal *nt,
                      ObjList<ASTNode> const &bodyList);
-void astParseFormgroup(Grammar &g, Nonterminal *nt, Environment &env,
+void astParseFormgroup(Environment &env, Nonterminal *nt,
                        ObjList<ASTNode> const &groupList);
-void astParseForm(Grammar &g, Nonterminal *nt, Environment &,
+void astParseForm(Environment &env, Nonterminal *nt,
                   ASTNode const *formNode);
+Action *astParseAction(Environment &env, Production *prod,
+                       ASTNode const *act);
+Condition *astParseCondition(Environment &env, Production *prod,
+                             ASTNode const *cond);
+AExprNode *astParseExpr(Environment &env, Production *prod,
+                        ASTNode const *node);
+AExprNode *checkSpecial(Environment &env, Production *prod,
+                        ASTNode const *node);
 
 
 
@@ -47,6 +74,13 @@ ASTNode const *nthChild(ASTNode const *n, int c)
   return n->asInternalC().children.nthC(c);
 }
 
+ASTNode const *nthChildt(ASTNode const *n, int c, int type)
+{
+  ASTNode const *ret = nthChild(n, c);
+  xassert(ret->type == type);
+  return ret;
+}
+
 
 int nodeInt(ASTNode const *n)
   { return asIntLeafC(n)->data; }
@@ -71,7 +105,7 @@ string childString(ASTNode const *n, int c)
 ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
   { return nodeList(nthChild(n, c), type); }
 
-  
+
 // to put at the end of a switch statement after all the
 // legal types have been handled
 #define END_TYPE_SWITCH default: xfailure("bad type");
@@ -79,8 +113,10 @@ ObjList<ASTNode> const &childList(ASTNode const *n, int c, int type)
 
 void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 {
+  xassert(treeTop->type == AST_TOPLEVEL);
+
   // default, empty environment
-  Environment env;
+  Environment env(g);
 
   // process each toplevel form
   FOREACH_OBJLIST(ASTNode, nodeList(treeTop, AST_TOPLEVEL), iter) {
@@ -99,14 +135,14 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           string name = childName(term, 1);
           bool ok;
           if (term->numChildren() == 3) {
-            ok = g.declareToken(name, code, childString(term, 2));
+            ok = env.g.declareToken(name, code, childString(term, 2));
           }
           else {
-            ok = g.declareToken(name, code, NULL /*alias*/);
+            ok = env.g.declareToken(name, code, NULL /*alias*/);
           }
 
           if (!ok) {
-            xfailure(stringc << "token " << name << " already declared");
+            xfailure(stringc << "token `" << name << "' already declared");
           }
         }
         break;
@@ -117,10 +153,10 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
         Nonterminal *nt = g.getOrMakeNonterminal(name);
         if (nthChild(node, 1)->type == AST_FORM) {
           // simple "nonterm A -> B C D" form
-          astParseForm(g, nt, env, nthChild(node, 1));
+          astParseForm(env, nt, nthChild(node, 1));
         }
         else {
-          astParseNonterm(g, nt, env, childList(node, 1, AST_NTBODY));
+          astParseNonterm(env, nt, childList(node, 1, AST_NTBODY));
         }
         break;
       }
@@ -131,7 +167,7 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
 }
 
 
-void astParseNonterm(Grammar &g, Nonterminal *nt, Environment &env,
+void astParseNonterm(Environment &env, Nonterminal *nt,
                      ObjList<ASTNode> const &bodyList)
 {
   // process each nonterminal body element
@@ -144,12 +180,11 @@ void astParseNonterm(Grammar &g, Nonterminal *nt, Environment &env,
         break;
 
       case AST_FORM:
-        astParseForm(g, nt, env, node);
+        astParseForm(env, nt, node);
         break;
 
       case AST_FORMGROUPBODY: {
-        astParseFormgroup(g, nt, env,
-                          node->asInternalC().children);
+        astParseFormgroup(env, nt, node->asInternalC().children);
         break;
       }
 
@@ -159,25 +194,33 @@ void astParseNonterm(Grammar &g, Nonterminal *nt, Environment &env,
 }
 
 
-void astParseFormgroup(Grammar &g, Nonterminal *nt, Environment &env,
+void astParseFormgroup(Environment &prevEnv, Nonterminal *nt,
                        ObjList<ASTNode> const &groupList)
 {
+  // make a new environment for this stuff
+  Environment env(prevEnv);
+
   // process each formgroup body element
   FOREACH_OBJLIST(ASTNode, groupList, iter) {
     ASTNode const *node = iter.data();
 
     switch (node->type) {
       case AST_ACTION:
+        // just grab a pointer
+        env.actions.append(const_cast<ASTNode*>(node));
+        break;
+
       case AST_CONDITION:
-        // TODO: handle these
+        // same
+        env.conditions.append(const_cast<ASTNode*>(node));
         break;
 
       case AST_FORM:
-        astParseForm(g, nt, env, node);
+        astParseForm(env, nt, node);
         break;
 
       case AST_FORMGROUPBODY:
-        astParseFormgroup(g, nt, env, nodeList(node, AST_FORMGROUPBODY));
+        astParseFormgroup(env, nt, nodeList(node, AST_FORMGROUPBODY));
         break;
 
       END_TYPE_SWITCH
@@ -186,37 +229,236 @@ void astParseFormgroup(Grammar &g, Nonterminal *nt, Environment &env,
 }
 
 
-void astParseForm(Grammar &g, Nonterminal *nt, Environment &,
+void astParseForm(Environment &env, Nonterminal *nt,
                   ASTNode const *formNode)
 {
-  // build a production
-  Production *prod = new Production(nt, NULL /*tag*/);
+  xassert(formNode->type == AST_FORM);
+
+  // build a production; use 'this' as the tag for LHS elements
+  Production *prod = new Production(nt, "this");
 
   // first, deal with RHS of "->"
   FOREACH_OBJLIST(ASTNode, childList(formNode, 0, AST_RHS), iter) {
     ASTNode const *n = iter.data();
     switch (n->type) {
       case AST_NAME:
-        prod->append(g.getOrMakeSymbol(nodeName(n)), NULL /*tag*/);
+        prod->append(env.g.getOrMakeSymbol(nodeName(n)), NULL /*tag*/);
         break;
 
       case AST_TAGGEDNAME:
-        prod->append(g.getOrMakeSymbol(childName(n, 1)),   // name
-                     childName(n, 0));                     // tag
+        prod->append(env.g.getOrMakeSymbol(childName(n, 1)),   // name
+                     childName(n, 0));                         // tag
         break;
 
       case AST_STRING:
-        prod->append(g.getOrMakeSymbol(nodeString(n)), NULL /*tag*/);
+        prod->append(env.g.getOrMakeSymbol(nodeString(n)), NULL /*tag*/);
         break;
 
       END_TYPE_SWITCH
     }
   }
 
-  // TODO: deal with formBody
+  // after constructing the production we need to do this
+  prod->finished();
+
+  // deal with formBody
+  if (formNode->asInternalC().numChildren() == 2) {
+    // iterate over form body elements
+    FOREACH_OBJLIST(ASTNode, childList(formNode, 1, AST_FORMBODY), iter) {
+      ASTNode const *n = iter.data();
+      switch (n->type) {
+        case AST_ACTION:
+          prod->actions.actions.append(
+            astParseAction(env, prod, n));
+          break;
+
+        case AST_CONDITION:
+          prod->conditions.conditions.append(
+            astParseCondition(env, prod, n));
+          break;
+
+        END_TYPE_SWITCH
+      }
+    }
+  }
+
+  // grab actions from the environment
+  FOREACH_OBJLIST(string, nt->attributes, attrIter) {
+    char const *attr = attrIter.data()->pcharc();
+    if (!prod->actions.getAttrActionFor(attr)) {
+      // the production doesn't currently have a rule to set
+      // attribute 'attr'; look in the environment for one
+      bool foundOne = false;
+      SFOREACH_OBJLIST(ASTNode, env.actions, actIter) {
+        ASTNode const *actNode = actIter.data();
+        if (childName(actNode, 0) == string(attr)) {
+          // found a suitable action from the environment;
+          // parse it now
+          Action *action = astParseAction(env, prod, actNode);
+          prod->actions.actions.append(action);
+
+          // break out of the loop
+          foundOne = true;
+          break;
+        }
+      }
+
+      if (!foundOne) {
+        // for now, just a warning
+        // TODO: elevate to error
+        cout << "warning: rule " << *prod
+             << " has no action for `" << attr << "'\n";
+      }
+    }
+  }
+
+  // grab conditions from the environment
+  SFOREACH_OBJLIST(ASTNode, env.conditions, envIter) {
+    prod->conditions.conditions.append(
+      astParseCondition(env, prod, envIter.data()));
+  }
 
   // add production to grammar
-  g.addProduction(prod);
+  env.g.addProduction(prod);
+}
+
+
+Action *astParseAction(Environment &env, Production *prod,
+                       ASTNode const *act)
+{
+  xassert(act->type == AST_ACTION);
+
+  string attrName = childName(act, 0);
+  if (!prod->left->hasAttribute(attrName)) {
+    xfailure(stringc << "undeclared attribute: " << attrName);
+  }
+
+  AExprNode *expr = astParseExpr(env, prod, nthChild(act, 1));
+
+  return new AttrAction(AttrLvalue(0 /*LHS*/, attrName),
+                        expr);
+}
+
+
+Condition *astParseCondition(Environment &env, Production *prod,
+                             ASTNode const *cond)
+{
+  xassert(cond->type == AST_CONDITION);
+
+  AExprNode *expr = astParseExpr(env, prod, nthChild(cond, 0));
+
+  return new ExprCondition(expr);
+}
+
+
+// parse an expression AST (action or condition), in the context
+// of the production where that expression will be eval'd
+AExprNode *astParseExpr(Environment &env, Production *prod,
+                        ASTNode const *node)
+{
+  switch (node->type) {
+    case AST_INTEGER:
+      return new AExprLiteral(nodeInt(node));
+
+    case EXP_ATTRREF: {
+      // tag names the RHS symbol we're referring to
+      string tag = childName(node, 0);
+      int tagNum = prod->findTag(tag);
+      if (tagNum == -1) {
+        xfailure(stringc << "invalid tag: " << tag);
+      }
+
+      // attrName says which attribute of RHS symbol to use
+      string attrName = childName(node, 1);
+
+      return new AExprAttrRef(AttrLvalue(tagNum, attrName));
+    }
+
+    case EXP_FNCALL: {
+      // handle any eval-at-grammar-parse functions
+      AExprNode *special = checkSpecial(env, prod, node);
+      if (special) {
+        return special;
+      }
+
+      // function name
+      AExprFunc *fn = new AExprFunc(childName(node, 0));
+
+      // and arguments
+      FOREACH_OBJLIST(ASTNode, childList(node, 1, EXP_LIST), iter) {
+        fn->args.append(astParseExpr(env, prod, iter.data()));
+      }
+
+      return fn;
+    }
+  }
+
+  // what's left is the arithmetic operators; we just need to get the
+  // function name, then handle args
+  loopi(AExprFunc::numFuncEntries) {
+    AExprFunc::FuncEntry const *entry = &AExprFunc::funcEntries[i];
+
+    if (entry->astTypeCode == node->type) {
+      // function name
+      AExprFunc *fn = new AExprFunc(entry->name);
+
+      // arguments
+      ObjList<ASTNode> const &children = node->asInternalC().children;
+      xassert(entry->numArgs == children.count());
+      FOREACH_OBJLIST(ASTNode, children, iter) {
+        fn->args.append(astParseExpr(env, prod, iter.data()));
+      }
+
+      return fn;
+    }
+  }
+
+  // wasn't an ast expression node type we recongnize
+  xfailure("bad type");
+  return NULL;    // silence warning
+}
+
+
+// 'node' is a function node; if the function is one we recognize
+// as special, handle it; otherwise return NULL
+AExprNode *checkSpecial(Environment &env, Production *prod,
+                        ASTNode const *node)
+{
+  // for now, this is only special
+  if (childName(node, 0) == string("sequence")) {
+    // convenience
+    int &seq = env.sequenceVal;
+    ASTNode const *args = nthChild(node, 1);
+
+    // this is a rather flaky implementation.. it's unclear (to the
+    // user) what resets the counter, and that there's only one in
+    // any given context.. I'll improve it when I need to ..
+
+    if (seq == 0) {
+      // start the sequence
+      seq = childInt(args, 0);
+    }
+    else {
+      // increment current value
+      ASTNode const *incNode = nthChild(args, 1);
+      if (incNode->type == AST_INTEGER) {
+        seq += nodeInt(incNode);
+      }
+      else if (incNode->type == EXP_NEGATE) {
+        // hacky special case.. should have a const-eval..
+        seq -= childInt(incNode, 0);
+      }
+      else {
+        xfailure("sequence args need to be ints (or -ints)");
+      }
+    }
+
+    // install the sequence value as the expression value
+    return new AExprLiteral(seq);
+  }
+
+  // nothing else is special
+  return NULL;
 }
 
 

@@ -67,6 +67,10 @@ public:	  // funcs
   // context of the given production, and add the action to the list;
   // throw an exception on a parsing error
   void parse(Production const *prod, char const *actionsText);
+  
+  // find an action that sets the named attribute; return
+  // NULL if none do
+  Action const *getAttrActionFor(char const *attr) const;
 };
 
 

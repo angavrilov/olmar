@@ -6,6 +6,7 @@
 #include "glrtree.h"      // Reduction, AttrContext
 #include "grammar.h"      // Production
 #include "attr.h"         // Attributes
+#include "gramast.h"      // ast type constants
 
 #include <ctype.h>        // isspace
 #include <stdlib.h>       // atoi
@@ -145,18 +146,19 @@ int ifFunc(int cond, int thenExp, int elseExp)
 /*
   struct FuncEntry {   	       	   // one per predefined func
     char const *name;                // name of fn (e.g. "+")
+    int astTypeCode;                 // ast node type that represents this fn (see gramast.h)
     int numArgs;                     // # of arguments it requires
     Func eval;                       // code to evaluate
   };
 */
 AExprFunc::FuncEntry const AExprFunc::funcEntries[] = {
-  { "+", 2, (AExprFunc::Func)plus },
-  { "==", 2, (AExprFunc::Func)equals },
-  { "!=", 2, (AExprFunc::Func)nequals },
-  { "<", 2, (AExprFunc::Func)less },
-  { "<=", 2, (AExprFunc::Func)lesseq },
-  { "||", 2, (AExprFunc::Func)oror },
-  { "if", 3, (AExprFunc::Func)ifFunc },
+  { "+",  EXP_PLUS, 2, (AExprFunc::Func)plus },
+  { "==", EXP_EQ,   2, (AExprFunc::Func)equals },
+  { "!=", EXP_NEQ,  2, (AExprFunc::Func)nequals },
+  { "<",  EXP_LT,   2, (AExprFunc::Func)less },
+  { "<=", EXP_LTE,  2, (AExprFunc::Func)lesseq },
+  { "||", EXP_OR,   2, (AExprFunc::Func)oror },
+  { "if", EXP_COND, 3, (AExprFunc::Func)ifFunc },
 };
 
 

@@ -31,11 +31,11 @@ nonterm Expr {
   -> left:Expr op:Binop right:Expr {
     action  prec := op.prec;
 
-    condition  result.prec <= left.prec;             // precedence
-    condition  result.prec <= right.prec;            // more precedence
+    condition  this.prec <= left.prec;             // precedence
+    condition  this.prec <= right.prec;            // more precedence
     condition  op.leftAssoc == 1 ?
-                 result.prec < right.prec :          // left associative
-                 result.prec < left.prec;            // right associative
+                 this.prec < right.prec :          // left associative
+                 this.prec < left.prec;            // right associative
   }
 }
 
@@ -46,20 +46,24 @@ nonterm Binop {
   attr leftAssoc;        // 1 means left-associative, 0 means right-associative
 
   formGroup {
-    action  prec := sequence(60 /*start value*/, -4 /*increment*/);
+    // I wanted to say it in one place, but my implementation wasn't
+    // right, and I don't want to fix it just now
+    //action  prec := sequence(60 /*start value*/, -4 /*increment*/);
+      
+    // all have left precedence by default; can override individually
     action  leftAssoc := 1;
 
     // highest precedence
-    formGroup {   -> "*";  -> "/";  -> "%";              }
-    formGroup {   -> "+";  -> "-";                       }
-    formGroup {   -> "<<"; -> ">>";                      }
-    formGroup {   -> "<";  -> ">";  -> "<="; -> ">=";    }
-    formGroup {   -> "=="; -> "!=";                      }
-    formGroup {   -> "&";                                }
-    formGroup {   -> "^";                                }
-    formGroup {   -> "|";                                }
-    formGroup {   -> "&&";                               }
-    formGroup {   -> "||";                               }
+    formGroup { action prec:=60;   -> "*";  -> "/";  -> "%";              }
+    formGroup { action prec:=56;   -> "+";  -> "-";                       }
+    formGroup { action prec:=52;   -> "<<"; -> ">>";                      }
+    formGroup { action prec:=48;   -> "<";  -> ">";  -> "<="; -> ">=";    }
+    formGroup { action prec:=44;   -> "=="; -> "!=";                      }
+    formGroup { action prec:=40;   -> "&";                                }
+    formGroup { action prec:=36;   -> "^";                                }
+    formGroup { action prec:=32;   -> "|";                                }
+    formGroup { action prec:=28;   -> "&&";                               }
+    formGroup { action prec:=24;   -> "||";                               }
     // lowest precedence
 
 // alternative syntax

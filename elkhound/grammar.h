@@ -148,19 +148,23 @@ public:     // data
   // for all attributes
   ObjList<string> attributes;
 
+public:     // funcs
+  Nonterminal(char const *name);
+  virtual ~Nonterminal();
+
+  // return true if 'attr' is among 'attributes'
+  // (by 0==strcmp comparison)
+  bool hasAttribute(char const *attr) const;
+
+  virtual void print(ostream &os) const;
+  OSTREAM_OPERATOR(Nonterminal)
+
 // ------ annotation ------
 public:     // data
   int ntIndex;           // nonterminal index; see Grammar::computeWhatCanDeriveWhat
   bool cyclic;           // true if this can derive itself in 1 or more steps
   TerminalList first;    // set of terminals that can be start of a string derived from 'this'
   TerminalList follow;   // set of terminals that can follow a string derived from 'this'
-
-public:     // funcs
-  Nonterminal(char const *name);
-  virtual ~Nonterminal();
-
-  virtual void print(ostream &os) const;
-  OSTREAM_OPERATOR(Nonterminal)
 };
 
 typedef SObjList<Nonterminal> NonterminalList;
@@ -210,6 +214,11 @@ public:	    // funcs
 
   // number of nonterminals on RHS
   int numRHSNonterminals() const;
+  
+  // find an action that sets the named attribute; return
+  // NULL if none do
+  Action const *getAttrActionFor(char const *attr) const
+    { return actions.getAttrActionFor(attr); }
 
   // append a RHS symbol
   void append(Symbol *sym, char const *tag);

@@ -79,3 +79,23 @@ void Actions::parse(Production const *prod, char const *actionsText)
   // assemble into an action, stick it into the production
   actions.append(new AttrAction(lval, transferOwnership(expr)));
 }
+
+
+Action const *Actions::getAttrActionFor(char const *attr) const
+{
+  FOREACH_OBJLIST(Action, actions, iter) {
+    // UGLY HACK: since I know there is only one kind of
+    // Action, I just cast down to it.. if I get more 
+    // Action classes I will think about how I want to
+    // distinguish (other than RTTI)
+    AttrAction const *aa = (AttrAction const*)iter.data();
+
+    if (aa->lvalue.symbolIndex == 0 &&            // LHS
+        0==strcmp(aa->lvalue.attrName, attr)) {   // matching name
+      // found it
+      return aa;
+    }
+  }
+
+  return NULL;
+}

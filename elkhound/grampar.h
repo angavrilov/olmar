@@ -5,6 +5,7 @@
 #define __GRAMPAR_H
 
 #include "typ.h"        // NULL
+#include "sobjlist.h"   // SObjList
 
 // fwd decl
 class ASTNode;
@@ -52,8 +53,36 @@ void my_yyerror(char const *message, void *YYPARSE_PARAM);
 
 
 // ---------------- grampar's parsing structures ---------------
+class Grammar;    // fwd
+
+// while walking the AST, we do a kind of recursive evaluation
+// to handle things like inherited actions and self-updating
+// (eval'd at grammar parse time) action expressions
 class Environment {
-  // empty for now
+public:      // data
+  // grammar we're playing with
+  Grammar &g;
+
+  // env in which we're nested, if any
+  Environment *prevEnv;      // (serf)
+
+  // set of inherited actions and conditions; we simply
+  // store pointers to the ASTs, and re-parse them in
+  // the context where they are to be applied; I currently
+  // store complete copies of all of 'prev's actions and
+  // conditions, so I don't really need 'prevEnv' ...
+  SObjList<ASTNode /*const*/> actions;
+  SObjList<ASTNode /*const*/> conditions;
+
+  // current value of any sequence function
+  int sequenceVal;
+
+public:
+  Environment(Grammar &G);             // new env
+  Environment(Environment &prevEnv);   // nested env
+  ~Environment();
+
+
 };
 
 

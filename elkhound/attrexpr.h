@@ -102,6 +102,7 @@ public:
   typedef int (*Func)(...);        // allow any number of integer arguments here
   struct FuncEntry {   	       	   // one per predefined func
     char const *name;                // name of fn (e.g. "+")
+    int astTypeCode;                 // ast node type that represents this fn (see gramast.h)
     int numArgs;                     // # of arguments it requires
     Func eval;                       // code to evaluate
   };

@@ -55,4 +55,4 @@ grampar: gramlex.yy.o grampar.tab.o gramlex.o grampar.cc trace.o ast.o gramast.o
 
 clean:
 	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
-	rm -f grampar.tab.?
+	rm -f lexer2 grampar.tab.* grampar a.out
