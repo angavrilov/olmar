@@ -37,6 +37,7 @@ public:     // funcs
   void add(K const *key, T *value)        { table.add(key, value); }
   T *remove(K const *key)                 { return (T*)table.remove(key); }
   void empty(int initSize = HashTable::defaultSize);
+  void setEnableShrink(bool en)           { table.setEnableShrink(en); }
   void selfCheck() const                  { table.selfCheck(); }
 
   // this simply drops all the entries without deleting them; it is

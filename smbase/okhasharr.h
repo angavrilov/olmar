@@ -1,0 +1,62 @@
+// okhasharr.h
+// combination of an owner hash table and an array/stack
+//
+// in its present form, it's ideal for a worklist, but not
+// for a 'finished' list, due to inability to randomly remove
+
+#ifndef OKHASHARR_H
+#define OKHASHARR_H
+
+#include "array.h"      // ArrayStack
+#include "okhashtbl.h"  // OwnerKHashTable
+
+// T is value, K is key
+template <class T, class K>
+class OwnerKHashArray {
+private:    // data
+  OwnerKHashTable<T,K> hash;
+  ArrayStack<T*> stack;
+
+public:     // funcs
+  OwnerKHashArray(OwnerKHashTable<T,K>::GetKeyFn gk, 
+                  OwnerKHashTable<T,K>::HashFn hf, 
+                  OwnerKHashTable<T,K>::EqualKeyFn ek,
+                  int initSize = HashTable::defaultSize)
+    : hash(gk, hf, ek, initSize),
+      stack(initSize)
+  {
+    hash.setEnableShrink(false);
+  }
+  ~OwnerKHashArray();
+
+  // # elts in the structure
+  int count() const                  { return stack.length(); }
+  bool isEmpty() const               { return stack.isEmpty(); }
+  bool isNotEmpty() const            { return !isEmpty(); }
+
+  // access as a hashtable
+  T *lookup(K const *key) const      { return hash.get(key); }
+
+  // TODO: make a new base-level implementation so I can support
+  // removal of arbitrary objects efficiently
+
+  // access as a stack
+  void push(K const *key, T *value) {
+    hash.add(key, value);
+    stack.push(value);
+  }
+
+  T *pop() {
+    T *ret = stack.pop();
+    hash.remove(ret);
+    return ret;
+  }
+};
+
+
+template <class T, class K>
+OwnerKHashArray<T,K>::~OwnerKHashArray()
+{}
+
+
+#endif // OKHASHARR_H
