@@ -85,7 +85,7 @@ protected:    // funcs
 public:
   virtual ~Variable();
 
-  Type *get_type() {return type;}
+  Type *getType() {return type;}
 
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { setFlagsTo(flags | f); }

@@ -1383,7 +1383,9 @@ void FunctionType::doneParams()
 Variable const *FunctionType::getThisC() const
 {
   xassert(isMember());
-  return params.firstC();
+  Variable const *thisVar0 = params.firstC();
+  xassert(const_cast<Variable*>(thisVar0)->getType()->isReference());
+  return thisVar0;
 }
 
 CVFlags FunctionType::getThisCV() const
