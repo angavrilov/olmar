@@ -2038,7 +2038,13 @@ Type const *E_binary::itcheck(Env &env)
 Type const *E_addrOf::itcheck(Env &env)
 {
   expr = expr->tcheck(env);
-  
+                                         
+  // ok to take addr of function; special-case it so as
+  // not to weaken what 'isLval' means
+  if (expr->type->isFunctionType()) {
+    return makePtrType(expr->type);
+  }
+
   if (!expr->type->isLval()) {
     return env.error(expr->type, stringc
       << "cannot take address of non-lvalue `" 
