@@ -178,6 +178,7 @@ quicktest: ccparse
 TODISTCLEAN += in/big/gz/*.i
 in/big/%.i: in/big/gz/%.i.gz
 	gunzip -c <$^ >$@
+	perl -i -lpe 's|^\w*(#.*)$$|//$$1|' $@
 
 # decompress all of them which haven't already been decompressed
 .PHONY: in/big
