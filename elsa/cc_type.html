@@ -57,7 +57,8 @@ confident it would eliminate any advantage to retaining typedefs.
 Types are divided into two major classes: atomic types and constructed
 types.  Atomic types (my terminology) are types atop which type
 constructors (like "*" or "[]") might be applied, but which themselves
-do not have any constructors, so cannot be further "deconstructed".
+do not have any constructors, so cannot be further "deconstructed"
+(for example, by template pattern matching).
 They consist of built-in types like "int", enums, structs, classes and
 unions.  I regard the aggregation of structs/classes/unions to form
 an atomic wrapper around their members, in part because two (e.g.) struct
@@ -68,16 +69,15 @@ is explained in Section 2.
 <p>
 Constructed types, by constrast, are whatever is built on top of
 atomic types by applying type constructors such as "*".  
-These types <em>can</em> be deconstructed, in that typedefs can be
-used to build them in pieces
-<pre>
-  typedef int myint;
-  myint const *p;             // builds "int const"
-</pre>
-and template unification can delve into their structure
+These types <em>can</em> be deconstructed by template unification
 <pre>
   template &lt;class T&gt;
   void foo(T *p) { ... }      // could pull "int" out of "int *"
+</pre>
+and typedefs can be used to build them in pieces
+<pre>
+  typedef int myint;
+  myint const *p;             // builds "int const"
 </pre>
 (again, in contrast to the AtomicTypes).
 Each type constructor is explained in Section 3.
