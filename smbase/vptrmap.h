@@ -43,7 +43,7 @@ private:     // data
 
   // number of outstanding iterators; used to check that we don't
   // modify the table while one is active (experimental)
-  int iterators;
+  mutable int iterators;
 
 public:      // data
   // total # of lookups
@@ -96,11 +96,11 @@ public:      // iterators
   // NOTE: you can't change the table while an iter exists
   class Iter {
   private:      // data
-    VoidPtrMap &map;       // table we're iterating over
-    int index;             // current slot to return in adv(); -1 when done
+    VoidPtrMap const &map;       // table we're iterating over
+    int index;                   // current slot to return in adv(); -1 when done
 
   public:       // funcs
-    Iter(VoidPtrMap &map);
+    Iter(VoidPtrMap const &map);
     ~Iter();
 
     bool isDone() const { return index < 0; }

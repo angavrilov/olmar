@@ -46,8 +46,8 @@ public:      // iterators
     VoidPtrMap::Iter iter;
 
   public:      // fucs
-    Iter(PtrMap<KEY,VALUE> &map)   : iter(map.map) {}
-    ~Iter()                        {}
+    Iter(PtrMap<KEY,VALUE> const &map)   : iter(map.map) {}
+    ~Iter()                              {}
 
     bool isDone() const            { return iter.isDone(); }
     void adv()                     { return iter.adv(); }

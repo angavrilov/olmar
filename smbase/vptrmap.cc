@@ -172,7 +172,7 @@ void VoidPtrMap::empty()
 
 
 // ------------------- VoidPtrMap::Iter ------------------
-VoidPtrMap::Iter::Iter(VoidPtrMap &m)
+VoidPtrMap::Iter::Iter(VoidPtrMap const &m)
   : map(m),
     index(map.tableSize)
 {
