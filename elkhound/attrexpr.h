@@ -8,6 +8,7 @@
 #include "objlist.h"      // ObjList
 #include "attr.h"         // Attributes, AttrValue, AttrName
 #include "macros.h"       // DMEMB
+#include "flatten.h"      // Flatten
 
 class Reduction;          // glrtree.h
 class AttrContext;        // glrtree.h
