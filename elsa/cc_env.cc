@@ -195,8 +195,11 @@ void Env::setupOperatorOverloading()
   // not delete the Variables they contain (if at some point they
   // acquire that behavior, I can have a method in Scope to clear
   // the Variables without deleting them)
-  Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/,
-    "dummy scope for built-in operator functions");
+  //
+  // update: built-in operators are now suppressed from the
+  // environment using FF_BUILTINOP
+  //Scope *dummyScope = enterScope(SK_GLOBAL /*close enough*/,
+  //  "dummy scope for built-in operator functions");
 
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
@@ -359,6 +362,17 @@ void Env::setupOperatorOverloading()
   // ptrdiff_t operator-(T,T);
   addBuiltinBinaryOp(OP_MINUS, rvalIsPointer, pointerToObject);
 
+  // summary of process:
+  //   - enumerate pairs (U,V) such that left arg can convert 
+  //     (directly) to U, and right to V
+  //   - pass U and V through 'rvalIsPointer': strip any reference,
+  //     and insist the result be a pointer (otherwise discard pair);
+  //     call resulting pair(U',V')
+  //   - compute LUB(U',V'), then test with 'pointerToObject': if
+  //     LUB is a pointer to object type, then use that type to
+  //     instantiate the pattern; otherwise, reject the pair
+  // see also: convertibility.txt
+
   // ------------ 13.6 para 15 ------------
   // bool operator< (T, T);
   addBuiltinBinaryOp(OP_LESS, rvalFilter, pointerOrEnum);
@@ -423,20 +437,13 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 19 ------------
   // 19: assignment to pointer type
-  #if 0    // oops, this is correlated
-  {
-    Type *T = getSimpleType(SL_INIT, ST_ANY_TYPE);
+  // T: any type
+  // T* VQ & operator= (T* VQ &, T*);
+  addBuiltinBinaryOp(OP_ASSIGN, rvalIsPointer_leftIsRef, pointerToAny, true /*assignment*/);
 
-    Type *Tp = tfac.makePointerType(SL_INIT, PO_POINTER, CV_NONE, T);
-    Type *Tpv = tfac.makePointerType(SL_INIT, PO_POINTER, CV_VOLATILE, T);
-
-    Type *Tpr = tfac.makeRefType(SL_INIT, Tp);
-    Type *Tpvr = tfac.makeRefType(SL_INIT, Tpv);
-
-    // T* VQ & operator= (T* VQ &,
-    // doh
-  }
-  #endif // 0
+  // TODO: the correlated-pair machinery is overkill; the LHS arg
+  // type is all that's relevant, because it can't convert to
+  // any LUB that isn't equal to itself
 
   // ------------ 13.6 para 20 ------------
   // 20: assignment to enumeration and ptr-to-member
@@ -503,7 +510,7 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 25 ------------
   // 25: ?: on pointer and ptr-to-member types
 
-  exitScope(dummyScope);
+  //exitScope(dummyScope);
 
   // the default constructor for ArrayStack will have allocated 10
   // items in each array; go back and resize them to their current
@@ -561,7 +568,7 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 Variable *Env::declareFunctionNargs(
   Type *retType, char const *funcName,
   Type **argTypes, char const **argNames, int numArgs,
-  FunctionFlags flags, 
+  FunctionFlags flags,
   Type * /*nullable*/ exnType)
 {
   FunctionType *ft = makeFunctionType(SL_INIT, tfac.cloneType(retType));
@@ -585,7 +592,12 @@ Variable *Env::declareFunctionNargs(
   ft->doneParams();
 
   Variable *var = makeVariable(SL_INIT, str(funcName), ft, DF_NONE);
-  addVariable(var);
+  if (flags & FF_BUILTINOP) {
+    // don't add built-in operator functions to the environment
+  }
+  else {
+    addVariable(var);
+  }
 
   return var;
 }
@@ -1710,7 +1722,8 @@ Variable *Env::createBuiltinUnaryOp(OverloadableOp op, Type *x)
 
   Variable *v = declareFunction1arg(
     t_void /*irrelevant*/, operatorName[op],
-    x, "x");
+    x, "x",
+    FF_BUILTINOP);
   v->setFlag(DF_BUILTIN);
 
   return v;
@@ -1723,9 +1736,10 @@ void Env::addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
 }
 
 void Env::addBuiltinBinaryOp(OverloadableOp op, CandidateSet::PreFilter pre,
-                                                CandidateSet::PostFilter post)
+                                                CandidateSet::PostFilter post,
+                                                bool isAssignment)
 {
-  addBuiltinBinaryOp(op, new CandidateSet(pre, post));
+  addBuiltinBinaryOp(op, new CandidateSet(pre, post, isAssignment));
 }
 
 void Env::addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset)
@@ -1747,7 +1761,8 @@ Variable *Env::createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
 
   Variable *v = declareFunction2arg(
     t_void /*irrelevant*/, operatorName[op],
-    x, "x", y, "y");
+    x, "x", y, "y",
+    FF_BUILTINOP);
   v->setFlag(DF_BUILTIN);
 
   return v;

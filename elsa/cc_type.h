@@ -653,7 +653,8 @@ enum FunctionFlags {
   FF_CONVERSION  = 0x04,       // conversion operator function
   FF_CTOR        = 0x08,       // constructor
   FF_DTOR        = 0x10,       // destructor
-  FF_ALL         = 0x1F,       // all flags set to 1
+  FF_BUILTINOP   = 0x20,       // built-in operator function (cppstd 13.6)
+  FF_ALL         = 0x3F,       // all flags set to 1
 };
 ENUM_BITWISE_OPS(FunctionFlags, FF_ALL);
 
@@ -979,10 +980,15 @@ public:
   // where I don't have an AST node to pass
 
   // ---- create a type based on another one ----
-  // given a type, qualify it with 'cv'; return NULL if the base type
-  // cannot be so qualified; I pass the syntax from which the 'cv'
-  // flags were derived, when I have it, for the benefit of extension
-  // analyses
+  // given a type, set its cv-qualifiers to 'cv'; return NULL if the
+  // base type cannot be so qualified; I pass the syntax from which
+  // the 'cv' flags were derived, when I have it, for the benefit of
+  // extension analyses
+  virtual Type *setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+                                TypeSpecifier * /*nullable*/ syntax);
+
+  // add 'cv' to existing qualifiers; default implementation just
+  // calls setCVQualifiers
   virtual Type *applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                               TypeSpecifier * /*nullable*/ syntax);
 

@@ -155,7 +155,8 @@ private:     // funcs
 
   void addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet::PreFilter pre,
-                                             CandidateSet::PostFilter post);
+                                             CandidateSet::PostFilter post,
+                                             bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
 public:      // funcs

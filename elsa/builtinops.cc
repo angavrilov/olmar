@@ -11,25 +11,16 @@
 CandidateSet::CandidateSet(Variable *v)
   : poly(v),
     pre(NULL),
-    post(NULL)
+    post(NULL),
+    isAssignment(false)
 {}
 
-CandidateSet::CandidateSet(PreFilter r, PostFilter o)
+CandidateSet::CandidateSet(PreFilter r, PostFilter o, bool a)
   : poly(NULL),
     pre(r),
-    post(o)
+    post(o),
+    isAssignment(a)
 {}
-
-Variable *CandidateSet::instantiatePattern(Env &env, OverloadableOp op, Type *t)
-{
-  // PLAN:  Right now, I just leak a bunch of things.  To fix this, I
-  // want maintain a pool of Variables for use as instantiated
-  // candidates.  When I instantiate (say) operator-(T,T) with a
-  // specific T, I rewrite an existing one from the pool, or else make
-  // a new one if the pool is exhausted.  Later I put all the elements
-  // back into the pool.
-  return env.createBuiltinBinaryOp(op, t, t);
-}
 
 
 // get the set of types that 't' can be converted to via a
@@ -113,11 +104,11 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
 
   // consider all pairs of conversion results
   SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
-    Type *lhsRet = pre(lhsIter.data());
+    Type *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
     if (!lhsRet) continue;
 
     SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
-      Type *rhsRet = pre(rhsIter.data());
+      Type *rhsRet = pre(rhsIter.data(), false /*isLeft*/);
       if (!rhsRet) continue;
 
       // compute LUB
@@ -137,7 +128,7 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
         // I defer to the overload module to make such a candidate;
         // here I just say what I want
         Type *t_void = env.getSimpleType(SL_INIT, ST_VOID);
-        Variable *v = instantiatePattern(env, op, t_void);
+        Variable *v = env.createBuiltinBinaryOp(op, t_void, t_void);
         resolver.addAmbiguousBinaryCandidate(v);
 
         #if 0    // this wrong
@@ -160,14 +151,43 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
 
   // instantiate T with all the types we've collected
   SFOREACH_OBJLIST_NC(Type, instTypes, iter) {
-    Variable *v = instantiatePattern(env, op, iter.data());
-    resolver.processCandidate(v);
+    // PLAN:  Right now, I just leak a bunch of things.  To fix this, I
+    // want maintain a pool of Variables for use as instantiated
+    // candidates.  When I instantiate (say) operator-(T,T) with a
+    // specific T, I rewrite an existing one from the pool, or else make
+    // a new one if the pool is exhausted.  Later I put all the elements
+    // back into the pool.
+
+    Type *T = iter.data();
+
+    if (!isAssignment) {
+      // parameters are symmetric
+      Variable *v = env.createBuiltinBinaryOp(op, T, T);
+      resolver.processCandidate(v);
+    }
+
+    else {
+      // left parameter is a reference, and we need two versions,
+      // one with volatile and one without
+      Type *Tv = env.tfac.applyCVToType(SL_INIT, CV_VOLATILE, T, NULL /*syntax*/);
+
+      Type *Tr = env.tfac.makeRefType(SL_INIT, T);
+      Type *Tvr = env.tfac.makeRefType(SL_INIT, Tv);
+      
+      resolver.processCandidate(env.createBuiltinBinaryOp(op, Tr, T));
+      resolver.processCandidate(env.createBuiltinBinaryOp(op, Tvr, T));
+    }
   }
 }
 
 
 // ------------------- filters -------------------
-Type *rvalIsPointer(Type *t)
+Type *rvalFilter(Type *t, bool)
+{
+  return t->asRval();
+}
+
+Type *rvalIsPointer(Type *t, bool)
 {
   // 13.3.1.5: functions that return 'T&' are regarded as
   // yielding 'T' for purposes of this analysis
@@ -182,9 +202,20 @@ Type *rvalIsPointer(Type *t)
   }
 }
 
-Type *rvalFilter(Type *t)
+Type *rvalIsPointer_leftIsRef(Type *t, bool isLeft)
 {
-  return t->asRval();
+  if (isLeft) {
+    // the type must be a reference to non-const
+    if (!t->isReference()) {
+      return NULL;
+    }
+    t = t->asRval();
+    if (t->isConst()) {
+      return NULL;
+    }
+  }
+
+  return rvalIsPointer(t, isLeft);
 }
 
 
@@ -210,6 +241,13 @@ bool pointerOrEnum(Type *t)
 bool pointerOrEnumOrPTM(Type *t)
 {
   return t->isPointer() || t->isEnumType() || t->isPointerToMemberType();
+}
+
+bool pointerToAny(Type *t)
+{
+  // the LUB will ensure this, actually, but it won't
+  // hurt to check again
+  return t->isPointer();
 }
 
 

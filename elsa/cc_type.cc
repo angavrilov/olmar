@@ -1700,14 +1700,14 @@ Type *TypeFactory::cloneType(Type *src)
 }
 
 
-Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
-                                 TypeSpecifier *)
+Type *TypeFactory::setCVQualifiers(SourceLoc loc, CVFlags cv, Type *baseType,
+                                   TypeSpecifier *)
 {
   if (baseType->isError()) {
     return baseType;
   }
 
-  if (cv == CV_NONE) {
+  if (cv == baseType->getCVFlags()) {
     // keep what we've got
     return baseType;
   }
@@ -1720,56 +1720,50 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
   // yielding final type
   //   unsigned char const             // return value from this fn
 
-  // first, check for special cases
   switch (baseType->getTag()) {
     case Type::T_ATOMIC: {
       CVAtomicType *atomic = baseType->asCVAtomicType();
-      if ((atomic->cv | cv) == atomic->cv) {
-        // the given type already contains 'cv' as a subset,
-        // so no modification is necessary
-        return baseType;
-      }
-      else {
-        // we have to add another CV, so that means creating
-        // a new CVAtomicType with the same AtomicType as 'baseType',
-        // but with the new flags added
-        return makeCVAtomicType(loc, atomic->atomic, atomic->cv | cv);
-      }
-      break;
+
+      // make a new CVAtomicType with the same AtomicType as 'baseType',
+      // but with the new flags
+      return makeCVAtomicType(loc, atomic->atomic, cv);
     }
 
     case Type::T_POINTER: {
-      // logic here is nearly identical to the T_ATOMIC case
       PointerType *ptr = baseType->asPointerType();
-      if (ptr->op == PO_REFERENCE) {
+      if (ptr->op == PO_REFERENCE && cv!=CV_NONE) {
         return NULL;     // can't apply CV to references
       }
-      if ((ptr->cv | cv) == ptr->cv) {
-        return baseType;
-      }
-      else {
-        return makePointerType(loc, ptr->op, ptr->cv | cv, ptr->atType);
-      }
-      break;
+      return makePointerType(loc, ptr->op, cv, ptr->atType);
     }
 
     case Type::T_POINTERTOMEMBER: {
-      // again similar to the above
       PointerToMemberType *ptm = baseType->asPointerToMemberType();
-      if ((ptm->cv | cv) == ptm->cv) {
-        return baseType;    // no-op
-      }
-      else {
-        return makePointerToMemberType(loc, ptm->inClass, ptm->cv | cv, ptm->atType);
-      }
-      break;
+      return makePointerToMemberType(loc, ptm->inClass, cv, ptm->atType);
     }
 
     default:    // silence warning
     case Type::T_FUNCTION:
     case Type::T_ARRAY:
-      // can't apply CV to either of these
+      // can't apply CV to either of these, and since baseType's
+      // original cv flags must have been CV_NONE, then 'cv' must
+      // not be CV_NONE
       return NULL;
+  }
+}
+
+
+Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
+                                 TypeSpecifier *syntax)
+{
+  CVFlags now = baseType->getCVFlags();
+  if (now | cv == now) {
+    // no change, 'cv' already contained in the existing flags
+    return baseType;
+  }
+  else {
+    // change to the union
+    return setCVQualifiers(loc, now | cv, baseType, syntax);
   }
 }
 

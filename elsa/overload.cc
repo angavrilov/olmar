@@ -1142,12 +1142,14 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
         }
       }
       else {
-        // now I want to make the type 'pointer to <cvu> <lubCt>', but I
-        // suspect I may frequently be able to re-use t1 or t2; and,
-        // given the current fact that I don't deallocate types, that
-        // should be advantageous when possible
-        if (ct1==lubCt && cv1==cvu) return t1;
-        if (ct2==lubCt && cv2==cvu) return t2;
+        // Now I want to make the type 'pointer to <cvu> <lubCt>', but
+        // I suspect I may frequently be able to re-use t1 or t2.
+        // Given the current fact that I don't deallocate types, that
+        // should be advantageous when possible.  Also, don't return
+        // a type with cv flags, since that messes up the instantiation
+        // of patterns.
+        if (ct1==lubCt && cv1==cvu && t1->getCVFlags()==CV_NONE) return t1;
+        if (ct2==lubCt && cv2==cvu && t2->getCVFlags()==CV_NONE) return t2;
 
         // make a type from the class
         lubCtType = env.tfac.makeCVAtomicType(SL_UNKNOWN, lubCt, cvu);
@@ -1186,7 +1188,8 @@ Type *computeLUB(Env &env, Type *t1, Type *t2, bool &wasAmbig)
   // a new type object; NOTE: this allows identical enum arguments
   // to yield out
   if (t1->equals(t2, Type::EF_IGNORE_TOP_CV)) {
-    return t1;        // cool
+    // use 't1', but make sure we're not returning a cv-qualified type
+    return env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, t1, NULL /*syntax*/);
   }
   
   // not equal, but they *are* similar, so construct the lub type; for

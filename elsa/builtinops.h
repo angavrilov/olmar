@@ -17,11 +17,12 @@ class OverloadResolver;    // overload.h
 // allows overload resolution to act *as if* it used the full sets
 class CandidateSet {
 public:      // types
-  // each potential argument type is passed through this filter
-  // before being evaluated as part of a pair; it can return a
-  // different type, and it can also return NULL to indicate
-  // that the type shouldn't be considered
-  typedef Type* (*PreFilter)(Type *t);
+  // each potential argument type is passed through this filter before
+  // being evaluated as part of a pair; it can return a different
+  // type, and it can also return NULL to indicate that the type
+  // shouldn't be considered; 'isLeft' says whether this is the left
+  // arg or right arg type
+  typedef Type* (*PreFilter)(Type *t, bool isLeft);
 
   // after computing a pairwise LUB, the LUB type is passed
   // through this filter; if it returns false, then the type
@@ -33,35 +34,37 @@ public:      // data
   // a single polymorphic function
   Variable *poly;          // (serf)
 
-  // if poly==NULL, then this pair of functions filters
-  // the argument types to a binary operator in a pairwise
-  // analysis to instantiate a pattern rule
+  // if poly==NULL, then this pair of functions filters the argument
+  // types to a binary operator in a pairwise analysis to instantiate
+  // a pattern rule
   PreFilter pre;
   PostFilter post;
   
-private:     // funcs
-  // instantiate a pattern operator with a given type
-  Variable *instantiatePattern(Env &env, OverloadableOp, Type *t);
+  // if true, then this is a pattern rule for an assignment
+  // operator; this affects how instantiation is done
+  bool isAssignment;
 
 public:      // funcs
   CandidateSet(Variable *v);
-  CandidateSet(PreFilter pre, PostFilter post);
+  CandidateSet(PreFilter pre, PostFilter post, bool isAssignment);
 
   // instantiate the pattern as many times as necessary, given the
   // argument types 'lhsType' and 'rhsType'
   void instantiateBinary(Env &env, OverloadResolver &resolver,
     OverloadableOp op, Type *lhsType, Type *rhsType);
 };
-   
+
 
 // some pre filters
-Type *rvalFilter(Type *t);
-Type *rvalIsPointer(Type *t);
+Type *rvalFilter(Type *t, bool);
+Type *rvalIsPointer(Type *t, bool);
+Type *rvalIsPointer_leftIsRef(Type *t, bool isLeft);
 
 // some post filters
 bool pointerToObject(Type *t);
 bool pointerOrEnum(Type *t);
 bool pointerOrEnumOrPTM(Type *t);
+bool pointerToAny(Type *t);
 
 
 #endif // BUILTINOPS_H
