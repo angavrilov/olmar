@@ -261,16 +261,21 @@ void Env::addVariable(StringRef name, Variable *decl)
         << "', this type is `" << type->toString() << "'");
     }
 
-    // but it's ok if both were functions
-    // and/or both were extern or static (TODO: what are the
-    // real rules??); and, there can be at most one initializer
+    // but it's ok if:
+    //   - both were functions, or
+    //   - one is extern, or
+    //   - both were static
+    // (TODO: what are the real rules??)
+    // and, there can be at most one initializer (why did I comment that out?)
     if ( ( type->isFunctionType() ||
-           ((flags & DF_EXTERN) && (prev->flags & DF_EXTERN)) ||
+           ((flags & DF_EXTERN) || (prev->flags & DF_EXTERN)) ||
            ((flags & DF_STATIC) && (prev->flags & DF_STATIC))
          )
          //&& (!prev->isInitialized() || !initialized)
        ) {
       // ok
+      // at some point I'm going to have to deal with merging the
+      // information, but for now.. skip it
     }
     else {
       err(stringc << "duplicate variable decl: " << name);

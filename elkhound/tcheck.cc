@@ -7,6 +7,7 @@
 #include "strutil.h"        // quoted
 #include "trace.h"          // trace
 #include "paths.h"          // printPaths
+#include "cc_lang.h"        // CCLang
 
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
@@ -305,10 +306,14 @@ Type const *TS_classSpec::tcheck(Env &env)
     xassert(ct);
   }
 
-  // C++: add an implicit typedef for the name
+  // construct a Type
   xassert(cv == CV_NONE);    // I think the syntax precludes any alternative
   Type const *ret = env.makeCVType(ct, cv);
-  env.addTypedef(name, ret);
+
+  if (env.lang.tagsAreTypes && name) {
+    // C++: add an implicit typedef for the name
+    env.addTypedef(name, ret);
+  }
 
   // fill in 'ct' with its fields
   env.pushStruct(ct);      // declarations will go into 'ct'

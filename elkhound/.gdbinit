@@ -12,7 +12,7 @@ file ccgr
 
 #set args -tr stopAfterTCheck cc.bin vcgen/if.c
 
-set args -tr printAnalysisPath cc.bin tcheck/morepaths.c
+set args cc.bin vcgen/treeadd-merged.c
 
 #set args -tr factflow cc.bin vcgen/ff.c
 
