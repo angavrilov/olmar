@@ -1698,13 +1698,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   //
   // 4/21/04: in fact, I need the entire sequence of scopes
   // in the qualifier, since all of them need to be visible
+  //
+  // dsw points out that this furthermore requires that the underlying
+  // PQName be tchecked, so we can use the template arguments (if
+  // any).  Hence, down in D_name::tcheck, we no longer tcheck the
+  // name since it's now always done out here.
   ScopeSeq qualifierScopes;
-  // Scott, I need the declaratorId to be typechecked before we do the
-  // getQualifierScopes(); the method for getting it returns a pointer
-  // to const, which is not what the typechecking code wants.
-  // Therefore, I see no way to avoid the const_cast.
-  #warning Digging down and repeatedly tchecking the declarator id is bad
-  PQName *name = const_cast<PQName*>(decl->getDeclaratorId());
+  PQName *name = decl->getDeclaratorId();
   if (name) {
     name->tcheck(env);
   }
@@ -2449,9 +2449,11 @@ void D_name::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 {
   env.setLoc(loc);
 
-  if (name) {
-    name->tcheck(env);
-  }
+  // 7/27/04: This has been disabled because Declarator::mid_tcheck
+  // takes care of tchecking the name in advance.
+  //if (name) {
+  //  name->tcheck(env);
+  //}
 
   // do *not* call 'possiblyConsumeFunctionType', since D_name_tcheck
   // will do so if necessary, and in a different way
@@ -5631,7 +5633,7 @@ void TD_func::itcheck(Env &env)
   // that is called to typecheck cloned templates by
   // instantiateTemplate().
 
-  PQName const *name = f->nameAndParams->decl->getDeclaratorId();
+  PQName const *name = f->nameAndParams->decl->getDeclaratorIdC();
   FunctionType *funcType = f->nameAndParams->type->asFunctionType();
   Variable *fVar = f->nameAndParams->var;
 

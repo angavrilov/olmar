@@ -367,9 +367,9 @@ void Declarator::setNext(Declarator *newNext)
 }
 
 
-PQName const *Declarator::getDeclaratorId() const
+PQName const *Declarator::getDeclaratorIdC() const
 {
-  return decl->getDeclaratorId();
+  return decl->getDeclaratorIdC();
 }
 
 
@@ -399,41 +399,41 @@ void Declarator::printExtras(ostream &os, int indent) const
 
 
 // --------------------- IDeclarator ---------------------------
-PQName const *D_name::getDeclaratorId() const
+PQName const *D_name::getDeclaratorIdC() const
 {
   return name;
 }
 
-PQName const *D_pointer::getDeclaratorId() const
+PQName const *D_pointer::getDeclaratorIdC() const
 {
-  return base->getDeclaratorId();
+  return base->getDeclaratorIdC();
 }
 
-PQName const *D_func::getDeclaratorId() const
+PQName const *D_func::getDeclaratorIdC() const
 {
-  return base->getDeclaratorId();
+  return base->getDeclaratorIdC();
 }
 
-PQName const *D_array::getDeclaratorId() const
+PQName const *D_array::getDeclaratorIdC() const
 {
-  return base->getDeclaratorId();
+  return base->getDeclaratorIdC();
 }
 
-PQName const *D_bitfield::getDeclaratorId() const
+PQName const *D_bitfield::getDeclaratorIdC() const
 {
   // the ability to simply return 'name' here is why bitfields contain
   // a PQName instead of just a StringRef
   return name;
 }
 
-PQName const *D_ptrToMember::getDeclaratorId() const
+PQName const *D_ptrToMember::getDeclaratorIdC() const
 {
-  return base->getDeclaratorId();
+  return base->getDeclaratorIdC();
 }
 
-PQName const *D_grouping::getDeclaratorId() const
+PQName const *D_grouping::getDeclaratorIdC() const
 {
-  return base->getDeclaratorId();
+  return base->getDeclaratorIdC();
 }
 
            

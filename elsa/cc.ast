@@ -292,8 +292,10 @@ class Declarator (
   }
 
   // dig down and find the name being declared; may return NULL
-  public PQName const *getDeclaratorId() const;
-  
+  public PQName const *getDeclaratorIdC() const;
+  public PQName *getDeclaratorId()
+    { return const_cast<PQName*>(getDeclaratorIdC()); };
+
   public SourceLoc getLoc() const;
 }
 
@@ -305,7 +307,9 @@ class Declarator (
 // constructors, then maybe a function or array type, recursively
 class IDeclarator(SourceLoc loc) {
   // dig down and find the name being declared; may return NULL
-  pure_virtual PQName const *getDeclaratorId() const;
+  pure_virtual PQName const *getDeclaratorIdC() const;
+  public PQName *getDeclaratorId()
+    { return const_cast<PQName*>(getDeclaratorIdC()); };
 
   // skip any toplevel grouping operators
   public IDeclarator *skipGroups();
