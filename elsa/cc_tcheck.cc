@@ -3762,7 +3762,6 @@ Type *E_binary::itcheck(Env &env)
 }
 
 
-
 Type *E_addrOf::itcheck(Env &env)
 {
   expr->tcheck(expr, env);
@@ -3993,13 +3992,15 @@ Type *E_statement::itcheck(Env &env)
 {
   s = s->tcheck(env)->asS_compound();
   if (s->stmts.count() < 1) {
-    return env.error("statement expression is emtpy");
+    return env.error("`({ ... })' cannot be empty");
   }
+
   Statement *last = s->stmts.last();
   if (last->isS_expr()) {
     return last->asS_expr()->expr->type;
-  } else {
-    return env.error("last member of statement expression is not an expression");
+  }
+  else {
+    return env.error("last thing in `({ ... })' must be an expression");
   }
 }
 
