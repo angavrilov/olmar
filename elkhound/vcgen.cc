@@ -639,7 +639,7 @@ AbsValue *E_variable::vcgen(AEnv &env, int path) const
     // variable, and simply return that
     return env.get(var);
   }
-  else if (type->isArrayType()) {
+  else if (var->type->isArrayType()) {
     // is name of an array, in which case we return the name given
     // to the array's location (it's like an immutable pointer)
     return env.avPointer(env.getMemVarAddr(var), new AVint(0));
@@ -940,14 +940,18 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
     env.updateVar(var, v);
   }
   else if (op == BIN_ASSIGN && target->isE_deref()) {
+    string syntax = target->toString();
+
     // get an abstract value for the address being modified
     AbsValue *addr = target->asE_deref()->ptr->vcgen(env, path);
 
     // emit a proof obligation for safe access
-    env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ,
-                           new AVint(0)), "array lower bound");
+    env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ, 
+                           new AVint(0)), 
+                           stringc << "array lower bound: " << syntax);
     env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
-                           env.avLength(env.avObject(addr))), "array upper bound");
+                           env.avLength(env.avObject(addr))),
+                           stringc << "array upper bound: " << syntax);
 
     // memory changes
     env.setMem(env.avUpdate(env.getMem(), env.avObject(addr),

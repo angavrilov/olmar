@@ -7,7 +7,9 @@ file ccgr
 
 #set args -tr predicates cc.bin vcgen/global.c
 
-set args -tr stopAfterTCheck cc.bin tcheck/loops.c
+#set args -tr stopAfterTCheck cc.bin tcheck/loops.c
+
+set args cc.bin test-bad-tmp.c
 
 #  break main
 #  break breaker

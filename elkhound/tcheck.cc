@@ -987,6 +987,7 @@ Type const *E_variable::itcheck(Env &env)
     env.err(stringc << name << " cannot be referenced outside a predicate");
   }
 
+  // see makeReference's definition above
   return makeReference(env, v->type);
 }
 

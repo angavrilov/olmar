@@ -168,6 +168,7 @@ AbsValue *AEnv::get(Variable const *var)
                          
     // caller knows that we're yielding the address, not the value,
     // since this is a memvar
+    set(var, addr);       // need to associate this with the name too
     return addr;
   }
 

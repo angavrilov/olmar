@@ -15,7 +15,7 @@ void init(int *a)
   a[2] = 2;
   a[3] = 3;
   a[4] = 4;
-  a[5] = 5;         // ERROR 3
+  a[5] = 5;         // ERROR(3)
 }
 
 void foo()
@@ -24,8 +24,8 @@ void foo()
   int x = array[0];
   x = array[4];
 
-  x = array[5];     // ERROR 1
-  x = array[-1];    // ERROR 2
+  x = array[5];     // ERROR(1)
+  x = array[-1];    // ERROR(2)
 
   init(array);
 }

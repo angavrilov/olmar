@@ -2,7 +2,7 @@
 // trying some str* functions
 
 
-int *mem;
+//int *mem;
 int offset(int *ptr);
 int *object(int *ptr);
 int firstZero(int *mem, int *obj);
