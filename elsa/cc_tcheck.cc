@@ -3717,6 +3717,10 @@ Type *E_deref::itcheck(Env &env)
   ptr->tcheck(ptr, env);
 
   Type *rt = ptr->type->asRval();
+  if (rt->isFunctionType()) {
+    return rt;                  // deref is idempotent on FunctionType-s
+  }
+
   if (rt->isPointerType()) {
     PointerType *pt = rt->asPointerType();
     xassert(pt->op == PO_POINTER);   // otherwise not rval!
