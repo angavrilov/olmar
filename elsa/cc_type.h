@@ -1,6 +1,6 @@
 // cc_type.h            see license.txt for copyright and terms of use
 // compile-type representation of C++ types
-// see types.txt
+// see cc_type.html
 
 // The original design intent was that type representation would be
 // completely independent of the Expression language, or anything
