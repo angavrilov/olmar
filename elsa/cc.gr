@@ -59,8 +59,8 @@ option useGCDefaults;
 option defaultMergeAborts;
 
 // expected statistics
-option shift_reduce_conflicts 55;
-option reduce_reduce_conflicts 82;
+option shift_reduce_conflicts 53;
+option reduce_reduce_conflicts 85;
 option unreachable_nonterminals 0;
 option unreachable_terminals 6;
 

@@ -31,8 +31,8 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 83;
-option reduce_reduce_conflicts 111;
+option shift_reduce_conflicts 80;
+option reduce_reduce_conflicts 119;
 
 
 terminals {
