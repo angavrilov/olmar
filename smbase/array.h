@@ -46,7 +46,7 @@ public:
 template <class T>
 class GrowArray {
 private:     // data
-  T *arr;                 // underlying array
+  T *arr;                 // underlying array; NULL if sz==0
   int sz;                 // # allocated entries in 'arr'
 
 private:     // funcs
