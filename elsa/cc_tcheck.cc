@@ -3043,13 +3043,13 @@ Type *E_variable::itcheck(Env &env)
     // by the need to allow template bodies to call undeclared
     // functions in a "dependent" context [cppstd 14.6 para 8].
     // See the note in TS_name::itcheck.
-    return env.error(loc, stringc
+    return env.error(name->loc, stringc
       << "there is no variable called `" << *name << "'",
       false /*disambiguates*/);
   }
 
   if (var->hasFlag(DF_TYPEDEF)) {
-    return env.error(loc, stringc
+    return env.error(name->loc, stringc
       << "`" << *name << "' used as a variable, but it's actually a typedef",
       true /*disambiguates*/);
   }

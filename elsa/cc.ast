@@ -125,9 +125,11 @@ class ASTTypeId (
 }
 
 // a name with optional class qualifiers (PQ: "possibly qualified");
-// if the first qualifier is NULL, then it means there was a leading
-// "::" symbol
-class PQName {
+// if the first qualifier's 'qualifier' name is NULL, then it means
+// there was a leading "::" symbol; each level of qualification has a
+// 'loc' because each level is a remote reference to some entity, and
+// that lookup might fail
+class PQName(SourceLoc loc) {
   public bool hasQualifiers() const { return isPQ_qualifier(); };
 
   public string qualifierString() const;
@@ -147,13 +149,14 @@ class PQName {
 
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
-  -> PQ_qualifier(StringRef qualifier, FakeList<TemplateArgument> *targs,
+  -> PQ_qualifier(StringRef /*nullable*/qualifier, 
+                  FakeList<TemplateArgument> *targs,
                   PQName rest);
 
   // final name, when it's an ordinary identifier
   // NOTE: 'name' here is *never* NULL--instead, I use NULL
   // PQName pointers in abstract declarators
-  -> PQ_name(SourceLoc loc, StringRef name);
+  -> PQ_name(StringRef name);
 
   // "operator" names; 'o' has the full info, while 'fakeName' is
   // for getName(), which is sometimes used for string maps
@@ -467,7 +470,8 @@ class Expression {
   -> E_charLit(StringRef text);
 
   // variable reference; 'name' might be "this"
-  -> E_variable(SourceLoc loc, PQName name);
+  // 5/19/03: 'loc' field removed because 'name' has a location
+  -> E_variable(PQName name);
 
   -> E_funCall(Expression func, FakeList<Expression> *args);
 

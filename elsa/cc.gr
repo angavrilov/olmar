@@ -220,13 +220,13 @@ nonterm(Expression*) PrimaryExpression {
        { return e; }
 
   -> "this"
-       { return new E_variable(loc, new PQ_name(loc, str("this"))); }
+       { return new E_variable(new PQ_name(loc, str("this"))); }
 
   -> "(" e:Expression ")"
        { return new E_grouping(e); }
 
   -> e:IdExpression
-       { return new E_variable(loc, e); }
+       { return new E_variable(e); }
 }
 
 nonterm(Expression*) Literal {
@@ -255,14 +255,14 @@ nonterm(PQName*) IdExpression {
   // sequence; I'm enforcing it a little bit differently than the std
   // does
   -> "::" id:PQualifiedId
-       { return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, id); }
+       { return new PQ_qualifier(loc, NULL /*qualifier*/, NULL /*targs*/, id); }
 }
 
 // names that are not qualified
 nonterm(PQName*) UnqualifiedId {
   -> id:Identifier                { return new PQ_name(loc, id); }
-  -> id:OperatorFunctionId        { return new PQ_operator(id, str(id->getOperatorName())); }
-  -> id:ConversionFunctionId      { return new PQ_operator(id, str(id->getOperatorName())); }
+  -> id:OperatorFunctionId        { return new PQ_operator(loc, id, str(id->getOperatorName())); }
+  -> id:ConversionFunctionId      { return new PQ_operator(loc, id, str(id->getOperatorName())); }
 
   // std has `"~" ClassName' here, but I've chosen to separate out
   // the places that a destructor name can occur, since it avoids
@@ -278,10 +278,10 @@ nonterm(PQName*) PQualifiedId {
        { return id; }
 
   -> n:Identifier "::" id:PQualifiedId
-       { return new PQ_qualifier(n, NULL /*targs*/, id); }
+       { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
 
   -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
-       { return new PQ_qualifier(n, targs, id); }
+       { return new PQ_qualifier(loc, n, targs, id); }
 
   // TODO: cppstd has a couple places where "template" occurs, I'm
   // leaving those out for now..
@@ -1053,7 +1053,7 @@ nonterm(PQName*) PQTypeName {
   -> n:PQTypeName_ncc              
        { return n; }
   -> "::" n:PQTypeName_ncc
-       { return new PQ_qualifier(NULL /*qualifier*/, NULL /*targs*/, n); }
+       { return new PQ_qualifier(loc, NULL /*qualifier*/, NULL /*targs*/, n); }
 }
 
 // no-colon-colon
@@ -1064,9 +1064,9 @@ nonterm(PQName*) PQTypeName_ncc {
        { return id; }
 
   -> q:Identifier "::" n:PQTypeName_ncc
-       { return new PQ_qualifier(q, NULL /*targs*/, n); }
+       { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
   -> q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
-       { return new PQ_qualifier(q, targs, n); }
+       { return new PQ_qualifier(loc, q, targs, n); }
 }
 
 
@@ -1273,10 +1273,10 @@ nonterm(PQName*) PQDtorName {
   // ambiguity that relates to namespaces (e.g. "::F::~F()")
   //-> q:Qualifier rhs:PQDtorName  { return new PQ_qualifier(q, rhs); }
   -> q:Identifier "::" rhs:PQDtorName
-       { return new PQ_qualifier(q, NULL /*targs*/, rhs); }
+       { return new PQ_qualifier(loc, q, NULL /*targs*/, rhs); }
 
   -> q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
-       { return new PQ_qualifier(q, targs, rhs); }
+       { return new PQ_qualifier(loc, q, targs, rhs); }
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
 }
@@ -1578,9 +1578,9 @@ nonterm(PQName*) ClassHeadName {
   -> t:TemplateId        { return t; }
 
   -> n:Identifier "::" rest:ClassHeadName
-       { return new PQ_qualifier(n, NULL /*targs*/, rest); }
+       { return new PQ_qualifier(loc, n, NULL /*targs*/, rest); }
   -> n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
-       { return new PQ_qualifier(n, targs, rest); }
+       { return new PQ_qualifier(loc, n, targs, rest); }
        
   // TODO: as in PQualifiedId, I'm omitting the keyword "template"
 }
@@ -1868,12 +1868,12 @@ nonterm(PQName*) MemInitializerId {
        
   // base class which is a template
   -> n:Identifier "<" targs:TemplateArgumentList ">"
-       { return new PQ_template(n, targs); }
+       { return new PQ_template(loc, n, targs); }
 
-  -> n:Identifier "::" id:MemInitializerId   
-       { return new PQ_qualifier(n, NULL /*targs*/, id); }
+  -> n:Identifier "::" id:MemInitializerId
+       { return new PQ_qualifier(loc, n, NULL /*targs*/, id); }
   -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
-       { return new PQ_qualifier(n, targs, id); }
+       { return new PQ_qualifier(loc, n, targs, id); }
 }
 
 
@@ -2036,7 +2036,7 @@ nonterm(FakeList<TemplateArgument>*) TemplateArgumentListOpt {
 
 nonterm(PQName*) TemplateId {
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
-       { return new PQ_template(n, list); }
+       { return new PQ_template(loc, n, list); }
 }
 
 nonterm(FakeList<TemplateArgument>*) TemplateArgumentList {
