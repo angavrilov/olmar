@@ -449,6 +449,7 @@ testparse t0225.cc
 testparse t0226.cc
 testparse t0227.cc
 testparse t0228.cc
+testparse t0229.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

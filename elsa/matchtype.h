@@ -25,8 +25,8 @@
 // "match_"), so please don't change them.
 //
 //   match_TInfo()
-//     calls match_Lists2()
-//   match_Lists2()
+//     calls match_Lists()
+//   match_Lists()
 //     calls match_STA()
 //   match_STA()
 //     class match_Type()
@@ -199,18 +199,18 @@ public:
 
   bool match_STA(STemplateArgument *a, STemplateArgument const *b, int matchDepth = 0);
 
-  // does listA match listB pairwise?  NOTE: asymmetry in the list
-  // serf/ownerness of the first and second arguments.
-  bool match_Lists(SObjList<STemplateArgument> &listA,
+  // does listA match listB pairwise?
+  bool match_Lists(ObjList<STemplateArgument> &listA,
                    ObjList<STemplateArgument> &listB,
                    int matchDepth = 0);
 
-  // does listA match listB pairwise?  NOTE: the SYMMETRY in the list
-  // serf/ownerness in contrast to the other function for operating on
-  // lists of STemplateArgument-s below.
-  bool match_Lists2(ObjList<STemplateArgument> &listA,
-                    ObjList<STemplateArgument> &listB,
-                    int matchDepth = 0);
+  // variants for when one of them is an SObjList ...
+  bool match_Lists(SObjList<STemplateArgument> &listA,
+                   ObjList<STemplateArgument> &listB,
+                   int matchDepth = 0);
+  bool match_Lists(ObjList<STemplateArgument> &listA,
+                   SObjList<STemplateArgument> &listB,
+                   int matchDepth = 0);
 };
 
 

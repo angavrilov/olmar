@@ -288,17 +288,6 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
-    // if the name of the Declarator was a PQ_template, then save its
-    // template arguments so that later when the template info is
-    // created for the variable we can convert them into
-    // STemplateArguments and attach them
-    //
-    // sm: I think this is a mistake.  It is used to pass a piece of
-    // information from a base declarator out to the enclosing D_func.
-    // Instead, it would be better for the necessary information to
-    // be passed *in*.
-    ASTList<TemplateArgument> const *ASTTemplArgs;
-
     // syntactic context
     DeclaratorContext context;
 
@@ -309,7 +298,6 @@ class Declarator {
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
-      , ASTTemplArgs(NULL)
       , context     (dc)
     {}
     Tcheck(Tcheck const &obj)
@@ -318,7 +306,6 @@ class Declarator {
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
-      , ASTTemplArgs(obj.ASTTemplArgs)
       , context     (obj.context)
     {}
     Tcheck& operator= (Tcheck const &obj) {
@@ -327,7 +314,6 @@ class Declarator {
       dflags      = obj.dflags;
       size_E_new  = obj.size_E_new;
       funcSyntax  = obj.funcSyntax;
-      ASTTemplArgs= obj.ASTTemplArgs;
       context     = obj.context;
       return *this;
     }

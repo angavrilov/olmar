@@ -2081,7 +2081,7 @@ Variable *TemplateInfo::addInstantiation(TypeFactory &tfac, Variable *inst0,
   SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
     Variable *inst1 = iter.data();
     MatchTypes match(tfac, MatchTypes::MM_ISO);
-    bool unifies = match.match_Lists2
+    bool unifies = match.match_Lists
       (inst1->templateInfo()->arguments,
        inst0->templateInfo()->arguments,
        2 /*matchDepth*/);
@@ -2124,7 +2124,7 @@ Variable *TemplateInfo::getInstantiationOfVar(TypeFactory &tfac, Variable *var)
     // making a difference at the top of a parameter type, you would
     // have to match each parameter separately
     if (!match.match_Type(var->type, candidate->type, 2 /*matchDepth*/)) continue;
-    if (!match.match_Lists2(varTArgs, candidate->templateInfo()->arguments, 2 /*matchDepth*/)) {
+    if (!match.match_Lists(varTArgs, candidate->templateInfo()->arguments, 2 /*matchDepth*/)) {
       continue;
     }
     xassert(!matchingVar);      // shouldn't be in there twice

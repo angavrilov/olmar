@@ -610,11 +610,7 @@ bool MatchTypes::match_Atomic(AtomicType *a, AtomicType *b, int matchDepth)
 }
 
 
-// FIX: AN EXACT COPY OF MatchTypes::match_Lists().  Have to figure
-// out how to fix that.
-//
-// NOTE: the SYMMETRY in the list serf/ownerness.
-bool MatchTypes::match_Lists2
+bool MatchTypes::match_Lists
   (ObjList<STemplateArgument> &listA,
    ObjList<STemplateArgument> &listB,
    int matchDepth)
@@ -665,7 +661,7 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth)
   // FIX: I treat mutants just like anything else; I think this is
   // right
   if ((!b->isMutant()) && b->isPrimary()) return true;
-  return match_Lists2(a->arguments, b->arguments, matchDepth);
+  return match_Lists(a->arguments, b->arguments, matchDepth);
 }
 
 
@@ -681,7 +677,7 @@ bool MatchTypes::match_TInfo_with_PI(TemplateInfo *a, PseudoInstantiation *b,
   if (ati != bti) return false;
 
   // compare arguments
-  return match_Lists2(a->arguments, b->args, matchDepth);
+  return match_Lists(a->arguments, b->args, matchDepth);
 }
 
 
@@ -694,7 +690,7 @@ bool MatchTypes::match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
   }
 
   // compare arguments
-  return match_Lists2(a->args, b->args, matchDepth);
+  return match_Lists(a->args, b->args, matchDepth);
 }
 
 
@@ -843,27 +839,28 @@ bool MatchTypes::match_Type(Type *a, Type *b, int matchDepth)
 
 bool MatchTypes::match_Lists
   (SObjList<STemplateArgument> &listA,
-   ObjList<STemplateArgument> &listB, // NOTE: Assymetry in the list serf/ownerness
+   ObjList<STemplateArgument> &listB,
    int matchDepth)
 {
-  // FIX: why assert this?
-//    xassert(!(mFlags & MT_TOP));
+  // using the cast is a bit of a hack; the "right" solution is to
+  // use a template with a template parameter, but that's a bit over
+  // the top (and may jeopardize portability)
+  return match_Lists(reinterpret_cast<ObjList<STemplateArgument>&>(listA),
+                     listB, 
+                     matchDepth);
+}
 
-  SObjListIterNC<STemplateArgument> iterA(listA);
-  ObjListIterNC<STemplateArgument> iterB(listB);
-
-  while (!iterA.isDone() && !iterB.isDone()) {
-    STemplateArgument *sA = iterA.data();
-    STemplateArgument *sB = iterB.data();
-    if (!match_STA(sA, sB, matchDepth)) {
-      return false;
-    }
-
-    iterA.adv();
-    iterB.adv();
-  }
-
-  return iterA.isDone() && iterB.isDone();
+bool MatchTypes::match_Lists
+  (ObjList<STemplateArgument> &listA,
+   SObjList<STemplateArgument> &listB,
+   int matchDepth)
+{
+  // using the cast is a bit of a hack; the "right" solution is to
+  // use a template with a template parameter, but that's a bit over
+  // the top (and may jeopardize portability)
+  return match_Lists(listA,
+                     reinterpret_cast<ObjList<STemplateArgument>&>(listB),
+                     matchDepth);
 }
 
 

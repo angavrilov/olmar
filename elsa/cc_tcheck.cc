@@ -2372,15 +2372,6 @@ realStart:
     name->hasQualifiers() ? NULL /* I don't think this is right! */ :
     env.getOverloadForDeclaration(prior, dt.type);
 
-  // dsw: moved this up here since I need it below
-  //
-  // put in the template args if there are any
-  if (name->isPQ_template()) {
-    // save these so we can attach the arguments after the template
-    // info object is created
-    dt.ASTTemplArgs = &name->asPQ_templateC()->args;
-  }
-
   // For function templates at least we need to intercept template
   // specializations (at least complete specializiations, since this
   // only really matters for the instantiations and there is never all
@@ -2400,17 +2391,14 @@ realStart:
       xassert(prim->templateInfo());
       xassert(prim->templateInfo()->isPrimary());
 
-      // This is just a temporary.  I make this on the heap instead of
-      // the stack because for now I don't want to know what gets
-      // dtored when a TemplateInfo goes away and if that will be a
-      // problem; FIX: see if this can be done more efficiently.
-      TemplateInfo *sTemplArgsHolder = new TemplateInfo(SL_UNKNOWN /*instLoc*/);
-      if (dt.ASTTemplArgs) {
-        env.initArgumentsFromASTTemplArgs(sTemplArgsHolder, *dt.ASTTemplArgs);
+      // get a list of STemplateArguments for the following query
+      SObjList<STemplateArgument> sargs;
+      if (name->isPQ_template()) {
+        env.templArgsASTtoSTA(name->asPQ_templateC()->args, sargs);
       }
 
       Variable *prevInst = env.getInstThatMatchesArgs
-        (prim->templateInfo(), sTemplArgsHolder->arguments, dt.type);
+        (prim->templateInfo(), sargs, dt.type);
       if (prevInst) {
         prior = prevInst;
       }
@@ -2756,7 +2744,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 //        }
 
     dt.var->setTemplateInfo(templateInfo);
-    if (dt.ASTTemplArgs) {
+    if (getDeclaratorId() &&
+        getDeclaratorId()->isPQ_template()) {
       // some disambiguation situations don't end up attaching a
       // template info: elsa/in/d0005.cc
       if (!dt.var->templateInfo()) {
@@ -2770,7 +2759,8 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
         // can match them up.
 //            xassert(env.hasDisambErrors());
       } else {
-        env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(), *dt.ASTTemplArgs);
+        env.initArgumentsFromASTTemplArgs(dt.var->templateInfo(),
+                                          getDeclaratorId()->asPQ_templateC()->args);
       }
     }
   }

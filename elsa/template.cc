@@ -290,14 +290,14 @@ bool Env::checkIsoToASTTemplArgs
 
 
 Variable *Env::getInstThatMatchesArgs
-  (TemplateInfo *tinfo, ObjList<STemplateArgument> &arguments, Type *type0)
+  (TemplateInfo *tinfo, SObjList<STemplateArgument> &arguments, Type *type0)
 {
   Variable *prevInst = NULL;
   SFOREACH_OBJLIST_NC(Variable, tinfo->getInstantiations(), iter) {
     Variable *instantiation = iter.data();
     if (type0 && !instantiation->getType()->equals(type0)) continue;
     MatchTypes match(tfac, MatchTypes::MM_ISO);
-    bool unifies = match.match_Lists2
+    bool unifies = match.match_Lists
       (instantiation->templateInfo()->arguments, arguments, 2 /*matchDepth*/);
     if (unifies) {
       if (instantiation->templateInfo()->isMutant() &&
