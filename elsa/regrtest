@@ -921,6 +921,7 @@ failparse k0046.cc "anonymous inline struct fields"
 failparse k0047.cc "template<T> operator T*"
 failparse k0048.cc "re-declaration of template base-class member"
 failparse k0049.cc "'restrict' as name"
+failparse k0050.cc "definition of a function without 'const' on a basic type"
 
 ### </quarl-testcases-c++>
 
