@@ -131,12 +131,20 @@ public:      // data
   Function *curFunction;              // (serf) Function we're analyzing
   TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
   SourceLoc curLoc;                   // latest AST location marker seen
-                                    
+
 private:     // funcs
   void Scope::lookupPQVariableC_considerBase
     (PQName const *name, Env &env, LookupFlags flags,
      Variable const *&v1, CompoundType const *&v1Base,
      BaseClassSubobj const *v2Subobj) const;
+
+  // more using-directive stuff
+  void addActiveUsingEdge(Scope *target);
+  void removeActiveUsingEdge(Scope *target);
+  void scheduleActiveUsingEdge(Env &env, Scope *target);
+  Variable const *searchActiveUsingEdges
+    (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const;
+  void getUsingClosure(ArrayStack<Scope*> &dest);
 
 protected:   // funcs
   // this function is called at the end of addVariable, after the
@@ -216,12 +224,8 @@ public:      // funcs
 
   // stuff for using-directives
   void addUsingEdge(Scope *target);
-  void addActiveUsingEdge(Scope *target);
-  void removeActiveUsingEdge(Scope *target);
-  void scheduleActiveUsingEdge(Env &env, Scope *target);
-  Variable const *searchUsingEdges
-    (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const;
-                                  
+  void addUsingEdgeTransitively(Env &env, Scope *target);
+
   // indication of scope open/close so we can maintain the
   // connection between "using" and "active using" edges
   void openedScope(Env &env);

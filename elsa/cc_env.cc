@@ -713,7 +713,7 @@ void Env::exitScope(Scope *s)
 {
   s->closedScope();
 
-  trace("env") << locStr() << ": exited " << toString(s->scopeKind) << " scope\n";
+  trace("env") << locStr() << ": exited " << s->desc() << "\n";
   Scope *f = scopes.removeFirst();
   xassert(s == f);
   delete f;
@@ -722,14 +722,8 @@ void Env::exitScope(Scope *s)
 
 void Env::extendScope(Scope *s)
 {
-  if (s->curCompound) {
-    trace("env") << locStr() << ": extending scope "
-                 << s->curCompound->keywordAndName() << "\n";
-  }
-  else {
-    trace("env") << locStr() << ": extending scope at "
-                 << (void*)s << "\n";
-  }
+  trace("env") << locStr() << ": extending " << s->desc() << "\n";
+
   Scope *prevScope = scope();
   scopes.prepend(s);
   s->curLoc = prevScope->curLoc;
@@ -739,16 +733,10 @@ void Env::extendScope(Scope *s)
 
 void Env::retractScope(Scope *s)
 {
+  trace("env") << locStr() << ": retracting " << s->desc() << "\n";
+
   s->closedScope();
 
-  if (s->curCompound) {
-    trace("env") << locStr() << ": retracting scope "
-                 << s->curCompound->keywordAndName() << "\n";
-  }
-  else {
-    trace("env") << locStr() << ": retracting scope at " 
-                 << (void*)s << "\n";
-  }
   Scope *first = scopes.removeFirst();
   xassert(first == s);
   // we don't own 's', so don't delete it

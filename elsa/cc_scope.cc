@@ -89,8 +89,8 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
       trace("env") << prefix << "added " << classification
                    << " `" << v->name
                    << "' of type `" << v->type->toString()
-                   << "' at " << toString(v->loc)
-                   << " (" << toString(v->scopeKind) << " scope)"
+                   << "' at " << toLCString(v->loc)
+                   << " to " << desc()
                    << endl;
     }
     else {
@@ -100,8 +100,8 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
                    << " member " << classification
                    << " `" << v->name
                    << "' of type `" << v->type->toString()
-                   << "' at " << toString(v->loc)
-                   << " to " << curCompound->keywordAndName()
+                   << "' at " << toLCString(v->loc)
+                   << " to " << desc()
                    << endl;
     }
 
@@ -245,8 +245,12 @@ Variable const *Scope
     
     // 7.3.4 para 1: "active using" edges are a source of additional
     // declarations that can satisfy an unqualified lookup
+    //
+    // TODO: this is not right because I get in here even for
+    // qualified lookups, after having stripped the outer qualifiers
+    // (right?)
     if (activeUsingEdges.isNotEmpty()) {
-      v1 = searchUsingEdges(name->getName(), env, flags, v1);
+      v1 = searchActiveUsingEdges(name->getName(), env, flags, v1);
     }
 
     if (v1) {
@@ -411,6 +415,10 @@ bool Scope::encloses(Scope const *s) const
 
 string Scope::desc() const
 {
+  if (curCompound) {
+    return curCompound->keywordAndName();
+  }
+
   Variable const *v = getTypedefNameC();
   if (v) {
     return stringc << toString(scopeKind) << " " << v->name;
@@ -481,11 +489,14 @@ void Scope::scheduleActiveUsingEdge(Env &env, Scope *target)
 
 
 void Scope::openedScope(Env &env)
-{          
-  // all "using" edges give rise to "active using" edges
-  for (int i=0; i<usingEdges.length(); i++) {
-    scheduleActiveUsingEdge(env, usingEdges[i]);
+{
+  if (usingEdges.length() == 0) {
+    return;    // common case
   }
+
+  // it's like I'm "using" myself, and thus all the things that
+  // I have "using" edges to
+  addUsingEdgeTransitively(env, this);
 }
 
 void Scope::closedScope()
@@ -501,13 +512,32 @@ void Scope::closedScope()
   }
 }
 
-                        
+
+void Scope::addUsingEdgeTransitively(Env &env, Scope *target)
+{
+  // get set of scopes that are reachable along "using" edges from
+  // 'target'; all get active-using edges, as if they directly
+  // appeared in a using-directive in this scope (7.3.4 para 2)
+  ArrayStack<Scope*> reachable;
+  if (target != this) {
+    // include it in the closure
+    reachable.push(target);
+  }
+  target->getUsingClosure(reachable);
+
+  // all (transitive) "using" edges give rise to "active using" edges
+  for (int i=0; i<reachable.length(); i++) {
+    scheduleActiveUsingEdge(env, reachable[i]);
+  }
+}
+
+
 // search the lists instead of maintaining state in the Scope
 // objects, to keep things simple; if the profiler tells me
 // to make this faster, I can put colors into the objects
-static void pushIfWhite(ArrayStack<Scope const*> const &black,
-                        ArrayStack<Scope const*> &gray,
-                        Scope const *s)
+static void pushIfWhite(ArrayStack<Scope*> const &black,
+                        ArrayStack<Scope*> &gray,
+                        Scope *s)
 {
   // in the black list?
   int i;
@@ -529,39 +559,24 @@ static void pushIfWhite(ArrayStack<Scope const*> const &black,
 }
 
 // DFS over the network of using-directive edges
-Variable const *Scope::searchUsingEdges
-  (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const
+void Scope::getUsingClosure(ArrayStack<Scope*> &dest)
 {
   // set of scopes already searched
-  ArrayStack<Scope const*> black;
+  ArrayStack<Scope*> black;
 
   // stack of scopes remaining to be searched in the DFS
-  ArrayStack<Scope const*> gray;
-  
-  // the caller already searched among my variables
-  black.push(this);
+  ArrayStack<Scope*> gray;
 
-  // we follow the "active using" edges from 'this' to initialize
-  // the stack; after that, we'll use the "using" edges
-  for (int i=0; i<activeUsingEdges.length(); i++) {
-    pushIfWhite(black, gray, activeUsingEdges[i]);
-  }
+  // initial condition
+  gray.push(this);
 
   // process the gray set until empty
   while (gray.isNotEmpty()) {
-    Scope const *s = gray.pop();
+    Scope *s = gray.pop();
 
-    // look for 'name' in 's'
-    Variable const *v = vfilterC(s->variables.queryif(name), flags);
-    if (v) {
-      if (vfound) {
-        env.error(stringc
-          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
-          << "' vs `" << v->fullyQualifiedName() << "'");
-      }
-      else {
-        vfound = v;
-      }
+    // add 's' to the desination list, except that 'this' is excluded
+    if (s != this) {
+      dest.push(s);
     }
 
     // done with 's'
@@ -570,6 +585,29 @@ Variable const *Scope::searchUsingEdges
     // push the "using" edges' targets
     for (int i=0; i < s->usingEdges.length(); i++) {
       pushIfWhite(black, gray, s->usingEdges[i]);
+    }
+  }
+}
+
+
+Variable const *Scope::searchActiveUsingEdges
+  (StringRef name, Env &env, LookupFlags flags, Variable const *vfound) const
+{
+  // just consider the set of "active using" edges
+  for (int i=0; i<activeUsingEdges.length(); i++) {
+    Scope const *s = activeUsingEdges[i];
+    
+    // look for 'name' in 's'
+    Variable const *v = vfilterC(s->variables.queryif(name), flags);
+    if (v) {
+      if (vfound && vfound!=v) {
+        env.error(stringc
+          << "ambiguous lookup: `" << vfound->fullyQualifiedName()
+          << "' vs. `" << v->fullyQualifiedName() << "'");
+      }
+      else {
+        vfound = v;
+      }
     }
   }
 

@@ -5724,9 +5724,9 @@ void ND_usingDir::tcheck(Env &env)
     cur->addUsingEdge(target);
   }
 
-  // add an "active using" edge from somewhere to 'target', and
-  // arrange for it to go away when 'cur' does
-  cur->scheduleActiveUsingEdge(env, target);
+  // add the effect of a single "using" edge, which includes
+  // a transitive closure computation
+  cur->addUsingEdgeTransitively(env, target);
 }
 
 
