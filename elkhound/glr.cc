@@ -963,7 +963,8 @@ STATICDEF bool GLR
 
           // record location of left edge; defaults to no location
           // (used for epsilon rules)
-          SOURCELOC( SourceLoc leftEdge = SL_UNKNOWN; )
+          // update: use location of lookahead token instead, for epsilons
+          SOURCELOC( SourceLoc leftEdge = lexer.loc; )
 
           //toPass.ensureIndexDoubler(rhsLen-1);
           xassertdb(rhsLen <= MAX_RHSLEN);
@@ -1677,7 +1678,7 @@ void ReductionPathQueue::deletePath(Path *p)
 
 // process the reduction worklist
 void GLR::rwlProcessWorklist()
-{                   
+{
   // location of this token
   SOURCELOC( SourceLoc tokenLoc = lexerPtr->loc; )
 
@@ -1696,7 +1697,8 @@ void GLR::rwlProcessWorklist()
 
     ACCOUNTING( nondetReduce++; )
 
-    // record location of left edge
+    // record location of left edge; initially is location of
+    // the lookahead token
     SOURCELOC( SourceLoc leftEdge = tokenLoc; )
 
     // build description of rhs for tracing
@@ -1726,7 +1728,7 @@ void GLR::rwlProcessWorklist()
       // left edge?  or, have all previous tokens failed to yield
       // information?
       SOURCELOC(
-        if (sib->loc != SL_UNKNOWN) {
+        if (sib->loc != SL_UNKNOWN) {     
           leftEdge = sib->loc;
         }
       )
