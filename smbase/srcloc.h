@@ -210,6 +210,11 @@ public:      // funcs
   SourceLoc encodeBegin(char const *filename)
     { return encodeOffset(filename, 0 /*offset*/); }
   SourceLoc encodeLineCol(char const *filename, int line, int col);
+  
+  // some care is required with 'encodeStatic', since each call makes
+  // a new location with a new entry in the static array to back it
+  // up, so the caller should ensure a given static location is not
+  // encoded more than once, if possible
   SourceLoc encodeStatic(StaticLoc const &obj);
   SourceLoc encodeStatic(char const *fname, int offset, int line, int col)
     { return encodeStatic(StaticLoc(fname, offset, line, col)); }
