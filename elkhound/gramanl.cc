@@ -3039,6 +3039,18 @@ void reportUnexpected(int value, int expectedValue, char const *desc)
 }
 
 
+bool isAmbiguousNonterminal(Symbol const *sym)
+{
+  if (sym->isNonterminal()) {
+    Nonterminal const &nt = sym->asNonterminalC();
+    if (nt.mergeCode) {
+      return true;   // presence of merge() signals potential ambiguity
+    }
+  }
+  return false;
+}
+
+
 void GrammarAnalysis::computeParseTables(bool allowAmbig)
 {
   tables = new ParseTables(numTerms, numNonterms, itemSets.count(), numProds,
@@ -3114,6 +3126,32 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
 
       // add this entry to the table
       tables->actionEntry(state->id, termId) = cellAction;
+      
+      // based on the contents of 'reductions', decide whether this
+      // state is delayed or not; to be delayed, the state must be
+      // able to reduce by a production which:
+      //   - has an ambiguous nonterminal as the last symbol on its RHS
+      //   - is not reducing to the *same* nonterminal as the last symbol
+      //     (rationale: eagerly reduce "E -> E + E")
+      // UPDATE: removed last condition because it actually makes things
+      // worse..
+      bool delayed = false;
+      if (reductions.isNotEmpty()) {    // no reductions: eager (irrelevant, actually)
+        SFOREACH_PRODUCTION(reductions, prodIter) {
+          Production const &prod = *prodIter.data();
+          if (prod.rhsLength() >= 1) {                 // nonempty RHS?
+            Symbol const *lastSym = prod.right.lastC()->sym;
+            if (isAmbiguousNonterminal(lastSym)        // last RHS ambig?
+                /*&& lastSym != prod.left*/) {         // not same as LHS?
+              delayed = true;
+            }
+          }
+        }
+      }
+      
+      if (delayed) {
+        tables->markDelayed(state->id);
+      }
     }
 
     // ---- fill in this row in the goto table ----
@@ -3147,16 +3185,11 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   reportUnexpected(sr, expectedSR, "shift/reduce conflicts");
   reportUnexpected(rr, expectedRR, "reduce/reduce conflicts");
 
-  // report on cyclicity, and set ambiguity flags
+  // report on cyclicity
   for (int nontermId=0; nontermId<numNonterms; nontermId++) {
     Nonterminal const *nonterminal = getNonterminal(nontermId);
     if (nonterminal->cyclic) {
       cout << "grammar symbol " << nonterminal->name << " is cyclic\n";
-    }                                            
-    
-    if (nonterminal->mergeCode) {
-      // assume that nonterminals with merge() functions are ambiguous
-      tables->markAmbiguous(nontermId);
     }
   }
 

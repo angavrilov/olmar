@@ -38,8 +38,8 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   startState = start;
   finalProductionIndex = final;
   
-  ambigNonterms = new unsigned char[ambigTableSize()];
-  memset(ambigNonterms, 0, sizeof(ambigNonterms[0]) * ambigTableSize());
+  delayedStates = new unsigned char[delayedTableSize()];
+  memset(delayedStates, 0, sizeof(delayedStates[0]) * delayedTableSize());
 }
 
 
@@ -55,7 +55,7 @@ ParseTables::~ParseTables()
       delete[] ambigAction[i];
     }
     
-    delete[] ambigNonterms;
+    delete[] delayedStates;
   }
 }
 
@@ -88,7 +88,7 @@ ParseTables::ParseTables(Flatten &flat)
   gotoTable = NULL;
   prodInfo = NULL;
   stateSymbol = NULL;
-  ambigNonterms = NULL;
+  delayedStates = NULL;
 }
 
      
@@ -123,7 +123,7 @@ void ParseTables::xfer(Flatten &flat)
   xferSimpleArray(flat, gotoTable, gotoTableSize());
   xferSimpleArray(flat, prodInfo, numProds);
   xferSimpleArray(flat, stateSymbol, numStates);
-  xferSimpleArray(flat, ambigNonterms, ambigTableSize());
+  xferSimpleArray(flat, delayedStates, delayedTableSize());
 
   // ambigAction
   if (flat.writing()) {

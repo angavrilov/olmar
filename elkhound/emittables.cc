@@ -93,9 +93,9 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   out << "\n";
 
   // table of ambiguous nonterminals
-  emitTable(out, ambigNonterms, ambigTableSize(), 16, 
-            "unsigned char", "ambigNonterms");
-  out << "  ret->ambigNonterms = ambigNonterms;\n\n";
+  emitTable(out, delayedStates, delayedTableSize(), 16,
+            "unsigned char", "delayedStates");
+  out << "  ret->delayedStates = delayedStates;\n\n";
 
   out << "  return ret;\n"
       << "}\n";

@@ -65,7 +65,7 @@ endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
 # uncomment to turn off source location info
-ccflags += -DNO_GLR_SOURCELOC
+#ccflags += -DNO_GLR_SOURCELOC
 
 # even fewer debugging checks
 #ccflags += -DNDEBUG_NO_ASSERTIONS

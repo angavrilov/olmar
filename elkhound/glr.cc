@@ -669,22 +669,17 @@ bool parserListContains(StackNodeWorklist &list, StackNode *node)
 void priorityWorklistInsert(
   GLR &glr, StackNodeWorklist &list, StackNode *node)
 {
-  SymbolId id = node->getSymbolC();
-  if (symIsTerm(id)) {
-    // rightmost symbol is a terminal: eager
-    list.eager.push(node);
-    return;
-  }
+  #if 1
+    if (glr.tables->isDelayed(node->state)) {
+      list.delayed.push(node);
+    }
+    else {
+      list.eager.push(node);
+    }
 
-  int nonterm = symAsNonterm(id);
-  if (glr.tables->isAmbiguous(nonterm)) {
-    // ambiguous: delay
-    list.delayed.push(node);
-  }
-  else {
-    // unambiguous: eager
+  #else   // this would disable priority scheme
     list.eager.push(node);
-  }
+  #endif
 }
 
 
@@ -2053,6 +2048,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
         if (sibLink->yieldCount > 0) {
           // yield-then-merge happened
           yieldThenMergeCt++;
+          trace("ytm") << "at " << loc.toString() << endl;
 
           // if merging yielded a new semantic value, then we most likely
           // have a problem; if it yielded the *same* value, then most

@@ -101,8 +101,8 @@ public:     // data
   // final reduction executed
   int finalProductionIndex;
 
-  // per-nonterminal bit flag: does the user think it's ambiguous?
-  unsigned char *ambigNonterms;
+  // per-state bit flag: eager or delayed?
+  unsigned char *delayedStates;
 
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
@@ -166,14 +166,14 @@ public:     // funcs
   // decode gotos
   static StateId decodeGoto(GotoEntry code)
     { return (StateId)code; }
-    
-  // ambiguity flag
-  int ambigTableSize() const 
-    { return (numNonterms+7) / 8; }
-  bool isAmbiguous(int nontermId) const
-    { return (ambigNonterms[nontermId >> 3] >> (nontermId & 7)) & 1; }
-  void markAmbiguous(int nontermId)
-    { ambigNonterms[nontermId >> 3] |= (1 << (nontermId & 7)); }
+
+  // delayed flag
+  int delayedTableSize() const
+    { return (numStates+7) / 8; }
+  bool isDelayed(StateId stateId) const
+    { return (delayedStates[stateId >> 3] >> (stateId & 7)) & 1; }
+  void markDelayed(StateId stateId)
+    { delayedStates[stateId >> 3] |= (1 << (stateId & 7)); }
 };
 
 
