@@ -4863,7 +4863,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
         E_fieldAcc *fa = new E_fieldAcc(object,
           new PQ_operator(SL_UNKNOWN, new ON_operator(OP_PARENS), env.functionOperatorName));
         fa->field = funcVar;
-        fa->type = funcVar->type;
+        fa->type = env.tfac.cloneType(funcVar->type);
         func = fa;
 
         return funcVar->type->asFunctionType()->retType;
