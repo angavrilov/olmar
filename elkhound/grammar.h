@@ -69,7 +69,7 @@ public:
 
   StringRef delParam;       // param name; may be NULL to indicate not used
   LocString delCode;        // code
-
+  
 // ----------- annotation ------------
 public:
   bool reachable;           // computed by constructLRItemSets; true when nonterminal reachable from start symbol
@@ -280,6 +280,10 @@ public:
   StringRef keepParam;      // name of parameter to 'keep'
   LocString keepCode;       // code to decide whether to keep a reduction
 
+  bool maximal;             // if true, use maximal munch disambiguation
+  
+  SObjList<Nonterminal> subsets;      // preferred subsets (for scannerless)
+
 protected:  // funcs
   virtual void internalPrintDDM(ostream &os) const;
 
@@ -302,6 +306,7 @@ public:     // data
   bool cyclic;           // true if this can derive itself in 1 or more steps
   TerminalSet first;     // set of terminals that can be start of a string derived from 'this'
   TerminalSet follow;    // set of terminals that can follow a string derived from 'this'
+  Nonterminal *superset; // inverse of 'subsets'
 };
 
 typedef SObjList<Nonterminal> NonterminalList;

@@ -224,11 +224,16 @@ Nonterminal::Nonterminal(LocString const &name, bool isEmpty)
   : Symbol(name, false /*terminal*/, isEmpty),
     mergeParam1(NULL),
     mergeParam2(NULL),
+    mergeCode(),
     keepParam(NULL),
+    keepCode(),
+    maximal(false),
+    subsets(),
     ntIndex(-1),
     cyclic(false),
     first(0),
-    follow(0)
+    follow(0),
+    superset(NULL)
 {}
 
 Nonterminal::~Nonterminal()
@@ -241,7 +246,8 @@ Nonterminal::Nonterminal(Flatten &flat)
     mergeParam2(NULL),
     keepParam(NULL),
     first(flat),
-    follow(flat)
+    follow(flat),
+    superset(NULL)
 {}
 
 void Nonterminal::xfer(Flatten &flat)

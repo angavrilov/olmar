@@ -86,6 +86,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 %token TOK_OPTION "option"
 %token TOK_EXPECT "expect"
 %token TOK_CONTEXT_CLASS "context_class"
+%token TOK_SUBSETS "subsets"
 
 // left, right, nonassoc: they're not keywords, since "left" and "right"
 // are common names for RHS elements; instead, we parse them as names
@@ -133,7 +134,7 @@ AssocKind whichKind(LocString * /*owner*/ kind);
 
 %type <specFuncs> SpecFuncs
 %type <specFunc> SpecFunc
-%type <stringList> FormalsOpt Formals
+%type <stringList> FormalsOpt Formals Subsets
 
 %type <prodDecls> Productions
 %type <prodDecl> Production
@@ -282,9 +283,9 @@ Formals: TOK_NAME                     { $$ = new ASTList<LocString>($1); }
 /* yields: TopForm (always TF_nonterm) */
 Nonterminal: "nonterm" Type TOK_NAME Production
                { $$ = new TF_nonterm($3, $2, new ASTList<SpecFunc>,
-                                     new ASTList<ProdDecl>($4)); }
-           | "nonterm" Type TOK_NAME "{" SpecFuncs Productions "}"
-               { $$ = new TF_nonterm($3, $2, $5, $6); }
+                                     new ASTList<ProdDecl>($4), NULL); }
+           | "nonterm" Type TOK_NAME "{" SpecFuncs Productions Subsets "}"
+               { $$ = new TF_nonterm($3, $2, $5, $6, $7); }
            ;
 
 /* yields: ASTList<ProdDecl> */
@@ -323,6 +324,12 @@ RHSElt: TOK_NAME                { $$ = new RH_name(sameloc($1, ""), $1); }
       | TOK_PRECEDENCE "(" NameOrString ")"
                                 { $$ = new RH_prec($3); }
       ;
+        
+/* yields: ASTList<LocString> */
+Subsets: /*empty*/                  { $$ = NULL; }
+       | "subsets" Formals ";"      { $$ = $2; }
+       ;
+
 
 %%
 /* ------------------ extra C code ------------------ */

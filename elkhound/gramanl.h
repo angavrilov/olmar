@@ -188,6 +188,9 @@ public:    // funcs
   static DottedProduction const *dataToKey(LRItem *dp);
   static bool dpEqual(DottedProduction const *key1, DottedProduction const *key2);
 
+  // true if this item is "A -> alpha * t beta"
+  bool isExtendingShift(Nonterminal const *A, Terminal const *t) const;
+
   void print(ostream &os, GrammarAnalysis const &g) const;
 };
 
@@ -346,6 +349,10 @@ public:     // funcs
   // to 'dest'
   bool mergeLookaheadsInto(ItemSet &dest) const;
 
+  // true if this itemset has an item "A -> alpha * t beta", i.e.
+  // one that would extend 'A' by shifting 't'
+  bool hasExtendingShift(Nonterminal const *A, Terminal const *t) const;
+
   // ---- transition mutations ----
   // set transition on 'sym' to be 'dest'
   void setTransition(Symbol const *sym, ItemSet *dest);
@@ -440,6 +447,7 @@ private:    // funcs
   void computeReachableDFS(Nonterminal *nt);
   void resetFirstFollow();
   void computeDProdFirsts();
+  void computeSupersets();
 
   // ---- dotted productions ----
   void createDottedProductions();
@@ -507,6 +515,11 @@ private:    // funcs
     int &sr, int &rr);           // (inout) counts of S/R and R/R conflicts, resp.
   void computeParseTables(bool allowAmbig);
 
+  int subsetDirectiveResolution(
+    ItemSet const *state,        // parse state in which the actions are possible
+    Terminal const *sym,         // lookahead symbol for these actions
+    ProductionList &reductions); // list to try to cut down
+  
   void renumberStates();
   static int renumberStatesDiff
     (ItemSet const *left, ItemSet const *right, void *vgramanl);

@@ -280,6 +280,7 @@ arith: elkhound libelkhound.a
 examples: all glrmain.o arith gcom
 	$(MAKE) -C examples/cexp
 	$(MAKE) -C examples/cdecl
+	$(MAKE) -C examples/scannerless
 
 
 # ---------------------------- gcom -----------------------

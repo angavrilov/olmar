@@ -323,12 +323,11 @@ void astParseTerminals(Environment &env, TF_terminals const &terms)
 
     // fill in any gaps in the code space; this is required because
     // later analyses assume the terminal code space is dense
-    //SourceLocation dummyLoc;     // can't put directly in arg list b/c looks like an extern function decl!  C++ language parsing problem
+    SourceLoc dummyLoc(HERE_SOURCELOC);
     for (int i=0; i<maxCode; i++) {
       if (!codeHasTerm[i].b) {
-        //LocString dummy(dummyLoc, grammarStringTable.add(
-        //  stringc << "__dummy_filler_token" << i));
-        LocString dummy = LIT_STR(stringc << "__dummy_filler_token" << i);
+        LocString dummy(dummyLoc, grammarStringTable.add(
+          stringc << "__dummy_filler_token" << i));
         env.g.declareToken(dummy, i, dummy);
       }
     }
@@ -463,6 +462,15 @@ void astParseDDM(Environment &env, Symbol *sym,
       }
     }
 
+    else if (func.name.equals("maximal")) {
+      if (nonterm) {
+        nonterm->maximal = true;     // function body has no meaning
+      }
+      else {
+        astParseError(func.name, "'maximal' can only be applied to nonterminals");
+      }
+    }
+
     else {
       astParseError(func.name,
         stringc << "unrecognized spec function \"" << func.name << "\"");
@@ -504,7 +512,8 @@ void synthesizeStartRule(GrammarAST *ast)
         LIT_STR("__EarlyStartSymbol").clone(),   // name
         firstNT->type.clone(),                   // type
         NULL,                                    // empty list of functions
-        new ASTList<ProdDecl>(startProd)         // productions
+        new ASTList<ProdDecl>(startProd),        // productions
+        NULL                                     // subsets
       );
 
   // put it into the AST
@@ -529,6 +538,22 @@ void astParseNonterm(Environment &env, TF_nonterm const *nt)
 
   // parse dup/del/merge
   astParseDDM(env, nonterm, nt->funcs);
+  
+  // record subsets                       
+  {
+    FOREACH_ASTLIST(LocString, nt->subsets, iter) {
+      LocString const *ls = iter.data();
+      Nonterminal *sub = env.g.findNonterminal(*ls);
+      if (!sub) {
+        astParseError(*ls, "nonexistent nonterminal");
+      }
+
+      // note that, since context-free language inclusion is
+      // undecidable (Hopcroft/Ullman), we can't actually check that
+      // the given nonterminals really are in the subset relation
+      nonterm->subsets.prepend(sub);
+    }
+  }
 }
 
 

@@ -35,10 +35,14 @@ class TopForm {
                   ASTList<TermType> types,     // type annotations
                   ASTList<PrecSpec> prec);     // precedence and associativity
 
-  // a nonterminal, with its name and semantic value type, and list
-  // of productions (right-hand side alternatives)
-  -> TF_nonterm(LocString name, LocString type, ASTList<SpecFunc> funcs,
-                ASTList<ProdDecl> productions);
+  // a nonterminal, with productions
+  -> TF_nonterm(
+    LocString name,                    // nonterm name
+    LocString type,                    // semantic value type
+    ASTList<SpecFunc> funcs,           // special situation action functions
+    ASTList<ProdDecl> productions,     // productions (right-hand side alternatives)
+    ASTList<LocString> subsets         // preference subset nonterminals (for scannerless)
+  );
 }
 
 
@@ -64,11 +68,6 @@ class SpecFunc (LocString name, ASTList<LocString> formals, LocString code)
     { return *( formals.nthC(i) ); };
 }
 
-
-// a nonterminal, with its name and semantic value type, and list
-// of productions (right-hand side alternatives)
-class NontermDecl (LocString name, LocString type, ASTList<SpecFunc> funcs,
-                   ASTList<ProdDecl> productions);
 
 // production: rhs description, and code to execute upon recognition
 class ProdDecl (ASTList<RHSElt> rhs, LocString actionCode);

@@ -234,6 +234,29 @@ STATICDEF int LRItem::diff(LRItem const *a, LRItem const *b, void*)
 }
 
 
+bool firstIncludes(Symbol const *sym, Terminal const *t)
+{
+  if (sym->isTerminal()) {
+    return sym == t;
+  }
+  else {
+    // this generalizes 'isExtendingShift'.. and while this did help
+    // eliminate one S/R in a grammar I was working on, there were
+    // others that could not be eliminated at all (they were not
+    // statically decidable), so this generalization might not be
+    // useful afterall
+    return sym->asNonterminalC().first.contains(t->termIndex);
+  }
+}
+
+bool LRItem::isExtendingShift(Nonterminal const *A, Terminal const *t) const
+{
+  return !dprod->isDotAtEnd() &&                      // shift
+         dprod->getProd()->left == A &&               // extending A
+         firstIncludes(dprod->symbolAfterDotC(), t);  // with t
+}
+
+
 void LRItem::print(ostream &os, GrammarAnalysis const &g) const
 {
   dprod->print(os);
@@ -693,6 +716,18 @@ bool ItemSet::mergeLookaheadsInto(ItemSet &dest) const
 }
 
 
+bool ItemSet::hasExtendingShift(Nonterminal const *A, Terminal const *t) const
+{
+  FOREACH_OBJLIST(LRItem, kernelItems, iter1) {
+    if (iter1.data()->isExtendingShift(A, t)) { return true; }
+  }
+  FOREACH_OBJLIST(LRItem, nonkernelItems, iter2) {
+    if (iter2.data()->isExtendingShift(A, t)) { return true; }
+  }
+  return false;
+}
+
+
 Production const *ItemSet::getFirstReduction() const
 {
   xassert(numDotsAtEnd >= 1);
@@ -922,7 +957,7 @@ GrammarAnalysis::~GrammarAnalysis()
   if (derivable != NULL) {
     delete derivable;
   }
-  
+
   if (tables) {
     delete tables;
   }
@@ -1084,7 +1119,6 @@ bool GrammarAnalysis::canDerive(int left, int right) const
 void GrammarAnalysis::initDerivableRelation()
 {
   // two-dimensional matrix to represent token derivabilities
-  int numNonterms = numNonterminals();
   derivable = new Bit2d(point(numNonterms, numNonterms));
 
   // initialize it
@@ -1490,6 +1524,25 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
   // more things that derive emptyString) yields new opportunities
   // for derives-relation discovery.  Therefore I now alternate
   // between them, and at the end, no closure is necessary.
+}
+
+
+// set Nonterminal::superset to correspond to Nonterminal::subsets
+void GrammarAnalysis::computeSupersets()
+{
+  FOREACH_OBJLIST_NC(Nonterminal, nonterminals, iter1) {
+    Nonterminal *super = iter1.data();
+
+    SFOREACH_OBJLIST_NC(Nonterminal, super->subsets, iter2) {
+      Nonterminal *sub = iter2.data();
+
+      // for now, only handle 'super' as a partial function      
+      if (sub->superset != NULL) {
+        xfailure(stringc << sub->name << " has more than one superset");
+      }
+      sub->superset = super;
+    }
+  }
 }
 
 
@@ -2571,6 +2624,27 @@ void GrammarAnalysis::handleShiftReduceConflict(
     << "in state " << state->id << ", S/R conflict on token "
     << sym->name << " with production " << *prod << endl;
 
+  // look at scannerless directives
+  { 
+    // is this nonterm or any of its declared supersets maximal?
+    Nonterminal const *super = prod->left;
+    bool maximal = super->maximal;
+    while (!maximal && super->superset) {
+      super = super->superset;
+      maximal = super->maximal;
+    }
+    
+    if (maximal) {
+      // see if this reduction can be removed due to a 'maximal' spec;
+      // in particular, is the shift going to extend 'super'?
+      if (state->hasExtendingShift(super, sym)) {
+        trace("prec") << "resolved in favor of SHIFT due to maximal munch\n";
+        keepReduce = false;
+        return;
+      }
+    }
+  }
+
   if (!( prod->precedence && sym->precedence )) {
     // one of the two doesn't have a precedence specification,
     // so we can do nothing
@@ -2795,6 +2869,11 @@ void GrammarAnalysis::resolveConflicts(
         << sym->name << ", removed production " << *p1 << endl;
     }
   }
+                                                      
+  // additional R/R resolution using subset directives
+  if (reductions.count() > 1) {
+    actions -= subsetDirectiveResolution(state, sym, reductions);
+  }
 
   // after the disambiguation, maybe now there's no conflicts?
   // or, if conflicts remain, did we get at least that many warning
@@ -2869,6 +2948,65 @@ void reportUnexpected(int value, int expectedValue, char const *desc)
     }
     cout << endl;
   }
+}
+
+
+// the idea is we might be trying to do scannerless parsing, and
+// someone might say that Identifier has as subsets all the keywords,
+// so competing reductions should favor the subsets (the keywords)
+int GrammarAnalysis::subsetDirectiveResolution(
+  ItemSet const *state,        // parse state in which the actions are possible
+  Terminal const *sym,         // lookahead symbol for these actions
+  ProductionList &reductions)  // list to try to cut down
+{
+  int removed = 0;
+
+  // make a map of which nonterminals appear on the LHS of one
+  // of the reductions, and has a superset
+  BitArray map(numNonterms);
+  bool anyWithSuper = false;
+  {
+    SFOREACH_PRODUCTION(reductions, iter) {
+      Production const *p = iter.data();
+      if (p->left->superset) {
+        map.set(p->left->ntIndex);
+        anyWithSuper = true;
+      }
+    }
+  }
+
+  if (!anyWithSuper) {
+    return removed;     // nothing we can do
+  }
+
+  // walk over the reductions, removing those that have reductions
+  // to subsets also in the list
+  SObjListMutator<Production> mut(reductions);
+  while (!mut.isDone()) {
+    Production const *prod = mut.data();
+
+    SFOREACH_OBJLIST(Nonterminal, prod->left->subsets, iter) {
+      Nonterminal const *sub = iter.data();
+      if (map.test(sub->ntIndex)) {
+        trace("prec")
+          << "in state " << state->id
+          << ", R/R conflict on token " << sym->name
+          << ", removed production yielding " << prod->left->name
+          << " b/c another yields subset " << sub->name
+          << endl;
+        mut.remove();
+        removed++;
+        goto continue_outer_loop;
+      }
+    }
+
+    // didn't remove, must manually advance
+    mut.adv();
+
+    continue_outer_loop:;
+  }
+  
+  return removed;
 }
 
 
@@ -3812,6 +3950,8 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   traceProgress(1) << "derivability relation...\n";
   computeWhatCanDeriveWhat();
 
+  computeSupersets();
+
   traceProgress(1) << "first...\n";
   computeFirst();
   computeDProdFirsts();
@@ -4729,7 +4869,8 @@ int inner_entry(int argc, char **argv)
             "  -tr <traceFlags>: turn on some flags (separate with commas):\n"
             "      conflict    : print LALR(1) conflicts\n"
             "      prec        : show how prec/assoc are used to resolve conflicts\n"
-            "      lrtable     : print entire LR parsing tables to prefix.gr.gen.out\n"
+            "      lrtable     : print LR parsing tables to <prefix>.out\n"
+            "      nonkernel   : include non-kernel items in <prefix>.out\n"
             "      treebuild   : replace given actions with treebuilding actions\n"
             "      grammar     : echo grammar to stdout (after merging modules)\n"
             "  -v              : print stages of processing\n"
