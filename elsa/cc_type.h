@@ -381,7 +381,7 @@ public:     // funcs
   CVAtomicType(CVAtomicType const &obj)
     : DMEMB(atomic), q(::deepClone(obj.q)), DMEMB(cv) {}
 
-  Type *deepClone() const;
+  CVAtomicType *deepClone() const;
 
   bool innerEquals(CVAtomicType const *obj) const;
 
@@ -414,7 +414,7 @@ public:
   PointerType(PointerType const &obj)
     : DMEMB(op), q(::deepClone(obj.q)), DMEMB(cv), DMEMB(atType) {}
 
-  Type *deepClone() const;
+  PointerType *deepClone() const;
 
   bool innerEquals(PointerType const *obj) const;
 
@@ -460,7 +460,7 @@ public:     // funcs
   FunctionType(Type const *retType, CVFlags cv);
   virtual ~FunctionType();
 
-  Type *deepClone() const;
+  FunctionType *deepClone() const;
 
   bool innerEquals(FunctionType const *obj) const;
   bool equalParameterLists(FunctionType const *obj) const;
@@ -502,7 +502,7 @@ public:
   Parameter(StringRef n, Type const *t, Variable *d)
     : name(n), type(t), decl(d), defaultArgument(NULL) {}
   ~Parameter();
-//    Parameter *deepClone() const;
+  Parameter *deepClone() const;
 
   string toString() const;
 };
@@ -546,7 +546,7 @@ public:
   ArrayType(Type const *e)
     : eltType(e), q(NULL), hasSize(false), size(-1) { checkWellFormedness(); }
 
-  Type *deepClone() const;
+  ArrayType *deepClone() const;
 
   bool innerEquals(ArrayType const *obj) const;
 

@@ -28,6 +28,19 @@ Variable::~Variable()
 {}
 
 
+Variable *Variable::deepClone() const {
+  Variable *tmp = new Variable(loc
+                               ,name // don't see a reason to clone the name
+                               ,type->deepClone()
+                               ,flags // an enum, so nothing to clone
+                               );
+  // tmp->overload left as NULL as set by the ctor; not cloned
+  tmp->access = access;         // an enum, so nothing to clone
+  tmp->scope = scope;           // don't see a reason to clone the scope
+  return tmp;
+}
+
+
 string Variable::toString() const
 {
   // The purpose of this method is to print the name and type
