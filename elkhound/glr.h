@@ -41,6 +41,7 @@
 #include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
 #include "glrtree.h"     // parse tree (graph) representation
 #include "owner.h"       // Owner
+#include "rcptr.h"       // RCPtr
 
 
 // fwds from other files
@@ -81,6 +82,9 @@ public:
   // LR stacks have been joined at this point.  this is the
   // parse-time representation of ambiguity
   ObjList<SiblingLink> leftSiblings;           // this is a set
+  
+  // so we can deallocate stack nodes earlier
+  int referenceCount;
 
   // count and high-water for stack nodes
   static int numStackNodesAllocd;
@@ -93,18 +97,16 @@ public:     // funcs
   // add a new link with the given tree node; return the link
   SiblingLink *addSiblingLink(StackNode *leftSib, TreeNode *treeNode);
 
-  // if 'leftSib' is one of our siblings, return the link that
-  // makes that true
-  // UPDATE: obsolete because now I allow multiple sibling links
-  // between two given stack nodes
-  //SiblingLink *findSiblingLink(StackNode *leftSib);
-
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
   // (this used to be a data member, but there are at least
   // two ways to compute it, so there's no need to store it)
   Symbol const *getSymbolC() const;
-  
+
+  // reference count stuff
+  void incRefCt() { referenceCount++; }
+  void decRefCt();
+
   // debugging 
   static void printAllocStats();
 };
@@ -117,7 +119,7 @@ class SiblingLink {
 public:
   // the stack node being pointed-at; it was created eariler
   // than the one doing the pointing
-  StackNode * const sib;                       // (serf)
+  RCPtr<StackNode> sib;
 
   // this is the parse tree node associated with this link
   // (parse tree nodes are *not* associated with stack nodes --
@@ -134,6 +136,7 @@ public:
 public:
   SiblingLink(StackNode *s, TreeNode *n)
     : sib(s), treeNode(n) {}
+  ~SiblingLink();
 };
 
 
@@ -143,7 +146,7 @@ public:
 class PendingShift {
 public:
   // which parser is this that's ready to shift?
-  StackNode * const parser;                   // (serf)
+  RCPtr<StackNode> parser;
 
   // which state is it ready to shift into?
   ItemSet const * const shiftDest;            // (serf)
@@ -151,6 +154,7 @@ public:
 public:
   PendingShift(StackNode *p, ItemSet const *s)
     : parser(p), shiftDest(s) {}
+  ~PendingShift();
 };
 
 
@@ -163,7 +167,7 @@ public:    // types
   class ReductionPath {
   public:    
     // the state we end up in after reducing those symbols
-    StackNode *finalState;        // (serf)
+    RCPtr<StackNode> finalState;
 
     // the reduction itself
     Reduction *reduction;         // (owner)
@@ -211,11 +215,11 @@ public:
   // ultimately succeed to parse the input, or might reach a
   // point where it cannot proceed, and therefore dies.  (See
   // comments at top of glr.cc for more details.)
-  SObjList<StackNode> activeParsers;
+  SObjList<StackNode> activeParsers;        // (refct list)
 
   // after parsing I need an easy way to throw away the parse
   // state, so I keep all the nodes in an owner list
-  ObjList<StackNode> allStackNodes;
+  //ObjList<StackNode> allStackNodes;
 
   // this is for assigning unique ids to stack nodes
   int nextStackNodeId;
@@ -227,16 +231,16 @@ public:
   // ---- parser state during each token ----
   // the token we're trying to shift; any parser that fails to
   // shift this token (or reduce to one that can, recursively)
-  // will "die"               
+  // will "die"
   Lexer2Token const *currentToken;
-                                  
+
   // this is the class of the given token, i.e. its classification
   // in the grammar
   Terminal const *currentTokenClass;
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
-  SObjList<StackNode> parserWorklist;
+  SObjList<StackNode> parserWorklist;       // (refct list)
 
 
 private:    // funcs

@@ -10,6 +10,7 @@
 #include "lexer2.h"       // Lexer2
 
 
+// ----------------- helpers for analysis drivers ---------------
 // a self-contained parse tree (or parse DAG, as the case may be)
 struct ParseTree {
 public:
@@ -36,6 +37,7 @@ ParseTree * /*owner*/ toplevelParse(char const *grammarFname,
 ParseTree * /*owner*/ treeMain(int argc, char **argv);
 
 
+// ------------- interface to create nodes -------------
 // constructs a tree node of some type; signature matches
 // NonterminalNode's ctor
 typedef NonterminalNode* (*TreeNodeCtorFn)(Reduction *red);
@@ -54,11 +56,11 @@ struct NonterminalInfo {
 
 
 // these two are in the emitted C++ code:
-  // map from nonterminal indices to ctor/name
-  extern NonterminalInfo nontermMap[];
+// map from nonterminal indices to ctor/name
+extern NonterminalInfo nontermMap[];
 
-  // length of this map; again, mostly as a consistency check
-  extern int nontermMapLength;
+// length of this map; again, mostly as a consistency check
+extern int nontermMapLength;
 
 
 #endif // __PARSSPPT_H

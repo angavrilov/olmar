@@ -34,7 +34,8 @@ gramanl: ${gramanl-dep} grammar.h gramanl.h
 
 # GLR parser built on top of SLR(1) parser
 glr-dep = glr.cc ${grammar-set} ${common} ${grampar-set} gramanl.o \
-          glrtree.o lexer1.o lexer1yy.o lexer2.o parssppt.o
+          glrtree.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
+          parsstub.o
 glr: ${glr-dep} glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 

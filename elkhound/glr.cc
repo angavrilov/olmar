@@ -142,7 +142,9 @@ int StackNode::maxStackNodesAllocd=0;
 StackNode::StackNode(int id, int col, ItemSet const *st)
   : stackNodeId(id),
     tokenColumn(col),
-    state(st)
+    state(st),
+    leftSiblings(),
+    referenceCount(0)
 {
   INC_HIGH_WATER(numStackNodesAllocd, maxStackNodesAllocd);
 }
@@ -150,6 +152,10 @@ StackNode::StackNode(int id, int col, ItemSet const *st)
 StackNode::~StackNode()
 {
   numStackNodesAllocd--;
+  if (!unwinding()) {
+    xassert(numStackNodesAllocd >= 0);
+    xassert(referenceCount == 0);
+  }
 }
 
 
@@ -169,18 +175,12 @@ SiblingLink *StackNode::
 }
 
 
-#if 0   // obsolete
-SiblingLink *StackNode::
-  findSiblingLink(StackNode *leftSib)
+void StackNode::decRefCt()
 {
-  MUTATE_EACH_OBJLIST(SiblingLink, leftSiblings, sib) {
-    if (sib.data()->sib == leftSib) {
-      return sib.data();
-    }
+  if (--referenceCount == 0) {
+    delete this;
   }
-  return NULL;
 }
-#endif // 0
 
 
 STATICDEF void StackNode::printAllocStats()
@@ -189,6 +189,16 @@ STATICDEF void StackNode::printAllocStats()
        << ", max stack nodes: " << maxStackNodesAllocd
        << endl;
 }
+
+
+// ------------------ SiblingLink ------------------
+SiblingLink::~SiblingLink()
+{}
+
+
+// ------------------ PendingShift ------------------
+PendingShift::~PendingShift()
+{}
 
 
 // ------------------ PathCollectionState -----------------
@@ -206,6 +216,21 @@ PathCollectionState::ReductionPath::~ReductionPath()
 
 
 // ------------------------- GLR ---------------------------
+void decParserList(SObjList<StackNode> &list)
+{
+  SMUTATE_EACH_OBJLIST(StackNode, list, iter) {
+    iter.data()->decRefCt();
+  }
+}
+
+void incParserList(SObjList<StackNode> &list)
+{
+  SMUTATE_EACH_OBJLIST(StackNode, list, iter) {
+    iter.data()->incRefCt();
+  }
+}
+
+
 GLR::GLR()
   : currentToken(NULL),
     currentTokenClass(NULL)
@@ -213,13 +238,16 @@ GLR::GLR()
 {}
 
 GLR::~GLR()
-{}
+{
+  decParserList(activeParsers);
+  decParserList(parserWorklist);
+}
 
 
 void GLR::clearAllStackNodes()
 {
   // throw away any parse nodes leftover from previous parses
-  allStackNodes.deleteAll();
+  //allStackNodes.deleteAll();
   treeNodes.deleteAll();
   nextStackNodeId = initialStackNodeId;
   currentTokenColumn = 0;
@@ -266,6 +294,7 @@ void GLR::glrParse(Lexer2 const &lexer2)
   // set active-parsers to contain just this
   StackNode *first = makeStackNode(itemSets.first());
   activeParsers.append(first);
+  first->incRefCt();
 
   // for each input symbol
   int tokenNumber = 0;
@@ -295,17 +324,20 @@ void GLR::glrParse(Lexer2 const &lexer2)
     ObjList<PendingShift> pendingShifts;                  // starts empty
 
     // put active parser tops into a worklist
+    decParserList(parserWorklist);
     parserWorklist = activeParsers;
+    incParserList(parserWorklist);
 
     // work through the worklist
-    StackNode *lastToDie = NULL;
+    RCPtr<StackNode> lastToDie = NULL;
     while (parserWorklist.isNotEmpty()) {
-      StackNode *parser = parserWorklist.removeAt(0);     // dequeue
-      
+      RCPtr<StackNode> parser = parserWorklist.removeAt(0);     // dequeue
+      parser->decRefCt();     // no longer on worklist
+
       // to count actions, first record how many parsers we have
       // before processing this one
       int parsersBefore = parserWorklist.count() + pendingShifts.count();
-                               
+
       // process this parser
       glrParseAction(parser, pendingShifts);
 
@@ -389,10 +421,10 @@ void GLR::glrParse(Lexer2 const &lexer2)
 int GLR::glrParseAction(StackNode *parser,
                         ObjList<PendingShift> &pendingShifts)
 {
-  int actions = 
+  int actions =
     postponeShift(parser, pendingShifts);
 
-  actions += 
+  actions +=
     doAllPossibleReductions(parser, NULL /*no link restrictions*/);
 
   return actions;
@@ -400,7 +432,7 @@ int GLR::glrParseAction(StackNode *parser,
 
 
 int GLR::postponeShift(StackNode *parser,
-                        ObjList<PendingShift> &pendingShifts)
+                       ObjList<PendingShift> &pendingShifts)
 {
   // see where a shift would go
   ItemSet const *shiftDest = parser->state->transitionC(currentTokenClass);
@@ -702,14 +734,16 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
-    activeParsers.append(rightSibling);
+    activeParsers.append(rightSibling); 
+    rightSibling->incRefCt();
     parserWorklist.append(rightSibling);
+    rightSibling->incRefCt();
 
     // no need for the elaborate re-checking above, since we
     // just created rightSibling, so no new opportunities
     // for reduction could have arisen
   }
-  
+
   return true;
 }
 
@@ -717,10 +751,11 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
 void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
 {
   // clear the active-parsers list; we rebuild it in this fn
+  decParserList(activeParsers);
   activeParsers.removeAll();
 
   // foreach (leftSibling, newState) in pendingShifts
-  FOREACH_OBJLIST(PendingShift, pendingShifts, pshift) {
+  MUTATE_EACH_OBJLIST(PendingShift, pendingShifts, pshift) {
     StackNode *leftSibling = pshift.data()->parser;
     ItemSet const *newState = pshift.data()->shiftDest;
 
@@ -743,10 +778,11 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
 
       // and add it to the active parsers
       activeParsers.append(rightSibling);
+      rightSibling->incRefCt();
     }
 
     // either way, add the sibling link now
-    rightSibling->addSiblingLink(leftSibling, 
+    rightSibling->addSiblingLink(leftSibling,
       makeTerminalNode(currentToken, currentTokenClass));    // TREEBUILD
   }
 }
@@ -769,7 +805,7 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 {
   StackNode *sn = new StackNode(nextStackNodeId++, currentTokenColumn,
                                 state);
-  allStackNodes.prepend(sn);
+  //allStackNodes.prepend(sn);
   return sn;
 }
 
@@ -890,7 +926,21 @@ Reduction *GLR::makeReductionNode(Production const *prod,
 
 NonterminalNode *GLR::makeNonterminalNode(Reduction *red)
 {
-  NonterminalNode *ret = new NonterminalNode(red);
+  NonterminalNode *ret;       
+
+  if (nontermMapLength == 0) {
+    // we're running with the stub table; don't create
+    // specialized nodes
+    ret = new NonterminalNode(red);
+  }
+  else {
+    // consult the externally-generated table
+    int id = red->production->left->ntIndex;
+    xassert(0 <= id && id < nontermMapLength);
+
+    ret = (nontermMap[id].ctor)(red);
+  }
+
   treeNodes.prepend(ret);
   return ret;
 }
@@ -957,6 +1007,7 @@ void GLR::writeParseGraph(char const *fname) const
   fprintf(out, "# automatically generated\n"
                "\n");
 
+  #if 0    // can't do anymore because allStackNodes is gone ...
   // for each stack node
   FOREACH_OBJLIST(StackNode, allStackNodes, stackNodeIter) {
     StackNode const *stackNode = stackNodeIter.data();
@@ -1012,6 +1063,7 @@ void GLR::writeParseGraph(char const *fname) const
       } // if is nonterminal
     } // for each sibling
   } // for each stack node
+  #endif // 0
 
   // done
   if (fclose(out) != 0) {

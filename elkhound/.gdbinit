@@ -1,7 +1,7 @@
 # .gdbinit
 
-file gramanl
-set args cexp2
+file ccgr
+set args cc.gr tmp
 
 break main
 break breaker
