@@ -544,6 +544,7 @@ failparse d0074.cc "(fill in a reason here)"
 testparse d0075.cc
 testparse d0079.cc
 failparse d0080.cc "don't know"
+failparse d0084.cc "operator overloading ambiguity"
 # ---- END: lots of tests ----
 
 
