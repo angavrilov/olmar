@@ -1,6 +1,15 @@
 // grammar.h
 // representation and algorithms for context-free grammars
 
+// Unfortunately, representation and algorithm tend to get
+// mixed together.  Separating them entirely is possible,
+// but syntactically inconvenient.  So, instead, I try to
+// document the separation in comments.  Specifically,
+// sections beginning with ---- representation ---- are data
+// for representation of the underlying concept, while
+// sections with ---- annotation ---- are data created by
+// algorithms manipulating the data.
+
 // references:
 //
 //   [ASU]  Aho, Sethi Ullman.  Compilers: Principles,
@@ -41,8 +50,8 @@ class Grammar;
 // ---------------- Symbol --------------------
 // either a nonterminal or terminal symbol
 class Symbol {
+// ------ representation ------
 public:
-  // key attributes
   string const name;        // symbol's name in grammar
   bool const isTerm;        // true: terminal (only on right-hand sides of productions)
                             // false: nonterminal (can appear on left-hand sides)
@@ -87,8 +96,8 @@ typedef SObjListMutator<Symbol> SymbolListMutator;
 // something that only appears on the right-hand side of
 // productions, and is an element of the source language
 class Terminal : public Symbol {
+// ------ annotation ------
 public:     // data
-  // annotation done by algorithms
   int termIndex;         // terminal index - this terminal's id
 
 public:     // funcs
@@ -117,8 +126,8 @@ ObjList<Symbol> const &toObjList(ObjList<Terminal> const &list)
 // something that can appear on the left-hand side of a production
 // (or, emptyString, since we classify that as a nonterminal also)
 class Nonterminal : public Symbol {
+// ------ annotation ------
 public:     // funcs
-  // annotations used and computed by auxilliary algorithms
   int ntIndex;           // nonterminal index; see Grammar::computeWhatCanDeriveWhat
   bool cyclic;           // true if this can derive itself in 1 or more steps
   TerminalList first;    // set of terminals that can be start of a string derived from 'this'
@@ -148,17 +157,13 @@ ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
 // ---------------- Production --------------------
 // a rewrite rule
 class Production {
-  // derived from key attribs
-  int numDotPlaces;             // after finished(): equals rhsLength()+1
-  DottedProduction *dprods;     // array of dotted productions
-
-public:
-  // key attribs
+// ------ representation ------
+public:	    // data
   Nonterminal *left;            // (serf) left hand side; must be nonterminal
   SymbolList right;             // (serf) right hand side; terminals & nonterminals
 
-public:
-  Production(Nonterminal *L);   // have to call append manually
+public:	    // data
+  Production(Nonterminal *L);   // you have to call append manually
   ~Production();
 
   // queries
@@ -170,6 +175,13 @@ public:
   // call this when production is built, so it can compute dprods
   void finished();
 
+
+// ------ annotation ------
+private:    // data
+  int numDotPlaces;             // after finished(): equals rhsLength()+1
+  DottedProduction *dprods;     // array of dotted productions
+
+public:     // funcs
   // retrieve an item
   DottedProduction const *getDProdC(int dotPlace) const;
   DottedProduction *getDProd(int dotPlace)
@@ -195,11 +207,12 @@ typedef SObjListIter<Production> ProductionListIter;
 // (exactly which part of the input depends on where this appears
 // in the algorithm's data structures)
 class DottedProduction {
-public:
+// ------ representation ------
+public:	    // data
   Production *prod;        // (serf) the base production
   int dot;                 // 0 means it's before all RHS symbols, 1 means after first, etc.
 
-public:
+public:	    // funcs
   DottedProduction()       // for later filling-in
     : prod(NULL), dot(-1) {}
   DottedProduction(Production *p, int d)
@@ -282,45 +295,89 @@ public:     // funcs
 // ---------------- Grammar --------------------
 // represent a grammar: nonterminals, terminals, productions, and start-symbol
 class Grammar {
-  // ------ computed from key attributes --------
+// ------ representation ------
+public:	    // data
+  ObjList<Nonterminal> nonterminals;    // (owner list)
+  ObjList<Terminal> terminals;          // (owner list)
+  ObjList<Production> productions;      // (owner list)
+  Nonterminal *startSymbol;             // (serf) a particular nonterminal
+
+  // the special terminal for the empty string; does not appear in
+  // the list of nonterminals or terminals for a grammar, but can
+  // be referenced by productions, etc.
+  Nonterminal emptyString;
+
+public:     // funcs
+  Grammar();                            // set everything manually
+  ~Grammar();
+
+  // simple queries
+  int numTerminals() const;
+  int numNonterminals() const;
+		   
+
+  // ---- building a grammar ----
+  // add a new production; the rhs arg list must be terminated with a NULL
+  void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
+
+  // add a pre-constructed production
+  void addProduction(Production *prod);
+
+  // print the current list of productions
+  void printProductions(ostream &os) const;
+
+
+  // ---- grammar parsing ----
+  void readFile(char const *fname);
+
+  // parse a line like "LHS -> R1 R2 R3", return false on parse error
+  bool parseLine(char const *grammarLine);
+
+
+  // ---- symbol access ----
+  #define SYMBOL_ACCESS(Thing)                              \
+    /* retrieve, return NULL if not there */                \
+    Thing const *find##Thing##C(char const *name) const;    \
+    Thing *find##Thing(char const *name)                    \
+      { return const_cast<Thing*>(find##Thing##C(name)); }  \
+                                                            \
+    /* retrieve, or create it if not already there */       \
+    Thing *getOrMake##Thing(char const *name);
+
+  SYMBOL_ACCESS(Symbol)        // findSymbolC, findSymbol, getOrMakeSymbol
+  SYMBOL_ACCESS(Terminal)      //   likewise
+  SYMBOL_ACCESS(Nonterminal)   //   ..
+  #undef SYMBOL_ACCESS
+
+
+// ------ annotation ------
+private:    // data
   // if entry i,j is true, then nonterminal i can derive nonterminal j
   // (this is a graph, represented (for now) as an adjacency matrix)
   enum { emptyStringIndex = 0 };
   Bit2d *derivable;                     // (owner)
 
   // indexing structures
-  Nonterminal **indexedNonterms;        // (owner) ntTndex -> Nonterminal
+  Nonterminal **indexedNonterms;        // (owner) ntIndex -> Nonterminal
   Terminal **indexedTerms;              // (owner) termIndex -> Terminal
 
   // only true after initializeAuxData has been called
   bool initialized;
 
-public:
-  // ---- key attributes ----
-  ObjList<Nonterminal> nonterminals;    // (owner list)
-  ObjList<Terminal> terminals;          // (owner list)
-  ObjList<Production> productions;      // (owner list)
-  Nonterminal *startSymbol;             // (serf) a particular nonterminal
-
-  // ---- static ----
-  // the special terminal for the empty string; does not appear in
-  // the list of nonterminals or terminals for a grammar, but can
-  // be referenced by productions, etc.
-  Nonterminal emptyString;
-
-  // ---- computed from the above ----
+public:	    // data
   // every production, with a dot in every possible place
   ObjList<DottedProduction> dottedProductions;
 
   // true if any nonterminal can derive itself in 1 or more steps
   bool cyclic;
 
-private:
-  // -------- analyis init ---------
+
+private:    // funcs
+  // ---- analyis init ----
   // call this after grammar is completely built
   void initializeAuxData();
 
-  // -------- deriability -------------
+  // ---- derivability ----
   // iteratively compute every pair A,B such that A can derive B
   void computeWhatCanDeriveWhat();
   void initDerivableRelation();
@@ -329,22 +386,22 @@ private:
   bool addDerivable(Nonterminal const *left, Nonterminal const *right);
   bool addDerivable(int leftNtIndex, int rightNtIndex);
 
-  // private deriability interface
+  // private derivability interface
   bool canDerive(int leftNtIndex, int rightNtIndex) const;
   bool sequenceCanDeriveEmpty(SymbolList const &list) const;
   bool iterSeqCanDeriveEmpty(SymbolListIter iter) const;
 
-  // ---------- First --------------
+  // ---- First ----
   void computeFirst();
   bool addFirst(Nonterminal *NT, Terminal *term);
   void firstOfSequence(TerminalList &destList, SymbolList &sequence);
   void firstOfIterSeq(TerminalList &destList, SymbolListMutator sym);
 
-  // ---------- Follow -------------
+  // ---- Follow ----
   void computeFollow();
   bool addFollow(Nonterminal *NT, Terminal *term);
 
-  // --------- LR item sets ----------
+  // ---- LR item sets ----
   void itemSetClosure(DProductionList &itemSet);
     // non-const because have to add dotted productions to the list
   ItemSet *makeItemSet();
@@ -362,104 +419,17 @@ private:
     // non-const because have to add productions to lists
 
 
-
-public:
-  Grammar();                            // set everything manually (except emptyString)
-  ~Grammar();
-
+public:	    // funcs
   // essentially, my 'main()' while experimenting
   void exampleGrammar();
 
 
-  // --------- building a grammar ---------
-  // add a new production; the rhs arg list must be terminated with a NULL
-  void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
-
-  // add a pre-constructed production
-  void addProduction(Production *prod);
-
-  // print the current list of productions
-  void printProductions(ostream &os) const;
-
-
-  // -------------- grammar parsing -------------------
-  void readFile(char const *fname);
-
-  // parse a line like "LHS -> R1 R2 R3", return false on parse error
-  bool parseLine(char const *grammarLine);
-
-
-  // ------- symbol access ------------
-  #define SYMBOL_ACCESS(Thing)                              \
-    /* retrieve, return NULL if not there */                \
-    Thing const *find##Thing##C(char const *name) const;    \
-    Thing *find##Thing(char const *name)                    \
-      { return const_cast<Thing*>(find##Thing##C(name)); }  \
-                                                            \
-    /* retrieve, or create it if not already there */       \
-    Thing *getOrMake##Thing(char const *name);
-
-  SYMBOL_ACCESS(Symbol)        // findSymbolC, findSymbol, getOrMakeSymbol
-  SYMBOL_ACCESS(Terminal)      //   likewise
-  SYMBOL_ACCESS(Nonterminal)   //   ..
-  #undef SYMBOL_ACCESS
-
-  
-  // ----------------- grammar queries -----------------------
-  int numTerminals() const;
-  int numNonterminals() const;
-
+  // ---- grammar queries ----
   bool canDerive(Nonterminal const *lhs, Nonterminal const *rhs) const;
   bool canDeriveEmpty(Nonterminal const *lhs) const;
 
   bool firstIncludes(Nonterminal const *NT, Terminal const *term) const;
   bool followIncludes(Nonterminal const *NT, Terminal const *term) const;
-
-
-  #if 0
-  // ---------------- grammar algorithms --------------------
-  // true if the lhs can be rewritten as the rhs in zero
-  // or more rewrite steps (the list versions are symbol
-  // sequences to be matched)
-  // [I need algorithms for these.. maybe dragon book?]
-  bool canDerive(Symbol const *lhs, SymbolList const &rhs) const;
-  bool canDerive(SymbolList const &lhs, Symbol const *rhs) const;
-  bool canDerive(SymbolList const &lhs, SymbolList const &rhs) const;
-
-
-  // we move the dot across all the symbols in 'symbols' (or the set of
-  //   lhs symbols in 'symProds' with dots at the rightmost position),
-  //   and across any symbols that can derive emptyString
-  // this is the x operator in [GHR80]
-  void advanceDot(DProductionList &final,             // out
-                  DProductionList const &initial,
-                  SymbolList const &symbols) const;
-  void advanceDot(DProductionList &final,             // out
-                  DProductionList const &initial,
-                  DProductionList const &symProds) const;
-
-  // similar to advanceDot, but we also advance past symbols that can
-  //   derive symbols in 'symbols' (or lhs of 'symProds' with dots in
-  //   rightmost position)
-  // this is the * operator in [GHR80]
-  void advanceDotStar(DProductionList &final,         // out
-                      DProductionList const &initial,
-                      SymbolList const &symbols) const;
-  void advanceDotStar(DProductionList &final,         // out
-                      DProductionList const &initial,
-                      DProductionList const &symProds) const;
-
-  // yield those nonterminals (as dotted productions with the dot moved
-  //   beyond any initial nonterminals that can yield emptyString) that
-  //   can be the first nonterminal of a string derived from something in
-  //   'symbols' (or those nonterminals that follow dots in 'symProds')
-  // this is the PREDICT function in [GHR80]
-  void predict(DProductionList &prods,                // out
-               SymbolList const &symbols) const;
-  void predict(DProductionList &prods,                // out
-               DProductionList const &symProds) const;
-
-  #endif // 0
 };
 
 

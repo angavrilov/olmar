@@ -109,9 +109,9 @@ void Nonterminal::print(ostream &os) const
 
 // -------------------- Production -------------------------
 Production::Production(Nonterminal *L)
-  : numDotPlaces(-1),    // so the check in getDProd will fail
-    dprods(NULL),
-    left(L)
+  : left(L),
+    numDotPlaces(-1),    // so the check in getDProd will fail
+    dprods(NULL)
 {}
 
 Production::~Production()
@@ -338,12 +338,12 @@ void ItemSet::print(ostream &os) const
 
 // ------------------ Grammar -----------------
 Grammar::Grammar()
-  : derivable(NULL),
+  : startSymbol(NULL),
+    emptyString("empty"),
+    derivable(NULL),
     indexedNonterms(NULL),
     indexedTerms(NULL),
     initialized(false),
-    startSymbol(NULL),
-    emptyString("empty"),
     cyclic(false)
 {
   emptyString.isEmptyString = true;
