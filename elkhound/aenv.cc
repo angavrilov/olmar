@@ -725,6 +725,11 @@ AbsValue *AEnv::avInt(int i)
   return grab(new AVint(i));
 }
 
+AbsValue *AEnv::avSum(AbsValue *a, AbsValue *b)
+{
+  return new AVbinary(a, BIN_PLUS, b);
+}
+
 
 void AEnv::print()
 {

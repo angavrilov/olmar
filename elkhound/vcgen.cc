@@ -684,6 +684,7 @@ AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
     // get an abstract value for the address of the object being modified
     AbsValue *addr = obj->asE_deref()->ptr->vcgen(env, path);
 
+    #if 0    // old: from before I used + to form offset
     if (!env.inPredicate) {
       // the address should have offset 0
       env.prove(P_equal(env.avOffset(addr), env.avInt(0)),
@@ -699,11 +700,13 @@ AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
     // accessor is applied)
     env.addFact(P_equal(env.avOffset(addr), env.avInt(0)),
                 "implicit offset=0 assumption for field access pointer");
+    #endif // 0
 
     // read from memory
     return env.avSelect(env.getMem(),
-      env.avObject(addr),             // object being accessed
-      env.get(field->decl));          // offset being accessed
+      env.avObject(addr),                // object being accessed
+      env.avSum(env.avOffset(addr),      // offset is pointer's offset (usually 0)
+                env.get(field->decl)));  //  + symbolic offset of the field
   }
 
   cout << "TODO: unhandled structure field access: " << toString() << endl;
@@ -996,19 +999,22 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
       // get an abstract value for the address of the object being modified
       AbsValue *addr = fldAcc->obj->asE_deref()->ptr->vcgen(env, path);
 
+      #if 0    // old: before using + for field offsets
       if (!env.inPredicate) {
         // the address should have offset 0
         env.prove(P_equal(env.avOffset(addr), env.avInt(0)),
                   "object field access at offset 0");
-                
+
         // TODO: assign type tags to allocated regions, and prove here
         // that the type tag is correct
-      }
+      }                                                
+      #endif // 0
 
       // update memory
       env.setMem(env.avUpdate(env.getMem(),
         env.avObject(addr),                          // object being modified
-        env.get(fldAcc->field->decl),                // offset
+        env.avSum(env.avOffset(addr),                // offset: pointer offset
+                  env.get(fldAcc->field->decl)),     //  + symbolic field offset
         v));                                         // new value
     }
 

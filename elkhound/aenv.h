@@ -219,6 +219,7 @@ public:      // funcs
   AbsValue *avFunc5(char const *func, AbsValue *v1, AbsValue *v2, AbsValue *v3, AbsValue *v4, AbsValue *v5);
 
   AbsValue *avInt(int i);
+  AbsValue *avSum(AbsValue *a, AbsValue *b);
 
   // debugging
   void print();
