@@ -9,6 +9,8 @@
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
 
+class DataflowEnv;        // dataflow.h
+
 
 // set of declaration modifiers present
 enum DeclFlags {
@@ -30,15 +32,13 @@ enum DeclFlags {
 // storage is (usually) allocated
 class Variable {
 public:     // data
+  string name;               // declared name
   DeclFlags declFlags;       // inline, etc.
   Type const *type;          // type of this variable
-  int value;                 // abstract domain value, for dataflow analysis
-
-  // the name is stored in the dictionary mapping below
 
 public:     // funcs
-  Variable(DeclFlags d, Type const *t)
-    : declFlags(d), type(t), value(0) {}
+  Variable(char const *n, DeclFlags d, Type const *t)
+    : name(n), declFlags(d), type(t) {}
 };
 
 
@@ -82,16 +82,19 @@ private:    // data
   // true during a disambiguation trial
   bool trialBalloon;
 
+  // pointer to current dataflow environment
+  DataflowEnv *denv;
+
 private:    // funcs
   void grab(Type *t);
   string makeAnonName();
   ostream& indent(ostream &os) const;
 
-  Env(Env&);              // not allowed
+  Env(Env&);               // not allowed
 
 public:     // funcs
-  Env();                  // empty toplevel environment
-  Env(Env *parent);       // nested environment
+  Env(DataflowEnv *denv);  // empty toplevel environment
+  Env(Env *parent);        // nested environment
   ~Env();
 
   // given an AtomicType, wrap it in a CVAtomicType
@@ -170,6 +173,7 @@ public:     // funcs
   
   // support for analysis routines
   StringObjDict<Variable> &getVariables() { return variables; }
+  DataflowEnv &getDenv() { return *denv; }
 };
 
 

@@ -16,6 +16,7 @@ literalCode "prologue" {
   #include "cc_env.h"    // Env
   #include "cc_tree.h"   // CCTreeNode
   #include "cc_cfg.h"    // CFG, etc.
+  #include "dataflow.h"  // DataflowEnv
 }
 treeNodeBase "CCTreeNode";
 
@@ -125,6 +126,10 @@ nonterm TranslationUnit : Checkable {
 
     // cast context argument
     env = (Env*)(tree.extra);
+
+    // clear the existing dataflow environment (effect is we
+    // don't analyze globals ....)
+    env->getDenv().reset();
 
     // run the analysis on this piece of the tree
     typeCheck(env);
@@ -711,22 +716,22 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
     -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement {
       fun typeCheck {
         // make a copy of the current dataflow environment
-        DataflowEnv initialDenv(*(env->denv));
+        DataflowEnv initialDenv(env->getDenv());
 
         // flow through 'then' branch
         s1.typeCheck(env);
 
         // grab resulting dataflow env
-        DataflowEnv afterThen(*(env->denv));
+        DataflowEnv afterThen(env->getDenv());
 
         // restore original env
-        *(env->denv) = initialDenv;
+        env->getDenv() = initialDenv;
 
         // flow through 'else' branch
         s2.typeCheck(env);
 
         // merge the branches
-        env->denv->mergeWith(afterThen);
+        env->getDenv().mergeWith(afterThen);
       }
 
       fun getCFG {
@@ -2156,11 +2161,14 @@ int main(int argc, char *argv[])
     // place to store the tree
     ParseTreeAndTokens tree;
 
+    // dataflow environment ...
+    DataflowEnv denv;
+
     // toplevel environment, in which each toplevel form
     // will be evaluated, just before that form is thrown
     // away
     //traceAddSys("env-declare");
-    Env env;
+    Env env(&denv);
 
     // carry this context in the tree, since it is an argument
     // to node constructors

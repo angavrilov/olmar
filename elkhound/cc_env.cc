@@ -9,14 +9,15 @@ SimpleType const *Env::simpleBuiltins = NULL;
 CVAtomicType const *Env::builtins = NULL;
 
 
-Env::Env()
+Env::Env(DataflowEnv *d)
   : parent(NULL),
     anonCounter(1),
     compounds(),
     enums(),
     intermediates(),
     errors(),
-    trialBalloon(false)
+    trialBalloon(false),
+    denv(d)
 {
   // init of global data (won't be freed)
   if (!builtins) {
@@ -45,7 +46,8 @@ Env::Env(Env *p)
     variables(),
     intermediates(),
     errors(),
-    trialBalloon(false)
+    trialBalloon(false),
+    denv(p->denv)
 {}
 
 
@@ -342,7 +344,7 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
       // duplicate name
       return false;
     }
-    variables.add(name, new Variable(flags, type));
+    variables.add(name, new Variable(name, flags, type));
   }
 
   else {

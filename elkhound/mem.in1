@@ -12,6 +12,8 @@ void ok()
     *p = 5;
     free(p);
   }
+  else {
+  }
 }
 
 void leaks()
