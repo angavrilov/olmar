@@ -250,8 +250,15 @@ Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
   }
 
   init->tcheck(env, NULL);
-  
-  return env.computeArraySizeFromCompoundInit(env.loc(), stype->getType(), stype->getType(), init);
+
+  // If it is a const E_compoundLit then you can take its address, and
+  // so it has to be an Lvalue, but as long as it is an lvalue to
+  // const it is ok.
+  Type *t0 = stype->getType();
+  if (t0->isConst()) {
+    t0 = env.makeReferenceType(SL_UNKNOWN, t0);
+  }
+  return env.computeArraySizeFromCompoundInit(env.loc(), t0, t0, init);
   // TODO: check that the cast (literal) makes sense
 }
 
