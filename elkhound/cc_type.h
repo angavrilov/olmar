@@ -11,12 +11,13 @@
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StrSObjDict
-                          
-// below, the type language refers to the expression language in exactly
+
+// below, the type language refers to the AST language in exactly
 // one place: function pre/post conditions; the type language treats
 // these opaquely; it is important to prevent the type language from
-// depending on the expression language
-class Expression;
+// depending on the AST language
+class FA_precondition;    // c.ast
+class FA_postcondition;
 
 // fwd in this file
 class SimpleType;
@@ -396,8 +397,8 @@ public:     // data
   bool acceptsVarargs;         // true if add'l args are allowed
   
   // thmprv extensions
-  Expression *precondition;    // (serf) precondition predicate
-  Expression *postcondition;   // (serf) postcondition predicate
+  FA_precondition *precondition;     // (serf) precondition predicate
+  FA_postcondition *postcondition;   // (serf) postcondition predicate
 
 public:     // funcs
   FunctionType(Type const *retType/*, CVFlags cv*/);

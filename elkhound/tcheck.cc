@@ -59,26 +59,32 @@ void TF_func::tcheck(Env &env)
 
   // (TODO) verify the pre/post don't have side effects, and
   // limit syntax somewhat
-  {    
+  {
     IN_PREDICATE(env);
 
-    // check the precondition
-    Expression *pre = ftype()->precondition;
+    // check the precondition (again; it was checked once when the
+    // declarator was checked, but we do it again to get the
+    // bindings)
+    FA_precondition *pre = ftype()->precondition;
     if (pre) {
-      checkBoolean(env, pre->tcheck(env), pre);
+      FOREACH_ASTLIST_NC(Declaration, pre->decls, iter) {
+        iter.data()->tcheck(env);
+      }
+
+      checkBoolean(env, pre->expr->tcheck(env), pre->expr);
     }
 
     // and the postcondition
-    Expression *post = ftype()->postcondition;
+    FA_postcondition *post = ftype()->postcondition;
     if (post) {
       // the postcondition has 'result' available, as the type
-      // of the return value                              
+      // of the return value
       env.enterScope();
       if (! ftype()->retType->isVoid()) {
         env.addVariable(env.strTable.add("result"), DF_NONE, r);
       }
 
-      checkBoolean(env, post->tcheck(env), post);
+      checkBoolean(env, post->expr->tcheck(env), post->expr);
 
       env.leaveScope();
     }
@@ -248,12 +254,17 @@ Type const *TS_enumSpec::tcheck(Env &env)
 // -------------------- Declarator -------------------
 Type const *Declarator::tcheck(Env &env, Type const *base, DeclFlags dflags)
 {
+  if (env.inPredicate) {
+    dflags = (DeclFlags)(dflags | DF_THMPRV);
+  }
+
   type = decl->tcheck(env, base, dflags, this);
   name = decl->getName();
 
   if (init) {
     // verify the initializer is well-typed, given the type
     // of the variable it initializes
+    // TODO: make the variable not visible in the init?
     init->tcheck(env, type);
   }
 
@@ -339,26 +350,35 @@ Type const *D_func::itcheck(Env &env, Type const *rettype, DeclFlags dflags, Dec
 
   // pass the annotations along via the type language
   FOREACH_ASTLIST_NC(FuncAnnotation, ann, iter) {
-    ASTSWITCHC(FuncAnnotation, iter.data()) {
-      ASTCASEC(FA_precondition, pre) {
+    ASTSWITCH(FuncAnnotation, iter.data()) {
+      ASTCASE(FA_precondition, pre) {
+        // typecheck the precondition
+        FOREACH_ASTLIST_NC(Declaration, pre->decls, iter) {
+          iter.data()->tcheck(env);
+        }
+        pre->expr->tcheck(env);
+
         if (ft->precondition) {
           env.err("function already has a precondition");
         }
         else {
-          ft->precondition = pre->expr;
+          ft->precondition = pre;
         }
       }
-      
-      ASTNEXTC(FA_postcondition, post) {
+
+      ASTNEXT(FA_postcondition, post) {
+        // typecheck the postcondition
+        post->expr->tcheck(env);
+
         if (ft->postcondition) {
           env.err("function already has a postcondition");
         }
         else {
-          ft->postcondition = post->expr;
+          ft->postcondition = post;
         }
       }
 
-      ASTENDCASEC
+      ASTENDCASE
     }
   }
 
@@ -525,6 +545,13 @@ void S_invariant::tcheck(Env &env)
   checkBoolean(env, expr->tcheck(env), expr);
 }
 
+void S_thmprv::tcheck(Env &env)
+{
+  IN_PREDICATE(env);
+  
+  s->tcheck(env);
+}
+
 
 
 // ------------------ Expression::tcheck --------------------
@@ -575,6 +602,12 @@ Type const *E_variable::itcheck(Env &env)
 {
   Variable *v = env.getVariable(name);
   env.errIf(!v, stringc << "undeclared variable " << name);
+  
+  if ((v->declFlags & DF_THMPRV) &&
+      !env.inPredicate) {
+    env.err(stringc << name << " cannot be referenced outside a predicate");
+  }
+
   return v->type;
 }
 

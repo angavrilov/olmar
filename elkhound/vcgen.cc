@@ -54,12 +54,18 @@ void TF_func::vcgen(AEnv &env) const
   }
 
   // let pre_mem be the name of memory now
-  env.set(env.str("pre_mem"), env.getMem());
+  //env.set(env.str("pre_mem"), env.getMem());
 
   // add the precondition as an assumption
   if (ft.precondition) {
     IN_PREDICATE(env);
-    env.addFact(ft.precondition->vcgen(env));
+
+    // add any precondition bindings    
+    FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
+      iter.data()->vcgen(env);
+    }
+
+    env.addFact(ft.precondition->expr->vcgen(env));
   }
 
   // add 'result' to the environment so we can record what value
@@ -81,7 +87,7 @@ void TF_func::vcgen(AEnv &env) const
   // ASSUMPTION: none of the parameters have been changed
   if (ft.postcondition) {
     IN_PREDICATE(env);
-    env.prove(ft.postcondition->vcgen(env));
+    env.prove(ft.postcondition->expr->vcgen(env), "postcondition");
   }
 }
 
@@ -191,7 +197,7 @@ void S_assert::vcgen(AEnv &env) const
   xassert(v);     // already checked it was boolean
 
   // try to prove it (is not equal to 0)
-  env.prove(v);
+  env.prove(v, "user assertion");
 }
 
 void S_assume::vcgen(AEnv &env) const
@@ -207,6 +213,13 @@ void S_assume::vcgen(AEnv &env) const
 void S_invariant::vcgen(AEnv &env) const
 {
   // ignore for now
+  cout << "ignoring invariant\n";
+}
+
+void S_thmprv::vcgen(AEnv &env) const
+{
+  IN_PREDICATE(env);
+  s->vcgen(env);
 }
 
 
@@ -296,23 +309,28 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
 
     argExpIter.adv();
   }
-  
+
   // let mem = current-mem
   newEnv.setMem(env.getMem());
-  
+
   // let pre_mem = mem
-  newEnv.set(env.str("pre_mem"), newEnv.getMem());
+  //newEnv.set(env.str("pre_mem"), newEnv.getMem());
 
   // ----------------- prove precondition ---------------
   if (ft.precondition) {
+    // include precondition bindings in the environment
+    FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
+      iter.data()->vcgen(newEnv);
+    }
+
     // finally, interpret the precondition in the parameter-only
     // environment, to arrive at a predicate to prove
-    AbsValue *predicate = ft.precondition->vcgen(newEnv);
+    AbsValue *predicate = ft.precondition->expr->vcgen(newEnv);
     xassert(predicate);      // tcheck should have verified we can represent it
 
     // prove this predicate; the assumptions from the *old* environment
     // are relevant
-    env.prove(predicate);
+    env.prove(predicate, "precondition of call");
 
     // no longer needed
     newEnv.discard(predicate);
@@ -330,12 +348,16 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
     newEnv.set(env.stringTable.add("result"), result);
   }
 
+  // make up new variable to represent final contents of memory
+  env.setMem(env.freshVariable("contents of memory after call"));
+  newEnv.setMem(env.getMem());
+
   // NOTE: by keeping the environment from before, we are interpreting
   // all references to parameters as their values in the *pre* state
 
   if (ft.postcondition) {
     // evaluate it
-    AbsValue *predicate = ft.postcondition->vcgen(newEnv);
+    AbsValue *predicate = ft.postcondition->expr->vcgen(newEnv);
     xassert(predicate);
     
     // assume it

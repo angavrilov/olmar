@@ -7,6 +7,7 @@
 #include "prover.h"             // runProver
 #include "predicate.ast.gen.h"  // Predicate, P_and
 #include "trace.h"              // tracingSys
+#include "exc.h"                // xBase
 
 
 // ----------------- VariablePrinter ----------------
@@ -86,6 +87,9 @@ void AEnv::set(StringRef name, AbsValue *value)
 
 AbsValue *AEnv::get(StringRef name)
 {
+  if (!bindings.isMapped(name)) {
+    THROW(xBase(stringc << "failed to lookup " << name));
+  }
   return bindings.queryf(name);
 }
 
@@ -190,7 +194,7 @@ void AEnv::addFact(AbsValue *expr)
 }
 
   
-void AEnv::prove(AbsValue const *expr)
+void AEnv::prove(AbsValue const *expr, char const *context)
 {
   // map the goal into a predicate
   Predicate *goal = exprToPred(expr);
@@ -220,11 +224,11 @@ void AEnv::prove(AbsValue const *expr)
   // run the prover on that predicate
   if (runProver(implSexp)) {
     if (printPredicate) {
-      cout << "predicate proved\n";
+      cout << "predicate proved: " << context << "\n";
     }
   }
   else {
-    cout << "predicate NOT proved:\n";
+    cout << "predicate NOT proved: " << context << "\n";
     printPredicate = true;      // always print for unprovens
   }
 

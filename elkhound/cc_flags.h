@@ -59,9 +59,10 @@ enum DeclFlags {
   DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
   DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
   DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
+  DF_THMPRV      = 0x2000,    // true for variables purely for predicate use
 
-  ALL_DECLFLAGS  = 0x1FFF,
-  NUM_DECLFLAGS  = 13
+  ALL_DECLFLAGS  = 0x3FFF,
+  NUM_DECLFLAGS  = 14 
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

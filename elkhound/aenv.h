@@ -66,7 +66,7 @@ public:      // funcs
   void addFact(AbsValue *expr);
 
   // proof obligation
-  void prove(AbsValue const *expr);
+  void prove(AbsValue const *expr, char const *context);
 
   // pseudo-memory-management; semantics not very precise at the moment
   AbsValue *grab(AbsValue *v);

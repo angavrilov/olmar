@@ -92,7 +92,8 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "enumval",      // 9
   "global",
   "initialized",
-  "builtin"       // 12
+  "builtin",
+  "thmprv",       // 13
 };
 
 

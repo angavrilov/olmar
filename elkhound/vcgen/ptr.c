@@ -29,11 +29,12 @@ void bar()
 
 
 int *mem;
-int *pre_mem;        
+//int *pre_mem;
 int select(int *mem, int *addr);
 int update(int *mem, int *addr, int value);
 
 void inc(int *x)
+  thmprv_pre int *pre_mem = mem; 1;
   thmprv_post mem == update(pre_mem, x, select(pre_mem, x)+1);
 {
   *x = *x + 1;

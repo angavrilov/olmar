@@ -193,11 +193,12 @@ class Statement {
   -> S_return(Expression /*nullable*/ expr);
   -> S_goto(StringRef target);
   -> S_decl(Declaration decl);
-  
+
   // theorem prover extensions
   -> S_assert(Expression expr);
   -> S_assume(Expression expr);
   -> S_invariant(Expression expr);
+  -> S_thmprv(Statement s);
 }
 
 
@@ -299,6 +300,7 @@ class InitLabel {
 
 // -------------- annotations ---------------
 class FuncAnnotation {
-  -> FA_precondition(Expression expr);
+  // the precondition can have some bindings before the predicate
+  -> FA_precondition(ASTList<Declaration> decls, Expression expr);
   -> FA_postcondition(Expression expr);
 }

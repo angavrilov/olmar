@@ -178,6 +178,7 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_IMPLIES),              "==>", true },
   { N(L2_THMPRV_PRE),           "thmprv_pre", true },
   { N(L2_THMPRV_POST),          "thmprv_post", true },
+  { N(L2_THMPRV_LET),           "thmprv_let", true },
 };
 
 #undef N

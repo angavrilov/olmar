@@ -526,9 +526,10 @@ nonterm[Statement*] Statement {
   -> GNUAsmStatement                    [ return new S_skip(); ]
   
   // theorem prover extensions
-  -> "thmprv_assert" e:Expression ";"   [ return new S_assert(e); ]
-  -> "thmprv_assume" e:Expression ";"   [ return new S_assume(e); ]
-  -> "thmprv_invariant" e:Expression ";" [ return new S_invariant(e); ]
+  -> "thmprv_assert"    e:Expression ";"   [ return new S_assert(e); ]
+  -> "thmprv_assume"    e:Expression ";"   [ return new S_assume(e); ]
+  -> "thmprv_invariant" e:Expression ";"   [ return new S_invariant(e); ]
+  -> "thmprv_let"       s:Statement        [ return new S_thmprv(s); ]
 }
 
 nonterm[Statement*] ExpressionStatement {
@@ -1534,6 +1535,15 @@ nonterm[ASTList<FuncAnnotation>*] FuncAnnotationsOpt {
 }
 
 nonterm[FuncAnnotation*] FuncAnnotation {
-  -> "thmprv_pre" e:Expression ";"   [ return new FA_precondition(e); ]
-  -> "thmprv_post" e:Expression ";"  [ return new FA_postcondition(e); ]
+  -> "thmprv_pre"  d:DeclListOpt e:Expression ";"
+       [ return new FA_precondition(d, e); ]
+  -> "thmprv_post" e:Expression ";"
+       [ return new FA_postcondition(e); ]
+}
+
+nonterm[ASTList<Declaration>*] DeclListOpt {
+  -> empty
+       [ return new ASTList<Declaration>(); ]
+  -> list:DeclListOpt d:SimpleDeclaration
+       [ list->append(d); return list; ]
 }
