@@ -1713,7 +1713,7 @@ static Statement *makeCtorStatement
 
 static Statement *makeDtorStatement(Env &env, Type *type)
 {
-  // hmm, can't say this:
+  // hmm, can't say this because I don't have a var to say it about.
 //    xassert(!var->hasFlag(DF_TYPEDEF));
   E_funCall *efc0 =
     new E_funCall(new E_variable(type->asCompoundType()->PQ_fullyQualifiedDtorName(env.loc())),
