@@ -62,17 +62,9 @@ TOCHECK += cc.in12
 TOCHECK += cc.in13
 TOCHECK += cc.in14
 TOCHECK += cc.in14a
-
-# DEFERRED: Won't print scope operator; When you print a PQname, you
-# should print a qualifier string.  Ask the PQName for the qualifier
-# string and print that.  Get the name out of the variable.
-# TOCHECK += cc.in15
-
+TOCHECK += cc.in15
 TOCHECK += cc.in16
-
-# ABOVE: Won't print scope operator.
-# TOCHECK += cc.in17
-
+TOCHECK += cc.in17
 TOCHECK += cc.in18
 TOCHECK += cc.in19
 TOCHECK += cc.in20
@@ -81,9 +73,9 @@ TOCHECK += cc.in22
 TOCHECK += cc.in23
 TOCHECK += cc.in24
 
-# ABOVE: Scope operator not being printed.
-# int A::func(B &b) ->
-# int ( func)(class B & b) {
+# Scope operator not being printed before using type.
+#  A::B b;
+#  class B b;
 # TOCHECK += cc.in25
 
 # DSW: Templates not being printed correctly when the template
@@ -142,12 +134,17 @@ idem/clean:
 # Check idempotency of ccparse -tr prettyPrint on C and C++ files in
 # cure_cpp/cc_examples.
 
+# NOTE: Most of these fail because standard header files don't parse.
+
 TOCHECK2 :=
 
-# ABOVE: Scope not being printed.
-#TOCHECK2 += Box.cc
+TOCHECK2 += Box.cc
 
-#TOCHECK2 += JustHello.c
+# Why this should be a parse error on the first pass, I don't know.
+# Line 1322, col 18: Parse error at wchar_t
+# typedef long int wchar_t;
+# TOCHECK2 += JustHello.c
+
 #TOCHECK2 += JustWorld.c
 TOCHECK2 += Test_005true.c
 #TOCHECK2 += Test_010hello.c
