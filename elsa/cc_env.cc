@@ -596,16 +596,6 @@ Variable *Env::makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
 }
 
 
-Variable *Env::getRetVal(FunctionType *ft)
-{
-  if (!ft->retVal) {
-    // FIX: this name is not in the name table
-    ft->retVal = makeVariable(loc(), "<retVal>", tfac.cloneType(ft->retType), DF_PARAMETER);
-  }
-  return ft->retVal;
-}
-
-
 Variable *Env::declareFunctionNargs(
   Type *retType, char const *funcName,
   Type **argTypes, char const **argNames, int numArgs,
@@ -2744,7 +2734,9 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
       name = make_PQ_fullyQualifiedName(alias->scope->curCompound, name);
     }
 
-    // did that work?
+    // did that work?  (this check uses 'equals' because of the possibility
+    // of non-trivial 'clone' operations in the type factory; in the default
+    // Elsa configuration, '==' would suffice)
     Variable *found = lookupPQVariable(name);
     if (found && found->type->equals(type)) {
       // good to go; wrap it in a type specifier

@@ -111,7 +111,7 @@ public:      // data
   ArrayStack<Variable*> builtinUnaryOperator[NUM_OVERLOADABLE_OPS];
   ObjArrayStack<CandidateSet> builtinBinaryOperator[NUM_OVERLOADABLE_OPS];
 
-  // TODO: elminate this!
+  // TODO: eliminate this!
   TranslationUnit *tunit;
                 
   // current linkage type, as a string literal like "C" or "C++"
@@ -133,7 +133,11 @@ public:      // data
   StringRef collectLookupResults;
 
   // ------------------- for elaboration ------------------
-  // when true, do elaboration
+  // when true, do dynamic-semantic elaboration:
+  //   - add ctor/dtor calls for locals, members
+  //   - expand 'new' into alloc, ctor
+  //   - expand 'delete' into dtor, dealloc
+  //   - change return-by-value for class-valued objects into pass-by-ref
   bool doElaboration;
 
   // so that we can find the closest nesting S_compound for when we
@@ -363,9 +367,6 @@ public:      // funcs
   // slight oddball since no 'loc' passed..
   Type *makeRefType(Type *underlying)
     { return tfac.makeRefType(loc(), underlying); }
-
-  // dsw: I don't know where to put this, so I'll put it here
-  Variable *getRetVal(FunctionType *ft);
 
   // (this does the work of the old 'makeMadeUpVariable')
   Variable *makeVariable(SourceLoc L, StringRef n, Type *t, DeclFlags f);

@@ -63,4 +63,7 @@ Statement *makeDtorStatement(Env &env, Type *type);
 Expression *elaborateCallSite(Env &env, FunctionType *ft,
                               FakeList<ArgExpression> *args);
 
+void elaborateFunctionStart(Env &env, FunctionType *ft);
+
+
 #endif // CC_ELABORATE_H

@@ -7,6 +7,8 @@
 #include "ast_build.h"         // makeExprList1, etc.
 #include "trace.h"             // TRACE
 
+
+// ---------------------- FullExpressionAnnot ---------------------
 FullExpressionAnnot::FullExpressionAnnot()
 {}
 
@@ -21,11 +23,14 @@ FullExpressionAnnot::StackBracket::StackBracket
   , s(fea.tcheck_preorder(env))
 {}
 
-FullExpressionAnnot::StackBracket::~StackBracket() 
+FullExpressionAnnot::StackBracket::~StackBracket()
 {
   fea.tcheck_postorder(env, s);
 }
 
+
+// ------------------------ misc ----------------------
+// (what follows could be better organized)
 
 E_constructor *makeCtorExpr
   (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
@@ -431,6 +436,20 @@ Expression *elaborateCallSite(Env &env, FunctionType *ft,
 }
 
 
+void elaborateFunctionStart(Env &env, FunctionType *ft)
+{
+  if (ft->retType->isCompoundType()) {
+    // We simulate return-by-value for class-valued objects by
+    // passing a hidden additional parameter of type C& for a
+    // return value of type C.  For static semantics, that means
+    // adding an environment entry for a special name, "<retVal>".
+    Variable *v = env.makeVariable(env.loc(), env.str("<retVal>"),
+                                   env.tfac.cloneType(ft->retType), DF_PARAMETER);
+    env.addVariable(v);
+  }
+}
+
+
 void E_new::elaborate(Env &env, Type *t)
 {
   // TODO: this doesn't work for new[]
@@ -500,6 +519,43 @@ void E_throw::elaborate(Env &env)
 
       ctorStatement = makeCtorStatement(env, globalVar, exprType,
                                         makeExprList1(expr));
+    }
+  }
+}
+
+
+void S_return::elaborate(Env &env)
+{
+  if (expr) {
+    FunctionType *ft = env.scope()->curFunction->funcType;
+    xassert(ft);
+
+    // FIX: check that ft->retType is non-NULL; I'll put an assert for now
+    // sm: FunctionType::retType is never NULL ...
+    xassert(ft->retType);
+
+    if (ft->retType->isCompoundType()) {
+      // This is an instance of return by value of a compound type.
+      // We accomplish this by calling the copy ctor.
+
+      // get the target of the constructor function
+      Variable *retVal = env.lookupVariable(env.str("<retVal>"));
+      xassert(retVal && retVal->getType()->equals(ft->retType));
+
+      // get the arguments of the constructor function
+      FakeList<ArgExpression> *args0 =
+        FakeList<ArgExpression>::makeList(new ArgExpression(expr->expr));
+      xassert(args0->count() == 1);
+
+      // make the constructor function
+      E_constructor *tmpE_ctor = makeCtorExpr(env, retVal, ft->retType, args0);
+      xassert(tmpE_ctor);       // FIX: what happens if there is no such compatable copy ctor?
+
+      // Recall that expr is a FullExpression, so we re-use it,
+      // "floating" it above the ctorExpression made above
+      expr->expr = tmpE_ctor;
+      ctorExpr = expr;
+      expr = NULL;              // prevent two representations of the return value
     }
   }
 }

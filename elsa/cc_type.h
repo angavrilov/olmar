@@ -716,21 +716,6 @@ public:     // data
   // type of return value
   Type *retType;                     // (serf)
 
-  // The implied parameter for the reference to the return value for
-  // implementing return by value.  Should always be of reference type
-  // as we think of it as an lvalue to which the function is
-  // assigning.
-  //
-  // We don't need this for the base Elsa parser, because there's
-  // nothing for the type checker to "check".  If an analysis would
-  // like to have a Variable here, it's free to add it in its derived
-  // version of FunctionType.
-  //
-  // dsw: update; we do need this here so that in S_return::itcheck()
-  // the copy ctor that is called when a CompoundType is returned by
-  // value has a target
-  Variable *retVal;
-
   // list of function parameters; if (flags & FF_METHOD) then the
   // first parameter is 'this'
   SObjList<Variable> params;

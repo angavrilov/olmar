@@ -62,6 +62,9 @@ class Statement {
 //      public Statement *ctorStatement = NULL;
     // an S_return already has a FullExpression, so do this:
     public FullExpression *ctorExpr = NULL;
+    
+    // this function sets 'ctorExpr'
+    public void elaborate(Env &env);
   }
 }
 
