@@ -12,6 +12,7 @@
 #include "cc_tree.h"    // CCTreeNode
 #include "fileloc.h"    // SourceLocation
 #include "mlvalue.h"    // ml string support stuff
+#include "cilxform.h"   // CilXform
 
 #include <stdlib.h>     // rand
 #include <string.h>     // memset
@@ -55,21 +56,31 @@ SourceLocation const *CilThing::loc() const
 
 MLValue unknownMLLoc()
 {
-  return mlRecord3("line", mlInt(0),
-                   "col", mlInt(0),
-                   "file", mlString("?"));
+  if (tracingSys("omit-loc")) {
+    return "{}";     // they really clutter the output
+  }
+  else {
+    return mlRecord3("line", mlInt(0),
+                     "col", mlInt(0),
+                     "file", mlString("?"));
+  }
 }
 
 string CilThing::locMLString() const
 {
-  SourceLocation const *l = loc();
-  if (l) {
-    return mlRecord3("line", mlInt(l->line),
-                     "col", mlInt(l->col),
-                     "file", mlString(l->fname()));
+  if (tracingSys("omit-loc")) {
+    return "{}";     // they really clutter the output
   }
   else {
-    return unknownMLLoc();
+    SourceLocation const *l = loc();
+    if (l) {
+      return mlRecord3("line", mlInt(l->line),
+                       "col", mlInt(l->col),
+                       "file", mlString(l->fname()));
+    }
+    else {
+      return unknownMLLoc();
+    }
   }
 }
 
@@ -108,6 +119,11 @@ void validate(BinOp op)
   xassert(0 <= op && op < NUM_BINOPS);
 }
 
+MLValue binOpMLText(BinOp op)
+{
+  return stringc << binOp(op).mlText
+                 << "(" << binOp(op).mlTag << ")";
+}
 
 
 UnaryOpInfo unaryOpArray[] = {
@@ -130,6 +146,12 @@ void validate(UnaryOp op)
   xassert(0 <= op && op < NUM_UNOPS);
 }
 
+MLValue unOpMLText(UnaryOp op)
+{
+  return stringc << unOp(op).mlText
+                 << "(" << unOp(op).mlTag << ")";
+}               
+
 
 // -------------- CilExpr ------------
 int CilExpr::numAllocd = 0;
@@ -145,14 +167,6 @@ CilExpr::CilExpr(CilExtraInfo tn, ETag t)
 
   // for definiteness, blank the union fields
   memset(&binop, 0, sizeof(binop));    // largest field
-
-  // so some initialization
-  switch (etag) {
-    case T_LVAL:
-      lval = (CilLval*)this;
-      break;
-    INCL_SWITCH
-  }
 }
 
 
@@ -160,15 +174,7 @@ CilExpr::~CilExpr()
 {
   switch (etag) {
     case T_LVAL:
-      // my masochistic tendencies show through: I do some tricks
-      // to get the right dtor called, instead of just adding a
-      // virtual destructor to these classes ... :)  the pile of
-      // bones laid before the Altar of Efficiency grows yet higher ..
-      if (lval) {
-        CilLval *ths = lval;
-        ths->CilLval::~CilLval();
-        numAllocd++;    // counteract double call to this fn
-      }
+      delete lval;
       break;
 
     case T_UNOP:
@@ -217,13 +223,6 @@ Type const *CilExpr::getType(Env *env) const
 }
 
 
-CilLval *CilExpr::asLval()
-{
-  xassert(etag == T_LVAL);
-  return lval;
-}
-
-
 STATICDEF void CilExpr::validate(ETag tag)
 {
   xassert(0 <= tag && tag < NUM_ETAGS);
@@ -249,7 +248,7 @@ CilExpr *CilExpr::clone() const
       return newIntLit(extra(), lit.value);
 
     case T_LVAL:
-      return lval->clone();
+      return newLvalExpr(extra(), lval->clone());
 
     case T_UNOP:
       return newUnaryExpr(extra(), unop.op, unop.exp->clone());
@@ -354,6 +353,51 @@ string CilExpr::toMLString() const
 }
 
 
+void CilExpr::xform(CilXform &x)
+{
+  switch (etag) {
+    default: xfailure("bad tag");
+
+    case T_LITERAL:
+      x.callTransformInt(lit.value);
+      break;
+
+    case T_LVAL:
+      x.callTransformLval(lval);
+      break;
+
+    case T_UNOP:
+      x.callTransformUnaryOp(unop.op);
+      x.callTransformExpr(unop.exp);
+      break;
+
+    case T_BINOP:
+      x.callTransformBinOp(binop.op);
+      x.callTransformExpr(binop.left);
+      x.callTransformExpr(binop.right);
+      break;
+
+    case T_CASTE:
+      x.callTransformType(caste.type);
+      x.callTransformExpr(caste.exp);
+      break;
+      
+    case T_ADDROF:
+      x.callTransformLval(addrof.lval);
+      break;
+  }
+}
+
+
+CilLval /*owner*/ *getLval(CilExpr /*owner*/ *expr)
+{
+  xassert(expr->etag == CilExpr::T_LVAL);
+  CilLval *ret = xfr(expr->lval);
+  delete expr;
+  return ret;
+}
+
+
 CilExpr *newIntLit(CilExtraInfo tn, int val)
 {
   CilExpr *ret = new CilExpr(tn, CilExpr::T_LITERAL);
@@ -393,10 +437,17 @@ CilExpr *newAddrOfExpr(CilExtraInfo tn, CilLval *lval)
   return ret;
 }
 
+CilExpr *newLvalExpr(CilExtraInfo tn, CilLval *lval)
+{
+  CilExpr *ret = new CilExpr(tn, CilExpr::T_LVAL);
+  ret->lval = lval;
+  return ret;
+}
+
 
 // ------------------- CilLval -------------------
 CilLval::CilLval(CilExtraInfo tn, LTag tag)
-  : CilExpr(tn, CilExpr::T_LVAL),
+  : CilThing(tn),
     ltag(tag)
 {
   validate(ltag);
@@ -408,12 +459,6 @@ CilLval::CilLval(CilExtraInfo tn, LTag tag)
 
 CilLval::~CilLval()
 {
-  // the tricky thing here is when a CilLval gets destroyed,
-  // either ~CilLval *or* ~CilExpr gets called -- in the latter
-  // case, ~CilExpr will in turn call ~CilLval (which, either
-  // way, in turn calls ~CilExpr)
-  lval = NULL;    // avoid infinite recursion when ~CilExpr is called
-
   switch (ltag) {
     case T_DEREF:
       delete deref.addr;
@@ -432,6 +477,15 @@ CilLval::~CilLval()
       delete arrayelt.index;
       break;
 
+    case T_VAROFS:
+      delete ofs.offsets;
+      break;
+
+    case T_DEREFOFS:
+      delete ofs.addr;
+      delete ofs.offsets;
+      break;
+
     INCL_SWITCH
   }
 }
@@ -448,6 +502,28 @@ Type const *CilLval::getType(Env *env) const
     case T_CASTL:     return castl.type;
     case T_ARRAYELT:  return arrayelt.array->getType(env)
                                            ->asArrayTypeC().eltType;
+
+    case T_VAROFS:
+    case T_DEREFOFS: {
+      // get the base type
+      Type const *t = ltag==T_VAROFS?
+                        ofs.var->type :
+                        ofs.addr->getType(env)
+                                ->asPointerTypeC().atType;
+                                
+      // process each offset record
+      FOREACH_OBJLIST(CilOffset, *ofs.offsets, iter) {
+        if (iter.data()->otag == CilOffset::T_FIELDOFS) {
+          // type is now the type of the field
+          t = iter.data()->field->type;
+        }
+        else {
+          // indexing doesn't change the type
+        }
+      }
+      
+      return t;
+    }
   }
 }
 
@@ -455,6 +531,16 @@ Type const *CilLval::getType(Env *env) const
 STATICDEF void CilLval::validate(LTag ltag)
 {
   xassert(0 <= ltag && ltag < NUM_LTAGS);
+}
+
+
+ObjList<CilOffset> *cloneOffsets(ObjList<CilOffset> const *src)
+{   
+  ObjList<CilOffset> *ret = new ObjList<CilOffset>;
+  FOREACH_OBJLIST(CilOffset, *src, iter) {
+    ret->append(iter.data()->clone());
+  }
+  return ret;
 }
 
 
@@ -470,10 +556,9 @@ CilLval *CilLval::clone() const
       return newDeref(extra(), deref.addr->clone());
 
     case T_FIELDREF:
-      return newFieldRef(extra(), 
-                         fieldref.record->clone(), 
-                         fieldref.field,
-                         fieldref.recType);
+      return newFieldRef(extra(),
+                         fieldref.record->clone(),
+                         fieldref.field);
 
     case T_CASTL:
       return newCastLval(extra(),
@@ -484,7 +569,37 @@ CilLval *CilLval::clone() const
       return newArrayAccess(extra(),
                             arrayelt.array->clone(),
                             arrayelt.index->clone());
+
+    case T_VAROFS:
+      return newVarOfs(extra(),
+                       ofs.var,
+                       cloneOffsets(ofs.offsets));
+
+    case T_DEREFOFS:
+      return newDerefOfs(extra(),
+                         ofs.addr->clone(),
+                         cloneOffsets(ofs.offsets));
   }
+}
+
+
+string offsetString(OffsetList const *ofs)
+{
+  stringBuilder sb;
+  FOREACH_OBJLIST(CilOffset, *ofs, iter) {
+    switch (iter.data()->otag) {
+      case CilOffset::T_FIELDOFS:
+        sb << " ." << iter.data()->field->name;
+        break;
+
+      case CilOffset::T_INDEXOFS:
+        sb << " [" << iter.data()->index->toString() << "]";
+        break;
+        
+      default: xfailure("bad tag");
+    }
+  }
+  return sb;
 }
 
 
@@ -492,12 +607,13 @@ string CilLval::toString() const
 {
   switch (ltag) {
     default: xfailure("bad tag");
-    case T_VARREF:    return varref.var->name;
+    case T_VARREF:
+      return varref.var->name;
     case T_DEREF:
       return stringc << "(* " << deref.addr->toString() << ")";
     case T_FIELDREF:
       return stringc << "(" << fieldref.record->toString()
-                     << " /""*" << fieldref.recType->name << "*/"    // odd syntax to avoid irritating emacs' highlighting
+                     //<< " /""*" << fieldref.recType->name << "*/"    // odd syntax to avoid irritating emacs' highlighting
                      << " . " << fieldref.field->name << ")";
     case T_CASTL:
       return stringc << "(@[" << castl.type->toString(0)
@@ -505,13 +621,55 @@ string CilLval::toString() const
     case T_ARRAYELT:
       return stringc << "(" << arrayelt.array->toString()
                      << " [" << arrayelt.index->toString() << "])";
+
+    case T_VAROFS:
+      return stringc << "(" << ofs.var->name
+                     << offsetString(ofs.offsets) << ")";
+    case T_DEREFOFS:
+      return stringc << "*(" << ofs.addr->toString()
+                     << offsetString(ofs.offsets) << ")";
+
   }
 }
 
 
+// we make the implicit list:
+//  and offset =
+//    | NoOffset
+//    | Field      of fieldinfo * offset    (* l.f + offset *)
+//    | Index      of exp * offset          (* l[e] + offset *)
+#define MKTAG(n, t) MAKE_ML_TAG(offset, n, t)
+MKTAG(0, NoOffset)
+MKTAG(1, Field)
+MKTAG(2, Index)
+#undef MKTAG
+
+MLValue offsetMLValue(OffsetList const *ofs)
+{
+  MLValue ret = mlTuple0(offset_NoOffset);
+    
+  // construct it backwards
+  for (int i=ofs->count()-1; i>=0; i--) {
+    CilOffset const *o = ofs->nthC(i);
+    if (o->otag == CilOffset::T_FIELDOFS) {
+      ret = mlTuple2(offset_Field,
+                     o->field->toMLValue(),
+                     ret);
+    }
+    else { xassert(o->otag == CilOffset::T_INDEXOFS);
+      ret = mlTuple2(offset_Index,
+                     o->index->toMLString(),
+                     ret);
+    }                      
+  }
+  
+  return ret;
+}
+
+
 #define MKTAG(n, t) MAKE_ML_TAG(lval, n, t)
-MKTAG(0, Var)
-MKTAG(1, Deref)
+MKTAG(0, Var)         // both new and old
+MKTAG(1, Deref)       // ditto
 MKTAG(2, Field)
 MKTAG(3, CastL)
 MKTAG(4, ArrayElt)
@@ -524,7 +682,6 @@ string CilLval::toMLString() const
     default: xfailure("bad tag");
 
     case T_VARREF:
-      // TODO: Var        of varinfo * offset * location
       // Var        of varinfo * location
       return mlTuple2(lval_Var,
                       varref.var->toMLValue(),
@@ -555,6 +712,67 @@ string CilLval::toMLString() const
                      <<   arrayelt.array->toMLString() << " "
                      <<   arrayelt.index->toMLString() << " "
                      << ")";
+
+    case T_VAROFS:
+      // Var        of varinfo * offset * location
+      return mlTuple3(lval_Var,
+                      ofs.var->toMLValue(),
+                      offsetMLValue(ofs.offsets),
+                      locMLString());
+
+    case  T_DEREFOFS:
+      // Mem        of exp * offset * location(* memory location + offset *)
+      return mlTuple3(lval_Deref,
+                      ofs.addr->toMLString(),
+                      offsetMLValue(ofs.offsets),
+                      locMLString());
+  }
+}
+
+
+void CilLval::xform(CilXform &x)
+{
+  switch (ltag) {
+    default: xfailure("bad tag");
+
+    case T_VARREF:
+      x.callTransformVar(varref.var);
+      break;
+
+    case T_DEREF:
+      x.callTransformExpr(deref.addr);
+      break;
+
+    case T_FIELDREF:
+      x.callTransformLval(fieldref.record);
+      x.callTransformVar(fieldref.field);
+      break;
+
+    case T_CASTL:
+      x.callTransformType(castl.type);
+      x.callTransformLval(castl.lval);
+      break;
+
+    case T_ARRAYELT:
+      x.callTransformExpr(arrayelt.array);
+      x.callTransformExpr(arrayelt.index);
+      break;
+
+    case T_VAROFS: {
+      x.callTransformVar(ofs.var);
+      MUTATE_EACH_OBJLIST(CilOffset, *ofs.offsets, iter) {
+        x.callTransformOffset(iter.dataRef());
+      }
+      break;
+    }
+
+    case T_DEREFOFS: {
+      x.callTransformExpr(ofs.addr);
+      MUTATE_EACH_OBJLIST(CilOffset, *ofs.offsets, iter) {
+        x.callTransformOffset(iter.dataRef());
+      }
+      break;
+    }
   }
 }
 
@@ -577,7 +795,7 @@ CilExpr *newVarRefExpr(CilExtraInfo tn, Variable *var)
   }
   else {
     // usual case
-    return newVarRef(tn, var);
+    return newLvalExpr(tn, newVarRef(tn, var));
   }
 }
 
@@ -589,13 +807,11 @@ CilLval *newDeref(CilExtraInfo tn, CilExpr *ptr)
   return ret;
 }
 
-CilLval *newFieldRef(CilExtraInfo tn, CilLval *record, Variable *field,
-                     CompoundType const *recType)
+CilLval *newFieldRef(CilExtraInfo tn, CilLval *record, Variable *field)
 {
   CilLval *ret = new CilLval(tn, CilLval::T_FIELDREF);
   ret->fieldref.record = record;
   ret->fieldref.field = field;
-  ret->fieldref.recType = recType;
   return ret;
 }
 
@@ -613,6 +829,75 @@ CilLval *newArrayAccess(CilExtraInfo tn, CilExpr *array, CilExpr *index)
   ret->arrayelt.array = array;
   ret->arrayelt.index = index;
   return ret;
+}
+
+CilLval *newVarOfs(CilExtraInfo tn, Variable *var, OffsetList *offsets)
+{
+  if (!offsets) {
+    // support passing NULL as syntactic sugar for an empty list
+    offsets = new OffsetList;
+  }
+  CilLval *ret = new CilLval(tn, CilLval::T_VAROFS);
+  ret->ofs.var = var;
+  ret->ofs.offsets = offsets;
+  return ret;
+}
+
+CilLval *newDerefOfs(CilExtraInfo tn, CilExpr *addr, OffsetList *offsets)
+{
+  if (!offsets) {
+    offsets = new OffsetList;
+  }
+  CilLval *ret = new CilLval(tn, CilLval::T_DEREFOFS);
+  ret->ofs.addr = addr;
+  ret->ofs.offsets = offsets;
+  return ret;
+}
+
+
+
+// ------------------- CilOffset ----------------
+CilOffset::CilOffset(Variable *f)
+  : otag(T_FIELDOFS)
+{
+  field = f;
+}
+
+CilOffset::CilOffset(CilExpr *i)
+  : otag(T_INDEXOFS)
+{
+  index = i;
+}
+
+CilOffset::~CilOffset()
+{
+  if (otag == T_INDEXOFS) {
+    delete index;
+  }
+}
+
+
+CilOffset *CilOffset::clone() const
+{
+  switch (otag) {
+    default: xfailure("bad tag");
+    case T_FIELDOFS:   return new CilOffset(field);
+    case T_INDEXOFS:   return new CilOffset(index->clone());
+  }
+}
+
+
+void CilOffset::xform(CilXform &x)
+{
+  if (otag == T_FIELDOFS) {
+    x.callTransformVar(field);
+  }
+  else if (otag == T_INDEXOFS) {
+    x.callTransformExpr(index);
+  }
+  else {
+    xfailure("bad tag");
+  }
 }
 
 
@@ -764,11 +1049,29 @@ void CilInst::printTree(int ind, ostream &os, bool ml) const
 }
 
 
+void CilInst::xform(CilXform &x)
+{
+  switch (itag) {
+    default: xfailure("bad tag");
+
+    case T_ASSIGN:
+      if (assign.lval) {
+        x.callTransformLval(assign.lval);
+      }
+      x.callTransformExpr(assign.expr);
+      break;
+
+    case T_CALL:
+      call->xform(x);
+      break;
+  }
+}
+
+
 CilInst *newAssignInst(CilExtraInfo tn, CilLval *lval, CilExpr *expr)
 {
   xassert(lval && expr);
   CilInst *ret = new CilInst(tn, CilInst::T_ASSIGN);
-  xassert(lval->isLval());    // stab in the dark ..
   ret->assign.lval = lval;
   ret->assign.expr = expr;
   return ret;
@@ -841,7 +1144,7 @@ void CilFnCall::printTree(int ind, ostream &os, bool ml) const
     os << ") ;" << locComment();
   }
 
-  else /*ml*/ { 
+  else /*ml*/ {
     // don't indent, we're embedded
     os << "(" << instr_Call << " ";
     if (result) {
@@ -862,6 +1165,19 @@ void CilFnCall::printTree(int ind, ostream &os, bool ml) const
     os << "] "
        << locMLString()
        << ")";
+  }
+}
+
+
+void CilFnCall::xform(CilXform &x)
+{
+  if (result) {
+    x.callTransformLval(result);
+  }
+  x.callTransformExpr(func);
+  
+  MUTATE_EACH_OBJLIST(CilExpr, args, iter) {
+    x.callTransformExpr(iter.dataRef());
   }
 }
 
@@ -1207,6 +1523,57 @@ void CilStmt::printTree(int ind, ostream &os, bool ml,
 }
 
 
+void CilStmt::xform(CilXform &x)
+{
+  switch (stag) {
+    default: xfailure("bad tag");
+
+    case T_COMPOUND:
+      comp->xform(x);
+      break;
+
+    case T_LOOP:
+      x.callTransformExpr(loop.cond);
+      x.callTransformStmt(loop.body);
+      break;
+      
+    case T_IFTHENELSE:
+      x.callTransformExpr(ifthenelse.cond);
+      x.callTransformStmt(ifthenelse.thenBr);
+      x.callTransformStmt(ifthenelse.elseBr);
+      break;
+      
+    case T_LABEL:
+      x.callTransformLabel(label.name);
+      break;
+
+    case T_JUMP:
+      x.callTransformLabel(jump.dest);
+      break;
+
+    case T_RET:
+      x.callTransformExpr(ret.expr);
+      break;
+      
+    case T_SWITCH:
+      x.callTransformExpr(switchStmt.expr);
+      x.callTransformStmt(switchStmt.body);
+      break;
+      
+    case T_CASE:
+      x.callTransformInt(caseStmt.value);
+      break;
+      
+    case T_DEFAULT:
+      break;
+      
+    case T_INST:
+      x.callTransformInst(inst.inst);
+      break;
+  }
+}
+
+
 CilStmt *newWhileLoop(CilExtraInfo tn, CilExpr *expr, CilStmt *body)
 {
   xassert(expr && body);
@@ -1362,6 +1729,14 @@ void CilCompound::printTree(int ind, ostream &os, bool ml,
     }
 
     os << mlLineEnd;
+  }
+}
+
+
+void CilCompound::xform(CilXform &x)
+{
+  MUTATE_EACH_OBJLIST(CilStmt, stmts, iter) {
+    x.callTransformStmt(iter.dataRef());
   }
 }
 
@@ -1591,6 +1966,21 @@ void CilFnDefn::printTree(int ind, ostream &os, bool stmts, bool ml) const
 }
 
 
+void CilFnDefn::xform(CilXform &x)
+{
+  x.callTransformVar(var);
+  
+  // doesn't allow replacement of this compound
+  bodyStmt.xform(x);
+                                                
+  SMUTATE_EACH_OBJLIST(Variable, locals, iter) {
+    // might consider defining something like
+    //   callTrasnsformLocal( .. )
+    x.callTransformVar(iter.dataRef());
+  }
+}
+
+
 // ------------------ CilProgram ---------------
 CilProgram::CilProgram()
 {}
@@ -1652,4 +2042,3 @@ void CilContext::addVarDecl(Variable *var) const
     }
   }
 }
-

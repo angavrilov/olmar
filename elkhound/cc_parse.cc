@@ -7,6 +7,7 @@
 #include "ckheap.h"    // checkHeap
 #include "mysig.h"     // signal handling
 #include "stmt2bb.h"   // doTranslationStuff
+#include "newlval.h"   // NewLvalXform
 
 
 // little hack to get more info when the parser crashes
@@ -119,7 +120,8 @@ void TranslationState::printTree()
       nextAtomic++;
     }
 
-    prog.printTree(0 /*indent*/, cout, true /*ml*/);
+    prog.printTree(0 /*indent*/, cout, 
+                   !tracingSys("nocaml"));
   }
 }
 
@@ -172,17 +174,33 @@ void TranslationUnit_Node::analyzeToplevelDecl(Reduction *red, ParseTree &tree)
   #endif /* WES_OCAML_LINKAGE */
 
   // this is, more or less, the product of the analysis
-  // (removed the #ifdef's because nothing is printed
-  // unless certain tracing flags are set)
-  printTree();
+  if (tracingSys("old-cil-tree")) {
+    // tree prior to new-lval translation
+    printTree();                         
+  }
 
   // print Cil if we want that
   //state.printTree();
 
   // yeeha! translation!
   MUTATE_EACH_OBJLIST(CilFnDefn, state.prog.funcs, iter) {
+    // old lvals to new lvals
+    try {
+      NewLvalXform xform(env);
+      iter.data()->xform(xform);
+    }
+    catch (xBase &x) {
+      cout << "during lval translation at " << iter.data()->locString() << endl
+           << "  exception: " << x << endl;
+    }
+
+    // statements to basic blocks (internally, this actually
+    // skips the translation if it's not going to be printed)
     doTranslationStuff(*( iter.data() ));
   }
+
+  // print tree after translation
+  printTree();
 
   // can delete the per-fn info, or keep it; when this
   // is commented-out, we keep it all until the end

@@ -69,4 +69,15 @@ void swap(Owner<T> &obj1, Owner<T> &obj2)
 }
 
 
+// not used with Owner objects, but rather with
+// simple pointers (Foo*) that are used as owners
+template <class T>
+T *xfr(T *&ptr)
+{
+  T *ret = ptr;
+  ptr = NULL;
+  return ret;
+}
+
+
 #endif // __OWNER_H

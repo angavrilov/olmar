@@ -6,16 +6,18 @@ NOCAMLINCL mode = --nocaml
 
 # main targets; a few objs in front to tweak compile order
 # so I get to the errors faster
-all: check-makefiles cil.o cc_type.o ccgr
+all: check-makefiles cil.o cc_type.o cilxform.o newlval.o ccgr
 
 # added this because otherwise there's a decent chance
 # that changes I make and Wes cvs-updates won't make it
 # into his Makefile
 check-makefiles:
 	@if [ Makefile -ot Makefile.in ]; then             \
-          echo "Makefile.in has changed; please run" ;     \
+          echo "Makefile.in has changed; I will now do:" ; \
           echo "  % ./configure ${mode} --setupMakefile" ; \
-          echo "before running make again" ;               \
+          ./configure ${mode} --setupMakefile ;            \
+          echo "" ;                                        \
+          echo "Now try running make again" ;              \
           exit 2 ;                                         \
         fi
 
@@ -53,7 +55,7 @@ grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
           lexer2.o parssppt.o strtable.o
 cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
-         stmt2bb.o cc_parse.o mlvalue.o
+         stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
 common = 
 
 # ------ targets -------

@@ -8,6 +8,8 @@
 #include "objlist.h"   // ObjList
 #include "sobjlist.h"  // SObjList
 #include "owner.h"     // Owner
+#include "trdelete.h"  // TRASHINGDELETE
+#include "mlvalue.h"   // MLValue
 
 // other files
 class Type;            // cc_type.h
@@ -18,6 +20,7 @@ class Variable;        // cc_env.h
 class BBContext;       // stmt2bb.cc
 class CCTreeNode;      // cc_tree.h
 class SourceLocation;  // fileloc.h
+class CilXform;        // cilxform.h
 
 // fwd for this file
 class CilExpr;
@@ -26,6 +29,7 @@ class CilFnCall;
 class CilCompound;
 class CilBB;
 class CilBBSwitch;
+class CilOffset;
 
 // ------------- names --------------
 typedef string VarName;     // TODO2: find a better place for this to live
@@ -54,6 +58,8 @@ private:
 public:
   CilThing(CilExtraInfo tn);
   ~CilThing() {}
+
+  TRASHINGDELETE
 
   string locString() const;
   string locMLString() const;
@@ -88,7 +94,7 @@ BinOpInfo const &binOp(BinOp);
 void validate(BinOp op);            // exception if out of range
 
 inline char const *binOpText(BinOp op)    { return binOp(op).text; }
-inline char const *binOpMLText(BinOp op)  { return binOp(op).mlText; }
+MLValue binOpMLText(BinOp op);
 
 
 enum UnaryOp { OP_NEGATE, OP_NOT, OP_BITNOT, NUM_UNOPS };
@@ -102,7 +108,7 @@ UnaryOpInfo const &unOp(UnaryOp op);
 void validate(UnaryOp op);
 
 inline char const *unOpText(UnaryOp op)    { return unOp(op).text; }
-inline char const *unOpMLText(UnaryOp op)  { return unOp(op).mlText; }
+MLValue unOpMLText(UnaryOp op);
 
 
 // -------------- CilExpr ------------
@@ -126,7 +132,7 @@ public:      // data
     } lit;
 
     // T_LVAL
-    CilLval *lval;            // (serf) actually equal to 'this'
+    CilLval *lval;            // (owner) the lval
 
     // T_UNOP
     struct {
@@ -167,18 +173,19 @@ public:      // funcs
   // expr, we'll need a ptr-to type)
   Type const *getType(Env *env) const;
 
-  CilLval *asLval();
   bool isLval() const { return etag == T_LVAL; }
 
   // throw an exception if 'tag' is out of range
   static void validate(ETag tag);
-  
+
   static void printAllocStats(bool anyway);
 
   CilExpr *clone() const;     // deep copy
 
   string toString() const;    // render as a string
   string toMLString() const;  // and as an ML string
+
+  void xform(CilXform &x);
 };
 
 
@@ -187,27 +194,33 @@ public:      // funcs
 inline Type const *typeOf(CilExpr const *expr, Env *env)
   { return expr->getType(env); }
 inline bool isLval(CilExpr const *expr) { return expr->isLval(); }
-inline CilLval *asLval(CilExpr *expr) { return expr->asLval(); }
+
+// this *deletes* the passed expr, yielding only
+// the lval inside (which it asserts is there)
+CilLval /*owner*/ *getLval(CilExpr /*owner*/ *expr);
 
 CilExpr *newIntLit(CilExtraInfo tn, int val);
 CilExpr *newUnaryExpr(CilExtraInfo tn, UnaryOp op, CilExpr *expr);
 CilExpr *newBinExpr(CilExtraInfo tn, BinOp op, CilExpr *e1, CilExpr *e2);
 CilExpr *newCastExpr(CilExtraInfo tn, Type const *type, CilExpr *expr);
 CilExpr *newAddrOfExpr(CilExtraInfo tn, CilLval *lval);
+CilExpr *newLvalExpr(CilExtraInfo tn, CilLval *lval);
 
 
 // ------------------- CilLval -------------------
+typedef ObjList<CilOffset> OffsetList;
+
 // an Lval can yield a value, like CilExpr, but it also is
 // associated with a storage *location*, so that you can do
 // things like take its address and modify its value
-class CilLval : public CilExpr {
+class CilLval : public CilThing {
 public:      // types
   enum LTag {
     // these are the ones the from-C translator uses
     T_VARREF, T_DEREF, T_FIELDREF, T_CASTL, T_ARRAYELT,
-    
+
     // these are the ones for outputting Cil
-    //T_VAROFS, T_DEREFOFS,
+    T_VAROFS, T_DEREFOFS,
 
     NUM_LTAGS
   };
@@ -230,7 +243,6 @@ public:      // data
     struct {
       CilLval *record;     // (owner) names the record itself (*not* its address)
       Variable *field;     // (serf) field entry in compound type's 'env'
-      CompoundType const *recType;  // (serf) type of 'record' (possibly temporary hack)
     } fieldref;
 
     // T_CASTL
@@ -244,6 +256,21 @@ public:      // data
       CilExpr *array;      // (owner) names the array, not its address (for now, I'm *not* adopting C's idea that an array name is the same as its address (more later on this, maybe))
       CilExpr *index;      // (owner) integer index calculation
     } arrayelt;
+
+    // T_VAROFS and T_DEREFOFS
+    struct {
+      union {
+        // T_VAROFS
+        Variable *var;     // (serf) variable we're accessing a part of
+
+        // T_DEREFOFS
+        CilExpr *addr;     // (owner) address of memory we're dereferencing
+      };
+
+      // offsets from variable or memory location,
+      // applied in order
+      OffsetList *offsets; // (owner ptr to list of owner ptrs)
+    } ofs;
   };
 
 public:      // funcs
@@ -256,19 +283,59 @@ public:      // funcs
 
   CilLval *clone() const;
   string toString() const;
-  string toMLString() const;  
+  string toMLString() const;
+
+  void xform(CilXform &x);
 };
 
+inline Type const *typeOf(CilLval const *lval, Env *env)
+  { return lval->getType(env); }
+  
 CilLval *newVarRef(CilExtraInfo tn, Variable *var);
 CilLval *newDeref(CilExtraInfo tn, CilExpr *ptr);
-CilLval *newFieldRef(CilExtraInfo tn, CilLval *record, Variable *field,
-                     CompoundType const *recType);
+CilLval *newFieldRef(CilExtraInfo tn, CilLval *record, Variable *field);
 CilLval *newCastLval(CilExtraInfo tn, Type const *type, CilLval *lval);
 CilLval *newArrayAccess(CilExtraInfo tn, CilExpr *array, CilExpr *index);
 
-// lile 'newVarRef', except it's allowed to replace
+CilLval *newVarOfs(CilExtraInfo tn, Variable *var, OffsetList *offsets);
+CilLval *newDerefOfs(CilExtraInfo tn, CilExpr *addr, OffsetList *offsets);
+
+
+// like 'newVarRef', except it's allowed to replace
 // references to constants with the associated literal
 CilExpr *newVarRefExpr(CilExtraInfo tn, Variable *var);
+
+
+// ------------------ CilOffset ------------------------
+// this is an offset from a memory or variable access,
+// in the two new Lval structures above
+class CilOffset {
+public:    // types
+  enum OTag {
+    T_FIELDOFS, T_INDEXOFS,
+    NUM_OTAGS
+  };
+
+public:    // data
+  OTag const otag;
+
+  union {
+    // T_FIELDOFS
+    Variable *field;      // (serf) field being accessed
+
+    // T_INDEXOFS
+    CilExpr *index;       // (owner) value to add to address we're otherwise at
+  };
+
+public:                      
+  CilOffset(Variable *f);
+  CilOffset(CilExpr *i);
+
+  ~CilOffset();
+                          
+  CilOffset *clone() const;
+  void xform(CilXform &x);
+};
 
 
 // ====================== Instruction Language =====================
@@ -317,6 +384,8 @@ public:      // funcs
   CilInst *clone() const;
 
   void printTree(int indent, ostream &os, bool ml) const;
+  
+  void xform(CilXform &x);
 };
 
 CilInst *newAssignInst(CilExtraInfo tn, CilLval *lval, CilExpr *expr);
@@ -337,6 +406,8 @@ public:     // funcs
   void printTree(int indent, ostream &os, bool ml) const;
 
   void appendArg(CilExpr *arg);
+  
+  void xform(CilXform &x);
 };
 
 CilFnCall *newFnCall(CilExtraInfo tn, CilLval *result, CilExpr *fn);    // args appended later
@@ -436,6 +507,8 @@ public:      // funcs
   // translaton
   CilBB * /*owner*/ translateToBB(BBContext &ctxt,
                                   CilBB * /*owner*/ next) const;
+  
+  void xform(CilXform &x);
 };
 
 CilStmt *newWhileLoop(CilExtraInfo tn, CilExpr *expr, CilStmt *body);
@@ -478,8 +551,10 @@ public:    // funcs
   CilCompound *clone() const;
   void printTree(int indent, ostream &os, bool ml,
                  char const *mlLineEnd = "\n") const;
-  CilBB * /*owner*/ translateToBB(BBContext &ctxt, 
+  CilBB * /*owner*/ translateToBB(BBContext &ctxt,
                                   CilBB * /*owner*/ next) const;
+  
+  void xform(CilXform &x);
 };
 
 CilCompound *newCompound(CilExtraInfo tn);
@@ -595,6 +670,8 @@ public:
   // stmts==true: print statements
   // stmts==false: print basic blocks
   void printTree(int indent, ostream &os, bool stmts, bool ml) const;
+  
+  void xform(CilXform &x);
 };
 
 
@@ -611,6 +688,8 @@ public:
 
   void printTree(int indent, ostream &os, bool ml) const;
   void empty();
+  
+  void xform(CilXform &x);
 };
 
 

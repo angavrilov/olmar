@@ -70,7 +70,7 @@ CilLval * /*owner*/ CCTreeNode::asLval(CilExpr * /*owner*/ expr,
       << "`" << exprSyntax.unparseString() << "' is required to "
       << "be an lvalue in this context, but it is an rvalue");
   }
-  return expr->asLval();
+  return getLval(expr);
 }
 
 

@@ -417,11 +417,11 @@ nonterm PostfixExpression : ExprBase {
       #endif // 0
 
       if (typeOf(array, env)->isArrayType()) {
-        return newArrayAccess(array.xfr(), index.xfr());
+        return newLvalExpr(newArrayAccess(array.xfr(), index.xfr()));
       }
       else if (typeOf(array, env)->isPointerType()) {
         // translate it to addition and derference
-        return newDeref(newBinExpr(OP_PLUS, array.xfr(), index.xfr()));
+        return newLvalExpr(newDeref(newBinExpr(OP_PLUS, array.xfr(), index.xfr())));
       }
       else {
         throwError(stringc
@@ -515,7 +515,7 @@ nonterm PostfixExpression : ExprBase {
         }
 
         // deref
-        record = newDeref(record.xfr());
+        record = newLvalExpr(newDeref(record.xfr()));
         type = type->asPointerTypeC().atType;
       }
 
@@ -544,7 +544,7 @@ nonterm PostfixExpression : ExprBase {
       // struct we just found
       Variable *field; field = n.typeCheck(ctype.env);
 
-      return newFieldRef(recordLval.xfr(), field, &ctype);
+      return newLvalExpr(newFieldRef(recordLval.xfr(), field));
     }
   }
 
@@ -556,12 +556,13 @@ nonterm PostfixExpression : ExprBase {
       // save old value
       Variable *tmp = env->newTmpVar(typeOf(lval, env));
       ctxt.addVarDecl(tmp);
-      ctxt.append(newAssign(newVarRef(tmp), lval->clone()));
+      ctxt.append(newAssign(newVarRef(tmp), newLvalExpr(lval->clone())));
 
       // increment the expression
       BinOp bop = (op.unparseString()[0]=='+')? OP_PLUS : OP_MINUS;     // hack
       Owner<CilLval> lhs; lhs = lval->clone();
-      ctxt.append(newAssign(lhs.xfr(), newBinExpr(bop, lval.xfr(), newIntLit(1))));
+      ctxt.append(newAssign(lhs.xfr(), 
+                            newBinExpr(bop, newLvalExpr(lval.xfr()), newIntLit(1))));
 
       // return a reference to the old value
       return newVarRefExpr(tmp);
@@ -641,10 +642,12 @@ nonterm UnaryExpression : ExprBase {
         BinOp bop = op.unparseString()[0]=='+'? OP_PLUS : OP_MINUS;     // hack
         Owner<CilLval> lhs; lhs = lval->clone();
         Owner<CilLval> rhs; rhs = lval->clone();
-        ctxt.append(newAssign(lhs.xfr(), newBinExpr(bop, rhs.xfr(), newIntLit(1))));
+        ctxt.append(newAssign(lhs.xfr(), 
+                              newBinExpr(bop, newLvalExpr(rhs.xfr()),
+                                              newIntLit(1))));
 
         // return a reference to the incremented lval
-        return lval.xfr();
+        return newLvalExpr(lval.xfr());
       }
     }
 
@@ -697,7 +700,7 @@ nonterm UnaryExpression : ExprBase {
 
       e.ana_checkDeref();
       
-      return newDeref(expr.xfr());
+      return newLvalExpr(newDeref(expr.xfr()));
     }
 
     fun getType {
@@ -845,7 +848,7 @@ nonterm CastExpression : ExprBase {
       // cast to union is allowed as a gnu extension, but
       // it yields an rvalue
       if (isLval(expr) && !type->isUnionType()) {
-        return newCastLval(type, asLval(expr.xfr(), e));
+        return newLvalExpr(newCastLval(type, asLval(expr.xfr(), e)));
       }
       else {
         return newCastExpr(type, expr.xfr());
@@ -1213,7 +1216,7 @@ nonterm AssignmentExpression : ExprBase {
 
         Owner<CilLval> lval2; lval2 = lval->clone();
         ctxt.append(newAssign(lval2.xfr(), expr.xfr()));
-        return lval.xfr();
+        return newLvalExpr(lval.xfr());
       }
 
     }
@@ -1228,8 +1231,9 @@ nonterm AssignmentExpression : ExprBase {
         Owner<CilLval> lhs; lhs = lval->clone();
         Owner<CilLval> rhs; rhs = lval->clone();
         ctxt.append(newAssign(lhs.xfr(),
-                              newBinExpr(bop, rhs.xfr(), expr.xfr())));
-        return lval.xfr();
+                              newBinExpr(bop, newLvalExpr(rhs.xfr()), 
+                                              expr.xfr())));
+        return newLvalExpr(lval.xfr());
       }
     }
   }
