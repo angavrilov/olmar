@@ -63,6 +63,7 @@ void Flatten::xferCharString(char *&str)
     int len = readInt();
     if (len == -1) {
       str = NULL;
+      return;
     }
 
     str = new char[len+1];
