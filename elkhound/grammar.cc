@@ -93,6 +93,30 @@ void Nonterminal::print(ostream &os) const
 }
 
 
+// --------------------- quoted strings -------------------------
+// given a string that is surrounded by quotes, yield only the
+// characters inside the quotes.  eventually, I will support
+// using backslash escapes for special characters
+string parseQuotedString(char const *text)
+{
+  if (!( text[0] == '"' &&
+         text[strlen(text)-1] == '"' )) {
+    xfailure(stringc << "quoted string is missing quotes: " << text);
+  }
+
+  // just strip the quotes
+  return string(text+1, strlen(text)-2);
+}
+
+                  
+// take a string, and return a quoted version of it
+string quoteString(char const *text)
+{
+  // for now, simply surround it with quotes
+  return stringc << "\"" << text << "\"";
+}
+
+
 // -------------------- Production -------------------------
 Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
@@ -140,6 +164,11 @@ int Production::numRHSNonterminals() const
 
 void Production::append(Symbol *sym, char const *tag)
 {
+  // my new design decision (6/26/00 14:24) is to disallow the
+  // emptyString nonterminal from explicitly appearing in the
+  // productions
+  xassert(!sym->isEmptyString);
+
   right.append(sym);
   rightTags.append(new string(tag));
 }
@@ -148,7 +177,7 @@ void Production::append(Symbol *sym, char const *tag)
 void Production::finished()
 {
   xassert(dprods == NULL);    // otherwise we leak
-					      
+                                              
   // invariant check
   xassert(right.count() == rightTags.count());
 
@@ -178,7 +207,7 @@ void Production::finished()
   // (So I guess this is the real reason.)
 } 
 
-	     
+             
 // in my infinite wisdom, I have to representations of the empty
 // string...
 bool tagEqual(char const *tag1, char const *tag2)
@@ -187,11 +216,11 @@ bool tagEqual(char const *tag1, char const *tag2)
       (tag2==NULL || tag2[0]==0)) {
     return true;     // both are some form of empty string
   }
-  
+
   if (tag1==NULL || tag2==NULL) {
     return false;    // one is empty and other isn't (and I can't call strcmp)
   }
-  		  
+                  
   // neither is NULL, can use strcmp
   return 0==strcmp(tag1, tag2);
 }
@@ -267,18 +296,34 @@ void Production::print(ostream &os) const
 string Production::toString() const
 {
   stringBuilder sb;
-
+                            
+  // LHS symbol and "->"
   sb << taggedName(left->name, leftTag) << " ->";
 
-  ObjListIter<string> tagIter(rightTags);
-  SymbolListIter symIter(right);
-  for(; !symIter.isDone() && !tagIter.isDone();
-        symIter.adv(), tagIter.adv()) {
-    sb << " " << taggedName(symIter.data()->name, *(tagIter.data()));
+  if (right.isNotEmpty()) {
+    // print the RHS symbols
+    ObjListIter<string> tagIter(rightTags);
+    SymbolListIter symIter(right);
+    for(; !symIter.isDone() && !tagIter.isDone();
+          symIter.adv(), tagIter.adv()) {
+      if (symIter.data()->isNonterminal()) {
+        // print the nonterminal as a name and optional tag
+        sb << " " << taggedName(symIter.data()->name, *(tagIter.data()));
+      }
+      else {
+        // print terminals in quotes
+        sb << " " << quoteString(symIter.data()->name);
+      }
+    }
+
+    // verify both lists were same length
+    xassert(symIter.isDone() && tagIter.isDone());
   }
 
-  // verify both lists were same length
-  xassert(symIter.isDone() && tagIter.isDone());
+  else {
+    // empty RHS
+    sb << " empty";
+  }
 
   return sb;
 }
@@ -362,7 +407,7 @@ ItemSet::~ItemSet()
 
 
 Symbol const *ItemSet::getStateSymbolC() const
-{				   
+{                                  
   // need only check kernel items since all nonkernel items
   // have their dots at the left side
   SFOREACH_DOTTEDPRODUCTION(kernelItems, item) {
@@ -410,7 +455,7 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
   refTransition(sym) = dest;
 }
 
-	    
+            
 // compare two items in an arbitrary (but deterministic) way so that
 // sorting will always put a list of items into the same order, for
 // comparison purposes
@@ -468,7 +513,8 @@ void ItemSet::getAllItems(DProductionList &dest) const
 // return the reductions that are ready in this state, given
 // that the next symbol is 'lookahead'
 void ItemSet::getPossibleReductions(ProductionList &reductions,
-                                    Terminal const *lookahead) const
+                                    Terminal const *lookahead,
+                                    bool parsing) const
 {
   // collect all items
   DProductionList items;
@@ -487,6 +533,12 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
     // NOTE: this is the difference between LR(0) and SLR(1) --
     //       LR(0) would not do this check, while SLR(1) does
     if (!item->prod->left->follow.contains(lookahead)) {    // (constness)
+      if (parsing) {
+	trace("parse") << "not reducing by " << *(item->prod)
+       	       	       << " because `" << lookahead->name
+		       << "' is not in follow of "
+		       << item->prod->left->name << endl;
+      }
       continue;
     }
 
@@ -625,12 +677,8 @@ void Grammar::addProduction(Nonterminal *lhs, Symbol *firstRhs, ...)
 
 void Grammar::addProduction(Production *prod)
 {
-  // if the production doesn't have any RHS symbols, let's
-  // support that as syntax for deriving emptyString, by
-  // adding that explicitly here
-  if (prod->right.count() == 0) {
-    prod->append(&emptyString, NULL /*tag*/);
-  }
+  // I used to add emptyString if there were 0 RHS symbols,
+  // but I've now switched to not explicitly saying that
 
   productions.append(prod);
   
@@ -656,14 +704,14 @@ void Grammar::readFile(char const *fname)
   }
 
   // state between lines
-  Production *lastProduction = NULL;      // the last one we created
+  SObjList<Production> lastProductions;      // the last one(s) we created
 
   char buf[256];
   int line = 0;
   while (fgets(buf, 256, fp)) {
     line++;
 
-    if (!parseLine(buf, lastProduction)) {
+    if (!parseLine(buf, lastProductions)) {
       cerr << "error parsing line " << line << endl;
       break;    // stop after first error
     }
@@ -698,13 +746,13 @@ void parseTaggedName(string &name, string &tag, char const *tagged)
 
 bool Grammar::parseLine(char const *preLine)
 {
-  Production *dummy = NULL;
+  SObjList<Production> dummy;
   return parseLine(preLine, dummy);
 }
 
 
 // returns false on parse error
-bool Grammar::parseLine(char const *preLine, Production *&lastProduction)
+bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductions)
 {
   // wrap it all in a try so we catch all parsing errors
   try {
@@ -713,7 +761,7 @@ bool Grammar::parseLine(char const *preLine, Production *&lastProduction)
     {
       char *p = strchr(line, '#');
       if (p != NULL) {
-	*p = 0;    // truncate line there
+        *p = 0;    // truncate line there
       }
     }
 
@@ -726,26 +774,31 @@ bool Grammar::parseLine(char const *preLine, Production *&lastProduction)
 
     // action or condition?
     if (tok[0][0] == '%') {
-      if (lastProduction == NULL) {
-	cout << "action or condition must be preceeded by a production\n";
-	return false;
+      if (lastProductions.isEmpty()) {
+        cout << "action or condition must be preceeded by a production\n";
+        return false;
       }
 
       // for now, I'm being a bit redundant in my syntax
       if (!(  0==strcmp(tok[1], "{")     &&
-	      0==strcmp(tok[tok-1], "}")    )) {
-	cout << "action or condition must be surrounded by braces\n";
-	return false;
+              0==strcmp(tok[tok-1], "}")    )) {
+        cout << "action or condition must be surrounded by braces\n";
+        return false;
       }
 
-      try {
-	return parseAnAction(tok[0], tok.reassemble(2, tok-2, line), lastProduction);
-      }
-      catch (xBase &x) {
-	cout << x << endl;
-	return false;
-      }
+      // apply the rule to all of the productions in the previous line
+      SMUTATE_EACH_OBJLIST(Production, lastProductions, iter) {
+        if (!parseAnAction(tok[0], tok.reassemble(2, tok-2, line), iter.data())) {
+          return false;
+        }
+      }           
+      
+      // success parsing the action or condition
+      return true;
     }
+
+    // going to parse a production, so clear the list
+    lastProductions.removeAll();
 
     // check that the 2nd token is the "rewrites-as" symbol
     if (0!=strcmp(tok[1], "->")) {
@@ -766,24 +819,41 @@ bool Grammar::parseLine(char const *preLine, Production *&lastProduction)
     for (int i=2; i<tok; i++) {
       // alternatives -- syntactic sugar
       if (0==strcmp(tok[i], "|")) {
-	// finish the current production
-	addProduction(prod);
+        // finish the current production
+        addProduction(prod);
+        lastProductions.append(prod);
 
-	// start another
-	prod = new Production(LHS, leftTag);
+        // start another
+        prod = new Production(LHS, leftTag);
       }
 
+      // terminal
+      else if (tok[i][0] == '"') {
+        prod->append(getOrMakeTerminal(parseQuotedString(tok[i])), NULL /*tag*/);
+      }
+
+      // empty string
+      else if (0==strcmp(tok[i], "empty")) {
+        // don't actually add a symbol for this
+      }
+
+      // nonterminal
+      else if (isupper(tok[i][0])) {
+        parseTaggedName(name, tag, tok[i]);
+        Symbol *sym = getOrMakeNonterminal(name);
+        prod->append(sym, tag);
+      }
+
+      // error
       else {
-	// normal symbol
-	parseTaggedName(name, tag, tok[i]);
-	Symbol *sym = getOrMakeSymbol(name);
-	prod->append(sym, tag);
+        cout << "not a valid symbol: " << tok[i] << endl;
+        return false;
       }
     }
 
     // done, so add the production
     addProduction(prod);
-    lastProduction = prod;
+    lastProductions.append(prod);
 
     // ok
     return true;
@@ -863,7 +933,7 @@ void Grammar::printAsBison(ostream &os) const
         if (first) {
           os << nt.data()->name << ":";
         }
-        else {	     
+        else {       
           os << "\n";
           INTLOOP(i, 0, nt.data()->name.length()) {
             os << " ";

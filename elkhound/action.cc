@@ -6,7 +6,7 @@
 
 #include <string.h>       // strchr
 
-  
+
 // ---------------------- Action --------------------
 Action::~Action()
 {}
@@ -29,7 +29,7 @@ void AttrAction::fire(AttrContext &actx) const
 
 string AttrAction::toString(Production const *prod) const
 {
-  return stringc << lvalue.toString(prod) << " = "
+  return stringc << lvalue.toString(prod) << " := "
                  << expr->toString(prod);
 }
 
@@ -62,18 +62,18 @@ string Actions::toString(Production const *prod) const
 
 void Actions::parse(Production const *prod, char const *actionsText)
 {
-  // parse as <lvalue> = <expr>
-  char const *equals = strchr(actionsText, '=');
-  if (!equals) {
-    xfailure("action must contain the `=' character\n");
+  // parse as <lvalue> := <expr>
+  char const *colon = strchr(actionsText, ':');
+  if (!colon || (colon[1] != '=')) {
+    xfailure("action must contain the `:=' sequence\n");
   }
 
   // lvalue
-  string lvalText(actionsText, equals-actionsText);
+  string lvalText(actionsText, colon-actionsText);
   AttrLvalue lval = AttrLvalue::parseRef(prod, trimWhitespace(lvalText));
 
   // expr
-  AExprNode *expr = parseAExpr(prod, trimWhitespace(equals+1));    // (owner)
+  AExprNode *expr = parseAExpr(prod, trimWhitespace(colon+2));    // (owner)
 
   // assemble into an action, stick it into the production
   actions.append(new AttrAction(lval, transferOwnership(expr)));

@@ -1,0 +1,9 @@
+# ffollow.gr
+# grammar 4.11 of [ASU] (p.189), designed to show First and Follow
+
+S  ->  E "$"
+E  ->  T E'
+E' ->  "+" T E'    | empty
+T  ->  F T'
+T' ->  "*" F T'    | empty
+F  ->  "(" E ")"   | "id"

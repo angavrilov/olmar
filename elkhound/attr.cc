@@ -55,7 +55,9 @@ bool Attributes::hasEntry(char const *name) const
 int Attributes::get(char const *name) const
 {
   Entry const *e = findEntryC(name);
-  xassert(e);
+  if (!e) {
+    xfailure(stringc << "attribute `" << name << "' doesn't have a value");
+  }
   return e->value;
 }
 

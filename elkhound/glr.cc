@@ -268,7 +268,7 @@ void GLR::glrParse(char const *input)
   // printer will handle it ok, whereas thet tree printer will
   // get into an infinite loop (so at least the graph will be
   // available in a file after I kill the process))
-  writeParseGraph(input);
+  writeParseGraph("parse.g");
 
 
   // print parse tree in ascii; the final activeParser is the one
@@ -323,7 +323,7 @@ void GLR::doAllPossibleReductions(StackNode *parser,
 {
   // get all possible reductions where 'currentToken' is in Follow(LHS)
   ProductionList reductions;
-  parser->state->getPossibleReductions(reductions, currentToken);
+  parser->state->getPossibleReductions(reductions, currentToken, true /*parsing*/);
 
   // for each possible reduction, do it
   SFOREACH_PRODUCTION(reductions, prod) {
@@ -684,7 +684,7 @@ string reductionName(StackNode const *sn, int ruleNo, Reduction const *red)
 {
   return stringb(sn->stackNodeId << "/" << ruleNo << ":"
               << replace(red->production->toString(), " ", "_"));
-}
+}							     
 
 
 // this prints the graph in my java graph applet format, where
@@ -698,16 +698,15 @@ string reductionName(StackNode const *sn, int ruleNo, Reduction const *red)
 //
 // however, it's worth noting that the text output is not entirely
 // unreadable...
-void GLR::writeParseGraph(char const *input) const
+void GLR::writeParseGraph(char const *fname) const
 {
-  // write it to a file named the same as the input
-  FILE *out = fopen(stringb("graphs/" << input), "w");
+  FILE *out = fopen(stringb("graphs/" << fname), "w");
   if (!out) {
-    xsyserror("fopen", stringb("opening file `graphs/" << input << "'"));
+    xsyserror("fopen", stringb("opening file `graphs/" << fname << "'"));
   }
 
   // header info
-  fprintf(out, "# parse graph file: %s\n", input);
+  fprintf(out, "# parse graph file: %s\n", fname);
   fprintf(out, "# automatically generated\n"
                "\n");
 

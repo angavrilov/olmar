@@ -6,16 +6,16 @@
 
 
 # start symbol
-StartSymbol -> TranslationUnit $
+StartSymbol -> TranslationUnit "$"
 
 
 # ---------------- tokens ----------------------------
 # for now I'm just giving a few example members of the
 # token sets, and delaying adding a real lexer
-Identifier -> a | b | c | f | foo | x | y | z
+Identifier -> "a" | "b" | "c" | "f" | "foo" | "x" | "y" | "z"
 #StringLiteral -> "foo" | "bar"	     # small issue about Bison output..
-StringLiteral -> iAmAString
-IntegerLiteral -> 0 | 1 | 2 | 3
+StringLiteral -> "iAmAString"
+IntegerLiteral -> "0" | "1" | "2" | "3"
 Literal -> IntegerLiteral | StringLiteral
 
 
@@ -37,49 +37,85 @@ LabelName -> Identifier
 TranslationUnit -> empty | Declaration TranslationUnit
 
 # ------ A.4 Expressions ------
-PrimaryExpression -> Literal | this | ( Expression ) | VariableName
+PrimaryExpression -> Literal | "this" | "(" Expression ")" | VariableName
 
 PostfixExpression -> PrimaryExpression
-PostfixExpression -> PostfixExpression [ Expression ]          # array
-PostfixExpression -> PostfixExpression ( ExpressionList )      # fn call
-PostfixExpression -> PostfixExpression . VariableName          # field access
-PostfixExpression -> PostfixExpression -> VariableName         # deref + field access
-PostfixExpression -> PostfixExpression ++
-PostfixExpression -> PostfixExpression --
+PostfixExpression -> PostfixExpression "[" Expression "]"          # array
+PostfixExpression -> PostfixExpression "(" ExpressionList ")"      # fn call
+PostfixExpression -> PostfixExpression "." VariableName          # field access
+PostfixExpression -> PostfixExpression "->" VariableName         # deref + field access
+PostfixExpression -> PostfixExpression "++"
+PostfixExpression -> PostfixExpression "--"
 
-ExpressionList -> AssignmentExpression | ExpressionList , AssignmentExpression
+ExpressionList -> AssignmentExpression | ExpressionList "," AssignmentExpression
 
 UnaryExpression -> PostfixExpression
-UnaryExpression -> ++ CastExpression
-UnaryExpression -> -- CastExpression
+UnaryExpression -> "++" CastExpression
+UnaryExpression -> "--" CastExpression
 UnaryExpression -> UnaryOperator CastExpression
-UnaryExpression -> sizeof UnaryExpression         # size of expression
-UnaryExpression -> sizeof ( TypeId )              # size of type
+UnaryExpression -> "sizeof" UnaryExpression             # size of expression
+UnaryExpression -> "sizeof" "(" TypeId ")"              # size of type
 
-UnaryOperator -> * | & | + | - | ! | ~
+UnaryOperator -> "*" | "&" | "+" | "-" | "!" | "~"
 
-CastExpression -> UnaryExpression | ( TypeId ) CastExpression
+CastExpression -> UnaryExpression | "(" TypeId ")" CastExpression
 
-# here I plan to apply operator precedence and associativity disambiguation
+# ++++ binary operator expression ++++
 BinaryExpression -> CastExpression
-BinaryExpression -> BinaryExpression BinaryOperator BinaryExpression
+  %action { BinaryExpression.prec := 100 }
 
-# all of these operators have left-to-right associativity
-# this end has highest precedence
-BinaryOperator -> * | / | %
-BinaryOperator -> + | -
-BinaryOperator -> << | >>
-BinaryOperator -> < | > | <= | >=      # association here might trigger warning..
-BinaryOperator -> == | !=
-BinaryOperator -> &
-BinaryOperator -> ^
-BinaryOperator -> bitor                # (syntax clash)
-BinaryOperator -> &&
-BinaryOperator -> ||
-# this end has lowest precedence
+BinaryExpression.result -> BinaryExpression.left BinaryOperator BinaryExpression.right
+  %action { BinaryExpression.result.prec := BinaryOperator.prec }
+  %condition { (<= BinaryExpression.result.prec BinaryExpression.left.prec) }         # precedence
+  %condition { (<= BinaryExpression.result.prec BinaryExpression.right.prec) }        # more precedence
+  %condition { (if (== BinaryOperator.leftAssoc 1) (< BinaryExpression.result.prec BinaryExpression.right.prec) (< BinaryExpression.result.prec BinaryExpression.left.prec)) }
+    # associativity
+
+BinaryOperator -> "*" | "/" | "%"
+  %action { BinaryOperator.prec := 60 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "+" | "-"
+  %action { BinaryOperator.prec := 56 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "<<" | ">>"
+  %action { BinaryOperator.prec := 52 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "<" | ">" | "<=" | ">="
+  %action { BinaryOperator.prec := 48 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "==" | "!="
+  %action { BinaryOperator.prec := 44 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "&"
+  %action { BinaryOperator.prec := 40 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "^"
+  %action { BinaryOperator.prec := 36 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "|"
+  %action { BinaryOperator.prec := 32 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "&&"
+  %action { BinaryOperator.prec := 28 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+BinaryOperator -> "||"
+  %action { BinaryOperator.prec := 24 }
+  %action { BinaryOperator.leftAssoc := 1 }
+
+# ---- end of binary operator expression ----
+
 
 ConditionalExpression -> BinaryExpression
-ConditionalExpression -> BinaryExpression ? Expression : AssignmentExpression
+ConditionalExpression -> BinaryExpression "?" Expression ":" AssignmentExpression
 
 # why is conditional not allowed on left side of = ?  can I confirm
 # that in another language spec?  clearly both alternatives would have
@@ -87,12 +123,13 @@ ConditionalExpression -> BinaryExpression ? Expression : AssignmentExpression
 AssignmentExpression -> ConditionalExpression
 AssignmentExpression -> BinaryExpression AssignmentOperator AssignmentExpression
 
-AssignmentOperator -> = | *= | /= | %= | += | -= | >>= | <<= | &= | ^= | |=
-                                               
+AssignmentOperator -> "=" | "*=" | "/=" | "%=" | "+=" | "-=" | ">>="
+AssignmentOperator -> "<<=" | "&=" | "^=" | "|="
+
 # this is the same definition as ExpressionList, and perhaps it
-# makes sense to collapse them?  the meaning of ',' is quite 
+# makes sense to collapse them?  the meaning of ',' is quite
 # different in the two cases.. does that matter?
-Expression -> AssignmentExpression | Expression , AssignmentExpression
+Expression -> AssignmentExpression | Expression "," AssignmentExpression
 ExpressionOpt -> empty | Expression
 
 # this is an expression with the additional requirement that
@@ -101,44 +138,44 @@ ConstantExpression -> ConditionalExpression
 
 # ------ A.5 Statements ------
 # labeled-statement
-Statement -> LabelName : Statement
-Statement -> case ConstantExpression : Statement
-Statement -> default : Statement
+Statement -> LabelName ":" Statement
+Statement -> "case" ConstantExpression ":" Statement
+Statement -> "default" ":" Statement
 
 # expression-statement
 Statement -> ExpressionStatement
-ExpressionStatement -> Expression ; | ;
+ExpressionStatement -> Expression ";" | ";"
 
 # compound-statement
 Statement -> CompoundStatement
-CompoundStatement -> { StatementSeqOpt }
+CompoundStatement -> "{" StatementSeqOpt "}"
 StatementSeqOpt -> empty | StatementSeqOpt Statement
 
 # selection-statement
-Statement -> if ( Condition ) Statement
-Statement -> if ( Condition ) Statement else Statement      # preferred when ambiguous
-Statement -> switch ( Condition ) Statement
+Statement -> "if" "(" Condition ")" Statement
+Statement -> "if" "(" Condition ")" Statement "else" Statement      # preferred earlier when ambiguous
+Statement -> "switch" "(" Condition ")" Statement
 
 Condition -> Expression
-Condition -> TypeSpecifierSeq Declarator = AssignmentExpression
+Condition -> TypeSpecifierSeq Declarator "=" AssignmentExpression
 ConditionOpt -> empty | Condition
 
 # iteration-statement
-Statement -> while ( Condition ) Statement
-Statement -> do Statement while ( Expression ) ;
+Statement -> "while" "(" Condition ")" Statement
+Statement -> "do" Statement "while" "(" Expression ")" ";"
 
 # I might like to rework this so both semicolons appear here instead
 # of buried in ForInitStatement.  this is also a good rule to use
 # inline alternatives
-Statement -> for ( ForInitStatement ConditionOpt ; ExpressionOpt ) Statement
+Statement -> "for" "(" ForInitStatement ConditionOpt ";" ExpressionOpt ")" Statement
 ForInitStatement -> ExpressionStatement | SimpleDeclaration
 
 # jump-statement
-Statement -> break ;
-Statement -> continue ;
-Statement -> return Expression ;
-Statement -> return ;
-Statement -> goto LabelName ;
+Statement -> "break" ";"
+Statement -> "continue" ";"
+Statement -> "return" Expression ";"
+Statement -> "return" ";"
+Statement -> "goto" LabelName ";"
 
 # declaration-statement
 Statement -> BlockDeclaration
@@ -156,62 +193,63 @@ BlockDeclaration -> SimpleDeclaration      # C++ has other alternatives..
 #   no, it's for constructors, destructors, and conversion operators,
 #   all of which are C++ only, so the DeclSpecifierSeq is now mandatory
 # ok, why is the InitDeclaratorList optional?
-SimpleDeclaration -> DeclSpecifierSeq InitDeclaratorListOpt ;
+#   for declaring classes and enums
+SimpleDeclaration -> DeclSpecifierSeq InitDeclaratorListOpt ";"
 
 # specifier: the "int" in a declaration like "int x"
 DeclSpecifier -> StorageClassSpecifier
 DeclSpecifier -> TypeSpecifier
-DeclSpecifier -> typedef
+DeclSpecifier -> "typedef"
 
 DeclSpecifierSeq -> DeclSpecifier | DeclSpecifierSeq DeclSpecifier
 
-StorageClassSpecifier -> auto | register | static | extern
+StorageClassSpecifier -> "auto" | "register" | "static" | "extern"
 
 TypeSpecifier -> SimpleTypeSpecifier
 TypeSpecifier -> ClassSpecifier
 TypeSpecifier -> EnumSpecifier
 TypeSpecifier -> CVQualifier
 
-SimpleTypeSpecifier -> char | wchar_t | short | int | long | signed
-SimpleTypeSpecifier -> unsigned | float | double | void
+SimpleTypeSpecifier -> "char" | "wchar_t" | "short" | "int" | "long" | "signed"
+SimpleTypeSpecifier -> "unsigned" | "float" | "double" | "void"
 SimpleTypeSpecifier -> TypedefName    # this is the tough one!
 
-EnumSpecifier -> enum { EnumeratorListOpt }
-EnumSpecifier -> enum EnumName { EnumeratorListOpt }
+EnumSpecifier -> "enum" "{" EnumeratorListOpt "}"
+EnumSpecifier -> "enum" EnumName "{" EnumeratorListOpt "}"
 
 EnumeratorList -> EnumeratorDefinition
-EnumeratorList -> EnumeratorList , EnumeratorDefinition
+EnumeratorList -> EnumeratorList "," EnumeratorDefinition
 EnumeratorListOpt -> empty | EnumeratorList
 
 EnumeratorDefinition -> EnumValueName
-EnumeratorDefinition -> EnumValueName = ConstantExpression
+EnumeratorDefinition -> EnumValueName "=" ConstantExpression
 
-AsmDefinition -> asm ( StringLiteral ) ;
+AsmDefinition -> "asm" "(" StringLiteral ")" ";"
 
-LinkageSpecification -> extern StringLiteral { DeclarationSeqOpt }
-LinkageSpecification -> extern StringLiteral Declaration
+LinkageSpecification -> "extern" StringLiteral "{" DeclarationSeqOpt "}"
+LinkageSpecification -> "extern" StringLiteral Declaration
 
 # ------ A.7 Declarators ------
 # -- declarator --
 # declarator: the "x" in a declaration like "int x"
 
 InitDeclaratorList -> InitDeclarator
-InitDeclaratorList -> InitDeclaratorList , InitDeclarator
+InitDeclaratorList -> InitDeclaratorList "," InitDeclarator
 InitDeclaratorListOpt -> empty | InitDeclaratorList
 
 InitDeclarator -> Declarator                    # (int)  x
 InitDeclarator -> Declarator Initializer        # (int)  x = 5
 
 # C++ has something here for constructors
-Initializer -> = InitializerClause
+Initializer -> "=" InitializerClause
 
-InitializerClause -> AssignmentExpression       # scalar
-InitializerClause -> { InitializerList }        # array initializer
-InitializerClause -> { InitializerList , }      # useful syntactic quirk
-InitializerClause -> { }                        # ?  does this mean the array is zeroed?
+InitializerClause -> AssignmentExpression           # scalar
+InitializerClause -> "{" InitializerList "}"        # array initializer
+InitializerClause -> "{" InitializerList "," "}"    # useful syntactic quirk
+InitializerClause -> "{" "}"                        # ?  does this mean the array is zeroed?
 
 InitializerList -> InitializerClause
-InitializerList -> InitializerList , InitializerClause
+InitializerList -> InitializerList "," InitializerClause
 
 
 # (PtrOperator)* DirectDeclarator
@@ -219,19 +257,19 @@ Declarator -> PtrOperator Declarator | DirectDeclarator
 
 DirectDeclarator -> VariableName     # this is for declarators
 #DirectDeclarator -> empty            # this is for type-ids  REMOVED
-DirectDeclarator -> DirectDeclarator ( ParameterDeclarationClause ) CVQualifierSeqOpt  # fn
-  #                 ^^ name of fn ^^   ^^^^^^^ arguments ^^^^^^^^   ^^^^ const? ^^^^^
+DirectDeclarator -> DirectDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt  # fn
+  #                 ^^ name of fn ^^     ^^^^^^^ arguments ^^^^^^^^     ^^^^ const? ^^^^^
   # the return type comes from the type specifier that preceeds this
-DirectDeclarator -> DirectDeclarator [ ConstantExpression ]      # array of specified size
-DirectDeclarator -> DirectDeclarator [ ]                         # array of unspecified size
-DirectDeclarator -> ( Declarator )                               # precedence grouping
+DirectDeclarator -> DirectDeclarator "[" ConstantExpression "]"      # array of specified size
+DirectDeclarator -> DirectDeclarator "[" "]"                         # array of unspecified size
+DirectDeclarator -> "(" Declarator ")"                               # precedence grouping
 
-# C++ has more alternatives
-PtrOperator -> * CVQualifierSeqOpt
+# C++ has more alternatives here
+PtrOperator -> "*" CVQualifierSeqOpt
 
 CVQualifierSeqOpt -> empty | CVQualifier CVQualifierSeqOpt
 
-CVQualifier -> const | volatile
+CVQualifier -> "const" | "volatile"
 
 # -- type-id --
 # a type-id is like a declaration of one thing, but without the variable name;
@@ -251,30 +289,30 @@ TypeSpecifierSeq -> TypeSpecifier | TypeSpecifier TypeSpecifierSeq
 AbstractDeclarator -> PtrOperator AbstractDeclarator | DirectAbstractDeclarator
 
 DirectAbstractDeclarator -> empty            # this is for type-ids
-DirectAbstractDeclarator -> DirectAbstractDeclarator ( ParameterDeclarationClause ) CVQualifierSeqOpt  # fn
-DirectAbstractDeclarator -> DirectAbstractDeclarator [ ConstantExpression ]      # array of specified size
-DirectAbstractDeclarator -> DirectAbstractDeclarator [ ]                         # array of unspecified size
-DirectAbstractDeclarator -> ( AbstractDeclarator )                               # precedence grouping
+DirectAbstractDeclarator -> DirectAbstractDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt  # fn
+DirectAbstractDeclarator -> DirectAbstractDeclarator "[" ConstantExpression "]"      # array of specified size
+DirectAbstractDeclarator -> DirectAbstractDeclarator "[" "]"                         # array of unspecified size
+DirectAbstractDeclarator -> "(" AbstractDeclarator ")"                               # precedence grouping
 
 
 # -- parameters in declarations --
-ParameterDeclarationClause -> ParameterDeclarationList          # some args
-ParameterDeclarationClause -> empty                             # no args
-ParameterDeclarationClause -> ParameterDeclarationList ...      # args plus optionally more
-ParameterDeclarationClause -> ParameterDeclarationList , ...    # same; alternative syntax
-ParameterDeclarationClause -> ...                               # all args are optional
+ParameterDeclarationClause -> ParameterDeclarationList            # some args
+ParameterDeclarationClause -> empty                               # no args
+ParameterDeclarationClause -> ParameterDeclarationList "..."      # args plus optionally more
+ParameterDeclarationClause -> ParameterDeclarationList "," "..."  # same; alternative syntax
+ParameterDeclarationClause -> "..."                               # all args are optional
 
 ParameterDeclarationList -> ParameterDeclaration
-ParameterDeclarationList -> ParameterDeclarationList , ParameterDeclaration
+ParameterDeclarationList -> ParameterDeclarationList "," ParameterDeclaration
 
 # here's a place my abstract-declarator = declarator stuff pays off; the
 # original spec had four alternatives, since parameters don't have to be
 # named
 # UPDATE: but now I've split them...
 ParameterDeclaration -> DeclSpecifierSeq Declarator
-ParameterDeclaration -> DeclSpecifierSeq Declarator = AssignmentExpression
+ParameterDeclaration -> DeclSpecifierSeq Declarator "=" AssignmentExpression
 ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator
-ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator = AssignmentExpression
+ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator "=" AssignmentExpression
 
 
 # -- function definition --
@@ -287,22 +325,22 @@ FunctionBody -> CompoundStatement
 # ------ A.8 Classes ------
 # I'm going to use the "class" terminology throughout, even though
 # C only has "struct" and "union"
-ClassSpecifier -> ClassHead { MemberSpecificationSeqOpt }
+ClassSpecifier -> ClassHead "{" MemberSpecificationSeqOpt "}"
 
 ClassHead -> ClassKeyword Identifier
 ClassHead -> ClassKeyword
 
-ClassKeyword -> class | struct | union
+ClassKeyword -> "class" | "struct" | "union"
 
 MemberSpecificationSeqOpt -> empty | MemberSpecification MemberSpecificationSeqOpt
 
-MemberSpecification -> DeclSpecifierSeq MemberDeclaratorListOpt ;    # why opt?
-MemberSpecification -> FunctionDefinition ;
+MemberSpecification -> DeclSpecifierSeq MemberDeclaratorListOpt ";"    # why opt?
+MemberSpecification -> FunctionDefinition ";"
 MemberSpecification -> FunctionDefinition      # syntactic tweak
 
-MemberDeclaratorListOpt -> empty | MemberDeclaratorListOpt , MemberDeclarator
+MemberDeclaratorListOpt -> empty | MemberDeclaratorListOpt "," MemberDeclarator
 
 MemberDeclarator -> Declarator
-MemberDeclarator -> Declarator = ConstantExpression    # pure; and member inits??
+MemberDeclarator -> Declarator "=" ConstantExpression    # pure; and member inits??
 
 

@@ -272,6 +272,14 @@ void GrammarAnalysis::computeWhatCanDeriveWhat()
       // convenient alias
       Production const *prod = prodIter.data();
 
+      // since I don't include 'empty' explicitly in my rules, I won't
+      // conclude that anything can derive empty, which is a problem;
+      // so I special-case it here
+      if (prod->right.isEmpty()) {
+	addDerivable(prod->left, &emptyString);
+        continue;      	// no point in looping over RHS symbols since there are none
+      }
+
       // iterate over RHS symbols, seeing if the LHS can derive that
       // RHS symbol (by itself)
       for (SymbolListIter rightSym(prod->right);
@@ -499,7 +507,7 @@ void GrammarAnalysis::computeFollow()
 
         // convenient alias
         Nonterminal &rightNT = rightSym.data()->asNonterminal();
-        
+
         // I'm not sure what it means to compute Follow(emptyString),
         // so let's just not do so
         if (&rightNT == &emptyString) {
@@ -946,7 +954,7 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet const *state, Terminal const *sy
 
   // get all possible reductions where 'sym' is in Follow(LHS)
   ProductionList reductions;
-  state->getPossibleReductions(reductions, sym);
+  state->getPossibleReductions(reductions, sym, false /*parsing*/);
 
   // case analysis
   if (shiftDest != NULL &&
@@ -1275,7 +1283,7 @@ void GrammarAnalysis::lrParse(char const *input)
 
     // get all possible reductions where 'sym' is in Follow(LHS)
     ProductionList reductions;
-    state->getPossibleReductions(reductions, symbol);
+    state->getPossibleReductions(reductions, symbol, true /*parsing*/);
 
     // case analysis
     if (shiftDest != NULL &&
@@ -1575,7 +1583,9 @@ void GrammarAnalysis::runAnalyses()
     printSymbols(tracer, toObjList(nonterminals));
   }
 
-  //derivable->print();
+  if (tracingSys("derivable")) {
+    derivable->print();
+  }
     
   // testing closure
   #if 0

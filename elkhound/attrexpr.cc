@@ -140,6 +140,11 @@ MAKE_OP_FUNC(nequals, !=)
 MAKE_OP_FUNC(less, <)
 MAKE_OP_FUNC(lesseq, <=)
 
+int ifFunc(int cond, int thenExp, int elseExp)
+{
+  return cond? thenExp : elseExp;
+}
+
 /*
   struct FuncEntry {   	       	   // one per predefined func
     char const *name;                // name of fn (e.g. "+")
@@ -153,6 +158,7 @@ AExprFunc::FuncEntry const AExprFunc::funcEntries[] = {
   { "!=", 2, (AExprFunc::Func)nequals },
   { "<", 2, (AExprFunc::Func)less },
   { "<=", 2, (AExprFunc::Func)lesseq },
+  { "if", 3, (AExprFunc::Func)ifFunc },
 };
 
 
@@ -167,18 +173,41 @@ int AExprFunc::eval(AttrContext const &actx) const
                      args.count() << " arguments"));
   }
 
-  xassert(func->numArgs == 2);    // only # of args can handle at the moment
+  // can't dynamically construct an argument list because C doesn't
+  // provide a way
+  switch (func->numArgs) {
+    case 0:
+      return func->eval();
 
-  return func->eval(args.nthC(0)->eval(actx), args.nthC(1)->eval(actx));
+    case 1:
+      return func->eval(args.nthC(0)->eval(actx));
+
+    case 2:
+      return func->eval(args.nthC(0)->eval(actx), args.nthC(1)->eval(actx));
+
+    case 3:
+      return func->eval(args.nthC(0)->eval(actx),
+                        args.nthC(1)->eval(actx),
+                        args.nthC(2)->eval(actx));
+
+    default:
+      xfailure("too many arguments; can only handle 3 right now");
+      return 0;     // silence warning
+  }
 }
 
 
 string AExprFunc::toString(Production const *prod) const
 {
-  return stringb("(" << func->name <<
-                 " " << args.nthC(0)->toString(prod) <<
-                 " " << args.nthC(1)->toString(prod) <<
-                 ")");
+  stringBuilder sb;
+  sb << "(" << func->name;
+
+  FOREACH_OBJLIST(AExprNode, args, iter) {
+    sb << " " << iter.data()->toString(prod);
+  }
+
+  sb << ")";
+  return sb;
 }
 
 

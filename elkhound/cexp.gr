@@ -1,0 +1,57 @@
+# cexp.gr
+# subgrammar for C expressions
+
+Input -> Expr "$"
+
+# primary expressions
+Expr -> "x"    	       	       	    # identifier
+  %action { Expr.prec = 100 }
+
+# binary operator expression
+Expr.result -> Expr.left Binop Expr.right
+  %action { Expr.result.prec = Binop.prec }
+  %condition { (<= Expr.result.prec Expr.left.prec) }         # precedence
+  %condition { (<= Expr.result.prec Expr.right.prec) }        # more precedence
+  %condition { (if (== Binop.leftAssoc 1) (< Expr.result.prec Expr.right.prec) (< Expr.result.prec Expr.left.prec)) }
+    # associativity
+
+Binop -> "*" | "/" | "%"
+  %action { Binop.prec = 60 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "+" | "-"
+  %action { Binop.prec = 56 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "<<" | ">>"
+  %action { Binop.prec = 52 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "<" | ">" | "<=" | ">="
+  %action { Binop.prec = 48 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "==" | "!="
+  %action { Binop.prec = 44 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "&"
+  %action { Binop.prec = 40 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "^"
+  %action { Binop.prec = 36 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "|"
+  %action { Binop.prec = 32 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "&&"
+  %action { Binop.prec = 28 }
+  %action { Binop.leftAssoc = 1 }
+
+Binop -> "||"
+  %action { Binop.prec = 24 }
+  %action { Binop.leftAssoc = 1 }
+

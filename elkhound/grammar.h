@@ -183,12 +183,10 @@ public:	    // funcs
   ~Production();
 
   // length *not* including emptySymbol, if present
+  // UPDATE: I'm now disallowing emptySymbol from ever appearing in 'right'
   int rhsLength() const;
 
-  // number of nonterminals on RHS, *not* counting emptyString (as yet
-  // I don't have a position on whether rules should or should not
-  // explicitly name emptyString on the RHS, which is a deficiency in
-  // my design)
+  // number of nonterminals on RHS
   int numRHSNonterminals() const;
 
   // append a RHS symbol
@@ -353,9 +351,11 @@ public:     // funcs
 
   // get the list of productions that are ready to reduce, given
   // that the next input symbol is 'lookahead' (i.e. in the follow
-  // of a production's LHS)
+  // of a production's LHS); parsing=true means we are actually
+  // parsing input, so certain tracing output is appropriate
   void getPossibleReductions(ProductionList &reductions,
-                             Terminal const *lookahead) const;
+                             Terminal const *lookahead,
+                             bool parsing) const;
 
   // ---- item mutations ----
   // add a kernel item; used while constructing the state
@@ -432,7 +432,7 @@ public:     // funcs
 
   // parse a line like "LHS -> R1 R2 R3", return false on parse error
   bool parseLine(char const *grammarLine);
-  bool parseLine(char const *grammarLine, Production *&lastProduction);
+  bool parseLine(char const *preLine, SObjList<Production> &lastProductions);
 
 
   // ---- symbol access ----

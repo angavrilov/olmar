@@ -5,6 +5,7 @@
 #include "trace.h"     // trace
 #include "glrtree.h"   // AttrContext
 #include "util.h"      // TVAL
+#include "exc.h"       // xBase
 
 
 // ----------------------- Condition --------------------
@@ -47,10 +48,17 @@ Conditions::~Conditions()
 bool Conditions::test(AttrContext const &actx) const
 {
   FOREACH_OBJLIST(Condition, conditions, iter) {
-    if (!iter.data()->test(actx)) {
-      trace("conditions") 
-        << "condition " << iter.data()->toString(actx.reductionC().production)
-        << " not satisfied\n";
+    try {
+      if (!iter.data()->test(actx)) {
+	trace("conditions") 
+	  << "condition " << iter.data()->toString(actx.reductionC().production)
+	  << " not satisfied\n";
+	return false;
+      }
+    }
+    catch (xBase &x) {
+      cout << "condition " << iter.data()->toString(actx.reductionC().production)
+           << " failed with exception: " << x << endl;
       return false;
     }
   }
