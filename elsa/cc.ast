@@ -82,12 +82,12 @@ class Function (
 );
 
 class MemberInit (
-  PQName name,                  // name of member or base class
-  FakeList<Expression> *args    // arguments to its constructor
+  PQName name,                    // name of member or base class
+  FakeList<ArgExpression> *args   // arguments to its constructor
 ) {
   // standard way to make it possible to include something
   // in a FakeList; this line is repeated below in several places
-  public MemberInit *next;  ctor next=NULL;     // FakeList link
+  public MemberInit *next=NULL;   // FakeList link
 }
 
 
@@ -434,9 +434,7 @@ class FullExpression (Expression expr) {
 
 // C expressions
 class Expression {
-  // FakeList link
-  public Expression *next;  ctor next=NULL;
-  public void setNext(Expression *newNext);
+  // NOTE: we never make lists of Expressions, only of ArgExpressions
 
   // same as we do for statements
   public Expression *ambiguity;  ctor ambiguity=NULL;
@@ -472,11 +470,11 @@ class Expression {
   // 5/19/03: 'loc' field removed because 'name' has a location
   -> E_variable(PQName name);
 
-  -> E_funCall(Expression func, FakeList<Expression> *args);
+  -> E_funCall(Expression func, FakeList<ArgExpression> *args);
 
   // call to constructor as an expression; the expression's overall
   // type says which type is being constructed
-  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args);
+  -> E_constructor(TypeSpecifier spec, FakeList<ArgExpression> *args);
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
@@ -499,14 +497,14 @@ class Expression {
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
   -> E_assign(Expression target, BinaryOp op, Expression src);
 
-  -> E_new(bool colonColon,                      // true if "::" preceeds "new"
-           FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
-           ASTTypeId atype,                      // type to allocate
-           ExpressionListOpt ctorArgs);          // arguments to type's constructor (NULL if no ctor call syntax)
+  -> E_new(bool colonColon,                        // true if "::" preceeds "new"
+           FakeList<ArgExpression> *placementArgs, // arguments to placement-new (empty/NULL if no placement syntax)
+           ASTTypeId atype,                        // type to allocate
+           ArgExpressionListOpt ctorArgs);         // arguments to type's constructor (NULL if no ctor call syntax)
 
-  -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
-              bool array,                        // true if "[]" follows "delete"
-              Expression expr);                  // address of obj to deallocate
+  -> E_delete(bool colonColon,                     // true if "::" preceeds "delete"
+              bool array,                          // true if "[]" follows "delete"
+              Expression expr);                    // address of obj to deallocate
 
   -> E_throw(Expression /*nullable*/ expr);
 
@@ -529,15 +527,29 @@ class Expression {
 }
 
 
-// ICExpression was here
+// In the original version of cc.ast, Expressions had both a FakeList
+// link and an ambiguity link.  All expressions in a given ambiguity
+// list were supposed to have the same FakeList link, and this was
+// a bit of a pain.  Then we added ICExpression (implicit conversion
+// expression), which separated the ambiguity representation and the
+// list representation, which simplified things.  Then we removed
+// ICExpression, because we handled implicit conversions differently,
+// re-introducing the ambiguity/FakeList complications.  I'm now
+// going to add that separation layer back in, just for the purpose
+// of separation, to get back the simplicity we had before.
+class ArgExpression(Expression expr) {   // expression in an argument list
+  // FakeList link
+  public ArgExpression *next=NULL;
+  public void setNext(ArgExpression *newNext);
+}
 
 
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
-// a NULL pointer to an ExpressionListOpt, while the former is a valid
-// ExpressionListOpt with a NULL 'list' field)
-class ExpressionListOpt (
-  FakeList<Expression> *list
+// a NULL pointer to an ArgExpressionListOpt, while the former is a valid
+// ArgExpressionListOpt with a NULL 'list' field)
+class ArgExpressionListOpt (
+  FakeList<ArgExpression> *list
 );
 
 
@@ -556,7 +568,7 @@ class Initializer (SourceLoc loc) {
   -> IN_compound(ASTList<Initializer> inits);
 
   // constructor initializer, like "int x(3);"
-  -> IN_ctor(FakeList<Expression> *args);
+  -> IN_ctor(FakeList<ArgExpression> *args);
 }
 
 

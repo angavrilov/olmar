@@ -305,7 +305,7 @@ nonterm(PQName*) IdExpression_no_colon_colon {
 // able to share the expression list one level higher than it
 // otherwise would.  (To see the effect, print the node addresses in
 // the resulting ASTs.)
-nonterm(FakeList<Expression>*) ArgumentList {
+nonterm(FakeList<ArgExpression>*) ArgumentList {
   -> "(" e:ExpressionListOpt ")"      { return e; }
 }
 
@@ -396,17 +396,17 @@ nonterm(CastKeyword) CastKeyword {
 // is linear in the size of the list, but the benefit of not
 // having to reverse the list or use ASTList (which is difficult
 // to share) is worth it
-nonterm(FakeList<Expression>*) ExpressionList {
+nonterm(FakeList<ArgExpression>*) ExpressionList {
   -> a:AssignmentExpression
-       { return FakeList<Expression>::makeList(a); }
+       { return FakeList<ArgExpression>::makeList(new ArgExpression(a)); }
   -> a:AssignmentExpression "," e:ExpressionList
-       { Expression *aa = a;
+       { ArgExpression *aa = new ArgExpression(a);
          aa->setNext(e->first());
-         return FakeList<Expression>::makeList(aa); }
+         return FakeList<ArgExpression>::makeList(aa); }
 }
 
-nonterm(FakeList<Expression>*) ExpressionListOpt {
-  -> empty               { return FakeList<Expression>::emptyList(); }
+nonterm(FakeList<ArgExpression>*) ExpressionListOpt {
+  -> empty               { return FakeList<ArgExpression>::emptyList(); }
   -> e:ExpressionList    { return e; }
 }
 
@@ -461,8 +461,8 @@ nonterm(E_new*) NewExpression {
        { return new E_new(c, p, t, i); }
 }
 
-nonterm(FakeList<Expression>*) NewPlacementOpt {
-  -> empty                          { return FakeList<Expression>::emptyList(); }
+nonterm(FakeList<ArgExpression>*) NewPlacementOpt {
+  -> empty                          { return FakeList<ArgExpression>::emptyList(); }
   -> "(" lst:ExpressionList ")"     { return lst; }
 }
 
@@ -499,9 +499,9 @@ nonterm(IDeclarator*) DirectNewDeclarator {
        { return new D_array(loc, d, sz); }
 }
 
-nonterm(ExpressionListOpt*) NewInitializerOpt {
+nonterm(ArgExpressionListOpt*) NewInitializerOpt {
   -> empty                            { return NULL; }
-  -> "(" lst:ExpressionListOpt ")"    { return new ExpressionListOpt(lst); }
+  -> "(" lst:ExpressionListOpt ")"    { return new ArgExpressionListOpt(lst); }
 }
 
 nonterm(Expression*) DeleteExpression {

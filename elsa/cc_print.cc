@@ -138,7 +138,7 @@ string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
 
 
 // this is a prototype for a function down near E_funCall::iprint
-void printFakeExprList(FakeList<Expression> *list, PrintEnv &env);
+void printArgExprList(FakeList<ArgExpression> *list, PrintEnv &env);
 
 
 // ------------------- TranslationUnit --------------------
@@ -222,7 +222,7 @@ void Function::print(PrintEnv &env)
       // initializing a base class or a member variable.  There will
       // be a field added to class MemberInit that will say.
       codeout co(env, iter->name->toString(), "(", ")");
-      printFakeExprList(iter->args, env);
+      printArgExprList(iter->args, env);
     }
   }
 
@@ -775,14 +775,14 @@ void E_variable::iprint(PrintEnv &env)
   }
 }
 
-void printFakeExprList(FakeList<Expression> *list, PrintEnv &env)
+void printArgExprList(FakeList<ArgExpression> *list, PrintEnv &env)
 {
-  olayer ol("printFakeExprList");
+  olayer ol("printArgExprList");
   bool first_time = true;
-  FAKELIST_FOREACH_NC(Expression, list, iter) {
+  FAKELIST_FOREACH_NC(ArgExpression, list, iter) {
     if (first_time) first_time = false;
     else env << ", ";
-    iter->print(env);
+    iter->expr->print(env);
   }
 }
 
@@ -791,7 +791,7 @@ void E_funCall::iprint(PrintEnv &env)
   olayer ol("E_funCall::iprint");
   func->print(env);
   codeout co(env, "", "(", ")");
-  printFakeExprList(args, env);
+  printArgExprList(args, env);
 }
 
 void E_constructor::iprint(PrintEnv &env)
@@ -799,7 +799,7 @@ void E_constructor::iprint(PrintEnv &env)
   olayer ol("E_constructor::iprint");
   env << type->toString();
   codeout co(env, "", "(", ")");
-  printFakeExprList(args, env);
+  printArgExprList(args, env);
 }
 
 void E_fieldAcc::iprint(PrintEnv &env)
@@ -935,7 +935,7 @@ void E_new::iprint(PrintEnv &env)
   env << "new ";
   if (placementArgs) {
     codeout co(env, "", "(", ")");
-    printFakeExprList(placementArgs, env);
+    printArgExprList(placementArgs, env);
   }
 
   if (!arraySize) {
@@ -963,7 +963,7 @@ void E_new::iprint(PrintEnv &env)
 
   if (ctorArgs) {
     codeout co(env, "", "(", ")");
-    printFakeExprList(ctorArgs->list, env);
+    printArgExprList(ctorArgs->list, env);
   }
 }
 
@@ -1060,7 +1060,7 @@ void IN_compound::print(PrintEnv &env)
 void IN_ctor::print(PrintEnv &env)
 {
   olayer ol("IN_ctor");
-  printFakeExprList(args, env);
+  printArgExprList(args, env);
 }
 
 // InitLabel

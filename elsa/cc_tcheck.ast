@@ -414,7 +414,7 @@ class Expression {
   // the new Expression into 'replacement' and the parent AST node
   // will be updated accordingly; the caller should always put the
   // receiver object pointer into 'replacement' initially
-  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);
+  pure_virtual Type *itcheck_x(Env &env, Expression *&replacement);     // the "_x" is for grepping value
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
@@ -423,7 +423,7 @@ class Expression {
   custom clone { ret->type = type; }
 
   // make the API for getting the type identical to that of FullExpression
-  public Type *getType();
+  public Type *getType() { return type; };
 
   // const-eval; will add an error message to the environment if this
   // expression is not a constant (and also return false); can only
@@ -520,6 +520,24 @@ class Expression {
        public Variable *globalVar = NULL;
        public Statement *ctorStatement; ctor ctorStatement=NULL;
     }
+}
+
+
+class ArgExpression {
+  // repeat some of Expression's interface so I can avoid adding
+  // lots of annoying "expr->expr" clutter
+  public Type *getType() const 
+    { return expr->type; };
+  public bool constEval(Env &env, int &result) const
+    { return expr->constEval(env, result); };
+  public bool constEval(string &msg, int &result) const
+    { return expr->constEval(msg, result); };
+  public bool hasUnparenthesizedGT() const
+    { return expr->hasUnparenthesizedGT(); };
+  public SpecialExpr getSpecial() const
+    { return expr->getSpecial(); };
+
+  public void tcheck(Env &env);
 }
 
 

@@ -33,8 +33,11 @@
 
 // forwards in this file
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, FakeList<Expression> *args, bool really);
-static bool reallyDoOverload(Env &env, FakeList<Expression> *args);
+  (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
+static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
+
+// this is a prototype for a function down near E_funCall::itcheck
+void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
 
 
 // Why is there not a "finally" in C++!?!  I cannot figure out how to
@@ -318,10 +321,6 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 }
 
 
-// this is a prototype for a function down near E_funCall::itcheck
-//  void tcheckFakeExprList(FakeList<Expression> *list, Env &env);
-FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
-
 // cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
 {
@@ -361,7 +360,7 @@ void Function::tcheck_memberInits(Env &env)
         iter->member = v;
 
         // typecheck the arguments
-        iter->args = tcheckFakeExprList(iter->args, env);
+        tcheckArgExprList(iter->args, env);
         
         // decide which of v's possible constructors is being used
         Variable *ctor = outerResolveOverload_ctor(env, env.loc(), v->type, iter->args,
@@ -456,7 +455,7 @@ void Function::tcheck_memberInits(Env &env)
     // base class list
 
     // typecheck the arguments
-    iter->args = tcheckFakeExprList(iter->args, env);
+    tcheckArgExprList(iter->args, env);
     
     // determine which constructor is being called
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(),
@@ -1839,7 +1838,7 @@ Type *computeArraySizeFromLiteral(Env &env, Type *tgt_type, Initializer *init)
 }
 
 static E_constructor *makeCtorExpr
-  (Env &env, Variable *var, Type *type, FakeList<Expression> *args)
+  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
 {
   xassert(var);                 // this is never for a temporary
   xassert(!var->hasFlag(DF_TYPEDEF));
@@ -1855,7 +1854,7 @@ static E_constructor *makeCtorExpr
 }
 
 static Statement *makeCtorStatement
-  (Env &env, Variable *var, Type *type, FakeList<Expression> *args)
+  (Env &env, Variable *var, Type *type, FakeList<ArgExpression> *args)
 {
   E_constructor *ector0 = makeCtorExpr(env, var, type, args);
   Statement *ctorStmt0 = new S_expr(env.loc(), new FullExpression(ector0));
@@ -1869,7 +1868,7 @@ static Statement *makeDtorStatement(Env &env, Type *type)
 //    xassert(!var->hasFlag(DF_TYPEDEF));
   E_funCall *efc0 =
     new E_funCall(new E_variable(env.make_PQ_fullyQualifiedDtorName(type->asCompoundType())),
-                  FakeList<Expression>::emptyList());
+                  FakeList<ArgExpression>::emptyList());
   Statement *dtorStmt0 = new S_expr(env.loc(), new FullExpression(efc0));
   dtorStmt0->tcheck(env);
   return dtorStmt0;
@@ -2083,6 +2082,18 @@ void Declarator::tcheck_init(Env &env)
   var->type = computeArraySizeFromLiteral(env, var->type, init);
 }
 
+// wrap an expression in a list
+FakeList<ArgExpression> *makeExprList1(Expression *e)
+{
+  return FakeList<ArgExpression>::makeList(new ArgExpression(e));
+}
+
+// wrap a pair of expressions in a list
+FakeList<ArgExpression> *makeExprList2(Expression *e1, Expression *e2)
+{
+  return makeExprList1(e2)->prepend(new ArgExpression(e1));
+}
+
 void Declarator::elaborateCDtors(Env &env,
                                  bool isMember,
                                  bool isTemporary,
@@ -2198,14 +2209,14 @@ void Declarator::elaborateCDtors(Env &env,
           xassert(!ctorStatement);
           ctorStatement =
             makeCtorStatement(env, var, type,
-                              FakeList<Expression>::makeList(init->asIN_expr()->e));
+                              makeExprList1(init->asIN_expr()->e));
         } else if (init->isIN_compound()) {
           xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
           // just call the no-arg ctor; FIX: this is questionable; it
           // is undefined what should happen for an IN_compound since
           // it is a C99-ism.
           xassert(!ctorStatement);
-          ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+          ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
         }
       }
 
@@ -2224,7 +2235,7 @@ void Declarator::elaborateCDtors(Env &env,
         // call the no-arg ctor; for temporaries do nothing since this is
         // a temporary, it will be initialized later
         xassert(!ctorStatement);
-        ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+        ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
       }
 
     // if isTemporary we don't want to make a ctor since by definition
@@ -2247,7 +2258,7 @@ void Declarator::elaborateCDtors(Env &env,
 //      // isParameter
 //      // make the copy ctor
 //      xassert(!ctorStatement);
-//      ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
+//      ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
 
     // make the dtorStatement
     if (type->isCompoundType() &&
@@ -3896,11 +3907,6 @@ bool FullExpression::constEval(string &msg, int &result) const
 // a reference to it is now a parameter.
 
 
-Type *Expression::getType()
-{
-  return type;
-}
-
 void Expression::tcheck(Env &env, Expression *&replacement)
 {
   // the replacement point should always start out in agreement with
@@ -3910,7 +3916,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 
   if (!ambiguity) {
     mid_tcheck(env, replacement);
-    goto fixReplacementNext;    // redundant because Expression::mid_tcheck() also does it
+    return;
   }
 
   // There is one very common ambiguity, between E_funCall and
@@ -3955,7 +3961,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       call->type = call->inner2_itcheck(env);
       call->ambiguity = NULL;
       replacement = call;
-      goto fixReplacementNext;
+      return;
     }
 
     // grab the errors from trying E_funCall
@@ -3969,14 +3975,15 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // ok, finish up
       TRACE("disamb", toString(loc) << ": selected E_constructor");
       env.errors.prependMessages(existing);
-      Expression *ctor2 = ctor;
-      // NOTE: ctor2 is passed down by reference and may be modified.
-      Type *type0 = ctor->inner2_itcheck(env, ctor2);
-      // DO NOT merge this with the line above.
-      ctor2->type = type0;
-      ctor2->ambiguity = NULL;
-      replacement = ctor2;
-      goto fixReplacementNext;
+      
+      // a little tricky because E_constructor::inner2_itcheck is
+      // allowed to yield a replacement AST node
+      replacement = ctor;
+      Type *t = ctor->inner2_itcheck(env, replacement);
+
+      replacement->type = t;
+      replacement->ambiguity = NULL;
+      return;
     }
 
     // both failed.. just leave the errors from the function call
@@ -3987,27 +3994,13 @@ void Expression::tcheck(Env &env, Expression *&replacement)
 
     // finish up
     replacement = this;     // redundant but harmless
-    goto fixReplacementNext;
+    return;
   }
 
   // some other ambiguity, use the generic mechanism; the return value
   // is ignored, because the selected alternative will be stored in
   // 'replacement'
   resolveAmbiguity(this, env, "Expression", false /*priority*/, replacement);
-
-fixReplacementNext:
-  // Fix the fact that if replacement has been modified by introducing
-  // artificial AST nodes, rather than simply choosing among the
-  // ambiguity lists of existing AST nodes, then the new nodes will
-  // not have their _next_ pointer set correctly.  NOTE! Do NOT skip
-  // over this with a return if replacement can have been modified.
-  if (replacement!=this) {
-    if (replacement->next) {
-      xassert(replacement->next == this->next);
-    } else {
-      replacement->next = this->next;
-    }
-  }
 }
 
 
@@ -4057,19 +4050,6 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   // template bodies after arguments are presented
 
   type = t;
-
-  // Fix the fact that if replacement has been modified by introducing
-  // artificial AST nodes, rather than simply choosing among the
-  // ambiguity lists of existing AST nodes, then the new nodes will
-  // not have their _next_ pointer set correctly.  NOTE! Do NOT skip
-  // over this with a return if replacement can have been modified.
-  if (replacement!=this) {
-    if (replacement->next) {
-      xassert(replacement->next == this->next);
-    } else {
-      replacement->next = this->next;
-    }
-  }
 }
 
 
@@ -4262,10 +4242,10 @@ static bool allNonTemplateFunctions(SObjList<Variable> &set)
 
 // return true iff all the args variables are non-templates; this is
 // temporary
-static bool allNonTemplates(FakeList<Expression> *args)
+static bool allNonTemplates(FakeList<ArgExpression> *args)
 {
 //    cout << "arguments:" << endl;
-  FAKELIST_FOREACH_NC(Expression, args, iter) {
+  FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
 //      cout << "\titer->expr->exprToString " << iter->exprToString() <<
 //        "iter->expr->type " << iter->type->toCString() << endl;
     if (areYouOrHaveYouEverBeenATemplate(iter->getType())) return false;
@@ -4314,7 +4294,7 @@ static bool allMethods(SObjList<Variable> &set)
 // better position to know what things need to be rewritten, since it
 // is fully aware of the syntactic context.
 static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
-                                      Type *receiverType, FakeList<Expression> *args)
+                                      Type *receiverType, FakeList<ArgExpression> *args)
 {
   // are we even in a situation where we can do overloading?
   if (!var->overload) return NULL;
@@ -4354,7 +4334,7 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
       index++;
     }
 
-    FAKELIST_FOREACH_NC(Expression, args, iter) {
+    FAKELIST_FOREACH_NC(ArgExpression, args, iter) {
       argInfo[index] = ArgumentInfo(iter->getSpecial(), iter->getType());
       index++;
     }
@@ -4368,7 +4348,7 @@ static Variable *outerResolveOverload(Env &env, SourceLoc loc, Variable *var,
 
 
 static Variable *outerResolveOverload_ctor
-  (Env &env, SourceLoc loc, Type *type, FakeList<Expression> *args, bool really)
+  (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really)
 {
   Variable *ret = NULL;
   // dsw: FIX: should I be generating error messages if I get a weird
@@ -4402,7 +4382,7 @@ static Variable *outerResolveOverload_ctor
 
 
 // dsw: this function should eventually be the constant function "true"
-static bool reallyDoOverload(Env &env, FakeList<Expression> *args) {
+static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args) {
   return env.doOverload         // user wants overloading
     && !env.inTemplate()        // don't do any of this in a template context
     && allNonTemplates(args);   // avoid dealing with template args
@@ -4411,12 +4391,10 @@ static bool reallyDoOverload(Env &env, FakeList<Expression> *args) {
 
 
 
-// **** ARG!  This is what you have to tell me about when you tell me to get rid of ICExpressions!!!
-
 // this is the old code, and served as the prototypical way to tcheck
 // a FakeList of potentially ambiguous elements; but now FakeList<Expression>
 // is not used, so this function has become much simpler
-//  #if 0
+#if 0
 FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 {
   if (!list) {
@@ -4441,15 +4419,20 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 
   return ret;
 }
-//  #endif // 0
+#endif // 0
 
-//  // here's the new code that serves the same role as the old
-//  void tcheckFakeExprList(FakeList<Expression> *list, Env &env)
-//  {
-//    FAKELIST_FOREACH_NC(Expression, list, iter) {
-//      iter->tcheck(env, iter);
-//    }
-//  }
+// here's the new code that serves the same role as the old
+void tcheckArgExprList(FakeList<ArgExpression> *list, Env &env)
+{
+  FAKELIST_FOREACH_NC(ArgExpression, list, iter) {
+    iter->tcheck(env);
+  }
+}
+
+void ArgExpression::tcheck(Env &env)
+{
+  expr->tcheck(env, expr);
+}
 
 
 static bool hasNamedFunction(Expression *e)
@@ -4467,7 +4450,7 @@ static Variable *getNamedFunction(Expression *e)
   
 // fwd
 static Type *internalTestingHooks
-  (Env &env, StringRef funcName, FakeList<Expression> *args);
+  (Env &env, StringRef funcName, FakeList<ArgExpression> *args);
 
 
 // true if the type has no destructor because it's not a compound type
@@ -4663,9 +4646,9 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
 // temporary that has one argument that is what was the arugment in
 // this slot and the ctor is the copy ctor, and b) E_variable for the
 // temporary
-FakeList<Expression> *E_funCall_argReplaceHelper
+void E_funCall_argReplaceHelper
   (Env &env,
-   FakeList<Expression> *args,
+   FakeList<ArgExpression> *args,
    SObjListIterNC<Variable> &paramsIter)
 {
   if (paramsIter.isDone()) {
@@ -4673,43 +4656,37 @@ FakeList<Expression> *E_funCall_argReplaceHelper
     // ellipsis at the end of the parameter list.  Can those be passed
     // by value?
 //      xassert(args->empty());     // too many arguments
-    return args;
+    return;
   }
   if (args->isEmpty()) {
     // FIX: if (!paramsIter.isDone()) then have to deal with default
     // arguments that are pass by value if such a thing is even
     // possible.
-    return args;
-  }
-  Expression *arg = args->first();
-  FakeList<Expression> *argsButFirst = args->butFirst();
-  arg->next = NULL;             // truncate the list
-  Variable *param = paramsIter.data();
-  Type *paramType = param->getType();
-  if (paramType->isCompoundType()) {
-    // E_variable that points to the temporary
-    Declaration *declaration0 = insertTempDeclaration(env, paramType);
-    xassert(declaration0->decllist->count() == 1);
-    Variable *tempVar = declaration0->decllist->first()->var;
-    E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
-
-    // E_constructor for the temporary that calls the copy ctor for
-    // the temporary taking the real argument as the copy ctor
-    // argument.
-    E_constructor *ector = makeCtorExpr(env, tempVar, paramType,
-                                        FakeList<Expression>::makeList(arg));
-
-    // combine into a comma expression so we so both but return the
-    // value of the second
-    arg = new E_binary(ector, BIN_COMMA, byValueArg);
-    arg->tcheck(env, arg);
+    return;
   }
 
-  // do the rest of the list
-  paramsIter.adv();
-  FakeList<Expression> *newArgs =
-    E_funCall_argReplaceHelper(env, argsButFirst, paramsIter);
-  return newArgs->prepend(arg);
+  FAKELIST_FOREACH_NC(ArgExpression, args, arg) {
+    Variable *param = paramsIter.data();
+    Type *paramType = param->getType();
+    if (paramType->isCompoundType()) {
+      // E_variable that points to the temporary
+      Declaration *declaration0 = insertTempDeclaration(env, paramType);
+      xassert(declaration0->decllist->count() == 1);
+      Variable *tempVar = declaration0->decllist->first()->var;
+      E_variable *byValueArg = wrapVarWithE_variable(env, tempVar);
+
+      // E_constructor for the temporary that calls the copy ctor for
+      // the temporary taking the real argument as the copy ctor
+      // argument.
+      E_constructor *ector = makeCtorExpr(env, tempVar, paramType,
+                                          makeExprList1(arg->expr));
+
+      // combine into a comma expression so we do both but return the
+      // value of the second
+      arg->expr = new E_binary(ector, BIN_COMMA, byValueArg);
+      arg->tcheck(env);
+    }
+  }
 }
 
 Type *E_funCall::inner2_itcheck(Env &env)
@@ -4723,7 +4700,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check the argument list
-  args = tcheckFakeExprList(args, env);
+  tcheckArgExprList(args, env);
 
   // the type of the function that is being invoked
   Type *t = func->type->asRval();
@@ -4838,9 +4815,13 @@ Type *E_funCall::inner2_itcheck(Env &env)
     // ARG! Must iterate over the FakeList of arguments with
     // replacement.  I'm just doing the Lisp trick of building a whole
     // new list recursively.
+    //
+    // sm: update: now that I've re-introduced the ArgExpression
+    // separation layer, the lisp-like gymnastics are thankfully
+    // unnecessary
     SObjListIterNC<Variable> paramsIter(t->asFunctionType()->params);
     int numArgs = args->count();
-    args = E_funCall_argReplaceHelper(env, args, paramsIter);
+    E_funCall_argReplaceHelper(env, args, paramsIter);
     xassert(numArgs == args->count()); // sanity check
   }
 
@@ -4852,7 +4833,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
 // for the entire E_funCall expression if it recognizes the form
 // and typechecks it in its entirety
 static Type *internalTestingHooks
-  (Env &env, StringRef funcName, FakeList<Expression> *args)
+  (Env &env, StringRef funcName, FakeList<ArgExpression> *args)
 {
   // test vector for 'getStandardConversion'
   if (funcName == env.special_getStandardConversion) {
@@ -4862,8 +4843,8 @@ static Type *internalTestingHooks
       test_getStandardConversion
         (env,
          args->nth(0)->getSpecial(),     // is it special?
-         args->nth(0)->type,             // source type
-         args->nth(1)->type,             // dest type
+         args->nth(0)->getType(),        // source type
+         args->nth(1)->getType(),        // dest type
          expect);                        // expected result
     }
     else {
@@ -4885,8 +4866,8 @@ static Type *internalTestingHooks
       test_getImplicitConversion
         (env,
          args->nth(0)->getSpecial(),     // is it special?
-         args->nth(0)->type,             // source type
-         args->nth(1)->type,             // dest type
+         args->nth(0)->getType(),        // source type
+         args->nth(1)->getType(),        // dest type
          expectKind, expectSCS, expectUserLine, expectSCS2);   // expected result
     }
     else {
@@ -4900,10 +4881,10 @@ static Type *internalTestingHooks
     if (args->count() == 2 &&
         args->nth(1)->constEval(env, expectLine)) {
 
-      if (args->first()->isE_funCall() &&
-          hasNamedFunction(args->first()->asE_funCall()->func)) {
+      if (args->first()->expr->isE_funCall() &&
+          hasNamedFunction(args->first()->expr->asE_funCall()->func)) {
         // resolution yielded a function call
-        Variable *chosen = getNamedFunction(args->first()->asE_funCall()->func);
+        Variable *chosen = getNamedFunction(args->first()->expr->asE_funCall()->func);
         int actualLine = sourceLocManager->getLine(chosen->loc);
         if (expectLine != actualLine) {
           env.error(stringc
@@ -4918,7 +4899,7 @@ static Type *internalTestingHooks
       }
 
       // propagate return type
-      return args->first()->type;
+      return args->first()->getType();
     }
     else {
       env.error("invalid call to __testOverload");
@@ -4932,9 +4913,9 @@ static Type *internalTestingHooks
         args->nth(3)->constEval(env, expect)) {
       test_computeLUB
         (env,
-         args->nth(0)->type,             // T1
-         args->nth(1)->type,             // T2
-         args->nth(2)->type,             // LUB
+         args->nth(0)->getType(),        // T1
+         args->nth(1)->getType(),        // T2
+         args->nth(2)->getType(),        // LUB
          expect);                        // expected result
     }
     else {
@@ -4962,8 +4943,9 @@ void E_constructor::inner1_itcheck(Env &env)
 Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 {
   xassert(replacement == this);
+
+  // inner1_itcheck sets the type, so if it signaled an error then bail
   if (type->isError()) {
-    xassert(type);
     return type;
   }
 
@@ -4980,17 +4962,21 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     // turn it into a cast
 
     // there had better be exactly one argument to this ctor
-    xassert(args->count() == 1);
+    if (args->count() != 1) {
+      return env.error(stringc
+        << "function-style cast to `" << type->toString()
+        << "' must have exactly one argument");
+    }
+
     ASTTypeId *typeSyntax = env.buildASTTypeId(type);
     replacement =
-      new E_cast(typeSyntax, args->first());
+      new E_cast(typeSyntax, args->first()->expr);
     replacement->tcheck(env, replacement);
-    xassert(type->equals(replacement->type));
-    xassert(type);
-    return type;
+    return replacement->type;
   }
 
-  args = tcheckFakeExprList(args, env);
+  // check arguments
+  tcheckArgExprList(args, env);
 
   // dsw: I will assume for now that if overloading succeeds, that the
   // checking that it implies subsumes the below concern:
@@ -5028,7 +5014,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     retObj = wrapVarWithE_variable(env, var);
   }
 
-  xassert(type);
+  xassert(type);    // sm: if this weren't true we'd have segfaulted a dozen times already...
   return type;
 }
 
@@ -5175,7 +5161,7 @@ Type *resolveOverloadedUnaryOperator(
         // replace '~a' with 'a.operator~()'
         replacement = new E_funCall(
           new E_fieldAcc(expr, pqo),               // function
-          FakeList<Expression>::emptyList()        // arguments
+          FakeList<ArgExpression>::emptyList()     // arguments
         );
       }
       else {
@@ -5186,7 +5172,7 @@ Type *resolveOverloadedUnaryOperator(
           new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
                                           NULL /*targs*/, pqo)),
           // arguments
-          FakeList<Expression>::makeList(expr)
+          makeExprList1(expr)
         );
       }
 
@@ -5265,7 +5251,7 @@ Type *resolveOverloadedBinaryOperator(
             // function to invoke
             new E_fieldAcc(e1, pqo),
             // arguments
-            FakeList<Expression>::makeList(e2)
+            makeExprList1(e2)
           );
         }
         else {
@@ -5276,8 +5262,7 @@ Type *resolveOverloadedBinaryOperator(
             new E_variable(new PQ_qualifier(SL_UNKNOWN, NULL /*qualifier*/,
                                             NULL /*targs*/, pqo)),
             // arguments
-            FakeList<Expression>::makeList(e2)
-            ->prepend(e1)
+            makeExprList2(e1, e2)
           );
         }
 
@@ -5637,7 +5622,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
         new E_fieldAcc(ptr, new PQ_operator(SL_UNKNOWN, new ON_operator(OP_STAR),
                                             env.operatorName[OP_STAR])),
         // arguments: ()
-        FakeList<Expression>::emptyList()
+        FakeList<ArgExpression>::emptyList()
       );
 
       // now, tcheck this new Expression
@@ -5741,7 +5726,7 @@ Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 {
-  placementArgs = tcheckFakeExprList(placementArgs, env);
+  tcheckArgExprList(placementArgs, env);
 
   // TODO: check the environment for declaration of an operator 'new'
   // which accepts the given placement args
@@ -5770,11 +5755,11 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
   // it will likely suffice to simply pretend that anytime 't' refers
   // to a class type, missing parens were actually present.
   if (t->isCompoundType() && !ctorArgs) {
-    ctorArgs = new ExpressionListOpt(NULL /*list*/);
+    ctorArgs = new ArgExpressionListOpt(NULL /*list*/);
   }
 
   if (ctorArgs) {
-    ctorArgs->list = tcheckFakeExprList(ctorArgs->list, env);
+    tcheckArgExprList(ctorArgs->list, env);
     Variable *ctor = outerResolveOverload_ctor(env, env.loc(), t, ctorArgs->list,
                                                reallyDoOverload(env, ctorArgs->list));
     if (ctor) {
@@ -5853,7 +5838,7 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 
         xassert(!ctorStatement);
         ctorStatement = makeCtorStatement(env, globalVar, exprType,
-                                          FakeList<Expression>::makeList(expr));
+                                          makeExprList1(expr));
       }
     }
   }
@@ -6174,7 +6159,7 @@ void IN_compound::tcheck(Env &env, Type* type)
 void IN_ctor::tcheck(Env &env, Type *type)
 {
   FullExpressionAnnot_StackBracket fea0(env, annot);
-  args = tcheckFakeExprList(args, env);
+  tcheckArgExprList(args, env);
   Variable *ctor = outerResolveOverload_ctor(env, loc, type, args, reallyDoOverload(env, args));
   if (ctor) {
     ctorVar = ctor;
