@@ -132,6 +132,16 @@ public:      // data
   char const * const tempNamePrefix;
   int const tempNamePrefixLen;
 
+  // counter for generating unique E_new names; NOTE: they will be
+  // duplicated across translation units, but this won't matter
+  // because the linker can't see them.
+  int e_newSerialNumber;
+  // the prefix used for generating E_new names; NOTE: it is important
+  // that this string contain at least one character that is not
+  // allowed in an user-identifier.
+  char const * const e_newNamePrefix;
+  int const e_newNamePrefixLen;
+
 private:     // funcs
   // old
   //CompoundType *instantiateClass(
@@ -379,6 +389,8 @@ public:      // funcs
 
   // make a unique name for a new temporary
   virtual PQ_name *makeTempName();
+  // make a unique name for a new E_new variable
+  virtual char const *makeE_newVarName();
 };
 
 

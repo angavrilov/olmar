@@ -469,6 +469,12 @@ class Expression {
        // if this is non-NULL, it's the number of elements to allocate via new[]
        public Expression /*nullable serf*/ *arraySize = NULL;
 
+       // I need a place to put the variable being ctored because
+       // E_constructor needs to point at a variable; copied comment
+       // from Declarator::var:
+       // (serf) computed information: name, type, etc.
+       public Variable *var = NULL;
+
        // constructor being called to initialize the storage
        public(field) Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }

@@ -61,7 +61,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     tempSerialNumber(0),
     tempNamePrefix("temp-name-"),
-    tempNamePrefixLen(strlen(tempNamePrefix))
+    tempNamePrefixLen(strlen(tempNamePrefix)),
+
+    e_newSerialNumber(0),
+    e_newNamePrefix("e_new-name-"),
+    e_newNamePrefixLen(strlen(e_newNamePrefix))
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
@@ -1856,6 +1860,14 @@ PQ_name *Env::makeTempName()
   // been through the string table.  Don't know if this will work.
   char *name0 = strdup(stringc << tempNamePrefix << tempSerialNumber++);
   return new PQ_name(loc(), name0);
+}
+
+char const *Env::makeE_newVarName()
+{
+  // FIX: this name is a string, not a StringRef, because it has not
+  // been through the string table.  Don't know if this will work.
+  char const *name0 = strdup(stringc << e_newNamePrefix << e_newSerialNumber++);
+  return name0;
 }
 
 // EOF

@@ -4392,7 +4392,7 @@ static E_variable *wrapVarWithE_variable(Env &env, Variable *var)
   switch(var->scopeKind) {
   default:
   case SK_UNKNOWN:
-    xfailure("shouldn't get here");
+    xfailure("E_variable *wrapVarWithE_variable: var->scopeKind == SK_UNKNOWN; shouldn't get here");
     break;
   case SK_TEMPLATE:
     xfailure("don't handle template scopes yet");
@@ -5521,6 +5521,14 @@ Type *E_new::itcheck_x(Env &env, Expression *&replacement)
 
   // TODO: check for a constructor in 't' which accepts these args
   // (partially subsumed by overload resolution, above)
+  // dsw: I suppose the ctor elaboration here is effectively the
+  // paragraph above.
+  if (t->isCompoundType()) {
+    xassert(!var);
+    var = env.makeVariable(env.loc(), env.makeE_newVarName(), t, DF_NONE);
+    xassert(ctorArgs);          // I'll bet this fails
+    ctorStatement = makeCtorStatement(env, var, t, ctorArgs->list);
+  }
 
   return env.makePtrType(SL_UNKNOWN, t);
 }
