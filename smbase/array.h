@@ -162,6 +162,8 @@ public:
 
   void popMany(int ct)
     { len -= ct; xassert(len >= 0); }
+  void empty()
+    { len = 0; }
 };
 
 template <class T>

@@ -98,7 +98,7 @@ public:
   // multiple lists
   void concat(VoidList &tail);           // tail is emptied, nodes appended to this
   void appendAll(VoidList const &tail);	 // tail is untouched.. but its contents are now exposed to non-constness... ug... oh well
-  VoidList& operator= (VoidList const &src);
+  VoidList& operator= (VoidList const &src);  // afterwards, 'this' and 'src' have same contents
 
   // steal (become the container for) the tail of a source list at any
   // point; if 'index' is 0, the entire 'source' is stolen (i.e.
