@@ -277,7 +277,14 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
     // everything not explicitly covered will be considered
     // an error (for now), even though the C++ spec says
     // it should be treated as if the backslash were not there
-    xformat("unknown escape code");
+    //
+    // UPDATE: now making backslash the identity transformation in
+    // this case
+    //
+    // copy character as if it had not been backslashed
+    sb << *src;
+    destLen++;
+    src++;
   }
 
   // copy to 'dest'
