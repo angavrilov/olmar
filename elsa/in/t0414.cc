@@ -57,3 +57,10 @@ namespace N3 {
   // invalid redeclaration
   //ERROR(3): typedef int S;
 }
+
+
+typedef struct S S;
+void foo()
+{
+  struct S s;
+}

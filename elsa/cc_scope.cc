@@ -720,17 +720,20 @@ Variable *Scope::lookupSingleVariable(StringRef name, LookupFlags flags)
   if (flags & LF_QUERY_TAGS) {
     return vfilter(typeTags.get(name), flags);
   }
-
-  Variable *v = vfilter(variables.get(name), flags);
-
-  if (!v && (flags & LF_ONLY_TYPES)) {
-    // 3.4.4p2,3: what we are really implementing is "ignoring any
-    // non-type names that have been declared"; if 'v' is NULL because
-    // it was a non-type, we need to "ignore" it by looking in tags too
-    v = vfilter(typeTags.get(name), flags);
+      
+  if (flags & LF_ONLY_TYPES) {
+    // 3.4.4p2,3: what we are implementing is "ignoring any non-type
+    // names that have been declared"; in C++ mode it does not matter
+    // whether we look in the tags or the variables first
+    // (in/t0414.cc), but in C mode we must look in tags first
+    // (in/c/t0019.c)
+    Variable *v = vfilter(typeTags.get(name), flags);
+    if (v) {
+      return v;
+    }
   }
 
-  return vfilter(v, flags);
+  return vfilter(variables.get(name), flags);
 }
 
 void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
