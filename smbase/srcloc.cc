@@ -6,6 +6,7 @@
 #include "array.h"      // ArrayStack
 #include "syserr.h"     // xsyserror
 #include "trace.h"      // traceProgress
+#include "hashline.h"   // HashLineMap
 
 #include <stdio.h>      // FILE, etc.
 
@@ -33,18 +34,21 @@ void addLineLength(ArrayStack<unsigned char> &lengths, int len)
 SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   : name(n),
     startLoc(aStartLoc),     // assigned by SourceLocManager
+    hashLines(NULL),
 
     // valid marker/col for the first char in the file
     marker(0, 1, 0),
     markerCol(1)
 {
-  // the buffering that FILE does is going to be wasted, but
-  // portability is probably more important than squeezing
-  // more performance out of the i/o calls
   FILE *fp = fopen(name, "r");
   if (!fp) {
     throw_XOpen(name);
   }
+
+  // the buffering that FILE would do would be wasted, so
+  // make it unbuffered (if this causes a problem on some
+  // system it can be commented-out)
+  setbuf(fp, NULL);
 
   // These are growable versions of the indexes.  They will be
   // discarded after the file has been read.  They keep track of their
@@ -142,18 +146,21 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
 
   this->lineLengthsSize = lineLengths.length();
   this->lineLengths = new unsigned char[lineLengthsSize];
-  memcpy(this->lineLengths, lineLengths.getArray(), 
+  memcpy(this->lineLengths, lineLengths.getArray(),
          lineLengthsSize * sizeof(this->lineLengths[0]));
 
   this->indexSize = index.length();
   this->index = new Marker[indexSize];
-  memcpy(this->index, index.getArray(), 
+  memcpy(this->index, index.getArray(),
          indexSize * sizeof(this->index[0]));
 }
 
 
 SourceLocManager::File::~File()
 {
+  if (hashLines) { 
+    delete hashLines;
+  }
   delete[] lineLengths;
 }
 
@@ -241,6 +248,58 @@ int SourceLocManager::File::lineToChar(int lineNum)
 }
 
 
+int SourceLocManager::File::lineColToChar(int lineNum, int col)
+{
+  // use the above function first
+  int offset = lineToChar(lineNum);
+
+  // now, we use an property established by the previous function:
+  // the marker points at the line of interest, possibly offset from
+  // the line start by 'markerCol-1' places
+  if (col <= markerCol) {
+    // the column we want is not even beyond the marker's column,
+    // so it's surely not beyond the end of the line, so do the
+    // obvious thing
+    return offset + (col-1);
+  }
+
+  // we're at least as far as the marker; move the offset up to
+  // this far, and subtract from 'col' so it now represents the
+  // number of chars yet to traverse on this line
+  offset = marker.charOffset;
+  col -= markerCol;       // 'col' is now 0-based
+
+  // march to the end of the line, looking for either the end or a
+  // line length component which goes beyond 'col'; I don't move the
+  // marker itself out of concern for preserving the locality of
+  // future accesses
+  int index = marker.arrayOffset;
+  for (;;) {
+    int len = (int)lineLengths[index];
+    if (col <= len) {
+      // 'col' doesn't go beyond this component, we're done
+      // (even if len==255 it still works)
+      return offset + col;
+    }
+    if (len < 255) {
+      // the line ends here, truncate and we're done
+      SourceLocManager::shortLineCount++;
+      return offset + len;
+    }
+
+    // the line continues
+    xassertdb(len == 255);
+
+    col -= 254;
+    offset += 254;
+    xassertdb(col > 0);
+
+    index++;
+    xassert(index < lineLengthsSize);
+  }
+}
+
+
 void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 {
   if (offset == numChars) {
@@ -294,12 +353,24 @@ void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 }
 
 
+void SourceLocManager::File::addHashLine
+  (int ppLine, int origLine, char const *origFname)
+{
+  if (!hashLines) {
+    hashLines = new HashLineMap(name);
+  }
+  hashLines->addHashLine(ppLine, origLine, origFname);
+}
+
+
 // ----------------------- StaticLoc -------------------
 SourceLocManager::StaticLoc::~StaticLoc()
 {}
 
 
 // ----------------------- SourceLocManager -------------------
+int SourceLocManager::shortLineCount = 0;
+
 SourceLocManager *sourceLocManager = NULL;
 
 
@@ -309,7 +380,8 @@ SourceLocManager::SourceLocManager()
     statics(),
     nextLoc(toLoc(1)),
     nextStaticLoc(toLoc(0)),
-    maxStaticLocs(100)
+    maxStaticLocs(100),
+    useHashLines(true)
 {
   if (!sourceLocManager) {
     sourceLocManager = this;
@@ -390,8 +462,13 @@ SourceLoc SourceLocManager::encodeLineCol(
   File *f = getFile(filename);
 
   // map from a line number to a char offset
-  int charOffset = f->lineToChar(line);
-  return toLoc(toInt(f->startLoc) + charOffset + (col-1));
+  #if 1  // new
+    int charOffset = f->lineColToChar(line, col);
+    return toLoc(toInt(f->startLoc) + charOffset);
+  #else  // old
+    int charOffset = f->lineToChar(line);
+    return toLoc(toInt(f->startLoc) + charOffset + (col-1));
+  #endif
 }
 
 
@@ -464,6 +541,32 @@ void SourceLocManager::decodeOffset(
   File *f = findFileWithLoc(loc);
   filename = f->name.pcharc();
   charOffset = toInt(loc) - toInt(f->startLoc);
+  
+  if (useHashLines && f->hashLines) {
+    // we can't pass charOffsets directly through the #line map, so we
+    // must first map to line/col and then back to charOffset after
+    // going through the map
+
+    // map to a pp line/col
+    int ppLine, ppCol;
+    f->charToLineCol(charOffset, ppLine, ppCol);
+
+    // map to original line/file
+    int origLine;
+    char const *origFname;
+    f->hashLines->map(ppLine, origLine, origFname);
+
+    // get a File for the original file; this opens that file
+    // and scans it for line boundaries
+    File *orig = getFile(origFname);
+
+    // use that map to get an offset, truncating columns that are
+    // beyond the true line ending (happens due to macro expansion)
+    charOffset = orig->lineColToChar(origLine, ppCol);
+    
+    // filename is whatever #line said
+    filename = origFname;             
+  }
 }
 
 
@@ -484,6 +587,13 @@ void SourceLocManager::decodeLineCol(
   int charOffset = toInt(loc) - toInt(f->startLoc);
   
   f->charToLineCol(charOffset, line, col);
+  
+  if (useHashLines && f->hashLines) {       
+    // use the #line map to determine a new file/line pair; simply
+    // assume that the column information is still correct, though of
+    // course in C, due to macro expansion, it isn't always
+    f->hashLines->map(line, line, filename);
+  }
 }
 
 

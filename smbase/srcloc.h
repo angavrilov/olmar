@@ -25,6 +25,8 @@
 #include "str.h"      // string
 #include "objlist.h"  // ObjList
 
+class HashLineMap;    // hashline.h
+
 
 // This is a source location.  It's interpreted as an integer
 // specifying the byte offset within a hypothetical file created by
@@ -70,6 +72,7 @@ private:     // types
       : DMEMB(charOffset), DMEMB(lineOffset), DMEMB(arrayOffset) {}
   };
 
+public:      // types
   // describes a file we know about
   class File {
   public:    // data
@@ -80,7 +83,7 @@ private:     // types
 
     // start offset in the SourceLoc space
     SourceLoc startLoc;
-    
+
     // number of chars in the file
     int numChars;
 
@@ -92,8 +95,12 @@ private:     // types
     // it's stored instead of computed to save a division)
     int avgCharsPerLine;
 
+    // known #line directives for this file; NULL if none are known
+    HashLineMap *hashLines;          // (nullable owner)
+
+  private:   // data
     // an array of line lengths; to handle lines longer than 255
-    // chars, we use runs of '255' chars to (in unary) encode
+    // chars, we use runs of '\xFF' chars to (in unary) encode
     // multiples of 254 (one less than 255) chars, plus the final
     // short count to give the total length
     unsigned char *lineLengths;      // (owner)
@@ -127,6 +134,9 @@ private:     // types
     // line number to character offset
     int lineToChar(int lineNum);
 
+    // line/col to offset, with truncation if col exceeds line length
+    int lineColToChar(int lineNum, int col);
+
     // char offset to line/col
     void charToLineCol(int offset, int &line, int &col);
 
@@ -134,9 +144,12 @@ private:     // types
     bool hasLoc(SourceLoc sl) const
       { return toInt(startLoc) <= sl &&
                                   sl <= toInt(startLoc) + numChars; }
+
+    // call this time each time a #line directive is encountered;
+    // same semantics as HashLineMap::addHashLine
+    void addHashLine(int ppLine, int origLine, char const *origFname);
   };
 
-public:      // types
   // this is used for SourceLocs where the file isn't reliably
   // available, yet we'd like to be able to store some location
   // information anyway; the queries below just return the static
@@ -178,6 +191,18 @@ public:      // data
   // number of static locations at which we print a warning message;
   // defaults to 100
   int maxStaticLocs;
+
+  // when true, we automatically consult the #line maps when decoding;
+  // defaults to true; NOTE: when this is true, encode and decode are
+  // not necessarily inverses of each other
+  bool useHashLines;
+
+  // count the # of times we had to truncate a char offset because
+  // the #line map pointed at a line shorter than the column number
+  // we expected to use; this is initially 0; calling code can use
+  // this to tell if the offset information across a given call or
+  // sequence of calls is perfect or truncated
+  static int shortLineCount;
 
 private:     // funcs
   // let File know about these functions
@@ -244,6 +269,10 @@ public:      // funcs
   int getOffset(SourceLoc loc);
   int getLine(SourceLoc loc);
   int getCol(SourceLoc loc);
+
+  // get access to the File itself, for adding #line directives
+  File *getInternalFile(SourceLoc loc)
+    { return findFileWithLoc(loc); }
 
   // render as string in "file:line:col" format
   string getString(SourceLoc loc);
