@@ -81,18 +81,52 @@ unsigned long crc32(unsigned char const *data, int length)
 // ----------------- test code ------------------------------
 #ifdef TEST_CRC
 
-#include <stdio.h>
+#include <stdio.h>     // printf, FILE, etc.
+#include <stdlib.h>    // malloc
 
+
+int errors=0;
 
 void testCrc(char const *data, int length, unsigned long crc)
-{
+{     
+  unsigned long val = crc32((unsigned char*)data, length);
   printf("computed crc is 0x%08lX, expected is 0x%08lX\n",
-         crc32((unsigned char*)data, length), ~crc);
+         val, ~crc);       // why is 'crc' inverted?
+  if (val != ~crc) {
+    errors++;
+  }
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
+  // if there's an argument, crc that
+  if (argc >= 2) {
+    FILE *fp = fopen(argv[1], "r");
+    if (!fp) {
+      printf("error opening %s: %m\n", argv[1]);
+      return 2;
+    }
+
+    // get length
+    fseek(fp, 0, SEEK_END);
+    int len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // read the entire contents
+    unsigned char *buf = (unsigned char*)malloc(len);
+    if (fread(buf, 1, len, fp) != (size_t)len) {
+      printf("read error, or short count..\n");
+      return 2;
+    }
+
+    // crc it
+    long val = crc32(buf, len);
+    printf("crc32: 0x%08lX\n", val);
+
+    return 0;
+  }
+
   /* 40 Octets filled with "0" */
   /* CPCS-UU = 0, CPI = 0, Length = 40, CRC-32 = 864d7f99 */
   char pkt_data1[48]={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -130,7 +164,7 @@ int main()
   testCrc(pkt_data3, 44, 0xbf671ed0);
   testCrc(pkt_data4, 44, 0xacba602a);
 
-  return 0;
+  return errors;
 }
 
 #endif // TEST_CRC

@@ -5420,7 +5420,7 @@ static int cpuinfo (int whole, unsigned long *kernel, unsigned long *user) {
 void checkHeap()
 {
   /* 2.6.6: malloc_update_mallinfo(); */
-  do_check_malloc_state();
+  check_malloc_state();
 }
 
 void checkHeapNode(void *node)

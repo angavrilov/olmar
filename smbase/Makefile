@@ -70,7 +70,7 @@ objlist.h: xobjlist.h
 # add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
 # normally -O3 is specified
 malloc.o: malloc.c
-	gcc -c -g -O3 -DDEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
+	gcc -c -g -O3 -DNO_DEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc mysig.h
@@ -150,6 +150,9 @@ tobjpool: tobjpool.cc objpool.h
 
 cycles: cycles.h cycles.c
 	gcc -Wall -g -o cycles -DTEST_CYCLES cycles.c
+
+crc: crc.cpp
+	gcc -Wall -g -o crc -DTEST_CRC crc.cpp
 
 check: $(tests-files)
 	./nonport

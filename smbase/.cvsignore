@@ -26,3 +26,5 @@ strutil
 mypopen
 tmalloc
 tobjpool
+crc
+cycles
