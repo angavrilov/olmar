@@ -26,18 +26,6 @@
 // included in generated header
 verbatim {
   #include "cc_flags.h"      // CVFlags, DeclFlags, etc. (r)
-
-  //#include <stdio.h>         // printf, for ad-hoc debugging
-
-  class Env;                 // cc_env.h
-  class PrintEnv;            // cc_print.h
-} // end verbatim
-
-// included in generated source file
-// (note that the generated source file always #includes the
-// generated header file)
-impl_verbatim {
-  //#include "cc_type.h"       // Type
 }
 
 
@@ -45,15 +33,10 @@ impl_verbatim {
 // an entire file (with included stuff) of toplevel forms; I use
 // an ASTList here because I want to use left recursion, and
 // there's never a multiple-yield problem with toplevel forms
-class TranslationUnit (ASTList<TopForm> topForms) {
-  // pretty printer
-  public void print(PrintEnv &env);
-}
+class TranslationUnit (ASTList<TopForm> topForms);
 
 // a toplevel form
 class TopForm (SourceLocation loc) {
-  pure_virtual void print(PrintEnv &env);
-
   // includes function prototypes
   -> TF_decl(Declaration decl);
 
@@ -88,9 +71,7 @@ class Function (
   S_compound body,              // body of function
 
   FakeList<Handler> *handlers   // handlers for ctor "try" block
-) {
-  public void print(PrintEnv &env);
-}
+);
 
 class MemberInit (
   PQName name,                   // name of member or base class
@@ -108,9 +89,7 @@ class Declaration (
   enum DeclFlags dflags,               // typedef, virtual, extern, etc.
   TypeSpecifier spec,                  // e.g. "int"
   FakeList<Declarator> *decllist       // e.g. "x=3, y"
-) {
-  public void print(PrintEnv &env);
-}
+);
 
 
 // just one complete type; appears in parameter decls and in casts
@@ -134,9 +113,6 @@ class ASTTypeId (
       return;     // skip the normal, unambiguous-node print code
     }
   }
-
-
-  public void print(PrintEnv &env);
 }
 
 // a name with optional class qualifiers (PQ: "possibly qualified");
@@ -155,9 +131,6 @@ class PQName {
 
   // get the PQName at the bottom of any qualifiers
   public PQName const *getUnqualifiedName() const;
-
-
-  pure_virtual void print(PrintEnv &env);
 
 
   // outer qualifier applied to some inner PQName, plus an optional
@@ -179,12 +152,6 @@ class PQName {
   -> PQ_template(StringRef name, FakeList<TemplateArgument> *args);
 }
 
-verbatim {
-  // so clients outside cc_print.cc can print these lists; this
-  // does *not* print the surrounding angle brackets
-  void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args);
-}
-
 
 // a name of an "atomic" type--one to which type constructors
 // (e.g. '*') can be applied, but which itself is not syntactically
@@ -197,8 +164,6 @@ class TypeSpecifier {
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
-
-  pure_virtual void print(PrintEnv &env);
 
   // a typedef'd name (typedef might be implicit, as for classes);
   // if 'typenamedUsed' is true, then the user said "typename", so
@@ -245,8 +210,6 @@ class BaseClassSpec (
   PQName name                           // name of base class
 ) {
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
-
-  public void print(PrintEnv &env);
 }
 
 
@@ -260,8 +223,6 @@ class Member (SourceLocation loc) {
   -> MR_func(Function f);               // function with body
   -> MR_access(AccessKeyword k);        // section header
   -> MR_publish(PQName name);           // publish a superclass member
-
-  pure_virtual void print(PrintEnv &env);
 }
 
 // a binding of a name to a constant value
@@ -271,8 +232,6 @@ class Enumerator (
   Expression /*nullable*/ expr          // constant expr, or NULL for "next"
 ) {
   public Enumerator *next;  ctor next=NULL;     // FakeList link
-
-  public void print(PrintEnv &env);
 }
 
 
@@ -303,8 +262,6 @@ class Declarator (
 
   // dig down and find the name being declared; may return NULL
   public PQName const *getDeclaratorId() const;
-
-  public void print(PrintEnv &env);
 }
 
 
@@ -319,8 +276,6 @@ class IDeclarator {
 
   // skip any toplevel grouping operators
   public IDeclarator *skipGroups();
-
-  public void print(PrintEnv &env);
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
@@ -362,9 +317,7 @@ class IDeclarator {
 // can be thrown
 class ExceptionSpec (
   FakeList<ASTTypeId> *types       // list of allowable types; might be empty (NULL)
-) {
-  public void print(PrintEnv &env);
-}
+);
 
 // names for operator and conversion functions
 class OperatorName {
@@ -419,10 +372,6 @@ class Statement (SourceLocation loc) {
     }
   }
 
-
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-
   // e.g. "S_if@4:5" -- kind, line, col
   //public string kindLocString() const;
 
@@ -452,8 +401,6 @@ class Statement (SourceLocation loc) {
 class Condition {
   -> CN_expr(Expression expr);      // simple expression
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
-
-  pure_virtual void print(PrintEnv &env);
 }
 
 // exception handler
@@ -464,8 +411,6 @@ class Handler (
 
   -> HR_type(ASTTypeId typeId);     // handles given type of exception
   -> HR_default();                  // handles any type; synactically "..."
-
-  pure_virtual void print(PrintEnv &env);
 }
 
 
@@ -495,14 +440,6 @@ class Expression {
       return;     // skip the normal, unambiguous-node print code
     }
   }
-
-
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-  public string exprToString() const;
-
-  // unparse the expression
-  //pure_virtual string toString() const;
 
 
   -> E_boolLit(bool b);
@@ -563,10 +500,6 @@ class Expression {
   -> E_typeidType(ASTTypeId type);
 }
 
-verbatim {
-  char *expr_toString(Expression *e);    // for debugging
-}
-
 
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
@@ -580,8 +513,6 @@ class ExpressionListOpt (
 // animals which appear after declarations to assign initial values
 class Initializer {
   public Initializer *next;  ctor next=NULL;       // FakeList link
-
-  pure_virtual void print(PrintEnv &env);
 
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
@@ -610,9 +541,6 @@ class InitLabel {
 class TemplateDeclaration (
   FakeList<TemplateParameter> *params
 ) {
-  public void print(PrintEnv &env);
-  pure_virtual void iprint(PrintEnv &env);
-
   // declare a template function
   -> TD_func(Function f);
 
@@ -624,8 +552,6 @@ class TemplateDeclaration (
 // one of the parameters to a template declaration
 class TemplateParameter (SourceLocation loc) {
   public TemplateParameter *next;  ctor next=NULL;   // FakeList link
-
-  pure_virtual void print(PrintEnv &env);
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
@@ -640,8 +566,6 @@ class TemplateParameter (SourceLocation loc) {
 // one of the arguments to a template instantiation
 class TemplateArgument {
   public TemplateArgument *next;  ctor next=NULL;   // FakeList link
-
-  pure_virtual void print(PrintEnv &env);
 
   // return a canonical string for this template argument,
   // such that different arguments get different strings

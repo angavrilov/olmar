@@ -297,7 +297,7 @@ libelkhound.a: $(glr-set)
 # specific instructions for cc.ast, so I can add extension modules
 cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast cc/cc_tcheck.ast $(AST)/astgen
 	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
-	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast cc/cc_tcheck.ast
+	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast cc/cc_tcheck.ast cc/cc_print.ast
 	chmod a-w cc/cc.ast.gen.cc cc/cc.ast.gen.h
 
 # don't delete these because error messages often point into them
