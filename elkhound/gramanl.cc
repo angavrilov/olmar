@@ -13,6 +13,7 @@
 #include "grampar.h"     // readGrammarFile
 #include "emitcode.h"    // EmitCode
 #include "strutil.h"     // replace
+#include "ckheap.h"      // numMallocCalls
 
 #include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
@@ -2182,7 +2183,15 @@ void GrammarAnalysis::constructLRItemSets()
     &ItemSet::dataToKey,
     &ItemSet::hash,
     &ItemSet::equalKey);
-  SObjList<ItemSet> pendingList;
+    
+  // the 'list' is actually an array, to avoid allocation
+  GrowArray<ItemSet*> pendingList(5);    // TODO: increase to 100
+  int pendingLength = 0;                 // # items in 'pendingList'
+  #define ADD_PENDING(item) \
+    pendingList.setIndexDoubler(pendingLength++, item)
+  #define REMOVE_PENDING() \
+    pendingList[--pendingLength]
+  //SObjList<ItemSet> pendingList;
 
   // item sets with all outgoing links processed
   OwnerHashTable<ItemSet> itemSetsDone(
@@ -2230,26 +2239,52 @@ void GrammarAnalysis::constructLRItemSets()
 
     // this makes the initial pending itemSet
     itemSetsPending.add(is, is);              // (ownership transfer)
-    pendingList.prepend(is);
+    //pendingList.prepend(is);
+    ADD_PENDING(is);
   }
 
+  #if 1    // track malloc stuff
+    // track how much allocation we're doing
+    unsigned mallocCt = numMallocCalls();
+
+    // nothing should have been allocated recently; if it has, then
+    // print a warning
+    #define CHECK_MALLOC_STATS(desc)                                              \
+      {                                                                           \
+        unsigned newCt = numMallocCalls();                                        \
+        if (mallocCt != newCt) {                                                  \
+          cout << (newCt - mallocCt) << " malloc calls during " << desc << endl;  \
+          mallocCt = newCt;                                                       \
+        }                                                                         \
+      }
+
+    // some unavoidable allocation just happened, so just update counter
+    #define UPDATE_MALLOC_STATS() \
+      mallocCt = numMallocCalls();
+  #else
+    #define CHECK_MALLOC_STATS(desc)
+    #define UPDATE_MALLOC_STATS()
+  #endif
+
   // for each pending item set
-  while (pendingList.isNotEmpty()) {
-    ItemSet *itemSet = pendingList.removeFirst();      // dequeue (owner)
+  while (pendingLength > 0) {
+    //ItemSet *itemSet = pendingList.removeFirst();
+    ItemSet *itemSet = REMOVE_PENDING();               // dequeue (owner)
     itemSetsPending.remove(itemSet);                   // (ownership transfer)
 
     // put it in the done set; note that we must do this *before*
     // the processing below, to properly handle self-loops
     itemSetsDone.add(itemSet, itemSet);                // (ownership transfer; 'itemSet' becomes serf)
 
-    SObjList<LRItem> items;
-    itemSet->getAllItems(items);
-
     if (tr) {
       trace("lrsets") << "state " << itemSet->id
-                      << ", " << items.count() << " items total"
-                      << endl;
+                      << ", " << itemSet->kernelItems.count()
+                      << " kernel items and "
+                      << itemSet->nonkernelItems.count()
+                      << " nonkernel items" << endl;
     }
+
+    CHECK_MALLOC_STATS("top of pending list loop");
 
     // for each production in the item set where the
     // dot is not at the right end
@@ -2266,6 +2301,8 @@ void GrammarAnalysis::constructLRItemSets()
       for (; !itemIter.isDone(); itemIter.adv()) {
         LRItem const *item = itemIter.data();
         if (item->isDotAtEnd()) continue;
+
+        CHECK_MALLOC_STATS("top of item list loop");
 
         if (tr) {
           ostream &trs = trace("lrsets");
@@ -2298,6 +2335,8 @@ void GrammarAnalysis::constructLRItemSets()
         moveDotNoClosure(itemSet, sym, scratchState,
                          unusedTail, kernelCRCArray);
         ItemSet *withDotMoved = scratchState;    // clarify role from here down
+
+        CHECK_MALLOC_STATS("moveDotNoClosure");
 
         // see if we already have it, in either set
         ItemSet *already = itemSetsPending.get(withDotMoved);
@@ -2336,7 +2375,8 @@ void GrammarAnalysis::constructLRItemSets()
               // but we're not: move it back to the 'pending' list
               itemSetsDone.remove(already);
               itemSetsPending.add(already, already);
-              pendingList.prepend(already);
+              //pendingList.prepend(already);
+              ADD_PENDING(already);
             }
           }
 
@@ -2346,6 +2386,8 @@ void GrammarAnalysis::constructLRItemSets()
 
           // and use existing one for setting the transition function
           withDotMoved = already;
+          
+          CHECK_MALLOC_STATS("state merging");
         }
         else {
           // we don't already have it; need to actually allocate & copy
@@ -2357,9 +2399,12 @@ void GrammarAnalysis::constructLRItemSets()
           // finish it by computing its closure
           itemSetClosure(*withDotMoved);
 
+          UPDATE_MALLOC_STATS();
+
           // then add it to 'pending'
           itemSetsPending.add(withDotMoved, withDotMoved);
-          pendingList.prepend(withDotMoved);
+          //pendingList.prepend(withDotMoved);
+          ADD_PENDING(withDotMoved);
         }
 
         // setup the transition function
@@ -2372,6 +2417,8 @@ void GrammarAnalysis::constructLRItemSets()
           // make sure the link restoration process works as expected
           xassert(scratchState->kernelItems.count() >= INIT_LIST_LEN);
         #endif
+
+        CHECK_MALLOC_STATS("end of item loop");
 
       } // for each item
     } // 0=kernel, 1=nonkernel
@@ -2418,6 +2465,11 @@ void GrammarAnalysis::constructLRItemSets()
       itemSet.data()->writeGraph(out, *this);
     }
   }
+
+  #undef CHECK_MALLOC_STATS
+  #undef UPDATE_MALLOC_STATS
+  #undef ADD_PENDING
+  #undef REMOVE_PENDING
 }
 
 
