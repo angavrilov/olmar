@@ -303,11 +303,12 @@ enum UberModifiers {
   UM_FLOAT        = 0x00100000,
   UM_DOUBLE       = 0x00200000,
   UM_VOID         = 0x00400000,
+  UM_LONG_LONG    = 0x00800000,    // GNU extension
 
-  UM_TYPEKEYS     = 0x007FF000,
+  UM_TYPEKEYS     = 0x00FFF000,
 
-  UM_ALL_FLAGS    = 0x007FFFFF,
-  UM_NUM_FLAGS    = 23             // # bits set in UM_ALL_FLAGS
+  UM_ALL_FLAGS    = 0x00FFFFFF,
+  UM_NUM_FLAGS    = 24             // # bits set in UM_ALL_FLAGS
 };
 
 // string repr.

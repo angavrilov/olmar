@@ -57,6 +57,14 @@ SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m
     case UM_LONG | UM_DOUBLE:             return ST_LONG_DOUBLE;
     case UM_VOID:                         return ST_VOID;
 
+    // GNU extensions
+    case UM_UNSIGNED | UM_LONG_LONG | UM_INT:  return ST_UNSIGNED_LONG_LONG;
+    case UM_UNSIGNED | UM_LONG_LONG:           return ST_UNSIGNED_LONG_LONG;
+    case UM_SIGNED | UM_LONG_LONG | UM_INT:    return ST_LONG_LONG;
+    case UM_SIGNED | UM_LONG_LONG:             return ST_LONG_LONG;
+    case UM_LONG_LONG | UM_INT:                return ST_LONG_LONG;
+    case UM_LONG_LONG:                         return ST_LONG_LONG;
+
     default:
       cout << loc.toString() << ": error: malformed type: "
            << toString(m) << endl;
@@ -69,9 +77,17 @@ SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m
 UberModifiers ParseEnv
   ::uberCombine(SourceLocation const &loc, UberModifiers m1, UberModifiers m2)
 {
-  // for future reference: if I want to implement GNU long long, just
-  // test for 'long' in each modifier set and if so set another flag,
-  // e.g. UM_LONG_LONG; only if *that* one is already set would I complain
+  // check for long long (GNU extension)
+  if (m1 & m2 & UM_LONG) {
+    // were there already two 'long's?
+    if ((m1 | m2) & UM_LONG_LONG) {
+      cout << loc.toString() << ": error: too many `long's" << endl;
+    }
+
+    // make it look like only m1 had 'long long' and neither had 'long'
+    m1 = (UberModifiers)((m1 & ~UM_LONG) | UM_LONG_LONG);
+    m2 = (UberModifiers)(m2 & ~(UM_LONG | UM_LONG_LONG));
+  }
 
   // any duplicate flags?
   UberModifiers dups = (UberModifiers)(m1 & m2);
