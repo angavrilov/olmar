@@ -824,9 +824,9 @@ fgets_wrapper (char *buf, int size, FILE * fp)
   {
      
     tmp = (FILE *) __ptrof_nocheck ((void *) fp);
-     
-    res = fgets ((char *) tmp___0, size, (FILE *) tmp);
-     
+
+//    res = fgets ((char *) tmp___0, size, (FILE *) tmp);
+
     return (tmp___1);
   }
 }
@@ -840,7 +840,7 @@ gets_wrapper (char *buffer)
   char *tmp___2;
   char *tmp___3;
   {
-    tmp = get_stdin ();
+//    tmp = get_stdin ();
      
     tmp___1 = __ptrof_nocheck ((void *) buffer);
     tmp___2 =

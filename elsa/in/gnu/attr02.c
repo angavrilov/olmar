@@ -19,12 +19,13 @@ void f()
   // It may go either immediately after the struct, union or enum keyword,
   struct __attribute__((blah)) Struct1 {};
   union __attribute__((blah)) Union1 {};
-  enum __attribute__((blah)) Enum1 { e1 };
+  enum __attribute__((blah)) Enum1 { enum1 };
 
   // or after the closing brace.
   struct Struct2 {} __attribute__((blah));
+  struct Struct2a {} __attribute__((blah)) some_declarator;
   union Union2 {} __attribute__((blah));
-  enum Enum2 { e2 } __attribute__((blah));
+  enum Enum2 { enum2 } __attribute__((blah));
 
   // subsequent text indicates it is allowed (though ignored) after
   // the keyword in an elaborated type specifier (no "{}")
@@ -90,7 +91,10 @@ int g3(__attribute((blah)) int x, __attribute((blah)) int y) {}
 // absence of type specifiers, such a list of specifiers and
 // qualifiers may be an attribute specifier list with no other
 // specifiers or qualifiers.
-        __attribute__((blah)) /*implicit-int*/                   x6;
+//
+// I have commented this out because Elsa does not have implicit-int
+// support.
+//         __attribute__((blah)) /*implicit-int*/                   x6;
 
 
 // An attribute specifier list may appear immediately before a
@@ -100,6 +104,16 @@ int g3(__attribute((blah)) int x, __attribute((blah)) int y) {}
 int a1, __attribute__((blah)) a2;
 int b1, __attribute__((blah)) *b2;
 int c1, * __attribute__((blah)) c2;     // nested declarators?  guess so...
+int * __attribute__((blah)) d1;         // nested declarator on *first* one
+int ( __attribute__((blah)) e1);        // nested declarator inside paren
+int ( __attribute__((blah)) h1), ( __attribute__((blah)) h2);
+//int ( i1 __attribute__((blah)) );       // end of parenthesized?  NO
+
+// mixed in with cv-qualifiers?  only in gcc >= 3
+int c1c, * const __attribute__((blah)) c2c;
+#if defined(__GNUC__) && __GNUC__ >= 3
+int c1cv, * const __attribute__((blah)) volatile c2cv;
+#endif
 
 // try this in function scope too
 void h()
@@ -107,13 +121,16 @@ void h()
   int a1, __attribute__((blah)) a2;
   int b1, __attribute__((blah)) *b2;
   int c1, * __attribute__((blah)) c2;     // nested declarator
+  int * __attribute__((blah)) d1;         // nested declarator on *first* one
+  int ( __attribute__((blah)) e1);        // nested declarator inside paren
+  int ( __attribute__((blah)) h1), ( __attribute__((blah)) h2);
 }
 
 // example from the manual; only works in gcc >= 3
 #if defined(__GNUC__) && __GNUC__ >= 3
-__attribute__((noreturn)) void d0 (void),
-         __attribute__((format(printf, 1, 2))) d1 (const char *, ...),
-          d2 (void)   ;   // why was the semicolon missing?
+__attribute__((noreturn)) void ex_d0 (void),
+         __attribute__((format(printf, 1, 2))) ex_d1 (const char *, ...),
+          ex_d2 (void)   ;   // why was the semicolon missing?
 #endif
 
 
@@ -138,21 +155,6 @@ char *__attribute__((aligned(8))) *ii1;
 
 
 // NOTE: I did not test the thing about qualifiers inside [].
-
-
-// http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Asm-Labels.html
-
-// You can specify the name to be used in the assembler code for a C
-// function or variable by writing the asm (or __asm__) keyword after
-// the declarator as follows:
-
-int foo asm ("myfoo") = 2;
-
-// Where an assembler name for an object or function is specified (see
-// Asm Labels), at present the attribute must follow the asm
-// specification
-
-int foo2 asm ("myfoo2") __attribute((blah)) = 3;
 
 
 // EOF

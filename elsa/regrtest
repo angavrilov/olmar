@@ -658,8 +658,8 @@ if $use_gnu; then
   testparse gnu/g0008.cc
   # g0009.c is a C test
   testparse gnu/g0010.cc
-  failparse gnu/g0011.cc "important: parse error"
-  failparse gnu/g0012.cc "important: parse error"
+  testparse gnu/g0011.cc
+  testparse gnu/g0012.cc
   testparse gnu/g0013.cc
   testparse gnu/g0014.cc
 
@@ -768,7 +768,10 @@ if $use_gnu; then
 
   # attribute tests
   runTest ./ccparse -tr c_lang in/gnu/attr01.c
-  failTest "attribute support is incomplete" ./ccparse -tr c_lang in/gnu/attr02.c
+  runTest ./ccparse -tr c_lang in/gnu/attr02.c
+                                           
+  # asm tests
+  failTest "incomplete support for Asm Labels" ./ccparse -tr c_lang in/gnu/asm01.c
 
   # tests (primarily for __attribute__) from CIL
   testcil() {
@@ -779,16 +782,16 @@ if $use_gnu; then
   }
 
   testcil align1.i
-  failcil align2.i "(unknown)"
+  testcil align2.i
   testcil attr2.i
-  failcil attr3.i "(unknown)"
-  failcil attr4.i "(unknown)"
+  testcil attr3.i
+  testcil attr4.i
   testcil attr5.i
   testcil attr6.i
-  failcil bind-zero.i "(unknown)"
+  testcil bind-zero.i
   testcil combine_samefn_1.i
-  failcil decl1.i "(unknown)"
-  failcil enumattr.i "(unknown)"
+  failcil decl1.i "can add volatile later"
+  testcil enumattr.i
   testcil globalprob.i
   testcil init8.i
   testcil invalredef.i
@@ -797,11 +800,11 @@ if $use_gnu; then
   testcil rmtmps-attr.i
   testcil rmtmps2.i
   testcil sockaddr.i
-  failcil structattr.i "(unknown)"
-  failcil structattr2.i "(unknown)"
+  testcil structattr.i
+  testcil structattr2.i
   testcil structattr3.i
   testcil transpunion.i
-  failcil typeof1.i "(unknown)"
+  failcil typeof1.i "something weird"
   testcil warnings-noreturn.i
 fi
 
