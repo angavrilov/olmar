@@ -593,7 +593,7 @@ void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
 void HGen::emitCommonFuncs(char const *virt)
 {
   // declare the functions they all have
-  out << "  " << virt << "void debugPrint(ostream &os, int indent) const;\n";
+  out << "  " << virt << "void debugPrint(ostream &os, int indent, char const *subtreeName = \"tree\") const;\n";
   if (wantXMLPrint) {
     out << "  " << virt << "void xmlPrint(ostream &os, int indent) const;\n";
   }
@@ -794,7 +794,7 @@ void CGen::emitTFClass(TF_class const &cls)
 
 
   // debugPrint
-  out << "void " << cls.super->name << "::debugPrint(ostream &os, int indent) const\n";
+  out << "void " << cls.super->name << "::debugPrint(ostream &os, int indent, char const *subtreeName) const\n";
   out << "{\n";
   if (!cls.hasChildren()) {
     // childless superclasses get the preempt in the superclass;
@@ -803,7 +803,7 @@ void CGen::emitTFClass(TF_class const &cls)
 
     // childless superclasses print headers; otherwise the subclass
     // prints the header
-    out << "  PRINT_HEADER(" << cls.super->name << ");\n";
+    out << "  PRINT_HEADER(subtreeName, " << cls.super->name << ");\n";
     out << "\n";
   }
 
@@ -874,18 +874,18 @@ void CGen::emitTFClass(TF_class const &cls)
     emitDestructor(ctor);
 
     // subclass debugPrint
-    out << "void " << ctor.name << "::debugPrint(ostream &os, int indent) const\n";
+    out << "void " << ctor.name << "::debugPrint(ostream &os, int indent, char const *subtreeName) const\n";
     out << "{\n";
 
     // the debug print preempter is declared in the outer "class",
     // but inserted into the print methods of the inner "constructors"
     emitCustomCode(cls.super->decls, "preemptDebugPrint");
 
-    out << "  PRINT_HEADER(" << ctor.name << ");\n";
+    out << "  PRINT_HEADER(subtreeName, " << ctor.name << ");\n";
     out << "\n";
 
     // call the superclass's fn to get its data members
-    out << "  " << cls.super->name << "::debugPrint(os, indent);\n";
+    out << "  " << cls.super->name << "::debugPrint(os, indent, subtreeName);\n";
     out << "\n";
 
     emitCustomCode(ctor.decls, "debugPrint");

@@ -126,13 +126,13 @@ ostream &ind(ostream &os, int indent);
 // switch and recompile..
 #if 1
   // headers w/o addresses
-  #define PRINT_HEADER(clsname)         \
-    ind(os, indent) << #clsname ":\n";  \
+  #define PRINT_HEADER(subtreeName, clsname)                 \
+    ind(os, indent) << subtreeName << " = " #clsname ":\n";  \
     indent += 2   /* user ; */
 #else
   // headers w/ addresses
-  #define PRINT_HEADER(clsname)                                   \
-    ind(os, indent) << #clsname " (" << ((void*)this) << "):\n";  \
+  #define PRINT_HEADER(subtreeName, clsname)                                           \
+    ind(os, indent) << subtreeName << " = " #clsname " (" << ((void*)this) << "):\n";  \
     indent += 2   /* user ; */
 #endif
 
@@ -152,9 +152,11 @@ void debugPrintList(ASTList<T> const &list, char const *name,
                     ostream &os, int indent)
 {
   ind(os, indent) << name << ":\n";
+  int ct=0;
   {
     FOREACH_ASTLIST(T, list, iter) {
-      iter.data()->debugPrint(os, indent+2);
+      iter.data()->debugPrint(os, indent+2,
+        stringc << name << "[" << ct++ << "]");
     }
   }
 }
@@ -174,9 +176,11 @@ void debugPrintFakeList(FakeList<T> const *list, char const *name,
                         ostream &os, int indent)
 {
   ind(os, indent) << name << ":\n";
+  int ct=0;
   {
     FAKELIST_FOREACH(T, list, iter) {
-      iter->debugPrint(os, indent+2);
+      iter->debugPrint(os, indent+2,
+        stringc << name << "[" << ct++ << "]");
     }
   }
 }
@@ -187,7 +191,7 @@ void debugPrintFakeList(FakeList<T> const *list, char const *name,
 
 #define PRINT_SUBTREE(tree)                     \
   if (tree) {                                   \
-    (tree)->debugPrint(os, indent);             \
+    (tree)->debugPrint(os, indent, #tree);      \
   }                                             \
   else {                                        \
     ind(os, indent) << #tree << " is null\n";   \
