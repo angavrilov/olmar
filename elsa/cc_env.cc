@@ -358,8 +358,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // this can be turned off with its own flag, or in C mode (since I
     // have not implemented any of the relaxed C rules)
     doCompareArgsToParams(!tracingSys("doNotCompareArgsToParams") && L.isCplusplus),
-    
-    doReportTemplateErrors(tracingSys("strict")),
+
+    // 2005-03-09: things are finally ready to turn strict checking
+    // on by default
+    doReportTemplateErrors(!tracingSys("permissive")),
                                                               
     collectLookupResults(""),
     
