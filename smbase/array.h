@@ -6,6 +6,8 @@
 
 #include "xassert.h"      // xassert
 
+
+// ------------------ GrowArray --------------------
 template <class T>
 class GrowArray {
 private:     // data
@@ -126,6 +128,38 @@ void GrowArray<T>::ensureIndexDoubler(int index)
 
   setLength(newLen);
 }
+
+
+// ---------------------- ArrayStack ---------------------
+template <class T>
+class ArrayStack {
+private:
+  GrowArray<T> arr;      // array implementing stack
+  int size;              // # of elts in the stack
+
+public:
+  ArrayStack(int initArraySize = 10)
+    : arr(initArraySize),
+      size(0)
+    {}
+  ~ArrayStack();
+
+  void push(T &val)
+    { arr.setIndexDoubler(size++, val); }
+  T pop()
+    { return arr[--size]; }
+
+  int getSize() const
+    { return size; }
+  bool isEmpty() const
+    { return size==0; }
+  bool isNotEmpty() const
+    { return !isEmpty(); }
+};
+
+template <class T>
+ArrayStack<T>::~ArrayStack()
+{}
 
 
 #endif // ARRAY_H
