@@ -718,6 +718,10 @@ class TemplateArgument {
 
   pure_virtual void tcheck(Env &env);
 
+  // return a canonical string for this template argument,
+  // such that different arguments get different strings
+  pure_virtual string argString() const;
+
   // type argument, corresponds to a TP_type parameter
   -> TA_type(ASTTypeId type);
 

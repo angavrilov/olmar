@@ -15,18 +15,18 @@ Scope::Scope(int cc, SourceLocation const &initLoc)
     canAcceptNames(true),
     curCompound(NULL),
     curFunction(NULL),
-    templateParams(NULL),
+    curTemplateParams(NULL),
     curLoc(initLoc)
 {}
 
 Scope::~Scope()
 {
-  if (templateParams) {
+  if (curTemplateParams) {
     // this happens when I open a template-param scope for
     // a template class member function; the member function
     // doesn't need the params (since the class carries them)
     // so they stay here until deleted
-    delete templateParams;
+    delete curTemplateParams;
   }
 }
 

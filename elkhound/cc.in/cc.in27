@@ -2,7 +2,7 @@
 // template classes
 
 // forward decl
-template <class TT> class Foo;
+template <class T> class Foo;
 
 //ERROR2: template <class TT, class YY> class Foo;     // inconsistent
 

@@ -281,7 +281,8 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     forward(true),
     keyword(k),
     bases(),
-    templateParams(NULL)
+    templateInfo(NULL),
+    syntax(NULL)
 {
   curCompound = this;
   curAccess = (k==K_CLASS? AK_PRIVATE : AK_PUBLIC);
@@ -290,8 +291,8 @@ CompoundType::CompoundType(Keyword k, StringRef n)
 CompoundType::~CompoundType()
 {
   bases.deleteAll();
-  if (templateParams) {
-    delete templateParams;
+  if (templateInfo) {
+    delete templateInfo;
   }
 }
 
@@ -321,8 +322,8 @@ string CompoundType::toCString() const
 {
   stringBuilder sb;
   
-  if (templateParams) {
-    sb << templateParams->toString() << " ";
+  if (templateInfo) {
+    sb << templateInfo->toString() << " ";
   }
 
   sb << keywordName(keyword) << " "
