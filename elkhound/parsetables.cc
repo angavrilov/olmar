@@ -19,7 +19,7 @@ enum { UNASSIGNED = -1 };
 // fwd
 template <class EltType>
 void printTable(EltType const *table, int size, int rowLength,
-                char const *typeName, char const *tableName);
+                rostring typeName, rostring tableName);
 
 
 ParseTables::ParseTables(int t, int nt, int s, int p, StateId start, int final)
@@ -1060,7 +1060,7 @@ int ParseTables::colorTheGraph(int *color, Bit2d &graph)
 // create literal tables
 template <class EltType>
 void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
-               char const *typeName, char const *tableName)
+               rostring typeName, rostring tableName)
 {
   if (!table || !size) {
     out << "  " << typeName << " *" << tableName << " = NULL;\n";
@@ -1129,7 +1129,7 @@ stringBuilder& operator<< (stringBuilder &sb, ParseTables::ProdInfo const &info)
 // like 'emitTable', but also set a local called 'tableName'
 template <class EltType>
 void emitTable2(EmitCode &out, EltType const *table, int size, int rowLength,
-                char const *typeName, char const *tableName)
+                rostring typeName, rostring tableName)
 {
   string tempName = stringc << tableName << "_static";
   emitTable(out, table, size, rowLength, typeName, tempName);
@@ -1140,7 +1140,7 @@ void emitTable2(EmitCode &out, EltType const *table, int size, int rowLength,
 
 template <class EltType>
 void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
-                     char const *typeName, char const *tableName, char const *baseName)
+                     rostring typeName, rostring tableName, rostring baseName)
 {
   if (!table) {
     out << "  " << tableName << " = NULL;\n\n";
@@ -1191,7 +1191,7 @@ void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
 // for debugging
 template <class EltType>
 void printTable(EltType const *table, int size, int rowLength,
-                char const *typeName, char const *tableName)
+                rostring typeName, rostring tableName)
 {            
   // disabled for now since I don't need it anymore, and it adds
   // a link dependency on emitcode.cc ...
@@ -1210,7 +1210,7 @@ void printTable(EltType const *table, int size, int rowLength,
 // construct this same table (except the constructed table won't own
 // the table data, since it will point to static program data)
 void ParseTables::emitConstructionCode(EmitCode &out,
-  char const *className, char const *funcName)
+  rostring className, rostring funcName)
 {
   // must have already called 'finishTables'
   xassert(!temp);

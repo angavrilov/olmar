@@ -170,7 +170,7 @@ string MLSubstrate::getDeclName() const
 {
   // go with the rather inelegant heuristic that the word
   // just before the first '(' is the function's name
-  char const *start = text.pcharc();
+  char const *start = text.c_str();
   char const *p = start;
   
   // find first '('
@@ -197,7 +197,7 @@ string MLSubstrate::getDeclName() const
   p++;    // move back to most recent legal char
   
   // done
-  return string(p, nameEnd-p);
+  return substring(p, nameEnd-p);
 }
 
 

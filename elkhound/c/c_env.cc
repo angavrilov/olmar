@@ -89,7 +89,7 @@ void CFGEnv::resolveGotos()
   // go over all the gotos and find their corresponding target
   for (StringSObjDict<S_goto>::Iter iter(gotos);
        !iter.isDone(); iter.next()) {    
-    S_label *target = labels.queryif(iter.key());
+    S_label *target = labels.queryif(iter.key().c_str());
     if (target) {
       iter.value()->next = makeNextPtr(target, false);
     }

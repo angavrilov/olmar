@@ -15,7 +15,7 @@ private:     // data
   int line;            // current line number
 
 public:      // funcs
-  EmitCode(char const *fname);
+  EmitCode(rostring fname);
   ~EmitCode();
 
   string const &getFname() const { return fname; }

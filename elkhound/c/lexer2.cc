@@ -256,7 +256,7 @@ KeywordMap c_KeywordMap[] = {
 };
 
 
-Lexer2TokenType lookupKeyword(CCLang &lang, char const *keyword)
+Lexer2TokenType lookupKeyword(CCLang &lang, rostring keyword)
 {
   // works?
   STATIC_ASSERT(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
@@ -430,15 +430,15 @@ string Lexer2Token::unparseString() const
 void Lexer2Token::print() const
 {
   printf("[L2] Token at %s: %s\n",
-         toString(loc).pcharc(), toString().pcharc());
+         toString(loc).c_str(), toString().c_str());
 }
 
 
-void quotedUnescape(string &dest, int &destLen, char const *src,
+void quotedUnescape(ArrayStack<char> &dest, rostring src,
                     char delim, bool allowNewlines)
 {
   // strip quotes or ticks
-  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2),
+  decodeEscapes(dest, substring(toCStr(src)+1, strlen(src)-2),
                 delim, allowNewlines);
 }
 
@@ -482,11 +482,10 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
       stringBuilder sb;
       sb << prevToken->strValue;
 
-      string tempString;
-      int tempLength;
-      quotedUnescape(tempString, tempLength, L1->text, '"',
+      ArrayStack<char> tempString;
+      quotedUnescape(tempString, L1->text, '"',
                      src.allowMultilineStrings);
-      sb.append(tempString, tempLength);
+      sb.append(tempString.getArray(), tempString.length());
 
       prevToken->strValue = dest.idTable.add(sb);
       continue;
@@ -504,70 +503,62 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
           L2->type = lookupKeyword(dest.lang, L1->text);
           if (L2->type == L2_NAME) {
             // save name's text
-            L2->strValue = dest.idTable.add(L1->text);
+            L2->strValue = dest.idTable.add(L1->text.c_str());
           }
           break;
 
         case L1_INT_LITERAL:
           L2->type = L2_INT_LITERAL;
-          L2->intValue = strtoul(L1->text, NULL /*endptr*/, 0 /*radix*/);
+          L2->intValue = strtoul(L1->text.c_str(), NULL /*endptr*/, 0 /*radix*/);
           break;
 
         case L1_FLOAT_LITERAL:
           L2->type = L2_FLOAT_LITERAL;
-          L2->floatValue = new float(atof(L1->text));
+          L2->floatValue = new float(atof(L1->text.c_str()));
           break;
 
         case L1_STRING_LITERAL: {
           L2->type = L2_STRING_LITERAL;
-          string tmp;
-          int tmpLen;
-          
-          char const *srcText = L1->text.pcharc();
+
+          char const *srcText = L1->text.c_str();
           if (*srcText == 'L') srcText++;
 
-          quotedUnescape(tmp, tmpLen, srcText, '"',
+          ArrayStack<char> tmp;
+          quotedUnescape(tmp, srcText, '"',
                          src.allowMultilineStrings);
-          if (tmpLen != tmp.length()) {
-            cout << "warning: literal string with embedded nulls not handled properly\n";
+
+          for (int i=0; i<tmp.length(); i++) {
+            if (tmp[i]==0) {
+              cout << "warning: literal string with embedded nulls not handled properly\n";
+              break;
+            }
           }
 
-          L2->strValue = dest.idTable.add(tmp);
+          L2->strValue = dest.idTable.add(tmp.getArray());
           break;
         }
 
         case L1_UDEF_QUAL: {
           L2->type = L2_UDEF_QUAL;
-
-          // dsw: there is no chance that there are weird characters.
-//            string tmp;
-//            int tmpLen;
-//            quotedUnescape(tmp, tmpLen, L1->text, '"',
-//                           src.allowMultilineStrings);
-//            if (tmpLen != tmp.length()) {
-//              cout << "warning: literal string with embedded nulls not handled properly\n";
-//            }
-
-          L2->strValue = dest.idTable.add(L1->text);
+          L2->strValue = dest.idTable.add(L1->text.c_str());
           break;
         }
 
         case L1_CHAR_LITERAL: {
           L2->type = L2_CHAR_LITERAL;
-          int tempLen;
-          string temp;
 
-          char const *srcText = L1->text.pcharc();
+          char const *srcText = L1->text.c_str();
           if (*srcText == 'L') srcText++;
 
-          quotedUnescape(temp, tempLen, srcText, '\'',
+          ArrayStack<char> tmp;
+          quotedUnescape(tmp, srcText, '\'',
                          false /*allowNewlines*/);
 
-          if (tempLen != 1) {
+          if (tmp.length() != 1) {
             xformat("character literal must have 1 char");
           }
 
-          L2->charValue = temp[0];
+          L2->charValue = tmp[0];
           break;
         }
 

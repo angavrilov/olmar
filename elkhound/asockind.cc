@@ -6,9 +6,14 @@
 
 string toString(AssocKind k)
 {
-  static char const * const arr[NUM_ASSOC_KINDS] = {
-    "AK_LEFT", "AK_RIGHT", "AK_NONASSOC"
+  static char const * const arr[] = {
+    "AK_LEFT", 
+    "AK_RIGHT", 
+    "AK_NONASSOC", 
+    "AK_NEVERASSOC", 
+    "AK_SPLIT"
   };
+  STATIC_ASSERT(TABLESIZE(arr) == NUM_ASSOC_KINDS);
   xassert((unsigned)k < NUM_ASSOC_KINDS);
   return string(arr[k]);
 }

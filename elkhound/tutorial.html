@@ -249,7 +249,7 @@ more informative.
       case TOK_IDENTIFIER:   return "id";
       default: {
         static char const map[] = "+-*()";
-        return string(&amp;map[kind-TOK_PLUS], 1);
+        return substring(&amp;map[kind-TOK_PLUS], 1);
       }
     }
   }
@@ -273,7 +273,7 @@ it's not the <tt>main()</tt> function of the completed parser program.
 
       // print the returned token
       string desc = lexer.tokenDesc();
-      printf("%s\n", (char const*)desc);
+      printf("%s\n", desc.c_str());
 
       if (lexer.type == TOK_EOF) {
         break;
@@ -631,8 +631,8 @@ information, and sometimes it isn't clear where the problem
 actually lies.  Also, not every conflict leads to an ambiguity.
 
 <p>For those familiar with other parser generators, you may
-find yourself wanting to see the entire LR table.  To do that,
-add "<tt>-tr conflict</tt>" to the <tt>elkhound</tt> command
+find yourself wanting to see the entire LR table.  For that,
+add "<tt>-tr lrtable</tt>" to the <tt>elkhound</tt> command
 line.  It will write another file (<tt>gcom.out</tt>).
 
 <a name="sec5.2"></a>
@@ -972,7 +972,7 @@ whole GCom language.  The lexer header gets some new tokens,
 
     -> x:TOK_IDENTIFIER ":=" a:AExp {
          // like above, use the environment variables
-         setenv(x, stringf("%d", a), 1 /*overwrite*/);
+         putenv(strdup(stringf("%s=%d", x, a).c_str()));
        }
 
     -> Stmt ";" Stmt {
@@ -1240,7 +1240,7 @@ well:
 
   int A_var::eval(Env &amp;env)
   {
-    return env.get(x);
+    return env.get(x.c_str());
   }
 
   int A_bin::eval(Env &amp;env)

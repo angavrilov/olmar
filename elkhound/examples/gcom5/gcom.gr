@@ -92,7 +92,7 @@ nonterm Stmt {
 
   -> x:TOK_IDENTIFIER ":=" a:AExp {
        // like above, use the environment variables
-       putenv(strdup(stringf("%s=%d", x, a)));
+       putenv(strdup(stringf("%s=%d", x, a).c_str()));
      }
 
   -> Stmt ";" Stmt {

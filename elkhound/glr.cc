@@ -2453,6 +2453,9 @@ void GLR::writeParseGraph(char const *fname) const
 // (candidate for adding to 'str' module)
 string readFileIntoString(char const *fname)
 {
+  return readStringFromFile(fname);
+                                   
+  #if 0   // old
   // open file
   FILE *fp = fopen(fname, "r");
   if (!fp) {
@@ -2473,7 +2476,7 @@ string readFileIntoString(char const *fname)
 
   // allocate a sufficiently large buffer
   string ret(len);
-  
+
   // read the file into that buffer
   if (fread(ret.pchar(), 1, len, fp) < (size_t)len) {
     xsyserror("fread");
@@ -2486,6 +2489,7 @@ string readFileIntoString(char const *fname)
 
   // return the new string
   return ret;
+  #endif // 0
 }
 
 

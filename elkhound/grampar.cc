@@ -44,7 +44,7 @@ Environment::~Environment()
 
 // -------------------- XASTParse --------------------
 STATICDEF string XASTParse::
-  constructMsg(LocString const &tok, char const *msg)
+  constructMsg(LocString const &tok, rostring msg)
 {
   if (tok.validLoc()) {
     if (tok.isNonNull()) {
@@ -60,7 +60,7 @@ STATICDEF string XASTParse::
   }
 }
 
-XASTParse::XASTParse(LocString const &tok, char const *m)
+XASTParse::XASTParse(LocString const &tok, rostring m)
   : xBase(constructMsg(tok, m)),
     failToken(tok),
     message(m)
@@ -89,18 +89,18 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
 
 
 // really a static semantic error, more than a parse error..
-void astParseError(LocString const &failToken, char const *msg)
+void astParseError(LocString const &failToken, rostring msg)
 {
   THROW(XASTParse(failToken, msg));
 }
 
-void astParseError(SourceLoc loc, char const *msg)
+void astParseError(SourceLoc loc, rostring msg)
 {
   LocString locstr(loc, NULL);
   THROW(XASTParse(locstr, msg));
 }
 
-void astParseError(char const *msg)
+void astParseError(rostring msg)
 {
   LocString ls;   // no location info
   THROW(XASTParse(ls, msg));
@@ -108,7 +108,7 @@ void astParseError(char const *msg)
 
 // print the same message, but keep going anyway
 void astParseErrorCont(Environment &env, LocString const &failToken,
-                       char const *msg)
+                       rostring msg)
 {
   XASTParse x(failToken, msg);
   cout << x.why() << endl;
@@ -182,7 +182,8 @@ LocString extractActionClassName(LocString const &body)
   while (isalnum(*p) || *p=='_') p++;
   
   // yield that, with the same source location
-  return LocString(body.loc, grammarStringTable.add(string(start, p-start)));
+  return LocString(body.loc, grammarStringTable.add(
+    substring(start, p-start).c_str()));
 }
 
 
@@ -1170,8 +1171,10 @@ void mergeGrammar(GrammarAST *base, GrammarAST *ext)
 // ---------------- external interface -------------------
 bool isGramlexEmbed(int code);     // defined in gramlex.lex
 
-GrammarAST *parseGrammarFile(char const *fname, bool useML)
+GrammarAST *parseGrammarFile(rostring origFname, bool useML)
 {
+  string fname = origFname;
+
   #ifndef NDEBUG
   if (tracingSys("yydebug")) {
     yydebug = true;    // this flag goes away when NDEBUG is specified..
@@ -1180,11 +1183,11 @@ GrammarAST *parseGrammarFile(char const *fname, bool useML)
 
   // open input file
   Owner<ifstream> in;
-  if (fname == NULL) {
+  if (fname.empty()) {
     fname = "<stdin>";
   }
   else {
-    in = new ifstream(fname);
+    in = new ifstream(fname.c_str());
     if (!*in) {
       xsyserror("open", stringc << "error opening input file " << fname);
     }
@@ -1199,7 +1202,7 @@ GrammarAST *parseGrammarFile(char const *fname, bool useML)
   // build lexer
   GrammarLexer lexer(isGramlexEmbed,
                      grammarStringTable,
-                     fname,
+                     fname.c_str(),
                      in.xfr(),
                      embed);
   if (embed) {
@@ -1254,7 +1257,7 @@ void parseGrammarAST(Grammar &g, GrammarAST *treeTop)
 }
 
 
-void readGrammarFile(Grammar &g, char const *fname)
+void readGrammarFile(Grammar &g, rostring fname)
 {
   // make sure the tree gets deleted
   Owner<GrammarAST> treeTop(parseGrammarFile(fname, false /*useML*/));

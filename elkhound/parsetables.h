@@ -7,6 +7,7 @@
 
 #include "array.h"        // ArrayStack
 #include "glrconfig.h"    // compression options
+#include "str.h"          // string
 #include <iostream.h>     // ostream
 
 class Flatten;            // flatten.h
@@ -321,10 +322,10 @@ public:     // funcs
 
   // write the tables out as C++ source that can be compiled into
   // the program that will ultimately do the parsing
-  void emitConstructionCode(EmitCode &out, char const *className, char const *funcName);
+  void emitConstructionCode(EmitCode &out, rostring className, rostring funcName);
 
   // this does the same thing for ML, and is implemented in genml.cc
-  void emitMLConstructionCode(EmitCode &out, char const *className, char const *funcName);
+  void emitMLConstructionCode(EmitCode &out, rostring className, rostring funcName);
 
 
   // -------------------- table construction ------------------------

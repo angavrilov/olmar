@@ -6,9 +6,9 @@
 #include "srcloc.h"        // SourceLoc
 #include "trace.h"         // tracingSys
 
-EmitCode::EmitCode(char const *f)
+EmitCode::EmitCode(rostring f)
   : stringBuilder(),
-    os(f),
+    os(f.c_str()),
     fname(f),
     line(1)
 {
@@ -33,7 +33,7 @@ int EmitCode::getLine()
 void EmitCode::flush()
 {
   // count newlines
-  char const *p = pcharc();
+  char const *p = c_str();
   while (*p) {
     if (*p == '\n') {
       line++;

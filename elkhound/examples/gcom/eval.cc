@@ -17,7 +17,7 @@ Binding::~Binding()
 // --------------------- Env -------------------
 static char const *bindToName(Binding *b)
 {
-  return b->name;
+  return b->name.c_str();
 }
 
 Env::Env()
@@ -60,7 +60,7 @@ int A_lit::eval(Env &env)
 
 int A_var::eval(Env &env)
 {
-  return env.get(x);
+  return env.get(x.c_str());
 }
 
 int A_bin::eval(Env &env)
@@ -116,12 +116,12 @@ void S_abort::eval(Env &env)
 
 void S_print::eval(Env &env)
 {
-  printf("%s is %d\n", (char const*)x, env.get(x));
+  printf("%s is %d\n", x.c_str(), env.get(x.c_str()));
 }
 
 void S_assign::eval(Env &env)
 {
-  env.set(x, a->eval(env));
+  env.set(x.c_str(), a->eval(env));
 }
 
 void S_seq::eval(Env &env)

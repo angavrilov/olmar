@@ -197,7 +197,7 @@ int main()
     
     // print the returned token
     string desc = lexer.tokenDesc();
-    printf("%s\n", (char const*)desc);
+    printf("%s\n", desc.c_str());
 
     if (lexer.type == TOK_EOF) {
       break;

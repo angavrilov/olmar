@@ -3867,7 +3867,7 @@ void GrammarAnalysis::addTreebuildingActions()
       if (elt->sym->isNonterminal()) {
         // use a generic tag
         string tag = stringc << "t" << ct++;
-        elt->tag = STR(tag);
+        elt->tag = STR(tag.c_str());
 
         code << ", " << tag;
       }
@@ -4135,8 +4135,8 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
 // because that's all they need; there's no problem upgrading them
 // to GrammarAnalysis
 void emitDescriptions(GrammarAnalysis const &g, EmitCode &out);
-void emitActionCode(GrammarAnalysis const &g, char const *hFname,
-                    char const *ccFname, char const *srcFname);
+void emitActionCode(GrammarAnalysis const &g, rostring hFname,
+                    rostring ccFname, rostring srcFname);
 void emitUserCode(EmitCode &out, LocString const &code, bool braces = true);
 void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl);
 void emitDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl);
@@ -4160,8 +4160,8 @@ string actionFuncName(Production const &prod)
 
 
 // emit the user's action code to a file
-void emitActionCode(GrammarAnalysis const &g, char const *hFname,
-                    char const *ccFname, char const *srcFname)
+void emitActionCode(GrammarAnalysis const &g, rostring hFname,
+                    rostring ccFname, rostring srcFname)
 {
   EmitCode dcl(hFname);
   if (!dcl) {
@@ -4277,7 +4277,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   out << "\n";
 
   g.tables->finishTables();
-  g.tables->emitConstructionCode(out, g.actionClassName, "makeTables");
+  g.tables->emitConstructionCode(out, string(g.actionClassName), "makeTables");
 
   // I put this last in the context class, and make it public
   dcl << "\n"
@@ -4723,7 +4723,7 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
                     ObjList<Symbol> const &syms, int whichFunc,
                     char const *templateCode, char const *actUpon)
 {
-  out << replace(signature, "$acn", g.actionClassName) << "\n"
+  out << replace(signature, "$acn", string(g.actionClassName)) << "\n"
          "{\n"
          "  switch (" << switchVar << ") {\n";
 
@@ -4737,7 +4737,7 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
         whichFunc==4 && sym.asTerminalC().classifyCode) {
       out << "    case " << sym.getTermOrNontermIndex() << ":\n";
       out << replace(replace(templateCode,
-               "$symName", sym.name),
+               "$symName", string(sym.name)),
                "$symType", notVoid(sym.type));
     }
   }
@@ -4924,7 +4924,7 @@ int inner_entry(int argc, char **argv)
   g.printProductions(trace("grammar") << endl);
 
   string setsFname = stringc << prefix << ".out";
-  g.runAnalyses(tracingSys("lrtable")? setsFname.pcharc() : NULL);
+  g.runAnalyses(tracingSys("lrtable")? setsFname.c_str() : NULL);
   if (g.errors) {
     return 2;
   }
@@ -4955,7 +4955,7 @@ int inner_entry(int argc, char **argv)
   if (tracingSys("bison")) {
     string bisonFname = stringc << prefix << ".y";
     traceProgress() << "writing bison-compatible grammar to " << bisonFname << endl;
-    ofstream out(bisonFname);
+    ofstream out(bisonFname.c_str());
     g.printAsBison(out);
   }
 

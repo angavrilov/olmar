@@ -21,8 +21,8 @@
 // because that's all they need; there's no problem upgrading them
 // to GrammarAnalysis
 void emitMLDescriptions(GrammarAnalysis const &g, EmitCode &out);
-void emitMLActionCode(GrammarAnalysis const &g, char const *mliFname,
-                      char const *mlFname, char const *srcFname);
+void emitMLActionCode(GrammarAnalysis const &g, rostring mliFname,
+                      rostring mlFname, rostring srcFname);
 void emitMLUserCode(EmitCode &out, LocString const &code, bool braces = true);
 void emitMLActions(Grammar const &g, EmitCode &out, EmitCode &dcl);
 void emitMLDupDelMerge(GrammarAnalysis const &g, EmitCode &out, EmitCode &dcl);
@@ -31,7 +31,7 @@ void emitMLFuncDecl(Grammar const &g, EmitCode &out, EmitCode &dcl,
 void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
                       Symbol const &sym);
 void emitMLSwitchCode(Grammar const &g, EmitCode &out,
-                      char const *signature, char const *switchVar,
+                      rostring signature, char const *switchVar,
                       ObjList<Symbol> const &syms, int whichFunc,
                       char const *templateCode, char const *actUpon);
 
@@ -49,8 +49,8 @@ string actionFuncName(Production const &prod)
 
 
 // emit the user's action code to a file
-void emitMLActionCode(GrammarAnalysis const &g, char const *mliFname,
-                      char const *mlFname, char const *srcFname)
+void emitMLActionCode(GrammarAnalysis const &g, rostring mliFname,
+                      rostring mlFname, rostring srcFname)
 {
   EmitCode dcl(mliFname);
   if (!dcl) {
@@ -196,7 +196,7 @@ void emitMLActionCode(GrammarAnalysis const &g, char const *mliFname,
       ;
 
   g.tables->finishTables();
-  g.tables->emitMLConstructionCode(out, g.actionClassName, "makeTables");
+  g.tables->emitMLConstructionCode(out, string(g.actionClassName), "makeTables");
 
   #if 0   // not implemented
     // I put this last in the context class, and make it public
@@ -573,11 +573,11 @@ void emitMLDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
 }
 
 void emitMLSwitchCode(Grammar const &g, EmitCode &out,
-                      char const *signature, char const *switchVar,
+                      rostring signature, char const *switchVar,
                       ObjList<Symbol> const &syms, int whichFunc,
                       char const *templateCode, char const *actUpon)
 {
-  out << replace(signature, "$acn", g.actionClassName) << " =\n"
+  out << replace(signature, "$acn", string(g.actionClassName)) << " =\n"
          "begin\n"
          "  match " << switchVar << " with\n"
          ;
@@ -592,7 +592,7 @@ void emitMLSwitchCode(Grammar const &g, EmitCode &out,
         whichFunc==4 && sym.asTerminalC().classifyCode) {
       out << "  | " << sym.getTermOrNontermIndex() << " -> (\n";
       out << replace(replace(templateCode,
-               "$symName", sym.name),
+               "$symName", string(sym.name)),
                "$symType", notVoid(sym.type));
       out << "    )\n";
     }
@@ -801,7 +801,7 @@ void printMLTable(EltType const *table, int size, int rowLength,
 // construct this same table (except the constructed table won't own
 // the table data, since it will point to static program data)
 void ParseTables::emitMLConstructionCode
-  (EmitCode &out, char const *className, char const *funcName)
+  (EmitCode &out, rostring className, rostring funcName)
 {
   // must have already called 'finishTables'
   xassert(!temp);

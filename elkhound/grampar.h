@@ -98,10 +98,10 @@ public:
 // --------------- grampar's external interface -----------
 // parse grammar file 'fname' into grammar 'g', throwing exceptions
 // if there are problems
-void readGrammarFile(Grammar &g, char const *fname);
+void readGrammarFile(Grammar &g, rostring fname);
 
 // just do the parsing stage
-GrammarAST *parseGrammarFile(char const *fname, bool useML);
+GrammarAST *parseGrammarFile(rostring fname, bool useML);
 
 // merge two grammar descriptions; neither argument is consumed,
 // but subtrees of the 2nd argument get moved into the first tree
@@ -121,10 +121,10 @@ public:    // data
   string message;
 
 private:   // funcs
-  static string constructMsg(LocString const &tok, char const *msg);
+  static string constructMsg(LocString const &tok, rostring msg);
 
 public:    // funcs
-  XASTParse(LocString const &tok, char const *msg);
+  XASTParse(LocString const &tok, rostring msg);
   XASTParse(XASTParse const &obj);
   ~XASTParse();
 };

@@ -652,7 +652,7 @@ int Production::findTag(StringRef tag) const
 
 
 // assemble a possibly tagged name for printing
-string taggedName(char const *name, char const *tag)
+string taggedName(rostring name, char const *tag)
 {
   if (tag == NULL || tag[0] == 0) {
     return string(name);

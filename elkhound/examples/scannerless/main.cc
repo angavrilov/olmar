@@ -10,6 +10,7 @@
 
 #include <stdio.h>     // getchar
 #include <iostream.h>  // cout
+#include <string.h>    // strcmp
 
 
 class Lexer : public LexerInterface {
@@ -45,7 +46,7 @@ string Lexer::tokenDesc() const
 string Lexer::tokenKindDesc(int kind) const
 {
   string k = quoted(stringc << (char)kind);
-  return stringf("%s (%d)", k.pcharc(), kind);
+  return stringf("%s (%d)", k.c_str(), kind);
 }
 
 
