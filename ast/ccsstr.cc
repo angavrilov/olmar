@@ -16,10 +16,10 @@ CCSubstrate::CCSubstrate(ReportError &err)
   reset();
 }
 
-void CCSubstrate::reset()
+void CCSubstrate::reset(int initNest)
 {
   state = ST_NORMAL;
-  nesting = 0;
+  nesting = initNest;
   backslash = false;
   star = false;
   text.setlength(0);

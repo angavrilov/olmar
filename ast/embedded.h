@@ -33,7 +33,7 @@ public:
   virtual ~EmbeddedLang();    // silence warning
 
   // start from scratch
-  virtual void reset() = 0;
+  virtual void reset(int initNest = 0) = 0;
 
   // process the given string of characters, as source text in
   // the embedded language; 'finalDelim' is provided for printing

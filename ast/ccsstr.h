@@ -29,7 +29,7 @@ public:
 
   // EmbeddedLang entry points (see gramlex.h for description
   // of each function)
-  virtual void reset();
+  virtual void reset(int initNest = 0);
   virtual void handle(char const *str, int len, char finalDelim);
   virtual bool zeroNesting() const;
   virtual string getFuncBody() const;
