@@ -4,4 +4,5 @@
 fsync -l scott -rh madrone.cs \
       -rr /usr/scott/wrk/parsgen \
       -r `pwd` \
-      `ls ~/cvsroot/parsgen | grep -v / | sed s/,v//`
+      "$@" \
+      `ls -F ~/cvsroot/parsgen | grep -v / | sed s/,v//`
