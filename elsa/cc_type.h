@@ -412,6 +412,8 @@ public:     // funcs
   bool isSimpleType() const;
   SimpleType const *asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
+  bool isSimpleCharType() const {return isSimple(ST_CHAR);}
+  bool isSimpleWChar_TType() const {return isSimple(ST_WCHAR_T);}
   bool isIntegerType() const;            // any of the simple integer types
   bool isEnumType() const;
   bool isUnionType() const { return isCompoundTypeOf(CompoundType::K_UNION); }
