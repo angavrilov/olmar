@@ -108,7 +108,8 @@ LIB_OBJS := \
   ccsstr.o \
   embedded.o \
   asthelp.o \
-  strtable.o
+  strtable.o \
+  locstr.o
 
 libast.a: $(LIB_OBJS)
 	$(AR) -r $@ $(LIB_OBJS)
