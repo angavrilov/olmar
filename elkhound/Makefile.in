@@ -265,7 +265,7 @@ cc.gen.o: cparse.h
 # done last, but that breaks a dependency with cc_tree.cc and cc.h ..)
 ccgr-dep = cc.gen.o c.ast.gen.o cc_flags.o tcheck.o \
            absval.ast.gen.o vcgen.o aenv.o prover.o \
-           predicate.ast.gen.o ${cc-set}
+           predicate.ast.gen.o paths.o ${cc-set}
 
 aenv.o: predicate.ast.gen.h
 

@@ -73,7 +73,7 @@ public:
   int const tokenColumn;
 
   // the LR state the parser is in when this node is at the
-  // top ("at the top" means nothing, besides perhaps itself,
+  // top ("at the top" means that nothing, besides perhaps itself,
   // is pointing to it)
   ItemSet const * const state;                 // (serf)
 

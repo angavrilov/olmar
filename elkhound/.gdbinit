@@ -3,7 +3,7 @@
 #set width 200
 
 file ccgr
-set args -tr printTypedAST,stopAfterTCheck,tcheck cc.bin c.in3
+set args -tr printPaths,printTypedAST,stopAfterTCheck,tcheck cc.bin tcheck/loops.c
 
 #  break main
 #  break breaker

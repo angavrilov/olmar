@@ -6,6 +6,7 @@
 #include "cc_env.h"         // Env
 #include "strutil.h"        // quoted
 #include "trace.h"          // trace
+#include "paths.h"          // printPaths
 
 #define IN_PREDICATE(env) Restorer<bool> restorer(env.inPredicate, true)
 
@@ -103,6 +104,10 @@ void TF_func::tcheck(Env &env)
   
   // let the environment verify everything got cleaned up properly
   env.verifyFunctionEnd();
+  
+  if (tracingSys("printPaths")) {
+    printPaths(this);
+  }
 }
 
 
