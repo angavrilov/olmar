@@ -15,9 +15,6 @@ bg_push (
 
   ; then obj2 is modified to point at obj3
   (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
-  
-  ; and then obj3 points at obj1
-  (EQ mem2 (update mem1 obj3 next (pointer obj1 0)))
 )
 
 valid "inDegree0-surv-otherObj" (
@@ -76,12 +73,15 @@ notvalid "inDegree0-to-inDegree1" (
 )
 
 valid "inDegree1-surv-otherObj" (
-  (inDegree1 mem2 next obj3 obj2)
+  (IMPLIES
+    (EQ mem2 (update mem1 obj3 next (pointer obj1 0)))
+    (inDegree1 mem2 next obj3 obj2)
+  )
 )
 
 notvalid "inDegree1-surv-otherObj" (
   (IMPLIES
-    (EQ mem2b (update mem1 obj1 (pointer obj3 0)))
+    (EQ mem2b (update mem1 obj3 next (pointer obj3 0)))
     (inDegree1 mem2b next obj3 obj2)
   )
 )
