@@ -37,9 +37,10 @@ string mangleAtomic(AtomicType const *t)
 
       // sm: I'm sure this is a bug; the class name is always part
       // of the type...
-      //if (!(tsf & TTS_CANON)) {
-      //  sb << (name? name : "/*anonymous*/");
-      //}
+      // dsw: yup, it was a bug alright
+//        if (!(tsf & TTS_CANON)) {
+      sb << (ct->name? ct->name : "/*anonymous*/");
+//        }
 
       // template arguments are now in the name
       //if (templateInfo && templateInfo->specialArguments) {
