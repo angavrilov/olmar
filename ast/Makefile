@@ -5,7 +5,15 @@ SMBASE  := ../smbase
 CXX      := g++
 CXXFLAGS := -Wall -g -I. -I$(SMBASE) $(EXTRAARGS)
 CXXFLAGS += -Werror
+
+# to enable profiling
+CXXFLAGS += -pg
+
+# to turn on optimizer
+CXXFLAGS += -O2 -DNDEBUG
+
 COMPILE  := $(CXX) -c $(CXXFLAGS)
+
 
 LDFLAGS   := -Wall -g
 LINK      := $(CXX) $(LDFLAGS)

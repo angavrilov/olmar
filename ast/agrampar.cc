@@ -107,7 +107,11 @@ StringTable stringTable;
 ASTSpecFile *readAbstractGrammar(char const *fname)
 {
   if (tracingSys("yydebug")) {
-    yydebug = true;
+    #ifndef NDEBUG
+      yydebug = true;
+    #else
+      cout << "debugging disabled by -DNDEBUG\n";
+    #endif
   }
 
   Owner<GrammarLexer> lexer;

@@ -50,4 +50,14 @@ public:    // funcs
 // yields simply the string, no location info
 string toString(LocString const &s);
 
+
+// useful for constructing literal strings in source code; column
+// information isn't available so I just put in "1"
+#define LITERAL_LOCSTRING(str)                                   \
+  LocString(SourceLocation(FileLocation(__LINE__, 1),            \
+                           sourceFileList.open(__FILE__)),       \
+            str)
+
+
+
 #endif // LOCSTR_H
