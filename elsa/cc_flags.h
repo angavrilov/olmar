@@ -62,7 +62,8 @@ ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 // set of declaration modifiers present;
 // these modifiers apply to variable names;
 // they're now also being used for Variable (variable.h) flags;
-// values in common with UberModifiers must line up
+// values in common with UberModifiers (DF_AUTO through DF_TYPEDEF)
+// must line up
 //
 // TODO: These should be split up into two sets: flags that
 // exactly reflect the original syntax, and those that reflect
@@ -90,11 +91,10 @@ enum DeclFlags {
   DF_GLOBAL      = 0x00000800,    // set for globals, unset for locals
   DF_INITIALIZED = 0x00001000,    // true if has been declared with an initializer (or, for functions, with code)
   DF_BUILTIN     = 0x00002000,    // true for e.g. __builtin_constant_p -- don't emit later
-  DF_LOGIC       = 0x00004000,    // true for logic variables
   DF_ADDRTAKEN   = 0x00008000,    // true if it's address has been (or can be) taken
   DF_PARAMETER   = 0x00010000,    // true if this is a function parameter or a handler "parameter"
-  DF_UNIVERSAL   = 0x00020000,    // (requires DF_LOGIC) universally-quantified variable
-  DF_EXISTENTIAL = 0x00040000,    // (requires DF_LOGIC) existentially-quantified
+  DF_UNIVERSAL   = 0x00020000,    // universally-quantified variable
+  DF_EXISTENTIAL = 0x00040000,    // existentially-quantified
   DF_MEMBER      = 0x00080000,    // true for members of classes (data, static data, functions)
   DF_DEFINITION  = 0x00100000,    // set once we've seen this Variable's definition
   DF_INLINE_DEFN = 0x00200000,    // set for inline function definitions on second pass of tcheck
@@ -105,6 +105,7 @@ enum DeclFlags {
   DF_EXTERN_C    = 0x08000000,    // name is marked extern "C"
   DF_SELFNAME    = 0x10000000,    // section 9 para 2: name of class inside its own scope
   DF_TEMPL_SPEC  = 0x20000000,    // name is a template specialization
+  DF_DELAYED_INST= 0x00004000,    // member function of template class whose instantiation has been delayed
 
   // syntactic declaration extensions
   DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)

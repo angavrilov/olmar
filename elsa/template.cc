@@ -1660,6 +1660,11 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   Function *funcDefn0 = v->funcDefn;
 
   InstContext *instCtxt = v->instCtxt;
+  
+  // need to also correctly determine when 'instCtxt' is non-NULL ...
+  bool hasInstCtxt = v->hasFlag(DF_DELAYED_INST);
+  xassert(!!instCtxt == hasInstCtxt);
+
   // anything that wasn't part of a template instantiation
   if (!instCtxt) {
     // if this function is defined, it should have been typechecked by now;

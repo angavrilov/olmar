@@ -246,6 +246,10 @@ void Variable::setInstCtxts(InstContext *instCtxt0)
   instCtxt = instCtxt0;
 
   #warning still todo: remove instCtxt
+
+  if (instCtxt0) {
+    setFlag(DF_DELAYED_INST);
+  }
 }
 
 
