@@ -88,4 +88,11 @@ void T::insertOstream(ostream &os) const
 #endif // 0
 
 
+// assert something at compile time (must use this inside a function);
+// works because compilers won't let us declare negative-length arrays
+// (the expression below works with egcs-1.1.2)
+#define STATIC_ASSERT(cond) \
+  { (void)((int (*)(char failed_static_assertion[(cond)?1:-1]))0); }
+
+
 #endif // __MACROS_H

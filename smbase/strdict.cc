@@ -317,11 +317,27 @@ void StringDict::insertOstream(ostream &os) const
 }
 
 
+string StringDict::toString() const
+{
+  stringBuilder sb;
+  sb << "{";
+  int count=0;
+  FOREACH_ITERC(*this, entry) {
+    if (count++ > 0) {
+      sb << ",";
+    }
+    sb << " " << entry.key() << "=\"" << entry.value() << "\"";
+  }
+  sb << " }";
+  return sb;
+}
+
+
 // -------------------- test code ------------------------
 #ifdef TEST_STRDICT
 
 #include "test.h"      // USUAL_MAIN
-#include <stdlib.h>    // random
+#include <stdlib.h>    // rand
 
 #define myrandom(n) (rand()%(n))
 

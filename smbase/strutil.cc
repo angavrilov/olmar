@@ -109,6 +109,14 @@ string encodeWithEscapes(char const *p, int len)
 }
 
 
+string quoted(char const *src)
+{
+  return stringc << "\""
+                 << encodeWithEscapes(src, strlen(src))
+                 << "\"";
+}
+
+
 void decodeEscapes(string &dest, int &destLen, char const *src,
                    char delim)
 {
@@ -198,4 +206,22 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
   // copy to 'dest'
   dest.setlength(destLen);
   memcpy(dest.pchar(), sb.pchar(), destLen+1);   // copy NUL too
+}
+
+
+string parseQuotedString(char const *text)
+{
+  if (!( text[0] == '"' &&
+         text[strlen(text)-1] == '"' )) {
+    xformat(stringc << "quoted string is missing quotes: " << text);
+  }
+
+  // strip the quotes
+  string noQuotes = string(text+1, strlen(text)-2);
+  
+  // decode escapes
+  string ret;
+  int dummyLen;
+  decodeEscapes(ret, dummyLen, noQuotes, '"');
+  return ret;
 }

@@ -97,6 +97,9 @@ public:
   bool isEmpty() const;
     // returns true if size() is 0
 
+  bool isNotEmpty() const
+    { return !isEmpty(); }
+
   bool query(char const *key, string &value) const;
     // if 'key' is mapped to a value, put it into 'value' and return true;
     // otherwise, return false
@@ -136,6 +139,7 @@ public:
 
   // ------------ misc --------------
   INSERT_OSTREAM(StringDict)
+  string toString() const;
 };
 
 #endif // __STRDICT_H

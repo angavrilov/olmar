@@ -20,12 +20,20 @@ string trimWhitespace(char const *str);
 // sequences (but without the opening or closing quotes)
 string encodeWithEscapes(char const *src, int len);
 
+// safe when the text has no NUL characters; adds the quotes too
+string quoted(char const *src);
+
 
 // decode an escaped string; throw xFormat if there is a problem
 // with the escape syntax; if 'delim' is specified, it will also
 // make sure there are no unescaped instances of that
 void decodeEscapes(string &dest, int &destLen, char const *src,
                    char delim = 0);
+
+// given a string with quotes and escapes, yield just the string;
+// works if there are no escaped NULs
+string parseQuotedString(char const *text);
+
 
 
 #endif // __STRUTIL_H
