@@ -71,6 +71,8 @@ string declaration_toString (
   olayer ol("declaration_toString");
   stringBuilder s;
 
+  
+
   // mask off flags used for internal purposes, so all that's
   // left is the flags that were present in the source
   dflags = (DeclFlags)(dflags & DF_SOURCEFLAGS);
@@ -291,18 +293,21 @@ void PQ_template::print(PrintEnv &env)
 void TS_name::print(PrintEnv &env)
 {
   olayer ol("TS_name");
+  env << toString(q);
   name->print(env);
 }
 
 void TS_simple::print(PrintEnv &env)
 {
   olayer ol("TS_simple");
+  env << toString(q);
 }
 
 void TS_elaborated::print(PrintEnv &env)
 {
   olayer ol("TS_elaborated");
   env.current_loc = loc;
+  env << toString(q);
   env << toString(keyword) << " ";
   name->print(env);
 }
@@ -310,6 +315,7 @@ void TS_elaborated::print(PrintEnv &env)
 void TS_classSpec::print(PrintEnv &env)
 {
   olayer ol("TS_classSpec");
+  env << toString(q);
   env << toString(cv);
   env << toString(keyword) << " ";
   if (name) env << name->toString();
@@ -331,6 +337,7 @@ void TS_classSpec::print(PrintEnv &env)
 void TS_enumSpec::print(PrintEnv &env)
 {
   olayer ol("TS_classSpec");
+  env << q->toString();
   env << toString(cv);
   env << "enum ";
   if (name) env << toString(name);

@@ -29,6 +29,7 @@ verbatim {
   #include "variable.h"         // Variable
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
   #include "cc_type.h"          // Type, FunctonType, CompoundType
+  #include "qualifiers.h"
 
   #include <stdio.h>            // printf, for ad-hoc debugging
 
@@ -244,8 +245,8 @@ verbatim {
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
 class TypeSpecifier {
-  public enum CVFlags cv;
-  ctor { cv=CV_NONE; };
+  public Qualifiers *q;   ctor { q=new Qualifiers(); };
+  public enum CVFlags cv; ctor { cv=CV_NONE; };
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -492,14 +493,19 @@ class IDeclarator {
   // "*x" (as in "int *x")
   -> D_pointer(bool isPtr,  // true for "*", false for "&"
                CVFlags cv,  // optional qualifiers applied to ptr/ref type
-               IDeclarator base);
+               IDeclarator base) {
+    public Qualifiers *q; ctor q=new Qualifiers();
+  }
 
   // "f(int)"
   -> D_func(SourceLocation loc,
             IDeclarator base,                       // D_name of function, typically
             FakeList<ASTTypeId> *params,            // params with optional default values
             CVFlags cv,                             // optional "const" for member functions
-            ExceptionSpec /*nullable*/ exnSpec);    // throwable exceptions
+            ExceptionSpec /*nullable*/ exnSpec)     // throwable exceptions
+  {
+    public Qualifiers *q; ctor q=new Qualifiers();
+  }
 
   // "a[5]" or "b[]"
   -> D_array(IDeclarator base, Expression /*nullable*/ size);

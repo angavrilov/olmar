@@ -47,6 +47,10 @@ Lexer2TokenTypeDesc const l2TokTypes[] = {
   { N(L2_STRING_LITERAL),       "STRING_LITERAL", false },
   { N(L2_CHAR_LITERAL),         "CHAR_LITERAL", false },
 
+  // dsw: user-defined qualifiers
+  // FIX: false means what?
+  { N(L2_UDEF_QUAL),            "UDEF_QUAL", false },
+
   // keywords
   { N(L2_ASM),                  "asm", true },
   { N(L2_AUTO),                 "auto", true },
@@ -523,6 +527,22 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
           }
 
           L2->strValue = dest.idTable.add(tmp);
+          break;
+        }
+
+        case L1_UDEF_QUAL: {
+          L2->type = L2_UDEF_QUAL;
+
+          // dsw: there is no chance that there are weird characters.
+//            string tmp;
+//            int tmpLen;
+//            quotedUnescape(tmp, tmpLen, L1->text, '"',
+//                           src.allowMultilineStrings);
+//            if (tmpLen != tmp.length()) {
+//              cout << "warning: literal string with embedded nulls not handled properly\n";
+//            }
+
+          L2->strValue = dest.idTable.add(L1->text);
           break;
         }
 

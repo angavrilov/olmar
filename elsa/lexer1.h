@@ -16,6 +16,7 @@ enum Lexer1TokenType {
   L1_INT_LITERAL,
   L1_FLOAT_LITERAL,
   L1_STRING_LITERAL,
+  L1_UDEF_QUAL,                 // dsw: user-defined qualifier
   L1_CHAR_LITERAL,
   L1_OPERATOR,
   L1_PREPROCESSOR,

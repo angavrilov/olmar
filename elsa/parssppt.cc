@@ -105,11 +105,7 @@ STATICDEF int SimpleActions::reclassifyToken(UserActions *, int type, SemanticVa
 }
 
 
-
-// useful for simple treewalkers
-bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
-              char const *additionalInfo)
-{
+char *processArgs(int argc, char **argv, char const *additionalInfo) {
   // remember program name
   char const *progName = argv[0];
 
@@ -118,13 +114,13 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
     if (traceProcessArg(argc, argv)) {
       continue;
     }
-    #if 0
+#if 0
     else if (0==strcmp(argv[1], "-sym") && argc >= 3) {
       symOfInterestName = argv[2];
       argc -= 2;
       argv += 2;
     }   
-    #endif // 0
+#endif // 0
     else {
       break;     // didn't find any more options
     }
@@ -132,27 +128,39 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
 
   if (argc != 2) {
     cout << "usage: [env] " << progName << " [options] input-file\n"
-            "  env:\n"
-            "    SYM_OF_INTEREST symbol to watch during analysis\n"
-            "  options:\n"
-            "    -tr <sys>:      turn on tracing for the named subsystem\n"
-            //"    -sym <sym>: name the \"symbol of interest\"\n"
-            "  useful tracing flags:\n"
-            "    parse           print shift/reduce steps of parsing algorithm\n"
-            "    grammar         echo the grammar\n"
-            "    ambiguities     print ambiguities encountered during parsing\n"
-            "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
-            "    itemsets        print the sets-of-items DFA\n"
-            "    ... the complete list is in parsgen.txt ...\n"
+      "  env:\n"
+      "    SYM_OF_INTEREST symbol to watch during analysis\n"
+      "  options:\n"
+      "    -tr <sys>:      turn on tracing for the named subsystem\n"
+      //"    -sym <sym>: name the \"symbol of interest\"\n"
+      "  useful tracing flags:\n"
+      "    parse           print shift/reduce steps of parsing algorithm\n"
+      "    grammar         echo the grammar\n"
+      "    ambiguities     print ambiguities encountered during parsing\n"
+      "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
+      "    itemsets        print the sets-of-items DFA\n"
+      "    ... the complete list is in parsgen.txt ...\n"
          << (additionalInfo? additionalInfo : "");
     exit(argc==1? 0 : 2);    // error if any args supplied
   }
 
+  return argv[1];
+}
+
+void maybeUseTrivialActions(ParseTreeAndTokens &ptree) {
   if (tracingSys("trivialActions")) {
     // replace current actions with trivial actions
     //delete ptree.userAct;      // the caller does this
     ptree.userAct = new SimpleActions;
     cout << "using trivial (er, simple..) actions\n";
   }
-  return toplevelParse(ptree, argv[1]);
+}
+
+// useful for simple treewalkers
+bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv,
+              char const *additionalInfo)
+{
+  char const *positionalArg = processArgs(argc, argv, additionalInfo);
+  maybeUseTrivialActions(ptree);
+  return toplevelParse(ptree, positionalArg);
 }

@@ -60,6 +60,13 @@ class ClassTemplateInfo;
 // static data consistency checker
 void cc_type_checker();
 
+
+// dsw: This is opaque here.
+class Qualifiers;
+string toString(Qualifiers *q);
+Qualifiers *deepClone(Qualifiers *q);
+
+
 // --------------------- atomic types --------------------------
 // interface to types that are atomic in the sense that no
 // modifiers can be stripped away; see types.txt
@@ -351,6 +358,7 @@ public:     // funcs
 class CVAtomicType : public Type {
 public:     // data
   AtomicType const *atomic;    // (serf) underlying type
+  Qualifiers *q;
   CVFlags cv;                  // const/volatile
 
   // global read-only array of non-const, non-volatile built-ins
@@ -361,9 +369,9 @@ private:    // funcs
 
 public:     // funcs
   CVAtomicType(AtomicType const *a, CVFlags c)
-    : atomic(a), cv(c) {}
+    : atomic(a), q(NULL), cv(c) {}
   CVAtomicType(CVAtomicType const &obj)
-    : DMEMB(atomic), DMEMB(cv) {}
+    : DMEMB(atomic), q(deepClone(obj.q)), DMEMB(cv) {}
 
   bool innerEquals(CVAtomicType const *obj) const;
 
@@ -385,13 +393,14 @@ enum PtrOper {
 class PointerType : public Type {
 public:
   PtrOper op;                  // "*" or "&"
+  Qualifiers *q;
   CVFlags cv;                  // const/volatile, if "*"; refers to pointer *itself*
   Type const *atType;          // (serf) type of thing pointed-at
 
 public:
   PointerType(PtrOper o, CVFlags c, Type const *a);
   PointerType(PointerType const &obj)
-    : DMEMB(op), DMEMB(cv), DMEMB(atType) {}
+    : DMEMB(op), q(deepClone(obj.q)), DMEMB(cv), DMEMB(atType) {}
 
   bool innerEquals(PointerType const *obj) const;
 
@@ -422,6 +431,7 @@ public:     // types
 
 public:     // data
   Type const *retType;         // (serf) type of return value
+  Qualifiers *q;
   CVFlags cv;                  // const/volatile for class member fns
   ObjList<Parameter> params;   // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed

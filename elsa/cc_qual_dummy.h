@@ -1,17 +1,13 @@
-// cc_qual.h            see license.txt for copyright and terms of use
-// dummy declarations for C++/cqual interface; the AST entry points
-// are declared in cc.ast
+#ifndef CC_QUAL_DUMMY_H
+#define CC_QUAL_DUMMY_H
 
-#ifndef CC_QUAL_H
-#define CC_QUAL_H
+// Header file for things re-defined in cc_qual and not generated in
+// cc.ast.  Daniel Wilkerson dsw@cs.berkeley.edu
 
-#include "cc.ast.gen.h"         // C++ AST; this module
+// dummy global context for a cc_qual-walk
+class QualEnv {};
 
-// global context for a ccqual-walk
-class QualEnv : public ostream {
-public:
-  QualEnv(ostream &out) {}
-  QualEnv(stringBuilder &sb) {}
-};
+void init_cc_qual(char *config_file);
+void finish_cc_qual();
 
-#endif // CC_QUAL_H
+#endif // CC_QUAL_DUMMY_H

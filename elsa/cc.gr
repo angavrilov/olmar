@@ -128,10 +128,12 @@ terminals {
 
   token[StringRef] L2_STRING_LITERAL ;
 
+  token[StringRef] L2_UDEF_QUAL ;
+
   precedence {
     // high precedence
     prec L2_PREFER_REDUCE;
-    prec "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else" "[";
+    prec L2_UDEF_QUAL "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else" "[";
 
     right ".*" "->*";
     left "*" "/" "%";
@@ -470,8 +472,11 @@ nonterm[IDeclarator*] NewDeclaratorOpt {
        [ return new D_name(loc, NULL); ]
 
   // pointers
-  -> "*" cv:CVQualifierSeqOpt d:NewDeclaratorOpt
-       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:NewDeclaratorOpt
+       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
+         p->q->appendQualifierLiterals(ql);
+         return p;
+       ]
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               [ return d; ]
@@ -877,6 +882,11 @@ nonterm[TypeSpecifier*] TypeSpecifier {
        [ s->cv = (CVFlags)(s->cv | q); return s; ]
   -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE)   // int const
        [ s->cv = (CVFlags)(s->cv | q); return s; ]
+
+  -> q:L2_UDEF_QUAL s:TypeSpecifier  precedence(L2_PREFER_REDUCE) // $tainted int
+  [ s->q->prependLiteralString(q); return s; ]
+  -> s:TypeSpecifier q:L2_UDEF_QUAL  precedence(L2_PREFER_REDUCE) // $tainted int
+  [ s->q->appendLiteralString(q); return s; ]
 }
 
 
@@ -1131,8 +1141,11 @@ nonterm[IN_compound*] InitializerList {
 //
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm[IDeclarator*] Declarator {
-  -> "*" cv:CVQualifierSeqOpt d:Declarator
-       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:Declarator
+       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
+         p->q->appendQualifierLiterals(ql);
+         return p;
+       ]
   -> "&" d:Declarator
        [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
 
@@ -1156,9 +1169,13 @@ nonterm[IDeclarator*] DirectDeclarator {
   // specifier that preceeds this
   -> d:DirectDeclarator                        // name of function
      "(" params:ParameterDeclarationClause ")" // parameters
+     ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       [ return new D_func(loc, d, params, cv, e); ]
+       [ D_func *f = new D_func(loc, d, params, cv, e);
+         f->q->appendQualifierLiterals(ql);
+         return f;
+       ]
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
@@ -1204,8 +1221,8 @@ nonterm[Expression*] ConstantExpressionOpt {
 // into the syntaxes elsewhere has an implicit TODO for the
 // pointer-to-member syntax
 nonterm PtrOperator {
-  -> "*" q:CVQualifierSeqOpt ;
-  -> "&"                     ;
+  -> "*" ql:QualifierLiteralsOpt q:CVQualifierSeqOpt ; // dsw: what the heck is this?
+  -> "&" ;
 
   // TODO: pointer to member
   //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
@@ -1229,6 +1246,17 @@ nonterm[enum CVFlags] CVQualifier {
 }
 
 
+// dsw: We use a simple right-recursive linked-list design pattern.
+nonterm[QualifierLiterals*] QualifierLiteralsOpt {
+  -> empty [ return NULL; ]
+  -> ql:QualifierLiterals [ return ql; ]
+}
+nonterm[QualifierLiterals*] QualifierLiterals {
+  -> q:L2_UDEF_QUAL [ return new QualifierLiterals(q); ]
+  -> q:L2_UDEF_QUAL ql:QualifierLiterals [ return new QualifierLiterals(q, ql); ]
+}
+
+
 // -- type-id --
 // a type-id is like a declaration of one thing, but without the variable name;
 // it is, for example, what appears inside the parens of a typecast
@@ -1247,8 +1275,11 @@ nonterm[IDeclarator*] AbstractDeclaratorOpt {
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
-  -> "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
-       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
+         p->q->appendQualifierLiterals(ql);
+         return p;
+       ]
   -> "&" d:AbstractDeclaratorOpt
        [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
 
@@ -1279,9 +1310,13 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   // function
   -> d:DirectAbstractDeclaratorOpt
      "(" args:ParameterDeclarationClause ")"
+     ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
-       [ return new D_func(loc, d, args, cv, e); ]
+       [ D_func *f = new D_func(loc, d, args, cv, e);
+         f->q->appendQualifierLiterals(ql);
+         return f;
+       ]
 
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
@@ -1713,8 +1748,11 @@ nonterm[IDeclarator*] ConversionDeclaratorOpt {
   -> empty                                    
        [ return new D_name(loc, NULL /*name*/); ]
        
-  -> "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
-       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
+       [ D_pointer *p = new D_pointer(true /*isPtr*/, cv, d);
+         p->q->appendQualifierLiterals(ql);
+         return p;
+       ]
   -> "&" d:ConversionDeclaratorOpt
        [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
 }
