@@ -190,6 +190,11 @@ bool DottedProduction::isDotAtEnd() const
 }
 
 
+Symbol const *DottedProduction::symbolBeforeDotC() const
+{
+  return prod->right.nthC(0);
+}
+
 Symbol const *DottedProduction::symbolAfterDotC() const
 {
   return prod->right.nthC(dot);
@@ -236,6 +241,17 @@ ItemSet::~ItemSet()
 {
   delete[] termTransition;
   delete[] nontermTransition;
+}
+
+
+Symbol const *ItemSet::getStateSymbolC() const
+{
+  SFOREACH_DOTTEDPRODUCTION(items, item) {
+    if (! item.data()->isDotAtStart() ) {
+      return item.data()->symbolBeforeDotC();
+    }
+  }
+  return NULL;
 }
 
 

@@ -216,13 +216,17 @@ public:	    // funcs
     : prod(NULL), dot(-1) {}
   DottedProduction(Production *p, int d)
     : prod(p), dot(d) {}
-
+			     
+  bool isDotAtStart() const { return dot==0; }
   bool isDotAtEnd() const;
 
-  // dot must not be at the end
+  // dot must not be at the start (left edge)
+  Symbol const *symbolBeforeDotC() const;
+  Symbol *symbolBeforeDot() { return const_cast<Symbol*>(symbolBeforeDotC()); }
+
+  // dot must not be at the end (right edge)
   Symbol const *symbolAfterDotC() const;
-  Symbol *symbolAfterDot()
-    { return const_cast<Symbol*>(symbolAfterDotC()); }
+  Symbol *symbolAfterDot() { return const_cast<Symbol*>(symbolAfterDotC()); }
 
   // print to cout as 'A -> B . c D' (no newline)
   void print(ostream &os) const;
@@ -269,6 +273,12 @@ private:    // funcs
 public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);
   ~ItemSet();
+
+  // the set of items names a symbol as the symbol used
+  // to reach this state -- namely, the symbol that appears
+  // to the left of a dot.  this fn retrieves that symbol
+  // (if all items have dots at left edge, returns NULL)
+  Symbol const *getStateSymbolC() const;
 
   // query transition fn for an arbitrary symbol; returns
   // NULL if no transition is defined

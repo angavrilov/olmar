@@ -39,12 +39,14 @@
 #define __GLR_H
 
 #include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
+#include "glrtree.h"     // parse tree (graph) representation
 
 
 // forward decls for things declared below
-class StackNode;
-class RuleNode;
-class PendingShift;
+class StackNode;         // unit of parse state
+class SiblingLink;       // connections between stack nodes
+class PendingShift;      // for postponing shifts.. may remove
+class GLR;               // main class for GLR parsing
 
 
 // the GLR parse state is primarily made up of a graph of these
@@ -56,64 +58,68 @@ class StackNode {
 public:
   // it's convenient when printing diagnostic info to have
   // a unique integer id for these
-  int stackNodeId;		  
-  
+  int const stackNodeId;
+
   // node layout is also important; I think this info will
   // be useful; it's the number of the input token that was
   // being processed when this node was created (first token
   // is column 1; initial stack node is column 0)
-  int tokenColumn;
+  int const tokenColumn;
 
   // the LR state the parser is in when this node is at the
   // top ("at the top" means nothing, besides perhaps itself,
   // is pointing to it)
-  ItemSet const *state;                        // (serf)
+  ItemSet const * const state;                 // (serf)
 
-  // the symbol that was shifted, or the LHS of the production
-  // reduced, to arrive at this state
-  Symbol const *symbol;                        // (serf)
-
-  // each leftAdjState represents a symbol that might be immediately
-  // to the left of this symbol in a derivation; multiple links
-  // here represent choice points (ambiguities) during parsing; these
-  // links are only important at parse time -- they are ignored
-  // once parsing is complete
-  SObjList<StackNode> leftAdjStates;           // this is a set
-
-  // Each RuleNode is an ordered list of the children
-  // of a production (symbols for the RHS elements).  Multiple
-  // lists here represent choice points in the parse graph.
-  // These links are the parse graph's links -- they are built,
-  // but otherwise ignored, during parsing.
-  ObjList<RuleNode> rules;                     // this is a set
-
+  // each leftSibling points to a stack node in one possible
+  // LR stack.  if there is more than one, it means two or more
+  // LR stacks have been joined at this point.  this is the
+  // parse-time representation of ambiguity
+  ObjList<SiblingLink> leftSiblings;           // this is a set
 
 public:     // funcs
-  StackNode(int id, int tokenColumn,
-            ItemSet const *state, Symbol const *symbol);
+  StackNode(int id, int tokenColumn, ItemSet const *state);
   ~StackNode();
+							      
+  // add a new link with the given tree node; return the link
+  SiblingLink *addSiblingLink(StackNode *leftSib, TreeNode *treeNode);
   
-  void printParseTree(int indent) const;
+  // if 'leftSib' is one of our siblings, return the link that
+  // makes that true
+  SiblingLink *findSiblingLink(StackNode *leftSib);
+
+  // return the symbol represented by this stack node;  it's
+  // the symbol shifted or reduced-to to get to this state
+  // (this used to be a data member, but there are at least
+  // two ways to compute it, so there's no need to store it)
+  Symbol const *getSymbolC() const;
 };
 
-
-// for a particular production, this contains the pointers to
-// the representatives of the RHS elements; it also identifies
-// the production
-class RuleNode {
+                   
+// a pointer from a stacknode to one 'below' it (in the LR
+// parse stack sense); also has a link to the parse graph
+// we're constructing
+class SiblingLink {
 public:
-  // the production that generated this node
-  Production const *production;                // (serf)
+  // the stack node being pointed-at; it was created eariler
+  // than the one doing the pointing
+  StackNode * const sib;                       // (serf)
 
-  // for each RHS member of 'production', a pointer to the thing
-  // that matches that symbol (terminal or nonterminal)
-  SObjList<StackNode> children;                // this is a list
+  // this is the parse tree node associated with this link
+  // (parse tree nodes are *not* associated with stack nodes --
+  // that's now it was originally, but I figured out the hard
+  // way that's wrong (more info in compiler.notes.txt))
+  TreeNode * const treeNode;                   // (serf)
+
+  // the treeNode pointer is a serf because, while there is
+  // a 1-1 relationship between siblinglinks and treenodes,
+  // I want to be able to simply throw away the entire parse
+  // state without disturbing the tree; tree nodes are instead
+  // owned by a (more or less) global list
 
 public:
-  RuleNode(Production const *prod);
-  ~RuleNode();
-
-  void printParseTree(int indent) const;
+  SiblingLink(StackNode *s, TreeNode *n)
+    : sib(s), treeNode(n) {}
 };
 
 
@@ -123,26 +129,14 @@ public:
 class PendingShift {
 public:
   // which parser is this that's ready to shift?
-  StackNode *parser;                   // (serf)
+  StackNode * const parser;                   // (serf)
 
   // which state is it ready to shift into?
-  ItemSet const *shiftDest;            // (serf)
+  ItemSet const * const shiftDest;            // (serf)
 
 public:
   PendingShift(StackNode *p, ItemSet const *s)
     : parser(p), shiftDest(s) {}
-};
-
-
-// name a 'leftAdjStates' link
-class SiblingLinkDesc {
-public:
-  StackNode *left;     	// (serf) thing pointed-at
-  StackNode *right;	// (serf) thing with the pointer
-
-public:
-  SiblingLinkDesc(StackNode *L, StackNode *R)
-    : left(L), right(R) {}
 };
 
 
@@ -151,6 +145,10 @@ public:
 // stuff useful across a wide range of possible analyses
 class GLR : public GrammarAnalysis {
 public:
+  // ---- state to keep after parsing is done ----
+  // list of all parse tree (graph) nodes
+  ObjList<TreeNode> treeNodes;
+
   // ---- parser state between tokens ----
   // Every node in this set is (the top of) a parser that might
   // ultimately succeed to parse the input, or might reach a
@@ -166,14 +164,14 @@ public:
   int nextStackNodeId;
   enum { initialStackNodeId = 1 };
 
+  // this is maintained for labeling stack nodes
+  int currentTokenColumn;
+
   // ---- parser state during each token ----
   // the token we're trying to shift; any parser that fails to
   // shift this token (or reduce to one that can, recursively)
   // will "die"
   Terminal const *currentToken;
-  
-  // this is maintained for labelling stack nodes
-  int currentTokenColumn;
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
@@ -188,23 +186,26 @@ private:    // funcs
   void postponeShift(StackNode *parser,
                      ObjList<PendingShift> &pendingShifts);
   void doAllPossibleReductions(StackNode *parser,
-                               SiblingLinkDesc *mustUseLink);
-  void popStackSearch(int popsRemaining, SObjList<StackNode> &poppedSymbols,
+                               SiblingLink *mustUseLink);
+  void popStackSearch(int popsRemaining, SObjList<TreeNode> &poppedSymbols,
                       StackNode *currentNode, Production const *production,
-                      SiblingLinkDesc *mustUseLink);
-  void glrShiftRule(StackNode *leftSibling, RuleNode *ruleNode);
+                      SiblingLink *mustUseLink);
+  void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
-  StackNode *makeStackNode(ItemSet const *state, Symbol const *symbol);
+  StackNode *makeStackNode(ItemSet const *state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
+  TerminalNode *makeTerminalNode(Terminal const *t);
+  NonterminalNode *makeNonterminalNode(Reduction *red);
+
 
 public:     // funcs
   GLR();
   ~GLR();
 
   // 'main' for testing this class
-  void glrTest();
+  void glrTest(char const *grammarFname, char const *inputFname);
 };
 
 #endif // __GLR_H

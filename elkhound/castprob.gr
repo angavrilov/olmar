@@ -1,0 +1,14 @@
+# castprob.gr
+# a simple grammar to exibit the C cast-vs-fn-call ambiguity
+
+Start -> Expr $
+Expr -> CastExpr
+Expr -> Expr + CastExpr
+CastExpr -> AtomExpr
+CastExpr -> ( Type ) CastExpr
+AtomExpr -> 3
+AtomExpr -> x
+AtomExpr -> ( Expr )
+AtomExpr -> AtomExpr ( Expr )
+Type -> int
+Type -> x
