@@ -193,6 +193,7 @@ protected:
 
 public:
   ObjListIter(ObjList<T> const &list) : iter(list.list) {}
+  ObjListIter(ObjList<T> const &list, int pos) : iter(list.list, pos) {}
   ~ObjListIter()                       {}
 
   void reset(ObjList<T> const &list)   { iter.reset(list.list); }

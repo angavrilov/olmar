@@ -643,6 +643,16 @@ void *VoidListMutator::remove()
 }
 
 
+// --------------- VoidListIter --------------------
+VoidListIter::VoidListIter(VoidList const &list, int pos)
+{
+  reset(list);
+  while (pos--) {
+    adv();
+  }
+}
+
+
 // -------------- testing --------------
 #ifdef TEST_VOIDLIST
 #include "test.h"     // USUAL_MAIN

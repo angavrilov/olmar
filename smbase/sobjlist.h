@@ -180,6 +180,7 @@ protected:
 
 public:
   SObjListIter(SObjList<T> const &list) : iter(list.list) {}
+  SObjListIter(SObjList<T> const &list, int pos) : iter(list.list, pos) {}
   ~SObjListIter()                       {}
 
   void reset(SObjList<T> const &list)   { iter.reset(list.list); }

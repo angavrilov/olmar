@@ -242,6 +242,7 @@ protected:
 
 public:
   iterName[[[]]](className<T> const &list) : iter(list.list) {}
+  iterName[[[]]](className<T> const &list, int pos) : iter(list.list, pos) {}
   ~iterName[[[]]]()                       {}
 
   void reset(className<T> const &list)   { iter.reset(list.list); }

@@ -191,6 +191,7 @@ protected:
 
 public:
   VoidListIter(VoidList const &list)  { reset(list); }
+  VoidListIter(VoidList const &list, int pos);    // advance 'pos' times
   ~VoidListIter()                     {}
 
   void reset(VoidList const &list)    { p = list.getTop(); }
