@@ -29,7 +29,11 @@ verbatim {
   #include "variable.h"         // Variable
   #include "cc_flags.h"         // CVFlags, DeclFlags, etc. (r)
   #include "cc_type.h"          // Type, FunctonType, CompoundType
-  #include "qualifiers.h"
+#ifdef CC_QUAL
+  #include "cc_qual/cc_qualifiers.h"
+#else
+  #include "cc_qualifiers_dummy.h"
+#endif
 
   #include <stdio.h>            // printf, for ad-hoc debugging
 
