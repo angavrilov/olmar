@@ -877,6 +877,7 @@ failparse k0013.cc "cannot convert argument type `float (*)[4]' to parameter 1 t
 failparse k0014.cc "ambiguous lookup of base class constructor with constructor of same class with different template argument"
 failparse k0015.cc "catch namespace_qualified::class_name"
 failparse k0016.cc "explicit instantiation of template member function"
+failparse k0017.cc "using namespace std' before 'namespace std"
 
 # ---- END: lots of tests ----
 

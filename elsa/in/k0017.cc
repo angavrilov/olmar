@@ -1,4 +1,4 @@
-// namespace std undefined before 'using'
+// 'using namespace std' before 'namespace std'
 
 //  [ This may be a gcc extension, though gcc -pedantic accepts it. --Karl ]
 
