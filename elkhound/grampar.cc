@@ -40,6 +40,18 @@ Environment::~Environment()
 {}
 
 
+void Environment::addInherited(FormBodyElt const *fbe)
+{
+  // NOTE: must prepend here because the list is walked in order
+  // when adding inherited items to productions, and later
+  // additions must shadow earlier ones
+  // UPDATE: changed impl of astParseFunction so appending is correct,
+  // since that's required anyway to let decls precede definitions
+  // (how did it even work before?)
+  inherited.append(const_cast<FormBodyElt*>(fbe));
+}
+
+
 // ------------------ TreesContext -----------------
 TreesContext::~TreesContext()
 {}
@@ -417,10 +429,7 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
         case AST_FUNEXPR:
           // just grab a pointer; will parse for real when a production
           // uses this inherited action
-          // NOTE: must prepend here because the list is walked in order
-          // when adding inherited items to productions, and later
-          // additions must shadow earlier ones
-          env.inherited.prepend(const_cast<ASTNode*>(node));
+          env.addInherited(node);
           break;
 
         case AST_FORM:
@@ -470,6 +479,7 @@ void astParseNonterminalBody(Environment &env, Nonterminal *nt,
         LC_modifier const *mod = lit->ifLC_modifierC();
         if (mod) {
           name = mod->funcToModify;
+          trace("semant") << "[" << nt->name << "] LC_modifier of " << name << endl;
         }
 
         // look at the tag to figure out what the code means
@@ -540,12 +550,34 @@ void astParseGroupElement(Environment &env, Nonterminal *nt,
     }
 
     ASTNEXTC(GE_fbe, elt) {
-      // just grab a pointer; will parse for real when a production
-      // uses this inherited action
-      // NOTE: must prepend here because the list is walked in order
-      // when adding inherited items to productions, and later
-      // additions must shadow earlier ones
-      env.inherited.prepend(const_cast<FormBodyElt*>(elt->e));
+      FB_funDecl const *funDecl = elt->e->ifFB_funDeclC();
+      FB_dataDecl const *dataDecl = elt->e->ifFB_dataDeclC();
+      if (funDecl) {
+        // we process declarations immediately, since they're associated
+        // with the nonterminal (as opposed to the production); in fact
+        // it's somewhat odd to call a funDecl a formBodyElt, but I did
+        // that in the previous version so I'll keep it for now
+
+        // even more suggestive that there's a design flaw: I have to
+        // synthesize a fake production, and rely on knowledge that
+        // the function I'm calling only looks at prod->left ...
+        Production dummy(nt, "dummy tag");
+        astParseFormBodyElt(env, &dummy, funDecl, false /*dupsOk*/);
+        
+        // put it in here too?  I'm kinda flailing at this point..
+        env.addInherited(elt->e);
+      }
+      else if (dataDecl) {
+        // here we handle it directly, and don't have a case for handling
+        // it inside astParseFormBodyElt, which is at least closer to the
+        // right design...
+        nt->declarations.append(new LocString(dataDecl->declBody));
+      }
+      else {
+        // just grab a pointer; will parse for real when a production
+        // uses this inherited action
+        env.addInherited(elt->e);
+      }
     }
 
     ASTENDCASEC
@@ -712,13 +744,16 @@ void astParseFormBodyElt(Environment &env, Production *prod,
         // allow function declarations in form bodies because it's
         // convenient for nonterminals that only have one form..
         LocString name = fd->declName;
+        trace("semant") << "[" << prod->left->name << "] funDecl " << name << endl;
         if (!prod->left->funDecls.isMapped(name)) {
           prod->left->funDecls.add(
             name,                             // declared name
             new LiteralCode(fd->declBody));   // declaration body
         }
         else {
-          astParseError(name, "duplicate function declaration");
+          // the fundecl design is rather broken, and I end up multiply
+          // declaring things even when the .gr file didn't ..
+          //astParseError(name, "duplicate function declaration");
         }
       }
 
@@ -801,6 +836,8 @@ void astParseFunction(Environment &env, Production *prod,
     //        func->type == AST_FUNEXPR);
 
     LocString name = func->name;
+    trace("semant") << "[" << prod->left->name << "] funDefn " << name << endl;
+
     if (!prod->left->hasFunDecl(name)) {
       astParseError(name, stringc << "undeclared function: " << name);
     }
@@ -809,7 +846,9 @@ void astParseFunction(Environment &env, Production *prod,
         astParseError(name, stringc << "duplicate function implementation: " << name);
       }
       else {
-        return;    // ignore duplicates
+        // duplicates replace previous versions: this is the mechanism
+        // of overriding inherited definitions
+        prod->functions.deleteAt(name);
       }
     }
 
@@ -997,14 +1036,20 @@ int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
         break;
 
       case TOK_NAME:
-      case TOK_FUN_BODY:
-      case TOK_DECL_BODY:
         lvalp->str = new LocString(lexer.curLoc(), lexer.curToken());
+        break;
+
+      case TOK_FUN_BODY:
+        lvalp->str = new LocString(lexer.curLoc(), lexer.curFuncBody());
+        break;
+
+      case TOK_DECL_BODY:
+        lvalp->str = new LocString(lexer.curLoc(), lexer.curDeclBody());
         break;
 
       case TOK_FUNDECL_BODY: {
         lvalp->funDecl = new FB_funDecl(new LocString(lexer.curLoc(), lexer.curDeclName()),
-                                        new LocString(lexer.curLoc(), lexer.curToken()));
+                                        new LocString(lexer.curLoc(), lexer.curDeclBody()));
 
         #if 0
         // grab the declaration body and put it into a leaf

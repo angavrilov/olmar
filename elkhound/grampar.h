@@ -90,6 +90,8 @@ public:
   Environment(Grammar &G);             // new env
   Environment(Environment &prevEnv);   // nested env
   ~Environment();
+  
+  void addInherited(FormBodyElt const *fbe);
 };
 
 

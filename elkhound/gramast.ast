@@ -42,6 +42,8 @@ class FormBodyElt {
   -> FB_treeCompare(LocString leftName, LocString rightName, owner ExprAST *decideExpr);
   -> FB_funDecl(LocString declName, LocString declBody);
   -> FB_funDefn(LocString name, LocString defnBody);
+  
+  // I have no idea how this is different from NT_decl ...
   -> FB_dataDecl(LocString declBody);
 }
 

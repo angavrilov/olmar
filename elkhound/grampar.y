@@ -492,7 +492,6 @@ AttrExpr: CondExpr                               { $$ = $1; }
 /* yields: FB_funDecl */
 FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = $2; }
        ;     /* note: $2 here is an FB_funDecl node already */
-             /* todo: make this true */
 
 /* fun is a semantic function; the TOK_FUNCTION is substrate language
  * code that will be emitted into a file for later compilation;
@@ -515,9 +514,9 @@ Declaration: "datadecl" TOK_DECL_BODY ";"        { $$ = new FB_dataDecl($2); }
 LiteralCode: SimpleLiteralCode
                { $$ = $1; }
            | "literalCode" TOK_STRING TOK_NAME "{" TOK_FUN_BODY "}"
-               { $$ = new LC_modifier($2, $3, $5); }
+               { $$ = new LC_modifier($2, $5, $3); }
            ;
-      
+
 /* yields: LC_standAlone */
 SimpleLiteralCode: "literalCode" TOK_STRING "{" TOK_FUN_BODY "}"
                      { $$ = new LC_standAlone($2, $4); }

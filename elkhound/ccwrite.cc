@@ -79,22 +79,33 @@ string headerFileLatch(char const *fname)
 }
 
 
-// note that #line must be preceeded by a newline
+char const *hashLine()
+{                   
+  if (tracingSys("nolines")) {
+    // emit with comment to disable its effect
+    return "// #line ";
+  }
+  else {
+    return "#line "; 
+  }
+}
 
+
+// note that #line must be preceeded by a newline
 string lineDirective(SourceLocation const &loc)
 {
-  return stringc << "#line " << loc.line
+  return stringc << hashLine() << loc.line
                  << " \"" << loc.file->filename << "\"\n";
 }
 
 stringBuilder &restoreLine(stringBuilder &sb)
-{                              
+{
   // little hack..
   EmitCode &os = (EmitCode&)sb;
 
   // +1 because we specify what line will be *next*
   int line = os.getLine()+1;
-  return os << "#line " << line
+  return os << hashLine() << line
             << " \"" << os.getFname() << "\"\n";
 }
 

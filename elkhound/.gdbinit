@@ -9,9 +9,12 @@
 #  break breaker
 #  run
 
-file gramanl
-set args cc
-#break GrammarLexer::yylexInc
+#  file gramanl
+#  set args -tr semant cc
+
+file cexp2
+set args cexp2.bin cexp.in1
+
 break main
 break breaker
 run

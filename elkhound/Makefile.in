@@ -168,7 +168,7 @@ cexp2: ${cexp2-dep} cexp2.h
 # generated)
 cc.cc cc.h: cc.gr cc.tok gramanl
 	rm -f cc.{h,cc}
-	./gramanl cc
+	./gramanl -tr nolines cc
 	chmod a-w cc.cc cc.h
 
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)

@@ -12,7 +12,8 @@ STATICDEF char const *StringTable::identity(void *data)
 
 
 StringTable::StringTable()
-  : hash(identity)
+  : hash(identity),
+    longStrings(NULL)
 {
   racks = new Rack(NULL);
 }

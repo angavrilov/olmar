@@ -63,7 +63,9 @@ Lexer1::Lexer1()
     errors(0),
     tokens(),
     tokensMut(tokens)
-{}
+{
+  loc.reset();
+}
 
 Lexer1::~Lexer1()
 {
