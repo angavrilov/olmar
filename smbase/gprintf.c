@@ -210,8 +210,9 @@ int general_vprintf(Gprintf_output_function output_function,
       else
       {
         if (base == -1)  /* conversion type c */
-        {
-          char c = va_arg(argument_pointer, char);
+        {                
+          /* 'char' is passed as 'int' through '...' */
+          char c = (char)va_arg(argument_pointer, int);
           p.edited_string_length = 1;
           output_field(&p, &c);
         }
