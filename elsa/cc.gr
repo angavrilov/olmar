@@ -109,7 +109,7 @@ ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
                   new Declarator(new D_name(NULL /*name*/, SourceLocation()),
                                  NULL /*init*/));
   // FIX: creates garbage
-  tid->spec->q = new Qualifiers("__anonymous_ellipsis", loc, 0 /*local*/, NULL, ql);
+  tid->spec->q = new Qualifiers("anonymous_ellipsis", loc, 0 /*local*/, NULL, ql);
   return tid;
 }
 
@@ -370,20 +370,20 @@ nonterm[TypeSpecifier*] CtorExpressionType {
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId;
 
   -> n:PQTypeName        [ return new TS_name(n, loc, false /*typename*/); ]
-  -> "char"              [ return new TS_simple(new PQ_name("__anonymous_char"), loc, ST_CHAR); ]
-  -> "wchar_t"           [ return new TS_simple(new PQ_name("__anonymous_wchar_t"), loc,
+  -> "char"              [ return new TS_simple(new PQ_name("anonymous_char"), loc, ST_CHAR); ]
+  -> "wchar_t"           [ return new TS_simple(new PQ_name("anonymous_wchar_t"), loc,
                                                 ST_WCHAR_T); ]
-  -> "bool"              [ return new TS_simple(new PQ_name("__anonymous_bool"), loc, ST_BOOL); ]
-  -> "short"             [ return new TS_simple(new PQ_name("__anonymous_short"), loc,
+  -> "bool"              [ return new TS_simple(new PQ_name("anonymous_bool"), loc, ST_BOOL); ]
+  -> "short"             [ return new TS_simple(new PQ_name("anonymous_short"), loc,
                                                 ST_SHORT_INT); ]
-  -> "int"               [ return new TS_simple(new PQ_name("__anonymous_int"), loc, ST_INT); ]
-  -> "long"              [ return new TS_simple(new PQ_name("__anonymous_long"), loc,
+  -> "int"               [ return new TS_simple(new PQ_name("anonymous_int"), loc, ST_INT); ]
+  -> "long"              [ return new TS_simple(new PQ_name("anonymous_long"), loc,
                                                 ST_LONG_INT); ]
-  -> "signed"            [ return new TS_simple(new PQ_name("__anonymous_signed"), loc, ST_INT); ]
-  -> "unsigned"          [ return new TS_simple(new PQ_name("__anonymous_unsigned"), loc,
+  -> "signed"            [ return new TS_simple(new PQ_name("anonymous_signed"), loc, ST_INT); ]
+  -> "unsigned"          [ return new TS_simple(new PQ_name("anonymous_unsigned"), loc,
                                                 ST_UNSIGNED_INT); ]
-  -> "float"             [ return new TS_simple(new PQ_name("__anonymous_float"), loc, ST_FLOAT); ]
-  -> "double"            [ return new TS_simple(new PQ_name("__anonymous_double"), loc,
+  -> "float"             [ return new TS_simple(new PQ_name("anonymous_float"), loc, ST_FLOAT); ]
+  -> "double"            [ return new TS_simple(new PQ_name("anonymous_double"), loc,
                                                 ST_DOUBLE); ]
 
   // std has this, but I don't think it makes sense
@@ -871,11 +871,14 @@ nonterm[TypeSpecifier*] TypeSpecifier {
        [ return new TS_name(n, loc, false /*typename*/); ]
 
   -> s:PrimitiveTypeSpecifier            // int
-       [ return new TS_simple(new PQ_name("__anonymous_PrimitiveTypeSpecifier"), loc, s); ]
+       [ stringBuilder sb;
+         sb << "anonymous:" << toString(s);
+         return new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, s);
+       ]
 
   -> s:PrimitiveCVTypeSpecifier          // unsigned const char  (not good style, IMO)
        [
-         TS_simple *ret = new TS_simple(new PQ_name("__anonymous_PrimitiveCVTypeSpecifier"), loc,
+         TS_simple *ret = new TS_simple(new PQ_name("anonymous_PrimitiveCVTypeSpecifier"), loc,
              (SimpleTypeId)(s & ST_BITMASK));
          ret->cv = (CVFlags)(s & CV_ALL);
          return ret;

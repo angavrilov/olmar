@@ -65,6 +65,7 @@ void cc_type_checker();
 class Qualifiers;
 string toString(Qualifiers *q);
 Qualifiers *deepClone(Qualifiers *q);
+Qualifiers *deepCloneLiterals(Qualifiers *q);
 
 
 // --------------------- atomic types --------------------------

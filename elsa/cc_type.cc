@@ -858,7 +858,7 @@ CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
 CVAtomicType *CVAtomicType::deepClone() const {
   // NOTE: We don't clone the underlying AtomicType.
   CVAtomicType *tmp = new CVAtomicType(atomic, cv);
-//    tmp->q = q ? ::deepClone(q) : NULL;
+  tmp->q = q ? ::deepCloneLiterals(q) : NULL;
   return tmp;
 }
 
@@ -938,7 +938,7 @@ PointerType::PointerType(PtrOper o, CVFlags c, Type const *a)
 
 PointerType *PointerType::deepClone() const {
   PointerType *tmp = new PointerType(op, cv, atType->deepClone());
-//    tmp->q = q ? ::deepClone(q) : NULL;
+  tmp->q = q ? ::deepCloneLiterals(q) : NULL;
   return tmp;
 }
 
@@ -1026,7 +1026,7 @@ FunctionType *FunctionType::deepClone() const {
 //    tmp->exnSpec = exnSpec->deepClone();
 //    tmp->templateParams = templateParams->deepClone();
 
-//    tmp->q = q ? ::deepClone(q) : NULL;
+  tmp->q = q ? ::deepCloneLiterals(q) : NULL;
   return tmp;
 }
 
@@ -1410,7 +1410,7 @@ ClassTemplateInfo::~ClassTemplateInfo()
 ArrayType *ArrayType::deepClone() const {
   ArrayType *tmp = new ArrayType(eltType->deepClone(), size);
   tmp->hasSize = hasSize;
-//    tmp->q = q ? ::deepClone(q) : NULL;
+  tmp->q = q ? ::deepCloneLiterals(q) : NULL;
   return tmp;
 }
 

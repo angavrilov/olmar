@@ -29,12 +29,13 @@ class Qualifiers {
   void appendQualifierLiterals(QualifierLiterals *ql0) {}
   string toString() {return string("");}
   string literalsToString() {return string("");}
-  static void insertInstancesIntoGraph();
+  static void insert_instances_into_graph();
 };
 
 string toString(Qualifiers *q);
 string toString (QualifierLiterals *const &);
 Qualifiers *deepClone(Qualifiers *q);
+Qualifiers *deepCloneLiterals(Qualifiers *q);
 Type const *applyQualifierLiteralsToType(Qualifiers *q, Type const *baseType);
 
 void nameSubtypeQualifiers(Variable *v);

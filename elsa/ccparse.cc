@@ -185,10 +185,14 @@ void doit(int argc, char **argv)
     SFOREACH_OBJLIST_NC(Variable, Variable::instances, variable_iter) {
       nameSubtypeQualifiers(variable_iter.data());
     }
-    printf("** Qualifiers::insertInstancesIntoGraph()\n");
-    Qualifiers::insertInstancesIntoGraph();
+    printf("** Qualifiers::global_attach_funky_set_qualifiers()\n");
+    Qualifiers::global_attach_funky_set_qualifiers();
     printf("** unit->qual(env)\n");
     unit->qual(env);
+    printf("** Qualifiers::global_attach_funky_set_qualifiers()\n");
+    Qualifiers::global_attach_funky_set_qualifiers();
+    printf("** Qualifiers::global_insert_instances_into_graph()\n");
+    Qualifiers::global_insert_instances_into_graph();
     printf("** finish_quals_CQUAL()\n");
     finish_quals_CQUAL();
     printf("** qual done\n");
