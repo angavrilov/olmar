@@ -1802,9 +1802,6 @@ Variable *Env::findMostSpecific
 //     largely ignore at this time
 // however, I await more examples before continuing to refine
 // my approximation to the extremely complex lookup rules
-//
-// makeEatScope: first step towards removing SK_EAT_TEMPL_SCOPE
-// altogether
 void Env::prepArgScopeForTemlCloneTcheck
   (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes, 
    Scope *foundScope)

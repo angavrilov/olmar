@@ -612,6 +612,7 @@ testparse t0376.cc
 testparse t0377.cc
 failparse t0378.cc "buggy qualified lookup of ~ name"
 failparse t0379.cc "buggy qualified lookup involving a typedef"
+testparse t0380.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

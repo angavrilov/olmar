@@ -4669,7 +4669,11 @@ Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
   if (v) {
     var = v;
-    candidates.addsIf(v, flags);
+    
+    // 2005-02-20: 'add' instead of 'adds', because when we remember a
+    // non-dependent lookup, we do *not* want to re-do overload
+    // resolution
+    candidates.addIf(v, flags);
   }
   else {
     // do lookup normally

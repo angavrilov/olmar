@@ -68,7 +68,9 @@ public:
   // is an overload set
   void add(Variable *v);
   
-  // like 'adds' but only do it if LF_LOOKUP_SET is in 'flags'
+  // like above but only do it if 'v' is not NULL, 
+  // and if LF_LOOKUP_SET is in 'flags'
+  void addIf(Variable *v, LookupFlags flags);
   void addsIf(Variable *v, LookupFlags flags);
 };
 

@@ -90,6 +90,13 @@ void LookupSet::add(Variable *v)
 }
 
 
+void LookupSet::addIf(Variable *v, LookupFlags flags)
+{
+  if (flags & LF_LOOKUP_SET) {
+    add(v);
+  }
+}
+
 void LookupSet::addsIf(Variable *v, LookupFlags flags)
 {
   if (flags & LF_LOOKUP_SET) {
