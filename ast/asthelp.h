@@ -58,10 +58,23 @@
   case type::TYPE_TAG: {                              \
     type const *var = switch_nodeptr->as##type##C();
 
-#define ASTENDCASEC                                   \
+// end a case, and add an empty 'default' construct
+#define ASTENDCASECD                                  \
     break;                                            \
   } /* end final case */                              \
   default: ;    /* silence warning */                 \
+} /* end scope started before switch */
+
+#define ASTDEFAULTC                                   \
+    break;                                            \
+  } /* end final case */                              \
+  default: {                                          \
+
+// end a case where an explicit default was present, or
+// there is no need to add one (e.g. because it was exhaustive)
+#define ASTENDCASEC                                   \
+    break;                                            \
+  } /* end final case */                              \
 } /* end scope started before switch */
 
 
@@ -80,12 +93,11 @@
   } /* end previous case */                           \
   case type::TYPE_TAG: {                              \
     type *var = switch_nodeptr->as##type();
-
-#define ASTENDCASE                                    \
-    break;                                            \
-  } /* end final case */                              \
-  default: ;    /* silence warning */                 \
-} /* end scope started before switch */
+                              
+// end-of-switch behavior is same as in const case
+#define ASTENDCASED ASTENDCASECD
+#define ASTDEFAULT ASTDEFAULTC
+#define ASTENDCASE ASTENDCASEC
 
 
 // ------------------- debug print helpers -----------------
