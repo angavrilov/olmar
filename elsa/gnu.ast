@@ -196,6 +196,18 @@ class Designator (SourceLoc loc) {
 // (no AST extension b/c extra info dropped on floor)
 
 
+// ------------ gcc computed goto ----------
+class Expression {                      
+  // address of a label, e.g., "&&labelName"
+  -> E_addrOfLabel(StringRef labelName);      
+}
+
+class Statement {
+  // goto a label whose address has been taken
+  -> S_computedGoto(Expression target);
+}
+
+
 // ----------- gcc __attribute__ -----------
 // (no AST extension b/c extra info dropped on floor)
 

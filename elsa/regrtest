@@ -868,7 +868,7 @@ failparse k0004.cc "non-typename template argument"
 failparse k0005.cc "declaring a constructor with class name"
 failparse k0006.cc "error: E_alignofType is not constEval'able"
 testparse k0007.cc
-failparse k0008.cc "addresses of labels and computed goto"
+# renamed k0008.cc to gnu/g0022.cc because it is a GNU feature
 testparse k0009.cc #"clash between function and instantiated template parameter member"
 testparse k0010.cc
 testparse k0011.cc
@@ -936,6 +936,7 @@ if $use_gnu; then
   testparse gnu/g0019.cc
   # g0020.cc is documentation
   testparse gnu/g0021.cc
+  testparse gnu/g0022.cc #"addresses of labels and computed goto"
 
   testparse gnu/t0124.cc
   testparse gnu/t0125.cc

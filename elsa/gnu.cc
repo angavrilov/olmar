@@ -238,6 +238,24 @@ void S_rangeCase::itcheck(Env &env)
   exprHi->constEval(env, labelValHi);
 }
 
+void S_computedGoto::itcheck(Env &env)
+{
+  target->tcheck(env, target);
+
+  // The GCC manual seems to imply it wants 'target' to have type
+  // 'void*'.  It seems pointless to specifically require void* as
+  // opposed to some other pointer type, since any other pointer type
+  // can be implicitly converted to void*.  Even so, EDG does in fact
+  // enforce that the arg is exactly void*.  GCC itself does not
+  // appear to enforce any restrictions on the type (!).
+  Type *t = target->type->asRval();
+  if (!t->isPointer()) {
+    env.error(t, stringc
+      << "type of expression in computed goto must be a pointer, not `"
+      << t->toString() << "'");
+  }
+}
+
 
 Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
@@ -393,6 +411,15 @@ Type *E_gnuMinMax::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+Type *E_addrOfLabel::itcheck_x(Env &env, Expression *&replacement)
+{
+  // TODO: check that the label exists in the function
+  
+  // type is void*
+  return env.makePtrType(SL_UNKNOWN, env.getSimpleType(SL_UNKNOWN, ST_VOID));
+}
+
+
 static void compile_time_compute_int_expr(Env &env, Expression *e, int &x, char *error_msg) {
   e->tcheck(env, e);
   if (!e->constEval(env, x)) env.error(error_msg);
@@ -532,6 +559,15 @@ void S_rangeCase::iprint(PrintEnv &env)
 }
 
 
+void S_computedGoto::iprint(PrintEnv &env)
+{
+  olayer ol("S_computedGoto::iprint");
+  env << "goto *";
+  target->print(env);
+  env << ";\n";
+}
+
+
 void E_compoundLit::iprint(PrintEnv &env)
 {
   olayer ol("E_compoundLit::iprint");
@@ -589,6 +625,13 @@ void E_gnuMinMax::iprint(PrintEnv &env)
   env << (isMin? " <? " : " >? ");
   e2->print(env);
 }
+
+void E_addrOfLabel::iprint(PrintEnv &env)
+{
+  olayer ol("E_addrOfLabel::iprint");
+  env << "&&" << labelName;
+}
+
 
 // prints designators in the new C99 style, not the obsolescent ":"
 // style
@@ -667,3 +710,16 @@ void S_rangeCase::icfg(CFGEnv &env)
   env.connectEnclosingSwitch(this, "'case'");
   s->computeCFG(env);
 }
+
+
+void S_computedGoto::icfg(CFGEnv &env)
+{
+  // The CFG mechanism is not really prepared to deal with computed
+  // gotos, so I will do nothing here (so, the CFG will look like
+  // control simply flows to the next statement).  It will fall to the
+  // client to realize that this is a computed goto, and try to do
+  // something appropriate.
+}
+
+
+// EOF

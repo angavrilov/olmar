@@ -28,6 +28,7 @@
 //   - C99 restrict keyword
 //   - C99 qualifiers in array brackets: "[const ...]"
 //   - gcc __attribute__
+//   - gcc computed gotos
 
 
 // expected statistics
@@ -440,6 +441,19 @@ nonterm BuggyGccTypeModifier {
   -> "short";
   -> "signed";
   -> "unsigned";
+}
+
+
+// ------------ gcc computed goto ----------
+// http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Labels-as-Values.html
+nonterm(Expression*) UnaryExpression {
+  -> "&&" n:Identifier          
+       { return new E_addrOfLabel(n); }
+}
+
+nonterm(Statement*) Statement {
+  -> "goto" "*" e:Expression ";"   
+       { return new S_computedGoto(loc, e); }
 }
 
 
