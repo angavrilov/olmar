@@ -840,14 +840,17 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
               << "iter current: " << innerIter.private_getCurrent() << endl;
 
   // compiler bug..
-  //for (; !innerIter.isDone(); innerIter.next()) {
-
-  while (true) {
-    if (innerIter.isDone()) {
-      break;
-    }
-
+  for (; !innerIter.isDone(); innerIter.next()) {
     CompoundType *inner = innerIter.value();
+
+  #else
+  // iterate using a different data structure
+  SFOREACH_OBJLIST(CompoundType, ct->innerClasses, innerIter) {
+    CompoundType *inner = const_cast<CompoundType*>  // f'ing gcc, please STFU
+                            (innerIter.data());
+
+  #endif // 0
+    trace("inner") << "checking bodies of " << inner->name << endl;
 
     // open the inner scope
     env.extendScope(inner);
@@ -858,10 +861,8 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
 
     // retract the inner scope
     env.retractScope(inner);
-
-    innerIter.next();
   }
-  #endif // 0
+
 }
 
 

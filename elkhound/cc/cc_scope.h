@@ -9,6 +9,7 @@
 #include "cc_flags.h"     // AccessKeyword
 #include "fileloc.h"      // SourceLocation
 #include "strtable.h"     // StringRef
+#include "sobjlist.h"     // SObjList
 
 class Env;                // cc_env.h
 class Variable;           // variable.h
@@ -43,6 +44,11 @@ public:      // data
   // the scope stack to insert the name (used for environments of
   // template parameters)
   bool canAcceptNames;
+
+  // doh.. I need a list of compounds so I can check the inner
+  // classes, and I can't seem to iterate over my StringSObjDict
+  // without triggering a compiler codegen bug..
+  SObjList<CompoundType> innerClasses;
 
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
