@@ -14,6 +14,8 @@
 #include "xassert.h"        // xassert
 #include "ckheap.h"         // checkHeapNode
 #include "flatten.h"        // Flatten
+#include "nonport.h"        // vnprintf
+#include "unixutil.h"       // writeAll
 
 
 // ----------------------- string ---------------------
@@ -352,6 +354,46 @@ string toString(char const *str)
 }
 
 
+// ------------------- stringf -----------------
+string stringf(char const *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  string ret = vstringf(format, args);
+  va_end(args);
+  return ret;
+}
+ 
+
+string vstringf(char const *format, va_list args)
+{                                  
+  // estimate string length
+  int est = vnprintf(format, args);
+                    
+  // allocate space
+  string ret(est+1);
+  
+  // render the string
+  int len = vsprintf(ret.pchar(), format, args);
+
+  // check the estimate, and fail *hard* if it was low, to avoid any
+  // possibility that this might become exploitable in some context
+  // (do *not* turn this check off in an NDEGUG build)
+  if (len > est) {
+    // don't go through fprintf, etc., because the state of memory
+    // makes that risky
+    static char const msg[] =
+      "fatal error: vnprintf failed to provide a conservative estimate,\n"
+      "memory is most likely corrupted\n";
+    writeAll(2 /*stderr*/, msg, strlen(msg));
+    abort();
+  }
+             
+  // happy
+  return ret;
+}
+
+
 // ------------------ test code --------------------
 #ifdef TEST_STR
 
@@ -372,6 +414,9 @@ int main()
   test(0);
   test((unsigned long)(-1));
   test(1);
+
+  cout << "stringf: " << stringf("int=%d hex=%X str=%s char=%c float=%f",
+                                 5, 0xAA, "hi", 'f', 3.4) << endl;            
 
   cout << "tests passed\n";
 
