@@ -858,6 +858,30 @@ AbsValue *E_sizeofType::vcgen(AEnv &env, int path) const
 }
 
 
+AbsValue *E_new::vcgen(AEnv &env, int path) const
+{
+  xassert(path==0);
+  
+  // to model allocation:
+  //   - make up a new logic variable to stand for the address
+  //   - state that this address is distinct from any others we know 
+  //     about, including NULL
+  //   - state that no pointer fields in the program currently point
+  //     to the new object    
+    
+  // new variable
+  AbsValue *v = env.freshVariable("newAlloc",
+    stringc << "result of " << toString());
+    
+  // distinct from others
+  env.addDistinct(v);
+  
+  // TODO: finish this (need to verify gcc works)
+  
+  return v;
+}
+
+
 AbsValue *E_assign::vcgen(AEnv &env, int path) const
 {
   int modulus = src->numPaths1();
@@ -1142,10 +1166,18 @@ Predicate *E_comma::vcgenPred(AEnv &env, int path) const
 
 
 Predicate *E_sizeofType::vcgenPred(AEnv &env, int path) const
-{ 
+{
   xassert(path==0);
   return new P_lit(size != 0);     // should almost always be true
 }
+
+
+Predicate *E_new::vcgenPred(AEnv &env, int path) const
+{
+  xassert(path==0);
+  return new P_lit(true);          // 'new' always returns non-null
+}
+
 
 Predicate *E_assign::vcgenPred(AEnv &env, int path) const
 {

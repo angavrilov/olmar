@@ -284,6 +284,8 @@ public:     // funcs
   // make a ptr-to-'type' type; returns generic Type instead of
   // PointerType because sometimes I return fixed(ST_ERROR)
   Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
+  Type const *makePtrType(Type const *type)
+    { return makePtrOperType(PO_POINTER, CV_NONE, type); }
   Type const *makeRefType(Type const *type)
     { return makePtrOperType(PO_REFERENCE, CV_NONE, type); }
 

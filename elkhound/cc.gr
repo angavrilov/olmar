@@ -311,16 +311,32 @@ nonterm[Expression*] UnaryExpression {
   // size of type
   -> "sizeof" "(" t:TypeId ")"   [ return new E_sizeofType(t); ]
 
-  //-> NewExpression ;
+  -> e:NewExpression             [ return e; ]
 }
 
 
 // for now, no new-placement or "::" in front
 // I've changed the syntax slightly to correct what I think is a mistake
 // (my syntax allows array of ptr to fn, whereas std syntax doesn't -- TOVERIFY)
-nonterm NewExpression {
-  -> "new" TypeSpecifier NewDeclaratorOpt NewInitializerOpt ;
-  -> "new" "(" TypeId ")" NewDeclaratorOpt NewInitializerOpt ;
+nonterm[E_new*] NewExpression {
+  // I tried making the 't' here a TypeId, but that introduces an
+  // LALR(1) conflict because then "new char * 6" could either be
+  // "(new char) * 6" or "(new (char*)) 6" -- neither makes sense but
+  // the parser doesn't know that
+  
+  // there's still an LALR(1) shift/reduce conflict involving __attribute__,
+  // but I haven't spent enough time staring at the parser dump to figure
+  // out why, so I'll rely on GLR to deal with it;
+  // TODO: design a way to query the parsgen to figure out where a given
+  // lookahead symbol comes from originally (tracing by hand I get myself
+  // stuck in long loops)
+
+  -> "new" t:TypeSpecifier /*NewDeclaratorOpt NewInitializerOpt*/
+       [ return new E_new(new ASTTypeId(t,              
+           // declarator which doesn't modify type:
+           new Declarator(new D_name(loc, NULL, NULL), NULL))); ]
+  -> "new" "(" t:TypeId ")" /*NewDeclaratorOpt NewInitializerOpt*/
+       [ return new E_new(t); ]
 }
 
 // NewDeclaratorOpt is, as a regular expression:

@@ -442,6 +442,8 @@ class Expression {
        ctor size=-1;
      }
 
+  -> E_new(ASTTypeId atype);
+
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3
   -> E_assign(Expression target, BinaryOp op, Expression src);

@@ -498,7 +498,7 @@ int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
 void grampar_yyerror(char const *message, void *parseParam)
 {
   ParseParams *par = (ParseParams*)parseParam;
-  cout << par->lexer.curLocStr() << message << endl;
+  cout << par->lexer.curLocStr() << ": " << message << endl;
 }
 
 

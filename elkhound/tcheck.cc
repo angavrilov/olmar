@@ -1275,6 +1275,12 @@ Type const *E_sizeofType::itcheck(Env &env)
 }
 
 
+Type const *E_new::itcheck(Env &env)
+{
+  return env.makePtrType(atype->tcheck(env));
+}
+
+
 Type const *E_assign::itcheck(Env &env)
 {
   Type const *stype = src->tcheck(env)->asRval();
@@ -1447,6 +1453,7 @@ int E_cond::constEval(Env &env) const { return xnonconst(); }
 //int E_gnuCond::constEval(Env &env) const { return xnonconst(); }
 int E_comma::constEval(Env &env) const { return xnonconst(); }
 int E_assign::constEval(Env &env) const { return xnonconst(); }
+int E_new::constEval(Env &env) const { return xnonconst(); }
 int E_forall::constEval(Env &env) const { return xnonconst(); }
 
 
@@ -1516,6 +1523,11 @@ string E_comma::toString() const
   { return stringc << e1->toString() << ", " << e2->toString(); }
 string E_sizeofType::toString() const
   { return stringc << "sizeof(..some type..)"; }
+
+string E_new::toString() const
+{
+  return stringc << "new (" << type->asPointerTypeC().atType->toString() << ")";
+}
 
 string E_assign::toString() const
 {

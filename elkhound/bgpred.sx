@@ -150,4 +150,30 @@
       )
     ))
 
+  ; ------------ new stuff for modeling structure fields ----------
+  ; structure fields (in the new approach) are modeled like big
+  ; arrays, indexed by their containing object.  this makes it
+  ; impossible to model some kinds of scenarios involving pointers
+  ; into structure interiors, but I don't care about them now
+
+  ; read the most recent update to a field "array": if the last
+  ; change was to say that p->field = q, then reading p->field
+  ; yields q
+  (FORALL (fieldMap obj value)
+    (EQ
+      (selectField (updateField fieldMap obj value) obj)
+      value
+    )
+  )
+
+  ; read past an update to a different object
+  (FORALL (fieldMap skipObj skipVal readObj)            
+    (IMPLIES
+      (NEQ skipObj readObj)
+      (EQ
+        (selectField (updateField fieldMap skipObj skipVal) readObj)
+        (selectField fieldMap readObj)
+      )
+    ))
+
 ))
