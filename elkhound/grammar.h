@@ -27,9 +27,9 @@ class DottedProduction;
 class Grammar;
 
 // this really should be in a more general place..
-#define OSTREAM_OPERATOR		    \
-  ostream &operator << (ostream &os) const  \
-    { print(os); return os; }
+#define OSTREAM_OPERATOR(MyClass)                                \
+  friend ostream &operator << (ostream &os, MyClass const &ths)  \
+    { ths.print(os); return os; }
 
 
 // ---------------- Symbol --------------------
@@ -62,7 +62,7 @@ public:
 
   // debugging
   virtual void print(ostream &os) const;
-  OSTREAM_OPERATOR
+  OSTREAM_OPERATOR(Symbol)
     // print as '$name: isTerminal=$isTerminal' (no newline)
 };
 
@@ -91,7 +91,7 @@ public:     // funcs
       termIndex(-1) {}
 
   virtual void print(ostream &os) const;
-  OSTREAM_OPERATOR
+  OSTREAM_OPERATOR(Terminal)
 };
 
 typedef SObjList<Terminal> TerminalList;
@@ -123,7 +123,7 @@ public:     // funcs
   virtual ~Nonterminal();
 
   virtual void print(ostream &os) const;
-  OSTREAM_OPERATOR
+  OSTREAM_OPERATOR(Nonterminal)
 };
 
 typedef SObjList<Nonterminal> NonterminalList;
@@ -171,7 +171,7 @@ public:
 
   // print to cout as 'A -> B c D' (no newline)
   void print(ostream &os) const;
-  OSTREAM_OPERATOR
+  OSTREAM_OPERATOR(Production)
 };
 
 typedef SObjList<Production> ProductionList;
@@ -208,7 +208,7 @@ public:
 
   // print to cout as 'A -> B . c D' (no newline)
   void print(ostream &os) const;
-  OSTREAM_OPERATOR
+  OSTREAM_OPERATOR(DottedProduction)
 };
 
 // (serf) lists of dotted productions
@@ -255,15 +255,21 @@ public:     // funcs
   // query transition fn for an arbitrary symbol; returns
   // NULL if no transition is defined
   ItemSet const *transitionC(Symbol const *sym) const;
-  ItemSet *transitionC(Symbol *sym)
+  ItemSet *transition(Symbol const *sym)
     { return const_cast<ItemSet*>(transitionC(sym)); }
 
   // set transition on 'sym' to be 'dest'
   void setTransition(Symbol const *sym, ItemSet *dest);
-  
+				    
+  // get the list of productions that are ready to reduce, given
+  // that the next input symbol is 'lookahead' (i.e. in the follow
+  // of a production's LHS)
+  void getPossibleReductions(ProductionList &reductions,
+                             Terminal const *lookahead) const;
+
   // debugging
   void print(ostream &os) const;
-  OSTREAM_OPERATOR
+  OSTREAM_OPERATOR(ItemSet)
 };
 
 
@@ -332,7 +338,7 @@ private:
   void computeFollow();
   bool addFollow(Nonterminal *NT, Terminal *term);
 
-  // --------- LR item sets ----------  
+  // --------- LR item sets ----------
   void itemSetClosure(DProductionList &itemSet);
     // non-const because have to add dotted productions to the list
   ItemSet *makeItemSet();
@@ -342,7 +348,8 @@ private:
   bool itemSetContainsItemSet(ItemSet const *big,
                               ItemSet const *small);
   bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);
-  void constructLRItemSets();
+  void constructLRItemSets(ObjList<ItemSet> &itemSetsDone);
+  void lrParse(ObjList<ItemSet> &itemSets, char const *input);
 
   // misc
   void computePredictiveParsingTable();
@@ -366,7 +373,7 @@ public:
   void addProduction(Production *prod);
 
   // print the current list of productions
-  void printProductions() const;
+  void printProductions(ostream &os) const;
 
 
   // -------------- grammar parsing -------------------

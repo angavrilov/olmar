@@ -13,7 +13,7 @@
 
 
 // print a variable value
-#define PVAL(var) cout << " " << #var "=" << var;
+#define PVAL(var) os << " " << #var "=" << var;
 
 // experimenting..
 #define INTLOOP(var, start, maxPlusOne) \
@@ -25,20 +25,18 @@ Symbol::~Symbol()
 {}
 
 
-void Symbol::print() const
+void Symbol::print(ostream &os) const
 {
-  cout << name << ":";
+  os << name << ":";
   PVAL(isTerm);
 }
 
 
-void printSymbols(ObjList<Symbol> const &list)
+void printSymbols(ostream &os, ObjList<Symbol> const &list)
 {
   for (ObjListIter<Symbol> iter(list);
        !iter.isDone(); iter.adv()) {
-    cout << "  ";
-    iter.data()->print();
-    cout << endl;
+    os << "  " << *(iter.data()) << endl;
   }
 }
 
@@ -57,10 +55,10 @@ Nonterminal const &Symbol::asNonterminalC() const
 
 
 // -------------------- Terminal ------------------------
-void Terminal::print() const
+void Terminal::print(ostream &os) const
 {
-  cout << "[" << termIndex << "] ";
-  Symbol::print();
+  os << "[" << termIndex << "] ";
+  Symbol::print(os);
 }
 
 
@@ -75,37 +73,37 @@ Nonterminal::~Nonterminal()
 {}
 
 
-void printTerminalSet(TerminalList const &list)
+void printTerminalSet(ostream &os, TerminalList const &list)
 {
-  cout << "{";
+  os << "{";
   int ct = 0;
   for (TerminalListIter term(list); !term.isDone(); term.adv(), ct++) {
     if (ct > 0) {
-      cout << ", ";
+      os << ", ";
     }
-    cout << term.data()->name;
+    os << term.data()->name;
   }
-  cout << "}";
+  os << "}";
 }
 
 
-void Nonterminal::print() const
+void Nonterminal::print(ostream &os) const
 {
-  cout << "[" << ntIndex << "] ";
-  Symbol::print();
+  os << "[" << ntIndex << "] ";
+  Symbol::print(os);
 
-  // cyclic?           
+  // cyclic?
   if (cyclic) {
-    cout << " (cyclic!)";
+    os << " (cyclic!)";
   }
 
   // first
-  cout << " first=";
-  printTerminalSet(first);
+  os << " first=";
+  printTerminalSet(os, first);
 
   // follow
-  cout << " follow=";
-  printTerminalSet(follow);
+  os << " follow=";
+  printTerminalSet(os, follow);
 }
 
 
@@ -180,12 +178,12 @@ DottedProduction const *Production::getDProdC(int dotPlace) const
 }
 
 
-void Production::print() const
+void Production::print(ostream &os) const
 {
-  cout << left->name << " ->";
+  os << left->name << " ->";
 
   for (SymbolListIter iter(right); !iter.isDone(); iter.adv()) {
-    cout << " " << iter.data()->name;
+    os << " " << iter.data()->name;
   }
 }
 
@@ -203,20 +201,20 @@ Symbol const *DottedProduction::symbolAfterDotC() const
 }
 
 
-void DottedProduction::print() const
+void DottedProduction::print(ostream &os) const
 {
-  cout << prod->left->name << " ->";
+  os << prod->left->name << " ->";
 
   int position = 0;
   for (SymbolListIter iter(prod->right);
        !iter.isDone(); iter.adv(), position++) {
     if (position == dot) {
-      cout << " .";
+      os << " .";
     }
-    cout << " " << iter.data()->name;
+    os << " " << iter.data()->name;
   }
   if (position == dot) {
-    cout << " .";
+    os << " .";
   }
 }
 
@@ -282,31 +280,58 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
   refTransition(sym) = dest;
 }
 
-
-void ItemSet::print() const
+							    
+// return the reductions that are ready in this state, given
+// that the next symbol is 'lookahead'
+void ItemSet::getPossibleReductions(ProductionList &reductions,
+                                    Terminal const *lookahead) const
 {
-  cout << "Item " << id << ":\n";
-    
+  // for each item
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *item = itemIter.data();
+
+    // it has to have the dot at the end
+    if (!item->isDotAtEnd()) {
+      continue;
+    }
+
+    // and the follow of its LHS must include 'lookahead'
+    // NOTE: this is the difference between LR(0) and SLR(1) --
+    //       LR(0) would not do this check, while SLR(1) does
+    if (!item->prod->left->follow.contains(lookahead)) {    // (constness)
+      continue;
+    }
+
+    // ok, this one's ready
+    reductions.append(item->prod);			    // (constness)
+  }
+}
+
+
+void ItemSet::print(ostream &os) const
+{
+  os << "Item " << id << ":\n";
+
   // for each item
   SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
     DottedProduction const *dprod = itemIter.data();
 
     // print its text
-    cout << "  ";
-    dprod->print();
-    cout << "      ";
+    os << "  ";
+    dprod->print(os);
+    os << "      ";
 
     // print any transitions on its after-dot symbol
     if (!dprod->isDotAtEnd()) {
       ItemSet const *is = transitionC(dprod->symbolAfterDotC());
       if (is == NULL) {
-        cout << "(no transition?!?!)";
+        os << "(no transition?!?!)";
       }
       else {
-        cout << "--> " << is->id;
+        os << "--> " << is->id;
       }		 
     }
-    cout << endl;
+    os << endl;
   }
 }
 
@@ -353,17 +378,17 @@ int Grammar::numNonterminals() const
 }
 
 
-void Grammar::printProductions() const
-{                              
+void Grammar::printProductions(ostream &os) const
+{
   if (cyclic) {
-    cout << "(cyclic!) ";
+    os << "(cyclic!) ";
   }
-  cout << "Grammar productions:\n";
+  os << "Grammar productions:\n";
   for (ObjListIter<Production> iter(productions);
        !iter.isDone(); iter.adv()) {
-    cout << "  ";
-    iter.data()->print();
-    cout << endl;
+    os << "  ";
+    iter.data()->print(os);
+    os << endl;
   }
 }
 
@@ -553,7 +578,7 @@ void Grammar::readFile(char const *fname)
     line++;   
     
     if (!parseLine(buf)) {
-      cout << "error parsing line " << line << endl;
+      cerr << "error parsing line " << line << endl;
     }
   }
 
@@ -1079,7 +1104,7 @@ void Grammar::computePredictiveParsingTable()
       // for each production in table[nonterm,term]
       SFOREACH_PRODUCTION(TABLE(nonterm,term), prod) {
         cout << "   ";
-        prod.data()->print();
+        prod.data()->print(cout);
       }
 
       cout << endl;
@@ -1210,7 +1235,7 @@ bool Grammar::itemSetsEqual(ItemSet const *is1, ItemSet const *is2)
 }
 
 
-// [ASU] fig 4.34, p.224					
+// [ASU] fig 4.34, p.224
 // puts the finished parse tables into 'itemSetsDone'
 void Grammar::constructLRItemSets(ObjList<ItemSet> &itemSetsDone)
 {
@@ -1295,29 +1320,30 @@ void Grammar::constructLRItemSets(ObjList<ItemSet> &itemSetsDone)
 
   // print each item set
   FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
-    itemSet.data()->print();
+    itemSet.data()->print(cout);
   }
-
-
-  // everything automatically thrown away
 }
 
 
+// this is mostly [ASU] algorithm 4.7, p.218-219.  however,
+// I've modified it to store one less item on the state stack
+// (not really as optimization, just it made more sense to
+// me that way)
 void Grammar::lrParse(ObjList<ItemSet> &itemSets, char const *input)
 {
   // tokenize the input
-  StrtokParse tok(input);
-  
+  StrtokParse tok(input, " \t");
+
   // parser state
   int currentToken = 0;               // index of current token
   ItemSet *state = itemSets.nth(0);   // current parser state
   SObjList<ItemSet> stateStack;       // stack of parser states
   SObjList<Symbol> symbolStack;       // stack of shifted symbols
-  
+
   // for each token of input
   while (currentToken < tok) {
     // map the token text to a symbol
-    Symbol const *symbol = findSymbol(tok[currentToken]);
+    Terminal *symbol = findTerminal(tok[currentToken]);     // (constness)
 
     // see where a shift would go
     ItemSet *shiftDest = state->transition(symbol);
@@ -1340,36 +1366,94 @@ void Grammar::lrParse(ObjList<ItemSet> &itemSets, char const *input)
       currentToken++;
 
       // debugging
-      cout << "shifting " << symbol->name << ", moving to state "
-           << shiftDest->id << endl;
+      cout << "moving to state " << state->id
+           << " after shifting symbol " << symbol->name << endl;
     }
 
     else if (shiftDest == NULL &&
              reductions.count() == 1) {	   // unambiguous reduction
       // get the production we're reducing by
       Production *prod = reductions.nth(0);
-      	 
+
       // it is here that an action or tree-building step would
       // take place
 
-      // pop as many states and symbols off stacks as there
-      // are symbols on the right-hand side of 'prod'
-      INTLOOP(i, 0, prod->rhsLength()) {
+      // pop as many symbols off stack as there are symbols on
+      // the right-hand side of 'prod'; and pop one less as many
+      // states off state stack
+      INTLOOP(i, 1, prod->rhsLength()) {
         stateStack.removeAt(0);
         symbolStack.removeAt(0);
       }
+      symbolStack.removeAt(0);
 
-      //
+      // in [ASU] terms, the act of forgetting 'state' is the
+      // "extra" state pop I didn't do above
 
+      // get state now on stack top
+      state = stateStack.nth(0);
 
+      // get state we're going to move to (it's like a shift
+      // on prod's LHS)
+      ItemSet *gotoDest = state->transition(prod->left);
 
+      // push prod's LHS (as in a shift)
+      symbolStack.prepend(prod->left);
 
+      // move to new state
+      state = gotoDest;
+			  
+      // again, setting 'state' is what [ASU] accomplishes with
+      // a push
 
+      // debugging
+      cout << "moving to state " << state->id
+           << " after reducing by rule " << *prod << endl;
+    }
 
+    else if (shiftDest == NULL &&
+	     reductions.isEmpty()) {       // no transition: syntax error
+      cout << "no actions defined for symbol " << symbol->name
+           << " in state " << state->id << endl;
+      break;       // stop parsing
+    }
 
+    else {                                 // local ambiguity
+      cout << "conflict for symbol " << symbol->name
+           << " in state " << state->id
+           << "; possible actions:\n";
 
+      if (shiftDest) {
+        cout << "  shift, and move to state " << shiftDest->id << endl;
+      }
 
+      SFOREACH_PRODUCTION(reductions, prod) {
+        cout << "  reduce by rule " << *(prod.data()) << endl;
+      }
 
+      break;       // stop parsing
+    }
+  }
+
+  // print final contents of stack; if the parse was successful,
+  // I want to see what remains; if not, it's interesting anyway
+  cout << "final contents of stacks (right is top):\n";
+  stateStack.reverse();	   // more convenient for printing
+  symbolStack.reverse();
+
+  cout << "  state stack:";
+  SFOREACH_OBJLIST(ItemSet, stateStack, stateIter) {
+    cout << " " << stateIter.data()->id;
+  }
+  cout << " current=" << state->id;   // print current state too
+  cout << endl;
+
+  cout << "  symbol stack:";
+  SFOREACH_SYMBOL(symbolStack, sym) {
+    cout << " " << sym.data()->name;
+  }
+  cout << endl;
+}
 
 // --------------- END of construct LR item sets -------------------
 
@@ -1386,121 +1470,142 @@ void Grammar::exampleGrammar()
   
 
   #if 0
-  // grammar 4.13 of [ASU] (p.191)
-  parseLine("Start  ->  S $                ");
-  parseLine("S  ->  i E t S S'   |  a      ");
-  parseLine("S' ->  e S          |  empty  ");
-  parseLine("E  ->  b                      ");
+    // grammar 4.13 of [ASU] (p.191)
+    parseLine("Start  ->  S $                ");
+    parseLine("S  ->  i E t S S'   |  a      ");
+    parseLine("S' ->  e S          |  empty  ");
+    parseLine("E  ->  b                      ");
   #endif // 0
 
 
   #if 0
-  // grammar 4.11 of [ASU] (p.189), designed to show First and Follow
-  parseLine("S  ->  E $                ");
-  parseLine("E  ->  T E'               ");
-  parseLine("E' ->  + T E'  | empty    ");
-  parseLine("T  ->  F T'               ");
-  parseLine("T' ->  * F T'  | empty    ");
-  parseLine("F  ->  ( E )   | id       ");
+    // grammar 4.11 of [ASU] (p.189), designed to show First and Follow
+    parseLine("S  ->  E $                ");
+    parseLine("E  ->  T E'               ");
+    parseLine("E' ->  + T E'  | empty    ");
+    parseLine("T  ->  F T'               ");
+    parseLine("T' ->  * F T'  | empty    ");
+    parseLine("F  ->  ( E )   | id       ");
   #endif // 0
 
 
   #if 0
-  // terminals: "a", "b", .. "e"
-  char const termLetters[] = "abcde";
-  Terminal *terms[5];
-  loopi(5) {
-    char s[2];          // will be e.g. "b\0"
-    s[0] = termLetters[i];
-    s[1] = 0;
-    terms[i] = new Terminal(s);
-    terminals.append(terms[i]);
-  }
+    // terminals: "a", "b", .. "e"
+    char const termLetters[] = "abcde";
+    Terminal *terms[5];
+    loopi(5) {
+      char s[2];          // will be e.g. "b\0"
+      s[0] = termLetters[i];
+      s[1] = 0;
+      terms[i] = new Terminal(s);
+      terminals.append(terms[i]);
+    }
 
-  // give then convenient names
-  Terminal *a = terms[0];
-  Terminal *b = terms[1];
-  Terminal *c = terms[2];
-  Terminal *d = terms[3];
-  Terminal *e = terms[4];
+    // give then convenient names
+    Terminal *a = terms[0];
+    Terminal *b = terms[1];
+    Terminal *c = terms[2];
+    Terminal *d = terms[3];
+    Terminal *e = terms[4];
 
-  // nonterminals
-  char const * const nontermNames[] = {
-    "Start", "A", "B", "C", "D"
-  };
-  Nonterminal *nonterms[5];
-  loopi(5) {
-    nonterms[i] = new Nonterminal(nontermNames[i]);
-    nonterminals.append(nonterms[i]);
-  }
+    // nonterminals
+    char const * const nontermNames[] = {
+      "Start", "A", "B", "C", "D"
+    };
+    Nonterminal *nonterms[5];
+    loopi(5) {
+      nonterms[i] = new Nonterminal(nontermNames[i]);
+      nonterminals.append(nonterms[i]);
+    }
 
-  // give them convenient names
-  Nonterminal *S = nonterms[0];
-  Nonterminal *A = nonterms[1];
-  Nonterminal *B = nonterms[2];
-  Nonterminal *C = nonterms[3];
-  Nonterminal *D = nonterms[4];
+    // give them convenient names
+    Nonterminal *S = nonterms[0];
+    Nonterminal *A = nonterms[1];
+    Nonterminal *B = nonterms[2];
+    Nonterminal *C = nonterms[3];
+    Nonterminal *D = nonterms[4];
 
-  // start symbol
-  startSymbol = S;
+    // start symbol
+    startSymbol = S;
 
-  // productions
-  #define E  S
-  #define Ep A
-  #define T  B
-  #define Tp C
-  #define F  D
-  #define plus a
-  #define times b
-  #define lparen c
-  #define rparen d
-  #define id e
-  addProduction(E,  /* -> */   T, Ep,               NULL);
-  addProduction(Ep, /* -> */   plus, T, Ep,         NULL);
-  addProduction(Ep, /* -> */   &emptyString,        NULL);
-  addProduction(T,  /* -> */   F, Tp,               NULL);
-  addProduction(Tp, /* -> */   times, F, Tp,        NULL);
-  addProduction(Tp, /* -> */   &emptyString,        NULL);
-  addProduction(F,  /* -> */   lparen, E, rparen,   NULL);
-  addProduction(F,  /* -> */   id,                  NULL);
+    // productions
+    #define E  S
+    #define Ep A
+    #define T  B
+    #define Tp C
+    #define F  D
+    #define plus a
+    #define times b
+    #define lparen c
+    #define rparen d
+    #define id e
+    addProduction(E,  /* -> */   T, Ep,               NULL);
+    addProduction(Ep, /* -> */   plus, T, Ep,         NULL);
+    addProduction(Ep, /* -> */   &emptyString,        NULL);
+    addProduction(T,  /* -> */   F, Tp,               NULL);
+    addProduction(Tp, /* -> */   times, F, Tp,        NULL);
+    addProduction(Tp, /* -> */   &emptyString,        NULL);
+    addProduction(F,  /* -> */   lparen, E, rparen,   NULL);
+    addProduction(F,  /* -> */   id,                  NULL);
   #endif // 0
 
   #if 0
-  addProduction(S,  /* -> */   A, B, A, C,    NULL);
-  addProduction(A,  /* -> */   B,             NULL);
-  addProduction(B,  /* -> */   &emptyString,  NULL);
-  addProduction(C,  /* -> */   A, D,          NULL);
-  addProduction(D,  /* -> */   a,             NULL);
+    addProduction(S,  /* -> */   A, B, A, C,    NULL);
+    addProduction(A,  /* -> */   B,             NULL);
+    addProduction(B,  /* -> */   &emptyString,  NULL);
+    addProduction(C,  /* -> */   A, D,          NULL);
+    addProduction(D,  /* -> */   a,             NULL);
   #endif // 0
 
   #if 0
-  addProduction(S,  /* -> */   A, B, A, C,    NULL);
-  addProduction(A,  /* -> */   &emptyString,  NULL);
-  addProduction(B,  /* -> */   C, D, C,       NULL);
-  addProduction(C,  /* -> */   &emptyString,  NULL);
-  addProduction(D,  /* -> */   a,             NULL);
+    addProduction(S,  /* -> */   A, B, A, C,    NULL);
+    addProduction(A,  /* -> */   &emptyString,  NULL);
+    addProduction(B,  /* -> */   C, D, C,       NULL);
+    addProduction(C,  /* -> */   &emptyString,  NULL);
+    addProduction(D,  /* -> */   a,             NULL);
   #endif // 0
 
+  #if 1
+    // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
+    parseLine("E' ->  E $                ");
+    parseLine("E  ->  E + T  |  T        ");
+    parseLine("T  ->  T * F  |  F        ");
+    parseLine("F  ->  ( E )  |  id       ");
 
-  #if 0	     
-  // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
-  parseLine("E' ->  E $                ");
-  parseLine("E  ->  E + T  |  T        ");
-  parseLine("T  ->  T * F  |  F        ");
-  parseLine("F  ->  ( E )  |  id       ");
-  #endif // 0								   
-  
-  // [ASU] grammar 4.20, p.229: more sets-of-items
-  parseLine("S' ->  S $                 ");
-  parseLine("S  ->  L = R               ");
-  parseLine("S  ->  R                   ");
-  parseLine("L  ->  * R                 ");
-  parseLine("L  ->  id                  ");
-  parseLine("R  ->  L                   ");
+    char const *input[] = {
+      " id                 $",
+      " id + id            $",
+      " id * id            $",
+      " id + id * id       $",
+      " id * id + id       $",
+      " ( id + id ) * id   $",
+      " id + id + id       $",
+      " id + ( id + id )   $"
+    };
+  #endif // 0/1
+
+  #if 0
+    // [ASU] grammar 4.20, p.229: more sets-of-items
+    parseLine("S' ->  S $                 ");
+    parseLine("S  ->  L = R               ");
+    parseLine("S  ->  R                   ");
+    parseLine("L  ->  * R                 ");
+    parseLine("L  ->  id                  ");
+    parseLine("R  ->  L                   ");
+
+    char const *input[] = {
+      " id                 $",
+      " id = id            $",
+      " * id = id          $",
+      " id = * id          $",
+      " * id = * id        $",
+      " * * id = * * id    $"
+    };
+  #endif // 0
 
 
   // verify we got what we expected
-  printProductions();
+  printProductions(cout);
 
   // precomputations
   initializeAuxData();
@@ -1510,12 +1615,10 @@ void Grammar::exampleGrammar()
 
   // print results
   cout << "Terminals:\n";
-  printSymbols(toObjList(terminals));
+  printSymbols(cout, toObjList(terminals));
   cout << "Nonterminals:\n";
-  cout << "  ";
-  emptyString.print();
-  cout << endl;
-  printSymbols(toObjList(nonterminals));
+  cout << "  " << emptyString << endl;
+  printSymbols(cout, toObjList(nonterminals));
 
   derivable->print();
     
@@ -1532,17 +1635,25 @@ void Grammar::exampleGrammar()
 
     // print it
     cout << "Closure of: ";
-    kernel->print();
+    kernel->print(cout);
     cout << endl;
 
     SFOREACH_DOTTEDPRODUCTION(itemSet, dprod) {
       cout << "  ";
-      dprod.data()->print();
+      dprod.data()->print(cout);
       cout << endl;
     }
   }
 
-  constructLRItemSets();
+  
+  // LR stuff
+  ObjList<ItemSet> itemSets;
+  constructLRItemSets(itemSets);
+  
+  INTLOOP(i, 0,	(int)TABLESIZE(input)) {
+    cout << "------ parsing: `" << input[i] << "' -------\n";
+    lrParse(itemSets, input[i]);
+  }
 
   // another analysis
   //computePredictiveParsingTable();
