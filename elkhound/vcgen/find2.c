@@ -173,18 +173,17 @@ void find(int *A, int N, int f)
 
       // if A[j] is left of A[i], swap them
       if (i <= j) {
-        int w = A[i];    // swap A[i] and A[j]
-        A[i] = A[j];
-        A[j] = w;
+        int w;         // swap A[i] and A[j]
+        (w = A[i], A[i] = A[j], A[j] = w);
 
         // verify that now they're in the right order
         thmprv_assert A[i] <= r && r <= A[j];
 
         // possibly I could get this with calls to Simplfy during inference?
-        thmprv_assert
-          (thmprv_forall int p, q;
-            ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
-            ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q])));
+        //SLOWINFER: thmprv_assert
+        //SLOWINFER:   (thmprv_forall int p, q;
+        //SLOWINFER:     ((1 <= p && p < m && m <= q && q <= N) ==> (A[p] <= A[q])) &&
+        //SLOWINFER:     ((1 <= p && p <= n && n < q && q <= N) ==> (A[p] <= A[q])));
 
         // skip past these two now-properly-ordered elements
         i = i+1;
