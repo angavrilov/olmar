@@ -142,6 +142,11 @@ string refersTo(Variable *v)
   }
 
   stringBuilder sb;
+  if (v->isNamespace()) {
+    sb << "namespace " << v->name;
+    return sb;
+  }
+
   sb << v->toString();
   sb << ", at " << toString(v->loc);
   if (v->usingAlias) {

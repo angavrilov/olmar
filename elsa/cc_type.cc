@@ -211,7 +211,8 @@ CompoundType::CompoundType(Keyword k, StringRef n)
     subobj(BaseClass(this, AK_PUBLIC, false /*isVirtual*/)),
     conversionOperators(),
     instName(n),
-    syntax(NULL)
+    syntax(NULL),
+    parameterizingScope(NULL)
 {
   curCompound = this;
   curAccess = (k==K_CLASS? AK_PRIVATE : AK_PUBLIC);
@@ -1008,6 +1009,23 @@ bool BaseType::isDependent() const
   // for dependent types
   return isSimple(ST_DEPENDENT) ||
          isTypeVariable();
+}
+
+bool BaseType::isGeneralizedDependent() const
+{
+  return isSimple(ST_DEPENDENT) ||
+         isTypeVariable() ||
+         isPseudoInstantiation();
+}
+
+static bool cGD_helper(Type const *t)
+{
+  return t->isGeneralizedDependent();
+}
+
+bool BaseType::containsGeneralizedDependent() const
+{
+  return anyCtorSatisfiesF(cGD_helper);
 }
 
 

@@ -170,6 +170,12 @@ class TypeSpecifier {
   -> TS_name {
        // typedef Variable this name refers to
        public Variable *var = NULL;
+       
+       // if the lookup is *not* dependent (and some other conditions
+       // hold...), this will point to 'var' and be preserved when
+       // the AST is cloned
+       public Variable *nondependentVar = NULL;
+       custom clone { ret->nondependentVar = nondependentVar; }
      }
 
   -> TS_elaborated {
@@ -484,6 +490,10 @@ class Expression {
        public Variable *var = NULL;      // (serf) binding introduction of this name
        public Type *itcheck_var(Env &env, LookupFlags flags);
        custom clone { ret->var = var; }
+
+       // similar to TS_name::nondependentVar
+       public Variable *nondependentVar = NULL;
+       custom clone { ret->nondependentVar = nondependentVar; }
      }
 
   // these two kinds have their tcheck further split into two stages

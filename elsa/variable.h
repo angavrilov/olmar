@@ -181,6 +181,14 @@ public:
   // overload set
   int overloadSetSize() const;
 
+  // true if this is a member of a template (uninstantiated template)
+  bool isMemberOfTemplate() const;
+
+  // true if this is a template parameter or arg or both
+  bool isTemplateParam() const { return hasFlag(DF_TEMPL_PARAM); }
+  bool isTemplateArg() const { return hasFlag(DF_BOUND_TARG); }
+  bool isTemplateParamOrArg() const { return isTemplateParam() || isTemplateArg(); }
+
   // generic print (C or ML depending on Type::printAsML)
   string toString() const;
 

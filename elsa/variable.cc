@@ -290,6 +290,21 @@ int Variable::overloadSetSize() const
 }
 
 
+bool Variable::isMemberOfTemplate() const
+{ 
+  if (!scope) { return false; }
+  if (!scope->curCompound) { return false; }
+
+  if (scope->curCompound->isTemplate()) {
+    return true;
+  }
+
+  // member of non-template class; ask if that class is itself
+  // a member of a template
+  return scope->curCompound->typedefVar->isMemberOfTemplate();
+}
+
+
 // I'm not sure what analyses' disposition towards usingAlias ought to
 // be.  One possibility is to just say they should sprinkle calls to
 // skipAlias all over the place, but that's obviously not very nice.

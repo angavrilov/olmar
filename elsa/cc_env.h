@@ -22,6 +22,7 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 class TypeListIter;       // typelistiter.h
+class SavedScopePair;     // fwd in this file
 
 
 // type of collection to hold a sequence of scopes
@@ -34,7 +35,7 @@ void gdbScopeSeq(ScopeSeq &ss);
 
 
 // the entire semantic analysis state
-class Env {
+class Env : protected ErrorList {
 protected:   // data
   // stack of lexical scopes; first is innermost
   //
@@ -76,7 +77,7 @@ public:      // data
   // list of error messages; during disambiguation, the existing
   // list is set aside, so 'errors' only has errors from the
   // disambiguation we're doing now (if any)
-  ErrorList errors;
+  ErrorList &errors;                 // reference to '*this'
 
   // if the disambiguator has temporarily hidden the "real" list of
   // errors, it can still be found here
@@ -274,6 +275,10 @@ private:     // funcs
   Variable *getPrimaryOrSpecialization
     (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs);
 
+  bool addVariableToScope(Scope *s, Variable *v, bool forceReplace=false);
+
+  Scope *createScope(ScopeKind sk);
+
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
   virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
@@ -291,7 +296,7 @@ public:      // funcs
   Scope const *scopeC() const { return scopes.firstC(); }
 
   // print out the variables in every scope with serialNumber-s
-  void debugPrintScopes();
+  void gdbScopes();
 
   // innermost scope that can accept names; the decl flags might
   // be used to choose exactly which scope to use
@@ -315,6 +320,10 @@ public:      // funcs
 
   bool inTemplate()
     { return !!enclosingKindScope(SK_TEMPLATE_PARAMS); }
+
+  // do we need both this and 'inTemplate()'?
+  bool inUninstTemplate() const
+    { return disambiguateOnly; }
 
   // innermost scope that is neither SK_TEMPLATE_PARAMS nor SK_TEMPLATE_ARGS
   Scope *nonTemplateScope();
@@ -456,6 +465,9 @@ public:      // funcs
                         StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
 
+
+  // this is for ErrorList clients
+  virtual void addError(ErrorMsg * /*owner*/ obj);
 
   // diagnostic reports; all return ST_ERROR type
   Type *error(SourceLoc L, char const *msg, ErrorFlags eflags = EF_NONE);
@@ -660,8 +672,9 @@ private:     // template funcs
   void insertTemplateArgBindings
     (Variable *baseV, ObjList<STemplateArgument> &sargs);
   bool insertTemplateArgBindings_oneParamList
-    (Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
+    (Scope *scope, Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
      SObjList<Variable> const &params);
+  void deleteTemplateArgBindings();
 
   void mapPrimaryArgsToSpecArgs(
     Variable *baseV,
@@ -746,12 +759,13 @@ public:      // template funcs
   // Prepare the argument scope for the present typechecking of the
   // cloned AST for effecting the instantiation of the template;
   // Please see Scott's extensive comments at the implementation.
-  Scope *prepArgScopeForTemlCloneTcheck
-    (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope);
+  void prepArgScopeForTemlCloneTcheck
+    (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes, 
+     Scope *foundScope);
 
   // Undo prepArgScopeForTemlCloneTcheck().
   void unPrepArgScopeForTemlCloneTcheck
-    (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes);
+    (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes);
 
   // pick the MatchMode appropriate for the the TemplTcheckMode
   MatchTypes::MatchMode mapTcheckModeToTypeMatchMode(TemplTcheckMode tcheckMode);
@@ -829,6 +843,23 @@ public:      // template funcs
   bool verifyCompatibleTemplateParameters(CompoundType *prior);
 
   Variable *explicitFunctionInstantiation(PQName *name, Type *type);
+};
+
+                    
+// when prepArgScopeForTemplCloneTcheck saves and restores scopes,
+// it needs to remember the delegation pointers ....
+class SavedScopePair {
+public:      // data
+  Scope *scope;                 // (nullable owner) main saved scope
+  Scope *parameterizingScope;   // (nullable serf) delegation pointer
+
+private:     // disallowed
+  SavedScopePair(SavedScopePair&);
+  void operator=(SavedScopePair&);
+
+public:      // funcs
+  SavedScopePair(Scope *s);     // delegation pointer set to NULL
+  ~SavedScopePair();
 };
 
 

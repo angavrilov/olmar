@@ -20,7 +20,7 @@ fi
 
 # gcc to use
 if [ "$GCC" = "" ]; then
-  GCC=/opt/gcc-3.3.2/bin/g++
+  GCC=$HOME/opt/gcc-3.4.0/bin/g++
 fi
 
 # input file

@@ -18,7 +18,7 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     scopeKind(sk),
     namespaceVar(NULL),
     templateParams(),
-    parameterizedPrimary(NULL),
+    parameterizedEntity(NULL),
     usingEdges(0),            // the arrays start as NULL b/c in the
     usingEdgesRefct(0),       // common case the sets are empty
     activeUsingEdges(0),
@@ -46,6 +46,17 @@ Scope::~Scope()
     xfailure(stringc << desc() << " has no parameterizedPrimary");
   }
   #endif // 0
+
+  // if we were delegated, break the delegation
+  if (isDelegated()) {
+    CompoundType *ct = parameterizedEntity->type->asCompoundType();
+    xassert(ct->parameterizingScope == this);
+
+    TRACE("templateParams", desc() << " removing delegation to " << ct->desc());
+
+    ct->parameterizingScope = NULL;
+    parameterizedEntity = NULL;     // irrelevant but harmless
+  }
 }
 
 
@@ -54,6 +65,35 @@ bool Scope::isPermanentScope() const
   return isGlobalScope() ||
          isNamespace() ||
          (curCompound && curCompound->name);
+}
+
+
+bool Scope::isDelegated() const
+{
+  return parameterizedEntity &&
+         parameterizedEntity->type->isCompoundType();
+}
+
+
+bool Scope::hasDelegationPointer() const
+{
+  return curCompound &&
+         curCompound->parameterizingScope;
+}
+
+Scope *Scope::getAndNullifyDelegationPointer()
+{
+  Scope *ret = curCompound->parameterizingScope;
+  xassert(ret);
+  curCompound->parameterizingScope = NULL;
+  return ret;
+}
+
+void Scope::setDelegationPointer(Scope *s)
+{
+  xassert(!curCompound->parameterizingScope);
+  xassert(s);
+  curCompound->parameterizingScope = s;
 }
 
 
@@ -268,6 +308,13 @@ Variable const *vfilterC(Variable const *v, LookupFlags flags)
     // the selfname is not visible b/c LF_SELFNAME not specified
     return NULL;
   }
+                                                        
+  // I actually think it would be adequate to just check for
+  // DF_BOUND_TARG...
+  if ((flags & LF_TEMPL_PARAM) &&
+      !v->hasAnyFlags(DF_BOUND_TARG | DF_TEMPL_PARAM)) {
+    return NULL;
+  }
 
   return v;
 }
@@ -280,6 +327,19 @@ Variable *vfilter(Variable *v, LookupFlags flags)
 // include t0099.cc and std/3.4.5.cc
 Variable const *Scope
   ::lookupPQVariableC(PQName const *name, Env &env, LookupFlags flags) const
+{
+  if (isDelegated()) {
+    // this is a scope for which lookup has been delegated to the
+    // parameterized entity, so do not respond to requests here
+    return NULL;
+  }
+
+  return lookupPQVariableC_inner(name, env, flags);
+}
+
+// same as above, but skip delegation check
+Variable const *Scope
+  ::lookupPQVariableC_inner(PQName const *name, Env &env, LookupFlags flags) const
 {
   Variable const *v1 = NULL;
 
@@ -333,6 +393,15 @@ Variable const *Scope
   curCompound->clearSubobjVisited();
   lookupPQVariableC_considerBase(name, env, flags,
                                  v1, v1Base, &curCompound->subobj);
+
+  if (!v1) {
+    // not in any base class; delegate to parameterizingScope, if any
+    if (hasDelegationPointer()) {
+      // delegate, skipping its delegation check
+      return curCompound->parameterizingScope->
+        lookupPQVariableC_inner(name, env, flags);
+    }
+  }
 
   return v1;
 }
@@ -1034,18 +1103,20 @@ string Scope::fullyQualifiedName(bool mangle)
 }
 
 
-void Scope::setParameterizedPrimary(Variable *primary)
+void Scope::setParameterizedEntity(Variable *entity)
 {
-  xassert(!parameterizedPrimary);            // should do this only once
+  xassert(!parameterizedEntity);             // should do this only once
   xassert(isTemplateScope());                // doesn't make sense otherwise
-                                 
-  // for now, I want to associate only with the primary; I could
-  // conceive of changing to allowing associations to partial
-  // specializations, but that's not my intent right now
-  TemplateInfo *ti = primary->templateInfo();
-  xassert(ti && ti->isPrimary());
 
-  parameterizedPrimary = primary;
+  parameterizedEntity = entity;
+
+  // arrange to delegate lookup to the entity if it is a compound
+  if (entity->type->isCompoundType()) {
+    CompoundType *ct = entity->type->asCompoundType();
+    ct->setDelegationPointer(this);
+
+    TRACE("templateParams", desc() << " now delegated to " << ct->desc());
+  }
 }
 
 

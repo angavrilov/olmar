@@ -2,6 +2,7 @@
 // code for cc_err.h
 
 #include "cc_err.h"      // this module
+#include "trace.h"       // tracingSys
 
 
 // ----------------- ErrorMsg -----------------
@@ -121,9 +122,13 @@ string ErrorList::printToString() const
   // when I'm done
   ObjList<ErrorMsg> &nclist = const_cast<ObjList<ErrorMsg>&>(list);
 
+  bool printWarnings = !tracingSys("nowarn");
+
   nclist.reverse();
   FOREACH_OBJLIST(ErrorMsg, nclist, iter) {
-    sb << iter.data()->toString() << "\n";
+    if (printWarnings || !iter.data()->isWarning()) {
+      sb << iter.data()->toString() << "\n";
+    }
   }
   nclist.reverse();
 

@@ -243,7 +243,13 @@ public:      // data
   // AST node that describes this class; used for implementing
   // templates (AST pointer)
   // dsw: used for other purposes also
-  TS_classSpec *syntax;               // (serf)
+  TS_classSpec *syntax;               // (nullable serf)
+
+  // template parameter scope that is consulted for lookups after
+  // this scope and its base classes; this changes over time as
+  // the class is added to and removed from the scope stack; it
+  // is NULL whenever it is not on the scope stack
+  Scope *parameterizingScope;         // (nullable serf)
 
 private:     // funcs
   void makeSubobjHierarchy(BaseClassSubobj *subobj, BaseClass const *newBase);
@@ -642,9 +648,13 @@ public:     // funcs
   bool isBool() const { return isSimple(ST_BOOL); }
   bool isEllipsis() const { return isSimple(ST_ELLIPSIS); }
   bool isError() const { return isSimple(ST_ERROR); }
-  bool isDependent() const;
+  bool isDependent() const;    // TODO: this should be ST_DEPENDENT only
   bool isOwnerPtr() const;
   bool isMethod() const;                       // function and method
+
+  // ST_DEPENDENT or TypeVariable or PseudoInstantiation
+  bool isGeneralizedDependent() const;
+  bool containsGeneralizedDependent() const;   // anywhere in Type tree
 
   // (some of the following are redundant but I want them anyway, to
   // continue with the pattern that isXXX is for language concepts and

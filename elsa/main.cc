@@ -173,6 +173,7 @@ void doit(int argc, char **argv)
     // the new templates implementation
     traceAddSys("template");
     traceAddSys("error");
+    traceAddSys("scope");
     traceAddSys("templateParams");
     traceAddSys("templateXfer");
     traceAddSys("prettyPrint");

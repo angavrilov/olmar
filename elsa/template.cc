@@ -1271,6 +1271,8 @@ Variable *Env::lookupPQVariable_applyArgsTemplInst
 
 // insert bindings into SK_TEMPLATE_ARG scopes, from template
 // parameters to concrete template arguments
+//
+// returns the deepest scope created
 void Env::insertTemplateArgBindings
   (Variable *baseV, SObjList<STemplateArgument> &sargs)
 {
@@ -1311,28 +1313,22 @@ void Env::insertTemplateArgBindings
 
   // first, apply them to the inherited parameters
   FOREACH_OBJLIST(InheritedTemplateParams, baseVTI->inheritedParams, iter) {
-    // mark the current template argument scope as associated with
-    // these inherited params' template
-    Scope *mine = scope();
-    xassert(mine->isTemplateArgScope());
-    mine->setParameterizedPrimary(
-      iter.data()->enclosing->templateInfo()->getPrimary()->var);
+    InheritedTemplateParams const *inh = iter.data();
 
-    if (!insertTemplateArgBindings_oneParamList(baseV, argIter, iter.data()->params)) {
-      // error already reported
-      return;
-    }
-        
-    // each inherited set of args goes into its own template argument
-    // scope, so make another one now to hold the next set
-    //
-    // TODO: probably scope creating and binding insertion should be
-    // closer together
-    enterScope(SK_TEMPLATE_ARGS, "template argument bindings after inherited");
+    // create a scope to hold the bindings
+    Scope *s = enterScope(SK_TEMPLATE_ARGS, "inherited template argument bindings");
+
+    // insert them
+    insertTemplateArgBindings_oneParamList(s, baseV, argIter, inh->params);
   }
 
-  // then, apply to "my" parameters
-  insertTemplateArgBindings_oneParamList(baseV, argIter, baseVTI->params);
+  // make a scope for the main template arguments; this one will be at
+  // the very top, though it will then be covered by the scope of the
+  // entity being instantiated (the caller does this)
+  Scope *argScope = enterScope(SK_TEMPLATE_ARGS, "main template argument bindings");
+
+  // then, bind "my" parameters
+  insertTemplateArgBindings_oneParamList(argScope, baseV, argIter, baseVTI->params);
 
   if (!argIter.isDone()) {
     error(stringc
@@ -1342,7 +1338,7 @@ void Env::insertTemplateArgBindings
 
 // returns false if an error is detected
 bool Env::insertTemplateArgBindings_oneParamList
-  (Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
+  (Scope *scope, Variable *baseV, SObjListIterNC<STemplateArgument> &argIter,
    SObjList<Variable> const &params)
 {
   SObjListIter<Variable> paramIter(params);
@@ -1375,7 +1371,7 @@ bool Env::insertTemplateArgBindings_oneParamList
       Type *t = sarg? sarg->getType() : param->defaultParamType;
       Variable *binding = makeVariable(param->loc, param->name,
                                        t, DF_TYPEDEF | DF_BOUND_TARG);
-      addVariable(binding);
+      addVariableToScope(scope, binding);
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
              (!sarg || sarg->isObject())) {
@@ -1426,7 +1422,7 @@ bool Env::insertTemplateArgBindings_oneParamList
         return false;
       }
       xassert(binding->value);
-      addVariable(binding);
+      addVariableToScope(scope, binding);
     }
     else {
       // mismatch between argument kind and parameter kind
@@ -1446,7 +1442,7 @@ bool Env::insertTemplateArgBindings_oneParamList
   }
 
   // having added the bindings, turn off name acceptance
-  scope()->canAcceptNames = false;
+  scope->canAcceptNames = false;
 
   xassert(paramIter.isDone());
   return true;
@@ -1456,6 +1452,16 @@ void Env::insertTemplateArgBindings
   (Variable *baseV, ObjList<STemplateArgument> &sargs)
 {
   insertTemplateArgBindings(baseV, objToSObjList(sargs));
+}
+
+                                                   
+// reverse the effects of 'insertTemplateArgBindings'
+void Env::deleteTemplateArgBindings()
+{
+  // just blow away template argument scopes on top
+  while (scope()->scopeKind == SK_TEMPLATE_ARGS) {
+    exitScope(scope());
+  }
 }
 
 
@@ -1701,14 +1707,26 @@ Variable *Env::findMostSpecific
 //
 // makeEatScope: first step towards removing SK_EAT_TEMPL_SCOPE
 // altogether
-Scope *Env::prepArgScopeForTemlCloneTcheck
-  (ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes, Scope *foundScope)
+void Env::prepArgScopeForTemlCloneTcheck
+  (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes, 
+   Scope *foundScope)
 {
   xassert(foundScope);
 
   // pop scope scopes
   while (!scopes.first()->enclosesOrEq(foundScope)) {
-    poppedScopes.prepend(scopes.removeFirst());
+    Scope *s = scopes.removeFirst();
+    TRACE("scope", "prepArgScope: removing " << s->desc());
+
+    // do I need to save a delegation pointer?
+    SavedScopePair *ssp = new SavedScopePair(s);
+    if (s->hasDelegationPointer()) {
+      ssp->parameterizingScope = s->getAndNullifyDelegationPointer();
+      TRACE("scope", "prepArgScope: ... and saved delegation ptr " << 
+                     ssp->parameterizingScope->desc());
+    }
+
+    poppedScopes.prepend(ssp);
     if (scopes.isEmpty()) {
       xfailure("emptied scope stack searching for defining scope");
     }
@@ -1740,42 +1758,43 @@ Scope *Env::prepArgScopeForTemlCloneTcheck
     // Scope 'iter.data()' is now on both lists, but neither owns
     // it; 'scopes' does not own Scopes that are named, as explained
     // in the comments near its declaration (cc_env.h)
+    TRACE("scope", "prepArgScope: adding " << iter.data()->desc());
     scopes.prepend(iter.data());
   }
-
-  // make a new scope for the template arguments
-  Scope *argScope = enterScope(SK_TEMPLATE_ARGS, "template argument bindings");
-
-  return argScope;
 }
 
 
 void Env::unPrepArgScopeForTemlCloneTcheck
-  (Scope *argScope, ObjList<Scope> &poppedScopes, SObjList<Scope> &pushedScopes)
+  (ObjList<SavedScopePair> &poppedScopes, SObjList<Scope> &pushedScopes)
 {
-  // bit of a hack: we might have put an unknown number of inherited
-  // parameter argument scopes on after 'argScope'...
-  while (scope() != argScope) {
-    Scope *s = scope();
-    xassert(s->isTemplateArgScope());
-    exitScope(s);
-  }
-
-  // remove the argument scope
-  exitScope(argScope);
-
   // restore the original scope structure
   pushedScopes.reverse();
   while (pushedScopes.isNotEmpty()) {
     // make sure the ones we're removing are the ones we added
     xassert(scopes.first() == pushedScopes.first());
+    TRACE("scope", "unPrepArgScope: removing " << scopes.first()->desc());
     scopes.removeFirst();
     pushedScopes.removeFirst();
   }
 
   // re-add the inner scopes removed above
   while (poppedScopes.isNotEmpty()) {
-    scopes.prepend(poppedScopes.removeFirst());
+    SavedScopePair *ssp = poppedScopes.removeFirst();
+
+    // take out the scope and nullify it, effectively transferring ownership
+    Scope *s = ssp->scope;
+    ssp->scope = NULL;
+    TRACE("scope", "unPrepArgScope: adding " << s->desc());
+
+    // replace the parameterizingScope if needed
+    if (ssp->parameterizingScope) {
+      s->setDelegationPointer(ssp->parameterizingScope);
+      TRACE("scope", "... and restored delegation ptr " <<
+                     ssp->parameterizingScope->desc());
+    }
+
+    scopes.prepend(s);
+    delete ssp;
   }
 }
 
@@ -1941,10 +1960,9 @@ void Env::instantiateFunctionBody(Variable *instV)
 
   // set up the scopes in a way similar to how it was when the
   // template definition was first seen
-  ObjList<Scope> poppedScopes;
+  ObjList<SavedScopePair> poppedScopes;
   SObjList<Scope> pushedScopes;
-  Scope *argScope = prepArgScopeForTemlCloneTcheck
-    (poppedScopes, pushedScopes, defnScope);
+  prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, defnScope);
 
   // bind the template arguments in scopes so that when we tcheck the
   // body, lookup will find them
@@ -1961,19 +1979,24 @@ void Env::instantiateFunctionBody(Variable *instV)
   // check the body, forcing it to use 'instV'
   instV->funcDefn->tcheck(*this, instV);
 
+  // remove the template argument scopes
+  deleteTemplateArgBindings();
+
   if (instV->funcDefn->dflags & DF_INLINE_DEFN) {
     popDeclarationScopes(instV, defnScope);
   }
 
-  if (argScope) {
-    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
-  }
+  unPrepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes);
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
 }
 
 
 void Env::instantiateForwardFunctions(Variable *primary)
 {
+  if (!primary->templateInfo()) {
+    return;      // error recovery (t0275.cc)
+  }
+
   SFOREACH_OBJLIST_NC(Variable, primary->templateInfo()->instantiations, iter) {
     Variable *inst = iter.data();
     
@@ -2156,10 +2179,9 @@ void Env::instantiateClassBody(Variable *inst)
 
   // set up the scopes in a way similar to how it was when the
   // template definition was first seen
-  ObjList<Scope> poppedScopes;
+  ObjList<SavedScopePair> poppedScopes;
   SObjList<Scope> pushedScopes;
-  Scope *argScope = prepArgScopeForTemlCloneTcheck
-    (poppedScopes, pushedScopes, defnScope);
+  prepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes, defnScope);
 
   // bind the template arguments in scopes so that when we tcheck the
   // body, lookup will find them
@@ -2168,7 +2190,7 @@ void Env::instantiateClassBody(Variable *inst)
   // check the class body, forcing it to use 'instCT'
   instCT->syntax->name->tcheck(*this);
   instCT->syntax->ctype = instCT;
-  
+
   // don't check method bodies
   {
     Restorer<bool> r(checkFunctionBodies, false);
@@ -2192,9 +2214,8 @@ void Env::instantiateClassBody(Variable *inst)
   instCT->forward = false;
 
   // restore the scopes
-  if (argScope) {
-    unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
-  }
+  deleteTemplateArgBindings();
+  unPrepArgScopeForTemlCloneTcheck(poppedScopes, pushedScopes);
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
 }
 
@@ -2677,7 +2698,7 @@ bool Env::verifyCompatibleTemplateParameters(CompoundType *prior)
   // before going further, associate the scope's parameters
   // so that happens regardless of the decision here
   if (scope->hasTemplateParams()) {
-    scope->setParameterizedPrimary(prior->templateInfo()->getPrimary()->var);
+    scope->setParameterizedEntity(prior->typedefVar);
   }
 
   if (!scope->hasTemplateParams() && prior->isTemplate()) {
@@ -3360,7 +3381,10 @@ void Env::explicitlyInstantiate(Variable *var)
 
   // base classes
   FOREACH_OBJLIST(BaseClass, ct->bases, baseIter) {
-    explicitlyInstantiate(baseIter.data()->ct->typedefVar);
+    Variable *b = baseIter.data()->ct->typedefVar;
+    if (b->isInstantiation()) {     // t0273.cc
+      explicitlyInstantiate(b);
+    }
   }
 
   // member variables, functions
@@ -3470,6 +3494,34 @@ Variable *Env::explicitFunctionInstantiation(PQName *name, Type *type)
   return ret;
 }
   
+     
+// this isn't used; I'm using it here so it will go through
+// one CVS commit cycle before being removed
+#if 0
+void Env::insertScopeJustBelowInstOf(Scope *toInsert, Variable *justAbove)
+{
+  for (ObjListMutator<Scope> mut(scopes);
+       !mut.isDone(); mut.adv()) {
+    // it is possible I will have to weaken this condition to just be
+    // that the scopes (when interpreted as CompoundTypes) have the
+    // same template primary
+    //
+    // ok, let's try that
+    Scope *s = mut.data();
+    if (s->curCompound &&
+        s->curCompound->typedefVar->templateInfo() &&
+        s->curCompound->typedefVar->templateInfo()->instantiationOf == justAbove) {
+      mut.insertAfter(toInsert);
+      TRACE("env", "inserted " << toInsert->desc() << " just below " <<
+                   s->desc());
+      return;
+    }
+  }
+
+  xfailure("could not find scope to insert below");
+}
+#endif // 0
+
 
 // ------------------- InstantiationContextIsolator -----------------------
 InstantiationContextIsolator::InstantiationContextIsolator(Env &e, SourceLoc loc)

@@ -87,12 +87,12 @@ private:
   ObjList<ErrorMsg> list;
 
 public:
-  ErrorList();       // empty list initially
-  ~ErrorList();      // deallocates error objects
+  ErrorList();                      // empty list initially
+  virtual/*...*/ ~ErrorList();      // deallocates error objects
 
   // add an error to the end of list (actually the beginning of
   // 'list', but clients don't know that, nor should they care)
-  void addError(ErrorMsg * /*owner*/ obj);
+  virtual void addError(ErrorMsg * /*owner*/ obj);
 
   // add an error to the beginning; this is unusual, and generally
   // should only be done when it is known that there aren't very

@@ -42,8 +42,9 @@ enum LookupFlags {
   LF_DECLARATOR      = 0x200,   // context is a declarator name lookup; for templates, this means to pick the primary or a specialization, but don't instantiate
   LF_SELFNAME        = 0x400,   // the DF_SELFNAME is visible
   LF_DEPENDENT       = 0x800,   // the lookup is in a dependent context
+  LF_TEMPL_PARAM     =0x1000,   // return only template parameter/argument names
 
-  LF_ALL_FLAGS       = 0xFFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS       =0x1FFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
@@ -115,10 +116,16 @@ public:      // data
   SObjList<Variable> templateParams;
 
   // If this is SK_TEMPLATE_PARAMS, then the parameters correspond to
-  // some specific template primary.  This pointer names that primary.
-  // It is initially NULL, as we don't immediately know which is being
-  // parameterized, but is set to non-NULL as soon as we know.
-  Variable *parameterizedPrimary;          // (nullable serf)
+  // some specific template entity (primary, specialization, or
+  // instantiation, whichever is most specific to the situation).
+  // This pointer names that entity.  It is initially NULL, as we
+  // don't immediately know which is being parameterized, but is set
+  // to non-NULL as soon as we know.
+  //
+  // Once this is set to point at a class template entity, this
+  // scope is no longer used for lookups!  Instead, the parameterized
+  // class will delegate lookups directly at the proper time.
+  Variable *parameterizedEntity;          // (nullable serf)
 
   // --------------- for using-directives ----------------
   // possible optim:  For most scopes, these three arrays waste 13
@@ -161,6 +168,8 @@ private:     // funcs
      EnumType const *&v1,
      CompoundType const *&v1Base,
      BaseClassSubobj const *v2Subobj) const;
+  Variable const *lookupPQVariableC_inner
+    (PQName const *name, Env &env, LookupFlags flags) const;
 
   // more using-directive stuff
   void addActiveUsingEdge(Scope *target);
@@ -217,6 +226,15 @@ public:      // funcs
   // asking whether this is an SK_TEMPLATE_PARAMS, because an empty
   // template parameter list is treated uniformly.
   bool hasTemplateParams() const { return isTemplateParamScope(); }
+
+  // true if this scope is only accessed via delegation from
+  // a CompoundType
+  bool isDelegated() const;
+
+  // true if this scope is CompoundType and delegates to another
+  bool hasDelegationPointer() const;
+  Scope *getAndNullifyDelegationPointer();
+  void setDelegationPointer(Scope *s);
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)
@@ -303,8 +321,8 @@ public:      // funcs
   string fullyQualifiedCName()
     { return fullyQualifiedName(false /*mangle*/); }
 
-  // set 'parameterizedPrimary', checking a few things in the process
-  void setParameterizedPrimary(Variable *primary);
+  // set 'parameterizedEntity', checking a few things in the process
+  void setParameterizedEntity(Variable *entity);
        
   // for debugging, a quick description of this scope
   string desc() const;

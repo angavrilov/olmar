@@ -970,6 +970,15 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
 
       // must be a complete type [ref?] (t0245.cc)
       env.ensureCompleteType("use as qualifier", denotedScopeVar->type);
+      
+      if (hasParamsForMe) {
+        // cement the association now
+        hasParamsForMe->setParameterizedEntity(denotedScope->curCompound->typedefVar);
+
+        TRACE("templateParams",
+          "associated " << hasParamsForMe->desc() <<
+          " with " << denotedScope->curCompound->instName);
+      }
     }
     else if (denotedScope->isGlobalScope()) {
       denotedScopeVar = env.globalScopeVar;
@@ -1005,6 +1014,86 @@ void PQ_template::tcheck(Env &env, Scope *, LookupFlags lflags)
 }
 
 
+// -------------- "dependent" name stuff ---------------
+// This section has a few functions that are common to the AST
+// nodes that have to deal with dependent name issues.  (14.6.2)
+
+// lookup has found 'var', and we might want to stash it
+// in 'nondependentVar' too
+void maybeNondependent(Env &env, SourceLoc loc, Variable *&nondependentVar,
+                       Variable *var)
+{
+  if (!var->hasFlag(DF_TYPEDEF) && var->type->isGeneralizedDependent()) {
+    // if this was the name of a variable, but the type refers to some
+    // template params, then this shouldn't be considered
+    // non-dependent (t0276.cc)
+    //
+    // TODO: this can't be right... there is still a fundamental
+    // flaw in how I regard names whose lookup is nondependent but
+    // the thing they look up to is dependent
+    return;
+  }
+
+  if (!var->scope && !var->isTemplateParam()) {
+    // I'm pretty sure I don't need to remember names that are not
+    // in named scopes, other than template params themselves (t0277.cc)
+    return;
+  }
+
+  if (env.inUninstTemplate() &&               // we're in a template
+      !var->type->isSimple(ST_DEPENDENT) &&   // lookup was non-dependent
+      !var->type->isError() &&                // and not erroneous
+      !var->isMemberOfTemplate()) {           // will be in scope in instantiation
+    TRACE("dependent", toString(loc) << ": remembering non-dependent lookup of `" <<
+                       var->name << "' found var at " << toString(var->loc));    
+    nondependentVar = var;
+  }
+}
+
+// if we want to re-use 'nondependentVar', return it; otherwise return NULL
+Variable *maybeReuseNondependent(Env &env, SourceLoc loc, LookupFlags &lflags,
+                                 Variable *nondependentVar)
+{
+  // should I use 'nondependentVar'?
+  if (nondependentVar && !env.inUninstTemplate()) {
+    if (nondependentVar->isTemplateParam()) {
+      // We don't actually want to use 'nondependentVar', because that
+      // Variable was only meaningful to the template definition.  Instead
+      // we want the *corresponding* Variable that is now bound to a
+      // template argument, and LF_TEMPL_PARAM will find it (and skip any
+      // other names).
+      TRACE("dependent", toString(loc) <<
+                         ": previously-remembered non-dependent lookup for `" <<
+                         nondependentVar->name << "' was a template parameter");
+      lflags |= LF_TEMPL_PARAM;
+    }
+    else {
+      // use 'nondependentVar' directly
+      TRACE("dependent", toString(loc) <<
+                         ": using previously-remembered non-dependent lookup for `" <<
+                         nondependentVar->name << "': at " <<
+                         toString(nondependentVar->loc));
+      return nondependentVar;
+    }
+  }
+
+  // do the lookup without using 'nondependentVar'
+  return NULL;
+}
+
+
+bool hasDependentActualArgs(FakeList<ArgExpression> *args)
+{
+  FAKELIST_FOREACH(ArgExpression, args, iter) {
+    // <dependent> or TypeVariable or PseudoInstantiation
+    if (iter->expr->type->containsGeneralizedDependent()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // --------------------- TypeSpecifier --------------
 Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
@@ -1024,19 +1113,34 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
   name->tcheck(env);
 
-  if (typenameUsed && !name->hasQualifiers()) {
-    // cppstd 14.6 para 5, excerpt:
-    //   "The keyword typename shall only be applied to qualified
-    //    names, but those names need not be dependent."
-    env.error("the `typename' keyword can only be used with a qualified name");
+  ErrorFlags eflags = EF_NONE;
+  LookupFlags lflags = LF_NONE;
+
+  // should I use 'nondependentVar'?
+  Variable *v = maybeReuseNondependent(env, loc, lflags, nondependentVar);
+  if (v) {
+    var = v;
+    return var->type;
   }
 
-  // if the user uses the keyword "typename", then the lookup errors
-  // are non-disambiguating, because the syntax is unambiguous
-  ErrorFlags eflags = (typenameUsed? EF_NONE : EF_DISAMBIGUATES);
+  if (typenameUsed) {
+    if (!name->hasQualifiers()) {
+      // cppstd 14.6 para 5, excerpt:
+      //   "The keyword typename shall only be applied to qualified
+      //    names, but those names need not be dependent."
+      env.error("the `typename' keyword can only be used with a qualified name");
+    }
 
-  LookupFlags lflags = (typenameUsed? LF_TYPENAME : LF_NONE);
-  Variable *v = env.lookupPQVariable(name, lflags);
+    lflags |= LF_TYPENAME;
+  }
+  else {
+    // if the user uses the keyword "typename", then the lookup errors
+    // are non-disambiguating, because the syntax is unambiguous;
+    // otherwise, they are disambiguating (which is the usual case)
+    eflags |= EF_DISAMBIGUATES;
+  }
+
+  v = env.lookupPQVariable(name, lflags);
   if (!v) {
     // NOTE:  Since this is marked as disambiguating, but the same
     // error message in E_variable::itcheck is not marked as such, it
@@ -1054,6 +1158,9 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   // TODO: access control check
 
   var = env.storeVar(v);    // annotation
+
+  // should I remember this non-dependent lookup?
+  maybeNondependent(env, loc, nondependentVar, var);
 
   // 7/27/04: typedefAliases used to be maintained at this point, but
   // now it is gone
@@ -1342,7 +1449,7 @@ CompoundType *checkClasskeyAndName(
       //
       // 8/09/04: moved this below 'makeNewCompound' so the params
       // aren't regarded as inherited
-      env.scope()->setParameterizedPrimary(primary->typedefVar);
+      env.scope()->setParameterizedEntity(ct->typedefVar);
 
       TRACE("template", (definition? "defn" : "decl") <<
                         " of specialization of template class" <<
@@ -1467,6 +1574,15 @@ void TS_classSpec::tcheckIntoCompound(
   // you need to do context isolation using 'DisambiguateNestingTemp'
   xassert(env.disambiguationNestingLevel == 0);
 
+  // open a scope, and install 'ct' as the compound which is
+  // being built; in fact, 'ct' itself is a scope, so we use
+  // that directly
+  //
+  // 8/19/04: Do this before looking at the base class specs, because
+  // any prevailing template params are now attached to 'ct' and hence
+  // only visible there (t0271.cc).
+  env.extendScope(ct);
+
   // look at the base class specifications
   if (bases) {
     FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
@@ -1536,11 +1652,6 @@ void TS_classSpec::tcheckIntoCompound(
       }
     }
   }
-
-  // open a scope, and install 'ct' as the compound which is
-  // being built; in fact, 'ct' itself is a scope, so we use
-  // that directly
-  env.extendScope(ct);
 
   // look at members: first pass is to enter them into the environment
   {
@@ -2579,7 +2690,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // this this a specialization?
   if (templatizableContext &&                      // e.g. toplevel
       enclosingScope->isTemplateParamScope() &&    // "template <...>" above
-      !enclosingScope->parameterizedPrimary) {     // that's mine, not my class' (need to wait until after name->tcheck to test this)
+      !enclosingScope->parameterizedEntity) {      // that's mine, not my class' (need to wait until after name->tcheck to test this)
     if (dt.type->isFunctionType()) {
       // complete specialization?
       if (enclosingScope->templateParams.isEmpty()) {    // just "template <>"
@@ -2587,8 +2698,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         dt.existingVar = env.makeExplicitFunctionSpecialization
                            (decl->loc, dt.dflags, name, dt.type->asFunctionType());
         if (dt.existingVar) {
-          enclosingScope->setParameterizedPrimary
-            (dt.existingVar->templateInfo()->getPrimary()->var);
+          enclosingScope->setParameterizedEntity(dt.existingVar);
         }
       }
 
@@ -2705,8 +2815,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // no such thing as a function partial specialization, so this
     // is automatically the primary
     if (enclosingScope->isTemplateParamScope() &&
-        !enclosingScope->parameterizedPrimary) {
-      enclosingScope->setParameterizedPrimary(var);
+        !enclosingScope->parameterizedEntity) {
+      enclosingScope->setParameterizedEntity(var);
     }
 
     // sm: I'm not sure what this is doing.  It used to only be done when
@@ -3082,7 +3192,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
   Scope *paramScope = env.enterScope(SK_PARAMETER, "D_func parameter list scope");
 //    cout << "D_func::tcheck env.locStr() " << env.locStr() << endl;
 //    if (templateInfo) templateInfo->debugPrint();
-//    env.debugPrintScopes();
+//    env.gdbScopes();
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids,
   // and adds them to the environment
@@ -4138,42 +4248,59 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
 {
   name->tcheck(env);
-  Variable *v = env.lookupPQVariable(name, flags);
-  if (!v) {
-    // dsw: In K and R C it seems to be legal to call a function
-    // variable that has never been declareed.  At this point we
-    // notice this fact and if we are in K and R C we insert a
-    // variable with signature "int ()(...)" which is what I recall as
-    // the correct signature for such an implicit variable.
-    if (env.lang.allowCallToUndeclFunc && (flags & LF_IMPL_DECL_FUNC)) {
-      // this should happen in C mode only so name must be a PQ_name
-      v = env.makeUndeclFuncVar(name->asPQ_name()->name);
+
+  // re-use dependent?
+  Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);
+  if (v) {
+    var = v;
+  }
+  else {
+    // do lookup normally
+    v = env.lookupPQVariable(name, flags);
+    if (!v) {
+      // dsw: In K and R C it seems to be legal to call a function
+      // variable that has never been declareed.  At this point we
+      // notice this fact and if we are in K and R C we insert a
+      // variable with signature "int ()(...)" which is what I recall as
+      // the correct signature for such an implicit variable.
+      if (env.lang.allowCallToUndeclFunc && (flags & LF_IMPL_DECL_FUNC)) {
+        // this should happen in C mode only so name must be a PQ_name
+        v = env.makeUndeclFuncVar(name->asPQ_name()->name);
+      }
+      else {
+        // 10/23/02: I've now changed this to non-disambiguating,
+        // prompted by the need to allow template bodies to call
+        // undeclared functions in a "dependent" context [cppstd 14.6
+        // para 8].  See the note in TS_name::itcheck.
+        return env.error(name->loc, stringc
+                         << "there is no variable called `" << *name << "'",
+                         EF_NONE);
+      }
     }
-    else {
-      // 10/23/02: I've now changed this to non-disambiguating,
-      // prompted by the need to allow template bodies to call
-      // undeclared functions in a "dependent" context [cppstd 14.6
-      // para 8].  See the note in TS_name::itcheck.
+    xassert(v);
+
+    if (v->hasFlag(DF_TYPEDEF)) {
       return env.error(name->loc, stringc
-                       << "there is no variable called `" << *name << "'",
-                       EF_NONE);
+        << "`" << *name << "' used as a variable, but it's actually a type",
+        EF_DISAMBIGUATES);
     }
+
+    // TODO: access control check
+
+    var = env.storeVarIfNotOvl(v);
+
+    // should I remember this non-dependent lookup?
+    maybeNondependent(env, name->loc, nondependentVar, var);
   }
-  xassert(v);
 
-  if (v->hasFlag(DF_TYPEDEF)) {
-    return env.error(name->loc, stringc
-      << "`" << *name << "' used as a variable, but it's actually a type",
-      EF_DISAMBIGUATES);
-  }
-
-  // TODO: access control check
-
-  var = env.storeVarIfNotOvl(v);
-
-  if (v->hasFlag(DF_BOUND_TARG)) {
+  if (var->isTemplateArg/*wrong*/()) {
     // this variable is actually a bound meta-variable (template
     // argument), so it is *not* to be regarded as a reference
+    // (14.1 para 6)
+    //
+    // TODO: The correct query here is 'isTemplateParamOrArg', but
+    // when I put that in it runs smack into the STA_REFERENCE
+    // problem, so I am leaving it wrong for now.
     return var->type;
   }
 
@@ -4535,9 +4662,26 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // check the argument list
   args = tcheckArgExprList(args, env);
 
+  // do any of the arguments have types that are dependent on template params?
+  bool dependentArgs = hasDependentActualArgs(args);
+
+  // TODO: This is all wrong!  There should be a single, unified step
+  // where actual arguments and template arguments are used to deal
+  // with both overload resolution and template instantiation.  Right
+  // now we do instantiation up here and overload resolution down below,
+  // but they will not interact correctly.
+
   // argument-dependent re-lookup and function template instantiation
   if (func->skipGroups()->isE_variable()) {
     E_variable *evar = func->skipGroups()->asE_variable();
+    if (dependentArgs && evar->nondependentVar) {
+      // kill the 'nondependent' lookup; this is wrong, since it needs
+      // to be folded into a consolidated arg+overload resolve...
+      TRACE("dependent", toString(evar->name->loc) << 
+        ": killing the nondependency of " << evar->nondependentVar->name);
+      evar->nondependentVar = NULL;
+    }
+
     if (!argumentDependentReLookup(env, evar->var, evar->name, evar->type,
                                    NULL /*receiver*/, args)) {
       return evar->type;    // is ST_ERROR
@@ -6256,7 +6400,8 @@ void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
   CVAtomicType *fullType = env.makeType(loc, tvar);
 
   // make a typedef variable for this type
-  Variable *var = env.makeVariable(loc, name, fullType, DF_TYPEDEF);
+  Variable *var = env.makeVariable(loc, name, fullType, 
+                                   DF_TYPEDEF | DF_TEMPL_PARAM);
   tvar->typedefVar = var;
   if (defaultType) {
     var->defaultParamType = defaultType->getType();
@@ -6280,8 +6425,9 @@ void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
 
 
 void TP_nontype::tcheck(Env &env, SObjList<Variable> &tparams)
-{
-  ASTTypeId::Tcheck tc(DF_PARAMETER, DC_TP_NONTYPE);
+{                                                   
+  // TODO: I believe I want to remove DF_PARAMETER.
+  ASTTypeId::Tcheck tc(DF_PARAMETER | DF_TEMPL_PARAM, DC_TP_NONTYPE);
 
   // check the parameter; this actually adds it to the
   // environment too, so we don't need to do so here

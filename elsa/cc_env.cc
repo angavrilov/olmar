@@ -6,7 +6,7 @@
 #include "ckheap.h"        // heapCheck
 #include "strtable.h"      // StringTable
 #include "cc_lang.h"       // CCLang
-#include "strutil.h"       // suffixEquals
+#include "strutil.h"       // suffixEquals, prefixEquals
 
 
 void gdbScopeSeq(ScopeSeq &ss)
@@ -289,7 +289,9 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
 int throwClauseSerialNumber = 0; // don't make this a member of Env
 
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
-  : scopes(),
+  : ErrorList(),
+
+    scopes(),
     disambiguateOnly(false),
     anonTypeCounter(1),
     ctorFinished(false),
@@ -297,7 +299,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     disambiguationNestingLevel(0),
     checkFunctionBodies(true),
     secondPassTcheck(false),
-    errors(),
+    errors(*this),
     hiddenErrors(NULL),
     instantiationLocStack(),
 
@@ -1046,16 +1048,22 @@ FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
 }
 
 
+Scope *Env::createScope(ScopeKind sk)
+{
+  return new Scope(sk, getChangeCount(), loc());
+}
+
+
 Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 {
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
-  Scope *newScope = new Scope(sk, getChangeCount(), loc());
+  Scope *newScope = createScope(sk);
   setParentScope(newScope);
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
-  TRACE("env", locStr() << ": entered " << newScope->desc() << " for " << forWhat);
+  TRACE("scope", locStr() << ": entered " << newScope->desc() << " for " << forWhat);
 
   // this is actually a no-op since there can't be any edges for
   // a new scope, but I do it for uniformity
@@ -1083,7 +1091,7 @@ void Env::exitScope(Scope *s)
 {
   s->closedScope();
 
-  TRACE("env", locStr() << ": exited " << s->desc());
+  TRACE("scope", locStr() << ": exited " << s->desc());
   Scope *f = scopes.removeFirst();
   xassert(s == f);
   delete f;
@@ -1092,7 +1100,7 @@ void Env::exitScope(Scope *s)
 
 void Env::extendScope(Scope *s)
 {
-  TRACE("env", locStr() << ": extending " << s->desc());
+  TRACE("scope", locStr() << ": extending " << s->desc());
 
   Scope *prevScope = scope();
   scopes.prepend(s);
@@ -1103,7 +1111,24 @@ void Env::extendScope(Scope *s)
 
 void Env::retractScope(Scope *s)
 {
-  TRACE("env", locStr() << ": retracting " << s->desc());
+  TRACE("scope", locStr() << ": retracting " << s->desc());
+       
+  // don't do this here b/c I need to re-enter the scope when
+  // tchecking a Function, but the association only gets established
+  // once, when tchecking the declarator *name*
+  #if 0
+  // if we had been delegating to another scope, disconnect
+  if (s->curCompound &&
+      s->curCompound->parameterizingScope) {
+    Scope *other = s->curCompound->parameterizingScope;
+    xassert(other->parameterizedEntity->type->asCompoundType() == s->curCompound);
+
+    TRACE("templateParams", s->desc() << " removing delegation to " << other->desc());
+
+    other->parameterizedEntity = NULL;
+    s->curCompound->parameterizingScope = NULL;
+  }
+  #endif // 0
 
   s->closedScope();
 
@@ -1113,21 +1138,39 @@ void Env::retractScope(Scope *s)
 }
 
 
-void Env::debugPrintScopes()
+void Env::gdbScopes()
 {
-  cout << "Scopes and variables, beginning with innermost" << endl;
+  cout << "Scopes and variables (no __-names), beginning with innermost" << endl;
   for (int i=0; i<scopes.count(); ++i) {
     Scope *s = scopes.nth(i);
     cout << "scope " << i << ", " << s->desc() << endl;
+    
+    if (s->isDelegated()) {
+      cout << "  (DELEGATED)" << endl;
+    }
+
     for (StringRefMap<Variable>::Iter iter = s->getVariableIter();
          !iter.isDone();
          iter.adv()) {
+      // suppress __builtins, etc.
+      if (prefixEquals(iter.key(), "__")) continue;
+
       Variable *value = iter.value();
-      cout << "  " << iter.key()
-           << ": " << value->toString()
-           << stringf(" (%p)", value);
-//        cout << "value->serialNumber " << value->serialNumber;
-      cout << endl;
+      if (value->hasFlag(DF_NAMESPACE)) {
+        cout << "  " << iter.key() << ": " << value->scope->desc() << endl;
+      }
+      else {
+        cout << "  " << iter.key()
+             << ": " << value->toString()
+             << stringf(" (%p)", value);
+  //        cout << "value->serialNumber " << value->serialNumber;
+        cout << endl;
+      }
+    }
+
+    if (s->curCompound &&
+        s->curCompound->parameterizingScope) {
+      cout << "  DELEGATES to " << s->curCompound->parameterizingScope->desc() << endl;
     }
   }
 }
@@ -1136,7 +1179,7 @@ void Env::debugPrintScopes()
 // this should be a rare event
 void Env::refreshScopeOpeningEffects()
 {
-  TRACE("env", "refreshScopeOpeningEffects");
+  TRACE("scope", "refreshScopeOpeningEffects");
 
   // tell all scopes they should consider themselves closed,
   // starting with the innermost
@@ -1363,6 +1406,11 @@ bool Env::addVariable(Variable *v, bool forceReplace)
   }
 
   Scope *s = acceptingScope(v->flags);
+  return addVariableToScope(s, v, forceReplace);
+}
+
+bool Env::addVariableToScope(Scope *s, Variable *v, bool forceReplace)
+{
   s->registerVariable(v);
   if (s->addVariable(v, forceReplace)) {
     addedNewVariable(s, v);
@@ -2148,8 +2196,6 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
         EF_DISAMBIGUATES);
       return NULL;
     }
-
-    return ret;
   }
   else {
     ret = lookupCompound(name->getName(), flags);
@@ -2157,7 +2203,8 @@ CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
 
   // apply template arguments if any
   if (ret) {
-    Variable *var = applyPQNameTemplateArguments(ret->typedefVar, name, flags);
+    PQName const *final = name->getUnqualifiedNameC();
+    Variable *var = applyPQNameTemplateArguments(ret->typedefVar, final, flags);
     if (var && var->type->isCompoundType()) {
       ret = var->type->asCompoundType();
     }
@@ -2269,6 +2316,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
     // scopes (this is a little bit of a hack as I try to guess the
     // right rules)
     if (!( s->scopeKind == SK_CLASS ||
+           s->scopeKind == SK_NAMESPACE ||
            s->scopeKind == SK_TEMPLATE_PARAMS )) {
       break;
     }
@@ -2280,7 +2328,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
       }
 
       // are these as-yet unassociated params?
-      if (!s->parameterizedPrimary) {
+      if (!s->parameterizedEntity) {
         if (ret->params.isNotEmpty()) {
           // there was already one unassociated, and now we see another
           error("too many template <...> declarations");
@@ -2296,7 +2344,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
       else {
         // record info about these params and where they come from
         InheritedTemplateParams *itp
-          = new InheritedTemplateParams(s->parameterizedPrimary->type->asCompoundType());
+          = new InheritedTemplateParams(s->parameterizedEntity->type->asCompoundType());
         itp->params.appendAll(s->templateParams);
 
         if (s->templateParams.isNotEmpty()) {
@@ -2309,7 +2357,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
         ret->inheritedParams.prepend(itp);
 
         TRACE("templateParams", "inherited " << itp->paramsToCString() <<
-                                " from " << s->parameterizedPrimary->name);
+                                " from " << s->parameterizedEntity->name);
       }
     }
   }
@@ -2413,7 +2461,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
       // the process of making a primary
       if (scope) {
         if (this->scope()->isTemplateParamScope()) {
-          this->scope()->setParameterizedPrimary(ct->typedefVar);
+          this->scope()->setParameterizedEntity(ct->typedefVar);
         }
 
         // set its defnScope, which is used during instantiation
@@ -3307,6 +3355,16 @@ void Env::popDeclarationScopes(Variable *v, Scope *stop)
 }
 
 
+Variable *getParameterizedPrimary(Scope *s)
+{
+  Variable *entity = s->parameterizedEntity;
+  TemplateInfo *tinfo = entity->templateInfo();
+  xassert(tinfo);
+  Variable *ret = tinfo->getPrimary()->var;
+  xassert(ret);
+  return ret;
+}
+
 // We are in a declarator, processing a qualifier that has template
 // arguments supplied.  The question is, which template arg/param
 // scope is the one that goes with this qualifier?
@@ -3320,10 +3378,10 @@ Scope *Env::findParameterizingScope(Variable *bareQualifierVar)
     Scope *s = iter.data();
 
     if (s->isTemplateScope()) {
-      if (!s->parameterizedPrimary) {
+      if (!s->parameterizedEntity) {
         lastUnassoc = s;
       }
-      else if (s->parameterizedPrimary == bareQualifierVar) {
+      else if (getParameterizedPrimary(s) == bareQualifierVar) {
         // found it!  this scope is already marked as being associated
         // with this variable
         return s;
@@ -3348,14 +3406,6 @@ Scope *Env::findParameterizingScope(Variable *bareQualifierVar)
     error(stringc << "no template parameter list supplied for `"
                   << bareQualifierVar->name << "'");
   }
-  else {
-    // well, may as well cement the association now
-    lastUnassoc->setParameterizedPrimary(bareQualifierVar);
-
-    TRACE("templateParams",
-      "associated " << paramsToCString(lastUnassoc->templateParams) <<
-      " with " << bareQualifierVar->name);
-  }
 
   return lastUnassoc;
 }
@@ -3368,7 +3418,7 @@ void Env::removeScopesInside(ObjList<Scope> &dest, Scope *bound)
   xassert(bound);
   while (scopes.first() != bound) {
     Scope *s = scopes.removeFirst();
-    TRACE("env", "temporarily removing " << s->desc());
+    TRACE("scope", "temporarily removing " << s->desc());
     dest.prepend(s);
   }
 }
@@ -3379,7 +3429,7 @@ void Env::restoreScopesInside(ObjList<Scope> &src, Scope *bound)
   xassert(scopes.first() == bound);
   while (src.isNotEmpty()) {
     Scope *s = src.removeFirst();
-    TRACE("env", "restoring " << s->desc());
+    TRACE("scope", "restoring " << s->desc());
     scopes.prepend(s);
   }
 }
@@ -3411,6 +3461,20 @@ bool Env::ensureCompleteType(char const *action, Type *type)
   }
 
   return true;
+}
+
+
+// ------------------------ SavedScopePair -------------------------
+SavedScopePair::SavedScopePair(Scope *s)
+  : scope(s),
+    parameterizingScope(NULL)
+{}
+
+SavedScopePair::~SavedScopePair()
+{
+  if (scope) {
+    delete scope;
+  }
 }
 
 
@@ -3483,22 +3547,34 @@ ErrorFlags Env::maybeEF_STRONG() const
 }
 
 
+void Env::addError(ErrorMsg * /*owner*/ obj)
+{
+  string instLoc = instLocStackString();
+  if (instLoc.length()) {
+    obj->instLoc = instLoc;
+  }
+
+  ErrorList::addError(obj);
+}
+
+
 // I want this function to always be last in this file, so I can easily
 // find it to put a breakpoint in it.
 Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
 {
-  string instLoc = instLocStackString();
-  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " :
-                  (eflags & (EF_WARNING | EF_STRONG_WARNING))? "[w] " : "")
-              << toString(L) << ": " << msg << instLoc);
-
-  bool report = 
-    (eflags & EF_DISAMBIGUATES) || 
+  bool report =
+    (eflags & EF_DISAMBIGUATES) ||
     (eflags & EF_STRONG) ||
     (eflags & EF_STRONG_WARNING) ||
     (!disambiguateOnly);
+
+  TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " :
+                  (eflags & (EF_WARNING | EF_STRONG_WARNING))? "[w] " : "")
+              << (report? "" : "(suppressed) ")
+              << toString(L) << ": " << msg << instLocStackString());
+
   if (report) {
-    errors.addError(new ErrorMsg(L, msg, eflags, instLoc));
+    addError(new ErrorMsg(L, msg, eflags));
   }
 
   return errorType();
