@@ -42,6 +42,9 @@ void Function::tcheck(Env &env, bool checkBody)
     dflags = (DeclFlags)(dflags | DF_DEFINITION);
   }
 
+  // are we in a template function?
+  bool inTemplate = env.scope()->templateParams != NULL;
+
   // construct the type of the function
   Type const *retTypeSpec = retspec->tcheck(env);
   nameParams->tcheck(env, retTypeSpec, dflags);
@@ -49,10 +52,16 @@ void Function::tcheck(Env &env, bool checkBody)
   if (! nameParams->var->type->isFunctionType() ) {
     env.error("function declarator must be of function type");
     return;
-  }        
+  }
 
   if (!checkBody) {
     return;
+  }
+
+  bool prevDO = false;
+  if (inTemplate) {
+    // while checking the body, only report/use serious errors
+    prevDO = env.setDisambiguateOnly(true);
   }
 
   // if this function was originally declared in another scope
@@ -72,7 +81,7 @@ void Function::tcheck(Env &env, bool checkBody)
   Scope *bodyScope = env.enterScope();
   bodyScope->curFunction = this;
   FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
-  FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
+  FOREACH_OBJLIST(Parameter, ft.params, iter) {
     Variable *v = iter.data()->decl;
     if (v->name) {
       env.addVariable(v);
@@ -101,6 +110,10 @@ void Function::tcheck(Env &env, bool checkBody)
   if (nameParams->var->scope) {
     xassert(prevChangeCount == env.getChangeCount());
     env.retractScope(nameParams->var->scope);
+  }
+  
+  if (inTemplate) {
+    env.setDisambiguateOnly(prevDO);
   }
 }
 
@@ -271,11 +284,66 @@ Type const *TS_simple::tcheck(Env &env)
 }
 
 
+// we (may) have just encountered some syntax which declares
+// some template parameters, but found that the declaration
+// matches a prior declaration with (possibly) some other template
+// parameters; verify that they match (or complain), and then
+// discard the ones stored in the environment (if any)
+void verifyCompatibleTemplates(Env &env, CompoundType *prior)
+{
+  Scope *scope = env.scope();
+  if (!scope->templateParams && !prior->templateParams) {
+    // neither talks about templates, forget the whole thing
+    return;
+  }
+
+  if (!scope->templateParams && prior->templateParams) {
+    // TODO: declaration conflicts are disambiguating
+    env.error(stringc
+      << "prior declaration of " << prior->keywordAndName()
+      << " at " << prior->typedefVar->loc
+      << " was templatized with parameters "
+      << prior->templateParams->toString()
+      << " but the this one is not templatized");
+    return;
+  }
+
+  if (scope->templateParams && !prior->templateParams) {
+    env.error(stringc
+      << "prior declaration of " << prior->keywordAndName()
+      << " at " << prior->typedefVar->loc
+      << " was not templatized, but this one is, with parameters "
+      << scope->templateParams->toString());
+    return;
+  }
+
+  // now we know both declarations have template parameters;
+  // check them for naming equivalent types (the actual names
+  // given to the parameters don't matter; the current
+  // declaration's names have already been entered into the
+  // template-parameter scope)
+  if (scope->templateParams->equalTypes(prior->templateParams)) {
+    // ok
+  }
+  else {
+    env.error(stringc
+      << "prior declaration of " << prior->keywordAndName()
+      << " at " << prior->typedefVar->loc
+      << " was templatized with parameters "
+      << prior->templateParams->toString()
+      << " but this one has parameters "
+      << scope->templateParams->toString()
+      << ", and these are not equivalent");
+  }
+}
+
+
 Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
                             SourceLocation const &loc, TypeIntr keyword,
                             bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
+  ct->templateParams = env.takeTemplateParams();
   ct->forward = forward;
   bool ok = env.addCompound(ct);
   xassert(ok);     // already checked that it was ok
@@ -332,6 +400,8 @@ Type const *TS_elaborated::tcheck(Env &env)
         << name << "', but that's actually a " << toString(ct->keyword));
     }
 
+    verifyCompatibleTemplates(env, ct);
+
     return makeType(ct);
   }
 }
@@ -339,6 +409,9 @@ Type const *TS_elaborated::tcheck(Env &env)
 
 Type const *TS_classSpec::tcheck(Env &env)
 {
+  // are we in a template?
+  bool inTemplate = env.scope()->templateParams != NULL;
+
   // see if the environment already has this name
   CompoundType *ct = env.lookupCompound(name, true /*innerOnly*/);
   Type const *ret;
@@ -356,6 +429,11 @@ Type const *TS_classSpec::tcheck(Env &env)
       return env.error(stringc
         << ct->keywordAndName() << " has already been defined");
     }
+
+    // now it is no longer a forward declaration
+    ct->forward = false;
+
+    verifyCompatibleTemplates(env, ct);
 
     ret = makeType(ct);
   }
@@ -383,6 +461,13 @@ Type const *TS_classSpec::tcheck(Env &env)
         ct->bases.append(new BaseClass(base, acc, iter->isVirtual));
       }
     }
+  }
+
+  bool prevDO = false;
+  if (inTemplate) {                          
+    // only report serious errors while checking the class
+    // body, in the absence of actual template arguments
+    prevDO = env.setDisambiguateOnly(true);
   }
 
   // open a scope, and install 'ct' as the compound which is
@@ -413,6 +498,10 @@ Type const *TS_classSpec::tcheck(Env &env)
   // now retract the class scope from the stack of scopes; do
   // *not* destroy it!
   env.retractScope(ct);
+
+  if (inTemplate) {
+    env.setDisambiguateOnly(prevDO);
+  }
 
   return ret;
 }
@@ -891,7 +980,7 @@ Variable *D_func::itcheck(Env &env, Type const *retSpec, DeclFlags dflags)
     iter->tcheck(env);
     Variable *v = iter->decl->var;
 
-    ft->addParam(new FunctionType::Param(v->name, v->type, v));
+    ft->addParam(new Parameter(v->name, v->type, v));
   }
 
   env.exitScope(paramScope);
@@ -1900,13 +1989,16 @@ void TemplateDeclaration::tcheck(Env &env)
   paramScope->templateParams = tparams;
 
   // in what follows, ignore errors that are not disambiguating
-  bool prev = env.setDisambiguateOnly(true);
+  //bool prev = env.setDisambiguateOnly(true);
+  // 
+  // update: moved this inside Function::tcheck and TS_classSpec::tcheck
+  // so that the declarators would still get full checking
 
   // check the particular declaration
   itcheck(env);
 
   // restore prior error mode
-  env.setDisambiguateOnly(prev);
+  //env.setDisambiguateOnly(prev);
 
   // remove the template argument scope
   env.exitScope(paramScope);
@@ -1918,6 +2010,14 @@ void TD_func::itcheck(Env &env)
   // check the function definition; internally this will get
   // the template parameters attached to the function type
   f->tcheck(env, true /*checkBody*/);
+}
+
+
+void TD_class::itcheck(Env &env)
+{ 
+  // check the class definition; it knows what to do about
+  // the template parameters (just like for functions)
+  type->tcheck(env);
 }
 
 
@@ -1959,7 +2059,7 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   }
 
   // add this parameter to the list of them
-  tparams->params.append(new FunctionType::Param(name, fullType, var));
+  tparams->params.append(new Parameter(name, fullType, var));
 }
 
 

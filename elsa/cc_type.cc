@@ -66,6 +66,13 @@ CAST_MEMBER_IMPL(AtomicType, TypeVariable)
 
 bool AtomicType::equals(AtomicType const *obj) const
 {
+  // one exception to the below: when checking for
+  // equality, TypeVariables are all equivalent
+  if (this->isTypeVariable() &&
+      obj->isTypeVariable()) {
+    return true;
+  }
+
   // all of the AtomicTypes are unique-representation,
   // so pointer equality suffices
   //
@@ -272,14 +279,21 @@ CompoundType::CompoundType(Keyword k, StringRef n)
   : NamedAtomicType(n),
     Scope(0 /*changeCount*/, SourceLocation() /*dummy loc*/),
     forward(true),
-    keyword(k)
+    keyword(k),
+    bases(),
+    templateParams(NULL)
 {
   curCompound = this;
   curAccess = (k==K_CLASS? AK_PRIVATE : AK_PUBLIC);
 }
 
 CompoundType::~CompoundType()
-{}
+{
+  bases.deleteAll();
+  if (templateParams) {
+    delete templateParams;
+  }
+}
 
 
 #if 0
@@ -305,8 +319,16 @@ STATICDEF char const *CompoundType::keywordName(Keyword k)
 
 string CompoundType::toCString() const
 {
-  return stringc << keywordName(keyword) << " " 
-                 << (name? name : "(anonymous)");
+  stringBuilder sb;
+  
+  if (templateParams) {
+    sb << templateParams->toString() << " ";
+  }
+
+  sb << keywordName(keyword) << " "
+     << (name? name : "(anonymous)");
+   
+  return sb;
 }
 
 
@@ -713,6 +735,12 @@ bool Type::isTemplateFunction() const
          asFunctionTypeC().isTemplate();
 }
 
+bool Type::isTemplateClass() const
+{
+  return isCompoundType() &&
+         ifCompoundType()->isTemplate();
+}
+
 
 // ----------------- CVAtomicType ----------------
 CVAtomicType const CVAtomicType::fixed[NUM_SIMPLE_TYPES] = {
@@ -852,23 +880,6 @@ int PointerType::reprSize() const
 }
 
 
-// -------------------- FunctionType::Param -----------------
-FunctionType::Param::~Param()
-{}
-
-
-string FunctionType::Param::toString() const
-{
-  if (type->isTypeVariable()) {
-    // avoid printing the name twice
-    return type->toCString();
-  }
-  else {
-    return type->toCString(name);
-  }
-}
-
-
 // -------------------- FunctionType::ExnSpec --------------
 FunctionType::ExnSpec::~ExnSpec()
 {
@@ -892,6 +903,9 @@ FunctionType::~FunctionType()
   if (exnSpec) {
     delete exnSpec;
   }
+  if (templateParams) {
+    delete templateParams;
+  }
 }
 
 
@@ -911,8 +925,8 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
 
 bool FunctionType::equalParameterLists(FunctionType const *obj) const
 {
-  ObjListIter<Param> iter1(params);
-  ObjListIter<Param> iter2(obj->params);
+  ObjListIter<Parameter> iter1(params);
+  ObjListIter<Parameter> iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
        iter1.adv(), iter2.adv()) {
     // parameter names do not have to match, but
@@ -955,7 +969,7 @@ bool FunctionType::equalExceptionSpecs(FunctionType const *obj) const
 }
 
 
-void FunctionType::addParam(Param *param)
+void FunctionType::addParam(Parameter *param)
 {
   params.append(param);
 }
@@ -967,15 +981,7 @@ string FunctionType::leftString() const
 
   // template parameters
   if (templateParams) {
-    sb << "template <";
-    int ct=0;
-    FOREACH_OBJLIST(FunctionType::Param, templateParams->params, iter) {
-      if (ct++ > 0) {
-        sb << ", ";
-      }
-      sb << iter.data()->toString();
-    }
-    sb << "> ";
+    sb << templateParams->toString() << " ";
   }
 
   // return type and start of enclosing type's description
@@ -993,7 +999,7 @@ string FunctionType::rightString() const
   // arguments
   sb << "(";
   int ct=0;
-  FOREACH_OBJLIST(Param, params, iter) {
+  FOREACH_OBJLIST(Parameter, params, iter) {
     if (ct++ > 0) {
       sb << ", ";
     }
@@ -1044,7 +1050,7 @@ string FunctionType::toCilString(int depth) const
   sb << "(";
 
   int ct=0;
-  FOREACH_OBJLIST(Param, params, iter) {
+  FOREACH_OBJLIST(Parameter, params, iter) {
     if (++ct > 1) {
       sb << ", ";
     }
@@ -1084,6 +1090,59 @@ int FunctionType::reprSize() const
   // thinking here about how this works when we're summing
   // the fields of a class with member functions ..
   return 0;
+}
+
+
+// -------------------- Parameter -----------------
+string Parameter::toString() const
+{
+  if (type->isTypeVariable()) {
+    // avoid printing the name twice
+    return type->toCString();
+  }
+  else {
+    return type->toCString(name);
+  }
+}
+
+
+// ----------------- TemplateParams --------------
+TemplateParams::~TemplateParams()
+{
+  params.deleteAll();
+}
+
+
+string TemplateParams::toString() const
+{ 
+  stringBuilder sb;
+  sb << "template <";
+  int ct=0;
+  FOREACH_OBJLIST(Parameter, params, iter) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << iter.data()->toString();
+  }
+  sb << ">";
+  return sb;
+}
+
+
+bool TemplateParams::equalTypes(TemplateParams const *obj) const
+{
+  ObjListIter<Parameter> iter1(params), iter2(obj->params);
+  for (; !iter1.isDone() && !iter2.isDone();
+       iter1.adv(), iter2.adv()) {
+    if (iter1.data()->type->equals(iter2.data()->type)) {
+      // ok
+    }
+    else {
+      return false;
+    }
+  }
+  
+  return iter1.isDone() == iter2.isDone();
 }
 
 

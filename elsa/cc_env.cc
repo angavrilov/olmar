@@ -273,10 +273,14 @@ Variable *Env::lookupPQVariable(PQName const *name)
   if (var &&
       name->getUnqualifiedName()->isPQ_template()) {
     // make sure the name in question is a template
-    if (var->type->isTemplateFunction()) {
-      // ok
+    if (var->type->isTemplateFunction() &&
+        !var->hasFlag(DF_TYPEDEF)) {
+      // ok; a template function
     }
-    // TODO: add case for classes
+    else if (var->type->isTemplateClass() &&
+             var->hasFlag(DF_TYPEDEF)) {
+      // ok; a typedef referring to a template class
+    }
     else {
       // I'm not sure if I really need to make this disambiguating
       // (i.e. I don't know if there is a syntax example which is
@@ -297,7 +301,10 @@ Variable *Env::lookupPQVariable(PQName const *name)
 Variable *Env::lookupVariable(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.first()->lookupVariable(name, innerOnly, *this);
+    // here as in every other place 'innerOnly' is true, I have
+    // to skip non-accepting scopes since that's not where the
+    // client is planning to put the name
+    return acceptingScope()->lookupVariable(name, innerOnly, *this);
   }
 
   // look in all the scopes
@@ -334,7 +341,7 @@ CompoundType *Env::lookupPQCompound(PQName const *name)
 CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scopes.first()->lookupCompound(name, innerOnly);
+    return acceptingScope()->lookupCompound(name, innerOnly);
   }
 
   // look in all the scopes
@@ -371,7 +378,7 @@ EnumType *Env::lookupPQEnum(PQName const *name)
 EnumType *Env::lookupEnum(StringRef name, bool innerOnly)
 {
   if (innerOnly) {
-    return scope()->lookupEnum(name, innerOnly);
+    return acceptingScope()->lookupEnum(name, innerOnly);
   }
 
   // look in all the scopes

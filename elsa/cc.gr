@@ -798,7 +798,7 @@ nonterm[enum DeclFlags] DeclModifier {
 // plays role of "TypeSpecifierSeq" in std
 nonterm[TypeSpecifier*] TypeSpecifier {
   // the existence of this production is part of why parsing C is hard
-  -> n:PQTypeName 
+  -> n:PQTypeName
        [ return new TS_name(n); ]
 
   -> s:PrimitiveTypeSpecifier            // int
@@ -1620,9 +1620,24 @@ nonterm[TemplateDeclaration*] TemplateDeclaration {
   // this is the std's rule
   //-> ExportOpt "template" "<" TemplateParameterList ">" Declaration;
 
-  // this is my for-now rule
+  // I have expanded 'Declaration' as appropriate, which cuts down on
+  // the filtering work and also makes the semantic values available
+  // in a more convenient context.  In particular, I dug down several
+  // levels to get 'ClassSpecifier' for template classes, which
+  // dramatically cuts down on the vestigial stuff the std's grammar
+  // would have potentially included.
+
+  // template function
   -> ExportOpt "template" "<" plist:TemplateParameterList ">" def:FunctionDefinition
        [ return new TD_func(plist, def); ]
+
+  // definition of a template classe
+  -> ExportOpt "template" "<" plist:TemplateParameterList ">" spec:ClassSpecifier ";"
+       [ return new TD_class(plist, spec); ]
+
+  // forward declarations of a template classe
+  -> ExportOpt "template" "<" plist:TemplateParameterList ">" spec:ElaboratedTypeSpecifier ";"
+       [ return new TD_class(plist, spec); ]
 }
 
 nonterm[FakeList<TemplateParameter>*] TemplateParameterList {
