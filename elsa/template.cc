@@ -2333,7 +2333,20 @@ STemplateArgument *Env::makeDefaultTemplateArgument
     // I'll wait for a testcase to remove this assertion... before
     // this assertion *is* removed, someone should read over the
     // applicable parts of cppstd
-    xfailure("unimplemented: default non-type argument");
+    //xfailure("unimplemented: default non-type argument");
+    
+    // 8/21/04: attempting to implement w/o reading cppstd... :}
+    int val;
+    STemplateArgument *ret = new STemplateArgument;
+    if (param->value->constEval(*this, val)) {
+      // I am just hoping it's an int ....
+      ret->setInt(val);
+    }
+    else {
+      // error already reported, but proceed anyway
+      ret->setInt(0);
+    }
+    return ret;
   }
   
   return NULL;

@@ -515,6 +515,7 @@ failparse t0283.cc "no viable candidate (not minimized)"
 testparse t0284.cc
 testparse t0285.cc
 testparse t0286.cc
+testparse t0287.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
