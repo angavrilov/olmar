@@ -195,12 +195,19 @@ for ($i=0; $i < @lines; $i++) {
     push @methodCopies, ($line);
     if ($line =~ m/yyFlexLexer::yy_try_NUL_trans/) {
       $state++;
+
+      # need to see how much this brace is indented, so we can
+      # find the matching one in the next state
+      ($ind) = ($lines[$i+1] =~ m/^(\s*)\{/);
+      if (!defined($ind)) {
+        die("yy_try_NUL_trans not followed by line with left brace\n");
+      }
     }
   }
 
   elsif ($state == 9) {
     push @methodCopies, ($line);
-    if ($line =~ m/^\s*\}\s*$/) {
+    if ($line =~ m/^$ind\}\s*$/) {
       $state++;
     }
   }
