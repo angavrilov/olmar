@@ -1318,7 +1318,8 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // add the variable to the scope and don't construct the AST, in
     // order to be symmetric with what is going on with the dtor
     // below.
-    FunctionType *ft = env.makeCDtorFunctionType(loc);
+    FunctionType *ft = env.makeConstructorFunctionType(loc);
+    ft->doneParams();
     Variable *v = env.makeVariable(loc, env.constructorSpecialName, ft, DF_MEMBER);
     // NOTE: we don't use env.addVariableWithOload() because this is
     // a special case: we only insert if there are no ctors AT ALL.
@@ -1365,7 +1366,7 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct)
     // TODO: do it right.
 
     // add a copy ctor declaration: Class(Class const &);
-    FunctionType *ft = env.makeFunctionType(loc, env.getSimpleType(loc, ST_CDTOR));
+    FunctionType *ft = env.makeConstructorFunctionType(loc);
     Variable *refToSelfParam =
       env.makeVariable(loc,
                        NULL,     // no parameter name

@@ -648,9 +648,20 @@ Variable *Env::declareFunction2arg(Type *retType, char const *funcName,
 }
 
 
-FunctionType *Env::makeCDtorFunctionType(SourceLoc loc)
+FunctionType *Env::makeConstructorFunctionType(SourceLoc loc)
 {
   FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
+  ft->flags |= FF_CTOR;
+  // asymmetry with makeDestructorFunctionType(): this must be done by the client
+//    ft->doneParams();
+  return ft;
+}
+
+
+FunctionType *Env::makeDestructorFunctionType(SourceLoc loc)
+{
+  FunctionType *ft = makeFunctionType(loc, getSimpleType(loc, ST_CDTOR));
+  ft->flags |= FF_DTOR;
   ft->doneParams();
   return ft;
 }
