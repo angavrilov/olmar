@@ -609,7 +609,7 @@ SourceLocation Lexer2::startLoc() const
 }
 
 
-void Lexer2::copyFields()
+inline void Lexer2::copyFields()
 {
   type = currentToken.data()->type;
   sval = currentToken.data()->sval;
@@ -624,10 +624,15 @@ void Lexer2::beginReading()
 }
 
 
-void Lexer2::nextToken()
+STATICDEF void Lexer2::nextToken(Lexer2 *ths)
 {
-  currentToken.adv();
-  copyFields();
+  ths->currentToken.adv();
+  ths->copyFields();
+}
+       
+LexerInterface::NextTokenFunc Lexer2::getTokenFunc()
+{
+  return (NextTokenFunc)&Lexer2::nextToken;
 }
 
 

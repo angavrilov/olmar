@@ -37,8 +37,10 @@ enum ArithTokenCodes {
 // lexer interface object
 class ArithLexer : public LexerInterface {
 public:
+  static void nextToken(ArithLexer *ths);
+
   // LexerInterface functions
-  virtual void nextToken();
+  virtual NextTokenFunc getTokenFunc();
   virtual string tokenDesc();
   virtual string tokenDescType(int newType);
 };

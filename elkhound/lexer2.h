@@ -271,8 +271,11 @@ public:
   // reset the 'currentToken' so the parser can begin reading tokens
   void beginReading();
 
+  // get next token
+  static void nextToken(Lexer2 *ths);
+
   // LexerInterface functions
-  virtual void nextToken();
+  virtual NextTokenFunc getTokenFunc();
   virtual string tokenDesc();
   virtual string tokenDescType(int newType);
 };

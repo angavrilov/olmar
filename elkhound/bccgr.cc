@@ -59,6 +59,8 @@ int yylex()
 #endif // 0
 
 
+LexerInterface::NextTokenFunc nextToken;
+
 // returns token types until EOF, at which point L2_EOF is returned
 int yylex()
 {
@@ -73,7 +75,7 @@ int yylex()
 
   if (ret != L2_EOF) {
     // advance to next token
-    lexer2.nextToken();
+    nextToken(&lexer2);
   }
 
   // return one we just advanced past
@@ -141,6 +143,7 @@ int main(int argc, char *argv[])
   traceProgress() << "lexical analysis stage 2...\n";
   lexer2_lex(lexer2, lexer1, inputFname);
   lexer2.beginReading();
+  nextToken = lexer2.getTokenFunc();
 
   // start Bison-parser
   traceProgress() << "starting parse..." << endl;

@@ -6,10 +6,15 @@
 
 
 // ------------------ ArithLexer ------------------
-void ArithLexer::nextToken()
-{                     
+STATICDEF void ArithLexer::nextToken(ArithLexer *ths)
+{
   // call underlying lexer; it will set 'sval' if necessary
-  type = yylex();
+  ths->type = yylex();
+}
+
+LexerInterface::NextTokenFunc ArithLexer::getTokenFunc()
+{
+  return (NextTokenFunc)&ArithLexer::nextToken;
 }
 
 
@@ -48,7 +53,7 @@ ArithLexer lexer;
 int main()
 {
   // initialize lexer by grabbing first token
-  lexer.nextToken();
+  lexer.nextToken(&lexer);
   
   // create parser; actions and tables not dealloc'd but who cares
   GLR glr(makeUserActions(), make_Arith_tables());

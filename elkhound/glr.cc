@@ -861,6 +861,9 @@ STATICDEF bool GLR
     bool doDumpGSS = tracingSys("dumpGSS");
   #endif
 
+  // lexer token function
+  LexerInterface::NextTokenFunc nextToken = lexer.getTokenFunc();
+
   // pull a bunch of things out of 'glr' so they'll be accessible from
   // the stack frame instead of having to indirect into the 'glr' object
   UserActions *userAct = glr.userAct;
@@ -1286,7 +1289,7 @@ STATICDEF bool GLR
     }
 
     // get the next token
-    lexer.nextToken();
+    nextToken(&lexer);
     #ifndef NDEBUG
       tokenNumber++;
     #endif

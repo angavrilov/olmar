@@ -38,7 +38,15 @@ public:     // funcs
   // LexerInterface object is first passed to the parser, the above
   // fields should already be set correctly (i.e. the parser will make
   // its first call to 'nextToken' *after* processing the first token)
-  virtual void nextToken()=0;
+  typedef void (*NextTokenFunc)(LexerInterface *);
+
+  // get the function which we'll call to get the next token
+  //
+  // Why the two-step approach?  Virtual method calls are more
+  // expensive than simple indirect function calls, and this happens
+  // in the inner parsing loop.  If C++ had a way to explicitly cache
+  // the result of a method lookup this wouldn't be necessary.
+  virtual NextTokenFunc getTokenFunc()=0;
 
   // suppress g++'s (wrong) warning
   virtual ~LexerInterface() {}
