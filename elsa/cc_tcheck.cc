@@ -4611,8 +4611,6 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags flags)
 {
-  xassert(replacement == this);
-
   name->tcheck(env);
 
   // re-use dependent?
@@ -4697,7 +4695,10 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
     E_this *ths = new E_this;
     Expression *thisRef = new E_deref(ths);
     thisRef->tcheck(env, thisRef);
-    xassert(ths->receiver);
+
+    // sm: this assertion can fail if the method we are in right now
+    // is static; the error has been reported, so just proceed
+    //xassert(ths->receiver);
 
     // this name will never be typechecked as the variable has already
     // been looked up
