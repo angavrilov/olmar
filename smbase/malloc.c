@@ -1582,8 +1582,24 @@ Void_t* public_mALLOc(size_t bytes)
   return ((char*)m) + sizeof(size_t) + ZONE_SIZE;
 }
 
+static void checkZones(unsigned char *p, int bytes)
+{
+  int i;
+  for (i=0; i<ZONE_SIZE; i++) {
+    if (p[bytes - 1 - i] != 0xAA) {
+      fprintf(stderr, "trashed %d bytes\n", ZONE_SIZE-i);
+      assert(!"right allocated zone trashed");
+    }
+
+    if (p[sizeof(size_t) + i] != 0xAA) {
+      fprintf(stderr, "trashed %d bytes\n", ZONE_SIZE-i);
+      assert(!"left allocated zone trashed");
+    }
+  }
+}
+
 void public_fREe(Void_t* m)
-{ 
+{
   int i;
 
   // get back to the real start
@@ -1598,15 +1614,12 @@ void public_fREe(Void_t* m)
   }
 
   // check the zones; should be all 0xAA
-  for (i=0; i<ZONE_SIZE; i++) {
-    if (p[sizeof(size_t) + i] != 0xAA ||
-        p[bytes - 1 - i] != 0xAA) {
-      assert(!"zone trashed");
-    }
-  }
+  checkZones(p, bytes);
 
   // blank the entire area with 0xBB
-  for (i=0; i<bytes; i++) {
+  // (except for the size, which I want to keep so I can
+  // check it in checkHeap)
+  for (i=sizeof(size_t); i<bytes; i++) {
     p[i] = 0xBB;
   }
 
@@ -5459,10 +5472,49 @@ static int cpuinfo (int whole, unsigned long *kernel, unsigned long *user) {
 /* sm: my stuff */
 #include "ckheap.h"     // declarations for this code
 
+static enum HeapWalkOpts checkHeapWalker(void *block, int size)
+{
+  #ifdef DEBUG_HEAP
+    int i;
+
+    // get pointer to true block start
+    unsigned char *p =
+      (unsigned char*)block - sizeof(size_t) - ZONE_SIZE;
+
+    // get size from the memory block
+    int bytes = *((int*)p);
+
+    // this isn't always true, I'm not sure why..
+    //assert(size + sizeof(size_t) + ZONE_SIZE*2 == bytes);
+
+    if (p[sizeof(size_t)] == 0xAA) {
+      // check the zone integrities
+      checkZones(p, bytes);
+    }
+    else if (p[sizeof(size_t)] == 0xBB) {
+      // entire thing should be 0xBB
+      for (i=sizeof(size_t); i<bytes; i++) {
+        if (p[i] != 0xBB) {
+          assert(!"freed zone trashed");
+        }
+      }
+    }
+    else {
+      assert(!"first byte of zone isn't 0xAA or 0xBB");
+    }
+  #endif // DEBUG_HEAP
+
+  return HW_GO;
+}
+
+
 void checkHeap()
 {
   /* 2.6.6: malloc_update_mallinfo(); */
   check_malloc_state();
+
+  walkMallocHeap(checkHeapWalker);
+
 }
 
 void checkHeapNode(void *node)
@@ -5500,9 +5552,18 @@ void walkMallocHeap(HeapWalkFn func)
     mchunkptr next = next_chunk(p);
 
     if (inuse(p)) {
-      // call user-supplied function
-      enum HeapWalkOpts opts = func(chunk2mem(p), size);               
-      
+      // call user-supplied function; I have to subtract
+      // sizeof(size_t) because the size is actually malloc's
+      // total size
+      #ifndef DEBUG_HEAP
+        enum HeapWalkOpts opts = func(chunk2mem(p), size - sizeof(size_t));
+      #else
+        // skip the left zone
+        enum HeapWalkOpts opts =
+          func(chunk2mem(p) + sizeof(size_t) + ZONE_SIZE,
+               size - sizeof(size_t)*2 - ZONE_SIZE*2);
+      #endif
+
       // what did the user want to do?
       if (opts & HW_FREE) {
         // what makes this tricky is that 'free' might consolidate

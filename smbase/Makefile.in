@@ -191,7 +191,7 @@ mypopen: mypopen.c mypopen.h
 	$(TESTCC) -o mypopen -DTEST_MYPOPEN mypopen.c
 
 # this test is only useful when malloc is compiled with DEBUG_HEAP
-tmalloc: tmalloc.c
+tmalloc: tmalloc.c libsmbase.a
 	$(TESTCC) -o tmalloc tmalloc.c $(TESTFLAGS)
 
 tobjpool: tobjpool.cc objpool.h

@@ -5,6 +5,7 @@
 #include <stdio.h>      // printf
 
 #include "mysig.h"      // setHandler
+#include "ckheap.h"     // checkHeap
                 
 
 typedef void (*Fn)(void);
@@ -32,10 +33,20 @@ void offEnd()
   free(p);
 }
 
+void offEndCheck()
+{
+  char *p = malloc(10);
+  p[10] = 7;    // oops
+  
+  // instead of using free() to find the error,
+  // find it with checkHeap
+  checkHeap();
+}
+
 void offBeg()
 {
   char *p = malloc(15);
-  p[-1] = 8;
+  p[-2] = 8;
   free(p);
 }
 
@@ -56,14 +67,42 @@ void dangle()
   **p = 7;              // should hit the 0xBB trap
 }
 
+void doubleFree()
+{
+  char *p = malloc(10);
+  free(p);
+  free(p);
+}
 
 int main()
-{
+{   
+  // do some benign things
+  int i;
+  for (i=0; i<10; i++) {
+    int size = rand() % 100;
+    char *p;
+    
+    checkHeap();
+    p = malloc(size);
+    p[0] = i;
+    p[size-1] = i;
+    checkHeap();
+    free(p);
+  }
+
+  // this one will detect a trashed a zone, so do it first
+  checkHeap();
+  expectFail(offEndCheck);
+  printf("after offEndCheck\n");
+
+  // now, don't do checkHeap anymore, since it would fail
+
   expectFail(offEnd);
   expectFail(offBeg);
   ok();
   expectFail(dangle);
-  
+  expectFail(doubleFree);
+
   printf("tmalloc works\n");
   return 0;
 }
