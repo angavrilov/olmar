@@ -167,6 +167,9 @@
 // enables tracking of some statistics useful for debugging and profiling
 #define DO_ACCOUNTING 1
 
+// unroll the inner loop
+#define USE_UNROLLED_REDUCE 1
+
 // some things we track..
 int parserMerges = 0;
 int computeDepthIters = 0;
@@ -889,79 +892,161 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
           // record location of left edge; defaults to no location
           // (used for epsilon rules)
           SOURCELOC( SourceLocation leftEdge; )
+                                    
+          #if USE_UNROLLED_REDUCE
+            // make sure we don't have to actually do a check-and-resize
+            // for any of the unrolled cases
+            xassertdb(toPass.size() >= 3);
 
-          // pop off 'rhsLen' stack nodes, collecting as many semantic
-          // values into 'toPass'
-          // NOTE: this loop is the innermost inner loop of the entire
-          // parser engine -- even *one* branch inside the loop body
-          // costs about 30% end-to-end performance loss!
-          toPass.ensureIndexDoubler(rhsLen-1);
-          for (int i = rhsLen-1; i >= 0; i--) {
-            // grab 'parser's only sibling link
-            //SiblingLink *sib = parser->getUniqueLink();
-            SiblingLink &sib = parser->firstSib;
-
-            // Store its semantic value it into array that will be
-            // passed to user's routine.  Note that there is no need to
-            // dup() this value, since it will never be passed to
-            // another action routine (avoiding that overhead is
-            // another advantage to the LR mode).
-            toPass[i] = sib.sval;
-
-            // not necessary:
-            //   sib.sval = NULL;                  // link no longer owns the value
-            // this assignment isn't necessary because the usual treatment
-            // of NULL is to ignore it, and I manually ignore *any* value
-            // in the inline-expanded code below
-
-            // if it has a valid source location, grab it
-            SOURCELOC(
-              if (sib.loc.validLoc()) {
-                leftEdge = sib.loc;
+            // What follows is three unrollings of the loop below,
+            // labeled "loop for arbitrary rhsLen".  Read that loop
+            // before the unrollings here, since I omit the comments
+            // here.  In general, this program should be correct
+            // whether USE_UNROLLED_REDUCE is set or not.
+            switch (rhsLen) {
+              case 3: {
+                SiblingLink &sib = parser->firstSib;
+                toPass[2] = sib.sval;
+                SOURCELOC(
+                  if (sib.loc.validLoc()) {
+                    leftEdge = sib.loc;
+                  }
+                )
+                StackNode *next = sib.sib;
+                xassertdb(next->referenceCount==1);
+                xassertdb(parser->referenceCount==1);
+                parser->decrementAllocCounter();
+                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+                stackNodePool.deallocNoDeinit(parser);
+                parser = next;
+                xassertdb(parser->referenceCount==1);
+                // drop through into next case
               }
-            )
 
-            // pop 'parser' and move to the next one
-            StackNode *next = sib.sib;              // grab before deallocating
+              case 2: {
+                SiblingLink &sib = parser->firstSib;
+                toPass[1] = sib.sval;
+                SOURCELOC(
+                  if (sib.loc.validLoc()) {
+                    leftEdge = sib.loc;
+                  }
+                )
+                StackNode *next = sib.sib;
+                xassertdb(next->referenceCount==1);
+                xassertdb(parser->referenceCount==1);
+                parser->decrementAllocCounter();
+                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+                stackNodePool.deallocNoDeinit(parser);
+                parser = next;
+                xassertdb(parser->referenceCount==1);
+                // drop through into next case
+              }
 
-            // don't actually increment, since I now no longer actually decrement
-            // cancelled(1) effect: next->incRefCt();    // so 'next' survives deallocation of 'sib'
-            // cancelled(1) observable: xassertdb(next->referenceCount==1);       // 'sib' and the fake one
+              case 1: {
+                SiblingLink &sib = parser->firstSib;
+                toPass[0] = sib.sval;
+                SOURCELOC(
+                  if (sib.loc.validLoc()) {
+                    leftEdge = sib.loc;
+                  }
+                )
+                StackNode *next = sib.sib;
+                xassertdb(next->referenceCount==1);
+                xassertdb(parser->referenceCount==1);
+                parser->decrementAllocCounter();
+                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+                stackNodePool.deallocNoDeinit(parser);
+                parser = next;
+                xassertdb(parser->referenceCount==1);
+                // drop through into next case
+              }
 
-            // so now it's just the one
-            xassertdb(next->referenceCount==1);       // just 'sib'
-
-            xassertdb(parser->referenceCount==1);
-            // expand "parser->decRefCt();"           // deinit 'parser', dealloc 'sib'
-            {
-              parser->decrementAllocCounter();
-
-              // I previously had a test for "parser->firstSib.sval != NULL",
-              // but that can't happen because I set it to NULL above!
-              // (as the alias sib.sval)
-              // update: now I don't even set it to NULL because the code here
-              // has been changed to ignore *any* value
-              //if (parser->firstSib.sval != NULL) {
-              //  cout << "I GOT THE ANALYSIS WRONG!\n";
-              //} 
-
-              // cancelled(1) effect: next->decRefCt();
-              parser->firstSib.sib.setWithoutUpdateRefct(NULL);
-
-              // possible optimization: I could eliminiate
-              // "firstSib.sib=NULL" if I consistently modified all
-              // creation of stack nodes to treat sib as a dead value:
-              // right after creation I would make sure the new
-              // sibling value *overwrites* sib, and no attempt is
-              // made to decrement a refct on the dead value
-
-              stackNodePool.deallocNoDeinit(parser);
+              case 0:
+                // nothing to do
+                goto afterGeneralLoop;
             }
+          #endif // USE_UNROLLED_REDUCE
 
-            parser = next;
-            xassertdb(parser->referenceCount==1);     // fake refct only
-          }
+          // ------ loop for arbitrary rhsLen ------
+          {
+            // not using the unrolled loops; make the check
+            toPass.ensureIndexDoubler(rhsLen-1);
 
+            // pop off 'rhsLen' stack nodes, collecting as many semantic
+            // values into 'toPass'
+            // NOTE: this loop is the innermost inner loop of the entire
+            // parser engine -- even *one* branch inside the loop body
+            // costs about 30% end-to-end performance loss!
+            for (int i = rhsLen-1; i >= 0; i--) {
+              // grab 'parser's only sibling link
+              //SiblingLink *sib = parser->getUniqueLink();
+              SiblingLink &sib = parser->firstSib;
+
+              // Store its semantic value it into array that will be
+              // passed to user's routine.  Note that there is no need to
+              // dup() this value, since it will never be passed to
+              // another action routine (avoiding that overhead is
+              // another advantage to the LR mode).
+              toPass[i] = sib.sval;
+
+              // not necessary:
+              //   sib.sval = NULL;                  // link no longer owns the value
+              // this assignment isn't necessary because the usual treatment
+              // of NULL is to ignore it, and I manually ignore *any* value
+              // in the inline-expanded code below
+
+              // if it has a valid source location, grab it
+              SOURCELOC(
+                if (sib.loc.validLoc()) {
+                  leftEdge = sib.loc;
+                }
+              )
+
+              // pop 'parser' and move to the next one
+              StackNode *next = sib.sib;              // grab before deallocating
+
+              // don't actually increment, since I now no longer actually decrement
+              // cancelled(1) effect: next->incRefCt();    // so 'next' survives deallocation of 'sib'
+              // cancelled(1) observable: xassertdb(next->referenceCount==1);       // 'sib' and the fake one
+
+              // so now it's just the one
+              xassertdb(next->referenceCount==1);       // just 'sib'
+
+              xassertdb(parser->referenceCount==1);
+              // expand "parser->decRefCt();"           // deinit 'parser', dealloc 'sib'
+              {
+                parser->decrementAllocCounter();
+
+                // I previously had a test for "parser->firstSib.sval != NULL",
+                // but that can't happen because I set it to NULL above!
+                // (as the alias sib.sval)
+                // update: now I don't even set it to NULL because the code here
+                // has been changed to ignore *any* value
+                //if (parser->firstSib.sval != NULL) {
+                //  cout << "I GOT THE ANALYSIS WRONG!\n";
+                //}
+
+                // cancelled(1) effect: next->decRefCt();
+                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+
+                // possible optimization: I could eliminiate
+                // "firstSib.sib=NULL" if I consistently modified all
+                // creation of stack nodes to treat sib as a dead value:
+                // right after creation I would make sure the new
+                // sibling value *overwrites* sib, and no attempt is
+                // made to decrement a refct on the dead value
+
+                stackNodePool.deallocNoDeinit(parser);
+              }
+
+              parser = next;
+              xassertdb(parser->referenceCount==1);     // fake refct only
+            }
+          } // end of general rhsLen loop
+
+        #if USE_UNROLLED_REDUCE    // suppress the warning when not using it..
+        afterGeneralLoop:
+        #endif
           TRSPARSE("state " << startStateId <<
                    ", (unambig) reducing by production " << prodIndex <<
                    " (rhsLen=" << rhsLen <<
