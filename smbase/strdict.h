@@ -1,4 +1,4 @@
-// strdict.h
+// strdict.h            see license.txt for copyright and terms of use
 // string dictionary
 // (c) Scott McPeak, 2000
 

@@ -1,4 +1,4 @@
-// str.h
+// str.h            see license.txt for copyright and terms of use
 // a string class
 // the representation uses just one char*, so that a smart compiler
 //   can pass the entire object as a single word

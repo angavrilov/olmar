@@ -1,4 +1,4 @@
-// stringset.cc
+// stringset.cc            see license.txt for copyright and terms of use
 // code for stringset.h
 
 #include "stringset.h"        // this module

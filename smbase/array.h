@@ -1,4 +1,4 @@
-// array.h
+// array.h            see license.txt for copyright and terms of use
 // some array classes
 
 #ifndef ARRAY_H

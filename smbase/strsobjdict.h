@@ -1,4 +1,4 @@
-// strsobjdict.h
+// strsobjdict.h            see license.txt for copyright and terms of use
 // dictionary of *serf* pointers to objects, indexed by string (case-sensitive)
 // (c) Scott McPeak, 2000
 

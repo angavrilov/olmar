@@ -1,4 +1,4 @@
-// flatten.cc
+// flatten.cc            see license.txt for copyright and terms of use
 // code for flatten.h
 
 // basically, this file provides some reasonable defaults

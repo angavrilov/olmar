@@ -1,4 +1,4 @@
-// xassert.h
+// xassert.h            see license.txt for copyright and terms of use
 // replacement for assert that throws an exception on failure
 // (x_assert_fail and xfailure_func are in exc.cpp)
 // Scott McPeak, 1997-1998  This file is public domain.

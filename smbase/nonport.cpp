@@ -1,4 +1,4 @@
-// nonport.cpp
+// nonport.cpp            see license.txt for copyright and terms of use
 // code for nonport.h
 // Scott McPeak and Dan Bonachea, 1998-1999  This file is public domain.
 

@@ -1,4 +1,4 @@
-// bflatten.h
+// bflatten.h            see license.txt for copyright and terms of use
 // binary file flatten implementation
 
 #ifndef BFLATTEN_H

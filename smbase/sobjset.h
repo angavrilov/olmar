@@ -1,4 +1,4 @@
-// sobjset.h
+// sobjset.h            see license.txt for copyright and terms of use
 // non-owning set of objects implemented with a hashtable
 
 #ifndef SOBJSET_H

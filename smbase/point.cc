@@ -1,4 +1,4 @@
-// point.cc
+// point.cc            see license.txt for copyright and terms of use
 // code for point.h
 
 #include "point.h"      // this module

@@ -1,4 +1,4 @@
-// syserr.cpp
+// syserr.cpp            see license.txt for copyright and terms of use
 // code for syserr.h
 // Scott McPeak, 1999-2000  This file is public domain.
 

@@ -1,4 +1,4 @@
-// strhash.h
+// strhash.h            see license.txt for copyright and terms of use
 // hash table mapping strings to arbitrary pointers, where
 // the stored pointers can be used to derive the key, and
 // cannot be NULL

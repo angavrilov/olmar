@@ -1,4 +1,4 @@
-// strdict.cc
+// strdict.cc            see license.txt for copyright and terms of use
 // code for strdict.h
 
 #include "strdict.h"        // this module

@@ -1,4 +1,4 @@
-// point.h
+// point.h            see license.txt for copyright and terms of use
 // 2-dimensional point
 // derived from Melee's prmtvs2.hpp
 

@@ -1,4 +1,4 @@
-// trace.cc
+// trace.cc            see license.txt for copyright and terms of use
 // code for trace.h
 
 #include "trace.h"     // this module

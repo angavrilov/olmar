@@ -1,4 +1,4 @@
-// cycles.c
+// cycles.c            see license.txt for copyright and terms of use
 // code for cycles.h
 
 #include "cycles.h"      // this module

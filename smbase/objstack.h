@@ -1,4 +1,4 @@
-// objstack.h
+// objstack.h            see license.txt for copyright and terms of use
 // stack of objects, owned by the stack
 
 #ifndef OBJSTACK_H

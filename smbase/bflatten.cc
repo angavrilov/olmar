@@ -1,4 +1,4 @@
-// bflatten.cc
+// bflatten.cc            see license.txt for copyright and terms of use
 // code for bflatten.h
 
 #include "bflatten.h"     // this module

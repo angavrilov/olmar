@@ -1,4 +1,4 @@
-// strutil.cc
+// strutil.cc            see license.txt for copyright and terms of use
 // code for strutil.h
 
 #include "strutil.h"     // this module

@@ -1,4 +1,4 @@
-// hashtbl.h
+// hashtbl.h            see license.txt for copyright and terms of use
 // hash table mapping arbitrary keys to void*, where
 // the stored pointers can be used to derive the key,
 // and cannot be NULL

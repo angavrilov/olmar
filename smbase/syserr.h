@@ -1,4 +1,4 @@
-// syserr.h
+// syserr.h            see license.txt for copyright and terms of use
 // error-reporting exception for system calls that fail
 // Scott McPeak, 1999  This file is public domain.
 

@@ -1,4 +1,4 @@
-// mypopen.c
+// mypopen.c            see license.txt for copyright and terms of use
 // code for myopen.h
 // this module's implementation is in C, and not dependent on anything
 // else in smbase, so it can be extracted and used independently

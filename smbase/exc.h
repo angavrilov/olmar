@@ -1,4 +1,4 @@
-// exc.h
+// exc.h            see license.txt for copyright and terms of use
 // exception classes for SafeTP project
 // Scott McPeak, 1996-1998  This file is public domain.
 

@@ -1,4 +1,4 @@
-// bit2d.h
+// bit2d.h            see license.txt for copyright and terms of use
 // 2-d array of bits
 
 #ifndef __BIT2D_H

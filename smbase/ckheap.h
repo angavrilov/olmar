@@ -1,4 +1,4 @@
-// ckheap.h
+// ckheap.h            see license.txt for copyright and terms of use
 // interface to check heap integrity, etc.
 
 #ifndef CKHEAP_H

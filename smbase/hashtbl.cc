@@ -1,4 +1,4 @@
-// hashtbl.cc
+// hashtbl.cc            see license.txt for copyright and terms of use
 // code for hashtbl.h
 
 #include "hashtbl.h"     // this module

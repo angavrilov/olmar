@@ -1,4 +1,4 @@
-// crc.cc
+// crc.cc            see license.txt for copyright and terms of use
 // adapted slightly by Scott McPeak
 
 // originally was:

@@ -1,4 +1,4 @@
-// tmalloc.c
+// tmalloc.c            see license.txt for copyright and terms of use
 // test malloc implementation in DEBUG_HEAP configuration
 
 #include <stdlib.h>     // malloc

@@ -1,4 +1,4 @@
-// nonport.h
+// nonport.h            see license.txt for copyright and terms of use
 // collection of nonportable routines (the interfaces
 //   are portable, but the implementations are not)
 // Scott McPeak, Dan Bonachea 1998-1999  This file is public domain.

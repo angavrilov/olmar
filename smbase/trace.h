@@ -1,4 +1,4 @@
-// trace.h
+// trace.h            see license.txt for copyright and terms of use
 // module for diagnostic tracing
 
 #ifndef __TRACE_H

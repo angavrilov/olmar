@@ -1,4 +1,4 @@
-// breaker.h
+// breaker.h            see license.txt for copyright and terms of use
 // function stub through which critical event code flow is directed
 //   for easy breakpoints
 // Scott McPeak, 1997,1998  This file is public domain.

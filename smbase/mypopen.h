@@ -1,4 +1,4 @@
-// mypopen.h
+// mypopen.h            see license.txt for copyright and terms of use
 // open a process and yield pipes to its stdin/stdout/stderr
 
 #ifndef MYPOPEN_H

@@ -1,4 +1,4 @@
-// testmalloc.cc
+// testmalloc.cc            see license.txt for copyright and terms of use
 // test malloc, test heap walk, etc.
   
 #include <stdio.h>     // printf

@@ -1,4 +1,4 @@
-// objpool.h
+// objpool.h            see license.txt for copyright and terms of use
 // custom allocator: array of objects meant to be
 // re-used frequently, with high locality
 

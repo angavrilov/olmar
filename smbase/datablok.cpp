@@ -1,4 +1,4 @@
-// datablok.cc
+// datablok.cc            see license.txt for copyright and terms of use
 // code for datablok.h
 // Scott McPeak, 1998-2000  This file is public domain.
 

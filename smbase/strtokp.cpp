@@ -1,4 +1,4 @@
-// strtokp.cc
+// strtokp.cc            see license.txt for copyright and terms of use
 // code for strtokp.h
 // Scott McPeak, 1997, 1999, 2000  This file is public domain.
 

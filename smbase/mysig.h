@@ -1,4 +1,4 @@
-// mysig.h
+// mysig.h            see license.txt for copyright and terms of use
 // some simple Unix signal-handling stuff
 
 #ifndef MYSIG_H

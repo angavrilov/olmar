@@ -1,4 +1,4 @@
-// astlist.h
+// astlist.h            see license.txt for copyright and terms of use
 // owner list wrapper around VoidTailList
 // name 'AST' is because the first application is in ASTs
 

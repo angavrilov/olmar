@@ -1,4 +1,4 @@
-// cycles.h
+// cycles.h            see license.txt for copyright and terms of use
 // read processor cycle count
 // interface is portable, implementation is not
 

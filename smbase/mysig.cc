@@ -1,4 +1,4 @@
-// mysig.cc
+// mysig.cc            see license.txt for copyright and terms of use
 // code for mysig.h
 
 #include "mysig.h"      // this module

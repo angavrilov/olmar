@@ -1,4 +1,4 @@
-// crc.h
+// crc.h            see license.txt for copyright and terms of use
 // simple crc function
 
 #ifndef __CRC_H

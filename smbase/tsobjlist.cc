@@ -1,4 +1,4 @@
-// tsobjlist.cc
+// tsobjlist.cc            see license.txt for copyright and terms of use
 // test of sobjlist.h
 
 #include "sobjlist.h"    // SObjList

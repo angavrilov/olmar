@@ -1,4 +1,4 @@
-// trdelete.h
+// trdelete.h            see license.txt for copyright and terms of use
 // objects which trash their contents upon deletion
 // I would love to have implemented this as a base class and simply derive
 //   things from it, but a poor implementation choice by Borland makes this

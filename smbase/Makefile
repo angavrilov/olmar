@@ -1,4 +1,5 @@
 # Makefile for libsmbase
+# see license.txt for copyright and terms of use
 
 # main target
 THISLIBRARY = libsmbase.a
@@ -42,9 +43,7 @@ linkend := $(libraries)
 
 # delete compiling/editing byproducts
 clean:
-	rm -f *.o *~ *.d
-
-veryclean: clean
+	rm -f *.o *~ *.d gmon.out
 	rm -f $(tests-files)
 	rm -f *.a
 
@@ -97,7 +96,7 @@ $(THISLIBRARY): $(library-objs)
 # test program targets
 tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
                strdict svdict str strutil trdelete bflatten mysig \
-               testmalloc mypopen tobjpool strhash cycles tsobjlist
+               testmalloc mypopen tobjpool strhash cycles tsobjlist crc
 tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h

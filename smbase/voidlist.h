@@ -1,4 +1,4 @@
-// voidlist.h
+// voidlist.h            see license.txt for copyright and terms of use
 // list of void*
 
 // Author: Scott McPeak, 2000

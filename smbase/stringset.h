@@ -1,4 +1,4 @@
-// stringset.h
+// stringset.h            see license.txt for copyright and terms of use
 // set of character strings
 
 #ifndef STRINGSET_H

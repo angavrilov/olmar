@@ -1,4 +1,4 @@
-// test.h
+// test.h            see license.txt for copyright and terms of use
 // utilities for test code
 // Scott McPeak, 1999  This file is public domain.
 

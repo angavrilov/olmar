@@ -1,4 +1,4 @@
-// growbuf.h
+// growbuf.h            see license.txt for copyright and terms of use
 // buffer that grows as needed by doubling in size
 
 #ifndef __GROWBUF_H

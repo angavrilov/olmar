@@ -1,4 +1,4 @@
-// tobjpool.cc
+// tobjpool.cc            see license.txt for copyright and terms of use
 // test ObjectPool
 
 #include "objpool.h"     // ObjectPool

@@ -1,4 +1,4 @@
-// unixutil.c
+// unixutil.c            see license.txt for copyright and terms of use
 // code for unixutil.h
 
 #include "unixutil.h"   // this module

@@ -1,4 +1,4 @@
-// ohashtbl.h
+// ohashtbl.h            see license.txt for copyright and terms of use
 // hash table that owns the values; uses void* keys
 // see hashtbl.h for more detail on the semantics of the member fns
 

@@ -1,4 +1,4 @@
-// warn.cc
+// warn.cc            see license.txt for copyright and terms of use
 // code for warn.h
 // Scott McPeak, 1999  This file is public domain.
 

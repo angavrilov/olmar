@@ -1,4 +1,4 @@
-// svdict.h
+// svdict.h            see license.txt for copyright and terms of use
 // dictionary of void*, indexed by string (case-sensitive)
 // (c) Scott McPeak, 2000
 

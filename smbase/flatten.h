@@ -1,4 +1,4 @@
-// flatten.h
+// flatten.h            see license.txt for copyright and terms of use
 // interface to automate process of flattening structures made of objects with
 //   arbitrary types, and possibly circular references
 // this is a trimmed-down version of the one in 'proot'

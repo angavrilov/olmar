@@ -1,4 +1,4 @@
-// tobjlist.cc
+// tobjlist.cc            see license.txt for copyright and terms of use
 // test code for objlist.h
 
 #include "objlist.h"    // this module

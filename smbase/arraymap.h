@@ -1,4 +1,4 @@
-// arraymap.h
+// arraymap.h            see license.txt for copyright and terms of use
 // template class to maintain an array-based map from
 // integers to object pointers; the map owns all of
 // the objects referred-to

@@ -1,4 +1,4 @@
-// missing.h
+// missing.h            see license.txt for copyright and terms of use
 // routines that I implemented because they aren't available on all platforms
 // Scott McPeak, 1998  This file is public domain.
 

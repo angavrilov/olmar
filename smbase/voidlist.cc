@@ -1,4 +1,4 @@
-// voidlist.cc
+// voidlist.cc            see license.txt for copyright and terms of use
 // code for voidlist.h
 
 #include "voidlist.h"   // this module

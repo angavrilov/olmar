@@ -1,4 +1,4 @@
-// typ.h
+// typ.h            see license.txt for copyright and terms of use
 // various types and definitions, some for portability, others for convenience
 // Scott McPeak, 1996-2000  This file is public domain.
 

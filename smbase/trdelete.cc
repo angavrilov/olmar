@@ -1,4 +1,4 @@
-// trdelete.cc
+// trdelete.cc            see license.txt for copyright and terms of use
 // code for trdelete.h
 
 #include <stdlib.h>       // abs

@@ -1,4 +1,4 @@
-// strtokp.h
+// strtokp.h            see license.txt for copyright and terms of use
 // using strtok to parse an entire string at once
 // Scott McPeak, 1997  This file is public domain.
 

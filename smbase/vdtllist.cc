@@ -1,4 +1,4 @@
-// vdtllist.cc
+// vdtllist.cc            see license.txt for copyright and terms of use
 // code for vdtllist.h
 
 #include "vdtllist.h"      // this module

@@ -1,4 +1,4 @@
-// unixutil.h
+// unixutil.h            see license.txt for copyright and terms of use
 // some utilities on top of unix functions
 
 #ifndef UNIXUTIL_H

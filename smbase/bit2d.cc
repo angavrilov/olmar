@@ -1,4 +1,4 @@
-// bit2d.cc
+// bit2d.cc            see license.txt for copyright and terms of use
 // code for bit2d.h
 
 #include "bit2d.h"      // this module

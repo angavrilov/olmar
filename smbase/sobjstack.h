@@ -1,4 +1,4 @@
-// sobjstack.h
+// sobjstack.h            see license.txt for copyright and terms of use
 // stack of objects, *not* owned by the stack
 
 #ifndef SOBJSTACK_H

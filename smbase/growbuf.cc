@@ -1,4 +1,4 @@
-// growbuf.cc
+// growbuf.cc            see license.txt for copyright and terms of use
 // code for growbuf.h
 
 #include "growbuf.h"      // this module

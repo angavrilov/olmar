@@ -1,4 +1,4 @@
-// okhasharr.h
+// okhasharr.h            see license.txt for copyright and terms of use
 // combination of an owner hash table and an array/stack
 //
 // in its present form, it's ideal for a worklist, but not

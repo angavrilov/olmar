@@ -1,4 +1,4 @@
-// vdtllist.h
+// vdtllist.h            see license.txt for copyright and terms of use
 // list of void*, with a pointer maintained to the last (tail)
 // element, for constant-time append
 

@@ -1,4 +1,4 @@
-m4_dnl // xobjlist.h
+m4_dnl // xobjlist.h            see license.txt for copyright and terms of use
 m4_dnl // template file to be processed with m4 to generate one
 m4_dnl // of wrappers around VoidList
 m4_dnl

@@ -1,4 +1,4 @@
-// warn.h
+// warn.h            see license.txt for copyright and terms of use
 // module to facilitate providing operational warnings to the user
 // Scott McPeak, 1999  This file is public domain.
 
