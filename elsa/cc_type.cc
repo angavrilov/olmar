@@ -66,31 +66,6 @@ bool AtomicType::equals(AtomicType const *obj) const
 }
 
 
-template <class T>
-string recurseCilString(T const *type, int depth)
-{
-  depth--;
-  xassert(depth >= 0);     // otherwise we started < 1
-  if (depth == 0) {
-    // just print the id
-    return stringc << "id " << type->getId();
-  }
-  else {
-    // print id in a comment but go on to print the
-    // type one level deeper
-    return stringc << makeIdComment(type->getId()) << " "
-                   << type->toCilString(depth);
-  }
-}
-
-
-string AtomicType::toString(int depth) const
-{
-  return stringc << recurseCilString(this, depth+1)
-                 << " /""* " << toCString() << " */";
-}
-
-
 // ------------------ SimpleType -----------------
 SimpleType SimpleType::fixed[NUM_SIMPLE_TYPES] = {
   SimpleType(ST_CHAR),
@@ -122,21 +97,9 @@ string SimpleType::toCString() const
 }
 
 
-string SimpleType::toCilString(int) const
-{
-  return toCString();
-}
-
-
 int SimpleType::reprSize() const
 {
   return simpleTypeReprSize(type);
-}
-
-
-string SimpleType::uniqueName() const
-{
-  return simpleTypeName(type);
 }
 
 
@@ -152,13 +115,6 @@ NamedAtomicType::~NamedAtomicType()
   if (typedefVar) {
     delete typedefVar;
   }
-}
-
-
-string NamedAtomicType::uniqueName() const
-{
-  // 'a' for atomic
-  return stringc << "a" << (int)this /*id*/ << "_" << name;
 }
 
 
@@ -212,37 +168,6 @@ string CompoundType::toCString() const
   }
    
   return sb;
-}
-
-
-string CompoundType::toCilString(int depth) const
-{
-  return toCString();
-
-  #if 0
-  if (!isComplete()) {
-    // this is a problem for my current type-printing
-    // strategy, since I'm likely to print this even
-    // when later I will get complete type info ..
-    return "incomplete";
-  }
-
-  stringBuilder sb;
-  sb << keywordName(keyword) << " " << name << " {\n";
-
-  // iterate over fields
-  // TODO2: this is not in the declared order ..
-  StringSObjDict<Variable> &vars = env->getVariables();
-  StringSObjDict<Variable>::Iter iter(vars);
-  for (; !iter.isDone(); iter.next()) {
-    Variable const *var = iter.value();
-    sb << "  " << var->name << ": "
-       << var->type->toString(depth-1) << ";\n";
-  }
-
-  sb << "}";
-  return sb;
-  #endif // 0
 }
 
 
@@ -333,13 +258,6 @@ string EnumType::toCString() const
 }
 
 
-string EnumType::toCilString(int depth) const
-{
-  // TODO2: get fields
-  return toCString();
-}
-
-
 int EnumType::reprSize() const
 {
   // this is the usual choice
@@ -396,11 +314,6 @@ string TypeVariable::toCString() const
   // it explicitly when printing the few constructs that allow it
   //return stringc << "/*typename*/ " << name;
   return string(name);
-}
-
-string TypeVariable::toCilString(int /*depth*/) const
-{
-  return toCString();
 }
 
 int TypeVariable::reprSize() const
@@ -513,14 +426,6 @@ string Type::toCString(char const *name) const
 string Type::rightString(bool /*innerParen*/) const
 {
   return "";
-}
-
-
-string Type::toString(int depth) const
-{
-  return toCString();  
-  //return stringc << recurseCilString(this, depth+1)
-  //               << " /""* " << toCString() << " */";
 }
 
 
@@ -683,15 +588,6 @@ string CVAtomicType::leftString(bool /*innerParen*/) const
 }
 
 
-string CVAtomicType::toCilString(int depth) const
-{
-  return stringc << ::toString(q)
-                 << cvToString(cv)
-                 << " atomic "
-                 << recurseCilString(atomic, depth);
-}
-
-
 int CVAtomicType::reprSize() const
 {
   return atomic->reprSize();
@@ -749,15 +645,6 @@ string PointerType::rightString(bool /*innerParen*/) const
   }
   s << atType->rightString(false /*innerParen*/);
   return s;
-}
-
-
-string PointerType::toCilString(int depth) const
-{
-  return stringc << ::toString(q)
-                 << cvToString(cv)
-                 << (op==PO_POINTER? "ptrto " : "refto ")
-                 << recurseCilString(atType, depth);
 }
 
 
@@ -995,30 +882,6 @@ string FunctionType::rightStringAfterQualifiers() const
 }
 
 
-string FunctionType::toCilString(int depth) const
-{
-  stringBuilder sb;
-  sb << "func " /*<< cvToString(cv) << " "*/;
-  if (acceptsVarargs) {
-    sb << "varargs ";
-  }
-  sb << "(";
-
-  int ct=0;
-  FOREACH_OBJLIST(Parameter, params, iter) {
-    if (++ct > 1) {
-      sb << ", ";
-    }
-    sb << iter.data()->name << ": "
-       << recurseCilString(iter.data()->type, depth);
-  }
-
-  sb << ") -> " << recurseCilString(retType, depth);
-
-  return sb;
-}
-
-
 int FunctionType::reprSize() const
 {
   // thinking here about how this works when we're summing
@@ -1170,18 +1033,6 @@ string ArrayType::rightString(bool /*innerParen*/) const
 
   sb << eltType->rightString();
 
-  return sb;
-}
-
-
-string ArrayType::toCilString(int depth) const
-{
-  stringBuilder sb;
-  sb << "array [";
-  if (hasSize) {
-    sb << size;
-  }
-  sb << "] of " << recurseCilString(eltType, depth);
   return sb;
 }
 
@@ -1513,12 +1364,6 @@ char *type_toString(Type const *t)
 {
   // defined in smbase/strutil.cc
   return copyToStaticBuffer(t->toString());
-}
-
-
-char *type_toCilString(Type const *t)
-{
-  return copyToStaticBuffer(t->toCilString(20 /*depth*/));
 }
 
 
