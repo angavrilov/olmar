@@ -5,6 +5,7 @@
 #include "trace.h"      // tracingSys
 #include "variable.h"   // Variable
 #include <assert.h>     // assert
+#include <string.h>
 
 
 #if 0
