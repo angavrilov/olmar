@@ -356,6 +356,121 @@ public:     // funcs
 };
 
 
+// ---------------------- ParseTables ----------------------
+// encodes an action in 'action' table; see 'actionTable'
+typedef signed short ActionEntry;
+// encodes a destination state in 'gotoTable'
+typedef unsigned short GotoEntry;
+
+// the parse tables are the traditional action/goto, plus the list
+// of ambiguous actions, plus any more auxilliary tables useful during
+// run-time parsing; the eventual goal is to be able to keep *only*
+// this structure around for run-time parsing; most things in this
+// class are public because it's a high-traffic access point, so I
+// expose interpretation information and the raw data itself instead
+// of an abstract interface
+class ParseTables {
+public:     // types
+  // per-production info
+  struct ProdInfo {
+    unsigned char rhsLen;                // # of RHS symbols
+    unsigned char lhsIndex;              // 'ntIndex' of LHS
+  };
+
+public:     // data
+  // # terminals, nonterminals in grammar
+  int numTerms;
+  int numNonterms;
+
+  // # of parse states
+  int numStates;
+
+  // # of productions in the grammar
+  int numProds;
+
+  // action table, indexed by (state*numTerms + lookahead),
+  // each entry is one of:
+  //   +N+1, 0 <= N < numStates:         shift, and go to state N
+  //   -N-1, 0 <= N < numProds:          reduce using production N
+  //   numStates+N+1, 0 <= N < numAmbig: ambiguous, use ambigAction N
+  //   0:                                error
+  // (there is no 'accept', acceptance is handled outside this table)
+  ActionEntry *actionTable;              // (owner)
+
+  // goto table, indexed by (state*numNonterms + nontermId),
+  // each entry is N, the state to go to after having reduced by
+  // 'nontermId'
+  GotoEntry *gotoTable;                  // (owner)
+
+  // map production id to information about that production
+  ProdInfo *prodInfo;                    // (owner ptr to array)
+
+  // ambiguous action table, indexed by ambigActionId; each entry is
+  // a pointer to an array of signed short; the first number is the
+  // # of actions, and is followed by that many actions, each
+  // interpreted the same way ordinary 'actionTable' entries are
+  ArrayStack<ActionEntry*> ambigAction;  // (array of owner ptrs)
+  int numAmbig() const { return ambigAction.length(); }
+
+private:    // funcs
+  void alloc(int numTerms, int numNonterms, int numStates, int numProds);
+
+public:     // funcs
+  ParseTables(int numTerms, int numNonterms, int numStates, int numProds);
+  ~ParseTables();
+
+  ParseTables(Flatten&);
+  void xfer(Flatten &flat);
+
+  // index tables
+  ActionEntry &actionEntry(int stateId, int termId)
+    { return actionTable[stateId*numTerms + termId]; }
+  int actionTableSize() const
+    { return numStates * numTerms; }
+  GotoEntry &gotoEntry(int stateId, int nontermId)
+    { return gotoTable[stateId*numNonterms + nontermId]; }
+  int gotoTableSize() const
+    { return numStates * numNonterms; }
+
+  // encode actions
+  ActionEntry encodeShift(int stateId) const
+    { return validateAction(+stateId+1); }
+  ActionEntry encodeReduce(int prodId) const
+    { return validateAction(-prodId-1); }
+  ActionEntry encodeAmbig(int ambigId) const
+    { return validateAction(numStates+ambigId+1); }
+  ActionEntry encodeError() const
+    { return validateAction(0); }
+  ActionEntry validateAction(int code) const;
+                 
+  // decode actions
+  bool isShiftAction(ActionEntry code) const
+    { return code > 0 && code <= numStates; }
+  int decodeShift(ActionEntry code) const
+    { return code-1; }
+  bool isReduceAction(ActionEntry code) const
+    { return code < 0; }
+  int decodeReduce(ActionEntry code) const
+    { return -(code+1); }
+  bool isErrorAction(ActionEntry code) const
+    { return code == 0; }
+  // ambigAction is only other choice
+  int decodeAmbigAction(ActionEntry code) const
+    { return code-1-numStates; }
+
+  // encode gotos
+  GotoEntry encodeGoto(int stateId) const
+    { return validateGoto(stateId); }
+  GotoEntry encodeGotoError() const
+    { return validateGoto(numStates); }
+  GotoEntry validateGoto(int code) const;
+
+  // decode gotos
+  int decodeGoto(GotoEntry code) const
+    { return code; }
+};
+
+
 // ---------------------- GrammarAnalysis -------------------
 class GrammarAnalysis : public Grammar {
 protected:  // data
@@ -410,6 +525,9 @@ public:	    // data
 
   // incremented each time we encounter an error that we can recover from
   int errors;
+
+  // parse tables
+  ParseTables *tables;                  // (owner)
 
 private:    // funcs
   // ---- analyis init ----
@@ -477,10 +595,20 @@ private:    // funcs
 
   void findSLRConflicts(int &sr, int &rr);
   bool checkSLRConflicts(ItemSet *state, Terminal const *sym,
-                         bool conflictAlready, int &sr, int &rr);
+                         bool &conflictAlready, int &sr, int &rr);
   void handleShiftReduceConflict(
     bool &keepShift, bool &keepReduce, bool &dontWarn,
-    ItemSet *state, Production const *prod, Terminal const *sym);
+    ItemSet const *state, Production const *prod, Terminal const *sym);
+
+  void resolveConflicts(
+    ItemSet const *state,        // parse state in which the actions are possible
+    Terminal const *sym,         // lookahead symbol for these actions
+    ItemSet const *&shiftDest,   // (inout) if non-NULL, the state to which we can shift
+    ProductionList &reductions,  // (inout) list of possible reductions
+    bool allowAmbig,             // if false, always return at most 1 action
+    bool &printedConflictHeader, // (inout) true once we've printed the state header
+    int &sr, int &rr);           // (inout) counts of S/R and R/R conflicts, resp.
+  void computeParseTables(bool allowAmbig);
 
   void computeBFSTree();
 

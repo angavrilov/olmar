@@ -950,6 +950,132 @@ void ItemSet::writeGraph(ostream &os, GrammarAnalysis const &g) const
 }
 
 
+// ------------------------- ParseTables -----------------------
+ParseTables::ParseTables(int t, int nt, int s, int p)
+{
+  alloc(t, nt, s, p);
+}
+
+void ParseTables::alloc(int t, int nt, int s, int p)
+{
+  numTerms = t;
+  numNonterms = nt;
+  numStates = s;
+  numProds = p;
+
+  actionTable = new ActionEntry[actionTableSize()];
+  memset(actionTable, 0, sizeof(actionTable[0]) * actionTableSize());
+
+  gotoTable = new GotoEntry[gotoTableSize()];
+  memset(gotoTable, 0, sizeof(gotoTable[0]) * gotoTableSize());
+  
+  prodInfo = new ProdInfo[numProds];
+  memset(prodInfo, 0, sizeof(prodInfo[0]) * numProds);
+}
+
+
+ParseTables::~ParseTables()
+{
+  delete[] actionTable;
+  delete[] gotoTable;
+  delete[] prodInfo;
+
+  for (int i=0; i<numAmbig(); i++) {
+    delete[] ambigAction[i];
+  }
+}
+
+
+ActionEntry ParseTables::validateAction(int code) const
+{
+  // make sure that 'code' is representable; if this fails, most likely
+  // there are more than 32k states or productions; in turn, the most
+  // likely cause of *that* would be the grammar is being generated 
+  // automatically from some other specification; you can change the
+  // typedefs of ActionEntry and GotoEntry in gramanl.h to get more
+  // capacity
+  ActionEntry ret = (ActionEntry)code;
+  xassert((int)ret == code);
+  return ret;
+}
+
+GotoEntry ParseTables::validateGoto(int code) const
+{
+  // see above
+  GotoEntry ret = (GotoEntry)code;
+  xassert((int)ret == code);
+  return ret;
+}
+
+
+ParseTables::ParseTables(Flatten&)
+{
+  actionTable = NULL;
+  gotoTable = NULL;
+  prodInfo = NULL;
+}
+
+void ParseTables::xfer(Flatten &flat)
+{
+  flat.checkpoint(0x1B2D2F16);
+
+  flat.xferInt(numTerms);
+  flat.xferInt(numNonterms);
+  flat.xferInt(numStates);
+  flat.xferInt(numProds);
+
+  if (flat.reading()) {
+    alloc(numTerms, numNonterms, numStates, numProds);
+  }
+
+  // action
+  int actionLen = sizeof(actionTable[0]) * actionTableSize();
+  flat.xferSimple(actionTable, actionLen);
+  flat.checkpoint(crc32((unsigned char const*)actionTable, actionLen));
+
+  // goto
+  int gotoLen = sizeof(gotoTable[0]) * gotoTableSize();
+  flat.xferSimple(gotoTable, gotoLen);
+  flat.checkpoint(crc32((unsigned char const*)gotoTable, gotoLen));
+
+  // prodInfo
+  int infoLen = sizeof(prodInfo[0]) * numProds;
+  flat.xferSimple(prodInfo, infoLen);
+  flat.checkpoint(crc32((unsigned char const*)prodInfo, infoLen));
+
+  // ambigAction
+  if (flat.writing()) {
+    flat.writeInt(numAmbig());
+    for (int i=0; i<numAmbig(); i++) {
+      flat.writeInt(ambigAction[i][0]);    // length of this entry
+
+      for (int j=0; j<ambigAction[i][0]; j++) {
+        flat.writeInt(ambigAction[i][j+1]);
+      }
+    }
+  }
+
+  else {
+    int ambigs = flat.readInt();
+    for (int i=0; i<ambigs; i++) {
+      int len = flat.readInt();
+      ActionEntry *entry = new ActionEntry[len+1];
+      entry[0] = len;
+
+      for (int j=0; j<len; j++) {
+        entry[j+1] = flat.readInt();
+      }
+
+      ambigAction.push(entry);
+    }
+  }
+
+  // make sure reading and writing agree
+  flat.checkpoint(numAmbig());
+
+}
+
+
 // ------------------------ GrammarAnalysis --------------------
 GrammarAnalysis::GrammarAnalysis()
   : derivable(NULL),
@@ -967,7 +1093,8 @@ GrammarAnalysis::GrammarAnalysis()
     startState(NULL),
     cyclic(false),
     symOfInterest(NULL),
-    errors(0)
+    errors(0),
+    tables(NULL)
 {}
 
 
@@ -994,6 +1121,10 @@ GrammarAnalysis::~GrammarAnalysis()
 
   if (derivable != NULL) {
     delete derivable;
+  }
+  
+  if (tables) {
+    delete tables;
   }
 }
 
@@ -1046,6 +1177,8 @@ void GrammarAnalysis::xfer(Flatten &flat)
 
   // don't bother xferring 'symOfInterest', since it's
   // only used for debugging
+
+  xferOwnerPtr(flat, tables);
 
   // now do the easily-computable stuff
   // NOTE: these functions are also called by initializeAuxData,
@@ -2636,25 +2769,28 @@ void GrammarAnalysis::findSLRConflicts(int &sr, int &rr)
 
     // we want to print something special for the first conflict
     // in a state, so track which is first
-    bool conflictAlready = false;
+    bool printedConflictHeader = false;
 
     // for every input symbol..
     FOREACH_TERMINAL(terminals, t) {
       // check it
-      bool con = checkSLRConflicts(itemSet.data(), t.data(), conflictAlready, sr, rr);
-      conflictAlready = conflictAlready || con;
+      checkSLRConflicts(itemSet.data(), t.data(), printedConflictHeader, sr, rr);
     }
   }
 }
 
 
+// TODO: remove this, now that computeParseTables supercedes it
+
 // given a parser state and an input symbol determine if we will fork
 // the parse stack; return true if there is a conflict
-bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
-                                        bool conflictAlready, int &sr, int &rr)
+bool GrammarAnalysis
+  ::checkSLRConflicts(ItemSet *state, Terminal const *sym,
+                      bool &printedConflictHeader /*inout*/,
+                      int &sr /*inout*/, int &rr /*inout*/)
 {
   // see where a shift would go
-  ItemSet *shiftDest = state->transition(sym);
+  ItemSet const *shiftDest = state->transition(sym);
 
   // get all possible reductions where 'sym' is in Follow(LHS)
   ProductionList reductions;
@@ -2695,7 +2831,7 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
       else {
         mut.adv();
       }
-      
+
       if (dontWarn) {
         dontWarns++;
       }
@@ -2718,14 +2854,15 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
     return false;
   }
 
-  if (!conflictAlready) {
+  if (!printedConflictHeader) {
     trace("conflict")
       << "--------- state " << state->id << " ----------\n"
       << "left context: " << leftContextString(state)
       << endl
       << "sample input: " << sampleInput(state)
       << endl
-      ;
+      ;           
+    printedConflictHeader = true;
   }
 
   trace("conflict")
@@ -2753,7 +2890,7 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
 // boolean reference parameters
 void GrammarAnalysis::handleShiftReduceConflict(
   bool &keepShift, bool &keepReduce, bool &dontWarn,
-  ItemSet *state, Production const *prod, Terminal const *sym)
+  ItemSet const *state, Production const *prod, Terminal const *sym)
 {
   // say that we're considering this conflict
   trace("prec")
@@ -2862,7 +2999,7 @@ void GrammarAnalysis::computeBFSTree()
       // transition on this symbol, we don't need to consider it
       // further
       if (target == NULL ||
-          done.contains(target) || 
+          done.contains(target) ||
           queue.contains(target)) {
         continue;
       }
@@ -2878,7 +3015,246 @@ void GrammarAnalysis::computeBFSTree()
   }
 }
 
-// --------------- END of LR support -------------------
+
+// --------------- parse table construction -------------------
+// given some potential parse actions, apply available disambiguation
+// to remove some of them; print warnings about conflicts, in some
+// situations
+void GrammarAnalysis::resolveConflicts(
+  ItemSet const *state,        // parse state in which the actions are possible
+  Terminal const *sym,         // lookahead symbol for these actions
+  ItemSet const *&shiftDest,   // (inout) if non-NULL, the state to which we can shift
+  ProductionList &reductions,  // (inout) list of possible reductions
+  bool allowAmbig,             // if false, always return at most 1 action
+  bool &printedConflictHeader, // (inout) true once we've printed the state header
+  int &sr, int &rr)            // (inout) counts of S/R and R/R conflicts, resp.
+{
+  // how many actions are there?
+  int actions = (shiftDest? 1 : 0) + reductions.count();
+  if (actions <= 1) {
+    return;      // no conflict
+  }
+
+  // count how many warning suppressions we have
+  int dontWarns = 0;
+
+  // at the moment, I only have static disambiguation for S/R conflicts
+  if (shiftDest) {
+    // we have (at least) a shift/reduce conflict, which is the
+    // situation in which prec/assoc specifications are used; consider
+    // all the possible reductions, so we can resolve S/R conflicts
+    // even when there are R/R conflicts present too
+    SObjListMutator<Production> mut(reductions);
+    while (!mut.isDone() && shiftDest != NULL) {
+      Production const *prod = mut.data();
+
+      bool keepShift=true, keepReduce=true, dontWarn=false;
+      handleShiftReduceConflict(keepShift, keepReduce, dontWarn, state, prod, sym);
+
+      if (!keepShift) {
+        //state->removeShift(sym);
+        actions--;
+        shiftDest = NULL;
+      }
+
+      if (!keepReduce) {
+        //state->removeReduce(prod, sym);
+        actions--;
+        mut.remove();
+      }
+      else {
+        mut.adv();
+      }
+
+      if (dontWarn) {
+        dontWarns++;
+      }
+    }
+
+    // there is still a potential for misbehavior.. e.g., if there are two
+    // possible reductions (R1 and R2), and one shift (S), then the user
+    // could have specified prec/assoc to disambiguate, e.g.
+    //   R1 < S
+    //   S < R2
+    // so that R2 is the right choice; but if I consider (S,R2) first,
+    // I'll simply drop S, leaving no way to disambiguate R1 and R2 ..
+    // for now I'll just note the possibility...
+  }
+
+  // after the disambiguation, maybe now there's no conflicts?
+  // or, if conflicts remain, did we get at least that many warning
+  // suppressions?
+  if ((actions-dontWarns) <= 1) {
+    // don't print information about conflicts
+  }
+  else {
+    // print conflict info
+    if (!printedConflictHeader) {
+      trace("conflict")
+        << "--------- state " << state->id << " ----------\n"
+        << "left context: " << leftContextString(state)
+        << endl
+        << "sample input: " << sampleInput(state)
+        << endl
+        ;
+      printedConflictHeader = true;
+    }
+
+    trace("conflict")
+      << "conflict for symbol " << sym->name
+      << endl;
+
+    if (shiftDest) {
+      trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
+      sr++;                 // shift/reduce conflict
+      rr += actions - 2;    // any reduces beyond first are r/r errors
+    }
+    else {
+      rr += actions - 1;    // all reduces beyond first are r/r errors
+    }
+
+    SFOREACH_PRODUCTION(reductions, prod) {
+      trace("conflict") << "  reduce by rule " << *(prod.data()) << endl;
+    }
+  }
+
+  if (!allowAmbig && actions > 1) {
+    // force only one action, using Bison's disambiguation:
+    //   - prefer shift to reduce
+    //   - prefer the reduction which occurs first in the grammar file
+    if (shiftDest) {
+      reductions.removeAll();
+    }
+    else {
+      while (reductions.count() >= 2) {
+        // compare first and second
+        Production const *first = reductions.nth(0);
+        Production const *second = reductions.nth(1);
+
+        // production indices happen to be assigned in file order
+        if (first->prodIndex < second->prodIndex) {
+          reductions.removeItem(second);
+        }
+        else {
+          reductions.removeItem(first);
+        }
+      }
+    }
+  }
+}
+
+
+void GrammarAnalysis::computeParseTables(bool allowAmbig)
+{
+  tables = new ParseTables(numTerms, numNonterms, itemSets.count(), numProds);
+
+  // count total number of conflicts of each kind
+  int sr=0, rr=0;
+
+  // for each state...
+  FOREACH_OBJLIST(ItemSet, itemSets, stateIter) {
+    ItemSet const *state = stateIter.data();
+    bool printedConflictHeader = false;
+
+    // ---- fill in this row in the action table ----
+    // for each possible lookahead...
+    for (int termId=0; termId < numTerms; termId++) {
+      Terminal const *terminal = getTerminal(termId);
+
+      // can shift?
+      ItemSet const *shiftDest = state->transitionC(terminal);
+
+      // can reduce?
+      ProductionList reductions;
+      state->getPossibleReductions(reductions, terminal,
+                                   false /*parsing*/);
+
+      // try to resolve conflicts; this may print warnings about
+      // the conflicts, depending on various factors; if 'allowAmbig'
+      // is false, this will remove all but one action
+      resolveConflicts(state, terminal, shiftDest, reductions,
+                       allowAmbig, printedConflictHeader, sr, rr);
+
+      // what to do in this cell
+      ActionEntry cellAction;
+
+      // still conflicts?
+      int actions = (shiftDest? 1 : 0) + reductions.count();
+      if (actions >= 2) {
+        // make a new ambiguous-action entry
+        ActionEntry *entry = new ActionEntry[actions+1];
+        entry[0] = actions;
+
+        // fill in the actions
+        int index = 1;
+        if (shiftDest) {
+          entry[index++] = tables->encodeShift(shiftDest->id);
+        }
+        SFOREACH_PRODUCTION(reductions, prodIter) {
+          entry[index++] = tables->encodeReduce(prodIter.data()->prodIndex);
+        }
+        xassert(index == actions+1);
+
+        // (prepare to) add this entry to the action table
+        cellAction = tables->encodeAmbig(tables->numAmbig());
+        tables->ambigAction.push(entry);
+      }
+
+      else {
+        // single action
+        if (shiftDest) {
+          xassert(reductions.count() == 0);
+          cellAction = tables->encodeShift(shiftDest->id);
+        }
+        else if (reductions.isNotEmpty()) {
+          xassert(reductions.count() == 1);
+          cellAction = tables->encodeReduce(reductions.first()->prodIndex);
+        }
+        else {
+          cellAction = tables->encodeError();
+        }
+      }
+
+      // add this entry to the table
+      tables->actionEntry(state->id, termId) = cellAction;
+    }
+
+    // ---- fill in this row in the goto table ----
+    // for each nonterminal...
+    for (int nontermId=0; nontermId<numNonterms; nontermId++) {
+      Nonterminal const *nonterminal = getNonterminal(nontermId);
+
+      // where do we go when we reduce to this nonterminal?
+      ItemSet const *gotoDest = state->transitionC(nonterminal);
+
+      GotoEntry cellGoto;
+      if (gotoDest) {
+        cellGoto = tables->encodeGoto(gotoDest->id);
+      }
+      else {
+        // this should never be accessed at parse time..
+        cellGoto = tables->encodeGotoError();
+      }
+
+      // fill in entry
+      tables->gotoEntry(state->id, nontermId) = cellGoto;
+    }
+  }
+
+  // report on conflict counts
+  if (sr + rr > 0) {
+    cout << sr << " shift/reduce conflicts and "
+         << rr << " reduce/reduce conflicts\n";
+  }
+
+  // fill in 'prodInfo'
+  for (int p=0; p<numProds; p++) {
+    Production const *prod = getProduction(p);
+
+    tables->prodInfo[p].rhsLen = prod->rhsLength();
+    tables->prodInfo[p].lhsIndex = prod->left->ntIndex;
+  }
+}
 
 
 // --------------- sample inputs -------------------
@@ -3122,9 +3498,6 @@ bool GrammarAnalysis::
 
 
 // this is mostly [ASU] algorithm 4.7, p.218-219: an SLR(1) parser
-// however, I've modified it to store one less item on the state stack
-// (not really as optimization, just it made more sense to me that
-// way)
 void GrammarAnalysis::lrParse(char const *input)
 {
   // tokenize the input
@@ -3132,103 +3505,103 @@ void GrammarAnalysis::lrParse(char const *input)
 
   // parser state
   int currentToken = 0;               // index of current token
-  ItemSet *state = startState;        // current parser state
-  SObjList<ItemSet> stateStack;       // stack of parser states
-  SObjList<Symbol> symbolStack;       // stack of shifted symbols
+  int state = startState->id;         // current parser state
+  ArrayStack<int> stateStack;         // stack of parser states; top==state
+  stateStack.push(state);
+  ArrayStack<Symbol const*> symbolStack;    // stack of shifted symbols
 
   // for each token of input
   while (currentToken < tok) {
     // map the token text to a symbol
     Terminal *symbol = findTerminal(tok[currentToken]);     // (constness)
 
-    // see where a shift would go
-    ItemSet *shiftDest = state->transition(symbol);
+    // consult action table
+    ActionEntry action = tables->actionEntry(state, symbol->termIndex);
 
-    // get all possible reductions where 'sym' is in Follow(LHS)
-    ProductionList reductions;
-    state->getPossibleReductions(reductions, symbol, true /*parsing*/);
+    // see what kind of action it is
+    if (tables->isShiftAction(action)) {
+      // shift
+      int destState = tables->decodeShift(action);
 
-    // case analysis
-    if (shiftDest != NULL &&
-        reductions.isEmpty()) {            // unambiguous shift
       // push current state and symbol
-      stateStack.prepend(state);
-      symbolStack.prepend(symbol);
+      state = destState;
+      stateStack.push(state);
+      symbolStack.push(symbol);
 
-      // move to new state
-      state = shiftDest;
-
-      // and to next input symbol
+      // next input symbol
       currentToken++;
 
       // debugging
       trace("parse")
-        << "moving to state " << state->id
+        << "moving to state " << state
         << " after shifting symbol " << symbol->name << endl;
     }
 
-    else if (shiftDest == NULL &&
-             reductions.count() == 1) {    // unambiguous reduction
-      // get the production we're reducing by
-      Production *prod = reductions.nth(0);
+    else if (tables->isReduceAction(action)) {
+      // reduce
+      int prodIndex = tables->decodeReduce(action);
+      ParseTables::ProdInfo const &info = tables->prodInfo[prodIndex];
 
       // it is here that an action or tree-building step would
       // take place
 
-      // pop as many symbols off stack as there are symbols on
-      // the right-hand side of 'prod'; and pop one less as many
-      // states off state stack
-      INTLOOP(i, 1, prod->rhsLength()) {
-        stateStack.removeAt(0);
-        symbolStack.removeAt(0);
-      }
-      symbolStack.removeAt(0);
+      // pop as many symbols off stacks as there are symbols on
+      // the right-hand side of 'prod'
+      stateStack.popMany(info.rhsLen);
+      state = stateStack.top();
+      symbolStack.popMany(info.rhsLen);
 
-      // in [ASU] terms, the act of forgetting 'state' is the
-      // "extra" state pop I didn't do above
+      // find out where to go
+      int destState = tables->decodeGoto(
+        tables->gotoEntry(state, info.lhsIndex));
 
-      // get state now on stack top
-      state = stateStack.nth(0);
+      // go there
+      state = destState;
+      stateStack.push(state);
 
-      // get state we're going to move to (it's like a shift
-      // on prod's LHS)
-      ItemSet *gotoDest = state->transition(prod->left);
-
-      // push prod's LHS (as in a shift)
-      symbolStack.prepend(prod->left);
-
-      // move to new state
-      state = gotoDest;
-                          
-      // again, setting 'state' is what [ASU] accomplishes with
-      // a push
+      // and push the reduced nonterminal
+      symbolStack.push(getNonterminal(info.lhsIndex));
 
       // debugging
       trace("parse")
-        << "moving to state " << state->id
-        << " after reducing by rule " << *prod << endl;
+        << "moving to state " << state
+        << " after reducing by rule id " << prodIndex << endl;
     }
 
-    else if (shiftDest == NULL &&
-             reductions.isEmpty()) {       // no transition: syntax error
+    else if (tables->isErrorAction(action)) {
+      // error
       trace("parse")
         << "no actions defined for symbol " << symbol->name
-        << " in state " << state->id << endl;
+        << " in state " << state << endl;
       break;       // stop parsing
     }
 
-    else {                                 // local ambiguity
+    else {
+      // conflict
       trace("parse")
         << "conflict for symbol " << symbol->name
-        << " in state " << state->id
+        << " in state " << state
         << "; possible actions:\n";
 
-      if (shiftDest) {
-        trace("parse") << "  shift, and move to state " << shiftDest->id << endl;
-      }
+      // get actions
+      int ambigId = tables->decodeAmbigAction(action);
+      ActionEntry *entry = tables->ambigAction[ambigId];
 
-      SFOREACH_PRODUCTION(reductions, prod) {
-        trace("parse") << "  reduce by rule " << *(prod.data()) << endl;
+      // explain each one
+      for (int i=0; i<entry[0]; i++) {
+        action = entry[i+1];
+        if (tables->isShiftAction(action)) {
+          trace("parse") << "  shift, and move to state "
+                         << tables->decodeShift(action) << endl;
+        }
+        else if (tables->isReduceAction(action)) {
+          trace("parse") << "  reduce by rule id "
+                         << tables->decodeReduce(action) << endl;
+        }
+        else {
+          // no other alternative makes sense
+          xfailure("bad code in ambigAction table");
+        }
       }
 
       break;       // stop parsing
@@ -3238,19 +3611,17 @@ void GrammarAnalysis::lrParse(char const *input)
   // print final contents of stack; if the parse was successful,
   // I want to see what remains; if not, it's interesting anyway
   trace("parse") << "final contents of stacks (right is top):\n";
-  stateStack.reverse();    // more convenient for printing
-  symbolStack.reverse();
 
   ostream &os = trace("parse") << "  state stack:";
-  SFOREACH_OBJLIST(ItemSet, stateStack, stateIter) {
-    os << " " << stateIter.data()->id;
+  int i;
+  for (i=0; i < stateStack.length(); i++) {
+    os << " " << stateStack[i];
   }
-  os << " current=" << state->id;   // print current state too
-  os << endl;
+  os << " <-- current" << endl;
 
-  trace("parse") << "  symbol stack:";
-  SFOREACH_SYMBOL(symbolStack, sym) {
-    os << " " << sym.data()->name;
+  os << "  symbol stack:";
+  for (i=0; i < symbolStack.length(); i++) {
+    os << " " << symbolStack[i]->name;
   }
   os << endl;
 }
@@ -3503,7 +3874,10 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   traceProgress(1) << "LR item sets...\n";
   constructLRItemSets();
 
-  traceProgress(1) << "SLR conflicts...\n";
+  traceProgress(1) << "parse tables...\n";
+  computeParseTables(!tracingSys("deterministic"));
+
+  #if 1     // old code; need it for just a while longer
   {
     int sr=0, rr=0;           // numbers of each kind of conflict
     findSLRConflicts(sr, rr);
@@ -3512,6 +3886,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
            << rr << " reduce/reduce conflicts\n";
     }
   }
+  #endif // 0
 
   // if we want to print, do so before throwing away the items
   if (tracingSys("itemsets")) {
@@ -4025,6 +4400,14 @@ int main(int argc, char **argv)
   TRACE_ARGS();
   traceAddSys("progress");
 
+  #if 0     // useful for testing lrParse()
+  // for now
+  GrammarAnalysis g;
+  g.exampleGrammar();
+  pretendUsed(progName);
+  #endif // 0
+
+  #if 1
   bool testRW = false;
   if (argc >= 2 &&
       0==strcmp(argv[1], "--testRW")) {
@@ -4037,12 +4420,12 @@ int main(int argc, char **argv)
     cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
             "  processes prefix.gr to make prefix.{gr.{gen.h,gen.cc},bin}\n"
             "  useful tracing flags (separate with commas):\n"
-            "    conflict    : print LALR(1) conflicts\n"
-            "    closure     : details of item-set closure algorithm\n"
-            "    prec        : show how prec/assoc are used to resolve conflicts\n"
-            //"    item-sets   : print the LR item sets after they're computed\n"
-            "    explore     : start the interactive grammar explorer at the end\n"
-            "    lrtable     : print entire LR parsing tables\n"
+            "    conflict      : print LALR(1) conflicts\n"
+            "    deterministic : force a deterministic parser\n"
+            "    closure       : details of item-set closure algorithm\n"
+            "    prec          : show how prec/assoc are used to resolve conflicts\n"
+            "    explore       : start the interactive grammar explorer at the end\n"
+            "    lrtable       : print entire LR parsing tables\n"
             ;
     return 0;
   }
@@ -4142,6 +4525,7 @@ int main(int argc, char **argv)
   if (tracingSys("explore")) {
     grammarExplorer(g);
   }
+  #endif // 1
 
   return 0;
 }

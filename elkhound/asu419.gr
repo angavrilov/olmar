@@ -1,6 +1,8 @@
 // asu419.gr
 // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
 
+verbatim Asu419 []
+
 terminals {
   0 : plus "+";
   1 : times "*";

@@ -500,7 +500,7 @@ public:     // funcs
 
   // output grammar in Bison's syntax
   // (coincidentally, when bison dumps its table with '-v', its table
-  // dump syntax is identical to my (current) input syntax!)
+  // dump syntax is similar to my input syntax)
   void printAsBison(ostream &os) const;
 
   // ---- symbol access ----
@@ -514,8 +514,8 @@ public:     // funcs
     Thing *getOrMake##Thing(LocString const &name);
 
   SYMBOL_ACCESS(Symbol)        // findSymbolC, findSymbol, getOrMakeSymbol
-  SYMBOL_ACCESS(Terminal)      //   likewise
-  SYMBOL_ACCESS(Nonterminal)   //   ..
+  SYMBOL_ACCESS(Terminal)      // findTerminal{C,}, getOrMakeTerminal
+  SYMBOL_ACCESS(Nonterminal)   // findNonterminal{C,}, getOrMakeNonterminal
   #undef SYMBOL_ACCESS
 
   // map a production to a unique index
