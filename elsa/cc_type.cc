@@ -1856,6 +1856,7 @@ bool TemplateParams::anyParamCtorSatisfies(Type::TypePred pred) const
 TemplateInfo::TemplateInfo(StringRef name)
   : TemplateParams(),
     baseName(name),
+    declSyntax(NULL),
     myPrimary(NULL),
     instantiations(),         // empty list
     arguments()               // empty list

@@ -590,6 +590,21 @@ void Declaration::tcheck(Env &env, DeclaratorContext context)
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags, context);
     decllist = FakeList<Declarator>::makeList(decllist->first()->tcheck(env, dt1));
+    
+    if (dt1.var->templInfo) {
+      // this could have been a forward declaration of a templatized
+      // function, for which we will need to remember the syntax of
+      // the declaration so it can be re-tchecked with parameters
+      // bound to arguments
+      dt1.var->templInfo->declSyntax = this;
+      
+      // cppstd 14 para 3: there can be at most one declarator
+      // in a template declaration; this justifies not repeating
+      // this 'declSyntax' action in the loop below
+      if (decllist->count() > 1) {
+        env.error("there can be at most one declarator in a template declaration");
+      }
+    }
 
     // check subsequent declarators
     Declarator *prev = decllist->first();

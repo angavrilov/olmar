@@ -392,6 +392,7 @@ testparse t0188.cc
 testparse t0189.cc
 testparse t0190.cc
 failparse t0191.cc "problem with classes nested in template classes"
+failparse t0192.cc "forward template function"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc

@@ -45,6 +45,7 @@ class D_pointer;          // cc.ast
 class D_func;             // cc.ast
 class D_ptrToMember;      // cc.ast
 class TypeSpecifier;      // cc.ast
+class Declaration;        // cc.ast
 
 // fwd in this file
 class SimpleType;
@@ -976,6 +977,11 @@ public:    // data
   // to detect when a name is the name of the template we're inside
   // (this is NULL for TemplateInfos attached to FunctionTypes)
   StringRef baseName;
+
+  // whereas for classes the 'baseName' suffices to create a
+  // forward-declared version of the object, functions need
+  // the entire declaration; so here it is
+  Declaration *declSyntax;          // (serf AST)
 
   // The primary of this template info if we are a specialization or
   // an instantiation; NULL if we are a primary.

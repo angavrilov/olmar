@@ -428,7 +428,13 @@ void doit(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-  doit(argc, argv);
+  try {
+    doit(argc, argv);
+  }
+  catch (xBase &x) {
+    cout << x << endl;
+    return 4;
+  }
 
   //malloc_stats();
 

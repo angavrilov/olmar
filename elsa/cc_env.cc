@@ -2326,6 +2326,7 @@ Variable *Env::instantiateTemplate
       cout << locStr()
            << " Attempt to instantiate a forwarded template function;"
            << " forward template functions are not implemented yet."
+           << "  (declSyntax=" << baseV->templInfo->declSyntax << ")"
            << endl;
       xassert(0);
     }
