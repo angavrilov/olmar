@@ -24,7 +24,7 @@ Symbol::~Symbol()
 void Symbol::print() const
 {
   cout << name << ":";
-  PVAL(isTerminal);
+  PVAL(isTerm);
 }
 
 
@@ -41,13 +41,13 @@ void printSymbols(ObjList<Symbol> const &list)
 
 Terminal const &Symbol::asTerminalC() const
 {
-  xassert(isTerminal);
+  xassert(isTerminal());
   return (Terminal&)(*this);
 }
 
 Nonterminal const &Symbol::asNonterminalC() const
-{
-  xassert(!isTerminal);
+{			 
+  xassert(isNonterminal());
   return (Nonterminal&)(*this);
 }
 
@@ -148,7 +148,7 @@ void Production::append(Symbol *sym)
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : derivable(NULL),
-    indexedNonTerms(NULL),
+    indexedNonterms(NULL),
     indexedTerms(NULL),
     initialized(false),
     startSymbol(NULL),
@@ -159,8 +159,8 @@ Grammar::Grammar()
 
 Grammar::~Grammar()
 {
-  if (indexedNonTerms != NULL) {
-    delete indexedNonTerms;
+  if (indexedNonterms != NULL) {
+    delete indexedNonterms;
   }
 
   if (indexedTerms != NULL) {
@@ -260,7 +260,7 @@ bool Grammar::addDerivable(int left, int right)
   // derivability code detects a nonzero-length path.
 
   if (left==right) {
-    Nonterminal *NT = indexedNonTerms[left];    // ==right
+    Nonterminal *NT = indexedNonterms[left];    // ==right
     if (!NT->cyclic) {
       cout << "discovered that " << NT->name << " ->+ "
            << NT->name << " (i.e. is cyclic)\n";
@@ -316,22 +316,40 @@ bool Grammar::canDeriveEmpty(Nonterminal const *nonterm) const
 }
 
 
-bool Grammar::firstIncludes(Nonterminal const *NT, Terminal const *term) const
+bool Grammar::sequenceCanDeriveEmpty(SymbolList const &list) const
 {
-  for (TerminalListIter iter(NT->first); !iter.isDone(); iter.adv()) {
-    if (iter.data() == term) {
-      return true;
-    }
-  }
-  return false;
+  SymbolListIter iter(list);
+  return iterSeqCanDeriveEmpty(iter);
 }
 
-bool Grammar::addFirst(Nonterminal *NT, Terminal const *term)
+bool Grammar::iterSeqCanDeriveEmpty(SymbolListIter iter) const
 {
-  if (firstIncludes(NT, term)) {
-    return false;   // no change
+  // look through the sequence beginning with 'iter'; if any members cannot
+  // derive emptyString, fail
+  for (; !iter.isDone(); iter.adv()) {
+    if (iter.data()->isTerminal()) {
+      return false;    // terminals can't derive emptyString
+    }
+
+    if (!canDeriveEmpty(&( iter.data()->asNonterminalC() ))) {
+      return false;    // nonterminal that can't derive emptyString
+    }
   }
 
+  return true;
+}
+
+
+bool Grammar::firstIncludes(Nonterminal const *NT, Terminal const *term) const
+{
+  return NT->first.contains(term);
+}
+
+bool Grammar::addFirst(Nonterminal *NT, Terminal *term)
+{
+  return NT->first.prependUnique(term);
+
+  // regarding non-constness of 'term':
   // highly nonideal.. the problem is that by using annotations in
   // the structures themselves, I have a hard time saying that I
   // intend to modify the annotations but not the "key" data...
@@ -339,9 +357,18 @@ bool Grammar::addFirst(Nonterminal *NT, Terminal const *term)
   // that I don't have a List class that promises to never permit
   // modification of the pointed-to data.. but it's not clear I'd
   // be better of using it here even if I had it)
-  
-  NT->first.prepend(const_cast<Terminal*>(term));
-  return true;      // changed it
+}
+
+
+bool Grammar::followIncludes(Nonterminal const *NT, Terminal const *term) const
+{
+  return NT->follow.contains(term);
+}
+
+// returns true if Follow(NT) is changed by adding 'term' to it
+bool Grammar::addFollow(Nonterminal *NT, Terminal *term)
+{
+  return NT->follow.prependUnique(term);
 }
 
 
@@ -375,7 +402,7 @@ bool Grammar::parseLine(char const *line)
     // blank line or comment
     return true;
   }
-		 
+
   // check that the 2nd token is the "rewrites-as" symbol
   if (0!=strcmp(tok[1], "->")) {
     return false;
@@ -414,9 +441,6 @@ bool Grammar::parseLine(char const *line)
 
 
 // ------------------- symbol access -------------------
-#define FOREACH_NONTERMINAL(list,iter) \
-  for(ObjListIter<Nonterminal> iter(list); !iter.isDone(); iter.adv())
-
 Nonterminal const *Grammar::findNonterminalC(char const *name) const
 {
   // check for empty first, since it's not in the list
@@ -432,9 +456,6 @@ Nonterminal const *Grammar::findNonterminalC(char const *name) const
   return NULL;
 }
 
-
-#define FOREACH_TERMINAL(list,iter) \
-  for(ObjListIter<Terminal> iter(list); !iter.isDone(); iter.adv())
 
 Terminal const *Grammar::findTerminalC(char const *name) const
 {
@@ -514,16 +535,16 @@ void Grammar::initializeAuxData()
 
 
   // map: ntIndex -> Nonterminal*
-  indexedNonTerms = new Nonterminal* [numNonterminals()];
+  indexedNonterms = new Nonterminal* [numNonterminals()];
 
   // fill it
-  indexedNonTerms[emptyStringIndex] = &emptyString;
+  indexedNonterms[emptyStringIndex] = &emptyString;
   int index = emptyStringIndex;
   emptyString.ntIndex = index++;
 
   for (ObjListMutator<Nonterminal> sym(nonterminals);
        !sym.isDone(); index++, sym.adv()) {
-    indexedNonTerms[index] = sym.data();    // map: index to symbol
+    indexedNonterms[index] = sym.data();    // map: index to symbol
     sym.data()->ntIndex = index;            // map: symbol to index
   }
 
@@ -569,7 +590,7 @@ void Grammar::computeWhatCanDeriveWhat()
       for (SymbolListIter rightSym(prod->right);
            !rightSym.isDone(); rightSym.adv()) {
 
-        if (rightSym.data()->isTerminal) {
+        if (rightSym.data()->isTerminal()) {
           // if prod->left derives a string containing a terminal,
           // then it can't derive any nontermial alone (using this
           // production, at least) -- empty is considered a nonterminal
@@ -595,7 +616,7 @@ void Grammar::computeWhatCanDeriveWhat()
           for (afterRightSym.adv();    // *after* right symbol
                !afterRightSym.isDone(); afterRightSym.adv()) {
 
-            if (afterRightSym.data()->isTerminal  ||
+            if (afterRightSym.data()->isTerminal()  ||
                   // if it's a terminal, it can't derive emptyString
                 !canDeriveEmpty(&( afterRightSym.data()->asNonterminalC() ))) {
                   // this symbol can't derive empty string (or, we don't
@@ -657,8 +678,8 @@ void Grammar::computeWhatCanDeriveWhat()
           if (addDerivable(u,w)) {
             changes++;
             cout << "discovered (by closure step): " 
-                 << indexedNonTerms[u]->name << " ->* "
-                 << indexedNonTerms[w]->name << "\n";
+                 << indexedNonterms[u]->name << " ->* "
+                 << indexedNonterms[w]->name << "\n";
           }
         }
       }
@@ -696,8 +717,6 @@ void Grammar::computeWhatCanDeriveWhat()
 // (First(x) = {x}).
 void Grammar::computeFirst()
 {
-  int numTerms = numTerminals();     // loop invariant
-
   // iterate, looking for new First members, until no changes
   int changes = 1;   // so the loop begins
   while (changes > 0) {
@@ -711,47 +730,196 @@ void Grammar::computeFirst()
       Nonterminal *LHS = prod->left;
         // the list iter is mutating because I modify LHS's First list
 
-      // for each right-hand side member such that all
-      // preceeding RHS members can derive emptyString
-      for (SymbolListIter rightSym(prod->right);
-           !rightSym.isDone(); rightSym.adv()) {
+      // compute First(RHS-sequence)
+      TerminalList firstOfRHS;
+      firstOfSequence(firstOfRHS, prod->right);
 
-        if (rightSym.data()->isTerminal) {
-          // LHS -> x alpha   means x is in First(LHS)
-          changes += true==addFirst(LHS, &( rightSym.data()->asTerminalC() ));
-          break;    // stop considering RHS members since a terminal
-                    // effectively "hides" all further symbols from First
-        }
-
-        // rightSym must be a nonterminal
-        Nonterminal const &rightNT = rightSym.data()->asNonterminalC();
-
-        // anything already in rightNT's First should be added to mine:
-        // for each element in First(rightNT)
-        for (int t=0; t<numTerms; t++) {
-          if (firstIncludes(&rightNT, indexedTerms[t])) {
-            // add it to First(LHS)
-            changes += true==addFirst(LHS, indexedTerms[t]);
-          }
-        }
-
-        // if rightNT can't derive emptyString, then it blocks further
-        // consideration of right-hand side members
-        if (!canDeriveEmpty(&rightNT)) {
-          break;
-        }
-      } // for (RHS members)
+      // add everything in First(RHS-sequence) to First(LHS)
+      SMUTATE_EACH_TERMINAL(firstOfRHS, iter) {
+       	changes += true==addFirst(LHS, iter.data());
+      }
     } // for (productions)
   } // while (changes)
 }
 
 
+// 'sequence' isn't const because we need to hand pointers over to
+// the 'destList', which isn't const; similarly for 'this'
+// (what I'd like here is to say that 'sequence' and 'this' are const
+// if 'destList' can't modify the things it contains)
+void Grammar::firstOfSequence(TerminalList &destList, SymbolList &sequence)
+{
+  SymbolListMutator iter(sequence);
+  firstOfIterSeq(destList, iter);
+}
+
+// similar to above, 'sym' needs to be a mutator
+void Grammar::firstOfIterSeq(TerminalList &destList, SymbolListMutator sym)
+{
+  int numTerms = numTerminals();     // loop invariant
+
+  // for each sequence member such that all
+  // preceeding members can derive emptyString
+  for (; !sym.isDone(); sym.adv()) {
+    // LHS -> x alpha   means x is in First(LHS)
+    if (sym.data()->isTerminal()) {
+      destList.append(&( sym.data()->asTerminal() ));
+      break;    // stop considering RHS members since a terminal
+		// effectively "hides" all further symbols from First
+    }
+
+    // sym must be a nonterminal
+    Nonterminal const &nt = sym.data()->asNonterminalC();
+
+    // anything already in nt's First should be added to destList:
+    // for each element in First(nt)
+    for (int t=0; t<numTerms; t++) {
+      if (firstIncludes(&nt, indexedTerms[t])) {
+       	destList.append(indexedTerms[t]);
+      }
+    }
+
+    // if nt can't derive emptyString, then it blocks further
+    // consideration of right-hand side members
+    if (!canDeriveEmpty(&nt)) {
+      break;
+    }
+  } // for (RHS members)
+}
+
+
 void Grammar::computeFollow()
 {
-  
+  int numTerms = numTerminals();     // loop invariant
+
+  // loop until no changes
+  int changes = 1;
+  while (changes > 0) {
+    changes = 0;
+
+    // 'mutate' is needed because adding 'term' to the follow of 'nt'
+    // needs a mutable 'term' and 'nt'
+
+    // for each production
+    MUTATE_EACH_PRODUCTION(productions, prodIter) {
+      Production *prod = prodIter.data();
+
+      // for each RHS nonterminal member
+      SMUTATE_EACH_SYMBOL(prod->right, rightSym) {
+        if (rightSym.data()->isTerminal()) continue;
+
+        // convenient alias
+        Nonterminal &rightNT = rightSym.data()->asNonterminal();
+        
+        // I'm not sure what it means to compute Follow(emptyString),
+        // so let's just not do so
+        if (&rightNT == &emptyString) {
+          continue;
+        }
+
+        // an iterator pointing to the symbol just after
+        // 'rightSym' will be useful below
+       	SymbolListMutator afterRightSym(rightSym);
+       	afterRightSym.adv();    // NOTE: 'isDone()' may be true now
+
+	// rule 1:
+	// if there is a production A -> alpha B beta, then
+	// everything in First(beta) is in Follow(B)
+        {
+	  // compute First(beta)
+	  TerminalList firstOfBeta;
+       	  firstOfIterSeq(firstOfBeta, afterRightSym);
+
+  	  // put those into Follow(rightNT)
+  	  SMUTATE_EACH_TERMINAL(firstOfBeta, term) {
+  	    changes += true==
+  	      addFollow(&rightNT, term.data());
+  	  }
+        }
+
+  	// rule 2:
+  	// if there is a production A -> alpha B, or a
+    	// production A -> alpha B beta where beta ->* empty,
+       	// then everything in Follow(A) is in Follow(B)
+        if (iterSeqCanDeriveEmpty(afterRightSym)) {
+          // for each element in Follow(LHS)
+          for (int t=0; t<numTerms; t++) {
+            if (followIncludes(prod->left, indexedTerms[t])) {
+	      changes += true==
+                addFollow(&rightNT, indexedTerms[t]);
+            }
+          } // for each in Follow(LHS)
+        }
+
+      } // for each RHS nonterminal member
+    } // for each production
+  } // until no changes
+}
 
 
+// ASU alg 4.4, p.190
+void Grammar::computePredictiveParsingTable()
+{
+  int numTerms = numTerminals();
+  int numNonterms = numNonterminals();
 
+  // the table will be a 2d array of lists of productions
+  ProductionList *table = new ProductionList[numTerms * numNonterms];     // (owner)
+  #define TABLE(term,nt) table[(term) + (nt)*numNonterms]
+
+  // for each production 'prod' (non-const iter because adding them
+  // to ProductionList, which doesn't promise to not change them)
+  MUTATE_EACH_PRODUCTION(productions, prodIter) {
+    Production *prod = prodIter.data();
+
+    // for each terminal 'term' in First(RHS)
+    TerminalList firsts;
+    firstOfSequence(firsts, prod->right);
+    SFOREACH_TERMINAL(firsts, term) {
+      // add 'prod' to table[LHS,term]
+      TABLE(prod->left->ntIndex,
+            term.data()->termIndex).prependUnique(prod);
+    }
+
+    // if RHS ->* emptyString, ...
+    if (sequenceCanDeriveEmpty(prod->right)) {
+      // ... then for each terminal 'term' in Follow(LHS), ...
+      SFOREACH_TERMINAL(prod->left->follow, term) {
+        // ... add 'prod' to table[LHS,term]
+        TABLE(prod->left->ntIndex,
+              term.data()->termIndex).prependUnique(prod);
+      }
+    }
+  }
+
+
+  // experimenting..
+  #define INTLOOP(var, start, maxPlusOne) \
+    for (int var = start; var < maxPlusOne; var++)
+
+  // print the resulting table:
+  // for each nonterminal
+  INTLOOP(nonterm, 0, numNonterms) {
+    cout << "Row " << indexedNonterms[nonterm]->name << ":\n";
+
+    // for each terminal
+    INTLOOP(term, 0, numTerms) {
+      cout << "  Column " << indexedTerms[term]->name << ":";
+
+      // for each production in table[nonterm,term]
+      SFOREACH_PRODUCTION(TABLE(nonterm,term), prod) {
+        cout << "   ";
+        prod.data()->print();
+      }
+
+      cout << endl;
+    }
+  }
+
+  // cleanup
+  #undef TABLE
+  delete[] table;
+}
 
 
 // ---------------------------- main --------------------------------
@@ -764,12 +932,22 @@ void Grammar::exampleGrammar()
   // for now, let's use a hardcoded grammar
 
 
+  // grammar 4.13 of ASU (p.191)
+  parseLine("Start  ->  S $                ");
+  parseLine("S  ->  i E t S S'   |  a      ");
+  parseLine("S' ->  e S          |  empty  ");
+  parseLine("E  ->  b                      ");
+
+
+  #if 0
   // grammar 4.11 of ASU (p.189), designed to show First and Follow
+  parseLine("S  ->  E $                ");
   parseLine("E  ->  T E'               ");
   parseLine("E' ->  + T E'  | empty    ");
   parseLine("T  ->  F T'               ");
   parseLine("T' ->  * F T'  | empty    ");
   parseLine("F  ->  ( E )   | id       ");
+  #endif // 0
 
 
   #if 0
@@ -855,6 +1033,7 @@ void Grammar::exampleGrammar()
   initializeAuxData();
   computeWhatCanDeriveWhat();
   computeFirst();
+  computeFollow();
 
   // print results
   cout << "Terminals:\n";
@@ -867,6 +1046,9 @@ void Grammar::exampleGrammar()
 
   derivable->print();
   
+  // another analysis
+  computePredictiveParsingTable();
+
   // silence warnings
   //pretendUsed(a,b,c,d,e, S,A,B,C,D);
 }

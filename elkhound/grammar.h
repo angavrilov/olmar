@@ -19,14 +19,18 @@ class Nonterminal;     // below
 class Symbol {
 public:
   // key attributes
-  string name;              // symbol's name in grammar
-  const bool isTerminal;    // true: terminal (only on right-hand sides of productions)
+  string const name;        // symbol's name in grammar
+  bool const isTerm;        // true: terminal (only on right-hand sides of productions)
                             // false: nonterminal (can appear on left-hand sides)
 
 public:
   Symbol(char const *n, bool t)
-    : name(n), isTerminal(t) {}
+    : name(n), isTerm(t) {}
   virtual ~Symbol();
+
+  // uniform selectors
+  bool isTerminal() const { return isTerm; }
+  bool isNonterminal() const { return !isTerm; }
 
   // casting
   Terminal const &asTerminalC() const;       // checks 'isTerminal' for cast safety
@@ -35,7 +39,7 @@ public:
 
   Nonterminal const &asNonterminalC() const;
   Nonterminal &asNonterminal()
-    { return const_cast<Nonterminal&>(asNonterminal()); }
+    { return const_cast<Nonterminal&>(asNonterminalC()); }
 
   // debugging
   virtual void print() const;    // print as '$name: isTerminal=$isTerminal' (no newline)
@@ -44,6 +48,12 @@ public:
 // I have several needs for serf lists of symbols, so let's use this for now
 typedef SObjList<Symbol> SymbolList;
 typedef SObjListIter<Symbol> SymbolListIter;
+typedef SObjListMutator<Symbol> SymbolListMutator;
+
+#define FOREACH_SYMBOL(list, iter) FOREACH_OBJLIST(Symbol, list, iter)
+#define MUTATE_EACH_SYMBOL(list, iter) MUTATE_EACH_OBJLIST(Symbol, list, iter)
+#define SFOREACH_SYMBOL(list, iter) SFOREACH_OBJLIST(Symbol, list, iter)
+#define SMUTATE_EACH_SYMBOL(list, iter) SMUTATE_EACH_OBJLIST(Symbol, list, iter)
 
 
 // ---------------- Terminal --------------------
@@ -64,6 +74,11 @@ public:     // funcs
 
 typedef SObjList<Terminal> TerminalList;
 typedef SObjListIter<Terminal> TerminalListIter;
+
+#define FOREACH_TERMINAL(list, iter) FOREACH_OBJLIST(Terminal, list, iter)
+#define MUTATE_EACH_TERMINAL(list, iter) MUTATE_EACH_OBJLIST(Terminal, list, iter)
+#define SFOREACH_TERMINAL(list, iter) SFOREACH_OBJLIST(Terminal, list, iter)
+#define SMUTATE_EACH_TERMINAL(list, iter) SMUTATE_EACH_OBJLIST(Terminal, list, iter)
 
 // casting aggregates
 ObjList<Symbol> const &toObjList(ObjList<Terminal> const &list)
@@ -91,6 +106,11 @@ public:     // funcs
 typedef SObjList<Nonterminal> NonterminalList;
 typedef SObjListIter<Nonterminal> NonterminalListIter;
 
+#define FOREACH_NONTERMINAL(list, iter) FOREACH_OBJLIST(Nonterminal, list, iter)
+#define MUTATE_EACH_NONTERMINAL(list, iter) MUTATE_EACH_OBJLIST(Nonterminal, list, iter)
+#define SFOREACH_NONTERMINAL(list, iter) SFOREACH_OBJLIST(Nonterminal, list, iter)
+#define SMUTATE_EACH_NONTERMINAL(list, iter) SMUTATE_EACH_OBJLIST(Nonterminal, list, iter)
+
 // casting aggregates
 ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
   { return reinterpret_cast< ObjList<Symbol>const& >(list); }
@@ -115,6 +135,14 @@ public:
   void print() const;
 };
 
+typedef SObjList<Production> ProductionList;
+typedef SObjListIter<Production> ProductionListIter;
+
+#define FOREACH_PRODUCTION(list, iter) FOREACH_OBJLIST(Production, list, iter)
+#define MUTATE_EACH_PRODUCTION(list, iter) MUTATE_EACH_OBJLIST(Production, list, iter)
+#define SFOREACH_PRODUCTION(list, iter) SFOREACH_OBJLIST(Production, list, iter)
+#define SMUTATE_EACH_PRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(Production, list, iter)
+
 
 // ---------------- DottedProduction --------------------
 // a production, with an indicator that says how much of this
@@ -134,10 +162,14 @@ public:
   void print() const;
 };
 
-
 // (serf) lists of dotted productions
 typedef SObjList<DottedProduction> DProductionList;
 typedef SObjListIter<DottedProduction> DProductionListIter;
+
+#define FOREACH_DOTTEDPRODUCTION(list, iter) FOREACH_OBJLIST(DottedProduction, list, iter)
+#define MUTATE_EACH_DOTTEDPRODUCTION(list, iter) MUTATE_EACH_OBJLIST(DottedProduction, list, iter)
+#define SFOREACH_DOTTEDPRODUCTION(list, iter) SFOREACH_OBJLIST(DottedProduction, list, iter)
+#define SMUTATE_EACH_DOTTEDPRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(DottedProduction, list, iter)
 
 
 // ---------------- Grammar --------------------
@@ -150,7 +182,7 @@ class Grammar {
   Bit2d *derivable;                     // (owner)
 
   // indexing structures
-  Nonterminal **indexedNonTerms;        // (owner) ntTndex -> Nonterminal
+  Nonterminal **indexedNonterms;        // (owner) ntTndex -> Nonterminal
   Terminal **indexedTerms;              // (owner) termIndex -> Terminal
 
   // only true after initializeAuxData has been called
@@ -172,47 +204,12 @@ public:
   // ---- computed from the above ----
   // every production, with a dot in every possible place
   ObjList<DottedProduction> dottedProductions;
-  
+
   // true if any nonterminal can derive itself in 1 or more steps
   bool cyclic;
 
 private:
-  // -------- deriability -------------
-  // iteratively compute every pair A,B such that A can derive B
-  void computeWhatCanDeriveWhat();
-  void initDerivableRelation();
-
-  // add a derivability relation; returns true if this makes a change
-  bool addDerivable(Nonterminal const *left, Nonterminal const *right);
-  bool addDerivable(int leftNtIndex, int rightNtIndex);
-
-  // private deriability interface
-  bool canDerive(int leftNtIndex, int rightNtIndex) const;
-
-
-  // ---------- First --------------
-  void computeFirst();
-  bool addFirst(Nonterminal *NT, Terminal const *term);
-
-
-public:
-  Grammar();                            // set everything manually (except emptyString)
-  ~Grammar();
-
-  // --------- building a grammar ---------
-  // add a new production; the rhs arg list must be terminated with a NULL
-  void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
-
-  // add a pre-constructed production
-  void addProduction(Production *prod);
-
-  // call this after grammar is completely built
-  void initializeAuxData();
-
-  // print the current list of productions
-  void printProductions() const;
-
-  // symbol access
+  // ------- symbol access ------------
   #define SYMBOL_ACCESS(Thing) 	       	       	       	    \
     /* retrieve, return NULL if not there */		    \
     Thing const *find##Thing##C(char const *name) const;    \
@@ -226,13 +223,60 @@ public:
   SYMBOL_ACCESS(Terminal)      //   likewise
   SYMBOL_ACCESS(Nonterminal)   //   ..
 
+  // -------- analyis init ---------
+  // call this after grammar is completely built
+  void initializeAuxData();
+
+  // -------- deriability -------------
+  // iteratively compute every pair A,B such that A can derive B
+  void computeWhatCanDeriveWhat();
+  void initDerivableRelation();
+
+  // add a derivability relation; returns true if this makes a change
+  bool addDerivable(Nonterminal const *left, Nonterminal const *right);
+  bool addDerivable(int leftNtIndex, int rightNtIndex);
+
+  // private deriability interface
+  bool canDerive(int leftNtIndex, int rightNtIndex) const;
+  bool sequenceCanDeriveEmpty(SymbolList const &list) const;
+  bool iterSeqCanDeriveEmpty(SymbolListIter iter) const;
+
+  // ---------- First --------------
+  void computeFirst();
+  bool addFirst(Nonterminal *NT, Terminal *term);
+  void firstOfSequence(TerminalList &destList, SymbolList &sequence);
+  void firstOfIterSeq(TerminalList &destList, SymbolListMutator sym);
+
+  // ---------- Follow -------------
+  void computeFollow();
+  bool addFollow(Nonterminal *NT, Terminal *term);
+
+  // misc
+  void computePredictiveParsingTable();
+
+
+public:
+  Grammar();                            // set everything manually (except emptyString)
+  ~Grammar();
+
   // essentially, my 'main()' while experimenting
   void exampleGrammar();
 
 
+  // --------- building a grammar ---------
+  // add a new production; the rhs arg list must be terminated with a NULL
+  void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
+
+  // add a pre-constructed production
+  void addProduction(Production *prod);
+
+  // print the current list of productions
+  void printProductions() const;
+
+
   // -------------- grammar parsing -------------------
   void readFile(char const *fname);
-  
+
   // parse a line like "LHS -> R1 R2 R3", return false on parse error
   bool parseLine(char const *grammarLine);
 
@@ -245,6 +289,7 @@ public:
   bool canDeriveEmpty(Nonterminal const *lhs) const;
 
   bool firstIncludes(Nonterminal const *NT, Terminal const *term) const;
+  bool followIncludes(Nonterminal const *NT, Terminal const *term) const;
 
 
   #if 0
