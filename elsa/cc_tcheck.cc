@@ -1657,12 +1657,22 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     if (var->type->isArrayType() &&
         init->isIN_compound()) {
       ArrayType *at = var->type->asArrayType();
-      IN_compound const *cpd = init->asIN_compoundC();
+      // dsw: turned the use of this off below, so commenting this out
+      // to prevent the unused warning
+//        IN_compound const *cpd = init->asIN_compoundC();
       if (!at->hasSize()) {
         // replace the computed type with another that has
         // the size specified; the location isn't perfect, but
         // getting the right one is a bit of work
-        var->type = env.tfac.setArraySize(var->loc, at, cpd->inits.count());
+
+        // dsw: your count is incorrect in the presence of nontrivial
+        // compound initializers.  I have figured out this problem,
+        // but for now it is only implemented in cc_qual/qual_walk.cc;
+        // Perhaps I could refactor the code and we could share it;
+        // then you could have correct sizes here; This incorrect size
+        // is messing up my code so I'm turning it off.
+//          var->type = env.tfac.setArraySize(var->loc, at, cpd->inits.count());
+        xassert(at->size == ArrayType::NO_SIZE);// dsw: just make sure
       }
       else {
         // TODO: cppstd wants me to check that there aren't more
