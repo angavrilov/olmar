@@ -1054,7 +1054,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   // was the previous declaration a forward declaration?
   bool prevWasForward = false;
 
-  // are we in a template?
+  // are we in a template declaration?
   bool inTemplate = env.scope()->hasTemplateParams();
 
   // lookup scopes in the name, if any
@@ -1210,8 +1210,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     }
   }
 
-  tcheckIntoCompound(env, dflags, ct, inTemplate,
-                     true /*checkMethodBodies*/);
+  tcheckIntoCompound(env, dflags, ct, true /*checkMethodBodies*/);
   
   if (prevWasForward && ct->isTemplate()) {
     // we might have had forward declarations of template
@@ -1229,7 +1228,6 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 void TS_classSpec::tcheckIntoCompound(
   Env &env, DeclFlags dflags,    // as in tcheck
   CompoundType *ct,              // compound into which we're putting declarations
-  bool inTemplate,               // true if this is a template class (uninstantiated)
   bool checkMethodBodies)        // check the method bodies too
 {
   // should have set the annotation by now
@@ -1242,25 +1240,12 @@ void TS_classSpec::tcheckIntoCompound(
     containingClass = NULL;
   }
 
-  // FIX: how can this fail?
-  //    xassert(inTemplate == !!ct->templateInfo());
-  //
-  // update: this can fail because in Env::instantiateTemplate() Scott
-  // decided to call this function with inTemplate == false; not sure
-  // why, but I'll bet I shouldn't change it, so I'll weaken the
-  // assertion.
-  //
-  // sm: 'inTemplate' means this is an uninstantated template; it is set
-  // to false when processing an instantiation, because then there are no
-  // holes, hence it is not a "template"
-  if (inTemplate) xassert(ct->templateInfo());
-
   // let me map from compounds to their AST definition nodes
   ct->syntax = this;
 
   // only report serious errors while checking the class,
   // in the absence of actual template arguments
-  DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
+  DisambiguateOnlyTemp disOnly(env, ct->isTemplate() /*disOnly*/);
 
   // we should not be in an ambiguous context, because that would screw
   // up the environment modifications; if this fails, it could be that

@@ -180,7 +180,6 @@ class TypeSpecifier {
        public CompoundType *ctype = NULL;
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,
-         bool inTemplate,
          bool checkMethodBodies);
        private void tcheckFunctionBodies(Env &env);
      }

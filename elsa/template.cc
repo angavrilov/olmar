@@ -2115,8 +2115,7 @@ void Env::instantiateClassBody(Variable *inst)
   instCT->syntax->name->tcheck(*this);
   instCT->syntax->ctype = instCT;
   instCT->syntax->tcheckIntoCompound(*this, DF_NONE, instCT,
-                                     false /*inTemplate*/,
-                                     false /*tcheckMethodBodies*/);
+                                     false /*checkMethodBodies*/);
 
   // Now, we've just tchecked the clone in an environment that
   // makes all the type variables map to concrete types, so we
