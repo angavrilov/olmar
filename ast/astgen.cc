@@ -1283,6 +1283,17 @@ void mergeClass(ASTClass *base, ASTClass *ext)
 }
 
 
+void mergeEnum(TF_enum *base, TF_enum *ext)
+{
+  xassert(base->name.equals(ext->name));
+  trace("merge") << "merging enum: " << ext->name << endl;
+
+  while (ext->enumerators.isNotEmpty()) {
+    base->enumerators.append(ext->enumerators.removeFirst());
+  }
+}
+
+
 ASTClass *findClass(TF_class *base, char const *name)
 {
   FOREACH_ASTLIST_NC(ASTClass, base->ctors, iter) {
@@ -1334,6 +1345,18 @@ TF_class *findSuperclass(ASTSpecFile *base, char const *name)
   return NULL;    // not found
 }
 
+TF_enum *findEnum(ASTSpecFile *base, char const *name)
+{
+  FOREACH_ASTLIST_NC(ToplevelForm, base->forms, iter) {
+    ToplevelForm *tf = iter.data();
+    if (tf->isTF_enum() &&
+        tf->asTF_enum()->name.equals(name)) {
+      return tf->asTF_enum();
+    }
+  }
+  return NULL;    // not found
+}
+
 void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 {
   // for each toplevel form, either add it or merge it
@@ -1341,7 +1364,40 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
   while (ext->forms.isNotEmpty()) {
     ToplevelForm * /*owner*/ tf = ext->forms.removeFirst();
 
-    if (!tf->isTF_class()) {
+    if (tf->isTF_class()) {
+      TF_class *c = tf->asTF_class();
+
+      // is the superclass name something present in the
+      // base specification?
+      TF_class *prev = findSuperclass(base, c->super->name);
+      if (prev) {
+        mergeSuperclass(prev, c);
+        delete c;
+      }
+      else {
+        // add the whole class
+        trace("merge") << "adding new superclass: " << c->super->name << endl;
+        base->forms.append(c);
+      }
+    }
+
+    else if (tf->isTF_enum()) {
+      TF_enum *e = tf->asTF_enum();
+
+      // is the enum present in the base?
+      TF_enum *prev = findEnum(base, e->name);
+      if (prev) {
+        mergeEnum(prev, e);
+        delete e;
+      }
+      else {
+        // add the whole enum
+        trace("merge") << "adding new enum: " << e->name << endl;
+        base->forms.append(e);
+      }
+    }
+
+    else {
       // verbatim or option: just add it directly
 
       if (ct == 0) {
@@ -1366,24 +1422,8 @@ void mergeExtension(ASTSpecFile *base, ASTSpecFile *ext)
 
       else {
         // normal processing: append everything
-        trace("merge") << "appending extension verbatim section\n";
+        trace("merge") << "appending extension verbatim/option section\n";
         base->forms.append(tf);
-      }
-    }
-    else {
-      TF_class *c = tf->asTF_class();
-
-      // is the superclass name something present in the
-      // base specification?
-      TF_class *prev = findSuperclass(base, c->super->name);
-      if (prev) {
-        mergeSuperclass(prev, c);
-        delete c;
-      }
-      else {
-        // add the whole class
-        trace("merge") << "adding new superclass: " << c->super->name << endl;
-        base->forms.append(c);
       }
     }
 
