@@ -4,6 +4,7 @@
 #include "ptreeact.h"        // this module
 #include "ptreenode.h"       // PTreeNode
 #include "parsetables.h"     // ParseTables
+#include "trace.h"           // trace
 
 
 // ------------------- ParseTreeLexer -------------------
@@ -67,13 +68,13 @@ STATICDEF SemanticValue ParseTreeActions::reduce(
 
   // make a bare PTreeNode, labeled with the LHS nonterminal name
   PTreeNode *ret = new PTreeNode(ths->underlying->nonterminalName(info.lhsIndex));
-  
+
   // add the children
   for (int i=0; i < info.rhsLen; i++) {
     ret->children[i] = (PTreeNode*)svals[i];
   }
   ret->numChildren = info.rhsLen;
-  
+
   return (SemanticValue)ret;
 }
 
@@ -82,6 +83,8 @@ SemanticValue ParseTreeActions::mergeAlternativeParses(
   int ntIndex, SemanticValue left, SemanticValue right
   SOURCELOCARG( SourceLoc loc ) )
 {
+  trace("ptreeactMerge") << underlying->nonterminalName(ntIndex) << "\n";
+
   // link the ambiguities together in the usual way
   PTreeNode *L = (PTreeNode*)left;
   PTreeNode *R = (PTreeNode*)right;
