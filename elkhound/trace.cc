@@ -4,6 +4,7 @@
 #include "trace.h"     // this module
 #include "objlist.h"   // List
 #include "str.h"       // string
+#include "strtokp.h"   // StrtokParse
 
 #include <fstream.h>   // ofstream
 
@@ -40,6 +41,7 @@ void traceAddSys(char const *sysName)
   tracers.prepend(new string(sysName));
 }
 
+
 void traceRemoveSys(char const *sysName)
 {
   init();
@@ -52,6 +54,7 @@ void traceRemoveSys(char const *sysName)
   }
   xfailure("traceRemoveSys: tried to remove system that isn't there");
 }
+
 
 bool tracingSys(char const *sysName)
 {
@@ -83,4 +86,27 @@ ostream &trace(char const *sysName)
 void trstr(char const *sysName, char const *traceString)
 {
   trace(sysName) << traceString << endl;
+}
+
+
+void traceAddMultiSys(char const *systemNames)
+{
+  StrtokParse tok(systemNames, ",");
+  loopi(tok) {
+    traceAddSys(tok[i]);
+  }
+}
+
+
+bool traceProcessArg(int &argc, char **&argv)
+{
+  if (argc >= 3  &&  0==strcmp(argv[1], "-tr")) {
+    traceAddMultiSys(argv[2]);
+    argc--;
+    argv++;
+    return true;
+  }
+  else {
+    return false;
+  }
 }

@@ -12,3 +12,6 @@ bisongr.tab.c
 bisongr.tab.h
 bisongr.y
 ctrim.gr
+lexer1yy.cc
+lexer1
+lexer2

@@ -16,6 +16,7 @@ void traceRemoveSys(char const *sysName);
 // see if a subsystem is among those to trace
 bool tracingSys(char const *sysName);
 
+
 // trace; if the named system is active, this yields cout (after
 // sending a little output to identify the system); if not, it
 // yields an ostream attached to /dev/null; when using this
@@ -25,6 +26,15 @@ ostream &trace(char const *sysName);
 // give an entire string to trace; do *not* put a newline in it
 // (the tracer will do that)
 void trstr(char const *sysName, char const *traceString);
+
+
+// add one or more subsystems, separated by commas
+void traceAddMultiSys(char const *systemNames);
+
+// if the first argument is a tracing directive, handle it, modify
+// argc and argv modified to effectively remove it, and return true
+// (argv[0] is assumed to be ignored by everything)
+bool traceProcessArg(int &argc, char **&argv);
 
 
 #endif // __TRACE_H

@@ -121,6 +121,7 @@
 #include "strtokp.h"     // StrtokParse
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
+#include "strutil.h"     // replace
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
