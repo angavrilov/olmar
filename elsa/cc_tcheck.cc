@@ -677,13 +677,12 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
     // member, not one that was inherited
     Variable *v =
       enclosing->lookupVariable(name->getName(), env, LF_INNER_ONLY);
-    if (v) {
+    if (v && !v->hasFlag(DF_TYPEDEF)) {     // typedef -> fall down to next area (in/t0390.cc)
       // only "nonstatic data member"
-      if (v->hasFlag(DF_TYPEDEF) ||
-          v->hasFlag(DF_STATIC) ||
+      if (v->hasFlag(DF_STATIC) ||
           v->type->isFunctionType()) {
-        env.error("you can't initialize types, nor static data, "
-                  "nor member functions, in a ctor member init list");
+        env.error("you can't initialize static data "
+                  "nor member functions in a ctor member init list");
         return;
       }
 
