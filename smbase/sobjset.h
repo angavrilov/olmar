@@ -1,5 +1,6 @@
 // sobjset.h            see license.txt for copyright and terms of use
-// non-owning set of objects implemented with a hashtable
+// non-owning set of objects (identified by address),
+// implemented with a hashtable
 
 #ifndef SOBJSET_H
 #define SOBJSET_H

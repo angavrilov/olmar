@@ -108,6 +108,7 @@ OBJS := \
   mysig.o \
   nonport.o \
   point.o \
+  pprint.o \
   smregexp.o \
   srcloc.o \
   str.o \
@@ -137,14 +138,14 @@ $(THIS): $(OBJS)
 TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
-         srcloc hashline gprintf smregexp vptrmap vdtllist
+         srcloc hashline gprintf smregexp vptrmap vdtllist pprint
 tests: $(TESTS)
 
 # command to compile and link
 TESTCC  := $(CC) -g -Wall
 TESTCXX := $(CXX) -g -Wall
 
-# this goes at the end of most commands which builds a test binary
+# this goes at the end of most commands that build a test binary
 TESTFLAGS := $(CCFLAGS) $(LDFLAGS)
 
 # this one is explicitly *not* linked against $(THIS)
@@ -227,6 +228,9 @@ smregexp: smregexp.cc $(THIS)
 vptrmap: vptrmap.cc $(THIS)
 	$(TESTCXX) -o $@ -DTEST_VPTRMAP vptrmap.cc $(TESTFLAGS)
 
+pprint: pprint.cc $(THIS)
+	$(TESTCXX) -o $@ -DTEST_PPRINT pprint.cc $(TESTFLAGS)
+
 check: $(TESTS)
 	./nonport
 	./voidlist
@@ -252,6 +256,7 @@ check: $(TESTS)
 	./gprintf
 	./smregexp
 	./vptrmap
+	./pprint
 	@echo
 	@echo "make check: all the tests PASSED"
 

@@ -44,3 +44,5 @@ testcout
 gprintf
 smregexp
 vptrmap
+pprint
+vdtllist

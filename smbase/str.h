@@ -125,7 +125,7 @@ public:	       // funcs
 class stringBuilder : public string {
 protected:
   enum { EXTRA_SPACE = 30 };    // extra space allocated in some situations
-  char *end;          // current end of the string (points to the null)
+  char *end;          // current end of the string (points to the NUL character)
   int size;           // amount of space (in bytes) allocated starting at 's'
 
 protected:
@@ -160,6 +160,10 @@ public:
   // it's not really the intent of this class, though
   void adjustend(char* newend);
 
+  // make the string be the empty string, but don't change the
+  // allocated space
+  void clear() { adjustend(s); }
+
   // concatenation, which is the purpose of this class
   stringBuilder& operator&= (char const *tail);
 
@@ -171,7 +175,7 @@ public:
   stringBuilder& indent(int amt);
 
   // sort of a mixture of Java compositing and C++ i/o strstream
-  // (need the coercion version (like int) because otherwise gcc
+  // (need the coercion versions (like int) because otherwise gcc
   // spews mountains of f-ing useless warnings)
   stringBuilder& operator << (char const *text) { return operator&=(text); }
   stringBuilder& operator << (char c);
