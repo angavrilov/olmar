@@ -6,8 +6,9 @@
 class ['a] tObjectPool (allocFunc: unit -> 'a) =
 object (self)
   (* implementation is just an array of elements that have been made
-   * available for re-use *)
-  inherit ['a] Arraystack.tArrayStack (allocFunc ())
+   * available for re-use; this should be regarded as private
+   * inheritance, though I don't see how to do that in OCaml *)
+  inherit (*PRIVATE*) ['a] Arraystack.tArrayStack (allocFunc ())
 
   (* ---- funcs ---- *)
   (* retrieve an object ready to be used; might return a pool element,

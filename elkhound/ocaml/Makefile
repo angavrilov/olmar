@@ -1,6 +1,6 @@
 # Makefile
 
-tmp: tobjpool
+#tmp: tobjpool
 
 all: tobjpool main
 
@@ -8,19 +8,30 @@ all: tobjpool main
 	ocamlc -c -g $*.ml
 	@ocamldep $*.ml > $*.d
 
-# dependencies
-ALL_MODULES = \
+# NOTE: Module order is important!  OCaml module dependencies cannot
+# be cyclic, and the order presented must respect the dependency order.
+
+TOBJPOOL_MODULES = \
   arraystack.cmo \
   objpool.cmo \
-  tobjpool.cmo \
+  tobjpool.cmo
+tobjpool: $(TOBJPOOL_MODULES)
+	ocamlc -o $@ -g $^
+
+MAIN_MODULES = \
+  useract.cmo \
+  lexerint.cmo \
+  parsetables.cmo \
+  lrparse.cmo \
   main.cmo
+main: $(MAIN_MODULES)
+	ocamlc -o $@ -g $^
+
+# dependencies
+ALL_MODULES = \
+  $(TOBJPOOL_MODULES) \
+  $(MAIN_MODULES)
 -include $(ALL_MODULES:.cmo=.d)
 
-tobjpool: arraystack.cmo objpool.cmo tobjpool.cmo
-	ocamlc -o $@ -g $^
-
-main: main.cmo
-	ocamlc -o $@ -g $^
-
 clean:
-	rm -f *.cmo *.cmi main
+	rm -f *.cmo *.cmi main tobjpool

@@ -1,6 +1,13 @@
 (* lrparse.ml *)
 (* deterministic LALR(1) parser *)
 
+open Lexerint       (* tLexerInterface *)
+open Parsetables    (* actionTable, etc. *)
+open Useract        (* reductionAction *)
+
+
+type tStateId = int
+
 let stateStack : tStateId array ref = ref (Array.make 10 0)
 let svalStack : Obj.t array ref = ref (Array.make 10 (Obj.repr 0))
 let stackLen : int ref = ref 0
@@ -145,3 +152,4 @@ begin
 end
 
 
+(* EOF *)
