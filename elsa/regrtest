@@ -1007,6 +1007,7 @@ if $use_gnu; then
   failparse gnu/k0001.cc "({...}) cannot be empty"
   testparse gnu/k0002.cc #"__builtin_va_*"
   failparse gnu/k0003.cc "gcc 3.4 __builtin_* math functions"
+  failparse gnu/k0004.cc "operator <?"
 
 else # tests that only pass when not in gnu mode
   testparse t0228b.cc
