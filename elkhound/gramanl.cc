@@ -54,7 +54,7 @@ DottedProduction::DottedProduction(DottedProduction const &obj)
 }
 
 
-DottedProduction::DottedProduction(Grammar const &g)
+DottedProduction::DottedProduction(GrammarAnalysis const &g)
 {
   init(g.numTerminals());
 }
@@ -75,7 +75,7 @@ void DottedProduction::init(int numTerms)
 }
 
 
-DottedProduction::DottedProduction(Grammar const &g, Production *p, int d)
+DottedProduction::DottedProduction(GrammarAnalysis const &g, Production *p, int d)
 {
   init(g.numTerminals());
   setProdAndDot(p, d);
@@ -106,7 +106,7 @@ void DottedProduction::xfer(Flatten &flat)
 }
 
 
-void DottedProduction::xferSerfs(Flatten &flat, Grammar &g)
+void DottedProduction::xferSerfs(Flatten &flat, GrammarAnalysis &g)
 {
   xferSerfPtrToList(flat, prod, g.productions);
                            
@@ -1218,7 +1218,7 @@ bool GrammarAnalysis::addFollow(Nonterminal *NT, Terminal *term)
 void GrammarAnalysis::computeIndexedNonterms()
 {
   // map: ntIndex -> Nonterminal*
-  numNonterms = numNonterminals();
+  numNonterms = Grammar::numNonterminals();
   indexedNonterms = new Nonterminal* [numNonterms];
 
   // fill it
@@ -1239,7 +1239,7 @@ void GrammarAnalysis::computeIndexedTerms()
   // map: termIndex -> Terminal*
   // the ids have already been assigned; but I'm going to continue
   // to insist on a contiguous space starting at 0
-  numTerms = numTerminals();
+  numTerms = Grammar::numTerminals();
   indexedTerms = new Terminal* [numTerms];
   loopi(numTerminals()) {
     indexedTerms[i] = NULL;      // used to track id duplication
@@ -1740,18 +1740,19 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     itemSet.print(trs, *this);
   }
 
-  // hashtable, list of items still yet to close
+  // hashtable, list of items still yet to close; items are
+  // simultaneously in both the hash and the list, or not in either
   OwnerHashTable<DottedProduction> workhash(
     &DottedProduction::dataToKey,
     &DottedProduction::hash,
-    &DottedProduction::dpEqual);
+    &DottedProduction::dpEqual, 13);
   SDProductionList worklist;
 
   // and another for the items we've finished
   OwnerHashTable<DottedProduction> finished(
     &DottedProduction::dataToKey,
     &DottedProduction::hash,
-    &DottedProduction::dpEqual);
+    &DottedProduction::dpEqual, 13);
 
   // put all the nonkernels we have into 'finished'
   while (itemSet.nonkernelItems.isNotEmpty()) {
@@ -1765,7 +1766,9 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
   }
 
   while (worklist.isNotEmpty()) {
-    xassert(worklist.count() == workhash.getNumEntries());
+    #ifdef EXTRA_CHECKS
+      xassert(worklist.count() == workhash.getNumEntries());
+    #endif
 
     // pull the first production
     DottedProduction *dprod = worklist.removeFirst();
@@ -2223,6 +2226,219 @@ STATICDEF bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const 
 }
 
 
+#ifdef HASHLRITEMSETS
+// keys and data are the same
+STATICDEF void const *ItemSet::dataToKey(ItemSet *data)
+{
+  return data;
+}
+
+STATICDEF unsigned ItemSet::hash(void const *key)
+{
+  ItemSet const *is = (ItemSet const*)key;
+  unsigned crc = is->kernelItemsCRC;
+  return HashTable::lcprngHashFn((void*)crc);
+}
+
+STATICDEF bool ItemSet::equalKey(void const *key1, void const *key2)
+{
+  ItemSet const *is1 = (ItemSet const*)key1;
+  ItemSet const *is2 = (ItemSet const*)key2;
+  
+  return *is1 == *is2;
+}
+
+
+// [ASU] fig 4.34, p.224
+// puts the finished parse tables into 'itemSetsDone'
+void GrammarAnalysis::constructLRItemSets()
+{
+  // item sets yet to be processed; item sets are simultaneously in
+  // both the hash and the list, or not in either
+  OwnerHashTable<ItemSet> itemSetsPending(
+    &ItemSet::dataToKey,
+    &ItemSet::hash,
+    &ItemSet::equalKey);
+  SObjList<ItemSet> pendingList;
+
+  // item sets with all outgoing links processed
+  OwnerHashTable<ItemSet> itemSetsDone(
+    &ItemSet::dataToKey,
+    &ItemSet::hash,
+    &ItemSet::equalKey);
+
+  // start by constructing closure of first production
+  // (basically assumes first production has start symbol
+  // on LHS, and no other productions have the start symbol
+  // on LHS)
+  {
+    ItemSet *is = makeItemSet();              // (owner)
+    startState = is;
+    DottedProduction *firstDP
+      = new DottedProduction(*this, productions.first(), 0 /*dot at left*/);
+    //firstDP->laAdd(0 /*eof token id*/);
+    is->addKernelItem(firstDP);
+    is->sortKernelItems();                    // redundant, but can't hurt
+    itemSetClosure(*is);                      // calls changedItems internally
+
+    // this makes the initial pending itemSet
+    itemSetsPending.add(is, is);              // (ownership transfer)
+    pendingList.prepend(is);
+  }
+
+  // for each pending item set
+  while (pendingList.isNotEmpty()) {
+    ItemSet *itemSet = pendingList.removeFirst();      // dequeue (owner)
+    itemSetsPending.remove(itemSet);                   // (ownership transfer)
+
+    // put it in the done set; note that we must do this *before*
+    // the processing below, to properly handle self-loops
+    itemSetsDone.add(itemSet, itemSet);                // (ownership transfer; 'itemSet' becomes serf)
+
+    SDProductionList items;
+    itemSet->getAllItems(items);
+
+    trace("lrsets") << "state " << itemSet->id
+                    << ", " << items.count() << " items total"
+                    << endl;
+
+    // for each production in the item set where the
+    // dot is not at the right end
+    SFOREACH_DOTTEDPRODUCTION(items, dprodIter) {
+      DottedProduction const *dprod = dprodIter.data();
+      if (dprod->isDotAtEnd()) continue;
+
+      {
+        ostream &tr = trace("lrsets");
+        tr << "considering item ";
+        dprod->print(tr, *this);
+        tr << endl;
+      }
+
+      // get the symbol 'sym' after the dot (next to be shifted)
+      Symbol const *sym = dprod->symbolAfterDotC();
+
+      // in LALR(1), two items might have different lookaheads; more
+      // likely, re-expansions needs to propagate lookahead that
+      // wasn't present from an earlier expansion
+      if (!LALR1) {
+        // if we already have a transition for this symbol,
+        // there's nothing more to be done
+        if (itemSet->transitionC(sym) != NULL) {
+          continue;
+        }
+      }
+
+      // compute the itemSet produced by moving the dot
+      // across 'sym'; but don't take closure yet since
+      // we first want to check whether it is already present
+      ItemSet *withDotMoved = moveDotNoClosure(itemSet, sym);
+
+      // see if we already have it, in either set
+      ItemSet *already = itemSetsPending.get(withDotMoved);
+      bool inDoneList = false;
+      if (already == NULL) {
+        already = itemSetsDone.get(withDotMoved);
+        inDoneList = true;
+      }
+
+      // have it?
+      if (already != NULL) {
+        // we already have a state with at least equal kernel items, not
+        // considering their lookahead sets; so we have to merge the
+        // computed lookaheads with those in 'already'
+        if (withDotMoved->mergeLookaheadsInto(*already)) {
+          trace("lrsets")
+            << "from state " << itemSet->id << ", found that the transition "
+            << "on " << sym->name << " yielded a state similar to "
+            << already->id << ", but with different lookahead" << endl;
+
+          // this changed 'already'; recompute its closure
+          itemSetClosure(*already);
+
+          // and reconsider all of the states reachable from it
+          if (!inDoneList) {
+            // itemSetsPending contains 'already', it will be processed later
+          }
+          else {
+            // we thought we were done with this
+            #ifdef EXTRA_CHECKS
+              xassert(itemSetsDone.contains(already));
+            #endif
+
+            // but we're not: move it back to the 'pending' list
+            itemSetsDone.remove(already);
+            itemSetsPending.add(already, already);
+            pendingList.prepend(already);
+          }
+        }
+
+        // we already have it, so throw away one we made
+        disposeItemSet(withDotMoved);     // deletes 'withDotMoved'
+
+        // and use existing one for setting the transition function
+        withDotMoved = already;
+      }
+      else {
+        // we don't already have it; finish it by computing its closure
+        itemSetClosure(*withDotMoved);
+
+        // then add it to 'pending'
+        itemSetsPending.add(withDotMoved, withDotMoved);
+        pendingList.prepend(withDotMoved);
+      }
+
+      // setup the transition function
+      itemSet->setTransition(sym, withDotMoved);
+
+    } // for each item
+  } // for each item set
+
+  // we're done constructing item sets, so move all of them out
+  // of the 'itemSetsDone' hash and into 'this->itemSets'
+  try {
+    for (OwnerHashTableIter<ItemSet> iter(itemSetsDone);
+         !iter.isDone(); iter.adv()) {
+      itemSets.prepend(iter.data());
+    }
+    itemSetsDone.disownAndForgetAll();
+  }
+  catch (...) {
+    breaker();
+    itemSetsDone.disownAndForgetAll();
+    throw;
+  }
+
+  // since we sometimes consider a state more than once, the
+  // states end up out of order; put them back in order
+  itemSets.mergeSort(ItemSet::diffById);
+
+
+  traceProgress(1) << "done with LR sets: " << itemSets.count()
+                   << " states\n";
+
+
+  // do the BFS now, since we want to print the sample inputs
+  // in the loop that follows
+  traceProgress(1) << "BFS tree on transition graph...\n";
+  computeBFSTree();
+
+  if (tracingSys("itemset-graph")) {
+    // write this info to a graph applet file
+    ofstream out("lrsets.g");
+    if (!out) {
+      xsyserror("ofstream open");
+    }
+    out << "# lr sets in graph form\n";
+
+    FOREACH_OBJLIST(ItemSet, itemSets, itemSet) {
+      itemSet.data()->writeGraph(out, *this);
+    }
+  }
+}
+
+#else    // above:hashtable  below:linked list
+
 // [ASU] fig 4.34, p.224
 // puts the finished parse tables into 'itemSetsDone'
 void GrammarAnalysis::constructLRItemSets()
@@ -2379,6 +2595,8 @@ void GrammarAnalysis::constructLRItemSets()
     }
   }
 }
+#endif // HASHLRITEMSETS
+
 
 // print each item set
 void GrammarAnalysis::printItemSets(ostream &os) const

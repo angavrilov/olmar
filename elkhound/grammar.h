@@ -305,7 +305,7 @@ public:	    // funcs
 
   // length *not* including emptySymbol, if present
   // UPDATE: I'm now disallowing emptySymbol from ever appearing in 'right'
-  int rhsLength() const;
+  int rhsLength() const { return rhsLen; }
 
   // number of nonterminals on RHS
   int numRHSNonterminals() const;
@@ -319,7 +319,7 @@ public:	    // funcs
   // append a RHS symbol
   void append(Symbol *sym, LocString const &tag);
 
-  // call this when production is built, so it can compute dprods
+  // call this when production is built, so it can compute annotations
   // (this is called by GrammarAnalysis::initializeAuxData, from
   // inside runAnalyses)
   void finished();
@@ -355,11 +355,8 @@ public:	    // funcs
   string toStringMore(bool printCode) const;
 
 // ------ annotation ------
-#if 0
 private:    // data
-  int numDotPlaces;             // after finished(): equals rhsLength()+1
-  DottedProduction *dprods;     // (owner) array of dotted productions
-#endif // 0
+  int rhsLen;                   // right.count()
 
 public:     // data
   int prodIndex;                // unique production id

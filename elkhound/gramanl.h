@@ -16,10 +16,11 @@
 #ifndef __GRAMANL_H
 #define __GRAMANL_H
 
+#define HASHCLOSURE     // use a hashtable for item set closure
+#define HASHLRITEMSETS  // use a hashtable for lr item set construction
+
 #include "grammar.h"    // Grammar and friends
-#ifdef HASHCLOSURE
-  #include "ohashtbl.h"   // OwnerHashTable
-#endif /* HASHCLOSURE */
+#include "ohashtbl.h"   // OwnerHashTable
 
 // forward decls
 class Bit2d;            // bit2d.h
@@ -66,13 +67,13 @@ public:	    // funcs
 
   // need the grammar passed during creation so we know how big
   // to make 'lookahead'
-  DottedProduction(Grammar const &g);       // for later filling-in
-  DottedProduction(Grammar const &g, Production *p, int d);
+  DottedProduction(GrammarAnalysis const &g);       // for later filling-in
+  DottedProduction(GrammarAnalysis const &g, Production *p, int d);
   ~DottedProduction();
 
   DottedProduction(Flatten&);
   void xfer(Flatten &flat);
-  void xferSerfs(Flatten &flat, Grammar &g);
+  void xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
   // simple queries
   Production *getProd() const { return prod; }
@@ -276,6 +277,11 @@ public:     // funcs
   // remove the the shift on 'sym'
   void removeShift(Terminal const *sym);
 
+  // ------ hashtable stuff --------
+  static void const *dataToKey(ItemSet *data);
+  static unsigned hash(void const *key);
+  static bool equalKey(void const *key1, void const *key2);
+
   // ---- debugging ----
   void writeGraph(ostream &os, GrammarAnalysis const &g) const;
   void print(ostream &os, GrammarAnalysis const &g) const;
@@ -293,6 +299,7 @@ protected:  // data
   // index the symbols on their integer ids
   Nonterminal **indexedNonterms;        // (owner -> serfs) ntIndex -> Nonterminal
   Terminal **indexedTerms;              // (owner -> serfs) termIndex -> Terminal
+  // numNonterms==Grammar::numNonterminals(), numTerms==Grammar::numTerminals()
   int numNonterms;                      // length of 'indexedNonterms' array
   int numTerms;                         //   "     "         terms       "
 
@@ -421,6 +428,10 @@ public:	    // funcs
 
   ItemSet const *getItemSet(int index) const;
   int numItemSets() const { return nextItemSetId; }
+
+  // faster access to counts
+  int numTerminals() const { return numTerms; }
+  int numNonterminals() const { return numNonterms; }
 
   // binary read/write
   void xfer(Flatten &flat);

@@ -343,6 +343,7 @@ Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
     right(),
     precedence(0),
+    rhsLen(-1),
     prodIndex(-1)
 {}
 
@@ -362,6 +363,7 @@ void Production::xfer(Flatten &flat)
   flat.xferInt(precedence);
 
   flat.xferInt(prodIndex);
+  flat.xferInt(rhsLen);
 }
 
 void Production::xferSerfs(Flatten &flat, Grammar &g)
@@ -383,6 +385,7 @@ void Production::xferSerfs(Flatten &flat, Grammar &g)
 }
 
 
+#if 0   // optimized away, using 'rhsLen' instead
 int Production::rhsLength() const
 {
   if (!right.isEmpty()) {
@@ -393,6 +396,16 @@ int Production::rhsLength() const
 
   return right.count();
 }
+#endif // 0
+
+
+#if 0    // useful for verifying 'finish' is called before rhsLen
+int Production::rhsLength() const
+{
+  xassert(rhsLen != -1);     // otherwise 'finish' wasn't called
+  return rhsLen;
+}
+#endif // 0
 
 
 int Production::numRHSNonterminals() const
@@ -439,11 +452,10 @@ void Production::append(Symbol *sym, LocString const &tag)
 
 void Production::finished()
 {
-  // this used to precompute dotted productions, but they're
-  // now stored by the item sets in gramanl
+  rhsLen = right.count();
 }
 
-                                               
+
 // basically strcmp but without the segfaults when s1 or s2
 // is null; return true if strings are equal
 // update: now that they're StringRef, simple "==" suffices

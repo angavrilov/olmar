@@ -1,10 +1,10 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-temporary: check-makefiles gramanl
+temporary: gramanl
 
 # main targets
-all: check-makefiles ccgr
+all: ccgr
 
 ifeq ($(ocaml), yes)
   mode := --ocaml
@@ -13,15 +13,8 @@ else
 endif
 
 # this target ensures the Makefile is in synch with Makefile.in
-check-makefiles:
-	@if [ Makefile -ot Makefile.in ]; then             \
-          echo "Makefile.in has changed; I will now do:" ; \
-          echo "  % ./configure $(mode) --setupMakefile" ; \
-          ./configure $(mode) --setupMakefile ;            \
-          echo "" ;                                        \
-          echo "Now try running make again" ;              \
-          exit 2 ;                                         \
-        fi
+Makefile: Makefile.in
+	./configure $(mode) --setupMakefile
 
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
@@ -47,7 +40,7 @@ endif
 ccflags += -Werror
 
 # when uncommented, we get profiling info
-#ccflags += -pg
+ccflags += -pg
 
 # optimizer...
 #ccflags += -O2
