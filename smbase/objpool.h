@@ -34,6 +34,9 @@ private:     // data
   // head of the free list; NULL when empty
   T *head;
 
+private:     // funcs
+  void expandPool();
+
 public:      // funcs
   ObjectPool(int rackSize);
   ~ObjectPool();
@@ -42,12 +45,15 @@ public:      // funcs
   // T should have some kind of init method to play the role a
   // constructor ordinarily does; this might cause the pool to
   // expand (but previously allocated objects do *not* move)
-  T *alloc();
+  inline T *alloc();
 
   // return an object to the pool of objects; dealloc internally
   // calls obj->deinit()
-  void dealloc(T *obj);
-  
+  inline void dealloc(T *obj);
+
+  // same as 'dealloc', but with the call to 'deinit'
+  inline void deallocNoDeinit(T *obj);
+
   // available for diagnostic purposes
   int freeObjectsInPool() const;
 };
@@ -71,37 +77,46 @@ ObjectPool<T>::~ObjectPool()
 
 
 template <class T>
-T *ObjectPool<T>::alloc()
+inline T *ObjectPool<T>::alloc()
 {
   if (!head) {
     // need to expand the pool
-    T *rack = new T[rackSize];
-    racks.push(rack);
-
-    // thread new nodes into a free list
-    for (int i=rackSize-1; i>=0; i--) {
-      rack[i].nextInFreeList = head;
-      head = &(rack[i]);
-    }
+    expandPool();
   }
 
   T *ret = head;                     // prepare to return this one
   head = ret->nextInFreeList;        // move to next free node
 
-  ret->nextInFreeList = NULL;        // paranoia
+  #ifndef NDEBUG
+    ret->nextInFreeList = NULL;        // paranoia
+  #endif
 
   return ret;
 }
 
 
+// this is pulled out of 'alloc' so alloc can be inlined
+// without causing excessive object code bloat
 template <class T>
-void ObjectPool<T>::dealloc(T *obj)
+void ObjectPool<T>::expandPool()
 {
-  // call obj's pseudo-dtor (the decision to have dealloc do this is
-  // motivated by not wanting to have to remember to call deinit
-  // before dealloc)
-  obj->deinit();
+  T *rack = new T[rackSize];
+  racks.push(rack);
 
+  // thread new nodes into a free list
+  for (int i=rackSize-1; i>=0; i--) {
+    rack[i].nextInFreeList = head;
+    head = &(rack[i]);
+  }
+}
+
+
+// usually I want the convenience of dealloc calling deinit; however,
+// in the inner loop of a performance-critical section of code, I
+// want finer control
+template <class T>
+inline void ObjectPool<T>::deallocNoDeinit(T *obj)
+{
   // I don't check that nextInFreeList == NULL, despite having set it
   // that way in alloc(), because I want to allow for users to make
   // nextInFreeList share storage (e.g. with a union) with some other
@@ -110,6 +125,18 @@ void ObjectPool<T>::dealloc(T *obj)
   // prepend the object to the free list; will be next yielded
   obj->nextInFreeList = head;
   head = obj;
+}
+
+
+template <class T>
+inline void ObjectPool<T>::dealloc(T *obj)
+{
+  // call obj's pseudo-dtor (the decision to have dealloc do this is
+  // motivated by not wanting to have to remember to call deinit
+  // before dealloc)
+  obj->deinit();
+
+  deallocNoDeinit(obj);
 }
 
 

@@ -23,7 +23,9 @@ private:     // data
   int sz;                 // # allocated entries in 'arr'
 
 private:     // funcs
-  void bc(int i) const;   // bounds-check an index
+  void bc(int i) const    // bounds-check an index
+    { xassert((unsigned)i < (unsigned)sz); }
+  void eidLoop(int index);
 
 public:      // funcs
   GrowArray(int initSz);
@@ -46,12 +48,13 @@ public:      // funcs
 
   // grab a read-only pointer to the raw array
   T const *getArray() const { return arr; }
-  
+
   // make sure the given index is valid; if this requires growing,
   // do so by doubling the size of the array (repeatedly, if
   // necessary)
-  void ensureIndexDoubler(int index);
-  
+  void ensureIndexDoubler(int index)
+    { if (sz-1 < index) { eidLoop(index); } }
+
   // set an element, using the doubler if necessary
   void setIndexDoubler(int index, T const &value)
     { ensureIndexDoubler(index); arr[index] = value; }
@@ -77,13 +80,6 @@ GrowArray<T>::~GrowArray()
   if (arr) {
     delete[] arr;
   }
-}
-
-
-template <class T>
-void GrowArray<T>::bc(int i) const
-{
-  xassert((unsigned)i < (unsigned)sz);
 }
 
 
@@ -117,9 +113,11 @@ void GrowArray<T>::setSize(int newSz)
 }
 
 
+// this used to be ensureIndexDoubler's implementation, but
+// I wanted the very first check to be inlined
 template <class T>
-void GrowArray<T>::ensureIndexDoubler(int index)
-{                  
+void GrowArray<T>::eidLoop(int index)
+{
   if (sz-1 >= index) {
     return;
   }

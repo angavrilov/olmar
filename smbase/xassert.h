@@ -19,9 +19,9 @@ void x_assert_fail(char const *cond, char const *file, int line) NORETURN;
 
 // here's a version which will turn off with ordinary NDEBUG
 #if !defined(NDEBUG)
-  #define xassert_debug(cond) xassert(cond)
+  #define xassertdb(cond) xassert(cond)
 #else
-  #define xassert_debug(cond) ((void)0)
+  #define xassertdb(cond) ((void)0)
 #endif
 
 // call when state is known to be bad; will *not* return (ideal
