@@ -6,8 +6,10 @@
 #include "trace.h"          // traceProgress
 #include "crc.h"            // crc32
 #include "emitcode.h"       // EmitCode
+#include "bit2d.h"          // Bit2d
 
 #include <string.h>         // memset
+#include <stdlib.h>         // qsort
 
 
 ParseTables::ParseTables(int t, int nt, int s, int p, StateId start, int final)
@@ -19,7 +21,7 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 {
   owning = true;
 
-  numTerms = t;
+  numTerms = actionCols = t;
   numNonterms = nt;
   numStates = s;
   numProds = p;
@@ -44,9 +46,12 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
             
   // # of bytes, but rounded up to nearest 32-bit boundary
   errorBitsRowSize = ((numTerms+31) >> 5) * 4;
+                                       
+  // no compressed info
   uniqueErrorRows = 0;
-  errorBits = NULL;                    // not computed yet
+  errorBits = NULL;
   errorBitsPointers = NULL;
+  actionIndexMap = NULL;
 }
 
 
@@ -67,10 +72,13 @@ ParseTables::~ParseTables()
     if (errorBits) {
       delete[] errorBits;
     }
+    if (actionIndexMap) {
+      delete[] actionIndexMap;
+    }
   }
   
+  // this one is always owned
   if (errorBitsPointers) {
-    // this one is always owned
     delete[] errorBitsPointers;
   }
 }
@@ -224,7 +232,10 @@ void ParseTables::computeErrorBits()
   // find and set the error bits
   fillInErrorBits(true /*setPointers*/);
 
-  // compute which rows are identical
+  // compute which rows are identical; I only compress the rows (and
+  // not the columns) because I can fold the former's compression into
+  // the errorBitsPointers[] access, whereas the latter would require
+  // yet another table
   int *compressed = new int[numStates];   // row -> new location in errorBits[]
   uniqueErrorRows = 0;
   int s;
@@ -281,6 +292,219 @@ void ParseTables::fillInErrorBits(bool setPointers)
   }
 }
 
+
+void ParseTables::mergeActionColumns()
+{
+  traceProgress() << "merging action columns\n";
+
+  // can only do this if we've already pulled out the errors
+  xassert(errorBits);
+
+  // for now I assume we don't have a map yet
+  xassert(!actionIndexMap);
+
+  // compute graph of conflicting 'action' columns
+  // (will be symmetric)
+  Bit2d graph(point(numTerms, numTerms));
+  graph.setall(0);
+
+  // fill it in
+  for (int t1=0; t1 < numTerms; t1++) {
+    for (int t2=0; t2 < t1; t2++) {
+      // does column 't1' conflict with column 't2'?
+      for (int s=0; s < numStates; s++) {
+        ActionEntry a1 = actionEntry(s, t1);
+        ActionEntry a2 = actionEntry(s, t2);
+
+        if (isErrorAction(a1) ||
+            isErrorAction(a2) ||
+            a1 == a2) {
+          // no problem
+        }
+        else {
+          // conflict!
+          graph.set(point(t1, t2));
+          graph.set(point(t2, t1));
+          break;
+        }
+      }
+    }
+  }
+  
+  // color the graph
+  Array<int> color(numTerms);      // terminal -> color
+  int numColors = colorTheGraph(color, graph);
+  
+  // build a new, compressed action table
+  ActionEntry *newTable = new ActionEntry[numStates * numColors];
+  memset(newTable, 0, sizeof(newTable[0]) * numStates * numColors);
+  
+  // merge columns in 'actionTable' into those in 'newTable' 
+  // according to the 'color' map
+  actionIndexMap = new TermIndex[numTerms];
+  for (int t=0; t<numTerms; t++) {
+    int c = color[t];
+
+    // merge actionTable[t] into newTable[c]
+    for (int s=0; s<numStates; s++) {
+      ActionEntry &dest = newTable[s*numColors + c];
+
+      ActionEntry src = actionEntry(s, t);
+      if (!isErrorAction(src)) {
+        // make sure there's no conflict (otherwise the graph
+        // coloring algorithm screwed up)
+        xassert(isErrorAction(dest) ||
+                dest == src);
+
+        // merge the entry
+        dest = src;
+      }
+    }
+
+    // fill in the action index map
+    TermIndex ti = (TermIndex)c;
+    xassert(ti == c);     // otherwise value truncation happened
+    actionIndexMap[t] = c;
+  }
+
+  trace("compression") 
+    << "action table: from " << (actionTableSize() * sizeof(ActionEntry))
+    << " down to " << (numStates * numColors * sizeof(ActionEntry))
+    << " bytes\n";
+
+  // replace the existing table with the compressed one
+  delete[] actionTable;
+  actionTable = newTable;
+  actionCols = numColors;
+}
+
+
+static int intCompare(void const *left, void const *right)
+{
+  return *((int const*)left) - *((int const*)right);
+}
+
+int ParseTables::colorTheGraph(int *color, Bit2d &graph)
+{
+  int n = graph.Size().x;  // same as y
+
+  if (tracingSys("graphColor")) {
+    graph.print();
+  }
+
+  // node -> # of adjacent nodes
+  Array<int> degree(n);
+  memset((int*)degree, 0, n * sizeof(int));
+
+  // node -> # of adjacent nodes that have colors already
+  Array<int> blocked(n);
+
+  // initialize some arrays
+  enum { UNASSIGNED = -1 };
+  {
+    for (int i=0; i<n; i++) {
+      // clear the color map
+      color[i] = UNASSIGNED;
+      blocked[i] = 0;
+
+      for (int j=0; j<n; j++) {
+        if (graph.get(point(i,j))) {
+          degree[i]++;
+        }
+      }
+    }
+  }
+
+  // # of colors used
+  int usedColors = 0;
+
+  for (int numColored=0; numColored < n; numColored++) {
+    // Find a vertex to color.  Prefer nodes that are more constrained
+    // (have more blocked colors) to those that are less constrained.
+    // Then, prefer those that are least constraining (heave least
+    // uncolored neighbors) to those that are more constraining.  If
+    // ties remain, choose arbitrarily.
+    int best = -1;
+    int bestBlocked = 0;
+    int bestUnblocked = 0;
+
+    for (int choice = 0; choice < n; choice++) {
+      if (color[choice] != UNASSIGNED) continue;
+
+      int chBlocked = blocked[choice];
+      int chUnblocked = degree[choice] - blocked[choice];
+      if (best == -1 ||                          // no choice yet
+          chBlocked > bestBlocked ||             // more constrained
+          (chBlocked == bestBlocked &&
+           chUnblocked < bestUnblocked)) {       // least constraining
+        // new best
+        best = choice;
+        bestBlocked = chBlocked;
+        bestUnblocked = chUnblocked;
+      }
+    }
+
+    // get the assigned colors of the adjacent vertices
+    Array<int> adjColor(bestBlocked);
+    int adjIndex = 0;
+    for (int i=0; i<n; i++) {
+      if (graph.get(point(best,i)) &&
+          color[i] != UNASSIGNED) {
+        adjColor[adjIndex++] = color[i];
+      }
+    }
+    xassert(adjIndex == bestBlocked);
+
+    // sort them
+    qsort((int*)adjColor, bestBlocked, sizeof(int), intCompare);
+
+    // select the lowest-numbered color that won't conflict
+    int selColor = 0;
+    for (int j=0; j<bestBlocked; j++) {
+      if (selColor == adjColor[j]) {
+        selColor++;
+      }
+      else if (selColor < adjColor[j]) {
+        // found one that doesn't conflict
+        break;
+      }
+      else {
+        // happens when we have two neighbors that have the same color;
+        // that's fine, we'll go around the loop again to see what the
+        // next neighbor has to say
+      }
+    }
+
+    // assign 'selColor' to 'best'
+    color[best] = selColor;
+    if (selColor+1 > usedColors) {
+      usedColors = selColor+1;
+    }
+
+    // update 'blocked[]'
+    for (int k=0; k<n; k++) {
+      if (graph.get(point(best,k))) {
+        // every neighbor of 'k' now has one more blocked color
+        blocked[k]++;
+      }
+    }
+  }
+
+  ostream &os = trace("graphColor") << "colors[]:";
+
+  for (int i=0; i<n; i++) {
+    // every node should now have blocked == degree
+    xassert(blocked[i] == degree[i]);
+
+    // and have a color assigned
+    xassert(color[i] != UNASSIGNED);
+    os << " " << color[i];
+  }
+  
+  os << "\n";
+
+  return usedColors;
+}
 
 
 // --------------------- table emission -------------------
@@ -349,6 +573,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   SET_VAR(numNonterms);
   SET_VAR(numStates);
   SET_VAR(numProds);
+  SET_VAR(actionCols);
   out << "  ret->startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
   SET_VAR(errorBitsRowSize);
@@ -357,7 +582,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   out << "\n";
 
   // action table, one row per state
-  emitTable(out, actionTable, actionTableSize(), numTerms,
+  emitTable(out, actionTable, actionTableSize(), actionCols,
             "ActionEntry", "actionTable");
   out << "  ret->actionTable = actionTable;\n\n";
 
@@ -391,7 +616,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
   // errorBits
   if (!errorBits) {
     out << "  ret->errorBits = NULL;\n";
-    out << "  ret->errorBitsPointers = NULL;\n\n";
+    out << "  ret->errorBitsPointers = NULL;\n";
   }
   else {
     emitTable(out, errorBits, uniqueErrorRows * errorBitsRowSize, errorBitsRowSize,
@@ -399,7 +624,7 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
     out << "  ret->errorBits = errorBits;\n";
     out << "\n";
     out << "  ret->errorBitsPointers = new ErrorBitsEntry* [" << numStates << "];\n";
-    
+
     // make the pointers persist by storing a table of offsets
     int *offsets = new int[numStates];
     for (int s=0; s < numStates; s++) {
@@ -412,6 +637,17 @@ void ParseTables::emitConstructionCode(EmitCode &out, char const *funcName)
     out << "  for (int s=0; s < " << numStates << "; s++) {\n"
         << "    ret->errorBitsPointers[s] = ret->errorBits + offsets[s];\n"
         << "  }\n";
+  }
+  out << "\n";
+
+  // actionIndexMap
+  if (!actionIndexMap) {
+    out << "  ret->actionIndexMap = NULL;\n";
+  }
+  else {
+    emitTable(out, actionIndexMap, numTerms, 16,
+              "TermIndex", "actionIndexMap");
+    out << "  ret->actionIndexMap = actionIndexMap;\n";
   }
   out << "\n";
 

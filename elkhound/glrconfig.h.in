@@ -65,5 +65,11 @@
   #define ENABLE_EEF_COMPRESSION @eef@
 #endif
 
+// when true, the action and goto tables are compressed using
+// graph coloring
+#ifndef ENABLE_GCS_COMPRESSION
+  #define ENABLE_GCS_COMPRESSION @gcs@
+#endif
+
 
 #endif // GLRCONFIG_H

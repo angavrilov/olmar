@@ -12,6 +12,7 @@
 class Flatten;            // flatten.h
 class EmitCode;           // emitcode.h
 class Symbol;             // grammar.h
+class Bit2d;              // bit2d.h
 
 
 // integer id for an item-set DFA state; I'm using an 'enum' to
@@ -28,7 +29,10 @@ typedef signed short ActionEntry;
 // encodes a destination state in 'gotoTable'
 typedef unsigned short GotoEntry;
 
-// names a nonterminal using an index
+// name a terminal using an index
+typedef unsigned char TermIndex;
+
+// name a nonterminal using an index
 typedef unsigned char NtIndex;
 
 // an addressed cell in the 'errorBits' table
@@ -90,13 +94,14 @@ public:     // data
   // # of productions in the grammar
   int numProds;
 
-  // action table, indexed by (state*numTerms + lookahead),
+  // action table, indexed by (state*actionCols + lookahead),
   // each entry is one of:
   //   +N+1, 0 <= N < numStates:         shift, and go to state N
   //   -N-1, 0 <= N < numProds:          reduce using production N
   //   numStates+N+1, 0 <= N < numAmbig: ambiguous, use ambigAction N
   //   0:                                error
   // (there is no 'accept', acceptance is handled outside this table)
+  int actionCols;
   ActionEntry *actionTable;              // (owner)
 
   // goto table, indexed by (state*numNonterms + nontermId),
@@ -163,11 +168,23 @@ public:     // data
   ErrorBitsEntry *errorBits;             // (nullable owner)
   ErrorBitsEntry **errorBitsPointers;    // (nullable owner ptr to serfs)
 
+  // Graph Coloring Scheme (GCS):
+  //
+  // Merge lines and columns that have identical significant entries.
+  // This is done as two-pass graph coloring.  They give a specific
+  // heuristic.
+  //
+  // this is a map to be applied to terminal indiced before being
+  // used to access the compressed action table; it maps the terminal
+  // id (as reported by the lexer) to the proper action table column
+  TermIndex *actionIndexMap;             // (nullable owner)
+
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
              StateId start, int finalProd);
 
   void fillInErrorBits(bool setPointers);
+  int colorTheGraph(int *color, Bit2d &graph);
 
 public:     // funcs
   ParseTables(int numTerms, int numNonterms, int numStates, int numProds,
@@ -184,9 +201,9 @@ public:     // funcs
 
   // index tables
   ActionEntry &actionEntry(int stateId, int termId)
-    { return actionTable[stateId*numTerms + termId]; }
+    { return actionTable[stateId*actionCols + termId]; }
   int actionTableSize() const
-    { return numStates * numTerms; }
+    { return numStates * actionCols; }
   GotoEntry &gotoEntry(int stateId, int nontermId)
     { return gotoTable[stateId*numNonterms + nontermId]; }
   int gotoTableSize() const
@@ -203,6 +220,15 @@ public:     // funcs
     #endif
   }
 
+  // query action table, without checking the error bitmap
+  ActionEntry getActionEntry_noError(int stateId, int termId) {
+    #if ENABLE_GCS_COMPRESSION
+      return actionTable[stateId*actionCols + actionIndexMap[termId]];
+    #else
+      return actionEntry(stateId, termId);
+    #endif
+  }
+
   // query the action table in a way compatible with various
   // compression schemes
   ActionEntry getActionEntry(int stateId, int termId) {
@@ -212,8 +238,7 @@ public:     // funcs
       }
     #endif
 
-    // consult table as usual
-    return actionEntry(stateId, termId);
+    return getActionEntry_noError(stateId, termId);
   }
 
   // encode actions
@@ -264,6 +289,7 @@ public:     // funcs
   // scrape all the error entries from the action table into the
   // 'errorBits' bitmap
   void computeErrorBits();
+  void mergeActionColumns();
 };
 
 
