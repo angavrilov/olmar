@@ -290,7 +290,9 @@ public:     // funcs
 
   void push(T *ptr)          { arr.push(ptr); }
   T *pop()                   { return arr.pop(); }
-  T const *top() const       { return arr.top(); }
+
+  T const *topC() const      { return arr.top(); }
+  T       *top()             { return arr.top(); }
 
   T const * operator[](int index) const  { return arr[index]; }
   T *       operator[](int index)        { return arr[index]; }
