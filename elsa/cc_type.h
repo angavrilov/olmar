@@ -394,7 +394,7 @@ public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
 
   // if it came from a typedef, what is it?  NULL if not from a
-  // typedef.  DO NOT CLONE.
+  // typedef.
   Variable *typedefName;        // not to be confused with typedefVar
   
   // moved this declaration into Type, along with the declaration of

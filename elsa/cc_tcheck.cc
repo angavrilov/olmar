@@ -666,17 +666,13 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
       disambiguates);
   }
 
-  // dsw: store the pointer to the variable in the type
-  if (var->type->typedefName) {
-    // we may have to clone since there was already a typedef for this
-    // type
-
-    // FIX: Make this work
-    var->type = env.tfac.cloneType(var->type);
+  // dsw: store the pointer to the variable in the type; Note that, as
+  // Scott points out, if it already has a name, we keep it because it
+  // doesn't matter.  That is, you have have two typedefs that are
+  // both for "int".
+  if (!var->type->typedefName) {
+    var->type->typedefName = var;
   }
-  // FIX: when the above works, turn this back on
-//    xassert(!var->type->typedefName);
-  var->type->typedefName = var;
 
   // there used to be a call to applyCV here, but that's redundant
   // since the caller (tcheck) calls it too
@@ -1835,13 +1831,16 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
           ) {
         xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
         // just call the no-arg ctor; FIX: this is questionable; we
-        // haven't decided what should really happen for an IN_expr and
-        // it is undefined what should happen for an IN_compound since
-        // it is a C99-ism.
+        // haven't decided what should really happen for an IN_expr
+        // and it is undefined what should happen for an IN_compound
+        // since it is a C99-ism.
         ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
       } else if (init->isIN_ctor()) {
         xassert(!(decl->isD_name() && !decl->asD_name()->name)); // that is, not an abstract decl
-        ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+        // FIX: What should we do for non-CompoundTypes?
+        if (type->isCompoundType()) {
+          ctorStatement = makeCtorStatement(env, var, type, init->asIN_ctor()->args);
+        }
       }
     }
   }
@@ -1852,6 +1851,14 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         !dt.isTemporary) {
     // call the no-arg ctor; for temporaries do nothing since this is
     // a temporary, it will be initialized later
+
+      // Why doesn't this fail?!  The implicit no-arg ctor for a class
+      // is only added after the first pass over the class, so any
+      // members that refer to them won't find them during lookup.
+// class Foo {
+//    // No constructor for Foo
+//    static Foo an_instance;
+
     ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
   }
 
@@ -4461,6 +4468,8 @@ void E_constructor::inner1_itcheck(Env &env)
 Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
 {
   xassert(replacement == this);
+  if (type->isError()) return type;
+
   if (!type->isCompoundType() && !type->isDependent()) {
     // you can make a temporary for an int like this (from
     // in/t0014.cc)
@@ -4481,13 +4490,18 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
                                     type->asSimpleTypeC()->type);
     } else if (type->typedefName) {
       // comes from a typedef
+      PQName *name0 = NULL;
+      if (type->typedefName->scope) {
+        name0 = type->typedefName->scope->curCompound->
+          PQ_fullyQualifiedName(env.loc(),
+                                new PQ_name(env.loc(),
+                                            strdup(type->typedefName->name)) // garbage?
+                                );
+      } else {
+        name0 = new PQ_name(env.loc(), strdup(type->typedefName->name)); // garbage?
+      }
       typeSpecifier =
-        new TS_name(env.loc(),
-                    type->typedefName->scope->curCompound->
-                    PQ_fullyQualifiedName(env.loc(),
-                                          new PQ_name(env.loc(),
-                                                      strdup(type->typedefName->name)) // garbage?
-                                          ),
+        new TS_name(env.loc(), name0,
                     false       // typename used; FIX: is this right?
                     );
     } else {

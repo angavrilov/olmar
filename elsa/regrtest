@@ -209,8 +209,7 @@ T="$T t0022.cc"
 T="$T t0023.cc"
 T="$T t0024.cc"
 T="$T t0025.cc"
-# Don't handle enum or typevar E_constructor-s
-# T="$T t0026.cc"
+T="$T t0026.cc"
 T="$T t0027.cc"
 T="$T t0028.cc"
 T="$T t0029.cc"
@@ -247,9 +246,10 @@ T="$T t0044.cc"
 T="$T t0045.cc"
 T="$T t0046.cc"
 
-# I didn't even look at this one.
+# Not obvious to me; Things are supposed to get disambiguated by one
+# side throwing an error?
 #   UNEXPECTED: ambiguities remain after type checking!
-#T="$T t0047.cc"
+# T="$T t0047.cc"
 
 T="$T t0048.cc"
 T="$T t0049.cc"
@@ -267,14 +267,12 @@ T="$T t0055.cc"
 T="$T t0056.cc"
 T="$T t0057.cc"
 T="$T t0058.cc"
-
-# using an E_constructor with a typedefed type would work if cloning
-# of types worked.
-# T="$T t0059.cc"
-
+T="$T t0059.cc"
 T="$T t0060.cc"
 T="$T t0061.cc"
 
+# We only add the implicit cdtors after the first pass over the
+# members.  Don't know how to fix that one.
 #  in/t0062.cc:34:14: error: no viable candidate for function call
 #  in/t0062.cc:34:14: error: ::Foo:: has no member called `~Foo'
 #  in/t0062.cc:34:14: error: there is no variable called `::Foo::~Foo'
@@ -305,10 +303,7 @@ T="$T t0077.cc"
 # T="$T t0078.cc"
 
 T="$T t0079.cc"
-
-#  Exception thrown: Assertion failed: isCompoundType(), file cc_type.cc line 43
-# T="$T t0080.cc"
-
+T="$T t0080.cc"
 T="$T t0081.cc"
 T="$T t0082.cc"
 T="$T t0083.cc"
@@ -335,11 +330,7 @@ T="$T t0102.cc"
 T="$T t0103.cc"
 T="$T t0104.cc"
 T="$T t0105.cc"
-
-#  Exception thrown: Assertion failed: isCompoundType(), file cc_type.cc line 43
-#  child died with signal ABRT
-# T="$T t0106.cc"
-
+T="$T t0106.cc"
 T="$T t0107.cc"
 T="$T t0108.cc"
 T="$T t0109.cc"
@@ -351,12 +342,14 @@ T="$T t0114.cc"
 T="$T t0115.cc"
 T="$T t0116.cc"
 T="$T t0117.cc"
+# This is a real bug in the test!
 #  in/t0118.cc:139:5: error: no viable candidate for function call
 #  in/t0118.cc:200:5: error: no viable candidate for function call
 #  in/t0118.cc:210:5: error: no viable candidate for function call
 #  in/t0118.cc:216:6: error: no viable candidate for function call
 # T="$T t0118.cc"
 T="$T t0119.cc"
+# I don't seem to typecheck enum args to ctors
 #  child died with signal SEGV
 #  T="$T t0120.cc"
 T="$T t0121.cc"
