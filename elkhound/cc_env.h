@@ -9,6 +9,7 @@
 #include "strobjdict.h"   // StrObjDict
 #include "strsobjdict.h"  // StrSObjDict
 #include "arraymap.h"     // ArrayMap
+#include "mlvalue.h"      // MLValue
 
 // fwds to other files
 class DataflowEnv;        // dataflow.h
@@ -61,7 +62,11 @@ public:     // data
 public:     // funcs
   Variable(char const *n, DeclFlags d, Type const *t);
 
+  // some ad-hoc thing
   string toString() const;
+  
+  // ML eval() format
+  MLValue toMLValue() const;
 
   // when true:
   //   - 'name' is the name of an enum constant value

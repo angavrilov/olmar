@@ -264,7 +264,7 @@ void doTranslationStuff(CilFnDefn &fn)
   if (tracingSys("cil-bb")) {
     try {
       translateStmtToBB(fn);
-      fn.printTree(0 /*indent*/, cout, false /*stmts*/);
+      fn.printTree(0 /*indent*/, cout, false /*stmts*/, false /*ml*/);
     }
     catch (xBase &x) {
       cout << "translation error: " << x << endl;

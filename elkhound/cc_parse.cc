@@ -100,21 +100,26 @@ void TranslationState::printTree()
     // emit types that are new since the last type we did this
     TypeEnv *te = globalEnv->getTypeEnv();
 
-    while (nextType < te->numTypes()) {
-      Type *t = te->lookup(nextType);
-      cout << "type " << nextType << ": "
-           << t->toString() << ";\n";
-      nextType++;
+    // the current plan is to emit typedefs for named atomics
+    // (structs and enums) only, so let's not print these by
+    // default
+    if (tracingSys("cil-nonatomic-types")) {
+      while (nextType < te->numTypes()) {
+        Type *t = te->lookup(nextType);
+        cout << "type " << nextType << ": "
+             << t->toMLValue(1 /*depth*/) << ";\n";
+        nextType++;
+      }
     }
 
     while (nextAtomic < te->numAtomicTypes()) {
       AtomicType *at = te->lookupAtomic(nextAtomic);
       cout << "atomicType " << nextAtomic << ": "
-           << at->toString() << ";\n";
+           << at->toMLValue(2 /*depth*/, CV_NONE) << ";\n";
       nextAtomic++;
     }
 
-    prog.printTree(0 /*indent*/, cout);
+    prog.printTree(0 /*indent*/, cout, true /*ml*/);
   }
 }
 

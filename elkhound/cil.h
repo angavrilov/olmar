@@ -56,9 +56,10 @@ public:
   ~CilThing() {}
 
   string locString() const;
+  string locMLString() const;
   string locComment() const;
   SourceLocation const *loc() const;   // can return NULL
-  
+
   // for passing to constructors in clone()
   CilExtraInfo extra() const { return _loc; }
 };
@@ -74,16 +75,34 @@ enum BinOp {
   OP_LT, OP_GT, OP_LTE, OP_GTE,
   OP_EQUAL, OP_NOTEQUAL,
   OP_BITAND, OP_BITXOR, OP_BITOR,
-  OP_AND, OP_OR,
+  //OP_AND, OP_OR,
   NUM_BINOPS
 };
-char const *binOpText(BinOp op);    // e.g. "+"
+
+struct BinOpInfo {
+  char const *text;                 // e.g. "+"
+  char const *mlText;               // e.g. "Plus"
+  int mlTag;                        // ml's tag value
+};
+BinOpInfo const &binOp(BinOp);
 void validate(BinOp op);            // exception if out of range
+
+inline char const *binOpText(BinOp op)    { return binOp(op).text; }
+inline char const *binOpMLText(BinOp op)  { return binOp(op).mlText; }
 
 
 enum UnaryOp { OP_NEGATE, OP_NOT, OP_BITNOT, NUM_UNOPS };
-char const *unOpText(UnaryOp op);   // e.g. "!"
+
+struct UnaryOpInfo {
+  char const *text;                 // e.g. "!"
+  char const *mlText;               // e.g. "LNot"
+  int mlTag;                        // ml's tag value
+};
+UnaryOpInfo const &unOp(UnaryOp op);
 void validate(UnaryOp op);
+
+inline char const *unOpText(UnaryOp op)    { return unOp(op).text; }
+inline char const *unOpMLText(UnaryOp op)  { return unOp(op).mlText; }
 
 
 // -------------- CilExpr ------------
@@ -159,6 +178,7 @@ public:      // funcs
   CilExpr *clone() const;     // deep copy
 
   string toString() const;    // render as a string
+  string toMLString() const;  // and as an ML string
 };
 
 
@@ -228,6 +248,7 @@ public:      // funcs
 
   CilLval *clone() const;
   string toString() const;
+  string toMLString() const;  
 };
 
 CilLval *newVarRef(CilExtraInfo tn, Variable *var);
@@ -287,7 +308,7 @@ public:      // funcs
   // deep copy
   CilInst *clone() const;
 
-  void printTree(int indent, ostream &os) const;
+  void printTree(int indent, ostream &os, bool ml) const;
 };
 
 CilInst *newAssignInst(CilExtraInfo tn, CilLval *lval, CilExpr *expr);
@@ -305,7 +326,7 @@ public:     // funcs
   ~CilFnCall();
 
   CilFnCall *clone() const;
-  void printTree(int indent, ostream &os) const;
+  void printTree(int indent, ostream &os, bool ml) const;
 
   void appendArg(CilExpr *arg);
 };
@@ -402,8 +423,8 @@ public:      // funcs
   // deep copy
   CilStmt *clone() const;
 
-  void printTree(int indent, ostream &os) const;
-
+  void printTree(int indent, ostream &os, bool ml,
+                 char const *mlLineEnd = "\n") const;
   // translaton
   CilBB * /*owner*/ translateToBB(BBContext &ctxt,
                                   CilBB * /*owner*/ next) const;
@@ -447,7 +468,8 @@ public:    // funcs
   ~CilCompound();
 
   CilCompound *clone() const;
-  void printTree(int indent, ostream &os) const;
+  void printTree(int indent, ostream &os, bool ml,
+                 char const *mlLineEnd = "\n") const;
   CilBB * /*owner*/ translateToBB(BBContext &ctxt, 
                                   CilBB * /*owner*/ next) const;
 };
@@ -564,7 +586,7 @@ public:
 
   // stmts==true: print statements
   // stmts==false: print basic blocks
-  void printTree(int indent, ostream &os, bool stmts=true) const;
+  void printTree(int indent, ostream &os, bool stmts, bool ml) const;
 };
 
 
@@ -579,7 +601,7 @@ public:
   CilProgram();
   ~CilProgram();
 
-  void printTree(int indent, ostream &os) const;
+  void printTree(int indent, ostream &os, bool ml) const;
   void empty();
 };
 

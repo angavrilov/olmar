@@ -4,6 +4,7 @@
 #include "cc_type.h"    // this module
 #include "cc_env.h"     // Env
 #include "trace.h"      // tracingSys
+#include "cil.h"        // CilExpr
 
 
 bool isValid(SimpleTypeId id)
@@ -108,6 +109,29 @@ string AtomicType::toString(int depth) const
 }
 
 
+// ---------------- CVFlags -------------
+MAKE_ML_TAG(attribute, 0, AId)
+MAKE_ML_TAG(attribute, 1, ACons)
+
+MLValue cvToMLAttrs(CVFlags cv)
+{
+  // AId of string
+  
+  MLValue list = mlNil();
+  if (cv & CV_CONST) {
+    list = mlCons(mlTuple1(attribute_AId, mlString("const")), list);
+  }
+  if (cv & CV_VOLATILE) {
+    list = mlCons(mlTuple1(attribute_AId, mlString("volatile")), list);
+  }
+  if (cv & CV_OWNER) {
+    list = mlCons(mlTuple1(attribute_AId, mlString("owner")), list);
+  }
+  return list;
+}
+
+
+
 // ------------------ SimpleType -----------------
 string SimpleType::toCString() const
 {
@@ -127,13 +151,121 @@ int SimpleType::reprSize() const
 }
 
 
+#define MKTAG(n,t) MAKE_ML_TAG(typ, n, t)
+MKTAG(0, TVoid)
+MKTAG(1, TInt)
+MKTAG(2, TBitfield)
+MKTAG(3, TFloat)
+MKTAG(4, Typedef)
+MKTAG(5, TPtr)
+MKTAG(6, TArray)
+MKTAG(7, TStruct)
+MKTAG(8, TUnion)
+MKTAG(9, TEnum)
+MKTAG(10, TFunc)
+#undef MKTAG
+
+#define MKTAG(n,t) MAKE_ML_TAG(ikind, n, t)
+MKTAG(0, IChar)
+MKTAG(1, ISChar)
+MKTAG(2, IUChar)
+MKTAG(3, IInt)
+MKTAG(4, IUInt)
+MKTAG(5, IShort)
+MKTAG(6, IUShort)
+MKTAG(7, ILong)
+MKTAG(8, IULong)
+MKTAG(9, ILongLong)
+MKTAG(10, IULongLong)
+#undef MKTAG
+
+#define MKTAG(n,t) MAKE_ML_TAG(fkind, n, t)
+MKTAG(0, FFloat)
+MKTAG(1, FDouble)
+MKTAG(2, FLongDouble)
+#undef MKTAG
+
+
+MLValue SimpleType::toMLValue(int, CVFlags cv) const
+{
+  // TVoid * attribute list
+  // TInt of ikind * attribute list
+
+  MLValue attrs = cvToMLAttrs(cv);
+
+  #define TUP(t,i) return mlTuple2(typ_##t, mlTuple0(ikind_##i), attrs)
+  switch (type) {
+    default: xfailure("bad tag");
+    case ST_CHAR:               TUP(TInt, IChar);
+    case ST_UNSIGNED_CHAR:      TUP(TInt, IUChar);
+    case ST_SIGNED_CHAR:        TUP(TInt, ISChar);
+    case ST_BOOL:               TUP(TInt, IInt);        // ...
+    case ST_INT:                TUP(TInt, IInt);
+    case ST_UNSIGNED_INT:       TUP(TInt, IUInt);
+    case ST_LONG_INT:           TUP(TInt, ILong);
+    case ST_UNSIGNED_LONG_INT:  TUP(TInt, IULong);
+    case ST_LONG_LONG:          TUP(TInt, ILongLong);
+    case ST_UNSIGNED_LONG_LONG: TUP(TInt, IULongLong);
+    case ST_SHORT_INT:          TUP(TInt, IShort);
+    case ST_UNSIGNED_SHORT_INT: TUP(TInt, IUShort);
+    case ST_WCHAR_T:            TUP(TInt, IShort);      // ...
+  #undef TUP
+  #define TUP(t,i) return mlTuple2(typ_##t, mlTuple0(fkind_##i), attrs)
+    case ST_FLOAT:              TUP(TFloat, FFloat);
+    case ST_DOUBLE:             TUP(TFloat, FDouble);
+    case ST_LONG_DOUBLE:        TUP(TFloat, FLongDouble);
+    case ST_VOID:               return mlTuple1(typ_TVoid, attrs);
+  }
+  #undef TUP
+}
+
+
+// ------------------ NamedAtomicType --------------------
+NamedAtomicType::NamedAtomicType(char const *n)
+  : name(n)
+{}
+
+NamedAtomicType::~NamedAtomicType()
+{}
+
+
+string NamedAtomicType::uniqueName() const
+{
+  // 'a' for atomic
+  return stringc << "a" << id << "_" << name;
+}
+
+
+MLValue NamedAtomicType::toMLValue(int depth, CVFlags cv) const
+{
+  // we break the circularity at the entry to named atomics;
+  // we'll emit typedefs for all of them beforehand
+  xassert(depth >= 1);
+  depth--;
+
+  if (depth == 0) {
+    // Typedef of string * int * typ ref * attribute list
+
+    return mlTuple4(typ_Typedef,
+                    mlString(uniqueName()),
+                    mlInt(id),
+                    mlRef(mlNil()),      // to be set in a post-process
+                    cvToMLAttrs(cv));
+  }
+  else {
+    // full info
+    return toMLContentsValue(depth, cv);
+  }
+}
+
+
 // ------------------ CompoundType -----------------
 CompoundType::CompoundType(Keyword k, char const *n)
-  : keyword(k),
-    name(n),
+  : NamedAtomicType(n),
+    keyword(k),
     env(NULL)
 {}
- 
+
 CompoundType::~CompoundType()
 {
   if (env) {
@@ -210,6 +342,32 @@ string CompoundType::toCilString(int depth) const
 }
 
 
+MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
+{
+  // build up field list
+  MLValue fields = mlNil();
+  StringSObjDict<Variable>::Iter iter(env->getVariables());
+  for (; !iter.isDone(); iter.next()) {
+    fields = mlCons(mlRecord4(
+                      "fstruct", mlString(name),
+                      "fname", mlString(iter.value()->name),
+                      "typ", iter.value()->type->toMLValue(depth),
+                      "fattr", mlRef(mlNil())
+                    ), fields);
+  }
+
+  // TStruct of string * fieldinfo list * int * attribute list
+  // TUnion of string * fieldinfo list * int * attribute list
+
+  // assemble into a single tuple
+  return mlTuple4(keyword==K_STRUCT? typ_TStruct : typ_TUnion,
+                  mlString(name),
+                  fields,
+                  mlInt(id),
+                  cvToMLAttrs(cv));
+}
+
+
 int CompoundType::reprSize() const
 {
   int total = 0;
@@ -244,6 +402,18 @@ string EnumType::toCilString(int depth) const
 {       
   // TODO2: get fields
   return toCString();
+}
+
+
+MLValue EnumType::toMLContentsValue(int, CVFlags cv) const
+{
+  // TEnum of string * (string * int) list * int * attribute list
+
+  return mlTuple4(typ_TEnum,
+                  mlString(name),
+                  mlNil(),        // TODO2: get enum elements
+                  mlInt(id),
+                  cvToMLAttrs(cv));
 }
 
 
@@ -327,7 +497,7 @@ string Type::rightString() const
 
 
 string Type::toString(int depth) const
-{                              
+{
   return stringc << recurseCilString(this, depth+1)
                  << " /""* " << toCString() << " */";
 }
@@ -417,6 +587,12 @@ string CVAtomicType::toCilString(int depth) const
 }
 
 
+MLValue CVAtomicType::toMLValue(int depth) const
+{
+  return atomic->toMLValue(depth, cv);
+}
+
+
 int CVAtomicType::reprSize() const
 {
   return atomic->reprSize();
@@ -453,9 +629,19 @@ string PointerType::toCilString(int depth) const
 }
 
 
+MLValue PointerType::toMLValue(int depth) const
+{
+  // TPtr of typ * attribute list
+
+  return mlTuple2(typ_TPtr,
+                  atType->toMLValue(depth),
+                  cvToMLAttrs(cv));
+}
+
+
 int PointerType::reprSize() const
 {
-  // a typical value ..
+  // a typical value .. (architecture-dependent)
   return 4;
 }
 
@@ -576,10 +762,29 @@ string FunctionType::toCilString(int depth) const
     sb << iter.data()->name << ": "
        << recurseCilString(iter.data()->type, depth);
   }
-  
+
   sb << ") -> " << recurseCilString(retType, depth);
-  
+
   return sb;
+}
+
+
+MLValue FunctionType::toMLValue(int depth) const
+{
+  // TFunc of typ * typ list * bool * attribute list
+
+  // build up argument type list
+  MLValue args = mlNil();
+  FOREACH_OBJLIST(Parameter, params, iter) {
+    args = mlCons(iter.data()->type->toMLValue(depth),
+                  args);
+  }
+
+  return mlTuple4(typ_TFunc,
+                  retType->toMLValue(depth),
+                  args,
+                  mlBool(acceptsVarargs),
+                  cvToMLAttrs(cv));
 }
 
 
@@ -639,6 +844,31 @@ string ArrayType::toCilString(int depth) const
   }
   sb << "] of " << recurseCilString(eltType, depth);
   return sb;
+}
+
+
+MLValue ArrayType::toMLValue(int depth) const
+{
+  // TArray of typ * exp option * attribute list
+
+  // size
+  MLValue mlSize;
+  if (hasSize) {
+    // since the array type is currently an arbitrary
+    // expression, but I just store an int (because I
+    // evaluate sizeof at parse time), construct an
+    // expression now
+    Owner<CilExpr> e; e = newIntLit(NULL /*extra*/, size);
+    mlSize = mlSome(e->toMLString());
+  }
+  else {
+    mlSize = mlNone();
+  }
+
+  return mlTuple3(typ_TArray,
+                  eltType->toMLValue(depth),
+                  mlSize,
+                  mlNil());    // no attrs for arrays
 }
 
 

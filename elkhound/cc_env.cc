@@ -24,6 +24,39 @@ string Variable::toString() const
   // don't care about printing the declflags right now
   return type->toCString(name);
 }
+                 
+
+extern MLValue unknownMLLoc();     // cil.cc
+
+MAKE_ML_TAG(storage, 0, NoStorage)
+MAKE_ML_TAG(storage, 1, Static)
+MAKE_ML_TAG(storage, 2, Register)
+MAKE_ML_TAG(storage, 3, Extern)
+
+MLValue Variable::toMLValue() const
+{
+  //  type varinfo = {
+  //      vid: int;		(* unique integer indentifier, one per decl *)
+  //      vname: string;
+  //      vglob: bool;	(* is this a global variable? *)
+  //                          (* FIXME: currently always false *)
+  //      vtype: typ;
+  //      mutable vdecl: location;	(* where was this variable declared? *)
+  //      mutable vattr: attribute list;
+  //      mutable vstorage: storage;
+  //  }
+
+  //  and storage =
+  //      NoStorage | Static | Register | Extern
+
+  return mlRecord7("vid", mlInt(id),
+                   "vname", mlString(name),
+                   "vglob", mlBool(isGlobal()),
+                   "vtype", type->toMLValue(),
+                   "vdecl", unknownMLLoc(),
+                   "vattr", mlNil(),
+                   "vstorage", mlTuple0(storage_NoStorage));  // TODO2
+}
 
 
 // --------------------------- Env ----------------------------

@@ -7,6 +7,7 @@
 
 #include "str.h"        // string
 #include "objlist.h"    // ObjList
+#include "mlvalue.h"    // MLValue
 
 // other files
 class Env;              // cc_env.h
@@ -21,6 +22,16 @@ class CVAtomicType;
 class PointerType;
 class FunctionType;
 class ArrayType;
+
+
+// set: which of "const" and/or "volatile" is specified
+enum CVFlags {
+  CV_NONE     = 0,
+  CV_CONST    = 1,
+  CV_VOLATILE = 2,
+  CV_OWNER    = 4,
+  CV_ALL      = 7
+};
 
 
 // --------------------- atomic types --------------------------
@@ -94,16 +105,21 @@ public:     // funcs
   // we say "extern type1 x" and then "extern type2 x" we
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
-                                         
+
   // print in C notation
   virtual string toCString() const = 0;
-  
+
   // print in a Cil notation, using integer ids
   // for all references to other types
   virtual string toCilString(int depth=1) const = 0;
-                 
+
   // print in Cil with C notation in comments
   string toString(int depth=1) const;
+
+  // return ML data structure; depth is the desired depth for chasing
+  // named references (1 is a good choice, usually); cv is flags
+  // applied from context, to be represented in the returned type
+  virtual MLValue toMLValue(int depth, CVFlags cv) const = 0;
 
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
@@ -126,7 +142,29 @@ public:     // funcs
   virtual Tag getTag() const { return T_SIMPLE; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLValue(int depth, CVFlags cv) const;
   virtual int reprSize() const;
+};
+
+
+// elements common to structs and enums
+class NamedAtomicType : public AtomicType {
+public:     // data
+  string name;          // name of this struct or enum
+
+public:
+  NamedAtomicType(char const *name);
+  ~NamedAtomicType();
+
+  // globally unique name derived from 'name' and 'id'
+  string uniqueName() const;
+
+  // the basic implementation
+  virtual MLValue toMLValue(int depth, CVFlags cv) const;
+
+  // the hook for the derived type to provide the complete info,
+  // for use in a typedef
+  virtual MLValue toMLContentsValue(int depth, CVFlags cv) const = 0;
 };
 
 
@@ -137,13 +175,12 @@ enum AccessMode {
 };
 
 // represent a user-defined compound type
-class CompoundType : public AtomicType {
+class CompoundType : public NamedAtomicType {
 public:     // types
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
 
 public:     // data
   Keyword keyword;      // keyword used to introduce the type
-  string name;          // name of this compound
   Env *env;             // (owner) members; NULL while only forward-declared
 
 public:     // funcs
@@ -161,6 +198,7 @@ public:     // funcs
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLContentsValue(int depth, CVFlags cv) const;
   virtual int reprSize() const;
 
   string toStringWithFields() const;
@@ -168,18 +206,18 @@ public:     // funcs
 
 
 // represent an enumerated type
-class EnumType : public AtomicType {
+class EnumType : public NamedAtomicType {
 public:     // data
-  string name;          // name of this enum
   int nextValue;        // next value to assign to elements automatically
 
 public:     // funcs
-  EnumType(char const *n) : name(n), nextValue(0) {}
+  EnumType(char const *n) : NamedAtomicType(n), nextValue(0) {}
   ~EnumType();
 
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLContentsValue(int depth, CVFlags cv) const;
   virtual int reprSize() const;
 };
 
@@ -242,11 +280,10 @@ public:     // funcs
   virtual string leftString() const = 0;
   virtual string rightString() const;    // default: returns ""
 
-  // Cil ascii output
+  // same alternate syntaxes as AtomicType
   virtual string toCilString(int depth=1) const = 0;
-
-  // print in Cil with C notation in comments
   string toString(int depth=1) const;
+  virtual MLValue toMLValue(int depth=1) const = 0;
 
   // size of representation
   virtual int reprSize() const = 0;
@@ -262,15 +299,6 @@ public:     // funcs
   ALLOC_STATS_DECLARE
 };
 
-
-// set: which of "const" and/or "volatile" is specified
-enum CVFlags {
-  CV_NONE     = 0,
-  CV_CONST    = 1,
-  CV_VOLATILE = 2,
-  CV_OWNER    = 4,
-  CV_ALL      = 7
-};
 
 // essentially just a wrapper around an atomic type, but
 // also with optional const/volatile flags
@@ -296,6 +324,7 @@ public:
   virtual Tag getTag() const { return T_ATOMIC; }
   virtual string leftString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLValue(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -324,6 +353,7 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLValue(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -366,6 +396,7 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLValue(int depth) const;
   virtual int reprSize() const;
 };
 
@@ -389,6 +420,7 @@ public:
   virtual string leftString() const;
   virtual string rightString() const;
   virtual string toCilString(int depth) const;
+  virtual MLValue toMLValue(int depth) const;
   virtual int reprSize() const;
 };
 

@@ -1029,13 +1029,21 @@ nonterm BinaryOperator : BinOpBase {
 }
 
 // pulled these out to implement short-circuit evaluation for booleans
-nonterm ShortCircuitLogical : BinOpBase {
+nonterm ShortCircuitLogical {
+  // everything in BinOpBase except getOp, since we don't have
+  // operators to represent && and ||, because we factor out
+  // implicit control flow ..
+  attr prec;
+  attr leftAssoc;
+  action  leftAssoc := 1;
+  fundecl int intEval(int left, int right);
+
   -> "&&" {
-    action prec:=28;        fun intEval = left && right;   fun getOp = OP_AND;
+    action prec:=28;        fun intEval = left && right;
   }
 
   -> "||" {
-    action prec:=24;        fun intEval = left || right;   fun getOp = OP_OR;
+    action prec:=24;        fun intEval = left || right;
   }
   // lowest precedence
 }
