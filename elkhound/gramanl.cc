@@ -14,6 +14,7 @@
 #include "emitcode.h"    // EmitCode
 #include "strutil.h"     // replace
 #include "ckheap.h"      // numMallocCalls
+#include "okhasharr.h"   // OwnerKHashArray
 
 #include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
@@ -2207,14 +2208,10 @@ void GrammarAnalysis::constructLRItemSets()
 
   // item sets yet to be processed; item sets are simultaneously in
   // both the hash and the list, or not in either
-  OwnerKHashTable<ItemSet, ItemSet> itemSetsPending(
+  OwnerKHashArray<ItemSet, ItemSet> itemSetsPending(
     &ItemSet::dataToKey,
     &ItemSet::hash,
     &ItemSet::equalKey);
-  itemSetsPending.setEnableShrink(false);
-
-  // the 'list' is actually an array-based stack, to avoid allocation
-  ArrayStack<ItemSet*> pendingList(100);
 
   // item sets with all outgoing links processed
   OwnerKHashTable<ItemSet, ItemSet> itemSetsDone(
@@ -2262,24 +2259,22 @@ void GrammarAnalysis::constructLRItemSets()
     itemSetClosure(*is);                      // calls changedItems internally
 
     // this makes the initial pending itemSet
-    itemSetsPending.add(is, is);              // (ownership transfer)
-    pendingList.push(is);
+    itemSetsPending.push(is, is);             // (ownership transfer)
   }
 
   // track how much allocation we're doing
   INITIAL_MALLOC_STATS();
 
   // for each pending item set
-  while (pendingList.isNotEmpty()) {
-    ItemSet *itemSet = pendingList.pop();              // dequeue (owner)
-    itemSetsPending.remove(itemSet);                   // (ownership transfer)
+  while (itemSetsPending.isNotEmpty()) {
+    ItemSet *itemSet = itemSetsPending.pop();          // dequeue (owner)
 
     CHECK_MALLOC_STATS("top of pending list loop");
 
     // put it in the done set; note that we must do this *before*
     // the processing below, to properly handle self-loops
     itemSetsDone.add(itemSet, itemSet);                // (ownership transfer; 'itemSet' becomes serf)
-                          
+
     // allows for expansion of 'itemSetsDone' hash
     UPDATE_MALLOC_STATS();
 
@@ -2344,7 +2339,7 @@ void GrammarAnalysis::constructLRItemSets()
         CHECK_MALLOC_STATS("moveDotNoClosure");
 
         // see if we already have it, in either set
-        ItemSet *already = itemSetsPending.get(withDotMoved);
+        ItemSet *already = itemSetsPending.lookup(withDotMoved);
         bool inDoneList = false;
         if (already == NULL) {
           already = itemSetsDone.get(withDotMoved);
@@ -2379,8 +2374,7 @@ void GrammarAnalysis::constructLRItemSets()
 
               // but we're not: move it back to the 'pending' list
               itemSetsDone.remove(already);
-              itemSetsPending.add(already, already);
-              pendingList.push(already);
+              itemSetsPending.push(already, already);
             }
 
             // it's ok if closure makes more items, or if
@@ -2406,8 +2400,7 @@ void GrammarAnalysis::constructLRItemSets()
           itemSetClosure(*withDotMoved);
 
           // then add it to 'pending'
-          itemSetsPending.add(withDotMoved, withDotMoved);
-          pendingList.push(withDotMoved);
+          itemSetsPending.push(withDotMoved, withDotMoved);
 
           // takes into account:
           //   - creation of 'withDotMoved' state
