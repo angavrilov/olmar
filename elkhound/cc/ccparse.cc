@@ -106,22 +106,29 @@ void doit(int argc, char **argv)
     Env env(strTable, lang);
     unit->tcheck(env);
     traceProgress(2) << "done type checking\n";
-
-    int n = env.errors.count();
-    if (n != 0) {
-      cout << "there " << plural(n, "was") << " " << n
-           << " typechecking " << plural(n, "error") << "\n";
-
-      // print them in reverse order
-      env.errors.reverse();
-      FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
-        cout << iter.data()->toString() << "\n";
+    
+    int numErrors=0, numWarnings=0;
+    FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
+      if (iter.data()->isWarning) {
+        numWarnings++;
       }
-
-      exit(4);
+      else {
+        numErrors++;
+      }
     }
-    else {
-      cout << "there were no errors during typechecking\n";
+
+    cout << "typechecking results:\n"
+         << "  errors:   " << numErrors << "\n"
+         << "  warnings: " << numWarnings << "\n";
+
+    // print errors and warnings in reverse order
+    env.errors.reverse();
+    FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
+      cout << iter.data()->toString() << "\n";
+    }
+
+    if (numErrors != 0) {
+      exit(4);
     }
 
     // print abstract syntax tree annotated with types

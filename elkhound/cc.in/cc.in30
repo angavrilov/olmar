@@ -23,3 +23,9 @@ class {
 // anonymous enum
 enum { whazza, whozza, howza } futza;
 
+// array size that's not a simple literal integer
+typedef struct
+  {
+    unsigned long int __val[(1024 / (8 * sizeof (unsigned long int))) ];
+  } __sigset_t;
+
