@@ -86,21 +86,21 @@ private:     // data
   // no compression applied to the pointer
   Variable const *user;
 
-private:     // funcs
-  void encode(ImplicitConversion const &ic);
-
 public:      // funcs
   CompressedImplicitConversion()
     : kind_scs_scs2(ImplicitConversion::IC_NONE),
       user(NULL)
   {}
 
+  void encode(ImplicitConversion const &ic);
   CompressedImplicitConversion(ImplicitConversion const &ic)
     { encode(ic); }
   CompressedImplicitConversion& operator= (ImplicitConversion const &ic)
     { encode(ic); return *this; }
 
-  operator ImplicitConversion ();
+  ImplicitConversion decode() const;
+  operator ImplicitConversion () const
+    { return decode(); }
 };
 
 

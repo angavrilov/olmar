@@ -83,7 +83,7 @@ class Function (
 
 class MemberInit (
   PQName name,                   // name of member or base class
-  FakeList<Expression> *args     // arguments to its constructor
+  FakeList<ICExpression> *args   // arguments to its constructor
 ) {
   // standard way to make it possible to include something
   // in a FakeList; this line is repeated below in several places
@@ -442,13 +442,7 @@ class Handler (
 // ----------------- expressions -----------------
 // C expressions
 class Expression {
-  // FakeList link; since you have to use 'setNext', I'm making
-  // 'next' const, and I'll cast it away in 'setNext'
-  //
-  // update: I'm tired of casting it, and I'm pretty sure there
-  // aren't any stray updates at this point
-  public Expression *next;  ctor next=NULL;
-  public void setNext(Expression *newNext);
+  // NOTE: we never make lists of Expressions, only of ICExpressions
 
   // same as we do for statements
   public Expression *ambiguity;  ctor ambiguity=NULL;
@@ -481,11 +475,11 @@ class Expression {
   // 5/19/03: 'loc' field removed because 'name' has a location
   -> E_variable(PQName name);
 
-  -> E_funCall(Expression func, FakeList<Expression> *args);
+  -> E_funCall(Expression func, FakeList<ICExpression> *args);
 
   // call to constructor as an expression; the expression's overall
   // type says which type is being constructed
-  -> E_constructor(TypeSpecifier spec, FakeList<Expression> *args);
+  -> E_constructor(TypeSpecifier spec, FakeList<ICExpression> *args);
 
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
@@ -511,9 +505,9 @@ class Expression {
   -> E_assign(Expression target, BinaryOp op, Expression src);
 
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
-           FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
+           FakeList<ICExpression> *placementArgs,// arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                      // type to allocate
-           ExpressionListOpt ctorArgs);          // arguments to type's constructor (NULL if no ctor call syntax)
+           ICExpressionListOpt ctorArgs);        // arguments to type's constructor (NULL if no ctor call syntax)
 
   -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
               bool array,                        // true if "[]" follows "delete"
@@ -534,12 +528,23 @@ class Expression {
 }
 
 
+// implicit conversion, then Expression; the type checker will fill
+// in which implicit conversion (if any) takes place (cc_tcheck.ast
+// adds the 'ic' field); it's basically a level of indirection at
+// key places where implicit conversions are possible
+class ICExpression(Expression expr) {
+  // FakeList link
+  public ICExpression *next;  ctor next=NULL;
+  public void setNext(ICExpression *newNext);
+}
+
+
 // this is used for cases where there is a difference between a list
 // with no elements, and no list at all (the latter is represented by
-// a NULL pointer to an ExpressionListOpt, while the former is a valid
-// ExpressionListOpt with a NULL 'list' field)
-class ExpressionListOpt (
-  FakeList<Expression> *list
+// a NULL pointer to an ICExpressionListOpt, while the former is a valid
+// ICExpressionListOpt with a NULL 'list' field)
+class ICExpressionListOpt (
+  FakeList<ICExpression> *list
 );
 
 
@@ -556,7 +561,7 @@ class Initializer (SourceLoc loc) {
   -> IN_compound(ASTList<Initializer> inits);
 
   // constructor initializer, like "int x(3);"
-  -> IN_ctor(FakeList<Expression> *args);
+  -> IN_ctor(FakeList<ICExpression> *args);
 }
 
 

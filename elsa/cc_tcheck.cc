@@ -285,7 +285,7 @@ CompoundType *Function::verifyIsCtor(Env &env, char const *context)
 
 
 // this is a prototype for a function down near E_funCall::itcheck
-FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env);
+void tcheckFakeExprList(FakeList<ICExpression> *list, Env &env);
 
 // cppstd 12.6.2 covers member initializers
 void Function::tcheck_memberInits(Env &env)
@@ -324,7 +324,7 @@ void Function::tcheck_memberInits(Env &env)
         iter->member = v;
 
         // typecheck the arguments
-        iter->args = tcheckFakeExprList(iter->args, env);
+        tcheckFakeExprList(iter->args, env);
 
         // TODO: check that the passed arguments are consistent
         // with at least one constructor of the variable's type
@@ -403,7 +403,7 @@ void Function::tcheck_memberInits(Env &env)
     // base class list
 
     // typecheck the arguments
-    iter->args = tcheckFakeExprList(iter->args, env);
+    tcheckFakeExprList(iter->args, env);
 
     // TODO: check that the passed arguments are consistent
     // with at least one constructor in the base class
@@ -450,7 +450,7 @@ void Declaration::tcheck(Env &env, bool isMember)
   // check the specifier in the prevailing environment
   Type *specType = spec->tcheck(env, dflags);
 
-  // ---- the following code is adopted from tcheckFakeExprList ----
+  // ---- the following code is adopted from (the old) tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
   // because I need my Declarator::Tcheck objects computed anew for
   // each declarator..)
@@ -528,7 +528,7 @@ Type *ASTTypeId::getType() const
 
 
 // ---------------------- PQName -------------------
-// adapted from tcheckFakeExprList
+// adapted from (the old) tcheckFakeExprList
 FakeList<TemplateArgument> *tcheckFakeTemplateArgumentList
   (FakeList<TemplateArgument> *list, Env &env)
 {
@@ -2096,7 +2096,7 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
 }
 
 
-// this code adapted from tcheckFakeExprList; always passes NULL
+// this code adapted from (the old) tcheckFakeExprList; always passes NULL
 // for the 'sizeExpr' argument to ASTTypeId::tcheck
 FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
   FakeList<ASTTypeId> *list, Env &env, bool isParameter, DeclFlags dflags = DF_NONE)
@@ -3145,7 +3145,11 @@ Type *E_variable::itcheck(Env &env)
   return makeLvalType(env, var->type);
 }
 
-
+          
+// this is the old code, and served as the prototypical way to tcheck
+// a FakeList of potentially ambiguous elements; but now FakeList<Expression>
+// is not used, so this function has become much simpler
+#if 0
 FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 {
   if (!list) {
@@ -3170,6 +3174,16 @@ FakeList<Expression> *tcheckFakeExprList(FakeList<Expression> *list, Env &env)
 
   return ret;
 }
+#endif // 0
+
+// here's the new code that serves the same role as the old
+void tcheckFakeExprList(FakeList<ICExpression> *list, Env &env)
+{
+  FAKELIST_FOREACH_NC(ICExpression, list, iter) {
+    iter->tcheck(env);
+  }
+}
+
 
 Type *E_funCall::itcheck(Env &env)
 {
@@ -3195,7 +3209,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   }
 
   // check the argument list
-  args = tcheckFakeExprList(args, env);
+  tcheckFakeExprList(args, env);
 
   Type *t = func->type->asRval();
 
@@ -3230,11 +3244,11 @@ Type *E_funCall::inner2_itcheck(Env &env)
     if (funcName == env.special_getStandardConversion) {
       int expect;
       if (args->count() == 3 &&
-          args->nth(2)->constEval(env, expect)) {
+          args->nth(2)->expr->constEval(env, expect)) {
         test_getStandardConversion(env,
-          args->nth(0)->getSpecial(),     // is it special?
-          args->nth(0)->type,             // source type
-          args->nth(1)->type,             // dest type
+          args->nth(0)->expr->getSpecial(),     // is it special?
+          args->nth(0)->expr->type,             // source type
+          args->nth(1)->expr->type,             // dest type
           expect);                        // expected result
       }
       else {
@@ -3249,14 +3263,14 @@ Type *E_funCall::inner2_itcheck(Env &env)
       int expectUserLine;
       int expectSCS2;
       if (args->count() == 6 &&
-          args->nth(2)->constEval(env, expectKind) &&
-          args->nth(3)->constEval(env, expectSCS) &&
-          args->nth(4)->constEval(env, expectUserLine) &&
-          args->nth(5)->constEval(env, expectSCS2)) {
+          args->nth(2)->expr->constEval(env, expectKind) &&
+          args->nth(3)->expr->constEval(env, expectSCS) &&
+          args->nth(4)->expr->constEval(env, expectUserLine) &&
+          args->nth(5)->expr->constEval(env, expectSCS2)) {
         test_getImplicitConversion(env,
-          args->nth(0)->getSpecial(),     // is it special?
-          args->nth(0)->type,             // source type
-          args->nth(1)->type,             // dest type
+          args->nth(0)->expr->getSpecial(),     // is it special?
+          args->nth(0)->expr->type,             // source type
+          args->nth(1)->expr->type,             // dest type
           expectKind, expectSCS, expectUserLine, expectSCS2);   // expected result
       }
       else {
@@ -3268,10 +3282,10 @@ Type *E_funCall::inner2_itcheck(Env &env)
     if (funcName == env.special_testOverload) {
       int expectLine;
       if (args->count() == 2 &&
-          args->first()->isE_funCall() &&
-          args->first()->asE_funCall()->func->isE_variable() &&
-          args->nth(1)->constEval(env, expectLine)) {
-        Variable *chosen = args->first()->asE_funCall()->func->asE_variable()->var;
+          args->first()->expr->isE_funCall() &&
+          args->first()->expr->asE_funCall()->func->isE_variable() &&
+          args->nth(1)->expr->constEval(env, expectLine)) {
+        Variable *chosen = args->first()->expr->asE_funCall()->func->asE_variable()->var;
         int actualLine = sourceLocManager->getLine(chosen->loc);
         if (expectLine != actualLine) {
           env.error(stringc
@@ -3280,7 +3294,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
         }
 
         // propagate return type
-        return args->first()->type;
+        return args->first()->expr->type;
       }
       else {
         env.error("invalid call to __testOverload");
@@ -3297,8 +3311,8 @@ Type *E_funCall::inner2_itcheck(Env &env)
       GrowArray<ArgumentInfo> argInfo(args->count());
       {
         int index = 0;
-        FAKELIST_FOREACH_NC(Expression, args, iter) {
-          argInfo[index] = ArgumentInfo(iter->getSpecial(), iter->type);
+        FAKELIST_FOREACH_NC(ICExpression, args, iter) {
+          argInfo[index] = ArgumentInfo(iter->expr->getSpecial(), iter->expr->type);
           index++;
         }
       }
@@ -3346,7 +3360,7 @@ void E_constructor::inner1_itcheck(Env &env)
 
 Type *E_constructor::inner2_itcheck(Env &env)
 {
-  args = tcheckFakeExprList(args, env);
+  tcheckFakeExprList(args, env);
 
   // TODO: make sure the argument types are compatible
   // with the constructor parameters
@@ -3719,7 +3733,7 @@ Type *E_assign::itcheck(Env &env)
 
 Type *E_new::itcheck(Env &env)
 {
-  placementArgs = tcheckFakeExprList(placementArgs, env);
+  tcheckFakeExprList(placementArgs, env);
 
   // TODO: check the environment for declaration of an operator 'new'
   // which accepts the given placement args
@@ -3734,7 +3748,7 @@ Type *E_new::itcheck(Env &env)
   Type *t = atype->getType();
 
   if (ctorArgs) {
-    ctorArgs->list = tcheckFakeExprList(ctorArgs->list, env);
+    tcheckFakeExprList(ctorArgs->list, env);
   }
 
   // TODO: check for a constructor in 't' which accepts these args
@@ -3867,7 +3881,7 @@ bool Expression::constEval(string &msg, int &result) const
     ASTNEXTC(E_constructor, c)
       if (type->isIntegerType()) {
         // allow it; should only be 1 arg, and that will be value
-        return c->args->first()->constEval(msg, result);
+        return c->args->first()->expr->constEval(msg, result);
       }
       else {
         msg = "can only const-eval E_constructors for integer types";
@@ -4047,6 +4061,17 @@ SpecialExpr Expression::getSpecial() const
 }
 
 
+// ----------------------- ICExpression -------------------
+void ICExpression::tcheck(Env &env)
+{ 
+  expr->tcheck(expr, env);
+  
+  // NOTE: this just tcheck's the expression; there's another step
+  // to do (that right now isn't done at all) that sets the 'cic'
+  // member according to the context in which the expression appears
+}
+
+
 // ExpressionListOpt
 
 // ----------------------- Initializer --------------------
@@ -4069,7 +4094,7 @@ void IN_compound::tcheck(Env &env)
 
 void IN_ctor::tcheck(Env &env)
 {
-  args = tcheckFakeExprList(args, env);
+  tcheckFakeExprList(args, env);
 }
 
 

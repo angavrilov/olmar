@@ -290,7 +290,7 @@ void CompressedImplicitConversion::encode(ImplicitConversion const &ic)
   user = ic.user;
 }
 
-CompressedImplicitConversion::operator ImplicitConversion ()
+ImplicitConversion CompressedImplicitConversion::decode() const
 {
   ImplicitConversion ic;
 

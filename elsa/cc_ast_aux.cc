@@ -327,16 +327,33 @@ bool Handler::isEllipsis() const
 void Expression::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Expression", os, indent);
-
-  genericCheckNexts(this);
+    
+  // old
+  //genericCheckNexts(this);
 }
 
 
 void Expression::addAmbiguity(Expression *alt)
 {
+  // it turns out the RHS could have been yielded if the
+  // reduction action is the identity function.. so instead
+  // find the last node in the 'alt' list and we'll splice
+  // that entire list into 'main's ambiguity list
+  Expression *altLast = alt;
+  while (altLast->ambiguity) {
+    altLast = altLast->ambiguity;
+  }
+
+  // finally, prepend 'alt's ambiguity list to 'this's ambiguity list
+  altLast->ambiguity = this->ambiguity;
+  this->ambiguity = alt;
+
+  #if 0     // old; from when I had lists of Expressions
   genericAddAmbiguity(this, alt);
+  #endif // 0
 }
 
+#if 0     // old; from when I had lists of Expressions
 void Expression::setNext(Expression *newNext)
 {
   // relaxation: The syntax
@@ -352,6 +369,7 @@ void Expression::setNext(Expression *newNext)
 
   genericSetNext(this, newNext);
 }
+#endif // 0
 
 
 void Expression::printExtras(ostream &os, int indent) const
@@ -397,6 +415,20 @@ void Expression::printExtras(ostream &os, int indent) const
 
     ASTENDCASEC
   }
+}
+
+
+// ------------------- ICExpression -------------------------
+void ICExpression::setNext(ICExpression *newNext)
+{
+  xassert(next == NULL);
+  next = newNext;
+}
+
+
+void ICExpression::printExtras(ostream &os, int indent) const
+{
+  ind(os, indent) << "ic: " << cic.decode().debugString() << "\n";
 }
 
 

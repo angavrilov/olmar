@@ -138,7 +138,7 @@ string var_toString(Variable *var, PQName const * /*nullable*/ pqname)
 
 
 // this is a prototype for a function down near E_funCall::iprint
-void printFakeExprList(FakeList<Expression> *list, PrintEnv &env);
+void printFakeExprList(FakeList<ICExpression> *list, PrintEnv &env);
 
 
 // ------------------- TranslationUnit --------------------
@@ -756,14 +756,14 @@ void E_variable::iprint(PrintEnv &env)
   }
 }
 
-void printFakeExprList(FakeList<Expression> *list, PrintEnv &env)
+void printFakeExprList(FakeList<ICExpression> *list, PrintEnv &env)
 {
   olayer ol("printFakeExprList");
   bool first_time = true;
-  FAKELIST_FOREACH_NC(Expression, list, iter) {
+  FAKELIST_FOREACH_NC(ICExpression, list, iter) {
     if (first_time) first_time = false;
     else env << ", ";
-    iter->print(env);
+    iter->expr->print(env);
   }
 }
 

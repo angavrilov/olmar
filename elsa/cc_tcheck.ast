@@ -12,6 +12,7 @@
 verbatim {
   #include "variable.h"      // Variable
   #include "cc_type.h"       // Type, FunctonType, CompoundType
+  #include "implconv.h"      // CompressedImplicitConversion
 
   class Env;                 // cc_env.h
 }
@@ -419,6 +420,20 @@ class Expression {
        public Expression /*nullable serf*/ *arraySize;
        ctor arraySize=NULL;
      }
+}
+
+
+class ICExpression {
+  // implicit conversion; stored in compressed form
+  public CompressedImplicitConversion cic;
+
+  public void tcheck(Env &env);
+
+  // might be convenient
+  public Type *getType() { return expr->type; };
+
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 }
 
 
