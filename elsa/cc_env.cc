@@ -289,7 +289,7 @@ Scope *Env::lookupQualifiedScope(PQName const *name)
       }
 
       // check template argument compatibility
-      if (!qualifier->targs != !ct->templateParams) {
+      if (!!qualifier->targs != ct->isTemplate()) {
         if (qualifier->targs) {
           error(stringc
             << "class `" << qual << "' isn't a template");
@@ -357,6 +357,14 @@ Variable *Env::lookupPQVariable(PQName const *name)
     else if (var->type->isTemplateClass() &&
              var->hasFlag(DF_TYPEDEF)) {
       // ok; a typedef referring to a template class
+      
+      // instantiate it
+      CompoundType *instantiatedCt
+        = instantiateClass(var->type->ifCompoundType(),
+                           name->getUnqualifiedName()->asPQ_templateC()->args);
+                           
+      // get the typedef variable for it
+      var = instantiatedCt->typedefVar;
     }
     else {
       // I'm not sure if I really need to make this disambiguating
@@ -474,8 +482,122 @@ EnumType *Env::lookupEnum(StringRef name, bool innerOnly)
 TemplateParams * /*owner*/ Env::takeTemplateParams()
 {
   Scope *s = scope();
-  TemplateParams *ret = s->templateParams;
-  s->templateParams = NULL;
+  TemplateParams *ret = s->curTemplateParams;
+  s->curTemplateParams = NULL;
+  return ret;
+}
+
+
+// given 'tclass', the type of the uninstantiated template, and 'args'
+// which specifies the template arguments to use for instantiation,
+// create an instantiated type and associated typedef Variable, and
+// return the type
+CompoundType *Env::instantiateClass(
+  CompoundType const *tclass, FakeList<TemplateArgument> *args)
+{
+  // uniformity with other code..
+  Env &env = *this;
+
+  // construct what the instantiated name would be
+  stringBuilder instName;
+  {
+    instName << tclass->name << "<";
+
+    int ct=0;
+    FAKELIST_FOREACH(TemplateArgument, args, iter) {
+      if (ct++ > 0) {
+        instName << ",";
+      }
+      instName << iter->argString();
+    }
+
+    instName << ">";
+  }
+  StringRef instNameRef = str(instName);
+
+  // has this class already been instantiated?
+  CompoundType *ret = tclass->templateInfo->instantiated.queryif(instNameRef);
+  if (ret) return ret;
+
+  // make a new class, and register it as an instantiation
+  ret = new CompoundType(tclass->keyword, instNameRef);
+  tclass->templateInfo->instantiated.add(instNameRef, ret);
+
+  // clone the abstract syntax of the template class, substituting
+  // the constructed name for the original
+  ret->syntax = tclass->syntax->clone();  
+  ret->syntax->name = instNameRef;
+    
+  if (tracingSys("printClonedAST")) {     
+    cout << "---------- cloned: " << instNameRef << " ----------\n";
+    ret->syntax->debugPrint(cout, 0);
+  }
+
+  // begin working through the template parameters so we know what
+  // name to associated with the template arguments when we bind them
+  ObjListIter<Parameter> paramIter(tclass->templateInfo->params);
+
+  // create a new scope, and insert the template argument bindings
+  Scope *argScope = enterScope();
+  FAKELIST_FOREACH(TemplateArgument, args, iter) {
+    TA_type const *arg = iter->asTA_typeC();
+    
+    if (paramIter.isDone()) {
+      env.error(stringc
+        << instNameRef << " does not supply enough template arguments; "
+        << tclass->name << " wants "
+        << tclass->templateInfo->params.count() << " arguments");
+    cleanup:
+      exitScope(argScope);
+      return NULL;   // leaves 'ret' half-baked.. should be ok
+    }
+    Parameter const *param = paramIter.data();
+
+    if (!param->type->isTypeVariable()) {
+      env.unimp("non-class template parameters");
+      goto cleanup;
+    }
+
+    // make a variable that typedef's the argument type to be
+    // the parameter name
+    Variable *argVar
+      = new Variable(param->decl->loc, param->name,
+                     arg->type->getType(), DF_TYPEDEF);
+    if (!argScope->addVariable(argVar)) {
+      // I actually think this can't happen because I'd have
+      // already detected this problem..
+      env.error(stringc
+        << "duplicate parameter name `" << param->name << "'");
+    }
+  }
+
+  // forward-declare 'instNameRef' so the tcheck below will
+  // use the CompoundType object we've been working on
+  argScope->addCompound(ret);
+
+  // now typecheck the cloned AST syntax; this will create a
+  // compound called 'instNameRef', which will match the one
+  // we've already forward-declared, so it will use the same
+  // type object
+  ret->syntax->tcheck(env);
+
+  if (tracingSys("printTypedClonedAST")) {
+    cout << "---------- cloned & typed: " << instNameRef << " ----------\n";
+    ret->syntax->debugPrint(cout, 0);
+  }
+
+  // ok, we're done: the template class 'tclass' now has a
+  // map the created type, and we can return that created type
+  // for use by the caller
+  env.exitScope(argScope);
+
+  // one more thing: even though it won't be entered into
+  // the environment, callers like to have Variables that
+  // stand for types, so make one
+  ret->typedefVar
+    = new Variable(tclass->typedefVar->loc, instNameRef,
+                   makeType(ret), DF_TYPEDEF);
+
   return ret;
 }
 

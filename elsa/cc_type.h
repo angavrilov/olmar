@@ -10,10 +10,13 @@
 #include "sobjlist.h"     // SObjList
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
-#include "strsobjdict.h"  // StrSObjDict
+#include "strsobjdict.h"  // StringSObjDict
+#include "strobjdict.h"   // StringObjDict
 #include "cc_scope.h"     // Scope
 
 class Variable;           // variable.h
+class Env;                // cc_env.h
+class TS_classSpec;       // cc.ast
 
 // fwd in this file
 class SimpleType;
@@ -25,10 +28,10 @@ class CVAtomicType;
 class PointerType;
 class FunctionType;
 class Parameter;
-class TemplateParams;
 class ArrayType;
 class Type;
-class Env;
+class TemplateParams;
+class ClassTemplateInfo;
 
 // static data consistency checker
 void cc_type_checker();
@@ -132,8 +135,12 @@ public:      // data
   Keyword keyword;            // keyword used to introduce the type
   ObjList<BaseClass> bases;   // classes from which this one inherits
 
-  // for template classes, this is the list of template parameters
-  TemplateParams *templateParams;    // (owner)
+  // for template classes, this is the list of template parameters,
+  // and a list of already-instantiated versions
+  ClassTemplateInfo *templateInfo;    // (owner)
+
+  // AST node that describes this class; used for implementing templates
+  TS_classSpec *syntax;               // (serf)
 
 public:      // funcs
   // create an incomplete (forward-declared) compound
@@ -141,7 +148,7 @@ public:      // funcs
   ~CompoundType();
 
   bool isComplete() const { return !forward; }
-  bool isTemplate() const { return templateParams != NULL; }
+  bool isTemplate() const { return templateInfo != NULL; }
 
   static char const *keywordName(Keyword k);
 
@@ -215,20 +222,6 @@ public:     // funcs
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
   Value const *getValue(StringRef name) const;
-};
-
-
-// used for template parameter types
-class TypeVariable : public NamedAtomicType {
-public:
-  TypeVariable(StringRef name) : NamedAtomicType(name) {}
-  ~TypeVariable();
-
-  // AtomicType interface
-  virtual Tag getTag() const { return T_TYPEVAR; }
-  virtual string toCString() const;
-  virtual string toCilString(int depth) const;
-  virtual int reprSize() const;
 };
 
 
@@ -443,20 +436,6 @@ public:
 };
 
 
-class TemplateParams {
-public:
-  ObjList<Parameter> params;
-
-public:
-  TemplateParams() {}
-  ~TemplateParams();
-
-  string toString() const;
-  bool equalTypes(TemplateParams const *obj) const;
-  bool containsErrors() const;
-};
-
-
 // type of an array
 class ArrayType : public Type {
 public:
@@ -479,6 +458,44 @@ public:
   virtual string toCilString(int depth) const;
   virtual int reprSize() const;
   virtual bool containsErrors() const;
+};
+
+
+// -------------------- templates -------------------------
+// used for template parameter types
+class TypeVariable : public NamedAtomicType {
+public:
+  TypeVariable(StringRef name) : NamedAtomicType(name) {}
+  ~TypeVariable();
+
+  // AtomicType interface
+  virtual Tag getTag() const { return T_TYPEVAR; }
+  virtual string toCString() const;
+  virtual string toCilString(int depth) const;
+  virtual int reprSize() const;
+};
+
+
+class TemplateParams {
+public:
+  ObjList<Parameter> params;
+
+public:
+  TemplateParams() {}
+  ~TemplateParams();
+
+  string toString() const;
+  bool equalTypes(TemplateParams const *obj) const;
+  bool containsErrors() const;
+};
+
+
+// for a template class, this is the template-related info
+class ClassTemplateInfo : public TemplateParams {
+public:
+  // given a rendering of an instantiation name, e.g. "Foo<int>", map
+  // it to the instantiated type if we've already instantiated it
+  StringObjDict<CompoundType> instantiated;
 };
 
 

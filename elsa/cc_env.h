@@ -61,7 +61,11 @@ public:      // data
   // special name for constructors
   StringRef constructorSpecialName;
 
-public:      // function
+private:     // funcs
+  CompoundType *instantiateClass(
+    CompoundType const *tclass, FakeList<TemplateArgument> *args);
+
+public:      // funcs
   Env(StringTable &str, CCLang &lang);
   ~Env();
 

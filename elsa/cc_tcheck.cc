@@ -207,16 +207,13 @@ void TF_linkage::tcheck(Env &env)
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, bool checkBody)
 {
-  if (checkBody) {
-    dflags = (DeclFlags)(dflags | DF_DEFINITION);
-  }
-
   // are we in a template function?
-  bool inTemplate = env.scope()->templateParams != NULL;
+  bool inTemplate = env.scope()->curTemplateParams != NULL;
 
   // construct the type of the function
   Type const *retTypeSpec = retspec->tcheck(env);
-  DeclaratorTcheck dt(retTypeSpec, dflags);
+  DeclaratorTcheck dt(retTypeSpec,
+                      (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)));
   nameParams = nameParams->tcheck(env, dt);
 
   if (! dt.type->isFunctionType() ) {
@@ -534,31 +531,31 @@ Type const *TS_simple::tcheck(Env &env)
 void verifyCompatibleTemplates(Env &env, CompoundType *prior)
 {
   Scope *scope = env.scope();
-  if (!scope->templateParams && !prior->templateParams) {
+  if (!scope->curTemplateParams && !prior->isTemplate()) {
     // neither talks about templates, forget the whole thing
     return;
   }
 
-  if (!scope->templateParams && prior->templateParams) {
+  if (!scope->curTemplateParams && prior->isTemplate()) {
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateParams->toString()
+      << prior->templateInfo->toString()
       << " but the this one is not templatized",
       true /*disambiguating*/);
     return;
   }
 
-  if (scope->templateParams && !prior->templateParams) {
+  if (scope->curTemplateParams && !prior->isTemplate()) {
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
-      << scope->templateParams->toString(),
+      << scope->curTemplateParams->toString(),
       true /*disambiguating*/);
-    delete scope->templateParams;
-    scope->templateParams = NULL;
+    delete scope->curTemplateParams;
+    scope->curTemplateParams = NULL;
     return;
   }
 
@@ -567,7 +564,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
   // given to the parameters don't matter; the current
   // declaration's names have already been entered into the
   // template-parameter scope)
-  if (scope->templateParams->equalTypes(prior->templateParams)) {
+  if (scope->curTemplateParams->equalTypes(prior->templateInfo)) {
     // ok
   }
   else {
@@ -575,14 +572,14 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateParams->toString()
+      << prior->templateInfo->toString()
       << " but this one has parameters "
-      << scope->templateParams->toString()
+      << scope->curTemplateParams->toString()
       << ", and these are not equivalent",
       true /*disambiguating*/);
   }
-  delete scope->templateParams;
-  scope->templateParams = NULL;
+  delete scope->curTemplateParams;
+  scope->curTemplateParams = NULL;
 }
 
 
@@ -591,7 +588,15 @@ Type const *makeNewCompound(CompoundType *&ct, Env &env, StringRef name,
                             bool forward)
 {
   ct = new CompoundType((CompoundType::Keyword)keyword, name);
-  ct->templateParams = env.takeTemplateParams();
+  
+  // transfer template parameters
+  Scope *scope = env.scope();
+  if (scope->curTemplateParams) {
+    ct->templateInfo = new ClassTemplateInfo;
+    ct->templateInfo->params.concat(env.scope()->curTemplateParams->params);
+    delete env.takeTemplateParams();
+  }
+
   ct->forward = forward;
   if (name) {
     bool ok = env.addCompound(ct);
@@ -670,9 +675,9 @@ Type const *TS_elaborated::tcheck(Env &env)
       // at least discard the template params as
       // 'verifyCompatibleTemplates' would have done..
       Scope *s = env.scope();
-      if (s->templateParams) {
-        delete s->templateParams;
-        s->templateParams = NULL;
+      if (s->curTemplateParams) {
+        delete s->curTemplateParams;
+        s->curTemplateParams = NULL;
       }
     }
     else {
@@ -689,7 +694,7 @@ Type const *TS_classSpec::tcheck(Env &env)
   env.setLoc(loc);
 
   // are we in a template?
-  bool inTemplate = env.scope()->templateParams != NULL;
+  bool inTemplate = env.scope()->curTemplateParams != NULL;
 
   // see if the environment already has this name
   CompoundType *ct = name? env.lookupCompound(name, true /*innerOnly*/) : NULL;
@@ -737,6 +742,9 @@ Type const *TS_classSpec::tcheck(Env &env)
     // no existing compound; make a new one
     ret = makeNewCompound(ct, env, name, loc, keyword, false /*forward*/);
   }
+
+  // let me map from compounds to their AST definition nodes
+  ct->syntax = this;
 
   // look at the base class specifications
   if (bases) {
@@ -788,6 +796,11 @@ Type const *TS_classSpec::tcheck(Env &env)
       f->dflags = (DeclFlags)(f->dflags | DF_INLINE_DEFN);
 
       f->tcheck(env, true /*checkBody*/);
+
+      // remove DF_INLINE_DEFN so if I clone this later I can play the
+      // same trick again (TODO: what if we decide to clone while down
+      // in 'f->tcheck'?)
+      f->dflags = (DeclFlags)(f->dflags & ~DF_INLINE_DEFN);
     }
   }
 
@@ -2419,7 +2432,7 @@ void TemplateDeclaration::tcheck(Env &env)
   paramScope->canAcceptNames = false;
 
   // put the template parameters in a place the D_func will find them
-  paramScope->templateParams = tparams;
+  paramScope->curTemplateParams = tparams;
 
   // in what follows, ignore errors that are not disambiguating
   //bool prev = env.setDisambiguateOnly(true);

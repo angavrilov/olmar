@@ -47,14 +47,14 @@ public:      // data
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
   // the context we're in
-  CompoundType *curCompound;       // (serf) CompoundType we're building
-  AccessKeyword curAccess;         // access disposition in effect
-  Function *curFunction;           // (serf) Function we're analyzing
-  TemplateParams *templateParams;  // (owner) params to attach to next function or class
-  SourceLocation curLoc;           // latest AST location marker seen
-  
+  CompoundType *curCompound;          // (serf) CompoundType we're building
+  AccessKeyword curAccess;            // access disposition in effect
+  Function *curFunction;              // (serf) Function we're analyzing
+  TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
+  SourceLocation curLoc;              // latest AST location marker seen
+
 private:     // funcs
-  Variable const *lookupVariableC(StringRef name, bool &crossVirtual, 
+  Variable const *lookupVariableC(StringRef name, bool &crossVirtual,
                                   bool innerOnly, Env &env) const;
 
 public:      // funcs

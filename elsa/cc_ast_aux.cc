@@ -319,3 +319,11 @@ void E_variable::printExtras(ostream &os, int indent) const
 // ExpressionListOpt
 // Initializer
 // InitLabel
+// TemplateDeclaration
+// TemplateParameter
+
+// -------------------- TemplateArgument ---------------------
+string TA_type::argString() const
+{
+  return type->getType()->toString();
+}
