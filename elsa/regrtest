@@ -855,6 +855,7 @@ testCparse c/t0012.c
 testCparse c/t0013.c
 testCparse c/t0014.c
 testCparse c/t0015.c
+testCparse c/t0016.c
 testCparse gnu/d0096.c
 
 

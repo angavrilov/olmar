@@ -3225,12 +3225,42 @@ Variable *Env::createDeclaration(
       // name, but their types are different; we only jump here *after*
       // ruling out the possibility of function overloading
 
-      error(type, stringc
-            << "prior declaration of `" << name
-            << "' at " << prior->loc
-            << " had type `" << prior->type->toString()
-            << "', but this one uses `" << type->toString() << "'");
-      goto makeDummyVar;
+      string msg = stringc
+        << "prior declaration of `" << name
+        << "' at " << prior->loc
+        << " had type `" << prior->type->toString()
+        << "', but this one uses `" << type->toString() << "'";
+
+      if (!lang.isCplusplus &&
+          prior->type->isFunctionType() &&
+          type->isFunctionType() &&
+          prior->type->asFunctionType()->params.count() == type->asFunctionType()->params.count()) {
+        // 10/08/04: In C, the rules for function type declaration
+        // compatibility are more complicated, relying on "default
+        // argument promotions", a determination of whether the
+        // previous declaration came from a prototype (and whether it
+        // had param info), and a notion of type "compatibility" that
+        // I don't see defined.  (C99 6.7.5.3 para 15)  So, I'm just
+        // going to make this a warning and go on.  I think more needs
+        // to be done for an analysis, though, since an argument
+        // passed as an 'int' but treated as a 'char' by the function
+        // definition (as in in/c/t0016.c) is being implicitly
+        // truncated, and this might be relevant to the analysis.
+        //
+        // Actually, compatibility is introduced in 6.2.7, though
+        // pieces of its actual definition appear in 6.7.2 (6.7.2.3
+        // only?), 6.7.3 and 6.7.5.  I still need to track down what
+        // argument promotions are.
+        //
+        // TODO: tighten all this down; I don't like leaving such big
+        // holes in what is being checked....
+        warning(msg);
+      }
+      else {
+        // usual error message
+        error(type, msg);
+        goto makeDummyVar;
+      }
     }
 
     // if the prior declaration refers to a different entity than the
