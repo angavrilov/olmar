@@ -55,4 +55,23 @@ public:     // funcs
     { HashTable::selfCheck(); }
 };
 
+
+// type-safe template wrapper          
+template <class T>
+class TStringHash : public StringHash {
+public:      // types
+  typedef char const* (*GetKeyFn)(T *data);
+
+public:
+  TStringHash(GetKeyFn fn)            : StringHash((StringHash::GetKeyFn)fn) {}
+  ~TStringHash()                      {}
+
+  int getNumEntries() const           { return StringHash::getNumEntries(); }
+  T *get(char const *key) const       { return (T*)StringHash::get(key); }
+  void add(char const *key, T *value) { StringHash::add(key, (void*)value); }
+  void remove(char const *key)        { StringHash::remove(key); }
+  void empty()                        { StringHash::empty(); }
+};
+
+
 #endif // STRHASH_H
