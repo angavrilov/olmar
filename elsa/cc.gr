@@ -58,12 +58,11 @@ option useGCDefaults;
 // then abort
 option defaultMergeAborts;
 
-// expected statistics (these are wrong right now, since I've been
-// making frequent changes and only keeping gnu.gr up-to-date)
-option shift_reduce_conflicts 50;
-option reduce_reduce_conflicts 65;
+// expected statistics
+option shift_reduce_conflicts 56;
+option reduce_reduce_conflicts 67;
 option unreachable_nonterminals 0;
-option unreachable_terminals 8;
+option unreachable_terminals 6;
 
 verbatim {
 

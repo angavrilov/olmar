@@ -4,5 +4,5 @@
 int uselocale;
 namespace __gnu_cxx
 {
-  extern "C" __typeof(uselocale) __uselocale;
+  extern "C" int __uselocale;
 }
