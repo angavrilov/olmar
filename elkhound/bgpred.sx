@@ -272,7 +272,8 @@
           )))
     ))
 
-  ; inDegree1 survives updates that don't mention obj or referrerObj
+  ; inDegree1-surv-otherObj: inDegree1 survives updates that don't
+  ; mention obj or referrerObj
   (FORALL (mem field obj referrerObj srcObj destObj destOfs)
     (IMPLIES
       (AND
@@ -285,7 +286,7 @@
         field obj referrerObj)
     ))
 
-  ; and again, survives updates to different fields
+  ; inDegree1-surv-otherField: survives updates to different fields
   (FORALL (mem field obj referrerObj srcObj destObj destOfs otherField)
     (IMPLIES
       (AND
