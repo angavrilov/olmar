@@ -210,6 +210,7 @@ OverloadResolver::OverloadResolver
   // to enable derived-to-base conversions.
   for (int i=0; i < args.size(); i++) {
     Type *argType = a[i].type;
+    if (!argType) continue;
 
     argType = argType->asRval();     // skip references
     if (argType->isPointerType()) {  // skip pointers (9/22/04)
@@ -252,9 +253,13 @@ void OverloadResolver::printArgInfo()
     if (tracingSys("overload")) {
       overloadTrace() << "arguments:\n";
       for (int i=0; i < args.size(); i++) {
+        string typeString = "(missing)";
+        if (args[i].type) {
+          typeString = args[i].type->toString();
+        }
         overloadTrace() << "  " << i << ": "
              << toString(args[i].special) << ", "
-             << args[i].type->toString() << "\n";
+             << typeString << "\n";
       }
     }
   )
@@ -627,16 +632,25 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate
 {
   Owner<Candidate> c(new Candidate(var, instFrom, args.size()));
 
-//    cout << "args.size() " << args.size() << endl;
-
   FunctionType *ft = var->type->asFunctionType();
-//    cout << "ft->params.count() " << ft->params.count() << endl;
 
   // simultaneously iterate over parameters and arguments
   SObjListIter<Variable> paramIter(ft->params);
   int argIndex = 0;
   while (!paramIter.isDone() && argIndex < args.size()) {
     bool destIsReceiver = argIndex==0 && ft->isMethod();
+
+    if (argIndex==0 && (flags & OF_METHODS)) {
+      if (!args[argIndex].type && ft->isMethod()) {
+        // no receiver object but function is a method: not viable
+        return NULL;
+      }
+      if (args[argIndex].type && !ft->isMethod()) {
+        // leave the conversion as IC_NONE
+        argIndex++;       // do *not* advance 'paramIter'
+        continue;
+      }
+    }
 
     if (flags & OF_NO_USER) {
       // only consider standard conversions
@@ -756,8 +770,24 @@ int OverloadResolver::compareCandidates(Candidate const *left, Candidate const *
   SObjListIter<Variable> leftParam(leftFunc->params);
   SObjListIter<Variable> rightParam(rightFunc->params);
 
+  // argument index
+  int i = 0;
+
+  if (flags & OF_METHODS) {
+    if (!leftFunc->isMethod() || !rightFunc->isMethod()) {
+      // for nonmethods, the receiver param is ignored
+      i++;
+      if (leftFunc->isMethod()) {
+        leftParam.adv();
+      }
+      if (rightFunc->isMethod()) {
+        rightParam.adv();
+      }
+    }
+  }
+
   // walk through list of arguments, comparing the conversions
-  for (int i=0; i < args.size(); i++) {
+  for (; i < args.size(); i++) {
     // get parameter types; they can be NULL if we walk off into the ellipsis
     // of a variable-argument function
     Type const *leftDest = NULL;

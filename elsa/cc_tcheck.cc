@@ -4390,6 +4390,7 @@ static bool allNonMethods(SObjList<Variable> &set)
   return true;
 }
 
+#if 0     // not needed
 // return true iff all the variables are methods; this is temporary,
 // otherwise I'd make it a method on class OverloadSet
 static bool allMethods(SObjList<Variable> &set)
@@ -4399,7 +4400,8 @@ static bool allMethods(SObjList<Variable> &set)
     if (!iter.data()->type->asFunctionType()->isMethod()) return false;
   }
   return true;
-}
+}                      
+#endif // 0
 
 
 // Given a Variable that might denote an overloaded set of functions,
@@ -4448,33 +4450,31 @@ static Variable *outerResolveOverload(Env &env,
     return NULL;
   }
 
-  // temporarily avoid dealing with considerations of mixed static and
-  // non-static members in overload set
-  bool allMethod0 = allMethods(var->overload->set);
-  bool allNonMethod0 = allNonMethods(var->overload->set);
-  if (! (allMethod0 || allNonMethod0) ) return NULL;
-
-  xassert( (((int)allMethod0) + ((int)allNonMethod0)) == 1 );
   OVERLOADINDTRACE(::toString(loc)
         << ": overloaded(" << var->overload->set.count()
         << ") call to " << var->name);
 
+  // are any members of the set (nonstatic) methods?
+  bool anyMethods = !allNonMethods(var->overload->set);
+
   // fill an array with information about the arguments
-  GrowArray<ArgumentInfo> argInfo(args->count() + (allMethod0?1:0) );
+  GrowArray<ArgumentInfo> argInfo(args->count() + (anyMethods?1:0) );
   {
     int index = 0;
 
-    if (allMethod0) {
-      if (!receiverType) {
-        // dsw: error message parallels that of g++; feel free to change it
-        // sm: I suspect we'll actually want to remove it, since the tcheck
-        // that follows overload resolution will catch this error also.
-        env.error("Cannot call member function without object");
-        return NULL;
+    if (anyMethods) {
+      argInfo[index].special = SE_NONE;
+      if (receiverType) {
+        // TODO: take into account whether the receiver is an rvalue
+        // or an lvalue
+        argInfo[index].type = makeLvalType(env, receiverType);
       }
-      // TODO: take into account whether the receiver is an rvalue
-      // or an lvalue
-      argInfo[index] = ArgumentInfo(SE_NONE, makeLvalType(env, receiverType));
+      else {
+        // let a NULL receiver type indicate the absence of a receiver
+        // argument; this will make all nonstatic methods not viable
+        argInfo[index].type = NULL;
+      }
+
       index++;
     }
 
@@ -4487,7 +4487,8 @@ static Variable *outerResolveOverload(Env &env,
   // resolve overloading
   bool wasAmbig;     // ignored, since error will be reported
   return resolveOverload(env, loc, &env.errors,
-                         OF_NONE, var->overload->set, finalName, argInfo, wasAmbig);
+                         anyMethods? OF_METHODS : OF_NONE,
+                         var->overload->set, finalName, argInfo, wasAmbig);
 }
 
 
