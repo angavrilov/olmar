@@ -325,3 +325,24 @@ void mn()
   // LUB is a function pointer type, which is not pointer-to-object
   //ERROR(3): m-n;
 }
+
+
+
+
+// example from my notes on the convertibility relation
+struct AA {
+  operator int* ();
+  operator float* ();
+};
+
+struct BB {
+  operator float* ();
+  operator char* ();
+};
+
+int ff()
+{
+  AA a;
+  BB b;
+  return a-b;     // overloaded operator call
+};

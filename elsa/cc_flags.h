@@ -145,8 +145,8 @@ enum SimpleTypeId {
   ST_UNSIGNED_INT,
   ST_LONG_INT,
   ST_UNSIGNED_LONG_INT,
-  ST_LONG_LONG,              // GNU extension
-  ST_UNSIGNED_LONG_LONG,     // GNU extension
+  ST_LONG_LONG,              // GNU/C99 extension
+  ST_UNSIGNED_LONG_LONG,     // GNU/C99 extension
   ST_SHORT_INT,
   ST_UNSIGNED_SHORT_INT,
   ST_WCHAR_T,
