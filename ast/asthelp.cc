@@ -35,6 +35,7 @@ void debugPrintStringList(ASTList<STR> const &list, char const *name,
       os << quoted(*( iter.data() ));
     }
   }
+  os << "\n";
 }
 
 
