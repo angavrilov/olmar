@@ -97,6 +97,9 @@ CHK_CCIN += cc.in40
 CHK_CCIN += cc.in41
 CHK_CCIN += cc.in42
 CHK_CCIN += cc.in43
+CHK_CCIN += cc.in100
+CHK_CCIN += cc.in101
+CHK_CCIN += cc.in102
 
 CHK_CCEX :=
 CHK_CCEX += Box.cc
@@ -108,13 +111,21 @@ CHK_CCEX += Test_105true.cc
 CHK_CCEX += Test_110hello.cc
 
 CHK_CCEX += Test_210box.cc
+
+# template
 #CHK_CCEX += Test_220tbox.cc
+
 CHK_CCEX += Test_310hello.c
 CHK_CCEX += Test_315hello.c
+
+# template
 #CHK_CCEX += Test_320hello_tbox.cc
+
+# template
 #CHK_CCEX += Test_325hello_tbox.cc
 
-CHK_CALC :=
+# This uses STLport, which we don't use anymore.
+#CHK_CALC :=
 # CHK_CALC += calc/Test_100.cc
 # CHK_CALC += calc/Test_110.cc
 # CHK_CALC += calc/Test_200Lexer.cc
@@ -126,10 +137,10 @@ CHK_CALC :=
 # CHK_CALC += calc/util.cc
 
 #Exception thrown: Assertion failed: !a->isReference(), file cc/cc_type.cc line 884
+# Sent to Scott Oct 21
 #CHK_CHAP += ch5/ex1.cc
 
-#CHK_CHAP += ch5/ex3.cc
-
+CHK_CHAP += ch5/ex3.cc
 CHK_CHAP += ch5/ex4.cc
 
 #CHK_CHAP += ch7/overload.cc
@@ -418,8 +429,8 @@ idem/cc.in:; ./idemcheck -d outdir $(addprefix $(DIR_CCIN),$(CHK_CCIN))
 DIR_CCEX := ../../cure_cpp/cc_examples/
 .PHONY: idem/cc_examples
 idem/cc_examples:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CCEX))
-.PHONY: idem/calc
-idem/calc:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CALC))
+# .PHONY: idem/calc
+# idem/calc:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CALC))
 .PHONY: idem/chap
 idem/chap:; ./idemcheck -d outdir $(addprefix $(DIR_CCEX),$(CHK_CHAP))
 .PHONY: idem/other1
