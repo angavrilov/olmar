@@ -4,6 +4,8 @@
 #ifndef CC_TREE_H
 #define CC_TREE_H
 
+#error This module is not used for now
+
 #include "glrtree.h"    // NonterminalNode
 #include "exc.h"        // xBase
 #include "cc_env.h"     // Env

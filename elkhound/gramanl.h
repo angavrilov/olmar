@@ -348,9 +348,9 @@ private:    // funcs
   void constructLRItemSets();
   void lrParse(char const *input);
 
-  void findSLRConflicts();
+  void findSLRConflicts(int &sr, int &rr);
   bool checkSLRConflicts(ItemSet *state, Terminal const *sym,
-                         bool conflictAlready);
+                         bool conflictAlready, int &sr, int &rr);
   void handleShiftReduceConflict(bool &keepShift, bool &keepReduce,
     ItemSet *state, Production const *prod, Terminal const *sym);
 

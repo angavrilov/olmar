@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar gramanl cexp3 cdecl
+temporary: check-makefiles grampar gramanl cexp3 cdecl ccgr
 
 # main targets
 all: check-makefiles ccgr
@@ -64,8 +64,9 @@ grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
 glr-set = gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o
 
 # files involved in translating parsed C/C++ code
-cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
-         stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
+#cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
+#         stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
+cc-set = 
 
 # stuff needed everywhere
 common = 
@@ -205,10 +206,10 @@ cdecl: ${cdecl-dep} ${libraries}
 # intermediate files for ccgr (the chmod is to make it harder
 # to accidentally start editing files that are automatically 
 # generated)
-cc.cc cc.h: cc.gr cc.tok gramanl
-	rm -f cc.{h,cc}
-	./gramanl -tr nolines cc
-	chmod a-w cc.cc cc.h
+cc.cc: cc.gr cc.tok gramanl
+	rm -f cc.cc
+	./gramanl cc
+	chmod a-w cc.cc
 
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get
@@ -220,14 +221,14 @@ ccgr-dep = cc.o ${grammar-set} ${common} ${grampar-set} \
 # easier importing into ocaml
 # turns out if you don't remove the library, there's a possibility
 # of old object files staying in it .. !
-libccgr.a: ${ccgr-dep} cc.h
+libccgr.a: ${ccgr-dep}
 	rm -f libccgr.a
 	ar -r libccgr.a ${ccgr-dep}
 	ranlib libccgr.a
 
 # stand-alone executable
-ccgr: libccgr.a
-NOCAMLINCL	${link} -o ccgr libccgr.a ${linkend}
+ccgr: libccgr.a glrmain.o
+NOCAMLINCL	${link} -o ccgr glrmain.o libccgr.a ${linkend}
 OCAMLINCL	@echo "we don't build ccgr in ocaml mode"
 
 clean:

@@ -167,12 +167,15 @@ public:
   // reads it, and then it's a serf; so in fact it's treated as a serf
   // throughout, with corresponding leak potential
   union {
-    int intValue;      	       	 // for L2_INT_LITERALs
-    float floatValue;		 // for L2_FLOAT_LITERALs
-    char charValue;		 // for L2_CHAR_LITERALs
+    int intValue;                // for L2_INT_LITERALs
+    
+    // this is an owner pointer.. I'll fix this when I overhaul L2
+    float *floatValue;           // for L2_FLOAT_LITERALs
+
+    char charValue;              // for L2_CHAR_LITERALs
     StringRef strValue;          // for L2_NAMEs and L2_STRING_LITERALs; refers to Lexer2::idTable
     SemanticValue sval;          // union with above means we can extract from this
-  };            
+  };
 
   // TODO: handle strings with embedded nulls
 

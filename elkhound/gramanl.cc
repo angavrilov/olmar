@@ -2048,6 +2048,10 @@ void GrammarAnalysis::constructLRItemSets()
   itemSetsDone.mergeSort(ItemSet::diffById);
 
 
+  traceProgress(1) << "done with LR sets: " << itemSetsDone.count()
+                   << " states\n";
+
+
   // do the BFS now, since we want to print the sample inputs
   // in the loop that follows
   traceProgress(1) << "BFS tree on transition graph...\n";
@@ -2069,16 +2073,17 @@ void GrammarAnalysis::constructLRItemSets()
     }
   }
 
+  if (tracingSys("itemset-graph")) {
+    // write this info to a graph applet file
+    ofstream out("lrsets.g");
+    if (!out) {
+      xsyserror("ofstream open");
+    }
+    out << "# lr sets in graph form\n";
 
-  // write this info to a graph applet file
-  ofstream out("lrsets.g");
-  if (!out) {
-    xsyserror("ofstream open");
-  }
-  out << "# lr sets in graph form\n";
-
-  FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
-    itemSet.data()->writeGraph(out, *this);
+    FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
+      itemSet.data()->writeGraph(out, *this);
+    }
   }
 }
 
@@ -2112,7 +2117,7 @@ Symbol const *GrammarAnalysis::
 // an SLR(1) parser; this is a superset of the conflicts reported
 // by bison, which is LALR(1); found conflicts are printed with
 // trace("conflict")
-void GrammarAnalysis::findSLRConflicts()
+void GrammarAnalysis::findSLRConflicts(int &sr, int &rr)
 {
   // for every item set..
   MUTATE_EACH_OBJLIST(ItemSet, itemSets, itemSet) {
@@ -2124,7 +2129,7 @@ void GrammarAnalysis::findSLRConflicts()
     // for every input symbol..
     FOREACH_TERMINAL(terminals, t) {
       // check it
-      bool con = checkSLRConflicts(itemSet.data(), t.data(), conflictAlready);
+      bool con = checkSLRConflicts(itemSet.data(), t.data(), conflictAlready, sr, rr);
       conflictAlready = conflictAlready || con;
     }
   }
@@ -2134,7 +2139,7 @@ void GrammarAnalysis::findSLRConflicts()
 // given a parser state and an input symbol determine if we will fork
 // the parse stack; return true if there is a conflict
 bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
-                                        bool conflictAlready)
+                                        bool conflictAlready, int &sr, int &rr)
 {
   // see where a shift would go
   ItemSet *shiftDest = state->transition(sym);
@@ -2176,7 +2181,7 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
         mut.adv();
       }
     }
-    
+
     // there is still a potential for misbehavior.. e.g., if there are two
     // possible reductions (R1 and R2), and one shift (S), then the user
     // could have specified prec/assoc to disambiguate, e.g.
@@ -2208,6 +2213,11 @@ bool GrammarAnalysis::checkSLRConflicts(ItemSet *state, Terminal const *sym,
 
   if (shiftDest) {
     trace("conflict") << "  shift, and move to state " << shiftDest->id << endl;
+    sr++;                 // shift/reduce conflict
+    rr += actions - 2;    // any reduces beyond first are r/r errors
+  }                                                                 
+  else {
+    rr += actions - 1;    // all reduces beyond first are r/r errors
   }
 
   SFOREACH_PRODUCTION(reductions, prod) {
@@ -2913,8 +2923,14 @@ void GrammarAnalysis::runAnalyses()
   constructLRItemSets();
 
   traceProgress(1) << "SLR conflicts...\n";
-  findSLRConflicts();
-
+  {
+    int sr=0, rr=0;           // numbers of each kind of conflict
+    findSLRConflicts(sr, rr);
+    if (sr + rr > 0) {
+      cout << sr << " shift/reduce conflicts and "
+           << rr << " reduce/reduce conflicts\n";
+    }
+  }
 
   // if we want to print, do so before throwing away the items
   if (tracingSys("itemsets")) {

@@ -452,7 +452,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src, char const *fname)
 
         case L1_FLOAT_LITERAL:
           L2->type = L2_FLOAT_LITERAL;
-          L2->floatValue = atof(L1->text);
+          L2->floatValue = new float(atof(L1->text));
           break;
 
         case L1_STRING_LITERAL: {
