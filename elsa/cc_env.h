@@ -263,8 +263,6 @@ private:     // funcs
     (CompoundType *ct, SObjList<STemplateArgument> const &args);
 
   bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
-  bool equalOrIsomorphic(Type *a, Type *b,
-                         Type::EqFlags eflags = Type::EF_EXACT);
 
   Variable *getPrimaryOrSpecialization
     (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs);
@@ -956,5 +954,9 @@ void addCompilerSuppliedDecls(Env &env, SourceLoc loc, CompoundType *ct);
 // implemented in template.cc
 void instantiateRemainingMethods(Env &env, TranslationUnit *tunit);
 
+// made this global since it only needs 'tfac', not an entire 'env',
+// and I want to call this in places where I only have the former
+bool equalOrIsomorphic(TypeFactory &tfac, Type *a, Type *b,
+                       Type::EqFlags eflags = Type::EF_EXACT);
 
 #endif // CC_ENV_H

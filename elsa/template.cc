@@ -680,10 +680,11 @@ bool STemplateArgument::isomorphic(TypeFactory &tfac, STemplateArgument const *o
   }
 
   switch (kind) {
-    case STA_TYPE: {
-      MatchTypes match(tfac, MatchTypes::MM_ISO);
-      return match.match_Type(value.t, obj->value.t);
-    }
+    case STA_TYPE:
+      // 10/09/04: (in/t0351.cc) Use 'equalOrIsomorphic' so we skip the
+      // buggy matchtype module whenever possible (unfortunately, this
+      // means the matchtype bugs get pushed even deeper...).
+      return equalOrIsomorphic(tfac, value.t, obj->value.t);
 
     // TODO: these are wrong, because we don't have a proper way
     // to represent non-type template parameters in argument lists
@@ -2928,8 +2929,14 @@ bool Env::mergeTemplateInfos(Variable *prior, TemplateInfo *dest,
 
 bool Env::isomorphicTypes(Type *a, Type *b)
 {
+  // 10/09/04: Why does this exist and also 'equalOrIsomorphic' exist?
+  // I will try making this one call that one.
+  return equalOrIsomorphic(tfac, a, b);
+
+  #if 0
   MatchTypes match(tfac, MatchTypes::MM_ISO);
   return match.match_Type(a, b);
+  #endif // 0
 }
 
 

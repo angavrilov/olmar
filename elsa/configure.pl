@@ -14,7 +14,7 @@ $SMBASE = "../smbase";
 $AST = "../ast";
 $ELKHOUND = "../elkhound";
 $USE_GNU = "yes";
-$USE_KANDR = "no";
+$USE_KANDR = "yes";
 
 
 sub usage {
@@ -27,8 +27,8 @@ options:
   -no-dash-O2        disable -O2
   -prof              enable profiling
   -devel             add options useful while developing (-Werror)
-  -gnu=yes/no        enable or disable GNU extensions [$USE_GNU]
-  -kandr=yes/no      enable or disable K&R extensions [$USE_KANDR]
+  -gnu=yes/no        enable GNU extensions? [$USE_GNU]
+  -kandr=yes/no      enable K&R extensions? [$USE_KANDR]
   -ccflag <arg>:     add <arg> to gcc command line
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
   -ast=<dir>:        specify where the ast system is [$AST]

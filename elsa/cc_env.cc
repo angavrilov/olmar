@@ -2722,7 +2722,7 @@ bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2)
   // no exception: strict equality (well, toplevel param cv can differ)
   Type::EqFlags eqFlags = Type::EF_IGNORE_PARAM_CV;
 
-  return equalOrIsomorphic(t1, t2, eqFlags);
+  return equalOrIsomorphic(tfac, t1, t2, eqFlags);
 }
 
 
@@ -2916,7 +2916,7 @@ Variable *Env::findInOverloadSet(OverloadSet *oset,
     FunctionType *iterft = iter.data()->type->asFunctionType();
 
     // check the parameters other than '__receiver'
-    if (!equalOrIsomorphic(iterft, ft, 
+    if (!equalOrIsomorphic(tfac, iterft, ft, 
            Type::EF_STAT_EQ_NONSTAT | Type::EF_IGNORE_IMPLICIT)) {
       continue;    // not the one we want
     }
@@ -2941,7 +2941,7 @@ Variable *Env::findInOverloadSet(OverloadSet *oset, FunctionType *ft)
 // not two overloaded instances  
 bool Env::equivalentSignatures(FunctionType *ft1, FunctionType *ft2)
 {
-  return equalOrIsomorphic(ft1, ft2, Type::EF_SIGNATURE);
+  return equalOrIsomorphic(tfac, ft1, ft2, Type::EF_SIGNATURE);
 }
 
 
@@ -2950,7 +2950,7 @@ bool Env::equivalentSignatures(FunctionType *ft1, FunctionType *ft2)
 //
 // The parameters here should be const, but MatchTypes doesn't
 // make claims about constness so I just dropped const from here ...
-bool Env::equalOrIsomorphic(Type *a, Type *b, Type::EqFlags eflags)
+bool equalOrIsomorphic(TypeFactory &tfac, Type *a, Type *b, Type::EqFlags eflags)
 {
   bool aVars = a->containsVariables();
   bool bVars = b->containsVariables();
@@ -2989,7 +2989,7 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
     FunctionType *specFt = type->asFunctionType();
     bool sameType = 
       (prior->name == conversionOperatorName?
-        equalOrIsomorphic(priorFt, specFt) :         // conversion: equality check
+        equalOrIsomorphic(tfac, priorFt, specFt) :   // conversion: equality check
         equivalentSignatures(priorFt, specFt));      // non-conversion: signature check
 
     // figure out if either is (or will be) a template
@@ -3185,7 +3185,7 @@ Variable *Env::createDeclaration(
              prior->hasFlag(DF_EXTERN_C) &&
              (prior->flags & DF_TYPEDEF) == (dflags & DF_TYPEDEF) &&
              prior->type->isFunctionType() &&
-             equalOrIsomorphic(prior->type, type,
+             equalOrIsomorphic(tfac, prior->type, type,
                                Type::EF_IGNORE_PARAM_CV |    // same as in almostEqualTypes
                                Type::EF_IGNORE_EXN_SPEC)) {  // special to this call site
       // 10/01/04: allow the nonstandard variation in exception specs
@@ -3215,7 +3215,7 @@ Variable *Env::createDeclaration(
               << "prior declaration of function `" << name
               << "' at " << prior->loc
               << " had type `" << prior->type->toString()
-              << "', but this one uses `" << type->toString() << "'"
+              << "', but this one uses `" << type->toString() << "'."
               << " This is most likely due to the prior declaration being implied "
               << "by a call to a function before it was declared.  "
               << "Keeping the implied, weaker declaration; THIS IS UNSOUND.");
