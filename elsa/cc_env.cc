@@ -349,10 +349,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     
     tcheckMode(TTM_1NORMAL)
 {
-  // dsw: for esoteric reasions I need the tfac to be publicly
-  // available at times
-  global_tfac = &tfac;
-
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
   #define HERE SL_INIT              // decided I prefer this
@@ -391,7 +387,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // [cppstd 3.7.3 para 2]
   Type *t_void = getSimpleType(HERE, ST_VOID);
   Type *t_voidptr = makePtrType(HERE, t_void);
-  Type *t_bool = getSimpleType(HERE, ST_BOOL);
 
   // note: my stddef.h typedef's size_t to be 'int', so I just use
   // 'int' directly here instead of size_t
@@ -433,6 +428,17 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
                       t_voidptr, "p");
 
+  if (lang.isC99) {
+    // sm: I found this; it's a C99 feature: 6.2.5, para 2.  It's
+    // actually a keyword, so should be lexed specially, but I'll
+    // leave it alone for now.
+    //
+    // typedef bool _Bool;
+    Type *t_bool = getSimpleType(HERE, ST_BOOL);
+    addVariable(makeVariable(SL_INIT, str("_Bool"),
+                             t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
+  }
+
   #ifdef GNU_EXTENSION
     Type *t_int = getSimpleType(HERE, ST_INT);
     //Type *t_unsigned_int = getSimpleType(HERE, ST_UNSIGNED_INT);
@@ -449,21 +455,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // typedef void *__builtin_va_list;
     addVariable(makeVariable(SL_INIT, str("__builtin_va_list"),
                              t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
-
-    // dsw: We concluded that this is a gcc-ism; Note that the first
-    // solution of simply lexing '_Bool' as 'bool' doesn't work
-    // because _Bool only is useful in C mode, exactly when 'bool'
-    // won't be a keyword.  This is in fact the whole point of _Bool
-    // as far as I can tell.
-    //
-    // Scott's comment that used to be in gnu.lex:
-    // where does this come from?  gcc-3.4.0 seems to know about it,
-    // but gcc-2.95.3 doesn't ....
-    if (!lang.isCplusplus) {
-      // typedef bool _Bool;
-      addVariable(makeVariable(SL_INIT, str("_Bool"),
-                               t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
-    }
 
     // char *__builtin_strchr(char const *str, int ch);
     declareFunction2arg(t_charptr, "__builtin_strchr",
@@ -1580,17 +1571,23 @@ Scope *Env::lookupOneQualifier(
           // So, as 'ct' is the primary, look in it to find the proper
           // specialization (or the primary).
           Variable *primaryOrSpec =
-            ct->templateInfo()->getPrimaryOrSpecialization(sargs);
-          if (!primaryOrSpec) {   
+            ct->templateInfo()->getPrimaryOrSpecialization(tfac, sargs);
+          if (!primaryOrSpec) {
             // I'm calling this disambiguating because I do so above,
             // when looking up just 'qual'; it's not clear that this
-            // is the right thing to do
+            // is the right thing to do.
             //
             // update: t0185.cc triggers this error.. so as a hack I'm
             // going to make it non-disambiguating, so that in
             // template code it will be ignored.  The right solution
             // is to treat member functions of template classes as
             // being independent template entities.
+            //
+            // Unfortunately, since this is *only* used in template
+            // code, it's always masked.  Therefore, use the 'error'
+            // tracing flag to see it when desired.  Hopefully a
+            // proper fix for t0185.cc will land soon and we can make
+            // this visible.
             error(stringc << "cannot find template primary or specialization `"
                           << qualifier->toString() << "'",
                   /*old:EF_DISAMBIGUATES*/ EF_NONE);
@@ -1856,9 +1853,23 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
         //
         // in fact, as I suspected, it is wrong; using-directives can
         // create aliases (e.g. t0194.cc)
+        
+        // obtain a list of semantic arguments
+        PQ_template const *tqual = final->asPQ_templateC();
+        SObjList<STemplateArgument> sargs;
+        templArgsASTtoSTA(tqual->args, sargs);
 
-        return instantiateTemplate_astArgs(loc(), scope, var, NULL /*inst*/,
-                                           final->asPQ_templateC()->args);
+        // if the template arguments are not concrete, then create
+        // a PsuedoInstantiation
+        if (containsTypeVariables(sargs)) {
+          PseudoInstantiation *pi =
+            createPseudoInstantiation(var->type->asCompoundType(), sargs);
+          xassert(pi->typedefVar);
+          return pi->typedefVar;
+        }
+
+        return instantiateTemplate(loc(), scope, var, NULL /*inst*/, 
+                                   NULL /*bestV*/, sargs);
       }
       else {                    // template function
         xassert(var->isTemplateFunction());
@@ -2338,15 +2349,6 @@ Variable *Env::createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
 }
 
 
-// true if two function types have equivalent signatures, meaning
-// if their names are the same then they refer to the same function,
-// not two overloaded instances
-bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
-{
-  return ft1->innerEquals(ft2, Type::EF_SIGNATURE);
-}
-
-
 // comparing types for equality, *except* we allow array types
 // to match even when one of them is missing a bound and the
 // other is not; I cannot find where in the C++ standard this
@@ -2356,12 +2358,14 @@ bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
 // note that this is *not* the same rule that allows array types in
 // function parameters to vary similarly, see
 // 'normalizeParameterType()'
-bool Env::almostEqualTypes(Type const *t1, Type const *t2)
+//
+// Like 'equalOrIsomorphic', I've weakened constness ...
+bool Env::almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2)
 {
   if (t1->isArrayType() &&
       t2->isArrayType()) {
-    ArrayType const *at1 = t1->asArrayTypeC();
-    ArrayType const *at2 = t2->asArrayTypeC();
+    ArrayType /*const*/ *at1 = t1->asArrayType();
+    ArrayType /*const*/ *at2 = t2->asArrayType();
 
     if ((at1->hasSize() && !at2->hasSize()) ||
         (at2->hasSize() && !at1->hasSize())) {
@@ -2377,7 +2381,7 @@ bool Env::almostEqualTypes(Type const *t1, Type const *t2)
     eqFlags |= Type::EF_ALLOW_KR_PARAM_OMIT;
   }
 
-  return t1->equals(t2, eqFlags);
+  return equalOrIsomorphic(t1, t2, eqFlags);
 }
 
 
@@ -2542,13 +2546,81 @@ Variable *Env::lookupVariableForDeclaration
     // set 'prior' to the previously-declared member that has
     // the same signature, if one exists
     FunctionType *ft = type->asFunctionType();
-    Variable *match = prior->overload->findByType(ft, this_cv);
+    Variable *match = findInOverloadSet(prior->overload, ft, this_cv);
     if (match) {
       prior = match;
     }
   }
 
   return prior;
+}
+
+
+// Search in an overload set for a specific element, given its type.
+// This is like the obsolete OverloadSet::findByType, except it works
+// when elements of the set are templatized.
+Variable *Env::findInOverloadSet(OverloadSet *oset,
+                                 FunctionType *ft, CVFlags receiverCV)
+{
+  SFOREACH_OBJLIST_NC(Variable, oset->set, iter) {
+    FunctionType *iterft = iter.data()->type->asFunctionType();
+
+    // check the parameters other than '__receiver'
+    if (!equalOrIsomorphic(iterft, ft, 
+           Type::EF_STAT_EQ_NONSTAT | Type::EF_IGNORE_IMPLICIT)) {
+      continue;    // not the one we want
+    }
+
+    // if 'this' exists, it must match 'receiverCV'
+    if (iterft->getReceiverCV() != receiverCV) continue;
+
+    // ok, this is the right one
+    return iter.data();
+  }
+  return NULL;    // not found
+}
+
+Variable *Env::findInOverloadSet(OverloadSet *oset, FunctionType *ft)
+{
+  return findInOverloadSet(oset, ft, ft->getReceiverCV());
+}
+
+
+// true if two function types have equivalent signatures, meaning
+// if their names are the same then they refer to the same function,
+// not two overloaded instances  
+bool Env::equivalentSignatures(FunctionType *ft1, FunctionType *ft2)
+{
+  return equalOrIsomorphic(ft1, ft2, Type::EF_SIGNATURE);
+}
+
+
+// if the types are concrete, compare for equality; if at least one
+// is not, compare for isomorphism
+//
+// The parameters here should be const, but MatchTypes doesn't
+// make claims about constness so I just dropped const from here ...
+bool Env::equalOrIsomorphic(Type *a, Type *b, Type::EqFlags eflags)
+{
+  bool aVars = a->containsVariables();
+  bool bVars = b->containsVariables();
+
+  if (!aVars && !bVars) {
+    // normal case: concrete signature comparison
+    return a->equals(b, eflags);
+  }
+  else if (aVars && bVars) {
+    // non-concrete comparison
+    //
+    // TODO: Is there something useful to do with the equality flags?
+    // It seems to me that MatchTypes should accept equality flags...
+    MatchTypes match(tfac, MatchTypes::MM_ISO);
+    return match.match_Type(a, b);
+  }
+  else {
+    // template vs non-template: not equivalent
+    return false;
+  }
 }
 
 
@@ -2570,7 +2642,7 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
     // or it's a conversion operator
     if (!equivalentSignatures(priorFt, specFt) ||
         (prior->name == conversionOperatorName &&
-         !priorFt->equals(specFt))) {
+         !equalOrIsomorphic(priorFt, specFt))) {
       // ok, allow the overload
       TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
@@ -3205,6 +3277,30 @@ E_intLit *Env::buildIntegerLiteralExp(int i)
   E_intLit *ret = new E_intLit(text);
   ret->i = i;
   return ret;
+}
+
+
+// create a PseudoInstantiation, bind its arguments, and create
+// the associated typedef variable
+PseudoInstantiation *Env::createPseudoInstantiation
+  (CompoundType *ct, SObjList<STemplateArgument> const &args)
+{                                                            
+  TRACE("pseudo", "creating " << ct->name << sargsToString(args));
+
+  // make the object itself
+  PseudoInstantiation *pi = new PseudoInstantiation(ct);
+
+  // attach the template arguments
+  SFOREACH_OBJLIST(STemplateArgument, args, iter) {
+    pi->args.prepend(new STemplateArgument(*(iter.data())));
+  }
+  pi->args.reverse();
+
+  // make the typedef var; do *not* add it to the environment
+  pi->typedefVar = makeVariable(loc(), ct->name, makeType(loc(), pi), 
+                                DF_TYPEDEF | DF_IMPLICIT);
+
+  return pi;
 }
 
 

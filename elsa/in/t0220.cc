@@ -1,5 +1,5 @@
 // t0220.cc
-// specialization of a class template,
+// partial specialization of a class template,
 // specialized for use with another template.
 // needed for iostream
 

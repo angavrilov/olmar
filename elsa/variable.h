@@ -217,6 +217,11 @@ public:
   void addMember(Variable *v);
   int count() const { return set.count(); }
 
+  // These are obsolete; see Env::findInOverloadSet.              
+  //
+  // Update: But Oink wants to use them for linker imitation.. and
+  // I don't see much harm in that, since non-concrete types should
+  // not be linker visible anyway.
   Variable *findByType(FunctionType const *ft, CVFlags receiverCV);
   Variable *findByType(FunctionType const *ft);
 };

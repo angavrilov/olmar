@@ -341,6 +341,12 @@ void OverloadSet::addMember(Variable *v)
 }
 
 
+// The problem with these is they don't work for templatized types
+// because they call 'equals', not MatchType.
+//
+// But I've re-enabled them for Oink ....
+#if 1     // obsolete; see Env::findInOverloadSet
+
 Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
 {
   SFOREACH_OBJLIST_NC(Variable, set, iter) {
@@ -348,7 +354,7 @@ Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
 
     // check the parameters other than '__receiver'
     if (!iterft->equalOmittingReceiver(ft)) continue;
-    
+
     // if 'this' exists, it must match 'receiverCV'
     if (iterft->getReceiverCV() != receiverCV) continue;
 
@@ -362,5 +368,6 @@ Variable *OverloadSet::findByType(FunctionType const *ft, CVFlags receiverCV)
 Variable *OverloadSet::findByType(FunctionType const *ft) {
   return findByType(ft, ft->getReceiverCV());
 }
+#endif // 0
 
 // EOF

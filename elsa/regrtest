@@ -440,9 +440,13 @@ testparse t0216.cc
 testparse t0217.cc
 testparse t0218.cc
 failparse t0219.cc "template argument inference fails for member template function"
-# sm: I'm still working on t0220.cc
+testparse t0220.cc
 testparse t0221.cc
 testparse t0222.cc
+testparse t0223.cc
+testparse t0224.cc
+testparse t0225.cc
+testparse t0226.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -505,8 +509,15 @@ testparse d0058.cc
 testparse d0059.cc
 testparse d0060.cc
 testparse d0061.cc
+
+# sm: This is not the intended purpose of 'failparse'!  failparse is
+# for things that currently do not work, but are expected to at some
+# point in the future.  These two tests are *intended* to fail, which
+# is different.  The correct way to do this is to mark certain lines
+# with "ERROR(n)".
 failparse d0062.cc "during type matching, recursion depth exceeded the limit"
 failparse d0063.cc "during type matching, recursion depth exceeded the limit"
+
 # the array size is actually there
 #  in/d0064.cc:4:37: error: array size must be positive (inst from in/d0064.cc:32:8)
 #  testparse d0064.cc

@@ -17,12 +17,6 @@
 #include <stdlib.h>     // getenv
 
 
-// sm: this is at least the second time this idea has cropped up,
-// and it still a mistake
-#warning global_tfac is a mistake
-TypeFactory * global_tfac = NULL;
-
-
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
@@ -72,48 +66,30 @@ bool AtomicType::isNamedAtomicType() const
 
 bool AtomicType::equals(AtomicType const *obj) const
 {
-  // one exception to the below: when checking for
-  // equality, TypeVariables are all equivalent
-  if (this->isTypeVariable() &&
-      obj->isTypeVariable()) {
-    return true;
-  }
-
-  // sm: Something is really wrong here.  AtomicType::equals
-  // is supposed to be simple.  The caller must be misusing it.
-  #warning AtomicType::equals should be simple
-
-  // all of the AtomicTypes are unique-representation,
-  // so pointer equality suffices
+  // The design of this type system is such that this function is
+  // supposed to be simple.  If you are inclined to add any special
+  // cases, you're probably misusing the interface.
   //
-  // it is *important* that we don't do structural equality
-  // here, because then we'd be confused by types with the
-  // same name that appear in different scopes!
+  // For example, if you want to weaken the check for template-related
+  // reason, consider using MatchTypes instead.
+
+  // experiment: Disallow non-concrete types
   //
-  // dsw: but if they are instantiations of the same class template in
-  // TemplTcheckMode TTM_2TEMPL_FUNC_DECL (the parameter list of a
-  // function template) they might not be '==', but still be
-  // isomorphic if they were instantiated with a template argument
-  // that is the template parameter (type variable) of the function
-  // template
-  if (this->isCompoundType() && this->asCompoundTypeC()->templateInfo() &&
-      obj->isCompoundType()  &&  obj->asCompoundTypeC()->templateInfo()) {
-    xassert(global_tfac);
-    MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
-    // FIX: this is gross, but to make matchtype such that I don't
-    // have to do it adds a lot of complexity that I don't want to
-    // test and debug right now; eventually match type should have an
-    // API that takes AtomicTypes as arguments.
-    //
-    // I don't know how to not use the const_cast given the APIs.
-    CVAtomicType *this_cva = global_tfac->makeCVAtomicType
-      (SL_UNKNOWN, const_cast<AtomicType*>(this), CV_NONE);
-    CVAtomicType *obj_cva  = global_tfac->makeCVAtomicType
-      (SL_UNKNOWN, const_cast<AtomicType*>(obj), CV_NONE);
-    return match.match_Type(this_cva, obj_cva);
-  } else {
-    return this == obj;
+  // This is mostly a good idea, and I think I found and fixed several
+  // real problems by turning this on.  However, there's a call to
+  // 'equals' in CompoundType::addLocalConversionOp where a
+  // non-concrete type can appear as an argument (t0225.cc), but it's
+  // not clear that isomorphic matching is right.  I'm not really sure
+  // how things are supposed to work with conversion operator return
+  // types, etc.  So I'm just going to turn this check off, and let
+  // the dogs sleep for now.
+  #if 0
+  if (!( this->isConcrete() && obj->isConcrete() )) {
+    xfailure("AtomicType::equals called with a non-concrete argument");
   }
+  #endif // 0
+
+  return this == obj;
 }
 
 
@@ -672,7 +648,7 @@ void CompoundType::finishedClassDefinition(StringRef specialName)
   if (!localOps) {
     return;      // nothing declared locally
   }
-  
+
   if (!localOps->overload) {
     addLocalConversionOp(localOps);
   }
@@ -891,7 +867,8 @@ int TypeVariable::reprSize() const
 
 // -------------------- PseudoInstantiation ------------------
 PseudoInstantiation::PseudoInstantiation(CompoundType *p)
-  : primary(p),
+  : NamedAtomicType(p->name),
+    primary(p),
     args()        // empty initially
 {}
 
@@ -1291,12 +1268,18 @@ bool BaseType::containsTypeVariables() const
 }
 
 
+// TODO: sm: I think it's wrong to have both 'hasTypeVariable' and
+// 'hasVariable', since I think any use of the former actually wants
+// to be a use of the latter.  Moreover, assuming their functionality
+// collapses, I prefer the former *name* since it's more suggestive of
+// use in templates (even if it would then be slightly inaccurate).
 bool hasVariable(Type const *t)
 {
   if (t->isTypeVariable()) return true;
   if (t->isCompoundType() && t->asCompoundTypeC()->isTemplate()) {
     return t->asCompoundTypeC()->templateInfo()->argumentsContainVariables();
   }
+  if (t->isPseudoInstantiation()) return true;
   // FIX: Extend for function types
   return false;
 }
@@ -2078,7 +2061,8 @@ TemplateInfo *TemplateInfo::getMyPrimaryIdem() const
 }
 
 
-Variable *TemplateInfo::addInstantiation(Variable *inst0, bool suppressDup)
+Variable *TemplateInfo::addInstantiation(TypeFactory &tfac, Variable *inst0, 
+                                         bool suppressDup)
 {
   xassert(inst0);
   xassert(inst0->templateInfo());
@@ -2092,7 +2076,7 @@ Variable *TemplateInfo::addInstantiation(Variable *inst0, bool suppressDup)
   bool inst0IsMutant = inst0->templateInfo()->isMutant();
   SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
     Variable *inst1 = iter.data();
-    MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+    MatchTypes match(tfac, MatchTypes::MM_ISO);
     bool unifies = match.match_Lists2
       (inst1->templateInfo()->arguments,
        inst0->templateInfo()->arguments,
@@ -2123,14 +2107,14 @@ SObjList<Variable> &TemplateInfo::getInstantiations()
 }
 
 
-Variable *TemplateInfo::getInstantiationOfVar(Variable *var)
+Variable *TemplateInfo::getInstantiationOfVar(TypeFactory &tfac, Variable *var)
 {
   xassert(var->templateInfo());
   ObjList<STemplateArgument> &varTArgs = var->templateInfo()->arguments;
   Variable *matchingVar = NULL;
   SFOREACH_OBJLIST_NC(Variable, getInstantiations(), iter) {
     Variable *candidate = iter.data();
-    MatchTypes match(*global_tfac, MatchTypes::MM_ISO);
+    MatchTypes match(tfac, MatchTypes::MM_ISO);
     // FIX: I use MT_NONE only because the matching is supposed to be
     // exact.  If you wanted the standard effect of const/volatile not
     // making a difference at the top of a parameter type, you would
@@ -2147,7 +2131,7 @@ Variable *TemplateInfo::getInstantiationOfVar(Variable *var)
 
 
 bool TemplateInfo::equalArguments
-  (SObjList<STemplateArgument> const &list) const
+  (TypeFactory &tfac, SObjList<STemplateArgument> const &list) const
 {
   ObjListIter<STemplateArgument> iter1(arguments);
   SObjListIter<STemplateArgument> iter2(list);
@@ -2155,7 +2139,7 @@ bool TemplateInfo::equalArguments
   while (!iter1.isDone() && !iter2.isDone()) {
     STemplateArgument const *sta1 = iter1.data();
     STemplateArgument const *sta2 = iter2.data();
-    if (!sta1->equals(sta2)) {
+    if (!sta1->isomorphic(tfac, sta2)) {
       return false;
     }
 
@@ -2168,7 +2152,7 @@ bool TemplateInfo::equalArguments
 
 
 Variable *TemplateInfo::getPrimaryOrSpecialization
-  (SObjList<STemplateArgument> const &sargs)
+  (TypeFactory &tfac, SObjList<STemplateArgument> const &sargs)
 {
   // primary?
   //
@@ -2203,7 +2187,7 @@ Variable *TemplateInfo::getPrimaryOrSpecialization
   // arise)
   SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
     Variable *spec = iter.data();
-    if (spec->templateInfo()->equalArguments(sargs)) {
+    if (spec->templateInfo()->equalArguments(tfac, sargs)) {
       return spec;
     }
   }
@@ -2419,6 +2403,26 @@ bool STemplateArgument::containsVariables() const
 }
 
 
+bool STemplateArgument::isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const
+{
+  if (kind != obj->kind) {
+    return false;
+  }
+
+  switch (kind) {
+    case STA_TYPE: {
+      MatchTypes match(tfac, MatchTypes::MM_ISO);
+      return match.match_Type(value.t, obj->value.t);
+    }
+
+    // TODO: these are wrong, because we don't have a proper way
+    // to represent non-type template parameters in argument lists
+    case STA_INT:      return value.i == obj->value.i;
+    default:           return value.v == obj->value.v;
+  }
+}
+
+
 string STemplateArgument::toString() const
 {
   switch (kind) {
@@ -2474,6 +2478,17 @@ string sargsToString(SObjList<STemplateArgument> const &list)
 
   sb << ">";
   return sb;
+}
+
+
+bool containsTypeVariables(SObjList<STemplateArgument> const &args)
+{
+  SFOREACH_OBJLIST(STemplateArgument, args, iter) {
+    if (iter.data()->containsVariables()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 

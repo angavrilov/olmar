@@ -4,7 +4,7 @@
 
 #include "matchtype.h"       // this module
 #include "variable.h"        // Variable
-#include "trace.h"           // trace
+#include "trace.h"           // tracingSys
 
 
 // FIX: I'll bet the matchDepth here isn't right; not sure what should
@@ -12,6 +12,13 @@
 //   if (b->isReferenceToConst()) return match0(a, b->getAtType(), matchDepth);
 
 int MatchTypes::recursionDepthLimit = 500; // what g++ 3.4.0 uses by default
+
+// sm: TODO: Actually, the g++ limit reported by running in/d0062.cc
+// is not a match algorithm depth, but rather the template
+// instantiation depth.  I believe that matching (and unification) can
+// be implemented such that a match depth limit is not required and
+// termination is guaranteed.
+
 
 // ---------------------- utilities ---------------------
 
@@ -275,6 +282,51 @@ bool MatchTypes::match_rightTypeVar(Type *a, Type *b, int matchDepth)
 }
 
 
+bool MatchTypes::match_variables(Type *a, TypeVariable *b, int matchDepth)
+{
+  // sm: Clearly, there is a relationship between this function and
+  // bindValToVar and match_rightTypeVar; these three should share more.
+  // But I don't understand the code well enough at the moment to
+  // properly collapse them.
+
+  xassert(a->isTypeVariable());
+  TypeVariable *aTV = a->asTypeVariable();
+
+  switch (mode) {
+    default: xfailure("bad mode");
+    case MM_BIND: xfailure("type var on left in MM_BIND");
+
+    case MM_WILD:
+      return true;
+
+    case MM_ISO: {
+      // copied+modified from match_rightTypeVar
+      STemplateArgument *targb = bindings.getTypeVar(b);
+      if (targb) {
+        if (targb->kind!=STemplateArgument::STA_TYPE) return false;
+        xassert(targb->value.t->isTypeVariable());
+
+        // since this is the MM_ISO case, they must be semantically
+        // identical
+        return
+          // must be the same typevar; NOTE: don't compare the types, as
+          // they can change when cv qualifiers are added etc. but the
+          // variables have to be the same
+          ((aTV->typedefVar ==
+            targb->value.t->asTypeVariable()->typedefVar));
+      }
+      else {
+        // copied+modified from bindValToVar
+        STemplateArgument *targa = new STemplateArgument;
+        targa->setType(a);
+        bindings.putTypeVar(b, targa);
+        return true;
+      }
+    }
+  }
+}
+
+
 bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
 {
   //   A non-ref, B ref to const: B's ref goes away
@@ -304,6 +356,9 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
   }
 
   if (b->isCVAtomicType()) {
+    AtomicType *aAT = a->atomic;
+    AtomicType *bAT = b->asCVAtomicType()->atomic;
+
     // deal with top-level qualifiers; if we are not at MT_TOP, then
     // they had better match exactly
     if (matchDepth > 0) {
@@ -311,11 +366,16 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
       if ( (a->getCVFlags() & mask) != (b->getCVFlags() & mask) ) return false;
     }
 
-    // if they pass, then deal with the types themselves
+    // sm: below here all supplied matchDepths were 0, so I've pulled
+    // that decision out to here; a nearby comment said:
+    //   used to be not top but I don't remember why
+    matchDepth = 0;
+
     bool aIsCpdTemplate = a->isCompoundType()
       && a->asCompoundType()->typedefVar->isTemplate();
     bool bIsCpdTemplate = b->isCompoundType()
       && b->asCompoundType()->typedefVar->isTemplate();
+
     if (aIsCpdTemplate && bIsCpdTemplate) {
       TemplateInfo *aTI = a->asCompoundType()->typedefVar->templateInfo();
       TemplateInfo *bTI = b->asCompoundType()->typedefVar->templateInfo();
@@ -326,19 +386,47 @@ bool MatchTypes::match_cva(CVAtomicType *a, Type *b, int matchDepth)
       // don't write this code, even in conjunction with the below
       // code
       //   aTDvar == bTDvar /* bad and wrong */
-      return match_TInfo(aTI, bTI,
-                         // used to be not top but I don't remember why
-                         0 /*matchDepth*/);
-    } else if (!aIsCpdTemplate && !bIsCpdTemplate) {
-      AtomicType *aAt = a->asCVAtomicType()->atomic;
-      AtomicType *bAt = b->asCVAtomicType()->atomic;
-      // I don't want to call BaseType::equals() at all since I'm
-      // essentially duplicating my version of that; however I do need
-      // to be able to ask if to AtomicType-s are equal.
-      return aAt->equals(bAt);
+      return match_TInfo(aTI, bTI, matchDepth);
     }
-    // if there is a mismatch, they definitely don't match
+
+    else if (!aIsCpdTemplate && !bIsCpdTemplate) {
+      // sm: Previously, this code called into AtomicType::equals, but
+      // since that didn't do quite the right thing, AtomicType::equals
+      // was hacked to death.  Instead, I'm pulling out the
+      // functionality (one line!) that was being used, and putting the
+      // needed adjustments here.
+
+      if (aAT == bAT) {       // this is the line that was being used from AtomicType::equals
+        return true;
+      }
+
+      // adjustment 1: type variable direct matching
+      if (aAT->isTypeVariable() && bAT->isTypeVariable()) {
+        return match_variables(a, b->asTypeVariable(), matchDepth);
+      }
+
+      // adjustment 2: pseudo-instantiation argument matching
+      if (aAT->isPseudoInstantiation() && bAT->isPseudoInstantiation()) {
+        return match_PI(aAT->asPseudoInstantiation(), bAT->asPseudoInstantiation(),
+                        matchDepth);
+      }
+
+      // not equal
+      return false;
+    }
+
+    else if (aIsCpdTemplate && !bIsCpdTemplate) {
+      // sm: extend matching to allow 'a' to be a concrete instantiation
+      // and 'b' to be a PseudoInstantiation
+      if (b->isPseudoInstantiation()) {
+        TemplateInfo *aTI = a->asCompoundType()->typedefVar->templateInfo();
+        PseudoInstantiation *bPI = b->asCVAtomicType()->atomic->asPseudoInstantiation();
+        return match_TInfo_with_PI(aTI, bPI, matchDepth);
+      }
+    }
   }
+
+  // if there is a mismatch, they definitely don't match
   return false;
 }
 
@@ -581,6 +669,35 @@ bool MatchTypes::match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth)
 }
 
 
+bool MatchTypes::match_TInfo_with_PI(TemplateInfo *a, PseudoInstantiation *b,
+                                     int matchDepth)
+{
+  // preamble similar to match_TInfo, to check that these are
+  // (pseudo) instantiations of the same primary
+  TemplateInfo *ati = a->getMyPrimaryIdem();
+  xassert(ati);
+  TemplateInfo *bti = b->primary->templateInfo()->getMyPrimaryIdem();
+  xassert(bti);
+  if (ati != bti) return false;
+
+  // compare arguments
+  return match_Lists2(a->arguments, b->args, matchDepth);
+}
+
+
+bool MatchTypes::match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
+                          int matchDepth)
+{ 
+  // same primary?
+  if (a->primary != b->primary) {
+    return false;
+  }
+
+  // compare arguments
+  return match_Lists2(a->args, b->args, matchDepth);
+}
+
+
 // helper function for when we find an int
 bool MatchTypes::unifyIntToVar(int i0, Variable *v1)
 {
@@ -712,7 +829,15 @@ MatchTypes::~MatchTypes()
 
 bool MatchTypes::match_Type(Type *a, Type *b, int matchDepth)
 {
-  return match0(a, b, matchDepth);
+  bool ret = match0(a, b, matchDepth);
+                      
+  if (matchDepth == 0) {
+    TRACE("matchtype", "match_Type[" << toString(mode) << "]("
+                    << a->toString() << ", " << b->toString()
+                    << ") yields " << ret);
+  }
+  
+  return ret;
 }
 
 
@@ -739,6 +864,21 @@ bool MatchTypes::match_Lists
   }
 
   return iterA.isDone() && iterB.isDone();
+}
+
+
+char const *toString(MatchTypes::MatchMode m)
+{
+  static char const * const map[] = {
+    "MM_NONE",
+    "MM_BIND",
+    "MM_WILD",
+    "MM_ISO"
+  };
+  ASSERT_TABLESIZE(map, MatchTypes::NUM_MATCH_MODES);
+
+  xassert(0 <= m && m <= MatchTypes::NUM_MATCH_MODES);
+  return map[m];
 }
 
 

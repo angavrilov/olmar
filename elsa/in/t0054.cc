@@ -18,7 +18,7 @@ int main()
 {
   A<char> a;
 
-  // note that specialization matching is implemented, this call to 'f'
+  // now that specialization matching is implemented, this call to 'f'
   // will be looked up in the proper specialization
   a.f();
 

@@ -128,6 +128,8 @@ public:                         // types
     // that typevar and check equal to the left, otherwise fail.  Vars
     // on the left: if not matched with a var on the right, fail.
     MM_ISO,
+    
+    NUM_MATCH_MODES
   };
 
 private:                        // data
@@ -174,6 +176,14 @@ private:                        // funcs
   // that of 'b' pairwise
   bool match_TInfo(TemplateInfo *a, TemplateInfo *b, int matchDepth);
 
+  // similar for PseudoInstantiations
+  bool match_TInfo_with_PI(TemplateInfo *a, PseudoInstantiation *b,
+                           int matchDepth);
+  bool match_PI(PseudoInstantiation *a, PseudoInstantiation *b,
+                int matchDepth);
+
+  bool match_variables(Type *a, TypeVariable *b, int matchDepth);
+
   bool unifyIntToVar(int i0, Variable *v1);
 
   // internal method for checking if Type 'a' matches Type 'b'.
@@ -204,7 +214,7 @@ public:
 };
 
 
-//  ENUM_BITWISE_OPS(MatchTypes::MFlags, MatchTypes::MT_ALL_FLAGS);
+char const *toString(MatchTypes::MatchMode m);
 
 
 #endif // MATCHTYPE_H

@@ -71,10 +71,6 @@ class BasicTypeFactory;
 class TypePred;
 
 
-// FIX: eventually perhaps we can remove this
-extern TypeFactory * global_tfac;
-
-
 // --------------------- atomic types --------------------------
 // interface to types that are atomic in the sense that no
 // modifiers can be stripped away; see types.txt
@@ -101,6 +97,10 @@ public:     // funcs
   DOWNCAST_FN(EnumType)
   DOWNCAST_FN(TypeVariable)
   DOWNCAST_FN(PseudoInstantiation)
+
+  // concrete types do not have holes
+  bool isConcrete() const
+    { return !isTypeVariable() && !isPseudoInstantiation(); }
 
   // this is type equality, *not* coercibility -- e.g. if
   // we say "extern type1 x" and then "extern type2 x" we
@@ -418,7 +418,7 @@ public:     // funcs
 // actually it might not contain type variables but instead only
 // contain non-type argument variables; the point is we don't have
 // enough information to do a concrete instantiation
-class PseudoInstantiation : public AtomicType {
+class PseudoInstantiation : public NamedAtomicType {
 public:      // data
   // class template primary to which we are adding arguments
   CompoundType *primary;
@@ -721,6 +721,10 @@ public:     // funcs
 
   // and PseudoInstantiation ...
   bool isPseudoInstantiation() const { return isCVAtomicType(AtomicType::T_PSEUDOINSTANTIATION); }
+  
+  // something that behaves like a CompoundType in most respects
+  bool isLikeCompoundType() const
+    { return isCompoundType() || isPseudoInstantiation(); }
 
   // this is true if any of the type *constructors* on this type
   // refer to ST_ERROR; we don't dig down inside e.g. members of
@@ -1240,25 +1244,32 @@ public:    // funcs
   // 'this' (since myPrimary for a primary is NULL)
   TemplateInfo *getMyPrimaryIdem() const;
 
+  // TODO: The following block of functions has several that accept
+  // TypeFactory arguments because they need to call into the
+  // MatchTypes module.  Either MatchTypes should be changed so it
+  // doesn't use the factory (preferable), or these methods should be
+  // moved into Env to reflect their dependence on the TypeFactory.
+
   // add to the instantiation list; supress duplicates by assigning to
   // the reference 'inst0' only if suppressDup is true
-  Variable *addInstantiation(Variable *inst0, bool suppressDup=false);
+  Variable *addInstantiation(TypeFactory &tfac, Variable *inst0, 
+                             bool suppressDup=false);
   // only use this for iteration, not appending!  Don't know a good
   // way to enforce that
   SObjList<Variable> &getInstantiations();
   // get the instantiation that matches 'var' in type (types are
   // MM_ISO) and in template arguments; handy for finding the previous
   // declaration of a function to hook up the definition to
-  Variable *getInstantiationOfVar(Variable *var);
+  Variable *getInstantiationOfVar(TypeFactory &tfac, Variable *var);
 
   // true if 'list' contains equivalent semantic arguments
-  bool equalArguments(SObjList<STemplateArgument> const &list) const;
+  bool equalArguments(TypeFactory &tfac, SObjList<STemplateArgument> const &list) const;
 
   // select either the primary or one of the specializations, based
   // on the supplied arguments; these arguments will likely contain
   // type variables; e.g., given "T*", select specialization C<T*>;
   // return NULL if no matching definition found
-  Variable *getPrimaryOrSpecialization(SObjList<STemplateArgument> const &sargs);
+  Variable *getPrimaryOrSpecialization(TypeFactory &tfac, SObjList<STemplateArgument> const &sargs);
 
   // true if the arguments contain type variables
   bool argumentsContainTypeVariables() const;
@@ -1351,6 +1362,10 @@ public:
   // does it contain variables?
   bool containsVariables() const;
 
+  // if it does contain variables, then 'equals' is inappropriate;
+  // isomorphism is the right thing to check
+  bool isomorphic(TypeFactory &tfac, STemplateArgument const *obj) const;
+
   // debug print
   string toString() const;
 
@@ -1363,6 +1378,7 @@ SObjList<STemplateArgument> *cloneSArgs(SObjList<STemplateArgument> &sargs);
 string sargsToString(SObjList<STemplateArgument> const &list);
 inline string sargsToString(ObjList<STemplateArgument> const &list)
   { return sargsToString((SObjList<STemplateArgument> const &)list); }
+bool containsTypeVariables(SObjList<STemplateArgument> const &args);
 
 
 // ------------------- type factory -------------------

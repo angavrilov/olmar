@@ -316,9 +316,10 @@ Variable *Env::findTemplPrimaryForSignature
          // matters.
          )) {
       if (candidatePrim) {
-        xfailure("ambiguous attempt to lookup "
-                 "overloaded function template primary from specialization");
-        return NULL;            // ambiguous
+        error("ambiguous attempt to lookup "
+              "overloaded function template primary from specialization",
+              EF_STRONG);
+        return candidatePrim;            // error recovery
       } else {
         candidatePrim = var0;
       }
@@ -1470,7 +1471,7 @@ Variable *Env::instantiateTemplate
       // is quite wasteful if we have cloned an entire class of AST
       // only to throw it away again
       Variable *newInstV = oldBaseV->templateInfo()->
-        addInstantiation(instV, true /*suppressDup*/);
+        addInstantiation(tfac, instV, true /*suppressDup*/);
       if (newInstV != instV) {
         // don't do stage 5 below; just use the newInstV and be done
         // with it
@@ -2085,7 +2086,7 @@ bool mergeParameterLists(Env &env, CompoundType *prior,
     Variable const *src = srcIter.data();
 
     // are the types equivalent?
-    if (!dest->type->equals(src->type)) {
+    if (!env.isomorphicTypes(dest->type, src->type)) {
       env.error(stringc
         << "prior declaration of " << prior->keywordAndName()
         << " at " << prior->typedefVar->loc
@@ -2146,6 +2147,13 @@ bool mergeParameterLists(Env &env, CompoundType *prior,
       EF_DISAMBIGUATES);
     return false;
   }
+}
+
+
+bool Env::isomorphicTypes(Type *a, Type *b)
+{
+  MatchTypes match(tfac, MatchTypes::MM_ISO);
+  return match.match_Type(a, b);
 }
 
 

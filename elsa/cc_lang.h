@@ -91,6 +91,9 @@ public:
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need
   bool isCplusplus;
+  
+  // similar for C99
+  bool isC99;
 
 public:
   CCLang() { ANSI_C(); }

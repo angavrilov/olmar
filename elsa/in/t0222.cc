@@ -8,7 +8,7 @@ struct A {
   int func(E e);
 };
 
-// specialization
+// partial specialization
 template <class T>
 struct A<T*> {
   enum F { value2 };

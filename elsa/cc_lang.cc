@@ -28,6 +28,7 @@ void CCLang::ANSI_C()
   allowCallToUndeclFunc = false;
   allow_KR_ParamOmit = false;
   isCplusplus = false;
+  isC99 = true;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -52,4 +53,5 @@ void CCLang::ANSI_Cplusplus()
   allow_KR_ParamOmit = false;
 
   isCplusplus = true;
+  isC99 = false;
 }

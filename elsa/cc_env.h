@@ -212,13 +212,13 @@ private:     // funcs
 
   // NOTE: 3 arg missing; goes here.
 
-  Variable *Env::declareFunction4arg(Type *retType, char const *funcName,
-                                     Type *arg1Type, char const *arg1Name,
-                                     Type *arg2Type, char const *arg2Name,
-                                     Type *arg3Type, char const *arg3Name,
-                                     Type *arg4Type, char const *arg4Name,
-                                     FunctionFlags flags,
-                                     Type * /*nullable*/ exnType);
+  Variable *declareFunction4arg(Type *retType, char const *funcName,
+                                Type *arg1Type, char const *arg1Name,
+                                Type *arg2Type, char const *arg2Name,
+                                Type *arg3Type, char const *arg3Name,
+                                Type *arg4Type, char const *arg4Name,
+                                FunctionFlags flags,
+                                Type * /*nullable*/ exnType);
 
   Variable *declareSpecialFunction(char const *name);
 
@@ -237,6 +237,13 @@ private:     // funcs
   // *&scope) and no one else
   Variable *lookupPQVariable_internal(PQName const *name, LookupFlags flags,
                                       Scope *&scope);
+
+  PseudoInstantiation *createPseudoInstantiation
+    (CompoundType *ct, SObjList<STemplateArgument> const &args);
+  
+  bool equivalentSignatures(FunctionType *ft1, FunctionType *ft2);
+  bool equalOrIsomorphic(Type *a, Type *b,
+                         Type::EqFlags eflags = Type::EF_EXACT);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac, TranslationUnit *tunit0);
@@ -481,7 +488,7 @@ public:      // funcs
 
   // compare types for equality; see extensive comment at
   // implementation
-  bool almostEqualTypes(Type const *t1, Type const *t2);
+  bool almostEqualTypes(Type /*const*/ *t1, Type /*const*/ *t2);
 
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
@@ -524,6 +531,12 @@ public:      // funcs
 
   // true if 'tv' is a shadow typedef made by the above function
   bool isShadowTypedef(Variable *tv);
+
+  // search in an overload set for an element, given its type
+  Variable *findInOverloadSet(OverloadSet *oset,
+                              FunctionType *ft, CVFlags receiverCV);
+  Variable *findInOverloadSet(OverloadSet *oset,
+                              FunctionType *ft);   // use ft->getReceiverCV()
 
   // --- begin: syntax -> PQName ---
   // return a PQName that will typecheck in the current environment to
@@ -721,6 +734,8 @@ public:      // template funcs
   // instantiate all of its forward-declared instances
   void instantiateForwardClasses(Scope *scope, Variable *baseV);
 
+  // match via MM_ISO ..
+  bool isomorphicTypes(Type *a, Type *b);
 };
 
 

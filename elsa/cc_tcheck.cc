@@ -236,7 +236,6 @@ void Function::tcheck(Env &env, bool checkBody,
                         DC_FUNCTION);
   dt.priorTemplInst = priorTemplInst;
   nameAndParams = nameAndParams->tcheck(env, dt);
-  // FIX: perhaps this should be an assertion failure
   if (!nameAndParams->var) {
     return;                     // error should have already been reported
   }
@@ -715,10 +714,11 @@ void Declaration::tcheck(Env &env, DeclaratorContext context,
           // instantiation, it should not be in the namespace but
           // should be put into the instantiation list of 'previous',
           // but only if it is not already there
-          Variable *var0 = previous->templateInfo()->getInstantiationOfVar(dt1.var);
+          Variable *var0 = previous->templateInfo()->
+            getInstantiationOfVar(env.tfac, dt1.var);
           if (!var0) {
             xassert(!dt1.var->funcDefn); // pure declaration, not definition
-            previous->templateInfo()->addInstantiation(dt1.var);
+            previous->templateInfo()->addInstantiation(env.tfac, dt1.var);
           }
         }
       }
@@ -814,7 +814,9 @@ void PQ_name::tcheck(Env &env)
 {}
 
 void PQ_operator::tcheck(Env &env)
-{}
+{
+  o->tcheck(env);
+}
 
 void PQ_template::tcheck(Env &env)
 {
@@ -1132,7 +1134,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // add this type to the primary's list of specializations; we are not
     // going to add 'ct' to the environment, so the only way to find the
     // specialization is to go through the primary template
-    primaryTI->addInstantiation(ct->getTypedefVar());
+    primaryTI->addInstantiation(env.tfac, ct->getTypedefVar());
     
     if (tracingSys("template")) {
       cout << "TS_classSpec::itcheck: "
@@ -1836,8 +1838,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
         else {
           // check for member of overload set with same signature
           // and marked 'virtual'
-          if (Variable *var_overload = var2->getOverloadSet()->
-              findByType(var->type->asFunctionType())) {
+          if (Variable *var_overload = env.findInOverloadSet(
+                var2->getOverloadSet(), var->type->asFunctionType())) {
             xassert(var_overload != var);
             xassert(var_overload->type->isFunctionType());
             xassert(var_overload->type->asFunctionType()->isMethod());
@@ -2332,7 +2334,7 @@ realStart:
       // nonstatic member; this is determined by finding a function
       // whose signature (ignoring 'this' parameter, if any) matches
       int howMany = prior->overload->set.count();
-      prior = prior->overload->findByType(dtft, dt.funcSyntax->cv);
+      prior = env.findInOverloadSet(prior->overload, dtft, dt.funcSyntax->cv);
       if (!prior) {
         env.error(dt.type, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
@@ -3041,8 +3043,6 @@ void D_grouping::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
 }
 
 
-// PtrOperator
-
 // ------------------- ExceptionSpec --------------------
 FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
 {
@@ -3060,7 +3060,7 @@ FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
 }
 
 
-// ------------------ OperatorDeclarator ----------------
+// ------------------ OperatorName ----------------
 char const *ON_newDel::getOperatorName() const
 {
   // changed the names so that they can be printed out with these
@@ -3080,10 +3080,25 @@ char const *ON_operator::getOperatorName() const
 }
 
 char const *ON_conversion::getOperatorName() const
-{                   
+{
   // this is the sketchy one..
   // update: but it seems to be fitting into the design just fine
   return "conversion-operator";
+}
+
+
+void OperatorName::tcheck(Env &env)
+{
+  if (isON_conversion()) {
+    ON_conversion *conv = asON_conversion();
+    
+    // check the "return" type
+    ASTTypeId::Tcheck tc(DF_NONE, DC_ON_CONVERSION);
+    conv->type->tcheck(env, tc);
+  }
+  else {
+    // nothing to do for other kinds of OperatorName
+  }
 }
 
 
@@ -3792,6 +3807,27 @@ static Variable *outerResolveOverload(Env &env,
   // are we even in a situation where we can do overloading?
   if (!var->overload) return NULL;
 
+  // special case: does 'finalName' directly name a particular
+  // conversion operator?  e.g. in/t0226.cc
+  if (finalName &&
+      finalName->isPQ_operator() &&
+      finalName->asPQ_operator()->o->isON_conversion()) {
+    ON_conversion *conv = finalName->asPQ_operator()->o->asON_conversion();
+    Type *namedType = conv->type->getType();
+
+    // find the operator in the overload set
+    SFOREACH_OBJLIST_NC(Variable, var->overload->set, iter) {
+      Type *iterRet = iter.data()->type->asFunctionType()->retType;
+      if (iterRet->equals(namedType)) {
+        return iter.data();
+      }
+    }
+
+    env.error(stringc << "cannot find conversion operator yielding `" 
+                      << namedType->toString() << "'");
+    return NULL;
+  }
+
   // temporarily avoid dealing with considerations of mixed static and
   // non-static members in overload set
   bool allMethod0 = allMethods(var->overload->set);
@@ -4331,7 +4367,7 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
   }
 
   // simplify some gratuitous uses of E_constructor
-  if (!type->isCompoundType() && !type->isDependent()) {
+  if (!type->isLikeCompoundType() && !type->isDependent()) {
     // you can make a temporary for an int like this (from
     // in/t0014.cc)
     //   x = int(6);
@@ -5653,7 +5689,7 @@ void TD_func::itcheck(Env &env)
     // primary template
     //
     // is there already a forward declaration for it?
-    Variable *forward = primaryTI->getInstantiationOfVar(fVar);
+    Variable *forward = primaryTI->getInstantiationOfVar(env.tfac, fVar);
     if (forward) {
       xassert(forward->templateInfo()->getMyPrimaryIdem() == primaryTI);
       xassert(forward->funcDefn == f);
@@ -5667,7 +5703,7 @@ void TD_func::itcheck(Env &env)
       env.instantiateForwardFunctions(forward, primary);
 //        }
     } else {
-      primaryTI->addInstantiation(fVar);
+      primaryTI->addInstantiation(env.tfac, fVar);
       if (tracingSys("template")) {
           cout << "TS_classSpec::itcheck: "
                << "definition of " << fVar->toString()
