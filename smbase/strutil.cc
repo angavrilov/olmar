@@ -175,6 +175,12 @@ string encodeWithEscapes(char const *p, int len)
 }
 
 
+string encodeWithEscapes(char const *p)
+{ 
+  return encodeWithEscapes(p, strlen(p));
+}
+
+
 string quoted(char const *src)
 {
   return stringc << "\""

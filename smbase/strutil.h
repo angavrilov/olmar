@@ -31,7 +31,10 @@ string trimWhitespace(char const *str);
 // sequences (but without the opening or closing quotes)
 string encodeWithEscapes(char const *src, int len);
 
-// safe when the text has no NUL characters; adds the quotes too
+// safe when the text has no NUL characters
+string encodeWithEscapes(char const *src);
+
+// adds the quotes too
 string quoted(char const *src);
 
 

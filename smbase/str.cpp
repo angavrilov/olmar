@@ -274,7 +274,9 @@ stringBuilder& stringBuilder::operator<< (char c)
   {                                                      \
     char buf[60];      /* big enough for all types */    \
     int len = sprintf(buf, fmt, arg);                    \
-    assert(len < 60);					 \
+    if (len >= 60) {					 \
+      abort();    /* too big */                          \
+    }                                                    \
     return *this << buf;                                 \
   }
 
@@ -291,7 +293,9 @@ stringBuilder& stringBuilder::operator<< (
 {
   char buf[32];        // should only need 19 for 64-bit word..
   int len = sprintf(buf, "0x%lX", h.value);
-  assert(len < 20);
+  if (len >= 20) {
+    abort();
+  }
   return *this << buf;
 
   // the length check above isn't perfect because we only find out there is

@@ -5,8 +5,6 @@
 #include <string.h>         // strcmp
 
 
-#define SELFCHECK() selfCheck()
-
 #define FOREACH_NODE(itervar) \
   for(Node *itervar = top; itervar != NULL; itervar = itervar->next)
 
