@@ -392,7 +392,7 @@ public:      // funcs
   TemplateInfo * /*owner*/ takeFTemplateInfo();
 
   // like the above, but for template *classes*
-  TemplateInfo * /*owner*/ takeCTemplateInfo(StringRef baseName);
+  TemplateInfo * /*owner*/ takeCTemplateInfo();
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming

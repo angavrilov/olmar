@@ -233,7 +233,7 @@ bool CompoundType::isTemplate() const
 {
   TemplateInfo *tinfo = templateInfo();
   return tinfo != NULL &&
-         tinfo->params.isNotEmpty();
+         tinfo->hasParameters();
 }
 
 
@@ -1963,6 +1963,11 @@ TemplateParams::~TemplateParams()
 
 string TemplateParams::paramsToCString() const
 {
+  return ::paramsToCString(params);
+}
+
+string paramsToCString(SObjList<Variable> const &params)
+{
   stringBuilder sb;
   sb << "template <";
   int ct=0;
@@ -1991,6 +1996,16 @@ bool TemplateParams::anyParamCtorSatisfies(TypePred &pred) const
 }
 
 
+// --------------- InheritedTemplateParams ---------------
+InheritedTemplateParams::InheritedTemplateParams(InheritedTemplateParams const &obj)
+  : TemplateParams(obj),
+    enclosing(obj.enclosing)
+{}
+
+InheritedTemplateParams::~InheritedTemplateParams()
+{}
+
+
 // ------------------ TemplateInfo -------------
 TemplateInfo::TemplateInfo(SourceLoc il)
   : TemplateParams(),
@@ -2004,6 +2019,7 @@ TemplateInfo::TemplateInfo(SourceLoc il)
 {}
 
 
+// this is called by Env::makeUsingAliasFor ..
 TemplateInfo::TemplateInfo(TemplateInfo const &obj)
   : TemplateParams(obj),
     var(NULL),                // caller must call Variable::setTemplateInfo
@@ -2012,6 +2028,12 @@ TemplateInfo::TemplateInfo(TemplateInfo const &obj)
     arguments(),                             // copied below
     instLoc(obj.instLoc)
 {
+  // inheritedParams
+  FOREACH_OBJLIST(InheritedTemplateParams, obj.inheritedParams, iter2) {
+    inheritedParams.prepend(new InheritedTemplateParams(*(iter2.data())));
+  }
+  inheritedParams.reverse();
+
   // arguments
   FOREACH_OBJLIST(STemplateArgument, obj.arguments, iter) {
     arguments.prepend(new STemplateArgument(*(iter.data())));
@@ -2035,7 +2057,7 @@ StringRef TemplateInfo::getBaseName() const
 }
 
 
-void TemplateInfo::setMyPrimary(TemplateInfo *prim) 
+void TemplateInfo::setMyPrimary(TemplateInfo *prim)
 {
   xassert(prim);                // argument must be non-NULL
   xassert(prim->isPrimary());   // myPrimary can only be a primary
@@ -2221,6 +2243,41 @@ bool TemplateInfo::argumentsContainVariables() const
 }
 
 
+bool TemplateInfo::hasParameters() const
+{  
+  // check params attached directly to this object
+  if (params.isNotEmpty()) {
+    return true;
+  }
+  
+  // check for inherited parameters
+  FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
+    if (iter.data()->params.isNotEmpty()) {
+      return true;
+    }
+  }
+               
+  // no parameters at any level
+  return false;                
+}
+
+
+bool TemplateInfo::hasSpecificParameter(Variable const *v) const
+{
+  // 'params'?
+  if (params.contains(v)) { return true; }
+  
+  // inherited?
+  FOREACH_OBJLIST(InheritedTemplateParams, inheritedParams, iter) {
+    if (iter.data()->params.contains(v)) { 
+      return true; 
+    }
+  }
+
+  return false;     // 'v' does not appear in any parameter list
+}
+
+
 // You may ask why I don't implement isMutant() as simply "return
 // isPrimary() || isPartialSpec() || isCompleteSpecOrInstantiation()".
 // I don't because I want the assertions in the three other methods,
@@ -2231,13 +2288,13 @@ bool TemplateInfo::argumentsContainVariables() const
 // consideration from mutantness
 bool TemplateInfo::isMutant() const {
   // primary
-  if (params.isNotEmpty() && arguments.isEmpty()) return false;
+  if (hasParameters() && arguments.isEmpty()) return false;
   // partial specialization
-  if (params.isNotEmpty() && argumentsContainVariables()) return false;
+  if (hasParameters() && argumentsContainVariables()) return false;
   // complete specialization / instantiation
-  if (params.isEmpty() && !argumentsContainVariables()) return false;
+  if (!hasParameters() && !argumentsContainVariables()) return false;
   // mutant!
-  xassert(params.isEmpty());
+  xassert(!hasParameters());
   xassert(instantiations.isEmpty());
   xassert(arguments.isNotEmpty());
   xassert(argumentsContainVariables());
@@ -2248,7 +2305,7 @@ bool TemplateInfo::isMutant() const {
 
 bool TemplateInfo::isPrimary() const {
   xassert(!isMutant());
-  return params.isNotEmpty() && arguments.isEmpty();
+  return hasParameters() && arguments.isEmpty();
 }
 
 
@@ -2260,7 +2317,7 @@ bool TemplateInfo::isNotPrimary() const {
 
 bool TemplateInfo::isPartialSpec() const {
   xassert(!isMutant());
-  bool ret = params.isNotEmpty() && argumentsContainVariables();
+  bool ret = hasParameters() && argumentsContainVariables();
   if (ret) {
     xassert(instantiations.isEmpty());
   }
@@ -2270,7 +2327,7 @@ bool TemplateInfo::isPartialSpec() const {
 
 bool TemplateInfo::isCompleteSpecOrInstantiation() const {
   xassert(!isMutant());
-  bool ret = params.isEmpty() && !argumentsContainVariables();
+  bool ret = !hasParameters() && !argumentsContainVariables();
   if (ret) {
     xassert(instantiations.isEmpty());
   }

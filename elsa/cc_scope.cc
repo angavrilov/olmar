@@ -17,28 +17,20 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc)
     parentScope(),
     scopeKind(sk),
     namespaceVar(NULL),
+    templateParams(),
     usingEdges(0),            // the arrays start as NULL b/c in the
     usingEdgesRefct(0),       // common case the sets are empty
     activeUsingEdges(0),
     outstandingActiveEdges(0),
     curCompound(NULL),
     curFunction(NULL),
-    curTemplateParams(NULL),
     curLoc(initLoc)
 {
   xassert(sk != SK_UNKNOWN);
 }
 
 Scope::~Scope()
-{
-  if (curTemplateParams) {
-    // this happens when I open a template-param scope for
-    // a template class member function; the member function
-    // doesn't need the params (since the class carries them)
-    // so they stay here until deleted
-    delete curTemplateParams;
-  }
-}
+{}
 
 
 bool Scope::isPermanentScope() const

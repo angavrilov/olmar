@@ -578,7 +578,7 @@ class TemplateDeclaration {
 
 
 class TemplateParameter {
-  pure_virtual void tcheck(Env &env, TemplateParams *tinfo);
+  pure_virtual void tcheck(Env &env, SObjList<Variable> &tparams);
   
   -> TP_type {
        // stand-in for the type used when checking the body; it's

@@ -1136,18 +1136,17 @@ void Env::retractScope(Scope *s)
 
 void Env::debugPrintScopes()
 {
-  cout << "Scopes and variables" << endl;
+  cout << "Scopes and variables, beginning with innermost" << endl;
   for (int i=0; i<scopes.count(); ++i) {
     Scope *s = scopes.nth(i);
-    cout << "scope " << i << ", scopeKind " << toString(s->scopeKind) << endl;
+    cout << "scope " << i << ", " << s->desc() << endl;
     for (StringSObjDict<Variable>::IterC iter = s->getVariableIter();
          !iter.isDone();
          iter.next()) {
       Variable *value = iter.value();
-      cout << "\tkey '" << iter.key()
-           << "' value value->name '" << value->name
-           << "' ";
-      printf("%p ", value);
+      cout << "  " << iter.key()
+           << ": " << value->toString()
+           << stringf(" (%p)", value);
 //        cout << "value->serialNumber " << value->serialNumber;
       cout << endl;
     }
@@ -2084,21 +2083,75 @@ StringRef Env::getAnonName(TypeIntr keyword)
 TemplateInfo * /*owner*/ Env::takeFTemplateInfo()
 {
   // for now, difference is that function TemplateInfos have
-  // NULL baseNames
-  return takeCTemplateInfo(NULL /*baseName*/);
+  // NULL baseNames        
+  //
+  // and in fact that difference is now gone too...
+  return takeCTemplateInfo();
 }
 
-TemplateInfo * /*owner*/ Env::takeCTemplateInfo(StringRef baseName)
+TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
 {
+  // delay building a TemplateInfo until it is sure to be needed
   TemplateInfo *ret = NULL;
 
-  Scope *s = scope();
-  if (s->curTemplateParams) {
-    ret = new TemplateInfo(/*baseName,*/ loc());
-    ret->params.concat(s->curTemplateParams->params);
-    delete s->curTemplateParams;
-    s->curTemplateParams = NULL;
+  // does the immediately enclosing scope have params?  
+  // if so, they are specific to the object being declared, so will
+  // be attached as the main 'params'
+  Scope *inner = scope();
+  if (inner->hasTemplateParams()) {
+    ret = new TemplateInfo(loc());
+    ret->params.appendAll(inner->templateParams);
+
+    // 7/31/04: Do not consume 'inner->templateParams'; instead, apply
+    // them as inherited parameters to all the templatizable entities
+    // in the class.
   }
+
+  #if 0       // disabled temporarily
+  // do the enclosing scopes other than the closest have params?
+  // if so, find and attach all inherited parameter lists
+  ObjListIter<Scope> iter(scopes);
+  iter.adv();     // skip the innermost scope, which was handled above
+  Scope const *prev = inner;       // next-inner relative to 's'
+  for (; !iter.isDone(); iter.adv()) {
+    Scope const *s = iter.data();
+
+    // template parameters are only inherited across some kinds of
+    // scopes (this is a little bit of a hack as I try to guess the
+    // right rules)
+    if (!( s->scopeKind == SK_CLASS ||
+           s->scopeKind == SK_TEMPLATE ||
+           s->scopeKind == SK_EAT_TEMPL_INST )) {
+      break;
+    }
+
+    if (s->hasTemplateParams()) {
+      // the expected scope structure is:
+      //   template <class T>          <--- 's'
+      //   class Foo {                 <--- 'prev'
+      //     ...
+      //   };
+      xassert(prev->curCompound);
+      if (!ret) {
+        ret = new TemplateInfo(loc());
+      }
+
+      // record info about these params and where they come from
+      InheritedTemplateParams *itp = new InheritedTemplateParams(prev->curCompound);
+      itp->params.appendAll(s->templateParams);
+
+      // stash them in 'ret', prepending so as we work from innermost
+      // to outermost, so the last one prepended will be the outermost,
+      // and hence first in the list when we're done
+      ret->inheritedParams.prepend(itp);
+
+      TRACE("template", "inherited " << itp->paramsToCString() <<
+                        " from " << prev->curCompound->name);
+    }
+
+    prev = s;
+  }
+  #endif // 0
 
   return ret;
 }
@@ -2179,7 +2232,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   ct->typedefVar = tv;
 
   // transfer template parameters
-  ct->setTemplateInfo(takeCTemplateInfo(name));
+  ct->setTemplateInfo(takeCTemplateInfo());
 
   if (name && scope) {
     scope->registerVariable(tv);

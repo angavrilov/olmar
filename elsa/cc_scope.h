@@ -105,6 +105,12 @@ public:      // data
   // if this is a namespace, this points to the variable used to
   // find the namespace during lookups
   Variable *namespaceVar;
+                                      
+  // If this is a template (SK_TEMPLATE) scope, these are the template
+  // parameters.  We will attach them to functions and classes
+  // contained in this scope, as those functions and classes are
+  // parameterized by these variables.
+  SObjList<Variable> templateParams;
 
   // --------------- for using-directives ----------------
   // possible optim:  For most scopes, these three arrays waste 13
@@ -124,7 +130,7 @@ public:      // data
   // set of "active using" edges; these directly influence lookups
   // in this scope
   ArrayStack<Scope*> activeUsingEdges;
-  
+
   // set of "active using" edges in other scopes that need to be
   // retracted once this scope exits
   ArrayStack<ActiveEdgeRecord> outstandingActiveEdges;
@@ -135,7 +141,6 @@ public:      // data
   CompoundType *curCompound;          // (serf) CompoundType we're building
   AccessKeyword curAccess;            // access disposition in effect
   Function *curFunction;              // (serf) Function we're analyzing
-  TemplateParams *curTemplateParams;  // (owner) params to attach to next function or class
   SourceLoc curLoc;                   // latest AST location marker seen
 
 private:     // funcs
@@ -188,6 +193,13 @@ public:      // funcs
   // are we in a scope that at some point above is an uninstantiated
   // templatized scope?
   bool isWithinUninstTemplate() const;
+
+  // True if this scope has extant template parameters.
+  //
+  // Actually, I think the places that call this are really just
+  // asking whether this is an SK_TEMPLATE, because an empty template
+  // parameter list is treated uniformly.
+  bool hasTemplateParams() const { return isTemplateScope(); }
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)

@@ -45,9 +45,8 @@ bool SomeTypeVarNotInTemplParams_Pred::operator() (Type const *t0)
     // check that this tvar occurs in the parameters list of the
     // template info
     Variable *tvar = cv->asTypeVariable()->typedefVar;
-    SFOREACH_OBJLIST(Variable, ti->params, iter) {
-      Variable const *param = iter.data();
-      if (tvar == param) return false;
+    if (ti->hasSpecificParameter(tvar)) {
+      return false;
     }
     return true;
   }

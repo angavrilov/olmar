@@ -214,7 +214,7 @@ void TF_namespaceDecl::tcheck(Env &env)
 void Function::tcheck(Env &env, bool checkBody)
 {
   // are we in a template function?
-  bool inTemplate = env.scope()->curTemplateParams != NULL;
+  bool inTemplate = env.scope()->hasTemplateParams();
 
   // only disambiguate, if template
   DisambiguateOnlyTemp disOnly(env, inTemplate /*disOnly*/);
@@ -816,6 +816,8 @@ void PQ_template::tcheck(Env &env)
 // --------------------- TypeSpecifier --------------
 Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 {
+  env.setLoc(loc);
+
   Type *t = itcheck(env, dflags);
   Type *ret = env.tfac.applyCVToType(loc, cv, t, this);
   if (!ret) {
@@ -977,11 +979,8 @@ Type *TS_elaborated::itcheck(Env &env, DeclFlags dflags)
 
     // at least discard the template params as
     // 'verifyCompatibleTemplates' would have done..
-    Scope *s = env.scope();
-    if (s->curTemplateParams) {
-      delete s->curTemplateParams;
-      s->curTemplateParams = NULL;
-    }
+    //
+    // 7/31/04: params are no longer discarded by anyone
   }
   else {
     verifyCompatibleTemplates(env, ct);
@@ -1000,7 +999,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
   bool prevWasForward = false;
 
   // are we in a template?
-  bool inTemplate = env.scope()->curTemplateParams != NULL;
+  bool inTemplate = env.scope()->hasTemplateParams();
 
   // are we an inner class?
   CompoundType *containingClass = env.acceptingScope()->curCompound;
@@ -5600,22 +5599,16 @@ void TemplateDeclaration::tcheck(Env &env)
   // make a new scope to hold the template parameters
   Scope *paramScope = env.enterScope(SK_TEMPLATE, "template declaration parameters");
 
-  // make a list of template parameters, into which we will store
-  // the information from the parameter syntax
-  TemplateParams *tparams = new TemplateParams;
-
   // check each of the parameters, i.e. enter them into the scope
+  // and its 'templateParams' list
   FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-    iter->tcheck(env, tparams);
+    iter->tcheck(env, paramScope->templateParams);
   }
 
   // mark the new scope as unable to accept new names, so
   // that the function or class being declared will be entered
   // into the scope above us
   paramScope->canAcceptNames = false;
-
-  // put the template parameters in a place the D_func will find them
-  paramScope->curTemplateParams = tparams;
 
   // in what follows, ignore errors that are not disambiguating
   //bool prev = env.setDisambiguateOnly(true);
@@ -5814,7 +5807,7 @@ void TD_tmember::itcheck(Env &env)
 
   // check each of d's parameters
   FAKELIST_FOREACH_NC(TemplateParameter, d->params, iter) {
-    iter->tcheck(env, paramScope->curTemplateParams);
+    iter->tcheck(env, paramScope->templateParams);
   }
 
   // revert acceptance
@@ -5826,7 +5819,7 @@ void TD_tmember::itcheck(Env &env)
 
 
 // ------------------- TemplateParameter ------------------
-void TP_type::tcheck(Env &env, TemplateParams *tparams)
+void TP_type::tcheck(Env &env, SObjList<Variable> &tparams)
 {
   // cppstd 14.1 is a little unclear about whether the type
   // name is visible to its own default argument; but that
@@ -5870,11 +5863,11 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   this->type = fullType;
 
   // add this parameter to the list of them
-  tparams->params.append(var);
+  tparams.append(var);
 }
 
 
-void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
+void TP_nontype::tcheck(Env &env, SObjList<Variable> &tparams)
 {
   ASTTypeId::Tcheck tc(DF_PARAMETER, DC_TP_NONTYPE);
 
@@ -5883,7 +5876,7 @@ void TP_nontype::tcheck(Env &env, TemplateParams *tparams)
   param = param->tcheck(env, tc);
 
   // add to the parameter list
-  tparams->params.append(param->decl->var);
+  tparams.append(param->decl->var);
 }
 
 

@@ -2002,7 +2002,7 @@ void instantiateRemainingMethods(Env &env, TranslationUnit *tunit)
 
 // this is defined just below, but I want it there (not here)
 bool mergeParameterLists(Env &env, CompoundType *prior,
-                         TemplateParams *dest, TemplateParams const *src);
+                         TemplateParams *dest, SObjList<Variable> const &src);
 
 // we (may) have just encountered some syntax which declares
 // some template parameters, but found that the declaration
@@ -2015,12 +2015,12 @@ bool mergeParameterLists(Env &env, CompoundType *prior,
 bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
 {
   Scope *scope = env.scope();
-  if (!scope->curTemplateParams && !prior->isTemplate()) {
+  if (!scope->hasTemplateParams() && !prior->isTemplate()) {
     // neither talks about templates, forget the whole thing
     return true;
   }
 
-  if (!scope->curTemplateParams && prior->isTemplate()) {
+  if (!scope->hasTemplateParams() && prior->isTemplate()) {
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
@@ -2031,15 +2031,13 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
     return false;
   }
 
-  if (scope->curTemplateParams && !prior->isTemplate()) {
+  if (scope->hasTemplateParams() && !prior->isTemplate()) {
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
-      << scope->curTemplateParams->paramsToCString(),
+      << paramsToCString(scope->templateParams),
       EF_DISAMBIGUATES);
-    delete scope->curTemplateParams;
-    scope->curTemplateParams = NULL;
     return false;
   }
 
@@ -2053,11 +2051,7 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
   bool ret = mergeParameterLists(
     env, prior,
     prior->templateInfo(),       // dest
-    scope->curTemplateParams);   // src
-
-  // clean up 'curTemplateParams' regardless
-  delete scope->curTemplateParams;
-  scope->curTemplateParams = NULL;
+    scope->templateParams);      // src
 
   return ret;
 }
@@ -2076,18 +2070,19 @@ bool verifyCompatibleTemplates(Env &env, CompoundType *prior)
 // 'dest' for future operations, including processing the
 // template definition associated with 'src'
 bool mergeParameterLists(Env &env, CompoundType *prior,
-                         TemplateParams *dest, TemplateParams const *src)
+                         TemplateParams *destParams,
+                         SObjList<Variable> const &srcParams)
 {
   TRACE("template", "mergeParameterLists: prior=" << prior->name
-    << ", dest=" << dest->paramsToCString()
-    << ", src=" << src->paramsToCString());
+    << ", dest=" << destParams->paramsToCString()
+    << ", src=" << paramsToCString(srcParams));
 
   // keep track of whether I've made any naming changes
   // (alpha conversions)
   bool anyNameChanges = false;
 
-  SObjListIterNC<Variable> destIter(dest->params);
-  SObjListIter<Variable> srcIter(src->params);
+  SObjListIterNC<Variable> destIter(destParams->params);
+  SObjListIter<Variable> srcIter(srcParams);
   for (; !destIter.isDone() && !srcIter.isDone();
        destIter.adv(), srcIter.adv()) {
     Variable *dest = destIter.data();
@@ -2148,10 +2143,10 @@ bool mergeParameterLists(Env &env, CompoundType *prior,
     env.error(stringc
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
-      << " was templatized with " 
-      << pluraln(dest->params.count(), "parameter")
+      << " was templatized with "
+      << pluraln(destParams->params.count(), "parameter")
       << ", but this one has "
-      << pluraln(src->params.count(), "parameter"),
+      << pluraln(srcParams.count(), "parameter"),
       EF_DISAMBIGUATES);
     return false;
   }

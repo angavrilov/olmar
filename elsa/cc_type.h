@@ -1073,6 +1073,29 @@ public:    // funcs
   bool anyParamCtorSatisfies(TypePred &pred) const;
 };
 
+// make this available outside the class too
+string paramsToCString(SObjList<Variable> const &params);
+
+
+// template parameters on an enclosing object; for example, if "this"
+// object is a member function enclosed in a template class, then
+// this object will store (a copy of) the parameters for the class
+// (this is needed, among other reasons, because when the member
+// function is defined, the user is free to rename the parameters
+// that applied to the class)
+class InheritedTemplateParams : public TemplateParams {
+public:      // data
+  // We can only inherit params from a class; this is it.  If these
+  // inherited parameters are attached to an instantiation, then
+  // 'enclosing' is the instantiated enclosing class.
+  CompoundType *enclosing;          // (serf)
+
+public:      // funcs
+  InheritedTemplateParams(CompoundType *e) : enclosing(e) {}
+  InheritedTemplateParams(InheritedTemplateParams const &obj);
+  ~InheritedTemplateParams();
+};
+
 
 // for a template function or class, including instantiations thereof,
 // this is the information regarding its template-ness
@@ -1089,7 +1112,12 @@ public:    // data
   // whereas for classes the 'baseName' suffices to create a
   // forward-declared version of the object, functions need
   // the entire declaration; so here it is
+  //
+  // TODO: now that I have 'var', I don't need this, right?
   Declaration *declSyntax;          // (serf AST)
+
+  // inherited parameters, in order from outermost to innermost
+  ObjList<InheritedTemplateParams> inheritedParams;
 
 private:                        // go through the accessors
   // The primary of this template info if we are a specialization or
@@ -1173,14 +1201,14 @@ public:
   // arguments?] and are therefore known as "specialization patterns".
   // Exactly the union of these free variables in the patterns *must*
   // be listed in a "template<(vars_here)>" prefix to the partial
-  // specialization and the *may* be used in the body just as in a
+  // specialization and they *may* be used in the body just as in a
   // primary template.  When an instantiation of the primary is
   // requested and the arguments "fit the pattern" when type
   // unification is requested, the partial specialization *may* [more
   // below] be used.  Bindings of the variables to parts of the actual
   // arguments are created when unification with the actual arguments
   // is performed, such that if those bindings were substituted in for
-  // the variables in the specialization patterns, the would match the
+  // the variables in the specialization patterns, they would match the
   // actual arguments exactly.  The partial specialization is then
   // instantiated just as a primary and this is used in place of
   // instantiating the primary.  Therefore, for a partial
@@ -1201,7 +1229,7 @@ public:
   // with the arguments are thrown into the overload set for that
   // function along with any other non-template functions and normal
   // function overloading resolution is done.  During this process a
-  // template instantiation always looses to a normal function, but if
+  // template instantiation always loses to a normal function, but if
   // it comes down to two template functions, then they are
   // disambiguated according to "is more specific than", as with class
   // templates.
@@ -1263,6 +1291,13 @@ public:    // funcs
   // variables; FIX: I'm not sure this is implemented right; see
   // comments in implementation
   bool argumentsContainVariables() const;
+
+  // true if there are parameters at any level (either right here,
+  // or inherited from above)
+  bool hasParameters() const;
+
+  // true if the given Variable is among the parameters (at any level)
+  bool hasSpecificParameter(Variable const *v) const;
 
   bool isMutant() const;
   bool isPrimary() const;
