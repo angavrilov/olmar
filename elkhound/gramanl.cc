@@ -2766,23 +2766,6 @@ void GrammarAnalysis::computeBFSTree()
 
 
 // --------------- parse table construction -------------------
-#if 0     // obsolete
-// compare two productions by precedence
-static int productionPrecCompare(Production const *p1, Production const *p2, void*)
-{
-  if (p1->precedence && p2->precedence) {
-    // I want the low precedence first
-    return p1->precedence - p2->precedence;
-  }
-  else {
-    // if one or the other doesn't have a precedence, then there's
-    // no basis for distinction
-    return 0;
-  }
-}
-#endif // 0
-
-
 // given some potential parse actions, apply available disambiguation
 // to remove some of them; print warnings about conflicts, in some
 // situations
@@ -2874,33 +2857,6 @@ void GrammarAnalysis::resolveConflicts(
         mut.adv();
       }
     }
-
-    #if 0    // totally wrong
-    // sort the reductions so the lowest precedence reductions are
-    // first, then higher precedences, and finally reductions that
-    // lack any precedence (use insertion sort since I expect that
-    // most of the time the list won't require any changes)
-    reductions.insertionSort(productionPrecCompare);
-
-    // work through the head of the list, discarding productions
-    // that have higher-precedence productions beneath them
-    int ct = reductions.count();
-    while (ct >= 2) {
-      Production *p1 = reductions.nth(0);
-      Production *p2 = reductions.nth(1);
-      if (!(p1->precedence && p2->precedence)) break;
-
-      // remove first one
-      reductions.removeFirst();
-      ct--;
-      actions--;
-
-      // report
-      trace("prec")
-        << "in state " << state->id << ", R/R conflict on token "
-        << sym->name << ", removed production " << *p1 << endl;
-    }
-    #endif // 0
   }
                                                       
   // additional R/R resolution using subset directives
