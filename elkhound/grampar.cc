@@ -507,9 +507,11 @@ bool isGramlexEmbed(int code);     // defined in gramlex.lex
 
 void readGrammarFile(Grammar &g, char const *fname)
 {
+  #ifndef NDEBUG
   if (tracingSys("yydebug")) {
-    yydebug = true;
+    yydebug = true;    // this flag goes away when NDEBUG is specified..
   }
+  #endif // NDEBUG
 
   Owner<GrammarLexer> lexer;
   Owner<ifstream> in;

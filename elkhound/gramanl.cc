@@ -1836,9 +1836,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
   }
 
   while (worklist.isNotEmpty()) {
-    #ifdef EXTRA_CHECKS
-      xassert(worklist.count() == workhash.getNumEntries());
-    #endif
+    xassert_debug(worklist.count() == workhash.getNumEntries());
 
     // pull the first production
     LRItem *item = worklist.removeFirst();
@@ -2376,9 +2374,7 @@ void GrammarAnalysis::constructLRItemSets()
             }
             else {
               // we thought we were done with this
-              #ifdef EXTRA_CHECKS
-                xassert(itemSetsDone.get(already));
-              #endif
+              xassert_debug(itemSetsDone.get(already));
 
               // but we're not: move it back to the 'pending' list
               itemSetsDone.remove(already);
@@ -2428,10 +2424,8 @@ void GrammarAnalysis::constructLRItemSets()
         // finally, restore 'scratchState's kernel item list
         scratchState->kernelItems.concat(unusedTail);
 
-        #ifdef EXTRA_CHECKS
-          // make sure the link restoration process works as expected
-          xassert(scratchState->kernelItems.count() >= INIT_LIST_LEN);
-        #endif
+        // make sure the link restoration process works as expected
+        xassert_debug(scratchState->kernelItems.count() >= INIT_LIST_LEN);
 
         CHECK_MALLOC_STATS("end of item loop");
 

@@ -43,7 +43,7 @@ ccflags += -Werror
 #ccflags += -pg
 
 # optimizer...
-#ccflags += -O2
+#ccflags += -O2 -DNDEBUG
 
 # flags on command line
 ccflags+= $(EXTRA)
