@@ -16,7 +16,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/c -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
-CCFLAGS := -g -Wall
+CCFLAGS := -g -Wall -Wno-deprecated
 
 # linking flags
 LDFLAGS := $(LIBELKHOUND) $(AST)/libast.a $(SMBASE)/libsmbase.a
@@ -39,7 +39,7 @@ cdecl.gr.gen.cc cdecl.gr.gen.h: cdecl.gr
 	$(ELKHOUND)/elkhound -v -o cdecl.gr.gen cdecl.gr
 
 # compile a C++ source file
-%.o: %.c
+%.o: %.cc
 	g++ -c $(CCFLAGS) $(CPPFLAGS) $*.cc
 
 # link the driver code with the generated parser and lexer;

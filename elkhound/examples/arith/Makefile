@@ -16,7 +16,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 CPPFLAGS := -I$(ELKHOUND) -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
-CCFLAGS := -g -Wall
+CCFLAGS := -g -Wall -Wno-deprecated
 
 # linking flags
 LDFLAGS := $(LIBELKHOUND) $(SMBASE)/libsmbase.a
@@ -39,7 +39,7 @@ arithyy.cc: arith.lex
 	flex -o$@ arith.lex
 
 # compile a C++ source file
-%.o: %.c
+%.o: %.cc
 	g++ -c $(CCFLAGS) $(CPPFLAGS) $*.cc
 
 # link the driver code with the generated parser and lexer;

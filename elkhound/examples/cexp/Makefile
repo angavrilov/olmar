@@ -16,7 +16,7 @@ LIBELKHOUND := $(ELKHOUND)/libelkhound.a
 CPPFLAGS := -I$(ELKHOUND) -I$(ELKHOUND)/c -I$(AST) -I$(SMBASE)
 
 # C++ compilation flags
-CCFLAGS := -g -Wall
+CCFLAGS := -g -Wall -Wno-deprecated
 
 # linking flags
 LDFLAGS := $(LIBELKHOUND) $(AST)/libast.a $(SMBASE)/libsmbase.a
@@ -32,7 +32,7 @@ LDFLAGS := $(LIBELKHOUND) $(AST)/libast.a $(SMBASE)/libsmbase.a
 	$(AST)/astgen -b$*.ast.gen $*.ast
 
 # compile a C++ source file
-%.o: %.c
+%.o: %.cc
 	g++ -c $(CCFLAGS) $(CPPFLAGS) $*.cc
 
 

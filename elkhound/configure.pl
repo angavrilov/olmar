@@ -150,7 +150,7 @@ checkExitCode($?);
 $gccver = $lines[0];
 
 # g++-3?
-if ($gccver =~ m/^3\./) {
+if ($gccver =~ m/\(GCC\) 3\./) {
   # suppress warnings about deprecation
   push @CCFLAGS, "-Wno-deprecated";
 }
