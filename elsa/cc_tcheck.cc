@@ -41,6 +41,12 @@ static Variable *outerResolveOverload_ctor
   (Env &env, SourceLoc loc, Type *type, FakeList<ArgExpression> *args, bool really);
 static bool reallyDoOverload(Env &env, FakeList<ArgExpression> *args);
 FakeList<ArgExpression> *tcheckArgExprList(FakeList<ArgExpression> *list, Env &env);
+Type *resolveOverloadedUnaryOperator(
+  Env &env,
+  Expression *&replacement,
+  //Expression *ths,
+  Expression *expr,
+  OverloadableOp op);
 
 
 // return true if the list contains no disambiguating errors
@@ -5248,10 +5254,18 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
   }
 }
 
+
 Type *E_arrow::itcheck_x(Env &env, Expression *&replacement)
-{
-  // TODO: do overloading here; for now, just replace ourselves with a
-  // '*' and a '.'
+{   
+  // check LHS
+  obj->tcheck(env, obj);
+
+  // overloaded?  if so, replace 'obj'
+  while (resolveOverloadedUnaryOperator(env, obj, obj, OP_ARROW)) {
+    // keep sticking in 'operator->' until the LHS is not a class
+  }
+  
+  // now replace with '*' and '.' and proceed
   replacement = new E_fieldAcc(new E_deref(obj), fieldName);
   replacement->tcheck(env, replacement);
   return replacement->type;

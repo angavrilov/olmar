@@ -360,7 +360,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // implementation is now mature enough.
     doOverload(!tracingSys("doNotOverload") && lang.allowOverloading),
 
-    doOperatorOverload(tracingSys("doOperatorOverload") && lang.allowOverloading),
+    // 9/23/04: Default to true, since there is little value anymore
+    // to parsing without full tcheck.
+    doOperatorOverload(!tracingSys("doNotOperatorOverload") && lang.allowOverloading),
     
     doFunctionTemplateBodyInstantiation(!tracingSys("disableFBodyInst")),
                                                               
