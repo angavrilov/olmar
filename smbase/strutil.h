@@ -67,4 +67,11 @@ string dirname(char const *src);
 string plural(int n, char const *prefix);
 
 
+// Sometimes it's useful to store a string value in a static buffer;
+// most often this is so 'gdb' can see the result.  This function just
+// copies its input into a static buffer (of unspecified length, but
+// it checks bounds internally), and returns a pointer to that buffer.
+char *copyToStaticBuffer(char const *src);
+
+
 #endif // __STRUTIL_H

@@ -370,6 +370,20 @@ string plural(int n, char const *prefix)
 }
 
 
+char *copyToStaticBuffer(char const *s)
+{           
+  enum { SZ=200 };
+  static char buf[SZ+1];
+
+  int len = strlen(s);
+  if (len > SZ) len=SZ;
+  memcpy(buf, s, len);
+  buf[len] = 0;
+
+  return buf;
+}
+
+
 // ----------------------- test code -----------------------------
 #ifdef TEST_STRUTIL
 
