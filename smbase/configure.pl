@@ -3,11 +3,10 @@
 
 use strict 'subs';
 
-# does not work on perl 5.6.1 (manju).... (!)
-#require sm_config;
-#
-#$dummy = commonConfigThing();
-#print("dummy: $dummy\n");
+require sm_config;
+
+$dummy = get_sm_config_version();
+print("dummy: $dummy\n");
 
 sub usage {
   print(<<"EOF");
