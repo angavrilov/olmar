@@ -112,25 +112,25 @@ terminals {
   token[StringRef] L2_STRING_LITERAL ;
 
   precedence {
-    // low precedence
-    prec L2_PREFER_SHIFT;
-
-    right "==>";    // ESC's user manual specifies a precedence but not an associativity for "==>"
-    left "||";
-    left "&&";
-    left "|";
-    left "^";
-    left "&";
-    left "==" "!=";
-    left "<" ">" "<=" ">=";
-    left "<<" ">>";
-    left "+" "-";
-    left "*" "/" "%";
-    right ".*" "->*";
-
-    prec "const" "volatile" "owner" "__attribute__" "else";
-    prec L2_PREFER_REDUCE;
     // high precedence
+    prec L2_PREFER_REDUCE;
+    prec "const" "volatile" "owner" "__attribute__" "else";
+
+    right ".*" "->*";
+    left "*" "/" "%";
+    left "+" "-";
+    left "<<" ">>";
+    left "<" ">" "<=" ">=";
+    left "==" "!=";
+    left "&";
+    left "^";
+    left "|";
+    left "&&";
+    left "||";
+    right "==>";    // ESC's user manual specifies a precedence but not an associativity for "==>"
+
+    prec L2_PREFER_SHIFT;
+    // low precedence
   }
 }
 
