@@ -4,6 +4,7 @@
 # this script is a poor stand-in until I get my act together
 # and make a real configure script
 
+ocaml=no
 
 # generate the parsgen Makefile
 setupMakefile() {
