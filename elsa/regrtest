@@ -1117,6 +1117,7 @@ failCparse c/k0005.c "multiply defined enum 'option'"
 failCparse c/k0006.c "static inline function implicitly returning int"
 failCparse c/k0006a.c "static inline function implicitly returning int, old-style param decl"
 testCparse c/k0011.c #"ambiguous s->z < 1 || 2 > (3)"
+failCparse c/k0007.c "duplicate modifiers in C as warning, not error (?)"
 
 ### </quarl-testcases-c>
 
