@@ -191,6 +191,17 @@ public:      // data
   bool forward;               // true when it's only fwd-declared
   Keyword keyword;            // keyword used to introduce the type
 
+  // nonstatic data members, in the order they appear within the body
+  // of the class definition; note that this is partially redundant
+  // with the Scope's 'variables' map, and hence should not be changed
+  // without also updating that map
+  SObjList<Variable> dataMembers;
+
+  // dsw: map from names to indicies into data_variables_in_order;
+  // this is needed to support compound initializeres with mixed
+  // descriptor-ed and non-descriptor-ed initializers
+  StringSObjDict<int> name_pos;        // sm: delete me
+
   // classes from which this one inherits; 'const' so you have to
   // use 'addBaseClass', but public to make traversal easy
   const ObjList<BaseClass> bases;
@@ -232,6 +243,9 @@ protected:   // funcs
   // experiment: force creation of these to go through the factory too
   CompoundType(Keyword keyword, StringRef name, TranslationUnit *tunit);
   friend class TypeFactory;
+  
+  // override no-op implementation in Scope
+  virtual void afterAddVariable(Variable *v);
 
 public:      // funcs
   virtual ~CompoundType();
@@ -261,7 +275,17 @@ public:      // funcs
   Variable *getNamedField(StringRef name, Env &env, LookupFlags f=LF_NONE)
     { return lookupVariable(name, env, f); }
 
+  // alias for Scope::addVariable (should probably be deleted)
   void addField(Variable *v);
+
+  // sm: for compatibility with existing code; should be deleted
+  SObjList<Variable> &get_data_variables_in_order() 
+    { return dataMembers; }
+
+  // return the ordinal position of the named nonstatic data field
+  // in this class, starting with 0; or, return -1 if the field does
+  // not exist (this is a query on 'dataMembers')
+  int getDataMemberPosition(StringRef name) const;
 
   // add to 'bases'; incrementally maintains 'virtualBases'
   void addBaseClass(BaseClass * /*owner*/ newBase);

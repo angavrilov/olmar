@@ -265,6 +265,40 @@ void CompoundType::addField(Variable *v)
 }
 
 
+void CompoundType::afterAddVariable(Variable *v)
+{
+  // if is a data member, not a method, static data, or a typedef
+  if (!v->type->isFunctionType() &&
+      !(v->flags & (DF_STATIC | DF_TYPEDEF | DF_ENUMERATOR))) {
+
+    // FIX: Don't know how to avoid making an int on the heap, as that
+    // is the way that the templatized class StringSObjDict is set up.
+    name_pos.add(v->name, new int(dataMembers.count()));// garbage? is it ever deleted?
+
+    // sm: No, the int won't ever be deleted.  If you use
+    // StringObjDict then it will.  However, I think name_pos should
+    // be deleted in favor of linear searches on 'dataMembers', and in
+    // either case the data structure (or lack thereof) should be
+    // hidden behind a query function.
+
+    dataMembers.append(v);
+  }
+}
+
+
+int CompoundType::getDataMemberPosition(StringRef name) const
+{        
+  int index=0;
+  SFOREACH_OBJLIST(Variable, dataMembers, iter) {
+    if (iter.data()->name == name) {
+      return index;
+    }
+    index++;
+  }
+  return -1;     // not found
+}
+
+
 void CompoundType::addBaseClass(BaseClass * /*owner*/ newBase)
 {
   xassert(newBase->access != AK_UNSPECIFIED);

@@ -107,6 +107,7 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     v->setFlag(DF_GLOBAL);
   }
 
+  #if 0     // sm: moved into CompoundType, delete me
   // if is a data member, not a method, static data, or a typedef
   if (!v->type->isFunctionType() && !v->hasFlag(DF_STATIC) && !v->hasFlag(DF_TYPEDEF)) {
     // FIX: Do I want this here as well?
@@ -116,8 +117,19 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
     name_pos.add(v->name, new int(data_variables_in_order.count()));// garbage? is it ever deleted?
     data_variables_in_order.append(v);
   }
-  return insertUnique(variables, v->name, v, changeCount, forceReplace);
+  #endif // 0
+
+  if (insertUnique(variables, v->name, v, changeCount, forceReplace)) {
+    afterAddVariable(v);
+    return true;
+  }
+  else {
+    return false;
+  }
 }
+
+void Scope::afterAddVariable(Variable *v)
+{}
 
 
 bool Scope::addCompound(CompoundType *ct)

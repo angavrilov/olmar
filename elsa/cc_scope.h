@@ -51,6 +51,8 @@ private:     // data
   // note: this includes typedefs (DF_TYPEDEF is set), and it also
   // includes enumerators (DF_ENUMERATOR is set)
   StringSObjDict<Variable> variables;
+  
+  #if 0     // sm: moved into CompoundType; delete me
   // dsw: variables in the order they were added; I need this for
   // struct initializers
   SObjList<Variable> data_variables_in_order;
@@ -58,6 +60,7 @@ private:     // data
   // this is needed to support compound initializeres with mixed
   // descriptor-ed and non-descriptor-ed initializers
   StringSObjDict<int> name_pos;
+  #endif // 0
 
   // compounds: map name -> CompoundType
   StringSObjDict<CompoundType> compounds;
@@ -103,9 +106,16 @@ private:     // funcs
      Variable const *&v1, CompoundType const *&v1Base,
      BaseClassSubobj const *v2Subobj) const;
 
+protected:   // funcs
+  // this function is called at the end of addVariable, after the
+  // Variable has been added to the 'variables' map; it's intended
+  // that CompoundType will override this, for the purpose of
+  // maintaining 'dataMembers'
+  virtual void afterAddVariable(Variable *v);
+
 public:      // funcs
   Scope(ScopeKind sk, int changeCount, SourceLoc initLoc, TranslationUnit *tunit0);
-  ~Scope();
+  virtual ~Scope();     // virtual to silence warning; destructor is not part of virtualized interface
 
   int getChangeCount() const { return changeCount; }
 
@@ -116,6 +126,7 @@ public:      // funcs
   bool isClassScope() const         { return scopeKind == SK_CLASS; }
   bool isTemplateScope() const      { return scopeKind == SK_TEMPLATE; }
 
+  #if 0     // sm: moved into CompoundType; delete me
   // dsw: I need to lookup variables and I don't have an Env to pass
   // in; additionally, I'm not so sure that lookupVariable() really
   // does what I want
@@ -126,6 +137,7 @@ public:      // funcs
   SObjList<Variable> const &get_data_variables_in_orderC() const {return data_variables_in_order;}
 
   int *get_position_of_name(StringRef id) {return get_name_pos().queryif(id);}
+  #endif // 0
 
   // insertion; these return false if the corresponding map already
   // has a binding (unless 'forceReplace' is true)
