@@ -256,8 +256,30 @@ void TF_template::tcheck(Env &env)
 void TF_linkage::tcheck(Env &env)
 {  
   env.setLoc(loc);
-  // ignore the linkage type
+  // ignore the linkage type for now
+
   forms->tcheck(env);
+}
+
+void TF_one_linkage::tcheck(Env &env)
+{
+  env.setLoc(loc);
+  // ignore the linkage type for now
+  
+  // we need to dig down into the form to apply 'extern'
+  // [cppstd 7.5 para 7]
+  ASTSWITCH(TopForm, form) {
+    ASTCASE(TF_decl, d)   d->decl->dflags |= DF_EXTERN;
+    ASTNEXT(TF_func, f)   f->f->dflags |= DF_EXTERN;   // legal?  let Function catch it if not
+    ASTDEFAULT
+      // template, or another 'extern "C"'!
+      env.unimp(stringc
+        << "weird use of 'extern \"" << linkageType << "\"'");
+    ASTENDCASE
+  }
+  
+  // typecheck the underlying form
+  form->tcheck(env);
 }
 
 
