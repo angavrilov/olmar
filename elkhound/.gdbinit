@@ -13,7 +13,7 @@ file ccgr
 
 #set args cc.bin test-bad-tmp.c
 
-set args -tr printAST,factflow cc.bin c.in1
+set args -tr factflow cc.bin vcgen/ff.c
 
 #  break main
 #  break breaker

@@ -35,6 +35,19 @@ void const *nodeFactsKey(NodeFacts *nf)
   return nf->stmtPtr;
 }
 
+string factListString(SObjList<Expression> const &facts)
+{
+  stringBuilder sb;
+  int ct=0;
+  SFOREACH_OBJLIST(Expression, facts, fact) {
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+    sb << fact.data()->toString();
+  }       
+  return sb;
+}
+
 
 // ----------------- dataflow value manipulation ---------------
 // return true if 'src' (or anything equalExpressions to it) is
@@ -45,7 +58,7 @@ bool hasFact(SObjList<Expression /*const*/> const &dest, Expression const *src)
     if (equalExpressions(iter.data(), src)) {
       return true;
     }
-  }              
+  }
   return false;
 }
 
@@ -141,8 +154,6 @@ void factFlow(TF_func &func)
     Statement const *stmt = nextPtrStmt(stmtPtr);
     bool stmtCont = nextPtrContinue(stmtPtr);
 
-    trace("factflow") << "  working on " << nextPtrString(stmtPtr) << endl;
-
     // retrieve associated dataflow info
     NodeFacts *nodeFacts = factMap.get(stmtPtr);
 
@@ -151,11 +162,18 @@ void factFlow(TF_func &func)
     // create a NodeFacts if necessary
     xassert(nodeFacts);
 
+    trace("factflow")
+      << "  working on " << nextPtrString(stmtPtr)
+      << ", nodeFacts: " << factListString(nodeFacts->facts)
+      << endl;
+
     // consider each successor
     NextPtrList successors;
     stmt->getSuccessors(successors, stmtCont);
     FOREACH_NEXTPTR(successors, iter) {
       NextPtr succPtr = iter.data();
+      trace("factflow") << "    considering edge to "
+                        << nextPtrString(succPtr) << endl;
 
       // compute Out(n) U { edge-predicate }:
       //   - remove any facts jeopardized by state changes in stmt
@@ -209,10 +227,9 @@ void factFlow(TF_func &func)
       inv->inferFacts = nf->facts;    // copy facts
 
       if (tracingSys("factflow")) {
-        cout << "added to " << stmt->kindLocString() << ":" << endl;
-        SFOREACH_OBJLIST(Expression, nf->facts, fact) {
-          cout << "  " << fact.data()->toString() << endl;
-        }
+        trace("factflow") 
+          << "  added to " << stmt->kindLocString() << ": "
+          << factListString(nf->facts) << endl;
       }
     }
   }
@@ -225,8 +242,6 @@ void factFlow(TF_func &func)
 
 // ------------- per-statement flow propagation ------------
 void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr);
-bool invalidateLvalue(Expression const *facts, Expression const *lval);
-bool invalidateVar(Expression const *fact, Variable const *var);
 void invalidateInit(SObjList<Expression /*const*/> &facts, Initializer const *init);
 
 
@@ -261,6 +276,9 @@ Expression *HACK_not(Expression *expr)
 // on 'positive'
 void addFactsBool(SObjList<Expression /*const*/> &facts, Expression *expr, bool positive)
 {
+  trace("factflow") << "      added " << (positive? "positive" : "negative")
+                    << " fact: " << expr->toString() << endl;
+
   if (positive) {
     addFacts(facts, expr);
   }
@@ -362,6 +380,13 @@ void S_thmprv::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, 
 
 
 // ------------------ expression invalidation -----------------
+bool invalidateExpr(Expression const *fact, Expression const *expr);
+bool isMonotonic(E_assign const *assign, int &dir, Variable *&var);
+bool isRelational(Expression const *expr, Variable const *var, int &dir);
+bool invalidateLvalue(Expression const *facts, Expression const *lval);
+bool invalidateVar(Expression const *fact, Variable const *var);
+
+
 // remove from any 'facts' that refer to things modified by
 // any of the visited expressions
 class InvalidateVisitor : public ExpressionVisitor {
@@ -370,7 +395,7 @@ public:
   bool inval;                   // true once we conclude it is invalid
 
 public:
-  InvalidateVisitor(Expression const *f) 
+  InvalidateVisitor(Expression const *f)
     : fact(f), inval(false) {}
   virtual void visitExpr(Expression const *expr);
 };
@@ -387,12 +412,30 @@ void InvalidateVisitor::visitExpr(Expression const *expr)
       inval = invalidateLvalue(fact, e->expr);
 
     ASTNEXTC(E_assign, e)
+      // look for monotonicity; is the assignment monotonic?
+      int assignDir;     // becomes: +1 for increasing, -1 for decreasing
+      Variable *var;     // variable monotonically modified
+      if (isMonotonic(e, assignDir, var)) {
+        // is the fact a relational?
+        int relDir;      // becomes: +2 for ">", +1 for ">=", -1 for "<=", -2 for "<"
+        if (isRelational(fact, var, relDir)) {
+          if (assignDir * relDir > 0) {     // same sign
+            trace("factflow")
+              << "  found that variable " << var->name
+              << " was modified monotonically by " << e->toString()
+              << " which respects constraint " << fact->toString() << endl;
+            return;    // i.e. let 'inval' remain false if it's false now
+          }
+        }
+      }
+
+      // no monotonicity, so any modification will invalidate
       inval = invalidateLvalue(fact, e->target);
 
     ASTENDCASECD
   }
 }
-
+ 
 // any fact in 'facts', which contains any variable modified by 'expr',
 // must be removed from 'facts'
 void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr)
@@ -400,12 +443,15 @@ void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr)
   // consider each fact in turn
   SObjListMutator<Expression /*const*/> mut(facts);
   while (!mut.isDone()) {
+    Expression const *fact = mut.data();
+
     // dig around in 'expr' to find things which might invalidate
-    // the current fact (mut.data())
-    InvalidateVisitor vis(mut.data());
-    walkExpression(vis, expr);
-    if (vis.inval) {
+    // the current 'fact'
+    if (invalidateExpr(fact, expr)) {
       // remove this fact because 'expr' invalidated it
+      trace("factflow") 
+        << "    fact " << fact->toString() 
+        << " invalidated by " << expr->toString() << endl;
       mut.remove();
     }
     else {
@@ -413,22 +459,109 @@ void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr)
     }
   }
 }
+ 
+// return true if the side effects in 'expr' invalidate 'fact'
+bool invalidateExpr(Expression const *fact, Expression const *expr)
+{
+  InvalidateVisitor vis(fact);
+  walkExpression(vis, expr);
+  return vis.inval;
+}
+
+// return true if 'assign' modifies some variable monotonically;
+// if so, yield which direction and variable
+bool isMonotonic(E_assign const *assign, int &dir, Variable *&var)
+{
+  // extract modified variable
+  if (!assign->target->isE_variable()) return false;
+  var = assign->target->asE_variableC()->var;
+
+  // all my existing syntax uses BIN_ASSIGN ..
+  if (assign->op != BIN_ASSIGN) return false;
+
+  // src must be binary expression
+  if (!assign->src->isE_binary()) return false;
+  E_binary const *bin = assign->src->asE_binaryC();
+
+  // LHS must be var
+  if (!bin->e1->isE_variable() ||
+      bin->e1->asE_variableC()->var != var) return false;
+                                 
+  // op must be + or -
+  if (bin->op == BIN_PLUS) {
+    dir = +1;
+  }
+  else if (bin->op == BIN_MINUS) {
+    dir = -1;
+  }
+  else {
+    return false;
+  }
+
+  // RHS must be a literal
+  if (!bin->e2->isE_intLit()) return false;
+  
+  // sign of literal determines direction
+  if (bin->e2->asE_intLitC()->i < 0) {
+    dir = dir * -1;
+  }
+  
+  return true;
+}
+ 
+
+// return true if 'expr' is a binary relational, and if so, set 'dir'
+// accordingly
+bool isRelational(Expression const *expr, Variable const *var, int &dir)
+{
+  // must be a binary exp
+  if (!expr->isE_binary()) return false;
+  E_binary const *bin = expr->asE_binaryC();
+
+  // nominal assignment of 'dir' assuming var is on left
+  switch (bin->op) {
+    case BIN_LESS:      dir = -2; break;
+    case BIN_LESSEQ:    dir = -1; break;
+    case BIN_GREATER:   dir = +1; break;
+    case BIN_GREATEREQ: dir = +1; break;
+    default:            return false;
+  }
+
+  // see which side is which
+  E_variable const *varExp;
+  if (bin->e1->isE_variable() &&
+      bin->e2->isE_intLit()) {
+    varExp = bin->e1->asE_variableC();
+  }
+  else if (bin->e2->isE_variable() &&
+           bin->e1->isE_intLit()) {
+    varExp = bin->e2->asE_variableC();
+  }
+  else { 
+    return false;
+  }
+  
+  // check the variable
+  if (varExp->var != var) return false;
+  
+  return dir;
+}
 
 // given that 'lval' is modified, decide whether to remove 'fact'
-bool invalidateLvalue(Expression const *facts, Expression const *lval)
+bool invalidateLvalue(Expression const *fact, Expression const *lval)
 {
   ASTSWITCHC(Expression, lval) {
     ASTCASEC(E_variable, v)
       if (v->var->hasAddrTaken()) {
-        return invalidateVar(facts, NULL /*mem*/);
+        return invalidateVar(fact, NULL /*mem*/);
       }
       else {
-        return invalidateVar(facts, v->var);
+        return invalidateVar(fact, v->var);
       }
 
     ASTNEXTC(E_deref, d)
-      PRETEND_USED(d);
-      return invalidateVar(facts, NULL /*mem*/);
+      return invalidateVar(fact, NULL /*mem*/) ||
+             invalidateExpr(fact, d->ptr);
 
     ASTDEFAULTC
       // any other kind: crudely forget
