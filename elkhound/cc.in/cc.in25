@@ -41,6 +41,6 @@ double x;
 
 double A::B::g()
 {
-//  return ::x;
+  return ::x;
 }
 
