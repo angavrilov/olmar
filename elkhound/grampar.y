@@ -19,6 +19,7 @@
 %token TOK_RPAREN ")"
 
 /* keywords */
+%token TOK_TERMINALS "terminals"
 %token TOK_NONTERM "nonterm"
 %token TOK_FORMGROUP "formGroup"
 %token TOK_FORM "form"
@@ -63,13 +64,14 @@ Input: /* empty */
 /* ------ terminals ------ */
 /*
  * the terminals are the grammar symbols that appear only on the RHS of
- * forms; they are the output of the lexer
+ * forms; they are the output of the lexer; the Terminals list declares
+ * all of the terminals that will appear in the rules
  */
-Terminals: "{" TerminalSeqOpt "}"
+Terminals: "terminals" "{" TerminalSeqOpt "}"
          ;
 
 TerminalSeqOpt: /* empty */
-              | TerminalSeqOpt Terminal
+              | TerminalSeqOpt TerminalDecl
               ;
 
 /*
@@ -77,8 +79,8 @@ TerminalSeqOpt: /* empty */
  * to represent that terminal.  it is followed by at least one alias, where it is
  * the aliases that appear in the forms, rather than the integer codes
  */
-Terminal: TOK_INTEGER ":" AliasSeq ";"
-        ;
+TerminalDecl: TOK_INTEGER ":" AliasSeq ";"
+            ;
 
 AliasSeq: TOK_NAME
         | AliasSeq TOK_NAME
@@ -86,7 +88,11 @@ AliasSeq: TOK_NAME
 
 
 /* ------ nonterminals ------ */
-/* a nonterminal is a grammar symbol that appears on the LHS of forms */
+/* 
+ * a nonterminal is a grammar symbol that appears on the LHS of forms;
+ * the body of the Nonterminal declaration specifies the the RHS forms,
+ * attribute info, etc.
+ */
 Nonterminal: "nonterm" TOK_NAME "{" NonterminalBody "}"
            | "nonterm" TOK_NAME Form
            ;
@@ -98,16 +104,18 @@ NonterminalBody: /* empty */
                ;
 
 /*
- * this declares a synthesized attribute of a nonterminal; every form must specify
- * a value for this attribute 
+ * this declares a synthesized attribute of a nonterminal; every form
+ * must specify a value for every declared attribute; at least for
+ * now, all attributes are integer-valued
  */
 AttributeDecl: "attr" TOK_NAME ";"
              ;
 
 /*
- * a form is a context-free grammar production.  it specifies a "rewrite rule", such that any
- * instance of the nonterminal LHS can be rewritten as the sequence of RHS symbols, in the process
- * of deriving the input sentance from the start symbol
+ * a form is a context-free grammar production.  it specifies a
+ * "rewrite rule", such that any instance of the nonterminal LHS can
+ * be rewritten as the sequence of RHS symbols, in the process of
+ * deriving the input sentance from the start symbol
  */
 Form: "->" FormRHS ";"
     | "->" FormRHS "{" FormBody "}"
@@ -126,7 +134,21 @@ FormBody: /* empty */
 
 /*
  * forms can be grouped together with actions and conditions that apply
- * to all forms in the group
+ * to all forms in the group;
+ *
+ * Forms:  alternative forms in a formgroup are used by the parser as
+ * if they were all "flattened" to be toplevel alternatives
+ *
+ * Conditions:  all conditions in enclosing formGroups must be satisfied,
+ * in addition to those specified at the level of the form
+ *
+ * Actions:
+ *   - an action that defines an attribute value at an outer level is
+ *     inherited by inner forms, unless overridden by a different
+ *     definition for the same attribute
+ *   - actions can be special -- certain functions, such as
+ *     sequence(), are available which yield a different value for each
+ *     form
  */
 FormGroup: "formGroup" "{" FormGroupBody "}"
          ;
@@ -140,7 +162,8 @@ FormGroupBody: /* empty */
 /* ------ form right-hand side ------ */
 /*
  * for now, the only extension to BNF is several alternatives for the
- * top level of a form
+ * top level of a form; this is semantically equivalent to a formgroup
+ * with the alternatives as alternative forms
  */
 FormRHS: TaggedNameSeqOpt
        | FormRHS "|" TaggedNameSeqOpt
@@ -149,11 +172,11 @@ FormRHS: TaggedNameSeqOpt
 /*
  * each element on the RHS of a form can have a tag, which appears before a
  * colon (':') if present; the tag is required if that symbol's attributes
- * are referenced anywhere in the actions or conditions for the form
+ * are to be referenced anywhere in the actions or conditions for the form
  */
 TaggedNameSeqOpt: /* empty */
-                | TaggedNameSeqOpt TOK_NAME                 /* no tag */
-                | TaggedNameSeqOpt TOK_NAME ":" TOK_NAME    /* tag */
+                | TaggedNameSeqOpt TOK_NAME                 /* name (only) */
+                | TaggedNameSeqOpt TOK_NAME ":" TOK_NAME    /* tag : name */
                 ;
 
 /* ------ actions and conditions ------ */
@@ -185,7 +208,7 @@ UnaryExpr: PrimaryExpr
          | "!" PrimaryExpr
          ;
 
-/* this rule relies on precedence and associativity declarations */
+/* this rule relies on Bison precedence and associativity declarations */
 BinaryExpr: UnaryExpr
           | UnaryExpr "*" UnaryExpr
           | UnaryExpr "/" UnaryExpr

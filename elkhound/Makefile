@@ -36,5 +36,17 @@ lexer1: lexer1.cc lexer1yy.o trace.o ${SMBASE}/libsmbase.a
 lexer2: lexer2.cc lexer1.o lexer1yy.o trace.o lexer2.h
 	${link} -o lexer2 -DTEST_LEXER2 lexer2.cc lexer1.o lexer1yy.o trace.o ${linkend}
 
+# grammar lexer generated source
+gramlex.yy.cc: gramlex.h gramlex.cc gramlex.lex grampar.tab.h
+	flex -ogramlex.yy.cc gramlex.lex                     
+
+# grammar lexer test program
+gramlex: gramlex.yy.cc gramlex.cc gramlex.h
+	${link} -o gramlex -DTEST_GRAMLEX gramlex.yy.cc gramlex.cc ${linkend}
+
+# grammar parser
+grampar.tab.c grampar.tab.h: grampar.y
+	bison -d grampar.y
+
 clean:
-	rm -f grammar glr lexer1 lexer1yy.cc *.o *~
+	rm -f grammar glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~

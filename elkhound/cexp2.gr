@@ -25,7 +25,7 @@ nonterm Expr {
   attr prec;              // precedence of binding (topmost) operator in expression
 
   -> L2_NAME {
-    action  prec := 100;
+    action  prec := 100;      // higher precedence than anything else
   }
 
   -> left:Expr op:Binop right:Expr {
@@ -50,8 +50,13 @@ nonterm Binop {
     action  leftAssoc := 1;
 
     // highest precedence
-    -> "*" | "/" | "%"             ;
-    -> "+" | "-"                   ;
+    formGroup {   -> "*";  -> "/";  -> "%";   }
+    formGroup {   -> "+";  -> "-";   }
+
+// alternative syntax    
+//    -> "*" | "/" | "%"             ;
+//    -> "+" | "-"                   ;
+
     -> "<<" | ">>"                 ;
     -> "<" | ">" | "<=" | ">="     ;
     -> "==" | "!="                 ;
