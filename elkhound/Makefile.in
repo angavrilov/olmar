@@ -232,8 +232,9 @@ cexp3.gr.gen.o: cexp3ast.ast.gen.h
 #	$(AST)/astgen cexp3ast.ast
 
 # parser and semantic analyzer for cexp3.gr
-cexp3-dep := cexp3.gr.gen.o glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
-             cc_lang.o libglr.a $(libraries)
+cexp-dep := glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
+            cc_lang.o rdtsc.o libglr.a $(libraries)
+cexp3-dep := cexp3.gr.gen.o $(cexp-dep)
 cexp3: $(cexp3-dep)
 	$(link) -o cexp3 $(cexp3-dep)
 	./cexp3 cexp3.bin cexp3.in1 | tee tmp.out
@@ -265,8 +266,7 @@ cexp3b.gr: cexp3.gr
 	chmod a-w cexp3b.gr
 
 # parser and semantic analyzer for cexp3b.gr
-cexp3b-dep := cexp3b.gr.gen.o glrmain.o cexp3mrg.o cexp3ast.ast.gen.o \
-              cc_lang.o libglr.a $(libraries)
+cexp3b-dep := cexp3b.gr.gen.o $(cexp-dep)
 cexp3b: $(cexp3b-dep)
 	$(link) -o cexp3b $(cexp3b-dep)
 	./cexp3b cexp3b.bin cexp3.in1 | tee tmp.out
