@@ -57,17 +57,23 @@ void f()
   // for now my implementation doesn't classify it as such
   //__getStandardConversion((Foo const &)0, (Foo)0, SC_ERROR);
 
-  // I now allow reference bindings to things that aren't necessarily
-  // bindable; another check should find non-bindable rvalues..
-  __getStandardConversion((int)0, (int &)0, SC_IDENTITY);
-  __getStandardConversion((int*)0, (int *&)0, SC_IDENTITY);
-  __getStandardConversion((Foo)0, (Foo &)0, SC_IDENTITY);
-
   __getStandardConversion((Incomplete &)0, (Incomplete)0, SC_ERROR);
+
+  // binding to references
+  __getStandardConversion((int)0, (int const &)0, SC_IDENTITY);
+  __getStandardConversion((int*)0, (int * const &)0, SC_IDENTITY);
+  __getStandardConversion((Foo)0, (Foo const &)0, SC_IDENTITY);
+  __getStandardConversion((Foo &)0, (Foo const &)0, SC_IDENTITY);
+  __getStandardConversion((Derived)0, (Derived const &)0, SC_IDENTITY);
+  __getStandardConversion((Derived)0, (Base const &)0, SC_PTR_CONV);
+                                                            
+  // binding an rvalue to a non-const reference
+  __getStandardConversion((Derived)0, (Derived &)0, SC_ERROR);
+  __getStandardConversion((Derived)0, (Base &)0, SC_ERROR);
 
   // I'm inferring the following from the second example in
   // section 13.3.3.2 para 3
-  __getStandardConversion((int&)0, (int const&)0, SC_LVAL_TO_RVAL);  // not SC_QUAL_CONV!
+  __getStandardConversion((int&)0, (int const&)0, SC_IDENTITY);  // not SC_QUAL_CONV!
   __getStandardConversion((int const&)0, (int&)0, SC_ERROR);
   __getStandardConversion((int const&)0, (int const&)0, SC_IDENTITY);
   __getStandardConversion((int &)0, (int &)0, SC_IDENTITY);

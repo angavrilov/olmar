@@ -222,13 +222,26 @@ bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv, bool isReference)
 {    
   if (scv != dcv) {
     if (isReference) {
-      // Conversion from 'int&' to 'int const&' is equivalent to
-      // SC_LVAL_TO_RVAL, or so I'm led to believe by 13.3.3.2 para 2,
+      // Conversion from 'int &' to 'int const &' is equivalent to
+      // SC_LVAL_TO_RVAL, or so I'm led to believe by 13.3.3.2 para 3,
       // second example.  13.3.3.1.4 para 5 talks about "reference-
       // compatible with added qualification", but I don't then see
       // a later discussion of what exactly this means.
+      //
+      // update: that term is defined in 8.5.3, and I now think that
+      // binding 'A&' to 'A const &' should be an SC_QUAL_CONV, just
+      // like with pointers...; moreover, I suspect that since
+      // SC_LVAL_TO_RVAL and SC_QUAL_CONV have the same *rank*, I'll
+      // still be able to pass 13.3.3.2 para 3 ex. 2
       xassert(ret == SC_IDENTITY);     // shouldn't have had anything added yet
-      ret |= SC_LVAL_TO_RVAL;
+      //ret |= SC_QUAL_CONV;
+      
+      // trying again.. 13.3.3.1.4 para 1
+      ret |= SC_IDENTITY;
+      
+      // old code; if ultimately this solution works, I'll drop the
+      // 'isReference' parameter to this function entirely...
+      //ret |= SC_LVAL_TO_RVAL;
     }
     else {
       ret |= SC_QUAL_CONV;
@@ -281,13 +294,30 @@ StandardConversion getStandardConversion
     // am I supposed to check cv flags?
   }
   else if (!src->isReference() && dest->isReference()) {
-    // binding an object to a reference.. as far as I can
-    // tell, this is transparent to the overload process, but
-    // might be considered illegal during call-site type
-    // checking if the dest is not a const reference..
-    // I'll just strip the dest reference and hope for the
-    // best
+    // binding an (rvalue) object to a reference
+
+    // are we trying to bind to a non-const reference?  if so,
+    // then we can't do it (cppstd 13.3.3.1.4 para 3); I haven't
+    // implemented the exception for the 'this' argument yet
+    PointerType const *destPT = dest->asPointerTypeC();
+    if (!destPT->atType->isConst()) {
+      // can't form the conversion
+      return conv.error("attempt to bind an rvalue to a non-const reference");
+    }
+
+    // strip off the destination reference
     dest = dest->asPointerTypeC()->atType;
+    
+    // now, one final exception: ordinarily, there's no standard
+    // conversion from C to P (where C inherits from P); but it *is*
+    // legal to bind an rvalue of type C to a const reference to P
+    // (cppstd 13.3.3.1.4 para 1)
+    if (dest->isCompoundType() && 
+        src->isCompoundType() &&
+        src->asCompoundTypeC()->hasStrictBaseClass(dest->asCompoundTypeC())) {
+      // TODO: ambiguous? inaccessible?
+      return SC_PTR_CONV;     // "derived-to-base Conversion"
+    }
   }
   else if (src->asRvalC()->isArrayType() && dest->isPointer()) {
     // 7/19/03: fix: 'src' can be an lvalue (cppstd 4.2 para 1)
@@ -500,10 +530,9 @@ StandardConversion getStandardConversion
         return conv.ret | SC_PTR_CONV;      // converting T* to void*
       }
 
-      if (src != dest &&                    // not the same compound...
-          src->isCompoundType() &&
+      if (src->isCompoundType() &&
           dest->isCompoundType() &&
-          src->asCompoundTypeC()->hasBaseClass(dest->asCompoundTypeC())) {
+          src->asCompoundTypeC()->hasStrictBaseClass(dest->asCompoundTypeC())) {
         if (!src->asCompoundTypeC()->
               hasUnambiguousBaseClass(dest->asCompoundTypeC())) {
           return conv.error("base class is ambiguous");
