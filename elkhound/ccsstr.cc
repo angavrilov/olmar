@@ -20,7 +20,8 @@
 #include <ctype.h>       // isspace
 
 
-CCSubstrate::CCSubstrate()
+CCSubstrate::CCSubstrate(GrammarLexer &lexer)
+  : EmbeddedLang(lexer)
 {
   reset();
 }
@@ -57,7 +58,9 @@ void CCSubstrate::handle(char const *str, int len)
           case ')':
           case ']':
             if (nesting == 0) {
-              cout << "WARNING: C++ nesting tried to go negative\n";
+              cout << "WARNING: C++ nesting tried to go negative, "
+                   << "in embedded starting at " 
+                   << lexer.curLocStr() << endl;
             }
             else {
               nesting--;

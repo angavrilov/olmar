@@ -29,10 +29,14 @@ literalCode "prologue" {
   // this is for places where there is no value
   // for a construct
   inline CilExpr *noCilValue() { return NULL; }
+  
+  // related, because I'm not yet sure what the
+  // best way to handle void is
+  inline CilExpr *voidCilValue() { return NULL; }
 
   // little debugging hack: so I can print this when I die
   // due to unhandled exception
-  static int lastLineChecked = -1;
+  extern int lastLineChecked;
 
   // stuff related to exporting data to ocaml
   #ifdef WES_OCAML_LINKAGE
@@ -98,29 +102,15 @@ nonterm Checkable {
     env = passedEnv;
   }
 
-/*
-  // the problem is I can't call 'typeCheck' unless I have
-  // a C++ class from which they're derived.. I'll put that
-  // on hold for now, because it's not perfectly clear just
-  // how common it will be to want to automate the walk
-  // like this...
-
-  // default behavior is to simply check all (nonterminal) subtrees
-  // (ideal would be to check only 'Checkable' ones, but right
-  // now I have no runtime way to determine that)
-  fun typeCheck {
-    // for now, no disambiguation
-    Reduction const *red = only();
-
-    FOREACH_OBJLIST(TreeNode, red->children, iter) {
-      if (iter.data()->isNonterm()) {
-      }
-    }
-  }
-*/
-
-  // so for now default impl is to do nothing
+  // default impl is to do nothing
   fun typeCheck = NULL;
+  
+  // but of syntactic sugar: typeCheck, and be sure the
+  // type of the result isn't void
+  fundecl CilExpr *rvalueTypeCheck(Env *passedEnv, CilInstructions &inst);
+  fun rvalueTypeCheck {
+    return asRval(typeCheck(passedEnv, inst), *this);
+  }
 }
 
 nonterm TranslationUnit : Checkable {
@@ -368,8 +358,9 @@ nonterm PrimaryExpression : ExprBase {
   -> "(" s:CompoundStatement ")"
     { fun typeCheck = s.typeCheck(env, inst); }
     
-  // gnu: wtf is this rat bastard crap???
-  -> "(" "(" TypeId ")" "{" "(" Expression ")" "}" ")" ;
+  // more gnu bs
+  -> e:ConstructorExpression
+    { fun typeCheck = e.typeCheck(env, inst); }
 }
 
 nonterm Literal : ExprBase {
@@ -388,6 +379,22 @@ nonterm Literal : ExprBase {
   -> c:L2_CHAR_LITERAL {
     fun intEval = c.charValue;
     fun getType = env->getSimpleType(ST_CHAR);
+  }
+}
+
+
+// gnu extension:
+// e.g.:
+//   struct Foo { int x; int y; };
+//   struct Foo myfoo;
+//   myfoo = (struct Foo) { 4, 5 };        <-- ConstructorExpression
+// which would assign x=4 and y=5 in 'myfoo'
+nonterm ConstructorExpression : ExprBase {
+  -> "(" TypeId ")" CompoundInitializer {
+    fun typeCheck {
+      // TODO: handle initializers generally
+      return todoCilExpr();
+    }
   }
 }
 
@@ -486,11 +493,11 @@ nonterm PostfixExpression : ExprBase {
   }
                                                          
   // array access
-  -> p:PostfixExpression "[" e:Expression "]" {
+  -> a:PostfixExpression "[" e:Expression "]" {
     fun typeCheck {
-      Owner<CilExpr> array; array = p.typeCheck(env, inst);
-      Owner<CilExpr> index; index = e.typeCheck(env, inst);
-      
+      Owner<CilExpr> array; array = a.rvalueTypeCheck(env, inst);
+      Owner<CilExpr> index; index = e.rvalueTypeCheck(env, inst);
+
       // don't check array index; could be many types
       // (int, long, unsigned long...); TODO -- fix this
       #if 0
@@ -499,7 +506,7 @@ nonterm PostfixExpression : ExprBase {
              type->asCVAtomicTypeC().atomic->isSimpleType() &&
              type->asCVAtomicTypeC().atomic->asSimpleTypeC().type == ST_INT )) {
         throwError(stringc ..);
-      }    
+      }
       #endif // 0
 
       if (typeOf(array, env)->isArrayType()) {
@@ -519,10 +526,10 @@ nonterm PostfixExpression : ExprBase {
   }
 
   // fn call
-  -> p:PostfixExpression "(" e:ExpressionListOpt ")" {
+  -> f:PostfixExpression "(" e:ExpressionListOpt ")" {
     fun typeCheck {
       // check the fn name
-      Owner<CilExpr> fn; fn = p.typeCheck(env, inst);
+      Owner<CilExpr> fn; fn = f.rvalueTypeCheck(env, inst);
 
       Type const *origFnType = typeOf(fn, env);
       Type const *fnType = origFnType;
@@ -554,7 +561,7 @@ nonterm PostfixExpression : ExprBase {
 
       // make a CIL object to hold the call
       Owner<CilFnCall> call;
-      call = newFnCall(result? newVarRef(result) : NULL, 
+      call = newFnCall(result? newVarRef(result) : NULL,
                        fn.xfr());
 
       // check the arglist, adding the arguments to the
@@ -565,7 +572,7 @@ nonterm PostfixExpression : ExprBase {
       inst.append(call.xfr());
 
       if (!env->isTrialBalloon() &&
-          p.getLeftmostTerminalC()->token->unparseString().equals("free")) {
+          f.getLeftmostTerminalC()->token->unparseString().equals("free")) {
         // conditions for analysis
         if (e.numGroundTerms() == 1) {
           ana_free(e.unparseString());
@@ -577,7 +584,7 @@ nonterm PostfixExpression : ExprBase {
 
       // anything that uses this call can get the value
       // from the temporary I created
-      return result? newVarRefExpr(result) : noCilValue();
+      return result? newVarRefExpr(result) : voidCilValue();
     }
   }
 
@@ -586,7 +593,7 @@ nonterm PostfixExpression : ExprBase {
   -> p:PostfixExpression op:FieldAccessOp n:PQVarName {
     fun typeCheck {
       // check the left side
-      Owner<CilExpr> record; record = p.typeCheck(env, inst);
+      Owner<CilExpr> record; record = p.rvalueTypeCheck(env, inst);
 
       // look up its type
       Type const *type = record->getType(env);
@@ -604,7 +611,11 @@ nonterm PostfixExpression : ExprBase {
         record = newDeref(record.xfr());
         type = type->asPointerTypeC().atType;
       }
-       
+
+      // for the moment, I'm requiring that it be an lvalue because we
+      // don't have a Cil expression for <rvalue>.field
+      Owner<CilLval> recordLval; recordLval = asLval(record.xfr(), p);
+
       // the type should be a structure whose fields we can access
       if (!( type->isCVAtomicType() &&
              type->asCVAtomicTypeC().atomic->isCompoundType() )) {
@@ -617,7 +628,7 @@ nonterm PostfixExpression : ExprBase {
 
       if (ctype.env == NULL) {
         throwError(stringc
-          << "can't access field of " << record->toString()
+          << "can't access field of " << recordLval->toString()
           << " because its type (" << ctype.toString()
           << ") is incomplete (it's only forward-declared)");
       }
@@ -626,14 +637,14 @@ nonterm PostfixExpression : ExprBase {
       // struct we just found
       Owner<Variable> field; field = n.typeCheck(ctype.env);
 
-      return newFieldRef(record.xfr(), field.xfr());
+      return newFieldRef(recordLval.xfr(), field.xfr());
     }
   }
 
   -> p:PostfixExpression op:IncOp {
     fun typeCheck {
       // get expression being incremented
-      Owner<CilLval> lval; lval = asLval(p.typeCheck(env, inst));
+      Owner<CilLval> lval; lval = asLval(p.typeCheck(env, inst), p);
 
       // save old value
       Variable *tmp = env->newTmpVar(typeOf(lval, env));
@@ -725,7 +736,7 @@ nonterm UnaryExpression : ExprBase {
 
     -> op:IncOp e:CastExpression {
       fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, inst));
+        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, inst), e);
 
         // increment the expression
         BinOp bop = op.unparseString()[0]=='+'? OP_PLUS : OP_MINUS;     // hack
@@ -775,7 +786,7 @@ nonterm UnaryExpression : ExprBase {
 
     fun typeCheck {
       // check arg
-      Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
+      Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, inst);
       
       // check that it's a pointer type
       Type const *type = typeOf(expr, env);
@@ -812,29 +823,33 @@ nonterm UnaryExpression : ExprBase {
       fun intEval { throwError("can't apply this operator to an integer"); }
 
       fun typeCheck {
-        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, inst));
+        Owner<CilLval> lval; lval = asLval(e.typeCheck(env, inst), e);
         return newAddrOfExpr(lval.xfr());
       }
     }
 
     -> "+" e:CastExpression {
       fun intEval = e.intEval(env);
-      fun typeCheck = e.typeCheck(env, inst);
+      fun typeCheck = 
+        e.rvalueTypeCheck(env, inst);
     }
 
     -> "-" e:CastExpression {
       fun intEval = -e.intEval(env);
-      fun typeCheck = newUnaryExpr(OP_NEGATE, e.typeCheck(env, inst));
+      fun typeCheck =
+        newUnaryExpr(OP_NEGATE, e.rvalueTypeCheck(env, inst));
     }
 
     -> "!" e:CastExpression {
       fun intEval = !e.intEval(env);
-      fun typeCheck = newUnaryExpr(OP_NOT, e.typeCheck(env, inst));
+      fun typeCheck =
+        newUnaryExpr(OP_NOT, e.rvalueTypeCheck(env, inst));
     }
 
     -> "~" e:CastExpression {
       fun intEval = ~e.intEval(env);
-      fun typeCheck = newUnaryExpr(OP_BITNOT, e.typeCheck(env, inst));
+      fun typeCheck =
+        newUnaryExpr(OP_BITNOT, e.rvalueTypeCheck(env, inst));
     }
   }
 
@@ -918,8 +933,21 @@ nonterm CastExpression : ExprBase {
     fun typeCheck {
       Type const *type = t.getType(env);
       Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
-      if (isLval(expr)) {
-        return newCastLval(type, asLval(expr.xfr()));
+            
+      // if we're casting to void, drop the expression;
+      // implicitly, that means it could be void too
+      if (type->isVoid()) {
+        return voidCilValue();
+      }
+      
+      // if we're not casting to void, then the expression
+      // can't be void
+      expr = asRval(expr.xfr(), e);
+
+      // cast to union is allowed as a gnu extension, but
+      // it yields an rvalue
+      if (isLval(expr) && !type->isUnionType()) {
+        return newCastLval(type, asLval(expr.xfr(), e));
       }
       else {
         return newCastExpr(type, expr.xfr());
@@ -967,11 +995,8 @@ nonterm BinaryExpression : ExprBase {
 
     -> left:BinaryExpression op:BinaryOperator right:BinaryExpression {
       fun typeCheck {
-        Owner<CilExpr> L; L = left.typeCheck(env, inst);
-        Owner<CilExpr> R; R = right.typeCheck(env, inst);
-            
-        validateRvalue(L, left);
-        validateRvalue(R, right);
+        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, inst);
+        Owner<CilExpr> R; R = right.rvalueTypeCheck(env, inst);
 
         // something of a hack: my Cil type-checking code only looks
         // at left operands, but int+pointer has type pointer; so let's
@@ -999,7 +1024,7 @@ nonterm BinaryExpression : ExprBase {
         inst.append(newVarDecl(result));
 
         // evaluate left operand, and give the result a name
-        Owner<CilExpr> L; L = left.typeCheck(env, inst);
+        Owner<CilExpr> L; L = left.rvalueTypeCheck(env, inst);
 
         // create the code to execute if 'L' is true
         Owner<CilInst> leftTrue;
@@ -1009,7 +1034,7 @@ nonterm BinaryExpression : ExprBase {
         Owner<CilCompound> evalRight; evalRight = newCompound();
         {
           // evaluate right operand, putting code into 'evalRight'
-          Owner<CilExpr> R; R = right.typeCheck(env, *evalRight);
+          Owner<CilExpr> R; R = right.rvalueTypeCheck(env, *evalRight);
 
           // store R into the result
           evalRight->append(newAssign(newVarRef(result), R.xfr()));
@@ -1144,7 +1169,7 @@ nonterm ConditionalExpression : ExprBase {
     fun typeCheck {
       // grab guard expression
       Owner<CilExpr> condExpr;
-                     condExpr = cond.typeCheck(env, inst);
+                     condExpr = cond.rvalueTypeCheck(env, inst);
 
       // figure out what it will take to evaluate the 'then'
       Owner<CilCompound> thenInsts; thenInsts = newCompound();
@@ -1189,7 +1214,7 @@ nonterm ConditionalExpression : ExprBase {
 
       // return a ref to the temporary, which can be used
       // as the value of the ?: expression
-      return tmp? newVarRefExpr(tmp) : noCilValue();
+      return tmp? newVarRefExpr(tmp) : voidCilValue();
     }
 
     fun getType {
@@ -1251,19 +1276,8 @@ nonterm AssignmentExpression : ExprBase {
 
     -> e1:BinaryExpression "=" e2:AssignmentExpression {
       fun typeCheck {
-        Owner<CilExpr> lhs; lhs = e1.typeCheck(env, inst);
-        Owner<CilExpr> expr; expr = e2.typeCheck(env, inst);
-
-        // lhs must be an lval
-        if (!lhs->isLval()) {
-          throwError(stringc
-            << "assignment to `" << lhs->toString()
-            << "' is not allowed because it is not an lvalue");
-        }
-        Owner<CilLval> lval; lval = asLval(lhs.xfr());
-
-        // rhs must not be void
-        validateRvalue(expr, e2);
+        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, inst), e1);
+        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, inst);
 
         if (!env->isTrialBalloon() &&
             e2.unparseString().equals("malloc ( )")) {
@@ -1286,8 +1300,8 @@ nonterm AssignmentExpression : ExprBase {
     -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression {
       fun typeCheck {
         // evaluation order?
-        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, inst));
-        Owner<CilExpr> expr; expr = e2.typeCheck(env, inst);
+        Owner<CilLval> lval; lval = asLval(e1.typeCheck(env, inst), e1);
+        Owner<CilExpr> expr; expr = e2.rvalueTypeCheck(env, inst);
 
         BinOp bop = op.getOp();
         Owner<CilLval> lhs; lhs = lval->clone();
@@ -1379,7 +1393,6 @@ nonterm Statement : Checkable, HasCFG {
   }
 
   fun typeCheck = s.typeCheck(env, inst);
-  fun getCFG = s.getCFG(cfg, edge);
 
   fundecl bool isWhileLoop() const;
   fun isWhileLoop = false;
@@ -1413,6 +1426,24 @@ nonterm Statement : Checkable, HasCFG {
       // just associate the expression with the edge, and return
       cfg.addCaseLabel(&e, edge);
       return edge;
+    }
+  }
+
+  // gnu extension
+  -> "case" low:ConstantExpression "..." high:ConstantExpression ":" {
+    fun typeCheck {
+      int lowVal = low.intEval(env);
+      int highVal = high.intEval(env);
+      if (lowVal > highVal) {
+        throwError("empty range in case range label");
+      }
+                                          
+      // just make lots of separate case labels
+      for (int i=lowVal; i<=highVal; i++) {
+        inst.append(newCase(i));
+      }
+
+      return noCilValue();
     }
   }
 
@@ -1457,7 +1488,7 @@ nonterm Statement : Checkable, HasCFG {
         DataflowEnv initialDenv(env->getDenv());
 
         // check the expression first; this sets its 'env' pointer
-        Owner<CilExpr> cond; cond = e.typeCheck(env, inst);
+        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, inst);
 
         // apply the constraints implied by the condition to
         // the current dataflow environment
@@ -1497,7 +1528,7 @@ nonterm Statement : Checkable, HasCFG {
         DataflowEnv initialDenv(env->getDenv());
 
         // check the expression first; this sets its 'env' pointer
-        Owner<CilExpr> cond; cond = e.typeCheck(env, inst);
+        Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, inst);
 
         // apply the constraints implied by the condition to
         // the current dataflow environment
@@ -1547,7 +1578,7 @@ nonterm Statement : Checkable, HasCFG {
 
     -> "switch" "(" e:Condition ")" s:Statement {
       fun typeCheck {
-        Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
+        Owner<CilExpr> expr; expr = e.rvalueTypeCheck(env, inst);
 
         Owner<CilCompound> body; body = newCompound();
         delete s.typeCheck(env, *body);
@@ -1622,7 +1653,7 @@ nonterm Statement : Checkable, HasCFG {
         fun typeCheck {
           // get condition's imperative and non-imperative elements
           Owner<CilCompound> condInst; condInst = newCompound();
-          Owner<CilExpr> cond; cond = e.typeCheck(env, *condInst);
+          Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, *condInst);
 
           // get statement's imperatives
           Owner<CilCompound> body; body = newCompound();
@@ -1659,7 +1690,7 @@ nonterm Statement : Checkable, HasCFG {
 
           // get condition, putting its imperative at the end
           // of the body
-          Owner<CilExpr> cond; cond = e.typeCheck(env, *body);
+          Owner<CilExpr> cond; cond = e.rvalueTypeCheck(env, *body);
 
           // TODO: break and continue
 
@@ -1694,7 +1725,7 @@ nonterm Statement : Checkable, HasCFG {
 
       // grab condition and its imperative elements
       Owner<CilCompound> condInst; condInst = newCompound();
-      Owner<CilExpr> cond; cond = c.typeCheck(env, *condInst);
+      Owner<CilExpr> cond; cond = c.rvalueTypeCheck(env, *condInst);
 
       // TODO: break and continue
 
@@ -1776,7 +1807,11 @@ nonterm Statement : Checkable, HasCFG {
     }
 
     -> "return" e:Expression ";" {
-      fun typeCheck {
+      fun typeCheck {                
+        // I have long wanted to be able to write:
+        //   return <void expr>;
+        // since it makes certain C++ template code possible,
+        // so I will *not* enforce the usual C rule here
         Owner<CilExpr> expr; expr = e.typeCheck(env, inst);
         inst.append(newReturn(expr.xfr()));
         return noCilValue();
@@ -1937,7 +1972,7 @@ nonterm Condition : Checkable {
       inst.append(newVarDecl(var));
 
       // initialize it
-      Owner<CilExpr> initVal; initVal = e.typeCheck(env, inst);
+      Owner<CilExpr> initVal; initVal = e.rvalueTypeCheck(env, inst);
       inst.append(newAssign(newVarRef(var), initVal.xfr()));
 
       return noCilValue();
@@ -1948,8 +1983,12 @@ nonterm Condition : Checkable {
 nonterm ConditionOpt : Checkable {
   fundecl CCTreeNode *getGuardExpr();
   fun getGuardExpr = NULL;
+    
+  // an empty condition in a for loop is interpreted as true
+  -> empty {
+    fun typeCheck = newIntLit(1 /*true*/);
+  }
 
-  -> empty ;
   -> c:Condition {
     fun typeCheck = c.typeCheck(env, inst);
   }
@@ -2431,15 +2470,31 @@ nonterm Initializer {
 }
 
 nonterm InitializerClause {
-  -> AssignmentExpression                    ;   // scalar
-  -> InitCastOpt "{" InitializerList "}"     ;   // array/structure initializer
-  -> InitCastOpt "{" InitializerList "," "}" ;   // useful syntactic quirk
-  -> InitCastOpt "{" "}"                     ;   // ?  does this mean the array is zeroed?
+  -> AssignmentExpression                 ;   // scalar
+  -> CompoundInitializer                  ;   // array/structure initializer
+  
+  // gnu extensions: labeled elements in initializers
+
+  // initialize a specific element of the array
+  -> "[" ConstantExpression "]" "=" AssignmentExpression ;
+
+  // initialize a range (inclusive) of elements of the array
+  -> "[" ConstantExpression "..." ConstantExpression "]" "=" AssignmentExpression ;
+
+  // intialize a named element of a structure
+  -> "." PQVarName "=" AssignmentExpression ;
+
+  // initialize a field of a specific element of the array
+  -> "[" ConstantExpression "]" "." PQVarName "=" AssignmentExpression ;
 }
 
-// gnu extension
-// what the f does it even mean to cast an initializer element?
-nonterm InitCastOpt -> empty | "(" TypeId ")" ;
+nonterm CompoundInitializer {
+  -> "{" InitializerList CommaOpt "}"     ;   // array/structure initializer
+  -> "{" "}"                              ;   // zero whatever it is
+}
+
+// useful syntactic quirk
+nonterm CommaOpt -> empty | "," ;
 
 nonterm InitializerList -> InitializerClause |
                            InitializerList "," InitializerClause ;
@@ -3283,6 +3338,9 @@ CilInst *todoCilInst()
 {
   return newLabel("unimplementedInst");
 }
+
+
+int lastLineChecked = -1;
 
 
 int fakemain(int argc, char *argv[])

@@ -25,7 +25,7 @@ public:
   bool star;         // in ST_C_COMMENT, just seen '*'?
 
 public:
-  CCSubstrate();
+  CCSubstrate(GrammarLexer &lexer);
   virtual ~CCSubstrate();
 
   // EmbeddedLang entry points (see gramlex.h for description

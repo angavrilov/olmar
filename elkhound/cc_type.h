@@ -213,6 +213,8 @@ public:     // funcs
   SimpleType const &asSimpleTypeC() const;
   bool isSimple(SimpleTypeId id) const;
   bool isIntegerType() const;            // any of the simple integer types
+  bool isUnionType() const;
+  bool isVoid() const { return isSimple(ST_VOID); }
 };
 
 

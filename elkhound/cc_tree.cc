@@ -47,14 +47,30 @@ void CCTreeNode::internalError(char const *msg) const
 }
 
 
-void CCTreeNode::validateRvalue(CilExpr *expr, 
-                                CCTreeNode const &exprSyntax) const
+CilExpr * /*owner*/ CCTreeNode::asRval(CilExpr * /*owner*/ expr,
+                                       CCTreeNode const &exprSyntax) const
 {
   if (!expr) {
     throwError(stringc
       << "`" << exprSyntax.unparseString() << "' has void type, "
       << " so you can't use its value");
   }
+  return expr;
+}
+
+
+CilLval * /*owner*/ CCTreeNode::asLval(CilExpr * /*owner*/ expr,
+                                       CCTreeNode const &exprSyntax) const
+{
+  if (!expr || !isLval(expr)) {
+    if (expr) {
+      delete expr;
+    }
+    throwError(stringc
+      << "`" << exprSyntax.unparseString() << "' is required to "
+      << "be an lvalue in this context, but it is an rvalue");
+  }
+  return expr->asLval();
 }
 
 

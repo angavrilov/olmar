@@ -12,6 +12,7 @@ class Condition_Node;
 class DataflowVar;
 class CilExpr;
 class CilInstructions;
+class CilLval;
 
 class CCTreeNode : public NonterminalNode {
 public:      // data
@@ -55,7 +56,12 @@ public:      // funcs
   void internalError(char const *msg) const NORETURN;
 
   // if the value is null, complain about void rvalue
-  void validateRvalue(CilExpr *expr, CCTreeNode const &exprSyntax) const;
+  CilExpr * /*owner*/ asRval(CilExpr * /*owner*/ expr, 
+                             CCTreeNode const &exprSyntax) const;
+
+  // convert to lval if it is, otherwise complain
+  CilLval * /*owner*/ asLval(CilExpr * /*owner*/ expr, 
+                             CCTreeNode const &exprSyntax) const;
 
   // set the "just an int" value
   void setTheInt(int val) { isJustInt=true; theInt=val; }

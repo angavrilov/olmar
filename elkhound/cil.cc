@@ -126,6 +126,12 @@ CilExpr::~CilExpr()
 
 Type const *CilExpr::getType(Env *env) const
 {
+  // little hack: let the NULL get all the way here before
+  // dealing with it
+  if (this == NULL) {
+    return env->getSimpleType(ST_VOID);
+  }
+
   switch (etag) {
     default: xfailure("bad tag");
     case T_LITERAL:    return env->getSimpleType(ST_INT);
@@ -392,7 +398,7 @@ CilLval *newDeref(CilExpr *ptr)
   return ret;
 }
 
-CilLval *newFieldRef(CilExpr *record, Variable *field)
+CilLval *newFieldRef(CilLval *record, Variable *field)
 {
   CilLval *ret = new CilLval(CilLval::T_FIELDREF);
   ret->fieldref.record = record;

@@ -127,8 +127,8 @@ public:      // funcs
 // it at arms' length from the data structure implementation
 inline Type const *typeOf(CilExpr const *expr, Env *env)
   { return expr->getType(env); }
-inline CilLval *asLval(CilExpr *expr) { return expr->asLval(); }
 inline bool isLval(CilExpr const *expr) { return expr->isLval(); }
+inline CilLval *asLval(CilExpr *expr) { return expr->asLval(); }
 
 CilExpr *newIntLit(int val);
 CilExpr *newUnaryExpr(UnaryOp op, CilExpr *expr);
@@ -161,7 +161,7 @@ public:      // data
 
     // T_FIELDREF
     struct {
-      CilExpr *record;     // (owner) names the record itself (*not* its address)
+      CilLval *record;     // (owner) names the record itself (*not* its address)
       Variable *field;     // (serf) field entry in compound type's 'env'
     } fieldref;
 
@@ -192,7 +192,7 @@ public:      // funcs
 
 CilLval *newVarRef(Variable *var);
 CilLval *newDeref(CilExpr *ptr);
-CilLval *newFieldRef(CilExpr *record, Variable *field);
+CilLval *newFieldRef(CilLval *record, Variable *field);
 CilLval *newCastLval(Type const *type, CilLval *lval);
 CilLval *newArrayAccess(CilExpr *array, CilExpr *index);
 

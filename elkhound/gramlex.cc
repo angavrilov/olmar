@@ -9,8 +9,9 @@
 
 
 // ------------------- EmbeddedLang -------------------
-EmbeddedLang::EmbeddedLang()
-  : text(),
+EmbeddedLang::EmbeddedLang(GrammarLexer &lex)
+  : lexer(lex),
+    text(),
     exprOnly(false),
     isDeclaration(false)
 {}
@@ -62,7 +63,7 @@ GrammarLexer::GrammarLexer(char const *fname, istream *source)
     expectingEmbedded(false),
     embedFinish(0),
     embedMode(0),
-    embedded(new CCSubstrate),
+    embedded(new CCSubstrate(*this)),
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),

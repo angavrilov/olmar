@@ -29,7 +29,9 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "float",               4,    false   },
   { "double",              8,    false   },
   { "long double",         10,   false   },
-  { "void",                0,    false   },
+  
+  // gnu: sizeof(void) is 1
+  { "void",                1,    false   },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)
@@ -244,6 +246,17 @@ bool Type::isIntegerType() const
 {
   return isSimpleType() &&
          simpleTypeInfo(asSimpleTypeC().type).isInteger;
+}
+
+bool Type::isUnionType() const
+{
+  if (isCVAtomicType()) {
+    AtomicType const *at = asCVAtomicTypeC().atomic;
+    if (at->isCompoundType()) {
+      return at->asCompoundTypeC().keyword == CompoundType::K_UNION;
+    }
+  }
+  return false;
 }
 
 

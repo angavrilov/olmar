@@ -28,9 +28,15 @@
 #include "fileloc.h"          // SourceLocation
 
 
+class GrammarLexer;
+
+
 // interface to an embedded language processor
 class EmbeddedLang {
 public:
+  // the lexer reference is here so we can print error messages
+  GrammarLexer &lexer;
+
   // all text processed so far; it collects the
   // embedded code; clients will call 'handle' a
   // bunch of times and then expect to retrieve
@@ -39,16 +45,16 @@ public:
 
   // when true (set by the lexer), the 'text' is to
   // be interpreted as an expression, rather than a
-  // complete function body; this affects what 
+  // complete function body; this affects what
   // getFuncBody() returns
   bool exprOnly;
-  
+
   // when true the text is a declaration, so we have to
   // add a single semicolon
   bool isDeclaration;
 
 public:
-  EmbeddedLang();
+  EmbeddedLang(GrammarLexer &lexer);
   virtual ~EmbeddedLang();    // silence warning
 
   // start from scratch
