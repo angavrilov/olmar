@@ -1425,7 +1425,7 @@ void HGen::emitDVisitorInterface()
       << "class " << dvisitorName << " : public " << visitorName << " {\n";
 
   // client visitor to delegate to
-  out << "private:\n";
+  out << "protected:\n";
   out << "  " << visitorName << " &client;\n";
 
   // ctor
