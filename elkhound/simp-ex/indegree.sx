@@ -11,6 +11,7 @@ bg_push (
 
   ; initially obj1 has nothing pointing to it
   (inDegree0 mem0 next obj1)
+  (inDegree0 mem0 next obj3)     ; same for obj3
 
   ; then obj2 is modified to point at obj3
   (EQ mem1 (update mem0 obj2 next (pointer obj3 0)))
@@ -48,7 +49,29 @@ notvalid "inDegree0-surv-otherField" (
   )
 )
 
-bg_pop
+
+valid "inDegree0-no-point" (
+  (NEQ (object (select mem0 obj3 next)) obj1)
+)
+
+valid "inDegree0-no-point via pointer" (
+  (NEQ (select mem0 obj3 next) (pointer obj1 0))
+)
+
+valid "inDegree0-no-point in mem1" (
+  (NEQ (object (select mem1 obj3 next)) obj1)
+)
 
 
 ; ------------------ inDegree1 ------------------------
+valid "inDegree0-to-inDegree1" (
+  (inDegree1 mem1 next obj3 obj2)
+)
+
+notvalid "inDegree0-to-inDegree1" (
+  (inDegree1 mem1 next obj1 obj2)
+)
+
+
+
+;valid "inDegree1-one-point" (

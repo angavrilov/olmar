@@ -212,7 +212,7 @@
       (inDegree0 mem field obj)
       (FORALL (otherObj)
         (NEQ
-          (select mem otherObj field)
+          (object (select mem otherObj field))
           obj
         ))
     ))
@@ -249,7 +249,7 @@
   ;(DEFPRED (inDegree1 mem field obj referrerObj))
   ;   referrerObj: object whose 'field' field points at 'obj'
 
-  ; one obvious implication: referrerObj->field == obj
+  ; inDegree1-one-point: referrerObj->field == obj
   (FORALL (mem field obj referrerObj)
     (IMPLIES
       (inDegree1 mem field obj referrerObj)
@@ -298,7 +298,7 @@
     ))
 
   ; ---------------- inDegree0 -> inDegree1 --------------------
-  ; how inDegree0 becomes inDegree1
+  ; inDegree0-to-inDegree1: how inDegree0 becomes inDegree1
   ; Q: should I explicitly make the offset 0 here?
   (FORALL (mem field obj referrerObj)
     (IMPLIES
