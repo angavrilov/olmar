@@ -254,6 +254,31 @@ TAGS:
 	@ETAGS@ *.cc *.h
 
 
+# -------------------- count source lines -------------------
+
+# This should give the right answer even after a "make all", since we
+# filter the generated files.
+
+GENREGEX := '\.gen\.\|lexer\.yy\|cc_tokens'
+.PHONY: count-loc
+count-loc:
+	@echo
+	@echo "Count of lines of source code in this directory by file type."
+	@echo "C++, C, and headers:"
+# 	@ls *.cc *.c *.h | grep -v $(GENREGEX) | xargs wc -l | grep total
+	@ls *.cc *.h | grep -v $(GENREGEX) | xargs wc -l | grep total
+	@echo "tok, lex, gr, and ast:"
+# 	@ls *_ext.tok *_ext.lex *.gr *.ast | grep -v $(GENREGEX) | xargs wc -l | grep total
+	@ls *_ext.tok *.gr *.ast | grep -v $(GENREGEX) | xargs wc -l | grep total
+	@echo "sum of those:"
+# 	@ls *.cc *.c *.h *_ext.tok *_ext.lex *.gr *.ast
+	@ls *.cc *.h *_ext.tok *.gr *.ast \
+          | grep -v $(GENREGEX) | xargs wc -l | grep total
+	@echo
+	@echo "Makefiles:"
+	@ls Makefile.in *.mk | xargs wc -l | grep total
+
+
 # -------------------- clean, etc. -------------------
 clean:
 	rm -f $(TOCLEAN)
