@@ -46,6 +46,32 @@ public:      // funcs
 // purpose of this class is to represent those sets in a way that
 // allows overload resolution to act *as if* it used the full sets
 class CandidateSet {
+public:      // funcs
+  virtual ~CandidateSet();
+
+  // instantiate the pattern as many times as necessary, given the
+  // argument types 'lhsType' and 'rhsType'
+  virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
+    OverloadableOp op, Type *lhsType, Type *rhsType)=0;
+};
+   
+
+// describes a set using polymorphism
+class PolymorphicCandidateSet : public CandidateSet {
+public:      // data
+  // the candidate is represented by a single polymorphic function
+  Variable *poly;          // (serf)
+
+public:      // funcs
+  PolymorphicCandidateSet(Variable *v);
+
+  virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
+    OverloadableOp op, Type *lhsType, Type *rhsType);
+};
+
+
+// describes a set with predicates over a pairwise analysis
+class PredicateCandidateSet : public CandidateSet {
 public:      // types
   // each potential argument type is passed through this filter before
   // being evaluated as part of a pair; it can return a different
@@ -61,46 +87,61 @@ public:      // types
   // is not used to instantiate the pattern
   typedef bool (*PostFilter)(Type *t);
 
-private:     // data
+protected:   // data
   // instantiations that already exist, so we can re-use them
   THashTable<Type, InstCandidate> instantiations;
 
   // instantiation of the ambiguous candidate
   Variable *ambigInst;
 
-public:      // data
-  // if this is non-NULL, the candidate is represented by
-  // a single polymorphic function
-  Variable *poly;          // (serf)
-
-  // if poly==NULL, then this pair of functions filters the argument
-  // types to a binary operator in a pairwise analysis to instantiate
-  // a pattern rule
+  // then this pair of functions filters the argument types to a
+  // binary operator in a pairwise analysis to instantiate a pattern
   PreFilter pre;
   PostFilter post;
-
-  // if true, then this is a pattern rule for an assignment
-  // operator; this affects how instantiation is done
-  bool isAssignment;
 
   // count of the number of times instantiation has happened
   unsigned generation;
 
-private:     // funcs
+protected:   // funcs
   void instantiateCandidate(Env &env,
     OverloadResolver &resolver, OverloadableOp op, Type *T);
   void addAmbigCandidate(Env &env, OverloadResolver &resolver,
     OverloadableOp op);
-  void instantiateArrowStar(Env &env,
-    OverloadResolver &resolver, Type *lhsType, Type *rhsType);
+
+  virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, Type *T);
 
 public:      // funcs
-  CandidateSet(Variable *v);
-  CandidateSet(PreFilter pre, PostFilter post, bool isAssignment);
+  PredicateCandidateSet(PreFilter pre, PostFilter post);
+  ~PredicateCandidateSet();
 
-  // instantiate the pattern as many times as necessary, given the
-  // argument types 'lhsType' and 'rhsType'
-  void instantiateBinary(Env &env, OverloadResolver &resolver,
+  virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
+    OverloadableOp op, Type *lhsType, Type *rhsType);
+};
+
+
+// a variant of the predicate set for assignment operators
+class AssignmentCandidateSet : public PredicateCandidateSet {
+protected:   // funcs
+  virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, Type *T);
+
+public:      // funcs
+  AssignmentCandidateSet(PreFilter pre, PostFilter post);
+
+  virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
+    OverloadableOp op, Type *lhsType, Type *rhsType);
+};
+
+
+// predicate set for the ->* operator
+class ArrowStarCandidateSet : public CandidateSet {
+private:    // data
+  // TODO: instantiation caching
+
+public:     // funcs
+  ArrowStarCandidateSet();
+  ~ArrowStarCandidateSet();
+
+  virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
     OverloadableOp op, Type *lhsType, Type *rhsType);
 };
 

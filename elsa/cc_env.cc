@@ -314,11 +314,8 @@ void Env::setupOperatorOverloading()
   }
 
   // ------------ 13.6 para 11 ------------
-  // since it's an oddball, and has only one built-in pattern anyway,
-  // CandidateSet behaves specially for OP_ARROW_STAR, so it doesn't
-  // actually matter what we pass
-  addBuiltinBinaryOp(OP_ARROW_STAR, (CandidateSet::PreFilter)NULL /*pre*/, 
-                                    (CandidateSet::PostFilter)NULL /*post*/);
+  // OP_ARROW_STAR is handled specially
+  addBuiltinBinaryOp(OP_ARROW_STAR, new ArrowStarCandidateSet);
 
   // ------------ 13.6 para 12 ------------
   {
@@ -1737,14 +1734,20 @@ Variable *Env::createBuiltinUnaryOp(OverloadableOp op, Type *x)
 
 void Env::addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
 {
-  addBuiltinBinaryOp(op, new CandidateSet(createBuiltinBinaryOp(op, x, y)));
+  addBuiltinBinaryOp(op, new PolymorphicCandidateSet(
+    createBuiltinBinaryOp(op, x, y)));
 }
 
-void Env::addBuiltinBinaryOp(OverloadableOp op, CandidateSet::PreFilter pre,
-                                                CandidateSet::PostFilter post,
+void Env::addBuiltinBinaryOp(OverloadableOp op, PredicateCandidateSet::PreFilter pre,
+                                                PredicateCandidateSet::PostFilter post,
                                                 bool isAssignment)
 {
-  addBuiltinBinaryOp(op, new CandidateSet(pre, post, isAssignment));
+  if (isAssignment) {
+    addBuiltinBinaryOp(op, new AssignmentCandidateSet(pre, post));
+  }
+  else {
+    addBuiltinBinaryOp(op, new PredicateCandidateSet(pre, post));
+  }
 }
 
 void Env::addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset)

@@ -25,28 +25,35 @@ STATICDEF bool InstCandidate::equalFn(Type const *t1, Type const *t2)
 
 
 // ------------------ CandidateSet -----------------
-CandidateSet::CandidateSet(Variable *v)
+CandidateSet::~CandidateSet()
+{}
+
+
+// ------------------ PolymorphicCandidateSet -----------------
+PolymorphicCandidateSet::PolymorphicCandidateSet(Variable *v)
+  : poly(v)
+{}
+
+void PolymorphicCandidateSet::instantiateBinary(Env &env,
+  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
+{
+  // polymorphic candidates are easy
+  resolver.processCandidate(poly);
+}
+
+
+// ------------------ PredicateCandidateSet -----------------
+PredicateCandidateSet::PredicateCandidateSet(PreFilter r, PostFilter o)
   : instantiations(&InstCandidate::getKeyFn,
                    &InstCandidate::hashFn,
                    &InstCandidate::equalFn),
     ambigInst(NULL),
-    poly(v),
-    pre(NULL),
-    post(NULL),
-    isAssignment(false),
+    pre(r),
+    post(o),
     generation(0)
 {}
 
-CandidateSet::CandidateSet(PreFilter r, PostFilter o, bool a)
-  : instantiations(&InstCandidate::getKeyFn,
-                   &InstCandidate::hashFn,
-                   &InstCandidate::equalFn),
-    ambigInst(NULL),
-    poly(NULL),
-    pre(r),
-    post(o),
-    isAssignment(a),
-    generation(0)            
+PredicateCandidateSet::~PredicateCandidateSet()
 {}
 
 
@@ -76,25 +83,14 @@ void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
   }
 }
 
-void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
-  OverloadableOp op, Type *lhsType, Type *rhsType)
+void PredicateCandidateSet::instantiateBinary(Env &env,
+  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
 {
   // for this to overflow, I'd have to do 2^31 instantiations in a
   // single translation unit, which is very unlikely since the AST
   // that triggers that instantiation would have to be much larger
   // than 2^31 bytes
   generation++;
-
-  if (poly) {
-    // polymorphic candidates are easy
-    resolver.processCandidate(poly);
-    return;
-  }
-
-  if (op == OP_ARROW_STAR) {
-    instantiateArrowStar(env, resolver, lhsType, rhsType);
-    return;
-  }
 
   // pattern candidate with correlated parameter types,
   // e.g. (13.6 para 4):
@@ -131,15 +127,6 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
     Type *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
     if (!lhsRet) continue;
 
-    if (isAssignment) {
-      // the way the assignment built-ins work, we only need to
-      // instantiate with the types to which the LHS convert, to
-      // get a complete set (i.e. no additional instantiations
-      // would change the answer)
-      instantiateCandidate(env, resolver, op, lhsRet);
-      continue;
-    }
-
     SFOREACH_OBJLIST_NC(Type, rhsRets, rhsIter) {
       Type *rhsRet = pre(rhsIter.data(), false /*isLeft*/);
       if (!rhsRet) continue;
@@ -159,7 +146,7 @@ void CandidateSet::instantiateBinary(Env &env, OverloadResolver &resolver,
 }
 
 
-void CandidateSet::instantiateCandidate(Env &env,
+void PredicateCandidateSet::instantiateCandidate(Env &env,
   OverloadResolver &resolver, OverloadableOp op, Type *T)
 {
   // have we already built an instantiated candidate?
@@ -177,25 +164,7 @@ void CandidateSet::instantiateCandidate(Env &env,
 
   else {
     // need to make a new instantiaton
-    if (!isAssignment) {
-      // parameters are symmetric
-      ic = new InstCandidate(T,
-        env.createBuiltinBinaryOp(op, T, T));
-    }
-
-    else {
-      // left parameter is a reference, and we need two versions,
-      // one with volatile and one without
-      //
-      // update: now that I directly instantiate the LHS types,
-      // without first stripping their volatile-ness, I don't need to
-      // instantiate volatile versions of types that don't already
-      // have volatile versions present
-      Type *Tref = env.tfac.makeRefType(SL_INIT, T);
-      ic = new InstCandidate(T,
-        env.createBuiltinBinaryOp(op, Tref, T));
-    }
-
+    ic = new InstCandidate(T, makeNewCandidate(env, op, T));
     instantiations.add(T, ic);
 
     OVERLOADTRACE("cset: made new instantiation: " << T->toString());
@@ -204,6 +173,14 @@ void CandidateSet::instantiateCandidate(Env &env,
   // give it to the resolver
   ic->generation = generation;
   resolver.processCandidate(ic->inst);
+}
+
+
+Variable *PredicateCandidateSet::makeNewCandidate(Env &env,
+  OverloadableOp op, Type *T)
+{
+  // parameters are symmetric
+  return env.createBuiltinBinaryOp(op, T, T);
 }
 
 
@@ -217,7 +194,7 @@ void CandidateSet::instantiateCandidate(Env &env,
 //
 // I defer to the overload module to make such a candidate; here I
 // just say what I want.
-void CandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolver,
+void PredicateCandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolver,
   OverloadableOp op)
 {
   // it doesn't matter if I give this to the resolver more than once,
@@ -231,12 +208,68 @@ void CandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolver,
 }
 
 
+
+// ------------------ AssignmentCandidateSet -----------------
+AssignmentCandidateSet::AssignmentCandidateSet(PreFilter r, PostFilter o)
+  : PredicateCandidateSet(r, o)
+{}
+
+
+void AssignmentCandidateSet::instantiateBinary(Env &env,
+  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *)
+{
+  generation++;
+
+  // collect all of the operator functions rettypes
+  SObjList<Type> lhsRets;
+  getConversionOperatorResults(env, lhsRets, lhsType);
+
+  // consider conversion results
+  SFOREACH_OBJLIST_NC(Type, lhsRets, lhsIter) {
+    Type *lhsRet = pre(lhsIter.data(), true /*isLeft*/);
+    if (!lhsRet) continue;
+
+    // the way the assignment built-ins work, we only need to
+    // instantiate with the types to which the LHS convert, to
+    // get a complete set (i.e. no additional instantiations
+    // would change the answer)
+    instantiateCandidate(env, resolver, op, lhsRet);
+  }
+}
+
+
+Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
+  OverloadableOp op, Type *T)
+{
+  // left parameter is a reference, and we need two versions,
+  // one with volatile and one without
+  //
+  // update: now that I directly instantiate the LHS types,
+  // without first stripping their volatile-ness, I don't need to
+  // instantiate volatile versions of types that don't already
+  // have volatile versions present
+
+  Type *Tref = env.tfac.makeRefType(SL_INIT, T);
+  return env.createBuiltinBinaryOp(op, Tref, T);
+}
+
+
+// ------------------ ArrowStarCandidateSet -----------------
+ArrowStarCandidateSet::ArrowStarCandidateSet()
+{}
+
+ArrowStarCandidateSet::~ArrowStarCandidateSet()
+{}
+
+
 // goal: instantiate pattern
 //   CV12 T& operator->* (CV1 C1 *, CV2 T C2::*);
 // by finding instantiation pairs (C1,C2)
-void CandidateSet::instantiateArrowStar(Env &env,
-  OverloadResolver &resolver, Type *lhsType, Type *rhsType)
+void ArrowStarCandidateSet::instantiateBinary(Env &env, 
+  OverloadResolver &resolver, OverloadableOp op, Type *lhsType, Type *rhsType)
 {
+  xassert(op == OP_ARROW_STAR);
+
   // these arrays record all pairs of types used to instantiate
   // the pattern, so that we ensure that no pair is instantiated
   // more than once

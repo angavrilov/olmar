@@ -154,8 +154,8 @@ private:     // funcs
   void addBuiltinUnaryOp(OverloadableOp op, Type *x);
 
   void addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
-  void addBuiltinBinaryOp(OverloadableOp op, CandidateSet::PreFilter pre,
-                                             CandidateSet::PostFilter post,
+  void addBuiltinBinaryOp(OverloadableOp op, PredicateCandidateSet::PreFilter pre,
+                                             PredicateCandidateSet::PostFilter post,
                                              bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
