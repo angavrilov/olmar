@@ -2166,15 +2166,6 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
                 userAct->terminalDescription(lexerPtr->type, prev->sval));
     }
 
-    // TODO: BUG: I am not duplicating semantic values of tokens here,
-    // even though there's a possibility that multiple states could
-    // shift.  For the moment I will ignore it since I'm working on
-    // something else and I can't completely assure myself that adding
-    // the dup() couldn't break something.. also I'm not yet sure
-    // when/if a del() should accompany the dup()s.
-    //
-    // UPDATE: fixed?
-
     // either way, add the sibling link now
     //TRSACTION("grabbed token sval " << lexerPtr->sval);
     prev = rightSibling->addSiblingLink(leftSibling, sval
