@@ -514,7 +514,7 @@ void CGen::emitFile()
       ASTNEXTC(TF_class, c) {
         emitTFClass(*c);
       }
-      ASTENDCASEC
+      ASTENDCASECD
     }
   }
 }
@@ -549,8 +549,10 @@ void CGen::emitTFClass(TF_class const &cls)
     out << "\n";
   }
 
-  emitPrintCtorArgs(cls.super->args);
+  // 10/31/01: decided I wanted custom debug print first, since it's
+  // often much shorter (and more important) than the subtrees
   emitCustomCode(cls.super->decls, "debugPrint");
+  emitPrintCtorArgs(cls.super->args);
 
   out << "}\n";
   out << "\n";
@@ -578,8 +580,8 @@ void CGen::emitTFClass(TF_class const &cls)
     out << "  " << cls.super->name << "::debugPrint(os, indent);\n";
     out << "\n";
 
-    emitPrintCtorArgs(ctor.args);
     emitCustomCode(ctor.decls, "debugPrint");
+    emitPrintCtorArgs(ctor.args);
 
     out << "}\n";
     out << "\n";
