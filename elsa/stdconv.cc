@@ -144,29 +144,6 @@ bool isNumeric(Type const *t, SimpleType const *tSimple)
 }
 
 
-#if 0  // delete me
-// cppstd 13.6 para 2
-bool isPromotedIntegral(SimpleTypeId id)
-{
-  return ST_INT <= id && id <= ST_UNSIGNED_LONG_INT;
-}
-bool isPromotedArithmetic(SimpleTypeId id)
-{
-  return isPromotedIntegral(id) ||
-         ST_FLOAT <= id && id <= ST_LONG_DOUBLE;
-}
-
-
-// I'm not sure exactly where this is defined, but it's whatever
-// the (built-in) ++ operator can be applied to
-bool isArithmetic(SimpleTypeId id)
-{
-  SimpleTypeInfo const &sti = simpleTypeInfo(id);
-  return sti.isInteger || sti.isFloat;
-}
-#endif // 0
-
-
 #if 0   // unused, but potentially useful at some point
 static char const *atomicName(AtomicType::Tag tag)
 {
@@ -510,30 +487,6 @@ StandardConversion getStandardConversion
     return conv.ret;    // identical now
   }
 
-  #if 0   // delete me
-  if (dest->isSimpleType()) {
-    SimpleTypeId destId = dest->asSimpleTypeC()->type;
-
-    if (destId == ST_ANY_TYPE) {
-      // polymorphic match
-      return conv.ret;
-    }
-
-    if (destId == ST_ANY_NON_VOID &&
-        !src->isVoid()) {
-      // polymorphic match
-      return conv.ret;
-    }
-
-    if (destId == ST_ANY_OBJ_TYPE &&
-        !src->isFunctionType() &&
-        !src->isVoid()) {
-      // polymorphic match
-      return conv.ret;
-    }
-  }
-  #endif // 0
-
   // if both types have not arrived at CVAtomic, then they
   // are not convertible
   if (!src->isCVAtomicType() ||
@@ -633,26 +586,6 @@ StandardConversion getStandardConversion
 
   SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
   SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
-
-  #if 0   // delete me
-  if (destSimple && destSimple->type == ST_ARITHMETIC &&
-      srcSimple && isArithmetic(srcSimple->type)) {
-    // polymorphic match
-    return conv.ret;
-  }
-
-  if (destSimple && destSimple->type == ST_PROMOTED_INTEGRAL &&
-      srcSimple && isPromotedIntegral(srcSimple->type)) {
-    // polymorphic match
-    return conv.ret;
-  }
-
-  if (destSimple && destSimple->type == ST_PROMOTED_ARITHMETIC &&
-      srcSimple && isPromotedArithmetic(srcSimple->type)) {
-    // polymorphic match
-    return conv.ret;
-  }
-  #endif // 0
 
   if (isIntegerPromotion(s->atomic, d->atomic)) {
     return conv.ret | SC_INT_PROM;

@@ -1,4 +1,4 @@
-// cc.in26
+// t0026.cc
 // template functions
 
 template <class T>

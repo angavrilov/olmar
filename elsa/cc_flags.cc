@@ -76,7 +76,7 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "<global>",
   "<initialized>",
   "<builtin>",
-  "<delayed inst>", // 14
+  "<bound templ var>", // 14
   "<addrtaken>",
   "<parameter>",
   "<universal>",
@@ -92,7 +92,6 @@ char const * const declFlagNames[NUM_DECLFLAGS] = {
   "namespace",
   "<extern \"C\">",
   "<selfname>",     // 28
-  "<template specialization>",
 };
 
 
@@ -114,8 +113,8 @@ char const *toString(ScopeKind sk)
     "parameter",
     "function",
     "class",
-    "template",
-    "eat_templ_inst",
+    "template_params",
+    "template_args",
     "namespace",
   };
   STATIC_ASSERT(TABLESIZE(arr) == NUM_SCOPEKINDS);

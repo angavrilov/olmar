@@ -296,6 +296,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
     disambiguationNestingLevel(0),
     errors(),
+    hiddenErrors(NULL),
+    instantiationLocStack(),
+
     str(s),
     lang(L),
     tfac(tf),
@@ -327,11 +330,13 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     special_getImplicitConversion(NULL),
     special_testOverload(NULL),
     special_computeLUB(NULL),
+    special_checkCalleeDefnLine(NULL),
 
     dependentTypeVar(NULL),
     dependentVar(NULL),
     errorTypeVar(NULL),
     errorVar(NULL),
+    globalScopeVar(NULL),
 
     var__builtin_constant_p(NULL),
 
@@ -354,10 +359,6 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     
     tcheckMode(TTM_1NORMAL)
 {
-  // slightly less verbose
-  //#define HERE HERE_SOURCELOC     // old
-  #define HERE SL_INIT              // decided I prefer this
-
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
   {                               
@@ -365,44 +366,49 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // this scope to acquire DF_GLOBAL
     Scope *s = new Scope(SK_GLOBAL, 0 /*changeCount*/, emptyLoc);
     scopes.prepend(s);
+    
+    // make a Variable for it
+    globalScopeVar = makeVariable(SL_INIT, str("<globalScope>"), 
+                                  NULL /*type*/, DF_NAMESPACE);
+    globalScopeVar->scope = s;
   }
 
   // create the typeid type
   CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
-  type_info_const_ref = 
-    tfac.makeReferenceType(HERE, makeCVAtomicType(HERE, ct, CV_CONST));
+  type_info_const_ref =
+    tfac.makeReferenceType(SL_INIT, makeCVAtomicType(SL_INIT, ct, CV_CONST));
 
-  dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
-                                  getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
+  dependentTypeVar = makeVariable(SL_INIT, str("<dependentTypeVar>"),
+                                  getSimpleType(SL_INIT, ST_DEPENDENT), DF_TYPEDEF);
 
-  dependentVar = makeVariable(HERE, str("<dependentVar>"),
-                              getSimpleType(HERE, ST_DEPENDENT), DF_NONE);
+  dependentVar = makeVariable(SL_INIT, str("<dependentVar>"),
+                              getSimpleType(SL_INIT, ST_DEPENDENT), DF_NONE);
 
-  errorTypeVar = makeVariable(HERE, str("<errorTypeVar>"),
-                              getSimpleType(HERE, ST_ERROR), DF_TYPEDEF);
+  errorTypeVar = makeVariable(SL_INIT, str("<errorTypeVar>"),
+                              getSimpleType(SL_INIT, ST_ERROR), DF_TYPEDEF);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
-  errorVar = makeVariable(HERE, str("<errorVar>"),
-                          getSimpleType(HERE, ST_ERROR), DF_NONE);
+  errorVar = makeVariable(SL_INIT, str("<errorVar>"),
+                          getSimpleType(SL_INIT, ST_ERROR), DF_NONE);
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
-  Type *t_void = getSimpleType(HERE, ST_VOID);
-  Type *t_voidptr = makePtrType(HERE, t_void);
+  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
+  Type *t_voidptr = makePtrType(SL_INIT, t_void);
 
   // note: my stddef.h typedef's size_t to be 'int', so I just use
   // 'int' directly here instead of size_t
-  Type *t_size_t = getSimpleType(HERE, ST_INT);
+  Type *t_size_t = getSimpleType(SL_INIT, ST_INT);
 
   // but I do need a class called 'bad_alloc'..
-  //   class bad_alloc;
+  //   class bad_alloc {};
   CompoundType *dummyCt;
   Type *t_bad_alloc =
-    makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE,
-                    TI_CLASS, true /*forward*/);
+    makeNewCompound(dummyCt, scope(), str("bad_alloc"), SL_INIT,
+                    TI_CLASS, false /*forward*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
   declareFunction1arg(t_voidptr, "operator new",
@@ -439,18 +445,18 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // leave it alone for now.
     //
     // typedef bool _Bool;
-    Type *t_bool = getSimpleType(HERE, ST_BOOL);
+    Type *t_bool = getSimpleType(SL_INIT, ST_BOOL);
     addVariable(makeVariable(SL_INIT, str("_Bool"),
                              t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
   }
 
   #ifdef GNU_EXTENSION
-    Type *t_int = getSimpleType(HERE, ST_INT);
-    //Type *t_unsigned_int = getSimpleType(HERE, ST_UNSIGNED_INT);
-    Type *t_char = getSimpleType(HERE, ST_CHAR);
-    Type *t_charconst = getSimpleType(HERE, ST_CHAR, CV_CONST);
-    Type *t_charptr = makePtrType(HERE, t_char);
-    Type *t_charconstptr = makePtrType(HERE, t_charconst);
+    Type *t_int = getSimpleType(SL_INIT, ST_INT);
+    //Type *t_unsigned_int = getSimpleType(SL_INIT, ST_UNSIGNED_INT);
+    Type *t_char = getSimpleType(SL_INIT, ST_CHAR);
+    Type *t_charconst = getSimpleType(SL_INIT, ST_CHAR, CV_CONST);
+    Type *t_charptr = makePtrType(SL_INIT, t_char);
+    Type *t_charconstptr = makePtrType(SL_INIT, t_charconst);
 
     // dsw: This is a form, not a function, since it takes an expression
     // AST node as an argument; however, I need a function that takes no
@@ -508,10 +514,9 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   special_getImplicitConversion = declareSpecialFunction("__getImplicitConversion")->name;
   special_testOverload = declareSpecialFunction("__testOverload")->name;
   special_computeLUB = declareSpecialFunction("__computeLUB")->name;
+  special_checkCalleeDefnLine = declareSpecialFunction("__checkCalleeDefnLine")->name;
 
   setupOperatorOverloading();
-
-  #undef HERE
 
   ctorFinished = true;
 }
@@ -896,8 +901,10 @@ Env::~Env()
   // which are in fact not owned
   while (scopes.isNotEmpty()) {
     Scope *s = scopes.removeFirst();
-    if (s->curCompound || s->namespaceVar) {
+    if (s->curCompound || s->namespaceVar || s->isGlobalScope()) {
       // this isn't one we own
+      // 8/06/04: don't delete the global scope, just leak it,
+      // because I now let my Variables point at it ....
     }
     else {
       // we do own this one
@@ -1085,8 +1092,6 @@ FunctionType *Env::makeDestructorFunctionType(SourceLoc loc, CompoundType *ct)
 
 Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
 {
-  TRACE("env", locStr() << ": entered scope for " << forWhat);
-
   // propagate the 'curFunction' field
   Function *f = scopes.first()->curFunction;
   Scope *newScope = new Scope(sk, getChangeCount(), loc());
@@ -1094,15 +1099,17 @@ Scope *Env::enterScope(ScopeKind sk, char const *forWhat)
   scopes.prepend(newScope);
   newScope->curFunction = f;
 
+  TRACE("env", locStr() << ": entered " << newScope->desc() << " for " << forWhat);
+
   // this is actually a no-op since there can't be any edges for
   // a new scope, but I do it for uniformity
   newScope->openedScope(*this);
 
   return newScope;
 }
-                                  
+
 // set the 'parentScope' field of a scope about to be pushed
-void Env::setParentScope(Scope *s)                          
+void Env::setParentScope(Scope *s)
 {
   // 'parentScope' has to do with (qualified) lookup, for which the
   // template scopes are supposed to be transparent
@@ -1266,19 +1273,20 @@ Scope *Env::acceptingScope(DeclFlags df)
     return outerScope();
   }
 
-  Scope *s = scopes.first();    // first in list
-  if (s->canAcceptNames) {
-    return s;    // common case
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    Scope *s = iter.data();
+    if (s->canAcceptNames) {
+      return s;
+    }
   }
 
-  s = scopes.nth(1);            // second in list
-  if (s->canAcceptNames) {
-    return s;
-  }
+  // 8/07/04: There used to be code here that asserted that an
+  // accepting scope would never be more than two away from the top,
+  // but that is wrong because with member templates (and in fact the
+  // slightly broken way that bindings are inserted for member
+  // functions of template classes) it can be arbitrarily deep.
 
-  // since non-accepting scopes should always be just above
-  // an accepting scope
-  xfailure("had to go more than two deep to find accepting scope");
+  xfailure("could not find accepting scope");
   return NULL;    // silence warning
 }
 
@@ -1287,7 +1295,7 @@ Scope *Env::outerScope()
 {
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     Scope *s = iter.data();
-    if (s->isTemplateScope() ||              // skip template scopes
+    if (s->isTemplateParamScope() ||         // skip template scopes
         s->isClassScope() ||                 // skip class scopes
         s->isParameterScope()) {             // skip parameter list scopes
       continue;
@@ -1346,8 +1354,8 @@ CompoundType *Env::enclosingClassScope()
 Scope *Env::nonTemplateScope()
 {
   ObjListIterNC<Scope> iter(scopes);
-  while (iter.data()->scopeKind == SK_TEMPLATE ||
-         iter.data()->scopeKind == SK_EAT_TEMPL_INST) {
+  while (iter.data()->scopeKind == SK_TEMPLATE_PARAMS ||
+         iter.data()->scopeKind == SK_TEMPLATE_ARGS) {
     iter.adv();
   }
 
@@ -1413,7 +1421,7 @@ bool Env::addVariable(Variable *v, bool forceReplace)
 void Env::addVariableWithOload(Variable *prevLookup, Variable *v) 
 {
   if (prevLookup) {
-    prevLookup->getOverloadSet()->addMember(v);   // might make an overload set
+    prevLookup->getOrCreateOverloadSet()->addMember(v);
     registerVariable(v);
 
     TRACE("ovl",    "overloaded `" << prevLookup->name
@@ -1497,6 +1505,61 @@ bool containsTypeVariables(ASTList<TemplateArgument> const &args)
 }
 
 
+// select either the primary or one of the specializations, based
+// on the supplied arguments; these arguments will likely contain
+// type variables; e.g., given "T*", select specialization C<T*>;
+// return NULL if no matching definition found
+Variable *Env::getPrimaryOrSpecialization
+  (TemplateInfo *tinfo, SObjList<STemplateArgument> const &sargs)
+{
+  // check that the template scope from which the (otherwise) free
+  // variables of 'sargs' are drawn is all the same scope, and
+  // associate it with 'tinfo' accordingly
+  
+          
+  // primary?
+  //
+  // I can't just test for 'sargs' equalling 'this->arguments',
+  // because for the primary, the latter is always empty.
+  //
+  // So I'm just going to test that 'sargs' consists entirely
+  // of toplevel type variables, which isn't exactly right ...
+  bool allToplevelVars = true;
+  SFOREACH_OBJLIST(STemplateArgument, sargs, argIter) {
+    STemplateArgument const *arg = argIter.data();
+
+    if (arg->isType()) {
+      if (!arg->getType()->isTypeVariable()) {
+        allToplevelVars = false;
+      }
+    }
+    else {
+      // we do not (yet) have a proper way of distinguishing object
+      // placeholders from true concrete objects in template
+      // arguments..... but our hacky approach is that STA_REFERENCE
+      // is abstract and others are concrete...
+      if (arg->kind != STemplateArgument::STA_REFERENCE) {
+        allToplevelVars = false;
+      }
+    }
+  }
+  if (allToplevelVars) {
+    return tinfo->var;
+  }
+
+  // specialization?
+  SFOREACH_OBJLIST_NC(Variable, tinfo->specializations, iter) {
+    Variable *spec = iter.data();
+    if (spec->templateInfo()->equalArguments(tfac, sargs)) {
+      return spec;
+    }
+  }
+
+  // no matching specialization
+  return NULL;
+}
+
+
 // This returns the scope named by the qualifier portion of
 // 'qualifier', or NULL if there is an error.  In the latter
 // case, an error message is also inserted, unless the lookup
@@ -1510,6 +1573,24 @@ Scope *Env::lookupOneQualifier(
   bool &anyTemplates,            // set to true if we look in uninstantiated templates
   LookupFlags lflags)
 {
+  // lookup the name
+  Variable *qualVar = lookupOneQualifier_bareName(startingScope, qualifier, lflags);
+  if (!qualVar) {
+    return NULL;     // error already reporeted
+  }
+
+  // refine using the arguments, and yield a Scope
+  return lookupOneQualifier_useArgs(qualVar, qualifier, dependent, anyTemplates, lflags);
+}
+
+
+// lookup just the name part of a qualifier; template arguments
+// (if any) are dealt with later
+Variable *Env::lookupOneQualifier_bareName(
+  Scope *startingScope,          // where does search begin?  NULL means current environment
+  PQ_qualifier const *qualifier, // will look up the qualifier on this name
+  LookupFlags lflags)
+{
   // get the first qualifier
   StringRef qual = qualifier->qualifier;
   if (!qual) {      // i.e. "::" qualifier
@@ -1517,9 +1598,8 @@ Scope *Env::lookupOneQualifier(
     // with template arguments
     xassert(qualifier->targs.isEmpty());
 
-    // this is a reference to the global scope, i.e. the scope
-    // at the bottom of the stack
-    return scopes.last();
+    // this is a reference to the global scope
+    return globalScopeVar;
   }
 
   // look for a class called 'qual' in 'startingScope'; look in the
@@ -1551,6 +1631,29 @@ Scope *Env::lookupOneQualifier(
 
   // this is what LF_TYPES_NAMESPACES means
   xassert(qualVar->hasFlag(DF_TYPEDEF) || qualVar->hasFlag(DF_NAMESPACE));
+
+  return qualVar;
+}
+
+
+// Second half of 'lookupOneQualifier': use the template args.
+//
+// TODO: The caller has already put the template arguments into an
+// SObjList<STemplateArgument>; accept a reference to those instead of
+// making another list myself.
+Scope *Env::lookupOneQualifier_useArgs(
+  Variable *qualVar,             // bare name scope Variable
+  PQ_qualifier const *qualifier, // will look up the qualifier on this name
+  bool &dependent,               // set to true if we have to look inside a TypeVariable
+  bool &anyTemplates,            // set to true if we look in uninstantiated templates
+  LookupFlags lflags)
+{
+  StringRef qual = qualifier->qualifier;
+
+  if (!qualVar) {
+    // just propagating earlier error
+    return NULL;
+  }
 
   // case 1: qualifier refers to a type
   if (qualVar->hasFlag(DF_TYPEDEF)) {
@@ -1600,9 +1703,12 @@ Scope *Env::lookupOneQualifier(
 
         // obtain a list of semantic arguments
         SObjList<STemplateArgument> sargs;
-        templArgsASTtoSTA(qualifier->targs, sargs);
+        if (!templArgsASTtoSTA(qualifier->targs, sargs)) {
+          return ct;      // error already reported; recovery: use primary
+        }
 
-        if (lflags & LF_DECLARATOR) {
+        if ((lflags & LF_DECLARATOR) &&
+            containsTypeVariables(qualifier->targs)) {    // fix t0185.cc?  seems to...
           // Since we're in a declarator, the template arguments are
           // being supplied for the purpose of denoting an existing
           // template primary or specialization, *not* to cause
@@ -1614,7 +1720,7 @@ Scope *Env::lookupOneQualifier(
           // So, as 'ct' is the primary, look in it to find the proper
           // specialization (or the primary).
           Variable *primaryOrSpec =
-            ct->templateInfo()->getPrimaryOrSpecialization(tfac, sargs);
+            getPrimaryOrSpecialization(ct->templateInfo(), sargs);
           if (!primaryOrSpec) {
             // I'm calling this disambiguating because I do so above,
             // when looking up just 'qual'; it's not clear that this
@@ -1631,11 +1737,15 @@ Scope *Env::lookupOneQualifier(
             // tracing flag to see it when desired.  Hopefully a
             // proper fix for t0185.cc will land soon and we can make
             // this visible.
+            //
+            // 8/07/04: I think the test above, 'containsTypeVariables',
+            // has resolved this issue.
             error(stringc << "cannot find template primary or specialization `"
                           << qualifier->toString() << "'",
-                  /*old:EF_DISAMBIGUATES*/ EF_NONE);
+                  EF_DISAMBIGUATES);
             return ct;     // recovery: use the primary
           }
+
           return primaryOrSpec->type->asCompoundType();
         }
 
@@ -1646,14 +1756,14 @@ Scope *Env::lookupOneQualifier(
           return NULL;
         }
 
-        Variable *inst = instantiateTemplate
-          (loc(),               // FIX: ???
-           (ct->typedefVar->scope ? ct->typedefVar->scope : globalScope()), // FIX: ???
-           ct->typedefVar,
-           NULL /*instV*/,
-           NULL /*bestV*/,
-           sargs);
-        xassert(inst);
+        Variable *inst = instantiateClassTemplate(loc(), qualVar, sargs);
+        if (!inst) {
+          return NULL;     // error already reported
+        }
+
+        // instantiate the body too, since we want to look inside it
+        ensureCompleteType("use as qualifier", inst->type);
+
         ct = inst->type->asCompoundType();
 
         // NOTE: don't delete this yet.  If you replace the above code
@@ -1710,10 +1820,10 @@ Scope *Env::lookupOneQualifier(
 }
 
 
-bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name, LookupFlags lf)
+bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name)
 {
   bool dummy1, dummy2;
-  return getQualifierScopes(scopes, name, dummy1, dummy2, lf);
+  return getQualifierScopes(scopes, name, dummy1, dummy2);
 }
 
 // 4/22/04: After now implementing and testing this code, I'm
@@ -1727,7 +1837,7 @@ bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name, LookupFlags l
 // stop?  I'll wait until I see some failing code before exploring
 // this more.
 bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
-  bool &dependent, bool &anyTemplates, LookupFlags lflags)
+  bool &dependent, bool &anyTemplates)
 {
   if (!name) {
     // this code evolved from code that behaved this way, and
@@ -1735,22 +1845,29 @@ bool Env::getQualifierScopes(ScopeSeq &scopes, PQName const *name,
     return true;    // add nothing to 'scopes'
   }
 
-  // begin searching from the current environment
-  Scope *scope = NULL;
-
+  // examine all the qualifiers in sequence
   while (name->hasQualifiers()) {
     PQ_qualifier const *qualifier = name->asPQ_qualifierC();
 
-    // use the new inner-loop function
-    scope = lookupOneQualifier(scope, qualifier,
-                               dependent, anyTemplates, lflags);
-    if (!scope) {
-      // stop searching and return what we have
+    if (!qualifier->denotedScopeVar) {
+      // error was found & reported earlier; stop and use what we have
       return false;
     }
-
-    // save this scope
-    scopes.push(scope);
+    else if (qualifier->denotedScopeVar->hasFlag(DF_NAMESPACE)) {
+      // save this namespace scope
+      scopes.push(qualifier->denotedScopeVar->scope);
+    }
+    else if (qualifier->denotedScopeVar->type->isDependent()) {
+      // report attempt to look in dependent scope
+      dependent = true;
+      return false;
+    }
+    else {
+      // save this class scope
+      Type *dsvType = qualifier->denotedScopeVar->type;
+      xassert(dsvType->isCompoundType());
+      scopes.push(dsvType->asCompoundType());
+    }
 
     // advance to the next name in the sequence
     name = qualifier->rest;
@@ -1786,12 +1903,20 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 // NOTE: It is *not* the job of this function to do overload
 // resolution!  If the client wants that done, it must do it itself,
 // *after* doing the lookup.
-Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags, 
+Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
                                          Scope *&scope)
 {
+  // get the final component of the name, so we can inspect
+  // whether it has template arguments
+  PQName const *final = name->getUnqualifiedNameC();
+
   Variable *var;
 
   if (name->hasQualifiers()) {
+    // TODO: I am now doing the scope lookup twice, once while
+    // tchecking 'name' and once here.  Replace what's here with code
+    // that re-uses the work already done.
+
     // look up the scope named by the qualifiers
     bool dependent = false, anyTemplates = false;
     scope = lookupQualifiedScope(name, dependent, anyTemplates);
@@ -1835,30 +1960,33 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
   }
 
   else {
+    // 14.6.1 para 1: if the name is not qualified, and has no
+    // template arguments, then the selfname is visible
+    //
+    // ... I'm not sure about the "not qualified" part ... is there
+    // something like 14.6.1 for non-template classes?  If so I can't
+    // find it.. anyway, my t0052.cc (which gcc doesn't like..) wants
+    // LF_SELFNAME even for qualified lookup, and that's how it's been
+    // for a while, so...
+    //
+    // err... t0052.cc still doesn't work with this above, so now
+    // I'm back to requiring no qualifiers and I nerfed that testcase.
+    if (!final->isPQ_template()) {
+      flags |= LF_SELFNAME;
+    }
+
     var = lookupVariable(name->getName(), flags, scope);
   }
 
   if (var) {
-    // get the final component of the name, so we can inspect
-    // whether it has template arguments
-    PQName const *final = name->getUnqualifiedNameC();
-
     // reference to a class in whose scope I am?
     if (var->hasFlag(DF_SELFNAME)) {
-      if (!final->isPQ_template()) {
-        // cppstd 14.6.1 para 1: if the name refers to a template
-        // in whose scope we are, then it need not have arguments
-        TRACE("template",    "found bare reference to enclosing template: "
-                          << var->name);
-        return var;
-      }
-      else {
-        // TODO: if the template arguments match the current
-        // (DF_SELFNAME) declaration, then we're talking about 'var',
-        // otherwise we go through instantiateTemplate(); for now I'm
-        // just going to assume we're talking about 'var'
-        return var;
-      }
+      xassert(!final->isPQ_template());    // otherwise how'd LF_SELFNAME get set?
+
+      // cppstd 14.6.1 para 1: if the name refers to a template
+      // in whose scope we are, then it need not have arguments
+      TRACE("template", "found bare reference to enclosing template: " << var->name);
+      return var;
     }
 
     // compare the name's template status to whether template
@@ -1890,17 +2018,18 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
         // apply the template arguments to yield a new type based
         // on the template
 
-        // sm: I think this assertion should be removed.  It asserts
-        // a fact that is only tangentially related to the code at hand.
-        //xassert(var->type->asCompoundType()->getTypedefVar() == var);
-        //
-        // in fact, as I suspected, it is wrong; using-directives can
-        // create aliases (e.g. t0194.cc)
-        
         // obtain a list of semantic arguments
         PQ_template const *tqual = final->asPQ_templateC();
         SObjList<STemplateArgument> sargs;
-        templArgsASTtoSTA(tqual->args, sargs);
+        if (!templArgsASTtoSTA(tqual->args, sargs)) {
+          return NULL;       // error already reported
+        }
+
+        // if any of the arguments are dependent, then the whole
+        // instantiation is dependent
+        if (hasDependentArgs(sargs)) {
+          return dependentTypeVar;
+        }
 
         // if the template arguments are not concrete, then create
         // a PsuedoInstantiation
@@ -1911,8 +2040,7 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
           return pi->typedefVar;
         }
 
-        return instantiateTemplate(loc(), scope, var, NULL /*inst*/, 
-                                   NULL /*bestV*/, sargs);
+        return instantiateClassTemplate(loc(), var, sargs);
       }
       else {                    // template function
         xassert(var->isTemplateFunction());
@@ -1926,8 +2054,14 @@ Variable *Env::lookupPQVariable_internal(PQName const *name, LookupFlags flags,
         else {
           // hope that all of the arguments have been supplied
           xassert(var->templateInfo()->isPrimary());
-          return instantiateTemplate_astArgs(loc(), scope, var, NULL /*inst*/,
-                                             final->asPQ_templateC()->args);
+                                                         
+          // make a list of semantic template args
+          SObjList<STemplateArgument> sargs;
+          if (!templArgsASTtoSTA(final->asPQ_templateC()->args, sargs)) {
+            return NULL;      // error already reporeted
+          }
+
+          return instantiateFunctionTemplate(loc(), var, sargs);
         }
       }
     }
@@ -2110,25 +2244,14 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
   // delay building a TemplateInfo until it is sure to be needed
   TemplateInfo *ret = NULL;
 
-  // does the immediately enclosing scope have params?  
-  // if so, they are specific to the object being declared, so will
-  // be attached as the main 'params'
-  Scope *inner = scope();
-  if (inner->hasTemplateParams()) {
-    ret = new TemplateInfo(loc());
-    ret->params.appendAll(inner->templateParams);
+  // could this be a member of complete specialization class?
+  // if I do nothing it will get a degenerate TemplateInfo, so
+  // I need to detect that situation and throw the tinfo away
+  bool couldBeCompleteSpecMember = true;
 
-    // 7/31/04: Do not consume 'inner->templateParams'; instead, apply
-    // them as inherited parameters to all the templatizable entities
-    // in the class.
-  }
-
-  #if 0       // disabled temporarily
   // do the enclosing scopes other than the closest have params?
   // if so, find and attach all inherited parameter lists
   ObjListIter<Scope> iter(scopes);
-  iter.adv();     // skip the innermost scope, which was handled above
-  Scope const *prev = inner;       // next-inner relative to 's'
   for (; !iter.isDone(); iter.adv()) {
     Scope const *s = iter.data();
 
@@ -2136,38 +2259,61 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
     // scopes (this is a little bit of a hack as I try to guess the
     // right rules)
     if (!( s->scopeKind == SK_CLASS ||
-           s->scopeKind == SK_TEMPLATE ||
-           s->scopeKind == SK_EAT_TEMPL_INST )) {
+           s->scopeKind == SK_TEMPLATE_PARAMS )) {
       break;
     }
 
-    if (s->hasTemplateParams()) {
-      // the expected scope structure is:
-      //   template <class T>          <--- 's'
-      //   class Foo {                 <--- 'prev'
-      //     ...
-      //   };
-      xassert(prev->curCompound);
+    if (s->isTemplateParamScope()) {
+      // found some parameters that we need to record in a TemplateInfo
       if (!ret) {
         ret = new TemplateInfo(loc());
       }
 
-      // record info about these params and where they come from
-      InheritedTemplateParams *itp = new InheritedTemplateParams(prev->curCompound);
-      itp->params.appendAll(s->templateParams);
+      // are these as-yet unassociated params?
+      if (!s->parameterizedPrimary) {
+        if (ret->params.isNotEmpty()) {
+          // there was already one unassociated, and now we see another
+          error("too many template <...> declarations");
+        }
+        else {
+          ret->params.appendAll(s->templateParams);
+          couldBeCompleteSpecMember = false;
 
-      // stash them in 'ret', prepending so as we work from innermost
-      // to outermost, so the last one prepended will be the outermost,
-      // and hence first in the list when we're done
-      ret->inheritedParams.prepend(itp);
+          TRACE("templateParams", "main params: " << ret->paramsToCString());
+        }
+      }
 
-      TRACE("template", "inherited " << itp->paramsToCString() <<
-                        " from " << prev->curCompound->name);
+      else {
+        // record info about these params and where they come from
+        InheritedTemplateParams *itp
+          = new InheritedTemplateParams(s->parameterizedPrimary->type->asCompoundType());
+        itp->params.appendAll(s->templateParams);
+
+        if (s->templateParams.isNotEmpty()) {
+          couldBeCompleteSpecMember = false;
+        }
+
+        // stash them in 'ret', prepending so as we work from innermost
+        // to outermost, so the last one prepended will be the outermost,
+        // and hence first in the list when we're done
+        ret->inheritedParams.prepend(itp);
+
+        TRACE("templateParams", "inherited " << itp->paramsToCString() <<
+                                " from " << s->parameterizedPrimary->name);
+      }
     }
-
-    prev = s;
   }
-  #endif // 0
+
+  if (ret && couldBeCompleteSpecMember) {
+    // throw away this tinfo; the thing is fully concrete and
+    // not a specialization of any template
+    //
+    // TODO: I need a testcase for this in Elsa.. right now there
+    // is only an Oink testcase.
+    TRACE("templateParams", "discarding TemplateInfo for member of complete specialization");
+    delete ret;
+    ret = NULL;
+  }
 
   return ret;
 }
@@ -2248,7 +2394,23 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   ct->typedefVar = tv;
 
   // transfer template parameters
-  ct->setTemplateInfo(takeCTemplateInfo());
+  { 
+    TemplateInfo *ti = takeCTemplateInfo();
+    if (ti) {
+      ct->setTemplateInfo(ti);
+      
+      // it turns out any time I pass in a non-NULL scope, I'm in
+      // the process of making a primary
+      if (scope) {
+        if (this->scope()->isTemplateParamScope()) {
+          this->scope()->setParameterizedPrimary(ct->typedefVar);
+        }
+
+        // set its defnScope, which is used during instantiation
+        ti->defnScope = scope;
+      }
+    }
+  }
 
   if (name && scope) {
     scope->registerVariable(tv);
@@ -2268,9 +2430,18 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // also add the typedef to the class' scope
   if (name && lang.compoundSelfName) {
-    Variable *tv2 = makeVariable(loc, name, tfac.cloneType(ret), DF_TYPEDEF | DF_SELFNAME);
-    ct->addUniqueVariable(tv2);
-    addedNewVariable(ct, tv2);
+    Type *selfType;
+    if (tv->templateInfo() && tv->templateInfo()->hasParameters()) {
+      // the self type should be a PseudoInstantiation, not the raw template
+      selfType = pseudoSelfInstantiation(ct, CV_NONE);
+    }
+    else {
+      // just the class' type
+      selfType = tfac.cloneType(ret);
+    }
+    Variable *selfVar = makeVariable(loc, name, selfType, DF_TYPEDEF | DF_SELFNAME);
+    ct->addUniqueVariable(selfVar);
+    addedNewVariable(ct, selfVar);
   }
 
   return ret;
@@ -2289,6 +2460,11 @@ Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
     errors.addError(new ErrorMsg(L, msg, eflags, instLoc));
   }
 
+  return errorType();
+}
+
+Type *Env::errorType()
+{
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
@@ -2317,6 +2493,7 @@ Type *Env::unimp(char const *msg)
   // segfault (typically deref'ing NULL) right after printing this
   cout << toString(loc()) << ": unimplemented: " << msg << instLoc << endl;
 
+  breaker();
   errors.addError(new ErrorMsg(
     loc(), stringc << "unimplemented: " << msg, EF_NONE, instLoc));
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
@@ -2378,8 +2555,22 @@ Type *Env::implicitReceiverType()
 Variable *Env::receiverParameter(SourceLoc loc, NamedAtomicType *nat, CVFlags cv,
                                  D_func *syntax)
 {
-  // this doesn't use 'implicitReceiverType' because of the warnings above
-  Type *recType = tfac.makeTypeOf_receiver(loc, nat, cv, syntax);
+  // For templatized classes, do something a little different.  It's
+  // unfortunate that whether we call into tfac depends on whether 'nat'
+  // is a template class.  I think 'makeTypeOf_receiver' should simply
+  // be removed from the tfac.
+  Type *recType;
+  if (nat->isCompoundType() &&
+      nat->typedefVar->isTemplate()) {
+    // TODO: save this somewhere instead of making it over and over
+    Type *selfType = pseudoSelfInstantiation(nat->asCompoundType(), cv);
+    recType = makeReferenceType(loc, selfType);
+  }
+  else {
+    // this doesn't use 'implicitReceiverType' because of the warnings above
+    recType = tfac.makeTypeOf_receiver(loc, nat, cv, syntax);
+  }
+
   return makeVariable(loc, receiverName, recType, DF_PARAMETER);
 }
 
@@ -2515,14 +2706,10 @@ bool multipleDefinitionsOK(Env &env, Variable *prior, DeclFlags dflags)
 // they store NULL instead, so canonize the pointers by changing
 // global scope pointers to NULL before comparison
 //
-// dsw: I think that is wrong now: 1) variables seem to store pointers
-// to global scope now and 2) NULL seems to mean non-permanent scope;
-// see in/d0097.cc
+// dsw: 8/10/04: the above is no longer true, so this function is
+// now trivial
 bool sameScopes(Scope *s1, Scope *s2)
 {
-  if (s1 && !s1->isPermanentScope()) { s1 = NULL; }
-  if (s2 && !s2->isPermanentScope()) { s2 = NULL; }
-
   return s1 == s2;
 }
 
@@ -2600,7 +2787,7 @@ void Env::makeUsingAliasFor(SourceLoc loc, Variable *origVar)
     if (!enclosingClass &&
         prior->type->isFunctionType()) {
       // turn it into an overloading situation
-      overloadSet = prior->getOverloadSet();
+      overloadSet = prior->getOrCreateOverloadSet();
       prior = NULL;
     }
 
@@ -2712,17 +2899,15 @@ bool Env::equalOrIsomorphic(Type *a, Type *b, Type::EqFlags eflags)
     // normal case: concrete signature comparison
     return a->equals(b, eflags);
   }
-  else if (aVars && bVars) {
+  else {
     // non-concrete comparison
     //
-    // TODO: Is there something useful to do with the equality flags?
-    // It seems to me that MatchTypes should accept equality flags...
-    MatchTypes match(tfac, MatchTypes::MM_ISO);
+    // 8/07/04: I had been saying that if aVars!=bVars then the
+    // types aren't equivalent, but that is wrong if we are skipping
+    // the receiver parameter and that's the place that one has
+    // a type var and the other does not.  (t0028.cc)
+    MatchTypes match(tfac, MatchTypes::MM_ISO, eflags);
     return match.match_Type(a, b);
-  }
-  else {
-    // template vs non-template: not equivalent
-    return false;
   }
 }
 
@@ -2742,15 +2927,15 @@ OverloadSet *Env::getOverloadForDeclaration(Variable *&prior, Type *type)
     FunctionType *specFt = type->asFunctionType();
 
     // can only be an overloading if their signatures differ,
-    // or it's a conversion operator
-    if (!equivalentSignatures(priorFt, specFt) ||
-        (prior->name == conversionOperatorName &&
-         !equalOrIsomorphic(priorFt, specFt))) {
+    // or it's a conversion operator and they differ at all
+    if (prior->name == conversionOperatorName?
+          !equalOrIsomorphic(priorFt, specFt) :         // conversion: equality check
+          !equivalentSignatures(priorFt, specFt)) {     // non-conversion: signature check
       // ok, allow the overload
       TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
                    << "' and `" << type->toString() << "'");
-      overloadSet = prior->getOverloadSet();
+      overloadSet = prior->getOrCreateOverloadSet();
       prior = NULL;    // so we don't consider this to be the same
     }
   }
@@ -2950,15 +3135,15 @@ Variable *Env::createDeclaration(
     // one we're trying to declare here, we have a conflict (I'm trying
     // to implement 7.3.3 para 11); I try to determine whether they
     // are the same or different based on the scopes in which they appear
-    //
-    // this is only a problem if the prior is supposed to exist in a
-    // scope somewhere which was passed down to us, which is not the
-    // case if !reallyAddVariable, where it might exist only in the
-    // instantiation list of some template primary; FIX: this isn't
-    // quite so elegant
-    //
-    // 7/22/04: 'reallyAddVariable' is gone
-    if (!sameScopes(prior->skipAlias()->scope, scope)) {
+    if (!prior->skipAlias()->scope &&
+        !scope->isPermanentScope()) {
+      // The previous decl is not in a named scope.. I *think* that
+      // means that we could only have found it by looking in the same
+      // scope that 'scope' refers to, which is also non-permanent, so
+      // just allow this.  I don't know if it's really right.  In any
+      // case, d0097.cc is a testcase.
+    }
+    else if (!sameScopes(prior->skipAlias()->scope, scope)) {
       error(type, stringc
             << "prior declaration of `" << name
             << "' at " << prior->loc
@@ -3020,14 +3205,16 @@ noPriorDeclaration:
   if (overloadSet) {
     // don't add it to the environment (another overloaded version
     // is already in the environment), instead add it to the overload set
-    //
-    // dsw: don't add it if it is a template specialization
-    if (!(dflags & DF_TEMPL_SPEC)) {
-      overloadSet->addMember(newVar);
-      newVar->overload = overloadSet;
-    }
+    overloadSet->addMember(newVar);
+    newVar->overload = overloadSet;
   }
-  else if (!type->isError()) {
+  else if (!type->isError()) {       
+    // 8/09/04: add error-typed vars anyway?            
+    //
+    // No, they get ignored by Scope::addVariable anyway, because
+    // it's part of ensuring that erroneous interpretations don't
+    // modify the environment, during disambiguation.
+
     if (disambErrorsSuppressChanges()) {
       TRACE("env", "not adding D_name `" << name <<
             "' because there are disambiguating errors");
@@ -3134,25 +3321,126 @@ void Env::pushDeclarationScopes(Variable *v, Scope *stop)
   ObjListMutator<Scope> mut(scopes);
   Scope *s = v->scope;
 
-  while (s && s != stop) {
+  while (s != stop) {
     mut.insertBefore(s);     // insert 's' before where 'mut' points
     mut.adv();               // advance 'mut' past 's', so it points at orig obj
     s = s->parentScope;
+    if (!s) {
+      // 'v->scope' must not have been inside 'stop'
+      xfailure("pushDeclarationScopes: missed 'stop' scope");
+    }
   }
-
-  // do I really need the test for s!=NULL?
-  xassert(s);
 }
 
 // undo the effects of 'pushDeclarationScopes'
 void Env::popDeclarationScopes(Variable *v, Scope *stop)
 {
   Scope *s = v->scope;
-  while (s && s != stop) {
+  while (s != stop) {
     Scope *tmp = scopes.removeFirst();
     xassert(tmp == s);
     s = s->parentScope;
+    xassert(s);
   }
+}
+
+
+// We are in a declarator, processing a qualifier that has template
+// arguments supplied.  The question is, which template arg/param
+// scope is the one that goes with this qualifier?
+Scope *Env::findParameterizingScope(Variable *bareQualifierVar)
+{
+  // keep track of the last unassociated template scope seen
+  Scope *lastUnassoc = NULL;
+
+  // search from inside out
+  FOREACH_OBJLIST_NC(Scope, scopes, iter) {
+    Scope *s = iter.data();
+
+    if (s->isTemplateScope()) {
+      if (!s->parameterizedPrimary) {
+        lastUnassoc = s;
+      }
+      else if (s->parameterizedPrimary == bareQualifierVar) {
+        // found it!  this scope is already marked as being associated
+        // with this variable
+        return s;
+      }
+    }
+    else if (s->isClassScope()) {
+      // keep searching..
+    }
+    else {
+      // some kind of scope other than a template or class scope; I don't
+      // think I should look any higher
+      break;
+    }
+  }
+
+  // didn't find a scope already associated with the qualifier, so I
+  // think the outermost unassociated is the right one (this is
+  // something of a guess.. the spec isn't terribly clear on corner
+  // conditions regarding template params..)
+
+  if (!lastUnassoc) {
+    error(stringc << "no template parameter list supplied for `"
+                  << bareQualifierVar->name << "'");
+  }
+  else {
+    // well, may as well cement the association now
+    lastUnassoc->setParameterizedPrimary(bareQualifierVar);
+
+    TRACE("templateParams",
+      "associated " << paramsToCString(lastUnassoc->templateParams) <<
+      " with " << bareQualifierVar->name);
+  }
+
+  return lastUnassoc;
+}
+
+
+// Remove all scopes that are inside 'bound' from 'scopes' and put them
+// into 'dest' instead, in reverse order (to make it easy to undo).
+void Env::removeScopesInside(ObjList<Scope> &dest, Scope *bound)
+{
+  xassert(bound);
+  while (scopes.first() != bound) {
+    Scope *s = scopes.removeFirst();
+    TRACE("env", "temporarily removing " << s->desc());
+    dest.prepend(s);
+  }
+}
+
+// Undo the effects of 'removeScopesInside'.
+void Env::restoreScopesInside(ObjList<Scope> &src, Scope *bound)
+{
+  xassert(scopes.first() == bound);
+  while (src.isNotEmpty()) {
+    Scope *s = src.removeFirst();
+    TRACE("env", "restoring " << s->desc());
+    scopes.prepend(s);
+  }
+}
+
+
+bool Env::ensureCompleteType(char const *action, Type *type)
+{
+  if (type->isCompoundType()) {
+    CompoundType *ct = type->asCompoundType();
+
+    // maybe it's a template we can instantiate?
+    if (!ct->isComplete() && ct->isInstantiation()) {
+      instantiateClassBody(ct->typedefVar);
+    }
+
+    if (!ct->isComplete()) {
+      error(stringc << "attempt to " << action << 
+                       " incomplete type `" << type->toString() << "'");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 

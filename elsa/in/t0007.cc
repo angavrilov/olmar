@@ -10,7 +10,10 @@
 
 int const c;
 
-typedef int x;
+// With the 'typedef', the code is illegal; gcc says
+// "declaration does not declare anything".  It's messing
+// up the idempotency test so I'm just going to fix it.
+/*typedef*/ int x;
 
 int main()
 {

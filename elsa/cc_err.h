@@ -94,7 +94,8 @@ public:
   // many error objects in the list
   void prependError(ErrorMsg * /*owner*/ obj);
 
-  // take all of the error messages in 'src'; this operation leaves
+  // take all of the error messages in 'src' and (semantically)
+  // append them after messages in 'this'; this operation leaves
   // 'src' empty, and takes time no more than proportional to the
   // length of the 'src' list; it's O(1) if 'this' is empty
   void takeMessages(ErrorList &src);         // append
@@ -112,9 +113,10 @@ public:
   int count() const;            // total
   int numErrors() const;        // # that are not EF_WARNING
   int numWarnings() const;      // # that *are* EF_WARNING
-  
+
   // true if any are EF_DISAMBIGUATES
   bool hasDisambErrors() const;
+  bool isEmpty() const { return list.isEmpty(); }
 
   // print all the errors, one per line, in order
   void print(ostream &os) const;

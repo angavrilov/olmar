@@ -12,6 +12,7 @@
 verbatim {
   #include "variable.h"      // Variable
   #include "cc_type.h"       // Type, FunctonType, CompoundType
+  #include "template.h"      // STemplateArgument
 
   class Env;                 // cc_env.h
 }
@@ -59,8 +60,10 @@ class Function {
   custom debugPrint { printExtras(os, indent); }
 
   // if 'checkBody' is false, we treat this like it was just
-  // a prototype for the function
-  public void tcheck(Env &env, bool checkBody);
+  // a prototype for the function; if 'instV' is not NULL, then
+  // force the declarator 'nameAndParams' to refer to it instead
+  // of using the usual lookup/creation mechanism
+  public void tcheck(Env &env, bool checkBody, Variable *instV = NULL);
   
   // this is where we end up if 'checkBody' is true
   public void tcheckBody(Env &env);
@@ -132,7 +135,24 @@ class ASTTypeId {
 
 class PQName {
   // typecheck the template arguments buried in this PQName
-  pure_virtual void tcheck(Env &env);
+  //
+  // 8/01/04: Go all the way to looking up the scopes denoted by the
+  // qualifiers.  'scope' is the scope denoted by the qualifiers seen
+  // so far, or NULL to mean "current scope", and 'lflags' might be
+  // LF_DECLARATOR if this PQName is the name of a declarator.
+  pure_virtual void tcheck(Env &env, Scope *scope = NULL, 
+                           LookupFlags lflags = LF_NONE);
+
+  -> PQ_qualifier {
+       // record the scope denoted by this qualifier; name the
+       // associated variable instead of the scope directly so we can
+       // use 'dependentVar' when the denoted scope is dependent on a
+       // template parameter
+       public Variable *denotedScopeVar = NULL;
+       custom debugPrint {
+         ind(os, indent) << "denotedScopeVar: " << refersTo(denotedScopeVar) << "\n";
+       }
+     }
 }
 
 
@@ -161,12 +181,8 @@ class TypeSpecifier {
        public CompoundType *ctype = NULL;
        public void tcheckIntoCompound(
          Env &env, DeclFlags dflags, CompoundType *ct,
-         bool inTemplate,
-         bool reallyTcheckFunctionBodies,
-         CompoundType *containingClass);
-       private void tcheckFunctionBodies
-         (Env &env,
-          bool reallyTcheckFunctionBodies);
+         bool checkMethodBodies);
+       private void tcheckFunctionBodies(Env &env);
      }
 
   -> TS_enumSpec {
@@ -260,20 +276,17 @@ class Declarator {
   // this class contains the data passed into and out of the
   // declarator checking functions
   public struct Tcheck {
-    // the bottom-most IDeclarator (D_name or D_bitfield) creates
-    // or looks up a Variable, and sets this to point at it
-    Variable *var;
+    // Normally, a declarator creates a Variable and inserts it
+    // into the environment.  If this field is non-NULL, then the
+    // declarator simply uses the supplied Variable instead.
+    // Either way, the Variable* is then stored in Declarator::var.
+    Variable *existingVar;
 
     // on the way in, this is the type computed so far; initially
     // it's just the type specifier but additional declarators will
     // layer additional type constructors on top of it and replace
     // the pointer here with a pointer to the constructed type; at
     // the end it is the fully-constructed type
-    //
-    // however, it need not be the same type as var->type at the
-    // end, because var->type might be a function type from a
-    // prototype (with the prototype's parameter names) while this
-    // field will be the constructed type with its own names
     Type *type;
 
     // these are the declflags attached to the outer declaration
@@ -293,7 +306,7 @@ class Declarator {
 
   public:
     Tcheck(Type *t, DeclFlags d, DeclaratorContext dc)
-      : var         (NULL)
+      : existingVar (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
@@ -301,7 +314,7 @@ class Declarator {
       , context     (dc)
     {}
     Tcheck(Tcheck const &obj)
-      : var         (obj.var)
+      : existingVar (obj.existingVar)
       , type        (obj.type)
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
@@ -309,7 +322,7 @@ class Declarator {
       , context     (obj.context)
     {}
     Tcheck& operator= (Tcheck const &obj) {
-      var         = obj.var;
+      existingVar = obj.existingVar;
       type        = obj.type;
       dflags      = obj.dflags;
       size_E_new  = obj.size_E_new;
@@ -323,10 +336,10 @@ class Declarator {
 
   // determine the type denoted by the combination of 'dt.type' and
   // the type constructors in this declarator, then make a Variable
-  // which has that type and store it in 'dt.var'; if this declarator
-  // refers to something that is *already* declared (like a function
-  // with a prior prototype), the 'var' field will be shared among the
-  // various declarations; if not, put it into the environment
+  // that has that type; if this declarator refers to something that
+  // is *already* declared (like a function with a prior prototype),
+  // the 'var' field will be shared among the various declarations; if
+  // not, put it into the environment
   //
   // the return value specifies which of possibly ambiguous
   // alternatives was selected
@@ -337,19 +350,18 @@ class Declarator {
 
 
 class IDeclarator {
-  // write down the type denoted by this type constructor, in
-  // conjunction with the constructors that surround it, and the
-  // type specifier
-  public Type *type = NULL;
+  // 8/11/04: There used to be a 'type' field here, but I decided that
+  // analyses probably have no need to know about the types denoted by
+  // IDeclarators, only that denoted by the full Declarator, which is
+  // stored in Declarator::type.
 
   // external interface; add the type constructor represented by this
-  // IDeclarator to 'dt.type' and then make a Variable to represent
-  // it; put the variable into the environment if appropriate
-  //
-  // 'inGrouping' should be true if this IDeclarator is inside
-  // a D_grouping but not a D_pointer or D_ptrToMember (or the
-  // former is inside the latter)
-  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping);
+  // IDeclarator to 'dt.type'
+  pure_virtual void tcheck(Env &env, Declarator::Tcheck &dt);
+
+  // returns true if there is a D_grouping that does not have
+  // any D_pointer or D_ptrToMember inside it
+  public bool hasInnerGrouping() const;
 
   -> D_func {
        // I want to know which D_funcs are members of classes (whether
@@ -491,6 +503,7 @@ class Expression {
 
   -> E_fieldAcc {
        public Variable *field = NULL;
+       public Type *itcheck_fieldAcc(Env &env, LookupFlags flags);
        custom clone { ret->field = field; }
      }
 

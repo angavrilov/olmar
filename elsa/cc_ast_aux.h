@@ -36,6 +36,7 @@ public:
 
 private:
   void visitTemplateDeclaration_oneTempl(Variable *var0);
+  void visitTemplateDeclaration_oneContainer(Variable *container);
 };
 
 #endif // CC_AST_AUX_H

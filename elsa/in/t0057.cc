@@ -1,4 +1,4 @@
-// cc.in57
+// t0057.cc
 // problem with template-id as a qualifier
 
 // this testcase demonstrates the need to fully implement

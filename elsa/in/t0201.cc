@@ -7,8 +7,8 @@ struct C
 {};
 
 // specialization: one (the first!) parameter
-template <class T>
-struct C<int, T>
+template <class U>
+struct C<int, U> 
 {};
 
 // make use of the primary

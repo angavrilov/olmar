@@ -191,7 +191,7 @@ class PQName(SourceLoc loc) {
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(SourceLoc loc) {
-  public enum CVFlags cv;  ctor cv=CV_NONE;
+  public enum CVFlags cv = CV_NONE;
   custom clone { ret->cv = cv; }
 
   public void printExtras(ostream &os, int indent) const;
@@ -528,7 +528,8 @@ class Expression {
   -> E_deref(Expression ptr);
 
   -> E_cast(ASTTypeId ctype, Expression expr);
-  -> E_cond(Expression cond, Expression /*nullable in gcc C*/ th, Expression el);
+  -> E_cond(Expression cond, Expression /*nullable in gcc C [TODO: remove this and make E_gnuCond instead]*/ 
+                                        th, Expression el);
   -> E_sizeofType(ASTTypeId atype);
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an

@@ -2,7 +2,7 @@
 // code for variable.h
 
 #include "variable.h"      // this module
-#include "cc_type.h"       // Type
+#include "template.h"      // Type, TemplateInfo, etc.
 #include "trace.h"         // tracingSys
 
 
@@ -98,18 +98,24 @@ bool Variable::isImplicitTypedef() const
 bool Variable::isUninstTemplateMember() const
 {
   if (isTemplate() &&
-      (templateInfo()->isMutant() || !templateInfo()->isCompleteSpecOrInstantiation())) {
+      !templateInfo()->isCompleteSpecOrInstantiation()) {
     return true;
   }
   return scope && scope->isWithinUninstTemplate();
 }
 
 
+bool Variable::isTemplate() const 
+{ 
+  return templateInfo() &&
+         templateInfo()->hasParameters();  // not just an instantiation 
+}
+
 bool Variable::isTemplateFunction() const
 {
   return type &&
          type->isFunctionType() &&
-         templateInfo() &&
+         isTemplate() &&
          !hasFlag(DF_TYPEDEF);
 }
 
@@ -117,7 +123,13 @@ bool Variable::isTemplateClass() const
 {
   return hasFlag(DF_TYPEDEF) &&
          type->isCompoundType() &&
-         templateInfo();
+         isTemplate();
+}
+
+
+bool Variable::isInstantiation() const
+{
+  return templInfo && templInfo->isInstantiation();
 }
 
 
@@ -129,11 +141,12 @@ TemplateInfo *Variable::templateInfo() const
 void Variable::setTemplateInfo(TemplateInfo *templInfo0)
 {
   templInfo = templInfo0;
-  xassert(!(templInfo && !templInfo->isMutant() && notQuantifiedOut()));
+  xassert(!(templInfo && notQuantifiedOut()));
   
   // complete the association
   if (templInfo) {
-    templInfo->var = this;
+    // I am the method allowed to change TemplateInfo::var
+    const_cast<Variable*&>(templInfo->var) = this;
   }
   else {
     // this happens when we're not in a template at all, but the
@@ -148,8 +161,7 @@ bool Variable::notQuantifiedOut()
   TemplateInfo *ti = templateInfo();
   if (!ti) return false;
   SomeTypeVarNotInTemplParams_Pred pred(ti);
-  return static_cast<Type const *>(type)->
-    anyCtorSatisfies(pred);
+  return type->anyCtorSatisfies(pred);
 }
 
 
@@ -186,6 +198,19 @@ string Variable::toCString() const
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
   return type->toCString(stringc << (name? name : "/*anon*/") << namePrintSuffix());
+}
+
+
+string Variable::toQualifiedString() const
+{                             
+  string qname;
+  if (name) {
+    qname = fullyQualifiedName();
+  }
+  else {
+    qname = "/*anon*/";
+  }
+  return type->toCString(stringc << qname << namePrintSuffix());
 }
 
 
@@ -231,7 +256,7 @@ string Variable::fullyQualifiedName() const
 {
   stringBuilder tmp;
   if (scope && !scope->isGlobalScope()) {
-    tmp << scope->fullyQualifiedName();
+    tmp << scope->fullyQualifiedCName();
   }
   tmp << "::" << name;        // NOTE: not mangled
   return tmp;
@@ -244,7 +269,7 @@ string Variable::namePrintSuffix() const
 }
 
 
-OverloadSet *Variable::getOverloadSet()
+OverloadSet *Variable::getOrCreateOverloadSet()
 {
   xassert(type);
   xassert(type->isFunctionType());
@@ -256,6 +281,17 @@ OverloadSet *Variable::getOverloadSet()
 }
 
 
+void Variable::getOverloadList(SObjList<Variable> &set)
+{
+  if (overload) {
+    set = overload->set;     // copy the elements
+  }
+  else {
+    set.prepend(this);       // just put me into it
+  }
+}
+
+
 int Variable::overloadSetSize() const
 {
   return overload? overload->count() : 1;
@@ -263,7 +299,7 @@ int Variable::overloadSetSize() const
 
 
 // I'm not sure what analyses' disposition towards usingAlias ought to
-// be.  One possibility is to just say they should sprinke calls to
+// be.  One possibility is to just say they should sprinkle calls to
 // skipAlias all over the place, but that's obviously not very nice.
 // However, I can't just make the lookup functions call skipAlias,
 // since the access control for the *alias* is what's relevant for

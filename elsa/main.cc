@@ -121,55 +121,68 @@ void doit(int argc, char **argv)
   lang.GNU_Cplusplus();
 
 
+  // ------------- process command-line arguments ---------
+  char const *inputFname = processArgs
+    (argc, argv,
+     "\n"
+     "  general behavior flags:\n"
+     "    c_lang             use C language rules (default is C++)\n"
+     "    nohashline         ignore #line when reporting locations\n"
+     "    doOverload         do named function overload resolution\n"
+     "    doOperatorOverload do operator overload resolution\n"
+     "\n"
+     "  options to stop after a certain stage:\n"
+     "    stopAfterParse     stop after parsing\n"
+     "    stopAfterTCheck    stop after typechecking\n"
+     "    stopAfterElab      stop after semantic elaboration\n"
+     "\n"
+     "  output options:\n"
+     "    parseTree          make a parse tree and print that, only\n"
+     "    printAST           print AST after parsing\n"
+     "    printTypedAST      print AST with type info\n"
+     "    printElabAST       print AST after semantic elaboration\n"
+     "    prettyPrint        echo input as pretty-printed (but sometimes invalid) C++\n"
+     "\n"
+     "  debugging output:\n"
+     "    malloc_stats       print malloc stats every so often\n"
+     "    env                print as variables are added to the environment\n"
+     "    error              print as errors are accumulated\n"
+     "    overload           print details of overload resolution\n"
+     "\n"
+     "  (grep in source for \"trace\" to find more obscure flags)\n"
+     "");
+
+  if (tracingSys("printAsML")) {
+    Type::printAsML = true;
+  }
+
+  if (tracingSys("nohashline")) {
+    sourceLocManager->useHashLines = false;
+  }
+
+  if (tracingSys("c_lang")) {
+    lang.GNU_C();
+  }
+
+  if (tracingSys("kandr_c_lang")) {
+    lang.GNU_KandR_C();
+  }
+
+  if (tracingSys("templateDebug")) {
+    // predefined set of tracing flags I've been using while debugging
+    // the new templates implementation
+    traceAddSys("template");
+    traceAddSys("error");
+    traceAddSys("templateParams");
+    traceAddSys("templateXfer");
+    traceAddSys("prettyPrint");
+    traceAddSys("topform");
+  }
+
+
   // --------------- parse --------------
   TranslationUnit *unit;
   {
-    char const *inputFname = processArgs
-      (argc, argv,
-       "\n"
-       "  general behavior flags:\n"
-       "    c_lang             use C language rules (default is C++)\n"
-       "    nohashline         ignore #line when reporting locations\n"
-       "    doOverload         do named function overload resolution\n"
-       "    doOperatorOverload do operator overload resolution\n"
-       "\n"
-       "  options to stop after a certain stage:\n"
-       "    stopAfterParse     stop after parsing\n"
-       "    stopAfterTCheck    stop after typechecking\n"
-       "    stopAfterElab      stop after semantic elaboration\n"
-       "\n"
-       "  output options:\n"
-       "    parseTree          make a parse tree and print that, only\n"
-       "    printAST           print AST after parsing\n"
-       "    printTypedAST      print AST with type info\n"
-       "    printElabAST       print AST after semantic elaboration\n"
-       "    prettyPrint        echo input as pretty-printed (but sometimes invalid) C++\n"
-       "\n"
-       "  debugging output:\n"
-       "    malloc_stats       print malloc stats every so often\n"
-       "    env                print as variables are added to the environment\n"
-       "    error              print as errors are accumulated\n"
-       "    overload           print details of overload resolution\n"
-       "\n"
-       "  (grep in source for \"trace\" to find more obscure flags)\n"
-       "");
-
-    if (tracingSys("printAsML")) {
-      Type::printAsML = true;
-    }
-
-    if (tracingSys("nohashline")) {
-      sourceLocManager->useHashLines = false;
-    }
-
-    if (tracingSys("c_lang")) {
-      lang.GNU_C();
-    }
-
-    if (tracingSys("kandr_c_lang")) {
-      lang.GNU_KandR_C();
-    }
-
     SemanticValue treeTop;
     ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
     
@@ -406,7 +419,6 @@ void doit(int argc, char **argv)
 
   // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
-    cout << endl;
     traceProgress() << "dsw pretty print...\n";
     PrintEnv env(cout);
     cout << "---- START ----" << endl;
@@ -415,7 +427,6 @@ void doit(int argc, char **argv)
     env.finish();
     cout << "---- STOP ----" << endl;
     traceProgress() << "dsw pretty print... done\n";
-    cout << endl;
   }
 
   // test AST cloning

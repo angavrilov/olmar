@@ -94,6 +94,9 @@ public:    // data
   // named scope in which the variable appears; this is only non-NULL
   // if the scope has a name, i.e. it continues to be available for
   // use even after it's lexically closed
+  //
+  // if this Variable isNamespace(), then 'scope' points at the
+  // namespace it names, rather than the containing scope
   Scope *scope;           // (nullable serf)
 
   // kind of scope in which the name is declared; initially this
@@ -134,10 +137,16 @@ public:
   bool isImplicitMemberFunc() const { return hasFlag(DF_IMPLICIT) && !hasFlag(DF_TYPEDEF); }
 
   // true if this name refers to a template function, or is
-  // the typedef-name of a template class
-  bool isTemplate() const { return isTemplateFunction() || isTemplateClass(); }
+  // the typedef-name of a template class (or partial specialization)
+  bool isTemplate() const;
   bool isTemplateFunction() const;
   bool isTemplateClass() const;
+
+  // true if this is an instantiation of a template
+  bool isInstantiation() const;
+
+  // templates (and specializations) and instantiatons have
+  // TemplateInfo
   TemplateInfo *templateInfo() const;
   void setTemplateInfo(TemplateInfo *templInfo0);
 
@@ -152,8 +161,18 @@ public:
   Type *getType() { return type; }
   Type const *getTypeC() const { return type; }
 
-  // create an overload set if it doesn't exist, and return it
-  OverloadSet *getOverloadSet();
+  // create an overload set if it doesn't exist, and return it (do not
+  // do this unless you actually need a set; if you just want to treat
+  // overloaded and non-overloaded variables uniformly, use
+  // 'getOverloadList' instead)
+  OverloadSet *getOrCreateOverloadSet();
+
+  // return the set of overloaded entities; this might just
+  // be the singleton 'this', if it isn't overloaded
+  void getOverloadList(SObjList<Variable> &set);
+
+  // true if this name is overloaded
+  bool isOverloaded() const { return !!overload; }
 
   // number of elements in the overload set, or 1 if there is no
   // overload set
@@ -176,6 +195,9 @@ public:
 
   // fully qualified but not mangled name
   string fullyQualifiedName() const;
+
+  // like toString but with the fully qualified name
+  string toQualifiedString() const;
 
   // hook for verifier: text to be printed after the variable's name
   // in declarator syntax
