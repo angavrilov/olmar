@@ -365,16 +365,14 @@ public:
   enum { initialStackNodeId = 1 };
 
   // ---- parser state during each token ----
-  // the type of the token we're trying to shift; any parser that
-  // fails to shift this token (or reduce to one that can,
-  // recursively) will "die"
-  int currentTokenType;
-
-  // the semantic value associated with that token
-  SemanticValue currentTokenValue;
-
-  // location of that current token
-  SOURCELOC( SourceLocation currentTokenLoc; )
+  // I used to have fields:
+  //   int currentTokenType;
+  //   SemanticValue currentTokenValue;
+  //   SourceLocation currentTokenLoc;
+  // but these have been now replaced by, respectively,
+  //   lexerPtr->type
+  //   lexerPtr->sval
+  //   lexerPtr->loc
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token

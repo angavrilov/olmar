@@ -167,7 +167,7 @@
 // enables tracking of some statistics useful for debugging and profiling
 #define DO_ACCOUNTING 1
 
-// unroll the inner loop
+// unroll the inner loop; approx. 5% performance improvement
 #define USE_UNROLLED_REDUCE 1
 
 // some things we track..
@@ -608,8 +608,6 @@ GLR::GLR(UserActions *user, ParseTables *t)
     lexerPtr(NULL),
     activeParsers(),
     parserIndex(NULL),
-    currentTokenType(0),
-    currentTokenValue(NULL),
     parserWorklist(),
     pcsStack(),
     pcsStackHeight(0),
@@ -690,6 +688,9 @@ void GLR::printConfig() const
          
   printf("  allocated-node accounting: %s\n",
          DO_ACCOUNTING? "enabled" : "disabled *");
+
+  printf("  unrolled reduce loop: %s\n",
+         USE_UNROLLED_REDUCE? "enabled *" : "disabled");
 
   printf("  parser index: %s\n",
          #ifdef USE_PARSER_INDEX
@@ -834,19 +835,14 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
       }
     #endif
 
-    // token reclassification
+    // get token type, possibly using token reclassification
     #if USE_RECLASSIFY
-      currentTokenType = userAct->reclassifyToken(lexer.type, lexer.sval);
+      lexer.type = userAct->reclassifyToken(lexer.type, lexer.sval);
     #else     // this is what bccgr does
-      currentTokenType = lexer.type;
-      if (currentTokenType == 1 /*L2_NAME*/) {
-        currentTokenType = 3 /*L2_VARIABLE_NAME*/;
+      if (lexer.type == 1 /*L2_NAME*/) {
+        lexer.type = 3 /*L2_VARIABLE_NAME*/;
       }
     #endif
-    
-    // get other info about the token
-    currentTokenValue = lexer.sval;
-    SOURCELOC( currentTokenLoc = lexer.loc; )
 
   #if USE_MINI_LR
     // try to cache a few values in locals (this didn't help any..)
@@ -871,8 +867,8 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
       StackNode *parser = activeParsers[0];
       xassertdb(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
       ActionEntry action =
-        tables->actionEntry(parser->state, currentTokenType);
-        //actionTable[(parser->state)*numTerms + currentTokenType];
+        tables->actionEntry(parser->state, lexer.type);
+        //actionTable[(parser->state)*numTerms + lexer.type];
 
       // I decode reductions before shifts because:
       //   - they are 4x more common in my C grammar
@@ -896,14 +892,52 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
           #if USE_UNROLLED_REDUCE
             // make sure we don't have to actually do a check-and-resize
             // for any of the unrolled cases
-            xassertdb(toPass.size() >= 3);
+            xassertdb(toPass.size() >= 5);
 
             // What follows is three unrollings of the loop below,
             // labeled "loop for arbitrary rhsLen".  Read that loop
             // before the unrollings here, since I omit the comments
             // here.  In general, this program should be correct
             // whether USE_UNROLLED_REDUCE is set or not.
-            switch (rhsLen) {
+            switch ((unsigned)rhsLen) {    // gcc produces slightly better code if I cast to unsigned first
+              case 5: {
+                SiblingLink &sib = parser->firstSib;
+                toPass[4] = sib.sval;
+                SOURCELOC(
+                  if (sib.loc.validLoc()) {
+                    leftEdge = sib.loc;
+                  }
+                )
+                StackNode *next = sib.sib;
+                xassertdb(next->referenceCount==1);
+                xassertdb(parser->referenceCount==1);
+                parser->decrementAllocCounter();
+                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+                stackNodePool.deallocNoDeinit(parser);
+                parser = next;
+                xassertdb(parser->referenceCount==1);
+                // drop through into next case
+              }
+
+              case 4: {
+                SiblingLink &sib = parser->firstSib;
+                toPass[3] = sib.sval;
+                SOURCELOC(
+                  if (sib.loc.validLoc()) {
+                    leftEdge = sib.loc;
+                  }
+                )
+                StackNode *next = sib.sib;
+                xassertdb(next->referenceCount==1);
+                xassertdb(parser->referenceCount==1);
+                parser->decrementAllocCounter();
+                parser->firstSib.sib.setWithoutUpdateRefct(NULL);
+                stackNodePool.deallocNoDeinit(parser);
+                parser = next;
+                xassertdb(parser->referenceCount==1);
+                // drop through into next case
+              }
+
               case 3: {
                 SiblingLink &sib = parser->firstSib;
                 toPass[2] = sib.sval;
@@ -1119,7 +1153,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
         StackNode *rightSibling = makeStackNode(newState);
         rightSibling->addFirstSiblingLink_noRefCt(
-          parser, currentTokenValue  SOURCELOCARG( currentTokenLoc ) );
+          parser, lexer.sval  SOURCELOCARG( lexer.loc ) );
         // cancelled(2) effect: parser->incRefCt();
 
         // replace 'parser' with 'rightSibling' in the activeParsers list
@@ -1246,7 +1280,7 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
 
     // process this parser
     ActionEntry action =      // consult the 'action' table
-      tables->actionEntry(parser->state, currentTokenType);
+      tables->actionEntry(parser->state, lexerPtr->type);
     int actions = glrParseAction(parser, action, pendingShifts);
 
     // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
@@ -1310,7 +1344,7 @@ void GLR::printParseErrorMessage(StateId lastToDie)
   cout << "Line " << lexerPtr->loc.line
        << ", col " << lexerPtr->loc.col
        << ": Parse error at "
-       << lexerPtr->tokenDescType(currentTokenType)
+       << lexerPtr->tokenDescType(lexerPtr->type)
        << endl;
 
   // removing this for now since keeping it would mean putting
@@ -1862,7 +1896,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
       // do any reduce actions that are now enabled
       ActionEntry action =
-        tables->actionEntry(parser->state, currentTokenType);
+        tables->actionEntry(parser->state, lexerPtr->type);
       doAllPossibleReductions(parser, action, sibLink);
     }
   }
@@ -1899,7 +1933,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 bool GLR::canMakeProgress(StackNode *parser)
 {
   ActionEntry entry =
-    tables->actionEntry(parser->state, currentTokenType);
+    tables->actionEntry(parser->state, lexerPtr->type);
 
   return tables->isShiftAction(entry) ||
          tables->isReduceAction(entry) ||
@@ -1949,9 +1983,9 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
     }
 
     // either way, add the sibling link now
-    D(trsSval << "grabbed token sval " << currentTokenValue << endl);
-    rightSibling->addSiblingLink(leftSibling, currentTokenValue
-                                 SOURCELOCARG( currentTokenLoc ) );
+    D(trsSval << "grabbed token sval " << lexerPtr->sval << endl);
+    rightSibling->addSiblingLink(leftSibling, lexerPtr->sval
+                                 SOURCELOCARG( lexerPtr->loc ) );
                                  
     // adding this sibling link cannot violate the determinDepth
     // invariant of some other node, because all of the nodes created

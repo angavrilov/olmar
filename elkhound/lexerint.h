@@ -18,7 +18,9 @@ public:     // data
   // token classification; this is what the parser will use to
   // make parsing decisions; this code must correspond to something
   // declared in the 'terminals' section of the grammar; when this
-  // is 0, it is the final (end-of-file) token
+  // is 0, it is the final (end-of-file) token; the parser is allowed
+  // to change this for its own purposes, and currently does so for
+  // token reclassification
   int type;
 
   // semantic value; this is what will be passed to the reduction
