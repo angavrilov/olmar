@@ -1217,9 +1217,9 @@ nonterm[IDeclarator*] DirectDeclarator {
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
        [ return new D_array(d, sz); ]
 
-  // precedence grouping
+  // precedence grouping; must be recorded in the AST for disambiguation
   -> "(" d:Declarator ")"
-       [ return d; ]
+       [ return new D_grouping(d); ]
 }
 
 // I choose to encode ctor and dtor names as ordinary PQNames, because
@@ -1322,10 +1322,7 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   //   int foo(int (x));
   // Is the parameter an int, or a function accepting an 'x'?
   //
-  // This is addressed by cppstd 8.2 para 7; the rule given is
-  // a little vague, but I believe it's equivalent to always
-  // preferring D_func over D_name.  So in the above example,
-  // foo's parameter is a function.
+  // This is addressed by cppstd 8.2 para 7; see D_name_tcheck.
   //
   // This ambiguity doesn't show up until ParameterDeclaration, below.
 
@@ -1340,9 +1337,10 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
        [ return new D_array(d, sz); ]
 
-  // precedence grouping
+  // precedence grouping; shouldn't need to record this in AST, but
+  // I will for constency with Declarator
   -> "(" d:AbstractDeclarator ")"
-       [ return d; ]
+       [ return new D_grouping(d); ]
 }
 
 
@@ -1381,36 +1379,11 @@ nonterm[ASTTypeId*] ParameterDeclaration {
   // ambiguity:
   //   int (x)
   // is either type "int" with Declarator "(x)", or 
-  // it could be type "int (f)(x q)" such that "(x)" is an
-  // AbstractDeclaratorOpt
+  // it could be type "int f(x q)" such that "(x)" is an
+  // AbstractDeclarator
   //
-  // I think the right choice is to prefer the function type,
-  // which I should be able to take care of by digging down into
-  // the 'd' sval and find its type.
-
-  //    merge(L,R) [
-  //      if (L->decl->decl->isD_func() &&
-  //          R->decl->decl->isD_name()) {
-  //        return L;    // prefer D_func
-  //      }
-  //      else if (R->decl->decl->isD_func() &&
-  //               L->decl->decl->isD_name()) {
-  //        return R;    // prefer D_func
-  //      }
-  //      else {
-  //        xfailure("unknown ParameterDeclaration ambiguity");
-  //        return L;    // silence warning
-  //      }
-  //    ]
-
-  //    // ensure yield-then-merge won't happen by nullifiying the
-  //    // sval, so that merge will segfault
-  //    dup(n) [ return NULL; ]
-  
-  // oops.. turns out yield-then-merge *does* happen (as detected
-  // by the above), so we've got to represent the ambiguity
+  // see D_name_tcheck in tcheck.cc for resolution
   merge(L,R) [ L->addAmbiguity(R); return L; ]
-
 
   -> RegisterOpt s:TypeSpecifier d:Declarator
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
@@ -1603,7 +1576,7 @@ nonterm[Member*] MemberDeclaration {
   // destructive action on 'spec'
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       [ if (list->firstC()->decl->isD_name() &&
+       [ if (list->firstC()->decl->skipGroups()->isD_name() &&
              !(spec->dflags & (DF_TYPEDEF | DF_STATIC)) &&
              spec->spec->isTS_name()) {
            PQName const *n = spec->spec->asTS_nameC()->name;
@@ -1673,7 +1646,7 @@ nonterm[Member*] MemberDeclaration {
          // does the declarator construct a function type?
          // if not, this might be ambiguous (superclass
          // member publication), so cancel the entire reduction
-         if (!d->decl->isD_func()) {
+         if (!d->decl->skipGroups()->isD_func()) {
            trace("cancel") << loc << ": non-function c/dtor\n";
            return NULL;
          }

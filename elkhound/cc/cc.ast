@@ -147,11 +147,12 @@ class Declaration (
   public void print(PrintEnv &env);
 }
 
+
 // just one complete type; appears in parameter decls and in casts
 class ASTTypeId (
   TypeSpecifier spec,        // "int"
   Declarator decl            // this will be abstract sometimes (e.g. casts)
-) {                                            
+) {
   // FakeList link; use setNext
   public ASTTypeId *next;  ctor next=NULL;
   public void setNext(ASTTypeId *newNext);
@@ -170,18 +171,28 @@ class ASTTypeId (
   }
 
 
-  // typecheck the typeid; if we're in the context of an E_new, then
-  // pass a non-NULL sizeExpr, in which case this function may store a
-  // non-null Expression* corresponding to the 'size' argument in
-  // '*sizeExpr'
-  //
+  // tcheck params for ASTTypeId
+  public struct Tcheck {
+    // when non-NULL, we're in an E_new, and this points to an
+    // Expression* which should be set to the expression which denotes
+    // the number of elements for new[] to allocate
+    Expression **newSizeExpr;
+
+    // when true, this ASTTypeId denotes a parameter; this knowledge
+    // is used for disambiguation
+    bool isParameter;
+
+  public:
+    Tcheck() : newSizeExpr(NULL), isParameter(false) {}
+  };
+
   // the return value is the ASTTypeId* to store in place of the
   // one used to invoke the function, to resolve ambiguities
-  public ASTTypeId *tcheck(Env &env, Expression **sizeExpr);
-  public void mid_tcheck(Env &env, Expression **&sizeExpr);
+  public ASTTypeId *tcheck(Env &env, Tcheck &tc);
+  public void mid_tcheck(Env &env, Tcheck &tc);
 
   public void print(PrintEnv &env);
-  
+
   public Type const *getType() const;      // can use after calling 'tcheck'
 }
 
@@ -191,7 +202,7 @@ class ASTTypeId (
 class PQName {
   public bool hasQualifiers() const { return isPQ_qualifier(); };
 
-  public string qualifierString() const;  
+  public string qualifierString() const;
   public string toString() const;
   public friend stringBuilder& operator<< (stringBuilder &sb, PQName const &obj);
 
@@ -372,44 +383,49 @@ verbatim {
     // however, it need not be the same type as var->type at the
     // end, because var->type might be a function type from a
     // prototype (with the prototype's parameter names) while this
-    // field will be the constructed type with its names
+    // field will be the constructed type with its own names
     Type const *type;
 
     // these are the declflags attached to the outer declaration
     DeclFlags dflags;
     
-    // when this is set to true, we're inside an E_new, so be on
-    // the lookout for the final [size] expression
-    bool in_E_new;
-
     // in a new[] declarator, when we hit the final [size], stash
     // the size's AST node pointer here; then E_new can collect it
     Expression *size_E_new;
 
+    // syntactic context
+    enum Context {
+      CTX_ORDINARY  = 0x0,     // no particular context
+      CTX_E_NEW     = 0x1,     // inside an E_new
+      CTX_PARAM     = 0x2,     // in a parameter declarator
+      CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
+      CTX_GROUP_PARAM = CTX_PARAM | CTX_GROUPING
+    } context;
+
   public:
     DeclaratorTcheck(Type const *t, DeclFlags d)
       : var(NULL), type(t), dflags(d),
-        in_E_new(false), size_E_new(NULL) {}
+        size_E_new(NULL), context(CTX_ORDINARY) {}
     DeclaratorTcheck(DeclaratorTcheck const &obj)
       : var(obj.var), type(obj.type), dflags(obj.dflags),
-        in_E_new(obj.in_E_new), size_E_new(obj.size_E_new) {}
+        size_E_new(obj.size_E_new), context(obj.context) {}
 
     DeclaratorTcheck& operator= (DeclaratorTcheck const &obj) {
       var = obj.var;
       type = obj.type;
       dflags = obj.dflags;
-      in_E_new = obj.in_E_new;
       size_E_new = obj.size_E_new;
+      context = obj.context;
       return *this;
     }
   };
 }
 
 
-// Syntactically, a Declarator is a thing which introduces a name of a
-// declared thing, and also optionally adds type constructors to the
-// base type of the specifier.  It may have an initializing
-// expression, depending on the context.
+// Syntactically, a Declarator introduces a name of a declared thing,
+// and also optionally adds type constructors to the base type of the
+// specifier.  It may have an initializing expression, depending on
+// the context.
 class Declarator (
   IDeclarator decl,                    // syntax of type designation
   Initializer init                     // (nullable) optional data initializer
@@ -471,6 +487,9 @@ class IDeclarator {
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
 
+  // skip any toplevel grouping operators
+  public IDeclarator *skipGroups();
+
   public void print(PrintEnv &env);
 
   // "x" (NULL means abstract declarator or anonymous parameter);
@@ -501,6 +520,11 @@ class IDeclarator {
   // qualifiers on a bitfield name
   -> D_bitfield(SourceLocation loc, PQName /*nullable*/ name,
                 Expression bits);
+                
+  // declarator grouping operator: it's semantically irrelevant
+  // (i.e. equivalent to just 'base' alone), but plays a role in
+  // disambiguation
+  -> D_grouping(IDeclarator base);
 }
 
 // specification of what a function can throw; if an ExceptionSpec

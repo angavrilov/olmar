@@ -327,6 +327,22 @@ PQName const *D_bitfield::getDeclaratorId() const
   return name;
 }
 
+PQName const *D_grouping::getDeclaratorId() const
+{
+  return base->getDeclaratorId();
+}
+
+
+IDeclarator *IDeclarator::skipGroups()
+{
+  if (isD_grouping()) {
+    return asD_grouping()->base->skipGroups();
+  }
+  else {
+    return this;
+  }
+}
+
 
 // ExceptionSpec
 // OperatorDeclarator

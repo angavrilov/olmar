@@ -594,45 +594,8 @@ void Declaration::tcheck(Env &env)
     }
   }
 
-  // type described by the specifier; two paths below set it
-  Type const *specType = NULL;
-
-  #if 0     // should be obsoleted by new handling of DF_FORWARD
-  // handle friend declarations of class names
-  if ((dflags & DF_FRIEND) &&
-      spec->isTS_elaborated()) {
-    // cppstd 11.4 talks about friendship.  I don't fully understand
-    // (how to implement) the rules for local classes, so I'm ignoring
-    // them.  What I will do is follow paragraph 7:
-    //   "A name nominated by a friend declaration shall be accessible
-    //    in the scope of the class containing the friend declaration."
-    // To make this work, I'll temporarily pull off the topmost scope,
-    // process the specifier, then put it back on.
-    Scope *scope = env.scope();
-    if (!scope->curCompound) {
-      // need to avoid pulling off the scope if there's only one
-      env.error("you can only attach `friend' to class members");
-      return;
-    }
-    else {
-      env.retractScope(scope);
-    }
-
-    specType = spec->tcheck(env);
-
-    env.extendScope(scope);
-
-    // TODO: Of course, I'm ignoring the access control implications
-    // of friendship.
-  }
-  #else
-  if (0) {}
-  #endif
-
-  else {
-    // usual path, check the specifier in the prevailing environment
-    specType = spec->tcheck(env, dflags);
-  }
+  // check the specifier in the prevailing environment
+  Type const *specType = spec->tcheck(env, dflags);
 
   // ---- the following code is adopted from tcheckFakeExprList ----
   // (I couldn't just use the same code, templatized as necessary,
@@ -668,63 +631,33 @@ int countD_funcs(ASTTypeId const *n)
   return ct;
 }
 
-ASTTypeId *ASTTypeId::tcheck(Env &env, Expression **sizeExpr)
+ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 {
   if (!ambiguity) {
-    mid_tcheck(env, sizeExpr);
+    mid_tcheck(env, tc);
     return this;
   }
 
-  // the only ambiguity I'm aware of is something like
-  //   int f(int (x))
-  // which pits a redundantly-parenthesizes D_name against
-  // a D_func with a missing name, and my reading of the
-  // spec [cppstd 8.2 para 7] is we always prefer D_func
-  //
-  // no, we only prefer D_func if it checks; the example in 8.2
-  // needs that.  so I've got to use the full resolution mechanism..
-  //
-  // It turns out that simply preferring D_func to D_name is
-  // not enough; for example
-  //   int p(int (q)());
-  // the choice is between D_func->D_func->D_name and D_func->D_name.
-  // Going by what the spec says, preferring simple-type-specifier to
-  // declarator-id, we want D_func->D_func->D_name.  So I'm going
-  // to count the # of D_funcs in a row and prefer the one with more.
-
-  ASTTypeId *L = this;
-  ASTTypeId *R = ambiguity;
-  if (R->ambiguity) {
-    xfailure("ambiguous ASTTypeId with more than two possibilities");
-  }
-
-  int L_depth = countD_funcs(L);
-  int R_depth = countD_funcs(R);
-
-  if (L_depth > R_depth) {
-    // already in priority order
-    return resolveAmbiguity(L, env, "ASTTypeId", true /*priority*/, sizeExpr);
-  }
-  else if (R_depth > L_depth) {
-    // swap order
-    L->ambiguity = NULL;
-    R->ambiguity = L;
-    return resolveAmbiguity(R, env, "ASTTypeId", true /*priority*/, sizeExpr);
-  }
-  else {
-    xfailure("unknown ASTTypeId ambiguity; equal D_func depths");
-    return this;   // silence warning
-  }
+  return resolveAmbiguity(this, env, "ASTTypeId", false /*priority*/, tc);
 }
 
-void ASTTypeId::mid_tcheck(Env &env, Expression **&sizeExpr)
+void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
+  // check type specifier
   Type const *specType = spec->tcheck(env, DF_NONE);
+                         
+  // pass contextual info to declarator
   DeclaratorTcheck dt(specType, DF_NONE);
-  dt.in_E_new = (sizeExpr? true : false);
+  dt.context = tc.newSizeExpr? DeclaratorTcheck::CTX_E_NEW :
+               tc.isParameter? DeclaratorTcheck::CTX_PARAM :
+                               DeclaratorTcheck::CTX_ORDINARY;
+
+  // check declarator
   decl = decl->tcheck(env, dt);
-  if (sizeExpr) {
-    *sizeExpr = dt.size_E_new;
+                     
+  // retrieve add'l info from declarator's tcheck struct
+  if (tc.newSizeExpr) {
+    *(tc.newSizeExpr) = dt.size_E_new;
   }
 }
 
@@ -1561,7 +1494,8 @@ Type const *makeConversionOperType(Env &env, OperatorName *o,
   else {
     ON_conversion *c = o->asON_conversion();
 
-    c->type = c->type->tcheck(env, NULL /*sizeExpr*/);
+    ASTTypeId::Tcheck tc;
+    c->type = c->type->tcheck(env, tc);
     Type const *destType = c->type->getType();
 
     // need a function which returns 'destType', but has the
@@ -1734,6 +1668,23 @@ realStart:
       // turn off the decl flag because it shouldn't end up
       // in the final Variable
       dt.dflags = (DeclFlags)(dt.dflags & ~DF_FRIEND);
+    }
+  }
+
+  // ambiguous grouped declarator in a paramter list?
+  if (dt.context == DeclaratorTcheck::CTX_GROUP_PARAM) {
+    // the name must *not* correspond to an existing type; this is
+    // how I implement cppstd 8.2 para 7
+    Variable *v = env.lookupPQVariable(name);
+    if (v && v->hasFlag(DF_TYPEDEF)) {
+      trace("disamb") << "discarding grouped param declarator of type name\n";
+      env.error(stringc
+        << "`" << *name << "' is the name of a type, but was used as "
+        << "a grouped parameter declarator; ambiguity resolution should "
+        << "pick a different interpretation, so if the end user ever "
+        << "sees this message then there's a bug in my typechecker",
+        true /*disambiguating*/);
+      goto makeDummyVar;
     }
   }
 
@@ -2061,6 +2012,10 @@ void D_pointer::tcheck(Env &env, DeclaratorTcheck &dt)
     dt.type = makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
   }
 
+  // turn off CTX_GROUPING
+  dt.context =
+    (DeclaratorTcheck::Context)(dt.context & ~DeclaratorTcheck::CTX_GROUPING);
+
   // recurse
   base->tcheck(env, dt);
 }
@@ -2068,21 +2023,26 @@ void D_pointer::tcheck(Env &env, DeclaratorTcheck &dt)
 
 // this code adapted from tcheckFakeExprList; always passes NULL
 // for the 'sizeExpr' argument to ASTTypeId::tcheck
-FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(FakeList<ASTTypeId> *list, Env &env)
+FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
+  FakeList<ASTTypeId> *list, Env &env, bool isParameter)
 {
   if (!list) {
     return list;
   }
 
+  // context for checking (ok to share these across multiple ASTTypeIds)
+  ASTTypeId::Tcheck tc;
+  tc.isParameter = isParameter;
+
   // check first ASTTypeId
   FakeList<ASTTypeId> *ret
-    = FakeList<ASTTypeId>::makeList(list->first()->tcheck(env, NULL /*sizeExpr*/));
+    = FakeList<ASTTypeId>::makeList(list->first()->tcheck(env, tc));
 
   // check subsequent expressions, using a pointer that always
   // points to the node just before the one we're checking
   ASTTypeId *prev = ret->first();
   while (prev->next) {
-    prev->next = prev->next->tcheck(env, NULL /*sizeExpr*/);
+    prev->next = prev->next->tcheck(env, tc);
 
     prev = prev->next;
   }
@@ -2117,7 +2077,7 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
   paramScope->isParameterListScope = true;
 
   // typecheck the parameters; this disambiguates any ambiguous type-ids
-  params = tcheckFakeASTTypeIdList(params, env);
+  params = tcheckFakeASTTypeIdList(params, env, true /*isParameter*/);
 
   // add them, now that the list has been disambiguated
   int ct=0;
@@ -2175,7 +2135,7 @@ void D_func::tcheck(Env &env, DeclaratorTcheck &dt)
 
 
 void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
-{                     
+{
   ArrayType *at;
 
   // check restrictions in cppstd 8.3.4 para 1
@@ -2203,7 +2163,7 @@ void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
     size->tcheck(size, env);
   }
 
-  if (dt.in_E_new) {
+  if (dt.context == DeclaratorTcheck::CTX_E_NEW) {
     // we're in a new[] (E_new) type-id
     if (!size) {
       env.error("new[] must have an array size specified");
@@ -2269,7 +2229,7 @@ void D_bitfield::tcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
 
-  if (name) {         
+  if (name) {
     // shouldn't be necessary, but won't hurt
     name->tcheck(env);
   }
@@ -2292,6 +2252,17 @@ void D_bitfield::tcheck(Env &env, DeclaratorTcheck &dt)
 }
 
 
+void D_grouping::tcheck(Env &env, DeclaratorTcheck &dt)
+{
+  // the whole purpose of this AST node is to communicate
+  // this one piece of context
+  dt.context =
+    (DeclaratorTcheck::Context)(dt.context | DeclaratorTcheck::CTX_GROUPING);
+
+  base->tcheck(env, dt);
+}
+
+
 // PtrOperator
 
 // ------------------- ExceptionSpec --------------------
@@ -2300,8 +2271,8 @@ FunctionType::ExnSpec *ExceptionSpec::tcheck(Env &env)
   FunctionType::ExnSpec *ret = new FunctionType::ExnSpec;
 
   // typecheck the list, disambiguating it
-  types = tcheckFakeASTTypeIdList(types, env);
-  
+  types = tcheckFakeASTTypeIdList(types, env, false /*isParameter*/);
+
   // add the types to the exception specification
   FAKELIST_FOREACH_NC(ASTTypeId, types, iter) {
     ret->types.append(iter->getType());
@@ -2625,7 +2596,8 @@ void CN_expr::tcheck(Env &env)
 
 void CN_decl::tcheck(Env &env)
 {
-  typeId = typeId->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  typeId = typeId->tcheck(env, tc);
   
   // TODO: verify the type of the variable declared makes sense
   // in a boolean or switch context
@@ -2637,7 +2609,8 @@ void HR_type::tcheck(Env &env)
 {           
   Scope *scope = env.enterScope();
 
-  typeId = typeId->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  typeId = typeId->tcheck(env, tc);
   body->tcheck(env);
 
   env.exitScope(scope);
@@ -3026,7 +2999,8 @@ Type const *E_deref::itcheck(Env &env)
 
 Type const *E_cast::itcheck(Env &env)
 {
-  ctype = ctype->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  ctype = ctype->tcheck(env, tc);
   expr->tcheck(expr, env);
   
   // TODO: check that the cast makes sense
@@ -3059,7 +3033,8 @@ Type const *E_comma::itcheck(Env &env)
 
 Type const *E_sizeofType::itcheck(Env &env)
 {
-  atype = atype->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  atype = atype->tcheck(env, tc);
   Type const *t = atype->getType();
   size = t->reprSize();
 
@@ -3088,7 +3063,9 @@ Type const *E_new::itcheck(Env &env)
 
   // typecheck the typeid in E_new context; it returns the
   // array size for new[] (if any)
-  atype = atype->tcheck(env, &arraySize /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  tc.newSizeExpr = &arraySize;
+  atype = atype->tcheck(env, tc);
 
   // grab the type of the objects to allocate
   Type const *t = atype->getType();
@@ -3131,7 +3108,8 @@ Type const *E_throw::itcheck(Env &env)
 
 Type const *E_keywordCast::itcheck(Env &env)
 {
-  type = type->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  type = type->tcheck(env, tc);
   expr->tcheck(expr, env);
   
   // TODO: make sure that 'expr' can be cast to 'type'
@@ -3150,7 +3128,8 @@ Type const *E_typeidExpr::itcheck(Env &env)
 
 Type const *E_typeidType::itcheck(Env &env)
 {
-  type = type->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  type = type->tcheck(env, tc);
   return env.type_info_const_ref;
 }
 
@@ -3379,7 +3358,8 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   // would make no sense, so I'm going to check the
   // default type first
   if (defaultType) {
-    defaultType = defaultType->tcheck(env, NULL /*sizeExpr*/);
+    ASTTypeId::Tcheck tc;
+    defaultType = defaultType->tcheck(env, tc);
   }
 
   if (!name) {
@@ -3418,5 +3398,6 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 // -------------------- TemplateArgument ------------------
 void TA_type::tcheck(Env &env)
 {
-  type = type->tcheck(env, NULL /*sizeExpr*/);
+  ASTTypeId::Tcheck tc;
+  type = type->tcheck(env, tc);
 }
