@@ -90,8 +90,11 @@ string Variable::toCStringAsParameter() const
 {
   stringBuilder sb;
   if (type->isTypeVariable()) {
-    // type variable's name, then the parameter's name
-    sb << type->asTypeVariable()->name << " " << name;
+    // type variable's name, then the parameter's name (if any)
+    sb << type->asTypeVariable()->name;
+    if (name) {
+      sb << " " << name;
+    }
   }
   else {
     sb << type->toCString(name);

@@ -640,7 +640,14 @@ nonterm(enum BinaryOp) AssignmentOperator {
 // in the meanings is great enough that I think they should be
 // separate, as they are
 nonterm(Expression*) Expression {
-  -> ae:AssignmentExpression 
+  // ambiguous:
+  //   a < b , c > (d)
+  // could either be a comma-exp with two relationals, or
+  // it could be creating an instance of template a with template
+  // arguments b,c and ctor argument d
+  fun merge(L,R) { L->addAmbiguity(R); return L; }
+
+  -> ae:AssignmentExpression
        { return ae; }
 
   -> e:Expression "," ae:AssignmentExpression 
