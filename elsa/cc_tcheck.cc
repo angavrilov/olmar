@@ -286,29 +286,13 @@ void Function::tcheck(Env &env, Variable *instV)
 {                               
   bool checkBody = env.checkFunctionBodies;
 
-  if (env.lang.treatExternInlineAsPrototype &&
-      dflags >= (DF_EXTERN | DF_INLINE)) {
-    // gcc treats extern-inline function definitions specially:
-    //
-    //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html
-    //
-    // I will essentially ignore them (just treat them like a
-    // prototype), thus modeling the dynamic semantics of gcc when
-    // optimization is turned off.  My nominal stance is that any
-    // program that has an extern-inline definition that is different
-    // from the ordinary (external) definition has undefined behavior.
-    // A possible future extension is to check that such definitions
-    // agree.
-    checkBody = false;
-  }
-
   if (env.secondPassTcheck) {
     // for the second pass, just force the use of the
     // variable computed in the first pass
     xassert(!instV);
     xassert(nameAndParams->var);
     instV = nameAndParams->var;
-    
+
     if (checkBody) {
       instV->setFlag(DF_DEFINITION);
     }
@@ -323,13 +307,31 @@ void Function::tcheck(Env &env, Variable *instV)
   // get return type
   Type *retTypeSpec = retspec->tcheck(env, dflags);
 
+  // supply DF_DEFINITION?
+  DeclFlags dfDefn = (checkBody? DF_DEFINITION : DF_NONE);
+  if (env.lang.treatExternInlineAsPrototype &&
+      dflags >= (DF_EXTERN | DF_INLINE)) {
+    // gcc treats extern-inline function definitions specially:
+    //
+    //   http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Inline.html
+    //
+    // I will essentially ignore them (just treat them like a
+    // prototype), thus modeling the dynamic semantics of gcc when
+    // optimization is turned off.  My nominal stance is that any
+    // program that has an extern-inline definition that is different
+    // from the ordinary (external) definition has undefined behavior.
+    // A possible future extension is to check that such definitions
+    // agree.
+    dfDefn = DF_NONE;
+  }
+
   // construct the full type of the function; this will set
   // nameAndParams->var, which includes a type, but that type might
   // use different parameter names if there is already a prototype;
   // dt.type will come back with a function type which always has the
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
-                        dflags | (checkBody? DF_DEFINITION : DF_NONE),
+                        dflags | dfDefn,
                         DC_FUNCTION);
   dt.existingVar = instV;
   nameAndParams = nameAndParams->tcheck(env, dt);
@@ -547,26 +549,32 @@ void Function::tcheckBody(Env &env)
   // stop extending the named scope, if there was one
   env.retractScopeSeq(qualifierScopes);
 
-  // this is a function definition; add a pointer from the
-  // associated Variable
-  //
-  // WARNING: Due to the way function templates are instantiated it is
-  // important to NOT move this line ABOVE this other line which is
-  // above.
-  //    if (!checkBody) {
-  //      return;
-  //    }
-  // That is, it is important for the var of a function Declarator to
-  // not have a funcDefn until after its whole body has been
-  // typechecked.  See comment after 'if (!baseSyntax)' in
-  // Env::instantiateTemplate()
-  //
-  // UPDATE: I've changed this invariant, as I need to point the
-  // funcDefn at the definition even if the body has not been tchecked.
-  if (nameAndParams->var->funcDefn) {
-    xassert(nameAndParams->var->funcDefn == this);
-  } else {
-    nameAndParams->var->funcDefn = this;
+  if (env.lang.treatExternInlineAsPrototype &&
+      dflags >= (DF_EXTERN | DF_INLINE)) {
+    // more extern-inline nonsense; skip 'funcDefn' setting
+  }
+  else {
+    // this is a function definition; add a pointer from the
+    // associated Variable
+    //
+    // WARNING: Due to the way function templates are instantiated it is
+    // important to NOT move this line ABOVE this other line which is
+    // above.
+    //    if (!checkBody) {
+    //      return;
+    //    }
+    // That is, it is important for the var of a function Declarator to
+    // not have a funcDefn until after its whole body has been
+    // typechecked.  See comment after 'if (!baseSyntax)' in
+    // Env::instantiateTemplate()
+    //
+    // UPDATE: I've changed this invariant, as I need to point the
+    // funcDefn at the definition even if the body has not been tchecked.
+    if (nameAndParams->var->funcDefn) {
+      xassert(nameAndParams->var->funcDefn == this);
+    } else {
+      nameAndParams->var->funcDefn = this;
+    }
   }
 }
 
