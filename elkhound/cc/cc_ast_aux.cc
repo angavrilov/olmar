@@ -5,6 +5,45 @@
 #include "strutil.h"        // plural
 
 
+// ------------ generic ambiguity printing ----------------
+template <class NODE>
+void genericPrintAmbiguities(NODE const *ths, char const *typeName,
+                             ostream &os, int indent)
+{
+  // count the number of alternatives
+  int numAlts = 0;
+  {
+    for (NODE const *p = ths; p != NULL; p = p->ambiguity) {
+      numAlts++;
+    }
+  }
+
+  // print a visually obvious header
+  ind(os, indent) << "--------- ambiguous " << typeName << ": "
+                  << numAlts << " alternatives ---------\n";
+
+  // walk down the list of ambiguities, printing each one by
+  // temporarily nullifying the 'ambiguity' pointer; cast away
+  // the constness so I can do the temporary modification
+  int ct=0;
+  for (NODE *e = const_cast<NODE*>(ths);
+       e != NULL;
+       e = e->ambiguity) {
+    if (ct++ > 0) {
+      ind(os, indent) << "---- or ----\n";
+    }
+
+    NODE *tempAmbig = e->ambiguity;
+    const_cast<NODE*&>(e->ambiguity) = NULL;
+    e->debugPrint(os, indent+2);
+    const_cast<NODE*&>(e->ambiguity) = tempAmbig;
+  }
+
+  ind(os, indent) << "--------- end of ambiguous " << typeName
+                  << " ---------\n";
+}
+
+
 // TranslationUnit
 // TopForm
 // Function
@@ -103,10 +142,52 @@ void Enumerator::printExtras(ostream &os, int indent) const
 
 
 // ---------------------- Declarator ---------------------------
+void Declarator::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "Declarator", os, indent);
+  
+  // check 'next' fields
+  for (Declarator *d = ambiguity; d != NULL; d = d->ambiguity) {
+    xassert(this->next == d->next);
+  }
+}
+
+
+void Declarator::addAmbiguity(Declarator *alt)
+{ 
+  // see Expression::addAmbiguity for comments; this code is
+  // mostly copied from there
+
+  xassert(alt->next == NULL);
+  
+  if (next) {
+    cout << "note: ambiguous declarator leader is already on a list...\n";
+  }
+  
+  alt->next = next;
+  
+  alt->ambiguity = ambiguity;
+  ambiguity = alt;
+}
+
+
+void Declarator::setNext(Declarator *newNext)
+{
+  // see Expression::setNext
+
+  xassert(next == NULL);
+  next = newNext;
+
+  if (ambiguity) {
+    ambiguity->setNext(newNext);
+  }
+}
+
+
 void Declarator::printExtras(ostream &os, int indent) const
-{                    
+{
   if (var) {
-    ind(os, indent) << "var: " 
+    ind(os, indent) << "var: "
       << toString(var->flags) << (var->flags? " " : "")
       << var->type->toCString(var->name);
 
@@ -121,19 +202,14 @@ void Declarator::printExtras(ostream &os, int indent) const
 
 
 // --------------------- IDeclarator ---------------------------
-void IDeclarator::printExtras(ostream &os, int indent) const
-{
-  ind(os, indent) << "stars:";
-  FAKELIST_FOREACH(PtrOperator, stars, iter) {
-    os << " " << iter->toString();
-  }
-  os << "\n";
-}
-
-
 PQName const *D_name::getDeclaratorId() const
 {
   return name;
+}
+
+PQName const *D_pointer::getDeclaratorId() const
+{
+  return base->getDeclaratorId();
 }
 
 PQName const *D_func::getDeclaratorId() const
@@ -154,56 +230,10 @@ PQName const *D_bitfield::getDeclaratorId() const
 }
 
 
-// -------------------- PtrOperator --------------------
-string PtrOperator::toString() const
-{
-  stringBuilder ret;
-  ret << (isPtr? "*" : "&");
-
-  if (cv) {
-    ret << " " << ::toString(cv);
-  }
-
-  return ret;
-}
-
-
 // ExceptionSpec
 // OperatorDeclarator
 
 // ---------------------- Statement --------------------
-template <class NODE>
-void genericPrintAmbiguities(NODE const *ths, char const *typeName,
-                             ostream &os, int indent)
-{
-  // count the number of alternatives
-  int numAlts = 0;
-  {
-    for (NODE const *p = ths; p != NULL; p = p->ambiguity) {
-      numAlts++;
-    }
-  }
-
-  // print a visually obvious header
-  ind(os, indent) << "--------- ambiguous " << typeName << ": "
-                  << numAlts << " alternatives ---------\n";
-
-  // walk down the list of ambiguities, printing each one by
-  // temporarily nullifying the 'ambiguity' pointer; cast away
-  // the constness so I can do the temporary modification
-  for (NODE *e = const_cast<NODE*>(ths);
-       e != NULL;
-       e = e->ambiguity) {
-    NODE *tempAmbig = e->ambiguity;
-    const_cast<NODE*&>(e->ambiguity) = NULL;
-    e->debugPrint(os, indent+2);
-    const_cast<NODE*&>(e->ambiguity) = tempAmbig;
-  }
-
-  ind(os, indent) << "--------- end of ambiguous " << typeName
-                  << " ---------\n";
-}
-
 void Statement::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Statement", os, indent);

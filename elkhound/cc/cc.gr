@@ -277,7 +277,7 @@ nonterm[PQName*] IdExpression_no_colon_colon {
 
 
 nonterm[Expression*] PostfixExpression {
-  // ambiguity:
+  // ambiguous:
   //   x(y)
   // can either be a function call (x is a function)
   // or a constructor call (x is a type)
@@ -438,9 +438,19 @@ nonterm[ASTTypeId*] NewTypeId {
 
 // NewDeclaratorOpt is, as a regular expression:
 //   (PtrOperator)*  ("[" Expression "]"  ("[" ConstExpression "]")* )?
+// where PtrOperator is
+//   "*" CVQualifierSeqOpt, or
+//   "&"
+// though I cannot find any explanation in the spec of whether "&" is
+// in fact allowed (it doesn't make sense to me) so I do not allow it
+// (so I'll see the counterexample syntax if it exists)
 nonterm[IDeclarator*] NewDeclaratorOpt {
-  -> empty                               [ return new D_name(loc, NULL); ]
-  -> p:PtrOperator d:NewDeclaratorOpt    [ d->stars = d->stars->prepend(p); return d; ]
+  -> empty
+       [ return new D_name(loc, NULL); ]
+
+  // pointers
+  -> "*" cv:CVQualifierSeqOpt d:NewDeclaratorOpt
+       [ return new D_pointer(true /*isPtr*/, cv, d); ]
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               [ return d; ]
@@ -583,7 +593,7 @@ nonterm[Expression*] ConstantExpression -> e:ConditionalExpression
 // ------ A.5 Statements ------
 // labeled-statement
 nonterm[Statement*] Statement {
-  // ambiguity:
+  // ambiguous:
   //   x(y);
   // can either be an Expression statement (function call)
   // or a BlockDeclaration (declare variable y, of type x)
@@ -999,7 +1009,8 @@ nonterm[FakeList<Declarator>*] InitDeclaratorList {
   -> d:InitDeclarator
        [ return FakeList<Declarator>::makeList(d); ]
   -> d:InitDeclarator "," list:InitDeclaratorList
-       [ return list->prepend(d); ]
+       [ d->setNext(list->first());
+         return FakeList<Declarator>::makeList(d); ]
 }
 
 nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
@@ -1011,6 +1022,13 @@ nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
 
 
 nonterm[Declarator*] InitDeclarator {
+  // ambiguous:
+  //   int f(x *y);
+  // could be declaring a variable called "f" with ctor-initializer "(x*y)",
+  // or it could be declaring a function called "f" which accepts a pointer
+  // to an 'x' as a parameter
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
+
   -> d:Declarator                       // (int)  x
        [ return new Declarator(d, NULL); ]
 
@@ -1019,14 +1037,14 @@ nonterm[Declarator*] InitDeclarator {
 }
 
 nonterm[Initializer*] Initializer {
-  -> "=" i:InitializerClause 
+  -> "=" i:InitializerClause
        [ return i; ]
 
-  // this causes an ambiguity with
-  //   int fileno(FILE *f);
-  // because it could be multiplication.. handling it isn't that
-  // hard, but for now let's just take out this rule
-  //-> "(" ExpressionList ")" ;          // ctor args
+  -> "(" args:ExpressionList ")"
+       [ return new IN_ctor(args); ]
+       
+  // NOTE: there is no alternative for "(" ")"!  
+  // see [cppstd. sec. 8.5 para 8]
 }
 
 nonterm[Initializer*] InitializerClause {
@@ -1066,10 +1084,13 @@ nonterm[IN_compound*] InitializerList {
 //   corresponds to the grammar name "Declarator"
 // this name shift simply reflects the different interests of the
 // parser vs. subsequent phases of analysis
+//
+// regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm[IDeclarator*] Declarator {
-  // (PtrOperator)* DirectDeclarator
-  -> p:PtrOperator d:Declarator
-       [ d->stars = d->stars->prepend(p); return d; ]
+  -> "*" cv:CVQualifierSeqOpt d:Declarator
+       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "&" d:Declarator
+       [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
 
   -> d:DirectDeclarator
        [ return d; ]
@@ -1134,11 +1155,16 @@ nonterm[Expression*] ConstantExpressionOpt {
 }
 
 
-nonterm[PtrOperator*] PtrOperator {
-  -> "*" q:CVQualifierSeqOpt   [ return new PtrOperator(q, true /*isPtr*/); ]
-  -> "&"                       [ return new PtrOperator(CV_NONE, false /*isPtr*/); ]
+// I'll leave this here because it's harmless and the cppstd has it;
+// also, it reminds me that every place I've substituted PtrOperator
+// into the syntaxes elsewhere has an implicit TODO for the
+// pointer-to-member syntax
+nonterm PtrOperator {
+  -> "*" q:CVQualifierSeqOpt ;
+  -> "&"                     ;
 
-  //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;     // pointer to member
+  // TODO: pointer to member
+  //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
 }
 
 
@@ -1156,46 +1182,6 @@ nonterm[enum CVFlags] CVQualifier {
   -> "const"        [ return CV_CONST; ]
   -> "volatile"     [ return CV_VOLATILE; ]
   -> "owner"        [ return CV_OWNER; ]
-}
-
-
-// -- declarators in typedefs --
-// these are separated out because the parser wants to track the
-// introduction of type names; this is only for the lexer hack,
-// so for now the separation is not used
-nonterm[FakeList<Declarator>*] TypedefDeclaratorList {
-  -> d:TypedefDeclarator
-       [ return FakeList<Declarator>::makeList(new Declarator(d, NULL)); ]
-  -> d:TypedefDeclarator "," list:TypedefDeclaratorList
-       [ return list->prepend(new Declarator(d, NULL)); ]
-}
-
-nonterm[IDeclarator*] TypedefDeclarator {
-  -> p:PtrOperator d:TypedefDeclarator
-       [ d->stars = d->stars->prepend(p); return d; ]
-  -> d:DirectTypedefDeclarator
-       [ return d; ]
-}
-
-nonterm[IDeclarator*] DirectTypedefDeclarator {
-  -> n:IdExpression_no_colon_colon [
-       // TYPE/NAME
-       D("defined new typedef name " << n->toString());
-       addType(n);
-       return new D_name(loc, n);
-     ]
-
-  -> d:DirectTypedefDeclarator
-     "(" args:ParameterDeclarationClause ")"
-     cv:CVQualifierSeqOpt
-     e:ExceptionSpecificationOpt
-       [ return new D_func(loc, d, args, cv, e); ]
-
-  -> d:DirectTypedefDeclarator "[" sz:ConstantExpressionOpt "]"
-       [ return new D_array(d, sz); ]
-
-  -> "(" d:TypedefDeclarator ")"
-       [ return d; ]
 }
 
 
@@ -1217,8 +1203,10 @@ nonterm[IDeclarator*] AbstractDeclaratorOpt {
 
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
-  -> p:PtrOperator d:AbstractDeclaratorOpt
-       [ d->stars = d->stars->prepend(p); return d; ]
+  -> "*" cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
+       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "&" d:AbstractDeclaratorOpt
+       [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
 
   -> d:DirectAbstractDeclarator
        [ return d; ]
@@ -1319,7 +1307,7 @@ nonterm[Function*] FunctionDefinition {
   // functions always have at least two words before "(" while ctors
   // always have just one..
 
-  // ambiguity:
+  // ambiguous:
   //   F::G() {}
   // can either be a definition of F's constructor (then G equals F), or
   // it can be a definition of a function G in the global scope, with
@@ -1483,7 +1471,8 @@ nonterm[FakeList<Declarator>*] MemberDeclaratorList {
   -> d:MemberDeclarator
        [ return FakeList<Declarator>::makeList(d); ]
   -> d:MemberDeclarator "," list:MemberDeclaratorList
-       [ return list->prepend(d); ]
+       [ d->setNext(list->first());
+         return FakeList<Declarator>::makeList(d); ]
 }
 
 // this returns a full Declarator, instead of an IDeclarator, because
@@ -1565,8 +1554,11 @@ nonterm[ASTTypeId*] ConversionTypeId {
 nonterm[IDeclarator*] ConversionDeclaratorOpt {
   -> empty                                    
        [ return new D_name(loc, NULL /*name*/); ]
-  -> p:PtrOperator d:ConversionDeclaratorOpt  
-       [ d->stars = d->stars->prepend(p); return d; ]
+       
+  -> "*" cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
+       [ return new D_pointer(true /*isPtr*/, cv, d); ]
+  -> "&" d:ConversionDeclaratorOpt
+       [ return new D_pointer(false /*isPtr*/, CV_NONE, d); ]
 }
 
 

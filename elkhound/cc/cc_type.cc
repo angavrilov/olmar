@@ -825,6 +825,12 @@ int CVAtomicType::reprSize() const
 }
 
 
+bool CVAtomicType::containsErrors() const
+{
+  return isError();    // i.e. is SimpleType(ST_ERROR)
+}
+
+
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type const *a)
   : op(o), cv(c), atType(a) 
@@ -886,10 +892,27 @@ int PointerType::reprSize() const
 }
 
 
+bool PointerType::containsErrors() const
+{
+  return atType->containsErrors();
+}
+
+
 // -------------------- FunctionType::ExnSpec --------------
 FunctionType::ExnSpec::~ExnSpec()
 {
   types.removeAll();
+}
+
+
+bool FunctionType::ExnSpec::containsErrors() const
+{
+  SFOREACH_OBJLIST(Type const, types, iter) {
+    if (iter.data()->containsErrors()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -1108,6 +1131,26 @@ int FunctionType::reprSize() const
 }
 
 
+bool parameterListContainsErrors(ObjList<Parameter> const &params)
+{
+  FOREACH_OBJLIST(Parameter, params, iter) {
+    if (iter.data()->type->containsErrors()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool FunctionType::containsErrors() const
+{
+  return retType->containsErrors() ||
+         parameterListContainsErrors(params) ||
+         (exnSpec && exnSpec->containsErrors()) ||
+         (templateParams && templateParams->containsErrors());
+}
+
+
 // -------------------- Parameter -----------------
 string Parameter::toString() const
 {
@@ -1129,7 +1172,7 @@ TemplateParams::~TemplateParams()
 
 
 string TemplateParams::toString() const
-{ 
+{
   stringBuilder sb;
   sb << "template <";
   int ct=0;
@@ -1156,8 +1199,14 @@ bool TemplateParams::equalTypes(TemplateParams const *obj) const
       return false;
     }
   }
-  
+
   return iter1.isDone() == iter2.isDone();
+}
+
+
+bool TemplateParams::containsErrors() const
+{
+  return parameterListContainsErrors(params);
 }
 
 
@@ -1249,6 +1298,12 @@ int ArrayType::reprSize() const
     cout << "warning: reprSize of a sizeless array\n";
     return 0;
   }
+}
+
+
+bool ArrayType::containsErrors() const
+{
+  return eltType->containsErrors();
 }
 
 
@@ -1374,4 +1429,18 @@ void cc_type_checker()
     assert(st && st->type == i);
   }
   #endif // NDEBUG
+}
+
+
+// --------------- debugging ---------------
+char type_toString_buf[80];
+
+int type_toString(Type const *t)
+{
+  string s = t->toString();                         
+  int len = s.length();
+  if (len > 79) len=79;
+  memcpy(type_toString_buf, s.pcharc(), len);
+  type_toString_buf[len] = 0;
+  return len;   // might help user notice a truncated type desc..
 }

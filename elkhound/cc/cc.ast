@@ -281,6 +281,17 @@ verbatim {
   public:
     DeclaratorTcheck(Type const *t, DeclFlags d)
       : var(NULL), type(t), dflags(d), allowVarArraySize(false) {}
+    DeclaratorTcheck(DeclaratorTcheck const &obj)
+      : var(obj.var), type(obj.type), dflags(obj.dflags),
+        allowVarArraySize(obj.allowVarArraySize) {}
+
+    DeclaratorTcheck& operator= (DeclaratorTcheck const &obj) {
+      var = obj.var;
+      type = obj.type;
+      dflags = obj.dflags;
+      allowVarArraySize = obj.allowVarArraySize;
+      return *this;
+    }
   };
 }
 
@@ -295,8 +306,24 @@ class Declarator (
 ) {
   public Variable *var;                // (serf) computed information: name, type, etc.
   ctor var=NULL;
+                                                       
+  // FakeList link; use 'setNext' to set 'next'
+  public Declarator *next;  ctor next=NULL;
+  public void setNext(Declarator *newNext);    
+  
+  // ambiguity representation
+  public Declarator *ambiguity;  ctor ambiguity=NULL;
+  public void addAmbiguity(Declarator *alternative);
 
-  public Declarator *next;  ctor next=NULL;     // FakeList link
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
 
   public void printExtras(ostream &os, int indent) const;
   custom debugPrint { printExtras(os, indent); }
@@ -307,7 +334,11 @@ class Declarator (
   // refers to something that is *already* declared (like a function
   // with a prior prototype), the 'var' field will be shared among the
   // various declarations; if not, put it into the environment
-  public void tcheck(Env &env, DeclaratorTcheck &dt);
+  //
+  // the return value specifies which of possibly ambiguous
+  // alternatives was selected
+  public /*no_ignore*/ Declarator *tcheck(Env &env, DeclaratorTcheck &dt);
+  public void mid_tcheck(Env &env, DeclaratorTcheck &dt);
 }
 
 
@@ -317,19 +348,10 @@ class Declarator (
 // type constructors are encoded as a (possibly empty) list of pointer
 // constructors, then maybe a function or array type, recursively
 class IDeclarator {
-  public FakeList<PtrOperator> *stars;   // pointer constructors, left to right
-  ctor stars=NULL;
-
-  public void printExtras(ostream &os, int indent) const;
-  custom debugPrint { printExtras(os, indent); }
-
-  // external interface; adds 'stars' before calling 'itcheck';
-  // add the type constructor represented by this IDeclarator to
-  // 'dt.type' and then make a Variable to represent it; put the
-  // variable into the environment if appropriate
-  public void tcheck(Env &env, DeclaratorTcheck &dt);
-
-  pure_virtual void itcheck(Env &env, DeclaratorTcheck &dt);
+  // external interface; add the type constructor represented by this
+  // IDeclarator to 'dt.type' and then make a Variable to represent
+  // it; put the variable into the environment if appropriate
+  pure_virtual void tcheck(Env &env, DeclaratorTcheck &dt);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
@@ -339,6 +361,11 @@ class IDeclarator {
   // (dtor names start with "~"); it's also used for operator names
   -> D_name(SourceLocation loc,
             PQName /*nullable*/ name);
+
+  // "*x" (as in "int *x")
+  -> D_pointer(bool isPtr,  // true for "*", false for "&"
+               CVFlags cv,  // optional qualifiers applied to ptr/ref type
+               IDeclarator base);
 
   // "f(int)"
   -> D_func(SourceLocation loc,
@@ -357,16 +384,6 @@ class IDeclarator {
   // qualifiers on a bitfield name
   -> D_bitfield(SourceLocation loc, PQName /*nullable*/ name,
                 Expression bits);
-}
-
-// stands for a "*" or "&" in the construction of a pointer or
-// reference type
-class PtrOperator (
-  CVFlags cv,          // optional qualifiers applied to ptr/ref type
-  bool isPtr           // true for "*", false for "&"
-) {
-  public PtrOperator *next;  ctor next=NULL;     // FakeList link
-  public string toString() const;
 }
 
 // specification of what a function can throw; if an ExceptionSpec
@@ -423,7 +440,7 @@ class Statement (SourceLocation loc) {
   public void addAmbiguity(Statement *alt);
 
   // print ambiguities
-  public void printAmbiguities(ostream &os, int indent) const;   // cc_tcheck.cc
+  public void printAmbiguities(ostream &os, int indent) const;
   custom preemptDebugPrint {
     if (ambiguity) {
       printAmbiguities(os, indent);
@@ -434,8 +451,8 @@ class Statement (SourceLocation loc) {
 
   // typecheck, and return which Statement is selected from among
   // syntactically ambiguous choices
-  public Statement *tcheck(Env &env);
-  public void mid_tcheck(Env &env) { itcheck(env); };
+  public /*no_ignore*/ Statement *tcheck(Env &env);
+  public void mid_tcheck(Env &env, int &) { itcheck(env); };
 
   pure_virtual void itcheck(Env &env);
 
@@ -492,7 +509,7 @@ class Handler (
 class Expression {
   // FakeList link; since you have to use 'setNext', I'm making
   // 'next' const, and I'll cast it away in 'setNext'
-  public Expression * const next;  
+  public Expression * const next;
   ctor const_cast<Expression*&>(next) = NULL;
   public void setNext(Expression *newNext);
 
@@ -503,7 +520,7 @@ class Expression {
   public void addAmbiguity(Expression *alternative);
 
   // print ambiguities
-  public void printAmbiguities(ostream &os, int indent) const;   // cc_tcheck.cc
+  public void printAmbiguities(ostream &os, int indent) const;
   custom preemptDebugPrint {
     if (ambiguity) {
       printAmbiguities(os, indent);
@@ -516,8 +533,8 @@ class Expression {
   // gets automatically stored in the 'type' field; the return
   // value specifies which of possibly ambiguous alternatives
   // was selected for retention
-  public Expression *tcheck(Env &env);
-  public void mid_tcheck(Env &env);
+  public /*no_ignore*/ Expression *tcheck(Env &env);
+  public void mid_tcheck(Env &env, int &);
 
   // per-type checker; return type this expression eval's to
   pure_virtual Type const *itcheck(Env &env);
@@ -631,13 +648,19 @@ class Initializer {
   // the thing it initializes
   //pure_virtual void tcheck(Env &env, Type const *type);
 
+  // simpler tcheck for now..
+  pure_virtual void tcheck(Env &env);
+
+  // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
-  
+
+  // compound initializer, like "int x[4] = { 1,2,3,4 };
   // using ASTList for performance; some files have initializers
   // with thousands of elements
   -> IN_compound(ASTList<Initializer> inits);
-  
-  pure_virtual void tcheck(Env &env);
+
+  // constructor initializer, like "int x(3);"
+  -> IN_ctor(FakeList<Expression> *args);
 }
 
 // gnu extension to attach particular elements of an initializer list
