@@ -34,6 +34,17 @@ void BPRender::breakLine(int ind)
 }
 
 
+string BPRender::takeAndRender(BoxPrint &bld)
+{
+  BPBox* /*owner*/ tree = bld.takeTree();
+  tree->render(*this);
+  string ret(sb);
+  sb.clear();
+  delete tree;
+  return ret;
+}
+
+
 // ----------------------- BPElement ---------------------
 bool BPElement::isBreak() const
 {
@@ -195,46 +206,44 @@ void BPBox::render(BPRender &mgr)
 }
 
 
-// ------------------------ BPBuilder ----------------------
-BPKind const BPBuilder::vert = BP_vertical;
-BPKind const BPBuilder::seq  = BP_sequence;
-BPKind const BPBuilder::hv   = BP_correlated;
-BPKind const BPBuilder::end  = NUM_BPKINDS;
-
-BPBuilder::Cmd const BPBuilder::sp = BPBuilder::C_SPACE;
-BPBuilder::Cmd const BPBuilder::br = BPBuilder::C_BREAK;
+// ------------------------ BoxPrint ----------------------
+BPKind const BoxPrint::vert = BP_vertical;
+BPKind const BoxPrint::seq  = BP_sequence;
+BPKind const BoxPrint::hv   = BP_correlated;
+BPKind const BoxPrint::end  = NUM_BPKINDS;
 
 
-BPBuilder::BPBuilder()
-  : boxStack()
+BoxPrint::BoxPrint()
+  : boxStack(),
+    levelIndent(2)
 {         
   // initial vert box
   boxStack.push(new BPBox(BP_vertical));
 }
 
-BPBuilder::~BPBuilder()
+BoxPrint::~BoxPrint()
 {}
 
 
-void BPBuilder::append(BPElement *elt)
+void BoxPrint::append(BPElement *elt)
 {
   box()->elts.append(elt);
 }
 
 
-BPBuilder& BPBuilder::operator<< (int i)
+BoxPrint& BoxPrint::operator<< (int i)
 {
   return operator<< (stringc << i);
 }
 
-BPBuilder& BPBuilder::operator<< (char const *s)
+BoxPrint& BoxPrint::operator<< (char const *s)
 {
   append(new BPText(s));
   return *this;
 }
 
 
-BPBuilder& BPBuilder::operator<< (BPKind k)
+BoxPrint& BoxPrint::operator<< (BPKind k)
 {
   if (k == NUM_BPKINDS) {
     // close current box
@@ -248,27 +257,32 @@ BPBuilder& BPBuilder::operator<< (BPKind k)
 }
 
 
-BPBuilder& BPBuilder::operator<< (Cmd c)
+BoxPrint& BoxPrint::operator<< (Cmd c)
 {
-  append(new BPBreak(c==C_BREAK /*enabled*/, 0 /*indent*/));
+  if (c == br || c == sp) {
+    append(new BPBreak(c==br /*enabled*/, 0 /*indent*/));
+  }
+  else {
+    append(new BPBreak(true /*enabled*/, c==ind? levelIndent : -levelIndent));
+  }
   return *this;
 }
 
 
-BPBuilder& BPBuilder::operator<< (IBreak b)
+BoxPrint& BoxPrint::operator<< (IBreak b)
 {
   append(new BPBreak(true /*enabled*/, b.indent /*indent*/));
   return *this;
 }
 
 
-BPBuilder& BPBuilder::operator<< (Op o)
+BoxPrint& BoxPrint::operator<< (Op o)
 {
   return *this << sp << o.text << br;
 }
 
 
-BPBox* /*owner*/ BPBuilder::takeTree()
+BPBox* /*owner*/ BoxPrint::takeTree()
 {
   // all boxes must be closed
   xassert(boxStack.length() == 1);
@@ -291,10 +305,10 @@ BPBox* /*owner*/ BPBuilder::takeTree()
 
 void doit(int argc, char *argv[])
 {
-  BPBuilder bp;
+  BoxPrint bp;
 
   bp << "int foo()" << bp.br
-     << "{" << bp.ibr(+2);
+     << "{" << bp.ind;
 
   bp << "printf(" << bp.seq
         << "\"hello there %d!\\n\"," << bp.br
@@ -335,16 +349,16 @@ void doit(int argc, char *argv[])
   bp << bp.hv
         << "forall(" << bp.seq
            << "x," << bp.br << "y," << bp.br << "z"
-        << bp.end << "). if {" << bp.ibr(+2)
+        << bp.end << "). if {" << bp.ind
         << bp.seq << "x" << bp.op("==") << "yooey_more" << bp.end << ";" << bp.br
         << bp.seq << "yowza" << bp.op("!=") << "fooey" << bp.end << ";"
-        << bp.ibr(-2) << "} {" << bp.ibr(+2)
+        << bp.und << "} /*==>*/ {" << bp.ind
         << bp.seq << "z(x,y,z)" << bp.op("==") << "3" << bp.end << ";" << bp.br
         << "ay_caramba" << ";"
-        << bp.ibr(-2) << "};"
+        << bp.und << "};"
      << bp.end;
 
-  bp << bp.ibr(-2) << "}" << bp.br;
+  bp << bp.und << "}" << bp.br;
 
   BPBox *tree = bp.takeTree();
 

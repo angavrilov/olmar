@@ -10,6 +10,10 @@
 #include "array.h"        // ObjArrayStack
   
 
+// fwd
+class BoxPrint;
+
+
 // manages the process of rendering a boxprint tree to a string
 class BPRender {
 public:
@@ -47,6 +51,10 @@ public:
     sb.clear();
     return ret;
   }
+  
+  // take the tree out of a boxprint builder, convert it to a string,
+  // and delete the tree
+  string takeAndRender(BoxPrint &bld);
 };
 
 
@@ -149,12 +157,14 @@ public:
 
 // assists in the process of building a box tree by providing
 // a number of syntactic shortcuts
-class BPBuilder {
+class BoxPrint {
 public:      // types
   // additional command besides BPKind
   enum Cmd {
-    C_SPACE,       // insert disabled break
-    C_BREAK,       // insert enabled break
+    sp,          // insert disabled break
+    br,          // insert enabled break
+    ind,         // ibr(levelIndent)
+    und,         // ibr(-levelIndent) ("unindent")
   };
 
   // insert enabled break with indentation
@@ -163,7 +173,7 @@ public:      // types
     IBreak(int i) : indent(i) {}
     // use default copy ctor
   };
-  
+
   // operator sequence
   struct Op {
     char const *text;
@@ -182,38 +192,37 @@ public:      // data
   static BPKind const hv;         // = BP_correlated ("h/v")
   static BPKind const end;        // = NUM_BPKINDS
 
-  // names for additional commands
-  static Cmd const sp;            // = C_SPACE
-  static Cmd const br;            // = C_BREAK
+  // indentation amount for the ind/und commands; defaults to 2
+  int levelIndent;
 
 private:     // funcs
   // innermost box being built
   BPBox *box() { return boxStack.top(); }
 
 public:      // funcs
-  BPBuilder();
-  ~BPBuilder();
+  BoxPrint();
+  ~BoxPrint();
 
   // append another element to the current innermost box
   void append(BPElement *elt);
 
   // add BPText nodes to current box
-  BPBuilder& operator<< (int i);
-  BPBuilder& operator<< (char const *s);
+  BoxPrint& operator<< (int i);
+  BoxPrint& operator<< (char const *s);
 
   // open/close boxes
-  BPBuilder& operator<< (BPKind k);
+  BoxPrint& operator<< (BPKind k);
 
   // insert breaks
-  BPBuilder& operator<< (Cmd c);
+  BoxPrint& operator<< (Cmd c);
 
   // insert break with indentation
-  IBreak ibr(int i) { return IBreak(i); }
-  BPBuilder& operator<< (IBreak b);
+  static IBreak ibr(int i) { return IBreak(i); }
+  BoxPrint& operator<< (IBreak b);
 
   // op(text) is equivalent to sp << text << br
-  Op op(char const *text) { return Op(text); }
-  BPBuilder &operator << (Op o);
+  static Op op(char const *text) { return Op(text); }
+  BoxPrint &operator << (Op o);
 
   // take the accumulated box tree out; all opened boxes must have
   // been closed; the builder is left in a state where it can be used
