@@ -83,13 +83,16 @@ public:
     newHead->next = first();
     return makeList(newHead);
   }
-              
+
   // random access (linear time of course)
   T const *nthC(int n) const;
   T *nth(int n) { return const_cast<T*>(nthC(n)); }
 
   // don't add an 'append' method; I think if you're trying to append
   // with FakeLists then you're probably misusing them
+
+  // perhaps breaking the idea a little...
+  FakeList<T> *reverse();
 
   // this class is deliberately sparse on methods for now, since I'm
   // not sure what kind of manipulations I'll want, given that this
@@ -152,6 +155,26 @@ T const *FakeList<T>::nthC(int n) const
     n--;
   }
   return p->firstC();
+}
+
+
+template <class T>
+FakeList<T> *FakeList<T>::reverse()
+{
+  FakeList<T> *src = this;
+  FakeList<T> *dest = emptyList();
+
+  while (src->isNotEmpty()) {
+    // remove first element of 'src'
+    T *first = src->first();
+    src = src->butFirst();
+    first->next = NULL;
+
+    // put it at the head of 'dest'
+    dest = dest->prepend(first);
+  }
+
+  return dest;
 }
 
 
