@@ -118,6 +118,21 @@ libast.a: $(LIB_OBJS)
 	$(RANLIB) $@
 
 
+# ------------------ documentation ------------------
+gendoc:
+	mkdir gendoc
+
+gendoc/configure.txt: configure
+	./configure --help >$@
+
+gendoc/demo.h gendoc/demo.cc: demo.ast astgen
+	./astgen -ogendoc/demo demo.ast
+
+.PHONY: doc
+doc: gendoc gendoc/configure.txt gendoc/demo.h
+	@echo "built documentation"
+
+
 # ------------------------ misc ---------------------
 check:
 	@echo "ast doesn't have a useful 'make check' at this time"
@@ -126,9 +141,11 @@ clean:
 	rm -f *.o agrampar.tab.* tmp *.d
 	rm -f agrampar astgen ccsstr towner exampletest libast.a
 	rm -f agrampar.{codes.h,output} agramlex.yy.cc
+	rm -f example.{h.cc} ext1.{h,cc}
 
 distclean: clean
 	rm -f Makefile config.status config.summary
+	rm -rf gendoc
 
 # test for owner
 towner: owner.h towner.cc
