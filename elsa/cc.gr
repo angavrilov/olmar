@@ -1659,6 +1659,12 @@ nonterm(MemberList*) MemberDeclarationSeqOpt {
   -> empty
        { return new MemberList(NULL); }
 
+  // Gcc allows multiple semi-colons in a row in a member declaration
+  // list.  This also takes care of the optional semi-colon at the end
+  // of an inline function member definition
+  -> list:MemberDeclarationSeqOpt ";"
+       { return list; }
+
   // destructive actions on 'list'
   -> list:MemberDeclarationSeqOpt decl:MemberDeclaration
        { list->list.append(decl); return list; }
@@ -1674,11 +1680,6 @@ nonterm(AccessKeyword) AccessSpecifier {
   -> "public"     { return AK_PUBLIC; }
   -> "private"    { return AK_PRIVATE; }
   -> "protected"  { return AK_PROTECTED; }
-}
-
-nonterm SemicolonOpt {
-  -> empty ;
-  -> ";" ; 
 }
 
 nonterm(Member*) MemberDeclaration {
@@ -1739,7 +1740,7 @@ nonterm(Member*) MemberDeclaration {
        { return new MR_usingDecl(loc, new ND_usingDecl(n)); }
 
   // inline function definition; includes c/dtor definitions
-  -> f:FunctionDefinition SemicolonOpt
+  -> f:FunctionDefinition
        { return new MR_func(loc, f); }
 
   // declaration (with no definition) of a c/dtor or conversion
