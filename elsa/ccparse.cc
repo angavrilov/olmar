@@ -196,7 +196,16 @@ void doit(int argc, char **argv)
     Env env(strTable, lang);
     unit->tcheck(env);
     traceProgress(2) << "done type checking\n";
-    
+
+    if (tracingSys("secondTcheck")) {
+      // this is useful to measure the cost of disambiguation, since
+      // now the tree is entirely free of ambiguities
+      traceProgress() << "beginning second tcheck...\n";
+      Env env2(strTable, lang);
+      unit->tcheck(env2);
+      traceProgress() << "end of second tcheck\n";
+    }
+
     int numErrors=0, numWarnings=0;
     FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
       if (iter.data()->isWarning) {
