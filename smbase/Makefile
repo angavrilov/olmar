@@ -96,7 +96,7 @@ $(THISLIBRARY): $(library-objs)
 # test program targets
 tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
                strdict svdict str strutil trdelete bflatten mysig \
-               testmalloc mypopen tobjpool strhash cycles
+               testmalloc mypopen tobjpool strhash cycles tsobjlist
 tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h
@@ -107,6 +107,9 @@ voidlist: voidlist.cc voidlist.h $(THISLIBRARY)
 
 tobjlist: tobjlist.cc objlist.h voidlist.o $(THISLIBRARY)
 	$(link) -o tobjlist tobjlist.cc voidlist.o $(THISLIBRARY) $(linkend)
+
+tsobjlist: tsobjlist.cc sobjlist.h voidlist.o $(THISLIBRARY)
+	$(link) -o $@ tsobjlist.cc voidlist.o $(THISLIBRARY) $(linkend)
 
 bit2d: bit2d.cc bit2d.h $(THISLIBRARY)
 	$(link) -o bit2d -DTEST_BIT2D bit2d.cc $(THISLIBRARY) $(linkend)
@@ -175,6 +178,7 @@ check: $(tests-files)
 	./mypopen
 	./tobjpool
 	./cycles
+	./tsobjlist
 	@echo
 	@echo "make check: all the tests PASSED"
 

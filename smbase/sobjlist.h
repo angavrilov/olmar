@@ -52,11 +52,11 @@ public:
   T const *lastC() const                { return (T const*)list.last(); }
 
   // insertion
-  void prepend(T *newitem)              { list.prepend(newitem); }
-  void append(T *newitem)               { list.append(newitem); }
-  void insertAt(T *newitem, int index)  { list.insertAt(newitem, index); }
+  void prepend(T *newitem)              { list.prepend((void*)newitem); }
+  void append(T *newitem)               { list.append((void*)newitem); }
+  void insertAt(T *newitem, int index)  { list.insertAt((void*)newitem, index); }
   void insertSorted(T *newitem, Diff diff, void *extra=NULL)
-    { list.insertSorted(newitem, (VoidDiff)diff, extra); }
+    { list.insertSorted((void*)newitem, (VoidDiff)diff, extra); }
 
   // removal
   T *removeAt(int index)                { return (T*)list.removeAt(index); }
@@ -69,8 +69,8 @@ public:
   bool contains(T const *item) const    { return list.contains((void*)item); }
 
   // list-as-set: mutators
-  bool prependUnique(T *newitem)        { return list.prependUnique(newitem); }
-  bool appendUnique(T *newitem)         { return list.appendUnique(newitem); }
+  bool prependUnique(T *newitem)        { return list.prependUnique((void*)newitem); }
+  bool appendUnique(T *newitem)         { return list.appendUnique((void*)newitem); }
   void removeItem(T const *item)        { list.removeItem((void*)item); }    // whether the arg should be const is debatable..
   bool removeIfPresent(T const *item)   { return list.removeIfPresent((void*)item); }
 
@@ -148,15 +148,15 @@ public:
   T *&dataRef()                         { return (T*&)mut.dataRef(); }
 
   // insertion
-  void insertBefore(T *item)            { mut.insertBefore(item); }
+  void insertBefore(T *item)            { mut.insertBefore((void*)item); }
     // 'item' becomes the new 'current', and the current 'current' is
     // pushed forward (so the next adv() will make it current again)
 
-  void insertAfter(T *item)             { mut.insertAfter(item); }
+  void insertAfter(T *item)             { mut.insertAfter((void*)item); }
     // 'item' becomes what we reach with the next adv();
     // isDone() must be false
 
-  void append(T *item)                  { mut.append(item); }
+  void append(T *item)                  { mut.append((void*)item); }
     // only valid while isDone() is true, it inserts 'item' at the end of
     // the list, and advances such that isDone() remains true; equivalent
     // to { xassert(isDone()); insertBefore(item); adv(); }
