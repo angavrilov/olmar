@@ -42,7 +42,8 @@ nonterm(int) Exp {
 // I've separated this rule out into its own nonterminal just to
 // show an example of having more than one nonterminal in a grammar.
 nonterm(int) ParenthesizedExp {
-  -> "(" e:Exp ")"            { e }
+  // messing around with embedded fragments..
+  -> "(" e:Exp ")"            { e   (* [ *) }
 }
 
 
