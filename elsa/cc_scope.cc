@@ -111,23 +111,21 @@ bool Scope::addVariable(Variable *v, bool forceReplace)
 
     if (!curCompound) {
       // variable outside a class
-      trace("env") << prefix << "added " << classification
+      TRACE("env", << prefix << "added " << classification
                    << " `" << v->name
                    << "' of type `" << v->type->toString()
                    << "' at " << toLCString(v->loc)
-                   << " to " << desc()
-                   << endl;
+                   << " to " << desc());
     }
     else {
       // class member
       //v->access = curAccess;      // moved into registerVariable()
-      trace("env") << prefix << "added " << toString(v->access)
+      TRACE("env", << prefix << "added " << toString(v->access)
                    << " member " << classification
                    << " `" << v->name
                    << "' of type `" << v->type->toString()
                    << "' at " << toLCString(v->loc)
-                   << " to " << desc()
-                   << endl;
+                   << " to " << desc());
     }
 
     if (containsErrors) {
@@ -157,7 +155,7 @@ bool Scope::addCompound(CompoundType *ct)
 {
   xassert(canAcceptNames);
 
-  trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
+  TRACE("env", << "added " << toString(ct->keyword) << " " << ct->name);
 
   // set up ct's parent scope if appropriate
   if (getTypedefName()) {
@@ -173,7 +171,7 @@ bool Scope::addEnum(EnumType *et)
 {
   xassert(canAcceptNames);
 
-  trace("env") << "added enum " << et->name << endl;
+  TRACE("env", << "added enum " << et->name);
 
   et->access = curAccess;
   return insertUnique(enums, et->name, et, changeCount, false /*forceReplace*/);
@@ -354,8 +352,8 @@ void Scope::lookupPQVariableC_considerBase
     Variable const *v2 =
       vfilterC(v2Base->variables.queryif(name->getName()), flags);
     if (v2) {
-      trace("lookup") << "found " << v2Base->name << "::"
-                      << name->toString() << endl;
+      TRACE("lookup", << "found " << v2Base->name << "::"
+                      << name->toString());
 
       if (v1) {
         if (v1 == v2 && 
