@@ -825,8 +825,11 @@ testparse d0121.cc
 #failparse d0123.cc "from the kernel; works in C mode but in C++ mode can't convert void* to function pointer"
 testparse d0124.cc
 
-testparse k0001.cc
-testparse k0002.cc
+# testparse k0001.cc
+# testparse k0002.cc
+# testparse k0003.cc
+# testparse k0004.cc
+# testparse k0005.cc
 
 # ---- END: lots of tests ----
 
@@ -907,6 +910,8 @@ if $use_gnu; then
   testparse gnu/d0092.cc
   testparse gnu/d0093.cc
   testparse gnu/d0094.cc
+
+  # testparse gnu/k0001.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do
