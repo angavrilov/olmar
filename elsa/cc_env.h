@@ -14,6 +14,7 @@
 #include "sobjstack.h"    // SObjStack
 #include "cc.ast.gen.h"   // C++ ast components
 #include "variable.h"     // Variable (r)
+#include "cc_scope.h"     // Scope
 
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
@@ -27,7 +28,7 @@ class ErrorMsg {
 public:
   string msg;
   SourceLocation loc;
-  
+
   // when this is true, the error message should be considered
   // when disambiguation; when it's false, it's not a sufficiently
   // severe error to warrant discarding an ambiguous alternative;
@@ -39,43 +40,8 @@ public:
   ErrorMsg(char const *m, SourceLocation const &L, bool d=false)
     : msg(m), loc(L), disambiguates(d) {}
   ~ErrorMsg();
-  
+
   string toString() const;
-};
-
-
-
-// information about a single scope: the names defined in it,
-// any "current" things being built (class, function, etc.)
-class Scope {
-  friend class Env;
-
-private:     // data
-  // ----------------- name spaces --------------------
-  // variables: name -> Variable
-  // note: this includes typedefs (DF_TYPEDEF is set), and it also
-  // includes enumerators (DF_ENUMERATOR is set)
-  StringSObjDict<Variable> variables;
-
-  // compounds: map name -> CompoundType
-  StringSObjDict<CompoundType> compounds;
-
-  // enums: map name -> EnumType
-  StringSObjDict<EnumType> enums;
-
-  // per-scope change count
-  int changeCount;
-
-public:      // data
-  // ------------- "current" entities -------------------
-  CompoundType *curCompound;     // CompoundType we're building
-  AccessKeyword curAccess;       // access disposition in effect
-  Function *curFunction;         // Function we're analyzing
-  SourceLocation curLoc;         // latest AST location marker seen
-
-public:
-  Scope(int changeCount, SourceLocation const &initLoc);
-  ~Scope();
 };
 
 

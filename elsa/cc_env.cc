@@ -19,21 +19,6 @@ string ErrorMsg::toString() const
 }
 
 
-// -------------------- Scope -----------------
-Scope::Scope(int cc, SourceLocation const &initLoc)
-  : variables(),
-    compounds(),
-    enums(),
-    changeCount(cc),
-    curCompound(NULL),
-    curFunction(NULL),
-    curLoc(initLoc)
-{}
-
-Scope::~Scope()
-{}
-
-
 // --------------------- Env -----------------
 Env::Env(StringTable &s, CCLang &L)
   : scopes(),

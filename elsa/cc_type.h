@@ -111,7 +111,7 @@ public:
 
 // C++ class member access modes
 enum AccessMode {
-  AM_PUBLIC, 
+  AM_PUBLIC,
   AM_PROTECTED,
   AM_PRIVATE,
   NUM_ACCESS_MODES
@@ -120,7 +120,7 @@ enum AccessMode {
 // represent a user-defined compound type
 class CompoundType : public NamedAtomicType {
 public:      // types
-  // NOTE: keep these consistent with TypeIntr (in file c.ast)
+  // NOTE: keep these consistent with TypeIntr (in file cc_flags.h)
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
 
   // one of these for each field in the struct
@@ -139,7 +139,7 @@ public:      // types
     Variable *decl;                  // (nullable serf)
 
   public:
-    Field(StringRef n, AccessKeyword a, int i, Type const *t, 
+    Field(StringRef n, AccessKeyword a, int i, Type const *t,
           CompoundType const *c, Variable *d)
       : name(n), access(a), index(i), type(t), compound(c), decl(d) {}
   };

@@ -414,10 +414,12 @@ int CompoundType::numFields() const
   return fields.count();
 }
 
+
 CompoundType::Field const *CompoundType::getNthField(int index) const
 {
   return fields.nthC(index);
 }
+
 
 CompoundType::Field const *CompoundType::getNamedField(StringRef name) const
 {
