@@ -17,6 +17,7 @@
 #include "nonport.h"      // getMilliseconds
 #include "ptreenode.h"    // PTreeNode
 #include "ptreeact.h"     // ParseTreeLexer, ParseTreeActions
+#include "sprint.h"       // structurePrint
 
 
 // little check: is it true that only global declarators
@@ -206,6 +207,11 @@ void doit(int argc, char **argv)
     // print abstract syntax tree annotated with types
     if (tracingSys("printTypedAST")) {
       unit->debugPrint(cout, 0);
+    }
+
+    // structural delta thing
+    if (tracingSys("structure")) {
+      structurePrint(unit);
     }
 
     if (tracingSys("secondTcheck")) {

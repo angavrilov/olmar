@@ -808,29 +808,18 @@ void E_fieldAcc::iprint(PrintEnv &env)
 void E_arrow::iprint(PrintEnv &env)
 {
   olayer ol("E_arrow::iprint");
+  
+  // E_arrow shouldn't normally be present in code that is to be
+  // prettyprinted, so it doesn't much matter what this does.
   obj->print(env);
   env << "->";
-  if (field &&
-      !field->type->isDependent()) {
-    env << field->name;
-  }
-  else {
-    // the 'field' remains NULL if we're in a template
-    // function and the 'obj' is dependent on the template
-    // arguments.. there are probably a few other places
-    // lurking that will need similar treatment, because
-    // typechecking of templates is very incomplete and in
-    // any event when checking the template *itself* (as
-    // opposed to an instantiation) we never have enough
-    // information to fill in all the variable references..
-    env << fieldName->toString();
-  }
+  fieldName->print(env);
 }
 
 void E_sizeof::iprint(PrintEnv &env)
 {
   olayer ol("E_sizeof::iprint");
-  // NOTE parens are not necessary because its an expression, not a
+  // NOTE parens are not necessary because it's an expression, not a
   // type.
   env << "sizeof";
   expr->print(env);           // putting parens in here so we are safe wrt precedence

@@ -398,13 +398,7 @@ class Expression {
      }
 
   -> E_fieldAcc {
-       public Variable *field;      // sm: why did I have this 'const'?
-       ctor field=NULL;
-       custom clone { ret->field = field; }
-     }
-  // dsw: copied from E_fieldAcc
-  -> E_arrow {
-       public Variable *field;      // sm: why did I have this 'const'?
+       public Variable *field;
        ctor field=NULL;
        custom clone { ret->field = field; }
      }
@@ -450,20 +444,13 @@ class ICExpression {
 class Initializer {
   // check that the initializer is well-typed, given the type of
   // the thing it initializes
-  //pure_virtual void tcheck(Env &env, Type *type);
+  pure_virtual void tcheck(Env &env, Type *type);
 
-  // simpler tcheck for now..
-  // dsw: I need to know the type that IN_ctor is a ctor for so I can
-  // get the ctor members out of it, so I added type back; I do NOT do
-  // the extra checking that you imply above in the other initializers
-  pure_virtual void tcheck(Env &env, Type* type);
-
-  // constructor initializer, like "int x(3);"
   -> IN_ctor() {
-       public Variable *var;      // (serf) binding introduction of this name
-       ctor var=NULL;
-       custom clone { ret->var = var; }
-  }
+       public Variable *cfunc;      // constructor function being called
+       ctor cfunc=NULL;
+       custom clone { ret->cfunc = cfunc; }
+     }
 }
 
 

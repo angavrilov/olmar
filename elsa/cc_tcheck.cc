@@ -4615,6 +4615,10 @@ void IN_expr::tcheck(Env &env, Type *)
 void IN_compound::tcheck(Env &env, Type* type)
 {
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
+    // TODO: This passes the wrong type; 'type' should be e.g. a class,
+    // and this code ought to dig into the class and pass the types of
+    // successive fields.  It doesn't matter right now, however, since
+    // the type is eventually ignored anyway.
     iter.data()->tcheck(env, type);
   }
 }
@@ -4627,27 +4631,25 @@ void IN_ctor::tcheck(Env &env, Type *type0)
   // type here, or if I get a weird var below?
   if (type0->asRval()->isCompoundType()) {
     CompoundType *ct = type0->asRval()->asCompoundType();
-    Variable *ctor = const_cast<Variable*>(ct->getNamedFieldC(env.constructorSpecialName, env));
+    Variable *ctor = ct->getNamedField(env.constructorSpecialName, env);
     Variable *chosen = outerResolveOverload(env, loc, ctor,
                                             NULL, // not a method call, so no 'this' object
                                             args);
     if (chosen) {
-      var = chosen;
+      cfunc = chosen;
     } else {
       // dsw: FIX: NOTE: this case only applies when
       // outerResolveOverload() can't deal with the complexity of the
       // situation due to templates etc.  When we are really done,
       // this case should go away, I think.
-      var = ctor;
+      cfunc = ctor;
     }
-    xassert(var);               // var should never be null when we are done
+    xassert(cfunc);               // cfunc should never be null when we are done
   }
   // dsw: Note var can be NULL here for ctors for built-in types like
   // int; see t0080.cc
 }
 
-
-// InitLabel
 
 // -------------------- TemplateDeclaration ---------------
 void TemplateDeclaration::tcheck(Env &env)

@@ -140,6 +140,7 @@ CCPARSE_OBJS := \
   $(LEXER_OBJS) \
   $(EXT_OBJS) \
   cfg.o \
+  sprint.o \
   cc_env.o \
   cc_err.o \
   cc_type.o \
