@@ -4,10 +4,6 @@
 #include "variable.h"      // this module
 #include "cc_type.h"       // Type
 
-#if BEFORE && CC_QUAL
-SObjList<Variable> Variable::instances;
-#endif
-
 // ---------------------- Variable --------------------
 Variable::Variable(SourceLocation const &L, StringRef n, Type *t, DeclFlags f)
   : loc(L),
@@ -21,9 +17,6 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type *t, DeclFlags f)
     scope(NULL)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
-#if BEFORE && CC_QUAL
-  instances.prepend(this);      // reverse order
-#endif
 }
 
 Variable::~Variable()

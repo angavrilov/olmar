@@ -2044,29 +2044,8 @@ void D_pointer::tcheck(Env &env, Declarator::Tcheck &dt)
   }
   else {
     // apply the pointer type constructor
-    #if AFTER
     dt.type = dt.type->isError()? dt.type :
       env.tfac.syntaxPointerType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type, this);
-
-    #else
-//      StringRef name = "__unamed_pointer";
-//      {
-//        PQName const * declaratorId = getDeclaratorId();
-//        if (declaratorId) name = declaratorId->getName();
-//      }
-
-    Type *tmp_type = env.tfac.makePtrOperType(isPtr? PO_POINTER : PO_REFERENCE, cv, dt.type);
-    if (tmp_type->isError()) dt.type = tmp_type;
-    else {
-      PointerType * tmp_ptrtype = dynamic_cast<PointerType *>(tmp_type);
-      xassert(tmp_ptrtype);
-      PointerType *pt = const_cast<PointerType *>(tmp_ptrtype);
-      xassert(pt);
-      xassert(!pt->q);
-      pt->q = deepClone(q);
-      dt.type = pt;
-    }
-    #endif
 
     // annotation
     this->type = dt.type;
@@ -2129,16 +2108,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
 
-//    StringRef name = "__unamed_function";
-//    {
-//      PQName const * declaratorId = getDeclaratorId();
-//      if (declaratorId) name = declaratorId->getName();
-//    }
   FunctionType *ft = env.tfac.syntaxFunctionType(dt.type, cv, this);
-  #if BEFORE
-  xassert(!ft->q);
-  ft->q = deepClone(q);
-  #endif
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list
