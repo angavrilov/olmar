@@ -134,6 +134,7 @@ outputCond([[[m4_dnl     // sobjlist
   void concat(className &tail)                       { list.concat(tail.list); }
 outputCond([[[m4_dnl    // sobjlist
   void appendAll(className const &tail)              { list.appendAll(tail.list); }
+  void prependAll(className const &head)             { list.prependAll(head.list); }
 ]]], [[[m4_dnl          // objlist
   // (we do *not* have appendAll, since these are supposed to be owner lists)
 ]]])m4_dnl

@@ -89,6 +89,7 @@ public:
   // multiple lists
   void concat(SObjList &tail)                       { list.concat(tail.list); }
   void appendAll(SObjList const &tail)              { list.appendAll(tail.list); }
+  void prependAll(SObjList const &head)             { list.prependAll(head.list); }
 
   // steal
   void stealTailAt(int index, SObjList &tail)       { list.stealTailAt(index, tail.list); }

@@ -541,6 +541,17 @@ void VoidList::appendAll(VoidList const &tail)
 }
 
 
+void VoidList::prependAll(VoidList const &tail)
+{
+  VoidListMutator destIter(*this);
+  VoidListIter srcIter(tail);
+  for (; !srcIter.isDone(); srcIter.adv()) {
+    destIter.insertBefore(srcIter.data());
+    destIter.adv();
+  }
+}
+
+
 VoidList& VoidList::operator= (VoidList const &src)
 {
   if (this != &src) {
@@ -867,6 +878,26 @@ void entry()
             thief.count() == 2 &&
             thief.indexOf(c) == 0 &&
             thief.indexOf(b) == 1);
+
+    // test appendAll
+    list.appendAll(thief);      // list: (d c b)
+    PRINT(list);
+    xassert(list.count() == 3 &&
+            list.indexOf(d) == 0 &&
+            list.indexOf(c) == 1 &&
+            list.indexOf(b) == 2);
+
+    // test prependAll
+    list.prependAll(thief);     // list: (c b d c b)
+    PRINT(list);
+    xassert(list.count() == 5 &&
+            list.nth(0) == c &&
+            list.nth(1) == b &&
+            list.nth(2) == d &&
+            list.nth(3) == c &&
+            list.nth(4) == b);
+
+    xassert(thief.count() == 2);    // not modified
   }
 
   // this hits most of the remaining code

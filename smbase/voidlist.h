@@ -95,7 +95,8 @@ public:
 
   // multiple lists
   void concat(VoidList &tail);           // tail is emptied, nodes appended to this
-  void appendAll(VoidList const &tail);	 // tail is untouched.. but its contents are now exposed to non-constness... ug... oh well
+  void appendAll(VoidList const &tail);  // tail is untouched.. but its contents are now exposed to non-constness... ug... oh well
+  void prependAll(VoidList const &head);
   VoidList& operator= (VoidList const &src);  // afterwards, 'this' and 'src' have same contents
 
   // steal (become the container for) the tail of a source list at any
