@@ -28,7 +28,7 @@
  * Description of the various lists in play here:
  *
  *   topmostParsers
- *   -------------
+ *   --------------
  *   The active parsers are at the frontier of the parse tree
  *   space.  It *never* contains more than one stack node with
  *   a given parse state; I call this the unique-state property
@@ -39,41 +39,13 @@
  *
  *   Before a token is processed, topmostParsers contains those
  *   parsers that successfully shifted the previous token.  This
- *   list is then copied to the parserWorklist (described below).
+ *   list is then walked to make the initial reduction worklist.
  *
- *   As reductions are processed, new parsers are generated and
+ *   Before the shifts are processed, the topmostParsers list is
+ *   cleared.  As each shift is processed, the resulting parser is
  *   added to topmostParsers (modulo USP).
  *
- *   Before the accumulated shifts are processed, the topmostParsers
- *   list is cleared.  As each shift is processed, the resulting
- *   parser is added to topmostParsers (modulo USP).
- *
  *   [GLR] calls this "active-parsers"
- *
- *
- *   parserWorklist
- *   --------------
- *   The worklist contains all parsers we have not yet been considered
- *   for advancement (shifting or reducing).  Initially, it is the
- *   same as the topmostParsers, but we take a parser from it on
- *   each iteration of the inner loop in 'glrParse'.
- *
- *   Whenever, during processing of reductions, we add a parser to
- *   topmostParsers, we also add it to parserWorklist.  This ensures
- *   the just-reduced parser gets a chance to reduce or shift.
- *
- *   [GLR] calls this "for-actor"
- *
- *
- *   pendingShifts
- *   -------------
- *   The GLR parser alternates between reducing and shifting.
- *   During the processing of a given token, shifting happens last.
- *   This keeps the parsers synchronized, since every token is
- *   shifted by every parser at the same time.  This synchronization
- *   is important because it makes merging parsers possible.
- *
- *   [GLR] calls this "for-shifter"
  *
  * 
  * Discussion of path re-examination, called do-limited-reductions by
@@ -123,7 +95,14 @@
  * considered exactly once.
  *
  *
- * Below, parse-tree building activity is marked "TREEBUILD".  */
+ * MAJOR UPDATE (12/06/02):  I've replaced the state worklist (SWL) core
+ * used in all previous GLR implementations with a reduction worklist (RWL)
+ * core.  This core is just as fast, but can be implemented to always
+ * avoid the yield-then-merge problem for acyclic grammars.
+ *
+ *
+ * Below, parse-tree building activity is marked "TREEBUILD".
+ */
 
 
 #include "glr.h"         // this module
@@ -517,113 +496,6 @@ inline void StackNode::checkLocalInvariants() const
 }
 
 
-// ------------------ PendingShift ------------------
-PendingShift::~PendingShift()
-{
-  deinit();
-}
-
-PendingShift& PendingShift::operator=(PendingShift const &obj)
-{
-  if (this != &obj) {
-    parser = obj.parser;
-    shiftDest = obj.shiftDest;
-  }
-  return *this;
-}
-
-
-inline void PendingShift::deinit()
-{
-  parser = NULL;     // decrement reference count
-  shiftDest = STATE_INVALID;
-}
-
-
-// ------------------ PathCollectionState -----------------
-PathCollectionState::PathCollectionState()
-  : startStateId(STATE_INVALID),
-    prodIndex(-1),
-    siblings(INITIAL_RHSLEN_SIZE),
-    symbols(INITIAL_RHSLEN_SIZE),
-    paths(TYPICAL_MAX_REDUCTION_PATHS)
-{}
-
-PathCollectionState::~PathCollectionState()
-{}
-
-
-inline void PathCollectionState::init(int pi, int len, StateId start)
-{
-  startStateId = start;
-  prodIndex = pi;
-
-  // pre-allocate these, though they can also grow if need be
-  siblings.ensureIndexDoubler(len-1);
-  symbols.ensureIndexDoubler(len-1);
-
-  xassert(paths.length()==0); // paths must start empty
-}
-
-
-// pulled this up above PathCollectionState::deinit, so this
-// can be inlined into that
-inline void PathCollectionState::ReducedPath::deinit()
-{
-  if (sval) {
-    // this should be very unusual, since 'sval' is consumed
-    // (and nullified) soon after the ReducedPath is created;
-    // it can happen if an exception is thrown from certain places
-    cout << "interesting: using ReducedPath's deallocator on " << sval << endl;
-    deallocateSemanticValue(finalState->getSymbolC(), finalState->glr->userAct, sval);
-  }
-
-  finalState = NULL;     // decrement reference count
-}
-
-
-inline void PathCollectionState::deinit()
-{
-  while (paths.isNotEmpty()) {
-    paths.popAlt().deinit();
-  }
-}
-
-
-inline void PathCollectionState
-  ::addReducedPath(StackNode *f, SemanticValue s
-                   SOURCELOCARG( SourceLocation const &L ) )
-{
-  paths.pushAlt().init(f, s  SOURCELOCARG( L ) );
-}
-
-
-PathCollectionState::ReducedPath::~ReducedPath()
-{
-  deinit();
-}
-
-
-// transfer state from 'obj' to 'this'
-PathCollectionState::ReducedPath& PathCollectionState::ReducedPath
-  ::operator=(PathCollectionState::ReducedPath &obj)
-{
-  xassert(&obj != this);
-
-  // I could circumvent the refct ++ and --, but this happens
-  // very rarely so it's not worth it
-  finalState = obj.finalState;
-  obj.finalState = NULL;
-
-  sval = obj.sval;
-  obj.sval = NULL_SVAL;
-
-  SOURCELOC( loc = obj.loc; )
-
-  return *this;
-}
-
-
 // ------------- stack node list ops ----------------
 void decParserList(ArrayStack<StackNode*> &list)
 {
@@ -650,52 +522,6 @@ bool parserListContains(ArrayStack<StackNode*> &list, StackNode *node)
   return false;
 }
 
-// plain insertion
-inline void priorityWorklistInsert(
-  GLR &, ArrayStack<StackNode*> &list, StackNode *node)
-{
-  list.push(node);
-}
-
-
-// work-alikes for StackNodeWorklist
-void decParserList(StackNodeWorklist &list)
-{
-  decParserList(list.eager);
-  decParserList(list.delayed);
-}
-
-void incParserList(StackNodeWorklist &list)
-{
-  incParserList(list.eager);
-  incParserList(list.delayed);
-}
-
-bool parserListContains(StackNodeWorklist &list, StackNode *node)
-{
-  return parserListContains(list.eager, node) ||
-         parserListContains(list.delayed, node);
-}
-
-
-// priority insertion; implement heuristic where we prefer to 
-// reduce at states whose rightmost RHS nonterminal is unambiguous
-void priorityWorklistInsert(
-  GLR &glr, StackNodeWorklist &list, StackNode *node)
-{
-  #if USE_DELAYED_STATES
-    if (glr.tables->isDelayed(node->state)) {
-      list.delayed.push(node);
-    }
-    else {
-      list.eager.push(node);
-    }
-
-  #else   // this would disable priority scheme
-    list.eager.push(node);
-  #endif
-}
-
 
 // ------------------------- GLR ---------------------------
 GLR::GLR(UserActions *user, ParseTables *t)
@@ -704,10 +530,8 @@ GLR::GLR(UserActions *user, ParseTables *t)
     lexerPtr(NULL),
     topmostParsers(),
     parserIndex(NULL),
-    //parserWorklist(),
-    pcsStack(),
-    pcsStackHeight(0),
     toPass(MAX_RHSLEN),
+    prevTopmost(),
     stackNodePool(NULL),
     pathQueue(t),
     trParse(tracingSys("parse")),
@@ -763,7 +587,7 @@ void GLR::clearAllStackNodes()
   // leak..)
 }
 
-  
+
 // print compile-time configuration; this is useful for making
 // sure a given binary has been compiled the way you think
 void GLR::printConfig() const
@@ -802,15 +626,6 @@ void GLR::printConfig() const
 
   printf("  reduction cancellation: \t\t\t%s\n",
          USE_KEEP? "enabled" : "disabled *");
-
-  printf("  SWL parser core: \t\t\t\t%s\n",
-         USE_SWL_CORE? "enabled  *" : "disabled");
-
-  printf("  delayed states heuristic: \t\t\t%s\n",
-         USE_DELAYED_STATES? "enabled" : "disabled *");
-
-  printf("  RWL parser core: \t\t\t\t%s\n",
-         USE_RWL_CORE? "enabled" : "disabled");   // not sure about performance here
 
   printf("  mini-LR parser core: \t\t\t\t%s\n",
          USE_MINI_LR? "enabled  *" : "disabled");
@@ -994,7 +809,7 @@ STATICDEF bool GLR
   UserActions *userAct = glr.userAct;
   ParseTables *tables = glr.tables;
   #if USE_MINI_LR
-  ArrayStack<StackNode*> &topmostParsers = glr.topmostParsers;
+    ArrayStack<StackNode*> &topmostParsers = glr.topmostParsers;
   #endif
 
   // lexer token function
@@ -1037,10 +852,6 @@ STATICDEF bool GLR
                    
   // count # of times we use mini LR
   ACCOUNTING( int localDetShift=0; int localDetReduce=0; )
-
-  // we will queue up shifts and process them all at the end (pulled
-  // out of loop so I don't deallocate the array between tokens)
-  //ArrayStack<PendingShift> pendingShifts;                  // starts empty
 
   // for each input symbol
   #ifndef NDEBUG
@@ -1445,45 +1256,6 @@ string stackTraceString(StackNode *parser)
 }
 
 
-inline bool isEmpty_prime(StackNodeWorklist const &wl)
-{
-  #if USE_SWL_CORE && USE_RWL_CORE
-    // when using both the SWL and RWL cores, we stop extracting from
-    // the worklist when there are no more eager states, and either
-    // there are no delayed states *or* there is more than one
-    return wl.eager.isEmpty() && (wl.delayed.length() != 1);
-  #else
-    return wl.isEmpty();
-  #endif
-}
-
-inline bool isNotEmpty_prime(StackNodeWorklist const &wl)
-  { return !isEmpty_prime(wl); }
-
-// for when USE_DELAYED_STATES is 0
-inline bool isNotEmpty_prime(ArrayStack<StackNode*> const &wl)
-  { return wl.isNotEmpty(); }
-
-
-inline StackNode *StackNodeWorklist::pop()
-{
-  ACCOUNTING(
-    totalExtracts++;
-  )
-  if (eager.isNotEmpty()) {
-    return eager.pop();
-  }
-  else {
-    ACCOUNTING(
-      if (delayed.length() > 1) {
-        multipleDelayedExtracts++;
-      }
-    )
-    return delayed.pop();
-  }
-}
-
-
 // return false if caller should return false; pulled out of
 // glrParse to reduce register pressure (but didn't help as
 // far as I can tell!)
@@ -1494,95 +1266,11 @@ bool GLR::nondeterministicParseToken()
   // ([GLR] called the code from here to the end of
   // the loop 'parseword')
 
-  // paranoia
-  //xassert(pendingShifts.length() == 0);
-
-//    // put active parser tops into a worklist
-//    decParserList(parserWorklist);      // about to empty the list
-//    //parserWorklist = topmostParsers;
-//    {
-//      parserWorklist.empty();
-//      for (int i=0; i < topmostParsers.length(); i++) {
-//        //parserWorklist.push(topmostParsers[i]);
-//        priorityWorklistInsert(*this, parserWorklist, topmostParsers[i]);
-//      }
-//    }
-//    incParserList(parserWorklist);
-
   // work through the worklist
   StateId lastToDie = STATE_INVALID;
 
-//    #if USE_SWL_CORE
-//    while (isNotEmpty_prime(parserWorklist)) {
-//      RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
-//      parser->decRefCt();     // no longer on worklist
-
-//      // to count actions, first record how many parsers we have
-//      // before processing this one
-//      //int parsersBefore = parserWorklist.length() + pendingShifts.length();
-
-//      // process this parser
-//      ActionEntry action =      // consult the 'action' table
-//        tables->actionEntry(parser->state, lexerPtr->type);
-//      int actions = glrParseAction(parser, action, pendingShifts);
-
-//      // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
-//      // provides a counterexample (the parser could reduce, but the state it
-//      // reduces to could already exist, so we wouldn't observe the change
-//      // by counting parsers)
-//      // now observe change -- normal case is we now have one more
-//      //int actions = (parserWorklist.length() + pendingShifts.length()) -
-//      //                parsersBefore;
-
-//      if (actions == 0) {
-//        // I contemplated printing a trace, see stackTraceString() above..
-//        TRSPARSE("parser in state " << parser->state << " died");
-//        lastToDie = parser->state;          // for reporting the error later if necessary
-
-//        // in the if-then-else grammar, I have a parser which dies but
-//        // then gets merged with something else, prompting a request
-//        // for the user's merge function; to avoid this, kill it early.
-//        // first verify my assumptions: it should be on 'topmostParsers'
-//        // and pointed-to by 'parser'
-//        xassertdb(parser->referenceCount == 2);
-
-//        // the only reason nodes are retained on 'topmostParsers' is so if
-//        // some other node gets a new sibling link, the finished parsers
-//        // can be reconsidered; but new sibling links never enable a parser
-//        // to act where it couldn't before (among other things, we don't
-//        // even look at siblings when deciding whether to act), so we should
-//        // go ahead and eliminate this parser from all lists now
-//        pullFromTopmostParsers(parser);
-
-//        // verify we got it
-//        xassertdb(parser->referenceCount == 1);
-
-//        // now when 'parser' passes out of scope, it will be deallocated,
-//        // and will not interfere with another parser reaching the same
-//        // state (incidentally, another parser reaching the same state will
-//        // suffer the same fate this one did.. nothing useful to do about it)
-//      }
-//      else if (actions > 1) {
-//        TRSPARSE("parser in state " << parser->state <<
-//                 " split into " << actions << " parsers");
-//      }
-//    }
-//    #endif // USE_SWL_CORE
-
-//    #if USE_RWL_CORE
-//      // even with the SWL core, we might get here because the number of
-//      // delayed states is greater than 1
-//      if (parserWorklist.isNotEmpty()) {
-//        rwlReductionAlgorithm(pendingShifts, lastToDie);
-//      }
-//    #endif
-
-//    // process all pending shifts
-//    glrShiftTerminals(pendingShifts);
-
-
-  // new algorithm: do all reduction explicitly first, then
-  // all shifts by re-iterating over topmost parsers
+  // do all reduction explicitly first, then all shifts by
+  // re-iterating over topmost parsers
   int i;
   for (i=0; i < topmostParsers.length(); i++) {
     StackNode *parser = topmostParsers[i];
@@ -1695,7 +1383,6 @@ bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
 
   // these also must be done before the pool goes away..
   decParserList(topmostParsers);
-  //decParserList(parserWorklist);
 
   return true;
 }
@@ -1723,547 +1410,6 @@ void GLR::pullFromTopmostParsers(StackNode *parser)
 }
 
 
-#if 0
-// mustUseLink: if non-NULL, then we only want to consider
-// reductions that use that link
-inline void GLR::doReduction(StackNode *parser,
-                             SiblingLink *mustUseLink,
-                             int prodIndex)
-{
-  ParseTables::ProdInfo const &info = tables->prodInfo[prodIndex];
-  int rhsLen = info.rhsLen;
-  xassert(rhsLen >= 0);    // paranoia before using this to control recursion
-
-  // in ordinary LR parsing, at this point we would pop 'rhsLen'
-  // symbols off the stack, and push the LHS of this production.
-  // here, we search down the stack for the node 'sibling' that
-  // would be at the top after popping, and then tack on a new
-  // StackNode after 'sibling' as the new top of stack
-
-  // however, there might be more than one 'sibling' node, so we
-  // must process all candidates.  the strategy will be to do a
-  // simple depth-first search
-
-  // WRONG:
-    // (note that each such candidate defines a unique path -- all
-    // paths must be composed of the same symbol sequence (namely the
-    // RHS symbols), and if more than one such path existed it would
-    // indicate a failure to collapse and share somewhere)
-
-  // CORRECTION:
-    // there *can* be more than one path to a given candidate; see
-    // the comments at the top
-
-  // step 1: collect all paths of length 'rhsLen' that start at
-  // 'parser', via DFS
-  //PathCollectionState pcs(prodIndex, rhsLen, parser->state);
-  if (pcsStackHeight == pcsStack.length()) {
-    // need a new pcs instance, since the existing ones are being
-    // used by my (recursive) callers
-    pcsStack.push(new PathCollectionState);     // done very rarely
-  }
-  PathCollectionState &pcs = *( pcsStack[pcsStackHeight++] );
-  try {
-    pcs.init(prodIndex, rhsLen, parser->state);
-    collectReducedPaths(pcs, rhsLen, parser, mustUseLink);
-
-    // invariant: poppedSymbols' length is equal to the recursion
-    // depth in 'popStackSearch'; thus, should be empty now
-    // update: since it's now an array, this is implicitly true
-    //xassert(pcs.poppedSymbols.isEmpty());
-
-    // terminology:
-    //   - a 'reduction' is a grammar rule plus the TreeNode children
-    //     that constitute the RHS
-    //   - a 'path' is a reduction plus the parser (StackNode) that is
-    //     at the end of the sibling link path (which is essentially the
-    //     parser we're left with after "popping" the reduced symbols)
-
-    // step 2: process those paths
-    // ("mutate" because need non-const access to rpath->finalState)
-    //for (int i=pcs.paths.length()-1; i>=0; i--) {    // useful for exercising different reduction orders
-    for (int i=0; i < pcs.paths.length(); i++) {
-      PathCollectionState::ReducedPath &rpath = pcs.paths[i];
-
-      // I'm not sure what is the best thing to call an 'action' ...
-      //actions++;
-
-      // this is like shifting the reduction's LHS onto 'finalParser'
-      SiblingLink *newLink =
-        glrShiftNonterminal(rpath.finalState, info.lhsIndex,
-                            rpath.sval  SOURCELOCARG( rpath.loc ) );
-
-      // nullify 'sval' to mark it as consumed
-      rpath.sval = NULL_SVAL;
-
-      if (newLink) {
-        // for each 'finished' parser (i.e. those not still on
-        // the worklist)
-        for (int i=0; i < topmostParsers.length(); i++) {
-          StackNode *parser = topmostParsers[i];
-          if (parserListContains(parserWorklist, parser)) continue;
-
-          // do any reduce actions that are now enabled
-          ActionEntry action =
-            tables->actionEntry(parser->state, lexerPtr->type);
-          doLimitedReductions(parser, action, newLink);
-        }
-      }
-    } // for each path
-  }
-  
-  // make sure the height gets propely decremented in any situation,
-  // and deinit the pcs; this is where reduction paths get removed
-  catch (...) {
-    pcsStackHeight--;
-    pcs.deinit();
-    throw;
-  }
-  pcsStackHeight--;
-  pcs.deinit();
-}
-
-
-// do the actions for this parser, on input 'token'; if a shift
-// is required, we postpone it by adding the necessary state
-// to 'pendingShifts'; returns number of actions performed
-// ([GLR] called this 'actor')
-int GLR::glrParseAction(StackNode *parser, ActionEntry action,
-                        ArrayStack<PendingShift> &pendingShifts)
-{
-  parser->checkLocalInvariants();
-
-  if (tables->isShiftAction(action)) {
-    // shift
-    ACCOUNTING( nondetShift++; )
-    StateId destState = tables->decodeShift(action);
-    // add (parser, shiftDest) to pending-shifts
-    pendingShifts.pushAlt().init(parser, destState);
-
-    // debugging
-    //trace("parse")
-    //  << "moving to state " << state
-    //  << " after shifting symbol " << symbol->name << endl;
-
-    return 1;
-  }
-
-  else if (tables->isReduceAction(action)) {
-    // reduce
-    ACCOUNTING( nondetReduce++; )
-    int prodIndex = tables->decodeReduce(action);
-    doReduction(parser, NULL /*mustUseLink*/, prodIndex);
-
-    // debugging
-    //trace("parse")
-    //  << "moving to state " << state
-    //  << " after reducing by rule id " << prodIndex << endl;
-
-    return 1;
-  }
-
-  else if (tables->isErrorAction(action)) {
-    // error
-    //trace("parse")
-    //  << "no actions defined for symbol " << symbol->name
-    //  << " in state " << state << endl;
-    return 0;
-  }
-
-  else {
-    // conflict
-    //trace("parse")
-    //  << "conflict for symbol " << symbol->name
-    //  << " in state " << state
-    //  << "; possible actions:\n";
-
-    // get actions
-    int ambigId = tables->decodeAmbigAction(action);
-    ActionEntry *entry = tables->ambigAction[ambigId];
-
-    // do each one
-    for (int i=0; i<entry[0]; i++) {
-      glrParseAction(parser, entry[i+1], pendingShifts);
-    }
-
-    return entry[0];    // # actions
-  }
-}
-
-
-// this is basically the same as glrParseAction, except we only
-// look at reductions, and those reductions have to use 'sibLink';
-// I don't fold this into the code above because above is in the
-// critical path whereas this typically won't be
-void GLR::doLimitedReductions(StackNode *parser, ActionEntry action,
-                              SiblingLink *sibLink)
-{
-  parser->checkLocalInvariants();
-
-  if (tables->isShiftAction(action)) {
-    // do nothing
-  }
-  else if (tables->isReduceAction(action)) {
-    // reduce
-    int prodIndex = tables->decodeReduce(action);
-    doReduction(parser, sibLink, prodIndex);
-  }
-  else if (tables->isErrorAction(action)) {
-    // don't think this can happen
-    breaker();
-  }
-  else {
-    // ambiguous; check for reductions
-    int ambigId = tables->decodeAmbigAction(action);
-    ActionEntry *entry = tables->ambigAction[ambigId];
-    for (int i=0; i<entry[0]; i++) {
-      doLimitedReductions(parser, entry[i+1], sibLink);
-    }
-  }
-}
-
-
-/*
- * collectReducedPaths():
- *   this function searches for all paths (over the
- *   sibling links) of a particular length, starting
- *   at currentNode
- *
- * pcs:
- *   various search state elements; see glr.h
- *
- * popsRemaining:
- *   number of links left to traverse before we've popped
- *   the correct number
- *
- * currentNode:
- *   where we are in the search; this call will consider the
- *   siblings of currentNode
- *
- * mustUseLink:
- *   a particular sibling link that must appear on all collected
- *   paths; it is NULL if we have no such requirement
- *
- * ([GLR] called this 'do-reductions' and 'do-limited-reductions')
- */
-void GLR::collectReducedPaths(PathCollectionState &pcs, int popsRemaining,
-                              StackNode *currentNode, SiblingLink *mustUseLink)
-{
-  if (popsRemaining == 0) {
-    // we've found a path of the required length
-
-    // if we have failed to use the required link, ignore this path
-    if (mustUseLink != NULL) {
-      return;
-    }
-
-    // info about the production
-    ParseTables::ProdInfo const &prodInfo = tables->prodInfo[pcs.prodIndex];
-    int rhsLen = prodInfo.rhsLen;
-
-    TRSPARSE("state " << pcs.startStateId <<
-             ", reducing by production " << pcs.prodIndex <<
-             " (rhsLen=" << rhsLen <<
-             "), back to state " << currentNode->state);
-
-    // record location of left edge; defaults to no location (used for
-    // epsilon rules)
-    SOURCELOC( SourceLocation leftEdge; )
-
-    // build description of rhs for tracing
-    ACTION(
-      string rhsDescription("");
-      if (rhsLen == 0) {
-        // print something anyway
-        rhsDescription = " empty";
-      }
-    )
-
-    // before calling the user, duplicate any needed values
-    //SemanticValue *toPass = new SemanticValue[rhsLen];
-    toPass.ensureIndexDoubler(rhsLen-1);
-    for (int i=0; i < rhsLen; i++) {
-      SiblingLink *sib = pcs.siblings[i];
-
-      // we're about to yield sib's 'sval' to the reduction action
-      toPass[i] = sib->sval;
-
-      // continue building rhs desc
-      ACTION( rhsDescription =
-        stringc << rhsDescription
-                << " "
-                << symbolDescription(pcs.symbols[i], userAct, sib->sval);
-      )
-
-      // left edge?  or, have all previous tokens failed to yield
-      // information?
-      SOURCELOC(
-        if (!leftEdge.validLoc()) {
-          leftEdge = sib->loc;
-        }
-      )
-
-      // we inform the user, and the user responds with a value
-      // to be kept in this sibling link *instead* of the passed
-      // value; if this link yields a value in the future, it will
-      // be this replacement
-      sib->sval = duplicateSemanticValue(pcs.symbols[i], sib->sval);
-
-      YIELD_COUNT( sib->yieldCount++; )
-    }
-
-    // we've popped the required number of symbols; call the
-    // user's code to synthesize a semantic value by combining them
-    // (TREEBUILD)
-    SemanticValue sval =
-      doReductionAction(pcs.prodIndex, toPass.getArray()
-                        SOURCELOCARG( leftEdge ) );
-    //delete[] toPass;
-
-    // emit tracing diagnostics for this reduction
-    ACTION( string lhsDesc =
-              userAct->nonterminalDescription(prodInfo.lhsIndex, sval); )
-    TRSACTION("  " << lhsDesc << " ->" << rhsDescription);
-
-    // see if the user wants to keep this reduction
-    if (USE_KEEP &&
-        !userAct->keepNontermValue(prodInfo.lhsIndex, sval)) {
-      TRSACTION("    CANCELLED " << lhsDesc);
-      return;
-    }
-
-    // and just collect this reduction, and the final state, in our
-    // running list
-    pcs.addReducedPath(currentNode, sval  SOURCELOCARG( leftEdge ) );
-  }
-
-  else {
-    // explore currentNode's siblings
-    collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
-                    &(currentNode->firstSib));
-
-    // test before dropping into the loop, since profiler is reporting
-    // some time spent calling VoidListMutator::reset ..
-    if (currentNode->leftSiblings.isNotEmpty()) {
-      FOREACH_OBJLIST_NC(SiblingLink, currentNode->leftSiblings, sibling) {
-        collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
-                        sibling.data());
-      }
-    }
-  }
-}
-
-
-// arguments are same as in collectReducedPaths, except:
-// 'linkToAdd': link we're traversing right now, to add to path
-// (this code is easiest to understand in its caller's context;
-// I only pulled it out because I need to call it twice in same place)
-void GLR::collectPathLink(PathCollectionState &pcs, int popsRemaining,
-                          StackNode *currentNode, SiblingLink *mustUseLink,
-                          SiblingLink *linkToAdd)
-{
-  // the symbol on the sibling link is being popped;
-  // TREEBUILD: we are collecting 'linkToAdd' for the purpose
-  // of handing its semantic value to the user's reduction routine
-  pcs.siblings[popsRemaining] = linkToAdd;
-  pcs.symbols[popsRemaining] = currentNode->getSymbolC();
-
-  // recurse one level deeper, having traversed this link
-  if (linkToAdd == mustUseLink) {
-    // consumed the mustUseLink requirement
-    collectReducedPaths(pcs, popsRemaining, linkToAdd->sib,
-                        NULL /*mustUseLink*/);
-  }
-  else {
-    // either no requirement, or we didn't consume it; just
-    // propagate current requirement state
-    collectReducedPaths(pcs, popsRemaining, linkToAdd->sib,
-                        mustUseLink);
-  }
-}
-
-
-#if 0
-// temporary
-void *mergeAlternativeParses(int ntIndex, void *left, void *right)
-{
-  cout << "merging at ntIndex " << ntIndex << ": "
-       << left << " and " << right << endl;
-
-  // just pick one arbitrarily
-  return left;
-}
-#endif // 0
-
-
-// shift reduction onto 'leftSibling' parser, 'lhsIndex' says which
-// nonterminal is being shifted; 'sval' is the semantic value of this
-// subtree, and 'loc' is the location of the left edge; return value
-// is the newly added link, if one was added between existing nodes
-// ([GLR] calls this function 'reducer')
-SiblingLink *GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
-                                      SemanticValue /*owner*/ sval
-                                      SOURCELOCARG( SourceLocation const &loc ) )
-{
-  // this is like a shift -- we need to know where to go; the
-  // 'goto' table has this information
-  StateId rightSiblingState = tables->decodeGoto(
-    tables->gotoEntry(leftSibling->state, lhsIndex));
-
-  // debugging
-  TRSPARSE("state " << leftSibling->state <<
-           ", shift nonterm " << lhsIndex <<
-           ", to state " << rightSiblingState);
-
-  // is there already an active parser with this state?
-  StackNode *rightSibling = findTopmostParser(rightSiblingState);
-  if (rightSibling) {
-    // does it already have a sibling link to 'leftSibling'?
-    SiblingLink *sibLink = rightSibling->getLinkTo(leftSibling);
-    if (sibLink) {
-      // we already have a sibling link, so we don't need to add one
-
-      // +--------------------------------------------------+
-      // | it is here that we are bringing the tops of two  |
-      // | alternative parses together (TREEBUILD)          |
-      // +--------------------------------------------------+
-
-      // sometimes we are trying to merge dead trees--if the
-      // 'rightSibling' cannot make progress at all, it would be much
-      // better to just drop this alternative than demand the user
-      // merge trees when there is not necessarily any ambiguity
-      if (!canMakeProgress(rightSibling)) {
-        // both trees are dead; deallocate one (the other alternative
-        // will be dropped later, when 'rightSibling' is considered
-        // for action in the usual way)
-        TRSPARSE("avoided a merge by noticing the state was dead");
-        deallocateSemanticValue(rightSibling->getSymbolC(), sval);
-        return NULL;
-      }
-        
-      // remember previous value, for yield count warning
-      YIELD_COUNT(SemanticValue old2 = sibLink->sval);
-
-      // remember descriptions of the values before they are merged
-      ACTION( 
-        string leftDesc = userAct->nonterminalDescription(lhsIndex, sibLink->sval);
-        string rightDesc = userAct->nonterminalDescription(lhsIndex, sval);
-      )
-
-      // call the user's code to merge, and replace what we have
-      // now with the merged version
-      sibLink->sval = 
-        userAct->mergeAlternativeParses(lhsIndex, sibLink->sval, sval  SOURCELOCARG( loc ) );
-
-      // emit tracing diagnostics for the merge
-      TRSACTION("  " <<
-                userAct->nonterminalDescription(lhsIndex, sibLink->sval) <<
-                " is MERGE of " << leftDesc << " and " << rightDesc);
-
-      YIELD_COUNT(
-        if (sibLink->yieldCount > 0) {
-          // yield-then-merge (YTM) happened
-          yieldThenMergeCt++;
-          trace("ytm") << "at " << loc.toString() << endl;
-
-          // if merging yielded a new semantic value, then we most likely
-          // have a problem; if it yielded the *same* value, then most
-          // likely the user has implemented the 'ambiguity' link soln,
-          // so we're ok
-          if (old2 != sibLink->sval) {
-            cout << "warning: incomplete parse forest: " << (void*)old2
-                 << " has already been yielded, but it now has been "
-                 << "merged with " << (void*)sval << " to make "
-                 << (void*)(sibLink->sval) << " (lhsIndex="
-                 << lhsIndex << ")" << endl;
-          }
-        }
-      )
-
-      // ok, done
-      return NULL;
-
-      // and since we didn't add a link, there is no potential for new
-      // paths
-    }
-
-    // we get here if there is no suitable sibling link already
-    // existing; so add the link (and keep the ptr for loop below)
-    sibLink = rightSibling->addSiblingLink(leftSibling, sval  SOURCELOCARG( loc ) );
-
-    // adding a new sibling link may have introduced additional
-    // opportunties to do reductions from parsers we thought
-    // we were finished with.
-    //
-    // what's more, it's not just the parser ('rightSibling') we
-    // added the link to -- if rightSibling's itemSet contains 'A ->
-    // alpha . B beta' and B ->* empty (so A's itemSet also has 'B
-    // -> .'), then we reduced it (if lookahead ok), so
-    // 'rightSibling' now has another left sibling with 'A -> alpha
-    // B . beta'.  We need to let this sibling re-try its reductions
-    // also.
-    //
-    // so, the strategy is to let all 'finished' parsers re-try
-    // reductions, and process those that actually use the just-
-    // added link
-
-    // TODO: I think this code path is unusual; confirm by measurement
-    // update: it's taken maybe 1 in 10 times through this function..
-    parserMerges++;
-
-    // we don't have to recompute if nothing else points at
-    // 'rightSibling'; the refct is always at least 1 because we found
-    // it on the "active parsers" worklist
-    if (rightSibling->referenceCount > 1) {
-      // since we added a new link *all* determinDepths might
-      // be compromised; iterating more than once should be very
-      // rare (and this code path should already be unusual)
-      int changes=1, iters=0;
-      while (changes) {
-        changes = 0;
-        for (int i=0; i < topmostParsers.length(); i++) {
-          StackNode *parser = topmostParsers[i];
-          int newDepth = parser->computeDeterminDepth();
-          if (newDepth != parser->determinDepth) {
-            changes++;
-            parser->determinDepth = newDepth;
-          }
-        }
-        xassert(++iters < 1000);    // protect against infinite loop
-        computeDepthIters++;
-      }
-    }
-
-    // inform the caller that a new sibling link was added
-    return sibLink;
-  }
-
-  else {
-    // no, there is not already an active parser with this
-    // state.  we must create one; it will become the right
-    // sibling of 'leftSibling'
-    rightSibling = makeStackNode(rightSiblingState);
-
-    // add the sibling link (and keep ptr for tree stuff)
-    rightSibling->addSiblingLink(leftSibling, sval  SOURCELOCARG( loc ) );
-
-    // since this is a new parser top, it needs to become a
-    // member of the frontier
-    addTopmostParser(rightSibling);
-
-    //parserWorklist.push(rightSibling);
-    priorityWorklistInsert(*this, parserWorklist, rightSibling);
-    rightSibling->incRefCt();
-
-    // no need for the elaborate re-checking above, since we
-    // just created rightSibling, so no new opportunities
-    // for reduction could have arisen
-    return NULL;
-  }
-}
-#endif // 0
-
-
 // return true if the given parser can either shift or reduce.  NOTE:
 // this isn't really sufficient for its intended purpose, since I
 // don't check to see whether *further* actions after a reduce are
@@ -2280,79 +1426,6 @@ bool GLR::canMakeProgress(StackNode *parser)
          !tables->isErrorAction(entry);
 }
 
-
-#if 0
-void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
-{
-  NODE_COLUMN( globalNodeColumn++; )
-
-  // clear the active-parsers list; we rebuild it in this fn
-  for (int i=0; i < topmostParsers.length(); i++) {
-    StackNode *parser = topmostParsers[i];
-    #ifdef USE_PARSER_INDEX
-      xassert(parserIndex[parser->state] == i);
-      parserIndex[parser->state] = INDEX_NO_PARSER;
-    #endif // USE_PARSER_INDEX
-    parser->decRefCt();
-  }
-  topmostParsers.empty();
-
-  // to solve the multi-yield problem for tokens, I'll remember
-  // the previously-created sibling link (if any), and dup the
-  // sval in that link as needed
-  SiblingLink *prev = NULL;
-
-  // foreach (leftSibling, newState) in pendingShifts
-  while (pendingShifts.isNotEmpty()) {
-    RCPtr<StackNode> leftSibling(pendingShifts.top().parser);
-    StateId newState = pendingShifts.top().shiftDest;
-    pendingShifts.popAlt().deinit();
-
-    // debugging
-    TRSPARSE("state " << leftSibling->state <<
-             ", shift token " << lexerPtr->tokenDesc() <<
-             ", to state " << newState);
-
-    // if there's already a parser with this state
-    StackNode *rightSibling = findTopmostParser(newState);
-    if (rightSibling != NULL) {
-      // no need to create the node
-    }
-
-    else {
-      // must make a new stack node
-      rightSibling = makeStackNode(newState);
-
-      // and add it to the active parsers
-      addTopmostParser(rightSibling);
-    }
-
-    SemanticValue sval = lexerPtr->sval;
-    if (prev) {
-      // the 'sval' we just grabbed has already been claimed by
-      // 'prev->sval'; get a fresh one by duplicating the latter
-      sval = userAct->duplicateTerminalValue(lexerPtr->type, prev->sval);
-      
-      TRSACTION("  " << userAct->terminalDescription(lexerPtr->type, sval) <<
-                " is (@lexer) DUP of " <<
-                userAct->terminalDescription(lexerPtr->type, prev->sval));
-    }
-
-    // either way, add the sibling link now
-    //TRSACTION("grabbed token sval " << lexerPtr->sval);
-    prev = rightSibling->addSiblingLink(leftSibling, sval
-                                        SOURCELOCARG( lexerPtr->loc ) );
-
-    // adding this sibling link cannot violate the determinDepth
-    // invariant of some other node, because all of the nodes created
-    // or added-to during shifting do not have anything pointing at
-    // them, so in particular nothing points to 'rightSibling'; a simple
-    // check of this is to check the reference count and verify it is 1,
-    // the 1 being for the 'topmostParsers' list it is on
-    xassert(rightSibling->referenceCount == 1);
-  }
-}
-#endif // 0
 
 // if an active parser is at 'state', return it; otherwise
 // return NULL
@@ -2587,7 +1660,6 @@ void GLR::rwlProcessWorklist()
     // process the enabled reductions in priority order
     ReductionPathQueue::Path *path = pathQueue.dequeue();
 
-    // ---- BEGIN: copied from collectReducedPaths -----
     // info about the production
     ParseTables::ProdInfo const &prodInfo = tables->prodInfo[path->prodIndex];
     int rhsLen = prodInfo.rhsLen;
@@ -2677,15 +1749,12 @@ void GLR::rwlProcessWorklist()
         }
       }
     }
-    // ---- END: copied from collectReducedPaths -----
 
     pathQueue.deletePath(path);
   }
 }
 
 
-// essentially a copy of 'glrShiftNonterminal'
-//
 // shift reduction onto 'leftSibling' parser, 'lhsIndex' says which
 // nonterminal is being shifted; 'sval' is the semantic value of this
 // subtree, and 'loc' is the location of the left edge; return value
@@ -2915,7 +1984,7 @@ int GLR::rwlEnqueueReductions(StackNode *parser, ActionEntry action,
     for (int i=0; i<entry[0]; i++) {
       rwlEnqueueReductions(parser, entry[i+1], mustUseLink);
     }
-    
+
     return entry[0];
   }
 }
@@ -2928,9 +1997,9 @@ inline void GLR::rwlCollectPathLink(
 {
   proto->sibLinks[popsRemaining] = linkToAdd;
   proto->symbols[popsRemaining] = currentNode->getSymbolC();
-  
+
   if (linkToAdd == mustUseLink) {
-    rwlRecursiveEnqueue(proto, popsRemaining, linkToAdd->sib, 
+    rwlRecursiveEnqueue(proto, popsRemaining, linkToAdd->sib,
                         NULL /*mustUseLink*/);
   }
   else {
@@ -2946,9 +2015,6 @@ void GLR::rwlRecursiveEnqueue(
   StackNode *currentNode,           // node we're at in the path
   SiblingLink *mustUseLink)         // link the path must use (if non-NULL)
 {
-  // the structure of this function is similar to that of
-  // 'collectReducedPaths'
-
   if (popsRemaining == 0) {
     // we found path of required length
 

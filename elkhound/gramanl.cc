@@ -3149,10 +3149,6 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
           }
         }
       }
-      
-      if (delayed) {
-        tables->markDelayed(state->id);
-      }
     }
 
     // ---- fill in this row in the goto table ----
@@ -3201,9 +3197,6 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     tables->prodInfo[p].rhsLen = prod->rhsLength();
     tables->prodInfo[p].lhsIndex = prod->left->ntIndex;
   }
-  
-  // copy the derivability table
-  //tables->derivability->operator=(*derivable);
   
   // use the derivability relation to compute a total order
   // on nonterminals                    

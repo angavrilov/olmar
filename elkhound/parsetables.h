@@ -105,12 +105,6 @@ public:     // data
   // final reduction executed
   int finalProductionIndex;
 
-  // per-state bit flag: eager or delayed?
-  unsigned char *delayedStates;          // (owner)
-
-  // derivability relation among nonterminals
-  //Bit2d *derivability;                   // (owner)
-  
   // total order on nonterminals for use in choosing which to
   // reduce to in the RWL algorithm; index into this using a
   // nonterminal index, and it yields the ordinal for that
@@ -189,18 +183,6 @@ public:     // funcs
   static StateId decodeGoto(GotoEntry code)
     { return (StateId)code; }
 
-  // delayed flag
-  int delayedTableSize() const
-    { return (numStates+7) / 8; }
-  bool isDelayed(StateId stateId) const
-    { return (delayedStates[stateId >> 3] >> (stateId & 7)) & 1; }
-  void markDelayed(StateId stateId)
-    { delayedStates[stateId >> 3] |= (1 << (stateId & 7)); }
-    
-  // derivability
-  //bool canDerive(int ntIndex1, int ntIndex2) const
-  //  { return derivability->get(point(ntIndex1, ntIndex2)); }
-  
   // nonterminal order
   int nontermOrderSize() const
     { return numNonterms; }

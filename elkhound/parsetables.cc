@@ -38,11 +38,6 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
   startState = start;
   finalProductionIndex = final;
   
-  delayedStates = new unsigned char[delayedTableSize()];
-  memset(delayedStates, 0, sizeof(delayedStates[0]) * delayedTableSize());
-  
-  //derivability = new Bit2d(point(numNonterms, numNonterms));
-  
   nontermOrder = new NtIndex[nontermOrderSize()];
   memset(nontermOrder, 0, sizeof(nontermOrder[0]) * nontermOrderSize());
 }
@@ -60,14 +55,8 @@ ParseTables::~ParseTables()
       delete[] ambigAction[i];
     }
 
-    delete[] delayedStates;
-  
     delete[] nontermOrder;
   }
-
-  // this is always owned, but the object itself might not own
-  // its internal data (that's controlled by a flag inside it)
-  //delete derivability;
 }
 
 
@@ -99,8 +88,6 @@ ParseTables::ParseTables(Flatten &flat)
   gotoTable = NULL;
   prodInfo = NULL;
   stateSymbol = NULL;
-  delayedStates = NULL;
-  //derivability = NULL;
   nontermOrder = NULL;
 }
 
@@ -136,11 +123,6 @@ void ParseTables::xfer(Flatten &flat)
   xferSimpleArray(flat, gotoTable, gotoTableSize());
   xferSimpleArray(flat, prodInfo, numProds);
   xferSimpleArray(flat, stateSymbol, numStates);
-  xferSimpleArray(flat, delayedStates, delayedTableSize());
-
-  // not sure why 'derivability' wasn't included here before, but
-  // since I'd just comment it out anyway I'll leave it out
-  
   xferSimpleArray(flat, nontermOrder, nontermOrderSize());
 
   // ambigAction

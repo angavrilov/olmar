@@ -218,152 +218,9 @@ public:     // funcs
 };
 
 
-// during GLR parsing of a single token, we do all reductions before any
-// shifts; thus, when we decide a shift is necessary, we need to save the
-// relevant info somewhere so we can come back to it at the end
-class PendingShift {
-public:
-  // which parser is this that's ready to shift?
-  RCPtr<StackNode> parser;
-
-  // which state is it ready to shift into?
-  //ItemSet const * const shiftDest;            // (serf)
-  StateId shiftDest;
-
-public:
-  PendingShift()
-    : parser(NULL), shiftDest(STATE_INVALID) {}
-  ~PendingShift();
-
-  PendingShift& operator=(PendingShift const &obj);
-
-  // start using this
-  void init(StackNode *p, StateId s)
-  {
-    parser = p;
-    shiftDest = s;
-  }
-
-  // stop using this
-  void deinit();
-};
-
-
-// when a reduction is performed, we do a DFS to find all the ways
-// the reduction can happen; this structure keeps state persistent
-// across the recursion (comments in code have some details, too)
-class PathCollectionState {
-public:    // types
-  // this is the result of applying a reduction action along
-  // a particular path in the stack
-  class ReducedPath {
-  public:
-    // the state we end up in after reducing those symbols
-    RCPtr<StackNode> finalState;
-
-    // the semantic value yielded by the reduction action (owner)
-    SemanticValue sval;
-
-    // location of left edge of this subtree
-    SOURCELOC( SourceLocation loc; )
-
-  private:
-    // this is only for use by the GrowArray; it transfers all
-    // state from 'obj' to 'this', on the expectation that 'obj'
-    // is about to be deallocated (since we transfer state, 'obj'
-    // is *not* const)
-    ReducedPath& operator=(ReducedPath &obj);
-    friend class GrowArray<ReducedPath>;
-
-  public:
-    ReducedPath()
-      : finalState(NULL_SVAL), sval(NULL_SVAL)  SOURCELOCARG( loc() ) {}
-    ~ReducedPath();
-
-    // begin using this
-    void init(StackNode *f, SemanticValue s 
-              SOURCELOCARG( SourceLocation const &L  ) )
-    {
-      finalState = f;        // increment reference count
-      sval = s;
-      SOURCELOC( loc = L; )
-    }
-
-    // stop using this
-    void deinit();
-  };
-
-public:	   // data
-  // ---- stuff constant across a series of DFSs ----
-  // id of the state we started in (where the reduction was applied)
-  StateId startStateId;
-
-  // this is the (index of the) production we're trying to reduce by
-  int prodIndex;
-
-  // ---- stuff that changes ----
-  // we collect paths into this array, which is maintained as we
-  // enter/leave recursion; the 0th item is the leftmost, i.e.
-  // the last one we collect when starting from the reduction state
-  // and popping symbols as we move left;
-  GrowArray<SiblingLink*> siblings;     // (array of serfs)
-  GrowArray<SymbolId> symbols;
-
-  //SiblingLink **siblings;        // (owner ptr to array of serfs)
-  //SymbolId *symbols;             // (owner ptr to array)
-
-  // as reduction possibilities are encountered, we record them here
-  ArrayStack<ReducedPath> paths;
-
-public:	   // funcs
-  PathCollectionState();
-  ~PathCollectionState();
-
-  // begin using this object
-  void init(int prodIndex, int rhsLen, StateId start);
-                
-  // done using it
-  void deinit();
-                  
-  // add something to the 'paths' array
-  void addReducedPath(StackNode *f, SemanticValue s
-                      SOURCELOCARG( SourceLocation const &L ) );
-};
-
-
-// worklist of stack nodes; conceptually, it is a pair of
-// ArrayStack<StackNode*> with one stack given priority over
-// the other; syntactically, I've designed the interface so I
-// can easily switch it to be a single StackNodeWorklist to
-// test the performance impact of having two lists
-class StackNodeWorklist {
-public:
-  // the pair of stacks; we process all the nodes in the 'eager'
-  // list before any in the 'delayed' list
-  ArrayStack<StackNode*> eager, delayed;
-
-public:
-  // empty both lists
-  void empty() { eager.empty(); delayed.empty(); }
-
-  // test if both lists are empty
-  bool isEmpty() const { return eager.isEmpty() && delayed.isEmpty(); }
-  bool isNotEmpty() const { return !isEmpty(); }
-
-  // remove a node from one of the lists (eager is preferred);
-  // 'isEmpty()' must be false to do this
-  StackNode *pop();
-
-  // sum of the lengths
-  int length() const { return eager.length() + delayed.length(); }
-};
-
-
-// for RWL core: This is a priority queue of stack node paths that are
-// candidates to reduce, maintained such that we can select paths in
-// an order which will avoid yield-then-merge.  There is some overlap
-// between ReductionPathQueue and PathCollectionState, but they're
-// used by different parts of the algorithm.
+// this is a priority queue of stack node paths that are candidates to
+// reduce, maintained such that we can select paths in an order which
+// will avoid yield-then-merge
 class ReductionPathQueue {
 public:       // types
   // a single path in the stack
@@ -473,11 +330,6 @@ public:
   // comments at top of glr.cc for more details.)
   ArrayStack<StackNode*> topmostParsers;     // (refct list)
 
-  // persistent array that I swap with 'topmostParsers' during
-  // 'rwlShiftTerminals' to avoid extra copying or allocation;
-  // this should be regarded as variable local to that function
-  ArrayStack<StackNode*> prevTopmost;        // (refct list)
-
   // index: StateId -> index in 'topmostParsers' of unique parser
   // with that state, or INDEX_NO_PARSER if none has that state
   typedef unsigned char ParserIndexEntry;
@@ -498,28 +350,14 @@ public:
   //   lexerPtr->sval
   //   lexerPtr->loc
 
-  // parsers that haven't yet had a chance to try to make progress
-  // on this token
-  //#if USE_DELAYED_STATES
-  //  StackNodeWorklist parserWorklist;         // (refct list)
-  //#else
-  //  ArrayStack<StackNode*> parserWorklist;    // (refct list)
-  //#endif
-
   // ---- scratch space re-used at token-level (or finer) granularity ----
-  // to be regarded as a local variable of GLR::doReduction; since
-  // doReduction can call itself recursively (to handle new reductions
-  // enabled by adding a sibling link), this is a stack
-  ObjArrayStack<PathCollectionState> pcsStack;
-
-  // pushing and popping using the ObjArrayStack interface would
-  // defeat the purpose of pulling this out; pcsStackHeight gives the
-  // next entry to use, and we only push a new entry onto pcsStack if
-  // pcsStackHeight > pcsStack.length
-  int pcsStackHeight;
-
-  // to be regarded as a local variable of GLR::collectReducedPaths
+  // to be regarded as a local variable of GLR::rwlProcessWorklist
   GrowArray<SemanticValue> toPass;
+
+  // persistent array that I swap with 'topmostParsers' during
+  // 'rwlShiftTerminals' to avoid extra copying or allocation;
+  // this should be regarded as variable local to that function
+  ArrayStack<StackNode*> prevTopmost;        // (refct list)
 
   // ---- allocation pools ----
   // this is a pointer to the same-named local variable in innerGlrParse
@@ -549,25 +387,6 @@ private:    // funcs
   SemanticValue duplicateSemanticValue(SymbolId sym, SemanticValue sval);
   void deallocateSemanticValue(SymbolId sym, SemanticValue sval);
   SemanticValue grabTopSval(StackNode *node);
-
-  #if 0
-  int glrParseAction(StackNode *parser, ActionEntry action,
-                     ArrayStack<PendingShift> &pendingShifts);
-  void doLimitedReductions(StackNode *parser, ActionEntry action,
-                           SiblingLink *sibLink);
-  void doReduction(StackNode *parser,
-                   SiblingLink *mustUseLink,
-                   int prodIndex);
-  void collectReducedPaths(PathCollectionState &pcs, int popsRemaining,
-                           StackNode *currentNode, SiblingLink *mustUseLink);
-  void collectPathLink(PathCollectionState &pcs, int popsRemaining,
-                       StackNode *currentNode, SiblingLink *mustUseLink,
-                       SiblingLink *linkToAdd);
-  SiblingLink *glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
-                                   SemanticValue sval
-                                   SOURCELOCARG( SourceLocation const &loc ) );
-  void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);
-  #endif // 0
 
   StackNode *findTopmostParser(StateId state);
   StackNode *makeStackNode(StateId state);
