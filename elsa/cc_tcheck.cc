@@ -75,7 +75,9 @@ string ambiguousNodeName(ASTTypeId const *n)
 // ------------------- TranslationUnit --------------------
 void TranslationUnit::tcheck(Env &env)
 {
+  static int tform = 0;
   FOREACH_ASTLIST_NC(TopForm, topForms, iter) {
+    TRACE("topform", ++tform);
     iter.data()->tcheck(env);
   }
 }

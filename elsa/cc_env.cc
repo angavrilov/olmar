@@ -2514,13 +2514,30 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 // classes and one for functions.  To the extent they share mechanism
 // it would be better to encapsulate the mechanism than to share it
 // by threading two distinct flow paths through the same code.
+//
+// dsw: There are three dimensions to the space of paths through this
+// code.
+//
+// 1 - class or function template
+// 
+// 2 - baseForward: true exactly when we are typechecking a forward
+// declaration and not a definition.
+//
+// 3 - instV: non-NULL when
+//   a) a template primary was forward declared
+//   b) it has now been defined
+//   c) it has forwarded instantiations (& specializations?)  which
+//   when they were instantiated, did not find a specialization and so
+//   they are now being instantiated
+// Note the test 'if (!instV)' below.  In this case, we are always
+// going to instantiate the primary and not the specialization,
+// because if the specialization comes after the instantiation point,
+// it is not relevant anyway.
 Variable *Env::instantiateTemplate
   (SourceLoc loc, Scope *foundScope,
    Variable *baseV, Variable *instV,
    SObjList<STemplateArgument> &sargs)
 {
-  Variable *oldBaseV = baseV;   // save this for other uses later
-
   // NOTE: There is an ordering bug here, e.g. it fails t0209.cc.  The
   // problem here is that we choose an instantiation (or create one)
   // based only on the arguments explicitly present.  Since default
@@ -2536,6 +2553,15 @@ Variable *Env::instantiateTemplate
   // maintain the inst loc stack (ArrayStackPopper is in smbase/array.h)
   ArrayStackPopper<SourceLoc> pusher_popper(instantiationLocStack, loc /*pushVal*/);
 
+  // 1 **** what template are we going to instanitate?  We now find
+  // the instantiation/specialization/primary most specific to the
+  // template arguments we have been given.  If it is a complete
+  // specialization, we use it as-is.  If it is a partial
+  // specialization, we reassign baseV.  Otherwise we fall back to the
+  // primary.  At the end of this section if we have not returned then
+  // baseV is the template to instantiate.
+
+  Variable *oldBaseV = baseV;   // save this for other uses later
   // has this class already been instantiated?
   if (!instV) {
     // Search through the instantiations of this primary and do an
@@ -2567,15 +2593,24 @@ Variable *Env::instantiateTemplate
   if (baseV->type->isCompoundType()) {
     baseForward = baseV->type->asCompoundType()->forward;
     instName = baseV->type->asCompoundType()->name;
-  } else if (baseV->type->isFunctionType()) {
+  } else {
+    xassert(baseV->type->isFunctionType());
     // FIX: We assume for now that function templates cannot be
     // forward declared
     baseForward = false;
     instName = baseV->name;     // FIX: just something for now
-  } else xfailure("illegal template type");
+  }
+
+  // The non-NULL instV is marked as no longer forwarded before being
+  // passed in.
+  if (instV) {
+    xassert(!baseForward);
+  }
   trace("template") << (baseForward ? "(forward) " : "")
                     << "instantiating class: "
                     << instName << sargsToString(sargs) << endl;
+
+  // 2 **** Prepare the argument scope for tempate instantiation
 
   ObjList<Scope> poppedScopes;
   SObjList<Scope> pushedScopes;
@@ -2585,8 +2620,9 @@ Variable *Env::instantiateTemplate
       (poppedScopes, pushedScopes, foundScope, baseV, sargs);
   }
 
-  // make a copy of the template definition body AST (unless this
-  // is a forward declaration)
+  // 3 **** make a copy of the template definition body AST (unless
+  // this is a forward declaration)
+
   TS_classSpec *copyCpd = NULL;
   Function *copyFun = NULL;
   if (baseV->type->isCompoundType()) {
@@ -2597,7 +2633,8 @@ Variable *Env::instantiateTemplate
       xassert(baseSyntax);
       copyCpd = baseSyntax->clone();
     }
-  } else if (baseV->type->isFunctionType()) {
+  } else {
+    xassert(baseV->type->isFunctionType());
     Function *baseSyntax = baseV->funcDefn;
     // FIX: this
     if (!baseSyntax) {
@@ -2623,8 +2660,14 @@ Variable *Env::instantiateTemplate
     copyFun->debugPrint(cout, 0);
   }
 
-  // make the CompoundType that will represent the instantiated class,
-  // if we don't already have one
+  // 4 **** make the Variable that will represent the instantiated
+  // class during typechecking of the definition; this allows template
+  // classes that refer to themselves and recursive function templates
+  // to work.  The variable is assigned to instV; if instV already
+  // exists, this work does not need to be done: the template was
+  // previously forwarded and that forwarded definition serves the
+  // purpose.
+
   if (!instV) {
     // copy over the template arguments so we can recognize this
     // instantiation later
@@ -2681,7 +2724,8 @@ Variable *Env::instantiateTemplate
         instV->type->asCompoundType()->addUniqueVariable(var2);
         addedNewVariable(instV->type->asCompoundType(), var2);
       }
-    } else if (baseV->type->isFunctionType()) {
+    } else {
+      xassert(baseV->type->isFunctionType());
       // sm: what gives?  we're just cloning the template's type?
       // then it will be full of TypeVariables, and cloning the
       // AST will have been pointless!
@@ -2720,7 +2764,7 @@ Variable *Env::instantiateTemplate
       // but it doesn't work because nameAndParams->var doesn't exist
       // until after typechecking.
 //        instV = copyFun->nameAndParams->var;
-    } else xfailure("illegal template type");
+    }
 
     xassert(instV);
     foundScope->registerVariable(instV);
@@ -2741,7 +2785,11 @@ Variable *Env::instantiateTemplate
     instV->setTemplateInfo(instTInfo);
   }
 
+  // 5 **** typecheck the cloned AST
+
   if (copyCpd || copyFun) {
+    xassert(!baseForward);
+
     // we are about to tcheck the cloned AST.. it might be that we were
     // in the context of an ambiguous expression when the need for
     // instantiated arose, but we want the tchecking below to proceed
@@ -2765,7 +2813,8 @@ Variable *Env::instantiateTemplate
         // mutants are actually needed; Instead we just avoid them
         // above.
         //      deMutantify(baseV);
-      } else if (instV->type->isFunctionType()) {
+      } else {
+        xassert(instV->type->isFunctionType());
         xassert(copyFun);
         copyFun->funcType = instV->type->asFunctionType();
         xassert(scope()->isGlobalTemplateScope());
@@ -2787,10 +2836,15 @@ Variable *Env::instantiateTemplate
     }
 
     unPrepArgScopeForTemlCloneTcheck(argScope, poppedScopes, pushedScopes);
+  } else {
+    xassert(baseForward);
   }
 
   // make sure we haven't forgotten these
   xassert(poppedScopes.isEmpty() && pushedScopes.isEmpty());
+
+  // 6 **** Attach the template info to the newly created
+  // instantiation and return it.
 
   // FIX: make this more uniform with CompoundType.  The assymetry is
   // probably somehow due to the fact that for a class, the
