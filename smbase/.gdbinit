@@ -1,5 +1,5 @@
 
-file svdict
+file trdelete
 
 break main
 break breaker

@@ -46,7 +46,8 @@ malloc.o: malloc.c
 library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
-  strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o
+  strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
+  trdelete.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
@@ -83,6 +84,9 @@ str: str.cpp str.h ${THISLIBRARY}
 strhash: strhash.cc strhash.h ${THISLIBRARY}
 	${link} -o strhash -DTEST_STRHASH strhash.cc ${THISLIBRARY} ${linkend}
 
+trdelete: trdelete.cc trdelete.h ${THISLIBRARY}
+	${link} -o trdelete -DTEST_TRDELETE trdelete.cc ${THISLIBRARY} ${linkend}
+
 check: ${tests-files}
 	./nonport
 	./voidlist
@@ -93,6 +97,7 @@ check: ${tests-files}
 	./svdict
 	./str
 	./strhash
+	./trdelete
 	@echo
 	@echo "make check: all the tests PASSED"
 

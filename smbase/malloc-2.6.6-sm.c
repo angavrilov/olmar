@@ -2128,6 +2128,10 @@ Void_t* mALLOc(bytes) size_t bytes;
 
   INTERNAL_SIZE_T nb;
 
+  #ifdef TRACE_MALLOC_CALLS
+  printf("malloc(%d)\n", bytes);
+  #endif
+
   if ((long)bytes < 0) return 0;
 
   nb = request2size(bytes);  /* padded request size; */
@@ -2384,6 +2388,10 @@ void fREe(mem) Void_t* mem;
   mchunkptr bck;       /* misc temp for linking */
   mchunkptr fwd;       /* misc temp for linking */
   int       islr;      /* track whether merging with last_remainder */
+
+  #ifdef TRACE_MALLOC_CALLS
+  printf("free(%p)\n", mem);
+  #endif
 
   if (mem == 0)                              /* free(0) has no effect */
     return;

@@ -8,11 +8,14 @@
 
 #include "xassert.h"     // xassert
 #include "typ.h"         // bool
+#include "trdelete.h"    // TRASHINGDELETE
 
 // -------------------------- non-typesafe core -----------------------------
 // non-typesafe list node
 class VoidNode {
 public:
+  TRASHINGDELETE
+
   VoidNode *next;           // (owner) next item in list, or NULL if last item
   void *data;               // whatever it is the list is holding
 
