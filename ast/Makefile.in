@@ -61,7 +61,9 @@ agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h ast.ast.h
 agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 	flex -o$@ agramlex.lex
 	mv $@ agramlex.tmp
-	sed -e 's/class istream;/#include <iostream.h>/' <agramlex.tmp >$@
+	sed -e 's/class istream;/#include <iostream.h>/' \
+            -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
+	  <agramlex.tmp >$@
 	rm agramlex.tmp
 
 
@@ -146,16 +148,25 @@ TAGS:
 check:
 	@echo "ast doesn't have a useful 'make check' at this time"
 
+# delete outputs of compiler, linker
 clean:
-	rm -f *.o agrampar.tab.* tmp *.d
+	rm -f *.o tmp *.d
 	rm -f agrampar astgen ccsstr towner exampletest libast.a
-	rm -f agrampar.{codes.h,output} agramlex.yy.cc
+	rm -f agrampar.output
 	rm -f example.{h.cc} ext1.{h,cc}
 	rm -f TAGS
 
+# return to pristine checked-out state
 distclean: clean
 	rm -f Makefile config.status config.summary
 	rm -rf gendoc
+
+# 'clean', plus remove distributed outputs of tools like flex, bison
+toolclean: clean
+	rm -f agrampar.tab.h
+	rm -f agrampar.tab.cc
+	rm -f agrampar.codes.h
+	rm -f agramlex.yy.cc
 
 # test for owner
 towner: owner.h towner.o

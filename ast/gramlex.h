@@ -7,16 +7,15 @@
 #define __GRAMLEX_H
 
 
-// work around an apparent bug in flex-2.5.31 (why did they
-// define this?)
-#undef yyFlexLexer
-
 // This included file is part of the Flex distribution.  It is
 // installed in /usr/include on my Linux machine.  By including it, we
 // get the declaration of the yyFlexLexer class.  Note that the file
 // that flex generates, gramlex.yy.cc, also #includes this file.
 // Perhaps also worth mentioning: I'm developing this with flex 2.5.4.
-#include <FlexLexer.h>
+//
+// update: This approach was too problematic.  I've taken to distributing
+// FlexLexer.h myself.
+#include "sm_flexlexer.h"     // yyFlexLexer
 
 #include <iostream.h>         // istream
 
