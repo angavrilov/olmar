@@ -4,6 +4,7 @@
 # main target
 THIS := libsmbase.a
 all: gensrc $(THIS)
+all: TAGS
 
 
 # C preprocessor, compiler and linker
@@ -314,6 +315,8 @@ gendoc/configure.txt: configure
 doc: gendoc gendoc/dependencies.png gendoc/configure.txt
 	@echo "built documentation"
 
+TAGS:; etags --members --typedefs *.cc *.h
+
 
 # --------------------- clean --------------------
 # delete compiling/editing byproducts
@@ -322,6 +325,7 @@ clean:
 	rm -f $(TESTS)
 	rm -f *.a
 	rm -rf test.dir
+	rm -f TAGS
 
 distclean: clean
 	rm -f Makefile config.status config.summary
