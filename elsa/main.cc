@@ -15,8 +15,8 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
-//  #include "cc_flatten.h"   // FlattenEnv
 #include "cc.gr.gen.h"    // CCParse
+#include "nonport.h"      // getMilliseconds
 
 
 // no bison-parser present, so need to define this
@@ -122,9 +122,12 @@ void doit(int argc, char **argv)
     BasicTypeFactory tfac;
 
     traceProgress() << "type checking...\n";
+    long tcheckStart = getMilliseconds();
     Env env(strTable, lang, tfac);
     unit->tcheck(env);
-    traceProgress() << "done type checking\n";
+    traceProgress() << "done type checking (" 
+                    << (getMilliseconds() - tcheckStart) 
+                    << " ms)\n";
 
     if (tracingSys("secondTcheck")) {
       // this is useful to measure the cost of disambiguation, since
