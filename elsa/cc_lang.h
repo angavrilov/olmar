@@ -75,6 +75,9 @@ public:
   // symbol ("B").  This means that the following is not an error:
   //   int a; int a;
   // gcc seems to operate as if this is true, whereas g++ not.
+  //
+  // these are the so-called "tentative" definitions of C; the flag
+  // is somewhat misnamed
   bool uninitializedGlobalDataIsCommon;
 
   // when true, if a function has an empty parameter list then it is

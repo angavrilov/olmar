@@ -2902,6 +2902,15 @@ void checkCompleteTypeRules(Env &env, Declarator::Tcheck &dt, Initializer *init)
     return;
   }
 
+  if (dt.context == DC_TF_DECL &&
+      env.lang.uninitializedGlobalDataIsCommon &&
+      !init) {
+    // tentative global definition, type does not need to be complete;
+    // c99 6.9.2p3 implies this is only allowed if 'static' is not
+    // specified, but gcc does not enforce that so I won't either
+    return;
+  }
+
   if (dt.type->isArrayType()) {
     if (init) {
       // The array type might be incomplete now, but the initializer

@@ -21,5 +21,8 @@ int g() {
 }
 
 struct Incomplete;
-//ERROR(1): struct Incomplete inc;
+void h() {
+  //ERROR(1): struct Incomplete inc;
+}
+
 

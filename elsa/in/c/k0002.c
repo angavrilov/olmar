@@ -2,5 +2,16 @@
 
 // originally found in package diff
 
+// ok at global scope
 struct S s;
+
+// not ok if static (well, gcc allows it, so whatever)
+//static struct S s3;
+
+void foo()
+{
+  // not ok in local scope
+  //ERROR(1): struct S s2;
+}
+
 struct S {};
