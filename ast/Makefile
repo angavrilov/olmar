@@ -18,7 +18,7 @@ all: agrampar
 # declaration of yylex(), unless I modify it as below; the 'grep' is so
 # I have a .h file without the union, since the union refers to types
 # whose declarations I'd like to avoid spreading everywhere
-agrampar.tab.c agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h
+agrampar.tab.c agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h agrampar.h
 	bison -d -v agrampar.y
 	cp agrampar.tab.c tmp
 	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > agrampar.tab.c
@@ -42,4 +42,5 @@ $(PARSGEN)/%.o: $(PARSGEN)/%.cc
 agrampar-dep = $(PARSGEN)/gramlex.o agrampar.tab.o $(PARSGEN)/ccsstr.o \
                $(PARSGEN)/fileloc.o agramlex.yy.o embedded.o ast.o ast.hand.cc
 agrampar: $(agrampar-dep) agrampar.cc
-	$(LINK) $(CXXFLAGS) $(agrampar-dep) -DTEST_AGRAMPAR agrampar.cc $(LINKEND)
+	$(LINK) -o agrampar $(CXXFLAGS) $(agrampar-dep) \
+                -DTEST_AGRAMPAR agrampar.cc $(LINKEND)

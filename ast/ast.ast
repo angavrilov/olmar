@@ -30,11 +30,9 @@ verbatim {
 class UserDecl (AccessCtl access, string code);
 
 // one of possibly several alternatives for the enclosing class
-class ASTCtor {
-  -> (string name,
-      ASTList<CtorArg> args,
-      ASTList<UserDecl> decls);
-}
+class ASTCtor (string name,
+               ASTList<CtorArg> args,
+               ASTList<UserDecl> decls);
 
 // something that has to be passed to create a constructor
 class CtorArg (bool owner, string type, string name);

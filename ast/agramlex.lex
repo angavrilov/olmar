@@ -127,8 +127,8 @@ SLWHITE   [ \t]
 ")"                TOK_UPD_COL;  return TOK_RPAREN;
 ","                TOK_UPD_COL;  return TOK_COMMA;
 
-">"                TOK_UPD_COL;  return TOK_LANGLE;
-"<"                TOK_UPD_COL;  return TOK_RANGLE;
+"<"                TOK_UPD_COL;  return TOK_LANGLE;
+">"                TOK_UPD_COL;  return TOK_RANGLE;
 "*"                TOK_UPD_COL;  return TOK_STAR;
 "&"                TOK_UPD_COL;  return TOK_AMPERSAND;
 

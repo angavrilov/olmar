@@ -129,7 +129,12 @@ CtorArgsOpt
 
 /* yields ASTList<CtorArg> */
 CtorArgs: Arg
-            { $$ = new ASTList<CtorArg>; $$->append(parseCtorArg(unbox($1))); }
+            { $$ = new ASTList<CtorArg>;
+              {
+                string tmp = unbox($1);
+                $$->append(parseCtorArg(tmp));
+              }
+            }
         | CtorArgs "," Arg
             { ($$=$1)->append(parseCtorArg(unbox($3))); }
         ;

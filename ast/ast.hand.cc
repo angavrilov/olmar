@@ -65,23 +65,29 @@ void ASTSpecFile::debugPrint(ostream &os, int indent) const
 
 // ----------------- ToplevelForm -------------------
 void ToplevelForm::debugPrint(ostream &os, int indent) const
-{
-  HEADER(ToplevelForm);
-}
+{}
 
 #if 0
 TF_verbatim::TF_verbatim(string _code)
   : code(_code)
-{}   
+{}
 #endif // 0
 
 void TF_verbatim::debugPrint(ostream &os, int indent) const
 {
+  HEADER(TF_verbatim);
+
+  ToplevelForm::debugPrint(os, indent);
+
   PRINT_STRING(code);
 }
 
 void ASTClass::debugPrint(ostream &os, int indent) const
 {
+  HEADER(ASTClass);
+
+  ToplevelForm::debugPrint(os, indent);
+
   PRINT_STRING(name);
   PRINT_LIST(CtorArg, superCtor);
   PRINT_LIST(UserDecl, decls);

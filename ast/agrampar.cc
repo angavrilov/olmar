@@ -35,12 +35,12 @@ string *appendStr(string *left, string *right)
 }
 
 
-CtorArg *parseCtorArg(string str)
+CtorArg *parseCtorArg(char const *origStr)
 {
   CtorArg *ret = new CtorArg(false, NULL, NULL);
 
   // strip leading and trailing whitespace
-  str = trimWhitespace(str);
+  string str = trimWhitespace(origStr);
 
   // check for owner flag
   if (0==strncmp(str, "owner", 5)) {
@@ -57,8 +57,9 @@ CtorArg *parseCtorArg(string str)
     p--;
   }
   if (p == start) {
-    xformat("missing type specifier");
+    xformat(stringc << "missing type specifier in \"" << origStr << "\"");
   }
+  p++;
 
   ret->type = trimWhitespace(string(start, p-start));
   ret->name = trimWhitespace(string(p));
@@ -124,7 +125,15 @@ ASTSpecFile *readAbstractGrammar(char const *fname)
   ASTParseParams params(*lexer);
 
   traceProgress() << "parsing grammar source..\n";
-  int retval = agrampar_yyparse(&params);
+  int retval;
+  try {
+    retval = agrampar_yyparse(&params);
+  }
+  catch (xFormat &x) {
+    lexer->err(x.cond());     // print with line number info
+    throw;
+  }
+
   if (retval == 0) {
     return params.treeTop;
   }
@@ -138,11 +147,15 @@ ASTSpecFile *readAbstractGrammar(char const *fname)
 // ----------------------- test code -----------------------
 #ifdef TEST_AGRAMPAR
 
-int main(int argc, char **argv)
-{                           
+#include "test.h"    // ARGS_MAIN
+
+void entry(int argc, char **argv)
+{
+  TRACE_ARGS();
+
   if (argc != 2) {
     cout << "usage: " << argv[0] << " ast-spec-file\n";
-    return 0;
+    return;
   }
 
   // parse the grammar spec
@@ -151,8 +164,8 @@ int main(int argc, char **argv)
 
   // print it out
   ast->debugPrint(cout, 0);
-
-  return 0;
 }
 
-#endif // TEST_GRAMPAR
+ARGS_MAIN
+
+#endif // TEST_AGRAMPAR

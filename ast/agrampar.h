@@ -48,7 +48,7 @@ string *box(char const *s);
 string *appendStr(string *left, string *right);
 
 // parse a string into components
-CtorArg *parseCtorArg(string str);
+CtorArg *parseCtorArg(char const *str);
 
 // error routine
 void agrampar_yyerror(char const *msg, void *parseParam);

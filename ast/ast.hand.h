@@ -122,7 +122,7 @@ public:
 
 public:
   CtorArg(bool _owner, string _type, string _name)
-    : owner(owner),
+    : owner(_owner),
       type(_type),
       name(_name)
   {}
