@@ -415,13 +415,13 @@ void Production::print(ostream &os) const
 }
 
 
-string Production::toString() const
+string Production::toString(bool printType) const
 {
   // LHS "->" RHS
   // 9/27/00: don't print tag for LHS
   stringBuilder sb;
   sb << left->name;
-  if (left->type) {
+  if (printType && left->type) {
     sb << "[" << left->type << "]";
   }
   sb << " -> " << rhsString();

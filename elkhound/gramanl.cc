@@ -465,7 +465,7 @@ void ItemSet::changedItems()
 }
 
 
-void ItemSet::print(ostream &os) const
+void ItemSet::print(ostream &os, GrammarAnalysis const &g) const
 {
   os << "ItemSet " << id << ":\n";
 
@@ -490,7 +490,7 @@ void ItemSet::print(ostream &os) const
       }
       else {
         os << "--> " << is->id;
-      }          
+      }
     }
     os << endl;
   }
@@ -499,13 +499,15 @@ void ItemSet::print(ostream &os) const
   // away items sometimes
   for (int t=0; t<terms; t++) {
     if (termTransition[t]) {
-      os << "  on terminal " << t << " go to " << termTransition[t]->id << endl;
+      os << "  on terminal " << g.getTerminal(t)->name 
+         << " go to " << termTransition[t]->id << endl;
     }
   }
 
   for (int n=0; n<nonterms; n++) {
     if (nontermTransition[n]) {
-      os << "  on nonterminal " << n << " go to " << nontermTransition[n]->id << endl;
+      os << "  on nonterminal " << g.getNonterminal(n)->name 
+         << " go to " << nontermTransition[n]->id << endl;
     }
   }
   
@@ -591,6 +593,19 @@ GrammarAnalysis::~GrammarAnalysis()
 }
 
 
+Terminal const *GrammarAnalysis::getTerminal(int index) const
+{
+  xassert((unsigned)index < (unsigned)numTerms);
+  return indexedTerms[index];
+}
+
+Nonterminal const *GrammarAnalysis::getNonterminal(int index) const
+{
+  xassert((unsigned)index < (unsigned)numNonterms);
+  return indexedNonterms[index];
+}
+
+
 void GrammarAnalysis::xfer(Flatten &flat)
 {
   Grammar::xfer(flat);
@@ -642,7 +657,7 @@ void GrammarAnalysis::
   printProductions(os, printCode);
 
   FOREACH_OBJLIST(ItemSet, itemSets, iter) {
-    iter.data()->print(os);
+    iter.data()->print(os, *this);
   }
 }
 
@@ -1479,7 +1494,7 @@ void GrammarAnalysis::constructLRItemSets()
         << endl
         ;
 
-      itemSet.data()->print(os);
+      itemSet.data()->print(os, *this);
     }
   }
 
@@ -2229,6 +2244,11 @@ void GrammarAnalysis::runAnalyses()
   findSLRConflicts();
 
 
+  // if we want to print, do so before throwing away the items
+  if (tracingSys("itemsets")) {
+    printProductionsAndItems(cout, true /*code*/);
+  }
+
   // experiment: do I need the itemSet items during parsing?
   #if 1
   //cout << "throwing away items\n";
@@ -2236,11 +2256,6 @@ void GrammarAnalysis::runAnalyses()
     iter.data()->throwAwayItems();
   }
   #endif // 0
-
-
-  if (tracingSys("itemsets")) {
-    printProductionsAndItems(cout, true /*code*/);
-  }
 
 
   // another analysis

@@ -143,8 +143,7 @@ public:     // funcs
 
   // ---- debugging ----
   void writeGraph(ostream &os) const;
-  void print(ostream &os) const;
-  OSTREAM_OPERATOR(ItemSet)
+  void print(ostream &os, GrammarAnalysis const &g) const;
 };
 
 
@@ -263,6 +262,10 @@ private:    // funcs
 public:	    // funcs
   GrammarAnalysis();
   ~GrammarAnalysis();
+
+  // access symbols by index
+  Terminal const *getTerminal(int index) const;
+  Nonterminal const *getNonterminal(int index) const;
 
   // binary read/write
   void xfer(Flatten &flat);

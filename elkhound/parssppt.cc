@@ -62,6 +62,7 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
             "    grammar         echo the grammar\n"
             "    ambiguities     print ambiguities encountered during parsing\n"
             "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
+            "    itemsets        print the sets-of-items DFA\n"
             "    ... the complete list is in parsgen.txt ...\n"
             ;
     exit(0);

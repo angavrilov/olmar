@@ -203,8 +203,17 @@ PendingShift::~PendingShift()
 
 
 // ------------------ PathCollectionState -----------------
-PathCollectionState::~PathCollectionState()
+PathCollectionState::PathCollectionState(Production const *p, int start)
+  : startStateId(start),
+    poppedSymbols(new SemanticValue[p->rhsLength()]),
+    paths(),      // initially empty
+    production(p)
 {}
+
+PathCollectionState::~PathCollectionState()
+{
+  delete[] poppedSymbols;
+}
 
 PathCollectionState::ReductionPath::~ReductionPath()
 {
@@ -499,7 +508,7 @@ int GLR::doAllPossibleReductions(StackNode *parser,
 
     // step 1: collect all paths of length 'rhsLen' that start at
     // 'parser', via DFS
-    PathCollectionState pcs(prod.data());
+    PathCollectionState pcs(prod.data(), parser->stackNodeId);
     collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
 
     // invariant: poppedSymbols' length is equal to the recursion
@@ -519,23 +528,14 @@ int GLR::doAllPossibleReductions(StackNode *parser,
     MUTATE_EACH_OBJLIST(PathCollectionState::ReductionPath, pcs.paths, pathIter) {
       PathCollectionState::ReductionPath *rpath = pathIter.data();
 
-      // this is like shifting the reduction's LHS onto 'finalParser'
-      glrShiftNonterminal(rpath->finalState, prod.data(), rpath->sval);
-
       // I'm not sure what is the best thing to call an 'action' ...
       actions++;
 
-      if (tracingSys("parse")) {
-        // profiling reported this used significant time even when not tracing
-        trace("parse")
-          << "in state " << parser->state->id
-          << ", reducing by " << *(prod.data())
-          << ", back to state " << rpath->finalState->state->id
-          << endl;
-      }
+      // this is like shifting the reduction's LHS onto 'finalParser'
+      glrShiftNonterminal(rpath->finalState, prod.data(), rpath->sval);
     } // for each path
   } // for each possible reduction
-  
+
   return actions;
 }
 
@@ -575,6 +575,15 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // if we have failed to use the required link, ignore this path
     if (mustUseLink != NULL) {
       return;
+    }
+
+    if (tracingSys("parse")) {
+      // profiling reported this used significant time even when not tracing
+      trace("parse")
+        << "state " << pcs.startStateId
+        << ", reducing by " << pcs.production->toString(false /*printType*/)
+        << ", back to state " << currentNode->state->id
+        << endl;
     }
 
     // we've popped the required number of symbols; call the
@@ -638,9 +647,9 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
   // debugging
   if (tracingSys("parse")) {
     trace("parse")
-      << "from state " << leftSibling->state->id
-      << ", shifting production " << *prod
-      << ", go to state " << rightSiblingState->id
+      << "state " << leftSibling->state->id
+      << ", shift prductn " << prod->toString(false /*printType*/)
+      << ", to state " << rightSiblingState->id
       << endl;
   }
 
@@ -739,9 +748,9 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
 
     // debugging
     trace("parse")
-      << "from state " << leftSibling->state->id
-      << ", shifting terminal " << currentTokenClass->name
-      << ", go to state " << newState->id
+      << "state " << leftSibling->state->id
+      << ", shift token " << currentTokenClass->name
+      << ", to state " << newState->id
       << endl;
 
     // if there's already a parser with this state

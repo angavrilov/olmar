@@ -327,7 +327,7 @@ public:	    // funcs
     { return const_cast<DottedProduction*>(getDProdC(dotPlace)); }
 
   // print 'A -> B c D' (no newline)
-  string toString() const;
+  string toString(bool printType = true) const;
   string rhsString() const;       // 'B c D' for above example rule
   void print(ostream &os) const;
   OSTREAM_OPERATOR(Production)

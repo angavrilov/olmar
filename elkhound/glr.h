@@ -174,6 +174,9 @@ public:    // types
 
 public:	   // data
   // ---- stuff that changes ----
+  // id of the state we started in (where the reduction was applied)
+  int startStateId;
+
   // we collect paths into this array, which is maintained as we
   // enter/leave recursion; the 0th item is the leftmost, i.e.
   // the last one we collect when starting from the reduction state
@@ -188,11 +191,7 @@ public:	   // data
   Production const * const production;
 
 public:	   // funcs
-  PathCollectionState(Production const *p)
-    : poppedSymbols(), paths(),      // both empty, initially
-      production(p)
-  {}
-
+  PathCollectionState(Production const *p, int start);
   ~PathCollectionState();
 };
 
