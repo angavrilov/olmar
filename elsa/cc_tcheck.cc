@@ -5218,11 +5218,23 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // no provision for computing the least common ancestor in the class
   // hierarchy, but the rules *are* nonetheless complex
 
+  Type *thType = NULL;
   if (th) {
-    return th->type;
+    thType = th->type;
   } else {
-    return cond->type;
+    thType = cond->type;
   }
+
+  // dsw: if one of them is NULL, use the other one; see in/d0095.cc;
+  // actually gcc only allows this if it is not just void* but also 0,
+  // so this is too lenient
+  #ifdef GNU_EXTENSION
+  if (thType->isPointerType() &&
+      thType->asPointerType()->atType->isVoid()) {
+    return el->type;
+  }
+  #endif // GNU_EXTENSION
+  return thType;
 }
 
 
