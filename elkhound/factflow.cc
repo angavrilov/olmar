@@ -267,7 +267,7 @@ bool intersectFacts(SObjList<Expression /*const*/> &lhs,
 // annotate all invariants with facts flowed from above
 void factFlow(TF_func &func)
 {
-  trace("factflow") << "processing function " << func.name() << endl;
+  traceProgress() << "factflow function " << func.name() << endl;
   long startTime = getMilliseconds();
   
   int i;
@@ -472,19 +472,19 @@ void factFlow(TF_func &func)
       inv->inferFacts = nf->facts;    // copy facts
 
       if (tracingSys("factflw2")) {
-        trace("factflw2") 
+        trace("factflw2")
           << "  added to " << stmt->kindLocString() << ": "
           << factListString(nf->facts) << endl;
       }
     }
   }
-    
+
   long totalSimp = 0;
   for (i=0; i < TABLESIZE(sections); i++) {
     totalSimp += sections[i]->acc;
   }
 
-  trace("factflow")
+  traceProgress()
     << "done with " << func.name() << ":\n"
     << intersection.toString()
     << invalidation.toString()

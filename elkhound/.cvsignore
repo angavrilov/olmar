@@ -85,4 +85,4 @@ predicate.ast.gen.*
 *.d
 test-bad-tmp.c
 tmp.c
-
+*.i

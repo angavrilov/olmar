@@ -3,17 +3,17 @@
 // different from loop1.c in use of inference, abstraction
 
 void assert(int b)
-  thmprv_pre 
+  thmprv_pre(
     int pre_mem = mem;
-    b;
-  thmprv_post
-    mem == pre_mem;
+    b)
+  thmprv_post(
+    mem == pre_mem)
 {}
 
 int main()
 {
   int x, y;
-  int arr[10];
+  int arr[5];
 
   #define equalsIndexTo(len)                      \
     (thmprv_forall int i;                         \
