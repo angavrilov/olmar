@@ -26,6 +26,9 @@ public:
   ASTList()                             : list() {}
   ~ASTList()                            { deleteAll(); }
 
+  // ctor to make singleton list; often quite useful
+  ASTList(T *elt)                       : list() { prepend(elt); }
+
   // stealing ctor; among other things, since &src->list is assumed to
   // point at 'this', this class can't have virtual functions
   ASTList(ASTList<T> *src)              : list(&src->list) {}

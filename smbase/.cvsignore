@@ -16,4 +16,4 @@ bflatten
 mysig
 Makefile.base.mk
 testmalloc
-
+strutil

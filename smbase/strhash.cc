@@ -19,8 +19,9 @@ StringHash::~StringHash()
 
 STATICDEF unsigned StringHash::coreHash(char const *key)
 {
+  #if 0
   // I pulled this out of my ass.. it's supposed to mimic
-  // a linear congruential generator
+  // a linear congruential random number generator
   unsigned val = 0x42e9d115;    // arbitrary
   while (*key != 0) {
     val *= (unsigned)(*key);
@@ -28,6 +29,18 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
     key++;
   }
   return val;
+  #endif // 0
+
+  // this one is supposed to be better
+  /* An excellent string hashing function.
+     Adapted from glib's g_str_hash().
+     Investigation by Karl Nelson <kenelson@ece.ucdavis.edu>.
+     Do a web search for "g_str_hash X31_HASH" if you want to know more. */
+  unsigned h = 0;
+  for (; *key != '\0'; key += 1) {
+    h = ( h << 5 ) - h + *key;       // h*31 + *key
+  }
+  return h;
 }
 
 
