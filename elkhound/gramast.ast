@@ -41,11 +41,7 @@ class FormBodyElt {
   -> FB_action(LocString name, ExprAST expr);
   -> FB_condition(owner ExprAST *condExpr);
   -> FB_treeCompare(LocString leftName, LocString rightName, owner ExprAST *decideExpr);
-  //-> FB_funDecl(LocString declName, LocString declBody);
   -> FB_funDefn(LocString name, LocString defnBody);
-  
-  // I have no idea how this is different from NT_decl ...
-  //-> FB_dataDecl(LocString declBody);
 }
 
 // what comes after '->' -- there can be several of these,
