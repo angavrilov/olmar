@@ -75,7 +75,7 @@ class Function (
 
   TypeSpecifier retspec,        // type specifier for return value
 
-  Declarator nameParams,        // 1. remainder of return value type
+  Declarator nameAndParams,     // 1. remainder of return value type
                                 // 2. name of function
                                 // 3. names/types of parameters
 
@@ -124,8 +124,13 @@ class ASTTypeId (
   Declarator decl            // this will be abstract sometimes (e.g. casts)
 ) {
   public ASTTypeId *next;  ctor next=NULL;     // FakeList link
+  
+  // typecheck the typeid; if we're in the context of an E_new, then
+  // pass is_E_new as true, in which case this function may return a
+  // non-null Expression* corresponding to the 'size' argument to
+  // new[]
+  public Expression *tcheck(Env &env, bool in_E_new=false);
 
-  public void tcheck(Env &env, bool allowVarArraySize=false);
   public void twalk(Env &env);
   
   public Type const *getType() const;      // can use after calling 'tcheck'
@@ -294,22 +299,28 @@ verbatim {
     // these are the declflags attached to the outer declaration
     DeclFlags dflags;
     
-    // when this is set to true, and we are checking a D_array, do not
-    // require the size to be a constant; this is for E_new
-    bool allowVarArraySize;
+    // when this is set to true, we're inside an E_new, so be on
+    // the lookout for the final [size] expression
+    bool in_E_new;
+
+    // in a new[] declarator, when we hit the final [size], stash
+    // the size's AST node pointer here; then E_new can collect it
+    Expression *size_E_new;
 
   public:
     DeclaratorTcheck(Type const *t, DeclFlags d)
-      : var(NULL), type(t), dflags(d), allowVarArraySize(false) {}
+      : var(NULL), type(t), dflags(d),
+        in_E_new(false), size_E_new(NULL) {}
     DeclaratorTcheck(DeclaratorTcheck const &obj)
       : var(obj.var), type(obj.type), dflags(obj.dflags),
-        allowVarArraySize(obj.allowVarArraySize) {}
+        in_E_new(obj.in_E_new), size_E_new(obj.size_E_new) {}
 
     DeclaratorTcheck& operator= (DeclaratorTcheck const &obj) {
       var = obj.var;
       type = obj.type;
       dflags = obj.dflags;
-      allowVarArraySize = obj.allowVarArraySize;
+      in_E_new = obj.in_E_new;
+      size_E_new = obj.size_E_new;
       return *this;
     }
   };
@@ -604,9 +615,6 @@ class Expression {
   -> E_variable(PQName name) {
        public Variable *var;      // (serf) binding introduction of this name
        ctor var=NULL;
-
-       public void printExtras(ostream &os, int indent) const;
-       custom debugPrint { printExtras(os, indent); }
      }
 
   -> E_funCall(Expression func, FakeList<Expression> *args);
@@ -652,7 +660,11 @@ class Expression {
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
            FakeList<Expression> *placementArgs,  // arguments to placement-new (empty/NULL if no placement syntax)
            ASTTypeId atype,                      // type to allocate
-           ExpressionListOpt ctorArgs);          // arguments to type's constructor (NULL if no ctor call syntax)
+           ExpressionListOpt ctorArgs) {         // arguments to type's constructor (NULL if no ctor call syntax)
+       // if this is non-NULL, it's the number of elements to allocate via new[]
+       public Expression /*nullable serf*/ *arraySize;
+       ctor arraySize=NULL;
+     }
 
   -> E_delete(bool colonColon,                   // true if "::" preceeds "delete"
               bool array,                        // true if "[]" follows "delete"

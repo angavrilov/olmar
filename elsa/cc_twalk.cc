@@ -159,7 +159,7 @@ void TF_linkage::twalk(Env &env)
 void Function::twalk(Env &env)
 {
   olayer ol("Function");
-  global_code_out << var_toString(nameParams->var);
+  global_code_out << var_toString(nameAndParams->var);
   if (inits) twalk_memberInits(env);
   body->twalk(env);
   if (handlers) twalk_handlers(env);
