@@ -131,7 +131,8 @@ idem/check: idem/clean
 .PHONY: idem/clean
 idem/clean:
 	find ../cc.in -type f \
-	\( -name '*.out_raw'  -o -name '*.out' \
+	\( -name '*.out_cpp'  \
+	   -name '*.out_raw'  -o -name '*.out' \
 	-o -name '*.out2_raw' -o -name '*.out2' \
 	-o -name '*.diff' \
 	-o -name '*.out_raw'  -o -name '*.out' \
@@ -143,16 +144,18 @@ idem/clean:
 
 TOCHECK2 :=
 
-# ccparse doesn't seem to find and parse include files?  It doesn't
-# seem to take a -I flag.
-# TOCHECK2 += Box.cc
+# ABOVE: Scope not being printed.
+#TOCHECK2 += Box.cc
 
 #TOCHECK2 += JustHello.c
 #TOCHECK2 += JustWorld.c
 TOCHECK2 += Test_005true.c
 #TOCHECK2 += Test_010hello.c
 TOCHECK2 += Test_105true.cc
+
+# anonymous structs not printing with {}.
 #TOCHECK2 += Test_110hello.cc
+
 #TOCHECK2 += Test_210box.cc
 #TOCHECK2 += Test_220tbox.cc
 #TOCHECK2 += Test_310hello.c
@@ -445,7 +448,8 @@ idem/check2: idem/clean2
 .PHONY: idem/clean2
 idem/clean2:
 	find $(TESTDIR2) -type f \
-	\( -name '*.c.out_raw'   -o -name '*.c.out' \
+	\( -name '*.out_cpp'  \
+	   -name '*.c.out_raw'   -o -name '*.c.out' \
 	-o -name '*.c.out2_raw'  -o -name '*.c.out2' \
 	-o -name '*.c.diff' \
 	-o -name '*.cc.out_raw'  -o -name '*.cc.out' \

@@ -593,6 +593,7 @@ doc/%.png: doc/%.ps
 .PHONY: doc
 doc: doc/elkhound.png doc/glr.png doc/cc.png doc/triv.png
 
+.PHONY: doc-clean
 doc-clean:
 	cd doc; rm -f {elkhound,glr}.{ps,dot,png}
 
@@ -611,6 +612,7 @@ CLEAN_PATTERNS := \
   a.out \
   core
 
+.PHONY: clean
 clean:
 	rm -f $(CLEAN_PATTERNS)
 	rm -f elkhound glr cc/lexer1 cc/lexer1yy.cc gramlex.yy.cc gramlex cyctimer
@@ -627,17 +629,22 @@ clean:
 	  (cd examples/$$dir; make clean); \
 	done
 
+.PHONY: distclean
 distclean:
 	rm -f Makefile
 	cd triv; rm -rf sssx.in ssx.in eeb.in
 
+.PHONY: check
 check: all
 	./regrtest
 	@echo ""
 	@echo "Regression tests passed."
 
+.PHONY: idem/%
 idem/%:; $(MAKE) -C cc $@
 
+.PHONY: checkall
+checkall: check idem/check idem/check2
 
 # --------------- random other stuff --------------------
 # test for rcptr
