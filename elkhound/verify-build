@@ -11,7 +11,7 @@ cvs checkout parsgen || exit
 parsgen/configure --nocaml || exit
 parsgen/build || exit
 
-(cd parsgen; ./ccgr cc.gr c.in1) || exit
+(cd parsgen; make check) || exit
 
 cd .. || exit
 rm -rf tmp-bld || exit
