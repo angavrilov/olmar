@@ -408,7 +408,8 @@ AbsValue *E_funCall::vcgen(AEnv &env) const
   }
 
   // make up new variable to represent final contents of memory
-  env.setMem(env.freshVariable("mem", "contents of memory after call"));
+  env.setMem(env.freshVariable("mem", 
+               stringc << "contents of memory after call: " << toString()));
   newEnv.setMem(env.getMem());
 
   // NOTE: by keeping the environment from before, we are interpreting
@@ -458,9 +459,8 @@ AbsValue *E_binary::vcgen(AEnv &env) const
 AbsValue *E_addrOf::vcgen(AEnv &env) const
 {
   if (expr->isE_variable()) {                            
-    return avFunc2(env.str("pointer"),
-                   env.getMemVarAddr(expr->asE_variable()->name), // obj
-                   new AVint(0));                                 // offset
+    return env.avPointer(env.getMemVarAddr(expr->asE_variable()->name), // obj
+                         new AVint(0));                                 // offset
   }
   else {
     cout << "warning: unhandled addrof: " << toString() << endl;
@@ -475,9 +475,11 @@ AbsValue *E_deref::vcgen(AEnv &env) const
 
   // emit a proof obligation for safe access
   env.prove(new AVbinary(env.avOffset(addr), BIN_GREATEREQ, 
-                         new AVint(0)), "array lower bound");
+                         new AVint(0)), 
+                         stringc << "pointer lower bound: " << toString());
   env.prove(new AVbinary(env.avOffset(addr), BIN_LESS,
-                         env.avLength(env.avObject(addr))), "array upper bound");
+                         env.avLength(env.avObject(addr))), 
+                         stringc << "pointer upper bound: " << toString());
 
   return env.avSelect(env.getMem(), env.avObject(addr), env.avOffset(addr));
 }
