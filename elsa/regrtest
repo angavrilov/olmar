@@ -363,7 +363,6 @@ T="$T t0150.cc"
 
 T="$T t0153.cc"
 T="$T t0154.cc"
-
 T="$T t0155.cc"
 
 for fn in $T; do
@@ -388,13 +387,12 @@ failTest "need overload resolution with templates" \
 
 
 # another set of tests, generally isolated by Daniel
-# FIX: broken
-#  d0021.cc                                    
 for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
   d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
   d0016.cc d0017.cc d0018.cc d0019.cc d0020.cc \
+  d0021.cc                                     \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
 done
@@ -480,11 +478,6 @@ done
 #    runTest ./ccparse -tr $TR_FLAGS "$fn"
 #  done
 
-# FIX:
-# Minimized to d0021.cc
-#  Exception thrown: Assertion failed: shouldn't get here: top scope kind is SK_UNKNOWN, file cc_type.cc line 653
-#    in/big/nsMsgServiceProvider.i
-
 $MAKE in/big
 for fn in \
   in/big/nonport.i               \
@@ -493,6 +486,7 @@ for fn in \
   in/big/nsSOAPPropertyBag.i     \
   in/big/nsCLiveconnectFactory.i \
   in/big/nsHTMLEditRules.i       \
+  in/big/nsMsgServiceProvider.i  \
 ; do
   runTest ./ccparse -tr $TR_FLAGS "$fn"
 done

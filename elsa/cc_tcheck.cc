@@ -984,6 +984,13 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
     // [cppstd 14.5.4 and 14.7]; but don't add it to any scopes
     ret = env.makeNewCompound(ct, NULL /*scope*/, stringName, loc, keyword,
                               false /*forward*/);
+
+    // dsw: need to register it at least, even if it isn't added to
+    // the scope, otherwise I can't print out the name of the type
+    // because at the top scope I don't know the scopeKind
+    xassert(stringName);
+    env.acceptingScope(DF_TYPEDEF)->registerVariable(ct->typedefVar);
+
     this->ctype = ct;           // annotation
 
     // add this type to the primary's list of specializations; we are not
@@ -1004,6 +1011,20 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
             "attempt to use unresolved arguments to specialize a class");
         }
       }
+      // dsw: I need to have the argumentSyntax around so that if I
+      // call PQ_fullyQualifiedName() on this type I get a
+      // PQ_qualifier that has template arguments; If I don't do it
+      // this way, then I have to reconstruct them from the
+      // ClassTemplateInfo::arguments, and then I'm back to
+      // manufacturing ASTTypeId-s from Type-s which I want to avoid
+      // if I can.
+
+      // FIX: I'm worried that there is some corner condition where
+      // the same syntax doesn't work because the location has changed
+      // and we are down in some namespace where the names in the
+      // argumentSyntax now resolve to different variables.
+
+      ct->templateInfo->argumentSyntax = templateArgs;
     }
   }
 

@@ -630,7 +630,8 @@ PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
   if (name0) {
     name0 =
       new PQ_qualifier(loc, curCompound->name,
-                       (templateInfo ? templateInfo->argumentSyntax
+                       (templateInfo
+                        ? templateInfo->argumentSyntax
                         : FakeList<TemplateArgument>::emptyList()),
                        name0);
   } else {
