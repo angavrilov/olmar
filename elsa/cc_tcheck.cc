@@ -1442,7 +1442,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // TODO: in the case of class data members, delay checking the
     // initializer until the entire class body has been scanned
 
-    init->tcheck(env);
+    init->tcheck(env, type);
 
     // remember the initializing value, for const values
     if (init->isIN_expr()) {
@@ -4606,23 +4606,44 @@ void ICExpression::tcheck(Env &env)
 // TODO: all the initializers need to be checked for compatibility
 // with the types they initialize
 
-void IN_expr::tcheck(Env &env)
+void IN_expr::tcheck(Env &env, Type *)
 {
   e->tcheck(env);
 }
 
 
-void IN_compound::tcheck(Env &env)
+void IN_compound::tcheck(Env &env, Type* type)
 {
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
-    iter.data()->tcheck(env);
+    iter.data()->tcheck(env, type);
   }
 }
 
 
-void IN_ctor::tcheck(Env &env)
+void IN_ctor::tcheck(Env &env, Type *type0)
 {
   tcheckFakeExprList(args, env);
+  // dsw: FIX: should I be generating error messages if I get a weird
+  // type here, or if I get a weird var below?
+  if (type0->asRval()->isCompoundType()) {
+    CompoundType *ct = type0->asRval()->asCompoundType();
+    Variable *ctor = const_cast<Variable*>(ct->getNamedFieldC(env.constructorSpecialName, env));
+    Variable *chosen = outerResolveOverload(env, loc, ctor,
+                                            NULL, // not a method call, so no 'this' object
+                                            args);
+    if (chosen) {
+      var = chosen;
+    } else {
+      // dsw: FIX: NOTE: this case only applies when
+      // outerResolveOverload() can't deal with the complexity of the
+      // situation due to templates etc.  When we are really done,
+      // this case should go away, I think.
+      var = ctor;
+    }
+    xassert(var);               // var should never be null when we are done
+  }
+  // dsw: Note var can be NULL here for ctors for built-in types like
+  // int; see t0080.cc
 }
 
 

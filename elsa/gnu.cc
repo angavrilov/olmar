@@ -57,7 +57,7 @@ Type *E_compoundLit::itcheck(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc;
   stype = stype->tcheck(env, tc);
-  init->tcheck(env);
+  init->tcheck(env, NULL);
   
   return computeArraySizeFromCompoundInit(env, env.loc(), stype->getType(), stype->getType(), init);
   // TODO: check that the cast (literal) makes sense
@@ -131,9 +131,9 @@ static void check_designator_list(Env &env, FakeList<Designator> *dl)
   }
 }
 
-void IN_designated::tcheck(Env &env)
+void IN_designated::tcheck(Env &env, Type *type)
 {
-  init->tcheck(env);
+  init->tcheck(env, type);
   check_designator_list(env, designator_list);
 }
 

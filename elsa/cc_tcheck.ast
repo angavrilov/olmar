@@ -453,7 +453,17 @@ class Initializer {
   //pure_virtual void tcheck(Env &env, Type *type);
 
   // simpler tcheck for now..
-  pure_virtual void tcheck(Env &env);
+  // dsw: I need to know the type that IN_ctor is a ctor for so I can
+  // get the ctor members out of it, so I added type back; I do NOT do
+  // the extra checking that you imply above in the other initializers
+  pure_virtual void tcheck(Env &env, Type* type);
+
+  // constructor initializer, like "int x(3);"
+  -> IN_ctor() {
+       public Variable *var;      // (serf) binding introduction of this name
+       ctor var=NULL;
+       custom clone { ret->var = var; }
+  }
 }
 
 
