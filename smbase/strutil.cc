@@ -372,6 +372,11 @@ string plural(int n, char const *prefix)
   }
 }
 
+string pluraln(int n, char const *prefix)
+{
+  return stringc << n << " " << plural(n, prefix);
+}
+
 
 char *copyToStaticBuffer(char const *s)
 {           

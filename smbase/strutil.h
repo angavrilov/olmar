@@ -70,6 +70,11 @@ string dirname(char const *src);
 // and the expectation is I'll add more irregularities as I need them
 string plural(int n, char const *prefix);
 
+// same as 'plural', but with the stringized version of the number:
+//   pluraln(1, "egg") yields "1 egg", and
+//   pluraln(2, "eggs") yields "2 eggs"
+string pluraln(int n, char const *prefix);
+
 
 // Sometimes it's useful to store a string value in a static buffer;
 // most often this is so 'gdb' can see the result.  This function just
