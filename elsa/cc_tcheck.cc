@@ -532,8 +532,6 @@ Variable *IDeclarator::tcheck(Env &env, Type const *spec, DeclFlags dflags)
 Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
                          Type const *spec, PQName const *name, DeclFlags dflags)
 {
-  env.setLoc(loc);
-  
   if (!name) {
     // no name, nothing to enter in environment
     return new Variable(loc, NULL, spec, dflags);
@@ -730,12 +728,16 @@ Variable *D_name_itcheck(Env &env, SourceLocation const &loc,
 
 Variable *D_name::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
+  env.setLoc(loc);
+
   return D_name_itcheck(env, loc, spec, name, dflags);
 }
 
 
 Variable *D_operator::itcheck(Env &env, Type const *spec, DeclFlags dflags)
 {
+  env.setLoc(loc);
+
   // the idea will be to treat operator functions like special
   // names, and use the same logic as for D_name
   char const *opName = o->getOperatorName();
@@ -748,8 +750,8 @@ Variable *D_operator::itcheck(Env &env, Type const *spec, DeclFlags dflags)
     OD_conversion *c = o->asOD_conversion();
 
     c->type->tcheck(env);
-    Type const *destType = c->type->decl->var->type;    
-    
+    Type const *destType = c->type->decl->var->type;
+
     // need a function which returns 'destType', but has the
     // other characteristics gathered into 'spec'; make sure
     // 'spec' is a function type
@@ -829,9 +831,31 @@ Variable *D_array::itcheck(Env &env, Type const *eltSpec, DeclFlags dflags)
 
 
 Variable *D_bitfield::itcheck(Env &env, Type const *spec, DeclFlags dflags)
-{
-  env.unimp("bitfield");
-  return NULL;
+{             
+  env.setLoc(loc);
+
+  // check that the expression is a compile-time constant
+  int n;
+  if (!bits->constEval(env, n)) {
+    env.error("bitfield size must be a constant");
+  }
+
+  // TODO: record the size of the bit field somewhere; but
+  // that size doesn't influence type checking very much, so
+  // fixing this will be a low priority for some time.  I think
+  // the way to do it is to make another kind of Type which
+  // stacks a bitfield size on top of another Type, and
+  // construct such an animal here.
+
+  if (name) {
+    PQ_name tempName(name);
+    return D_name_itcheck(env, loc, spec, &tempName, dflags);
+  }
+  else {
+    // unnamed, so take advantage of D_name_itcheck's
+    // ability to create anonymous Variables
+    return D_name_itcheck(env, loc, spec, NULL /*name*/, dflags);
+  }
 }
 
 
