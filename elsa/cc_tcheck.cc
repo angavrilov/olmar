@@ -3226,11 +3226,29 @@ void S_compound::itcheck(Env &env)
 }
 
 
+// Given a (reference to) a pointer to a statement, make it into an
+// S_compound if it isn't already, so that it will be treated as having
+// its own local scope (cppstd 6.4 para 1, 6.5 para 2).  Note that we
+// don't need this for try-blocks, because their substatements are 
+// *required* to be compound statements already.
+void implicitLocalScope(Statement *&stmt)
+{
+  if (!stmt->isS_compound()) {
+    Statement *orig = stmt;
+    stmt = new S_compound(orig->loc, new ASTList<Statement>(orig));
+  }
+}
+
+
 void S_if::itcheck(Env &env)
 {
   // if 'cond' declares a variable, its scope is the
   // body of the "if"
   Scope *scope = env.enterScope(SK_FUNCTION, "condition in an 'if' statement");
+
+  // 6.4 para 1
+  implicitLocalScope(thenBranch);
+  implicitLocalScope(elseBranch);
 
   cond->tcheck(env);
   thenBranch = thenBranch->tcheck(env);
@@ -3244,6 +3262,9 @@ void S_switch::itcheck(Env &env)
 {
   Scope *scope = env.enterScope(SK_FUNCTION, "condition in a 'switch' statement");
 
+  // 6.4 para 1
+  implicitLocalScope(branches);
+
   cond->tcheck(env);
   branches = branches->tcheck(env);
 
@@ -3255,6 +3276,9 @@ void S_while::itcheck(Env &env)
 {
   Scope *scope = env.enterScope(SK_FUNCTION, "condition in a 'while' statement");
 
+  // 6.5 para 2
+  implicitLocalScope(body);
+
   cond->tcheck(env);
   body = body->tcheck(env);
 
@@ -3264,6 +3288,9 @@ void S_while::itcheck(Env &env)
 
 void S_doWhile::itcheck(Env &env)
 {
+  // 6.5 para 2
+  implicitLocalScope(body);
+
   body = body->tcheck(env);
   expr->tcheck(env);
 
@@ -3274,6 +3301,9 @@ void S_doWhile::itcheck(Env &env)
 void S_for::itcheck(Env &env)
 {
   Scope *scope = env.enterScope(SK_FUNCTION, "condition in a 'for' statement");
+
+  // 6.5 para 2
+  implicitLocalScope(body);
 
   init = init->tcheck(env);
   cond->tcheck(env);
