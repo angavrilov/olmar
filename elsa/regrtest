@@ -915,6 +915,7 @@ failparse k0042.cc "computed array size expression as an assignment"
 failparse k0043.cc "voiding the result of a member call"
 failparse k0044.cc "template super class member variable"
 failparse k0045.cc "'operator delete' redeclared without throw()"
+failparse k0046.cc "anonymous inline struct fields"
 
 ### </quarl-testcases-c++>
 
@@ -1118,7 +1119,6 @@ failCparse c/k0006.c "static inline function implicitly returning int"
 failCparse c/k0006a.c "static inline function implicitly returning int, old-style param decl"
 testCparse c/k0011.c #"ambiguous s->z < 1 || 2 > (3)"
 failCparse c/k0007.c "duplicate modifiers in C as warning, not error (?)"
-failCparse c/k0008.c "anonymous inline struct fields"
 
 ### </quarl-testcases-c>
 
