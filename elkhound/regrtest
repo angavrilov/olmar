@@ -1,0 +1,155 @@
+#!/bin/sh
+# regression tests
+
+# default values for user parameters
+skip=0
+big=0
+contin=0
+
+# counters
+curtest=0
+success=0
+failure=0
+unexSuccess=0
+unexFailure=0
+
+usage() {
+cat <<EOF
+usage: $0 [options]
+  -skip n      skip the first n tests
+  -big         run the big, timeconsuming tests
+  -contin      keep going even after a test fails (or succeeds) unexpectedly
+  -help        print this message
+EOF
+}
+
+# process args
+while [ "$1" != "" ]; do
+  if [ "$1" = "-skip" ]; then
+    shift
+    skip="$1"
+
+  elif [ "$1" = "-big" ]; then
+    big=1
+
+  elif [ "$1" = "-contin" ]; then
+    contin=1
+
+  elif [ "$1" = "-help" ]; then
+    usage
+    exit 0
+
+  else
+    echo "unknown arg: $1"
+    usage
+    exit 2
+  fi
+
+  shift
+done
+
+# clear the logfile
+log=regrtest.log
+rm -f $log
+
+# write something to terminal and log
+log() {
+  echo "$@"
+  echo "$@" >> $log
+}
+
+
+# run a single test, and bail if it fails
+runTest() {
+  if ! runTestInternal "$@"; then
+    if [ $contin = 0 ]; then
+      exit 2
+    fi
+  fi
+}
+
+# run a single test, and return 0 if it succeeds
+runTestInternal() {
+  result=0
+
+  if [ "$curtest" -lt "$skip" ]; then
+    echo "[$curtest]: skipping $*"
+  else
+    # print a visually distinct banner
+    echo "------------ [$curtest] $* ------------"
+    "$@"
+    result=$?
+    if [ $result -ne 0 ]; then
+      unexFailure=$[ $unexFailure + 1 ]
+      echo ""
+      log  "[$curtest] A regression test command failed:"
+      log  "  $*"
+    else
+      success=$[ $success + 1 ]
+    fi
+  fi
+
+  curtest=$[ $curtest + 1 ]
+  return $result
+}
+
+# run a big test, only if the user wants to
+bigTest() {
+  if [ $big = 1 ]; then
+    runTest "$@"
+  fi
+}
+
+# run a test that is expected to fail
+failTest() {
+  reason="$1"
+  shift
+  if [ "$curtest" -lt "$skip" ]; then
+    echo "[$curtest]: (fail) skipping $*"
+  else
+    echo "------------ [$curtest] (fail) $* ------------"
+    if "$@"; then
+      unexSuccess=$[ $unexSuccess + 1 ]
+      echo ""
+      log  "[$curtest] A regression test that used to fail ($reason) now succeeds:"
+      log  "  $*"
+      if [ $contin = 0 ]; then
+        exit 2
+      fi
+    else
+      failure=$[ $failure + 1 ]
+      echo "Failed as expected: $reason"
+    fi
+  fi
+
+  curtest=$[ $curtest + 1 ]
+}
+
+# run a failing big test
+bigFail() {
+  if [ $big = 1 ]; then
+    failTest "$@"
+  fi
+}
+
+# grep for lines containing both words, in first argument source file
+grepBoth() {
+  grep -w $2 $1 | grep -w $3
+}
+
+               
+for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  runTest ./ccgr cc.bin c.in$n
+done
+
+
+# final arithmetic to report result
+echo ""
+echo "Successful tests:      $success"
+echo "Failed as expected:    $failure"    
+if [ $contin = 1 ]; then
+  echo "Unexpected success:    $unexSuccess"
+  echo "Unexpected failure:    $unexFailure"
+  cat $log
+fi
+

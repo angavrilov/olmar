@@ -10,15 +10,24 @@ verbatim CCGr [
 #include "strtable.h"     // StringRef
 #include "cc_type.h"      // type identifiers like ST_CHAR
 #include "lexer2.h"       // lexer2's token ids for classify()
+#include "cparse.h"       // ParseEnv
+#include "trace.h"        // trace
 
-class CCGr : public UserActions {
+#define D(msg) \
+  trace("cc") << msg << endl
+
+class CCGr : public UserActions, public ParseEnv {
+public:
+  CCGr(StringTable &table) : ParseEnv(table) {}
+
+private:
   USER_ACTION_FUNCTIONS
   #include "cc.gen.h"
 };
 
-UserActions *makeUserActions(StringTable &)
+UserActions *makeUserActions(StringTable &table)
 {
-  return new CCGr;
+  return new CCGr(table);
 }
 
 ]
@@ -39,13 +48,16 @@ terminals {
     // run to possibly reclassify the token kind; the semantic
     // value is passed (and ParseEnv is available as context), but
     // the same semantic value will be used
+
+    // I mark this, and all places the deal with resolving the
+    // type-name vs variable-name ambiguity, with "TYPE/NAME"
     classify(s) [
-      //if (isType(s)) {
-      //  return L2_TYPE_NAME;
-      //}
-      //else {
+      if (isType(s)) {
+        return L2_TYPE_NAME;
+      }
+      else {
         return L2_VARIABLE_NAME;
-      //}
+      }
     ]
   }
 
@@ -77,7 +89,22 @@ terminals {
 
 
 // dummy first rule
-nonterm StartSymbol -> TranslationUnit L2_EOF;
+nonterm StartSymbol -> File L2_EOF;
+
+nonterm File -> EnterScope TranslationUnit LeaveScope ;
+
+// scoping
+nonterm EnterScope -> empty    [
+  D("entering scope");
+  enterScope();
+  return 0;
+]
+
+nonterm LeaveScope -> empty     [
+  D("exiting scope");
+  leaveScope();
+  return 0;
+]
 
 
 // ------------- identifier ambiguity -------------------
@@ -85,16 +112,18 @@ nonterm StartSymbol -> TranslationUnit L2_EOF;
 // source of problems parsing C and C++
 
 // name of a type; introduced by class, struct, union, enum, typedef
-nonterm TypeName -> n:L2_TYPE_NAME ;
+nonterm[StringRef] TypeName 
+  -> n:L2_TYPE_NAME     [ return n; ]
 
 // name of a variable or function; introduced by a declaration
-nonterm VariableName -> n:L2_VARIABLE_NAME ;
+nonterm[StringRef] VariableName
+  -> n:L2_VARIABLE_NAME [ return n; ]
 
 // names for situations where it does not matter what its previous
 // meaning may have been
-nonterm AnyName {
-  -> TypeName ;
-  -> VariableName ;
+nonterm[StringRef] AnyName {
+  -> n:VariableName     [ return n; ]
+  -> n:TypeName         [ return n; ]
 }
 
 
@@ -175,6 +204,8 @@ nonterm Qualifier {
 
 
 nonterm PostfixExpression {
+  -> e:PrimaryExpression ;
+
   // array access
   -> a:PostfixExpression "[" e:Expression "]" ;
 
@@ -323,6 +354,8 @@ nonterm ConditionalExpression {
 // that in another language spec?  clearly both alternatives would have
 // to be like-typed lvalues, but...
 nonterm AssignmentExpression {
+  -> ConditionalExpression ;
+
   -> e1:BinaryExpression "=" e2:AssignmentExpression ;
 
   -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression ;
@@ -439,7 +472,10 @@ nonterm ExpressionStatement {
 }
 
 nonterm CompoundStatement {
-  -> "{" seq:StatementSeqOpt "}" ;
+  // I think I should enter scope immediately upon seeing the
+  // open-brace, so that if the first token of the first statement
+  // changes or queries the scope, it's in the new one
+  -> EnterScope "{" seq:StatementSeqOpt LeaveScope "}" ;
 }
 
 nonterm StatementSeqOpt {
@@ -495,6 +531,8 @@ nonterm SimpleDeclaration {
   //e.g.: int                x                     ;
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";" ;
 
+  -> "typedef" DeclSpecifier TypedefDeclaratorList ";" ;
+
   // gnu; specifically for linux printk declaration
   //-> GNUAttribute decl:SimpleDeclaration ;
 }
@@ -524,7 +562,6 @@ nonterm DeclModifier {
   -> "virtual"     ;
   -> "friend"      ;
   -> "mutable"     ;
-  -> "typedef"     ;
   -> "auto"        ;
   -> "register"    ;
   -> "static"      ;
@@ -770,7 +807,9 @@ nonterm Declarator {
 }
 
 nonterm DirectDeclarator {
-  -> n:PQVarName ;
+  // it doesn't matter how this was classified before, because
+  // a declarator binds a new name, so it shadows any prior definitions
+  -> n:AnyName ;
 
   // function  declarator; the return type comes from the type
   // specifier that preceeds this
@@ -809,6 +848,34 @@ nonterm CVQualifierSeq {
 nonterm CVQualifier {
   -> "const" ;
   -> "volatile" ;
+}
+
+
+// -- declarators in typedefs --
+// these are separated out because the parser wants to track the
+// introduction of type names
+nonterm TypedefDeclaratorList {
+  -> TypedefDeclarator ;
+  -> TypedefDeclaratorList "," TypedefDeclarator ;
+}
+
+nonterm TypedefDeclarator {
+  -> PtrOperator TypedefDeclarator ;
+  -> DirectTypedefDeclarator ;
+}
+
+nonterm DirectTypedefDeclarator {
+  -> n:VariableName [
+       // TYPE/NAME
+       D("defined new typedef name " << n);
+       addType(n);
+       return 0;
+     ]
+
+  -> DirectTypedefDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt ;
+  -> DirectTypedefDeclarator "[" ConstantExpression "]" ;
+  -> DirectTypedefDeclarator "[" "]" ;
+  -> "(" TypedefDeclarator ")" ;
 }
 
 
@@ -853,7 +920,13 @@ nonterm DirectAbstractDeclarator {
   // grammar hack: support missing function name part at this level, rather
   // than using DirectAbstractDeclaratorOpt, to effect one extra token
   // of lookahead
-  -> "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt ;
+  //-> "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt ;
+  // however, this postpones the ambiguity until it arises in
+  //   typedef int x;
+  //   int foo(int (x));
+  // is the argument an int, or a function accepting an 'x'?
+  // the rule is complicated, depending on x's previous declaration
+  // status.. I'll sidestep the whole issue by accepting a smaller language
 
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpression "]" ;     // array of specified size
 
@@ -880,7 +953,7 @@ nonterm ParameterDeclaration {
   -> s:DeclSpecifier d:Declarator ;
   //-> s:DeclSpecifier d:Declarator "=" AssignmentExpression ;
 
-  //-> s:DeclSpecifier d:AbstractDeclarator ;
+  -> s:DeclSpecifier d:AbstractDeclaratorOpt ;
   //-> s:DeclSpecifier d:AbstractDeclarator "=" AssignmentExpression ;
 }
 
@@ -919,7 +992,14 @@ nonterm ClassSpecifier ->
 
 nonterm ClassNameOpt {
   -> empty         ;
-  -> n:AnyName     ;
+  -> n:AnyName [
+       // TYPE/NAME
+       if (tagsAreTypes) {
+         D("defined new struct " << n);
+         addType(n);
+       }
+       return 0;
+     ]
 }
 
 nonterm ClassKeyword {

@@ -7,10 +7,10 @@ int fn1(int g);
 int fn2(int g, int h);
 int fn3(int g, int h, int i);
 
-struct S {
+typedef struct S {
   int m1;
   int m2;
-};
+} S;
 
 int foo()
 {

@@ -10,23 +10,23 @@ int const aConstInt;
 float aFloat;
 float volatile aVolatileFloat;
 
-struct List {
+typedef struct List {
   int x;
-  List *next;
-};
+  struct List *next;
+} List;
 List aList;
 List const aConstList;
 
 int arrayOf5Ints[5];
 void *arrayOfPtrs[];
 
-struct Union {
+typedef struct Union {
   int i;
   float f;
-};
+} Union;
 Union aUnion;
 
-enum Enum { e0, e1, e2, e7=7, e8, e4=4, e5 };
+typedef enum Enum { e0, e1, e2, e7=7, e8, e4=4, e5 } Enum;
 Enum e;
 
 int twoArgFn(int x, int y);

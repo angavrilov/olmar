@@ -401,12 +401,12 @@ public:	    // funcs
   void printProductionsAndItems(ostream &os, bool printCode=true) const;
 
   // when grammar is built, this runs all analyses and stores
-  // the results in this object's data fields
-  void runAnalyses();
+  // the results in this object's data fields; write the LR item
+  // sets to the given file (or don't, if NULL)
+  void runAnalyses(char const *setsFname);
 
-  // really should be in ccwrite.h, but it's here
-  // because the implementation needed private data..
-  void emitTypeCtorMap(EmitCode &os) const;
+  // print the item sets to a stream
+  void printItemSets(ostream &os) const;
 
   // ---- grammar queries ----
   bool canDerive(Nonterminal const *lhs, Nonterminal const *rhs) const;

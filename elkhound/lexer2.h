@@ -200,6 +200,7 @@ public:
   // debugging
   void print() const;
   string toString(bool asSexp=false) const;
+  string toStringType(bool asSexp, Lexer2TokenType type) const;
   string unparseString() const;  // return the source text that generated this token
 };
 

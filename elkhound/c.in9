@@ -1,8 +1,8 @@
 // c.in9
 // testing the lval translator
 
-struct S { int f,ar[5]; };
-struct T { struct S s; };
+typedef struct S { int f,ar[5]; } S;
+typedef struct T { struct S s; } T;
 
 void foo()
 {

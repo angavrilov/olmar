@@ -457,7 +457,10 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     if (activeParsers.isEmpty()) {
       cout << "Line " << currentToken->loc.line
            << ", col " << currentToken->loc.col
-           << ": Parse error at " << currentToken->toString() << endl;
+           << ": Parse error at " 
+           << currentToken->toStringType(false /*sexp*/, 
+                                         (Lexer2TokenType)classifiedType) 
+           << endl;
 
       if (lastToDie == NULL) {
         // I'm not entirely confident it has to be nonnull..
@@ -1192,7 +1195,7 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
         printProductions(trace("grammar") << endl);
       }
 
-      runAnalyses();
+      runAnalyses(NULL);
     }
 
     else {

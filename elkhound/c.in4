@@ -17,10 +17,10 @@ readpass.c
 
 // sm: stuff I've added to get it through my parser
 typedef void RETSIGTYPE;
-typedef bool Boolean;
-struct FILE {
+typedef /*bool*/ int Boolean;
+typedef struct FILE {
   int foo;
-};
+} FILE;
 void tcsetattr(...);
 int fileno(FILE *f);
 FILE *stdin;
@@ -90,7 +90,7 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
 {
   char buf[1024], *cp;
   unsigned char quoted_prompt[512];
-  unsigned const char *p;
+  unsigned char const *p;    // sm: swapped order of 'char' and 'const'
 #ifdef USING_TERMIOS
   struct termios tio;
 #endif
@@ -119,7 +119,7 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
                       "Executing ssh-askpass to query the password...\n");
               fflush(stdout);
               fflush(stderr);
-              for(p = (unsigned const char *) prompt, i = 0;
+              for(p = (unsigned char const *) prompt, i = 0;
                   i < sizeof(quoted_prompt) - 5 && *p;
                   i++, p++)
                 {
@@ -173,7 +173,7 @@ char *ssh_read_passphrase(const char *prompt, Boolean from_stdin)
         }
     }
 
-  for(p = (unsigned const char *) prompt, i = 0;
+  for(p = (unsigned char const *) prompt, i = 0;
       i < sizeof(quoted_prompt) - 4 && *p; i++, p++)
     {
       if (isprint(*p) || isspace(*p))

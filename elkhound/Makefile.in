@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar gramanl cexp3 cdecl cdecl2 ccgr
+temporary: check-makefiles grampar gramanl cdecl2 ccgr
 
 # main targets
 all: check-makefiles ccgr
@@ -67,7 +67,7 @@ glr-set = gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o \
 # files involved in translating parsed C/C++ code
 #cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
 #         stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
-cc-set = 
+cc-set = cparse.o
 
 # stuff needed everywhere
 common = 
@@ -226,8 +226,10 @@ cdecl2: ${cdecl2-dep} ${libraries}
 # generated)
 cc.gen.cc cc.gen.h: cc.gr cc.tok gramanl
 	rm -f cc.gen.*
-	./gramanl cc
+	./gramanl -tr conflict cc
 	chmod a-w cc.gen.*
+
+cc.gen.o: cparse.h
 
 # (called the target 'ccgr' instead of 'cc' to avoid name collision)
 # tried moving cc.o to end so the most expensive part would get

@@ -41,7 +41,7 @@ void exprs()
 }
 
 
-struct S { int m; };
+typedef struct S { int m; } S;
 S global_s;
 
 void lvals()

@@ -320,6 +320,11 @@ Lexer2Token::~Lexer2Token()
 
 string Lexer2Token::toString(bool asSexp) const
 {
+  return toStringType(asSexp, type);
+}
+
+string Lexer2Token::toStringType(bool asSexp, Lexer2TokenType type) const
+{
   string tokType;
   if (!asSexp) {
     tokType = l2Tok2String(type);
@@ -332,6 +337,8 @@ string Lexer2Token::toString(bool asSexp) const
   string litVal;
   switch (type) {
     case L2_NAME:
+    case L2_TYPE_NAME:
+    case L2_VARIABLE_NAME:
     case L2_STRING_LITERAL:
       litVal = stringc << strValue;
       break;

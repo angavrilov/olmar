@@ -2078,22 +2078,6 @@ void GrammarAnalysis::constructLRItemSets()
   traceProgress(1) << "BFS tree on transition graph...\n";
   computeBFSTree();
 
-
-  if (tracingSys("item-sets")) {
-    // print each item set
-    FOREACH_OBJLIST(ItemSet, itemSetsDone, itemSet) {
-      ostream &os = trace("item-sets")
-        << "State " << itemSet.data()->id
-        << ", sample input: " << sampleInput(itemSet.data())
-        << endl
-        << "  and left context: " << leftContextString(itemSet.data())
-        << endl
-        ;
-
-      itemSet.data()->print(os, *this);
-    }
-  }
-
   if (tracingSys("itemset-graph")) {
     // write this info to a graph applet file
     ofstream out("lrsets.g");
@@ -2107,6 +2091,22 @@ void GrammarAnalysis::constructLRItemSets()
     }
   }
 }
+
+// print each item set
+void GrammarAnalysis::printItemSets(ostream &os) const
+{
+  FOREACH_OBJLIST(ItemSet, itemSets, itemSet) {
+    os << "State " << itemSet.data()->id
+       << ", sample input: " << sampleInput(itemSet.data())
+       << endl
+       << "  and left context: " << leftContextString(itemSet.data())
+       << endl
+       ;
+
+    itemSet.data()->print(os, *this);
+  }
+}
+
 
 // --------------- END of construct LR item sets -------------------
 
@@ -2866,7 +2866,7 @@ void GrammarAnalysis::exampleGrammar()
 
 
   // run analyses
-  runAnalyses();
+  runAnalyses(NULL);
 
 
   // do some test parses
@@ -2877,7 +2877,7 @@ void GrammarAnalysis::exampleGrammar()
 }
 
 
-void GrammarAnalysis::runAnalyses()
+void GrammarAnalysis::runAnalyses(char const *setsFname)
 {            
   // reset error count so it might be possible to reuse the object
   // for another grammar
@@ -2956,6 +2956,18 @@ void GrammarAnalysis::runAnalyses()
   // if we want to print, do so before throwing away the items
   if (tracingSys("itemsets")) {
     printProductionsAndItems(cout, true /*code*/);
+  }
+
+  // print the item sets
+  if (setsFname) {
+    ofstream os(setsFname);
+    if (!os) {
+      cout << "couldn't open " << setsFname << " to write item sets\n";
+    }
+    else {
+      traceProgress() << "printing item sets to " << setsFname << " ..." << endl;
+      printItemSets(os);
+    }
   }
 
   // I don't need (most of) the item sets during parsing, so
@@ -3404,7 +3416,8 @@ int main(int argc, char **argv)
   readGrammarFile(g, grammarFname);
   g.printProductions(trace("grammar") << endl);
 
-  g.runAnalyses();
+  string setsFname = stringc << prefix << ".gen.out";
+  g.runAnalyses(setsFname);
   if (g.errors) {
     return 2;
   }
@@ -3422,7 +3435,7 @@ int main(int argc, char **argv)
   // emit some C++ code
   string hFname = stringc << prefix << ".gen.h";
   string ccFname = stringc << prefix << ".gen.cc";
-  traceProgress() << "emitting C++ code to " << ccFname 
+  traceProgress() << "emitting C++ code to " << ccFname
                   << " and " << hFname << " ...\n";
 
   emitActionCode(g, hFname, ccFname, grammarFname);
