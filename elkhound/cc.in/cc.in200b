@@ -1,0 +1,4 @@
+int $A * $B y;
+int $C foo($D int a) $E const;
+int $C foo($D int a) $E const {
+}
