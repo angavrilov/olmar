@@ -62,6 +62,15 @@ public:
     // I'm going to be surprised if this is ever not true.. it's
     // a potential problem in cc.gr, since I'm assuming there that
     // 'newHead' is not already on any other lists...
+    //
+    // update: This does occasionally get triggered, because a node
+    // might get yielded to two contexts.  Failing this assertion is a
+    // symptom that the sharing needs to be more carefully managed.
+    // It's often the case that newHead->next in fact equals first()
+    // already, but if the client code wants to let that slide it's
+    // going to have to check itself; I don't want to silently allow
+    // accidental happens-to-not-change-anything overwriting down in
+    // this code.
     xassert(newHead->next == NULL);
 
     newHead->next = first();
