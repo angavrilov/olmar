@@ -17,12 +17,6 @@
 #include "cc_print.h"     // PrintEnv
 #include "qual_type.h"    // TypeFactory_Q
 #include "qual_var.h"     // Variable_Q
-#ifdef CC_QUAL
-  #include "cc_qual/cc_qual_walk.h"
-  #include "cc_qual/cqual_iface.h"
-#else
-  #include "cc_qual_walk_dummy.h"
-#endif
 //  #include "cc_flatten.h"   // FlattenEnv
 #include "ccparse.h"      // ParseEnv
 
@@ -88,18 +82,6 @@ void doit(int argc, char **argv)
        "");
     maybeUseTrivialActions(tree);
 
-    if (tracingSys("cc_qual")) {
-      // FIX: pass this in on the command line; wrote Scott
-      init_cc_qual("cc_qual/cqual/config/lattice");
-      cc_qual_flag = 1;
-#if CC_QUAL
-      if (tracingSys("matt")) matt_flag = 1;
-#endif // CC_QUAL
-    } 
-    else {
-      cc_qual_flag = 0;
-    }
-
     if (!toplevelParse(tree, positionalArg)) {
       exit(2); // parse error
     }
@@ -140,10 +122,8 @@ void doit(int argc, char **argv)
 
 
   // ---------------- typecheck -----------------
-  TypeFactory_Q tfac;     // need to access it later
   {
-    // should work with either factory
-    //BasicTypeFactory tfac;
+    BasicTypeFactory tfac;
 
     traceProgress() << "type checking...\n";
     Env env(strTable, lang, tfac);
@@ -222,34 +202,6 @@ void doit(int argc, char **argv)
     }    
     #endif // 0
   }
-
-  // dsw: cc_qual
-#ifdef CC_QUAL
-  if (tracingSys("cc_qual")) {
-    xassert(cc_qual_flag);       // should have been set above
-    traceProgress() << "dsw cc_qual...\n";
-    // done above
-    //        init_cc_qual("cc_qual/cqual/config/lattice");
-    QualEnv env;
-    // insert the names into all the Qualifiers objects
-    printf("** insert the names into all the Qualifiers objects\n");
-    SFOREACH_OBJLIST_NC(Variable_Q, Variable_Q::instances, variable_iter) {
-      nameSubtypeQualifiers(variable_iter.data());
-    }
-    printf("** Qualifiers::global_attach_funky_set_qualifiers()\n");
-    Qualifiers::global_attach_funky_set_qualifiers();
-    printf("** unit->qual(env)\n");
-    unit->qual(env);
-    printf("** Qualifiers::global_attach_funky_set_qualifiers()\n");
-    Qualifiers::global_attach_funky_set_qualifiers();
-    printf("** Qualifiers::global_insert_instances_into_graph()\n");
-    Qualifiers::global_insert_instances_into_graph();
-    printf("** finish_quals_CQUAL()\n");
-    finish_quals_CQUAL();
-    printf("** qual done\n");
-    traceProgress() << "dsw cc_qual... done\n";
-  }
-#endif
 
   // dsw: pretty printing
   if (tracingSys("prettyPrint")) {
