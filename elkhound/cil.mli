@@ -1,29 +1,46 @@
+(*
+ * CIL: An intermediate language for analyzing C progams.
+ *
+ * Version Tue Dec 12 15:21:52 PST 2000 
+ * Scott McPeak, George Necula, Wes Weimer
+ *
+ * This version hacked up by Wes: this is what ocaml people see after Scott 
+ * creates his C version.
+ *
+ * Note: you may *NOT* change the order of the fields or the order in
+ * which disjoint union choices are presented. The C translation code
+ * has those values hard-wired.
+ *)
 
+(* where did some construct originally appear in the source code? *)
+type location = { 
+	line: int;							(* -1 means "do not know" *)
+	col: int;
+	file: string 
+}
 
-                                        (* An intermediate language for 
-                                         * analyzing C programs  *)
+(* information about a variable *)
+type varinfo = { 
+	vid: int;								(* unique integer indentifier, one per decl *)
+	vname: string;				
+	vglob: bool; 						(* is this a global variable? *)
+												  (* FIXME: currently always false *)
+	vtype: typ; 			
+	vdecl: location;			  (* where was this variable declared? *)
+}
 
-type linecol =
-    { line: int;
-      col: int;
-      file: string }
+(* information about a field access *)
+and fieldinfo = { 
+	struct_name: string;	(* "CilLval *record"-> *)
+	field_name: string;   (* "Variable *field"->name *)
+	t: typ;
+}
 
-type varinfo =
-    { vid: int;
-      vname: string;
-      vglob: bool;
-      vtyp: typeinfo;
-      vdecl: linecol;
-    }
-
-and fieldinfo =
-    { fname: string;
-      name: string;
-      t: typ;
-    }
-
+(* what is the type of an expression? *)
+(* FIXME: currently no type information is available *)
 and typ =
-    TInt
+		Void
+	| TInt
   | TFloat
   | TDouble
   | TChar
@@ -34,92 +51,86 @@ and typ =
   | TUnion of string * fieldinfo list
 (* missing: enum, functions *)
 
-
+(* literal constants *)
 type constant =
     Int of int
   | Str of string
   | Chr of char
   | Real of float
 
-                                        (* Unary operators *)
+(* unary operations *)
 type unop =
     Neg                                 (* unary - *)
-  | BNot                                (* ~ *)
   | LNot                                (* ! *)
+  | BNot                                (* ~ *)
 
-
-                                        (* Other binary operations *)
-and binop =
+(* binary operations *)
+type binop =
     Plus
   | Minus
   | Mult
   | Div
   | Mod
 
-  | BAnd
-  | BOr                                 (* inclusive-or *)
-  | BXor                                 (* exclusive-or *)
-
   | Shiftlt                             (* shift left *)
   | Shiftrt
+
+  | Lt
+  | Gt
+  | Le
+  | Ge
+
+  | Eq
+  | Ne
+
+  | BAnd
+  | BXor                                (* exclusive-or *)
+  | BOr                                 (* inclusive-or *)
 
   | LAnd    (* don't need these it turns out *)
   | LOr
                                         (* Comparison operations *)
-  | Eq
-  | Ne
-  | Gt
-  | Lt
-  | Ge
-  | Le
 
-
-                                        (* Expressions. No side-effects ! *)
+(* expressions, no side effects *)
 type exp =
-    Const      of constant * linecol
+    Const      of constant * location
   | Lval       of lval                  (* l-values *)
-  | UnOp       of unop * exp * linecol
-  | BinOp      of binop * exp * exp * linecol
-  | CastE      of typeinfo * exp * linecol
-  | AddrOf     of lval * linecol
+  | UnOp       of unop * exp * location
+  | BinOp      of binop * exp * exp * location
+  | CastE      of typ * exp * location
+  | AddrOf     of lval * location
 
-                                        (* L-values *)
+(* L-Values *)
 and lval =
-  | Var        of varinfo * linecol     (* an identifier and some other info*)
-  | Deref      of exp * linecol          (* *e *)
-  | Field      of lval * fieldinfo * linecol(* e.f *)
-  | CastL      of typeinfo * exp * linecol
+  | Var        of varinfo * location     (* an identifier and some other info*)
+  | Deref      of exp * location          (* *e *)
+  | Field      of lval * fieldinfo * location(* e.f *)
+  | CastL      of typeinfo * exp * location
   | ArrayElt   of exp * exp             (* array, index *)
 
-                                        (* Instructions. Can have side-effects
-                                         * but no control flow *)
-and instr =
-    Set        of lval * exp * linecol  (* An assignment *)
-                                        (* result, function address, argument
-                                         * list *)
-  | Call       of lval * exp * exp list * linecol
+(* Instructions. May cause effects directly but may not have control flow. *)
+type instr =
+    Set        of lval * exp * location  (* An assignment *)
+  | Call       of lval * exp * exp list * location
+						 (* result, function, argument list, location *)
 
   | Asm        of string
 
-and successor =
-    Return of exp * linecol
-  | If of exp * bblock * bblock * bool(*loop hint*) * linecol
-  | Switch of exp * (constant * bblock) list * bblock(*default*) * linecol
-  | Jump of bblock ref * linecol    (*leaving?*)
+and stmt = 
+		Compound of stmt list 
+	| While of exp * stmt 	(* while loop *)
+	| IfThenElse of exp * stmt * stmt (* if *)
+	| Label of string 
+	| Jump of string
+	| Return of exp
+	| Switch of exp * stmt (* no work done by scott, sigh*)
+	| Case of int 
+	| Default 
+	| Instruction of instr
 
+type fun_decl = string * typ * stmt * (varinfo list) * (varinfo list)
+	(* function name, return value type, body, formal args, local vars *)
 
-and bblock =
-    {          id:     int;            (* An identifier. Starts at 0 and
-                                         * grows breadth-first through If and
-                                         * Switch  *)
-              ins:     instr list;
-              succ:    successor;
-      mutable nrpred:  int
-    }
+type program = (fun_decl list) * (varinfo list)
+	(* global function decls, global variable decls *)
 
-and program =
-   list of top_level_declations
-
-top_level_declarations =
-   Function of string * typeinfo * bblock * (locals list, push local initializers into body)
- | Global of string * typeinfo * whatever * initializer * ...

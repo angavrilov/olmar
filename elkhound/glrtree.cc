@@ -354,14 +354,14 @@ struct wes_ast_node * NonterminalNode::camlAST(void) const
 {
     struct wes_ast_node * retval;
     retval = reductions.firstC()->camlAST();
-    {
-        if (getIsJustInt()) {
-	    // memory leak
-	    retval->name = wes_strdup( stringc << "L2_INT_LITERAL " << getTheInt() );
-	    retval->children = NULL;
-	    retval->num_children = 0;
-	}
-    }
+    if (getIsJustInt()) {
+	retval = (struct wes_ast_node *)malloc(sizeof(*retval));
+	retval->name = wes_strdup( stringc << "L2_INT_LITERAL " << getTheInt());
+	retval->children = NULL;
+	retval->num_children = 0;
+	retval->line = -1; /* FIXME: what is the line here? */
+	retval->col = -1;
+    } else retval = reductions.firstC()->camlAST();
     return retval;
 }
 #endif
@@ -544,10 +544,6 @@ struct wes_ast_node * Reduction::camlAST() const
 	struct wes_ast_node * retval = new struct wes_ast_node;
 
 	retval->name = wes_strdup(production->left->name.pcharc());
-	if (!strcmp(retval->name,"L2_SIZEOF")) {
-	    CCTreeNode * nt = (CCTreeNode *) (production->left);
-	    printf ("\nWES: %d\n", nt->theInt);
-	}
 	retval->num_children = nbr;
 	retval->children = new (struct wes_ast_node *) [nbr];
 	i = 0;

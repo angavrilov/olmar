@@ -235,13 +235,22 @@ nonterm TranslationUnit : Checkable {
       // around through scott's code
       // sm: yeah, we're in a C++ constructor here so return
       // values are tricky ...
-      {
-	extern struct wes_list * wes_result_list; // declared below
-        struct wes_list * new_cell = new struct wes_list;
-        new_cell->hd = camlAST();
-        new_cell->tl = wes_result_list;
-        wes_result_list = new_cell;
-      }
+      { extern int ocaml_wants_cil;
+	if (ocaml_wants_cil) {
+	    extern struct wes_list * wes_result_list; // declared below
+	    struct wes_list * new_cell = new struct wes_list;
+	    new_cell->hd = camlAST();
+	    new_cell->tl = wes_result_list;
+	    wes_result_list = new_cell;
+	} else {
+	    extern struct wes_list * wes_result_list; // declared below
+	    extern value cil_program_to_ocaml(CilProgram *prog);
+	    struct wes_list * new_cell = new struct wes_list;
+	    new_cell->hd = (wes_ast_node *)cil_program_to_ocaml(&prog);
+	    new_cell->tl = wes_result_list;
+	    wes_result_list = new_cell;
+	}
+    }
     #endif /* WES_OCAML_LINKAGE */
 
     #ifndef WES_OCAML_LINKAGE
@@ -260,11 +269,17 @@ nonterm TranslationUnit : Checkable {
       doTranslationStuff(*( iter.data() ));
     }
 
+    #ifdef CIL_OCAML_LINKAGE
+
+    #endif
+
     // deallocate now .. no good reason why .. (we can't
     // keep this info beyond the end of this fn because
     // we're about to delete e.g. all the environments
     // into which 'prog' points (indirectly))
+    #ifndef CIL_OCAML_LINKAGE
     prog.empty();
+    #endif
 
     #if 0      // for tracking down leaks
     CilExpr::printAllocStats(false /*anyway*/);
@@ -3626,6 +3641,7 @@ void wes_print(struct wes_ast_node * n)
 /* I am putting this here to avoid "multiple declaration" errors from the
  * ocaml linker which is not quite as robust as g++ */
 struct wes_list * wes_result_list;
+int ocaml_wants_cil; /* if 0, we want a wes-style AST */
 
 value wes_main(char *filename) {
     CAMLparam0();
@@ -3633,7 +3649,7 @@ value wes_main(char *filename) {
     char *argv[5] = {
 	"cc.gr",
 	"-tr",
-	"sizeof",	/* wes: was parse-tree,sizeof */
+	"",	/* wes: was parse-tree,sizeof */
 	"cc.bin",	/* wes: was cc.gr */
 	filename};
     int argc = 5;
@@ -3642,6 +3658,8 @@ value wes_main(char *filename) {
 
     wes_result_list = NULL; // declaring this NULL at the toplevel
     			    // gives multiple definition errors on my machine
+    ocaml_wants_cil = 0;
+
     res = fakemain(argc, argv);
     // examine wes_result_list
 
@@ -3659,6 +3677,39 @@ value wes_main(char *filename) {
 	struct wes_ast_node * n = l->hd;
 	retval = alloc(2,0);
 	Store_field(retval, 0, c_to_ocaml(n,filename));
+	Store_field(retval, 1, c);
+	c = retval;
+    }
+    wes_result_list = NULL; // memory leak!
+    CAMLreturn(c);
+}
+
+value cil_main(char *filename) {
+    CAMLparam0();
+    CAMLlocal3(retval, c, val);
+    char *argv[5] = {
+	"cc.gr",
+	"-tr",
+	"",	/* wes: was parse-tree,sizeof */
+	"cc.bin",	/* wes: was cc.gr */
+	filename};
+    int argc = 5;
+    int res;
+    struct wes_list * l;
+
+    wes_result_list = NULL; // declaring this NULL at the toplevel
+    			    // gives multiple definition errors on my machine
+    ocaml_wants_cil = 1;
+
+    res = fakemain(argc, argv);
+    // examine wes_result_list
+
+    // convert it over to OCAML
+    c = Val_int(0);
+    for (l = wes_result_list; l != NULL; l = l->tl) {
+	val = (value) l->hd;
+	retval = alloc(2,0);
+	Store_field(retval, 0, val);
 	Store_field(retval, 1, c);
 	c = retval;
     }
