@@ -260,6 +260,9 @@ public:     // funcs
 // ------------------- constructed types -------------------------
 // generic constructed type
 class Type {
+private:     // data
+  Type *refType; // the type which is the reference to this type, lazily constructed
+
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY };
   typedef bool (*TypePred)(Type const *t);
@@ -272,6 +275,7 @@ public:     // funcs
   virtual ~Type();
 
   virtual Type *deepClone() const = 0;
+  Type *getRefTypeTo();
 
   int getId() const { return (int)this; }
 
@@ -634,7 +638,13 @@ Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
 inline Type const *makePtrType(Type const *type)
   { return makePtrOperType(PO_POINTER, CV_NONE, type); }
 inline Type const *makeRefType(Type const *type)
-  { return makePtrOperType(PO_REFERENCE, CV_NONE, type); }
+  {
+    // If you'd prefer, we could make getRefTypeTo() have a const this
+    // pointer and declare the refType field in class Type to be
+    // mutable.
+    return const_cast<Type*>(type)->getRefTypeTo();
+//    makePtrOperType(PO_REFERENCE, CV_NONE, type);
+  }
 
 // map a simple type into its CVAtomicType (with no const or
 // volatile) representative

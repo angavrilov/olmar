@@ -596,15 +596,21 @@ ALLOC_STATS_DEFINE(Type)
 
 Type::Type()
   //: id(NULL_TYPEID)
+  : refType(NULL)
 {
   ALLOC_STATS_IN_CTOR
 }
 
+// FIX dsw: garbage?: should we destruct the refType?
 Type::~Type()
 {
   ALLOC_STATS_IN_DTOR
 }
 
+Type *Type::getRefTypeTo() {
+  if (!refType) refType = const_cast<Type*>(makePtrOperType(PO_REFERENCE, CV_NONE, this));
+  return refType;
+}
 
 CAST_MEMBER_IMPL(Type, CVAtomicType)
 CAST_MEMBER_IMPL(Type, PointerType)
@@ -1605,6 +1611,8 @@ Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
   if (type->isError()) {
     return type;
   }
+
+  xassert(!type->isReference()); // don't make a ref to a ref
 
   return new PointerType(op, cv, type);
 }
