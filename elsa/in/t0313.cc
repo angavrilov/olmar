@@ -13,6 +13,9 @@ int f()
   // same with function..
   b(f);
 
-  return "a"? 1 : 2;
+  "a"? 1 : 2;
+
+  char buf[20];
+  return buf? 1 : 2;
 }
 

@@ -391,14 +391,15 @@ StandardConversion getStandardConversion
   }
 
   // 9/25/04: conversions to bool that must be preceded by a
-  // group 1 conversion (lval to rval would already have happened)
+  // group 1 conversion
   if (dest->isBool()) {
     // these conversions always yield 'true'.. I wonder if there
     // is a good way to take advantage of that..
-    if (src->isArrayType()) {
+    Type const *s = src->asRvalC();
+    if (s->isArrayType()) {
       return conv.ret | SC_ARRAY_TO_PTR | SC_BOOL_CONV;
     }
-    if (src->isFunctionType()) {
+    if (s->isFunctionType()) {
       return conv.ret | SC_FUNC_TO_PTR | SC_BOOL_CONV;
     }
   }
