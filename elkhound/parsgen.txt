@@ -30,8 +30,8 @@ tracing strings:
   typeCheck:     print something just before typechecking each toplevel form
   refct:         environment reference count ops
   cil-tree:      print the Cil tree
-  eh:            print when exceptions are thrown  
-  allocStats:    print stats about allocated nodes
+  eh:            print when exceptions are thrown
+  alloc-stats:   print stats about allocated nodes, total mem usage
   cil-bb:        print the Cil basic blocks
   print-tree-before:   parse tree print before type checking
   type-ids:      print the type ids when types are printed

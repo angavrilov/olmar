@@ -45,7 +45,12 @@ string CilThing::locString() const
 
 string CilThing::locComment() const
 {
-  return stringc << "                  // " << locString() << "\n";
+  if (!tracingSys("omit-loc")) {
+    return stringc << "                  // " << locString() << "\n";
+  }
+  else {
+    return "\n";
+  }
 }
 
 SourceLocation const *CilThing::loc() const
@@ -66,7 +71,7 @@ MLValue unknownMLLoc()
   }
 }
 
-string CilThing::locMLString() const
+MLValue CilThing::locMLValue() const
 {
   if (tracingSys("omit-loc")) {
     return "{}";     // they really clutter the output
@@ -307,47 +312,47 @@ MKTAG(6, AddrOf)
 // goal here is a syntax that corresponds to the structure
 // ML uses internally, so we can perhaps write a general-purpose
 // ascii-to-ML parser (or perhaps one exists?)
-string CilExpr::toMLString() const
+MLValue CilExpr::toMLValue() const
 {
   switch (etag) {
     default: xfailure("bad tag");
     case T_LITERAL:   
       return stringc << "(" << exp_Const << " "
                      <<   "(Int " << mlInt(lit.value) << ") "
-                     <<   locMLString()
+                     <<   locMLValue()
                      << ")";
 
     case T_LVAL:
       return stringc << "(" << exp_Lval << " "
-                     <<   lval->toMLString()
+                     <<   lval->toMLValue()
                      << ")";
 
     case T_UNOP:
       return stringc << "(" << exp_UnOp << " "
                      <<   unOpMLText(unop.op) << " "
-                     <<   unop.exp->toMLString() << " "
-                     <<   locMLString()
+                     <<   unop.exp->toMLValue() << " "
+                     <<   locMLValue()
                      << ")";
 
     case T_BINOP:
       return stringc << "(" << exp_BinOp << " "
                      <<   binOpMLText(binop.op) << " "
-                     <<   binop.left->toMLString() << " "
-                     <<   binop.right->toMLString() << " "
-                     <<   locMLString()
+                     <<   binop.left->toMLValue() << " "
+                     <<   binop.right->toMLValue() << " "
+                     <<   locMLValue()
                      << ")";
 
     case T_CASTE:
       return stringc << "(" << exp_CastE << " "
                      <<   caste.type->toMLValue() << " "
-                     <<   caste.exp->toMLString() << " "
-                     <<   locMLString()
+                     <<   caste.exp->toMLValue() << " "
+                     <<   locMLValue()
                      << ")";
 
     case T_ADDROF:
       return stringc << "(" << exp_AddrOf << " "
-                     <<   addrof.lval->toMLString() << " "
-                     <<   locMLString()
+                     <<   addrof.lval->toMLValue() << " "
+                     <<   locMLValue()
                      << ")";
   }
 }
@@ -658,7 +663,7 @@ MLValue offsetMLValue(OffsetList const *ofs)
     }
     else { xassert(o->otag == CilOffset::T_INDEXOFS);
       ret = mlTuple2(offset_Index,
-                     o->index->toMLString(),
+                     o->index->toMLValue(),
                      ret);
     }                      
   }
@@ -676,7 +681,7 @@ MKTAG(4, ArrayElt)
 #undef MKTAG
 
 
-string CilLval::toMLString() const
+MLValue CilLval::toMLValue() const
 {
   switch (ltag) {
     default: xfailure("bad tag");
@@ -685,32 +690,32 @@ string CilLval::toMLString() const
       // Var        of varinfo * location
       return mlTuple2(lval_Var,
                       varref.var->toMLValue(),
-                      locMLString());
+                      locMLValue());
 
     case T_DEREF:
       return stringc << "(" << lval_Deref << " "
-                     <<   deref.addr->toMLString() << " "
-                     <<   locMLString()
+                     <<   deref.addr->toMLValue() << " "
+                     <<   locMLValue()
                      << ")";
 
     case T_FIELDREF:
       return stringc << "(" << lval_Field << " "
-                     <<   fieldref.record->toMLString() << " "
+                     <<   fieldref.record->toMLValue() << " "
                      <<   fieldref.field->toMLValue() << " "
-                     <<   locMLString()
+                     <<   locMLValue()
                      << ")";
 
     case T_CASTL:
       return stringc << "(" << lval_CastL << " "
                      <<   castl.type->toMLValue() << " "
-                     <<   castl.lval->toMLString() << " "
-                     <<   locMLString()
+                     <<   castl.lval->toMLValue() << " "
+                     <<   locMLValue()
                      << ")";
 
     case T_ARRAYELT:
       return stringc << "(" << lval_ArrayElt << " "
-                     <<   arrayelt.array->toMLString() << " "
-                     <<   arrayelt.index->toMLString() << " "
+                     <<   arrayelt.array->toMLValue() << " "
+                     <<   arrayelt.index->toMLValue() << " "
                      << ")";
 
     case T_VAROFS:
@@ -718,14 +723,14 @@ string CilLval::toMLString() const
       return mlTuple3(lval_Var,
                       ofs.var->toMLValue(),
                       offsetMLValue(ofs.offsets),
-                      locMLString());
+                      locMLValue());
 
     case  T_DEREFOFS:
       // Mem        of exp * offset * location(* memory location + offset *)
       return mlTuple3(lval_Deref,
-                      ofs.addr->toMLString(),
+                      ofs.addr->toMLValue(),
                       offsetMLValue(ofs.offsets),
-                      locMLString());
+                      locMLValue());
   }
 }
 
@@ -1010,41 +1015,45 @@ MKTAG(2, Asm)
 #undef MKTAG
 
 
-void CilInst::printTree(int ind, ostream &os, bool ml) const
+void CilInst::printTree(int ind, ostream &os) const
 {
   if (itag == T_CALL) {
-    call->printTree(ind, os, ml);
+    call->printTree(ind, os);
     return;
   }
 
-  if (!ml) {
-    indent(ind, os);
-  }
-  else {
-    // don't indent, we're embedded
-  }
+  indent(ind, os);
 
   switch (itag) {
     case T_CALL:
       // handled above already; not reached
 
     case T_ASSIGN:
-      if (!ml) {
-        os << "assign " << assign.lval->toString()
-           << " := " << assign.expr->toString()
-           << ";" << locComment();
-      }
-      else {
-        os << "(" << instr_Set << " "
-           <<   assign.lval->toMLString() << " "
-           <<   assign.expr->toMLString() << " "
-           <<   locMLString()
-           << ")";
-      }
+      os << "assign " << assign.lval->toString()
+         << " := " << assign.expr->toString()
+         << ";" << locComment();
       break;
 
     case NUM_ITAGS:
       xfailure("bad tag");
+  }
+}
+
+
+MLValue CilInst::toMLValue() const
+{
+  switch (itag) {
+    default: xfailure("bad tag");
+
+    case T_ASSIGN:
+      // Set        of lval * exp * location
+      return mlTuple3(instr_Set,
+                      assign.lval->toMLValue(),
+                      assign.expr->toMLValue(),
+                      locMLValue());
+
+    case T_CALL:
+      return call->toMLValue();  
   }
 }
 
@@ -1122,50 +1131,38 @@ CilFnCall *CilFnCall::clone() const
 }
 
 
-void CilFnCall::printTree(int ind, ostream &os, bool ml) const
+void CilFnCall::printTree(int ind, ostream &os) const
 {
-  if (!ml) {
-    indent(ind, os);
-    os << "call ";
-    if (result) {
-      os << result->toString() << " ";
-    }
-    os << ":= " << func->toString()
-       << "( ";
+  indent(ind, os);
+  os << "call ";
+  if (result) {
+    os << result->toString() << " ";
+  }
+  os << ":= " << func->toString()
+     << "( ";
 
-    int ct=0;
-    FOREACH_OBJLIST(CilExpr, args, iter) {
-      if (++ct > 1) {
-        os << " ,";
-      }
-      os << " " << iter.data()->toString();
+  int ct=0;
+  FOREACH_OBJLIST(CilExpr, args, iter) {
+    if (++ct > 1) {
+      os << " ,";
     }
-
-    os << ") ;" << locComment();
+    os << " " << iter.data()->toString();
   }
 
-  else /*ml*/ {
-    // don't indent, we're embedded
-    os << "(" << instr_Call << " ";
-    if (result) {
-      os << result->toMLString() << " ";
-    }
-    else {
-      os << mlNil() << " ";
-    }
+  os << ") ;" << locComment();
+}
 
-    os << "[";
-    int ct=0;
-    FOREACH_OBJLIST(CilExpr, args, iter) {
-      if (++ct > 1) {
-        os << "; ";
-      }
-      os << iter.data()->toMLString();
-    }
-    os << "] "
-       << locMLString()
-       << ")";
-  }
+
+MLValue CilFnCall::toMLValue() const
+{
+  // Call       of varinfo option * exp * exp list * location
+  return mlTuple4(instr_Call,
+                  result?
+                    mlSome(result->toMLValue()) :
+                    mlNone(),
+                  func->toMLValue(),
+                  mlObjList(args),
+                  locMLValue());
 }
 
 
@@ -1353,6 +1350,81 @@ CilStmt *CilStmt::clone() const
 }
 
 
+void CilStmt::printTree(int ind, ostream &os) const
+{
+  if (stag == T_COMPOUND) {
+    comp->printTree(ind, os);
+    return;
+  }
+  else if (stag == T_INST) {
+    inst.inst->printTree(ind, os);
+    return;
+  }
+
+  indent(ind, os);
+
+  switch (stag) {
+    case T_COMPOUND:
+    case T_INST:
+      // handled above already; not reached
+
+    case T_LOOP:
+      os << "while ( " << loop.cond->toString()
+         << " ) {" << locComment();
+      loop.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_IFTHENELSE:
+      os << "if ( " << ifthenelse.cond->toString()
+         << ") {" << locComment();
+      ifthenelse.thenBr->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      indent(ind, os) << "else {\n";
+      ifthenelse.elseBr->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_LABEL:
+      os << "label " << *(label.name)
+         << " :" << locComment();
+      break;
+
+    case T_JUMP:
+      os << "goto " << *(jump.dest)
+         << " ;" << locComment();
+      break;
+
+    case T_RET:
+      os << "return";
+      if (ret.expr) {
+        os << " " << ret.expr->toString();
+      }
+      os << " ;" << locComment();
+      break;
+
+    case T_SWITCH:
+      os << "switch (" << switchStmt.expr->toString()
+         << ") {" << locComment();
+      switchStmt.body->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_CASE:
+      os << "case " << caseStmt.value
+         << ":" << locComment();
+      break;
+
+    case T_DEFAULT:
+      os << "default:" << locComment();
+      break;
+
+    case NUM_STAGS:
+      xfailure("bad tag");
+  }
+}
+
+
 #define MKTAG(n, t) MAKE_ML_TAG(stmt, n, t)
 MKTAG(0, Skip)
 MKTAG(1, Sequence)
@@ -1370,155 +1442,64 @@ MKTAG(12, Instruction)
 #undef MKTAG
 
 
-void CilStmt::printTree(int ind, ostream &os, bool ml,
-                        char const *mlLineEnd) const
+MLValue CilStmt::toMLValue() const
 {
-  if (stag == T_COMPOUND) {
-    comp->printTree(ind, os, ml);
-    return;
-  }
-  else if (stag == T_INST) {
-    if (!ml) {
-      inst.inst->printTree(ind, os, ml);
-    }
-    else {
-      indent(ind, os) << "(" << stmt_Instruction << " ";
-      inst.inst->printTree(ind, os, ml);
-      os << ")" << mlLineEnd;
-    }
-    return;
-  }
+  switch (stag) {
+    default:
+      xfailure("bad tag");
 
-  indent(ind, os);
+    case T_COMPOUND:
+      return comp->toMLValue();
 
-  if (!ml) {
-    switch (stag) {
-      case T_COMPOUND:
-      case T_INST:
-        // handled above already; not reached
+    case T_LOOP:
+      // While of exp * stmt
+      return mlTuple2(stmt_While,
+                      loop.cond->toMLValue(),
+                      loop.body->toMLValue());
 
-      case T_LOOP:
-        os << "while ( " << loop.cond->toString()
-           << " ) {" << locComment();
-        loop.body->printTree(ind+2, os, ml);
-        indent(ind, os) << "}\n";
-        break;
+    case T_IFTHENELSE:
+      // IfThenElse of exp * stmt * stmt
+      return mlTuple3(stmt_IfThenElse,
+                      ifthenelse.cond->toMLValue(),
+                      ifthenelse.thenBr->toMLValue(),
+                      ifthenelse.elseBr->toMLValue());
 
-      case T_IFTHENELSE:
-        os << "if ( " << ifthenelse.cond->toString()
-           << ") {" << locComment();
-        ifthenelse.thenBr->printTree(ind+2, os, ml);
-        indent(ind, os) << "}\n";
-        indent(ind, os) << "else {\n";
-        ifthenelse.elseBr->printTree(ind+2, os, ml);  
-        indent(ind, os) << "}\n";
-        break;
+    case T_LABEL:
+      // Label of string
+      return mlTuple1(stmt_Label,
+                      mlString(*(label.name)));
 
-      case T_LABEL:
-        os << "label " << *(label.name)
-           << " :" << locComment();
-        break;
+    case T_JUMP:
+      // Goto of string
+      return mlTuple1(stmt_Goto,
+                      mlString(*(jump.dest)));
 
-      case T_JUMP:
-        os << "goto " << *(jump.dest)
-           << " ;" << locComment();
-        break;
+    case T_RET:
+      // Return of exp option
+      return mlTuple1(stmt_Return,
+                      ret.expr?
+                        mlSome(ret.expr->toMLValue()) :
+                        mlNone());
 
-      case T_RET:
-        os << "return";
-        if (ret.expr) {
-          os << " " << ret.expr->toString();
-        }
-        os << " ;" << locComment();
-        break;
+    case T_SWITCH:
+      // Switch of exp * stmt
+      return mlTuple2(stmt_Switch,
+                      switchStmt.expr->toMLValue(),
+                      switchStmt.body->toMLValue());
 
-      case T_SWITCH:
-        os << "switch (" << switchStmt.expr->toString()
-           << ") {" << locComment();
-        switchStmt.body->printTree(ind+2, os, ml);
-        indent(ind, os) << "}\n";
-        break;
+    case T_CASE:
+      // Case of int
+      return mlTuple1(stmt_Case,
+                      mlInt(caseStmt.value));
 
-      case T_CASE:
-        os << "case " << caseStmt.value
-           << ":" << locComment();
-        break;
+    case T_DEFAULT:
+      // Default
+      return mlTuple0(stmt_Default);
 
-      case T_DEFAULT:
-        os << "default:" << locComment();
-        break;
-
-      case NUM_STAGS:
-        xfailure("bad tag");
-    }
-  }
-
-  else /*ml*/ {
-    switch (stag) {
-      case T_COMPOUND:
-      case T_INST:
-        // handled above already; not reached
-
-      case T_LOOP:
-        os << "(" << stmt_While << " "
-           <<   loop.cond->toMLString() << endl;
-        loop.body->printTree(ind+2, os, ml, "\n");
-        indent(ind, os) << ")";
-        break;
-
-      case T_IFTHENELSE:
-        os << "(" << stmt_IfThenElse << " "
-           <<   ifthenelse.cond->toMLString() << endl;
-        ifthenelse.thenBr->printTree(ind+2, os, ml, "\n");
-        ifthenelse.elseBr->printTree(ind+2, os, ml, "\n");
-        indent(ind, os) << ")";
-        break;
-
-      case T_LABEL:
-        os << "(" << stmt_Label << " "
-           <<  mlString(*(label.name))
-           << ")";
-        break;
-
-      case T_JUMP:
-        os << "(" << stmt_Goto << " "
-           <<  mlString(*(jump.dest))
-           << ")";
-        break;
-
-      case T_RET:
-        os << "(" << stmt_Return << " ";
-        if (ret.expr) {
-          os << mlSome(ret.expr->toString());
-        }
-        else {
-          os << mlNone();
-        }
-        os << ")";
-        break;
-
-      case T_SWITCH:
-        os << "(" << stmt_Switch << " "
-           <<   switchStmt.expr->toString() << endl;
-        switchStmt.body->printTree(ind+2, os, ml, "\n");
-        indent(ind, os) << ")";
-        break;
-
-      case T_CASE:
-        os << "(" << stmt_Case << " "
-           <<   mlInt(caseStmt.value)
-           << ")";
-        break;
-
-      case T_DEFAULT:
-        os << "(" << stmt_Default << ")";
-        break;
-
-      case NUM_STAGS:
-        xfailure("bad tag");
-    }
-
-    os << mlLineEnd;
+    case T_INST:
+      // Instruction of instr
+      return mlTuple1(stmt_Instruction,
+                      inst.inst->toMLValue());
   }
 }
 
@@ -1552,7 +1533,9 @@ void CilStmt::xform(CilXform &x)
       break;
 
     case T_RET:
-      x.callTransformExpr(ret.expr);
+      if (ret.expr) {
+        x.callTransformExpr(ret.expr);
+      }
       break;
       
     case T_SWITCH:
@@ -1673,7 +1656,7 @@ void CilStatements::printTreeNoBraces(int ind, ostream &os) const
 {
   FOREACH_OBJLIST(CilStmt, stmts, iter) {
     try {
-      iter.data()->printTree(ind, os, false /*ml*/);
+      iter.data()->printTree(ind, os);
     }
     catch (xBase &x) {
       os << "$$$ // error printing: " << x << endl;
@@ -1705,31 +1688,17 @@ CilCompound *CilCompound::clone() const
 }
 
 
-void CilCompound::printTree(int ind, ostream &os, bool ml, 
-                            char const *mlLineEnd) const
+void CilCompound::printTree(int ind, ostream &os) const
 {
-  if (!ml) {
-    printTreeNoBraces(ind, os);
-  }
-  else /*ml*/ {
-    indent(ind, os) << "(" << stmt_Sequence;
-    if (stmts.isEmpty()) {
-      // visual optimization
-      os << " [])";
-    }
-    else {
-      os << " [\n";
-      int ct=stmts.count();
-      FOREACH_OBJLIST(CilStmt, stmts, iter) {
-        ct--;
-        iter.data()->printTree(ind+2, os, ml,
-                               ct > 0? " ;\n" : "\n");
-      }
-      indent(ind, os) << "])";
-    }
+  printTreeNoBraces(ind, os);
+}
 
-    os << mlLineEnd;
-  }
+
+MLValue CilCompound::toMLValue() const
+{
+  // Sequence of stmt list
+  return mlTuple1(stmt_Sequence,
+                  mlObjList(stmts));
 }
 
 
@@ -1810,7 +1779,7 @@ void CilBB::printTree(int ind, ostream &os) const
   ind += 2;
 
   SFOREACH_OBJLIST(CilInst, insts, iter) {
-    iter.data()->printTree(ind, os, false /*ml*/);
+    iter.data()->printTree(ind, os);
   }
 
   if (btag == T_SWITCH) {
@@ -1926,7 +1895,7 @@ void CilBBSwitch::printTree(int ind, ostream &os) const
     // I create it NULL, it seems prudent to handle this anyway
     indent(ind+4, os) << "// NULL defaultCase!\n";
   }
-  
+
   indent(ind, os) << "}\n";
 }
 
@@ -1934,25 +1903,25 @@ void CilBBSwitch::printTree(int ind, ostream &os) const
 // -------------------- CilFnDefn -----------------
 CilFnDefn::~CilFnDefn()
 {}
+                                                   
 
-
-void CilFnDefn::printTree(int ind, ostream &os, bool stmts, bool ml) const
+void CilFnDefn::printTree(int ind, ostream &os, bool stmts) const
 {
   os << "fundecl " << var->name
      << " : " << var->type->toString(0);
   indent(ind, os) << " {" << locComment();
 
   // print locals
-  SFOREACH_OBJLIST(Variable, locals, iter) {
+  FOREACH_VARIABLE(locals, iter) {
     indent(ind+2, os)
-       << "local " << iter.data()->name
-       << " : " << iter.data()->type->toString(0 /*depth*/) << " ;\n";
+       << "local " << iter->name
+       << " : " << iter->type->toString(0 /*depth*/) << " ;\n";
   }
   os << endl;
 
   if (stmts) {
     // print statements
-    bodyStmt.printTree(ind+2, os, ml);
+    bodyStmt.printTree(ind+2, os);
   }
   else {
     // print basic blocks
@@ -1966,17 +1935,49 @@ void CilFnDefn::printTree(int ind, ostream &os, bool stmts, bool ml) const
 }
 
 
+MLValue CilFnDefn::toMLValue() const
+{
+  //    type fundec =
+  //        { sname: string;                    (* function name *)
+  //          slocals: varinfo list;            (* locals *)
+  //          smaxid: int;                      (* max local id. Starts at 0 *)
+  //          sbody: stmt;                      (* the body *)
+  //          stype: typ;                       (* the function type *)
+  //          sstorage: storage;
+  //          sattr: attributes list;
+  //        }
+
+  // build list of locals
+  MLValue mlLocals = mlNil();
+  for (VariableId id = locals.numVars()-1;
+       id >= FIRST_VARIABLEID;
+       id--) {
+    mlLocals = mlCons(locals.lookupC(id)->toMLValue(), mlLocals);
+  }
+
+  return mlRecord7("sname", mlString(var->name),
+                   "slocals", mlLocals,
+                   "smaxid", mlInt(locals.numVars()),
+                   "sbody", bodyStmt.toMLValue(),
+                   "stype", var->type->toMLValue(),
+                   "sstorage", mlStorage(var->declFlags),
+                   "sattr", mlNil());
+}
+
+
 void CilFnDefn::xform(CilXform &x)
 {
   x.callTransformVar(var);
   
   // doesn't allow replacement of this compound
   bodyStmt.xform(x);
-                                                
-  SMUTATE_EACH_OBJLIST(Variable, locals, iter) {
+
+  for (VariableId id=FIRST_VARIABLEID;
+       id < locals.numVars();
+       id++) {
     // might consider defining something like
     //   callTrasnsformLocal( .. )
-    x.callTransformVar(iter.dataRef());
+    x.callTransformOwnerVar(locals.lookupRef(id));
   }
 }
 
@@ -1991,26 +1992,100 @@ CilProgram::~CilProgram()
 
 void CilProgram::printTree(int ind, ostream &os, bool ml) const
 {
-  SFOREACH_OBJLIST(Variable, globals, iter) {
-    indent(ind, os)
-       << "global " << iter.data()->name << " : ";
-    if (!ml) {
-      os << iter.data()->type->toString(0 /*depth*/) << " ;\n";
+  if (!ml) {
+    // globals
+    for (VariableId vid=FIRST_VARIABLEID /*0*/;
+         vid < globals.numVars();
+         vid++) {
+      Variable const *v = globals.lookupC(vid);
+      indent(ind, os)
+         << "global " << v->name << " : ";
+      os << v->type->toString(0 /*depth*/) << " ;\n";
     }
-    else {
-      os << iter.data()->type->toMLValue() << " ;\n";
+
+    FOREACH_OBJLIST(CilFnDefn, funcs, iter) {
+      iter.data()->printTree(ind, os, true /*stmts*/);
     }
   }
 
-  FOREACH_OBJLIST(CilFnDefn, funcs, iter) {
-    iter.data()->printTree(ind, os, true /*stmts*/, ml);
+  else /*ml*/ {
+    // type file = global list
+    indent(ind, os) << "[    // program start\n\n";
+
+    // type global =
+    //     GFun of fundec
+    //   | GType of string * typ               (* A typedef *)
+    //   | GVar of varinfo * exp option        (* A global variable with
+    //                                          * initializer. Includes function prototypes *)
+    //   | GAsm of string                      (* Global asm statement *)
+    MAKE_ML_TAG(global, 0, GFun);
+    MAKE_ML_TAG(global, 1, GType);
+    MAKE_ML_TAG(global, 2, GVar);
+    MAKE_ML_TAG(global, 3, GAsm);
+
+    // print all types first, skipping the simple types first
+    indent(ind,os) << "// ============ types ==============\n";
+    for (AtomicTypeId a=NUM_SIMPLE_TYPES;
+         a < types.numAtomicTypes();
+         a++) {
+      AtomicType const *at = types.lookupAtomicC(a);
+      
+      // depth of 2 is used here because otherwise we just say:
+      //   typedef foo foo;    
+      // instead of expanding the definition of foo
+      indent(ind,os) << mlTuple2(global_GType,
+                                 mlString(at->uniqueName()),
+                                 at->toMLValue(2 /*depth*/, CV_NONE))
+                     << " ;\n";
+    }
+
+    // then all globals
+    indent(ind,os) << "\n// ============= globals ============\n";
+    for (VariableId vid=FIRST_VARIABLEID /*0*/;
+         vid < globals.numVars();
+         vid++) {
+      Variable const *v = globals.lookupC(vid);
+      if (!( v->declFlags & DF_BUILTIN )) {
+        indent(ind,os) << mlTuple2(global_GVar,
+                                   v->toMLValue(),
+                                   mlNone())
+                       << " ;\n";
+      }
+      else {
+        // don't emit builtins because I expect this to
+        // eventually be re-emitted as C, to be processed
+        // by gcc, which would be upset about redefinitions
+        // of builtins
+      }
+    }
+
+    // finally, all functions
+    indent(ind,os) << "\n// ============ functions ==========\n";
+    FOREACH_OBJLIST(CilFnDefn, funcs, iter) {
+      indent(ind,os) << "// ---- " 
+                     << iter.data()->var->toString()
+                     << " ----\n";
+      indent(ind,os) << mlTuple1(global_GFun,
+                                 iter.data()->toMLValue())
+                     << " ;\n\n\n";
+    }
+
+    // end the list; put something here so I don't have to
+    // do special things to get semicolons *between* the
+    // things printed already
+    indent(ind,os) << "\n"
+                   << "// end of program\n"
+                   << mlTuple1(global_GAsm,
+                               mlString(".nop")) << "\n"
+                   << "]\n";
   }
 }
 
 
 void CilProgram::empty()
-{
-  globals.removeAll();
+{                 
+  types.empty();
+  globals.empty();
   funcs.deleteAll();
 }
 
@@ -2029,6 +2104,8 @@ void CilContext::append(CilStmt * /*owner*/ s) const
 
 void CilContext::addVarDecl(Variable *var) const
 {
+  // I don't think this is needed anymore ...
+  #if 0
   if (!isTrial) {
     if (fn) {
       xassert(!var->isGlobal());
@@ -2041,4 +2118,5 @@ void CilContext::addVarDecl(Variable *var) const
       prog->globals.append(var);
     }
   }
+  #endif // 0
 }

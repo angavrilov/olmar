@@ -1,5 +1,14 @@
 // cil.h
-// C Intermediate Language
+// C Intermediate Language:
+//   - side-effect free expressions (lvalues and rvalues)
+//   - simple imperatives: assign and call
+//   - a somewhat richer control-flow to make translation from C easier
+//   - a parallel basic-block language to make analysis easier,
+//     with a translator between the two
+
+// also part of Cil, but defined elsewhere:
+//   - types; see cc_type.h
+//   - variables; see cc_env.h
 
 #ifndef CIL_H
 #define CIL_H
@@ -10,13 +19,12 @@
 #include "owner.h"     // Owner
 #include "trdelete.h"  // TRASHINGDELETE
 #include "mlvalue.h"   // MLValue
+#include "cc_env.h"    // VariableEnv, TypeEnv
 
 // other files
 class Type;            // cc_type.h
 class FunctionType;    // cc_type.h
 class CompoundType;    // cc_type.h
-class Env;             // cc_env.h
-class Variable;        // cc_env.h
 class BBContext;       // stmt2bb.cc
 class CCTreeNode;      // cc_tree.h
 class SourceLocation;  // fileloc.h
@@ -62,7 +70,7 @@ public:
   TRASHINGDELETE
 
   string locString() const;
-  string locMLString() const;
+  MLValue locMLValue() const;
   string locComment() const;
   SourceLocation const *loc() const;   // can return NULL
 
@@ -183,7 +191,7 @@ public:      // funcs
   CilExpr *clone() const;     // deep copy
 
   string toString() const;    // render as a string
-  string toMLString() const;  // and as an ML string
+  MLValue toMLValue() const;  // and as an ML string
 
   void xform(CilXform &x);
 };
@@ -283,7 +291,7 @@ public:      // funcs
 
   CilLval *clone() const;
   string toString() const;
-  string toMLString() const;
+  MLValue toMLValue() const;
 
   void xform(CilXform &x);
 };
@@ -383,8 +391,9 @@ public:      // funcs
   // deep copy
   CilInst *clone() const;
 
-  void printTree(int indent, ostream &os, bool ml) const;
-  
+  void printTree(int indent, ostream &os) const;
+  MLValue toMLValue() const;
+
   void xform(CilXform &x);
 };
 
@@ -403,7 +412,8 @@ public:     // funcs
   ~CilFnCall();
 
   CilFnCall *clone() const;
-  void printTree(int indent, ostream &os, bool ml) const;
+  void printTree(int indent, ostream &os) const;
+  MLValue toMLValue() const;
 
   void appendArg(CilExpr *arg);
   
@@ -502,8 +512,9 @@ public:      // funcs
   // deep copy
   CilStmt *clone() const;
 
-  void printTree(int indent, ostream &os, bool ml,
-                 char const *mlLineEnd = "\n") const;
+  void printTree(int indent, ostream &os) const;
+  MLValue toMLValue() const;
+
   // translaton
   CilBB * /*owner*/ translateToBB(BBContext &ctxt,
                                   CilBB * /*owner*/ next) const;
@@ -549,11 +560,11 @@ public:    // funcs
   ~CilCompound();
 
   CilCompound *clone() const;
-  void printTree(int indent, ostream &os, bool ml,
-                 char const *mlLineEnd = "\n") const;
+  void printTree(int indent, ostream &os) const;
+  MLValue toMLValue() const;
   CilBB * /*owner*/ translateToBB(BBContext &ctxt,
                                   CilBB * /*owner*/ next) const;
-  
+
   void xform(CilXform &x);
 };
 
@@ -657,7 +668,7 @@ class CilFnDefn : public CilThing {
 public:
   Variable *var;               // (serf) name, type
   CilCompound bodyStmt;        // fn body code as statements
-  SObjList<Variable> locals;   // local variables
+  VariableEnv locals;          // local variables
 
   ObjList<CilBB> bodyBB;       // body code as basic blocks; order insignificant
   CilBB *startBB;              // (serf) starting basic block
@@ -669,7 +680,8 @@ public:
 
   // stmts==true: print statements
   // stmts==false: print basic blocks
-  void printTree(int indent, ostream &os, bool stmts, bool ml) const;
+  void printTree(int indent, ostream &os, bool stmts) const;
+  MLValue toMLValue() const;
   
   void xform(CilXform &x);
 };
@@ -679,7 +691,8 @@ public:
 // an entire Cil program
 class CilProgram {
 public:
-  SObjList<Variable> globals;  // global variables
+  VariableEnv globals;         // global variables
+  TypeEnv types;               // global list of types
   ObjList<CilFnDefn> funcs;    // function definitions
 
 public:

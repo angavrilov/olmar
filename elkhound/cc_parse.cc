@@ -34,16 +34,16 @@ public:
   Env *globalEnv;             // global environment (incl. ptr to type env)
   TypeId nextType;            // id of next one to emit
   AtomicTypeId nextAtomic;    // similarly for atomic types
-  CilProgram prog;            // Cil translation of this module
+  CilProgram &prog;           // Cil translation of this module
 
   struct wes_state *wes;      // stuff related to the ocaml translation
 
 public:
-  TranslationState(Env *e, wes_state *w)
+  TranslationState(Env *e, CilProgram &p, wes_state *w)
     : globalEnv(e),
       nextType(FIRST_EMITTED_TYPE),
       nextAtomic(FIRST_EMITTED_TYPE),
-      prog(),
+      prog(p),
       wes(w)
   {}
   ~TranslationState();
@@ -120,8 +120,7 @@ void TranslationState::printTree()
       nextAtomic++;
     }
 
-    prog.printTree(0 /*indent*/, cout, 
-                   !tracingSys("nocaml"));
+    prog.printTree(0 /*indent*/, cout, false /*ml*/);
   }
 }
 
@@ -303,11 +302,8 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
       // place to store the tree
       ParseTreeAndTokens tree;
 
-      // toplevel type environment
-      TypeEnv topTypeEnv;
-
-      // global variable environment
-      VariableEnv topVarEnv;
+      // translation destination
+      CilProgram program;
 
       // dataflow environment ...
       DataflowEnv denv;
@@ -316,11 +312,11 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
       // will be evaluated, just before that form is thrown
       // away
       //traceAddSys("env-declare");
-      Env env(&denv, &topTypeEnv, &topVarEnv);
+      Env env(&denv, &program.types, &program.globals);
 
       // carry this context in the tree, since it is an argument
       // to node constructors
-      TranslationState state(&env, wes);
+      TranslationState state(&env, program, wes);
       tree.extra = &state;
 
       // use another try to catch ambiguities so we can
@@ -335,6 +331,9 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
         
         // it's now parsed .. print out the Cil translation
         state.printTree();
+        if (tracingSys("cil-ml")) {
+          program.printTree(0 /*indent*/, cout, true /*ml*/);
+        }
       }
       catch (XAmbiguity &x) {
         cout << x << endl;
@@ -360,7 +359,7 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
 
   // since this is outside all the scopes that create interesting
   // nodes, the stat counts should now be 0
-  bool anyway = tracingSys("allocStats");
+  bool anyway = tracingSys("alloc-stats");
   if (anyway || TreeNode::numTreeNodesAllocd != 0) {
     TreeNode::printAllocStats();
   }
@@ -373,6 +372,10 @@ int fakemain(int argc, char *argv[], struct wes_state *wes)
   CilBB::printAllocStats(anyway);
   Type::printAllocStats(anyway);
   AtomicType::printAllocStats(anyway);
+  
+  if (anyway) {
+    malloc_stats();
+  }
 
   return 0;
 }

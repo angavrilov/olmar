@@ -4,7 +4,9 @@
 #ifndef MLVALUE_H
 #define MLVALUE_H
 
-#include "str.h"     // string
+#include "str.h"       // string
+#include "objlist.h"   // ObjList
+#include "sobjlist.h"  // SObjList
 
 // type for tags that get constructed and passed around
 typedef char const *MLTag;
@@ -66,6 +68,34 @@ MLValue mlRef(MLValue v);
 // 'option'
 MLValue mlSome(MLValue v);
 MLValue mlNone();
+
+
+// construct an ML list from one of my lists
+template <class T>
+MLValue mlObjList(ObjList<T> const &list)
+{
+  MLValue ret = mlNil();
+
+  for (int i=list.count()-1; i>=0; i--) {
+    ret = mlCons(list.nthC(i)->toMLValue(), ret);
+  }
+
+  return ret;
+}
+
+
+// need one for serf lists too
+template <class T>
+MLValue mlSObjList(SObjList<T> const &list)
+{
+  MLValue ret = mlNil();
+
+  for (int i=list.count()-1; i>=0; i--) {
+    ret = mlCons(list.nthC(i)->toMLValue(), ret);
+  }
+
+  return ret;
+}
 
 
 #endif // MLVALUE_H

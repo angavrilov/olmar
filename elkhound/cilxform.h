@@ -43,6 +43,7 @@ public:   // funcs
   DECL_TRANSFORM(Label, LabelName*)
   DECL_TRANSFORM(Inst, CilInst*)
   DECL_TRANSFORM(Stmt, CilStmt*)
+  DECL_TRANSFORM(OwnerVar, Variable *)
 
   // for serf pointers, we replace but do not deallocate
   DECL_TRANSFORM(Type, Type const *)

@@ -14,9 +14,14 @@ private:     // data
   int nextId;            // next id to assign
   int mapSize;           // allocated size of 'map'
 
-public:
-  ArrayMap();
-  ~ArrayMap();
+private:     // funcs
+  void make();
+  void del();
+  void validate(int index) const;
+
+public:      // data
+  ArrayMap() { make(); }
+  ~ArrayMap() { del(); }
 
   // # of elements defined
   int count() const { return nextId; }
@@ -25,19 +30,24 @@ public:
   int insert(T * /*owner*/ t);
 
   // retrieve by id
-  T *lookup(int id);
+  T const *lookupC(int id) const;
+  T *lookup(int id) { return const_cast<T*>(lookupC(id)); }
+  T *&lookupRef(int id) { validate(id); return map[id]; }
+
+  // throw everything away
+  void empty() { del(); make(); }
 };
 
 template <class T>
-ArrayMap<T>::ArrayMap()
+void ArrayMap<T>::make()
 {
-  mapSize = 100;      // TODO: reset; just for testing
+  mapSize = 100;
   nextId = 0;
   map = new T* [mapSize];
 }
 
 template <class T>
-ArrayMap<T>::~ArrayMap()
+void ArrayMap<T>::del()
 {
   loopi(nextId) {
     delete map[i];
@@ -65,17 +75,46 @@ int ArrayMap<T>::insert(T *t)
     // grab the new map
     map = newMap;
   }
-  
+
   int ret = nextId++;
   map[ret] = t;
   return ret;
 }
 
 template <class T>
-T *ArrayMap<T>::lookup(int id)
+void ArrayMap<T>::validate(int id) const
 {
   xassert(0 <= id && id < nextId);
+}
+
+template <class T>
+T const *ArrayMap<T>::lookupC(int id) const
+{
+  validate(id);
   return map[id];
 }
+
+
+#define FOREACH_ARRAYMAP(type, array, var)       \
+  type const *var = NULL;                        \
+  for (int var##id=0;                            \
+       var##id<(array).count() &&                \
+         (var=(array).lookupC(var##id), true);   \
+       var##id++)
+
+
+#define FOREACH_ARRAYMAP_INDEX(array, var)   \
+  for (int var=0;                            \
+       var<(array).count();                  \
+       var++)
+
+
+#define MUTATE_EACH_ARRAYMAP(type, array, var)   \
+  type *var = NULL;                              \
+  for (int var##id=0;                            \
+       var##id<(array).count() &&                \
+         (var=(array).lookup(var##id), true);    \
+       var##id++)
+
 
 #endif // ARRAYMAP_H

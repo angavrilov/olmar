@@ -39,14 +39,17 @@ enum DeclFlags {
   DF_ENUMVAL     = 0x0200,    // not really a decl flag, but a Variable flag..
   DF_GLOBAL      = 0x0400,    // set for globals, unset for locals
   DF_INITIALIZED = 0x0800,    // true if has been declared with an initializer (or, for functions, with code)
+  DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
 
-  ALL_DECLFLAGS  = 0x0FFF,
+  ALL_DECLFLAGS  = 0x1FFF,
 };
+
+MLValue mlStorage(DeclFlags df);
 
 
 // type of variable identifiers
 typedef int VariableId;
-enum { NULL_VARIABLEID = -1 };
+enum { NULL_VARIABLEID = -1, FIRST_VARIABLEID = 0 };
 
 
 // thing to which a name is bound and for which runtime
@@ -144,6 +147,10 @@ public:     // funcs
   // create a new environment based on the current one, purely for
   // scoping purposes
   Env *newScope();
+  
+  // create a nested environment with a different
+  // place for storing variable declarations
+  Env *newVariableScope(VariableEnv *venv);
 
   // close this environment's link with its parent; this must
   // intended to be done before either is deallocated (it is
@@ -290,10 +297,14 @@ public:
   int numTypes() const { return types.count(); }
   TypeId grab(Type *type);
   Type *lookup(TypeId id) { return types.lookup(id); }
+  Type const *lookupC(TypeId id) const { return types.lookupC(id); }
 
   int numAtomicTypes() const { return atomicTypes.count(); }
   AtomicTypeId grabAtomic(AtomicType *type);
   AtomicType *lookupAtomic(AtomicTypeId id) { return atomicTypes.lookup(id); }
+  AtomicType const *lookupAtomicC(AtomicTypeId id) const { return atomicTypes.lookupC(id); }
+  
+  void empty() { types.empty(); atomicTypes.empty(); }
 };
 
 
@@ -311,7 +322,17 @@ public:
   int numVars() const { return vars.count(); }
   VariableId grab(Variable * /*owner*/ var);
   Variable *lookup(VariableId id) { return vars.lookup(id); }
+  Variable const *lookupC(VariableId id) const { return vars.lookupC(id); }
+  Variable *&lookupRef(VariableId id) { return vars.lookupRef(id); }
+  void empty() { vars.empty(); }
+  
+  // only for use by the iterator macro
+  ArrayMap<Variable> const &getVars() const { return vars; }
 };
+
+
+#define FOREACH_VARIABLE(env, var) \
+  FOREACH_ARRAYMAP(Variable, (env).getVars(), var)
 
 
 #endif // __CC_ENV_H

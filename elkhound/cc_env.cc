@@ -26,12 +26,32 @@ string Variable::toString() const
 }
                  
 
-extern MLValue unknownMLLoc();     // cil.cc
-
 MAKE_ML_TAG(storage, 0, NoStorage)
 MAKE_ML_TAG(storage, 1, Static)
 MAKE_ML_TAG(storage, 2, Register)
 MAKE_ML_TAG(storage, 3, Extern)
+
+MLValue mlStorage(DeclFlags df)
+{
+  // storage = NoStorage | Static | Register | Extern
+
+  // not quite a perfect map .. but until it matters
+  // somewhere I'm leaving it as-is
+
+  if (df & DF_STATIC) {
+    return mlTuple0(storage_Static);
+  }
+  if (df & DF_REGISTER) {
+    return mlTuple0(storage_Register);
+  }
+  if (df & DF_EXTERN) {
+    return mlTuple0(storage_Extern);
+  }
+  return mlTuple0(storage_NoStorage);
+}
+
+
+extern MLValue unknownMLLoc();     // cil.cc
 
 MLValue Variable::toMLValue() const
 {
@@ -46,16 +66,13 @@ MLValue Variable::toMLValue() const
   //      mutable vstorage: storage;
   //  }
 
-  //  and storage =
-  //      NoStorage | Static | Register | Extern
-
   return mlRecord7("vid", mlInt(id),
                    "vname", mlString(name),
                    "vglob", mlBool(isGlobal()),
                    "vtype", type->toMLValue(),
                    "vdecl", unknownMLLoc(),
                    "vattr", mlNil(),
-                   "vstorage", mlTuple0(storage_NoStorage));  // TODO2
+                   "vstorage", mlStorage(declFlags));
 }
 
 
@@ -87,7 +104,7 @@ Env::Env(DataflowEnv *d, TypeEnv *te, VariableEnv *ve)
     xassert(t->id == i);
   }
 
-  declareVariable(NULL, "__builtin_constant_p", DF_NONE,
+  declareVariable(NULL, "__builtin_constant_p", DF_BUILTIN,
     makeFunctionType_1arg(
       getSimpleType(ST_INT),                          // return type
       CV_NONE,
@@ -183,6 +200,11 @@ void Env::killParentLink()
 Env *Env::newScope()
 {
   return new Env(this, getTypeEnv(), getVarEnv());
+}
+
+Env *Env::newVariableScope(VariableEnv *venv)
+{
+  return new Env(this, getTypeEnv(), venv);
 }
 
 

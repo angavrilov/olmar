@@ -220,6 +220,12 @@ MLValue SimpleType::toMLValue(int, CVFlags cv) const
 }
 
 
+string SimpleType::uniqueName() const
+{
+  return simpleTypeName(type);
+}
+
+
 // ------------------ NamedAtomicType --------------------
 NamedAtomicType::NamedAtomicType(char const *n)
   : name(n)
@@ -344,27 +350,35 @@ string CompoundType::toCilString(int depth) const
 
 MLValue CompoundType::toMLContentsValue(int depth, CVFlags cv) const
 {
-  // build up field list
-  MLValue fields = mlNil();
-  StringSObjDict<Variable>::Iter iter(env->getVariables());
-  for (; !iter.isDone(); iter.next()) {
-    fields = mlCons(mlRecord4(
-                      "fstruct", mlString(name),
-                      "fname", mlString(iter.value()->name),
-                      "typ", iter.value()->type->toMLValue(depth),
-                      "fattr", mlRef(mlNil())
-                    ), fields);
-  }
-
   // TStruct of string * fieldinfo list * int * attribute list
   // TUnion of string * fieldinfo list * int * attribute list
+
+  // build up field list
+  MLValue fields = mlNil();
+  if (isComplete()) {
+    StringSObjDict<Variable>::Iter iter(env->getVariables());
+    for (; !iter.isDone(); iter.next()) {
+      fields = mlCons(mlRecord4(
+                        "fstruct", mlString(name),
+                        "fname", mlString(iter.value()->name),
+                        "typ", iter.value()->type->toMLValue(depth),
+                        "fattr", mlRef(mlNil())
+                      ), fields);
+    }
+  }
+
+  // attributes
+  MLValue att = cvToMLAttrs(cv);
+  if (!isComplete()) {
+    att = mlCons(mlString("INCOMPLETE"), att);
+  }
 
   // assemble into a single tuple
   return mlTuple4(keyword==K_STRUCT? typ_TStruct : typ_TUnion,
                   mlString(name),
                   fields,
                   mlInt(id),
-                  cvToMLAttrs(cv));
+                  att);
 }
 
 
@@ -488,6 +502,10 @@ string Type::toCString(char const *name) const
 {
   return stringc << idComment()
                  << leftString() << " " << name << rightString();
+
+  // removing the space causes wrong output:
+  //   int (foo)(intz)
+  //               ^^
 }
 
 string Type::rightString() const
@@ -859,7 +877,7 @@ MLValue ArrayType::toMLValue(int depth) const
     // evaluate sizeof at parse time), construct an
     // expression now
     Owner<CilExpr> e; e = newIntLit(NULL /*extra*/, size);
-    mlSize = mlSome(e->toMLString());
+    mlSize = mlSome(e->toMLValue());
   }
   else {
     mlSize = mlNone();

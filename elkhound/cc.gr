@@ -2955,10 +2955,17 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       // parameter names used at the definition site, rather than the
       // prototype site
 
+      // make the shell to hold the function definition, and
+      // immediately add it to the context (we don't do name
+      // lookups in the context right now, but if we did, we'd
+      // need the name to be defined before we process the body)
+      CilFnDefn *defn = new CilFnDefn(cilExtra(), funcVar);
+      ctxt.prog->funcs.append(defn);     // ownership transfer ..
+
       // add the formals to the new environment we'll create for
       // the function body
       xassert(!localEnv);
-      localEnv = env->newScope();       // scope
+      localEnv = env->newVariableScope(&(defn->locals));  // scope
 
       try {
         FOREACH_OBJLIST(Parameter, fnType->params, iter) {
@@ -2970,13 +2977,6 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
                             false /*initialized*/);
           }
         }
-        
-        // make the shell to hold the function definition, and
-        // immediately add it to the context (we don't do name
-        // lookups in the context right now, but if we did, we'd
-        // need the name to be defined before we process the body)
-        CilFnDefn *defn = new CilFnDefn(cilExtra(), funcVar);
-        ctxt.prog->funcs.append(defn);     // ownership transfer ..
 
         // typecheck the body
         delete b.typeCheck(localEnv, CilContext(ctxt, *defn));

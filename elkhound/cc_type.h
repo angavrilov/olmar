@@ -121,6 +121,9 @@ public:     // funcs
   // applied from context, to be represented in the returned type
   virtual MLValue toMLValue(int depth, CVFlags cv) const = 0;
 
+  // name of this type for references in Cil output
+  virtual string uniqueName() const = 0;
+
   // size this type's representation occupies in memory
   virtual int reprSize() const = 0;
 
@@ -143,6 +146,7 @@ public:     // funcs
   virtual string toCString() const;
   virtual string toCilString(int depth) const;
   virtual MLValue toMLValue(int depth, CVFlags cv) const;
+  virtual string uniqueName() const;
   virtual int reprSize() const;
 };
 
@@ -157,7 +161,7 @@ public:
   ~NamedAtomicType();
 
   // globally unique name derived from 'name' and 'id'
-  string uniqueName() const;
+  virtual string uniqueName() const;
 
   // the basic implementation
   virtual MLValue toMLValue(int depth, CVFlags cv) const;
