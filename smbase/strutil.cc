@@ -278,7 +278,7 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
     // an error (for now), even though the C++ spec says
     // it should be treated as if the backslash were not there
     //
-    // UPDATE: now making backslash the identity transformation in
+    // 7/29/04: now making backslash the identity transformation in
     // this case
     //
     // copy character as if it had not been backslashed
