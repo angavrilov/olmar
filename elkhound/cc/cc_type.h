@@ -10,6 +10,7 @@
 #include "cc_flags.h"     // CVFlags, DeclFlags, SimpleTypeId
 #include "strtable.h"     // StringRef
 #include "strsobjdict.h"  // StrSObjDict
+#include "cc_scope.h"     // Scope
 
 class Variable;           // variable.h
 
@@ -99,6 +100,7 @@ class NamedAtomicType : public AtomicType {
 public:     // data
   StringRef name;          // (nullable) user-assigned name of this struct or enum
   Variable *typedefVar;    // (owner) implicit typedef variable
+  AccessKeyword access;    // accessibility of this type in its declaration context
 
 public:
   NamedAtomicType(StringRef name);
@@ -117,37 +119,12 @@ enum AccessMode {
   NUM_ACCESS_MODES
 };
 
-// represent a user-defined compound type
-class CompoundType : public NamedAtomicType {
+// represent a user-defined compound type; the members of the
+// compound are whatever has been entered in the Scope
+class CompoundType : public NamedAtomicType, public Scope {
 public:      // types
   // NOTE: keep these consistent with TypeIntr (in file cc_flags.h)
   enum Keyword { K_STRUCT, K_CLASS, K_UNION, NUM_KEYWORDS };
-
-  // one of these for each field in the struct
-  class Field {
-  public:
-    StringRef name;                  // programmer-given name
-    AccessKeyword access;            // access control disposition
-    int const index;                 // first field is 0, next is 1, etc.
-    Type const *type;                // declared field type
-    CompoundType const *compound;    // (serf) compound in which this appears
-
-    // I include a pointer to the introduction; since I want
-    // to keep the type language independent of the AST language, I
-    // will continue to store redundant info, regarding 'decl' as
-    // something which might go away at some point
-    Variable *decl;                  // (nullable serf)
-
-  public:
-    Field(StringRef n, AccessKeyword a, int i, Type const *t,
-          CompoundType const *c, Variable *d)
-      : name(n), access(a), index(i), type(t), compound(c), decl(d) {}
-  };
-
-private:     // data
-  ObjList<Field> fields;               // fields in this type
-  StringSObjDict<Field> fieldIndex;    // dictionary for name lookup
-  int fieldCounter;                    // # of fields
 
 public:      // data
   bool forward;               // true when it's only fwd-declared
@@ -159,7 +136,6 @@ public:      // funcs
   ~CompoundType();
 
   bool isComplete() const { return !forward; }
-  bool nunFields() const { return fieldCounter; }
 
   static char const *keywordName(Keyword k);
 
@@ -172,11 +148,14 @@ public:      // funcs
   string keywordAndName() const { return toCString(); }
 
   int numFields() const;
-  Field const *getNthField(int index) const;         // must exist
-  Field const *getNamedField(StringRef name) const;  // returns NULL if doesn't exist
+                                            
+  // returns NULL if doesn't exist
+  Variable const *getNamedFieldC(StringRef name) const
+    { return variables.queryif(name); }
+  Variable *getNamedField(StringRef name) 
+    { return variables.queryif(name); }
 
-  Field *addField(StringRef name, AccessKeyword acc, Type const *type,
-                  /*nullable*/ Variable *d);
+  void addField(Variable *v);
 };
 
 string toString(CompoundType::Keyword k);

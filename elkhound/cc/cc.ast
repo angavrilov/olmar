@@ -493,7 +493,7 @@ class Expression {
   // field within an object; as a special case, fieldName might begin
   // with "~", meaning we're naming the destructor
   -> E_fieldAcc(Expression obj, PQName fieldName) {
-       public CompoundType::Field const *field;
+       public Variable *field;
        ctor field = NULL;
      }
 

@@ -20,6 +20,7 @@ class Function;           // cc.ast
 // any "current" things being built (class, function, etc.)
 class Scope {
   friend class Env;
+  friend class CompoundType;
 
 private:     // data
   // ----------------- name spaces --------------------
@@ -41,9 +42,9 @@ public:      // data
   // ------------- "current" entities -------------------
   // these are set to allow the typechecking code to know about
   // the context we're in
-  CompoundType *curCompound;     // CompoundType we're building
+  CompoundType *curCompound;     // (serf) CompoundType we're building
   AccessKeyword curAccess;       // access disposition in effect
-  Function *curFunction;         // Function we're analyzing
+  Function *curFunction;         // (serf) Function we're analyzing
   SourceLocation curLoc;         // latest AST location marker seen
 
 public:

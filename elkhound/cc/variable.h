@@ -46,6 +46,10 @@ public:    // data
   // to the set of overloaded names; otherwise it's NULL
   OverloadSet *overload;  // (serf)
 
+  // access control applied to this variable in the context
+  // in which it appears (defaults to AK_PUBLIC)
+  AccessKeyword access;
+
 public:    // funcs
   Variable(SourceLocation const &L, StringRef n,
            Type const *t, DeclFlags f);
