@@ -16,12 +16,17 @@ public:
   // do the declaration, and report an error if it happens
   void declareVariable(Env &env, char const *name,
                        DeclFlags flags, Type const *type) const;
+                                                   
+  // attempt #1 at a general disambiguator...
+  typedef void (CCTreeNode::*DisambFn)(Env &env) const;
+  void disambiguate(Env &env, DisambFn func) const;
 
   // construct a general error, and throw it
   void throwError(char const *msg) const NORETURN;
-  
+
   // make a general error but simply report it
   void reportError(Env &env, char const *msg) const;
+
 };
 
 

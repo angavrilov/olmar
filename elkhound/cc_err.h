@@ -18,6 +18,10 @@ enum SemanticErrorCode {
     // duplicate variable declaration
     //   varName: the variable declared more than once
 
+  SE_UNDECLARED_VAR,
+    // use of an undeclared variable
+    //   varName: the name that wasn't declared
+
   SE_GENERAL,
     // error not more precisely classified
     //   msg: describes the problem

@@ -132,7 +132,10 @@ public:     // funcs
   // install a new name->type binding in the environment; return
   // false if there is already a binding for this name
   bool declareVariable(char const *name, DeclFlags flags, Type const *type);
-  
+
+  // return true if the named variable is declared as something
+  bool isDeclaredVar(char const *name);
+
   // report an error
   void report(SemanticError const &err);
 

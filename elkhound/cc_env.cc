@@ -329,6 +329,13 @@ bool Env::declareVariable(char const *name, DeclFlags flags, Type const *type)
 }
 
 
+bool Env::isDeclaredVar(char const *name)
+{
+  return variables.isMapped(name) ||
+         (parent && parent->isDeclaredVar(name));
+}
+
+
 void Env::report(SemanticError const &err)
 {
   errors.append(new SemanticError(err));

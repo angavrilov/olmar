@@ -51,6 +51,10 @@ string SemanticError::whyStr() const
       sb << "duplicate variable declaration for `" << varName << "'";
       break;
 
+    case SE_UNDECLARED_VAR:
+      sb << "undeclared variable `" << varName << "'";
+      break;
+
     case SE_GENERAL:
       sb << msg;
       break;

@@ -74,5 +74,3 @@ ParseTree * /*owner*/ treeMain(int argc, char **argv)
 
   return toplevelParse(argv[1], argv[2], symOfInterestName);
 }
-
-

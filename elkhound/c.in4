@@ -21,7 +21,21 @@ typedef bool Boolean;
 struct FILE {
   int foo;
 };
-
+void tcsetattr(...);
+int fileno(FILE *f);
+FILE *stdin;
+FILE *stdout;
+FILE *stderr;
+int TCSANOW;
+void ioctl(...);
+int TIOCSETP;
+void signal(...);
+void kill(int pid, int sig);
+int getpid();
+FILE *fopen(...);
+int fprintf(...);
+void fflush(FILE *f);
+int snprintf(...);
 
 
 
