@@ -4571,9 +4571,29 @@ void Env::unqualifiedFinalNameLookup(LookupSet &set, Scope *scope,
   // 'scope' yields the same results as its current setting, which
   // came from tchecking in the current scope.
 
+  // regardless of LF_TEMPL_PRIMARY, if there are template arguments,
+  // then we want to filter non-templates out of the set
+  if (name->isPQ_template()) {
+    set.removeNonTemplates();
+
+    if (set.isEmpty()) {           // t0460.cc
+      env.error(name->loc, stringc
+        << "cannot apply template args to non-template `"
+        << name->getName() << "'", EF_DISAMBIGUATES);
+      return;
+    }
+  }
+
   // consider template arguments?
   if (flags & LF_TEMPL_PRIMARY) {
     return;    // no
+  }
+
+  if ((flags & LF_EXPECTING_TYPE) &&
+      !set.first()->isType()) {
+    // we are expecting a type, and intend only to apply template
+    // args to a type, not to a function (cppstdex/14.5.2p4.cc)
+    return;    // yield the primary, caller will report the problem
   }
 
   // if we are even considering applying template arguments, the

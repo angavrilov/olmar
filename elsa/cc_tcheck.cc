@@ -1273,7 +1273,7 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   tcheckPQName(name, env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   ErrorFlags eflags = EF_NONE;
-  LookupFlags lflags = LF_NONE;
+  LookupFlags lflags = LF_EXPECTING_TYPE;
 
   // should I use 'nondependentVar'?
   Variable *v = maybeReuseNondependent(env, loc, lflags, nondependentVar);

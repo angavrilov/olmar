@@ -131,6 +131,20 @@ void LookupSet::removeAllButOne()
 }
 
 
+void LookupSet::removeNonTemplates()
+{
+  SObjListMutator<Variable> mut(*this);
+  while (!mut.isDone()) {
+    if (mut.data()->isTemplate()) {
+      mut.adv();     // keep it
+    }
+    else {
+      mut.remove();  // filter it out
+    }
+  }
+}
+
+
 string LookupSet::asString() const
 {
   if (isEmpty()) {
