@@ -16,6 +16,9 @@ void traceRemoveSys(char const *sysName);
 // see if a subsystem is among those to trace
 bool tracingSys(char const *sysName);
 
+// clear all tracing flags
+void traceRemoveAll();
+
 
 // trace; if the named system is active, this yields cout (after
 // sending a little output to identify the system); if not, it

@@ -73,6 +73,12 @@ bool tracingSys(char const *sysName)
 }
 
 
+void traceRemoveAll()
+{
+  tracers.deleteAll();
+}  
+
+
 ostream &trace(char const *sysName)
 {
   init();

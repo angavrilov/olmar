@@ -45,6 +45,10 @@ public:     // funcs
   void remove(char const *key)
     { HashTable::remove(key); }
 
+  // drop all entries
+  void empty() 
+    { HashTable::empty(); }  
+
   // check the data structure's invariants, and throw an exception
   // if there is a problem
   void selfCheck() const
