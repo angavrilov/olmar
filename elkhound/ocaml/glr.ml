@@ -113,6 +113,9 @@ and tReductionPathQueue = {
 (* GLR parser object *)
 (* some mutable fields are for hack in 'makeGLR' *)
 and tGLR = {
+  (* user-specified actions *)
+  userAct: tUserActions;
+
   (* parse tables from the grammar *)
   tables: tParseTables;
 
@@ -464,9 +467,10 @@ end
 
 
 (* ----------------------------- GLR --------------------------------- *)
-let rec makeGLR (tablesIn: tParseTables) : tGLR =
+let rec makeGLR (tablesIn: tParseTables) (actions:tUserActions) : tGLR =
 begin
   let glr:tGLR = {
+    userAct = actions;
     tables = tablesIn;
     lexerPtr = None;
     topmostParsers = ((Obj.magic 0) : tStackNode tArrayStack);  (* HACK!! *)
@@ -707,7 +711,7 @@ end
 and doReductionAction (glr: tGLR) (productionId: int)
                       (svals: tSemanticValue array) : tSemanticValue =
 begin
-  (reductionAction productionId svals)
+  (glr.userAct.reductionAction productionId svals)
 end
 
 
@@ -968,7 +972,7 @@ begin
 
     (* did user want to keep? *)
     if (use_keep &&
-        (not (keepNontermValue (*userAct*) lhsIndex sval))) then (
+        (not (glr.userAct.keepNontermValue lhsIndex sval))) then (
       (* cancelled; drop on floor *)
     )
     else (
@@ -1033,7 +1037,7 @@ begin
           else (
             (* call user's merge code *)
             sibLink.sval <-
-              (mergeAlternativeParsers (*userAct*) lhsIndex sibLink.sval sval);
+              (glr.userAct.mergeAlternativeParsers lhsIndex sibLink.sval sval);
           );
 
           (* ok, done *)
@@ -1275,7 +1279,7 @@ begin
         | Some(prev) -> (
             (* the 'sval' we just grabbed has already been claimed by
              * 'prev.sval'; get a fresh one by duplicating the latter *)
-            (duplicateTerminalValue (*userAct*) (curToken glr) prev.sval)
+            (glr.userAct.duplicateTerminalValue (curToken glr) prev.sval)
           )
       in
 

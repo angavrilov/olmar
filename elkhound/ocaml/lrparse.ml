@@ -51,7 +51,7 @@ begin
   (!stateStack).(!stackLen - 1)
 end
 
-let parse (lex:tLexerInterface) (tables:tParseTables) : int =
+let parse (lex:tLexerInterface) (tables:tParseTables) (actions:tUserActions) : int =
 begin
   (* initial state *)
   (pushStateSval 0 (Obj.repr 0));
@@ -104,7 +104,7 @@ begin
       );
 
       (* invoke user's reduction action *)
-      let sval:Obj.t = (reductionAction rule svalArray) in
+      let sval:Obj.t = (actions.reductionAction rule svalArray) in
 
       (* pop 'ruleLen' elements *)
       stackLen := (!stackLen - ruleLen);

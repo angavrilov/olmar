@@ -6,6 +6,7 @@ open Lrparse       (* parse *)
 open Glr           (* tGLR, makeGLR, glrParse *)
 open Useract       (* tSemanticValue *)
 open Parsetables   (* tParseTables *)
+open Useract       (* tUserActions *)
 
 (* ------------------ lexer ------------------- *)
 class tLexer =
@@ -117,14 +118,17 @@ begin
   (* get parse tables *)
   let tables:tParseTables = arithParseTables in
 
+  (* get user actions *)
+  let actions:tUserActions = arithUserActions in
+
   if ((Array.length Sys.argv) = 1) then (
     (* no arguments, use LR *)
-    let sval:int = (parse lex tables) in
+    let sval:int = (parse lex tables actions) in
     (Printf.printf "LR parse result: %d\n" sval);
   )
   else (
     (* some arguments, use GLR *)
-    let glr:tGLR = (makeGLR tables) in
+    let glr:tGLR = (makeGLR tables actions) in
     let treeTop: tSemanticValue ref = ref cNULL_SVAL in
     
     if (glrParse glr lex treeTop) then (
