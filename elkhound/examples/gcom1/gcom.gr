@@ -11,11 +11,6 @@ public:
 // pull in the tokens generated from lexer.h
 terminals {
   include("tokens.tok")
-
-  precedence {
-    left  20 "*";        // high precedence, left associative
-    left  10 "+" "-";    // low precedence, left associative
-  }
 }
 
 // now the grammar
