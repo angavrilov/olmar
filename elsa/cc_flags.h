@@ -5,6 +5,7 @@
 #define CC_FLAGS_H
 
 #include "str.h"     // string
+#include "macros.h"  // ENUM_BITWISE_OPS
 
 // ----------------------- TypeIntr ----------------------
 // type introducer keyword
@@ -40,10 +41,7 @@ enum CVFlags {
 extern char const * const cvFlagNames[NUM_CVFLAGS];      // 0="const", 1="volatile", 2="owner"
 string toString(CVFlags cv);
 
-inline CVFlags operator| (CVFlags f1, CVFlags f2)
-  { return (CVFlags)((int)f1 | (int)f2); }
-inline CVFlags& operator|= (CVFlags &f1, CVFlags f2)
-  { return f1 = f1 | f2; }
+ENUM_BITWISE_OPS(CVFlags, CV_ALL)
 
 
 // ----------------------- DeclFlags ----------------------
@@ -93,14 +91,8 @@ enum DeclFlags {
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
 string toString(DeclFlags df);
 
-inline DeclFlags operator| (DeclFlags f1, DeclFlags f2)
-  { return (DeclFlags)((int)f1 | (int)f2); }
-inline DeclFlags& operator|= (DeclFlags &f1, DeclFlags f2)
-  { return f1 = f1 | f2; }
-inline DeclFlags operator& (DeclFlags f1, DeclFlags f2)
-  { return (DeclFlags)((int)f1 & (int)f2); }
-inline DeclFlags operator~ (DeclFlags f)
-  { return (DeclFlags)((~(int)f) & ALL_DECLFLAGS); }
+ENUM_BITWISE_OPS(DeclFlags, ALL_DECLFLAGS)
+
 
 // ------------------------- SimpleTypeId ----------------------------
 // C's built-in scalar types; the representation deliberately does
@@ -138,16 +130,18 @@ enum SimpleTypeId {
 struct SimpleTypeInfo {
   char const *name;       // e.g. "unsigned char"
   int reprSize;           // # of bytes to store
-  bool isInteger;         // ST_INT, etc., but not e.g. ST_FLOAT
+  bool isInteger;         // ST_INT, etc., but not ST_FLOAT or ST_BOOL
+  bool isFloat;           // ST_FLOAT, ST_DOUBLE, ST_LONG_DOUBLE
 };
 
 bool isValid(SimpleTypeId id);                          // bounds check
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id);
 
-inline char const *simpleTypeName(SimpleTypeId id)
-  { return simpleTypeInfo(id).name; }
-inline int simpleTypeReprSize(SimpleTypeId id)
-  { return simpleTypeInfo(id).reprSize; }
+inline char const *simpleTypeName(SimpleTypeId id)  { return simpleTypeInfo(id).name; }
+inline int simpleTypeReprSize(SimpleTypeId id)      { return simpleTypeInfo(id).reprSize; }
+inline bool isIntegerType(SimpleTypeId id)          { return simpleTypeInfo(id).isInteger; }
+inline bool isFloatType(SimpleTypeId id)            { return simpleTypeInfo(id).isFloat; }
+
 inline string toString(SimpleTypeId id)
   { return string(simpleTypeName(id)); }
 

@@ -127,28 +127,28 @@ bool isValid(SimpleTypeId id)
 
 
 static SimpleTypeInfo const simpleTypeInfoArray[] = {
-  //name                   size  int?
-  { "char",                1,    true    },
-  { "unsigned char",       1,    true    },
-  { "signed char",         1,    true    },
-  { "bool",                4,    true    },
-  { "int",                 4,    true    },
-  { "unsigned int",        4,    true    },
-  { "long int",            4,    true    },
-  { "unsigned long int",   4,    true    },
-  { "long long",           8,    true    },
-  { "unsigned long long",  8,    true    },
-  { "short int",           2,    true    },
-  { "unsigned short int",  2,    true    },
-  { "wchar_t",             2,    true    },
-  { "float",               4,    false   },
-  { "double",              8,    false   },
-  { "long double",         10,   false   },
-  { "void",                1,    false   },    // gnu: sizeof(void) is 1
-  { "...",                 0,    false   },
-  { "/*cdtor*/",           0,    false   },    // dsw: don't want to print <cdtor>
-  { "<error>",             0,    false   },
-  { "<dependent>",         0,    false   },
+  //name                   size  int?    float?
+  { "char",                1,    true,   false, },
+  { "unsigned char",       1,    true,   false, },
+  { "signed char",         1,    true,   false, },
+  { "bool",                4,    false,  false, },
+  { "int",                 4,    true,   false, },
+  { "unsigned int",        4,    true,   false, },
+  { "long int",            4,    true,   false, },
+  { "unsigned long int",   4,    true,   false, },
+  { "long long",           8,    true,   false, },
+  { "unsigned long long",  8,    true,   false, },
+  { "short int",           2,    true,   false, },
+  { "unsigned short int",  2,    true,   false, },
+  { "wchar_t",             2,    true,   false, },
+  { "float",               4,    false,  true,  },
+  { "double",              8,    false,  true,  },
+  { "long double",         10,   false,  true,  },
+  { "void",                1,    false,  false, },    // gnu: sizeof(void) is 1
+  { "...",                 0,    false,  false, },
+  { "/*cdtor*/",           0,    false,  false, },    // dsw: don't want to print <cdtor>
+  { "<error>",             0,    false,  false, },
+  { "<dependent>",         0,    false,  false, },
 };
 
 SimpleTypeInfo const &simpleTypeInfo(SimpleTypeId id)

@@ -1,0 +1,458 @@
+// stdconv.cc                       see license.txt for copyright and terms of use
+// code for stdconv.h
+
+#include "stdconv.h"      // this module
+#include "cc_type.h"      // Type
+#include "cc_env.h"       // Env
+
+
+bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest);
+
+// int (including bitfield), bool, or enum
+bool isIntegerNumeric(Type const *t, SimpleType const *tSimple)
+{
+  if (tSimple) {
+    return isIntegerType(tSimple->type) ||
+           tSimple->type == ST_BOOL;
+  }
+
+  // TODO: bitfields are also a valid integer conversion source,
+  // once I have an explicit representation for them
+
+  return t->isEnumType();
+}
+
+// any of above, or float
+bool isNumeric(Type const *t, SimpleType const *tSimple)
+{
+  return isIntegerNumeric(t, tSimple) ||
+         (tSimple && isFloatType(tSimple->type));
+}
+
+
+static char const *atomicName(AtomicType::Tag tag)
+{
+  switch (tag) {
+    default: xfailure("bad tag");
+    case AtomicType::T_SIMPLE:   return "simple";
+    case AtomicType::T_COMPOUND: return "compound";
+    case AtomicType::T_ENUM:     return "enum";
+    case AtomicType::T_TYPEVAR:  return "type variable";
+  }
+}
+
+static char const *ctorName(Type::Tag tag)
+{
+  switch (tag) {
+    default: xfailure("bad tag");
+    case Type::T_ATOMIC:          return "atomic";
+    case Type::T_POINTER:         return "pointer";
+    case Type::T_FUNCTION:        return "function";
+    case Type::T_ARRAY:           return "array";
+    case Type::T_POINTERTOMEMBER: return "ptr-to-member";
+  }
+}
+
+
+
+
+// implementation class
+class Conversion {
+public:
+  // original parameters to 'getStandardConversion'
+  Env *env;
+  Type const *src;
+  Type const *dest;
+
+  // eventual return value
+  StandardConversion ret;
+
+  // when true, every destination pointer type constructor
+  // has had 'const' in its cv flags
+  bool destConst;
+
+  // count how many pointer or ptr-to-member type ctors we
+  // have stripped so far
+  int ptrCtorsStripped;
+
+public:
+  Conversion(Env *e, Type const *s, Type const *d)
+    : env(e), src(s), dest(d),
+      ret(SC_IDENTITY),
+      destConst(true),
+      ptrCtorsStripped(0)
+  {}
+
+  StandardConversion error(char const *why);
+
+  bool stripPtrCtor(CVFlags scv, CVFlags dcv);
+};
+
+
+StandardConversion Conversion::error(char const *why)
+{
+  if (env) {
+    env->error(stringc
+      << "cannot convert `" << src->toString()
+      << "' to `" << dest->toString()
+      << "': " << why);
+  }
+  return ret = SC_ERROR;
+}
+
+
+// strip pointer constructors, update local state; return true
+// if we've encountered an error, in which case 'ret' is set
+// to the error code to return
+bool Conversion::stripPtrCtor(CVFlags scv, CVFlags dcv)
+{
+  if (scv & ~dcv) {
+    error("the source has some cv flag that the dest does not");
+    return true;
+  }
+
+  if (!destConst && (scv != dcv)) {
+    error("changed cv flags below non-const pointer");
+    return true;
+  }
+
+  if (!( dcv & CV_CONST )) {
+    destConst = false;
+  }
+
+  ptrCtorsStripped++;
+  return false;
+}
+
+
+// one of the goals of this function is to *not* construct any
+// intermediate Type objects; I should be able to do this computation
+// without allocating, and if I can then that avoids interaction
+// problems with Type annotation systems
+StandardConversion getStandardConversion
+  (Env *env, bool srcIsZero, Type const *src, Type const *dest)
+{
+  Conversion conv(env, src, dest);
+
+  // --------------- group 1 ----------------
+  if (src->isReference() && !dest->isReference()) {
+    conv.ret |= SC_LVAL_TO_RVAL;
+    src = src->asPointerTypeC()->atType;
+  }
+  else if (src->isArrayType() && dest->isPointer()) {
+    conv.ret |= SC_ARRAY_TO_PTR;
+
+    // do one level of qualification conversion checking
+    PointerType const *d = dest->asPointerTypeC();
+    if (conv.stripPtrCtor(CV_NONE, d->cv)) { return conv.ret; }
+
+    src = src->asArrayTypeC()->eltType;
+    dest = d->atType;
+  }
+  else if (src->isFunctionType() && dest->isPointerType()) {
+    conv.ret |= SC_FUNC_TO_PTR;
+
+    // do one level of qualification conversion checking
+    PointerType const *d = dest->asPointerTypeC();
+    if (conv.stripPtrCtor(CV_NONE, d->cv)) { return conv.ret; }
+
+    dest = dest->asPointerTypeC()->atType;
+  }
+
+  // At this point, if the types are to be convertible, their
+  // constructed type structure must be isomorphic, possibly with the
+  // exception of cv flags and/or the containing class for member
+  // pointers.  The next phase checks the isomorphism and verifies
+  // that any difference in the cv flags is within the legal
+  // variations.
+
+  // ---------------- group 3 --------------------
+  // deconstruct the type constructors until at least one of them
+  // hits the leaf
+  while (!src->isCVAtomicType() &&
+         !dest->isCVAtomicType()) {
+    if (src->getTag() != dest->getTag()) {
+      return conv.error("different type constructors");
+    }
+
+    switch (src->getTag()) {
+      default: xfailure("bad type tag");
+
+      case Type::T_POINTER: {
+        PointerType const *s = src->asPointerTypeC();
+        PointerType const *d = dest->asPointerTypeC();
+
+        if (s->op != d->op) {                                  
+          // the source could not be a reference, because we
+          // already took care of that above, and references
+          // cannot be stacked
+          xassert(s->op != PO_REFERENCE);
+          xassert(d->op == PO_REFERENCE);
+          
+          // thus, we're trying to convert to an lvalue
+          return conv.error("cannot convert rvalue to lvalue");
+        }
+
+        if (conv.stripPtrCtor(s->cv, d->cv)) { return conv.ret; }
+
+        src = s->atType;
+        dest = d->atType;
+        break;
+      }
+
+      case Type::T_FUNCTION: {
+        // no variance is allowed whatsoever once we reach a function
+        // type, which is a little odd since I'd think it would be
+        // ok to pass
+        //   int (*)(Base*)
+        // where
+        //   int (*)(Derived*)
+        // is expected, but I don't see such a provision in cppstd
+        if (src->equals(dest)) {
+          return conv.ret;
+        }
+        else {                          
+          return conv.error("unequal function types");
+        }
+      }
+
+      case Type::T_ARRAY: {
+        // like functions, no conversions are possible on array types,
+        // including (as far as I can see) converting
+        //   int[3]
+        // to
+        //   int[]
+        if (src->equals(dest)) {
+          return conv.ret;
+        }
+        else {
+          return conv.error("unequal array types");
+        }
+      }
+
+      case Type::T_POINTERTOMEMBER: {
+        PointerToMemberType const *s = src->asPointerToMemberTypeC();
+        PointerToMemberType const *d = dest->asPointerToMemberTypeC();
+
+        if (s->inClass != d->inClass) {
+          if (conv.ptrCtorsStripped == 0) {
+            // as the first ptr ctor, we allow Derived -> Base
+            if (s->inClass->hasUnambiguousBaseClass(d->inClass)) {
+              // ok, if the subsequent types are identical
+              if (s->atType->equals(d->atType)) {
+                // this is actually a group 2 conversion
+                return conv.ret | SC_PTR_MEMB_CONV;
+              }
+              else {
+                return conv.error("unequal member types in ptr-to-member");
+              }
+            }
+            else {
+              return conv.error("dest member's class is not an unambiguous "
+                                "base of source member's class");
+            }
+          }
+          else {
+            // after the first ctor, variance is not allowed
+            return conv.error("unequal member classes in ptr-to-member that "
+                              "is not the topmost type");
+          }
+        }
+
+        if (conv.stripPtrCtor(s->cv, d->cv)) { return conv.ret; }
+
+        src = s->atType;
+        dest = d->atType;
+        break;
+      }
+    }
+  }
+
+  // ---------------- group 2 --------------
+
+  // if both types have not arrived at CVAtomic, then they
+  // are not convertible
+  if (!src->isCVAtomicType() ||
+      !dest->isCVAtomicType()) {
+    // exception: pointer -> bool
+    if (dest->isSimple(ST_BOOL) &&
+        (src->isPointerType() || src->isPointerToMemberType())) {
+      return conv.ret | SC_BOOL_CONV;
+    }
+
+    // exception: 0 -> (null) pointer
+    if (srcIsZero && dest->isPointerType()) {
+      return conv.ret | SC_PTR_CONV;
+    }
+    if (srcIsZero && dest->isPointerToMemberType()) {
+      return conv.ret | SC_PTR_MEMB_CONV;
+    }
+
+    if (env) {
+      // if reporting, I go out of my way a bit here since I expect
+      // this to be a relatively common error and I'd like to provide
+      // as much information as will be useful
+      return conv.error(stringc
+        << "different type constructors, " 
+        << ctorName(src->getTag()) << " vs. " 
+        << ctorName(dest->getTag()));
+    }
+    else {
+      return SC_ERROR;     // for performance, don't make the string at all
+    }
+  }
+
+  // now we're down to atomics; if we're now below any pointer
+  // type constructors, we continue checking cv flags and then
+  // expect equality
+
+  CVAtomicType const *s = src->asCVAtomicTypeC();
+  CVAtomicType const *d = dest->asCVAtomicTypeC();
+
+  CVFlags scv = s->cv;
+  CVFlags dcv = d->cv;
+
+  if (conv.ptrCtorsStripped > 0) {
+    // I'm not perfectly clear on the checking I should do for
+    // the cv flags here.  lval-to-rval says that 'int const &'
+    // becomes 'int' whereas 'Foo const &' becomes 'Foo const'
+    if ((conv.ret & SC_LVAL_TO_RVAL) &&     // did we do lval-to-rval?
+        s->atomic->isSimpleType()) {        // were we a ref to simple?
+      // clear any 'const' on the source
+      scv &= ~CV_CONST;
+    }
+
+    if (conv.ptrCtorsStripped == 1 &&
+        scv == dcv) {
+      if (dest->isSimple(ST_VOID)) {
+        return conv.ret | SC_PTR_CONV;      // converting T* to void*
+      }
+
+      if (src->isCompoundType() &&
+          dest->isCompoundType() &&
+          src->asCompoundTypeC()->hasUnambiguousBaseClass(
+            dest->asCompoundTypeC())) {
+        return conv.ret | SC_PTR_CONV;      // converting Derived* to Base*
+      }
+    }
+
+    // now treat the remaining cv flag like consuming one more
+    // ptr type ctor.. it's a little odd because the cppstd
+    // talks about "pointer to cv T", i.e. it associates the cv
+    // with the pointer, not the thing pointed-at..
+    if (conv.stripPtrCtor(scv, dcv)) { return conv.ret; }
+
+    // since we stripped ptrs, final type must be equal
+    if (s->atomic->equals(d->atomic)) {
+      return conv.ret;
+    }
+    else {
+      if (env) {
+        // similar to diff't type ctors, this might be common
+        return conv.error(stringc
+          << "different kinds of atomic types: "
+          << atomicName(s->atomic->getTag()) << " vs. "
+          << atomicName(d->atomic->getTag()));
+      }
+      else {
+        return SC_ERROR;
+      }
+    }
+  }
+  else {
+    // I don't know if cv needs to be checked at all.. ?
+  }
+
+  SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
+  SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
+
+  if (srcSimple && destSimple && srcSimple->equals(destSimple)) {
+    return conv.ret;    // identical now
+  }
+
+  if (isIntegerPromotion(s->atomic, d->atomic)) {
+    return conv.ret | SC_INT_PROM;
+  }
+
+  if (srcSimple && srcSimple->type == ST_FLOAT &&
+      destSimple && destSimple->type == ST_DOUBLE) {
+    return conv.ret | SC_FLOAT_PROM;
+  }
+
+  if (isIntegerNumeric(src, srcSimple) &&
+      destSimple && isIntegerType(destSimple->type)) {
+    return conv.ret | SC_INT_CONV;
+  }
+
+  if (isNumeric(src, srcSimple) &&
+      destSimple && destSimple->type == ST_BOOL) {
+    return conv.ret | SC_BOOL_CONV;
+  }
+
+  bool srcFloat = srcSimple && isFloatType(srcSimple->type);
+  bool destFloat = destSimple && isFloatType(destSimple->type);
+  if (srcFloat && destFloat) {
+    return conv.ret | SC_FLOAT_CONV;
+  }
+
+  if (isNumeric(src, srcSimple) &&
+      isNumeric(dest, destSimple)) {
+    // should only happen when at least one of the types is floating,
+    // since 'bool' was accounted for already
+    xassert(srcFloat || destFloat);
+    return conv.ret | SC_FLOAT_INT_CONV;
+  }
+
+  // no more conversion possibilities remain; I don't print the
+  // atomic kinds, because the error is based on more than just
+  // the kinds; moreover, since I already know I didn't strip
+  // any ptr ctors, the full types should be easy to read
+  return conv.error("incompatible atomic types");
+}
+
+
+// This function implements Section 4.5, which contains
+// implementation-determined details.  Promotions are distinguished
+// from conversions in that they are preferred over conversions during
+// overload resolution.  Since this distinction is implementation-
+// dependent, I envision that users might replace this function with
+// an implementation that better suits them.
+bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
+{
+  bool srcSimple = src->isSimpleType();
+  bool destSimple = dest->isSimpleType();
+
+  SimpleTypeId sid = srcSimple? src->asSimpleTypeC()->type : ST_ERROR;
+  SimpleTypeId did = destSimple? dest->asSimpleTypeC()->type : ST_ERROR;
+
+  // paragraph 1: char/short -> int
+  // implementation choice: I assume char is 8 bits and short
+  // is 16 bits and int is 32 bits, so all map to 'int', as
+  // opposed to 'unsigned int'
+  if (did == ST_INT &&
+      (sid == ST_CHAR ||
+       sid == ST_UNSIGNED_CHAR ||
+       sid == ST_SIGNED_CHAR ||
+       sid == ST_SHORT_INT ||
+       sid == ST_UNSIGNED_SHORT_INT)) {
+    return true;
+  }
+
+  // paragraph 2: wchar_t/enum -> int
+  // implementation choice: I assume wchar_t and all enums fit into ints
+  if (did == ST_INT &&
+      (sid == ST_WCHAR_T ||
+       src->isEnumType())) {
+    return true;
+  }
+
+  // TODO: paragraph 3: bitfields
+
+  // paragraph 4: bool -> int
+  if (sid == ST_BOOL &&
+      did == ST_INT) {
+    return true;
+  }
+
+  return false;
+}
