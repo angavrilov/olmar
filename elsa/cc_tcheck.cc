@@ -4403,15 +4403,32 @@ Type *E_constructor::inner2_itcheck(Env &env, Expression *&replacement)
     // turn it into a cast
 
     // there had better be exactly one argument to this ctor
-    if (args->count() != 1) {
+    //
+    // oops.. actually there can be zero; "int()" is valid syntax,
+    // yielding an integer with indeterminate value
+    if (args->count() > 1) {
       return env.error(stringc
         << "function-style cast to `" << type->toString()
-        << "' must have exactly one argument");
+        << "' must have zere or one argument (not " 
+        << args->count() << ")");
     }
-
+    
+    // change it into a cast
     ASTTypeId *typeSyntax = env.buildASTTypeId(type);
-    replacement =
-      new E_cast(typeSyntax, args->first()->expr);
+    if (args->count() == 1) {
+      replacement =
+        new E_cast(typeSyntax, args->first()->expr);
+    }
+    else {   /* zero args */
+      // The correct semantics (e.g. from a verification point of
+      // view) would be to yield a value about which nothing is known,
+      // but there is no simple way to do that in the existing AST.  I
+      // just want to hack past this for now, since I think it will be
+      // very unlikely to cause a real problem, so my solution is to
+      // pretend it's always the value 0.
+      replacement =
+        new E_cast(typeSyntax, env.buildIntegerLiteralExp(0));
+    }
     replacement->tcheck(env, replacement);
     return replacement->type;
   }
