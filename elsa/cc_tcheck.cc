@@ -1105,8 +1105,12 @@ void TS_classSpec::tcheckIntoCompound(
 
   // second pass: check function bodies
   bool innerClass = !!containingClass;
+//    cout << "ct->name " << ct->name << ": ";
   if (!innerClass) {
+//      cout << "This is the second pass; checking function bodies" << endl;
     tcheckFunctionBodies(env);
+  } else {
+//      cout << "This is the first pass; NOT checking function bodies" << endl;
   }
 
   // now retract the class scope from the stack of scopes; do
@@ -3432,8 +3436,9 @@ void Handler::tcheck(Env &env)
 // ------------------- Full Expression tcheck -----------------------
 Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
 {
+//    cout << "FullExpressionAnnot::tcheck_preorder " << ::toString(env.loc()) << endl;
   env.fullExpressionAnnotStack.push(this);
-  Scope *scope = env.enterScope(SK_FUNCTION, "full expression");
+  Scope *scope = env.enterScope(SK_FUNCTION, "full expression annot");
   // come to think of it, there shouldn't be any declarations yet;
   // they get constructed during the typechecking later
   xassert(declarations.isEmpty());
@@ -3450,6 +3455,7 @@ void FullExpressionAnnot::tcheck_postorder(Env &env, Scope *scope)
 {
   env.exitScope(scope);
   env.fullExpressionAnnotStack.pop();
+//    cout << "FullExpressionAnnot::tcheck_postorder " << ::toString(env.loc()) << endl;
 }
 
 void FullExpression::tcheck(Env &env,
