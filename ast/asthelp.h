@@ -184,5 +184,55 @@ void debugPrintFakeList(FakeList<T> const *list, char const *name,
   ind(os, indent) << #var << " = " << (var? "true" : "false") << "\n"   /* user ; */
 
 
+// ---------------------- deep-copy ------------------
+// returns a new'd list because the AST node ctors want
+// to accept an owner ptr to a list
+template <class T>
+ASTList<T> * /*owner*/ cloneASTList(ASTList<T> const &src)
+{
+  ASTList<T> *ret = new ASTList<T>;
+
+  FOREACH_ASTLIST(T, src, iter) {
+    ret->append(iter.data()->clone());
+  }
+
+  return ret;
+}
+
+
+// returns owner pointer to list of serfs.. using this isn't ideal
+// because ASTList normally is owning, and probably deletes its
+// elements in its destructor..
+template <class T>
+ASTList<T> * /*owner*/ shallowCloneASTList(ASTList<T> const &src)
+{
+  ASTList<T> *ret = new ASTList<T>;
+
+  FOREACH_ASTLIST(T, src, iter) {
+    // list backbone is const, but nodes' constness leaks away..
+    ret->append(const_cast<T*>(iter.data()));
+  }
+
+  return ret;
+}
+
+
+// deep copy of a FakeList
+template <class T>
+FakeList<T> * /*owner*/ cloneFakeList(FakeList<T> const *src)
+{
+  if (!src) {
+    return FakeList<T>::emptyList();     // base case of recursion
+  }
+
+  // clone first element
+  T *head = src->firstC()->clone();
+  xassert(head->next == NULL);     // it had better not copy the list tail itself!
+
+  // attach to result of cloning the tail
+  FakeList<T> *tail = cloneFakeList(src->butFirstC());
+  return tail->prepend(head);
+}
+
 
 #endif // ASTHELP_H

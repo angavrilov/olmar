@@ -113,7 +113,7 @@ bool Gen::isFakeListType(char const *type)
 // is it a list type, with the elements being tree nodes?
 bool Gen::isTreeListType(char const *type)
 {
-  return isListType(type) && isTreeNode(type+9);
+  return isListType(type) && isTreeNode(extractListType(type));
 }
 
 // given a type for which 'is[Fake]ListType' returns true, extract
@@ -302,6 +302,15 @@ void HGen::emitTFClass(TF_class const &cls)
     out << "\n";
   }
 
+  // declare clone function
+  if (cls.hasChildren()) {
+    out << "  virtual " << cls.super->name << " *clone() const=0;\n";
+  }
+  else {
+    out << "  " << cls.super->name << " *clone() const;\n";
+  }
+  out << "\n";
+
   emitCommonFuncs(virt);
 
   emitUserDecls(cls.super->decls);
@@ -474,6 +483,10 @@ void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
   // common functions
   emitCommonFuncs("virtual ");
 
+  // clone function (take advantage of covariant return types)
+  out << "  virtual " << ctor.name << " *clone() const;\n"
+      << "\n";
+
   emitUserDecls(ctor.decls);
   
   // emit implementation declarations for parent's pure virtuals
@@ -507,6 +520,10 @@ public:
   void emitDestructor(ASTClass const &cls);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
   void emitCustomCode(ASTList<Annotation> const &list, char const *tag);
+
+  void emitCloneCtorArg(CtorArg const *arg, int &ct);
+  void emitCloneCode(ASTClass const *super, ASTClass const *sub);
+
 };
 
 
@@ -558,6 +575,7 @@ void CGen::emitTFClass(TF_class const &cls)
     out << "\n";
   }
 
+
   // debugPrint
   out << "void " << cls.super->name << "::debugPrint(ostream &os, int indent) const\n";
   out << "{\n";
@@ -580,6 +598,12 @@ void CGen::emitTFClass(TF_class const &cls)
   out << "}\n";
   out << "\n";
 
+  // clone for childless superclasses
+  if (!cls.hasChildren()) {
+    emitCloneCode(cls.super, NULL /*sub*/);
+  }
+
+
   // constructors (class hierarchy children)
   FOREACH_ASTLIST(ASTClass, cls.ctors, ctoriter) {
     ASTClass const &ctor = *(ctoriter.data());
@@ -596,7 +620,7 @@ void CGen::emitTFClass(TF_class const &cls)
     // subclass debugPrint
     out << "void " << ctor.name << "::debugPrint(ostream &os, int indent) const\n";
     out << "{\n";
-    
+
     // the debug print preempter is declared in the outer "class",
     // but inserted into the print methods of the inner "constructors"
     emitCustomCode(cls.super->decls, "preemptDebugPrint");
@@ -613,6 +637,9 @@ void CGen::emitTFClass(TF_class const &cls)
 
     out << "}\n";
     out << "\n";
+
+    // clone for subclasses
+    emitCloneCode(cls.super, &ctor);
   }
 
   out << "\n";
@@ -702,6 +729,74 @@ void CGen::emitPrintCtorArgs(ASTList<CtorArg> const &args)
   }
 }
 
+
+void CGen::emitCloneCtorArg(CtorArg const *arg, int &ct)
+{
+  if (ct++ > 0) {
+    out << ",";
+  }
+  out << "\n    ";
+
+  if (isTreeListType(arg->type)) {
+    // clone an ASTList of tree nodes
+    out << "cloneASTList(" << arg->name << ")";
+  }
+  else if (isListType(arg->type)) {
+    // clone an ASTList of non-tree nodes
+    out << "shallowCloneASTList(" << arg->name << ")";
+  }
+  else if (isFakeListType(arg->type)) {
+    // clone a FakeList (of tree nodes, we assume..)
+    out << "cloneFakeList(" << arg->name << ")";
+  }
+  else if (isTreeNode(arg->type)) {
+    // clone a tree node
+    out << arg->name << "->clone()";
+  }
+  else if (0==strcmp(arg->type, "LocString")) {
+    // clone a LocString; we store objects, but pass pointers
+    out << arg->name << ".clone()";
+  }
+  else {
+    // pass the non-tree node's value directly
+    out << arg->name;
+  }
+}
+
+
+void CGen::emitCloneCode(ASTClass const *super, ASTClass const *sub)
+{
+  char const *name = sub? sub->name : super->name;
+  out << name << " *" << name << "::clone() const\n"
+      << "{\n"
+      << "  " << name << " *ret = new " << name << "(";
+
+  // clone each of the superclass ctor arguments
+  int ct=0;
+  FOREACH_ASTLIST(CtorArg, super->args, iter) {
+    emitCloneCtorArg(iter.data(), ct);
+  }
+
+  // and likewise for the subclass ctor arguments
+  if (sub) {
+    FOREACH_ASTLIST(CtorArg, sub->args, iter) {
+      emitCloneCtorArg(iter.data(), ct);
+    }
+  }
+
+  out << "\n"
+      << "  );\n";
+
+  // custom clone code
+  emitCustomCode(super->decls, "clone");
+  if (sub) {
+    emitCustomCode(sub->decls, "clone");
+  }
+
+  out << "  return ret;\n"
+      << "}\n"
+      << "\n";
+}
 
 
 // --------------------- toplevel control ----------------------

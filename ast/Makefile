@@ -83,6 +83,14 @@ ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
 example.cc: astgen example.ast
 	./astgen example.ast
 
+# If you want to regenerate astgen's own ast file, you do
+#   ./astgen -bname ast.ast
+#
+# This rule is *not* in the Makefile because if you do it
+# without thinking you can break the self-bootstrapping
+# (and be forced to restore your ast.ast.{cc,h} from the
+# distribution tarball or from CVS).
+
 clean:
 	rm -f *.o agrampar astgen agrampar.tab.* tmp *.d ccsstr towner
 	rm -f agrampar.{codes.h,output} agramlex.yy.cc

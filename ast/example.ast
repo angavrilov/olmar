@@ -12,3 +12,15 @@ class Node (
 class NodeList (
   FakeList<Node> *list
 );
+
+
+class AnotherList (
+  ASTList<Node> list2,
+  LocString str
+);
+
+
+class Super (int x) {
+  -> Sub1(int y);
+  -> Sub2(int z);
+}
