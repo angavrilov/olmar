@@ -647,12 +647,30 @@ PQName *CompoundType::PQ_fullyQualifiedName(SourceLoc loc, PQName *name0)
     return parentScope->curCompound->PQ_fullyQualifiedName(loc, name0);
   } else {
     xassert(scopeKind == SK_CLASS);
-    // FIX: This is actually only right for CompoundTypes that are
-    // global; it will be wrong for those that are defined in a local
-    // block; can they be defined in a parameter list?
-    return new PQ_qualifier(loc, NULL,
-                            FakeList<TemplateArgument>::emptyList(),
-                            name0);
+    switch(typedefVar->scopeKind) {
+    default:
+    case SK_UNKNOWN:
+      xfailure("shouldn't get here: top scope kind is SK_UNKNOWN");
+      break;
+    case SK_TEMPLATE:
+      xfailure("unimplemented: don't handle template scopes yet");
+      break;
+    case SK_PARAMETER:
+      // FIX: Is it possible to declare a type in a parameter?
+      xfailure("shouldn't be getting a parameter scope here");
+      break;
+    case SK_GLOBAL:
+      return new PQ_qualifier(loc, NULL,
+                              FakeList<TemplateArgument>::emptyList(),
+                              name0);
+      break;
+    case SK_CLASS:
+      xfailure("I don't think this is possible."); // FIX: is that right?
+      break;
+    case SK_FUNCTION:
+      return name0;
+      break;
+    }
   }
 }
 

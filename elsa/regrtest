@@ -393,12 +393,6 @@ for fn in                                      \
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS in/$fn
 done
 
-
-#  # FIX turn this off.
-#  echo; echo; echo "**************** Exiting early ****************"; echo
-#  exit 0;
-
-
 # examples from C++ standard
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
@@ -415,20 +409,14 @@ fi
                 
 if $use_gnu; then
   # test gnu extensions
-
-# FIX: turn this back on; commented out to turn off gnu/t0130.cc
-#    for fn in in/gnu/*.c?; do
-#      runTest ./ccparse -tr $TR_FLAGS "$fn"
-#    done
+  for fn in in/gnu/*.c?; do
+    runTest ./ccparse -tr $TR_FLAGS "$fn"
+  done
 
   # test c99 extensions
-# FIX: turn this back on; commented out to turn off c99/t0133.cc
-#    for fn in in/c99/*.c; do
-#      runTest ./ccparse -tr $TR_FLAGS "$fn"
-#    done
-
-    # stupid shell non-orthogonality
-    echo
+  for fn in in/c99/*.c; do
+    runTest ./ccparse -tr $TR_FLAGS "$fn"
+  done
 fi
 
 # idempotency checks; known problems:
@@ -459,15 +447,11 @@ if $use_gnu; then
   #   126: attributes not printed
   #   127: typeof not printed
   # note that the 'sed' command includes a literal tab character..
-
-# FIX: This one is failing because I don't print out the
-# PQ_fullyQualifiedName() correctly for CompoundTypes that are defined
-# in a local block on the stack (also in parameters?)
-#      gnu/t0130.cc
   list=`echo " \
     gnu/t0124.cc
     gnu/t0128.cc
     gnu/t0129.cc
+    gnu/t0130.cc
     gnu/t0131.cc
     gnu/t0132.cc
     c99/t0133.c \
@@ -485,7 +469,6 @@ for fn in                                                                   \
 done
 
 
-# FIX: nsAtomTable.i fails
 #  # final parser checks against the big files, since they've now become
 #  # my performance measurement files
 #  $MAKE in/big
