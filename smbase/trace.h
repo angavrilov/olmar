@@ -32,10 +32,21 @@ void trstr(char const *sysName, char const *traceString);
 
 // trace macro which disables itself when NDEBUG is true,
 // and automatically supplies 'endl' when it's not true
-#ifdef NDEBUG
-  #define TRACE(tag, exp) ((void)0)
-#else
+//
+// debugging *weakly* implies tracing: if we are debugging, do tracing
+// unless otherwise specified
+#ifndef NDEBUG
+  #ifndef DO_TRACE
+    #define DO_TRACE 1
+  #endif
+#endif
+// tracing *bidirectionally* configurable from the command line: it
+// may be turned on *or* off: any definition other than '0' counts as
+// true, such as -DDO_TRACE=1 or just -DDO_TRACE
+#if DO_TRACE != 0
   #define TRACE(tag, exp) trace(tag) << exp << endl /* user ; */
+#else
+  #define TRACE(tag, exp) ((void)0)
 #endif
 
 
