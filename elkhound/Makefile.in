@@ -543,6 +543,7 @@ clean: gcom-clean
 	rm -f gramlex.yy.cc
 	rm -f libelkhound.a
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
+	rm -f examples/crash1.{cc,h}
 	cd cc2; rm -f $(CLEAN_PATTERNS)
 	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr
 	for dir in arith cdecl cexp; do \

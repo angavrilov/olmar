@@ -4327,7 +4327,10 @@ void emitUserCode(EmitCode &out, LocString const &code, bool braces)
 // won't mind when I try to declare parameters of that type
 char const *notVoid(char const *type)
 {
-  if (0==strcmp(type, "void")) {
+  if (!type) {
+    return "int";
+  }
+  else if (0==strcmp(type, "void")) {
     return "SemanticValue";
   }
   else {
@@ -4679,41 +4682,42 @@ void emitDDMInlines(Grammar const &g, EmitCode &out, EmitCode &dcl,
 {
   Terminal const *term = sym.ifTerminalC();
   Nonterminal const *nonterm = sym.ifNonterminalC();
+  char const *symType = notVoid(sym.type);
 
   if (sym.dupCode) {
-    emitFuncDecl(g, out, dcl, sym.type,
+    emitFuncDecl(g, out, dcl, symType,
       stringc << "dup_" << sym.name
-              << "(" << sym.type << " " << sym.dupParam << ") ");
+              << "(" << symType << " " << sym.dupParam << ") ");
     emitUserCode(out, sym.dupCode);
   }
 
   if (sym.delCode) {
     emitFuncDecl(g, out, dcl, "void",
       stringc << "del_" << sym.name
-              << "(" << sym.type << " "
+              << "(" << symType << " "
               << (sym.delParam? sym.delParam : "") << ") ");
     emitUserCode(out, sym.delCode);
   }
 
   if (nonterm && nonterm->mergeCode) {
-    emitFuncDecl(g, out, dcl, notVoid(sym.type),
+    emitFuncDecl(g, out, dcl, symType,
       stringc << "merge_" << sym.name
-              << "(" << notVoid(sym.type) << " " << nonterm->mergeParam1
-              << ", " << notVoid(sym.type) << " " << nonterm->mergeParam2 << ") ");
+              << "(" << symType << " " << nonterm->mergeParam1
+              << ", " << symType << " " << nonterm->mergeParam2 << ") ");
     emitUserCode(out, nonterm->mergeCode);
   }
 
   if (nonterm && nonterm->keepCode) {
     emitFuncDecl(g, out, dcl, "bool",
       stringc << "keep_" << sym.name
-              << "(" << sym.type << " " << nonterm->keepParam << ") ");
+              << "(" << symType << " " << nonterm->keepParam << ") ");
     emitUserCode(out, nonterm->keepCode);
   }
 
   if (term && term->classifyCode) {
     emitFuncDecl(g, out, dcl, "int",
       stringc << "classify_" << sym.name
-              << "(" << sym.type << " " << term->classifyParam << ") ");
+              << "(" << symType << " " << term->classifyParam << ") ");
     emitUserCode(out, term->classifyCode);
   }
 }
