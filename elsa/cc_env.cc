@@ -2329,7 +2329,7 @@ Variable *Env::instantiateTemplate
       cout << "Env::instantiateTemplate: "
            << "template instantiation, searching instantiations of primary"
            << endl;
-      baseV->templateInfo()->gdb();
+      baseV->templateInfo()->debugPrint();
     }
 
     // iterate through all of the instantiations and build up an

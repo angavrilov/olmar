@@ -171,7 +171,7 @@ void bindingsGdb(StringSObjDict<STemplateArgument> &bindings)
     string const &name = bindIter.key();
     STemplateArgument *value = bindIter.value();
     cout << "'" << name << "' ";
-    value->gdb();
+    value->debugPrint();
   }
   cout << "Bindings end" << endl;
 }

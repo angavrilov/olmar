@@ -1175,7 +1175,7 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
       cout << "TS_classSpec::itcheck: "
            << "template typechecked, appending to instantiations of primary"
            << endl;
-      primaryTI->gdb();
+      primaryTI->debugPrint();
     }
   }
 
@@ -5744,7 +5744,7 @@ void TD_func::itcheck(Env &env)
       cout << "TS_classSpec::itcheck: "
            << "template typechecked, appending to instantiations of primary"
            << endl;
-      primaryTI->gdb();
+      primaryTI->debugPrint();
     }
   }
 }

@@ -2067,11 +2067,11 @@ bool TemplateInfo::isCompleteSpecOrInstantiation() const {
 
 void TemplateInfo::gdb()
 {
-  gdbi(0);
+  debugPrint(0);
 }
 
 
-void TemplateInfo::gdbi(int depth)
+void TemplateInfo::debugPrint(int depth)
 {
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "TemplateInfo";
@@ -2084,20 +2084,20 @@ void TemplateInfo::gdbi(int depth)
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "params:" << endl;
   SFOREACH_OBJLIST(Variable, params, iter) {
-    iter.data()->gdb();
+    cout << iter.data()->toString() << endl;
   }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "instantiations:" << endl;
   SFOREACH_OBJLIST_NC(Variable, instantiations, iter) {
     Variable *var = iter.data();
     for (int i=0; i<depth; ++i) cout << "  ";
-    var->gdb();
-    var->templateInfo()->gdbi(depth+1);
+    cout << var->toString() << endl;
+    var->templateInfo()->debugPrint(depth+1);
   }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "arguments:" << endl;
   FOREACH_OBJLIST_NC(STemplateArgument, arguments, iter) {
-    iter.data()->gdbi(depth+1);
+    iter.data()->debugPrint(depth+1);
   }
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "TemplateInfo end" << endl;
@@ -2176,11 +2176,11 @@ string STemplateArgument::toString() const
 
 void STemplateArgument::gdb()
 {
-  gdbi(0);
+  debugPrint(0);
 }
 
 
-void STemplateArgument::gdbi(int depth)
+void STemplateArgument::debugPrint(int depth)
 {
   for (int i=0; i<depth; ++i) cout << "  ";
   cout << "STemplateArgument: " << toString() << endl;

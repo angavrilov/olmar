@@ -1157,7 +1157,7 @@ public:    // funcs
 
   // debugging
   void gdb();
-  void gdbi(int depth);
+  void debugPrint(int depth = 0);
 };
 
 
@@ -1231,7 +1231,7 @@ public:
 
   // debugging
   void gdb();
-  void gdbi(int depth);
+  void debugPrint(int depth = 0);
 };
 
 string sargsToString(SObjList<STemplateArgument> const &list);
