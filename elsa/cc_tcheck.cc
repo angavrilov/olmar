@@ -3807,6 +3807,9 @@ void S_case::itcheck(Env &env)
   // TODO: check that the expression is of a type that makes
   // sense for a switch statement, and that this isn't a
   // duplicate case
+
+  // UPDATE: dsw: whatever you do here, do it in
+  // gnu.cc:S_rangeCase::itcheck() as well
                            
   // compute case label value
   expr->constEval(env, labelVal);

@@ -227,6 +227,18 @@ void S_function::itcheck(Env &env)
 }
 
 
+void S_rangeCase::itcheck(Env &env)
+{
+  expr->tcheck(env, expr);
+  expr2->tcheck(env, expr2);
+  s = s->tcheck(env);
+                           
+  // compute case label values
+  expr->constEval(env, labelVal);
+  expr2->constEval(env, labelVal2);
+}
+
+
 Type *E_compoundLit::itcheck_x(Env &env, Expression *&replacement)
 {
   ASTTypeId::Tcheck tc(DF_NONE, DC_E_COMPOUNDLIT);
@@ -486,6 +498,18 @@ void S_function::iprint(PrintEnv &env)
 }
 
 
+void S_rangeCase::iprint(PrintEnv &env)
+{                    
+  olayer ol("S_rangeCase::iprint");
+  env << "case";
+  expr->print(env);
+  env << "...";
+  expr2->print(env);
+  env << ":";
+  s->print(env);
+}
+
+
 void E_compoundLit::iprint(PrintEnv &env)
 {
   olayer ol("E_compoundLit::iprint");
@@ -615,3 +639,9 @@ void Designator::setNext(Designator *newNext)
 // Scott says: "the entire S_function::icfg can be empty, just like
 // S_skip."
 void S_function::icfg(CFGEnv &env) {}
+
+void S_rangeCase::icfg(CFGEnv &env)
+{
+  env.connectEnclosingSwitch(this, "'case'");
+  s->computeCFG(env);
+}

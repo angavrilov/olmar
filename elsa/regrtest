@@ -906,6 +906,7 @@ if $use_gnu; then
   testCparse gnu/dC0004.c # can take address of const E_compoundLit
   testCparse gnu/dC0005.c # extern inline functions
   testCparse gnu/dC0006.c # more places where 0-length arrays are allowed
+  testCparse gnu/dC0007.c # case 1 ... 3:
 
   # attribute tests
   testCparse gnu/attr01.c

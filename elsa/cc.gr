@@ -768,6 +768,9 @@ nonterm(Statement*) Statement {
   -> "case" e:ConstantExpression ":" s:Statement
        { return new S_case(loc, e, s); }
 
+  -> "case" e:ConstantExpression "..." e2:ConstantExpression ":" s:Statement
+       { return new S_rangeCase(loc, e, e2, s); }
+
   -> "default" ":" s:Statement
        { return new S_default(loc, s); }
 
