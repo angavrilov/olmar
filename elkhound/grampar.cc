@@ -122,6 +122,9 @@ void astParseGrammar(Grammar &g, GrammarAST const *treeTop)
       if (name.equals("useGCDefaults")) {
         g.useGCDefaults = true;
       }
+      else if (name.equals("defaultMergeAborts")) {
+        g.defaultMergeAborts = true;
+      }
       else {
         astParseError(name, "unknown option name");
       }

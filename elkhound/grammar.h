@@ -464,6 +464,9 @@ public:	    // data
   // garbage-collected system: dup() is the identity function,
   // and del() is a no-op
   bool useGCDefaults;
+  
+  // when true, unspecified merge() functions abort()
+  bool defaultMergeAborts;
 
 public:     // funcs
   Grammar();                            // set everything manually

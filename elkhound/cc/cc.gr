@@ -55,6 +55,10 @@
 // and del() is a no-op
 option useGCDefaults;
 
+// if I don't specify a merge(), and we want to merge(),
+// then abort
+option defaultMergeAborts;
+
 verbatim CCGr [
 
 #include "strtable.h"     // StringRef (r)

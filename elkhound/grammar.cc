@@ -780,7 +780,8 @@ Grammar::Grammar()
   : startSymbol(NULL),
     emptyString(LocString(SourceLocation(), "empty"),    // no location
                 true /*isEmptyString*/),
-    useGCDefaults(false)
+    useGCDefaults(false),
+    defaultMergeAborts(false)
 {}
 
 
