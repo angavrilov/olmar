@@ -524,6 +524,7 @@ testparse t0287.cc
 failparse t0288.cc "ambiguous function template instantiation (not minimized)"
 testparse t0289.cc # "repeated using declarations"
 testparse t0290.cc
+failparse_strict t0290.cc "dependent qualified return type, decl/defn"
 testparse t0291.cc
 testparse t0292.cc
 testparse t0293.cc
@@ -750,7 +751,10 @@ testparse d0075.cc
 testparse d0079.cc
 testparse d0080.cc # "inheriting from dependent qualified type"
 testparse d0084.cc
-testparse_strict d0087.cc
+
+# tests a rule enforced only in ANSI mode
+runTest perl ./multitest.pl ./ccparse -tr ansi in/d0087.cc
+
 testparse d0088.cc
 testparse d0089.cc
 testparse d0090.cc
@@ -760,13 +764,13 @@ testparse d0098.cc
 testparse d0099.cc
 testparse d0100.cc
 testparse d0101.cc
-testparse d0102.cc
+testparse_strict d0102.cc
 testparse d0103.cc
 testparse d0104.cc
-testparse d0105.cc
-failparse d0106.cc "gcc-2 bug: missing template <>"
+testparse_strict d0105.cc
+testparse d0106.cc
 testparse d0107.cc
-testparse d0108.cc
+testparse_strict d0108.cc
 testparse d0109.cc # "duplicate 'using' declaration"
 failparse d0110.cc "class specialization without 'template' prefix?"
 testparse d0111.cc # "failure to use 'typename' when defining static member"

@@ -158,7 +158,7 @@ void doit(int argc, char **argv)
     sourceLocManager->useHashLines = false;
   }
 
-  if (tracingSys("strict")) {
+  if (tracingSys("ansi")) {
     lang.ANSI_Cplusplus();
   }
 

@@ -9,13 +9,10 @@
 // the gcc bug), though gcc-3 does not.  So, Elsa will probably
 // have to support this too, if icc found it necessary.
 
-// 2005-03-05: screw it; if gcc-3 does not support it, elsa
-// does not have to either
-
 
 template<class T> class A {
   static int s;
 };
 
-template<>
+//template<>    <-- this is what is missing
 int A<int>::s = 0;
