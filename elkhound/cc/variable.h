@@ -38,6 +38,7 @@ public:    // funcs
 
   bool hasFlag(DeclFlags f) const { return (flags & f) != 0; }
   void setFlag(DeclFlags f) { flags = (DeclFlags)(flags | f); }
+  void addFlags(DeclFlags f) { setFlag(f); }
 
   // some convenient interpretations of 'flags'
   bool hasAddrTaken() const { return flags & DF_ADDRTAKEN; }

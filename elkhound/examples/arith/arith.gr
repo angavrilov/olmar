@@ -70,7 +70,11 @@ terminals {
   // syntax: Some terminals have useful semantic values, and those
   // are declared here.
   token[int] TOK_NUMBER;       // numbers have associated int-typed values
-  
+
+  token TOK_PLUS {
+    merge(l,r) [ return l; ]
+  } 
+
   // syntax: Precedence and associativity come next.
   // NOTE: The precedence order is from "high" to "low", which is the
   // *opposite* from how Bison writes them.
@@ -85,12 +89,8 @@ terminals {
 
 // syntax: The third and final section is a sequence of nonterminal
 // ('nonterm') definitions.  The first nonterminal is always the start
-// symbol of the grammar, and should always have a single production
-// of the form "Start -> Something EOF", where Something is another
-// grammar nonterminal.  (This somewhat odd, if easily satisfied,
-// requirement arises from a detail in how the GLR algorithm
-// termiates.  See GLR::cleanupAfterParse() for more info.)
-
+// symbol of the grammar.
+//
 // syntax: Nonterminal definitions can optionally include a semantic
 // value type in square brackets, then the nonterminal's name, then
 // an open-brace, productions, and finally a close-brace.

@@ -19,40 +19,139 @@ class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
 
+// an error message from the typechecker; I plan to expand
+// this to contain lots of information about the error, but
+// for now it's just a string like every other typechecker
+// produces
+class ErrorMsg {
+public:
+  string msg;
+  
+public:
+  ErrorMsg(char const *m) : msg(m) {}
+  ~ErrorMsg();
+};
+
+
+
+// information about a single scope: the names defined in it,
+// any "current" things being built (class, function, etc.)
+class Scope {
+  friend class Env;
+
+private:     // data
+  // ----------------- name spaces --------------------
+  // variables: name -> Variable
+  // note: this includes typedefs (DF_TYPEDEF is set), and it also
+  // includes enumerators (DF_ENUMERATOR is set)
+  StringSObjDict<Variable> variables;
+
+  // compounds: map name -> CompoundType
+  StringSObjDict<CompoundType const> compounds;
+
+  // enums: map name -> EnumType
+  StringSObjDict<EnumType const> enums;
+
+  // per-scope change count
+  int changeCount;
+
+public:      // data
+  // ------------- "current" entities -------------------
+  CompoundType *curCompound;     // CompoundType we're building
+  Function *curFunction;         // Function we're analyzing
+  SourceLocation curLoc;         // latest AST location marker seen
+
+public:
+  Scope(int changeCount);
+  ~Scope();
+};
+
+
+// the entire semantic analysis state
+class Env {
+private:     // data
+  // stack of lexical scopes; first is innermost
+  ObjList<Scope> scopes;
+
+  // list of named scopes (i.e. namespaces)
+  //StringObjDict<Scope> namespaces;    // not implemented yet
+
+public:      // data
+  // stack of error messages; the first one is the latest
+  // one inserted; during disambiguation, I'll remember where
+  // the top was before each alternative, so I can leave this
+  // stack with only the ones from one particular interpretation
+  ObjList<ErrorMsg> errors;
+
+public:      // function
+  Env();
+  ~Env();
+
+  int getChangeCount() const { return scopeC()->changeCount; }
+
+  // scopes
+  void enterScope();
+  void exitScope();
+  Scope *scope() { return scopes.first(); }
+  Scope const *scopeC() const { return scopes.firstC(); }
+
+  // insertion into the current scope; return false if the
+  // name collides with one that is already there
+  bool addVariable(Variable *v);
+  bool addCompound(CompoundType const *ct);
+  bool addEnum(EnumType const *et);
+
+  // lookup in the environment (all scopes)
+  Variable *lookupPQVariable(PQName const *name) const;
+  CompoundType const *lookupPQCompound(PQName const *name) const;
+  EnumType const *lookupPQEnum(PQName const *name) const;
+
+  // diagnostic reports; all return ST_ERROR type
+  Type const *error(char const *msg);
+  Type const *warning(char const *msg);
+  Type const *unimp(char const *msg);
+
+
+
+
+
+
+
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
 // thrown by some error functions
 class XError : public xBase {
 public:
   XError(char const *msg) : xBase(msg) {}
   XError(XError const &obj) : xBase(obj) {}
 };
-
-
-#if 0
-// mapping from name to type, for purpose of storage instantiation
-class Variable {
-public:     // data
-  DeclFlags declFlags;       // inline, etc.
-  Declarator *declarator;    // (serf, non-null) AST declarator node that introduced this name
-
-public:     // funcs
-  Variable(DeclFlags d, Declarator *decl);
-  ~Variable();
-
-  // pull name or type out of the declarator
-  StringRef getType() const { return declarator->name; }
-  Type const *getType() const { return declarator->type; }
-
-  // some ad-hoc thing
-  string toString() const;
-
-  // ML eval() format
-  //MLValue toMLValue() const;
-
-  bool isGlobal() const { return declFlags & DF_GLOBAL; }
-  //bool isInitialized() const { return declFlags & DF_INITIALIZED; }
-  //void sayItsInitialized() { declFlags = (DeclFlags)(declFlags | DF_INITIALIZED); }
-};
-#endif // 0
 
 
 // elements of the environment which are scoped
@@ -270,6 +369,7 @@ public:     // funcs
   string toString() const;
   void selfCheck() const;
 };
+#endif // 0
 
 
 #if 0

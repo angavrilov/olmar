@@ -809,14 +809,11 @@ string FunctionType::Param::toString() const
 
 
 // -------------------- FunctionType -----------------
-FunctionType::FunctionType(Type const *r/*, CVFlags c*/)
+FunctionType::FunctionType(Type const *r, CVFlags c)
   : retType(r),
-    //cv(c),
+    cv(c),
     params(),
-    acceptsVarargs(false),
-    precondition(NULL),
-    postcondition(NULL),
-    result(NULL)
+    acceptsVarargs(false)
 {}
 
 
@@ -1043,9 +1040,116 @@ int ArrayType::reprSize() const
 }
 
 
+// -------------------- type construction ----------------------
+CVAtomicType *makeType(AtomicType const *atomic)
+{
+  return makeCVType(atomic, CV_NONE);
+}
+
+
+CVAtomicType *makeCVType(AtomicType const *atomic, CVFlags cv)
+{
+  CVAtomicType *ret = new CVAtomicType(atomic, cv);
+  return ret;
+}
+
+
+Type const *applyCVToType(CVFlags cv, Type const *baseType)
+{
+  if (baseType->isError()) {
+    return baseType;
+  }
+
+  if (cv == CV_NONE) {
+    // keep what we've got
+    return baseType;
+  }
+
+  // the idea is we're trying to apply 'cv' to 'baseType'; for
+  // example, we could have gotten baseType like
+  //   typedef unsigned char byte;     // baseType == unsigned char
+  // and want to apply const:
+  //   byte const b;                   // cv = CV_CONST
+  // yielding final type
+  //   unsigned char const             // return value from this fn
+
+  // first, check for special cases
+  switch (baseType->getTag()) {
+    case Type::T_ATOMIC: {
+      CVAtomicType const &atomic = baseType->asCVAtomicTypeC();
+      if ((atomic.cv | cv) == atomic.cv) {
+        // the given type already contains 'cv' as a subset,
+        // so no modification is necessary
+        return baseType;
+      }
+      else {
+        // we have to add another CV, so that means creating
+        // a new CVAtomicType with the same AtomicType as 'baseType'
+        CVAtomicType *ret = new CVAtomicType(atomic);
+
+        // but with the new flags added
+        ret->cv = (CVFlags)(ret->cv | cv);
+
+        return ret;
+      }
+      break;
+    }
+
+    case Type::T_POINTER: {
+      // logic here is nearly identical to the T_ATOMIC case
+      PointerType const &ptr = baseType->asPointerTypeC();
+      if (ptr.op == PO_REFERENCE) {
+        return NULL;     // can't apply CV to references
+      }
+      if ((ptr.cv | cv) == ptr.cv) {
+        return baseType;
+      }
+      else {
+        PointerType *ret = new PointerType(ptr);
+        ret->cv = (CVFlags)(ret->cv | cv);
+        return ret;
+      }
+      break;
+    }
+
+    default:    // silence warning
+    case Type::T_FUNCTION:
+    case Type::T_ARRAY:
+      // can't apply CV to either of these (function has CV, but
+      // can't get it after the fact)
+      return NULL;
+  }
+}
+
+
+ArrayType const *setArraySize(ArrayType const *type, int size)
+{
+  ArrayType *ret = new ArrayType(type->eltType, size);
+  return ret;
+}
+
+
+Type const *makePtrOperType(PtrOper op, CVFlags cv, Type const *type)
+{
+  if (type->isError()) {
+    return type;
+  }
+
+  PointerType *ret = new PointerType(op, cv, type);
+  return ret;
+}
+
+
+CVAtomicType const *getSimpleType(SimpleTypeId st)
+{
+  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
+  return &(CVAtomicType::fixed[st]);
+}
+
+
 // ------------------ test -----------------
 void cc_type_checker()
-{                                    
+{
   #ifndef NDEBUG
   // verify the fixed[] arrays
   // it turns out this is probably redundant, since the compiler will
