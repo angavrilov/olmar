@@ -584,6 +584,8 @@ testparse t0348.cc
 testparse t0349.cc
 testparse t0350.cc
 testparse t0351.cc
+failparse t0352.cc "cannot parse; nasty example; gcc-3 cannot handle either"
+failparse t0353.cc "cannot parse; even nastier example"
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -646,28 +648,13 @@ testparse d0058.cc
 testparse d0059.cc
 testparse d0060.cc
 testparse d0061.cc
-
-# sm: This is not the intended purpose of 'failparse'!  failparse is
-# for things that currently do not work, but are expected to at some
-# point in the future.  These two tests are *intended* to fail, which
-# is different.  The correct way to do this is to mark certain lines
-# with "ERROR(n)".
-#
-# actually, these aren't valid C++, no point in testing
+# these aren't valid C++, no point in testing
 #failparse d0062.cc "during type matching, recursion depth exceeded the limit"
 #failparse d0063.cc "during type matching, recursion depth exceeded the limit"
-
-# the array size is actually there
-#  in/d0064.cc:4:37: error: array size must be positive (inst from in/d0064.cc:32:8)
-#  testparse d0064.cc
-# not sure what this one should do
-#  in/d0065.cc:3:34: error: TemplateArgument has no value  ( (I)+ (1))
-#  testparse d0065.cc
+testparse d0064.cc
+failparse d0065.cc "STA_REFERENCE problem, I think"
 testparse d0066.cc
 testparse d0067.cc
-# this one passes, but I'm not sure it's right; I think it is
-# instantiating the class template A twice since it is a mutant,
-# thought perhaps it shouldn't
 testparse d0068.cc
 testparse d0069.cc
 testparse d0070.cc
@@ -693,7 +680,7 @@ testparse d0102.cc
 testparse d0103.cc
 testparse d0104.cc
 testparse d0105.cc
-failparse d0106.cc "can't define static member of a specialization of a class template"
+failparse d0106.cc "gcc-2 bug: missing template <>"
 testparse d0107.cc # "assertion failure in MatchTypes"
 testparse d0108.cc
 failparse d0109.cc "'using' same namespace twice causes error"
@@ -702,13 +689,13 @@ failparse d0111.cc "templatized member type not accessible?"
 failparse d0112.cc "some template dependent name problem"
 testparse d0113.cc
 failparse d0114.cc "overloading bug"
-failparse d0115.cc "cannot find standard namespace"
+failparse d0115.cc "gcc-2 bug: cannot find standard namespace"
 testparse d0116.cc
 testparse d0117.cc
 testparse d0118.cc
 testparse d0119.cc
 testparse d0120.cc
-failparse d0121.cc "segfaults but I don't know why"
+failparse d0121.cc "(invalid C++) segfaults but I don't know why"
 # ---- END: lots of tests ----
 
 
@@ -722,7 +709,7 @@ runTest perl ./multitest.pl ./five-errors in/t0151.cc
 #   7.3.3f.cc: "int i; int i;" is supposed to be allowed
 #   7.3.3k.cc: I don't detect a purported ambiguity
 #   7.3.4e.cc: major design flaw: cannot return sets from lookup functions
-#   (more from before I started maintaining this list)
+#   (plus more from before I started maintaining this list ...)
 for fn in in/std/*.cc; do
   runTest perl ./multitest.pl ./ccparse -tr $TR_FLAGS "$fn"
 done
@@ -957,7 +944,7 @@ if $use_gnu; then
   testcil structattr2.i
   testcil structattr3.i
   testcil transpunion.i
-  failcil typeof1.i "something weird"
+  failcil typeof1.i "__alignof__ applied to object instead of type"
   testcil warnings-noreturn.i
 fi
 

@@ -5,6 +5,7 @@
 template<int I> struct A;
 template<int J> int g(A<J> a);
 template<int J> int g(A<J> a) {
+  return 1;
 }
 template<int I> struct A {
 };

@@ -27,7 +27,7 @@ template<class T, int I> T g(A<T*, I> a, T i[I]);
 template<class T, int I> T g(A<T*, I> a, T i[I]);
 
 int main() {
-  int x;
+  int x = 3;
   int y[4];
   f<int, 4>(x, y);
   A<int*, 0/*NULL*/> b;
