@@ -15,7 +15,10 @@ all: tobjpool main
 
 # run elkhound on a grammar spec
 # (for now I don't want to use the interface stuff)
-%.ml: %.gr $(ELKHOUND)/elkhound
+# 
+# cygwin bug...
+#%.ml: %.gr $(ELKHOUND)/elkhound
+%.ml: %.gr
 	$(ELKHOUND)/elkhound -v $*.gr
 	rm -f $*.mli
 
