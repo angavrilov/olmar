@@ -837,6 +837,11 @@ public:
   // because it was just created and hasn't been stored elsewhere
   virtual FunctionType *makeIntoStaticMember(FunctionType *orig);
 
+  // function signature normalization; see comments above the
+  // default implementation in cc_type.cc
+  bool hasDifferentSignature(Type const *type);
+  Type *normalizeSignature(Type *type, CVFlags cvmask = CV_ALL);
+
   // ---- similar functions for Variable ----
   // Why not make a separate factory?
   //   - It's inconvenient to have two.

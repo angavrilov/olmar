@@ -1695,90 +1695,22 @@ bool ctorNameMatches(char const *ctorName, char const *className)
 }
 
 
-// given a function type, return one with all toplevel cv flags
-// stripped off the parameters (might return the same function
-// given to it); only such types will appear in the environment
-// and in overload sets
-//
-// functions have three types:
-//   - raw, syntactic type:  f(int const, int[])
-//   - D_name computed type: f(int const, int*)
-//   - Env signature type:   f(int, int*)
-//
-// The syntactic type is never materialized.  The D_name type is computed
-// at the D_name node, and stored there.  The signature type is computed
-// by 'normalizeSignature()', and is what gets stored in Variables that
-// refer to functions.
-FunctionType *normalizeSignature(Env &env, FunctionType *ft)
+// wrapper around similarly-named TypeFactory function
+Type *getNormalizedSignature(Env &env, Type *orig)
 {
-  // first, scan for the case when no stripping is required; this
+  // first, check for the case when no stripping is required; this
   // will be by far the most common situation
-  {
-    CVFlags topFlags = CV_NONE;
-    SFOREACH_OBJLIST(Variable, ft->params, iter) {
-      CVFlags cv = iter.data()->type->getCVFlags();
-      topFlags |= cv;
-    }
-    if (topFlags == CV_NONE) {
-      return ft;    // nothing must be stripped
-    }
+  if (!env.tfac.hasDifferentSignature(orig)) {
+    return orig;    // nothing must be stripped
   }
 
-  TRACE("normalizeSignature", "normalizing " << ft->toString());
+  TRACE("normalizeSignature", "before: " << orig->toString());
 
-  // construct a new function type that is like the old one, but
-  // with stripped parameters
-  FunctionType *newFt = env.tfac.makeSimilarFunctionType(
-    SL_UNKNOWN, ft->retType, ft);
+  Type *ret = env.tfac.normalizeSignature(orig);
 
-  // iterate over the original parameter list
-  SFOREACH_OBJLIST_NC(Variable, ft->params, iter) {
-    Variable *param = iter.data();
+  TRACE("normalizeSignature", "after:  " << ret->toString());
 
-    Type *newType = NULL;
-    switch (param->type->getTag()) {
-      default: xfailure("bad tag");
-
-      case Type::T_ATOMIC: {
-        CVAtomicType const *at = param->type->asCVAtomicTypeC();
-        // do *not* copy cv flags
-        newType = env.tfac.makeCVAtomicType(SL_UNKNOWN, at->atomic, CV_NONE);
-        break;
-      }
-
-      case Type::T_POINTER: {
-        PointerType const *pt = param->type->asPointerTypeC();
-        // do *not* copy cv flags
-        newType = env.tfac.makePointerType(SL_UNKNOWN, pt->op, CV_NONE, pt->atType);
-        break;
-      }
-
-      case Type::T_FUNCTION:
-      case Type::T_ARRAY:
-        // no change
-        newType = param->type;
-        break;
-
-      case Type::T_POINTERTOMEMBER: {
-        PointerToMemberType const *ptm = param->type->asPointerToMemberTypeC();
-        // do *not* copy cv flags
-        newType = env.tfac.makePointerToMemberType(SL_UNKNOWN,
-          ptm->inClass, CV_NONE, ptm->atType);
-        break;
-      }
-    }
-    
-    // make a new Variable to hold this parameter
-    Variable *newParam = 
-      env.tfac.makeVariable(param->loc, param->name, newType, param->flags);
-    newFt->addParam(newParam);
-  }
-
-  newFt->doneParams();
-
-  TRACE("normalizeSignature", "normalized: " << newFt->toString());
-
-  return newFt;
+  return ret;
 }
 
 
@@ -1790,85 +1722,6 @@ bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
   // new method: always use 'equalOmittingThisParam', and rely on
   // normalization to take care of f(int) vs f(int const)
   return ft1->equalOmittingThisParam(ft2);
-
-  #if 0
-  // return type is not part of the signature for overload checking,
-  // so it is ignored
-
-  // iterate over the parameter lists
-  SObjList<Variable> iter1(ft1->params);
-  SObjList<Variable> iter2(ft2->params);
-  while (!iter1.isDone() && !iter2.isDone()) {
-    Variable const *param1 = iter1.data();
-    Variable const *param2 = iter2.data();
-
-    // we have to take apart the toplevel type constructors, since
-    // toplevel cv flags are not part of the signature [cppstd 13.1
-    // para 3, bullet 4; also in 8.3.5?]
-    if (param1->type->tag() != param2->type->tag()) {
-      return false;           // different type constructors
-    }
-
-    switch (param1->type->tag()) {
-      case Type::T_ATOMIC: {
-        CVAtomicType const *at1 = param1->type->asCVAtomicTypeC();
-        CVAtomicType const *at2 = param2->type->asCVAtomicTypeC();
-        // do *not* compare cv flags
-        if (!at1->atomic->equals(at2->atomic)) {
-          return false;       // different atomics
-        }
-        break;
-      }
-
-      case Type::T_POINTER: {
-        PointerType const *pt1 = param1->type->asCVAtomicTypeC();
-        PointerType const *pt2 = param2->type->asCVAtomicTypeC();
-        // do *not* compare cv flags
-        if (pt1->op == pt2->op &&
-            pt1->atType->equals(pt2->atType)) {
-          // ok
-        }
-        else {
-          return false;       // "*" vs "&", or different referents
-        }                                                          
-        break;
-      }
-      
-      case Type::T_FUNCTION:
-      case Type::T_ARRAY:
-        // I believe these need to be identical
-        if (!param1->type->equals(param2->type)) {
-          return false;       // different types
-        }
-        break;
-
-      case Type::T_POINTERTOMEMBER: {
-        PointerToMemberType const *ptm1 = param1->type->asPointerToMemberTypeC();
-        PointerToMemberType const *ptm2 = param2->type->asPointerToMemberTypeC();
-        // do *not* compare cv flags
-        if (ptm1->inClass == ptm2->inClass &&
-            ptm1->atType->equals(ptm2->atType)) {
-          // ok
-        }
-        else {
-          return false;       // different types
-        }
-        break;
-      }
-    }
-
-    iter1.adv();
-    iter2.adv();
-  }
-
-  if (!iter1.isDone() || !iter2.isDone()) {
-    return false;             // different parameter list lengths
-  }
-
-  // last check
-  return ft1->acceptsVarargs == ft2->acceptsVarargs &&
-         ft1->isMember == ft2->isMember;
-  #endif // 0
 }
 
 
@@ -1894,22 +1747,6 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
       return at1->eltType->equals(at2->eltType);
     }
   }
-
-  #if 0      // using a different method
-  // I'll add another exception for functions, and require only
-  // that their parameters have equivalent signatures (plus the
-  // other function equality checks), so I can allow f(int) to
-  // be redeclared as f(int const)
-  if (t1->isFunctionType() &&
-      t2->isFunctionType()) {
-    FunctionType const *ft1 = t1->asFunctionTypeC();
-    FunctionType const *ft2 = t2->asFunctionTypeC();
-
-    return ft1->retType->equals(ft2->retType) &&
-           equivalentSignatures(ft1, ft2) &&
-           ft1->equalExceptionSpecs(ft2);
-  }
-  #endif // 0
 
   // no exception: strict equality
   return t1->equals(t2);
@@ -1987,7 +1824,7 @@ static void D_name_tcheck(
 realStart:
   if (dt.type->isFunctionType()) {
     // normalize the types that appear in the environment
-    dt.type = normalizeSignature(env, dt.type->asFunctionType());
+    dt.type = getNormalizedSignature(env, dt.type->asFunctionType());
   }
 
   if (!name) {
