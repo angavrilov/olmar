@@ -2110,6 +2110,9 @@ realStart:
     //     contiguous, and at the end of the parameter list
     // reference: cppstd, 8.3.6
 
+    // TODO: enforce restrictions on successive declarations'
+    // DeclFlags; see cppstd 7.1.1, around para 7
+
     dt.var = prior;
     return;
   }
