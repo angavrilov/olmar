@@ -66,7 +66,7 @@ void CCGr::declareClassTag(PQName const *tagName)
 {
   // TYPE/NAME
   if (lang.tagsAreTypes) {
-    D("defined new struct/class tag as type " << tagName->name);
+    D("defined new struct/class tag as type " << tagName->toString());
     addType(tagName);
   }
 }
@@ -198,7 +198,7 @@ nonterm[Expression*] PrimaryExpression {
        [ return e; ]
 
   -> "this"
-       [ return new E_variable(new PQName(str("this"))); ]
+       [ return new E_variable(new PQ_name(str("this"))); ]
 
   -> "(" e:Expression ")"
        [ return e; ]
@@ -244,19 +244,28 @@ nonterm[StringRef] StringLiteral {
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
 nonterm[PQName*] PQVarName {
-  -> n:VariableName               [ return new PQName(n); ]
-
-  -> q:Qualifier rhs:PQVarName    [ rhs->prependQualifier(q); return rhs; ]
+  -> n:VariableName               [ return new PQ_name(n); ]
+  -> q:Qualifier rhs:PQVarName    [ return new PQ_qualifier(q, rhs); ]
 
   //-> OperatorFunctionId ;
   //-> ConversionFunctionId ;
   //-> "~" TypeName ;
 }
 
-// similar for AnyName {
+// similar for AnyName
 nonterm[PQName*] PQName {
-  -> n:AnyName                    [ return new PQName(n); ]
-  -> q:Qualifier rhs:PQName       [ rhs->prependQualifier(q); return rhs; ]
+  -> n:AnyName                    [ return new PQ_name(n); ]
+  -> q:Qualifier rhs:PQName       [ return new PQ_qualifier(q, rhs); ]
+}
+
+// variant of PQName which doesn't allow leading "::"; this is to
+// temporarily remove the ambiguity with defining functions declared
+// in the global namespace
+nonterm[PQName*] PQName_no_colon_colon {
+  -> n:AnyName                    
+       [ return new PQ_name(n); ]
+  -> q:TypeName "::" rhs:PQName_no_colon_colon
+       [ return new PQ_qualifier(q, rhs); ]
 }
 
 nonterm[StringRef] Qualifier {
@@ -853,8 +862,8 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
 // the parser can never distinguish, so the grammar shouldn't suggest
 // that it can
 nonterm[PQName*] PQTypeName {
-  -> n:TypeName                [ return new PQName(n); ]
-  -> q:Qualifier n:PQTypeName  [ n->prependQualifier(q); return n; ]
+  -> n:TypeName                [ return new PQ_name(n); ]
+  -> q:Qualifier n:PQTypeName  [ return new PQ_qualifier(q, n); ]
 
   //-> TemplateId ;
 }
@@ -1022,7 +1031,7 @@ nonterm[IDeclarator*] DirectDeclarator {
   // it doesn't matter how this was classified before, because a
   // declarator binds a new name, so it shadows any prior definitions;
   // note: this rule handles constructor names!
-  -> n:PQName
+  -> n:PQName_no_colon_colon
        [ return new D_name(loc, n); ]
 
   // dtor
@@ -1063,8 +1072,8 @@ nonterm[IDeclarator*] DirectDeclarator {
 // (I notice the standard calls this PseudoDestructorName; I'll stick with
 // my terminology.)
 nonterm[PQName*] PQDtorName {
-  -> "~" n:TypeName              [ return new PQName(str(stringc << "~" << n)); ]
-  -> q:Qualifier rhs:PQDtorName  [ rhs->prependQualifier(q); return rhs; ]
+  -> "~" n:TypeName              [ return new PQ_name(str(stringc << "~" << n)); ]
+  -> q:Qualifier rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
 }
@@ -1119,9 +1128,9 @@ nonterm[IDeclarator*] TypedefDeclarator {
 }
 
 nonterm[IDeclarator*] DirectTypedefDeclarator {
-  -> n:PQName [
+  -> n:PQName_no_colon_colon [
        // TYPE/NAME
-       D("defined new typedef name " << n->name);
+       D("defined new typedef name " << n->toString());
        addType(n);
        return new D_name(loc, n);
      ]
@@ -1259,6 +1268,18 @@ nonterm[Function*] FunctionDefinition {
   // in fact I wonder if there will ever be an ambiguity, since ordinary
   // functions always have at least two words before "(" while ctors
   // always have just one..
+
+  // ambiguity:
+  //   F::G() {}
+  // can either be a definition of F's constructor (then G equals F), or
+  // it can be a definition of a function G in the global scope, with
+  // return value F
+  //
+  // for now I've removed this ambiguity by not allowing declarator
+  // D_names to have the "::" qualifier (but E_variables still can),
+  // but I'll have to reintroduce it to handle namespaces
+  merge(L,R) [ xfailure("attempt to merge function defns"); return L; ]
+
 
   // ordinary function:
   // return type      name/params   body
@@ -1467,8 +1488,8 @@ nonterm[AccessKeyword] AccessSpecifierOpt {
 }
 
 nonterm[PQName*] PQClassName {
-  -> n:TypeName                   [ return new PQName(n); ]
-  -> q:Qualifier rhs:PQClassName  [ rhs->prependQualifier(q); return rhs; ]
+  -> n:TypeName                   [ return new PQ_name(n); ]
+  -> q:Qualifier rhs:PQClassName  [ return new PQ_qualifier(q, rhs); ]
 }
 
 

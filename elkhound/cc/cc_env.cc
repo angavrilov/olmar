@@ -136,19 +136,19 @@ bool Env::addEnum(EnumType *et)
 Variable *Env::lookupPQVariable(PQName const *name) const
 {
   if (name->hasQualifiers()) {
-    SObjList<char const> const &qualifiers = name->getQualifiers();
+    PQ_qualifier const *firstQ = name->asPQ_qualifierC();
 
     // hack for reporting unimplemented features
     Env &ths = const_cast<Env&>(*this);
 
     // make sure there's only one qualifier
-    if (qualifiers.count() != 1) {
+    if (firstQ->rest->hasQualifiers()) {
       ths.unimp("more than one qualifier");
       return NULL;
     }
 
     // get the first qualifier
-    StringRef qual = name->getQualifiers().firstC();
+    StringRef qual = firstQ->qualifier;
     if (!qual) {
       ths.unimp("bare `::' qualifier");
       return NULL;
@@ -165,7 +165,7 @@ Variable *Env::lookupPQVariable(PQName const *name) const
     }
 
     // look inside that class for 'name->name'
-    CompoundType::Field const *field = ct->getNamedField(name->name);
+    CompoundType::Field const *field = ct->getNamedField(firstQ->getName());
     if (!field) {
       //error(stringc
       //  << ct->keywordAndName() << " has no member called `"
@@ -176,7 +176,7 @@ Variable *Env::lookupPQVariable(PQName const *name) const
     return field->decl;
   }
 
-  return lookupVariable(name->name, false /*innerOnly*/);
+  return lookupVariable(name->getName(), false /*innerOnly*/);
 }
 
 Variable *Env::lookupVariable(StringRef name, bool innerOnly) const
@@ -197,11 +197,11 @@ Variable *Env::lookupVariable(StringRef name, bool innerOnly) const
 
 CompoundType *Env::lookupPQCompound(PQName const *name) const
 {
-  if (!name->getQualifiers().isEmpty()) {
+  if (name->hasQualifiers()) {
     cout << "warning: ignoring qualifiers\n";
   }
-  
-  return lookupCompound(name->name, false /*innerOnly*/);
+
+  return lookupCompound(name->getName(), false /*innerOnly*/);
 }
 
 CompoundType *Env::lookupCompound(StringRef name, bool innerOnly) const
@@ -222,13 +222,13 @@ CompoundType *Env::lookupCompound(StringRef name, bool innerOnly) const
 
 EnumType *Env::lookupPQEnum(PQName const *name) const
 {
-  if (!name->getQualifiers().isEmpty()) {
+  if (name->hasQualifiers()) {
     cout << "warning: ignoring qualifiers\n";
   }
 
   // look in all the scopes
   FOREACH_OBJLIST(Scope, scopes, iter) {
-    EnumType *et = iter.data()->enums.queryif(name->name);
+    EnumType *et = iter.data()->enums.queryif(name->getName());
     if (et) {
       return et;
     }

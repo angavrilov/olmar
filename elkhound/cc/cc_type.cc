@@ -901,7 +901,9 @@ string FunctionType::rightString() const
   sb << ")";
 
   // qualifiers
-  //sb << cvToString(cv);
+  if (cv) {
+    sb << " " << ::toString(cv);
+  }
 
   // finish up the return type
   sb << retType->rightString();
