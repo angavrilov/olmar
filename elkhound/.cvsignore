@@ -47,9 +47,7 @@ ccgr.gprof*
 fsyncd.log
 .fsync-save
 qpmouse.i
-qpmouse.cpp
 Makefile
-
 smbase
 ffollow.cc
 ffollow.h
