@@ -53,7 +53,7 @@ nonterm Binop {
     formGroup {   -> "*";  -> "/";  -> "%";              }
     formGroup {   -> "+";  -> "-";                       }
     formGroup {   -> "<<"; -> ">>";                      }
-    formGroup {   -> "<";  -> ">";  -> "<="; -> ">="     }
+    formGroup {   -> "<";  -> ">";  -> "<="; -> ">=";    }
     formGroup {   -> "=="; -> "!=";                      }
     formGroup {   -> "&";                                }
     formGroup {   -> "^";                                }

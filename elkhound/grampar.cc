@@ -26,7 +26,7 @@ int yylex()
       break;
 
     case TOK_NAME:
-      yylval = new ASTStringLeaf(lexer.curToken());
+      yylval = new ASTNameLeaf(lexer.curToken());
       break;
 
     default:

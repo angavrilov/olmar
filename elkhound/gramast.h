@@ -14,8 +14,29 @@ enum ASTTypeCode {
   // tokens
   AST_INTEGER=1,         // ASTIntLeaf
   AST_STRING,            // ASTStringLeaf
+  AST_NAME,              // ASTNameLeaf
 
   // ---- internal nodes ----
+  // grammar tree components
+  AST_TOPLEVEL,          // list of toplevel forms
+
+  AST_TERMINALS,         // list of terminal declarations
+  AST_TERMDECL,          // terminal: numeric-code, aliases
+  AST_ALIASES,           // list of terminal aliases
+  
+  AST_NONTERM,           // nonterminal: name, (form or ntbody)
+  AST_NTBODY,            // list of nonterminal body elements
+  AST_ATTR,              // attribute decl: name
+  AST_FORM,              // form: rhs, [formbody]
+  AST_RHS,               // list of RHS elements
+  AST_TAGGEDNAME,        // tagged name: tag, name
+
+  AST_FORMBODY,          // list of form body elements
+  AST_FORMGROUPBODY,     // list of formGroup body elements
+
+  AST_ACTION,            // action: attr, expr
+  AST_CONDITION,         // condition: expr
+
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute
   EXP_FNCALL,            // function call
@@ -48,6 +69,7 @@ string astTypeToString(int type);
 
 typedef ASTSimpleLeaf<int, AST_INTEGER> ASTIntLeaf;
 typedef ASTSimpleLeaf<string, AST_STRING> ASTStringLeaf;
+typedef ASTSimpleLeaf<string, AST_NAME> ASTNameLeaf;
 
 
 #endif // __GRAMAST_H

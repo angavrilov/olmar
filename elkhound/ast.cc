@@ -182,6 +182,12 @@ string ASTInternal::toString() const
 }
 
 
+ASTInternal *iappend(ASTNode *presumedInternal, ASTNode *newChild)
+{
+  return presumedInternal->asInternal().append(newChild);
+}
+
+
 // ------------------- ASTLeaf --------------------
 string ASTLeaf::toString() const
 {

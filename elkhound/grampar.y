@@ -72,10 +72,24 @@
 /* ===================== productions ======================= */
 %%
 
+/* The actions in this file simply build an Abstract Syntax Tree (AST)
+ * for later processing.  This keeps the grammar uncluttered, and is
+ * an experiment -- my parser will do this automatically.  */
+
+
 /* start symbol */
+StartSymbol: Input
+               {                         
+                 cout << "AST:\n";
+                 $1->debugPrint(cout, 2);
+                 delete $1;
+               }
+           ;
+
+/* sequence of toplevel forms */
 Input: /* empty */           { $$ = AST0(AST_TOPLEVEL); }
-     | Input Terminals       { $$ = $1->append($2); }
-     | Input Nonterminal     { $$ = $1->append($2); }
+     | Input Terminals       { $$ = iappend($1, $2); }
+     | Input Nonterminal     { $$ = iappend($1, $2); }
      ;
 
 /* ------ terminals ------ */
@@ -88,7 +102,7 @@ Terminals: "terminals" "{" TerminalSeqOpt "}"      { $$ = $3; }
          ;
 
 TerminalSeqOpt: /* empty */                        { $$ = AST0(AST_TERMINALS); }
-              | TerminalSeqOpt TerminalDecl        { $$ = $1->append($2); }
+              | TerminalSeqOpt TerminalDecl        { $$ = iappend($1, $2); }
               ;
 
 /* each terminal has an integer code which is the integer value the
@@ -99,7 +113,7 @@ TerminalDecl: TOK_INTEGER ":" AliasSeq ";"         { $$ = AST2(AST_TERMDECL, $1,
             ;
 
 AliasSeq: Alias                                    { $$ = AST1(AST_ALIASES, $1); }
-        | AliasSeq Alias                           { $$ = $1->append($2); }
+        | AliasSeq Alias                           { $$ = iappend($1, $2); }
         ;
 
 /* allow canonical names (e.g. TOK_COLON) and also mnemonic
@@ -115,16 +129,16 @@ Alias: TOK_NAME                                    { $$ = $1; }
  * the body of the Nonterminal declaration specifies the the RHS forms,
  * attribute info, etc.
  */
-Nonterminal: "nonterm" TOK_NAME "{" NonterminalBody "}"    
+Nonterminal: "nonterm" TOK_NAME "{" NonterminalBody "}"
                { $$ = AST2(AST_NONTERM, $2, $4); }
            | "nonterm" TOK_NAME Form
                { $$ = AST2(AST_NONTERM, $2, $3); }
            ;
 
 NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
-               | NonterminalBody AttributeDecl     { $$ = $1->append($2); }
-               | NonterminalBody Form              { $$ = $1->append($2); }
-               | NonterminalBody FormGroup         { $$ = $1->append($2); }
+               | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
+               | NonterminalBody Form              { $$ = iappend($1, $2); }
+               | NonterminalBody FormGroup         { $$ = iappend($1, $2); }
                ;
 
 /*
@@ -132,7 +146,7 @@ NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
  * must specify a value for every declared attribute; at least for
  * now, all attributes are integer-valued
  */
-AttributeDecl: "attr" TOK_NAME ";"                 { $$ = AST1(AST_ATTR, $1); }
+AttributeDecl: "attr" TOK_NAME ";"                 { $$ = AST1(AST_ATTR, $2); }
              ;
 
 /*
@@ -141,8 +155,8 @@ AttributeDecl: "attr" TOK_NAME ";"                 { $$ = AST1(AST_ATTR, $1); }
  * be rewritten as the sequence of RHS symbols, in the process of
  * deriving the input sentance from the start symbol
  */
-Form: "->" FormRHS ";"                             { $$ = AST1(AST_RHS, $2); }
-    | "->" FormRHS "{" FormBody "}"                { $$ = AST2(AST_RHS, $2, $4); }
+Form: "->" FormRHS ";"                             { $$ = AST1(AST_FORM, $2); }
+    | "->" FormRHS "{" FormBody "}"                { $$ = AST2(AST_FORM, $2, $4); }
     ;
 
 /*
@@ -152,8 +166,8 @@ Form: "->" FormRHS ";"                             { $$ = AST1(AST_RHS, $2); }
  * nonterminal's attribute values
  */
 FormBody: /* empty */                              { $$ = AST0(AST_FORMBODY); }
-        | FormBody Action                          { $$ = $1->append($2); }
-        | FormBody Condition                       { $$ = $1->append($2); }
+        | FormBody Action                          { $$ = iappend($1, $2); }
+        | FormBody Condition                       { $$ = iappend($1, $2); }
         ;
 
 /*
@@ -174,14 +188,14 @@ FormBody: /* empty */                              { $$ = AST0(AST_FORMBODY); }
  *     sequence(), are available which yield a different value for each
  *     form
  */
-FormGroup: "formGroup" "{" FormGroupBody "}"       { $$ = $1; }
+FormGroup: "formGroup" "{" FormGroupBody "}"       { $$ = $3; }
          ;
 
 FormGroupBody: /* empty */                         { $$ = AST0(AST_FORMGROUPBODY); }
-             | FormGroupBody Action                { $$ = $1->append($2); }
-             | FormGroupBody Condition             { $$ = $1->append($2); }
-             | FormGroupBody Form                  { $$ = $1->append($2); }
-             | FormGroupBody FormGroup             { $$ = $1->append($2); }
+             | FormGroupBody Action                { $$ = iappend($1, $2); }
+             | FormGroupBody Condition             { $$ = iappend($1, $2); }
+             | FormGroupBody Form                  { $$ = iappend($1, $2); }
+             | FormGroupBody FormGroup             { $$ = iappend($1, $2); }
              ;
 
 /* ------ form right-hand side ------ */
@@ -199,13 +213,13 @@ FormRHS: RHSEltSeqOpt              { $$ = $1; }
  * colon (':') if present; the tag is required if that symbol's attributes
  * are to be referenced anywhere in the actions or conditions for the form
  */
-RHSEltSeqOpt: /* empty */                          { $$ = AST0(AST_RHSELTS); }
+RHSEltSeqOpt: /* empty */                          { $$ = AST0(AST_RHS); }
 
-            | RHSEltSeqOpt TOK_NAME                { $$ = $1->append($2); }
+            | RHSEltSeqOpt TOK_NAME                { $$ = iappend($1, $2); }
                 /* name (only) */
-            | RHSEltSeqOpt TOK_NAME ":" TOK_NAME   { $$ = $1->append(AST2(AST_TAGGEDNAME, $2, $4)); }
+            | RHSEltSeqOpt TOK_NAME ":" TOK_NAME   { $$ = iappend($1, AST2(AST_TAGGEDNAME, $2, $4)); }
                 /* tag : name */
-            | RHSEltSeqOpt TOK_STRING              { $$ = $1->append($2); }
+            | RHSEltSeqOpt TOK_STRING              { $$ = iappend($1, $2); }
                 /* mnemonic terminal */
             ;
 
@@ -214,7 +228,7 @@ RHSEltSeqOpt: /* empty */                          { $$ = AST0(AST_RHSELTS); }
  * for now, the only action is to define the value of a synthesized
  * attribute
  */
-Action: "action" TOK_NAME ":=" AttrExpr ";"
+Action: "action" TOK_NAME ":=" AttrExpr ";"        { $$ = AST2(AST_ACTION, $2, $4); }
       ;
 
 /*
@@ -222,66 +236,60 @@ Action: "action" TOK_NAME ":=" AttrExpr ";"
  * to 0, the associated form cannot be used as a rewrite rule; when it evals
  * to 1, it can; any other value is an error
  */
-Condition: "condition" AttrExpr ";"
-             {
-               cout << "condition:\n";
-               $2->debugPrint(cout, 2);
-               delete $2;
-             }
+Condition: "condition" AttrExpr ";"                { $$ = AST1(AST_CONDITION, $2); }
          ;
 
 
 /* ------ attribute expressions, basically C expressions ------ */
-PrimaryExpr: TOK_NAME "." TOK_NAME         /* tag . attr */
-               { $$ = AST2(EXP_ATTRREF, $1, $3); }
-           | TOK_INTEGER                   /* literal */
-               { $$ = $1; }
-           | "(" AttrExpr ")"              /* grouping */
-               { $$ = $2; }
-           | TOK_NAME "(" ExprListOpt ")"  /* function call */
-               { $$ = AST2(EXP_FNCALL, $1, $3); }
+PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = AST2(EXP_ATTRREF, $1, $3); }
+               /* tag . attr */
+           | TOK_INTEGER                     { $$ = $1; }
+               /* literal */
+           | "(" AttrExpr ")"                { $$ = $2; }
+               /* grouping */
+           | TOK_NAME "(" ExprListOpt ")"    { $$ = AST2(EXP_FNCALL, $1, $3); }
+               /* function call */
+
            ;
 
-ExprListOpt: /* empty */       { $$ = NULL /*??*/; }
-           | ExprList          { $$ = $1; }
+ExprListOpt: /* empty */                     { $$ = AST0(EXP_LIST); }
+           | ExprList                        { $$ = $1; }
            ;
 
-ExprList: AttrExpr                     { $$ = AST1(EXP_LIST, $1) }
-        | ExprList "," AttrExpr        { $$ = $1->asInternal().append($3); }
+ExprList: AttrExpr                           { $$ = AST1(EXP_LIST, $1) }
+        | ExprList "," AttrExpr              { $$ = iappend($1, $3); }
         ;
 
 
-UnaryExpr: PrimaryExpr          { $$ = $1; }
-         | "+" PrimaryExpr      { $$ = $2; }    /* semantically ignored */
-         | "-" PrimaryExpr      { $$ = AST1(EXP_NEGATE, $2); }
-         | "!" PrimaryExpr      { $$ = AST1(EXP_NOT, $2); }
+UnaryExpr: PrimaryExpr                       { $$ = $1; }
+         | "+" PrimaryExpr                   { $$ = $2; }    /* semantically ignored */
+         | "-" PrimaryExpr                   { $$ = AST1(EXP_NEGATE, $2); }
+         | "!" PrimaryExpr                   { $$ = AST1(EXP_NOT, $2); }
          ;
 
 /* this rule relies on Bison precedence and associativity declarations */
-BinaryExpr: UnaryExpr                   { $$ = $1; }
-          | UnaryExpr "*" UnaryExpr     { $$ = AST2(EXP_MULT, $1, $3); }
-          | UnaryExpr "/" UnaryExpr     { $$ = AST2(EXP_DIV, $1, $3); }
-          | UnaryExpr "%" UnaryExpr     { $$ = AST2(EXP_MOD, $1, $3); }
-          | UnaryExpr "+" UnaryExpr     { $$ = AST2(EXP_PLUS, $1, $3); }
-          | UnaryExpr "-" UnaryExpr     { $$ = AST2(EXP_MINUS, $1, $3); }
-          | UnaryExpr "<" UnaryExpr     { $$ = AST2(EXP_LT, $1, $3); }
-          | UnaryExpr ">" UnaryExpr     { $$ = AST2(EXP_GT, $1, $3); }
-          | UnaryExpr "<=" UnaryExpr    { $$ = AST2(EXP_LTE, $1, $3); }
-          | UnaryExpr ">=" UnaryExpr    { $$ = AST2(EXP_GTE, $1, $3); }
-          | UnaryExpr "==" UnaryExpr    { $$ = AST2(EXP_EQ, $1, $3); }
-          | UnaryExpr "!=" UnaryExpr    { $$ = AST2(EXP_NEQ, $1, $3); }
-          | UnaryExpr "&&" UnaryExpr    { $$ = AST2(EXP_AND, $1, $3); }
-          | UnaryExpr "||" UnaryExpr    { $$ = AST2(EXP_OR, $1, $3); }
+BinaryExpr: UnaryExpr                        { $$ = $1; }
+          | UnaryExpr "*" UnaryExpr          { $$ = AST2(EXP_MULT, $1, $3); }
+          | UnaryExpr "/" UnaryExpr          { $$ = AST2(EXP_DIV, $1, $3); }
+          | UnaryExpr "%" UnaryExpr          { $$ = AST2(EXP_MOD, $1, $3); }
+          | UnaryExpr "+" UnaryExpr          { $$ = AST2(EXP_PLUS, $1, $3); }
+          | UnaryExpr "-" UnaryExpr          { $$ = AST2(EXP_MINUS, $1, $3); }
+          | UnaryExpr "<" UnaryExpr          { $$ = AST2(EXP_LT, $1, $3); }
+          | UnaryExpr ">" UnaryExpr          { $$ = AST2(EXP_GT, $1, $3); }
+          | UnaryExpr "<=" UnaryExpr         { $$ = AST2(EXP_LTE, $1, $3); }
+          | UnaryExpr ">=" UnaryExpr         { $$ = AST2(EXP_GTE, $1, $3); }
+          | UnaryExpr "==" UnaryExpr         { $$ = AST2(EXP_EQ, $1, $3); }
+          | UnaryExpr "!=" UnaryExpr         { $$ = AST2(EXP_NEQ, $1, $3); }
+          | UnaryExpr "&&" UnaryExpr         { $$ = AST2(EXP_AND, $1, $3); }
+          | UnaryExpr "||" UnaryExpr         { $$ = AST2(EXP_OR, $1, $3); }
           ;
 
 /* the expression "a ? b : c" means "if (a) then b, else c" */
-CondExpr: BinaryExpr
-            { $$ = $1; }
-        | BinaryExpr "?" AttrExpr ":" AttrExpr
-            { $$ = AST3(EXP_COND, $1, $3, $5); }
+CondExpr: BinaryExpr                             { $$ = $1; }
+        | BinaryExpr "?" AttrExpr ":" AttrExpr   { $$ = AST3(EXP_COND, $1, $3, $5); }
         ;
 
-AttrExpr: CondExpr       { $$ = $1; }
+AttrExpr: CondExpr                           { $$ = $1; }
         ;
 
 

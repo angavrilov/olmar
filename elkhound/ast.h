@@ -112,6 +112,11 @@ public:         // funcs
 };
 
 
+// convenient idiom for bison: verify is internal, then append and
+// return 'presumedInternal'
+ASTInternal *iappend(ASTNode *presumedInternal, ASTNode *newChild);
+
+
 // macros for bison rules
 #define AST0(t) ASTInternal::cons0(t)
 #define AST1(t,c1) ASTInternal::cons1((t),(c1))
