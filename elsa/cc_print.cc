@@ -1032,6 +1032,7 @@ void E_grouping::iprint(PrintEnv &env)
 void IN_expr::print(PrintEnv &env)
 {
   olayer ol("IN_expr");
+  if (designator) env << designator << ":";
   e->print(env);
 }
 
@@ -1040,6 +1041,7 @@ void IN_expr::print(PrintEnv &env)
 void IN_compound::print(PrintEnv &env)
 {
   olayer ol("IN_compound");
+  if (designator) env << designator << ":";
   codeout co(env, "", "{", "}");
   bool first_time = true;
   FOREACH_ASTLIST_NC(Initializer, inits, iter) {
@@ -1052,6 +1054,7 @@ void IN_compound::print(PrintEnv &env)
 void IN_ctor::print(PrintEnv &env)
 {
   olayer ol("IN_ctor");
+  if (designator) env << designator << ":";
   printFakeExprList(args, env);
 }
 

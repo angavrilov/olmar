@@ -1328,11 +1328,20 @@ nonterm(Initializer*) Initializer {
   // see [cppstd. sec. 8.5 para 8]
 }
 
-nonterm(Initializer*) InitializerClause {
+nonterm(Initializer*) SimpleInitializerClause {
   -> e:AssignmentExpression              // scalar
        { return new IN_expr(e); }
   -> c:CompoundInitializer               // array/structure initializer
        { return c; }
+}
+
+nonterm(Initializer*) InitializerClause {
+  -> init:SimpleInitializerClause
+       { return init; }
+  // Designated Initializers
+  // http://gcc.gnu.org/onlinedocs/gcc-3.2.2/gcc/Designated-Inits.html#Designated%20Inits
+  -> desig:Identifier ":" init:SimpleInitializerClause
+       { init->designator = desig; return init; }
 }
 
 nonterm(IN_compound*) CompoundInitializer {

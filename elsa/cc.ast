@@ -563,6 +563,7 @@ class ExpressionListOpt (
 
 // animals which appear after declarations to assign initial values
 class Initializer {
+  public StringRef designator;  ctor designator=NULL;
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
