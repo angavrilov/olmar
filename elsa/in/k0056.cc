@@ -1,6 +1,6 @@
 // template friend function
 
-// originally found in <stack>
+// originally found in package arts
 
 // Assertion failed: !destVar->funcDefn, file template.cc line 3073
 

@@ -1,6 +1,6 @@
 // template friend function (2)
 
-// originally found in <stack>
+// originally found in package arts
 
 // Assertion failed: ct->parameterizingScope == this, file cc_scope.cc line 53
 
