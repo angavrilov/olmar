@@ -6,16 +6,14 @@
 
 #include "ccgrmain.h"     // this module, sorta..
 #include "trace.h"        // traceAddSys
-#include "parssppt.h"     // ParseTreeAndTokens, treeMain
+#include "parssppt.h"     // ParseTreeAndTokens, treeMain, sourceFileList
 #include "ckheap.h"       // malloc_stats
-#include "grammar.h"      // grammarStringTable
-#include "fileloc.h"      // sourceFileList
 #include "c.ast.gen.h"    // C ast
 #include "cc_env.h"       // Env
 #include "strutil.h"      // plural
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
-#include "gramanl.h"      // ParseTables
+#include "parsetables.h"  // ParseTables
 
 
 // no bison-parser present, so need to define this

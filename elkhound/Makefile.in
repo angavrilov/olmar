@@ -76,7 +76,7 @@ ccflags += -Wno-deprecated
 
 
 # flags on command line
-ccflags+= $(EXTRA)
+ccflags += $(EXTRA)
 
 compile := g++ -c $(ccflags) $(includes)
 depend  := g++ -MM $(ccflags) $(includes)
@@ -262,10 +262,9 @@ cexp2: $(cexp2-dep) cexp2.h
 	$(link) -o cexp2 $(cexp2-dep)
 
 # glr parsing engine
-libglr-dep := $(glr-set)
-libglr.a: $(libglr-dep)
+libglr.a: $(glr-set)
 	rm -f libglr.a
-	ar -r libglr.a $(libglr-dep)
+	ar -r libglr.a $(glr-set)
 	ranlib libglr.a
 
 # intermediate files for cexp3 (disambiguates using prec/assoc)
@@ -621,11 +620,15 @@ triv/sssx.notree.perf.txt:
 # ------------------------ documentation -----------------------
 # dependencies for 'gramanl', the parser generator executable
 doc/gramanl.dot:
-	./scan-depends.pl -r -I$(AST) gramanl.cc >$@
+	$(SMBASE)/scan-depends.pl -r -I$(AST) gramanl.cc >$@
 
 # dependencies for 'glr.h', the entry point to the runtime library
 doc/glr.dot:
-	./scan-depends.pl -r -I$(AST) glr.h >$@
+	$(SMBASE)/scan-depends.pl -r -I$(AST) glr.h >$@
+
+# dependencies for 'ccgr', the prototype C parser and typechecker
+doc/cc.dot:
+	$(SMBASE)/scan-depends.pl -r -I$(AST) -Nglr.h ccgrmain.h >$@
 
 # use 'dot' to lay out the graph
 # http://www.research.att.com/sw/tools/graphviz/
@@ -641,7 +644,7 @@ doc/%.png: doc/%.ps
 
 # "make doc" should build whatever we have that needs building
 .PHONY: doc
-doc: doc/gramanl.png doc/glr.png
+doc: doc/gramanl.png doc/glr.png doc/cc.png
 
 doc-clean:
 	cd doc; rm -f {gramanl,glr}.{ps,dot,png}
@@ -678,6 +681,3 @@ cc.gr.ps:
 # test for rcptr
 trcptr: rcptr.h trcptr.cc
 	$(link) -o trcptr trcptr.cc
-
-dependencies.ps: dependencies.dot
-	dot -Tps $^ >$@

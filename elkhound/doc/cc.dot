@@ -1,0 +1,299 @@
+// dependency graph automatically produced by ../smbase/scan-depends.pl
+
+digraph "Dependencies" {
+  "ccgrmain.h" [
+    color = white
+  ]
+  "ccgrmain.cc" [
+  ]
+  "ccgrmain.h" -> "ccgrmain.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "ccgrmain.cc" -> "ccgrmain.h" [
+    weight = 10
+  ]
+  "parssppt.h" [
+    color = white
+  ]
+  "ccgrmain.cc" -> "parssppt.h" [
+  ]
+  "c.ast.gen.h" [
+    color = white
+  ]
+  "ccgrmain.cc" -> "c.ast.gen.h" [
+  ]
+  "cc_env.h" [
+    color = white
+  ]
+  "ccgrmain.cc" -> "cc_env.h" [
+  ]
+  "cc_lang.h" [
+    color = white
+  ]
+  "ccgrmain.cc" -> "cc_lang.h" [
+  ]
+  "treeout.h" [
+    color = white
+  ]
+  "ccgrmain.cc" -> "treeout.h" [
+  ]
+  "parsetables.h" [
+    color = white
+  ]
+  "ccgrmain.cc" -> "parsetables.h" [
+  ]
+  "parssppt.cc" [
+  ]
+  "parssppt.h" -> "parssppt.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "lexer2.h" [
+    color = white
+  ]
+  "parssppt.h" -> "lexer2.h" [
+  ]
+  "useract.h" [
+    color = white
+  ]
+  "parssppt.h" -> "useract.h" [
+  ]
+  "c.ast.gen.cc" [
+  ]
+  "c.ast.gen.h" -> "c.ast.gen.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "asthelp.h" [
+    color = white
+  ]
+  "c.ast.gen.h" -> "asthelp.h" [
+  ]
+  "cc_flags.h" [
+    color = white
+  ]
+  "c.ast.gen.h" -> "cc_flags.h" [
+  ]
+  "variable.h" [
+    color = white
+  ]
+  "c.ast.gen.h" -> "variable.h" [
+  ]
+  "cc_type.h" [
+    color = white
+  ]
+  "c.ast.gen.h" -> "cc_type.h" [
+  ]
+  "cc_env.cc" [
+  ]
+  "cc_env.h" -> "cc_env.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "cc_env.h" -> "cc_type.h" [
+  ]
+  "owner.h" [
+    color = white
+  ]
+  "cc_env.h" -> "owner.h" [
+  ]
+  "cc_env.h" -> "c.ast.gen.h" [
+  ]
+  "cc_env.h" -> "variable.h" [
+  ]
+  "cc_lang.cc" [
+  ]
+  "cc_lang.h" -> "cc_lang.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "treeout.cc" [
+  ]
+  "treeout.h" -> "treeout.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "parsetables.cc" [
+  ]
+  "parsetables.h" -> "parsetables.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "parssppt.cc" -> "parssppt.h" [
+    weight = 10
+  ]
+  "glr.h" [
+    shape = box
+    style = dashed
+  ]
+  "parssppt.cc" -> "glr.h" [
+  ]
+  "lexer2.cc" [
+  ]
+  "lexer2.h" -> "lexer2.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "lexer1.h" [
+    color = white
+  ]
+  "lexer2.h" -> "lexer1.h" [
+  ]
+  "fileloc.h" [
+    color = white
+  ]
+  "lexer2.h" -> "fileloc.h" [
+  ]
+  "strtable.h" [
+    color = white
+  ]
+  "lexer2.h" -> "strtable.h" [
+  ]
+  "lexer2.h" -> "useract.h" [
+  ]
+  "lexerint.h" [
+    color = white
+  ]
+  "lexer2.h" -> "lexerint.h" [
+  ]
+  "useract.cc" [
+  ]
+  "useract.h" -> "useract.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "glrconfig.h" [
+    color = white
+  ]
+  "useract.h" -> "glrconfig.h" [
+  ]
+  "c.ast.gen.cc" -> "c.ast.gen.h" [
+    weight = 10
+  ]
+  "asthelp.cc" [
+  ]
+  "asthelp.h" -> "asthelp.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "locstr.h" [
+    color = white
+  ]
+  "asthelp.h" -> "locstr.h" [
+  ]
+  "cc_flags.cc" [
+  ]
+  "cc_flags.h" -> "cc_flags.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "variable.cc" [
+  ]
+  "variable.h" -> "variable.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "variable.h" -> "fileloc.h" [
+  ]
+  "variable.h" -> "strtable.h" [
+  ]
+  "variable.h" -> "cc_flags.h" [
+  ]
+  "cc_type.cc" [
+  ]
+  "cc_type.h" -> "cc_type.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "cc_type.h" -> "cc_flags.h" [
+  ]
+  "cc_type.h" -> "strtable.h" [
+  ]
+  "cc_env.cc" -> "cc_env.h" [
+    weight = 10
+  ]
+  "cc_env.cc" -> "strtable.h" [
+  ]
+  "cc_env.cc" -> "cc_lang.h" [
+  ]
+  "cc_lang.cc" -> "cc_lang.h" [
+    weight = 10
+  ]
+  "treeout.cc" -> "treeout.h" [
+    weight = 10
+  ]
+  "parsetables.cc" -> "parsetables.h" [
+    weight = 10
+  ]
+  "lexer2.cc" -> "lexer2.h" [
+    weight = 10
+  ]
+  "lexer2.cc" -> "cc_lang.h" [
+  ]
+  "lexer2.cc" -> "glrconfig.h" [
+  ]
+  "lexer1.cc" [
+  ]
+  "lexer1.h" -> "lexer1.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "lexer1.h" -> "fileloc.h" [
+  ]
+  "fileloc.cc" [
+  ]
+  "fileloc.h" -> "fileloc.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "strtable.cc" [
+  ]
+  "strtable.h" -> "strtable.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "lexerint.h" -> "useract.h" [
+  ]
+  "lexerint.h" -> "fileloc.h" [
+  ]
+  "useract.cc" -> "useract.h" [
+    weight = 10
+  ]
+  "asthelp.cc" -> "asthelp.h" [
+    weight = 10
+  ]
+  "locstr.cc" [
+  ]
+  "locstr.h" -> "locstr.cc" [
+    style = dashed
+    weight = 10
+  ]
+  "locstr.h" -> "strtable.h" [
+  ]
+  "locstr.h" -> "fileloc.h" [
+  ]
+  "cc_flags.cc" -> "cc_flags.h" [
+    weight = 10
+  ]
+  "variable.cc" -> "variable.h" [
+    weight = 10
+  ]
+  "variable.cc" -> "cc_type.h" [
+  ]
+  "cc_type.cc" -> "cc_type.h" [
+    weight = 10
+  ]
+  "lexer1.cc" -> "lexer1.h" [
+    weight = 10
+  ]
+  "fileloc.cc" -> "fileloc.h" [
+    weight = 10
+  ]
+  "strtable.cc" -> "strtable.h" [
+    weight = 10
+  ]
+  "locstr.cc" -> "locstr.h" [
+    weight = 10
+  ]
+}
