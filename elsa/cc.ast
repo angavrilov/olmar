@@ -137,6 +137,8 @@ class PQName {
   -> PQ_qualifier(StringRef qualifier, PQName rest);
 
   // final name, when it's an ordinary identifier
+  // NOTE: 'name' here is *never* NULL--instead, I use NULL
+  // PQName pointers in abstract declarators
   -> PQ_name(StringRef name);
 
   // "operator" names; 'o' has the full info, while 'fakeName' is
@@ -274,7 +276,7 @@ class IDeclarator {
   pure_virtual Variable * /*owner*/ itcheck(Env &env, Type const *spec, DeclFlags dflags);
 
   // dig down and find the name being declared; may return NULL
-  //pure_virtual PQName const *getDeclaratorId() const;
+  pure_virtual PQName const *getDeclaratorId() const;
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
@@ -293,7 +295,11 @@ class IDeclarator {
   -> D_array(IDeclarator base, Expression /*nullable*/ size);
 
   // "c : 2"
-  -> D_bitfield(SourceLocation loc, StringRef /*nullable*/ name, 
+  //
+  // I use a PQName here instead of a StringRef for uniformity
+  // (so every IDeclarator ends with a PQName); there are never
+  // qualifiers on a bitfield name
+  -> D_bitfield(SourceLocation loc, PQName /*nullable*/ name,
                 Expression bits);
 }
 

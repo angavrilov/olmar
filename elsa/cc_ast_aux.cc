@@ -121,7 +121,27 @@ void IDeclarator::printExtras(ostream &os, int indent) const
 }
 
 
-//PQName const *D_name::getDeclaratorId
+PQName const *D_name::getDeclaratorId() const
+{
+  return name;
+}
+
+PQName const *D_func::getDeclaratorId() const
+{
+  return base->getDeclaratorId();
+}
+
+PQName const *D_array::getDeclaratorId() const
+{
+  return base->getDeclaratorId();
+}
+
+PQName const *D_bitfield::getDeclaratorId() const
+{
+  // the ability to simply return 'name' here is why bitfields contain
+  // a PQName instead of just a StringRef
+  return name;
+}
 
 
 // -------------------- PtrOperator --------------------
