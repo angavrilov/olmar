@@ -41,7 +41,11 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
     marker(0, 1, 0),
     markerCol(1)
 {
-  AutoFILE fp(name, "r");
+  // open in binary mode since it's too unpredictable whether
+  // the lower level (e.g. cygwin) will do CRLF translation,
+  // and whether that will be done consistently, if text mode
+  // is requested
+  AutoFILE fp(name, "rb");
 
   // the buffering that FILE would do would be wasted, so
   // make it unbuffered (if this causes a problem on some
@@ -465,6 +469,7 @@ SourceLoc SourceLocManager::encodeOffset(
   xassert(charOffset >= 0);
 
   File *f = getFile(filename);
+  xassert(charOffset <= f->numChars);
   return toLoc(f->startLoc + charOffset);
 }
 
@@ -744,10 +749,11 @@ void testFile(char const *fname)
   // find the file's length
   int len;
   {
-    AutoFILE fp(fname, "r");
+    AutoFILE fp(fname, "rb");
 
     fseek(fp, 0, SEEK_END);
     len = (int)ftell(fp);
+    cout << "length of " << fname << ": " << len << endl;
   }
 
   // get locations for the start and end
@@ -844,7 +850,9 @@ string locString(char const *fname, int line, int col)
 void testHashMap()
 {
   // run the preprocessor
-  system("cpp -DTEST_SRCLOC srcloc.cc >srcloc.tmp");
+  if (0!=system("cpp -DTEST_SRCLOC srcloc.cc >srcloc.tmp 2>/dev/null")) {
+    xbase("failed to preprocess srcloc.cc");
+  }
 
   SourceLocManager::File *pp = mgr.getInternalFile("srcloc.tmp");
   SourceLocManager::File *orig = mgr.getInternalFile("srcloc.cc");
@@ -852,7 +860,7 @@ void testHashMap()
   // read srcloc.tmp and install the hash maps
   int expanderLine=0;
   {
-    AutoFILE fp("srcloc.tmp", "r");
+    AutoFILE fp("srcloc.tmp", "rb");
 
     enum { SZ=256 };
     char buf[SZ];
@@ -898,7 +906,7 @@ void testHashMap()
   }
 
   // similar for last few lines
-  for (ppLine = pp->numLines - 10; ppLine <= pp->numLines; ppLine++) {
+  for (ppLine = pp->numLines - 4; ppLine <= pp->numLines; ppLine++) {
     SourceLoc loc = mgr.encodeLineCol("srcloc.tmp", ppLine, 1);
     cout << "ppLine " << ppLine << ": " << toString(loc) << endl;
   }
@@ -926,8 +934,9 @@ void testHashMap()
     int line, col;
     orig->charToLineCol(offset, line, col);
     cout << "expander column 21: " << locString(fname, line, col) << endl;
-    if (col != 9) {
-      cout << "expected column 9!\n";
+    if (col != 9 && col != 10) {
+      // 9 is for LF line endings, 10 for CRLF
+      cout << "expected column 9 or 10!\n";
       exit(2);
     }
   }
