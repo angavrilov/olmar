@@ -26,6 +26,8 @@ string Qualifiers::varsToString() {
   // dsw: Prototype for Matt.
     QualifierVariable *tainted_qvar = findQConst("$tainted");
     if (leqQVar(tainted_qvar, qv)) {
+
+
       char tmp[200];
 //        sprintf(tmp, "%x", (unsigned)this);
       s << " /*transitive ";
@@ -36,6 +38,8 @@ string Qualifiers::varsToString() {
 //        s << " tainted:" << nameQVar(tainted_qvar) << "(" << tmp << ")";
       s << " */";
     }
+
+
 #else
     return string("");
 #endif
