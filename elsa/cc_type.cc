@@ -858,7 +858,7 @@ CVFlags FunctionType::getThisCV() const
   if (isMember) {
     // expect 'this' to be of type 'SomeClass cv * const', and
     // dig down to get that 'cv'
-    return getThisC()->type->asPointerType()->cv;
+    return getThisC()->type->asPointerType()->atType->asCVAtomicType()->cv;
   }
   else {
     return CV_NONE;

@@ -8,6 +8,7 @@ public:
   
   int func();
   int func2();
+  int func3() const;
 };
 
 // qualifiers on a declarator, so it refers to
