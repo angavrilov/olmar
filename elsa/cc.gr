@@ -1590,7 +1590,7 @@ nonterm(Function*) FunctionDefinition {
   fun keep(f)
   {
     if (!f->nameAndParams->bottomIsDfunc()) {
-      TRACE("cancel", loc << "rejecting FunctionDefinition w/o D_func at bottom");
+      TRACE("cancel", "rejecting FunctionDefinition w/o D_func at bottom");
       return false;
     }
     else {

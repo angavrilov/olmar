@@ -4,14 +4,39 @@
 
 # This script really only will work on my machine ....
 
-echo "Qt 2.3.2"
-./test-parse-buildlog /opt/qt-2.3.2/make.out >qt.parse.out
+# 39 modules
+echo "smbase"
+./test-parse-buildlog ../smbase/make.out >smbase.parse.out
 
+# 14 modules
+echo "ast"
+./test-parse-buildlog ../ast/make.out >ast.parse.out
+
+# 41 modules
+echo "elkhound"
+./test-parse-buildlog ../elkhound/make.out >elkhound.parse.out
+
+# 36 modules
+echo "elsa"
+./test-parse-buildlog make.out >elsa.make.out
+
+# 80 modules
+echo "Doxygen 1.2.14"
+./test-parse-buildlog $HOME/bld/doxygen-1.2.14/make.out >doxygen.parse.out
+
+# 80 modules
+echo "Pine 4.44"
+./test-parse-buildlog ~/bld/pine4.44/build.out >pine.parse.out
+
+# 259 modules
 echo "DDD 3.3.1"
 ./test-parse-buildlog $HOME/bld/ddd-3.3.1/make.out >ddd.parse.out
 
+# 310 modules
+echo "Qt 2.3.2"
+./test-parse-buildlog /opt/qt-2.3.2/make.out >qt.parse.out
+
+# 2404 modules
 echo "Mozilla 1.0"
 ./test-parse-buildlog $HOME/bld/mozilla-1.0/make.out >moz.parse.out
 
-echo "Doxygen 1.2.14"
-./test-parse-buildlog $HOME/bld/doxygen-1.2.14/make.out >doxygen.parse.out

@@ -87,10 +87,8 @@ $runCount = 0;
 if (defined($cwd)) {
   mychdir($cwd);
 }
-else {
-  $cwd = `pwd`;
-  chomp($cwd);
-}
+$cwd = `pwd`;
+chomp($cwd);
 
 # directory for last-printed 'run' command
 #$lastRunDir = "";
@@ -202,6 +200,7 @@ sub bail {
 
   my $failures = $ppfail{'gcc'} + $ppfail{'g++'} + 
                  $parsefail{'gcc'} + $parsefail{'g++'};
+  print ("($failures failures)\n");
   print STDERR ("($failures failures)\n");
 
   exit(0);
@@ -276,8 +275,8 @@ sub popdir {
 
 sub mychdir {
   my ($d) = @_;
-  #print("cd $d\n");
-  chdir($d) or die("can't chdir to $d\n");
+  diagnostic("cd $d");
+  chdir($d) or die("can't chdir to $d: $!\n");
 }
 
 # EOF
