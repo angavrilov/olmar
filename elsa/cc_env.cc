@@ -4164,7 +4164,7 @@ bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
 // note that this is *not* the same rule that allows array types in
 // function parameters to vary similarly, see
 // 'normalizeParameterType()'
-bool almostEqualTypes(Type const *t1, Type const *t2)
+bool Env::almostEqualTypes(Type const *t1, Type const *t2)
 {
   if (t1->isArrayType() &&
       t2->isArrayType()) {
@@ -4179,7 +4179,13 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
   }
 
   // no exception: strict equality (well, toplevel param cv can differ)
-  return t1->equals(t2, Type::EF_IGNORE_PARAM_CV);
+  Type::EqFlags eqFlags = Type::EF_IGNORE_PARAM_CV;
+
+  if (lang.allow_KR_ParamOmit) {
+    eqFlags |= Type::EF_ALLOW_KR_PARAM_OMIT;
+  }
+
+  return t1->equals(t2, eqFlags);
 }
 
 

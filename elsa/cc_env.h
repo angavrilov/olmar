@@ -798,6 +798,10 @@ public:      // funcs
     bool reallyAddVariable
   );
 
+  // compare types for equality; see extensive comment at
+  // implementation
+  bool almostEqualTypes(Type const *t1, Type const *t2);
+
   // create a "using declaration" alias
   void makeUsingAliasFor(SourceLoc loc, Variable *origVar);
                                     

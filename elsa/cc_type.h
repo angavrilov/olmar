@@ -520,9 +520,17 @@ public:     // funcs
     // symmetric in their arguments
     EF_POLYMORPHIC     = 0x0080,
 
+    // In K&R mode to allow for the fact that, in some circumstances,
+    // a function can be declared more than once but only some times
+    // provide a parameter list and other times provide an empty
+    // argument list, which in K&R mode this typechecks with a
+    // parameter list of '(...)'.  Thus in K&R mode, we allow two such
+    // function types to be considered equal.
+    EF_ALLOW_KR_PARAM_OMIT = 0x0100,
+
     // ----- combined behaviors -----
     // all flags set to 1
-    EF_ALL             = 0x00FF,
+    EF_ALL             = 0x01FF,
 
     // signature equivalence for the purpose of detecting whether
     // two declarations refer to the same entity (as opposed to two
@@ -542,10 +550,10 @@ public:     // funcs
     // this is the set of flags that automatically propagate down
     // the type tree equality checker; others are suppressed once
     // the first type constructor looks at them
-    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC),
+    EF_PROP            = (EF_IGNORE_PARAM_CV | EF_POLYMORPHIC | EF_ALLOW_KR_PARAM_OMIT),
     
     // these flags are propagated below ptr and ptr-to-member
-    EF_PTR_PROP        = (EF_PROP | EF_SIMILAR)
+    EF_PTR_PROP        = (EF_PROP | EF_SIMILAR | EF_ALLOW_KR_PARAM_OMIT)
   };
 
   // like above, this is (structural) equality, not coercibility;

@@ -71,6 +71,12 @@ public:
   // gcc works (though not g++).
   bool allowCallToUndeclFunc;
 
+  // when true, allow two functions with the same return type to
+  // equals()-s each other if at least one has an empty argument list,
+  // which typechecks as '(...)'.  See comment at the definition of
+  // EF_ALLOW_KR_PARAM_OMIT.
+  bool allow_KR_ParamOmit;
+
   // catch-call for behaviors that are unique to C++ but aren't
   // enumerated above; these behaviors are candidates for being split
   // out as separate flags, but there currently is no need

@@ -16,6 +16,7 @@ void CCLang::KandR_C()
   allowOverloading = false;
   compoundSelfName = false;
   allowCallToUndeclFunc = true;
+  allow_KR_ParamOmit = true;
   isCplusplus = false;
 }
 
@@ -32,6 +33,7 @@ void CCLang::ANSI_C()
   allowOverloading = false;
   compoundSelfName = false;
   allowCallToUndeclFunc = false;
+  allow_KR_ParamOmit = false;
   isCplusplus = false;
 }
 
@@ -53,6 +55,7 @@ void CCLang::ANSI_Cplusplus()
   compoundSelfName = true;
 
   allowCallToUndeclFunc = false;
+  allow_KR_ParamOmit = false;
 
   isCplusplus = true;
 }

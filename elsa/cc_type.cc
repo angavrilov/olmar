@@ -1577,6 +1577,13 @@ bool FunctionType::innerEquals(FunctionType const *obj, EqFlags flags) const
     }
   }
 
+  // see comment at definition of EF_ALLOW_KR_PARAM_OMIT
+  if (flags & EF_ALLOW_KR_PARAM_OMIT) {
+    if (acceptsVarargs() || obj->acceptsVarargs()) {
+      return true;
+    }
+  }
+
   if (!(flags & EF_STAT_EQ_NONSTAT)) {
     // check that either both are nonstatic methods, or both are not
     if (isMethod() != obj->isMethod()) {
