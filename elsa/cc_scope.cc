@@ -34,20 +34,25 @@ Scope::~Scope()
 // -------- insertion --------
 template <class T>
 bool insertUnique(StringSObjDict<T> &table, char const *key, T *value,
-                  int &changeCount)
+                  int &changeCount, bool forceReplace)
 {
   if (table.isMapped(key)) {
-    return false;
+    if (!forceReplace) {
+      return false;
+    }
+    else {
+      // remove the old mapping
+      table.remove(key);
+    }
   }
-  else {
-    table.add(key, value);
-    changeCount++;
-    return true;
-  }
+
+  table.add(key, value);
+  changeCount++;
+  return true;
 }
 
 
-bool Scope::addVariable(Variable *v)
+bool Scope::addVariable(Variable *v, bool forceReplace)
 {
   xassert(canAcceptNames);
 
@@ -77,7 +82,7 @@ bool Scope::addVariable(Variable *v)
                  << endl;
   }
 
-  return insertUnique(variables, v->name, v, changeCount);
+  return insertUnique(variables, v->name, v, changeCount, forceReplace);
 }
 
 
@@ -88,7 +93,7 @@ bool Scope::addCompound(CompoundType *ct)
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
 
   ct->access = curAccess;
-  return insertUnique(compounds, ct->name, ct, changeCount);
+  return insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/);
 }
 
 
@@ -99,7 +104,7 @@ bool Scope::addEnum(EnumType *et)
   trace("env") << "added enum " << et->name << endl;
 
   et->access = curAccess;
-  return insertUnique(enums, et->name, et, changeCount);
+  return insertUnique(enums, et->name, et, changeCount, false /*forceReplace*/);
 }
 
 

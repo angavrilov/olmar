@@ -64,8 +64,8 @@ public:      // funcs
   int getChangeCount() const { return changeCount; }
 
   // insertion; these return false if the corresponding map already
-  // has a binding
-  bool addVariable(Variable *v);
+  // has a binding (unless 'forceReplace' is true)
+  bool addVariable(Variable *v, bool forceReplace=false);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 

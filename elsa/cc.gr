@@ -954,9 +954,9 @@ nonterm[int] PrimitiveCVTypeSpecifier {
 
 nonterm[TS_enumSpec*] EnumSpecifier {
   -> "enum" "{" list:EnumeratorListOpt "}"
-       [ return new TS_enumSpec(NULL /*name*/, list); ]
+       [ return new TS_enumSpec(loc, NULL /*name*/, list); ]
   -> "enum" n:Identifier "{" list:EnumeratorListOpt "}"
-       [ return new TS_enumSpec(n, list); ]
+       [ return new TS_enumSpec(loc, n, list); ]
 }
 
 

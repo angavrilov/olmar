@@ -912,7 +912,7 @@ FunctionType::~FunctionType()
 bool FunctionType::innerEquals(FunctionType const *obj) const
 {
   if (retType->equals(obj->retType) &&
-      cv == obj->cv &&
+      //cv == obj->cv &&     // this is part of the parameter list
       acceptsVarargs == obj->acceptsVarargs) {
     // so far so good, try the parameters
     return equalParameterLists(obj) &&
@@ -925,6 +925,15 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
 
 bool FunctionType::equalParameterLists(FunctionType const *obj) const
 {
+  if (cv != obj->cv) {
+    // the 'cv' qualifier is really attached to the 'this' parameter;
+    // it's important to check this here, since disequality of
+    // parameter lists is part of the criteria for allowing
+    // overloading, and it *is* legal to overload with different 'cv'
+    // flags on a class method
+    return false;
+  }
+
   ObjListIter<Parameter> iter1(params);
   ObjListIter<Parameter> iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
