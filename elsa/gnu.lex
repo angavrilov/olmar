@@ -38,6 +38,15 @@
   }
 }
 
+  /* hex floating literal: This is actually a C99-ism
+  http://gcc.gnu.org/onlinedocs/gcc-3.4.1/gcc/Hex-Floats.html#Hex%20Floats
+  */
+[0][xX]{HEXDIGITS}"."{HEXDIGITS}?[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?   |
+[0][xX]{HEXDIGITS}"."?[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?	    |
+[0][xX]"."{HEXDIGITS}[pP]{SIGN}?{DIGITS}{FLOAT_SUFFIX}?	    {
+  return svalTok(TOK_FLOAT_LITERAL);
+}
+
 "__extension__" {
   /* treat this like a token, in that nonseparating checks are done,
    * but don't yield it to the parser */

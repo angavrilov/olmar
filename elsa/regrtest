@@ -802,7 +802,7 @@ if $use_gnu; then
   runTest ./ccparse -tr c_lang in/gnu/t0126.c
 
   testparse gnu/d0095.c
-  failparse gnu/dC0001.c "hex floating-point literals"
+  testparse gnu/dC0001.c # "hex floating-point literals"
   # FIX: I think this is K&R specific, not gnu specific, so should be
   # in a different K&R section
   testparse_KandR gnu/d0096.c

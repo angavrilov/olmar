@@ -72,9 +72,12 @@ ALNUM         [A-Za-z_0-9]
 
 /* decimal digit */
 DIGIT         [0-9]
+HEXDIGIT      [0-9A-Fa-f]
 
 /* sequence of decimal digits */
 DIGITS        ({DIGIT}+)
+/* sequence of hex digits */
+HEXDIGITS     ({HEXDIGIT}+)
 
 /* sign of a number */
 SIGN          ("+"|"-")
