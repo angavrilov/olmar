@@ -384,6 +384,11 @@ void Declarator::twalk(Env &env)
 {
   olayer ol("Declarator");
   global_code_out << var_toString(var, decl->getDeclaratorId());
+  D_bitfield *b = dynamic_cast<D_bitfield*>(decl);
+  if (b) {
+    global_code_out << ":";
+    b->bits->twalk(env);
+  }
 //    var_toString(var, decl->getDeclaratorId()->toString());
   if (init) {
     global_code_out << "=";

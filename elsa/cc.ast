@@ -31,11 +31,13 @@ verbatim {
   #include "cc_type.h"       // Type, FunctonType, CompoundType
 
   class Env;                 // cc_env.h
+//    #include <stdio.h>
 } // end verbatim
 
 // included in generated source file
 impl_verbatim {
   //#include "cc_type.h"       // Type
+//    #include <stdio.h>
 }
 
 
@@ -337,6 +339,7 @@ class Declarator (
 ) {
   public Variable *var;                // (serf) computed information: name, type, etc.
   ctor var=NULL;
+//    ctor printf("**************** Declarator ctor\n");
                                                        
   // FakeList link; use 'setNext' to set 'next'
   public Declarator *next;  ctor next=NULL;
