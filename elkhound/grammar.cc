@@ -234,9 +234,13 @@ void DottedProduction::print(ostream &os) const
 
 // ----------------- ItemSet -------------------
 ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
-  : id(anId),
+  : kernelItems(),
+    nonkernelItems(),
+    termTransition(NULL),      // inited below
+    nontermTransition(NULL),   // inited below
     terms(numTerms),
     nonterms(numNonterms),
+    id(anId),
     BFSparent(NULL)
 {
   termTransition = new ItemSet* [terms];
@@ -259,8 +263,10 @@ ItemSet::~ItemSet()
 
 
 Symbol const *ItemSet::getStateSymbolC() const
-{
-  SFOREACH_DOTTEDPRODUCTION(items, item) {
+{				   
+  // need only check kernel items since all nonkernel items
+  // have their dots at the left side
+  SFOREACH_DOTTEDPRODUCTION(kernelItems, item) {
     if (! item.data()->isDotAtStart() ) {
       return item.data()->symbolBeforeDotC();
     }
@@ -305,12 +311,70 @@ void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
   refTransition(sym) = dest;
 }
 
+	    
+// compare two items in an arbitrary (but deterministic) way so that
+// sorting will always put a list of items into the same order, for
+// comparison purposes
+int itemDiff(DottedProduction const *left, DottedProduction const *right, void*)
+{
+  // memory address is sufficient for my purposes, since I avoid ever
+  // creating two copies of a given item
+  return (int)left - (int)right;
+}
+
+
+void ItemSet::addKernelItem(DottedProduction *item)
+{
+  // add it
+  kernelItems.appendUnique(item);
+
+  // sort the items to facilitate equality checks
+  kernelItems.insertionSort(itemDiff);
+}
+
+
+bool ItemSet::operator==(ItemSet const &obj) const
+{
+  #if 1
+  // since nonkernel items are entirely determined by kernel
+  // items, and kernel items are sorted, it's sufficient to
+  // check for kernel list equality
+  return kernelItems.equalAsPointerLists(obj.kernelItems);
+
+  #else   // experiment
+  DProductionList myItems;
+  getAllItems(myItems);
+
+  DProductionList hisItems;
+  obj.getAllItems(hisItems);
+
+  return myItems.equalAsPointerSets(hisItems);
+  #endif
+}
+
+
+void ItemSet::addNonkernelItem(DottedProduction *item)
+{
+  nonkernelItems.appendUnique(item);
+}
+
+
+void ItemSet::getAllItems(DProductionList &dest) const
+{
+  dest = kernelItems;
+  dest.appendAll(nonkernelItems);
+}
+
 
 // return the reductions that are ready in this state, given
 // that the next symbol is 'lookahead'
 void ItemSet::getPossibleReductions(ProductionList &reductions,
                                     Terminal const *lookahead) const
 {
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
+
   // for each item
   SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
     DottedProduction const *item = itemIter.data();
@@ -336,6 +400,10 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
 void ItemSet::print(ostream &os) const
 {
   os << "ItemSet " << id << ":\n";
+
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
 
   // for each item
   SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
@@ -366,6 +434,10 @@ void ItemSet::writeGraph(ostream &os) const
   // node: n <name> <desc>
   os << "\nn ItemSet" << id << " ItemSet" << id << "/";
     // rest of desc will follow
+
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
 
   // for each item, print the item text
   SFOREACH_DOTTEDPRODUCTION(items, itemIter) {

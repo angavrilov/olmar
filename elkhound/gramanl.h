@@ -84,16 +84,13 @@ private:    // funcs
   bool addFollow(Nonterminal *NT, Terminal *term);
 
   // ---- LR item sets ----
-  void itemSetClosure(DProductionList &itemSet);
-    // non-const because have to add dotted productions to the list
+  void itemSetClosure(ItemSet &itemSet);
   ItemSet *makeItemSet();
   void disposeItemSet(ItemSet *is);
   ItemSet *moveDot(ItemSet const *source, Symbol const *symbol);
   ItemSet *findItemSetInList(ObjList<ItemSet> &list,
                              ItemSet const *itemSet);
-  bool itemSetContainsItemSet(ItemSet const *big,
-                              ItemSet const *small);
-  bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);
+  static bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);
 
   void constructLRItemSets();
   void lrParse(char const *input);

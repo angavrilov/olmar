@@ -1,0 +1,72 @@
+%%% parse-tree: 
+  StatementSeqOpt -> StatementSeqOpt Statement
+    StatementSeqOpt -> empty
+    Statement -> return Expression ;
+      return
+      Expression -> AssignmentExpression
+        AssignmentExpression -> ConditionalExpression
+          ConditionalExpression -> BinaryExpression
+            2 ALTERNATIVE PARSES for nonterminal BinaryExpression:
+              ---- alternative 1 ----
+              BinaryExpression -> BinaryExpression BinaryOperator BinaryExpression
+                BinaryExpression -> CastExpression
+                  CastExpression -> UnaryExpression
+                    UnaryExpression -> PostfixExpression
+                      PostfixExpression -> PrimaryExpression
+                        PrimaryExpression -> Literal
+                          Literal -> IntegerLiteral
+                            IntegerLiteral -> 1
+                              1
+                BinaryOperator -> +
+                  +
+                BinaryExpression -> BinaryExpression BinaryOperator BinaryExpression
+                  BinaryExpression -> CastExpression
+                    CastExpression -> UnaryExpression
+                      UnaryExpression -> PostfixExpression
+                        PostfixExpression -> PrimaryExpression
+                          PrimaryExpression -> Literal
+                            Literal -> IntegerLiteral
+                              IntegerLiteral -> 2
+                                2
+                  BinaryOperator -> *
+                    *
+                  BinaryExpression -> CastExpression
+                    CastExpression -> UnaryExpression
+                      UnaryExpression -> PostfixExpression
+                        PostfixExpression -> PrimaryExpression
+                          PrimaryExpression -> Literal
+                            Literal -> IntegerLiteral
+                              IntegerLiteral -> 3
+                                3
+              ---- alternative 2 ----
+              BinaryExpression -> BinaryExpression BinaryOperator BinaryExpression
+                BinaryExpression -> BinaryExpression BinaryOperator BinaryExpression
+                  BinaryExpression -> CastExpression
+                    CastExpression -> UnaryExpression
+                      UnaryExpression -> PostfixExpression
+                        PostfixExpression -> PrimaryExpression
+                          PrimaryExpression -> Literal
+                            Literal -> IntegerLiteral
+                              IntegerLiteral -> 1
+                                1
+                  BinaryOperator -> +
+                    +
+                  BinaryExpression -> CastExpression
+                    CastExpression -> UnaryExpression
+                      UnaryExpression -> PostfixExpression
+                        PostfixExpression -> PrimaryExpression
+                          PrimaryExpression -> Literal
+                            Literal -> IntegerLiteral
+                              IntegerLiteral -> 2
+                                2
+                BinaryOperator -> *
+                  *
+                BinaryExpression -> CastExpression
+                  CastExpression -> UnaryExpression
+                    UnaryExpression -> PostfixExpression
+                      PostfixExpression -> PrimaryExpression
+                        PrimaryExpression -> Literal
+                          Literal -> IntegerLiteral
+                            IntegerLiteral -> 3
+                              3
+      ;

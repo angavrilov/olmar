@@ -256,14 +256,18 @@ typedef SObjListIter<DottedProduction> DProductionListIter;
 // a set of dotted productions, and the transitions between
 // item sets, as in LR(0) set-of-items construction
 class ItemSet {
-public:
-  // numerical state id, should be unique among item sets
-  // in a particular grammar's sets
-  int id;
+private:    // data
+  // kernel items: the items that define the set; except for
+  // the special case of the initial item in the initial state,
+  // the kernel items are distinguished by having the dot *not*
+  // at the left edge
+  DProductionList kernelItems;
 
-  // the items (kernel items are recognized as the ones
-  // with the dot *not* at the left edge)
-  DProductionList items;
+  // nonkernel items: those derived as the closure of the kernel
+  // items by expanding symbols to the right of dots; here I am
+  // making the choice to materialize them, rather than derive
+  // them on the spot as needed (and may change this decision)
+  DProductionList nonkernelItems;
 
   // transition function (where we go on shifts)
   //   Map : (Terminal id or Nonterminal id)  -> ItemSet*
@@ -273,6 +277,11 @@ public:
   // bounds for above
   int terms;
   int nonterms;
+
+public:	    // data
+  // numerical state id, should be unique among item sets
+  // in a particular grammar's sets
+  int id;
 
   // it's useful to have a BFS tree superimposed on the transition
   // graph; for example, it makes it easy to generate sample inputs
@@ -292,20 +301,27 @@ public:     // funcs
   ItemSet(int id, int numTerms, int numNonterms);
   ~ItemSet();
 
+  // ---- item queries ----
   // the set of items names a symbol as the symbol used
   // to reach this state -- namely, the symbol that appears
   // to the left of a dot.  this fn retrieves that symbol
-  // (if all items have dots at left edge, returns NULL)
+  // (if all items have dots at left edge, returns NULL; this
+  // would be true only for the initial state)
   Symbol const *getStateSymbolC() const;
 
+  // equality is defined as having the same items (basic set equality)
+  bool operator== (ItemSet const &obj) const;
+
+  // sometimes it's convenient to have all items mixed together
+  // (CONSTNESS: allows modification of items...)
+  void getAllItems(DProductionList &dest) const;
+
+  // ---- transition queries ----
   // query transition fn for an arbitrary symbol; returns
   // NULL if no transition is defined
   ItemSet const *transitionC(Symbol const *sym) const;
   ItemSet *transition(Symbol const *sym)
     { return const_cast<ItemSet*>(transitionC(sym)); }
-
-  // set transition on 'sym' to be 'dest'
-  void setTransition(Symbol const *sym, ItemSet *dest);
 
   // get the list of productions that are ready to reduce, given
   // that the next input symbol is 'lookahead' (i.e. in the follow
@@ -313,7 +329,19 @@ public:     // funcs
   void getPossibleReductions(ProductionList &reductions,
                              Terminal const *lookahead) const;
 
-  // debugging
+  // ---- item mutations ----
+  // add a kernel item; used while constructing the state
+  void addKernelItem(DottedProduction *item);
+
+  // add a nonkernel item; used while computing closure; this
+  // item must not already be in the item set
+  void addNonkernelItem(DottedProduction *item);
+
+  // ---- transition mutations ----
+  // set transition on 'sym' to be 'dest'
+  void setTransition(Symbol const *sym, ItemSet *dest);
+
+  // ---- debugging ----
   void writeGraph(ostream &os) const;
   void print(ostream &os) const;
   OSTREAM_OPERATOR(ItemSet)

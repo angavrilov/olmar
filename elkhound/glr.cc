@@ -68,6 +68,52 @@
  *
  *   [GLR] calls this "for-shifter"
  *
+ * 
+ * Discussion of path re-examination, called do-limited-reductions by
+ * [GLR]:
+ *
+ * After thinking about this for some time, I have reached the conclusion
+ * that the only way to handle the above problem is to separate the
+ * collection of paths from the iteration over them.
+ *
+ * Here are several alternative schemes, and the reasons they don't
+ * work:
+ *
+ *   1. [GLR]'s approach of limiting re-examination to those involving
+ *      the new link
+ *
+ *      This fails because it does not prevent re-examined paths
+ *      from appearing in the normal iteration also.
+ *
+ *   2. Modify [GLR] so the new link can't be used after the re-examination
+ *      is complete
+ *
+ *      Then if *another* new link is added, paths involving both new
+ *      links wouldn't be processed.
+ *
+ *   3. Further schemes involving controlling which re-examination stage can
+ *      use which links
+ *
+ *      Difficult to reason about, unclear a correct scheme exists, short
+ *      of the full-blown path-listing approach I'm going to take.
+ *
+ *   4. My first "fix" which assumes there is never more than one path to
+ *      a given parser
+ *
+ *      This is WRONG.  There can be more than one path, even as all such
+ *      paths are labelled the same (namely, with the RHS symbols).  Consider
+ *      grammar "E -> x | E + E" parsing "x+x+x": both toplevel parses use
+ *      the "E -> E + E" rule, and both arrive at the root parser
+ *
+ * So, the solution I will implement is to collect all paths into a list
+ * before processing any of them.  During path re-examination, I also will
+ * collect paths into a list, this time only those that involve the new
+ * link.
+ *
+ * This scheme is clearly correct, since path collection cannot be disrupted
+ * by the process of adding links, and when links are added, exactly the new
+ * paths are collected and processed.  It's easy to see that every path is
+ * considered exactly once.
  */
 
 
@@ -119,14 +165,17 @@ SiblingLink *StackNode::
 }
 
 
-// ------------------ StackSearchState -----------------
-StackSearchState::~StackSearchState()
+// ------------------ PathCollectionState -----------------
+PathCollectionState::~PathCollectionState()
 {}
 
-bool StackSearchState::alreadyVisited(StackNode const *sn) const
+PathCollectionState::ReductionPath::~ReductionPath()
 {
-  // for now, simple
-  return visited.contains(sn);
+  if (reduction) {
+    // should only be executed under exceptional circumstances;
+    // normally, this object owns the reduction only temporarily
+    delete reduction;
+  }
 }
 
 
@@ -161,7 +210,7 @@ void GLR::glrParse(char const *input)
 
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
-  StackNode *first = makeStackNode(itemSets.nth(0));
+  StackNode *first = makeStackNode(itemSets.first());
   activeParsers.append(first);
 
   // for each input symbol
@@ -217,7 +266,8 @@ void GLR::glrParse(char const *input)
   // (the slight advantage to printing the graph first is that
   // if there is circularity in the parse tree, the graph
   // printer will handle it ok, whereas thet tree printer will
-  // get into an infinite loop.)
+  // get into an infinite loop (so at least the graph will be
+  // available in a file after I kill the process))
   writeParseGraph(input);
 
 
@@ -226,11 +276,11 @@ void GLR::glrParse(char const *input)
   // sibling, since that will be the reduction(s) to the start
   // symbol
   TreeNode const *tn =
-    activeParsers.nthC(0)->                     // parser that shifted end-of-stream
-      leftSiblings.nthC(0)->sib->               // parser that shifted start symbol
-      leftSiblings.nthC(0)->                    // sibling link with start symbol
+    activeParsers.firstC()->                    // parser that shifted end-of-stream
+      leftSiblings.firstC()->sib->              // parser that shifted start symbol
+      leftSiblings.firstC()->                   // sibling link with start symbol
       treeNode;                                 // start symbol tree node
-      
+
   // had broken this into pieces while tracking down a problem, and
   // I've decided to leave it this way
   xassert(tn);
@@ -266,6 +316,17 @@ void GLR::postponeShift(StackNode *parser,
 }
 
 
+// experiment: given (a reference to), an owner pointer, yield the pointer
+// value after nullifying the given pointer
+template <class T>
+T *ownershipTransfer(T *&ptr)
+{
+  T *ret = ptr;
+  ptr = NULL;
+  return ret;
+}
+
+
 // mustUseLink: if non-NULL, then we only want to consider
 // reductions that use that link
 void GLR::doAllPossibleReductions(StackNode *parser,
@@ -286,45 +347,61 @@ void GLR::doAllPossibleReductions(StackNode *parser,
     // would be at the top after popping, and then tack on a new
     // StackNode after 'sibling' as the new top of stack
 
-    // however, there might be more than one 'sibling' node, so
-    // we must process all candidates.  (note that each such
-    // candidate defines a unique path -- all paths must be composed
-    // of the same symbol sequence (namely the RHS symbols), and
-    // if more than one such path existed it would indicate a
-    // failure to collapse and share somewhere)
+    // however, there might be more than one 'sibling' node, so we
+    // must process all candidates.  the strategy will be to do a
+    // simple depth-first search
 
-    // so, the strategy will be to do a simple depth-first search
+    // WRONG:
+      // (note that each such candidate defines a unique path -- all
+      // paths must be composed of the same symbol sequence (namely the
+      // RHS symbols), and if more than one such path existed it would
+      // indicate a failure to collapse and share somewhere)
 
-    // during this search, we need some state
-    StackSearchState sss(prod.data(), parser);
+    // CORRECTION:
+      // there *can* be more than one path to a given candidate; see
+      // the comments at the top
 
-    // what's more, during the search, if we ever add a link to
-    // an existing parser node, then that may expose additional
-    // paths; sss.visistedPaths will prevent duplicate visits, and
-    // sss.revisit reports when revisitation may be necessary
-    // (the common case is that it is not necessary)
-    while (sss.revisit == true) {
-      sss.revisit = false;    // clear the flag..
-      sss.passCount++;        // count passes; this is 1 during the first pass
-
-      // do a DFS
-      popStackSearch(sss, rhsLen, parser);
-    }
+    // step 1: collect all paths of length 'rhsLen' that start at
+    // 'parser', via DFS
+    PathCollectionState pcs(prod.data());
+    collectReductionPaths(pcs, rhsLen, parser, mustUseLink);
 
     // invariant: poppedSymbols' length is equal to the recursion
     // depth in 'popStackSearch'; thus, should be empty now
-    xassert(sss.poppedSymbols.isEmpty());
+    xassert(pcs.poppedSymbols.isEmpty());
+
+    // terminology:
+    //   - a 'reduction' is a grammar rule plus the TreeNode children
+    //     that constitute the RHS
+    //	 - a 'path' is a reduction plus the parser (StackNode) that is
+    //     at the end of the sibling link path (which is essentially the
+    //     parser we're left with after "popping" the reduced symbols)
+
+    // step 2: process those paths
+    // ("mutate" because of ownership transfer)
+    MUTATE_EACH_OBJLIST(PathCollectionState::ReductionPath, pcs.paths, pathIter) {
+      PathCollectionState::ReductionPath *rpath = pathIter.data();
+
+      trace("parse")
+	<< "in state " << parser->state->id
+	<< ", reducing by " << *(prod.data())
+       	<< ", to go to state " << rpath->finalState->state->id
+  	<< endl;
+
+      // this is like shifting the reduction's LHS onto 'finalParser'
+      glrShiftNonterminal(rpath->finalState, ownershipTransfer(rpath->reduction));
+    }
   }
 }
 
 
 /*
- * popStackSearch():
+ * collectReductionPaths():
  *   this function searches for all paths (over the
  *   sibling links) of a particular length, starting
  *   at currentNode
  *
- * sss:
+ * pcs:
  *   various search state elements; see glr.h
  *
  * popsRemaining:
@@ -335,79 +412,71 @@ void GLR::doAllPossibleReductions(StackNode *parser,
  *   where we are in the search; this call will consider the
  *   siblings of currentNode
  *
- * ([GLR] called this 'do-reductions')
+ * mustUseLink:
+ *   a particular sibling link that must appear on all collected
+ *   paths; it is NULL if we have no such requirement
+ *
+ * ([GLR] called this 'do-reductions' and 'do-limited-reductions')
  */
-void GLR::popStackSearch(StackSearchState &sss, int popsRemaining,
-                         StackNode *currentNode)
+void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
+                                StackNode *currentNode, SiblingLink *mustUseLink)
 {
   // inefficiency: all this mechanism is somewhat overkill, given that
   // most of the time the reductions are unambiguous and unrestricted
 
   if (popsRemaining == 0) {
-    // see if the state we've reached has already been hit before
-    if (sss.alreadyVisited(currentNode)) {
-      //xassert(sss.passCount > 1);    // can't have already seen it on first pass!
-      trace("parse")
-         << "skipping " << currentNode->state->id
-         << " on pass " << sss.passCount
-         << " because we've already processed it\n";
-      return;    // skip it if so
-    }
+    // we've found a path of the required length
 
-    // we haven't visited it before, but we're doing so right now,
-    // so mark it as such
-    sss.visited.append(currentNode);
-
-    // a little diagnostic output...
-    trace("parse")
-      << "in state " << sss.topOfSearch->state->id
-      << ", reducing by " << *(sss.production)
-      << ", to go to state " << currentNode->state->id
-      << endl;
-
-    if (sss.passCount > 1) {
-      trace("parse") << "(^^^ this is a re-exploration hit; passCount is "
-                     << sss.passCount << ")\n";
+    // if we have failed to use the required link, ignore this path
+    if (mustUseLink != NULL) {
+      return;
     }
 
     // we've popped the required number of symbols; collect the
     // popped symbols into a Reduction
-    Reduction *rn = new Reduction(sss.production);
-    rn->children = sss.poppedSymbols;
+    Reduction *rn = new Reduction(pcs.production);        // (owner)
+    rn->children = pcs.poppedSymbols;
 
     // previously, I had been reversing the children here; that
     // is wrong!  since the most recent symbol prepended is the
     // leftmost one in the input, the list is in the correct order
 
-    // this is like shifting LHS onto 'currentNode'
-    if (glrShiftNonterminal(currentNode, rn)) {
-      // a true return here means we added a link that might make
-      // re-exploration necessary
-      sss.revisit = true;
-    }
+    // and just collect this reduction, and the final state, in our
+    // running list
+    pcs.paths.append(new PathCollectionState::
+      ReductionPath(currentNode, ownershipTransfer(rn)));
   }
 
   else {
     // explore currentNode's siblings
     MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
       // the symbol on the sibling link is being popped
-      sss.poppedSymbols.prepend(sibling.data()->treeNode);
+      pcs.poppedSymbols.prepend(sibling.data()->treeNode);
 
       // recurse one level deeper, having traversed this link
-      popStackSearch(sss, popsRemaining-1, sibling.data()->sib);
+      if (sibling.data() == mustUseLink) {
+        // consumed the mustUseLink requirement
+        collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib,
+                              NULL /*mustUseLink*/);
+      }
+      else {
+        // either no requirement, or we didn't consume it; just
+        // propagate current requirement state
+        collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib, 
+                              mustUseLink);
+      }
 
       // un-pop the tree node, so exploring another path will work
-      sss.poppedSymbols.removeAt(0);
+      pcs.poppedSymbols.removeAt(0);
     }
   }
 }
 
 
-// shift reduction onto 'leftSibling' parser; returns true if doing
-// so may create additional paths that need to be explored by
-// 'popStackSearch'
+// shift reduction onto 'leftSibling' parser
 // ([GLR] calls this 'reducer')
-bool GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
+void GLR::glrShiftNonterminal(StackNode *leftSibling,
+                              Reduction * /*(owner)*/ reduction)
 {
   // this is like a shift -- we need to know where to go
   ItemSet const *rightSiblingState =
@@ -431,8 +500,8 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
       // however, I do need to add a new reduction node to the link
       sibLink->treeNode->asNonterm().addReduction(reduction);
 
-      // didn't add a link, no potential for new paths
-      return false;
+      // and since we didn't add a link, there is no potential for new
+      // paths
     }
 
     else {
@@ -457,14 +526,14 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
       // reductions, and process those that actually use the just-
       // added link
 
-      // UPDATE I think [GLR] has a bug, in that it might traverse a
-      // path twice by doing so once here and again in the normal
-      // course of action.  So my plan is to simply report that
-      // re-exploration is necessary and prevent duplication using a
-      // different mechanism.  (I need to find a good place to
-      // document this...)
-      trace("parse") << "added a link that might require re-exploration\n";
-      return true;
+      // for each 'finished' parser (i.e. those not still on
+      // the worklist)
+      SMUTATE_EACH_OBJLIST(StackNode, activeParsers, parser) {
+        if (parserWorklist.contains(parser.data())) continue;
+
+        // do any reduce actions that are now enabled
+        doAllPossibleReductions(parser.data(), sibLink);
+      }
     }
   }
 
@@ -483,10 +552,9 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction)
     activeParsers.append(rightSibling);
     parserWorklist.append(rightSibling);
 
-    // no need for the elaborate checking above, since we
+    // no need for the elaborate re-checking above, since we
     // just created rightSibling, so no new opportunities
     // for reduction could have arisen
-    return false;
   }
 }
 

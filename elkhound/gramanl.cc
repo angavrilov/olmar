@@ -7,6 +7,7 @@
 #include "strtokp.h"     // StrtokParse
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
+#include "nonport.h"     // getMilliseconds
 
 #include <fstream.h>     // ofstream
 
@@ -607,15 +608,22 @@ void GrammarAnalysis::computePredictiveParsingTable()
 
 
 // [ASU] figure 4.33, p.223
-void GrammarAnalysis::itemSetClosure(DProductionList &itemSet)
+void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 {
   // while no changes
   int changes = 1;
   while (changes > 0) {
     changes = 0;
 
+    // a place to store the items we plan to add
+    DProductionList newItems;
+
+    // grab the current set of items
+    DProductionList items;
+    itemSet.getAllItems(items);
+
     // for each item A -> alpha . B beta in itemSet
-    SFOREACH_DOTTEDPRODUCTION(itemSet, itemIter) {          // (constness ok)
+    SFOREACH_DOTTEDPRODUCTION(items, itemIter) {            // (constness ok)
       DottedProduction const *item = itemIter.data();
 
       // get the symbol B (the one right after the dot)
@@ -627,13 +635,21 @@ void GrammarAnalysis::itemSetClosure(DProductionList &itemSet)
       MUTATE_EACH_PRODUCTION(productions, prod) {           // (constness)
         if (prod.data()->left != B) continue;
 
-        // add B -> . gamma to the itemSet if not already there
-        changes += true==
-          itemSet.appendUnique(
-            prod.data()->getDProd(0 /*dot placement*/));    // (constness)
-
+        // plan to add B -> . gamma to the itemSet, if not already there
+        DottedProduction *dp = prod.data()->getDProd(0 /*dot placement*/);     // (constness)
+        if (!items.contains(dp)) {
+          newItems.append(dp);
+        }
       } // for each production
     } // for each item
+
+    // add the new items (we don't do this while iterating because my
+    // iterator interface says not to, even though it would work with
+    // my current implementation)
+    SMUTATE_EACH_DOTTEDPRODUCTION(newItems, item) {
+      itemSet.addNonkernelItem(item.data());	            // (constness)
+      changes++;
+    }
   } // while changes
 }
 
@@ -661,29 +677,34 @@ ItemSet *GrammarAnalysis::moveDot(ItemSet const *source, Symbol const *symbol)
 {
   ItemSet *ret = makeItemSet();
 
+  DProductionList items;
+  source->getAllItems(items);
+
   // for each item
-  SFOREACH_DOTTEDPRODUCTION(source->items, dprodi) {
+  int appendCt=0;
+  SFOREACH_DOTTEDPRODUCTION(items, dprodi) {
     DottedProduction const *dprod = dprodi.data();
 
     if (dprod->isDotAtEnd() ||
         dprod->symbolAfterDotC() != symbol) {
       continue;    // can't move dot
-    }             
-    
+    }
+
     // move the dot
     DottedProduction *dotMoved =
       dprod->prod->getDProd(dprod->dot + 1);      // (constness!)
 
     // add the new item to the itemset I'm building
-    ret->items.append(dotMoved);
+    ret->addKernelItem(dotMoved);
+    appendCt++;
   }
-  
+
   // for now, verify we actually got something; though it would
   // be easy to simply return null (after dealloc'ing ret)
-  xassert(ret->items.isNotEmpty());
+  xassert(appendCt > 0);
 
   // compute closure of resulting set
-  itemSetClosure(ret->items);
+  itemSetClosure(*ret);
 
   // return built itemset
   return ret;
@@ -707,27 +728,22 @@ ItemSet *GrammarAnalysis::findItemSetInList(ObjList<ItemSet> &list,
 }
 
 
-// true if 'small' is a subset of 'big'
-bool GrammarAnalysis::itemSetContainsItemSet(ItemSet const *big,
-                                             ItemSet const *small)
+STATICDEF bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const *is2)
 {
-  SFOREACH_DOTTEDPRODUCTION(small->items, iter) {
-    if (!big->items.contains(iter.data())) {
-      return false;
-    }
-  }
-  return true;
+  return *is1 == *is2;
 }
 
-bool GrammarAnalysis::itemSetsEqual(ItemSet const *is1, ItemSet const *is2)
-{
-  // inefficiency: n^2 set equality test
-  // inefficiency: linear set membership tests ('contains()')
 
-  // check that each is a subset of the other
-  return itemSetContainsItemSet(is1, is2) &&
-         itemSetContainsItemSet(is2, is1);
-}
+class Timer {
+  long start;
+  long &accumulator;
+     
+public:
+  Timer(long &acc) : accumulator(acc)
+    { start = getMilliseconds(); }
+  ~Timer()
+    { accumulator += getMilliseconds() - start; }
+};
 
 
 // [ASU] fig 4.34, p.224
@@ -745,28 +761,37 @@ void GrammarAnalysis::constructLRItemSets()
   // on LHS, and no other productions have the start symbol
   // on LHS)
   {
-    ItemSet *is = makeItemSet();             // (owner)
+    ItemSet *is = makeItemSet();              // (owner)
     startState = is;
-    is->items.append(productions.nth(0)->    // first production's ..
-                       getDProd(0));         //   .. first dot placement
-    itemSetClosure(is->items);
+    is->addKernelItem(productions.nth(0)->    // first production's ..
+                        getDProd(0));         //   .. first dot placement
+    itemSetClosure(*is);
 
     // this makes the initial pending itemSet
     itemSetsPending.append(is);              // (ownership transfer)
   }
 
 
+  // profiling
+  long totalms=0, movedotms=0, findms=0;
+
+
   // for each pending item set
   while (!itemSetsPending.isEmpty()) {
     ItemSet *itemSet = itemSetsPending.removeAt(0);    // dequeue   (owner; ownership transfer)
+				      
+    Timer totalTimer(totalms);
 
     // put it in the done set; note that we must do this *before*
     // the processing below, to properly handle self-loops
     itemSetsDone.append(itemSet);                      // (ownership transfer; 'itemSet' becomes serf)
 
+    DProductionList items;
+    itemSet->getAllItems(items);
+
     // for each production in the item set where the
     // dot is not at the right end
-    SFOREACH_DOTTEDPRODUCTION(itemSet->items, dprodIter) {
+    SFOREACH_DOTTEDPRODUCTION(items, dprodIter) {
       DottedProduction const *dprod = dprodIter.data();
       if (dprod->isDotAtEnd()) continue;
 
@@ -780,20 +805,28 @@ void GrammarAnalysis::constructLRItemSets()
       }
 
       // fixed: adding transition functions fixes this:
-      // inefficiency: if several productions have X to the
-      // left of the dot, then we will 'moveDot' each time
+	// inefficiency: if several productions have X to the
+	// left of the dot, then we will 'moveDot' each time
 
       // compute the itemSet produced by moving the dot
       // across 'sym' and taking the closure
-      ItemSet *withDotMoved = moveDot(itemSet, sym);
+      ItemSet *withDotMoved;
+      {
+        Timer moveTimer(movedotms);
+        withDotMoved = moveDot(itemSet, sym);
+      }
 
       // inefficiency: we go all the way to materialize the
       // itemset before checking whether we already have it
 
       // see if we already have it, in either set
-      ItemSet *already = findItemSetInList(itemSetsPending, withDotMoved);
-      if (already == NULL) {
-        already = findItemSetInList(itemSetsDone, withDotMoved);
+      ItemSet *already;
+      {
+        Timer findTimer(findms);
+	already = findItemSetInList(itemSetsPending, withDotMoved);
+	if (already == NULL) {
+	  already = findItemSetInList(itemSetsDone, withDotMoved);
+	}
       }
 
       // have it?
@@ -816,6 +849,13 @@ void GrammarAnalysis::constructLRItemSets()
   } // for each item set
 
   
+  trace("profiling")
+    << "total=" << totalms
+    << " movedot=" << movedotms
+    << " find=" << findms
+    << endl;
+
+
   // do the BFS now, since we want to print the sample inputs
   // in the loop that follows
   trace("progress") << "BFS tree on transition graph...\n";

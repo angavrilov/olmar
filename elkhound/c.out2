@@ -1,0 +1,68 @@
+%%% parse-tree: 
+  TranslationUnit -> Declaration TranslationUnit
+    Declaration -> FunctionDefinition
+      FunctionDefinition -> DeclSpecifierSeq Declarator FunctionBody
+        DeclSpecifierSeq -> DeclSpecifier
+          DeclSpecifier -> TypeSpecifier
+            TypeSpecifier -> SimpleTypeSpecifier
+              SimpleTypeSpecifier -> int
+                int
+        Declarator -> DirectDeclarator
+          DirectDeclarator -> DirectDeclarator ( ParameterDeclarationClause ) CVQualifierSeqOpt
+            DirectDeclarator -> VariableName
+              VariableName -> Identifier
+                Identifier -> foo
+                  foo
+            (
+            ParameterDeclarationClause -> ParameterDeclarationList
+              ParameterDeclarationList -> ParameterDeclaration
+                2 ALTERNATIVE PARSES for nonterminal ParameterDeclaration:
+                  ---- alternative 1 ----
+                  ParameterDeclaration -> DeclSpecifierSeq Declarator
+                    DeclSpecifierSeq -> DeclSpecifier
+                      DeclSpecifier -> TypeSpecifier
+                        TypeSpecifier -> SimpleTypeSpecifier
+                          SimpleTypeSpecifier -> int
+                            int
+                    Declarator -> DirectDeclarator
+                      DirectDeclarator -> ( Declarator )
+                        (
+                        Declarator -> DirectDeclarator
+                          DirectDeclarator -> VariableName
+                            VariableName -> Identifier
+                              Identifier -> x
+                                x
+                        )
+                  ---- alternative 2 ----
+                  ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator
+                    DeclSpecifierSeq -> DeclSpecifier
+                      DeclSpecifier -> TypeSpecifier
+                        TypeSpecifier -> SimpleTypeSpecifier
+                          SimpleTypeSpecifier -> int
+                            int
+                    AbstractDeclarator -> DirectAbstractDeclarator
+                      DirectAbstractDeclarator -> DirectAbstractDeclarator ( ParameterDeclarationClause ) CVQualifierSeqOpt
+                        DirectAbstractDeclarator -> empty
+                        (
+                        ParameterDeclarationClause -> ParameterDeclarationList
+                          ParameterDeclarationList -> ParameterDeclaration
+                            ParameterDeclaration -> DeclSpecifierSeq AbstractDeclarator
+                              DeclSpecifierSeq -> DeclSpecifier
+                                DeclSpecifier -> TypeSpecifier
+                                  TypeSpecifier -> SimpleTypeSpecifier
+                                    SimpleTypeSpecifier -> TypedefName
+                                      TypedefName -> Identifier
+                                        Identifier -> x
+                                          x
+                              AbstractDeclarator -> DirectAbstractDeclarator
+                                DirectAbstractDeclarator -> empty
+                        )
+                        CVQualifierSeqOpt -> empty
+            )
+            CVQualifierSeqOpt -> empty
+        FunctionBody -> CompoundStatement
+          CompoundStatement -> { StatementSeqOpt }
+            {
+            StatementSeqOpt -> empty
+            }
+    TranslationUnit -> empty

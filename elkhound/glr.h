@@ -142,49 +142,44 @@ public:
 
 // when a reduction is performed, we do a DFS to find all the ways
 // the reduction can happen; this structure keeps state persistent
-// across the recursion (commends in code have some details, too)
-class StackSearchState {
+// across the recursion (comments in code have some details, too)
+class PathCollectionState {
+public:    // types
+  // each particular reduction possibility is one of these
+  class ReductionPath {
+  public:    
+    // the state we end up in after reducing those symbols
+    StackNode *finalState;        // (serf)
+
+    // the reduction itself
+    Reduction *reduction;         // (owner)
+
+  public:
+    ReductionPath(StackNode *f, Reduction *r)
+      : finalState(f), reduction(r) {}
+    ~ReductionPath();
+  };
+
 public:	   // data
   // ---- stuff that changes ----
   // we collect paths into this list, which is maintained as we
   // enter/leave recursion
   SObjList<TreeNode> poppedSymbols;
 
-  // keeps track of visited paths, by keeping track of visited
-  // parsers; there is never more than one path to a given parser
-  SObjList<StackNode> visited;
-
-  // if we make a change that may require re-visiting the paths,
-  // we'll set this to true (it's also set to true initially, so
-  // the first iteration happens)
-  bool revisit;
-
-  // we increment this for each DFS pass; it's good for diagnostics,
-  // and part of a planned performance optimization
-  int passCount;
+  // as reduction possibilities are encountered, we record them here
+  ObjList<ReductionPath> paths;
 
   // ---- stuff constant across a series of DFSs ----
   // this is the production we're trying to reduce by
   Production const * const production;
 
-  // this is the parser at the top of the search; it's useful for
-  // printing diagnostic messages
-  StackNode const * const topOfSearch;
-
 public:	   // funcs
-  StackSearchState(Production const *p, StackNode const *t)
-    : poppedSymbols(), visited(),    // both empty, initially
-      revisit(true),   	       	     // so first iteration happens
-      passCount(0),	       	     // first ++ will set it to 1 on first pass
-      production(p),
-      topOfSearch(t)
+  PathCollectionState(Production const *p)
+    : poppedSymbols(), paths(),      // both empty, initially
+      production(p)
   {}
 
-  ~StackSearchState();
-
-  // this interface is provided in anticipation of a performance
-  // optimization I plan
-  bool alreadyVisited(StackNode const *sn) const;
+  ~PathCollectionState();
 };
 
 
@@ -235,9 +230,9 @@ private:    // funcs
                      ObjList<PendingShift> &pendingShifts);
   void doAllPossibleReductions(StackNode *parser,
                                SiblingLink *mustUseLink);
-  void popStackSearch(StackSearchState &sss, int popsRemaining,
-                      StackNode *currentNode);
-  bool glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
+  void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
+                             StackNode *currentNode, SiblingLink *mustUseLink);
+  void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state);

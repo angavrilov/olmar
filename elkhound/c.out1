@@ -1,0 +1,40 @@
+%%% parse-tree: 
+  TranslationUnit -> Declaration TranslationUnit
+    Declaration -> FunctionDefinition
+      FunctionDefinition -> DeclSpecifierSeq Declarator FunctionBody
+        DeclSpecifierSeq -> DeclSpecifier
+          DeclSpecifier -> TypeSpecifier
+            TypeSpecifier -> SimpleTypeSpecifier
+              SimpleTypeSpecifier -> int
+                int
+        Declarator -> DirectDeclarator
+          DirectDeclarator -> DirectDeclarator ( ParameterDeclarationClause ) CVQualifierSeqOpt
+            DirectDeclarator -> VariableName
+              VariableName -> Identifier
+                Identifier -> foo
+                  foo
+            (
+            ParameterDeclarationClause -> empty
+            )
+            CVQualifierSeqOpt -> empty
+        FunctionBody -> CompoundStatement
+          CompoundStatement -> { StatementSeqOpt }
+            {
+            StatementSeqOpt -> StatementSeqOpt Statement
+              StatementSeqOpt -> empty
+              Statement -> return Expression ;
+                return
+                Expression -> AssignmentExpression
+                  AssignmentExpression -> ConditionalExpression
+                    ConditionalExpression -> BinaryExpression
+                      BinaryExpression -> CastExpression
+                        CastExpression -> UnaryExpression
+                          UnaryExpression -> PostfixExpression
+                            PostfixExpression -> PrimaryExpression
+                              PrimaryExpression -> Literal
+                                Literal -> IntegerLiteral
+                                  IntegerLiteral -> 3
+                                    3
+                ;
+            }
+    TranslationUnit -> empty

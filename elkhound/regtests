@@ -1,0 +1,37 @@
+#!/bin/sh
+# regression tests
+
+doRegTest() {
+  # arguments
+  basename=$1
+  testnum=$2
+
+  # convenience
+  grammar=${basename}.gr
+  input=${basename}.in${testnum}
+  output=${basename}.out${testnum}
+
+  # run it				    
+  echo "grammar $grammar with input $input..."
+  ./glr -tr parse-tree $grammar $input > tmp
+
+  # compare it
+  if diff --brief tmp $output >/dev/null; then
+    true  # no-op; they are the same
+  else
+    echo "grammar $grammar and input $input didn't produce output $output"
+    echo "(actual output is in file tmp)"
+    exit 2
+  fi
+
+  # trash output
+  rm tmp
+}
+
+# testcases
+doRegTest castprob 1
+doRegTest expr 1
+doRegTest c 1
+doRegTest c 2
+doRegTest c 3
+
