@@ -9,6 +9,7 @@
 // The name 'variable' is a slight misnomer; it's used for naming:
 //   - local and global variables
 //   - logic variables (in the thmprv context)
+//   - function names
 //   - function parameters
 //   - structure fields
 //   - enumeration values
