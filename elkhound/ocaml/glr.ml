@@ -158,6 +158,12 @@ let cTYPICAL_MAX_REDUCTION_PATHS = 5
 let cINITIAL_RHSLEN_SIZE = 10
 
 
+(* ------------------ accounting statistics ----------------- *)
+let numStackNodesAllocd: int ref = ref 0
+
+let maxStackNodesAllocd: int ref = ref 0
+
+
 (* ------------------ generic utilities --------------------- *)
 let isEmpty (lst: 'a list) : bool =
 begin
@@ -277,20 +283,46 @@ begin
   (xassertdb (isNone ths.firstSib.sib));
   ths.referenceCount <- 0;
   ths.determinDepth <- 1;
+  
+  if (accounting) then (
+    (incr numStackNodesAllocd);
+    if (!numStackNodesAllocd > !maxStackNodesAllocd) then (
+      maxStackNodesAllocd := !numStackNodesAllocd;
+    );
+    (Printf.printf "(!!!) init stack node: num=%d max=%d\n"
+                   !numStackNodesAllocd
+                   !maxStackNodesAllocd);
+    (flush stdout);
+  );
 end
 
-let deinitStackNode (ths: tStackNode) : unit =
+let rec deinitStackNode (ths: tStackNode) : unit =
 begin
   (deallocSemanticValues ths);
+
+  (* this is implicit in the C++ implementation because firstSib.sib
+   * is an RCPtr in C++ *)
+  (match ths.firstSib.sib with
+  | None -> ()
+  | Some(s) -> (decRefCt s));
+
   ths.firstSib.sib <- None;
+
+  if (accounting) then (
+    (decr numStackNodesAllocd);
+    (Printf.printf "(...) deinit stack node: num=%d max=%d\n"
+                   !numStackNodesAllocd
+                   !maxStackNodesAllocd);
+    (flush stdout);
+  );
 end
 
-let incRefCt (ths: tStackNode) : unit =
+and incRefCt (ths: tStackNode) : unit =
 begin
   ths.referenceCount <- ths.referenceCount + 1;
 end
 
-let decRefCt (ths: tStackNode) : unit =
+and decRefCt (ths: tStackNode) : unit =
 begin
   (xassert (ths.referenceCount > 0));
 

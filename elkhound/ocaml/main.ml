@@ -20,7 +20,7 @@ object (self)
       (self#setIntSval 0);        (* clear previous *)
 
       let c:char =
-        if (false) then (
+        if (true) then (
           (* read from stdin *)
           (input_char stdin)
         )
@@ -129,7 +129,13 @@ begin
     )
     else (
       (Printf.printf "GLR parse error\n");
-    )
+    );
+
+    (* print accounting statistics from glr.ml *)    
+    (Printf.printf "stack nodes: num=%d max=%d\n"
+                   !numStackNodesAllocd
+                   !maxStackNodesAllocd);
+    (flush stdout);
   );
 end
 ;;
