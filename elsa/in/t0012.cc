@@ -37,3 +37,10 @@ int Foo::func()
 //ERROR3: int Foo::func() {  return 18; }
 
 //ERROR4: void Foo::func2() {}
+
+
+// I think this doesn't work during printing..
+int foo(Foo * const ths);
+
+// what about this?
+Foo * const arf;

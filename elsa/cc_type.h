@@ -451,7 +451,9 @@ public:     // types
 
 public:     // data
   Type *retType;               // (serf) type of return value
-  CVFlags cv;                  // const/volatile for class member fns
+  //CVFlags cv;                  // const/volatile for class member fns
+  bool isMember;               // true for nonstatic member functions, 
+                               // in which case the first parameter is 'this'
   SObjList<Variable> params;   // list of function parameters
   bool acceptsVarargs;         // true if add'l args are allowed
   ExnSpec *exnSpec;            // (nullable owner) allowable exceptions if not NULL
@@ -461,7 +463,10 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
-  FunctionType(Type *retType, CVFlags cv);
+  
+  // if you call this with 'isMember' set to true, you must also
+  // add the 'this' parameter (ideally, immediately)
+  FunctionType(Type *retType, bool isMember);
 
 public:
   virtual ~FunctionType();
@@ -472,13 +477,18 @@ public:
 
   // append a parameter to the (ordinary) parameters list
   void addParam(Variable *param);
-  
+
   // called when we're done adding parameters to this function
   // type, thus any Type annotation system can assume the
   // function type is now completely described
   virtual void doneParams();
 
   bool isTemplate() const { return templateParams!=NULL; }
+  
+  CVFlags getThisCV() const;         // dig down; or CV_NONE if !isMember
+
+  Variable const *getThisC() const;  // 'isMember' must be true
+  Variable *getThis() { return const_cast<Variable*>(getThisC()); }
 
   // more specialized printing, for Cqual++ syntax
   virtual string rightStringUpToQualifiers(bool innerParen) const;
@@ -636,7 +646,7 @@ public:
   virtual PointerType *makePointerType(SourceLoc loc,
     PtrOper op, CVFlags cv, Type *atType)=0;
   virtual FunctionType *makeFunctionType(SourceLoc loc,
-    Type *retType, CVFlags cv)=0;
+    Type *retType, bool isMember)=0;
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size = ArrayType::NO_SIZE)=0;
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,
@@ -676,15 +686,20 @@ public:
   // similar for a function type; the parameters will be added by
   // the caller after this function returns
   virtual FunctionType *syntaxFunctionType(SourceLoc loc,
-    Type *retType, CVFlags cv, D_func *syntax);
-    
+    Type *retType, D_func *syntax);
+
+  // this version is for nonstatic member functions; you have to
+  // pass the 'this' variable
+  virtual FunctionType *syntaxMemberFunctionType(SourceLoc loc,
+    Type *retType, Variable *thisVar, D_func *syntax);
+
   // and another for pointer-to-member
   virtual PointerToMemberType *syntaxPointerToMemberType(SourceLoc loc,
     CompoundType *inClass, CVFlags cv, Type *atType, D_ptrToMember *syntax);
 
-  // given a class and a method, build the type of the 'this' pointer
+  // given a class, build the type of the 'this' pointer
   virtual PointerType *makeTypeOf_this(SourceLoc loc,
-    CompoundType *classType, FunctionType *methodType);
+    CompoundType *classType, CVFlags cv, D_func *syntax);
 
   // given a function type and a return type, make a new function
   // type which has the same qualifiers as the given one, but otherwise
@@ -743,8 +758,8 @@ public:    // funcs
     AtomicType *atomic, CVFlags cv);
   virtual PointerType *makePointerType(SourceLoc loc, 
     PtrOper op, CVFlags cv, Type *atType);
-  virtual FunctionType *makeFunctionType(SourceLoc loc, 
-    Type *retType, CVFlags cv);
+  virtual FunctionType *makeFunctionType(SourceLoc loc,
+    Type *retType, bool isMember);
   virtual ArrayType *makeArrayType(SourceLoc loc,
     Type *eltType, int size);
   virtual PointerToMemberType *makePointerToMemberType(SourceLoc loc,

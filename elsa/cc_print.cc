@@ -219,7 +219,7 @@ void Function::print(PrintEnv &env)
     }
   }
 
-  if (handlers) env << "try";
+  if (handlers) env << "\ntry";
 
   body->print(env);
 

@@ -705,7 +705,10 @@ string PointerType::leftString(bool /*innerParen*/) const
     s << "(";
   }
   s << (op==PO_POINTER? "*" : "&");
-  s << cvToString(cv);
+  if (cv) {
+    // 1/03/03: added this space so "Foo * const arf" prints right (t0012.cc)
+    s << cvToString(cv) << " ";
+  }
   return s;
 }
 
@@ -754,9 +757,9 @@ bool FunctionType::ExnSpec::anyCtorSatisfies(Type::TypePred pred) const
 
 
 // -------------------- FunctionType -----------------
-FunctionType::FunctionType(Type *r, CVFlags c)
+FunctionType::FunctionType(Type *r, bool i)
   : retType(r),
-    cv(c),
+    isMember(i),
     params(),
     acceptsVarargs(false),
     exnSpec(NULL),
@@ -778,7 +781,7 @@ FunctionType::~FunctionType()
 bool FunctionType::innerEquals(FunctionType const *obj) const
 {
   if (retType->equals(obj->retType) &&
-      //cv == obj->cv &&     // this is part of the parameter list
+      isMember == obj->isMember &&
       acceptsVarargs == obj->acceptsVarargs) {
     // so far so good, try the parameters
     return equalParameterLists(obj) &&
@@ -791,21 +794,6 @@ bool FunctionType::innerEquals(FunctionType const *obj) const
 
 bool FunctionType::equalParameterLists(FunctionType const *obj) const
 {
-  if (cv != obj->cv) {
-    // The 'cv' qualifier is really attached to the 'this' parameter.
-    // It's important to check this here, since disequality of
-    // parameter lists (including 'this') is part of the criteria for
-    // allowing overloading, and it *is* legal to overload with
-    // different 'cv' flags on a class method.
-    //
-    // In this case, since they are different we'll return false, so
-    // the type checker will think a different function is being
-    // declared.  Were we to return true, the type checker might think
-    // the same function was being defined twice, since the types would
-    // appear to be the same.
-    return false;
-  }
-
   SObjListIter<Variable> iter1(params);
   SObjListIter<Variable> iter2(obj->params);
   for (; !iter1.isDone() && !iter2.isDone();
@@ -859,6 +847,25 @@ void FunctionType::doneParams()
 {}
 
 
+Variable const *FunctionType::getThisC() const
+{
+  xassert(isMember);
+  return params.firstC();
+}
+
+CVFlags FunctionType::getThisCV() const
+{
+  if (isMember) {
+    // expect 'this' to be of type 'SomeClass cv * const', and
+    // dig down to get that 'cv'
+    return getThisC()->type->asPointerType()->cv;
+  }
+  else {
+    return CV_NONE;
+  }
+}
+
+
 string FunctionType::leftString(bool innerParen) const
 {
   stringBuilder sb;
@@ -870,7 +877,7 @@ string FunctionType::leftString(bool innerParen) const
 
   // return type and start of enclosing type's description
 
-  // NOTE: we do *not* propagate 'innerParen'!  
+  // NOTE: we do *not* propagate 'innerParen'!
   sb << retType->leftString();
   if (innerParen) {
     sb << "(";
@@ -901,7 +908,13 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
   sb << "(";
   int ct=0;
   SFOREACH_OBJLIST(Variable, params, iter) {
-    if (ct++ > 0) {
+    ct++;
+    if (isMember && ct==1) {
+      // don't actually print the first parameter
+      //sb << "/*member*/ ";
+      continue;
+    }
+    if (ct >= 3 || (!isMember && ct>=2)) {
       sb << ", ";
     }
     sb << iter.data()->toStringAsParameter();
@@ -923,6 +936,7 @@ string FunctionType::rightStringAfterQualifiers() const
 {
   stringBuilder sb;
 
+  CVFlags cv = getThisCV();
   if (cv) {
     sb << " " << ::toString(cv);
   }
@@ -1241,8 +1255,7 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
     default:    // silence warning
     case Type::T_FUNCTION:
     case Type::T_ARRAY:
-      // can't apply CV to either of these (function has CV, but
-      // can't get it after the fact)
+      // can't apply CV to either of these
       return NULL;
   }
 }
@@ -1267,9 +1280,17 @@ PointerType *TypeFactory::syntaxPointerType(SourceLoc loc,
 
 
 FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
-  Type *retType, CVFlags cv, D_func *syntax)
+  Type *retType, D_func *syntax)
 {
-  return makeFunctionType(loc, retType, cv);
+  return makeFunctionType(loc, retType, false /*isMember*/);
+}
+
+FunctionType *TypeFactory::syntaxMemberFunctionType(SourceLoc loc,
+  Type *retType, Variable *thisVar, D_func *syntax)
+{
+  FunctionType *ft = makeFunctionType(loc, retType, true /*isMember*/);
+  ft->addParam(thisVar);
+  return ft;
 }
 
 
@@ -1280,9 +1301,9 @@ PointerToMemberType *TypeFactory::syntaxPointerToMemberType(SourceLoc loc,
 }  
 
 PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
-  CompoundType *classType, FunctionType *methodType)
+  CompoundType *classType, CVFlags cv, D_func *syntax)
 {
-  CVAtomicType *at = makeCVAtomicType(loc, classType, methodType->cv);
+  CVAtomicType *at = makeCVAtomicType(loc, classType, cv);
   return makePointerType(loc, PO_POINTER, CV_CONST, at);
 }
 
@@ -1290,7 +1311,7 @@ PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
 FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
-  return makeFunctionType(loc, retType, similar->cv);
+  return makeFunctionType(loc, retType, similar->isMember);
 }
 
 
@@ -1361,9 +1382,9 @@ PointerType *BasicTypeFactory::makePointerType(SourceLoc,
 
 
 FunctionType *BasicTypeFactory::makeFunctionType(SourceLoc,
-  Type *retType, CVFlags cv)
+  Type *retType, bool isMember)
 {
-  return new FunctionType(retType, cv);
+  return new FunctionType(retType, isMember);
 }
 
 

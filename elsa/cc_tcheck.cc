@@ -382,22 +382,29 @@ void Function::tcheck(Env &env, bool checkBody)
   }
 
   // is this a nonstatic member function?
-  if (nameAndParams->var->scope &&
-      nameAndParams->var->scope->curCompound &&
-      !nameAndParams->var->hasFlag(DF_STATIC)) {
-    CompoundType *ct = nameAndParams->var->scope->curCompound;
+  #if 0    // old; remove me
+    if (nameAndParams->var->scope &&
+        nameAndParams->var->scope->curCompound &&
+        !nameAndParams->var->hasFlag(DF_STATIC)) {
+      CompoundType *ct = nameAndParams->var->scope->curCompound;
 
-    // make a type which is a pointer to the class that this
-    // function is a member of; if the function has been declared
-    // with some 'cv' flags, then those become attached to the
-    // pointed-to type; the pointer itself is always 'const'
-    SourceLoc loc = nameAndParams->var->loc;
-    Type *thisType = env.tfac.makeTypeOf_this(loc, ct, funcType);
+      // make a type which is a pointer to the class that this
+      // function is a member of; if the function has been declared
+      // with some 'cv' flags, then those become attached to the
+      // pointed-to type; the pointer itself is always 'const'
+      SourceLoc loc = nameAndParams->var->loc;
+      Type *thisType = env.tfac.makeTypeOf_this(loc, ct, funcType);
 
-    // add the implicit 'this' parameter (the pointer is an AST annotation)
-    thisVar = env.makeVariable(loc, env.str("this"), thisType, DF_NONE);
-    env.addVariable(thisVar);
-  }
+      // add the implicit 'this' parameter (the pointer is an AST annotation)
+      thisVar = env.makeVariable(loc, env.str("this"), thisType, DF_NONE);
+      env.addVariable(thisVar);
+    }
+  #else
+    if (funcType->isMember) {
+      this->thisVar = funcType->getThis();
+      env.addVariable(thisVar);
+    }
+  #endif
 
   // have to check the member inits after adding the parameters
   // to the environment, because the initializing expressions
@@ -1557,13 +1564,20 @@ Type *makeConversionOperType(Env &env, SourceLoc loc,
     // need a function which returns 'destType', but has the
     // other characteristics gathered into 'spec'; make sure
     // 'spec' is a function type
-    if (!spec->isFunctionType()) {
+    if (!spec->isFunctionType() ) {
       env.error("conversion operator must be a function");
       return spec;
     }
     FunctionType *specFunc = spec->asFunctionType();
+          
+    // I'm not sure if this can actually happen..
+    if (!specFunc->isMember) {
+      env.error("conversion operator must be a member function");
+      return spec;
+    }
 
-    if (specFunc->params.isNotEmpty() || specFunc->acceptsVarargs) {
+    if (specFunc->params.count()!=1  ||   // for 'this'
+        specFunc->acceptsVarargs) {
       env.error("conversion operator cannot accept arguments");
       return spec;
     }
@@ -1573,6 +1587,7 @@ Type *makeConversionOperType(Env &env, SourceLoc loc,
     // in particular, fill in the conversion destination type as
     // the function's return type
     FunctionType *ft = env.tfac.makeSimilarFunctionType(loc, destType, specFunc);
+    ft->addParam(specFunc->getThis());
     ft->templateParams = env.takeTemplateParams();
 
     return ft;
@@ -2141,7 +2156,30 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);
 
-  FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, cv, this);
+  FunctionType *ft;
+
+  // is this a nonstatic member function?
+  if (env.scope()->curCompound &&
+      !(dt.dflags & DF_STATIC)) {
+    // yes; make the implicit 'this' parameter
+    CompoundType *inClass = env.scope()->curCompound;
+    Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, cv, this);
+    Variable *thisVar = env.makeVariable(loc, env.str("this"), thisType, DF_NONE);
+
+    // make a nonstatic member function type
+    ft = env.tfac.syntaxMemberFunctionType(loc, dt.type, thisVar, this);
+  }
+  else {
+    // check that no 'cv' flags are specified
+    if (cv) {
+      env.error("cannot specify const/volatile on nonmember functions, nor "
+                "static member functions");
+    }
+
+    // make an ordinary function type
+    ft = env.tfac.syntaxFunctionType(loc, dt.type, this);
+  }
+  //FunctionType *ft = env.tfac.syntaxFunctionType(loc, dt.type, cv, this);
   ft->templateParams = env.takeTemplateParams();
 
   // make a new scope for the parameter list

@@ -97,10 +97,11 @@ ccparse: $(CCPARSE_OBJS)
 	$(CXX) -o $@ $(CCPARSE_OBJS) $(LDFLAGS)
 
 
-# run the binary
-.PHONY: quicktest
+# run the binary; the 'quicktest' file is so we don't run it if
+# 'ccparse' hasn't recently changed
 quicktest: ccparse
 	./ccparse in/t0001.cc
+	@touch quicktest
 	@echo BUILD FINISHED
 
 
