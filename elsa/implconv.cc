@@ -301,34 +301,4 @@ void test_getImplicitConversion(
 }
 
 
-// ----------------- CompressedImplicitConversion -----------------
-void CompressedImplicitConversion::encode(ImplicitConversion const &ic)
-{                                      
-  // need at least 32 bits to work with
-  STATIC_ASSERT(sizeof(unsigned) >= 4);
-
-  kind_scs_scs2 = (unsigned)ic.kind | 
-                  ((unsigned)ic.scs << 8) |
-                  ((unsigned)ic.scs2 << 16);
-  user = ic.user;
-}
-
-ImplicitConversion CompressedImplicitConversion::decode() const
-{
-  ImplicitConversion ic;
-
-  ic.kind = (ImplicitConversion::Kind)(kind_scs_scs2 & 0xFF);
-  xassert((unsigned)ic.kind < ImplicitConversion::NUM_KINDS);
-
-  // it's difficult to check these for sanity because the encoding
-  // is relatively dense
-  ic.scs = (StandardConversion)((kind_scs_scs2 >> 8) & 0xFF);
-  ic.scs2 = (StandardConversion)((kind_scs_scs2 >> 16) & 0xFF);
-
-  ic.user = user;      
-  
-  return ic;
-}
-
-
 // EOF

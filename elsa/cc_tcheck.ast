@@ -12,7 +12,6 @@
 verbatim {
   #include "variable.h"      // Variable
   #include "cc_type.h"       // Type, FunctonType, CompoundType
-  #include "implconv.h"      // CompressedImplicitConversion
 
   class Env;                 // cc_env.h
 }

@@ -29,7 +29,8 @@ class Env;             // cc_env.h
 // of the following kinds.  ORing together zero or one conversion from
 // each group yields a Standard Conversion Sequence.  The encoding is
 // designed to fit into a single byte so that CompressedImplicitConversion
-// can fit into 8 bytes.
+// can fit into 8 bytes (7/30/04: that class is now gone, but I still
+// like the tight encoding).
 enum StandardConversion {
   SC_IDENTITY        = 0x00,  // types are identical
 
