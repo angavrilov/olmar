@@ -34,6 +34,13 @@ void TF_template::tcheck(Env &env)
   td->tcheck(env);
 }
 
+void TF_linkage::tcheck(Env &env)
+{  
+  env.setLoc(loc);
+  // ignore the linkage type
+  forms->tcheck(env);
+}
+
 
 // --------------------- Function -----------------
 void Function::tcheck(Env &env, bool checkBody)
