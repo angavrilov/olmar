@@ -685,7 +685,7 @@ testparse d0107.cc # "assertion failure in MatchTypes"
 testparse d0108.cc
 failparse d0109.cc "'using' same namespace twice causes error"
 failparse d0110.cc "class specialization without 'template' prefix?"
-failparse d0111.cc "templatized member type not accessible?"
+testparse d0111.cc # "failure to use 'typename' when defining static member"
 failparse d0112.cc "some template dependent name problem"
 testparse d0113.cc
 failparse d0114.cc "overloading bug"

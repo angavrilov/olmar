@@ -1210,8 +1210,16 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
   }
 
   if (!v->hasFlag(DF_TYPEDEF)) {
-    return env.error(stringc
-      << "variable name `" << *name << "' used as if it were a type", eflags);
+    if (v->type->isSimple(ST_DEPENDENT)) {
+      // more informative error message (in/d0111.cc, error 1)
+      return env.error(stringc
+        << "dependent name `" << *name
+        << "' used as a type, but the 'typename' keyword was not supplied", eflags);
+    }
+    else {
+      return env.error(stringc
+        << "variable name `" << *name << "' used as if it were a type", eflags);
+    }
   }
 
   // TODO: access control check
