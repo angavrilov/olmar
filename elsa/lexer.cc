@@ -280,7 +280,7 @@ string Lexer::tokenDesc() const
   }
   else {
     // for all others, consult the static table
-    return string(toString(type));
+    return string(toString((TokenType)type));
   }
 }
 
