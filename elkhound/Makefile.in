@@ -39,6 +39,9 @@ OCAMLINCL includes += -I/usr/lib/ocaml
 OCAMLINCL ccflags += -DWES_OCAML_LINKAGE
 OCAMLINCL cflags += -DWES_OCAML_LINKAGE
 
+# make warnings into errors so I always get a chance to fix them
+ccflags = -Werror
+
 # when uncommented, we get profiling info
 #ccflags = -pg
 
@@ -103,8 +106,10 @@ lexer2: ${lexer2-dep} lexer2.h
 	${link} -o lexer2 -DTEST_LEXER2 ${lexer2-dep} ${linkend}
 
 # grammar lexer
-gramlex.yy.cc: gramlex.h gramlex.cc gramlex.lex grampar.codes.h
+gramlex.yy.cc: gramlex.lex
 	flex -ogramlex.yy.cc gramlex.lex                     
+
+gramlex.yy.o: gramlex.h gramlex.cc grampar.codes.h
 
 # grammar lexer test program
 gramlex-dep = gramlex.yy.cc gramlex.cc fileloc.o ccsstr.o ${common} \
