@@ -197,7 +197,29 @@ bool Env::addVariable(Variable *v, bool forceReplace)
 {
   Scope *s = acceptingScope();
   registerVariable(v);
-  return s->addVariable(v, forceReplace);
+  if (!s->addVariable(v, forceReplace)) {
+    return false;
+  }
+
+  if (s->curCompound &&
+      s->curCompound->keyword == CompoundType::K_UNION &&
+      s->curCompound->name == NULL) {
+    // we just added a field to an anonymous union, which won't
+    // do much good; also add it to the enclosing scope
+    if (s != scopes.first()) {
+      error("did you just make a templatized member of an "
+            "anonymous union?  don't do that!");
+      return true;
+    }
+
+    Scope *s2 = scopes.nth(1);
+    s2->addVariable(v, forceReplace);
+
+    // do what registerVariable would do.. sorta.. hmm..
+    v->scope = s2;
+  }
+
+  return true;
 }
 
 void Env::registerVariable(Variable *v)
