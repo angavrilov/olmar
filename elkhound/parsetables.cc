@@ -88,8 +88,6 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
     productionsForState = NULL;
   }
 
-  bigAmbigPtrTableSize = 0;
-  bigAmbigPtrTable = NULL;
   if (ENABLE_CRS_COMPRESSION) {
     allocZeroArray(ambigStateTable, numStates);
   }
@@ -128,6 +126,17 @@ ParseTables::~ParseTables()
 
     delete[] nontermOrder;
 
+    if (firstWithTerminal) {
+      delete[] firstWithTerminal;
+    }
+    if (firstWithNonterminal) {
+      delete[] firstWithNonterminal;
+    }
+    
+    if (bigProductionList) {
+      delete[] bigProductionList;
+    }
+
     if (errorBits) {
       delete[] errorBits;
     }
@@ -137,9 +146,15 @@ ParseTables::~ParseTables()
   }
 
   // these are always owned
+  if (productionsForState) {
+    delete[] productionsForState;
+  }
+  if (ambigStateTable) {
+    delete[] ambigStateTable;
+  }
   if (errorBitsPointers) {
     delete[] errorBitsPointers;
-  }            
+  }
   if (actionRowPointers) {
     delete[] actionRowPointers;
   }
@@ -148,10 +163,8 @@ ParseTables::~ParseTables()
 
 ParseTables::TempData::TempData(int numStates)
   : ambigTable(),
-    recentAmbig(0),
     bigProductionList(),
     productionsForState(numStates),
-    bigAmbigPtrTable(),
     ambigStateTable(numStates)
 {
   productionsForState.setAll(UNASSIGNED);
@@ -195,8 +208,17 @@ ParseTables::ParseTables(bool o)
 
 #if ENABLE_CRS_COMPRESSION
 ActionEntry makeAE(ActionEntryKind k, int index)
-{
-  xassert((unsigned)index <= AE_MAXINDEX); // must fit into 6 bits for my encoding
+{                                      
+  // must fit into 6 bits for my encoding
+  if ((unsigned)index <= AE_MAXINDEX) {
+    // ok
+  }
+  else {                     
+    // this is just so I can see the resulting truncated table;
+    // the parser will *not* work
+    cout << "error: index " << index << " truncated!\n";
+    index = AE_MAXINDEX;
+  }
   return k | index;
 }
 #endif
@@ -222,13 +244,13 @@ ActionEntry ParseTables::encodeReduce(int prodId, StateId inWhatState)
       // starting a new set of per-state productions
       temp->productionsForState[inWhatState] = end;
       temp->bigProductionList.push(prodId);
-      return AE_REDUCTION | 0 /*first in set*/;
+      return AE_REDUCE | 0 /*first in set*/;
     }
     else {
       // continuing a set; search for existing 'prodId' in that set
       int delta;
       for (int i=begin; i<end; i++) {
-        if (temp->productionsForState[i] == prodId) {
+        if (temp->bigProductionList[i] == prodId) {
           // re-use this offset
           delta = i-begin;
           goto encode;
@@ -240,7 +262,7 @@ ActionEntry ParseTables::encodeReduce(int prodId, StateId inWhatState)
       delta = end-begin;
 
     encode:
-      return makeAE(AE_REDUCTION, delta);
+      return makeAE(AE_REDUCE, delta);
     }
 
   #else
@@ -249,29 +271,71 @@ ActionEntry ParseTables::encodeReduce(int prodId, StateId inWhatState)
 }
 
 
-ActionEntry ParseTables::encodeAmbig(int ambigId, StateId inWhatState)
+ActionEntry ParseTables::encodeAmbig
+  (ArrayStack<ActionEntry> const &set, StateId inWhatState)
 {
   #if ENABLE_CRS_COMPRESSION
     int begin = temp->ambigStateTable[inWhatState];
-    int end = temp->bigAmbigPtrTable.length();
+    int end = temp->ambigTable.length();
     if (begin == UNASSIGNED) {
       // starting a new set of per-state ambiguous actions
       temp->ambigStateTable[inWhatState] = end;
-      temp->bigAmbigPtrTable.push(ambigId);
-      return AE_AMBIGUOUS | 0 /*first in set*/;
+      appendAmbig(set);
+      return makeAE(AE_AMBIGUOUS, 0 /*first in set*/);
     }
     else {
-      // continuing a set; in this case, we don't search for a
-      // duplicate because 'ambigId's are assigned monotonically
-      // so there would not be one
-      temp->bigAmbigPtrTable.push(ambigId);
-      int delta = end-begin;
-      return makeAE(AE_AMBIGUOUS, delta);
+      // continuing a set: Look for another ambiguous action set in
+      // the same line that has identical contents.  Due to the way
+      // sets are constructed, their representation is canonical.
+      // This is important because some grammars (cc2) have many
+      // ambiguous entries, but they're all the same set of actions;
+      // were we to not consolidate like this, the 6-bit cell encoding
+      // would not be enough.
+
+      // # of big-table entries that will be used
+      int encodeLen = set.length()+1;
+
+      for (int i=begin; i+encodeLen <= end; i++) {
+        // does this offset contain the same set of actions?
+        if (compareAmbig(set, i)) {
+          return makeAE(AE_AMBIGUOUS, i-begin /*delta*/);
+        }
+      }
+
+      // no match
+      temp->ambigStateTable[inWhatState] = end;
+      appendAmbig(set);
+      return makeAE(AE_AMBIGUOUS, end-begin /*delta*/);
     }
 
   #else
-    return validateAction(numStates+ambigId+1);
+    int end = temp->ambigTable.length();
+    appendAmbig(set);
+    return validateAction(numStates+end+1);
   #endif
+}
+
+
+void ParseTables::appendAmbig(ArrayStack<ActionEntry> const &set)
+{
+  temp->ambigTable.push(set.length());
+  for (int j=0; j < set.length(); j++) {
+    temp->ambigTable.push(set[j]);
+  }
+}
+
+bool ParseTables::compareAmbig(ArrayStack<ActionEntry> const &set,
+                               int startIndex)
+{
+  if (temp->ambigTable[startIndex] != set.length()) {
+    return false;           // mismatch in 1st entry
+  }
+  for (int j=0; j < set.length(); j++) {
+    if (temp->ambigTable[startIndex+1+j] != set[j]) {
+      return false;         // mismatch in j+2nd entry
+    }
+  }
+  return true;              // match!
 }
 
 
@@ -282,29 +346,6 @@ ActionEntry ParseTables::encodeError() const
   #else
     return validateAction(0);
   #endif
-}
-
-
-ActionEntry ParseTables::beginAmbig(int numActions, StateId inState)
-{
-  temp->recentAmbig = encodeAmbig(temp->ambigTable.length(), inState);
-
-  // first element is the # of actions
-  temp->ambigTable.push(numActions);
-
-  return temp->recentAmbig;
-}
-
-void ParseTables::addAmbig(ActionEntry ambigHeader, ActionEntry newAction)
-{
-  xassert(temp->recentAmbig == ambigHeader);
-  temp->ambigTable.push(newAction);
-}
-
-void ParseTables::finishAmbig(ActionEntry ambigHeader)
-{
-  xassert(temp->recentAmbig == ambigHeader);
-  temp->recentAmbig = 0;
 }
 
 
@@ -323,8 +364,13 @@ template <class T>
 void copyIndexPtrArray(int len, T **&dest, T *base, ArrayStack<int> const &src)
 {
   dest = new T* [len];
-  for (int i=0; i<len; i++) {
-    dest[i] = base + src[i];
+  for (int i=0; i<len; i++) {          
+    if (src[i] != UNASSIGNED) {
+      dest[i] = base + src[i];
+    }
+    else {
+      dest[i] = NULL;      // so segfault if deref unassigned entry
+    }
   }
 }
 
@@ -341,13 +387,8 @@ void ParseTables::finishTables()
     copyIndexPtrArray(numStates, productionsForState, bigProductionList,
                       temp->productionsForState);
 
-    // bigAmbigPtrTable
-    bigAmbigPtrTableSize = temp->bigAmbigPtrTable.length();
-    copyIndexPtrArray(bigAmbigPtrTableSize, bigAmbigPtrTable, ambigTable,
-                      temp->bigAmbigPtrTable);
-
     // ambigStateTable
-    copyIndexPtrArray(numStates, ambigStateTable, bigAmbigPtrTable,
+    copyIndexPtrArray(numStates, ambigStateTable, ambigTable,
                       temp->ambigStateTable);
   }
 
@@ -792,8 +833,10 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
     return;
   }
 
-  bool printHex = 0==strcmp(typeName, "ErrorBitsEntry");
+  bool printHex = 0==strcmp(typeName, "ErrorBitsEntry") ||
+                  (ENABLE_CRS_COMPRESSION && 0==strcmp(typeName, "ActionEntry"));
   bool needCast = 0==strcmp(typeName, "StateId");
+  //bool actionSplit = ENABLE_CRS_COMPRESSION && 0==strcmp(typeName, "ActionEntry");
 
   if (size * sizeof(*table) > 50) {    // suppress small ones
     out << "  // storage size: " << size * sizeof(*table) << " bytes\n";
@@ -815,6 +858,14 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
     if (printHex) {
       out << stringf("0x%02X, ", table[i]);
     }
+    #if 0
+    else if (actionSplit) {
+      char func[4] = { 'S', 'R', 'A', 'E' };
+      int code = (int)(*((unsigned char*)(table+i)));
+      out << stringf("%c(%02d), ", func[code / (AE_MAXINDEX+1)],
+                                   code & AE_MAXINDEX);
+    }  
+    #endif // 0
     else if (sizeof(table[i]) == 1) {
       // little bit of a hack to make sure 'unsigned char' gets
       // printed as an int; the casts are necessary because this
@@ -854,20 +905,44 @@ template <class EltType>
 void emitOffsetTable(EmitCode &out, EltType **table, EltType *base, int size,
                      char const *typeName, char const *tableName, char const *baseName)
 {
-  out << "  " << tableName << " = new " << typeName << " [" << size << "];\n";
-
   // make the pointers persist by storing a table of offsets
   Array<int> offsets(size);
+  bool allUnassigned = true;
   for (int i=0; i < size; i++) {
-    offsets[i] = table[i] - base;
+    if (table[i]) {
+      offsets[i] = table[i] - base;
+      allUnassigned = false;
+    }
+    else {
+      offsets[i] = UNASSIGNED;    // codes for a NULL entry
+    }
   }
-  emitTable(out, (int*)offsets, size, 16, "int", stringc << tableName << "_offsets");
 
-  // at run time, interpret the offsets table
-  out << "  for (int i=0; i < " << size << "; i++) {\n"
-      << "    " << tableName << "[i] = "
-      << baseName << " + " << tableName << "_offsets[i];\n"
-      << "  }\n";
+  if (allUnassigned) {
+    // for example, an LALR(1) grammar has no ambiguous entries in its tables
+    size = 0;
+  }
+
+  if (size > 0) {
+    out << "  " << tableName << " = new " << typeName << " [" << size << "];\n";
+
+    emitTable(out, (int*)offsets, size, 16, "int", stringc << tableName << "_offsets");
+
+    // at run time, interpret the offsets table
+    out << "  for (int i=0; i < " << size << "; i++) {\n"
+        << "    int ofs = " << tableName << "_offsets[i];\n"
+        << "    if (ofs >= 0) {\n"
+        << "      " << tableName << "[i] = " << baseName << " + ofs;\n"
+        << "    }\n"
+        << "    else {\n"
+        << "      " << tableName << "[i] = NULL;\n"
+        << "    }\n"
+        << "  }\n\n";
+  }
+  else {
+    out << "  // offset table is empty\n"
+        << "  " << tableName << " = NULL;\n\n";
+  }
 }
 
 
@@ -906,7 +981,6 @@ void ParseTables::emitConstructionCode(EmitCode &out,
   out << "  startState = (StateId)" << (int)startState << ";\n";
   SET_VAR(finalProductionIndex);
   SET_VAR(bigProductionListSize);
-  SET_VAR(bigAmbigPtrTableSize);
   SET_VAR(errorBitsRowSize);
   SET_VAR(uniqueErrorRows);
   #undef SET_VAR
@@ -980,18 +1054,14 @@ void ParseTables::emitConstructionCode(EmitCode &out,
     emitOffsetTable(out, productionsForState, bigProductionList, numStates,
                     "ProdIndex*", "productionsForState", "bigProductionList");
                     
-    emitOffsetTable(out, bigAmbigPtrTable, ambigTable, bigAmbigPtrTableSize,
-                    "ActionEntry*", "bigAmbigPtrTable", "ambigTable");
-                    
-    emitOffsetTable(out, ambigStateTable, bigAmbigPtrTable, numStates,
-                    "ActionEntry**", "ambigStateTable", "bigAmbigPtrTable");
+    emitOffsetTable(out, ambigStateTable, ambigTable, numStates,
+                    "ActionEntry*", "ambigStateTable", "ambigTable");
   }
   else {
     out << "  firstWithTerminal = NULL;\n"
         << "  firstWithNonterminal = NULL;\n"
         << "  bigProductionList = NULL;\n"
         << "  productionsForState = NULL;\n"
-        << "  bigAmbigPtrTable = NULL;\n"
         << "  ambigStateTable = NULL;\n"
         ;
   }

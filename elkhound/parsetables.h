@@ -29,8 +29,8 @@ inline ostream& operator<< (ostream &os, StateId id)
   enum ActionEntryKind {
     AE_MASK      = 0xC0,    // selection mask
     AE_SHIFT     = 0x00,    // 00 = shift
-    AE_REDUCE    = 0x80,    // 10 = reduce
-    AE_AMBIGUOUS = 0xA0,    // 01 = ambiguous
+    AE_REDUCE    = 0x40,    // 01 = reduce
+    AE_AMBIGUOUS = 0x80,    // 10 = ambiguous
     AE_ERROR     = 0xC0,    // 11 = error (if EEF is off)
     AE_MAXINDEX  = 63       // maximum value of lower bits
   };
@@ -107,9 +107,6 @@ private:    // types
     // nascent ambigTable
     ArrayStack<ActionEntry> ambigTable;
 
-    // most recently created ambiguous action
-    ActionEntry recentAmbig;
-
     // nascent bigProductionList
     ArrayStack<ProdIndex> bigProductionList;
     
@@ -118,7 +115,6 @@ private:    // types
     ArrayStack<int> productionsForState;
 
     // nascent versions of ambig tables, again with integer offsets
-    ArrayStack<int> bigAmbigPtrTable;
     ArrayStack<int> ambigStateTable;
 
   public:   // funcs
@@ -219,9 +215,7 @@ protected:  // data
   //
   // Part (c):  Pointers into 'ambigTable' are are collected together in
   // per-state lists as well.
-  int bigAmbigPtrTableSize;
-  ActionEntry **bigAmbigPtrTable;        // (nullable owner)
-  ActionEntry ***ambigStateTable;        // (nullable owner) state -> (ambigStateTableIndex -> ActionEntry*)
+  ActionEntry **ambigStateTable;         // (nullable owner) state -> (+ambigStateTableIndex -> ActionEntry*)
 
   // Error Entry Factoring (EEF):
   //
@@ -279,6 +273,9 @@ private:    // funcs
   int gotoTableSize() const
     { return numStates * numNonterms; }
 
+  void appendAmbig(ArrayStack<ActionEntry> const &set);
+  bool compareAmbig(ArrayStack<ActionEntry> const &set, int startIndex);
+
   void fillInErrorBits(bool setPointers);
   int colorTheGraph(int *color, Bit2d &graph);
 
@@ -310,6 +307,16 @@ public:     // funcs
 
 
   // -------------------- table construction ------------------------
+  // CRS dest-state origin tables
+  void setFirstWithTerminal(int termId, StateId s) {
+    xassert((unsigned)termId < (unsigned)numTerms);
+    firstWithTerminal[termId] = s;
+  }
+  void setFirstWithNonterminal(int nontermId, StateId s) {
+    xassert((unsigned)nontermId < (unsigned)numNonterms);
+    firstWithNonterminal[nontermId] = s;
+  }
+
   void setActionEntry(StateId stateId, int termId, ActionEntry act)
     { actionEntry(stateId, termId) = act; }
   void setGotoEntry(StateId stateId, int nontermId, GotoEntry got)
@@ -318,14 +325,10 @@ public:     // funcs
   // encode actions
   ActionEntry encodeShift(StateId destState, int shiftedTermId);
   ActionEntry encodeReduce(int prodId, StateId inWhatState);
-  ActionEntry encodeAmbig(int ambigId, StateId inWhatState);
+  ActionEntry encodeAmbig(ArrayStack<ActionEntry> const &set, 
+                          StateId inWhatState);
   ActionEntry encodeError() const;
   ActionEntry validateAction(int code) const;
-
-  // encode ambiguous actions
-  ActionEntry beginAmbig(int numActions, StateId inWhatState);
-  void addAmbig(ActionEntry ambigHeader, ActionEntry newAction);
-  void finishAmbig(ActionEntry ambigHeader);
 
   // encode gotos
   GotoEntry encodeGoto(StateId stateId) const
@@ -407,16 +410,16 @@ public:     // funcs
       { return ambigTable + (code-1-numStates); }
 
   #else
-    static bool isShiftAction(ActionEntry code) const {
+    static bool isShiftAction(ActionEntry code) {
       return (code & AE_MASK) == AE_SHIFT;
     }
     StateId decodeShift(ActionEntry code, int shiftedTerminal) {
-      return firstWithTerminal[shiftedTerminal] + (code & AE_MAXINDEX);
+      return (StateId)(firstWithTerminal[shiftedTerminal] + (code & AE_MAXINDEX));
     }
     static bool isReduceAction(ActionEntry code) {
       return (code & AE_MASK) == AE_REDUCE;
     }
-    static int decodeReduce(ActionEntry code, StateId inState) {
+    int decodeReduce(ActionEntry code, StateId inState) {
       return productionsForState[inState][code & AE_MAXINDEX];
     }
     static bool isErrorAction(ActionEntry code) {
@@ -424,7 +427,7 @@ public:     // funcs
     }
 
     ActionEntry *decodeAmbigAction(ActionEntry code, StateId inState) const {
-      return ambigStateTable[inState][code & AE_MAXINDEX];
+      return ambigStateTable[inState] + (code & AE_MAXINDEX);
     }
   #endif
 

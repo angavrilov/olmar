@@ -249,8 +249,8 @@ public:	    // data
   ItemSet *BFSparent;                        // (serf)
 
 private:    // funcs
-  int bcheckTerm(int index);
-  int bcheckNonterm(int index);
+  int bcheckTerm(int index) const;
+  int bcheckNonterm(int index) const;
   ItemSet *&refTransition(Symbol const *sym);
 
   void allocateTransitionFunction();
@@ -290,6 +290,12 @@ public:     // funcs
   ItemSet const *transitionC(Symbol const *sym) const;
   ItemSet *transition(Symbol const *sym)
     { return const_cast<ItemSet*>(transitionC(sym)); }
+
+  // alternate interface; also might return NULL
+  ItemSet const *getTermTransition(int termId) const
+    { return termTransition[bcheckTerm(termId)]; }
+  ItemSet const *getNontermTransition(int nontermId) const
+    { return nontermTransition[bcheckNonterm(nontermId)]; }
 
   // get the list of productions that are ready to reduce, given
   // that the next input symbol is 'lookahead' (i.e. in the follow
@@ -392,12 +398,19 @@ protected:  // data
   // only true after initializeAuxData has been called
   bool initialized;
 
-  // used to assign itemsets ids
+  // used to assign itemset ids while the item sets are being
+  // initially constructed; later, they get renumbered into a
+  // canonical order
   int nextItemSetId;
 
   // the LR parsing tables
   ObjList<ItemSet> itemSets;
-  ItemSet *startState;			// (serf) distinguished start state
+  
+  // distinguished start state; NOTE: much of the grammar analysis
+  // code currently assumes (and checks) that state 0 is the start
+  // state, so if you want to do something different, that code might
+  // need to be changed
+  ItemSet *startState;                  // (serf)
 
 public:	    // data
   // true if any nonterminal can derive itself (with no extra symbols
@@ -415,12 +428,6 @@ public:	    // data
 
   // parse tables
   ParseTables *tables;                  // (owner)
-
-  // map from symbol to the state of the first state (in id order)
-  // that has that symbol on its incoming arcs; this is set by
-  // renumberStates(); it's NULL until then
-  ItemSet **firstWithTerminal;          // (owner) termIndex -> State
-  ItemSet **firstWithNonterminal;       // (owner) ntIndex -> State
 
 private:    // funcs
   // ---- analyis init ----
@@ -501,7 +508,13 @@ private:    // funcs
   void computeParseTables(bool allowAmbig);
 
   void renumberStates();
-  void assignStateCodes(bool terminals, StateId *newCode, int &nextCode);
+  static int renumberStatesDiff
+    (ItemSet const *left, ItemSet const *right, void *vgramanl);
+  static int arbitraryProductionOrder
+    (Production const *left, Production const *right, void*);
+  static int arbitraryRHSEltOrder
+    (Production::RHSElt const *left, Production::RHSElt const *right, void*);
+  //void assignStateCodes(bool terminals, StateId *newCode, int &nextCode);
 
   void computeBFSTree();
 

@@ -525,13 +525,13 @@ Symbol const *ItemSet::computeStateSymbolC() const
 }
 
 
-int ItemSet::bcheckTerm(int index)
+int ItemSet::bcheckTerm(int index) const
 {
   xassert(0 <= index && index < terms);
   return index;
 }
 
-int ItemSet::bcheckNonterm(int index)
+int ItemSet::bcheckNonterm(int index) const
 {
   xassert(0 <= index && index < nonterms);
   return index;
@@ -974,9 +974,7 @@ GrammarAnalysis::GrammarAnalysis()
     cyclic(false),
     symOfInterest(NULL),
     errors(0),
-    tables(NULL),
-    firstWithTerminal(NULL),
-    firstWithNonterminal(NULL)
+    tables(NULL)
 {}
 
 
@@ -1007,13 +1005,6 @@ GrammarAnalysis::~GrammarAnalysis()
   
   if (tables) {
     delete tables;
-  }
-  
-  if (firstWithTerminal) {
-    delete[] firstWithTerminal;
-  }
-  if (firstWithNonterminal) {
-    delete[] firstWithNonterminal;
   }
 }
 
@@ -2980,10 +2971,166 @@ bool isAmbiguousNonterminal(Symbol const *sym)
 // described in the Dencker et. al. paper (see parsetables.h).
 void GrammarAnalysis::renumberStates()
 {
+  // sort them into the right order
+  itemSets.mergeSort(&GrammarAnalysis::renumberStatesDiff, this);
+
+  // number them in that order
+  int n = 0;
+  FOREACH_OBJLIST_NC(ItemSet, itemSets, iter) {
+    ItemSet *s = iter.data();
+    if (n == 0) {
+      // the first element should always be the start state
+      xassert(s->id == 0);
+    }
+    else {
+      s->id = (StateId)n;
+    }
+
+    n++;
+  }
+}
+
+STATICDEF int GrammarAnalysis::renumberStatesDiff
+  (ItemSet const *left, ItemSet const *right, void *vgramanl)
+{
+  GrammarAnalysis *gramanl = (GrammarAnalysis*)vgramanl;
+
+  int ret;
+
+  // if for some reason I'm ever asked to compare a state to
+  // itself..
+  if (left == right) { 
+    return 0;
+  }
+
+  // order them first by their incoming arc symbol; this effects
+  // the renumbering that the Code Reduction Scheme demands
+  {
+    Symbol const *ls = left->getStateSymbolC();
+    Symbol const *rs = right->getStateSymbolC();
+
+    // any state with no incoming arcs (start state) is first
+    ret = (int)(bool)ls - (int)(bool)rs;
+    if (ret) return ret;
+
+    // terminals come before nonterminals
+    ret = (int)(ls->isNonterminal()) - (int)(rs->isNonterminal());
+    if (ret) return ret;
+
+    // order by id within terms/nonterms
+    ret = ls->getTermOrNontermIndex() - rs->getTermOrNontermIndex();
+    if (ret) return ret;
+  }
+
+  // from this point on, the CRS would be happy with an arbitrary
+  // order, but I want the state numbering to be canonical so that
+  // I have an easier time debugging and comparing parse traces
+
+  // they have the same incoming arc symbol; now, sort by outgoing
+  // arc symbols
+
+  // first up: terminals
+  {
+    for (int t=0; t < gramanl->numTerminals(); t++) {
+      ItemSet const *ldest = left->getTermTransition(t);
+      ItemSet const *rdest = right->getTermTransition(t);
+
+      ret = (int)!ldest - (int)!rdest;
+      if (ret) return ret;
+
+      if (ldest && rdest) {
+        ret = ldest->id - rdest->id;
+        if (ret) return ret;
+      }
+    }
+  }
+
+  // next: nonterminals
+  {
+    for (int nt=0; nt < gramanl->numNonterminals(); nt++) {
+      ItemSet const *ldest = left->getNontermTransition(nt);
+      ItemSet const *rdest = right->getNontermTransition(nt);
+
+      ret = (int)!ldest - (int)!rdest;
+      if (ret) return ret;
+
+      if (ldest && rdest) {
+        ret = ldest->id - rdest->id;
+        if (ret) return ret;
+      }
+    }
+  }
+                                                            
+  // I suspect this will never be reached, since usually the
+  // transition function will be sufficient
+  #if 0    // it happens often enough.. even in the arith grammar
+  cout << "using reductions to distinguish states\n";
+  cout << "left=" << left->id
+       << ", sym is " << left->getStateSymbolC()->toString() << "\n";
+  left->print(cout, *gramanl);
+  cout << "right=" << right->id
+       << ", sym is " << right->getStateSymbolC()->toString() << "\n";
+  right->print(cout, *gramanl);
+  #endif // 0
+
+  // finally, order by possible reductions
+  FOREACH_OBJLIST(Terminal, gramanl->terminals, termIter) {
+    ProductionList lpl, rpl;
+    left->getPossibleReductions(lpl, termIter.data(), false /*parsing*/);
+    right->getPossibleReductions(rpl, termIter.data(), false /*parsing*/);
+
+    // sort the productions before we can compare them...
+    lpl.insertionSort(&GrammarAnalysis::arbitraryProductionOrder);
+    rpl.insertionSort(&GrammarAnalysis::arbitraryProductionOrder);
+
+    ret = lpl.compareAsLists(rpl, &GrammarAnalysis::arbitraryProductionOrder);
+    if (ret) return ret;
+  }
+
+  // I used to throw an xfailure here, but that causes a problem
+  // because the 'itemSets' list is not well-formed, because we
+  // are in the middle of sorting it
+  cout << "two different states have identical transitions and "
+          "identical reductions!\n";
+  cout << "left=" << left->id
+       << ", sym is " << left->getStateSymbolC()->toString() << "\n";
+  left->print(cout, *gramanl);
+  cout << "right=" << right->id
+       << ", sym is " << right->getStateSymbolC()->toString() << "\n";
+  right->print(cout, *gramanl);
+
+  return 0;
+}
+
+STATICDEF int GrammarAnalysis::arbitraryProductionOrder
+  (Production const *left, Production const *right, void*)
+{
+  // compare LHS
+  int ret = left->left->ntIndex - right->left->ntIndex;
+  if (ret) return ret;
+  
+  // RHS elts one at a time
+  return left->right.compareAsLists(right->right,
+    &GrammarAnalysis::arbitraryRHSEltOrder);
+}
+
+STATICDEF int GrammarAnalysis::arbitraryRHSEltOrder
+  (Production::RHSElt const *left, Production::RHSElt const *right, void*)
+{
+  int ret = (int)left->sym->isTerminal() - (int)right->sym->isTerminal();
+  if (ret) return ret;
+  
+  return left->sym->getTermOrNontermIndex() - right->sym->getTermOrNontermIndex();
+}
+
+
+#if 0     // old; delete me
+void GrammarAnalysis::renumberStates()
+{
   // this function should not have already been called (it's not really
   // a problem if it has been, but I don't expect it)
   xassert(!firstWithTerminal && !firstWithNonterminal);
-  
+
   // allocate the maps
   firstWithTerminal = new ItemSet* [numTerms];
   memset(firstWithTerminal, 0, sizeof(ItemSet*) * numTerms);
@@ -3052,6 +3199,7 @@ void GrammarAnalysis::assignStateCodes
     }
   }
 }
+#endif // 0
 
 
 void GrammarAnalysis::computeParseTables(bool allowAmbig)
@@ -3060,17 +3208,43 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
                            startState->id,
                            0 /* slight hack: assume it's the first production */);
 
-  #if 0   // not finished
   if (ENABLE_CRS_COMPRESSION) {
-    // copy the first-state info
-    for (int t=0; t<numTerms; t++) {
-      tables->firstWithTerminal[t] = firstWithTerminal[t]->id;
-    }
-    for (int nt=0; nt<numNonterms; nt++) {
-      tables->firstWithNonterminal[nt] = firstWithNonterminal[nt]->id;
+    // first-state info
+    bool doingTerms = true;
+    int prevSymCode = -1;
+    FOREACH_OBJLIST(ItemSet, itemSets, iter) {
+      ItemSet const *state = iter.data();
+      Symbol const *sym = state->getStateSymbolC();
+      if (!sym) continue;     // skip start state
+      int symCode = sym->getTermOrNontermIndex();
+
+      if (sym->isTerminal() == doingTerms &&
+          symCode == prevSymCode) {
+        // continuing the current run, do nothing
+        continue;
+      }
+
+      if (sym->isNonterminal() && doingTerms) {
+        // transition from terminals to nonterminals
+        doingTerms = false;
+      }
+      else {
+        // continue current phase, with new code; states must
+        // already have been sorted into increasing order
+        xassert(sym->isTerminal() == doingTerms);
+        xassert(prevSymCode < symCode);
+      }
+
+      if (doingTerms) {
+        tables->setFirstWithTerminal(symCode, state->id);
+      }
+      else {
+        tables->setFirstWithNonterminal(symCode, state->id);
+      }
+
+      prevSymCode = symCode;
     }
   }
-  #endif // 0
 
   // count total number of conflicts of each kind
   int sr=0, rr=0;
@@ -3106,17 +3280,18 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
       int actions = (shiftDest? 1 : 0) + reductions.count();
       if (actions >= 2) {
         // make a new ambiguous-action entry-set
-        cellAction = tables->beginAmbig(actions, state->id);
+        ArrayStack<ActionEntry> set;
 
         // fill in the actions
         if (shiftDest) {
-          tables->addAmbig(cellAction, tables->encodeShift(shiftDest->id, termId));
+          set.push(tables->encodeShift(shiftDest->id, termId));
         }
         SFOREACH_PRODUCTION(reductions, prodIter) {
-          tables->addAmbig(cellAction, tables->encodeReduce(prodIter.data()->prodIndex, state->id));
-        }
-        
-        tables->finishAmbig(cellAction);
+          set.push(tables->encodeReduce(prodIter.data()->prodIndex, state->id));
+        }                                
+        xassert(set.length() == actions);
+
+        cellAction = tables->encodeAmbig(set, state->id);
       }
 
       else {
@@ -3847,7 +4022,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
   traceProgress(1) << "LR item sets...\n";
   constructLRItemSets();
 
-  //traceProgress(1) << "state renumbering...\n";
+  traceProgress(1) << "state renumbering...\n";
   renumberStates();
 
   traceProgress(1) << "parse tables...\n";
