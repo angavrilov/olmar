@@ -25,6 +25,7 @@ int VoidList::count() const
 void *VoidList::nth(int which) const
 {
   VoidNode *p;
+  xassert(which>=0);
   for (p = top; which > 0; which--) {
     xassert(p);
     p = p->next;
