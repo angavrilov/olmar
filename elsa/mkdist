@@ -34,9 +34,16 @@ rm -rf $distname
 # test it
 untargz ${distname}.tar.gz
 cd ${distname}
-./configure
-make
-make check
+echo "building... (output in $distname/make.out)"
+./configure >make.out 2>&1
+make >>make.out 2>&1
+make check >>make.out 2>&1
+
+# check for having run flex or bison
+if egrep '^(flex|bison)' make.out; then
+  echo "We ran flex or bison during the build; that's bad!"
+  exit 2
+fi
 
 # blow away the test directory
 if [ "$1" != "-keep" ]; then
