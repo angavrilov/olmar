@@ -52,12 +52,16 @@ include ${SMBASE}/Makefile.base.mk
 # sets of related object files
 grammar-set = grammar.o action.o cond.o attr.o attrexpr.o litcode.o
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
-              ast.o fileloc.o gramast.o ccsstr.o
+              ast.o fileloc.o gramast.o ccsstr.o ../ast/embedded.o
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
           lexer2.o parssppt.o strtable.o
 cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
          stmt2bb.o cc_parse.o mlvalue.o cilxform.o newlval.o
 common = 
+
+# how to compile a .o in an adjacent directory
+$(AST)/%.o: $(AST)/%.cc
+	make -C $(AST) $*.o
 
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
@@ -105,7 +109,7 @@ grampar.tab.cc grampar.tab.h: grampar.y
 # grammar parser test program
 grampar: grampar.cc ${grammar-set} ${common} gramlex.yy.o grampar.tab.o \
          gramlex.o ast.o fileloc.o gramast.o ccsstr.o glrtree.o \
-         lexer2stub.o
+         lexer2stub.o ../ast/embedded.o
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 # token list for my grammar
@@ -118,10 +122,6 @@ cexp2-sem-dep = cexp2.sem.cc ${grammar-set} ${common} ${glr-set} \
 		grampar.o gramlex.o ast.o fileloc.o gramast.o
 cexp2.sem: ${cexp2-sem-dep}
 	${link} -o cexp2.sem -DTEST_CEXP2_SEM ${cexp2-sem-dep} ${linkend}
-
-# how to compile a .o in an adjacent directory
-$(AST)/%.o: $(AST)/%.cc
-	make -C $(AST) $*.o
 
 # test code for ccsstr
 ccsstr: ccsstr.cc ccsstr.h $(AST)/reporterr.o  $(AST)/embedded.o

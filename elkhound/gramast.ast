@@ -6,10 +6,10 @@ class GrammarAST (ASTList<ToplevelForm> forms);
 
 // something at the top level
 class ToplevelForm {
-  -> terminals(ASTList<TermDecl> terms);
-  -> nonterminal(string name, ASTList<string> baseClasses, ASTList<NTBodyElt> elts);
-  -> TF_lit(LiteralCode *lit);
-  -> treeNodeBase(string baseClassName);
+  -> TF_terminals(ASTList<TermDecl> terms);
+  -> TF_nonterminal(string name, ASTList<string> baseClasses, ASTList<NTBodyElt> elts);
+  -> TF_lit(owner LiteralCode *lit);
+  -> TF_treeNodeBase(string baseClassName);
 }
 
 // declaration of a single terminal, aka token
@@ -17,41 +17,41 @@ class TermDecl (int code, string name, string alias);
 
 // something that appears in the body of a nonterminal declaration
 class NTBodyElt {
-  -> attr(string name);
-  -> decl(string declBody);
-  -> elt(GroupElement *elt);
-  -> NT_lit(LiteralCode *lit);
+  -> NT_attr(string name);
+  -> NT_decl(string declBody);
+  -> NT_elt(owner GroupElement *elt);
+  -> NT_lit(owner LiteralCode *lit);
 }
 
 // elements of nonterms or form groups
 class GroupElement {
-  -> form(ASTList<RHSElt> rhs, ASTList<FormBodyElt> elts);    // aka production
-  -> formGroup(ASTList<GroupElements> elts);
-  -> fbe(FormBodyElement *e);
+  -> GE_form(ASTList<RHSElt> rhs, ASTList<FormBodyElt> elts);    // aka production
+  -> GE_formGroup(ASTList<GroupElements> elts);
+  -> GE_fbe(owner FormBodyElement *e);
 }
 
 // things that can be directly associated with a form
 class FormBodyElement {
-  -> action(string name, owner AttrExpr *expr);
-  -> condition(owner AttrExpr *condExpr);
-  -> treeCompare(string leftName, string rightName, owner AttrExpr *decideExpr);
-  -> funDecl(string funDeclBody);
-  -> funDefn(string name, string funDefnBody);
+  -> FB_action(string name, owner AttrExpr *expr);
+  -> FB_condition(owner AttrExpr *condExpr);
+  -> FB_treeCompare(string leftName, string rightName, owner AttrExpr *decideExpr);
+  -> FB_funDecl(string funDeclBody);
+  -> FB_funDefn(string name, string funDefnBody);
 }
 
 // one of the things that appears after the '->', i.e. the
 // right-hand-side elements
 class RHSElt {
-  -> ntref(string tag, string ntname);      // nonterminal reference
-  -> termref(string tag, string tokname);   // terminal reference
+  -> RH_ntref(string tag, string ntname);      // nonterminal reference
+  -> RH_termref(string tag, string tokname);   // terminal reference
 }
 
 // some literal C++ code to be copied verbatim somewhere
 class LiteralCode {
   // code that gets associated with some existing semantic function
-  -> modifier(string codeKindTag, string funcToModify, string codeBody);
-  
+  -> LC_modifier(string codeKindTag, string funcToModify, string codeBody);
+
   // code that lives on its own, its use entirely determined by
   // the codeKindTag
-  -> standAlone(string codeKindTag, string codeBody);
+  -> LC_standAlone(string codeKindTag, string codeBody);
 }

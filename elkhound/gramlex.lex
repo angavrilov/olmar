@@ -208,12 +208,12 @@ SLWHITE   [ \t]
 <FUNDECL,FUN>{
   [^;}\n]+ {
     UPD_COL;
-    embedded->handle(yytext, yyleng);
+    embedded->handle(yytext, yyleng, embedFinish);
   }
 
   "\n" {
     newLine();
-    embedded->handle(yytext, yyleng);
+    embedded->handle(yytext, yyleng, embedFinish);
   }
 
   ("}"|";") {
@@ -255,7 +255,7 @@ SLWHITE   [ \t]
     }
     else {
       // embedded delimeter, mostly ignore it
-      embedded->handle(yytext, yyleng);
+      embedded->handle(yytext, yyleng, embedFinish);
     }
   }
 }

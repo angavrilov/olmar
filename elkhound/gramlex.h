@@ -34,12 +34,25 @@ public:      // types
   enum Constants {
     lexBufferSize = 4096,          // size of new lex buffers
   };
-                                          
+
   // return true if the given token code is one of those representing
   // embedded text
   typedef bool (*isEmbedTok)(int tokCode);
 
 private:     // data
+  // error reporter that uses fileState instead of tokenStartLoc
+  class AltReportError : public ReportError {
+    GrammarLexer &lexer;
+  
+  public:
+    AltReportError(GrammarLexer &L) : lexer(L) {}
+    
+    virtual void reportError(char const *msg);
+    virtual void reportWarning(char const *msg);
+  };
+  friend AltReportError;
+  AltReportError altReporter;
+
   // state of a file we were or are lexing
   struct FileState : public SourceLocation {
     istream *source;               // (owner?) source stream
@@ -80,6 +93,9 @@ public:      // data
 private:     // funcs
   // called when a newline is encountered
   void newLine() { fileState.newLine(); }
+  
+  // disallowed
+  GrammarLexer(GrammarLexer const &);
 
 public:      // funcs
   // create a new lexer that will read from to named stream,
@@ -120,6 +136,9 @@ public:      // funcs
   void errorUnterminatedComment();
   void errorMalformedInclude();
   void errorIllegalCharacter(char ch);
+
+  void printError(SourceLocation const &loc, char const *msg);
+  void printWarning(SourceLocation const &loc, char const *msg);
 
   // for processing includes
   void recursivelyProcess(char const *fname, istream * /*owner*/ source);

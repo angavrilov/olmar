@@ -4,8 +4,21 @@
 #include "gramlex.h"     // this module
 #include "trace.h"       // debugging trace()
 #include "ccsstr.h"      // CCSubstrate
+#include "ckheap.h"      // checkHeap
 
 #include <fstream.h>     // cout, ifstream
+
+
+// ----------------- GrammarLexer::AltReportError ---------------
+void GrammarLexer::AltReportError::reportError(char const *msg)
+{
+  lexer.printError(lexer.fileState, msg);
+}
+
+void GrammarLexer::AltReportError::reportWarning(char const *msg)
+{
+  lexer.printWarning(lexer.fileState, msg);
+}
 
 
 // ----------------- GrammarLexer::FileState --------------------
@@ -45,19 +58,22 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 // ---------------------- GrammarLexer --------------------------
 GrammarLexer::GrammarLexer(isEmbedTok test, char const *fname, istream *source)
   : yyFlexLexer(source),
+    altReporter(*this),
     fileState(sourceFileList.open(fname), source),
     fileStack(),
     tokenStartLoc(),
     expectingEmbedded(false),
     embedFinish(0),
     embedMode(0),
-    embedded(new CCSubstrate(*this)),
+    embedded(new CCSubstrate(altReporter)),
     embedTokTest(test),
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
     includeFileName("")
 {
+  trace("tmp") << "source is " << source << endl;
+
   // grab initial buffer object so we can restore it after
   // processing an include file (turns out this doesn't work
   // because it's NULL now; see recursivelyProcess())
@@ -76,7 +92,10 @@ GrammarLexer::~GrammarLexer()
 
   // now delete the original istream source
   if (fileState.source != cin) {
+    //checkHeap();
+    //checkHeapNode(fileState.source);   // this is wrong b/c of virtual inheritance..
     delete fileState.source;
+    //checkHeap();
   }
 
   delete embedded;
@@ -156,13 +175,23 @@ string GrammarLexer::curLocStr() const
 
 void GrammarLexer::reportError(char const *msg)
 {
-  cerr << curLocStr() << ": error: " << msg << endl;
+  printError(curLoc(), msg);
+}
+
+void GrammarLexer::printError(SourceLocation const &loc, char const *msg)
+{
+  cerr << loc.toString() << ": error: " << msg << endl;
 }
 
 
 void GrammarLexer::reportWarning(char const *msg)
 {
-  cerr << curLocStr() << ": warning: " << msg << endl;
+  printWarning(curLoc(), msg);
+}
+
+void GrammarLexer::printWarning(SourceLocation const &loc, char const *msg)
+{
+  cerr << loc.toString() << ": warning: " << msg << endl;
 }
 
 

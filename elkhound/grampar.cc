@@ -11,6 +11,7 @@
 #include "owner.h"       // Owner
 #include "syserr.h"      // xsyserror
 #include "strutil.h"     // quoted
+#include "grampar.tab.h" // token constant codes
 
 #include <fstream.h>     // ifstream
 
@@ -1050,6 +1051,8 @@ void my_yyerror(char const *message, void *parseParam)
 
 
 // ---------------- external interface -------------------
+bool isGramlexEmbed(int code);     // defined in gramlex.lex
+
 void readGrammarFile(Grammar &g, char const *fname)
 {
   ASTNode::typeToString = astTypeToString;
@@ -1062,7 +1065,7 @@ void readGrammarFile(Grammar &g, char const *fname)
   Owner<ifstream> in;
   if (fname == NULL) {
     // stdin
-    lexer = new GrammarLexer;
+    lexer = new GrammarLexer(isGramlexEmbed);
   }
   else {
     // file
@@ -1070,7 +1073,7 @@ void readGrammarFile(Grammar &g, char const *fname)
     if (!*in) {
       xsyserror("open", stringc << "error opening input file " << fname);
     }
-    lexer = new GrammarLexer(fname, in.xfr());
+    lexer = new GrammarLexer(isGramlexEmbed, fname, in.xfr());
   }
 
   ParseParams params(*lexer);

@@ -30,7 +30,7 @@ CCSubstrate::~CCSubstrate()
 {}
 
 
-void CCSubstrate::handle(char const *str, int len)
+void CCSubstrate::handle(char const *str, int len, char finalDelim)
 {
   text.append(str, len);
 
@@ -48,7 +48,9 @@ void CCSubstrate::handle(char const *str, int len)
           case ')':
           case ']':
             if (nesting == 0) {
-              err.reportWarning("C++ nesting tried to go negative");
+              err.reportError(stringc
+                << "unexpected closing delimiter `" << *str
+                << "' -- probably due to missing `" << finalDelim << "'");
             }
             else {
               nesting--;
@@ -80,7 +82,7 @@ void CCSubstrate::handle(char const *str, int len)
             backslash = true;
           }
           else if (*str == '\n') {
-            err.reportWarning("unterminated string or char literal");
+            err.reportError("unterminated string or char literal");
           }
         }
         else {

@@ -61,3 +61,5 @@ bw-qcam.cpp
 cyclades.cpp
 ip2main.cpp
 gprof.out
+qp.cpp
+agrampar.tab.c
