@@ -56,6 +56,33 @@ class PendingShift;      // for postponing shifts.. may remove
 class GLR;               // main class for GLR parsing
 
 
+// a pointer from a stacknode to one 'below' it (in the LR
+// parse stack sense); also has a link to the parse graph
+// we're constructing
+class SiblingLink {
+public:
+  // the stack node being pointed-at; it was created eariler
+  // than the one doing the pointing
+  RCPtr<StackNode> sib;
+
+  // this is the semantic value associated with this link
+  // (parse tree nodes are *not* associated with stack nodes --
+  // that's now it was originally, but I figured out the hard
+  // way that's wrong (more info in compiler.notes.txt));
+  // this is an *owner* pointer
+  SemanticValue sval;
+
+  // the source location of the left edge of the subtree rooted
+  // at this stack node; this is in essence part of the semantic
+  // value, but automatically propagated by the parser
+  SourceLocation loc;
+
+public:
+  SiblingLink(StackNode *s, SemanticValue sv, SourceLocation const &L);
+  ~SiblingLink();
+};
+
+
 // the GLR parse state is primarily made up of a graph of these
 // nodes, which play a role analogous to the stack nodes of a
 // normal LR parser; GLR nodes form a graph instead of a linear
@@ -85,7 +112,15 @@ public:
   // parse-time representation of ambiguity
   ObjList<SiblingLink> leftSiblings;           // this is a set
 
-  // so we can deallocate stack nodes earlier
+  // the *first* sibling is simply embedded directly into the
+  // stack node, to avoid list overhead in the common case of
+  // only one sibling; when firstSib.sib==NULL, there are no
+  // siblings
+  SiblingLink firstSib;
+
+  // number of sibling links pointing at 'this', plus the number
+  // of worklists on which 'this' appears (some liberty is taken
+  // in the mini-LR parse, but it is carefully documented there)
   int referenceCount;
 
   // how many stack nodes can I pop before hitting a nondeterminism?
@@ -134,36 +169,20 @@ public:     // funcs
   void incRefCt() { referenceCount++; }
   void decRefCt();
 
+  // sibling count queries (each one answerable in constant time)
+  bool hasZeroSiblings() const { return firstSib.sib==NULL; }
+  bool hasOneSibling() const { return firstSib.sib!=NULL && leftSiblings.isEmpty(); }
+  bool hasMultipleSiblings() const { return leftSiblings.isNotEmpty(); }
+
+  // when you expect there's only one sibling link, get it this way
+  SiblingLink const *getUniqueLinkC() const;
+  SiblingLink *getUniqueLink() { return const_cast<SiblingLink*>(getUniqueLinkC()); }
+
+  // retrieve pointer to the sibling link to a given node, or NULL if none
+  SiblingLink *getLinkTo(StackNode *another);
+
   // debugging
   static void printAllocStats();
-};
-
-
-// a pointer from a stacknode to one 'below' it (in the LR
-// parse stack sense); also has a link to the parse graph
-// we're constructing
-class SiblingLink {
-public:
-  // the stack node being pointed-at; it was created eariler
-  // than the one doing the pointing
-  RCPtr<StackNode> sib;
-
-  // this is the semantic value associated with this link
-  // (parse tree nodes are *not* associated with stack nodes --
-  // that's now it was originally, but I figured out the hard
-  // way that's wrong (more info in compiler.notes.txt));
-  // this is an *owner* pointer
-  SemanticValue sval;
-
-  // the source location of the left edge of the subtree rooted
-  // at this stack node; this is in essence part of the semantic
-  // value, but automatically propagated by the parser
-  SourceLocation const loc;
-
-public:
-  SiblingLink(StackNode *s, SemanticValue sv, SourceLocation const &L)
-    : sib(s), sval(sv), loc(L) {}
-  ~SiblingLink();
 };
 
 
@@ -357,6 +376,9 @@ private:    // funcs
                    int prodIndex);
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
+  void collectPathLink(PathCollectionState &pcs, int popsRemaining,
+                       StackNode *currentNode, SiblingLink *mustUseLink,
+                       SiblingLink *linkToAdd);
   void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
                            SemanticValue sval, SourceLocation const &loc);
   void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);

@@ -199,6 +199,16 @@ void GLR::deallocateSemanticValue(SymbolId sym, SemanticValue sval)
 }
 
 
+// ------------------ SiblingLink ------------------
+inline SiblingLink::SiblingLink(StackNode *s, SemanticValue sv, 
+                                SourceLocation const &L)
+  : sib(s), sval(sv), loc(L)
+{}
+
+SiblingLink::~SiblingLink()
+{}
+
+
 // ----------------------- StackNode -----------------------
 int StackNode::numStackNodesAllocd=0;
 int StackNode::maxStackNodesAllocd=0;
@@ -209,6 +219,7 @@ StackNode::StackNode()
     tokenColumn(-1),
     state(STATE_INVALID),
     leftSiblings(),
+    firstSib(NULL, NULL, SourceLocation()),
     referenceCount(0),
     determinDepth(0),
     glr(NULL)
@@ -227,6 +238,8 @@ void StackNode::init(int nodeId, int col, StateId st, GLR *g)
   stackNodeId = nodeId;
   tokenColumn = col;
   state = st;
+  xassert(leftSiblings.isEmpty());
+  xassert(hasZeroSiblings());
   referenceCount = 0;
   determinDepth = 1;    // 0 siblings now, so this node is unambiguous
   glr = g;
@@ -244,11 +257,18 @@ void StackNode::deinit()
   // explicitly deallocate siblings, so I can deallocate their
   // semantic values if necessary (this requires knowing the
   // associated symbol, which the SiblinkLinks don't know)
+  if (firstSib.sib != NULL) {
+    D(trace("sval") << "deleting sval " << firstSib.sval << endl);
+    deallocateSemanticValue(getSymbolC(), glr->userAct, firstSib.sval);
+    firstSib.sib = NULL;
+  }
+
   while (leftSiblings.isNotEmpty()) {
     Owner<SiblingLink> sib(leftSiblings.removeAt(0));
     D(trace("sval") << "deleting sval " << sib->sval << endl);
     deallocateSemanticValue(getSymbolC(), glr->userAct, sib->sval);
   }
+
 }
 
 
@@ -263,21 +283,30 @@ SiblingLink *StackNode::
   addSiblingLink(StackNode *leftSib, SemanticValue sval,
                  SourceLocation const &loc)
 {
-  if (leftSiblings.isNotEmpty()) {
+  if (hasZeroSiblings()) {
+    // my depth will be my new sibling's depth, plus 1
+    determinDepth = leftSib->determinDepth + 1;
+
+    // we don't have any siblings yet; use embedded
+    firstSib.sib = leftSib;
+    firstSib.sval = sval;
+    firstSib.loc = loc;
+    
+    // sibling link pointers are used to control the reduction
+    // process in certain corner cases; an interior pointer 
+    // should work fine
+    return &firstSib;
+  }
+  else {
     // there's currently at least one sibling, and now we're adding another;
     // right now, no other stack node should point at this one (if it does,
     // most likely will catch that when we use the stale info)
     determinDepth = 0;
-  }
-  else {
-    // we don't have any siblings yet, so my depth will be my new sibling's
-    // depth, plus 1
-    determinDepth = leftSib->determinDepth + 1;
-  }
 
-  SiblingLink *link = new SiblingLink(leftSib, sval, loc);
-  leftSiblings.append(link);
-  return link;
+    SiblingLink *link = new SiblingLink(leftSib, sval, loc);
+    leftSiblings.append(link);
+    return link;
+  }
 }
 
 
@@ -290,17 +319,37 @@ void StackNode::decRefCt()
 }
 
 
+SiblingLink const *StackNode::getUniqueLinkC() const
+{
+  xassert(hasOneSibling());
+  return &firstSib;
+}
+
+
+SiblingLink *StackNode::getLinkTo(StackNode *another)
+{
+  // check first..
+  if (firstSib.sib == another) {
+    return &firstSib;
+  }
+
+  // check rest
+  MUTATE_EACH_OBJLIST(SiblingLink, leftSiblings, sibIter) {
+    SiblingLink *candidate = sibIter.data();
+    if (candidate->sib == another) {
+      return candidate;
+    }
+  }
+  return NULL;
+}
+
+
 STATICDEF void StackNode::printAllocStats()
 {
   cout << "stack nodes: " << numStackNodesAllocd
        << ", max stack nodes: " << maxStackNodesAllocd
        << endl;
 }
-
-
-// ------------------ SiblingLink ------------------
-SiblingLink::~SiblingLink()
-{}
 
 
 // ------------------ PendingShift ------------------
@@ -344,11 +393,7 @@ void PathCollectionState::init(int pi, int len, StateId start)
   xassert(paths.length()==0); // paths must start empty
   prodIndex = pi;
 
-  // IN PROGRESS:
-    // possible optimization: allocate these once, using the largest length
-    // of any production, when parsing starts; do the same for 'toPass'
-    // in collectReductionPaths
-
+  // pre-allocate these, though they can also grow if need be
   siblings.ensureIndexDoubler(len-1);
   symbols.ensureIndexDoubler(len-1);
 }
@@ -504,7 +549,7 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
 // start symbol reduction
 SemanticValue GLR::grabTopSval(StackNode *node)
 {
-  SiblingLink *sib = node->leftSiblings.first();
+  SiblingLink *sib = node->getUniqueLink();
   SemanticValue ret = sib->sval;
   sib->sval = duplicateSemanticValue(node->getSymbolC(), sib->sval);
 
@@ -569,6 +614,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
 
   tryDeterministic:    
+    // --------------------- mini-LR parser -------------------------
     // optimization: if there's only one active parser, and the
     // action is unambiguous, and it doesn't involve traversing
     // parts of the stack which are nondeterministic, then do the
@@ -622,24 +668,24 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           toPass.ensureIndexDoubler(rhsLen-1);
           for (int i=rhsLen-1; i>=0; i--) {
             // grab 'parser's only sibling link
-            xassert(parser->leftSiblings.count() == 1);
-            SiblingLink *sib = parser->leftSiblings.first();
+            //SiblingLink *sib = parser->getUniqueLink();
+            SiblingLink &sib = parser->firstSib;
 
             // Store its semantic value it into array that will be
             // passed to user's routine.  Note that there is no need to
             // dup() this value, since it will never be passed to
             // another action routine (avoiding that overhead is
             // another advantage to the LR mode).
-            toPass[i] = sib->sval;
-            sib->sval = NULL;                  // link no longer owns the value
+            toPass[i] = sib.sval;
+            sib.sval = NULL;                  // link no longer owns the value
 
             // if it has a valid source location, grab it
-            if (sib->loc.validLoc()) {
-              leftEdge = sib->loc;
+            if (sib.loc.validLoc()) {
+              leftEdge = sib.loc;
             }
 
             // pop 'parser' and move to the next one
-            StackNode *next = sib->sib;           // grab before deallocating
+            StackNode *next = sib.sib;           // grab before deallocating
             next->incRefCt();                     // so 'next' survives deallocation of 'sib'
             xassert(next->referenceCount==2);     // 'sib' and the fake one
             xassert(parser->referenceCount==1);
@@ -672,7 +718,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           TRSPARSE("state " << parser->state <<
                    ", (unambig) shift nonterm " << (int)prodInfo.lhsIndex <<
                    ", to state " << newState);
-          
+
           // 'parser' has refct 1, reflecting the local variable only
           xassert(parser->referenceCount==1);
 
@@ -687,10 +733,10 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           newNode->incRefCt();
           xassert(newNode->referenceCount == 1);   // activeParsers[0] is referrer
 
-          // after all this, we haven't shift any tokens, so the token
+          // after all this, we haven't shifted any tokens, so the token
           // context remains; let's go back and try to keep acting
           // determinstically (if at some point we can't be deterministic,
-          // then we drop into full GLR)
+          // then we drop into full GLR, which always ends by shifting)
           goto tryDeterministic;
         }
       }
@@ -698,7 +744,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
       else {
         // error or ambig; not deterministic
       }
-    }   
+    }
+    // ------------------ end of mini-LR parser ------------------
 
     // if we get here, we're dropping into the nondeterministic GLR
     // algorithm in its full glory
@@ -794,7 +841,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   // always looks like "Start -> Something EOF"; it also assumes
   // the top of the tree is unambiguous
   SemanticValue arr[2];
-  StackNode *nextToLast = last->leftSiblings.first()->sib;
+  StackNode *nextToLast = last->getUniqueLink()->sib;
   arr[0] = grabTopSval(nextToLast);   // Something's sval
   arr[1] = grabTopSval(last);         // eof's sval
 
@@ -803,7 +850,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           << " and " << arr[1] << " top start's reducer\n";
   treeTop = userAct->doReductionAction(
               getItemSet(last->state)->getFirstReduction()->prodIndex, arr,
-              last->leftSiblings.firstC()->loc);
+              last->getUniqueLinkC()->loc);
 
 
   #if 0
@@ -1135,26 +1182,41 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
   else {
     // explore currentNode's siblings
+    collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
+                    &(currentNode->firstSib));
     MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
-      // the symbol on the sibling link is being popped;
-      // TREEBUILD: we are collecting 'treeNode' for the purpose
-      // of handing it to the user's reduction routine
-      pcs.siblings[popsRemaining-1] = sibling.data();
-      pcs.symbols[popsRemaining-1] = currentNode->getSymbolC();
-
-      // recurse one level deeper, having traversed this link
-      if (sibling.data() == mustUseLink) {
-        // consumed the mustUseLink requirement
-        collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib,
-                              NULL /*mustUseLink*/);
-      }
-      else {
-        // either no requirement, or we didn't consume it; just
-        // propagate current requirement state
-        collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib,
-                              mustUseLink);
-      }
+      collectPathLink(pcs, popsRemaining-1, currentNode, mustUseLink,
+                      sibling.data());
     }
+  }
+}
+
+
+// arguments are same as in collectReductionPaths, except:
+// 'linkToAdd': link we're traversing right now, to add to path
+// (this code is easiest to understand in its caller's context;
+// I only pulled it out because I need to call it twice in same place)
+void GLR::collectPathLink(PathCollectionState &pcs, int popsRemaining,
+                          StackNode *currentNode, SiblingLink *mustUseLink,
+                          SiblingLink *linkToAdd)
+{
+  // the symbol on the sibling link is being popped;
+  // TREEBUILD: we are collecting 'treeNode' for the purpose
+  // of handing it to the user's reduction routine
+  pcs.siblings[popsRemaining] = linkToAdd;
+  pcs.symbols[popsRemaining] = currentNode->getSymbolC();
+
+  // recurse one level deeper, having traversed this link
+  if (linkToAdd == mustUseLink) {
+    // consumed the mustUseLink requirement
+    collectReductionPaths(pcs, popsRemaining, linkToAdd->sib,
+                          NULL /*mustUseLink*/);
+  }
+  else {
+    // either no requirement, or we didn't consume it; just
+    // propagate current requirement state
+    collectReductionPaths(pcs, popsRemaining, linkToAdd->sib,
+                          mustUseLink);
   }
 }
 
@@ -1194,37 +1256,32 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
   StackNode *rightSibling = findActiveParser(rightSiblingState);
   if (rightSibling) {
     // does it already have a sibling link to 'leftSibling'?
-    MUTATE_EACH_OBJLIST(SiblingLink, rightSibling->leftSiblings, sibIter) {
-      SiblingLink *sibLink = sibIter.data();
+    SiblingLink *sibLink = rightSibling->getLinkTo(leftSibling);
+    if (sibLink) {
+      // we already have a sibling link, so we don't need to add one
 
-      // check this link for pointing at the right place
-      if (sibLink->sib == leftSibling) {
-        // we already have a sibling link, so we don't need to add one
+      // +--------------------------------------------------+
+      // | it is here that we are bringing the tops of two  |
+      // | alternative parses together (TREEBUILD)          |
+      // +--------------------------------------------------+
+      // call the user's code to merge, and replace what we have
+      // now with the merged version
+      D(SemanticValue old = sibLink->sval);
+      sibLink->sval = userAct->mergeAlternativeParses(lhsIndex,
+                                                      sibLink->sval, sval);
+      D(trsSval << "merged " << old << " and " << sval
+                << ", yielding " << sibLink->sval << endl);
 
-        // +--------------------------------------------------+
-        // | it is here that we are bringing the tops of two  |
-        // | alternative parses together (TREEBUILD)          |
-        // +--------------------------------------------------+
-        // call the user's code to merge, and replace what we have
-        // now with the merged version
-        D(SemanticValue old = sibLink->sval);
-        sibLink->sval = userAct->mergeAlternativeParses(lhsIndex,
-                                                        sibLink->sval, sval);
-        D(trsSval << "merged " << old << " and " << sval
-                  << ", yielding " << sibLink->sval << endl);
+      // ok, done
+      return;
 
-        // ok, done
-        return;
-
-        // and since we didn't add a link, there is no potential for new
-        // paths
-      }
+      // and since we didn't add a link, there is no potential for new
+      // paths
     }
 
     // we get here if there is no suitable sibling link already
     // existing; so add the link (and keep the ptr for loop below)
-    SiblingLink *sibLink =
-      rightSibling->addSiblingLink(leftSibling, sval, loc);
+    sibLink = rightSibling->addSiblingLink(leftSibling, sval, loc);
 
     // adding a new sibling link may have introduced additional
     // opportunties to do reductions from parsers we thought
