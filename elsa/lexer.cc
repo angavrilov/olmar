@@ -81,7 +81,7 @@ Lexer::Lexer(StringTable &s, CCLang &L, char const *fname)
     lang(L)
 {
   // prime this lexer with the first token
-  tokenFunc(this);
+  getTokenFunc()(this);
 }
 
 

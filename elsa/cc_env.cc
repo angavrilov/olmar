@@ -391,6 +391,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   // [cppstd 3.7.3 para 2]
   Type *t_void = getSimpleType(HERE, ST_VOID);
   Type *t_voidptr = makePtrType(HERE, t_void);
+  Type *t_bool = getSimpleType(HERE, ST_BOOL);
 
   // note: my stddef.h typedef's size_t to be 'int', so I just use
   // 'int' directly here instead of size_t
@@ -448,6 +449,21 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // typedef void *__builtin_va_list;
     addVariable(makeVariable(SL_INIT, str("__builtin_va_list"),
                              t_voidptr, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
+
+    // dsw: We concluded that this is a gcc-ism; Note that the first
+    // solution of simply lexing '_Bool' as 'bool' doesn't work
+    // because _Bool only is useful in C mode, exactly when 'bool'
+    // won't be a keyword.  This is in fact the whole point of _Bool
+    // as far as I can tell.
+    //
+    // Scott's comment that used to be in gnu.lex:
+    // where does this come from?  gcc-3.4.0 seems to know about it,
+    // but gcc-2.95.3 doesn't ....
+    if (!lang.isCplusplus) {
+      // typedef bool _Bool;
+      addVariable(makeVariable(SL_INIT, str("_Bool"),
+                               t_bool, DF_TYPEDEF | DF_BUILTIN | DF_GLOBAL));
+    }
 
     // char *__builtin_strchr(char const *str, int ch);
     declareFunction2arg(t_charptr, "__builtin_strchr",
