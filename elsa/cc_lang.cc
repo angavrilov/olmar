@@ -39,9 +39,6 @@ void CCLang::KandR_C()
   ANSI_C89();
 
   allowImplicitInt = true;
-
-  // our K&R is really GNU K&R ...
-  declareGNUBuiltins = true;
 }
 
 void CCLang::ANSI_C99()
@@ -82,6 +79,7 @@ void CCLang::GNU_KandR_C()
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   allowIncompleteEnums = true;  // gnu according to Scott, above
+  declareGNUBuiltins = true;
 
   // this seems wrong, but Oink's tests want it this way...
   predefined_Bool = true;

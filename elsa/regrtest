@@ -203,9 +203,7 @@ testparse_strict() {
   # that to occur
   runTest perl ./multitest.pl ./ccparse -tr strict,$TR_FLAGS in/$1
 }
-testparse_KandR() {
-  runTest perl ./multitest.pl ./ccparse -tr gnu_kandr_c_lang,$TR_FLAGS in/$1
-}
+
 failparse() {
   if [ "$2" = "" ]; then
     echo "failparse $1: failparse takes two arguments"
@@ -828,6 +826,26 @@ testCparse c/t0010.c
 testCparse c/t0011.c
 testCparse c/t0012.c
 testCparse c/t0013.c
+testCparse gnu/d0096.c
+
+
+# is K&R built?
+use_kandr=false
+if egrep "USE_KANDR: +yes" config.summary >/dev/null; then
+  use_kandr=true
+  echo "K&R extensions are enabled"
+else
+  echo "K&R extensions are not enabled"
+fi
+
+if $use_kandr; then
+  # test the parser in C + K&R mode
+  testKANDRparse() {
+    runTest perl ./multitest.pl ./ccparse -tr gnu_kandr_c_lang in/$1
+  }
+  testKANDRparse kandr/t0001.c
+  testKANDRparse kandr/t0002.c
+fi
 
 
 # test GNU C
@@ -838,9 +856,6 @@ if $use_gnu; then
   testCparse gnu/d0095.c
 
   testCparse gnu/dC0001.c # "hex floating-point literals"
-  # FIX: I think this is K&R specific, not gnu specific, so should be
-  # in a different K&R section
-  testparse_KandR gnu/d0096.c
 
   # attribute tests
   testCparse gnu/attr01.c
@@ -912,6 +927,7 @@ testnsparse in/big/nsMsgServiceProvider.i
 # final arithmetic to report result
 echo ""
 echo "use_gnu: $use_gnu"
+echo "use_kandr: $use_kandr"
 echo "Successful tests               :    $success"
 echo "Failed as expected (known bugs):    $failure"
 if [ $skipdiagnose -ne 0 ]; then

@@ -1,4 +1,4 @@
-// gnu.ast
+// gnu.ast            see license.txt for copyright and terms of use
 // extension to cc.ast to support GNU language extensions
 
 // sm: this contains both the representation language and the

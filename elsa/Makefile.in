@@ -66,6 +66,15 @@ ifeq ($(USE_GNU),yes)
 endif
 
 
+# optional: K&R language extension
+USE_KANDR := @USE_KANDR@
+ifeq ($(USE_KANDR),yes)
+  CC_AST_MODS += kandr.ast
+  CC_GR_MODS  += kandr.gr
+  EXT_OBJS    += kandr.o
+endif
+
+
 # ----------------------- compiler configuration -------------------
 # C++ preprocessor, compiler and linker
 CXX := g++

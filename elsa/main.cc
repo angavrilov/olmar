@@ -170,10 +170,16 @@ void doit(int argc, char **argv)
 
   if (tracingSys("gnu_kandr_c_lang")) {
     lang.GNU_KandR_C();
+    #ifndef KANDR_EXTENSION
+      xbase("gnu_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
+    #endif
   }
 
   if (tracingSys("gnu2_kandr_c_lang")) {
     lang.GNU2_KandR_C();
+    #ifndef KANDR_EXTENSION
+      xbase("gnu2_kandr_c_lang option requires the K&R module (./configure -kandr=yes)");
+    #endif
   }
 
   if (tracingSys("templateDebug")) {

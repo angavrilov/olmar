@@ -26,7 +26,6 @@
 //     including gcc range extension: "[ 1 .. 3 ] = ..."
 //   - C99 restrict keyword
 //   - C99 qualifiers in array brackets: "[const ...]"
-//   - K&R implicit int in cast expressions (TODO: move)
 //   - gcc __attribute__
 
 
@@ -386,25 +385,6 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
       // just as if the array were a pointer and it was on the pointer
       return new D_array(loc, d, NULL /*size*/);
     }
-}
-
-
-// ------ implicit int for cast expressions ------
-// TODO: move into kandr.gr
-nonterm(Expression*) CastExpression {
-  -> "(" t:ImplicitIntTypeId ")" e:CastExpression
-       { return new E_cast(t, e); }
-}
-
-nonterm(TypeSpecifier*) ImplicitIntTypeSpecifier {
-  -> m:UberCVQualifierSeq
-       { UberModifiers k = uberCombine(loc, UM_INT, m);
-         return new_TS_simple(loc, uberCVFlags(m), uberSimpleType(loc, k)); }
-}
-
-nonterm(ASTTypeId*) ImplicitIntTypeId {
-  -> spec:ImplicitIntTypeSpecifier
-       { return new ASTTypeId(spec, new Declarator(new D_name(loc, NULL), NULL)); }
 }
 
 

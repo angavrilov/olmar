@@ -14,6 +14,7 @@ $SMBASE = "../smbase";
 $AST = "../ast";
 $ELKHOUND = "../elkhound";
 $USE_GNU = "yes";
+$USE_KANDR = "no";
 
 
 sub usage {
@@ -25,8 +26,9 @@ options:
   -no-dash-g         disable -g
   -no-dash-O2        disable -O2
   -prof              enable profiling
-  -devel             add options useful while developing
-  -gnu=yes/no        enable or disable GNU extensions [enabled]
+  -devel             add options useful while developing (-Werror)
+  -gnu=yes/no        enable or disable GNU extensions [$USE_GNU]
+  -kandr=yes/no      enable or disable K&R extensions [$USE_KANDR]
   -ccflag <arg>:     add <arg> to gcc command line
   -smbase=<dir>:     specify where the smbase library is [$SMBASE]
   -ast=<dir>:        specify where the ast system is [$AST]
@@ -94,11 +96,16 @@ while (@ARGV) {
   elsif (($tmp) = ($arg =~ m/^-elkhound=(.*)$/)) {
     $ELKHOUND = $tmp;
   }
+
   elsif (($tmp) = ($arg =~ m/^-gnu=(.*)$/)) {
     $USE_GNU = $tmp;
   }
   elsif (($tmp) = ($arg =~ m/^-gnu$/)) {
     die "-gnu option must be followed by =yes or =no\n";
+  }
+
+  elsif (($tmp) = ($arg =~ m/^-kandr=(.*)$/)) {
+    $USE_KANDR = $tmp;
   }
 
   elsif ($arg eq "-useSerialNumbers") {
@@ -210,6 +217,7 @@ Compile flags:
   AST:         $AST
   ELKHOUND:    $ELKHOUND
   USE_GNU:     $USE_GNU
+  USE_KANDR:   $USE_KANDR
 
 EOF
 
@@ -254,6 +262,7 @@ sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@AST\@|$AST|g" \\
     -e "s|\@ELKHOUND\@|$ELKHOUND|g" \\
     -e "s|\@USE_GNU\@|$USE_GNU|g" \\
+    -e "s|\@USE_KANDR\@|$USE_KANDR|g" \\
   <Makefile.in >>Makefile || exit
 
 # discourage editing

@@ -3,6 +3,8 @@
 // and therefore (likely) inconsistent type; FIX: I don't think this
 // is gnu specific, but is K&R specific
 
+// sm: actually, it's ordinary C89
+
 int main() {
   int buf[4];
   int const in[16];
