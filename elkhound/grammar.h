@@ -2,9 +2,15 @@
 // representation and algorithms for context-free grammars
 
 // references:
+//
 //   [ASU]  Aho, Sethi Ullman.  Compilers: Principles,
 //          Techniques, and Tools.  Addison-Wesley,
 //          Reading, MA.  1986.  Second printing (3/88).
+//
+//   [GLR]  J. Rekers.  Parser Generation for Interactive
+//          Environments.  PhD thesis, University of
+//          Amsterdam, 1992.  Available by ftp from
+//          ftp.cwi.nl:/pub/gipe/reports as Rek92.ps.Z.
 
 #ifndef __GRAMMAR_H
 #define __GRAMMAR_H
