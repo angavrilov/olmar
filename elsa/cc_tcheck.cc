@@ -3872,8 +3872,10 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       // built-in candidates
       // TODO: if any built-in candidate has the same parameter type
       // list as a user-defined candidate, the built-in is not used
-      // (cppstd 13.3.1.2 para 3, last bullet); implementation is
-      // part of the tournament algorithm
+      // (cppstd 13.3.1.2 para 3, last bullet); a possible 
+      // implementation is as part of the tournament algorithm (if I
+      // see two identical candidates, but one is built-in, then
+      // the non-built-in is better)
       ArrayStack<Variable*> &builtins = env.builtinBinaryOperator[op];
       for (int i=0; i < builtins.length(); i++) {
         resolver.processCandidate(builtins[i]);
@@ -3882,12 +3884,29 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       if (op == BIN_MINUS &&
           (lhsType->isCompoundType() && rhsType->isCompoundType())) {
         // tricky built-in: 13.6 para 14:
+        //
         // For every T, where T is a pointer to object type, there exist
         // candidate operator functions of the form
         //   ptrdiff_t operator-(T, T);
 
+        // The essential idea here is to compute a set of types with
+        // which to instantiate the above pattern.  Naively, we'd like
+        // to instantiate it with all types, but of course that is not
+        // practical.  Instead, we compute a finite set S of types such
+        // that we get the same answer as we would if we had
+        // instantiated it with all types.  Note that if we compute S
+        // correctly, it will be the case that any superset of S would
+        // also work; we do not necessarily compute the minimal S.
+        //
+        // The core of the analysis is the least-upper-bound function
+        // on types.  Given a pair of types, the LUB type
+        // instantiation would win against all the other
+        // instantiations the LUB dominates, in the final overload
+        // analysis.  Thus we populate S with the LUBs of all pairs
+        // of types the arguments' con-ops can yield.
+
         // set of types with which to instantiate T
-        SObjList<Type> instTypes;
+        SObjList<Type> instTypes;      // called 'S' in the comments above
 
         // collect all of the operator functions from lhs and rhs
         SObjList<Variable> lhsConvs, rhsConvs;
@@ -3897,22 +3916,27 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
         // consider all pairs of conversion functions (filter for
         // those that yield pointer types)
         SFOREACH_OBJLIST_NC(Variable, lhsConvs, lhsIter) {
-          FunctionType *lhsFt = lhsIter.data()->type->asFunctionType();
-          if (!lhsFt->retType->isPointer()) continue;
+          // 13.3.1.5: functions that return 'T&' are regarded as
+          // yielding 'T' for purposes of this analysis
+          Type *lhsRet = lhsIter.data()->type->asFunctionType()->retType->asRval();
+          if (!lhsRet->isPointer()) continue;
 
           SFOREACH_OBJLIST_NC(Variable, rhsConvs, rhsIter) {
-            FunctionType *rhsFt = rhsIter.data()->type->asFunctionType();
-            if (!rhsFt->retType->isPointer()) continue;
+            Type *rhsRet = rhsIter.data()->type->asFunctionType()->retType->asRval();
+            if (!rhsRet->isPointer()) continue;
 
             // compute LUB
             bool wasAmbig;
-            Type *lub = computeLUB(env, lhsFt->retType, rhsFt->retType, wasAmbig);
+            Type *lub = computeLUB(env, lhsRet, rhsRet, wasAmbig);
             if (wasAmbig) {
+              // if any LUB is ambiguous, then the final overload analysis
+              // over the infinite set of instantiations would also have
+              // been ambiguous
               env.error(stringc
                 << "In resolving operator-, LHS can convert to "
-                << lhsFt->retType->toString()
+                << lhsRet->toString()
                 << ", and RHS can convert to "
-                << rhsFt->retType->toString()
+                << rhsRet->toString()
                 << ", but their LUB is ambiguous");
               goto after_overload_resolution;
             }
