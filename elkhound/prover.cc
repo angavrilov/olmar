@@ -13,11 +13,13 @@
 #include <sys/stat.h>  // open
 #include <fcntl.h>     // open
 
+bool logPredicates = true;
+
 bool runProver(char const *str)
 {
   static bool opened = false;             // true once we've opened the process
   static int toSimplify, fromSimplify;    // pipe file descriptors
-  //static int predicateLog;                // log of calls
+  static int predicateLog;                // log of calls
 
   trace("prover") << str << endl;
 
@@ -55,15 +57,15 @@ bool runProver(char const *str)
       fprintf(stderr, "%s\n", buf);
       exit(2);
     }
-
-    #if 0
-    // open the log
-    predicateLog = creat("predicate.log", 0777);
-    if (predicateLog < 0) {
-      perror("creat predicate.log");
-      exit(2);
-    }    
-    #endif // 0
+  
+    if (logPredicates) {
+      // open the log
+      predicateLog = creat("predicate.log", 0777);
+      if (predicateLog < 0) {
+        perror("creat predicate.log");
+        exit(2);
+      }
+    }
 
     opened = true;
   }
@@ -74,8 +76,11 @@ bool runProver(char const *str)
     exit(2);
   }
 
-  // log predicate; don't care about failure as much
-  //writeAll(predicateLog, str, strlen(str));
+  if (logPredicates) {
+    // log predicate; don't care about failure as much
+    writeAll(predicateLog, str, strlen(str));
+    writeAll(predicateLog, "\n", 1);
+  }
 
   // read Simplify's response
   for (;;) {

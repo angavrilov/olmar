@@ -56,14 +56,6 @@
       (pointer (object p) (offset p))
     ))
 
-  ; --------------- theory: select/update ------------------
-  ; reading from the same location as was last written
-  (FORALL (mem obj ofs value)
-    (EQ
-      (select (update mem obj ofs value) obj ofs)
-      value
-    ))
-
   ; pointer disequality can be shown by showing either component
   ; is unequal
   (FORALL (obj1 obj2 ofs1 ofs2)
@@ -73,6 +65,14 @@
         (NEQ ofs1 ofs2)      ; different offsets
       )
       (NEQ (pointer obj1 ofs1) (pointer obj2 ofs2))
+    ))
+
+  ; --------------- theory: select/update ------------------
+  ; reading from the same location as was last written
+  (FORALL (mem obj ofs value)
+    (EQ
+      (select (update mem obj ofs value) obj ofs)
+      value
     ))
 
   ; reading from a different location from last written

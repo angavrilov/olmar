@@ -196,6 +196,7 @@ vcgen ff.c
 runTest ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
 vcgen find2.c
 vcgen callfind.c
+vcgen node.c
 
 
 # final arithmetic to report result

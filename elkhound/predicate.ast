@@ -49,6 +49,9 @@ verbatim {
 
   void walkPredicate(PredicateVisitor &vis, Predicate const *pred);
   void walkValuePredicate(ValuePredicateVisitor &vis, Predicate const *pred);
+
+  // does 'pred' refer to 'av' anywhere?
+  bool predicateRefersToAV(Predicate const *pred, AbsValue const *av);
 }
 
 impl_verbatim {
@@ -380,5 +383,36 @@ impl_verbatim {
   {
     VPVisitThunk thunk(vis);
     walkPredicate(thunk, pred);
+  }
+  
+  
+  class VPVisit_predicateRefers : public ValuePredicateVisitor {
+  public:
+    AbsValue const *avOfInterest;
+    bool foundReference;
+  public:
+    VPVisit_predicateRefers(AbsValue const *v)
+      : avOfInterest(v),
+        foundReference(false)
+    {}
+    virtual bool visitAbsValue(AbsValue const *value);
+  };
+
+  bool VPVisit_predicateRefers::visitAbsValue(AbsValue const *value)
+  {
+    if (foundReference || value == avOfInterest) {
+      foundReference = true;
+      return false;   // stop
+    }
+    else {
+      return true;    // keep recursing
+    }
+  }
+
+  bool predicateRefersToAV(Predicate const *pred, AbsValue const *av)
+  {
+    VPVisit_predicateRefers vis(av);
+    walkValuePredicate(vis, pred);
+    return vis.foundReference;
   }
 }

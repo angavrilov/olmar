@@ -10,9 +10,9 @@ file ccgr
 
 #set args -tr factflow cc.bin vcgen/find2.c
 
-set args -tr stopAfterTCheck cc.bin vcgen/node.c
+#set args -tr stopAfterTCheck cc.bin vcgen/if.c
 
-#set args cc.bin test-bad-tmp.c
+set args cc.bin vcgen/loop1.c
 
 #set args -tr factflow cc.bin vcgen/ff.c
 

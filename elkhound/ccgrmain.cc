@@ -64,6 +64,7 @@ void doit(int argc, char **argv)
           "    disableFactFlow    don't do invariant strengthening\n"
           "    factflow           print details of factflow computation\n"
           "    stopAfterVCGen     stop after vcgen\n"
+          "    printAnalysisPath  print each path that is analyzed\n"
           "    predicates         print all predicates (proved or not)\n"
           "    absInterp          print results of abstract interpretation\n"
           "    tcheck             print typechecking info\n"

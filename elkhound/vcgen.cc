@@ -677,6 +677,35 @@ AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
     }
   }
 
+  if (obj->isE_deref()) {
+    // partially DUPLICATED from E_assign::vcgen; reflective of general
+    // problem with lvalues
+
+    // get an abstract value for the address of the object being modified
+    AbsValue *addr = obj->asE_deref()->ptr->vcgen(env, path);
+
+    if (!env.inPredicate) {
+      // the address should have offset 0
+      env.prove(P_equal(env.avOffset(addr), env.avInt(0)),
+                "object field access at offset 0");
+
+      // TODO: assign type tags to allocated regions, and prove here
+      // that the type tag is correct
+    }
+
+    // since we've proved the offset is 0, assume it (this really for
+    // the predicate case, where we *don't* prove it, so it acts like
+    // an unstated assumption about a pointer to which a field
+    // accessor is applied)
+    env.addFact(P_equal(env.avOffset(addr), env.avInt(0)),
+                "implicit offset=0 assumption for field access pointer");
+
+    // read from memory
+    return env.avSelect(env.getMem(),
+      env.avObject(addr),             // object being accessed
+      env.get(field->decl));          // offset being accessed
+  }
+
   cout << "TODO: unhandled structure field access: " << toString() << endl;
   return env.freshVariable("field",
            stringc << "structure field access: " << toString());
@@ -876,10 +905,13 @@ AbsValue *E_new::vcgen(AEnv &env, int path) const
   // distinct from others
   env.addDistinct(v);
 
-  // nothing points to this new thing
-  env.assumeNoFieldPointsTo(v);
+  // we yield a pointer with offset 0
+  AbsValue *ret = env.avPointer(v, env.avInt(0));
 
-  return v;
+  // nothing points to this new thing
+  env.assumeNoFieldPointsTo(ret);
+
+  return ret;
 }
 
 
@@ -888,6 +920,17 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
   int modulus = src->numPaths1();
   AbsValue *v = src->vcgen(env, path % modulus);
   path = path / modulus;
+
+  // HACK: if the target of the assignment has pointer type and
+  // the source has integer type, encode it as a pointer with
+  // object 0 (the right solution is to, during typechecking,
+  // insert explicit coercions; then this code would be a part 
+  // of the cast-to-pointer coercion)
+  if (target->type->asRval()->isPointerType() &&
+      src->type->isSimple(ST_INT)) {
+    // encode as pointer: some integer offset from the null object
+    v = env.avPointer(env.avInt(0), v);                           
+  }
 
   if (target->isE_variable()) {
     xassert(path==0);
@@ -910,7 +953,7 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
     // get an abstract value for the address being modified
     AbsValue *addr = target->asE_deref()->ptr->vcgen(env, path);
 
-    // emit a proof obligation for safe access               
+    // emit a proof obligation for safe access
     verifyPointerAccess(env, this, addr);
 
     // memory changes
@@ -922,6 +965,7 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
   else if (target->isE_fieldAcc()) {
     E_fieldAcc *fldAcc = target->asE_fieldAcc();
 
+    // accessing a field of a local or global variable
     if (fldAcc->obj->isE_variable()) {
       Variable *var = fldAcc->obj->asE_variable()->var;
 
@@ -941,13 +985,38 @@ AbsValue *E_assign::vcgen(AEnv &env, int path) const
 
         // replace old with new in abstract environment
         env.set(var, updated);
-
-        return env.dup(v);
+      }
+      else {
+        goto unhandled;
       }
     }
 
-    // other forms aren't handled yet
-    cout << "TODO: unhandled structure field assignment: " << toString() << endl;
+    // accessing a field through an object pointer
+    else if (fldAcc->obj->isE_deref()) {
+      // get an abstract value for the address of the object being modified
+      AbsValue *addr = fldAcc->obj->asE_deref()->ptr->vcgen(env, path);
+
+      if (!env.inPredicate) {
+        // the address should have offset 0
+        env.prove(P_equal(env.avOffset(addr), env.avInt(0)),
+                  "object field access at offset 0");
+                
+        // TODO: assign type tags to allocated regions, and prove here
+        // that the type tag is correct
+      }
+
+      // update memory
+      env.setMem(env.avUpdate(env.getMem(),
+        env.avObject(addr),                          // object being modified
+        env.get(fldAcc->field->decl),                // offset
+        v));                                         // new value
+    }
+
+    else {
+    unhandled:
+      // other forms aren't handled yet
+      cout << "TODO: unhandled structure field assignment: " << toString() << endl;
+    }
   }
 
   else {
@@ -1192,20 +1261,57 @@ Predicate *E_assign::vcgenPred(AEnv &env, int path) const
 
 Predicate *E_quantifier::vcgenPred(AEnv &env, int path) const
 {
-  // analyze the body; this will cause all the quantified
-  // variables to be instantiaged in AEnv::get
-  Predicate *body = pred->vcgenPred(env, path);
-
   // gather up the quantifiers
-  P_quantifier *ret = new P_quantifier(NULL, body, forall);
+  P_quantifier *ret = new P_quantifier(NULL, NULL, forall);
 
   FOREACH_ASTLIST(Declaration, decls, outer) {
     FOREACH_ASTLIST(Declarator, outer.data()->decllist, inner) {
       Variable *var = inner.data()->var;
 
+      // this will instantiate the variables
       ret->variables.append(env.get(var)->asAVvar());
     }
   }
+
+  // remember how long facts list was before; this is all such
+  // a massive hack...
+  int prevDepth = env.factStackDepth();
+
+  // analyze the body
+    // OLD:
+    // this will cause all the quantified
+    // variables to be instantiated in AEnv::get
+  Predicate *body = pred->vcgenPred(env, path);
+
+  #if 1
+  // search the fact list for anything which refers to the
+  // quantified variables, and add them to a separate fact
+  // list which will be associated with the quantified body
+  P_and *newFacts = new P_and(new ASTList<Predicate>);
+  env.transferDependentFacts(ret->variables, prevDepth, newFacts);
+
+  if (newFacts->conjuncts.isNotEmpty()) {
+    if (forall) {
+      // if the quantifier is a forall, then we construct an implication
+      // so the body can assume the facts we've pushed
+      body = new P_impl(newFacts, body);
+    }
+    else {
+      // if the quantifier is an exists, we simply conjoin the facts,
+      // effectively (again) making them facts which can be assumed while
+      // considering the body
+      newFacts->conjuncts.append(body);
+      body = newFacts;
+    }
+  }
+  else {
+    // no dependent facts
+    delete newFacts;
+  }    
+  #endif // 0
+
+  // attach the body to the quantifier
+  ret->body = body;
 
   return ret;
 }

@@ -22,7 +22,10 @@ struct Node {
 void foo()
 {
   struct Node *a = new Node;
+  thmprv_assert(!thmprv_exists(Node *n; n->next == a));
+
   a->next = 0;
+  thmprv_assert(!thmprv_exists(Node *n; n->next == a));
   //thmprv_assert(isNode(a));
 
   struct Node *b = new Node;

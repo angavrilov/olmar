@@ -112,6 +112,9 @@ void AEnv::clear()
   // initialize the environment with a fresh variable for memory
   set(mem, freshVariable("mem", "initial contents of memory"));
 
+  // null is an address distinct from any other we'll encounter
+  addDistinct(avInt(0));
+
   // part of the deal with type facts is I don't clear them..
 
   inconsistent = 0;
@@ -163,6 +166,14 @@ AbsValue *AEnv::get(Variable const *var)
       stringc << (var->hasFlag(DF_UNIVERSAL)? "universally" : "existentially")
               << " quantified: " << var->name );
 
+    set(var, value);
+    return value;
+  }
+
+  // reference to a structure field
+  if (var->hasFlag(DF_FIELD)) {
+    value = freshVariable(var->name,
+      stringc << "models object offset of field " << var->name);
     set(var, value);
     return value;
   }
@@ -337,6 +348,25 @@ void AEnv::forgetAcrossCall(E_funCall const *call)
 }
 
 
+void AEnv::setMem(AbsValue *newMem)
+{
+  // the following is preferable to simply
+  //   set(mem, newMem)
+  // because this way the various updates to memory are broken apart,
+  // instead of collapsed into one mammoth upd(upd(upd(...))) expression
+
+  // make up a new variable
+  AVvar *newMemVar = freshVariable("mem", "updated memory");
+  
+  // say that it's equal to the 'newMem' value
+  pathFacts->conjuncts.append(
+    P_equal(newMemVar, newMem));
+    
+  // update our notion of memory to refer to the new variable
+  set(mem, newMemVar);
+}
+
+
 // essentially, express 'expr != 0', but try to map as much
 // of expr into the predicate domain as possible, so Simplify
 // will interpret them as predicates (otherwise I'll have to
@@ -430,6 +460,50 @@ void AEnv::addBoolFact(Predicate *pred, bool istrue, char const *why)
   }
   else {
     addFact(P_negate(pred), why);    // strip outer P_not (if exists)
+  }
+}
+
+
+int AEnv::factStackDepth() const
+{
+  return pathFacts->conjuncts.count();
+}
+
+// O(n^2) implementation
+void AEnv::popRecentFacts(int prevDepth, P_and *dest)
+{
+  while (factStackDepth() > prevDepth) {
+    dest->conjuncts.prepend(pathFacts->conjuncts.removeLast());
+  }
+  xassert(factStackDepth() == prevDepth);
+}
+
+
+// O(n^2) implementation
+void AEnv::transferDependentFacts(ASTList<AVvar> const &variables,
+                                  int prevDepth, P_and *newFacts)
+{
+  int ct = pathFacts->conjuncts.count();
+  for (int i=ct-1; i>=prevDepth; i--) {
+    Predicate *fact = pathFacts->conjuncts.nth(i);
+
+    // does this fact refer to any of the variables in 'variables'?
+    FOREACH_ASTLIST(AVvar, variables, iter) {
+      AVvar const *var = iter.data();
+
+      // does the fact refer to 'var'?
+      if (predicateRefersToAV(fact, var)) {
+        // yes; pull it from 'pathFacts' and put it into 'newFacts'
+        Predicate *captured = pathFacts->conjuncts.removeAt(i);
+        newFacts->conjuncts.append(captured);
+        trace("capturedFacts") << captured->toSexpString() << endl;
+        break;
+      }
+    }
+
+    // either it did refer and we've already pulled it, or it didn't
+    // refer to any of the variables of interest, so it remained
+    // in pathFacts
   }
 }
 
@@ -572,7 +646,11 @@ bool AEnv::innerProve(Predicate * /*serf*/ goal,
     if (print) {
       VariablePrinter vp;
       cout << print << ": " << context << endl;
+      // print facts surrounded by Simplify syntax to facilitate
+      // copy+paste from xterm into Simplify interactive session
+      cout << "  facts: (BG_PUSH (AND\n";
       printFact(vp, &allFacts);
+      cout << "  ))\n";
       cout << "  goal: " << goal->toSexpString() << "\n";
       walkValuePredicate(vp, goal);
 
@@ -606,7 +684,7 @@ void AEnv::printFact(VariablePrinter &vp, Predicate const *fact)
     }
   }
   else {
-    cout << "  fact: " << fact->toSexpString() << "\n";
+    cout << "    " << fact->toSexpString() << "\n";
     walkValuePredicate(vp, fact);
   }
 }

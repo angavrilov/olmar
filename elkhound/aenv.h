@@ -4,14 +4,13 @@
 #ifndef AENV_H
 #define AENV_H
 
-#include "strsobjdict.h"   // StringSObjDict
-#include "strtable.h"      // StringRef
-#include "sobjlist.h"      // SObjList
-#include "stringset.h"     // StringSet
-#include "ohashtbl.h"      // OwnerHashTable
+#include "strsobjdict.h"     // StringSObjDict
+#include "strtable.h"        // StringRef
+#include "sobjlist.h"        // SObjList
+#include "stringset.h"       // StringSet
+#include "ohashtbl.h"        // OwnerHashTable
+#include "absval.ast.gen.h"  // ASTList, AbsValue, AVvar
 
-class AbsValue;            // absval.ast
-class AVvar;               // absval.ast
 class P_and;               // predicate.ast
 class Predicate;           // predicate.ast
 class VariablePrinter;     // aenv.cc
@@ -155,13 +154,25 @@ public:      // funcs
 
   // set/get the current abstract value of memory
   AbsValue *getMem() { return get(mem); }
-  void setMem(AbsValue *newMem) { set(mem, newMem); }
+  void setMem(AbsValue *newMem); // { set(mem, newMem); }
 
   // proof assumption
   void addFact(Predicate * /*owner*/ pred, char const *why);
   void addBoolFact(Predicate *pred, bool istrue, char const *why);
   void addFalseFact(Predicate *falsePred, char const *why) 
     { addBoolFact(falsePred, false, why); }
+
+  // fact stack manipulation; this is a bit of a hack for now; better would
+  // be to keep a true stack internal to AEnv instead of exporting things
+  // like list lengths..
+  int factStackDepth() const;
+  void popRecentFacts(int prevDepth, P_and *dest);
+  
+  // transfer to 'newFacts' any facts in 'pathFacts' that refer to anything
+  // in 'variables'; only look at facts whose index in 'pathFacts' is
+  // 'prevDepth' or greater
+  void transferDependentFacts(ASTList<AVvar> const &variables,
+                              int prevDepth, P_and *newFacts);
 
   void pushFact(Predicate * /*serf*/ pred);
   void popFact();      // must pop before corresponding 'pred' is deleted

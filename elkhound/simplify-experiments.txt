@@ -374,3 +374,10 @@
 
 (isNode mem3 a)
 (isNode mem3 b)
+
+
+; simplify unsound?  yes! .. :(
+(IMPLIES
+  (EQ x 3)
+  (FORALL (x) (EQ x 3))
+)
