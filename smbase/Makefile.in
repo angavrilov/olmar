@@ -92,6 +92,7 @@ OBJS := \
   bflatten.o \
   bit2d.o \
   bitarray.o \
+  boxprint.o \
   breaker.o \
   crc.o \
   cycles.o \
@@ -138,7 +139,8 @@ $(THIS): $(OBJS)
 TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
-         srcloc hashline gprintf smregexp vptrmap vdtllist pprint
+         srcloc hashline gprintf smregexp vptrmap vdtllist pprint \
+         boxprint
 tests: $(TESTS)
 
 # command to compile and link
@@ -231,6 +233,9 @@ vptrmap: vptrmap.cc $(THIS)
 pprint: pprint.cc $(THIS)
 	$(TESTCXX) -o $@ -DTEST_PPRINT pprint.cc $(TESTFLAGS)
 
+boxprint: boxprint.cc $(THIS)
+	$(TESTCXX) -o $@ -DTEST_BOXPRINT boxprint.cc $(TESTFLAGS)
+
 check: $(TESTS)
 	./nonport
 	./voidlist
@@ -257,6 +262,7 @@ check: $(TESTS)
 	./smregexp
 	./vptrmap
 	./pprint
+	./boxprint
 	@echo
 	@echo "make check: all the tests PASSED"
 

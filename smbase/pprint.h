@@ -1,6 +1,14 @@
 // pprint.h
 // pretty-print code while emitting it
 
+                     
+
+// NOTE: This module is a little simpler to use, but much less
+// powerful than the 'boxprint' module.  I'm leaving this module
+// here for now, but will probably delete it at some point.
+
+
+
 // inspired by:
 //   CIL's 'pretty' module
 //   http://www.cs.berkeley.edu/~necula/cil/index.html
@@ -11,7 +19,8 @@
 // special characters:
 //   '\n' - hard linebreak
 //   '\r' - optional linebreak; is 1 space if the break isn't taken
-//   '\b' - begin a break group
+//   '\b' - begin a break group (return to <here>)
+//   '\a' - alternate begin group (return to <this_line_ind> + altIndent)
 //   '\f' - finish a break group
 
 #ifndef PPRINT_H
@@ -57,6 +66,9 @@ private:     // types
     // emitted text in the current line
     stringBuilder curLine;
 
+    // indentation used for 'curLine'
+    int curLineInd;
+
     // place in the 'line' buffer; all the chars up to this point
     // have been sent out
     int lineIndex;
@@ -66,13 +78,13 @@ private:     // types
 
   private:     // funcs
     // add 'amt' spaces to 'curLine'
-    void indent(int amt);           
-    
+    void indent(int amt);
+
     // copy characters [lineIndex,lineIndex+p-1] from 'line' into
     // 'curLine', moving 'lineIndex' along so eventually it equals
     // 'p'; also maintain 'indentGroups'
     void emitTo(int p);
-                 
+
     // send all of 'curLine' to 'pprint.out', and clear 'curLine'
     void flush();
 
@@ -80,6 +92,7 @@ private:     // types
     Setter(PPrint &p)
       : pprint(p),
         curLine(),
+        curLineInd(0),
         lineIndex(0),
         indentGroups()
     {}
@@ -93,18 +106,26 @@ private:     // data
   // the contents of each line, up to a hard linebreak, is accumulated here
   ArrayStack<char> line;
 
+public:      // data
   // current indentation level for the beginning of a complete line
   // (one preceded by a hard linebreak)
   int lineIndent;
 
   // desired right margin; we'll try to set text so it doesn't go
-  // beyond that many columns
+  // beyond that many columns; defaults to 72
   int margin;
+
+  // incremental indentation for '\a' groups; defaults to 2
+  int altIndent;
+
+  // if not NULL, text to emit at the start of every line; intended
+  // for emitting text into a comment or other embedded context;
+  // defaults to NULL; not counted against the margin
+  char const *startText;
 
   // where to send output
   PPrintOut &out;
 
-public:      // data             
   // When true, and we find that the grouping is unbalanced at
   // the end of setting a line, pring a warning.  This defaults
   // to 'true'.  Note that while too many '\b's will only trigger
@@ -118,7 +139,7 @@ private:     // funcs
   void set();
 
 public:      // funcs
-  PPrint(PPrintOut &out, int margin = 72);
+  PPrint(PPrintOut &out);
   ~PPrint();
 
   // basic printing routine; the text can contain the special
@@ -129,7 +150,7 @@ public:      // funcs
   // convenience
   PPrint& operator<< (int i);
   PPrint& operator<< (char const *s);
-  
+
   // manage the line-start indentation
   void ind(int amt) { lineIndent += amt; }
 };
@@ -141,8 +162,8 @@ public:
   PPrintStringOut sbOut;       // helper
 
 public:
-  PPrintToString(int margin = 72)
-    : PPrint(sbOut, margin), sb(), sbOut(sb) {}
+  PPrintToString()
+    : PPrint(sbOut), sb(), sbOut(sb) {}
   ~PPrintToString();
 };
 
@@ -150,8 +171,8 @@ class PPrintToOstream : public PPrint {
   PPrintOstreamOut osOut;
 
 public:
-  PPrintToOstream(ostream &os, int margin = 72) 
-    : PPrint(osOut, margin), osOut(os) {}
+  PPrintToOstream(ostream &os)
+    : PPrint(osOut), osOut(os) {}
 };
 
 

@@ -21,10 +21,12 @@ void PPrintOstreamOut::write(char const *text)
 // ------------------------ PPrint ----------------------
 bool PPrint::warnWhenUnbalanced = true;
 
-PPrint::PPrint(PPrintOut &o, int m)
+PPrint::PPrint(PPrintOut &o)
   : line(),
     lineIndent(0),
-    margin(m),
+    margin(72),
+    altIndent(2),
+    startText(NULL),
     out(o)
 {}
 
@@ -89,10 +91,12 @@ void PPrint::Setter::set()
 {
   // initialize the indentation stack with the line-start indentation
   indentGroups.push(pprint.lineIndent);
-
+    
+  // loop over the actual emitted lines
   while (lineIndex < pprint.line.length()) {
     // indent the line by the amount at the top of the stack
-    indent(indentGroups.top());
+    curLineInd = indentGroups.top();
+    indent(curLineInd);
 
     // find all of the line breaks that would make the current line end
     // before the 'margin' column
@@ -128,6 +132,10 @@ void PPrint::Setter::set()
 
         case '\b':   // begin break group
           pInd.push(pCol);
+          break;
+
+        case '\a':   // alternate begin group
+          pInd.push(curLineInd + pprint.altIndent);
           break;
 
         case '\f':   // break group end
@@ -218,6 +226,10 @@ void PPrint::Setter::emitTo(int p)
         indentGroups.push(curLine.length());
         break;
 
+      case '\a':   // alternate begin group
+        indentGroups.push(curLineInd + pprint.altIndent);
+        break;
+
       case '\f':   // break group end
         indentGroups.pop();
         break;
@@ -234,6 +246,9 @@ void PPrint::Setter::emitTo(int p)
 
 void PPrint::Setter::flush()
 {
+  if (pprint.startText) {
+    pprint.out.write(pprint.startText);
+  }
   pprint.out.write(curLine);
   curLine.clear();
 }
@@ -308,10 +323,13 @@ PPrintToString::~PPrintToString()
 // --------------------- test code -----------------------
 #ifdef TEST_PPRINT
 
-PPrintToString pp(30);
+PPrintToString pp;
 
 int main()
 {
+  pp.margin = 30;
+  pp.startText = "; ";
+
   cout << "         1    1    2    2    3\n";
   cout << "1---5----0----5----0----5----0\n";
 
@@ -325,6 +343,13 @@ int main()
   pp << "zoo(\b\"one break is here, but it is very\",\r\"far from the start\"\f);\n";
   pp << "assert(\bx ==\ry &&\rz ==\rw &&\r"
                "(\bmoron !=\rfool ||\rtaxes->theRich\f)\f);\n";
+  pp << "\aforall(x, y, z). if {\r"
+          "x == yooey_more;\r"
+          "yowza != fooey;\f\r"
+        "} {\a\r"
+          "z(x,y,z)==3;\r"
+          "ay_caramba;\f\r"
+        "}\n";
   pp.ind(-2);
   pp << "}\n";
   
