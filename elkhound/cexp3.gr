@@ -11,7 +11,6 @@ verbatim Cexp3 [
     trace("exptree") << msg << endl
 
   class Cexp3 : public UserActions {
-    USER_ACTION_FUNCTIONS
     #include "cexp3.gen.h"
   };
   

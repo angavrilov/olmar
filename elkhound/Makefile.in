@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar gramanl cdecl2 ccgr
+temporary: check-makefiles grampar gramanl cexp3 cdecl cdecl2 ccgr
 
 # main targets
 all: check-makefiles ccgr
@@ -275,6 +275,7 @@ libccgr.a: ${ccgr-dep} libglr.a
 # stand-alone executable
 ccgr: libccgr.a glrmain.o
 NOCAMLINCL	${link} -o ccgr glrmain.o libccgr.a ${linkend}
+NOCAMLINCL	./ccgr cc.bin c.in1
 OCAMLINCL	@echo "we don't build ccgr in ocaml mode"
 
 clean:

@@ -32,7 +32,6 @@ public:
   bool isType(StringRef name);
 
   // declarations for the generated code
-  USER_ACTION_FUNCTIONS
   #include "cdecl2.gen.h"
 };
 

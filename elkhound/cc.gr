@@ -21,7 +21,6 @@ public:
   CCGr(StringTable &table) : ParseEnv(table) {}
 
 private:
-  USER_ACTION_FUNCTIONS
   #include "cc.gen.h"
 };
 

@@ -3027,6 +3027,8 @@ void emitActionCode(Grammar const &g, char const *hFname,
   dcl << "// the following declarations are intended to be #included\n";
   dcl << "// directly into the " << g.actionClassName << " class declaration\n";
   dcl << "\n";
+  dcl << "USER_ACTION_FUNCTIONS      // see useract.h\n";
+  dcl << "\n";
 
   EmitCode out(ccFname);
   if (!out) {
@@ -3397,9 +3399,9 @@ int main(int argc, char **argv)
 
   if (argc != 2) {
     cout << "usage: " << progName << " [-tr traceFlags] [--testRW] prefix\n"
-            "  processes prefix.gr to make prefix.{h,cc,bin}\n"
-            "  useful tracing flags:\n"
-            "    conflict    : print SLR(1) conflicts\n"
+            "  processes prefix.gr to make prefix.{gen.h,gen.cc,bin}\n"
+            "  useful tracing flags (separate with commas):\n"
+            "    conflict    : print LALR(1) conflicts\n"
             "    closure     : details of item-set closure algorithm\n"
             "    prec        : show how prec/assoc are used to resolve conflicts\n"
             "    item-sets   : print the LR item sets after they're computed\n"
