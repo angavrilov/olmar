@@ -14,6 +14,27 @@ for a given syntax/context, whereas the standard is organized by
 language feature and so often scatters relevant details in many
 places.
 
+One reference worth mentioning: Brian Malloy has done some
+investigation of how to implement lookup in C++, and his papers are
+at http://www.cs.clemson.edu/~malloy/projects/keystone/keystone.html.
+My analysis is independent, however.
+
+
+
+There are four kinds of scope chaining mechanisms:
+  - syntactic nesting for the current scope (Env::scopes)
+  - syntactic nesting for non-current scopes (Scope::parentScope)
+  - namespace 'using' directives (Scope::usingEdges)
+  - base classes (CompoundType::bases)
+
+Env is responsible for following the first two chains, for unqualified
+lookup.  Scope is responsible for following the next two.
+LF_INNER_ONLY currently disables following of *all* four chains,
+though I may have to refine that.
+
+
+
+
 
 -----------------------------------------------------------
 How does name lookup for function all syntax (E_funCall) work?
@@ -35,9 +56,9 @@ E_funCall::inner2_tcheck.  This split is for performance reasons, and
 forces a certain partition of the work (see comments in
 Expression::tcheck for more details).
 
-inner1's main job is to map the 'name' to a Variable object pointer.
-The latter can denote an overload set if necessary, or an empty
-set via a NULL pointer.  It does these steps:
+inner1's main job is to map the 'name' to an initial set of Variable 
+object pointers.  The set includes all overloaded instances from all
+relevant namespaces (i.e., those found via 'using' directives).
 
   * Do an ordinary (as opposed to argument dependent) lookup of the
     name, using the receiver object type, the qualifiers, and the
@@ -47,23 +68,18 @@ set via a NULL pointer.  It does these steps:
   * If template arguments are present but the lookup did not find any
     template functions, issue an error.
 
-(Note that this design has a bug.  This initial lookup should take
-namespace 'using' directives into account, but if doing so yields
-a set that is not exactly the overload set of some name, then it
-cannot be represented with a single Variable pointer.  For now, my
-implementation just does the wrong thing in such cases.)
+The result of the inner1 lookup is carried in the 'candidates' list.
 
 inner2's job is to pick up where inner1 left off, and use the
 remaining information in the E_funCall to pick exactly the right
 Variable for the function call site, doing template instantiation and
 overload resolution as necessary.  It does these steps:
 
-  * It regards the Variable computed by inner1 (and stored in
-    E_variable::var or E_fieldAcc::field) as denoting an initial
-    candidate set (possibly empty, if the pointer is NULL).
+  * It regards the set computed by inner1 (and stored in 'candidates') 
+    as denoting an initial candidate set (possibly empty).
 
-  * If no receiver object and no qualifiers are present, augment the 
-    lookup set by using argument dependent lookup (3.4.2).
+  * If no receiver object and no qualifiers are present, augment the
+    candidate set by using argument dependent lookup (3.4.2).
 
   * Refine/filter the candidate set; for each candidate:
 
