@@ -828,7 +828,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateInfo->toString()
+      << prior->templateInfo->toCString()
       << " but the this one is not templatized",
       true /*disambiguating*/);
     return;
@@ -839,7 +839,7 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was not templatized, but this one is, with parameters "
-      << scope->curTemplateParams->toString(),
+      << scope->curTemplateParams->toCString(),
       true /*disambiguating*/);
     delete scope->curTemplateParams;
     scope->curTemplateParams = NULL;
@@ -859,9 +859,9 @@ void verifyCompatibleTemplates(Env &env, CompoundType *prior)
       << "prior declaration of " << prior->keywordAndName()
       << " at " << prior->typedefVar->loc
       << " was templatized with parameters "
-      << prior->templateInfo->toString()
+      << prior->templateInfo->toCString()
       << " but this one has parameters "
-      << scope->curTemplateParams->toString()
+      << scope->curTemplateParams->toCString()
       << ", and these are not equivalent",
       true /*disambiguating*/);
   }

@@ -133,6 +133,10 @@ void doit(int argc, char **argv)
        "    prettyPrint        echo input as pretty-printed C++\n"
        "");
 
+    if (tracingSys("ML_TSM")) {
+      currentToStringMode = ML_TSM;
+    }
+
     if (tracingSys("nohashline")) {
       sourceLocManager->useHashLines = false;
     }

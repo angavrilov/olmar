@@ -17,6 +17,9 @@
 #include <stdlib.h>     // getenv
 
 
+ToStringMode currentToStringMode = C_TSM;
+
+
 // ------------------ AtomicType -----------------
 ALLOC_STATS_DEFINE(AtomicType)
 
@@ -36,6 +39,15 @@ DOWNCAST_IMPL(AtomicType, SimpleType)
 DOWNCAST_IMPL(AtomicType, CompoundType)
 DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
+
+
+string AtomicType::toString() const {
+  switch (currentToStringMode) {
+  default: xfailure("illegal currentToStringMode"); break;
+  case C_TSM: return toCString();
+  case ML_TSM: return toMLString();
+  }
+}
 
 
 bool AtomicType::equals(AtomicType const *obj) const
@@ -216,7 +228,7 @@ string CompoundType::toCString() const
       
   bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
   if (hasParams) {
-    sb << templateInfo->toString() << " ";
+    sb << templateInfo->toCString() << " ";
   }
 
   if (!templateInfo || hasParams) {   
@@ -835,11 +847,34 @@ string printSerialNo(int serialNumber)
 {            
   // it's kind of a hack to use an environment variable, but this
   // whole thing is for debugging anyway...
-  if (!getenv("PRINT_TYPE_SERIAL_NUMBER")) {
+  if (!getenv("PRINT_TYPE_SERIAL_NUMBERS")) {
     return "";     // don't print them.. messes up idempotency among other things
   }
   else {
-    return stringc << "/""*t" << serialNumber << "*/";
+//      return stringc << "/""*t" << serialNumber << "*/";
+    return stringc << "t" << serialNumber;
+  }
+}
+
+
+string BaseType::toString() const {
+  switch (currentToStringMode) {
+  default: xfailure("illegal currentToStringMode"); break;
+  case C_TSM: return toCString();
+  case ML_TSM: return toMLString();
+  }
+}
+
+
+string BaseType::toString(char const *name) const {
+  switch (currentToStringMode) {
+  default: xfailure("illegal currentToStringMode"); break;
+  case C_TSM: return toCString(name);
+  case ML_TSM:
+    if (!name) {
+      name = "*anonymous*";
+    }
+    return stringc << "\"" << name << "\"->" << toMLString();
   }
 }
 
@@ -852,17 +887,11 @@ string BaseType::toCString() const
     CVAtomicType const *atomic = asCVAtomicTypeC();
     return stringc
       << atomic->atomic->toCString()
-      #if USE_TYPE_SERIAL_NUMBERS
-        << printSerialNo(serialNumber)
-      #endif
       << cvToString(atomic->cv);
   }
   else {
     return stringc
       << leftString()
-      #if USE_TYPE_SERIAL_NUMBERS && 0    // 'rightString' has got it
-        << printSerialNo(serialNumber)
-      #endif
       << rightString();
   }
 }
@@ -884,9 +913,6 @@ string BaseType::toCString(char const *name) const
   stringBuilder s;
   s << leftString(innerParen);
   s << (name? name : "/*anon*/");
-  #if USE_TYPE_SERIAL_NUMBERS && 0    // 'rightString' has got it
-    s << printSerialNo(serialNumber);
-  #endif
   s << rightString(innerParen);
   return s;
 }
@@ -894,13 +920,7 @@ string BaseType::toCString(char const *name) const
 // this is only used by CVAtomicType.. all others override it
 string BaseType::rightString(bool /*innerParen*/) const
 {
-  #if USE_TYPE_SERIAL_NUMBERS
-    // this now may print it too many times; trying to track down a
-    // problem where we're printing too few serial numbers
-    return printSerialNo(serialNumber);
-  #else
-    return "";
-  #endif
+  return "";
 }
 
 
@@ -1190,9 +1210,6 @@ string PointerType::leftString(bool /*innerParen*/) const
 string PointerType::rightString(bool /*innerParen*/) const
 {
   stringBuilder s;
-  #if USE_TYPE_SERIAL_NUMBERS
-    s << printSerialNo(serialNumber);
-  #endif
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << ")";
@@ -1479,7 +1496,7 @@ string FunctionType::leftString(bool innerParen) const
 
   // template parameters
   if (templateParams) {
-    sb << templateParams->toString() << " ";
+    sb << templateParams->toCString() << " ";
   }
 
   // return type and start of enclosing type's description
@@ -1527,7 +1544,7 @@ string FunctionType::rightStringUpToQualifiers(bool innerParen) const
     if (isMethod() && ct==1) {
       // don't actually print the first parameter;
       // the 'm' stands for nonstatic member function
-      sb << "/""*m: " << iter.data()->type->toString() << " *""/ ";
+      sb << "/""*m: " << iter.data()->type->toCString() << " *""/ ";
       continue;
     }
     if (ct >= 3 || (!isMethod() && ct>=2)) {
@@ -1552,10 +1569,6 @@ string FunctionType::rightStringAfterQualifiers() const
 {
   stringBuilder sb;
 
-  #if USE_TYPE_SERIAL_NUMBERS
-    sb << printSerialNo(serialNumber);
-  #endif
-
   CVFlags cv = getThisCV();
   if (cv) {
     sb << " " << ::toString(cv);
@@ -1569,7 +1582,7 @@ string FunctionType::rightStringAfterQualifiers() const
       if (ct++ > 0) {
         sb << ", ";
       }
-      sb << iter.data()->toString();
+      sb << iter.data()->toCString();
     }
     sb << ")";
   }
@@ -1629,7 +1642,7 @@ TemplateParams::~TemplateParams()
 {}
 
 
-string TemplateParams::toString() const
+string TemplateParams::toCString() const
 {
   stringBuilder sb;
   sb << "template <";
@@ -1814,10 +1827,6 @@ string ArrayType::rightString(bool /*innerParen*/) const
 {
   stringBuilder sb;
 
-  #if USE_TYPE_SERIAL_NUMBERS
-    sb << printSerialNo(serialNumber);
-  #endif
-
   if (hasSize()) {
     sb << "[" << size << "]";
   }
@@ -1894,9 +1903,6 @@ string PointerToMemberType::leftString(bool /*innerParen*/) const
 string PointerToMemberType::rightString(bool /*innerParen*/) const
 {
   stringBuilder s;
-  #if USE_TYPE_SERIAL_NUMBERS
-    s << printSerialNo(serialNumber);
-  #endif
   if (atType->isFunctionType() ||
       atType->isArrayType()) {
     s << ")";
@@ -1923,6 +1929,196 @@ bool PointerToMemberType::anyCtorSatisfies(TypePred pred) const
 CVFlags PointerToMemberType::getCVFlags() const
 {
   return cv;
+}
+
+
+// ---------------------- toMLString ---------------------
+// print out a type as an ML-style string
+
+//  Atomic
+string SimpleType::toMLString() const
+{
+  return simpleTypeName(type);
+}
+
+string CompoundType::toMLString() const
+{
+  stringBuilder sb;
+      
+//    bool hasParams = templateInfo && templateInfo->params.isNotEmpty();
+//    if (hasParams) {
+  if (templateInfo) {
+    sb << templateInfo->toMLString();
+  }
+
+//    if (!templateInfo || hasParams) {   
+    // only say 'class' if this is like a class definition, or
+    // if we're not a template, since template instantiations
+    // usually don't include the keyword 'class' (this isn't perfect..
+    // I think I need more context)
+  sb << keywordName(keyword) << "-";
+//    }
+
+  if (name) {
+    sb << "\"" << name << "\"";
+  } else {
+    sb << "*anonymous*";
+  }
+
+  // template arguments are now in the name
+  //if (templateInfo && templateInfo->specialArguments) {
+  //  sb << "<" << templateInfo->specialArgumentsRepr << ">";
+  //}
+   
+  return sb;
+}
+
+string EnumType::toMLString() const
+{
+  stringBuilder sb;
+  sb << "enum-";
+  if (name) {
+    sb << "\"" << name << "\"";
+  } else {
+    sb << "*anonymous*";
+  }
+  return sb;
+}
+
+string TypeVariable::toMLString() const
+{
+  return stringc << "typevar-\"" << string(name) << "\"";
+}
+
+//  Constructed
+
+// I don't like #if-s everywhere, and Steve Fink agrees with me.
+void BaseType::putSerialNo(stringBuilder &sb) const
+{
+  #if USE_TYPE_SERIAL_NUMBERS
+    sb << printSerialNo(serialNumber) << "-";
+  #endif
+}
+
+string CVAtomicType::toMLString() const
+{
+  stringBuilder sb;
+  sb << cvToString(cv) << " ";
+  putSerialNo(sb);
+  sb << atomic->toMLString();
+  return sb;
+}
+
+string PointerType::toMLString() const
+{
+  stringBuilder sb;
+  if (cv) {
+    sb << cvToString(cv) << " ";
+  }
+  putSerialNo(sb);
+  sb << (op==PO_POINTER? "ptr" : "ref");
+  sb << "(" << atType->toMLString() << ")";
+  return sb;
+}
+
+string FunctionType::toMLString() const
+{
+  stringBuilder sb;
+  if (templateParams) {
+    sb << templateParams->toMLString();
+  }
+  putSerialNo(sb);
+  if (flags & FF_CTOR) {
+    sb << "ctor-";
+  }
+  sb << "fun";
+
+  sb << "(";
+
+  sb << "retType: " << retType->toMLString();
+  // arg, you can't do this due to the way Scott handles retVal
+//    if (retVal) {
+//      sb << ", " << retVal->toMLString();
+//    }
+
+  int ct=0;
+//    bool firstTime = true;
+  SFOREACH_OBJLIST(Variable, params, iter) {
+    Variable const *v = iter.data();
+    ct++;
+//      if (firstTime) {
+//        firstTime = false;
+//      } else {
+    sb << ", ";                 // retType is first
+//      }
+//      if (isMethod() && ct==1) {
+//        // print "this" param
+//        sb << "this: " << v->type->toMLString();
+//        continue;
+//      }
+//      v->toMLString();
+    sb << "\"" << v->name << "\"->" << v->type->toMLString();
+  }
+  sb << ")";
+  return sb;
+}
+
+string ArrayType::toMLString() const
+{
+  stringBuilder sb;
+  putSerialNo(sb);
+  sb << "array(";
+  sb << "size:";
+  if (hasSize()) {
+    sb << size;
+  } else {
+    sb << "unspecified";
+  }
+  sb << ", ";
+  sb << eltType->toMLString();
+  sb << ")";
+  return sb;
+}
+
+string PointerToMemberType::toMLString() const
+{
+  stringBuilder sb;
+  if (cv) {
+    sb << cvToString(cv) << " ";
+  }
+  putSerialNo(sb);
+  sb << "ptm(";
+  sb << inClass->name;
+  sb << ", " << atType->toMLString();
+  sb << ")";
+  return sb;
+}
+
+string TemplateParams::toMLString() const
+{
+  stringBuilder sb;
+  sb << "template <";
+#if 0
+  int ct=0;
+  // FIX: incomplete
+  SFOREACH_OBJLIST(Variable, params, iter) {
+    Variable const *p = iter.data();
+    if (ct++ > 0) {
+      sb << ", ";
+    }
+
+    // FIX: is there any difference here?
+    if (p->type->isTypeVariable()) {
+      sb << "var(name:" << p->name << ", " << v->type->toMLString() << ")";
+    }
+    else {
+      // non-type parameter
+      sb << p->toStringAsParameter();
+    }
+  }
+#endif
+  sb << ">";
+  return sb;
 }
 
 
@@ -2222,5 +2418,3 @@ char *type_toString(Type const *t)
   // defined in smbase/strutil.cc
   return copyToStaticBuffer(t->toString());
 }
-
-

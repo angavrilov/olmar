@@ -65,6 +65,13 @@ class TypeFactory;
 class BasicTypeFactory;
 
 
+// specify a mode for toString()
+enum ToStringMode {
+  C_TSM,                        // print in C syntax
+  ML_TSM,                       // print in an imitation ML syntax
+};
+extern ToStringMode currentToStringMode; // global
+
 #ifndef USE_TYPE_SERIAL_NUMBERS
   // The idea here is that it's sometimes difficult during debugging
   // to keep track of the various Type objects floating around, and
@@ -74,7 +81,7 @@ class BasicTypeFactory;
   // number.  Normally this should be off since it uses memory and
   // makes the printouts ugly.
   //
-  // NOTE: Currently, the environment variable "PRINT_TYPE_SERIAL_NUMBER"
+  // NOTE: Currently, the environment variable "PRINT_TYPE_SERIAL_NUMBERS"
   // must be set for the printouts to include the serial numbers.
   //
   // default to off; can turn on via "./configure -useTypeSerialNumbers"
@@ -110,9 +117,12 @@ public:     // funcs
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
 
+  // print the string according to the currentToStringMode
+  string toString() const;
   // print in C notation
   virtual string toCString() const = 0;
-  string toString() const { return toCString(); }
+  // print in ML notation
+  virtual string toMLString() const = 0;
 
   // size this type's representation occupies in memory; this
   // might throw XReprSize, see below
@@ -140,6 +150,7 @@ public:     // funcs
   // AtomicType interface
   virtual Tag getTag() const { return T_SIMPLE; }
   virtual string toCString() const;
+  virtual string toMLString() const;
   virtual int reprSize() const;
 };
 
@@ -280,6 +291,7 @@ public:      // funcs
   // AtomicType interface
   virtual Tag getTag() const { return T_COMPOUND; }
   virtual string toCString() const;
+  virtual string toMLString() const;
   virtual int reprSize() const;
 
   string toStringWithFields() const;
@@ -380,6 +392,7 @@ public:     // funcs
   // AtomicType interface
   virtual Tag getTag() const { return T_ENUM; }
   virtual string toCString() const;
+  virtual string toMLString() const;
   virtual int reprSize() const;
 
   Value *addValue(StringRef name, int value, /*nullable*/ Variable *d);
@@ -527,11 +540,16 @@ public:     // funcs
   unsigned hashValue() const;
   virtual unsigned innerHashValue() const = 0;
 
+  // print the string according to the currentToStringMode
+  string toString() const;
+  string toString(char const *name) const;
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
   string toCString() const;
   string toCString(char const *name) const;
-  string toString() const { return toCString(); }
+  // NOTE: yes, toMLString() is virtual, whereas toCString() is not
+  virtual string toMLString() const = 0;
+  void putSerialNo(stringBuilder &sb) const;
 
   // the left/right business is to allow us to print function
   // and array types in C's syntax; if 'innerParen' is true then
@@ -663,6 +681,7 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_ATOMIC; }
   unsigned innerHashValue() const;
+  virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual int reprSize() const;
   virtual bool anyCtorSatisfies(TypePred pred) const;
@@ -694,6 +713,7 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_POINTER; }
   unsigned innerHashValue() const;
+  virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -804,6 +824,7 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
   unsigned innerHashValue() const;
+  virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -836,6 +857,7 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_ARRAY; }
   unsigned innerHashValue() const;
+  virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -863,6 +885,7 @@ public:
   // Type interface
   virtual Tag getTag() const { return T_POINTERTOMEMBER; }
   unsigned innerHashValue() const;
+  virtual string toMLString() const;
   virtual string leftString(bool innerParen=true) const;
   virtual string rightString(bool innerParen=true) const;
   virtual int reprSize() const;
@@ -881,6 +904,7 @@ public:
   // AtomicType interface
   virtual Tag getTag() const { return T_TYPEVAR; }
   virtual string toCString() const;
+  virtual string toMLString() const;
   virtual int reprSize() const;
 };
 
@@ -894,7 +918,8 @@ public:
   TemplateParams(TemplateParams const &obj);
   ~TemplateParams();
 
-  string toString() const;
+  string toCString() const;
+  string toMLString() const;
   bool equalTypes(TemplateParams const *obj) const;
   bool anyCtorSatisfies(Type::TypePred pred) const;
 };

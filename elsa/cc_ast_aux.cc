@@ -58,7 +58,7 @@ void MemberInit::printExtras(ostream &os, int indent) const
   }
 
   if (base) {
-    ind(os, indent) << "base: " << base->toCString() << "\n";
+    ind(os, indent) << "base: " << base->toString() << "\n";
   }
 
   if (ctorVar) {
@@ -198,7 +198,7 @@ void TypeSpecifier::printExtras(ostream &os, int indent) const
 void BaseClassSpec::printExtras(ostream &os, int indent) const
 {
   if (type) {
-    ind(os, indent) << "type: " << type->toCString() << "\n";
+    ind(os, indent) << "type: " << type->toString() << "\n";
   }
 }
 
@@ -212,7 +212,7 @@ void Enumerator::printExtras(ostream &os, int indent) const
   if (var) {
     ind(os, indent) << "var: " 
       << toString(var->flags) << (var->flags? " " : "")
-      << var->type->toCString(var->name) << "\n";
+      << var->type->toString(var->name) << "\n";
     PRINT_GENERIC(enumValue);
   }
 }
@@ -252,7 +252,7 @@ void Declarator::printExtras(ostream &os, int indent) const
   if (var) {
     ind(os, indent) << "var: "
       << toString(var->flags) << (var->flags? " " : "")
-      << var->type->toCString(var->name);
+      << var->type->toString(var->name);
 
     if (var->overload) {
       int n = var->overload->count();
