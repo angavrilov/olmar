@@ -485,4 +485,19 @@
       (sub a (appendIndex rest index))
     ))
 
+  ; ---------------- selectors for offsets ---------------
+  ; firstIndexOf: select first component of 'sub'
+  (FORALL (index rest)
+    (EQ
+      (firstIndexOf (sub index rest))
+      index
+    ))
+
+  ; restOf: select second component of 'sub'
+  (FORALL (index rest)
+    (EQ
+      (restOf (sub index rest))
+      rest
+    ))
+
 ))

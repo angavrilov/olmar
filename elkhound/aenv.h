@@ -151,6 +151,9 @@ public:      // funcs
   // or why it was created; the prefix becomes part of the variable name
   // (AVvar is a subclass of AbsValue)
   AVvar *freshVariable(char const *prefix, char const *why);
+                                        
+  // forget what we knew about memory
+  void makeFreshMemory(char const *why);
 
   // make up a name for the address of the named variable, and add
   // it to the list of known address-taken variables; retuns the

@@ -120,17 +120,23 @@ void AEnv::newPath()
   distinct.removeAll();
 
   // initialize the environment with a fresh variable for memory
-  set(mem, freshVariable("mem", "initial contents of memory"));
-  addFact(P_named1(str("uncheckedAccess"), getMem()),
-          "memory itself is unchecked");
+  makeFreshMemory("initial contents of memory");
 
   // null is an address distinct from any other we'll encounter
   addDistinct(avInt(0));
 
   inconsistent = 0;
-  
+
   // do *not* clear failedProofs; 'clear' is used to refresh between
   // paths, but we want to accumulate failedProofs across all of them
+}
+
+
+void AEnv::makeFreshMemory(char const *why)
+{
+  set(mem, freshVariable("mem", why));
+  addFact(P_named1(str("uncheckedAccess"), getMem()),
+          "memory itself is unchecked");
 }
 
 
@@ -189,15 +195,22 @@ AbsValue *AEnv::get(Variable const *var)
 
   // first reference to a quantified variable
   if (var->hasFlag(DF_LOGIC)) {
-    // make sure I understand how this happens
-    xassert(var->hasFlag(DF_UNIVERSAL) || var->hasFlag(DF_EXISTENTIAL));
-
-    // make sure weird things aren't happening
-    xassert(!( var->hasFlag(DF_UNIVERSAL) && var->hasFlag(DF_EXISTENTIAL) ));
-
-    value = freshVariable(var->name,
-      stringc << (var->hasFlag(DF_UNIVERSAL)? "universally" : "existentially")
-              << " quantified: " << var->name );
+    if (var->hasFlag(DF_UNIVERSAL)) {
+      value = freshVariable(var->name, "universally quantified");
+    }
+    else if (var->hasFlag(DF_EXISTENTIAL)) {
+      value = freshVariable(var->name, "existentially quantified");
+    }
+    else {                                               
+      // happens when the programmer declares a variable in a precondition,
+      // but doesn't assign it a value; in a certain sense it's existentially
+      // quantified...
+      // update: if you do that, you can't satisfy the precondition, because
+      // when *proving* it it's universally quantified!  so this really should
+      // be explicitly quantified
+      cout << "WARNING: not explicitly quantified: " << var->name << endl;
+      value = freshVariable(var->name, "logic variable");
+    }
 
     set(var, value);
     return value;
@@ -433,8 +446,8 @@ void AEnv::forgetAcrossCall(E_funCall const *call)
   string thisCallSyntax = call->toString();
 
   // make up new variable to represent final contents of memory
-  setMem(freshVariable("mem",
-           stringc << "contents of memory after call: " << thisCallSyntax));
+  makeFreshMemory(
+    stringc << "contents of memory after call: " << thisCallSyntax);
 
   // any current values for global variables are forgotten
   FOREACH_BINDING(av) {
