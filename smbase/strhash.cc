@@ -59,6 +59,7 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
   // recognize this and generate a single rotate instruction 'ROR'.
   // http://groups.google.com/groups?q=rorl+x86&start=10&hl=en&lr=&ie=UTF-8&oe=UTF-8&
   // selm=359954C9.3B354F0%40cartsys.com&rnum=11
+  // http://www.privacy.nb.ca/cryptography/archives/coderpunks/new/1998-10/0096.html
   #define ROTATE(n, b) (n >> b) | (n << (32 - b))
 
   // source of primes: http://www.utm.edu/research/primes/lists/2small/0bit.html
