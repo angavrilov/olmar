@@ -1417,6 +1417,10 @@ nonterm[Member*] MemberDeclaration {
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
        [ spec->decllist = list; 
          return new MR_decl(spec); ]
+         
+  // inner class or enum with no instance defined
+  -> spec:DeclSpecifier ";"
+       [ return new MR_decl(spec); ]
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt

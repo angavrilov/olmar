@@ -79,14 +79,26 @@ void Env::exitScope()
 
 void Env::extendScope(Scope *s)
 {
-  trace("env") << "extending scope at " << (void*)s << "\n";
+  if (s->curCompound) {
+    trace("env") << "extending scope "
+                 << s->curCompound->keywordAndName() << "\n";
+  }
+  else {
+    trace("env") << "extending scope at " << (void*)s << "\n";
+  }
   scopes.prepend(s);
   s->curLoc = loc();
 }
 
 void Env::retractScope(Scope *s)
-{ 
-  trace("env") << "retracting scope at " << (void*)s << "\n";
+{
+  if (s->curCompound) {
+    trace("env") << "retracting scope "
+                 << s->curCompound->keywordAndName() << "\n";
+  }
+  else {
+    trace("env") << "retracting scope at " << (void*)s << "\n";
+  }
   Scope *first = scopes.removeFirst();
   xassert(first == s);
   // we don't own 's', so don't delete it
@@ -158,43 +170,57 @@ bool Env::addEnum(EnumType *et)
 Variable *Env::lookupPQVariable(PQName const *name)
 {
   if (name->hasQualifiers()) {
-    PQ_qualifier const *firstQ = name->asPQ_qualifierC();
+    PQName const *origName = name;     // used in an error message
 
-    // make sure there's only one qualifier
-    if (firstQ->rest->hasQualifiers()) {
-      unimp("more than one qualifier");
-      return NULL;
-    }
+    // this scope keeps track of which scope we've identified
+    // so far, given how many qualifiers we've processed;
+    // initially it is NULL meaning we're still at the default,
+    // lexically-enclosed scope
+    Scope *scope = NULL;
 
-    // get the first qualifier
-    StringRef qual = firstQ->qualifier;
-    if (!qual) {
-      unimp("bare `::' qualifier");
-      return NULL;
-    }
+    do {
+      PQ_qualifier const *qualifier = name->asPQ_qualifierC();
 
-    // look for a class called 'qual'
-    CompoundType *ct = lookupCompound(qual, false /*innerOnly*/);
-    if (!ct) {
-      // can't do this because I claimed to be a 'const' method..
-      // maybe I should have a value-return 'string' param?
-      //error(stringc
-      //  << "cannot find class `" << qual << "' for `" << *name << "'");
-      return NULL;
-    }
+      // get the first qualifier
+      StringRef qual = qualifier->qualifier;
+      if (!qual) {
+        unimp("bare `::' qualifier");
+        return NULL;
+      }
 
-    // look inside that class for 'name->name'
-    Variable const *field = ct->getNamedFieldC(firstQ->getName(), *this);
+      // look for a class called 'qual' in scope-so-far
+      CompoundType *ct =
+        scope==NULL? lookupCompound(qual, false /*innerOnly*/) :
+                     scope->lookupCompound(qual, false /*innerOnly*/);
+      if (!ct) {
+        // I'd like to include some information about which scope
+        // we were looking in, but I don't want to be computing
+        // intermediate scope names for successful lookups; also,
+        // I am still considering adding some kind of scope->name()
+        // functionality, which would make this trivial.
+        error(stringc
+          << "cannot find class `" << qual << "' for `" << *name << "'");
+        return NULL;
+      }
+
+      // now that we've found it, that's our active scope
+      scope = ct;
+
+      // advance to the next name in the sequence
+      name = qualifier->rest;
+    } while (name->hasQualifiers());
+
+    // look inside the final scope for the final name
+    Variable *field = 
+      scope->lookupVariable(name->getName(), false /*innerOnly*/, *this);
     if (!field) {
-      //error(stringc
-      //  << ct->keywordAndName() << " has no member called `"
-      //  << name->name << "'");
+      error(stringc
+        << origName->qualifierString() << " has no member called `"
+        << *name << "'");
       return NULL;
     }
 
-    // TODO: why do I have a constness clash here?  is this return
-    // value ever modified to do more than add an overload set?
-    return const_cast<Variable*>(field);
+    return field;
   }
 
   return lookupVariable(name->getName(), false /*innerOnly*/);

@@ -1,0 +1,28 @@
+// cc.in25
+// inner classes
+
+class A {
+public:
+  class B {
+  public:
+    static int x;
+    int y;
+    int f();
+  };
+};
+
+int main()
+{
+  int d;
+  d = A::B::x;
+  
+  A::B b;
+  d = b.y;
+}
+
+int A::B::f()
+{
+  return 6;
+}
+
+//ERROR1: int A::B::g() {   return 66; }   // undeclared
