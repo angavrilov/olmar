@@ -4,12 +4,16 @@
 #include <iostream.h>    // cout
 
 #include "cparse.h"      // this module
+#include "cc_lang.h"     // CCLang
+#include "trace.h"       // trace
 
-ParseEnv::ParseEnv(StringTable &table)
-  : str(table)
-{
-  intType = table.add("int");
-}
+ParseEnv::ParseEnv(StringTable &table, CCLang &L)
+  : str(table), 
+    intType(table.add("int")),
+    strRefAttr(table.add("attr")),
+    types(),
+    lang(L)
+{}
 
 ParseEnv::~ParseEnv()
 {}
@@ -56,4 +60,16 @@ bool ParseEnv::isType(StringRef name)
     }
   }
   return false;
+}
+
+
+void ParseEnv::declareClassTag(StringRef tagName)
+{
+  // TYPE/NAME
+  if (lang.tagsAreTypes) {
+    #ifndef NDEBUG
+    trace("cc") << "defined new struct/class tag as type " << tagName << endl;
+    #endif
+    addType(tagName);
+  }
 }

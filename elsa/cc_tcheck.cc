@@ -1,7 +1,7 @@
 // cc_tcheck.cc            see license.txt for copyright and terms of use
 // C++ typechecker, implemented as methods declared in cc_tcheck.ast
 
-// Throughout, references are made to the ANSI C++ Standard:
+// Throughout, references are made to the ISO C++ Standard:
 //
 // International Organization for Standardization.
 // ISO/IEC 14882:1998: Programming languages -- C++.

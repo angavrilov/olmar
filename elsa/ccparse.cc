@@ -7,10 +7,6 @@
 
 #include <iostream.h>     // cout
 
-// UGLY HACK
-// TODO: fix this by making a proper header during grammar analysis
-ParseEnv *globalParseEnv = NULL;
-
 
 // ----------------------- ParseEnv -----------------------
 SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m)

@@ -1,11 +1,8 @@
-// cc.gr            see license.txt for copyright and terms of use
-// my attempt to implement a grammar for C++
-
-// I'm actually trying to use this single file for both C and C++;
-// the C++ grammar should parse C ok
+// c.gr            see license.txt for copyright and terms of use
+// grammar for C
 
 
-verbatim CCGr [
+verbatim [
 
 #include "strtable.h"     // StringRef (r)
 #include "c_type.h"       // type identifiers like ST_CHAR (r)
@@ -13,51 +10,29 @@ verbatim CCGr [
 #include "cparse.h"       // ParseEnv
 #include "trace.h"        // trace
 #include "c.ast.gen.h"    // C abstract syntax
-#include "cc_lang.h"      // CCLang
 
-#define D(msg) \
-  trace("cc") << msg << endl
-
-class CCGr : public UserActions, public ParseEnv {
-public:    // data
-  StringRef strRefAttr;         // "attr"
-  CCLang &lang;
-
-public:    // funcs
-  CCGr(StringTable &table, CCLang &alang)
-    : ParseEnv(table),
-      strRefAttr(table.add("attr")),
-      lang(alang) {}
-
-private:
-  #include "c.gr.gen.h"
-  
-  void declareClassTag(StringRef tagName);
-};
-
-UserActions *makeUserActions(StringTable &table, CCLang &lang)
-{
-  return new CCGr(table, lang);
-}
-
-// when this is the last element in a parameter list, the function
-// is a vararg function
-ASTTypeId *ellipsisTypeId()
-{
-  return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
-                       new Declarator(new D_name(SourceLocation(), NULL, NULL), NULL));
-}
-
-void CCGr::declareClassTag(StringRef tagName)
-{
-  // TYPE/NAME
-  if (lang.tagsAreTypes) {
-    D("defined new struct/class tag as type " << tagName);
-    addType(tagName);
-  }
-}
+#ifdef NDEBUG
+  #define D(msg)
+#else
+  #define D(msg) \
+    trace("cc") << msg << endl
+#endif
 
 ]
+
+context_class CParse : public UserActions, public ParseEnv {
+public:
+  CParse(StringTable &table, CCLang &lang)
+    : ParseEnv(table, lang) {}
+
+  // when this is the last element in a parameter list, the function
+  // is a vararg function
+  ASTTypeId *ellipsisTypeId()
+  {
+    return new ASTTypeId(new TS_simple(ST_ELLIPSIS),
+                         new Declarator(new D_name(SourceLocation(), NULL, NULL), NULL));
+  }
+};
 
 
 terminals {
@@ -95,23 +70,23 @@ terminals {
 
   precedence {
     // high precedence
-    prec L2_PREFER_REDUCE;
-    prec "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else";
+    prec  200 L2_PREFER_REDUCE;
+    prec  190 "const" "volatile" "owner_ptr_qualifier" "__attribute__" "else";
 
-    right ".*" "->*";
-    left "*" "/" "%";
-    left "+" "-";
-    left "<<" ">>";
-    left "<" ">" "<=" ">=";
-    left "==" "!=";
-    left "&";
-    left "^";
-    left "|";
-    left "&&";
-    left "||";
-    right "==>";    // ESC's user manual specifies a precedence but not an associativity for "==>"
+    right 120 ".*" "->*";
+    left  110 "*" "/" "%";
+    left  100 "+" "-";
+    left   90 "<<" ">>";
+    left   80 "<" ">" "<=" ">=";
+    left   70 "==" "!=";
+    left   60 "&";
+    left   50 "^";
+    left   40 "|";
+    left   30 "&&";
+    left   20 "||";
+    right  10 "==>";    // ESC's user manual specifies a precedence but not an associativity for "==>"
 
-    prec L2_PREFER_SHIFT;
+    prec    1 L2_PREFER_SHIFT;
     // low precedence
   }
 }

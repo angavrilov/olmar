@@ -1,22 +1,18 @@
 // ccparse.h            see license.txt for copyright and terms of use
 // data structures used during parsing of C++ code
 
-#ifndef CPARSE_H
-#define CPARSE_H
+#ifndef CCPARSE_H
+#define CCPARSE_H
 
 #include "strhash.h"       // StringHash
 #include "strtable.h"      // StringTable
 #include "objlist.h"       // ObjList
 #include "array.h"         // ArrayStack
 #include "cc_flags.h"      // UberModifiers, SimpleTypeId
+#include "cc.ast.gen.h"    // C++ AST classes, needed for the action function signatures
 
-class PQName;              // cc.ast.gen.h
-class TranslationUnit;     // cc.ast.gen.h
 class SourceLocation;      // fileloc.h
-
-// ugly-ass hack
-class ParseEnv;
-extern ParseEnv *globalParseEnv;
+class CCLang;              // cc_lang.h
 
 // parsing action state
 class ParseEnv {
@@ -26,16 +22,18 @@ private:
 public:
   StringTable &str;                       // string table
   int errors;                             // parse errors
+  StringRef strRefAttr;                   // "attr"
+  CCLang &lang;                           // language options
 
 public:
-  ParseEnv(StringTable &table)
-    : classNameStack(), str(table), errors(0) 
-  {
-    globalParseEnv = this;     // HACK HACK HACK
-  }
-  ~ParseEnv() {
-    globalParseEnv = NULL;     // HACK
-  }
+  ParseEnv(StringTable &table, CCLang &aLang)
+    : classNameStack(),
+      str(table),
+      errors(0),
+      strRefAttr(table.add("attr")),
+      lang(aLang)
+   {}
+  ~ParseEnv() {}
 
   // manipulate the name of the class whose declaration we're inside;
   // this is *not* the general class context, merely the innermost
@@ -58,4 +56,4 @@ public:
 int numAmbiguousNodes(TranslationUnit *unit);
 
 
-#endif // CPARSE_H
+#endif // CCPARSE_H
