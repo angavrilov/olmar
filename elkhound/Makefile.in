@@ -1,17 +1,26 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
-all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/cc_tcheck.o cc/cc_twalk.o cc/cc_env.o cc/cc_scope.o cc/cc_type.o \
-     cc/c.ast.gen.h glr.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
-     cc/cc.ast.gen.h cc/ccparse cc/ccparse_twalk cc/ccparset glrmain.o
+# the astgen-generated files need to come first because otherwise
+# the build doesn't go through properly.. I investigated a better
+# fix at one point but don't now remember what the problem was..
+all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/c.ast.gen.h \
+     workingFiles glrmain.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
+     cc/cc.ast.gen.h cc/ccparse cc/ccparset
 	@echo BUILD FINISHED
 
+# these are files I'm working on now, so I want them compiled first;
+# it should be the case that setting this to the empty list of targets
+# would not change *what* this Makefile creates, only the *order*
+# in which things are made
+.PHONY: workingFiles
+workingFiles: cc/cc_tcheck.o cc/cc_print.o
+
+# some junk I was building a while ago..
 temporary: all triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
            triv/EFa.tree.gr.exe triv/efa.in \
 	   triv/EFa.bison.exe triv/EFa.tree.bison.exe
-
-# main targets
 
 # this target ensures the Makefile is in synch with Makefile.in
 Makefile: Makefile.in
@@ -21,7 +30,7 @@ Makefile: Makefile.in
 SMBASE := ../smbase
 AST    := ../ast
 
-# turn off implicit rules
+# turn off (some..) implicit rules
 .SUFFIXES:
 
 # translation process variables
@@ -173,7 +182,7 @@ cc-set := \
   cc/cc_flags.o \
   cc/cc_type.o \
   cc/cc_tcheck.o \
-  cc/cc_twalk.o \
+  cc/cc_print.o \
   cc/cc_ast_aux.o \
   cc/treeout.o \
   cc/variable.o
@@ -293,16 +302,6 @@ cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbas
 
 # stand-alone executable for parsing C++
 cc/ccparse: cc/ccparse.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
-	$(link) -o $@ $^
-	./$@ c.in/c.in1
-
-cc/ccparse_twalk.cc: cc/ccparse.cc
-	rm -f $@
-	grep -v REMOVE_FOR_TWALK <$^ >$@
-	chmod a-w $@
-
-# dsw:stand-alone executable for parsing C++ and dumping the tree back out
-cc/ccparse_twalk: cc/ccparse_twalk.o cc/cc.gr.gen.o $(cc-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
 	./$@ c.in/c.in1
 
@@ -616,7 +615,6 @@ clean:
 	rm -f cc/lexer2 grampar.tab.* grampar
 	rm -f cc/cc.bin cc/ccgr cc/cparse cc/ccparse cc/ccparset
 	rm -f cc/libccgr.a libelkhound.a
-	rm -f cc/ccparse_twalk.cc cc/ccparse_twalk
 	rm -f cc/bccgr
 	rm -f cc/bccgr.y cc/cc.tok grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c

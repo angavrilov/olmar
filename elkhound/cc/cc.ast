@@ -33,6 +33,7 @@ verbatim {
   #include <stdio.h>         // printf, for ad-hoc debugging
 
   class Env;                 // cc_env.h
+  class PrintEnv;            // cc_print.h
 } // end verbatim
 
 // included in generated source file
@@ -50,13 +51,15 @@ impl_verbatim {
 class TranslationUnit (ASTList<TopForm> topForms) {
   // type checker
   public void tcheck(Env &env);
-  public void twalk(Env &env);
+  
+  // pretty printer
+  public void print(PrintEnv &env);
 }
 
 // a toplevel form
 class TopForm (SourceLocation loc) {
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+  pure_virtual void print(PrintEnv &env);
                                        
   // includes function prototypes
   -> TF_decl(Declaration decl);
@@ -102,13 +105,12 @@ class Function (
   // if 'checkBody' is false, we treat this like it was just
   // a prototype for the function
   public void tcheck(Env &env, bool checkBody);
-  public void twalk(Env &env);
 
   private CompoundType *verifyIsCtor(Env &env, char const *context);
   private void tcheck_memberInits(Env &env);
-  private void twalk_memberInits(Env &env);
   private void tcheck_handlers(Env &env);
-  private void twalk_handlers(Env &env);
+
+  public void print(PrintEnv &env);
 }
 
 class MemberInit (
@@ -129,7 +131,7 @@ class Declaration (
   FakeList<Declarator> *decllist       // e.g. "x=3, y"
 ) {
   public void tcheck(Env &env);        // adds declared variables to env
-  public void twalk(Env &env);        // adds declared variables to env
+  public void print(PrintEnv &env);
 }
 
 // just one complete type; appears in parameter decls and in casts
@@ -145,7 +147,7 @@ class ASTTypeId (
   // new[]
   public Expression *tcheck(Env &env, bool in_E_new=false);
 
-  public void twalk(Env &env);
+  public void print(PrintEnv &env);
   
   public Type const *getType() const;      // can use after calling 'tcheck'
 }
@@ -169,7 +171,8 @@ class PQName {
 
   // typecheck the template arguments buried in this PQName
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 
 
   // outer qualifier applied to some inner PQName, plus an optional
@@ -207,7 +210,8 @@ class TypeSpecifier {
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
   pure_virtual Type const *tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 
   -> TS_name(PQName name);                 // a typedef'd name (typedef might be implicit, as for classes)
 
@@ -227,7 +231,6 @@ class TypeSpecifier {
        MemberList members                    // field and methods of the class
      ) {
        private void tcheckFunctionBodies(Env &env);
-       //public void twalk(Env &env);
      }
 
   -> TS_enumSpec(                          // "enum { ... }"
@@ -244,7 +247,8 @@ class BaseClassSpec (
   PQName name                           // name of base class
 ) {
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
-  public void twalk(Env &env);
+
+  public void print(PrintEnv &env);
 }
 
 
@@ -260,7 +264,8 @@ class Member {
   -> MR_publish(PQName name);           // publish a superclass member
   
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 }
 
 // a binding of a name to a constant value
@@ -286,7 +291,8 @@ class Enumerator (
   // since both are needed and it's slightly expensive to compute
   // one from the other for each enumerator
   public void tcheck(Env &env, EnumType *parentEnum, Type *parentType);
-  public void twalk(Env &env);
+
+  public void print(PrintEnv &env);
 }
 
 
@@ -387,7 +393,8 @@ class Declarator (
   // alternatives was selected
   public /*no_ignore*/ Declarator *tcheck(Env &env, DeclaratorTcheck &dt);
   public void mid_tcheck(Env &env, DeclaratorTcheck &dt);
-  public void twalk(Env &env);
+
+  public void print(PrintEnv &env);
 }
 
 
@@ -401,10 +408,11 @@ class IDeclarator {
   // IDeclarator to 'dt.type' and then make a Variable to represent
   // it; put the variable into the environment if appropriate
   pure_virtual void tcheck(Env &env, DeclaratorTcheck &dt);
-  public void twalk(Env &env);
 
   // dig down and find the name being declared; may return NULL
   pure_virtual PQName const *getDeclaratorId() const;
+
+  public void print(PrintEnv &env);
 
   // "x" (NULL means abstract declarator or anonymous parameter);
   // this is used for ctors and dtors as well as ordinary names
@@ -443,7 +451,8 @@ class ExceptionSpec (
   FakeList<ASTTypeId> *types       // list of allowable types; might be empty (NULL)
 ) {
   public FunctionType::ExnSpec *tcheck(Env &env);
-  public void twalk(Env &env);
+
+  public void print(PrintEnv &env);
 }
 
 // names for operator and conversion functions
@@ -503,12 +512,12 @@ class Statement (SourceLocation loc) {
   // typecheck, and return which Statement is selected from among
   // syntactically ambiguous choices
   public /*no_ignore*/ Statement *tcheck(Env &env);
-  public void twalk(Env &env);
 
   public void mid_tcheck(Env &env, int &) { itcheck(env); };
-
   pure_virtual void itcheck(Env &env);
-  pure_virtual void itwalk(Env &env);
+
+  public void print(PrintEnv &env);
+  pure_virtual void iprint(PrintEnv &env);
 
   // e.g. "S_if@4:5" -- kind, line, col
   //public string kindLocString() const;
@@ -543,7 +552,8 @@ class Condition {
   -> CN_decl(ASTTypeId typeId);     // type, name, & initializer (must all be present)
   
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 }
 
 // exception handler
@@ -556,7 +566,8 @@ class Handler (
   -> HR_default();                  // handles any type; synactically "..."
 
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 }
 
 
@@ -593,13 +604,13 @@ class Expression {
   // value specifies which of possibly ambiguous alternatives
   // was selected for retention
   public /*no_ignore*/ Expression *tcheck(Env &env);
-  public void twalk(Env &env);
-
   public void mid_tcheck(Env &env, int &);
 
   // per-type checker; return type this expression eval's to
   pure_virtual Type const *itcheck(Env &env);
-  pure_virtual void itwalk(Env &env);
+
+  public void print(PrintEnv &env);
+  pure_virtual void iprint(PrintEnv &env);
 
   // type computed for this expression; might be a SimpleType for
   // ST_ERROR, in which case a subsequent attempt to typecheck the
@@ -716,7 +727,8 @@ class Initializer {
 
   // simpler tcheck for now..
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 
   // simple initializer, like "int x = 3"
   -> IN_expr(Expression e);
@@ -746,10 +758,10 @@ class TemplateDeclaration (
   FakeList<TemplateParameter> *params
 ) {
   public void tcheck(Env &env);
-  public void twalk(Env &env);
-
   pure_virtual void itcheck(Env &env);
-  pure_virtual void itwalk(Env &env);
+
+  public void print(PrintEnv &env);
+  pure_virtual void iprint(PrintEnv &env);
 
   // declare a template function
   -> TD_func(Function f);
@@ -764,7 +776,8 @@ class TemplateParameter (SourceLocation loc) {
   public TemplateParameter *next;  ctor next=NULL;   // FakeList link
 
   pure_virtual void tcheck(Env &env, TemplateParams *tparams);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 
   // type parameter; when present, 'name' is what the template code
   // will use to refer to the actual argument type; when present,
@@ -781,7 +794,8 @@ class TemplateArgument {
   public TemplateArgument *next;  ctor next=NULL;   // FakeList link
 
   pure_virtual void tcheck(Env &env);
-  pure_virtual void twalk(Env &env);
+
+  pure_virtual void print(PrintEnv &env);
 
   // return a canonical string for this template argument,
   // such that different arguments get different strings

@@ -138,6 +138,7 @@
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
+#include <stdlib.h>      // getenv
 
 // ACTION(..) is code to execute for action trace diagnostics, i.e. "-tr action"
 //#define ACTION_TRACE
@@ -874,14 +875,18 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   }
 
   #if DO_ACCOUNTING
-    StackNode::printAllocStats();
-    cout << "detShift=" << detShift
-         << ", detReduce=" << detReduce
-         << ", nondetShift=" << nondetShift
-         << ", nondetReduce=" << nondetReduce
-         << endl;
-    //PVAL(parserMerges);
-    //PVAL(computeDepthIters);
+    // sm: I like to always see these statistics, but dsw doesn't,
+    // so I'll just set ELKHOUND_DEBUG in my .bashrc
+    if (getenv("ELKHOUND_DEBUG")) {
+      StackNode::printAllocStats();
+      cout << "detShift=" << detShift
+           << ", detReduce=" << detReduce
+           << ", nondetShift=" << nondetShift
+           << ", nondetReduce=" << nondetReduce
+           << endl;
+      //PVAL(parserMerges);
+      //PVAL(computeDepthIters);
+    }
   #endif
 
   lexerPtr = NULL;
