@@ -2,10 +2,11 @@
 // friend decls
 
 class Foo {
-  friend int f();
+  typedef int Integer;
+  friend int f(Integer i);
 };
 
 int main()
 {
-  return f();
+  return f(3);
 }

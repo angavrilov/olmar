@@ -11,6 +11,7 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
     name(n),
     type(t),
     flags(f),
+    value(NULL),
     overload(NULL),
     access(AK_PUBLIC),
     scope(NULL)

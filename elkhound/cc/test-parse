@@ -17,7 +17,7 @@ while [ "$1" != "" ]; do
   echo "cc/ccparse $fname"
   if cc/ccparse "$fname"; then
     # ok
-    echo "$fname: ok"
+    true
   else
     code=$?
     echo "$fname: had errors"
@@ -29,6 +29,8 @@ while [ "$1" != "" ]; do
   if cc/ccparse -tr printTypedAST "$fname" | grep ambiguous >/dev/null; then
     echo "$fname: had some ambiguities after typechecking"
     exit 4
+  else
+    echo "$fname: ok"
   fi
 done
 

@@ -235,8 +235,8 @@ class TypeSpecifier {
 
   // yield the type named by the specifier; this type may of course
   // get refined when the declarator is considered
-  public Type const *tcheck(Env &env);
-  pure_virtual Type const *itcheck(Env &env);
+  public Type const *tcheck(Env &env, DeclFlags dflags);
+  pure_virtual Type const *itcheck(Env &env, DeclFlags dflags);
 
   pure_virtual void print(PrintEnv &env);
                                                               
@@ -289,6 +289,12 @@ class BaseClassSpec (
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
 
   public void print(PrintEnv &env);
+                                             
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
+
+  // the type named by the 'name'
+  public CompoundType const *type;  ctor type=NULL;
 }
 
 

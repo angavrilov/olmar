@@ -83,18 +83,19 @@ public:      // funcs
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
 
+  // the current, innermost scope
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
 
   // innermost scope that can accept names
   Scope *acceptingScope();
 
-  // innermost non-class, non-template scope
+  // innermost non-class, non-template, non-function-prototype scope
   Scope *outerScope();
 
-  // get the innermost CompoundType (aka class) scope, or NULL
-  // if we're not in the scope of any class
-  //CompoundType *getEnclosingCompound();
+  // innermost scope that can accept names, *other* than
+  // the one we're in now
+  Scope *enclosingScope();
 
   // source location tracking
   void setLoc(SourceLocation const &loc);    // sets scope()->curLoc
@@ -113,12 +114,14 @@ public:      // funcs
   void registerVariable(Variable *v);
 
   // lookup in the environment (all scopes)
-  Variable *lookupPQVariable(PQName const *name);
-  Variable *lookupVariable(StringRef name, bool innerOnly);
-  CompoundType *lookupPQCompound(PQName const *name);
-  CompoundType *lookupCompound(StringRef name, bool innerOnly);
-  EnumType *lookupPQEnum(PQName const *name);
-  EnumType *lookupEnum(StringRef name, bool innerOnly);
+  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
+  Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
+
+  CompoundType *lookupPQCompound(PQName const *name, LookupFlags f=LF_NONE);
+  CompoundType *lookupCompound  (StringRef name,     LookupFlags f=LF_NONE);
+
+  EnumType *lookupPQEnum(PQName const *name, LookupFlags f=LF_NONE);
+  EnumType *lookupEnum  (StringRef name,     LookupFlags f=LF_NONE);
 
   // look up a particular scope; the 'name' part of the PQName
   // will be ignored; if we can't find this scope, return NULL

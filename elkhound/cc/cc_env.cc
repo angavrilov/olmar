@@ -70,20 +70,22 @@ Env::Env(StringTable &s, CCLang &L)
   Type const *t_void = getSimpleType(ST_VOID);
   Type const *t_voidptr = makePtrType(t_void);
 
-  // void operator delete (void *p);
+  // void operator delete (void *p) throw();
   {
     FunctionType *ft = new FunctionType(t_void, CV_NONE);
     Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
     ft->addParam(new Parameter(p->name, p->type, p));
+    ft->exnSpec = new FunctionType::ExnSpec;
     Variable *del = new Variable(HERE_SOURCELOC, str("operator delete"), ft, DF_NONE);
     addVariable(del);
   }
 
-  // void operator delete[] (void *p);
+  // void operator delete[] (void *p) throw();
   {
     FunctionType *ft = new FunctionType(t_void, CV_NONE);
     Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
     ft->addParam(new Parameter(p->name, p->type, p));
+    ft->exnSpec = new FunctionType::ExnSpec;
     Variable *delArr = new Variable(HERE_SOURCELOC, str("operator delete[]"), ft, DF_NONE);
     addVariable(delArr);
   }
@@ -225,14 +227,34 @@ Scope *Env::outerScope()
 {
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     Scope *s = iter.data();
-    if (!s->canAcceptNames) continue;     // skip template scopes
-    if (s->curCompound) continue;         // skip class scopes
+    if (!s->canAcceptNames) continue;        // skip template scopes
+    if (s->curCompound) continue;            // skip class scopes
+    if (s->isParameterListScope ) continue;  // skip parameter list scopes
     
     return s;
   }
 
   xfailure("couldn't find the outer scope!");
   return NULL;    // silence warning
+}
+
+
+Scope *Env::enclosingScope()
+{
+  // inability to accept names doesn't happen arbitrarily,
+  // and we shouldn't run into it here
+
+  Scope *s = scopes.nth(0);
+  xassert(s->canAcceptNames);
+
+  s = scopes.nth(1);
+  if (!s->canAcceptNames) {
+    error("did you try to make a templatized anonymous union (!), "
+          "or am I confused?");
+    return scopes.nth(2);   // error recovery..
+  }
+
+  return s;
 }
 
 
@@ -304,9 +326,10 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
       // a qualifier
       //
       // however, this still is not quite right, see cppstd 3.4.3 para 1
+      // update: LF_ONLY_TYPES now gets it right, I think
       Variable *qualVar =
-        scope==NULL? lookupVariable(qual, false /*innerOnly*/) :
-                     scope->lookupVariable(qual, false /*innerOnly*/, *this);
+        scope==NULL? lookupVariable(qual, LF_ONLY_TYPES) :
+                     scope->lookupVariable(qual, *this, LF_ONLY_TYPES);
       if (!qualVar) {
         // I'd like to include some information about which scope
         // we were looking in, but I don't want to be computing
@@ -481,7 +504,7 @@ CompoundType *Env::
 #endif // 0, aborted implementation
 
 
-Variable *Env::lookupPQVariable(PQName const *name)
+Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
   Variable *var;
 
@@ -505,7 +528,7 @@ Variable *Env::lookupPQVariable(PQName const *name)
     }
 
     // look inside the final scope for the final name
-    var = scope->lookupVariable(name->getName(), false /*innerOnly*/, *this);
+    var = scope->lookupVariable(name->getName(), *this, flags);
     if (!var) {
       if (anyTemplates) {
         // maybe failed due to incompleteness of specialization implementation;
@@ -523,7 +546,7 @@ Variable *Env::lookupPQVariable(PQName const *name)
   }
 
   else {
-    var = lookupVariable(name->getName(), false /*innerOnly*/);
+    var = lookupVariable(name->getName(), flags);
   }
 
   if (var &&
@@ -563,18 +586,18 @@ Variable *Env::lookupPQVariable(PQName const *name)
   return var;
 }
 
-Variable *Env::lookupVariable(StringRef name, bool innerOnly)
+Variable *Env::lookupVariable(StringRef name, LookupFlags flags)
 {
-  if (innerOnly) {
+  if (flags & LF_INNER_ONLY) {
     // here as in every other place 'innerOnly' is true, I have
     // to skip non-accepting scopes since that's not where the
     // client is planning to put the name
-    return acceptingScope()->lookupVariable(name, innerOnly, *this);
+    return acceptingScope()->lookupVariable(name, *this, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    Variable *v = iter.data()->lookupVariable(name, innerOnly, *this);
+    Variable *v = iter.data()->lookupVariable(name, *this, flags);
     if (v) {
       return v;
     }
@@ -582,14 +605,14 @@ Variable *Env::lookupVariable(StringRef name, bool innerOnly)
   return NULL;    // not found
 }
 
-CompoundType *Env::lookupPQCompound(PQName const *name)
-{   
+CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
+{
   // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    CompoundType *ret = scope->lookupCompound(name->getName(), false /*innerOnly*/);
+    CompoundType *ret = scope->lookupCompound(name->getName(), flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
@@ -601,18 +624,18 @@ CompoundType *Env::lookupPQCompound(PQName const *name)
     return ret;
   }
 
-  return lookupCompound(name->getName(), false /*innerOnly*/);
+  return lookupCompound(name->getName(), flags);
 }
 
-CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
+CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
 {
-  if (innerOnly) {
-    return acceptingScope()->lookupCompound(name, innerOnly);
+  if (flags & LF_INNER_ONLY) {
+    return acceptingScope()->lookupCompound(name, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    CompoundType *ct = iter.data()->lookupCompound(name, innerOnly);
+    CompoundType *ct = iter.data()->lookupCompound(name, flags);
     if (ct) {
       return ct;
     }
@@ -620,14 +643,14 @@ CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
   return NULL;    // not found
 }
 
-EnumType *Env::lookupPQEnum(PQName const *name)
+EnumType *Env::lookupPQEnum(PQName const *name, LookupFlags flags)
 {
   // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    EnumType *ret = scope->lookupEnum(name->getName(), false /*innerOnly*/);
+    EnumType *ret = scope->lookupEnum(name->getName(), flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no enum called `"
@@ -639,18 +662,18 @@ EnumType *Env::lookupPQEnum(PQName const *name)
     return ret;
   }
 
-  return lookupEnum(name->getName(), false /*innerOnly*/);
+  return lookupEnum(name->getName(), flags);
 }
 
-EnumType *Env::lookupEnum(StringRef name, bool innerOnly)
+EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 {
-  if (innerOnly) {
-    return acceptingScope()->lookupEnum(name, innerOnly);
+  if (flags & LF_INNER_ONLY) {
+    return acceptingScope()->lookupEnum(name, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    EnumType *et = iter.data()->lookupEnum(name, false /*innerOnly*/);
+    EnumType *et = iter.data()->lookupEnum(name, flags);
     if (et) {
       return et;
     }
@@ -759,7 +782,7 @@ CompoundType *Env::instantiateClass(
   // compound called 'instNameRef', which will match the one
   // we've already forward-declared, so it will use the same
   // type object
-  ret->syntax->tcheck(env);
+  ret->syntax->tcheck(env, DF_NONE);
 
   if (tracingSys("printTypedClonedAST")) {
     cout << "---------- cloned & typed: " << instNameRef << " ----------\n";
@@ -792,7 +815,7 @@ StringRef Env::getAnonName(TypeIntr keyword)
   StringRef sr = str(name);
 
   // any chance this name already exists?
-  if (lookupVariable(sr, false /*innerOnly*/)) {
+  if (lookupVariable(sr)) {
     return getAnonName(keyword);    // try again
   }
   else {
