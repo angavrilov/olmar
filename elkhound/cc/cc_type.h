@@ -260,6 +260,10 @@ private:     // data
   friend class BasicTypeFactory;     
   PointerType *refType;
 
+  public:                       // dsw: I'll get rid of this in a bit.
+Type *getRefType();
+
+
 private:    // funcs
   string idComment() const;
 
@@ -402,6 +406,8 @@ public:     // data
 
 protected:  // funcs
   friend class BasicTypeFactory;
+
+  public:                       // dsw: will get rid of this
   PointerType(PtrOper o, CVFlags c, Type *a);
 
 public:
@@ -444,7 +450,9 @@ public:     // data
   // for template functions, this is the list of template parameters
   TemplateParams *templateParams;    // (owner)
 
-protected:  // funcs
+  // Scott, I'll take this out later but right now I need my code to build.
+  public:
+//  protected:  // funcs
   friend class BasicTypeFactory;
   FunctionType(Type *retType, CVFlags cv);
 

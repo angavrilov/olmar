@@ -8,10 +8,18 @@
 
 #include <assert.h>     // assert
 
-// sm: Why was this added?  I'm commenting it out because I don't see
-// any calls to string.h functions.  If you put it back, include a
-// comment saying which function's prototype was needed.
-//#include <string.h>
+
+// dsw: I'll get rid of this in a bit.
+Type *Type::getRefType() {
+  if (isError()) {return this;}
+
+  // use the 'refType' pointer so multiple requests for the
+  // "reference to" a given type always yield the same object
+  if (!refType) {
+    refType = new PointerType(PO_REFERENCE, CV_NONE, this);
+  }
+  return refType;
+}
 
 
 string makeIdComment(int id)

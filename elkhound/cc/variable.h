@@ -74,8 +74,13 @@ public:    // data
 
 protected:    // funcs
   friend class BasicTypeFactory;
+
+  public:                       // dsw: Will fix this later
   Variable(SourceLocation const &L, StringRef n,
-           Type *t, DeclFlags f);
+           Type *t, DeclFlags f,
+           // Scott, I'll take this out but I need it for now.
+           bool put_into_instances_list=true
+           );
 
 public:
   ~Variable();
