@@ -193,7 +193,7 @@ vcgen cutpt.c
 runTest ./ccgr -tr printAnalysisPath cc.bin vcgen/nestwhile.c
 vcgen memswap.c
 vcgen ff.c
-vcgen find.c
+runTest ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
 vcgen find2.c
 vcgen callfind.c
 
