@@ -879,6 +879,7 @@ failparse k0014.cc "ambiguous lookup of base class constructor with constructor 
 failparse k0015.cc "catch namespace_qualified::class_name"
 failparse k0016.cc "explicit instantiation of template member function"
 failparse k0017.cc "using namespace std' before 'namespace std"
+failparse k0018.cc "member function taking an array argument with default value __null"
 
 # ---- END: lots of tests ----
 
