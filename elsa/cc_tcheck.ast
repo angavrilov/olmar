@@ -239,7 +239,7 @@ class Declarator {
     // syntactic context
     enum Context {
       CTX_ORDINARY  = 0x0,     // no particular context
-      CTX_E_NEW     = 0x1,     // inside an E_new
+      CTX_E_NEW     = 0x1,     // inside an E_new (array)
       CTX_PARAM     = 0x2,     // in a parameter declarator
       CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
       //CTX_MEMBER    = 0x8,     // toplevel member declarator

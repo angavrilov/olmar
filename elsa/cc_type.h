@@ -945,7 +945,7 @@ public:    // funcs
 // The type factory is used for constructing objects that represent
 // C++ types.  The reasons for using a factory instead of direct
 // construction include:
-//   - Type have a complicated and unpredictable sharing structure,
+//   - Types have a complicated and unpredictable sharing structure,
 //     which makes recursive deallocation impossible.  The factory
 //     is thus given responsibility for deallocation of all objects
 //     created by that factory.
@@ -1088,9 +1088,14 @@ public:
 };
 
 
-// this is an implementation of the above interface which
-// returns the actual Type-derived objects defined, as opposed
-// to objects of further-derived classes
+// This is an implementation of the above interface which returns the
+// actual Type-derived objects defined, as opposed to objects of
+// further-derived classes.  On the extension topics mentioned above:
+//   - It does not deallocate Types at all (oh well...).
+//   - It does not (yet) implement hash-consing, except for CVAtomics
+//     of SimpleTypes.
+//   - No annotations are added; the objects returned have exactly
+//     the types declared below.
 class BasicTypeFactory : public TypeFactory {
 private:   // data
   // global array of non-const, non-volatile built-ins; it's expected
