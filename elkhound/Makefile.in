@@ -47,7 +47,7 @@ ccflags += -Werror
 #ccflags += -pg
 
 # optimizer...
-ccflags += -O2 -DNDEBUG
+#ccflags += -O2 -DNDEBUG
 
 # uncomment to turn off source location info
 #ccflags += -DNO_GLR_SOURCELOC

@@ -400,6 +400,7 @@ private:    // funcs
   void clearAllStackNodes();
   void addActiveParser(StackNode *parser);
   void pullFromActiveParsers(StackNode *parser);
+  bool canMakeProgress(StackNode *parser);
 
 public:     // funcs
   GLR(UserActions *userAct);

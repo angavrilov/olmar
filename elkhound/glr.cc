@@ -1215,6 +1215,7 @@ inline void GLR::doReduction(StackNode *parser,
 
     // step 2: process those paths
     // ("mutate" because need non-const access to rpath->finalState)
+    //for (int i=pcs.paths.length()-1; i>=0; i--) {    // useful for exercising different reduction orders
     for (int i=0; i < pcs.paths.length(); i++) {
       PathCollectionState::ReductionPath &rpath = pcs.paths[i];
 
@@ -1526,6 +1527,20 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
       // | it is here that we are bringing the tops of two  |
       // | alternative parses together (TREEBUILD)          |
       // +--------------------------------------------------+
+
+      // sometimes we are trying to merge dead trees--if the
+      // 'rightSibling' cannot make progress at all, it would be much
+      // better to just drop this alternative than demand the user
+      // merge trees when there is not necessarily any ambiguity
+      if (!canMakeProgress(rightSibling)) {
+        // both trees are dead; deallocate one (the other alternative
+        // will be dropped later, when 'rightSibling' is considered
+        // for action in the usual way)
+        TRSPARSE("avoided a merge by noticing the state was dead");
+        deallocateSemanticValue(rightSibling->getSymbolC(), sval);
+        return;
+      }
+
       // call the user's code to merge, and replace what we have
       // now with the merged version
       D(SemanticValue old = sibLink->sval);
@@ -1617,6 +1632,24 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     // for reduction could have arisen
   }
 }
+
+                                            
+// return true if the given parser can either shift or reduce.  NOTE:
+// this isn't really sufficient for its intended purpose, since I
+// don't check to see whether *further* actions after a reduce are
+// possible; moreover, checking that could be very expensive, since
+// there may be many paths along which to consider reducing, and many
+// paths from that reduced node forward..
+bool GLR::canMakeProgress(StackNode *parser)
+{
+  ActionEntry entry =
+    tables->actionEntry(parser->state, currentTokenClass->termIndex);
+
+  return tables->isShiftAction(entry) ||
+         tables->isReduceAction(entry) ||
+         !tables->isErrorAction(entry);
+}
+
 
 
 void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
