@@ -1230,7 +1230,14 @@ string symbolSequenceToString(SymbolList const &list)
     if (!first) {
       sb << " ";
     }
-    sb << sym.data()->name;
+
+    // TODO: properly define toString as a virtual func to do this:
+    if (sym.data()->isTerminal()) {
+      sb << sym.data()->asTerminalC().toString();
+    }
+    else {
+      sb << sym.data()->name;
+    }
     first = false;
   }
 

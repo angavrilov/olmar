@@ -270,9 +270,20 @@ void GLR::glrParse(char const *inputFname)
     parserWorklist = activeParsers;
 
     // work through the worklist
+    StackNode *lastToDie = NULL;
     while (parserWorklist.isNotEmpty()) {
       StackNode *parser = parserWorklist.removeAt(0);     // dequeue
-      glrParseAction(parser, pendingShifts);
+      int actions = glrParseAction(parser, pendingShifts);
+
+      if (actions == 0) {
+        trace("parse") << "parser in state " << parser->state->id
+                       << " died\n";
+        lastToDie = parser;          // for reporting the error later if necessary
+      }
+      else if (actions > 1) {
+        trace("parse") << "parser in state " << parser->state->id
+                       << " split into " << actions << " parsers\n";
+      }
     }
 
     // process all pending shifts
@@ -283,6 +294,18 @@ void GLR::glrParse(char const *inputFname)
       cout << "Line " << currentToken->loc.line
            << ", col " << currentToken->loc.col
            << ": Parse error at " << currentToken->toString() << endl;
+           
+      if (lastToDie == NULL) {                     
+        // I'm not entirely confident it has to be nonnull..
+        cout << "what the?  lastToDie is NULL??\n";         
+      }
+      else {
+        // print out the context of that parser
+        cout << "last parser to die had:\n"
+                "  sample input: " << sampleInput(lastToDie->state) << "\n"
+                "  left context: " << leftContextString(lastToDie->state) << "\n";
+      }
+
       return;
     }
   }
@@ -330,18 +353,22 @@ void GLR::glrParse(char const *inputFname)
 
 // do the actions for this parser, on input 'token'; if a shift
 // is required, we postpone it by adding the necessary state
-// to 'pendingShifts'
+// to 'pendingShifts'; returns number of actions performed
 // ([GLR] called this 'actor')
-void GLR::glrParseAction(StackNode *parser,
-                         ObjList<PendingShift> &pendingShifts)
+int GLR::glrParseAction(StackNode *parser,
+                        ObjList<PendingShift> &pendingShifts)
 {
-  postponeShift(parser, pendingShifts);
+  int actions = 
+    postponeShift(parser, pendingShifts);
 
-  doAllPossibleReductions(parser, NULL /*no link restrictions*/);
+  actions += 
+    doAllPossibleReductions(parser, NULL /*no link restrictions*/);
+
+  return actions;
 }
 
 
-void GLR::postponeShift(StackNode *parser,
+int GLR::postponeShift(StackNode *parser,
                         ObjList<PendingShift> &pendingShifts)
 {
   // see where a shift would go
@@ -352,15 +379,22 @@ void GLR::postponeShift(StackNode *parser,
 
     // add (parser, shiftDest) to pending-shifts
     pendingShifts.append(new PendingShift(parser, shiftDest));
+    
+    return 1;   // 1 action
+  }                        
+  else {
+    return 0;
   }
 }
 
 
 // mustUseLink: if non-NULL, then we only want to consider
 // reductions that use that link
-void GLR::doAllPossibleReductions(StackNode *parser,
-                                  SiblingLink *mustUseLink)
+int GLR::doAllPossibleReductions(StackNode *parser,
+                                 SiblingLink *mustUseLink)
 {
+  int actions = 0;
+
   // get all possible reductions where 'currentToken' is in Follow(LHS)
   ProductionList reductions;
   parser->state->getPossibleReductions(reductions, currentTokenClass,
@@ -368,6 +402,7 @@ void GLR::doAllPossibleReductions(StackNode *parser,
 
   // for each possible reduction, do it
   SFOREACH_PRODUCTION(reductions, prod) {
+    actions++;
     int rhsLen = prod.data()->rhsLength();
     xassert(rhsLen >= 0);    // paranoia before using this to control recursion
 
@@ -425,6 +460,8 @@ void GLR::doAllPossibleReductions(StackNode *parser,
       glrShiftNonterminal(rpath->finalState, transferOwnership(rpath->reduction));
     }
   }
+  
+  return actions;
 }
 
 

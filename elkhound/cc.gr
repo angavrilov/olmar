@@ -1,8 +1,5 @@
-# c.gr
-# my attempt to implement a grammar for C
-
-# I'm working from the C++ spec, and will write down
-# the parts that are in C
+# cc.gr
+# my attempt to implement a grammar for C++
 
 
 # ------ tokens -------
@@ -139,7 +136,8 @@ StartSymbol -> TranslationUnit L2_EOF
 TypedefName -> L2_NAME
 EnumName -> L2_NAME
 EnumValueName -> L2_NAME      # called 'enumerator' in spec
-StructName -> L2_NAME
+ClassName -> L2_NAME
+#ClassName -> TemplateId       # C++
 VariableName -> L2_NAME
 LabelName -> L2_NAME
 
@@ -149,20 +147,60 @@ LabelName -> L2_NAME
 TranslationUnit -> empty | Declaration TranslationUnit
 
 # ------ A.4 Expressions ------
-PrimaryExpression -> Literal | "this" | "(" Expression ")" | VariableName
+PrimaryExpression -> Literal | "this" | "(" Expression ")" | PQVarName
 
 Literal -> L2_INT_LITERAL | L2_FLOAT_LITERAL | L2_STRING_LITERAL | L2_CHAR_LITERAL
 
+
+# 'colonColon' attribute of PQVarName and Qualifier: set to 1 when "::" is
+# the leftmost token in the tree matched; this is important because
+# declarators aren't allowed to have the bare "::" qualifier
+
+
+# possibly-qualified name; essentially spec's id-expression
+# missing: template-id because I don't know what that is
+PQVarName -> VariableName
+  %action { PQVarName.colonColon := 0 }                                                   
+PQVarName -> OperatorFunctionId                                                           # C++
+  %action { PQVarName.colonColon := 0 }                                                   # C++
+PQVarName -> ConversionFunctionId                                                         # C++
+  %action { PQVarName.colonColon := 0 }                                                   # C++
+PQVarName -> "~" ClassName                                                                # C++
+  %action { PQVarName.colonColon := 0 }                                                   # C++
+PQVarName.lhs -> Qualifier PQVarName.rhs                                                  # C++
+  %action { PQVarName.lhs.colonColon := Qualifier.colonColon }                            # C++
+    # the PQVarName is preceeded by :: if the Qualifier is
+  %condition { (== PQVarName.rhs.colonColon 0) }                                          # C++
+    # can't put any more qualifiers on to left of ::
+
+Qualifier -> "::"                                                                         # C++
+  %action { Qualifier.colonColon := 1 }                                                   # C++
+Qualifier -> ClassName "::"                                                               # C++
+  %action { Qualifier.colonColon := 0 }                                                   # C++
+
+
 PostfixExpression -> PrimaryExpression
-PostfixExpression -> PostfixExpression "[" Expression "]"        # array
-PostfixExpression -> PostfixExpression "(" ExpressionList ")"    # fn call
-PostfixExpression -> PostfixExpression "(" ")"                   # fn call, no args
-PostfixExpression -> PostfixExpression "." VariableName          # field access
-PostfixExpression -> PostfixExpression "->" VariableName         # deref + field access
+PostfixExpression -> PostfixExpression "[" Expression "]"           # array
+PostfixExpression -> PostfixExpression "(" ExpressionListOpt ")"    # fn call
+PostfixExpression -> PostfixExpression "." PQVarName                # field access
+PostfixExpression -> PostfixExpression "->" PQVarName               # deref + field access
 PostfixExpression -> PostfixExpression "++"
 PostfixExpression -> PostfixExpression "--"
+#PostfixExpression -> PostfixExpression "." PseudoDestructorName            # explicit dtor call  C++
+#PostfixExpression -> PostfixExpression "->" PseudoDestructorName                          # C++
+PostfixExpression -> "dynamic_cast" "<" TypeId ">" "(" Expression ")"      # casts        # C++
+PostfixExpression -> "static_cast" "<" TypeId ">" "(" Expression ")"                      # C++
+PostfixExpression -> "reinterpret_cast" "<" TypeId ">" "(" Expression ")"                 # C++
+PostfixExpression -> "const_cast" "<" TypeId ">" "(" Expression ")"                       # C++
+PostfixExpression -> "typeid" "(" Expression ")"                           # RTTI         # C++
+PostfixExpression -> "typeid" "(" TypeId ")"                                              # C++
 
 ExpressionList -> AssignmentExpression | ExpressionList "," AssignmentExpression
+ExpressionListOpt -> empty | ExpressionList
+ 
+# I am pulling these out since PQVarName can be ~class
+#PseudoDestructorName -> "~" ClassName                                                     # C++
+#PseudoDestructorName -> Qualifier PseudoDestructorName                                    # C++
 
 UnaryExpression -> PostfixExpression
 UnaryExpression -> "++" CastExpression
@@ -170,8 +208,31 @@ UnaryExpression -> "--" CastExpression
 UnaryExpression -> UnaryOperator CastExpression
 UnaryExpression -> "sizeof" UnaryExpression             # size of expression
 UnaryExpression -> "sizeof" "(" TypeId ")"              # size of type
+UnaryExpression -> NewExpression                                                          # C++
+UnaryExpression -> DeleteExpression                                                       # C++
 
 UnaryOperator -> "*" | "&" | "+" | "-" | "!" | "~"
+
+# for now, no new-placement or "::" in front
+# I've changed the syntax slightly to correct what I think is a mistake
+# (my syntax allows array of ptr to fn, whereas std syntax doesn't)
+NewExpression -> "new" TypeSpecifier NewDeclaratorOpt NewInitializerOpt                   # C++
+NewExpression -> "new" "(" TypeId ")" NewDeclaratorOpt NewInitializerOpt                  # C++
+
+# NewDeclaratorOpt is, as a regular expression:
+#   (PtrOperator)*  ("[" Expression "]")?  ("[" ConstExpression "]")*
+NewDeclaratorOpt -> empty                                                                 # C++
+NewDeclaratorOpt -> PtrOperator NewDeclaratorOpt                                          # C++
+NewDeclaratorOpt -> DirectNewDeclarator           # commit to at least one "[" ... "]"    # C++
+DirectNewDeclarator -> "[" Expression "]"                                                 # C++
+DirectNewDeclarator -> DirectNewDeclarator "[" ConstantExpression "]"                     # C++
+
+NewInitializerOpt -> empty                                                                # C++
+NewInitializerOpt -> "(" ExpressionListOpt ")"                                            # C++
+
+# omitting possibility of initial "::"
+DeleteExpression -> "delete" CastExpression                                               # C++
+DeleteExpression -> "delete" "[" "]" CastExpression                                       # C++
 
 CastExpression -> UnaryExpression | "(" TypeId ")" CastExpression
 
@@ -185,6 +246,10 @@ BinaryExpression.result -> BinaryExpression.left BinaryOperator BinaryExpression
   %condition { (<= BinaryExpression.result.prec BinaryExpression.right.prec) }        # more precedence
   %condition { (if (== BinaryOperator.leftAssoc 1) (< BinaryExpression.result.prec BinaryExpression.right.prec) (< BinaryExpression.result.prec BinaryExpression.left.prec)) }
     # associativity
+
+BinaryOperator -> ".*" | "->*"                                                            # C++
+  %action { BinaryOperator.prec := 64 }                                                   # C++
+  %action { BinaryOperator.leftAssoc := 1 }                                               # C++
 
 BinaryOperator -> "*" | "/" | "%"
   %action { BinaryOperator.prec := 60 }
@@ -237,6 +302,7 @@ ConditionalExpression -> BinaryExpression "?" Expression ":" AssignmentExpressio
 # to be like-typed lvalues, but...
 AssignmentExpression -> ConditionalExpression
 AssignmentExpression -> BinaryExpression AssignmentOperator AssignmentExpression
+AssignmentExpression -> ThrowExpression                                                   # C++
 
 AssignmentOperator -> "=" | "*=" | "/=" | "%=" | "+=" | "-=" | ">>="
 AssignmentOperator -> "<<=" | "&=" | "^=" | "|="
@@ -249,6 +315,7 @@ ExpressionOpt -> empty | Expression
 
 # this is an expression with the additional requirement that
 # it be entirely evaluatable at compile time
+# (which is essentially a type property)
 ConstantExpression -> ConditionalExpression
 
 # ------ A.5 Statements ------
@@ -279,6 +346,11 @@ ConditionOpt -> empty | Condition
 Statement -> "while" "(" Condition ")" Statement
 Statement -> "do" Statement "while" "(" Expression ")" ";"
 
+# this is a special-purpose rule intended for use with (unexpanded)
+# macros that, internally, contain a for loop; it is *not* part of
+# the C or C++ languages!
+Statement -> L2_NAME "(" ExpressionList ")" CompoundStatement
+
 # I might like to rework this so both semicolons appear here instead
 # of buried in ForInitStatement.  this is also a good rule to use
 # inline alternatives
@@ -295,14 +367,19 @@ Statement -> "goto" LabelName ";"
 # declaration-statement
 Statement -> BlockDeclaration
 
+# try-block
+Statement -> TryBlock                                                                     # C++
+
 # ----- A.6 Declarations ------
 DeclarationSeqOpt -> empty | DeclarationSeqOpt Declaration
 
 Declaration -> BlockDeclaration
 Declaration -> FunctionDefinition
+#Declaration -> TemplateDeclaration                                                        # C++
 Declaration -> LinkageSpecification
 
-BlockDeclaration -> SimpleDeclaration      # C++ has other alternatives..
+# C++ has other alternatives..
+BlockDeclaration -> SimpleDeclaration
 
 # is the DeclSpecifierSeq optional for implicit-int??
 #   no, it's for constructors, destructors, and conversion operators,
@@ -311,15 +388,21 @@ BlockDeclaration -> SimpleDeclaration      # C++ has other alternatives..
 #   for declaring classes and enums
 SimpleDeclaration -> DeclSpecifier InitDeclaratorListOpt ";"
   # e.g.:            int           x                     ;
- 
+
 # old:
 #DeclSpecifier -> StorageClassOpt CVQualifiersOpt TypeSpecifier
 #CVQualifiersOpt -> "const" CVQualifiersOpt | "volatile" CVQualifiersOpt | empty
 # now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
 # the TypeId in a cast expression to contain a "const"
 
-DeclSpecifier -> StorageClassOpt TypeSpecifier
-StorageClassOpt -> "typedef" | "auto" | "register" | "static" | "extern" | empty
+DeclSpecifier -> "inline" DeclModifierOpt TypeSpecifier                                   # C++
+DeclSpecifier -> DeclModifierOpt TypeSpecifier
+
+# my analysis (informal and ad-hoc) indicates that none of these can
+# be used together; "inline" is pulled out because it can be used with
+# "virtual", "static", "friend", and possibly "extern"
+DeclModifierOpt -> "typedef" | "auto" | "register" | "static" | "extern" | empty
+DeclModifierOpt -> "virtual" | "friend" | "mutable"                                       # C++
 
 TypeSpecifier -> SimpleTypeSpecifier         # int
 TypeSpecifier -> SimpleCVTypeSpecifier       # unsigned const char  (not good style, IMO)
@@ -335,7 +418,7 @@ ElaboratedTypeSpecifier -> "enum" L2_NAME
 # this list comes from Table 7 (p.109) of the C++ standard
 # NOTE: this deviates from the language spec, which allows other
 # decl-specifiers to mix with the tokens here; I do not
-SimpleTypeSpecifier -> TypedefName                  # <-- this is part of why parsing C is hard
+SimpleTypeSpecifier -> PQTypeName                   # <-- this is part of why parsing C is hard
 SimpleTypeSpecifier -> "char"                       # char
 SimpleTypeSpecifier -> "unsigned" "char"            # unsigned char
 SimpleTypeSpecifier -> "signed" "char"              # signed char
@@ -362,6 +445,11 @@ SimpleTypeSpecifier -> "float"                      # float
 SimpleTypeSpecifier -> "double"                     # double
 SimpleTypeSpecifier -> "long" "double"              # long double
 SimpleTypeSpecifier -> "void"                       # void
+
+PQTypeName -> TypedefName
+PQTypeName -> ClassName
+PQTypeName -> EnumName
+PQTypeName -> Qualifier PQTypeName                  # C++
 
 # the C++ standard allows "const" and "volatile" to be arbitrarily
 # interleaved with the words of a simple-type-specifier.. so I've
@@ -434,20 +522,39 @@ InitializerList -> InitializerClause
 InitializerList -> InitializerList "," InitializerClause
 
 
+# attribute 'isFunction' of Declarator and DirectDeclarator:
+# if the type of the thing declared is a function (not a ptr to
+# a function, or an array of fns...), this is 1, otherwise 0;
+# it is used to do some disambiguation later on, where functions
+# are allowed to not have return types (DeclSpecifiers), but
+# other declarations must have types
+
+
 # (PtrOperator)* DirectDeclarator
-Declarator -> PtrOperator Declarator | DirectDeclarator
+Declarator.lhs -> PtrOperator Declarator
+  %action { Declarator.lhs.isFunction := 0 }
+Declarator.lhs -> DirectDeclarator
+  %action { Declarator.lhs.isFunction := DirectDeclarator.isFunction }
 
-DirectDeclarator -> VariableName     # this is for declarators
-#DirectDeclarator -> empty            # this is for type-ids  REMOVED
-DirectDeclarator -> DirectDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt  # fn
-  #                 ^^ name of fn ^^     ^^^^^^^ arguments ^^^^^^^^     ^^^^ const? ^^^^^
+DirectDeclarator.lhs -> PQVarName
+  %action { DirectDeclarator.lhs.isFunction := 0 }
+  %condition { (== PQVarName.colonColon 0) }
+    # declarator names can't be qualified with "::" (this resolves an
+    # ambiguity with constructs like "Foo::Foo() {}")
+DirectDeclarator.lhs -> DirectDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt  # fn
+  #                     ^^ name of fn ^^     ^^^^^^^ arguments ^^^^^^^^     ^^^^ const? ^^^^^
   # the return type comes from the type specifier that preceeds this
-DirectDeclarator -> DirectDeclarator "[" ConstantExpression "]"      # array of specified size
-DirectDeclarator -> DirectDeclarator "[" "]"                         # array of unspecified size
-DirectDeclarator -> "(" Declarator ")"                               # precedence grouping
+  %action { DirectDeclarator.lhs.isFunction := 1 }
+DirectDeclarator.lhs -> DirectDeclarator "[" ConstantExpression "]"      # array of specified size
+  %action { DirectDeclarator.lhs.isFunction := 0 }
+DirectDeclarator.lhs -> DirectDeclarator "[" "]"                         # array of unspecified size
+  %action { DirectDeclarator.lhs.isFunction := 0 }
+DirectDeclarator.lhs -> "(" Declarator ")"                               # precedence grouping
+  %action { DirectDeclarator.lhs.isFunction := Declarator.isFunction }
 
-# C++ has more alternatives here
 PtrOperator -> "*" CVQualifierSeqOpt
+PtrOperator -> "&"                                                                        # C++
+# c++ std mentions something with "::" as well, I don't know what that means
 
 CVQualifierSeqOpt -> empty | CVQualifier CVQualifierSeqOpt
 CVQualifierSeq -> CVQualifier | CVQualifier CVQualifierSeq
@@ -460,12 +567,6 @@ CVQualifier -> "const" | "volatile"
 TypeId -> TypeSpecifier AbstractDeclarator
 
 TypeSpecifierSeq -> TypeSpecifier | TypeSpecifier TypeSpecifierSeq
-
-# I'm modifying the C++ grammar to more directly reflect that type-ids are
-# essentially declarators; this way, my code can have a fn to analyze a
-# DirectDeclarator and yield a type and optionally a name; the name is for
-# declarators and no-name is for type-ids
-#AbstractDeclarator -> DirectDeclarator
 
 # this introduces extra ambiguities (like "int (x)" -- integer or fn with
 # name omitted?), so I'm going to back to a duplicated structure
@@ -498,33 +599,104 @@ ParameterDeclaration -> DeclSpecifier AbstractDeclarator
 ParameterDeclaration -> DeclSpecifier AbstractDeclarator "=" AssignmentExpression
 
 
-# -- function definition --
-FunctionDefinition -> DeclSpecifier Declarator  FunctionBody
-  #                   return type   name/params body
+# -- function definition --            
+# I am wary of letting the declspecifier be optional, because it seems
+# to me that may introduce more ambiguities.. but it truly is missing
+# in ctors and dtors; so my idea now is to only permit it when the
+# declarator declares a function type (can't be more specific since there
+# aren't good syntactic clues for ctors)
+#                     return type      name/params body
+FunctionDefinition -> DeclSpecifier    Declarator  FunctionBody
+FunctionDefinition ->   ExplicitOpt    Declarator  FunctionBody                         # {c,d}tor  # C++
+  %condition { (== Declarator.isFunction 1) }                                                       # C++
+FunctionDefinition ->   ExplicitOpt    Declarator ":" MemInitializerList FunctionBody   # ctor      # C++
+  %condition { (== Declarator.isFunction 1) }                                                       # C++
 
 FunctionBody -> CompoundStatement
+
+ExplicitOpt -> "explicit" | empty                                                         # C++
 
 
 # ------ A.8 Classes ------
 # I'm going to use the "class" terminology throughout, even though
 # C only has "struct" and "union"
-ClassSpecifier -> ClassHead "{" MemberSpecificationSeqOpt "}"
+ClassSpecifier -> ClassHead "{" MemberDeclarationSeqOpt "}"
 
-ClassHead -> ClassKeyword L2_NAME
-ClassHead -> ClassKeyword
-
-# and I'm even allowing "class" itself..
+ClassHead -> ClassKeyword ClassNameOpt BaseClauseOpt
+ClassNameOpt -> empty | ClassName
 ClassKeyword -> "class" | "struct" | "union"
 
-MemberSpecificationSeqOpt -> empty | MemberSpecification MemberSpecificationSeqOpt
+MemberDeclarationSeqOpt -> empty
+MemberDeclarationSeqOpt -> MemberDeclaration MemberDeclarationSeqOpt
+MemberDeclarationSeqOpt -> AccessSpecifier ":" MemberDeclarationSeqOpt                    # C++
 
-MemberSpecification -> DeclSpecifier MemberDeclaratorListOpt ";"    # why opt?
-MemberSpecification -> FunctionDefinition ";"
-MemberSpecification -> FunctionDefinition      # syntactic tweak
+AccessSpecifier -> "public" | "private" | "protected"                                     # C++
 
-MemberDeclaratorListOpt -> empty | MemberDeclaratorListOpt "," MemberDeclarator
+MemberDeclaration -> DeclSpecifier MemberDeclaratorList ";"     # member fn or data       # C++
+MemberDeclaration -> FunctionDefinition ";"                     # inline fn               # C++
+MemberDeclaration -> FunctionDefinition                         # syntactic tweak         # C++
+MemberDeclaration -> ExplicitOpt Declarator ";"                 # ctor, dtor, conv op     # C++
+  %condition { (== Declarator.isFunction 1) }                                             # C++
+
+
+MemberDeclaratorList -> MemberDeclarator | MemberDeclaratorList "," MemberDeclarator
 
 MemberDeclarator -> Declarator
-MemberDeclarator -> Declarator "=" ConstantExpression    # pure; and member inits??
+MemberDeclarator -> Declarator "=" ConstantExpression    # pure; and member inits??       # C++
 
 
+# ------ A.9 Derived classes ------
+BaseClauseOpt -> empty
+BaseClauseOpt -> ":" BaseSpecifierList                                                    # C++
+
+BaseSpecifierList -> BaseSpecifier | BaseSpecifierList "," BaseSpecifier                  # C++
+
+BaseSpecifier -> VirtualOpt AccessSpecifierOpt PQClassName                                # C++
+VirtualOpt -> empty | "virtual"                                                           # C++
+AccessSpecifierOpt -> empty | AccessSpecifier                                             # C++
+
+PQClassName -> ClassName                                                                  # C++
+PQClassName -> Qualifier PQClassName                                                      # C++
+
+
+# ------ A.10 Special member functions ------
+ConversionFunctionId -> "operator" ConversionTypeId                                       # C++
+ConversionTypeId -> TypeSpecifier ConversionDeclaratorOpt                                 # C++
+ConversionDeclaratorOpt -> empty | PtrOperator ConversionDeclaratorOpt                    # C++
+
+MemInitializerList -> MemInitializer                                                      # C++
+MemInitializerList -> MemInitializer "," MemInitializerList                               # C++
+
+MemInitializer -> PQClassName "(" ExpressionListOpt ")"        # base ctor call           # C++
+MemInitializer -> L2_NAME "(" ExpressionListOpt ")"            # member init              # C++
+
+
+# ------ A.11 Overloading ------
+OperatorFunctionId -> "operator" Operator                                                 # C++
+
+# the cpp standard is unclear on whether "()" is to be considered a token,
+# or whether it is permissible to see it as "(" ")".. I'm using the latter
+Operator -> "new" | "delete" | "new" "[" "]" | "delete" "[" "]"                           # C++
+Operator -> BinaryOperator            # filter out ".*" later                             # C++
+Operator -> AssignmentOperator                                                            # C++
+Operator -> "!" | "~" | "," | "++" | "--" | "->"                                          # C++
+Operator -> "(" ")" | "[" "]"                                                             # C++
+
+
+# ------ A.12 Templates ------
+# not yet...
+
+
+# ------ A.13 Exception handling ------
+TryBlock -> "try" CompoundStatement HandlerSeq                                            # C++
+
+HandlerSeq -> Handler | Handler HandlerSeq                                                # C++
+
+Handler -> "catch" "(" ExceptionDeclaration ")" CompoundStatement                         # C++
+
+ExceptionDeclaration -> TypeSpecifier Declarator           # named exception object       # C++
+ExceptionDeclaration -> TypeSpecifier AbstractDeclarator   # unnamed exception object     # C++
+ExceptionDeclaration -> "..."                              # anything                     # C++
+
+ThrowExpression -> "throw" AssignmentExpression                                           # C++
+ThrowExpression -> "throw"                                                                # C++

@@ -152,11 +152,17 @@ void NonterminalNode::ambiguityReport(ostream &os) const
     // the leftmost token of the first interpretation (which will
     // be the same as leftmost in other interpretations)
     TerminalNode const *leftmost = getLeftmostTerminalC();
-    os << "line " << leftmost->token->loc.line
-       << ", col " << leftmost->token->loc.col
-       << " \"" << unparseString()
-       << "\" : " << getLHS()->name
-       << " can be";
+    if (leftmost == NULL) {
+      // don't have location info if there are no terminals...
+      os << "empty string (loc?) can be";
+    }
+    else {
+      os << "line " << leftmost->token->loc.line
+         << ", col " << leftmost->token->loc.col
+         << " \"" << unparseString()
+         << "\" : " << getLHS()->name
+         << " can be";
+    }
 
     // print alternatives
     int ct=0;
@@ -182,7 +188,19 @@ TerminalNode const *NonterminalNode::getLeftmostTerminalC() const
 {
   // all reductions (if there are more than one) will have same
   // answer for this question
-  return reductions.firstC()->children.firstC()->getLeftmostTerminalC();
+  Reduction const *red = reductions.firstC();
+  
+  // since some nonterminals derive empty, we walk the list until
+  // we find a nonempty entry
+  for (int i=0; i < red->children.count(); i++) {
+    TerminalNode const *node = red->children.nthC(i)->getLeftmostTerminalC();
+    if (node) {
+      return node;    // got it
+    }
+  }
+  
+  // all children derived empty, so 'this' derives empty
+  return NULL;
 }
 
 

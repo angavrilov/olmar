@@ -231,12 +231,12 @@ public:
 private:    // funcs
   // comments in glr.cc
   void glrParse(char const *input);
-  void glrParseAction(StackNode *parser,
-                      ObjList<PendingShift> &pendingShifts);
-  void postponeShift(StackNode *parser,
+  int glrParseAction(StackNode *parser,
                      ObjList<PendingShift> &pendingShifts);
-  void doAllPossibleReductions(StackNode *parser,
-                               SiblingLink *mustUseLink);
+  int postponeShift(StackNode *parser,
+                    ObjList<PendingShift> &pendingShifts);
+  int doAllPossibleReductions(StackNode *parser,
+                              SiblingLink *mustUseLink);
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
   void glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
