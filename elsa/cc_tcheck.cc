@@ -45,24 +45,58 @@ void Function::tcheck(Env &env, bool checkBody)
     return;
   }        
 
-  if (checkBody) {
-    // the parameters will have been entered into the parameter
-    // scope, but that's gone now; make a new scope for the
-    // function body and enter the parameters into that
-    env.enterScope();
-    FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
-    FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
-      env.addVariable(iter.data()->decl);
-    }
+  if (!checkBody) {
+    return;
+  }
 
-    // check the body in the new scope as well
-    Statement *sel = body->tcheck(env);
-    xassert(sel == body);     // compounds are never ambiguous
+  // if this function was originally declared in another scope
+  // (main example: it's a class member function), then start
+  // by extending that scope so the function body can access
+  // the class's members; that scope won't actually be modified,
+  // and in fact we can check that by watching the change counter
+  int prevChangeCount = 0;   // silence warning
+  if (nameParams->var->scope) {
+    env.extendScope(nameParams->var->scope);
+    prevChangeCount = env.getChangeCount();
+  }
 
-    // close the new scope
-    env.exitScope();
+  // the parameters will have been entered into the parameter
+  // scope, but that's gone now; make a new scope for the
+  // function body and enter the parameters into that
+  env.enterScope();
+  env.scope()->curFunction = this;
+  FunctionType const &ft = nameParams->var->type->asFunctionTypeC();
+  FOREACH_OBJLIST(FunctionType::Param, ft.params, iter) {
+    env.addVariable(iter.data()->decl);
+  }
+
+  if (inits) {
+    //tcheck_memberInits(env);
+    env.unimp("ctor member inits");
+  }
+
+  // check the body in the new scope as well
+  Statement *sel = body->tcheck(env);
+  xassert(sel == body);     // compounds are never ambiguous
+
+  if (handlers) {
+    env.unimp("exception handlers attached to function bodies");
+  }
+
+  // close the new scope
+  env.exitScope();
+  
+  // stop extending the named scope, if there was one
+  if (nameParams->var->scope) {              
+    xassert(prevChangeCount == env.getChangeCount());
+    env.retractScope(nameParams->var->scope);
   }
 }
+
+
+//void Function::tcheck_memberInits(Env &env)
+//{
+
 
 
 // MemberInit
@@ -793,12 +827,12 @@ void S_expr::itcheck(Env &env)
 
 
 void S_compound::itcheck(Env &env)
-{
+{ 
   env.enterScope();
 
-  FOREACH_ASTLIST_NC(Statement, stmts, iter) {   
+  FOREACH_ASTLIST_NC(Statement, stmts, iter) {
     // have to potentially change the list nodes themselves
-    iter.setDataLink( iter.data()->tcheck(env) );          
+    iter.setDataLink( iter.data()->tcheck(env) );
   }
 
   env.exitScope();

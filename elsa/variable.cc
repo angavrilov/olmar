@@ -12,7 +12,8 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
     type(t),
     flags(f),
     overload(NULL),
-    access(AK_PUBLIC)
+    access(AK_PUBLIC),
+    scope(NULL)
 {
   xassert(type);        // (just a stab in the dark debugging effort)
 }
