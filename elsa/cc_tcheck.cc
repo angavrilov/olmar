@@ -1446,7 +1446,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
     // remember the initializing value, for const values
     if (init->isIN_expr()) {
-      var->value = init->asIN_exprC()->e;
+      var->value = init->asIN_exprC()->e->expr;
     }
 
     // use the initializer size to refine array types
@@ -3738,7 +3738,7 @@ Type *E_sizeofType::itcheck(Env &env)
 Type *E_assign::itcheck(Env &env)
 {
   target->tcheck(target, env);
-  src->tcheck(src, env);
+  src->tcheck(env);
   
   // TODO: make sure 'target' and 'src' make sense together with 'op'
   // TODO: take operator overloading into consideration
@@ -4042,7 +4042,7 @@ bool Expression::hasUnparenthesizedGT() const
 
     ASTNEXTC(E_assign, a)
       return a->target->hasUnparenthesizedGT() ||
-             a->src->hasUnparenthesizedGT();
+             a->src->expr->hasUnparenthesizedGT();
              
     ASTNEXTC(E_delete, d)
       return d->expr->hasUnparenthesizedGT();
@@ -4096,7 +4096,7 @@ void ICExpression::tcheck(Env &env)
 
 void IN_expr::tcheck(Env &env)
 {
-  e->tcheck(e, env);
+  e->tcheck(env);
 }
 
 

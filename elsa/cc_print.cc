@@ -896,7 +896,7 @@ void E_assign::iprint(PrintEnv &env)
   target->print(env);
   if (op!=BIN_ASSIGN) env << toString(op);
   env << "=";
-  src->print(env);
+  src->expr->print(env);
 }
 
 void E_new::iprint(PrintEnv &env)
@@ -1011,7 +1011,7 @@ void E_grouping::iprint(PrintEnv &env)
 void IN_expr::print(PrintEnv &env)
 {
   olayer ol("IN_expr");
-  e->print(env);
+  e->expr->print(env);
 }
 
 // int x[] = {1, 2, 3};

@@ -505,7 +505,7 @@ class Expression {
 
   // this is a simple assignment if op==BIN_ASSIGN, otherwise it's an
   // incremental assignment, like a += 3 (e.g. for op=BIN_PLUS)
-  -> E_assign(Expression target, BinaryOp op, Expression src);
+  -> E_assign(Expression target, BinaryOp op, ICExpression src);
 
   -> E_new(bool colonColon,                      // true if "::" preceeds "new"
            FakeList<ICExpression> *placementArgs,// arguments to placement-new (empty/NULL if no placement syntax)
@@ -556,7 +556,7 @@ class Initializer (SourceLoc loc) {
   public Initializer *next;  ctor next=NULL;       // FakeList link
 
   // simple initializer, like "int x = 3"
-  -> IN_expr(Expression e);
+  -> IN_expr(ICExpression e);
 
   // compound initializer, like "int x[4] = { 1,2,3,4 };
   // using ASTList for performance; some files have initializers
