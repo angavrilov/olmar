@@ -993,7 +993,9 @@ STATICDEF bool GLR
   // the stack frame instead of having to indirect into the 'glr' object
   UserActions *userAct = glr.userAct;
   ParseTables *tables = glr.tables;
+  #if USE_MINI_LR
   ArrayStack<StackNode*> &activeParsers = glr.activeParsers;
+  #endif
 
   // lexer token function
   LexerInterface::NextTokenFunc nextToken = lexer.getTokenFunc();
@@ -1443,17 +1445,24 @@ string stackTraceString(StackNode *parser)
 }
 
 
-inline bool StackNodeWorklist::isEmpty_prime() const
+inline bool isEmpty_prime(StackNodeWorklist const &wl)
 {
   #if USE_SWL_CORE && USE_RWL_CORE
     // when using both the SWL and RWL cores, we stop extracting from
     // the worklist when there are no more eager states, and either
     // there are no delayed states *or* there is more than one
-    return eager.isEmpty() && (delayed.length() != 1);
+    return wl.eager.isEmpty() && (wl.delayed.length() != 1);
   #else
-    return isEmpty();
+    return wl.isEmpty();
   #endif
 }
+
+inline bool isNotEmpty_prime(StackNodeWorklist const &wl)
+  { return !isEmpty_prime(wl); }
+
+// for when USE_DELAYED_STATES is 0
+inline bool isNotEmpty_prime(ArrayStack<StackNode*> const &wl)
+  { return wl.isNotEmpty(); }
 
 
 inline StackNode *StackNodeWorklist::pop()
@@ -1504,7 +1513,7 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
   StateId lastToDie = STATE_INVALID;
   
   #if USE_SWL_CORE
-  while (parserWorklist.isNotEmpty_prime()) {
+  while (isNotEmpty_prime(parserWorklist)) {
     RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
     parser->decRefCt();     // no longer on worklist
 

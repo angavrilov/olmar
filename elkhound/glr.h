@@ -350,10 +350,6 @@ public:
   bool isEmpty() const { return eager.isEmpty() && delayed.isEmpty(); }
   bool isNotEmpty() const { return !isEmpty(); }
 
-  // test for empty, or no clear choice for next state
-  bool isEmpty_prime() const;
-  bool isNotEmpty_prime() const { return !isEmpty_prime(); }
-
   // remove a node from one of the lists (eager is preferred);
   // 'isEmpty()' must be false to do this
   StackNode *pop();
@@ -499,8 +495,11 @@ public:
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
-  //ArrayStack<StackNode*> parserWorklist;    // (refct list)
-  StackNodeWorklist parserWorklist;         // (refct list)
+  #if USE_DELAYED_STATES
+    StackNodeWorklist parserWorklist;         // (refct list)
+  #else
+    ArrayStack<StackNode*> parserWorklist;    // (refct list)
+  #endif
 
   // ---- scratch space re-used at token-level (or finer) granularity ----
   // to be regarded as a local variable of GLR::doReduction; since
