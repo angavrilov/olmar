@@ -468,7 +468,17 @@ Type const *TS_classSpec::tcheck(Env &env)
       //  << "there is already a " << ct->keywordAndName()
       //  << ", but here you're defining a " << toString(keyword)
       //  << " " << name);
-      
+
+      // but certainly we wouldn't allow changing a union to a
+      // non-union, or vice-versa
+      if ((ct->keyword == (CompoundType::K_UNION)) !=
+          (keyword == TI_UNION)) {
+        return env.error(stringc
+          << "there is already a " << ct->keywordAndName()
+          << ", but here you're defining a " << toString(keyword)
+          << " " << name);
+      }
+
       trace("env") << "changing " << ct->keywordAndName()
                    << " to a " << toString(keyword) << endl;
       ct->keyword = (CompoundType::Keyword)keyword;
@@ -601,6 +611,12 @@ void MR_decl::tcheck(Env &env)
 
 void MR_func::tcheck(Env &env)
 {
+  if (env.scope()->curCompound->keyword == CompoundType::K_UNION) {
+    // TODO: is this even true?
+    env.error("unions cannot have member functions");
+    return;
+  }
+
   // mark the function as inline, whether or not the
   // user explicitly did so
   f->dflags = (DeclFlags)(f->dflags | DF_INLINE);
@@ -1736,6 +1752,10 @@ Type const *makeLvalType(Type const *underlying)
     // a reference type
     return underlying; 
   }
+  else if (underlying->isFunctionType()) {
+    // don't make references to functions
+    return underlying;
+  }
   else {
     return makeRefType(underlying);
   }
@@ -1757,14 +1777,8 @@ Type const *E_variable::itcheck(Env &env)
       true /*disambiguates*/);
   }
 
-  if (var->type->isFunctionType()) {
-    // no lvalue for functions
-    return var->type;
-  }
-  else {
-    // return a reference because this is an lvalue
-    return makeLvalType(var->type);
-  }
+  // return a reference because this is an lvalue
+  return makeLvalType(var->type);
 }
 
 
@@ -1795,8 +1809,15 @@ Type const *E_funCall::itcheck(Env &env)
   func = func->tcheck(env);
   args = tcheckFakeExprList(args, env);
 
-  if (!func->type->isFunctionType()) {
-    return env.error(func->type, stringc
+  Type const *t = func->type->asRval();
+  
+  // automatically coerce function pointers into functions
+  if (t->isPointerType()) {
+    t = t->asPointerTypeC().atType;
+  }
+
+  if (!t->isFunctionType()) {
+    return env.error(func->type->asRval(), stringc
       << "you can't use an expression of type `" << func->type->toString()
       << "' as a function");
   }
@@ -1810,7 +1831,7 @@ Type const *E_funCall::itcheck(Env &env)
   // with the function parameters
 
   // type of the expr is type of the return value
-  return func->type->asFunctionTypeC().retType;
+  return t->asFunctionTypeC().retType;
 }
 
 

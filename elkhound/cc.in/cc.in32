@@ -1,0 +1,20 @@
+// cc.in32
+// anonymous unions
+
+int main()
+{
+  union {
+    unsigned ret;
+    char c[4];
+  };
+
+  c[3] = 4;
+  return ret;
+}
+
+
+int foo()
+{
+  // better not still be able to see 'ret' ..
+  //ERROR1: return ret;     // undeclared
+}
