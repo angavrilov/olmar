@@ -58,10 +58,25 @@ SourceLocation::SourceLocation(FileLocation const &floc, SourceFile *f)
 {}
 
 
+char const *SourceLocation::fname() const 
+{ 
+  if (file) {
+    return file->filename;
+  }
+  else {
+    return NULL;
+  }
+}
+
 string SourceLocation::toString() const
 {
-  return stringc << "file " << fname() << ", "
-                 << FileLocation::toString();
+  if (fname()) {
+    return stringc << "file " << fname() << ", "
+                   << FileLocation::toString();
+  }
+  else {
+    return FileLocation::toString();
+  }
 }
 
 

@@ -1,7 +1,7 @@
 # .gdbinit
 
-file grampar
-set args cc.gr
+file ccgr
+set args cc.gr cc.in1
 
 break main
 break breaker

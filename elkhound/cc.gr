@@ -13,8 +13,10 @@ terminals {
           
 // declarations for semantic functions
 prologue {                            
-  #include "env.h"    // Env
+  #include "cc_env.h"    // Env
+  #include "cc_tree.h"   // CCTreeNode
 }
+treeNodeBase "CCTreeNode";
 
 
 // dummy first rule
@@ -30,13 +32,13 @@ nonterm HasName {
   fundecl string getName() const;
   fun getName = n.strValue;
 }
-nonterm TypedefName : HasName -> L2_NAME   ;
-nonterm EnumName : HasName -> L2_NAME      ;
-nonterm EnumValueName : HasName -> L2_NAME ;     // called 'enumerator' in spec
-nonterm ClassName : HasName -> L2_NAME     ;
-nonterm TemplateName : HasName -> L2_NAME  ;
-nonterm VariableName : HasName -> L2_NAME  ;
-nonterm LabelName : HasName -> L2_NAME     ;
+nonterm TypedefName : HasName -> n:L2_NAME   ;
+nonterm EnumName : HasName -> n:L2_NAME      ;
+nonterm EnumValueName : HasName -> n:L2_NAME ;     // called 'enumerator' in spec
+nonterm ClassName : HasName -> n:L2_NAME     ;
+nonterm TemplateName : HasName -> n:L2_NAME  ;
+nonterm VariableName : HasName -> n:L2_NAME  ;
+nonterm LabelName : HasName -> n:L2_NAME     ;
 
 
 // ---------------- higher-level syntax -----------------
@@ -86,7 +88,7 @@ nonterm TranslationUnit : Checkable {
 // base class for expressions
 nonterm ExprBase {           
   // return the integer this expression evaluates to at compile time
-  fundecl int intEval(Env &env);
+  fundecl int intEval(Env &env) const;
   fun intEval { error("not a constant integer expression"); }
 }
 
@@ -351,8 +353,8 @@ nonterm ConditionalExpression : ExprBase {
 // why is conditional not allowed on left side of = ?  can I confirm
 // that in another language spec?  clearly both alternatives would have
 // to be like-typed lvalues, but...
-nonterm AssignmentExpression {
-  -> ConditionalExpression ;
+nonterm AssignmentExpression : ExprBase {
+  -> e:ConditionalExpression   { fun intEval = e.intEval(env); }
   -> BinaryExpression AssignmentOperator AssignmentExpression ;
   -> ThrowExpression ;
 }
@@ -363,7 +365,15 @@ nonterm AssignmentOperator -> "=" | "*=" | "/=" | "%=" | "+=" | "-=" | ">>=" |
 // this is the same definition as ExpressionList, and perhaps it
 // makes sense to collapse them?  the meaning of ',' is quite
 // different in the two cases.. does that matter?
-nonterm Expression -> AssignmentExpression | Expression "," AssignmentExpression ;
+nonterm Expression : ExprBase {
+  -> ae:AssignmentExpression {
+    fun intEval = ae.intEval(env);
+  }
+  -> e:Expression "," ae:AssignmentExpression {
+    // choosing again to evaluate everything..
+    fun intEval = e.intEval(env), ae.intEval(env);
+  }
+}
 nonterm ExpressionOpt -> empty | Expression ;
 
 // this is an expression with the additional requirement that
@@ -456,7 +466,7 @@ nonterm SimpleDeclaration : Checkable {
   //e.g.: int                x                     ;
   -> spec:DeclSpecifier list:InitDeclaratorListOpt ";" {
     fun typeCheck {
-      Type *type = spec.getType(env);          // a complete type
+      Type const *type = spec.getType(env);    // a complete type
       DeclFlags flags = spec.getDeclFlags();   // inline, virtual, etc.
       list.declare(env, flags, type);
     }
@@ -477,7 +487,7 @@ nonterm HasDeclFlags {
 
 nonterm HasType {
   // return the Type represented by this syntax
-  fundecl Type* getType(Env &env) const;
+  fundecl Type const *getType(Env &env) const;
 }
 
 nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
@@ -485,7 +495,7 @@ nonterm DeclSpecifier : HasTypeName, HasType, HasDeclFlags {
   fun getType = s.getType(env);
 
   -> "inline" m:DeclModifierOpt s:TypeSpecifier {
-    fun getDeclFlags = DF_INLINE | m.getDeclFlags();
+    fun getDeclFlags = (DeclFlags)(DF_INLINE | m.getDeclFlags());
   }
 
   -> m:DeclModifierOpt s:TypeSpecifier {
@@ -514,22 +524,25 @@ nonterm HasCVFlags {
   fundecl CVFlags getCVFlags() const;
 }
 
-nonterm HasAtomicType {
-  // return the atomic-type portion of this type
-  fundecl AtomicType *getAtomicType(Env &env) const;
-}
-
-nonterm TypeSpecifier : HasTypeName, HasType, HasAtomicType, HasCVFlags {
+nonterm TypeSpecifier : HasTypeName, HasType, HasCVFlags {
   // generic implementation
   fun getType {
-    AtomicType *atomic = getAtomicType(env);
+    Type const *baseType = s.getType(env);
     CVFlags cv = getCVFlags();
-    return env.makeCVAtomicType(cv, atomic);
+
+    // apply the cv flags to what we have
+    Type const *ret = env.applyCVToType(cv, baseType);
+    if (!ret) {
+      // e.g.:
+      //   typedef int (*Foo)();
+      //   Foo const f;
+      error("cannot apply const/volatile to this type");
+    }
+    return ret;
   }
-  
+
   // default impls
   fun typeName = s.typeName();
-  fun getAtomicType = s.getAtomicType(env);
   fun getCVFlags = CV_NONE;
 
   // these are the atomic types (see types.txt)
@@ -544,7 +557,8 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasAtomicType, HasCVFlags {
     -> s:ClassSpecifier                 // class { ... }
          { fun typeName = "class { ... }"; }
     -> s:EnumSpecifier                  // enum { ... }
-         { fun typeName = "enum { ... }"; }
+         { fun typeName = "enum { ... }";
+           fun getType { xfailure("not implemented"); } }
   }
 
   // these are: "CV* atomic-type" or "atomic-type CV*"
@@ -556,7 +570,7 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasAtomicType, HasCVFlags {
       CVFlags flags = s.getCVFlags();
 
       // add the flag at this level
-      return flags | q.getCVFlags();
+      return (CVFlags)(flags | q.getCVFlags());
     }
 
     -> q:CVQualifier s:TypeSpecifier ;  // const int
@@ -564,38 +578,42 @@ nonterm TypeSpecifier : HasTypeName, HasType, HasAtomicType, HasCVFlags {
   }
 }
 
-nonterm ElaboratedTypeSpecifier : HasTypeName, HasAtomicType {
-  fundecl CompoundKind getCompoundKind() const;
 
-  fun getAtomicType {
-    // which kind of compound is this?
-    CompoundKind ck = getCompoundKind();
+nonterm ElaboratedTypeSpecifier : HasTypeName, HasType {
+  -> k:ClassKeyword n:L2_NAME {
+    fun getType {
+      CompoundType::Keyword keyword = k.getKeyword();
+      CompoundType const *type = env.lookupOrMakeCompound(n.strValue, keyword);
+      if (!type) {
+        // e.g.:
+        //   class Foo;
+        //   struct Foo *f;
+        error("compound kind mismatch");
+      }
 
-    // look up the name in the environment (or possibly
-    // create a new incomplete type, which is why 'ck' is
-    // passed)
-    AtomicType *atomic = env.lookupAtomic(n.strValue, ck);
-
-    // check consistency of prior declaration, if any
-    if (ck != atomic->getCompoundKind()) {
-      error("compound kind mismatch");
+      return env.makeType(type);
     }
-
-    return atomic;
   }
 
-  -> k:ClassKeyword n:L2_NAME      { fun getCompoundKind = k.getCompoundKind(); }
-  -> "enum" n:L2_NAME              { fun getCompoundKind = CK_ENUM; }
+  -> "enum" n:L2_NAME {
+    fun getType {
+      EnumType const *type = env.lookupEnum(n.strValue);
+      if (!type) {
+        error("undeclared enum");
+      }
+      return env.makeType(type);
+    }
+  }
 }
 
 
-nonterm SimpleTypeBase {
+nonterm SimpleTypeBase : HasType {
   // helper to get the simple type spec, to cut down on
   // syntactic verbiage
-  fundecl SimpleType getst() const;
+  fundecl SimpleTypeId getst() const;
   fun getst { xfailure("can't call me"); }
 
-  fun getAtomicType {
+  fun getType {
     return env.getSimpleType(getst());
   }
 }
@@ -603,14 +621,20 @@ nonterm SimpleTypeBase {
 // this list comes from Table 7 (p.109) of the C++ standard
 // NOTE: this deviates from the language spec, which allows other
 // decl-specifiers to mix with the tokens here; I do not
-nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName, HasAtomicType {
+nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
   fun typeName {
     return simpleTypeName(getst());
   }
 
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName {
-    fun getAtomicType = env.lookupAtomicType(n.typeName());
+    fun getType {
+      Type const *ret = env.lookupType(n.typeName());
+      if (!ret) {
+        error(stringc << "undefined type: " << n.typeName());
+      }
+      return ret;
+    }
     fun typeName = n.typeName();
   }
 
@@ -663,9 +687,8 @@ nonterm PQTypeName : HasTypeName {
 //
 // I really should just fold these into the above, but my dislike for
 // the interleaving thing makes me try to keep the above decls more
-// or less "pure".. but I'll merge them at some point
-nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasAtomicType,
-                                HasCVFlags {
+// or less "pure".. but I'll probably merge them at some point
+nonterm SimpleCVTypeSpecifier : SimpleTypeBase, HasTypeName, HasCVFlags {
   fun typeName {
     return stringc << simpleTypeName(getst()) << " " << q.typeName();
   }
@@ -718,7 +741,7 @@ nonterm HasDeclare {
   // in the subtree, combine 'type' with the additional type modifiers
   // associated with the declarator (if any), and add the completed
   // declaration, with 'flags', to 'env'
-  fundecl void declare(Env &env, DeclFlags flags, Type *type) const;
+  fundecl void declare(Env &env, DeclFlags flags, Type const *type) const;
 }
 
 nonterm InitDeclaratorList : HasDeclare {
@@ -743,13 +766,13 @@ nonterm InitDeclarator : HasDeclare {
   // don't know what to do with the initializer at this point..
   fun declare {
     // get the full type from the declarator
-    Type *fullType = d.getDeclType(env, type);
+    Type const *fullType = d.getDeclType(env, type);
     
     // get the declared name
     string name = d.getDeclName();
     
     // put that pair into the environment
-    env.declare(name, flags, type);
+    env.declareVariable(name, flags, fullType);
   }
 
   -> d:Declarator |                   // (int)  x
@@ -773,7 +796,7 @@ nonterm InitializerList -> InitializerClause |
 nonterm HasDeclType {
   // retrieve the type associated with this declaration, where
   // 'type' is the type as built so far
-  fundecl Type *getDeclType(Env &env, Type *type) const;
+  fundecl Type const *getDeclType(Env &env, Type const *type) const;
 }
 
 nonterm DeclaratorBase : HasTypeName, HasDeclType, HasDeclName {
@@ -831,9 +854,9 @@ nonterm Declarator : DeclaratorBase {
 
 nonterm DirectDeclarator : DeclaratorBase {
   // for arrays
-  fundecl bool hasSize() const;     // true if a size is specified
+  fundecl bool hasSize() const;             // true if a size is specified
   fun hasSize = false;
-  fundecl int getSize() const;      // get declared size
+  fundecl int getSize(Env &env) const;      // get declared size
   fun getSize { xfailure("can't call getSize"); }
 
   -> n:PQVarName {
@@ -864,7 +887,8 @@ nonterm DirectDeclarator : DeclaratorBase {
 
     fun getDeclType {
       // build a container for the function type
-      Type *fnType = env.makeFunctionType(type /*return type*/, q.getCVFlags());
+      FunctionType *fnType = 
+        env.makeFunctionType(type /*return type*/, q.getCVFlags());
 
       // fill in the details about arguments
       args.getArgTypes(env, fnType);
@@ -881,10 +905,10 @@ nonterm DirectDeclarator : DeclaratorBase {
     fun getDeclType {
       Type *arrType;
       if (hasSize()) {
-        arrType = env.makeArrayType(type, getSize());    // known size
+        arrType = env.makeArrayType(type, getSize(env));    // known size
       }
       else {
-        arrType = env.makeArrayType(type);               // unknown size
+        arrType = env.makeArrayType(type);                  // unknown size
       }
 
       return d.getDeclType(env, arrType);
@@ -893,8 +917,8 @@ nonterm DirectDeclarator : DeclaratorBase {
     // array of specified size
     -> d:DirectDeclarator "[" sz:ConstantExpression "]" {
       fun hasSize = true;
-      fun getSize = sz.eval(env);
-      fun typeName = stringc << d.typeName() << "[" << getSize() << "]";
+      fun getSize = sz.intEval(env);
+      fun typeName = stringc << d.typeName() << "[" << sz.unparseString() << "]";
     }
 
     // array of unspecified size
@@ -938,7 +962,7 @@ nonterm CVQualifierSeqOpt : HasCVFlags {
 
 nonterm CVQualifierSeq : HasTypeName, HasCVFlags {
   -> q:CVQualifier                    { fun getCVFlags = q.getCVFlags(); }
-  -> q:CVQualifier s:CVQualifierSeq   { fun getCVFlags = q.getCVFlags() | s.getCVFlags(); }
+  -> q:CVQualifier s:CVQualifierSeq   { fun getCVFlags = (CVFlags)(q.getCVFlags() | s.getCVFlags()); }
 }
 
 nonterm CVQualifier : HasTypeName, HasCVFlags {
@@ -955,24 +979,57 @@ nonterm TypeId -> TypeSpecifier AbstractDeclarator ;
 
 nonterm TypeSpecifierSeq -> TypeSpecifier | TypeSpecifier TypeSpecifierSeq ;
 
-// this introduces extra ambiguities (like "int (x)" -- integer or fn with
-// name omitted?), so I'm going to back to a duplicated structure
-nonterm AbstractDeclarator : HasTypeName {
-  -> PtrOperator d:AbstractDeclarator  { fun typeName = stringc << "*" << d.typeName(); }
-  -> d:DirectAbstractDeclarator        { fun typeName = d.typeName(); }
+                                                               
+// note: the semantic functions in AbstractDeclarator are
+// essentially duplicated code from Declarator ...
+nonterm AbstractDeclarator : HasTypeName, HasDeclType {
+  -> p:PtrOperator d:AbstractDeclarator {
+    fun typeName = stringc << "*" << d.typeName();
+    
+    fun getDeclType =
+      d.getDeclType(env, env.makePtrOperType(
+        p.getPtrOper(), p.getCVFlags(), type));
+  }
+
+  -> d:DirectAbstractDeclarator {
+    fun typeName = d.typeName();
+    fun getDeclType = d.getDeclType(env, type);
+  }
 }
 
-nonterm DirectAbstractDeclarator : HasTypeName {
+nonterm DirectAbstractDeclarator : HasTypeName, HasDeclType {
   fun typeName = d.typeName();
 
   // this is where abstract declarators differ from regular declarators;
   // for a declarator, this rule is "-> PQVarName"
-  -> empty    { fun typeName = ""; }
+  -> empty {
+    fun typeName = "";
+    fun getDeclType = type;
+  }
 
-  -> d:DirectAbstractDeclarator "(" ParameterDeclarationClause ")" CVQualifierSeqOpt ; // fn
-  -> d:DirectAbstractDeclarator "[" ConstantExpression "]" ;     // array of specified size
-  -> d:DirectAbstractDeclarator "[" "]" ;                        // array of unspecified size
-  -> "(" d:AbstractDeclarator ")" ;                              // precedence grouping
+  // function
+  -> d:DirectAbstractDeclarator "(" args:ParameterDeclarationClause ")" q:CVQualifierSeqOpt {
+    fun getDeclType {
+      FunctionType *fnType = 
+        env.makeFunctionType(type /*return type*/, q.getCVFlags());
+      args.getArgTypes(env, fnType);
+      return d.getDeclType(env, fnType);
+    }
+  }
+
+  -> d:DirectAbstractDeclarator "[" sz:ConstantExpression "]" {     // array of specified size
+    fun getDeclType =
+      d.getDeclType(env, env.makeArrayType(type, sz.intEval(env)));
+  }
+
+  -> d:DirectAbstractDeclarator "[" "]" {                        // array of unspecified size
+    fun getDeclType =
+      d.getDeclType(env, env.makeArrayType(type));
+  }
+
+  -> "(" d:AbstractDeclarator ")" {                              // precedence grouping
+    fun getDeclType = d.getDeclType(env, type);
+  }
 }
 
 
@@ -985,7 +1042,7 @@ nonterm HasPrintSig {
 // -- parameters in declarations --
 nonterm HasArgTypes {
   // accumulate the types of the arguments and store them in 'fnType'
-  fundecl void getArgTypes(Env &env, Type *fnType) const;
+  fundecl void getArgTypes(Env &env, FunctionType *fnType) const;
 }
 
 nonterm ParameterDeclarationClause : HasPrintSig, HasArgTypes {
@@ -1040,8 +1097,8 @@ nonterm ParameterDeclaration : HasTypeName, HasArgTypes {
 
   fun getArgTypes {
     // type
-    Type *specType = s.getType(env);
-    Type *fullType = d.getType(env, specType);
+    Type const *specType = s.getType(env);
+    Type const *fullType = d.getDeclType(env, specType);
                                                   
     // check that there are no modifiers.. this could also be
     // done with attributes, and it's a toss-up in my mind now
@@ -1095,7 +1152,7 @@ nonterm FunctionDefinition : HasPrintSig {
   // return type      name/params   body
   -> r:DeclSpecifier  d:Declarator  FunctionBody {
     fun printSig {
-      cout << d.name() << ": returns "
+      cout << d.getDeclName() << ": returns "
            << r.typeName() << d.retTypeName() << ", arg types: ";
 
       ParameterDeclarationClause_Node const *pdc = d.getFnParams();
@@ -1107,11 +1164,11 @@ nonterm FunctionDefinition : HasPrintSig {
 
   // return type      name/params   body
   -> ExplicitOpt      d:Declarator  FunctionBody          // {c,d}tor
-    { fun printSig { cout << d.name() << ": ctor or dtor\n"; } }
+    { fun printSig { cout << d.getDeclName() << ": ctor or dtor\n"; } }
 
   // return type      name/params   body
   -> ExplicitOpt      d:Declarator  ":" MemInitializerList FunctionBody   // ctor
-    { fun printSig { cout << d.name() << ": ctor with init list\n"; } }
+    { fun printSig { cout << d.getDeclName() << ": ctor with init list\n"; } }
 }
 
 nonterm FunctionBody -> CompoundStatement ;
@@ -1122,21 +1179,36 @@ nonterm ExplicitOpt -> "explicit" | empty ;
 // ------ A.8 Classes ------
 // I'm going to use the "class" terminology throughout, even though
 // C only has "struct" and "union"
-nonterm ClassSpecifier : HasAtomicType -> 
-  k:ClassKeyword n:ClassNameOpt base:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}" 
+nonterm ClassSpecifier : HasType ->
+  k:ClassKeyword n:ClassNameOpt base:BaseClauseOpt "{" memb:MemberDeclarationSeqOpt "}"
 {
-  fun getAtomicType {
+  fun getType {
     // get preliminary info
-    CompoundKind ck = k.getCompoundKind();
+    CompoundType::Keyword keyword = k.getKeyword();
     string name = n.getName();    // could be ""
-    
+
     // construct the vessel to carry additional stuff
-    AtomicType *compound = env.makeCompoundType(ck, name);
+    CompoundType *compound = env.lookupCompound(name);
+    if (compound && !compound->incomplete) {
+      error(stringc << "already declared: " << name);
+    }
+    if (compound && compound->keyword != keyword) {
+      error(stringc << "declared as different kind of compound: " << name);
+    }
+    if (!compound) {
+      compound = env.lookupOrMakeCompound(name, keyword);
+      xassert(compound);
+    }
+    compound->incomplete = false;
 
     // ignore 'base' for now
 
     // add info about the members
-    memb.addMemberInfo(env, compound, ck==CK_CLASS? AC_PRIVATE : AC_PUBLIC);
+    memb.addMemberInfo(env, compound, 
+                       keyword==CompoundType::K_CLASS? 
+                         AM_PRIVATE : AM_PUBLIC);
+
+    return env.makeType(compound);
   }
 }
 
@@ -1147,17 +1219,17 @@ nonterm ClassNameOpt {
 }
 
 nonterm ClassKeyword {
-  fundecl CompoundKind getCompoundKind() const;
-  -> "class"       { fun getCompoundKind = CK_CLASS; }
-  -> "struct"      { fun getCompoundKind = CK_STRUCT; }
-  -> "union"       { fun getCompoundKind = CK_UNION; }
+  fundecl CompoundType::Keyword getKeyword() const;
+  -> "class"       { fun getKeyword = CompoundType::K_CLASS; }
+  -> "struct"      { fun getKeyword = CompoundType::K_STRUCT; }
+  -> "union"       { fun getKeyword = CompoundType::K_UNION; }
 }
 
 
 nonterm MemberDeclBase {
   // add info in this subtree to the compound we're building
-  fundecl void addMemberInfo(Env &env, AtomicType *compound, AccessMode access);
-  
+  fundecl void addMemberInfo(Env &env, CompoundType *compound, AccessMode access) const;
+
   // for now, just eat it
   fun addMemberInfo {}
 }
@@ -1267,6 +1339,8 @@ nonterm ThrowExpression -> "throw" AssignmentExpression |
 // -------------------------------------------------------
 epilogue {
 
+#include "trace.h"    // traceAddSys
+
 
 bool processNode(TreeNode const *n, void*)
 {
@@ -1282,7 +1356,17 @@ int main(int argc, char *argv[])
 {
   Owner<ParseTree> tree(treeMain(argc, argv));
 
-  tree->getTop()->walkTree(processNode);
+  // get tree top
+  xassert(tree->getTop()->getSymbolC()->name.equals("TranslationUnit"));
+  TranslationUnit_Node *top = (TranslationUnit_Node*)(tree->getTop());
+
+  // simple test: print all function definition signatures
+  top->walkTree(processNode);
+
+  // more complex test: print all declarations
+  traceAddSys("env-declare");
+  Env env;
+  top->typeCheck(env);
 
   return 0;
 }

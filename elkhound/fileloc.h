@@ -61,8 +61,9 @@ public:
   ~SourceLocation() {}
 
   SourceLocation& operator= (SourceLocation const &obj);
-  
-  char const *fname() const { return file->filename; }
+                            
+  // can return NULL
+  char const *fname() const;
 
   // "file %s, line %d, col %d"
   string toString() const;

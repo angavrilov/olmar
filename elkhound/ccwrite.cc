@@ -80,7 +80,7 @@ void emitSemFuns(ostream &os, Grammar const *g,
      << "}\n"
      << "\n"
      << typeName << "::" << typeName << "(Reduction *red)\n"
-     << "  : NonterminalNode(red)\n"
+     << "  : " << g->treeNodeBaseClass << "(red)\n"
      << "{}\n"
      << "\n"
      << "\n"
@@ -95,8 +95,12 @@ void emitSemFuns(ostream &os, Grammar const *g,
     // write the function prologue
     os << lineDirective(decl->loc)
        << semFuncDecl(name, decl->code, nonterm) << "\n"
-          "{\n"
-          "  switch (onlyProductionIndex()) {\n"
+       << "{\n"
+       << "  if (tracingSys(\"sem-fns\")) {\n"
+       << "    cout << locString() << \": in "
+         << semFuncDecl(name, decl->code, nonterm) << "\\n\";\n"
+       << "  }\n"
+       << "  switch (onlyProductionIndex()) {\n"
           ;
 
     // loop over all productions for this nonterminal
@@ -169,10 +173,11 @@ void emitSemFuns(ostream &os, Grammar const *g,
 
 
 // emit the C++ declaration for a nonterminal's node type class
-void emitClassDecl(ostream &os, Nonterminal const *nonterm)
+void emitClassDecl(ostream &os, Grammar const *g, Nonterminal const *nonterm)
 {
   // type declaration prologue
-  os << "class " << nodeTypeName(nonterm) << " : public NonterminalNode {\n"
+  os << "class " << nodeTypeName(nonterm)
+       << " : public " << g->treeNodeBaseClass << " {\n"
      << "public:\n"
      << "  " << nodeTypeName(nonterm) << "(Reduction *red);\n"
      ;
@@ -304,7 +309,7 @@ void emitSemFunDeclFile(char const *fname, GrammarAnalysis const *g)
   // class declarations
   os << "// --------- generated class declarations --------\n";
   FOREACH_OBJLIST(Nonterminal, g->nonterminals, iter) {
-    emitClassDecl(os, iter.data());
+    emitClassDecl(os, g, iter.data());
   }
 
   os << "#endif // " << headerFileLatch(fname) << "\n"

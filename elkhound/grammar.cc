@@ -746,7 +746,8 @@ Grammar::Grammar()
   : startSymbol(NULL),
     emptyString("empty"),
     semanticsPrologue(NULL),
-    semanticsEpilogue(NULL)
+    semanticsEpilogue(NULL),
+    treeNodeBaseClass("NonterminalNode")
 {
   emptyString.isEmptyString = true;
 }
@@ -784,11 +785,11 @@ void Grammar::printProductions(ostream &os) const
   }
 
   // also print the tokSeqAmbList ..
-  os << "Grammar tokSeqAmbList:\n";
-  for (ObjListIter<Production> iter(tokSeqAmbList);
-       !iter.isDone(); iter.adv()) {
-    os << " " << iter.data()->toStringWithActions();
-  }
+  //os << "Grammar tokSeqAmbList:\n";
+  //for (ObjListIter<Production> iter(tokSeqAmbList);
+  //     !iter.isDone(); iter.adv()) {
+  //  os << " " << iter.data()->toStringWithActions();
+  //} 
 }
 
 
@@ -1279,8 +1280,12 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
 
 
 // parse %tokSeqAmb
-bool Grammar::parseTokSeqAmb(StrtokParse const &tok)
-{
+bool Grammar::parseTokSeqAmb(StrtokParse const &)
+{              
+  cout << "%tokSeqAmb is obsolete\n";
+  return false;
+
+  #if 0   // obsolete
   xassert(0==strcmp(tok[0], "%tokSeqAmb"));
 
   if (tok < 4  ||  0!=strcmp(tok[2], "->")) {
@@ -1290,7 +1295,7 @@ bool Grammar::parseTokSeqAmb(StrtokParse const &tok)
     cout << "directive should be: %tokSeqAmb Nonterminal -> Terminal [...]\n";
     return false;
   }
-    
+
   // parseProduction expects the nonterminal to be first, instead
   // of the directive symbol, so make a new StrtokParse with all
   // the tokens shifted over one
@@ -1323,6 +1328,7 @@ bool Grammar::parseTokSeqAmb(StrtokParse const &tok)
   tokSeqAmbList.append(prods.first());
 
   return true;
+  #endif // 0
 }
 
 

@@ -58,6 +58,7 @@
 %token TOK_FUN "fun"
 %token TOK_PROLOGUE "prologue"
 %token TOK_EPILOGUE "epilogue"
+%token TOK_TREENODEBASE "treeNodeBase"
 
 /* operators */
 %token TOK_OROR "||"
@@ -105,6 +106,7 @@ StartSymbol: Input
 /* sequence of toplevel forms */
 Input: /* empty */           { $$ = AST0(AST_TOPLEVEL); }
      | Input Terminals       { $$ = iappend($1, $2); }
+     | Input TreeNodeBase    { $$ = iappend($1, $2); }
      | Input Nonterminal     { $$ = iappend($1, $2); }
      | Input Prologue        { $$ = iappend($1, $2); }
      | Input Epilogue        { $$ = iappend($1, $2); }
@@ -131,6 +133,11 @@ TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
                                             { $$ = AST2(AST_TERMDECL, $1, $3); }
             | TOK_INTEGER ":" TOK_NAME TOK_STRING ";"
                                             { $$ = AST3(AST_TERMDECL, $1, $3, $4); }
+            ;
+
+
+/* ------ tree node base ------ */
+TreeNodeBase: TOK_TREENODEBASE TOK_STRING ";"      { $$ = AST1(AST_TREENODEBASE, $2); }
             ;
 
 

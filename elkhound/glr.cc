@@ -825,6 +825,14 @@ TreeNode const *GLR::getParseTree() const
 // -------------- token sequence ambiguity stuff --------------------
 // this whole section is pretty much useless
 
+void GLR::applyTokSeqAmbTest(NonterminalNode &) {}
+bool GLR::tokSeqAmbRuleMatch(Production const *,
+                             SObjList<TerminalNode> const &) { return false ; }
+bool GLR::tokSeqAmbConsequenceMatch(Production const *,
+                                    Production const *) { return false; }
+
+
+#if 0   // obsolete
 void GLR::applyTokSeqAmbTest(NonterminalNode &node)
 {
   // first, I need the ground token sequence
@@ -914,6 +922,7 @@ bool GLR::tokSeqAmbConsequenceMatch(Production const *tokSeqAmb,
     return false;
   }
 }
+#endif // 0
 
 
 // ------------------ stuff for outputting raw graphs ------------------

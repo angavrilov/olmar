@@ -71,6 +71,17 @@ string TreeNode::unparseString() const
 }
 
 
+string TreeNode::locString() const
+{
+  TerminalNode const *left = getLeftmostTerminalC();
+  if (left) {
+    return left->token->loc.toString();
+  }
+  else {
+    return "(?loc)";
+  }
+}
+
 
 // ------------------- TerminalNode -------------------------
 TerminalNode::TerminalNode(Lexer2Token const *tk, Terminal const *tc)

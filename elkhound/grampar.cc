@@ -254,6 +254,10 @@ void astParseGrammar(Grammar &g, ASTNode const *treeTop)
           break;
         }
 
+        case AST_TREENODEBASE:
+          g.treeNodeBaseClass = childString(node, 0);
+          break;
+
         case AST_PROLOGUE:
           if (g.semanticsPrologue != NULL) {
             astParseError(node, "prologue already defined");

@@ -23,8 +23,7 @@ tracing strings:
   lexer2:        results of L2 analysis
   ast:           print AST of grammar file
   lex:           print each token of grammar file
-  
-
+  sem-fns:       print names of semantic functions as they're called
 
 
 

@@ -46,6 +46,8 @@ enum ASTTypeCode {
   AST_PROLOGUE,          // prologue: body
   AST_EPILOGUE,          // epilogue: body
 
+  AST_TREENODEBASE,      // base class: string
+
   // attribute-expression components
   EXP_ATTRREF,           // reference to an attribute
   EXP_FNCALL,            // function call

@@ -480,12 +480,16 @@ public:	    // data
   // of anything in 'tokSeqAmbList', then we only keep the interpretation
   // whose RHS is the single nonterminal on the LHS of the matching 
   // tokSeqAmbList rule.. (there are problems here obviously)
-  ObjList<Production> tokSeqAmbList;
+  //ObjList<Production> tokSeqAmbList;
 
+  // ---- stuff for emitting treewalk code ----
   // extra user-supplied source in the embedded language,
   // meant to appear in the generated semantic-functions files
   LiteralCode *semanticsPrologue;      // (owner) top of .h file
   LiteralCode *semanticsEpilogue;      // (owner) bottom of .cc file
+
+  // name of base class for tree nodes; defaults to "NonterminalNode"
+  string treeNodeBaseClass;
 
 private:    // funcs
   // obsolete parsing functions

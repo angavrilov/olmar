@@ -156,6 +156,7 @@ SLWHITE   [ \t]
 "attr"             TOK_UPD_COL;  return TOK_ATTR;
 "action"           TOK_UPD_COL;  return TOK_ACTION;
 "condition"        TOK_UPD_COL;  return TOK_CONDITION;
+"treeNodeBase"     TOK_UPD_COL;  return TOK_TREENODEBASE;
 
   /* --------- embedded semantic functions --------- */
 "fundecl" {

@@ -75,6 +75,7 @@ public:	    // funcs
 
   // debugging
   virtual void printParseTree(ostream &os, int indent) const = 0;
+  string locString() const;
 };
 
 

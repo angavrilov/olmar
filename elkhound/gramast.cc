@@ -37,6 +37,7 @@ string astTypeToString(int type)
     N(AST_FUNEXPR)
     N(AST_PROLOGUE)
     N(AST_EPILOGUE)
+    N(AST_TREENODEBASE)
 
     N(EXP_ATTRREF)
     N(EXP_FNCALL)
