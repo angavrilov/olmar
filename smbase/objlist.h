@@ -31,11 +31,13 @@ protected:
   VoidList list;                        // list itself
 
 private:
-  ObjList(ObjList const &obj) {}      // not allowed
+  // this is an owner list; these are not allowed
+  ObjList(ObjList const &obj);
+  ObjList& operator= (ObjList const &src);
 
 public:
-  ObjList()                            :list() {}
-  ~ObjList()                             { deleteAll(); }
+  ObjList()                            : list() {}
+  ~ObjList()                           { deleteAll(); }
 
   // The difference function should return <0 if left should come before
   // right, 0 if they are equivalent, and >0 if right should come before
@@ -88,7 +90,7 @@ public:
 
   // multiple lists
   void concat(ObjList &tail)                       { list.concat(tail.list); }
-  // (we do *not* have operator= here, nor appendAll, since these are supposed to be owner lists)
+  // (we do *not* have appendAll, since these are supposed to be owner lists)
 
   // steal
   void stealTailAt(int index, ObjList &tail)       { list.stealTailAt(index, tail.list); }

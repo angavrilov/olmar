@@ -10,6 +10,13 @@
 #include <stdio.h>      // printf()
 
 
+VoidList::VoidList(VoidList const &obj)
+  : top(NULL)
+{
+  *this = obj;
+}
+
+
 // # of items in list
 int VoidList::count() const
 {

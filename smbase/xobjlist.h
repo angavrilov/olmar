@@ -60,12 +60,21 @@ private:
 protected:
   VoidList list;                        // list itself
 
+outputCond([[[m4_dnl    // sobjlist
+public:
+  // make shallow copies
+  className[[[]]](className const &obj)         : list(obj.list) {}
+  className& operator= (className const &src)         { list = src.list; return *this; }
+]]], [[[m4_dnl          // objlist
 private:
-  className[[[]]](className const &obj) {}      // not allowed
+  // this is an owner list; these are not allowed
+  className[[[]]](className const &obj);
+  className& operator= (className const &src);
+]]])m4_dnl
 
 public:
-  className[[[]]]()                            :list() {}
-  ~className[[[]]]()                        m4_dnl
+  className[[[]]]()                            : list() {}
+  ~className[[[]]]()                      m4_dnl
      outputCond({}    /* all items removed */, { deleteAll(); })
 
   // The difference function should return <0 if left should come before
@@ -125,9 +134,8 @@ outputCond([[[m4_dnl     // sobjlist
   void concat(className &tail)                       { list.concat(tail.list); }
 outputCond([[[m4_dnl    // sobjlist
   void appendAll(className const &tail)              { list.appendAll(tail.list); }
-  className& operator= (className const &src)         { list = src.list; return *this; }
 ]]], [[[m4_dnl          // objlist
-  // (we do *not* have operator= here, nor appendAll, since these are supposed to be owner lists)
+  // (we do *not* have appendAll, since these are supposed to be owner lists)
 ]]])m4_dnl
 
   // steal

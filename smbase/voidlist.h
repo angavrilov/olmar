@@ -47,11 +47,9 @@ protected:
   VoidNode *top;                     // (owner) first node, or NULL if list is empty
   VoidNode *getTop() const { return top; } // for iterator, below
 
-private:
-  VoidList(VoidList const &obj);     // not allowed
-
 public:
   VoidList()                         { top=NULL; }
+  VoidList(VoidList const &obj);     // makes a (shallow) copy of the contents
   ~VoidList()                        { removeAll(); }
 
   // selectors

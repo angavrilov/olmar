@@ -29,12 +29,14 @@ private:
 protected:
   VoidList list;                        // list itself
 
-private:
-  SObjList(SObjList const &obj) {}      // not allowed
+public:
+  // make shallow copies
+  SObjList(SObjList const &obj)         : list(obj.list) {}
+  SObjList& operator= (SObjList const &src)         { list = src.list; return *this; }
 
 public:
-  SObjList()                            :list() {}
-  ~SObjList()                             {}    /* all items removed */
+  SObjList()                            : list() {}
+  ~SObjList()                           {}    /* all items removed */
 
   // The difference function should return <0 if left should come before
   // right, 0 if they are equivalent, and >0 if right should come before
@@ -87,7 +89,6 @@ public:
   // multiple lists
   void concat(SObjList &tail)                       { list.concat(tail.list); }
   void appendAll(SObjList const &tail)              { list.appendAll(tail.list); }
-  SObjList& operator= (SObjList const &src)         { list = src.list; return *this; }
 
   // steal
   void stealTailAt(int index, SObjList &tail)       { list.stealTailAt(index, tail.list); }
