@@ -1900,27 +1900,38 @@ void GrammarAnalysis::disposeItemSet(ItemSet *is)
 ItemSet *GrammarAnalysis::moveDotNoClosure(ItemSet const *source, Symbol const *symbol)
 {
   ItemSet *ret = makeItemSet();
-
-  SDProductionList items;
-  source->getAllItems(items);
-
-  // for each item
+    
+  // total # of items added
   int appendCt=0;
-  SFOREACH_DOTTEDPRODUCTION(items, dprodi) {
-    DottedProduction const *dprod = dprodi.data();
 
-    if (dprod->isDotAtEnd() ||
-        dprod->symbolAfterDotC() != symbol) {
-      continue;    // can't move dot
+  // iterator for walking both lists of items; switching from an
+  // implementation which used 'getAllItems' for performance reasons
+  ObjListIter<DottedProduction> dprodi(source->kernelItems);
+  int passCt=0;    // 0=kernelItems, 1=nonkernelItems
+  while (passCt < 2) {
+    if (passCt == 1) {
+      dprodi.reset(source->nonkernelItems);
     }
 
-    // move the dot
-    DottedProduction *dotMoved = new DottedProduction(*dprod);
-    dotMoved->setProdAndDot(dotMoved->getProd(), dotMoved->getDot() + 1);
+    // for each item
+    for (; !dprodi.isDone(); dprodi.adv()) {
+      DottedProduction const *dprod = dprodi.data();
 
-    // add the new item to the itemset I'm building
-    ret->addKernelItem(dotMoved);
-    appendCt++;
+      if (dprod->isDotAtEnd() ||
+          dprod->symbolAfterDotC() != symbol) {
+        continue;    // can't move dot
+      }
+
+      // move the dot
+      DottedProduction *dotMoved = new DottedProduction(*dprod);
+      dotMoved->setProdAndDot(dotMoved->getProd(), dotMoved->getDot() + 1);
+
+      // add the new item to the itemset I'm building
+      ret->addKernelItem(dotMoved);
+      appendCt++;
+    }
+
+    passCt++;
   }
 
   // for now, verify we actually got something; though it would
