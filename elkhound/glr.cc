@@ -812,6 +812,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
               // (as the alias sib.sval)
               // update: now I don't even set it to NULL because the code here
               // has been changed to ignore *any* value
+              //if (parser->firstSib.sval != NULL) {
+              //  cout << "I GOT THE ANALYSIS WRONG!\n";
+              //} 
 
               // cancelled(1) effect: next->decRefCt();
               parser->firstSib.sib.setWithoutUpdateRefct(NULL);
