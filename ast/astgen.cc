@@ -24,15 +24,17 @@ public:
   Gen(char const *srcFname, char const *destFname, ASTSpecFile const &file);
   ~Gen();
 
-  // type queries                      
+  // type queries
   bool isTreeNode(char const *type);
   bool isTreeNodePtr(char const *type);
 
   bool isListType(char const *type);
   string extractListType(char const *type);
 
-  // canned output sequences
+  // shared output sequences
   void doNotEdit();
+  void emitFiltered(ASTList<UserDecl> const &decls, AccessCtl mode,
+                    char const *indent);
 };
 
 
@@ -69,16 +71,16 @@ bool Gen::isTreeNode(char const *base)
 {
   // search among defined classes for this name
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
-    ASTClass const *c = form.data()->ifASTClassC();
+    TF_class const *c = form.data()->ifTF_classC();
     if (!c) continue;
 
-    if (c->name.equals(base)) {
+    if (c->super->name.equals(base)) {
       // found it in a superclass
       return true;
     }
 
     // check the subclasses
-    FOREACH_ASTLIST(ASTCtor, c->ctors, ctor) {
+    FOREACH_ASTLIST(ASTClass, c->ctors, ctor) {
       if (ctor.data()->name.equals(base)) {
         // found it in a subclass
         return true;
@@ -119,20 +121,31 @@ void Gen::doNotEdit()
 }
 
 
+void Gen::emitFiltered(ASTList<UserDecl> const &decls, AccessCtl mode,
+                       char const *indent)
+{
+  FOREACH_ASTLIST(UserDecl, decls, iter) {
+    UserDecl const &decl = *(iter.data());
+    if (decl.access == mode) {
+      out << indent << decl.code << "\n";
+    }
+  }
+}
+
+
 // ------------------ generation of the header -----------------------
 // translation-wide state
 class HGen : public Gen {
 private:        // funcs
   void emitVerbatim(TF_verbatim const &v);
-  void emitASTClass(ASTClass const &cls);
-  static char const *virtualIfChildren(ASTClass const &cls);
+  void emitTFClass(TF_class const &cls);
+  static char const *virtualIfChildren(TF_class const &cls);
   void emitCtorFields(ASTList<CtorArg> const &args);
   void emitCtorFormal(int &ct, CtorArg const *arg);
-  void emitCtorDefn(char const *className, ASTList<CtorArg> const &args,
-                    ASTClass const *parent);
+  void emitCtorDefn(ASTClass const &cls, ASTClass const *parent);
   void emitCommonFuncs(char const *virt);
   void emitUserDecls(ASTList<UserDecl> const &decls);
-  void visitCtor(ASTClass const &parent, ASTCtor const &ctor);
+  void emitCtor(ASTClass const &ctor, ASTClass const &parent);
 
 public:         // funcs
   HGen(char const *srcFname, char const *destFname, ASTSpecFile const &file)
@@ -164,11 +177,11 @@ void HGen::emitFile()
   // forward-declare all the classes
   out << "// fwd decls\n";
   FOREACH_ASTLIST(ToplevelForm, file.forms, form) {
-    ASTClass const *c = form.data()->ifASTClassC();
+    TF_class const *c = form.data()->ifTF_classC();
     if (c) {
-      out << "class " << c->name << ";\n";
+      out << "class " << c->super->name << ";\n";
 
-      FOREACH_ASTLIST(ASTCtor, c->ctors, ctor) {
+      FOREACH_ASTLIST(ASTClass, c->ctors, ctor) {
         out << "class " << ctor.data()->name << ";\n";
       }
     }
@@ -182,8 +195,8 @@ void HGen::emitFile()
         emitVerbatim(*( form.data()->asTF_verbatimC() ));
         break;
 
-      case ToplevelForm::ASTCLASS:
-        emitASTClass(*( form.data()->asASTClassC() ));
+      case ToplevelForm::TF_CLASS:
+        emitTFClass(*( form.data()->asTF_classC() ));
         break;
 
       default:
@@ -192,7 +205,7 @@ void HGen::emitFile()
 
     out << "\n";
   }
-  
+
   out << "#endif // " << includeLatch << "\n";
 }
 
@@ -204,7 +217,7 @@ void HGen::emitVerbatim(TF_verbatim const &v)
 }
 
 
-STATICDEF char const *HGen::virtualIfChildren(ASTClass const &cls)
+STATICDEF char const *HGen::virtualIfChildren(TF_class const &cls)
 {
   if (cls.hasChildren()) {
     // since this class has children, make certain functions virtual
@@ -218,23 +231,23 @@ STATICDEF char const *HGen::virtualIfChildren(ASTClass const &cls)
 
 
 // emit declaration for a class ("phylum")
-void HGen::emitASTClass(ASTClass const &cls)
+void HGen::emitTFClass(TF_class const &cls)
 {
   doNotEdit();
-  out << "class " << cls.name << " {\n";
+  out << "class " << cls.super->name << " {\n";
 
-  emitCtorFields(cls.superCtor);
-  emitCtorDefn(cls.name, cls.superCtor, NULL /*parent*/);
+  emitCtorFields(cls.super->args);
+  emitCtorDefn(*(cls.super), NULL /*parent*/);
 
   // destructor
   char const *virt = virtualIfChildren(cls);
-  out << "  " << virt << "~" << cls.name << "();\n";
+  out << "  " << virt << "~" << cls.super->name << "();\n";
   out << "\n";
 
   // declare the child kind selector
   if (cls.hasChildren()) {
     out << "  enum Kind { ";
-    FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
+    FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
       out << ctor.data()->kindName() << ", ";
     }
     out << "NUM_KINDS };\n";
@@ -245,9 +258,9 @@ void HGen::emitASTClass(ASTClass const &cls)
 
   // declare checked downcast functions
   {
-    FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
+    FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
       // declare the const downcast
-      ASTCtor const &c = *(ctor.data());
+      ASTClass const &c = *(ctor.data());
       out << "  DECL_AST_DOWNCASTS(" << c.name << ")\n";
     }
     out << "\n";
@@ -255,7 +268,7 @@ void HGen::emitASTClass(ASTClass const &cls)
 
   emitCommonFuncs(virt);
 
-  emitUserDecls(cls.decls);
+  emitUserDecls(cls.super->decls);
 
   // close the declaration of the parent class
   out << "};\n";
@@ -263,8 +276,8 @@ void HGen::emitASTClass(ASTClass const &cls)
 
   // print declarations for all child classes
   {
-    FOREACH_ASTLIST(ASTCtor, cls.ctors, ctor) {
-      visitCtor(cls, *(ctor.data()));
+    FOREACH_ASTLIST(ASTClass, cls.ctors, ctor) {
+      emitCtor(*(ctor.data()), *(cls.super));
     }
   }
 
@@ -319,23 +332,22 @@ void HGen::emitCtorFormal(int &ct, CtorArg const *arg)
 
 
 // emit the definition of the constructor itself
-void HGen::emitCtorDefn(char const *className, ASTList<CtorArg> const &args,
-                        ASTClass const *parent)
+void HGen::emitCtorDefn(ASTClass const &cls, ASTClass const *parent)
 {
   // declare the constructor
   {
     out << "public:      // funcs\n";
-    out << "  " << className << "(";
+    out << "  " << cls.name << "(";
 
     // list of formal parameters to the constructor
     {
-      int ct = 0;         
+      int ct = 0;
       if (parent) {
-        FOREACH_ASTLIST(CtorArg, parent->superCtor, parg) {
+        FOREACH_ASTLIST(CtorArg, parent->args, parg) {
           emitCtorFormal(ct, parg.data());
         }
       }
-      FOREACH_ASTLIST(CtorArg, args, arg) {
+      FOREACH_ASTLIST(CtorArg, cls.args, arg) {
         emitCtorFormal(ct, arg.data());
       }
     }
@@ -347,7 +359,7 @@ void HGen::emitCtorDefn(char const *className, ASTList<CtorArg> const &args,
 
       if (parent) {
         out << " : " << parent->name << "(";
-        FOREACH_ASTLIST(CtorArg, parent->superCtor, parg) {
+        FOREACH_ASTLIST(CtorArg, parent->args, parg) {
           if (ct++ > 0) {
             out << ", ";
           }
@@ -358,7 +370,7 @@ void HGen::emitCtorDefn(char const *className, ASTList<CtorArg> const &args,
         out << ")";
       }
 
-      FOREACH_ASTLIST(CtorArg, args, arg) {
+      FOREACH_ASTLIST(CtorArg, cls.args, arg) {
         if (ct++ > 0) {
           out << ", ";
         }
@@ -371,8 +383,10 @@ void HGen::emitCtorDefn(char const *className, ASTList<CtorArg> const &args,
       }
     }
 
-    // empty ctor body (later I'll add a way for user code to go here)
-    out << " {}\n";
+    // insert user's ctor code
+    out << " {\n";
+    emitFiltered(cls.decls, AC_CTOR, "    ");
+    out << "  }\n";
   }
 }
 
@@ -387,18 +401,23 @@ void HGen::emitCommonFuncs(char const *virt)
 // emit user-supplied declarations
 void HGen::emitUserDecls(ASTList<UserDecl> const &decls)
 {
-  FOREACH_ASTLIST(UserDecl, decls, decl) {
-    out << "  " << toString(decl.data()->access) << ": " << decl.data()->code << "\n";
+  FOREACH_ASTLIST(UserDecl, decls, iter) {
+    UserDecl const &decl = *(iter.data());
+    if (decl.access == AC_PUBLIC ||
+        decl.access == AC_PRIVATE ||
+        decl.access == AC_PROTECTED) {
+      out << "  " << toString(decl.access) << ": " << decl.code << "\n";
+    }
   }
 }
 
 // emit declaration for a specific class instance constructor
-void HGen::visitCtor(ASTClass const &parent, ASTCtor const &ctor)
+void HGen::emitCtor(ASTClass const &ctor, ASTClass const &parent)
 {
   out << "class " << ctor.name << " : public " << parent.name << " {\n";
 
   emitCtorFields(ctor.args);
-  emitCtorDefn(ctor.name, ctor.args, &parent);
+  emitCtorDefn(ctor, &parent);
 
   // destructor
   out << "  virtual ~" << ctor.name << "();\n";
@@ -434,8 +453,8 @@ public:
 
   void emitFile();
   void emitVerbatim(TF_verbatim const &v);
-  void emitASTClass(ASTClass const &cls);
-  void emitDestructor(char const *clsname, ASTList<CtorArg> const &args);
+  void emitTFClass(TF_class const &cls);
+  void emitDestructor(ASTClass const &cls);
   void emitPrintCtorArgs(ASTList<CtorArg> const &args);
 };
 
@@ -456,8 +475,8 @@ void CGen::emitFile()
       ASTCASEC(TF_verbatim, v) {
         emitVerbatim(*v);
       }
-      ASTNEXTC(ASTClass, c) {
-        emitASTClass(*c);
+      ASTNEXTC(TF_class, c) {
+        emitTFClass(*c);
       }
       ASTENDCASEC
     }
@@ -470,41 +489,41 @@ void CGen::emitVerbatim(TF_verbatim const &)
   // do nothing for verbatim ... that goes into the header ..
 }
 
-void CGen::emitASTClass(ASTClass const &cls)
+void CGen::emitTFClass(TF_class const &cls)
 {
-  out << "// ------------------ " << cls.name << " -------------------\n";
+  out << "// ------------------ " << cls.super->name << " -------------------\n";
   doNotEdit();
 
   // class destructor
-  emitDestructor(cls.name, cls.superCtor);
-  
+  emitDestructor(*(cls.super));
+
   // debugPrint
-  out << "void " << cls.name << "::debugPrint(ostream &os, int indent) const\n";
+  out << "void " << cls.super->name << "::debugPrint(ostream &os, int indent) const\n";
   out << "{\n";
   if (!cls.hasChildren()) {
     // childless superclasses print headers; otherwise the subclass
     // prints the header
-    out << "  PRINT_HEADER(" << cls.name << ");\n";
+    out << "  PRINT_HEADER(" << cls.super->name << ");\n";
     out << "\n";
   }
 
-  emitPrintCtorArgs(cls.superCtor);
+  emitPrintCtorArgs(cls.super->args);
 
   out << "}\n";
   out << "\n";
 
   // constructors (class hierarchy children)
-  FOREACH_ASTLIST(ASTCtor, cls.ctors, ctoriter) {
-    ASTCtor const &ctor = *(ctoriter.data());
+  FOREACH_ASTLIST(ASTClass, cls.ctors, ctoriter) {
+    ASTClass const &ctor = *(ctoriter.data());
 
     // downcast function
-    out << "DEFN_AST_DOWNCASTS(" << cls.name << ", "
+    out << "DEFN_AST_DOWNCASTS(" << cls.super->name << ", "
                                  << ctor.name << ", "
                                  << ctor.kindName() << ")\n";
     out << "\n";
 
     // subclass destructor
-    emitDestructor(ctor.name, ctor.args);
+    emitDestructor(ctor);
 
     // subclass debugPrint
     out << "void " << ctor.name << "::debugPrint(ostream &os, int indent) const\n";
@@ -513,7 +532,7 @@ void CGen::emitASTClass(ASTClass const &cls)
     out << "\n";
 
     // call the superclass's fn to get its data members
-    out << "  " << cls.name << "::debugPrint(os, indent);\n";
+    out << "  " << cls.super->name << "::debugPrint(os, indent);\n";
     out << "\n";
 
     emitPrintCtorArgs(ctor.args);
@@ -526,12 +545,15 @@ void CGen::emitASTClass(ASTClass const &cls)
 }
 
 
-void CGen::emitDestructor(char const *clsname, ASTList<CtorArg> const &args)
+void CGen::emitDestructor(ASTClass const &cls)
 {
-  out << clsname << "::~" << clsname << "()\n";
+  out << cls.name << "::~" << cls.name << "()\n";
   out << "{\n";
 
-  FOREACH_ASTLIST(CtorArg, args, argiter) {
+  // user's code first
+  emitFiltered(cls.decls, AC_DTOR, "  ");
+
+  FOREACH_ASTLIST(CtorArg, cls.args, argiter) {
     CtorArg const &arg = *(argiter.data());
 
     if (isListType(arg.type)) {

@@ -57,7 +57,7 @@
 %union {
   ASTSpecFile *file;
   ASTList<ToplevelForm> *formList;
-  ASTClass *astClass;
+  TF_class *tfClass;
   ASTList<CtorArg> *ctorArgList;
   ASTList<UserDecl> *userDeclList;
   string *str;
@@ -67,7 +67,7 @@
 
 %type <file> StartSymbol
 %type <formList> Input
-%type <astClass> Class ClassBody ClassMembersOpt
+%type <tfClass> Class ClassBody ClassMembersOpt
 %type <ctorArgList> CtorArgsOpt CtorArgs
 %type <userDeclList> CtorMembersOpt
 %type <str> Arg ArgWord Embedded ArgList
@@ -92,31 +92,31 @@ Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
      ;
 
 /* a class is a nonterminal in the abstract grammar */
-/* yields ASTClass */
+/* yields TF_class */
 Class: "class" TOK_NAME ClassBody
-         { ($$=$3)->name = unbox($2); }
+         { ($$=$3)->super->name = unbox($2); }
      | "class" TOK_NAME "(" CtorArgsOpt ")" ClassBody
-         { ($$=$6)->name = unbox($2); $$->superCtor.steal($4); }
+         { ($$=$6)->super->name = unbox($2); $$->super->args.steal($4); }
      ;
 
-/* yields ASTClass */
+/* yields TF_class */
 ClassBody: "{" ClassMembersOpt "}"
              { $$=$2; }
          | ";"
-             { $$ = new ASTClass("(placeholder)", NULL, NULL, NULL); }
+             { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL), NULL); }
          ;
 
-/* yields ASTClass */
+/* yields TF_class */
 /* does this by making an empty one initially, and then adding to it */
 ClassMembersOpt
   : /* empty */
-      { $$ = new ASTClass("(placeholder)", NULL, NULL, NULL); }
+      { $$ = new TF_class(new ASTClass("(placeholder)", NULL, NULL), NULL); }
   | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" ";"
-      { ($$=$1)->ctors.append(new ASTCtor(unbox($3), $5, NULL)); }
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $5, NULL)); }
   | ClassMembersOpt "->" TOK_NAME "(" CtorArgsOpt ")" "{" CtorMembersOpt "}"
-      { ($$=$1)->ctors.append(new ASTCtor(unbox($3), $5, $8)); }
+      { ($$=$1)->ctors.append(new ASTClass(unbox($3), $5, $8)); }
   | ClassMembersOpt Public Embedded
-      { ($$=$1)->decls.append(new UserDecl($2, unbox($3))); }
+      { ($$=$1)->super->decls.append(new UserDecl($2, unbox($3))); }
   ;
 
 /* yields ASTList<CtorArg> */
@@ -183,6 +183,8 @@ Public
   : "public"        { $$ = AC_PUBLIC; }
   | "private"       { $$ = AC_PRIVATE; }
   | "protected"     { $$ = AC_PROTECTED; }
+  | "ctor"          { $$ = AC_CTOR; }
+  | "dtor"          { $$ = AC_DTOR; }
   ;
 
 /* yields TF_verbatim */

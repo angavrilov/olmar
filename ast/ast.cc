@@ -12,7 +12,7 @@ string toString(AccessCtl acc)
   return string(arr[acc]);
 }
 
-string ASTCtor::kindName() const
+string ASTClass::kindName() const
 {
   string ret = stringToupper(name);
   if (ret == name) {

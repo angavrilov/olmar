@@ -45,25 +45,40 @@ void TF_verbatim::debugPrint(ostream &os, int indent) const
   PRINT_STRING(code);
 }
 
-DEFN_AST_DOWNCASTS(ToplevelForm, ASTClass, ASTCLASS)
+DEFN_AST_DOWNCASTS(ToplevelForm, TF_class, TF_CLASS)
 
+TF_class::~TF_class()
+{
+  delete super;
+  ctors.deleteAll();
+}
+
+void TF_class::debugPrint(ostream &os, int indent) const
+{
+  PRINT_HEADER(TF_class);
+
+  ToplevelForm::debugPrint(os, indent);
+
+  PRINT_SUBTREE(super);
+  PRINT_LIST(ASTClass, ctors);
+}
+
+
+// ------------------ ASTClass -------------------
+// *** DO NOT EDIT ***
 ASTClass::~ASTClass()
 {
-  superCtor.deleteAll();
+  args.deleteAll();
   decls.deleteAll();
-  ctors.deleteAll();
 }
 
 void ASTClass::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(ASTClass);
 
-  ToplevelForm::debugPrint(os, indent);
-
   PRINT_STRING(name);
-  PRINT_LIST(CtorArg, superCtor);
+  PRINT_LIST(CtorArg, args);
   PRINT_LIST(UserDecl, decls);
-  PRINT_LIST(ASTCtor, ctors);
 }
 
 
@@ -79,24 +94,6 @@ void UserDecl::debugPrint(ostream &os, int indent) const
 
   PRINT_GENERIC(access);
   PRINT_STRING(code);
-}
-
-
-// ------------------ ASTCtor -------------------
-// *** DO NOT EDIT ***
-ASTCtor::~ASTCtor()
-{
-  args.deleteAll();
-  decls.deleteAll();
-}
-
-void ASTCtor::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(ASTCtor);
-
-  PRINT_STRING(name);
-  PRINT_LIST(CtorArg, args);
-  PRINT_LIST(UserDecl, decls);
 }
 
 

@@ -11,33 +11,36 @@ class ASTSpecFile (ASTList<ToplevelForm> forms);
 class ToplevelForm {
   // code to be copied verbatim into the generated .h file
   -> TF_verbatim(string code);
-
-  // a definition of a grammar nonterminal
-  -> ASTClass(string name,
-              ASTList<CtorArg> superCtor,
-              ASTList<UserDecl> decls,
-              ASTList<ASTCtor> ctors) {
+                                    
+  // a superclass, and a list of subclasses ("constructors")
+  -> TF_class(ASTClass super,
+              ASTList<ASTClass> ctors) {
        public bool hasChildren() const { return ctors.isNotEmpty(); };
      }
 }
 
+// a definition of a grammar terminal or nonterminal
+class ASTClass (string name,
+                ASTList<CtorArg> args,
+                ASTList<UserDecl> decls) {
+  // the name of the enum constant denoting this ctor, as distinguished
+  // from its sibling ctors
+  public string kindName() const;
+}
+
 verbatim {
-  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED };
+  // specifies what kind of userdecl this is; pub/priv/prot are uninterpreted
+  // class members with the associated access control; ctor and dtor are
+  // code to be inserted into the ctor or dtor, respectively
+  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED, AC_CTOR, AC_DTOR };
+
+  // map the enum value to a string like "AC_PUBLIC"
   string toString(AccessCtl acc);      // defined in ast.cc
 }
 
 // verbatim declarations, plus an access qualifier, to be
 // copied into the a class declaration
 class UserDecl (AccessCtl access, string code);
-
-// one of possibly several alternatives for the enclosing class
-class ASTCtor (string name,
-               ASTList<CtorArg> args,
-               ASTList<UserDecl> decls) {
-  // the name of the enum constant denoting this ctor, as distinguished
-  // from its sibling ctors
-  public string kindName() const;
-}
 
 // something that has to be passed to create a constructor
 class CtorArg (bool owner, string type, string name);

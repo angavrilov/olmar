@@ -11,9 +11,9 @@
 class ASTSpecFile;
 class ToplevelForm;
 class TF_verbatim;
+class TF_class;
 class ASTClass;
 class UserDecl;
-class ASTCtor;
 class CtorArg;
 
 
@@ -25,7 +25,8 @@ public:      // data
   ASTList <ToplevelForm > forms;
 
 public:      // funcs
-  ASTSpecFile(ASTList <ToplevelForm > *_forms) : forms(_forms) {}
+  ASTSpecFile(ASTList <ToplevelForm > *_forms) : forms(_forms) {
+  }
   ~ASTSpecFile();
 
 
@@ -40,14 +41,15 @@ class ToplevelForm {
 public:      // data
 
 public:      // funcs
-  ToplevelForm() {}
+  ToplevelForm() {
+  }
   virtual ~ToplevelForm();
 
-  enum Kind { TF_VERBATIM, ASTCLASS, NUM_KINDS };
+  enum Kind { TF_VERBATIM, TF_CLASS, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   DECL_AST_DOWNCASTS(TF_verbatim)
-  DECL_AST_DOWNCASTS(ASTClass)
+  DECL_AST_DOWNCASTS(TF_class)
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -58,7 +60,8 @@ public:      // data
   string code;
 
 public:      // funcs
-  TF_verbatim(string _code) : code(_code) {}
+  TF_verbatim(string _code) : ToplevelForm(), code(_code) {
+  }
   virtual ~TF_verbatim();
 
   virtual Kind kind() const { return TF_VERBATIM; }
@@ -68,19 +71,18 @@ public:      // funcs
 
 };
 
-class ASTClass : public ToplevelForm {
+class TF_class : public ToplevelForm {
 public:      // data
-  string name;
-  ASTList <CtorArg > superCtor;
-  ASTList <UserDecl > decls;
-  ASTList <ASTCtor > ctors;
+  ASTClass *super;
+  ASTList <ASTClass > ctors;
 
 public:      // funcs
-  ASTClass(string _name, ASTList <CtorArg > *_superCtor, ASTList <UserDecl > *_decls, ASTList <ASTCtor > *_ctors) : name(_name), superCtor(_superCtor), decls(_decls), ctors(_ctors) {}
-  virtual ~ASTClass();
+  TF_class(ASTClass *_super, ASTList <ASTClass > *_ctors) : ToplevelForm(), super(_super), ctors(_ctors) {
+  }
+  virtual ~TF_class();
 
-  virtual Kind kind() const { return ASTCLASS; }
-  enum { TYPE_TAG = ASTCLASS };
+  virtual Kind kind() const { return TF_CLASS; }
+  enum { TYPE_TAG = TF_CLASS };
 
   virtual void debugPrint(ostream &os, int indent) const;
 
@@ -89,8 +91,33 @@ public:      // funcs
 
 
 
+// *** DO NOT EDIT ***
+class ASTClass {
+public:      // data
+  string name;
+  ASTList <CtorArg > args;
+  ASTList <UserDecl > decls;
 
-  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED };
+public:      // funcs
+  ASTClass(string _name, ASTList <CtorArg > *_args, ASTList <UserDecl > *_decls) : name(_name), args(_args), decls(_decls) {
+  }
+  ~ASTClass();
+
+
+  void debugPrint(ostream &os, int indent) const;
+
+  public:  string kindName() const;
+};
+
+
+
+
+  // specifies what kind of userdecl this is; pub/priv/prot are uninterpreted
+  // class members with the associated access control; ctor and dtor are
+  // code to be inserted into the ctor or dtor, respectively
+  enum AccessCtl { AC_PUBLIC, AC_PRIVATE, AC_PROTECTED, AC_CTOR, AC_DTOR };
+
+  // map the enum value to a string like "AC_PUBLIC"
   string toString(AccessCtl acc);      // defined in ast.cc
 
 // *** DO NOT EDIT ***
@@ -100,31 +127,13 @@ public:      // data
   string code;
 
 public:      // funcs
-  UserDecl(AccessCtl _access, string _code) : access(_access), code(_code) {}
+  UserDecl(AccessCtl _access, string _code) : access(_access), code(_code) {
+  }
   ~UserDecl();
 
 
   void debugPrint(ostream &os, int indent) const;
 
-};
-
-
-
-// *** DO NOT EDIT ***
-class ASTCtor {
-public:      // data
-  string name;
-  ASTList <CtorArg > args;
-  ASTList <UserDecl > decls;
-
-public:      // funcs
-  ASTCtor(string _name, ASTList <CtorArg > *_args, ASTList <UserDecl > *_decls) : name(_name), args(_args), decls(_decls) {}
-  ~ASTCtor();
-
-
-  void debugPrint(ostream &os, int indent) const;
-
-  public:  string kindName() const;
 };
 
 
@@ -137,7 +146,8 @@ public:      // data
   string name;
 
 public:      // funcs
-  CtorArg(bool _owner, string _type, string _name) : owner(_owner), type(_type), name(_name) {}
+  CtorArg(bool _owner, string _type, string _name) : owner(_owner), type(_type), name(_name) {
+  }
   ~CtorArg();
 
 
