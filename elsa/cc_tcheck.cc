@@ -3245,10 +3245,23 @@ static Variable *getNamedFunction(Expression *e)
 }
 
 
+// true if the type has no destructor because it's not a compound type
+// nor an array of (an array of ..) compound types
+static bool hasNoopDtor(Type *t)
+{
+  // if it's an array type, then whether it has a no-op dtor depends
+  // entirely on whether the element type has a no-op dtor
+  while (t->isArrayType()) {
+    t = t->asArrayType()->eltType;
+  }
+
+  return !t->isCompoundType();
+}
+
 Type *E_funCall::itcheck(Env &env, Expression *&replacement)
 {
   inner1_itcheck(env);
-  
+
   // special case: if someone explicitly called the destructor
   // of a non-class type, e.g.:
   //   typedef unsigned uint;
@@ -3256,12 +3269,11 @@ Type *E_funCall::itcheck(Env &env, Expression *&replacement)
   //   x.~uint();
   // then change it into a void-typed simple evaluation:
   //   (void)x;
-  // since the call itself is a no-op (Q: what if it's an array
-  // of class-typed objects?)
+  // since the call itself is a no-op
   if (func->isE_fieldAcc()) {
     E_fieldAcc *fa = func->asE_fieldAcc();
-    if (!fa->obj->type->asRval()->isCompoundType() &&
-        fa->fieldName->getName()[0] == '~') {
+    if (fa->fieldName->getName()[0] == '~' &&
+        hasNoopDtor(fa->obj->type->asRval())) {
       if (args->isNotEmpty()) {
         env.error("call to dtor must have no arguments");
       }                        
@@ -3488,8 +3500,11 @@ Type *E_fieldAcc::itcheck(Env &env, Expression *&replacement)
     }
 
     if (fieldName->getName()[0] == '~') {
-      // invoking destructor explicitly, which is allowed
-      // for all types
+      // invoking destructor explicitly, which is allowed for all
+      // types; most of the time, the rewrite in E_funCall::itcheck
+      // will replace this, but in the case of a type which is an
+      // array of objects, this will leave the E_fieldAcc's 'field'
+      // member NULL ...
       return env.makeDestructorFunctionType(SL_UNKNOWN);
     }
 
