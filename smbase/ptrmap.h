@@ -10,6 +10,7 @@
 #define PTRMAP_H
 
 #include "vptrmap.h"       // VoidPtrMap
+#include "typ.h"           // NULL
 
 
 template <class KEY, class VALUE>
