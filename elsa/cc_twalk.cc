@@ -203,6 +203,14 @@ void Declaration::twalk(Env &env)
     spec->asTS_classSpec()->twalk(env);
   }
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
+    // if there are decl flags that didn't get put into the
+    // Variable (e.g. DF_EXTERN which gets turned off as soon
+    // as a definition is seen), print them first
+    DeclFlags extras = (DeclFlags)(dflags & ~(iter->var->flags));
+    if (extras) {
+      global_code_out << toString(extras) << " ";
+    }
+
     iter->twalk(env);
     global_code_out << ";" << endl;
   }
