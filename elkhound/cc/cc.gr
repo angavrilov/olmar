@@ -749,6 +749,11 @@ nonterm[Condition*] ConditionOpt {
 }
 
 nonterm[Statement*] ForInitStatement {
+  // ambiguous:
+  //   x * y = z
+  // could be an expression or a declaration
+  merge(L,R) [ L->addAmbiguity(R); return L; ]
+
   -> s:ExpressionStatement     [ return s; ]
   -> s:SimpleDeclaration       [ return new S_decl(loc, s); ]
 }
