@@ -3,8 +3,12 @@
 
 typedef int size_t;
 
-struct scsi_cmnd {
+struct B {
   int q;
+};
+
+struct scsi_cmnd {
+  struct B b;
 };
 
 int main() {
@@ -12,7 +16,7 @@ int main() {
     // this was originally in a different context requiring const
     // evaluation: an array size.  I just wanted to simplfy the
     // expression
-  case ((size_t) &((struct scsi_cmnd *)0)->q) :
+  case ((size_t) &((struct scsi_cmnd *)0)->b.q) :
     break;
   }
 };

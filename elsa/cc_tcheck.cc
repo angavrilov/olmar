@@ -6988,7 +6988,12 @@ bool Expression::constEval(string &msg, int &result) const
   }
 
   ASTSWITCHC(Expression, this) {
-    ASTCASEC(E_boolLit, b)
+    // Handle this idiom for finding a member offset:
+    // &((struct scsi_cmnd *)0)->b.q
+    ASTCASEC(E_addrOf, eaddr)
+      return eaddr->expr->constEvalAddr(msg, result);
+      
+    ASTNEXTC(E_boolLit, b)
       result = b->b? 1 : 0;
       return true;
 
@@ -7135,6 +7140,56 @@ bool Expression::extConstEval(string &msg, int &result) const
 {
   msg = stringc << kindName() << " is not constEval'able";
   return false;
+}
+
+bool Expression::constEvalAddr(string &msg, int &result) const
+{
+  result = 0;                   // FIX: this is wrong
+  int result0;                  // dummy for use below
+  // FIX: I'm sure there are cases missing from this
+  ASTSWITCHC(Expression, this) {
+    // These two are dereferences, so they recurse back to constEval().
+    ASTCASEC(E_deref, e)
+      return e->ptr->constEval(msg, result0);
+      break;
+
+    ASTNEXTC(E_arrow, e)
+      return e->obj->constEval(msg, result0);
+      break;
+
+    // These just recurse on constEvalAddr().
+    ASTNEXTC(E_fieldAcc, e)
+      return e->obj->constEvalAddr(msg, result0);
+      break;
+
+    ASTNEXTC(E_cast, e)
+      return e->expr->constEvalAddr(msg, result0);
+      break;
+
+    ASTNEXTC(E_keywordCast, e)
+      // FIX: haven't really thought about these carefully
+      switch (e->key) {
+      default:
+        xfailure("bad CastKeyword");
+      case CK_DYNAMIC:
+        return false;
+        break;
+      case CK_STATIC: case CK_REINTERPRET: case CK_CONST:
+        return e->expr->constEvalAddr(msg, result0);
+        break;
+      }
+      break;
+
+    ASTNEXTC(E_grouping, e)
+      return e->expr->constEvalAddr(msg, result);
+      break;
+
+    ASTDEFAULTC
+      return false;
+      break;
+
+    ASTENDCASEC
+  }
 }
 
 
