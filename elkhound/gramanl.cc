@@ -2364,7 +2364,7 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
 
   out << "    default:\n";
   out << "      assert(!\"invalid production code\");\n";
-  out << "      return NULL;   // silence warning\n";
+  out << "      return (void*)0;   // silence warning\n";
   out << "  }\n";
   out << "}\n";
 }
