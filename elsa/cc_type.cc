@@ -893,6 +893,13 @@ CVFlags PointerType::getCVFlags() const
 
 
 // -------------------- FunctionType::ExnSpec --------------
+FunctionType::ExnSpec::ExnSpec(ExnSpec const &obj)
+{                                   
+  // copy list contents
+  types = obj.types;
+}
+
+
 FunctionType::ExnSpec::~ExnSpec()
 {
   types.removeAll();
@@ -1154,6 +1161,13 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
 
 
 // ----------------- TemplateParams --------------
+TemplateParams::TemplateParams(TemplateParams const &obj)
+{
+  // copy list contents
+  params = obj.params;
+}
+
+
 TemplateParams::~TemplateParams()
 {}
 
@@ -1561,7 +1575,15 @@ PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
 FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
-  return makeFunctionType(loc, retType, similar->isMember);
+  FunctionType *ret = makeFunctionType(loc, retType, similar->isMember);
+  ret->acceptsVarargs = similar->acceptsVarargs;
+  if (similar->exnSpec) {
+    ret->exnSpec = new FunctionType::ExnSpec(*similar->exnSpec);
+  }
+  if (similar->templateParams) {
+    ret->templateParams = new TemplateParams(*similar->templateParams);
+  }
+  return ret;
 }
 
 

@@ -97,3 +97,17 @@ void OverloadSet::addMember(Variable *v)
 {
   set.prepend(v);
 }
+
+
+Variable *OverloadSet::findByType(FunctionType const *ft)
+{
+  SFOREACH_OBJLIST_NC(Variable, set, iter) {
+    FunctionType *iterft = iter.data()->type->asFunctionType();
+
+    if (iterft->equalOmittingThisParam(ft)) {
+      // ok, this is the right one
+      return iter.data();
+    }
+  }
+  return NULL;    // not found
+}

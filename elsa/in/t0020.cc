@@ -29,7 +29,7 @@ public:
 
   int f(short);
   int f(int);
-  int f(int);
+  //ERROR(1): int f(int);    // duplicate definition
 };
 
 Foo Foo::operator- (Foo &f)

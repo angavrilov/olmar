@@ -28,6 +28,7 @@
 #include "sobjlist.h"          // SObjList
 
 class Type;                    // cc_type.h
+class FunctionType;            // cc_type.h
 class OverloadSet;             // below
 class Scope;                   // scope
 class Expression;              // cc.ast
@@ -124,6 +125,7 @@ public:
   
   void addMember(Variable *v);
   int count() const { return set.count(); }
+  Variable *findByType(FunctionType const *ft);
 };
 
 

@@ -506,6 +506,7 @@ public:     // types
 
   public:
     ExnSpec() {}
+    ExnSpec(ExnSpec const &obj);
     ~ExnSpec();
 
     bool anyCtorSatisfies(Type::TypePred pred) const;
@@ -538,6 +539,8 @@ public:
 
   // if the 'this' parameter (if any) is ignored in both function
   // types, am I equal to 'obj'?
+  // TODO: I think this is now equivalent to a signature comparison;
+  // once I'm satisfied that's correct, I'll rename this
   bool equalOmittingThisParam(FunctionType const *obj) const
     { return innerEquals(obj, true /*skipThis*/); }
 
@@ -648,6 +651,7 @@ public:
 
 public:
   TemplateParams() {}
+  TemplateParams(TemplateParams const &obj);
   ~TemplateParams();
 
   string toString() const;
@@ -822,8 +826,8 @@ public:
     CompoundType *classType, CVFlags cv, D_func *syntax);
 
   // given a function type and a return type, make a new function
-  // type which has the same qualifiers as the given one, but otherwise
-  // is unrelated
+  // type which is like it but has not explicit parameters; i.e.,
+  // copy all fields except 'params'
   virtual FunctionType *makeSimilarFunctionType(SourceLoc loc,
     Type *retType, FunctionType *similar);
 

@@ -1695,6 +1695,183 @@ bool ctorNameMatches(char const *ctorName, char const *className)
 }
 
 
+// given a function type, return one with all toplevel cv flags
+// stripped off the parameters (might return the same function
+// given to it); only such types will appear in the environment
+// and in overload sets
+//
+// functions have three types:
+//   - raw, syntactic type:  f(int const, int[])
+//   - D_name computed type: f(int const, int*)
+//   - Env signature type:   f(int, int*)
+//
+// The syntactic type is never materialized.  The D_name type is computed
+// at the D_name node, and stored there.  The signature type is computed
+// by 'normalizeSignature()', and is what gets stored in Variables that
+// refer to functions.
+FunctionType *normalizeSignature(Env &env, FunctionType *ft)
+{
+  // first, scan for the case when no stripping is required; this
+  // will be by far the most common situation
+  {
+    CVFlags topFlags = CV_NONE;
+    SFOREACH_OBJLIST(Variable, ft->params, iter) {
+      CVFlags cv = iter.data()->type->getCVFlags();
+      topFlags |= cv;
+    }
+    if (topFlags == CV_NONE) {
+      return ft;    // nothing must be stripped
+    }
+  }
+
+  TRACE("normalizeSignature", "normalizing " << ft->toString());
+
+  // construct a new function type that is like the old one, but
+  // with stripped parameters
+  FunctionType *newFt = env.tfac.makeSimilarFunctionType(
+    SL_UNKNOWN, ft->retType, ft);
+
+  // iterate over the original parameter list
+  SFOREACH_OBJLIST_NC(Variable, ft->params, iter) {
+    Variable *param = iter.data();
+
+    Type *newType = NULL;
+    switch (param->type->getTag()) {
+      default: xfailure("bad tag");
+
+      case Type::T_ATOMIC: {
+        CVAtomicType const *at = param->type->asCVAtomicTypeC();
+        // do *not* copy cv flags
+        newType = env.tfac.makeCVAtomicType(SL_UNKNOWN, at->atomic, CV_NONE);
+        break;
+      }
+
+      case Type::T_POINTER: {
+        PointerType const *pt = param->type->asPointerTypeC();
+        // do *not* copy cv flags
+        newType = env.tfac.makePointerType(SL_UNKNOWN, pt->op, CV_NONE, pt->atType);
+        break;
+      }
+
+      case Type::T_FUNCTION:
+      case Type::T_ARRAY:
+        // no change
+        newType = param->type;
+        break;
+
+      case Type::T_POINTERTOMEMBER: {
+        PointerToMemberType const *ptm = param->type->asPointerToMemberTypeC();
+        // do *not* copy cv flags
+        newType = env.tfac.makePointerToMemberType(SL_UNKNOWN,
+          ptm->inClass, CV_NONE, ptm->atType);
+        break;
+      }
+    }
+    
+    // make a new Variable to hold this parameter
+    Variable *newParam = 
+      env.tfac.makeVariable(param->loc, param->name, newType, param->flags);
+    newFt->addParam(newParam);
+  }
+
+  newFt->doneParams();
+
+  TRACE("normalizeSignature", "normalized: " << newFt->toString());
+
+  return newFt;
+}
+
+
+// true if two function types have equivalent signatures, meaning
+// if their names are the same then they refer to the same function,
+// not two overloaded instances
+bool equivalentSignatures(FunctionType const *ft1, FunctionType const *ft2)
+{
+  // new method: always use 'equalOmittingThisParam', and rely on
+  // normalization to take care of f(int) vs f(int const)
+  return ft1->equalOmittingThisParam(ft2);
+
+  #if 0
+  // return type is not part of the signature for overload checking,
+  // so it is ignored
+
+  // iterate over the parameter lists
+  SObjList<Variable> iter1(ft1->params);
+  SObjList<Variable> iter2(ft2->params);
+  while (!iter1.isDone() && !iter2.isDone()) {
+    Variable const *param1 = iter1.data();
+    Variable const *param2 = iter2.data();
+
+    // we have to take apart the toplevel type constructors, since
+    // toplevel cv flags are not part of the signature [cppstd 13.1
+    // para 3, bullet 4; also in 8.3.5?]
+    if (param1->type->tag() != param2->type->tag()) {
+      return false;           // different type constructors
+    }
+
+    switch (param1->type->tag()) {
+      case Type::T_ATOMIC: {
+        CVAtomicType const *at1 = param1->type->asCVAtomicTypeC();
+        CVAtomicType const *at2 = param2->type->asCVAtomicTypeC();
+        // do *not* compare cv flags
+        if (!at1->atomic->equals(at2->atomic)) {
+          return false;       // different atomics
+        }
+        break;
+      }
+
+      case Type::T_POINTER: {
+        PointerType const *pt1 = param1->type->asCVAtomicTypeC();
+        PointerType const *pt2 = param2->type->asCVAtomicTypeC();
+        // do *not* compare cv flags
+        if (pt1->op == pt2->op &&
+            pt1->atType->equals(pt2->atType)) {
+          // ok
+        }
+        else {
+          return false;       // "*" vs "&", or different referents
+        }                                                          
+        break;
+      }
+      
+      case Type::T_FUNCTION:
+      case Type::T_ARRAY:
+        // I believe these need to be identical
+        if (!param1->type->equals(param2->type)) {
+          return false;       // different types
+        }
+        break;
+
+      case Type::T_POINTERTOMEMBER: {
+        PointerToMemberType const *ptm1 = param1->type->asPointerToMemberTypeC();
+        PointerToMemberType const *ptm2 = param2->type->asPointerToMemberTypeC();
+        // do *not* compare cv flags
+        if (ptm1->inClass == ptm2->inClass &&
+            ptm1->atType->equals(ptm2->atType)) {
+          // ok
+        }
+        else {
+          return false;       // different types
+        }
+        break;
+      }
+    }
+
+    iter1.adv();
+    iter2.adv();
+  }
+
+  if (!iter1.isDone() || !iter2.isDone()) {
+    return false;             // different parameter list lengths
+  }
+
+  // last check
+  return ft1->acceptsVarargs == ft2->acceptsVarargs &&
+         ft1->isMember == ft2->isMember;
+  #endif // 0
+}
+
+
 // comparing types for equality, *except* we allow array types
 // to match even when one of them is missing a bound and the
 // other is not; I cannot find where in the C++ standard this
@@ -1717,6 +1894,22 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
       return at1->eltType->equals(at2->eltType);
     }
   }
+
+  #if 0      // using a different method
+  // I'll add another exception for functions, and require only
+  // that their parameters have equivalent signatures (plus the
+  // other function equality checks), so I can allow f(int) to
+  // be redeclared as f(int const)
+  if (t1->isFunctionType() &&
+      t2->isFunctionType()) {
+    FunctionType const *ft1 = t1->asFunctionTypeC();
+    FunctionType const *ft2 = t2->asFunctionTypeC();
+
+    return ft1->retType->equals(ft2->retType) &&
+           equivalentSignatures(ft1, ft2) &&
+           ft1->equalExceptionSpecs(ft2);
+  }
+  #endif // 0
 
   // no exception: strict equality
   return t1->equals(t2);
@@ -1792,8 +1985,13 @@ static void D_name_tcheck(
   }
 
 realStart:
+  if (dt.type->isFunctionType()) {
+    // normalize the types that appear in the environment
+    dt.type = normalizeSignature(env, dt.type->asFunctionType());
+  }
+
   if (!name) {
-    // no name, nothing to enter in environment
+    // no name, nothing to enter into environment
     dt.var = env.makeVariable(loc, NULL, dt.type, dt.dflags);
     return;
   }
@@ -1823,7 +2021,7 @@ realStart:
 
       // turn off the decl flag because it shouldn't end up
       // in the final Variable
-      dt.dflags = (DeclFlags)(dt.dflags & ~DF_FRIEND);
+      dt.dflags = dt.dflags & ~DF_FRIEND;
     }
   }
 
@@ -1956,27 +2154,17 @@ realStart:
       }
       FunctionType *dtft = dt.type->asFunctionType();
 
-      OverloadSet *set = prior->overload;
-      prior = NULL;     // for now we haven't found a valid prior decl
-      SMUTATE_EACH_OBJLIST(Variable, set->set, iter) {
-        FunctionType *iterft = iter.data()->type->asFunctionType();
-
-        // 'dtft' is incomplete for the moment, because we don't know
-        // yet whether it's supposed to be a static member or a
-        // nonstatic member; this is determined by finding a function
-        // whose signature (ignoring 'this' parameter, if any) matches
-        if (iterft->equalOmittingThisParam(dtft)) {
-          // ok, this is the right one
-          prior = iter.data();
-          break;
-        }
-      }
-
+      // 'dtft' is incomplete for the moment, because we don't know
+      // yet whether it's supposed to be a static member or a
+      // nonstatic member; this is determined by finding a function
+      // whose signature (ignoring 'this' parameter, if any) matches
+      prior = prior->overload->findByType(dtft);
       if (!prior) {
         env.error(dt.type, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
           << dt.type->toString() << "' doesn't match any of the "
-          << set->set.count() << " declared overloaded instances");
+          << prior->overload->set.count() 
+          << " declared overloaded instances");
         goto makeDummyVar;
       }
     }
@@ -2011,6 +2199,17 @@ realStart:
   else {
     // has this name already been declared in the innermost scope?
     prior = scope->lookupVariable(unqualifiedName, env, LF_INNER_ONLY);
+    
+    if (prior &&
+        prior->overload &&
+        dt.type->isFunctionType()) {
+      // set 'prior' to the previously-declared member that has
+      // the same signature, if one exists
+      Variable *match = prior->overload->findByType(dt.type->asFunctionTypeC());
+      if (match) {
+        prior = match;
+      }
+    }
   }
 
   // check for overloading
@@ -2018,37 +2217,16 @@ realStart:
   if (!name->hasQualifiers() &&
       prior &&
       prior->type->isFunctionType() &&
-      dt.type->isFunctionType() &&
-      !prior->type->equals(dt.type)) {
+      dt.type->isFunctionType()) {
+//      !prior->type->equals(dt.type)) {
     // potential overloading situation; get the two function types
     FunctionType *priorFt = prior->type->asFunctionType();
     FunctionType *specFt = dt.type->asFunctionType();
 
-    // (BUG: this isn't the exact criteria for allowing overloading,
-    // but it's close)
-    if (
-         // always allow the overloading for conversion operators
-         (unqualifiedName != env.conversionOperatorName) &&
-
-         // make sure the parameter lists are not the same
-         (priorFt->equalParameterLists(specFt))
-       ) {
-      // figure out *what* was different, so the error message can
-      // properly tell the user
-      if (!priorFt->retType->equals(specFt->retType)) {
-        env.error(stringc
-          << "cannot overload `" << *name << "' on return type only");
-        goto makeDummyVar;
-      }
-      else {
-        // this probably should be an error message more like "this
-        // definition conflicts with the previous" instead of mentioning
-        // the overload possibility, so..
-        goto declarationTypeMismatch;
-      }
-    }
-
-    else {
+    // can only be an overloading if their signatures differ,
+    // or it's a conversion operator
+    if (!equivalentSignatures(priorFt, specFt) ||
+        unqualifiedName == env.conversionOperatorName) {
       // ok, allow the overload
       TRACE("ovl",    "overloaded `" << prior->name
                    << "': `" << prior->type->toString()
@@ -2059,7 +2237,7 @@ realStart:
   }
 
   // if this gets set, we'll replace a conflicting variable
-  // when we got to do the insertion
+  // when we go to do the insertion
   bool forceReplace = false;
 
   // did we find something?
@@ -2266,8 +2444,13 @@ FakeList<ASTTypeId> *tcheckFakeASTTypeIdList(
 // implement cppstd 8.3.5 para 3:
 //   "array of T" -> "pointer to T"
 //   "function returning T" -> "pointer to function returning T"
+// also, since f(int) and f(int const) are the same function (not
+// overloadings), strip toplevel cv qualifiers
 static Type *normalizeParameterType(Env &env, SourceLoc loc, Type *t)
 {
+  //switch (t->getTag()) {
+  //  case Type::T_ATOMIC:
+
   if (t->isArrayType()) {
     return env.makePtrType(loc, t->asArrayType()->eltType);
   }
@@ -2286,7 +2469,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
 
   // is this a nonstatic member function?
   if (env.scope()->curCompound &&
-      !(dt.dflags & DF_STATIC)) {
+      !(dt.dflags & (DF_STATIC | DF_FRIEND))) {
     // yes; make the implicit 'this' parameter
     CompoundType *inClass = env.scope()->curCompound;
     Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, cv, this);
@@ -2344,7 +2527,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
       if (!i->isIN_expr()) {
         env.error("function parameter default value must be a simple initializer, "
                   "not a compound (e.g. \"= { ... }\") or constructor "
-                  "(e.g. \"int x(3)\") initalizer");
+                  "(e.g. \"int x(3)\") initializer");
       }
       else {
         // this is obsolete, now that Variable has a 'value' field
