@@ -37,14 +37,19 @@ Makefile: Makefile.in
 
 
 # ---------------------- intermediate files -------------------
-# unfortunately, the way bison.simple declares YYSTYPE precludes a proper
-# declaration of yylex(), unless I modify it as below; the 'grep' is so
-# I have a .h file without the union, since the union refers to types
-# whose declarations I'd like to avoid spreading everywhere
+# for bison-1.28:
+  # unfortunately, the way bison.simple declares YYSTYPE precludes a proper
+  # declaration of yylex(), unless I modify it as below; the 'grep' is so
+  # I have a .h file without the union, since the union refers to types
+  # whose declarations I'd like to avoid spreading everywhere
+# for bison-1.875:
+  # g++ doesn't like __attribute__((__unused__))
 agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h ast.ast.h agrampar.h
 	bison -d -v agrampar.y
 	mv -f agrampar.tab.c tmp
-	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > agrampar.tab.cc
+	sed -e 's/typedef union {/typedef union YYSTYPE {/' \
+	    -e 's/__attribute__ ((__unused__))//' \
+	  < tmp > agrampar.tab.cc
 	mv -f agrampar.tab.h tmp
 	sed 's/typedef union {/typedef union YYSTYPE {/' < tmp > agrampar.tab.h
 	rm tmp
