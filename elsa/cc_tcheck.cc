@@ -1592,17 +1592,16 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
     // dsw: I'm going to just always make the parameter const for now.
     // TODO: do it right.
 
-//      if (env.doElaboration)
-    {
-//        // create the AST for a definition and do the first typechecking
-//        // pass; the second part of the pass will be done with the rest
-//        // of the members later.
-//        MR_func *ctorBody = makeCopyAssignBody(env, ct);
-//        //      cout << "**** ct->name: " << ct->name << endl;
-//        //      ctorBody->debugPrint(cout, 0);
-//        ctorBody->tcheck(env);
-//        tsClassSpec->members->list.append(ctorBody);
-//      } else {
+    if (env.doElaboration) {
+      // create the AST for a definition and do the first typechecking
+      // pass; the second part of the pass will be done with the rest
+      // of the members later.
+      MR_func *ctorBody = makeCopyAssignBody(env, ct);
+      //      cout << "**** ct->name: " << ct->name << endl;
+      //      ctorBody->debugPrint(cout, 0);
+      ctorBody->tcheck(env);
+      tsClassSpec->members->list.append(ctorBody);
+    } else {
       // add a copy assignment op declaration: Class& operator=(Class const &);
       Type *refToSelfType =
         env.makePointerType(loc, PO_REFERENCE, CV_NONE,

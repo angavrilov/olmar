@@ -936,8 +936,13 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
 
   SFOREACH_OBJLIST(Variable, ct->dataMembers, iter) {
     Variable *var = const_cast<Variable *>(iter.data());
+    Type *type = var->type;
+    // skip assigning to const or reference members; NOTE: this is an
+    // asymmetry with copy ctor, which can INITIALIZE const or ref
+    // types, however we cannot ASSIGN to them.
+    if (type->isReference() || type->isConst()) continue;
     // skip arrays for now; FIX: do something correct here
-    if (var->type->isArrayType()) continue;
+    if (type->isArrayType()) continue;
     stmts->append(make_S_expr_memberCopyAssign(env, var->name));
   }
 
