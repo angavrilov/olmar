@@ -3180,7 +3180,7 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
 
       GotoEntry cellGoto;
       if (gotoDest) {
-        cellGoto = tables->encodeGoto(gotoDest->id);
+        cellGoto = tables->encodeGoto(gotoDest->id, nonterminal->ntIndex);
       }
       else {
         // this should never be accessed at parse time..
@@ -3594,7 +3594,7 @@ void GrammarAnalysis::lrParse(char const *input)
 
       // find out where to go
       StateId destState = tables->decodeGoto(
-        tables->getGotoEntry(state, info.lhsIndex));
+        tables->getGotoEntry(state, info.lhsIndex), info.lhsIndex);
 
       // go there
       state = destState;

@@ -1159,7 +1159,8 @@ STATICDEF bool GLR
           // this is like a shift -- we need to know where to go; the
           // 'goto' table has this information
           StateId newState = tables->decodeGoto(
-            tables->getGotoEntry(parser->state, prodInfo.lhsIndex));
+            tables->getGotoEntry(parser->state, prodInfo.lhsIndex),
+            prodInfo.lhsIndex);
 
           // debugging
           TRSPARSE("state " << startStateId <<
@@ -1853,7 +1854,7 @@ SiblingLink *GLR::rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
   // this is like a shift -- we need to know where to go; the
   // 'goto' table has this information
   StateId rightSiblingState = tables->decodeGoto(
-    tables->getGotoEntry(leftSibling->state, lhsIndex));
+    tables->getGotoEntry(leftSibling->state, lhsIndex), lhsIndex);
 
   // debugging
   TRSPARSE("state " << leftSibling->state <<

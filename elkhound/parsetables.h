@@ -62,7 +62,16 @@ inline ostream& operator<< (ostream &os, StateId id)
 
 
 // encodes a destination state in 'gotoTable'
-typedef unsigned short GotoEntry;
+#if ENABLE_CRS_COMPRESSION
+  // entry is an offset from the first state that can be reached
+  // by shifting the nonterminal
+  typedef unsigned char GotoEntry;
+#else
+  // entry is the to go to after shifting the nonterminal
+  typedef unsigned short GotoEntry;
+#endif
+#define errorGotoEntry ((GotoEntry)~0)
+
 
 // name a terminal using an index
 typedef unsigned char TermIndex;
@@ -334,16 +343,15 @@ public:     // funcs
   // encode actions
   ActionEntry encodeShift(StateId destState, int shiftedTermId);
   ActionEntry encodeReduce(int prodId, StateId inWhatState);
-  ActionEntry encodeAmbig(ArrayStack<ActionEntry> const &set, 
+  ActionEntry encodeAmbig(ArrayStack<ActionEntry> const &set,
                           StateId inWhatState);
   ActionEntry encodeError() const;
   ActionEntry validateAction(int code) const;
 
   // encode gotos
-  GotoEntry encodeGoto(StateId stateId) const
-    { return validateGoto(stateId); }
+  GotoEntry encodeGoto(StateId stateId, int shiftedNontermId) const;
   GotoEntry encodeGotoError() const
-    { return validateGoto(numStates); }
+    { return errorGotoEntry; }
   GotoEntry validateGoto(int code) const;
 
   // misc
@@ -452,22 +460,28 @@ public:     // funcs
   }
 
   bool isErrorGoto(GotoEntry code)
-    { return code == numStates; }
-  static StateId decodeGoto(GotoEntry code)
-    { return (StateId)code; }
+    { return code == errorGotoEntry; }
+
+  StateId decodeGoto(GotoEntry code, int shiftedNonterminal) {
+    #if ENABLE_CRS_COMPRESSION
+      return (StateId)(firstWithNonterminal[shiftedNonterminal] + code);
+    #else
+      return (StateId)code;
+    #endif
+  }
 
   // nonterminal order
   int nontermOrderSize() const
     { return numNonterms; }
   NtIndex getNontermOrdinal(NtIndex idx) const
     { return nontermOrder[idx]; }
-    
+
   // misc
   ProdInfo const &getProdInfo(int prodIndex) const
     { return prodInfo[prodIndex]; }
   int getStateSymbol(StateId id) const
     { return stateSymbol[id]; }
-                           
+
   // query compression options based on which fields are not NULL; do
   // *not* use the compile-time flags, because we're trying to detect
   // mismatch between compiler flags used at different times

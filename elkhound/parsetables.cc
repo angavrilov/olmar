@@ -211,6 +211,7 @@ GotoEntry ParseTables::validateGoto(int code) const
   // see above
   GotoEntry ret = (GotoEntry)code;
   xassert((int)ret == code);
+  xassert(ret != errorGotoEntry);    // otherwise collision with error code
   return ret;
 }
 
@@ -367,6 +368,18 @@ ActionEntry ParseTables::encodeError() const
     return makeAE(AE_ERROR, 0);
   #else
     return validateAction(0);
+  #endif
+}
+
+
+GotoEntry ParseTables::encodeGoto(StateId destState, int shiftedNontermId) const
+{
+  #if ENABLE_CRS_COMPRESSION
+    xassert(0 <= shiftedNontermId && shiftedNontermId < numNonterms);
+    int delta = destState - firstWithNonterminal[shiftedNontermId];
+    return validateGoto(delta);
+  #else
+    return validateGoto(destState);
   #endif
 }
 
@@ -1061,9 +1074,9 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
   }
 
   bool printHex = 0==strcmp(typeName, "ErrorBitsEntry") ||
-                  (ENABLE_CRS_COMPRESSION && 0==strcmp(typeName, "ActionEntry"));
+                  (ENABLE_CRS_COMPRESSION && 0==strcmp(typeName, "ActionEntry")) ||
+                  (ENABLE_CRS_COMPRESSION && 0==strcmp(typeName, "GotoEntry")) ;
   bool needCast = 0==strcmp(typeName, "StateId");
-  //bool actionSplit = ENABLE_CRS_COMPRESSION && 0==strcmp(typeName, "ActionEntry");
 
   if (size * sizeof(*table) > 50) {    // suppress small ones
     out << "  // storage size: " << size * sizeof(*table) << " bytes\n";
@@ -1088,14 +1101,6 @@ void emitTable(EmitCode &out, EltType const *table, int size, int rowLength,
     if (printHex) {
       out << stringf("0x%02X, ", table[i]);
     }
-    #if 0
-    else if (actionSplit) {
-      char func[4] = { 'S', 'R', 'A', 'E' };
-      int code = (int)(*((unsigned char*)(table+i)));
-      out << stringf("%c(%02d), ", func[code / (AE_MAXINDEX+1)],
-                                   code & AE_MAXINDEX);
-    }  
-    #endif // 0
     else if (sizeof(table[i]) == 1) {
       // little bit of a hack to make sure 'unsigned char' gets
       // printed as an int; the casts are necessary because this
