@@ -314,7 +314,7 @@ T="$T t0115.cc"
 T="$T t0116.cc"
 T="$T t0117.cc"
 
-# Arg, this is bad: This one passes now even though I haven't fixed the test.
+# update: Arg, this is bad: This one passes now even though I haven't fixed the test.
 # This is a real bug in the test!
 #  in/t0118.cc:139:5: error: no viable candidate for function call
 #  in/t0118.cc:200:5: error: no viable candidate for function call
@@ -324,6 +324,7 @@ T="$T t0118.cc"
 
 T="$T t0119.cc"
 
+# An Expression has a NULL type.
 # I think this is some sort of thing where I'm trying to do
 # overloading before ambiguities are done being resolved.  See
 # test_oload1.cc and print it before typechecking.  The case where I
@@ -340,6 +341,7 @@ T="$T t0125.cc"
 # Old: 0126: work in progress
 # T="$T t0126.cc"
 
+# Another one where an Expression has a NULL type
 #  child died with signal SEGV
 # T="$T t0127.cc"
 T="$T t0128.cc"
