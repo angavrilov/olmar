@@ -245,7 +245,7 @@ dependencies.dot:
 # --------------------- clean --------------------
 # delete compiling/editing byproducts
 clean:
-	rm -f *.o *~ *.d gmon.out
+	rm -f *.o *~ *.d gmon.out srcloc.tmp
 	rm -f $(TESTS)
 	rm -f *.a
 	rm -rf test.dir

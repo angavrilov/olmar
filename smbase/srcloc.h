@@ -38,7 +38,7 @@ class HashLineMap;    // hashline.h
 // I would love to be able to annotate this so that the C++ compiler
 // would not allow variables of this type to be created
 // uninitialized.. that's the one drawback of calling this an 'enum'
-// instead of a 'class', I don't get to write a constructor.
+// instead of a 'class': I don't get to write a constructor.
 enum SourceLoc { SL_UNKNOWN=0 };
 
 
@@ -271,8 +271,8 @@ public:      // funcs
   int getCol(SourceLoc loc);
 
   // get access to the File itself, for adding #line directives
-  File *getInternalFile(SourceLoc loc)
-    { return findFileWithLoc(loc); }
+  File *getInternalFile(char const *fname)
+    { return getFile(fname); }
 
   // render as string in "file:line:col" format
   string getString(SourceLoc loc);

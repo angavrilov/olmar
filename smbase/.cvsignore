@@ -38,3 +38,4 @@ config.summary
 hide
 Makefile
 hashline
+srcloc.tmp

@@ -647,8 +647,9 @@ string SourceLocManager::getString(SourceLoc loc)
 #ifdef TEST_SRCLOC
 
 #include "test.h"        // USUAL_MAIN
+#include "strtokp.h"     // StrtokParse
 
-#include <stdlib.h>      // rand
+#include <stdlib.h>      // rand, exit, system
 
 SourceLocManager mgr;
 int longestLen=0;
@@ -768,6 +769,129 @@ void testFile(char const *fname)
 }
 
 
+// decode with given expectation, complain if it doesn't match
+void expect(SourceLoc loc, char const *expFname, int expLine, int expCol)
+{
+  char const *fname;
+  int line, col;
+  mgr.decodeLineCol(loc, fname, line, col);
+  
+  if (0!=strcmp(fname, expFname) ||
+      line != expLine ||
+      col != expCol) {
+    printf("expected %s:%d:%d, but got %s:%d:%d\n",
+           expFname, expLine, expCol,
+           fname, line, col);
+    exit(2);
+  }
+}
+
+
+// this is a macro that will expand to more text than the call site,
+// to test column truncation
+#define EXPANDER int blah_de_blah_de_frickin_blah;
+EXPANDER
+
+
+// should this be exported?
+string locString(char const *fname, int line, int col)
+{
+  return stringc << fname << ":" << line << ":" << col;
+}
+
+
+void testHashMap()
+{
+  // run the preprocessor
+  system("cpp -DTEST_SRCLOC srcloc.cc >srcloc.tmp");
+
+  SourceLocManager::File *pp = mgr.getInternalFile("srcloc.tmp");
+  SourceLocManager::File *orig = mgr.getInternalFile("srcloc.cc");
+
+  // read srcloc.tmp and install the hash maps
+  int expanderLine=0;
+  {
+    FILE *fp = fopen("srcloc.tmp", "r");
+    if (!fp) {
+      throw_XOpen("srcloc.tmp");
+    }
+
+    enum { SZ=256 };
+    char buf[SZ];
+    int ppLine=0;
+    while (fgets(buf, SZ, fp)) {
+      if (buf[strlen(buf)-1] == '\n') {
+        ppLine++;
+      }
+
+      if (0==memcmp(buf, "int blah_de_blah", 16)) {
+        expanderLine = ppLine;
+      }
+
+      if (buf[0]!='#') continue;
+
+      StrtokParse tok(buf, " \n");     // break into tokens at whitespace
+      if (tok < 3) continue;
+
+      int origLine = atoi(tok[1]);
+      char const *tok2 = tok[2];
+      string origFname = string(tok2+1, strlen(tok2)-2);  // remove quotes
+      pp->addHashLine(ppLine, origLine, origFname);
+    }
+
+    fclose(fp);
+  }
+
+  // the 2nd line in the pp source should correspond to the
+  // first line in the orig src
+  SourceLoc lineTwo = mgr.encodeLineCol("srcloc.tmp", 2, 1);
+  expect(lineTwo, "srcloc.cc", 1,1);
+
+  // print decodes of first several lines (including those that
+  // are technically undefined because they occur on #line lines)
+  int ppLine;
+  for (ppLine = 1; ppLine < 10; ppLine++) {
+    SourceLoc loc = mgr.encodeLineCol("srcloc.tmp", ppLine, 1);
+    cout << "ppLine " << ppLine << ": " << toString(loc) << endl;
+  }
+
+  // similar for last few lines
+  for (ppLine = pp->numLines - 10; ppLine <= pp->numLines; ppLine++) {
+    SourceLoc loc = mgr.encodeLineCol("srcloc.tmp", ppLine, 1);
+    cout << "ppLine " << ppLine << ": " << toString(loc) << endl;
+  }
+
+  // see how the expander line behaves
+  if (!expanderLine) {
+    cout << "didn't find expander line!\n";
+    exit(2);
+  }
+  else {
+    SourceLoc loc = mgr.encodeLineCol("srcloc.tmp", expanderLine, 1);
+    cout << "expander column 1: " << toString(loc) << endl;
+
+    // in the pp file, I can advance the expander horizontally a long ways;
+    // this should truncate to column 9
+    loc = advCol(loc, 20);
+
+    char const *fname;
+    int offset;
+    mgr.decodeOffset(loc, fname, offset);
+    cout << "expander column 21: " << fname << ", offset " << offset << endl;
+    xassert(0==strcmp(fname, "srcloc.cc"));
+
+    // map that to line/col, which should show the truncation
+    int line, col;
+    orig->charToLineCol(offset, line, col);
+    cout << "expander column 21: " << locString(fname, line, col) << endl;
+    if (col != 9) {
+      cout << "expected column 9!\n";
+      exit(2);
+    }
+  }
+}
+
+
 void entry(int argc, char **argv)
 {
   traceAddSys("progress");
@@ -793,11 +917,15 @@ void entry(int argc, char **argv)
 
   // protect against degeneracy by printing the length of
   // the longest line
+  cout << "\n";
   cout << "long line len: " << longestLen << endl;
 
   // test the statics
   cout << "invalid: " << toString(SL_UNKNOWN) << endl;
   cout << "here: " << toString(HERE_SOURCELOC) << endl;
+  
+  cout << "\n";
+  testHashMap();
 
   cout << "srcloc is ok\n";
 }
