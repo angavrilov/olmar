@@ -1,7 +1,7 @@
 /* cc.lex            see license.txt for copyright and terms of use
  * flex description of scanner for C and C++ souce
  */
- 
+
 /* ----------------------- C definitions ---------------------- */
 %{
 
@@ -28,7 +28,7 @@
 %option c++
 
 /* use the "fast" algorithm with no table compression */
-%option full                                            
+%option full
 
 /* utilize character equivalence classes */
 %option ecs
@@ -44,6 +44,9 @@
      command line with -o, which I consider to be a flex bug. */
   /* sm: fair enough; agreed */
   /* %option outfile="lexer.yy.cc" */
+
+/* start conditions */
+%x BUGGY_STRING_LIT
 
 /* ------------------- definitions -------------------- */
 /* newline */
@@ -90,9 +93,8 @@ INT_SUFFIX    ([uU]{ELL_SUFFIX}?|{ELL_SUFFIX}[uU]?)
 /* floating-point suffix letter */
 FLOAT_SUFFIX  [flFL]
 
-/* normal string character: any but quote or backslash; dsw: removed
-   'newline' from that list since gcc sometimes allows it */
-STRCHAR       [^\"\\]
+/* normal string character: any but quote, newline, or backslash */
+STRCHAR       [^\"\n\\]
 
 /* (start of) an escape sequence */
 ESCAPE        ({BACKSL}{ANY})
@@ -291,8 +293,14 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* string literal missing final quote */
 "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{EOL}   {
-  err("string literal missing final `\"'");
-  return svalTok(TOK_STRING_LITERAL);     // error recovery
+  if (lang.allowNewlinesInStringLits) {
+    BEGIN(BUGGY_STRING_LIT);
+    return svalTok(TOK_STRING_LITERAL);
+  }
+  else {
+    err("string literal missing final `\"'");
+    return svalTok(TOK_STRING_LITERAL);     // error recovery
+  }
 }
 
   /* unterminated string literal; maximal munch causes us to prefer
@@ -303,6 +311,32 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "L"?{QUOTE}({STRCHAR}|{ESCAPE})*{BACKSL}? {
   err("unterminated string literal");
   yyterminate();
+}
+
+
+  /* This scanner reads in a string literal that contains unescaped
+   * newlines, to support a gcc-2 bug.  The strategy is to emit a
+   * sequence of TOK_STRING_LITERALs, as if the string had been
+   * properly broken into multiple literals.  However, these literals
+   * aren't surrounded by quotes... */
+<BUGGY_STRING_LIT>{
+  ({STRCHAR}|{ESCAPE})*{QUOTE} {
+    // found the end
+    BEGIN(INITIAL);
+    return svalTok(TOK_STRING_LITERAL);
+  }
+  ({STRCHAR}|{ESCAPE})*{EOL} {
+    // another line
+    return svalTok(TOK_STRING_LITERAL);
+  }
+  <<EOF>> |
+  ({STRCHAR}|{ESCAPE})*{BACKSL}? {
+    // unterminated (this only matches at EOF)
+    err("at EOF, unterminated string literal; support for newlines in string "
+        "literals is presently turned on, maybe the missing quote should have "
+        "been much earlier in the file?");
+    yyterminate();
+  }
 }
 
 

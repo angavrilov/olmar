@@ -33,6 +33,7 @@ void CCLang::ANSI_C89()
   allowImplicitIntForMain = false;
   declareGNUBuiltins = false;
   treatExternInlineAsPrototype = false;
+  allowNewlinesInStringLits = false;
 
   isCplusplus = false;
   predefined_Bool = false;
@@ -70,6 +71,7 @@ void CCLang::GNU_C()
   allowDynamicallySizedArrays = true;
   assumeNoSizeArrayHasSizeOne = true;
   treatExternInlineAsPrototype = true;
+  allowNewlinesInStringLits = true;
   declareGNUBuiltins = true;
 
   // I'm just guessing this is GNU only.... yep:
@@ -87,6 +89,7 @@ void CCLang::GNU_KandR_C()
   assumeNoSizeArrayHasSizeOne = true;
   allowIncompleteEnums = true;  // gnu according to Scott, above
   treatExternInlineAsPrototype = true;
+  allowNewlinesInStringLits = true;
   declareGNUBuiltins = true;
 
   // this seems wrong, but Oink's tests want it this way...
@@ -137,6 +140,7 @@ void CCLang::ANSI_Cplusplus()
 
   predefined_Bool = false;
   treatExternInlineAsPrototype = false;
+  allowNewlinesInStringLits = false;
   declareGNUBuiltins = false;
 
   isCplusplus = true;

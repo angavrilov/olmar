@@ -124,6 +124,10 @@ public:
   // keywords is treated like a prototype
   bool treatExternInlineAsPrototype;
 
+  // gcc-2 bug compatibility: permit string literals to contain
+  // (unescaped) newline characters in them
+  bool allowNewlinesInStringLits;
+
   // declare the various GNU __builtin functions; see
   // Env::addGNUBuiltins in gnu.cc
   bool declareGNUBuiltins;
