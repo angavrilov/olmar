@@ -3622,7 +3622,7 @@ Type *E_binary::itcheck(Env &env)
   // that case p + 1 is handled correctly by the default behavior
   // case: 1 + p
   if (lhsType->isIntegerType() && op==BIN_PLUS && rhsType->isPointerType()) {
-    return env.tfac.cloneType(rhsType);
+    return env.tfac.cloneType(rhsType); // a pointer type, that is
   }
   // case: p1 - p2
   if (lhsType->isPointerType() && op==BIN_MINUS && rhsType->isPointerType() ) {
