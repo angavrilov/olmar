@@ -59,8 +59,10 @@ types.  Atomic types (my terminology) are types atop which type
 constructors (like "*" or "[]") might be applied, but which themselves
 do not have any constructors, so cannot be further "deconstructed".
 They consist of built-in types like "int", enums, structs, classes and
-unions; I regard the aggregation of structs/classes/unions to form
-an atomic wrapper around their members.  Each kind of atomic type
+unions.  I regard the aggregation of structs/classes/unions to form
+an atomic wrapper around their members, in part because two (e.g.) struct
+types are equal only if they arise from the exact same declaration; there 
+is no structural equality for structs.  Each kind of atomic type
 is explained in Section 2.
 
 <p>
