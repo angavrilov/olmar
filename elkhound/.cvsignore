@@ -100,3 +100,4 @@ sexp
 sexp.ast.gen.*
 gss.*.g
 .gdbinit
+gprof2.out

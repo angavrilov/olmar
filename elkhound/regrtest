@@ -221,8 +221,10 @@ for n in 1 2 3   5 6 7 8 9 10 11 12; do
 done
 
 
+# bison performance test
+runTest ./bccgr c.in/c.in4d
 
-# this one is my main performance tester
+# this one is my main performance tester for comparison to bison
 runTest ./ccgr -tr trivialActions,stopAfterParse cc.bin c.in/c.in4d
 
 

@@ -1,6 +1,10 @@
 // parssppt.h
 // parser-support routines, for use at runtime while processing
 // the generated Parse tree
+//
+// this module is primarily for use with the C and C++ grammars,
+// but has been pressed into service for a few other uses too;
+// new grammars and parsers should probably not use this
 
 #ifndef __PARSSPPT_H
 #define __PARSSPPT_H

@@ -125,6 +125,7 @@ int entry(int argc, char *argv[])
   Lexer2 lexer(lang);
   traceProgress() << "lexing...\n";
   trivialLexer(inputFname, lexer);
+  lexer.beginReading();
 
   // set up parser
   UserActions *user;

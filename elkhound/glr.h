@@ -49,8 +49,9 @@
 
 
 // fwds from other files
-class Lexer2Token;       // lexer2.h
-class Lexer2;            // lexer2.h
+//class Lexer2Token;       // lexer2.h
+//class Lexer2;            // lexer2.h
+class LexerInterface;    // lexerint.h
 class CycleTimer;        // cyctimer.h
 
 // forward decls for things declared below
@@ -433,7 +434,7 @@ private:    // funcs
                                StackNode const *target) const;
   void printConfig() const;
   void buildParserIndex();
-  void printParseErrorMessage(Lexer2Token const *currentToken,
+  void printParseErrorMessage(LexerInterface &lexer,
                               StateId lastToDie, int classifiedType);
   bool cleanupAfterParse(CycleTimer &timer,
                          SemanticValue &treeTop);
@@ -446,24 +447,10 @@ public:     // funcs
   // read the named grammar file (.bin extension, typically)
   void readBinaryGrammar(char const *grammarFname);
 
-  // parse, using the token stream in 'lexer2', and store the final
+  // parse, using the token stream in 'lexer', and store the final
   // semantic value in 'treeTop'
-  bool glrParse(Lexer2 const &lexer2, SemanticValue &treeTop);
+  bool glrParse(LexerInterface &lexer, SemanticValue &treeTop);
 
-  // ------ oddball interfaces, mostly for testing -------
-  // 'main' for testing this class; returns false on error;
-  // yielded 'treeTop' is an owner (if a pointer)
-  bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
-                        char const *grammarFname, char const *inputFname);
-
-  // parse a given input file, using the passed lexer to lex it,
-  // and store the result in 'treeTop'
-  bool glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
-                         char const *input);
-
-  // after parsing, retrieve the toplevel semantic value
-  // (obsolete now; the parsing function returns it)
-  //SemanticValue getParseResult();
 };
 
 

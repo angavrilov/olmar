@@ -4,6 +4,8 @@
 #include "parssppt.h"     // this module
 #include "glr.h"          // toplevelParse
 #include "trace.h"        // traceProcessArg
+#include "syserr.h"       // xsyserror
+#include "grampar.h"      // readGrammarFile
 
 
 // ---------------------- ParseTree --------------------
@@ -25,14 +27,143 @@ ParseTreeAndTokens::~ParseTreeAndTokens()
 
 
 // ---------------------- other support funcs ------------------
+// process the input file, and yield a parse graph
+bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
+                       char const *inputFname)
+{
+  // do first phase lexer
+  traceProgress() << "lexical analysis...\n";
+  traceProgress(2) << "lexical analysis stage 1...\n";
+  Lexer1 lexer1;
+  {
+    FILE *input = fopen(inputFname, "r");
+    if (!input) {
+      xsyserror("fopen", inputFname);
+    }
+
+    lexer1_lex(lexer1, input);
+    fclose(input);
+
+    if (lexer1.errors > 0) {
+      printf("L1: %d error(s)\n", lexer1.errors);
+      return false;
+    }
+  }
+
+  // do second phase lexer
+  traceProgress(2) << "lexical analysis stage 2...\n";
+  lexer2_lex(lexer2, lexer1, inputFname);
+
+  // parsing itself
+  lexer2.beginReading();
+  return glr.glrParse(lexer2, treeTop);
+}
+
+
+bool glrParseFrontEnd(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
+                      char const *grammarFname, char const *inputFname)
+{
+  #if 0
+    // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
+    parseLine("E' ->  E $                ");
+    parseLine("E  ->  E + T  |  T        ");
+    parseLine("T  ->  T * F  |  F        ");
+    parseLine("F  ->  ( E )  |  id       ");
+
+    char const *input[] = {
+      " id                 $",
+      " id + id            $",
+      " id * id            $",
+      " id + id * id       $",
+      " id * id + id       $",
+      " ( id + id ) * id   $",
+      " id + id + id       $",
+      " id + ( id + id )   $"
+    };
+  #endif // 0/1
+
+ #if 0
+    // a simple ambiguous expression grammar
+    parseLine("S  ->  E  $                  ");
+    parseLine("E  ->  x  |  E + E  | E * E  ");
+
+    char const *input[] = {
+      "x + x * x $",
+    };
+  #endif // 0/1
+
+  #if 0
+    // my cast-problem grammar
+    parseLine("Start -> Expr $");
+    parseLine("Expr -> CastExpr");
+    parseLine("Expr -> Expr + CastExpr");
+    parseLine("CastExpr -> AtomExpr");
+    parseLine("CastExpr -> ( Type ) CastExpr");
+    parseLine("AtomExpr -> 3");
+    parseLine("AtomExpr -> x");
+    parseLine("AtomExpr -> ( Expr )");
+    parseLine("AtomExpr -> AtomExpr ( Expr )");
+    parseLine("Type -> int");
+    parseLine("Type -> x");
+
+    char const *input[] = {
+      "( x ) ( x ) $",
+    };
+
+    printProductions(cout);
+    runAnalyses();
+
+    INTLOOP(i, 0, (int)TABLESIZE(input)) {
+      cout << "------ parsing: `" << input[i] << "' -------\n";
+      glrParse(input[i]);
+    }
+  #endif // 0/1
+
+  #if 1
+    // read grammar
+    //if (!readFile(grammarFname)) {
+    //  // error with grammar; message already printed
+    //  return;
+    //}
+
+    if (!strstr(grammarFname, ".bin")) {
+      // assume it's an ascii grammar file and do the whole thing
+
+      // new code to read a grammar (throws exception on failure)
+      readGrammarFile(glr, grammarFname);
+
+      // spit grammar out as something bison might be able to parse
+      //{
+      //  ofstream bisonOut("bisongr.y");
+      //  printAsBison(bisonOut);
+      //}
+
+      if (tracingSys("grammar")) {
+        glr.printProductions(trace("grammar") << endl);
+      }
+
+      glr.runAnalyses(NULL);
+    }
+
+    else {
+      glr.readBinaryGrammar(grammarFname);
+    }
+
+    // parse input
+    return glrParseNamedFile(glr, lexer2, treeTop, inputFname);
+
+  #endif // 0/1
+}
+
+
 bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname)
 {
   // parse
   xassert(ptree.userAct != NULL);    // must have been set by now
   GLR glr(ptree.userAct);
-  return glr.glrParseFrontEnd(ptree.lexer2, ptree.treeTop,
-                              grammarFname, inputFname);
+  return glrParseFrontEnd(glr, ptree.lexer2, ptree.treeTop,
+                          grammarFname, inputFname);
 }
 
 

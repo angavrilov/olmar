@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: ccgr cc2.exe cc2t.exe
+all: ccgr cc2.exe cc2t.exe bccgr
 
 temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
@@ -400,7 +400,7 @@ bccgr.y: cc.gr.gen.y
 bccgr.tab.o: bccgr.h
 
 bccgr: bccgr.cc bccgr.tab.o lexer1.o lexer1yy.o lexer2.o $(AST)/fileloc.o \
-       $(AST)/strtable.o $(SMBASE)/libsmbase.a
+       $(AST)/strtable.o cc_lang.o cyctimer.o $(SMBASE)/libsmbase.a
 	g++ -o bccgr $(ccflags) $(includes) $(YYDEBUG) $^
 	./bccgr c.in/c.in1
 

@@ -6,6 +6,7 @@
 #include "strutil.h"     // encodeWithEscapes
 #include "exc.h"         // xformat
 #include "cc_lang.h"     // CCLang
+#include "glrconfig.h"   // SOURCELOC
 
 #include <stdlib.h>      // strtoul
 
@@ -576,7 +577,8 @@ Lexer2::Lexer2(CCLang &L)
     lang(L),
     idTable(*myIdTable),      // hope this works..
     tokens(),
-    tokensMut(tokens)
+    tokensMut(tokens),
+    currentToken(tokens)
 {}
 
 Lexer2::Lexer2(CCLang &L, StringTable &extTable)
@@ -584,7 +586,8 @@ Lexer2::Lexer2(CCLang &L, StringTable &extTable)
     lang(L),
     idTable(extTable),
     tokens(),
-    tokensMut(tokens)
+    tokensMut(tokens),
+    currentToken(tokens)
 {}
 
 Lexer2::~Lexer2()
@@ -603,6 +606,40 @@ SourceLocation Lexer2::startLoc() const
   else {
     return SourceLocation();    // empty
   }
+}
+
+
+void Lexer2::copyFields()
+{
+  type = currentToken.data()->type;
+  sval = currentToken.data()->sval;
+  SOURCELOC( loc = currentToken.data()->loc; )
+}
+
+
+void Lexer2::beginReading()
+{
+  currentToken.reset(tokens);
+  copyFields();
+}
+
+
+void Lexer2::nextToken()
+{
+  currentToken.adv();
+  copyFields();
+}
+
+
+string Lexer2::tokenDesc()
+{
+  return currentToken.data()->toString();
+}
+
+string Lexer2::tokenDescType(int newType)
+{
+  return currentToken.data()->toStringType(false /*asSexp*/, 
+                                           (Lexer2TokenType)newType);
 }
 
 

@@ -19,7 +19,7 @@
 // automatically propagating source location information in the
 // parser; user actions can still refer to 'loc', but they just get
 // a dummy no-location value
-#define NO_GLR_SOURCELOC
+//#define NO_GLR_SOURCELOC
 #ifdef NO_GLR_SOURCELOC
   #define SOURCELOC(stuff)
   #define SOURCELOCARG(stuff)

@@ -14,13 +14,16 @@
  * though they are not needed by the intervening levels, and their
  * presence in the argument lists would therefore only clutter them.
  *
- * It should be clear that many factors contribute to this
+ * (OLD) It should be clear that many factors contribute to this
  * implementation being slow, and I'm going to refrain from any
  * optimization for a bit.
  *
  * UPDATE (3/29/02): I'm now trying to optimize it.  The starting
  * implementation is 300x slower than bison.  Ideal goal is 3x, but
  * more realistic is 10x.
+ *
+ * UPDATE (8/24/02): It's very fast now; within 3% of Bison for
+ * deterministic grammars, and 5x when I disable the mini-LR core.
  *
  * Description of the various lists in play here:
  *
@@ -105,7 +108,7 @@
  *      a given parser
  *
  *      This is WRONG.  There can be more than one path, even as all such
- *      paths are labelled the same (namely, with the RHS symbols).  Consider
+ *      paths are labeled the same (namely, with the RHS symbols).  Consider
  *      grammar "E -> x | E + E" parsing "x+x+x": both toplevel parses use
  *      the "E -> E + E" rule, and both arrive at the root parser
  *
@@ -120,8 +123,7 @@
  * considered exactly once.
  *
  *
- * Below, parse-tree building activity is marked "TREEBUILD".
- */
+ * Below, parse-tree building activity is marked "TREEBUILD".  */
 
 
 #include "glr.h"         // this module
@@ -129,10 +131,9 @@
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
 #include "strutil.h"     // replace
-#include "lexer1.h"      // Lexer1
-#include "lexer2.h"      // Lexer2
-#include "grampar.h"     // readGrammarFile
-#include "parssppt.h"    // treeMain
+//#include "lexer1.h"      // Lexer1
+//#include "lexer2.h"      // Lexer2
+#include "lexerint.h"    // LexerInterface
 #include "bflatten.h"    // BFlatten
 #include "test.h"        // PVAL
 #include "cyctimer.h"    // CycleTimer
@@ -637,7 +638,9 @@ GLR::~GLR()
 void GLR::clearAllStackNodes()
 {
   // the stack nodes themselves are now reference counted, so they
-  // should already be cleared if we're between parses
+  // should already be cleared if we're between parses (modulo
+  // creation of cycles, which I currently just ignore and allow to
+  // leak..)
 }
 
   
@@ -701,38 +704,6 @@ void GLR::printConfig() const
            "disabled"
          #endif
          );
-}
-
-
-// process the input file, and yield a parse graph
-bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
-                            char const *inputFname)
-{
-  // do first phase lexer
-  traceProgress() << "lexical analysis...\n";
-  traceProgress(2) << "lexical analysis stage 1...\n";
-  Lexer1 lexer1;
-  {
-    FILE *input = fopen(inputFname, "r");
-    if (!input) {
-      xsyserror("fopen", inputFname);
-    }
-
-    lexer1_lex(lexer1, input);
-    fclose(input);
-
-    if (lexer1.errors > 0) {
-      printf("L1: %d error(s)\n", lexer1.errors);
-      return false;
-    }
-  }
-
-  // do second phase lexer
-  traceProgress(2) << "lexical analysis stage 2...\n";
-  lexer2_lex(lexer2, lexer1, inputFname);
-
-  // parsing itself
-  return glrParse(lexer2, treeTop);
 }
 
 
@@ -808,7 +779,7 @@ void GLR::buildParserIndex()
 // to reduce the register pressure, but it's still near the limit;
 // if you do something to cross a pressure threshold, performance drops
 // 25% so watch out!
-bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
+bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 {
   // get ready..
   traceProgress() << "parsing...\n";
@@ -835,14 +806,11 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
   // for each input symbol
   int tokenNumber = 0;
-  for (ObjListIter<Lexer2Token> tokIter(lexer2.tokens);
-       !tokIter.isDone(); tokIter.adv(), tokenNumber++) {
-    Lexer2Token const *currentToken = tokIter.data();
-
+  for (;;) {
     // debugging
     TRSPARSE(
            "------- "
-        << "processing token " << currentToken->toString()
+        << "processing token " << lexer.tokenDesc()
         << ", " << activeParsers.length() << " active parsers"
         << " -------"
     )
@@ -855,20 +823,20 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
     // token reclassification
     #if USE_RECLASSIFY
-      int classifiedType = userAct->reclassifyToken(currentToken->type,
-                                                    currentToken->sval);
+      int classifiedType = userAct->reclassifyToken(lexer.type,
+                                                    lexer.sval);
     #else     // this is what bccgr does
-      int classifiedType = currentToken->type;
-      if (classifiedType == L2_NAME) {
-        classifiedType = L2_VARIABLE_NAME;
+      int classifiedType = lexer.type;
+      if (classifiedType == 1 /*L2_NAME*/) {
+        classifiedType = 3 /*L2_VARIABLE_NAME*/;
       }
     #endif
 
     // convert the token to a symbol
     xassert((unsigned)classifiedType < (unsigned)numTerms);
     currentTokenClass = indexedTerms[classifiedType];
-    currentTokenValue = currentToken->sval;
-    SOURCELOC( currentTokenLoc = currentToken->loc; )
+    currentTokenValue = lexer.sval;
+    SOURCELOC( currentTokenLoc = lexer.loc; )
 
   #if USE_MINI_LR
   tryDeterministic:
@@ -1074,7 +1042,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
         xassertdb(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
 
         // get next token
-        continue;
+        goto getNextToken;
       }
 
       else {
@@ -1106,69 +1074,81 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     incParserList(parserWorklist);
 
     // work through the worklist
-    StateId lastToDie = STATE_INVALID;
-    while (parserWorklist.isNotEmpty()) {
-      RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
-      parser->decRefCt();     // no longer on worklist
+    {
+      StateId lastToDie = STATE_INVALID;
+      while (parserWorklist.isNotEmpty()) {
+        RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
+        parser->decRefCt();     // no longer on worklist
 
-      // to count actions, first record how many parsers we have
-      // before processing this one
-      //int parsersBefore = parserWorklist.length() + pendingShifts.length();
+        // to count actions, first record how many parsers we have
+        // before processing this one
+        //int parsersBefore = parserWorklist.length() + pendingShifts.length();
 
-      // process this parser
-      ActionEntry action =      // consult the 'action' table
-        tables->actionEntry(parser->state, currentTokenClass->termIndex);
-      int actions = glrParseAction(parser, action, pendingShifts);
-        
-      // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
-      // provides a counterexample (the parser could reduce, but the state it
-      // reduces to could already exist, so we wouldn't observe the change
-      // by counting parsers)
-      // now observe change -- normal case is we now have one more
-      //int actions = (parserWorklist.length() + pendingShifts.length()) -
-      //                parsersBefore;
+        // process this parser
+        ActionEntry action =      // consult the 'action' table
+          tables->actionEntry(parser->state, currentTokenClass->termIndex);
+        int actions = glrParseAction(parser, action, pendingShifts);
 
-      if (actions == 0) {
-        TRSPARSE("parser in state " << parser->state << " died");
-        lastToDie = parser->state;          // for reporting the error later if necessary
+        // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
+        // provides a counterexample (the parser could reduce, but the state it
+        // reduces to could already exist, so we wouldn't observe the change
+        // by counting parsers)
+        // now observe change -- normal case is we now have one more
+        //int actions = (parserWorklist.length() + pendingShifts.length()) -
+        //                parsersBefore;
 
-        // in the if-then-else grammar, I have a parser which dies but
-        // then gets merged with something else, prompting a request
-        // for the user's merge function; to avoid this, kill it early.
-        // first verify my assumptions: it should be on 'activeParsers'
-        // and pointed-to by 'parser
-        xassertdb(parser->referenceCount == 2);
+        if (actions == 0) {
+          TRSPARSE("parser in state " << parser->state << " died");
+          lastToDie = parser->state;          // for reporting the error later if necessary
 
-        // the only reason nodes are retained on 'activeParsers' is so if
-        // some other node gets a new sibling link, the finished parsers
-        // can be reconsidered; but new sibling links never enable a parser
-        // to act where it couldn't before (among other things, we don't
-        // even look at siblings when deciding whether to act), so we should
-        // go ahead and eliminate this parser from all lists now
-        pullFromActiveParsers(parser);
+          // in the if-then-else grammar, I have a parser which dies but
+          // then gets merged with something else, prompting a request
+          // for the user's merge function; to avoid this, kill it early.
+          // first verify my assumptions: it should be on 'activeParsers'
+          // and pointed-to by 'parser
+          xassertdb(parser->referenceCount == 2);
 
-        // verify we got it
-        xassertdb(parser->referenceCount == 1);
+          // the only reason nodes are retained on 'activeParsers' is so if
+          // some other node gets a new sibling link, the finished parsers
+          // can be reconsidered; but new sibling links never enable a parser
+          // to act where it couldn't before (among other things, we don't
+          // even look at siblings when deciding whether to act), so we should
+          // go ahead and eliminate this parser from all lists now
+          pullFromActiveParsers(parser);
 
-        // now when 'parser' passes out of scope, it will be deallocated,
-        // and will not interfere with another parser reaching the same
-        // state (incidentally, another parser reaching the same state will
-        // suffer the same fate this one did.. nothing useful to do about it)
+          // verify we got it
+          xassertdb(parser->referenceCount == 1);
+
+          // now when 'parser' passes out of scope, it will be deallocated,
+          // and will not interfere with another parser reaching the same
+          // state (incidentally, another parser reaching the same state will
+          // suffer the same fate this one did.. nothing useful to do about it)
+        }
+        else if (actions > 1) {
+          TRSPARSE("parser in state " << parser->state <<
+                   " split into " << actions << " parsers");
+        }
       }
-      else if (actions > 1) {
-        TRSPARSE("parser in state " << parser->state <<
-                 " split into " << actions << " parsers");
+
+      // process all pending shifts
+      glrShiftTerminals(pendingShifts);
+
+      // if all active parsers have died, there was an error
+      if (activeParsers.isEmpty()) {
+        printParseErrorMessage(lexer, lastToDie, classifiedType);
+        return false;
       }
     }
 
-    // process all pending shifts
-    glrShiftTerminals(pendingShifts);
-
-    // if all active parsers have died, there was an error
-    if (activeParsers.isEmpty()) {
-      printParseErrorMessage(currentToken, lastToDie, classifiedType);
-      return false;
+  getNextToken:                         
+    // was that the last token?
+    if (lexer.type == 0) {
+      break;
     }
+
+    // get the next token
+    lexer.nextToken();
+    tokenNumber++;
   }
 
   bool ret = cleanupAfterParse(timer, treeTop);
@@ -1212,14 +1192,13 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 
  
 // pulled out of glrParse() to reduce register pressure
-void GLR::printParseErrorMessage(Lexer2Token const *currentToken,
+void GLR::printParseErrorMessage(LexerInterface &lexer,
                                  StateId lastToDie, int classifiedType)
 {
-  cout << "Line " << currentToken->loc.line
-       << ", col " << currentToken->loc.col
+  cout << "Line " << lexer.loc.line
+       << ", col " << lexer.loc.col
        << ": Parse error at "
-       << currentToken->toStringType(false /*sexp*/,
-                                     (Lexer2TokenType)classifiedType)
+       << lexer.tokenDescType(classifiedType)
        << endl;
 
   if (lastToDie == STATE_INVALID) {
@@ -2109,100 +2088,6 @@ string readFileIntoString(char const *fname)
 }
 
 
-bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
-                           char const *grammarFname, char const *inputFname)
-{
-  #if 0
-    // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
-    parseLine("E' ->  E $                ");
-    parseLine("E  ->  E + T  |  T        ");
-    parseLine("T  ->  T * F  |  F        ");
-    parseLine("F  ->  ( E )  |  id       ");
-
-    char const *input[] = {
-      " id                 $",
-      " id + id            $",
-      " id * id            $",
-      " id + id * id       $",
-      " id * id + id       $",
-      " ( id + id ) * id   $",
-      " id + id + id       $",
-      " id + ( id + id )   $"
-    };
-  #endif // 0/1
-
- #if 0
-    // a simple ambiguous expression grammar
-    parseLine("S  ->  E  $                  ");
-    parseLine("E  ->  x  |  E + E  | E * E  ");
-
-    char const *input[] = {
-      "x + x * x $",
-    };
-  #endif // 0/1
-
-  #if 0
-    // my cast-problem grammar
-    parseLine("Start -> Expr $");
-    parseLine("Expr -> CastExpr");
-    parseLine("Expr -> Expr + CastExpr");
-    parseLine("CastExpr -> AtomExpr");
-    parseLine("CastExpr -> ( Type ) CastExpr");
-    parseLine("AtomExpr -> 3");
-    parseLine("AtomExpr -> x");
-    parseLine("AtomExpr -> ( Expr )");
-    parseLine("AtomExpr -> AtomExpr ( Expr )");
-    parseLine("Type -> int");
-    parseLine("Type -> x");
-
-    char const *input[] = {
-      "( x ) ( x ) $",
-    };
-
-    printProductions(cout);
-    runAnalyses();
-
-    INTLOOP(i, 0, (int)TABLESIZE(input)) {
-      cout << "------ parsing: `" << input[i] << "' -------\n";
-      glrParse(input[i]);
-    }
-  #endif // 0/1
-
-  #if 1
-    // read grammar
-    //if (!readFile(grammarFname)) {
-    //  // error with grammar; message already printed
-    //  return;
-    //}
-
-    if (!strstr(grammarFname, ".bin")) {
-      // assume it's an ascii grammar file and do the whole thing
-
-      // new code to read a grammar (throws exception on failure)
-      readGrammarFile(*this, grammarFname);
-
-      // spit grammar out as something bison might be able to parse
-      //{
-      //  ofstream bisonOut("bisongr.y");
-      //  printAsBison(bisonOut);
-      //}
-
-      if (tracingSys("grammar")) {
-        printProductions(trace("grammar") << endl);
-      }
-
-      runAnalyses(NULL);
-    }
-
-    else {
-      readBinaryGrammar(grammarFname);
-    }
-
-    // parse input
-    return glrParseNamedFile(lexer2, treeTop, inputFname);
-
-  #endif // 0/1
-}
 
 void GLR::readBinaryGrammar(char const *grammarFname)
 {
@@ -2217,7 +2102,13 @@ void GLR::readBinaryGrammar(char const *grammarFname)
 }
 
 
+// ----------------------- test code ------------------------
+// I actually don't think I use this at all, but I'll leave it
+// here for now.
+
 #ifdef GLR_MAIN
+
+#include "parssppt.h"    // treeMain
 
 int main(int argc, char **argv)
 {

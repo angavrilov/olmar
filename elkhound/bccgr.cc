@@ -6,12 +6,15 @@
 #include "lexer1.h"     // Lexer1
 #include "trace.h"      // traceProgress
 #include "syserr.h"     // xsyserror
+#include "cc_lang.h"    // CCLang
+#include "cyctimer.h"   // CycleTimer
 
 #include <stdio.h>      // printf
 #include <iostream.h>   // cout, etc.
 
 // global list of L2 tokens for yielding to Bison
-Lexer2 lexer2;
+CCLang cclang;
+Lexer2 lexer2(cclang);
 Lexer2Token const *lastTokenYielded = NULL;
 
 // parsing entry point
@@ -115,10 +118,11 @@ int main(int argc, char *argv[])
 
   // start Bison-parser
   traceProgress() << "starting parse..." << endl;
+  CycleTimer timer;
   if (yyparse() != 0) {
     cout << "yyparse returned with an error\n";
   }
-  traceProgress() << "finished parse" << endl;
+  traceProgress() << "finished parse (" << timer.elapsed() << ")\n";
 
   return 0;
 }

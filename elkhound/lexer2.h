@@ -8,6 +8,7 @@
 #include "fileloc.h"      // SourceLocation
 #include "strtable.h"     // StringRef, StringTable
 #include "useract.h"      // SemanticValue
+#include "lexerint.h"     // LexerInterface
 
 class CCLang;             // cc_lang.h
 
@@ -230,7 +231,7 @@ public:
 
 
 // lexing state
-class Lexer2 {
+class Lexer2 : public LexerInterface {
 private:
   // locally-created string table, if we're not given one explicitly
   StringTable *myIdTable;
@@ -245,20 +246,35 @@ public:
   // output token stream
   ObjList<Lexer2Token> tokens;
 
-  // for appending
+  // for appending new tokens
   ObjListMutator<Lexer2Token> tokensMut;
+  
+  // for reading the token stream
+  ObjListIter<Lexer2Token> currentToken;
+
+private:            
+  // copy from currentToken to LexerInterface fields
+  void copyFields();
 
 public:
   Lexer2(CCLang &lang);                                // table is created locally
   Lexer2(CCLang &lang, StringTable &externalTable);    // table given externally
   ~Lexer2();
-  
+
   SourceLocation startLoc() const;
-  
+
   void addToken(Lexer2Token *tok)
     { tokensMut.append(tok); }
   void addEOFToken()
     { addToken(new Lexer2Token(L2_EOF, SourceLocation() /*dummy*/)); }
+               
+  // reset the 'currentToken' so the parser can begin reading tokens
+  void beginReading();
+
+  // LexerInterface functions
+  virtual void nextToken();
+  virtual string tokenDesc();
+  virtual string tokenDescType(int newType);
 };
 
 
