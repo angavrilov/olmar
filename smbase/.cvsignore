@@ -13,3 +13,4 @@ gmon.out
 fsyncd.log
 .fsync-save
 trdelete
+bflatten

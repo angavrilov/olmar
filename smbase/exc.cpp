@@ -124,6 +124,35 @@ void xformat(char const *condition)
   THROW(x);
 }
 
+void formatAssert_fail(char const *cond, char const *file, int line)
+{
+  xFormat x(stringc << "format assertion failed, " 
+                    << file << ":" << line << ": "
+                    << cond);
+  THROW(x);
+}
+
+
+// -------------------- XOpen -------------------
+XOpen::XOpen(char const *fname)
+  : xBase(stringc << "failed to open file: " << fname),
+    filename(fname)
+{}
+
+XOpen::XOpen(XOpen const &obj)
+  : xBase(obj),
+    DMEMB(filename)
+{}
+
+XOpen::~XOpen()
+{}
+
+
+void throw_XOpen(char const *fname)
+{
+  THROW(XOpen(fname));
+}
+
 
 // ---------------- test code ------------------
 #ifdef TEST_EXC

@@ -43,6 +43,7 @@ bool unwinding_other(xBase const &x);
   }
 
 
+// -------------------- xBase ------------------
 // intent is to derive all exception objects from this
 class xBase {
   string msg;
@@ -74,6 +75,7 @@ public:
 void xbase(char const *msg);
 
 
+// -------------------- x_assert -----------------------
 // thrown by _xassert_fail, declared in xassert.h
 // throwing this corresponds to detecting a bug in the program
 class x_assert : public xBase {
@@ -92,6 +94,7 @@ public:
 };
 
 
+// ---------------------- xFormat -------------------
 // throwing this means a formatting error has been detected
 // in some input data; the program cannot process it, but it
 // is not a bug in the program
@@ -107,11 +110,32 @@ public:
 };
 
 // compact way to throw an xFormat
-void xformat(char const *condition);
+void xformat(char const *condition) NORETURN;
 
 // convenient combination of condition and human-readable message
 #define checkFormat(cond, message) \
   ((cond)? (void)0 : xformat(message))
+
+// assert-like interface to xFormat
+void formatAssert_fail(char const *cond, char const *file, int line) NORETURN;
+
+#define formatAssert(cond) \
+  ((cond)? (void)0 : formatAssert_fail(#cond, __FILE__, __LINE__))
+
+  
+// -------------------- XOpen ---------------------
+// thrown when we fail to open a file
+class XOpen : public xBase {
+public:
+  string filename;
+  
+public:
+  XOpen(char const *fname);
+  XOpen(XOpen const &obj);
+  ~XOpen();
+};
+
+void throw_XOpen(char const *fname) NORETURN;
 
 
 #endif // __EXC_H

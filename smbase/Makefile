@@ -48,7 +48,7 @@ library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
-  trdelete.o
+  trdelete.o flatten.o bflatten.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
@@ -88,6 +88,9 @@ strhash: strhash.cc strhash.h ${THISLIBRARY}
 trdelete: trdelete.cc trdelete.h ${THISLIBRARY}
 	${link} -o trdelete -DTEST_TRDELETE trdelete.cc ${THISLIBRARY} ${linkend}
 
+bflatten: bflatten.cc bflatten.h ${THISLIBRARY}
+	${link} -o bflatten -DTEST_BFLATTEN bflatten.cc ${THISLIBRARY} ${linkend}
+
 check: ${tests-files}
 	./nonport
 	./voidlist
@@ -99,6 +102,7 @@ check: ${tests-files}
 	./str
 	./strhash
 	./trdelete
+	./bflatten
 	@echo
 	@echo "make check: all the tests PASSED"
 
