@@ -47,9 +47,6 @@ CC_AST_MODS += cc_tcheck.ast
 # pretty printer
 CC_AST_MODS += cc_print.ast
 
-# gdb printer
-CC_AST_MODS += cc_gdb.ast
-
 # control flow graph
 CC_AST_MODS += cfg.ast
 
@@ -165,7 +162,6 @@ CCPARSE_OBJS := \
   parssppt.o \
   cc_flags.o \
   cc_print.o \
-  cc_gdb.o \
   cc_ast_aux.o \
   variable.o \
   ccparse.o \

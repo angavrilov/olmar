@@ -32,6 +32,9 @@ verbatim {
 // use a new astgen feature: make a visitor!
 option visitor ASTVisitor;
 
+// emit gdb() methods
+option gdb;
+
 
 // ---------------- file -------------
 // an entire file (with included stuff) of toplevel forms; I use

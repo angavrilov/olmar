@@ -110,13 +110,17 @@ public:     // funcs
   // will allow it only if type1==type2
   bool equals(AtomicType const *obj) const;
 
-  void gdb() const;
   // print the string according to 'Type::printAsML'
   string toString() const;
+
   // print in C notation
   virtual string toCString() const = 0;
+
   // print in ML notation
   virtual string toMLString() const = 0;
+  
+  // toString()+newline to cout
+  void gdb() const;
 
   // size this type's representation occupies in memory; this
   // might throw XReprSize, see below
@@ -549,7 +553,6 @@ public:     // funcs
   unsigned hashValue() const;
   virtual unsigned innerHashValue() const = 0;
 
-  void gdb() const;
   // print the string according to 'printAsML'
   string toString() const;
   string toString(char const *name) const;
@@ -562,6 +565,9 @@ public:     // funcs
   // NOTE: yes, toMLString() is virtual, whereas toCString() is not
   virtual string toMLString() const = 0;
   void putSerialNo(stringBuilder &sb) const;
+  
+  // toString+newline to cout
+  void gdb() const;
 
   // the left/right business is to allow us to print function
   // and array types in C's syntax; if 'innerParen' is true then

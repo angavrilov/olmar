@@ -139,14 +139,20 @@ public:
   // overload set
   int overloadSetSize() const;
 
-  void gdb() const;
+  // generic print (C or ML depending on Type::printAsML)
   string toString() const;
-  // some ad-hoc thing
+
+  // C declaration syntax
   string toCString() const;
+
   // syntax when used in a parameter list
   string toCStringAsParameter() const;
+
   // ML-style
   string toMLString() const;
+
+  // toString+newline to cout
+  void gdb() const;
 
   // fully qualified but not mangled name
   string fullyQualifiedName() const;
