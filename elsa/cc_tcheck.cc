@@ -1945,12 +1945,13 @@ void checkOperatorOverload(Env &env, Declarator::Tcheck &dt,
   OperatorName const *oname = name->getUnqualifiedNameC()->asPQ_operatorC()->o;
   char const *strname = oname->getOperatorName();
 
-  if (scope->curCompound && (dt.dflags & DF_STATIC)) {
-    // cppstd doesn't say this explicitly, but every place that
-    // mentions what an operator can be allows only non-static
-    // members, if it allows members at all
-    env.error(loc, "operator member functions cannot be static");
-  }
+  // cppstd doesn't say this explicitly, but every place that mentions
+  // what an operator can be allows only non-static members, if it
+  // allows members at all
+  // UPDATE: dsw: operator new() has to be static
+//    if (scope->curCompound && (dt.dflags & DF_STATIC)) {
+//      env.error(loc, "operator member functions cannot be static");
+//    }
 
   // describe the operator
   enum OperatorDesc {
