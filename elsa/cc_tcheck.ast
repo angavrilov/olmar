@@ -495,7 +495,7 @@ class Expression {
 
   -> E_variable {
        public Variable *var = NULL;      // (serf) binding introduction of this name
-       public Type *itcheck_var(Env &env, LookupFlags flags);
+       public Type *itcheck_var(Env &env, Expression *&replacement, LookupFlags flags);
        custom clone { ret->var = var; }
 
        // similar to TS_name::nondependentVar

@@ -1091,7 +1091,7 @@ S_return *ElabVisitor::make_S_return_this(SourceLoc loc)
   return new S_return(loc, new FullExpression(makeThisRef(loc)));
 }
 
-// "y = __other.y;"
+// "this->y = __other.y;"
 S_expr *ElabVisitor::make_S_expr_memberCopyAssign
   (SourceLoc loc, Variable *member, Variable *other)
 {
@@ -1105,15 +1105,19 @@ S_expr *ElabVisitor::make_S_expr_memberCopyAssign
     // use a call to the assignment operator
     Variable *assign = getAssignOperator(ct);
 
-    // "y.operator=(__other.y)"
-    action = makeMemberCall(loc, makeE_variable(loc, member) /*y*/, assign,
+    // "(*this).y.operator=(__other.y)"
+    action = makeMemberCall(loc,
+                            makeE_fieldAcc(loc, makeThisRef(loc), member) /*y*/,
+                            assign,
                             makeExprList1(otherDotY));
   }
   else {
     // use the E_assign built-in operator
 
-    // "y = other.y"
-    action = new E_assign(makeE_variable(loc, member), BIN_ASSIGN, otherDotY);
+    // "(*this).y = other.y"
+    action = new E_assign(makeE_fieldAcc(loc, makeThisRef(loc), member),
+                          BIN_ASSIGN,
+                          otherDotY);
     action->type = tfac.cloneType(otherDotY->type);
   }
 

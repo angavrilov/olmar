@@ -4594,11 +4594,13 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
 
 Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
-  return itcheck_var(env, LF_NONE);
+  return itcheck_var(env, replacement, LF_NONE);
 }
 
-Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
+Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags flags)
 {
+  xassert(replacement == this);
+
   name->tcheck(env);
 
   // re-use dependent?
@@ -4658,6 +4660,37 @@ Type *E_variable::itcheck_var(Env &env, LookupFlags flags)
     // when I put that in it runs smack into the STA_REFERENCE
     // problem, so I am leaving it wrong for now.
     return var->type;
+  }
+
+  // elaborate 'this->'
+  if (var->isMember() && !var->isStatic() &&
+      // dsw: have to rule out situations like this in in/t0087.cc:
+      // int A::*p = &A::x;
+      name->isPQ_name()) {
+    Expression *thisRef = new E_deref(new E_this);
+    {
+      Expression *thisRef0 = thisRef;
+      thisRef->tcheck(env, thisRef);
+      xassert(thisRef0 == thisRef);
+    }
+    xassert(thisRef->asE_deref()->ptr->asE_this()->receiver);
+    // this name will never be typechecked as the variable has already
+    // been looked up
+    E_fieldAcc *efieldAcc0 = new E_fieldAcc(thisRef, new PQ_name(env.loc(), var->name));
+    replacement = efieldAcc0;
+    efieldAcc0->field = var;
+    // dsw: Copied from E_fieldAcc::itcheck_fieldAcc(); seemed to
+    // small to factor out and the function you would factor it to
+    // doesn't seem to fit the other functions here;
+    //
+    // type of expression is type of field; possibly as an lval
+    if (efieldAcc0->obj->type->isLval() &&
+        !efieldAcc0->field->type->isFunctionType()) {
+      efieldAcc0->type = makeLvalType(env, env.tfac.cloneType(efieldAcc0->field->type));
+    }
+    else {
+      efieldAcc0->type = env.tfac.cloneType(efieldAcc0->field->type);
+    }
   }
 
   // return a reference because this is an lvalue
@@ -5069,8 +5102,19 @@ void E_funCall::inner1_itcheck(Env &env)
     // flag passed
     E_variable *evar = f->asE_variable();
     xassert(!evar->ambiguity);
-    func->type = evar->type = env.tfac.cloneType(
-      evar->itcheck_var(env, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC));
+    Type *t = evar->itcheck_var(env, f, LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC);
+    // dsw: FIX: I don't think I can avoid this re-implementation of
+    // Expression::skipGroups() here in order to make the replacement
+    // work
+    if (!t->isError()) {
+      Expression **ptsToEvar = &func;
+      while((*ptsToEvar)->isE_grouping()) {
+        ptsToEvar = &( (*ptsToEvar)->asE_grouping()->expr );
+      }
+      *ptsToEvar = f;           // what we wanted
+    }
+    // get the type
+    func->type = evar->type = env.tfac.cloneType(t);
   }
   else if (f->isE_fieldAcc()) {
     // similar handling for member function templates
