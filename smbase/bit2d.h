@@ -7,21 +7,30 @@
 #include "typ.h"             // byte, bool
 #include "point.h"           // point
 
-class Bit2d {
+class Flatten;
+
+class Bit2d {        
+private:     // data
   byte *data;  	    // bits; [0..stride-1] is first row, etc.
   point size;       // size.x is # of cols, size.y is # of rows
   int stride;       // bytes between starts of adjacent rows;
                     // computable from size.x but stored for quick access
 
+private:     // funcs
   byte *byteptr(point const &p)               { return data + p.y * stride + (p.x>>3); }
   byte const *byteptrc(point const &p) const  { return data + p.y * stride + (p.x>>3); }
+
+  // this is the number of bytes allocated in 'data'
   int datasize() const                        { return size.y * stride; }
 
-public:
+public:      // funcs
   Bit2d(point const &aSize);
   Bit2d(Bit2d const &obj);
   Bit2d& operator= (Bit2d const &obj);     // sizes must be equal already
   ~Bit2d();
+
+  Bit2d(Flatten&);
+  void xfer(Flatten &flat);
 
   bool okpt(point const &p) const    { return p.gtez() && p < size; }
   point const &Size() const          { return size; }

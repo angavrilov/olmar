@@ -3,6 +3,7 @@
 
 #include "bit2d.h"      // this module
 #include "xassert.h"    // xassert
+#include "flatten.h"    // Flatten
 
 #include <string.h>     // memset, memcpy
 #include <stdio.h>      // printf
@@ -49,11 +50,24 @@ bool Bit2d::operator== (Bit2d const &obj) const
 }
 
 
+Bit2d::Bit2d(Flatten &)
+  : data(NULL)
+{}
+
+void Bit2d::xfer(Flatten &flat)
+{
+  flat.xferInt(size.x);
+  flat.xferInt(size.y);
+  flat.xferInt(stride);
+  
+  flat.xferHeapBuffer((void*&)data, datasize());
+}
+
+
 void Bit2d::setall(int val)
 {
   memset(data, val? 0xFF : 0, datasize());
 }
-
 
 
 int Bit2d::get(point const &p) const
@@ -142,6 +156,8 @@ void Bit2d::print() const
 
 
 #ifdef TEST_BIT2D
+  
+#include "bflatten.h"     // BFlatten
 
 int main()
 {
@@ -164,6 +180,11 @@ int main()
   xassert(bits.get(point(3,2)));
 
   bits.print();
+
+  // test read/write
+  Bit2d *another = writeThenRead(bits);
+  xassert(*another == bits);
+  delete another;
 
   printf("bit2d works\n");
 

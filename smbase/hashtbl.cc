@@ -106,7 +106,7 @@ void HashTable::add(void const *key, void *value)
 }
 
 
-void HashTable::remove(void const *key)
+void *HashTable::remove(void const *key)
 {
   if (numEntries-1 < tableSize/5  &&
       tableSize > initialTableSize) {
@@ -118,6 +118,7 @@ void HashTable::remove(void const *key)
   xassert(hashTable[index] != NULL);    // must be a mapping to remove
 
   // remove this entry
+  void *retval = hashTable[index];
   hashTable[index] = NULL;
   numEntries--;
 
@@ -144,6 +145,15 @@ void HashTable::remove(void const *key)
     // add it back
     add(getKey(data), data);
   }
+  
+  return retval;
+}
+
+
+void HashTable::empty()
+{
+  delete[] hashTable;
+  makeTable(initialTableSize);
 }
 
 
@@ -179,4 +189,43 @@ void HashTable::checkEntry(int entry) const
     index = nextIndex(index);
     xassert(index != originalIndex);
   }
+}
+
+
+// ------------------ HashTableIter --------------------
+HashTableIter::HashTableIter(HashTable &t)
+  : table(t)
+{
+  index = 0;
+  moveToSth();
+}
+
+void HashTableIter::adv()
+{
+  xassert(!isDone());
+
+  // move off the current item
+  index++;
+
+  // keep moving until we find something
+  moveToSth();
+}
+
+void HashTableIter::moveToSth()
+{
+  while (index < table.tableSize &&
+         table.hashTable[index] == NULL) {
+    index++;
+  }
+  
+  if (index == table.tableSize) {
+    index = -1;    // mark as done
+  }
+}
+
+
+void *HashTableIter::data()
+{
+  xassert(!isDone());
+  return table.hashTable[index];
 }

@@ -10,6 +10,8 @@
 
 class HashTable {
 private:    // types
+  friend class HashTableIter;
+
   // constants
   enum {
     initialTableSize = 33,
@@ -87,11 +89,35 @@ public:     // funcs
   void add(void const *key, void *value);
 
   // remove the mapping for 'key' -- it must exist
-  void remove(void const *key);
+  // returns the removed item
+  void *remove(void const *key);
+
+  // remove all mappings
+  void empty();
 
   // check the data structure's invariants, and throw an exception
   // if there is a problem
   void selfCheck() const;
 };
+
+
+// iterate over all stored values in a HashTable
+// NOTE: you can't change the table while an iter exists
+class HashTableIter {
+private:      // data
+  HashTable &table;      // table we're iterating over
+  int index;             // current slot to return in adv(); -1 when done
+
+private:      // funcs
+  void moveToSth();
+
+public:       // funcs
+  HashTableIter(HashTable &table);
+
+  bool isDone() const { return index == -1; }
+  void adv();
+  void *data();          // returns a value stored in the table
+};
+
 
 #endif // HASHTBL_H

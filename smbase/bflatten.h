@@ -21,4 +21,27 @@ public:
   virtual void xferSimple(void *var, unsigned len);
 };
 
+                  
+// for debugging, write and then read something
+template <class T>
+T *writeThenRead(T &obj)
+{
+  char const *fname = "flattest.tmp";
+
+  // write
+  {
+    BFlatten out(fname, false /*reading*/);
+    obj.xfer(out);
+  }
+
+  // read
+  BFlatten in(fname, true /*reading*/);
+  T *ret = new T(in);
+  ret->xfer(in);
+
+  remove(fname);
+
+  return ret;
+}
+
 #endif // BFLATTEN_H

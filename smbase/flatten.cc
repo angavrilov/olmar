@@ -35,6 +35,14 @@ void Flatten::xferBool(bool &b)
 }
 
 
+void Flatten::xferHeapBuffer(void *&buf, int len)
+{
+  if (reading()) {
+    buf = new unsigned char[len];
+  }
+  xferSimple(buf, len);
+}
+
 
 void Flatten::xferCharString(char *&str)
 {

@@ -36,6 +36,9 @@ public:
   // read or write a null-terminated character buffer, allocated with new
   virtual void xferCharString(char *&str);
 
+  // xfer a buffer allocated with 'new', of a given length
+  virtual void xferHeapBuffer(void *&buf, int len);
+
   // read: write the code; write: read & compare to code, fail if != ;
   // the code is arbitrary, but should be unique across the source tree
   virtual void checkpoint(int code);
