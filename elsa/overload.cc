@@ -1223,13 +1223,23 @@ int compareStandardConversions
     Type const *L = leftDest;
     Type const *R = rightDest;
 
+    // 2005-02-23: (in/t0395.cc) if 'L' and 'R' are pointers (either
+    // one is sufficient), then the comparison of this section requires
+    // that the conversions *differ* in group 3, otherwise they are
+    // indistinguishable
+    if (L->isPointerType() || R->isPointerType()) {
+      if ((left & SC_GROUP_3_MASK) == (right & SC_GROUP_3_MASK)) {
+        return 0;
+      }
+    }
+
     // if one is a reference and the other is not, I don't see a basis
     // for comparison in cppstd, so I skip the extra reference
     //
     // update: 13.3.3.2b.cc suggests that in fact cppstd intends
     // 'int' and 'int const &' to be indistinguishable, so I *don't*
     // strip extra references
-    #if 0   // I think this was wrong   
+    #if 0   // I think this was wrong
     if (L->isReference() && !R->isReference()) {
       L = L->asRvalC();
     }

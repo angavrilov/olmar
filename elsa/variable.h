@@ -140,6 +140,7 @@ public:
   bool isNamespace() const { return hasFlag(DF_NAMESPACE); }
   bool isImplicitTypedef() const { return hasAllFlags(DF_IMPLICIT | DF_TYPEDEF); }
   bool isImplicitMemberFunc() const { return hasFlag(DF_IMPLICIT) && !hasFlag(DF_TYPEDEF); }
+  bool isEnumerator() const { return hasFlag(DF_ENUMERATOR); }
 
   // true if this name refers to a template function, or is
   // the typedef-name of a template class (or partial specialization)
@@ -226,6 +227,9 @@ public:
   // true if this name refers to a template (function) or an overload
   // set that includes one
   bool namesTemplateFunction() const;
+  
+  // this must be an enumerator; get the integer value it denotes
+  int getEnumeratorValue() const;
 };
 
 inline string toString(Variable const *v) { return v->toString(); }

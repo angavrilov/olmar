@@ -379,6 +379,15 @@ bool Variable::namesTemplateFunction() const
 }
 
 
+int Variable::getEnumeratorValue() const
+{
+  EnumType *et = type->asCVAtomicType()->atomic->asEnumType();
+  EnumType::Value const *val = et->getValue(name);
+  xassert(val);    // otherwise the type information is wrong..
+  return val->value;
+}
+
+
 // --------------------- OverloadSet -------------------
 OverloadSet::OverloadSet()
   : set()

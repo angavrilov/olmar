@@ -7327,13 +7327,8 @@ bool Expression::constEval(string &msg, int &result) const
       return true;
 
     ASTNEXTC(E_variable, v)
-      if (v->var->hasFlag(DF_ENUMERATOR)) {
-        // this is an enumerator; find the corresponding
-        // enum type, and look up the name to find the value
-        EnumType *et = v->var->type->asCVAtomicType()->atomic->asEnumType();
-        EnumType::Value const *val = et->getValue(v->var->name);
-        xassert(val);    // otherwise the type information is wrong..
-        result = val->value;
+      if (v->var->isEnumerator()) {
+        result = v->var->getEnumeratorValue();
         return true;
       }
 
@@ -7908,6 +7903,10 @@ static void setSTemplArgFromExpr
           env.error(stringc
                     << "`" << expr->exprToString() << "' must lookup to a variable "
                     << "for it to be a variable template reference argument");
+          return;
+        }
+        if (var0->isEnumerator()) {      // in/t0394.cc
+          sarg.setInt(var0->getEnumeratorValue());
           return;
         }
         if (!var0->value) {
