@@ -22,6 +22,11 @@
 class StringTable;        // strtable.h
 class CCLang;             // cc_lang.h
 
+// counter for generating unique throw clause names; NOTE: FIX: they
+// must not be duplicated across translation units since they are
+// global!  Thus, this must survive even multiple Env objects.
+extern int throwClauseSerialNumber;
+
 // the entire semantic analysis state
 class Env {
 protected:   // data
@@ -142,6 +147,14 @@ public:      // data
   char const * const e_newNamePrefix;
   int const e_newNamePrefixLen;
 
+  // NOTE: this is really global, and not here; see above
+//    int throwClauseSerialNumber;
+  // the prefix used for generating throw clause names; NOTE: it is
+  // important that this string contain at least one character that is
+  // not allowed in an user-identifier.
+  char const * const throwClauseNamePrefix;
+  int const throwClauseNamePrefixLen;
+
   // the suffix used to generate shadow names; NOTE: it is important
   // that this string contain at least one character that is not
   // allowed in an user-identifier.
@@ -237,7 +250,7 @@ public:      // funcs
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
   // 'forceReplace' true, silently replace instead)
-  bool addVariable(Variable *v, bool forceReplace=false);
+  bool addVariable(Variable *v, bool forceReplace=false, Scope *toScope=NULL);
   bool addCompound(CompoundType *ct);
   bool addEnum(EnumType *et);
 
@@ -398,10 +411,12 @@ public:      // funcs
   virtual void addedNewVariable(Scope *s, Variable *v);
 
   // -------------- stuff for elaboration support ---------------
-  // make a unique name for a new temporary
+  // make a unique name for a new temporary variable
   virtual PQ_name *makeTempName();
   // make a unique name for a new E_new variable
   virtual char const *makeE_newVarName();
+  // make a unique name for a new throw clause variable
+  virtual char const *makeThrowClauseVarName();
 
   // return a PQName that will typecheck in the current environment to
   // find (the typedef for) the 'ct' type; it's also maximally

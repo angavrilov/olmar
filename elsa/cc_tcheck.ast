@@ -512,6 +512,14 @@ class Expression {
        public(field) Variable *ctorVar = NULL;
        custom clone { ret->ctorVar = ctorVar; }
      }
+
+  -> E_throw {
+       // the global that the throw argument is copy-ctored into, if
+       // thrown by value; copied comment from Declarator::var: (serf)
+       // computed information: name, type, etc.
+       public Variable *globalVar = NULL;
+       public Statement *ctorStatement; ctor ctorStatement=NULL;
+    }
 }
 
 

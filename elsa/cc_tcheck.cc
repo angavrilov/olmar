@@ -3610,6 +3610,14 @@ Statement *Statement::tcheck(Env &env)
 }
 
 
+// it is too slow to have emacs reload cc.ast.gen.h just to display
+// the body of this method when I'm looking around in the stack in gdb
+void Statement::mid_tcheck(Env &env, int &)
+{
+  itcheck(env);
+};
+
+
 void S_skip::itcheck(Env &env)
 {}
 
@@ -3823,6 +3831,14 @@ Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
   Scope *scope = env.enterScope(SK_FUNCTION, "full expression annot");
   // come to think of it, there shouldn't be any declarations yet;
   // they get constructed during the typechecking later
+//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env)" << endl;
+//    PrintEnv penv(cout);
+//    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
+//      iter.data()->print(penv);
+//    }
+//    cout << "FullExpressionAnnot::tcheck_preorder(Env &env) END" << endl;
+  // FIX: I think this fails if you typecheck the FullExpressionAnnot
+  // twice and it contains a temporary.
   xassert(declarations.isEmpty());
 //    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
 //      iter.data()->tcheck(env,
@@ -5820,10 +5836,38 @@ Type *E_throw::itcheck_x(Env &env, Expression *&replacement)
 {
   if (expr) {
     expr->tcheck(env, expr);
+
+    // If it is a throw by value, it gets copy ctored somewhere, which
+    // in an implementation is some anonymous global.  I can't think of
+    // where the heck to make these globals or how to organize them, so
+    // I just make it in the throw itself.  Some analysis can come
+    // through and figure out how to hook these up to their catch
+    // clauses.
+    Type *exprType = expr->getType()->asRval();
+    if (exprType->isCompoundType()) {
+      if (!globalVar) {
+        globalVar = env.makeVariable(env.loc(), env.makeThrowClauseVarName(), exprType,
+                                     DF_STATIC // I think it is a static global
+                                     | DF_GLOBAL);
+        // These variables persist beyond the stack frame, so I
+        // hesitate to do anything but add them to the global scope.
+        // FIX: Then again, this argument applies to the E_new
+        // variables as well.
+        bool addWorks = env.addVariable(globalVar, false, env.globalScope());
+        xassert(addWorks);
+
+        xassert(!ctorStatement);
+        ctorStatement = makeCtorStatement(env, globalVar, exprType,
+                                          FakeList<Expression>::makeList(expr));
+      }
+    }
   }
   else {
     // TODO: make sure that we're inside a 'catch' clause
+
+    // TODO: also make the throws copy ctor as above
   }
+
   return env.getSimpleType(SL_UNKNOWN, ST_VOID);
 }
 

@@ -9,6 +9,9 @@
 
 
 // --------------------- Env -----------------
+
+int throwClauseSerialNumber = 0; // don't make this a member of Env
+
 Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
   : scopes(),
     disambiguateOnly(false),
@@ -66,6 +69,11 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     e_newSerialNumber(0),
     e_newNamePrefix("e_new-name-"),
     e_newNamePrefixLen(strlen(e_newNamePrefix)),
+
+    // made this global
+//      throwClauseSerialNumber(0),
+    throwClauseNamePrefix("throwClause-name-"),
+    throwClauseNamePrefixLen(strlen(throwClauseNamePrefix)),
 
     shadowSuffix("-shadow"),
     shadowSuffixLen(strlen(shadowSuffix))
@@ -850,7 +858,7 @@ CompoundType *Env::enclosingClassScope()
 }
 
 
-bool Env::addVariable(Variable *v, bool forceReplace)
+bool Env::addVariable(Variable *v, bool forceReplace, Scope *toScope)
 {
   if (disambErrorsSuppressChanges()) {
     // the environment is not supposed to be modified by an ambiguous
@@ -860,7 +868,8 @@ bool Env::addVariable(Variable *v, bool forceReplace)
     return true;    // don't cause further errors; pretend it worked
   }
 
-  Scope *s = acceptingScope(v->flags);
+  Scope *s = toScope;
+  if (!s) s = acceptingScope(v->flags);
   s->registerVariable(v);
   if (s->addVariable(v, forceReplace)) {
     addedNewVariable(s, v);
@@ -1903,6 +1912,15 @@ char const *Env::makeE_newVarName()
   // FIX: this name is a string, not a StringRef, because it has not
   // been through the string table.  Don't know if this will work.
   char const *name0 = strdup(stringc << e_newNamePrefix << e_newSerialNumber++);
+  return name0;
+}
+
+char const *Env::makeThrowClauseVarName()
+{
+  // FIX: this name is a string, not a StringRef, because it has not
+  // been through the string table.  Don't know if this will work.
+  char const *name0 =
+    strdup(stringc << throwClauseNamePrefix << throwClauseSerialNumber++);
   return name0;
 }
 
