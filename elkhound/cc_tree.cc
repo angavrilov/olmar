@@ -90,6 +90,9 @@ CilExpr *CCTreeNode::disambiguate(Env *passedEnv, CilContext const &ctxt,
     return (this->*func)(env, ctxt);
   }
 
+  trace("disamb") << "trying to disambiguate " << getLHS()->name
+                  << " at " << locString() << endl;
+
   // pull all the competing reductions out into a private list
   ObjList<Reduction> myReds;
   myReds.concat(reductions);

@@ -56,7 +56,7 @@ int foo()
   a = b;              // assignment
   x += y;             // accumulation assignment
 
-  a = b , c;          // comma operator      TODO: why not work??
+  a = (b , c);        // comma operator (lower prec. than '=' !)
   
 myLabel: x=y;         // labelled statement
 

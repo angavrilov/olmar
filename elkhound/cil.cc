@@ -1009,12 +1009,196 @@ CilCompound *newCompound()
 }
 
 
+// ------------------- CilBB ------------------
+int CilBB::nextId = 0;
+int CilBB::numAllocd = 0;
+int CilBB::maxAllocd = 0;
+
+CilBB::CilBB(BTag t)
+  : id(nextId++),            // don't know what to do with this..
+    insts(),
+    btag(t)
+{
+  INC_HIGH_WATER(numAllocd, maxAllocd);
+  validate(btag);
+
+  // clear variant fields
+  memset(&ifbb, 0, sizeof(ifbb));
+
+  // init some fields
+  if (btag == T_SWITCH) {
+    switchbb = (CilBBSwitch*)this;
+  }
+}
+
+CilBB::~CilBB()
+{
+  switch (btag) {
+    case T_RETURN:
+      //delete ret.expr;
+      break;
+
+    case T_IF:
+      //delete ifbb.expr;
+      delete ifbb.thenBB;
+      delete ifbb.elseBB;
+      break;
+
+    case T_SWITCH:
+      if (switchbb) {
+        CilBBSwitch *ths = switchbb;
+        ths->CilBBSwitch::~CilBBSwitch();     // nullifies switchbb
+        numAllocd++;                          // counteract double call
+      }
+      break;
+
+    case T_JUMP:
+      if (jump.targetLabel) {
+        delete jump.targetLabel;
+      }
+      break;
+
+    default:
+      xfailure("bad tag");
+  }
+
+  numAllocd--;
+}
+
+
+void CilBB::printTree(int ind, ostream &os) const
+{
+  indent(ind, os) << "basicBlock_" << id << ":\n";
+  ind += 2;
+
+  SFOREACH_OBJLIST(CilInst, insts, iter) {
+    iter.data()->printTree(ind, os);
+  }
+
+  if (btag == T_SWITCH) {
+    switchbb->printTree(ind, os);
+    return;
+  }
+
+  indent(ind, os);
+  switch (btag) {
+    default:
+      xfailure("bad tag");
+
+    case T_RETURN:
+      if (ret.expr) {
+        os << "return " << ret.expr->toString() << ";\n";
+      }
+      else {
+        os << "return;\n";
+      }
+      break;
+
+    case T_IF:                                       
+      if (ifbb.loopHint) {
+        os << "while-if";
+      }
+      else {
+        os << "if";
+      }
+      os << " (" << ifbb.expr->toString() << ") {\n";
+      ifbb.thenBB->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      indent(ind, os) << "else {\n";
+      ifbb.elseBB->printTree(ind+2, os);
+      indent(ind, os) << "}\n";
+      break;
+
+    case T_SWITCH:
+      // handled above; not reached
+
+    case T_JUMP:
+      if (jump.nextBB) {
+        os << "goto basicBlock_" << jump.nextBB->id << ";\n";
+      }
+      else {
+        // goto whose label hasn't yet been fixed-up
+        os << "incompleteGoto " << *(jump.targetLabel) << ";\n";
+      }
+      break;
+  }
+}
+
+
+STATICDEF void CilBB::validate(BTag btag)
+{
+  xassert(0 <= btag && btag < NUM_BTAGS);
+}
+
+
+STATICDEF void CilBB::printAllocStats(bool anyway)
+{
+  if (anyway || numAllocd != 0) {
+    cout << "cil bb nodes: " << numAllocd
+         << ", max nodes: " << maxAllocd << endl;
+  }
+}
+
+
+CilBB *newJumpBB(CilBB *target)
+{
+  CilBB *ret = new CilBB(CilBB::T_JUMP);
+  ret->jump.nextBB = target;
+  return ret;
+}
+
+
+// ------------------ BBSwitchCase -----------------
+BBSwitchCase::~BBSwitchCase()
+{}
+
+
+// ------------------ CilBBSwitch ---------------
+CilBBSwitch::CilBBSwitch(CilExpr * /*owner*/ e)
+  : CilBB(T_SWITCH),
+    expr(e),
+    exits(),
+    defaultCase(NULL)
+{}
+
+CilBBSwitch::~CilBBSwitch()
+{
+  // prevent infinite recursion
+  switchbb = NULL;
+}
+
+
+void CilBBSwitch::printTree(int ind, ostream &os) const
+{
+  // assume I already printed the block id and the instructions
+  
+  indent(ind, os) << "switch (" << expr->toString() << ") {\n";
+           
+  FOREACH_OBJLIST(BBSwitchCase, exits, iter) {
+    indent(ind+2, os) << "case " << iter.data()->value << ":\n";
+    iter.data()->code->printTree(ind+4, os);
+  }
+  
+  indent(ind+2, os) << "default:\n";
+  if (defaultCase) {
+    defaultCase->printTree(ind+4, os);
+  }
+  else {
+    // defaultCase isn't supposed to be nullable, but since
+    // I create it NULL, it seems prudent to handle this anyway
+    indent(ind+4, os) << "// NULL defaultCase!\n";
+  }
+  
+  indent(ind, os) << "}\n";
+}
+
+
 // -------------------- CilFnDefn -----------------
 CilFnDefn::~CilFnDefn()
 {}
 
 
-void CilFnDefn::printTree(int ind, ostream &os) const
+void CilFnDefn::printTree(int ind, ostream &os, bool stmts) const
 {
   os << "fundecl " << var->name
      << " : " << var->type->toString();
@@ -1028,8 +1212,17 @@ void CilFnDefn::printTree(int ind, ostream &os) const
   }
   os << endl;
 
-  // print statements
-  bodyStmt.printTree(ind+2, os);
+  if (stmts) {
+    // print statements
+    bodyStmt.printTree(ind+2, os);
+  }
+  else {
+    // print basic blocks
+    indent(ind+2, os) << "startBB " << startBB->id << ";\n";
+    FOREACH_OBJLIST(CilBB, bodyBB, iter) {
+      iter.data()->printTree(ind+2, os);
+    }
+  }
 
   indent(ind, os) << "}\n";
 }

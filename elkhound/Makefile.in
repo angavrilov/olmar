@@ -3,8 +3,9 @@
 OCAMLINCL# mode: ocaml
 NOCAMLINCL# mode: nocaml
 
-# main targets
-all: ccgr
+# main targets; a few objs in front to tweak compile order
+# so I get to the errors faster
+all: cil.o stmt2bb.o ccgr
 
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 
@@ -39,7 +40,8 @@ grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o gramast.o ccsstr.o
 glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
           lexer2.o parssppt.o strtable.o
-cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o
+cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
+         stmt2bb.o
 common = 
 
 # ------ targets -------

@@ -7,18 +7,22 @@
 #include "str.h"       // string
 #include "objlist.h"   // ObjList
 #include "sobjlist.h"  // SObjList
+#include "owner.h"     // Owner
 
 // other files
 class Type;            // cc_type.h
 class FunctionType;    // cc_type.h
 class Env;             // cc_env.h
 class Variable;        // cc_env.h
+class BBContext;       // stmt2bb.cc
 
 // fwd for this file
 class CilExpr;
 class CilLval;
 class CilFnCall;
 class CilCompound;
+class CilBB;
+class CilBBSwitch;
 
 // ------------- names --------------
 typedef string VarName;     // TODO2: find a better place for this to live
@@ -27,6 +31,7 @@ typedef string LabelName;
 LabelName newTmpLabel();
 
 
+// ====================== Expression Language =====================
 // --------------- operators ----------------
 // TODO: for now, I don't distinguish e.g. unsigned
 // and signed operations
@@ -202,6 +207,7 @@ CilLval *newArrayAccess(CilExpr *array, CilExpr *index);
 CilExpr *newVarRefExpr(Variable *var);
 
 
+// ====================== Instruction Language =====================
 // ---------------------- CilInst ----------------
 // an instruction is a runtime state transformer: by
 // executing an instruction, some side effect occurs;
@@ -272,6 +278,7 @@ public:     // funcs
 CilFnCall *newFnCall(CilLval *result, CilExpr *fn);    // args appended later
 
 
+// ====================== Statement Language =====================
 // ---------------- CilStmt ----------------------
 // the statement language is a tree of statements and
 // instructions; instructions are leaves, and statements
@@ -361,6 +368,10 @@ public:      // funcs
   CilStmt *clone() const;
 
   void printTree(int indent, ostream &os) const;
+  
+  // translaton
+  CilBB * /*owner*/ translateToBB(BBContext &ctxt, 
+                                  CilBB * /*owner*/ next) const;
 };
 
 CilStmt *newWhileLoop(CilExpr *expr, CilStmt *body);
@@ -402,11 +413,104 @@ public:    // funcs
 
   CilCompound *clone() const;
   void printTree(int indent, ostream &os) const;
+  CilBB * /*owner*/ translateToBB(BBContext &ctxt, 
+                                  CilBB * /*owner*/ next) const;
 };
 
 CilCompound *newCompound();
 
 
+// ====================== Basic Block Language =====================
+// a basic block is a sequence of instructions (which lack
+// any control flow except for simple sequencing) followed
+// by one or more outgoing control flow edges; when there
+// are multiple outgoing edges, the edge to choose is controlled
+// by associated guard expressions
+class CilBB {                     
+public:     // types
+  enum BTag {
+    T_RETURN, T_IF, T_SWITCH, T_JUMP,
+    NUM_BTAGS
+  };
+
+private:    // data
+  static int nextId;            // trivial id assignment for now
+
+public:     // data
+  int id;                       // breadth-first identifier (?)
+  SObjList<CilInst> insts;      // list of instructions (owned by CilStmt tree)
+  BTag const btag;              // tag for successor information
+
+  union {
+    // T_RETURN
+    struct {
+      CilExpr *expr;            // (nullable serf) expression to return
+    } ret;
+
+    // T_IF
+    struct {
+      CilExpr *expr;            // (serf) test expression
+      CilBB *thenBB;            // (owner) BB for when expr is true
+      CilBB *elseBB;            // (owner) BB for when expr is false
+      bool loopHint;            // true when this is part of a while loop
+    } ifbb;
+
+    // T_SWITCH
+    CilBBSwitch *switchbb;      // (serf) points to 'this'
+
+    // T_JUMP
+    struct {
+      CilBB *nextBB;            // (nullable serf) BB to go to next; NULL for fix-up
+      VarName *targetLabel;     // (nullable owner) for jumps to fix-up
+    } jump;
+  };
+
+  static int numAllocd;
+  static int maxAllocd;
+
+public:     // funcs
+  CilBB(BTag btag);             // fill in fields after ctor
+  ~CilBB();
+
+  void printTree(int indent, ostream &os) const;
+
+  static void validate(BTag btag);
+  static void printAllocStats(bool anyway=true);
+};
+
+CilBB *newJumpBB(CilBB * /*serf*/ target);
+
+
+// a single case of a switch block
+class BBSwitchCase {
+public:
+  int value;                      // case <value>
+  Owner<CilBB> code;              // code to execute for this case
+
+public:
+  BBSwitchCase(int v, CilBB * /*owner*/ c)
+    : value(v), code(c) {}
+  ~BBSwitchCase();
+};
+
+
+// basic block with more than two outgoing edges
+class CilBBSwitch : public CilBB {
+public:
+  CilExpr *expr;                  // (serf) expression to switch upon
+  ObjList<BBSwitchCase> exits;    // exits associated with values
+  Owner<CilBB> defaultCase;       // what to do when no case matches
+
+public:
+  CilBBSwitch(CilExpr * /*serf*/ expr);
+  ~CilBBSwitch();
+
+  void printTree(int indent, ostream &os) const;
+};
+
+
+
+// ====================== Program Language =====================
 // ---------------------- CilFnDefn -----------------
 // a function definition -- name, type, and code
 class CilFnDefn {
@@ -415,17 +519,17 @@ public:
   CilCompound bodyStmt;        // fn body code as statements
   SObjList<Variable> locals;   // local variables
 
-  #if 0
-  Owner<CilBB> bodyBB;         // body code as basic blocks
+  ObjList<CilBB> bodyBB;       // body code as basic blocks; order insignificant
   CilBB *startBB;              // (serf) starting basic block
-  #endif // 0
 
 public:
   CilFnDefn(Variable *v)
     : var(v) {}
   ~CilFnDefn();
-
-  void printTree(int indent, ostream &os) const;
+                                              
+  // stmts==true: print statements
+  // stmts==false: print basic blocks
+  void printTree(int indent, ostream &os, bool stmts=true) const;
 };
 
 

@@ -87,7 +87,7 @@ void insts()
 mylabel:
   x = 6;
   goto mylabel;
-  
+
   return y;
 }
 

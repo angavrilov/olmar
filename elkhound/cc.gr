@@ -20,6 +20,7 @@ literalCode "prologue" {
   #include "cil.h"       // CilXXX stuff (C Intermediate Language)
   #include "ckheap.h"    // checkHeap
   #include "mysig.h"     // signal handling
+  #include "stmt2bb.h"   // doTranslationStuff
 
   // provide easy-to-grep-for (and easy-to-put-a-breakpt) names for
   // places I haven't implemented the Cil translation
@@ -207,6 +208,11 @@ nonterm TranslationUnit : Checkable {
       return;
     }
 
+    // optionally print tree *before* typeChecking
+    if (tracingSys("print-tree-before")) {
+      printTree();
+    }
+
     // cast context argument
     env = (Env*)(tree.extra);
 
@@ -247,6 +253,11 @@ nonterm TranslationUnit : Checkable {
     // or this
     if (tracingSys("cil-tree")) {
       prog.printTree(0 /*indent*/, cout);
+    }
+    
+    // yeeha! translation!
+    MUTATE_EACH_OBJLIST(CilFnDefn, prog.funcs, iter) {
+      doTranslationStuff(*( iter.data() ));
     }
 
     // deallocate now .. no good reason why .. (we can't
@@ -3566,6 +3577,7 @@ int fakemain(int argc, char *argv[])
   CilExpr::printAllocStats(anyway);
   CilInst::printAllocStats(anyway);
   CilStmt::printAllocStats(anyway);
+  CilBB::printAllocStats(anyway);
 
   return 0;
 }
