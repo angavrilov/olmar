@@ -128,6 +128,20 @@ inline void pretendUsedFn(T const &) {}
   }
 
 
+// same as the above, but returning pointers; I think returning
+// references was a mistake
+#define DOWNCAST_FN(destType)                                                   \
+  destType const *as##destType##C() const;                                      \
+  destType *as##destType() { return const_cast<destType*>(as##destType##C()); }
+
+#define DOWNCAST_IMPL(inClass, destType)            \
+  destType const *inClass::as##destType##C() const  \
+  {                                                 \
+    xassert(is##destType());                        \
+    return static_cast<destType const*>(this);      \
+  }
+
+
 // keep track of a count and a high water mark
 #define INC_HIGH_WATER(count, highWater)  \
   count++;                                \
