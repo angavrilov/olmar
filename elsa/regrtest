@@ -896,6 +896,7 @@ failparse k0031.cc "weird function typedefs used in a class"
 failparse k0032.cc "converting <integral>& to integral"
 failparse k0033.cc "casting function pointer with throw() to/from no throw"
 failparse k0034.cc "undefined instanceless unions repeating members"
+failparse k0035.cc "ambiguous int+sizeof(struct{})"
 
 # ---- END: lots of tests ----
 
