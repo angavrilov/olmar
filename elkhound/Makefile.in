@@ -636,6 +636,8 @@ check: all
 	@echo ""
 	@echo "Regression tests passed."
 
+idem/%:; $(MAKE) -C cc $@
+
 
 # --------------- random other stuff --------------------
 # test for rcptr

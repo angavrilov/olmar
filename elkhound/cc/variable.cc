@@ -21,7 +21,6 @@ Variable::Variable(SourceLocation const &L, StringRef n, Type const *t, DeclFlag
 Variable::~Variable()
 {}
 
-
 string Variable::toString() const
 {
   // The purpose of this method is to print the name and type
@@ -32,24 +31,6 @@ string Variable::toString() const
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
   return type->toCString(name? name : "");
-
-  #if 0   // TODO: delete this code once it's found a new home
-  // don't care about printing the declflags right now
-
-  const char *name0 = name;
-
-  // dsw: FIX: I think this is a mistake.  Down in at least one of the
-  // toCString-s that gets called, it is checking for null and
-  // printing "/*anon*/".  This defeats that.  Scott says this is OK.
-  name0 = name0 ? name0 : "";
-
-  if (strcmp(name0, "constructor-special")==0) {
-    name0 = scope->curCompound->name;
-    xassert(name0);
-  }
-
-  return type->toCString(name0);
-  #endif // 0
 }
 
 

@@ -34,40 +34,33 @@ TOCHECK += cc.in8
 TOCHECK += cc.in9
 TOCHECK += cc.in10
 
-# Using different parameter var from prototype fails.
+# SCOTT: Using different parameter var from prototype fails.
 # TOCHECK += cc.in11
 
 TOCHECK += cc.in12
 TOCHECK += cc.in13
+TOCHECK += cc.in14
 
-# BUG: This is a real bug. FIXED.
-# p = new int[x]; ->
-# ( (p)= (new int []));
-
-# NOT working again.
-#TOCHECK += cc.in14
-# Smaller version illustrating it.
+# FIXED: This was a real bug.
+# p = new int[x]; -> ( (p)= (new int []));
 TOCHECK += cc.in14a
 
-# Won't print scope operator
+# DEFERRED: Won't print scope operator; When you print a PQname, you
+# should print a qualifier string.  Ask the PQName for the qualifier
+# string and print that.  Get the name out of the variable.
 # TOCHECK += cc.in15
 
 TOCHECK += cc.in16
 
-# Won't print scope operator
+# ABOVE: Won't print scope operator.
 # TOCHECK += cc.in17
 
 TOCHECK += cc.in18
 TOCHECK += cc.in19
-
-# "converstion-operator" being printed for converstion operators.
-# operator char ();
-# char ( conversion-operator)();
-# TOCHECK += cc.in20
-
+TOCHECK += cc.in20
 TOCHECK += cc.in21
 
-# Bitfields not being printed correctly:
+# DSW: Bitfields not being printed correctly.
 # int x : 2; ->
 # int x;
 #TOCHECK += cc.in22
@@ -75,27 +68,28 @@ TOCHECK += cc.in21
 TOCHECK += cc.in23
 TOCHECK += cc.in24
 
-# Scope operator not being printed.
+# ABOVE: Scope operator not being printed.
 # int A::func(B &b) ->
 # int ( func)(class B & b) {
 # TOCHECK += cc.in25
 
-# Templates not being printed.
+# DSW: Templates not being printed.
 #TOCHECK += cc.in26
 #TOCHECK += cc.in27
 #TOCHECK += cc.in28
 
 TOCHECK += cc.in29
 
-# default arguments not being printed
+# SCOTT: default arguments not being printed; unimplemented feature.
 #   inline Foo(int *x); ->
 # inline <cdtor> ( constructor-special)(int * x);
 # TOCHECK += cc.in30
 
+# SCOTT:
 # ( (operator-delete) ( (x)));
 # TOCHECK += cc.in31
 
-# Anonymous unions printed incorrectly
+# DSW: Anonymous unions printed incorrectly.
 # union (null) {
 # TOCHECK += cc.in32
 
@@ -109,9 +103,7 @@ idem/check: idem/clean
 
 .PHONY: idem/clean
 idem/clean:
-	rm -f ../cc.in/cc.*.out_raw ../cc.in/cc.*.out ../cc.in/cc.*.out2_raw ../cc.in/cc.*.out2
-
-#	./check_idempotency $(patsubst ../cc.in/,,$(wildcard ../cc.in/cc.in*))
+	rm -f $(addprefix ../cc.in/,cc.*.out_raw cc.*.out cc.*.out2_raw cc.*.out2 cc.*.diff)
 
 # Check in the things I work on.
 DSW_STUFF := Makefile cc_twalk.cc cc.ast check_idempotency chop_out

@@ -627,11 +627,15 @@ string Type::toCString() const
 
 string Type::toCString(char const *name) const
 {
+//    bool isConversionOperator = strcmp(name,"conversion-operator")==0;
   stringBuilder s;
   s << idComment();
+//    s << leftString(!isConversionOperator);
   s << leftString();
   s << " ";
+//    if (!isConversionOperator) s << (name? name : "/*anon*/");
   s << (name? name : "/*anon*/");
+//    s << rightString(!isConversionOperator);
   s << rightString();
   return s;
 
@@ -1057,6 +1061,7 @@ string FunctionType::leftString() const
 
   // return type and start of enclosing type's description
   sb << retType->leftString();
+//    if (printParen) sb << " (";
   sb << " (";
   
   return sb;
@@ -1066,6 +1071,7 @@ string FunctionType::rightString() const
 {
   // finish enclosing type
   stringBuilder sb;
+//    if (printParen) sb << ")";
   sb << ")";
 
   // arguments
