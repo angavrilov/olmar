@@ -141,6 +141,7 @@ enum Lexer2TokenType {
 
   // GNU extensions
   L2___ATTRIBUTE__,
+  L2___TYPEOF__,
 
   // my extensions
   L2_OWNER,

@@ -87,7 +87,7 @@ Env::~Env()
   }
   else {
     // may as well print errors
-    flushLocalErrors(cout);
+    //flushLocalErrors(cout);      // TODO
   }
 
   if (referenceCt != 0) {

@@ -766,6 +766,33 @@ nonterm ConditionalExpression : ExprBase {
       return el.getType(env);
     }
   }
+
+  // wtf?  gnu...
+  // linux driver code has "expr ? : expr" ...
+  -> cond:BinaryExpression "?" ":" el:AssignmentExpression {
+    fun intEval {
+      // evaluate all of them first, so we get the check for the
+      // expression being const regardless of which way the test goes
+      // (this may in fact turn out to be wrong, but for now it's what
+      // I think it should be)
+      int c = cond.intEval(env);
+      int t = 0;    // ?
+      int e = el.intEval(env);
+      return c ? t : e;
+    }
+
+    fun varsDecld {
+      cond.varsDecld(env);
+      el.varsDecld(env);
+    }
+
+    fun getType {
+      // a consistency check would be in order .. but I don't
+      // have a type equality predicate yet ..
+      return el.getType(env);
+    }
+  }
+
 }
 
 // why is conditional not allowed on left side of = ?  can I confirm
@@ -1881,10 +1908,19 @@ nonterm CVQualifier : HasTypeName, HasCVFlags {
 // -- type-id --
 // a type-id is like a declaration of one thing, but without the variable name;
 // it is, for example, what appears inside the parens of a typecast
-nonterm TypeId : HasType -> spec:TypeSpecifier decl:AbstractDeclarator {
-  fun getType {
-    Type const *specType = spec.getType(env);
-    return decl.getDeclType(env, specType);
+nonterm TypeId : HasType {
+  -> spec:TypeSpecifier decl:AbstractDeclarator {
+    fun getType {
+      Type const *specType = spec.getType(env);
+      return decl.getDeclType(env, specType);
+    }
+  }
+     
+  // gnu extension
+  -> "__typeof__" "(" e:Expression ")" {
+    fun getType {
+      return e.getType(env);
+    }
   }
 }
 
@@ -2390,7 +2426,7 @@ nonterm GNUExprKeyword ->
   "public" | "register" | "reinterpret_cast" | "return" | "short" |
   "signed" | "sizeof" | "static" | "static_cast" | "struct" | "switch" |
   "template" | "this" | "throw" | "try" | "typedef" | "typeid" | "union" |
-  "unsigned" | "virtual" | "void" | "volatile" | "wchar_t" | "while" ;
+  "unsigned" | "virtual" | "void" | "volatile" | "wchar_t" | "while" | "__typeof__";
 
 
 nonterm GNUAttribute -> "__attribute__" "(" "(" GNUExprSeq ")" ")";
