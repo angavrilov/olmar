@@ -36,6 +36,8 @@ STATICDEF unsigned StringHash::coreHash(char const *key)
      Adapted from glib's g_str_hash().
      Investigation by Karl Nelson <kenelson@ece.ucdavis.edu>.
      Do a web search for "g_str_hash X31_HASH" if you want to know more. */
+  /* update: this is the same function as that described in Kernighan and Pike,
+     "The Practice of Programming", section 2.9 */
   unsigned h = 0;
   for (; *key != '\0'; key += 1) {
     h = ( h << 5 ) - h + *key;       // h*31 + *key

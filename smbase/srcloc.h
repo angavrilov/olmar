@@ -228,11 +228,11 @@ public:      // funcs
   // the most frequently; this interface is supposed to allow an
   // implementation which uses explicit line/col, even though that
   // is not what is used here
-  SourceLoc advCol(SourceLoc base, int colOffset)
+  static SourceLoc advCol(SourceLoc base, int colOffset)
     { xassert(!isStatic(base)); return toLoc(toInt(base) + colOffset); }
-  SourceLoc advLine(SourceLoc base)     // from end of line to beginning of next
+  static SourceLoc advLine(SourceLoc base)     // from end of line to beginning of next
     { xassert(!isStatic(base)); return toLoc(toInt(base) + 1); }
-  SourceLoc advText(SourceLoc base, char const *text, int textLen)
+  static SourceLoc advText(SourceLoc base, char const *text, int textLen)
     { xassert(!isStatic(base)); return toLoc(toInt(base) + textLen); }
 
   // decode
@@ -260,11 +260,22 @@ inline string toString(SourceLoc sl)
 inline stringBuilder& operator<< (stringBuilder &sb, SourceLoc sl)
   { return sb << toString(sl); }
 
-  
-// macro for obtaining a source location that points at the 
+
+// macro for obtaining a source location that points at the
 // point in the source code where this macro is invoked
 #define HERE_SOURCELOC \
   (sourceLocManager->encodeStatic(__FILE__, 0, __LINE__, 1))
+
+
+// it's silly to demand mention of 'SourceLocManager' just to update
+// the locations, esp. since SourceLoc is its own type and therefore
+// overloading will avoid any possible collisions
+inline SourceLoc advCol(SourceLoc base, int colOffset)
+  { return SourceLocManager::advCol(base, colOffset); }
+inline SourceLoc advLine(SourceLoc base)
+  { return SourceLocManager::advLine(base); }
+inline SourceLoc advText(SourceLoc base, char const *text, int textLen)
+  { return SourceLocManager::advText(base, text, textLen); }
 
 
 #endif // SRCLOC_H
