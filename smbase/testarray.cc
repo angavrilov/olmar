@@ -26,6 +26,11 @@ void round(int ops)
     // check that the arrays and list agree
     {
       int length = listStack.count();
+      if (length > 0) {
+        xassert(listStack.first()[0] == arrayStack.top());
+        xassert(listStack.first()[0] == arrayStackEmbed.top());
+      }
+
       int index = length-1;
       FOREACH_OBJLIST(int, listStack, iter) {
         xassert(iter.data()[0] == arrayStack[index]);

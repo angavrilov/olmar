@@ -408,6 +408,9 @@ public:       // funcs
     { return getElt(i); }
   T & operator[] (int i)
     { return const_cast<T&>(getElt(i)); }
+    
+  T const &top() const
+    { return getElt(len-1); }
 };
 
 
