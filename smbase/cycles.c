@@ -54,14 +54,13 @@ static char const rdtsc_instructions[] = {
   0x90,                                 // nop
 };
 
-#endif // RDTSC_SOURCE
-
-
 // external entry point
 void getCycles(unsigned *lowp, unsigned *highp)
 {
   return ((void (*)(unsigned*, unsigned*))rdtsc_instructions)(lowp, highp);
 }
+
+#endif // RDTSC_SOURCE
 
 
 // ------------------ unknown architecture -----------------
