@@ -1,5 +1,5 @@
 
-file testmalloc
+file popen
 
-break malloc
+break main
 run

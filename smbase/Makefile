@@ -34,6 +34,9 @@ linkend := $(libraries)
 	$(compile) $< -o $@
 	@./depend.sh $(ccflags) $(includes) $< > $*.d
 
+%.o : %.c
+	gcc -c $(ccflags) $(includes) $< -o $@
+
 # delete compiling/editing byproducts
 clean:
 	rm -f *.o *~ *.d
@@ -73,12 +76,12 @@ mysig.o: mysig.cc mysig.h
 	gcc -c -g mysig.cc
 
 # library itself
-library-objs = \
+library-objs := \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
   trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o \
-  stringset.o
+  stringset.o mypopen.o unixutil.o
 -include $(library-objs:.o=.d)
 
 $(THISLIBRARY): $(library-objs)
@@ -87,7 +90,7 @@ $(THISLIBRARY): $(library-objs)
 
 # ---------- module tests ----------------
 # test program targets
-tests-files = nonport voidlist tobjlist bit2d growbuf testmalloc
+tests-files := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen
 tests: $(tests-files)
 
 nonport: nonport.cpp nonport.h
@@ -132,6 +135,9 @@ mysig: mysig.cc mysig.h $(THISLIBRARY)
 testmalloc: testmalloc.cc $(THISLIBRARY)
 	gcc -Wall -g -o testmalloc testmalloc.cc $(THISLIBRARY) $(linkend)
 
+mypopen: mypopen.c mypopen.h
+	g++ -Wall -g -o mypopen -DTEST_MYPOPEN mypopen.c
+
 check: $(tests-files)
 	./nonport
 	./voidlist
@@ -147,6 +153,7 @@ check: $(tests-files)
 	./bflatten
 	./mysig
 	./testmalloc 2>&1 | tail
+	./mypopen
 	@echo
 	@echo "make check: all the tests PASSED"
 
