@@ -189,8 +189,8 @@ void doit(int argc, char **argv)
     Qualifiers::insertInstancesIntoGraph();
     printf("** unit->qual(env)\n");
     unit->qual(env);
-    printf("** finish_cc_qual()\n");
-    finish_cc_qual();
+    printf("** finish_quals_CQUAL()\n");
+    finish_quals_CQUAL();
     printf("** qual done\n");
     traceProgress() << "dsw cc_qual... done\n";
   }

@@ -8,7 +8,7 @@
 class QualEnv {};
 
 void init_cc_qual(char *config_file);
-void finish_cc_qual();
-void dispose_cc_qual();
+void finish_quals_CQUAL();
+void dispose_quals_CQUAL();
 
 #endif // CC_QUAL_DUMMY_H

@@ -12,7 +12,7 @@ void init_cc_qual(char *config_file) {
   printf("DUMMY INIT config_file: %s\n", config_file);
 }
 
-void finish_cc_qual() {
+void finish_quals_CQUAL() {
   printf("DUMMY FINISH\n");
 }
 
