@@ -2128,7 +2128,7 @@ Variable *Env::applyPQNameTemplateArguments
       }
 
       // if the template arguments are not concrete, then create
-      // a PsuedoInstantiation
+      // a PseudoInstantiation
       if (containsTypeVariables(sargs)) {
         PseudoInstantiation *pi =
           createPseudoInstantiation(var->type->asCompoundType(), sargs);
@@ -4219,11 +4219,11 @@ Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
   bool dependent=false, anyTemplates=false;
   Scope *ret = lookupOneQualifier_useArgs(var, targs, dependent,
                                           anyTemplates, flags);
-                                          
+
   if (dependent) {
     return dependentScope;
   }
-  
+
   // a scope used as a qualifier must be a complete type; I cannot
   // find anyplace in the standard that explicitly requires this,
   // though it seems to be clearly true (t0245.cc)
@@ -4296,6 +4296,65 @@ Variable *Env::unqualifiedLookup_one(StringRef name, LookupFlags flags)
   unqualifiedLookup(set, NULL /*scope*/, name, flags);
   return set.isEmpty()? NULL : set.first();
 }
+
+
+#if 0      // work in progress; does not compile yet
+// modeled on Env::lookupPQ
+Type *Env::buildDependentQType(PQName *name, LookupFlags flags)
+{
+  // as above
+  Scope *scope = NULL;
+  flags |= LF_LOOKUP_SET;
+
+  // lookup along the chain of qualifiers, searching for the
+  // first qualifier that is dependent
+  while (name->isPQ_qualifier()) {
+    PQ_qualifier *qual = name->asPQ_qualifier();
+
+    // lookup this qualifier in 'scope'
+    Variable *svar = lookup_one(...);
+    xassert(svar);    // otherwise already got an error
+
+    if (svar->isTemplateParam()) {
+      // build DependentQType TypeVariable(svar)::...
+
+
+      return ...;
+    }
+    else if (containsVariables(qual->targs)) {
+      // build DependentQType PseudoInstantiation(svar, qual->targs)::...
+
+
+      return ...;
+    }
+    else if (qual->targs.isNotEmpty()) {
+      svar = applyTemplateArgs(svar, qual->targs);
+    }
+
+    // get the scope represented by this svar
+    scope = ...svar...;
+
+    // subsequent lookups are qualified
+    flags |= LF_QUALIFIED;
+    name = qual->rest;
+  }
+
+  // can only get to the end if it ends with a dependent template-id,
+  // which will just become an ordinary PseudoInstantiation (maybe
+  // lookupPQ should have handled it?  I think maybe the difference
+  // between 'containsVariables' and 'containsTypeVariables' might
+  // make this code reachable until that gets sorted out)
+  PQ_template *final = name->isPQ_template();
+
+  // lookup 'scope'
+  Variable *var = lookup_one(...);
+  xassert(var);    // otherwise already got an error
+
+  // build PseudoInstantiation(var, final->targs)
+
+  return ...;
+}
+#endif // 0 (work in progress)
 
 
 // ----------------------- makeQualifiedName -----------------------

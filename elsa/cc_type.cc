@@ -56,6 +56,7 @@ DOWNCAST_IMPL(AtomicType, CompoundType)
 DOWNCAST_IMPL(AtomicType, EnumType)
 DOWNCAST_IMPL(AtomicType, TypeVariable)
 DOWNCAST_IMPL(AtomicType, PseudoInstantiation)
+DOWNCAST_IMPL(AtomicType, DependentQType)
 
 
 void AtomicType::gdb() const

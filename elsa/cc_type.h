@@ -47,6 +47,9 @@ class D_func;             // cc.ast
 class D_ptrToMember;      // cc.ast
 class TypeSpecifier;      // cc.ast
 class Declaration;        // cc.ast
+class TypeVariable;       // template.h
+class PseudoInstantiation;// template.h
+class DependentQType;     // template.h
 
 // fwd in this file
 class AtomicType;
@@ -55,8 +58,6 @@ class NamedAtomicType;
 class CompoundType;
 class BaseClass;
 class EnumType;
-class TypeVariable;
-class PseudoInstantiation;
 class CVAtomicType;
 class PointerType;
 class ReferenceType;
@@ -95,7 +96,16 @@ public:
 // modifiers can be stripped away; see cc_type.html
 class AtomicType {
 public:     // types
-  enum Tag { T_SIMPLE, T_COMPOUND, T_ENUM, T_TYPEVAR, T_PSEUDOINSTANTIATION, NUM_TAGS };
+  enum Tag { 
+    T_SIMPLE, 
+    T_COMPOUND, 
+    T_ENUM, 
+    T_TYPEVAR, 
+    T_PSEUDOINSTANTIATION,
+    T_DEPENDENTQTYPE,
+
+    NUM_TAGS
+  };
 
 public:     // funcs
   AtomicType();
@@ -107,6 +117,7 @@ public:     // funcs
   bool isEnumType() const     { return getTag() == T_ENUM; }
   bool isTypeVariable() const { return getTag() == T_TYPEVAR; }
   bool isPseudoInstantiation() const { return getTag() == T_PSEUDOINSTANTIATION; }
+  bool isDependentQType() const      { return getTag() == T_DEPENDENTQTYPE; }
   virtual bool isNamedAtomicType() const;    // default impl returns false
 
   // see smbase/macros.h
@@ -116,6 +127,7 @@ public:     // funcs
   DOWNCAST_FN(EnumType)
   DOWNCAST_FN(TypeVariable)
   DOWNCAST_FN(PseudoInstantiation)
+  DOWNCAST_FN(DependentQType)
 
   // concrete types do not have holes
   bool isConcrete() const

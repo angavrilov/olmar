@@ -2203,6 +2203,12 @@ Variable *Env::instantiateFunctionTemplate
    Variable *primary,                          // template primary to instantiate
    SObjList<STemplateArgument> const &sargs)   // arguments to apply to 'primary'
 {
+  // t0424.cc: if 'primary' is an alias, skip past it; aliases 
+  // get to participate in overload resolution (i.e., *selecting*
+  // the function to invoke), but instantiation is always done
+  // with the real thing
+  primary = primary->skipAlias();
+
   TemplateInfo *primaryTI = primary->templateInfo();
   xassert(primaryTI->isPrimary());
 

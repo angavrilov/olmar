@@ -62,6 +62,38 @@ public:      // funcs
 };
 
 
+// This object represents a type *name* that includes a
+// dependent-typed qualifier and therefore cannot be represented
+// as an ordinary TypeVariable or PseudoInstantiation.  For
+// example, T::foo where T is a template parameter.
+class DependentQType : public AtomicType {
+public:      // data
+  // The first component is either a template parameter (e.g., T::foo)
+  // or is a PseudoInstantiation (e.g., C<T>::foo).  The latter could
+  // have been qualified in the original syntax, but those qualifiers
+  // have already been resolved (e.g., ::C<T>::foo)
+  AtomicType *first;            // (serf) TypeVariable or PseudoInstantiation
+
+  // After the first component comes a chain of PseudoInstantiations,
+  // which are really just containers for a name and some optional
+  // template arguments.  These PseudoInstantiation objects have NULL
+  // 'primary' and 'typedefVar' fields.  This list always contains
+  // at least one element.
+  ObjList<PseudoInstantiation> rest;
+
+public:      // data
+  DependentQType(AtomicType *f);
+  ~DependentQType();
+
+  // AtomicType interface
+  virtual Tag getTag() const { return T_DEPENDENTQTYPE; }
+  virtual string toCString() const;
+  virtual string toMLString() const;
+  virtual int reprSize() const;
+  virtual void traverse(TypeVisitor &vis);
+};
+
+
 // just some template parameters (this class exists, in part, so
 // that Scope doesn't have to instantiate a full TemplateInfo)
 class TemplateParams {
