@@ -328,26 +328,31 @@ public:     // funcs
 
 
 // ------------------- constructed types -------------------------
-// generic constructed type
-class Type {
+// generic constructed type; to allow client analyses to annotate the
+// description of types, this class becomes is inherited by "Type",
+// the class that all of the rest of the parser regards as being a
+// "type"
+class BaseType {
 public:     // types
   enum Tag { T_ATOMIC, T_POINTER, T_FUNCTION, T_ARRAY, T_POINTERTOMEMBER };
-  typedef bool (*TypePred)(Type const *t);
+  
+  // moved this declaration into Type, along with the declaration of
+  // 'anyCtorSatisfies', so as not to leak the name "BaseType"
+  //typedef bool (*TypePred)(Type const *t);
 
 private:    // funcs
   string idComment() const;
 
 private:    // disallowed
-  Type(Type&);
+  BaseType(BaseType&);
 
 protected:  // funcs
-  // the constructor of Type and its immediate descendents is
-  // protected because I want to force all object creation to
-  // go through the factory (below)
-  Type();
+  // the constructor of BaseType is protected because I want to force
+  // all object creation to go through the factory (below)
+  BaseType();
 
 public:     // funcs
-  virtual ~Type();
+  virtual ~BaseType();
 
   virtual Tag getTag() const = 0;
   bool isCVAtomicType() const { return getTag() == T_ATOMIC; }
@@ -381,7 +386,7 @@ public:     // funcs
   // like above, this is (structural) equality, not coercibility;
   // internally, this calls the innerEquals() method on the two
   // objects, once their tags have been established to be equal
-  bool equals(Type const *obj, EqFlags flags = EF_EXACT) const;
+  bool equals(BaseType const *obj, EqFlags flags = EF_EXACT) const;
 
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
@@ -401,7 +406,7 @@ public:     // funcs
 
   // filter on all type constructors (i.e. non-atomic types); return
   // true if any constructor satisfies 'pred'
-  virtual bool anyCtorSatisfies(TypePred pred) const=0;
+  //virtual bool anyCtorSatisfies(TypePred pred) const=0;
 
   // return the cv flags that apply to this type, if any;
   // default returns CV_NONE
@@ -433,8 +438,10 @@ public:     // funcs
   bool isPointer() const;                // as opposed to reference or non-pointer
   bool isReference() const;
   bool isLval() const { return isReference(); }    // C terminology
-  Type const *asRvalC() const;           // if I am a reference, return referrent type
-  Type *asRval() { return const_cast<Type*>(asRvalC()); }
+
+  // note that Type overrides these to return Type instead of BaseType
+  BaseType const *asRvalC() const;           // if I am a reference, return referrent type
+  BaseType *asRval() { return const_cast<BaseType*>(asRvalC()); }
 
   bool isCVAtomicType(AtomicType::Tag tag) const;
   bool isTypeVariable() const { return isCVAtomicType(AtomicType::T_TYPEVAR); }
@@ -455,7 +462,35 @@ public:     // funcs
   ALLOC_STATS_DECLARE
 };
 
-ENUM_BITWISE_OPS(Type::EqFlags, Type::EF_ALL)
+ENUM_BITWISE_OPS(BaseType::EqFlags, BaseType::EF_ALL)
+
+
+#ifdef TYPE_CLASS_FILE
+  // pull in the definition of Type, which may have additional
+  // fields (etc.) added by the client
+  #include TYPE_CLASS_FILE
+#else
+  // please see cc_type.html, section 6, "BaseType and Type", for more
+  // information about this class
+  class Type : public BaseType {
+  public:      // types
+    typedef bool (*TypePred)(Type const *t);
+
+  protected:   // funcs
+    Type() {}
+
+  public:      // funcs
+    // filter on all type constructors (i.e. non-atomic types); return
+    // true if any constructor satisfies 'pred'
+    virtual bool anyCtorSatisfies(TypePred pred) const=0;
+
+    // do not leak the name "BaseType"
+    Type const *asRvalC() const
+      { return static_cast<Type const *>(BaseType::asRvalC()); }
+    Type *asRval()
+      { return static_cast<Type*>(BaseType::asRval()); }
+  };
+#endif // TYPE_CLASS_FILE
 
 
 // essentially just a wrapper around an atomic type, but

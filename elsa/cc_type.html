@@ -207,6 +207,40 @@ points to TypeFactory and modify cc_tcheck.cc to use them.
 just builds the types defined in cc_type.h in the obvious way.
 
 
+<h2>6. BaseType and Type</h2>
+
+<p>
+While the TypeFactory mechanism makes it easy to annotate the leaf
+types, like FunctionType and PointerType, it doesn't offer a way
+to effectively annotate Type itself, because that class is in the
+middle of the inheritance hierarchy.
+
+<p>
+So, Type is actually split into two classes, BaseType and Type.
+Type inherits from BaseType, and by default, adds almost nothing
+to BaseType.  However, clients of Elsa are allowed/expected to 
+replace Type's definition with one that includes additional
+annotations. 
+
+<p>
+To replace Type's definition, make a header file that contains the
+new class definition (make a copy of the existing Type definition as a
+starting point).  Then arrange for the preprocessor symbol
+<code>TYPE_CLASS_FILE</code> to be set to the name (in quotes) of 
+the file containing the new definition.
+
+<p>
+The key requirement of class Type is that it must <em>not</em> allow the
+name "BaseType" to leak out into its interface.  I do not want
+to have to deal with more than one name for "generic type" in
+analyses like the type checker.  Some care is required to achieve
+this, as I don't want to make the inheritance private (since that
+would necessitate repeating all of BaseType's member declarations).
+This requirement is the reason that Type, and not BaseType, has
+the declaration of <code>anyCtorSatisfies()</code>.  Were it in BaseType,
+then <code>TypePred</code> would expose the BaseType name.
+
+
 <p>
   <a href="http://validator.w3.org/check/referer"><img border="0"
       src="http://www.w3.org/Icons/valid-html401"

@@ -541,28 +541,28 @@ int TypeVariable::reprSize() const
 }
 
 
-// -------------------- Type ----------------------
-ALLOC_STATS_DEFINE(Type)
+// -------------------- BaseType ----------------------
+ALLOC_STATS_DEFINE(BaseType)
 
-Type::Type()
+BaseType::BaseType()
 {
   ALLOC_STATS_IN_CTOR
 }
 
-Type::~Type()
+BaseType::~BaseType()
 {
   ALLOC_STATS_IN_DTOR
 }
 
 
-DOWNCAST_IMPL(Type, CVAtomicType)
-DOWNCAST_IMPL(Type, PointerType)
-DOWNCAST_IMPL(Type, FunctionType)
-DOWNCAST_IMPL(Type, ArrayType)
-DOWNCAST_IMPL(Type, PointerToMemberType)
+DOWNCAST_IMPL(BaseType, CVAtomicType)
+DOWNCAST_IMPL(BaseType, PointerType)
+DOWNCAST_IMPL(BaseType, FunctionType)
+DOWNCAST_IMPL(BaseType, ArrayType)
+DOWNCAST_IMPL(BaseType, PointerToMemberType)
 
 
-bool Type::equals(Type const *obj, EqFlags flags) const
+bool BaseType::equals(BaseType const *obj, EqFlags flags) const
 {
   if (getTag() != obj->getTag()) {
     return false;
@@ -593,7 +593,7 @@ string cvToString(CVFlags cv)
 }
 
 
-string Type::toCString() const
+string BaseType::toCString() const
 {
   if (isCVAtomicType()) {
     // special case a single atomic type, so as to avoid
@@ -608,7 +608,7 @@ string Type::toCString() const
   }
 }
 
-string Type::toCString(char const *name) const
+string BaseType::toCString(char const *name) const
 {
   // print the inner parentheses if the name is omitted
   bool innerParen = (name && name[0])? false : true;
@@ -629,19 +629,19 @@ string Type::toCString(char const *name) const
   return s;
 }
 
-string Type::rightString(bool /*innerParen*/) const
+string BaseType::rightString(bool /*innerParen*/) const
 {
   return "";
 }
 
 
-CVFlags Type::getCVFlags() const
+CVFlags BaseType::getCVFlags() const
 {
   return CV_NONE;
 }
 
 
-bool Type::isSimpleType() const
+bool BaseType::isSimpleType() const
 {
   if (isCVAtomicType()) {
     AtomicType const *at = asCVAtomicTypeC()->atomic;
@@ -652,32 +652,32 @@ bool Type::isSimpleType() const
   }
 }
 
-SimpleType const *Type::asSimpleTypeC() const
+SimpleType const *BaseType::asSimpleTypeC() const
 {
   return asCVAtomicTypeC()->atomic->asSimpleTypeC();
 }
 
-bool Type::isSimple(SimpleTypeId id) const
+bool BaseType::isSimple(SimpleTypeId id) const
 {
   return isSimpleType() &&
          asSimpleTypeC()->type == id;
 }
 
-bool Type::isIntegerType() const
+bool BaseType::isIntegerType() const
 {
   return isSimpleType() &&
          simpleTypeInfo(asSimpleTypeC()->type).isInteger;
 }
                        
 
-bool Type::isEnumType() const
+bool BaseType::isEnumType() const
 {
   return isCVAtomicType() &&
          asCVAtomicTypeC()->atomic->isEnumType();
 }
 
 
-bool Type::isCompoundTypeOf(CompoundType::Keyword keyword) const
+bool BaseType::isCompoundTypeOf(CompoundType::Keyword keyword) const
 {
   if (isCVAtomicType()) {
     CVAtomicType const *a = asCVAtomicTypeC();
@@ -689,32 +689,32 @@ bool Type::isCompoundTypeOf(CompoundType::Keyword keyword) const
   }
 }
 
-CompoundType *Type::ifCompoundType()
+CompoundType *BaseType::ifCompoundType()
 {
   return isCompoundType()? asCompoundType() : NULL;
 }
 
-CompoundType const *Type::asCompoundTypeC() const
+CompoundType const *BaseType::asCompoundTypeC() const
 {
   return asCVAtomicTypeC()->atomic->asCompoundTypeC();
 }
 
-bool Type::isOwnerPtr() const
+bool BaseType::isOwnerPtr() const
 {
   return isPointer() && ((asPointerTypeC()->cv & CV_OWNER) != 0);
 }
 
-bool Type::isPointer() const
+bool BaseType::isPointer() const
 {
   return isPointerType() && asPointerTypeC()->op == PO_POINTER;
 }
 
-bool Type::isReference() const
+bool BaseType::isReference() const
 {
   return isPointerType() && asPointerTypeC()->op == PO_REFERENCE;
 }
 
-Type const *Type::asRvalC() const
+BaseType const *BaseType::asRvalC() const
 {
   if (isReference()) {
     // note that due to the restriction about stacking reference
@@ -722,30 +722,30 @@ Type const *Type::asRvalC() const
     return asPointerTypeC()->atType;
   }
   else {
-    return this;
+    return this;       // this possibility is one reason to not make 'asRval' return 'Type*' in the first place
   }
 }
 
 
-TypeVariable *Type::asTypeVariable() 
+TypeVariable *BaseType::asTypeVariable() 
 { 
   return asCVAtomicType()->atomic->asTypeVariable(); 
 }
 
 
-bool Type::isCVAtomicType(AtomicType::Tag tag) const
+bool BaseType::isCVAtomicType(AtomicType::Tag tag) const
 {
   return isCVAtomicType() &&
          asCVAtomicTypeC()->atomic->getTag() == tag;
 }
 
-bool Type::isTemplateFunction() const
+bool BaseType::isTemplateFunction() const
 {
   return isFunctionType() &&
          asFunctionTypeC()->isTemplate();
 }
 
-bool Type::isTemplateClass() const
+bool BaseType::isTemplateClass() const
 {
   return isCompoundType() &&
          asCompoundTypeC()->isTemplate();
@@ -757,9 +757,11 @@ bool typeIsError(Type const *t)
   return t->isError();
 }
 
-bool Type::containsErrors() const
+bool BaseType::containsErrors() const
 {
-  return anyCtorSatisfies(typeIsError);
+  // hmm.. bit of hack..
+  return static_cast<Type const *>(this)->
+    anyCtorSatisfies(typeIsError);
 }
 
 
@@ -770,9 +772,10 @@ bool typeHasTypeVariable(Type const *t)
           t->asCompoundTypeC()->isTemplate());
 }
 
-bool Type::containsTypeVariables() const
+bool BaseType::containsTypeVariables() const
 {
-  return anyCtorSatisfies(typeHasTypeVariable);
+  return static_cast<Type const *>(this)->
+    anyCtorSatisfies(typeHasTypeVariable);
 }
 
 
