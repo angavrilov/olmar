@@ -3264,9 +3264,9 @@ Void_t* mALLOc(size_t bytes)
 
   /* sm: my stuff */
   #ifdef TRACE_MALLOC_CALLS
-    printf("malloc(%d) ", bytes);
+    fprintf(stderr, "malloc(%d) ", bytes);
     #define RETURN(val)             \
-      printf("yielded %p\n", val);  \
+      fprintf(stderr, "yielded %p\n", val);  \
       return val
   #else
     #define RETURN(val) return val
@@ -3647,7 +3647,7 @@ void fREe(mem) Void_t* mem;
 
   /* sm: my stuff */
   #ifdef TRACE_MALLOC_CALLS
-  printf("free(%p)\n", mem);
+  fprintf(stderr, "free(%p)\n", mem);
   #endif
   av->numFreeCalls++;
 
