@@ -995,7 +995,6 @@ static S_expr *make_S_expr_superclassCopyAssign(Env &env, BaseClass *base)
   //                   qualifier = W
   //                   loc = copy_assign2.cc:8:11
   //                 PQ_qualifier:
-  //    PQName *superclassName = env.makePossiblyTemplatizedName(loc, base->ct->name, targs);
   PQName *superclassName = NULL;
   {
     Variable *typedefVar = base->ct->getTypedefName();
@@ -1227,6 +1226,211 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
                  handlers);
 
   //   loc = copy_assign1.cc:7:3
+  // MR_func:
+  return new MR_func(loc, f);
+}
+
+
+// make implicit dtor ****************
+
+// "a.~A();"
+static S_expr *make_S_expr_memberDtor(Env &env, StringRef memberName, CompoundType *memberType)
+{
+  SourceLoc loc = env.loc();
+
+  //       args:
+  FakeList<ArgExpression> *args = FakeList<ArgExpression>::emptyList();
+  //           name = ~A
+  //           loc = ex/dtor2.cc:7:7
+  //         PQ_name:
+//    PQName *dtorName = env.make_PQ_fullyQualifiedDtorName(memberType);
+//    PQ_name *name0 = new PQ_name(loc, env.str(stringc << "~" << memberType->name));
+//    PQName *dtorName = name0;
+  PQName *dtorName = NULL;
+  {
+    FakeList<TemplateArgument> *targs = env.getTemplateArgs(memberType);
+//      Variable *typedefVar = memberType->getTypedefName();
+//      xassert(typedefVar);
+//      dtorName = new PQ_qualifier(loc, typedefVar->name, targs, name0);
+    dtorName = env.makePossiblyTemplatizedName
+      (loc, env.str(stringc << "~" << memberType->name), targs);
+  }
+
+  //             name = a
+  //             loc = ex/dtor2.cc:7:5
+  //           PQ_name:
+  PQ_name *name = new PQ_name(loc, memberName);
+  //           var: refers to ex/dtor2.cc:4:5
+  //           type: struct A &
+  //         E_variable:
+  E_variable *evar0 = new E_variable(name);
+  //         field: refers to ex/dtor2.cc:1:1
+  //         type: ()()
+  //       E_fieldAcc:
+  E_fieldAcc *efieldacc = new E_fieldAcc(evar0, dtorName);
+  //       type: /*cdtor*/
+  //     E_funCall:
+  E_funCall *efuncall = new E_funCall(efieldacc, args);
+  //   FullExpression:
+  FullExpression *fullexpr = new FullExpression(efuncall);
+  //   loc = ex/dtor2.cc:7:5
+  //   succ={ }
+  // S_expr:
+  return new S_expr(loc, fullexpr);
+}
+
+// "this->B::~B();"
+static S_expr *make_S_expr_superclassDtor(Env &env, BaseClass *base)
+{
+  SourceLoc loc = env.loc();
+
+  //       args:
+  FakeList<ArgExpression> *args = FakeList<ArgExpression>::emptyList();
+  //             name = ~B
+  //             loc = ex/dtor2.cc:6:14
+  //           PQ_name:
+
+//    PQName *name = env.make_PQ_fullyQualifiedDtorName(base->ct);
+
+  PQ_name *name0 = new PQ_name(loc, env.str(stringc << "~" << base->ct->name));
+  //           targs:
+  FakeList<TemplateArgument> *targs = env.getTemplateArgs(base->ct);
+  //           qualifier = B
+  //           loc = ex/dtor2.cc:6:11
+  //         PQ_qualifier:
+  PQName *name = NULL;
+  {
+    Variable *typedefVar = base->ct->getTypedefName();
+    xassert(typedefVar);
+    name = new PQ_qualifier(loc, typedefVar->name, targs, name0);
+  }
+
+  //               name = this
+  //               loc = ex/dtor2.cc:6:5
+  //             PQ_name:
+  PQ_name *thisName = new PQ_name(loc, env.str.add("this"));
+  //             var: refers to ex/dtor2.cc:5:3
+  //             type: struct C *
+  //           E_variable:
+  E_variable *thisVar = new E_variable(thisName);
+  //           type: struct C &
+  //         E_deref:
+  //         field: refers to ex/dtor2.cc:2:1
+  //         type: ()()
+  //       E_fieldAcc:
+  //       type: /*cdtor*/
+  // not sure why it isn't printing as E_arrow
+  E_arrow *earrow = new E_arrow(thisVar, name);
+  //     E_funCall:
+  E_funCall *efuncall = new E_funCall(earrow, args);
+  //   FullExpression:
+  FullExpression *fullexpr = new FullExpression(efuncall);
+  //   loc = ex/dtor2.cc:6:5
+  //   succ={ 7:5 }
+  // S_expr:
+  return new S_expr(loc, fullexpr);
+}
+
+void completeDtorCalls(Env &env, Function *func, CompoundType *ct)
+{
+  xassert(!func->dtorElaborated); // ensure idempotency
+  xassert(ct);                  // can't be a stand-alone function
+
+  // We add to the statements in *forward* order, unlike when adding
+  // to MemberInitializers, but since this is a dtor, not a ctor, we
+  // *do* have to do it in reverse.
+  SObjStack<S_expr> dtorStmts;
+
+  FOREACH_OBJLIST(BaseClass, ct->bases, iter) {
+    BaseClass *base = const_cast<BaseClass*>(iter.data());
+    // omit initialization of virtual base classes, whether direct
+    // virtual or indirect virtual.  See cppstd 12.6.2 and the
+    // implementation of Function::tcheck_memberInits()
+    //
+    // FIX: We really should be initializing the direct virtual bases,
+    // but the logic is so complex I'm just going to omit it for now
+    // and err on the side of not calling enough initializers
+    if (!ct->hasVirtualBase(base->ct)) {
+      dtorStmts.push(make_S_expr_superclassDtor(env, base));
+    }
+  }
+
+  SFOREACH_OBJLIST_NC(Variable, ct->dataMembers, iter) {
+    Variable *var = iter.data();
+    if (!wantsMemberInit(var)) continue;
+    if (!var->type->isCompoundType()) continue;
+    dtorStmts.push(make_S_expr_memberDtor(env, var->name, var->type->asCompoundType()));
+  }
+
+  // reverse and append to the statements list
+  while (!dtorStmts.isEmpty()) {
+    func->body->stmts.append(dtorStmts.pop());
+  }
+
+  func->dtorElaborated = true;
+}
+
+MR_func *makeDtorBody(Env &env, CompoundType *ct)
+{
+  // reversed print AST output; remember to read going up even for the
+  // tree leaves
+
+  SourceLoc loc = env.loc();
+  //     handlers:
+  FakeList<Handler> *handlers = FakeList<Handler>::emptyList();
+
+  //       stmts:
+  ASTList<Statement> *stmts = new ASTList<Statement>();
+  //       loc = ex/dtor2.cc:5:8
+  //       succ={ 6:5 }
+  //     S_compound:
+  S_compound *body = new S_compound(loc, stmts);
+  //     inits:
+  FakeList<MemberInit> *inits = FakeList<MemberInit>::emptyList();
+  //       init is null
+  Initializer *init = NULL;
+  //         exnSpec is null
+  ExceptionSpec *exnSpec = NULL;
+  //         cv = 
+  CVFlags cv = CV_NONE;
+  //         params:
+  FakeList<ASTTypeId> *params = FakeList<ASTTypeId>::emptyList();
+  //             name = ~C
+  //             loc = ex/dtor2.cc:5:3
+  //           PQ_name:
+  // see this point in makeCopyCtorBody() for a comment on the
+  // sufficient generality of this
+  PQName *dtorName = new PQ_name(loc, env.str(stringc << "~" << ct->name));
+  //           loc = ex/dtor2.cc:5:3
+  //         D_name:
+  IDeclarator *base = new D_name(loc, dtorName);
+  //         loc = ex/dtor2.cc:5:3
+  //       D_func:
+  IDeclarator *decl = new D_func(loc,
+                                 base,
+                                 params,
+                                 cv,
+                                 exnSpec);
+  //       var: inline <member> <definition> ~C(/*m: struct C & */ )
+  //     Declarator:
+  Declarator *nameAndParams = new Declarator(decl, init);
+  //       id = /*cdtor*/
+  //       loc = ex/dtor2.cc:5:3
+  //       cv = 
+  //     TS_simple:
+  TypeSpecifier *retspec = new TS_simple(loc, ST_CDTOR);
+  //     dflags = inline
+  DeclFlags dflags = DF_MEMBER | DF_INLINE;
+  //     funcType: ()(/*m: struct C & */ )
+  //   Function:
+  Function *f =
+    new Function(dflags,
+                 retspec,
+                 nameAndParams,
+                 inits,
+                 body,
+                 handlers);
+  //   loc = ex/dtor2.cc:5:3
   // MR_func:
   return new MR_func(loc, f);
 }

@@ -2536,6 +2536,8 @@ PQName *Env::make_PQ_fullyQualifiedName(Scope *s, PQName *name0)
     return make_PQ_fullyQualifiedName(s->parentScope, name0);
   }
   else if (s->scopeKind == SK_GLOBAL) {
+    // Scott's "fix"
+//    else if (s->getTypedefName()->scopeKind == SK_GLOBAL) {
     // prepend what syntactically would be a leading "::"
     return new PQ_qualifier(loc(), NULL /*qualifier*/,
                             FakeList<TemplateArgument>::emptyList(),

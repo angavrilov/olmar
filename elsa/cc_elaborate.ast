@@ -19,6 +19,9 @@ class Function {
   // NOTE!: If this function is a ctor, then the semantics is as if we
   // have this line in the code before the MemberInit-s:
   //   this = &retval;
+
+  // if it is a dtor, has it been elaborated yet?
+  public bool dtorElaborated; ctor dtorElaborated=false;
 }
 
 

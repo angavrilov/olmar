@@ -72,5 +72,7 @@ void completeNoArgMemberInits(Env &env, Function *ctor, CompoundType *ct);
 MR_func *makeNoArgCtorBody(Env &env, CompoundType *ct);
 MR_func *makeCopyCtorBody(Env &env, CompoundType *ct);
 MR_func *makeCopyAssignBody(Env &env, CompoundType *ct);
+void completeDtorCalls(Env &env, Function *func, CompoundType *ct);
+MR_func *makeDtorBody(Env &env, CompoundType *ct);
 
 #endif // CC_ELABORATE_H

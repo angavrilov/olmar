@@ -334,6 +334,18 @@ void Function::tcheck(Env &env, bool checkBody)
     env.addVariable(funcVar);
   }
 
+  // if it is a dtor, add the calls to the superclass and member dtors
+  // at the end of the body
+  if (nameAndParams->var->name &&
+      nameAndParams->var->name[0]=='~' &&
+      !dtorElaborated) {
+    // FIX: turn this back on
+//      completeDtorCalls(env, this, inClass);
+//      cout << "**** elaborated dtor" << endl;
+//      this->debugPrint(cout, 0);
+//      cout << "**** elaborated dtor done" << endl;
+  }
+
   // check the body in the new scope as well
   Statement *sel = body->tcheck(env);
   xassert(sel == body);     // compounds are never ambiguous
@@ -1640,19 +1652,31 @@ void addCompilerSuppliedDecls(Env &env, TS_classSpec *tsClassSpec,
   // "a->~A();", since I treat that like a field lookup
   StringRef dtorName = env.str(stringc << "~" << ct->name);
   if (!ct->lookupVariable(dtorName, env, LF_INNER_ONLY)) {
-    // add a dtor declaration: ~Class();
-    FunctionType *ft = env.makeDestructorFunctionType(loc);
-    Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
-    env.addVariable(v);      // cannot be overloaded
+    // FIX: turn this back on
+//      if (env.doElaboration) {
+//        // create the AST for a definition and do the first typechecking
+//        // pass; the second part of the pass will be done with the rest
+//        // of the members later.
+//        MR_func *dtorBody = makeDtorBody(env, ct);
+//        dtorBody->tcheck(env);
+//        tsClassSpec->members->list.append(dtorBody);
+//      } else
+    {
+      // add a dtor declaration: ~Class();
+      FunctionType *ft = env.makeDestructorFunctionType(loc);
+      Variable *v = env.makeVariable(loc, dtorName, ft, DF_MEMBER);
+      env.addVariable(v);       // cannot be overloaded
 
-    // BUG/TODO: Scott says the dtor should have a this parameter
-    // added with addThisParam(); I'm leaving it out so that we don't
-    // add this feature until we have a test that makes it fail
+      // BUG/TODO: Scott says the dtor should have a this parameter
+      // added with addThisParam(); I'm leaving it out so that we
+      // don't add this feature until we have a test that makes it
+      // fail
 
-    // put it on the list of made-up variables since there are no
-    // (e.g.) $tainted qualifiers (since the user didn't even type the
-    // dtor's name)
-    env.madeUpVariables.push(v);
+      // put it on the list of made-up variables since there are no
+      // (e.g.) $tainted qualifiers (since the user didn't even type
+      // the dtor's name)
+      env.madeUpVariables.push(v);
+    }
   }
 }
 
