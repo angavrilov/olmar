@@ -183,6 +183,7 @@ testTrivGrammar AdB 1
 testTrivGrammar CNI 1
 testTrivGrammar ESb 1
 testTrivGrammar CAdB 1
+testTrivGrammar EEb 1 2 3
 
 #runTest make aSEb.gr.exe
 #runTest ./aSEb.gr.exe aSEb.in1

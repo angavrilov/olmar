@@ -54,6 +54,8 @@ sub preamble {
       {
         return new $name;
       }
+      
+      int count = 0;
     ]
 
 EOF
@@ -107,7 +109,7 @@ while (defined($line = <STDIN>)) {
     print($space, $rule, " " x (25-$len));
     if ($ptree) {
       print("[ return new PTreeNode(\"$curNT $rule\"");
-      
+
       # work through the rule RHS, finding subtrees to attach
       $tail = substr($rule, 2);      # remove the leading "->"
       for(;;) {
@@ -121,13 +123,13 @@ while (defined($line = <STDIN>)) {
           print(", $tag");
         }
         $tail = $rest;
-        
+
         pretendUsed($unused);
       }
       print("); ]\n");
     }
     else {
-      print("[ cout << \"reduced by $curNT $rule\\n\"; return 0; ]\n");
+      print("[ cout << \"reduced by $curNT $rule\\n\"; return ++count; ]\n");
     }
     next;
   }

@@ -34,3 +34,6 @@ EFa.gr.gen.*
 *.output
 *.tab.*
 EFa.y
+EEb.bin
+EEb.gr
+EEb.gr.gen.*

@@ -9,6 +9,10 @@ terminals {
 }
 
 nonterm E {
-  -> a:E p b:E;
-  -> b;
+  merge(L,R) [ cout << "merging E\n"; return ++count; ]
+  dup(v)     [ return ++count; ]
+  del(v)     []
+
+  -> a:E p b:E ;
+  -> b         ; 
 }

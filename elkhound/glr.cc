@@ -181,9 +181,14 @@
 // update: right now, it actually *costs* about 8%..
 #define USE_UNROLLED_REDUCE 0
 
+// still working on it..
+#define YTM_FIX 0
+
 // some things we track..
 int parserMerges = 0;
 int computeDepthIters = 0;
+int totalExtracts = 0;
+int multipleDelayedExtracts = 0;
 
 // can turn this on to experiment.. but right now it
 // actually makes things slower.. (!)
@@ -531,6 +536,7 @@ inline void PendingShift::deinit()
 // ------------------ PathCollectionState -----------------
 PathCollectionState::PathCollectionState()
   : startStateId(STATE_INVALID),
+    prodIndex(-1),
     siblings(MAX_RHSLEN),
     symbols(MAX_RHSLEN),
     paths(TYPICAL_MAX_REDUCTION_PATHS)
@@ -543,12 +549,13 @@ PathCollectionState::~PathCollectionState()
 inline void PathCollectionState::init(int pi, int len, StateId start)
 {
   startStateId = start;
-  xassert(paths.length()==0); // paths must start empty
   prodIndex = pi;
 
   // pre-allocate these, though they can also grow if need be
   siblings.ensureIndexDoubler(len-1);
   symbols.ensureIndexDoubler(len-1);
+
+  xassert(paths.length()==0); // paths must start empty
 }
 
 
@@ -935,9 +942,9 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
       //PVAL(parserMerges);
       //PVAL(computeDepthIters);
       
-      if (yieldThenMergeCt) {
-        PVAL(yieldThenMergeCt);
-      }
+      PVAL(yieldThenMergeCt);
+      PVAL(totalExtracts);
+      PVAL(multipleDelayedExtracts);
     #endif
   }
 
@@ -1418,6 +1425,38 @@ string stackTraceString(StackNode *parser)
 }
 
 
+inline bool StackNodeWorklist::isEmpty() const
+{
+  #if YTM_FIX
+    // for the YTM fix, we stop extracting from the worklist
+    // when there are no more eager states, and either there
+    // are no delayed states *or* there is more than one
+    return eager.isEmpty() && (delayed.length() != 1);  
+  #else
+    return eager.isEmpty() && delayed.isEmpty();
+  #endif
+}
+
+
+inline StackNode *StackNodeWorklist::pop()
+{
+  ACCOUNTING(
+    totalExtracts++;
+  )
+  if (eager.isNotEmpty()) {
+    return eager.pop();
+  }
+  else {
+    ACCOUNTING(
+      if (delayed.length() > 1) {
+        multipleDelayedExtracts++;
+      }
+    )
+    return delayed.pop();
+  }
+}
+
+
 // return false if caller should return false; pulled out of
 // glrParse to reduce register pressure (but didn't help as
 // far as I can tell!)
@@ -1466,7 +1505,7 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
     //int actions = (parserWorklist.length() + pendingShifts.length()) -
     //                parsersBefore;
 
-    if (actions == 0) {                                        
+    if (actions == 0) {
       // I contemplated printing a trace, see stackTraceString() above..
       TRSPARSE("parser in state " << parser->state << " died");
       lastToDie = parser->state;          // for reporting the error later if necessary
@@ -1499,6 +1538,14 @@ bool GLR::nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts)
                " split into " << actions << " parsers");
     }
   }
+
+  #if YTM_FIX
+    // we might have gotten here because the number of delayed
+    // states is greater than 1
+    if (parserWorklist.delayed.length() > 1) {
+      ytmReductionAlgorithm(pendingShifts);
+    }
+  #endif
 
   // process all pending shifts
   glrShiftTerminals(pendingShifts);
@@ -1777,7 +1824,7 @@ int GLR::glrParseAction(StackNode *parser, ActionEntry action,
 // look at reductions, and those reductions have to use 'sibLink';
 // I don't fold this into the code above because above is in the
 // critical path whereas this typically won't be
-void GLR::doAllPossibleReductions(StackNode *parser, ActionEntry action,
+void GLR::doLimitedReductions(StackNode *parser, ActionEntry action,
                                   SiblingLink *sibLink)
 {
   parser->checkLocalInvariants();
@@ -1799,7 +1846,7 @@ void GLR::doAllPossibleReductions(StackNode *parser, ActionEntry action,
     int ambigId = tables->decodeAmbigAction(action);
     ActionEntry *entry = tables->ambigAction[ambigId];
     for (int i=0; i<entry[0]; i++) {
-      doAllPossibleReductions(parser, entry[i+1], sibLink);
+      doLimitedReductions(parser, entry[i+1], sibLink);
     }
   }
 }
@@ -2127,7 +2174,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
       // do any reduce actions that are now enabled
       ActionEntry action =
         tables->actionEntry(parser->state, lexerPtr->type);
-      doAllPossibleReductions(parser, action, sibLink);
+      doLimitedReductions(parser, action, sibLink);
     }
   }
 
@@ -2341,11 +2388,59 @@ SemanticValue GLR::getParseResult()
 #endif // 0
 
 
+// ----------------- yield-then-merge (YTM) fix stuff -----------------
+#if YTM_FIX
+// This algorithm is an attempt to avoid the problem where a semantic
+// value is yielded to a reduction action, but then merged with
+// another semantic value, such that the original one yielded is now
+// stale.  It's described in more detail in our PLDI03 submission.
+
+// precondition: 'parserWorklist' contains more than one delayed
+// state, and no eager states.
+//
+// This function will compute all of the reduction paths for the
+// delayed states, ordered first by the number of terminals spanned
+// and second by the nonterminal derivability relation on the
+// nonterminal to which the path reduces (if A ->+ B then we will
+// reduce to B before reducing to A, if terminal spans are equal).
+void GLR::ytmReductionAlgorithm(ArrayStack<PendingShift> &pendingShifts)
+{
+  while (parserWorklist.delayed.isNotEmpty()) {
+    RCPtr<StackNode> parser(parserWorklist.pop());     // dequeue
+    parser->decRefCt();       // no longer on worklist
+
+    // process this parser
+    ActionEntry action =      // consult the 'action' table
+      tables->actionEntry(parser->state, lexerPtr->type);
+    int actions = ytmParseAction(parser, action, pendingShifts);
+
+    // ---- BEGIN: copied from nondeterministicParseToken ----
+    if (actions == 0) {
+      TRSPARSE("parser in state " << parser->state << " died");
+      lastToDie = parser->state;          // for reporting the error later if necessary
+
+      xassertdb(parser->referenceCount == 2);
+      pullFromActiveParsers(parser);
+    }
+    else if (actions > 1) {
+      TRSPARSE("parser in state " << parser->state <<
+               " split into " << actions << " parsers");
+    }
+    // ---- END: copied from nondeterministicParseToken ----
+  }
+
+
+  MORE NEEDED
+}
+#endif // YTM_FIX
+
+
+
 // ------------------ stuff for outputting raw graphs ------------------
 #if 0   // disabled for now
 // name for graphs (can't have any spaces in the name)
 string stackNodeName(StackNode const *sn)
-{     
+{
   Symbol const *s = sn->getSymbolC();
   char const *symName = (s? s->name.pcharc() : "(null)");
   return stringb(sn->stackNodeId

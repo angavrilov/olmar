@@ -293,10 +293,14 @@ public:    // types
   };
 
 public:	   // data
-  // ---- stuff that changes ----
+  // ---- stuff constant across a series of DFSs ----
   // id of the state we started in (where the reduction was applied)
   StateId startStateId;
 
+  // this is the (index of the) production we're trying to reduce by
+  int prodIndex;
+
+  // ---- stuff that changes ----
   // we collect paths into this array, which is maintained as we
   // enter/leave recursion; the 0th item is the leftmost, i.e.
   // the last one we collect when starting from the reduction state
@@ -309,10 +313,6 @@ public:	   // data
 
   // as reduction possibilities are encountered, we record them here
   ArrayStack<ReductionPath> paths;
-
-  // ---- stuff constant across a series of DFSs ----
-  // this is the (index of the) production we're trying to reduce by
-  int prodIndex;
 
 public:	   // funcs
   PathCollectionState();
@@ -346,13 +346,12 @@ public:
   void empty() { eager.empty(); delayed.empty(); }
 
   // test if both lists are empty
-  bool isEmpty() const { return eager.isEmpty() && delayed.isEmpty(); }
+  bool isEmpty() const;
   bool isNotEmpty() const { return !isEmpty(); }
 
   // remove a node from one of the lists (eager is preferred);
   // 'isEmpty()' must be false to do this
-  StackNode *pop()
-    { return eager.isNotEmpty()? eager.pop() : delayed.pop(); }
+  StackNode *pop();
 
   // sum of the lengths
   int length() const { return eager.length() + delayed.length(); }
@@ -449,8 +448,8 @@ private:    // funcs
 
   int glrParseAction(StackNode *parser, ActionEntry action,
                      ArrayStack<PendingShift> &pendingShifts);
-  void doAllPossibleReductions(StackNode *parser, ActionEntry action,
-                               SiblingLink *sibLink);
+  void doLimitedReductions(StackNode *parser, ActionEntry action,
+                           SiblingLink *sibLink);
   void doReduction(StackNode *parser,
                    SiblingLink *mustUseLink,
                    int prodIndex);
