@@ -601,7 +601,7 @@ if $use_gnu; then
   testparse gnu/t0132.cc
 
   testparse gnu/d0076.cc
-  failparse gnu/d0078.cc "anonymous unions not handled right somehow"
+  testparse gnu/d0078.cc
 
   # test c99 extensions
   for fn in in/c99/*.c; do

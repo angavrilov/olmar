@@ -758,6 +758,15 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
 
 void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
 {
+  if (tc.context == DC_E_COMPOUNDLIT
+      && spec->isTS_classSpec()
+      // dsw: I really only need this for unions, but I think I'll do
+      // the more general thing just for simplicity
+//        && spec->asTS_classSpec()->keyword == TI_UNION
+      && !spec->asTS_classSpec()->name) {
+    spec->asTS_classSpec()->name = new PQ_name(env.loc(), env.anonE_compoundLitName);
+  }
+
   // check type specifier
   Type *specType = spec->tcheck(env, DF_NONE);
 
