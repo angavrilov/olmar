@@ -10,11 +10,12 @@ terminals {
   include("cc.tok")
 }
 
-          
+
 // declarations for semantic functions
-prologue {                            
+prologue {
   #include "cc_env.h"    // Env
   #include "cc_tree.h"   // CCTreeNode
+  #include "cc_cfg.h"    // CFG, etc.
 }
 treeNodeBase "CCTreeNode";
 
@@ -578,20 +579,55 @@ nonterm ConstantExpression : ExprBase -> e:ConditionalExpression {
 }
 
 // ------ A.5 Statements ------
+nonterm HasCFG {
+  // add this node to 'cfg'; 'edge' is the edge to split to insert
+  // the CFG nodes; returns the edge that leaves the region
+  fundecl CFGEdge *getCFG(CFG &cfg, CFGEdge *edge);
+  fun getCFG = edge;
+}
+
+
 // labeled-statement
-nonterm Statement : Checkable, HasVarsDecld {
+nonterm Statement : Checkable, HasVarsDecld, HasCFG {
   disamb typeCheck {
     // try the general mechanism...
     disambiguate(env, (DisambFn)&unamb_typeCheck);
   }
 
   fun typeCheck { s.typeCheck(env); }
+  fun getCFG = s.getCFG(cfg, edge);
 
-  -> LabelName ":" s:Statement ;
-  -> "case" e:ConstantExpression ":" //s:Statement
-    { fun varsDecld { e.varsDecld(env); } 
-      fun typeCheck {} }
-  -> "default" ":" s:Statement ;
+  fundecl bool isWhileLoop() const;
+  fun isWhileLoop = false;
+
+  -> n:LabelName ":" s:Statement {
+    fun getCFG {
+      // associate the label with the edge 'edge'
+      cfg.addLabel(n.getName(), edge);
+
+      // insert statement's CFG
+      return s.getCFG(cfg, edge);
+    }
+  }
+
+  // had to remove the statement because I found linux kernel
+  // code that has "case:" immediately followed by "}"
+  -> "case" e:ConstantExpression ":" /*s:Statement*/ {
+    fun varsDecld { e.varsDecld(env); }
+    fun typeCheck {}
+    fun getCFG {
+      // just associate the expression with the edge, and return
+      cfg.addCaseLabel(&e, edge);
+      return edge;
+    }
+  }
+
+  -> "default" ":" s:Statement {
+    fun getCFG {
+      cfg.addDefaultLabel(edge);
+      return s.getCFG(cfg, edge);
+    }
+  }
 
   // expression-statement
   -> s:ExpressionStatement ;
@@ -603,14 +639,113 @@ nonterm Statement : Checkable, HasVarsDecld {
     fun varsDecld { e.varsDecld(env); }
 
     // selection-statement
-    -> "if" "(" e:Condition ")" s:Statement ;
-    -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement      // preferred earlier when ambiguous
-      { fun typeCheck { s1.typeCheck(env); s2.typeCheck(env); } }
-    -> "switch" "(" e:Condition ")" s:Statement ;
+    -> "if" "(" e:Condition ")" s:Statement {
+      fun getCFG {
+        // splice a conditional node into 'edge', initially
+        // with both targets pointing to a null block that
+        // itself points where 'edge' did
+        CFGNullNode *join = cfg.makeNullNode(edge->getTarget());
+        CFGIfNode *cond = cfg.makeIfNode(&e, join, join);
+        edge->setTarget(cond);
+
+        // now insert s's CFG into the "then" branch
+        s.getCFG(cfg, cond->getThenEdge());
+
+        return join->getOutgoingEdge();
+      }
+    }
+
+    // if-then-else preferred over if-then when ambiguous
+    // (so far unimplemented!)
+    -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement {
+      fun typeCheck {
+        s1.typeCheck(env);
+        s2.typeCheck(env);
+      }
+
+      fun getCFG {
+        // make the conditional structure
+        CFGNullNode *join = cfg.makeNullNode(edge->getTarget());
+        CFGIfNode *cond = cfg.makeIfNode(&e, join, join);
+        edge->setTarget(cond);
+
+        // insert then and else branches
+        s1.getCFG(cfg, cond->getThenEdge());
+        s2.getCFG(cfg, cond->getElseEdge());
+
+        return join->getOutgoingEdge();
+      }
+    }
+
+    -> "switch" "(" e:Condition ")" s:Statement {
+      fun getCFG {
+        // make a switch node where a 'break' statement will go to a
+        // null node, which itself points to edge's target, and splice
+        // that in
+        CFGNullNode *join = cfg.makeNullNode(edge->getTarget());
+        CFGSwitchNode *sw = cfg.makeSwitchNode(&e, join);
+        edge->setTarget(sw);
+
+        // indicate that this is the current switch node
+        cfg.pushSwitch(sw);
+
+        // let the statement, which has the "case:" labels,
+        // add their own stuff
+        s.getCFG(cfg, NULL /*?*/);
+
+        // restore old switch context, if any
+        cfg.popSwitch();
+
+        return join->getOutgoingEdge();
+      }
+    }
 
     // iteration-statement
-    -> "while" "(" e:Condition ")" s:Statement ;
-    -> "do" s:Statement "while" "(" e:Expression ")" ";" ;
+    formGroup {
+      fun getCFG {
+        // build an empty looping structure, essentially:
+        //   cond:        if (e) {
+        //   bodyStart:     /* empty */
+        //                  /* insert body here */
+        //   bodyEnd:       goto cond;     /* target of 'continue' */
+        //                }
+        //   loopExit:    /* target of 'break' */
+        CFGNullNode *loopExit = cfg.makeNullNode(edge->getTarget());
+        CFGNullNode *bodyEnd = cfg.makeNullNode(NULL);
+        CFGNullNode *bodyStart = cfg.makeNullNode(bodyEnd);
+        CFGIfNode *cond = cfg.makeIfNode(&e, bodyStart, loopExit);
+        bodyEnd->setTarget(cond);
+
+        // difference between while and do-while
+        if (isWhileLoop()) {
+          edge->setTarget(cond);
+        }
+        else {    // do-while
+          edge->setTarget(bodyStart);
+        }
+
+        // mark the exit targets
+        cfg.pushContinue(bodyEnd);
+        cfg.pushBreak(loopExit);
+
+        // build loop body
+        s.getCFG(cfg, bodyStart->getOutgoingEdge());
+
+        // restore loop context
+        cfg.popContinue();
+        cfg.popBreak();
+
+        return loopExit->getOutgoingEdge();
+      }
+
+      -> "while" "(" e:Condition ")" s:Statement {
+        fun isWhileLoop = true;
+      }
+
+      -> "do" s:Statement "while" "(" e:Expression ")" ";" {
+        fun isWhileLoop = false;
+      }
+    }
 
     // this is a special-purpose rule intended for use with (unexpanded)
     // macros that, internally, contain a for loop; it is *not* part of
@@ -624,18 +759,88 @@ nonterm Statement : Checkable, HasVarsDecld {
   -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement {
     fun typeCheck { s1.typeCheck(env); c.typeCheck(env); s2.typeCheck(env); }
     fun varsDecld { c.varsDecld(env); e.varsDecld(env); }
+
+    fun getCFG {
+      // stick in the init code
+      edge = s1.getCFG(cfg, edge);
+
+      // build an empty looping structure, essentially:
+      //   cond:        if (e) {
+      //   bodyStart:     /* empty */
+      //                  /* insert body here */
+      //   bodyEnd:       goto cond;     /* target of 'continue' */
+      //                }
+      //   loopExit:    /* target of 'break' */
+      CFGNullNode *loopExit = cfg.makeNullNode(edge->getTarget());
+      CFGNullNode *bodyEnd = cfg.makeNullNode(NULL);
+      CFGNullNode *bodyStart = cfg.makeNullNode(bodyEnd);
+      CFGIfNode *cond = cfg.makeIfNode(c.getGuardExpr(), bodyStart, loopExit);
+      bodyEnd->setTarget(cond);
+      edge->setTarget(cond);
+
+      // mark the exit targets
+      cfg.pushContinue(bodyEnd);
+      cfg.pushBreak(loopExit);
+
+      // build loop body
+      s2.getCFG(cfg, bodyStart->getOutgoingEdge());
+
+      // stick in the increment code
+      // TODO
+      //e2.getCFG(cfg, bodyEnd->getOutgoingEdge());
+
+      // restore loop context
+      cfg.popContinue();
+      cfg.popBreak();
+
+      return loopExit->getOutgoingEdge();
+    }
   }
 
   // jump-statement
   formGroup {
     fun typeCheck {}
 
-    -> "break" ";" ;
-    -> "continue" ";" ;
-    -> "return" e:Expression ";"
-      { fun varsDecld { e.varsDecld(env); } }
-    -> "return" ";" ;
-    -> "goto" LabelName ";" ;
+    -> "break" ";" {
+      fun getCFG {
+        edge->setTarget(cfg.getBreakTarget());
+        return edge;
+      }
+    }
+
+    -> "continue" ";" {
+      fun getCFG {
+        edge->setTarget(cfg.getContinueTarget());
+        return edge;
+      }
+    }
+
+    -> "return" e:Expression ";" {
+      fun varsDecld { e.varsDecld(env); }
+
+      fun getCFG {
+        CFGReturnNode *node = cfg.makeReturnNode(&e,
+          cfg.getReturnTarget());
+        edge->setTarget(node);
+        return edge;
+      }
+    }
+
+    -> "return" ";" {
+      fun getCFG {
+        CFGReturnNode *node = cfg.makeReturnNode(NULL,
+          cfg.getReturnTarget());
+        edge->setTarget(node);
+        return edge;
+      }
+    }
+
+    -> "goto" n:LabelName ";" {
+      fun getCFG {
+        edge->setTarget(cfg.getLabelTarget(n.getName()));
+        return edge;
+      }
+    }
   }
 
   // declaration-statement
@@ -643,25 +848,38 @@ nonterm Statement : Checkable, HasVarsDecld {
 
   // try-block
   -> s:TryBlock ;
-  
+
   // GNU extensions
-  -> GNUAsmStatement    { fun typeCheck {} }
-}
-
-nonterm ExpressionStatement : Checkable {
-  -> ";" ;
-  -> e:Expression ";"
-    { fun typeCheck { e.varsDecld(env); } }
-}
-
-nonterm CompoundStatement : Checkable -> "{" seq:StatementSeqOpt "}" {
-  fun typeCheck {
-    Env newEnv(&env);       // scope
-    seq.typeCheck(newEnv);
+  -> GNUAsmStatement {
+    fun typeCheck {}
+    fun getCFG = edge;
   }
 }
 
-nonterm StatementSeqOpt : Checkable {
+nonterm ExpressionStatement : Checkable, HasCFG {
+  -> ";" ;
+  -> e:Expression ";" { 
+    fun typeCheck { e.varsDecld(env); }
+    
+    fun getCFG {
+      CFGExprNode *node = cfg.makeExprNode(&e);
+      return cfg.insertNode(node, edge);
+    }
+  }
+}
+
+nonterm CompoundStatement : Checkable, HasCFG {
+  -> "{" seq:StatementSeqOpt "}" {
+    fun typeCheck {
+      Env newEnv(&env);       // scope
+      seq.typeCheck(newEnv);
+    }
+
+    fun getCFG = seq.getCFG(cfg, edge);
+  }
+}
+
+nonterm StatementSeqOpt : Checkable, HasCFG {
   -> empty ;
   -> seq:StatementSeqOpt s:Statement {
     fun typeCheck {
@@ -675,6 +893,10 @@ nonterm StatementSeqOpt : Checkable {
       env.flushLocalErrors(cout);
 
       s.typeCheck(env);
+    }
+
+    fun getCFG {
+      return s.getCFG(cfg, seq.getCFG(cfg, edge));
     }
   }
 }
@@ -692,6 +914,9 @@ nonterm Condition : Checkable, HasVarsDecld {
 }
 
 nonterm ConditionOpt : Checkable, HasVarsDecld {
+  fundecl CCTreeNode *getGuardExpr();
+  fun getGuardExpr = NULL;
+
   -> empty ;
   -> c:Condition {
     fun typeCheck { c.typeCheck(env); }
@@ -699,8 +924,11 @@ nonterm ConditionOpt : Checkable, HasVarsDecld {
   }
 }
 
-nonterm ForInitStatement : Checkable -> s:ExpressionStatement | s:SimpleDeclaration
-  { fun typeCheck { s.typeCheck(env); } }
+nonterm ForInitStatement : Checkable, HasCFG {
+  -> s:ExpressionStatement | s:SimpleDeclaration {
+     fun typeCheck { s.typeCheck(env); } 
+  }
+}
 
 
 
@@ -728,8 +956,11 @@ nonterm Declaration : Checkable {
 }
 
 // C++ has other alternatives..
-nonterm BlockDeclaration : Checkable -> d:SimpleDeclaration
-  { fun typeCheck { d.typeCheck(env); } }
+nonterm BlockDeclaration : Checkable, HasCFG {
+  -> d:SimpleDeclaration { 
+    fun typeCheck { d.typeCheck(env); }
+  }
+}
 
 // is the DeclSpecifierSeq optional for implicit-int??
 //   no, it's for constructors, destructors, and conversion operators,
@@ -1709,7 +1940,8 @@ nonterm TemplateArgument -> Literal | TypeId ;
 
 
 // ------ A.13 Exception handling ------
-nonterm TryBlock : Checkable -> "try" s:CompoundStatement h:HandlerSeq {
+nonterm TryBlock : Checkable, HasCFG 
+  -> "try" s:CompoundStatement h:HandlerSeq {
   fun typeCheck {
     s.typeCheck(env);
     h.typeCheck(env);
