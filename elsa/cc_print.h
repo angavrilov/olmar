@@ -26,43 +26,14 @@ class code_output_stream {
   int buffered_newlines;
 
 public:
-  code_output_stream(ostream &out)
-    : out(&out), sb(NULL), using_sb(false), depth(0), buffered_newlines(0) {}
-  code_output_stream(stringBuilder &sb)
-    : out(NULL), sb(&sb), using_sb(true), depth(0), buffered_newlines(0) {
-  }
-  ~code_output_stream() {
-    if (buffered_newlines) {
-      cout << "**************** ERROR.  "
-           << "You called my destructor before making sure all the buffered newlines\n"
-           << "were flushed (by, say, calling finish())\n";
-    }
-  }
+  code_output_stream(ostream &out);
+  code_output_stream(stringBuilder &sb);
+  ~code_output_stream();
 
-  void finish() {
-    // NOTE: it is probably an error if depth is ever > 0 at this point.
-//      printf("BUFFERED NEWLINES: %d\n", buffered_newlines);
-    stringBuilder s;
-    for(;buffered_newlines>1;buffered_newlines--) s << "\n";
-    raw_print_and_indent(indent_message(depth,s));
-    xassert(buffered_newlines == 1 || buffered_newlines == 0);
-    if (buffered_newlines) {
-      buffered_newlines--;
-      raw_print_and_indent(string("\n")); // don't indent after last one
-    }
-  }
-
-  void up() {
-//      printf("UP %d\n", depth);
-    depth--;
-  }
-  void down() {
-    depth++;
-//      printf("DOWN %d\n", depth);
-  }
-  void flush() {
-    if (!using_sb) out->flush();
-  }
+  void finish();
+  void up();
+  void down();
+  void flush();
 
   #define MAKE_INSERTER(type)                          \
     code_output_stream & operator << (type message) {  \
@@ -81,66 +52,13 @@ public:
 
   #undef MAKE_INSERTER
 
-  void raw_print_and_indent(string s) {
-    if (using_sb) *sb << s;
-    else *out << s;
-    flush();
-  }
+  void raw_print_and_indent(string s);
 
-  code_output_stream & operator << (char const *message) {
-    int len = strlen(message);
-    if (len<1) return *this;
-    string message1 = message;
-
-    int pending_buffered_newlines = 0;
-    if (message1[len-1] == '\n') {
-      message1[len-1] = '\0';    // whack it
-      pending_buffered_newlines++;
-    }
-
-    stringBuilder message2;
-    if (buffered_newlines) {
-      message2 << "\n";
-      buffered_newlines--;
-    }
-    message2 << message1;
-    buffered_newlines += pending_buffered_newlines;
-
-    raw_print_and_indent(indent_message(depth, message2));
-    return *this;
-  }
-
-  code_output_stream & operator << (ostream& (*manipfunc)(ostream& outs)) {
-    if (using_sb) {
-      // sm: just assume it's "endl"; the only better thing I could
-      // imagine doing is pointer comparisons with some other
-      // well-known omanips, since we certainly can't execute it...
-      if (buffered_newlines) {
-        *sb << "\n";
-        *sb << make_indentation(depth);
-      } else buffered_newlines++;
-    }
-    else {
-      // dsw: just assume its endl
-//        *out << manipfunc;
-      if (buffered_newlines) {
-        *out << endl;
-        *out << make_indentation(depth);
-      } else buffered_newlines++;
-      out->flush();
-    }
-    return *this;
-  }
-
-  code_output_stream & operator << (rostring message)
-    { return operator<< (message.c_str()); }
-
+  code_output_stream & operator << (char const *message);
+  code_output_stream & operator << (ostream& (*manipfunc)(ostream& outs));
+  code_output_stream & operator << (rostring message);
   // provide access to the built string
-  stringBuilder const &getString() const
-  {
-    xassert(using_sb);
-    return *sb;
-  }
+  stringBuilder const &getString() const;
 };
 
 // allow a block to have the equivalent of a finally block; the
@@ -149,26 +67,9 @@ class codeout {
   char const *close;
   code_output_stream &out;
   public:
-  codeout(code_output_stream &out,
-          rostring message, rostring open, char const *close = "")
-    : close(close), out(out)
-  {
-    out << message;
-    out << " ";
-    out << open;
-    if (strchr(toCStr(open), '{')) out.down();
-  }
-  codeout(code_output_stream &out,
-          rostring message)
-    : close(""), out(out)
-  {
-    out << message;
-    out << " ";
-  }
-  ~codeout() {
-    if (strchr(close, '}')) out.up();
-    out << close;
-  }
+  codeout(code_output_stream &out, rostring message, rostring open, char const *close = "");
+  codeout(code_output_stream &out, rostring message);
+  ~codeout();
 };
 
 class twalk_output_stream {
@@ -242,6 +143,10 @@ public:
   PrintEnv(ostream &out) : code_output_stream(out) {}
   PrintEnv(stringBuilder &sb) : code_output_stream(sb) {}
 };
+
+// for printing types
+//  class TypePrinter {
+//  };
 
 #define PRINT_AST(AST)               \
   do {                               \

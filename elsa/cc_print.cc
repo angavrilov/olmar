@@ -30,6 +30,139 @@ string toString(class dummy_type*) {return "";}
 // sm: folded this into the PrintEnv
 //SourceLocation current_loc;
 
+// **** class code_output_stream
+
+code_output_stream::code_output_stream(ostream &out)
+  : out(&out), sb(NULL), using_sb(false), depth(0), buffered_newlines(0)
+{}
+
+code_output_stream::code_output_stream(stringBuilder &sb)
+  : out(NULL), sb(&sb), using_sb(true), depth(0), buffered_newlines(0)
+{}
+
+code_output_stream::~code_output_stream()
+{
+  if (buffered_newlines) {
+    cout << "**************** ERROR.  "
+         << "You called my destructor before making sure all the buffered newlines\n"
+         << "were flushed (by, say, calling finish())\n";
+  }
+}
+
+void code_output_stream::finish()
+{
+  // NOTE: it is probably an error if depth is ever > 0 at this point.
+  //      printf("BUFFERED NEWLINES: %d\n", buffered_newlines);
+  stringBuilder s;
+  for(;buffered_newlines>1;buffered_newlines--) s << "\n";
+  raw_print_and_indent(indent_message(depth,s));
+  xassert(buffered_newlines == 1 || buffered_newlines == 0);
+  if (buffered_newlines) {
+    buffered_newlines--;
+    raw_print_and_indent(string("\n")); // don't indent after last one
+  }
+}
+
+void code_output_stream::up()   {depth--;}
+void code_output_stream::down() {depth++;}
+
+void code_output_stream::flush()
+{
+  if (!using_sb) out->flush();
+}
+
+void code_output_stream::raw_print_and_indent(string s)
+{
+  if (using_sb) *sb << s;
+  else *out << s;
+  flush();
+}
+
+code_output_stream & code_output_stream::operator << (char const *message)
+{
+  int len = strlen(message);
+  if (len<1) return *this;
+  string message1 = message;
+
+  int pending_buffered_newlines = 0;
+  if (message1[len-1] == '\n') {
+    message1[len-1] = '\0';    // whack it
+    pending_buffered_newlines++;
+  }
+
+  stringBuilder message2;
+  if (buffered_newlines) {
+    message2 << "\n";
+    buffered_newlines--;
+  }
+  message2 << message1;
+  buffered_newlines += pending_buffered_newlines;
+
+  raw_print_and_indent(indent_message(depth, message2));
+  return *this;
+}
+
+code_output_stream & code_output_stream::operator << (ostream& (*manipfunc)(ostream& outs))
+{
+  if (using_sb) {
+    // sm: just assume it's "endl"; the only better thing I could
+    // imagine doing is pointer comparisons with some other
+    // well-known omanips, since we certainly can't execute it...
+    if (buffered_newlines) {
+      *sb << "\n";
+      *sb << make_indentation(depth);
+    } else buffered_newlines++;
+  }
+  else {
+    // dsw: just assume its endl
+    //        *out << manipfunc;
+    if (buffered_newlines) {
+      *out << endl;
+      *out << make_indentation(depth);
+    } else buffered_newlines++;
+    out->flush();
+  }
+  return *this;
+}
+
+code_output_stream & code_output_stream::operator << (rostring message)
+{
+  return operator<< (message.c_str());
+}
+
+// provide access to the built string
+stringBuilder const &code_output_stream::getString() const
+{
+  xassert(using_sb);
+  return *sb;
+}
+
+// **** class codeout
+
+codeout::codeout
+  (code_output_stream &out, rostring message, rostring open, char const *close)
+  : close(close), out(out)
+{
+  out << message;
+  out << " ";
+  out << open;
+  if (strchr(toCStr(open), '{')) out.down();
+}
+
+codeout::codeout(code_output_stream &out, rostring message)
+  : close(""), out(out)
+{
+  out << message;
+  out << " ";
+}
+
+codeout::~codeout() {
+  if (strchr(close, '}')) out.up();
+  out << close;
+}
+
+// ****************
+
 string make_indentation(int n) {
   stringBuilder s;
   for (int i=0; i<n; ++i) s << "  ";
