@@ -1065,6 +1065,7 @@ testCparse c/d0124b.c
 failCparse c/k0001.c "typedef int fooint; typedef fooint long;"
 failCparse c/k0002.c "attempt to create an object of incomplete class `S'"
 testCparse c/k0003.c "old-style function decl with parentheses around func name"
+failCparse c/k0003a.c "old-style function decl with parentheses around func name, returning a struct-typedef"
 failCparse c/k0004.c "merge nonterm MemberDeclaration"
 failCparse c/k0005.c "multiply defined enum `option'"
 failCparse c/k0011.c "ambiguous s->z < 1 || 2 > (3)"
