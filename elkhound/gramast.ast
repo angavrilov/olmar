@@ -2,37 +2,32 @@
 // grammar AST, in a new experimental format
 
 // the entire grammar spec
-class GrammarAST {
-  public ASTList<ToplevelForm> forms;
-  -> ();
-}
+class GrammarAST (ASTList<ToplevelForm> forms);
 
 // something at the top level
 class ToplevelForm {
   -> terminals(ASTList<TermDecl> terms);
   -> nonterminal(string name, ASTList<string> baseClasses, ASTList<NTBodyElt> elts);
-  -> LiteralCode;
+  -> TF_lit(LiteralCode *lit);
   -> treeNodeBase(string baseClassName);
 }
 
 // declaration of a single terminal, aka token
-class TermDecl {
-  -> (int code, string name, string alias);
-}
+class TermDecl (int code, string name, string alias);
 
 // something that appears in the body of a nonterminal declaration
 class NTBodyElt {
   -> attr(string name);
   -> decl(string declBody);
-  -> GroupElement;
-  -> LiteralCode;
+  -> elt(GroupElement *elt);
+  -> NT_lit(LiteralCode *lit);
 }
 
 // elements of nonterms or form groups
 class GroupElement {
   -> form(ASTList<RHSElt> rhs, ASTList<FormBodyElt> elts);    // aka production
   -> formGroup(ASTList<GroupElements> elts);
-  -> fbe(owner FormBodyElement *e);
+  -> fbe(FormBodyElement *e);
 }
 
 // things that can be directly associated with a form
@@ -50,7 +45,7 @@ class RHSElt {
   -> ntref(string tag, string ntname);      // nonterminal reference
   -> termref(string tag, string tokname);   // terminal reference
 }
-                   
+
 // some literal C++ code to be copied verbatim somewhere
 class LiteralCode {
   // code that gets associated with some existing semantic function
