@@ -141,11 +141,22 @@ void doit(int argc, char **argv)
     }
   }
 
+  
+  // test AST cloning
+  if (tracingSys("testClone")) {
+    cout << "------- cloned tree --------\n";
+    TranslationUnit *u2 = unit->clone();
+    u2->debugPrint(cout, 0);
+  }
+
 
   //malloc_stats();
 
   // delete the tree
-  delete unit;
+  // (currently this doesn't do very much because FakeLists are
+  // non-owning, so I won't pretend it does)
+  //delete unit;
+
   strTable.clear();
 
   //checkHeap();

@@ -1,6 +1,9 @@
 # Makefile.in            see license.txt for copyright and terms of use
 # source for Makefile for parser generator project
 
+temp: cc/ccparse cc/ccparset
+	@echo BUILD FINISHED
+
 all: cc/cc.gr.gen.h cc/cc.ast.gen.h cc/cc_tcheck.o cc/cc_env.o cc/cc_scope.o cc/cc_type.o \
      cc/c.ast.gen.h glr.o cc/cparse cc2/cc2.exe cc2/cc2t.exe cc/bccgr \
      cc/cc.ast.gen.h cc/ccparse cc/ccparset glrmain.o

@@ -141,6 +141,10 @@ class PQName {
   // get the PQName at the bottom of any qualifiers
   public PQName const *getUnqualifiedName() const;
 
+  // typecheck the template arguments buried in this PQName
+  pure_virtual void tcheck(Env &env);
+
+
   // outer qualifier applied to some inner PQName, plus an optional
   // list of template arguments to the qualifier
   -> PQ_qualifier(StringRef qualifier, FakeList<TemplateArgument> *targs,
@@ -711,6 +715,8 @@ class TemplateParameter (SourceLocation loc) {
 // one of the arguments to a template instantiation
 class TemplateArgument {
   public TemplateArgument *next;  ctor next=NULL;   // FakeList link
+
+  pure_virtual void tcheck(Env &env);
 
   // type argument, corresponds to a TP_type parameter
   -> TA_type(ASTTypeId type);

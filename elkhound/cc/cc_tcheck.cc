@@ -359,6 +359,9 @@ void Function::tcheck_memberInits(Env &env)
       continue;
     }
 
+    // resolve template arguments in 'name'
+    iter->name->tcheck(env);
+
     // look for the given name in the class
     Variable *v = enclosing->getNamedField(iter->name->getName(), env);
     if (v) {
@@ -465,11 +468,34 @@ Type const *ASTTypeId::getType() const
 }
 
 
-// PQName
+// ---------------------- PQName -------------------
+void PQ_qualifier::tcheck(Env &env)
+{
+  FAKELIST_FOREACH_NC(TemplateArgument, targs, iter) {
+    iter->tcheck(env);
+  }
+  rest->tcheck(env);
+}
+
+void PQ_name::tcheck(Env &env)
+{}
+
+void PQ_operator::tcheck(Env &env)
+{}
+
+void PQ_template::tcheck(Env &env)
+{
+  FAKELIST_FOREACH_NC(TemplateArgument, args, iter) {
+    iter->tcheck(env);
+  }
+}
+
 
 // --------------------- TypeSpecifier --------------
 Type const *TS_name::tcheck(Env &env)
 {
+  name->tcheck(env);
+
   Variable *var = env.lookupPQVariable(name);
   if (!var) {
     return env.error(stringc
@@ -595,6 +621,8 @@ Type const *TS_elaborated::tcheck(Env &env)
 {
   env.setLoc(loc);
 
+  name->tcheck(env);
+
   if (keyword == TI_ENUM) {
     EnumType const *et = env.lookupPQEnum(name);
     if (!et) {
@@ -713,6 +741,7 @@ Type const *TS_classSpec::tcheck(Env &env)
   // look at the base class specifications
   if (bases) {
     FAKELIST_FOREACH(BaseClassSpec, bases, iter) {
+      iter->name->tcheck(env);
       CompoundType *base = env.lookupPQCompound(iter->name);
       if (!base) {
         env.error(stringc
@@ -1318,6 +1347,9 @@ noPriorDeclaration:
 void D_name::tcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
+  if (name) {
+    name->tcheck(env);
+  }
 
   D_name_tcheck(env, dt, loc, name);
 }
@@ -1395,6 +1427,11 @@ void D_array::tcheck(Env &env, DeclaratorTcheck &dt)
 void D_bitfield::tcheck(Env &env, DeclaratorTcheck &dt)
 {
   env.setLoc(loc);
+
+  if (name) {         
+    // shouldn't be necessary, but won't hurt
+    name->tcheck(env);
+  }
 
   // check that the expression is a compile-time constant
   int n;
@@ -1854,6 +1891,7 @@ Type const *makeLvalType(Type const *underlying)
 
 Type const *E_variable::itcheck(Env &env)
 {
+  name->tcheck(env);
   var = env.lookupPQVariable(name);
   if (!var) {
     return env.error(stringc
@@ -1943,6 +1981,7 @@ Type const *E_constructor::itcheck(Env &env)
 Type const *E_fieldAcc::itcheck(Env &env)
 {
   obj = obj->tcheck(env);
+  fieldName->tcheck(env);   // shouldn't have template arguments, but won't hurt
   
   // get the type of 'obj', and make sure it's a compound
   Type const *rt = obj->type->asRval();
@@ -2415,6 +2454,7 @@ void TD_class::itcheck(Env &env)
 }
 
 
+// ------------------- TemplateParameter ------------------
 void TP_type::tcheck(Env &env, TemplateParams *tparams)
 {
   // std 14.1 is a little unclear about whether the type
@@ -2458,3 +2498,8 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
 }
 
 
+// -------------------- TemplateArgument ------------------
+void TA_type::tcheck(Env &env)
+{
+  type->tcheck(env);
+}
