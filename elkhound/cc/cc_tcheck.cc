@@ -413,6 +413,10 @@ void Function::tcheck(Env &env, bool checkBody)
   if (inTemplate) {
     env.setDisambiguateOnly(prevDO);
   }
+  
+  // this is a function definition; add a pointer from the
+  // associated Variable
+  nameAndParams->var->funcDefn = this;
 }
 
 

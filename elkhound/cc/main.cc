@@ -25,10 +25,6 @@
 #include "ccparse.h"      // ParseEnv
 
 
-// UGLY HACK
-// TODO: fix this by making a proper header during grammar analysis
-ParseEnv *globalParseEnv = NULL;
-
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
 
