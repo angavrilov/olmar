@@ -3630,17 +3630,7 @@ bool Env::ensureCompleteType(char const *action, Type *type)
 {
   if (type->isCompoundType()) {
     CompoundType *ct = type->asCompoundType();
-
-    // maybe it's a template we can instantiate?
-    if (!ct->isComplete() && ct->isInstantiation()) {
-      instantiateClassBody(ct->typedefVar);
-    }
-
-    if (!ct->isComplete()) {
-      error(stringc << "attempt to " << action << 
-                       " incomplete type `" << type->toString() << "'");
-      return false;
-    }
+    return ensureCompleteCompound(action, ct);
   }
 
   if (type->isArrayType() &&
@@ -3654,6 +3644,23 @@ bool Env::ensureCompleteType(char const *action, Type *type)
             " incomplete type `" << type->toString() << "'");
       return false;
     }
+  }
+
+  return true;
+}
+
+
+bool Env::ensureCompleteCompound(char const *action, CompoundType *ct)
+{
+  // maybe it's a template we can instantiate?
+  if (!ct->isComplete() && ct->isInstantiation()) {
+    instantiateClassBody(ct->typedefVar);
+  }
+
+  if (!ct->isComplete()) {
+    error(stringc << "attempt to " << action <<
+                     " incomplete class `" << ct->name << "'");
+    return false;
   }
 
   return true;
@@ -4075,6 +4082,13 @@ Scope *Env::lookupScope(Scope * /*nullable*/ scope, StringRef name,
     return dependentScope;
   }
   
+  // a scope used as a qualifier must be a complete type; I cannot
+  // find anyplace in the standard that explicitly requires this,
+  // though it seems to be clearly true (t0245.cc)
+  if (ret && ret->curCompound) {
+    env.ensureCompleteCompound("use as qualifier", ret->curCompound);
+  }
+
   return ret;
 }
 

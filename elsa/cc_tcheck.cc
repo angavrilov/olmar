@@ -975,6 +975,17 @@ void tcheckTemplateArgumentList(ASTList<TemplateArgument> &list, Env &env)
 
 void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
 {
+  if (lflags & LF_NO_DENOTED_SCOPE) {
+    // 2005-02-26: I am trying to transition away from relying on the
+    // scope lookup here, because it is wrong for some cases of
+    // E_fieldAcc.  So, my plan is to specify LF_NO_DENOTED_SCOPE
+    // before tchecking PQNames in contexts where I do not need the
+    // denotedScopeVar.
+    tcheckTemplateArgumentList(targs, env);
+    rest->tcheck(env, scope, lflags);
+    return;
+  }
+
   if (lflags & LF_DEPENDENT) {
     // the previous qualifier was dependent; do truncated processing here
     if (!templateUsed()) {
@@ -4685,7 +4696,7 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
 Type *E_variable::itcheck_var_set(Env &env, Expression *&replacement,
                                   LookupFlags flags, LookupSet &candidates)
 {
-  name->tcheck(env);
+  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   // re-use dependent?
   Variable *v = maybeReuseNondependent(env, name->loc, flags, nondependentVar);

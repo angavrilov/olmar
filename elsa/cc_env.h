@@ -682,6 +682,7 @@ public:      // funcs
   // (by template instantiation); if it cannot be, then emit an
   // error message (using 'action') and return false
   bool ensureCompleteType(char const *action, Type *type);
+  bool ensureCompleteCompound(char const *action, CompoundType *ct);
 
   // support for cppstd 13.4; see implementations for more details
   Variable *getOverloadedFunctionVar(Expression *e);

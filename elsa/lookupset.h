@@ -33,8 +33,9 @@ enum LookupFlags {
   LF_NO_IMPL_THIS      = 0x00010000,   // do not insert implicit 'this->'
   LF_LOOKUP_SET        = 0x00020000,   // lookup can return a set of names
   LF_QUERY_TAGS        = 0x00040000,   // look in Scope::typeTags instead of Scope::variables
+  LF_NO_DENOTED_SCOPE  = 0x00080000,   // temporary: disable denoted-scope computation in PQ_qualifier::tcheck
 
-  LF_ALL_FLAGS         = 0x0007FFFF,   // bitwise OR of all flags
+  LF_ALL_FLAGS         = 0x000FFFFF,   // bitwise OR of all flags
 };
 
 ENUM_BITWISE_OPS(LookupFlags, LF_ALL_FLAGS)     // smbase/macros.h
