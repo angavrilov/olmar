@@ -9,7 +9,7 @@
 
 
 // defined in cc_tcheck.cc
-bool noDisambErrors(ObjList<ErrorMsg> const &list);
+bool noDisambErrors(ErrorList const &list);
 
 
 // when I print a message saying how an ambiguity was resolved,
