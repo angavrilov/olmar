@@ -29,10 +29,8 @@ literalCode "prologue" {
   // for a construct
   inline CilExpr *noCilValue() { return NULL; }
 
-  void annoyingBreaker()
-  {
-    breaker();
-  }
+  //void annoyingBreaker()
+  //  { breaker(); }
 
   // stuff related to exporting data to ocaml
   #ifdef WES_OCAML_LINKAGE
@@ -309,7 +307,7 @@ nonterm HasType {
 
   // by default, and on error cases:
   fun getType {
-    annoyingBreaker();
+    //annoyingBreaker();
     throwError("I don't know this kind of expression's type");
   }
 }
