@@ -388,6 +388,8 @@ failTest "need overload resolution with templates" \
 
 
 # another set of tests, generally isolated by Daniel
+# FIX: broken
+#  d0021.cc                                    
 for fn in                                      \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
@@ -479,6 +481,7 @@ done
 #  done
 
 # FIX:
+# Minimized to d0021.cc
 #  Exception thrown: Assertion failed: shouldn't get here: top scope kind is SK_UNKNOWN, file cc_type.cc line 653
 #    in/big/nsMsgServiceProvider.i
 
