@@ -176,6 +176,9 @@ public:      // funcs
   // add facts about the variable and its value which are a
   // consequence of being declared to have 'value'
   void addDeclarationFacts(Variable const *var, AbsValue *value);
+                                               
+  // add default facts for an uninitialized variable
+  void initializeUninitVariable(Variable *var);
 
   // add an assumption to pathFacts which says that no memory location
   // currently points to 'v'; useful after an allocation, when 'v'

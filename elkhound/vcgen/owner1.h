@@ -26,7 +26,9 @@ struct OwnerPtrMeta {      // name is special
 //  int length(int *obj);
 thmprv_predicate int/*bool*/ freshObj(int *obj, int *mem);
 thmprv_predicate int okSelOffset(int mem, int offset);
+thmprv_predicate int okSel(int mem, int index);
 int *sub(int index, int *rest);
+int upd(int mem, int index, int value);
 
 #define VALID_INTPTR(ptr)        \
   (ptr != (int*)0 &&             \
@@ -43,9 +45,10 @@ int * owner allocFunc()
       // returns an owner pointer
       result.state == OWNING &&
       // to a new object
-      freshObj(address, pre_mem) &&
+      !okSel(pre_mem, address) &&
+      okSel(mem, address) &&
       // and does not modify anything reachable from pre_mem
-      pre_mem == mem
+      thmprv_exists(int initVal; mem == upd(pre_mem, address, initVal))
     )
   );
 

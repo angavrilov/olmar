@@ -16,6 +16,7 @@
 #include "strutil.h"      // plural
 #include "factflow.h"     // factFlow
 #include "cc_lang.h"      // CCLang
+#include "treeout.h"      // treeOut
 
 
 // globals that allow AEnv's to be created wherever ...
@@ -35,6 +36,11 @@ void doit(int argc, char **argv)
 {
   traceAddSys("progress");
   //traceAddSys("parse-tree");
+                                    
+  // this is useful for emacs' outline mode, because if the file
+  // doesn't begin with a heading, it collapses the starting messages
+  // and doesn't like to show them again
+  treeOut(1) << "beginning of output      -*- outline -*-\n";
 
   if_malloc_stats();
 
@@ -148,7 +154,7 @@ void doit(int argc, char **argv)
     traceProgress(2) << "done with vcgen\n";
 
     if (env.failedProofs != 0) {
-      cout << "there were " << env.failedProofs << " failed proofs\n";
+      treeOut(1) << "there were " << env.failedProofs << " failed proofs\n";
       exit(5);
     }
 

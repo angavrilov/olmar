@@ -76,7 +76,8 @@ bg_pop
 bg_push (
   (EQ (length (sel mem_35 addr_arr_14)) 10)
   (DISTINCT addr_arr_15 0)
-  (uncheckedAccess mem_36)
+  ;(uncheckedAccess mem_36)
+  (okSel mem_36 addr_arr_15)
   (EQ (length (sel mem_36 addr_arr_15)) 10)
   (EQ mem_37 (upd mem_36 addr_arr_15 arr_1))
   (EQ (length (sel mem_37 addr_arr_15)) 10)

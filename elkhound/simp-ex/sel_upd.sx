@@ -4,8 +4,9 @@
 
 ; ---------------------- selOffset ----------------
 bg_push (
-  (uncheckedAccess mem0)           ; memory itself is not bounds-checked
+  ;(uncheckedAccess mem0)           ; memory itself is not bounds-checked
   (EQ (length (sel mem0 a)) 10)    ; a[] has 10 elements
+  (okSel mem0 a)                   ; ok to access a[]
 
   (EQ (sel (sel mem0 a) 2) 9)      ; mem.a.2 == 9
   (EQ p0 (sub a (sub 2 whole)))    ; p0 == .a.2
@@ -184,6 +185,7 @@ bg_pop
 
 bg_push (
   (EQ (length obj) 10)                 ; array of 10 things
+  (okSel mem1 addr)
   (EQ mem2 (upd mem1 addr obj))        ; stored at address 'addr'
   (EQ ptr1 (sub addr (sub 3 whole)))   ; offset 3 within obj
 )
@@ -226,7 +228,8 @@ valid "take apart" (
 bg_push (
   ;(EQ (length (sel mem_33 addr_arr_2)) 10)
   (DISTINCT addr_arr_3 0)
-  (uncheckedAccess mem_34)
+  ;(uncheckedAccess mem_34)
+  (okSel mem_34 addr_arr_3)
   (EQ (length (sel mem_34 addr_arr_3)) 10)
   ;(EQ mem_35 (upd mem_34 addr_arr_3 arr_1))
 )
@@ -261,7 +264,8 @@ bg_pop
 bg_push (
   (EQ y_8 (sel mem_34 addr_y_7))
   (DISTINCT addr_y_8 0)
-  (uncheckedAccess mem_35)
+  ;(uncheckedAccess mem_35)
+  (okSel mem_35 addr_y_8)
   (EQ y_9 (sel mem_35 addr_y_8))
   (NEQ x_23 (sub addr_y_8 whole))
   (okSelOffset mem_35 x_23)
@@ -291,7 +295,8 @@ bg_pop
 ; ------------------- firstIndexOf example ---------------
 bg_push (
   (DISTINCT addr_y_8 0)
-  (uncheckedAccess mem_35)
+  ;(uncheckedAccess mem_35)
+  (okSel mem_35 addr_y_8)
   (EQ y_9 (sel mem_35 addr_y_8))
   (NEQ (firstIndexOf x_23) (firstIndexOf (sub addr_y_8 whole)))
   (okSelOffset mem_35 x_23)
@@ -308,7 +313,7 @@ valid "unchanged" (
 ; ------------------ okSelOffset after two updates --------------
 bg_push (
   (DISTINCT 0)
-  (uncheckedAccess mem_23)
+  ;(uncheckedAccess mem_23)
   (EQ ptr_4 (sub ptr_index_4 ptr_rest_4))
   (EQ x_10 (sub x_index_4 x_rest_4))
   (okSelOffset mem_23 ptr_4)
@@ -352,7 +357,7 @@ valid "still ok" (
 ; ---------------------- okSelOffset after array ops -----------------
 bg_push (
   (DISTINCT 0)
-  (uncheckedAccess mem_20)
+  ;(uncheckedAccess mem_20)
   (EQ a_7 (sub a_index_7 a_rest_7))
   (EQ a_rest_7 (sub 0 whole))     ; will this help?  no..
 ;   (FORALL (i_7 )
@@ -410,7 +415,8 @@ bg_pop
 ; ----------------- length>=5 example ------------
 bg_push (
   (DISTINCT 0)
-  (uncheckedAccess mem_20)
+  ;(uncheckedAccess mem_20)
+  (okSel mem_20 (firstIndexOf a_7))
   (EQ a_7 (sub a_index_7 a_rest_7))
 
   (>= (length (sel mem_20 (firstIndexOf a_7))) 5)

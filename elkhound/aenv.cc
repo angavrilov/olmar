@@ -10,6 +10,7 @@
 #include "exc.h"                // xBase
 #include "owner.h"              // Owner
 #include "cc_type.h"            // Type
+#include "treeout.h"            // treeOut
 
 #include <assert.h>             // assert
 
@@ -135,8 +136,8 @@ void AEnv::newPath()
 void AEnv::makeFreshMemory(char const *why)
 {
   set(mem, freshVariable("mem", why));
-  addFact(P_named1(str("uncheckedAccess"), getMem()),
-          "memory itself is unchecked");
+  //addFact(P_named1(str("uncheckedAccess"), getMem()),
+  //        "memory itself is unchecked");
 }
 
 
@@ -161,7 +162,7 @@ void AEnv::setLval(AVlval const *lval, AbsValue *value)
 }
 
 void AEnv::setLval(Variable const *var, AbsValue *offset, AbsValue *value)
-{          
+{
   AbsValue *updated = avUpdOffset(get(var), offset, value);
   if (var == mem) {
     setMem(updated);    // makes fresh memory variabes for each new state
@@ -175,6 +176,13 @@ void AEnv::setLval(Variable const *var, AbsValue *offset, AbsValue *value)
 bool AEnv::hasBinding(Variable const *var) const
 {
   return !!bindings.get(var);
+}
+
+                     
+// true if this variable is modeled as part of the 'mem' register
+bool modeledInMemory(Variable const *var)
+{
+  return var->hasAddrTaken() || var->type->isArrayType();
 }
 
 
@@ -245,7 +253,7 @@ AbsValue *AEnv::get(Variable const *var)
               << name );
   }
 
-  if (var->hasAddrTaken() || type->isArrayType()) {
+  if (modeledInMemory(var)) {      // address taken, or array
     // model this variable as a location in memory; make up a name
     // for its address
     AbsValue *addr = addMemVar(var);
@@ -296,7 +304,9 @@ AbsValue *AEnv::get(Variable const *var)
 }
 
 
-// facts which arise from a variable's type
+// facts which arise from a variable's type (in particular, things
+// we assert when a function parameter is seen, so we do *not*
+// include things like the initializer here)
 void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
 {
   StringRef name = var->name;
@@ -316,7 +326,7 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
     // Simplify would like to know that every pointer variable's value
     // is of the form (sub index rest)
     AbsValue *pointerVal = rval(value);
-    
+
     if (type->isOwnerPtr()) {
       // OWNER: this decomposition needs to be adjust to be in a field
       pointerVal = avSel(pointerVal, avOwnerField_ptr());
@@ -334,13 +344,13 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
     ArrayType const &at = type->asArrayTypeC();
     AbsValue *addr = get(var);      // need the object's address; 'value' isn't it
     AbsValue *object = avSel(getMem(), addr);
-    
+
     // length
     if (at.hasSize) {
       addFact(P_equal(avLength(object), avInt(at.size)),
               "known array length");
     }
-      
+
     if (at.eltType->isOwnerPtr()) {
       // OWNER: arrays of owners get initialized to the dead state
       trace("owner") << "initializing array of owners to dead\n";
@@ -358,6 +368,68 @@ void AEnv::addDeclarationFacts(Variable const *var, AbsValue *value)
               "initial dead state of array of owners");
     }
   }
+
+  if (modeledInMemory(var)) {
+    AbsValue *addr = get(var);      // get object's address
+    
+    // say that the object is ok to access
+    addFact(P_named2("okSel", getMem(), addr),
+            stringc << "ok to access " << var->name << " in memory");
+  }
+}
+
+
+// given a variable which does not have an initial value, add 
+// default facts to environment
+void AEnv::initializeUninitVariable(Variable *var)
+{
+  Type const *type = var->type;
+
+  // make up a new name for the uninitialized value
+  AbsValue *initVal = freshVariable(var->name,
+    stringc << "UNINITialized value of var " << var->name);
+
+  if (type->asRval()->isOwnerPtr()) {
+    // OWNER: uninitialized pointers are implicitly dead
+    trace("owner") << "initing state to dead for " << var->name << endl;
+    initVal = avUpd(initVal,                     // start object
+                    avOwnerField_state(),        // field to set
+                    avOwnerState_dead());        // field value
+  }
+
+  if (type->isArrayType()) {
+    ArrayType const &at = type->asArrayTypeC();
+    AbsValue *addr = get(var);      // need the object's address; 'value' isn't it
+    AbsValue *object = avSel(getMem(), addr);
+
+    // length
+    if (at.hasSize) {
+      addFact(P_equal(avLength(object), avInt(at.size)),
+              "known array length");
+    }
+
+    if (at.eltType->isOwnerPtr()) {
+      // OWNER: arrays of owners get initialized to the dead state
+      trace("owner") << "initializing array of owners to dead\n";
+
+      // thmprv_forall(int j; 0<=j && j<length(*addr) ==> addr[j].state==DEAD)
+      AVvar *j = freshVariable("j", "quantifier for array index");
+      addFact(P_forall(new ASTList<AVvar>(j),
+                       new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
+                                         new P_relation(j, RE_LESS, avLength(object))),
+                                  P_equal(avSel(avSel(object, j),
+                                                avOwnerField_state()),
+                                          avOwnerState_dead())
+                                 )
+                      ),
+              "initial dead state of array of owners");
+    }
+  }
+
+  // used to be "d->vcgen(var, initVal)" in S_decl::vcgen... seems to
+  // do the right things
+  updateVar(var, initVal);                // bind name to value
+  addDeclarationFacts(var, initVal);      // add yet more facts
 }
 
 
@@ -737,14 +809,18 @@ AEnv::ProofResult AEnv::prove(Predicate *_goal, char const *context, bool silent
     return PR_INCONSISTENT;
   }
 
-  traceProgress() << "      " << context << endl;
-
+  #if 0
   char const *proved =
-    tracingSys("predicates")? "------------ predicate proved ------------" : NULL;
+    tracingSys("predicates")? "---------- predicate proved ----------" : NULL;
   char const *notProved = "--- !!! ------- predicate NOT proved ------- !!! ---";
   char const *inconsisMsg =
     tracingSys("predicates") || tracingSys("inconsistent")?
       "---------- inconsistent assumptions ----------" : NULL;
+  #endif // 0
+
+  char const *proved = "**** proved";
+  char const *notProved = "**** NOT proved";
+  char const *inconsisMsg = "**** inconsistent assumptions";
 
   if (silent) {
     proved = notProved = inconsisMsg = NULL;

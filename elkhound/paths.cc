@@ -8,6 +8,7 @@
 #include "objlist.h"     // ObjList
 #include "cc_env.h"      // Env
 #include "trace.h"       // tracingSys
+#include "treeout.h"     // treeOut
 
 
 // one thing to note about constness: when an AST node contains a field
@@ -216,6 +217,11 @@ int numPathsThrough(Statement const *stmt)
 }
 
 
+// abstract the "4" slightly..
+//#define PATHOUT treeOut(4)
+// actually, I didn't want these as headings at all..
+#define PATHOUT cout << "  "
+
 // want 'path' to detect circularity (for debugging);
 // this function has similar structure to 'countPathsFrom', above
 void printPathFrom(SObjList<Statement /*const*/> &path, int index,
@@ -229,12 +235,12 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
     // that numPaths *already* includes the contribution from exprPaths
 
   // print this node
-  cout << "    " << node->loc.toString() << ": "
-       << node->kindName() << endl;
+  PATHOUT << node->loc.toString() << ": "
+          << node->kindName() << endl;
 
   // debugging check
   if (path.contains(node)) {
-    cout << "    CIRCULAR path\n";
+    PATHOUT << "CIRCULAR path\n";
     return;
   }
   path.prepend(const_cast<Statement*>(node));
@@ -250,7 +256,7 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
   if (successors.isEmpty()) {
     // this is a return statement (or otherwise end of function)
     xassert(index == 0);
-    cout << "    path ends at a return\n";
+    PATHOUT << "path ends at a return\n";
   }
   else {
     // consider each choice
@@ -265,9 +271,9 @@ void printPathFrom(SObjList<Statement /*const*/> &path, int index,
         // yes; is 's' an invariant?
         if (s->isS_invariant()) {
           // terminate the path; print final node
-          cout << "    " << s->loc.toString() << ": "
-               << s->kindName() << endl;
-          cout << "    path ends at an invariant\n";
+          PATHOUT << s->loc.toString() << ": "
+                  << s->kindName() << endl;
+          PATHOUT << "path ends at an invariant\n";
         }
         else {
           // continue the path
@@ -630,7 +636,7 @@ void printPath(int index, Expression const *ths)
 
   ASTSWITCHC(Expression, ths) {
     ASTCASEC(E_funCall, ths) {
-      cout << "    call to " << ths->func->toString() << endl;
+      PATHOUT << "call to " << ths->func->toString() << endl;
 
       // 'func'
       int subexpPaths = ths->func->numPaths1();
@@ -655,7 +661,7 @@ void printPath(int index, Expression const *ths)
       printPath(index, ths->expr);
     }
     ASTNEXTC(E_effect, ths) {
-      cout << "    side effect: " << ths->toString() << endl;
+      PATHOUT << "side effect: " << ths->toString() << endl;
       printPath(index, ths->expr);
     }
     ASTNEXTC(E_binary, ths) {
@@ -675,11 +681,11 @@ void printPath(int index, Expression const *ths)
         if (ths->op==BIN_AND || ths->op==BIN_OR) {
           // print RHS *if* it's followed
           if (index > 0) {
-            cout << "    traversing into rhs of " << toString(ths->op) << endl;
+            PATHOUT << "traversing into rhs of " << toString(ths->op) << endl;
             printPath(index-1, ths->e2);
           }
           else {
-            cout << "    short-circuiting rhs of " << toString(ths->op) << endl;
+            PATHOUT << "short-circuiting rhs of " << toString(ths->op) << endl;
           }
         }
 
@@ -713,11 +719,11 @@ void printPath(int index, Expression const *ths)
         int elsePaths = ths->el->numPaths1();
 
         if (index < thenPaths) {
-          cout << "    taking 'then' path through ?:\n";
+          PATHOUT << "taking 'then' path through ?:\n";
           printPath(index, ths->th);
         }
         else {
-          cout << "    taking 'else' path through ?:\n";
+          PATHOUT << "taking 'else' path through ?:\n";
           printPath(index - elsePaths, ths->el);
         }
       }
@@ -725,8 +731,8 @@ void printPath(int index, Expression const *ths)
     #if 0
     ASTNEXTC(E_gnuCond, ths) {
       // degenerate form of E_cond
-      cout << "    gnuCond unhandled for now: " << (void*)ths << "\n";
-    }    
+      PATHOUT << "gnuCond unhandled for now: " << (void*)ths << "\n";
+    }
     #endif // 0
     ASTNEXTC(E_comma, ths) {
       int modulus = ths->e1->numPaths1();
@@ -734,7 +740,7 @@ void printPath(int index, Expression const *ths)
       printPath(index / modulus, ths->e2);
     }
     ASTNEXTC(E_assign, ths) {
-      cout << "    side effect: " << ths->toString() << endl;
+      PATHOUT << "side effect: " << ths->toString() << endl;
       int modulus = ths->src->numPaths1();
       printPath(index % modulus, ths->src);
       printPath(index / modulus, ths->target);

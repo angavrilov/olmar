@@ -1,0 +1,37 @@
+// sexp.ast
+// lisp-like symbolic ("s-") expressions
+
+verbatim {
+  #include "str.h"       // string, stringBuilder
+}
+
+class Sexp {
+
+  // simple linear printing
+  public string toString() const;
+  pure_virtual void toStringBld(stringBuilder &sb) const;
+  pure_virtual int toStringLen() const;    // length of toString string
+
+  // pretty-print: the output stream begins with the
+  // proper indentation already printed, and should finish
+  // *without* a newline appended (ok to put newlines in the
+  // middle, with proper indentation)
+  pure_virtual void pprint(
+    int ind,              // current # of spaces from left edge
+    int &pendingParens,   // # of close-parens ready to print
+    stringBuilder &out,   // output stream
+    int pageWidth) const; // maximum # of chars per line
+
+
+  // variable name or literal value
+  -> S_leaf(string name);
+
+  // function symbol
+  -> S_func(string name, ASTList<Sexp> args);
+}
+
+verbatim {
+  // syntactic sugar; terminate arg list with NULL (all arguments
+  // are owner pointers)
+  S_func *mkSfunc(Sexp *arg, ...);
+}

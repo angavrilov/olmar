@@ -11,9 +11,11 @@
 #set args -tr factflow cc.bin vcgen/find2.c
 
 #set args -tr stopAfterTCheck cc.bin c.in3
+ 
+file sexp
 
-file ccgr
-set args -tr predicates,owner,printAnalysisPath,vcgen,aenvSet cc.bin vcgen/treeadd-merged.c
+#file ccgr
+#set args -tr predicates,owner,printAnalysisPath,vcgen,aenvSet cc.bin vcgen/treeadd-merged.c
 
 #set args -tr factflow cc.bin vcgen/ff.c
 

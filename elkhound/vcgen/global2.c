@@ -1,14 +1,26 @@
 // global.c
 // experimenting with global variables
 
+thmprv_predicate int okSelOffset(int mem, int *offset);
+int updOffset(int mem, int *offset, int value);
+int selOffset(int mem, int *offset);
+int firstIndexOf(int *offset);
+int *sub(int *index, int *rest);
+
 int x thmprv_attr(addrtaken);
 int y thmprv_attr(addrtaken);
 
 void addone()
   thmprv_pre(
-    int pre_x = x; true)
+    int pre_x = x;
+    int pre_mem = mem;
+    true
+  )
   thmprv_post(
-    x == pre_x + 1)
+    x == pre_x + 1 &&
+    //mem == updOffset(pre_mem, &x, x)
+    thmprv_exists(int finalVal; mem == updOffset(pre_mem, &x, finalVal))
+  )
 {
   x = x + 1;
 }
@@ -16,9 +28,13 @@ void addone()
 void bar()
   thmprv_pre(
     int pre_x = x;
-    x > 0)
+    int pre_mem = mem;
+    x > 0
+  )
   thmprv_post(
-    x == pre_x)
+    x == pre_x &&
+    mem == pre_mem
+  )
 {}
 
 //  int *object(int *ptr);
@@ -26,12 +42,6 @@ void bar()
 //  int length(int *obj);
 //  int select(int *mem, int *obj, int offset);
 //  int update(int *mem, int *obj, int offset, int value);
-
-thmprv_predicate int okSelOffset(int mem, int *offset);
-int updOffset(int mem, int *offset, int value);
-int selOffset(int mem, int *offset);
-int firstIndexOf(int *offset);
-int *sub(int *index, int *rest);
 
 void inc(int *x)
   thmprv_pre (

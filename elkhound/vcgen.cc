@@ -12,6 +12,7 @@
 #include "predicate.ast.gen.h"  // Predicate ast, incl. P_equal, etc.
 #include "objstack.h"           // ObjStack
 #include "owner.h"              // Owner
+#include "treeout.h"            // treeOut
 
 #include <stdlib.h>             // getenv
 
@@ -69,7 +70,7 @@ void instantiateVariables(AEnv &env, SObjList<Variable> const &vars)
   }
 }
 
-
+                           
 void TF_func::vcgen(AEnv &env) const
 {
   if (shouldSkipFunc(name(), "vcgen")) {
@@ -91,10 +92,10 @@ void TF_func::vcgen(AEnv &env) const
   env.setFuncFacts(env.popPathFactsFrame());
 
   int numRoots = roots.count();
-  traceProgress() << "analyzing " << name()
-                  << " (" << numPaths << plural(numPaths, " path")
-                  << " total from " << numRoots << plural(numRoots, " root")
-                  << ") ...\n";
+  treeOut(1) << "analyzing " << name()
+             << " (" << numPaths << plural(numPaths, " path")
+             << " total from " << numRoots << plural(numRoots, " root")
+             << ")\n";
 
   // synthesized logic variable for return value
   env.result = nameParams->decl->asD_func()->result;
@@ -105,15 +106,16 @@ void TF_func::vcgen(AEnv &env) const
     Statement const *root = rootIter.data();
     rootIndex++;
 
-    traceProgress() << "  root " << rootIndex << "/" << numRoots
-                    << ", " << root->numPaths
-                    << plural(root->numPaths, " path") << "\n";
+    treeOut(2) << "root " << rootIndex << "/" << numRoots
+               << ", " << root->numPaths
+               << plural(root->numPaths, " path") << "\n";
 
     // for each path from that root...
     for (int path=0; path < root->numPaths; path++) {
-      traceProgress() << "    path " << path << "\n";
+      treeOut(3) << "path " << path << "\n";
 
-      if (tracingSys("printAnalysisPath")) {
+      treeOut(4) << "path details\n";
+      {
         SObjList<Statement> nodeList;
         printPathFrom(nodeList, path /*index*/, root, false /*isContinue*/);
       }
@@ -152,7 +154,7 @@ void TF_func::vcgen(AEnv &env) const
       SObjList<Statement /*const*/> stmtList;
       root->vcgenPath(env, stmtList, path, false /*cont*/);
       if (env.inconsistent) {
-        traceProgress() << "      (infeasible)\n";
+        treeOut(4) << "(infeasible)\n";
       }
 
       // NOTE: the path's termination predicate will be proven
@@ -469,6 +471,11 @@ void S_return::vcgen(STMT_VCGEN_PARAMS) const
 void S_goto::vcgen(STMT_VCGEN_PARAMS) const { xassert(path==0); }
 
 
+// NOTE: my design for handling variable declarations *sucks*.. it's
+// spread out among half a dozen functions, with no particular rhyme
+// or reason except I keep tweaking it in response to nonworking
+// verifications, in the hopes I'll evolve a decent design... so far
+// it is not working
 void S_decl::vcgen(STMT_VCGEN_PARAMS) const
 {
   int subexpPaths = 1;
@@ -484,27 +491,14 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
       initVal = d->init->vcgen(env, d->var->type, path % subexpPaths);
 
       path = path / subexpPaths;
-    }
-    else {
-      // make up a new name for the uninitialized value
-      // (if it's global we get to assume it's 0... not implemented..)
-      // UPDATE: now that TF_func::vcgen does a pre-instantiation of
-      // all locals, this should not be needed
-      // UPDATE2: putting it back as I try to sort this out..
-      initVal = env.freshVariable(d->var->name,
-        stringc << "UNINITialized value of var " << d->var->name);
-        
-      if (d->var->type->asRval()->isOwnerPtr()) {
-        // OWNER: uninitialized pointers are implicitly dead
-        trace("owner") << "initing state to dead for " << d->var->name << endl;
-        initVal = env.avUpd(initVal,                     // start object
-                            env.avOwnerField_state(),    // field to set
-                            env.avOwnerState_dead());    // field value
-      }
-    }
 
-    // add a binding for the variable
-    d->vcgen(env, initVal);
+      // add a binding for the variable
+      d->vcgen(env, initVal);
+    }
+    else {                               
+      // make up a new variable to stand for the initial value, etc.
+      env.initializeUninitVariable(d->var);
+    }
   }
 
   // if we entered the loop at all, this ensures the last iteration
