@@ -17,7 +17,7 @@ cvs export -D now ast || exit
 cvs export -D now parsgen || exit
 
 # toplevel files
-cp parsgen/toplevel/{configure,Makefile} .
+cp parsgen/toplevel/* .
 
 
 # package it up
