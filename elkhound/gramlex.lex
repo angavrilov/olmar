@@ -3,8 +3,9 @@
  *
  * The variety of syntaxes for embedded literal code cause this lexer
  * to have some of the context sensitivity usually associated with a
- * parser.  This context never nests, so the language recognized is
- * still regular, but clearly there's some design tension.
+ * parser.  This context doesn't nest arbitrarily deeply, so the
+ * language recognized is still regular, but clearly there's some
+ * design tension.
  */
 
 /* ----------------- C definitions -------------------- */
@@ -72,7 +73,9 @@ SLWHITE   [ \t]
 
 
 /* --------------- start conditions ------------------- */
-/* eating a comment delimited by slash-star and star-slash */
+/* eating a comment delimited by slash-star and star-slash; note
+ * that we remember our current state when entering C_COMMENT,
+ * and restore it on exit */
 %x C_COMMENT
 
 /* looking for the file name in an "include" directive */
@@ -116,6 +119,7 @@ SLWHITE   [ \t]
   /* C-style comments */
   TOKEN_START;
   UPD_COL;
+  prevState = YY_START;
   BEGIN(C_COMMENT);
 }
 
@@ -123,7 +127,7 @@ SLWHITE   [ \t]
   "*/" {
     /* end of comment */
     UPD_COL;
-    BEGIN(INITIAL);
+    BEGIN(prevState);
   }
 
   . {
