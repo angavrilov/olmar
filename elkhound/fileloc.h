@@ -13,25 +13,30 @@ public:
   enum Constants {
     firstColumn = 1,               // number of first column
     firstLine = 1,                 // number of first line
+    
+    invalid = -1,                  // no useful value known
   };
 
   int line;    // line #, 1-based
   int col;     // column #, 1-based
 
 public:
-  FileLocation()                          : line(1), col(1) {}
+  FileLocation()                          : line(invalid), col(invalid) {}
+  FileLocation(int l, int c)              : line(l), col(c) {}
   FileLocation(FileLocation const &obj)	  : line(obj.line), col(obj.col) {}
   ~FileLocation()                         {}
 
   FileLocation& operator= (FileLocation const &obj)
     { line=obj.line; col=obj.col; return *this; }
-    
+
+  bool isValid() const { return line != invalid; }
+
   // "line %d, col %d"
   string toString() const;
 
   // move forward to reflect location after 'text'
   void advance(char const *text, int length);
-  
+
   // wrap to the next line
   void newLine();
 };
@@ -42,7 +47,7 @@ public:
 class SourceFile {
 public:
   string filename;
-  
+
 public:
   SourceFile(char const *fn) : filename(fn) {}
   ~SourceFile();

@@ -56,7 +56,8 @@ GrammarLexer::FileState &GrammarLexer::FileState::
 
 
 // ---------------------- GrammarLexer --------------------------
-GrammarLexer::GrammarLexer(isEmbedTok test, char const *fname, istream *source)
+GrammarLexer::GrammarLexer(isEmbedTok test, StringTable &strtbl,
+                           char const *fname, istream *source)
   : yyFlexLexer(source),
     altReporter(*this),
     fileState(sourceFileList.open(fname), source),
@@ -70,7 +71,8 @@ GrammarLexer::GrammarLexer(isEmbedTok test, char const *fname, istream *source)
     commentStartLine(0),
     integerLiteral(0),
     stringLiteral(""),
-    includeFileName("")
+    includeFileName(""),
+    strtable(strtbl)
 {
   trace("tmp") << "source is " << source << endl;
 

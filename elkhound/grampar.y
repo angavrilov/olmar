@@ -1,12 +1,14 @@
 /* grammar.y
- * parser for grammar files */
+ * parser for grammar files with new ast format */
 
 
 /* C declarations */
 %{
 
 #include "grampar.h"        // yylex, etc.
-#include "gramast.h"        // ASTNode, etc.
+//#include "gramast.h"        // ASTNode, etc.
+#include "gramast.gen.h"    // grammar syntax AST definition
+#include "gramlex.h"        // GrammarLexer
 
 #include <stdlib.h>         // malloc, free
 #include <iostream.h>       // cout
@@ -15,6 +17,16 @@
 #ifndef NDEBUG
   #define YYDEBUG 1
 #endif
+
+// return contents of 's', which is then deallocated
+//LocString unbox(LocString *s);
+
+// return a locstring for 's' with no location information
+#define noloc(str)                                                    \
+  new LocString(SourceLocation(NULL),      /* unknown location */     \
+                ((ParseParams*)parseParam)->lexer.strtable.add(str))
+
+//LocString *noloc(char const *s);
 
 %}
 
@@ -26,12 +38,12 @@
 
 /* ===================== tokens ============================ */
 /* tokens that have many lexical spellings */
-%token TOK_INTEGER
-%token TOK_NAME
-%token TOK_STRING
-%token TOK_FUNDECL_BODY
-%token TOK_FUN_BODY
-%token TOK_DECL_BODY
+%token <num> TOK_INTEGER
+%token <str> TOK_NAME
+%token <str> TOK_STRING
+%token <str> TOK_FUNDECL_BODY
+%token <str> TOK_FUN_BODY
+%token <str> TOK_DECL_BODY
 
 /* punctuators */
 %token TOK_LBRACE "{"
@@ -76,6 +88,7 @@
 %token TOK_SLASH "/"
 %token TOK_ASTERISK "*"
 %token TOK_QUESTION "?"
+%token TOK_BANG "!"
 
 /* operator precedence; same line means same precedence */
 /*   lowest precedence */
@@ -88,6 +101,69 @@
 /*   highest precedence */
 
 
+/* ===================== types ============================ */
+/* all pointers are owner pointers */
+%union {
+  int num;
+  LocString *str;
+  ASTList<ToplevelForm> *formList;
+  TF_terminals *terminals;
+  ASTList<TermDecl> *termDecls;
+  TermDecl *termDecl;
+  TF_treeNodeBase *tnBase;
+  TF_nonterminal *nonterm;
+  ASTList<LocString> *stringList;
+  ASTList<NTBodyElt> *ntBodyElts; 
+  GroupElement *grpElt;    
+  NT_attr *attr;
+  GE_form *form; 
+  ASTList<FormBodyElt> *fbElts;
+  FormBodyElt *fbElt;        
+  GE_formGroup *formGrp; 
+  ASTList<GroupElement> *grpElts;
+  ASTList<RHS> *rhsList;
+  ASTList<RHSElt> *rhsElts;  
+  FB_action *action;
+  FB_condition *condition;
+  FB_treeCompare *treeCompare;
+  ExprAST *expr;
+  ASTList<ExprAST> *exprList;
+  FB_funDecl *funDecl;
+  FB_funDefn *funDefn;
+  FB_dataDecl *dataDecl;
+  LiteralCode *litCode;
+}
+
+%type <num> StartSymbol
+%type <formList> Input
+%type <terminals> Terminals
+%type <termDecls> TerminalSeqOpt
+%type <termDecl> TerminalDecl
+%type <tnBase> TreeNodeBase
+%type <nonterm> Nonterminal
+%type <stringList> BaseClassListOpt BaseClassList
+%type <ntBodyElts> NonterminalBody
+%type <grpElt> GroupElement
+%type <attr> AttributeDecl
+%type <form> Form
+%type <fbElts> FormBody
+%type <fbElt> FormBodyElement
+%type <formGrp> FormGroup
+%type <grpElts> FormGroupBody
+%type <rhsList> FormRHS
+%type <rhsElts> RHSEltSeqOpt
+%type <action> Action
+%type <condition> Condition
+%type <treeCompare> TreeCompare
+%type <expr> PrimaryExpr UnaryExpr BinaryExpr CondExpr AttrExpr
+%type <exprList> ExprListOpt ExprList
+%type <funDecl> FunDecl
+%type <funDefn> Function
+%type <dataDecl> Declaration
+%type <litCode> LiteralCode
+
+
+
 /* ===================== productions ======================= */
 %%
 
@@ -97,19 +173,22 @@
 
 
 /* start symbol */
+/* yields: int (dummy value) */
 StartSymbol: Input
                {
                  // return the AST tree top to the caller
-                 ((ParseParams*)parseParam)->treeTop = $1;
+                 ((ParseParams*)parseParam)->treeTop = new GrammarAST($1);
+                 $$ = 0;
                }
            ;
 
 /* sequence of toplevel forms */
-Input: /* empty */           { $$ = AST0(AST_TOPLEVEL); }
-     | Input Terminals       { $$ = iappend($1, $2); }
-     | Input TreeNodeBase    { $$ = iappend($1, $2); }
-     | Input Nonterminal     { $$ = iappend($1, $2); }
-     | Input LiteralCode     { $$ = iappend($1, $2); }
+/* yields: ASTList<ToplevelForm> */
+Input: /* empty */           { $$ = new ASTList<ToplevelForm>; }
+     | Input Terminals       { ($$=$1)->append($2); }
+     | Input TreeNodeBase    { ($$=$1)->append($2); }
+     | Input Nonterminal     { ($$=$1)->append($2); }
+     | Input LiteralCode     { ($$=$1)->append(new TF_lit($2)); }
      ;
 
 /* ------ terminals ------ */
@@ -118,26 +197,31 @@ Input: /* empty */           { $$ = AST0(AST_TOPLEVEL); }
  * forms; they are the output of the lexer; the Terminals list declares
  * all of the terminals that will appear in the rules
  */
-Terminals: "terminals" "{" TerminalSeqOpt "}"      { $$ = $3; }
+/* yields: TF_terminals */
+Terminals: "terminals" "{" TerminalSeqOpt "}"      { $$ = new TF_terminals($3); }
          ;
 
-TerminalSeqOpt: /* empty */                        { $$ = AST0(AST_TERMINALS); }
-              | TerminalSeqOpt TerminalDecl        { $$ = iappend($1, $2); }
+/* yields: ASTList<TermDecl> */
+TerminalSeqOpt: /* empty */                        { $$ = new ASTList<TermDecl>; }
+              | TerminalSeqOpt TerminalDecl        { ($$=$1)->append($2); }
               ;
 
 /* each terminal has an integer code which is the integer value the
  * lexer uses to represent that terminal.  it is followed by a
  * canonical name, and an optional alias; the name/alias appears in
  * the forms, rather than the integer code itself */
+/* yields: TermDecl */
 TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
-                                            { $$ = AST2(AST_TERMDECL, $1, $3); }
+                { $$ = new TermDecl($1, $3, noloc("")); }
             | TOK_INTEGER ":" TOK_NAME TOK_STRING ";"
-                                            { $$ = AST3(AST_TERMDECL, $1, $3, $4); }
+                { $$ = new TermDecl($1, $3, $4); }
             ;
 
 
 /* ------ tree node base ------ */
-TreeNodeBase: TOK_TREENODEBASE TOK_STRING ";"      { $$ = AST1(AST_TREENODEBASE, $2); }
+/* yields: TF_treeNodeBase */
+TreeNodeBase: TOK_TREENODEBASE TOK_STRING ";"
+                { $$ = new TF_treeNodeBase($2); }
             ;
 
 
@@ -147,31 +231,37 @@ TreeNodeBase: TOK_TREENODEBASE TOK_STRING ";"      { $$ = AST1(AST_TREENODEBASE,
  * the body of the Nonterminal declaration specifies the the RHS forms,
  * attribute info, etc.
  */
-Nonterminal: "nonterm" NonterminalName "{" NonterminalBody "}"
-               { $$ = AST2(AST_NONTERM, $2, $4); }
-           | "nonterm" NonterminalName Form
-               { $$ = AST2(AST_NONTERM, $2, $3); }
+/* yields: TF_nonterminal */
+Nonterminal: "nonterm" TOK_NAME BaseClassListOpt "{" NonterminalBody "}"
+               { $$ = new TF_nonterminal($2, $3, $5); }
+           | "nonterm" TOK_NAME BaseClassListOpt Form
+               { $$ = new TF_nonterminal($2, $3,
+                        new ASTList<NTBodyElt>(new NT_elt($4))); }
            ;
 
 /* a name, and possibly some base-class nonterminals */
-NonterminalName: TOK_NAME                     { $$ = AST1(AST_NTNAME, $1); }
-               | TOK_NAME ":" BaseClassList   { $$ = AST2(AST_NTNAME, $1, $3); }
-               ;
+/* yields: ASTList<string> */
+BaseClassListOpt: /* empty */                 { $$ = new ASTList<LocString>; }
+                | ":" BaseClassList           { $$ = $2; }
+                ;
 
-BaseClassList: TOK_NAME                       { $$ = AST1(AST_BASECLASSES, $1); }
-             | BaseClassList "," TOK_NAME     { $$ = iappend($1, $3); }
+/* yields: ASTList<string> */
+BaseClassList: TOK_NAME                       { $$ = new ASTList<LocString>($1); }
+             | BaseClassList "," TOK_NAME     { ($$=$1)->append($3); }
              ;
 
-NonterminalBody: /* empty */                       { $$ = AST0(AST_NTBODY); }
-               | NonterminalBody AttributeDecl     { $$ = iappend($1, $2); }
-               | NonterminalBody GroupElement      { $$ = iappend($1, $2); }
-               | NonterminalBody Declaration       { $$ = iappend($1, $2); }
-               | NonterminalBody LiteralCode       { $$ = iappend($1, $2); }
+/* yields: ASTList<NTBodyElt> */
+NonterminalBody: /* empty */                       { $$ = new ASTList<NTBodyElt>; }
+               | NonterminalBody AttributeDecl     { ($$=$1)->append($2); }
+               | NonterminalBody GroupElement      { ($$=$1)->append(new NT_elt($2)); }
+               | NonterminalBody Declaration       { ($$=$1)->append(new NT_elt(new GE_fbe($2))); }
+               | NonterminalBody LiteralCode       { ($$=$1)->append(new NT_lit($2)); }
                ;
 
 /* things that can appear in any grouping construct; specifically,
  * a NonterminalBody or a FormGroupBody */
-GroupElement: FormBodyElement   { $$ = $1; }
+/* yields: GroupElement */
+GroupElement: FormBodyElement   { $$ = new GE_fbe($1); }
             | Form              { $$ = $1; }
             | FormGroup         { $$ = $1; }
             ;
@@ -181,7 +271,8 @@ GroupElement: FormBodyElement   { $$ = $1; }
  * must specify a value for every declared attribute; at least for
  * now, all attributes are integer-valued
  */
-AttributeDecl: "attr" TOK_NAME ";"                 { $$ = AST1(AST_ATTR, $2); }
+/* yields: NT_attr */
+AttributeDecl: "attr" TOK_NAME ";"                 { $$ = new NT_attr($2); }
              ;
 
 /*
@@ -190,8 +281,9 @@ AttributeDecl: "attr" TOK_NAME ";"                 { $$ = AST1(AST_ATTR, $2); }
  * be rewritten as the sequence of RHS symbols, in the process of
  * deriving the input sentance from the start symbol
  */
-Form: "->" FormRHS ";"                             { $$ = AST1(AST_FORM, $2); }
-    | "->" FormRHS "{" FormBody "}"                { $$ = AST2(AST_FORM, $2, $4); }
+/* yields: GE_form */
+Form: "->" FormRHS ";"                             { $$ = new GE_form($2, NULL); }
+    | "->" FormRHS "{" FormBody "}"                { $$ = new GE_form($2, $4); }
     ;
 
 /*
@@ -200,11 +292,13 @@ Form: "->" FormRHS ";"                             { $$ = AST1(AST_FORM, $2); }
  * usable, and if used, the actions are then executed to compute the
  * nonterminal's attribute values
  */
-FormBody: /* empty */                              { $$ = AST0(AST_FORMBODY); }
-        | FormBody FormBodyElement                 { $$ = iappend($1, $2); }
+/* yields: ASTList<FormBodyElt> */
+FormBody: /* empty */                              { $$ = new ASTList<FormBodyElt>; }
+        | FormBody FormBodyElement                 { ($$=$1)->append($2); }
         ;
 
 /* things that can be directly associated with a form */
+/* yields: FormBodyElt */
 FormBodyElement: Action            { $$ = $1; }
                | Condition         { $$ = $1; }
                | TreeCompare       { $$ = $1; }
@@ -230,13 +324,15 @@ FormBodyElement: Action            { $$ = $1; }
  *     sequence(), are available which yield a different value for each
  *     form
  */
-FormGroup: "formGroup" "{" FormGroupBody "}"       { $$ = $3; }
+/* yields: GE_formGroup */
+FormGroup: "formGroup" "{" FormGroupBody "}"       { $$ = new GE_formGroup($3); }
          ;
 
 /* observe a FormGroupBody has everything a NonterminalBody has, except
  * for attribute declarations */
-FormGroupBody: /* empty */                         { $$ = AST0(AST_FORMGROUPBODY); }
-             | FormGroupBody GroupElement          { $$ = iappend($1, $2); }
+/* yields: ASTList<GroupElement> */
+FormGroupBody: /* empty */                         { $$ = new ASTList<GroupElement>; }
+             | FormGroupBody GroupElement          { ($$=$1)->append($2); }
              ;
 
 /* ------ form right-hand side ------ */
@@ -245,8 +341,9 @@ FormGroupBody: /* empty */                         { $$ = AST0(AST_FORMGROUPBODY
  * top level of a form; this is semantically equivalent to a formgroup
  * with the alternatives as alternative forms
  */
-FormRHS: RHSEltSeqOpt                              { $$ = AST1(AST_RHSALTS, $1); }
-       | FormRHS "|" RHSEltSeqOpt                  { $$ = iappend($1, $3); }
+/* yields: ASTList<RHS> */
+FormRHS: RHSEltSeqOpt                              { $$ = new ASTList<RHS>(new RHS($1)); }
+       | FormRHS "|" RHSEltSeqOpt                  { ($$=$1)->append(new RHS($3)); }
        ;
 
 /*
@@ -254,15 +351,16 @@ FormRHS: RHSEltSeqOpt                              { $$ = AST1(AST_RHSALTS, $1);
  * colon (':') if present; the tag is required if that symbol's attributes
  * are to be referenced anywhere in the actions or conditions for the form
  */
-RHSEltSeqOpt: /* empty */                          { $$ = AST0(AST_RHS); }
+/* yields: ASTList<RHSElt> */
+RHSEltSeqOpt: /* empty */                          { $$ = new ASTList<RHSElt>; }
 
-            | RHSEltSeqOpt TOK_NAME                { $$ = iappend($1, $2); }
+            | RHSEltSeqOpt TOK_NAME                { ($$=$1)->append(new RH_name($2)); }
                 /* name (only) */
-            | RHSEltSeqOpt TOK_NAME ":" TOK_NAME   { $$ = iappend($1, AST2(AST_TAGGEDNAME, $2, $4)); }
+            | RHSEltSeqOpt TOK_NAME ":" TOK_NAME   { ($$=$1)->append(new RH_taggedName($2, $4)); }
                 /* tag : name */
-            | RHSEltSeqOpt TOK_STRING              { $$ = iappend($1, $2); }
+            | RHSEltSeqOpt TOK_STRING              { ($$=$1)->append(new RH_string($2)); }
                 /* mnemonic terminal */
-            | RHSEltSeqOpt TOK_NAME ":" TOK_STRING { $$ = iappend($1, AST2(AST_TAGGEDSTRING, $2, $4)); }
+            | RHSEltSeqOpt TOK_NAME ":" TOK_STRING { ($$=$1)->append(new RH_taggedString($2, $4)); }
                 /* tagged terminal */
             ;
 
@@ -272,15 +370,17 @@ RHSEltSeqOpt: /* empty */                          { $$ = AST0(AST_RHS); }
  * for now, the only action is to define the value of a synthesized
  * attribute
  */
-Action: "action" TOK_NAME ":=" AttrExpr ";"        { $$ = AST2(AST_ACTION, $2, $4); }
+/* yields: FB_action */
+Action: "action" TOK_NAME ":=" AttrExpr ";"        { $$ = new FB_action($2, $4); }
       ;
 
 /*
  * a condition is a boolean (0 or 1) valued expression; when it evaluates
  * to 0, the associated form cannot be used as a rewrite rule; when it evals
  * to 1, it can; any other value is an error
- */
-Condition: "condition" AttrExpr ";"                { $$ = AST1(AST_CONDITION, $2); }
+ */   
+/* yields: FB_condition */
+Condition: "condition" AttrExpr ";"                { $$ = new FB_condition($2); }
          ;
 
 /*
@@ -288,63 +388,71 @@ Condition: "condition" AttrExpr ";"                { $$ = AST1(AST_CONDITION, $2
  * yield a value which says which, if either, of two competing
  * interpretations to keep and which to drop
  */
+/* yields: FB_treeCompare */
 TreeCompare: "treeCompare" "(" TOK_NAME "," TOK_NAME ")" "=" AttrExpr ";"
-             { $$ = AST3(AST_TREECOMPARE, $3, $5, $8); }
+             { $$ = new FB_treeCompare($3, $5, $8); }
            ;
 
 
 /* ------ attribute expressions, basically C expressions ------ */
-PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = AST2(EXP_ATTRREF, $1, $3); }
+/* yields: ExprAST */
+PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = new E_attrRef($1, $3); }
                /* tag . attr */
-           | TOK_NAME "." TOK_NAME "." TOK_NAME   { $$ = AST3(EXP_ATTRREF, $1, $3, $5); }
+           | TOK_NAME "." TOK_NAME "." TOK_NAME   { $$ = new E_treeAttrRef($1, $3, $5); }
                /* tree . tag . attr */
-           | TOK_NAME                        { $$ = AST1(EXP_ATTRREF, $1); }
+           | TOK_NAME                        { $$ = new E_attrRef(noloc("this"), $1); }
                /* attr (implicit 'this' tag) */
-           | TOK_INTEGER                     { $$ = $1; }
+           | TOK_INTEGER                     { $$ = new E_intLit($1); }
                /* literal */
            | "(" AttrExpr ")"                { $$ = $2; }
                /* grouping */
-           | TOK_NAME "(" ExprListOpt ")"    { $$ = AST2(EXP_FNCALL, $1, $3); }
+           | TOK_NAME "(" ExprListOpt ")"    { $$ = new E_funCall($1, $3); }
                /* function call */
            ;
 
-ExprListOpt: /* empty */                     { $$ = AST0(EXP_LIST); }
+/* yields: ASTList<ExprAST> */
+ExprListOpt: /* empty */                     { $$ = new ASTList<ExprAST>; }
            | ExprList                        { $$ = $1; }
            ;
 
-ExprList: AttrExpr                           { $$ = AST1(EXP_LIST, $1) }
-        | ExprList "," AttrExpr              { $$ = iappend($1, $3); }
+/* yields: ASTList<ExprAST> */
+ExprList: AttrExpr                           { $$ = new ASTList<ExprAST>($1); }
+        | ExprList "," AttrExpr              { ($$=$1)->append($3); }
         ;
 
 
+/* yields: ExprAST */
 UnaryExpr: PrimaryExpr                       { $$ = $1; }
          | "+" PrimaryExpr                   { $$ = $2; }    /* semantically ignored */
-         | "-" PrimaryExpr                   { $$ = AST1(EXP_NEGATE, $2); }
-         | "!" PrimaryExpr                   { $$ = AST1(EXP_NOT, $2); }
+         | "-" PrimaryExpr                   { $$ = new E_unary(TOK_MINUS, $2); }
+         | "!" PrimaryExpr                   { $$ = new E_unary(TOK_BANG,  $2); }
          ;
 
 /* this rule relies on Bison precedence and associativity declarations */
+/* yields: ExprAST */
 BinaryExpr: UnaryExpr                        { $$ = $1; }
-          | UnaryExpr "*" UnaryExpr          { $$ = AST2(EXP_MULT, $1, $3); }
-          | UnaryExpr "/" UnaryExpr          { $$ = AST2(EXP_DIV, $1, $3); }
-          | UnaryExpr "%" UnaryExpr          { $$ = AST2(EXP_MOD, $1, $3); }
-          | UnaryExpr "+" UnaryExpr          { $$ = AST2(EXP_PLUS, $1, $3); }
-          | UnaryExpr "-" UnaryExpr          { $$ = AST2(EXP_MINUS, $1, $3); }
-          | UnaryExpr "<" UnaryExpr          { $$ = AST2(EXP_LT, $1, $3); }
-          | UnaryExpr ">" UnaryExpr          { $$ = AST2(EXP_GT, $1, $3); }
-          | UnaryExpr "<=" UnaryExpr         { $$ = AST2(EXP_LTE, $1, $3); }
-          | UnaryExpr ">=" UnaryExpr         { $$ = AST2(EXP_GTE, $1, $3); }
-          | UnaryExpr "==" UnaryExpr         { $$ = AST2(EXP_EQ, $1, $3); }
-          | UnaryExpr "!=" UnaryExpr         { $$ = AST2(EXP_NEQ, $1, $3); }
-          | UnaryExpr "&&" UnaryExpr         { $$ = AST2(EXP_AND, $1, $3); }
-          | UnaryExpr "||" UnaryExpr         { $$ = AST2(EXP_OR, $1, $3); }
+          | UnaryExpr "*" UnaryExpr          { $$ = new E_binary(TOK_ASTERISK,   $1, $3); }
+          | UnaryExpr "/" UnaryExpr          { $$ = new E_binary(TOK_SLASH,      $1, $3); }
+          | UnaryExpr "%" UnaryExpr          { $$ = new E_binary(TOK_PERCENT,    $1, $3); }
+          | UnaryExpr "+" UnaryExpr          { $$ = new E_binary(TOK_PLUS,       $1, $3); }
+          | UnaryExpr "-" UnaryExpr          { $$ = new E_binary(TOK_MINUS,      $1, $3); }
+          | UnaryExpr "<" UnaryExpr          { $$ = new E_binary(TOK_LESS,       $1, $3); }
+          | UnaryExpr ">" UnaryExpr          { $$ = new E_binary(TOK_GREATER,    $1, $3); }
+          | UnaryExpr "<=" UnaryExpr         { $$ = new E_binary(TOK_LESSEQ,     $1, $3); }
+          | UnaryExpr ">=" UnaryExpr         { $$ = new E_binary(TOK_GREATEREQ,  $1, $3); }
+          | UnaryExpr "==" UnaryExpr         { $$ = new E_binary(TOK_EQUALEQUAL, $1, $3); }
+          | UnaryExpr "!=" UnaryExpr         { $$ = new E_binary(TOK_NOTEQUAL,   $1, $3); }
+          | UnaryExpr "&&" UnaryExpr         { $$ = new E_binary(TOK_ANDAND,     $1, $3); }
+          | UnaryExpr "||" UnaryExpr         { $$ = new E_binary(TOK_OROR,       $1, $3); }
           ;
 
 /* the expression "a ? b : c" means "if (a) then b, else c" */
+/* yields: ExprAST */
 CondExpr: BinaryExpr                             { $$ = $1; }
-        | BinaryExpr "?" AttrExpr ":" AttrExpr   { $$ = AST3(EXP_COND, $1, $3, $5); }
+        | BinaryExpr "?" AttrExpr ":" AttrExpr   { $$ = new E_cond($1, $3, $5); }
         ;
 
+/* yields: ExprAST */
 AttrExpr: CondExpr                               { $$ = $1; }
         ;
 
@@ -366,28 +474,48 @@ AttrExpr: CondExpr                               { $$ = $1; }
  * substrate language, the TOK_FUNDECL is a function prototype;
  * the substrate interface must be able to pull out the name to
  * match it with the corresponding 'fun' */
-FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = $2; }
+/* yields: FB_funDecl */
+FunDecl: "fundecl" TOK_FUNDECL_BODY ";"          { $$ = new FB_funDecl($2); }
        ;     /* note: $2 here is an AST_FUNDECL node already */
+             /* todo: make this not true */
 
 /* fun is a semantic function; the TOK_FUNCTION is substrate language
  * code that will be emitted into a file for later compilation;
  * it can refer to production children by their tagged names */
-Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = AST2(AST_FUNCTION, $2, $4); }
-        | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = AST2(AST_FUNEXPR, $2, $4); }
+/* yields: FB_funDefn */
+Function: "fun" TOK_NAME "{" TOK_FUN_BODY "}"    { $$ = new FB_funDefn($2, $4); }
+        | "fun" TOK_NAME "=" TOK_FUN_BODY ";"    { $$ = new FB_funDefn($2, $4); }
         ;
 
 /* declarations; can declare data fields, or functions whose
  * implementation is provided externally */
-Declaration: "datadecl" TOK_DECL_BODY ";"                 { $$ = AST1(AST_DECLARATION, $2); }
+/* yields: FB_dataDecl */
+Declaration: "datadecl" TOK_DECL_BODY ";"        { $$ = new FB_dataDecl($2); }
            ;
 
 
 /* generic literalCode mechanism so I can add new syntax without
  * modifying this file */
+/* yields: LiteralCode */
 LiteralCode: "literalCode" TOK_STRING "{" TOK_FUN_BODY "}"
-               { $$ = AST2(AST_LITERALCODE, $2, $4); }
+               { $$ = new LC_standAlone($2, $4); }
            | "literalCode" TOK_STRING TOK_NAME "{" TOK_FUN_BODY "}"
-               { $$ = AST3(AST_NAMEDLITERALCODE, $2, $5, $3); }
+               { $$ = new LC_modifier($2, $3, $5); }
            ;
 
 %%
+/* ================== extra C code ============== */
+#if 0
+LocString unbox(LocString *s)
+{
+  LocString ret(*s);
+  delete s;
+  return ret;
+}    
+
+LocString *noloc(char const *s)
+{
+  StringRef ref = ((ParseParams*)parseParam)->lexer.strtable.add(s);
+  return new LocString(SourceLocation(NULL), ref);    // unknown location
+}
+#endif // 0

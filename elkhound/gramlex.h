@@ -26,6 +26,8 @@
 #include "fileloc.h"          // SourceLocation
 #include "embedded.h"         // EmbeddedLang
 
+class StringTable;            // strtable.h
+
 
 // this class just holds the lexer state so it is properly encapsulated
 // (and therefore, among other things, re-entrant)
@@ -90,10 +92,12 @@ public:      // data
   //   const char *YYText();           // start of matched text
   //   int YYLeng();                   // number of matched characters
 
+  StringTable &strtable;           // string table
+
 private:     // funcs
   // called when a newline is encountered
   void newLine() { fileState.newLine(); }
-  
+
   // disallowed
   GrammarLexer(GrammarLexer const &);
 
@@ -101,6 +105,7 @@ public:      // funcs
   // create a new lexer that will read from to named stream,
   // or stdin if it is NULL
   GrammarLexer(isEmbedTok embedTokTest,
+               StringTable &strtable,
                char const *fname = "<stdin>",
                istream * /*owner*/ source = NULL);
 

@@ -11,7 +11,7 @@
 #include "owner.h"       // Owner
 #include "syserr.h"      // xsyserror
 #include "strutil.h"     // quoted
-#include "grampar.tab.h" // token constant codes
+#include "grampar.tab.h" // token constant codes, union YYSTYPE
 
 #include <fstream.h>     // ifstream
 
@@ -986,7 +986,7 @@ AExprNode *checkSpecial(Environment &env, Production *prod,
 
 // ----------------------- parser support ---------------------
 // Bison parser calls this to get a token
-int yylex(ASTNode **lvalp, void *parseParam)
+int grampar_yylex(union YYSTYPE *lvalp, void *parseParam)
 {
   ParseParams *par = (ParseParams*)parseParam;
   GrammarLexer &lexer = par->lexer;
@@ -997,11 +997,11 @@ int yylex(ASTNode **lvalp, void *parseParam)
     // yield semantic values for some things
     switch (code) {
       case TOK_INTEGER:
-        *lvalp = new ASTIntLeaf(lexer.integerLiteral, lexer.curLoc());
+        lvalp->num = lexer.integerLiteral;
         break;
 
       case TOK_STRING:
-        *lvalp = new ASTStringLeaf(lexer.stringLiteral, lexer.curLoc());
+        lvalp->str = new LocString(lexer.curLoc());
         break;
 
       case TOK_NAME:
@@ -1043,7 +1043,7 @@ int yylex(ASTNode **lvalp, void *parseParam)
 }
 
 
-void my_yyerror(char const *message, void *parseParam)
+void grampar_yyerror(char const *message, void *parseParam)
 {
   ParseParams *par = (ParseParams*)parseParam;
   cout << message << " at " << par->lexer.curLocStr() << endl;

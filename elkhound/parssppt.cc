@@ -55,6 +55,12 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
             "  options:\n"
             "    -tr <sys>:  turn on tracing for the named subsystem\n"
             "    -sym <sym>: name the \"symbol of interest\"\n"
+            "  useful tracing flags:\n"
+            "    parse-tree      print the parse tree\n"
+            "    grammar         echo the grammar\n"
+            "    ambiguities     print ambiguities encountered during parsing\n"
+            "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"
+            "    ... the complete list is in parsgen.txt ...\n"
             ;
     exit(0);
   }

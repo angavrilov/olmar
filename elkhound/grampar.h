@@ -8,10 +8,13 @@
 #include "sobjlist.h"     // SObjList
 #include "exc.h"          // xBase
 #include "strsobjdict.h"  // StringSObjDict
+#include "locstr.h"       // LocString
 
 // fwd decl
-class ASTNode;
+class GrammarAST;
 class GrammarLexer;
+class TF_nonterminal;
+class FormBodyElt;
 
 
 // -------- rest of the program's view of Bison ------------
@@ -22,7 +25,7 @@ class GrammarLexer;
 
 // type of thing extra param points at
 struct ParseParams {
-  ASTNode *treeTop;       // set when parsing finishes; AST tree top
+  GrammarAST *treeTop;    // set when parsing finishes; AST tree top
   GrammarLexer &lexer;    // lexer we're using
 
 public:
@@ -44,7 +47,7 @@ extern int yydebug;
 
 // ---------- Bison's view of the rest of the program --------
 // type of Bison semantic values
-#define YYSTYPE ASTNode*
+//#define YYSTYPE ASTNode*
 
 // name of extra parameter to yylex; is of type ParseParams also
 #define YYLEX_PARAM parseParam
@@ -52,12 +55,12 @@ extern int yydebug;
 // Bison calls this to get each token; returns token code,
 // or 0 for eof; semantic value for returned token can be
 // put into '*lvalp'
-int yylex(YYSTYPE *lvalp, void *YYLEX_PARAM);
+int grampar_yylex(union YYSTYPE *lvalp, void *YYLEX_PARAM);
 
 // Bison calls yyerror(msg) on error; we need the extra
 // parameter too, so the macro shoehorns it in there
-#define yyerror(msg) my_yyerror(msg, YYPARSE_PARAM)
-void my_yyerror(char const *message, void *YYPARSE_PARAM);
+#define yyerror(msg) grampar_yyerror(msg, YYPARSE_PARAM)
+void grampar_yyerror(char const *message, void *YYPARSE_PARAM);
 
 
 // ---------------- grampar's parsing structures ---------------
@@ -74,17 +77,17 @@ public:      // data
 
   // env in which we're nested, if any
   Environment *prevEnv;      // (serf)
-                                   
+
   // maps from a nonterminal name to its declaration, if that
   // nonterminal has in fact been declared already
-  StringSObjDict<ASTNode /*const*/> nontermDecls;
+  StringSObjDict<TF_nonterminal /*const*/> nontermDecls;
 
   // set of inherited actions and conditions; we simply
   // store pointers to the ASTs, and re-parse them in
   // the context where they are to be applied; I currently
   // store complete copies of all of 'prev's actions and
   // conditions, so I don't really need 'prevEnv' ...
-  SObjList<ASTNode /*const*/> inherited;
+  SObjList<FormBodyElt /*const*/> inherited;
 
   // current value of any sequence function (at this point,
   // sequencing is pretty much obsolete, because I botched
@@ -127,17 +130,17 @@ void readGrammarFile(Grammar &g, char const *fname);
 // thrown when there is an error parsing the AST
 class XASTParse : public xBase {
 public:    // data
-  // node at or near failure
-  ASTNode const *node;
+  // token at or near failure
+  LocString failToken;
 
   // what is wrong
   string message;
 
 private:   // funcs
-  static string constructMsg(ASTNode const *node, char const *msg);
+  static string constructMsg(LocString const &tok, char const *msg);
 
 public:    // funcs
-  XASTParse(ASTNode const *node, char const *msg);
+  XASTParse(LocString const &tok, char const *msg);
   XASTParse(XASTParse const &obj);
   ~XASTParse();
 };

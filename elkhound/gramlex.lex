@@ -11,7 +11,7 @@
 #include "gramlex.h"
 
 // pull in the bison-generated token codes
-#include "grampar.tab.h"
+#include "grampar.codes.h"
 
 #include <string.h>     // strchr, strrchr
 

@@ -18,8 +18,9 @@ typedef char const *StringRef;
 class StringTable {
 private:    // types                                       
   // constants
-  enum {                 
-    rackSize = 16000,      // size of one rack; also max string length
+  enum {
+    rackSize = 16000,      // size of one rack
+    longThreshold = 1000,  // minimum length of a "long" string
   };
 
   // some of the strings stored in the table
@@ -34,14 +35,27 @@ private:    // types
     char *nextByte() { return data + usedBytes; }
   };
 
+  // stores long strings
+  struct LongString {
+    LongString *next;      // (owner) next long string
+    char *data;            // (owner) string data, any length (null terminated)
+
+  public:
+    LongString(LongString *n, char *d) : next(n), data(d) {}
+  };
+
 private:    // data
   // hash table mapping strings to pointers into one
   // of the string racks
   StringHash hash;
 
-  // linked list of racks; only walked at dealloc time
-  Rack *firstRack;
-  Rack *lastRack;          // invariant: lastRack->next == NULL
+  // linked list of racks; only walked at dealloc time; we add new
+  // strings to the first rack, and prepend a new one if necessary;
+  // 'racks' is never null
+  Rack *racks;
+
+  // similar for long strings
+  LongString *longStrings;
 
 private:    // funcs
   // not allowed

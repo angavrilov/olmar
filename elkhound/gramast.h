@@ -4,6 +4,8 @@
 #ifndef __GRAMAST_H
 #define __GRAMAST_H
 
+#error This file is now obsolete.  Use gramast.gen.h instead.
+
 #include "ast.h"       // basic ast stuff
 #include "str.h"       // string
 

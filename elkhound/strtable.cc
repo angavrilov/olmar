@@ -14,16 +14,22 @@ STATICDEF char const *StringTable::identity(void *data)
 StringTable::StringTable()
   : hash(identity)
 {
-  firstRack = new Rack(NULL);
-  lastRack = firstRack;
+  racks = new Rack(NULL);
 }
 
 
 StringTable::~StringTable()
 {
-  while (firstRack != NULL) {
-    Rack *temp = firstRack;
-    firstRack = firstRack->next;
+  while (racks != NULL) {
+    Rack *temp = racks;
+    racks = racks->next;
+    delete temp;
+  }
+
+  while (longStrings != NULL) {
+    LongString *temp = longStrings;
+    longStrings = longStrings->next;
+    delete temp->data;
     delete temp;
   }
 }
@@ -37,22 +43,31 @@ StringRef StringTable::add(char const *src)
     return ret;
   }
 
-  // see if we need a new rack
-  int len = strlen(src)+1;     // include nul terminator
-  if (len > lastRack->availBytes()) {
-    // need a new rack
-    xassert(len <= rackSize);
-    lastRack = new Rack(lastRack);
-    
-    // note that if we need longer strings, we can accomodate
-    // them by allocating bigger racks as a special case (and
-    // just casting around the type system)
+  int len = strlen(src)+1;     // include null terminator
+
+  // is it a long string?
+  if (len >= longThreshold) {
+    char *d = new char[len];
+    ret = d;
+    memcpy(d, src, len);
+
+    // prepend a new long-string entry
+    longStrings = new LongString(longStrings, d);
   }
-  
-  // add the string to the last rack
-  ret = lastRack->nextByte();
-  memcpy(lastRack->nextByte(), src, len);
-  lastRack->usedBytes += len;
+
+  else {
+    // see if we need a new rack
+    if (len > racks->availBytes()) {
+      // need a new rack
+      xassert(len <= rackSize);
+      racks = new Rack(racks);     // prepend new rack
+    }
+
+    // add the string to the last rack
+    ret = racks->nextByte();
+    memcpy(racks->nextByte(), src, len);
+    racks->usedBytes += len;
+  }
 
   // enter the intended location into the indexing structures
   hash.add(ret, (void*)ret);
