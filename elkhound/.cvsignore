@@ -15,3 +15,7 @@ ctrim.gr
 lexer1yy.cc
 lexer1
 lexer2
+l2tokens.txt
+c.out4
+gmon.out
+glr.profile

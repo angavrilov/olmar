@@ -32,7 +32,7 @@ void FileLocation::advance(char const *text, int length)
 Lexer1Token::Lexer1Token(Lexer1TokenType aType, char const *aText,
                	         int aLength, FileLocation const &aLoc)
   : type(aType),
-    text(aText),      // makes a copy 
+    text(aText, aLength),      // makes a copy 
     length(aLength),
     loc(aLoc)
 {}

@@ -1,10 +1,10 @@
-# c.in1
-# a simple test of c.gr
+// c.in1
+// a simple test of c.gr
 
 int foo ( )
 {
   return 3 ;
 }
 
-# EOF
-$
+// EOF
+

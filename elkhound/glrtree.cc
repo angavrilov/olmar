@@ -2,6 +2,7 @@
 // code for glrtree.h
 
 #include "glrtree.h"     // this module
+#include "lexer2.h"      // Lexer2Token
 
 
 // convenient indented output
@@ -40,9 +41,10 @@ NonterminalNode const &TreeNode::asNontermC() const
 
 
 // ------------------- TerminalNode -------------------------
-TerminalNode::TerminalNode(Terminal const *t)
+TerminalNode::TerminalNode(Lexer2Token const *tk, Terminal const *tc)
   : TreeNode(TERMINAL),
-    terminal(t)
+    token(tk),
+    terminalClass(tc)
 {}
 
 
@@ -52,14 +54,33 @@ TerminalNode::~TerminalNode()
 
 Symbol const *TerminalNode::getSymbolC() const
 {
-  return terminal;
+  return terminalClass;
 }
 
 
 void TerminalNode::printParseTree(ostream &os, int indent) const
 {
   // I am a leaf
-  IND << terminal->name << endl;
+  IND << token->toString() << endl;
+}
+
+
+void TerminalNode::ambiguityReport(ostream &) const
+{
+  // no ambiguities at a terminal!
+}
+
+
+TerminalNode const *TerminalNode::getLeftmostTerminalC() const
+{
+  // base case of recursion
+  return this;
+}
+
+
+string TerminalNode::unparseString() const
+{
+  return token->unparseString();
 }
 
 
@@ -123,6 +144,56 @@ void NonterminalNode::printParseTree(ostream &os, int indent) const
 }
 
 
+void NonterminalNode::ambiguityReport(ostream &os) const
+{
+  // am I ambiguous?
+  if (reductions.count() > 1) {
+    // we want to print where this occurs in the input, so get
+    // the leftmost token of the first interpretation (which will
+    // be the same as leftmost in other interpretations)
+    TerminalNode const *leftmost = getLeftmostTerminalC();
+    os << "line " << leftmost->token->loc.line
+       << ", col " << leftmost->token->loc.col
+       << " \"" << unparseString()
+       << "\" : " << getLHS()->name
+       << " can be";
+
+    // print alternatives
+    int ct=0;
+    FOREACH_OBJLIST(Reduction, reductions, red) {
+      if (ct++ > 0) {
+        os << " or";
+      }
+      os << " " << red.data()->production->rhsString();
+    }
+
+    os << endl;
+  }
+
+  // are any of my children ambiguous?
+  FOREACH_OBJLIST(Reduction, reductions, red) {
+    red.data()->ambiguityReport(os);
+  }
+
+}
+
+
+TerminalNode const *NonterminalNode::getLeftmostTerminalC() const
+{
+  // all reductions (if there are more than one) will have same
+  // answer for this question
+  return reductions.firstC()->children.firstC()->getLeftmostTerminalC();
+}
+
+
+string NonterminalNode::unparseString() const
+{
+  // all reductions will yield same string (at least I think so!)
+  return reductions.firstC()->unparseString();
+}
+
+
+
 // ---------------------- Reduction -------------------------
 Reduction::Reduction(Production const *prod)
   : production(prod)
@@ -148,6 +219,37 @@ void Reduction::printParseTree(Attributes const &attr,
   SFOREACH_OBJLIST(TreeNode, children, child) {
     child.data()->printParseTree(os, indent);
   }
+}
+
+
+void Reduction::ambiguityReport(ostream &os) const
+{
+  SFOREACH_OBJLIST(TreeNode, children, child) {
+    child.data()->ambiguityReport(os);
+  }
+}
+
+
+string Reduction::unparseString() const
+{
+  stringBuilder sb;
+
+  int ct=0;
+  SFOREACH_OBJLIST(TreeNode, children, child) {
+    string childString = child.data()->unparseString();
+    if (childString.length() == 0) {
+      // it was a nonterminal that derived empty
+      // (I'm being anal about extra spaces here and there... :)  )
+      continue;
+    }
+
+    if (ct++ > 0) {
+      sb << " ";
+    }
+    sb << childString;
+  }
+
+  return sb;
 }
 
 

@@ -9,6 +9,7 @@
 #include <stdarg.h>    // variable-args stuff
 #include <stdio.h>     // FILE, etc.
 #include <ctype.h>     // isupper
+#include <stdlib.h>    // atoi
 
 
 // print a variable value
@@ -34,7 +35,7 @@ Terminal const &Symbol::asTerminalC() const
 }
 
 Nonterminal const &Symbol::asNonterminalC() const
-{                        
+{
   xassert(isNonterminal());
   return (Nonterminal&)(*this);
 }
@@ -45,6 +46,17 @@ void Terminal::print(ostream &os) const
 {
   os << "[" << termIndex << "] ";
   Symbol::print(os);
+}
+
+
+string Terminal::toString() const
+{
+  if (alias.length() > 0) {
+    return alias;
+  }
+  else {
+    return name;
+  }
 }
 
 
@@ -186,8 +198,7 @@ void Production::finished()
   dprods = new DottedProduction[numDotPlaces];
 
   INTLOOP(dotPosn, 0, numDotPlaces) {
-    dprods[dotPosn].prod = this;
-    dprods[dotPosn].dot = dotPosn;
+    dprods[dotPosn].setProdAndDot(this, dotPosn);
   }
 
   // The decision to represent dotted productions this way is driven
@@ -295,24 +306,33 @@ void Production::print(ostream &os) const
 
 string Production::toString() const
 {
+  // LHS "->" RHS
+  return stringc << taggedName(left->name, leftTag) << " -> " << rhsString();
+}
+
+
+string Production::rhsString() const
+{
   stringBuilder sb;
-                            
-  // LHS symbol and "->"
-  sb << taggedName(left->name, leftTag) << " ->";
 
   if (right.isNotEmpty()) {
     // print the RHS symbols
     ObjListIter<string> tagIter(rightTags);
     SymbolListIter symIter(right);
+    int ct=0;
     for(; !symIter.isDone() && !tagIter.isDone();
           symIter.adv(), tagIter.adv()) {
+      if (ct++ > 0) {
+        sb << " ";
+      }
+
       if (symIter.data()->isNonterminal()) {
         // print the nonterminal as a name and optional tag
-        sb << " " << taggedName(symIter.data()->name, *(tagIter.data()));
+        sb << taggedName(symIter.data()->name, *(tagIter.data()));
       }
       else {
-        // print terminals in quotes
-        sb << " " << quoteString(symIter.data()->name);
+        // print terminals as aliases if possible
+        sb << symIter.data()->asTerminalC().toString();
       }
     }
 
@@ -322,7 +342,7 @@ string Production::toString() const
 
   else {
     // empty RHS
-    sb << " empty";
+    sb << "empty";
   }
 
   return sb;
@@ -341,11 +361,19 @@ string Production::toStringWithActions() const
 
 
 // ----------------- DottedProduction ------------------
-bool DottedProduction::isDotAtEnd() const
+void DottedProduction::setProdAndDot(Production *p, int d) /*mutable*/
 {
-  return dot == prod->rhsLength();
+  // I prefer this hack to either:
+  //   - letting the members be exposed
+  //   - protecting them with clumsy accessor functions
+  const_cast<Production*&>(prod) = p;
+  const_cast<int&>(dot) = d;
+  const_cast<bool&>(dotAtEnd) = (dot == prod->rhsLength());
+  
+  // it's worth mentioning: the reason for all of this is to be
+  // able to compute 'dotAtEnd', which it turns out was a
+  // significant time consumer according to the profiler
 }
-
 
 Symbol const *DottedProduction::symbolBeforeDotC() const
 {
@@ -772,6 +800,16 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
       return true;
     }
 
+    // bison-compatible token definition
+    if (0==strcmp(tok[0], "%token")) {
+      if (tok != 3  &&  tok != 4) {
+        cout << "directive should be: %token <symbolName> <code> [<alias>]\n";
+        return false;
+      }
+
+      return declareToken(tok[1], atoi(tok[2]), tok>3? tok[3] : NULL);
+    }
+
     // action or condition?
     if (tok[0][0] == '%') {
       if (lastProductions.isEmpty()) {
@@ -791,8 +829,8 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
         if (!parseAnAction(tok[0], tok.reassemble(2, tok-2, line), iter.data())) {
           return false;
         }
-      }           
-      
+      }
+
       // success parsing the action or condition
       return true;
     }
@@ -827,9 +865,9 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
         prod = new Production(LHS, leftTag);
       }
 
-      // terminal
-      else if (tok[i][0] == '"') {
-        prod->append(getOrMakeTerminal(parseQuotedString(tok[i])), NULL /*tag*/);
+      // terminal?
+      else if (findTerminalC(tok[i])) {
+        prod->append(findTerminal(tok[i]), NULL /*tag*/);
       }
 
       // empty string
@@ -837,16 +875,21 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
         // don't actually add a symbol for this
       }
 
-      // nonterminal
+      // nonterminal (has to start with an uppercase letter)
       else if (isupper(tok[i][0])) {
         parseTaggedName(name, tag, tok[i]);
         Symbol *sym = getOrMakeNonterminal(name);
         prod->append(sym, tag);
       }
 
+      // old code for automatically defining new tokens
+      //if (tok[i][0] == '"') {
+      //  prod->append(getOrMakeTerminal(parseQuotedString(tok[i])), NULL /*tag*/);
+      //}
+
       // error
       else {
-        cout << "not a valid symbol: " << tok[i] << endl;
+        cout << "not a valid symbol (tokens must be declared): " << tok[i] << endl;
         return false;
       }
     }
@@ -858,11 +901,31 @@ bool Grammar::parseLine(char const *preLine, SObjList<Production> &lastProductio
     // ok
     return true;
   }
-  
+
   catch (xBase &x) {
     cout << "parse error: " << x << endl;
     return false;
   }
+}
+
+
+// process a %token declaration
+bool Grammar::declareToken(char const *symbolName, int code, char const *alias)
+{
+  // verify that this token hasn't been declared already
+  if (findSymbolC(symbolName)) {
+    cout << "token " << symbolName << " has already been declared\n";
+    return false;
+  }
+
+  // create a new terminal class
+  Terminal *term = getOrMakeTerminal(symbolName);
+
+  // assign fields specified in %token declaration
+  term->termIndex = code;
+  term->alias = alias;
+
+  return true;
 }
 
 
@@ -993,7 +1056,8 @@ Nonterminal const *Grammar::findNonterminalC(char const *name) const
 Terminal const *Grammar::findTerminalC(char const *name) const
 {
   FOREACH_TERMINAL(terminals, iter) {
-    if (iter.data()->name.equals(name)) {
+    if (iter.data()->name.equals(name) ||
+        iter.data()->alias.equals(name)) {
       return iter.data();
     }
   }

@@ -122,6 +122,8 @@
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
 #include "strutil.h"     // replace
+#include "lexer1.h"      // Lexer1
+#include "lexer2.h"      // Lexer2
 
 #include <stdio.h>       // FILE
 #include <fstream.h>     // ofstream
@@ -182,7 +184,8 @@ PathCollectionState::ReductionPath::~ReductionPath()
 
 // ------------------------- GLR ---------------------------
 GLR::GLR()
-  : currentToken(NULL)
+  : currentToken(NULL),
+    currentTokenClass(NULL)
   // some fields initialized by 'clearAllStackNodes'
 {}
 
@@ -201,12 +204,34 @@ void GLR::clearAllStackNodes()
 
 
 // process the input string, and yield a parse graph
-void GLR::glrParse(char const *input)
+void GLR::glrParse(char const *inputFname)
 {
-  // tokenize the input
-  StrtokParse tok(input, " \t\r\n");
+  // do first phase lexer
+  trace("progress") << "lexical analysis stage 1...\n";
+  Lexer1 lexer1;
+  {
+    FILE *input = fopen(inputFname, "r");
+    if (!input) {
+      xsyserror("fopen", inputFname);
+    }
+
+    lexer1_lex(lexer1, input);
+    fclose(input);
+
+    if (lexer1.errors > 0) {
+      printf("L1: %d error(s)\n", lexer1.errors);
+      return;
+    }
+  }
+
+  // do second phase lexer
+  trace("progress") << "lexical analysis stage 2...\n";
+  Lexer2 lexer2;
+  lexer2_lex(lexer2, lexer1);
+
 
   // get ready..
+  trace("progress") << "parsing...\n";
   clearAllStackNodes();
 
   // create an initial ParseTop with grammar-initial-state,
@@ -215,23 +240,24 @@ void GLR::glrParse(char const *input)
   activeParsers.append(first);
 
   // for each input symbol
-  INTLOOP(t, 0, tok) {
+  int tokenNumber = 0;
+  for (ObjListIter<Lexer2Token> tokIter(lexer2.tokens);
+       !tokIter.isDone(); tokIter.adv(), tokenNumber++) {
+    currentToken = tokIter.data();
+
     // debugging
     trace("parse")
       << "---------- "
-      << "processing token " << tok[t]
+      << "processing token " << currentToken->toString()
       << ", " << activeParsers.count() << " active parsers"
       << " ----------"
       << endl;
 
     // convert the token to a symbol
-    currentToken = findTerminalC(tok[t]);
-    currentTokenColumn = t;
-    
-    if (currentToken == NULL) {
-      cout << "parse error: unknown token: " << tok[t] << endl;
-      exit(1);
-    }
+    xassert(currentToken->type < numTerms);
+    currentTokenClass = indexedTerms[currentToken->type];
+    currentTokenColumn = tokenNumber;
+
 
     // ([GLR] called the code from here to the end of
     // the loop 'parseword')
@@ -254,7 +280,9 @@ void GLR::glrParse(char const *input)
 
     // if all active parsers have died, there was an error
     if (activeParsers.isEmpty()) {
-      cout << "Parse error at " << tok[t] << endl;
+      cout << "Line " << currentToken->loc.line
+           << ", col " << currentToken->loc.col
+           << ": Parse error at " << currentToken->toString() << endl;
       return;
     }
   }
@@ -285,7 +313,15 @@ void GLR::glrParse(char const *input)
   // had broken this into pieces while tracking down a problem, and
   // I've decided to leave it this way
   xassert(tn);
-  tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/);
+  if (tracingSys("parse-tree")) {
+    tn->printParseTree(trace("parse-tree") << endl, 2 /*indent*/);
+  }
+
+
+  // generate an ambiguity report
+  if (tracingSys("ambiguities")) {
+    tn->ambiguityReport(trace("ambiguities") << endl);
+  }
 }
 
 
@@ -306,7 +342,7 @@ void GLR::postponeShift(StackNode *parser,
                         ObjList<PendingShift> &pendingShifts)
 {
   // see where a shift would go
-  ItemSet const *shiftDest = parser->state->transitionC(currentToken);
+  ItemSet const *shiftDest = parser->state->transitionC(currentTokenClass);
   if (shiftDest != NULL) {
     // postpone until later; save necessary state (the
     // parser and the state to transition to)
@@ -324,7 +360,8 @@ void GLR::doAllPossibleReductions(StackNode *parser,
 {
   // get all possible reductions where 'currentToken' is in Follow(LHS)
   ProductionList reductions;
-  parser->state->getPossibleReductions(reductions, currentToken, true /*parsing*/);
+  parser->state->getPossibleReductions(reductions, currentTokenClass,
+                                       true /*parsing*/);
 
   // for each possible reduction, do it
   SFOREACH_PRODUCTION(reductions, prod) {
@@ -372,11 +409,14 @@ void GLR::doAllPossibleReductions(StackNode *parser,
     MUTATE_EACH_OBJLIST(PathCollectionState::ReductionPath, pcs.paths, pathIter) {
       PathCollectionState::ReductionPath *rpath = pathIter.data();
 
-      trace("parse")
-	<< "in state " << parser->state->id
-	<< ", reducing by " << *(prod.data())
-       	<< ", to go to state " << rpath->finalState->state->id
-  	<< endl;
+      if (tracingSys("parse")) {
+        // profiling reported this used significant time even when not tracing
+        trace("parse")
+          << "in state " << parser->state->id
+          << ", reducing by " << *(prod.data())
+          << ", back to state " << rpath->finalState->state->id
+          << endl;
+      }
 
       // this is like shifting the reduction's LHS onto 'finalParser'
       glrShiftNonterminal(rpath->finalState, transferOwnership(rpath->reduction));
@@ -485,11 +525,13 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling,
     leftSibling->state->transitionC(prod->left);
 
   // debugging
-  trace("parse")
-    << "from state " << leftSibling->state->id
-    << ", shifting production " << *(prod)
-    << ", transitioning to state " << rightSiblingState->id
-    << endl;
+  if (tracingSys("parse")) {
+    trace("parse")
+      << "from state " << leftSibling->state->id
+      << ", shifting production " << *(prod)
+      << ", transitioning to state " << rightSiblingState->id
+      << endl;
+  }
 
   // is there already an active parser with this state?
   StackNode *rightSibling = findActiveParser(rightSiblingState);
@@ -604,7 +646,7 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     // debugging
     trace("parse")
       << "from state " << leftSibling->state->id
-      << ", shifting terminal " << currentToken->name
+      << ", shifting terminal " << currentToken->toString()
       << ", transitioning to state " << newState->id
       << endl;
 
@@ -623,8 +665,8 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     }
 
     // either way, add the sibling link now
-    rightSibling->addSiblingLink(leftSibling,
-                                 makeTerminalNode(currentToken));
+    rightSibling->addSiblingLink(
+      leftSibling, makeTerminalNode(currentToken, currentTokenClass));
   }
 }
 
@@ -651,9 +693,9 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 }
 
 
-TerminalNode *GLR::makeTerminalNode(Terminal const *t)
+TerminalNode *GLR::makeTerminalNode(Lexer2Token const *tk, Terminal const *tc)
 {
-  TerminalNode *ret = new TerminalNode(t);
+  TerminalNode *ret = new TerminalNode(tk, tc);
   treeNodes.prepend(ret);
   return ret;
 }
@@ -876,9 +918,8 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname,
   #endif // 0/1
 
   #if 1
-    // take the grammar and input from files
+    // read grammar
     readFile(grammarFname);
-    string input = readFileIntoString(inputFname);
 
     // spit grammar out as something bison might be able to parse
     {
@@ -897,25 +938,10 @@ void GLR::glrTest(char const *grammarFname, char const *inputFname,
     printProductions(trace("grammar") << endl);
     runAnalyses();
 
-    // work through input, throwing away comments
-    trace("progress") << "preprocessing...\n";
-    stringBuilder sb;
-    {
-      StrtokParse tok(input, "\n");
-      INTLOOP(i, 0, tok) {
-        if (tok[i][0] == '#') {
-          // throw it away
-        }
-        else {
-          // keep it
-          sb << tok[i] << "\n";
-        }
-      }
-    }
 
     // parse input
-    trace("progress") << "parsing...\n";
-    glrParse(sb);
+    glrParse(inputFname);
+
   #endif // 0/1
 }
 
@@ -936,7 +962,7 @@ int main(int argc, char **argv)
   // process args
   while (argc >= 1) {
     if (0==strcmp(argv[0], "-tr") && argc >= 2) {
-      traceAddSys(argv[1]);
+      traceAddMultiSys(argv[1]);
       argc -= 2;
       argv += 2;
     }
@@ -964,3 +990,30 @@ int main(int argc, char **argv)
   return 0;
 }
 #endif // GLR_MAIN
+
+
+
+// ------------------------- trash --------------------------
+#if 0
+    // work through input, throwing away comments
+    trace("progress") << "preprocessing...\n";
+
+    stringBuilder sb;
+    {
+      StrtokParse tok(input, "\n");
+      INTLOOP(i, 0, tok) {
+        if (tok[i][0] == '#') {
+          // throw it away
+        }
+        else {
+          // keep it
+          sb << tok[i] << "\n";
+        }
+      }
+    }
+
+    // parse input
+    trace("progress") << "parsing...\n";
+    glrParse(sb);
+
+#endif // 0

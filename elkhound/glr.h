@@ -42,6 +42,9 @@
 #include "glrtree.h"     // parse tree (graph) representation
 
 
+// fwds from other files
+class Lexer2Token;       // lexer2.h
+
 // forward decls for things declared below
 class StackNode;         // unit of parse state
 class SiblingLink;       // connections between stack nodes
@@ -213,8 +216,12 @@ public:
   // ---- parser state during each token ----
   // the token we're trying to shift; any parser that fails to
   // shift this token (or reduce to one that can, recursively)
-  // will "die"
-  Terminal const *currentToken;
+  // will "die"               
+  Lexer2Token const *currentToken;
+                                  
+  // this is the class of the given token, i.e. its classification
+  // in the grammar
+  Terminal const *currentTokenClass;
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
@@ -239,7 +246,7 @@ private:    // funcs
   StackNode *makeStackNode(ItemSet const *state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
-  TerminalNode *makeTerminalNode(Terminal const *t);
+  TerminalNode *makeTerminalNode(Lexer2Token const *tk, Terminal const *tc);
   NonterminalNode *makeNonterminalNode(AttrContext &actx);
 
 

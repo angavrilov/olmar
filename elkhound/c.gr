@@ -5,18 +5,123 @@
 # the parts that are in C
 
 
+# ------ tokens -------
+# this list generated automatically by the lexer
+#      canonical name      code   alias
+#      ------------------  ----   ----------
+%token L2_EOF                 0   
+%token L2_NAME                1   
+%token L2_INT_LITERAL         2   
+%token L2_FLOAT_LITERAL       3   
+%token L2_STRING_LITERAL      4   
+%token L2_CHAR_LITERAL        5   
+%token L2_ASM                 6   "asm"
+%token L2_AUTO                7   "auto"
+%token L2_BREAK               8   "break"
+%token L2_BOOL                9   "bool"
+%token L2_CASE               10   "case"
+%token L2_CATCH              11   "catch"
+%token L2_CDECL              12   "cdecl"
+%token L2_CHAR               13   "char"
+%token L2_CLASS              14   "class"
+%token L2_CONST              15   "const"
+%token L2_CONTINUE           16   "continue"
+%token L2_DEFAULT            17   "default"
+%token L2_DELETE             18   "delete"
+%token L2_DO                 19   "do"
+%token L2_DOUBLE             20   "double"
+%token L2_ELSE               21   "else"
+%token L2_ENUM               22   "enum"
+%token L2_EXTERN             23   "extern"
+%token L2_FLOAT              24   "float"
+%token L2_FOR                25   "for"
+%token L2_FRIEND             26   "friend"
+%token L2_GOTO               27   "goto"
+%token L2_IF                 28   "if"
+%token L2_INLINE             29   "inline"
+%token L2_INT                30   "int"
+%token L2_LONG               31   "long"
+%token L2_NEW                32   "new"
+%token L2_OPERATOR           33   "operator"
+%token L2_PASCAL             34   "pascal"
+%token L2_PRIVATE            35   "private"
+%token L2_PROTECTED          36   "protected"
+%token L2_PUBLIC             37   "public"
+%token L2_REGISTER           38   "register"
+%token L2_RETURN             39   "return"
+%token L2_SHORT              40   "short"
+%token L2_SIGNED             41   "signed"
+%token L2_SIZEOF             42   "sizeof"
+%token L2_STATIC             43   "static"
+%token L2_STRUCT             44   "struct"
+%token L2_SWITCH             45   "switch"
+%token L2_TEMPLATE           46   "template"
+%token L2_THIS               47   "this"
+%token L2_THROW              48   "throw"
+%token L2_TRY                49   "try"
+%token L2_TYPEDEF            50   "typedef"
+%token L2_UNION              51   "union"
+%token L2_UNSIGNED           52   "unsigned"
+%token L2_VIRTUAL            53   "virtual"
+%token L2_VOID               54   "void"
+%token L2_VOLATILE           55   "volatile"
+%token L2_WCHAR_T            56   "wchar_t"
+%token L2_WHILE              57   "while"
+%token L2_LPAREN             58   "("
+%token L2_RPAREN             59   ")"
+%token L2_LBRACKET           60   "["
+%token L2_RBRACKET           61   "]"
+%token L2_ARROW              62   "->"
+%token L2_COLONCOLON         63   "::"
+%token L2_DOT                64   "."
+%token L2_BANG               65   "!"
+%token L2_TILDE              66   "~"
+%token L2_PLUS               67   "+"
+%token L2_MINUS              68   "-"
+%token L2_PLUSPLUS           69   "++"
+%token L2_MINUSMINUS         70   "--"
+%token L2_AND                71   "&"
+%token L2_STAR               72   "*"
+%token L2_DOTSTAR            73   ".*"
+%token L2_ARROWSTAR          74   "->*"
+%token L2_SLASH              75   "/"
+%token L2_PERCENT            76   "%"
+%token L2_LEFTSHIFT          77   "<<"
+%token L2_RIGHTSHIFT         78   ">>"
+%token L2_LESSTHAN           79   "<"
+%token L2_LESSEQ             80   "<="
+%token L2_GREATERTHAN        81   ">"
+%token L2_GREATEREQ          82   ">="
+%token L2_EQUALEQUAL         83   "=="
+%token L2_NOTEQUAL           84   "!="
+%token L2_XOR                85   "^"
+%token L2_OR                 86   "|"
+%token L2_ANDAND             87   "&&"
+%token L2_OROR               88   "||"
+%token L2_QUESTION           89   "?"
+%token L2_COLON              90   ":"
+%token L2_EQUAL              91   "="
+%token L2_STAREQUAL          92   "*="
+%token L2_SLASHEQUAL         93   "/="
+%token L2_PERCENTEQUAL       94   "%="
+%token L2_PLUSEQUAL          95   "+="
+%token L2_MINUSEQUAL         96   "-="
+%token L2_ANDEQUAL           97   "&="
+%token L2_XOREQUAL           98   "^="
+%token L2_OREQUAL            99   "|="
+%token L2_LEFTSHIFTEQUAL    100   "<<="
+%token L2_RIGHTSHIFTEQUAL   101   ">>="
+%token L2_COMMA             102   ","
+%token L2_ELLIPSIS          103   "..."
+%token L2_SEMICOLON         104   ";"
+%token L2_LBRACE            105   "{"
+%token L2_RBRACE            106   "}"
+# ------ end of tokens ------
+
+
+
 # start symbol
-StartSymbol -> TranslationUnit "$"
-
-
-# ---------------- tokens ----------------------------
-# for now I'm just giving a few example members of the
-# token sets, and delaying adding a real lexer
-Identifier -> "a" | "b" | "c" | "f" | "foo" | "x" | "y" | "z"
-#StringLiteral -> "foo" | "bar"	     # small issue about Bison output..
-StringLiteral -> "iAmAString"
-IntegerLiteral -> "0" | "1" | "2" | "3"
-Literal -> IntegerLiteral | StringLiteral
+StartSymbol -> TranslationUnit L2_EOF
 
 
 # ------------- identifier ambiguity -------------------
@@ -24,12 +129,12 @@ Literal -> IntegerLiteral | StringLiteral
 # source of problems parsing C and C++
 # (here, "variable" means variable or function; it names
 # an object that exists at runtime)
-TypedefName -> Identifier
-EnumName -> Identifier
-EnumValueName -> Identifier      # called 'enumerator' in spec
-StructName -> Identifier
-VariableName -> Identifier
-LabelName -> Identifier
+TypedefName -> L2_NAME
+EnumName -> L2_NAME
+EnumValueName -> L2_NAME      # called 'enumerator' in spec
+StructName -> L2_NAME
+VariableName -> L2_NAME
+LabelName -> L2_NAME
 
 
 # ---------------- higher-level syntax -----------------
@@ -39,9 +144,12 @@ TranslationUnit -> empty | Declaration TranslationUnit
 # ------ A.4 Expressions ------
 PrimaryExpression -> Literal | "this" | "(" Expression ")" | VariableName
 
+Literal -> L2_INT_LITERAL | L2_FLOAT_LITERAL | L2_STRING_LITERAL | L2_CHAR_LITERAL
+
 PostfixExpression -> PrimaryExpression
-PostfixExpression -> PostfixExpression "[" Expression "]"          # array
-PostfixExpression -> PostfixExpression "(" ExpressionList ")"      # fn call
+PostfixExpression -> PostfixExpression "[" Expression "]"        # array
+PostfixExpression -> PostfixExpression "(" ExpressionList ")"    # fn call
+PostfixExpression -> PostfixExpression "(" ")"                   # fn call, no args
 PostfixExpression -> PostfixExpression "." VariableName          # field access
 PostfixExpression -> PostfixExpression "->" VariableName         # deref + field access
 PostfixExpression -> PostfixExpression "++"
@@ -196,45 +304,90 @@ BlockDeclaration -> SimpleDeclaration      # C++ has other alternatives..
 #   for declaring classes and enums
 SimpleDeclaration -> DeclSpecifier InitDeclaratorListOpt ";"
   # e.g.:            int           x                     ;
+ 
+# old:
+#DeclSpecifier -> StorageClassOpt CVQualifiersOpt TypeSpecifier
+#CVQualifiersOpt -> "const" CVQualifiersOpt | "volatile" CVQualifiersOpt | empty
+# now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
+# the TypeId in a cast expression to contain a "const"
 
-DeclSpecifier -> StorageClassOpt CVQualifiersOpt TypeSpecifier
+DeclSpecifier -> StorageClassOpt TypeSpecifier
 StorageClassOpt -> "typedef" | "auto" | "register" | "static" | "extern" | empty
-CVQualifiersOpt -> "const" CVQualifiersOpt | "volatile" CVQualifiersOpt | empty
 
-TypeSpecifier -> SimpleTypeSpecifier       # int
-TypeSpecifier -> ClassSpecifier            # class { ... }
-TypeSpecifier -> EnumSpecifier             # enum { ... }
+TypeSpecifier -> SimpleTypeSpecifier         # int
+TypeSpecifier -> SimpleCVTypeSpecifier       # unsigned const char  (not good style, IMO)
+TypeSpecifier -> ClassSpecifier              # class { ... }
+TypeSpecifier -> EnumSpecifier               # enum { ... }
+TypeSpecifier -> ElaboratedTypeSpecifier     # class foo  or  enum bar
+TypeSpecifier -> CVQualifier TypeSpecifier   # const int
+TypeSpecifier -> TypeSpecifier CVQualifier   # int const
+
+ElaboratedTypeSpecifier -> ClassKeyword L2_NAME
+ElaboratedTypeSpecifier -> "enum" L2_NAME
 
 # this list comes from Table 7 (p.109) of the C++ standard
 # NOTE: this deviates from the language spec, which allows other
 # decl-specifiers to mix with the tokens here; I do not
 SimpleTypeSpecifier -> TypedefName                  # <-- this is part of why parsing C is hard
-SimpleTypeSpecifier -> "char"			    # char
-SimpleTypeSpecifier -> "unsigned" "char"	    # unsigned char
-SimpleTypeSpecifier -> "signed" "char"		    # signed char
-SimpleTypeSpecifier -> "bool"			    # bool
-SimpleTypeSpecifier -> "unsigned"		    # unsigned int
-SimpleTypeSpecifier -> "unsigned" "int"		    # unsigned int
-SimpleTypeSpecifier -> "signed"			    # int
-SimpleTypeSpecifier -> "signed" "int"		    # int
-SimpleTypeSpecifier -> "int"			    # int
-SimpleTypeSpecifier -> "unsigned" "short" "int"	    # unsigned short int
-SimpleTypeSpecifier -> "unsigned" "short"	    # unsigned short int
-SimpleTypeSpecifier -> "unsigned" "long" "int"	    # unsigned long int
-SimpleTypeSpecifier -> "unsigned" "long"	    # unsigned long int
-SimpleTypeSpecifier -> "signed" "long" "int"	    # long int
-SimpleTypeSpecifier -> "signed" "long"		    # long int
-SimpleTypeSpecifier -> "long" "int"		    # long int
-SimpleTypeSpecifier -> "long"			    # long int
-SimpleTypeSpecifier -> "signed" "short" "int"	    # short int
-SimpleTypeSpecifier -> "signed" "short"		    # short int
-SimpleTypeSpecifier -> "short" "int"		    # short int
-SimpleTypeSpecifier -> "short"			    # short int
-SimpleTypeSpecifier -> "wchar_t"		    # wchar_t
-SimpleTypeSpecifier -> "float"			    # float
-SimpleTypeSpecifier -> "double"			    # double
-SimpleTypeSpecifier -> "long" "double"		    # long double
-SimpleTypeSpecifier -> "void"			    # void
+SimpleTypeSpecifier -> "char"                       # char
+SimpleTypeSpecifier -> "unsigned" "char"            # unsigned char
+SimpleTypeSpecifier -> "signed" "char"              # signed char
+SimpleTypeSpecifier -> "bool"                       # bool
+SimpleTypeSpecifier -> "unsigned"                   # unsigned int
+SimpleTypeSpecifier -> "unsigned" "int"             # unsigned int
+SimpleTypeSpecifier -> "signed"                     # int
+SimpleTypeSpecifier -> "signed" "int"               # int
+SimpleTypeSpecifier -> "int"                        # int
+SimpleTypeSpecifier -> "unsigned" "short" "int"     # unsigned short int
+SimpleTypeSpecifier -> "unsigned" "short"           # unsigned short int
+SimpleTypeSpecifier -> "unsigned" "long" "int"      # unsigned long int
+SimpleTypeSpecifier -> "unsigned" "long"            # unsigned long int
+SimpleTypeSpecifier -> "signed" "long" "int"        # long int
+SimpleTypeSpecifier -> "signed" "long"              # long int
+SimpleTypeSpecifier -> "long" "int"                 # long int
+SimpleTypeSpecifier -> "long"                       # long int
+SimpleTypeSpecifier -> "signed" "short" "int"       # short int
+SimpleTypeSpecifier -> "signed" "short"             # short int
+SimpleTypeSpecifier -> "short" "int"                # short int
+SimpleTypeSpecifier -> "short"                      # short int
+SimpleTypeSpecifier -> "wchar_t"                    # wchar_t
+SimpleTypeSpecifier -> "float"                      # float
+SimpleTypeSpecifier -> "double"                     # double
+SimpleTypeSpecifier -> "long" "double"              # long double
+SimpleTypeSpecifier -> "void"                       # void
+
+# the C++ standard allows "const" and "volatile" to be arbitrarily
+# interleaved with the words of a simple-type-specifier.. so I've
+# created this set of alternative type specifiers which have at
+# least one CV qualifier buried in them
+#
+# technically, I'm still missing things like
+#   unsigned const short volatile int
+# but yikes I pity the fool with such code!
+#
+# I really should just fold these into the above, but my dislike for
+# the interleaving thing makes me try to keep the above decls more
+# or less "pure".. but I'll merge them at some point
+SimpleCVTypeSpecifier -> "unsigned" CVQualifierSeq "char"                  # unsigned char
+SimpleCVTypeSpecifier -> "signed" CVQualifierSeq "char"                    # signed char
+SimpleCVTypeSpecifier -> "unsigned" CVQualifierSeq "int"                   # unsigned int
+SimpleCVTypeSpecifier -> "signed" CVQualifierSeq "int"                     # int
+SimpleCVTypeSpecifier -> "unsigned" CVQualifierSeq "short" "int"           # unsigned short int
+SimpleCVTypeSpecifier -> "unsigned" "short" CVQualifierSeq "int"           # unsigned short int
+SimpleCVTypeSpecifier -> "unsigned" CVQualifierSeq "short"                 # unsigned short int
+SimpleCVTypeSpecifier -> "unsigned" CVQualifierSeq "long" "int"            # unsigned long int
+SimpleCVTypeSpecifier -> "unsigned" "long" CVQualifierSeq "int"            # unsigned long int
+SimpleCVTypeSpecifier -> "unsigned" CVQualifierSeq "long"                  # unsigned long int
+SimpleCVTypeSpecifier -> "signed" CVQualifierSeq "long" "int"              # long int
+SimpleCVTypeSpecifier -> "signed" "long" CVQualifierSeq "int"              # long int
+SimpleCVTypeSpecifier -> "signed" CVQualifierSeq "long"                    # long int
+SimpleCVTypeSpecifier -> "long" CVQualifierSeq "int"                       # long int
+SimpleCVTypeSpecifier -> "signed" CVQualifierSeq "short" "int"             # short int
+SimpleCVTypeSpecifier -> "signed" "short" CVQualifierSeq "int"             # short int
+SimpleCVTypeSpecifier -> "signed" CVQualifierSeq "short"                   # short int
+SimpleCVTypeSpecifier -> "short" CVQualifierSeq "int"                      # short int
+SimpleCVTypeSpecifier -> "long" CVQualifierSeq "double"                    # long double
+
 
 EnumSpecifier -> "enum" "{" EnumeratorListOpt "}"
 EnumSpecifier -> "enum" EnumName "{" EnumeratorListOpt "}"
@@ -246,10 +399,10 @@ EnumeratorListOpt -> empty | EnumeratorList
 EnumeratorDefinition -> EnumValueName
 EnumeratorDefinition -> EnumValueName "=" ConstantExpression
 
-AsmDefinition -> "asm" "(" StringLiteral ")" ";"
+AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";"
 
-LinkageSpecification -> "extern" StringLiteral "{" DeclarationSeqOpt "}"
-LinkageSpecification -> "extern" StringLiteral Declaration
+LinkageSpecification -> "extern" L2_STRING_LITERAL "{" DeclarationSeqOpt "}"
+LinkageSpecification -> "extern" L2_STRING_LITERAL Declaration
 
 # ------ A.7 Declarators ------
 # -- declarator --
@@ -290,13 +443,14 @@ DirectDeclarator -> "(" Declarator ")"                               # precedenc
 PtrOperator -> "*" CVQualifierSeqOpt
 
 CVQualifierSeqOpt -> empty | CVQualifier CVQualifierSeqOpt
-
+CVQualifierSeq -> CVQualifier | CVQualifier CVQualifierSeq
 CVQualifier -> "const" | "volatile"
 
 # -- type-id --
 # a type-id is like a declaration of one thing, but without the variable name;
 # it is, for example, what appears inside the parens of a typecast
-TypeId -> TypeSpecifierSeq AbstractDeclarator
+# old -- why seq??  TypeId -> TypeSpecifierSeq AbstractDeclarator
+TypeId -> TypeSpecifier AbstractDeclarator
 
 TypeSpecifierSeq -> TypeSpecifier | TypeSpecifier TypeSpecifierSeq
 
@@ -349,9 +503,10 @@ FunctionBody -> CompoundStatement
 # C only has "struct" and "union"
 ClassSpecifier -> ClassHead "{" MemberSpecificationSeqOpt "}"
 
-ClassHead -> ClassKeyword Identifier
+ClassHead -> ClassKeyword L2_NAME
 ClassHead -> ClassKeyword
 
+# and I'm even allowing "class" itself..
 ClassKeyword -> "class" | "struct" | "union"
 
 MemberSpecificationSeqOpt -> empty | MemberSpecification MemberSpecificationSeqOpt

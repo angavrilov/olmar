@@ -13,8 +13,7 @@ enum Lexer2TokenType {
   // it makes systematic modification (search & replace)
   // more difficult
 
-  // end of file; this doesn't appear in a Lexer2Token object, but
-  // is given to the parser to signal EOF; its value must be 0
+  // end of file
   L2_EOF=0,
 
   // non-keyword name
@@ -30,6 +29,7 @@ enum Lexer2TokenType {
   L2_ASM,
   L2_AUTO,
   L2_BREAK,
+  L2_BOOL,
   L2_CASE,
   L2_CATCH,
   L2_CDECL,
@@ -169,6 +169,8 @@ public:
 
   // debugging
   void print() const;
+  string toString() const;
+  string unparseString() const;  // return the source text that generated this token
 };
 
 

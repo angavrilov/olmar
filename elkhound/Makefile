@@ -9,6 +9,7 @@ SMBASE = /home/scott/wrk/lib/smbase
 # dependencies
 libraries = ${SMBASE}/libsmbase.a
 includes = -I${SMBASE}
+ccflags = -pg
 
 # pull in base stuff
 include ${SMBASE}/Makefile.base.mk
@@ -20,7 +21,7 @@ grammar: grammar.h grammar.cc gramanl.h gramanl.cc
 
 # GLR parser built on top of SLR(1) parser
 glr-dep = grammar.o gramanl.o glr.cc glrtree.o trace.o attr.o cond.o \
-          attrexpr.o action.o
+          attrexpr.o action.o lexer1.o lexer1yy.o lexer2.o
 glr: ${glr-dep}	glr.h ${SMBASE}/libsmbase.a
 	${link} -o glr -DGLR_MAIN ${glr-dep} ${linkend}
 
@@ -32,7 +33,7 @@ lexer1: lexer1.cc lexer1yy.o trace.o ${SMBASE}/libsmbase.a
 	${link} -o lexer1 -DTEST_LEXER1 lexer1.cc lexer1yy.o trace.o ${linkend}
 
 # second pass lexer
-lexer2: lexer2.cc lexer1.o lexer1yy.o trace.o
+lexer2: lexer2.cc lexer1.o lexer1yy.o trace.o lexer2.h
 	${link} -o lexer2 -DTEST_LEXER2 lexer2.cc lexer1.o lexer1yy.o trace.o ${linkend}
 
 clean:

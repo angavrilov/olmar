@@ -3,136 +3,149 @@
 
 #include "lexer2.h"      // this module
 #include "trace.h"       // tracingSys
+#include "strutil.h"     // encodeWithEscapes
 
 #include <stdlib.h>      // strtoul
 
 
 // ------------------ token type descriptions ----------------------
-struct Lexer2TokenTypeDesc {
-  Lexer2TokenType tokType;     // type code; should equal index in l2TokTypes[] (but not checked)
-  char const *typeName;        // name as it appears in C code
-  char const *spelling;        // spelling for keywords and operators; descriptive name for others
+struct Lexer2TokenTypeDesc
+{
+  // type code; should equal index in l2TokTypes[] (but not checked)
+  Lexer2TokenType tokType;
+
+  // name as it appears in C code
+  char const *typeName;
+
+  // spelling for keywords and operators; descriptive name for others
+  char const *spelling;
+
+  // true for tokens where we emit spelling as Bison alias; also, this
+  // must be true for us to consider 'spelling' to mean a keyword or
+  // operator spelling as opposed to an L2_NAME
+  bool bisonSpelling;
 };
-	 
+
 // name it once, get both the symbol and the string
 #define N(name) name, #name
 
 Lexer2TokenTypeDesc const l2TokTypes[] = {
   // eof
-  { N(L2_EOF),             	"EOF" },
+  { N(L2_EOF),                  "EOF", false },
 
   // name
-  { N(L2_NAME),	 		"NAME" },
+  { N(L2_NAME),                 "NAME", false },
 
   // literals
-  { N(L2_INT_LITERAL),     	"INT_LITERAL" },
-  { N(L2_FLOAT_LITERAL),   	"FLOAT_LITERAL" },
-  { N(L2_STRING_LITERAL),  	"STRING_LITERAL" },
-  { N(L2_CHAR_LITERAL),    	"CHAR_LITERAL" },
+  { N(L2_INT_LITERAL),          "INT_LITERAL", false },
+  { N(L2_FLOAT_LITERAL),        "FLOAT_LITERAL", false },
+  { N(L2_STRING_LITERAL),       "STRING_LITERAL", false },
+  { N(L2_CHAR_LITERAL),         "CHAR_LITERAL", false },
 
   // keywords
-  { N(L2_ASM),			"asm" },
-  { N(L2_AUTO),			"auto" },
-  { N(L2_BREAK),		"break" },
-  { N(L2_CASE),			"case" },
-  { N(L2_CATCH),		"catch" },
-  { N(L2_CDECL),  		"cdecl" },
-  { N(L2_CHAR),   		"char" },
-  { N(L2_CLASS),		"class" },
-  { N(L2_CONST),		"const" },
-  { N(L2_CONTINUE),		"continue" },
-  { N(L2_DEFAULT),		"default" },
-  { N(L2_DELETE),		"delete" },
-  { N(L2_DO),			"do" },
-  { N(L2_DOUBLE),		"double" },
-  { N(L2_ELSE),			"else" },
-  { N(L2_ENUM),			"enum" },
-  { N(L2_EXTERN),		"extern" },
-  { N(L2_FLOAT),		"float" },
-  { N(L2_FOR),			"for" },
-  { N(L2_FRIEND),		"friend" },
-  { N(L2_GOTO),			"goto" },
-  { N(L2_IF),			"if" },
-  { N(L2_INLINE),		"inline" },
-  { N(L2_INT),			"int" },
-  { N(L2_LONG),			"long" },
-  { N(L2_NEW),			"new" },
-  { N(L2_OPERATOR),		"operator" },
-  { N(L2_PASCAL),		"pascal" },
-  { N(L2_PRIVATE),	   	"private" },
-  { N(L2_PROTECTED),		"protected" },
-  { N(L2_PUBLIC),		"public" },
-  { N(L2_REGISTER),		"register" },
-  { N(L2_RETURN),		"return" },
-  { N(L2_SHORT),		"short" },
-  { N(L2_SIGNED),	     	"signed" },
-  { N(L2_SIZEOF),		"sizeof" },
-  { N(L2_STATIC),		"static" },
-  { N(L2_STRUCT),		"struct" },
-  { N(L2_SWITCH),		"switch" },
-  { N(L2_TEMPLATE),		"template" },
-  { N(L2_THIS),			"this" },
-  { N(L2_THROW),		"throw" },
-  { N(L2_TRY),			"try" },
-  { N(L2_TYPEDEF),		"typedef" },
-  { N(L2_UNION),		"union" },
-  { N(L2_UNSIGNED),		"unsigned" },
-  { N(L2_VIRTUAL),		"virtual" },
-  { N(L2_VOID),			"void" },
-  { N(L2_VOLATILE),		"volatile" },
-  { N(L2_WCHAR_T),		"wchar_t" },
-  { N(L2_WHILE),		"while" },
+  { N(L2_ASM),                  "asm", true },
+  { N(L2_AUTO),                 "auto", true },
+  { N(L2_BREAK),                "break", true },
+  { N(L2_BOOL),                 "bool", true },
+  { N(L2_CASE),                 "case", true },
+  { N(L2_CATCH),                "catch", true },
+  { N(L2_CDECL),                "cdecl", true },
+  { N(L2_CHAR),                 "char", true },
+  { N(L2_CLASS),                "class", true },
+  { N(L2_CONST),                "const", true },
+  { N(L2_CONTINUE),             "continue", true },
+  { N(L2_DEFAULT),              "default", true },
+  { N(L2_DELETE),               "delete", true },
+  { N(L2_DO),                   "do", true },
+  { N(L2_DOUBLE),               "double", true },
+  { N(L2_ELSE),                 "else", true },
+  { N(L2_ENUM),                 "enum", true },
+  { N(L2_EXTERN),               "extern", true },
+  { N(L2_FLOAT),                "float", true },
+  { N(L2_FOR),                  "for", true },
+  { N(L2_FRIEND),               "friend", true },
+  { N(L2_GOTO),                 "goto", true },
+  { N(L2_IF),                   "if", true },
+  { N(L2_INLINE),               "inline", true },
+  { N(L2_INT),                  "int", true },
+  { N(L2_LONG),                 "long", true },
+  { N(L2_NEW),                  "new", true },
+  { N(L2_OPERATOR),             "operator", true },
+  { N(L2_PASCAL),               "pascal", true },
+  { N(L2_PRIVATE),              "private", true },
+  { N(L2_PROTECTED),            "protected", true },
+  { N(L2_PUBLIC),               "public", true },
+  { N(L2_REGISTER),             "register", true },
+  { N(L2_RETURN),               "return", true },
+  { N(L2_SHORT),                "short", true },
+  { N(L2_SIGNED),               "signed", true },
+  { N(L2_SIZEOF),               "sizeof", true },
+  { N(L2_STATIC),               "static", true },
+  { N(L2_STRUCT),               "struct", true },
+  { N(L2_SWITCH),               "switch", true },
+  { N(L2_TEMPLATE),             "template", true },
+  { N(L2_THIS),                 "this", true },
+  { N(L2_THROW),                "throw", true },
+  { N(L2_TRY),                  "try", true },
+  { N(L2_TYPEDEF),              "typedef", true },
+  { N(L2_UNION),                "union", true },
+  { N(L2_UNSIGNED),             "unsigned", true },
+  { N(L2_VIRTUAL),              "virtual", true },
+  { N(L2_VOID),                 "void", true },
+  { N(L2_VOLATILE),             "volatile", true },
+  { N(L2_WCHAR_T),              "wchar_t", true },
+  { N(L2_WHILE),                "while", true },
   
   // operators
-  { N(L2_LPAREN),		"(" },
-  { N(L2_RPAREN),		")" },
-  { N(L2_LBRACKET),		"[" },
-  { N(L2_RBRACKET),		"]" },
-  { N(L2_ARROW),		"->" },
-  { N(L2_COLONCOLON),		"::" },
-  { N(L2_DOT),			"." },
-  { N(L2_BANG),			"!" },
-  { N(L2_TILDE),	   	"~" },
-  { N(L2_PLUS),			"+" },
-  { N(L2_MINUS),		"-" },
-  { N(L2_PLUSPLUS),		"++" },
-  { N(L2_MINUSMINUS),		"--" },
-  { N(L2_AND),			"&" },
-  { N(L2_STAR),			"*" },
-  { N(L2_DOTSTAR),		".*" },
-  { N(L2_ARROWSTAR),		"->*" },
-  { N(L2_SLASH),		"/" },
-  { N(L2_PERCENT),		"%" },
-  { N(L2_LEFTSHIFT),		"<<" },
-  { N(L2_RIGHTSHIFT),		">>" },
-  { N(L2_LESSTHAN),		"<" },
-  { N(L2_LESSEQ),		"<=" },
-  { N(L2_GREATERTHAN),		">" },
-  { N(L2_GREATEREQ),		">=" },
-  { N(L2_EQUALEQUAL),		"==" },
-  { N(L2_NOTEQUAL),		"!=" },
-  { N(L2_XOR),			"^" },
-  { N(L2_OR),			"|" },
-  { N(L2_ANDAND),		"&&" },
-  { N(L2_OROR),			"||" },
-  { N(L2_QUESTION),		"?" },
-  { N(L2_COLON),		":" },
-  { N(L2_EQUAL),		"=" },
-  { N(L2_STAREQUAL),   		"*=" },
-  { N(L2_SLASHEQUAL),  		"/=" },
-  { N(L2_PERCENTEQUAL),		"%=" },
-  { N(L2_PLUSEQUAL),		"+=" },
-  { N(L2_MINUSEQUAL),		"-=" },
-  { N(L2_ANDEQUAL),		"&=" },
-  { N(L2_XOREQUAL),		"^=" },
-  { N(L2_OREQUAL),	   	"|=" },
-  { N(L2_LEFTSHIFTEQUAL),  	"<<=" },
-  { N(L2_RIGHTSHIFTEQUAL), 	">>=" },
-  { N(L2_COMMA),	   	"," },
-  { N(L2_ELLIPSIS),		"..." },
-  { N(L2_SEMICOLON),		";" },
-  { N(L2_LBRACE),          	"{" },
-  { N(L2_RBRACE),          	"}" },
+  { N(L2_LPAREN),               "(", true },
+  { N(L2_RPAREN),               ")", true },
+  { N(L2_LBRACKET),             "[", true },
+  { N(L2_RBRACKET),             "]", true },
+  { N(L2_ARROW),                "->", true },
+  { N(L2_COLONCOLON),           "::", true },
+  { N(L2_DOT),                  ".", true },
+  { N(L2_BANG),                 "!", true },
+  { N(L2_TILDE),                "~", true },
+  { N(L2_PLUS),                 "+", true },
+  { N(L2_MINUS),                "-", true },
+  { N(L2_PLUSPLUS),             "++", true },
+  { N(L2_MINUSMINUS),           "--", true },
+  { N(L2_AND),                  "&", true },
+  { N(L2_STAR),                 "*", true },
+  { N(L2_DOTSTAR),              ".*", true },
+  { N(L2_ARROWSTAR),            "->*", true },
+  { N(L2_SLASH),                "/", true },
+  { N(L2_PERCENT),              "%", true },
+  { N(L2_LEFTSHIFT),            "<<", true },
+  { N(L2_RIGHTSHIFT),           ">>", true },
+  { N(L2_LESSTHAN),             "<", true },
+  { N(L2_LESSEQ),               "<=", true },
+  { N(L2_GREATERTHAN),          ">", true },
+  { N(L2_GREATEREQ),            ">=", true },
+  { N(L2_EQUALEQUAL),           "==", true },
+  { N(L2_NOTEQUAL),             "!=", true },
+  { N(L2_XOR),                  "^", true },
+  { N(L2_OR),                   "|", true },
+  { N(L2_ANDAND),               "&&", true },
+  { N(L2_OROR),                 "||", true },
+  { N(L2_QUESTION),             "?", true },
+  { N(L2_COLON),                ":", true },
+  { N(L2_EQUAL),                "=", true },
+  { N(L2_STAREQUAL),            "*=", true },
+  { N(L2_SLASHEQUAL),           "/=", true },
+  { N(L2_PERCENTEQUAL),         "%=", true },
+  { N(L2_PLUSEQUAL),            "+=", true },
+  { N(L2_MINUSEQUAL),           "-=", true },
+  { N(L2_ANDEQUAL),             "&=", true },
+  { N(L2_XOREQUAL),             "^=", true },
+  { N(L2_OREQUAL),              "|=", true },
+  { N(L2_LEFTSHIFTEQUAL),       "<<=", true },
+  { N(L2_RIGHTSHIFTEQUAL),      ">>=", true },
+  { N(L2_COMMA),                ",", true },
+  { N(L2_ELLIPSIS),             "...", true },
+  { N(L2_SEMICOLON),            ";", true },
+  { N(L2_LBRACE),               "{", true },
+  { N(L2_RBRACE),               "}", true },
 };
 
 #undef N
@@ -143,7 +156,8 @@ Lexer2TokenType lookupKeyword(char const *keyword)
   xassert(TABLESIZE(l2TokTypes) == L2_NUM_TYPES);
 
   loopi(L2_NUM_TYPES) {
-    if (0==strcmp(l2TokTypes[i].spelling, keyword)) {
+    if (l2TokTypes[i].bisonSpelling && 
+        0==strcmp(l2TokTypes[i].spelling, keyword)) {
       return l2TokTypes[i].tokType;
     }
   }
@@ -163,22 +177,20 @@ char const *l2Tok2String(Lexer2TokenType type)
 void printBisonTokenDecls(bool spellings)
 {
   loopi(L2_NUM_TYPES) {
-    if (i == L2_EOF) {
-      continue;    // bison doesn't like me to define a token with code 0
-    }
+    //if (i == L2_EOF) {
+    //  continue;    // bison doesn't like me to define a token with code 0
+    //}
+    // but: now I'm using these for my own parser, and I want the 0
 
     Lexer2TokenTypeDesc const &desc = l2TokTypes[i];
+    xassert(desc.tokType == i);    // check correspondence between index and tokType
+
     printf("%%token %-20s %3d   ", desc.typeName, desc.tokType);
-    if (spellings) {
-      if (strlen(desc.spelling) == 1) {
-	printf("'%c'\n", desc.spelling[0]);      // character token
-      }
-      else {
-	printf("\"%s\"\n", desc.spelling);       // string token
-      }
+    if (spellings && desc.bisonSpelling) {
+      printf("\"%s\"\n", desc.spelling);       // string token
     }
     else {
-      printf("\n");    // no spelling.. testing..
+      printf("\n");                            // no spelling.. testing..
     }
   }
 }
@@ -199,26 +211,53 @@ Lexer2Token::~Lexer2Token()
 {}
 
 
-void Lexer2Token::print() const
+string Lexer2Token::toString() const
 {
-  printf("[L2] Token at line %d, col %d: %s ",
-         loc.line, loc.col, l2Tok2String(type));
+  string ret = l2Tok2String(type);
+
+  // add the literal value, if any
   switch (type) {
     case L2_NAME:
-      printf("%s ", strValue.pcharc());
+    case L2_STRING_LITERAL:
+      ret &= stringc << "(" << strValue << ")";
       break;
-      
+
     case L2_INT_LITERAL:
-      printf("%d ", intValue);
+      ret &= stringc << "(" << intValue << ")";
       break;
 
     default:     // silence warning -- what is this, ML??
       break;
   }
 
-  // for now, don't have literal values, so can't print them
+  return ret;
+}
 
-  printf("\n");
+
+string Lexer2Token::unparseString() const
+{
+  switch (type) {
+    case L2_NAME:
+      return strValue;
+      
+    case L2_STRING_LITERAL:
+      return stringc << "\"" 
+                     << encodeWithEscapes(strValue, strValue.length())
+                     << "\"";
+                    
+    case L2_INT_LITERAL:
+      return stringc << intValue;
+
+    default:
+      return l2Tok2String(type);     // operators and keywords
+  }
+}
+
+
+void Lexer2Token::print() const
+{
+  printf("[L2] Token at line %d, col %d: %s\n",
+         loc.line, loc.col, toString().pcharc());
 }
 
 
@@ -231,6 +270,10 @@ void Lexer2Token::print() const
 //  - preprocessor actions are performed: inclusion and macro expansion
 void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 {
+  // keep track of previous L2 token emitted so we can do token
+  // collapsing for string juxtaposition
+  Lexer2Token *prevToken = NULL;
+
   // iterate over all the L1 tokens
   ObjListIter<Lexer1Token> L1_iter(src.tokens);
   for (; !L1_iter.isDone(); L1_iter.adv()) {
@@ -242,6 +285,14 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
         L1->type == L1_COMMENT      ||
         L1->type == L1_ILLEGAL) {
       continue;    // filter it out entirely
+    }
+
+    if (L1->type == L1_STRING_LITERAL         &&
+        prevToken != NULL                     &&
+        prevToken->type == L2_STRING_LITERAL) {
+      // coalesce adjacent strings
+      prevToken->strValue &= L1->text;
+      continue;
     }
 
     // create the object for the yielded token; don't know the type
@@ -267,6 +318,7 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
       case L1_STRING_LITERAL:
         L2->type = L2_STRING_LITERAL;
+        L2->strValue = L1->text;
         break;
 
       case L1_CHAR_LITERAL:
@@ -283,12 +335,17 @@ void lexer2_lex(Lexer2 &dest, Lexer1 const &src)
 
     // append this token to the running list
     dest.tokensMut.append(L2);
+    prevToken = L2;
 
     // (debugging) print it
     if (tracingSys("lexer2")) {
       L2->print();
     }
   }
+
+  // final token
+  dest.tokensMut.append(
+    new Lexer2Token(L2_EOF, FileLocation() /*dummy*/, NULL /*file (for now)*/));
 }
 
 
@@ -355,7 +412,7 @@ Lexer2TokenType lexer2_gettoken()
 int main(int argc)
 {
   if (argc > 1) {
-    printBisonTokenDecls(false /*spellings*/);
+    printBisonTokenDecls(true /*spellings*/);
     return 0;
   }
 

@@ -92,18 +92,33 @@ string symbolSequenceToString(SymbolList const &list);
 // ---------------- Terminal --------------------
 // something that only appears on the right-hand side of
 // productions, and is an element of the source language
+// NOTE:  This is really a terminal *class*, in that it's possible
+// for several different tokens to be classified into the same
+// terminal class (e.g. "foo" and "bar" are both identifiers)
 class Terminal : public Symbol {
 // ------ annotation ------
 public:     // data
-  int termIndex;         // terminal index - this terminal's id
+  // terminal class index - this terminal's id; -1 means unassigned
+  int termIndex;
+
+  // whereas 'name' is the canonical name for the terminal class,
+  // this field is an alias; for example, if the canonical name is
+  // L2_EQUALEQUAL, the alias might be "==" (i.e. the alias
+  // should include quotes if the grammar should have them too);
+  // if the alias's is NULL or "", there is no alias
+  string alias;
 
 public:     // funcs
-  Terminal(char const *name)
+  Terminal(char const *name)        // canonical name for terminal class
     : Symbol(name, true /*terminal*/),
-      termIndex(-1) {}
+      termIndex(-1),
+      alias(NULL) {}
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Terminal)
+                          
+  // return alias if defined, name otherwise
+  string toString() const;
 };
 
 typedef SObjList<Terminal> TerminalList;
@@ -211,6 +226,7 @@ public:	    // funcs
 
   // print 'A -> B c D' (no newline)
   string toString() const;
+  string rhsString() const;       // 'B c D' for above example rule
   void print(ostream &os) const;
   OSTREAM_OPERATOR(Production)
 
@@ -243,17 +259,24 @@ typedef SObjListIter<Production> ProductionListIter;
 class DottedProduction {
 // ------ representation ------
 public:	    // data
-  Production *prod;        // (serf) the base production
-  int dot;                 // 0 means it's before all RHS symbols, 1 means after first, etc.
+  Production * const prod;       // (serf) the base production
+  int const dot;                 // 0 means it's before all RHS symbols, 1 means after first, etc.
+  bool const dotAtEnd;           // performance optimization
 
 public:	    // funcs
   DottedProduction()       // for later filling-in
-    : prod(NULL), dot(-1) {}
+    : prod(NULL), dot(-1), dotAtEnd(false) {}
   DottedProduction(Production *p, int d)
-    : prod(p), dot(d) {}
-			     
+    : prod(NULL), dot(-1), dotAtEnd(false)     // silence warning about const init
+    { setProdAndDot(p, d); }
+
   bool isDotAtStart() const { return dot==0; }
-  bool isDotAtEnd() const;
+  bool isDotAtEnd() const { return dotAtEnd; }
+
+  // call this to change prod and dot; don't change them directly
+  // (I didn't make them private because of the syntactic hassle
+  // of accessing them.  Instead I hacked them as 'const'.)
+  void setProdAndDot(Production *p, int d) /*mutable*/;
 
   // dot must not be at the start (left edge)
   Symbol const *symbolBeforeDotC() const;
@@ -397,6 +420,8 @@ public:	    // data
 private:    // funcs
   bool parseAnAction(char const *keyword, char const *insideBraces,
                      Production *lastProduction);
+
+  bool declareToken(char const *symbolName, int code, char const *alias);
 
 public:     // funcs
   Grammar();                            // set everything manually

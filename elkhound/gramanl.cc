@@ -216,7 +216,8 @@ void GrammarAnalysis::initializeAuxData()
 
 
   // map: ntIndex -> Nonterminal*
-  indexedNonterms = new Nonterminal* [numNonterminals()];
+  numNonterms = numNonterminals();
+  indexedNonterms = new Nonterminal* [numNonterms];
 
   // fill it
   indexedNonterms[emptyStringIndex] = &emptyString;
@@ -231,6 +232,24 @@ void GrammarAnalysis::initializeAuxData()
 
 
   // map: termIndex -> Terminal*
+  // the ids have already been assigned; but I'm going to continue
+  // to insist on a contiguous space starting at 0
+  numTerms = numTerminals();
+  indexedTerms = new Terminal* [numTerms];
+  loopi(numTerminals()) {
+    indexedTerms[i] = NULL;      // used to track id duplication
+  }
+  for (ObjListMutator<Terminal> sym(terminals);
+       !sym.isDone(); sym.adv()) {
+    int index = sym.data()->termIndex;   // map: symbol to index
+    if (indexedTerms[index] != NULL) {
+      xfailure(stringc << "terminal index collision at index " << index);
+    }
+    indexedTerms[index] = sym.data();    // map: index to symbol
+  }
+
+
+  #if 0     // old: this was when class ids were assigned automatically
   indexedTerms = new Terminal* [numTerminals()];
   index = 0;
   for (ObjListMutator<Terminal> sym(terminals);
@@ -238,6 +257,7 @@ void GrammarAnalysis::initializeAuxData()
     indexedTerms[index] = sym.data();    // map: index to symbol
     sym.data()->termIndex = index;       // map: symbol to index
   }
+  #endif
 
 
   // initialize the derivable relation
@@ -1732,4 +1752,17 @@ void Grammar::computeWhichCanDeriveEmpty()
     }
   }
 }
+
+  // first, find the largest id
+  int maxId = 0;
+  {
+    for (ObjListIter<Terminal> sym(terminals); !sym.isDone(); sym.adv()) {
+      int id = sym.data()->termIndex;
+      xassert(id > 0);      // must have already been assigned
+      if (id > maxId) {
+        maxId = id;
+      }
+    }
+  }
+
 #endif // 0

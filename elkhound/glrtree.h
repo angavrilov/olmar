@@ -6,7 +6,7 @@
 // ambiguities means it is actually a graph (possibly with
 // cycles too, as I understand it)
 
-// this has been separated from glr.h because the parse 
+// this has been separated from glr.h because the parse
 // tree really should be a separate entity from the other
 // data structures used during parsing
 
@@ -18,6 +18,9 @@
 #include "grammar.h"     // Symbol, Production, etc.
 #include "attr.h"        // Attributes
 
+
+// fwds from other files
+class Lexer2Token;       // lexer2.h; a token from the input file
 
 // forward decls for things declared below
 class TreeNode;          // abstract parse tree (graph) node
@@ -55,6 +58,13 @@ public:	    // funcs
   NonterminalNode const &asNontermC() const;
   NonterminalNode &asNonterm() { return const_cast<NonterminalNode&>(asNontermC()); }
 
+  // ambiguity report
+  virtual TerminalNode const *getLeftmostTerminalC() const = 0;
+  virtual void ambiguityReport(ostream &os) const = 0;
+
+  // simple unparse: yield string of tokens in this tree, separated by spaces
+  virtual string unparseString() const = 0;
+
   // debugging
   virtual void printParseTree(ostream &os, int indent) const = 0;
 };
@@ -65,18 +75,24 @@ public:	    // funcs
 // ([GLR] calls these "terminal nodes" also)
 class TerminalNode : public TreeNode {
 public:     // data
-  // which terminal we're talking about
-  Terminal const * const terminal;
+  // which token we're talking about
+  Lexer2Token const * const token;
 
-  // at some point, I will store information about where in
-  // the source text this symbol came from
+  // and also its class
+  Terminal const * const terminalClass;
 
 public:     // funcs
-  TerminalNode(Terminal const *t);
+  TerminalNode(Lexer2Token const *tk, Terminal const *tc);
   virtual ~TerminalNode();
 
   // TreeNode stuff
   virtual Symbol const *getSymbolC() const;
+
+  virtual TerminalNode const *getLeftmostTerminalC() const;
+  virtual void ambiguityReport(ostream &os) const;
+
+  virtual string unparseString() const;
+
   virtual void printParseTree(ostream &os, int indent) const;
 };
 
@@ -107,6 +123,12 @@ public:
 
   // TreeNode stuff
   virtual Symbol const *getSymbolC() const;
+
+  virtual TerminalNode const *getLeftmostTerminalC() const;
+  virtual void ambiguityReport(ostream &os) const;
+
+  virtual string unparseString() const;
+
   virtual void printParseTree(ostream &os, int indent) const;
 };
 
@@ -129,6 +151,9 @@ public:
   ~Reduction();
 
   void printParseTree(Attributes const &attr, ostream &os, int indent) const;
+  void ambiguityReport(ostream &os) const;
+
+  string unparseString() const;
 };
 
 

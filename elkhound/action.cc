@@ -3,6 +3,7 @@
 
 #include "action.h"       // this module
 #include "util.h"         // transferOwnership
+#include "strutil.h"      // trimWhitespace
 
 #include <string.h>       // strchr
 

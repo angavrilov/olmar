@@ -30,8 +30,10 @@ protected:  // data
   Bit2d *derivable;                     // (owner)
 
   // indexing structures
-  Nonterminal **indexedNonterms;        // (owner) ntIndex -> Nonterminal
-  Terminal **indexedTerms;              // (owner) termIndex -> Terminal
+  Nonterminal **indexedNonterms;        // (owner * serfs) ntIndex -> Nonterminal
+  Terminal **indexedTerms;              // (owner * serfs) termIndex -> Terminal
+  int numNonterms;                      // length of 'indexedNonterms' array
+  int numTerms;                         //   "     "         terms       "
 
   // only true after initializeAuxData has been called
   bool initialized;
@@ -44,12 +46,13 @@ protected:  // data
   ItemSet *startState;			// (serf) distinguished start state
 
 public:	    // data
-  // true if any nonterminal can derive itself in 1 or more steps
+  // true if any nonterminal can derive itself (with no extra symbols
+  // surrounding it) in 1 or more steps
   bool cyclic;
 
   // symbol of interest; various diagnostics are printed when
   // certain things happen with it (e.g. the first application
-  // is to print whenever something is added to this sym's 
+  // is to print whenever something is added to this sym's
   // follow)
   Symbol const *symOfInterest;
 
