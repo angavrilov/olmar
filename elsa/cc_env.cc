@@ -150,8 +150,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
 
   operatorPlusVar = declareFunction2arg(
     t_void /*irrelevant*/, "operator +",
-    getSimpleType(SL_INIT, ST_INT /*ST_PROMOTED_ARITHMETIC*/), "x",
-    getSimpleType(SL_INIT, ST_INT /*ST_PROMOTED_ARITHMETIC*/), "y");
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "x",
+    getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC), "y");
 
   exitScope(dummyScope);
 

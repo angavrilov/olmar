@@ -142,6 +142,14 @@ bool isNumeric(Type const *t, SimpleType const *tSimple)
 }
 
 
+// cppstd 13.6 para 2
+bool isPromotedArithmetic(SimpleTypeId id)
+{
+  return ST_INT <= id && id <= ST_UNSIGNED_LONG_INT ||
+         ST_FLOAT <= id && id <= ST_LONG_DOUBLE;
+}
+
+
 #if 0   // unused
 static char const *atomicName(AtomicType::Tag tag)
 {
@@ -577,12 +585,18 @@ StandardConversion getStandardConversion
     return conv.ret;    // identical now
   }
 
+  SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
+  SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
+
+  if (destSimple && destSimple->type == ST_PROMOTED_ARITHMETIC &&
+      srcSimple && isPromotedArithmetic(srcSimple->type)) {
+    // polymorphic match
+    return conv.ret;
+  }
+
   if (isIntegerPromotion(s->atomic, d->atomic)) {
     return conv.ret | SC_INT_PROM;
   }
-
-  SimpleType const *srcSimple = src->isSimpleType() ? src->asSimpleTypeC() : NULL;
-  SimpleType const *destSimple = dest->isSimpleType() ? dest->asSimpleTypeC() : NULL;
 
   if (srcSimple && srcSimple->type == ST_FLOAT &&
       destSimple && destSimple->type == ST_DOUBLE) {
@@ -642,33 +656,33 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
   SimpleTypeId sid = srcSimple? src->asSimpleTypeC()->type : ST_ERROR;
   SimpleTypeId did = destSimple? dest->asSimpleTypeC()->type : ST_ERROR;
 
-  // paragraph 1: char/short -> int
-  // implementation choice: I assume char is 8 bits and short
-  // is 16 bits and int is 32 bits, so all map to 'int', as
-  // opposed to 'unsigned int'
-  if (did == ST_INT &&
-      (sid == ST_CHAR ||
-       sid == ST_UNSIGNED_CHAR ||
-       sid == ST_SIGNED_CHAR ||
-       sid == ST_SHORT_INT ||
-       sid == ST_UNSIGNED_SHORT_INT)) {
-    return true;
-  }
+  if (did == ST_INT ||
+      did == ST_PROMOTED_ARITHMETIC) {
+    // paragraph 1: char/short -> int
+    // implementation choice: I assume char is 8 bits and short
+    // is 16 bits and int is 32 bits, so all map to 'int', as
+    // opposed to 'unsigned int'
+    if (sid == ST_CHAR ||
+        sid == ST_UNSIGNED_CHAR ||
+        sid == ST_SIGNED_CHAR ||
+        sid == ST_SHORT_INT ||
+        sid == ST_UNSIGNED_SHORT_INT) {
+      return true;
+    }
 
-  // paragraph 2: wchar_t/enum -> int
-  // implementation choice: I assume wchar_t and all enums fit into ints
-  if (did == ST_INT &&
-      (sid == ST_WCHAR_T ||
-       src->isEnumType())) {
-    return true;
-  }
+    // paragraph 2: wchar_t/enum -> int
+    // implementation choice: I assume wchar_t and all enums fit into ints
+    if (sid == ST_WCHAR_T ||
+        src->isEnumType()) {
+      return true;
+    }
 
-  // TODO: paragraph 3: bitfields
+    // TODO: paragraph 3: bitfields
 
-  // paragraph 4: bool -> int
-  if (sid == ST_BOOL &&
-      did == ST_INT) {
-    return true;
+    // paragraph 4: bool -> int
+    if (sid == ST_BOOL) {
+      return true;
+    }
   }
 
   return false;

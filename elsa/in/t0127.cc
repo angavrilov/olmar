@@ -38,4 +38,5 @@ void f()
   __testOverload(b1+a1, 8);
 
   __testOverload(c+1, BUILTIN);
+  __testOverload(c+(char)1, BUILTIN);
 }
