@@ -39,10 +39,17 @@ Env::Env(StringTable &s, CCLang &L)
   : scopes(),
     errors(),
     str(s),
-    lang(L)
+    lang(L),
+    type_info_const_ref(NULL)    // filled in below
 {
   // create first scope
   scopes.prepend(new Scope(0 /*changeCount*/, SourceLocation()));
+  
+  // create the typeid type
+  CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
+  // TODO: put this into the 'std' namespace
+  // TODO: fill in the proper fields and methods
+  type_info_const_ref = makeRefType(makeCVType(ct, CV_CONST));
 }
 
 Env::~Env()
