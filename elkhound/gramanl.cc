@@ -8,25 +8,385 @@
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
 #include "nonport.h"     // getMilliseconds
+#include "crc.h"         // crc32
 
 #include <fstream.h>     // ofstream
 
 
-#if 0    // not used anymore; gprof is much better
-// should make a new module for this
-class Timer {
-  long start;
-  long &accumulator;
 
-public:
-  Timer(long &acc) : accumulator(acc)
-    { start = getMilliseconds(); }
-  ~Timer()
-    { accumulator += getMilliseconds() - start; }
-};
+// ----------------- ItemSet -------------------
+ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
+  : kernelItems(),
+    nonkernelItems(),
+    termTransition(NULL),      // inited below
+    nontermTransition(NULL),   // inited below
+    terms(numTerms),
+    nonterms(numNonterms),
+    dotsAtEnd(NULL),
+    numDotsAtEnd(0),
+    id(anId),
+    BFSparent(NULL)
+{
+  termTransition = new ItemSet* [terms];
+  nontermTransition = new ItemSet* [nonterms];
+
+  INTLOOP(t, 0, terms) {
+    termTransition[t] = (ItemSet*)NULL;      // means no transition on t
+  }
+  INTLOOP(n, 0, nonterms) {
+    nontermTransition[n] = (ItemSet*)NULL;
+  }
+}
+
+
+ItemSet::~ItemSet()
+{
+  delete[] termTransition;
+  delete[] nontermTransition;
+  
+  if (dotsAtEnd) {
+    delete[] dotsAtEnd;
+  }
+}
+
+
+//ItemSet::ItemSet(Flatten &flat)
+//{}
+
+
+Production *getNthProduction(Grammar *g, int n)
+{
+  if (0 <= n && n < g->productions.count()) {
+    return g->productions.nth(n);
+  }
+  else {
+    // my access path functions' contract is to
+    // return NULL on any error (as opposed to, say,
+    // an exception or assertion failure); this serves two
+    // purposes:
+    //   - the writing code can use it to determine the
+    //     maximum value of 'n'
+    //   - the reading code can use it to validate 'n',
+    //     since that comes from the input file
+    return NULL;
+  }
+}
+
+DottedProduction *getNthDottedProduction(Production *p, int n)
+{
+  if (0 <= n && n < (p->rhsLength() + 1)) {
+    return p->getDProd(n);
+  }
+  else {
+    return NULL;
+  }
+}
+
+
+#if 0
+void ItemSet::xfer(Flatten &flat, Grammar &g)
+{
+  // 'kernelItems' and 'nonkernelItems': each one accessed as
+  //   g.productions.nth(?)->dprods+?
+  xferSObjList_twoLevelAccess(
+    flat,
+    kernelItems,               // serf list
+    &g,                        // root of access path
+    getNthProduction,          // first access path link
+    getNthDottedProduction);   // second access path link
+
+  xferSObjList_twoLevelAccess(
+    flat,
+    nonkernelItems,            // serf list
+    &g,                        // root of access path
+    getNthProduction,          // first access path link
+    getNthDottedProduction);   // second access path link
 #endif // 0
 
 
+Symbol const *ItemSet::getStateSymbolC() const
+{
+  // need only check kernel items since all nonkernel items
+  // have their dots at the left side
+  SFOREACH_DOTTEDPRODUCTION(kernelItems, item) {
+    if (! item.data()->isDotAtStart() ) {
+      return item.data()->symbolBeforeDotC();
+    }
+  }
+  return NULL;
+}
+
+
+int ItemSet::bcheckTerm(int index)
+{
+  xassert(0 <= index && index < terms);
+  return index;
+}
+
+int ItemSet::bcheckNonterm(int index)
+{
+  xassert(0 <= index && index < nonterms);
+  return index;
+}
+
+ItemSet *&ItemSet::refTransition(Symbol const *sym)
+{
+  if (sym->isTerminal()) {
+    Terminal const &t = sym->asTerminalC();
+    return termTransition[bcheckTerm(t.termIndex)];
+  }
+  else {
+    Nonterminal const &nt = sym->asNonterminalC();
+    return nontermTransition[bcheckNonterm(nt.ntIndex)];
+  }
+}
+
+
+ItemSet const *ItemSet::transitionC(Symbol const *sym) const
+{
+  return const_cast<ItemSet*>(this)->refTransition(sym);
+}
+
+
+void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
+{
+  refTransition(sym) = dest;
+}
+
+            
+// compare two items in an arbitrary (but deterministic) way so that
+// sorting will always put a list of items into the same order, for
+// comparison purposes
+int itemDiff(DottedProduction const *left, DottedProduction const *right, void*)
+{
+  // memory address is sufficient for my purposes, since I avoid ever
+  // creating two copies of a given item
+  return (int)left - (int)right;
+}
+
+
+void ItemSet::addKernelItem(DottedProduction *item)
+{
+  // add it
+  kernelItems.appendUnique(item);
+
+  // sort the items to facilitate equality checks
+  kernelItems.insertionSort(itemDiff);
+  
+  changedItems();
+}
+
+
+bool ItemSet::operator==(ItemSet const &obj) const
+{                                          
+  // since common case is disequality, check the 
+  // CRCs first, and only do full check if they
+  // match
+  if (kernelItemsCRC == obj.kernelItemsCRC) {
+    // since nonkernel items are entirely determined by kernel
+    // items, and kernel items are sorted, it's sufficient to
+    // check for kernel list equality
+    return kernelItems.equalAsPointerLists(obj.kernelItems);
+  }
+  else {
+    // can't possibly be equal if CRCs differ
+    return false;
+  }
+}
+
+
+void ItemSet::addNonkernelItem(DottedProduction *item)
+{
+  nonkernelItems.appendUnique(item);
+  changedItems();
+}
+
+
+void ItemSet::getAllItems(DProductionList &dest) const
+{
+  dest = kernelItems;
+  dest.appendAll(nonkernelItems);
+}
+
+
+// return the reductions that are ready in this state, given
+// that the next symbol is 'lookahead'
+void ItemSet::getPossibleReductions(ProductionList &reductions,
+                                    Terminal const *lookahead,
+                                    bool parsing) const
+{
+  // for each item with dot at end
+  loopi(numDotsAtEnd) {
+    DottedProduction const *item = dotsAtEnd[i];
+
+    // the follow of its LHS must include 'lookahead'
+    // NOTE: this is the difference between LR(0) and SLR(1) --
+    //       LR(0) would not do this check, while SLR(1) does
+    if (!item->prod->left->follow.contains(lookahead)) {    // (constness)
+      if (parsing && tracingSys("parse")) {
+	trace("parse") << "not reducing by " << *(item->prod)
+       	       	       << " because `" << lookahead->name
+		       << "' is not in follow of "
+		       << item->prod->left->name << endl;
+      }
+      continue;
+    }
+
+    // ok, this one's ready
+    reductions.append(item->prod);                          // (constness)
+  }
+}
+
+
+void ItemSet::changedItems()
+{
+  // -- recompute dotsAtEnd --
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
+
+  // count number with dots at end
+  int count = 0;
+  {
+    SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+      DottedProduction const *item = itemIter.data();
+
+      if (item->isDotAtEnd()) {
+        count++;
+      }
+    }
+  }
+
+  // get array of right size
+  if (dotsAtEnd  &&  count == numDotsAtEnd) {
+    // no need to reallocate, already correct size
+  }
+  else {
+    // throw old away
+    if (dotsAtEnd) {
+      delete[] dotsAtEnd;
+    }
+
+    // allocate new array
+    numDotsAtEnd = count;
+    dotsAtEnd = new DottedProduction const * [numDotsAtEnd];
+  }
+
+  // fill array
+  int index = 0;
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *item = itemIter.data();
+
+    if (item->isDotAtEnd()) {
+      dotsAtEnd[index] = item;
+      index++;
+    }
+  }
+
+  // verify both loops executed same number of times
+  xassert(index == count);
+
+
+  // -- compute CRC of kernel items --
+  // put all pointers into a single buffer
+  // (assumes they've already been sorted!)
+  int numKernelItems = kernelItems.count();
+  DottedProduction const **array = 
+    new DottedProduction const * [numKernelItems];      // (owner ptr to array of serf ptrs)
+  index = 0;
+  SFOREACH_DOTTEDPRODUCTION(kernelItems, kitem) {
+    array[index] = kitem.data();
+
+    if (index > 0) {
+      // may as well check sortedness and
+      // uniqueness
+      xassert(array[index] > array[index-1]);
+    }
+
+    index++;
+  }
+
+  // CRC the buffer
+  kernelItemsCRC = crc32((unsigned char const*)array, 
+                         sizeof(array[0]) * numKernelItems);
+
+  // trash the array
+  delete[] array;
+}
+
+
+void ItemSet::print(ostream &os) const
+{
+  os << "ItemSet " << id << ":\n";
+
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
+
+  // for each item
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *dprod = itemIter.data();
+
+    // print its text
+    os << "  ";
+    dprod->print(os);
+    os << "      ";
+
+    // print any transitions on its after-dot symbol
+    if (!dprod->isDotAtEnd()) {
+      ItemSet const *is = transitionC(dprod->symbolAfterDotC());
+      if (is == NULL) {
+        os << "(no transition?!?!)";
+      }
+      else {
+        os << "--> " << is->id;
+      }          
+    }
+    os << endl;
+  }
+}
+
+
+void ItemSet::writeGraph(ostream &os) const
+{
+  // node: n <name> <desc>
+  os << "\nn ItemSet" << id << " ItemSet" << id << "/";
+    // rest of desc will follow
+
+  // collect all items
+  DProductionList items;
+  getAllItems(items);
+
+  // for each item, print the item text
+  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
+    DottedProduction const *dprod = itemIter.data();
+
+    // print its text
+    os << "   ";
+    dprod->print(os);
+    os << "/";      // line separator in my node format
+  }
+  os << endl;
+
+  // print transitions on terminals
+  INTLOOP(t, 0, terms) {
+    if (termTransition[t] != NULL) {
+      os << "e ItemSet" << id
+         << " ItemSet" << termTransition[t]->id << endl;
+    }
+  }
+
+  // print transitions on nonterminals
+  INTLOOP(nt, 0, nonterms) {
+    if (nontermTransition[nt] != NULL) {
+      os << "e ItemSet" << id
+         << " ItemSet" << nontermTransition[nt]->id << endl;
+    }
+  }
+}
+
+
+// ------------------------ GrammarAnalysis --------------------
 GrammarAnalysis::GrammarAnalysis()
   : derivable(NULL),
     indexedNonterms(NULL),
@@ -920,6 +1280,29 @@ void GrammarAnalysis::constructLRItemSets()
 }
 
 // --------------- END of construct LR item sets -------------------
+
+
+Symbol const *GrammarAnalysis::
+  inverseTransitionC(ItemSet const *source, ItemSet const *target) const
+{
+  // for each symbol..
+  FOREACH_TERMINAL(terminals, t) {
+    // see if it is the one
+    if (source->transitionC(t.data()) == target) {
+      return t.data();
+    }
+  }
+
+  FOREACH_NONTERMINAL(nonterminals, nt) {
+    if (source->transitionC(nt.data()) == target) {
+      return nt.data();
+    }
+  }
+
+  xfailure("GrammarAnalysis::inverseTransitionC: no transition from source to target");
+  return NULL;     // silence warning
+}
+
 
 // --------------- LR support -------------------
 // find and print all the conflicts that would be reported by

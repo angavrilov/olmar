@@ -50,6 +50,9 @@ public:
   Conditions();
   ~Conditions();
 
+  Conditions(Flatten&);
+  void xfer(Flatten&);
+
   // test all conditions
   bool test(AttrContext const &actx) const;
 

@@ -59,6 +59,9 @@ public:	  // funcs
   Actions();
   ~Actions();
 
+  Actions(Flatten&);
+  void xfer(Flatten &flat);
+
   // fire all actions on an instantiated production
   void fire(AttrContext &actx) const;
   

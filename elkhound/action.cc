@@ -51,6 +51,13 @@ Actions::~Actions()
 {}
 
 
+Actions::Actions(Flatten&)
+{}
+
+void Actions::xfer(Flatten&)
+{}
+
+
 void Actions::fire(AttrContext &actx) const
 {
   FOREACH_OBJLIST(Action, actions, iter) {

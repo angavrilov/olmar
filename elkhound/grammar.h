@@ -58,6 +58,9 @@ public:
     : name(n), isTerm(t), isEmptyString(e) {}
   virtual ~Symbol();
 
+  Symbol(Flatten&);
+  void xfer(Flatten &flat);
+
   // uniform selectors
   bool isTerminal() const { return isTerm; }
   bool isNonterminal() const { return !isTerm; }
@@ -115,6 +118,9 @@ public:     // funcs
     : Symbol(name, true /*terminal*/),
       termIndex(-1),
       alias() {}
+
+  Terminal(Flatten &flat);
+  void xfer(Flatten &flat);
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Terminal)
@@ -178,6 +184,10 @@ public:     // funcs
   Nonterminal(char const *name, bool isEmptyString=false);
   virtual ~Nonterminal();
 
+  Nonterminal(Flatten &flat);
+  void xfer(Flatten &flat);
+  void xferSerfs(Flatten &flat, Grammar &g);
+
   // return true if 'attr' is among 'attributes'
   // (by 0==strcmp comparison)
   bool hasAttribute(char const *attr) const;
@@ -232,7 +242,7 @@ public:	    // data
   // elements.  they are public to avoid syntactic (and possible runtime,
   // if repr. changes) overhead of access via member fn.  use 'append' to
   // add new elements.
-  
+
   // disambiguation during tree-building
   Conditions conditions;       	// every condition must be satisfied for a rule to be used
   Actions actions;              // when used, a rule has these effects
@@ -244,6 +254,10 @@ public:	    // data
 public:	    // funcs
   Production(Nonterminal *left, char const *leftTag);
   ~Production();
+
+  Production(Flatten &flat);
+  void xfer(Flatten &flat);
+  void xferSerfs(Flatten &flat, Grammar &g);
 
   // length *not* including emptySymbol, if present
   // UPDATE: I'm now disallowing emptySymbol from ever appearing in 'right'
@@ -371,118 +385,6 @@ typedef SObjListIter<DottedProduction> DProductionListIter;
 #define SMUTATE_EACH_DOTTEDPRODUCTION(list, iter) SMUTATE_EACH_OBJLIST(DottedProduction, list, iter)
 
 
-// ---------------- ItemSet -------------------
-// a set of dotted productions, and the transitions between
-// item sets, as in LR(0) set-of-items construction
-class ItemSet {
-private:    // data
-  // kernel items: the items that define the set; except for
-  // the special case of the initial item in the initial state,
-  // the kernel items are distinguished by having the dot *not*
-  // at the left edge
-  DProductionList kernelItems;
-
-  // nonkernel items: those derived as the closure of the kernel
-  // items by expanding symbols to the right of dots; here I am
-  // making the choice to materialize them, rather than derive
-  // them on the spot as needed (and may change this decision)
-  DProductionList nonkernelItems;
-
-  // transition function (where we go on shifts)
-  //   Map : (Terminal id or Nonterminal id)  -> ItemSet*
-  ItemSet **termTransition;		     // (owner ptr to array of serf ptrs)
-  ItemSet **nontermTransition;		     // (owner ptr to array of serf ptrs)
-
-  // bounds for above
-  int terms;
-  int nonterms;
-
-  // profiler reports I'm spending significant time rifling through
-  // the items looking for those that have the dot at the end; so this
-  // array will point to all such items
-  DottedProduction const **dotsAtEnd;        // (owner ptr to array of serf ptrs)
-  int numDotsAtEnd;                          // number of elements in 'dotsAtEnd'
-  
-  // profiler also reports I'm still spending time comparing item sets; this
-  // stores a CRC of the numerically sorted kernel item pointer addresses,
-  // concatenated into a buffer of sufficient size
-  unsigned long kernelItemsCRC;
-
-public:	    // data
-  // numerical state id, should be unique among item sets
-  // in a particular grammar's sets
-  int id;
-
-  // it's useful to have a BFS tree superimposed on the transition
-  // graph; for example, it makes it easy to generate sample inputs
-  // for each state.  so we store the parent pointer; we can derive
-  // child pointers by looking at all outgoing transitions, and
-  // filtering for those whose targets' parent pointers equal 'this'.
-  // the start state's parent is NULL, since it is the root of the
-  // BFS tree
-  ItemSet *BFSparent;                        // (serf)
-
-private:    // funcs
-  int bcheckTerm(int index);
-  int bcheckNonterm(int index);
-  ItemSet *&refTransition(Symbol const *sym);
-                      
-  // computes things derived from the item set lists
-  void changedItems();
-
-public:     // funcs
-  ItemSet(int id, int numTerms, int numNonterms);
-  ~ItemSet();
-
-  // ---- item queries ----
-  // the set of items names a symbol as the symbol used
-  // to reach this state -- namely, the symbol that appears
-  // to the left of a dot.  this fn retrieves that symbol
-  // (if all items have dots at left edge, returns NULL; this
-  // would be true only for the initial state)
-  Symbol const *getStateSymbolC() const;
-
-  // equality is defined as having the same items (basic set equality)
-  bool operator== (ItemSet const &obj) const;
-
-  // sometimes it's convenient to have all items mixed together
-  // (CONSTNESS: allows modification of items...)
-  void getAllItems(DProductionList &dest) const;
-
-  // ---- transition queries ----
-  // query transition fn for an arbitrary symbol; returns
-  // NULL if no transition is defined
-  ItemSet const *transitionC(Symbol const *sym) const;
-  ItemSet *transition(Symbol const *sym)
-    { return const_cast<ItemSet*>(transitionC(sym)); }
-
-  // get the list of productions that are ready to reduce, given
-  // that the next input symbol is 'lookahead' (i.e. in the follow
-  // of a production's LHS); parsing=true means we are actually
-  // parsing input, so certain tracing output is appropriate
-  void getPossibleReductions(ProductionList &reductions,
-                             Terminal const *lookahead,
-                             bool parsing) const;
-
-  // ---- item mutations ----
-  // add a kernel item; used while constructing the state
-  void addKernelItem(DottedProduction *item);
-
-  // add a nonkernel item; used while computing closure; this
-  // item must not already be in the item set
-  void addNonkernelItem(DottedProduction *item);
-
-  // ---- transition mutations ----
-  // set transition on 'sym' to be 'dest'
-  void setTransition(Symbol const *sym, ItemSet *dest);
-
-  // ---- debugging ----
-  void writeGraph(ostream &os) const;
-  void print(ostream &os) const;
-  OSTREAM_OPERATOR(ItemSet)
-};
-
-
 // ---------------- Grammar --------------------
 // represent a grammar: nonterminals, terminals, productions, and start-symbol
 class Grammar {
@@ -521,6 +423,9 @@ private:    // funcs
 public:     // funcs
   Grammar();                            // set everything manually
   ~Grammar();
+
+  // read/write as binary file
+  void xfer(Flatten &flat);
 
   // simple queries
   int numTerminals() const;
@@ -581,11 +486,6 @@ public:     // funcs
   SYMBOL_ACCESS(Nonterminal)   //   ..
   #undef SYMBOL_ACCESS
 
-  // the inverse of transition: map a target state to the symbol that
-  // would transition to that state (from the given source state)
-  Symbol const *inverseTransitionC(ItemSet const *source,
-                                   ItemSet const *target) const;
-                                   
   // map a production to a unique index
   int getProductionIndex(Production const *prod) const;
 };

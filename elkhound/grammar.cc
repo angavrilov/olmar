@@ -5,9 +5,9 @@
 #include "syserr.h"    // xsyserror
 #include "strtokp.h"   // StrtokParse
 #include "trace.h"     // trace
-#include "crc.h"       // crc32
 #include "exc.h"       // xBase
 #include "strutil.h"   // quoted, parseQuotedString
+#include "flatten.h"   // Flatten
 
 #include <stdarg.h>    // variable-args stuff
 #include <stdio.h>     // FILE, etc.
@@ -19,9 +19,272 @@
 #define PVAL(var) os << " " << #var "=" << var;
 
 
+// ------------------ xfer helpers ----------------
+template <class T>
+void xferOwnerPtr(Flatten &flat, T *&ptr)
+{
+  if (flat.reading()) {
+    // construct a new, empty object
+    ptr = new T(flat);
+  }
+
+  // read/write it
+  ptr->xfer(flat);
+}
+
+
+template <class T>
+void xferObjList(Flatten &flat, ObjList <T> &list)
+{
+  if (flat.writing()) {
+    flat.writeInt(list.count());
+
+    MUTATE_EACH_OBJLIST(T, list, iter) {
+      iter.data()->xfer(flat);
+    }
+  }
+  else {
+    int listLen = flat.readInt();
+
+    ObjListMutator<T> mut(list);
+    while (listLen--) {
+      // construct a new, empty object
+      T *obj = new T(flat);
+
+      // read it
+      obj->xfer(flat);
+
+      // add it to the list
+      mut.append(obj);
+    }
+  }
+}
+
+
+// xfer a list of serf pointers to objects, each object
+// could be in one of several owner lists
+template <class T>
+void xferSObjList_multi(Flatten &flat, SObjList<T> &list,
+                        ObjList<T> **masterLists, int numMasters)
+{
+  // be sure the same number of master lists are used at
+  // read and write time
+  flat.checkpoint(numMasters);
+
+  if (flat.writing()) {
+    flat.writeInt(list.count());
+
+    SMUTATE_EACH_OBJLIST(T, list, iter) {
+      // determine which master list it's in
+      int master;
+      for (master = 0; master<numMasters; master++) {
+        int index = masterLists[master]->indexOf(iter.data());
+        if (index != -1) {
+          // we found it -- encode the list and its index
+          if (numMasters > 1) {
+            flat.writeInt(master);    // only do this if multiple masters
+          }
+          flat.writeInt(index);
+          break;
+        }
+      }
+
+      if (master == numMasters) {
+        // failed to find the master list
+        xfailure("xferSObjList_multi: obj not in any of the lists");
+      }
+    }
+  }
+
+  else {
+    int listLen = flat.readInt();
+
+    SObjListMutator<T> mut(list);
+    while (listLen--) {
+      int master = 0;               // assume just 1 master
+      if (numMasters > 1) {
+        master = flat.readInt();    // then refine
+      }
+
+      mut.append(masterLists[master]->nth(flat.readInt()));
+    }
+  }
+}
+
+
+// xfer a list of serf pointers to objects owner by 'masterList'
+template <class T>
+void xferSObjList(Flatten &flat, SObjList<T> &list, ObjList<T> &masterList)
+{
+  ObjList<T> *ptr = &masterList;
+  xferSObjList_multi(flat, list, &ptr, 1 /*numMasters*/);
+}
+
+
+// xfer a pointer which points to something in a master list
+template <class T>
+void xferSerfPtrToList(Flatten &flat, T *&ptr, ObjList<T> &masterList)
+{
+  if (flat.writing()) {
+    flat.writeInt(masterList.indexOfF(ptr));
+  }
+  else {
+    ptr = masterList.nth(flat.readInt());
+  }
+}
+
+
+void computedInt(Flatten &flat, int &variable, int value)
+{
+  if (flat.writing()) {
+    // check it
+    xassert(variable == value);
+  }
+  else {
+    // set it
+    variable = value;
+  }
+}
+
+
+// void* implementation
+//#define Leaf void
+//#define Root void
+//#define FirstLevel void
+template <class Root, class FirstLevel, class Leaf>
+void xferSerfPtr_twoLevelAccess_void(
+  Flatten &flat,
+  Leaf *&leaf,
+  Root *root,
+  FirstLevel (*getNthFirst)(Root *r, int n),
+  Leaf (*getNthLeaf)(FirstLevel *f, int n))
+{
+  if (writing()) {
+    // determine both indices
+    for (int index1=0; ; index1++) {
+      // get a first-level obj
+      FirstLevel *first = getNthFirst(root, index1);
+      if (!first) {
+        // exhausted first-level objs
+        xfailure("xferSerfPtr_twoLevelAccess: couldn't find obj to xfer");
+      }
+
+      // look for the leaf inside it
+      for (int index2=0; ; index2++) {
+        Leaf *second = getNthLeaf(first, index2);
+        if (second == leaf) {
+          // found it; encode both indices
+          flat.writeInt(index1);
+          flat.writeInt(index2);
+          return;
+        }
+        if (second == NULL) {
+          // exhausted this subtree
+          break;
+        }
+      } // end of iter over leaves
+    } // end of iter over first-lvl objs
+  }
+
+  else /*reading*/ {
+    // read both indicies
+    int index1 = flat.readInt();
+    int index2 = flat.readInt();
+
+    // follow the access path
+    FirstLevel *first = getNthFirst(root, index1);
+    formatAssert(first != NULL);
+    Leaf *second = getNthLeaf(first, index2);
+    formatAssert(second != NULL);
+
+    // found it
+    leaf = second;
+  }
+}
+//#undef Leaf
+//#undef Root
+//#undef FirstLevel
+
+
+#if 0
+typedef void *accessFunc_void(void *parent, int childNum);
+
+// typesafe interface
+template <class Root, class FirstLevel, class Leaf>
+inline void xferSerfPtr_twoLevelAccess(
+  Flatten &flat,
+  Leaf *&leaf,
+  Root *root,
+  FirstLevel (*getNthFirst)(Root *r, int n),
+  Leaf (*getNthLeaf)(FirstLevel *f, int n))
+{
+  xferSerfPtr_twoLevelAccess(
+    flat,
+    (void*&)leaf,
+    (void*)root,
+    (accessFunc_void)getNthFirst,
+    (accessFunc_void)getNthLeaf);
+}
+#endif // 0
+
+
+template <class Root, class FirstLevel, class Leaf>
+void xferSObjlist_twoLevelAccess(
+  Flatten &flat,
+  SObjList<Leaf> &serfList,
+  Root *root,
+  FirstLevel (*getNthFirst)(Root *r, int n),
+  Leaf (*getNthLeaf)(FirstLevel *f, int n))
+{
+  if (flat.writing()) {
+    // length of list
+    flat.writeInt(serfList.count());
+
+    // iterate over list
+    SMUTATE_EACH_OBJLIST(Leaf, serfList, iter) {
+      // write the obj
+      Leaf *leaf = iter.data();
+      xferSerfPtr_twoLevelAccess(
+        flat, leaf, root,
+        getNthFirst, getNthLeaf);
+    }
+  }
+  else {
+    int length = flat.readInt();
+
+    SObjListMutator<Leaf> mut(serfList);
+    while (length--) {
+      // read the obj
+      Leaf *leaf;
+      xferSerfPtr_twoLevelAccess(
+        flat, leaf, root,
+        getNthFirst, getNthLeaf);
+
+      // store it in the list
+      mut.append(leaf);
+    }
+  }
+}
+
+
 // ---------------------- Symbol --------------------
 Symbol::~Symbol()
 {}
+
+
+Symbol::Symbol(Flatten &flat)
+  : name(flat),
+    isTerm(false),
+    isEmptyString(false)
+{}
+
+void Symbol::xfer(Flatten &flat)
+{
+  // have to break constness to unflatten
+  const_cast<string&>(name).xfer(flat);
+  flat.xferBool(const_cast<bool&>(isTerm));
+  flat.xferBool(const_cast<bool&>(isEmptyString));
+}
 
 
 void Symbol::print(ostream &os) const
@@ -45,6 +308,22 @@ Nonterminal const &Symbol::asNonterminalC() const
 
 
 // -------------------- Terminal ------------------------
+Terminal::Terminal(Flatten &flat)
+  : Symbol(flat),
+    alias(flat)
+{}
+
+void Terminal::xfer(Flatten &flat)
+{
+  Symbol::xfer(flat);
+  flat.xferInt(termIndex);
+  
+  // arguable that for my purposes I don't need this; but
+  // it seems pretty easy to do it anyway ..
+  alias.xfer(flat);
+}
+
+
 void Terminal::print(ostream &os) const
 {
   os << "[" << termIndex << "] ";
@@ -82,6 +361,34 @@ Nonterminal::Nonterminal(char const *name, bool isEmpty)
 
 Nonterminal::~Nonterminal()
 {}
+
+
+Nonterminal::Nonterminal(Flatten &flat)
+  : Symbol(flat)
+{}
+
+void Nonterminal::xfer(Flatten &flat)
+{
+  Symbol::xfer(flat);
+
+  xferObjList(flat, attributes);
+}
+
+void Nonterminal::xferSerfs(Flatten &flat, Grammar &g)
+{
+  // xfer 'superclasses' (I probably don't need this info, but
+  // I wanted to try reading/writing them anyway)
+  xferSObjList(flat, superclasses, g.nonterminals);
+
+  // skip literal code: funDecls, funPrefixes, declarations, 
+  // disambFuns, constructor, destructor
+
+  // annotation
+  flat.xferInt(ntIndex);
+  flat.xferBool(cyclic);
+  xferSObjList(flat, first, g.terminals);
+  xferSObjList(flat, follow, g.terminals);
+}
 
 
 void printTerminalSet(ostream &os, TerminalList const &list)
@@ -160,9 +467,50 @@ Production::~Production()
 {
   if (treeCompare) {
     delete treeCompare;
-  }  
+  }
   if (dprods) {
     delete[] dprods;
+  }
+}
+
+
+Production::Production(Flatten &flat)
+{}
+
+void Production::xfer(Flatten &flat)
+{
+  leftTag.xfer(flat);
+  xferObjList(flat, rightTags);
+
+  conditions.xfer(flat);
+  actions.xfer(flat);
+
+  // it's not used yet
+  xassert(treeCompare == NULL);
+
+  // skip literal code: functions
+
+  flat.xferInt(prodIndex);
+}
+
+void Production::xferSerfs(Flatten &flat, Grammar &g)
+{
+  // must break constness in xfer
+
+  xferSerfPtrToList(flat, const_cast<Nonterminal*&>(left),
+                          g.nonterminals);
+
+  // xfer 'right'
+  {
+    ObjList<Symbol> *lists[2];
+    lists[0] = & (ObjList<Symbol>&)(g.terminals);
+    lists[1] = & (ObjList<Symbol>&)(g.nonterminals);
+    xferSObjList_multi(flat, right, lists, 2);
+  }
+
+  // compute 'numDotPlaces' and 'dprods'
+  if (flat.reading()) {
+    finished();
   }
 }
 
@@ -441,324 +789,6 @@ void DottedProduction::print(ostream &os) const
   }
   if (position == dot) {
     os << " .";
-  }
-}
-
-
-// ----------------- ItemSet -------------------
-ItemSet::ItemSet(int anId, int numTerms, int numNonterms)
-  : kernelItems(),
-    nonkernelItems(),
-    termTransition(NULL),      // inited below
-    nontermTransition(NULL),   // inited below
-    terms(numTerms),
-    nonterms(numNonterms),
-    dotsAtEnd(NULL),
-    numDotsAtEnd(0),
-    id(anId),
-    BFSparent(NULL)
-{
-  termTransition = new ItemSet* [terms];
-  nontermTransition = new ItemSet* [nonterms];
-
-  INTLOOP(t, 0, terms) {
-    termTransition[t] = (ItemSet*)NULL;      // means no transition on t
-  }
-  INTLOOP(n, 0, nonterms) {
-    nontermTransition[n] = (ItemSet*)NULL;
-  }
-}
-
-
-ItemSet::~ItemSet()
-{
-  delete[] termTransition;
-  delete[] nontermTransition;
-  
-  if (dotsAtEnd) {
-    delete[] dotsAtEnd;
-  }
-}
-
-
-Symbol const *ItemSet::getStateSymbolC() const
-{
-  // need only check kernel items since all nonkernel items
-  // have their dots at the left side
-  SFOREACH_DOTTEDPRODUCTION(kernelItems, item) {
-    if (! item.data()->isDotAtStart() ) {
-      return item.data()->symbolBeforeDotC();
-    }
-  }
-  return NULL;
-}
-
-
-int ItemSet::bcheckTerm(int index)
-{
-  xassert(0 <= index && index < terms);
-  return index;
-}
-
-int ItemSet::bcheckNonterm(int index)
-{
-  xassert(0 <= index && index < nonterms);
-  return index;
-}
-
-ItemSet *&ItemSet::refTransition(Symbol const *sym)
-{
-  if (sym->isTerminal()) {
-    Terminal const &t = sym->asTerminalC();
-    return termTransition[bcheckTerm(t.termIndex)];
-  }
-  else {
-    Nonterminal const &nt = sym->asNonterminalC();
-    return nontermTransition[bcheckNonterm(nt.ntIndex)];
-  }
-}
-
-
-ItemSet const *ItemSet::transitionC(Symbol const *sym) const
-{
-  return const_cast<ItemSet*>(this)->refTransition(sym);
-}
-
-
-void ItemSet::setTransition(Symbol const *sym, ItemSet *dest)
-{
-  refTransition(sym) = dest;
-}
-
-            
-// compare two items in an arbitrary (but deterministic) way so that
-// sorting will always put a list of items into the same order, for
-// comparison purposes
-int itemDiff(DottedProduction const *left, DottedProduction const *right, void*)
-{
-  // memory address is sufficient for my purposes, since I avoid ever
-  // creating two copies of a given item
-  return (int)left - (int)right;
-}
-
-
-void ItemSet::addKernelItem(DottedProduction *item)
-{
-  // add it
-  kernelItems.appendUnique(item);
-
-  // sort the items to facilitate equality checks
-  kernelItems.insertionSort(itemDiff);
-  
-  changedItems();
-}
-
-
-bool ItemSet::operator==(ItemSet const &obj) const
-{                                          
-  // since common case is disequality, check the 
-  // CRCs first, and only do full check if they
-  // match
-  if (kernelItemsCRC == obj.kernelItemsCRC) {
-    // since nonkernel items are entirely determined by kernel
-    // items, and kernel items are sorted, it's sufficient to
-    // check for kernel list equality
-    return kernelItems.equalAsPointerLists(obj.kernelItems);
-  }
-  else {
-    // can't possibly be equal if CRCs differ
-    return false;
-  }
-}
-
-
-void ItemSet::addNonkernelItem(DottedProduction *item)
-{
-  nonkernelItems.appendUnique(item);
-  changedItems();
-}
-
-
-void ItemSet::getAllItems(DProductionList &dest) const
-{
-  dest = kernelItems;
-  dest.appendAll(nonkernelItems);
-}
-
-
-// return the reductions that are ready in this state, given
-// that the next symbol is 'lookahead'
-void ItemSet::getPossibleReductions(ProductionList &reductions,
-                                    Terminal const *lookahead,
-                                    bool parsing) const
-{
-  // for each item with dot at end
-  loopi(numDotsAtEnd) {
-    DottedProduction const *item = dotsAtEnd[i];
-
-    // the follow of its LHS must include 'lookahead'
-    // NOTE: this is the difference between LR(0) and SLR(1) --
-    //       LR(0) would not do this check, while SLR(1) does
-    if (!item->prod->left->follow.contains(lookahead)) {    // (constness)
-      if (parsing && tracingSys("parse")) {
-	trace("parse") << "not reducing by " << *(item->prod)
-       	       	       << " because `" << lookahead->name
-		       << "' is not in follow of "
-		       << item->prod->left->name << endl;
-      }
-      continue;
-    }
-
-    // ok, this one's ready
-    reductions.append(item->prod);                          // (constness)
-  }
-}
-
-
-void ItemSet::changedItems()
-{
-  // -- recompute dotsAtEnd --
-  // collect all items
-  DProductionList items;
-  getAllItems(items);
-
-  // count number with dots at end
-  int count = 0;
-  {
-    SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
-      DottedProduction const *item = itemIter.data();
-
-      if (item->isDotAtEnd()) {
-        count++;
-      }
-    }
-  }
-
-  // get array of right size
-  if (dotsAtEnd  &&  count == numDotsAtEnd) {
-    // no need to reallocate, already correct size
-  }
-  else {
-    // throw old away
-    if (dotsAtEnd) {
-      delete[] dotsAtEnd;
-    }
-
-    // allocate new array
-    numDotsAtEnd = count;
-    dotsAtEnd = new DottedProduction const * [numDotsAtEnd];
-  }
-
-  // fill array
-  int index = 0;
-  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
-    DottedProduction const *item = itemIter.data();
-
-    if (item->isDotAtEnd()) {
-      dotsAtEnd[index] = item;
-      index++;
-    }
-  }
-
-  // verify both loops executed same number of times
-  xassert(index == count);
-
-
-  // -- compute CRC of kernel items --
-  // put all pointers into a single buffer
-  // (assumes they've already been sorted!)
-  int numKernelItems = kernelItems.count();
-  DottedProduction const **array = 
-    new DottedProduction const * [numKernelItems];      // (owner ptr to array of serf ptrs)
-  index = 0;
-  SFOREACH_DOTTEDPRODUCTION(kernelItems, kitem) {
-    array[index] = kitem.data();
-
-    if (index > 0) {
-      // may as well check sortedness and
-      // uniqueness
-      xassert(array[index] > array[index-1]);
-    }
-
-    index++;
-  }
-
-  // CRC the buffer
-  kernelItemsCRC = crc32((unsigned char const*)array, 
-                         sizeof(array[0]) * numKernelItems);
-
-  // trash the array
-  delete[] array;
-}
-
-
-void ItemSet::print(ostream &os) const
-{
-  os << "ItemSet " << id << ":\n";
-
-  // collect all items
-  DProductionList items;
-  getAllItems(items);
-
-  // for each item
-  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
-    DottedProduction const *dprod = itemIter.data();
-
-    // print its text
-    os << "  ";
-    dprod->print(os);
-    os << "      ";
-
-    // print any transitions on its after-dot symbol
-    if (!dprod->isDotAtEnd()) {
-      ItemSet const *is = transitionC(dprod->symbolAfterDotC());
-      if (is == NULL) {
-        os << "(no transition?!?!)";
-      }
-      else {
-        os << "--> " << is->id;
-      }          
-    }
-    os << endl;
-  }
-}
-
-
-void ItemSet::writeGraph(ostream &os) const
-{
-  // node: n <name> <desc>
-  os << "\nn ItemSet" << id << " ItemSet" << id << "/";
-    // rest of desc will follow
-
-  // collect all items
-  DProductionList items;
-  getAllItems(items);
-
-  // for each item, print the item text
-  SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
-    DottedProduction const *dprod = itemIter.data();
-
-    // print its text
-    os << "   ";
-    dprod->print(os);
-    os << "/";      // line separator in my node format
-  }
-  os << endl;
-
-  // print transitions on terminals
-  INTLOOP(t, 0, terms) {
-    if (termTransition[t] != NULL) {
-      os << "e ItemSet" << id
-         << " ItemSet" << termTransition[t]->id << endl;
-    }
-  }
-
-  // print transitions on nonterminals
-  INTLOOP(nt, 0, nonterms) {
-    if (nontermTransition[nt] != NULL) {
-      os << "e ItemSet" << id
-         << " ItemSet" << nontermTransition[nt]->id << endl;
-    }
   }
 }
 
@@ -1042,28 +1072,6 @@ Symbol *Grammar::getOrMakeSymbol(char const *name)
   else {
     return getOrMakeTerminal(name);
   }
-}
-
-
-Symbol const *Grammar::
-  inverseTransitionC(ItemSet const *source, ItemSet const *target) const
-{
-  // for each symbol..
-  FOREACH_TERMINAL(terminals, t) {
-    // see if it is the one
-    if (source->transitionC(t.data()) == target) {
-      return t.data();
-    }
-  }
-
-  FOREACH_NONTERMINAL(nonterminals, nt) {
-    if (source->transitionC(nt.data()) == target) {
-      return nt.data();
-    }
-  }
-
-  xfailure("Grammar::inverseTransitionC: no transition from source to target");
-  return NULL;     // silence warning
 }
 
 
@@ -1398,3 +1406,37 @@ bool Grammar::parseProduction(ProductionList &prods, StrtokParse const &tok)
   prods.append(prod);
   return true;
 }
+
+
+// ------------------ Grammar::xfer -------------------
+void Grammar::xfer(Flatten &flat)
+{
+  // owners
+  flat.checkpoint(0xC7AB4D86);
+  xferObjList(flat, nonterminals);
+  xferObjList(flat, terminals);
+  xferObjList(flat, productions);
+
+  // emptyString is const
+
+  // skip the literal code and the base class, because the intent is
+  // to read/write grammars *after* the C++ code has been emitted:
+  // 'semanticsPrologue', 'semanticsEpilogue', 'treeNodeBaseClass'
+
+  // serfs
+  flat.checkpoint(0x8580AAD2);
+
+  MUTATE_EACH_OBJLIST(Nonterminal, nonterminals, nt) {
+    nt.data()->xferSerfs(flat, *this);
+  }
+  MUTATE_EACH_OBJLIST(Production, productions, p) {
+    p.data()->xferSerfs(flat, *this);
+  }
+
+  xferSerfPtrToList(flat, startSymbol, nonterminals);
+
+  flat.checkpoint(0x2874DB95);
+}
+
+
+

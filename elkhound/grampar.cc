@@ -1085,11 +1085,13 @@ void readGrammarFile(Grammar &g, char const *fname)
 
     // and print that
     if (tracingSys("grammar")) {
+      traceProgress() << "printing grammar source..\n";
       g.printProductions(cout);
     }
 
     // then check grammar properties; throws exception
     // on failure
+    traceProgress() << "checking grammar well-formedness..\n";
     g.checkWellFormed();
 
     treeTop.del();
@@ -1103,6 +1105,7 @@ void readGrammarFile(Grammar &g, char const *fname)
 }
 
 
+// ----------------------- test code -----------------------
 #ifdef TEST_GRAMPAR
 
 int main(int argc, char **argv)
@@ -1110,7 +1113,7 @@ int main(int argc, char **argv)
   TRACE_ARGS();
 
   traceAddSys("progress");
-  traceAddSys("grammar");
+  //traceAddSys("grammar");
 
   Grammar g;
   readGrammarFile(g, argc>=2? argv[1] : NULL /*stdin*/);

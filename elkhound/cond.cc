@@ -50,6 +50,13 @@ Conditions::~Conditions()
 {}
 
 
+Conditions::Conditions(Flatten&)
+{}
+
+void Conditions::xfer(Flatten&)
+{}
+
+
 bool Conditions::test(AttrContext const &actx) const
 {
   FOREACH_OBJLIST(Condition, conditions, iter) {
