@@ -514,16 +514,14 @@ nonterm[IDeclarator*] NewDeclaratorOpt {
 
   // pointers
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:NewDeclaratorOpt
-    [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql);
-    ]
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
 
   // commit to at least one "[" ... "]"
   -> d:DirectNewDeclarator               [ return d; ]
 }
 nonterm[IDeclarator*] DirectNewDeclarator {
   -> /*abstract declarator*/ "[" sz:Expression "]"
-       [ return new D_array(loc, new D_name(loc, NULL), sz);
-       ]
+       [ return new D_array(loc, new D_name(loc, NULL), sz); ]
   -> d:DirectNewDeclarator "[" sz:ConstantExpression "]"
        [ return new D_array(loc, d, sz); ]
 }
@@ -1216,11 +1214,9 @@ nonterm[IN_compound*] InitializerList {
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm[IDeclarator*] Declarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:Declarator
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql);
-       ]
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
   -> "&" d:Declarator
-       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/);
-       ]
+       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/); ]
   -> d:DirectDeclarator
        [ return d; ]
 }
@@ -1244,8 +1240,7 @@ nonterm[IDeclarator*] DirectDeclarator {
      ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       [ return new D_func(loc, d, params, cv, e, ql);
-       ]
+       [ return new D_func(loc, d, params, cv, e, ql); ]
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
@@ -1346,11 +1341,9 @@ nonterm[IDeclarator*] AbstractDeclaratorOpt {
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql);
-       ]
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
   -> "&" d:AbstractDeclaratorOpt
-       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/);
-       ]
+       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/); ]
   -> d:DirectAbstractDeclarator
        [ return d; ]
 }
@@ -1378,8 +1371,7 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
      ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
-       [ return new D_func(loc, d, args, cv, e, ql);
-       ]
+       [ return new D_func(loc, d, args, cv, e, ql); ]
 
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
@@ -1403,7 +1395,7 @@ nonterm[FakeList<ASTTypeId>*] ParameterDeclarationClause {
 nonterm[FakeList<ASTTypeId>*] ParameterDeclarationList {
   // last (and perhaps only) arg is "..."
   -> "..." ql:QualifierLiteralsOpt
-       [return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc, ql)); ]
+       [ return FakeList<ASTTypeId>::makeList(ellipsisTypeId(loc, ql)); ]
 
   // last arg is "...", and 2nd-to-last is not separated by
   // a comma from the "..."
@@ -1832,11 +1824,9 @@ nonterm[IDeclarator*] ConversionDeclaratorOpt {
        [ return new D_name(loc, NULL /*name*/); ]
        
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
-       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql);
-       ]
+       [ return new D_pointer(loc, true /*isPtr*/, cv, d, ql); ]
   -> "&" d:ConversionDeclaratorOpt
-       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/);
-       ]
+       [ return new D_pointer(loc, false /*isPtr*/, CV_NONE, d, NULL /*ql*/); ]
 }
 
 

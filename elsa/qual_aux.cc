@@ -4,6 +4,16 @@
 #include "cc.ast.gen.h"       // C++ AST
 
 
+void TypeSpecifier::printExtras_Q(ostream &os, int indent) const
+{
+  xassert(q);
+  if (q->ql) {
+    ind(os, indent);
+    os << q->literalsToString() << endl;
+  }
+}
+
+
 char const *TS_name::getTypeName() const
 {
   return name->getName();

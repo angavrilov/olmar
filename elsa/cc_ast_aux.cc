@@ -240,11 +240,6 @@ PQName const *PQName::getUnqualifiedName() const
 //  ------------------- TypeSpecifier ---------------------
 void TypeSpecifier::printExtras(ostream &os, int indent) const
 {
-  xassert(q);
-  if (q->ql) {
-    ind(os, indent);
-    os << q->literalsToString() << endl;
-  }
   PRINT_GENERIC(cv);
 }
 
