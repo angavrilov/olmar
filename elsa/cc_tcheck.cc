@@ -1475,6 +1475,19 @@ Type const *E_charLit::itcheck(Env &env)
 }
 
 
+Type const *makeLvalType(Type const *underlying)
+{
+  if (underlying->isLval()) {
+    // this happens for example if a variable is declared to
+    // a reference type
+    return underlying; 
+  }
+  else {
+    return makeRefType(underlying);
+  }
+}
+
+
 Type const *E_variable::itcheck(Env &env)
 {
   var = env.lookupPQVariable(name);
@@ -1496,7 +1509,7 @@ Type const *E_variable::itcheck(Env &env)
   }
   else {
     // return a reference because this is an lvalue
-    return makeRefType(var->type);
+    return makeLvalType(var->type);
   }
 }
 
@@ -1598,7 +1611,7 @@ Type const *E_fieldAcc::itcheck(Env &env)
   // type of expression is type of field; possibly as an lval
   if (obj->type->isLval() &&
       !field->type->isFunctionType()) {
-    return makeRefType(field->type);
+    return makeLvalType(field->type);
   }
   else {
     return field->type;
@@ -1684,7 +1697,7 @@ Type const *E_deref::itcheck(Env &env)
   xassert(pt.op == PO_POINTER);   // otherwise not rval!
 
   // dereferencing yields an lvalue
-  return makeRefType(pt.atType);
+  return makeLvalType(pt.atType);
 }
 
 
