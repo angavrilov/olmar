@@ -4013,7 +4013,26 @@ void Env::lookupPQ(LookupSet &set, PQName *name, LookupFlags flags)
     if (!scope) {
       return;      // error already reported
     }
+
     if (scope == dependentScope) {
+      // check that all names further down use 'template'
+      // appropriately (in/t0254.cc)
+      do {
+        name = name->asPQ_qualifier()->rest;
+        bool templateUsed = name->templateUsed();
+        bool hasTemplArgs = name->isPQ_template() ||
+                            (name->isPQ_qualifier() && name->asPQ_qualifier()->targs.isNotEmpty());
+
+        // we only need to check for one kind of mismatch, because the
+        // other kind is rejected by the parser
+        if (!templateUsed && hasTemplArgs) {
+          // without the "template" keyword, the dependent context may give
+          // rise to ambiguity, so reject it
+          env.error("dependent template scope name requires 'template' keyword",
+                    EF_DISAMBIGUATES | EF_STRONG);
+        }
+      } while (name->isPQ_qualifier());
+
       if (flags & (LF_TYPENAME | LF_ONLY_TYPES)) {
         set.add(dependentTypeVar);    // user claims it's a type
       }
@@ -4136,6 +4155,15 @@ void Env::unqualifiedLookup(LookupSet &set, Scope * /*nullable*/ scope,
       }
     }
   }
+}
+
+
+// caller promises that it will reject function names anyway
+Variable *Env::lookupPQ_one(PQName *name, LookupFlags flags)
+{
+  LookupSet set;
+  lookupPQ(set, name, flags);
+  return set.isEmpty()? NULL : set.first();
 }
 
 

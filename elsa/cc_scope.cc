@@ -821,6 +821,14 @@ void Scope::lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags)
 }
 
 
+Variable *Scope::lookup_one(StringRef name, Env &env, LookupFlags flags)
+{
+  LookupSet set;
+  lookup(set, name, env, flags);
+  return set.isEmpty()? NULL : set.first();
+}
+
+
 Variable const *Scope::getTypedefNameC() const
 {
   if (scopeKind == SK_CLASS) {

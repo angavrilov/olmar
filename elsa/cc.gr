@@ -1174,15 +1174,28 @@ nonterm(PQName*) PQTypeName_ncc {
   -> id:TemplateId
        { return id; }
 
-  -> q:Identifier "::" n:PQTypeName_ncc
+  -> q:Identifier "::" n:PQTypeName_notfirst
        { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
-  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
+  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_notfirst
        { return new PQ_qualifier(loc, q, targs, n); }
+}
+
+// after at least one qualifier other than "::"; 'template' has to be
+// squirreled away down here because otherwise it becomes ambiguous
+// with the 'template' at the start of a
+nonterm(PQName*) PQTypeName_notfirst {
+  -> id:PQTypeName_ncc
+       { return id; }
+
+  // template declaration
+  -> "template" id:TemplateId       // in/t0254.cc
+       { id->args.prepend(new TA_templateUsed());    // destructive action
+         return id; }
 
   // TEMPLATE_QUALIFIER_HACK
-  //-> "template" q:Identifier "::" n:PQTypeName_ncc
+  //-> "template" q:Identifier "::" n:PQTypeName_notfirst
   //     { return new PQ_qualifier(loc, q, NULL /*targs*/, n); }
-  -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
+  -> "template" q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_notfirst
        { targs->prepend(new TA_templateUsed());
          return new PQ_qualifier(loc, q, targs, n); }
 }
@@ -2249,7 +2262,7 @@ nonterm(ASTList<TemplateArgument>*) TemplateArgumentListOpt {
   -> list:TemplateArgumentList   { return list; }
 }
 
-nonterm(PQName*) TemplateId {
+nonterm(PQ_template*) TemplateId {
   -> n:Identifier "<" list:TemplateArgumentListOpt ">"
        { return new PQ_template(loc, n, list); }
 

@@ -707,6 +707,11 @@ private:     // funcs
 
 public:      // funcs
   void lookupPQ(LookupSet &set, PQName *name, LookupFlags flags);
+  
+  // yield just the first element of the lookup set, if any; the
+  // context is going to reject a function name anyway (so it does
+  // not matter if there is more than one)
+  Variable *lookupPQ_one(PQName *name, LookupFlags flags);
 
 
   // ------------ template instantiation stuff ------------

@@ -692,9 +692,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   if (!name->hasQualifiers()) {
     // look for the given name in the class; should be an immediate
     // member, not one that was inherited
-    LookupSet set;
-    enclosing->lookup(set, name->getName(), env, LF_INNER_ONLY);
-    Variable *v = set.isEmpty()? NULL : set.first();
+    Variable *v = enclosing->lookup_one(name->getName(), env, LF_INNER_ONLY);
     if (v && !v->hasFlag(DF_TYPEDEF)) {     // typedef -> fall down to next area (in/t0390.cc)
       // only "nonstatic data member"
       if (v->hasFlag(DF_STATIC) ||
@@ -703,7 +701,6 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
                   "nor member functions in a ctor member init list");
         return;
       }
-      xassert(set.count() == 1);      // otherwise should have been function type
 
       // annotate the AST
       member = env.storeVar(v);
@@ -744,9 +741,7 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
   // since the base class initializer can use any name which
   // denotes the base class [para 2], first look up the name
   // in the environment generally
-  LookupSet set;
-  env.lookupPQ(set, name, LF_NONE);
-  Variable *baseVar = set.isEmpty()? NULL : set.first();
+  Variable *baseVar = env.lookupPQ_one(name, LF_NONE);
   if (!baseVar ||
       !baseVar->hasFlag(DF_TYPEDEF) ||
       !baseVar->type->isCompoundType()) {
@@ -754,7 +749,6 @@ void MemberInit::tcheck(Env &env, CompoundType *enclosing)
               << "`" << *name << "' does not denote any class");
     return;
   }
-  xassert(set.count() == 1);        // otherwise cannot be compound type
   CompoundType *baseClass = baseVar->type->asCompoundType();
 
   // is this class a direct base, and/or an indirect virtual base?
@@ -993,7 +987,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
 
   if (lflags & LF_DEPENDENT) {
     // the previous qualifier was dependent; do truncated processing here
-    if (!templateUsed()) {
+    if (targs.isNotEmpty() && !templateUsed()) {
       // without the "template" keyword, the dependent context may give
       // rise to ambiguity, so reject it
       env.error("dependent template scope name requires 'template' keyword",
@@ -1212,9 +1206,10 @@ Type *TypeSpecifier::tcheck(Env &env, DeclFlags dflags)
 }
 
 
+// 7.1.5.2
 Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 {
-  name->tcheck(env);
+  name->tcheck(env, NULL /*scope*/, LF_NO_DENOTED_SCOPE);
 
   ErrorFlags eflags = EF_NONE;
   LookupFlags lflags = LF_NONE;
@@ -1250,7 +1245,14 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
     lflags |= LF_SKIP_CLASSES;
   }
 
-  v = env.lookupPQVariable(name, lflags);
+  // hack, until LF_SELFNAME becomes the default and I fix the
+  // problems in Env::applyPQNameTemplateArguments: if the name
+  // does not have template arguments, make the self-name visible
+  if (!name->getUnqualifiedName()->isPQ_template()) {
+    lflags |= LF_SELFNAME;
+  }
+
+  v = env.lookupPQ_one(name, lflags);
   if (!v) {
     // NOTE:  Since this is marked as disambiguating, but the same
     // error message in E_variable::itcheck is not marked as such, it

@@ -237,6 +237,9 @@ public:      // funcs
   // 2005-02-24: new and improved lookup
   void lookup(LookupSet &set, StringRef name, Env &env, LookupFlags flags);
   
+  // like Env::lookupPQ_one
+  Variable *lookup_one(StringRef name, Env &env, LookupFlags flags);
+
   // lookup; these return NULL if the name isn't found; 'env' is
   // passed for the purpose of reporting ambiguity errors
   Variable *lookupVariable(StringRef name, Env &env, LookupFlags f=LF_NONE);
