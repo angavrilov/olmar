@@ -7,8 +7,8 @@
 
 
 // expected statistics
-option shift_reduce_conflicts 139;
-option reduce_reduce_conflicts 140;
+option shift_reduce_conflicts 137;
+option reduce_reduce_conflicts 147;
 
 
 // this verbatim section is appended to the one in cc.gr
@@ -379,7 +379,20 @@ nonterm(Statement*) Statement {
 nonterm(ASTTypeId*) ParameterDeclaration {
   fun keep(x) { return x!=NULL; }
 
-  -> RegisterOpt /*implicit-int*/ d:Declarator
+  -> /*implicit-int*/ d:Declarator
+    {
+      // if this isn't K&R C, throw it out
+      if (!lang.allowImplicitInt) {
+        trace("cancel") << loc
+          << ": implicit-int parameter definition in non-implicit-int language\n";
+        return NULL;
+      }
+      return new ASTTypeId
+        (new TS_simple(loc, ST_IMPLINT),
+         new Declarator(d, NULL /*init*/));
+    }
+
+  -> "register" /*implicit-int*/ d:Declarator
     {
       // if this isn't K&R C, throw it out
       if (!lang.allowImplicitInt) {
