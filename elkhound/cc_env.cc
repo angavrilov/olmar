@@ -147,9 +147,12 @@ void Env::killParentLink()
 }
 
 
-void Env::grab(Type *t)
+// at one point I started switching all the calls over so they
+// did grab inline, but that downgrades the return type ..
+Type *Env::grab(Type *t)
 {
   intermediates.prepend(t);
+  return t;
 }
 
 
@@ -224,6 +227,14 @@ Type const *Env::applyCVToType(CVFlags cv, Type const *baseType)
       // can't get it after the fact)
       return NULL;
   }
+}
+
+
+ArrayType const *Env::setArraySize(ArrayType const *type, int size)
+{                                      
+  ArrayType *ret = new ArrayType(type->eltType, size);
+  grab(ret);
+  return ret;
 }
 
 

@@ -2482,7 +2482,15 @@ nonterm InitDeclaratorListOpt : HasDeclare {
   -> list:InitDeclaratorList    { fun declare { list.declare(env, inst, flags, type); } }
 }
 
-nonterm InitDeclarator : HasDeclare {
+
+nonterm InitializerBase {
+  // count the # of array initializers there are,
+  // so for now I can answer sizeof queries correctly
+  fundecl int numInitElems();
+  fun numInitElems = 0;
+}
+
+nonterm InitDeclarator : HasDeclare, InitializerBase {
   fundecl bool hasInit();
 
   fun declare {
@@ -2491,6 +2499,29 @@ nonterm InitDeclarator : HasDeclare {
 
     // get the declared name
     string name = d.getDeclName();
+
+    // if it's an array with an an initializer here, then count the
+    // initializers so we can add that to the array's type
+    if (fullType->isArrayType() && hasInit()) {
+      ArrayType const *arrType = &( fullType->asArrayTypeC() );
+      int numElems = numInitElems();
+
+      if (arrType->hasSize) {
+        if (numElems > arrType->size) {
+          throwError(stringc
+            << "array `" << name << "' was declared to have "
+            << arrType->size << " only elements, but you gave "
+            << "it " << numElems << " initializers");
+        }
+        else {
+          // the uninitialized elements, if any, will be zeroed
+        }
+      }
+      else /*no size was declared*/ {
+        // change the type to match the initializer
+        fullType = env->setArraySize(arrType, numElems);
+      }
+    }
 
     // put that pair into the environment
     declareVariable(env, name, flags, fullType, hasInit());
@@ -2508,13 +2539,16 @@ nonterm InitDeclarator : HasDeclare {
   }
 
   // don't know what to do with the initializer at this point.. (TODO)
-  -> d:Declarator Initializer {       // (int)  x = 5
+  -> d:Declarator i:Initializer {       // (int)  x = 5
     fun hasInit = true;
+    fun numInitElems = i.numInitElems();
   }
 }
 
-nonterm Initializer {
-  -> "=" InitializerClause ;
+nonterm Initializer : InitializerBase {
+  -> "=" i:InitializerClause {
+    fun numInitElems = i.numInitElems();
+  }
 
   // this causes an ambiguity with
   //   int fileno(FILE *f);
@@ -2523,13 +2557,16 @@ nonterm Initializer {
   //-> "(" ExpressionList ")" ;          // ctor args
 }
 
-nonterm InitializerClause {
-  -> AssignmentExpression                 ;   // scalar
-  -> CompoundInitializer                  ;   // array/structure initializer
-} 
+nonterm InitializerClause : InitializerBase {
+  -> AssignmentExpression ;           // scalar
+  -> c:CompoundInitializer {          // array/structure initializer
+    fun numInitElems = c.numInitElems();
+  }
+}
 
-// gnu extensions: labeled elements in initializers
-nonterm LabeledInitializerClause {            // *potentially* labeled
+// gnu extensions: labeled elements in initializers              
+// (*potentially* labeled)
+nonterm LabeledInitializerClause  : InitializerBase {
   // no label
   -> InitializerClause ;
 
@@ -2546,16 +2583,30 @@ nonterm LabeledInitializerClause {            // *potentially* labeled
   -> "[" ConstantExpression "]" "." PQVarName "=" InitializerClause ;
 }
 
-nonterm CompoundInitializer {
-  -> "{" InitializerList CommaOpt "}"     ;   // array/structure initializer
-  -> "{" "}"                              ;   // zero whatever it is
+nonterm CompoundInitializer : InitializerBase {
+  // array/structure initializer
+  -> "{" list:InitializerList CommaOpt "}" {
+    fun numInitElems = list.numInitElems();
+  }
+
+  // zero whatever it is
+  -> "{" "}" ;
 }
 
 // useful syntactic quirk
 nonterm CommaOpt -> empty | "," ;
 
-nonterm InitializerList -> LabeledInitializerClause |
-                           InitializerList "," LabeledInitializerClause ;
+
+nonterm InitializerList : InitializerBase {
+  -> init:LabeledInitializerClause {
+    // list.numInitElems is always 0; I'm making the recursive
+    // structure for later when I do this right
+    fun numInitElems = 1+init.numInitElems();
+  }
+  -> list:InitializerList "," init:LabeledInitializerClause {
+    fun numInitElems = list.numInitElems() + 1+init.numInitElems();
+  }
+}
 
 
 nonterm HasDeclType {

@@ -101,7 +101,7 @@ private:    // data
   int referenceCt;
 
 private:    // funcs
-  void grab(Type *t);
+  Type *grab(Type *t);
   int makeFreshInteger();
   ostream& indent(ostream &os) const;
   Variable *addVariable(char const *name, DeclFlags flags, Type const *type);
@@ -123,6 +123,10 @@ public:     // funcs
   string makeAnonName();
   string makeFreshName(char const *prefix);
 
+  // there doesn't seem to be much rhyme or reason to why some return
+  // const and others don't .. but some definitely need to *not*
+  // return const (like makeFunctionType), so whatever
+
   // given an AtomicType, wrap it in a CVAtomicType
   // with no const or volatile qualifiers
   CVAtomicType *makeType(AtomicType const *atomic);
@@ -130,6 +134,10 @@ public:     // funcs
   // given a type, qualify it with 'cv'; return NULL
   // if the base type cannot be so qualified
   Type const *applyCVToType(CVFlags cv, Type const *baseType);
+
+  // given an array type with no size, return one that is
+  // the same except its size is as specified
+  ArrayType const *setArraySize(ArrayType const *type, int size);
 
   // make a ptr-to-'type' type
   PointerType *makePtrOperType(PtrOper op, CVFlags cv, Type const *type);
