@@ -67,9 +67,6 @@ ranlib      := ranlib
 ifdef CC_QUAL
   ccflags += -DCC_QUAL
   ccflags += -DDISTINCT_CVATOMIC_TYPES
-  ifdef MATT
-    ccflags += -DMATT		# temporary one-off for Matt
-  endif
 endif
 
 OPTIMIZATION_FLAGS :=
