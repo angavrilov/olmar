@@ -1029,7 +1029,13 @@ void E_addrOf::iprint(PrintEnv &env)
 {
   olayer ol("E_addrOf::iprint");
   env << "&";
-  expr->print(env);
+  if (expr->isE_variable()) {
+    // could be forming ptr-to-member, do not parenthesize
+    expr->iprint(env);
+  }
+  else {
+    expr->print(env);
+  }
 }
 
 void E_deref::iprint(PrintEnv &env)

@@ -4604,6 +4604,30 @@ Type *E_this::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
+E_fieldAcc *wrapWithImplicitThis(Env &env, Variable *var, PQName *name)
+{
+  // make *this
+  E_this *ths = new E_this;
+  Expression *thisRef = new E_deref(ths);
+  thisRef->tcheck(env, thisRef);
+
+  // sm: this assertion can fail if the method we are in right now
+  // is static; the error has been reported, so just proceed
+  //xassert(ths->receiver);
+
+  // no need to tcheck as the variable has already been looked up
+  E_fieldAcc *efieldAcc = new E_fieldAcc(thisRef, name);
+  efieldAcc->field = var;
+
+  // E_fieldAcc::itcheck_fieldAcc() does something a little more
+  // complicated, but we don't need that since the situation is
+  // more constrained here
+  efieldAcc->type = makeLvalType(env, env.tfac.cloneType(var->type));
+
+  return efieldAcc;
+}
+
+
 Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
 {
   return itcheck_var(env, replacement, LF_NONE);
@@ -4627,7 +4651,7 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
       // notice this fact and if we are in K and R C we insert a
       // variable with signature "int ()(...)" which is what I recall as
       // the correct signature for such an implicit variable.
-      if (env.lang.allowImplicitFunctionDecls && (flags & LF_IMPL_DECL_FUNC)) {
+      if (env.lang.allowImplicitFunctionDecls && (flags & LF_FUNCTION_NAME)) {
         if (env.lang.allowImplicitFunctionDecls == B3_WARN) {
           env.warning(name->loc, stringc << "implicit declaration of `" << *name << "'");
         }
@@ -4683,33 +4707,10 @@ Type *E_variable::itcheck_var(Env &env, Expression *&replacement, LookupFlags fl
   }
 
   // elaborate 'this->'
-  if (var->isMember() && !var->isStatic() &&
-      // dsw: have to rule out situations like this in in/t0087.cc:
-      //
-      //   int A::*p = &A::x;
-      //
-      // sm: this is a bug, since just being qualified does not mean
-      // the name refers to a pointer-to-member
-      name->isPQ_name()) {
-    // make *this
-    E_this *ths = new E_this;
-    Expression *thisRef = new E_deref(ths);
-    thisRef->tcheck(env, thisRef);
-
-    // sm: this assertion can fail if the method we are in right now
-    // is static; the error has been reported, so just proceed
-    //xassert(ths->receiver);
-
-    // this name will never be typechecked as the variable has already
-    // been looked up
-    E_fieldAcc *efieldAcc = new E_fieldAcc(thisRef, name);
-    replacement = efieldAcc;
-    efieldAcc->field = var;
-
-    // E_fieldAcc::itcheck_fieldAcc() does something a little more
-    // complicated, but we don't need that since the situation is
-    // more constrained here
-    efieldAcc->type = makeLvalType(env, env.tfac.cloneType(var->type));
+  if (!(flags & LF_NO_IMPL_THIS) &&
+      var->isMember() && 
+      !var->isStatic()) {
+    replacement = wrapWithImplicitThis(env, var, name);
   }
 
   // return a reference because this is an lvalue
@@ -5142,7 +5143,10 @@ void E_funCall::inner1_itcheck(Env &env)
   func = func->skipGroups();
 
   // nominal flags if we're calling a named function
-  LookupFlags specialFlags = LF_TEMPL_PRIMARY | LF_IMPL_DECL_FUNC;
+  LookupFlags specialFlags = 
+    LF_TEMPL_PRIMARY |       // we will do template instantiation later
+    LF_FUNCTION_NAME |       // we might allow an implicit declaration
+    LF_NO_IMPL_THIS;         // don't add 'this->' (must do overload resol'n first)
 
   if (func->isE_variable()) {
     // tell the E_variable *not* to do instantiation of
@@ -5188,6 +5192,16 @@ static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
                                          FakeList<ArgExpression> *args);
 static bool shouldUseArgDepLookup(E_variable *evar);
 
+void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
+                                  E_variable *&fevar, E_fieldAcc *&feacc)
+{
+  if (fevar && fevar->var->isMember() && !fevar->var->isStatic()) {
+    feacc = wrapWithImplicitThis(env, fevar->var, fevar->name);
+    func = feacc;
+    fevar = NULL;
+  }
+}
+
 Type *E_funCall::inner2_itcheck(Env &env)
 {
   // check the argument list
@@ -5201,40 +5215,44 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // with both overload resolution and template instantiation.  Right
   // now we do instantiation up here and overload resolution down below,
   // but they will not interact correctly.
-                                 
-  // TODO: assuming this never fails, remove the "->skipGroups" below
+
+  // inner1 skipped E_groupings already
   xassert(!func->isE_grouping());
 
+  // is 'func' an E_variable?  a number of special cases kick in if so
+  E_variable *fevar = func->isE_variable()? func->asE_variable() : NULL;
+
+  // similarly for E_fieldAcc
+  E_fieldAcc *feacc = func->isE_fieldAcc()? func->asE_fieldAcc() : NULL;
+
   // dependent name function template instantiation
-  if (func->skipGroups()->isE_variable()) {
-    E_variable *evar = func->skipGroups()->asE_variable();
-    if (dependentArgs && evar->nondependentVar) {
+  if (fevar) {
+    if (dependentArgs && fevar->nondependentVar) {
       // kill the 'nondependent' lookup; this is wrong, since it needs
       // to be folded into a consolidated arg+overload resolve...
-      TRACE("dependent", toString(evar->name->loc) << 
-        ": killing the nondependency of " << evar->nondependentVar->name);
-      evar->nondependentVar = NULL;
+      TRACE("dependent", toString(fevar->name->loc) <<
+        ": killing the nondependency of " << fevar->nondependentVar->name);
+      fevar->nondependentVar = NULL;
     }
 
-    if (evar->type->isSimple(ST_NOTFOUND)) {
+    if (fevar->type->isSimple(ST_NOTFOUND)) {
       // this is a delayed error to handle 3.4.2; keep going
     }
     else {
-      if (!dependentInstantiation(env, evar->var, evar->name, evar->type,
+      if (!dependentInstantiation(env, fevar->var, fevar->name, fevar->type,
                                   NULL /*receiver*/, args)) {
-        return evar->type;    // is ST_ERROR
+        return fevar->type;    // is ST_ERROR
       }
     }
   }
-  else if (func->skipGroups()->isE_fieldAcc()) {
-    E_fieldAcc *eacc = func->skipGroups()->asE_fieldAcc();
-    if (eacc->type->isGeneralizedDependent()) {
+  else if (feacc) {
+    if (feacc->type->isGeneralizedDependent()) {
       return env.dependentType();
     }
 
-    if (!dependentInstantiation(env, eacc->field, eacc->fieldName, eacc->type,
-                                eacc->obj, args)) {
-      return eacc->type;    // is ST_ERROR
+    if (!dependentInstantiation(env, feacc->field, feacc->fieldName, feacc->type,
+                                feacc->obj, args)) {
+      return feacc->type;    // is ST_ERROR
     }
   }
 
@@ -5249,6 +5267,10 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // check for operator()
   CompoundType *ct = t->ifCompoundType();
   if (ct) {
+    // the insertion of implicit 'this->' below will not be reached,
+    // so do it here too
+    possiblyWrapWithImplicitThis(env, func, fevar, feacc);
+
     Variable *funcVar = ct->getNamedField(env.functionOperatorName, env);
     if (funcVar) {
       // resolve overloading
@@ -5276,13 +5298,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
     }
   }
 
-  // skip grouping parens (cppstd 13.3.1.1 para 1)
-  Expression *func = this->func->skipGroups();
-
   // for internal testing
-  if (func->isE_variable()) {
-    Type *ret = internalTestingHooks(env, 
-      func->asE_variable()->name->getName(), args);
+  if (fevar) {
+    Type *ret = internalTestingHooks(env, fevar->name->getName(), args);
     if (ret) {
       return ret;
     }
@@ -5291,18 +5309,16 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // check for function calls that need overload resolution
   if (env.doOverload()) {
     // simple E_funCall to a named function
-    if (func->isE_variable()) {
-      E_variable *evar = func->asE_variable();
-
+    if (fevar) {
       // do we need to do another lookup, a-la cppstd 3.4.2?
       Variable *chosen;
-      if (evar->name->isPQ_name() &&             // unqualified name, and
-          shouldUseArgDepLookup(evar)) {         // (other tests pass)
+      if (fevar->name->isPQ_name() &&             // unqualified name, and
+          shouldUseArgDepLookup(fevar)) {         // (other tests pass)
         // must do lookup according to 3.4.2
-        chosen = argumentDependentLookup(env, evar, args);
+        chosen = argumentDependentLookup(env, fevar, args);
       }
       else {
-        chosen = outerResolveOverload(env, evar->name, evar->name->loc, evar->var,
+        chosen = outerResolveOverload(env, fevar->name, fevar->name->loc, fevar->var,
                                       env.implicitReceiverType(), args);
       }
 
@@ -5314,57 +5330,54 @@ Type *E_funCall::inner2_itcheck(Env &env)
         // the function, and in all other respects the function
         // remains a member of the base class."
         chosen = env.storeVar(chosen);
-        evar->var = chosen;
-        evar->type = env.tfac.cloneType(chosen->type);
+        fevar->var = chosen;
+        fevar->type = env.tfac.cloneType(chosen->type);
         t = chosen->type;    // for eventual return value
       }
       else {
         // dealias anyway
-        evar->var = env.storeVar(evar->var);
+        fevar->var = env.storeVar(fevar->var);
         return env.errorType();
       }
     }
 
     // method call to a named function
-    if (func->isE_fieldAcc() &&
+    if (feacc &&
         // in the case of a call to a compiler-synthesized
         // destructor, the 'field' is currently NULL (that might
         // change); but in that case overloading is not possible,
         // so this code can safely ignore it (e.g. in/t0091.cc)
-        func->asE_fieldAcc()->field) {
-      E_fieldAcc *efld = func->asE_fieldAcc();
-
+        feacc->field) {
       Variable *chosen =
-        outerResolveOverload(env, efld->fieldName, efld->fieldName->loc, efld->field,
-                             efld->obj->type, args);
+        outerResolveOverload(env, feacc->fieldName, feacc->fieldName->loc, 
+                             feacc->field, feacc->obj->type, args);
       if (chosen) {
         // rewrite AST
         chosen = env.storeVar(chosen);
-        efld->field = chosen;
-        efld->type = env.tfac.cloneType(chosen->type);
+        feacc->field = chosen;
+        feacc->type = env.tfac.cloneType(chosen->type);
         t = chosen->type;
       }
       else {
-        efld->field = env.storeVar(efld->field);
+        feacc->field = env.storeVar(feacc->field);
         return env.errorType();
       }
     }
   }
+    
+  // fulfill the promise that inner1 made when it passed
+  // LF_NO_IMPL_THIS, namely that we would add 'this->' later
+  // if needed; here is "later"
+  possiblyWrapWithImplicitThis(env, func, fevar, feacc);
 
-  // make sure this function has been typechecked; FIX: when we
-  // explicitly elaborate in the implicit "this->" then this code
-  // should become redundant
-  //
-  // sm: why would it become redundant?  it is still needed for
-  // nonmember function templates, and for member function templates
-  // that are static, right?
-  if (func->isE_variable()) {
+  // make sure this function has been typechecked
+  if (fevar) {
     // if it is a pointer to a function that function should get
     // instantiated when its address is taken
-    env.ensureFuncBodyTChecked(func->asE_variable()->var);
+    env.ensureFuncBodyTChecked(fevar->var);
   }
-  else if (func->isE_fieldAcc()) {
-    env.ensureFuncBodyTChecked(func->asE_fieldAcc()->field);
+  else if (feacc) {
+    env.ensureFuncBodyTChecked(feacc->field);
   }
 
 
@@ -5401,31 +5414,34 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // receiver object?
   if (env.doCompareArgsToParams && ft->isMethod()) {
     Type *receiverType = NULL;
-    Expression *ffunc = func->skipGroups();
-    if (ffunc->isE_fieldAcc()) {
+    if (feacc) {
       // explicit receiver via '.'
-      receiverType = ffunc->asE_fieldAcc()->obj->type;
+      receiverType = feacc->obj->type;
     }
-    else if (ffunc->isE_binary() &&
-             ffunc->asE_binary()->op == BIN_DOT_STAR) {
+    else if (func->isE_binary() &&
+             func->asE_binary()->op == BIN_DOT_STAR) {
       // explicit receiver via '.*'
-      receiverType = ffunc->asE_binary()->e1->type;
+      receiverType = func->asE_binary()->e1->type;
     }
-    else if (ffunc->isE_binary() &&
-             ffunc->asE_binary()->op == BIN_ARROW_STAR) {
+    else if (func->isE_binary() &&
+             func->asE_binary()->op == BIN_ARROW_STAR) {
       // explicit receiver via '->*'
-      receiverType = ffunc->asE_binary()->e1->type->asRval();
+      receiverType = func->asE_binary()->e1->type->asRval();
       if (!receiverType->isPointerType()) {
         // this message is partially redundant; the error(1) in in/t0298.cc
         // also yields the rather vague "no viable candidate"
         env.error("LHS of ->* must be a pointer");
         receiverType = NULL;
-      }                     
+      }
       else {
         receiverType = receiverType->asPointerType()->atType;
       }
     }
     else {
+      // now that we wrap with 'this->' explicitly, this code should
+      // not be reachable
+      xfailure("got to implicit receiver code; should not be possible!");
+
       // implicit receiver
       Variable *receiver = env.lookupVariable(env.receiverName);
       if (!receiver) {
@@ -5435,7 +5451,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
         receiverType = receiver->type;
       }
     }
-    
+
     if (receiverType) {
       // check that the receiver object matches the receiver parameter
       if (!getImplicitConversion(env,
@@ -5447,10 +5463,6 @@ Type *E_funCall::inner2_itcheck(Env &env)
           << "cannot convert argument type `" << receiverType->toString()
           << "' to receiver parameter type `" << ft->getReceiver()->type->toString()
           << "'");
-      }
-      else {
-        // TODO (elaboration): replace 'func' with an E_fieldAcc that
-        // explicitly uses '__receiver'
       }
     }
     else {
@@ -6738,7 +6750,43 @@ static Type *makePTMType(Env &env, E_variable *e_var)
 
 Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
 {
-  expr->tcheck(env, expr);
+  // might we be forming a pointer-to-member?
+  bool possiblePTM = false;
+  E_variable *evar = NULL;
+  // NOTE: do *not* unwrap any layers of parens:
+  // cppstd 5.3.1 para 3: "A pointer to member is only formed when
+  // an explicit & is used and its operand is a qualified-id not
+  // enclosed in parentheses."
+  if (expr->isE_variable()) {
+    evar = expr->asE_variable();
+
+    // cppstd 5.3.1 para 3: Nor is &unqualified-id a pointer to
+    // member, even within the scope of the unqualified-id's
+    // class.
+    // dsw: Consider the following situation: How do you know you
+    // &x isn't making a pointer to member?  Only because the name
+    // isn't fully qualified.
+    //   struct A {
+    //     int x;
+    //     void f() {int *y = &x;}
+    //   };
+    if (evar->name->hasQualifiers()) {
+      possiblePTM = true;
+    }
+  }
+
+  // check 'expr'
+  if (possiblePTM) {
+    // suppress elaboration of 'this'; the situation where 'this'
+    // would be inserted is exactly the situation where a
+    // pointer-to-member is formed
+    Type *t = evar->itcheck_var(env, expr, LF_NO_IMPL_THIS);
+    evar->type = env.tfac.cloneType(t);
+    xassert(evar == expr);     // do not expect replacement here
+  }
+  else {
+    expr->tcheck(env, expr);
+  }
 
   if (expr->type->isError()) {
     // skip further checking because the tree is not necessarily
@@ -6746,38 +6794,22 @@ Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
     // a NULL 'var' field
     return expr->type;
   }
-    
+
   // 14.6.2.2 para 1
   if (expr->type->isGeneralizedDependent()) {
     return env.dependentType();
   }
 
-  // NOTE: do *not* unwrap any layers of parens:
-  // cppstd 5.3.1 para 3: "A pointer to member is only formed when
-  // an explicit & is used and its operand is a qualified-id not
-  // enclosed in parentheses."
-  if (expr->isE_variable()) {
-    E_variable *e_var = expr->asE_variable();
-    xassert(e_var->var);
+  if (possiblePTM) {
+    xassert(evar->var);
 
     // make sure we instantiate any functions that have their address
     // taken
-    env.ensureFuncBodyTChecked(e_var->var);
+    env.ensureFuncBodyTChecked(evar->var);
 
-    if (e_var->var->hasFlag(DF_MEMBER) &&
-        (!e_var->var->hasFlag(DF_STATIC)) &&
-        // cppstd 5.3.1 para 3: Nor is &unqualified-id a pointer to
-        // member, even within the scope of the unqualified-id's
-        // class.
-        // dsw: Consider the following situation: How do you know you
-        // &x isn't making a pointer to member?  Only because the name
-        // isn't fully qualified.
-        //   struct A {
-        //     int x;
-        //     void f() {int *y = &x;}
-        //   };
-        e_var->name->hasQualifiers() ) {
-      return makePTMType(env, e_var);
+    if (evar->var->isMember() &&
+        !evar->var->isStatic()) {
+      return makePTMType(env, evar);
     }
   }
   // Continuing, the same paragraph points out that we are correct in
