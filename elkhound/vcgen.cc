@@ -761,11 +761,28 @@ AbsValue *E_fieldAcc::vcgen(AEnv &env, int path) const
   }
 
   if (obj->isE_deref()) {
+    E_deref const *deref = obj->asE_derefC();
+
     // partially DUPLICATED from E_assign::vcgen; reflective of general
     // problem with lvalues
 
     // get an abstract value for the address of the object being modified
-    AbsValue *addr = obj->asE_deref()->ptr->vcgen(env, path);
+    AbsValue *addr = deref->ptr->vcgen(env, path);
+
+    if (0==strcmp(field->compound->name, "OwnerPtrMeta")) {
+      // OWNER: model the 'OwnerPtrMeta' struct as a tuple (obviously
+      // I need to generalize the decision of what to model as a tuple)
+      
+      // get the tuple value
+      AbsValue *tuple =
+         env.avSelect(
+           env.getMem(),
+           env.avObject(addr),
+           env.avOffset(addr));
+           
+      // select the field I want
+      return env.avGetElt(env.avInt(field->index), tuple);
+    }
 
     #if 0    // old: from before I used + to form offset
     if (!env.inPredicate) {

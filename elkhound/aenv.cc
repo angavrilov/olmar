@@ -214,6 +214,24 @@ AbsValue *AEnv::get(Variable const *var)
       // than as symbolic whole-array values... the value we yield
       // will be the address of the array (I guess, relying on the
       // implicit coercion between arrays and pointers..)
+      
+      ArrayType const &at = type->asArrayTypeC();
+      if (at.eltType->isOwnerPtr()) {
+        // OWNER: arrays of owners get initialized to the dead state
+        trace("owner") << "initializing array of owners to dead\n"; 
+        
+        // thmprv_forall(int j; 0<=j && j<length(addr) ==> addr[j].state==DEAD)
+        AVvar *j = freshVariable("j", "quantifier for array index");
+        addFact(P_forall(new ASTList<AVvar>(j),
+                         new P_impl(P_and2(new P_relation(avInt(0), RE_LESSEQ,j),
+                                           new P_relation(j, RE_LESS, avLength(addr))),
+                                    P_equal(avGetElt(avOwnerField_state(),
+                                                     avSelect(getMem(), addr, j)),
+                                            avOwnerState_dead())
+                                   )
+                        ),
+                "initial dead state of array of owners");
+      }
     }
 
     int size = 1;         // default for non-arrays

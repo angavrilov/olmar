@@ -136,6 +136,7 @@ public:      // types
     StringRef name;                  // programmer-given name
     int const index;                 // first field is 0, next is 1, etc.
     Type const *type;                // declared field type
+    CompoundType const *compound;    // (serf) compound in which this appears
 
     // I include a pointer to the introduction; since I want
     // to keep the type language independent of the AST language, I
@@ -144,8 +145,8 @@ public:      // types
     Variable *decl;                  // (nullable serf)
 
   public:
-    Field(StringRef n, int i, Type const *t, Variable *d)
-      : name(n), index(i), type(t), decl(d) {}
+    Field(StringRef n, int i, Type const *t, CompoundType const *c, Variable *d)
+      : name(n), index(i), type(t), compound(c), decl(d) {}
   };
 
 private:     // data

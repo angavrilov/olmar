@@ -430,7 +430,7 @@ CompoundType::Field *CompoundType::
 {
   xassert(!fieldIndex.isMapped(name));
 
-  Field *f = new Field(name, fieldCounter++, type, decl);
+  Field *f = new Field(name, fieldCounter++, type, this, decl);
   fields.append(f);
   fieldIndex.add(name, f);
 
