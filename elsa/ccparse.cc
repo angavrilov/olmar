@@ -115,7 +115,7 @@ void doit(int argc, char **argv)
       // print them in reverse order
       env.errors.reverse();
       FOREACH_OBJLIST(ErrorMsg, env.errors, iter) {
-        cout << iter.data()->msg << "\n";
+        cout << iter.data()->toString() << "\n";
       }
 
       exit(4);
