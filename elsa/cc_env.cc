@@ -141,6 +141,12 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
                               Type *arg1Type, char const *arg1Name,
                               Type *exnType)
 {
+  retType  = tfac.cloneType(retType);
+  arg1Type = tfac.cloneType(arg1Type);
+  if (exnType) {
+    exnType = tfac.cloneType(exnType);
+  }
+
   FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType, CV_NONE);
   Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,

@@ -24,8 +24,13 @@ twalk_output_stream twalk_layer_out(cout, getenv("TWALK_VERBOSE"));
 // This is a dummy global so that this file will compile both in
 // default mode and in qualifiers mode.
 class dummy_type;               // This does nothing.
-dummy_type *q;
-string toString(class dummy_type*) {return "";}
+dummy_type *ql;
+// FIX: remove
+#include <stdio.h>
+string toString(class dummy_type*) {
+//    printf("**************** Dummy toString()\n");
+  return "";
+}
   
 // sm: folded this into the PrintEnv
 //SourceLocation current_loc;
@@ -76,8 +81,6 @@ string declaration_toString (
 {
   olayer ol("declaration_toString");
   stringBuilder s;
-
-  
 
   // mask off flags used for internal purposes, so all that's
   // left is the flags that were present in the source
@@ -308,22 +311,24 @@ void PQ_template::print(PrintEnv &env)
 // --------------------- TypeSpecifier --------------
 void TS_name::print(PrintEnv &env)
 {
-  olayer ol("TS_name");
-  env << toString(q);           // see string toString(class dummy_type*) above
-  name->print(env);
+  xassert(0);                   // I'll bet this is never called.
+//    olayer ol("TS_name");
+//    env << toString(ql);          // see string toString(class dummy_type*) above
+//    name->print(env);
 }
 
 void TS_simple::print(PrintEnv &env)
 {
-  olayer ol("TS_simple");
-  env << toString(q);           // see string toString(class dummy_type*) above
+  xassert(0);                   // I'll bet this is never called.
+//    olayer ol("TS_simple");
+//    env << toString(ql);          // see string toString(class dummy_type*) above
 }
 
 void TS_elaborated::print(PrintEnv &env)
 {
   olayer ol("TS_elaborated");
   env.current_loc = loc;
-  env << toString(q);           // see string toString(class dummy_type*) above
+  env << toString(ql);          // see string toString(class dummy_type*) above
   env << toString(keyword) << " ";
   name->print(env);
 }
@@ -331,7 +336,7 @@ void TS_elaborated::print(PrintEnv &env)
 void TS_classSpec::print(PrintEnv &env)
 {
   olayer ol("TS_classSpec");
-  env << toString(q);           // see string toString(class dummy_type*) above
+  env << toString(ql);          // see string toString(class dummy_type*) above
   env << toString(cv);
   env << toString(keyword) << " ";
   if (name) env << name->toString();
@@ -353,7 +358,7 @@ void TS_classSpec::print(PrintEnv &env)
 void TS_enumSpec::print(PrintEnv &env)
 {
   olayer ol("TS_classSpec");
-  env << toString(q);           // see string toString(class dummy_type*) above
+  env << toString(ql);          // see string toString(class dummy_type*) above
   env << toString(cv);
   env << "enum ";
   if (name) env << name;

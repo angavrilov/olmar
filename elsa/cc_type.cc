@@ -593,6 +593,12 @@ bool CVAtomicType::anyCtorSatisfies(TypePred pred) const
 }
 
 
+bool CVAtomicType::isConst() const
+{
+  return cv & CV_CONST;
+}
+
+
 // ------------------- PointerType ---------------
 PointerType::PointerType(PtrOper o, CVFlags c, Type *a)
   : op(o), cv(c), atType(a)
@@ -651,6 +657,12 @@ bool PointerType::anyCtorSatisfies(TypePred pred) const
 {
   return pred(this) ||
          atType->anyCtorSatisfies(pred);
+}
+
+
+bool PointerType::isConst() const
+{
+  return cv & CV_CONST;
 }
 
 
@@ -1037,8 +1049,54 @@ Type *TypeFactory::cloneType(Type *src)
 }
 
 
-Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
-                                 TypeSpecifier *)
+CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
+  SimpleTypeId st, CVFlags cv)
+{
+  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
+  return makeCVAtomicType(loc, &SimpleType::fixed[st], cv);
+}
+
+
+ArrayType *TypeFactory::setArraySize(SourceLoc loc, ArrayType *type, int size)
+{
+  return makeArrayType(loc, type->eltType, size);
+}
+
+
+// -------------------- BasicTypeFactory ----------------------
+// this is for when I split Type from Type_Q
+CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
+  #define CVAT(id) \
+    CVAtomicType(&SimpleType::fixed[id], CV_NONE),
+  CVAT(ST_CHAR)
+  CVAT(ST_UNSIGNED_CHAR)
+  CVAT(ST_SIGNED_CHAR)
+  CVAT(ST_BOOL)
+  CVAT(ST_INT)
+  CVAT(ST_UNSIGNED_INT)
+  CVAT(ST_LONG_INT)
+  CVAT(ST_UNSIGNED_LONG_INT)
+  CVAT(ST_LONG_LONG)
+  CVAT(ST_UNSIGNED_LONG_LONG)
+  CVAT(ST_SHORT_INT)
+  CVAT(ST_UNSIGNED_SHORT_INT)
+  CVAT(ST_WCHAR_T)
+  CVAT(ST_FLOAT)
+  CVAT(ST_DOUBLE)
+  CVAT(ST_LONG_DOUBLE)
+  CVAT(ST_VOID)
+  CVAT(ST_ELLIPSIS)
+  CVAT(ST_CDTOR)
+  CVAT(ST_ERROR)
+  CVAT(ST_DEPENDENT)
+  #undef CVAT
+};
+
+
+// dsw: Taking out of TypeFactory all methods that are overriden by
+// TypeFactory_Q.
+Type *BasicTypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
+                                      TypeSpecifier *)
 {
   if (baseType->isError()) {
     return baseType;
@@ -1100,7 +1158,9 @@ Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
 }
 
 
-Type *TypeFactory::makeRefType(SourceLoc loc, Type *underlying)
+// dsw: Taking out of TypeFactory all methods that are overriden by
+// TypeFactory_Q.
+Type *BasicTypeFactory::makeRefType(SourceLoc loc, Type *underlying)
 {
   if (underlying->isError()) {
     return underlying;
@@ -1111,21 +1171,27 @@ Type *TypeFactory::makeRefType(SourceLoc loc, Type *underlying)
 }
 
 
-PointerType *TypeFactory::syntaxPointerType(SourceLoc loc,
+// dsw: Taking out of TypeFactory all methods that are overriden by
+// TypeFactory_Q.
+PointerType *BasicTypeFactory::syntaxPointerType(SourceLoc loc,
   PtrOper op, CVFlags cv, Type *type, D_pointer *)
 {
   return makePointerType(loc, op, cv, type);
 }
 
 
-FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
+// dsw: Taking out of TypeFactory all methods that are overriden by
+// TypeFactory_Q.
+FunctionType *BasicTypeFactory::syntaxFunctionType(SourceLoc loc,
   Type *retType, CVFlags cv, D_func *syntax)
 {
   return makeFunctionType(loc, retType, cv);
 }
 
 
-PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
+// dsw: Taking out of TypeFactory all methods that are overriden by
+// TypeFactory_Q.
+PointerType *BasicTypeFactory::makeTypeOf_this(SourceLoc loc,
   CompoundType *classType, FunctionType *methodType)
 {
   CVAtomicType *at = makeCVAtomicType(loc, classType, methodType->cv);
@@ -1133,55 +1199,13 @@ PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
 }
 
 
-FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
+// dsw: Taking out of TypeFactory all methods that are overriden by
+// TypeFactory_Q.
+FunctionType *BasicTypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
   return makeFunctionType(loc, retType, similar->cv);
 }
-
-
-CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
-  SimpleTypeId st, CVFlags cv)
-{
-  xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
-  return makeCVAtomicType(loc, &SimpleType::fixed[st], cv);
-}
-
-
-ArrayType *TypeFactory::setArraySize(SourceLoc loc, ArrayType *type, int size)
-{
-  return makeArrayType(loc, type->eltType, size);
-}
-
-
-// -------------------- BasicTypeFactory ----------------------
-// this is for when I split Type from Type_Q
-CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
-  #define CVAT(id) \
-    CVAtomicType(&SimpleType::fixed[id], CV_NONE),
-  CVAT(ST_CHAR)
-  CVAT(ST_UNSIGNED_CHAR)
-  CVAT(ST_SIGNED_CHAR)
-  CVAT(ST_BOOL)
-  CVAT(ST_INT)
-  CVAT(ST_UNSIGNED_INT)
-  CVAT(ST_LONG_INT)
-  CVAT(ST_UNSIGNED_LONG_INT)
-  CVAT(ST_LONG_LONG)
-  CVAT(ST_UNSIGNED_LONG_LONG)
-  CVAT(ST_SHORT_INT)
-  CVAT(ST_UNSIGNED_SHORT_INT)
-  CVAT(ST_WCHAR_T)
-  CVAT(ST_FLOAT)
-  CVAT(ST_DOUBLE)
-  CVAT(ST_LONG_DOUBLE)
-  CVAT(ST_VOID)
-  CVAT(ST_ELLIPSIS)
-  CVAT(ST_CDTOR)
-  CVAT(ST_ERROR)
-  CVAT(ST_DEPENDENT)
-  #undef CVAT
-};
 
 
 CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
