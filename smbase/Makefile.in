@@ -153,7 +153,7 @@ TESTS := nonport voidlist tobjlist bit2d growbuf testmalloc mypopen \
          strdict svdict str strutil trdelete bflatten mysig \
          testmalloc mypopen tobjpool strhash cycles tsobjlist crc \
          srcloc hashline gprintf smregexp vptrmap vdtllist pprint \
-         boxprint
+         boxprint tarrayqueue
 tests: $(TESTS)
 
 # command to compile and link
@@ -249,6 +249,9 @@ pprint: pprint.cc $(THIS)
 boxprint: boxprint.cc $(THIS)
 	$(TESTCXX) -o $@ -DTEST_BOXPRINT boxprint.cc $(TESTFLAGS)
 
+tarrayqueue: tarrayqueue.cc $(THIS)
+	$(TESTCXX) -o $@ tarrayqueue.cc $(TESTFLAGS)
+
 check: $(TESTS)
 	./nonport
 	./voidlist
@@ -276,6 +279,7 @@ check: $(TESTS)
 	./vptrmap
 	./pprint
 	./boxprint
+	./tarrayqueue
 	@echo
 	@echo "make check: all the tests PASSED"
 
