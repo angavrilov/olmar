@@ -1,6 +1,7 @@
 // declaring variables and member functions with class name
 
 // originally found in package bombermaze
+// template version originally found in package buffy
 
 struct S1 {
     int S1::varName;
@@ -25,4 +26,9 @@ struct S4 {
 template <typename T>
 struct S5 {
     int S5<T>::funcName() {}
+};
+
+template <typename T>
+struct S6 : S5<T> {
+    S6<T> (S5<T> &) {}
 };
