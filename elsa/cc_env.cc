@@ -2226,6 +2226,11 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
   // delay building a TemplateInfo until it is sure to be needed
   TemplateInfo *ret = NULL;
 
+  // could this be a member of complete specialization class?
+  // if I do nothing it will get a degenerate TemplateInfo, so
+  // I need to detect that situation and throw the tinfo away
+  bool couldBeCompleteSpecMember = true;
+
   // do the enclosing scopes other than the closest have params?
   // if so, find and attach all inherited parameter lists
   ObjListIter<Scope> iter(scopes);
@@ -2245,7 +2250,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
       if (!ret) {
         ret = new TemplateInfo(loc());
       }
-           
+
       // are these as-yet unassociated params?
       if (!s->parameterizedPrimary) {
         if (ret->params.isNotEmpty()) {
@@ -2254,6 +2259,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
         }
         else {
           ret->params.appendAll(s->templateParams);
+          couldBeCompleteSpecMember = false;
 
           TRACE("templateParams", "main params: " << ret->paramsToCString());
         }
@@ -2265,6 +2271,10 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
           = new InheritedTemplateParams(s->parameterizedPrimary->type->asCompoundType());
         itp->params.appendAll(s->templateParams);
 
+        if (s->templateParams.isNotEmpty()) {
+          couldBeCompleteSpecMember = false;
+        }
+
         // stash them in 'ret', prepending so as we work from innermost
         // to outermost, so the last one prepended will be the outermost,
         // and hence first in the list when we're done
@@ -2274,6 +2284,17 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo()
                                 " from " << s->parameterizedPrimary->name);
       }
     }
+  }
+
+  if (ret && couldBeCompleteSpecMember) {
+    // throw away this tinfo; the thing is fully concrete and
+    // not a specialization of any template
+    //
+    // TODO: I need a testcase for this in Elsa.. right now there
+    // is only an Oink testcase.
+    TRACE("templateParams", "discarding TemplateInfo for member of complete specialization");
+    delete ret;
+    ret = NULL;
   }
 
   return ret;
