@@ -28,6 +28,44 @@ int hasTypeNode(Node *n);
   (n->next!=(Node*)0 ==> hasTypeNode(n->next))
 
 
+
+void append(struct Node *head, struct Node *toAdd)
+  thmprv_pre(
+    // 'head' and 'toAdd' have accurate types
+    head!=(Node*)0 && hasTypeNode(head) &&
+    toAdd!=(Node*)0 && hasTypeNode(toAdd) &&
+
+    // everything with an accurate type is actually a node
+    // (in terms of its structural relationships)
+    thmprv_forall(Node *n; hasTypeNode(n) ==> isNode(n)) &&
+
+    // nothing points to 'toAdd'
+    !thmprv_exists(Node *n; n->next == toAdd)
+  )
+  thmprv_post(
+    // everything with an accurate type is actually a node
+    // (in terms of its structural relationships)
+    thmprv_forall(Node *n; hasTypeNode(n) ==> isNode(n)) &&
+
+    // exactly one thing points to 'toAdd'
+    thmprv_exists(Node *n;
+      n->next == toAdd &&
+      thmprv_forall(Node *m; m->next==toAdd ==> n==m))
+  )
+{
+  struct Node *p = head;
+
+  while (p->next != (Node*)0) {
+    thmprv_invariant(1);
+    p = p->next;
+  }
+
+  p->next = toAdd;
+  //toAdd->next = head;   // Simplify loops..
+}
+
+
+
 void foo()
 {
   struct Node *a = new Node;
@@ -52,14 +90,3 @@ void foo()
   thmprv_assert(isNode(b));
 
 }
-
-    
-/*
-  void append(struct Node *head, struct Node *toAdd)
-    thmprv_pre(
-      // nothing points to 'toAdd'
-      !thmprv_exists(Node *n; n->next == toAdd)
-    )
-    thmprv_post(
-*/
-

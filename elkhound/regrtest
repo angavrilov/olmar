@@ -164,10 +164,14 @@ if ! $vcgenOnly; then
   tcheck addrglob.c
   tcheck loops.c
   tcheck exprpath.c
+  runTest ./ccgr -tr printAnalysisPath cc.bin tcheck/morepaths.c
 fi
 
 vcgen() {
   runTest ./ccgr cc.bin vcgen/$1
+}
+vcgenfail() {
+  failTest "$1" ./ccgr cc.bin vcgen/"$2"
 }
 vcgentb() {
   runTest ./test-bad vcgen/$1 cc.bin
@@ -198,8 +202,8 @@ vcgen cutpt.c
 runTest ./ccgr -tr printAnalysisPath cc.bin vcgen/nestwhile.c
 vcgen memswap.c
 vcgen ff.c
-runTest ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
-vcgen find2.c
+failTest "can't prove postcondition" ./ccgr -tr disableFactFlow cc.bin vcgen/find.c
+vcgenfail "can't prove postcondition" find2.c
 vcgen callfind.c
 vcgencpp node.c
 

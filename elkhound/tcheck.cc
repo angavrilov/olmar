@@ -83,6 +83,10 @@ void TF_func::itcheck(Env &env)
   Type const *f = nameParams->tcheck(env, r, dflags);
   xassert(f->isFunctionType());
 
+  // as a hack for my path-counting logic, make sure the
+  // function doesn't end with a looping construct
+  body->stmts.append(new S_skip(SourceLocation()));
+
   // put parameters into the environment
   env.enterScope();
   {
