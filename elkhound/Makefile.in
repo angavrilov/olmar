@@ -3,7 +3,7 @@
 
 all: ccgr
 
-temporary: sexp ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
+temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
            triv/EFa.tree.gr.exe triv/efa.in \
 	   triv/EFa.bison.exe triv/EFa.tree.bison.exe
@@ -11,6 +11,7 @@ temporary: sexp ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
 # main targets
 
 ifeq ($(ocaml), yes)
+  # old, obsolete
   mode := --ocaml
 else
   mode := --nocaml
@@ -18,7 +19,7 @@ endif
 
 # this target ensures the Makefile is in synch with Makefile.in
 Makefile: Makefile.in
-	./configure $(mode) --setupMakefile
+	./configure $(mode)
 
 everything: gramanl glr lexer1 lexer2 grampar cexp2 ccgr
 

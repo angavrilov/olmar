@@ -1,19 +1,9 @@
 #!/bin/sh
 # setup a parsgen dist to build on linux
 
-# ----------- functions -----------
-usage() {
-  echo "usage: $0 --ocaml"
-  echo "  OR"
-  echo "       $0 --nocaml"
-  echo "  depending on whether you want Ocaml stuff or not"
-  echo ""
-  echo "another possible usage is"
-  echo "  $0 (--ocaml|--nocaml) --setupMakefile"
-  echo "which will simply rengerate Makefile from Makefile.in"
-  echo ""
-  exit
-}
+# this script is a poor stand-in until I get my act together
+# and make a real configure script
+
 
 # generate the parsgen Makefile
 setupMakefile() {
@@ -37,40 +27,6 @@ setupMakefile() {
 }
 
 
-# -------- main -----------
-if [ "$1" = "--ocaml" ]; then
-  ocaml="yes"
-elif [ "$1" = "--nocaml" ]; then
-  ocaml="no"
-else
-  usage
-fi
-
-# hack so I can run just one function
-if [ "$2" = "--setupMakefile" ]; then
-  setupMakefile
-  exit
-fi
-
-
 # ---------- setup parsgen ----------
 # generate Makefile
 setupMakefile
-
-# make the symlink in parsgen to smbase
-echo "making symlink in parsgen ...."
-ln -s ../smbase .
-
-
-# ---------- setup ml_cil ---------------
-# UNMAINTAINED
-if [ "$ocaml" = "yes" ]; then
-  cd ../ml_cil || exit
-
-  echo "ml_cil: making symlink to ../parsgen/cc.bin ..."
-  ln -s ../parsgen/cc.bin . || exit
-
-  echo "ml_cil: creating obj/ and obj/.depend/ ..."
-  mkdir obj || exit
-  mkdir obj/.depend || exit
-fi

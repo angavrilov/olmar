@@ -1,32 +1,43 @@
 #!/bin/sh
 # make a tarball for distribution
+      
+# bail on error
+set -e
 
-# tarball dist name
-distname=parsgen.`date +%D | sed s,/,-,g`
+# tarball dist name; e.g. elkhound-2002.08.12
+distname=elkhound-`date "+%Y.%m.%d"`
 echo $distname
 
 mkdir $distname || exit
 cd $distname || exit
 
 # main stuff
-cvs export -D now plat || exit
 cvs export -D now smbase || exit
+cvs export -D now ast || exit
 cvs export -D now parsgen || exit
 
-# scripts
-cp parsgen/configure . || exit
-cp parsgen/build . || exit
+# toplevel files
+cp parsgen/toplevel/{configure,Makefile} .
 
-# may as well grab my 'apply' script
-cp `which apply` . || exit
 
+# package it up
 cd ..
-
 targz $distname || exit
-
-mv ${distname}.tar.gz rel/ || exit
-
 rm -rf $distname
+
+# test it
+untargz ${distname}.tar.gz
+cd ${distname}
+./configure
+make
+cd parsgen
+./regrtest
+
+# blow away the test directory
+cd ../..
+rm -rf $distname
+
+
 
 
 
