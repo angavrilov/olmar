@@ -76,7 +76,7 @@ inline void addNextPtr(NextPtrList &arr, NextPtr p)
 
 // environment for constructing an intraprocedural CFG
 class CFGEnv {
-  NO_OBJECT_COPIES(CFGEnv)
+  NO_OBJECT_COPIES(CFGEnv);
 
 private:    // data
   ObjStack< SObjList<Statement> > pendingNexts;
