@@ -73,8 +73,6 @@ TOK_RETURN,              "return",                    :    n
 TOK_SHORT,               "short",                     :    n
 TOK_SIGNED,              "signed",                    :    n
 TOK_SIZEOF,              "sizeof",                    :    n
-TOK_BUILTIN_CONSTANT_P,  "__builtin_constant_p",      :    n
-TOK___ALIGNOF__,         "__alignof__",               :    n
 TOK_STATIC,              "static",                    :    n
 TOK_STATIC_CAST,         "static_cast",               :    n  p
 TOK_STRUCT,              "struct",                    :    n
@@ -147,35 +145,7 @@ TOK_SEMICOLON,           ";",                         :
 TOK_LBRACE,              "{",                         :
 TOK_RBRACE,              "}",                         :
 
-// GNU extensions
-TOK___ATTRIBUTE__,       "__attribute__",             :    n
-TOK___FUNCTION__,        "__FUNCTION__",              :    n
-TOK___LABEL__,           "__label__",                 :    n
-TOK___PRETTY_FUNCTION__, "__PRETTY_FUNCTION__",       :    n
-TOK___TYPEOF__,          "__typeof__",                :    n
-TOK___EXTENSION__,       "__extension__",             :    n
-
-// my extensions
-TOK_OWNER,               "owner_ptr_qualifier",       :    n
-
 // dummy terminals used for precedence games
 TOK_PREFER_REDUCE,       "<prefer reduce>",           :
 TOK_PREFER_SHIFT,        "<prefer shift>",            :
-
-// theorem prover extensions
-// TODO: move this into an extension
-TOK_THMPRV_ASSERT,       "thmprv_assert",             :    n
-TOK_THMPRV_ASSUME,       "thmprv_assume",             :    n
-TOK_THMPRV_INVARIANT,    "thmprv_invariant",          :    n
-TOK_IMPLIES,             "==>",                       :
-TOK_THMPRV_PRE,          "thmprv_pre",                :    n
-TOK_THMPRV_POST,         "thmprv_post",               :    n
-TOK_THMPRV_LET,          "thmprv_let",                :    n
-TOK_THMPRV_ATTR,         "thmprv_attr",               :    n
-TOK_THMPRV_FORALL,       "thmprv_forall",             :    n
-TOK_THMPRV_EXISTS,       "thmprv_exists",             :    n
-TOK_THMPRV_PURE_ASSERT,  "thmprv_pure_assert",        :    n
-TOK_THMPRV_BIND,         "thmprv_bind",               :    n
-TOK_THMPRV_DECL,         "thmprv_decl",               :    n
-TOK_THMPRV_PREDICATE,    "thmprv_predicate",          :    n
 

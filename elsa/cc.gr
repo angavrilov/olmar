@@ -136,7 +136,7 @@ terminals {
   precedence {
     // high precedence
     prec  200 TOK_PREFER_REDUCE;
-    prec  190 "const" "volatile" "owner_ptr_qualifier" "else" "[";
+    prec  190 "const" "volatile" "else" "[";
 
     right 120 ".*" "->*";
     left  110 "*" "/" "%";
@@ -154,7 +154,6 @@ terminals {
     left   40 "|";
     left   30 "&&";
     left   20 "||";
-    right  10 "==>";    // ESC's user manual specifies a precedence but not an associativity for "==>"
 
     prec    1 TOK_PREFER_SHIFT;
     // low precedence
@@ -1334,7 +1333,6 @@ nonterm(enum CVFlags) CVQualifierSeq {
 nonterm(enum CVFlags) CVQualifier {
   -> "const"                 { return CV_CONST; }
   -> "volatile"              { return CV_VOLATILE; }
-  -> "owner_ptr_qualifier"   { return CV_OWNER; }
 }
 
 

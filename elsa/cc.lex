@@ -1,4 +1,4 @@
-/* lexer.lex
+/* cc.lex
  * flex description of scanner for C and C++ souce
  */
  
@@ -166,8 +166,6 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "signed"           return tok(TOK_SIGNED);
 "__signed__"       return tok(TOK_SIGNED);
 "sizeof"           return tok(TOK_SIZEOF);
-"__builtin_constant_p" return tok(TOK_BUILTIN_CONSTANT_P);
-"__alignof__"      return tok(TOK___ALIGNOF__);
 "static"           return tok(TOK_STATIC);
 "static_cast"      return tok(TOK_STATIC_CAST);
 "struct"           return tok(TOK_STRUCT);
@@ -240,40 +238,11 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "{"                return tok(TOK_LBRACE);
 "}"                return tok(TOK_RBRACE);
 
-"__attribute"          return tok(TOK___ATTRIBUTE__);
-"__attribute__"        return tok(TOK___ATTRIBUTE__);
-"__FUNCTION__"         return tok(TOK___FUNCTION__);
-"__label__"            return tok(TOK___LABEL__);
-"__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
-"typeof"               return tok(TOK___TYPEOF__);
-"__typeof__"           return tok(TOK___TYPEOF__);
-
-"thmprv_assert"        return tok(TOK_THMPRV_ASSERT);
-"thmprv_assume"        return tok(TOK_THMPRV_ASSUME);
-"thmprv_invariant"     return tok(TOK_THMPRV_INVARIANT);
-"==>"                  return tok(TOK_IMPLIES);
-"thmprv_pre"           return tok(TOK_THMPRV_PRE);
-"thmprv_post"          return tok(TOK_THMPRV_POST);
-"thmprv_let"           return tok(TOK_THMPRV_LET);
-"thmprv_attr"          return tok(TOK_THMPRV_ATTR);
-"thmprv_forall"        return tok(TOK_THMPRV_FORALL);
-"thmprv_exists"        return tok(TOK_THMPRV_EXISTS);
-"thmprv_pure_assert"   return tok(TOK_THMPRV_PURE_ASSERT);
-"thmprv_bind"          return tok(TOK_THMPRV_BIND);
-"thmprv_decl"          return tok(TOK_THMPRV_DECL);
-"thmprv_predicate"     return tok(TOK_THMPRV_PREDICATE);
-
   /* this rule is to avoid backing up in the lexer 
    * when there are two dots but not three */
 ".." {
   yyless(1);     /* put back all but 1; this is inexpensive */
   return tok(TOK_ELLIPSIS);
-}
-
-"__extension__" {
-  /* treat this like a token, in that nonseparating checks are done,
-   * but don't yield it to the parser */
-  (void)tok(TOK___EXTENSION__);
 }
 
   /* identifier: e.g. foo */

@@ -60,6 +60,12 @@ tlexer: tlexer.o $(LEXER_OBJS) $(libraries)
 
 
 # ------------------------- ccparse ---------------------
+# combine base lexer description and extensions
+lexer.lex: cc.lex gnu.lex
+	rm -f $@
+	sed -e '/EXTENSION RULES GO HERE/ r gnu.lex' <cc.lex >$@
+	chmod a-w $@
+
 # run flex on the lexer description
 lexer.yy.cc: lexer.lex lexer.h
 	flex -o$@ lexer.lex
@@ -68,10 +74,11 @@ lexer.yy.cc: lexer.lex lexer.h
 	rm lexer.tmp
 
 # generate token lists
+TOK_MODS := cc_tokens.tok gnu.tok
 TOK_FILES := cc_tokens.h cc_tokens.cc cc_tokens.ids
-$(TOK_FILES): cc_tokens.tok $(ELKHOUND)/make-token-files
+$(TOK_FILES): $(TOK_MODS) $(ELKHOUND)/make-token-files
 	rm -f $(TOK_FILES)
-	perl $(ELKHOUND)/make-token-files cc_tokens.tok
+	perl $(ELKHOUND)/make-token-files $(TOK_MODS)
 	chmod a-w $(TOK_FILES)
 
 

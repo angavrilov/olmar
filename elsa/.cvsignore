@@ -37,3 +37,4 @@ parse.log
 regrtest.log
 gendoc
 *.diff
+lexer.lex
