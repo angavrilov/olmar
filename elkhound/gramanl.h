@@ -17,6 +17,9 @@
 #define __GRAMANL_H
 
 #include "grammar.h"    // Grammar and friends
+#ifdef HASHCLOSURE
+  #include "ohashtbl.h"   // OwnerHashTable
+#endif /* HASHCLOSURE */
 
 // forward decls
 class Bit2d;            // bit2d.h
@@ -100,6 +103,13 @@ public:	    // funcs
   // dot must not be at the end (right edge)
   Symbol const *symbolAfterDotC() const { return afterDot; }
   Symbol *symbolAfterDot() { return const_cast<Symbol*>(symbolAfterDotC()); }
+
+#ifdef HASHCLOSURE
+  // stuff for insertion into a hash table
+  static unsigned hash(void const *key);
+  static void const *dataToKey(DottedProduction *dp);
+  static bool dpEqual(void const *key1, void const *key2);
+#endif /* HASHCLOSURE */
 
   // print to cout as 'A -> B . c D' (no newline)
   void print(ostream &os, GrammarAnalysis const &g) const;
@@ -391,8 +401,15 @@ private:    // funcs
   // let's try this .. it needs to access 'itemSets'
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
+#ifndef HASHCLOSURE
   void singleItemClosure(ItemSet &itemSet, DProductionList &worklist,
                          DottedProduction const *item);
+#else /* HASHCLOSURE */
+  void singleItemClosure(OwnerHashTable<DottedProduction> &finished,
+                    SDProductionList &worklist,
+                    OwnerHashTable<DottedProduction> &workhash,
+                    DottedProduction const *item);
+#endif /* HASHCLOSURE */
 
 public:	    // funcs
   GrammarAnalysis();

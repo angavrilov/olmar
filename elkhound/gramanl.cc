@@ -1695,7 +1695,253 @@ void GrammarAnalysis::computePredictiveParsingTable()
 }
 
 
+// when HASHCLOSURE is set, an experimental hashtable-based
+// implementation is used; unfortunately, that implementation
+// isn't noticeably faster on cc.gr ...
+
+#ifdef HASHCLOSURE
+// for storing dotted productions in a hash table, this is
+// the hash function itself
+STATICDEF unsigned DottedProduction::hash(void const *key)
+{
+  DottedProduction const *dp = (DottedProduction const*)key;
+
+  // on the assumption few productions have 20 RHS elts..
+  int val = dp->dot + (20 * dp->prod->prodIndex);
+
+  // now mix it up
+  return HashTable::lcprngHashFn((void*)val);
+}
+
+// given the data, yield the key (easy, they're the same)
+STATICDEF void const *DottedProduction::dataToKey(DottedProduction *dp)
+{
+  return dp;
+}
+
+// compare two dotted productions for equality
+STATICDEF bool DottedProduction::dpEqual(void const *key1, void const *key2)
+{
+  DottedProduction const *dp1 = (DottedProduction const*)key1;
+  DottedProduction const *dp2 = (DottedProduction const*)key2;
+
+  return dp1->equalNoLA(*dp2);
+}
+
+
 // based on [ASU] figure 4.33, p.223
+// NOTE: sometimes this is called with nonempty nonkernel items...
+void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
+{
+  bool const tr = tracingSys("closure");
+  ostream &trs = trace("closure");     // trace stream
+  if (tr) {
+    trs << "computing closure of ";
+    itemSet.print(trs, *this);
+  }
+
+  // hashtable, list of items still yet to close
+  OwnerHashTable<DottedProduction> workhash(
+    &DottedProduction::dataToKey,
+    &DottedProduction::hash,
+    &DottedProduction::dpEqual);
+  SDProductionList worklist;
+
+  // and another for the items we've finished
+  OwnerHashTable<DottedProduction> finished(
+    &DottedProduction::dataToKey,
+    &DottedProduction::hash,
+    &DottedProduction::dpEqual);
+
+  // put all the nonkernels we have into 'finished'
+  while (itemSet.nonkernelItems.isNotEmpty()) {
+    DottedProduction *dp = itemSet.nonkernelItems.removeFirst();
+    finished.add(dp, dp);
+  }
+
+  // first, close the kernel items -> work{list,hash}
+  FOREACH_DOTTEDPRODUCTION(itemSet.kernelItems, itemIter) {
+    singleItemClosure(finished, worklist, workhash, itemIter.data());
+  }
+
+  while (worklist.isNotEmpty()) {
+    xassert(worklist.count() == workhash.getNumEntries());
+
+    // pull the first production
+    DottedProduction *dprod = worklist.removeFirst();
+    workhash.remove(dprod);
+
+    // put it into list of 'done' items; this way, if this
+    // exact item is generated during closure, it will be
+    // seen and re-inserted (instead of duplicated)
+    finished.add(dprod, dprod);
+
+    // close it -> worklist
+    singleItemClosure(finished, worklist, workhash, dprod);
+  }
+
+  // move everything from 'finished' to the nonkernel items list
+  try {
+    for (OwnerHashTableIter<DottedProduction> iter(finished);
+         !iter.isDone(); iter.adv()) {
+      // temporarily, the item is owned both by the hashtable
+      // and the list
+      itemSet.nonkernelItems.prepend(iter.data());
+    }
+    finished.disownAndForgetAll();
+  }
+  catch (...) {
+    breaker();    // debug breakpoint
+
+    // resolve the multiple ownership by leaking some
+    finished.disownAndForgetAll();
+    throw;
+  }
+
+  // we potentially added a bunch of things
+  itemSet.changedItems();
+
+  if (tr) {
+    trs << "done with closure of state " << itemSet.id << endl;
+    itemSet.print(trs, *this);
+  }
+}
+
+
+void GrammarAnalysis::
+  singleItemClosure(OwnerHashTable<DottedProduction> &finished,
+                    SDProductionList &worklist,
+                    OwnerHashTable<DottedProduction> &workhash,
+                    DottedProduction const *item)
+{
+  bool const tr = tracingSys("closure");
+  ostream &trs = trace("closure");     // trace stream
+
+  if (tr) {
+    trs << "  considering item ";
+    item->print(trs, *this);
+    trs << endl;
+  }
+
+  if (item->isDotAtEnd()) {
+    if (tr) {
+      trs << "    dot is at the end" << endl;
+    }
+    return;
+  }
+
+  // get the symbol B (the one right after the dot)
+  Symbol const *B = item->symbolAfterDotC();
+  if (B->isTerminal()) {
+    if (tr) {
+      trs << "    symbol after the dot is a terminal" << endl;
+    }
+    return;
+  }
+  int nontermIndex = B->asNonterminalC().ntIndex;
+
+  // for each production "B -> gamma"
+  SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prodIter) {    // (constness)
+    Production &prod = *(prodIter.data());
+    if (tr) {
+      trs << "    considering production " << prod << endl;
+    }
+
+    // invariant of the indexed productions list
+    xassert(prod.left == B);
+
+    // construct "B -> . gamma, First(beta LA)"
+    Owner<DottedProduction> dp;
+    {
+      dp = new DottedProduction(*this, &prod, 0 /*dot at left*/);
+
+      // get beta (what follows B in 'item')
+      RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
+
+      // get First(beta)
+      TerminalList firstBeta;
+      firstOfIterSeq(firstBeta, beta);
+
+      // add those elements to dp's lookahead
+      SFOREACH_TERMINAL(firstBeta, fb) {
+        dp->laAdd(fb.data()->termIndex);
+      }
+
+      // if beta ->* epsilon, add LA
+      if (iterSeqCanDeriveEmpty(beta)) {
+        dp->laMerge(*item);
+      }
+
+      if (tr) {
+        trs << "      built dprod ";
+        dp->print(trs, *this);
+        trs << endl;
+      }
+    }
+
+    // is it already there?
+    // check in working and finished tables
+    bool inDoneList = false;
+    DottedProduction *already = finished.get(dp.get());
+    if (already) {
+      inDoneList = true;
+    }
+    else {
+      already = workhash.get(dp.get());
+    }
+
+    if (already) {
+      // yes, it's already there
+      if (tr) {
+        trs << "      looks similar to ";
+        already->print(trs, *this);
+        trs << endl;
+      }
+
+      // but the new item may have additional lookahead
+      // components, so merge them with the old
+      if (already->laMerge(*dp)) {
+        // merging changed 'already'
+        if (tr) {
+          trs << "      (chg) merged it to make ";
+          already->print(trs, *this);
+          trs << endl;
+        }
+
+        if (inDoneList) {
+          // pull from the 'done' list and put in worklist, since the
+          // lookahead changed
+          finished.remove(already);
+          worklist.prepend(already);
+          workhash.add(already, already);
+        }
+        else {
+          // 'already' is in the worklist, so that's fine
+        }
+      }
+      else {
+        trs << "      this dprod already existed" << endl;
+      }
+
+      // don't need the new dotted production (would have happened
+      // anyway at fn end, wanted to make this more explicit)
+      dp.del();
+    }
+    else {
+      // it's not already there, so add it to worklist
+      if (tr) {
+        trs << "      this dprod is new, queueing it to add" << endl;
+      }
+      worklist.prepend(dp);
+      DottedProduction *temp = dp.xfr();
+      workhash.add(temp, temp);    // only one argument is accepting an owner ptr..
+    }
+  } // for each production
+}
+
+
+// ---------------------------------------------------
+#else  // above:hash  below:list
 void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 {
   bool const tr = tracingSys("closure");
@@ -1881,6 +2127,7 @@ void GrammarAnalysis::
     }
   } // for each production
 }
+#endif // HASHCLOSURE (above:list)
 
 
 // -------------- START of construct LR item sets -------------------
