@@ -93,7 +93,7 @@ public:
 
 public:
   SiblingLink(StackNode *s, SemanticValue sv
-              SOURCELOCARG( SourceLoc L) );
+              SOURCELOCARG( SourceLoc L ) );
   ~SiblingLink();
   
   #if GLR_SOURCELOC
@@ -132,7 +132,7 @@ public:
 
   // number of sibling links pointing at 'this', plus the number
   // of worklists on which 'this' appears (some liberty is taken
-  // in the mini-LR parse, but it is carefully documented there)
+  // in the mini-LR parser, but it is carefully documented there)
   int referenceCount;
 
   // how many stack nodes can I pop before hitting a nondeterminism?
