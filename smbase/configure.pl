@@ -12,6 +12,7 @@ options:
   -prof              enable profiling
   -devel             add options useful while developing smbase
   -debugheap         turn on heap usage debugging
+  -traceheap         print messages on each malloc and free
   <op>:              add a given option to the gcc command line,
                        including forms: -W*, -pg, -D*, -O*
 EOF
@@ -22,6 +23,7 @@ EOF
 $BASE_FLAGS = "-g -Wall -Wno-deprecated -D__UNIX__";
 $CCFLAGS = ();
 $DEBUG_HEAP = 0;
+$TRACE_HEAP = 0;
 $debug = 0;
 
 
@@ -63,6 +65,9 @@ while (@ARGV) {
 
   elsif ($arg eq "-debugheap") {
     $DEBUG_HEAP = 1;
+  }
+  elsif ($arg eq "-traceheap") {
+    $TRACE_HEAP = 1;
   }
 
   else {
@@ -150,6 +155,7 @@ echo "Compile flags:"
 echo "  BASE_FLAGS:  $BASE_FLAGS"
 echo "  CCFLAGS:     $CCFLAGS"
 echo "  DEBUG_HEAP:  $DEBUG_HEAP"
+echo "  TRACE_HEAP:  $TRACE_HEAP"
 echo ""
 EOF
 
@@ -187,6 +193,7 @@ EOF
 # substitute the CCFLAGS
 sed -e "s|\@CCFLAGS\@|$CCFLAGS|g" \\
     -e "s|\@DEBUG_HEAP\@|$DEBUG_HEAP|g" \\
+    -e "s|\@TRACE_HEAP\@|$TRACE_HEAP|g" \\
   <Makefile.in >>Makefile
 
 # discourage editing ..

@@ -64,17 +64,20 @@ objlist.h: xobjlist.h
 #   add the -DDEBUG_HEAP flag to turn on my zone-based protection
 #   add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
 #   normally -O3 is specified
-ifeq (@DEBUG_HEAP@,1)
+MALLOC_CCFLAGS := -O3
+
 # debug version (much slower, but *great* for finding memory errors)
-malloc.o: malloc.c
-	$(CC) -c -g -DDEBUG -DTRACE_MALLOC_CALLS -DDEBUG_HEAP malloc.c
-
-else
-# non-debug version
-malloc.o: malloc.c
-	$(CC) -c -g -O3 -DNO_DEBUG -DNO_TRACE_MALLOC_CALLS -DNO_DEBUG_HEAP malloc.c
-
+ifeq (@DEBUG_HEAP@,1)
+  MALLOC_CCFLAGS := -DDEBUG -DDEBUG_HEAP
 endif
+
+# tracing messages
+ifeq (@TRACE_HEAP@,1)
+  MALLOC_CCFLAGS += -DTRACE_MALLOC_CALLS
+endif
+
+malloc.o: malloc.c
+	$(CC) -c -g $(MALLOC_CCFLAGS) malloc.c
 
 
 # --------------------- main target ---------------------
