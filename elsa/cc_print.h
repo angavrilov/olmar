@@ -233,11 +233,12 @@ public:
   PrintEnv(stringBuilder &sb) : code_output_stream(sb) {}
 };
 
-#define PRINT_AST(AST)   \
-  do {                   \
-    PrintEnv penv(cout); \
-    AST->print(penv);    \
-    cout << endl;        \
+#define PRINT_AST(AST)               \
+  do {                               \
+    PrintEnv penv(cout);             \
+    if (AST) AST->print(penv);       \
+    else cout << "(PRINT_AST:null)"; \
+    cout << endl;                    \
   } while(0)
 
 #endif // CC_PRINT_H
