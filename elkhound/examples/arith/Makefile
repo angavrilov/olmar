@@ -53,4 +53,7 @@ arith: arith.o arithyy.o arith.gr.gen.o
 
 
 clean:
-	rm -f arith *.bin *.gen.* arithyy.cc *.o
+	rm -f arith *.bin *.gen.* *.o
+
+toolclean: clean
+	rm -f arithyy.cc

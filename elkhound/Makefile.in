@@ -4,9 +4,12 @@
 # I uncomment this temporarily to just build certain modules
 #tmp: parsetables.o elkhound libelkhound.a ocaml
 
-# main targets: elkhound, a C parser and a C++ parser
-all: elkhound libelkhound.a TAGS arith c cc2/cc2.exe
+# main targets: elkhound, and the arith example
+all: elkhound libelkhound.a TAGS arith
 	@echo BUILD FINISHED
+
+# extra targets: more examples, including a C parser and a C++ parser
+extra: examples c cc2/cc2.exe
 
 
 # directories of other software
@@ -171,6 +174,7 @@ gramlex.yy.cc: gramlex.lex
 	flex -o$@ gramlex.lex
 	mv $@ gramlex.tmp
 	sed -e 's/class istream;/#include <iostream.h>/' \
+            -e 's/#include <FlexLexer.h>/#include "sm_flexlexer.h"/' \
 	  <gramlex.tmp >$@
 	rm gramlex.tmp
 
@@ -186,7 +190,7 @@ gramast.ast.gen.cc gramast.ast.gen.h: gramast.ast $(AST)/astgen
 # I have to make some changes to the generated output so it will compile
 # with a C++ compiler, and want to extract the codes so they're available
 # separately without having to know about all of the types in YYSTYPE.
-grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
+grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y
 	bison -d -v grampar.y
 	mv -f grampar.tab.c tmp
 	sed -e 's/typedef union {/typedef union YYSTYPE {/' \
@@ -530,17 +534,15 @@ CLEAN_PATTERNS := \
   *.exe \
   *.gen.* \
   *.bin \
-  *.tab.* \
   *.output \
   a.out \
   core
 
 clean: gcom-clean
 	rm -f $(CLEAN_PATTERNS)
-	rm -f elkhound glr gramlex.yy.cc gramlex cyctimer
-	rm -f grampar.tab.* grampar tlexer
+	rm -f elkhound glr gramlex cyctimer
+	rm -f grampar.output grampar tlexer
 	rm -f libelkhound.a
-	rm -f grampar.codes.h
 	rm -f gdb.log gprof.out gmon.out test-bad-tmp.c
 	cd cc2; rm -f $(CLEAN_PATTERNS)
 	cd triv; rm -f $(CLEAN_PATTERNS) *.y *.gr
@@ -556,6 +558,12 @@ distclean: clean
 	$(MAKE) -C c distclean
 	rm -rf gendoc
 	rm -f c.in/c.in4{c,d}
+
+# 'clean', plus remove distributed output files from flex/bison
+toolclean: clean
+	rm -f gramlex.yy.cc
+	rm -f grampar.tab.cc grampar.tab.h grampar.codes.h
+	make -C examples/arith toolclean
 
 check: all
 	MAKE=$(MAKE) ./regrtest
