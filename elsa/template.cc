@@ -1089,11 +1089,19 @@ bool Env::inferTemplArgsFromFuncArgs
   FunctionType *funcType = var->type->asFunctionType();
   if ((iflags & IA_RECEIVER) &&          // receiver passed
       !funcType->isMethod()) {           // not a method
-    argListIter.adv();                   // skip receiver
+    argListIter.adv();                   // skip receiver argument
+  }
+
+  // similarly, if the caller did *not* pass a receiver but this
+  // function has a receiver param, skip the param
+  SObjListIterNC<Variable> paramIter(funcType->params);
+  if (!(iflags & IA_RECEIVER) &&         // no receiver passed
+      funcType->isMethod()) {            // but is a method
+    paramIter.adv();                     // skip receiver parameter
   }
 
   int i = 1;            // for error messages
-  SFOREACH_OBJLIST_NC(Variable, funcType->params, paramIter) {
+  for (; !paramIter.isDone(); paramIter.adv()) {
     Variable *param = paramIter.data();
     xassert(param);
     
@@ -1215,9 +1223,6 @@ bool Env::getFuncTemplArgs
    TypeListIter &argListIter,
    InferArgFlags iflags)
 {
-  TemplateInfo *varTI = var->templateInfo();
-  xassert(varTI->isPrimary());
-
   // 'final' might be NULL in the case of doing overload resolution
   // for templatized ctors (that is, the ctor is templatized, but not
   // necessarily the class)
@@ -1232,23 +1237,29 @@ bool Env::getFuncTemplArgs
     return false;
   }
 
+  // match -> sargs
+  return getArgumentsFromMatch(match, sargs, iflags, var);
+}
+
+bool Env::getArgumentsFromMatch
+  (MatchTypes &match, ObjList<STemplateArgument> &sargs,
+   InferArgFlags iflags, Variable *primary)
+{
+  TemplateInfo *ti = primary->templateInfo();
+  xassert(ti->isPrimary());
+
   // put the bindings in a list in the right order
   bool haveAllArgs = true;
 
   // inherited params first
-  FOREACH_OBJLIST(InheritedTemplateParams, varTI->inheritedParams, iter) {
+  FOREACH_OBJLIST(InheritedTemplateParams, ti->inheritedParams, iter) {
     getFuncTemplArgs_oneParamList(match, sargs, iflags, haveAllArgs,
-                                  /*piArgIter,*/ iter.data()->params);
+                                  iter.data()->params);
   }
 
   // then main params
   getFuncTemplArgs_oneParamList(match, sargs, iflags, haveAllArgs,
-                                /*piArgIter,*/ varTI->params);
-
-  // certainly the partial instantiation should not have provided
-  // more arguments than there are parameters!  it should not even
-  // provide as many, but that's slightly harder to check
-  //xassert(piArgIter.isDone());
+                                ti->params);
 
   return haveAllArgs;
 }
@@ -1274,7 +1285,7 @@ void Env::getFuncTemplArgs_oneParamList
 
     if (!sta) {
       if (iflags & IA_REPORT_ERRORS) {
-        error(stringc << "arguments do not bind template parameter `" 
+        error(stringc << "arguments do not bind template parameter `"
                       << templPIter.data()->name << "'");
       }
       haveAllArgs = false;
@@ -1285,6 +1296,20 @@ void Env::getFuncTemplArgs_oneParamList
       sargs.append(new STemplateArgument(*sta));
     }
   }
+}
+
+
+Variable *Env::instantiateFunctionTemplate
+  (SourceLoc loc, Variable *primary, MatchTypes &match)
+{
+  // map 'match' to a list of semantic arguments
+  ObjList<STemplateArgument> sargs;
+  if (!getArgumentsFromMatch(match, sargs, IA_NO_ERRORS, primary)) {
+    return NULL;
+  }
+
+  // apply them to instantiate the template
+  return instantiateFunctionTemplate(loc, primary, sargs);
 }
 
 

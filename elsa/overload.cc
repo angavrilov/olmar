@@ -338,10 +338,31 @@ void OverloadResolver::processCandidate(Variable *v)
   }
 
   if (!v->isTemplate()) {
-    // non-template function; process and return
-    addCandidate(v, NULL /*instFrom*/);
+    // 2005-02-18: Since reorganizing call site name lookup, I am now
+    // doing overload resolution among *instantiations*, rather than
+    // template primaries.
+    Variable *instFrom = NULL;
+    if (v->isInstantiation()) {
+      // what is it an instantiation of?
+      instFrom = v->templateInfo()->instantiationOf;
+      xassert(instFrom);
+                                                                   
+      // do not consider members of template classes to be templates
+      // (in/t0269.cc)
+      if (!instFrom->isTemplate(false /*considerInherited*/)) {
+        instFrom = NULL;
+      }
+    }
+
+    addCandidate(v, instFrom);
     return;
   }
+
+  // Q: Can this point be reached?
+  //
+  // A: Yes, in/t0269.cc gets here.  E_constructor still does overload
+  // resolution with template primaries.  It's not clear whether that
+  // is a problem or not; it's a lot simpler than E_funCall.
 
   // template function; we have to filter out all of the possible
   // specializations and put them, together with the primary, into the

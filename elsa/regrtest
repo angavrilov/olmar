@@ -457,7 +457,7 @@ testparse t0229.cc
 testparse t0230.cc
 testparse t0231.cc
 testparse t0232.cc
-failparse t0233.cc "important: flawed interaction between overloading and instantiation"
+testparse t0233.cc
 testparse t0234.cc
 testparse t0235.cc
 testparse t0236.cc

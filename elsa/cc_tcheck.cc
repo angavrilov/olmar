@@ -25,6 +25,7 @@
 #include "ast_build.h"      // makeExprList1, etc.
 #include "strutil.h"        // prefixEquals, pluraln
 #include "macros.h"         // Restorer
+#include "typelistiter.h"   // TypeListIter_FakeList
 
 #include <stdlib.h>         // strtoul, strtod
 #include <ctype.h>          // isdigit
@@ -5218,17 +5219,41 @@ void E_funCall::inner1_itcheck(Env &env)
   }
 }
 
-// defined below inner2_itcheck
-static bool dependentInstantiation(Env &env, Variable *&var, PQName *pqname,
-  Type *&nodeType, Expression *receiver, FakeList<ArgExpression> *args);
-static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
-                                         FakeList<ArgExpression> *args);
-static bool shouldUseArgDepLookup(E_variable *evar);
+
+static bool shouldUseArgDepLookup(E_variable *evar)
+{
+  if (evar->type->isSimple(ST_NOTFOUND)) {
+    // lookup failed; use it
+    return true;
+  }
+
+  if (!evar->type->isFunctionType()) {
+    // We found a non-function, like an (function) object or a
+    // function pointer.  The standard seems to say that even in
+    // this case we do arg-dependent lookup, but I think that is a
+    // little strange, and it does not work in the current
+    // implementation because we end up doing overload resolution
+    // with the object name as a candidate, and that messes up
+    // everything (how should it work???).  So I am just going to
+    // let it go.  A testcase is in/t0360.cc.
+    return false;
+  }
+
+  if (evar->var->isMember()) {
+    // found a member function; we do *not* use arg-dep lookup
+    return false;
+  }
+
+  return true;
+}
 
 void possiblyWrapWithImplicitThis(Env &env, Expression *&func,
                                   E_variable *&fevar, E_fieldAcc *&feacc)
 {
-  if (fevar && fevar->var->isMember() && !fevar->var->isStatic()) {
+  if (fevar &&
+      fevar->var &&
+      fevar->var->isMember() &&
+      !fevar->var->isStatic()) {
     feacc = wrapWithImplicitThis(env, fevar->var, fevar->name);
     func = feacc;
     fevar = NULL;
@@ -5243,12 +5268,6 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // do any of the arguments have types that are dependent on template params?
   bool dependentArgs = hasDependentActualArgs(args);
 
-  // TODO: This is all wrong!  There should be a single, unified step
-  // where actual arguments and template arguments are used to deal
-  // with both overload resolution and template instantiation.  Right
-  // now we do instantiation up here and overload resolution down below,
-  // but they will not interact correctly.
-
   // inner1 skipped E_groupings already
   xassert(!func->isE_grouping());
 
@@ -5258,9 +5277,9 @@ Type *E_funCall::inner2_itcheck(Env &env)
   // similarly for E_fieldAcc
   E_fieldAcc *feacc = func->isE_fieldAcc()? func->asE_fieldAcc() : NULL;
 
-  // dependent name function template instantiation
-  if (fevar) {
-    if (dependentArgs && fevar->nondependentVar) {
+  // abbreviated processing for dependent lookups
+  if (dependentArgs) {
+    if (fevar && fevar->nondependentVar) {
       // kill the 'nondependent' lookup; this is wrong, since it needs
       // to be folded into a consolidated arg+overload resolve...
       TRACE("dependent", toString(fevar->name->loc) <<
@@ -5268,30 +5287,166 @@ Type *E_funCall::inner2_itcheck(Env &env)
       fevar->nondependentVar = NULL;
     }
 
-    if (fevar->type->isSimple(ST_NOTFOUND)) {
-      // this is a delayed error to handle 3.4.2; keep going
+    // 14.6.2 para 1, 14.6.2.2 para 1
+    return env.dependentType();
+  }
+  else if (feacc && feacc->type->isGeneralizedDependent()) {
+    return env.dependentType();
+  }
+
+  // 2005-02-18: rewrote function call site name lookup; see doc/lookup.txt
+  if (env.lang.allowOverloading &&
+      (func->type->isSimple(ST_NOTFOUND) ||
+       func->type->asRval()->isFunctionType()) &&
+      (fevar || (feacc &&
+                 // in the case of a call to a compiler-synthesized
+                 // destructor, the 'field' is currently NULL (that might
+                 // change); but in that case overloading is not possible,
+                 // so this code can safely ignore it (e.g. in/t0091.cc)
+                 feacc->field))) {
+    PQName *pqname = fevar? fevar->name : feacc->fieldName;
+    Variable *inner1LookupResult = fevar? fevar->var : feacc->field;
+
+    // what is the set of names obtained by inner1?
+    SObjList<Variable> candidates;
+    if (inner1LookupResult) {
+      inner1LookupResult->getOverloadList(candidates);
     }
-    else {
-      if (!dependentInstantiation(env, fevar->var, fevar->name, fevar->type,
-                                  NULL /*receiver*/, args)) {
-        return fevar->type;    // is ST_ERROR
+
+    // augment with arg-dep lookup?
+    if (fevar &&                              // E_variable
+        !pqname->hasQualifiers() &&           // unqualified
+        shouldUseArgDepLookup(fevar)) {       // (some other tests pass)
+      // get additional candidates from associated scopes
+      ArrayStack<Type*> argTypes(args->count());
+      FAKELIST_FOREACH(ArgExpression, args, iter) {
+        argTypes.push(iter->getType());
+      }
+      env.associatedScopeLookup(candidates, pqname->getName(),
+                                argTypes, LF_NONE);
+
+      if (candidates.isEmpty()) {
+        // this error was originally found during ordinary lookup, but
+        // we suppressed it; now is the time to report it
+        return fevar->type =
+          env.error(pqname->loc,
+                    stringc << "there is no function called `"
+                            << pqname->getName() << "'",
+                    EF_NONE);
       }
     }
-  }
-  else if (feacc) {
-    if (feacc->type->isGeneralizedDependent()) {
-      return env.dependentType();
+    xassert(!candidates.isEmpty());
+
+    // template args supplied?
+    PQ_template *targs = NULL;
+    if (pqname->getUnqualifiedName()->isPQ_template()) {
+      targs = pqname->getUnqualifiedName()->asPQ_template();
     }
 
-    if (!dependentInstantiation(env, feacc->field, feacc->fieldName, feacc->type,
-                                feacc->obj, args)) {
-      return feacc->type;    // is ST_ERROR
-    }
-  }
+    // refine candidates by instantiating templates, etc.
+    char const *lastRemovalReason = "(none removed yet)";
+    SObjListMutator<Variable> mut(candidates);
+    while (!mut.isDone()) {
+      Variable *v = mut.data();
+      bool const considerInherited = false;
+      InferArgFlags const iflags = IA_NO_ERRORS;
 
-  // 14.6.2 para 1, 14.6.2.2 para 1
-  if (dependentArgs) {
-    return env.dependentType();
+      // filter out non-templates if we have template arguments
+      if (targs && !v->isTemplate(considerInherited)) {
+        mut.remove();
+        lastRemovalReason = "non-template given template arguments";
+        continue;
+      }
+
+      // instantiate templates
+      if (v->isTemplate(considerInherited)) {
+        // initialize the bindings with those explicitly provided
+        MatchTypes match(env.tfac, MatchTypes::MM_BIND, Type::EF_DEDUCTION);
+        if (targs) {
+          if (!env.loadBindingsWithExplTemplArgs(v, targs->args, match, iflags)) {
+            mut.remove();
+            lastRemovalReason = "incompatible explicit template args";
+            continue;
+          }
+        }
+
+        // deduce the rest from the call site (expression) args
+        TypeListIter_FakeList argsIter(args);
+        if (!env.inferTemplArgsFromFuncArgs(v, argsIter, match, iflags)) {
+          mut.remove();
+          lastRemovalReason = "incompatible call site args";
+          continue;
+        }
+
+        // use them to instantiate the template
+        Variable *inst = env.instantiateFunctionTemplate(pqname->loc, v, match);
+        if (!inst) {
+          mut.remove();
+          lastRemovalReason = "could not deduce all template params";
+          continue;
+        }
+
+        // replace the template primary with its instantiation
+        mut.dataRef() = inst;
+      }
+      
+      mut.adv();
+    }
+
+    // do we still have any candidates?
+    if (candidates.isEmpty()) {
+      return env.error(pqname->loc, stringc
+               << "call site name lookup failed to yield any candidates; "
+               << "last candidate was removed because: " << lastRemovalReason);
+    }
+
+    // throw the whole mess at overload resolution
+    Variable *chosen;
+    if (candidates.count() > 1) {
+      // here's a cute hack: I (may) need to pass the receiver object as
+      // one of the arguments to participate in overload resolution, so
+      // just make a temporary ArgExpression grafted onto the front of
+      // the real arguments list
+      ArgExpression tmpReceiver(feacc? feacc->obj : NULL);
+      FakeList<ArgExpression> *ovlArgs = args;
+      if (feacc) {
+        ovlArgs = ovlArgs->prepend(&tmpReceiver);
+      }
+
+      // pick the best candidate
+      chosen = outerResolveOverload_explicitSet
+        (env, pqname, pqname->loc, pqname->getName(),
+         fevar? env.implicitReceiverType() : feacc->obj->type,
+         args, candidates);
+
+      // now disconnect the temporary object so it can be safely
+      // disposed of
+      tmpReceiver.expr = NULL;
+      tmpReceiver.next = NULL;
+    }
+    else {
+      chosen = candidates.first();
+    }
+
+    if (chosen) {
+      // rewrite AST to reflect choice
+      //
+      // the stored type will be the dealiased type in hopes this
+      // achieves 7.3.3 para 13, "This has no effect on the type of
+      // the function, and in all other respects the function
+      // remains a member of the base class."
+      chosen = env.storeVar(chosen);
+      if (fevar) {
+        fevar->var = chosen;
+      }
+      else {
+        feacc->field = chosen;
+      }
+      func->type = env.tfac.cloneType(chosen->type);
+    }
+    else {
+      return env.errorType();
+    }
   }
 
   // the type of the function that is being invoked
@@ -5339,65 +5494,6 @@ Type *E_funCall::inner2_itcheck(Env &env)
     }
   }
 
-  // check for function calls that need overload resolution
-  if (env.doOverload()) {
-    // simple E_funCall to a named function
-    if (fevar) {
-      // do we need to do another lookup, a-la cppstd 3.4.2?
-      Variable *chosen;
-      if (!fevar->name->hasQualifiers() &&        // unqualified name, and
-          shouldUseArgDepLookup(fevar)) {         // (other tests pass)
-        // must do lookup according to 3.4.2
-        chosen = argumentDependentLookup(env, fevar, args);
-      }
-      else {
-        chosen = outerResolveOverload(env, fevar->name, fevar->name->loc, fevar->var,
-                                      env.implicitReceiverType(), args);
-      }
-
-      if (chosen) {
-        // rewrite AST to reflect choice
-        //
-        // the stored type will be the dealiased type in hopes this
-        // achieves 7.3.3 para 13, "This has no effect on the type of
-        // the function, and in all other respects the function
-        // remains a member of the base class."
-        chosen = env.storeVar(chosen);
-        fevar->var = chosen;
-        fevar->type = env.tfac.cloneType(chosen->type);
-        t = chosen->type;    // for eventual return value
-      }
-      else {
-        // dealias anyway
-        fevar->var = env.storeVar(fevar->var);
-        return env.errorType();
-      }
-    }
-
-    // method call to a named function
-    if (feacc &&
-        // in the case of a call to a compiler-synthesized
-        // destructor, the 'field' is currently NULL (that might
-        // change); but in that case overloading is not possible,
-        // so this code can safely ignore it (e.g. in/t0091.cc)
-        feacc->field) {
-      Variable *chosen =
-        outerResolveOverload(env, feacc->fieldName, feacc->fieldName->loc, 
-                             feacc->field, feacc->obj->type, args);
-      if (chosen) {
-        // rewrite AST
-        chosen = env.storeVar(chosen);
-        feacc->field = chosen;
-        feacc->type = env.tfac.cloneType(chosen->type);
-        t = chosen->type;
-      }
-      else {
-        feacc->field = env.storeVar(feacc->field);
-        return env.errorType();
-      }
-    }
-  }
-    
   // fulfill the promise that inner1 made when it passed
   // LF_NO_IMPL_THIS, namely that we would add 'this->' later
   // if needed; here is "later"
@@ -5412,21 +5508,6 @@ Type *E_funCall::inner2_itcheck(Env &env)
   else if (feacc) {
     env.ensureFuncBodyTChecked(feacc->field);
   }
-
-
-  // make sure the argument types are compatible with the function
-  // parameters
-  //
-  // dsw: doesn't overloading succeeding guarantee this?
-  //
-  // sm: Actually, it doesn't.  First, if there's no overload set,
-  // then we won't have done any such resolution.  Moreover, there are
-  // instances where overload resolution will choose a candidate that
-  // later yields an error (e.g. access control, binding a non-const
-  // reference to a temporary, etc.).  So, the strategy is to do
-  // overload resolution when necessary to pick the best function, but
-  // then tcheck the arguments against it as if we had no reason to
-  // suspect it was a good function to call.
 
   // automatically coerce function pointers into functions
   if (t->isPointerType()) {
@@ -5503,127 +5584,13 @@ Type *E_funCall::inner2_itcheck(Env &env)
     }
   }
 
-  // compare argument types to parameters
+  // compare argument types to parameters (not guaranteed by overload
+  // resolution since it might not have been done, and even if done,
+  // uses more liberal rules)
   compareArgsToParams(env, ft, args);
 
   // type of the expr is type of the return value
   return ft->retType;
-}
-
-// return false on error
-//
-// This implements part of 14.6.4, dependent name resolution
-bool dependentInstantiation(Env &env,
-  Variable *&var,         // IN: primary; OUT: instantiated
-  PQName *pqname,         // name originally used to find 'var'
-  Type *&nodeType,        // Expression node 'type' field to modify
-  Expression *receiver,   // (nullable) receiver object expression
-  FakeList<ArgExpression> *args)      // function args
-{
-  if (var &&
-      var->isTemplateFunction()) {
-    // here's a cute hack: I need to pass the receiver object as one
-    // of the arguments to participate in overload resolution, so
-    // just make a temporary ArgExpression grafted onto the front of
-    // the real arguments list
-    ArgExpression tmpReceiver(receiver);
-    if (receiver) {
-      args = args->prepend(&tmpReceiver);
-    }
-
-    // apply the arguments to do template instantiation
-    var = env.lookupPQVariable_applyArgsTemplInst(var /*primary*/, pqname, args);
-
-    // now disconnect the temporary object so it can be safely
-    // disposed of
-    tmpReceiver.expr = NULL;
-    tmpReceiver.next = NULL;
-  }
-
-  if (var) {
-    // I think this 'cloneType' should also be inside the
-    // conditional above, but that's an Oink issue...
-    nodeType = env.tfac.cloneType(var->type);
-    return true;
-  }
-  else {
-    nodeType = env.getSimpleType(SL_UNKNOWN, ST_ERROR);
-    return false;
-  }
-}
-
-
-// cppstd 3.4.2, plus a call to overload resolution
-static Variable *argumentDependentLookup(Env &env, E_variable *fvar,
-                                         FakeList<ArgExpression> *args)
-{
-  // we only get here for unqualified names
-  StringRef name = fvar->name->getName();
-  
-  // get candidates from associated scopes
-  SObjList<Variable> candidates;
-  {
-    ArrayStack<Type*> argTypes(args->count());
-    FAKELIST_FOREACH(ArgExpression, args, iter) {
-      argTypes.push(iter->getType());
-    }
-    env.associatedScopeLookup(candidates, name, argTypes, LF_NONE);
-  }
-
-  if (candidates.isEmpty()) {
-    if (!fvar->var) {
-      // this error was originally found during ordinary lookup, but
-      // we suppressed it; now is the time to report it
-      fvar->type = env.error(fvar->name->loc, stringc <<
-                             "there is no function called `" << name << "'",
-                             EF_NONE);
-      return NULL;
-    }
-
-    // easy case, just do the normal thing with results of
-    // simple lookup (which is what is in fvar->var)
-    return outerResolveOverload(env, fvar->name, fvar->name->loc, fvar->var,
-                                env.implicitReceiverType(), args);
-  }
-
-  // add to associated candidates those found by ordinary lookup, if
-  // there were any
-  if (fvar->var) {
-    env.addCandidates(candidates, fvar->var);
-  }
-
-  // throw the whole mess at overload resolution
-  return outerResolveOverload_explicitSet
-    (env, fvar->name, fvar->name->loc, name,
-     env.implicitReceiverType(), args, candidates);
-}
-
-
-static bool shouldUseArgDepLookup(E_variable *evar)
-{
-  if (evar->type->isSimple(ST_NOTFOUND)) {
-    // lookup failed; use it
-    return true;
-  }
-
-  if (!evar->type->isFunctionType()) {
-    // We found a non-function, like an (function) object or a
-    // function pointer.  The standard seems to say that even in
-    // this case we do arg-dependent lookup, but I think that is a
-    // little strange, and it does not work in the current
-    // implementation because we end up doing overload resolution
-    // with the object name as a candidate, and that messes up
-    // everything (how should it work???).  So I am just going to
-    // let it go.  A testcase is in/t0360.cc.
-    return false;
-  }
-
-  if (evar->var->isMember()) {
-    // found a member function; we do *not* use arg-dep lookup
-    return false;
-  }
-
-  return true;
 }
 
 
@@ -6018,8 +5985,10 @@ Type *E_fieldAcc::itcheck_fieldAcc(Env &env, LookupFlags flags)
   }
        
   // TODO: access control check
-  
-  env.ensureFuncBodyTChecked(f);
+
+  if (!(flags & LF_TEMPL_PRIMARY)) {
+    env.ensureFuncBodyTChecked(f);
+  }
   field = env.storeVarIfNotOvl(f);
 
   // type of expression is type of field; possibly as an lval

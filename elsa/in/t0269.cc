@@ -14,5 +14,8 @@ struct A {
 
 void f(A<char> &a)
 {
+  A<char> obj(a);
+  obj.func(3);
+
   A<char>(a).func(3);
 }

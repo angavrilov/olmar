@@ -785,6 +785,9 @@ public:      // template funcs
      bool &haveAllArgs,
      //ObjListIter<STemplateArgument> &piArgIter,
      SObjList<Variable> const &paramList);
+  bool getArgumentsFromMatch
+    (MatchTypes &match, ObjList<STemplateArgument> &sargs,
+     InferArgFlags iflags, Variable *primary);
 
   // name + template args + function call args = inst     
   Variable *lookupPQVariable_applyArgsTemplInst
@@ -824,6 +827,8 @@ public:      // template funcs
     (SourceLoc loc,
      Variable *primary,
      ObjList<STemplateArgument> const &sargs);
+  Variable *instantiateFunctionTemplate
+    (SourceLoc loc, Variable *primary, MatchTypes &match);
   void ensureFuncBodyTChecked(Variable *instV);    // try inst defn
   void instantiateFunctionBody(Variable *instV);   // inst defn
 
