@@ -101,6 +101,9 @@ void CCLang::GNU_KandR_C()
   KandR_C();
 
   GNU_C_extensions();
+
+  // this seems wrong, but Oink's tests want it this way...
+  ANSI_C99_extensions();
 }
 
 void CCLang::GNU2_KandR_C()
