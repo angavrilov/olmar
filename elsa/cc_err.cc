@@ -13,7 +13,7 @@ string ErrorMsg::toString() const
 {
   return stringc << ::toString(loc)
                  << (isWarning()? ": warning: " : ": error: ")
-                 << msg;
+                 << msg << instLoc;
 }
 
 

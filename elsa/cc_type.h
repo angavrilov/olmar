@@ -1120,9 +1120,15 @@ public:    // data
   // disambiguated according to "is more specific than", as with class
   // templates.
   ObjList<STemplateArgument> arguments;
+  
+  // if this is an instantiation, this records the (most proximal)
+  // source location that gave rise to the need to instantiate it;
+  // if not, it's just the location of the declaration of the
+  // template itself
+  SourceLoc instLoc;
 
 public:    // funcs
-  TemplateInfo(StringRef baseName);
+  TemplateInfo(StringRef baseName, SourceLoc instLoc);
   TemplateInfo(TemplateInfo const &obj);
   ~TemplateInfo();
 

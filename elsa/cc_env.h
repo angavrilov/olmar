@@ -106,6 +106,12 @@ public:      // data
   // disambiguation we're doing now (if any)
   ErrorList errors;
 
+  // stack of locations at which template instantiation has been
+  // initiated but not finished; this information can be used to
+  // make error messages more informative, and also to detect
+  // infinite looping in template instantiation
+  ArrayStack<SourceLoc> instantiationLocStack;
+
   // string table for making new strings
   StringTable &str;
 
@@ -295,6 +301,8 @@ public:      // funcs
   void setLoc(SourceLoc loc);                // sets scope()->curLoc
   SourceLoc loc() const;                     // gets scope()->curLoc
   string locStr() const { return toString(loc()); }
+  string locationStackString() const;        // all scope locations
+  string instLocStackString() const;         // inst locs only
 
   // insertion into the current scope; return false if the
   // name collides with one that is already there (but if
@@ -390,15 +398,18 @@ public:      // funcs
   // typedef Variable associated with the resulting type; 'scope' is
   // the scope in which 'base' was found; if 'inst' is not NULL then
   // we already have a compound for this instantiation (from a forward
-  // declaration), so use that one
+  // declaration), so use that one; 'loc' is the location of the
+  // code that caused instantiation, for use in the inst loc stack
   Variable *instantiateTemplate
-    (Scope *foundScope, Variable *baseV, Variable *instV,
+    (SourceLoc loc, Scope *foundScope,
+     Variable *baseV, Variable *instV,
      SObjList<STemplateArgument> &sargs);
 
   // variant of the above, which (for convenience) first converts
   // the AST representation of the arguments into STemplateArguments
   Variable *instantiateTemplate_astArgs
-    (Scope *foundScope, Variable *baseV, Variable *instV,
+    (SourceLoc loc, Scope *foundScope,
+     Variable *baseV, Variable *instV,
      ASTList<TemplateArgument> const &astArgs);
 
   // given a template class that was just made non-forward,

@@ -1916,13 +1916,14 @@ bool TemplateParams::anyParamCtorSatisfies(Type::TypePred pred) const
 
 
 // ------------------ TemplateInfo -------------
-TemplateInfo::TemplateInfo(StringRef name)
+TemplateInfo::TemplateInfo(StringRef name, SourceLoc il)
   : TemplateParams(),
     baseName(name),
     declSyntax(NULL),
     myPrimary(NULL),
     instantiations(),         // empty list
-    arguments()               // empty list
+    arguments(),              // empty list
+    instLoc(il)
 {}
 
 
@@ -1931,8 +1932,9 @@ TemplateInfo::TemplateInfo(TemplateInfo const &obj)
     baseName(obj.baseName),
     myPrimary(obj.myPrimary),
     instantiations(obj.instantiations),      // suspicious... oh well
-    arguments()                              // copied below
-{ 
+    arguments(),                             // copied below
+    instLoc(obj.instLoc)
+{
   // arguments
   FOREACH_OBJLIST(STemplateArgument, obj.arguments, iter) {
     arguments.prepend(new STemplateArgument(*(iter.data())));

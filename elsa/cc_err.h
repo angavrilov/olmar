@@ -40,10 +40,16 @@ public:
   SourceLoc loc;          // where the error happened
   string msg;             // english explanation
   ErrorFlags flags;       // various
+  
+  // string of instantiation locations leading to the error; if
+  // no instantiations are involved, this should be "", which does
+  // not require any allocation to store (you can also pass NULL
+  // to mean "")
+  string instLoc;
 
 public:
-  ErrorMsg(SourceLoc L, char const *m, ErrorFlags f)
-    : loc(L), msg(m), flags(f) {}
+  ErrorMsg(SourceLoc L, char const *m, ErrorFlags f, char const *i = NULL)
+    : loc(L), msg(m), flags(f), instLoc(i) {}
   ~ErrorMsg();
 
   bool isWarning() const { return !!(flags & EF_WARNING); }

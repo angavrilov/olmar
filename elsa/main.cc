@@ -251,6 +251,12 @@ void doit(int argc, char **argv)
       env.errors.print(cout);
       cout << x << endl;
       cout << "Failure probably related to code near " << env.locStr() << endl;
+      if (tracingSys("locstack")) {
+        // print all the locations on the scope stack; this is sometimes
+        // useful when the env.locStr refers to some template code that
+        // was instantiated from somewhere else
+        cout << env.locationStackString();
+      }
       exit(4);
     }
     traceProgress() << "done type checking ("

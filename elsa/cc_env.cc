@@ -998,6 +998,35 @@ SourceLoc Env::loc() const
 }
 
 
+string Env::locationStackString() const
+{
+  stringBuilder sb;
+
+  FOREACH_OBJLIST(Scope, scopes, iter) {
+    sb << "  " << toString(iter.data()->curLoc) << "\n";
+  }
+
+  return sb;
+}
+
+
+string Env::instLocStackString() const
+{
+  // build a string that describes the instantiation context
+  if (instantiationLocStack.isEmpty()) {
+    return "";
+  }
+  else {
+    stringBuilder sb;
+    for (int i = instantiationLocStack.length()-1; i >= 0; i--) {
+      sb << " (inst from " << instantiationLocStack[i] << ")";
+    }
+
+    return sb;
+  }
+}
+
+
 // -------- insertion --------
 Scope *Env::acceptingScope(DeclFlags df)
 {
@@ -1593,7 +1622,7 @@ Variable *Env::lookupPQVariable_function_with_args(
   // the template; note that even if we had some explicit
   // template arguments, we have put them into the bindings now,
   // so we omit them here
-  return instantiateTemplate(scope, var, NULL /*inst*/, sargs);
+  return instantiateTemplate(loc(), scope, var, NULL /*inst*/, sargs);
 }
 
 
@@ -1716,12 +1745,12 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
         // in fact, as I suspected, it is wrong; using-directives can
         // create aliases (e.g. t0194.cc)
 
-        return instantiateTemplate_astArgs(scope, var, NULL /*inst*/,
+        return instantiateTemplate_astArgs(loc(), scope, var, NULL /*inst*/,
                                            final->asPQ_templateC()->args);
       }
       else {                    // template function
         xassert(var->isTemplateFunction());
-                                                   
+
         // it's quite likely that this code is not right...
 
         if (!final->isPQ_template()) {
@@ -1731,7 +1760,7 @@ Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags,
         else {
           // hope that all of the arguments have been supplied
           xassert(var->templateInfo()->isPrimary());
-          return instantiateTemplate_astArgs(scope, var, NULL /*inst*/,
+          return instantiateTemplate_astArgs(loc(), scope, var, NULL /*inst*/,
                                              final->asPQ_templateC()->args);
         }
       }
@@ -1893,7 +1922,7 @@ TemplateInfo * /*owner*/ Env::takeCTemplateInfo(StringRef baseName)
 
   Scope *s = scope();
   if (s->curTemplateParams) {
-    ret = new TemplateInfo(baseName);
+    ret = new TemplateInfo(baseName, loc());
     ret->params.concat(s->curTemplateParams->params);
     delete s->curTemplateParams;
     s->curTemplateParams = NULL;
@@ -2194,12 +2223,13 @@ void Env::templArgsASTtoSTA
 
 
 Variable *Env::instantiateTemplate_astArgs
-  (Scope *foundScope, Variable *baseV, Variable *instV,
+  (SourceLoc loc, Scope *foundScope, 
+   Variable *baseV, Variable *instV,
    ASTList<TemplateArgument> const &astArgs)
 {
   SObjList<STemplateArgument> sargs;
   templArgsASTtoSTA(astArgs, sargs);
-  return instantiateTemplate(foundScope, baseV, instV, sargs);
+  return instantiateTemplate(loc, foundScope, baseV, instV, sargs);
 }
 
 
@@ -2210,10 +2240,14 @@ Variable *Env::instantiateTemplate_astArgs
 // it would be better to encapsulate the mechanism than to share it
 // by threading two distinct flow paths through the same code.
 Variable *Env::instantiateTemplate
-  (Scope *foundScope, Variable *baseV, Variable *instV,
+  (SourceLoc loc, Scope *foundScope,
+   Variable *baseV, Variable *instV,
    SObjList<STemplateArgument> &sargs)
 {
   Variable *oldBaseV = baseV;   // save this for other uses later
+
+  // maintain the inst loc stack (ArrayStackPopper is in smbase/array.h)
+  ArrayStackPopper<SourceLoc> pusher_popper(instantiationLocStack, loc /*pushVal*/);
 
   // has this class already been instantiated?
   if (!instV) {
@@ -2393,10 +2427,19 @@ Variable *Env::instantiateTemplate
     StringRef name = baseV->type->isCompoundType()
       ? baseV->type->asCompoundType()->name    // no need to call 'str', 'name' is already a StringRef
       : NULL;
-    TemplateInfo *instTInfo = new TemplateInfo(name);
+    TemplateInfo *instTInfo = new TemplateInfo(name, loc);
     SFOREACH_OBJLIST(STemplateArgument, sargs, iter) {
       instTInfo->arguments.append(new STemplateArgument(*iter.data()));
     }
+
+    // record the location which provoked this instantiation; this
+    // information will be useful if it turns out we can only to a
+    // forward-declaration here, since later when we do the delayed
+    // instantiation, 'loc' will be only be available because we
+    // stashed it here
+    //instTInfo->instLoc = loc;
+    // actually, this is now part of the constructor argument above, 
+    // but I'll leave the comment
 
     // FIX: Scott, its almost as if you just want to clone the type
     // here.
@@ -2597,7 +2640,12 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
     if (inst->forward) {
       trace("template") << "instantiating previously forward " << inst->name << "\n";
       inst->forward = false;
-      instantiateTemplate(scope, baseV, instV /*use this one*/,
+      
+      // this location was stored back when the template was
+      // forward-instantiated
+      SourceLoc instLoc = inst->templateInfo()->instLoc;
+
+      instantiateTemplate(instLoc, scope, baseV, instV /*use this one*/,
                           reinterpret_cast< SObjList<STemplateArgument>& >  // hack..
                             (inst->templateInfo()->arguments));
     }
@@ -2615,11 +2663,12 @@ void Env::instantiateForwardClasses(Scope *scope, Variable *baseV)
 // -------- diagnostics --------
 Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
 {
-  trace("error") << (disambiguates? "[d] " : "") 
-                 << toString(L) << ": " << msg << endl;
+  string instLoc = instLocStackString();
+  trace("error") << (disambiguates? "[d] " : "")
+                 << toString(L) << ": " << msg << instLoc << endl;
   if (!disambiguateOnly || disambiguates) {
-    errors.addError(new ErrorMsg(L, msg, 
-      disambiguates ? EF_DISAMBIGUATES : EF_NONE));
+    errors.addError(new ErrorMsg(L, msg,
+      disambiguates ? EF_DISAMBIGUATES : EF_NONE, instLoc));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -2632,9 +2681,10 @@ Type *Env::error(char const *msg, bool disambiguates)
 
 Type *Env::warning(char const *msg)
 {
-  trace("error") << "warning: " << msg << endl;
+  string instLoc = instLocStackString();
+  trace("error") << "warning: " << msg << instLoc << endl;
   if (!disambiguateOnly) {
-    errors.addError(new ErrorMsg(loc(), msg, EF_WARNING));
+    errors.addError(new ErrorMsg(loc(), msg, EF_WARNING, instLoc));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
@@ -2642,12 +2692,14 @@ Type *Env::warning(char const *msg)
 
 Type *Env::unimp(char const *msg)
 {
+  string instLoc = instLocStackString();
+
   // always print this immediately, because in some cases I will
-  // segfault (deref'ing NULL) right after printing this
-  cout << toString(loc()) << ": unimplemented: " << msg << endl;
+  // segfault (typically deref'ing NULL) right after printing this
+  cout << toString(loc()) << ": unimplemented: " << msg << instLoc << endl;
 
   errors.addError(new ErrorMsg(
-    loc(), stringc << "unimplemented: " << msg, EF_NONE));
+    loc(), stringc << "unimplemented: " << msg, EF_NONE, instLoc));
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
