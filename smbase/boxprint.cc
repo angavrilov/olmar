@@ -1,6 +1,7 @@
 // boxprint.cc
 // code for boxprint.h
 
+#include <string.h>
 #include "boxprint.h"       // this module
 
 
