@@ -157,6 +157,11 @@ void TerminalNode::getGroundTerms(SObjList<TerminalNode> &dest) const
     // highly nonideal constness...
 }
 
+int TerminalNode::numGroundTerms() const
+{
+  return 1;
+}
+
 
 // ------------------ NonterminalNode -----------------------
 NonterminalNode::NonterminalNode(Reduction *red)
@@ -358,6 +363,11 @@ void NonterminalNode::getGroundTerms(SObjList<TerminalNode> &dest) const
   return reductions.firstC()->getGroundTerms(dest);
 }
 
+int NonterminalNode::numGroundTerms() const
+{
+  return reductions.firstC()->numGroundTerms();
+}
+
 
 // ---------------------- Reduction -------------------------
 Reduction::Reduction(Production const *prod)
@@ -371,6 +381,11 @@ Reduction::~Reduction()
 
 AttrValue Reduction::getAttrValue(AttrName name) const
 {                  
+  // hack...
+  if (0==strcmp(name, "numGroundTerms")) {
+    return numGroundTerms();
+  }
+
   return attr.get(name);
 }
 
@@ -423,22 +438,29 @@ void Reduction::getGroundTerms(SObjList<TerminalNode> &dest) const
   }
 }
 
-
-// --------------------- AttrContext -------------------
-AttrContext::~AttrContext()
+int Reduction::numGroundTerms() const
 {
-  // common case is that red is, in fact, NULL at this point
-  if (red != NULL) {
-    delete red;
+  int sum = 0;
+  SFOREACH_OBJLIST(TreeNode, children, child) {
+    sum += child.data()->numGroundTerms();
   }
+  return sum;
 }
 
 
-Reduction *AttrContext::grabReduction()
+// --------------------- AttrContext -------------------
+AttrContext::AttrContext(Reduction *r1, Reduction *r2)
 {
-  Reduction *ret = red;
-  red = NULL;
-  return ret;
+  red[0] = r1;
+  red[1] = r2;
+}
+
+
+Reduction const &AttrContext::reductionC(int which) const
+{
+  xassert(which==0 || which==1);
+  xassert(red[which] != NULL);
+  return *(red[which]);
 }
 
 

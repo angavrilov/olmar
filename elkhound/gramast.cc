@@ -39,6 +39,7 @@ string astTypeToString(int type)
     N(AST_EPILOGUE)
     N(AST_TREENODEBASE)
     N(AST_DISAMB)
+    N(AST_TREECOMPARE)
 
     N(EXP_ATTRREF)
     N(EXP_FNCALL)

@@ -28,7 +28,7 @@ common = trace.o
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep = gramanl.cc ${grammar-set} ${common} ${grampar-set} \
-              ccwrite.o emitcode.o
+              ccwrite.o emitcode.o glrtree.o
 gramanl: ${gramanl-dep} grammar.h gramanl.h 
 	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 

@@ -40,6 +40,7 @@
 
 #include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
 #include "glrtree.h"     // parse tree (graph) representation
+#include "owner.h"       // Owner
 
 
 // fwds from other files
@@ -247,14 +248,15 @@ private:    // funcs
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
   bool glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
-  void mergeAlternativeParses(NonterminalNode &node, AttrContext &actx);
+  void mergeAlternativeParses(NonterminalNode &node, Owner<Reduction> &reduction);
+  static int compareAlternatives(Reduction *left, Reduction *right);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
   TerminalNode *makeTerminalNode(Lexer2Token const *tk, Terminal const *tc);
-  NonterminalNode *makeNonterminalNode(AttrContext &actx);
+  NonterminalNode *makeNonterminalNode(Reduction *red);
   Reduction *makeReductionNode(Production const *prod,
                                SObjList<TreeNode> const &children);
 

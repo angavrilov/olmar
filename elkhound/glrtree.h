@@ -37,12 +37,12 @@ public:     // types
   // walking or true to stop
   typedef bool (*WalkFn)(TreeNode const *node, void *extra);
 
-public:	    // data
+public:     // data
   // count and high-water for tree nodes
   static int numTreeNodesAllocd;
   static int maxTreeNodesAllocd;
 
-public:	    // funcs
+public:     // funcs
   TreeNode();
   virtual ~TreeNode();
 
@@ -75,6 +75,7 @@ public:	    // funcs
 
   // get list of tree leaves
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const = 0;
+  virtual int numGroundTerms() const = 0;
 
   // simple unparse: yield string of tokens in this tree, separated by spaces
   string unparseString() const;
@@ -111,6 +112,7 @@ public:     // funcs
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
+  virtual int numGroundTerms() const;
   virtual void printParseTree(ostream &os, int indent) const;
 };
 
@@ -158,6 +160,7 @@ public:
   virtual TerminalNode const *getLeftmostTerminalC() const;
   virtual void ambiguityReport(ostream &os) const;
   virtual void getGroundTerms(SObjList<TerminalNode> &dest) const;
+  virtual int numGroundTerms() const;
   virtual void printParseTree(ostream &os, int indent) const;
 };
 
@@ -185,35 +188,34 @@ public:      // funcs
 
   AttrValue getAttrValue(AttrName name) const;
   void setAttrValue(AttrName name, AttrValue value);
+  
+  bool attrsAreEqual(Reduction const &obj) const
+    { return attr == obj.attr; }
 
   void printParseTree(ostream &os, int indent) const;
   TreeNode const *walkTree(TreeNode::WalkFn func, void *extra=NULL) const;
   void ambiguityReport(ostream &os) const;
 
   void getGroundTerms(SObjList<TerminalNode> &dest) const;
+  int numGroundTerms() const;
 };
 
 
-// OLD: during attribution, a context for evaluation is provided by a
-// list of children (a Reduction) and the attributes for the parent;
-// this structure is created at that time to carry around that
-// context, though it is not stored anywhere in the tree
+// context which attributes are evaluated.. typically, this is a
+// single reduction, but the treeCompare expressions have two
+// reductions they're comparing, so there are two
 class AttrContext {
-  Reduction *red;      	   // (owner)
+  Reduction *red[2];           // one or two interesting reductions
 
 public:
-  AttrContext(Reduction *r)
-    : red(r) {}
-  ~AttrContext();
+  AttrContext(Reduction *r1, Reduction *r2=NULL);
 
   // access without modification
-  Reduction const &reductionC() const { return *red; }
+  Reduction const &reductionC(int which) const;
 
   // access with modification
-  Reduction &reduction() { return *red; }
-
-  // transfer of ownership (nullifies 'red')
-  Reduction *grabReduction();
+  Reduction &reduction(int which)
+    { return const_cast<Reduction&>(reductionC(which)); }
 };
 
 

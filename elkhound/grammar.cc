@@ -145,6 +145,7 @@ Production::Production(Nonterminal *L, char const *Ltag)
     rightTags(),
     conditions(),
     actions(),
+    treeCompare(NULL),
     functions(),
     numDotPlaces(-1),    // so the check in getDProd will fail
     dprods(NULL),
@@ -153,6 +154,9 @@ Production::Production(Nonterminal *L, char const *Ltag)
 
 Production::~Production()
 {
+  if (treeCompare) {
+    delete treeCompare;
+  }  
   if (dprods) {
     delete[] dprods;
   }

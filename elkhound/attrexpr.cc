@@ -37,7 +37,7 @@ STATICDEF AttrLvalue AttrLvalue::
   }
 
   // make an AttrLvalue
-  return AttrLvalue(index, field);
+  return AttrLvalue(0 /*which*/, index, field);
 }
 
 
@@ -71,10 +71,10 @@ void AttrLvalue::check(Production const *ctx) const
 int AttrLvalue::getFrom(AttrContext const &actx) const
 {
   if (symbolIndex == 0) {
-    return actx.reductionC().getAttrValue(attrName);
+    return actx.reductionC(whichTree).getAttrValue(attrName);
   }
   else {
-    return actx.reductionC().children.nthC(symbolIndex-1)->
+    return actx.reductionC(whichTree).children.nthC(symbolIndex-1)->
              getAttrValue(attrName);
   }
 }
@@ -83,10 +83,10 @@ int AttrLvalue::getFrom(AttrContext const &actx) const
 void AttrLvalue::storeInto(AttrContext &actx, int newValue) const
 {
   if (symbolIndex == 0) {
-    actx.reduction().setAttrValue(attrName, newValue);
+    actx.reduction(whichTree).setAttrValue(attrName, newValue);
   }
   else {
-    actx.reduction().children.nth(symbolIndex-1)->
+    actx.reduction(whichTree).children.nth(symbolIndex-1)->
       setAttrValue(attrName, newValue);
   }
 }
@@ -161,6 +161,9 @@ AExprFunc::~AExprFunc()
 #define MAKE_OP_FUNC(name, op) \
   static int name(int a, int b) { return a op b; }
 MAKE_OP_FUNC(plus, +)
+MAKE_OP_FUNC(minus, -)
+MAKE_OP_FUNC(times, *)
+MAKE_OP_FUNC(dividedBy, /)
 MAKE_OP_FUNC(equals, ==)
 MAKE_OP_FUNC(nequals, !=)
 MAKE_OP_FUNC(less, <)
@@ -181,13 +184,16 @@ int ifFunc(int cond, int thenExp, int elseExp)
   };
 */
 AExprFunc::FuncEntry const AExprFunc::funcEntries[] = {
-  { "+",  EXP_PLUS, 2, (AExprFunc::Func)plus },
-  { "==", EXP_EQ,   2, (AExprFunc::Func)equals },
-  { "!=", EXP_NEQ,  2, (AExprFunc::Func)nequals },
-  { "<",  EXP_LT,   2, (AExprFunc::Func)less },
-  { "<=", EXP_LTE,  2, (AExprFunc::Func)lesseq },
-  { "||", EXP_OR,   2, (AExprFunc::Func)oror },
-  { "if", EXP_COND, 3, (AExprFunc::Func)ifFunc },
+  { "+",  EXP_PLUS,  2, (AExprFunc::Func)plus },
+  { "-",  EXP_MINUS, 2, (AExprFunc::Func)minus },
+  { "*",  EXP_MULT,  2, (AExprFunc::Func)times },
+  { "/",  EXP_DIV,   2, (AExprFunc::Func)dividedBy },
+  { "==", EXP_EQ,    2, (AExprFunc::Func)equals },
+  { "!=", EXP_NEQ,   2, (AExprFunc::Func)nequals },
+  { "<",  EXP_LT,    2, (AExprFunc::Func)less },
+  { "<=", EXP_LTE,   2, (AExprFunc::Func)lesseq },
+  { "||", EXP_OR,    2, (AExprFunc::Func)oror },
+  { "if", EXP_COND,  3, (AExprFunc::Func)ifFunc },
 };
 
 

@@ -7,6 +7,7 @@
 #include "str.h"          // string
 #include "objlist.h"      // ObjList
 #include "attr.h"         // Attributes, AttrValue, AttrName
+#include "macros.h"       // DMEMB
 
 class Reduction;          // glrtree.h
 class AttrContext;        // glrtree.h
@@ -18,14 +19,15 @@ class Attributes;         // attr.h
 // some production
 class AttrLvalue {
 public:	     // data
+  int whichTree;        // which tree, if several are possible; 0 is typical
   int symbolIndex;      // 0 means LHS symbol, 1 is first RHS symbol, 2 is next, etc.
   AttrName attrName;    // name of attribute to change
 
 public:	     // funcs
-  AttrLvalue(int s, AttrName a)
-    : symbolIndex(s), attrName(a) {}
+  AttrLvalue(int w, int s, AttrName a)
+    : whichTree(w), symbolIndex(s), attrName(a) {}
   AttrLvalue(AttrLvalue const &obj)
-    : symbolIndex(obj.symbolIndex), attrName(obj.attrName) {}
+    : DMEMB(whichTree), DMEMB(symbolIndex), DMEMB(attrName) {}
   ~AttrLvalue();
 
   // create an AttrLvalue by parsing a textual reference; throw

@@ -593,18 +593,21 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 // we can't due to %condition directive
 // ([GLR] calls this 'reducer')
 bool GLR::glrShiftNonterminal(StackNode *leftSibling,
-                              Reduction * /*(owner)*/ reduction)
+                              Reduction * /*(owner)*/ _red)
 {
   // package some things up
+  Owner<Reduction> reduction(_red);
   Production const *prod = reduction->production;
-  AttrContext actx(transferOwnership(reduction));
 
   // apply the actions and conditions for this production; this is
   // fundamentally a disambiguation activity
-  prod->actions.fire(actx);
-  if (!prod->conditions.test(actx)) {
-    // failed to satisfy conditions
-    return false;
+  {
+    AttrContext actx(reduction);
+    prod->actions.fire(actx);
+    if (!prod->conditions.test(actx)) {
+      // failed to satisfy conditions
+      return false;
+    }
   }
 
   // this is like a shift -- we need to know where to go
@@ -632,7 +635,8 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
       // | it is here that we are bringing the tops of two  |
       // | alternative parses together 	       	       	    |
       // +--------------------------------------------------+
-      mergeAlternativeParses(sibLink->treeNode->asNonterm(), actx);
+      mergeAlternativeParses(sibLink->treeNode->asNonterm(), 
+                             reduction);
 
       // and since we didn't add a link, there is no potential for new
       // paths
@@ -642,7 +646,7 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
       // no, so add the link (and keep the ptr for below)
       sibLink =
         rightSibling->addSiblingLink(leftSibling,
-                                     makeNonterminalNode(actx));   // TREEBUILD
+          makeNonterminalNode(reduction.xfr()));   // TREEBUILD
 
       // adding a new sibling link may have introduced additional
       // opportunties to do reductions from parsers we thought
@@ -679,7 +683,7 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
 
     // add the sibling link (and keep ptr for tree stuff)
     rightSibling->addSiblingLink(leftSibling,
-                                 makeNonterminalNode(actx));   // TREEBUILD
+      makeNonterminalNode(reduction.xfr()));   // TREEBUILD
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
@@ -757,34 +761,79 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 
 // 'node' is the existing tree node, and 'actx' has the node that we're
 // considering merging into 'node'; some disambiguation is applied here
-void GLR::mergeAlternativeParses(NonterminalNode &node, AttrContext &actx)
+void GLR::mergeAlternativeParses(NonterminalNode &node, 
+                                 Owner<Reduction> &reduction)
 {
   // we only get here if the single-tree tests have passed, but we
   // haven't applied the multi-tree comparisons; so do that now
 
-  // TODO: figure out interface and specification for multi-tree
-  // comparisons
+  // for each existing tree, compare the new one
+  ObjListMutator<Reduction> mut(node.reductions);
+  while (!mut.isDone()) {
+    int comp = compareAlternatives(mut.data(), reduction);
+    if (comp == -1) {
+      // new one is preferred -- throw away the current one
+      mut.deleteIt();     // this advances to the next, too
+    }
+    else if (comp == +1) {
+      // the old one is preferred -- throw away new one
+      reduction.del();
 
-  #if 0   // old
-  // at this point, we still have multiple trees; we require of
-  // the parser that the parent attributes MUST match exactly
-  if (actx.parentAttr() != node.attr) {
+      // with the new one gone, we can stop, because we presumably
+      // already compared all the old ones to each other when they
+      // were first added
+      return;
+    }
+    else {
+      // they are incomparable; keep old, and continue comparing
+      // new one against candidates
+      mut.adv();
+    }
+  }
+
+  // early detection of mismatching attributes
+  if (node.reductions.isNotEmpty() &&
+      !node.reductions.firstC()->attrsAreEqual(*reduction)) {
     // there is a bug in the parser
     cout << node.locString() << ": PARSER GRAMMAR BUG: alternative parses have different attributes\n";
     cout << "  existing parse(s) and attributes:\n";
     node.printParseTree(cout, 4 /*indent*/);
 
     cout << "  new parse and attributes:\n";
-    actx.reduction().printParseTree(actx.parentAttr(), cout, 4 /*indent*/);
+    reduction->printParseTree(cout, 4 /*indent*/);
 
     xfailure(stringc << node.locString() <<
              ": parser bug: alternative parses with different attributes");
   }
-  #endif // 0
 
-  // ok, they match; just add the reduction to the existing node
-  // (and let 'parentAttr' drop on the floor since it was the same anyway)
-  node.addReduction(actx.grabReduction());
+  // ok, add the reduction to the existing node
+  node.addReduction(reduction.xfr());
+}
+
+
+// compare two candidate reductions; return code:
+//   -1: left < right, meaning right is preferred interpretation
+//    0: left == right, so we keep both
+//   +1: left > right, so keep left interpretation
+// NOTE: this has not been tested properly..
+STATICDEF int GLR::compareAlternatives(Reduction *left, Reduction *right)
+{
+  if (left->production != right->production) {
+    // currently, the only tree comparison mechanism requires
+    // that both alternatives to be compared be instances of
+    // the same production.. so we can't compare these
+    return 0;
+  }
+  Production const *prod = left->production;
+
+  if (!prod->treeCompare) {
+    // no tree comparison defined..
+    return 0;
+  }
+
+  // call the comparison fn
+  AttrContext actx(left, right);
+  return prod->treeCompare->eval(actx);
 }
 
 
@@ -810,9 +859,9 @@ Reduction *GLR::makeReductionNode(Production const *prod,
   return rn;
 }
 
-NonterminalNode *GLR::makeNonterminalNode(AttrContext &actx)
+NonterminalNode *GLR::makeNonterminalNode(Reduction *red)
 {
-  NonterminalNode *ret = new NonterminalNode(actx.grabReduction());
+  NonterminalNode *ret = new NonterminalNode(red);
   treeNodes.prepend(ret);
   return ret;
 }
@@ -1115,3 +1164,20 @@ int main(int argc, char **argv)
     glrParse(sb);
 
 #endif // 0
+  #if 0   // old
+  // at this point, we still have multiple trees; we require of
+  // the parser that the parent attributes MUST match exactly
+  if (actx.parentAttr() != node.attr) {
+    // there is a bug in the parser
+    cout << node.locString() << ": PARSER GRAMMAR BUG: alternative parses have different attributes\n";
+    cout << "  existing parse(s) and attributes:\n";
+    node.printParseTree(cout, 4 /*indent*/);
+
+    cout << "  new parse and attributes:\n";
+    actx.reduction().printParseTree(actx.parentAttr(), cout, 4 /*indent*/);
+
+    xfailure(stringc << node.locString() <<
+             ": parser bug: alternative parses with different attributes");
+  }
+  #endif // 0
+

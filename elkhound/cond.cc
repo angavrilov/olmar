@@ -56,13 +56,13 @@ bool Conditions::test(AttrContext const &actx) const
     try {
       if (!iter.data()->test(actx)) {
 	trace("conditions") 
-	  << "condition " << iter.data()->toString(actx.reductionC().production)
+	  << "condition " << iter.data()->toString(actx.reductionC(0).production)
 	  << " not satisfied\n";
 	return false;
       }
     }
     catch (xBase &x) {
-      cout << "condition " << iter.data()->toString(actx.reductionC().production)
+      cout << "condition " << iter.data()->toString(actx.reductionC(0).production)
            << " failed with exception: " << x << endl;
       return false;
     }

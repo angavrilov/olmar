@@ -37,6 +37,29 @@ Environment::~Environment()
 {}
 
 
+// ------------------ TreesContext -----------------
+TreesContext::~TreesContext()
+{}
+
+int TreesContext::lookupTreeName(char const *tn) const
+{
+  if (t0Name.equals(tn)) { 
+    return 0;
+  }
+  else if (t1Name.equals(tn)) {
+    return 1;
+  }
+  else {
+    return -1;
+  }
+}
+
+bool TreesContext::dummyContext() const
+{
+  return t0Name.length() == 0;
+}
+
+
 // -------------------- XASTParse --------------------
 STATICDEF string XASTParse::
   constructMsg(ASTNode const *node, char const *msg)
@@ -88,10 +111,14 @@ void astParseAction(Environment &env, Production *prod,
                     ASTNode const *act, bool dupsOk);
 Condition *astParseCondition(Environment &env, Production *prod,
                              ASTNode const *cond);
+void astParseTreeCompare(Environment &env, Production *prod,
+                         ASTNode const *node);
 void astParseFunction(Environment &env, Production *prod,
                       ASTNode const *func, bool dupsOk);
 AExprNode *astParseExpr(Environment &env, Production *prod,
                         ASTNode const *node);
+AExprNode *astParseExpr(Environment &env, Production *prod,
+                        ASTNode const *node, TreesContext const &trees);
 AExprNode *checkSpecial(Environment &env, Production *prod,
                         ASTNode const *node);
 
@@ -608,6 +635,10 @@ void astParseFormBodyElt(Environment &env, Production *prod,
           astParseCondition(env, prod, n));
         break;
 
+      case AST_TREECOMPARE:
+        astParseTreeCompare(env, prod, n);
+        break;
+
       case AST_FUNDECL: {
         // allow function declarations in form bodies because it's
         // convenient for nonterminals that only have one form..
@@ -657,7 +688,7 @@ void astParseAction(Environment &env, Production *prod,
   AExprNode *expr = astParseExpr(env, prod, nthChild(act, 1));
 
   prod->actions.actions.append(
-    new AttrAction(AttrLvalue(0 /*LHS*/, attrName),
+    new AttrAction(AttrLvalue(0 /*whichTree*/, 0 /*LHS*/, attrName),
                    expr));
 }
 
@@ -670,6 +701,29 @@ Condition *astParseCondition(Environment &env, Production *prod,
   AExprNode *expr = astParseExpr(env, prod, nthChild(cond, 0));
 
   return new ExprCondition(expr);
+}
+
+
+void astParseTreeCompare(Environment &env, Production *prod,
+                         ASTNode const *node)
+{
+  checkType(node, AST_TREECOMPARE);
+
+  if (prod->treeCompare != NULL) {
+    astParseError(node, "duplicate treeCompare definition");
+  }
+
+  // get tree names to use
+  string t1Name = childName(node, 0);
+  string t2Name = childName(node, 1);
+
+  // parse the expression with those names in context
+  TreesContext trees(t1Name, t2Name);
+  AExprNode *expr = astParseExpr(env, prod,
+                                 nthChild(node, 2), trees);
+
+  // put it into the production
+  prod->treeCompare = expr;
 }
 
 
@@ -706,27 +760,59 @@ void astParseFunction(Environment &env, Production *prod,
 AExprNode *astParseExpr(Environment &env, Production *prod,
                         ASTNode const *node)
 {
+  TreesContext dummy;
+  return astParseExpr(env, prod, node, dummy);
+}
+
+AExprNode *astParseExpr(Environment &env, Production *prod,
+                        ASTNode const *node, TreesContext const &trees)
+{
   switch (node->type) {
     case AST_INTEGER:
       return new AExprLiteral(nodeInt(node));
 
     case EXP_ATTRREF: {
-      // tag names the RHS symbol we're referring to
-      string tag = childName(node, 0);
-      int tagNum = prod->findTag(tag);
-      if (tagNum == -1) {
-        astParseError(node, "invalid tag");
+      // which of two trees we refer to
+      int whichTree;
+
+      // names the RHS symbol we're referring to
+      int whichRHS = 0;        // tag missing means LHS symbol
+
+      // process AST children right to left
+      int child = numChildren(node)-1;
+      string attrName = childName(node, child--);
+
+      if (child >= 0) {        // tag is present
+        string tag = childName(node, child--);
+        whichRHS = prod->findTag(tag);
+        if (whichRHS == -1) {
+          astParseError(node, "invalid tag");
+        }
       }
 
-      // attrName says which attribute of RHS symbol to use
-      string attrName = childName(node, 1);
+      if (child >= 0) {        // tree specifier is present
+        string treeName = childName(node, child--);
+        whichTree = trees.lookupTreeName(treeName);
+        if (whichTree == -1) {
+          astParseError(node, "invalid tree specifier");
+        }
+      }
+      else {                   // tree specifier not present
+        if (!trees.dummyContext()) {
+          // but one is required, because we're in a context
+          // where there are multiple trees to refer to
+          astParseError(node, "tree specifier required");
+        }
+        else {
+          // the context only has one tree to name
+          whichTree = 0;
+        }
+      }
 
-      return new AExprAttrRef(AttrLvalue(tagNum, attrName));
+      xassert(child == -1);        // otherwise my AST is bad..
+
+      return new AExprAttrRef(AttrLvalue(whichTree, whichRHS, attrName));
     }
-
-    case AST_NAME:
-      // no tag = implicit 'this' (=LHS) tag
-      return new AExprAttrRef(AttrLvalue(0 /*LHS*/, nodeName(node)));
 
     case EXP_FNCALL: {
       // handle any eval-at-grammar-parse functions
@@ -740,7 +826,7 @@ AExprNode *astParseExpr(Environment &env, Production *prod,
 
       // and arguments
       FOREACH_OBJLIST(ASTNode, childList(node, 1, EXP_LIST), iter) {
-        fn->args.append(astParseExpr(env, prod, iter.data()));
+        fn->args.append(astParseExpr(env, prod, iter.data(), trees));
       }
 
       return fn;
@@ -760,7 +846,7 @@ AExprNode *astParseExpr(Environment &env, Production *prod,
       ObjList<ASTNode> const &children = node->asInternalC().children;
       xassert(entry->numArgs == children.count());
       FOREACH_OBJLIST(ASTNode, children, iter) {
-        fn->args.append(astParseExpr(env, prod, iter.data()));
+        fn->args.append(astParseExpr(env, prod, iter.data(), trees));
       }
 
       return fn;

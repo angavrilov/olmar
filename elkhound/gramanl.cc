@@ -1641,14 +1641,15 @@ int main()
 
 #include "ccwrite.h"      // emitSemFun{Impl,Decl}File
 #include "grampar.h"      // readGrammarFile
-#include "glrtree.h"      // Reduction
 
-  
+
 // these are here so I don't have to link with things that
 // I consider conceptually unrelated
-AttrValue Reduction::getAttrValue(AttrName name) const
+#include "lexer2.h"       // Lexer2
+
+string Lexer2Token::unparseString() const
   { xfailure("no!"); }
-void Reduction::setAttrValue(AttrName name, AttrValue value)
+string Lexer2Token::toString() const
   { xfailure("no!"); }
 
 

@@ -136,6 +136,32 @@ nonterm Expr {
                  this.prec < right.prec :          // left associative
                  this.prec < left.prec;            // right associative
 
+    /* DOES NOT WORK
+    // want to return:
+    //   <0 if t1 is preferred
+    //    0 if they are not comparable
+    //   >0 if t2 is preferred
+    treeCompare(t1,t2) =
+      // if their precedences differ, then we prefer
+      // tree with the *lower* precedence (because then
+      // we get higher-precedence operators lower in the
+      // tree, i.e. more tightly bound)
+      t1.op.prec != t2.op.prec? (t1.op.prec - t2.op.prec) :
+
+      // if their associativities differ, we can't further
+      // compare them
+      t1.op.leftAssoc != t2.op.leftAssoc? 0 :
+
+      // if they are left-associative, we prefer the tree
+      // with the larger left subtree
+      t1.op.leftAssoc == 1? t2.left.numGroundTerms - t1.left.numGroundTerms :
+
+      // otherwise, they're right associative, so we prefer
+      // larger right subtrees
+      t2.right.numGroundTerms - t1.right.numGroundTerms ;
+    */
+
+
     fun eval {
       int L = left.eval(bindings);
       int R = right.eval(bindings);

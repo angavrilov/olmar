@@ -98,6 +98,26 @@ public:
 };
 
 
+// miniature environment for tree names
+class TreesContext {
+private:    // data
+  string t0Name, t1Name;
+
+public:
+  TreesContext(char const *t0n, char const *t1n)
+    : t0Name(t0n), t1Name(t1n) {}
+  TreesContext() {}       // dummy context where no names are defined
+  ~TreesContext();
+
+  // return which tree (0 or 1) the name matches,
+  // or -1 if it doesn't match either
+  int lookupTreeName(char const *tn) const;
+
+  // return true if this context has no names defined
+  bool dummyContext() const;
+};
+
+
 // --------------- grampar's external interface -----------
 // parse grammar file 'fname' into grammar 'g', throwing exceptions
 // if there are problems

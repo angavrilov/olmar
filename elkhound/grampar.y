@@ -60,6 +60,7 @@
 %token TOK_EPILOGUE "epilogue"
 %token TOK_TREENODEBASE "treeNodeBase"
 %token TOK_DISAMB "disamb"
+%token TOK_TREECOMPARE "treeCompare"
 
 /* operators */
 %token TOK_OROR "||"
@@ -207,6 +208,7 @@ FormBody: /* empty */                              { $$ = AST0(AST_FORMBODY); }
 /* things that can be directly associated with a form */
 FormBodyElement: Action            { $$ = $1; }
                | Condition         { $$ = $1; }
+               | TreeCompare       { $$ = $1; }
                | FunDecl           { $$ = $1; }
                | Function          { $$ = $1; }
                ;
@@ -279,11 +281,22 @@ Action: "action" TOK_NAME ":=" AttrExpr ";"        { $$ = AST2(AST_ACTION, $2, $
 Condition: "condition" AttrExpr ";"                { $$ = AST1(AST_CONDITION, $2); }
          ;
 
+/*
+ * a tree comparison defines an expression that, when evaluated, will
+ * yield a value which says which, if either, of two competing
+ * interpretations to keep and which to drop
+ */
+TreeCompare: "treeCompare" "(" TOK_NAME "," TOK_NAME ")" "=" AttrExpr ";"
+             { $$ = AST3(AST_TREECOMPARE, $3, $5, $8); }
+           ;
+
 
 /* ------ attribute expressions, basically C expressions ------ */
 PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = AST2(EXP_ATTRREF, $1, $3); }
                /* tag . attr */
-           | TOK_NAME                        { $$ = $1; }
+           | TOK_NAME "." TOK_NAME "." TOK_NAME   { $$ = AST3(EXP_ATTRREF, $1, $3, $5); }
+               /* tree . tag . attr */
+           | TOK_NAME                        { $$ = AST1(EXP_ATTRREF, $1); }
                /* attr (implicit 'this' tag) */
            | TOK_INTEGER                     { $$ = $1; }
                /* literal */
@@ -291,7 +304,6 @@ PrimaryExpr: TOK_NAME "." TOK_NAME           { $$ = AST2(EXP_ATTRREF, $1, $3); }
                /* grouping */
            | TOK_NAME "(" ExprListOpt ")"    { $$ = AST2(EXP_FNCALL, $1, $3); }
                /* function call */
-
            ;
 
 ExprListOpt: /* empty */                     { $$ = AST0(EXP_LIST); }

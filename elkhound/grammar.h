@@ -218,10 +218,13 @@ public:	    // data
   // elements.  they are public to avoid syntactic (and possible runtime,
   // if repr. changes) overhead of access via member fn.  use 'append' to
   // add new elements.
-
-  // extras
+  
+  // disambiguation during tree-building
   Conditions conditions;       	// every condition must be satisfied for a rule to be used
   Actions actions;              // when used, a rule has these effects
+  AExprNode *treeCompare;       // (owner) tree comparison routine
+
+  // semantics and post-tree-build disambiguation
   LitCodeDict functions;        // semantic functions: name -> body
 
 public:	    // funcs
