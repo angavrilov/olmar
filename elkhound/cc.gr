@@ -181,8 +181,8 @@ nonterm[Expression*] PrimaryExpression {
   //   struct Foo myfoo;
   //   myfoo = (struct Foo) { 4, 5 };        <-- here
   // which would assign x=4 and y=5 in 'myfoo'
-  -> "(" t:TypeId ")" i:CompoundInitializer
-       [ return new E_structLit(t, i); ]
+  //-> "(" t:TypeId ")" i:CompoundInitializer
+  //     [ return new E_structLit(t, i); ]
 }
 
 nonterm[Expression*] Literal {
@@ -387,8 +387,8 @@ nonterm[Expression*] ConditionalExpression {
   // linux driver code has "expr ? : expr" ...
   // according to Marat, "e1 ? : e2" is the same as "e1 ? e1 : e2",
   // except that e1 is only evaluated once
-  -> cond:BinaryExpression "?" ":" el:AssignmentExpression 
-       [ return new E_gnuCond(cond, el); ]
+  //-> cond:BinaryExpression "?" ":" el:AssignmentExpression
+  //     [ return new E_gnuCond(cond, el); ]
 }
 
 // why is conditional not allowed on left side of = ?  can I confirm

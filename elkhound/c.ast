@@ -350,7 +350,7 @@ class Expression {
   -> E_floatLit(float f);
   -> E_stringLit(StringRef s);    // not quite right b/c can't handle embedded nuls
   -> E_charLit(char c);
-  -> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
+  //-> E_structLit(ASTTypeId stype, ASTList<Initializer> init);
 
   -> E_variable(StringRef name) {
        public Variable *var;      // (serf) binding introduction of this name
@@ -368,7 +368,7 @@ class Expression {
 
   -> E_cast(ASTTypeId ctype, Expression expr);
   -> E_cond(Expression cond, Expression th, Expression el);
-  -> E_gnuCond(Expression cond, Expression el);
+  //-> E_gnuCond(Expression cond, Expression el);
   -> E_comma(Expression e1, Expression e2);
   -> E_sizeofType(ASTTypeId atype) {
        public int size;     // size of the type

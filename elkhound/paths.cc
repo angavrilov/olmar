@@ -564,6 +564,7 @@ int countPaths(Env &env, Expression *ths)
         numPaths = mult(numPaths, thenPaths + elsePaths);
       }
     }
+    #if 0
     ASTNEXT(E_gnuCond, ths) {
       // degenerate form of E_cond
       numPaths = ths->cond->numPaths;
@@ -571,7 +572,8 @@ int countPaths(Env &env, Expression *ths)
         ths->recordSideEffect();
         numPaths = mult(numPaths, 1 + ths->el->numPaths);
       }
-    }
+    }    
+    #endif // 0
     ASTNEXT(E_comma, ths) {
       numPaths = ths->e1->numPaths;
       if (ths->e2->numPaths > 0) {
@@ -687,10 +689,12 @@ void printPath(int index, Expression const *ths)
         }
       }
     }
+    #if 0
     ASTNEXTC(E_gnuCond, ths) {
       // degenerate form of E_cond
       cout << "    gnuCond unhandled for now: " << (void*)ths << "\n";
-    }
+    }    
+    #endif // 0
     ASTNEXTC(E_comma, ths) {
       int modulus = ths->e1->numPaths1();
       printPath(index % modulus, ths->e1);

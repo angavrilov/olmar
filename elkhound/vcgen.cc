@@ -619,7 +619,7 @@ AbsValue *E_charLit::vcgen(AEnv &env, int path) const
   return env.grab(new AVint(c));
 }
 
-AbsValue *E_structLit::vcgen(AEnv &env, int path) const { return avTodo(); }
+//AbsValue *E_structLit::vcgen(AEnv &env, int path) const { return avTodo(); }
 
 AbsValue *E_variable::vcgen(AEnv &env, int path) const
 {
@@ -896,12 +896,14 @@ AbsValue *E_cond::vcgen(AEnv &env, int path) const
 }
 
 
+#if 0
 AbsValue *E_gnuCond::vcgen(AEnv &env, int path) const
 {
   // again on the assumption there are no side effects in the 'else' branch
   // TODO: make a deep-copier for astgen
   return avTodo();
-}
+}    
+#endif // 0
 
 
 AbsValue *E_comma::vcgen(AEnv &env, int path) const

@@ -901,12 +901,14 @@ Type const *E_charLit::itcheck(Env &env)
 }
 
 
+#if 0
 Type const *E_structLit::itcheck(Env &env)
 {
   // the initializer itself is ignored
   cout << "TODO: handle structure initializers\n";
   return stype->tcheck(env);
-}
+}    
+#endif // 0
 
 
 Type const *E_variable::itcheck(Env &env)
@@ -1102,6 +1104,7 @@ Type const *E_cond::itcheck(Env &env)
 }
 
 
+#if 0
 Type const *E_gnuCond::itcheck(Env &env)
 {
   Type const *c = cond->tcheck(env);
@@ -1111,7 +1114,8 @@ Type const *E_gnuCond::itcheck(Env &env)
   checkBoolean(env, e, el);
 
   return env.promoteTypes(BIN_PLUS, c, e);
-}
+}    
+#endif // 0
 
 
 Type const *E_comma::itcheck(Env &env)
@@ -1253,15 +1257,14 @@ int E_sizeofType::constEval(Env &env) const
 
 int E_floatLit::constEval(Env &env) const { return xnonconst(); }
 int E_stringLit::constEval(Env &env) const { return xnonconst(); }
-int E_structLit::constEval(Env &env) const { return xnonconst(); }
+//int E_structLit::constEval(Env &env) const { return xnonconst(); }
 int E_variable::constEval(Env &env) const { return xnonconst(); }
-//int E_arrayAcc::constEval(Env &env) const { return xnonconst(); }
 int E_funCall::constEval(Env &env) const { return xnonconst(); }
 int E_fieldAcc::constEval(Env &env) const { return xnonconst(); }
 int E_addrOf::constEval(Env &env) const { return xnonconst(); }
 int E_deref::constEval(Env &env) const { return xnonconst(); }
 int E_cond::constEval(Env &env) const { return xnonconst(); }
-int E_gnuCond::constEval(Env &env) const { return xnonconst(); }
+//int E_gnuCond::constEval(Env &env) const { return xnonconst(); }
 int E_comma::constEval(Env &env) const { return xnonconst(); }
 int E_assign::constEval(Env &env) const { return xnonconst(); }
 
@@ -1278,12 +1281,10 @@ string E_stringLit::toString() const
   { return stringc << quoted(s); }
 string E_charLit::toString() const
   { return stringc << "'" << c << "'"; }
-string E_structLit::toString() const
-  { return stringc << "(..some type..){ ... }"; }
+//string E_structLit::toString() const
+//  { return stringc << "(..some type..){ ... }"; }
 string E_variable::toString() const
   { return stringc << name; }
-//string E_arrayAcc::toString() const
-//  { return stringc << arr->toString() << "[" << index->toString() << "]"; }
 
 string E_funCall::toString() const
 {
@@ -1315,8 +1316,8 @@ string E_cast::toString() const
   { return stringc << "(..some type..)" << expr->toString(); }
 string E_cond::toString() const
   { return stringc << cond->toString() << "?" << th->toString() << ":" << el->toString(); }
-string E_gnuCond::toString() const
-  { return stringc << cond->toString() << "?:" << el->toString(); }
+//string E_gnuCond::toString() const
+//  { return stringc << cond->toString() << "?:" << el->toString(); }
 string E_comma::toString() const
   { return stringc << e1->toString() << ", " << e2->toString(); }
 string E_sizeofType::toString() const
@@ -1339,7 +1340,6 @@ string E_assign::toString() const
   E_floatLit
   E_stringLit
   E_charLit
-  E_structLit
   E_variable
   E_arrayAcc
   E_funCall
@@ -1350,7 +1350,6 @@ string E_assign::toString() const
   E_deref
   E_cast
   E_cond
-  E_gnuCond
   E_comma
   E_sizeofType
   E_assign

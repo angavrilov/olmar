@@ -51,7 +51,7 @@ int foo()
   a = z || x;         // short-circuit or
   
   c = x ? y : z;      // ?: with control flow
-  c = x ?: z;         // strange crap
+  //c = x ?: z;         // strange crap
   
   a = b;              // assignment
   x += y;             // accumulation assignment
