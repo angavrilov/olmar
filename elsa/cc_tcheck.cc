@@ -1518,6 +1518,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 // ------------------ IDeclarator ------------------
 // This function is called whenever a constructed type is passed to a
 // lower-down IDeclarator which *cannot* accept member function types.
+// (sm 7/10/03: I'm now not sure exactly what that means...)
 void possiblyConsumeFunctionType(Env &env, Declarator::Tcheck &dt)
 {
   if (dt.funcSyntax) {
@@ -1571,7 +1572,9 @@ bool almostEqualTypes(Type const *t1, Type const *t2)
 
 // check if multiple definitions of a global symbol are ok; also
 // updates some data structures so that future checks can be made
-static bool multipleDefinitionsOK(Env &env, Variable *prior, Declarator::Tcheck &dt_current) {
+static bool multipleDefinitionsOK(Env &env, Variable *prior, 
+                                  Declarator::Tcheck &dt_current) 
+{
   if (!env.lang.uninitializedGlobalDataIsCommon) {
     return false;
   }
@@ -1592,6 +1595,30 @@ static bool multipleDefinitionsOK(Env &env, Variable *prior, Declarator::Tcheck 
     }
   }
   return true;
+}
+
+
+// given a 'dt.type' that is a function type, and a 'dt.funcSyntax'
+// that's carrying information about the function declarator syntax,
+// and 'inClass' the class that the function will be considered a
+// member of, attach a 'this' parameter to the function type, and
+// close its parameter list
+void makeMemberFunctionType(Env &env, Declarator::Tcheck &dt,
+                            CompoundType *inClass, SourceLoc loc)
+{
+  // make the implicit 'this' parameter
+  xassert(dt.funcSyntax);
+  CVFlags thisCV = dt.funcSyntax->cv;
+  Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, thisCV, dt.funcSyntax);
+  Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_PARAMETER);
+
+  // add it to the function type
+  FunctionType *ft = dt.type->asFunctionType();
+  ft->addThisParam(thisVar);
+
+  // close it
+  dt.funcSyntax = NULL;
+  ft->doneParams();
 }
 
 
@@ -1811,15 +1838,13 @@ realStart:
       // yet whether it's supposed to be a static member or a
       // nonstatic member; this is determined by finding a function
       // whose signature (ignoring 'this' parameter, if any) matches
+      int howMany = prior->overload->set.count();
       prior = prior->overload->findByType(dtft, dt.funcSyntax->cv);
       if (!prior) {
         env.error(dt.type, stringc
           << "the name `" << *name << "' is overloaded, but the type `"
           << dt.type->toString() << "' doesn't match any of the "
-                  // dsw: this code is only called if prior is NULL,
-                  // so I don't know what you mean by dereferencing it
-//            << prior->overload->set.count()
-          << " declared overloaded instances");
+          << howMany << " declared overloaded instances");
         goto makeDummyVar;
       }
     }
@@ -1862,19 +1887,8 @@ realStart:
          prior->type->asFunctionTypeC()->isMember())) {
       TRACE("memberFunc", "member function: " << *name);
 
-      // make the implicit 'this' parameter
-      CompoundType *inClass = scope->curCompound;
-      xassert(dt.funcSyntax);
-      CVFlags thisCV = dt.funcSyntax->cv;
-      Type *thisType = env.tfac.makeTypeOf_this(loc, inClass, thisCV, dt.funcSyntax);
-      Variable *thisVar = env.makeVariable(loc, env.thisName, thisType, DF_PARAMETER);
-
-      // add it to the function type
-      FunctionType *ft = dt.type->asFunctionType();
-      ft->addThisParam(thisVar);
-      
-      // close it
-      ft->doneParams();
+      // add the implicit 'this' parameter
+      makeMemberFunctionType(env, dt, scope->curCompound, loc);
     }
     else {
       TRACE("memberFunc", "non-member function: " << *name);
@@ -2459,10 +2473,6 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
 {
   env.setLoc(loc);                   
   
-  // TODO: this is probably wrong; how do I represent pointers to
-  // member functions whose implicit 'this' is a reference to const?
-  possiblyConsumeFunctionType(env, dt);
-
   // typecheck the nested name
   nestedName->tcheck(env);
 
@@ -2473,6 +2483,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
   recover:
     // keep going, as error recovery, pretending this level
     // of the declarator wasn't present
+    possiblyConsumeFunctionType(env, dt);
     base->tcheck(env, dt);
     return;
   }
@@ -2491,13 +2502,16 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt)
     goto recover;
   }
 
-  else {
-    // build the ptr-to-member type constructor
-    dt.type = env.tfac.syntaxPointerToMemberType(loc, ct, cv, dt.type, this);
-
-    // annotation
-    this->type = dt.type;
+  if (dt.type->isFunctionType()) {
+    // add the 'this' parameter to the function type
+    makeMemberFunctionType(env, dt, ct, loc);
   }
+
+  // build the ptr-to-member type constructor
+  dt.type = env.tfac.syntaxPointerToMemberType(loc, ct, cv, dt.type, this);
+
+  // annotation
+  this->type = dt.type;
 
   // turn off CTX_GROUPING
   dt.clearInGrouping();
