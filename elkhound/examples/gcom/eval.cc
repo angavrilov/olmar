@@ -161,7 +161,7 @@ bool G_seq::eval(Env &env)
   // The usual semantics for guarded commands say that if both guards
   // are true, then we can execute either one.  Here, I'm going to
   // always execute the *first* one with an enabled guard; that
-  // behavior is allowed, but not required.  I leave it as an exersize
+  // behavior is allowed, but not required.  I leave it as an exercise
   // to modify this code so that the executions it models will cover a
   // larger fraction of the state space reachable under the
   // traditional semantics.
