@@ -700,7 +700,7 @@ void S_switch::itcheck(Env &env)
 
 
 void tcheckLoop(Env &env, Statement *loop, Expression *cond,
-                     Statement *body)
+                Statement *body)
 {
   // existing 'break's must be postponed
   env.pushBreaks();
@@ -718,8 +718,9 @@ void tcheckLoop(Env &env, Statement *loop, Expression *cond,
   // any previous 'break's will resolve to whatever comes next
   env.popBreaks();
 
-  // I want the loop's 'next' to point to what comes after; right
-  // now it points at the body, and this will change it
+  // I want the loop's 'next' to point to what comes after; right now
+  // it points at the body (if anywhere; see S_for), and this will
+  // change it
   env.addPendingNext(loop /*source*/);
 }
 
@@ -733,12 +734,47 @@ void S_doWhile::itcheck(Env &env)
   tcheckLoop(env, this, cond, body);
 }
 
+// override the *outer* tcheck for S_for so we can handle 'init'
+// correctly; it's easiest to understand how this works by looking at
+// Statement::tcheck simultaneously and comparing the sequence of
+// actions
+void S_for::tcheck(Env &env)
+{
+  env.pushLocation(&loc);
+
+  // go immediately into 'init' so any pending 'next' pointers
+  // point directly at the initializer; effectively, this makes the
+  // system behave as if 'init' appeared syntactically just before
+  // the "for" loop
+  init->tcheck(env);
+
+  // the pending 'next' from the 'init' should point at me,
+  // as a non-continue edge
+  env.resolveNexts(this /*target*/, false /*continue*/);
+
+  // don't bother adding my 'next'; tcheckLoop will handle this,
+  // and its action would just override anything I did here
+
+  // check 'after'; it has no effect on CFG because it's an expression
+  after->tcheck(env);
+
+  // do the things that loops do
+  tcheckLoop(env, this, cond, body);
+
+  env.popLocation();
+}
+
+
 void S_for::itcheck(Env &env)
 {
+  xfailure("should not be called");
+
+  #if 0    // old; wrong because CFG edge for init is wrong
   init->tcheck(env);
   after->tcheck(env);
 
   tcheckLoop(env, this, cond, body);
+  #endif // 0
 }
 
 
@@ -909,6 +945,19 @@ string Statement::successorsToString() const
   return sb;
 }
 
+
+string Statement::kindLocString() const
+{
+  return stringc << kindName() << "@"
+                 << loc.line << ":" << loc.col;
+}
+
+
+string nextPtrString(NextPtr np)
+{
+  return stringc << nextPtrStmt(np)->kindLocString()
+                 << (nextPtrContinue(np)? "(c)" : "");
+}
 
 
 // ------------------ Expression::tcheck --------------------

@@ -87,6 +87,7 @@ void findPathRoots(SObjList<Statement> &list, Statement const *stmt)
       findPathRoots(list, d->body);
     }
     ASTNEXTC(S_for, f) {
+      findPathRoots(list, f->init);
       findPathRoots(list, f->body);
     }
     ASTNEXTC(S_invariant, i) {

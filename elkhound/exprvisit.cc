@@ -13,53 +13,53 @@ void walkExpression(ExpressionVisitor &vis, Expression const *root)
   ASTSWITCHC(Expression, root) {
     ASTCASEC(E_funCall, e)
       walkExpression(vis, e->func);
-      FOREACH_ASTLIST(Expression, args, iter) {
+      FOREACH_ASTLIST(Expression, e->args, iter) {
         walkExpression(vis, iter.data());
       }
 
     ASTNEXTC(E_fieldAcc, e)
-      walkExpression(e->obj);
+      walkExpression(vis, e->obj);
 
     ASTNEXTC(E_sizeof, e)     
       // this is potentially bad since, e.g. if I'm searching for
       // modifications to variables, it doesn't hurt inside sizeof..
       // need walk cancellation semantics, but whatever
-      walkExpression(e->expr);
+      walkExpression(vis, e->expr);
 
     ASTNEXTC(E_unary, e)
-      walkExpression(e->expr);
+      walkExpression(vis, e->expr);
 
     ASTNEXTC(E_effect, e)     
-      walkExpression(e->expr);
+      walkExpression(vis, e->expr);
 
     ASTNEXTC(E_binary, e)
-      walkExpression(e->e1);
-      walkExpression(e->e2);
+      walkExpression(vis, e->e1);
+      walkExpression(vis, e->e2);
 
     ASTNEXTC(E_addrOf, e)
-      walkExpression(e->expr);
+      walkExpression(vis, e->expr);
 
     ASTNEXTC(E_deref, e)
-      walkExpression(e->ptr);
+      walkExpression(vis, e->ptr);
 
     ASTNEXTC(E_cast, e)
-      walkExpression(e->expr);
+      walkExpression(vis, e->expr);
 
     ASTNEXTC(E_cond, e)
-      walkExpression(e->cond);
-      walkExpression(e->th);
-      walkExpression(e->el);
+      walkExpression(vis, e->cond);
+      walkExpression(vis, e->th);
+      walkExpression(vis, e->el);
 
     ASTNEXTC(E_comma, e)
-      walkExpression(e->e1);
-      walkExpression(e->e2);
+      walkExpression(vis, e->e1);
+      walkExpression(vis, e->e2);
 
     ASTNEXTC(E_assign, e)
-      walkExpression(e->target);
-      walkExpression(e->src);
+      walkExpression(vis, e->target);
+      walkExpression(vis, e->src);
 
     ASTNEXTC(E_forall, e)
-      walkExpression(e->pred);
+      walkExpression(vis, e->pred);
 
     ASTENDCASECD
   }

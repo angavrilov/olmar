@@ -1,16 +1,20 @@
 // exprequal.cc
 // compare expressions for structural equality
 
+#include "exprequal.h"         // this module
 
+#include "c.ast.gen.h"         // C AST stuff
+#include "ohashtbl.h"          // OwnerHashTable
+#include "cc_type.h"           // Type::equals
 
 // ------------------- VariablePair ---------------
 struct VariablePair {
 public:    // data
-  Variable *varL;      // hash key
-  Variable *varR;      // variable equivalent to varL
-  
+  Variable const *varL;      // hash key
+  Variable const *varR;      // variable equivalent to varL
+
 public:
-  VariablePair(Variable *vL, Variable *vR)
+  VariablePair(Variable const *vL, Variable const *vR)
     : varL(vL), varR(vR) {}
 };
 
@@ -21,18 +25,22 @@ void const *variablePairKey(VariablePair *vp)
 
 
 // ---------------- expression comparison --------------
+bool equalExpr(OwnerHashTable<VariablePair> &equiv,
+               Expression const *left, Expression const *right);
+
 bool equalExpressions(Expression const *left, Expression const *right)
 {
   // map of variable equivalences, for determining equality of expressions
   // that locally declare variables (forall); initially empty
-  OwnerHashTable<VariablePair> equiv;
+  OwnerHashTable<VariablePair> equiv(variablePairKey,
+    HashTable::lcprngHashFn, HashTable::pointerEqualKeyFn);
 
   return equalExpr(equiv, left, right);
 }
 
 
 // simultaneous deconstruction..
-bool equalExpr(OwnerHashTable<Variable> &equiv,
+bool equalExpr(OwnerHashTable<VariablePair> &equiv,
                Expression const *left, Expression const *right)
 {
   // unlike in ML, I can do toplevel tag comparisons easily here
@@ -154,12 +162,12 @@ bool equalExpr(OwnerHashTable<Variable> &equiv,
       // (i.e. "int x,y;" != "int x; int y;") and all declared
       // variables have the same type
       bool ret;
-      SObjList<Variable> addedEquiv;
-      ASTListIter<Declaration> outerL(L.args);
-      ASTListIter<Declaration> outerR(R.args);
+      SObjList<Variable /*const*/> addedEquiv;
+      ASTListIter<Declaration> outerL(L.decls);
+      ASTListIter<Declaration> outerR(R.decls);
       for (; !outerL.isDone(); outerL.adv(), outerR.adv()) {
-        if (outerL.data()->decllist->count() !=
-            outerR.data()->decllist->count()) {
+        if (outerL.data()->decllist.count() !=
+            outerR.data()->decllist.count()) {
           ret = false;
           goto cleanup;
         }
@@ -170,15 +178,17 @@ bool equalExpr(OwnerHashTable<Variable> &equiv,
           Variable const *varL = innerL.data()->var;
           Variable const *varR = innerR.data()->var;
 
-          if (!varL->type->equal(varR->type)) {
+          if (!varL->type->equals(varR->type)) {
             ret = false;     // different types
             goto cleanup;
           }
 
           // in expectation of all variables being of same type,
           // add these variables to the equivalence map
-          equiv.add(varL, new VariablePair(varL, varR));
-          addedEquiv.prepend(varL);     // keep track of what gets added
+          equiv.add(varL, new VariablePair(varL, varR));       
+          
+          // keep track of what gets added
+          addedEquiv.prepend(const_cast<Variable*>(varL));
         }
       }
 
@@ -199,7 +209,7 @@ bool equalExpr(OwnerHashTable<Variable> &equiv,
       xfailure("bad expr tag");
       return false;   // silence warning
 
-    ENDCASEC
+    ASTENDCASEC
   }
   
   #undef DOUBLECASEC

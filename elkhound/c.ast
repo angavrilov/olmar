@@ -212,9 +212,12 @@ class PtrOperator (CVFlags cv);
 
 // ------------------- statements -----------------
 verbatim {
-  // arguably premature optimization, I encode 'next' pointers as
-  // the pointer itself, bitwise OR'd with 1 if it's a "continue"
-  // edge, and use void* as the abstract type
+  // arguably premature optimization, I encode 'next' pointers as the
+  // pointer itself, bitwise OR'd with 1 if it's a "continue" edge,
+  // and use void* as the abstract type; essentially, every Statement
+  // is regarded as actually being two distinct CFG nodes, one reached
+  // with continue==false and the other with continue==true (except
+  // that some nodes don't have a continue==true half)
   typedef void *NextPtr;
 
   inline NextPtr makeNextPtr(Statement const *next, bool isContinue)
@@ -227,6 +230,13 @@ verbatim {
     return (Statement const*)((long)np & ~1L);
   }
 
+  // unfortunately I don't have a good way to enforce the flow
+  // of constness.. so whatever ("NC" == "non-const")
+  inline Statement *nextPtrStmtNC(NextPtr np)
+  {
+    return (Statement*)nextPtrStmt(np);
+  }
+
   // this is true when the 'next' edge points at a looping construct,
   // but the flow is interpreted as a 'continue', rather than starting
   // the loop from scratch
@@ -234,6 +244,21 @@ verbatim {
   {
     return (bool)((int)np & 1);
   }
+
+  // prints like Statement::kindLocString, with a "(c)" appended
+  // if it's the continue==true half
+  string nextPtrString(NextPtr np);
+
+  // after working with this system a while, I think it's good, so I
+  // want more support for manipulating lists of NextPtrs
+  typedef VoidList NextPtrList;
+  #define FOREACH_NEXTPTR(list, itervar) \
+    for (VoidListIter itervar(list); !itervar.isDone(); itervar.adv())
+
+  // given a function node, return a list of all the CFG nodes,
+  // in reverse postorder w.r.t. some spanning tree
+  // (implemented in postorder.cc)
+  void reversePostorder(NextPtrList &order, TF_func const &func);
 }
 
 
@@ -247,12 +272,18 @@ verbatim {
   #define STMT_VCGEN_PARAMS AEnv &env, bool isContinue, int path, Statement const *next
 }
 class Statement (SourceLocation loc) {
-  public void tcheck(Env &env);
+  public virtual void tcheck(Env &env);
   pure_virtual void itcheck(Env &env);
 
   pure_virtual void vcgen(STMT_VCGEN_PARAMS) const;
   public void vcgenPath(AEnv &env, SObjList<Statement /*const*/> &path,
                         int index, bool isContinue) const;
+
+  // given 'facts' known at the start of this node (reached via
+  // 'isContinue'), update 'facts' to reflect the obvious facts after
+  // execution flows through this node and down the 'succPtr' edge
+  pure_virtual void factFlow(SObjList<Expression> &facts, bool isContinue,
+                             NextPtr succPtr) const;
 
   // embedded control flow successor edge (for some constructs, like
   // 'if', some/all of the successors are already explicit)
@@ -261,8 +292,11 @@ class Statement (SourceLocation loc) {
 
   // retrieve list of all successors of this node, given how we
   // got to this node ('isContinue'); 'dest' should be empty beforehand
-  public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
+  public virtual void getSuccessors(NextPtrList &dest, bool isContinue) const;
   public string successorsToString() const;
+
+  // e.g. "S_if@4:5" -- kind, line, col
+  public string kindLocString() const;
 
   // number of paths from this statement; counts all the various
   // paths through expressions, *including* expressions within
@@ -299,6 +333,7 @@ class Statement (SourceLocation loc) {
      }
   -> S_for(Statement init, Expression cond,
            Expression after, Statement body) {
+       public virtual void tcheck(Env &env);      // special handling of 'init'
        public virtual void getSuccessors(VoidList &dest, bool isContinue) const;
      }
   -> S_break();
@@ -310,7 +345,11 @@ class Statement (SourceLocation loc) {
   // theorem prover extensions
   -> S_assert(Expression expr);
   -> S_assume(Expression expr);
-  -> S_invariant(Expression expr);
+  -> S_invariant(Expression expr) {           
+       // this is the set of facts inferred automatically for this
+       // invariant point; it's a set of serf pointers into the AST
+       public SObjList<Expression> inferFacts;
+     }
   -> S_thmprv(Statement s);
 }
 

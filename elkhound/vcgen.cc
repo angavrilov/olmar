@@ -336,7 +336,10 @@ void S_for::vcgen(STMT_VCGEN_PARAMS) const
 
   if (!isContinue) {
     // init
-    init->vcgen(env, false, path / modulus, NULL);
+    // UPDATE: don't do this, because it should get done when 'init'
+    // is encountered in the CFG directly
+    //init->vcgen(env, false, path / modulus, NULL);
+    xassert(path < modulus);
   }
   else {
     // inc

@@ -1,5 +1,13 @@
 // factflow.cc
-// dataflow for facts
+// dataflow for facts: infer what is obvious
+
+#include "factflow.h"        // this module
+
+#include "c.ast.gen.h"       // C AST stuff
+#include "ohashtbl.h"        // OwnerHashTable
+#include "trace.h"           // trace
+#include "exprvisit.h"       // ExpressionVisitor
+#include "exprequal.h"       // equalExpressions
 
 
 // -------------------- NodeFacts ------------------
@@ -8,15 +16,14 @@ struct NodeFacts {
 public:    // data
   // the node this refers to; needed because the hashtable interface
   // needs to be able to compute the key from the data
-  Statement *stmt;
-  bool cont;
+  NextPtr stmtPtr;
 
   // set of facts; these are pointers to the AST nodes of the
   // expressions from which the facts arise
   SObjList<Expression> facts;
 
 public:    // funcs
-  NodeFacts(Statement *s, bool c) : stmt(s), cont(c) {}
+  NodeFacts(NextPtr s) : stmtPtr(s) {}
   ~NodeFacts();
 };
 
@@ -25,248 +32,89 @@ NodeFacts::~NodeFacts()
 
 void const *nodeFactsKey(NodeFacts *nf)
 {
-  return makeNextPtr(nf->stmt, nf->cont);
-}
-
-
-// ------------------- VariablePair ---------------
-struct VariablePair {
-public:    // data
-  Variable *varL;      // hash key
-  Variable *varR;      // variable equivalent to varL
-  
-public:
-  VariablePair(Variable *vL, Variable *vR)
-    : varL(vL), varR(vR) {}
-};
-
-void const *variablePairKey(VariablePair *vp)
-{
-  return vp->varL;
-}
-
-
-// ---------------- expression comparison --------------
-bool equalExpressions(Expression const *left, Expression const *right)
-{
-  // map of variable equivalences, for determining equality of expressions
-  // that locally declare variables (forall); initially empty
-  OwnerHashTable<VariablePair> equiv;
-
-  return equalExpr(equiv, left, right);
-}
-
-
-// simultaneous deconstruction..
-bool equalExpr(OwnerHashTable<Variable> &equiv,
-               Expression const *left, Expression const *right)
-{
-  // unlike in ML, I can do toplevel tag comparisons easily here
-  if (left->kind() != right->kind()) {
-    return false;
-  }
-
-  // another convenience in C: macros!
-  #define DOUBLECASEC(type)                       \
-    ASTNEXTC(type, _L)                            \
-    type const &L = *_L;                          \
-    type const &R = *(right->as##type##C());
-
-  // performance note: in general, I try to discover that the nodes are
-  // not equal by examining data within the nodes, and only when that
-  // data matches do I invoke the recursive call to equalExpr
-
-  // since the tags are equal, a switch on the left's type also
-  // analyzes right's type
-  ASTSWITCHC(Expression, left) {
-    ASTCASEC(E_intLit, _L)      // note this expands to an "{" among other things
-      E_intLit const &L = *_L;
-      E_intLit const &R = *(right->asE_intLitC());
-      return L.i == R.i;
-
-    DOUBLECASEC(E_floatLit)       return L.f == R.f;
-    DOUBLECASEC(E_stringLit)      return L.s == R.s;
-    DOUBLECASEC(E_charLit)        return L.c == R.c;
-
-    DOUBLECASEC(E_variable)
-      if (L.var == R.var) {
-        return true;
-      }
-
-      // check the equivalence map
-      VariablePair *vp = equiv.get(L.var);
-      if (vp && vp->varR == R.var) {
-        // this is the equivalent variable in the right expression,
-        // so we say these variable references *are* equal
-        return true;
-      }
-      else {
-        // either L.var has no equivalence mapping, or else it does
-        // but it's not equivalent to R.var
-        return false;
-      }
-
-    DOUBLECASEC(E_funCall)
-      if (L.args.count() != R.args.count() ||
-          !equalExpr(equiv, L.func, R.func)) {
-        return false;
-      }
-      ASTListIter<Expression> iterL(L.args);
-      ASTListIter<Expression> iterR(R.args);
-      for (; !iterL.isDone(); iterL.adv(), iterR.adv()) {
-        if (!equalExpr(equiv, iterL.data(), iterR.data())) {
-          return false;
-        }
-      }
-      return true;
-
-    DOUBLECASEC(E_fieldAcc)
-      return L.fieldName == R.fieldName &&
-             equalExpr(equiv, L.obj, R.obj);
-
-    DOUBLECASEC(E_sizeof)
-      return L.size == R.size;
-
-    DOUBLECASEC(E_unary)
-      return L.op == R.op &&
-             equalExpr(equiv, L.expr, R.expr);
-
-    DOUBLECASEC(E_effect)
-      return L.op == R.op &&
-             equalExpr(equiv, L.expr, R.expr);
-
-    DOUBLECASEC(E_binary)
-      // for now I don't consider associativity and commutativity;
-      // I'll rethink this if I encounter code where it's helpful
-      return L.op == R.op &&
-             equalExpr(equiv, L.e1, R.e1) &&
-             equalExpr(equiv, L.e2, R.e2);
-
-    DOUBLECASEC(E_addrOf)
-      return equalExpr(equiv, L.expr, R.expr);
-
-    DOUBLECASEC(E_deref)
-      return equalExpr(equiv, L.ptr, R.ptr);
-
-    DOUBLECASEC(E_cast)
-      return L.type->equals(R.type) &&
-             equalExpr(equiv, L.expr, R.expr);
-
-    DOUBLECASEC(E_cond)
-      return equalExpr(equiv, L.cond, R.cond) &&
-             equalExpr(equiv, L.th, R.th) &&
-             equalExpr(equiv, L.el, R.el);
-
-    DOUBLECASEC(E_comma)
-      // I don't expect comma exprs in among those I'm comparing, but
-      // may as well do the full comparison..
-      return equalExpr(equiv, L.e1, R.e1) &&
-             equalExpr(equiv, L.e2, R.e2);
-
-    DOUBLECASEC(E_sizeofType)
-      return L.size == R.size;
-
-    DOUBLECASEC(E_assign)
-      return L.op == R.op &&
-             equalExpr(equiv, L.target, R.target) &&
-             equalExpr(equiv, L.src, R.src);
-
-    DOUBLECASEC(E_forall)
-      if (L.decls.count() != R.decls.count()) {
-        return false;
-      }
-
-      // verify the declarations are structurally identical
-      // (i.e. "int x,y;" != "int x; int y;") and all declared
-      // variables have the same type
-      bool ret;
-      SObjList<Variable> addedEquiv;
-      ASTListIter<Declaration> outerL(L.args);
-      ASTListIter<Declaration> outerR(R.args);
-      for (; !outerL.isDone(); outerL.adv(), outerR.adv()) {
-        if (outerL.data()->decllist->count() !=
-            outerR.data()->decllist->count()) {
-          ret = false;
-          goto cleanup;
-        }
-
-        ASTListIter<Declarator> innerL(outerL.data()->decllist);
-        ASTListIter<Declarator> innerR(outerR.data()->decllist);
-        for (; !innerL.isDone(); innerL.adv(), innerR.adv()) {
-          Variable const *varL = innerL.data()->var;
-          Variable const *varR = innerR.data()->var;
-
-          if (!varL->type->equal(varR->type)) {
-            ret = false;     // different types
-            goto cleanup;
-          }
-
-          // in expectation of all variables being of same type,
-          // add these variables to the equivalence map
-          equiv.add(varL, new VariablePair(varL, varR));
-          addedEquiv.prepend(varL);     // keep track of what gets added
-        }
-      }
-
-      // when we get here, we know all the variables have the
-      // same types, and the equiv map has been extended with the
-      // equivalent pairs; so check equality of the bodies
-      ret = equalExpr(equiv, L.pred, R.pred);
-
-    cleanup:
-      // remove the equivalences we added
-      while (addedEquiv.isNotEmpty()) {
-        delete equiv.remove(addedEquiv.removeFirst());
-      }
-
-      return ret;
-             
-    ASTDEFAULTC
-      xfailure("bad expr tag");
-      return false;   // silence warning
-
-    ENDCASEC
-  }
-  
-  #undef DOUBLECASEC
+  return nf->stmtPtr;
 }
 
 
 // ----------------- dataflow value manipulation ---------------
-// 'src' is an expression naming some facts that we will add to 'dest',
-// but we need to break 'src' down into a set of conjoined facts, and
-// we want to avoid adding the same fact twice
-void addFacts(SObjList<Expression> &dest, Expression const *src)
+// return true if 'src' (or anything equalExpressions to it) is
+// in 'dest'
+bool hasFact(SObjList<Expression /*const*/> const &dest, Expression const *src)
+{
+  SFOREACH_OBJLIST(Expression, dest, iter) {
+    if (equalExpressions(iter.data(), src)) {
+      return true;
+    }
+  }              
+  return false;
+}
+
+
+// 'src' is an expression naming some facts that we will add to
+// 'dest', but we need to break 'src' down into a set of conjoined
+// facts, and we want to avoid adding the same fact twice; return true
+// if 'dest' changes
+// (I think the return value isn't used by anything..)
+bool addFacts(SObjList<Expression /*const*/> &dest, Expression const *src)
 {
   // break down src conjunctions
   if (src->isE_binary() &&
       src->asE_binaryC()->op == BIN_AND) {
     E_binary const *bin = src->asE_binaryC();
-    addFacts(dest, bin->e1);
-    addFacts(dest, bin->e2);
-    return;
+    bool ret = addFacts(dest, bin->e1);
+    ret = addFacts(dest, bin->e2) || ret;
+    return ret;
   }
 
   // is 'src' already somewhere in 'dest'?
-  SFOREACH_OBJLIST(Expression, dest, iter) {
-    if (equalExpressions(iter.data(), src)) {
-      // it's in there; bail
-      return;
+  if (!hasFact(dest, src)) {
+    // it's not already in, so add it
+    dest.append(const_cast<Expression*>(src));
+    return true;
+  }
+  else {
+    return false;   // no changes
+  }
+}
+
+
+// lhs = lhs intersect rhs; return true if lhs changes;
+// current implementation is O(n^2)
+bool intersectFacts(SObjList<Expression /*const*/> &lhs,
+                    SObjList<Expression /*const*/> const &rhs)
+{
+  bool ret = false;
+
+  // for each thing in 'lhs'
+  SObjListMutator<Expression /*const*/> mut(lhs);
+  while (!mut.isDone()) {
+    // if it does not appear in 'rhs' somewhere
+    if (!hasFact(rhs, mut.data())) {
+      // remove it from 'lhs'
+      mut.remove();     // also advances 'mut'
+      ret = true;       // something changed
+    }
+    else {
+      mut.adv();
     }
   }
 
-  // it's not already in, so add it
-  dest.append(src);
+  return ret;
 }
 
 
 // ---------------- dataflow algorithm driver ---------------
 // annotate all invariants with facts flowed from above
-void factflow(TF_func &func)
+void factFlow(TF_func &func)
 {
   // initialize the worklist with a reverse postorder enumeration
   NextPtrList worklist;
   reversePostorder(worklist, func);
+
+  // grab a copy of this list now, because it will be useful for
+  // walking through all nodes later on
+  NextPtrList allNodes;
+  allNodes = worklist;
 
   // associate with each <stmt,cont> node a set of facts known
   // to be true at the start of that node; initially all mappings
@@ -276,15 +124,356 @@ void factflow(TF_func &func)
     HashTable::lcprngHashFn, HashTable::pointerEqualKeyFn);
 
   // initialize the start node with the function precondition
-  NodeFacts *startFacts = new NodeFacts(func.body, false /*isContinue*/);
-  addFacts(startFacts->facts, func.ftype()->precondition->expr);
+  {
+    NextPtr startPtr = makeNextPtr(func.body, false /*isContinue*/);
+    NodeFacts *startFacts = new NodeFacts(startPtr);
+    addFacts(startFacts->facts, func.ftype()->precondition->expr);
+    factMap.add(startPtr, startFacts);
+  }
 
   while (worklist.isNotEmpty()) {
     // extract next element from worklist
-    Statement const *stmt = nextPtrStmt(worklist.first());
-    bool stmtCont = nextPtrContinue(worklist.first());
-    worklist.removeFirst();
+    NextPtr stmtPtr = worklist.removeFirst();
+    Statement const *stmt = nextPtrStmt(stmtPtr);
+    bool stmtCont = nextPtrContinue(stmtPtr);
 
-    
+    trace("factflow") << "working on " << nextPtrString(stmtPtr) << endl;
+
+    // retrieve associated dataflow info
+    NodeFacts *nodeFacts = factMap.get(stmtPtr);
+
+    // reverse postorder should guarantee that no node gets visited
+    // before at least one of its predecessors is visited, which will
+    // create a NodeFacts if necessary
+    xassert(nodeFacts);
+
+    // consider each successor
+    NextPtrList successors;
+    stmt->getSuccessors(successors, stmtCont);
+    FOREACH_NEXTPTR(successors, iter) {
+      NextPtr succPtr = iter.data();
+
+      // compute Out(n) U { edge-predicate }:
+      //   - remove any facts jeopardized by state changes in stmt
+      //   - add facts asserted, assumed, or invariant'd in stmt
+      //   - add facts implied by the path used to exit the stmt
+      SObjList<Expression /*const*/> afterFacts;
+      afterFacts = nodeFacts->facts;                   // copy the list contents
+      stmt->factFlow(afterFacts, stmtCont, succPtr);   // TODO
+
+      // is anything known about this successor?
+      bool changed = false;
+      NodeFacts *succFacts = factMap.get(succPtr);
+      if (!succFacts) {
+        // no: create something to hold knowledge about it
+        succFacts = new NodeFacts(succPtr);
+        succFacts->facts = afterFacts;
+        changed = true;
+
+        // the successor node has changed, but since it's the first
+        // time anybody's seen it, it's already on the worklist somewhere
+        xassert(worklist.contains(succPtr));
+      }
+      else {
+        // yes: intersect my afterFacts with the node's existing facts
+        if (intersectFacts(succFacts->facts, afterFacts)) {
+          // the intersection operation changed this node, so add it
+          // to the worklist if it's not already there
+          worklist.appendUnique(succPtr);
+          changed = true;
+
+          trace("factflow") << "reintroduced " << nextPtrString(succPtr)
+                            << " to worklist" << endl;
+        }
+      }
+    }
+  }
+
+  // at this point the information associated with nodes has settled into
+  // a fixpoint, and therefore we have accurate information about which
+  // facts are obviously true where; for all invariant points, we now push
+  // this information into the invariant nodes
+  FOREACH_NEXTPTR(allNodes, iter) {
+    Statement *stmt = nextPtrStmtNC(iter.data());
+
+    if (stmt->isS_invariant()) {
+      NodeFacts *nf = factMap.get(iter.data());
+      xassert(nf);
+      S_invariant *inv = stmt->asS_invariant();
+
+      inv->inferFacts = nf->facts;    // copy facts
+
+      if (tracingSys("factflow")) {
+        cout << "added to " << stmt->kindLocString() << ":" << endl;
+        SFOREACH_OBJLIST(Expression, nf->facts, fact) {
+          cout << "  " << fact.data()->toString() << endl;
+        }
+      }
+    }
+  }
+
+  // through the magic of destructors, the factMap (and all the
+  // NodeFacts) and the allNodes list will all be deallocated
+}
 
 
+// ------------- per-statement flow propagation ------------
+void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr);
+void invalidateLvalue(SObjList<Expression /*const*/> &facts, Expression const *lval);
+void invalidateVar(SObjList<Expression /*const*/> &facts, Variable const *var);
+void invalidateInit(SObjList<Expression /*const*/> &facts, Initializer const *init);
+
+
+void S_skip::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+void S_label::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+void S_case::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+void S_caseRange::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+void S_default::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+
+void S_expr::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  invalidate(facts, expr);
+}
+
+void S_compound::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+
+// I should change my facts to be two lists, one of positive facts and
+// another of negative facts; for now I hack around this by synthesizing
+// "not" nodes which will then be leaked
+Expression *HACK_not(Expression *expr)
+{
+  return new E_unary(UNY_NOT, expr);
+}
+  
+// add either the positive or negative form of 'expr', depending
+// on 'positive'
+void addFactsBool(SObjList<Expression /*const*/> &facts, Expression *expr, bool positive)
+{
+  if (positive) {
+    addFacts(facts, expr);
+  }
+  else {
+    addFacts(facts, HACK_not(expr));
+  }
+}
+
+
+void S_if::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  invalidate(facts, cond);
+  addFactsBool(facts, cond, nextPtrStmt(succPtr) == thenBranch);
+}
+
+void S_switch::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  invalidate(facts, expr);
+  // TODO: learn something from which edge is followed
+}
+
+void S_while::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  invalidate(facts, cond);
+  addFactsBool(facts, cond, nextPtrStmt(succPtr) == body);
+}
+
+void S_doWhile::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  if (!isContinue) {
+    // flows directly into body, nothing is changed
+  }
+  else {
+    // flows into test, then possibly back into the body
+    invalidate(facts, cond);
+    addFactsBool(facts, cond, nextPtrStmt(succPtr) == body);
+  }
+}
+
+void S_for::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  if (isContinue) {
+    // after, cond, optional body
+    invalidate(facts, after);
+  }
+  else {
+    // cond, optional body (init was already handled via CFG edge)
+  }
+  invalidate(facts, cond);
+  addFactsBool(facts, cond, nextPtrStmt(succPtr) == body);
+}
+
+void S_break::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+void S_continue::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+
+void S_return::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  // probably irrelevant since an invariant can't follow a return..
+  // maybe sometime I'll be suggesting ways to strengthen
+  // postconditions?
+  invalidate(facts, expr);
+}
+
+void S_goto::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+  {}
+
+void S_decl::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  FOREACH_ASTLIST(Declarator, decl->decllist, dcltr) {
+    Declarator const *d = dcltr.data();
+
+    if (d->init) {
+      invalidateInit(facts, d->init);
+    }
+  }
+}
+
+void S_assert::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  addFacts(facts, expr);
+}
+
+void S_assume::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  addFacts(facts, expr);
+}
+
+void S_invariant::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  addFacts(facts, expr);
+}
+
+void S_thmprv::factFlow(SObjList<Expression /*const*/> &facts, bool isContinue, NextPtr succPtr) const
+{
+  // what does this do?  I've forgotten already..
+}
+
+
+// ------------------ expression invalidation -----------------
+// remove from any 'facts' that refer to things modified by
+// any of the visited expressions
+class InvalidateVisitor : public ExpressionVisitor {
+public:
+  SObjList<Expression /*const*/> &facts;
+
+public:
+  InvalidateVisitor(SObjList<Expression /*const*/> &f) : facts(f) {}
+  virtual void visitExpr(Expression const *expr);
+};
+
+void InvalidateVisitor::visitExpr(Expression const *expr)
+{
+  ASTSWITCHC(Expression, expr) {
+    ASTCASEC(E_funCall, e)
+      // very crude: forget everything
+      facts.removeAll();
+      PRETEND_USED(e);
+
+    ASTNEXTC(E_effect, e)
+      invalidateLvalue(facts, e->expr);
+
+    ASTNEXTC(E_assign, e)
+      invalidateLvalue(facts, e->target);
+
+    ASTENDCASECD
+  }
+}
+
+// any fact in 'facts', which contains any variable modified by 'expr',
+// must be removed from 'facts'
+void invalidate(SObjList<Expression /*const*/> &facts, Expression const *expr)
+{
+  InvalidateVisitor vis(facts);
+  walkExpression(vis, expr);
+}
+
+// given that 'lval' is modified, decide which 'facts' to remove
+void invalidateLvalue(SObjList<Expression /*const*/> &facts, Expression const *lval)
+{
+  ASTSWITCHC(Expression, lval) {
+    ASTCASEC(E_variable, v)
+      if (v->var->hasAddrTaken()) {
+        invalidateVar(facts, NULL /*mem*/);
+      }
+      else {
+        invalidateVar(facts, v->var);
+      }
+
+    ASTNEXTC(E_deref, d)
+      invalidateVar(facts, NULL /*mem*/);
+      PRETEND_USED(d);
+
+    ASTDEFAULTC
+      // any other kind: crudely forget
+      facts.removeAll();
+
+    ASTENDCASEC
+  }
+}
+
+
+// set 'found' to true if any visited expressions refer to 'var'
+class VariableSearcher : public ExpressionVisitor {
+public:
+  Variable const *var;
+  bool found;
+
+public:
+  VariableSearcher(Variable const *v)
+    : var(v), found(false) {}
+  virtual void visitExpr(Expression const *expr);
+};
+
+void VariableSearcher::visitExpr(Expression const *expr)
+{
+  if (var &&       // actual variable
+      expr->isE_variable() &&
+      expr->asE_variableC()->var == var) {
+    found = true;
+  }
+
+  if (!var &&      // we're actually searching for references to memory
+      expr->isE_deref()) {
+    found = true;
+  }
+}
+
+// remove any 'facts' that refer to 'var'
+void invalidateVar(SObjList<Expression /*const*/> &facts, Variable const *var)
+{
+  SObjListMutator<Expression /*const*/> mut(facts);
+  while (!mut.isDone()) {
+    VariableSearcher vis(var);
+    walkExpression(vis, mut.data());
+    if (vis.found) {
+      // remove this fact because it referred to 'var'
+      mut.remove();
+    }
+    else {
+      mut.adv();
+    }
+  }
+}
+
+
+// remove any 'facts' modified by expressions in 'init'
+void invalidateInit(SObjList<Expression /*const*/> &facts, Initializer const *init)
+{
+  ASTSWITCHC(Initializer, init) {
+    ASTCASEC(IN_expr, e)
+      invalidate(facts, e->e);
+
+    ASTNEXTC(IN_compound, c)
+      FOREACH_ASTLIST(Initializer, c->inits, iter) {
+        invalidateInit(facts, iter.data());
+      }
+
+    ASTENDCASECD
+  }
+}
