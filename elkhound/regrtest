@@ -191,6 +191,7 @@ testTrivGrammar ite 1 2 3 4
 testTrivGrammar AdB 1
 testTrivGrammar CNI 1
 testTrivGrammar ESb 1
+testTrivGrammar CAdB 1
 
 #runTest make aSEb.gr.exe
 #runTest ./aSEb.gr.exe aSEb.in1

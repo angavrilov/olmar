@@ -9,7 +9,7 @@ terminals {
 }
 
 nonterm A {
-  merge(p1, p2) [ return p1; ]
+  merge(p1, p2) [ cout << "merging nonterminal A\n"; return p1; ]
 
   -> d;
   -> B;
