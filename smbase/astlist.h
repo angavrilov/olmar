@@ -136,7 +136,8 @@ public:
   bool isDone() const                   { return iter.isDone(); }
   void adv()                            { iter.adv(); }
   T *data() const                       { return (T*)iter.data(); }
-  
+  T *&dataRef()                         { return (T*&)iter.dataRef(); }
+
   // iterator mutation; use with caution
   void setDataLink(T *newData)          { iter.setDataLink((void*)newData); }
 };

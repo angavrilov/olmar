@@ -386,6 +386,28 @@ string pluraln(int n, char const *prefix)
 }
 
 
+string a_or_an(char const *noun)
+{
+  bool use_an = false;
+
+  if (strchr("aeiouAEIOU", noun[0])) {
+    use_an = true;
+  }
+
+  // special case: I pronounce "mvisitor" like "em-visitor"
+  if (noun[0]=='m' && noun[1]=='v') {
+    use_an = true;
+  }
+  
+  if (use_an) {
+    return stringc << "an " << noun;
+  }
+  else {
+    return stringc << "a " << noun;
+  }
+}
+
+
 char *copyToStaticBuffer(char const *s)
 {           
   enum { SZ=200 };

@@ -76,6 +76,11 @@ string plural(int n, char const *prefix);
 //   pluraln(2, "eggs") yields "2 eggs"
 string pluraln(int n, char const *prefix);
 
+// prepend with an indefinite article:
+//   a_or_an("foo") yields "a foo", and
+//   a_or_an("ogg") yields "an ogg"
+string a_or_an(char const *noun);
+
 
 // Sometimes it's useful to store a string value in a static buffer;
 // most often this is so 'gdb' can see the result.  This function just

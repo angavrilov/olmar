@@ -2,8 +2,13 @@
 // exception classes for SafeTP project
 // Scott McPeak, 1996-1998  This file is public domain.
 
-#ifndef __EXC_H
-#define __EXC_H
+// I apologize for the inconsistent naming in this module.  It is
+// the product of an extended period of experimenting with naming
+// conventions for exception-related concepts.  The names near the
+// end of the file reflect my current preferences.
+
+#ifndef EXC_H
+#define EXC_H
 
 #include "breaker.h"     // breaker
 #include "typ.h"         // bool
@@ -46,6 +51,7 @@ bool unwinding_other(xBase const &x);
 // -------------------- xBase ------------------
 // intent is to derive all exception objects from this
 class xBase {
+protected:
   string msg;
     // the human-readable description of the exception
 
@@ -138,5 +144,51 @@ public:
 void throw_XOpen(char const *fname) NORETURN;
 
 
-#endif // __EXC_H
+// -------------------- XOpenEx ---------------------
+// more informative
+class XOpenEx : public XOpen {
+public:
+  string mode;         // fopen-style mode string, e.g. "r"
+  string cause;        // errno-derived failure cause, e.g. "no such file"
+
+public:
+  XOpenEx(char const *fname, char const *mode, char const *cause);
+  XOpenEx(XOpenEx const &obj);
+  ~XOpenEx();
+                                              
+  // convert a mode string as into human-readable participle,
+  // e.g. "r" becomes "reading"
+  static string interpretMode(char const *mode);
+};
+
+void throw_XOpenEx(char const *fname, char const *mode, char const *cause) NORETURN;
+
+
+// ------------------- XUnimp ---------------------
+// thrown in response to a condition that is in principle
+// allowed but not yet handled by the existing code
+class XUnimp : public xBase {
+public:
+  XUnimp(char const *msg);
+  XUnimp(XUnimp const &obj);
+  ~XUnimp();
+};
+
+void throw_XUnimp(char const *msg) NORETURN;
+
+
+// ------------------- XFatal ---------------------
+// thrown in response to a user action that leads to an unrecoverable
+// error; it is not due to a bug in the program
+class XFatal : public xBase {
+public:
+  XFatal(char const *msg);
+  XFatal(XFatal const &obj);
+  ~XFatal();
+};
+
+void throw_XFatal(char const *msg) NORETURN;
+
+
+#endif // EXC_H
 

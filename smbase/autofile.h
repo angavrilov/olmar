@@ -1,8 +1,8 @@
 // autofile.h            see license.txt for copyright and terms of use
 // little wrapper around FILE*
 
-#ifndef SMUTIL_H
-#define SMUTIL_H
+#ifndef AUTOFILE_H
+#define AUTOFILE_H
 
 #include <stdio.h>      // FILE
 
@@ -44,4 +44,4 @@ public:
 };
 
 
-#endif // SMUTIL_H
+#endif // AUTOFILE_H

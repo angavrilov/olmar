@@ -2,6 +2,10 @@
 # configure script for smbase
 
 use strict 'subs';
+require sm_config;
+
+$dummy = commonConfigThing();
+print("dummy: $dummy\n");
 
 sub usage {
   print(<<"EOF");

@@ -156,6 +156,111 @@ void throw_XOpen(char const *fname)
 }
 
 
+// -------------------- XOpenEx ---------------------
+XOpenEx::XOpenEx(char const *fname, char const *m, char const *c)
+  : XOpen(fname),
+    mode(m),
+    cause(c)
+{
+  msg = stringc << "failed to open file \"" << fname
+                << "\" for " << interpretMode(mode)
+                << ": " << cause;
+}
+
+XOpenEx::XOpenEx(XOpenEx const &obj)
+  : XOpen(obj),
+    DMEMB(mode),
+    DMEMB(cause)
+{}
+
+XOpenEx::~XOpenEx()
+{}
+
+
+STATICDEF string XOpenEx::interpretMode(char const *mode)
+{
+  if (mode[0]=='r') {
+    if (mode[1]=='+') {
+      return "reading and writing";
+    }
+    else {
+      return "reading";
+    }
+  }
+
+  if (mode[0]=='w') {
+    if (mode[1]=='+') {
+      return "reading and writing";
+    }
+    else {
+      return "writing";
+    }
+  }
+
+  if (mode[0]=='a') {
+    if (mode[1]=='+') {
+      return "reading and appending";
+    }
+    else {
+      return "appending";
+    }
+  }
+
+  return stringc << "(unknown action mode \"" << mode << "\")";
+}
+
+
+void throw_XOpenEx(char const *fname, char const *mode, char const *cause)
+{
+  XOpenEx x(fname, mode, cause);
+  THROW(x);
+}
+
+
+// -------------------- XUnimp -------------------
+XUnimp::XUnimp(char const *msg)
+  : xBase(stringc << "unimplemented: " << msg)
+{}
+
+XUnimp::XUnimp(XUnimp const &obj)
+  : xBase(obj)
+{}
+
+XUnimp::~XUnimp()
+{}
+
+
+void throw_XUnimp(char const *msg)
+{
+  XUnimp x(msg);
+  THROW(x);
+}
+
+
+// -------------------- XFatal -------------------
+// That this error is "fatal" need not be stated in the error message
+// itself.  Doing so would unnecessarily alarm novice users, and the
+// fatal-ness is sufficiently expressed by the fact that an exception
+// is thrown, as opposed to simply printing the message and continuing.
+XFatal::XFatal(char const *msg)
+  : xBase(stringc << "error: " << msg)
+{}
+
+XFatal::XFatal(XFatal const &obj)
+  : xBase(obj)
+{}
+
+XFatal::~XFatal()
+{}
+
+
+void throw_XFatal(char const *msg)
+{
+  XFatal x(msg);
+  THROW(x);
+}
+
+
 // ---------------- test code ------------------
 #ifdef TEST_EXC
 
