@@ -12,9 +12,9 @@
 
 
 // this parameter controls the frequency of Markers in 
-// the marker index; higher frequency makes the index
+// the marker index; lower period makes the index
 // faster but use more space
-enum { MARKER_FREQ = 100 };    // 100 is about a 10% overhead
+enum { MARKER_PERIOD = 100 };    // 100 is about a 10% overhead
 
 
 // ------------------------- File -----------------------
@@ -61,7 +61,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
   index.push(Marker(0, 1, 0));
 
   // how many lines to go before I insert the next marker
-  int indexDelay = MARKER_FREQ;
+  int indexDelay = MARKER_PERIOD;
 
   // where I am in the file
   int charOffset = 0;
@@ -116,7 +116,7 @@ SourceLocManager::File::File(char const *n, SourceLoc aStartLoc)
       if (--indexDelay == 0) {
         // insert a marker to remember this location
         index.push(Marker(charOffset, lineNum, lineLengths.length()));
-        indexDelay = MARKER_FREQ;
+        indexDelay = MARKER_PERIOD;
       }
     }
 
@@ -206,7 +206,7 @@ int SourceLocManager::File::lineToChar(int lineNum)
 
   // check to see if the marker is already close
   if (marker.lineOffset <= lineNum &&
-                           lineNum < marker.lineOffset + MARKER_FREQ) {
+                           lineNum < marker.lineOffset + MARKER_PERIOD) {
     // use the marker as-is
   }
   else {
@@ -313,7 +313,7 @@ void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 
   // check if the marker is close enough
   if (marker.charOffset <= offset &&
-                           offset < marker.charOffset + MARKER_FREQ*avgCharsPerLine) {
+                           offset < marker.charOffset + MARKER_PERIOD*avgCharsPerLine) {
     // use as-is
   }
   else {
