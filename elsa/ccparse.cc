@@ -15,6 +15,7 @@
 #include "cc_lang.h"      // CCLang
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
+#include "cc_print.h"     // PrintEnv
 
 
 // no bison-parser present, so need to define this
@@ -142,20 +143,18 @@ void doit(int argc, char **argv)
   }
 
   // dsw: Tree walk ****************
-#if 0    /* REMOVE_FOR_TWALK */
-  {
+  if (tracingSys("prettyPrint")) {
       cout << endl;
       traceProgress() << "dsw tree walk...\n";
-      Env env(strTable, lang);
+      PrintEnv env(cout);
       cout << "---- START ----" << endl;
       cout << "// -*-c++-*-" << endl;
-      unit->twalk(env);
+      unit->print(env);
       cout << "---- STOP ----" << endl;
       traceProgress() << "dsw tree walk... done\n";
       cout << endl;
   }
-#endif   /* REMOVE_FOR_TWALK */
-  
+
   // test AST cloning
   if (tracingSys("testClone")) {
     cout << "------- cloned tree --------\n";

@@ -6,7 +6,7 @@ use strict;
 
 # Daniel S. Wilkerson dsw@cs.berkeley.edu
 
-my $parser = "./ccparse_twalk";
+my $parser = "./ccparse";
 die "No executable file: $parser\n" unless -x $parser;
 my @names = ();
 
@@ -64,9 +64,12 @@ for my $name(@names) {
     push @outfiles, $name;
     $outfile2command{$name} = "ORIGINAL: $name";
     eval {
-        run_command "$parser $name", "$name.out_raw";
+        # sm: added "-tr prettyPrint" to print the tree, since
+        # I made that printing conditional upon the tracing flag
+        my $flags = "-tr prettyPrint";
+        run_command "$parser $flags $name", "$name.out_raw";
         run_command "./chop_out < $name.out_raw", "$name.out";
-        run_command "$parser $name.out", "$name.out2_raw";
+        run_command "$parser $flags $name.out", "$name.out2_raw";
         run_command "./chop_out < $name.out2_raw", "$name.out2";
     };
     if ($@) {
