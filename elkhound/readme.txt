@@ -128,8 +128,8 @@ Next, 'glr-set' are the modules for the GLR parsing algorithm itself:
   useract:      User-actions interface.  Contains an implementation
                 of just NOPs.
                 
-  cyctimer:     Processor cycle timer.  Uses RDTSC on x86.  Currently
-                x86 is only supported processor.
+  cyctimer:     Processor cycle timer.  More convenient interface to
+                smbase's 'cycles' module.
 
 
 Next, the 'cc-set' of modules is the implementation of C/C++
