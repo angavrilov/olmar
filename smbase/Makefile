@@ -2,7 +2,7 @@
 
 # main target
 THISLIBRARY = libsmbase.a
-all: ${THISLIBRARY} gensrc
+all: gensrc ${THISLIBRARY}
 
 # when uncommented, the program emits profiling info
 #ccflags = -pg
@@ -20,6 +20,8 @@ veryclean: clean
 
 
 # -------- experimenting with m4 for related files -------
+# I don't delete these during make clean because I don't want
+# to force people to have m4 installed
 gensrc: sobjlist.h objlist.h
 
 sobjlist.h: xobjlist.h
@@ -71,6 +73,9 @@ svdict: svdict.cc svdict.h ${THISLIBRARY}
 str: str.cpp str.h ${THISLIBRARY}
 	${link} -o str -DTEST_STR str.cpp ${THISLIBRARY} ${linkend}
 
+strhash: strhash.cc strhash.h ${THISLIBRARY}
+	${link} -o strhash -DTEST_STRHASH strhash.cc ${THISLIBRARY} ${linkend}
+
 check: ${tests-files}
 	./nonport
 	./voidlist
@@ -80,6 +85,7 @@ check: ${tests-files}
 	./strdict
 	./svdict
 	./str
+	./strhash
 	@echo
 	@echo "make check: all the tests PASSED"
 

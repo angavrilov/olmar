@@ -8,3 +8,5 @@ test.dir
 strdict
 svdict
 str
+strhash
+gmon.out
