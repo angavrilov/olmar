@@ -3,11 +3,21 @@
 SMBASE  := ../smbase
 
 CXX      := g++
-CXXFLAGS := -Wall -g -I. -I$(SMBASE) $(EXTRAARGS)
+CXXFLAGS := -Wall -g
+
+# for gcc-2
+#CXXFLAGS += -I.
+
+CXXFLAGS += -I$(SMBASE) $(EXTRAARGS)
+
 CXXFLAGS += -Werror
+
 
 # to enable profiling
 #CXXFLAGS += -pg
+
+# for gcc-3
+CXXFLAGS += -Wno-deprecated
 
 # to turn on optimizer
 CXXFLAGS += -O2 -DNDEBUG
@@ -36,8 +46,13 @@ agrampar.tab.cc agrampar.tab.h agrampar.codes.h: agrampar.y ast.hand.h agrampar.
 	rm tmp
 	grep '#define' agrampar.tab.h > agrampar.codes.h
 
+# have to use sed to change the forward declaration of 'istream'
+# into an #include, so the std:: namespace doesn't cause a problem
 agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
-	flex -oagramlex.yy.cc agramlex.lex
+	flex -o$@ agramlex.lex
+	mv $@ agramlex.tmp
+	sed 's/class istream;/#include <iostream.h>/' <agramlex.tmp >$@
+	rm agramlex.tmp
 
 #$(PARSGEN)/%.o: $(PARSGEN)/%.cc
 #	make -C $(PARSGEN) check-makefiles $*.o

@@ -5,6 +5,8 @@
 #include "xassert.h"     // xassert
 #include "flatten.h"     // Flatten
 
+#include <string.h>      // strlen
+
 
 StringTable *flattenStrTable = NULL;
 

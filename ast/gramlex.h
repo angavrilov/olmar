@@ -14,6 +14,7 @@
 // Perhaps also worth mentioning: I'm developing this with flex 2.5.4.
 #include <FlexLexer.h>
 
+#include <iostream.h>         // istream
 
 // token code definitions
 #define TOK_EOF 0             // better name
@@ -51,7 +52,7 @@ private:     // data
     virtual void reportError(char const *msg);
     virtual void reportWarning(char const *msg);
   };
-  friend AltReportError;
+  friend class AltReportError;
   AltReportError altReporter;
 
   // state of a file we were or are lexing
