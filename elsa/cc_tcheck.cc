@@ -1842,6 +1842,9 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 
   // get the variable from the IDeclarator
   decl->tcheck(env, dt, false /*inGrouping*/);
+  if (!dt.var) {
+    return;      // an error was found and reported; bail rather than die later
+  }
   var = env.storeVar(dt.var);
   type = env.tfac.cloneType(dt.type);
   context = dt.context;
@@ -2963,18 +2966,16 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
   // enforce [cppstd 8.3.3 para 3]
   if (dt.type->isReference()) {
     env.error("you can't make a pointer-to-member refer to a reference type");
-
-  recover:
-    // keep going, as error recovery, pretending this level
-    // of the declarator wasn't present
-    possiblyConsumeFunctionType(env, dt);
-    base->tcheck(env, dt, false /*inGrouping*/);
     return;
+    
+    // there used to be some recovery code here, but I decided it was
+    // better to just bail entirely rather than tcheck into 'base' with
+    // broken invariants
   }
 
   if (dt.type->isVoid()) {
     env.error("you can't make a pointer-to-member refer to `void'");
-    goto recover;
+    return;
   }
 
   // find the compound to which it refers
@@ -2983,7 +2984,7 @@ void D_ptrToMember::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     env.error(stringc
       << "cannot find class `" << nestedName->toString()
       << "' for pointer-to-member");
-    goto recover;
+    return;
   }
 
   if (dt.type->isFunctionType()) {
