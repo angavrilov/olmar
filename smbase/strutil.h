@@ -11,6 +11,17 @@
 // (newstr may be "")
 string replace(char const *src, char const *oldstr, char const *newstr);
 
+// works like unix "tr": the source string is translated character-by-character,
+// with occurrances of 'srcchars' replaced by corresponding characters from
+// 'destchars'; further, either set may use the "X-Y" notation to denote a
+// range of characters from X to Y
+string translate(char const *src, char const *srcchars, char const *destchars);
+
+// a simple example of using translate; it was originally inline, but a bug
+// in egcs made me move it out of line
+string stringToupper(char const *src);
+//  { return translate(src, "a-z", "A-Z"); }
+
 
 // remove any whitespace at the beginning or end of the string
 string trimWhitespace(char const *str);
@@ -34,6 +45,18 @@ void decodeEscapes(string &dest, int &destLen, char const *src,
 // works if there are no escaped NULs
 string parseQuotedString(char const *text);
 
+
+// this probably belongs in a dedicated module for time/date stuff..
+// returns asctime(localtime(time))
+string localTimeString();
+
+
+// given a directory name like "a/b/c", return "c"
+string basename(char const *src);
+
+// given a directory name like "a/b/c", return "a/b"; if 'src' contains
+// no slashes at all, return "."
+string dirname(char const *src);
 
 
 #endif // __STRUTIL_H

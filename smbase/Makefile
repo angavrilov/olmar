@@ -40,6 +40,7 @@ objlist.h: xobjlist.h
 # -------------- main target --------------
 # testing a new malloc
 # add the -DDEBUG flag to turn on additional checks
+# add the -DTRACE_MALLOC_CALLS flag to print on every alloc/dealloc
 malloc.o: malloc.c
 	gcc -c -g -O3 -DDEBUG malloc.c
 
@@ -52,7 +53,7 @@ library-objs = \
   breaker.o crc.o datablok.o exc.o missing.o nonport.o str.o \
   syserr.o voidlist.o warn.o bit2d.o point.o growbuf.o strtokp.o \
   strutil.o strdict.o svdict.o strhash.o hashtbl.o malloc.o \
-  trdelete.o flatten.o bflatten.o mysig.o trace.o
+  trdelete.o flatten.o bflatten.o mysig.o trace.o vdtllist.o
 ${THISLIBRARY}: ${library-objs}
 	${makelib} libsmbase.a ${library-objs}
 	${ranlib} libsmbase.a
@@ -86,6 +87,9 @@ svdict: svdict.cc svdict.h ${THISLIBRARY}
 str: str.cpp str.h ${THISLIBRARY}
 	${link} -o str -DTEST_STR str.cpp ${THISLIBRARY} ${linkend}
 
+strutil: strutil.cc strutil.h ${THISLIBRARY}
+	${link} -o strutil -DTEST_STRUTIL strutil.cc ${THISLIBRARY} ${linkend}
+
 strhash: strhash.cc strhash.h ${THISLIBRARY}
 	${link} -o strhash -DTEST_STRHASH strhash.cc ${THISLIBRARY} ${linkend}
 
@@ -110,6 +114,7 @@ check: ${tests-files}
 	./strdict
 	./svdict
 	./str
+	./strutil
 	./strhash
 	./trdelete
 	./bflatten

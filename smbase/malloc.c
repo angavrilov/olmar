@@ -3264,8 +3264,14 @@ Void_t* mALLOc(size_t bytes)
 
   /* sm: my stuff */
   #ifdef TRACE_MALLOC_CALLS
-  printf("malloc(%d)\n", bytes);
+    printf("malloc(%d) ", bytes);
+    #define RETURN(val)             \
+      printf("yielded %p\n", val);  \
+      return val
+  #else
+    #define RETURN(val) return val
   #endif
+
   av->numMallocCalls++;
 
   /*
@@ -3290,7 +3296,7 @@ Void_t* mALLOc(size_t bytes)
     if ( (victim = *fb) != 0) {
       *fb = victim->fd;
       check_remalloced_chunk(victim, nb);
-      return chunk2mem(victim);
+      RETURN(chunk2mem(victim));
     }
   }
 
@@ -3316,7 +3322,7 @@ Void_t* mALLOc(size_t bytes)
         bck->fd = bin;
         
         check_malloced_chunk(victim, nb);
-        return chunk2mem(victim);
+        RETURN(chunk2mem(victim));
       }
     }
   }
@@ -3382,7 +3388,7 @@ Void_t* mALLOc(size_t bytes)
         set_foot(remainder, remainder_size);
         
         check_malloced_chunk(victim, nb);
-        return chunk2mem(victim);
+        RETURN(chunk2mem(victim));
       }
 
       /* remove from unsorted list */
@@ -3394,7 +3400,7 @@ Void_t* mALLOc(size_t bytes)
       if (size == nb) {
         set_inuse_bit_at_offset(victim, size);
         check_malloced_chunk(victim, nb);
-        return chunk2mem(victim);
+        RETURN(chunk2mem(victim));
       }
       
       /* place chunk in bin */
@@ -3457,7 +3463,7 @@ Void_t* mALLOc(size_t bytes)
         if (remainder_size < MINSIZE)  {
           set_inuse_bit_at_offset(victim, size);
           check_malloced_chunk(victim, nb);
-          return chunk2mem(victim);
+          RETURN(chunk2mem(victim));
         }
         /* Split */
         else {
@@ -3468,7 +3474,7 @@ Void_t* mALLOc(size_t bytes)
           set_head(remainder, remainder_size | PREV_INUSE);
           set_foot(remainder, remainder_size);
           check_malloced_chunk(victim, nb);
-          return chunk2mem(victim);
+          RETURN(chunk2mem(victim));
         } 
       }
     }    
@@ -3537,7 +3543,7 @@ Void_t* mALLOc(size_t bytes)
         if (remainder_size < MINSIZE) {
           set_inuse_bit_at_offset(victim, size);
           check_malloced_chunk(victim, nb);
-          return chunk2mem(victim);
+          RETURN(chunk2mem(victim));
         }
         
         /* Split */
@@ -3554,7 +3560,7 @@ Void_t* mALLOc(size_t bytes)
           set_head(remainder, remainder_size | PREV_INUSE);
           set_foot(remainder, remainder_size);
           check_malloced_chunk(victim, nb);
-          return chunk2mem(victim);
+          RETURN(chunk2mem(victim));
         }
       }
     }
@@ -3586,7 +3592,7 @@ Void_t* mALLOc(size_t bytes)
       set_head(remainder, remainder_size | PREV_INUSE);
 
       check_malloced_chunk(victim, nb);
-      return chunk2mem(victim);
+      RETURN(chunk2mem(victim));
     }
 
     /*
@@ -3611,8 +3617,8 @@ Void_t* mALLOc(size_t bytes)
           retchunk < av->firstChunk) {
         /* new 'first' */
         av->firstChunk = retchunk;
-      }                          
-      return ret;
+      }
+      RETURN(ret);
     }
   }
 }

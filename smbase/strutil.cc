@@ -8,6 +8,7 @@
 #include <string.h>      // strstr
 #include <stdio.h>       // sprintf
 #include <stdlib.h>      // strtoul
+#include <time.h>        // time, asctime, localtime
 
 
 // replace all instances of oldstr in src with newstr, return result
@@ -37,6 +38,70 @@ string replace(char const *src, char const *oldstr, char const *newstr)
 
   return ret;
 }
+
+
+string expandRanges(char const *chars)
+{
+  stringBuilder ret;
+  
+  while (*chars) {
+    if (chars[1] == '-' && chars[2] != 0) {
+      // range specification
+      if (chars[0] > chars[2]) {
+        xformat("range specification with wrong collation order");
+      }
+
+      for (char c = chars[0]; c <= chars[2]; c++) {
+        ret << c;
+      }
+      chars += 3;
+    }
+    else {
+      // simple character specification
+      ret << chars[0];
+      chars++;
+    }
+  }
+
+  return ret;
+}
+
+
+string translate(char const *src, char const *srcchars, char const *destchars)
+{
+  // first, expand range notation in the specification sequences
+  string srcSpec = expandRanges(srcchars);
+  string destSpec = expandRanges(destchars);
+
+  // build a translation map
+  char map[256];
+  int i;
+  for (i=0; i<256; i++) {
+    map[i] = i;
+  }
+
+  // excess characters from either string are ignored ("SysV" behavior)
+  for (i=0; i < srcSpec.length() && i < destSpec.length(); i++) {
+    map[(unsigned char)( srcSpec[i] )] = destSpec[i];
+  }
+
+  // run through 'src', applying 'map'
+  string ret(strlen(src));
+  char *dest = ret.pchar();
+  while (*src) {
+    *dest = map[(unsigned char)*src];
+    dest++;
+    src++;
+  }
+  *dest = 0;    // final nul terminator
+
+  return ret;
+}
+
+
+// why is this necessary?
+string stringToupper(char const *src)
+  { return translate(src, "a-z", "A-Z"); }
 
 
 string trimWhitespace(char const *str)
@@ -229,3 +294,115 @@ string parseQuotedString(char const *text)
   decodeEscapes(ret, dummyLen, noQuotes, '"');
   return ret;
 }
+
+
+string localTimeString()
+{
+  time_t t = time(NULL);
+  char const *p = asctime(localtime(&t));
+  return string(p, strlen(p) - 1);     // strip final newline
+}
+
+
+string basename(char const *src)
+{
+  char const *sl = strrchr(src, '/');   // locate last slash
+  if (sl && sl[1] == 0) {
+    // there is a slash, but it is the last character; ignore it
+    // (this behavior is what /bin/basename does)
+    return basename(string(src, strlen(src)-1));
+  }
+
+  if (sl) {
+    return string(sl+1);     // everything after the slash
+  }
+  else {
+    return string(src);      // entire string if no slashes
+  }
+}
+
+string dirname(char const *src)
+{
+  char const *sl = strrchr(src, '/');   // locate last slash
+  if (sl == src) {
+    // last slash is leading slash
+    return string("/");
+  }
+
+  if (sl && sl[1] == 0) {
+    // there is a slash, but it is the last character; ignore it
+    // (this behavior is what /bin/dirname does)
+    return dirname(string(src, strlen(src)-1));
+  }
+
+  if (sl) {
+    return string(src, sl-src);     // everything before slash
+  }
+  else {
+    return string(".");
+  }
+}
+
+
+// ----------------------- test code -----------------------------
+#ifdef TEST_STRUTIL
+
+#include "test.h"      // USUAL_MAIN
+#include <stdio.h>     // printf
+
+void expRangeVector(char const *in, char const *out)
+{
+  printf("expRangeVector(%s, %s)\n", in, out);
+  string result = expandRanges(in);
+  xassert(result.equals(out));
+}
+
+void trVector(char const *in, char const *srcSpec, char const *destSpec, char const *out)
+{
+  printf("trVector(%s, %s, %s, %s)\n", in, srcSpec, destSpec, out);
+  string result = translate(in, srcSpec, destSpec);
+  xassert(result.equals(out));
+}
+
+void basenameVector(char const *in, char const *out)
+{
+  printf("basenameVector(%s, %s)\n", in, out);
+  string result = basename(in);
+  xassert(result.equals(out));
+}
+
+void dirnameVector(char const *in, char const *out)
+{
+  printf("dirnameVector(%s, %s)\n", in, out);
+  string result = dirname(in);
+  xassert(result.equals(out));
+}
+
+
+void entry()
+{
+  expRangeVector("abcd", "abcd");
+  expRangeVector("a", "a");
+  expRangeVector("a-k", "abcdefghijk");
+  expRangeVector("0-9E-Qz", "0123456789EFGHIJKLMNOPQz");
+
+  trVector("foo", "a-z", "A-Z", "FOO");
+  trVector("foo BaR", "a-z", "A-Z", "FOO BAR");
+  trVector("foo BaR", "m-z", "M-Z", "fOO BaR");
+
+  basenameVector("a/b/c", "c");
+  basenameVector("abc", "abc");
+  basenameVector("/", "");
+  basenameVector("a/b/c/", "c");
+
+  dirnameVector("a/b/c", "a/b");
+  dirnameVector("a/b/c/", "a/b");
+  dirnameVector("/a", "/");
+  dirnameVector("abc", ".");
+  dirnameVector("/", "/");
+}
+
+
+USUAL_MAIN
+
+#endif // TEST_STRUTIL

@@ -3,6 +3,20 @@
 
 #include "vdtllist.h"      // this module
 
+void VoidTailList::steal(VoidTailList *src)
+{
+  if (src) {
+    top = src->top;
+    tail = src->tail;
+    src->top = NULL;    // paranoia
+    delete src;
+  }
+  else {
+    top = NULL;
+    tail = NULL;
+  }
+}
+
 void VoidTailList::prepend(void *newitem)
 {
   VoidList::prepend(newitem);
@@ -43,8 +57,8 @@ void VoidTailList::adjustTail()
 void *VoidTailList::removeFirst()
 {
   xassert(top);
-  if (top == last) {
-    last = NULL;
+  if (top == tail) {
+    tail = NULL;
   }
   void *retval = top->data;
   VoidNode *tmp = top;

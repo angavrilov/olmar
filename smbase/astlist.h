@@ -26,6 +26,11 @@ public:
   ASTList()                             : list() {}
   ~ASTList()                            { deleteAll(); }
 
+  // stealing ctor; among other things, since &src->list is assumed to
+  // point at 'this', this class can't have virtual functions
+  ASTList(ASTList<T> *src)              : list(&src->list) {}
+  void steal(ASTList<T> *src)           { deleteAll(); list.steal(&src->list); }
+
   // selectors
   int count() const                     { return list.count(); }
   bool isEmpty() const                  { return list.isEmpty(); }
@@ -73,7 +78,7 @@ void ASTList<T>::deleteAll()
 template <class T>
 class ASTListIter {
 protected:
-  VoidListIter iter;      // underlying iterator
+  VoidTailListIter iter;      // underlying iterator
 
 public:
   ASTListIter(ASTList<T> const &list) : iter(list.list) {}

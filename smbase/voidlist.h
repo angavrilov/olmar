@@ -45,6 +45,7 @@ private:
 
 protected:
   VoidNode *top;                     // (owner) first node, or NULL if list is empty
+  VoidNode *getTop() const { return top; } // for iterator, below
 
 private:
   VoidList(VoidList const &obj);     // not allowed
@@ -192,7 +193,7 @@ public:
   VoidListIter(VoidList const &list)  { reset(list); }
   ~VoidListIter()                     {}
 
-  void reset(VoidList const &list)    { p = list.top; }
+  void reset(VoidList const &list)    { p = list.getTop(); }
 
   // iterator copying; generally safe
   VoidListIter(VoidListIter const &obj)             { p = obj.p; }

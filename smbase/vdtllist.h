@@ -12,19 +12,29 @@ class VoidTailList : private VoidList {
 private:
   // by making this a friend, it should see VoidList as a
   // base class, and thus simply work
-  friend VoidListIter;
-  
+  // but it doesn't..
+  //friend VoidListIter;
+
+  friend class VoidTailListIter;
+
   // no mutator for now
 
 protected:
   VoidNode *tail;       // (serf) last element of list, or NULL if list is empty
+  VoidNode *getTop() const { return VoidList::getTop(); }
 
 private:
   VoidTailList(VoidTailList const &obj);    // not allowed
 
+  void adjustTail();
+
 public:
   VoidTailList()                     { tail = NULL; }
   ~VoidTailList()                    {}
+  
+  // special ctor which steals the list and then deallocates the header
+  VoidTailList(VoidTailList *src)    { tail = NULL; steal(src); }
+  void steal(VoidTailList *src);
 
   // this syntax just makes the implementation inherited from
   // 'VoidList' public, whereas it would default to private,
@@ -63,6 +73,32 @@ public:
   void selfCheck() const;
   VoidList::debugPrint;
 };
+
+
+// copied from voidlist.h because g++ won't do what I want..
+class VoidTailListIter {
+protected:
+  VoidNode *p;                        // (serf) current item
+
+public:
+  VoidTailListIter(VoidTailList const &list)  { reset(list); }
+  ~VoidTailListIter()                         {}
+
+  void reset(VoidTailList const &list)        { p = list.getTop(); }
+
+  // iterator copying; generally safe
+  VoidTailListIter(VoidTailListIter const &obj)             { p = obj.p; }
+  VoidTailListIter& operator=(VoidTailListIter const &obj)  { p = obj.p; return *this; }
+
+  // but copying from a mutator is less safe; see above
+  //VoidTailListIter(VoidListMutator &obj)      { p = obj.current; }
+
+  // iterator actions
+  bool isDone() const                         { return p == NULL; }
+  void adv()                                  { p = p->next; }
+  void *data() const                          { return p->data; }
+};
+
 
 
 #endif // VDTLLIST_H
