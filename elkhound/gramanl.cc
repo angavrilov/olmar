@@ -4800,9 +4800,10 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
       }
       break;
 
-    case 2:    // unspecified merge: warn, but then use left (arbitrarily)
+    case 2: {  // unspecified merge: warn, but then use left (arbitrarily)
+      char const *w = g.defaultMergeAborts? "error: " : "WARNING: ";
       out << "      cout << toString(loc) \n"
-          << "           << \": WARNING: there is no action to merge nonterm \"\n"
+          << "           << \": " << w << "there is no action to merge nonterm \"\n"
           << "           << nontermNames[" << switchVar << "] << endl;\n";
       if (g.defaultMergeAborts) {
         out << "      abort();\n";
@@ -4811,6 +4812,7 @@ void emitSwitchCode(Grammar const &g, EmitCode &out,
         out << "      return left;\n";
       }
       break;
+    }
 
     case 3:    // unspecified keep: keep it
       out << "      return true;\n";
