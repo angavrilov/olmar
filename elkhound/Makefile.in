@@ -1,13 +1,14 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
+all: ccgr
+
 temporary: sexp ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
            triv/EFa.tree.gr.exe triv/efa.in \
 	   triv/EFa.bison.exe triv/EFa.tree.bison.exe
 
 # main targets
-all: ccgr
 
 ifeq ($(ocaml), yes)
   mode := --ocaml
@@ -594,13 +595,18 @@ sexp: sexp.ast.gen.o sexp.cc $(AST)/fileloc.o $(AST)/asthelp.o
 clean:
 	rm -f gramanl glr lexer1 lexer1yy.cc gramlex.yy.cc gramlex *.o *~
 	rm -f lexer2 grampar.tab.* grampar a.out
-	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a
+	rm -f cexp2.sem cexp2 cc.bin ccgr libccgr.a libglr.a
 	rm -f cc.gr.ps
-	rm -f *.gen.*
-	rm -f cdecl.bin cdecl cexp3.bin cexp3
+	rm -f *.exe *.gen.* *.bin *.tab.* *.output
+	rm -f core cdecl cexp3 bccgr cdecl2 cexp3b sexp
+	rm -f bccgr.y cc.tok grampar.codes.h
+	rm -f gdb.log gprof.out gmon.out predicate.log
 	rm -f *.d *.exe
-	cd triv; rm -f *.exe *.bin *.gen.* *.output *.tab.* *.gr *.y
-	rm -rf ssx.in sssx.in eeb.in
+	cd triv; rm -f *.exe *.gen.* *.bin *.tab.* *.output *.y *.gr
+
+distclean:
+	rm -f Makefile
+	cd triv; rm -rf sssx.in ssx.in eeb.in
 
 # regression tests
 check-cexp2: cexp2

@@ -10,6 +10,8 @@
 //   - types; see cc_type.h
 //   - variables; see cc_env.h
 
+#error This module is obsolete.  There is no replacement module.
+
 #ifndef CIL_H
 #define CIL_H
 

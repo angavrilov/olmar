@@ -1,8 +1,0 @@
-#!/bin/sh
-# synchronize these files
-
-fsync -l scott -rh madrone.cs \
-      -rr /usr/scott/wrk/parsgen \
-      -r `pwd` \
-      "$@" \
-      `ls -F ~/cvsroot/parsgen | grep -v / | sed s/,v//`

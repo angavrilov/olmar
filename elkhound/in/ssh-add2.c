@@ -18,6 +18,9 @@ ssh-add.c
 /*
  * $Id$
  * $Log$
+ * Revision 1.1  2002/08/11 00:17:28  scott
+ * removed some obsolete files, moved more input to in/
+ *
  * Revision 1.1  2000/07/28 08:39:56  scott
  * everything works and I can parse ssh-add2
  * I am now working on improving the performance

@@ -1,7 +1,6 @@
 
-documentation for parsgen
+tracing strings for gramanl and GLR parser:
 
-tracing strings:
   parse:         details of the parsing actions
   parse-tree:    the parse tree itself
   parse-graph:   when set, print the parse graph to a .g file

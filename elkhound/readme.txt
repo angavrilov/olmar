@@ -1,5 +1,4 @@
 
-8/07/02 14:36
 Overview documentation for Elkhound parser generator
 ----------------------------------------------------
 
@@ -19,6 +18,11 @@ Limitations
 -----------
 The present design is geared towards parsing C++.  Thus, for example,
 the generated parser always assumes it is using the C++ lexical analyzer.
+
+
+How to compile
+--------------
+[Talk about what to 'make', running 'regrtest', configuring, etc.]
 
 
 Phases of parsing
@@ -140,7 +144,7 @@ There are a few other documentation files lying around:
 
   readme.txt    This file.
 
-  types.txt     Describes the represntation of C/C++ types.
+  types.txt     Describes the representation of C/C++ types.  Out of date.
 
   grammar.txt   Describes the format of grammar files like cc.gr.
 
@@ -151,9 +155,17 @@ There are a few other documentation files lying around:
 Directories
 -----------
 
+  ai            Test inputs for abstract interpretation; TODO: move.
+  
+  asfsdf        A few ASF+SDF grammar descriptions, mostly for performance
+                comparison.
+
   c.in          C sample input.
   
   in            Input for various grammars, including some C++ input.
+
+  out           Known-good outputs for some of the grammars and inputs;
+                some of them might be out of date by now.
 
   triv          Various "trivial" grammars, mostly for performance testing
                 or verifying that particular corner cases are handled
