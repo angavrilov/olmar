@@ -41,7 +41,7 @@ objlist.h: xobjlist.h
 # testing a new malloc
 # add the -DDEBUG flag to turn on additional checks
 malloc.o: malloc.c
-	gcc -c -g malloc.c
+	gcc -c -g -DDEBUG malloc.c
 
 # mysig needs some flags to *not* be set ....
 mysig.o: mysig.cc

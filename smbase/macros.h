@@ -15,7 +15,8 @@
     { return !operator==(obj); }
 
 // toss this into a class that already has == and < defined, to
-// round out the set of relational operators
+// round out the set of relational operators (assumes a total
+// order, i.e.  a < b  <=>  b < a)
 #define RELATIONAL_OPERATORS(T)                    \
   NOTEQUAL_OPERATOR(T)                             \
   bool operator <= (T const &obj) const            \
