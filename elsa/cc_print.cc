@@ -215,9 +215,11 @@ void Declaration::print(PrintEnv &env)
   olayer ol("Declaration");
   if(spec->isTS_classSpec()) {
     spec->asTS_classSpec()->print(env);
+    env << ";\n";
   }
   else if(spec->isTS_enumSpec()) {
     spec->asTS_enumSpec()->print(env);
+    env << ";\n";
   }
   FAKELIST_FOREACH_NC(Declarator, decllist, iter) {
     // if there are decl flags that didn't get put into the
@@ -241,25 +243,40 @@ void ASTTypeId::print(PrintEnv &env)
 }
 
 // ---------------------- PQName -------------------
-void PQ_qualifier::print(PrintEnv &env)
+void printTemplateArgumentFakeList(PrintEnv &env, FakeList<TemplateArgument> *args)
 {
-  FAKELIST_FOREACH_NC(TemplateArgument, targs, iter) {
+  int ct=0;
+  FAKELIST_FOREACH_NC(TemplateArgument, args, iter) {
+    if (ct++ > 0) {
+      env << ", ";
+    }
     iter->print(env);
   }
+}
+
+void PQ_qualifier::print(PrintEnv &env)
+{
+  env << qualifier << "<";
+  printTemplateArgumentFakeList(env, targs);
+  env << ">::";
   rest->print(env);
 }
 
 void PQ_name::print(PrintEnv &env)
-{}
+{
+  env << name;
+}
 
 void PQ_operator::print(PrintEnv &env)
-{}
+{
+  env << fakeName;
+}
 
 void PQ_template::print(PrintEnv &env)
 {
-  FAKELIST_FOREACH_NC(TemplateArgument, args, iter) {
-    iter->print(env);
-  }
+  env << name << "<";
+  printTemplateArgumentFakeList(env, args);
+  env << ">";
 }
 
 // --------------------- TypeSpecifier --------------
@@ -275,6 +292,7 @@ void TS_simple::print(PrintEnv &env)
 void TS_elaborated::print(PrintEnv &env)
 {
   env.current_loc = loc;
+  env << toString(keyword) << " ";
   name->print(env);
 }
 
@@ -283,7 +301,7 @@ void TS_classSpec::print(PrintEnv &env)
   olayer ol("TS_classSpec");
   env << toString(cv);
   env << toString(keyword) << " ";
-  if (name) env << toString(name);
+  if (name) env << name->toString();
   bool first_time = true;
   FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
     if (first_time) {
@@ -293,7 +311,7 @@ void TS_classSpec::print(PrintEnv &env)
     else env << ",";
     iter->print(env);
   }
-  codeout co(env, "", "{\n", "};\n");
+  codeout co(env, "", "{\n", "}");
   FOREACH_ASTLIST_NC(Member, members->list, iter2) {
     iter2.data()->print(env);
   }
@@ -305,7 +323,7 @@ void TS_enumSpec::print(PrintEnv &env)
   env << toString(cv);
   env << "enum ";
   if (name) env << toString(name);
-  codeout co(env, "", "{\n", "};\n");
+  codeout co(env, "", "{\n", "}");
   FAKELIST_FOREACH_NC(Enumerator, elts, iter) {
     iter->print(env);
     env << "\n";
@@ -932,9 +950,6 @@ void TemplateDeclaration::print(PrintEnv &env)
   // sm: the declared variable knows it is a template, and
   // knows what its parameters are, so it will print that
   // stuff (e.g. "template <...>")
-  //FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
-  //  iter->print(env);
-  //}
 
   iprint(env);
 }
@@ -946,7 +961,20 @@ void TD_func::iprint(PrintEnv &env)
 
 void TD_class::iprint(PrintEnv &env)
 {
-  type->print(env);
+  // here, the type specifier doesn't know about the template-ness
+  // since it doesn't have access to the created Variable
+  env << "template <";
+  int ct=0;
+  FAKELIST_FOREACH_NC(TemplateParameter, params, iter) {
+    if (ct++ > 0) {
+      env << ", ";
+    }
+    iter->print(env);
+  }  
+  env << ">\n";
+
+  spec->print(env);
+  env << ";\n";
 }
 
 // ------------------- TemplateParameter ------------------
@@ -965,5 +993,7 @@ void TP_type::print(PrintEnv &env)
 // -------------------- TemplateArgument ------------------
 void TA_type::print(PrintEnv &env)
 {
-  type->print(env);
+  // dig down to prevent printing "/*anon*/" since template
+  // type arguments are always anonymous so it's just clutter
+  env << type->decl->var->type->toCString();
 }

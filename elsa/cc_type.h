@@ -2,6 +2,26 @@
 // compile-type representation of C++ types
 // see types.txt
 
+// The original design intent was that type representation would be
+// completely independent of the Expression language, or anything
+// else from cc.ast.  That is, types should have meaning independent
+// of the language of values, or of the syntax used to describe them
+// in source code.
+//
+// However, the practicalities of parsing C++ have forced my hand in a
+// couple of places.  Those places are marked with the annotation
+// "(AST pointer)".  In all cases so far, I can forsee an intermediate
+// transformation which would remove (e.g. nullify) all the AST
+// pointers in the process of creating a "minimized" C++ subset.  In
+// particular, it should be possible to translate away everything
+// related to templates.
+//
+// *Please* do not add any additional AST pointers unless it is
+// really necessary.  Also please make sure all the types can
+// intelligbly print themselves *without* inspecting the AST pointers
+// (e.g. store a textual representation when the pointer is first
+// set, as is done for DefaultArgument::expr).
+
 #ifndef CC_TYPE_H
 #define CC_TYPE_H
 
@@ -13,11 +33,13 @@
 #include "strsobjdict.h"  // StringSObjDict
 #include "strobjdict.h"   // StringObjDict
 #include "cc_scope.h"     // Scope
+#include "fakelist.h"     // FakeList
 
 class Variable;           // variable.h
 class Env;                // cc_env.h
 class TS_classSpec;       // cc.ast
 class Expression;         // cc.ast
+class TemplateArgument;   // cc.ast
 
 // fwd in this file
 class SimpleType;
@@ -141,7 +163,8 @@ public:      // data
   // and a list of already-instantiated versions
   ClassTemplateInfo *templateInfo;    // (owner)
 
-  // AST node that describes this class; used for implementing templates
+  // AST node that describes this class; used for implementing
+  // templates (AST pointer)
   TS_classSpec *syntax;               // (serf)
 
 public:      // funcs
@@ -460,7 +483,7 @@ public:
   // expression.. ouch!  I didn't want the type language to be
   // dependent on the Expression language.. this means some care must
   // be taken to ensure the referred-to AST subtree doesn't get
-  // deallocated before we're done using this type.
+  // deallocated before we're done using this type.  (AST pointer)
   Expression const *expr;      // NULL if no default
 
   // to reduce dependency on AST somewhat, I'll require that you
@@ -534,10 +557,25 @@ public:
 
 // for a template class, this is the template-related info
 class ClassTemplateInfo : public TemplateParams {
-public:
+public:    // data
   // given a rendering of an instantiation name, e.g. "Foo<int>", map
   // it to the instantiated type if we've already instantiated it
   StringObjDict<CompoundType> instantiated;
+
+  // unordered list of specializations; this list is nonempty only
+  // for the primary template
+  SObjList<CompoundType> specializations;
+
+  // if this is a specialization, then this is the specialized
+  // argument list (AST pointer); the arguments are used during
+  // template specialization matching (which is not implemented for
+  // now)
+  FakeList<TemplateArgument> *specialArguments;
+  string specialArgumentsRepr;      // textual repr. for printing
+
+public:    // funcs
+  ClassTemplateInfo();
+  ~ClassTemplateInfo();
 };
 
 
