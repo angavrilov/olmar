@@ -314,7 +314,18 @@ int CompoundType::reprSize() const
     if (!v->type->isFunctionType() &&
         !v->hasFlag(DF_TYPEDEF) &&
         !v->hasFlag(DF_STATIC)) {
-      int membSize = v->type->reprSize();
+      int membSize = 0;
+      if (v->type->isArrayType() &&
+          v->type->asArrayType()->size == ArrayType::NO_SIZE
+          ) {
+        // FIX GNU: or is this a C thing, or both? "Open Array": An
+        // array of no size in struct counts as 0 size.  Gcc even
+        // allows it if the array is not at the end!  How one would
+        // use that variant legitimately I don't know.
+        membSize = 0;
+      } else {
+        membSize = v->type->reprSize();
+      }
       if (keyword == K_UNION) {
         // representation size is max over field sizes
         total = max(total, membSize);
