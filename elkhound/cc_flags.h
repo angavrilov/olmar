@@ -63,9 +63,10 @@ enum DeclFlags {
   DF_BUILTIN     = 0x1000,    // true for e.g. __builtin_constant_p -- don't emit later
   DF_LOGIC       = 0x2000,    // true for logic variables
   DF_ADDRTAKEN   = 0x4000,    // true if it's address has been (or can be) taken
+  DF_PARAMETER   = 0x8000,    // true if this is a function parameter
 
-  ALL_DECLFLAGS  = 0x7FFF,
-  NUM_DECLFLAGS  = 15         // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0xFFFF,
+  NUM_DECLFLAGS  = 16         // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..

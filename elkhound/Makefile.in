@@ -53,13 +53,23 @@ ccflags += -Werror
 #ccflags += -O2
 
 compile := g++ -c $(ccflags) $(includes)
+depend  := g++ -MM $(ccflags) $(includes)
 link    := g++ $(ccflags) $(includes)
 linkend := $(libraries)
 
-# compile .cc to .o
+# compile .cc to .o; dependency manipulation involves:
+#   sed:    strip the target (everything before colon)
+#   sed:    remove any continuation backslashes
+#   fmt -1: list words one per line
+#   sed:    strip leading spaces
+#   sed:    add trailing colons
 %.o : %.cc
 	$(compile) $< -o $@
-	@$(SMBASE)/depend.sh $(ccflags) $(includes) $< > $*.d
+	@$(depend) $< > $*.d
+	@cp -f $*.d $*.d.tmp
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
+          sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
+	@rm -f $*.d.tmp
 
 # sets of related object files
 # files needed to represent a grammar in memory
@@ -97,6 +107,13 @@ $(AST)/%.o: $(AST)/%.cc
 # update: should be unnecessary if .d stuff works
 #attrexpr.o: grampar.codes.h
 
+# a few random .o files which don't appear anyplace above, but I need
+# to make sure their dependency info (if it exists) gets included
+random-obj := lexer2stub.o glrtree.o parsstub.o cexp2.o cexp3.gen.o \
+              glrmain.o cexp3mrg.o cexp3ast.gen.o cdecl.gen.o \
+              ccgrmain.o
+-include $(random-obj:.o=.d)
+
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep := gramanl.cc $(grammar-set) $(common) $(grampar-set) \
@@ -129,7 +146,8 @@ lexer2: $(lexer2-dep) lexer2.h
 gramlex.yy.cc: gramlex.lex
 	flex -ogramlex.yy.cc gramlex.lex                     
 
-gramlex.yy.o: $(AST)/gramlex.h $(AST)/gramlex.cc grampar.codes.h
+# should be redundant with new dependency system
+#gramlex.yy.o: $(AST)/gramlex.h $(AST)/gramlex.cc grampar.codes.h
 
 # grammar lexer test program
 gramlex-dep := gramlex.yy.cc gramlex.cc $(AST)/fileloc.o $(AST)/ccsstr.o $(common) \
@@ -149,7 +167,7 @@ grampar.tab.cc grampar.tab.h grampar.codes.h: grampar.y gramast.ast.gen.h
 
 # grammar parser test program
 grampar: grampar.cc $(grammar-set) $(common) gramlex.yy.o grampar.tab.o \
-         gramlex.o ast.o $(AST)/fileloc.o gramast.ast.gen.o $(AST)/ccsstr.o \
+         $(AST)/gramlex.o ast.o $(AST)/fileloc.o gramast.ast.gen.o $(AST)/ccsstr.o \
          lexer2stub.o $(AST)/embedded.o $(AST)/strtable.o $(AST)/asthelp.o \
          $(libraries)
 	$(link) -o grampar -DTEST_GRAMPAR $^
@@ -160,8 +178,7 @@ cc.tok: lexer2
 
 # C expression (sort of) evaluator
 cexp2-sem-dep := cexp2.sem.cc $(grammar-set) $(common) $(glr-set) \
-                 grampar.tab.o gramlex.yy.o grampar.o gramlex.o ast.o \
-                 $(AST)/fileloc.o gramast.o $(libraries)
+                 $(grampar-set) $(libraries)
 cexp2.sem: $(cexp2-sem-dep)
 	$(link) -o cexp2.sem -DTEST_CEXP2_SEM $(cexp2-sem-dep)
 

@@ -16,6 +16,7 @@ class Predicate;           // predicate.ast
 class VariablePrinter;     // aenv.cc
 class Variable;            // variable.h
 class TF_func;             // c.ast
+class E_funCall;           // c.ast
 
 
 // abstract variable: info maintained about program variables
@@ -52,9 +53,6 @@ private:     // data
   // those for which 'memvar' is true; the two lists are concatenated
   // into one list of things all assumed to be mutually distinct
   SObjList<AbsValue> distinct;
-
-  // monotonic integer for making new names
-  int counter;
 
   // accessor functions for types
   P_and *typeFacts;
@@ -121,6 +119,9 @@ public:      // funcs
 
   // add an address to those considered mutually distinct
   void addDistinct(AbsValue *obj);
+                                               
+  // refresh bindings that aren't known to be constant across a call
+  void forgetAcrossCall(E_funCall const *call);
 
   // set/get the current abstract value of memory
   AbsValue *getMem() { return get(mem); }

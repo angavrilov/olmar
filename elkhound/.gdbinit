@@ -5,7 +5,7 @@
 file ccgr
 #set args -tr printPaths,printTypedAST,stopAfterTCheck,tcheck cc.bin tcheck/loops.c
 
-set args cc.bin vcgen/ptr.c
+set args -tr predicates cc.bin vcgen/global.c
 
 #  break main
 #  break breaker

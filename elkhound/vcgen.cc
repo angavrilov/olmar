@@ -68,6 +68,7 @@ void TF_func::vcgen(AEnv &env) const
       // clear anything left over in env
       env.clear();
 
+      #if 0    // new: I don't add things until they're asked for
       // add the function parameters to the environment
       {SFOREACH_OBJLIST(Variable, params, iter) {
         Variable const *v = iter.data();
@@ -134,6 +135,7 @@ void TF_func::vcgen(AEnv &env) const
       if (!ft.retType->isVoid()) {
         env.set(env.result, env.freshVariable("result", "UNDEFINED return value"));
       }
+      #endif // 0
 
       // let pre_mem be the name of memory now
       // update: the user can bind this herself
@@ -531,8 +533,8 @@ void S_decl::vcgen(STMT_VCGEN_PARAMS) const
     else {
       // make up a new name for the uninitialized value
       // (if it's global we get to assume it's 0... not implemented..)
-      initVal = new AVvar(d->var->name, stringc << "UNINITialized value of var "
-                                                << d->var->name);
+      initVal = env.freshVariable(d->var->name, 
+        stringc << "UNINITialized value of var " << d->var->name);
     }
 
     // add a binding for the variable
@@ -683,54 +685,49 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
     return f;
   }
 
-  // -------------- build an environment for pre/post ----------------
+  // -------------- modify environment for pre/post ----------------
   // the pre- and postconditions get evaluated to an abstract value in
-  // an environment containing only parameters (and in the case of the
-  // postcondition, 'result); eventually it should also contain
-  // globals, but right now I don't have globals in the abstract
-  // environment..
-  AEnv newEnv(env.stringTable, env.mem);
-  newEnv.inPredicate = true;       // will only be used to eval pre/post
-
-  // bind the parameters in the new environment
+  // an environment augmented to include parameters (and in the case
+  // of the postcondition, 'result'); I do *not* create another
+  // environment, because I can't possibly get confused by variable
+  // names, since every variable in the program has a unique name
   SObjListMutator<AbsValue> argExpIter(argExps);
   FOREACH_OBJLIST(FunctionType::Param, ft.params, paramIter) {
     // bind the names to the expressions that are passed
-    newEnv.set(paramIter.data()->decl,
-               argExpIter.data());
-
-    // I claim that putting the arg exp into the new environment
-    // counts as "using" it, so discarding it is not necessary
-    // (except that it was created in 'env' and passed to 'newEnv'...)
+    env.set(paramIter.data()->decl,
+            argExpIter.data());
 
     argExpIter.adv();
   }
-
-  // let mem = current-mem
-  newEnv.setMem(env.getMem());
 
   // let pre_mem = mem
   //newEnv.set(env.str("pre_mem"), newEnv.getMem());
 
   // ----------------- prove precondition ---------------
+  IN_PREDICATE(env);
+
   if (ft.precondition) {
     // include precondition bindings in the environment
     FOREACH_ASTLIST(Declaration, ft.precondition->decls, iter) {
-      iter.data()->vcgen(newEnv);
+      iter.data()->vcgen(env);
     }
 
-    // finally, interpret the precondition in the parameter-only
-    // environment, to arrive at a predicate to prove
-    AbsValue *predicate = ft.precondition->expr->vcgen(newEnv, 0);
+    // finally, interpret the precondition to arrive at a predicate to
+    // prove
+    AbsValue *predicate = ft.precondition->expr->vcgen(env, 0);
     xassert(predicate);      // tcheck should have verified we can represent it
 
-    // prove this predicate; the assumptions from the *old* environment
-    // are relevant
+    // prove this predicate
     env.prove(predicate, stringc << "precondition of call: " << toString());
 
     // no longer needed
-    newEnv.discard(predicate);
+    env.discard(predicate);
   }
+
+  // -------------- conservatively destroy state ------------
+  // NOTE: by keeping the environment from before, we are interpreting
+  // all references to parameters as their values in the *pre* state
+  env.forgetAcrossCall(this);
 
   // ----------------- assume postcondition ---------------
   // make a new variable to stand for the value returned
@@ -739,22 +736,14 @@ AbsValue *E_funCall::vcgen(AEnv &env, int path) const
     resultVal = env.freshVariable("result",
                   stringc << "function call result: " << toString());
 
-    // add this to the mini environment so if the programmer talks
-    // about the result, it will state something about the result variable
-    newEnv.set(ft.result, resultVal);
+    // add this to the environment so if the programmer talks about
+    // the result, it will state something about the result variable
+    env.set(ft.result, resultVal);
   }
-
-  // make up new variable to represent final contents of memory
-  env.setMem(env.freshVariable("mem", 
-               stringc << "contents of memory after call: " << toString()));
-  newEnv.setMem(env.getMem());
-
-  // NOTE: by keeping the environment from before, we are interpreting
-  // all references to parameters as their values in the *pre* state
 
   if (ft.postcondition) {
     // evaluate it
-    AbsValue *predicate = ft.postcondition->expr->vcgen(newEnv, 0);
+    AbsValue *predicate = ft.postcondition->expr->vcgen(env, 0);
     xassert(predicate);
     
     // assume it

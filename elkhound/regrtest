@@ -150,6 +150,7 @@ vcgen() {
 vcgen if.c
 vcgen ptr.c
 vcgen invar.c
+vcgen global.c
 
 
 # final arithmetic to report result

@@ -465,7 +465,10 @@ void /*Type const * */D_func::itcheck(Env &env, Type const *rettype,
     // compute the type of the parameter
     Type const *paramType = ti->tcheck(env);
 
-    // extract the name too
+    // mark the newly-created Variable structure as a parameter
+    ti->decl->var->setFlag(DF_PARAMETER);
+
+    // extract the name
     StringRef /*nullable*/ paramName = ti->decl->var->name;
 
     // add it to the type description
@@ -519,6 +522,9 @@ void /*Type const * */D_func::itcheck(Env &env, Type const *rettype,
     }
   }
 
+  // I think leaving the scope here (and then re-creating it in
+  // TF_func::tcheck) enforces proper scoping for *types* introduced
+  // in the parameter declaration list.. ?
   env.leaveScope();
 
   // pass the constructed function type to base's tcheck so it can

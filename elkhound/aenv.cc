@@ -9,6 +9,7 @@
 #include "trace.h"              // tracingSys
 #include "exc.h"                // xBase
 #include "owner.h"              // Owner
+#include "cc_type.h"            // Type
 
 #include <assert.h>             // assert
 
@@ -68,7 +69,6 @@ AEnv::AEnv(StringTable &table, Variable const *m)
              &HashTable::pointerEqualKeyFn),
     facts(new P_and(NULL)),
     distinct(),
-    counter(1),
     typeFacts(new P_and(NULL)),
     mem(m),
     result(NULL),
@@ -115,24 +115,97 @@ void AEnv::set(Variable const *var, AbsValue *value)
 AbsValue *AEnv::get(Variable const *var)
 {
   AbsVariable *avar = bindings.get(var);
-  if (!avar) {
-    THROW(xBase(stringc << "failed to lookup " << var->name));
+  if (avar) {
+    return avar->value;
   }
-  return avar->value;
+  
+  // we're asking for a variable's value, but we don't know anything
+  // about that variable.. so we'll make up a new logic variable
+  // to talk about it
+
+  // convenience
+  StringRef name = var->name;
+  xassert(name);    // otherwise how did it get referred-to?
+  Type const *type = var->type;
+
+  // give a name to its current value (unless it's a big thing in memory)
+  AbsValue *value;
+  if (!type->isArrayType()) {
+    value = freshVariable(name,
+      stringc << "starting value of "
+              << (var->hasFlag(DF_PARAMETER)? "parameter " : "variable ")
+              << name);
+  }
+  
+  if (var->hasAddrTaken() || type->isArrayType()) {
+    // model this variable as a location in memory; make up a name
+    // for its address
+    AbsValue *addr = addMemVar(var);
+
+    if (!type->isArrayType()) {
+      // state that, right now, that memory location contains 'value'
+      addFact(new AVbinary(value, BIN_EQUAL,
+        avSelect(getMem(), addr, new AVint(0))));
+    }
+    else {
+      // will model array contents as elements in memory, rather
+      // than as symbolic whole-array values... the value we yield
+      // will be the address of the array (I guess, relying on the
+      // implicit coercion between arrays and pointers..)
+    }
+
+    int size = 1;         // default for non-arrays
+    if (type->isArrayType() && type->asArrayTypeC().hasSize) {
+      // state that the length is whatever the array length is
+      // (if the size isn't specified I have to get it from the
+      // initializer, but that will be TODO for now)
+      size = type->asArrayTypeC().size;
+    }
+
+    // remember the length, as a predicate in the set of known facts
+    addFact(new AVbinary(avLength(addr), BIN_EQUAL,
+                         new AVint(size)));
+                         
+    // caller knows that we're yielding the address, not the value,
+    // since this is a memvar
+    return addr;
+  }
+
+  else {
+    // model the variable as a simple, named, unaliasable variable
+    set(var, value);
+    return value;
+  }
 }
 
 
 AbsValue *AEnv::freshVariable(char const *prefix, char const *why)
 {
-  StringRef name = stringTable.add(stringc << prefix << counter++);
-  return new AVvar(name, why);
+  int suffix = 0;
+                             
+  // keep generating names until we hit one which has not been used
+  // for *any* purpose; this avoids conflict with any user-defined
+  // names (since they all went through the string table), but also
+  // tries to append just "_0" as often as possible
+  for (;;) {
+    string name = stringc << prefix << "_" << suffix++;
+    if (!stringTable.get(name)) {
+      // found an unused name
+      StringRef nameRef = stringTable.add(name);
+      return new AVvar(nameRef, why);
+    }
+
+    // infinite loop paranoia
+    xassert(suffix < 10000);
+  }
 }
 
 
 AbsValue *AEnv::addMemVar(Variable const *var)
 {
   StringRef addrName = str(stringc << "addr_" << var->name);
-  AbsValue *addr = new AVvar(addrName, stringc << "address of " << var->name);
+  AbsValue *addr =
+    freshVariable(addrName, stringc << "address of " << var->name);
 
   AbsVariable *avar = new AbsVariable(var, addr, true /*memvar*/);
   bindings.add(var, avar);
@@ -148,8 +221,10 @@ AbsValue *AEnv::getMemVarAddr(Variable const *var)
 
 bool AEnv::isMemVar(Variable const *var) const
 {
-  AbsVariable *avar = bindings.get(var);
-  return avar && avar->memvar;
+  // we could query this before adding 'var' to the abstract
+  // environment, so I list the reasons a variable would be
+  // modelled in memory
+  return var->hasAddrTaken() || var->type->isArrayType();
 }
 
 AbsValue *AEnv::updateVar(Variable const *var, AbsValue *newValue)
@@ -171,6 +246,27 @@ AbsValue *AEnv::updateVar(Variable const *var, AbsValue *newValue)
 void AEnv::addDistinct(AbsValue *obj)
 {
   distinct.append(obj);
+}
+
+
+void AEnv::forgetAcrossCall(E_funCall const *call)
+{
+  string thisCallSyntax = call->toString();
+
+  // make up new variable to represent final contents of memory
+  setMem(freshVariable("mem",
+           stringc << "contents of memory after call: " << thisCallSyntax));
+
+  // any current values for global variables are forgotten
+  for (OwnerHashTableIter<AbsVariable> iter(bindings);
+       !iter.isDone(); iter.adv()) {
+    AbsVariable *av = iter.data();
+    if (av->decl->isGlobal() || av->decl->hasAddrTaken()) {
+      updateVar(av->decl, freshVariable(av->decl->name,
+        stringc << "value of " << av->decl->name
+                << " after modified by call: " << thisCallSyntax));
+    }
+  }
 }
 
 

@@ -80,16 +80,20 @@ void doit(int argc, char **argv)
     return;
   }
 
+                 
+  // --------- declarations provided automatically -------
+  SourceLocation dummyLoc;
+  Variable mem(dummyLoc, strTable.add("mem"),
+               new PointerType(PO_POINTER, CV_NONE,
+                 &CVAtomicType::fixed[ST_INT]), DF_NONE);
 
   // ---------------- typecheck -----------------
-  Variable *mem;
   {
     traceProgress() << "type checking...\n";
     Env env(strTable);
+    env.addVariable(mem.name, &mem);
     unit->tcheck(env);
     traceProgress(2) << "done type checking\n";
-
-    mem = env.getVariable(strTable.add("mem"));
 
     // print abstract syntax tree annotated with types
     if (tracingSys("printTypedAST")) {
@@ -112,7 +116,7 @@ void doit(int argc, char **argv)
   // --------------- abstract interp ------------
   {
     traceProgress() << "verification condition generation...\n";
-    AEnv env(strTable, mem);
+    AEnv env(strTable, &mem);
 
     unit->vcgen(env);
 

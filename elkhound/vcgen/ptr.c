@@ -28,7 +28,7 @@ void bar()
 }
 
 
-int *mem;
+//int *mem;
 int *object(int *ptr);
 int offset(int *ptr);
 int length(int *obj);
