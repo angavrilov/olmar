@@ -163,7 +163,7 @@ while (defined($line = <IN>)) {
   printf IDS ("  %3d : %-30s %s;\n",
               $nextId,
               $enumerator,
-              ($multiSpell? $spelling : ""));
+              ($multiSpell? "" : $spelling));
 
   $nextId++;
 }
@@ -172,6 +172,8 @@ while (defined($line = <IN>)) {
 # print the epilogues
 
 print H (<<"EOF");
+  NUM_TOKEN_TYPES
+
 };  // enum TokenType
 
 // map TokenType to its spelling or description
