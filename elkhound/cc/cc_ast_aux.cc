@@ -182,6 +182,14 @@ void Expression::setNext(Expression *newNext)
 }
 
 
+void Expression::printExtras(ostream &os, int indent) const
+{         
+  if (type) {
+    ind(os, indent) << "type: " << type->toString() << "\n";
+  }
+}
+
+
 // ExpressionListOpt
 // Initializer
 // InitLabel
