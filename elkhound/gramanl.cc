@@ -950,12 +950,12 @@ void ItemSet::writeGraph(ostream &os, GrammarAnalysis const &g) const
 
 
 // ------------------------- ParseTables -----------------------
-ParseTables::ParseTables(int t, int nt, int s, int p)
+ParseTables::ParseTables(int t, int nt, int s, int p, StateId start, int final)
 {
-  alloc(t, nt, s, p);
+  alloc(t, nt, s, p, start, final);
 }
 
-void ParseTables::alloc(int t, int nt, int s, int p)
+void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 {
   numTerms = t;
   numNonterms = nt;
@@ -967,12 +967,15 @@ void ParseTables::alloc(int t, int nt, int s, int p)
 
   gotoTable = new GotoEntry[gotoTableSize()];
   memset(gotoTable, 0, sizeof(gotoTable[0]) * gotoTableSize());
-  
+
   prodInfo = new ProdInfo[numProds];
   memset(prodInfo, 0, sizeof(prodInfo[0]) * numProds);
-  
+
   stateSymbol = new SymbolId[numStates];
   memset(stateSymbol, 0, sizeof(stateSymbol[0]) * numStates);
+
+  startState = start;
+  finalProductionIndex = final;
 }
 
 
@@ -1029,6 +1032,8 @@ void xferSimpleArray(Flatten &flat, T *array, int numElements)
 
 void ParseTables::xfer(Flatten &flat)
 {
+  // arbitrary number which serves to make sure we're at the
+  // right point in the file
   flat.checkpoint(0x1B2D2F16);
 
   flat.xferInt(numTerms);
@@ -1036,8 +1041,12 @@ void ParseTables::xfer(Flatten &flat)
   flat.xferInt(numStates);
   flat.xferInt(numProds);
 
+  flat.xferInt((int&)startState);
+  flat.xferInt(finalProductionIndex);
+
   if (flat.reading()) {
-    alloc(numTerms, numNonterms, numStates, numProds);
+    alloc(numTerms, numNonterms, numStates, numProds,
+          startState, finalProductionIndex);
   }
            
   xferSimpleArray(flat, actionTable, actionTableSize());
@@ -2438,7 +2447,13 @@ void GrammarAnalysis::constructLRItemSets()
     startState = is;
     LRItem *firstDP
       = new LRItem(numTerms, getDProd(productions.first(), 0 /*dot at left*/));
-    //firstDP->laAdd(0 /*eof token id*/);
+    
+    // don't add this to the lookahead; we assume EOF is actually
+    // mentioned in the production already, and we won't contemplate
+    // executing this reduction within the normal parser core
+    // (see GLR::cleanupAfterParse)
+    //firstDP->laAdd(0 /*EOF token id*/);
+
     is->addKernelItem(firstDP);
     is->sortKernelItems();                    // redundant, but can't hurt
     itemSetClosure(*is);                      // calls changedItems internally
@@ -3145,7 +3160,9 @@ void GrammarAnalysis::resolveConflicts(
 
 void GrammarAnalysis::computeParseTables(bool allowAmbig)
 {
-  tables = new ParseTables(numTerms, numNonterms, itemSets.count(), numProds);
+  tables = new ParseTables(numTerms, numNonterms, itemSets.count(), numProds,
+                           startState->id,
+                           0 /* slight hack: assume it's the first production */);
 
   // count total number of conflicts of each kind
   int sr=0, rr=0;
@@ -4639,7 +4656,7 @@ int main(int argc, char **argv)
   traceProgress() << "writing binary grammar file " << binFname << endl;
   {
     BFlatten flatOut(binFname, false /*reading*/);
-    g.xfer(flatOut);
+    g.tables->xfer(flatOut);
   }
 
   // write it in a bison-compatible format as well

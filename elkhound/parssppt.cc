@@ -63,96 +63,10 @@ bool glrParseNamedFile(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
 bool glrParseFrontEnd(GLR &glr, Lexer2 &lexer2, SemanticValue &treeTop,
                       char const *grammarFname, char const *inputFname)
 {
-  #if 0
-    // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
-    parseLine("E' ->  E $                ");
-    parseLine("E  ->  E + T  |  T        ");
-    parseLine("T  ->  T * F  |  F        ");
-    parseLine("F  ->  ( E )  |  id       ");
+  glr.readBinaryGrammar(grammarFname);
 
-    char const *input[] = {
-      " id                 $",
-      " id + id            $",
-      " id * id            $",
-      " id + id * id       $",
-      " id * id + id       $",
-      " ( id + id ) * id   $",
-      " id + id + id       $",
-      " id + ( id + id )   $"
-    };
-  #endif // 0/1
-
- #if 0
-    // a simple ambiguous expression grammar
-    parseLine("S  ->  E  $                  ");
-    parseLine("E  ->  x  |  E + E  | E * E  ");
-
-    char const *input[] = {
-      "x + x * x $",
-    };
-  #endif // 0/1
-
-  #if 0
-    // my cast-problem grammar
-    parseLine("Start -> Expr $");
-    parseLine("Expr -> CastExpr");
-    parseLine("Expr -> Expr + CastExpr");
-    parseLine("CastExpr -> AtomExpr");
-    parseLine("CastExpr -> ( Type ) CastExpr");
-    parseLine("AtomExpr -> 3");
-    parseLine("AtomExpr -> x");
-    parseLine("AtomExpr -> ( Expr )");
-    parseLine("AtomExpr -> AtomExpr ( Expr )");
-    parseLine("Type -> int");
-    parseLine("Type -> x");
-
-    char const *input[] = {
-      "( x ) ( x ) $",
-    };
-
-    printProductions(cout);
-    runAnalyses();
-
-    INTLOOP(i, 0, (int)TABLESIZE(input)) {
-      cout << "------ parsing: `" << input[i] << "' -------\n";
-      glrParse(input[i]);
-    }
-  #endif // 0/1
-
-  #if 1
-    // read grammar
-    //if (!readFile(grammarFname)) {
-    //  // error with grammar; message already printed
-    //  return;
-    //}
-
-    if (!strstr(grammarFname, ".bin")) {
-      // assume it's an ascii grammar file and do the whole thing
-
-      // new code to read a grammar (throws exception on failure)
-      readGrammarFile(glr, grammarFname);
-
-      // spit grammar out as something bison might be able to parse
-      //{
-      //  ofstream bisonOut("bisongr.y");
-      //  printAsBison(bisonOut);
-      //}
-
-      if (tracingSys("grammar")) {
-        glr.printProductions(trace("grammar") << endl);
-      }
-
-      glr.runAnalyses(NULL);
-    }
-
-    else {
-      glr.readBinaryGrammar(grammarFname);
-    }
-
-    // parse input
-    return glrParseNamedFile(glr, lexer2, treeTop, inputFname);
-
-  #endif // 0/1
+  // parse input
+  return glrParseNamedFile(glr, lexer2, treeTop, inputFname);
 }
 
 

@@ -432,11 +432,20 @@ public:     // data
   ArrayStack<ActionEntry*> ambigAction;  // (array of owner ptrs)
   int numAmbig() const { return ambigAction.length(); }
 
+  // start state id
+  StateId startState;
+  
+  // index of the production which will finish a parse; it's the
+  // final reduction executed
+  int finalProductionIndex;
+
 private:    // funcs
-  void alloc(int numTerms, int numNonterms, int numStates, int numProds);
+  void alloc(int numTerms, int numNonterms, int numStates, int numProds, 
+             StateId start, int finalProd);
 
 public:     // funcs
-  ParseTables(int numTerms, int numNonterms, int numStates, int numProds);
+  ParseTables(int numTerms, int numNonterms, int numStates, int numProds,
+              StateId start, int finalProd);
   ~ParseTables();
 
   ParseTables(Flatten&);

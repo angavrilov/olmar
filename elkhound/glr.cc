@@ -605,7 +605,7 @@ GLR::GLR(UserActions *user)
   : userAct(user),
     activeParsers(),
     parserIndex(NULL),
-    currentTokenClass(NULL),
+    currentTokenType(0),
     currentTokenValue(NULL),
     parserWorklist(),
     pcsStack(),
@@ -764,9 +764,9 @@ void GLR::buildParserIndex()
   if (parserIndex) {
     delete[] parserIndex;
   }
-  parserIndex = new ParserIndexEntry[numItemSets()];
+  parserIndex = new ParserIndexEntry[tables->numStates];
   {
-    for (int i=0; i<numItemSets(); i++) {
+    for (int i=0; i < tables->numStates; i++) {
       parserIndex[i] = INDEX_NO_PARSER;
     }
   }
@@ -797,7 +797,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
   // create an initial ParseTop with grammar-initial-state,
   // set active-parsers to contain just this
   NODE_COLUMN( globalNodeColumn = 0; )
-  StackNode *first = makeStackNode(startState->id);
+  StackNode *first = makeStackNode(tables->startState);
   addActiveParser(first);
 
   // we will queue up shifts and process them all at the end (pulled
@@ -823,18 +823,19 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
     // token reclassification
     #if USE_RECLASSIFY
-      int classifiedType = userAct->reclassifyToken(lexer.type,
-                                                    lexer.sval);
+      currentTokenType = userAct->reclassifyToken(lexer.type, lexer.sval);
     #else     // this is what bccgr does
-      int classifiedType = lexer.type;
-      if (classifiedType == 1 /*L2_NAME*/) {
-        classifiedType = 3 /*L2_VARIABLE_NAME*/;
+      currentTokenType = lexer.type;
+      if (currentTokenType == 1 /*L2_NAME*/) {
+        currentTokenType = 3 /*L2_VARIABLE_NAME*/;
       }
     #endif
+    
+    // hmmm.. why am I suddenly so slow?
+    //register int localCurrentTokenType = currentTokenType;
+    #define localCurrentTokenType currentTokenType
 
-    // convert the token to a symbol
-    xassert((unsigned)classifiedType < (unsigned)numTerms);
-    currentTokenClass = indexedTerms[classifiedType];
+    // get other info about the token
     currentTokenValue = lexer.sval;
     SOURCELOC( currentTokenLoc = lexer.loc; )
 
@@ -857,7 +858,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
       StackNode *parser = activeParsers[0];
       xassertdb(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
       ActionEntry action =
-        tables->actionEntry(parser->state, currentTokenClass->termIndex);
+        tables->actionEntry(parser->state, localCurrentTokenType);
 
       // I decode reductions before shifts because:
       //   - they are 4x more common in my C grammar
@@ -1086,7 +1087,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
         // process this parser
         ActionEntry action =      // consult the 'action' table
-          tables->actionEntry(parser->state, currentTokenClass->termIndex);
+          tables->actionEntry(parser->state, localCurrentTokenType);
         int actions = glrParseAction(parser, action, pendingShifts);
 
         // OLD: why was I doing this?  it doesn't work, anyway; the CNI grammar
@@ -1135,7 +1136,7 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
       // if all active parsers have died, there was an error
       if (activeParsers.isEmpty()) {
-        printParseErrorMessage(lexer, lastToDie, classifiedType);
+        printParseErrorMessage(lexer, lastToDie);
         return false;
       }
     }
@@ -1192,15 +1193,18 @@ bool GLR::glrParse(LexerInterface &lexer, SemanticValue &treeTop)
 
  
 // pulled out of glrParse() to reduce register pressure
-void GLR::printParseErrorMessage(LexerInterface &lexer,
-                                 StateId lastToDie, int classifiedType)
+void GLR::printParseErrorMessage(LexerInterface &lexer, StateId lastToDie)
 {
   cout << "Line " << lexer.loc.line
        << ", col " << lexer.loc.col
        << ": Parse error at "
-       << lexer.tokenDescType(classifiedType)
+       << lexer.tokenDescType(currentTokenType)
        << endl;
 
+  // removing this for now since keeping it would mean putting
+  // sample inputs and left contexts for all states into the
+  // parse tables
+  #if 0
   if (lastToDie == STATE_INVALID) {
     // I'm not entirely confident it has to be nonnull..
     cout << "what the?  lastToDie is STATE_INVALID??\n";
@@ -1213,12 +1217,12 @@ void GLR::printParseErrorMessage(LexerInterface &lexer,
          << "  left context: "
          << leftContextString(getItemSet(lastToDie)) << "\n";
   }
+  #endif // 0
 }
 
 
 // pulled from glrParse() to reduce register pressure
-bool GLR::cleanupAfterParse(CycleTimer &timer,
-                            SemanticValue &treeTop)
+bool GLR::cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop)
 {
   traceProgress() << "done parsing (" << timer.elapsed() << ")\n";
   trsParse << "Parse succeeded!\n";
@@ -1240,11 +1244,20 @@ bool GLR::cleanupAfterParse(CycleTimer &timer,
   arr[1] = grabTopSval(last);         // eof's sval
 
   // reduce
-  trsSval << "handing toplevel svals " << arr[0]
-          << " and " << arr[1] << " top start's reducer\n";
+  trsSval << "handing toplevel sval " << arr[0]
+          << " and " << arr[1]
+          << " to top start's reducer\n";
   treeTop = userAct->doReductionAction(
-              getItemSet(last->state)->getFirstReduction()->prodIndex, arr
+              //getItemSet(last->state)->getFirstReduction()->prodIndex,
+              tables->finalProductionIndex,
+              arr
               SOURCELOCARG( last->getUniqueLinkC()->loc ) );
+
+  // why do this song-and-dance here, instead of letting the normal
+  // parser engine do the final reduction?  because the GLR algorithm
+  // always finishes its iterations with a shift, and it's not trivial
+  // to add a special exception for the case of the reduce which
+  // finishes the parse
 
   return true;
 }
@@ -1737,7 +1750,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
       // do any reduce actions that are now enabled
       ActionEntry action =
-        tables->actionEntry(parser->state, currentTokenClass->termIndex);
+        tables->actionEntry(parser->state, currentTokenType);
       doAllPossibleReductions(parser, action, sibLink);
     }
   }
@@ -1774,7 +1787,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 bool GLR::canMakeProgress(StackNode *parser)
 {
   ActionEntry entry =
-    tables->actionEntry(parser->state, currentTokenClass->termIndex);
+    tables->actionEntry(parser->state, currentTokenType);
 
   return tables->isShiftAction(entry) ||
          tables->isReduceAction(entry) ||
@@ -2098,7 +2111,8 @@ void GLR::readBinaryGrammar(char const *grammarFname)
   // read it in directly
   traceProgress() << "reading binary grammar file " << grammarFname << endl;
   BFlatten flat(grammarFname, true /*reading*/);
-  xfer(flat);
+  tables = new ParseTables(flat);
+  tables->xfer(flat);
 }
 
 

@@ -329,13 +329,19 @@ public:	   // funcs
 };
 
 
-// the GLR analyses are performed within this class; GLR
+// (OLD) the GLR analyses are performed within this class; GLR
 // differs from GrammarAnalysis in that the latter should have
 // stuff useful across a wide range of possible analyses
-class GLR : public GrammarAnalysis {
-public:
+//
+// update: trying to separate GLR from GrammarAnalysis entirely..
+class GLR {
+public:                    
+  // ---- grammar-wide data ----
   // user-specified actions
   UserActions *userAct;
+
+  // parse tables derived from the grammar
+  ParseTables *tables;                      // (owner)
 
   // ---- parser state between tokens ----
   // Every node in this set is (the top of) a parser that might
@@ -355,10 +361,10 @@ public:
   enum { initialStackNodeId = 1 };
 
   // ---- parser state during each token ----
-  // the token we're trying to shift; any parser that fails to
-  // shift this token (or reduce to one that can, recursively)
-  // will "die"
-  Terminal const *currentTokenClass;
+  // the type of the token we're trying to shift; any parser that
+  // fails to shift this token (or reduce to one that can,
+  // recursively) will "die"
+  int currentTokenType;
 
   // the semantic value associated with that token
   SemanticValue currentTokenValue;
@@ -434,10 +440,8 @@ private:    // funcs
                                StackNode const *target) const;
   void printConfig() const;
   void buildParserIndex();
-  void printParseErrorMessage(LexerInterface &lexer,
-                              StateId lastToDie, int classifiedType);
-  bool cleanupAfterParse(CycleTimer &timer,
-                         SemanticValue &treeTop);
+  void printParseErrorMessage(LexerInterface &lexer, StateId lastToDie);
+  bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
 
 public:     // funcs
   GLR(UserActions *userAct);

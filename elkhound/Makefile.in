@@ -1,7 +1,7 @@
 # Makefile.in
 # source for Makefile for parser generator project
 
-all: ccgr cc2.exe cc2t.exe bccgr
+all: glr.o ccgr cc2.exe cc2t.exe bccgr
 
 temporary: ccgr bccgr triv/aSEb.gr.exe triv/SSx.tree.gr.exe triv/ssx.in \
            triv/EEb.tree.gr.exe triv/eeb.in triv/SSSx.tree.gr.exe triv/sssx.in \
