@@ -218,8 +218,8 @@ void Function::tcheck(Env &env, bool isMember, bool checkBody)
     }
   }
 
-  // elaborate the parameters's Declarators
-  nameAndParams->decl->getD_func()->elaborateParameterCDtors(env);
+//    // elaborate the parameters's Declarators
+//    nameAndParams->decl->getD_func()->elaborateParameterCDtors(env);
 
   // is this a nonstatic member function?
   if (funcType->isMethod()) {
@@ -1953,12 +1953,13 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // I think this is fixed now; the init typechecking, etc. code
     // that was here is now in elaborateCDtors.
 
-    // dsw: the init typechecking is only done here for parameters so
-    // that function declarations work when they have default
-    // arugments.  Otherwise, it is delayed until elaborateCDtors().
-    if (dt.isParameter) {
-      tcheck_init(env);
-    }
+    // Now always delayed until elaborateCDtors().
+//      // dsw: the init typechecking is only done here for parameters so
+//      // that function declarations work when they have default
+//      // arugments.  Otherwise, it is delayed until elaborateCDtors().
+//      if (dt.isParameter) {
+//        tcheck_init(env);
+//      }
 
     // jump here if we find an error in the init code above and report
     // it but want to keep going
@@ -2022,13 +2023,17 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //    }
 
   // Non-members aren't going to get a second pass over them, so we
-  // just call elaborateCDtors() now for them.  Parameters need to be
-  // elaborated during the second pass, since they can have a type of
-  // the class that we are still in the definition of, and therefore
-  // any references to implicit members of that class don't exist yet.
-  // Don't elaborate the cdtors for the Declarator down inside an
-  // E_new.
-  if (!dt.isMember && !dt.isParameter && !dt.isE_new) {
+  // just call elaborateCDtors() now for them.  Don't elaborate the
+  // cdtors for the Declarator down inside an E_new.
+
+  // not any more:
+  // Parameters need to be elaborated during the second pass, since
+  // they can have a type of the class that we are still in the
+  // definition of, and therefore any references to implicit members
+  // of that class don't exist yet.
+  if (!dt.isMember &&
+//        !dt.isParameter &&
+      !dt.isE_new) {
     elaborateCDtors(env,
                     dt.isMember,
                     dt.isTemporary,
@@ -2038,20 +2043,20 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 }
 
 
-void D_func::elaborateParameterCDtors(Env &env)
-{
-  FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
-    iter->decl->elaborateCDtors
-      (env,
-       false,                   // isMember
-       false,                   // isTemporary
-       true,                    // isParameter
-       // Only Function and Declaration have any DeclFlags; the only
-       // one that seems appropriate is this one
-       DF_PARAMETER
-       );
-  }
-}
+//  void D_func::elaborateParameterCDtors(Env &env)
+//  {
+//    FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
+//      iter->decl->elaborateCDtors
+//        (env,
+//         false,                   // isMember
+//         false,                   // isTemporary
+//         true,                    // isParameter
+//         // Only Function and Declaration have any DeclFlags; the only
+//         // one that seems appropriate is this one
+//         DF_PARAMETER
+//         );
+//    }
+//  }
 
 // This was originally in Declarator::mid_tcheck()
 void Declarator::tcheck_init(Env &env)
@@ -2123,9 +2128,9 @@ void Declarator::elaborateCDtors(Env &env,
   }
 
   // This was moved here from Declarator::mid_tcheck()
-  if (init &&
-      // for parameters was already done in Declarator::mid_tcheck()
-      !isParameter
+  if (init
+//        // for parameters was already done in Declarator::mid_tcheck()
+//        && !isParameter
       ) {
     tcheck_init(env);
   }
@@ -2232,17 +2237,22 @@ void Declarator::elaborateCDtors(Env &env,
                ) {
       xassert(ctorStatement);
     }
-  }
+//    } else {
+//      // isParameter
+//      // make the copy ctor
+//      xassert(!ctorStatement);
+//      ctorStatement = makeCtorStatement(env, var, type, FakeList<Expression>::emptyList());
 
-  // make the dtorStatement
-  if (type->isCompoundType() &&
-      !var->hasFlag(DF_TYPEDEF) &&
-      !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
-      !( (dflags & DF_EXTERN)!=0 ) // not extern
-      ) {
-    dtorStatement = makeDtorStatement(env, type);
-  } else {
-    xassert(!dtorStatement);
+    // make the dtorStatement
+    if (type->isCompoundType() &&
+        !var->hasFlag(DF_TYPEDEF) &&
+        !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
+        !( (dflags & DF_EXTERN)!=0 ) // not extern
+        ) {
+      dtorStatement = makeDtorStatement(env, type);
+    } else {
+      xassert(!dtorStatement);
+    }
   }
 
   // I think this is wrong.  We only want it for function DEFINITIONS.

@@ -350,8 +350,8 @@ class IDeclarator {
        // MR_func::tcheck
        public bool isMember = false;
 
-       // elaborate the parameters
-       public void elaborateParameterCDtors(Env &env);
+//         // elaborate the parameters
+//         public void elaborateParameterCDtors(Env &env);
      }
 
   -> D_array {
