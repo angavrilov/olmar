@@ -13,7 +13,6 @@ Scope::Scope(ScopeKind sk, int cc, SourceLoc initLoc, TranslationUnit *tunit0)
     enums(),
     changeCount(cc),
     canAcceptNames(true),
-    innerClasses(),
     parentScope(),
     scopeKind(sk),
     curCompound(NULL),
@@ -128,14 +127,7 @@ bool Scope::addCompound(CompoundType *ct)
   trace("env") << "added " << toString(ct->keyword) << " " << ct->name << endl;
 
   ct->access = curAccess;
-  if (insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/)) {
-    // WORKAROUND: add it to a list also..
-    innerClasses.append(ct);
-    return true;
-  }             
-  else {
-    return false;
-  }
+  return insertUnique(compounds, ct->name, ct, changeCount, false /*forceReplace*/);
 }
 
 

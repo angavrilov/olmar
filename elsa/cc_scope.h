@@ -75,11 +75,6 @@ public:      // data
   // parameters, after the names have been added)
   bool canAcceptNames;
 
-  // doh.. I need a list of compounds so I can check the inner
-  // classes, and I can't seem to iterate over my StringSObjDict
-  // without triggering a compiler codegen bug..
-  SObjList<CompoundType> innerClasses;
-
   // (serf) parent named scope; presently, this is only used so that
   // inner classes can refer to their containing classes (eventually
   // nested namespaces will be supported this way too); this field is
