@@ -303,7 +303,6 @@ ActionEntry ParseTables::encodeAmbig
       }
 
       // no match
-      temp->ambigStateTable[inWhatState] = end;
       appendAmbig(set);
       return makeAE(AE_AMBIGUOUS, end-begin /*delta*/);
     }
