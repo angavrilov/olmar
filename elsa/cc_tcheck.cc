@@ -2418,6 +2418,9 @@ void D_array::tcheck(Env &env, Declarator::Tcheck &dt)
         at = env.makeArrayType(loc, dt.type);     // error recovery
       }
       else {
+        if (sz <= 0) {
+          env.error(loc, "array size must be positive");
+        }
         at = env.makeArrayType(loc, dt.type, sz);
       }
     }
@@ -3811,6 +3814,10 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       }
 
       // built-in candidates
+      // TODO: if any built-in candidate has the same parameter type
+      // list as a user-defined candidate, the built-in is not used
+      // (cppstd 13.3.1.2 para 3, last bullet); implementation is
+      // part of the tournament algorithm
       ArrayStack<Variable*> &builtins = env.builtinBinaryOperator[op];
       for (int i=0; i < builtins.length(); i++) {
         resolver.processCandidate(builtins[i]);

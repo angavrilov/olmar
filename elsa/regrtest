@@ -125,6 +125,11 @@ bigTest() {
 }
 
 # run a test that is expected to fail
+#
+# This isn't really intended for "here's a test that must fail", but
+# rather "here's a test that does fail right now, but we want to
+# eventually fix it".  The former can be handled using multitest.pl,
+# or a similar mechanism for inverting the test sense.
 failTest() {
   reason="$1"
   shift
@@ -189,7 +194,7 @@ for fn in                                                                 \
   t0103.cc   t0104.cc  t0105.cc  t0106.cc   t0107.cc   t0108.cc  t0109.cc \
   t0110.cc   t0111.cc  t0112.cc  t0113.cc   t0114.cc   t0115.cc  t0116.cc \
   t0117.cc   t0118.cc  t0119.cc  t0120.cc   t0121.cc   t0122.cc  t0123.cc \
-  t0124.cc   t0125.cc            t0127.cc   t0128.cc                      \
+  t0124.cc   t0125.cc            t0127.cc   t0128.cc   t0129.cc           \
     ; do
   # $TR_EXTRA is here so I can put additional tracing flags into this
   # command from the command line, to test them across all my test inputs;
@@ -201,12 +206,10 @@ done
 for fn in                                                                 \
   d0001.cc d0002.cc d0003.cc d0004.cc d0005.cc \
   d0006.cc d0007.cc d0008.cc d0009.cc d0010.cc \
-  d0011.cc d0012.cc d0013.cc d0014.cc          \
+  d0011.cc d0012.cc d0013.cc d0014.cc d0015.cc \
     ; do
   runTest perl ./multitest.pl ./ccparse -tr doOverload,mustBeUnambiguous$TR_EXTRA in/$fn
 done
-
-failTest "unterminated /**/ comment" ./ccparse in/d0015.cc
 
 # examples from C++ standard
 for fn in in/std/*.cc; do

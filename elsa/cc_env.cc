@@ -167,7 +167,7 @@ void Env::setupOperatorOverloading()
   // this has to match the typedef in include/stddef.h
   Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
 
-  // 13.6 para 12
+  // ---- 13.6 para 12 ----
   addBuiltinBinaryOp(BIN_MULT,
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
@@ -208,8 +208,14 @@ void Env::setupOperatorOverloading()
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC),
     getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC));
 
-  // 13.6 para 13
+  // ---- 13.6 para 13 ----
   addBuiltinBinaryOp(BIN_PLUS,
+    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
+    t_ptrdiff_t);
+
+  // TODO: T& operator[] (T*, ptrdiff_t);
+
+  addBuiltinBinaryOp(BIN_MINUS,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
     t_ptrdiff_t);
 
@@ -217,10 +223,9 @@ void Env::setupOperatorOverloading()
     t_ptrdiff_t,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));
 
-  addBuiltinBinaryOp(BIN_MINUS,
-    makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
-    t_ptrdiff_t);
+  // TODO: T& operator[] (ptrdiff_t, T*);
 
+  // ---- 13.6 para 14 ----
   addBuiltinBinaryOp(BIN_MINUS,
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)),
     makePtrType(SL_INIT, getSimpleType(SL_INIT, ST_ANY_OBJ_TYPE)));

@@ -43,9 +43,6 @@
      command line with -o, which I consider to be a flex bug. */
   /* %option outfile="lexer.yy.cc" */
 
-/* exclusive start state for when inside a slash-star style comment */
-%x IN_C_COMMENT
-
 /* ------------------- definitions -------------------- */
 /* newline */
 NL            "\n"
@@ -365,6 +362,47 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   whitespace();
 }
 
+  /* C comment */
+"/""*"([^*]|"*"*[^*/])*"*"+"/"     {
+  // the pattern is a little complicated because the naive one,
+  //   "/""*"([^*]|"*"[^/])*"*/"
+  // fails to match e.g. "/***/" 
+  whitespace();
+}
+
+  /* unterminated C comment */
+"/""*"([^*]|"*"*[^*/])*"*"*        {
+  err("unterminated /""*...*""/ comment");
+  yyterminate();
+}
+
+
+  /* illegal */
+.  {
+  err(stringc << "illegal character: `" << yytext[0] << "'");
+}
+
+<<EOF>> {
+  srcFile->doneAdding();
+  yyterminate();
+}
+
+
+%%
+/**************/
+/* extra code */
+/**************/
+
+
+
+// another C comment system using a start state; I chose to (fix and)
+// use the single-line rule instead, so that the entire thing would be
+// matched at once within the FSM instead of dropping out for user
+// actions
+#if 0
+/* exclusive start state for when inside a slash-star style comment */
+%x IN_C_COMMENT
+
   /* C comment; dsw: one that actually works! */
 "/""*" {
   yymore();
@@ -389,22 +427,4 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
   srcFile->doneAdding();
   yyterminate();
 }
-
-  /* illegal */
-.  {
-  err(stringc << "illegal character: `" << yytext[0] << "'");
-}
-
-<<EOF>> {
-  srcFile->doneAdding();
-  yyterminate();
-}
-
-
-%%
-/**************/
-/* extra code */
-/**************/
-
-
-
+#endif // 0
