@@ -24,13 +24,17 @@
 Environment::Environment(Grammar &G)
   : g(G),
     prevEnv(NULL),
-    nontermDecls()
+    nontermDecls(),
+    errorCount(0),
+    errors(errorCount)
 {}
 
 Environment::Environment(Environment &prev)
   : g(prev.g),
     prevEnv(&prev),
-    nontermDecls(prev.nontermDecls)
+    nontermDecls(prev.nontermDecls),
+    errorCount(-1000),      // should never be used
+    errors(prev.errors)     // copy parent's 'errors' reference
 {}
 
 Environment::~Environment()
@@ -46,7 +50,7 @@ STATICDEF string XASTParse::
                    << ", " << msg;
   }
   else {
-    return stringc << "(?loc): " << msg;
+    return string(msg);
   }
 }
 
@@ -91,10 +95,12 @@ void astParseError(char const *msg)
 }
                       
 // print the same message, but keep going anyway
-void astParseErrorCont(LocString const &failToken, char const *msg)
+void astParseErrorCont(Environment &env, LocString const &failToken, 
+                       char const *msg)
 {
   XASTParse x(failToken, msg);
   cout << x.why() << endl;
+  env.errors++;
 }
 
 
@@ -252,6 +258,10 @@ void astParseGrammar(Grammar &g, GrammarAST *ast)
       // parse it
       astParseNonterm(newEnv, nt);
     }
+  }
+  
+  if (env.errors) {
+    astParseError("halting due to previously reported errors");
   }
 }
 
@@ -576,7 +586,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     }
 
     if (!term && !nonterm) {
-      astParseErrorCont(symName, "undeclared symbol");
+      astParseErrorCont(env, symName, "undeclared symbol");
 
       // synthesize one anyway so we can find more errors
       nonterm = env.g.getOrMakeNonterminal(symName);
@@ -589,7 +599,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     if (symTag.equals("loc")) {
       // bad because loc is the name of the automatically-propagated
       // source location information
-      astParseErrorCont(symTag, "cannot use \"loc\" as a tag");
+      astParseErrorCont(env, symTag, "cannot use \"loc\" as a tag");
     }
 
     // whenever we see a terminal, copy its precedence spec to

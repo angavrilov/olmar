@@ -81,6 +81,13 @@ public:      // data
   // nonterminal has in fact been declared already
   StringSObjDict<TF_nonterm /*const*/> nontermDecls;
 
+  // count of recoverable errors; only the one in the
+  // topmost environment is used
+  int errorCount;
+  
+  // reference to the one we're really using
+  int &errors;
+
 public:
   Environment(Grammar &G);             // new env
   Environment(Environment &prevEnv);   // nested env
