@@ -48,7 +48,7 @@ DottedProduction::DottedProduction(DottedProduction const &obj)
 
   prod = obj.prod;
   dot = obj.dot;
-  dotAtEnd = obj.dotAtEnd;
+  afterDot = obj.afterDot;
 
   laCopy(obj);
 }
@@ -63,7 +63,7 @@ void DottedProduction::init(int numTerms)
 {
   prod = NULL;
   dot = -1;
-  dotAtEnd = false;
+  afterDot = NULL;
 
   // allocate enough space for one bit per terminal; I assume
   // 8 bits per byte
@@ -96,7 +96,6 @@ DottedProduction::DottedProduction(Flatten &flat)
 void DottedProduction::xfer(Flatten &flat)
 {
   flat.xferInt(dot);
-  flat.xferBool(dotAtEnd);
 
   flat.xferInt(lookaheadLen);
 
@@ -110,6 +109,9 @@ void DottedProduction::xfer(Flatten &flat)
 void DottedProduction::xferSerfs(Flatten &flat, Grammar &g)
 {
   xferSerfPtrToList(flat, prod, g.productions);
+                           
+  // set 'afterDot'
+  setProdAndDot(prod, dot);
 }
 
 
@@ -253,7 +255,8 @@ void DottedProduction::setProdAndDot(Production *p, int d)
 
   // computing this each time turned out to be significant
   // according to the profiler, so we store it instead
-  dotAtEnd = (dot == prod->rhsLength());
+  bool dotAtEnd = (dot == prod->rhsLength());
+  afterDot = dotAtEnd? NULL : prod->right.nthC(dot)->sym;
 }
 
 Symbol const *DottedProduction::symbolBeforeDotC() const
@@ -262,11 +265,13 @@ Symbol const *DottedProduction::symbolBeforeDotC() const
   return prod->right.nthC(dot-1)->sym;
 }
 
+#if 0
 Symbol const *DottedProduction::symbolAfterDotC() const
 {
   xassert(!isDotAtEnd());
   return prod->right.nthC(dot)->sym;
 }
+#endif // 0
 
 
 void DottedProduction::print(ostream &os, GrammarAnalysis const &g) const

@@ -43,7 +43,9 @@ private:    // data
 
 // -------- annotation ----------
 private:
-  bool dotAtEnd;                 // performance optimization
+  // performance optimization: NULL if dot at end, or else pointer
+  // to the symbol right after the dot
+  Symbol *afterDot;
 
 public:     // data
   // printing customization: when non-NULL only print lookahead if
@@ -73,7 +75,7 @@ public:	    // funcs
   Production *getProd() const { return prod; }
   int getDot() const { return dot; }
   bool isDotAtStart() const { return dot==0; }
-  bool isDotAtEnd() const { return dotAtEnd; }
+  bool isDotAtEnd() const { return afterDot==NULL; }
 
   // manipulate the lookahead set
   bool laContains(int terminalId) const;
@@ -96,7 +98,7 @@ public:	    // funcs
   Symbol *symbolBeforeDot() { return const_cast<Symbol*>(symbolBeforeDotC()); }
 
   // dot must not be at the end (right edge)
-  Symbol const *symbolAfterDotC() const;
+  Symbol const *symbolAfterDotC() const { return afterDot; }
   Symbol *symbolAfterDot() { return const_cast<Symbol*>(symbolAfterDotC()); }
 
   // print to cout as 'A -> B . c D' (no newline)
