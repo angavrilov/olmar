@@ -1079,9 +1079,9 @@ void GrammarAnalysis::exampleGrammar()
 
 
   // run analyses
-  runAnalyses(); 
-  
-  
+  runAnalyses();
+
+
   // do some test parses
   INTLOOP(i, 0,	(int)TABLESIZE(input)) {
     cout << "------ parsing: `" << input[i] << "' -------\n";
@@ -1142,12 +1142,14 @@ void GrammarAnalysis::runAnalyses()
 }
 
 
+#ifdef GRAMANL_MAIN
 int main()
 {
   GrammarAnalysis g;
   g.exampleGrammar();
   return 0;
 }
+#endif // GRAMANL_MAIN
 
 
 

@@ -1,21 +1,46 @@
 // glr.h
 // GLR parsing algorithm
 
-// references:
-//
-//   [GLR]  J. Rekers.  Parser Generation for Interactive
-//          Environments.  PhD thesis, University of
-//          Amsterdam, 1992.  Available by ftp from
-//          ftp.cwi.nl:/pub/gipe/reports as Rek92.ps.Z.
-//          [Contains a good description of the Generalized
-//          LR (GLR) algorithm.]
+/*
+ * Author: Scott McPeak, April 2000
+ *
+ * The fundamental concept in Generalized LR (GLR) parsing
+ * is to permit (at least local) ambiguity by "forking" the
+ * parse stack.  If the input is actually unambiguous, then
+ * all but one of the forked parsers will, at some point,
+ * fail to shift a symbol, and die.  If the input is truly
+ * ambiguous, forked parsers rejoin at some point, and the
+ * parse tree becomes a parse DAG, representing all possible
+ * parses.  (In fact, since cyclic grammars are supported,
+ * which can have an infinite number of parse trees for
+ * some inputs, we may end up with a cyclic parse *graph*.)
+ *
+ * In the larger scheme of things, this level of support for
+ * ambiguity is useful because it lets us use simpler and
+ * more intuitive grammars, more sophisticated disambiguation
+ * techniques, and parsing in the presence of incomplete
+ * or incorrect information (e.g. in an editor).
+ *
+ * The downside is that parsing is slower, and whatever tool
+ * processes the parse graph needs to have ways of dealing
+ * with the multiple parse interpretations.
+ *
+ * references:
+ *
+ *   [GLR]  J. Rekers.  Parser Generation for Interactive
+ *          Environments.  PhD thesis, University of
+ *          Amsterdam, 1992.  Available by ftp from
+ *          ftp.cwi.nl:/pub/gipe/reports as Rek92.ps.Z.
+ *          [Contains a good description of the Generalized
+ *          LR (GLR) algorithm.]
+ */
 
 #ifndef __GLR_H
 #define __GLR_H
 
-#include "gramanl.h"     // basic grammar analyses, Grammar, etc.
-   
-               
+#include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
+
+
 // forward decls for things declared below
 class StackNode;
 class RuleNode;
@@ -32,11 +57,11 @@ public:
   // the LR state the parser is in when this node is at the
   // top ("at the top" means nothing, besides perhaps itself,
   // is pointing to it)
-  ItemSet *state;                              // (serf)
+  ItemSet const *state;                        // (serf)
 
   // the symbol that was shifted, or the LHS of the production
   // reduced, to arrive at this state
-  Symbol *symbol;                              // (serf)
+  Symbol const *symbol;                        // (serf)
 
   // each leftAdjState represents a symbol that might be immediately
   // to the left of this symbol in a derivation; multiple links
@@ -51,7 +76,12 @@ public:
   // These links are the parse graph's links -- they are built,
   // but otherwise ignored, during parsing.
   ObjList<RuleNode> rules;                     // this is a set
-}
+
+
+public:     // funcs
+  StackNode(ItemSet const *state, Symbol const *symbol);
+  ~StackNode();
+};
 
 
 // for a particular production, this contains the pointers to
@@ -60,11 +90,15 @@ public:
 class RuleNode {
 public:
   // the production that generated this node
-  Production *production;                      // (serf)
+  Production const *production;                // (serf)
 
   // for each RHS member of 'production', a pointer to the thing
   // that matches that symbol (terminal or nonterminal)
   SObjList<StackNode> children;                // this is a list
+
+public:
+  RuleNode(Production const *prod);
+  ~RuleNode();
 };
 
 
@@ -72,14 +106,29 @@ public:
 // shifts; thus, when we decide a shift is necessary, we need to save the
 // relevant info somewhere so we can come back to it at the end
 class PendingShift {
-public:             
-  // which parser is this that's ready to shift
+public:
+  // which parser is this that's ready to shift?
   StackNode *parser;                   // (serf)
 
-  // which state it is ready to shift into
-  ItemSet *shiftDest;                  // (serf)
+  // which state is it ready to shift into?
+  ItemSet const *shiftDest;            // (serf)
+
+public:
+  PendingShift(StackNode *p, ItemSet const *s)
+    : parser(p), shiftDest(s) {}
 };
 
+
+// name a 'leftAdjStates' link
+class SiblingLinkDesc {
+public:
+  StackNode *left;     	// (serf) thing pointed-at
+  StackNode *right;	// (serf) thing with the pointer
+
+public:
+  SiblingLinkDesc(StackNode *L, StackNode *R)
+    : left(L), right(R) {}
+};
 
 
 // the GLR analyses are performed within this class; GLR
@@ -94,18 +143,43 @@ public:
   // comments at top of glr.cc for more details.)
   SObjList<StackNode> activeParsers;
 
+  // after parsing I need an easy way to throw away the parse
+  // state, so I keep all the nodes in an owner list
+  ObjList<StackNode> allStackNodes;
+
   // ---- parser state during each token ----
   // the token we're trying to shift; any parser that fails to
   // shift this token (or reduce to one that can, recursively)
   // will "die"
-  Terminal *currentToken;
+  Terminal const *currentToken;
 
-  // parsers that haven't had a chance to try to make progress
+  // parsers that haven't yet had a chance to try to make progress
   // on this token
   SObjList<StackNode> parserWorklist;
 
 
+private:    // funcs
+  void glrParse(char const *input);
+  void glrParseAction(StackNode *parser,
+                      ObjList<PendingShift> &pendingShifts);
+  void postponeShift(StackNode *parser,
+                     ObjList<PendingShift> &pendingShifts);
+  void doAllPossibleReductions(StackNode *parser,
+                               SiblingLinkDesc *mustUseLink);
+  void popStackSearch(int popsRemaining, SObjList<StackNode> &poppedSymbols,
+                      StackNode *currentNode, Production const *production,
+                      SiblingLinkDesc *mustUseLink);
+  void glrShiftRule(StackNode *leftSibling, RuleNode *ruleNode);
+  void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
+  StackNode *findActiveParser(ItemSet const *state);
+  StackNode *makeStackNode(ItemSet const *state, Symbol const *symbol);
 
-
+public:     // funcs
+  GLR();
+  ~GLR();
+		 
+  // 'main' for testing this class
+  void glrTest();
+};
 
 #endif // __GLR_H

@@ -1,6 +1,8 @@
 // grammar.h
 // representation and algorithms for context-free grammars
 
+// Author: Scott McPeak, April 2000
+
 // Unfortunately, representation and algorithm tend to get
 // mixed together.  Separating them entirely is possible,
 // but syntactically inconvenient.  So, instead, I try to

@@ -3,6 +3,8 @@
 //   reduce mixing of representation and algorithm; this
 //   module should be entirely algorithm
 
+// Author: Scott McPeak, April 2000
+
 // references:
 //
 //   [ASU]  Aho, Sethi Ullman.  Compilers: Principles,

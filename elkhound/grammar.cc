@@ -295,7 +295,7 @@ void ItemSet::getPossibleReductions(ProductionList &reductions,
 
 void ItemSet::print(ostream &os) const
 {
-  os << "Item " << id << ":\n";
+  os << "ItemSet " << id << ":\n";
 
   // for each item
   SFOREACH_DOTTEDPRODUCTION(items, itemIter) {
