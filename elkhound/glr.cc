@@ -1389,12 +1389,15 @@ void GLR::printParseErrorMessage(StateId lastToDie)
   // state that could have made progress..
   if (lastToDie != STATE_INVALID) {
     cout << "In state " << lastToDie << ", I expected one of these tokens:\n";
+    cout << "  ";
     for (int i=0; i < tables->getNumTerms(); i++) {
       ActionEntry act = tables->getActionEntry(lastToDie, i);
       if (!tables->isErrorAction(act)) {
-        cout << "  [" << i << "] " << lexerPtr->tokenKindDesc(i) << "\n";
+        //cout << "  [" << i << "] " << lexerPtr->tokenKindDesc(i) << "\n";
+        cout << lexerPtr->tokenKindDesc(i) << ", ";
       }
     }
+    cout << "\n";
   }
   else {                                                                          
     // this happens because I lose the dead-parser info while processing
