@@ -69,6 +69,8 @@ Nonterminal::Nonterminal(char const *name)
     attributes(),
     superclasses(),
     funDecls(),
+    funPrefixes(),
+    declarations(),
     disambFuns(),
     constructor(),
     destructor(),

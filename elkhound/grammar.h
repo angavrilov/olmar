@@ -158,6 +158,11 @@ public:     // data
   // emitting substrate code
   LitCodeDict funDecls;
 
+  // for each function, we can optionally have prefix code which is run
+  // at the start of that function, regardless of the production in
+  // which it appears
+  LitCodeDict funPrefixes;
+
   // declarations of things (data and fns) that are *not* implemented
   // in generated code
   ObjList<LiteralCode> declarations;

@@ -182,9 +182,17 @@ void emitSemFuns(EmitCode &os, Grammar const *g,
     os << lineDirective(decl->loc)
        << functionDecl << "\n"
        << restoreLine
-       << "{\n"       
+       << "{\n"
        <<    getTraceCode(functionDecl)
-       << "  switch (onlyProductionIndex()) {\n"
+       ;
+                                              
+    // prefix code
+    if (nonterm->funPrefixes.isMapped(name)) {
+      insertLiteralCode(os, nonterm->funPrefixes.queryfC(name));
+    }
+
+    // start of switch block
+    os << "  switch (onlyProductionIndex()) {\n"
        << "    default:\n"
        << "      xfailure(\"bad production code\");\n"
        << "\n"

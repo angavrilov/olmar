@@ -471,14 +471,27 @@ void astParseGroupBody(Environment &env, Nonterminal *nt,
           if (node->type == AST_NAMEDLITERALCODE) {
             name = childName(node, 2);
           }
-                               
+
           // look at the tag to figure out what the code means
           if (tag.equals("disamb")) {
+            if (!name[0]) {
+              astParseError(node, "disamb must have a name");
+            }
             if (!nt->funDecls.isMapped(name)) {
               astParseError(node, "undeclared function");
             }
             nt->disambFuns.add(name, code);
-          }        
+          }
+
+          else if (tag.equals("prefix")) {
+            if (!name[0]) {
+              astParseError(node, "prefix must have a name");
+            }
+            if (!nt->funDecls.isMapped(name)) {
+              astParseError(node, "undeclared function");
+            }
+            nt->funPrefixes.add(name, code);
+          }
 
           else if (tag.equals("constructor")) {
             if (nt->constructor) {

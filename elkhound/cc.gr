@@ -52,13 +52,11 @@ nonterm Checkable {
   //   - check type consistency, and report errors where
   //     inconsistencies are found
   //   - add new symbols to the environment, with their types
-  fundecl void typeCheck();
-
-  // this is the entry point from parents
-  fundecl void callTypeCheck(Env *passedEnv);
-  fun callTypeCheck {
+  fundecl void typeCheck(Env *passedEnv);
+  
+  // first thing in every typeCheck function
+  literalCode "prefix" typeCheck {
     env = passedEnv;
-    typeCheck();
   }
 
   // store a pointer to the environment in which this node's
@@ -104,10 +102,10 @@ nonterm TranslationUnit : Checkable {
   
   -> t:TranslationUnit d:Declaration {
     fun typeCheck {
-      t.callTypeCheck(env);
+      t.typeCheck(env);
 
       try {
-        d.callTypeCheck(env);
+        d.typeCheck(env);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
@@ -140,7 +138,7 @@ nonterm TranslationUnit : Checkable {
     Env *env = (Env*)(tree.extra);
 
     // run the analysis on this piece of the tree
-    callTypeCheck(env);
+    typeCheck(env);
 
     // this is, more or less, the product of the analysis
     printTree();
@@ -200,7 +198,7 @@ nonterm PrimaryExpression : ExprBase {
   
   // GNU extension
   -> "(" s:CompoundStatement ")"
-    { fun varsDecld { s.callTypeCheck(env); } }
+    { fun varsDecld { s.typeCheck(env); } }
 }
 
 nonterm Literal : ExprBase {
@@ -625,12 +623,11 @@ nonterm HasCFG {
 
 // labeled-statement
 nonterm Statement : Checkable, HasVarsDecld, HasCFG {
-  literalCode "disamb" callTypeCheck {
-    // try the general mechanism...
-    disambiguate(env, (DisambFn)&unamb_callTypeCheck);
+  literalCode "disamb" typeCheck {
+    disambiguate(env, (DisambFn)&unamb_typeCheck);
   }
 
-  fun typeCheck { s.callTypeCheck(env); }
+  fun typeCheck { s.typeCheck(env); }
   fun getCFG = s.getCFG(cfg, edge);
 
   fundecl bool isWhileLoop() const;
@@ -695,8 +692,8 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
     // (so far unimplemented!)
     -> "if" "(" e:Condition ")" s1:Statement "else" s2:Statement {
       fun typeCheck {
-        s1.callTypeCheck(env);
-        s2.callTypeCheck(env);
+        s1.typeCheck(env);
+        s2.typeCheck(env);
       }
 
       fun getCFG {
@@ -793,7 +790,7 @@ nonterm Statement : Checkable, HasVarsDecld, HasCFG {
   // of buried in ForInitStatement.  this is also a good rule to use
   // inline alternatives
   -> "for" "(" s1:ForInitStatement c:ConditionOpt ";" e:ExpressionOpt ")" s2:Statement {
-    fun typeCheck { s1.callTypeCheck(env); c.callTypeCheck(env); s2.callTypeCheck(env); }
+    fun typeCheck { s1.typeCheck(env); c.typeCheck(env); s2.typeCheck(env); }
     fun varsDecld { c.varsDecld(env); e.varsDecld(env); }
 
     fun getCFG {
@@ -915,7 +912,7 @@ nonterm CompoundStatement : Checkable, HasCFG, ScopeNode {
       xassert(!localEnv);
       localEnv = new Env(env);    // scope
       //Env newEnv(&env);
-      seq.callTypeCheck(localEnv);
+      seq.typeCheck(localEnv);
     }
 
     fun getCFG = seq.getCFG(cfg, edge);
@@ -927,7 +924,7 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
   -> seq:StatementSeqOpt s:Statement {
     fun typeCheck {
       try {
-        seq.callTypeCheck(env);
+        seq.typeCheck(env);
       }
       catch (XSemanticError &x) {
         // error recovery; report and proceed
@@ -935,7 +932,7 @@ nonterm StatementSeqOpt : Checkable, HasCFG {
       }
       env->flushLocalErrors(cout);
 
-      s.callTypeCheck(env);
+      s.typeCheck(env);
     }
 
     fun getCFG {
@@ -962,14 +959,14 @@ nonterm ConditionOpt : Checkable, HasVarsDecld {
 
   -> empty ;
   -> c:Condition {
-    fun typeCheck { c.callTypeCheck(env); }
+    fun typeCheck { c.typeCheck(env); }
     fun varsDecld { c.varsDecld(env); }
   }
 }
 
 nonterm ForInitStatement : Checkable, HasCFG {
   -> s:ExpressionStatement | s:SimpleDeclaration {
-     fun typeCheck { s.callTypeCheck(env); } 
+     fun typeCheck { s.typeCheck(env); } 
   }
 }
 
@@ -983,14 +980,14 @@ nonterm DeclarationSeqOpt : Checkable {
   }
   -> seq:DeclarationSeqOpt d:Declaration {
     fun typeCheck {
-      seq.callTypeCheck(env);
-      d.callTypeCheck(env);
+      seq.typeCheck(env);
+      d.typeCheck(env);
     }
   } 
 }
 
 nonterm Declaration : Checkable {
-  fun typeCheck { d.callTypeCheck(env); }
+  fun typeCheck { d.typeCheck(env); }
 
   -> d:BlockDeclaration ;
   -> d:FunctionDefinition ;
@@ -1001,7 +998,7 @@ nonterm Declaration : Checkable {
 // C++ has other alternatives..
 nonterm BlockDeclaration : Checkable, HasCFG {
   -> d:SimpleDeclaration { 
-    fun typeCheck { d.callTypeCheck(env); }
+    fun typeCheck { d.typeCheck(env); }
   }
 }
 
@@ -1317,7 +1314,7 @@ nonterm LinkageSpecification : Checkable {
   // todo: actually record the linkage spec
   -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" |
      "extern" L2_STRING_LITERAL d:Declaration {
-    fun typeCheck { d.callTypeCheck(env); }
+    fun typeCheck { d.typeCheck(env); }
   }
 }
 
@@ -1813,7 +1810,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
       }
 
       // typecheck the body
-      b.callTypeCheck(localEnv);
+      b.typeCheck(localEnv);
     }
   }
 
@@ -1827,7 +1824,7 @@ nonterm FunctionDefinition : Checkable, HasPrintSig, ScopeNode {
 }
 
 nonterm FunctionBody : Checkable -> s:CompoundStatement {
-  fun typeCheck { s.callTypeCheck(env); }
+  fun typeCheck { s.typeCheck(env); }
 }
 
 nonterm ExplicitOpt -> "explicit" | empty ;
@@ -1987,17 +1984,17 @@ nonterm TemplateArgument -> Literal | TypeId ;
 nonterm TryBlock : Checkable, HasCFG 
   -> "try" s:CompoundStatement h:HandlerSeq {
   fun typeCheck {
-    s.callTypeCheck(env);
-    h.callTypeCheck(env);
+    s.typeCheck(env);
+    h.typeCheck(env);
   }
 }
 
 nonterm HandlerSeq : Checkable {
-  -> h:Handler { fun typeCheck { h.callTypeCheck(env); } }
+  -> h:Handler { fun typeCheck { h.typeCheck(env); } }
   -> h:Handler seq:HandlerSeq {
     fun typeCheck {
-      h.callTypeCheck(env);
-      seq.callTypeCheck(env);
+      h.typeCheck(env);
+      seq.typeCheck(env);
     }
   }
 }
@@ -2007,8 +2004,8 @@ nonterm Handler : Checkable, ScopeNode {
     fun typeCheck {                       
       xassert(!localEnv);
       localEnv = new Env(env);    // scope
-      d.callTypeCheck(localEnv);
-      s.callTypeCheck(localEnv);
+      d.typeCheck(localEnv);
+      s.typeCheck(localEnv);
     }
   }
 }
