@@ -17,7 +17,10 @@ extern "C" int yylex();
 extern "C" void yyerror(char const *message);
 
 
-
+// and Bison reads semantic values of tokens from this global
+class ASTNode;
+#define YYSTYPE ASTNode*
+extern YYSTYPE yylval;
 
 
 #endif // __GRAMPAR_H

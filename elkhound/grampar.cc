@@ -4,6 +4,7 @@
 #include "grampar.h"     // this module
 #include "gramlex.h"     // GrammarLexer
 #include "trace.h"       // tracing debug functions
+#include "gramast.h"     // grammar AST nodes
 
 // Bison parser calls this to get a token
 GrammarLexer lexer;
@@ -13,6 +14,25 @@ int yylex()
   trace("yylex") << "yielding token (" << code << ") "
                  << lexer.curToken() << " at "
                  << lexer.curLoc() << endl;
+
+  // yield semantic values for some things
+  switch (code) {
+    case TOK_INTEGER:
+      yylval = new ASTIntLeaf(lexer.integerLiteral);
+      break;
+
+    case TOK_STRING:
+      yylval = new ASTStringLeaf(lexer.stringLiteral);
+      break;
+
+    case TOK_NAME:
+      yylval = new ASTStringLeaf(lexer.curToken());
+      break;
+
+    default:
+      yylval = NULL;
+  }
+
   return code;
 }
 
@@ -28,6 +48,8 @@ void yyerror(char const *message)
 int main(int argc, char **argv)
 {
   TRACE_ARGS();
+
+  ASTNode::typeToString = astTypeToString;
 
   cout << "go!\n";
 

@@ -1,7 +1,7 @@
 # Makefile for parser generator project
 
 # main targets
-all: glr lexer1 lexer2
+all: grampar
 
 # directories
 SMBASE = /home/scott/wrk/lib/smbase
@@ -49,7 +49,7 @@ grampar.tab.c grampar.tab.h: grampar.y
 	bison -d $^
 
 # grammar parser test program
-grampar: gramlex.yy.cc grampar.tab.c gramlex.cc grampar.cc trace.o
+grampar: gramlex.yy.o grampar.tab.c gramlex.o grampar.cc trace.o ast.o gramast.o
 	${link} -o grampar -DTEST_GRAMPAR $^ ${linkend}
 
 clean:

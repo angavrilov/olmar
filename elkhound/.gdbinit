@@ -1,11 +1,12 @@
-# .gdbinit for running glr
+# .gdbinit
 
-file glr
-set args -tr progress,ambiguities cc.gr cc.in1
+file grampar
+#set args -tr progress,ambiguities cc.gr cc.in1
 
 #file lexer1
 #set args -tr lexer1
 
 break main
 break breaker
-run
+run < cexp2.gr
+

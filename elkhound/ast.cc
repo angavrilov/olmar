@@ -6,6 +6,9 @@
 
 
 // --------------------- ASTNode -------------------
+ASTNode::TypeToStringFn ASTNode::typeToString = NULL;
+
+
 ASTNode::~ASTNode()
 {}
 
@@ -24,6 +27,36 @@ ASTLeaf const &ASTNode::asLeafC() const
     xfailure("asLeaf called on non-ASTLeaf object");
   }
   return reinterpret_cast<ASTLeaf const &>(*this);
+}
+
+
+static void doIndent(ostream &os, int indent)
+{
+  loopi(indent) {
+    os << ' ';
+  }
+}
+
+void ASTNode::debugPrint(ostream &os, int indent) const
+{
+  doIndent(os, indent);
+  os << toString() << endl;
+}
+
+string ASTNode::toString() const
+{
+  return stringc << "ASTNode(" << typeDesc() << ")";
+}
+
+
+string ASTNode::typeDesc() const
+{
+  if (typeToString != NULL) {
+    return typeToString(type);
+  }
+  else {
+    return stringc << type;
+  }
 }
 
 
@@ -121,75 +154,36 @@ ASTNode *ASTInternal::walkTree(ASTWalkTree func, void *extra)
 }
 
 
-struct PrintWalkData {
-  ostream &os;
-  int indent;
-             
-public:
-  PrintWalkData(ostream &o, int i)
-    : os(o), indent(i) {}
-  ostream &ind();
-};
-
-ostream &PrintWalkData::ind()
-{
-  loopi(indent) {
-    os << ' ';
-  } 
-  return os;
-}
-
-
 void ASTInternal::debugPrint(ostream &os, int indent) const
 {
-  PrintWalkData dat(os, indent);
-  
-  // walkTree allows modifications, but 'printWalker' does not in
-  // fact change anything.. another instance of nonideal constness
-  // (need qualifier polymorphism)
-  const_cast<ASTInternal*>(this)->walkTree(printWalker, &dat);
+  doIndent(os, indent);
+  os << "type=" << typeDesc() << " ("
+     << children.count() << " children)\n";
+
+  FOREACH_OBJLIST(ASTNode, children, iter) {
+    iter.data()->debugPrint(os, indent+2);
+  }
 }
 
 
-STATICDEF bool ASTInternal::
-  printWalker(ASTNode *node, bool firstVisit, void *extra)
+string ASTInternal::toString() const
 {
-  PrintWalkData *dat = (PrintWalkData*)extra;
+  stringBuilder sb;
 
-  if (node == NULL) {
-    dat->ind() << "NULL\n";
+  sb << "{ type=" << typeDesc() << " ";
+
+  FOREACH_OBJLIST(ASTNode, children, iter) {
+    sb << iter.data()->toString() << " ";
   }
 
-  else if (node->isInternal()) {
-    if (firstVisit) {
-      // print node type, then children indented
-      dat->ind() << node->type << " ("
-                 << node->asInternal().children.count()
-                 << " children)\n";
+  sb << "}";
 
-      // children will be printed when the general walker code
-      // visits them next
-      dat->indent += 2;
-    }
-    else {
-      // unindent on way up
-      dat->indent -= 2;
-    }
-  }
-
-  else {
-    // use leaf-specific repr
-    dat->ind() << node->asLeaf().toString() << endl;
-  }
-
-  return false;    // walk entire tree
+  return sb;
 }
 
 
 // ------------------- ASTLeaf --------------------
 string ASTLeaf::toString() const
 {
-  return stringc << "Leaf type " << type;
+  return stringc << "Leaf(" << typeDesc() << ")";
 }
-
-

@@ -1,0 +1,45 @@
+// gramast.cc
+// code for gramast.h
+
+#include "gramast.h"      // this module
+
+string astTypeToString(int type)
+{
+  static struct {
+    int code;
+    char const *name;
+  } const arr[] = {
+    #define N(code) { code, #code },
+    N(AST_INTEGER)
+    N(AST_STRING)
+    N(EXP_ATTRREF)
+    N(EXP_FNCALL)
+    N(EXP_LIST)
+    N(EXP_NEGATE)
+    N(EXP_NOT)
+    N(EXP_MULT)
+    N(EXP_DIV)
+    N(EXP_MOD)
+    N(EXP_PLUS)
+    N(EXP_MINUS)
+    N(EXP_LT)
+    N(EXP_GT)
+    N(EXP_LTE)
+    N(EXP_GTE)
+    N(EXP_EQ)
+    N(EXP_NEQ)
+    N(EXP_AND)
+    N(EXP_OR)
+    N(EXP_COND)
+    #undef N
+  };
+  
+  loopi(TABLESIZE(arr)) {
+    if (arr[i].code == type) {
+      return arr[i].name;
+    }
+  }
+  
+  xfailure("bad type code");
+  return NULL;   // silence warning
+}

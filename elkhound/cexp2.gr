@@ -50,21 +50,30 @@ nonterm Binop {
     action  leftAssoc := 1;
 
     // highest precedence
-    formGroup {   -> "*";  -> "/";  -> "%";   }
-    formGroup {   -> "+";  -> "-";   }
+    formGroup {   -> "*";  -> "/";  -> "%";              }
+    formGroup {   -> "+";  -> "-";                       }
+    formGroup {   -> "<<"; -> ">>";                      }
+    formGroup {   -> "<";  -> ">";  -> "<="; -> ">="     }
+    formGroup {   -> "=="; -> "!=";                      }
+    formGroup {   -> "&";                                }
+    formGroup {   -> "^";                                }
+    formGroup {   -> "|";                                }
+    formGroup {   -> "&&";                               }
+    formGroup {   -> "||";                               }
+    // lowest precedence
 
-// alternative syntax    
+// alternative syntax
+//    // highest precedence
 //    -> "*" | "/" | "%"             ;
 //    -> "+" | "-"                   ;
-
-    -> "<<" | ">>"                 ;
-    -> "<" | ">" | "<=" | ">="     ;
-    -> "==" | "!="                 ;
-    -> "&"                         ;
-    -> "^"                         ;
-    -> "|"                         ;
-    -> "&&"                        ;
-    -> "||"                        ;
-    // lowest precedence
+//    -> "<<" | ">>"                 ;
+//    -> "<" | ">" | "<=" | ">="     ;
+//    -> "==" | "!="                 ;
+//    -> "&"                         ;
+//    -> "^"                         ;
+//    -> "|"                         ;
+//    -> "&&"                        ;
+//    -> "||"                        ;
+//    // lowest precedence
   }
 }
