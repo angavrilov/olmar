@@ -977,9 +977,6 @@ public:
   // PointerType because sometimes I return fixed(ST_ERROR)
   inline Type *makePtrType(SourceLoc loc, Type *type)
     { return type->isError()? type : makePointerType(loc, PO_POINTER, CV_NONE, type); }
-  // dsw: parallel makePtrType to propagate the error if there is one
-  inline Type *makePtrToMemberType(SourceLoc loc, CompoundType *inClass, Type *type)
-    { return type->isError()? type : makePointerToMemberType(loc, inClass, CV_NONE, type); }
 
   // map a simple type into its CVAtomicType representative
   CVAtomicType *getSimpleType(SourceLoc loc, SimpleTypeId st, CVFlags cv = CV_NONE);

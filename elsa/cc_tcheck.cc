@@ -3643,28 +3643,36 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
   return env.tfac.cloneType(lhsType);
 }
 
-static Type *makePTMType(Env &env, Expression *expr)
+
+// someone took the address of 'e_var', and we must compute
+// the PointerToMemberType of that construct
+static Type *makePTMType(Env &env, E_variable *e_var)
 {
-  E_variable *e_var = expr->asE_variable();
   // shouldn't even get here unless e_var->name is qualified
   xassert(e_var->name->hasQualifiers());
 
   // dsw: It is inelegant to recompute the var here, but I don't want
-  // to just ignore the typechecking that already computed aa type for
+  // to just ignore the typechecking that already computed a type for
   // the expr and use the var exclusively, which is what would happen
   // if I just passed in the var.
   Variable *var0 = e_var->var;
   xassert(var0);
   xassert(var0->scope);
 
-  // Spec: 8.3.3 para 3, can't be static
+  // cppstd: 8.3.3 para 3, can't be static
   xassert(!var0->hasFlag(DF_STATIC));
-  // Spec: 8.3.3 para 3, can't be cv void
-  if (expr->type->isVoid()) {
-    return env.error(var0->loc, "attempted to make a pointer to member to cv void");
+  
+  // this is essentially a consequence of not being static
+  if (e_var->type->asRval()->isFunctionType()) {
+    xassert(e_var->type->asRval()->asFunctionType()->isMember());
   }
-  // Spec: 8.3.3 para 3, can't be a reference;
-  // NOTE: This does *not* say expr->type->isReference(), since an
+
+  // cppstd: 8.3.3 para 3, can't be cv void
+  if (e_var->type->isVoid()) {
+    return env.error(var0->loc, "attempted to make a pointer to member to void");
+  }
+  // cppstd: 8.3.3 para 3, can't be a reference;
+  // NOTE: This does *not* say e_var->type->isReference(), since an
   // E_variable expression will have reference type when the variable
   // itself is not a reference.
   if (var0->type->isReference()) {
@@ -3674,10 +3682,8 @@ static Type *makePTMType(Env &env, Expression *expr)
   CompoundType *inClass0 = var0->scope->curCompound;
   xassert(inClass0);
 
-  if (expr->type->asRval()->isFunctionType()) {
-    xassert(expr->type->asRval()->asFunctionType()->isMember());
-  }
-  return env.makePtrToMemberType(SL_UNKNOWN, inClass0, env.tfac.cloneType(expr->type->asRval()));
+  return env.tfac.makePointerToMemberType(SL_UNKNOWN, inClass0, CV_NONE,
+           env.tfac.cloneType(e_var->type->asRval()));
 }
 
 Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
@@ -3692,35 +3698,35 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
   }
 
   // NOTE: do *not* unwrap any layers of parens:
-  //  Spec 5.3.1 para 3: [Note: that is, the expression
-  //  &(qualified-id), where the qualified-id is enclosed in
-  //  parentheses, does not form an expression of type "pointer to
-  //  member."
-  if (E_variable *e_var0 = expr->ifE_variable()) {
-    xassert(e_var0->var);
-    if (e_var0->var->hasFlag(DF_MEMBER) &&
-        (!e_var0->var->hasFlag(DF_STATIC)) &&
-        // Spec 5.3.1 para 3: Nor is &unqualified-id a pointer to
+  // cppstd 5.3.1 para 3: "A pointer to member is only formed when
+  // an explicit & is used and its operand is a qualified-id not
+  // enclosed in parentheses."
+  if (expr->isE_variable()) {
+    E_variable *e_var = expr->asE_variable();
+    xassert(e_var->var);
+    if (e_var->var->hasFlag(DF_MEMBER) &&
+        (!e_var->var->hasFlag(DF_STATIC)) &&
+        // cppstd 5.3.1 para 3: Nor is &unqualified-id a pointer to
         // member, even within the scope of the unqualified-id's
         // class.
         // dsw: Consider the following situation: How do you know you
         // &x isn't making a pointer to member?  Only because the name
         // isn't fully qualified.
-//          struct A {
-//            int x;
-//            void f() {int *y = &x;}
-//          };
-        e_var0->name->hasQualifiers() ) {
-      return makePTMType(env, expr);
+        //   struct A {
+        //     int x;
+        //     void f() {int *y = &x;}
+        //   };
+        e_var->name->hasQualifiers() ) {
+      return makePTMType(env, e_var);
     }
   }
   // Continuing, the same paragraph points out that we are correct in
   // creating a pointer to member only when the address-of operator
   // ("&") is explicit:
-  // Spec 5.3.1 para 3: Neither does qualified-id, because there is no
+  // cppstd 5.3.1 para 3: Neither does qualified-id, because there is no
   // implicit conversion from a qualified-id for a nonstatic member
-  // function the the type"pointer to member function" as there is
-  // form an lvalue of a function type to the type "pointer to
+  // function the the type "pointer to member function" as there is
+  // from an lvalue of a function type to the type "pointer to
   // function" (4.3).
 
   // ok to take addr of function; special-case it so as not to weaken
@@ -3735,7 +3741,8 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
       << expr->type->toString() << "'");
   }
   PointerType *pt = expr->type->asPointerType();
-  xassert(pt->op == PO_REFERENCE); // that's what isLval checks
+  xassert(pt->op == PO_REFERENCE);     // that's what isLval checks
+
   // change the "&" into a "*"
   return env.makePtrType(SL_UNKNOWN, pt->atType);
 }

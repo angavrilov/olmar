@@ -460,8 +460,9 @@ class Expression {
     }
   }
 
-  // remove layers of parens
-  public Expression *belowE_grouping();
+  // dig down past any E_grouping nodes; this is sometimes necessary
+  // when a node needs to examine the syntax of subexpressions
+  public Expression *skipGroups();
 
   -> E_boolLit(bool b);
   
@@ -526,8 +527,9 @@ class Expression {
   -> E_typeidExpr(Expression expr);
   -> E_typeidType(ASTTypeId ttype);
 
-  // for syntactic disambiguation of angle brackets; E_grouping
-  // is a pair of grouping parentheses
+  // an E_grouping is a pair of grouping parentheses; it's present in
+  // the AST for syntactic disambiguation of angle brackets, and an
+  // obscure rule about pointer-to-member
   -> E_grouping(Expression expr);
 }
 

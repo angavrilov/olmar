@@ -417,12 +417,15 @@ void Expression::printExtras(ostream &os, int indent) const
   }
 }
 
+
 // remove layers of parens: keep going down until the expression is
 // not an E_grouping and return that
-Expression *Expression::belowE_grouping()
+Expression *Expression::skipGroups()
 {
   Expression *ret = this;
-  while (E_grouping *e_group = ret->ifE_grouping()) ret = e_group->expr;
+  while (ret->isE_grouping()) {
+    ret = ret->asE_grouping()->expr;
+  }
   return ret;
 }
 
