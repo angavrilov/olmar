@@ -7,6 +7,7 @@
 #define PTREENODE_H
 
 #include <stddef.h>     // NULL
+#include <iostream.h>   // ostream
 
 // for storing counts of parse trees; I try to make the code work for
 // either 'int' or 'double' in this spot (e.g. I assign 0 to it
@@ -14,22 +15,20 @@
 // ambiguous grammars
 typedef double TreeCount;
 
-// max # of children
+// max # of children (when this is increased, more constructors
+// for PTreeNode should be added)
 enum { MAXCHILDREN = 5 };
 
 class PTreeNode {
 public:
   // textual repr. of the production applied; possibly useful for
-  // printing the tree, or during debugging; (hack) if it is NULL,
-  // then this node is an ambiguity merge point; not otherwise
-  // interpreted by code which manipulates these trees
+  // printing the tree, or during debugging
   char const *type;
-  #define PTREENODE_MERGE NULL
 
-  // alternative merge scheme: instead of making explicit merge nodes
-  // (which runs afoul of the yield-then-merge problem), just link
-  // alternatives together using this link; this is NULL when there
-  // are no alternatives, or for the last node in a list of alts
+  // instead of making explicit merge nodes (which runs afoul of the
+  // yield-then-merge problem), just link alternatives together using
+  // this link; this is NULL when there are no alternatives, or for
+  // the last node in a list of alts
   PTreeNode *merged;
 
   // array of children; these aren't owner pointers because
@@ -54,6 +53,11 @@ public:
 private:     // funcs
   // init fields which don't depend on ctor args
   void init();
+
+  // helpers
+  static void indent(ostream &out, int n);
+  void innerPrintTree(ostream &out, int indentation) const;
+  int countMergedList() const;
 
 public:      // funcs
   // now lots of constructors so we have one for each possible
@@ -80,6 +84,11 @@ public:      // funcs
   // count the number of trees encoded (taking merge nodes into
   // account) in the tree rooted at 'this'
   TreeCount countTrees();
+
+  // print the entire parse forest using indentation to represent
+  // nesting, and duplicating printing of shared subtrees within
+  // ambiguous regions
+  void printTree(ostream &out) const;
 
   // add an alternative to the current 'merged' list
   void addAlternative(PTreeNode *alt);

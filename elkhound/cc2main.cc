@@ -48,6 +48,7 @@ void doit(int argc, char **argv)
       PTreeNode *node = (PTreeNode*)treeTop;
       cout << "local ambiguities: " << PTreeNode::alternativeCount << endl;
       cout << "number of parses: " << node->countTrees() << endl;
+      node->printTree(cout);
     }
 
     delete user;

@@ -507,6 +507,9 @@ nonterm InitDeclaratorListOpt {
   -> InitDeclaratorList;
 }
 
+// Q: why is the InitDeclaratorList optional?  "int ;" is not valid
+// Q: for that matter, why is the DeclSpecifierSeq optional?  ";" is
+// not a valid declaration (it's a statement)
 nonterm SimpleDeclaration {
   merge(l,r) [ return l; ]
 
