@@ -814,21 +814,6 @@ bool CVAtomicType::innerEquals(CVAtomicType const *obj, EqFlags flags) const
 }
 
 
-bool CVAtomicType::areYouOrHaveYouEverBeenATemplate() const {
-  if (isDependent()) return true;
-  if (atomic->isTypeVariable()) return true;
-  if (atomic->isCompoundType()) {
-    CompoundType const *ct = atomic->asCompoundTypeC();
-    // NOTE NOTE NOTE! This is not the same as asking
-    // ct->isTemplate(), which seems to return false if it was a
-    // template but was then instantiated.  Hopefully this one will
-    // catch even instantiated templates.
-    return ct->templateInfo != NULL;
-  }
-  return false;
-}
-
-
 string CVAtomicType::leftString(bool /*innerParen*/) const
 {
   stringBuilder s;

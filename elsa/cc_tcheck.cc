@@ -3174,6 +3174,42 @@ Type *E_variable::itcheck(Env &env, Expression *&replacement)
 
 
 // ------------- BEGIN: outerResolveOverload ------------------
+// this answers the "are you ..." question for a specific node in
+// a type tree; this predicate is then applied to all the nodes in
+// that tree by the 'anyCtorSatisfies' mechanism
+static bool areYou_helper(Type const *t)
+{   
+  switch (t->getTag()) {
+    case Type::T_ATOMIC: {
+      CVAtomicType const *c = t->asCVAtomicTypeC();
+      return c->isDependent() ||
+             c->isTypeVariable() ||
+             // NOTE NOTE NOTE! This is not the same as asking
+             // ct->isTemplate(), which seems to return false if it was a
+             // template but was then instantiated.  Hopefully this one will
+             // catch even instantiated templates.
+             (c->isCompoundType() && c->asCompoundTypeC()->templateInfo);
+    }
+
+    case Type::T_FUNCTION:
+      return t->asFunctionTypeC()->isTemplate();
+      
+    default:
+      // the original code asked 'isDependent' for all the nodes,
+      // but only CVAtomicTypes can possibly answer yes
+      return false;
+  }
+}
+
+// true if 't' is a template, an instantiated template, or contains
+// any type that is either (not including digging into the fields of
+// compound types)
+static bool areYouOrHaveYouEverBeenATemplate(Type const *t)
+{
+  return t->anyCtorSatisfies(areYou_helper);
+}
+
+
 // return true iff all the args variables are non-templates; this is
 // temporary
 static bool allNonTemplateFunctions(SObjList<Variable> &set)
@@ -3183,7 +3219,7 @@ static bool allNonTemplateFunctions(SObjList<Variable> &set)
     xassert(ft);
     if (ft->isTemplate()) return false;
     SFOREACH_OBJLIST(Variable, ft->params, param_iter) {
-      if (param_iter.data()->type->areYouOrHaveYouEverBeenATemplate()) return false;
+      if (areYouOrHaveYouEverBeenATemplate(param_iter.data()->type)) return false;
     }
   }
   return true;
@@ -3196,7 +3232,7 @@ static bool allNonTemplates(FakeList<ICExpression> *args)
 //    cout << "argument types:" << endl;
   FAKELIST_FOREACH_NC(ICExpression, args, iter) {
 //      cout << "\titer->expr->type " << iter->expr->type->toCString() << endl;
-    if (iter->expr->type->areYouOrHaveYouEverBeenATemplate()) return false;
+    if (areYouOrHaveYouEverBeenATemplate(iter->expr->type)) return false;
   }
   return true;
 }
@@ -4036,12 +4072,6 @@ Type *E_addrOf::itcheck(Env &env, Expression *&replacement)
   if (expr->type->isFunctionType()) {
     return env.makePtrType(SL_UNKNOWN, expr->type);
   }
-//    // dsw: since we may no longer make references to arrays, we have to
-//    // special case them here as well; The address of an array is a
-//    // pointer to its first element.
-//    if (expr->type->isArrayType()) {
-//      return env.makePtrType(SL_UNKNOWN, expr->type->asArrayType()->eltType);
-//    }
 
   if (!expr->type->isLval()) {
     return env.error(expr->type, stringc
