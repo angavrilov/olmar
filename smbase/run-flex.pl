@@ -105,7 +105,7 @@ close(IN);
 open(OUT, ">$outputFile") or die("cannot write $outputFile: $!\n");
 
 # keep track of what we've done
-$state = 0;
+$state = 1;
 
 # name of derived lexer class (if any)
 $derivedClassName = "";
@@ -117,20 +117,20 @@ $derivedClassName = "";
 for ($i=0; $i < @lines; $i++) {
   $line = $lines[$i];
 
+  # this is stateless for no good reason
   my ($s) = ($line =~ m/^\#define YY_DECL int (.*)::yylex/);
   if (defined($s) && $s ne "yyFlexLexer") {
     $derivedClassName = $s;
   }
 
-  if ($state == 0) {
-    if ($line =~ m/class istream;/) {
-      $state++;
-      print OUT ("#include <iostream.h>      // class istream\n");
-      next;
-    }
+  # this is stateless because it does not occur in the cygwin
+  # flex output (they have a different fix)
+  if ($line =~ m/class istream;/) {
+    print OUT ("#include <iostream.h>      // class istream\n");
+    next;
   }
 
-  elsif ($state == 1) {
+  if ($state == 1) {
     if ($lines[$i+1] =~ m/^static void \*yy_flex_alloc/) {
       $state++;
       print OUT ("#ifndef NO_YYFLEXLEXER_METHODS\n");
