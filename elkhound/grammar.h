@@ -10,16 +10,11 @@
 // sections with ---- annotation ---- are data created by
 // algorithms manipulating the data.
 
-// references:
-//
-//   [ASU]  Aho, Sethi Ullman.  Compilers: Principles,
-//          Techniques, and Tools.  Addison-Wesley,
-//          Reading, MA.  1986.  Second printing (3/88).
-//
-//   [GLR]  J. Rekers.  Parser Generation for Interactive
-//          Environments.  PhD thesis, University of
-//          Amsterdam, 1992.  Available by ftp from
-//          ftp.cwi.nl:/pub/gipe/reports as Rek92.ps.Z.
+// Another measure is I've split all grammar-wide algorithm
+// stuff into GrammarAnalysis (gramanl.h).  Things should
+// only be put into Grammar if they are directly related
+// to the grammar representation.  (However, constitutent
+// objects like Production will continue to be a mix.)
 
 #ifndef __GRAMMAR_H
 #define __GRAMMAR_H
@@ -29,9 +24,6 @@
 #include "str.h"       // string
 #include "objlist.h"   // ObjList
 #include "sobjlist.h"  // SObjList
-
-// forward decls
-class Bit2d;           // bit2d.h
 
 // fwds defined below
 class Symbol;
@@ -45,6 +37,10 @@ class Grammar;
 #define OSTREAM_OPERATOR(MyClass)                                \
   friend ostream &operator << (ostream &os, MyClass const &ths)  \
     { ths.print(os); return os; }
+
+// this too
+#define INTLOOP(var, start, maxPlusOne) \
+  for (int var = start; var < maxPlusOne; var++)
 
 
 // ---------------- Symbol --------------------
@@ -118,7 +114,7 @@ typedef SObjListIter<Terminal> TerminalListIter;
 #define SMUTATE_EACH_TERMINAL(list, iter) SMUTATE_EACH_OBJLIST(Terminal, list, iter)
 
 // casting aggregates
-ObjList<Symbol> const &toObjList(ObjList<Terminal> const &list)
+inline ObjList<Symbol> const &toObjList(ObjList<Terminal> const &list)
   { return reinterpret_cast< ObjList<Symbol>const& >(list); }
 
 
@@ -150,7 +146,7 @@ typedef SObjListIter<Nonterminal> NonterminalListIter;
 #define SMUTATE_EACH_NONTERMINAL(list, iter) SMUTATE_EACH_OBJLIST(Nonterminal, list, iter)
 
 // casting aggregates
-ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
+inline ObjList<Symbol> const &toObjList(ObjList<Nonterminal> const &list)
   { return reinterpret_cast< ObjList<Symbol>const& >(list); }
 
 
@@ -179,7 +175,7 @@ public:	    // data
 // ------ annotation ------
 private:    // data
   int numDotPlaces;             // after finished(): equals rhsLength()+1
-  DottedProduction *dprods;     // array of dotted productions
+  DottedProduction *dprods;     // (owner) array of dotted productions
 
 public:     // funcs
   // retrieve an item
@@ -314,7 +310,7 @@ public:     // funcs
   // simple queries
   int numTerminals() const;
   int numNonterminals() const;
-		   
+
 
   // ---- building a grammar ----
   // add a new production; the rhs arg list must be terminated with a NULL
@@ -348,88 +344,6 @@ public:     // funcs
   SYMBOL_ACCESS(Terminal)      //   likewise
   SYMBOL_ACCESS(Nonterminal)   //   ..
   #undef SYMBOL_ACCESS
-
-
-// ------ annotation ------
-private:    // data
-  // if entry i,j is true, then nonterminal i can derive nonterminal j
-  // (this is a graph, represented (for now) as an adjacency matrix)
-  enum { emptyStringIndex = 0 };
-  Bit2d *derivable;                     // (owner)
-
-  // indexing structures
-  Nonterminal **indexedNonterms;        // (owner) ntIndex -> Nonterminal
-  Terminal **indexedTerms;              // (owner) termIndex -> Terminal
-
-  // only true after initializeAuxData has been called
-  bool initialized;
-
-public:	    // data
-  // every production, with a dot in every possible place
-  ObjList<DottedProduction> dottedProductions;
-
-  // true if any nonterminal can derive itself in 1 or more steps
-  bool cyclic;
-
-
-private:    // funcs
-  // ---- analyis init ----
-  // call this after grammar is completely built
-  void initializeAuxData();
-
-  // ---- derivability ----
-  // iteratively compute every pair A,B such that A can derive B
-  void computeWhatCanDeriveWhat();
-  void initDerivableRelation();
-
-  // add a derivability relation; returns true if this makes a change
-  bool addDerivable(Nonterminal const *left, Nonterminal const *right);
-  bool addDerivable(int leftNtIndex, int rightNtIndex);
-
-  // private derivability interface
-  bool canDerive(int leftNtIndex, int rightNtIndex) const;
-  bool sequenceCanDeriveEmpty(SymbolList const &list) const;
-  bool iterSeqCanDeriveEmpty(SymbolListIter iter) const;
-
-  // ---- First ----
-  void computeFirst();
-  bool addFirst(Nonterminal *NT, Terminal *term);
-  void firstOfSequence(TerminalList &destList, SymbolList &sequence);
-  void firstOfIterSeq(TerminalList &destList, SymbolListMutator sym);
-
-  // ---- Follow ----
-  void computeFollow();
-  bool addFollow(Nonterminal *NT, Terminal *term);
-
-  // ---- LR item sets ----
-  void itemSetClosure(DProductionList &itemSet);
-    // non-const because have to add dotted productions to the list
-  ItemSet *makeItemSet();
-  ItemSet *moveDot(ItemSet const *source, Symbol const *symbol);
-  ItemSet *findItemSetInList(ObjList<ItemSet> &list,
-                             ItemSet const *itemSet);
-  bool itemSetContainsItemSet(ItemSet const *big,
-                              ItemSet const *small);
-  bool itemSetsEqual(ItemSet const *is1, ItemSet const *is2);
-  void constructLRItemSets(ObjList<ItemSet> &itemSetsDone);
-  void lrParse(ObjList<ItemSet> &itemSets, char const *input);
-
-  // misc
-  void computePredictiveParsingTable();
-    // non-const because have to add productions to lists
-
-
-public:	    // funcs
-  // essentially, my 'main()' while experimenting
-  void exampleGrammar();
-
-
-  // ---- grammar queries ----
-  bool canDerive(Nonterminal const *lhs, Nonterminal const *rhs) const;
-  bool canDeriveEmpty(Nonterminal const *lhs) const;
-
-  bool firstIncludes(Nonterminal const *NT, Terminal const *term) const;
-  bool followIncludes(Nonterminal const *NT, Terminal const *term) const;
 };
 
 

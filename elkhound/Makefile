@@ -15,6 +15,6 @@ include ${SMBASE}/Makefile.base.mk
 
 # ------ targets -------
 # my parser!
-grammar: grammar.h grammar.cc
-	${link} -o grammar grammar.cc ${linkend}
+grammar: grammar.h grammar.cc gramanl.h gramanl.cc
+	${link} -o grammar grammar.cc gramanl.cc ${linkend}
 
