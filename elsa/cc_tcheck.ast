@@ -87,11 +87,7 @@ class MemberInit {
 
 
 class Declaration {                                   
-  // adds declared variables to env; 'memberDecl' means that this
-  // declaration appears just inside a class body; 'isTemporary' means
-  // that this declaration is an artificial one created for an implied
-  // temporary, not one actually written by the user
-  public void tcheck(Env &env, /*bool memberDecl,*/ bool isTemporary);
+  public void tcheck(Env &env);
 }
 
 
@@ -236,9 +232,6 @@ class Declarator {
     // the cv flags of the implicit 'this' parameter of member functions
     D_func *funcSyntax;
 
-    // is this a declarator for a temporary?
-    bool isTemporary;
-
     // dsw: copied from ASTTypeId::Tcheck::isParameter because I need
     // to know and for some reason the dflags don't get a DF_PARAMETER
     bool isParameter;
@@ -259,14 +252,13 @@ class Declarator {
 
   public:
     Tcheck(Type *t, DeclFlags d,
-           bool isTemporary0, bool isParameter0, bool isE_new0
+           bool isParameter0, bool isE_new0
            )
       : var         (NULL)
       , type        (t)
       , dflags      (d)
       , size_E_new  (NULL)
       , funcSyntax  (NULL)
-      , isTemporary (isTemporary0)
       , isParameter (isParameter0)
       , isE_new     (isE_new0)
       , context     (CTX_ORDINARY)
@@ -277,7 +269,6 @@ class Declarator {
       , dflags      (obj.dflags)
       , size_E_new  (obj.size_E_new)
       , funcSyntax  (obj.funcSyntax)
-      , isTemporary (obj.isTemporary)
       , isParameter (obj.isParameter)
       , isE_new     (obj.isE_new)
       , context     (obj.context)
@@ -290,7 +281,6 @@ class Declarator {
       size_E_new  = obj.size_E_new;
       context     = obj.context;
       funcSyntax  = obj.funcSyntax;
-      isTemporary = obj.isTemporary;
       isParameter = obj.isParameter;
       isE_new     = obj.isE_new;
       return *this;
@@ -314,7 +304,6 @@ class Declarator {
   public void mid_tcheck(Env &env, Tcheck &dt);
   public void tcheck_init(Env &env);
   public void elaborateCDtors(Env &env,
-                              bool isTemporary,
                               bool isParameter,
                               DeclFlags dflags);
 }

@@ -102,7 +102,7 @@ void TranslationUnit::tcheck(Env &env)
 void TF_decl::tcheck(Env &env)
 {
   env.setLoc(loc);
-  decl->tcheck(env, false /*isTemporary*/);
+  decl->tcheck(env);
 }
 
 void TF_func::tcheck(Env &env)
@@ -169,7 +169,6 @@ void Function::tcheck(Env &env, bool checkBody)
   // parameter names for this definition
   Declarator::Tcheck dt(retTypeSpec,
                         (DeclFlags)(dflags | (checkBody? DF_DEFINITION : 0)),
-                        false,  // isTemporary
                         // The *function* is not a parameter
                         false,  // isParameter
                         false   // isE_new
@@ -496,15 +495,8 @@ void Function::tcheck_handlers(Env &env)
 // MemberInit
 
 // -------------------- Declaration -------------------
-void Declaration::tcheck(Env &env,
-//                         bool memberDecl,
-                         bool isTemporary // FIX: I don't think this is necessary any more
-                         )
+void Declaration::tcheck(Env &env)
 {
-  if (isTemporary) {
-    xassert(decllist);
-  }
-
   // if we're declaring an anonymous type, and there are
   // some declarators, then give the type a name; we don't
   // give names to anonymous types with no declarators as
@@ -534,7 +526,6 @@ void Declaration::tcheck(Env &env,
   if (decllist) {
     // check first declarator
     Declarator::Tcheck dt1(specType, dflags,
-                           isTemporary,
                            // Parameter Declarators are not within
                            // Declarations, but in ASTTypeIds
                            false,// isParameter
@@ -549,9 +540,7 @@ void Declaration::tcheck(Env &env,
       // the factory clone it if it wants to
       Type *dupType = env.tfac.cloneType(specType);
 
-      xassert(!isTemporary);
       Declarator::Tcheck dt2(dupType, dflags,
-                             isTemporary,
                              // Parameter Declarators are not within
                              // Declarations, but in ASTTypeIds
                              false,// isParameter
@@ -595,7 +584,6 @@ void ASTTypeId::mid_tcheck(Env &env, Tcheck &tc)
                          
   // pass contextual info to declarator
   Declarator::Tcheck dt(specType, tc.dflags,
-                        false,  // isTemporary
                         tc.isParameter, // isParameter
                         tc.newSizeExpr // isE_new: are we in an E_new?
                         );
@@ -1285,7 +1273,6 @@ void TS_classSpec::tcheckFunctionBodies(Env &env)
       Declaration *d0 = iter.data()->asMR_decl()->d;
       FAKELIST_FOREACH_NC(Declarator, d0->decllist, decliter) {
         decliter->elaborateCDtors(env,
-                                  false, // isTemporary
                                   false, // FIX: can a TS_classSpec be a parameter?
                                   d0->dflags);
       }
@@ -1651,7 +1638,7 @@ void MR_decl::tcheck(Env &env)
 
   // the declaration knows to add its variables to
   // the curCompound
-  d->tcheck(env, false /*isTemporary*/);
+  d->tcheck(env);
 
   checkMemberFlags(env, d->dflags);
 }
@@ -2020,7 +2007,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //        !dt.isParameter &&
       !dt.isE_new) {
     elaborateCDtors(env,
-                    dt.isTemporary,
                     dt.isParameter,
                     dt.dflags);
   }
@@ -2032,7 +2018,6 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
 //    FAKELIST_FOREACH_NC(ASTTypeId, params, iter) {
 //      iter->decl->elaborateCDtors
 //        (env,
-//         false,                   // isTemporary
 //         true,                    // isParameter
 //         // Only Function and Declaration have any DeclFlags; the only
 //         // one that seems appropriate is this one
@@ -2073,20 +2058,17 @@ FakeList<ArgExpression> *makeExprList2(Expression *e1, Expression *e2)
 }
 
 void Declarator::elaborateCDtors(Env &env,
-                                 bool isTemporary,
                                  bool isParameter,
                                  DeclFlags dflags)
 {
   // get this context from the 'var', don't make a mess passing
   // it down from above
   bool isMember = var->hasFlag(DF_MEMBER);
+  bool isTemporary = var->hasFlag(DF_TEMPORARY);
 
   // FIX: maybe this could never have worked
 //    bool isParameter  = (dflags & DF_PARAMETER)!=0;
   bool isStatic = (dflags & DF_STATIC)!=0;
-
-  // temporaries are never parameters
-  if (isTemporary) xassert(!isParameter);
 
   // dsw: Should this lookup be cached during mid_tcheck() above?
 
@@ -2110,16 +2092,6 @@ void Declarator::elaborateCDtors(Env &env,
       // so the declarator's names will get its benefit
       env.extendScope(qualifiedScope);
     }
-  }
-
-  // check the name is a temp name
-  if (isTemporary) {
-    xassert(!isParameter);
-    StringRef declBaseName = declaratorId->getName();
-    xassert(static_cast<signed>(strlen(declBaseName)) >= env.tempNamePrefixLen);
-    xassert(strncmp(env.tempNamePrefix,
-                    declBaseName,
-                    env.tempNamePrefixLen)==0);
   }
 
   // This was moved here from Declarator::mid_tcheck()
@@ -2202,7 +2174,7 @@ void Declarator::elaborateCDtors(Env &env,
       // it but want to keep going
     ifInitEnd: ;                  // must have a statement here
     }
-    else /* init is NULL */
+    else /* init is NULL */ {
       if (type->isCompoundType() &&
           !var->hasFlag(DF_TYPEDEF) &&
           !(decl->isD_name() && !decl->asD_name()->name) && // that is, not an abstract decl
@@ -2215,6 +2187,7 @@ void Declarator::elaborateCDtors(Env &env,
         xassert(!ctorStatement);
         ctorStatement = makeCtorStatement(env, var, type, FakeList<ArgExpression>::emptyList());
       }
+    }
 
     // if isTemporary we don't want to make a ctor since by definition
     // the temporary will be initialized later
@@ -3748,7 +3721,7 @@ void S_goto::itcheck(Env &env)
 
 void S_decl::itcheck(Env &env)
 {
-  decl->tcheck(env, false /*isTemporary*/);
+  decl->tcheck(env);
 }
 
 
@@ -3826,7 +3799,6 @@ Scope *FullExpressionAnnot::tcheck_preorder(Env &env)
   xassert(declarations.isEmpty());
 //    FOREACH_ASTLIST_NC(Declaration, declarations, iter) {
 //      iter.data()->tcheck(env,
-//                          true    // isTemporary
 //                          );
 //    }
   return scope;
@@ -4504,7 +4476,7 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
                    NULL         // important: no Initializer
                    );
   Declaration *declaration0 =
-    new Declaration(DF_NONE,
+    new Declaration(DF_TEMPORARY,
                     // should get DF_AUTO since they are auto, but I
                     // seem to recall that Scott just wants to use
                     // that for variables that are explicitly marked
@@ -4518,16 +4490,13 @@ static Declaration *makeTempDeclaration(Env &env, Type *retType)
 
   // don't do this for now:
 //    int numErrors = env.numErrors();
-  declaration0->tcheck(env,
-                       true     // isTemporary
-                       );
+  declaration0->tcheck(env);
 
   // FIX: what the heck am I doing here?  There should only be one.
   xassert(declaration0->decllist->count() == 1);
   // leave it for now
   FAKELIST_FOREACH_NC(Declarator, declaration0->decllist, decliter) {
     decliter->elaborateCDtors(env,
-                              true, // isTemporary
                               false, // isParameter; temporaries are never parameters 
                               declaration0->dflags);
   }
@@ -6208,7 +6177,7 @@ void TD_proto::itcheck(Env &env)
   // place we grab template parameters, and that's shared by both
   // definitions and prototypes
   DisambiguateOnlyTemp disOnly(env, true /*disOnly*/);
-  d->tcheck(env, false /*isTemporary*/);
+  d->tcheck(env);
 }
 
 

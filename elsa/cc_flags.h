@@ -99,12 +99,13 @@ enum DeclFlags {
   DF_INLINE_DEFN = 0x00200000,    // set for inline function definitions on second pass of tcheck
   DF_IMPLICIT    = 0x00400000,    // set for C++ implicit typedefs
   DF_FORWARD     = 0x00800000,    // for syntax which only provides a forward declaration
+  DF_TEMPORARY   = 0x01000000,    // temporary variable introduced by elaboration
 
   // syntactic declaration extensions
-  DF_PREDICATE   = 0x01000000,    // Simplify-declared predicate (i.e. DEFPRED)
+  DF_PREDICATE   = 0x02000000,    // Simplify-declared predicate (i.e. DEFPRED)
 
-  ALL_DECLFLAGS  = 0x01FFFFFF,
-  NUM_DECLFLAGS  = 25             // # bits set to 1 in ALL_DECLFLAGS
+  ALL_DECLFLAGS  = 0x03FFFFFF,
+  NUM_DECLFLAGS  = 26             // # bits set to 1 in ALL_DECLFLAGS
 };
 
 extern char const * const declFlagNames[NUM_DECLFLAGS];      // 0="inline", 1="virtual", 2="friend", ..
