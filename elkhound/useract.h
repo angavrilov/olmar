@@ -11,6 +11,8 @@
 #ifndef USERACT_H
 #define USERACT_H
 
+#include "glrconfig.h"     // SOURCELOC
+
 class SourceLocation;      // fileloc.h
 
 // user-supplied semantic values:
@@ -40,7 +42,8 @@ public:
   //  - this fn returns the semantic value for the reduction; this return
   //    value is an owner pointer
   virtual SemanticValue doReductionAction(
-    int productionId, SemanticValue const *svals, SourceLocation const &loc)=0;
+    int productionId, SemanticValue const *svals
+    SOURCELOCARG( SourceLocation const &loc ) )=0;
 
   // duplication of semantic values:
   //  - the given 'sval' is about to be passed to a reduction action
@@ -85,10 +88,10 @@ public:
   // does return false, then 'sval' is an owner pointer (the parser engine
   // will drop the value on the floor)
   virtual bool keepNontermValue(int nontermId, SemanticValue sval)=0;
-  
+
   // every time a token is pulled from the lexer, this reclassifier is
   // used to give the user a chance to reinterpret the token, before it
-  // is used for reduction lookahead comparisons; it returns the 
+  // is used for reduction lookahead comparisons; it returns the
   // reclassified token type, or 'oldTokenType' to leave it unchanged
   virtual int reclassifyToken(int oldTokenType, SemanticValue sval)=0;
 };
@@ -98,7 +101,8 @@ public:
 // (this macro used by the generated code)
 #define USER_ACTION_FUNCTIONS                                          \
   virtual SemanticValue doReductionAction(                             \
-    int productionId, SemanticValue const *svals, SourceLocation const &loc);\
+    int productionId, SemanticValue const *svals                       \
+    SOURCELOCARG( SourceLocation const &loc ) );                       \
                                                                        \
   virtual SemanticValue duplicateTerminalValue(                        \
     int termId, SemanticValue sval);                                   \

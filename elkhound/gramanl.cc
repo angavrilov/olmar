@@ -2567,7 +2567,7 @@ void GrammarAnalysis::constructLRItemSets()
             }
             else {
               // we thought we were done with this
-              xassert_debug(itemSetsDone.get(already));
+              xassertdb(itemSetsDone.get(already));
 
               // but we're not: move it back to the 'pending' list
               itemSetsDone.remove(already);
@@ -2614,7 +2614,7 @@ void GrammarAnalysis::constructLRItemSets()
         scratchState->kernelItems.concat(unusedTail);
 
         // make sure the link restoration process works as expected
-        xassert_debug(scratchState->kernelItems.count() >= INIT_LIST_LEN);
+        xassertdb(scratchState->kernelItems.count() >= INIT_LIST_LEN);
 
         CHECK_MALLOC_STATS("end of item loop");
 
@@ -4088,6 +4088,13 @@ void emitActionCode(Grammar const &g, char const *hFname,
     out << "\n";
   }
 
+  NOSOURCELOC(
+    out << "// parser-originated location information is disabled by\n"
+        << "// NO_GLR_SOURCELOC; any rule which refers to 'loc' will get this one\n"
+        << "SourceLocation loc;      // defaults to no-location\n"
+        << "\n\n";
+  )
+
   out << "// ------------------- actions ------------------\n";
   emitActions(g, out, dcl);
   out << "\n";
@@ -4152,13 +4159,18 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 
     out << "inline " << prod.left->type << " "
         << g.actionClassName << "::" << actionFuncName(prod)
-        << "(SourceLocation const &loc";
+        << "("
+        SOURCELOC( << "SourceLocation const &loc" )
+        ;
 
-    dcl << prod.left->type << " " << actionFuncName(prod)
-        << "(SourceLocation const &loc";
+    dcl << prod.left->type << " " << actionFuncName(prod) << "("
+        SOURCELOC( << "SourceLocation const &loc" )
+        ;
+
+    int ct=0;
+    SOURCELOC( ct++ );    // if we printed the 'loc' param, count it
 
     // iterate over RHS elements, emitting formals for each with a tag
-    int ct=1;
     FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
       Production::RHSElt const &elt = *(rhsIter.data());
       if (elt.tag.length() == 0) continue;
@@ -4188,8 +4200,9 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
 
   // main action function; calls the inline functions emitted above
   out << "SemanticValue " << g.actionClassName << "::doReductionAction(\n"
-      << "  int productionId, SemanticValue const *semanticValues,\n"
-      << "  SourceLocation const &loc)\n";
+      << "  int productionId, SemanticValue const *semanticValues"
+      SOURCELOC( << ",\n  SourceLocation const &loc" )
+      << ")\n";
   out << "{\n";
   out << "  switch (productionId) {\n";
 
@@ -4198,11 +4211,14 @@ void emitActions(Grammar const &g, EmitCode &out, EmitCode &dcl)
     Production const &prod = *(iter.data());
 
     out << "    case " << prod.prodIndex << ":\n";
-    out << "      return (SemanticValue)" << actionFuncName(prod) << "(loc";
+    out << "      return (SemanticValue)" << actionFuncName(prod) << "(" 
+        SOURCELOC( << "loc" )
+        ;
 
     // iterate over RHS elements, emitting arguments for each with a tag
-    int index = -1;    // index into 'semanticValues'
-    int ct=1;
+    int index = -1;      // index into 'semanticValues'
+    int ct=0;
+    SOURCELOC( ct++ );   // count 'loc' if it is passed
     FOREACH_OBJLIST(Production::RHSElt, prod.right, rhsIter) {
       Production::RHSElt const &elt = *(rhsIter.data());
 

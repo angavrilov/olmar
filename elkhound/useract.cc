@@ -11,7 +11,8 @@ UserActions::~UserActions()
 
 // ----------------- TrivialUserActions --------------------
 SemanticValue TrivialUserActions::doReductionAction(
-  int , SemanticValue const *, SourceLocation const &)
+  int , SemanticValue const * 
+  SOURCELOCARG( SourceLocation const & ) )
   { return NULL; }
 
 SemanticValue TrivialUserActions::duplicateTerminalValue(

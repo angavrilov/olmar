@@ -22,6 +22,7 @@
 #include "okhashtbl.h"  // OwnerKHashTable
 #include "array.h"      // GrowArray
 #include "okhasharr.h"  // OwnerKHashArray
+#include "glrconfig.h"  // SOURCELOC
 
 // forward decls
 class Bit2d;            // bit2d.h

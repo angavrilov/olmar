@@ -200,9 +200,10 @@ void GLR::deallocateSemanticValue(SymbolId sym, SemanticValue sval)
 
 
 // ------------------ SiblingLink ------------------
-inline SiblingLink::SiblingLink(StackNode *s, SemanticValue sv, 
-                                SourceLocation const &L)
-  : sib(s), sval(sv), loc(L)
+inline SiblingLink::SiblingLink(StackNode *s, SemanticValue sv
+                                SOURCELOCARG( SourceLocation const &L ) )
+  : sib(s), sval(sv)
+    SOURCELOCARG( loc(L) )
 {}
 
 SiblingLink::~SiblingLink()
@@ -219,7 +220,7 @@ StackNode::StackNode()
     tokenColumn(-1),
     state(STATE_INVALID),
     leftSiblings(),
-    firstSib(NULL, NULL, SourceLocation()),
+    firstSib(NULL, NULL  SOURCELOCARG( SourceLocation() ) ),
     referenceCount(0),
     determinDepth(0),
     glr(NULL)
@@ -280,8 +281,8 @@ SymbolId StackNode::getSymbolC() const
 
 // add a new sibling by creating a new link
 SiblingLink *StackNode::
-  addSiblingLink(StackNode *leftSib, SemanticValue sval,
-                 SourceLocation const &loc)
+  addSiblingLink(StackNode *leftSib, SemanticValue sval
+                 SOURCELOCARG( SourceLocation const &loc ) )
 {
   if (hasZeroSiblings()) {
     // my depth will be my new sibling's depth, plus 1
@@ -290,10 +291,10 @@ SiblingLink *StackNode::
     // we don't have any siblings yet; use embedded
     firstSib.sib = leftSib;
     firstSib.sval = sval;
-    firstSib.loc = loc;
-    
+    SOURCELOC( firstSib.loc = loc; )
+
     // sibling link pointers are used to control the reduction
-    // process in certain corner cases; an interior pointer 
+    // process in certain corner cases; an interior pointer
     // should work fine
     return &firstSib;
   }
@@ -303,7 +304,7 @@ SiblingLink *StackNode::
     // most likely will catch that when we use the stale info)
     determinDepth = 0;
 
-    SiblingLink *link = new SiblingLink(leftSib, sval, loc);
+    SiblingLink *link = new SiblingLink(leftSib, sval  SOURCELOCARG( loc ) );
     leftSiblings.append(link);
     return link;
   }
@@ -408,9 +409,10 @@ void PathCollectionState::deinit()
 
 
 void PathCollectionState
-  ::addReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L)
+  ::addReductionPath(StackNode *f, SemanticValue s
+                     SOURCELOCARG( SourceLocation const &L ) )
 {
-  paths.pushAlt().init(f, s, L);
+  paths.pushAlt().init(f, s  SOURCELOCARG( L ) );
 }
 
 
@@ -426,7 +428,7 @@ PathCollectionState::ReductionPath& PathCollectionState::ReductionPath
   if (&obj != this) {
     finalState = obj.finalState;
     sval = obj.sval;
-    loc = obj.loc;
+    SOURCELOC( loc = obj.loc; )
   }
   return *this;
 }
@@ -610,7 +612,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     currentTokenClass = indexedTerms[classifiedType];
     currentTokenColumn = tokenNumber;
     currentTokenValue = currentToken->sval;
-    currentTokenLoc = currentToken->loc;
+    SOURCELOC( currentTokenLoc = currentToken->loc; )
 
 
   tryDeterministic:    
@@ -626,7 +628,7 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
     // to be done in both places.
     if (activeParsers.length() == 1) {
       StackNode *parser = activeParsers[0];
-      xassert(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
+      xassertdb(parser->referenceCount==1);     // 'activeParsers[0]' is referrer
       ActionEntry action =
         tables->actionEntry(parser->state, currentTokenClass->termIndex);
 
@@ -639,14 +641,15 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                  ", to state " << newState);
 
         StackNode *rightSibling = makeStackNode(newState);
-        rightSibling->addSiblingLink(parser, currentTokenValue, currentTokenLoc);
+        rightSibling->addSiblingLink(parser, currentTokenValue 
+                                     SOURCELOCARG( currentTokenLoc ) );
 
         // replace 'parser' with 'rightSibling' in the activeParsers list
         activeParsers[0] = rightSibling;
         parser->decRefCt();
-        xassert(parser->referenceCount==1);         // rightSibling refers to it
+        xassertdb(parser->referenceCount==1);         // rightSibling refers to it
         rightSibling->incRefCt();
-        xassert(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
+        xassertdb(rightSibling->referenceCount==1);   // activeParsers[0] refers to it
 
         // get next token
         continue;
@@ -660,8 +663,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
           // can reduce unambiguously
           int startStateId = parser->state;
 
-          // record location of left edge
-          SourceLocation leftEdge;     // defaults to no location (used for epsilon rules)
+          // record location of left edge; defaults to no location
+          // (used for epsilon rules)
+          SOURCELOC( SourceLocation leftEdge; )
 
           // pop off 'rhsLen' stack nodes, collecting as many semantic
           // values into 'toPass'
@@ -680,18 +684,20 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
             sib.sval = NULL;                  // link no longer owns the value
 
             // if it has a valid source location, grab it
-            if (sib.loc.validLoc()) {
-              leftEdge = sib.loc;
-            }
+            SOURCELOC(
+              if (sib.loc.validLoc()) {
+                leftEdge = sib.loc;
+              }                    
+            )
 
             // pop 'parser' and move to the next one
             StackNode *next = sib.sib;           // grab before deallocating
             next->incRefCt();                     // so 'next' survives deallocation of 'sib'
-            xassert(next->referenceCount==2);     // 'sib' and the fake one
-            xassert(parser->referenceCount==1);
+            xassertdb(next->referenceCount==2);     // 'sib' and the fake one
+            xassertdb(parser->referenceCount==1);
             parser->decRefCt();                   // deinit 'parser', dealloc 'sib'
             parser = next;
-            xassert(parser->referenceCount==1);   // fake refct only
+            xassertdb(parser->referenceCount==1);   // fake refct only
           }
 
           TRSPARSE("state " << startStateId <<
@@ -700,8 +706,9 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                    "), back to state " << parser->state);
 
           // call the user's action function (TREEBUILD)
-          SemanticValue sval = userAct->doReductionAction(
-                                 prodIndex, toPass.getArray(), leftEdge);
+          SemanticValue sval = 
+            userAct->doReductionAction(prodIndex, toPass.getArray()
+                                       SOURCELOCARG( leftEdge ) );
           D(trsSval << "reduced via production " << pcs.prodIndex
                     << ", yielding " << sval << endl);
 
@@ -720,18 +727,18 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
                    ", to state " << newState);
 
           // 'parser' has refct 1, reflecting the local variable only
-          xassert(parser->referenceCount==1);
+          xassertdb(parser->referenceCount==1);
 
           // push new state
           StackNode *newNode = makeStackNode(newState);
-          newNode->addSiblingLink(parser, sval, leftEdge);
-          xassert(parser->referenceCount==2);
-          parser->decRefCt();                      // local variable "parser" about to go out of scope
+          newNode->addSiblingLink(parser, sval  SOURCELOCARG( leftEdge ) );
+          xassertdb(parser->referenceCount==2);
+          parser->decRefCt();                        // local variable "parser" about to go out of scope
 
           // replace whatever is in 'activeParsers[0]' with 'newNode'
           activeParsers[0] = newNode;
           newNode->incRefCt();
-          xassert(newNode->referenceCount == 1);   // activeParsers[0] is referrer
+          xassertdb(newNode->referenceCount == 1);   // activeParsers[0] is referrer
 
           // after all this, we haven't shifted any tokens, so the token
           // context remains; let's go back and try to keep acting
@@ -849,8 +856,8 @@ bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
   trsSval << "handing toplevel svals " << arr[0]
           << " and " << arr[1] << " top start's reducer\n";
   treeTop = userAct->doReductionAction(
-              getItemSet(last->state)->getFirstReduction()->prodIndex, arr,
-              last->getUniqueLinkC()->loc);
+              getItemSet(last->state)->getFirstReduction()->prodIndex, arr
+              SOURCELOCARG( last->getUniqueLinkC()->loc ) );
 
 
   #if 0
@@ -1067,7 +1074,7 @@ void GLR::doReduction(StackNode *parser,
 
       // this is like shifting the reduction's LHS onto 'finalParser'
       glrShiftNonterminal(rpath.finalState, info.lhsIndex,
-                          rpath.sval, rpath.loc);
+                          rpath.sval  SOURCELOCARG( rpath.loc ) );
 
       // nullify 'sval' to mark it as consumed
       rpath.sval = NULL;
@@ -1132,8 +1139,9 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
              " (rhsLen=" << rhsLen <<
              "), back to state " << currentNode->state);
 
-    // record location of left edge
-    SourceLocation leftEdge;     // defaults to no location (used for epsilon rules)
+    // record location of left edge; defaults to no location (used for
+    // epsilon rules)
+    SOURCELOC( SourceLocation leftEdge; )
 
     // before calling the user, duplicate any needed values
     //SemanticValue *toPass = new SemanticValue[rhsLen];
@@ -1146,9 +1154,11 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
       // left edge?  or, have all previous tokens failed to yield
       // information?
-      if (!leftEdge.validLoc()) {
-        leftEdge = sib->loc;
-      }
+      SOURCELOC(
+        if (!leftEdge.validLoc()) {
+          leftEdge = sib->loc;
+        }
+      )
 
       // we inform the user, and the user responds with a value
       // to be kept in this sibling link *instead* of the passed
@@ -1163,8 +1173,9 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     // we've popped the required number of symbols; call the
     // user's code to synthesize a semantic value by combining them
     // (TREEBUILD)
-    SemanticValue sval = userAct->doReductionAction(
-                           pcs.prodIndex, toPass.getArray(), leftEdge);
+    SemanticValue sval = 
+      userAct->doReductionAction(pcs.prodIndex, toPass.getArray()
+                                 SOURCELOCARG( leftEdge ) );
     D(trsSval << "reduced via production " << pcs.prodIndex
               << ", yielding " << sval << endl);
     //delete[] toPass;
@@ -1177,7 +1188,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
     // and just collect this reduction, and the final state, in our
     // running list
-    pcs.addReductionPath(currentNode, sval, leftEdge);
+    pcs.addReductionPath(currentNode, sval  SOURCELOCARG( leftEdge ) );
   }
 
   else {
@@ -1239,8 +1250,8 @@ void *mergeAlternativeParses(int ntIndex, void *left, void *right)
 // subtree, and 'loc' is the location of the left edge
 // ([GLR] calls this 'reducer')
 void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
-                              SemanticValue /*owner*/ sval,
-                              SourceLocation const &loc)
+                              SemanticValue /*owner*/ sval
+                              SOURCELOCARG( SourceLocation const &loc ) )
 {
   // this is like a shift -- we need to know where to go; the
   // 'goto' table has this information
@@ -1281,7 +1292,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
 
     // we get here if there is no suitable sibling link already
     // existing; so add the link (and keep the ptr for loop below)
-    sibLink = rightSibling->addSiblingLink(leftSibling, sval, loc);
+    sibLink = rightSibling->addSiblingLink(leftSibling, sval  SOURCELOCARG( loc ) );
 
     // adding a new sibling link may have introduced additional
     // opportunties to do reductions from parsers we thought
@@ -1323,7 +1334,7 @@ void GLR::glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
     rightSibling = makeStackNode(rightSiblingState);
 
     // add the sibling link (and keep ptr for tree stuff)
-    rightSibling->addSiblingLink(leftSibling, sval, loc);
+    rightSibling->addSiblingLink(leftSibling, sval  SOURCELOCARG( loc ) );
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
@@ -1379,8 +1390,8 @@ void GLR::glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts)
 
     // either way, add the sibling link now
     D(trsSval << "grabbed token sval " << currentTokenValue << endl);
-    rightSibling->addSiblingLink(leftSibling, currentTokenValue,
-                                 currentTokenLoc);
+    rightSibling->addSiblingLink(leftSibling, currentTokenValue
+                                 SOURCELOCARG( currentTokenLoc ) );
   }
 }
 

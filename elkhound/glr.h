@@ -75,10 +75,11 @@ public:
   // the source location of the left edge of the subtree rooted
   // at this stack node; this is in essence part of the semantic
   // value, but automatically propagated by the parser
-  SourceLocation loc;
+  SOURCELOC( SourceLocation loc; )
 
 public:
-  SiblingLink(StackNode *s, SemanticValue sv, SourceLocation const &L);
+  SiblingLink(StackNode *s, SemanticValue sv
+              SOURCELOCARG( SourceLocation const &L) );
   ~SiblingLink();
 };
 
@@ -156,8 +157,8 @@ public:     // funcs
   void deinit();
 
   // add a new link with the given tree node; return the link
-  SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval,
-                              SourceLocation const &loc);
+  SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval
+                              SOURCELOCARG( SourceLocation const &loc ) );
 
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
@@ -232,21 +233,22 @@ public:    // types
     SemanticValue sval;
 
     // location of left edge of this subtree
-    SourceLocation loc;
+    SOURCELOC( SourceLocation loc; )
 
   public:
     ReductionPath()
-      : finalState(NULL), sval(NULL), loc() {}
+      : finalState(NULL), sval(NULL)  SOURCELOCARG( loc() ) {}
     ~ReductionPath();
 
     ReductionPath& operator=(ReductionPath const &obj);
 
     // begin using this
-    void init(StackNode *f, SemanticValue s, SourceLocation const &L)
+    void init(StackNode *f, SemanticValue s 
+              SOURCELOCARG( SourceLocation const &L  ) )
     {
       finalState = f;        // increment reference count
       sval = s;
-      loc = L;
+      SOURCELOC( loc = L; )
     }
 
     // stop using this
@@ -286,7 +288,8 @@ public:	   // funcs
   void deinit();
                   
   // add something to the 'paths' array
-  void addReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L);
+  void addReductionPath(StackNode *f, SemanticValue s
+                        SOURCELOCARG( SourceLocation const &L ) );
 };
 
 
@@ -328,7 +331,7 @@ public:
   SemanticValue currentTokenValue;
 
   // location of that current token
-  SourceLocation currentTokenLoc;
+  SOURCELOC( SourceLocation currentTokenLoc; )
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
@@ -380,7 +383,8 @@ private:    // funcs
                        StackNode *currentNode, SiblingLink *mustUseLink,
                        SiblingLink *linkToAdd);
   void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
-                           SemanticValue sval, SourceLocation const &loc);
+                           SemanticValue sval
+                           SOURCELOCARG( SourceLocation const &loc ) );
   void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);
   StackNode *findActiveParser(StateId state);
   StackNode *makeStackNode(StateId state);
