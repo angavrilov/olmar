@@ -37,7 +37,7 @@ Environment::~Environment()
 STATICDEF string XASTParse::
   constructMsg(LocString const &tok, char const *msg)
 {
-  if (tok.isValid()) {
+  if (tok.validLoc()) {
     return stringc << "near " << tok
                    << ", at " << tok.toString() << ": " << msg;
   }
@@ -160,15 +160,8 @@ void astParseTerminals(Environment &env, Terminals const &terms)
       StringRef name = term.name;
       trace("grampar") << "token: code=" << code
                        << ", name=" << name << endl;
-      bool ok;
-      if (term.alias[0]) {
-        ok = env.g.declareToken(name, code, quoted(term.alias));
-      }
-      else {
-        ok = env.g.declareToken(name, code, NULL /*alias*/);
-      }
 
-      if (!ok) {
+      if (!env.g.declareToken(term.name, code, term.alias)) {
         astParseError(term.name, "token already declared");
       }
     }
@@ -325,31 +318,19 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     RHSElt const *n = iter.data();
     LocString symName;
     LocString symTag;
-    bool tagValid = false;
     bool isString = false;
     bool isPrec = false;
 
     // pull varius info out of the AST node
     ASTSWITCHC(RHSElt, n) {
-      ASTCASEC(RH_name, name) {
-        symName = name->name;
-      }
-
-      ASTNEXTC(RH_taggedName, tname) {
+      ASTCASEC(RH_name, tname) {
         symName = tname->name;
         symTag = tname->tag;
-        tagValid = true;
       }
 
-      ASTNEXTC(RH_string, s) {
-        symName = s->str;
-        isString = true;
-      }
-
-      ASTNEXTC(RH_taggedString, ts) {
+      ASTNEXTC(RH_string, ts) {
         symName = ts->str;
         symTag = ts->tag;
-        tagValid = true;
         isString = true;
       }
 
@@ -374,15 +355,9 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
       break;     // last element anyway
     }
 
-    // quote the string if it was quoted in syntax
-    string quotSymName(symName);
-    if (isString) {
-      quotSymName = quoted(symName);
-    }
-
     // see which (if either) thing this name already is
-    Terminal *term = env.g.findTerminal(quotSymName);
-    Nonterminal *nonterm = env.g.findNonterminal(quotSymName);
+    Terminal *term = env.g.findTerminal(symName);
+    Nonterminal *nonterm = env.g.findNonterminal(symName);
     xassert(!( term && nonterm ));     // better not be both!
 
     // a syntax rule
@@ -417,7 +392,7 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
     }
     else {
       // add it to the production
-      prod->append(s, tagValid? (char const*)symTag : (char const*)NULL);
+      prod->append(s, symTag);
     }
   }
 
@@ -487,8 +462,6 @@ void grampar_yyerror(char const *message, void *parseParam)
 // ---------------- external interface -------------------
 bool isGramlexEmbed(int code);     // defined in gramlex.lex
 
-StringTable gramparStringTable;
-
 void readGrammarFile(Grammar &g, char const *fname)
 {
   if (tracingSys("yydebug")) {
@@ -499,7 +472,7 @@ void readGrammarFile(Grammar &g, char const *fname)
   Owner<ifstream> in;
   if (fname == NULL) {
     // stdin
-    lexer = new GrammarLexer(isGramlexEmbed, gramparStringTable);
+    lexer = new GrammarLexer(isGramlexEmbed, grammarStringTable);
   }
   else {
     // file
@@ -507,7 +480,7 @@ void readGrammarFile(Grammar &g, char const *fname)
     if (!*in) {
       xsyserror("open", stringc << "error opening input file " << fname);
     }
-    lexer = new GrammarLexer(isGramlexEmbed, gramparStringTable, fname, in.xfr());
+    lexer = new GrammarLexer(isGramlexEmbed, grammarStringTable, fname, in.xfr());
   }
 
   ParseParams params(*lexer);
@@ -585,7 +558,7 @@ int main(int argc, char **argv)
   //}
 
   // before using 'xfer' we have to tell it about the string table
-  flattenStrTable = &gramparStringTable;
+  flattenStrTable = &grammarStringTable;
 
   // write it to a binary file
   char const binFname[] = "grammar.bin.tmp";

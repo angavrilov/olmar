@@ -183,21 +183,6 @@ void RH_name::debugPrint(ostream &os, int indent) const
 
   RHSElt::debugPrint(os, indent);
 
-  PRINT_GENERIC(name);
-}
-
-DEFN_AST_DOWNCASTS(RHSElt, RH_taggedName, RH_TAGGEDNAME)
-
-RH_taggedName::~RH_taggedName()
-{
-}
-
-void RH_taggedName::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(RH_taggedName);
-
-  RHSElt::debugPrint(os, indent);
-
   PRINT_GENERIC(tag);
   PRINT_GENERIC(name);
 }
@@ -211,21 +196,6 @@ RH_string::~RH_string()
 void RH_string::debugPrint(ostream &os, int indent) const
 {
   PRINT_HEADER(RH_string);
-
-  RHSElt::debugPrint(os, indent);
-
-  PRINT_GENERIC(str);
-}
-
-DEFN_AST_DOWNCASTS(RHSElt, RH_taggedString, RH_TAGGEDSTRING)
-
-RH_taggedString::~RH_taggedString()
-{
-}
-
-void RH_taggedString::debugPrint(ostream &os, int indent) const
-{
-  PRINT_HEADER(RH_taggedString);
 
   RHSElt::debugPrint(os, indent);
 

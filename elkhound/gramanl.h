@@ -113,7 +113,7 @@ typedef SObjListIter<DottedProduction> SDProductionListIter;
 // a set of dotted productions, and the transitions between
 // item sets, as in LR(0) set-of-items construction
 class ItemSet {
-private:    // data
+public:     // intended to be read-only public
   // kernel items: the items that define the set; except for
   // the special case of the initial item in the initial state,
   // the kernel items are distinguished by having the dot *not*
@@ -126,6 +126,7 @@ private:    // data
   // them on the spot as needed (and may change this decision)
   DProductionList nonkernelItems;
 
+private:    // data
   // transition function (where we go on shifts); NULL means no transition
   //   Map : (Terminal id or Nonterminal id)  -> ItemSet*
   ItemSet **termTransition;		     // (owner ptr to array of serf ptrs)
@@ -374,6 +375,9 @@ private:    // funcs
 
   // let's try this .. it needs to access 'itemSets'
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
+
+  void singleItemClosure(ItemSet &itemSet, DProductionList &newItems,
+                         DottedProduction const *item, int &changes);
 
 public:	    // funcs
   GrammarAnalysis();

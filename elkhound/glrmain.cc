@@ -5,7 +5,7 @@
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "ckheap.h"       // malloc_stats
-#include "grampar.h"      // gramparStringTable
+#include "grammar.h"      // grammarStringTable
 #include "fileloc.h"      // sourceFileList
 
 void doit(int argc, char **argv)
@@ -20,7 +20,7 @@ void doit(int argc, char **argv)
   cout << "final parse result: " << treeTop << endl;
 
   // global cleanup
-  gramparStringTable.clear();
+  grammarStringTable.clear();
   sourceFileList.clear();
   traceRemoveAll();
 }

@@ -1,7 +1,5 @@
 // cc.gr
 // my attempt to implement a grammar for C++
-// essentially, this implements a translator from C/C++
-// to Cil, "C Intermediate Language"
 
 // I'm actually trying to use this single file for both C and C++;
 // the C++ grammar should parse C ok
@@ -87,7 +85,7 @@ nonterm PrimaryExpression {
   -> "(" TypeId ")" CompoundInitializer ;
 }
 
-nonterm Literal : ExprBase {
+nonterm Literal {
   -> i:L2_INT_LITERAL ;
   -> L2_FLOAT_LITERAL ;
   -> StringLiteral ;
@@ -98,16 +96,17 @@ nonterm Literal : ExprBase {
 // have the annoying property that they have to concatenate
 // with string literals (so I can't just, say, declare them
 // to be char* and be done with it)
-nonterm StringLiteral
-  -> L2_STRING_LITERAL |
-     StringLiteral L2_STRING_LITERAL |
-     StringLiteral "__FUNCTION__" |
-     StringLiteral "__PRETTY_FUNCTION__" ;
+nonterm StringLiteral {
+  -> L2_STRING_LITERAL ;
+  -> StringLiteral L2_STRING_LITERAL ;
+  -> StringLiteral "__FUNCTION__" ;
+  -> StringLiteral "__PRETTY_FUNCTION__" ;
+}
 
 
 // possibly-qualified name; essentially spec's id-expression
 // missing: template-id because I don't know what that is
-nonterm PQVarName : HasTypeName, HasDeclName, HasType {
+nonterm PQVarName {
   -> n:VariableName ;
 
   -> OperatorFunctionId ;
@@ -230,7 +229,7 @@ nonterm CastExpression {
 
 // ++++ binary operator expression ++++
 // primary expressions
-nonterm BinaryExpression : ExprBase {
+nonterm BinaryExpression {
   -> e:CastExpression ;
 
   -> left:BinaryExpression "*"  right:BinaryExpression ;
@@ -255,7 +254,7 @@ nonterm BinaryExpression : ExprBase {
 }
 
 
-nonterm ConditionalExpression : ExprBase {
+nonterm ConditionalExpression {
   -> e:BinaryExpression ;
 
   -> cond:BinaryExpression "?" th:Expression ":" el:AssignmentExpression ;
@@ -270,7 +269,7 @@ nonterm ConditionalExpression : ExprBase {
 // why is conditional not allowed on left side of = ?  can I confirm
 // that in another language spec?  clearly both alternatives would have
 // to be like-typed lvalues, but...
-nonterm AssignmentExpression : ExprBase {
+nonterm AssignmentExpression {
   -> e1:BinaryExpression "=" e2:AssignmentExpression ;
 
   -> e1:BinaryExpression op:AssignmentOperator e2:AssignmentExpression ;
@@ -397,8 +396,6 @@ nonterm StatementSeqOpt {
 
 // the guard of e.g. an 'if' statement
 nonterm Condition {
-  fun typeCheck = e.typeCheck(env, ctxt);
-
   -> e:Expression ;
   
   // C++ allows variable declarations in some interesting places...
@@ -470,7 +467,7 @@ nonterm DeclSpecifier {
 // be used together; "inline" is pulled out because it can be used
 // with "virtual", "static", "friend", and possibly "extern"; I
 // consider all this preferable to just allowing a "word soup"
-nonterm DeclModifier : HasDeclFlags {
+nonterm DeclModifier {
   -> "virtual"     ;
   -> "friend"      ;
   -> "mutable"     ;
@@ -510,7 +507,7 @@ nonterm ElaboratedTypeSpecifier {
 // this list comes from Table 7 (p.109) of the C++ standard
 // NOTE: this deviates from the language spec, which allows other
 // decl-specifiers to mix with the tokens here; I do not
-nonterm SimpleTypeSpecifier : SimpleTypeBase, HasTypeName {
+nonterm SimpleTypeSpecifier {
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName ;
 
@@ -619,7 +616,7 @@ nonterm EnumeratorDefinition {
 
 nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
-nonterm LinkageSpecification : Checkable {
+nonterm LinkageSpecification {
   -> "extern" L2_STRING_LITERAL "{" d:DeclarationSeqOpt "}" ;
   -> "extern" L2_STRING_LITERAL d:Declaration ;
 }
@@ -655,7 +652,7 @@ nonterm Initializer {
   //-> "(" ExpressionList ")" ;          // ctor args
 }
 
-nonterm InitializerClause : InitializerBase {
+nonterm InitializerClause {
   -> e:AssignmentExpression ;           // scalar
   -> c:CompoundInitializer ;            // array/structure initializer
 }
@@ -680,7 +677,7 @@ nonterm LabeledInitializerClause {
   -> "[" ConstantExpression "]" "." PQVarName "=" InitializerClause ;
 }
 
-nonterm CompoundInitializer : InitializerBase {
+nonterm CompoundInitializer {
   // array/structure initializer
   -> "{" list:InitializerList CommaOpt "}" ;
 
@@ -756,7 +753,7 @@ nonterm CVQualifier {
 // -- type-id --
 // a type-id is like a declaration of one thing, but without the variable name;
 // it is, for example, what appears inside the parens of a typecast
-nonterm TypeId : HasType {
+nonterm TypeId {
   -> spec:TypeSpecifier decl:AbstractDeclarator ;
 
   // gnu extension
@@ -850,7 +847,7 @@ nonterm ClassKeyword {
 }
 
 
-nonterm MemberDeclarationSeqOpt : MemberDeclBase {
+nonterm MemberDeclarationSeqOpt {
   -> empty ;
 
   -> decl:MemberDeclaration list:MemberDeclarationSeqOpt ;
@@ -858,18 +855,18 @@ nonterm MemberDeclarationSeqOpt : MemberDeclBase {
   -> AccessSpecifier ":" MemberDeclarationSeqOpt ;
 }
 
-nonterm AccessSpecifier -> {
+nonterm AccessSpecifier {
   -> "public" ;
   -> "private" ;
   -> "protected" ;
 }
 
-nonterm MemberDeclaration : MemberDeclBase {
+nonterm MemberDeclaration {
   -> spec:DeclSpecifier list:MemberDeclaratorList ";" ;    // member fn or data
 
   -> FunctionDefinition ";" ;                    // inline fn
   -> FunctionDefinition ;                        // syntactic tweak
-  -> ExplicitOpt VirtualOpt d:Declarator ";"     // ctor, dtor, conv op
+  -> ExplicitOpt VirtualOpt d:Declarator ";" ;   // ctor, dtor, conv op
 
   // note above that "explicit" and "virtual" can't be mixed because the former
   // is for ctors only and the latter can't be used with ctors (so a later stage
@@ -877,13 +874,13 @@ nonterm MemberDeclaration : MemberDeclBase {
 }
 
 // very similar to InitDeclaratorList
-nonterm MemberDeclaratorList : HasDeclareNoSE {
+nonterm MemberDeclaratorList {
   -> d:MemberDeclarator ;
 
   -> list:MemberDeclaratorList "," d:MemberDeclarator ;
 }
 
-nonterm MemberDeclarator : HasDeclareNoSE {
+nonterm MemberDeclarator {
   -> d:Declarator ;
 
   -> Declarator "=" ConstantExpression ;   // pure; and member inits??
@@ -944,14 +941,21 @@ nonterm MemInitializer -> L2_NAME "(" ExpressionListOpt ")" ;     // member init
 // ------ A.11 Overloading ------
 nonterm OperatorFunctionId -> "operator" Operator ;
 
-// the cpp standard is unclear on whether "()" is to be considered a token,
-// or whether it is permissible to see it as "(" ")".. I'm using the latter
 nonterm Operator {
-  -> "new" | "delete" | "new" "[" "]" | "delete" "[" "]" ;
+  -> "new" ;
+  -> "delete" ;
+  -> "new" "[" "]" ;
+  -> "delete" "[" "]" ;
   -> BinaryOperator      /* filter out ".*" later */     ;
   -> AssignmentOperator                                  ;
-  -> "!" | "~" | "," | "++" | "--" | "->"                ;
-  -> "(" ")" | "[" "]"                                   ;
+  -> "!" ;
+  -> "~" ;
+  -> "," ;
+  -> "++" ;
+  -> "--" ;
+  -> "->" ;
+  -> "(" ")" ;      // Q: verify that cpp standard says that "()" is not one token
+  -> "[" "]" ;
 }
 
 
@@ -998,7 +1002,7 @@ nonterm ExceptionDeclaration {
   -> "..."                                ;  // anything
 }
 
-nonterm ThrowExpression : Checkable, HasType {
+nonterm ThrowExpression {
   -> "throw" ;
   -> "throw" e:AssignmentExpression ;
 }

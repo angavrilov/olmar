@@ -14,7 +14,7 @@ void FileLocation::xfer(Flatten &flat)
 
 string FileLocation::toString() const
 {
-  if (isValid()) {
+  if (validLoc()) {
     return stringc << "line " << line << ", col " << col;
   }
   else {
@@ -26,7 +26,7 @@ string FileLocation::toString() const
 void FileLocation::advance(char const *text, int length)
 { 
   // can't advance an invalid location
-  xassert(isValid());
+  xassert(validLoc());
 
   char const *p = text;
   char const *endp = text + length;
@@ -45,7 +45,7 @@ void FileLocation::advance(char const *text, int length)
 void FileLocation::newLine()
 {
   // can't advance an invalid location
-  xassert(isValid());
+  xassert(validLoc());
 
   line++;
   col = firstColumn;

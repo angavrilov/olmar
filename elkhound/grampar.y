@@ -9,7 +9,6 @@
 #include "gramast.gen.h"    // grammar syntax AST definition
 #include "gramlex.h"        // GrammarLexer
 #include "owner.h"          // Owner
-#include "strutil.h"        // quoted
 
 #include <stdlib.h>         // malloc, free
 #include <iostream.h>       // cout
@@ -38,17 +37,19 @@
 // grab the parameter
 #define PARAM ((ParseParams*)parseParam)
 
-// return a locstring for 's' with no location information
+// return a locstring for 'str' with no location information
 #define noloc(str)                                                    \
   new LocString(SourceLocation(NULL),      /* unknown location */     \
                 PARAM->lexer.strtable.add(str))
 
+// return a locstring with same location info as something else
+// (passed as a pointer to a SourceLocation)
+#define sameloc(otherLoc, str)                                        \
+  new LocString(SourceLocation(*(otherLoc)),                          \
+                PARAM->lexer.strtable.add(str))
+
 // interpret the word into an associativity kind specification
 AssocKind whichKind(LocString * /*owner*/ kind);
-
-// add quotes to the given string
-LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
-                                      StringTable &table);
 
 %}
 
@@ -114,7 +115,7 @@ LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src,
 }
 
 %type <num> StartSymbol
-%type <str> Type Verbatim
+%type <str> Type Verbatim Action
 %type <parseParam> ParseParam
 
 %type <terminals> Terminals
@@ -191,13 +192,14 @@ TermDecls: /* empty */                             { $$ = new ASTList<TermDecl>;
  * the forms, rather than the integer code itself */
 /* yields: TermDecl */
 TerminalDecl: TOK_INTEGER ":" TOK_NAME ";"
-                { $$ = new TermDecl($1, $3, noloc("")); }
+                { $$ = new TermDecl($1, $3, sameloc($3, "")); }
             | TOK_INTEGER ":" TOK_NAME TOK_STRING ";"
                 { $$ = new TermDecl($1, $3, $4); }
             ;
 
 /* yields: LocString */
 Type: TOK_LIT_CODE                    { $$ = $1; }
+    | /* empty */                     { $$ = noloc("int"); }
     ;
 
 /* yields: ASTList<TermType> */
@@ -231,7 +233,7 @@ NameOrStringList: /* empty */                     { $$ = new ASTList<LocString>;
 
 /* yields: LocString */
 NameOrString: TOK_NAME       { $$ = $1; }
-            | TOK_STRING     { $$ = quotedLocString($1, PARAM->lexer.strtable); }
+            | TOK_STRING     { $$ = $1; }
             ;
 
 
@@ -282,8 +284,12 @@ Productions: /* empty */                   { $$ = new ASTList<ProdDecl>; }
            ;
 
 /* yields: ProdDecl */
-Production: "->" RHS TOK_LIT_CODE          { $$ = new ProdDecl($2, $3); }
+Production: "->" RHS Action                { $$ = new ProdDecl($2, $3); }
           ;
+
+/* yields: LocString */
+Action: TOK_LIT_CODE                       { $$ = $1; }
+      | ";"                                { $$ = noloc("return 0;"); }
 
 /* yields: ASTList<RHSElt> */
 RHS: /* empty */                           { $$ = new ASTList<RHSElt>; }
@@ -296,13 +302,13 @@ RHS: /* empty */                           { $$ = new ASTList<RHSElt>; }
  * are to be referenced anywhere in the actions or conditions for the form
  */
 /* yields: RHSElt */
-RHSElt: TOK_NAME                { $$ = new RH_name($1); }
+RHSElt: TOK_NAME                { $$ = new RH_name(sameloc($1, ""), $1); }
           /* name (only) */
-      | TOK_NAME ":" TOK_NAME   { $$ = new RH_taggedName($1, $3); }
+      | TOK_NAME ":" TOK_NAME   { $$ = new RH_name($1, $3); }
           /* tag : name */
-      | TOK_STRING              { $$ = new RH_string($1); }
+      | TOK_STRING              { $$ = new RH_string(sameloc($1, ""), $1); }
           /* mnemonic terminal */
-      | TOK_NAME ":" TOK_STRING { $$ = new RH_taggedString($1, $3); }
+      | TOK_NAME ":" TOK_STRING { $$ = new RH_string($1, $3); }
           /* tagged terminal */
       | TOK_PRECEDENCE "(" NameOrString ")"
                                 { $$ = new RH_prec($3); }
@@ -328,12 +334,4 @@ AssocKind whichKind(LocString * /*owner*/ kind)
 
   xfailure(stringc << kind->locString()
                    << ": invalid associativity kind: " << *kind);
-}
-
-
-LocString * /*owner*/ quotedLocString(LocString * /*owner*/ src, 
-                                      StringTable &table)
-{
-  src->str = table.add(quoted(src->str));
-  return src;
 }

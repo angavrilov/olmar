@@ -1,4 +1,4 @@
-# .gdbinit
+# .gdbinit   -*- sh -*-
 
 #set width 200
 
@@ -10,7 +10,7 @@
 #  run
 
 file gramanl
-set args -tr itemsets cdecl
+set args cexp3
 
 #  file cexp2
 #  set args cexp2.bin cexp.in1

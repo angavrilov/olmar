@@ -34,7 +34,7 @@ public:
   FileLocation& operator= (FileLocation const &obj)
     { line=obj.line; col=obj.col; return *this; }
 
-  bool isValid() const { return line != invalid; }
+  bool validLoc() const { return line != invalid; }
 
   void reset() { line=firstLine; col=firstColumn; }
 

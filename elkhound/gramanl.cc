@@ -232,7 +232,7 @@ STATICDEF int DottedProduction::
 
   // one way this can be caused is if the grammar input file actually
   // has the same production listed twice
-  xfailure("two productions with diff addrs are equal!\n");
+  xfailure("two productions with diff addrs are equal!");
 }
 
 
@@ -1669,113 +1669,13 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     // a place to store the items we plan to add
     DProductionList newItems;
 
-    // grab the current set of items
-    SDProductionList items;
-    itemSet.getAllItems(items);
-
     // for each item "A -> alpha . B beta, LA" in itemSet
-    SFOREACH_DOTTEDPRODUCTION(items, itemIter) {            // (constness ok)
-      DottedProduction const *item = itemIter.data();
-      if (tr) {
-        trs << "  considering item ";
-        item->print(trs, *this);
-        trs << endl;
-      }
-
-      if (item->isDotAtEnd()) {
-        if (tr) {
-          trs << "    dot is at the end" << endl;
-        }
-        continue;
-      }
-
-      // get the symbol B (the one right after the dot)
-      Symbol const *B = item->symbolAfterDotC();
-      if (B->isTerminal()) {
-        if (tr) {
-          trs << "    symbol after the dot is a terminal" << endl;
-        }
-        continue;
-      }
-      int nontermIndex = B->asNonterminalC().ntIndex;
-
-      // for each production "B -> gamma"
-      SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prodIter) {    // (constness)
-        Production &prod = *(prodIter.data());
-        if (tr) {
-          trs << "    considering production " << prod << endl;
-        }
-
-        // invariant of the indexed productions list
-        xassert(prod.left == B);
-
-        // construct "B -> . gamma, First(beta LA)"
-        Owner<DottedProduction> dp;
-        {
-          dp = new DottedProduction(*this, &prod, 0 /*dot at left*/);
-
-          // get beta (what follows B in 'item')
-          RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
-
-          // get First(beta)
-          TerminalList firstBeta;
-          firstOfIterSeq(firstBeta, beta);
-
-          // add those elements to dp's lookahead
-          SFOREACH_TERMINAL(firstBeta, fb) {
-            dp->laAdd(fb.data()->termIndex);
-          }
-
-          // if beta ->* epsilon, add LA
-          if (iterSeqCanDeriveEmpty(beta)) {
-            dp->laMerge(*item);
-          }
-
-          if (tr) {
-            trs << "      built dprod ";
-            dp->print(trs, *this);
-            trs << endl;
-          }
-        }
-
-        // is it already there?
-        SMUTATE_EACH_DOTTEDPRODUCTION(items, dprod) {
-          if (dp->equalNoLA(*(dprod.data()))) {
-            // yes, it's already there
-            if (tr) {
-              trs << "      looks similar to ";
-              dprod.data()->print(trs, *this);
-              trs << endl;
-            }
-
-            // but the new item may have additional lookahead
-            // components, so merge them with the old
-            if (dprod.data()->laMerge(*dp)) {
-              changes++;
-
-              if (tr) {
-                trs << "      (chg) merged it to make ";
-                dprod.data()->print(trs, *this);
-                trs << endl;
-              }
-            }
-            else {
-              trs << "      this dprod already existed" << endl;
-            }
-            dp.del();     // signal for after the loop
-            break;
-          }
-        }
-
-        if (dp) {
-          // it's not already there, so (plan to) add it
-          if (tr) {
-            trs << "      this dprod is new, queueing it to add" << endl;
-          }
-          newItems.append(dp.xfr());
-        }
-      } // for each production
-    } // for each item
+    FOREACH_DOTTEDPRODUCTION(itemSet.kernelItems, itemIter) {
+      singleItemClosure(itemSet, newItems, itemIter.data(), changes);
+    }
+    FOREACH_DOTTEDPRODUCTION(itemSet.nonkernelItems, itemIter) {
+      singleItemClosure(itemSet, newItems, itemIter.data(), changes);
+    }
 
     // add the new items (we don't do this while iterating because my
     // iterator interface says not to, even though it would work with
@@ -1796,6 +1696,141 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
   // we potentially added a bunch of things
   itemSet.changedItems();
+}
+
+
+void GrammarAnalysis::
+  singleItemClosure(ItemSet &itemSet, DProductionList &newItems,
+                    DottedProduction const *item, int &changes)
+{
+  bool const tr = tracingSys("closure");
+  ostream &trs = trace("closure");     // trace stream
+
+  if (tr) {
+    trs << "  considering item ";
+    item->print(trs, *this);
+    trs << endl;
+  }
+
+  if (item->isDotAtEnd()) {
+    if (tr) {
+      trs << "    dot is at the end" << endl;
+    }
+    return;
+  }
+
+  // get the symbol B (the one right after the dot)
+  Symbol const *B = item->symbolAfterDotC();
+  if (B->isTerminal()) {
+    if (tr) {
+      trs << "    symbol after the dot is a terminal" << endl;
+    }
+    return;
+  }
+  int nontermIndex = B->asNonterminalC().ntIndex;
+
+  // for each production "B -> gamma"
+  SMUTATE_EACH_PRODUCTION(productionsByLHS[nontermIndex], prodIter) {    // (constness)
+    Production &prod = *(prodIter.data());
+    if (tr) {
+      trs << "    considering production " << prod << endl;
+    }
+
+    // invariant of the indexed productions list
+    xassert(prod.left == B);
+
+    // construct "B -> . gamma, First(beta LA)"
+    Owner<DottedProduction> dp;
+    {
+      dp = new DottedProduction(*this, &prod, 0 /*dot at left*/);
+
+      // get beta (what follows B in 'item')
+      RHSEltListIter beta(item->getProd()->right, item->getDot() + 1);
+
+      // get First(beta)
+      TerminalList firstBeta;
+      firstOfIterSeq(firstBeta, beta);
+
+      // add those elements to dp's lookahead
+      SFOREACH_TERMINAL(firstBeta, fb) {
+        dp->laAdd(fb.data()->termIndex);
+      }
+
+      // if beta ->* epsilon, add LA
+      if (iterSeqCanDeriveEmpty(beta)) {
+        dp->laMerge(*item);
+      }
+
+      if (tr) {
+        trs << "      built dprod ";
+        dp->print(trs, *this);
+        trs << endl;
+      }
+    }
+
+    // is it already there?
+    // check in kernel, nonkernel, and yet-to-add lists
+    DottedProduction *already = NULL;
+    {MUTATE_EACH_DOTTEDPRODUCTION(itemSet.kernelItems, dprod) {
+      if (dp->equalNoLA(*(dprod.data()))) {
+        already = dprod.data();
+        break;
+      }
+    }}
+
+    if (!already) {
+      MUTATE_EACH_DOTTEDPRODUCTION(itemSet.nonkernelItems, dprod) {
+        if (dp->equalNoLA(*(dprod.data()))) {
+          already = dprod.data();
+          break;
+        }
+      }
+    }
+
+    if (!already) {
+      MUTATE_EACH_DOTTEDPRODUCTION(newItems, dprod) {
+        if (dp->equalNoLA(*(dprod.data()))) {
+          already = dprod.data();
+          break;
+        }
+      }
+    }
+
+    if (already) {
+      // yes, it's already there
+      if (tr) {
+        trs << "      looks similar to ";
+        already->print(trs, *this);
+        trs << endl;
+      }
+
+      // but the new item may have additional lookahead
+      // components, so merge them with the old
+      if (already->laMerge(*dp)) {
+        changes++;
+
+        if (tr) {
+          trs << "      (chg) merged it to make ";
+          already->print(trs, *this);
+          trs << endl;
+        }
+      }
+      else {
+        trs << "      this dprod already existed" << endl;
+      }
+      
+      // don't need the new dotted production (would have happened
+      // anyway at fn end, wanted to make this more explicit)
+      dp.del();
+    }
+    else {
+      // it's not already there, so (plan to) add it
+      if (tr) {
+        trs << "      this dprod is new, queueing it to add" << endl;
+      }
+      newItems.append(dp.xfr());
+    }
+  } // for each production
 }
 
 
@@ -1918,11 +1953,22 @@ void GrammarAnalysis::constructLRItemSets()
     SDProductionList items;
     itemSet->getAllItems(items);
 
+    trace("lrsets") << "state " << itemSet->id
+                    << ", " << items.count() << " items total"
+                    << endl;
+
     // for each production in the item set where the
     // dot is not at the right end
     SFOREACH_DOTTEDPRODUCTION(items, dprodIter) {
       DottedProduction const *dprod = dprodIter.data();
       if (dprod->isDotAtEnd()) continue;
+
+      {
+        ostream &tr = trace("lrsets");
+        tr << "considering item ";
+        dprod->print(tr, *this);
+        tr << endl;
+      }
 
       // get the symbol 'sym' after the dot (next to be shifted)
       Symbol const *sym = dprod->symbolAfterDotC();
@@ -1955,9 +2001,14 @@ void GrammarAnalysis::constructLRItemSets()
         // considering their lookahead sets; so we have to merge the
         // computed lookaheads with those in 'already'
         if (withDotMoved->mergeLookaheadsInto(*already)) {
+          trace("lrsets")
+            << "from state " << itemSet->id << ", found that the transition "
+            << "on " << sym->name << " yielded a state similar to "
+            << already->id << ", but with different lookahead" << endl;
+
           // this changed 'already'; recompute its closure
           itemSetClosure(*already);
-          
+
           // and reconsider all of the states reachable from it
           if (itemSetsPending.contains(already)) {
             // it will be processed later
@@ -1965,12 +2016,6 @@ void GrammarAnalysis::constructLRItemSets()
           else {
             // we thought we were done with this
             xassert(itemSetsDone.contains(already));
-
-            // need to confirm this is happening for my current test grammar
-            trace("lrsets")
-              << "from state " << itemSet->id << ", found that the transition "
-              << "on " << sym->name << " yielded a state similar to "
-              << already->id << ", but with different lookahead" << endl;
 
             // but we're not: move it back to the 'pending' list
             itemSetsDone.removeItem(already);
@@ -2005,7 +2050,7 @@ void GrammarAnalysis::constructLRItemSets()
 
   // do the BFS now, since we want to print the sample inputs
   // in the loop that follows
-  traceProgress(2) << "BFS tree on transition graph...\n";
+  traceProgress(1) << "BFS tree on transition graph...\n";
   computeBFSTree();
 
 
@@ -2810,16 +2855,16 @@ void GrammarAnalysis::runAnalyses()
   checkWellFormed();
 
   // precomputations
-  traceProgress(2) << "init...\n";
+  traceProgress(1) << "init...\n";
   initializeAuxData();
 
-  traceProgress(2) << "derivability relation...\n";
+  traceProgress(1) << "derivability relation...\n";
   computeWhatCanDeriveWhat();
 
-  traceProgress(2) << "first...\n";
+  traceProgress(1) << "first...\n";
   computeFirst();
 
-  traceProgress(2) << "follow...\n";
+  traceProgress(1) << "follow...\n";
   computeFollow();
 
   // print results
@@ -2864,10 +2909,10 @@ void GrammarAnalysis::runAnalyses()
 
 
   // LR stuff
-  traceProgress(2) << "LR item sets...\n";
+  traceProgress(1) << "LR item sets...\n";
   constructLRItemSets();
 
-  traceProgress(2) << "SLR conflicts...\n";
+  traceProgress(1) << "SLR conflicts...\n";
   findSLRConflicts();
 
 
@@ -2950,13 +2995,17 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
 void emitUserCode(EmitCode &out, LocString const &code)
 {
   out << "{\n";
-  out << lineDirective(code);                                   
+  if (code.validLoc()) {
+    out << lineDirective(code);
+  }
 
   // the final brace is on the same line so errors reported at the
   // last brace go to user code
   out << code << " }\n";
 
-  out << restoreLine;
+  if (code.validLoc()) {
+    out << restoreLine;
+  }
   out << "\n";
 }
 
@@ -3258,7 +3307,9 @@ int main(int argc, char **argv)
             "  useful tracing flags:\n"
             "    conflict    : print SLR(1) conflicts\n"
             "    closure     : details of item-set closure algorithm\n"
-            "    prec        : show how prec/assoc are used to resolve conflicts\n";
+            "    prec        : show how prec/assoc are used to resolve conflicts\n"
+            "    item-sets   : print the LR item sets after they're computed\n"
+            ;
     return 0;
   }
   string prefix = argv[1];

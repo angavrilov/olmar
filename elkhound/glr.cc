@@ -1196,7 +1196,7 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
 
     else {
       // before using 'xfer' we have to tell it about the string table
-      flattenStrTable = &gramparStringTable;
+      flattenStrTable = &grammarStringTable;
 
       // assume it's a binary grammar file and try to
       // read it in directly

@@ -45,6 +45,11 @@ class Grammar;
 // transitional definitions
 typedef StringObjDict<LocString> LitCodeDict;
 typedef LocString LiteralCode;
+   
+
+// everywhere in the Grammar specification we have a StringRef, it
+// refers to this string table
+extern StringTable grammarStringTable;
 
 
 // --------------- ConflictHandlers --------------
@@ -88,7 +93,7 @@ public:
 class Symbol {
 // ------ representation ------
 public:
-  string const name;        // symbol's name in grammar
+  LocString const name;     // symbol's name in grammar
   bool const isTerm;        // true: terminal (only on right-hand sides of productions)
                             // false: nonterminal (can appear on left-hand sides)
   bool const isEmptyString; // true only for the emptyString nonterminal
@@ -97,7 +102,7 @@ public:
   ConflictHandlers ddm;     // dup/del/merge handlers
 
 public:
-  Symbol(char const *n, bool t, bool e = false)
+  Symbol(LocString const &n, bool t, bool e = false)
     : name(n), isTerm(t), isEmptyString(e), type(NULL), ddm() {}
   virtual ~Symbol();
 
@@ -129,7 +134,7 @@ public:
   // print 'token[type] name { dup.. del.. merge.. }' (with newlines)
   void printDDM(ostream &os) const;
 
-  virtual string toString() const { return name; }
+  virtual string toString() const { return string(name); }
 };
 
 // I have several needs for serf lists of symbols, so let's use this for now
@@ -157,10 +162,10 @@ class Terminal : public Symbol {
 public:     // data
   // whereas 'name' is the canonical name for the terminal class,
   // this field is an alias; for example, if the canonical name is
-  // L2_EQUALEQUAL, the alias might be "==" (i.e. the alias
-  // should include quotes if the grammar should have them too);
+  // L2_EQUALEQUAL, the alias might be "=="; the alias should *not*
+  // include actual double-quote characters
   // if the alias is "", there is no alias
-  string alias;
+  LocString alias;
 
   // parsgen-time conflict resolution: if a shift/reduce conflict
   // occurs between a production and a symbol, both with specified
@@ -178,7 +183,7 @@ public:     // data
   int termIndex;
 
 public:     // funcs
-  Terminal(char const *name)        // canonical name for terminal class
+  Terminal(LocString const &name)        // canonical name for terminal class
     : Symbol(name, true /*terminal*/),
       alias(),
       precedence(0),
@@ -216,59 +221,13 @@ string terminalSequenceToString(TerminalList const &list);
 // something that can appear on the left-hand side of a production
 // (or, emptyString, since we classify that as a nonterminal also)
 class Nonterminal : public Symbol {
-// ------ representation ------
-public:     // data
-  #if 0
-    // names of attributes that are associated with this nonterminal;
-    // every production with this NT on its LHS must specify values
-    // for all attributes
-    ObjList<string> attributes;
-
-    // inheritance relationships
-    SObjList<Nonterminal> superclasses;
-
-    // declarations of functions, as a dictionary: name -> declBody; the
-    // text of the declaration is stored because it is needed when
-    // emitting substrate code
-    LitCodeDict funDecls;
-
-    // for each function, we can optionally have prefix code which is run
-    // at the start of that function, regardless of the production in
-    // which it appears
-    LitCodeDict funPrefixes;
-
-    // declarations of things (data and fns) that are *not* implemented
-    // in generated code
-    ObjList<LocString> declarations;
-
-    // definitions of disambiguation routines
-    LitCodeDict disambFuns;
-
-    // con/destructor functions
-    LocString constructor;
-    LocString destructor;
-  #endif // 0
-
 public:     // funcs
-  Nonterminal(char const *name, bool isEmptyString=false);
+  Nonterminal(LocString const &name, bool isEmptyString=false);
   virtual ~Nonterminal();
 
   Nonterminal(Flatten &flat);
   void xfer(Flatten &flat);
   void xferSerfs(Flatten &flat, Grammar &g);
-
-  #if 0
-    // return true if 'attr' is among 'attributes'
-    // (by 0==strcmp comparison)
-    bool hasAttribute(char const *attr) const;
-
-    // true if the given nonterminal is a superclass (transitively)
-    bool hasSuperclass(Nonterminal const *nt) const;
-
-    // true if the named function has a declaration here
-    bool hasFunDecl(char const *name) const
-      { return funDecls.isMapped(name); }
-  #endif // 0
 
   virtual void print(ostream &os) const;
   OSTREAM_OPERATOR(Nonterminal)
@@ -306,12 +265,12 @@ public:     // types
     // tags applied to the symbols for purposes of unambiguous naming in
     // actions, and for self-commenting value as role indicators; an
     // empty tag ("") is allowed and means there is no tag
-    string tag;                 // tag for this symbol; can be ""
+    LocString tag;             // tag for this symbol; can be ""
 
   public:
-    RHSElt(Symbol *s, char const *t) : sym(s), tag(t) {}
+    RHSElt(Symbol *s, LocString const &t) : sym(s), tag(t) {}
     ~RHSElt();
-    
+
     RHSElt(Flatten&);
     void xfer(Flatten &flat);
     void xferSerfs(Flatten &flat, Grammar &g);
@@ -320,7 +279,6 @@ public:     // types
 public:	    // data
   // fundamental context-free grammar (CFG) component
   Nonterminal * const left;     // (serf) left hand side; must be nonterminal
-  string leftTag;      	       	// tag for LHS symbol
   ObjList<RHSElt> right;        // right hand side; terminals & nonterminals
   int precedence;               // precedence level for disambiguation
 
@@ -349,17 +307,16 @@ public:	    // funcs
   void getRHSSymbols(SymbolList &output) const;
 
   // append a RHS symbol
-  void append(Symbol *sym, char const *tag);
+  void append(Symbol *sym, LocString const &tag);
 
   // call this when production is built, so it can compute dprods
   // (this is called by GrammarAnalysis::initializeAuxData, from
   // inside runAnalyses)
   void finished();
 
-  // find a symbol by tag; returns 0 to identify LHS symbol, 1 for
-  // first RHS symbol, 2 for second, etc.; returns -1 if the tag
-  // doesn't match anything
-  int findTag(char const *tag) const;
+  // find a symbol by tag; returns 1 for first RHS symbol, 2 for
+  // second, etc.; returns -1 if the tag doesn't match anything
+  int findTag(StringRef tag) const;
 
   // given an index as returned by 'findTaggedSymbol', translate that
   // back into a tag
@@ -431,21 +388,11 @@ public:	    // data
 
   // extra verbatim code to be inserted at top of impl file
   LocString verbatim;
-  
+
   // extra parsing parameter
   bool parseParamPresent;               // true if present
   LocString parseParamType;             // type
   LocString parseParamName;             // name for use in action functions
-
-private:    // funcs
-  #if 0
-    // obsolete parsing functions
-    bool parseAnAction(char const *keyword, char const *insideBraces,
-                       Production *lastProduction);
-
-    Symbol *parseGrammarSymbol(char const *token, string &tag);
-    bool parseProduction(ProductionList &prods, StrtokParse const &tok);
-  #endif // 0
 
 public:     // funcs
   Grammar();                            // set everything manually
@@ -462,10 +409,11 @@ public:     // funcs
   // ---- building a grammar ----
   // declare a new token exists, with name and optional alias;
   // return false if it's already declared
-  bool declareToken(char const *symbolName, int code, char const *alias);
+  bool declareToken(LocString const &symbolName, int code, 
+                    LocString const &alias);
 
   // add a new production; the rhs arg list must be terminated with a NULL
-  void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
+  //void addProduction(Nonterminal *lhs, Symbol *rhs, ...);
 
   // add a pre-constructed production
   void addProduction(Production *prod);
@@ -492,17 +440,6 @@ public:     // funcs
   // dump syntax is identical to my (current) input syntax!)
   void printAsBison(ostream &os) const;
 
-  #if 0
-    // ---- grammar parsing (obsolete) ----
-    // these are retained because a few test codes use them
-    bool readFile(char const *fname);
-
-    // parse a line like "LHS -> R1 R2 R3", return false on parse error
-    bool parseLine(char const *grammarLine);
-    bool parseLine(char const *preLine, SObjList<Production> &lastProductions);
-  #endif // 0
-
-
   // ---- symbol access ----
   #define SYMBOL_ACCESS(Thing)                              \
     /* retrieve, return NULL if not there */                \
@@ -511,7 +448,7 @@ public:     // funcs
       { return const_cast<Thing*>(find##Thing##C(name)); }  \
                                                             \
     /* retrieve, or create it if not already there */       \
-    Thing *getOrMake##Thing(char const *name);
+    Thing *getOrMake##Thing(LocString const &name);
 
   SYMBOL_ACCESS(Symbol)        // findSymbolC, findSymbol, getOrMakeSymbol
   SYMBOL_ACCESS(Terminal)      //   likewise

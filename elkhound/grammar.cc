@@ -20,6 +20,9 @@
 #define PVAL(var) os << " " << #var "=" << var;
 
 
+StringTable grammarStringTable;
+
+
 // ----------------- ConflictHandlers -----------------
 ConflictHandlers::ConflictHandlers()
   : dupParam(NULL),
@@ -103,7 +106,7 @@ Symbol::Symbol(Flatten &flat)
 void Symbol::xfer(Flatten &flat)
 {
   // have to break constness to unflatten
-  const_cast<string&>(name).xfer(flat);
+  const_cast<LocString&>(name).xfer(flat);
   flat.xferBool(const_cast<bool&>(isTerm));
   flat.xferBool(const_cast<bool&>(isEmptyString));
 
@@ -198,16 +201,16 @@ void Terminal::print(ostream &os) const
 string Terminal::toString() const
 {
   if (alias.length() > 0) {
-    return alias;
+    return ::toString(alias);
   }
   else {
-    return name;
+    return ::toString(name);
   }
 }
 
 
 // ----------------- Nonterminal ------------------------
-Nonterminal::Nonterminal(char const *name, bool isEmpty)
+Nonterminal::Nonterminal(LocString const &name, bool isEmpty)
   : Symbol(name, false /*terminal*/, isEmpty),
     ntIndex(-1),
     cyclic(false),
@@ -297,7 +300,6 @@ void Production::RHSElt::xferSerfs(Flatten &flat, Grammar &g)
 // -------------------- Production -------------------------
 Production::Production(Nonterminal *L, char const *Ltag)
   : left(L),
-    leftTag(Ltag),
     right(),
     precedence(0),
     prodIndex(-1)
@@ -309,13 +311,11 @@ Production::~Production()
 
 Production::Production(Flatten &flat)
   : left(NULL),
-    leftTag(flat),
     action(flat)
 {}
 
 void Production::xfer(Flatten &flat)
 {
-  leftTag.xfer(flat);
   xferObjList(flat, right);
   action.xfer(flat);
   flat.xferInt(precedence);
@@ -385,7 +385,7 @@ void Production::getRHSSymbols(SymbolList &output) const
 }
 
 
-void Production::append(Symbol *sym, char const *tag)
+void Production::append(Symbol *sym, LocString const &tag)
 {
   // my new design decision (6/26/00 14:24) is to disallow the
   // emptyString nonterminal from explicitly appearing in the
@@ -405,24 +405,15 @@ void Production::finished()
                                                
 // basically strcmp but without the segfaults when s1 or s2
 // is null; return true if strings are equal
-bool tagCompare(char const *s1, char const *s2)
+// update: now that they're StringRef, simple "==" suffices
+bool tagCompare(StringRef s1, StringRef s2)
 {
-  if (s1 == NULL  ||  s2 == NULL) {
-    return s1 == s2;
-  }
-  else {
-    return 0==strcmp(s1, s2);
-  }
+  return s1 == s2;
 }
 
 
-int Production::findTag(char const *tag) const
+int Production::findTag(StringRef tag) const
 {
-  // check LHS
-  if (tagCompare(leftTag, tag)) {
-    return 0;
-  }
-
   // walk RHS list looking for a match
   ObjListIter<RHSElt> tagIter(right);
   int index=1;
@@ -451,10 +442,8 @@ string taggedName(char const *name, char const *tag)
 
 string Production::symbolTag(int index) const
 {
-  // check LHS
-  if (index == 0) {
-    return leftTag;
-  }
+  // no longer have tags for LHS
+  xassert(index != 0);
 
   // find index in RHS list
   index--;
@@ -563,7 +552,8 @@ string Production::toStringMore(bool printCode) const
 // ------------------ Grammar -----------------
 Grammar::Grammar()
   : startSymbol(NULL),
-    emptyString("empty", true /*isEmptyString*/),
+    emptyString(LocString(SourceLocation(), "empty"),    // no location
+                true /*isEmptyString*/),
     parseParamPresent(false)
 {}
 
@@ -645,6 +635,7 @@ void Grammar::printProductions(ostream &os, bool code) const
 }
 
 
+#if 0
 void Grammar::addProduction(Nonterminal *lhs, Symbol *firstRhs, ...)
 {
   va_list argptr;                   // state for working through args
@@ -664,6 +655,7 @@ void Grammar::addProduction(Nonterminal *lhs, Symbol *firstRhs, ...)
 
   addProduction(prod);
 }
+#endif // 0
 
 
 void Grammar::addProduction(Production *prod)
@@ -684,7 +676,8 @@ void Grammar::addProduction(Production *prod)
 
 
 // add a token to those we know about
-bool Grammar::declareToken(char const *symbolName, int code, char const *alias)
+bool Grammar::declareToken(LocString const &symbolName, int code, 
+                           LocString const &alias)
 {
   // verify that this token hasn't been declared already
   if (findSymbolC(symbolName)) {
@@ -818,19 +811,19 @@ Symbol const *Grammar::findSymbolC(char const *name) const
 
 
 
-Nonterminal *Grammar::getOrMakeNonterminal(char const *name)
+Nonterminal *Grammar::getOrMakeNonterminal(LocString const &name)
 {
   Nonterminal *nt = findNonterminal(name);
   if (nt != NULL) {
     return nt;
   }
-  
+
   nt = new Nonterminal(name);
   nonterminals.append(nt);
   return nt;
 }
 
-Terminal *Grammar::getOrMakeTerminal(char const *name)
+Terminal *Grammar::getOrMakeTerminal(LocString const &name)
 {
   Terminal *term = findTerminal(name);
   if (term != NULL) {
@@ -842,7 +835,7 @@ Terminal *Grammar::getOrMakeTerminal(char const *name)
   return term;
 }
 
-Symbol *Grammar::getOrMakeSymbol(char const *name)
+Symbol *Grammar::getOrMakeSymbol(LocString const &name)
 {
   Symbol *sym = findSymbol(name);
   if (sym != NULL) {

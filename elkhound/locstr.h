@@ -5,6 +5,8 @@
 #define LOCSTR_H
                                           
 #include <iostream.h>    // ostream
+#include <string.h>      // strlen
+
 #include "strtable.h"    // StringRef
 #include "fileloc.h"     // SourceLocation
 
@@ -31,12 +33,13 @@ public:    // funcs
   string locString() const { return SourceLocation::toString(); }
 
   // (read-only) string-like behavior
-  ostream& operator<< (ostream &os) const
-    { return os << str; }
+  friend ostream& operator<< (ostream &os, LocString const &loc)
+    { return os << loc.str; }
   StringRef strref() const { return str; }
   operator StringRef () const { return str; }
   char operator [] (int index) const { return str[index]; }
   bool equals(char const *other) const;
+  int length() const { return strlen(str); }
 
   // experimenting with allowing 'str' to be null, which is convenient
   // when the string table isn't available

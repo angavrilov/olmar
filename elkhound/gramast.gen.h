@@ -19,9 +19,7 @@ class NontermDecl;
 class ProdDecl;
 class RHSElt;
 class RH_name;
-class RH_taggedName;
 class RH_string;
-class RH_taggedString;
 class RH_prec;
 
 
@@ -210,13 +208,11 @@ public:      // funcs
   }
   virtual ~RHSElt();
 
-  enum Kind { RH_NAME, RH_TAGGEDNAME, RH_STRING, RH_TAGGEDSTRING, RH_PREC, NUM_KINDS };
+  enum Kind { RH_NAME, RH_STRING, RH_PREC, NUM_KINDS };
   virtual Kind kind() const = 0;
 
   DECL_AST_DOWNCASTS(RH_name)
-  DECL_AST_DOWNCASTS(RH_taggedName)
   DECL_AST_DOWNCASTS(RH_string)
-  DECL_AST_DOWNCASTS(RH_taggedString)
   DECL_AST_DOWNCASTS(RH_prec)
 
   virtual void debugPrint(ostream &os, int indent) const;
@@ -225,10 +221,11 @@ public:      // funcs
 
 class RH_name : public RHSElt {
 public:      // data
+  LocString tag;
   LocString name;
 
 public:      // funcs
-  RH_name(LocString *_name) : RHSElt(), name(_name) {
+  RH_name(LocString *_tag, LocString *_name) : RHSElt(), tag(_tag), name(_name) {
   }
   virtual ~RH_name();
 
@@ -239,51 +236,18 @@ public:      // funcs
 
 };
 
-class RH_taggedName : public RHSElt {
-public:      // data
-  LocString tag;
-  LocString name;
-
-public:      // funcs
-  RH_taggedName(LocString *_tag, LocString *_name) : RHSElt(), tag(_tag), name(_name) {
-  }
-  virtual ~RH_taggedName();
-
-  virtual Kind kind() const { return RH_TAGGEDNAME; }
-  enum { TYPE_TAG = RH_TAGGEDNAME };
-
-  virtual void debugPrint(ostream &os, int indent) const;
-
-};
-
 class RH_string : public RHSElt {
 public:      // data
+  LocString tag;
   LocString str;
 
 public:      // funcs
-  RH_string(LocString *_str) : RHSElt(), str(_str) {
+  RH_string(LocString *_tag, LocString *_str) : RHSElt(), tag(_tag), str(_str) {
   }
   virtual ~RH_string();
 
   virtual Kind kind() const { return RH_STRING; }
   enum { TYPE_TAG = RH_STRING };
-
-  virtual void debugPrint(ostream &os, int indent) const;
-
-};
-
-class RH_taggedString : public RHSElt {
-public:      // data
-  LocString tag;
-  LocString str;
-
-public:      // funcs
-  RH_taggedString(LocString *_tag, LocString *_str) : RHSElt(), tag(_tag), str(_str) {
-  }
-  virtual ~RH_taggedString();
-
-  virtual Kind kind() const { return RH_TAGGEDSTRING; }
-  enum { TYPE_TAG = RH_TAGGEDSTRING };
 
   virtual void debugPrint(ostream &os, int indent) const;
 

@@ -88,9 +88,6 @@ public:
 // if there are problems
 void readGrammarFile(Grammar &g, char const *fname);
 
-// the parsed grammar's strings are stored here
-extern StringTable gramparStringTable;
-
 
 // thrown when there is an error parsing the AST
 class XASTParse : public xBase {

@@ -178,6 +178,7 @@ cexp3-dep = cexp3.o ${grammar-set} ${common} ${grampar-set} \
             ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
 cexp3: ${cexp3-dep} ${libraries}
 	${link} -o cexp3 ${cexp3-dep} ${linkend}
+	./cexp3 cexp3.bin cexp3.in1
 
 # intermediate files for cdecl
 cdecl.cc: cdecl.gr gramanl
@@ -194,6 +195,7 @@ cdecl-dep = cdecl.o ${grammar-set} ${common} ${grampar-set} \
             ${glr-set}
 cdecl: ${cdecl-dep} ${libraries}
 	${link} -o cdecl ${cdecl-dep} ${linkend}
+	./cdecl cdecl.bin cdecl.in1
 
 # intermediate files for ccgr (the chmod is to make it harder
 # to accidentally start editing files that are automatically 

@@ -55,10 +55,8 @@ class ProdDecl (ASTList<RHSElt> rhs, LocString actionCode);
 // one of the things that appears after the '->', i.e. the
 // right-hand-side elements
 class RHSElt {
-  -> RH_name(LocString name);                        // untagged terminal or nonterminal reference
-  -> RH_taggedName(LocString tag, LocString name);   // tagged terminal or nonterminal reference
-  -> RH_string(LocString str);                       // untagged terminal reference by string alias
-  -> RH_taggedString(LocString tag, LocString str);  // tagged terminal reference by string alias
+  -> RH_name(LocString tag, LocString name);         // tagged terminal or nonterminal reference
+  -> RH_string(LocString tag, LocString str);        // tagged terminal reference by string alias
   -> RH_prec(LocString tokName);                     // %prec specification
 }
 
