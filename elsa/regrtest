@@ -826,6 +826,7 @@ testparse d0121.cc
 testparse d0124.cc
 
 testparse k0001.cc
+testparse k0002.cc
 
 # ---- END: lots of tests ----
 
