@@ -1,51 +1,42 @@
-# Makefile for ast project
+# Makefile.in for ast
 # see license.txt for copyright and terms of use
 
-default_target: all
+# main targets
+all: astgen libast.a example.o ext1.o
+
 
 # directories of other software
-SMBASE  := ../smbase
+SMBASE := @SMBASE@
+LIBSMBASE := $(SMBASE)/libsmbase.a
 
 
-# C++ preprocessor, compiler and linker
+# C++ compiler, etc.
 CXX := g++
 
-# flags for C++ compiler
-CXXFLAGS := -g -Wall -I$(SMBASE)
-
-# make warnings into errors
-CXXFLAGS += -Werror
-
-# to enable profiling
-#CXXFLAGS += -pg
-
-# for gcc-3
-CXXFLAGS += -Wno-deprecated
-
-# to turn on optimizer
-CXXFLAGS += -O2 -DNDEBUG
-
-# for gcc-2
-#CXXFLAGS += -I.
+# flags for the C and C++ compilers (and preprocessor)
+CCFLAGS := @CCFLAGS@ -I$(SMBASE)
 
 # flags for the linker
-LDFLAGS := -g -Wall $(SMBASE)/libsmbase.a
-
-CXXFLAGS += 
+LDFLAGS := -g -Wall $(LIBSMBASE)
 
 
+# some other tools
+AR     := ar
+RANLIB := ranlib
 
-COMPILE  := $(CXX) -c $(CXXFLAGS)
+
+# compile .cc to .o
+%.o: %.cc
+	$(CXX) -c -o $@ $< $(CCFLAGS)
+	@$(SMBASE)/depend.pl -o $@ $< $(CCFLAGS) > $*.d
 
 
-LDFLAGS   := -Wall -g
-LINK      := $(CXX) $(LDFLAGS)
-LIBSMBASE := $(SMBASE)/libsmbase.a
-LINKEND   := $(LIBSMBASE)
+# remake the generated Makefile if its inputs have changed
+Makefile: Makefile.in
+	./config.status
 
-# default target
-all: agrampar astgen example.o ext1.o
 
+# ---------------------- intermediate files -------------------
 # unfortunately, the way bison.simple declares YYSTYPE precludes a proper
 # declaration of yylex(), unless I modify it as below; the 'grep' is so
 # I have a .h file without the union, since the union refers to types
@@ -67,33 +58,27 @@ agramlex.yy.cc: gramlex.h agramlex.lex agrampar.codes.h
 	sed 's/class istream;/#include <iostream.h>/' <agramlex.tmp >$@
 	rm agramlex.tmp
 
-#$(PARSGEN)/%.o: $(PARSGEN)/%.cc
-#	make -C $(PARSGEN) check-makefiles $*.o
 
-%.o: %.cc
-	$(COMPILE) $*.cc
-	@$(SMBASE)/depend.pl $(CXXFLAGS) $< > $*.d
-
-# removed fileloc.o
-agrampar-dep = gramlex.o agrampar.tab.o ccsstr.o \
-               agramlex.yy.o embedded.o ast.hand.o \
-               asthelp.o strtable.o
--include $(agrampar-dep:.o=.d)
-
-agrampar: $(agrampar-dep) agrampar.cc ast.ast.cc $(LIBSMBASE) 
-	$(LINK) -o agrampar $(CXXFLAGS) $(agrampar-dep) \
-                -DTEST_AGRAMPAR agrampar.cc $(LINKEND)
+# ------------------------- astgen ---------------------
+ASTGEN_OBJS := \
+  gramlex.o \
+  agrampar.tab.o \
+  ccsstr.o \
+  agramlex.yy.o \
+  embedded.o \
+  ast.hand.o \
+  asthelp.o \
+  strtable.o \
+  agrampar.o  \
+  astgen.o
 
 # ast.ast.cc is a dependency here but not explicitly in the command
 # line because ast.hand.cc #includes it
-astgen: $(agrampar-dep) agrampar.o astgen.o ast.ast.cc $(LIBSMBASE) 
-	$(LINK) -o astgen $(agrampar-dep) agrampar.o astgen.o $(LINKEND)
+astgen: $(ASTGEN_OBJS) ast.ast.cc $(LIBSMBASE) 
+	$(CXX) -o astgen $(ASTGEN_OBJS) $(LDFLAGS)
 
-# test code for ccsstr
-ccsstr: ccsstr.cc ccsstr.h reporterr.o embedded.o
-	$(LINK) -o ccsstr -DTEST_CCSSTR ccsstr.cc \
-                reporterr.o embedded.o $(LINKEND)
 
+# ---------------------- run astgen ----------------------
 # simple ast spec file
 example.cc: astgen example.ast
 	./astgen example.ast
@@ -113,10 +98,31 @@ ext1.cc: astgen example.ast ext1.ast
 # (and be forced to restore your ast.ast.{cc,h} from the
 # distribution tarball or from CVS).
 
+
+# ------------------------ libast.a -------------------
+# this library is the set of support modules required for
+# using astgen-generated code, or are simply useful generally
+# but don't belong in smbase
+LIB_OBJS := \
+  gramlex.o \
+  ccsstr.o \
+  embedded.o \
+  asthelp.o \
+  strtable.o
+
+libast.a: $(LIB_OBJS)
+	$(AR) -r $@ $(LIB_OBJS)
+	$(RANLIB) $@
+
+
+# ------------------------ misc ---------------------
 clean:
 	rm -f *.o agrampar.tab.* tmp *.d
-	rm -f agrampar astgen ccsstr towner exampletest
+	rm -f agrampar astgen ccsstr towner exampletest libast.a
 	rm -f agrampar.{codes.h,output} agramlex.yy.cc
+
+distclean: clean
+	rm -f Makefile config.status config.summary
 
 # test for owner
 towner: owner.h towner.cc

@@ -15,3 +15,5 @@ exampletest.cc
 *.out
 ext1.h
 ext1.cc
+config.status
+config.summary
