@@ -143,9 +143,15 @@
 #endif
 
 // these disable featurs of mini-LR for performance testing
-#define USE_ACTIONS 1
-#define USE_RECLASSIFY 1
-#define USE_KEEP 1
+#ifndef USE_ACTIONS
+  #define USE_ACTIONS 1
+#endif
+#ifndef USE_RECLASSIFY
+  #define USE_RECLASSIFY 1
+#endif
+#ifndef USE_KEEP
+  #define USE_KEEP 1
+#endif
 
 // enables tracking of some statistics useful for debugging and profiling
 #ifndef DO_ACCOUNTING
@@ -159,7 +165,9 @@
 
 // unroll the inner loop; approx. 3% performance improvement
 // update: right now, it actually *costs* about 8%..
-#define USE_UNROLLED_REDUCE 0
+#ifndef USE_UNROLLED_REDUCE
+  #define USE_UNROLLED_REDUCE 0
+#endif
 
 // some things we track..
 int parserMerges = 0;
@@ -815,9 +823,11 @@ STATICDEF bool GLR
   // lexer token function
   LexerInterface::NextTokenFunc nextToken = lexer.getTokenFunc();
 
+  #if USE_RECLASSIFY
   // reclassifier
   UserActions::ReclassifyFunc reclassifyToken =
     userAct->getReclassifier();
+  #endif
 
   // the stack node pool is a local variable of this function for
   // fastest access by the mini-LR core; other parts of the algorihthm
@@ -956,8 +966,7 @@ STATICDEF bool GLR
           StackNode *prev = stackNodePool.private_getHead();
 
           #if USE_UNROLLED_REDUCE
-            #error this code is out of date; unroll the general loop again
-            // What follows is three unrollings of the loop below,
+            // What follows is unrollings of the loop below,
             // labeled "loop for arbitrary rhsLen".  Read that loop
             // before the unrollings here, since I omit the comments
             // here.  In general, this program should be correct
@@ -971,8 +980,12 @@ STATICDEF bool GLR
               case 1: {
                 SiblingLink &sib = parser->firstSib;
                 toPass[0] = sib.sval;
+                ACTION( rhsDescription =
+                  stringc << " "
+                          << symbolDescription(parser->getSymbolC(), userAct, sib.sval)
+                          << rhsDescription; )
                 SOURCELOC(
-                  if (sib.loc.validLoc()) {
+                  if (sib.validLoc()) {
                     leftEdge = sib.loc;
                   }
                 )
@@ -1829,7 +1842,7 @@ SiblingLink *GLR::rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
         if (sibLink->yieldCount > 0) {
           // yield-then-merge (YTM) happened
           yieldThenMergeCt++;
-          trace("ytm") << "at " << toString(loc) << endl;
+          SOURCELOC( trace("ytm") << "at " << toString(loc) << endl; )
 
           // if merging yielded a new semantic value, then we most likely
           // have a problem; if it yielded the *same* value, then most
@@ -1894,7 +1907,8 @@ SiblingLink *GLR::rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
             parser->determinDepth = newDepth;
           }
         }
-        xassert(++iters < 1000);    // protect against infinite loop
+        iters++;
+        xassert(iters < 1000);    // protect against infinite loop
         computeDepthIters++;
       }
     }

@@ -4085,7 +4085,7 @@ void emitActionCode(GrammarAnalysis const &g, char const *hFname,
   NOSOURCELOC(
     out << "// parser-originated location information is disabled by\n"
         << "// NO_GLR_SOURCELOC; any rule which refers to 'loc' will get this one\n"
-        << "static SourceLoc loc = SV_UNKNOWN;\n"
+        << "static SourceLoc loc = SL_UNKNOWN;\n"
         << "\n\n";
   )
 

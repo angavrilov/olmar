@@ -9,17 +9,20 @@ usage() {
 cat <<EOF
 usage: $0 [options]
 options:
-  -h:      print this message
-  -d:      enable debugging options
-  <op>:    add a given option to the gcc command line, including forms
-           -W*, -pg, -D*, -O*
+  -h:                print this message
+  -debug,-nodebug:   enable/disable debugging options [disabled]
+  -loc,-noloc:       enable/disable source location tracking [enabled]
+  <op>:              add a given option to the gcc command line,
+                       including forms: -W*, -pg, -D*, -O*
 EOF
 }
 
 
 # defaults
-CCFLAGS="-g -Wall -Wno-deprecated -D__LINUX__ -D__UNIX__"
+BASE_FLAGS="-g -Wall -Wno-deprecated -D__LINUX__ -D__UNIX__"
+CCFLAGS=""
 debug=false
+loc=true
 
 # process command-line arguments
 while [ "$1" != "" ]; do
@@ -38,6 +41,19 @@ while [ "$1" != "" ]; do
     -d|-debug)
       debug=true
       ;;
+
+    -nodebug)
+      debug=false
+      ;;
+
+    -loc)
+      loc=true
+      ;;
+
+    -noloc)
+      loc=false
+      CCFLAGS="$CCFLAGS -DGLR_SOURCELOC=0"
+      ;;
   esac
 
   shift
@@ -50,6 +66,28 @@ else
 fi
 
 
+# create a program to summarize the configuration
+cat >config.summary <<EOF
+#!/bin/sh
+# config.summary
+
+echo "Elkhound configuration summary:"
+echo "  debug:       $debug"
+echo "  loc:         $loc"
+echo ""
+echo "Compile flags:"
+echo "  BASE_FLAGS:  $BASE_FLAGS"
+echo "  CCFLAGS:    $CCFLAGS"
+echo ""
+EOF
+
+chmod a+x config.summary
+
+
+# from here on, combine BASE_FLAGS and CCFLAGS
+CCFLAGS="$BASE_FLAGS$CCFLAGS"
+
+
 # create a program which will create the Makefile
 cat >config.status <<__OUTER_EOF__
 #!/bin/sh
@@ -57,7 +95,10 @@ cat >config.status <<__OUTER_EOF__
 
 # this file was created by ./configure
 
-echo "creating Makefile ..."
+# report on configuration
+./config.summary
+
+echo "creating Makefile"
 
 # overcome my chmod below
 rm -f Makefile
@@ -76,9 +117,6 @@ cat Makefile.in | sed "s/@CCFLAGS@/$CCFLAGS/g" >> Makefile
 # discourage editing ..
 chmod a-w Makefile
 
-
-# report on configuration
-echo "CCFLAGS: $CCFLAGS"
 
 __OUTER_EOF__
 

@@ -46,7 +46,7 @@ includes    := -I$(SMBASE) -I$(AST) -Icc
 # needed for gcc-2 when compiling things in cc2/
 includes    += -I.
 
-ccflags     := -g -Wall @CCFLAGS@
+ccflags     := @CCFLAGS@
 no-warnings := -w
 makelib     := ar -r
 ranlib      := ranlib
