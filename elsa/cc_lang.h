@@ -40,6 +40,12 @@ public:
   // treated as a "pure vararg" function
   bool emptyParamsMeansPureVarargFunc;
 
+  // when false, we do not complain if someone tries to dereference a
+  // non-pointer.. this is done to overcome the lack of full support
+  // for overloading, which causes me to compute the wrong types
+  // sometimes (defaults to true, but is false in C++ mode for now)
+  bool complainUponBadDeref;
+
 public:
   CCLang() { ANSI_C(); }
 

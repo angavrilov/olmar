@@ -227,10 +227,14 @@ private:     // funcs
   static void getSubobjects_helper
     (SObjList<BaseClassSubobj const> &dest, BaseClassSubobj const *subobj);
 
-public:      // funcs
+protected:   // funcs
   // create an incomplete (forward-declared) compound
+  // experiment: force creation of these to go through the factory too
   CompoundType(Keyword keyword, StringRef name);
-  ~CompoundType();
+  friend class TypeFactory;
+
+public:      // funcs
+  virtual ~CompoundType();
 
   bool isComplete() const { return !forward; }
   
@@ -646,6 +650,9 @@ public:
   virtual string rightStringUpToQualifiers(bool innerParen) const;
   virtual string rightStringAfterQualifiers() const;
 
+  // a hook for the verifier's printer
+  virtual void extraRightmostSyntax(stringBuilder &sb) const;
+
   // Type interface
   virtual Tag getTag() const { return T_FUNCTION; }
   virtual string leftString(bool innerParen=true) const;
@@ -843,7 +850,14 @@ class TypeFactory {
 public:
   virtual ~TypeFactory() {}      // silence stupid compiler warnings
 
-  // ---- constructors for the basic types ----
+  // ---- constructors for the atomic types ----
+  // for now, only CompoundType is built this way, and I'm going to
+  // provide a default implementation in TypeFactory to avoid having
+  // to change the interface w.r.t. cc_qual
+  virtual CompoundType *makeCompoundType
+    (CompoundType::Keyword keyword, StringRef name);
+
+  // ---- constructors for the constructed types ----
   // the 'loc' being passed is the start of the syntactic construct
   // which causes the type to be created or needed (until I get more
   // experience with this I can't be more precise)

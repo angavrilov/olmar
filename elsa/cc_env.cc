@@ -61,7 +61,7 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   }
 
   // create the typeid type
-  CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
+  CompoundType *ct = tfac.makeCompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
   type_info_const_ref = tfac.makeRefType(HERE,
@@ -931,7 +931,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
                            StringRef name, SourceLoc loc,
                            TypeIntr keyword, bool forward)
 {
-  ct = new CompoundType((CompoundType::Keyword)keyword, name);
+  ct = tfac.makeCompoundType((CompoundType::Keyword)keyword, name);
 
   // transfer template parameters
   ct->templateInfo = takeTemplateClassInfo(name);
@@ -1090,7 +1090,7 @@ Variable *Env::instantiateClassTemplate
   if (!inst) {
     // 1/21/03: I had been using 'instName' as the class name, but that
     // causes problems when trying to recognize constructors
-    inst = new CompoundType(base->keyword, base->name);
+    inst = tfac.makeCompoundType(base->keyword, base->name);
     inst->instName = instName;     // stash it here instead
     inst->forward = base->forward;
 
@@ -1194,14 +1194,19 @@ void Env::instantiateForwardClasses(Scope *scope, CompoundType *base)
 
 
 // -------- diagnostics --------
-Type *Env::error(char const *msg, bool disambiguates)
+Type *Env::error(SourceLoc L, char const *msg, bool disambiguates)
 {
   trace("error") << (disambiguates? "[d] " : "") << "error: " << msg << endl;
   if (!disambiguateOnly || disambiguates) {
     errors.prepend(new ErrorMsg(
-      stringc << msg, false /*isWarning*/, loc(), disambiguates));
+      stringc << msg, false /*isWarning*/, L, disambiguates));
   }
   return getSimpleType(SL_UNKNOWN, ST_ERROR);
+}
+
+Type *Env::error(char const *msg, bool disambiguates)
+{
+  return error(loc(), msg, disambiguates);
 }
 
 
@@ -1265,3 +1270,13 @@ STATICDEF bool Env::listHasDisambErrors(ObjList<ErrorMsg> const &list)
   }
   return false;        // no disambiguating errors
 }
+
+
+void Env::checkFuncAnnotations(FunctionType *, D_func *)
+{}
+
+void Env::addedNewCompound(CompoundType *)
+{}
+
+
+// EOF

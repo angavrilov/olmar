@@ -95,8 +95,11 @@ class ASTTypeId {
     // is used for disambiguation
     bool isParameter;
 
+    // additional declflags to attach to the resulting Variable
+    DeclFlags dflags;
+
   public:
-    Tcheck() : newSizeExpr(NULL), isParameter(false) {}
+    Tcheck() : newSizeExpr(NULL), isParameter(false), dflags(DF_NONE) {}
   };
 
   // the return value is the ASTTypeId* to store in place of the
@@ -168,7 +171,8 @@ class Enumerator {
 
   // when the enumerator values are computed, I store them here
   // so I can see them in the AST printout; I only print this
-  // value if 'var' is non-NULL
+  // value if 'var' is non-NULL (i.e. the enumerator has been
+  // tcheck'd so the value has been determined)
   public int enumValue;
 
   public void printExtras(ostream &os, int indent) const;
@@ -343,6 +347,7 @@ class Expression {
   // same expression should stop and look for an ambiguous alt.
   public Type *type;
   ctor type=NULL;
+  custom clone { ret->type = type; }
 
   // const-eval; will add an error message to the environment if this
   // expression is not a constant (and also return false); can only
@@ -368,6 +373,7 @@ class Expression {
   -> E_variable {
        public Variable *var;      // (serf) binding introduction of this name
        ctor var=NULL;
+       custom clone { ret->var = var; }
      }
 
   // these two kinds have their tcheck further split into two stages
@@ -385,17 +391,24 @@ class Expression {
   -> E_fieldAcc {
        public Variable const *field;
        ctor field=NULL;
+       custom clone { ret->field = field; }
      }
 
   -> E_sizeof {
        public int size;     // size of the type of expr
        ctor size=-1;
+       custom clone { ret->size = size; }
      }
 
   -> E_sizeofType {
        public int size;     // size of the type
        ctor size=-1;
+       custom clone { ret->size = size; }
      }
+
+  // Q: should I manually clone all the annotation fields?  Do I
+  // need them all?  Should I make a new mechanism in astgen to do
+  // this automatically?
 
   -> E_new {
        // if this is non-NULL, it's the number of elements to allocate via new[]

@@ -171,28 +171,6 @@ class PQName {
 // with type constructors when the name was defined, but a
 // TypeSpecifier refers only to the name)
 class TypeSpecifier(SourceLoc loc) {
-//    // FakeList link; use 'setNext' to set 'next'
-//    public TypeSpecifier *next;  ctor next=NULL;
-//    public void setNext(TypeSpecifier *newNext);
-
-//    // same as we do for statements
-//    public TypeSpecifier *ambiguity;  ctor ambiguity=NULL;
-//    public void addAmbiguity(TypeSpecifier *alternative);
-//    custom traverse { if (ambiguity) ambiguity->traverse(vis); }
-
-//    // print ambiguities
-//    public void printAmbiguities(ostream &os, int indent) const;
-//    custom preemptDebugPrint {
-//      if (ambiguity) {
-//        printAmbiguities(os, indent);
-//        return;     // skip the normal, unambiguous-node print code
-//      }
-//    }
-
-//    // dsw: I had to move this here to deal with the mid_tcheck design
-//    // pattern that is used to resolve ambiguities.
-//    public Type *type;
-
   public enum CVFlags cv;  ctor cv=CV_NONE;
   custom clone { ret->cv = cv; }
 
@@ -211,7 +189,7 @@ class TypeSpecifier(SourceLoc loc) {
        PQName name
      );
 
-  // class definition
+  // class/struct/union definition
   -> TS_classSpec(                         // "class { ... }"
        TypeIntr keyword,                     // "class", "struct", "union"
 
@@ -568,15 +546,6 @@ class Initializer {
   // constructor initializer, like "int x(3);"
   -> IN_ctor(FakeList<Expression> *args);
 }
-
-//  // gnu extension to attach particular elements of an initializer list
-//  // to particular fields of the structure or array being initialized
-//  class InitLabel {
-//    -> IL_element(Expression index);
-//    -> IL_range(Expression low, Expression high);   // inclusive
-//    -> IL_field(StringRef name);
-//    -> IL_elementField(Expression index, StringRef name);
-//  }
 
 
 // ------------------- templates -------------------

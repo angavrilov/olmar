@@ -242,7 +242,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
    * when there are two dots but not three */
 ".." {
   yyless(1);     /* put back all but 1; this is inexpensive */
-  return tok(TOK_ELLIPSIS);
+  return tok(TOK_DOT);
 }
 
   /* identifier: e.g. foo */
@@ -338,8 +338,8 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
    * then we accept the rest of the line; 'parseHashLine' will finish
    * parsing the directive */
 "#"("line"?){SPTAB}.*{NL} {
-  whitespace();
   parseHashLine(yytext, yyleng);
+  whitespace();       // don't increment line count until after parseHashLine()
 }
 
   /* other preprocessing: ignore it */
@@ -363,6 +363,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
   /* C comment */
 "/""*"([^*]|"*"[^/])*"*/"     {
+  // TODO: I think this fails to match /***/
   whitespace();
 }
 

@@ -11,6 +11,7 @@ void CCLang::KandR_C()
   noInnerClasses = true;
   uninitializedGlobalDataIsCommon = true;
   emptyParamsMeansPureVarargFunc = true;
+  complainUponBadDeref = true;
 }
 
 void CCLang::ANSI_C()
@@ -21,6 +22,7 @@ void CCLang::ANSI_C()
   noInnerClasses = true;
   uninitializedGlobalDataIsCommon = true;
   emptyParamsMeansPureVarargFunc = false;
+  complainUponBadDeref = true;
 }
 
 void CCLang::ANSI_Cplusplus()
@@ -31,5 +33,6 @@ void CCLang::ANSI_Cplusplus()
   noInnerClasses = false;
   uninitializedGlobalDataIsCommon = false;
   emptyParamsMeansPureVarargFunc = false;
+  complainUponBadDeref = false;
 }
 

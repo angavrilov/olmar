@@ -46,6 +46,9 @@ public:
   // manipulate UberModifiers
   SimpleTypeId uberSimpleType(SourceLoc loc, UberModifiers m);
   UberModifiers uberCombine(SourceLoc loc, UberModifiers m1, UberModifiers m2);
+  
+  // generate a LocString suitable for use during parsing
+  LocString * /*owner*/ ls(SourceLoc loc, char const *name);
 };
 
 

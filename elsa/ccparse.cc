@@ -85,6 +85,12 @@ UberModifiers ParseEnv
 }
 
 
+LocString * /*owner*/ ParseEnv::ls(SourceLoc loc, char const *name)
+{
+  return new LocString(loc, str(name));
+}
+
+
 // ---------------------- AmbiguityChecker -----------------
 // check for ambiguities
 class AmbiguityChecker : public ASTVisitor {

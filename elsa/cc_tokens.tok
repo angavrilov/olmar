@@ -1,6 +1,6 @@
 // cc_tokens.tok  -*- c++ -*-
 // this is the master description of the token classes; from
-// this several other files are generator, and extensions can
+// this several other files are generated, and extensions can
 // add new tokens by appending to this file
 
 // flags:

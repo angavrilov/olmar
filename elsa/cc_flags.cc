@@ -16,10 +16,10 @@ char const * const typeIntrNames[NUM_TYPEINTRS] = {
 };
 
 #define MAKE_TOSTRING(T, limit, array)        \
-  string toString(T index)                    \
+  char const *toString(T index)               \
   {                                           \
     xassert((unsigned)index < limit);         \
-    return string(array[index]);              \
+    return array[index];                      \
   }
 
 MAKE_TOSTRING(TypeIntr, NUM_TYPEINTRS, typeIntrNames)
@@ -231,19 +231,25 @@ char const * const binaryOpNames[NUM_BINARYOPS] = {
   ".*",
   "->*",
 
-  "==>"
+  "==>",
+  "<==>"
 };
 
 MAKE_TOSTRING(BinaryOp, NUM_BINARYOPS, binaryOpNames)
 
 bool isPredicateCombinator(BinaryOp op)
 {
-  return op==BIN_AND || op==BIN_OR || op==BIN_IMPLIES;
+  return op==BIN_AND || op==BIN_OR || op==BIN_IMPLIES || op==BIN_EQUIVALENT;
 }
 
 bool isRelational(BinaryOp op)
 {
   return BIN_EQUAL <= op && op <= BIN_GREATEREQ;
+}
+
+bool isInequality(BinaryOp op)
+{
+  return BIN_LESS <= op && op <= BIN_GREATEREQ;
 }
 
 

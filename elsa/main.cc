@@ -264,20 +264,6 @@ void doit(int argc, char **argv)
     if (tracingSys("stopAfterTCheck")) {
       return;
     }
-
-    #if 0
-    // Cqual++-aware type checker
-    traceProgress() << "Cqual++-aware type checker...\n";
-
-    // little bit of a hack: I need to make a Variable_Q to
-    // correspond to env.dependentTypeVar
-    try {
-      unit->qualTcheck(env.madeUpVariables);
-    }
-    catch (XNotSupported &x) {
-      cout << x.why() << endl;
-    }    
-    #endif // 0
   }
 
   // dsw: pretty printing

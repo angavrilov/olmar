@@ -1165,11 +1165,17 @@ string FunctionType::rightStringAfterQualifiers() const
     sb << ")";
   }
 
+  // hook for verifier syntax
+  extraRightmostSyntax(sb);
+
   // finish up the return type
   sb << retType->rightString();
 
   return sb;
 }
+
+void FunctionType::extraRightmostSyntax(stringBuilder &) const
+{}
 
 
 int FunctionType::reprSize() const
@@ -1483,6 +1489,13 @@ CVFlags PointerToMemberType::getCVFlags() const
 
 
 // ---------------------- TypeFactory ---------------------
+CompoundType *TypeFactory::makeCompoundType
+  (CompoundType::Keyword keyword, StringRef name)
+{
+  return new CompoundType(keyword, name);
+}
+
+
 Type *TypeFactory::cloneType(Type *src)
 {
   switch (src->getTag()) {

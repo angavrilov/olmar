@@ -62,7 +62,7 @@ option defaultMergeAborts;
 option shift_reduce_conflicts 58;
 option reduce_reduce_conflicts 58;
 option unreachable_nonterminals 0;
-option unreachable_terminals 22;
+option unreachable_terminals 8;
 
 verbatim {
 
@@ -396,7 +396,7 @@ nonterm(CastKeyword) CastKeyword {
 // here, and everywhere else that FakeList is used, I use right
 // recursion to construct the list; this does mean the stack size
 // is linear in the size of the list, but the benefit of not
-// having to reverse the list of use ASTList (which is difficult
+// having to reverse the list or use ASTList (which is difficult
 // to share) is worth it
 nonterm(FakeList<Expression>*) ExpressionList {
   -> a:AssignmentExpression

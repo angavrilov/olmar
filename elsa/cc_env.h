@@ -108,7 +108,7 @@ private:     // funcs
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang, TypeFactory &tfac);
-  ~Env();
+  virtual ~Env();      // 'virtual' only to silence stupid warning; destruction is not part of polymorphic contract
 
   int getChangeCount() const { return scopeC()->getChangeCount(); }
 
@@ -206,6 +206,7 @@ public:      // funcs
   void instantiateForwardClasses(Scope *scope, CompoundType *base);
 
   // diagnostic reports; all return ST_ERROR type
+  Type *error(SourceLoc L, char const *msg, bool disambiguates=false);
   Type *error(char const *msg, bool disambiguates=false);
   Type *warning(char const *msg);
   Type *unimp(char const *msg);
@@ -227,6 +228,10 @@ public:      // funcs
   // because of disambiguating errors
   bool disambErrorsSuppressChanges() const
     { return disambiguationNestingLevel>0 && hasDisambErrors(); }
+
+  // number of errors; intended to be called after type checking,
+  // to see how many errors (if any) resulted
+  int numErrors() const { return errors.count(); }
 
   FunctionType *makeDestructorFunctionType(SourceLoc loc);
 
@@ -253,6 +258,16 @@ public:      // funcs
 
   // others are more obscure, so I'll just call into 'tfac' directly
   // in the places I call them
+
+  // points of extension: These functions do nothing in the base
+  // Elsa parser, but can be overridden in client analyses to
+  // hook into the type checking process.  See their call sites in
+  // cc_tcheck.cc for more info on when they're called.
+  virtual void checkFuncAnnotations(FunctionType *ft, D_func *syntax);
+  
+  // this is called after all the fields of 'ct' have been set, and
+  // we've popped its scope off the stack
+  virtual void addedNewCompound(CompoundType *ct);
 };
 
 
