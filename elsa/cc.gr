@@ -58,8 +58,9 @@ option useGCDefaults;
 // then abort
 option defaultMergeAborts;
 
-// expected statistics
-option shift_reduce_conflicts 50;     // these are wrong right now..
+// expected statistics (these are wrong right now, since I've been
+// making frequent changes and only keeping gnu.gr up-to-date)
+option shift_reduce_conflicts 50;
 option reduce_reduce_conflicts 65;
 option unreachable_nonterminals 0;
 option unreachable_terminals 8;
@@ -1747,10 +1748,6 @@ nonterm(Member*) MemberDeclaration {
   // member template
   -> d:TemplateDeclaration
        { return new MR_template(loc, d); }
-
-  // template constructor
-  -> plist:TemplatePreamble d:CDtorProtoDecl
-       { return new MR_template(loc, new TD_proto(plist, d)); }
 }
 
 // declaration (with no definition) of a c/dtor or conversion
@@ -2076,6 +2073,12 @@ nonterm(TemplateDeclaration*) TemplateDeclaration {
   // definition of a template member
   -> plist:TemplatePreamble td:TemplateDeclaration
        { return new TD_tmember(plist, td); }
+
+  // as a toplevel form, this is a specialization of a template class
+  // constructor; as a class member, it is a declaration of a 
+  // templatized constructor
+  -> plist:TemplatePreamble d:CDtorProtoDecl
+       { return new TD_proto(plist, d); }
 }
 
 // the "template <...>" stuff

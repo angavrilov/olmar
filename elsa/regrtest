@@ -385,6 +385,7 @@ testparse t0181.cc
 testparse t0182.cc
 testparse t0183.cc
 testparse t0184.cc
+testparse t0185.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
