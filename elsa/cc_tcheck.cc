@@ -4310,6 +4310,31 @@ void Handler::tcheck(Env &env)
 
 
 // ------------------- Expression tcheck -----------------------
+Type *makeLvalType(TypeFactory &tfac, Type *underlying)
+{
+  if (underlying->isLval()) {
+    // this happens for example if a variable is declared to
+    // a reference type
+    return underlying;
+  }
+  else if (underlying->isFunctionType()) {
+    // don't make references to functions
+    return underlying;
+
+    // at one point I added a similar prohibition against
+    // references to arrays, but that was wrong, e.g.:
+    //   int (&a)[];
+  }
+  else {
+    return tfac.makeReferenceType(SL_UNKNOWN, underlying);
+  }
+}
+
+Type *makeLvalType(Env &env, Type *underlying)
+{
+  return makeLvalType(env.tfac, underlying);
+}
+
 
 // There are several things going on with the replacement pointer.
 //
@@ -4667,7 +4692,10 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
     stringLitCharCVFlags = CV_CONST;
   }
   Type *charConst = env.getSimpleType(SL_UNKNOWN, id, stringLitCharCVFlags);
-  return env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
+  Type *arrayType = env.makeArrayType(SL_UNKNOWN, charConst, len+1);    // +1 for implicit final NUL
+
+  // C++ 5.1p2, C99 6.5.1p4: string literals are lvalues (in/k0036.cc)
+  return makeLvalType(env, arrayType);
 }
 
 
@@ -4731,32 +4759,6 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
   }
 
   return env.getSimpleType(SL_UNKNOWN, id);
-}
-
-
-Type *makeLvalType(TypeFactory &tfac, Type *underlying)
-{
-  if (underlying->isLval()) {
-    // this happens for example if a variable is declared to
-    // a reference type
-    return underlying;
-  }
-  else if (underlying->isFunctionType()) {
-    // don't make references to functions
-    return underlying;
-
-    // at one point I added a similar prohibition against
-    // references to arrays, but that was wrong, e.g.:
-    //   int (&a)[];
-  }
-  else {
-    return tfac.makeReferenceType(SL_UNKNOWN, underlying);
-  }
-}
-
-Type *makeLvalType(Env &env, Type *underlying)
-{
-  return makeLvalType(env.tfac, underlying);
 }
 
 

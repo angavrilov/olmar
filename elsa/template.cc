@@ -1143,7 +1143,11 @@ bool Env::inferTemplArgsFromFuncArgs
 {
   xassert(var->templateInfo());
   xassert(var->templateInfo()->isPrimary());
+  
+  // I am expecting the caller to have configured 'match' in
+  // a specific way.
   xassert(match.hasEFlag(Type::EF_DEDUCTION));
+  xassert(match.getMode() == MatchTypes::MM_BIND);
 
   TRACE("template", "deducing template arguments from function arguments");
 
@@ -1168,7 +1172,7 @@ bool Env::inferTemplArgsFromFuncArgs
   for (; !paramIter.isDone(); paramIter.adv()) {
     Variable *param = paramIter.data();
     xassert(param);
-    
+
     // 9/26/04: if the parameter does not contain any template params,
     // then strict matching is not required (I'm pretty sure I saw this
     // somewhere in cppstd, and gcc agrees (in/t0324.cc), but now I can't
@@ -1188,41 +1192,62 @@ bool Env::inferTemplArgsFromFuncArgs
       // we could run out of args and it would be ok as long as we
       // have default arguments for the rest of the parameters
       if (!argListIter.isDone()) {
-        Type *curArgType = argListIter.data();
-        bool argUnifies = match.match_Type(curArgType, param->type);
+        Type *argType = argListIter.data();
+        Type *paramType = param->type;
+
+        // deduction does not take into account whether the argument
+        // is an lvalue, which in my system would mean it has
+        // reference type, so strip that
+        argType = argType->asRval();
+
+        // prior to calling into matchtype, normalize the parameter
+        // and argument types according to 14.8.2.1p2
+        if (!paramType->isReference()) {
+          if (argType->isArrayType()) {
+            // synthesize a pointer type to be used instead
+            ArrayType *at = argType->asArrayType();
+            argType = tfac.makePointerType(SL_UNKNOWN, CV_NONE, at->eltType);
+          }
+          else if (argType->isFunctionType()) {
+            // use pointer type instead
+            argType = tfac.makePointerType(SL_UNKNOWN, CV_NONE, argType);
+          }
+          else {
+            // final bullet says to ignore cv qualifications, but I think
+            // match_Type is already doing that (probably too liberally,
+            // but fixing match_Type is not on the agenda right now)
+          }
+        }
+
+        // final sentence of 14.8.2.1p2
+        paramType = paramType->asRval();
+
+        // "find template argument values that will make the deduced
+        // [parameter type] identical to ['argType']"
+        bool argUnifies = match.match_Type(argType, paramType);
 
         if (!argUnifies) {
-          // cppstd 14.8.2.1 para 3 bullet 3: if 'param->type' is a
-          // template-id, then 'curArgType' can be derived from
-          // 'param->type'; assume that 'containsVariables' is
-          // sufficient evidence that 'param->type' is a template-id
-          
-          // for this comparison, push past any referenceness on
-          // either argument or parameter (14.8.2.1 para 2 says so for
-          // the parameter, less clear about the argument but I think
-          // it falls under the general category of lvalue handling);
-          // in any case if I get this wrong (too liberal) it should
-          // be caught later once the deduced type is compared to the
-          // argument types in the usual way
-          curArgType = curArgType->asRval();
-          Type *paramType = param->type->asRval();
+          // cppstd 14.8.2.1 para 3 bullet 3: if 'paramType' is a
+          // template-id, then 'argType' can be derived from
+          // 'paramType'; assume that 'containsVariables' is
+          // sufficient evidence that 'paramType' is a template-id
           
           // push past one level of pointerness too (part of bullet 3)
-          if (curArgType->isPointer() && paramType->isPointer()) {
-            curArgType = curArgType->getAtType();
+          if (argType->isPointer() && paramType->isPointer()) {
+            argType = argType->getAtType();
             paramType = paramType->getAtType();
           }
 
-          if (curArgType->isCompoundType()) {
+          if (argType->isCompoundType()) {
             // get all the base classes
-            CompoundType *ct = curArgType->asCompoundType();
+            CompoundType *ct = argType->asCompoundType();
             SObjList<BaseClassSubobj const> bases;
             ct->getSubobjects(bases);
             SFOREACH_OBJLIST(BaseClassSubobj const, bases, iter) {
               BaseClassSubobj const *sub = iter.data();
               if (sub->ct == ct) { continue; }      // already tried 'ct'
 
-              // attempt to match 'sub->ct' with 'param->type'
+              // attempt to match 'sub->ct' with 'paramType'
               //
               // TODO: There are two bugs here, due to allowing the
               // effect of one match attempt to contaminate the next.
@@ -1251,9 +1276,9 @@ bool Env::inferTemplArgsFromFuncArgs
           if (!argUnifies) {
             if (iflags & IA_REPORT_ERRORS) {
               error(stringc << "during function template argument deduction: "
-                    << "argument " << i << " `" << curArgType->toString() << "'"
+                    << "argument " << i << " `" << argType->toString() << "'"
                     << " is incompatible with parameter, `"
-                    << param->type->toString() << "'");
+                    << paramType->toString() << "'");
             }
             return false;             // FIX: return a variable of type error?
           }

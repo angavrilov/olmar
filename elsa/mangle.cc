@@ -435,57 +435,5 @@ void mangleSTemplateArgs(stringBuilder &sb, ObjList<STemplateArgument> const &ar
   sb << ">";
 }
 
-         
-// sm: I'm putting this here because I want to delete it from
-// cc_type.cc; it doesn't look like it could ever have been
-// called with tsf==TTS_CANON, since CompoundType::toString
-// doesn't print its 'arguments' field
-#if 0
-string STemplateArgument::toString(TypeToStringFlags tsf) const
-{
-  // dsw: TODO: I'm not sure at all that the TTS_CANON flag is being
-  // used correctly here; in what sense are these parameters part of
-  // the type (especially for the int case) ?
-  switch (kind) {
-    default: xfailure("bad kind");
-    case STA_NONE:      return string("STA_NONE");
-    case STA_TYPE:      return value.t->toString(tsf);   // assume 'type' if no comment
-    case STA_INT:
-      return stringc << "/*int*/ "  << ((tsf & TTS_CANON) ? "" : stringc << value.i);
-    case STA_REFERENCE:
-      return stringc << "/*ref*/ "  << ((tsf & TTS_CANON) ? "" : stringc << value.v->name);
-    case STA_POINTER:
-      return stringc << "/*ptr*/ &" << ((tsf & TTS_CANON) ? "" : stringc << value.v->name);
-    case STA_MEMBER:
-      if (tsf & TTS_CANON) {
-        return stringc << "/*member*/ &";
-      } else {
-        return stringc
-          << "/*member*/ &" << value.v->scope->curCompound->name 
-          << "::" << value.v->name;
-      }
-    case STA_TEMPLATE:  return string("template (?)");
-  }
-}
-
-
-string sargsToString(SObjList<STemplateArgument> const &list, TypeToStringFlags tsf)
-{
-  stringBuilder sb;
-  sb << "<";
-
-  int ct=0;
-  SFOREACH_OBJLIST(STemplateArgument, list, iter) {
-    if (ct++ > 0) {
-      sb << ", ";
-    }
-    sb << iter.data()->toString(tsf);
-  }
-
-  sb << ">";
-  return sb;
-}
-#endif // 0
-
 
 // EOF

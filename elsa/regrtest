@@ -752,6 +752,7 @@ testparse t0458.cc
 testparse t0459.cc
 testparse t0460.cc
 testparse t0461.cc
+testparse t0462.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -910,7 +911,7 @@ failparse k0033.cc "casting function pointer with throw() to/from no throw"
 #failparse k0034.cc "undefined instanceless unions repeating members"
 
 failparse k0035.cc "ambiguous int+sizeof(struct{})"
-failparse k0036.cc "taking the address of a string (?!)"
+testparse k0036.cc #"taking the address of a string (?!)"
 failparse k0037.cc "new array of pointers"
 testparse k0038.cc #"templatized struct as template parameter to function"
 testparse k0039.cc #"funky namespace resolution after 'using namespace'"
