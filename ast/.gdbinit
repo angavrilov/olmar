@@ -1,6 +1,6 @@
 # .gdbinit   -*- sh -*-
 
-file astgen
+file ccsstr
 #file agrampar
 break main
 break breaker

@@ -233,8 +233,8 @@ void Test::test(char const *src, CC::State state, int nesting, bool flag)
 
   if (!( cc.state == state &&
          cc.nesting == nesting &&
-         state==CC::ST_C_COMMENT? cc.star==flag :
-                                  cc.backslash==flag )) {
+         (state==CC::ST_C_COMMENT? cc.star==flag :
+                                   cc.backslash==flag) )) {
     xfailure(stringc << "failed on src: " << src);
   }
 }
@@ -251,7 +251,7 @@ void Test::str(char const *src, int nesting, bool bs)
 
   // repeat the test with single-tick
   string another = replace(src, "\"", "\'");
-  test(src, CC::ST_CHAR, nesting, bs);
+  test(another, CC::ST_CHAR, nesting, bs);
 }
 
 
@@ -314,7 +314,7 @@ int Test::main()
   str("main() { printf(\"hello \\ world", 2, false);
   str("main() { printf(\"hello \\ world\", \"hi", 2, false);
 
-  test("\"a\" 'b' (", CC::ST_NORMAL, 0, false);
+  test("\"a\" 'b' (", CC::ST_NORMAL, 1, false);
 
   yes("main() {}");
   yes("main() { printf(\"foo\", 3, 4 /*yep{*/); }");

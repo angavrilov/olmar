@@ -73,7 +73,7 @@ CCSSTR_OBJS := \
   embedded.o
 -include $(CCSSTR_OBJS:.o=.d)
 
-ccsstr: ccsstr.cc $(CCSSTR_OBJS)
+ccsstr: ccsstr.cc ccsstr.h $(CCSSTR_OBJS)
 	$(CXX) -o $@ -DTEST_CCSSTR $(CCFLAGS) ccsstr.cc $(CCSSTR_OBJS) $(LDFLAGS)
 
 
