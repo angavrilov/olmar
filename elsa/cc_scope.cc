@@ -794,6 +794,13 @@ string Scope::fullyQualifiedName()
   // code so it works like it used to.  I suspect this code could
   // be simplified in light of the new invariant.
 
+  // a few places are still calling into this when it is the global
+  // scope; since those places should be happy with "", and that is
+  // in fact the "name" of the global scope, let's try this...
+  if (isGlobalScope()) {
+    return "";
+  }
+
   stringBuilder sb;
   if (parentScope && !parentScope->isGlobalScope()) {
     sb = parentScope->fullyQualifiedName();
