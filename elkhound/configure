@@ -25,6 +25,7 @@ options:
   -prof              enable profiling
   -devel             add options useful while developing
   -loc,-noloc:       enable/disable source location tracking [enabled]
+  -action:           enable use of "-tr action" to see parser actions
   -fastest:          turn off all Elkhound features that are not present
                      in Bison, for the purpose of performance comparison
                      (note that Elsa will not work in this mode)
@@ -82,6 +83,10 @@ while (@ARGV) {
     loc = 0;
   }
 
+  elsif ($arg eq "-action") {
+    push @CCFLAGS, "-DACTION_TRACE=1";
+  }
+
   elsif ($arg eq "-fastest") {
     # the idea is I can say
     #   $ ./configure -fastest
@@ -128,12 +133,8 @@ while (@ARGV) {
   push @c_args, $arg;
 }
 
-if ($debug) {
-  push @CCFLAGS, "-DACTION_TRACE=1";
-}
-else {
-  push @CCFLAGS, "-O2";
-  push @CCFLAGS, "-DNDEBUG";
+if (!$debug) {
+  push @CCFLAGS, ("-O2", "-DNDEBUG");
 }
 
 $os = `uname -s`;
