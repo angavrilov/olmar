@@ -114,6 +114,9 @@ public:
   // delete all of the existing messages
   void deleteAll() { list.deleteAll(); }
 
+  // keep only messages meeting a specific criteria
+  void filter(bool (*pred)(ErrorMsg *msg));
+
   // various counts of error objects
   int count() const;            // total
   int numErrors() const;        // # that are not EF_WARNING

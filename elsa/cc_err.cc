@@ -75,6 +75,22 @@ void ErrorList::markAllAsWarnings()
 }
 
 
+void ErrorList::filter(bool (*pred)(ErrorMsg *msg))
+{
+  ObjListMutator<ErrorMsg> mut(list);
+  while (!mut.isDone()) {
+    if (pred(mut.data())) {
+      // keep it
+      mut.adv();
+    }
+    else {
+      // drop it
+      mut.deleteIt();
+    }
+  }
+}
+
+
 int ErrorList::count() const
 {
   return list.count();

@@ -18,8 +18,11 @@ struct A {
   // actually, it's ok if this error isn't diagnosed, according
   // to the standard; but for the moment Elsa does so may as well
   // leave it here
-  //ERROR(2): int anotherDumbThing()
-  //ERROR(2): { return T::doesNotExist; }
+  //
+  // 9/21/04: Elsa no longer diagnoses this; I had to weaken its
+  // checking for d0102.cc.
+  //int anotherDumbThing()
+  //{ return T::doesNotExist; }
 };
 
 void f()

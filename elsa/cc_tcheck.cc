@@ -891,7 +891,7 @@ void PQ_qualifier::tcheck(Env &env, Scope *scope, LookupFlags lflags)
       // without the "template" keyword, the dependent context may give
       // rise to ambiguity, so reject it
       env.error("dependent template scope name requires 'template' keyword",
-                EF_DISAMBIGUATES);
+                EF_DISAMBIGUATES | EF_STRONG);
     }
     tcheckTemplateArgumentList(targs, env);
     denotedScopeVar = env.dependentVar;
@@ -1014,7 +1014,7 @@ void PQ_template::tcheck(Env &env, Scope *, LookupFlags lflags)
   // like above in PQ_qualifier::tcheck
   if ((lflags & LF_DEPENDENT) && !templateUsed()) {
     env.error("dependent template name requires 'template' keyword",
-              EF_DISAMBIGUATES);
+              EF_DISAMBIGUATES | EF_STRONG);
   }
 
   tcheckTemplateArgumentList(args, env);
@@ -1559,6 +1559,22 @@ Type *TS_classSpec::itcheck(Env &env, DeclFlags dflags)
 }
 
 
+// filter that keeps only strong messages
+bool strongMsgFilter(ErrorMsg *msg)
+{
+  if (msg->flags & (EF_STRONG | EF_STRONG_WARNING)) {
+    // keep it
+    return true;
+  }
+  else {
+    // drop it
+    TRACE("template", "dropping error arising from uninst template: " <<
+                     msg->msg);
+    return false;
+  }
+}
+
+
 // type check once we know what 'ct' is; this is also called
 // to check newly-cloned AST fragments for template instantiation
 void TS_classSpec::tcheckIntoCompound(
@@ -1586,6 +1602,17 @@ void TS_classSpec::tcheckIntoCompound(
   // up the environment modifications; if this fails, it could be that
   // you need to do context isolation using 'DisambiguateNestingTemp'
   xassert(env.disambiguationNestingLevel == 0);
+
+  // 9/21/04: d0102.cc demonstrates that certain errors that are
+  // marked 'disambiguating' can still be superfluous because of being
+  // in uninstantiated template code.  So I'm going to use a big
+  // hammer here, and throw away all non-EF_STRONG errors once
+  // tchecking of this template finishes.  For the moment, that means
+  // I need to save the existing errors.
+  ErrorList existingErrors;
+  if (ct->isTemplate()) {
+    existingErrors.takeMessages(env.errors);
+  }
 
   // open a scope, and install 'ct' as the compound which is
   // being built; in fact, 'ct' itself is a scope, so we use
@@ -1724,6 +1751,15 @@ void TS_classSpec::tcheckIntoCompound(
   }
 
   env.addedNewCompound(ct);
+  
+  // finish up the error filtering started above
+  if (ct->isTemplate()) {
+    // remove all messages that are not 'strong'
+    env.errors.filter(strongMsgFilter);
+
+    // now put back the saved messages
+    env.errors.prependMessages(existingErrors);
+  }
 }
 
 
