@@ -64,17 +64,10 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     doElaboration(true),
 
     tempSerialNumber(0),
-    tempNamePrefix("temp-name-"),
-    tempNamePrefixLen(strlen(tempNamePrefix)),
-
-    e_newSerialNumber(0),
-    e_newNamePrefix("e_new-name-"),
-    e_newNamePrefixLen(strlen(e_newNamePrefix)),
+    e_newSerialNumber(0)
 
     // made this global
 //      throwClauseSerialNumber(0),
-    throwClauseNamePrefix("throwClause-name-"),
-    throwClauseNamePrefixLen(strlen(throwClauseNamePrefix))
 {
   // slightly less verbose
   //#define HERE HERE_SOURCELOC     // old
@@ -545,7 +538,14 @@ void Env::setupOperatorOverloading()
 
 Env::~Env()
 {
-  xassert(fullExpressionAnnotStack.isEmpty());
+  // sm: Generally, I don't like to do things that might throw
+  // exceptions in destructors, b/c if we're unwinding the stack then
+  // it escalates the failure (thereby complicating diagnosis of the
+  // original problem, and making recovery impossible). 
+  //xassert(fullExpressionAnnotStack.isEmpty());
+  if (!fullExpressionAnnotStack.isEmpty()) {
+    cout << "BUG: fullExpressionAnnotStack isn't empty!\n";
+  }
 
   // delete the scopes one by one, so we can skip any
   // which are in fact not owned
@@ -1525,17 +1525,17 @@ Variable *Env::instantiateClassTemplate
     }
   }
 
-  // dsw: UPDATE: the below is CHANGED!  instName is now **not** for
-  // debugging only.  It must be the base name.
-
   // render the template arguments into a string that we can use
   // as the name of the instantiated class; my plan is *not* that
   // this string serve as the unique ID, but rather that it be
   // a debugging aid only
+  //
+  // dsw: UPDATE: now it's used during type construction for
+  // elaboration, so has to be just the base name
   StringRef instName = base->name;
-  StringRef instNameOld = str.add(stringc << base->name << sargsToString(sargs));
   trace("template") << (base->forward? "(forward) " : "")
-                    << "instantiating class: " << instNameOld << endl;
+                    << "instantiating class: "
+                    << base->name << sargsToString(sargs) << endl;
 
   // remove scopes from the environment until the innermost
   // scope on the scope stack is the same one that the template
@@ -1899,27 +1899,19 @@ void Env::addedNewVariable(Scope *, Variable *)
 // ------------------------ elaboration -------------------------
 PQ_name *Env::makeTempName()
 {
-  // FIX: this name is a string, not a StringRef, because it has not
-  // been through the string table.  Don't know if this will work.
-  char *name0 = strdup(stringc << tempNamePrefix << tempSerialNumber++);
+  // can't collide with user identifier
+  StringRef name0 = str(stringc << "temp-name-" << tempSerialNumber++);
   return new PQ_name(loc(), name0);
 }
 
-char const *Env::makeE_newVarName()
+StringRef Env::makeE_newVarName()
 {
-  // FIX: this name is a string, not a StringRef, because it has not
-  // been through the string table.  Don't know if this will work.
-  char const *name0 = strdup(stringc << e_newNamePrefix << e_newSerialNumber++);
-  return name0;
+  return str(stringc << "e_new-name-" << e_newSerialNumber++);
 }
 
-char const *Env::makeThrowClauseVarName()
+StringRef Env::makeThrowClauseVarName()
 {
-  // FIX: this name is a string, not a StringRef, because it has not
-  // been through the string table.  Don't know if this will work.
-  char const *name0 =
-    strdup(stringc << throwClauseNamePrefix << throwClauseSerialNumber++);
-  return name0;
+  return str(stringc << "throwClause-name-" << throwClauseSerialNumber++);
 }
 
 

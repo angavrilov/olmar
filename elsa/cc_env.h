@@ -132,33 +132,10 @@ public:      // data
   // the current scope.
   SObjStack<FullExpressionAnnot> fullExpressionAnnotStack;
 
-  // counter for generating unique temporary names; NOTE: they will be
-  // duplicated across translation units, but this won't matter
-  // because the linker can't see them.
+  // counters for generating unique temporary names; not unique
+  // across translation units
   int tempSerialNumber;
-  // the prefix used for generating temporary names; NOTE: it is
-  // important that this string contain at least one character that is
-  // not allowed in an user-identifier.
-  char const * const tempNamePrefix;
-  int const tempNamePrefixLen;
-
-  // counter for generating unique E_new names; NOTE: they will be
-  // duplicated across translation units, but this won't matter
-  // because the linker can't see them.
   int e_newSerialNumber;
-  // the prefix used for generating E_new names; NOTE: it is important
-  // that this string contain at least one character that is not
-  // allowed in an user-identifier.
-  char const * const e_newNamePrefix;
-  int const e_newNamePrefixLen;
-
-  // NOTE: this is really global, and not here; see above
-//    int throwClauseSerialNumber;
-  // the prefix used for generating throw clause names; NOTE: it is
-  // important that this string contain at least one character that is
-  // not allowed in an user-identifier.
-  char const * const throwClauseNamePrefix;
-  int const throwClauseNamePrefixLen;
 
 private:     // funcs
   // old
@@ -414,9 +391,9 @@ public:      // funcs
   // make a unique name for a new temporary variable
   virtual PQ_name *makeTempName();
   // make a unique name for a new E_new variable
-  virtual char const *makeE_newVarName();
+  virtual StringRef makeE_newVarName();
   // make a unique name for a new throw clause variable
-  virtual char const *makeThrowClauseVarName();
+  virtual StringRef makeThrowClauseVarName();
 
   // return a PQName that will typecheck in the current environment to
   // find (the typedef for) the 'ct' type; it's also maximally
