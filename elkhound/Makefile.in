@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar gramanl
+temporary: check-makefiles grampar gramanl glr.o cexp3
 
 # main targets
 all: check-makefiles ccgr
@@ -55,11 +55,10 @@ grammar-set = grammar.o locstr.o
 # in addition to grammar-set, files needed to parse a grammar description
 grampar-set = grampar.tab.o gramlex.yy.o grampar.o gramlex.o \
               ast.o fileloc.o ccsstr.o ../ast/embedded.o \
-              gramast.gen.o strtable.o ../ast/asthelp.o
+              gramast.gen.o strtable.o ../ast/asthelp.o emitcode.o
 
 # in addition to grammar-set, file needed to do GLR parsing of C/C++ code
-glr-set = gramanl.o glrtree.o glr.o lexer1.o lexer1yy.o \
-          lexer2.o parssppt.o
+glr-set = gramanl.o glr.o lexer1.o lexer1yy.o lexer2.o parssppt.o
 
 # files involved in translating parsed C/C++ code
 cc-set = cc_tree.o cc_type.o cc_env.o cc_err.o dataflow.o cil.o \
@@ -78,7 +77,7 @@ attrexpr.o: grampar.codes.h
 # ------ targets -------
 # reads the grammar and emits C++ code for semantic functions
 gramanl-dep = gramanl.cc ${grammar-set} ${common} ${grampar-set} \
-              emitcode.o lexer2stub.o
+              lexer2stub.o
 gramanl: ${gramanl-dep} grammar.h gramanl.h 
 	${link} -o gramanl -DGRAMANL_MAIN ${gramanl-dep} ${linkend}
 
@@ -162,6 +161,19 @@ cexp2-dep = cexp2.o ${grammar-set} ${common} ${grampar-set} \
             ${glr-set}
 cexp2: ${cexp2-dep} cexp2.h
 	${link} -o cexp2 ${cexp2-dep} ${linkend}
+
+# intermediate files for cexp3
+# ('chmod a-w' is so I don't accidentally edit it)
+cexp3.cc: cexp3.gr gramanl
+	rm -f cexp3.cc
+	./gramanl cexp3
+	chmod a-w cexp3.cc
+
+# parser and semantic analyzer for cexp3.gr
+cexp3-dep = cexp3.o ${grammar-set} ${common} ${grampar-set} \
+            ${glr-set} glrmain.o
+cexp3: ${cexp3-dep}
+	${link} -o cexp3 ${cexp3-dep} ${linkend}
 
 # intermediate files for ccgr (the chmod is to make it harder
 # to accidentally start editing files that are automatically 

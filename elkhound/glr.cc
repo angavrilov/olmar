@@ -168,9 +168,9 @@ Symbol const *StackNode::getSymbolC() const
 
 // add a new sibling by creating a new link
 SiblingLink *StackNode::
-  addSiblingLink(StackNode *leftSib, TreeNode *treeNode)
+  addSiblingLink(StackNode *leftSib, SemanticValue sval)
 {
-  SiblingLink *link = new SiblingLink(leftSib, treeNode);
+  SiblingLink *link = new SiblingLink(leftSib, sval);
   leftSiblings.append(link);
   return link;
 }
@@ -208,11 +208,7 @@ PathCollectionState::~PathCollectionState()
 
 PathCollectionState::ReductionPath::~ReductionPath()
 {
-  if (reduction) {
-    // should only be executed under exceptional circumstances;
-    // normally, this object owns the reduction only temporarily
-    delete reduction;
-  }
+  // TODO: deal with sval deallocation here, if necessary
 }
 
 
@@ -232,13 +228,12 @@ void incParserList(SObjList<StackNode> &list)
 }
 
 
-GLR::GLR(ParseTree &ptree)
-  : parseTree(ptree),
-    activeParsers(),
+GLR::GLR()
+  : activeParsers(),
     nextStackNodeId(initialStackNodeId),
     currentTokenColumn(0),
-    currentToken(NULL),
     currentTokenClass(NULL),
+    currentTokenValue(NULL),
     parserWorklist()
   // some fields (re-)initialized by 'clearAllStackNodes'
 {}
@@ -252,15 +247,17 @@ GLR::~GLR()
 
 void GLR::clearAllStackNodes()
 {
-  // throw away any parse nodes leftover from previous parses
-  parseTree.treeNodes.deleteAll();
   nextStackNodeId = initialStackNodeId;
   currentTokenColumn = 0;
+  
+  // the stack nodes themselves are now reference counted, so they
+  // should already be cleared if we're between parses
 }
 
 
-// process the input string, and yield a parse graph
-bool GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
+// process the input file, and yield a parse graph
+bool GLR::glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
+                            char const *inputFname)
 {
   // do first phase lexer
   traceProgress() << "lexical analysis...\n";
@@ -286,11 +283,11 @@ bool GLR::glrParseNamedFile(Lexer2 &lexer2, char const *inputFname)
   lexer2_lex(lexer2, lexer1, inputFname);
 
   // parsing itself
-  return glrParse(lexer2);
+  return glrParse(lexer2, treeTop);
 }
 
 
-bool GLR::glrParse(Lexer2 const &lexer2)
+bool GLR::glrParse(Lexer2 const &lexer2, SemanticValue &treeTop)
 {
   // get ready..
   traceProgress() << "parsing...\n";
@@ -306,20 +303,21 @@ bool GLR::glrParse(Lexer2 const &lexer2)
   int tokenNumber = 0;
   for (ObjListIter<Lexer2Token> tokIter(lexer2.tokens);
        !tokIter.isDone(); tokIter.adv(), tokenNumber++) {
-    currentToken = tokIter.data();
+    Lexer2Token const *currentToken = tokIter.data();
 
     // debugging
     trace("parse")
-      << "---------- "
+      << "------- "
       << "processing token " << currentToken->toString()
       << ", " << activeParsers.count() << " active parsers"
-      << " ----------"
+      << " -------"
       << endl;
 
     // convert the token to a symbol
     xassert(currentToken->type < numTerms);
     currentTokenClass = indexedTerms[currentToken->type];
     currentTokenColumn = tokenNumber;
+    currentTokenValue = (SemanticValue)currentToken;      // TODO: fix this
 
 
     // ([GLR] called the code from here to the end of
@@ -392,9 +390,10 @@ bool GLR::glrParse(Lexer2 const &lexer2)
 
   
   // finish specifying the parse tree
-  parseTree.setTop(getParseTree());
+  treeTop = getParseResult();
 
 
+  #if 0
   // print the parse as a graph for my graph viewer
   // (the slight advantage to printing the graph first is that
   // if there is circularity in the parse tree, the graph
@@ -417,7 +416,8 @@ bool GLR::glrParse(Lexer2 const &lexer2)
   // generate an ambiguity report
   if (tracingSys("ambiguities")) {
     tn->ambiguityReport(trace("ambiguities") << endl);
-  }
+  }    
+  #endif // 0
   
   return true;
 }
@@ -504,7 +504,8 @@ int GLR::doAllPossibleReductions(StackNode *parser,
 
     // invariant: poppedSymbols' length is equal to the recursion
     // depth in 'popStackSearch'; thus, should be empty now
-    xassert(pcs.poppedSymbols.isEmpty());
+    // update: since it's now an array, this is implicitly true
+    //xassert(pcs.poppedSymbols.isEmpty());
 
     // terminology:
     //   - a 'reduction' is a grammar rule plus the TreeNode children
@@ -514,37 +515,23 @@ int GLR::doAllPossibleReductions(StackNode *parser,
     //     parser we're left with after "popping" the reduced symbols)
 
     // step 2: process those paths
-    // ("mutate" because of ownership transfer)
+    // ("mutate" because need non-const access to rpath->finalState)
     MUTATE_EACH_OBJLIST(PathCollectionState::ReductionPath, pcs.paths, pathIter) {
       PathCollectionState::ReductionPath *rpath = pathIter.data();
 
       // this is like shifting the reduction's LHS onto 'finalParser'
-      bool success =
-        glrShiftNonterminal(rpath->finalState, transferOwnership(rpath->reduction));
-      if (success) {
-        // I'm not sure what is the best thing to call an 'action'; before,
-        // I had this at the start of the outer loop, but if we fail to reduce
-        // due to %condition, then that's wrong.  but it's not clear we'd want
-        // to count every path as an action.. I don't have a good definition in
-        // mind of what constitutes an action
-        actions++;
-      }
+      glrShiftNonterminal(rpath->finalState, prod.data(), rpath->sval);
+
+      // I'm not sure what is the best thing to call an 'action' ...
+      actions++;
 
       if (tracingSys("parse")) {
         // profiling reported this used significant time even when not tracing
-        if (success) {
-          trace("parse")
-            << "in state " << parser->state->id
-            << ", reducing by " << *(prod.data())
-            << ", back to state " << rpath->finalState->state->id
-            << endl;
-        }
-        else {
-          trace("parse")
-            << "in state " << parser->state->id
-            << ", NOT reducing by " << *(prod.data())
-            << " because of failed %condition\n";
-        }
+        trace("parse")
+          << "in state " << parser->state->id
+          << ", reducing by " << *(prod.data())
+          << ", back to state " << rpath->finalState->state->id
+          << endl;
       }
     } // for each path
   } // for each possible reduction
@@ -590,18 +577,16 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
       return;
     }
 
-    // we've popped the required number of symbols; collect the
-    // popped symbols into a Reduction (TREEBUILD)
-    Reduction *rn = makeReductionNode(pcs.production, pcs.poppedSymbols);
-
-    // previously, I had been reversing the children here; that
-    // is wrong!  since the most recent symbol prepended is the
-    // leftmost one in the input, the list is in the correct order
+    // we've popped the required number of symbols; call the
+    // user's code to synthesize a semantic value by combining them
+    // (TREEBUILD)
+    SemanticValue sval = doReductionAction(pcs.production->prodIndex,
+                                           pcs.poppedSymbols);
 
     // and just collect this reduction, and the final state, in our
     // running list
     pcs.paths.append(new PathCollectionState::
-      ReductionPath(currentNode, transferOwnership(rn)));
+      ReductionPath(currentNode, sval));
   }
 
   else {
@@ -609,8 +594,8 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
     MUTATE_EACH_OBJLIST(SiblingLink, currentNode->leftSiblings, sibling) {
       // the symbol on the sibling link is being popped;
       // TREEBUILD: we are collecting 'treeNode' for the purpose
-      // of hanging it off of a Reduction node
-      pcs.poppedSymbols.prepend(sibling.data()->treeNode);
+      // of handing it to the user's reduction routine
+      pcs.poppedSymbols[popsRemaining-1] = sibling.data()->sval;
 
       // recurse one level deeper, having traversed this link
       if (sibling.data() == mustUseLink) {
@@ -624,35 +609,28 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
         collectReductionPaths(pcs, popsRemaining-1, sibling.data()->sib,
                               mustUseLink);
       }
-
-      // un-pop the tree node, so exploring another path will work
-      pcs.poppedSymbols.removeAt(0);
     }
   }
 }
 
 
-// shift reduction onto 'leftSibling' parser; return false if
-// we can't due to %condition directive
-// ([GLR] calls this 'reducer')
-bool GLR::glrShiftNonterminal(StackNode *leftSibling,
-                              Reduction * /*(owner)*/ _red)
+// temporary
+void *mergeAlternativeParses(int ntIndex, void *left, void *right)
 {
-  // package some things up
-  Owner<Reduction> reduction(_red);
-  Production const *prod = reduction->production;
+  cout << "merging at ntIndex " << ntIndex << ": " 
+       << left << " and " << right << endl;
+  
+  // just pick one arbitrarily
+  return left;
+}
 
-  // apply the actions and conditions for this production; this is
-  // fundamentally a disambiguation activity
-  {
-    AttrContext actx(reduction);
-    prod->actions.fire(actx);
-    if (!prod->conditions.test(actx)) {
-      // failed to satisfy conditions
-      return false;
-    }
-  }
 
+// shift reduction onto 'leftSibling' parser, 'prod' says which
+// production we're using
+// ([GLR] calls this 'reducer')
+void GLR::glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
+                              SemanticValue sval)
+{
   // this is like a shift -- we need to know where to go
   ItemSet const *rightSiblingState =
     leftSibling->state->transitionC(prod->left);
@@ -661,8 +639,8 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
   if (tracingSys("parse")) {
     trace("parse")
       << "from state " << leftSibling->state->id
-      << ", shifting production " << *(prod)
-      << ", transitioning to state " << rightSiblingState->id
+      << ", shifting production " << *prod
+      << ", go to state " << rightSiblingState->id
       << endl;
   }
 
@@ -679,31 +657,25 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
 
         // +--------------------------------------------------+
         // | it is here that we are bringing the tops of two  |
-        // | alternative parses together                      |
+        // | alternative parses together (TREEBUILD)          |
         // +--------------------------------------------------+
-        if (!mergeAlternativeParses(sibLink->treeNode->asNonterm(),
-                                    reduction)) {
-          // but they are not mergeable because they are too different;
-          // so we will keep looking for a suitable sibling link, and
-          // create a new one if none is found
-          trace("tree-merge") << reduction->locString() 
-            << ": no merge because of attr mismatch\n";
-        }
-        else {
-          // ok, done
-          return true;
+        // call the user's code to merge, and replace what we have
+        // now with the merged version
+        sibLink->sval = mergeAlternativeParses(prod->left->ntIndex,
+                                               sibLink->sval, sval);
 
-          // and since we didn't add a link, there is no potential for new
-          // paths
-        }
+        // ok, done
+        return;
+
+        // and since we didn't add a link, there is no potential for new
+        // paths
       }
     }
 
     // we get here if there is no suitable sibling link already
     // existing; so add the link (and keep the ptr for loop below)
     SiblingLink *sibLink =
-      rightSibling->addSiblingLink(leftSibling,
-        makeNonterminalNode(reduction.xfr()));   // TREEBUILD
+      rightSibling->addSiblingLink(leftSibling, sval);
 
     // adding a new sibling link may have introduced additional
     // opportunties to do reductions from parsers we thought
@@ -738,12 +710,11 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
     rightSibling = makeStackNode(rightSiblingState);
 
     // add the sibling link (and keep ptr for tree stuff)
-    rightSibling->addSiblingLink(leftSibling,
-      makeNonterminalNode(reduction.xfr()));   // TREEBUILD
+    rightSibling->addSiblingLink(leftSibling, sval);
 
     // since this is a new parser top, it needs to become a
     // member of the frontier
-    activeParsers.append(rightSibling); 
+    activeParsers.append(rightSibling);
     rightSibling->incRefCt();
     parserWorklist.append(rightSibling);
     rightSibling->incRefCt();
@@ -752,8 +723,6 @@ bool GLR::glrShiftNonterminal(StackNode *leftSibling,
     // just created rightSibling, so no new opportunities
     // for reduction could have arisen
   }
-
-  return true;
 }
 
 
@@ -771,8 +740,8 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     // debugging
     trace("parse")
       << "from state " << leftSibling->state->id
-      << ", shifting terminal " << currentToken->toString()
-      << ", transitioning to state " << newState->id
+      << ", shifting terminal " << currentTokenClass->name
+      << ", go to state " << newState->id
       << endl;
 
     // if there's already a parser with this state
@@ -791,8 +760,7 @@ void GLR::glrShiftTerminals(ObjList<PendingShift> &pendingShifts)
     }
 
     // either way, add the sibling link now
-    rightSibling->addSiblingLink(leftSibling,
-      makeTerminalNode(currentToken, currentTokenClass));    // TREEBUILD
+    rightSibling->addSiblingLink(leftSibling, currentTokenValue);
   }
 }
 
@@ -818,166 +786,23 @@ StackNode *GLR::makeStackNode(ItemSet const *state)
 }
 
 
-// 'node' is the existing tree node, and 'actx' has the node that we're
-// considering merging into 'node'; some disambiguation is applied here;
-// return false if we can't merge them because they're too dissimilar
-bool GLR::mergeAlternativeParses(NonterminalNode &node,
-                                 Owner<Reduction> &reduction)
-{
-  // we only get here if the single-tree tests have passed, but we
-  // haven't applied the multi-tree comparisons; so do that now
-
-  #if 0    // doesn't work -- haven't bothered to figure out why
-  // for each existing tree, compare the new one
-  ObjListMutator<Reduction> mut(node.reductions);
-  while (!mut.isDone()) {
-    int comp = compareAlternatives(mut.data(), reduction);
-    if (comp == -1) {
-      // new one is preferred -- throw away the current one
-      mut.deleteIt();     // this advances to the next, too
-    }
-    else if (comp == +1) {
-      // the old one is preferred -- throw away new one
-      reduction.del();
-
-      // with the new one gone, we can stop, because we presumably
-      // already compared all the old ones to each other when they
-      // were first added
-      return;
-    }
-    else {
-      // they are incomparable; keep old, and continue comparing
-      // new one against candidates
-      mut.adv();
-    }
-  }
-  #endif // 0
-
-  if (node.reductions.isNotEmpty() &&
-      !node.reductions.firstC()->attrsAreEqual(*reduction)) {
-    // don't merge them because attributes are different
-    return false;
-  }
-
-  #if 0   // obsolete
-  // early detection of mismatching attributes
-  if (node.reductions.isNotEmpty() &&
-      !node.reductions.firstC()->attrsAreEqual(*reduction)) {
-    // there is a bug in the parser
-    cout << node.locString() << ": PARSER GRAMMAR BUG: alternative parses have different attributes\n";
-    cout << "  existing parse(s) and attributes:\n";
-    node.printParseTree(cout, 4 /*indent*/);
-
-    cout << "  new parse and attributes:\n";
-    reduction->printParseTree(cout, 4 /*indent*/);
-
-    xfailure(stringc << node.locString() <<
-             ": parser bug: alternative parses with different attributes");
-  }
-  #endif // 0
-
-  // ok, add the reduction to the existing node
-  node.addReduction(reduction.xfr());
-              
-  // successfully merged
-  return true;
-}
-
-
-// compare two candidate reductions; return code:
-//   -1: left < right, meaning right is preferred interpretation
-//    0: left == right, so we keep both
-//   +1: left > right, so keep left interpretation
-// NOTE: this has not been tested properly..
-STATICDEF int GLR::compareAlternatives(Reduction *left, Reduction *right)
-{
-  if (left->production != right->production) {
-    // currently, the only tree comparison mechanism requires
-    // that both alternatives to be compared be instances of
-    // the same production.. so we can't compare these
-    return 0;
-  }
-  Production const *prod = left->production;
-
-  if (!prod->treeCompare) {
-    // no tree comparison defined..
-    return 0;
-  }
-
-  // call the comparison fn
-  AttrContext actx(left, right);
-  return prod->treeCompare->eval(actx);
-}
-
-
-// ------------------- parse tree construction --------------------
-// this section is TREEBUILD
-
-TerminalNode *GLR::makeTerminalNode(Lexer2Token const *tk, Terminal const *tc)
-{
-  TerminalNode *ret = new TerminalNode(tk, tc);
-  parseTree.treeNodes.prepend(ret);
-  return ret;
-}
-
-Reduction *GLR::makeReductionNode(Production const *prod,
-                                  SObjList<TreeNode> const &children)
-{
-  Reduction *rn = new Reduction(prod);
-  rn->children = children;       // profiling: majority of time spent here
-
-  // note that 'rn' isn't added to a global owner list; Nonterminal
-  // nodes own their reductions
-
-  return rn;
-}
-
-NonterminalNode *GLR::makeNonterminalNode(Reduction *red)
-{
-  NonterminalNode *ret;       
-
-  if (nontermMapLength == 0) {
-    // we're running with the stub table; don't create
-    // specialized nodes
-    ret = new NonterminalNode(red);
-  }
-  else {
-    // consult the externally-generated table
-    int id = red->production->left->ntIndex;
-    xassert(0 <= id && id < nontermMapLength);
-
-    ret = (nontermMap[id].ctor)(red, parseTree);
-    
-    // DESIGN FLAW: this is really the wrong place to be calling the
-    // constructor-like code (that has a parseTree argument) -- here,
-    // it's only called if we make an entirely new node, whereas there
-    // are cases where we simply add a reduction to an existing
-    // node.. ideally, it should be done there...
-  }
-
-  parseTree.treeNodes.prepend(ret);
-  return ret;
-}
-
-
-TreeNode *GLR::getParseTree()
+SemanticValue GLR::getParseResult()
 {
   // the final activeParser is the one that shifted the end-of-stream
   // marker, so we want its left sibling, since that will be the
   // reduction(s) to the start symbol
-  TreeNode *tn =
+  SemanticValue sv =
     activeParsers.first()->                    // parser that shifted end-of-stream
       leftSiblings.first()->sib->              // parser that shifted start symbol
       leftSiblings.first()->                   // sibling link with start symbol
-      treeNode;                                // start symbol tree node
+      sval;                                    // start symbol tree node
 
-  xassert(tn);
-
-  return tn;
+  return sv;
 }
 
 
 // ------------------ stuff for outputting raw graphs ------------------
+#if 0   // disabled for now
 // name for graphs (can't have any spaces in the name)
 string stackNodeName(StackNode const *sn)
 {     
@@ -1084,6 +909,7 @@ void GLR::writeParseGraph(char const *fname) const
     xsyserror("fclose");
   }
 }
+#endif // 0
 
 
 // --------------------- testing ------------------------
@@ -1128,8 +954,9 @@ string readFileIntoString(char const *fname)
 }
 
 
-bool GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname, 
-                           char const *inputFname, char const *symOfInterestName)
+bool GLR::glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
+                           char const *grammarFname, char const *inputFname, 
+                           char const *symOfInterestName)
 {
   #if 0
     // [ASU] grammar 4.19, p.222: demonstrating LR sets-of-items construction
@@ -1194,7 +1021,7 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
     //  return;
     //}
 
-    if (!strstr(grammarFname, ".bin")) { 
+    if (!strstr(grammarFname, ".bin")) {
       // assume it's an ascii grammar file and do the whole thing
 
       // new code to read a grammar (throws exception on failure)
@@ -1231,7 +1058,7 @@ bool GLR::glrParseFrontEnd(Lexer2 &lexer2, char const *grammarFname,
 
 
     // parse input
-    return glrParseNamedFile(lexer2, inputFname);
+    return glrParseNamedFile(lexer2, treeTop, inputFname);
 
   #endif // 0/1
 }
@@ -1250,45 +1077,3 @@ int main(int argc, char **argv)
   return 0;
 }
 #endif // GLR_MAIN
-
-// ------------------------- trash --------------------------
-#if 0
-    // work through input, throwing away comments
-    traceProgress() << "preprocessing...\n";
-
-    stringBuilder sb;
-    {
-      StrtokParse tok(input, "\n");
-      INTLOOP(i, 0, tok) {
-        if (tok[i][0] == '#') {
-          // throw it away
-        }
-        else {
-          // keep it
-          sb << tok[i] << "\n";
-        }
-      }
-    }
-
-    // parse input
-    traceProgress() << "parsing...\n";
-    glrParse(sb);
-
-#endif // 0
-  #if 0   // old
-  // at this point, we still have multiple trees; we require of
-  // the parser that the parent attributes MUST match exactly
-  if (actx.parentAttr() != node.attr) {
-    // there is a bug in the parser
-    cout << node.locString() << ": PARSER GRAMMAR BUG: alternative parses have different attributes\n";
-    cout << "  existing parse(s) and attributes:\n";
-    node.printParseTree(cout, 4 /*indent*/);
-
-    cout << "  new parse and attributes:\n";
-    actx.reduction().printParseTree(actx.parentAttr(), cout, 4 /*indent*/);
-
-    xfailure(stringc << node.locString() <<
-             ": parser bug: alternative parses with different attributes");
-  }
-  #endif // 0
-

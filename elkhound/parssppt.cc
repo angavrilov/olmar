@@ -7,8 +7,9 @@
 
 
 // ---------------------- ParseTree --------------------
-ParseTreeAndTokens::ParseTreeAndTokens()
-  : lexer2()
+ParseTreeAndTokens::ParseTreeAndTokens(SemanticValue &top)
+  : treeTop(top),
+    lexer2()
 {}
 
 ParseTreeAndTokens::~ParseTreeAndTokens()
@@ -20,9 +21,10 @@ bool toplevelParse(ParseTreeAndTokens &ptree, char const *grammarFname,
                    char const *inputFname, char const *symOfInterestName)
 {
   // parse
-  GLR glr(ptree);
-  return glr.glrParseFrontEnd(ptree.lexer2, grammarFname,
-                              inputFname, symOfInterestName);
+  GLR glr;
+  return glr.glrParseFrontEnd(ptree.lexer2, ptree.treeTop,
+                              grammarFname, inputFname, 
+                              symOfInterestName);
 }
 
 
@@ -56,7 +58,7 @@ bool treeMain(ParseTreeAndTokens &ptree, int argc, char **argv)
             "    -tr <sys>:  turn on tracing for the named subsystem\n"
             "    -sym <sym>: name the \"symbol of interest\"\n"
             "  useful tracing flags:\n"
-            "    parse-tree      print the parse tree\n"
+            "    parse           print shift/reduce steps of parsing algorithm\n"
             "    grammar         echo the grammar\n"
             "    ambiguities     print ambiguities encountered during parsing\n"
             "    conflict        SLR(1) shift/reduce conflicts (fork points)\n"

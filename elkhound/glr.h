@@ -39,9 +39,9 @@
 #define __GLR_H
 
 #include "gramanl.h"     // basic grammar analyses, Grammar class, etc.
-#include "glrtree.h"     // parse tree (graph) representation
 #include "owner.h"       // Owner
 #include "rcptr.h"       // RCPtr
+#include "useract.h"     // SemanticValue
 
 
 // fwds from other files
@@ -95,7 +95,7 @@ public:     // funcs
   ~StackNode();
 
   // add a new link with the given tree node; return the link
-  SiblingLink *addSiblingLink(StackNode *leftSib, TreeNode *treeNode);
+  SiblingLink *addSiblingLink(StackNode *leftSib, SemanticValue sval);
 
   // return the symbol represented by this stack node;  it's
   // the symbol shifted or reduced-to to get to this state
@@ -107,11 +107,11 @@ public:     // funcs
   void incRefCt() { referenceCount++; }
   void decRefCt();
 
-  // debugging 
+  // debugging
   static void printAllocStats();
 };
 
-                   
+
 // a pointer from a stacknode to one 'below' it (in the LR
 // parse stack sense); also has a link to the parse graph
 // we're constructing
@@ -121,21 +121,15 @@ public:
   // than the one doing the pointing
   RCPtr<StackNode> sib;
 
-  // this is the parse tree node associated with this link
+  // this is the semantic value associated with this link
   // (parse tree nodes are *not* associated with stack nodes --
   // that's now it was originally, but I figured out the hard
   // way that's wrong (more info in compiler.notes.txt))
-  TreeNode * const treeNode;                   // (serf)
-
-  // the treeNode pointer is a serf because, while there is
-  // a 1-1 relationship between siblinglinks and treenodes,
-  // I want to be able to simply throw away the entire parse
-  // state without disturbing the tree; tree nodes are instead
-  // owned by a (more or less) global list
+  SemanticValue sval;
 
 public:
-  SiblingLink(StackNode *s, TreeNode *n)
-    : sib(s), treeNode(n) {}
+  SiblingLink(StackNode *s, SemanticValue sv)
+    : sib(s), sval(sv) {}
   ~SiblingLink();
 };
 
@@ -165,24 +159,26 @@ class PathCollectionState {
 public:    // types
   // each particular reduction possibility is one of these
   class ReductionPath {
-  public:    
+  public:
     // the state we end up in after reducing those symbols
     RCPtr<StackNode> finalState;
 
-    // the reduction itself
-    Reduction *reduction;         // (owner)
+    // the semantic value yielded by the reduction action
+    SemanticValue sval;
 
   public:
-    ReductionPath(StackNode *f, Reduction *r)
-      : finalState(f), reduction(r) {}
+    ReductionPath(StackNode *f, SemanticValue s)
+      : finalState(f), sval(s) {}
     ~ReductionPath();
   };
 
 public:	   // data
   // ---- stuff that changes ----
-  // we collect paths into this list, which is maintained as we
-  // enter/leave recursion
-  SObjList<TreeNode> poppedSymbols;
+  // we collect paths into this array, which is maintained as we
+  // enter/leave recursion; the 0th item is the leftmost, i.e.
+  // the last one we collect when starting from the reduction state
+  // and popping symbols as we move left
+  SemanticValue *poppedSymbols;
 
   // as reduction possibilities are encountered, we record them here
   ObjList<ReductionPath> paths;
@@ -206,9 +202,6 @@ public:	   // funcs
 // stuff useful across a wide range of possible analyses
 class GLR : public GrammarAnalysis {
 public:
-  // ---- state to keep after parsing is done ----
-  ParseTree &parseTree;
-
   // ---- parser state between tokens ----
   // Every node in this set is (the top of) a parser that might
   // ultimately succeed to parse the input, or might reach a
@@ -227,11 +220,10 @@ public:
   // the token we're trying to shift; any parser that fails to
   // shift this token (or reduce to one that can, recursively)
   // will "die"
-  Lexer2Token const *currentToken;
-
-  // this is the class of the given token, i.e. its classification
-  // in the grammar
   Terminal const *currentTokenClass;
+
+  // the semantic value associated with that token
+  SemanticValue currentTokenValue;
 
   // parsers that haven't yet had a chance to try to make progress
   // on this token
@@ -248,40 +240,34 @@ private:    // funcs
                               SiblingLink *mustUseLink);
   void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                              StackNode *currentNode, SiblingLink *mustUseLink);
-  bool glrShiftNonterminal(StackNode *leftSibling, Reduction *reduction);
-  bool mergeAlternativeParses(NonterminalNode &node, Owner<Reduction> &reduction);
-  static int compareAlternatives(Reduction *left, Reduction *right);
+  void glrShiftNonterminal(StackNode *leftSibling, Production const *prod,
+                           SemanticValue sval);
   void glrShiftTerminals(ObjList<PendingShift> &pendingShifts);
   StackNode *findActiveParser(ItemSet const *state);
   StackNode *makeStackNode(ItemSet const *state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
-  TerminalNode *makeTerminalNode(Lexer2Token const *tk, Terminal const *tc);
-  NonterminalNode *makeNonterminalNode(Reduction *red);
-  Reduction *makeReductionNode(Production const *prod,
-                               SObjList<TreeNode> const &children);
-
-  // tokSeqAmb mechanism
-  void applyTokSeqAmbTest(NonterminalNode &node);
-  bool tokSeqAmbRuleMatch(Production const *tokSeqAmb,
-                          SObjList<TerminalNode> const &groundTerms);
-  bool tokSeqAmbConsequenceMatch(Production const *tokSeqAmb,
-                                 Production const *subjProd);
 
 public:     // funcs
-  GLR(ParseTree &parseTree);
+  GLR();
   ~GLR();
 
   // 'main' for testing this class; returns false on error
-  bool glrParseFrontEnd(Lexer2 &lexer2,
+  bool glrParseFrontEnd(Lexer2 &lexer2, SemanticValue &treeTop,
                         char const *grammarFname, char const *inputFname,
                         char const *symOfInterestName = NULL);
+                         
+  // parse, using the token stream in 'lexer2', and store the final
+  // semantic value in 'treeTop'
+  bool glrParse(Lexer2 const &lexer2, SemanticValue &treeTop);
 
-  bool glrParse(Lexer2 const &lexer2);
-  bool glrParseNamedFile(Lexer2 &lexer2, char const *input);
+  // parse a given input file, using the passed lexer to lex it,
+  // and store the result in 'treeTop'
+  bool glrParseNamedFile(Lexer2 &lexer2, SemanticValue &treeTop,
+                         char const *input);
 
-  // after parsing, retrieve the parse tree
-  TreeNode *getParseTree();
+  // after parsing, retrieve the toplevel semantic value
+  SemanticValue getParseResult();
 };
 
 

@@ -15,8 +15,11 @@
 #  file cexp2
 #  set args cexp2.bin cexp.in1
 
-file grampar
-set args cexp3.gr
+#  file grampar
+#  set args cexp3.gr
+
+file cexp3
+set args -tr parse cexp3.gr cexp3.in1
 
 break main
 break breaker
