@@ -33,3 +33,4 @@ tlexer
 gprof.out
 moz.parse.out
 parse.log
+gendoc

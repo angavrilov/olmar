@@ -7,14 +7,20 @@ use strict;
 # Daniel S. Wilkerson dsw@cs.berkeley.edu
 
 my $start = "---- START ----";  # NOTE: a filename can come after
-my $stop  = "---- STOP ----\n";
+my $stop  = "---- STOP ----";
 
-while(<STDIN>) {
-    last if /^${start}/;
+# sm: I want to use this with some other delimiters
+if (@ARGV) {
+  $start = $ARGV[0];
+  $stop = $ARGV[1];
 }
 
 while(<STDIN>) {
-    last if $_ eq $stop;
+    last if /${start}/;
+}
+
+while(<STDIN>) {
+    last if /${stop}/;
     print;
 }
 

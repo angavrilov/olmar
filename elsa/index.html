@@ -1,0 +1,258 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<HTML>
+
+<HEAD>
+  <TITLE>Elsa</TITLE>
+  <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+</HEAD>
+
+<body>
+
+<center><h2>
+Elsa: The Elkhound-based C/C++ Parser
+</h2></center>
+
+<p>
+Elsa is a C and C++ parser.  It is based on the
+<a href="../elkhound/index.html">Elkhound</a> parser generator.
+It lexes and parses input C/C++ code into an abstract syntax tree.
+It also does some type checking, but (currently) only insofar as that
+is required to disambiguate the syntax.  The only major C++ features
+still not implemented are namespaces and template partial
+specializations.
+
+<p>
+To download Elkhound and Elsa, see the
+<a href="http://www.cs.berkeley.edu/~smcpeak/elkhound">Elkhound distribution page</a>.
+
+<p>
+Additional documentation:
+<ul>
+<li><a href="cc.ast.html">cc.ast.html</a>: The C/C++ abstract syntax tree
+    created by the parser.
+<li><a href="cc_type.html">cc_type.html</a>: The type representation
+    objects created by the type checker.
+</ul>
+
+<p>
+Elsa requires the following external software:
+<ul>
+<li><a href="../elkhound/index.html">elkhound</a>, a GLR parser generator.
+<li><a href="../ast/index.html">ast</a>, a system for making abstract syntax trees.
+<li><a href="../smbase/index.html">smbase</a>, my utility library.
+<li><a href="http://www.gnu.org/software/flex/flex.html">Flex</a>,
+    a lexical analyzer generator.
+</ul>
+
+<p>
+Build instructions:
+<pre>
+  $ ./configure
+  $ make
+  $ make check
+</pre>
+<a href="configure"><tt>./configure</tt></a> understands
+<a href="gendoc/configure.txt">these options</a>.  You can also
+look at the <a href="Makefile.in">Makefile</a>.
+
+<p>
+Parsing some sample input:
+<pre>
+  $ ./ccparse in/t0001.cc
+</pre>
+The above command will parse and type check the given file.  To
+make it print the annotated, post-type-check AST, say
+<pre>
+  $ ./ccparse -tr printTypedAST in/t0001.cc
+</pre>
+
+<p>
+Additional <tt>-tr</tt> flags of interest:
+<ul>
+<li>printAST: Print the (possibly ambiguous) AST before type checking.
+<li>printTypedAST: Print the AST after type checking.
+<li>env: Print environment modifications as they happen.
+<li>disamb: Print disambiguation activity.
+<li>printHierarchies: Print inheritance hierarchies in
+    <a href="http://www.research.att.com/sw/tools/graphviz/">Dot</a> format.
+    Interesting in that virtual inheritance is represented properly;
+    for example <a href="in/std/3.4.5.cc">in/std/3.4.5.cc</a> yields
+    <a href="gendoc/3.4.5.png">3.4.5.png</a>.
+<li>mustBeUnambiguous: After type checking, scan the AST to verify there
+    are no remaining ambiguities.  If there are, abort.
+<li>prettyPrint: Print out the AST as C++.  This is still somewhat incomplete.
+</ul>
+The <tt>-tr</tt> flags can be passed separately, or strung together
+separated by commas (e.g. "<tt>-tr env,disamb,printAST</tt>").
+
+<p>
+Module List:
+<ul>
+
+<li><a href="cc.ast">cc.ast</a>:
+C/C++ Abstract Syntax Tree.  This file is the most important
+one in the parser, since it defines the interface between
+the parser and everything else that comes after it.  It is
+documented separately in <a href="cc.ast.html">cc.ast.html</a>.
+
+<li><a href="cc.gr">cc.gr</a>:
+C/C++ parsing grammar.  This is the second-most important file,
+as it tells Elkhound how to parse the token stream.  This grammar
+is based on that in the C++ Standard document, but then modified
+to remove unnecessary ambiguities and improve the grammar's ability
+to extract structure.
+
+<li><a href="cc_ast_aux.cc">cc_ast_aux.cc</a>:
+Some auxilliary functions for <a href="cc.ast">cc.ast</a>.
+
+<li><a href="cc_env.h">cc_env.h</a>,
+    <a href="cc_env.cc">cc_env.cc</a>:
+Env, the type checking environment.  Fundamentally just a stack of
+Scopes (<a href="cc_scope.h">cc_scope.h</a>), plus some global
+type checking state.
+
+<li><a href="cc_err.h">cc_err.h</a>,
+    <a href="cc_err.cc">cc_err.cc</a>:
+ErrorMsg, an object for representing type checking errors.  For now
+it's just an error string plus some metadata (like source location),
+but I plan to evolve it to include more structured data like pointers
+to (instead of just string representations of) the types involved in
+the error.
+
+<li><a href="cc_flags.h">cc_flags.h</a>,
+    <a href="cc_flags.cc">cc_flags.cc</a>:
+This module defines a variety of enums relevant to parsing and
+type checking C++, including enums for all the built-in types,
+operators, etc.
+
+<li><a href="cc_lang.h">cc_lang.h</a>,
+    <a href="cc_lang.cc">cc_lang.cc</a>:
+CCLang, a package of language dialect options.  Setting flags in
+this class tells the lexer, parser and type checker what language 
+options to support (e.g. C vs. C++).
+
+<li><a href="cc_print.ast">cc_print.ast</a>,
+    <a href="cc_print.h">cc_print.h</a>,
+    <a href="cc_print.cc">cc_print.cc</a>:
+cc_print is a module to pretty-print the AST using C++ syntax.  It
+extends the AST with entry points for printing.
+
+<li><a href="cc_scope.h">cc_scope.h</a>,
+    <a href="cc_scope.cc">cc_scope.cc</a>:
+A Scope is three maps: variables, compounds, and enums.  The
+environment (<a href="cc_env.h">cc_env.h</a>) consists of a stack 
+of them.
+
+<li><a href="cc_tcheck.ast">cc_tcheck.ast</a>,
+    <a href="cc_tcheck.cc">cc_tcheck.cc</a>:
+cc_tcheck is the type checker.  It consists of an AST extension to
+add type checking entry points and annotations, and an implementation
+of all of those type checking functions.  It's the most complicated
+part of the parser.
+
+<li><a href="cc_tokens.tok">cc_tokens.tok</a>:
+This file lists all of the kinds of tokens the lexer recognizes.  It's
+designed to be extended simply by appending.  The script
+<a href="../elkhound/make-token-files">elkhound/make-token-files</a>
+takes this as input, and generates
+<a href="cc_tokens.h">cc_tokens.h</a>,
+<a href="cc_tokens.cc">cc_tokens.cc</a> and
+<a href="cc_tokens.ids">cc_tokens.ids</a>.  This last file is then
+included into <a href="cc.gr">cc.gr</a> (the others participate in
+compilation in the obvious way).
+
+<li><a href="cc_type.h">cc_type.h</a>,
+    <a href="cc_type.cc">cc_type.cc</a>:
+cc_type defines a hierarchy of type representation objects.  These
+form the core data structure manipulated by the type checker.
+They are documented separately in
+<a href="cc_type.html">cc_type.html</a>.
+
+<li><a href="ccparse.h">ccparse.h</a>,
+    <a href="ccparse.cc">ccparse.cc</a>:
+This module defines part of the parser context class, and assists
+minimally with parsing.
+
+<li><a href="lexer.lex">lexer.lex</a>,
+    <a href="lexer.h">lexer.h</a>,
+    <a href="lexer.cc">lexer.cc</a>:
+This module chops up a given C++ source file into tokens.  It does
+not do any preprocessing, so one must use an external preprocessor
+first.
+
+<li><a href="main.cc">main.cc</a>
+This module contains the main() function of the parser.  It's a simple
+driver around the other modules, and can be extended to do invoke
+other tasks that come after parsing.
+
+<li><a href="parssppt.h">parssppt.h</a>,
+    <a href="parssppt.cc">parssppt.cc</a>:
+This is a poorly-designed module intended to abstract some of the
+functionality otherwise common to main()-providing modules.  It
+needs to die.
+
+<li><a href="tlexer.cc">tlexer.cc</a>:
+Simple test driver for the lexer.
+
+<li><a href="variable.h">variable.h</a>,
+    <a href="variable.cc">variable.cc</a>:
+Variable, a class for holding information about names in the
+"variable" namespace.  See
+<a href="variable.h">variable.h</a> for a list of the kinds
+of things that get represented with Variables.  This module
+is closely related to <a href="cc_type.h">cc_type</a>.
+
+</ul>
+
+
+<p>
+Module dependency diagram:<br>
+<img src="gendoc/dependencies.png"><br>
+Or, in <a href="gendoc/dependencies.ps">Postscript</a>.
+
+<p>
+Miscellanous files:
+<ul>
+
+<li><a href="chop_out">chop_out</a>:
+This script extracts pretty-printed C++ syntax from the other
+debugging output produced by ccparse.
+
+<li><a href="extradep.mk">extradep.mk</a>:
+Build-time dependencies among auto-generated source files.
+Produced by
+<a href="../elkhound/find-extra-deps">elkhound/find-extra-deps</a>.
+
+<li><a href="idemcheck">idemcheck</a>:
+Script to verify that parsing then pretty-printing is idempotent.
+
+<li><a href="in">in</a>:
+Directory with testcases.
+
+<li><a href="include">include</a>:
+When preprocessing, add this directory to the preprocessor's
+search path.  It contains compiler-specific headers.  Generally
+I just use gcc's headers, but some of gcc's headers use syntax
+that Elsa doesn't (yet?) understand, so this directory contains
+my replacements.
+
+<li><a href="regrtest">regrtest</a>:
+Regression tests.
+
+<li><a href="test-parse">test-parse</a>:
+Script to parse a file, making sure the parse is unambigous.
+
+</ul>
+
+<p>
+  <a href="http://validator.w3.org/check/referer"><img border="0"
+      src="http://www.w3.org/Icons/valid-html401"
+      alt="Valid HTML 4.01!" height="31" width="88"></a>
+</p>
+
+</body>
+
+</HTML>
+
+

@@ -4,7 +4,6 @@
 #include <iostream.h>     // cout
 #include <stdlib.h>       // exit
 
-#include "ccgrmain.h"     // some random prototypes..
 #include "trace.h"        // traceAddSys
 #include "parssppt.h"     // ParseTreeAndTokens, treeMain
 #include "srcloc.h"       // SourceLocManager

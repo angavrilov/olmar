@@ -1,5 +1,6 @@
 // cc.ast            see license.txt for copyright and terms of use
 // C++ abstract syntax
+// see also cc.ast.html
 
 // note: wherever ASTList or FakeList is used, its elements are listed
 // in the order they appear lexically in the input file, i.e. left to
@@ -49,13 +50,14 @@ class TopForm (SourceLoc loc) {
   // template functions or template classes
   -> TF_template(TemplateDeclaration td);
 
-  // linkage specification enclosing a bunch of forms
+  // linkage specification enclosing a bunch of forms, e.g.
+  // extern "C" { /*...*/ }
   -> TF_linkage(StringRef linkageType, TranslationUnit forms);
 
-  // linkage spec with one form; turns out this has different
-  // semantics [cppstd 7.5 para 7]
+  // linkage spec with one form and no braces; it turns out this has
+  // different semantics [cppstd 7.5 para 7]
   -> TF_one_linkage(StringRef linkageType, TopForm form);
-  
+
   // assembly directive at toplevel
   -> TF_asm(StringRef text);
 }
@@ -215,6 +217,15 @@ class BaseClassSpec (
   public BaseClassSpec *next;  ctor next=NULL;     // FakeList link
 }
 
+// a binding of a name to a constant value
+class Enumerator (
+  SourceLoc loc,                        // location
+  StringRef name,                       // name of this constant
+  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
+) {
+  public Enumerator *next;  ctor next=NULL;     // FakeList link
+}
+
 
 // list of class members; this is encapsulated so I can use
 // ASTList without yielding ASTLists in cc.gr
@@ -226,15 +237,6 @@ class Member (SourceLoc loc) {
   -> MR_func(Function f);               // function with body
   -> MR_access(AccessKeyword k);        // section header
   -> MR_publish(PQName name);           // publish a superclass member
-}
-
-// a binding of a name to a constant value
-class Enumerator (
-  SourceLoc loc,                        // location
-  StringRef name,                       // name of this constant
-  Expression /*nullable*/ expr          // constant expr, or NULL for "next"
-) {
-  public Enumerator *next;  ctor next=NULL;     // FakeList link
 }
 
 

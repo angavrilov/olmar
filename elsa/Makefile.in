@@ -96,7 +96,6 @@ CCPARSE_OBJS := \
   cc_tcheck.o \
   cc_print.o \
   cc_ast_aux.o \
-  treeout.o \
   variable.o \
   ccparse.o \
   main.o
@@ -126,6 +125,50 @@ in/big: $(patsubst in/big/gz/%.i.gz,in/big/%.i,$(wildcard in/big/gz/*.gz))
 	@echo made $@
 
 
+# ------------------ documentation ------------------
+gendoc:
+	mkdir gendoc
+
+gendoc/configure.txt: configure
+	./configure --help >$@
+
+.PHONY: gendoc/dependencies.dot
+gendoc/dependencies.dot:
+	$(SMBASE)/scan-depends.pl -r main.cc >$@
+
+gendoc/3.4.5.dot: ccparse in/std/3.4.5.cc
+	./ccparse -tr printHierarchies in/std/3.4.5.cc | \
+	./chop_out "--- E ---" "--- F ---" >$@
+
+# check to see if they have dot
+.PHONY: dot
+dot:
+	@if ! which dot >/dev/null; then \
+	  echo "You don't have the 'dot' tool.  You can get it at:"; \
+	  echo "http://www.research.att.com/sw/tools/graphviz/"; \
+	  exit 2; \
+	fi
+
+# use 'dot' to lay out the graph
+%.ps: %.dot dot
+	dot -Tps <$*.dot >$@
+
+# use 'convert' to make a PNG image with resolution not to exceed
+# 1000 in X or 700 in Y ('convert' will preserve aspect ratio); this
+# also antialiases, so it looks very nice (it's hard to reproduce
+# this using 'gs' alone)
+%.png: %.ps
+	convert -geometry 1000x700 $^ $@
+
+# 3.4.5 is smaller
+gendoc/3.4.5.png: gendoc/3.4.5.ps
+	convert -geometry 300x400 $^ $@
+
+.PHONY: doc
+doc: gendoc gendoc/configure.txt gendoc/dependencies.png gendoc/3.4.5.png
+	@echo "built documentation"
+
+
 # -------------------- clean, etc. -------------------
 clean:
 	rm -f *.o *.d *.gen.* *.tab.* *.output a.out core
@@ -136,6 +179,7 @@ clean:
 distclean: clean
 	rm -f Makefile config.status config.summary
 	rm -f in/big/*.i
+	rm -rf gendoc
 
 check: all
 	./regrtest
