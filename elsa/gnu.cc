@@ -374,22 +374,18 @@ Type *E_statement::itcheck_x(Env &env, Expression *&replacement)
     InstantiationContextIsolator isolate(env, env.loc());
 
     s = s->tcheck(env)->asS_compound();
-    if (s->stmts.count() < 1) {
-      return env.error("`({ ... })' cannot be empty");
-    }
 
     tchecked = true;
   }
 
-  Statement *last = s->stmts.last();
-  if (last->isS_expr()) {
-    return last->asS_expr()->expr->getType();
+  if (s->stmts.isNotEmpty()) {
+    Statement *last = s->stmts.last();
+    if (last->isS_expr()) {
+      return last->asS_expr()->expr->getType();
+    }
   }
-  else {
-    return env.getSimpleType(env.loc(), ST_VOID, CV_NONE);
-    // There are examples that do not end with an S_expr.
-//      return env.error("last thing in `({ ... })' must be an expression");
-  }
+
+  return env.getSimpleType(env.loc(), ST_VOID, CV_NONE);
 }
 
 
