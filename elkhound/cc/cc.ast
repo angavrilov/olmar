@@ -204,6 +204,9 @@ class Declarator (
 // constructors, then maybe a function or array type, recursively
 class IDeclarator {
   public ASTList<PtrOperator> stars;   // pointer constructors, left to right
+                                              
+  public void printExtras(ostream &os, int indent) const;
+  custom debugPrint { printExtras(os, indent); }
 
   // external interface; adds 'stars' before calling 'itcheck'; the
   // toplevel 'declarator' is passed along so we can reflect the meaning
@@ -253,7 +256,9 @@ class IDeclarator {
 class PtrOperator (
   CVFlags cv,          // optional qualifiers applied to ptr/ref type
   bool isPtr           // true for "*", false for "&"
-);
+) {
+  public string toString() const;
+}
 
 // specification of what a function can throw; if an ExceptionSpec
 // pointer is NULL, it means there is no specification, i.e. anything

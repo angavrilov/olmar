@@ -3,6 +3,10 @@
 
 #include "ptreenode.h"      // this module
 #include "typ.h"            // STATICDEF
+#include "str.h"            // string
+#include "trace.h"          // tracingSys
+
+#include <string.h>         // strchr
 
 int PTreeNode::allocCount = 0;
 int PTreeNode::alternativeCount = 0;
@@ -54,16 +58,33 @@ void PTreeNode::innerPrintTree(ostream &out, int indentation) const
 {
   if (merged) {
     // this is an ambiguity node
+    
+    // since all of the alternatives should rewrite the same LHS
+    // nonterminal, extract it from the first one
+    string LHS;
+    char const *firstSpace = strchr(type, ' ');
+    if (!firstSpace) {
+      LHS = "<no space in type?>";
+    }
+    else {
+      LHS = string(type, firstSpace-type);
+    }
+
     indent(out, indentation);
-    out << "--------- ambiguity node: " << countMergedList()
-        << " parses ---------\n";
+    out << "--------- ambiguous " << LHS << ": " 
+        << countMergedList() << " parses ---------\n";
     indentation += INDENT_INC;
   }
 
   // iterate over interpretations
   for (PTreeNode const *n = this; n != NULL; n = n->merged) {
     indent(out, indentation);
-    out << n->type << "\n";
+    out << n->type;
+    if (tracingSys("ptreeAddrs")) {
+      // print the parse tree node address, so I can verify proper sharing
+      out << " (" << ((void*)n) << ")";
+    }
+    out << "\n";
 
     // iterate over children
     for (int c=0; c < n->numChildren; c++) {

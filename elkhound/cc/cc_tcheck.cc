@@ -46,3 +46,26 @@ void Statement::printAmbiguities(ostream &os, int indent) const
 {
   genericPrintAmbiguities(this, "Statement", os, indent);
 }
+
+
+void IDeclarator::printExtras(ostream &os, int indent) const
+{
+  ind(os, indent) << "stars:";
+  FOREACH_ASTLIST(PtrOperator, stars, iter) {
+    os << " " << iter.data()->toString();
+  }
+  os << "\n";
+}
+
+
+string PtrOperator::toString() const
+{
+  stringBuilder ret;
+  ret << (isPtr? "*" : "&");
+
+  if (cv) {
+    ret << " " << ::toString(cv);
+  }
+
+  return ret;
+}
