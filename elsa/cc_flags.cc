@@ -220,3 +220,35 @@ bool isRelational(BinaryOp op)
   return BIN_EQUAL <= op && op <= BIN_GREATEREQ;
 }
 
+
+// ------------------- AccessKeyword -------------------
+char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS] = {
+  "public",
+  "protected",
+  "private",
+  "unspecified"
+};
+
+MAKE_TOSTRING(AccessKeyword, NUM_ACCESS_KEYWORDS, accessKeywordNames)
+
+
+// -------------------- CastKeyword --------------------
+char const * const castKeywordNames[NUM_CAST_KEYWORDS] = {
+  "dynamic_cast",
+  "static_cast",
+  "reinterpret_cast",
+  "const_cast"
+};
+
+MAKE_TOSTRING(CastKeyword, NUM_CAST_KEYWORDS, castKeywordNames)
+
+
+// -------------------- OverloadableOp --------------------
+char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
+  ",",
+  "->",
+  "()",
+  "[]"
+};
+
+MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)

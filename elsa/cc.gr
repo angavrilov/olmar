@@ -370,6 +370,12 @@ nonterm[ASTList<Expression>*] ExpressionListOpt {
 //PseudoDestructorName -> Qualifier PseudoDestructorName
 
 nonterm[Expression*] UnaryExpression {
+  // ambiguous:
+  //   sizeof(x)
+  // could either be size of an expression 'x', or
+  // size of a type called 'x'
+  merge(L,R) [ L->ambiguity = R; return L; ]
+
   -> e:PostfixExpression         [ return e; ]
 
   -> "++" e:CastExpression       [ return new E_effect(EFF_PREINC, e); ]
@@ -460,6 +466,12 @@ nonterm[Expression*] CastExpression {
 // ++++ binary operator expression ++++
 // primary expressions
 nonterm[Expression*] BinaryExpression {
+  // ambiguous:
+  //   (x) & (y)
+  // could either be the bitwise AND of expressions x and y, or
+  // it could be the address of expression y, cast to type x
+  merge(L,R) [ L->ambiguity = R; return L; ]
+
   -> e:CastExpression                                    [ return e; ]
 
   -> left:BinaryExpression ".*"  right:BinaryExpression  [ return new E_binary(left, BIN_DOT_STAR, right); ]

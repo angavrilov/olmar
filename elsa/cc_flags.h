@@ -210,6 +210,8 @@ enum AccessKeyword {
   NUM_ACCESS_KEYWORDS
 };
 
+extern char const * const accessKeywordNames[NUM_ACCESS_KEYWORDS];
+string toString(AccessKeyword key);
 
 // ---------------- cast keywords -------------
 enum CastKeyword {
@@ -217,9 +219,12 @@ enum CastKeyword {
   CK_STATIC,
   CK_REINTERPRET,
   CK_CONST,
-  
+
   NUM_CAST_KEYWORDS
 };
+
+extern char const * const castKeywordNames[NUM_CAST_KEYWORDS];
+string toString(CastKeyword key);
 
 
 // --------------- overloadable operators --------
@@ -230,9 +235,12 @@ enum OverloadableOp {
   OVL_ARROW,      // ->
   OVL_PARENS,     // ( )
   OVL_BRACKETS,   // [ ]
-  
+
   NUM_OVERLOADABLE_OPS
 };
+
+extern char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS];
+string toString(OverloadableOp op);
 
 
 #endif // CC_FLAGS_H
