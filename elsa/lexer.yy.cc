@@ -7067,73 +7067,73 @@ static yyconst short yy_nxt[][76] =
 	*yy_cp = '\0'; \
 	yy_c_buf_p = yy_cp;
 
-#define YY_NUM_RULES 157
-#define YY_END_OF_BUFFER 158
+#define YY_NUM_RULES 158
+#define YY_END_OF_BUFFER 159
 static yyconst short int yy_accept[577] =
     {   0,
-        0,    0,  158,  156,  152,  152,   90,  146,  151,  101,
-       96,  149,   83,   84,   97,   92,  127,   93,   89,  100,
-      135,  134,  115,  129,  104,  116,  106,  114,  133,  133,
-       85,   86,  110,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  130,  111,  131,   91,  152,  109,  146,
-      145,  144,  146,  151,  151,  151,  151,  119,  112,  122,
-      149,  148,  147,  149,  117,   94,  120,   95,  121,   87,
-       98,  132,  140,  155,  153,  118,  138,  135,  139,  142,
-      139,  135,  135,  137,  134,  134,  134,   88,  102,  105,
+        0,    0,  159,  157,  153,  153,   91,  147,  152,  102,
+       97,  150,   84,   85,   98,   93,  128,   94,   90,  101,
+      136,  135,  116,  130,  105,  117,  107,  115,  134,  134,
+       86,   87,  111,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  131,  112,  132,   92,  153,  110,  147,
+      146,  145,  147,  152,  152,  152,  152,  120,  113,  123,
+      150,  149,  148,  150,  118,   95,  121,   96,  122,   88,
+       99,  133,  141,  156,  154,  119,  139,  136,  140,  143,
+      140,  136,  136,  138,  135,  135,  135,   89,  103,  106,
 
-      108,  107,  103,  133,  146,  149,  123,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,   28,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,   41,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  124,  113,  151,  150,  151,  151,  151,
-       99,  128,  143,  140,  155,  155,  155,  153,  138,  141,
-      138,  142,  139,  135,  135,  135,  136,  134,  134,  134,
-      125,  126,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,   11,  133,  133,  133,  133,  133,  133,
+      109,  108,  104,  134,  147,  150,  124,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,   29,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,   42,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  125,  114,  152,  151,  152,  152,  152,
+      100,  129,  144,  141,  156,  156,  156,  154,  139,  142,
+      139,  143,  140,  136,  136,  136,  137,  135,  135,  135,
+      126,  127,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,   12,  134,  134,  134,  134,  134,  134,
 
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,   38,  133,  133,  133,   45,  133,  133,
-      133,   49,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-       70,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      150,  151,  151,  151,  143,  140,  154,  141,  138,  141,
-      138,  135,  136,  136,  134,  133,  133,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,   13,   15,
-      133,   16,  133,  133,   19,  133,  133,  133,  133,  133,
-      133,  133,   31,   32,  133,  133,  133,  133,  133,  133,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,   39,  134,  134,  134,   46,  134,  134,
+      134,   50,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+       71,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      151,  152,  152,  152,  144,  141,  155,  142,  139,  142,
+      139,  136,  137,  137,  135,  134,  134,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,   14,   16,
+      134,   17,  134,  134,   20,  134,  134,  134,  134,  134,
+      134,  134,   32,   33,  134,  134,  134,  134,  134,  134,
 
-       40,  133,   46,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-       67,  133,   69,  133,  133,  133,  133,  133,   78,  133,
-      133,  133,  151,  141,  138,  136,  136,  136,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,   14,   17,   18,   20,   21,  133,  133,  133,  133,
-      133,  133,  133,  133,   36,   37,  133,  133,  133,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,   58,  133,
-      133,  133,  133,  133,  133,   68,  133,  133,  133,  133,
-       74,  133,   76,  133,  133,  133,   82,  136,  133,  133,
+       41,  134,   47,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+       68,  134,   70,  134,  134,  134,  134,  134,   79,  134,
+      134,  134,  152,  142,  139,  137,  137,  137,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,   15,   18,   19,   21,   22,  134,  134,  134,  134,
+      134,  134,  134,  134,   37,   38,  134,  134,  134,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,   59,  134,
+      134,  134,  134,  134,  134,   69,  134,  134,  134,  134,
+       75,  134,   77,  134,  134,  134,   83,  137,  134,  134,
 
-      133,  133,  133,  133,  133,  133,  133,  133,  133,  133,
-      133,  133,  133,  133,   27,   29,  133,  133,   34,   35,
-       39,   42,  133,  133,  133,   51,  133,  133,   54,  133,
-      133,   57,   59,   61,   62,   64,   65,  133,  133,   72,
-      133,    8,  133,  133,  133,  133,  133,  133,  133,   12,
-      133,  133,   22,  133,  133,  133,  133,  133,  133,  133,
-      133,   26,  133,  133,   47,  133,  133,   52,  133,  133,
-      133,  133,  133,   71,  133,  133,   77,  133,   81,  133,
-      133,  133,  133,  133,  133,  133,   43,  133,  133,  133,
-      133,  133,   25,  133,   33,  133,   50,  133,   55,  133,
+      134,  134,  134,  134,  134,  134,  134,  134,  134,  134,
+      134,  134,  134,  134,   28,   30,  134,  134,   35,   36,
+       40,   43,  134,  134,  134,   52,  134,  134,   55,  134,
+      134,   58,   60,   62,   63,   65,   66,  134,  134,   73,
+      134,    8,  134,  134,  134,  134,  134,  134,  134,   13,
+      134,  134,   23,  134,  134,  134,  134,  134,  134,  134,
+      134,   27,  134,  134,   48,  134,  134,   53,  134,  134,
+      134,  134,  134,   72,  134,  134,   78,  134,   82,  134,
+      134,  134,  134,  134,  134,  134,   44,  134,  134,    9,
+      134,  134,   26,  134,   34,  134,   51,  134,   56,  134,
 
-      133,   66,   73,   75,   79,  133,  133,  133,  133,  133,
-       23,  133,  133,    6,  133,  133,  133,  133,  133,   48,
-       53,  133,  133,  133,  133,  133,  133,  133,  133,   44,
-       60,    9,  133,   24,  133,  133,  133,  133,  133,    2,
-        3,  133,  133,  133,  133,  133,   63,    5,  133,  133,
-      133,  133,   80,   30,  133,  133,    4,  133,   10,  133,
-      133,  133,  133,  133,  133,  133,  133,  133,   56,  133,
-      133,  133,  133,    7,  133,    1
+      134,   67,   74,   76,   80,  134,  134,  134,  134,  134,
+       24,  134,  134,    6,  134,  134,  134,  134,  134,   49,
+       54,  134,  134,  134,  134,  134,  134,  134,  134,   45,
+       61,   10,  134,   25,  134,  134,  134,  134,  134,    2,
+        3,  134,  134,  134,  134,  134,   64,    5,  134,  134,
+      134,  134,   81,   31,  134,  134,    4,  134,   11,  134,
+      134,  134,  134,  134,  134,  134,  134,  134,   57,  134,
+      134,  134,  134,    7,  134,    1
     } ;
 
 static yyconst int yy_ec[256] =
@@ -7467,7 +7467,12 @@ return tok(TOK___TYPEOF__);
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 132 "lexer.lex"
+#line 131 "lexer.lex"
+return tok(TOK___TYPEOF__);
+	YY_BREAK
+case 11:
+YY_RULE_SETUP
+#line 133 "lexer.lex"
 {
   /* treat this like a token, in that nonseparating checks are done,
    * but don't yield it to the parser */
@@ -7475,11 +7480,6 @@ YY_RULE_SETUP
 }
 	YY_BREAK
 /* operators, punctuators and keywords: tokens with one spelling */
-case 11:
-YY_RULE_SETUP
-#line 140 "lexer.lex"
-return tok(TOK_ASM);
-	YY_BREAK
 case 12:
 YY_RULE_SETUP
 #line 141 "lexer.lex"
@@ -7488,47 +7488,47 @@ return tok(TOK_ASM);
 case 13:
 YY_RULE_SETUP
 #line 142 "lexer.lex"
-return tok(TOK_AUTO);
+return tok(TOK_ASM);
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
 #line 143 "lexer.lex"
-return tok(TOK_BREAK);
+return tok(TOK_AUTO);
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
 #line 144 "lexer.lex"
-return tok(TOK_BOOL);
+return tok(TOK_BREAK);
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
 #line 145 "lexer.lex"
-return tok(TOK_CASE);
+return tok(TOK_BOOL);
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
 #line 146 "lexer.lex"
-return tok(TOK_CATCH);
+return tok(TOK_CASE);
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
 #line 147 "lexer.lex"
-return tok(TOK_CDECL);
+return tok(TOK_CATCH);
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
 #line 148 "lexer.lex"
-return tok(TOK_CHAR);
+return tok(TOK_CDECL);
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
 #line 149 "lexer.lex"
-return tok(TOK_CLASS);
+return tok(TOK_CHAR);
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
 #line 150 "lexer.lex"
-return tok(TOK_CONST);
+return tok(TOK_CLASS);
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
@@ -7543,97 +7543,97 @@ return tok(TOK_CONST);
 case 24:
 YY_RULE_SETUP
 #line 153 "lexer.lex"
-return tok(TOK_CONST_CAST);
+return tok(TOK_CONST);
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
 #line 154 "lexer.lex"
-return tok(TOK_CONTINUE);
+return tok(TOK_CONST_CAST);
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
 #line 155 "lexer.lex"
-return tok(TOK_DEFAULT);
+return tok(TOK_CONTINUE);
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
 #line 156 "lexer.lex"
-return tok(TOK_DELETE);
+return tok(TOK_DEFAULT);
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
 #line 157 "lexer.lex"
-return tok(TOK_DO);
+return tok(TOK_DELETE);
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
 #line 158 "lexer.lex"
-return tok(TOK_DOUBLE);
+return tok(TOK_DO);
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
 #line 159 "lexer.lex"
-return tok(TOK_DYNAMIC_CAST);
+return tok(TOK_DOUBLE);
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
 #line 160 "lexer.lex"
-return tok(TOK_ELSE);
+return tok(TOK_DYNAMIC_CAST);
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
 #line 161 "lexer.lex"
-return tok(TOK_ENUM);
+return tok(TOK_ELSE);
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
 #line 162 "lexer.lex"
-return tok(TOK_EXPLICIT);
+return tok(TOK_ENUM);
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
 #line 163 "lexer.lex"
-return tok(TOK_EXPORT);
+return tok(TOK_EXPLICIT);
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
 #line 164 "lexer.lex"
-return tok(TOK_EXTERN);
+return tok(TOK_EXPORT);
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
 #line 165 "lexer.lex"
-return tok(TOK_FALSE);
+return tok(TOK_EXTERN);
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
 #line 166 "lexer.lex"
-return tok(TOK_FLOAT);
+return tok(TOK_FALSE);
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
 #line 167 "lexer.lex"
-return tok(TOK_FOR);
+return tok(TOK_FLOAT);
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
 #line 168 "lexer.lex"
-return tok(TOK_FRIEND);
+return tok(TOK_FOR);
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
 #line 169 "lexer.lex"
-return tok(TOK_GOTO);
+return tok(TOK_FRIEND);
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
 #line 170 "lexer.lex"
-return tok(TOK_IF);
+return tok(TOK_GOTO);
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
 #line 171 "lexer.lex"
-return tok(TOK_INLINE);
+return tok(TOK_IF);
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
@@ -7648,77 +7648,77 @@ return tok(TOK_INLINE);
 case 45:
 YY_RULE_SETUP
 #line 174 "lexer.lex"
-return tok(TOK_INT);
+return tok(TOK_INLINE);
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
 #line 175 "lexer.lex"
-return tok(TOK_LONG);
+return tok(TOK_INT);
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
 #line 176 "lexer.lex"
-return tok(TOK_MUTABLE);
+return tok(TOK_LONG);
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
 #line 177 "lexer.lex"
-return tok(TOK_NAMESPACE);
+return tok(TOK_MUTABLE);
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
 #line 178 "lexer.lex"
-return tok(TOK_NEW);
+return tok(TOK_NAMESPACE);
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
 #line 179 "lexer.lex"
-return tok(TOK_OPERATOR);
+return tok(TOK_NEW);
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
 #line 180 "lexer.lex"
-return tok(TOK_PASCAL);
+return tok(TOK_OPERATOR);
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
 #line 181 "lexer.lex"
-return tok(TOK_PRIVATE);
+return tok(TOK_PASCAL);
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
 #line 182 "lexer.lex"
-return tok(TOK_PROTECTED);
+return tok(TOK_PRIVATE);
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
 #line 183 "lexer.lex"
-return tok(TOK_PUBLIC);
+return tok(TOK_PROTECTED);
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
 #line 184 "lexer.lex"
-return tok(TOK_REGISTER);
+return tok(TOK_PUBLIC);
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
 #line 185 "lexer.lex"
-return tok(TOK_REINTERPRET_CAST);
+return tok(TOK_REGISTER);
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
 #line 186 "lexer.lex"
-return tok(TOK_RETURN);
+return tok(TOK_REINTERPRET_CAST);
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
 #line 187 "lexer.lex"
-return tok(TOK_SHORT);
+return tok(TOK_RETURN);
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
 #line 188 "lexer.lex"
-return tok(TOK_SIGNED);
+return tok(TOK_SHORT);
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
@@ -7728,97 +7728,97 @@ return tok(TOK_SIGNED);
 case 61:
 YY_RULE_SETUP
 #line 190 "lexer.lex"
-return tok(TOK_SIZEOF);
+return tok(TOK_SIGNED);
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
 #line 191 "lexer.lex"
-return tok(TOK_STATIC);
+return tok(TOK_SIZEOF);
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
 #line 192 "lexer.lex"
-return tok(TOK_STATIC_CAST);
+return tok(TOK_STATIC);
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
 #line 193 "lexer.lex"
-return tok(TOK_STRUCT);
+return tok(TOK_STATIC_CAST);
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
 #line 194 "lexer.lex"
-return tok(TOK_SWITCH);
+return tok(TOK_STRUCT);
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
 #line 195 "lexer.lex"
-return tok(TOK_TEMPLATE);
+return tok(TOK_SWITCH);
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
 #line 196 "lexer.lex"
-return tok(TOK_THIS);
+return tok(TOK_TEMPLATE);
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
 #line 197 "lexer.lex"
-return tok(TOK_THROW);
+return tok(TOK_THIS);
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
 #line 198 "lexer.lex"
-return tok(TOK_TRUE);
+return tok(TOK_THROW);
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
 #line 199 "lexer.lex"
-return tok(TOK_TRY);
+return tok(TOK_TRUE);
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
 #line 200 "lexer.lex"
-return tok(TOK_TYPEDEF);
+return tok(TOK_TRY);
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
 #line 201 "lexer.lex"
-return tok(TOK_TYPEID);
+return tok(TOK_TYPEDEF);
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
 #line 202 "lexer.lex"
-return tok(TOK_TYPENAME);
+return tok(TOK_TYPEID);
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
 #line 203 "lexer.lex"
-return tok(TOK_UNION);
+return tok(TOK_TYPENAME);
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
 #line 204 "lexer.lex"
-return tok(TOK_UNSIGNED);
+return tok(TOK_UNION);
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
 #line 205 "lexer.lex"
-return tok(TOK_USING);
+return tok(TOK_UNSIGNED);
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
 #line 206 "lexer.lex"
-return tok(TOK_VIRTUAL);
+return tok(TOK_USING);
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
 #line 207 "lexer.lex"
-return tok(TOK_VOID);
+return tok(TOK_VIRTUAL);
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
 #line 208 "lexer.lex"
-return tok(TOK_VOLATILE);
+return tok(TOK_VOID);
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
@@ -7828,317 +7828,322 @@ return tok(TOK_VOLATILE);
 case 81:
 YY_RULE_SETUP
 #line 210 "lexer.lex"
-return tok(TOK_WCHAR_T);
+return tok(TOK_VOLATILE);
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
 #line 211 "lexer.lex"
-return tok(TOK_WHILE);
+return tok(TOK_WCHAR_T);
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 213 "lexer.lex"
-return tok(TOK_LPAREN);
+#line 212 "lexer.lex"
+return tok(TOK_WHILE);
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
 #line 214 "lexer.lex"
-return tok(TOK_RPAREN);
+return tok(TOK_LPAREN);
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
 #line 215 "lexer.lex"
-return tok(TOK_LBRACKET);
+return tok(TOK_RPAREN);
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
 #line 216 "lexer.lex"
-return tok(TOK_RBRACKET);
+return tok(TOK_LBRACKET);
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
 #line 217 "lexer.lex"
-return tok(TOK_ARROW);
+return tok(TOK_RBRACKET);
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
 #line 218 "lexer.lex"
-return tok(TOK_COLONCOLON);
+return tok(TOK_ARROW);
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
 #line 219 "lexer.lex"
-return tok(TOK_DOT);
+return tok(TOK_COLONCOLON);
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
 #line 220 "lexer.lex"
-return tok(TOK_BANG);
+return tok(TOK_DOT);
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
 #line 221 "lexer.lex"
-return tok(TOK_TILDE);
+return tok(TOK_BANG);
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
 #line 222 "lexer.lex"
-return tok(TOK_PLUS);
+return tok(TOK_TILDE);
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
 #line 223 "lexer.lex"
-return tok(TOK_MINUS);
+return tok(TOK_PLUS);
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
 #line 224 "lexer.lex"
-return tok(TOK_PLUSPLUS);
+return tok(TOK_MINUS);
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
 #line 225 "lexer.lex"
-return tok(TOK_MINUSMINUS);
+return tok(TOK_PLUSPLUS);
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
 #line 226 "lexer.lex"
-return tok(TOK_AND);
+return tok(TOK_MINUSMINUS);
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
 #line 227 "lexer.lex"
-return tok(TOK_STAR);
+return tok(TOK_AND);
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
 #line 228 "lexer.lex"
-return tok(TOK_DOTSTAR);
+return tok(TOK_STAR);
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
 #line 229 "lexer.lex"
-return tok(TOK_ARROWSTAR);
+return tok(TOK_DOTSTAR);
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
 #line 230 "lexer.lex"
-return tok(TOK_SLASH);
+return tok(TOK_ARROWSTAR);
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
 #line 231 "lexer.lex"
-return tok(TOK_PERCENT);
+return tok(TOK_SLASH);
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
 #line 232 "lexer.lex"
-return tok(TOK_LEFTSHIFT);
+return tok(TOK_PERCENT);
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
 #line 233 "lexer.lex"
-return tok(TOK_RIGHTSHIFT);
+return tok(TOK_LEFTSHIFT);
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
 #line 234 "lexer.lex"
-return tok(TOK_LESSTHAN);
+return tok(TOK_RIGHTSHIFT);
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
 #line 235 "lexer.lex"
-return tok(TOK_LESSEQ);
+return tok(TOK_LESSTHAN);
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
 #line 236 "lexer.lex"
-return tok(TOK_GREATERTHAN);
+return tok(TOK_LESSEQ);
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
 #line 237 "lexer.lex"
-return tok(TOK_GREATEREQ);
+return tok(TOK_GREATERTHAN);
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
 #line 238 "lexer.lex"
-return tok(TOK_EQUALEQUAL);
+return tok(TOK_GREATEREQ);
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
 #line 239 "lexer.lex"
-return tok(TOK_NOTEQUAL);
+return tok(TOK_EQUALEQUAL);
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
 #line 240 "lexer.lex"
-return tok(TOK_XOR);
+return tok(TOK_NOTEQUAL);
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
 #line 241 "lexer.lex"
-return tok(TOK_OR);
+return tok(TOK_XOR);
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
 #line 242 "lexer.lex"
-return tok(TOK_ANDAND);
+return tok(TOK_OR);
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
 #line 243 "lexer.lex"
-return tok(TOK_OROR);
+return tok(TOK_ANDAND);
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
 #line 244 "lexer.lex"
-return tok(TOK_QUESTION);
+return tok(TOK_OROR);
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
 #line 245 "lexer.lex"
-return tok(TOK_COLON);
+return tok(TOK_QUESTION);
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
 #line 246 "lexer.lex"
-return tok(TOK_EQUAL);
+return tok(TOK_COLON);
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
 #line 247 "lexer.lex"
-return tok(TOK_STAREQUAL);
+return tok(TOK_EQUAL);
 	YY_BREAK
 case 118:
 YY_RULE_SETUP
 #line 248 "lexer.lex"
-return tok(TOK_SLASHEQUAL);
+return tok(TOK_STAREQUAL);
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
 #line 249 "lexer.lex"
-return tok(TOK_PERCENTEQUAL);
+return tok(TOK_SLASHEQUAL);
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
 #line 250 "lexer.lex"
-return tok(TOK_PLUSEQUAL);
+return tok(TOK_PERCENTEQUAL);
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
 #line 251 "lexer.lex"
-return tok(TOK_MINUSEQUAL);
+return tok(TOK_PLUSEQUAL);
 	YY_BREAK
 case 122:
 YY_RULE_SETUP
 #line 252 "lexer.lex"
-return tok(TOK_ANDEQUAL);
+return tok(TOK_MINUSEQUAL);
 	YY_BREAK
 case 123:
 YY_RULE_SETUP
 #line 253 "lexer.lex"
-return tok(TOK_XOREQUAL);
+return tok(TOK_ANDEQUAL);
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
 #line 254 "lexer.lex"
-return tok(TOK_OREQUAL);
+return tok(TOK_XOREQUAL);
 	YY_BREAK
 case 125:
 YY_RULE_SETUP
 #line 255 "lexer.lex"
-return tok(TOK_LEFTSHIFTEQUAL);
+return tok(TOK_OREQUAL);
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
 #line 256 "lexer.lex"
-return tok(TOK_RIGHTSHIFTEQUAL);
+return tok(TOK_LEFTSHIFTEQUAL);
 	YY_BREAK
 case 127:
 YY_RULE_SETUP
 #line 257 "lexer.lex"
-return tok(TOK_COMMA);
+return tok(TOK_RIGHTSHIFTEQUAL);
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
 #line 258 "lexer.lex"
-return tok(TOK_ELLIPSIS);
+return tok(TOK_COMMA);
 	YY_BREAK
 case 129:
 YY_RULE_SETUP
 #line 259 "lexer.lex"
-return tok(TOK_SEMICOLON);
+return tok(TOK_ELLIPSIS);
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
 #line 260 "lexer.lex"
-return tok(TOK_LBRACE);
+return tok(TOK_SEMICOLON);
 	YY_BREAK
 case 131:
 YY_RULE_SETUP
 #line 261 "lexer.lex"
+return tok(TOK_LBRACE);
+	YY_BREAK
+case 132:
+YY_RULE_SETUP
+#line 262 "lexer.lex"
 return tok(TOK_RBRACE);
 	YY_BREAK
 /* this rule is to avoid backing up in the lexer 
    * when there are two dots but not three */
-case 132:
+case 133:
 YY_RULE_SETUP
-#line 265 "lexer.lex"
+#line 266 "lexer.lex"
 {
   yyless(1);     /* put back all but 1; this is inexpensive */
   return tok(TOK_DOT);
 }
 	YY_BREAK
 /* identifier: e.g. foo */
-case 133:
+case 134:
 YY_RULE_SETUP
-#line 271 "lexer.lex"
+#line 272 "lexer.lex"
 {
   return svalTok(TOK_NAME);
 }
 	YY_BREAK
 /* integer literal; dec, oct, or hex */
-case 134:
-#line 277 "lexer.lex"
 case 135:
 #line 278 "lexer.lex"
 case 136:
+#line 279 "lexer.lex"
+case 137:
 YY_RULE_SETUP
-#line 278 "lexer.lex"
+#line 279 "lexer.lex"
 {
   return svalTok(TOK_INT_LITERAL);
 }
 	YY_BREAK
 /* hex literal with nothing after the 'x' */
-case 137:
+case 138:
 YY_RULE_SETUP
-#line 283 "lexer.lex"
+#line 284 "lexer.lex"
 {
   err("hexadecimal literal with nothing after the 'x'");
   return svalTok(TOK_INT_LITERAL);
 }
 	YY_BREAK
 /* floating literal */
-case 138:
-#line 290 "lexer.lex"
 case 139:
 #line 291 "lexer.lex"
 case 140:
+#line 292 "lexer.lex"
+case 141:
 YY_RULE_SETUP
-#line 291 "lexer.lex"
+#line 292 "lexer.lex"
 {
   return svalTok(TOK_FLOAT_LITERAL);
 }
 	YY_BREAK
 /* floating literal with no digits after the 'e' */
-case 141:
-#line 297 "lexer.lex"
 case 142:
 #line 298 "lexer.lex"
 case 143:
+#line 299 "lexer.lex"
+case 144:
 YY_RULE_SETUP
-#line 298 "lexer.lex"
+#line 299 "lexer.lex"
 {
   err("floating literal with no digits after the 'e'");
   
@@ -8151,17 +8156,17 @@ YY_RULE_SETUP
 }
 	YY_BREAK
 /* string literal */
-case 144:
+case 145:
 YY_RULE_SETUP
-#line 310 "lexer.lex"
+#line 311 "lexer.lex"
 {
   return svalTok(TOK_STRING_LITERAL);
 }
 	YY_BREAK
 /* string literal missing final quote */
-case 145:
+case 146:
 YY_RULE_SETUP
-#line 315 "lexer.lex"
+#line 316 "lexer.lex"
 {
   err("string literal missing final `\"'");
   return svalTok(TOK_STRING_LITERAL);     // error recovery
@@ -8172,35 +8177,35 @@ YY_RULE_SETUP
    * optional backslash is needed so the scanner won't back up in that
    * case; NOTE: this can only happen if the file ends in the string
    * and there is no newline before the EOF */
-case 146:
+case 147:
 YY_RULE_SETUP
-#line 325 "lexer.lex"
+#line 326 "lexer.lex"
 {
   err("unterminated string literal");
   yyterminate();
 }
 	YY_BREAK
 /* character literal */
-case 147:
+case 148:
 YY_RULE_SETUP
-#line 332 "lexer.lex"
+#line 333 "lexer.lex"
 {
   return svalTok(TOK_CHAR_LITERAL);
 }
 	YY_BREAK
 /* character literal missing final tick */
-case 148:
+case 149:
 YY_RULE_SETUP
-#line 337 "lexer.lex"
+#line 338 "lexer.lex"
 {
   err("character literal missing final \"'\"");
   return svalTok(TOK_CHAR_LITERAL);       // error recovery
 }
 	YY_BREAK
 /* unterminated character literal */
-case 149:
+case 150:
 YY_RULE_SETUP
-#line 343 "lexer.lex"
+#line 344 "lexer.lex"
 {
   err("unterminated character literal");
   yyterminate();
@@ -8216,9 +8221,9 @@ YY_RULE_SETUP
 /* #line directive: the word "line" is optional, then a space, and
    * then we accept the rest of the line; 'parseHashLine' will finish
    * parsing the directive */
-case 150:
+case 151:
 YY_RULE_SETUP
-#line 362 "lexer.lex"
+#line 363 "lexer.lex"
 {
   parseHashLine(yytext, yyleng);
   whitespace();       // don't increment line count until after parseHashLine()
@@ -8226,9 +8231,9 @@ YY_RULE_SETUP
 	YY_BREAK
 /* other preprocessing: ignore it */
 /* trailing optional baskslash to avoid backing up */
-case 151:
+case 152:
 YY_RULE_SETUP
-#line 369 "lexer.lex"
+#line 370 "lexer.lex"
 {
   // treat it like whitespace, ignoring it otherwise
   whitespace();
@@ -8239,26 +8244,26 @@ YY_RULE_SETUP
    * could be seen as part of the mapping from physical source file
    * characters to the basic character set (cppstd 2.1 para 1 phase 1),
    * except that it doesn't happen for chars in string/char literals... */
-case 152:
+case 153:
 YY_RULE_SETUP
-#line 379 "lexer.lex"
+#line 380 "lexer.lex"
 {
   whitespace();
 }
 	YY_BREAK
 /* C++ comment */
 /* we don't match the \n because that way this works at EOF */
-case 153:
+case 154:
 YY_RULE_SETUP
-#line 385 "lexer.lex"
+#line 386 "lexer.lex"
 {
   whitespace();
 }
 	YY_BREAK
 /* C comment */
-case 154:
+case 155:
 YY_RULE_SETUP
-#line 390 "lexer.lex"
+#line 391 "lexer.lex"
 {
   // the pattern is a little complicated because the naive one,
   //   "/""*"([^*]|"*"[^/])*"*/"
@@ -8267,36 +8272,36 @@ YY_RULE_SETUP
 }
 	YY_BREAK
 /* unterminated C comment */
-case 155:
+case 156:
 YY_RULE_SETUP
-#line 398 "lexer.lex"
+#line 399 "lexer.lex"
 {
   err("unterminated /""*...*""/ comment");
   yyterminate();
 }
 	YY_BREAK
 /* illegal */
-case 156:
+case 157:
 YY_RULE_SETUP
-#line 405 "lexer.lex"
+#line 406 "lexer.lex"
 {
   updLoc();
   err(stringc << "illegal character: `" << yytext[0] << "'");
 }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 410 "lexer.lex"
+#line 411 "lexer.lex"
 {
   srcFile->doneAdding();
   yyterminate();
 }
 	YY_BREAK
-case 157:
+case 158:
 YY_RULE_SETUP
-#line 416 "lexer.lex"
+#line 417 "lexer.lex"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 8300 "lexer.yy.cc"
+#line 8305 "lexer.yy.cc"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -9076,7 +9081,7 @@ int main()
 	return 0;
 	}
 #endif
-#line 416 "lexer.lex"
+#line 417 "lexer.lex"
 
 /**************/
 /* extra code */

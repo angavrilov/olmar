@@ -127,6 +127,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 "__label__"            return tok(TOK___LABEL__);
 "__PRETTY_FUNCTION__"  return tok(TOK___PRETTY_FUNCTION__);
 "typeof"               return tok(TOK___TYPEOF__);
+"__typeof"             return tok(TOK___TYPEOF__);
 "__typeof__"           return tok(TOK___TYPEOF__);
 
 "__extension__" {
