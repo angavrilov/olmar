@@ -218,125 +218,100 @@ public:     // funcs
 };
 
 
-// during GLR parsing of a single token, we do all reductions before any
-// shifts; thus, when we decide a shift is necessary, we need to save the
-// relevant info somewhere so we can come back to it at the end
-class PendingShift {
-public:
-  // which parser is this that's ready to shift?
-  RCPtr<StackNode> parser;
+// this is a priority queue of stack node paths that are candidates to
+// reduce, maintained such that we can select paths in an order which
+// will avoid yield-then-merge
+class ReductionPathQueue {
+public:       // types
+  // a single path in the stack
+  class Path {
+  public:     // data
+    // ---- right edge info ----
+    // the rightmost state's id; we're reducing in this state
+    StateId startStateId;
 
-  // which state is it ready to shift into?
-  //ItemSet const * const shiftDest;            // (serf)
-  StateId shiftDest;
+    // id of the production with which we're reducing
+    int prodIndex;
 
-public:
-  PendingShift()
-    : parser(NULL), shiftDest(STATE_INVALID) {}
-  ~PendingShift();
+    // ---- left edge info ----
+    // the token column (ordinal position of a token in the token
+    // stream) of the leftmost stack node; the smaller the
+    // startColumn, the more tokens this reduction spans
+    int startColumn;
 
-  PendingShift& operator=(PendingShift const &obj);
+    // stack node at the left edge; our reduction will push a new
+    // stack node on top of this one
+    StackNode *leftEdgeNode;
 
-  // start using this
-  void init(StackNode *p, StateId s)
-  {
-    parser = p;
-    shiftDest = s;
-  }
+    // ---- path in between ----
+    // array of sibling links, naming the path; 'sibLink[0]' is the
+    // leftmost link; array length is given by the rhsLen of
+    // prodIndex's production
+    GrowArray<SiblingLink*> sibLinks;    // (array of serfs)
 
-  // stop using this
-  void deinit();
-};
+    // corresponding array of symbol ids so we know how to interpret
+    // the semantic values in the links
+    GrowArray<SymbolId> symbols;
 
+    union {
+      // link between nodes for construction of a linked list,
+      // kept in sorted order
+      Path *next;
 
-// when a reduction is performed, we do a DFS to find all the ways
-// the reduction can happen; this structure keeps state persistent
-// across the recursion (comments in code have some details, too)
-class PathCollectionState {
-public:    // types
-  // each particular reduction possibility is one of these
-  class ReductionPath {
-  public:
-    // the state we end up in after reducing those symbols
-    RCPtr<StackNode> finalState;
+      // link for free list in the object pool
+      Path *nextInFreeList;
+    };
 
-    // the semantic value yielded by the reduction action (owner)
-    SemanticValue sval;
+  public:     // funcs
+    Path();
+    ~Path();
 
-    // location of left edge of this subtree
-    SOURCELOC( SourceLocation loc; )
-
-  private:
-    // this is only for use by the GrowArray; it transfers all
-    // state from 'obj' to 'this', on the expectation that 'obj'
-    // is about to be deallocated (since we transfer state, 'obj'
-    // is *not* const)
-    ReductionPath& operator=(ReductionPath &obj);
-    friend class GrowArray<ReductionPath>;
-
-  public:
-    ReductionPath()
-      : finalState(NULL_SVAL), sval(NULL_SVAL)  SOURCELOCARG( loc() ) {}
-    ~ReductionPath();
-
-    // begin using this
-    void init(StackNode *f, SemanticValue s 
-              SOURCELOCARG( SourceLocation const &L  ) )
-    {
-      finalState = f;        // increment reference count
-      sval = s;
-      SOURCELOC( loc = L; )
-    }
-
-    // stop using this
-    void deinit();
+    void init(StateId startStateId, int prodIndex, int rhsLen);
+    void deinit() {}
   };
 
-public:	   // data
-  // ---- stuff that changes ----
-  // id of the state we started in (where the reduction was applied)
-  StateId startStateId;
+private:      // data
+  // head of the list
+  Path *top;
 
-  // we collect paths into this array, which is maintained as we
-  // enter/leave recursion; the 0th item is the leftmost, i.e.
-  // the last one we collect when starting from the reduction state
-  // and popping symbols as we move left;
-  GrowArray<SiblingLink*> siblings;     // (array of serfs)
-  GrowArray<SymbolId> symbols;
+  // allocation pool of Path objects
+  ObjectPool<Path> pathPool;
 
-  //SiblingLink **siblings;        // (owner ptr to array of serfs)
-  //SymbolId *symbols;             // (owner ptr to array)
+  // parse tables, so we can decode prodIndex and also compare
+  // production ids for sorting purposes
+  ParseTables *tables;
+       
+private:      // funcs
+  bool goesBefore(Path const *p1, Path const *p2) const;
 
-  // as reduction possibilities are encountered, we record them here
-  ArrayStack<ReductionPath> paths;
+public:       // funcs
+  ReductionPathQueue(ParseTables *t);
+  ~ReductionPathQueue();
 
-  // ---- stuff constant across a series of DFSs ----
-  // this is the (index of the) production we're trying to reduce by
-  int prodIndex;
+  // get another Path object, inited with these values
+  Path *newPath(StateId startStateId, int prodIndex, int rhsLen);
 
-public:	   // funcs
-  PathCollectionState();
-  ~PathCollectionState();
+  // make a copy of the prototype 'src', fill in its left-edge
+  // fields using 'leftEdge', and insert it into sorted order
+  // in the queue
+  void insertPathCopy(Path const *src, StackNode *leftEdge);
+                       
+  // true if there are no more paths
+  bool isEmpty() const { return top == NULL; }
+  bool isNotEmpty() const { return !isEmpty(); }
 
-  // begin using this object
-  void init(int prodIndex, int rhsLen, StateId start);
-                
-  // done using it
-  void deinit();
-                  
-  // add something to the 'paths' array
-  void addReductionPath(StackNode *f, SemanticValue s
-                        SOURCELOCARG( SourceLocation const &L ) );
+  // remove the next path to reduce from the list, and return it
+  Path *dequeue();
+
+  // mark a path as not being used, so it will be recycled into the pool
+  void deletePath(Path *p);
 };
 
 
-// (OLD) the GLR analyses are performed within this class; GLR
-// differs from GrammarAnalysis in that the latter should have
-// stuff useful across a wide range of possible analyses
-//
-// update: trying to separate GLR from GrammarAnalysis entirely..
+// each GLR object is a parser for a specific grammar, but can be
+// used to parse multiple token streams
 class GLR {
-public:                    
+public:
   // ---- grammar-wide data ----
   // user-specified actions
   UserActions *userAct;                     // (serf)
@@ -353,9 +328,9 @@ public:
   // ultimately succeed to parse the input, or might reach a
   // point where it cannot proceed, and therefore dies.  (See
   // comments at top of glr.cc for more details.)
-  ArrayStack<StackNode*> activeParsers;     // (refct list)
+  ArrayStack<StackNode*> topmostParsers;     // (refct list)
 
-  // index: StateId -> index in 'activeParsers' of unique parser
+  // index: StateId -> index in 'topmostParsers' of unique parser
   // with that state, or INDEX_NO_PARSER if none has that state
   typedef unsigned char ParserIndexEntry;
   enum { INDEX_NO_PARSER = 255 };
@@ -375,28 +350,21 @@ public:
   //   lexerPtr->sval
   //   lexerPtr->loc
 
-  // parsers that haven't yet had a chance to try to make progress
-  // on this token
-  ArrayStack<StackNode*> parserWorklist;    // (refct list)
-
   // ---- scratch space re-used at token-level (or finer) granularity ----
-  // to be regarded as a local variable of GLR::doReduction; since
-  // doReduction can call itself recursively (to handle new reductions
-  // enabled by adding a sibling link), this is a stack
-  ObjArrayStack<PathCollectionState> pcsStack;
-
-  // pushing and popping using the ObjArrayStack interface would
-  // defeat the purpose of pulling this out; pcsStackHeight gives the
-  // next entry to use, and we only push a new entry onto pcsStack if
-  // pcsStackHeight > pcsStack.length
-  int pcsStackHeight;
-
-  // to be regarded as a local variable of GLR::collectReductionPaths
+  // to be regarded as a local variable of GLR::rwlProcessWorklist
   GrowArray<SemanticValue> toPass;
+
+  // persistent array that I swap with 'topmostParsers' during
+  // 'rwlShiftTerminals' to avoid extra copying or allocation;
+  // this should be regarded as variable local to that function
+  ArrayStack<StackNode*> prevTopmost;        // (refct list)
 
   // ---- allocation pools ----
   // this is a pointer to the same-named local variable in innerGlrParse
   ObjectPool<StackNode> *stackNodePool;
+                               
+  // pool and list for the RWL implementation
+  ReductionPathQueue pathQueue;
 
   // ---- debugging trace ----
   // these are computed during GLR::GLR since the profiler reports
@@ -410,6 +378,9 @@ public:
 
   // statistics on parser actions
   int detShift, detReduce, nondetShift, nondetReduce;
+  
+  // count of # of times yield-then-merge happens
+  int yieldThenMergeCt;
 
 private:    // funcs
   // comments in glr.cc
@@ -417,28 +388,12 @@ private:    // funcs
   void deallocateSemanticValue(SymbolId sym, SemanticValue sval);
   SemanticValue grabTopSval(StackNode *node);
 
-  int glrParseAction(StackNode *parser, ActionEntry action,
-                     ArrayStack<PendingShift> &pendingShifts);
-  void doAllPossibleReductions(StackNode *parser, ActionEntry action,
-                               SiblingLink *sibLink);
-  void doReduction(StackNode *parser,
-                   SiblingLink *mustUseLink,
-                   int prodIndex);
-  void collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
-                             StackNode *currentNode, SiblingLink *mustUseLink);
-  void collectPathLink(PathCollectionState &pcs, int popsRemaining,
-                       StackNode *currentNode, SiblingLink *mustUseLink,
-                       SiblingLink *linkToAdd);
-  void glrShiftNonterminal(StackNode *leftSibling, int lhsIndex,
-                           SemanticValue sval
-                           SOURCELOCARG( SourceLocation const &loc ) );
-  void glrShiftTerminals(ArrayStack<PendingShift> &pendingShifts);
-  StackNode *findActiveParser(StateId state);
+  StackNode *findTopmostParser(StateId state);
   StackNode *makeStackNode(StateId state);
   void writeParseGraph(char const *input) const;
   void clearAllStackNodes();
-  void addActiveParser(StackNode *parser);
-  void pullFromActiveParsers(StackNode *parser);
+  void addTopmostParser(StackNode *parser);
+  void pullFromTopmostParsers(StackNode *parser);
   bool canMakeProgress(StackNode *parser);
   void dumpGSS(int tokenNumber) const;
   void dumpGSSEdge(FILE *dest, StackNode const *src,
@@ -447,11 +402,27 @@ private:    // funcs
   void buildParserIndex();
   void printParseErrorMessage(StateId lastToDie);
   bool cleanupAfterParse(CycleTimer &timer, SemanticValue &treeTop);
-  bool nondeterministicParseToken(ArrayStack<PendingShift> &pendingShifts);
+  bool nondeterministicParseToken();
   static bool innerGlrParse(GLR &glr, LexerInterface &lexer, SemanticValue &treeTop);
   SemanticValue doReductionAction(
     int productionId, SemanticValue const *svals
     SOURCELOCARG( SourceLocation const &loc ) );
+
+  void rwlProcessWorklist();
+  SiblingLink *rwlShiftNonterminal(StackNode *leftSibling, int lhsIndex,
+                                   SemanticValue /*owner*/ sval
+                                   SOURCELOCARG( SourceLocation const &loc ) );
+  int rwlEnqueueReductions(StackNode *parser, ActionEntry action,
+                           SiblingLink *sibLink);
+  void rwlCollectPathLink(
+    ReductionPathQueue::Path *proto, int popsRemaining,
+    StackNode *currentNode, SiblingLink *mustUseLink, SiblingLink *linkToAdd);
+  void rwlRecursiveEnqueue(
+    ReductionPathQueue::Path *proto,
+    int popsRemaining,
+    StackNode *currentNode,
+    SiblingLink *mustUseLink);
+  void rwlShiftTerminals();
 
 public:     // funcs
   GLR(UserActions *userAct, ParseTables *tables);

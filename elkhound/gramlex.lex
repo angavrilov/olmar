@@ -137,6 +137,7 @@ SLWHITE   [ \t]
 "verbatim"         TOK_UPD_COL;  return TOK_VERBATIM;
 "precedence"       TOK_UPD_COL;  return TOK_PRECEDENCE;
 "option"           TOK_UPD_COL;  return TOK_OPTION;
+"expect"           TOK_UPD_COL;  return TOK_EXPECT;
 
   /* --------- embedded literal code --------- */
 "[" {

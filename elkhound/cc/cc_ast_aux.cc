@@ -63,6 +63,21 @@ void genericAddAmbiguity(NODE *main, NODE *alt)
   // never been yielded to anything)
   xassert(alt->next == NULL);
 
+  // same reasoning for 'ambiguity'
+  //xassert(alt->ambiguity == NULL);
+  // no, it turns out the RHS could have been yielded if the
+  // reduction action is the identity function.. so instead
+  // find the last node in the 'alt' list and we'll splice
+  // that entire list into 'main's ambiguity list
+  NODE *altLast = alt;
+  while (altLast->ambiguity) {
+    altLast = altLast->ambiguity;
+
+    // the assignment below will only get the first node, so
+    // this takes care of the other ones in 'alt'
+    altLast->next = main->next;
+  }
+
   if (main->next) {
     // I don't expect 'main' to already be on a list, so I'll
     // make some noise; but I think it will work anyway
@@ -73,8 +88,8 @@ void genericAddAmbiguity(NODE *main, NODE *alt)
   // if 'main' has been added to a list, add 'alt' also
   alt->next = main->next;
 
-  // finally, prepend 'alt' to 'main's ambiguity list
-  alt->ambiguity = main->ambiguity;
+  // finally, prepend 'alt's ambiguity list to 'main's ambiguity list
+  altLast->ambiguity = main->ambiguity;
   main->ambiguity = alt;
 }
 
@@ -109,7 +124,19 @@ void Function::printExtras(ostream &os, int indent) const
 }
 
 
-// MemberInit
+// ---------------------- MemberInit ----------------------
+void MemberInit::printExtras(ostream &os, int indent) const
+{
+  if (member) {
+    ind(os, indent) << "member: refers to " << member->loc.toString() << "\n";
+  }       
+
+  if (base) {
+    ind(os, indent) << "base: " << base->toCString() << "\n";
+  }
+}
+
+
 // Declaration
 
 // ---------------------- ASTTypeId -----------------------
@@ -222,7 +249,15 @@ void TypeSpecifier::printExtras(ostream &os, int indent) const
 }
 
 
-// BaseClass
+// ------------------- BaseClassSpec ---------------------
+void BaseClassSpec::printExtras(ostream &os, int indent) const
+{
+  if (type) {
+    ind(os, indent) << "type: " << type->toCString() << "\n";
+  }
+}
+
+
 // MemberList
 // Member
 
@@ -310,6 +345,22 @@ PQName const *D_bitfield::getDeclaratorId() const
   // the ability to simply return 'name' here is why bitfields contain
   // a PQName instead of just a StringRef
   return name;
+}
+
+PQName const *D_grouping::getDeclaratorId() const
+{
+  return base->getDeclaratorId();
+}
+
+
+IDeclarator *IDeclarator::skipGroups()
+{
+  if (isD_grouping()) {
+    return asD_grouping()->base->skipGroups();
+  }
+  else {
+    return this;
+  }
 }
 
 

@@ -20,10 +20,21 @@ public:
 
   // unambiguous
   Foo(u_short, u_short);
-  
+
   // parse error now
   //*ERROR1:*/ Foo x;
-  
+
   // should (eventually) provoke error about incomplete type
   //Foo *y, z;
+
+  // but this has to still work!
+  typedef Foo my_type;
+
+  // so must this
+  static Foo an_instance;
+
+  // what about this?  parsed as a declaration of a static variable,
+  // because "static" isn't among the modifiers allowed to preceed
+  // a ctor declaration
+  static Foo(u_short);
 };

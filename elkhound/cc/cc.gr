@@ -59,6 +59,12 @@ option useGCDefaults;
 // then abort
 option defaultMergeAborts;
 
+// expected statistics
+expect shift_reduce_conflicts 37;
+expect reduce_reduce_conflicts 47;
+expect unreachable_nonterminals 0;
+expect unreachable_terminals 28;
+
 verbatim CCGr [
 
 #include "strtable.h"     // StringRef (r)
@@ -111,6 +117,26 @@ ASTTypeId *ellipsisTypeId(SourceLocation const &loc, QualifierLiterals *ql)
   // FIX: creates garbage
   tid->spec->q = new Qualifiers("anonymous_ellipsis", loc, 0 /*local*/, NULL, ql);
   return tid;
+}
+
+// make a TS_name, and supply CV flags
+TS_name *new_TS_name(SourceLocation const &loc, CVFlags cv, PQName *n, 
+                     bool typenameUsed)
+{
+  TS_name *ret = new TS_name(n, loc, typenameUsed);
+  ret->cv = cv;
+  return ret;
+}
+
+// make a TS_simple, and supply CV flags
+TS_simple *new_TS_simple(SourceLocation const &loc, CVFlags cv, SimpleTypeId id)
+{
+  stringBuilder sb;
+  sb << "anonymous:" << toString(id);
+  TS_simple *ret = new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, s);
+  //TS_simple *ret = new TS_simple(new PQ_name("anonymous_PrimitiveTypeSpecifier"), loc, id);
+  ret->cv = cv;
+  return ret;
 }
 
 ]
@@ -194,9 +220,12 @@ nonterm[StringRef] Identifier {
 // another name that comes up in a few places; it's supposed
 // to refer to a type, but the typechecker will have to enforce
 // that later
-nonterm[StringRef] TypeName {
-  -> id:Identifier      [ return id; ]
-}
+//
+// update: I've substituted it into the grammar elsewhere, since
+// it's just causing s/r conflicts with no gain
+//  nonterm[StringRef] TypeName {
+//    -> id:Identifier      [ return id; ]
+//  }
 
 
 // ---------------- higher-level syntax -----------------
@@ -211,6 +240,9 @@ nonterm[TranslationUnit*] TranslationUnit {
 
   // destructive action on 't'
   -> t:TranslationUnit d:Declaration      [ t->topForms.append(d); return t; ]
+  
+  // arg!  Mozilla is littered with toplevel semicolons..
+  -> t:TranslationUnit ";"                [ return t; ]
 }
 
 // ------ A.4 Expressions ------
@@ -293,10 +325,10 @@ nonterm[PQName*] PQualifiedId {
   -> id:UnqualifiedId
        [ return id; ]
 
-  -> n:TypeName "::" id:PQualifiedId
+  -> n:Identifier "::" id:PQualifiedId
        [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
 
-  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
+  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:PQualifiedId
        [ return new PQ_qualifier(n, targs, id); ]
 
   // TODO: cppstd has a couple places where "template" occurs, I'm
@@ -352,7 +384,7 @@ nonterm[Expression*] PostfixExpression {
   -> p:PostfixExpression "." n:PQDtorName
        [ return new E_fieldAcc(p, n); ]
   -> p:PostfixExpression "->" n:PQDtorName
-       [ return new E_fieldAcc(p, n); ]
+       [ return new E_fieldAcc(new E_deref(p), n); ]
 
   -> k:CastKeyword "<" t:TypeId ">" "(" e:Expression ")"
        [ return new E_keywordCast(k, t, e); ]
@@ -490,8 +522,8 @@ nonterm[IDeclarator*] NewDeclaratorOpt {
 
   // pointers
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:NewDeclaratorOpt
-    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
-                           true /*isPtr*/, cv, d);
+    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc,
+                           true /*isPtr*/, cv, d, ql);
     ]
 
   // commit to at least one "[" ... "]"
@@ -787,9 +819,21 @@ nonterm[Declaration*] BlockDeclaration {
 //   for declaring classes and enums
 nonterm[Declaration*] SimpleDeclaration {
   // destructive action on 'spec'
-  //e.g.: int                x                     ;
-  -> spec:DeclSpecifier list:InitDeclaratorListOpt ";"
+  //e.g.: int                x                  ;
+  -> spec:DeclSpecifier list:InitDeclaratorList ";"
        [ spec->decllist = list; return spec; ]
+
+  // a bare specifier is a type definition or forward declaration
+  -> spec:DeclSpecifier ";"
+       [ if (spec->spec->isTS_elaborated()) {
+           // cppstd 3.3.1 para 5: the special form
+           //   class-key identifier ;
+           // is treated specially; mark it with a special flag
+           spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
+         }
+         return spec; 
+       ]
+
 
   // this is now redundant because DeclSpecifier allows "typedef"
   //-> "typedef" spec:DeclSpecifier list:TypedefDeclaratorList ";"
@@ -804,165 +848,212 @@ nonterm[Declaration*] SimpleDeclaration {
 }
 
 
-// old:
-//DeclSpecifier -> StorageClassOpt CVQualifiersOpt TypeSpecifier
-//CVQualifiersOpt -> "const" CVQualifiersOpt | "volatile" CVQualifiersOpt | empty
-// now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
-// the TypeId in a cast expression to contain a "const"
-
-// I return a Declaration object with an empty decllist, as a proxy
-// for returning dflags and spec as a pair
+// type specifier, i.e. the "int" in "int x;"
+//
+// The legal language of type specifiers is much larger than most
+// people's usage of them; for example, "int signed" is legal, as is
+// "const unsigned volatile long static int".  Reading the standard, I
+// drew up a state diagram from which the following grammar was
+// produced, and will at some point scan my drawing.
+//
+// The basic idea is to have a bitmap (UberModifiers) of all the
+// relevant keywords, to allow collecting them in any order.  Then,
+// since a type specifier can only name one type, once I see something
+// which commits the syntax to one particular kind of type specifier
+// (e.g. TS_name, or TS_simple) then I drop down into collecting a
+// possibly different set of keywords.
+//
+// I explicitly substitute UberModifierSeqOpt into the left sides of
+// the productions below as a performance optimization to avoid
+// shift/reduce conflicts.  That is, I write
+//   ->                    PQTypeName UberModifierSeqOpt
+//   -> UberModifierSeq    PQTypeName UberModifierSeqOpt
+// instead of
+//   -> UberModifierSeqOpt PQTypeName UberModifierSeqOpt
+// because the latter would cause shift/reduce conflicts.
 nonterm[Declaration*] DeclSpecifier {
   dup(d) [ return NULL; ]    // prevent multi-yield
 
-  -> m:DeclModifierSeq s:TypeSpecifier
-       [ return new Declaration(m, s, NULL); ]
+  // TS_name: triggered by PQTypeName
+  -> n:PQTypeName m2:UberModifierSeqOpt
+       [ return new Declaration(uberDeclFlags(m2),
+           new_TS_name(loc, uberCVFlags(m2), n, false /*typename*/), NULL); ]
 
-  -> s:TypeSpecifier
-       [ return new Declaration(DF_NONE, s, NULL); ]
+  -> m1:UberModifierSeq n:PQTypeName m2:UberModifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_name(loc, uberCVFlags(m), n, false /*typename*/), NULL); ]
+
+  // TS_simple: triggered by UberTypeKeyword
+  -> k1:UberTypeKeyword m2:UberTypeAndModifierSeqOpt
+       [ UberModifiers k = uberCombine(loc, k1, m2);
+         return new Declaration(uberDeclFlags(m2),
+           new_TS_simple(loc, uberCVFlags(m2), uberSimpleType(loc, k)), NULL); ]
+
+  -> m1:UberModifierSeq k1:UberTypeKeyword m2:UberTypeAndModifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         UberModifiers k = uberCombine(loc, k1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_simple(loc, uberCVFlags(m), uberSimpleType(loc, k)), NULL); ]
+
+  // TS_elaborated, TS_classSpec, TS_enumSpec:
+  // triggered by one of "class", "struct", "union", "enum", "typename",
+  // with the particular instance sorted out by ElaboratedOrSpecifier
+  -> e:ElaboratedOrSpecifier m2:UberModifierSeqOpt
+       [ e->cv |= uberCVFlags(m2);     // destructive action
+         return new Declaration(uberDeclFlags(m2), e, NULL); ]
+
+  -> m1:UberModifierSeq e:ElaboratedOrSpecifier m2:UberModifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         e->cv |= uberCVFlags(m);      // destructive action
+         return new Declaration(uberDeclFlags(m), e, NULL); ]
 }
 
-// at one point I was trying to make the parser enforce rules about
-// which modifiers could go together and the fact that each one can't
-// occur more than once, but that got to be unwieldy.. so now I allow
-// any sequence, and the typechecker will have to rule out bad
-// combinations (and for now no one can enforce the no-duplication
-// rule..)
-nonterm[enum DeclFlags] DeclModifierSeq {
-  // subtle: I originally wrote this as DeclModifierSeqOpt, and that
-  // nearly tripled the # of shift/reduce conflicts, because the
-  // parser was forced to decide too early whether to do an epsilon
-  // reduction; pushing the epsilon choice up one level (where it is
-  // no longer an epsilon choice per-se) got me back to 59, which is
-  // where it's been hovering.  Of course, because of GLR, this was
-  // only a performance optimization.
+// choose among TS_elaborated, TS_classSpec and TS_enumSpec
+nonterm[TypeSpecifier*] ElaboratedOrSpecifier {
+  dup(n) [ return NULL; ]              // prevent multi-yield
 
-  -> m:DeclModifier
-       [ return m; ]
-  -> seq:DeclModifierSeq m:DeclModifier
-       [ DeclFlags ret = (DeclFlags)(seq | m);
-         if (ret == seq) {
-           // this will do for now
-           cout << "warning: duplicate decl modifier\n";
-         }
-         return ret;
-       ]
-}
-
-nonterm[enum DeclFlags] DeclModifier {
-  -> "virtual"     [ return DF_VIRTUAL;  ]
-  -> "friend"      [ return DF_FRIEND;   ]
-  -> "mutable"     [ return DF_MUTABLE;  ]
-  -> "auto"        [ return DF_AUTO;     ]
-  -> "register"    [ return DF_REGISTER; ]
-  -> "static"      [ return DF_STATIC;   ]
-  -> "extern"      [ return DF_EXTERN;   ]
-  -> "inline"      [ return DF_INLINE;   ]
-  -> "typedef"     [ return DF_TYPEDEF;  ]
-
-  -> "thmprv_predicate"   [ return DF_PREDICATE; ]
+  -> s:ElaboratedTypeSpecifier [ return s; ]
+  -> s:ClassSpecifier          [ return s; ]
+  -> s:EnumSpecifier           [ return s; ]
 }
 
 
-// plays role of "TypeSpecifierSeq" in std
-nonterm[TypeSpecifier*] TypeSpecifier {
-  // the existence of this production is part of why parsing C is hard
-  -> n:PQTypeName
-       [ return new TS_name(n, loc, false /*typename*/); ]
+// nonempty sequence of UberModifiers; note that the act of combining
+// UberModifiers sets checks for and complains about duplication
+nonterm[UberModifiers] UberModifierSeq {
+  -> u:UberModifier                    [ return u; ]
+  -> s:UberModifierSeq u:UberModifier  [ return uberCombine(loc, s,u); ]
+}
 
-  -> s:PrimitiveTypeSpecifier            // int
-    [ // FIX: optimization: anonymous-typenames turn this back on
-      stringBuilder sb;
-      sb << "anonymous:" << toString(s);
-      return new TS_simple(new PQ_name(strdup(sb.pcharc())), loc, s);
-//           return new TS_simple(new PQ_name("anonymous_PrimitiveTypeSpecifier"), loc, s);
-    ]
+nonterm[UberModifiers] UberModifierSeqOpt {
+  -> empty                    [ return UM_NONE; ]
+  -> s:UberModifierSeq        [ return s; ]
+}
 
-  -> s:PrimitiveCVTypeSpecifier          // unsigned const char  (not good style, IMO)
-       [
-         TS_simple *ret = new TS_simple(new PQ_name("anonymous_PrimitiveCVTypeSpecifier"), loc,
-             (SimpleTypeId)(s & ST_BITMASK));
-         ret->cv = (CVFlags)(s & CV_ALL);
-         return ret;
-       ]
 
-  -> s:ElaboratedTypeSpecifier        // class foo  or  enum bar
-       [ return s; ]
+// possibly empty sequence of modifiers (e.g. "static") or type
+// keywords (e.g. "int")
+nonterm[UberModifiers] UberTypeAndModifierSeqOpt {
+  -> empty                                          [ return UM_NONE; ]
+  -> s:UberTypeAndModifierSeqOpt u:UberModifier     [ return uberCombine(loc, s,u); ]
+  -> s:UberTypeAndModifierSeqOpt u:UberTypeKeyword  [ return uberCombine(loc, s,u); ]
+}
 
-  -> s:ClassSpecifier                 // class { ... }
-       [ return s; ]
-  -> s:EnumSpecifier                  // enum { ... }
-       [ return s; ]
 
-  // the following rules create an ambiguity because they don't
-  // say how to parse things like "const int const"; so assign
-  // all of them precedence higher than const/volatile/attribute,
-  // so we'll just prefer reducing always
+// repetition of above rules when the only modifiers allowed
+// are "const" and "volatile"; this is for TypeSpecifier
+nonterm[UberModifiers] UberCVQualifierSeq {
+  -> u:UberCVQualifier                       [ return u; ]
+  -> s:UberCVQualifierSeq u:UberCVQualifier  [ return uberCombine(loc, s,u); ]
+}
 
-  // destructive actions on 's', but since any interpretation will
-  // have the same final effect of adding the cv flags to the
-  // specifier, I won't disable multi-yield for TypeSpecifier
-  -> q:CVQualifier s:TypeSpecifier  precedence(L2_PREFER_REDUCE)   // const int
-       [ s->cv = (CVFlags)(s->cv | q); return s; ]
-  -> s:TypeSpecifier q:CVQualifier  precedence(L2_PREFER_REDUCE)   // int const
-       [ s->cv = (CVFlags)(s->cv | q); return s; ]
+nonterm[UberModifiers] UberCVQualifierSeqOpt {
+  -> empty                       [ return UM_NONE; ]
+  -> s:UberCVQualifierSeq        [ return s; ]
+}
 
-  -> q:L2_UDEF_QUAL s:TypeSpecifier  precedence(L2_PREFER_REDUCE) // $tainted int
-  [ s->q->prependLiteralString(q); return s; ]
-  -> s:TypeSpecifier q:L2_UDEF_QUAL  precedence(L2_PREFER_REDUCE) // $tainted int
-  [ s->q->appendLiteralString(q); return s; ]
+nonterm[UberModifiers] UberTypeAndCVQualifierSeqOpt {
+  -> empty                                             [ return UM_NONE; ]
+  -> s:UberTypeAndCVQualifierSeqOpt u:UberCVQualifier  [ return uberCombine(loc, s,u); ]
+  -> s:UberTypeAndCVQualifierSeqOpt u:UberTypeKeyword  [ return uberCombine(loc, s,u); ]
+}
+
+
+// modifiers
+nonterm[UberModifiers] UberModifier {
+  // storage-class-specifier
+  -> "auto"      [ return UM_AUTO; ]
+  -> "register"  [ return UM_REGISTER; ]
+  -> "static"    [ return UM_STATIC; ]
+  -> "extern"    [ return UM_EXTERN; ]
+  -> "mutable"   [ return UM_MUTABLE; ]
+
+  // function-specifier
+  -> "inline"    [ return UM_INLINE; ]
+  -> "virtual"   [ return UM_VIRTUAL; ]
+  //-> "explicit"  [ return UM_EXPLICIT; ]    // can only appear in CDtorModifier
+
+  // decl-specifier terminals
+  -> "friend"    [ return UM_FRIEND; ]
+  -> "typedef"   [ return UM_TYPEDEF; ]
+
+  // cv-qualifier
+  -> "const"     [ return UM_CONST; ]
+  -> "volatile"  [ return UM_VOLATILE; ]
+}
+
+// just the cv-qualifiers
+nonterm[UberModifiers] UberCVQualifier {
+  -> "const"     [ return UM_CONST; ]
+  -> "volatile"  [ return UM_VOLATILE; ]
+}
+
+// keywords that name a type, or part of one
+nonterm[UberModifiers] UberTypeKeyword {
+  -> "char"      [ return UM_CHAR; ]
+  -> "wchar_t"   [ return UM_WCHAR_T; ]
+  -> "bool"      [ return UM_BOOL; ]
+  -> "short"     [ return UM_SHORT; ]
+  -> "int"       [ return UM_INT; ]
+  -> "long"      [ return UM_LONG; ]
+  -> "signed"    [ return UM_SIGNED; ]
+  -> "unsigned"  [ return UM_UNSIGNED; ]
+  -> "float"     [ return UM_FLOAT; ]
+  -> "double"    [ return UM_DOUBLE; ]
+  -> "void"      [ return UM_VOID; ]
 }
 
 
 nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
   -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(n, loc, k); ]
   -> "enum" n:PQTypeName        [ return new TS_elaborated(n, loc, TI_ENUM); ]
-                            
+
   // cppstd grammar ensures "typename" is only applied to qualified
   // names, but I find that more natural to enforce during typechecking
   -> "typename" n:PQTypeName    [ return new TS_name(n, loc, true /*typename*/); ]
 }
 
 
-// this list comes from Table 7 (p.109) of the C++ standard
-// NOTE: this deviates from the language spec, which allows other
-// decl-specifiers to mix with the tokens here
-nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
-  -> "char"                     [ return ST_CHAR; ]
-  -> "unsigned" "char"          [ return ST_UNSIGNED_CHAR; ]
-  -> "signed" "char"            [ return ST_SIGNED_CHAR; ]
-  -> "bool"                     [ return ST_BOOL; ]
-  -> "unsigned"                 [ return ST_UNSIGNED_INT; ]
-  -> "unsigned" "int"           [ return ST_UNSIGNED_INT; ]
-  -> "signed"                   [ return ST_INT; ]
-  -> "signed" "int"             [ return ST_INT; ]
-  -> "int"                      [ return ST_INT; ]
-  -> "unsigned" "short" "int"   [ return ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" "short"         [ return ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" "long" "int"    [ return ST_UNSIGNED_LONG_INT; ]
-  -> "unsigned" "long"          [ return ST_UNSIGNED_LONG_INT; ]
-  -> "signed" "long" "int"      [ return ST_LONG_INT; ]
-  -> "signed" "long"            [ return ST_LONG_INT; ]
-  -> "long" "int"               [ return ST_LONG_INT; ]
-  -> "long"                     [ return ST_LONG_INT; ]
-  -> "signed" "short" "int"     [ return ST_SHORT_INT; ]
-  -> "signed" "short"           [ return ST_SHORT_INT; ]
-  -> "short" "int"              [ return ST_SHORT_INT; ]
-  -> "short"                    [ return ST_SHORT_INT; ]
-  -> "wchar_t"                  [ return ST_WCHAR_T; ]
-  -> "float"                    [ return ST_FLOAT; ]
-  -> "double"                   [ return ST_DOUBLE; ]
-  -> "long" "double"            [ return ST_LONG_DOUBLE; ]
-  -> "void"                     [ return ST_VOID; ]
-  
-  // GNU extensions
-  -> "signed" "long" "long"     [ return ST_LONG_LONG; ]
-  -> "long" "long"              [ return ST_LONG_LONG; ]
-  -> "unsigned" "long" "long"   [ return ST_UNSIGNED_LONG_LONG; ]
+// plays role of "TypeSpecifierSeq" in cppstd; this is a
+// version of DeclSpecifier restricted to only allow "const" and
+// "volatile" UberModifiers
+nonterm [TypeSpecifier*] TypeSpecifier {
+  // TS_name
+  -> n:PQTypeName cv2:UberCVQualifierSeqOpt
+       [ return new_TS_name(loc, uberCVFlags(cv2), n, false /*typename*/); ]
 
-  -> "signed" "long" "long" "int"    [ return ST_LONG_LONG; ]
-  -> "long" "long" "int"             [ return ST_LONG_LONG; ]
-  -> "unsigned" "long" "long" "int"  [ return ST_UNSIGNED_LONG_LONG; ]
+  -> cv1:UberCVQualifierSeq n:PQTypeName cv2:UberCVQualifierSeqOpt
+       [ UberModifiers cv = uberCombine(loc, cv1, cv2);
+         return new_TS_name(loc, uberCVFlags(cv), n, false /*typename*/); ]
+
+  // TS_simple
+  -> k1:UberTypeKeyword m2:UberTypeAndCVQualifierSeqOpt
+       [ UberModifiers k = uberCombine(loc, k1, m2);
+         return new_TS_simple(loc, uberCVFlags(m2), uberSimpleType(loc, k)); ]
+
+  -> m1:UberCVQualifierSeq k1:UberTypeKeyword m2:UberTypeAndCVQualifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         UberModifiers k = uberCombine(loc, k1, m2);
+         return new_TS_simple(loc, uberCVFlags(m), uberSimpleType(loc, k)); ]
+
+  // TS_elaborated, TS_classSpec, TS_enumSpec
+  -> e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
+       [ e->cv |= uberCVFlags(m2);     // destructive action
+         return e; ]
+
+  -> m1:UberCVQualifierSeq e:ElaboratedOrSpecifier m2:UberCVQualifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         e->cv |= uberCVFlags(m);      // destructive action
+         return e; ]
+         
+  // user-defined qualifiers can preceed or follow the *whole*
+  // type specifier, but must not be intermingled within it
+  // Q: why is this precedence specification necessary?
+  -> q:L2_UDEF_QUAL s:TypeSpecifier  precedence(L2_PREFER_REDUCE) // "$tainted int"
+       [ s->q->prependLiteralString(q); return s; ]
+  -> s:TypeSpecifier q:L2_UDEF_QUAL  precedence(L2_PREFER_REDUCE) // "int $tainted"
+       [ s->q->appendLiteralString(q); return s; ]
 }
 
 
@@ -978,54 +1069,15 @@ nonterm[PQName*] PQTypeName {
 
 // no-colon-colon
 nonterm[PQName*] PQTypeName_ncc {
-  -> n:TypeName                    
+  -> n:Identifier                    
        [ return new PQ_name(n); ]
   -> id:TemplateId
        [ return id; ]
 
-  -> q:TypeName "::" n:PQTypeName_ncc
+  -> q:Identifier "::" n:PQTypeName_ncc
        [ return new PQ_qualifier(q, NULL /*targs*/, n); ]
-  -> q:TypeName "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
+  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" n:PQTypeName_ncc
        [ return new PQ_qualifier(q, targs, n); ]
-}
-
-
-// the C++ standard allows "const" and "volatile" to be arbitrarily
-// interleaved with the words of a simple-type-specifier.. so I've
-// created this set of alternative type specifiers which have at
-// least one CV qualifier buried in them
-//
-// technically, I'm still missing things like
-//   unsigned const short volatile int
-// but yikes, I pity the fool with such code!
-//
-// I really should just fold these into the above, but my dislike for
-// the interleaving thing makes me try to keep the above decls more
-// or less "pure".. but I'll probably merge them at some point
-//
-// I return an 'int' here because it's an OR of CVFlags and SimpleTypeId
-nonterm[int] PrimitiveCVTypeSpecifier {
-  -> "unsigned" q:CVQualifierSeq "char"         [ return q | ST_UNSIGNED_CHAR; ]
-  -> "signed" q:CVQualifierSeq "char"           [ return q | ST_SIGNED_CHAR; ]
-  -> "unsigned" q:CVQualifierSeq "int"          [ return q | ST_UNSIGNED_INT; ]
-  -> "signed" q:CVQualifierSeq "int"            [ return q | ST_INT; ]
-  -> "unsigned" q:CVQualifierSeq "short" "int"  [ return q | ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" "short" q:CVQualifierSeq "int"  [ return q | ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" q:CVQualifierSeq "short"        [ return q | ST_UNSIGNED_SHORT_INT; ]
-  -> "unsigned" q:CVQualifierSeq "long" "int"   [ return q | ST_UNSIGNED_LONG_INT; ]
-  -> "unsigned" "long" q:CVQualifierSeq "int"   [ return q | ST_UNSIGNED_LONG_INT; ]
-  -> "unsigned" q:CVQualifierSeq "long"         [ return q | ST_UNSIGNED_LONG_INT; ]
-  -> "signed" q:CVQualifierSeq "long" "int"     [ return q | ST_LONG_INT; ]
-  -> "signed" "long" q:CVQualifierSeq "int"     [ return q | ST_LONG_INT; ]
-  -> "signed" q:CVQualifierSeq "long"           [ return q | ST_LONG_INT; ]
-  -> "long" q:CVQualifierSeq "int"              [ return q | ST_LONG_INT; ]
-  -> "signed" q:CVQualifierSeq "long" "long"    [ return q | ST_LONG_LONG; ]
-  -> "unsigned" q:CVQualifierSeq "long" "long"  [ return q | ST_UNSIGNED_LONG_LONG; ]
-  -> "signed" q:CVQualifierSeq "short" "int"    [ return q | ST_SHORT_INT; ]
-  -> "signed" "short" q:CVQualifierSeq "int"    [ return q | ST_SHORT_INT; ]
-  -> "signed" q:CVQualifierSeq "short"          [ return q | ST_SHORT_INT; ]
-  -> "short" q:CVQualifierSeq "int"             [ return q | ST_SHORT_INT; ]
-  -> "long" q:CVQualifierSeq "double"           [ return q | ST_LONG_DOUBLE; ]
 }
 
 
@@ -1057,15 +1109,16 @@ nonterm[Enumerator*] EnumeratorDefinition {
        [ return new Enumerator(loc, name, expr); ]
 }
 
+  
+// not used for now
+//nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
 
-nonterm AsmDefinition -> "asm" "(" L2_STRING_LITERAL ")" ";" ;
-
-nonterm[TF_linkage*] LinkageSpecification {
+nonterm[TopForm*] LinkageSpecification {
   -> "extern" n:L2_STRING_LITERAL "{" tu:TranslationUnit "}"
        [ return new TF_linkage(loc, n, tu); ]
 
   -> "extern" n:L2_STRING_LITERAL tf:Declaration
-       [ return new TF_linkage(loc, n, new TranslationUnit(new ASTList<TopForm>(tf))); ]
+       [ return new TF_one_linkage(loc, n, tf); ]
 }
 
 // ------ A.7 Declarators ------
@@ -1080,12 +1133,13 @@ nonterm[FakeList<Declarator>*] InitDeclaratorList {
          return FakeList<Declarator>::makeList(d); ]
 }
 
-nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
-  -> empty
-       [ return FakeList<Declarator>::emptyList(); ]
-  -> list:InitDeclaratorList
-       [ return list; ]
-}
+// obsolete now that I've substituted it into SimpleDeclaration
+//  nonterm[FakeList<Declarator>*] InitDeclaratorListOpt {
+//    -> empty
+//         [ return FakeList<Declarator>::emptyList(); ]
+//    -> list:InitDeclaratorList
+//         [ return list; ]
+//  }
 
 
 nonterm[Declarator*] InitDeclarator {
@@ -1166,14 +1220,13 @@ nonterm[IN_compound*] InitializerList {
 // regex for this nonterm: (PtrOperator)* DirectDeclarator
 nonterm[IDeclarator*] Declarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:Declarator
-    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
-                           true /*isPtr*/, cv, d);
-    ]
+       [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc,
+                              true /*isPtr*/, cv, d, ql);
+       ]
   -> "&" d:Declarator
-    [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc, NULL,
-                           false /*isPtr*/, CV_NONE, d);
-    ]
-
+       [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc,
+                              false /*isPtr*/, CV_NONE, d, NULL /*ql*/);
+       ]
   -> d:DirectDeclarator
        [ return d; ]
 }
@@ -1197,17 +1250,17 @@ nonterm[IDeclarator*] DirectDeclarator {
      ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       [ return new D_func(appendToDeclaratorName(d, "_func"), loc, ql,
-                           d, params, cv, e);
+       [ return new D_func(appendToDeclaratorName(d, "_func"), loc,
+                           d, params, cv, e, ql);
        ]
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
        [ return new D_array(appendToDeclaratorName(d, "_array"), loc, d, sz); ]
 
-  // precedence grouping
+  // precedence grouping; must be recorded in the AST for disambiguation
   -> "(" d:Declarator ")"
-       [ return d; ]
+       [ return new D_grouping(d->name /*use same name*/, loc, d); ]
 }
 
 // I choose to encode ctor and dtor names as ordinary PQNames, because
@@ -1219,16 +1272,16 @@ nonterm[IDeclarator*] DirectDeclarator {
 // (I notice the standard calls this PseudoDestructorName; I'll stick with
 // my terminology.)
 nonterm[PQName*] PQDtorName {
-  -> "~" n:TypeName              
+  -> "~" n:Identifier              
        [ return new PQ_name(str(stringc << "~" << n)); ]
 
   // as above for PQName_no_colon_colon, I'm temporarily removing an
   // ambiguity that relates to namespaces (e.g. "::F::~F()")
   //-> q:Qualifier rhs:PQDtorName  [ return new PQ_qualifier(q, rhs); ]
-  -> q:TypeName "::" rhs:PQDtorName
+  -> q:Identifier "::" rhs:PQDtorName
        [ return new PQ_qualifier(q, NULL /*targs*/, rhs); ]
 
-  -> q:TypeName "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
+  -> q:Identifier "<" targs:TemplateArgumentList ">" "::" rhs:PQDtorName
        [ return new PQ_qualifier(q, targs, rhs); ]
 
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId "::" "~" TypeName;
@@ -1244,13 +1297,13 @@ nonterm[Expression*] ConstantExpressionOpt {
 // also, it reminds me that every place I've substituted PtrOperator
 // into the syntaxes elsewhere has an implicit TODO for the
 // pointer-to-member syntax
-nonterm PtrOperator {
-  -> "*" ql:QualifierLiteralsOpt q:CVQualifierSeqOpt ; // dsw: what the heck is this?
-  -> "&" ;
+//  nonterm PtrOperator {
+//    -> "*" q:CVQualifierSeqOpt ;
+//    -> "&"                     ;
 
-  // TODO: pointer to member
-  //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
-}
+//    // TODO: pointer to member
+//    //-> ColonColonOpt NestedNameSpecifier "*" CvQualifierSeqOpt;
+//  }
 
 
 nonterm[enum CVFlags] CVQualifierSeqOpt {
@@ -1300,14 +1353,13 @@ nonterm[IDeclarator*] AbstractDeclaratorOpt {
 // an abstract declarator (not opt) must have *some* ground syntax in it
 nonterm[IDeclarator*] AbstractDeclarator {
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:AbstractDeclaratorOpt
-    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
-                           true /*isPtr*/, cv, d);
-    ]
+       [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc,
+                              true /*isPtr*/, cv, d, ql);
+       ]
   -> "&" d:AbstractDeclaratorOpt
-    [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc, NULL,
-                           false /*isPtr*/, CV_NONE, d);
-    ]
-
+       [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc,
+                              false /*isPtr*/, CV_NONE, d, NULL /*ql*/);
+       ]
   -> d:DirectAbstractDeclarator
        [ return d; ]
 }
@@ -1325,10 +1377,7 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
   //   int foo(int (x));
   // Is the parameter an int, or a function accepting an 'x'?
   //
-  // This is addressed by cppstd 8.2 para 7; the rule given is
-  // a little vague, but I believe it's equivalent to always
-  // preferring D_func over D_name.  So in the above example,
-  // foo's parameter is a function.
+  // This is addressed by cppstd 8.2 para 7; see D_name_tcheck.
   //
   // This ambiguity doesn't show up until ParameterDeclaration, below.
 
@@ -1338,17 +1387,18 @@ nonterm[IDeclarator*] DirectAbstractDeclarator {
      ql:QualifierLiteralsOpt
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
-       [ return new D_func(appendToDeclaratorName(d, "_func"), loc, ql,
-                           d, args, cv, e);
+       [ return new D_func(appendToDeclaratorName(d, "_func"), loc,
+                           d, args, cv, e, ql);
        ]
 
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
        [ return new D_array(appendToDeclaratorName(d, "_array"), loc, d, sz); ]
 
-  // precedence grouping
+  // precedence grouping; shouldn't need to record this in AST, but
+  // I will for constency with Declarator
   -> "(" d:AbstractDeclarator ")"
-       [ return d; ]
+       [ return new D_grouping(d->name, loc, d); ]
 }
 
 
@@ -1387,36 +1437,11 @@ nonterm[ASTTypeId*] ParameterDeclaration {
   // ambiguity:
   //   int (x)
   // is either type "int" with Declarator "(x)", or 
-  // it could be type "int (f)(x q)" such that "(x)" is an
-  // AbstractDeclaratorOpt
+  // it could be type "int f(x q)" such that "(x)" is an
+  // AbstractDeclarator
   //
-  // I think the right choice is to prefer the function type,
-  // which I should be able to take care of by digging down into
-  // the 'd' sval and find its type.
-
-  //    merge(L,R) [
-  //      if (L->decl->decl->isD_func() &&
-  //          R->decl->decl->isD_name()) {
-  //        return L;    // prefer D_func
-  //      }
-  //      else if (R->decl->decl->isD_func() &&
-  //               L->decl->decl->isD_name()) {
-  //        return R;    // prefer D_func
-  //      }
-  //      else {
-  //        xfailure("unknown ParameterDeclaration ambiguity");
-  //        return L;    // silence warning
-  //      }
-  //    ]
-
-  //    // ensure yield-then-merge won't happen by nullifiying the
-  //    // sval, so that merge will segfault
-  //    dup(n) [ return NULL; ]
-  
-  // oops.. turns out yield-then-merge *does* happen (as detected
-  // by the above), so we've got to represent the ambiguity
+  // see D_name_tcheck in tcheck.cc for resolution
   merge(L,R) [ L->addAmbiguity(R); return L; ]
-
 
   -> RegisterOpt s:TypeSpecifier d:Declarator
        [ return new ASTTypeId(s, new Declarator(d, NULL /*init*/)); ]
@@ -1477,49 +1502,67 @@ nonterm[Function*] FunctionDefinition {
          return ret;
        ]
 
+  // I've now substituted the RHSs of CDtorModifierOpt, to eliminiate
+  // a few s/r conflicts at the toplevel of parsing (where they are
+  // the most harmful to performance)
+
   // constructor, destructor or conversion operator
-  // "explicit"?      name/params   member inits          body
-  -> m:CDtorModifier  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
+  // "explicit"?         name/params   member inits          body
+  -> m:CDtorModifierSeq  d:Declarator  c:CtorInitializerOpt  b:FunctionBody
        [
          return new Function(
            m,                        // decl flags: explicit, virtual, or none
            new TS_simple(appendToDeclaratorName(d, "_CDtorModifier"), loc,
-                                         ST_CDTOR),
-           // type specifier: ctor or dtor
+                         ST_CDTOR),  // type specifier: ctor or dtor
            new Declarator(d, NULL),  // declarator with fn name, params
            c,                        // ctor member inits
            b,                        // function body statement
            NULL                      // exception handlers
          );
        ]
+  -> /*no modifier*/     d:Declarator  c:CtorInitializerOpt  b:FunctionBody
+       [
+         return new Function(
+           DF_NONE,
+           new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
+                         ST_CDTOR),
+           new Declarator(d, NULL),
+           c,
+           b,
+           NULL
+         );
+       ]
 
   // ctor with a try block
-  // "explicit"?   name/params        member inits         body           handlers
-  -> e:ExplicitOpt d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+  // "explicit"?         name/params        member inits         body           handlers
+  -> e:CDtorModifierSeq  d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
        [
          return new Function(
            e,                        // decl flags: explicit is only possibility
            new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
-                                         ST_CDTOR),
-           // type specifier: ctor or dtor
-           new Declarator(d, NULL),  // declarator with fn name, params
-           c,                        // ctor member inits
-           b,                        // function body statement
+                         ST_CDTOR),
+           new Declarator(d, NULL),
+           c,
+           b,
            h                         // exception handlers
+         );
+       ]
+  -> /*no modifier*/     d:Declarator "try" c:CtorInitializerOpt b:FunctionBody h:HandlerSeq
+       [
+         return new Function(
+           DF_NONE,
+           new TS_simple(appendToDeclaratorName(d, "_Function"), loc,
+                         ST_CDTOR),
+           new Declarator(d, NULL),
+           c,
+           b,
+           h
          );
        ]
 }
 
 nonterm[S_compound*] FunctionBody -> s:CompoundStatement
   [ return s; ]
-
-// it turns out "inline" also can appear here, at least according
-// to my streambuf.h
-nonterm[DeclFlags] ExplicitOpt {
-  -> "explicit" e:ExplicitOpt   [ return (DeclFlags)(e | DF_EXPLICIT); ]
-  -> "inline" e:ExplicitOpt     [ return (DeclFlags)(e | DF_INLINE); ]
-  -> empty                      [ return DF_NONE; ]
-}
 
 nonterm[FakeList<MemberInit>*] CtorInitializerOpt {
   -> empty                        [ return FakeList<MemberInit>::emptyList(); ]
@@ -1544,9 +1587,9 @@ nonterm[PQName*] ClassHeadName {
   -> n:Identifier        [ return new PQ_name(n); ]
   -> t:TemplateId        [ return t; ]
 
-  -> n:TypeName "::" rest:ClassHeadName
+  -> n:Identifier "::" rest:ClassHeadName
        [ return new PQ_qualifier(n, NULL /*targs*/, rest); ]
-  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
+  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" rest:ClassHeadName
        [ return new PQ_qualifier(n, targs, rest); ]
        
   // TODO: as in PQualifiedId, I'm omitting the keyword "template"
@@ -1595,7 +1638,8 @@ nonterm[Member*] MemberDeclaration {
   // destructive action on 'spec'
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
-       [ if (list->firstC()->decl->isD_name() &&
+       [ if (list->firstC()->decl->skipGroups()->isD_name() &&
+             !(spec->dflags & (DF_TYPEDEF | DF_STATIC)) &&
              spec->spec->isTS_name()) {
            PQName const *n = spec->spec->asTS_nameC()->name;
            if (n->isPQ_name() &&
@@ -1622,6 +1666,10 @@ nonterm[Member*] MemberDeclaration {
              spec->spec->isTS_classSpec() ||
              spec->spec->isTS_enumSpec()) {
            // ok
+           if (spec->spec->isTS_elaborated()) {                    
+             // see similar rule in SimpleDeclaration for why I do this
+             spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
+           }
            return new MR_decl(loc, spec);
          }
          else {
@@ -1645,23 +1693,31 @@ nonterm[Member*] MemberDeclaration {
   // operator function
   // Q: what about pure virtual?
   // A: it's part of the MemberDeclarator
-  -> flags:CDtorModifier d:MemberDeclarator ";"
+  -> flags:CDtorModifierSeq d:MemberDeclarator ";"
        [ // 'd' is a Declarator
-
-         //cout << "------ MemberDeclarator ----\n";
-         //d->debugPrint(cout, 0);
-
+         return new MR_decl(loc,
+           new Declaration(
+             flags,
+             new TS_simple(appendToDeclaratorName(d, "_MemberDeclarator"),
+                           loc,
+                           ST_CDTOR),
+             FakeList<Declarator>::makeList(d)
+           )
+         );
+       ]
+  -> /*no modifier*/ d:MemberDeclarator ";"
+       [
          // does the declarator construct a function type?
          // if not, this might be ambiguous (superclass
          // member publication), so cancel the entire reduction
-         if (!d->decl->isD_func()) {
+         if (!d->decl->skipGroups()->isD_func()) {
            trace("cancel") << loc << ": non-function c/dtor\n";
            return NULL;
          }
 
          return new MR_decl(loc,
            new Declaration(
-             flags,
+             DF_NONE,
              new TS_simple(appendToDeclaratorName(d, "_MemberDeclarator"),
                            loc,
                            ST_CDTOR),
@@ -1709,15 +1765,30 @@ nonterm[StringRef] IdentifierOpt {
   -> n:Identifier  [ return n; ]
 }
 
+
 // modifier flags allowed in front of constructors ("explicit"),
 // destructors ("virtual") and conversion functions (none); plus,
 // "inline" is allowed with any of them..
+//
+// NOTE: to avoid a syntactic ambiguity with the ctor syntax "Foo(x)",
+// the set of flags here must not include "static" or "typedef"; see
+// the action function associated with MemberDeclaration's first production
 nonterm[DeclFlags] CDtorModifier {
-  -> empty                         [ return DF_NONE; ]
-  -> m:CDtorModifier "explicit"    [ return (DeclFlags)(m | DF_EXPLICIT); ]
-  -> m:CDtorModifier "virtual"     [ return (DeclFlags)(m | DF_VIRTUAL); ]
-  -> m:CDtorModifier "inline"      [ return (DeclFlags)(m | DF_INLINE); ]
+  -> "explicit"    [ return DF_EXPLICIT; ]
+  -> "virtual"     [ return DF_VIRTUAL; ]
+  -> "inline"      [ return DF_INLINE; ]
 }
+
+nonterm[DeclFlags] CDtorModifierSeq {
+  -> m:CDtorModifier                       [ return m; ]
+  -> s:CDtorModifierSeq m:CDtorModifier    [ return s|m; ]
+}
+
+// I substituted this into everywhere it occurred
+//  nonterm[DeclFlags] CDtorModifierSeqOpt {
+//    -> empty                         [ return DF_NONE; ]
+//    -> m:CDtorModifierSeq            [ return m; ]
+//  }
 
 
 // ------ A.9 Derived classes ------
@@ -1779,13 +1850,13 @@ nonterm[IDeclarator*] ConversionDeclaratorOpt {
        [ return new D_name(NULL /*name*/, loc); ]
        
   -> "*" ql:QualifierLiteralsOpt cv:CVQualifierSeqOpt d:ConversionDeclaratorOpt
-    [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc, ql,
-                           true /*isPtr*/, cv, d);
-    ]
+       [ return new D_pointer(appendToDeclaratorName(d, "_p"), loc,
+                              true /*isPtr*/, cv, d, ql);
+       ]
   -> "&" d:ConversionDeclaratorOpt
-    [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc, NULL,
-                           false /*isPtr*/, CV_NONE, d);
-    ]
+       [ return new D_pointer(appendToDeclaratorName(d, "_r"), loc,
+                              false /*isPtr*/, CV_NONE, d, NULL /*ql*/);
+       ]
 }
 
 
@@ -1812,12 +1883,12 @@ nonterm[PQName*] MemInitializerId {
        [ return new PQ_name(id); ]
        
   // base class which is a template
-  -> n:TypeName "<" targs:TemplateArgumentList ">"
+  -> n:Identifier "<" targs:TemplateArgumentList ">"
        [ return new PQ_template(n, targs); ]
 
-  -> n:TypeName "::" id:MemInitializerId   
+  -> n:Identifier "::" id:MemInitializerId   
        [ return new PQ_qualifier(n, NULL /*targs*/, id); ]
-  -> n:TypeName "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
+  -> n:Identifier "<" targs:TemplateArgumentList ">" "::" id:MemInitializerId
        [ return new PQ_qualifier(n, targs, id); ]
 }
 

@@ -8,6 +8,8 @@
 
 #include "cc.ast.gen.h"         // C++ AST; this module
 
+#include <stdio.h>              // printf
+
 void init_cc_qual(char *config_file) {
   printf("DUMMY INIT config_file: %s\n", config_file);
 }
@@ -30,6 +32,8 @@ void TF_func::qual(QualEnv &env) {}
 void TF_template::qual(QualEnv &env) {}
 
 void TF_linkage::qual(QualEnv &env) {}
+
+void TF_one_linkage::qual(QualEnv &env) {}
 
 // --------------------- Function -----------------
 void Function::qual(QualEnv &env) {}

@@ -14,8 +14,14 @@ class GrammarAST (ASTList<Option> options,
                   ASTList<NontermDecl> nonterms);
 
 
-// option; for now just a name
-class Option (LocString name);
+// declarative options
+class Option {
+  // boolean option
+  -> OP_name (LocString name);
+
+  // numeric expectation
+  -> OP_expect (LocString name, int value);
+}
 
 
 // definition of tokens

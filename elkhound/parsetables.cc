@@ -37,6 +37,9 @@ void ParseTables::alloc(int t, int nt, int s, int p, StateId start, int final)
 
   startState = start;
   finalProductionIndex = final;
+  
+  nontermOrder = new NtIndex[nontermOrderSize()];
+  memset(nontermOrder, 0, sizeof(nontermOrder[0]) * nontermOrderSize());
 }
 
 
@@ -51,6 +54,8 @@ ParseTables::~ParseTables()
     for (int i=0; i<numAmbig(); i++) {
       delete[] ambigAction[i];
     }
+
+    delete[] nontermOrder;
   }
 }
 
@@ -77,14 +82,16 @@ GotoEntry ParseTables::validateGoto(int code) const
 }
 
 
-ParseTables::ParseTables(Flatten&)
+ParseTables::ParseTables(Flatten &flat)
 {
   actionTable = NULL;
   gotoTable = NULL;
   prodInfo = NULL;
+  stateSymbol = NULL;
+  nontermOrder = NULL;
 }
 
-     
+
 template <class T>
 void xferSimpleArray(Flatten &flat, T *array, int numElements)
 {
@@ -111,11 +118,12 @@ void ParseTables::xfer(Flatten &flat)
     alloc(numTerms, numNonterms, numStates, numProds,
           startState, finalProductionIndex);
   }
-           
+
   xferSimpleArray(flat, actionTable, actionTableSize());
   xferSimpleArray(flat, gotoTable, gotoTableSize());
   xferSimpleArray(flat, prodInfo, numProds);
   xferSimpleArray(flat, stateSymbol, numStates);
+  xferSimpleArray(flat, nontermOrder, nontermOrderSize());
 
   // ambigAction
   if (flat.writing()) {

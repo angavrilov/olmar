@@ -15,16 +15,23 @@
 //#define NDEBUG_NO_ASSERTIONS
 
 
+// parser core selection
+
+// ordinary LR core
+#ifndef USE_MINI_LR
+  #define USE_MINI_LR 1
+#endif
+
+
 // when NO_GLR_SOURCELOC is #defined, we disable all support for
 // automatically propagating source location information in the
 // parser; user actions can still refer to 'loc', but they just get
 // a dummy no-location value
-//#define NO_GLR_SOURCELOC
-#ifdef NO_GLR_SOURCELOC
-  #define SOURCELOC(stuff)
-  #define SOURCELOCARG(stuff)
-  #define NOSOURCELOC(stuff) stuff
-#else
+#ifndef GLR_SOURCELOC
+  #define GLR_SOURCELOC 1
+#endif
+
+#if GLR_SOURCELOC
   #define SOURCELOC(stuff) stuff
 
   // this one adds a leading comma (I can't put that into the
@@ -33,15 +40,26 @@
   #define SOURCELOCARG(stuff) , stuff
 
   #define NOSOURCELOC(stuff)
+#else
+  #define SOURCELOC(stuff)
+  #define SOURCELOCARG(stuff)
+  #define NOSOURCELOC(stuff) stuff
 #endif
 
 
 // when enabled, NODE_COLUMN tracks in each stack node the
 // appropriate column to display it for in debugging dump
-#ifdef ENABLE_NODE_COLUMNS
+#ifndef ENABLE_NODE_COLUMNS
+  #define ENABLE_NODE_COLUMNS 1
+#endif
+#if ENABLE_NODE_COLUMNS
   #define NODE_COLUMN(stuff) stuff
 #else
   #define NODE_COLUMN(stuff)
+#endif
+
+#if USE_RWL_CORE && !ENABLE_NODE_COLUMNS
+  #error node columns are requred for the RWL core
 #endif
 
 
@@ -50,13 +68,14 @@
 // user when a merge is performed but one of the merged values has
 // already been yielded to another semantic action, which implies
 // that the induced parse forest is incomplete
-#define DISABLE_YIELD_COUNT
-#ifndef DISABLE_YIELD_COUNT
+#ifndef ENABLE_YIELD_COUNT
+  #define ENABLE_YIELD_COUNT 1
+#endif
+#if ENABLE_YIELD_COUNT
   #define YIELD_COUNT(stuff) stuff
 #else
   #define YIELD_COUNT(stuff)
 #endif
-
 
 
 #endif // GLRCONFIG_H

@@ -67,35 +67,46 @@ Env::Env(StringTable &s, CCLang &L)
                           getSimpleType(ST_ERROR), DF_NONE);
 
   // create declarations for some built-in operators
+  // [cppstd 3.7.3 para 2]
   Type const *t_void = getSimpleType(ST_VOID);
   Type const *t_voidptr = makePtrType(t_void);
+  
+  // note: my stddef.h typedef's size_t to be 'int', so I use
+  // 'int' directly here instead of size_t
+  Type const *t_int = getSimpleType(ST_INT);
 
-  // void operator delete (void *p);
-  {
-    FunctionType *ft = new FunctionType(t_void, CV_NONE);
-    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
-    ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *del = new Variable(HERE_SOURCELOC, str("operator delete"), ft, DF_NONE);
-    addVariable(del);
-  }
+  // but I do need a class called 'bad_alloc'..
+  //   class bad_alloc;                     
+  CompoundType *dummyCt;
+  Type const *t_bad_alloc = 
+    makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE_SOURCELOC,
+                    TI_CLASS, true /*forward*/);
 
-  // void operator delete[] (void *p);
-  {
-    FunctionType *ft = new FunctionType(t_void, CV_NONE);
-    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
-    ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *delArr = new Variable(HERE_SOURCELOC, str("operator delete[]"), ft, DF_NONE);
-    addVariable(delArr);
-  }
+  // void* operator new(std::size_t sz) throw(std::bad_alloc);
+  declareFunction1arg(t_voidptr, "operator new",
+                      t_int, "sz",
+                      t_bad_alloc);
 
+  // void* operator new[](std::size_t sz) throw(std::bad_alloc);
+  declareFunction1arg(t_voidptr, "operator new[]",
+                      t_int, "sz",
+                      t_bad_alloc);
+
+  // void operator delete (void *p) throw();
+  declareFunction1arg(t_void, "operator delete",
+                      t_voidptr, "p",
+                      t_void);
+
+  // void operator delete[] (void *p) throw();
+  declareFunction1arg(t_void, "operator delete[]",
+                      t_voidptr, "p",
+                      t_void);
+
+  // for GNU compatibility
   // void *__builtin_next_arg(void *p);
-  {
-    FunctionType *ft = new FunctionType(t_voidptr, CV_NONE);
-    Variable *p = new Variable(HERE_SOURCELOC, str("p"), t_voidptr, DF_NONE);
-    ft->addParam(new Parameter(p->name, p->type, p));
-    Variable *bna = new Variable(HERE_SOURCELOC, str("__builtin_next_arg"), ft, DF_NONE);
-    addVariable(bna);
-  }
+  declareFunction1arg(t_voidptr, "__builtin_next_arg",
+                      t_voidptr, "p",
+                      NULL /*exnType*/);
 }
 
 Env::~Env()
@@ -114,6 +125,26 @@ Env::~Env()
   }
 
   errors.deleteAll();
+}
+
+
+void Env::declareFunction1arg(Type const *retType, char const *funcName,
+                              Type const *arg1Type, char const *arg1Name,
+                              Type const *exnType)
+{
+  FunctionType *ft = new FunctionType(retType, CV_NONE);
+  Variable *p = new Variable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
+  ft->addParam(new Parameter(p->name, p->type, p));
+  if (exnType) {
+    ft->exnSpec = new FunctionType::ExnSpec;
+
+    // slightly clever hack: say "throw()" by saying "throw(void)"
+    if (!exnType->isSimple(ST_VOID)) {
+      ft->exnSpec->types.append(exnType);
+    }
+  }
+  Variable *var = new Variable(HERE_SOURCELOC, str(funcName), ft, DF_NONE);
+  addVariable(var);
 }
 
 
@@ -225,14 +256,34 @@ Scope *Env::outerScope()
 {
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
     Scope *s = iter.data();
-    if (!s->canAcceptNames) continue;     // skip template scopes
-    if (s->curCompound) continue;         // skip class scopes
+    if (!s->canAcceptNames) continue;        // skip template scopes
+    if (s->curCompound) continue;            // skip class scopes
+    if (s->isParameterListScope ) continue;  // skip parameter list scopes
     
     return s;
   }
 
   xfailure("couldn't find the outer scope!");
   return NULL;    // silence warning
+}
+
+
+Scope *Env::enclosingScope()
+{
+  // inability to accept names doesn't happen arbitrarily,
+  // and we shouldn't run into it here
+
+  Scope *s = scopes.nth(0);
+  xassert(s->canAcceptNames);
+
+  s = scopes.nth(1);
+  if (!s->canAcceptNames) {
+    error("did you try to make a templatized anonymous union (!), "
+          "or am I confused?");
+    return scopes.nth(2);   // error recovery..
+  }
+
+  return s;
 }
 
 
@@ -304,9 +355,10 @@ Scope *Env::lookupQualifiedScope(PQName const *name,
       // a qualifier
       //
       // however, this still is not quite right, see cppstd 3.4.3 para 1
+      // update: LF_ONLY_TYPES now gets it right, I think
       Variable *qualVar =
-        scope==NULL? lookupVariable(qual, false /*innerOnly*/) :
-                     scope->lookupVariable(qual, false /*innerOnly*/, *this);
+        scope==NULL? lookupVariable(qual, LF_ONLY_TYPES) :
+                     scope->lookupVariable(qual, *this, LF_ONLY_TYPES);
       if (!qualVar) {
         // I'd like to include some information about which scope
         // we were looking in, but I don't want to be computing
@@ -481,7 +533,7 @@ CompoundType *Env::
 #endif // 0, aborted implementation
 
 
-Variable *Env::lookupPQVariable(PQName const *name)
+Variable *Env::lookupPQVariable(PQName const *name, LookupFlags flags)
 {
   Variable *var;
 
@@ -505,7 +557,7 @@ Variable *Env::lookupPQVariable(PQName const *name)
     }
 
     // look inside the final scope for the final name
-    var = scope->lookupVariable(name->getName(), false /*innerOnly*/, *this);
+    var = scope->lookupVariable(name->getName(), *this, flags);
     if (!var) {
       if (anyTemplates) {
         // maybe failed due to incompleteness of specialization implementation;
@@ -523,7 +575,7 @@ Variable *Env::lookupPQVariable(PQName const *name)
   }
 
   else {
-    var = lookupVariable(name->getName(), false /*innerOnly*/);
+    var = lookupVariable(name->getName(), flags);
   }
 
   if (var &&
@@ -563,18 +615,18 @@ Variable *Env::lookupPQVariable(PQName const *name)
   return var;
 }
 
-Variable *Env::lookupVariable(StringRef name, bool innerOnly)
+Variable *Env::lookupVariable(StringRef name, LookupFlags flags)
 {
-  if (innerOnly) {
+  if (flags & LF_INNER_ONLY) {
     // here as in every other place 'innerOnly' is true, I have
     // to skip non-accepting scopes since that's not where the
     // client is planning to put the name
-    return acceptingScope()->lookupVariable(name, innerOnly, *this);
+    return acceptingScope()->lookupVariable(name, *this, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    Variable *v = iter.data()->lookupVariable(name, innerOnly, *this);
+    Variable *v = iter.data()->lookupVariable(name, *this, flags);
     if (v) {
       return v;
     }
@@ -582,14 +634,14 @@ Variable *Env::lookupVariable(StringRef name, bool innerOnly)
   return NULL;    // not found
 }
 
-CompoundType *Env::lookupPQCompound(PQName const *name)
-{   
+CompoundType *Env::lookupPQCompound(PQName const *name, LookupFlags flags)
+{
   // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    CompoundType *ret = scope->lookupCompound(name->getName(), false /*innerOnly*/);
+    CompoundType *ret = scope->lookupCompound(name->getName(), flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no class/struct/union called `"
@@ -601,18 +653,18 @@ CompoundType *Env::lookupPQCompound(PQName const *name)
     return ret;
   }
 
-  return lookupCompound(name->getName(), false /*innerOnly*/);
+  return lookupCompound(name->getName(), flags);
 }
 
-CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
+CompoundType *Env::lookupCompound(StringRef name, LookupFlags flags)
 {
-  if (innerOnly) {
-    return acceptingScope()->lookupCompound(name, innerOnly);
+  if (flags & LF_INNER_ONLY) {
+    return acceptingScope()->lookupCompound(name, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    CompoundType *ct = iter.data()->lookupCompound(name, innerOnly);
+    CompoundType *ct = iter.data()->lookupCompound(name, flags);
     if (ct) {
       return ct;
     }
@@ -620,14 +672,14 @@ CompoundType *Env::lookupCompound(StringRef name, bool innerOnly)
   return NULL;    // not found
 }
 
-EnumType *Env::lookupPQEnum(PQName const *name)
+EnumType *Env::lookupPQEnum(PQName const *name, LookupFlags flags)
 {
   // same logic as for lookupPQVariable
   if (name->hasQualifiers()) {
     Scope *scope = lookupQualifiedScope(name);
     if (!scope) return NULL;
 
-    EnumType *ret = scope->lookupEnum(name->getName(), false /*innerOnly*/);
+    EnumType *ret = scope->lookupEnum(name->getName(), flags);
     if (!ret) {
       error(stringc
         << name->qualifierString() << " has no enum called `"
@@ -639,18 +691,18 @@ EnumType *Env::lookupPQEnum(PQName const *name)
     return ret;
   }
 
-  return lookupEnum(name->getName(), false /*innerOnly*/);
+  return lookupEnum(name->getName(), flags);
 }
 
-EnumType *Env::lookupEnum(StringRef name, bool innerOnly)
+EnumType *Env::lookupEnum(StringRef name, LookupFlags flags)
 {
-  if (innerOnly) {
-    return acceptingScope()->lookupEnum(name, innerOnly);
+  if (flags & LF_INNER_ONLY) {
+    return acceptingScope()->lookupEnum(name, flags);
   }
 
   // look in all the scopes
   FOREACH_OBJLIST_NC(Scope, scopes, iter) {
-    EnumType *et = iter.data()->lookupEnum(name, false /*innerOnly*/);
+    EnumType *et = iter.data()->lookupEnum(name, flags);
     if (et) {
       return et;
     }
@@ -759,7 +811,7 @@ CompoundType *Env::instantiateClass(
   // compound called 'instNameRef', which will match the one
   // we've already forward-declared, so it will use the same
   // type object
-  ret->syntax->tcheck(env);
+  ret->syntax->tcheck(env, DF_NONE);
 
   if (tracingSys("printTypedClonedAST")) {
     cout << "---------- cloned & typed: " << instNameRef << " ----------\n";
@@ -792,12 +844,61 @@ StringRef Env::getAnonName(TypeIntr keyword)
   StringRef sr = str(name);
 
   // any chance this name already exists?
-  if (lookupVariable(sr, false /*innerOnly*/)) {
+  if (lookupVariable(sr)) {
     return getAnonName(keyword);    // try again
   }
   else {
     return sr;
   }
+}
+
+
+ClassTemplateInfo *Env::takeTemplateClassInfo()
+{
+  ClassTemplateInfo *ret = NULL;
+
+  Scope *s = scope();
+  if (s->curTemplateParams) {
+    ret = new ClassTemplateInfo;
+    ret->params.concat(s->curTemplateParams->params);
+    delete takeTemplateParams();
+  }
+
+  return ret;
+}
+
+
+Type const *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
+                                 StringRef name, SourceLocation const &loc,
+                                 TypeIntr keyword, bool forward)
+{
+  ct = new CompoundType((CompoundType::Keyword)keyword, name);
+
+  // transfer template parameters
+  ct->templateInfo = takeTemplateClassInfo();
+
+  ct->forward = forward;
+  if (name) {
+    bool ok = scope->addCompound(ct);
+    xassert(ok);     // already checked that it was ok
+  }
+
+  // make the implicit typedef
+  Type const *ret = makeType(ct);
+  Variable *tv = new Variable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
+  ct->typedefVar = tv;
+  if (name) {
+    if (!scope->addVariable(tv)) {
+      // this isn't really an error, because in C it would have
+      // been allowed, so C++ does too [ref?]
+      //return env.error(stringc
+      //  << "implicit typedef associated with " << ct->keywordAndName()
+      //  << " conflicts with an existing typedef or variable",
+      //  true /*disambiguating*/);
+    }
+  }
+
+  return ret;
 }
 
 

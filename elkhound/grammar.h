@@ -460,13 +460,22 @@ public:	    // data
   // extra verbatim code to be inserted at top of impl file
   LocString verbatim;
 
+  // ---- declarative options ----
   // when true, the default dup/del is what's expected for a
   // garbage-collected system: dup() is the identity function,
   // and del() is a no-op
   bool useGCDefaults;
-  
+
   // when true, unspecified merge() functions abort()
   bool defaultMergeAborts;
+
+  // expected numbers of various anomalies; -1 means no
+  // expectation has been supplied; this informtion is used
+  // to control what is reported after grammar analysis
+  int expectedSR;                       // shift/reduce conflicts
+  int expectedRR;                       // reduce/reduce conflicts
+  int expectedUNRNonterms;              // # unreachable nonterminals
+  int expectedUNRTerms;                 // # unreachable terminals
 
 public:     // funcs
   Grammar();                            // set everything manually

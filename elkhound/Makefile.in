@@ -66,10 +66,9 @@ ranlib      := ranlib
 #ccflags += -Werror
 
 # when uncommented, we get profiling info
+# sm: it makes no sense to profile while debugging is enabled, because
+# you're measuring entirely the wrong configuration...
 #ccflags += -pg
-ifdef ALLOW_DEBUG
-  ccflags += -pg
-endif
 
 # dsw: When set, don't use the dummy cc_qual stuff, but use the real
 # thing.
@@ -81,7 +80,7 @@ endif
 OPTIMIZATION_FLAGS :=
 ifdef ALLOW_DEBUG
   # enable action trace in glr parser
-  OPTIMIZATION_FLAGS += -DACTION_TRACE
+  OPTIMIZATION_FLAGS += -DACTION_TRACE=1
 else
   # turn on the optimizer
   OPTIMIZATION_FLAGS += -O2
@@ -90,7 +89,7 @@ endif
 ccflags += $(OPTIMIZATION_FLAGS)
 
 # uncomment to turn off source location info
-#ccflags += -DNO_GLR_SOURCELOC
+#ccflags += -DGLR_SOURCELOC=0
 
 # even fewer debugging checks
 #ccflags += -DNDEBUG_NO_ASSERTIONS
@@ -333,8 +332,15 @@ libelkhound.a: $(glr-set)
 .PRECIOUS: %.ast.gen.cc %.ast.gen.h
 %.ast.gen.cc %.ast.gen.h: %.ast $(AST)/astgen
 	rm -f $*.ast.gen.*
-	$(AST)/astgen -b$*.ast.gen $*.ast
+	$(AST)/astgen -o$*.ast.gen $*.ast
 	chmod a-w $*.ast.gen.h $*.ast.gen.cc
+
+# specific instructions for cc.ast, so I can add extension modules
+CC_AST_MODS := cc/cc_tcheck.ast cc/cc_print.ast cc/cc_qual.ast
+cc/cc.ast.gen.cc cc/cc.ast.gen.h: cc/cc.ast $(CC_AST_MODS) $(AST)/astgen
+	rm -f cc/cc.ast.gen.cc cc/cc.ast.gen.h
+	$(AST)/astgen -occ/cc.ast.gen cc/cc.ast $(CC_AST_MODS)
+	chmod a-w cc/cc.ast.gen.cc cc/cc.ast.gen.h
 
 # don't delete these because error messages often point into them
 .PRECIOUS: cc.gr.gen.h cc.gr.gen.cc
@@ -342,7 +348,7 @@ libelkhound.a: $(glr-set)
 # stand-alone executable for parsing C
 cc/cparse: cc/ccgrmain.o cc/c.gr.gen.o $(c-set) libelkhound.a $(SMBASE)/libsmbase.a
 	$(link) -o $@ $^
-	./$@ c.in/c.in1
+	./$@ -tr yieldVariableName c.in/c.in1
 
 .PRECIOUS: cc/ccgr
 
@@ -613,6 +619,15 @@ triv/sssx.notree.perf.txt:
 	rm -f $@
 	for n in 5 10 15 20 25 30 35 40 45 50; do \
 	  triv/SSSx.tree.gr.exe -tr progress,trivialActions triv/sssx.in/$$n.in 2>&1 | \
+	    sed "s/^/$$n: /" >> $@ ; \
+	done
+
+
+# ------------------------ DeclExpr ----------------------
+triv/DeclExpr.perf.txt:
+	rm -f $@
+	for n in 1 10 100 1000 10000; do \
+	  triv/DeclExpr.gr.exe -tr progress,trivialActions triv/DeclExpr.in$$n 2>&1 | \
 	    sed "s/^/$$n: /" >> $@ ; \
 	done
 

@@ -6,10 +6,11 @@
 #define PARSETABLES_H
 
 #include "array.h"        // ArrayStack
+#include "bit2d.h"        // Bit2d
 
-class Flatten;
-class EmitCode;
-class Symbol;
+class Flatten;            // flatten.h
+class EmitCode;           // emitcode.h
+class Symbol;             // grammar.h
 
 
 // integer id for an item-set DFA state; I'm using an 'enum' to
@@ -23,6 +24,9 @@ typedef signed short ActionEntry;
 // encodes a destination state in 'gotoTable'
 typedef unsigned short GotoEntry;
 
+// names a nonterminal using an index
+typedef unsigned char NtIndex;
+
 
 // encodes either terminal index N (as N+1) or
 // nonterminal index N (as -N-1), or 0 for no-symbol
@@ -30,8 +34,8 @@ typedef signed short SymbolId;
 inline bool symIsTerm(SymbolId id) { return id > 0; }
 inline int symAsTerm(SymbolId id) { return id-1; }
 inline bool symIsNonterm(SymbolId id) { return id < 0; }
-inline int symAsNonterm(SymbolId id) { return -(id+1); }
-SymbolId encodeSymbolId(Symbol const *sym);
+inline NtIndex symAsNonterm(SymbolId id) { return (NtIndex)(-(id+1)); }
+SymbolId encodeSymbolId(Symbol const *sym);       // gramanl.cc
 
 
 // the parse tables are the traditional action/goto, plus the list
@@ -46,7 +50,7 @@ public:     // types
   // per-production info
   struct ProdInfo {
     unsigned char rhsLen;                // # of RHS symbols
-    unsigned char lhsIndex;              // 'ntIndex' of LHS
+    NtIndex lhsIndex;                    // 'ntIndex' of LHS
   };
 
 private:    // data
@@ -101,6 +105,21 @@ public:     // data
   // final reduction executed
   int finalProductionIndex;
 
+  // total order on nonterminals for use in choosing which to
+  // reduce to in the RWL algorithm; index into this using a
+  // nonterminal index, and it yields the ordinal for that
+  // nonterminal (so these aren't really NtIndex's, but they're
+  // exactly as wide, so I use NtIndex anyway)
+  //
+  // The order is consistent with the requirement that if
+  //   A ->+ B
+  // then B will be earlier in the order (assuming acyclicity).
+  // That way, we'll do all reductions to B before any to A (for
+  // reductions spanning the same set of ground terminals), and
+  // therefore will merge all alternatives for B before reducing
+  // any of them to A.
+  NtIndex *nontermOrder;                 // (owner)
+
 private:    // funcs
   void alloc(int numTerms, int numNonterms, int numStates, int numProds,
              StateId start, int finalProd);
@@ -113,6 +132,8 @@ public:     // funcs
 
   ParseTables(Flatten&);
   void xfer(Flatten &flat);
+  
+  // see emittables.cc
   void emitConstructionCode(EmitCode &out, char const *funcName);
 
   // index tables
@@ -161,6 +182,12 @@ public:     // funcs
   // decode gotos
   static StateId decodeGoto(GotoEntry code)
     { return (StateId)code; }
+
+  // nonterminal order
+  int nontermOrderSize() const
+    { return numNonterms; }
+  NtIndex getNontermOrdinal(NtIndex idx) const
+    { return nontermOrder[idx]; }
 };
 
 

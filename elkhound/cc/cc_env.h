@@ -64,12 +64,16 @@ public:      // data
   StringRef functionOperatorName;
 
   // special variables associated with particular types
-  Variable *dependentTypeVar;           // (serf)      
-  Variable *errorVar;                   // (serf)      
+  Variable *dependentTypeVar;           // (serf)
+  Variable *errorVar;                   // (serf)
 
 private:     // funcs
   CompoundType *instantiateClass(
     CompoundType const *tclass, FakeList<TemplateArgument> *args);
+
+  void declareFunction1arg(Type const *retType, char const *funcName,
+                           Type const *arg1Type, char const *arg1Name,
+                           Type const *exnType);
 
 public:      // funcs
   Env(StringTable &str, CCLang &lang);
@@ -83,18 +87,19 @@ public:      // funcs
   void extendScope(Scope *s);     // push onto stack, but don't own
   void retractScope(Scope *s);    // paired with extendScope()
 
+  // the current, innermost scope
   Scope *scope() { return scopes.first(); }
   Scope const *scopeC() const { return scopes.firstC(); }
 
   // innermost scope that can accept names
   Scope *acceptingScope();
 
-  // innermost non-class, non-template scope
+  // innermost non-class, non-template, non-function-prototype scope
   Scope *outerScope();
 
-  // get the innermost CompoundType (aka class) scope, or NULL
-  // if we're not in the scope of any class
-  //CompoundType *getEnclosingCompound();
+  // innermost scope that can accept names, *other* than
+  // the one we're in now
+  Scope *enclosingScope();
 
   // source location tracking
   void setLoc(SourceLocation const &loc);    // sets scope()->curLoc
@@ -113,12 +118,14 @@ public:      // funcs
   void registerVariable(Variable *v);
 
   // lookup in the environment (all scopes)
-  Variable *lookupPQVariable(PQName const *name);
-  Variable *lookupVariable(StringRef name, bool innerOnly);
-  CompoundType *lookupPQCompound(PQName const *name);
-  CompoundType *lookupCompound(StringRef name, bool innerOnly);
-  EnumType *lookupPQEnum(PQName const *name);
-  EnumType *lookupEnum(StringRef name, bool innerOnly);
+  Variable *lookupPQVariable(PQName const *name, LookupFlags f=LF_NONE);
+  Variable *lookupVariable  (StringRef name,     LookupFlags f=LF_NONE);
+
+  CompoundType *lookupPQCompound(PQName const *name, LookupFlags f=LF_NONE);
+  CompoundType *lookupCompound  (StringRef name,     LookupFlags f=LF_NONE);
+
+  EnumType *lookupPQEnum(PQName const *name, LookupFlags f=LF_NONE);
+  EnumType *lookupEnum  (StringRef name,     LookupFlags f=LF_NONE);
 
   // look up a particular scope; the 'name' part of the PQName
   // will be ignored; if we can't find this scope, return NULL
@@ -134,10 +141,19 @@ public:      // funcs
   // if the innermost scope has some template parameters, take
   // them out and return them; otherwise return NULL
   TemplateParams * /*owner*/ takeTemplateParams();
+  
+  // like the above, but wrap it in a ClassTemplateInfo
+  ClassTemplateInfo * /*owner*/ takeTemplateClassInfo();
 
   // return a new name for an anonymous type; 'keyword' says
   // which kind of type we're naming
   StringRef getAnonName(TypeIntr keyword);
+
+  // introduce a new compound type name; return the constructed
+  // CompoundType's pointer in 'ct', after inserting it into 'scope'
+  Type const *makeNewCompound(CompoundType *&ct, Scope *scope,
+                              StringRef name, SourceLocation const &loc,
+                              TypeIntr keyword, bool forward);
 
   // diagnostic reports; all return ST_ERROR type
   Type const *error(char const *msg, bool disambiguates=false);

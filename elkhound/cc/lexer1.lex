@@ -73,6 +73,14 @@ DIGITS        ({DIGIT}+)
 /* sign of a number */
 SIGN          ("+"|"-")
 
+/* integer suffix */
+/* added 'LL' option for GNU long long compatibility.. */
+ELL_SUFFIX    [lL]([lL]?)
+INT_SUFFIX    ([uU]{ELL_SUFFIX}?|{ELL_SUFFIX}[uU]?)
+
+/* floating-point suffix letter */
+FLOAT_SUFFIX  [flFL]
+
 /* normal string character: any but quote, newline, or backslash */
 STRCHAR       [^\"\n\\]
 
@@ -114,22 +122,22 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 }
 
   /* integer literal; dec, oct, or hex */
-[1-9][0-9]*[uUlL]*           |
-[0][0-7]*[uUlL]*             |
-[0][xX][0-9A-Fa-f]+[uUlL]*   {
+[1-9][0-9]*{INT_SUFFIX}?           |
+[0][0-7]*{INT_SUFFIX}?             |
+[0][xX][0-9A-Fa-f]+{INT_SUFFIX}?   {
   lexer.emit(L1_INT_LITERAL, yytext, yyleng);
 }
 
   /* floating literal */
-{DIGITS}"."{DIGITS}?([eE]{SIGN}?{DIGITS})?  |
-{DIGITS}"."?([eE]{SIGN}?{DIGITS})?	    |
-"."{DIGITS}([eE]{SIGN}?{DIGITS})?	    {
+{DIGITS}"."{DIGITS}?([eE]{SIGN}?{DIGITS})?{FLOAT_SUFFIX}?   |
+{DIGITS}"."?([eE]{SIGN}?{DIGITS})?{FLOAT_SUFFIX}?	    |
+"."{DIGITS}([eE]{SIGN}?{DIGITS})?{FLOAT_SUFFIX}?	    {
   lexer.emit(L1_FLOAT_LITERAL, yytext, yyleng);
 }
 
   /* ----- string literal ------- */
   /* intial */
-{QUOTE}   {
+"L"?{QUOTE}   {
   collector.setFromBlock(yytext, yyleng);
   BEGIN(ST_STRING);
 }
@@ -176,7 +184,7 @@ PPCHAR        ([^\\\n]|{BACKSL}{NOTNL})
 
 
   /* character literal */
-{TICK}({CCCHAR}|{ESCAPE})*{TICK}   {
+"L"?{TICK}({CCCHAR}|{ESCAPE})*{TICK}   {
   lexer.emit(L1_CHAR_LITERAL, yytext, yyleng);
 }
 

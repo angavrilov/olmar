@@ -4,6 +4,8 @@
 #include "cc_type.h"    // this module
 #include "trace.h"      // tracingSys
 #include "variable.h"   // Variable
+#include "strutil.h"    // copyToStaticBuffer
+
 #include <assert.h>     // assert
 #include <string.h>
 
@@ -485,6 +487,25 @@ string toString(CompoundType::Keyword k)
 }
 
 
+bool CompoundType::hasVirtualBase(CompoundType const *ct) const
+{
+  FOREACH_OBJLIST(BaseClass, bases, iter) {
+    BaseClass const *b = iter.data();
+    
+    // is this a virtual base?
+    if (b->ct == ct && b->isVirtual) {
+      return true;
+    }                         
+    
+    // does it have a virtual base?
+    if (b->ct->hasVirtualBase(ct)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // ---------------- EnumType ------------------
 EnumType::~EnumType()
 {}
@@ -750,6 +771,13 @@ CompoundType const *Type::ifCompoundType() const
     }
   }
   return NULL;
+}
+
+CompoundType const *Type::asCompoundType() const
+{
+  CompoundType const *ret = ifCompoundType();
+  xassert(ret);
+  return ret;
 }
 
 bool Type::isOwnerPtr() const
@@ -1300,11 +1328,7 @@ bool FunctionType::anyCtorSatisfies(TypePred pred) const
 
 // -------------------- Parameter -----------------
 Parameter::~Parameter()
-{
-  if (defaultArgument) {
-    delete defaultArgument;
-  }
-}
+{}
 
 Parameter *Parameter::deepClone() const {
   Parameter *tmp =
@@ -1318,10 +1342,14 @@ Parameter *Parameter::deepClone() const {
                   );
   // maintain the invariant that param->type == param->decl->type
   tmp->type = tmp->decl->type;
+
   // dsw: Cloning this involves cloning the whole expression language.
   // FIX: does this matter?
 //    tmp->defaultArgument = defaultArgument->deepClone();
-  tmp->defaultArgument = NULL;
+  //tmp->defaultArgument = NULL;
+  // sm: I moved 'defaultArgument' into 'decl->value', so the issue
+  // is moot here; either they're cloned in Variable or not
+
   return tmp;
 }
 
@@ -1335,17 +1363,10 @@ string Parameter::toString() const
     sb << type->toCString(name);
   }
 
-  if (defaultArgument) {
-    sb << " = " << defaultArgument->exprText;
+  if (decl && decl->value) {
+    sb << renderExpressionAsString(" = ", decl->value);
   }
   return sb;
-}
-
-
-// ---------------- DefaultArgument ------------
-DefaultArgument::~DefaultArgument()
-{
-  // deletes 'exprText'
 }
 
 
@@ -1654,26 +1675,14 @@ void cc_type_checker()
 
 
 // --------------- debugging ---------------
-static char *staticBuffer(char const *s)
-{
-  static char buf[200];
-
-  int len = strlen(s);
-  if (len > 79) len=79;
-  memcpy(buf, s, len);
-  buf[len] = 0;
-  
-  return buf;
-}
-
-
 char *type_toString(Type const *t)
 {
-  return staticBuffer(t->toString());
+  // defined in smbase/strutil.cc
+  return copyToStaticBuffer(t->toString());
 }
 
 
 char *type_toCilString(Type const *t)
 {
-  return staticBuffer(t->toCilString(20 /*depth*/));
+  return copyToStaticBuffer(t->toCilString(20 /*depth*/));
 }

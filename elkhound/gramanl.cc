@@ -4,6 +4,7 @@
 #include "gramanl.h"     // this module
 
 #include "bit2d.h"       // Bit2d
+#include "bitarray.h"    // BitArray
 #include "strtokp.h"     // StrtokParse
 #include "syserr.h"      // xsyserror
 #include "trace.h"       // tracing system
@@ -3026,6 +3027,31 @@ void GrammarAnalysis::resolveConflicts(
 }
 
 
+void reportUnexpected(int value, int expectedValue, char const *desc)
+{
+  if ((expectedValue==-1 && value>0) ||
+      (expectedValue != value)) {
+    cout << value << " " << desc;
+    if (expectedValue != -1) {
+      cout << " (expected " << expectedValue << ")";
+    }
+    cout << endl;
+  }
+}
+
+
+bool isAmbiguousNonterminal(Symbol const *sym)
+{
+  if (sym->isNonterminal()) {
+    Nonterminal const &nt = sym->asNonterminalC();
+    if (nt.mergeCode) {
+      return true;   // presence of merge() signals potential ambiguity
+    }
+  }
+  return false;
+}
+
+
 void GrammarAnalysis::computeParseTables(bool allowAmbig)
 {
   tables = new ParseTables(numTerms, numNonterms, itemSets.count(), numProds,
@@ -3101,6 +3127,28 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
 
       // add this entry to the table
       tables->actionEntry(state->id, termId) = cellAction;
+      
+      // based on the contents of 'reductions', decide whether this
+      // state is delayed or not; to be delayed, the state must be
+      // able to reduce by a production which:
+      //   - has an ambiguous nonterminal as the last symbol on its RHS
+      //   - is not reducing to the *same* nonterminal as the last symbol
+      //     (rationale: eagerly reduce "E -> E + E")
+      // UPDATE: removed last condition because it actually makes things
+      // worse..
+      bool delayed = false;
+      if (reductions.isNotEmpty()) {    // no reductions: eager (irrelevant, actually)
+        SFOREACH_PRODUCTION(reductions, prodIter) {
+          Production const &prod = *prodIter.data();
+          if (prod.rhsLength() >= 1) {                 // nonempty RHS?
+            Symbol const *lastSym = prod.right.lastC()->sym;
+            if (isAmbiguousNonterminal(lastSym)        // last RHS ambig?
+                /*&& lastSym != prod.left*/) {         // not same as LHS?
+              delayed = true;
+            }
+          }
+        }
+      }
     }
 
     // ---- fill in this row in the goto table ----
@@ -3131,10 +3179,8 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
   }
 
   // report on conflict counts
-  if (sr + rr > 0) {
-    cout << sr << " shift/reduce conflicts and "
-         << rr << " reduce/reduce conflicts\n";
-  }
+  reportUnexpected(sr, expectedSR, "shift/reduce conflicts");
+  reportUnexpected(rr, expectedRR, "reduce/reduce conflicts");
 
   // report on cyclicity
   for (int nontermId=0; nontermId<numNonterms; nontermId++) {
@@ -3151,6 +3197,52 @@ void GrammarAnalysis::computeParseTables(bool allowAmbig)
     tables->prodInfo[p].rhsLen = prod->rhsLength();
     tables->prodInfo[p].lhsIndex = prod->left->ntIndex;
   }
+  
+  // use the derivability relation to compute a total order
+  // on nonterminals                    
+  BitArray seen(numNonterms);
+  int nextOrdinal = numNonterms-1;
+  for (int nt=0; nt < numNonterms; nt++) {               
+    // expand from 'nt' in case it's disconnected; this will be
+    // a no-op if we've already 'seen' it
+    topologicalSort(tables->nontermOrder, nextOrdinal, nt, seen);
+  }
+  xassert(nextOrdinal == -1);    // should have used them all
+}
+
+
+// this is a depth-first traversal of the 'derivable' relation;
+// when we reach a nonterminal that can't derive any others not
+// already in the order, we give its entry the latest ordinal
+// that isn't already taken ('nextOrdinal')
+void GrammarAnalysis::topologicalSort(
+  NtIndex *order,    // table we're filling with ordinals
+  int &nextOrdinal,  // latest ordinal not yet used
+  NtIndex current,   // current nonterminal to expand
+  BitArray &seen)    // set of nonterminals we've already seen
+{
+  if (seen.test(current)) {
+    // already expanded this one
+    return;
+  }
+
+  // don't expand this one again
+  seen.set(current);
+
+  // look at all nonterminals this one can derive
+  for (int nt=0; nt < numNonterms; nt++) {
+    if (derivable->get(point(nt, current))) {
+      // 'nt' can derive 'current'; expand 'nt' first, thus making
+      // it later in the order, so we'll reduce to 'current' before
+      // reducing to 'nt' (when token spans are equal)
+      xassert((NtIndex)nt == nt);
+      topologicalSort(order, nextOrdinal, (NtIndex)nt, seen);
+    }
+  }
+
+  // finally, put 'current' into the order
+  order[current] = nextOrdinal;
+  nextOrdinal--;
 }
 
 
@@ -3165,6 +3257,10 @@ SymbolId encodeSymbolId(Symbol const *sym)
   }
   else /*nonterminal*/ {
     ret = - sym->asNonterminalC().ntIndex - 1;
+    
+    // verify encoding of nonterminals is sufficiently wide
+    int idx = sym->asNonterminalC().ntIndex;
+    xassert((NtIndex)idx == idx);
   }      
   
   // verify encoding is lossless
@@ -3781,12 +3877,11 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
       }
     }
 
-    if (ct > 0) {
-      cout << "grammar contains " << ct << " unreachable nonterminals\n";
-      // bison also reports the number of productions under all the
-      // unreachable nonterminals, but that doesn't seem especially
-      // useful to me
-    }
+    reportUnexpected(ct, expectedUNRNonterms, "unreachable nonterminals");
+
+    // bison also reports the number of productions under all the
+    // unreachable nonterminals, but that doesn't seem especially
+    // useful to me
 
     if (setsOutput) {
       *setsOutput << "unreachable terminals:\n";
@@ -3802,9 +3897,7 @@ void GrammarAnalysis::runAnalyses(char const *setsFname)
       }
     }
 
-    if (ct > 0) {
-      cout << "grammar contains " << ct << " unreachable terminals\n";
-    }
+    reportUnexpected(ct, expectedUNRTerms, "unreachable terminals");
   }
 
   // print the item sets

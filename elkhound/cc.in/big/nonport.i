@@ -4395,7 +4395,7 @@ struct drand48_data
     unsigned short int __old_x[3];  
     unsigned short int __c;	 
     unsigned short int __init;	 
-    unsigned long long int __a;	 
+    //unsigned long long int __a;	 
   };
 
  
