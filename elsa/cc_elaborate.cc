@@ -680,6 +680,7 @@ MR_func *makeNoArgCtorBody(Env &env, CompoundType *ct)
                  inits,
                  body,
                  handlers);
+  f->implicitlyDefined = true;
   //   loc = ex/no_arg_ctor1.cc:2:3
   // MR_func:
   return new MR_func(loc, f);
@@ -907,6 +908,7 @@ MR_func *makeCopyCtorBody(Env &env, CompoundType *ct)
                  inits,
                  body,
                  handlers);
+  f->implicitlyDefined = true;
 
   //   loc = ../oink/ctor1.cc:11:3
   // MR_func:
@@ -1230,6 +1232,7 @@ MR_func *makeCopyAssignBody(Env &env, CompoundType *ct)
                  inits,
                  body,
                  handlers);
+  f->implicitlyDefined = true;
 
   //   loc = copy_assign1.cc:7:3
   // MR_func:
@@ -1442,6 +1445,7 @@ MR_func *makeDtorBody(Env &env, CompoundType *ct)
                  inits,
                  body,
                  handlers);
+  f->implicitlyDefined = true;
   //   loc = ex/dtor2.cc:5:3
   // MR_func:
   return new MR_func(loc, f);

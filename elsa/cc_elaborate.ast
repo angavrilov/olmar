@@ -22,6 +22,11 @@ class Function {
 
   // if it is a dtor, has it been elaborated yet?
   public bool dtorElaborated; ctor dtorElaborated=false;
+
+  // is this function implicitly defined?  dsw: I need to know so that
+  // the linker imitator doesn't think there is a double-definition
+  // when the same class occurs in two different translation units
+  public bool implicitlyDefined; ctor implicitlyDefined=false;
 }
 
 

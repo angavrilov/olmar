@@ -1436,17 +1436,15 @@ bool isCopyAssignOp(FunctionType const *ft, CompoundType *ct)
   if (ft->isTemplate()) return false; // non-template?
   if (ft->params.count() != 2) return false; // has two args, 1) this and 2) other?
 
-  // the parameter
-  Type *t0 = ft->params.firstC()->type;
+  // the second parameter; the first is "this"
+  Type *t0 = ft->params.nthC(1 /*that is, the second element*/)->type;
 
   // is the parameter of the class type?  NOTE: atomics are equal iff
   // pointer equal
-  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic != ct) return true;
+  if (t0->isCVAtomicType() && t0->asCVAtomicType()->atomic == ct) return true;
 
   // or, is the parameter a ref to the class type?
-  if (!isRefToCt(t0, ct)) return false;
-
-  return true;                  // all test pass
+  return isRefToCt(t0, ct);
 }
 
 
