@@ -180,9 +180,9 @@ value cil_exp_to_ocaml(CilExpr *exp)
 	case CilExpr::T_UNOP: 
 	    result = alloc(3,2);
 	    switch (exp->unop.op) {
-		case OP_NEGATE: code = 0;
-		case OP_NOT: code = 1;
-		case OP_BITNOT: code = 2;
+		case OP_NEGATE: code = 0; break;
+		case OP_NOT: code = 1; break;
+		case OP_BITNOT: code = 2; break;
 		default: xassert(0);
 	    }
 	    a = Val_int(code);
@@ -195,24 +195,24 @@ value cil_exp_to_ocaml(CilExpr *exp)
 	case CilExpr::T_BINOP: 
 	    result = alloc(4,3);
 	    switch (exp->binop.op) {
-		case OP_PLUS: code = 0;
-		case OP_MINUS: code = 1;
-		case OP_TIMES: code = 2;
-		case OP_DIVIDE: code = 3;
-		case OP_MOD: code = 4;
-		case OP_LSHIFT: code = 5;
-		case OP_RSHIFT: code = 6;
-		case OP_LT: code = 7;
-		case OP_GT: code = 8;
-		case OP_LTE: code = 9;
-		case OP_GTE: code = 10;
-		case OP_EQUAL: code = 11;
-		case OP_NOTEQUAL: code = 12;
-		case OP_BITAND: code = 13;
-		case OP_BITXOR: code = 14; 
-		case OP_BITOR: code = 15;
-		case OP_AND: code = 16; 
-		case OP_OR: code = 17;
+		case OP_PLUS: code = 0; break;
+		case OP_MINUS: code = 1; break;
+		case OP_TIMES: code = 2; break;
+		case OP_DIVIDE: code = 3; break;
+		case OP_MOD: code = 4; break;
+		case OP_LSHIFT: code = 5; break;
+		case OP_RSHIFT: code = 6; break;
+		case OP_LT: code = 7; break;
+		case OP_GT: code = 8; break;
+		case OP_LTE: code = 9; break;
+		case OP_GTE: code = 10; break;
+		case OP_EQUAL: code = 11; break;
+		case OP_NOTEQUAL: code = 12; break;
+		case OP_BITAND: code = 13; break;
+		case OP_BITXOR: code = 14;  break;
+		case OP_BITOR: code = 15; break;
+		case OP_AND: code = 16;  break;
+		case OP_OR: code = 17; break;
 		default: xassert(0);
 	    }
 	    a = Val_int(code);
@@ -264,8 +264,8 @@ value cil_fncall_to_ocaml(CilFnCall *fnc)
 
     /* now gather the argument list */
     c = Val_int(0);	/* empty list */
-    for (i=0; i<fnc->args.count() ;i++) {
-	CilExpr * arg = fnc->args.nth(i);
+    for (i=fnc->args.count(); i>0 ; i--) {
+	CilExpr * arg = fnc->args.nth(i-1);
 
 	d = alloc(2,0); /* cons cell */
 	a = cil_exp_to_ocaml(arg);
@@ -289,7 +289,7 @@ value cil_inst_to_ocaml(CilInst *inst)
 	case CilInst::T_ASSIGN:
 	    result = alloc(3,0);
 	    a = cil_lval_to_ocaml(inst->assign.lval);
-	    b = cil_exp_to_ocaml(inst->assign.lval);
+	    b = cil_exp_to_ocaml(inst->assign.expr);
 	    Store_field(result, 0, a);
 	    Store_field(result, 1, b);
 	    Store_field(result, 2, l);
@@ -315,10 +315,10 @@ value cil_compound_to_ocaml(CilCompound *comp)
 
     result = Val_int(0);	/* the empty list */
 
-    for (i=0; i<comp->stmts.count(); i++) {
+    for (i=comp->stmts.count(); i>0; i--) {
 	/* create a new cons cell */
 	b = alloc(2,0);
-	c = cil_stmt_to_ocaml(comp->stmts.nth(i));
+	c = cil_stmt_to_ocaml(comp->stmts.nth(i-1));
 	Store_field(b, 0, c);
 	Store_field(b, 1, result);
 
@@ -432,10 +432,10 @@ value cil_fndefn_to_ocaml(CilFnDefn * f)
 
     /* now handle the decl list */
     d = Val_int(0);
-    for (i=0; i<f->locals.count(); i++) {
+    for (i=f->locals.count(); i>0 ; i--) {
 	/* make a new cons cell */
 	a = alloc(2,0);
-	b = cil_variable_to_ocaml(f->locals.nth(i));
+	b = cil_variable_to_ocaml(f->locals.nth(i-1));
 	Store_field(a, 0, b);
 	Store_field(a, 1, d);
 	d = a;
@@ -456,11 +456,10 @@ value cil_program_to_ocaml(CilProgram * prog)
 
     /* first do the fun decl list */
     a = Val_int(0);
-    for (i=0; i<prog->funcs.count(); i++) {
+    for (i=prog->funcs.count(); i>0 ; i--) {
 	/* make a cons cell */
 	b = alloc(2,0);
-	printf ("Converting fundecl %d\n", i);
-	c = cil_fndefn_to_ocaml(prog->funcs.nth(i));
+	c = cil_fndefn_to_ocaml(prog->funcs.nth(i-1));
 	Store_field(b, 0, c);
 	Store_field(b, 1, a);
 	a = b;
@@ -470,19 +469,16 @@ value cil_program_to_ocaml(CilProgram * prog)
 
     /* now do the global variable decls */
     a = Val_int(0);
-    for (i=0; i<prog->globals.count(); i++) {
+    for (i=prog->globals.count(); i>0 ;i--) {
 	/* make a cons cell */
 	b = alloc(2,0);
-	printf ("Converting global %d\n", i);
-	c = cil_variable_to_ocaml( prog->globals.nth(i) );
+	c = cil_variable_to_ocaml( prog->globals.nth(i-1) );
 	Store_field(b, 0, c);
 	Store_field(b, 1, a);
 	a = b;
     }
 
     Store_field(result, 1, a);
-
-    printf("Done converting ...\n");
 
     CAMLreturn(result);
 }
