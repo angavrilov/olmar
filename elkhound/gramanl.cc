@@ -23,6 +23,9 @@
 // decide I actually want more than one at a time, I can move these
 // into GrammarAnalysis and push the interfaces to accomodate
 
+// NOTE: only LALR(1) has been recently tested; in particular I
+// know that LR(1) is broken (3/26/02)
+
 // LR(0) does all reductions, regardless of what the next token is
 static bool const LR0 = false;
 
@@ -38,6 +41,37 @@ static bool const LR1 = false;
 // the same # of states as SLR(1), while having some of the
 // context-sensitivity of LR(1))
 static bool const LALR1 = true;
+
+
+#if !defined(NDEBUG)     // track unauthorized malloc's
+  #define TRACK_MALLOC
+#endif
+
+#ifdef TRACK_MALLOC
+  // take initial snapsot
+  #define INITIAL_MALLOC_STATS() \
+    unsigned mallocCt = numMallocCalls();
+
+  // nothing should have been allocated recently; if it has, then
+  // print a warning
+  #define CHECK_MALLOC_STATS(desc)                                              \
+    {                                                                           \
+      unsigned newCt = numMallocCalls();                                        \
+      if (mallocCt != newCt) {                                                  \
+        cout << (newCt - mallocCt) << " malloc calls during " << desc << endl;  \
+        mallocCt = newCt;                                                       \
+        breaker();                                                              \
+      }                                                                         \
+    }
+
+  // some unavoidable allocation just happened, so just update counter
+  #define UPDATE_MALLOC_STATS() \
+    mallocCt = numMallocCalls();
+#else
+  #define INITIAL_MALLOC_STATS()
+  #define CHECK_MALLOC_STATS(desc)
+  #define UPDATE_MALLOC_STATS()
+#endif
 
 
 // ----------------- DottedProduction ------------------
@@ -2183,14 +2217,8 @@ void GrammarAnalysis::constructLRItemSets()
     &ItemSet::equalKey);
   itemSetsPending.setEnableShrink(false);
 
-  // the 'list' is actually an array, to avoid allocation
-  GrowArray<ItemSet*> pendingList(100);
-  int pendingLength = 0;                 // # items in 'pendingList'
-  #define ADD_PENDING(item) \
-    pendingList.setIndexDoubler(pendingLength++, item)
-  #define REMOVE_PENDING() \
-    pendingList[--pendingLength]
-  //SObjList<ItemSet> pendingList;
+  // the 'list' is actually an array-based stack, to avoid allocation
+  ArrayStack<ItemSet*> pendingList(100);
 
   // item sets with all outgoing links processed
   OwnerHashTable<ItemSet> itemSetsDone(
@@ -2239,38 +2267,15 @@ void GrammarAnalysis::constructLRItemSets()
 
     // this makes the initial pending itemSet
     itemSetsPending.add(is, is);              // (ownership transfer)
-    //pendingList.prepend(is);
-    ADD_PENDING(is);
+    pendingList.push(is);
   }
 
-  #if !defined(NDEBUG) && 1     // track unauthorized malloc's
-    // track how much allocation we're doing
-    unsigned mallocCt = numMallocCalls();
-
-    // nothing should have been allocated recently; if it has, then
-    // print a warning
-    #define CHECK_MALLOC_STATS(desc)                                              \
-      {                                                                           \
-        unsigned newCt = numMallocCalls();                                        \
-        if (mallocCt != newCt) {                                                  \
-          cout << (newCt - mallocCt) << " malloc calls during " << desc << endl;  \
-          mallocCt = newCt;                                                       \
-          breaker();                                                              \
-        }                                                                         \
-      }
-
-    // some unavoidable allocation just happened, so just update counter
-    #define UPDATE_MALLOC_STATS() \
-      mallocCt = numMallocCalls();
-  #else
-    #define CHECK_MALLOC_STATS(desc)
-    #define UPDATE_MALLOC_STATS()
-  #endif
+  // track how much allocation we're doing
+  INITIAL_MALLOC_STATS();
 
   // for each pending item set
-  while (pendingLength > 0) {
-    //ItemSet *itemSet = pendingList.removeFirst();
-    ItemSet *itemSet = REMOVE_PENDING();               // dequeue (owner)
+  while (pendingList.isNotEmpty()) {
+    ItemSet *itemSet = pendingList.pop();              // dequeue (owner)
     itemSetsPending.remove(itemSet);                   // (ownership transfer)
 
     CHECK_MALLOC_STATS("top of pending list loop");
@@ -2379,8 +2384,7 @@ void GrammarAnalysis::constructLRItemSets()
               // but we're not: move it back to the 'pending' list
               itemSetsDone.remove(already);
               itemSetsPending.add(already, already);
-              //pendingList.prepend(already);
-              ADD_PENDING(already);
+              pendingList.push(already);
             }
 
             // it's ok if closure makes more items, or if
@@ -2407,8 +2411,7 @@ void GrammarAnalysis::constructLRItemSets()
 
           // then add it to 'pending'
           itemSetsPending.add(withDotMoved, withDotMoved);
-          //pendingList.prepend(withDotMoved);
-          ADD_PENDING(withDotMoved);
+          pendingList.push(withDotMoved);
 
           // takes into account:
           //   - creation of 'withDotMoved' state
@@ -2476,11 +2479,6 @@ void GrammarAnalysis::constructLRItemSets()
       itemSet.data()->writeGraph(out, *this);
     }
   }
-
-  #undef CHECK_MALLOC_STATS
-  #undef UPDATE_MALLOC_STATS
-  #undef ADD_PENDING
-  #undef REMOVE_PENDING
 }
 
 
