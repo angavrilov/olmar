@@ -11,7 +11,9 @@ SMBASE = /home/scott/wrk/lib/smbase
 # dependencies
 libraries = ${SMBASE}/libsmbase.a
 includes = -I${SMBASE}
-#ccflags = -pg
+
+# when uncommented, we get profiling info
+ccflags = -pg
 
 # pull in base stuff
 include ${SMBASE}/Makefile.base.mk
