@@ -94,7 +94,7 @@ public:
 
   // when true, allow function definitions that omit any return type
   // to implicitly return 'int'.
-  bool allowImplicitIntRetType;
+  bool allowImplicitInt;
   
   // GNU extension: when true, allow local variable arrays to have
   // sizes that are not constant

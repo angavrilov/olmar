@@ -80,7 +80,7 @@ void TranslationUnit::tcheck(Env &env)
     TRACE("topform", "--------- topform " << topForm <<
                      ", at " << toString(iter.data()->loc) <<
                      " --------");
-    iter.data()->tcheck(env);
+    iter.setDataLink( iter.data()->tcheck(env) );
   }
 
   instantiateRemainingMethods(env, this);
@@ -88,25 +88,111 @@ void TranslationUnit::tcheck(Env &env)
 
 
 // --------------------- TopForm ---------------------
-void TF_decl::tcheck(Env &env)
+template<class NODE>
+NODE *resolveImplIntAmbig(Env &env, NODE *node)
+{
+  // find any of the ambiguities that are ST_IMPLINT and decide if we
+  // want them or not
+  for(NODE *s0 = node; s0; s0 = s0->ambiguity) {
+    // Note that this loop does not continue once this 'if' tests as
+    // true.
+    TS_simple *simpSpec = NULL;
+    Declarator *d0 = NULL;
+    if(s0->hasImplicitInt(simpSpec, d0)) {
+      xassert(env.lang.allowImplicitInt);
+      xassert(simpSpec);
+      xassert(d0);
+
+      // if this is an implicit int declaration, then we allow it
+      // *only if* the name of the declarator does not look up to a
+      // type, even if the type interpretation is also wrong!  This
+      // matches the gcc failure on this example for which both
+      // interpretations (implicit int or not) fail:
+      //   typedef int y;
+      //   int main() {
+      //     static *y;  // both interpretations fail here
+      //     ++(*y);
+      //   }
+
+      // assert that all the declarators have the same name; NOTE: we
+      // ignore any subsequent declarators for the purposes of
+      // determining if we want the implicit-int interpretation
+      //
+      // We check that all the ambiguous Declarators (the various
+      // parses of the *first* *user*-visible Declarator) all have the
+      // same name; again we ignore the subsequent *user*-visible
+      // Declarators
+      //
+      // NOTE: the name (and name1 below) should not be qualified but
+      // we don't check that, trusting in the goodness of Odin
+      StringRef name0 = d0->decl->getDeclaratorId()->getName();
+      xassert(name0);
+      for(Declarator *d1 = d0->ambiguity; d1; d1 = d1->ambiguity) {
+        StringRef name1 = d1->decl->getDeclaratorId()->getName();
+        xassert(name0 == name1);
+      }
+      // does this look up to a type?
+      Variable *var = env.lookupVariable(name0);
+      if (var && var->hasFlag(DF_TYPEDEF)) {
+        // we reject the implicit-int interpretation
+        if (s0 == node) {
+          // by doing this the caller will re-write the ast node that
+          // points to us
+          return s0->ambiguity;
+        } else {
+          // chop s0 out of the list and repeat
+          NODE *s2 = NULL;
+          for(s2 = node; s2->ambiguity != s0; s2 = s2->ambiguity)
+            {}
+          xassert(s2->ambiguity == s0);
+          s2->ambiguity = s2->ambiguity->ambiguity;
+          // we do the whole thing over again in case there are two
+          // implicit-int interpretations even thought we think that
+          // is not possible
+          return node;
+        }
+      } else {
+        // we keep the implicit-int interpretation
+        s0->ambiguity = NULL;
+        simpSpec->id = ST_INT /*NOTE: was ST_IMPLINT*/;
+        return s0;
+      }
+    }
+  }
+  return NULL;
+}
+
+TopForm *TopForm::tcheck(Env &env)
+{
+  if (!ambiguity) {
+    itcheck(env);
+    return this;
+  }
+
+  TopForm *ret = resolveImplIntAmbig(env, this);
+  xassert(ret);
+  return ret->tcheck(env);
+}
+
+void TF_decl::itcheck(Env &env)
 {
   env.setLoc(loc);
   decl->tcheck(env, DC_TF_DECL);
 }
 
-void TF_func::tcheck(Env &env)
+void TF_func::itcheck(Env &env)
 {
   env.setLoc(loc);
   f->tcheck(env, true /*checkBody*/);
 }
 
-void TF_template::tcheck(Env &env)
+void TF_template::itcheck(Env &env)
 {
   env.setLoc(loc);
   td->tcheck(env);
 }
 
-void TF_explicitInst::tcheck(Env &env)
+void TF_explicitInst::itcheck(Env &env)
 {
   env.setLoc(loc);
   
@@ -156,7 +242,7 @@ void TF_explicitInst::tcheck(Env &env)
   }
 }
 
-void TF_linkage::tcheck(Env &env)
+void TF_linkage::itcheck(Env &env)
 {  
   env.setLoc(loc);
 
@@ -166,7 +252,7 @@ void TF_linkage::tcheck(Env &env)
   forms->tcheck(env);
 }
 
-void TF_one_linkage::tcheck(Env &env)
+void TF_one_linkage::itcheck(Env &env)
 {
   env.setLoc(loc);
 
@@ -189,7 +275,7 @@ void TF_one_linkage::tcheck(Env &env)
   form->tcheck(env);
 }
 
-void TF_asm::tcheck(Env &env)
+void TF_asm::itcheck(Env &env)
 {
   env.setLoc(loc);
 
@@ -203,7 +289,7 @@ void TF_asm::tcheck(Env &env)
 }
 
 
-void TF_namespaceDefn::tcheck(Env &env)
+void TF_namespaceDefn::itcheck(Env &env)
 {
   env.setLoc(loc);
 
@@ -252,13 +338,13 @@ void TF_namespaceDefn::tcheck(Env &env)
   // check the namespace body in its scope
   env.extendScope(s);
   FOREACH_ASTLIST_NC(TopForm, forms, iter) {
-    iter.data()->tcheck(env);
+    iter.setDataLink( iter.data()->tcheck(env) );
   }
   env.retractScope(s);
 }
 
 
-void TF_namespaceDecl::tcheck(Env &env)
+void TF_namespaceDecl::itcheck(Env &env)
 {
   env.setLoc(loc);
   decl->tcheck(env);
@@ -782,6 +868,11 @@ ASTTypeId *ASTTypeId::tcheck(Env &env, Tcheck &tc)
     return this;
   }
 
+  ASTTypeId *ret = resolveImplIntAmbig(env, this);
+  if (ret) {
+    return ret->tcheck(env, tc);
+  }
+
   return resolveAmbiguity(this, env, "ASTTypeId", false /*priority*/, tc);
 }
 
@@ -1005,6 +1096,9 @@ Type *TS_name::itcheck(Env &env, DeclFlags dflags)
 
 Type *TS_simple::itcheck(Env &env, DeclFlags dflags)
 {
+  if (id == ST_IMPLINT) {
+    id = ST_INT;
+  }
   return env.getSimpleType(loc, id, cv);
 }
 
@@ -2415,7 +2509,12 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     // I'm not sure where the exception for 'extern' is specified, but
     // it clearly exists.... (t0170.cc)
   }
-  else if (dt.type->isArrayType() && init) {
+  else if (dt.type->isArrayType()
+           // dsw: arrays in ASTTypeId's of compound literals are
+           // allowed to not have a size and not have an initializer:
+           // '(int[]) {1, 2}'
+           && (init || dt.context == DC_E_COMPOUNDLIT)
+           ) {
     // The array type might be incomplete now, but the initializer
     // will take care of it.  (If I instead moved this entire block
     // below where the init is tchecked, I think I would run into
@@ -2920,7 +3019,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt)
     }
     
     else {     // C
-      if (env.lang.allowImplicitIntRetType) {
+      if (env.lang.allowImplicitInt) {
         // surely this is not adequate, as implicit-int applies to
         // all declarations, not just those that appear in function
         // definitions... I think the rest of the implementation is
@@ -3385,6 +3484,11 @@ Statement *Statement::tcheck(Env &env)
     // easy case
     mid_tcheck(env, dummy);
     return this;
+  }
+
+  Statement *ret = resolveImplIntAmbig(env, this);
+  if(ret) {
+    return ret->tcheck(env);
   }
 
   // the only ambiguity for Statements I know if is S_decl vs. S_expr,

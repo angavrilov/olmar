@@ -35,7 +35,9 @@ class TranslationUnit {
 
 
 class TopForm {
-  pure_virtual void tcheck(Env &env);
+  public /*no_ignore*/ TopForm *tcheck(Env &env);
+  pure_virtual void itcheck(Env &env);
+  public bool hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator);
 }
 
 
@@ -100,6 +102,7 @@ class MemberInit {
 
 class Declaration {                                   
   public void tcheck(Env &env, DeclaratorContext context);
+  public bool hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator);
 }
 
 
@@ -130,6 +133,7 @@ class ASTTypeId {
   public void mid_tcheck(Env &env, Tcheck &tc);
 
   public Type *getType() const;      // can use after calling 'tcheck'
+  public bool hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator);
 }
 
 
@@ -398,6 +402,8 @@ class Statement {
   public void mid_tcheck(Env &env, int &);
   pure_virtual void itcheck(Env &env);
   
+  public bool hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator);
+
   -> S_case {
        // the case label must be an integer; this its value
        public int labelVal = 0;

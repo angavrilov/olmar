@@ -48,7 +48,8 @@ int p(int (q)());
 int f3(int (S));        // ambiguous..
 
 // function accepting a function which returns a function (!)
-int q(int (S)());       // ayyyeeee!!
-int r(int ()());
+// dsw: nope
+//  int q(int (S)());       // ayyyeeee!!
+//  int r(int ()());
 
 

@@ -153,10 +153,12 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "void",                   1,    S(STF_NONE)                 },    // gnu: sizeof(void) is 1
 
 
+  // these should go away early on in typechecking
   { "...",                    0,    S(STF_NONE)                 },
   { "/*cdtor*/",              0,    S(STF_NONE)                 },    // dsw: don't want to print <cdtor>
   { "<error>",                0,    S(STF_NONE)                 },
   { "<dependent>",            0,    S(STF_NONE)                 },
+  { "<implicit-int>",         0,    S(STF_NONE)                 },
 
 
   { "<prom_int>",             0,    S(STF_NONE)                 },

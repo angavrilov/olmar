@@ -24,7 +24,7 @@ void CCLang::ANSI_C()
   compoundSelfName = false;
   allowCallToUndeclFunc = false;
   allow_KR_ParamOmit = false;
-  allowImplicitIntRetType = true;
+  allowImplicitInt = true;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
 
@@ -39,7 +39,7 @@ void CCLang::KandR_C()
   emptyParamsMeansPureVarargFunc = true;
   allowCallToUndeclFunc = true;
   allow_KR_ParamOmit = true;
-  allowImplicitIntRetType = true;
+  allowImplicitInt = true;
 }
 
 void CCLang::ANSI_C99()
@@ -47,7 +47,7 @@ void CCLang::ANSI_C99()
   ANSI_C();
 
   implicitFuncVariable = true;
-  allowImplicitIntRetType = false;
+  allowImplicitInt = false;
   isC99 = true;
 }
 
@@ -55,7 +55,7 @@ void CCLang::GNU_C()
 {
   ANSI_C99();
 
-  allowImplicitIntRetType = true;
+  allowImplicitInt = true;
   gccFuncBehavior = GFB_string;
   allowDynamicallySizedArrays = true;
   
@@ -97,7 +97,7 @@ void CCLang::ANSI_Cplusplus()
 
   allowCallToUndeclFunc = false;
   allow_KR_ParamOmit = false;
-  allowImplicitIntRetType = false;
+  allowImplicitInt = false;
   allowDynamicallySizedArrays = false;
   allowIncompleteEnums = false;
 

@@ -171,7 +171,8 @@ enum SimpleTypeId {
   ST_CDTOR,                  // "return type" for ctors and dtors
   ST_ERROR,                  // this type is returned for typechecking errors
   ST_DEPENDENT,              // depdenent on an uninstantiated template parameter type
-  
+  ST_IMPLINT,                // implicit-int for K&R C
+
   // for polymorphic built-in operators (cppstd 13.6)
   ST_PROMOTED_INTEGRAL,      // int,uint,long,ulong
   ST_PROMOTED_ARITHMETIC,    // promoted integral + float,double,longdouble

@@ -44,6 +44,20 @@ class TranslationUnit (ASTList<TopForm> topForms);
 
 // a toplevel form
 class TopForm (SourceLoc loc) {
+  // represent ambiguous statements by forming a linked list of alternatives
+  public TopForm * ambiguity = NULL;
+  public void addAmbiguity(TopForm *alt);
+  custom traverse { if (ambiguity) ambiguity->traverse(vis); }
+
+  // print ambiguities
+  public void printAmbiguities(ostream &os, int indent) const;
+  custom preemptDebugPrint {
+    if (ambiguity) {
+      printAmbiguities(os, indent);
+      return;     // skip the normal, unambiguous-node print code
+    }
+  }
+
   // includes function prototypes
   -> TF_decl(Declaration decl);
 
@@ -380,7 +394,7 @@ class OperatorName {
 // ------------------- statements -----------------
 class Statement (SourceLoc loc) {
   // represent ambiguous statements by forming a linked list of alternatives
-  public Statement * const ambiguity = NULL;
+  public Statement * ambiguity = NULL;
   public void addAmbiguity(Statement *alt);
   custom traverse { if (ambiguity) ambiguity->traverse(vis); }
 

@@ -114,6 +114,32 @@ public:
     ret->cv = cv;
     return ret;
   }
+
+  // make a D_func but not if it attempts to be the return value of
+  // another function
+  D_func *new_D_func
+    (SourceLoc loc,
+     IDeclarator *base,
+     FakeList<ASTTypeId> *params,
+     CVFlags cv,
+     ExceptionSpec /*nullable*/ *exnSpec)
+  {
+    if (base->isD_func()) {
+      trace("cancel") << loc << ": function returning a function\n";
+      return NULL;
+    }
+    return new D_func(loc, base, params, cv, exnSpec);
+  }
+
+  D_array *new_D_array
+    (SourceLoc loc, IDeclarator *base, Expression /*nullable*/ *size)
+  {
+    if (base->isD_func()) {
+      trace("cancel") << loc << ": function returning an array\n";
+      return NULL;
+    }
+    return new D_array(loc, base, size);
+  }
 };
 
 
@@ -513,10 +539,12 @@ nonterm(IDeclarator*) NewDeclaratorOpt {
   -> d:DirectNewDeclarator               { return d; }
 }
 nonterm(IDeclarator*) DirectNewDeclarator {
+  fun keep(x) { return x!=NULL; }
+
   -> /*abstract declarator*/ "[" sz:Expression "]"
-       { return new D_array(loc, new D_name(loc, NULL), sz); }
+       { return new_D_array(loc, new D_name(loc, NULL), sz); }
   -> d:DirectNewDeclarator "[" sz:ConstantExpression "]"
-       { return new D_array(loc, d, sz); }
+       { return new_D_array(loc, d, sz); }
 }
 
 nonterm(ArgExpressionListOpt*) NewInitializerOpt {
@@ -1298,6 +1326,8 @@ nonterm(IDeclarator*) Declarator {
 }
 
 nonterm(IDeclarator*) DirectDeclarator {
+  fun keep(x) { return x!=NULL; }
+
   // it doesn't matter how this was classified before, because a
   // declarator binds a new name, so it shadows any prior definitions;
   // note: this rule handles constructor names!
@@ -1315,11 +1345,11 @@ nonterm(IDeclarator*) DirectDeclarator {
      "(" params:ParameterDeclarationClause ")" // parameters
      cv:CVQualifierSeqOpt                      // optional "const"
      e:ExceptionSpecificationOpt               // optional "throw" clause
-       { return new D_func(loc, d, params, cv, e); }
+       { return new_D_func(loc, d, params, cv, e); }
 
   // array with optional size
   -> d:DirectDeclarator "[" sz:ConstantExpressionOpt "]"
-       { return new D_array(loc, d, sz); }
+       { return new_D_array(loc, d, sz); }
 
   // precedence grouping; must be recorded in the AST for disambiguation
   -> "(" d:Declarator ")"
@@ -1425,6 +1455,8 @@ nonterm(IDeclarator*) DirectAbstractDeclaratorOpt {
 
 // this also must have some ground syntax
 nonterm(IDeclarator*) DirectAbstractDeclarator {
+  fun keep(x) { return x!=NULL; }
+
   // note: the "opt" in the DirectAbstractDeclarator part of the
   // function type constructor creates an ambiguity:
   //   typedef int x;
@@ -1440,11 +1472,11 @@ nonterm(IDeclarator*) DirectAbstractDeclarator {
      "(" args:ParameterDeclarationClause ")"
      cv:CVQualifierSeqOpt
      e:ExceptionSpecificationOpt
-       { return new D_func(loc, d, args, cv, e); }
+       { return new_D_func(loc, d, args, cv, e); }
 
   // array with optional size
   -> d:DirectAbstractDeclaratorOpt "[" sz:ConstantExpressionOpt "]"
-       { return new D_array(loc, d, sz); }
+       { return new_D_array(loc, d, sz); }
 
   // precedence grouping; shouldn't need to record this in AST, but
   // I will for consistency with Declarator

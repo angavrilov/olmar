@@ -153,7 +153,34 @@ string refersTo(Variable *v)
 
 
 // TranslationUnit
-// TopForm
+
+// ---------------------- TopForm --------------------
+void TopForm::printAmbiguities(ostream &os, int indent) const
+{
+  genericPrintAmbiguities(this, "TopForm", os, indent);
+}
+
+
+void TopForm::addAmbiguity(TopForm *alt)
+{
+  // this does not call 'genericAddAmbiguity' because TopForms do not
+  // have 'next' fields
+
+  // prepend 'alt' to my list
+  xassert(alt->ambiguity == NULL);
+  alt->ambiguity = ambiguity;
+  ambiguity = alt;
+}
+
+
+bool TopForm::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
+{
+  if (isTF_decl()) {
+    return asTF_decl()->decl->hasImplicitInt(implIntSpec, declarator);
+  }
+  return false;
+}
+
 
 // ---------------------- Function --------------------
 void Function::printExtras(ostream &os, int indent) const
@@ -188,7 +215,18 @@ void MemberInit::printExtras(ostream &os, int indent) const
 }
 
 
-// Declaration
+// ----------------------- Declaration ----------------------
+bool Declaration::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
+{
+  if (spec->isTS_simple() && spec->asTS_simple()->id == ST_IMPLINT) {
+    implIntSpec = spec->asTS_simple();
+    declarator = decllist->first();
+    xassert(declarator);
+    return true;
+  }
+  return false;
+}
+
 
 // ---------------------- ASTTypeId -----------------------
 void ASTTypeId::printAmbiguities(ostream &os, int indent) const
@@ -206,6 +244,18 @@ void ASTTypeId::addAmbiguity(ASTTypeId *alt)
 void ASTTypeId::setNext(ASTTypeId *newNext)
 {
   genericSetNext(this, newNext);
+}
+
+
+bool ASTTypeId::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
+{
+  if (spec->isTS_simple() && spec->asTS_simple()->id == ST_IMPLINT) {
+    implIntSpec = spec->asTS_simple();
+    declarator = decl;
+    xassert(declarator);
+    return true;
+  }
+  return false;
 }
 
 
@@ -477,8 +527,8 @@ void Statement::addAmbiguity(Statement *alt)
 
   // prepend 'alt' to my list
   xassert(alt->ambiguity == NULL);
-  const_cast<Statement*&>(alt->ambiguity) = ambiguity;
-  const_cast<Statement*&>(ambiguity) = alt;
+  alt->ambiguity = ambiguity;
+  ambiguity = alt;
 }
 
 
@@ -494,6 +544,15 @@ string Statement::lineColString() const
 string Statement::kindLocString() const
 {
   return stringc << kindName() << "@" << lineColString();
+}
+
+
+bool Statement::hasImplicitInt(TS_simple *&implIntSpec, Declarator *&declarator)
+{
+  if (isS_decl()) {
+    return asS_decl()->decl->hasImplicitInt(implIntSpec, declarator);
+  }
+  return false;
 }
 
 
