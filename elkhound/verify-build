@@ -1,18 +1,36 @@
 #!/bin/sh
-# checkout all three source repositories and verify the build
+# checkout all parsgen source repositories and verify the build
 
 mkdir tmp-bld || exit
 cd tmp-bld || exit
 
+# ---------- plat ---------
 cvs checkout plat || exit
+
+# ---------- smbase ----------
 cvs checkout smbase || exit
 cvs checkout parsgen || exit
-
 parsgen/configure --nocaml || exit
-parsgen/build || exit
+(cd smbase && make) || exit
 
-(cd parsgen; make check) || exit
+# ---------- parsgen, no ocaml --------
+(cd parsgen && make && make check) || exit
+rm -rf parsgen
 
+# ---------- parsgen, ocaml ----------
+cvs checkout parsgen || exit
+cvs checkout ml_cil || exit
+rm plat/Makefile.
+parsgen/configure --ocaml || exit
+(cd parsgen && make) || exit
+
+# ----------- ml_cil -------------
+cd ml_cil || exit
+make || exit
+obj/spec.byte test.c || exit
+cd .. || exit
+
+# ------------ clean up --------------
 cd .. || exit
 rm -rf tmp-bld || exit
 
