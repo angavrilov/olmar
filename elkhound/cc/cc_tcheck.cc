@@ -1235,7 +1235,8 @@ realStart:
     if (prior->hasFlag(DF_DEFINITION) &&
         (dt.dflags & DF_DEFINITION)) {
       env.error(stringc
-        << "duplicate definition for `" << *name
+        << "duplicate definition for `" << *name 
+        << "' of type `" << prior->type->toString()
         << "'; previous at " << prior->loc.toString());
       goto makeDummyVar;
     }
