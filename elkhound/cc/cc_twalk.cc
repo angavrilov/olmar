@@ -314,7 +314,7 @@ void TS_classSpec::twalk(Env &env)
   olayer ol("TS_classSpec");
   global_code_out << toString(cv);
   global_code_out << toString(keyword) << " ";
-  global_code_out << toString(name);
+  if (name) global_code_out << toString(name);
   bool first_time = true;
   FAKELIST_FOREACH_NC(BaseClassSpec, bases, iter) {
     if (first_time) {
