@@ -190,12 +190,12 @@ public:	   // data
 
   // also collect reference count pointers, so they can be incremented
   // each time the corresponding semantic value ends up being used
-  int *svalRefCts;
+  int **svalRefCts;
   
   // yet more: collect the symbols associated with each of the
   // semantic values, as this info is needed to call the 'dup'
   // functions
-  Symbol const *svalSymbols;
+  Symbol const **svalSymbols;
 
   // as reduction possibilities are encountered, we record them here
   ObjList<ReductionPath> paths;

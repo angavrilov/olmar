@@ -6,8 +6,14 @@
 
 // this code is used to select between two competing interpretations
 // for the same sequence of ground terminals
-STATICDEF Exp *Exp::mergeAlts(Exp *p1, Exp *p2)
+STATICDEF Exp *Exp::mergeAlts(Exp *_p1, Exp *_p2)
 {
+  E_op *p1 = _p1->ifE_op();
+  E_op *p2 = _p2->ifE_op();
+                    
+  // the only way conflict can occur is between E_op expressions
+  xassert(p1 && p2);
+
   // look at the operators
   if (p1->op != p2->op) {
     // they are different; keep the one with '+' at the

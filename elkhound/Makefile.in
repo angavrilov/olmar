@@ -4,7 +4,7 @@
 OCAMLINCL mode = --ocaml
 NOCAMLINCL mode = --nocaml
 
-temporary: check-makefiles grampar
+temporary: check-makefiles grampar gramanl cexp3
 
 # main targets
 all: check-makefiles ccgr
@@ -164,14 +164,18 @@ cexp2: ${cexp2-dep} cexp2.h
 
 # intermediate files for cexp3
 # ('chmod a-w' is so I don't accidentally edit it)
-cexp3.cc: cexp3.gr gramanl
+cexp3.cc: cexp3.gr gramanl cexp3ast.gen.h
 	rm -f cexp3.cc
 	./gramanl cexp3
 	chmod a-w cexp3.cc
 
+# ast for cexp3
+cexp3ast.gen.cc cexp3ast.gen.h: cexp3ast.ast ../ast/astgen
+	../ast/astgen cexp3ast.ast
+
 # parser and semantic analyzer for cexp3.gr
 cexp3-dep = cexp3.o ${grammar-set} ${common} ${grampar-set} \
-            ${glr-set} glrmain.o
+            ${glr-set} glrmain.o cexp3mrg.o cexp3ast.gen.o
 cexp3: ${cexp3-dep}
 	${link} -o cexp3 ${cexp3-dep} ${linkend}
 

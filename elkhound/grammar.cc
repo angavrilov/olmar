@@ -102,6 +102,17 @@ void Symbol::xfer(Flatten &flat)
 }
 
 
+int Symbol::getTermOrNontermIndex() const
+{
+  if (isTerminal()) {
+    return asTerminalC().termIndex;
+  }
+  else {
+    return asNonterminalC().ntIndex;
+  }
+}
+
+
 void Symbol::print(ostream &os) const
 {
   os << name;

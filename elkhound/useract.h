@@ -34,5 +34,12 @@ SemanticValue duplicateNontermValue(int nontermId, SemanticValue sval);
 void deallocateTerminalValue(int termId, SemanticValue sval);
 void deallocateNontermValue(int nontermId, SemanticValue sval);
 
+// this is called when there are two interpretations for the same
+// sequence of ground terminals, culminating in two different reductions
+// deriving the same left-hand-side nonterminal (identified by 'ntIndex');
+// it should return a value to be used in the place where they conflict
+SemanticValue mergeAlternativeParses(int ntIndex, SemanticValue left,
+                                     SemanticValue right);
+
 
 #endif // USERACT_H

@@ -68,3 +68,4 @@ grampar.codes.h
 cexp3.cc
 cexp3.bin
 cexp3
+cexp3ast.gen.*

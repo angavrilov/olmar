@@ -104,6 +104,10 @@ public:
   bool isTerminal() const { return isTerm; }
   bool isNonterminal() const { return !isTerm; }
 
+  // both terminals and nonterminals have ids; this gets the
+  // id for whichever kind this object happens to be
+  int getTermOrNontermIndex() const;
+
   // casting
   Terminal const &asTerminalC() const;       // checks 'isTerminal' for cast safety
   Terminal &asTerminal()

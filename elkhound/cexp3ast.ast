@@ -3,13 +3,13 @@
 
 class Exp {
   // number of nodes in this subtree, including myself
-  public int numNodes() const = 0;                    
-  
+  public virtual int numNodes() const = 0;
+
   // make a completely new copy, sharing nothing with the original
-  public Exp *deepCopy() const = 0;
-  
+  public virtual Exp *deepCopy() const = 0;
+
   // evaluate the arithmetic value of the subtree
-  public int eval() const = 0;
+  public virtual int eval() const = 0;
 
   // merge alternative interpretations
   public static Exp *mergeAlts(Exp *p1, Exp *p2);
@@ -17,23 +17,23 @@ class Exp {
   // expression containing simply a literal integer
   -> E_int(int i) {
     public int numNodes() const
-      { return 1; }
+      { return 1; };
     public Exp *deepCopy() const
-      { return new E_int(i); }
+      { return new E_int(i); };
     public int eval() const
-      { return i; }
+      { return i; };
   }
 
   // 'op' can be either '+' or '*'
   -> E_op(char op, Exp left, Exp right) {
     public int numNodes() const
-      { return 1 + left.numNodes() + right.numNodes(); }
+      { return 1 + left->numNodes() + right->numNodes(); };
     public Exp *deepCopy() const
-      { return new E_op(op, left->deepCopy(), right->deepCopy()); }
+      { return new E_op(op, left->deepCopy(), right->deepCopy()); };
     public int eval() const {
       int L = left->eval();
       int R = right->eval();
       return op=='+'? L+R : L*R;
-    }
+    };
   }
 }

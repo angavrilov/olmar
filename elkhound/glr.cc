@@ -245,7 +245,7 @@ PathCollectionState::PathCollectionState(Production const *p, int start)
   // possible optimization: allocate these once, using the largest length
   // of any production, when parsing starts
   poppedSymbols = new SemanticValue[len];
-  svalRefCts = new int[len];
+  svalRefCts = new int *[len];
   svalSymbols = new Symbol const *[len];
 }
 
@@ -612,7 +612,7 @@ int GLR::doAllPossibleReductions(StackNode *parser,
  *
  * ([GLR] called this 'do-reductions' and 'do-limited-reductions')
  */
-bool GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
+void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
                                 StackNode *currentNode, SiblingLink *mustUseLink)
 {
   // inefficiency: all this mechanism is somewhat overkill, given that
@@ -685,15 +685,17 @@ bool GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 }
 
 
+#if 0
 // temporary
 void *mergeAlternativeParses(int ntIndex, void *left, void *right)
 {
-  cout << "merging at ntIndex " << ntIndex << ": " 
+  cout << "merging at ntIndex " << ntIndex << ": "
        << left << " and " << right << endl;
-  
+
   // just pick one arbitrarily
   return left;
 }
+#endif // 0
 
 
 // shift reduction onto 'leftSibling' parser, 'prod' says which

@@ -68,7 +68,7 @@ XASTParse::~XASTParse()
 void astParseGrammar(Grammar &g, GrammarAST const *treeTop);
 void astParseTerminals(Environment &env, Terminals const &terms);
 void astParseDDM(Environment &env, ConflictHandlers &ddm,
-                 ASTList<SpecFunc> const &funcs);
+                 ASTList<SpecFunc> const &funcs, bool mergeOk);
 void astParseNonterm(Environment &env, NontermDecl const *nt);
 void astParseProduction(Environment &env, Nonterminal *nonterm,
                         ProdDecl const *prod);
@@ -179,14 +179,14 @@ void astParseTerminals(Environment &env, Terminals const &terms)
       t->type = type.type;
       
       // parse the dup/del/merge spec
-      astParseDDM(env, t->ddm, type.funcs);
+      astParseDDM(env, t->ddm, type.funcs, false /*mergeOk*/);
     }
   }
 }
 
 
 void astParseDDM(Environment &env, ConflictHandlers &ddm,
-                 ASTList<SpecFunc> const &funcs)
+                 ASTList<SpecFunc> const &funcs, bool mergeOk)
 {
   FOREACH_ASTLIST(SpecFunc, funcs, iter) {
     SpecFunc const &func = *(iter.data());
@@ -216,12 +216,17 @@ void astParseDDM(Environment &env, ConflictHandlers &ddm,
     }
 
     else if (func.name.equals("merge")) {
-      if (numFormals != 2) {
-        astParseError(func.name, "'merge' function must have two formal parameters");
+      if (mergeOk) {
+        if (numFormals != 2) {
+          astParseError(func.name, "'merge' function must have two formal parameters");
+        }
+        ddm.mergeParam1 = func.nthFormal(0);
+        ddm.mergeParam2 = func.nthFormal(1);
+        ddm.mergeCode = func.code;
       }
-      ddm.mergeParam1 = func.nthFormal(0);
-      ddm.mergeParam2 = func.nthFormal(1);
-      ddm.mergeCode = func.code;
+      else {
+        astParseError(func.name, "'merge' can only be applied to nonterminals");
+      }
     }
     
     else {
@@ -251,7 +256,7 @@ void astParseNonterm(Environment &env, NontermDecl const *nt)
   }
 
   // parse dup/del/merge
-  astParseDDM(env, nonterm->ddm, nt->funcs);
+  astParseDDM(env, nonterm->ddm, nt->funcs, true /*mergeOk*/);
 }
 
 

@@ -12,6 +12,7 @@
 #include "flatutil.h"    // Flatten, xfer helpers
 #include "grampar.h"     // readGrammarFile
 #include "emitcode.h"    // EmitCode
+#include "strutil.h"     // replace
 
 #include <fstream.h>     // ofstream
 
@@ -2265,7 +2266,19 @@ void GrammarAnalysis::runAnalyses()
   //pretendUsed(a,b,c,d,e, S,A,B,C,D);
 }
 
-  
+
+// ------------------ emitting action code -----------------------
+// prototypes for this section
+void emitActionCode(Grammar &g, char const *fname, char const *srcFname);
+void emitActions(Grammar &g, EmitCode &out);
+void emitUserCode(EmitCode &out, LocString const &code);
+void emitDupDelMerge(Grammar &g, EmitCode &out);
+void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk);
+void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
+                    ObjList<Symbol> const &syms, int whichFunc,
+                    char const *templateCode, char const *actUpon);
+
+
 // yield the name of the inline function for this production; naming
 // design motivated by desire to make debugging easier
 string actionFuncName(Production const &prod)
@@ -2299,6 +2312,17 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
     out << "\n";
   }
 
+  out << "// ------------------- actions ---------------\n";
+  emitActions(g, out);
+  out << "\n";
+  out << "\n";
+
+  emitDupDelMerge(g, out);
+}
+
+
+void emitActions(Grammar &g, EmitCode &out)
+{
   // iterate over productions, emitting inline action functions
   {FOREACH_OBJLIST(Production, g.productions, iter) {
     Production const &prod = *(iter.data());
@@ -2394,15 +2418,137 @@ void emitActionCode(Grammar &g, char const *fname, char const *srcFname)
 }
 
 
-#ifdef GRAMANL_MAIN
-#if 0   // old
-int main()
+void emitUserCode(EmitCode &out, LocString const &code)
 {
-  GrammarAnalysis g;
-  g.exampleGrammar();
-  return 0;
+  out << "{\n";
+  out << lineDirective(code);
+  out << code << " }\n";
+
+  out << restoreLine;
+  out << "\n";
 }
-#endif // 0
+
+
+void emitDupDelMerge(Grammar &g, EmitCode &out)
+{
+  out << "// ---------------- dup/del/merge nonterminals ---------------\n";
+  // emit inlines for dup/del/merge of nonterminals
+  FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
+    emitDDMInlines(out, *(ntIter.data()), true /*mergeOk*/);
+  }
+
+  // emit dup-nonterm
+  emitSwitchCode(out,
+    "SemanticValue duplicateNontermValue(int nontermId, SemanticValue sval)",
+    "nontermId",
+    (ObjList<Symbol> const&)g.nonterminals,
+    0 /*dupCode*/,
+    "      return (SemanticValue)dup_$symName(($symType)sval);\n",
+    "duplicate nonterm");
+
+  // emit del-nonterm
+  emitSwitchCode(out,
+    "void deallocateNontermValue(int nontermId, SemanticValue sval)",
+    "nontermId",
+    (ObjList<Symbol> const&)g.nonterminals,
+    1 /*delCode*/,
+    "      del_$symName(($symType)sval);\n"
+    "      return;\n",
+    "deallocate nonterm");
+
+  // emit merge-nonterm
+  emitSwitchCode(out,
+    "SemanticValue mergeAlternativeParses(int nontermId, SemanticValue left,\n"
+    "                                     SemanticValue right)",
+    "nontermId",
+    (ObjList<Symbol> const&)g.nonterminals,
+    2 /*mergeCode*/,
+    "      return (SemanticValue)merge_$symName(($symType)left, ($symType)right);\n",
+    "merge nonterm");
+  out << "\n";
+
+
+  out << "// ---------------- dup/del terminals ---------------\n";
+  // emit inlines for dup/del of terminals
+  FOREACH_OBJLIST(Terminal, g.terminals, termIter) {
+    emitDDMInlines(out, *(termIter.data()), false /*mergeOk*/);
+  }
+
+  // emit dup-term
+  emitSwitchCode(out,
+    "SemanticValue duplicateTerminalValue(int termId, SemanticValue sval)",
+    "termId",
+    (ObjList<Symbol> const&)g.terminals,
+    0 /*dupCode*/,
+    "      return (SemanticValue)dup_$symName(($symType)sval);\n",
+    "duplicate terminal");
+
+  // emit del-term
+  emitSwitchCode(out,
+    "void deallocateTerminalValue(int termId, SemanticValue sval)",
+    "termId",
+    (ObjList<Symbol> const&)g.terminals,
+    1 /*delCode*/,
+    "      del_$symName(($symType)sval);\n"
+    "      return;\n",
+    "deallocate terminal");
+}
+
+
+void emitDDMInlines(EmitCode &out, Symbol const &sym, bool mergeOk)
+{
+  if (sym.ddm.dupCode) {
+    out << "static inline " << sym.type << "  dup_" << sym.name
+        << "(" << sym.type << " " << sym.ddm.dupParam << ") ";
+    emitUserCode(out, sym.ddm.dupCode);
+  }
+
+  if (sym.ddm.delCode) {
+    out << "static inline void del_" << sym.name
+        << "(" << sym.type << " " << (sym.ddm.delParam? sym.ddm.delParam : "") << ") ";
+    emitUserCode(out, sym.ddm.delCode);
+  }
+
+  if (mergeOk && sym.ddm.mergeCode) {
+    out << "static inline " << sym.type << "  merge_" << sym.name
+        << "(" << sym.type << " " << sym.ddm.mergeParam1
+        << ", " << sym.type << " " << sym.ddm.mergeParam2 << ") ";
+    emitUserCode(out, sym.ddm.mergeCode);
+  }
+}
+
+void emitSwitchCode(EmitCode &out, char const *signature, char const *switchVar,
+                    ObjList<Symbol> const &syms, int whichFunc,
+                    char const *templateCode, char const *actUpon)
+{
+  out << signature << "\n"
+         "{\n"
+         "  switch (" << switchVar << ") {\n";
+
+  FOREACH_OBJLIST(Symbol, syms, symIter) {
+    Symbol const &sym = *(symIter.data());
+
+    if (whichFunc==0 && sym.ddm.dupCode ||
+        whichFunc==1 && sym.ddm.delCode ||
+        whichFunc==2 && sym.ddm.mergeCode) {
+      out << "    case " << sym.getTermOrNontermIndex() << ":\n";
+      out << replace(replace(templateCode, "$symName", sym.name),
+                     "$symType", sym.type);
+    }
+  }
+
+  out << "    default:\n"
+         "      cout << \"there is no action to " << actUpon << " id \"\n"
+         "           << " << switchVar << " << endl;\n"
+         "      abort();\n"
+         "  }\n"
+         "}\n"
+         "\n";
+}
+
+
+// ------------------------- main --------------------------
+#ifdef GRAMANL_MAIN
 
 #include "grampar.h"      // readGrammarFile
 #include "bflatten.h"     // BFlatten
@@ -2511,3 +2657,30 @@ int main(int argc, char **argv)
 }
 
 #endif // GRAMANL_MAIN
+
+
+// ---------------------- trash ------------------
+  #if 0
+  out << "void mergeAlternativeParses(int nontermId, SemanticValue left,\n"
+         "                            SemanticValue right)\n"
+         "{\n"
+         "  switch (nontermId) {\n";
+
+  FOREACH_OBJLIST(Nonterminal, g.nonterminals, ntIter) {
+    Nonterminal const &nt = *(ntIter.data());
+
+    if (nt.ddm.mergeCode) {
+      out << "    case " << nt.ntIndex << ":\n"
+          << "      return (SemanticValue)merge_" << nt.name
+          <<                "((" << nt.type << ")left, (" << nt.type << ")right);\n";
+    }
+  }
+
+  out << "    default:\n"
+         "      cout << \"there is no action to merge nonterm id \"\n"
+         "           << nontermId << endl;\n"
+         "      abort();\n"
+         "  }\n"
+         "}\n"
+         "\n";
+  #endif // 0
