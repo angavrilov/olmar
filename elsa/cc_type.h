@@ -582,7 +582,8 @@ public:     // funcs
   // print the type, with an optional name like it was a declaration
   // for a variable of that type
   string toCString() const;
-  string toCString(char const *name) const;
+  string toCString(char const * /*nullable*/ name) const;
+  string toCString(rostring name) const { return toCString(name.c_str()); }
 
   // NOTE: yes, toMLString() is virtual, whereas toCString() is not
   virtual string toMLString() const = 0;

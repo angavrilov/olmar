@@ -2583,7 +2583,7 @@ void throw_XReprSize()
 char *type_toString(Type const *t)
 {
   // defined in smbase/strutil.cc
-  return copyToStaticBuffer(t->toString());
+  return copyToStaticBuffer(t->toString().c_str());
 }
 
 

@@ -63,11 +63,13 @@ public:
   string instLoc;
 
 public:
-  ErrorMsg(SourceLoc L, char const *m, ErrorFlags f, char const *i = NULL)
+  ErrorMsg(SourceLoc L, rostring m, ErrorFlags f)
+    : loc(L), msg(m), flags(f), instLoc() {}
+  ErrorMsg(SourceLoc L, rostring m, ErrorFlags f, rostring i)
     : loc(L), msg(m), flags(f), instLoc(i) {}
   ~ErrorMsg();
 
-  bool isWarning() const 
+  bool isWarning() const
     { return !!(flags & (EF_WARNING | EF_STRONG_WARNING)); }
   bool disambiguates() const
     { return !!(flags & EF_DISAMBIGUATES); }

@@ -11,7 +11,7 @@
 #include <iostream.h>           // ostream
 
 string make_indentation(int n);
-string indent_message(int n, string s);
+string indent_message(int n, rostring s);
 
 class code_output_stream {
   ostream *out;
@@ -90,7 +90,7 @@ public:
   code_output_stream & operator << (char const *message) {
     int len = strlen(message);
     if (len<1) return *this;
-    char *message1 = strdup(message);
+    string message1 = message;
 
     int pending_buffered_newlines = 0;
     if (message1[len-1] == '\n') {
@@ -131,7 +131,10 @@ public:
     }
     return *this;
   }
-  
+
+  code_output_stream & operator << (rostring message)
+    { return operator<< (message.c_str()); }
+
   // provide access to the built string
   stringBuilder const &getString() const
   {
@@ -143,17 +146,24 @@ public:
 // allow a block to have the equivalent of a finally block; the
 // "close" argument to the constructor is printed in the destructor.
 class codeout {
-  char *close;
+  char const *close;
   code_output_stream &out;
   public:
   codeout(code_output_stream &out,
-          const char *message, char *open = "", char *close = "")
+          rostring message, rostring open, char const *close = "")
     : close(close), out(out)
   {
     out << message;
     out << " ";
     out << open;
-    if (strchr(open, '{')) out.down();
+    if (strchr(toCStr(open), '{')) out.down();
+  }
+  codeout(code_output_stream &out,
+          rostring message)
+    : close(""), out(out)
+  {
+    out << message;
+    out << " ";
   }
   ~codeout() {
     if (strchr(close, '}')) out.up();

@@ -4542,11 +4542,11 @@ Type *E_stringLit::itcheck_x(Env &env, Expression *&replacement)
 }
 
 
-void quotedUnescape(string &dest, int &destLen, char const *src,
+void quotedUnescape(ArrayStack<char> &dest, char const *src,
                     char delim, bool allowNewlines)
 {
   // strip quotes or ticks
-  decodeEscapes(dest, destLen, string(src+1, strlen(src)-2),
+  decodeEscapes(dest, substring(src+1, strlen(src)-2),
                 delim, allowNewlines);
 }
 
@@ -4561,21 +4561,18 @@ Type *E_charLit::itcheck_x(Env &env, Expression *&replacement)
     id = ST_INT;
   }
 
-  int tempLen;
-  string temp;
-
   char const *srcText = text;
   if (*srcText == 'L') {
     id = ST_WCHAR_T;
     srcText++;
   }
 
-  quotedUnescape(temp, tempLen, srcText, '\'',
-                 false /*allowNewlines*/);
-  if (tempLen == 0) {
+  ArrayStack<char> temp;
+  quotedUnescape(temp, srcText, '\'', false /*allowNewlines*/);
+  if (temp.length() == 0) {
     return env.error("character literal with no characters");
   }
-  else if (tempLen > 1) {
+  else if (temp.length() > 1) {
     // below I only store the first byte
     //
     // technically, this is ok, since multicharacter literal values

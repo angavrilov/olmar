@@ -4374,18 +4374,18 @@ Type *Env::dependentType()
   return getSimpleType(SL_UNKNOWN, ST_DEPENDENT);
 }
 
-Type *Env::error(char const *msg, ErrorFlags eflags)
+Type *Env::error(rostring msg, ErrorFlags eflags)
 {
   return error(loc(), msg, eflags);
 }
 
 
-Type *Env::warning(char const *msg)
+Type *Env::warning(rostring msg)
 {
   return warning(loc(), msg);
 }
 
-Type *Env::warning(SourceLoc loc, char const *msg)
+Type *Env::warning(SourceLoc loc, rostring msg)
 {
   string instLoc = instLocStackString();
   TRACE("error", "warning: " << msg << instLoc);
@@ -4396,7 +4396,7 @@ Type *Env::warning(SourceLoc loc, char const *msg)
 }
 
 
-Type *Env::unimp(char const *msg)
+Type *Env::unimp(rostring msg)
 {
   string instLoc = instLocStackString();
 
@@ -4411,7 +4411,7 @@ Type *Env::unimp(char const *msg)
 }
 
 
-Type *Env::error(Type *t, char const *msg)
+Type *Env::error(Type *t, rostring msg)
 {
   if (t->isSimple(ST_DEPENDENT)) {
     // no report, propagate dependentness
@@ -4484,7 +4484,7 @@ void Env::addError(ErrorMsg * /*owner*/ obj)
 
 // I want this function to always be last in this file, so I can easily
 // find it to put a breakpoint in it.
-Type *Env::error(SourceLoc L, char const *msg, ErrorFlags eflags)
+Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
 {
   bool report =
     (eflags & EF_DISAMBIGUATES) ||

@@ -909,19 +909,23 @@ void Scope::gdb() const
 void Scope::dump() {
   cout << "Scope dump" << endl;
   gdb();
+
   cout << "Variables" << endl;
   for (StringRefMap<Variable>::Iter iter = getVariableIter();
        !iter.isDone();
        iter.adv()) {
     cout << "\t'" << iter.key() << "'->'" << iter.value()->toString() << "'" << endl;
   }
-  // FIX: what happened to getCompoundIter() ?
-//    cout << "Compounds" << endl;
-//    for (StringRefMap<CompoundType>::Iter iter = getCompoundIter();
-//         !iter.isDone();
-//         iter.adv()) {
-//      cout << "\t'" << iter.key() << "'->'" << iter.value()->toString() << "'" << endl;
-//    }
+
+  // dsw: what happened to getCompoundIter() ?
+  // sm: it became getTypeTagIter (I've been rewriting lookup)
+
+  cout << "Type tags" << endl;
+  for (StringRefMap<Variable>::Iter iter = getTypeTagIter();
+       !iter.isDone();
+       iter.adv()) {
+    cout << "\t'" << iter.key() << "'->'" << iter.value()->toString() << "'" << endl;
+  }
 }
 
 

@@ -104,7 +104,7 @@ void doit(int argc, char **argv)
   TranslationUnit *unit;
   {
     SemanticValue treeTop;
-    ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname);
+    ParseTreeAndTokens tree(lang, treeTop, strTable, inputFname.c_str());
 
     // grab the lexer so we can check it for errors (damn this
     // 'tree' thing is stupid..)
@@ -118,7 +118,7 @@ void doit(int argc, char **argv)
     tree.tables = tables;
 
     // parse
-    if (!toplevelParse(tree, inputFname)) {
+    if (!toplevelParse(tree, inputFname.c_str())) {
       exit(2); // parse error
     }
 

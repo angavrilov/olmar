@@ -479,15 +479,15 @@ public:      // funcs
   virtual void addError(ErrorMsg * /*owner*/ obj);
 
   // diagnostic reports; all return ST_ERROR type
-  Type *error(SourceLoc L, char const *msg, ErrorFlags eflags = EF_NONE);
-  Type *error(char const *msg, ErrorFlags eflags = EF_NONE);
-  Type *warning(SourceLoc L, char const *msg);
-  Type *warning(char const *msg);
-  Type *unimp(char const *msg);
+  Type *error(SourceLoc L, rostring msg, ErrorFlags eflags = EF_NONE);
+  Type *error(rostring msg, ErrorFlags eflags = EF_NONE);
+  Type *warning(SourceLoc L, rostring msg);
+  Type *warning(rostring msg);
+  Type *unimp(rostring msg);
 
   // diagnostics involving type clashes; will be suppressed
   // if the type is ST_ERROR
-  Type *error(Type *t, char const *msg);
+  Type *error(Type *t, rostring msg);
 
   // just return ST_ERROR
   Type *errorType();

@@ -36,9 +36,9 @@ string make_indentation(int n) {
   return s;
 }
 
-string indent_message(int n, string message) {
+string indent_message(int n, rostring message) {
   stringBuilder s;
-  char *m = message.pchar();
+  char const *m = message.c_str();
   int len = strlen(m);
   for(int i=0; i<len; ++i) {
     s << m[i];
@@ -807,7 +807,7 @@ string renderExpressionAsString(char const *prefix, Expression const *e)
 char *expr_toString(Expression const *e)
 {               
   // this function is defined in smbase/strutil.cc
-  return copyToStaticBuffer(e->exprToString());
+  return copyToStaticBuffer(e->exprToString().c_str());
 }
 
 int expr_debugPrint(Expression const *e)
