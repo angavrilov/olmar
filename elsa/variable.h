@@ -45,8 +45,20 @@ class Expression;              // cc.ast
 class Function;                // cc.ast
 class BasicTypeFactory;        // cc_type.h
 
+#ifdef USE_SERIAL_NUMBERS
+  #if USE_SERIAL_NUMBERS!=0 && USE_SERIAL_NUMBERS!=1
+    #error USE_SERIAL_NUMBERS defined but not 0 or 1
+  #endif
+#endif
+
 class Variable {
 public:    // data
+#if USE_SERIAL_NUMBERS
+  // At Scott's suggestion, for now we use Type::globalSerialNumber as
+  // the global counter.
+  int serialNumber;                    // this object's serial number
+#endif // USE_SERIAL_NUMBERS
+
   // for now, there's only one location, and it's the definition
   // location if that exists, else the declaration location; there
   // are significant advantages to storing *two* locations (first
@@ -138,6 +150,11 @@ public:
   // number of elements in the overload set, or 1 if there is no
   // overload set
   int overloadSetSize() const;
+
+  #if USE_SERIAL_NUMBERS
+    static int incSerialNumber();
+    static string printSerialNo(int serialNumber);
+  #endif // USE_SERIAL_NUMBERS
 
   // generic print (C or ML depending on Type::printAsML)
   string toString() const;

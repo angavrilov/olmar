@@ -812,14 +812,18 @@ int TypeVariable::reprSize() const
 // -------------------- BaseType ----------------------
 ALLOC_STATS_DEFINE(BaseType)
 
-#if USE_TYPE_SERIAL_NUMBERS
+#if USE_SERIAL_NUMBERS
 int BaseType::globalSerialNumber = 0;
 
 // semantically, just "++"; but here anyway to make it easier to put
 // in conditional breakpoints for specific type ids
-static int incSerialNumber()
+int BaseType::incSerialNumber()
 {
-  return BaseType::globalSerialNumber++;
+  // NOTE: Please leave it this this way.  I need the local "sn"
+  // variable for gdb conditional breakpoints to be easy to write.
+  // Thank you.
+  int sn = BaseType::globalSerialNumber++;
+  return sn;
 }
 #endif
 
@@ -828,7 +832,7 @@ bool BaseType::printAsML = false;
 
 BaseType::BaseType()
   : typedefAliases()     // initially empty
-  #if USE_TYPE_SERIAL_NUMBERS
+  #if USE_SERIAL_NUMBERS
   , serialNumber(incSerialNumber())
   #endif
 {
@@ -946,14 +950,16 @@ string cvToString(CVFlags cv)
 }
 
 
-string printSerialNo(int serialNumber)
+#if USE_SERIAL_NUMBERS
+string BaseType::printSerialNo(int serialNumber)
 {            
-  if (tracingSys("typeSerialNumbers")) {
+  if (tracingSys("serialNumbers")) {
     return stringc << "t" << serialNumber;
   } else {
     return "";     // don't print them.. messes up idempotency among other things
   }
 }
+#endif // USE_SERIAL_NUMBERS
 
 
 void BaseType::gdb() const
@@ -968,20 +974,6 @@ string BaseType::toString() const
   }
   else {
     return toCString();
-  }
-}
-
-
-string BaseType::toString(char const *name) const 
-{
-  if (printAsML) {
-    if (!name) {
-      name = "*anonymous*";
-    }
-    return stringc << "\"" << name << "\"->" << toMLString();
-  }
-  else {
-    return toCString(name);
   }
 }
 
@@ -2138,7 +2130,7 @@ string TypeVariable::toMLString() const
 // I don't like #if-s everywhere, and Steve Fink agrees with me.
 void BaseType::putSerialNo(stringBuilder &sb) const
 {
-  #if USE_TYPE_SERIAL_NUMBERS
+  #if USE_SERIAL_NUMBERS
     sb << printSerialNo(serialNumber) << "-";
   #endif
 }
@@ -2199,7 +2191,7 @@ string FunctionType::toMLString() const
 //        sb << "this: " << v->type->toMLString();
 //        continue;
 //      }
-    v->toMLString();
+    sb << v->toMLString();
 //      sb << "'" << v->name << "'->" << v->type->toMLString();
   }
   sb << ")";

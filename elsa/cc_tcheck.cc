@@ -1690,7 +1690,7 @@ void MR_usingDecl::tcheck(Env &env)
 // -------------------- Enumerator --------------------
 void Enumerator::tcheck(Env &env, EnumType *parentEnum, Type *parentType)
 {
-  var = env.makeVariable(loc, name, parentType, DF_ENUMERATOR);
+  var = env.makeVariable(loc, name, env.tfac.cloneType(parentType), DF_ENUMERATOR);
 
   enumValue = parentEnum->nextValue;
   if (expr) {
@@ -1847,7 +1847,7 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
   // get the variable from the IDeclarator
   decl->tcheck(env, dt, false /*inGrouping*/);
   var = env.storeVar(dt.var);
-  type = dt.type;
+  type = env.tfac.cloneType(dt.type);
   context = dt.context;
 
   // cppstd, sec. 3.3.1:
@@ -3447,7 +3447,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       // interpretation would fail if we tried it
       TRACE("disamb", toString(loc) << ": selected E_funCall");
       env.errors.prependMessages(existing);
-      call->type = call->inner2_itcheck(env);
+      call->type = env.tfac.cloneType(call->inner2_itcheck(env));
       call->ambiguity = NULL;
       replacement = call;
       return;
@@ -3470,7 +3470,7 @@ void Expression::tcheck(Env &env, Expression *&replacement)
       replacement = ctor;
       Type *t = ctor->inner2_itcheck(env, replacement);
 
-      replacement->type = t;
+      replacement->type = env.tfac.cloneType(t);
       replacement->ambiguity = NULL;
       return;
     }
@@ -3538,7 +3538,16 @@ void Expression::mid_tcheck(Env &env, Expression *&replacement)
   // clear the computed types if I want to actually check the
   // template bodies after arguments are presented
 
-  type = t;
+  // dsw: putting the cloneType here means I can remove *many* of them
+  // elsewhere, namely wherever an itcheck_x() returns.  This causes a
+  // bit of garbage, since some of the types returned are partially
+  // from somewhere else and partially made right there, such as
+  // "return makeLvalType(t)" where "t" is an already existing type.
+  // The only way I can think of to optimize that is to turn it in to
+  // "return makeLvalType(env.tfac.cloneType(t))" and get rid of the
+  // clone here; but that would be error prone and labor-intensive, so
+  // I don't do it.
+  type = env.tfac.cloneType(t);
 }
 
 
@@ -3689,7 +3698,7 @@ Type *E_variable::itcheck_x(Env &env, Expression *&replacement)
   var = env.storeVarIfNotOvl(v);
 
   // return a reference because this is an lvalue
-  return makeLvalType(env, env.tfac.cloneType(var->type));
+  return makeLvalType(env, var->type);
 }
 
 
@@ -4097,7 +4106,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
         // remains a member of the base class."
         chosen = env.storeVar(chosen);
         evar->var = chosen;
-        evar->type = chosen->type;
+        evar->type = env.tfac.cloneType(chosen->type);
         t = chosen->type;    // for eventual return value
       }
       else {
@@ -4122,7 +4131,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
         // rewrite AST
         chosen = env.storeVar(chosen);
         efld->field = chosen;
-        efld->type = chosen->type;
+        efld->type = env.tfac.cloneType(chosen->type);
         t = chosen->type;
       }
       else {
@@ -4148,7 +4157,7 @@ Type *E_funCall::inner2_itcheck(Env &env)
   FunctionType *ft = t->asFunctionType();
 
   // type of the expr is type of the return value
-  return env.tfac.cloneType(ft->retType);
+  return ft->retType;
 }
 
 
@@ -4678,14 +4687,14 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
 
     case BIN_COMMA:
       // dsw: I changed this to allow the following: &(3, a);
-      return env.tfac.cloneType(e2->type/*rhsType*/);
+      return e2->type/*rhsType*/;
 
     case BIN_PLUS:                // +
       // dsw: deal with pointer arithmetic correctly; Note that the case
       // p + 1 is handled correctly by the default behavior; this is the
       // case 1 + p.
       if (lhsType->isIntegerType() && rhsType->isPointerType()) {
-        return env.tfac.cloneType(rhsType); // a pointer type, that is
+        return rhsType;         // a pointer type, that is
       }
       // default behavior of returning the left side is close enough for now.
       break;
@@ -4774,12 +4783,12 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
         ret = makeLvalType(env, ret);
       }
 
-      return env.tfac.cloneType(ret);
+      return ret;
   }
 
   // TODO: make sure 'expr' is compatible with given operator
 
-  return env.tfac.cloneType(lhsType);
+  return lhsType;
 }
 
 
@@ -4821,8 +4830,8 @@ static Type *makePTMType(Env &env, E_variable *e_var)
   CompoundType *inClass0 = var0->scope->curCompound;
   xassert(inClass0);
 
-  return env.tfac.makePointerToMemberType(SL_UNKNOWN, inClass0, CV_NONE,
-           env.tfac.cloneType(e_var->type->asRval()));
+  return env.tfac.makePointerToMemberType
+    (SL_UNKNOWN, inClass0, CV_NONE, e_var->type->asRval());
 }
 
 Type *E_addrOf::itcheck_x(Env &env, Expression *&replacement)
@@ -4902,7 +4911,7 @@ Type *E_deref::itcheck_x(Env &env, Expression *&replacement)
 
   // clone the type as it's taken out of one AST node, so it
   // can then be used as the type of another AST node (this one)
-  Type *rt = env.tfac.cloneType(ptr->type->asRval());
+  Type *rt = ptr->type->asRval();
 
   if (rt->isFunctionType()) {
     return rt;                         // deref is idempotent on FunctionType-s
@@ -4989,9 +4998,7 @@ Type *E_cond::itcheck_x(Env &env, Expression *&replacement)
   // sm: sort of.. the rules are spelled out in cppstd 5.16.  there's
   // no provision for computing the least common ancestor in the class
   // hierarchy, but the rules *are* nonetheless complex
-
-  // dsw: I need the type to be distinct here.
-  return env.tfac.cloneType(th->type);
+  return th->type;
 }
 
 
@@ -5031,7 +5038,7 @@ Type *E_assign::itcheck_x(Env &env, Expression *&replacement)
 
   // TODO: make sure 'target' and 'src' make sense together with 'op'
 
-  return env.tfac.cloneType(target->type);
+  return target->type;
 }
 
 

@@ -219,7 +219,8 @@ void Enumerator::printExtras(ostream &os, int indent) const
   if (var) {
     ind(os, indent) << "var: " 
       << toString(var->flags) << (var->flags? " " : "")
-      << var->type->toString(var->name) << "\n";
+      // dsw: var::toString now prints out its name
+      << var->toString() << "\n";
     PRINT_GENERIC(enumValue);
   }
 }
@@ -265,7 +266,8 @@ void Declarator::printExtras(ostream &os, int indent) const
   if (var) {
     ind(os, indent) << "var: "
       << toString(var->flags) << (var->flags? " " : "")
-      << var->type->toString(var->name);
+      // dsw: var::toString now prints out its name
+      << var->toString();
 
     if (var->overload) {
       int n = var->overload->count();
@@ -274,6 +276,8 @@ void Declarator::printExtras(ostream &os, int indent) const
 
     os << "\n";
   }
+  
+  ind(os, indent) << "context = " << toString(context) << "\n";
 }
 
 

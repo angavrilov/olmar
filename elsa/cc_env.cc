@@ -1592,7 +1592,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
 
   // also add the typedef to the class' scope
   if (name && lang.compoundSelfName) {
-    Variable *tv2 = makeVariable(loc, name, ret, DF_TYPEDEF | DF_SELFNAME);
+    Variable *tv2 = makeVariable(loc, name, tfac.cloneType(ret), DF_TYPEDEF | DF_SELFNAME);
     ct->addUniqueVariable(tv2);
     addedNewVariable(ct, tv2);
   }

@@ -3,11 +3,29 @@
 
 #include "variable.h"      // this module
 #include "cc_type.h"       // Type
+#include "trace.h"         // tracingSys
 
 
 // ---------------------- Variable --------------------
+#if USE_SERIAL_NUMBERS
+// semantically, just "++"; but here anyway to make it easier to put
+// in conditional breakpoints for specific type ids
+int Variable::incSerialNumber()
+{
+  // NOTE: Please leave it this this way.  I need the local "sn"
+  // variable for gdb conditional breakpoints to be easy to write.
+  // Thank you.
+  int sn = Type::globalSerialNumber++;
+  return sn;
+}
+#endif
+
 Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
-  : loc(L),
+  :
+  #if USE_SERIAL_NUMBERS
+    serialNumber(incSerialNumber()),
+  #endif
+    loc(L),
     name(n),
     type(t),
     flags(f),
@@ -81,7 +99,7 @@ string Variable::toCString() const
   // If more specialized printing is desired, do that specialized
   // printing from outside (by directly accessing 'name', 'type',
   // 'flags', etc.).
-  return type->toCString(stringc << (name? name : "") << namePrintSuffix());
+  return type->toCString(stringc << (name? name : "/*anon*/") << namePrintSuffix());
 }
 
 
@@ -103,9 +121,24 @@ string Variable::toCStringAsParameter() const
 }
 
 
+#if USE_SERIAL_NUMBERS
+string Variable::printSerialNo(int serialNumber)
+{            
+  if (tracingSys("serialNumbers")) {
+    return stringc << "v" << serialNumber;
+  } else {
+    return "";     // don't print them.. messes up idempotency among other things
+  }
+}
+#endif // USE_SERIAL_NUMBERS
+
+
 string Variable::toMLString() const
 {
   stringBuilder sb;
+  #if USE_SERIAL_NUMBERS
+    sb << printSerialNo(serialNumber) << "-";
+  #endif
   char const *name0 = "<no_name>";
   if (name) {
     name0 = name;

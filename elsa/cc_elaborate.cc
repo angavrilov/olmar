@@ -130,7 +130,7 @@ Variable *ElabVisitor::makeVariable(SourceLoc loc, StringRef name,
 D_name *ElabVisitor::makeD_name(SourceLoc loc, Variable *var)
 {
   D_name *ret = new D_name(loc, new PQ_variable(loc, var));
-  ret->type = var->type;
+  ret->type = env.tfac.cloneType(var->type);
   return ret;
 }
 
@@ -144,7 +144,7 @@ Declarator *ElabVisitor::makeDeclarator(SourceLoc loc, Variable *var)
 
   Declarator *decl = new Declarator(idecl, NULL /*init*/);
   decl->var = var;
-  decl->type = var->type;
+  decl->type = env.tfac.cloneType(var->type);
 
   return decl;
 }
@@ -177,7 +177,7 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
     for (; !iter.isDone(); iter.adv()) {
       Variable *param = iter.data();
 
-      ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, param->type),
+      ASTTypeId *typeId = new ASTTypeId(new TS_type(loc, env.tfac.cloneType(param->type)),
                                         makeDeclarator(loc, param));
       params = params->prepend(typeId);
     }
@@ -190,11 +190,11 @@ Declarator *ElabVisitor::makeFuncDeclarator(SourceLoc loc, Variable *var)
                                       params,
                                       CV_NONE,
                                       NULL /*exnSpec*/);
-  funcIDecl->type = var->type;
+  funcIDecl->type = env.tfac.cloneType(var->type);
 
   Declarator *funcDecl = new Declarator(funcIDecl, NULL /*init*/);
   funcDecl->var = var;
-  funcDecl->type = var->type;
+  funcDecl->type = env.tfac.cloneType(var->type);
 
   return funcDecl;
 }
@@ -212,16 +212,19 @@ Function *ElabVisitor::makeFunction(SourceLoc loc, Variable *var,
   Function *f = new Function(
     var->flags        // this is too many (I only want syntactic); but won't hurt
       | DF_INLINE,    // pacify pretty-printing idempotency
-    new TS_type(loc, ft->retType),
+    new TS_type(loc, env.tfac.cloneType(ft->retType)),
     funcDecl,
     inits,
     body,
     NULL /*handlers*/
   );
-  f->funcType = var->type->asFunctionType();
+  f->funcType = env.tfac.cloneType(var->type)->asFunctionType();
 
   if (ft->isMethod()) {
-    f->receiver = ft->getReceiver();
+    // dsw: had to change this so that the f's receiver matched that
+    // of its funcType; remove when you see this
+//      f->receiver = ft->getReceiver();
+    f->receiver = f->funcType->getReceiver();
   }
 
   // the caller should set 'ctorReceiver' if appropriate
@@ -283,11 +286,11 @@ Expression *ElabVisitor::makeThisRef(SourceLoc loc)
   E_this *ths = new E_this;
   ths->receiver = receiver;
   ths->type = tfac.makePointerType(loc, PO_POINTER, CV_CONST,
-                                   receiver->type->asRval());
+                                   env.tfac.cloneType(receiver->type->asRval()));
 
   // "*this"
   E_deref *deref = new E_deref(ths);
-  deref->type = receiver->type;
+  deref->type = env.tfac.cloneType(receiver->type);
 
   return deref;
 }
@@ -628,14 +631,14 @@ Expression *ElabVisitor::elaborateCallByValue
   CompoundType *paramCt = paramType->asCompoundType();
 
   // E_variable that points to the temporary
-  Variable *tempVar = insertTempDeclaration(loc, paramType);
+  Variable *tempVar = insertTempDeclaration(loc, tfac.cloneType(paramType));
 
   // E_constructor for the temporary that calls the copy ctor for the
   // temporary taking the real argument as the copy ctor argument.
   // NOTE: we do NOT clone argExpr here, as the client to this
   // function is expected to do it
   E_constructor *ector =
-    env.makeCtorExpr(loc, makeE_variable(loc, tempVar), paramType,
+    env.makeCtorExpr(loc, makeE_variable(loc, tempVar), tfac.cloneType(paramType),
                      paramCt->getCopyCtor(), makeExprList1(argExpr));
 
   // combine into a comma expression so we do both but return the
