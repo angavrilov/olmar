@@ -186,7 +186,6 @@ int SourceLocManager::File::lineToChar(int lineNum)
 {
   xassert(1 <= lineNum && lineNum <= numLines);
 
-  #if 1     // new
   // check to see if the marker is already close
   if (marker.lineOffset <= lineNum &&
                            lineNum < marker.lineOffset + MARKER_FREQ) {
@@ -214,15 +213,8 @@ int SourceLocManager::File::lineToChar(int lineNum)
     marker = index[low];
     markerCol = 1;            // all index markers implicitly have column 1
   }
-  
-  xassert(marker.lineOffset <= lineNum);
 
-  #else  // old
-  // position the marker at or before the line of interest
-  if (marker.lineOffset > lineNum) {
-    resetMarker();
-  }
-  #endif // 0/1
+  xassert(marker.lineOffset <= lineNum);
 
   // move the marker down the array until it arrives at
   // the desired line
@@ -242,7 +234,6 @@ void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
 {
   xassert(0 <= offset && offset < numChars);
 
-  #if 1    // new
   // check if the marker is close enough
   if (marker.charOffset <= offset &&
                            offset < marker.charOffset + MARKER_FREQ*avgCharsPerLine) {
@@ -262,20 +253,13 @@ void SourceLocManager::File::charToLineCol(int offset, int &line, int &col)
         low = mid;
       }
     }
-    
+
     // copy this marker
     marker = index[low];
     markerCol = 1;
   }
 
   xassert(marker.charOffset <= offset);
-
-  #else    // old
-  // position marker at or before offset of interest
-  if (marker.charOffset > offset) {
-    resetMarker();
-  }
-  #endif // 0/1
 
   // move the marker until it's within one spot of moving
   // beyond the offset
@@ -649,15 +633,22 @@ void entry()
   testFile("srcloc.cc");
   testFile("srcloc.h");
 
-  // do it again, so at least one won't be the just-added file
-  testFile("srcloc.cc");
-  testFile("srcloc.h");
+  // do it again, so at least one won't be the just-added file;
+  // in fact do it many times so I can see results in a profiler
+  for (int i=0; i<1; i++) {
+    testFile("srcloc.cc");
+    testFile("srcloc.h");
+  }
 
   traceProgress() << "end" << endl;
 
   // protect against degeneracy by printing the length of
   // the longest line
   cout << "long line len: " << longestLen << endl;
+
+  // test the statics
+  cout << "invalid: " << toString(SL_UNKNOWN) << endl;
+  cout << "here: " << toString(HERE_SOURCELOC) << endl;
 
   cout << "srcloc is ok\n";
 }

@@ -1,8 +1,6 @@
 # Makefile for libsmbase
 # see license.txt for copyright and terms of use
 
-tmp: srcloc
-
 # main target
 THISLIBRARY = libsmbase.a
 all: gensrc $(THISLIBRARY)

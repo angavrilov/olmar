@@ -194,17 +194,19 @@ public:      // funcs
   SourceLoc encodeOffset(char const *filename, int charOffset);
   SourceLoc encodeLineCol(char const *filename, int line, int col);
   SourceLoc encodeStatic(StaticLoc const &obj);
+  SourceLoc encodeStatic(char const *fname, int offset, int line, int col)
+    { return encodeStatic(StaticLoc(fname, offset, line, col)); }
 
   // encode incremental; these are the methods we expect are called
   // the most frequently; this interface is supposed to allow an
   // implementation which uses explicit line/col, even though that
   // is not what is used here
   SourceLoc advCol(SourceLoc base, int colOffset)
-    { return toLoc(toInt(base) + colOffset); }
+    { xassert(!isStatic(base)); return toLoc(toInt(base) + colOffset); }
   SourceLoc advLine(SourceLoc base)     // from end of line to beginning of next
-    { return toLoc(toInt(base) + 1); }
+    { xassert(!isStatic(base)); return toLoc(toInt(base) + 1); }
   SourceLoc advText(SourceLoc base, char const *text, int textLen)
-    { return toLoc(toInt(base) + textLen); }
+    { xassert(!isStatic(base)); return toLoc(toInt(base) + textLen); }
 
   // decode
   void decodeOffset(SourceLoc loc, char const *&filename, int &charOffset);
@@ -227,6 +229,12 @@ extern SourceLocManager *sourceLocManager;
 // take advantage of singleton
 inline string toString(SourceLoc sl)
   { return sourceLocManager->getString(sl); }
+
+  
+// macro for obtaining a source location that points at the 
+// point in the source code where this macro is invoked
+#define HERE_SOURCELOC \
+  (sourceLocManager->encodeStatic(__FILE__, 0, __LINE__, 1))
 
 
 #endif // SRCLOC_H
