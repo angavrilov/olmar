@@ -1728,8 +1728,8 @@ realStart:
   }
 
   // ambiguous grouped declarator in a paramter list?
-  // (note: CTX_GROUP_PARAM includes CTX_GROUPING)
-  if (dt.context == Declarator::Tcheck::CTX_GROUP_PARAM) {
+  if ((dt.context & Declarator::Tcheck::CTX_PARAM) &&
+      (dt.context & Declarator::Tcheck::CTX_GROUPING)) {
     // the name must *not* correspond to an existing type; this is
     // how I implement cppstd 8.2 para 7
     Variable *v = env.lookupPQVariable(name);

@@ -217,7 +217,6 @@ class Declarator {
       CTX_E_NEW     = 0x1,     // inside an E_new
       CTX_PARAM     = 0x2,     // in a parameter declarator
       CTX_GROUPING  = 0x4,     // in a grouping declarator, without inner pointer constructor
-      CTX_GROUP_PARAM = CTX_PARAM | CTX_GROUPING
     } context;
 
   public:
