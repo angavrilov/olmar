@@ -64,8 +64,9 @@ public:      // data
   // special name for constructors
   StringRef constructorSpecialName;
 
-  // special variable associated with dependent types
-  Variable *dependentTypeVar;           // (serf)
+  // special variables associated with particular types
+  Variable *dependentTypeVar;           // (serf)      
+  Variable *errorVar;                   // (serf)      
 
 private:     // funcs
   CompoundType *instantiateClass(
@@ -124,8 +125,11 @@ public:      // funcs
   // will be ignored; if we can't find this scope, return NULL
   // *and* report it as an error; there must be at least one
   // qualified in 'name'; 'dependent' is set to true if the lookup
-  // failed because we tried to look into a template parameter
-  Scope *lookupQualifiedScope(PQName const *name, bool &dependent);
+  // failed because we tried to look into a template parameter;
+  // 'anyTemplates' is set to true if any of the scopes named a
+  // template type
+  Scope *lookupQualifiedScope(PQName const *name,
+    bool &dependent, bool &anyTemplates);
   Scope *lookupQualifiedScope(PQName const *name);
 
   // if the innermost scope has some template parameters, take
