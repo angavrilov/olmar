@@ -448,6 +448,27 @@ SourceLoc Declarator::getLoc() const
 }
 
 
+bool Declarator::bottomIsDfunc() const
+{
+  IDeclarator *d = decl;
+  IDeclarator *prev = d;     // last non-D_name, non-D_grouping declarator seen
+
+  for (;;) {
+    IDeclarator *next = d->getBase();
+    if (!next) {
+      break;
+    }
+
+    if (!d->isD_grouping()) {
+      prev = d;
+    }
+    d = next;
+  }
+
+  return prev->isD_func();
+}
+
+
 void Declarator::printExtras(ostream &os, int indent) const
 {
   if (var) {

@@ -320,6 +320,11 @@ class Declarator (
     { return const_cast<PQName*>(getDeclaratorIdC()); };
 
   public SourceLoc getLoc() const;
+  
+  // true if this declarator is "obviously" declaring a function type,
+  // i.e. the innermost non-D_name, non-D_grouping constructor is
+  // D_func
+  public bool bottomIsDfunc() const;
 }
 
 

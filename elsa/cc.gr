@@ -131,7 +131,7 @@ public:
      ExceptionSpec /*nullable*/ *exnSpec)
   {
     if (base->isD_func()) {
-      trace("cancel") << loc << ": function returning a function\n";
+      TRACE("cancel", loc << ": function returning a function");
       return NULL;
     }
     if (lang.allowImplicitInt
@@ -145,7 +145,7 @@ public:
     (SourceLoc loc, IDeclarator *base, Expression * /*nullable*/ size)
   {
     if (base->isD_func()) {
-      trace("cancel") << loc << ": function returning an array\n";
+      TRACE("cancel", loc << ": function returning an array");
       return NULL;
     }
     return new D_array(loc, base, size);
@@ -1578,7 +1578,25 @@ nonterm(Function*) FunctionDefinition {
   // D_names to have the "::" qualifier (but E_variables still can),
   // but I'll have to reintroduce it to handle namespaces
   //fun merge(L,R) { xfailure("attempt to merge function defns"); return L; }
-
+  
+  // in/c/t0015.c contains some code that is not legal C++, though it
+  // is legal K&R C, but which nonetheless triggers a FunctionDefinition
+  // merge in C++ mode:
+  //   x(y) {}
+  // could either have 'x' as return type and 'y' as "function" name,
+  // but missing the D_func, or 'x' as constructor name and 'y' as a
+  // parameter type.  So I will cancel any FunctionDefinition whose
+  // declarator doesn't have a D_func at the bottom.
+  fun keep(f)
+  {
+    if (!f->nameAndParams->bottomIsDfunc()) {
+      TRACE("cancel", loc << "rejecting FunctionDefinition w/o D_func at bottom");
+      return false;
+    }
+    else {
+      return true;
+    }
+  }
 
   // destructive action on 'r'
 
@@ -1747,8 +1765,7 @@ nonterm(Member*) MemberDeclaration {
              // you can't declare an embedded instance of your own class
              // name, and this might be ambiguous with a constructor
              // declaration, so cancel it
-             trace("cancel") << loc
-               << ": declaration of embedded self class instance\n";
+             TRACE("cancel", loc << ": declaration of embedded self class instance");
              return NULL;
            }
          }
@@ -1769,8 +1786,7 @@ nonterm(Member*) MemberDeclaration {
            return new MR_decl(loc, spec);
          }
          else {
-           trace("cancel") << loc
-             << ": bare DeclSpecifier not starting with type keyword\n";
+           TRACE("cancel", loc << ": bare DeclSpecifier not starting with type keyword");
            return NULL;
          }
        }
@@ -1824,7 +1840,7 @@ nonterm(Declaration*) CDtorProtoDecl {
          // if not, this might be ambiguous (superclass
          // member publication), so cancel the entire reduction
          if (!d->decl->skipGroups()->isD_func()) {
-           trace("cancel") << loc << ": non-function c/dtor\n";
+           TRACE("cancel", loc << ": non-function c/dtor");
            return NULL;
          }
 
@@ -2173,7 +2189,7 @@ nonterm(TemplateParameter*) TemplateParameter {
        // parameter; cppstd 14.1 para 3 seems to say that in that case it
        // always *is* a type parameter
        if (p->spec->canBeTypeParam()) {
-         trace("cancel") << loc << ": template parameter can be type param\n";
+         TRACE("cancel", loc << ": template parameter can be type param");
          return NULL;   // don't keep this, it's really a TP_type
        }
        else {
@@ -2278,8 +2294,8 @@ nonterm(TemplateArgument*) TemplateArgument {
          // could be interpreted as a constructor (we don't realize
          // that 'get' != 'Foo') of a template class with template
          // argument "T > &Foo < T"
-         trace("cancel") << loc
-           << ": template argument has unparenthesized greater-than operator\n";
+         TRACE("cancel", loc
+           << ": template argument has unparenthesized greater-than operator");
          return NULL;
        }
        else {
