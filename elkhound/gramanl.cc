@@ -14,7 +14,6 @@
 #include "emitcode.h"    // EmitCode
 #include "strutil.h"     // replace
 #include "ckheap.h"      // numMallocCalls
-#include "okhasharr.h"   // OwnerKHashArray
 
 #include <fstream.h>     // ofstream
 #include <stdlib.h>      // getenv
@@ -1847,11 +1846,11 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
   // hashtable, list of items still yet to close; items are
   // simultaneously in both the hash and the list, or not in either
-  OwnerKHashTable<LRItem, DottedProduction> workhash(
+  OwnerKHashArray<LRItem, DottedProduction> workhash(
     &LRItem::dataToKey,
     &LRItem::hash,
     &LRItem::dpEqual, 13);
-  SObjList<LRItem> worklist;
+  //SObjList<LRItem> worklist;
 
   // and another for the items we've finished
   OwnerKHashTable<LRItem, DottedProduction> finished(
@@ -1865,17 +1864,14 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     finished.add(dp->dprod, dp);
   }
 
-  // first, close the kernel items -> work{list,hash}
+  // first, close the kernel items -> workhash
   FOREACH_OBJLIST(LRItem, itemSet.kernelItems, itemIter) {
-    singleItemClosure(finished, worklist, workhash, itemIter.data());
+    singleItemClosure(finished, workhash, itemIter.data());
   }
 
-  while (worklist.isNotEmpty()) {
-    xassert_debug(worklist.count() == workhash.getNumEntries());
-
+  while (workhash.isNotEmpty()) {
     // pull the first production
-    LRItem *item = worklist.removeFirst();
-    workhash.remove(item->dprod);
+    LRItem *item = workhash.pop();
 
     // put it into list of 'done' items; this way, if this
     // exact item is generated during closure, it will be
@@ -1883,7 +1879,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
     finished.add(item->dprod, item);
 
     // close it -> worklist
-    singleItemClosure(finished, worklist, workhash, item);
+    singleItemClosure(finished, workhash, item);
   }
 
   // move everything from 'finished' to the nonkernel items list
@@ -1916,8 +1912,7 @@ void GrammarAnalysis::itemSetClosure(ItemSet &itemSet)
 
 void GrammarAnalysis::
   singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
-                    SObjList<LRItem> &worklist,
-                    OwnerKHashTable<LRItem, DottedProduction> &workhash,
+                    OwnerKHashArray<LRItem, DottedProduction> &workhash,
                     LRItem const *item)
 {
   bool const tr = tracingSys("closure");
@@ -2008,7 +2003,7 @@ void GrammarAnalysis::
       inDoneList = true;
     }
     else {
-      already = workhash.get(newDP);
+      already = workhash.lookup(newDP);
     }
 
     if (already) {
@@ -2033,8 +2028,7 @@ void GrammarAnalysis::
           // pull from the 'done' list and put in worklist, since the
           // lookahead changed
           finished.remove(already->dprod);
-          worklist.prepend(already);
-          workhash.add(already->dprod, already);
+          workhash.push(already->dprod, already);
         }
         else {
           // 'already' is in the worklist, so that's fine
@@ -2054,8 +2048,7 @@ void GrammarAnalysis::
       if (tr) {
         trs << "      this dprod is new, queueing it to add" << endl;
       }
-      worklist.prepend(newItem);
-      workhash.add(newItem->dprod, newItem);
+      workhash.push(newItem->dprod, newItem);
     }
   } // for each production
 }

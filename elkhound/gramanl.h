@@ -21,6 +21,7 @@
 #include "ohashtbl.h"   // OwnerHashTable
 #include "okhashtbl.h"  // OwnerKHashTable
 #include "array.h"      // GrowArray
+#include "okhasharr.h"  // OwnerKHashArray
 
 // forward decls
 class Bit2d;            // bit2d.h
@@ -485,8 +486,7 @@ private:    // funcs
   friend void ItemSet::xferSerfs(Flatten &flat, GrammarAnalysis &g);
 
   void singleItemClosure(OwnerKHashTable<LRItem, DottedProduction> &finished,
-                         SObjList<LRItem> &worklist,
-                         OwnerKHashTable<LRItem, DottedProduction> &workhash,
+                         OwnerKHashArray<LRItem, DottedProduction> &workhash,
                          LRItem const *item);
 
 public:	    // funcs
