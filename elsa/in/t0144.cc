@@ -2,7 +2,7 @@
 // operator++
 
 // turn on operator overloading
-int dummy();             // line 5
+int dummy();                    // line 5
 void ddummy() { __testOverload(dummy(), 5); }
 
 struct A {
@@ -10,7 +10,7 @@ struct A {
 };
 
 struct B {
-  void operator++ ();              // line 13
+  void operator++ ();           // line 13
 };
 
 struct C {
@@ -25,6 +25,9 @@ struct E {
   operator const int& ();
 };
 
+struct F {
+  void operator++ (int);        // line 29
+};
 
 void f1()
 {
@@ -33,10 +36,17 @@ void f1()
   C c;
   D d;
   E e;
+  F f;
 
-  //++a;                          // A::operator int& ()
-  //__testOverload(++b, 13);      // B::operator ++ ()
+  ++a;                          // A::operator int& ()
+  __testOverload(++b, 13);      // B::operator ++ ()
   ++c;                          // C::operator volatile int& ()
   //ERROR(1): ++d;              // not an lvalue
   //ERROR(2): ++e;              // can't unify with VQ T&
+
+  __testOverload(f++, 29);      // F::operator ++ (int)
+  a++;
+  c++;
+  //ERROR(3): d++;              // not an lvalue
+  //ERROR(4): e++;              // can't unify with VQ T&
 }

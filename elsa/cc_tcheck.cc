@@ -3993,87 +3993,64 @@ Type *resolveOverloadedUnaryOperator(
 }
 
 
-
-Type *E_unary::itcheck(Env &env, Expression *&replacement)
-{
-  expr->tcheck(env, expr);
-
-  // consider the possibility of operator overloading
-  Type *ovlRet = resolveOverloadedUnaryOperator(
-    env, replacement, /*this,*/ expr, toOverloadableOp(op));
-  if (ovlRet) {
-    return ovlRet;
+// similar, but for binary
+Type *resolveOverloadedBinaryOperator(
+  Env &env,                  // environment
+  Expression *&replacement,  // OUT: replacement node
+  //Expression *ths,           // expression node that is being resolved (not used)
+  Expression *e1,            // left subexpression of 'this' (already type-checked)
+  Expression *e2,            // right subexpression, or NULL for postfix inc/dec
+  OverloadableOp op          // which operator this node is
+) {
+  if (!env.doOperatorOverload) {
+    return NULL;
   }
-
-  // TODO: make sure 'expr' is compatible with given operator
-
-  return env.getSimpleType(SL_UNKNOWN, ST_INT);
-}
-
-
-Type *E_effect::itcheck(Env &env, Expression *&replacement)
-{
-  expr->tcheck(env, expr);
-
-  // consider the possibility of operator overloading
-  Type *ovlRet = isPrefix(op)?
-    resolveOverloadedUnaryOperator(
-      env, replacement, /*this,*/ expr, toOverloadableOp(op)) :
-    NULL /*for now*/ ;
-  if (ovlRet) {
-    return ovlRet;
-  }
-
-  // TODO: make sure 'expr' is compatible with given operator
-
-  return expr->type->asRval();
-}
-
-
-Type *E_binary::itcheck(Env &env, Expression *&replacement)
-{
-  e1->tcheck(env, e1);
-  e2->tcheck(env, e2);
-
-  // TODO: this is wrong; I should not be converting to rval until
-  // after ruling out the possibility of operator overloading
-  Type *lhsType = e1->type->asRval();
-  Type *rhsType = e2->type->asRval();
 
   // check for operator overloading
-  if (env.doOperatorOverload &&
-      isOverloadable(op) &&
-      (lhsType->isCompoundType() || lhsType->isEnumType() ||
-       rhsType->isCompoundType() || rhsType->isEnumType())) {
+  if (e1->type->asRval()->isCompoundType() ||
+      e1->type->asRval()->isEnumType() ||
+      e2 && e2->type->asRval()->isCompoundType() ||
+      e2 && e2->type->asRval()->isEnumType()) {
     OVERLOADINDTRACE("found overloadable binary " << toString(op) <<
                      " near " << env.locStr());
-    OverloadableOp oop = toOverloadableOp(op);
-    StringRef opName = env.operatorName[oop];
+    StringRef opName = env.operatorName[op];
 
     // collect argument information
     GrowArray<ArgumentInfo> args(2);
     args[0] = argInfo(e1);
-    args[1] = argInfo(e2);
+    if (e2) {
+      args[1] = argInfo(e2);
+    }
+    else {
+      // for postfix inc/dec, the second parameter is 'int'
+      args[1] = ArgumentInfo(SE_NONE, env.getSimpleType(SL_UNKNOWN, ST_INT));
+    }
 
     // prepare the overload resolver
     OverloadResolver resolver(env, env.loc(), &env.errors,
                               OF_NONE, args, 10 /*numCand*/);
-    if (op == BIN_COMMA) {
+    if (op == OP_COMMA) {
       // 13.3.1.2 para 9: no viable -> use built-in
       resolver.emptyCandidatesIsOk = true;
     }
 
     // user-defined candidates
-    resolver.addUserOperatorCandidates(lhsType, opName);
+    resolver.addUserOperatorCandidates(e1->type, opName);
 
     // built-in candidates
-    resolver.addBuiltinBinaryCandidates(oop, lhsType, rhsType);
+    resolver.addBuiltinBinaryCandidates(op, args[0].type, args[1].type);
 
     // pick one
     Variable *winner = resolver.resolve();
     if (winner) {
+      if (!e2) {
+        // synthesize and tcheck a 0 for the second argument to postfix inc/dec
+        e2 = new E_intLit(env.str("0"));
+        e2->tcheck(env, e2);
+      }
+
       if (!winner->hasFlag(DF_BUILTIN)) {
-        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_operator(oop), opName);
+        PQ_operator *pqo = new PQ_operator(SL_UNKNOWN, new ON_operator(op), opName);
         if (winner->hasFlag(DF_MEMBER)) {
           // replace 'a+b' with 'a.operator+(b)'
           replacement = new E_funCall(
@@ -4109,6 +4086,62 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
       }
     }
   }
+ 
+  // not replaced
+  return NULL;
+}
+
+
+Type *E_unary::itcheck(Env &env, Expression *&replacement)
+{
+  expr->tcheck(env, expr);
+
+  // consider the possibility of operator overloading
+  Type *ovlRet = resolveOverloadedUnaryOperator(
+    env, replacement, /*this,*/ expr, toOverloadableOp(op));
+  if (ovlRet) {
+    return ovlRet;
+  }
+
+  // TODO: make sure 'expr' is compatible with given operator
+
+  return env.getSimpleType(SL_UNKNOWN, ST_INT);
+}
+
+
+Type *E_effect::itcheck(Env &env, Expression *&replacement)
+{
+  expr->tcheck(env, expr);
+
+  // consider the possibility of operator overloading
+  Type *ovlRet = isPrefix(op)?
+    resolveOverloadedUnaryOperator(
+      env, replacement, /*this,*/ expr, toOverloadableOp(op)) :
+    resolveOverloadedBinaryOperator(
+      env, replacement, /*this,*/ expr, NULL, toOverloadableOp(op)) ;
+  if (ovlRet) {
+    return ovlRet;
+  }
+
+  // TODO: make sure 'expr' is compatible with given operator
+
+  return expr->type->asRval();
+}
+
+
+Type *E_binary::itcheck(Env &env, Expression *&replacement)
+{
+  e1->tcheck(env, e1);
+  e2->tcheck(env, e2);
+
+  // check for operator overloading
+  if (isOverloadable(op)) {
+    Type *ovlRet = resolveOverloadedBinaryOperator(
+      env, replacement, /*this,*/ e1, e2, toOverloadableOp(op));
+    if (ovlRet) {
+      return ovlRet;
+    }
+  }
 
   if (op == BIN_BRACKETS) {
     // built-in a[b] is equivalent to *(a+b)
@@ -4116,6 +4149,10 @@ Type *E_binary::itcheck(Env &env, Expression *&replacement)
     replacement->tcheck(env, replacement);
     return replacement->type;
   }
+
+  // get types of arguments, converted to rval
+  Type *lhsType = e1->type->asRval();
+  Type *rhsType = e2->type->asRval();
 
   // if the LHS is an array, coerce it to a pointer
   if (lhsType->isArrayType()) {

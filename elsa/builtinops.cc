@@ -36,13 +36,15 @@ Variable *CandidateSet::instantiatePattern(Env &env, OverloadableOp op, Type *t)
 // user-defined conversion operator, or by the identity conversion
 void getConversionOperatorResults(Env &env, SObjList<Type> &dest, Type *t)
 {
-  if (!t->isCompoundType()) {
+  if (!t->asRval()->isCompoundType()) {
     // this is for when one of the arguments to an operator is not
     // of class type; we treat it similarly to a class that can only
     // convert to one type
     dest.append(t);
   }
   else {
+    t = t->asRval();
+
     // get conops
     SObjList<Variable> convs;
     getConversionOperators(convs, env, t->asCompoundType());

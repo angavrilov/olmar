@@ -185,6 +185,9 @@ void Env::setupOperatorOverloading()
   addBuiltinBinaryOp(OP_PLUSPLUS,
     tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC)),
     getSimpleType(SL_INIT, ST_INT));
+  addBuiltinBinaryOp(OP_PLUSPLUS,
+    tfac.makeRefType(SL_INIT, getSimpleType(SL_INIT, ST_ARITHMETIC, CV_VOLATILE)),
+    getSimpleType(SL_INIT, ST_INT));
 
   // ---- 13.6 para 6,7 ----
   // T& operator* (T*);
