@@ -184,9 +184,22 @@ public:    // types
     SourceLocation loc;
 
   public:
-    ReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L)
-      : finalState(f), sval(s), loc(L) {}
+    ReductionPath()
+      : finalState(NULL), sval(NULL), loc() {}
     ~ReductionPath();
+
+    ReductionPath& operator=(ReductionPath const &obj);
+
+    // begin using this
+    void init(StackNode *f, SemanticValue s, SourceLocation const &L)
+    {
+      finalState = f;        // increment reference count
+      sval = s;
+      loc = L;
+    }
+
+    // stop using this
+    void deinit();
   };
 
 public:	   // data
@@ -205,7 +218,8 @@ public:	   // data
   //SymbolId *symbols;             // (owner ptr to array)
 
   // as reduction possibilities are encountered, we record them here
-  ObjArrayStack<ReductionPath> paths;
+  GrowArray<ReductionPath> paths;
+  int numPaths;                    // # of entries in 'paths' we're using
 
   // ---- stuff constant across a series of DFSs ----
   // this is the (index of the) production we're trying to reduce by
@@ -215,7 +229,14 @@ public:	   // funcs
   PathCollectionState();
   ~PathCollectionState();
 
+  // begin using this object
   void init(int prodIndex, int rhsLen, StateId start);
+                
+  // done using it
+  void deinit();
+                  
+  // add something to the 'paths' array
+  void addReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L);
 };
 
 

@@ -264,7 +264,8 @@ PathCollectionState::PathCollectionState()
   : startStateId(STATE_INVALID),
     siblings(10),
     symbols(10),
-    paths()
+    paths(10),
+    numPaths(0)
 {}
 
 PathCollectionState::~PathCollectionState()
@@ -274,7 +275,7 @@ PathCollectionState::~PathCollectionState()
 void PathCollectionState::init(int pi, int len, StateId start)
 {
   startStateId = start;
-  paths.deleteAll();        // paths must start empty
+  xassert(numPaths==0); // paths must start empty
   prodIndex = pi;
 
   // IN PROGRESS:
@@ -282,20 +283,57 @@ void PathCollectionState::init(int pi, int len, StateId start)
     // of any production, when parsing starts; do the same for 'toPass'
     // in collectReductionPaths
 
-  siblings.ensureAtLeast(len);
-  symbols.ensureAtLeast(len);
+  siblings.ensureIndexDoubler(len-1);
+  symbols.ensureIndexDoubler(len-1);
+}
+
+
+void PathCollectionState::deinit()
+{
+  while (numPaths > 0) {
+    paths[numPaths-1].deinit();
+    numPaths--;
+  }
+}
+
+
+void PathCollectionState
+  ::addReductionPath(StackNode *f, SemanticValue s, SourceLocation const &L)
+{
+  paths.ensureIndexDoubler(numPaths);
+  paths[numPaths++].init(f, s, L);
 }
 
 
 PathCollectionState::ReductionPath::~ReductionPath()
 {
+  deinit();
+}
+
+
+PathCollectionState::ReductionPath& PathCollectionState::ReductionPath
+  ::operator=(PathCollectionState::ReductionPath const &obj)
+{
+  if (&obj != this) {
+    finalState = obj.finalState;
+    sval = obj.sval;
+    loc = obj.loc;
+  }
+  return *this;
+}
+
+
+void PathCollectionState::ReductionPath::deinit()
+{
   if (sval) {
     // this should be very unusual, since 'sval' is consumed
     // (and nullified) soon after the ReductionPath is created;
     // it can happen if an exception is thrown from certain places
-    cout << "interesting: using ~ReductionPath's deallocator on " << sval << endl;
+    cout << "interesting: using ReductionPath's deallocator on " << sval << endl;
     deallocateSemanticValue(finalState->getSymbolC(), finalState->glr->userAct, sval);
   }
+
+  finalState = NULL;     // decrement reference count
 }
 
 
@@ -736,27 +774,30 @@ void GLR::doReduction(StackNode *parser,
 
     // step 2: process those paths
     // ("mutate" because need non-const access to rpath->finalState)
-    for (int i=0; i < pcs.paths.length(); i++) {
-      PathCollectionState::ReductionPath *rpath = pcs.paths[i];
+    for (int i=0; i < pcs.numPaths; i++) {
+      PathCollectionState::ReductionPath &rpath = pcs.paths[i];
 
       // I'm not sure what is the best thing to call an 'action' ...
       //actions++;
 
       // this is like shifting the reduction's LHS onto 'finalParser'
-      glrShiftNonterminal(rpath->finalState, info.lhsIndex,
-                          rpath->sval, rpath->loc);
+      glrShiftNonterminal(rpath.finalState, info.lhsIndex,
+                          rpath.sval, rpath.loc);
 
       // nullify 'sval' to mark it as consumed
-      rpath->sval = NULL;
+      rpath.sval = NULL;
     } // for each path
   }
   
-  // make sure the height gets propely decremented in any situation
+  // make sure the height gets propely decremented in any situation,
+  // and deinit the pcs; this is where reduction paths get removed
   catch (...) {
     pcsStackHeight--;
+    pcs.deinit();
     throw;
   }
   pcsStackHeight--;
+  pcs.deinit();
 }
 
 
@@ -853,8 +894,7 @@ void GLR::collectReductionPaths(PathCollectionState &pcs, int popsRemaining,
 
     // and just collect this reduction, and the final state, in our
     // running list
-    pcs.paths.push(new PathCollectionState::
-      ReductionPath(currentNode, sval, leftEdge));
+    pcs.addReductionPath(currentNode, sval, leftEdge);
   }
 
   else {
