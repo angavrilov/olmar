@@ -401,6 +401,7 @@ public:      // funcs
                         StringRef name, SourceLoc loc,
                         TypeIntr keyword, bool forward);
 
+  // ----- BEGIN: template instantiation stuff -----
   // for the instantiation of a primary template, simultaneously
   // iterate over the parameters and arguments, creating bindings from
   // params to args
@@ -423,7 +424,7 @@ public:      // funcs
 
   // Given a primary, find the most specific specialization for the
   // given template arguments 'sargs'; for full generality we allow
-  // the primary itself as a "trivial specializtion" and may return
+  // the primary itself as a "trivial specialization" and may return
   // that.
   Variable *findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sargs);
 
@@ -459,6 +460,7 @@ public:      // funcs
   // given a template class that was just made non-forward,
   // instantiate all of its forward-declared instances
   void instantiateForwardClasses(Scope *scope, Variable *baseV);
+  // ----- END: template instantiation stuff -----
 
   // diagnostic reports; all return ST_ERROR type
   Type *error(SourceLoc L, char const *msg, bool disambiguates=false);
@@ -624,7 +626,7 @@ public:      // funcs
   TS_name *buildTypedefSpecifier(Type *type);
                                             
   // make an AST node for an integer literal expression
-  Expression *buildIntegerLiteralExp(int i);
+  E_intLit *buildIntegerLiteralExp(int i);
 };
 
 

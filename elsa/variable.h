@@ -69,6 +69,10 @@ public:    // data
   // or default value for function parameters
   Expression *value;      // (nullable serf)
 
+  // default value for template parameters; see TODO at end
+  // of this file
+  Type *defaultParamType; // (nullable serf)
+
   // associated function definition; if NULL, either this thing isn't
   // a function or we never saw a definition
   Function *funcDefn;     // (nullable serf)
@@ -207,5 +211,34 @@ public:
 // if not, then this always returns "".
 string renderExpressionAsString(char const *prefix, Expression const *e);
 
+
+/*
+TODO: More efficient storage for Variable.
+
+First, I want to make a class hierarchy like this:
+
+  - Variable
+    - TypeVariable: things that currently have DF_TYPEDEF
+      - TypeParamVariable: template type paramters; make up
+        a new DeclFlag to distinguish them (DF_TEMPL_PARAM?)
+        [has defaultTypeArg]
+      - ClassVariable: DF_TYPEDEF where 'type->isClassType()'
+        [has templInfo]
+    - ObjectVariable: no DF_TYPEDEF
+      [has value]
+      - FunctionVariable: objects where 'type->isFunctionType()'
+        [has templInfo]
+        [has funcDefn]
+        [has overload]
+    - AliasVariable (DF_USING_ALIAS?)
+      [has usingAlias]
+    - NamespaceVariable (?? how to namespaces name their space?)
+
+Second, I want to collapse 'access' and 'scopeKind', since
+these fields waste most of their bits.  Perhaps when DeclFlags
+gets split I can arrange a storage sharing strategy among the
+(then four) fields that are bit-sets.
+
+*/
 
 #endif // VARIABLE_H

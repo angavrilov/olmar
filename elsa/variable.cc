@@ -13,6 +13,7 @@ Variable::Variable(SourceLoc L, StringRef n, Type *t, DeclFlags f)
     type(t),
     flags(f),
     value(NULL),
+    defaultParamType(NULL),
     funcDefn(NULL),
     overload(NULL),
     usingAlias(NULL),

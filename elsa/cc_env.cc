@@ -2125,26 +2125,40 @@ void Env::insertBindingsForPrimary
   xassert(baseV);
   SObjListIter<Variable> paramIter(baseV->templateInfo()->params);
   SObjListIterNC<STemplateArgument> argIter(sargs);
-  while (!paramIter.isDone() && !argIter.isDone()) {
+  while (!paramIter.isDone()) {
     Variable const *param = paramIter.data();
-    STemplateArgument *sarg = argIter.data();
+    
+    // if we have exhaused the explicit arguments, use a NULL
+    // 'sarg' to indicate that we need to use the default
+    // arguments from 'param' (if available)
+    STemplateArgument *sarg = argIter.isDone()? NULL : argIter.data();
 
-    if (sarg->isTemplate()) {
+    if (sarg && sarg->isTemplate()) {
       xassert("Template template parameters are not implemented");
     }
 
     if (param->hasFlag(DF_TYPEDEF) &&
-        sarg->isType()) {
-      // bind the type parameter to the type argument; I considered
-      // simply modifying 'param' but decided this would be cleaner
-      // for now..
+        (!sarg || sarg->isType())) {
+      if (!sarg && !param->defaultParamType) {
+        error(stringc
+          << "too few template arguments to `" << baseV->name << "'");
+        return;
+      }
+
+      // bind the type parameter to the type argument
+      Type *t = sarg? sarg->getType() : param->defaultParamType;
       Variable *binding = makeVariable(param->loc, param->name,
-                                       sarg->getType(),
-                                       DF_TYPEDEF);
+                                       t, DF_TYPEDEF);
       addVariable(binding);
     }
     else if (!param->hasFlag(DF_TYPEDEF) &&
-             sarg->isObject()) {
+             (!sarg || sarg->isObject())) {
+      if (!sarg && !param->value) {
+        error(stringc
+          << "too few template arguments to `" << baseV->name << "'");
+        return;
+      }
+
       // TODO: verify that the argument in fact matches the parameter type
 
       // bind the nontype parameter directly to the nontype expression;
@@ -2156,22 +2170,36 @@ void Env::insertBindingsForPrimary
                                           param->type, NULL /*syntax*/);
       Variable *binding = makeVariable(param->loc, param->name,
                                        bindType, DF_NONE);
-      // Make some AST to bind to
-      if (sarg->kind == STemplateArgument::STA_INT) {
-        E_intLit *value0 = new E_intLit("<generated AST>");
-        value0->i = sarg->getInt();
+
+      // set 'bindings->value', in some cases creating AST
+      if (!sarg) {
+        binding->value = param->value;
+
+        // sm: the statement above seems reasonable, but I'm not at
+        // all convinced it's really right... has it been tcheck'd?
+        // has it been normalized?  are these things necessary?  so
+        // I'll wait for a testcase to remove this assertion... before
+        // this assertion *is* removed, someone should read over the
+        // applicable parts of cppstd
+        xfailure("unimplemented: default non-type argument");
+      }
+      else if (sarg->kind == STemplateArgument::STA_INT) {
+        E_intLit *value0 = buildIntegerLiteralExp(sarg->getInt());
         // FIX: I'm sure we can do better than SL_UNKNOWN here
         value0->type = tfac.getSimpleType(SL_UNKNOWN, ST_INT, CV_CONST);
         binding->value = value0;
-      } else if (sarg->kind == STemplateArgument::STA_REFERENCE) {
+      } 
+      else if (sarg->kind == STemplateArgument::STA_REFERENCE) {
         E_variable *value0 = new E_variable(NULL /*PQName*/);
         value0->var = sarg->getReference();
         binding->value = value0;
-      } else {
+      }
+      else {
         error(stringc << "STemplateArgument objects that are of kind other than "
               "STA_INT are not implemented: " << sarg->toString());
         return;
       }
+      xassert(binding->value);
       addVariable(binding);
     }
     else {                 
@@ -2186,14 +2214,13 @@ void Env::insertBindingsForPrimary
     }
 
     paramIter.adv();
-    argIter.adv();
+    if (!argIter.isDone()) {
+      argIter.adv();
+    }
   }
 
-  if (!paramIter.isDone()) {
-    error(stringc
-          << "too few template arguments to `" << baseV->name << "'");
-  }
-  else if (!argIter.isDone()) {
+  xassert(paramIter.isDone());
+  if (!argIter.isDone()) {
     error(stringc
           << "too many template arguments to `" << baseV->name << "'");
   }
@@ -2322,9 +2349,6 @@ Variable *Env::findMostSpecific(Variable *baseV, SObjList<STemplateArgument> &sa
     TemplateInfo *templInfo0 = var0->templateInfo();
     // Sledgehammer time.
     if (templInfo0->isMutant()) continue;
-    // FIX: I think I should change this to StringObjDict, as the
-    // values (but not the keys) should get deleted when bindings
-    // goes out of scope   
     MatchTypes match(tfac);
     if (match.atLeastAsSpecificAs_STemplateArgument_list
         (sargs, templInfo0->arguments, match.ASA_NONE)) {
@@ -2438,6 +2462,9 @@ Scope *Env::prepArgScopeForTemlCloneTcheck
   // make a new scope for the template arguments
   Scope *argScope = enterScope(SK_TEMPLATE, "template argument bindings");
 
+  // sm: I think this section, inserting the bindings, should be pulled
+  // back out into 'instantiateTemplate', since it doesn't have anything
+  // to do with scope stack stuff.
   if (baseV->templateInfo()->isPartialSpec()) {
     // unify again to compute the bindings again since we forgot
     // them already    
@@ -2493,6 +2520,18 @@ Variable *Env::instantiateTemplate
    SObjList<STemplateArgument> &sargs)
 {
   Variable *oldBaseV = baseV;   // save this for other uses later
+
+  // NOTE: There is an ordering bug here, e.g. it fails t0209.cc.  The
+  // problem here is that we choose an instantiation (or create one)
+  // based only on the arguments explicitly present.  Since default
+  // arguments are delayed until later, we don't realize that C<> and
+  // C<int> are the same class if it has a default argument of 'int'.
+  //
+  // The fix I think is to insert argument bindings first, *then*
+  // search for or create an instantiation.  In some cases this means
+  // we bind arguments and immediately throw them away (i.e. when an
+  // instantiation already exists), but I don't see any good
+  // alternatives.
 
   // maintain the inst loc stack (ArrayStackPopper is in smbase/array.h)
   ArrayStackPopper<SourceLoc> pusher_popper(instantiationLocStack, loc /*pushVal*/);
@@ -3838,7 +3877,7 @@ TS_name *Env::buildTypedefSpecifier(Type *type)
 }
 
 
-Expression *Env::buildIntegerLiteralExp(int i)
+E_intLit *Env::buildIntegerLiteralExp(int i)
 {
   StringRef text = str(stringc << i);
   return new E_intLit(text);

@@ -282,9 +282,11 @@ string CompoundType::toCString() const
   sb << (name? name : "/*anonymous*/");
 
   // template arguments are now in the name
-  //if (templateInfo && templateInfo->specialArguments) {
-  //  sb << "<" << templateInfo->specialArgumentsRepr << ">";
-  //}
+  // 4/22/04: they were removed from the name a long time ago;
+  //          but I'm just now uncommenting this code
+  if (tinfo && tinfo->arguments.isNotEmpty()) {
+    sb << sargsToString(tinfo->arguments);
+  }
    
   return sb;
 }

@@ -5837,6 +5837,9 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
   // make a typedef variable for this type
   Variable *var = env.makeVariable(loc, name, fullType, DF_TYPEDEF);
   tvar->typedefVar = var;
+  if (defaultType) {
+    var->defaultParamType = defaultType->getType();
+  }
 
   if (name) {
     // introduce 'name' into the environment
@@ -5846,8 +5849,6 @@ void TP_type::tcheck(Env &env, TemplateParams *tparams)
         false /*disambiguates*/);
     }
   }
-
-  // TODO: do something with the default argument!
 
   // annotate this AST node with the type
   this->type = fullType;
