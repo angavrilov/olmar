@@ -16,8 +16,76 @@
 #include "treeout.h"      // treeOut
 #include "parsetables.h"  // ParseTables
 #include "cc_print.h"     // PrintEnv
+#include "ccparse.h"      // ParseEnv
+      
+
+// -------------------- ParseEnv ----------------
+// UGLY HACK
+// TODO: fix this by making a proper header during grammar analysis
+ParseEnv *globalParseEnv = NULL;
+
+SimpleTypeId ParseEnv::uberSimpleType(SourceLocation const &loc, UberModifiers m)
+{
+  m = (UberModifiers)(m & UM_TYPEKEYS);
+
+  // implement cppstd Table 7, p.109
+  switch (m) {
+    case UM_CHAR:                         return ST_CHAR;
+    case UM_UNSIGNED | UM_CHAR:           return ST_UNSIGNED_CHAR;
+    case UM_SIGNED | UM_CHAR:             return ST_SIGNED_CHAR;
+    case UM_BOOL:                         return ST_BOOL;
+    case UM_UNSIGNED:                     return ST_UNSIGNED_INT;
+    case UM_UNSIGNED | UM_INT:            return ST_UNSIGNED_INT;
+    case UM_SIGNED:                       return ST_INT;
+    case UM_SIGNED | UM_INT:              return ST_INT;
+    case UM_INT:                          return ST_INT;
+    case UM_UNSIGNED | UM_SHORT | UM_INT: return ST_UNSIGNED_SHORT_INT;
+    case UM_UNSIGNED | UM_SHORT:          return ST_UNSIGNED_SHORT_INT;
+    case UM_UNSIGNED | UM_LONG | UM_INT:  return ST_UNSIGNED_LONG_INT;
+    case UM_UNSIGNED | UM_LONG:           return ST_UNSIGNED_LONG_INT;
+    case UM_SIGNED | UM_LONG | UM_INT:    return ST_LONG_INT;
+    case UM_SIGNED | UM_LONG:             return ST_LONG_INT;
+    case UM_LONG | UM_INT:                return ST_LONG_INT;
+    case UM_LONG:                         return ST_LONG_INT;
+    case UM_SIGNED | UM_SHORT | UM_INT:   return ST_SHORT_INT;
+    case UM_SIGNED | UM_SHORT:            return ST_SHORT_INT;
+    case UM_SHORT | UM_INT:               return ST_SHORT_INT;
+    case UM_SHORT:                        return ST_SHORT_INT;
+    case UM_WCHAR_T:                      return ST_WCHAR_T;
+    case UM_FLOAT:                        return ST_FLOAT;
+    case UM_DOUBLE:                       return ST_DOUBLE;
+    case UM_LONG | UM_DOUBLE:             return ST_LONG_DOUBLE;
+    case UM_VOID:                         return ST_VOID;
+
+    default:
+      cout << loc.toString() << ": error: malformed type: "
+           << toString(m) << endl;
+      errors++;
+      return ST_ERROR;
+  }
+}
 
 
+UberModifiers ParseEnv
+  ::uberCombine(SourceLocation const &loc, UberModifiers m1, UberModifiers m2)
+{
+  // for future reference: if I want to implement GNU long long, just
+  // test for 'long' in each modifier set and if so set another flag,
+  // e.g. UM_LONG_LONG; only if *that* one is already set would I complain
+
+  // any duplicate flags?
+  UberModifiers dups = (UberModifiers)(m1 & m2);
+  if (dups) {
+    cout << loc.toString() << ": error: duplicate modifier: "
+         << toString(dups) << endl;
+    errors++;
+  }
+  
+  return (UberModifiers)(m1 | m2);
+}
+
+
+// ----------------- driver program ----------------
 // no bison-parser present, so need to define this
 Lexer2Token const *yylval = NULL;
 
@@ -77,6 +145,11 @@ void doit(int argc, char **argv)
           "    tcheck             print typechecking info\n"
           "")) {
       // parse error
+      exit(2);
+    }
+
+    // check for parse errors detected by the context class
+    if (globalParseEnv->errors) {    // HACK!!
       exit(2);
     }
 

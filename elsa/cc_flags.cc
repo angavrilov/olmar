@@ -80,31 +80,33 @@ string toString(CVFlags cv)
 
 // ------------------- DeclFlags --------------
 char const * const declFlagNames[NUM_DECLFLAGS] = {
-  "inline",         // 0
-  "virtual",
-  "friend",
-  "mutable",
-  "typedef",        // 4
-  "auto",
+  "auto",           // 0
   "register",
   "static",
   "extern",
-  "<enumerator>",   // 9
+  "mutable",        // 4
+  "inline",
+  "virtual",
+  "explicit",
+  "friend",
+  "typedef",        // 9
+
+  "<enumerator>",
   "<global>",
   "<initialized>",
   "<builtin>",
-  "<logic>",
-  "<addrtaken>",    // 14
+  "<logic>",        // 14
+  "<addrtaken>",
   "<parameter>",
   "<universal>",
   "<existential>",
-  "<member>",
-  "<predicate>",    // 19
-  "explicit",
+  "<member>",       // 19
   "<definition>",
   "<inline_defn>",
   "<implicit>",
-  "<forward>",      // 24
+  "<forward>",
+
+  "<predicate>",    // 24
 };
 
 
@@ -257,3 +259,39 @@ char const * const overloadableOpNames[NUM_OVERLOADABLE_OPS] = {
 };
 
 MAKE_TOSTRING(OverloadableOp, NUM_OVERLOADABLE_OPS, overloadableOpNames)
+
+
+// ------------------------ UberModifiers ---------------------
+char const * const uberModifierNames[UM_NUM_FLAGS] = {
+  "auto",
+  "register",
+  "static",
+  "extern",
+  "mutable",
+  "inline",
+  "virtual",
+  "explicit",
+  "friend",
+  "typedef",
+
+  "const",
+  "volatile",
+  
+  "char",
+  "wchar_t",
+  "bool",
+  "short",
+  "int",
+  "long",
+  "signed",
+  "unsigned",
+  "float",
+  "double",
+  "void",
+};
+
+string toString(UberModifiers m)
+{
+  xassert(uberModifierNames[UM_NUM_FLAGS-1] != NULL);
+  return bitmapString(m, uberModifierNames, UM_NUM_FLAGS);
+}

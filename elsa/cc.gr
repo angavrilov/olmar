@@ -101,6 +101,22 @@ ASTTypeId *ellipsisTypeId()
                                       NULL /*init*/));
 }
 
+// make a TS_name, and supply CV flags
+TS_name *new_TS_name(CVFlags cv, PQName *n, bool typenameUsed)
+{
+  TS_name *ret = new TS_name(n, typenameUsed);
+  ret->cv = cv;
+  return ret;
+}
+
+// make a TS_simple, and supply CV flags
+TS_simple *new_TS_simple(CVFlags cv, SimpleTypeId id)
+{
+  TS_simple *ret = new TS_simple(id);
+  ret->cv = cv;
+  return ret;
+}
+
 ]
 
 
@@ -802,61 +818,194 @@ nonterm[Declaration*] SimpleDeclaration {
 // now I'm folding CVQualifier into TypeSpecifier; in particular, this allows
 // the TypeId in a cast expression to contain a "const"
 
-// I return a Declaration object with an empty decllist, as a proxy
-// for returning dflags and spec as a pair
+// also old:
+//  // I return a Declaration object with an empty decllist, as a proxy
+//  // for returning dflags and spec as a pair
+//  nonterm[Declaration*] DeclSpecifier {
+//    dup(d) [ return NULL; ]    // prevent multi-yield
+
+//    -> m:DeclModifierSeq s:TypeSpecifier
+//         [ return new Declaration(m, s, NULL); ]
+
+//    -> s:TypeSpecifier
+//         [ return new Declaration(DF_NONE, s, NULL); ]
+//  }
+
+
+// type specifier, i.e. the "int" in "int x;"
+//
+// The language of type specifiers is much larger than most people's
+// usage of them; for example, "int signed" is legal, as is "const
+// unsigned volatile long static int". I drew up a state diagram from
+// which the following grammar was produced, and will at some point
+// scan my drawing.
+//
+// The basic idea is to have a bitmap (UberModifier) of all the
+// relevant keywords, to allow collecting them in any order.  Then,
+// since a type specifier can only name one type, once I see something
+// which commits the syntax to one particular kind of type specifier
+// (e.g. TS_name, or TS_simple) then I drop down into collecting a
+// different set of keywords.
+//
+// I explicitly substitute UberModifierSeqOpt into the left sides of
+// the productions below as a performance optimization to avoid
+// shift/reduce conflicts.  That is, I write
+//   ->                    PQName UberModifierSeqOpt
+//   -> UberModifierSeq    PQName UberModifierSeqOpt
+// instead of
+//   -> UberModifierSeqOpt PQName UberModifierSeqOpt
+// because the latter would cause a conflict (I think).
 nonterm[Declaration*] DeclSpecifier {
   dup(d) [ return NULL; ]    // prevent multi-yield
 
-  -> m:DeclModifierSeq s:TypeSpecifier
-       [ return new Declaration(m, s, NULL); ]
+  // TS_name: triggered by PQTypeName
+  -> n:PQTypeName m2:UberModifierSeqOpt
+       [ return new Declaration(uberDeclFlags(m2),
+           new_TS_name(uberCVFlags(m2), n, false /*typename*/), NULL); ]
 
-  -> s:TypeSpecifier
-       [ return new Declaration(DF_NONE, s, NULL); ]
+  -> m1:UberModifierSeq n:PQTypeName m2:UberModifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_name(uberCVFlags(m), n, false /*typename*/), NULL); ]
+
+  // TS_simple: triggered by UberTypeKeyword
+  -> k1:UberTypeKeyword m2:UberTypeAndModifierSeqOpt
+       [ UberModifiers k = uberCombine(loc, k1, m2);
+         return new Declaration(uberDeclFlags(m2),
+           new_TS_simple(uberCVFlags(m2), uberSimpleType(loc, k)), NULL); ]
+
+  -> m1:UberModifierSeq k1:UberTypeKeyword m2:UberTypeAndModifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         UberModifiers k = uberCombine(loc, k1, m2);
+         return new Declaration(uberDeclFlags(m),
+           new_TS_simple(uberCVFlags(m), uberSimpleType(loc, k)), NULL); ]
+
+  // TS_elaborated, TS_classSpec, TS_enumSpec:
+  // triggered by one of "class", "struct", "union", "enum", "typename",
+  // with the particular instance sorted out by ElaboratedOrSpecifier
+  -> e:ElaboratedOrSpecifier m2:UberModifierSeqOpt
+       [ e->cv |= uberCVFlags(m2);
+         return new Declaration(uberDeclFlags(m2), e, NULL); ]
+
+  -> m1:UberModifierSeq e:ElaboratedOrSpecifier m2:UberModifierSeqOpt
+       [ UberModifiers m = uberCombine(loc, m1, m2);
+         e->cv |= uberCVFlags(m);
+         return new Declaration(uberDeclFlags(m), e, NULL); ]
 }
 
-// at one point I was trying to make the parser enforce rules about
-// which modifiers could go together and the fact that each one can't
-// occur more than once, but that got to be unwieldy.. so now I allow
-// any sequence, and the typechecker will have to rule out bad
-// combinations (and for now no one can enforce the no-duplication
-// rule..)
-nonterm[enum DeclFlags] DeclModifierSeq {
-  // subtle: I originally wrote this as DeclModifierSeqOpt, and that
-  // nearly tripled the # of shift/reduce conflicts, because the
-  // parser was forced to decide too early whether to do an epsilon
-  // reduction; pushing the epsilon choice up one level (where it is
-  // no longer an epsilon choice per-se) got me back to 59, which is
-  // where it's been hovering.  Of course, because of GLR, this was
-  // only a performance optimization.
-
-  -> m:DeclModifier
-       [ return m; ]
-  -> seq:DeclModifierSeq m:DeclModifier
-       [ DeclFlags ret = (DeclFlags)(seq | m);
-         if (ret == seq) {
-           // this will do for now
-           cout << "warning: duplicate decl modifier\n";
-         }
-         return ret;
-       ]
+// choose among TS_elaborated, TS_classSpec and TS_enumSpec
+nonterm[TypeSpecifier*] ElaboratedOrSpecifier {
+  -> s:ElaboratedTypeSpecifier [ return s; ]
+  -> s:ClassSpecifier          [ return s; ]
+  -> s:EnumSpecifier           [ return s; ]
 }
 
-nonterm[enum DeclFlags] DeclModifier {
-  -> "virtual"     [ return DF_VIRTUAL;  ]
-  -> "friend"      [ return DF_FRIEND;   ]
-  -> "mutable"     [ return DF_MUTABLE;  ]
-  -> "auto"        [ return DF_AUTO;     ]
-  -> "register"    [ return DF_REGISTER; ]
-  -> "static"      [ return DF_STATIC;   ]
-  -> "extern"      [ return DF_EXTERN;   ]
-  -> "inline"      [ return DF_INLINE;   ]
-  -> "typedef"     [ return DF_TYPEDEF;  ]
 
-  -> "thmprv_predicate"   [ return DF_PREDICATE; ]
+// nonempty sequence of UberModifiers; note that the act of combining
+// UberModifiers sets checks for and complains about duplication
+nonterm[UberModifiers] UberModifierSeq {
+  -> u:UberModifier                    [ return u; ]
+  -> s:UberModifierSeq u:UberModifier  [ return uberCombine(loc, s,u); ]
 }
+
+nonterm[UberModifiers] UberModifierSeqOpt {
+  -> empty                    [ return UM_NONE; ]
+  -> s:UberModifierSeq        [ return s; ]
+}
+
+
+// possibly empty sequence of modifiers (e.g. "static") or type
+// keywords (e.g. "int")
+nonterm[UberModifiers] UberTypeAndModifierSeqOpt {
+  -> empty                                          [ return UM_NONE; ]
+  -> s:UberTypeAndModifierSeqOpt u:UberModifier     [ return uberCombine(loc, s,u); ]
+  -> s:UberTypeAndModifierSeqOpt u:UberTypeKeyword  [ return uberCombine(loc, s,u); ]
+}
+
+
+// modifiers
+nonterm[UberModifiers] UberModifier {
+  // storage-class-specifier
+  -> "auto"      [ return UM_AUTO; ]
+  -> "register"  [ return UM_REGISTER; ]
+  -> "static"    [ return UM_STATIC; ]
+  -> "extern"    [ return UM_EXTERN; ]
+  -> "mutable"   [ return UM_MUTABLE; ]
+
+  // function-specifier
+  -> "inline"    [ return UM_INLINE; ]
+  -> "virtual"   [ return UM_VIRTUAL; ]
+  -> "explicit"  [ return UM_EXPLICIT; ]
+
+  // decl-specifier terminals
+  -> "friend"    [ return UM_FRIEND; ]
+  -> "typedef"   [ return UM_TYPEDEF; ]
+
+  // cv-qualifier
+  -> "const"     [ return UM_CONST; ]
+  -> "volatile"  [ return UM_VOLATILE; ]
+}
+
+// keywords that name a type, or part of one
+nonterm[UberModifiers] UberTypeKeyword {
+  -> "char"      [ return UM_CHAR; ]
+  -> "wchar_t"   [ return UM_WCHAR_T; ]
+  -> "bool"      [ return UM_BOOL; ]
+  -> "short"     [ return UM_SHORT; ]
+  -> "int"       [ return UM_INT; ]
+  -> "long"      [ return UM_LONG; ]
+  -> "signed"    [ return UM_SIGNED; ]
+  -> "unsigned"  [ return UM_UNSIGNED; ]
+  -> "float"     [ return UM_FLOAT; ]
+  -> "double"    [ return UM_DOUBLE; ]
+  -> "void"      [ return UM_VOID; ]
+}
+
+
+//  // at one point I was trying to make the parser enforce rules about
+//  // which modifiers could go together and the fact that each one can't
+//  // occur more than once, but that got to be unwieldy.. so now I allow
+//  // any sequence, and the typechecker will have to rule out bad
+//  // combinations (and for now no one can enforce the no-duplication
+//  // rule..)
+//  nonterm[enum DeclFlags] DeclModifierSeq {
+//    // subtle: I originally wrote this as DeclModifierSeqOpt, and that
+//    // nearly tripled the # of shift/reduce conflicts, because the
+//    // parser was forced to decide too early whether to do an epsilon
+//    // reduction; pushing the epsilon choice up one level (where it is
+//    // no longer an epsilon choice per-se) got me back to 59, which is
+//    // where it's been hovering.  Of course, because of GLR, this was
+//    // only a performance optimization.
+
+//    -> m:DeclModifier
+//         [ return m; ]
+//    -> seq:DeclModifierSeq m:DeclModifier
+//         [ DeclFlags ret = (DeclFlags)(seq | m);
+//           if (ret == seq) {
+//             // this will do for now
+//             cout << "warning: duplicate decl modifier\n";
+//           }
+//           return ret;
+//         ]
+//  }
+
+//  nonterm[enum DeclFlags] DeclModifier {
+//    -> "virtual"     [ return DF_VIRTUAL;  ]
+//    -> "friend"      [ return DF_FRIEND;   ]
+//    -> "mutable"     [ return DF_MUTABLE;  ]
+//    -> "auto"        [ return DF_AUTO;     ]
+//    -> "register"    [ return DF_REGISTER; ]
+//    -> "static"      [ return DF_STATIC;   ]
+//    -> "extern"      [ return DF_EXTERN;   ]
+//    -> "inline"      [ return DF_INLINE;   ]
+//    -> "typedef"     [ return DF_TYPEDEF;  ]
+
+//    -> "thmprv_predicate"   [ return DF_PREDICATE; ]
+//  }
 
 
 // plays role of "TypeSpecifierSeq" in std
+// TODO: rewrite this like DeclModifier
 nonterm[TypeSpecifier*] TypeSpecifier {
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName
@@ -898,7 +1047,7 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
   -> k:ClassKey n:PQTypeName    [ return new TS_elaborated(loc, k, n); ]
   -> "enum" n:PQTypeName        [ return new TS_elaborated(loc, TI_ENUM, n); ]
-                            
+
   // cppstd grammar ensures "typename" is only applied to qualified
   // names, but I find that more natural to enforce during typechecking
   -> "typename" n:PQTypeName    [ return new TS_name(n, true /*typename*/); ]
@@ -945,6 +1094,21 @@ nonterm[enum SimpleTypeId] PrimitiveTypeSpecifier {
   -> "long" "long" "int"             [ return ST_LONG_LONG; ]
   -> "unsigned" "long" "long" "int"  [ return ST_UNSIGNED_LONG_LONG; ]
 }
+
+
+// NOT FINISHED
+//  // plays role of "TypeSpecifierSeq" in cppstd; this is a
+//  // version of DeclSpecifier restricted to only allow "const" and
+//  // "volatile" UberModifiers
+//  nonterm [TypeSpecifier*] TypeSpecifier {
+//    // TS_name
+//    -> n:PQName
+//         [ return new TS_name(CV_NONE, n, false /*typename*/); ]
+
+//    // TS_simple
+//    ->
+
+
 
 
 // I had been separating these into typedef/enum/class names, but
