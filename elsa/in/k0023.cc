@@ -1,7 +1,7 @@
-// typedef pointer to function in Elsa
+// typedef pointer to member function in template
 
-// originally seen in xccparse."
+// originally seen in package aqsis
 
 template<class T> struct S1 {
-    typedef T * (S1<T>::*funcType)();
+    typedef void * (S1<T>::*funcType)();
 };
