@@ -1597,6 +1597,13 @@ CompoundType *checkClasskeyAndName(
       // into 'specialTI', but not the template arguments
       TemplateInfo *ctTI = ct->templateInfo();
       ctTI->copyArguments(sargs);
+      
+      // fix the self-type arguments (only if partial inst)
+      if (ct->selfType->isPseudoInstantiation()) {
+        PseudoInstantiation *selfTypePI = ct->selfType->asPseudoInstantiation();
+        selfTypePI->args.deleteAll();
+        copyTemplateArgs(selfTypePI->args, sargs);
+      }
 
       // synthesize an instName to aid in debugging
       ct->instName = env.str(stringc << ct->name << sargsToString(ctTI->arguments));
@@ -1915,8 +1922,10 @@ void TS_classSpec::tcheckIntoCompound(
   
   // finish up the error filtering started above
   if (ct->isTemplate()) {
-    // remove all messages that are not 'strong'
-    env.errors.filter(strongMsgFilter);
+    if (!env.doReportTemplateErrors) {
+      // remove all messages that are not 'strong'
+      env.errors.filter(strongMsgFilter);
+    }
 
     // now put back the saved messages
     env.errors.prependMessages(existingErrors);

@@ -3946,7 +3946,7 @@ void Env::explicitlyInstantiate(Variable *var)
   // function instantiation?
   if (var->type->isFunctionType()) {
     // It's ok if we haven't seen the definition yet, however, the
-    // presence of this explicit instantation request means that the
+    // presence of this explicit instantiation request means that the
     // definition must be somewhere in the translation unit (14.7.2
     // para 4).  However, I do not enforce this.
     ensureFuncBodyTChecked(var);

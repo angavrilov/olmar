@@ -181,12 +181,13 @@ public:      // data
 
   // TODO: eliminate this!
   TranslationUnit *tunit;
-                
-  // when true, function template bodies are instantiated
-  bool doFunctionTemplateBodyInstantiation;
 
-  // when true, compare arguments to parameters at call sites
+  // the following flags are used to disable certain parts of the
+  // type checker due to maturity issues; they don't change during
+  // the execution of the checker
+  bool doFunctionTemplateBodyInstantiation;
   bool doCompareArgsToParams;
+  bool doReportTemplateErrors;
 
   // when non-empty, the variable lookup results are collected and
   // compared to the text stored in this pointer; it is supplied via

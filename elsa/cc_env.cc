@@ -358,6 +358,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf, TranslationUnit *tunit0)
     // this can be turned off with its own flag, or in C mode (since I
     // have not implemented any of the relaxed C rules)
     doCompareArgsToParams(!tracingSys("doNotCompareArgsToParams") && L.isCplusplus),
+    
+    doReportTemplateErrors(tracingSys("strict")),
                                                               
     collectLookupResults(""),
     
@@ -2542,6 +2544,10 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope * /*nullable*/ scope,
   if (name && lang.compoundSelfName) {
     if (tv->templateInfo() && tv->templateInfo()->hasParameters()) {
       // the self type should be a PseudoInstantiation, not the raw template
+      //                                                             
+      // 2005-03-05: This always fills in arguments corresponding to
+      // the template primary.  If this is a specialization, the caller
+      // will modify the selfname later.
       ct->selfType = pseudoSelfInstantiation(ct, CV_NONE);
     }
     else {
@@ -4130,8 +4136,31 @@ void Env::addCandidates(LookupSet &candidates, Variable *var)
 
 
 // ---------------- new lookup mechanism --------------------
+bool sameArguments(ASTList<TemplateArgument> const &args1,
+                   ObjList<STemplateArgument> const &args2)
+{
+  ASTListIter<TemplateArgument> iter1(args1);
+  ObjListIter<STemplateArgument> iter2(args2);
+
+  if (!iter1.isDone() && iter1.data()->isTA_templateUsed()) {
+    iter1.adv();
+  }
+
+  for (; !iter1.isDone() && !iter2.isDone(); iter1.adv(), iter2.adv()) {
+    STemplateArgument const &sarg1 = iter1.data()->sarg;
+    STemplateArgument const &sarg2 = *(iter2.data());
+
+    if (!sarg1.equals(sarg2)) {
+      return false;
+    }
+  }
+
+  return iter1.isDone() && iter2.isDone();
+}
+
+
 void Env::lookupPQ(LookupSet &set, PQName *name, LookupFlags flags)
-{ 
+{
   // this keeps track of where the next lookup will occur; NULL means
   // "in the current scope stack", and non-NULL means "in the named
   // scope"
@@ -4184,6 +4213,18 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
           }
         }
         else if (svar->type->isPseudoInstantiation()) {
+          PseudoInstantiation *pi = svar->type->asPseudoInstantiation();
+          
+          // (in/t0433.cc) if the template arguments match those of
+          // 'pi', then the qualifier is referring to a known
+          // template, not a generic dependent type; this is important
+          // because we may need to get a more precise type for
+          // decl-defn matching
+          if (sameArguments(qual->targs, pi->args)) {
+            scope = svar->scope;    // selfname -> container
+            goto bottom_of_loop;    // ...
+          }
+
           svar = svar->type->asCVAtomicType()->atomic->
                    asPseudoInstantiation()->primary->typedefVar;
         }
@@ -4258,6 +4299,7 @@ void Env::lookupPQ_withScope(LookupSet &set, PQName *name, LookupFlags flags,
       }
     }
 
+  bottom_of_loop:
     flags |= LF_QUALIFIED;            // subsequent lookups are qualified
     name = qual->rest;
   }
@@ -4715,9 +4757,8 @@ Type *Env::error(Type *t, rostring msg)
     return t;
   }
 
-  // TODO: remove containsTypeVariables() from this..
   if (t->containsErrors() ||
-      t->containsTypeVariables()) {   // hack until template stuff fully working
+      (!doReportTemplateErrors && t->containsTypeVariables())) {
     // no report
     return getSimpleType(SL_UNKNOWN, ST_ERROR);
   }
@@ -4730,7 +4771,7 @@ Type *Env::error(Type *t, rostring msg)
 
 ErrorFlags Env::maybeEF_STRONG() const
 {
-  if (disambiguateOnly && !tracingSys("strict")) {
+  if (disambiguateOnly && !doReportTemplateErrors) {
     return EF_STRONG_WARNING;
   }
   else {
@@ -4788,6 +4829,10 @@ Type *Env::error(SourceLoc L, rostring msg, ErrorFlags eflags)
     (eflags & EF_STRONG) ||
     (eflags & EF_STRONG_WARNING) ||
     (!disambiguateOnly);
+
+  if (env.doReportTemplateErrors) {
+    report = true;    // override the above
+  }
 
   TRACE("error", ((eflags & EF_DISAMBIGUATES)? "[d] " :
                   (eflags & (EF_WARNING | EF_STRONG_WARNING))? "[w] " : "")
