@@ -223,16 +223,20 @@ PartialScopeStack *Env::shallowClonePartialScopeStack(Scope *foundScope)
   xassert(foundScope);
   PartialScopeStack *pss = new PartialScopeStack();
   int scopesCount = scopes.count();
-  xassert(scopesCount>=2);
+  xassert(scopesCount>=3);
   for (int i=0; i<scopesCount; ++i) {
     Scope *s0 = scopes.nth(i);
     Scope *s1 = scopes.nth(i+1);
+    Scope *s2 = scopes.nth(i+2);
     // NOTE: omit foundScope itself AND the template scope below it
-    if (s1 == foundScope) {
+    // AND the dummy scope that is between them
+    if (s2 == foundScope) {
+      xassert(s1->scopeKind == SK_EAT_TEMPL_INST);
       xassert(s0->scopeKind == SK_TEMPLATE);
       return pss;
     }
     xassert(s0->scopeKind != SK_TEMPLATE);
+    xassert(s0->scopeKind != SK_EAT_TEMPL_INST);
     pss->scopes.append(s0);
   }
   xfailure("failed to find foundScope in the scope stack");
@@ -866,6 +870,12 @@ void Env::insertBindings(Variable *baseV, SObjList<STemplateArgument> &sargs)
     xassert(baseV->templateInfo()->isPrimary());
     insertBindingsForPrimary(baseV, sargs);
   }
+  
+  // having inserted these bindings, turn off name acceptance to simulate
+  // the behavior of TemplateDeclaration::tcheck
+  Scope *s = scope();
+  xassert(s->scopeKind == SK_TEMPLATE);
+  s->canAcceptNames = false;
 }
 
 
@@ -1053,6 +1063,12 @@ Scope *Env::prepArgScopeForTemlCloneTcheck
     // in the comments near its declaration (cc_env.h)
     scopes.prepend(iter.data());
   }
+  
+  // the variable created by tchecking the instantiation would
+  // normally be inserted into the current scope, but instantiations
+  // are found in their own list, not via environment lookup; so
+  // this scope will just catch the instantiation so we can discard it
+  enterScope(SK_EAT_TEMPL_INST, "dummy scope to eat the template instantiation");
 
   // make a new scope for the template arguments
   Scope *argScope = enterScope(SK_TEMPLATE, "template argument bindings");
@@ -1066,6 +1082,12 @@ void Env::unPrepArgScopeForTemlCloneTcheck
 {
   // remove the argument scope
   exitScope(argScope);
+
+  // pull off the dummy, and check it's what we expect
+  Scope *dummy = scopes.first();
+  xassert(dummy->scopeKind == SK_EAT_TEMPL_INST);
+  xassert(dummy->getNumVariables() == 0);    // the instantiation only (for the moment suppressed)
+  exitScope(dummy);
 
   // restore the original scope structure
   pushedScopes.reverse();
@@ -1755,8 +1777,9 @@ void Env::ensureFuncMemBodyTChecked(Variable *v)
   // mess with the scopes the way typechecking would between when it
   // leaves instantiateTemplate() and when it arrives at the function
   // tcheck
-  xassert(scopes.count() >= 2);
-  xassert(scopes.nth(1) == tcheckCtxt->foundScope);
+  xassert(scopes.count() >= 3);
+  xassert(scopes.nth(2) == tcheckCtxt->foundScope);
+  xassert(scopes.nth(1)->scopeKind == SK_EAT_TEMPL_INST);
   xassert(scopes.nth(0)->scopeKind == SK_TEMPLATE);
   tcheckCtxt->pss->stackIntoEnv(*this);
 

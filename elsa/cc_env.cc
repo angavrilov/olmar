@@ -1306,7 +1306,12 @@ bool Env::currentScopeAboveTemplEncloses(Scope const *s)
     // when we are doing instantiation of the definition of a
     // function member of a templatized class, we end up in this
     // situation
-    return scopes.nth(1)->encloses(s);
+    int i = 1;
+    if (scopes.nth(1)->scopeKind == SK_EAT_TEMPL_INST) {
+      // also skip the dummy scope
+      i++;
+    }
+    return scopes.nth(i)->encloses(s);
   } else {
     return currentScopeEncloses(s);
   }
@@ -2531,6 +2536,10 @@ Variable *Env::createDeclaration(
   #warning I do not like reallyAddVariable.
   bool reallyAddVariable
 ) {
+  // 'reallyAddVariable' should now be redundant with adding to
+  // a dummy scope
+  xassert(!reallyAddVariable == (scope->scopeKind==SK_EAT_TEMPL_INST));
+
   // if this gets set, we'll replace a conflicting variable
   // when we go to do the insertion
   bool forceReplace = false;

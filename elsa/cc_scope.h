@@ -171,6 +171,9 @@ public:      // funcs
 
   int getChangeCount() const { return changeCount; }
 
+  // this is actually for debugging only ....
+  int getNumVariables() const       { return variables.size(); }
+
   // some syntactic sugar on the scope kind
   bool isGlobalScope() const        { return scopeKind == SK_GLOBAL; }
   bool isParameterScope() const     { return scopeKind == SK_PARAMETER; }

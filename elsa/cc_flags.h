@@ -131,6 +131,7 @@ enum ScopeKind {
   SK_FUNCTION,                    // includes local variables
   SK_CLASS,                       // class member scope
   SK_TEMPLATE,                    // template paramter list (inside the '<' and '>')
+  SK_EAT_TEMPL_INST,              // dummy scope to eat a template instantiation variable
   SK_NAMESPACE,                   // namespace
   NUM_SCOPEKINDS
 };
