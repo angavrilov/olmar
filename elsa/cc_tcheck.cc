@@ -1585,6 +1585,8 @@ void Declarator::mid_tcheck(Env &env, Tcheck &dt)
     }
   }
 
+  if (init) dt.dflags |= DF_INITIALIZED;
+
   // get the variable from the IDeclarator
   decl->tcheck(env, dt);
   var = dt.var;
