@@ -509,8 +509,11 @@ class Handler (
 class Expression {
   // FakeList link; since you have to use 'setNext', I'm making
   // 'next' const, and I'll cast it away in 'setNext'
-  public Expression * const next;
-  ctor const_cast<Expression*&>(next) = NULL;
+  //
+  // update: I'm tired of casting it, and I'm pretty sure there
+  // aren't any stray updates at this point
+  public Expression *next;
+  ctor next = NULL;
   public void setNext(Expression *newNext);
 
 
