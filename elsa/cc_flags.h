@@ -113,6 +113,7 @@ enum SimpleTypeId {
   ST_ELLIPSIS,                       // used to encode vararg functions
   ST_CDTOR,                          // "return type" for ctors and dtors
   ST_ERROR,                          // this type is returned for typechecking errors
+  ST_DEPENDENT,                      // depdenent on an uninstantiated template parameter type
   NUM_SIMPLE_TYPES,
   ST_BITMASK = 0xFF                  // for extraction for OR with CVFlags
 };

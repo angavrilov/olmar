@@ -628,6 +628,17 @@ Type const *TS_name::itcheck(Env &env)
 {
   name->tcheck(env);
 
+  if (typenameUsed && !name->hasQualifiers()) {
+    // cppstd 14.6 para 5, excerpt:
+    //   "The keyword typename shall only be applied to qualified
+    //    names, but those names need not be dependent."
+    env.error("the `typename' keyword can only be used with a qualified name");
+  }
+
+  // if the user uses the keyword "typename", then the lookup errors
+  // are non-disambiguating, because the syntax is unambiguous
+  bool disambiguates = (typenameUsed? false : true);
+
   Variable *var = env.lookupPQVariable(name);
   if (!var) {
     // NOTE:  Since this is marked as disambiguating, but the same
@@ -636,13 +647,13 @@ Type const *TS_name::itcheck(Env &env)
     // "variable" were the only one.
     return env.error(stringc
       << "there is no typedef called `" << *name << "'",
-      true /*disambiguates*/);
+      disambiguates);
   }
 
   if (!var->hasFlag(DF_TYPEDEF)) {
     return env.error(stringc
       << "variable name `" << *name << "' used as if it were a type",
-      true /*disambiguates*/);
+      disambiguates);
   }
 
   Type const *ret = applyCVToType(cv, var->type);
@@ -1153,6 +1164,8 @@ void checkMemberFlags(Env &env, DeclFlags flags)
 
 void MR_decl::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   // the declaration knows to add its variables to
   // the curCompound
   d->tcheck(env);
@@ -1162,6 +1175,8 @@ void MR_decl::tcheck(Env &env)
 
 void MR_func::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   if (env.scope()->curCompound->keyword == CompoundType::K_UNION) {
     // TODO: is this even true?
     env.error("unions cannot have member functions");
@@ -1183,11 +1198,15 @@ void MR_func::tcheck(Env &env)
 
 void MR_access::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   env.scope()->curAccess = k;
 }
 
 void MR_publish::tcheck(Env &env)
 {
+  env.setLoc(loc);
+
   if (!name->hasQualifiers()) {
     env.error(stringc
       << "in superclass publication, you have to specify the superclass");

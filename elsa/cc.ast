@@ -239,8 +239,11 @@ class TypeSpecifier {
   pure_virtual Type const *itcheck(Env &env);
 
   pure_virtual void print(PrintEnv &env);
-
-  -> TS_name(PQName name);                 // a typedef'd name (typedef might be implicit, as for classes)
+                                                              
+  // a typedef'd name (typedef might be implicit, as for classes);
+  // if 'typenamedUsed' is true, then the user said "typename", so
+  // we don't regard an error as disambiguating
+  -> TS_name(PQName name, bool typenameUsed);
 
   -> TS_simple(SimpleTypeId id);           // int or char or float or ..
 
@@ -294,7 +297,7 @@ class BaseClassSpec (
 class MemberList (ASTList<Member> list);
 
 // member of a class
-class Member {
+class Member (SourceLocation loc) {
   -> MR_decl(Declaration d);            // data members or functions w/o bodies
   -> MR_func(Function f);               // function with body
   -> MR_access(AccessKeyword k);        // section header

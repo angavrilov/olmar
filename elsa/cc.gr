@@ -384,7 +384,7 @@ nonterm[Expression*] PostfixExpression {
 nonterm[TypeSpecifier*] CtorExpressionType {
   //-> ColonColonOpt NestedNameSpecifier "template" TemplateId;
 
-  -> n:PQTypeName        [ return new TS_name(n); ]
+  -> n:PQTypeName        [ return new TS_name(n, false /*typename*/); ]
   -> "char"              [ return new TS_simple(ST_CHAR); ]
   -> "wchar_t"           [ return new TS_simple(ST_WCHAR_T); ]
   -> "bool"              [ return new TS_simple(ST_BOOL); ]
@@ -874,7 +874,7 @@ nonterm[enum DeclFlags] DeclModifier {
 nonterm[TypeSpecifier*] TypeSpecifier {
   // the existence of this production is part of why parsing C is hard
   -> n:PQTypeName
-       [ return new TS_name(n); ]
+       [ return new TS_name(n, false /*typename*/); ]
 
   -> s:PrimitiveTypeSpecifier            // int
        [ return new TS_simple(s); ]
@@ -909,12 +909,16 @@ nonterm[TypeSpecifier*] TypeSpecifier {
 }
 
 
-nonterm[TS_elaborated*] ElaboratedTypeSpecifier {
+nonterm[TypeSpecifier*] ElaboratedTypeSpecifier {
   -> k:ClassKey n:PQTypeName   [
        declareClassTag(n);
        return new TS_elaborated(loc, k, n);
      ]
   -> "enum" n:PQTypeName        [ return new TS_elaborated(loc, TI_ENUM, n); ]
+                            
+  // cppstd grammar ensures "typename" is only applied to qualified
+  // names, but I find that more natural to enforce during typechecking
+  -> "typename" n:PQTypeName    [ return new TS_name(n, true /*typename*/); ]
 }
 
 
@@ -1540,7 +1544,7 @@ nonterm[MemberList*] MemberDeclarationSeqOpt {
   // propagating them in the parser, to avoid the complexities of
   // maintaining the state in the parser context
   -> list:MemberDeclarationSeqOpt k:AccessSpecifier ":"
-       [ list->list.append(new MR_access(k)); return list; ]
+       [ list->list.append(new MR_access(loc, k)); return list; ]
 }
 
 nonterm[AccessKeyword] AccessSpecifier {
@@ -1561,7 +1565,7 @@ nonterm[Member*] MemberDeclaration {
   // member fn decl, or data member
   -> spec:DeclSpecifier list:MemberDeclaratorList ";"
        [ spec->decllist = list;
-         return new MR_decl(spec); ]
+         return new MR_decl(loc, spec); ]
 
   // inner class or enum with no instance defined
   -> spec:DeclSpecifier ";"
@@ -1573,7 +1577,7 @@ nonterm[Member*] MemberDeclaration {
              spec->spec->isTS_classSpec() ||
              spec->spec->isTS_enumSpec()) {
            // ok
-           return new MR_decl(spec);
+           return new MR_decl(loc, spec);
          }
          else {
            trace("cancel") << loc 
@@ -1586,11 +1590,11 @@ nonterm[Member*] MemberDeclaration {
   // declaration (above) and ctor declaration (below), hence the
   // need for cancellation in both of those two
   -> n:PQualifiedId ";"                              
-       [ return new MR_publish(n); ]
+       [ return new MR_publish(loc, n); ]
 
   // inline function definition; includes c/dtor definitions
   -> f:FunctionDefinition SemicolonOpt
-       [ return new MR_func(f); ]
+       [ return new MR_func(loc, f); ]
 
   // declaration (with no definition) of a c/dtor or conversion
   // operator function
@@ -1610,7 +1614,7 @@ nonterm[Member*] MemberDeclaration {
            return NULL;
          }
 
-         return new MR_decl(
+         return new MR_decl(loc,
            new Declaration(
              flags,
              new TS_simple(ST_CDTOR),
