@@ -165,7 +165,7 @@ enum SimpleTypeId {
   ST_FLOAT,
   ST_DOUBLE,
   ST_LONG_DOUBLE,
-  ST_VOID,
+  ST_VOID,                   // last concrete type (see 'isConcreteSimpleType')
 
   // codes I use as a kind of implementation hack
   ST_ELLIPSIS,               // used to encode vararg functions
@@ -183,6 +183,16 @@ enum SimpleTypeId {
   ST_ANY_OBJ_TYPE,           // any object (non-function, non-void) type
   ST_ANY_NON_VOID,           // any type except void
   ST_ANY_TYPE,               // any type, including functions and void
+
+  // for polymorphic builtin *return* ("PRET") type algorithms
+  ST_PRET_STRIP_REF,         // strip reference and volatileness from 1st arg
+  ST_PRET_PTM,               // ptr-to-member: union CVs, 2nd arg atType
+  ST_PRET_ARITH_CONV,        // "usual arithmetic conversions" (5 para 9) on 1st, 2nd arg
+  ST_PRET_FIRST,             // 1st arg type
+  ST_PRET_FIRST_PTR2REF,     // 1st arg ptr type -> ref type
+  ST_PRET_SECOND,            // 2nd arg type
+  ST_PRET_SECOND_PTR2REF,    // 2nd arg ptr type -> ref type
+  ST_PRET_ARITH_CONV_23,     // "usual arithmetic conversions" on 2nd, 3rd arg
 
   NUM_SIMPLE_TYPES,
   ST_BITMASK = 0xFF          // for extraction for OR with CVFlags
@@ -215,6 +225,10 @@ inline bool isFloatType(SimpleTypeId id)            { return !!(simpleTypeInfo(i
 
 inline bool isArithmeticType(SimpleTypeId id)    // 3.9.1 para 8
   { return !!(simpleTypeInfo(id).flags & (STF_FLOAT | STF_INTEGER)); }
+                                              
+// true if this is not one of the polymorphic types, impl. hacks, etc.
+inline bool isConcreteSimpleType(SimpleTypeId id)
+  { return id <= ST_VOID; }
 
 inline char const *toString(SimpleTypeId id)        { return simpleTypeName(id); }
 

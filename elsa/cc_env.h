@@ -253,10 +253,11 @@ private:     // funcs
 
   void addBuiltinUnaryOp(OverloadableOp op, Type *x);
 
-  void addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
-  void addBuiltinBinaryOp(OverloadableOp op, PredicateCandidateSet::PreFilter pre,
-                                             PredicateCandidateSet::PostFilter post,
-                                             bool isAssignment = false);
+  void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op, Type *x, Type *y);
+  void addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
+                          PredicateCandidateSet::PreFilter pre,
+                          PredicateCandidateSet::PostFilter post,
+                          bool isAssignment = false);
   void addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset);
 
   // this is an internal function that should only be called by
@@ -548,7 +549,7 @@ public:      // funcs
                                                               
   // create a built-in candidate for operator overload resolution
   Variable *createBuiltinUnaryOp(OverloadableOp op, Type *x);
-  Variable *createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y);
+  Variable *createBuiltinBinaryOp(Type *retType, OverloadableOp op, Type *x, Type *y);
 
   // several steps of the declaration creation process, broken apart
   // to aid sharing among D_name_tcheck and makeUsingAliasFor; best

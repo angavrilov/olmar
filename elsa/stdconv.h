@@ -64,7 +64,10 @@ ENUM_BITWISE_AND(StandardConversion)
 // for '|', some care should be taken to ensure you're not
 // ORing together nonzero elements from the same group
 ENUM_BITWISE_OR(StandardConversion)
-                                               
+
+// allow creation of masks for turning off bits
+ENUM_BITWISE_NOT(StandardConversion, SC_ERROR);
+
 // render in C++ syntax as bitwise OR of the constants above
 string toString(StandardConversion c);
 
@@ -101,6 +104,19 @@ StandardConversion getStandardConversion(
   // (13.3.1 para 5 bullet 3)
   bool destIsReceiver = false
 );
+
+
+// reverse-engineer a previous conversion that involved a
+// polymorphic destination type
+Type *getConcreteDestType(TypeFactory &tfac, Type *srcType,
+                          StandardConversion sconv,
+                          SimpleTypeId destPolyType);
+
+// cppstd section 5, para 9
+Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right);
+
+// cppstd 4.5
+SimpleTypeId applyIntegralPromotions(Type *t);
 
 
 // testing interface, for use by the type checker

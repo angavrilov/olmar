@@ -685,6 +685,208 @@ bool isIntegerPromotion(AtomicType const *src, AtomicType const *dest)
 }
 
 
+Type *makeSimpleType(TypeFactory &tfac, SimpleTypeId id)
+{
+  return tfac.getSimpleType(SL_UNKNOWN, id);
+}
+
+Type *getConcreteDestType(TypeFactory &tfac, Type *srcType,
+                          StandardConversion sconv,
+                          SimpleTypeId destPolyType)
+{                 
+  // move 'srcType' closer to the actual dest type according to group 1
+  if (sconv & SC_LVAL_TO_RVAL) {
+    srcType = srcType->getAtType();
+    sconv &= ~SC_LVAL_TO_RVAL;
+  }
+  else {
+    // I don't think any other group 1 is possible when
+    // converting to a polymorphic type
+    xassert(!( sconv & SC_GROUP_1_MASK ));
+  }
+
+  // group 3: I believe this is impossible too
+  xassert(!( sconv & SC_GROUP_3_MASK ));
+
+  // so now we only have group 2 to deal with
+  xassert(sconv == (sconv & SC_GROUP_2_MASK));
+
+  // if no conversions remain, we're done
+  if (sconv == SC_IDENTITY) {
+    return srcType;
+  }
+
+  switch (destPolyType) {
+    // if this fails, the caller most likely failed to recognize
+    // that it could answer its question directly
+    default: xfailure("bad polymorphic type");
+
+    // the following includes some guesswork... there are probably
+    // bugs here; for now, I generally prefer to return something
+    // than to fail an assertion
+
+    case ST_PROMOTED_INTEGRAL:
+      // most likely SC_INT_PROM; I only promote to ST_INT
+      return makeSimpleType(tfac, ST_INT);
+
+    case ST_PROMOTED_ARITHMETIC:
+      if (sconv == SC_INT_PROM) {
+        return makeSimpleType(tfac, ST_INT);
+      }
+      else {
+        return makeSimpleType(tfac, ST_DOUBLE);
+      }
+
+    // not sure what conversions would be needed here..
+    case ST_INTEGRAL:
+    case ST_ARITHMETIC:
+    case ST_ARITHMETIC_NON_BOOL:
+      return makeSimpleType(tfac, ST_INT);
+
+    case ST_ANY_OBJ_TYPE:
+    case ST_ANY_NON_VOID:
+    case ST_ANY_TYPE:
+      // I really have no idea what could cause a conversion
+      // here, so I will go ahead and complain
+      xfailure("I don't think this is possible; conversion to very broad polymorphic type?");
+      return makeSimpleType(tfac, ST_INT);    // silence warning...
+  }
+}
+
+     
+void getIntegerStats(SimpleTypeId id, int &length, int &uns)
+{
+  switch (id) {
+    default: xfailure("bad id for getIntegerLength");
+
+    case ST_INT:                  length=0; uns=0; return;
+    case ST_UNSIGNED_INT:         length=0; uns=1; return;
+
+    case ST_LONG_INT:             length=1; uns=0; return;
+    case ST_UNSIGNED_LONG_INT:    length=1; uns=1; return;
+
+    case ST_LONG_LONG:            length=2; uns=0; return;
+    case ST_UNSIGNED_LONG_LONG:   length=2; uns=1; return;
+  }
+}
+
+// cppstd section 5 para 9
+// and C99 secton 6.3.1.8 para 1
+Type *usualArithmeticConversions(TypeFactory &tfac, Type *left, Type *right)
+{
+  // if either operand is of type long double, [return] long double
+  if (left->isSimple(ST_LONG_DOUBLE)) { return left; }
+  if (right->isSimple(ST_LONG_DOUBLE)) { return right; }
+
+  // similar for double
+  if (left->isSimple(ST_DOUBLE)) { return left; }
+  if (right->isSimple(ST_DOUBLE)) { return right; }
+
+  // and float
+  if (left->isSimple(ST_FLOAT)) { return left; }
+  if (right->isSimple(ST_FLOAT)) { return right; }
+
+  // now apply integral promotions (4.5)
+  SimpleTypeId leftId = applyIntegralPromotions(left);
+  SimpleTypeId rightId = applyIntegralPromotions(right);
+
+  // At this point, both cppstd and C99 go into gory detail
+  // case-analyzing the types (which are both integral types at least
+  // 'int' or bigger/wider).  However, the effect of both analyses is
+  // to simply compute the least upper bound over the lattice of the
+  // "all values can be represented by" relation.  This relation
+  // is always an extension of the following minimal one:
+  //
+  //        long long       ------->    unsigned long long
+  //           ^                                ^
+  //           |                                |
+  //          long          ------->      unsigned long
+  //           ^                                ^
+  //           |                                |
+  //          int           ------->       unsigned int
+  //
+  // Additional implementation-specific edges may be added when the
+  // representation ranges allow.  For example if 'long' is 64 bits
+  // and 'unsigned int' is 32 bits, then there will be an edge from
+  // 'unsigned int' to 'long', and that edge participates in the
+  // least-upper-bound computation.  I play it conservative and
+  // compute my LUB over just the minimal one displayed above.
+
+  // mod out the length (C99 term: "conversion rank") and unsignedness
+  int leftLength, leftUns;
+  getIntegerStats(leftId, leftLength, leftUns);
+  int rightLength, rightUns;
+  getIntegerStats(rightId, rightLength, rightUns);
+
+  // least upper bound of a product lattice
+  int lubLength = max(leftLength, rightLength);
+  int lubUns = max(leftUns, rightUns);
+
+  // put them back together
+  static SimpleTypeId const map[3 /*length*/][2 /*unsignedness*/] = {
+    { ST_INT,           ST_UNSIGNED_INT },
+    { ST_LONG_INT,      ST_UNSIGNED_LONG_INT },
+    { ST_LONG_LONG,     ST_UNSIGNED_LONG_LONG }
+  };
+  SimpleTypeId lubId = map[lubLength][lubUns];
+  
+  return makeSimpleType(tfac, lubId);
+
+  #if 0    // old case analysis
+  // if either operand is unsigned long, [return] unsigned long
+  if (leftId == ST_UNSIGNED_LONG || rightId == ST_UNSIGNED_LONG)
+    { return makeSimpleType(tfac, ST_UNSIGNED_LONG); }
+
+  // if one is long int and the other is unsigned int, pick
+  // either long int or unsigned long int, whichever is smaller
+  // and can hold all values
+  //
+  // I choose unsigned long int, making nominal 32-bit assumptions.
+  if ((leftId == ST_LONG_INT && rightId == ST_UNSIGNED_INT) ||
+      (rightId == ST_LONG_INT && leftId == ST_UNSIGNED_INT))
+    { return makeSimpleType(tfac, ST_UNSIGNED_LONG_INT); }
+
+  // if either is long, return long
+  if (leftId == ST_LONG_INT || rightId == ST_LONG_INT)
+    { return makeSimpleType(tfac, ST_LONG_INT); }
+
+  // if either is unsigned, return unsigned
+  if (leftId == ST_UNSIGNED_INT || rightId == ST_UNSIGNED_INT)
+    { return makeSimpleType(tfac, ST_UNSIGNED_INT); }
+
+  // only remaining case: both are ST_INT
+  xassert(leftId == ST_INT && rightId == ST_INT);
+  return makeSimpleType(tfac, ST_INT);
+  #endif // 0
+}
+
+
+// cppstd 4.5
+SimpleTypeId applyIntegralPromotions(Type *t)
+{
+  // since I only promote to 'int', this is easy
+
+  if (!t->isSimpleType()) {    // enumerations, mainly
+    return ST_INT;
+  }
+  SimpleTypeId id = t->asSimpleTypeC()->type;
+
+  switch (id) {
+    case ST_CHAR:
+    case ST_SIGNED_CHAR:
+    case ST_UNSIGNED_CHAR:
+    case ST_SHORT_INT:
+    case ST_UNSIGNED_SHORT_INT:
+    case ST_WCHAR_T:
+    case ST_BOOL:
+      return ST_INT;    // promote smaller integer values
+
+    default:
+      return id;        // keep everything else
+  }
+}
+
+
 void test_getStandardConversion(
   Env &env, SpecialExpr special, Type const *src, Type const *dest,
   int expected)

@@ -44,6 +44,88 @@ void Candidate::conversionDescriptions() const
 }
 
 
+Type *OverloadResolver::getReturnType(Candidate const *winner) const
+{
+  FunctionType *ft = winner->var->type->asFunctionType();
+  Type *retType = ft->retType;
+  if (!retType->isSimpleType()) {
+    return retType;      // easy
+  }
+
+  SimpleTypeId retId = retType->asSimpleTypeC()->type;
+  if (isConcreteSimpleType(retId)) {
+    return retType;      // also easy
+  }
+
+  // At this point, we do not have a concrete return type, but
+  // rather than algorithm for computing a return type given
+  // the types of the parameters.
+  //
+  // However, we also do not have easy access to the parameter types
+  // if they are polymorphic, which they must be for us to not have
+  // had a concrete type above.  What we have instead is the argument
+  // types and the conversion sequences that lead to the parameter
+  // types, so we need to use them to find the actual parameter types.
+
+  ArrayStack<Type*> concreteParamTypes;
+  int i = 0;
+  SFOREACH_OBJLIST(Variable, ft->params, paramIter) {
+    // get the polymorphic param type
+
+    // have:
+    Type *argType = args[i].type;                            // arg type
+    ImplicitConversion const &conv = winner->conversions[i]; // conversion
+    Type *paramType = paramIter.data()->type;    // param type, possibly polymorphic
+
+    // want: concrete parameter type
+    concreteParamTypes.push(conv.getConcreteDestType(env.tfac, argType, paramType));
+
+    i++;
+  }
+
+  // Ok!  Now we have some concrete parameter types, and can apply
+  // the algorithm specified by 'retId'.
+  switch (retId) {                                    
+    // if this fails, we should have detected above that a concrete
+    // return type was available
+    default: xfailure("bad return type algorithm id");
+
+    // e.g.: T operator++ (VQ T&, int)
+    case ST_PRET_STRIP_REF: {
+      Type *vqT = concreteParamTypes[0]->getAtType();
+      return env.tfac.setCVQualifiers(SL_UNKNOWN, CV_NONE, vqT, NULL /*syntax*/);
+    }
+
+    // see ArrowStarCandidateSet::instantiateCandidate
+    case ST_PRET_PTM:
+      xfailure("ST_PRET_PTM is handled elsewhere");
+
+    // see E_binary::itcheck_x and resolveOverloadedBinaryOperator
+    case ST_PRET_FIRST_PTR2REF:
+    case ST_PRET_SECOND_PTR2REF:
+      xfailure("ST_PRET_*_PTR2REF is handled elsewhere");
+
+    // e.g.: LR operator* (L, R)
+    case ST_PRET_ARITH_CONV:
+      return usualArithmeticConversions(env.tfac, 
+               concreteParamTypes[0], concreteParamTypes[1]);
+
+    // e.g.: L operator<< (L, R)
+    case ST_PRET_FIRST:
+      return concreteParamTypes[0];
+
+    // e.g.: T* operator+ (ptrdiff_t, T*)
+    case ST_PRET_SECOND:
+      return concreteParamTypes[1];
+
+    // e.g.: LR operator? (bool, L, R)
+    case ST_PRET_ARITH_CONV_23:
+      return usualArithmeticConversions(env.tfac,
+               concreteParamTypes[1], concreteParamTypes[2]);
+  }
+}
+
+
 // ------------------ resolveOverload --------------------
 // prototypes
 int compareConversions(ArgumentInfo const &src,
@@ -416,12 +498,15 @@ CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
 // selectBestCandidate() templatized function into overload.h
 Variable *selectBestCandidate_templCompoundType(TemplCandidates &resolver)
 {
-  Variable *dummy = NULL; // dsw: this dummy idiom is dumb
+  Variable *dummy = NULL; 
+    // dsw: this dummy idiom is dumb
+    // sm: horsepucky!
+
   return selectBestCandidate(resolver, dummy);
 }
 
 
-Variable *OverloadResolver::resolve(bool &wasAmbig)
+Candidate const *OverloadResolver::resolveCandidate(bool &wasAmbig)
 {
   wasAmbig = false;
 
@@ -481,6 +566,17 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
     return NULL;
   }
 
+  return winner;
+}
+
+
+Variable *OverloadResolver::resolve(bool &wasAmbig)
+{
+  Candidate const *winner = resolveCandidate(wasAmbig);
+  if (!winner) {
+    return NULL;
+  }
+
   // dsw: I've decided to agressively instantiate the template since
   // everything downstream from here seems to assume that it has not
   // gotten a template but a real variable with a real type etc.
@@ -503,7 +599,6 @@ Variable *OverloadResolver::resolve(bool &wasAmbig)
 
   return retV;
 }
-
 
 Variable *OverloadResolver::resolve()
 {

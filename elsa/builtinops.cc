@@ -42,11 +42,12 @@ STATICDEF bool PredicateCandidateSet::Inst::equalFn(Type const *t1, Type const *
 }
 
 
-PredicateCandidateSet::PredicateCandidateSet(PreFilter r, PostFilter o)
+PredicateCandidateSet::PredicateCandidateSet(SimpleTypeId retId, PreFilter r, PostFilter o)
   : instantiations(&Inst::getKeyFn,
                    &Inst::hashFn,
                    &Inst::equalFn),
     ambigInst(NULL),
+    retAlgorithm(retId),
     pre(r),
     post(o),
     generation(0)
@@ -178,9 +179,13 @@ void PredicateCandidateSet::instantiateCandidate(Env &env,
 
 Variable *PredicateCandidateSet::makeNewCandidate(Env &env,
   OverloadableOp op, Type *T)
-{
+{ 
+  // return type is always concrete for predicate set
+  xassert(isConcreteSimpleType(retAlgorithm));      
+  Type *retType = env.getSimpleType(SL_INIT, retAlgorithm);
+
   // parameters are symmetric
-  return env.createBuiltinBinaryOp(op, T, T);
+  return env.createBuiltinBinaryOp(retType, op, T, T);
 }
 
 
@@ -202,7 +207,7 @@ void PredicateCandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolv
 
   if (!ambigInst) {
     Type *t_void = env.getSimpleType(SL_INIT, ST_VOID);
-    ambigInst = env.createBuiltinBinaryOp(op, t_void, t_void);
+    ambigInst = env.createBuiltinBinaryOp(t_void, op, t_void, t_void);
   }
   resolver.addAmbiguousBinaryCandidate(ambigInst);
 }
@@ -210,8 +215,8 @@ void PredicateCandidateSet::addAmbigCandidate(Env &env, OverloadResolver &resolv
 
 
 // ------------------ AssignmentCandidateSet -----------------
-AssignmentCandidateSet::AssignmentCandidateSet(PreFilter r, PostFilter o)
-  : PredicateCandidateSet(r, o)
+AssignmentCandidateSet::AssignmentCandidateSet(SimpleTypeId retId, PreFilter r, PostFilter o)
+  : PredicateCandidateSet(retId, r, o)
 {}
 
 
@@ -249,8 +254,10 @@ Variable *AssignmentCandidateSet::makeNewCandidate(Env &env,
   // instantiate volatile versions of types that don't already
   // have volatile versions present
 
+  xassert(retAlgorithm == ST_PRET_FIRST);
+
   Type *Tref = env.tfac.makeReferenceType(SL_INIT, T);
-  return env.createBuiltinBinaryOp(op, Tref, T);
+  return env.createBuiltinBinaryOp(Tref, op, Tref, T);
 }
 
 
@@ -387,9 +394,19 @@ void ArrowStarCandidateSet::instantiateCandidate(Env &env,
   }
 
   else {
+    // CV12 T& operator->* (CV1 C1*, CV2 T C2::*);
+    // 
+    // This is the only implementation of ST_PRET_PTM, but we don't need
+    // the code to say what to do; I leave that code in existence, however, 
+    // for uniformity.
+    Type *retType = rhsType->getAtType();                         // CV2 T
+    retType = env.tfac.applyCVToType(SL_UNKNOWN, lhsType->getAtType()->getCVFlags(),
+                                     retType, NULL /*syntax*/);   // CV12 T
+    retType = env.makeReferenceType(SL_UNKNOWN, retType);         // CV12 T&
+
     // need to make a new instantiaton
     ic = new Inst(pair,
-      env.createBuiltinBinaryOp(OP_ARROW_STAR, lhsType, rhsType));
+      env.createBuiltinBinaryOp(retType, OP_ARROW_STAR, lhsType, rhsType));
 
     instantiations.add(&(ic->types), ic);
 

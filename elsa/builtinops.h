@@ -94,6 +94,9 @@ protected:   // data
   // instantiation of the ambiguous candidate
   Variable *ambigInst;
 
+  // return type algorithm
+  SimpleTypeId retAlgorithm;
+
   // then this pair of functions filters the argument types to a
   // binary operator in a pairwise analysis to instantiate a pattern
   PreFilter pre;
@@ -111,7 +114,7 @@ protected:   // funcs
   virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, Type *T);
 
 public:      // funcs
-  PredicateCandidateSet(PreFilter pre, PostFilter post);
+  PredicateCandidateSet(SimpleTypeId retId, PreFilter pre, PostFilter post);
   ~PredicateCandidateSet();
 
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
@@ -125,7 +128,7 @@ protected:   // funcs
   virtual Variable *makeNewCandidate(Env &env, OverloadableOp op, Type *T);
 
 public:      // funcs
-  AssignmentCandidateSet(PreFilter pre, PostFilter post);
+  AssignmentCandidateSet(SimpleTypeId retId, PreFilter pre, PostFilter post);
 
   virtual void instantiateBinary(Env &env, OverloadResolver &resolver,
     OverloadableOp op, Type *lhsType, Type *rhsType);

@@ -41,7 +41,7 @@ public:    // funcs
   operator bool () const { return kind != IC_NONE; }
 
   bool isAmbiguous() const { return kind == IC_AMBIGUOUS; }
-
+    
   // add specific conversion possibilities; automatically kicks
   // over to IC_AMBIGUOUS if there's already a conversion
   void addStdConv(StandardConversion scs);
@@ -49,7 +49,10 @@ public:    // funcs
                    StandardConversion second);
   void addEllipsisConv();
   void addAmbig() { kind = IC_AMBIGUOUS; }
-  
+
+  // reverse-engineer an already-computed conversion
+  Type *getConcreteDestType(TypeFactory &tfac, Type *srcType, Type *destType) const;
+
   // debugging
   // experiment: member function is called 'debugString', and
   // global function is called 'toString'

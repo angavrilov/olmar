@@ -5356,8 +5356,11 @@ Type *resolveOverloadedBinaryOperator(
     resolver.addBuiltinBinaryCandidates(op, args[0].type, args[1].type);
 
     // pick one
-    Variable *winner = resolver.resolve();
-    if (winner) {
+    bool dummy;
+    Candidate const *winnerCand = resolver.resolveCandidate(dummy);
+    if (winnerCand) {
+      Variable *winner = winnerCand->var;
+
       if (!e2) {
         // synthesize and tcheck a 0 for the second argument to postfix inc/dec
         e2 = new E_intLit(env.str("0"));
@@ -5397,10 +5400,27 @@ Type *resolveOverloadedBinaryOperator(
 
         // TODO: need to replace the arguments according to their
         // conversions (if any)
+
+        if (op == OP_BRACKETS) {
+          // just let the calling code replace it with * and +; that
+          // should get the right type automatically
+          return NULL;                              
+        }
+        else {
+          // get the correct return value, at least
+          Type *ret = resolver.getReturnType(winnerCand);
+          OVERLOADINDTRACE("computed built-in operator return type `" <<
+                           ret->toString() << "'");
+                           
+          // I'm surprised that Oink doesn't complain about this not
+          // being cloned... but since it appears unnecessary, there is
+          // no point, so I will leave it un-cloned.
+          return ret;
+        }
       }
     }
   }
- 
+
   // not replaced
   return NULL;
 }
@@ -5461,6 +5481,10 @@ Type *E_binary::itcheck_x(Env &env, Expression *&replacement)
       return ovlRet;
     }
   }
+
+  // TODO: much of what follows is obviated by the fact that
+  // 'resolveOverloadedBinaryOperator' now returns non-NULL for
+  // built-in operator candidates ...
 
   if (op == BIN_BRACKETS) {
     // built-in a[b] is equivalent to *(a+b)

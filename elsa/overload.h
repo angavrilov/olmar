@@ -177,6 +177,14 @@ public:      // funcs
   // NULL if there is no clear winner
   Variable *resolve(bool &wasAmbig);
   Variable *resolve();     // ignore ambiguity info
+  
+  // slightly richer interface: return the complete Candidate,
+  // which contains the Variable, but also the conversions;
+  // NOTE: the candidate will disappear when '*this' does!
+  Candidate const * /*serf*/ resolveCandidate(bool &wasAmbig);
+  
+  // determine the return value of a candidate
+  Type *getReturnType(Candidate const *winner) const;
 };
 
 

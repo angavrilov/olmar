@@ -503,7 +503,7 @@ public:
 };
 
 #define FOREACH_OPERATOR(iterName, table) \
-  for (OverloadableOpIter op(table, TABLESIZE(table)); !op.isDone(); op.adv())
+  for (OverloadableOpIter iterName(table, TABLESIZE(table)); !iterName.isDone(); iterName.adv())
 
 
 void Env::setupOperatorOverloading()
@@ -529,7 +529,8 @@ void Env::setupOperatorOverloading()
   //  "dummy scope for built-in operator functions");
 
   // this has to match the typedef in include/stddef.h
-  Type *t_ptrdiff_t = getSimpleType(SL_INIT, ST_INT);
+  SimpleTypeId ptrdiff_t_id = ST_INT;
+  Type *t_ptrdiff_t = getSimpleType(SL_INIT, ptrdiff_t_id);
 
   // some other useful types
   Type *t_int = getSimpleType(SL_INIT, ST_INT);
@@ -555,8 +556,8 @@ void Env::setupOperatorOverloading()
     addBuiltinUnaryOp(OP_PLUSPLUS, Tvr);
 
     // T operator++ (VQ T&, int);
-    addBuiltinBinaryOp(OP_PLUSPLUS, Tr, t_int);
-    addBuiltinBinaryOp(OP_PLUSPLUS, Tvr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_PLUSPLUS, Tr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_PLUSPLUS, Tvr, t_int);
   }
 
   // ------------ 13.6 para 4 ------------
@@ -572,8 +573,8 @@ void Env::setupOperatorOverloading()
     addBuiltinUnaryOp(OP_MINUSMINUS, Tvr);
 
     // T operator-- (VQ T&, int);
-    addBuiltinBinaryOp(OP_MINUSMINUS, Tr, t_int);
-    addBuiltinBinaryOp(OP_MINUSMINUS, Tvr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_MINUSMINUS, Tr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_MINUSMINUS, Tvr, t_int);
   }
 
   // ------------ 13.6 para 5 ------------
@@ -595,12 +596,12 @@ void Env::setupOperatorOverloading()
     addBuiltinUnaryOp(OP_MINUSMINUS, Tpvr);
 
     // T* operator++ (T* VQ &, int);
-    addBuiltinBinaryOp(OP_PLUSPLUS, Tpr, t_int);
-    addBuiltinBinaryOp(OP_PLUSPLUS, Tpvr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_PLUSPLUS, Tpr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_PLUSPLUS, Tpvr, t_int);
 
     // T* operator-- (T* VQ &, int);
-    addBuiltinBinaryOp(OP_MINUSMINUS, Tpr, t_int);
-    addBuiltinBinaryOp(OP_MINUSMINUS, Tpvr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_MINUSMINUS, Tpr, t_int);
+    addBuiltinBinaryOp(ST_PRET_STRIP_REF, OP_MINUSMINUS, Tpvr, t_int);
   }
 
   // ------------ 13.6 paras 6 and 7 ------------
@@ -635,7 +636,7 @@ void Env::setupOperatorOverloading()
   // ------------ 13.6 para 10 ------------
   {
     Type *T = getSimpleType(SL_INIT, ST_PROMOTED_INTEGRAL);
-    
+
     // T operator~ (T);
     addBuiltinUnaryOp(OP_BITNOT, T);
   }
@@ -649,11 +650,17 @@ void Env::setupOperatorOverloading()
     Type *L = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
     Type *R = getSimpleType(SL_INIT, ST_PROMOTED_ARITHMETIC);
 
-    static OverloadableOp const ops[] = {
+    static OverloadableOp const ops1[] = {
       OP_STAR,         // LR operator* (L, R);
       OP_DIV,          // LR operator/ (L, R);
       OP_PLUS,         // LR operator+ (L, R);
       OP_MINUS,        // LR operator- (L, R);
+    };
+    FOREACH_OPERATOR(op1, ops1) {
+      addBuiltinBinaryOp(ST_PRET_ARITH_CONV, op1, L, R);
+    }
+
+    static OverloadableOp const ops2[] = {
       OP_LESS,         // bool operator< (L, R);
       OP_GREATER,      // bool operator> (L, R);
       OP_LESSEQ,       // bool operator<= (L, R);
@@ -661,8 +668,8 @@ void Env::setupOperatorOverloading()
       OP_EQUAL,        // bool operator== (L, R);
       OP_NOTEQUAL      // bool operator!= (L, R);
     };
-    FOREACH_OPERATOR(op, ops) {
-      addBuiltinBinaryOp(op, L, R);
+    FOREACH_OPERATOR(op2, ops2) {
+      addBuiltinBinaryOp(ST_BOOL, op2, L, R);
     }
   }
 
@@ -672,24 +679,24 @@ void Env::setupOperatorOverloading()
     Type *Tp = makePtrType(SL_INIT, T);
 
     // T* operator+ (T*, ptrdiff_t);
-    addBuiltinBinaryOp(OP_PLUS, Tp, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUS, Tp, t_ptrdiff_t);
 
     // T& operator[] (T*, ptrdiff_t);
-    addBuiltinBinaryOp(OP_BRACKETS, Tp, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST_PTR2REF, OP_BRACKETS, Tp, t_ptrdiff_t);
 
     // T* operator- (T*, ptrdiff_t);
-    addBuiltinBinaryOp(OP_MINUS, Tp, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_MINUS, Tp, t_ptrdiff_t);
 
     // T* operator+ (ptrdiff_t, T*);
-    addBuiltinBinaryOp(OP_PLUS, t_ptrdiff_t, Tp);
+    addBuiltinBinaryOp(ST_PRET_SECOND, OP_PLUS, t_ptrdiff_t, Tp);
 
     // T& operator[] (ptrdiff_t, T*);
-    addBuiltinBinaryOp(OP_BRACKETS, t_ptrdiff_t, Tp);
+    addBuiltinBinaryOp(ST_PRET_SECOND_PTR2REF, OP_BRACKETS, t_ptrdiff_t, Tp);
   }
 
   // ------------ 13.6 para 14 ------------
   // ptrdiff_t operator-(T,T);
-  addBuiltinBinaryOp(OP_MINUS, rvalIsPointer, pointerToObject);
+  addBuiltinBinaryOp(ptrdiff_t_id, OP_MINUS, rvalIsPointer, pointerToObject);
 
   // summary of process:
   //   - enumerate pairs (U,V) such that left arg can convert
@@ -704,23 +711,23 @@ void Env::setupOperatorOverloading()
 
   // ------------ 13.6 para 15 ------------
   // bool operator< (T, T);
-  addBuiltinBinaryOp(OP_LESS, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(ST_BOOL, OP_LESS, rvalFilter, pointerOrEnum);
 
   // bool operator> (T, T);
-  addBuiltinBinaryOp(OP_GREATER, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(ST_BOOL, OP_GREATER, rvalFilter, pointerOrEnum);
 
   // bool operator<= (T, T);
-  addBuiltinBinaryOp(OP_LESSEQ, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(ST_BOOL, OP_LESSEQ, rvalFilter, pointerOrEnum);
 
   // bool operator>= (T, T);
-  addBuiltinBinaryOp(OP_GREATEREQ, rvalFilter, pointerOrEnum);
+  addBuiltinBinaryOp(ST_BOOL, OP_GREATEREQ, rvalFilter, pointerOrEnum);
 
   // ------------ 13.6 para 15 & 16 ------------
   // bool operator== (T, T);
-  addBuiltinBinaryOp(OP_EQUAL, rvalFilter, pointerOrEnumOrPTM);
+  addBuiltinBinaryOp(ST_BOOL, OP_EQUAL, rvalFilter, pointerOrEnumOrPTM);
 
   // bool operator!= (T, T);
-  addBuiltinBinaryOp(OP_NOTEQUAL, rvalFilter, pointerOrEnumOrPTM);
+  addBuiltinBinaryOp(ST_BOOL, OP_NOTEQUAL, rvalFilter, pointerOrEnumOrPTM);
 
   // ------------ 13.6 para 17 ------------
   {
@@ -732,12 +739,16 @@ void Env::setupOperatorOverloading()
       OP_BITAND,       // LR operator& (L,R);
       OP_BITXOR,       // LR operator^ (L,R);
       OP_BITOR,        // LR operator| (L,R);
-      OP_LSHIFT,       // L operator<< (L,R);
-      OP_RSHIFT        // L operator>> (L,R);
     };
     FOREACH_OPERATOR(op, ops) {
-      addBuiltinBinaryOp(op, L, R);
+      addBuiltinBinaryOp(ST_PRET_ARITH_CONV, op, L, R);
     }
+
+    // L operator<< (L,R);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_LSHIFT, L, R);
+
+    // L operator>> (L,R);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_RSHIFT, L, R);
   }
 
   // ------------ 13.6 para 18 ------------
@@ -759,8 +770,8 @@ void Env::setupOperatorOverloading()
       OP_MINUSEQ       // VQ L& operator-= (VQ L&, R);
     };
     FOREACH_OPERATOR(op, ops) {
-      addBuiltinBinaryOp(op, Lr, R);
-      addBuiltinBinaryOp(op, Lvr, R);
+      addBuiltinBinaryOp(ST_PRET_FIRST, op, Lr, R);
+      addBuiltinBinaryOp(ST_PRET_FIRST, op, Lvr, R);
     }
   }
 
@@ -776,7 +787,8 @@ void Env::setupOperatorOverloading()
   // this pattern captures both:
   // T: pointer, ptr-to-member, or enumeration ('para19_20filter')
   // T VQ & operator= (T VQ &, T);
-  addBuiltinBinaryOp(OP_ASSIGN, para19_20filter, anyType, true /*assignment*/);
+  addBuiltinBinaryOp(ST_PRET_FIRST, OP_ASSIGN, para19_20filter, 
+                     anyType, true /*isAssignment*/);
 
   // ------------ 13.6 para 21 ------------
   // 21: +=, -= for pointer type
@@ -790,12 +802,12 @@ void Env::setupOperatorOverloading()
     Type *Tpvr = tfac.makeReferenceType(SL_INIT, Tpv);
 
     // T* VQ & operator+= (T* VQ &, ptrdiff_t);
-    addBuiltinBinaryOp(OP_PLUSEQ, Tpr, t_ptrdiff_t);
-    addBuiltinBinaryOp(OP_PLUSEQ, Tpvr, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUSEQ, Tpr, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_PLUSEQ, Tpvr, t_ptrdiff_t);
 
     // T* VQ & operator-= (T* VQ &, ptrdiff_t);
-    addBuiltinBinaryOp(OP_MINUSEQ, Tpr, t_ptrdiff_t);
-    addBuiltinBinaryOp(OP_MINUSEQ, Tpvr, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_MINUSEQ, Tpr, t_ptrdiff_t);
+    addBuiltinBinaryOp(ST_PRET_FIRST, OP_MINUSEQ, Tpvr, t_ptrdiff_t);
   }
 
   // ------------ 13.6 para 22 ------------
@@ -818,8 +830,8 @@ void Env::setupOperatorOverloading()
       OP_BITOREQ       // VQ L& operator|= (VQ L&, R);
     };
     FOREACH_OPERATOR(op, ops) {
-      addBuiltinBinaryOp(op, Lr, R);
-      addBuiltinBinaryOp(op, Lvr, R);
+      addBuiltinBinaryOp(ST_PRET_FIRST, op, Lr, R);
+      addBuiltinBinaryOp(ST_PRET_FIRST, op, Lvr, R);
     }
   }
 
@@ -828,10 +840,10 @@ void Env::setupOperatorOverloading()
   addBuiltinUnaryOp(OP_NOT, t_bool);
 
   // bool operator&& (bool, bool);
-  addBuiltinBinaryOp(OP_AND, t_bool, t_bool);
+  addBuiltinBinaryOp(ST_BOOL, OP_AND, t_bool, t_bool);
 
   // bool operator|| (bool, bool);
-  addBuiltinBinaryOp(OP_OR, t_bool, t_bool);
+  addBuiltinBinaryOp(ST_BOOL, OP_OR, t_bool, t_bool);
 
   // ------------ 13.6 para 24 ------------
   // 24: ?: on arithmetic types
@@ -842,8 +854,9 @@ void Env::setupOperatorOverloading()
   //exitScope(dummyScope);
 
   // the default constructor for ArrayStack will have allocated 10
-  // items in each array; go back and resize them to their current
-  // length (since that won't change after this point)
+  // items in each array, which will then have grown as necessary; go
+  // back and resize them to their current length (since that won't
+  // change after this point)
   for (i=0; i < NUM_OVERLOADABLE_OPS; i++) {
     builtinUnaryOperator[i].consolidate();
   }
@@ -2580,21 +2593,24 @@ Variable *Env::createBuiltinUnaryOp(OverloadableOp op, Type *x)
 }
 
 
-void Env::addBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
+void Env::addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op, 
+                             Type *x, Type *y)
 {
+  Type *retType = getSimpleType(SL_INIT, retId);
   addBuiltinBinaryOp(op, new PolymorphicCandidateSet(
-    createBuiltinBinaryOp(op, x, y)));
+    createBuiltinBinaryOp(retType, op, x, y)));
 }
 
-void Env::addBuiltinBinaryOp(OverloadableOp op, PredicateCandidateSet::PreFilter pre,
-                                                PredicateCandidateSet::PostFilter post,
-                                                bool isAssignment)
+void Env::addBuiltinBinaryOp(SimpleTypeId retId, OverloadableOp op,
+                             PredicateCandidateSet::PreFilter pre,
+                             PredicateCandidateSet::PostFilter post,
+                             bool isAssignment)
 {
   if (isAssignment) {
-    addBuiltinBinaryOp(op, new AssignmentCandidateSet(pre, post));
+    addBuiltinBinaryOp(op, new AssignmentCandidateSet(retId, pre, post));
   }
   else {
-    addBuiltinBinaryOp(op, new PredicateCandidateSet(pre, post));
+    addBuiltinBinaryOp(op, new PredicateCandidateSet(retId, pre, post));
   }
 }
 
@@ -2604,7 +2620,8 @@ void Env::addBuiltinBinaryOp(OverloadableOp op, CandidateSet * /*owner*/ cset)
 }
 
 
-Variable *Env::createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
+Variable *Env::createBuiltinBinaryOp(Type *retType, OverloadableOp op,
+                                     Type *x, Type *y)
 {
   // PLAN:  Right now, I just leak a bunch of things.  To fix
   // this, I want to have the Env maintain a pool of Variables
@@ -2613,10 +2630,8 @@ Variable *Env::createBuiltinBinaryOp(OverloadableOp op, Type *x, Type *y)
   // specific T, and it rewrites an existing one from the pool
   // for me.  Later I give all the pool elements back.
 
-  Type *t_void = getSimpleType(SL_INIT, ST_VOID);
-
   Variable *v = declareFunction2arg(
-    t_void /*irrelevant*/, operatorName[op],
+    retType, operatorName[op],
     x, "x", y, "y",
     FF_BUILTINOP);
   v->setFlag(DF_BUILTIN);

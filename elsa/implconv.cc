@@ -62,6 +62,35 @@ void ImplicitConversion::addEllipsisConv()
 }
 
 
+Type *ImplicitConversion::getConcreteDestType
+  (TypeFactory &tfac, Type *srcType, Type *destType) const
+{
+  // these first two conditions are the same as at the top
+  // of OverloadResolver::getReturnType ...
+
+  if (!destType->isSimpleType()) {
+    return destType;      // easy
+  }
+
+  SimpleTypeId id = destType->asSimpleTypeC()->type;
+  if (isConcreteSimpleType(id)) {
+    return destType;      // also easy
+  }
+
+  // skip past the user-defined conversion, if any
+  StandardConversion sconv = scs;
+  if (kind == IC_USER_DEFINED) {
+    srcType = user->type->asFunctionType()->retType;
+    sconv = scs2;
+  }
+
+  // ask the standard conversion module what type results when using
+  // 'sconv' to convert from 'srcType' to the polymorphic 'destType'
+  SimpleTypeId destPolyType = destType->asSimpleTypeC()->type;
+  return ::getConcreteDestType(tfac, srcType, sconv, destPolyType);
+}
+  
+
 string ImplicitConversion::debugString() const
 {
   stringBuilder sb;

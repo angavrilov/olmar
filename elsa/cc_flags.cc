@@ -169,6 +169,16 @@ static SimpleTypeInfo const simpleTypeInfoArray[] = {
   { "<any_obj>",              0,    S(STF_NONE)                 },
   { "<non_void>",             0,    S(STF_NONE)                 },
   { "<any_type>",             0,    S(STF_NONE)                 },
+  
+
+  { "<pret_strip_ref>",       0,    S(STF_NONE)                 },
+  { "<pret_ptm>",             0,    S(STF_NONE)                 },
+  { "<pret_arith_conv>",      0,    S(STF_NONE)                 },
+  { "<pret_first>",           0,    S(STF_NONE)                 },
+  { "<pret_first_ptr2ref>",   0,    S(STF_NONE)                 },
+  { "<pret_second>",          0,    S(STF_NONE)                 },
+  { "<pret_second_ptr2ref>",  0,    S(STF_NONE)                 },
+  { "<pret_arith_conv_23>",   0,    S(STF_NONE)                 },
 };
 #undef S
 

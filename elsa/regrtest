@@ -375,7 +375,7 @@ testparse t0147.cc
 testparse t0148.cc
 testparse t0149.cc
 testparse t0150.cc
-failparse t0151.cc "known bug"
+testparse t0151.cc
 testparse t0152.cc
 testparse t0153.cc
 testparse t0154.cc
@@ -510,6 +510,7 @@ testparse t0278.cc
 testparse t0279.cc
 failparse t0280.cc "overloading + template arg application"
 failparse t0281.cc "STA_REFERENCE hack problem"
+testparse t0282.cc
 
 # another set of tests, generally isolated by Daniel
 testparse d0001.cc
@@ -604,7 +605,7 @@ testparse d0074.cc
 testparse d0075.cc
 testparse d0079.cc
 failparse d0080.cc "important: inheriting from dependent type"
-failparse d0084.cc "important: operator overloading ambiguity"
+testparse d0084.cc
 testparse d0087.cc
 testparse d0088.cc
 testparse d0089.cc
