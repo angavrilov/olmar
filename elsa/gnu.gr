@@ -2,7 +2,7 @@
 // extension to cc.gr for GNU C/C++ language extensions
 
 // expected statistics
-option shift_reduce_conflicts 132;
+option shift_reduce_conflicts 134;
 option reduce_reduce_conflicts 72;
 
 

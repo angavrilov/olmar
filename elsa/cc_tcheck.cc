@@ -2665,7 +2665,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
     // constructor or destructor
     else {
       StringRef nameString = name->asPQ_name()->name;
-      CompoundType *inClass = env.scope()->curCompound;
+      CompoundType *inClass = env.acceptingScope()->curCompound;
 
       // destructor
       if (nameString[0] == '~') {
@@ -2690,6 +2690,7 @@ void D_func::tcheck(Env &env, Declarator::Tcheck &dt, bool inGrouping)
         // some very similar conditions hold
         if (!inClass) {
           env.error("constructors must be class members");
+          return;    // otherwise would segfault below..
         }
         else if (nameString != inClass->name) {
           env.error(stringc

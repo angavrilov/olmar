@@ -1705,14 +1705,14 @@ nonterm(Member*) MemberDeclaration {
              spec->spec->isTS_classSpec() ||
              spec->spec->isTS_enumSpec()) {
            // ok
-           if (spec->spec->isTS_elaborated()) {                    
+           if (spec->spec->isTS_elaborated()) {
              // see similar rule in SimpleDeclaration for why I do this
              spec->dflags = (DeclFlags)(spec->dflags | DF_FORWARD);
            }
            return new MR_decl(loc, spec);
          }
          else {
-           trace("cancel") << loc 
+           trace("cancel") << loc
              << ": bare DeclSpecifier not starting with type keyword\n";
            return NULL;
          }
@@ -1721,9 +1721,9 @@ nonterm(Member*) MemberDeclaration {
   // publishing a superclass member; ambiguous with inner class
   // declaration (above) and ctor declaration (below), hence the
   // need for cancellation in both of those two
-  -> n:PQualifiedId ";"                              
+  -> n:PQualifiedId ";"
        { return new MR_publish(loc, n); }
-       
+
   // generalization of MR_publish
   -> "using" /*typename?*/ n:IdExpression ";"
        { return new MR_usingDecl(loc, new ND_usingDecl(n)); }
@@ -1734,16 +1734,35 @@ nonterm(Member*) MemberDeclaration {
 
   // declaration (with no definition) of a c/dtor or conversion
   // operator function
+  -> d:CDtorProtoDecl
+       { return new MR_decl(loc, d); }
+
+  // note above that "explicit" and "virtual" can't be mixed because the former
+  // is for ctors only and the latter can't be used with ctors (so a later stage
+  // of processing will filter it out)
+
+  // member template
+  -> d:TemplateDeclaration
+       { return new MR_template(loc, d); }
+
+  // template constructor
+  -> plist:TemplatePreamble d:CDtorProtoDecl
+       { return new MR_template(loc, new TD_proto(plist, d)); }
+}
+
+// declaration (with no definition) of a c/dtor or conversion
+// operator function
+nonterm(Declaration*) CDtorProtoDecl {
+  fun keep(m) { return m!=NULL; }
+
   // Q: what about pure virtual?
   // A: it's part of the MemberDeclarator
   -> flags:CDtorModifierSeq d:MemberDeclarator ";"
        { // 'd' is a Declarator
-         return new MR_decl(loc,
-           new Declaration(
-             flags,
-             new TS_simple(loc, ST_CDTOR),
-             FakeList<Declarator>::makeList(d)
-           )
+         return new Declaration(
+           flags,
+           new TS_simple(loc, ST_CDTOR),
+           FakeList<Declarator>::makeList(d)
          );
        }
   -> /*no modifier*/ d:MemberDeclarator ";"
@@ -1756,22 +1775,12 @@ nonterm(Member*) MemberDeclaration {
            return NULL;
          }
 
-         return new MR_decl(loc,
-           new Declaration(
-             DF_NONE,
-             new TS_simple(loc, ST_CDTOR),
-             FakeList<Declarator>::makeList(d)
-           )
+         return new Declaration(
+           DF_NONE,
+           new TS_simple(loc, ST_CDTOR),
+           FakeList<Declarator>::makeList(d)
          );
        }
-
-  // note above that "explicit" and "virtual" can't be mixed because the former
-  // is for ctors only and the latter can't be used with ctors (so a later stage
-  // of processing will filter it out)
-  
-  // member template
-  -> d:TemplateDeclaration
-       { return new MR_template(loc, d); }
 }
 
 nonterm(FakeList<Declarator>*) MemberDeclaratorList {
