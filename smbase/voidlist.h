@@ -47,7 +47,7 @@ protected:
   VoidNode *top;                     // (owner) first node, or NULL if list is empty
 
 private:
-  VoidList(VoidList const &obj)      {}  // not allowed
+  VoidList(VoidList const &obj);     // not allowed
 
 public:
   VoidList()                         { top=NULL; }
