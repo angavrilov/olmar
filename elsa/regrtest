@@ -1,0 +1,212 @@
+#!/bin/sh
+# regression tests
+
+# default values for user parameters
+skip=0
+big=0
+contin=0
+
+# counters
+curtest=0
+success=0
+failure=0
+unexSuccess=0
+unexFailure=0
+runOneTest=false
+
+usage() {
+cat <<EOF
+usage: $0 [options]
+  -skip <n>    skip the first <n> tests
+  -one <n>     run only test <n>
+  -big         run the big, timeconsuming tests
+  -contin      keep going even after a test fails (or succeeds) unexpectedly
+  -help        print this message
+EOF
+}
+
+# process args
+while [ "$1" != "" ]; do
+  case "$1" in
+    -skip)
+      shift
+      skip="$1"
+      ;;
+
+    -one)
+      shift
+      skip="$1"
+      runOneTest=true
+      ;;
+
+    -big)
+      big=1
+      ;;
+
+    -contin)
+      contin=1
+      ;;
+
+    -help)
+      usage
+      exit 0
+      ;;
+
+    *)
+      echo "unknown arg: $1"
+      usage
+      exit 2
+      ;;
+  esac
+
+  shift
+done
+
+# clear the logfile
+log=regrtest.log
+rm -f $log
+
+# write something to terminal and log
+log() {
+  echo "$@"
+  echo "$@" >> $log
+}
+
+
+# run a single test, and bail if it fails
+runTest() {
+  if ! runTestInternal "$@"; then
+    if [ $contin = 0 ]; then
+      exit 2
+    fi
+  fi
+}
+
+# run a single test, and return 0 if it succeeds
+runTestInternal() {
+  result=0
+
+  if [ "$curtest" -lt "$skip" ]; then
+    echo "[$curtest]: skipping $*"
+  else
+    # print a visually distinct banner
+    echo "------------ [$curtest] $* ------------"
+    ("$@")
+    result=$?
+    if [ $result -ne 0 ]; then
+      unexFailure=$[ $unexFailure + 1 ]
+      echo ""
+      log  "[$curtest] A regression test command failed:"
+      log  "  $*"
+    else
+      success=$[ $success + 1 ]
+    fi
+
+    if $runOneTest; then
+      # exit with code 0 if the test succeeded
+      exit $[ 1 - $success ]
+    fi
+  fi
+
+  curtest=$[ $curtest + 1 ]
+  return $result
+}
+
+# run a big test, only if the user wants to
+bigTest() {
+  if [ $big = 1 ]; then
+    runTest "$@"
+  fi
+}
+
+# run a test that is expected to fail
+failTest() {
+  reason="$1"
+  shift
+  if [ "$curtest" -lt "$skip" ]; then
+    echo "[$curtest]: (fail) skipping $*"
+  else
+    echo "------------ [$curtest] (fail) $* ------------"
+    if "$@"; then
+      unexSuccess=$[ $unexSuccess + 1 ]
+      echo ""
+      log  "[$curtest] A regression test that used to fail ($reason) now succeeds:"
+      log  "  $*"
+      if [ $contin = 0 ]; then
+        exit 2
+      fi
+    else
+      failure=$[ $failure + 1 ]
+      echo "Failed as expected: $reason"
+    fi
+
+    if $runOneTest; then
+      # exit with code 0 if the test failed
+      exit $[ 1 - $failure ]
+    fi
+  fi
+
+  curtest=$[ $curtest + 1 ]
+}
+
+# run a failing big test
+bigFail() {
+  if [ $big = 1 ]; then
+    failTest "$@"
+  fi
+}
+
+# grep for lines containing both words, in first argument source file
+grepBoth() {
+  grep -w $2 $1 | grep -w $3
+}
+
+
+# ---------- test C++ parser ------------
+# the gaps below are for the tests which don't work
+for fn in                                                                 \
+  t0001.cc   t0002.cc  t0003.cc  t0004.cc   t0005.cc   t0006.cc  t0007.cc \
+  t0008.cc   t0009.cc  t0010.cc  t0011.cc   t0012.cc   t0013.cc  t0014.cc \
+  t0014a.cc  t0015.cc  t0016.cc  t0017.cc   t0018.cc   t0019.cc  t0020.cc \
+  t0021.cc   t0022.cc  t0023.cc  t0024.cc   t0025.cc   t0026.cc  t0027.cc \
+  t0028.cc   t0029.cc  t0030.cc  t0030a.cc  t0030b.cc  t0031.cc  t0032.cc \
+  t0033.cc   t0034.cc  t0035.cc  t0036.cc   t0037.cc   t0038.cc  t0039.cc \
+  t0040.cc   t0041.cc  t0042.cc  t0043.cc   t0044.cc   t0045.cc  t0046.cc \
+  t0047.cc   t0048.cc  t0049.cc  t0050.cc   t0051.cc   t0052.cc  t0053.cc \
+  t0054.cc   t0055.cc  t0056.cc  t0057.cc   t0058.cc   t0059.cc  t0060.cc \
+  t0061.cc   t0062.cc  t0063.cc  t0064.cc   t0065.cc   t0066.cc  t0067.cc \
+  t0068.cc   t0069.cc  t0070.cc  t0071.cc   t0072.cc   t0073.cc  t0074.cc \
+  t0075.cc   t0076.cc  t0077.cc  t0078.cc              t0080.cc  t0081.cc \
+             t0083.cc            t0085.cc   t0100.cc   t0101.cc  t0102.cc \
+                       t0105.cc  t0106.cc                                 \
+    ; do
+  runTest ./ccparse in/$fn
+done
+
+for fn in in/std/*.cc; do
+  runTest ./ccparse "$fn"
+done
+
+make in/big
+for fn in in/big/*.i; do
+  runTest ./ccparse "$fn"
+done
+
+
+# --------- test C++ pretty-printer ---------
+# test files in cc.in
+#runTest make -C cc idem/cc.in
+
+
+# final arithmetic to report result
+echo ""
+echo "Successful tests:      $success"
+echo "Failed as expected:    $failure"    
+if [ $contin = 1 ]; then
+  echo "Unexpected success:    $unexSuccess"
+  echo "Unexpected failure:    $unexFailure"
+  if [ -f "$log" ]; then
+    cat "$log"
+  fi
+fi
+

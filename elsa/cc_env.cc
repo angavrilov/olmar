@@ -40,6 +40,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
     dependentTypeVar(NULL),
     errorVar(NULL)
 {
+  #define HERE HERE_SOURCELOC
+
   // create first scope
   SourceLoc emptyLoc = SL_UNKNOWN;
   scopes.prepend(new Scope(0 /*changeCount*/, emptyLoc));
@@ -48,7 +50,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   CompoundType *ct = new CompoundType(CompoundType::K_CLASS, str("type_info"));
   // TODO: put this into the 'std' namespace
   // TODO: fill in the proper fields and methods
-  type_info_const_ref = tfac.makeRefType(makeCVAtomicType(ct, CV_CONST));
+  type_info_const_ref = tfac.makeRefType(HERE,
+    makeCVAtomicType(HERE, ct, CV_CONST));
 
   // some special names; pre-computed (instead of just asking the
   // string table for it each time) because in certain situations
@@ -60,30 +63,30 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   constructorSpecialName = str("constructor-special");
   functionOperatorName = str("operator()");
 
-  dependentTypeVar = makeVariable(HERE_SOURCELOC, str("<dependentTypeVar>"),
-                                  getSimpleType(ST_DEPENDENT), DF_TYPEDEF);
+  dependentTypeVar = makeVariable(HERE, str("<dependentTypeVar>"),
+                                  getSimpleType(HERE, ST_DEPENDENT), DF_TYPEDEF);
   madeUpVariables.append(dependentTypeVar);
 
   // this is *not* a typedef, because I use it in places that I
   // want something to be treated as a variable, not a type
-  errorVar = makeVariable(HERE_SOURCELOC, str("<errorVar>"),
-                          getSimpleType(ST_ERROR), DF_NONE);
+  errorVar = makeVariable(HERE, str("<errorVar>"),
+                          getSimpleType(HERE, ST_ERROR), DF_NONE);
   madeUpVariables.append(errorVar);
 
   // create declarations for some built-in operators
   // [cppstd 3.7.3 para 2]
-  Type *t_void = getSimpleType(ST_VOID);
-  Type *t_voidptr = makePtrType(t_void);
+  Type *t_void = getSimpleType(HERE, ST_VOID);
+  Type *t_voidptr = makePtrType(HERE, t_void);
 
   // note: my stddef.h typedef's size_t to be 'int', so I use
   // 'int' directly here instead of size_t
-  Type *t_int = getSimpleType(ST_INT);
+  Type *t_int = getSimpleType(HERE, ST_INT);
 
   // but I do need a class called 'bad_alloc'..
   //   class bad_alloc;
   CompoundType *dummyCt;
   Type *t_bad_alloc =
-    makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE_SOURCELOC,
+    makeNewCompound(dummyCt, scope(), str("bad_alloc"), HERE,
                     TI_CLASS, true /*forward*/);
 
   // void* operator new(std::size_t sz) throw(std::bad_alloc);
@@ -111,6 +114,8 @@ Env::Env(StringTable &s, CCLang &L, TypeFactory &tf)
   declareFunction1arg(t_voidptr, "__builtin_next_arg",
                       t_voidptr, "p",
                       NULL /*exnType*/);
+                      
+  #undef HERE
 }
 
 Env::~Env()
@@ -136,7 +141,7 @@ void Env::declareFunction1arg(Type *retType, char const *funcName,
                               Type *arg1Type, char const *arg1Name,
                               Type *exnType)
 {
-  FunctionType *ft = makeFunctionType(retType, CV_NONE);
+  FunctionType *ft = makeFunctionType(HERE_SOURCELOC, retType, CV_NONE);
   Variable *p = makeVariable(HERE_SOURCELOC, str(arg1Name), arg1Type, DF_NONE);
   // 'p' doesn't get added to 'madeUpVariables' because it's not toplevel,
   // and it's reachable through 'var' (below)
@@ -836,9 +841,10 @@ CompoundType *Env::instantiateClass(
   // one more thing: even though it won't be entered into
   // the environment, callers like to have Variables that
   // stand for types, so make one
+  SourceLoc loc = tclass->typedefVar->loc;
   ret->typedefVar
-    = makeVariable(tclass->typedefVar->loc, instNameRef,
-                   makeType(ret), DF_TYPEDEF);
+    = makeVariable(loc, instNameRef,
+                   makeType(loc, ret), DF_TYPEDEF);
 
   return ret;
 }
@@ -894,7 +900,7 @@ Type *Env::makeNewCompound(CompoundType *&ct, Scope *scope,
   }
 
   // make the implicit typedef
-  Type *ret = makeType(ct);
+  Type *ret = makeType(loc, ct);
   Variable *tv = makeVariable(loc, name, ret, (DeclFlags)(DF_TYPEDEF | DF_IMPLICIT));
   ct->typedefVar = tv;
   if (name) {
@@ -920,7 +926,7 @@ Type *Env::error(char const *msg, bool disambiguates)
     errors.prepend(new ErrorMsg(
       stringc << "error: " << msg, false /*isWarning*/, loc(), disambiguates));
   }
-  return getSimpleType(ST_ERROR);
+  return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
 
@@ -931,7 +937,7 @@ Type *Env::warning(char const *msg)
     errors.prepend(new ErrorMsg(
       stringc << "warning: " << msg, true /*isWarning*/, loc(), false /*disambiguates*/));
   }
-  return getSimpleType(ST_ERROR);
+  return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
 
@@ -943,7 +949,7 @@ Type *Env::unimp(char const *msg)
 
   errors.prepend(new ErrorMsg(
     stringc << "unimplemented: " << msg, false /*isWarning*/, loc(), false /*disambiguates*/));
-  return getSimpleType(ST_ERROR);
+  return getSimpleType(SL_UNKNOWN, ST_ERROR);
 }
 
 
@@ -957,7 +963,7 @@ Type *Env::error(Type *t, char const *msg)
   if (t->containsErrors() ||
       t->containsTypeVariables()) {   // hack until template stuff fully working
     // no report
-    return getSimpleType(ST_ERROR);
+    return getSimpleType(SL_UNKNOWN, ST_ERROR);
   }
   else {
     // report; clashes never disambiguate

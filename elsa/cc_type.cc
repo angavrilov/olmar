@@ -1037,7 +1037,7 @@ Type *TypeFactory::cloneType(Type *src)
 }
 
 
-Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType,
+Type *TypeFactory::applyCVToType(SourceLoc loc, CVFlags cv, Type *baseType,
                                  TypeSpecifier *)
 {
   if (baseType->isError()) {
@@ -1070,7 +1070,7 @@ Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType,
         // we have to add another CV, so that means creating
         // a new CVAtomicType with the same AtomicType as 'baseType',
         // but with the new flags added
-        return makeCVAtomicType(atomic.atomic, atomic.cv | cv);
+        return makeCVAtomicType(loc, atomic.atomic, atomic.cv | cv);
       }
       break;
     }
@@ -1085,7 +1085,7 @@ Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType,
         return baseType;
       }
       else {
-        return makePointerType(ptr.op, ptr.cv | cv, ptr.atType);
+        return makePointerType(loc, ptr.op, ptr.cv | cv, ptr.atType);
       }
       break;
     }
@@ -1100,56 +1100,57 @@ Type *TypeFactory::applyCVToType(CVFlags cv, Type *baseType,
 }
 
 
-Type *TypeFactory::makeRefType(Type *underlying)
+Type *TypeFactory::makeRefType(SourceLoc loc, Type *underlying)
 {
   if (underlying->isError()) {
     return underlying;
   }
   else {
-    return makePointerType(PO_REFERENCE, CV_NONE, underlying);
+    return makePointerType(loc, PO_REFERENCE, CV_NONE, underlying);
   }
 }
 
 
-PointerType *TypeFactory::syntaxPointerType(
+PointerType *TypeFactory::syntaxPointerType(SourceLoc loc,
   PtrOper op, CVFlags cv, Type *type, D_pointer *)
 {
-  return makePointerType(op, cv, type);
+  return makePointerType(loc, op, cv, type);
 }
 
 
-FunctionType *TypeFactory::syntaxFunctionType(
+FunctionType *TypeFactory::syntaxFunctionType(SourceLoc loc,
   Type *retType, CVFlags cv, D_func *syntax)
 {
-  return makeFunctionType(retType, cv);
+  return makeFunctionType(loc, retType, cv);
 }
 
 
-PointerType *TypeFactory::makeTypeOf_this(
+PointerType *TypeFactory::makeTypeOf_this(SourceLoc loc,
   CompoundType *classType, FunctionType *methodType)
 {
-  CVAtomicType *tmpcvat = makeCVAtomicType(classType, methodType->cv);
-  return makePointerType(PO_POINTER, CV_CONST, tmpcvat);
+  CVAtomicType *at = makeCVAtomicType(loc, classType, methodType->cv);
+  return makePointerType(loc, PO_POINTER, CV_CONST, at);
 }
 
 
-FunctionType *TypeFactory::makeSimilarFunctionType(
+FunctionType *TypeFactory::makeSimilarFunctionType(SourceLoc loc,
   Type *retType, FunctionType *similar)
 {
-  return makeFunctionType(retType, similar->cv);
+  return makeFunctionType(loc, retType, similar->cv);
 }
 
 
-CVAtomicType *TypeFactory::getSimpleType(SimpleTypeId st, CVFlags cv)
+CVAtomicType *TypeFactory::getSimpleType(SourceLoc loc, 
+  SimpleTypeId st, CVFlags cv)
 {
   xassert((unsigned)st < (unsigned)NUM_SIMPLE_TYPES);
-  return makeCVAtomicType(&SimpleType::fixed[st], cv);
+  return makeCVAtomicType(loc, &SimpleType::fixed[st], cv);
 }
 
 
-ArrayType *TypeFactory::setArraySize(ArrayType *type, int size)
+ArrayType *TypeFactory::setArraySize(SourceLoc loc, ArrayType *type, int size)
 {
-  return makeArrayType(type->eltType, size);
+  return makeArrayType(loc, type->eltType, size);
 }
 
 
@@ -1183,7 +1184,8 @@ CVAtomicType BasicTypeFactory::unqualifiedSimple[NUM_SIMPLE_TYPES] = {
 };
 
 
-CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
+CVAtomicType *BasicTypeFactory::makeCVAtomicType(SourceLoc,
+  AtomicType *atomic, CVFlags cv)
 {
   if (cv==CV_NONE && atomic->isSimpleType()) {
     // since these are very common, and ordinary Types are immutable,
@@ -1192,36 +1194,29 @@ CVAtomicType *BasicTypeFactory::makeCVAtomicType(AtomicType *atomic, CVFlags cv)
     xassert((unsigned)(st.type) < (unsigned)NUM_SIMPLE_TYPES);
     return &(unqualifiedSimple[st.type]);
   }
-  
+
   return new CVAtomicType(atomic, cv);
 }
 
 
-PointerType *BasicTypeFactory::makePointerType(PtrOper op, CVFlags cv, Type *atType)
+PointerType *BasicTypeFactory::makePointerType(SourceLoc,
+  PtrOper op, CVFlags cv, Type *atType)
 {
   return new PointerType(op, cv, atType);
 }
 
 
-FunctionType *BasicTypeFactory::makeFunctionType(Type *retType, CVFlags cv)
+FunctionType *BasicTypeFactory::makeFunctionType(SourceLoc,
+  Type *retType, CVFlags cv)
 {
   return new FunctionType(retType, cv);
 }
 
 
-ArrayType *BasicTypeFactory::makeArrayType(Type *eltType, int size)
+ArrayType *BasicTypeFactory::makeArrayType(SourceLoc,
+  Type *eltType, int size)
 {
   return new ArrayType(eltType, size);
-}
-
-
-Type *BasicTypeFactory::makeRefType(Type *underlying)
-{
-  if (underlying->isError()) {
-    return underlying;
-  }
-
-  return makePointerType(PO_REFERENCE, CV_NONE, underlying);
 }
 
 
