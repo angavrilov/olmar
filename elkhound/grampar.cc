@@ -16,6 +16,8 @@
 
 #include <fstream.h>         // ifstream
 
+#define LIT_STR(s) LITERAL_LOCSTRING(grammarStringTable.add(s))
+
 
 // ------------------------- Environment ------------------------
 Environment::Environment(Grammar &G)
@@ -181,7 +183,7 @@ Terminal *astParseToken(Environment &env, LocString const &name)
   return t;
 }
 
-  
+
 // needed to ensure the GrowArray below has its values initialized
 // to false when the array expands
 class InitFalseBool {
@@ -219,11 +221,12 @@ void astParseTerminals(Environment &env, Terminals const &terms)
 
     // fill in any gaps in the code space; this is required because
     // later analyses assume the terminal code space is dense
-    SourceLocation dummyLoc;     // can't put directly in arg list b/c looks like an extern function decl!  C++ language parsing problem
+    //SourceLocation dummyLoc;     // can't put directly in arg list b/c looks like an extern function decl!  C++ language parsing problem
     for (int i=0; i<maxCode; i++) {
       if (!codeHasTerm[i].b) {
-        LocString dummy(dummyLoc, grammarStringTable.add(
-          stringc << "__dummy_filler_token" << i));
+        //LocString dummy(dummyLoc, grammarStringTable.add(
+        //  stringc << "__dummy_filler_token" << i));
+        LocString dummy = LIT_STR(stringc << "__dummy_filler_token" << i);
         env.g.declareToken(dummy, i, dummy);
       }
     }
@@ -361,6 +364,48 @@ void astParseDDM(Environment &env, Symbol *sym,
 }
 
 
+void synthesizeStartRule(GrammarAST *ast)
+{
+  // get the first nonterminal; this is the user's start symbol
+  if (ast->nonterms.isEmpty()) {
+    astParseError("you have to have at least one nonterminal");
+  }
+  NontermDecl *firstNT = ast->nonterms.first();
+
+  // find the name of the user's EOF token
+  TermDecl const *eof = NULL;
+  FOREACH_ASTLIST(TermDecl, ast->terms->decls, iter) {
+    if (iter.data()->code == 0) {
+      eof = iter.data();
+      break;
+    }
+  }
+  if (!eof) {
+    astParseError("you have to have an EOF token, with code 0");
+  }
+
+  // build a start production
+  RHSElt *rhs1 = new RH_name(LIT_STR("top").clone(), firstNT->name.clone());
+  RHSElt *rhs2 = new RH_name(LIT_STR("").clone(), eof->name.clone());
+  ASTList<RHSElt> *rhs = new ASTList<RHSElt>();
+  rhs->append(rhs1);
+  rhs->append(rhs2);
+  ProdDecl *startProd = new ProdDecl(rhs, LIT_STR(" return top; ").clone());
+
+  // build an even earlier start symbol
+  NontermDecl *earlyStartNT
+    = new NontermDecl(
+        LIT_STR("__EarlyStartSymbol").clone(),   // name
+        firstNT->type.clone(),                   // type
+        NULL,                                    // empty list of functions
+        new ASTList<ProdDecl>(startProd)         // productions
+      );
+
+  // put it into the AST
+  ast->nonterms.prepend(earlyStartNT);
+}
+
+
 void astParseNonterm(Environment &env, NontermDecl const *nt)
 {
   LocString const &name = nt->name;
@@ -384,6 +429,9 @@ void astParseNonterm(Environment &env, NontermDecl const *nt)
 void astParseProduction(Environment &env, Nonterminal *nonterm,
                         ProdDecl const *prodDecl)
 {
+  // is this the special start symbol I inserted?
+  bool synthesizedStart = nonterm->name.equals("__EarlyStartSymbol");
+
   // build a production; use 'this' as the tag for LHS elements
   Production *prod = new Production(nonterm, "this");
 
@@ -447,6 +495,10 @@ void astParseProduction(Environment &env, Nonterminal *nonterm,
 
       // synthesize one anyway so we can find more errors
       nonterm = env.g.getOrMakeNonterminal(symName);
+    }
+
+    if (term && term->termIndex==0 && !synthesizedStart) {
+      astParseError(symName, "you cannot use the EOF token in your rules");
     }
 
     if (symTag.equals("loc")) {
@@ -583,6 +635,9 @@ void readGrammarFile(Grammar &g, char const *fname)
       cout << "AST:\n";
       treeTop->debugPrint(cout, 2);
     }
+
+    // synthesize a rule "TrueStart -> Start EOF"
+    synthesizeStartRule(treeTop);
 
     // parse the AST into a Grammar
     traceProgress() << "parsing grammar AST..\n";

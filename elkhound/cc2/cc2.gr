@@ -30,7 +30,7 @@ terminals {
 
 
 // start symbol
-nonterm StartSymbol -> TranslationUnit L2_EOF;
+nonterm StartSymbol -> TranslationUnit;
 
 
 // map from my lexer's names into the Standard's names

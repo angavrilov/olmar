@@ -66,7 +66,7 @@ terminals {
 }
 
 nonterm[int] Start {
-  -> e:Exp L2_EOF      [ int ret = e->eval();
+  -> e:Exp             [ int ret = e->eval();
                          cout << "reduced Start: " << ret << endl;
                          e->decRefCt();
                          return ret;]

@@ -137,7 +137,7 @@ terminals {
 }
 
 
-nonterm[int] Start -> Stmts L2_EOF  [
+nonterm[int] Start -> Stmts  [
   D("exiting scope");
   leaveScope();
   R0;

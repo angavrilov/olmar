@@ -116,13 +116,6 @@ terminals {
 }
 
 
-// dummy first rule
-nonterm[TranslationUnit*] StartSymbol -> f:File L2_EOF
-[
-  //f->debugPrint(cout, 0);
-  return f;
-]
-
 nonterm[TranslationUnit*] File -> EnterScope t:TranslationUnit LeaveScope
   [ return t; ]
 

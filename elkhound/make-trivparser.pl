@@ -77,9 +77,9 @@ while (defined($line = <STDIN>)) {
   if (defined($nonterm)) {
     if (!defined($curNT)) {
       # this is the first nonterminal; insert dummy start rule
-      print("// dummy first rule\n",
-            "nonterm$nodeType DummyStart -> tree:$nonterm EOF [ return tree; ]\n",
-            "\n");
+      #print("// dummy first rule\n",
+      #      "nonterm$nodeType DummyStart -> tree:$nonterm EOF [ return tree; ]\n",
+      #      "\n");
     }
 
     $curNT = $nonterm;
