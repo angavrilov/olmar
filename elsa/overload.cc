@@ -111,6 +111,66 @@ void OverloadResolver::processPossiblyOverloadedVar(Variable *v)
 }
 
 
+// this is a simple tournament, as suggested in footnote 123,
+// cppstd 13.3.3 para 2
+template <class RESOLVER, class CANDIDATE>
+CANDIDATE *tournament(RESOLVER &resolver, int low, int high, CANDIDATE *dummy)
+{
+  if (low == high) {
+    // only one candidate
+    return resolver.candidates[low];
+  }
+
+  // divide the pool in half and select a winner from each half
+  int mid = (low+high+1)/2;
+    // 1,3 -> 2
+    // 1,2 -> 2
+    // 2,3 -> 3
+  CANDIDATE *left = tournament(resolver, low, mid-1, dummy);
+  CANDIDATE *right = tournament(resolver, mid, high, dummy);
+
+  // compare the candidates to get one that is not worse than the other
+  int choice = resolver.compareCandidates(left, right);
+  if (choice <= 0) {
+    return left;    // left is better, or neither is better or worse
+  }
+  else {
+    return right;   // right is better
+  }
+}
+
+
+// tournament, plus final linear scan to ensure it's the best; the
+// dummy argument is just to instantiate the 'CANDIDATE' type
+template <class RESOLVER, class CANDIDATE>
+CANDIDATE *selectBestCandidate(RESOLVER &resolver, CANDIDATE *dummy)
+{
+  // use a tournament to select a candidate that is not worse
+  // than any of those it faced
+  CANDIDATE *winner = tournament(resolver, 0, resolver.candidates.length()-1, dummy);
+
+  // now verify that the picked winner is in fact better than any
+  // of the other candidates (since the order is not necessarily linear)
+  for (int i=0; i < resolver.candidates.length(); i++) {
+    if (resolver.candidates[i] == winner) {
+      continue;    // skip it, no need to compare to itself
+    }
+
+    if (resolver.compareCandidates(winner, resolver.candidates[i]) == -1) {
+      // ok, it's better
+    }
+    else {
+      // not better, so there is no function that is better than
+      // all others
+      return NULL;
+    }
+  }
+
+  // 'winner' is indeed the winner
+  return winner;
+}
+
+
 Variable *OverloadResolver::resolve()
 {
   if (candidates.isEmpty()) {
@@ -125,32 +185,14 @@ Variable *OverloadResolver::resolve()
 
   // use a tournament to select a candidate that is not worse
   // than any of those it faced
-  Candidate const *winner =
-    pickWinner(0, candidates.length()-1);
-
-  // now verify that the picked winner is in fact better than any
-  // of the other candidates (since the order is not necessarily linear)
-  for (int i=0; i < candidates.length(); i++) {
-    if (candidates[i] == winner) {
-      continue;    // skip it, no need to compare to itself
-    }
-
-    if (compareCandidates(winner, candidates[i]) == -1) {
-      // ok, it's better
-    }
-    else {
-      // not better, so there is no function that is better than
-      // all others
-      if (errors) {
-        // TODO: expand this message
-        errors->addError(new ErrorMsg(
-          loc, "ambiguous overload, no function is better than all others", EF_NONE));
-      }
-      return NULL;
-    }
+  Candidate const *winner = selectBestCandidate(*this, (Candidate const*)NULL);
+  if (!winner) {
+    // TODO: expand this message
+    errors->addError(new ErrorMsg(
+      loc, "ambiguous overload, no function is better than all others", EF_NONE));
+    return NULL;
   }
 
-  // 'winner' is indeed the winner
   return winner->var;
 }
 
@@ -216,7 +258,7 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate(Variable *var)
       return NULL;
     }
   }
-  
+
   // extra parameters?
   if (!paramIter.isDone()) {
     if (paramIter.data()->value) {
@@ -233,34 +275,6 @@ Candidate * /*owner*/ OverloadResolver::makeCandidate(Variable *var)
   }
 
   return c.xfr();
-}
-
-
-// this is a simple tournament, as suggested in footnote 123,
-// cppstd 13.3.3 para 2
-Candidate *OverloadResolver::pickWinner(int low, int high)
-{
-  if (low == high) {
-    // only one candidate
-    return candidates[low];
-  }
-
-  // divide the pool in half and select a winner from each half
-  int mid = (low+high+1)/2;
-    // 1,3 -> 2
-    // 1,2 -> 2
-    // 2,3 -> 3
-  Candidate *left = pickWinner(low, mid-1);
-  Candidate *right = pickWinner(mid, high);
-
-  // compare the candidates to get one that is not worse than the other
-  int choice = compareCandidates(left, right);
-  if (choice <= 0) {
-    return left;    // left is better, or neither is better or worse
-  }
-  else {
-    return right;   // right is better
-  }
 }
 
 
@@ -717,3 +731,118 @@ bool isProperSubpath(CompoundType const *LS, CompoundType const *LD,
 
   return false;
 }
+
+
+// --------------------- ConversionResolver -----------------------
+ImplicitConversion getConversionOperator(
+  Env &env,
+  SourceLoc loc,
+  ErrorList * /*nullable*/ errors,
+  CompoundType *srcClass,          // ignore cv-qualification of receiver
+  Type *destType
+) {
+  ConversionResolver resolver(env, loc, errors, destType);
+
+  // for now, consider only conversion operators defined in the class
+  // itself; later, I'll implement a scheme to collect the list of
+  // conversions inherited, plus those in the class itself
+
+  // look up any conversion operators
+  Variable *set = srcClass->lookupVariable(env.conversionOperatorName, env);
+  if (set && set->overload) {    // for now, only if overloaded
+    SFOREACH_OBJLIST_NC(Variable, set->overload->set, iter) {
+      Variable *v = iter.data();
+      resolver.potentialCandidate(v);
+    }
+  }
+
+  return resolver.resolve();
+}
+
+
+ConversionResolver::~ConversionResolver()
+{}
+
+
+StandardConversion ConversionResolver::getSC(Variable *v)
+{
+  // compute the standard conversion that obtains the destination
+  // type, starting from what the conversion function yields
+  ArgumentInfo srcInfo(SE_NONE, v->type->asFunctionType()->retType);
+  return getStandardConversion(
+    NULL /*errorMsg*/,
+    srcInfo.special, srcInfo.type,      // conversion source
+    destType                            // conversion dest
+  );
+}
+
+
+int ConversionResolver::compareCandidates(Variable *left, Variable *right)
+{
+  return compareStandardConversions(
+    ArgumentInfo(SE_NONE, left->type->asFunctionType()->retType), getSC(left), destType,
+    ArgumentInfo(SE_NONE, right->type->asFunctionType()->retType), getSC(right), destType
+  );
+}
+
+
+void ConversionResolver::potentialCandidate(Variable *v)
+{
+  if (getSC(v) != SC_ERROR) {
+    // add this to the set of candidates
+    TRACE("overload", "  conversion candidate: " << v->toString() <<
+                      " at " << toString(v->loc));
+    candidates.push(v);
+  }
+}
+
+
+ImplicitConversion ConversionResolver::resolve()
+{
+  ImplicitConversion ic;
+  if (candidates.isEmpty()) {
+    // no candidates
+    return ic;
+  }
+
+  Variable *winner = selectBestCandidate(*this, (Variable*)NULL);
+  if (!winner) {
+    // ambiguous
+    ic.kind = ImplicitConversion::IC_AMBIGUOUS;
+  }
+  else {
+    ic.addUserConv(SC_IDENTITY, winner, getSC(winner));
+  }
+  return ic;
+}
+
+
+#if 0   // old
+ImplicitConversion makeConversionOperatorIC(Variable *v, Type *dest)
+{
+  ImplicitConversion ic;
+
+  // compute the standard conversion that obtains the destination
+  // type, starting from what the conversion function yields
+  ArgumentInfo srcInfo(SE_NONE, v->type->asFunctionType()->retType);
+  StandardConversion sc = getStandardConversion(
+    NULL /*errorMsg*/,
+    srcInfo.special, srcInfo.type,      // conversion source
+    dest                                // conversion dest
+  );
+
+  if (sc == SC_ERROR) {
+    // 'ic' is already the error IC
+  }
+  else {
+    ic.addUserConv(SC_IDENTITY,    // conversion to make receiver object
+                   v,              // conversion operator function itself
+                   sc);            // convert operator return to final type
+  }
+
+  return ic;
+}
+#endif // 0
+
+
+// EOF

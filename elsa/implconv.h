@@ -62,14 +62,14 @@ public:    // funcs
 ImplicitConversion getImplicitConversion(
   Env &env,            // type checking environment
   SpecialExpr special, // properties of the source expression
-  Type const *src,     // source type
-  Type const *dest     // destination type
+  Type *src,           // source type
+  Type *dest           // destination type
 );
 
 
 // testing interface, for use by type checker
 void test_getImplicitConversion(
-  Env &env, SpecialExpr special, Type const *src, Type const *dest,
+  Env &env, SpecialExpr special, Type *src, Type *dest,
   int expectedKind,      // ImplicitConversion::kind
   int expectedSCS,       // ImplicitConversion::scs
   int expectedUserLine,  // ImplicitConversion::user->loc's line number

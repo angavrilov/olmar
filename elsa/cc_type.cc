@@ -1087,7 +1087,7 @@ Variable const *FunctionType::getThisC() const
 CVFlags FunctionType::getThisCV() const
 {
   if (isMember()) {
-    // expect 'this' to be of type 'SomeClass cv * const', and
+    // expect 'this' to be of type 'SomeClass cv &', and
     // dig down to get that 'cv'
     return getThisC()->type->asPointerType()->atType->asCVAtomicType()->cv;
   }
@@ -1107,8 +1107,11 @@ string FunctionType::leftString(bool innerParen) const
   }
 
   // return type and start of enclosing type's description
-  if (flags & (FF_CONVERSION | FF_CTOR | FF_DTOR)) {
-    // don't print the return type, it's implicit
+  if (flags & (/*FF_CONVERSION |*/ FF_CTOR | FF_DTOR)) {
+    // don't print the return type, it's implicit       
+
+    // 7/18/03: changed so we print ret type for FF_CONVERSION,
+    // since otherwise I can't tell what it converts to!
   }
   else {
     sb << retType->leftString();

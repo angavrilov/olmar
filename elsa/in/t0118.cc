@@ -50,6 +50,43 @@ struct B {
 struct C : A {
 };
 
+
+struct D {
+  operator int();      // line 55
+  operator float();    // line 56
+};
+
+struct E {
+  operator char();     // line 60
+  operator float();    // line 61
+};
+
+struct F {                    
+  operator bool ();               // line 65
+  operator char ();               // line 66
+  operator signed char ();        // line 67
+  operator unsigned char ();      // line 68
+  operator short ();              // line 69
+  operator unsigned short ();     // line 70
+  operator int ();                // line 71
+  operator unsigned int ();       // line 72
+  operator long ();               // line 73
+  operator unsigned long ();      // line 74
+  operator float ();              // line 75
+  operator double ();             // line 76
+  operator long double ();        // line 77
+};
+
+class G {
+  operator A* ();                 // line 81
+  operator C* ();                 // line 82
+};
+
+class H {
+  operator A* ();                 // line 86
+  operator B* ();                 // line 87
+};
+
 // __getImplicitConversion(
 //   <expression with source type>,
 //   <expression with destination type>,
@@ -79,5 +116,49 @@ void f()
   __getImplicitConversion((C&)c, (B)b,
                           IC_USER_DEFINED, SC_PTR_CONV, 47, SC_IDENTITY);
 
+  // operator conversions
+  D d;
+  __getImplicitConversion((D)d, (int)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 55, SC_IDENTITY);
+  __getImplicitConversion((D)d, (float)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 56, SC_IDENTITY);
+
+  // int->char and float->char are both conversions, therefore it's ambiguous
+  __getImplicitConversion((D)d, (char)0,
+                          IC_AMBIGUOUS, 0,0,0);
+
+  E e;
+  // char->int is a promotion, therefore preferred
+  __getImplicitConversion(e, (int)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 60, SC_INT_PROM);
+  // float->double also a promotion
+  __getImplicitConversion(e, (double)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 61, SC_FLOAT_PROM);
+
+  F f;
+  __getImplicitConversion(f, (bool)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 65, SC_IDENTITY);
+  __getImplicitConversion(f, (unsigned short)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 70, SC_IDENTITY);
+  __getImplicitConversion(f, (double)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 76, SC_IDENTITY);
+                          
+  G g;
+  __getImplicitConversion(g, (A*)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 81, SC_IDENTITY);
+  __getImplicitConversion(g, (B*)0,
+                          IC_NONE, 0,0,0);
+  __getImplicitConversion(g, (C*)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 82, SC_IDENTITY);
+  __getImplicitConversion(g, (void*)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 81, SC_PTR_CONV);
+
+  H h;
+  __getImplicitConversion(h, (A*)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 86, SC_IDENTITY);
+  __getImplicitConversion(h, (B*)0,
+                          IC_USER_DEFINED, SC_IDENTITY, 87, SC_IDENTITY);
+  __getImplicitConversion(h, (void*)0,
+                          IC_AMBIGUOUS, 0,0,0);
 
 }
