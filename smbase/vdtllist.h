@@ -34,7 +34,7 @@ public:
   
   // special ctor which steals the list and then deallocates the header
   VoidTailList(VoidTailList *src)    { tail = NULL; steal(src); }
-  void steal(VoidTailList *src);
+  void steal(VoidTailList *src);     // deletes 'src'
 
   // this syntax just makes the implementation inherited from
   // 'VoidList' public, whereas it would default to private,

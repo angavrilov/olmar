@@ -221,6 +221,8 @@ string toString(int i);
 string toString(unsigned i);
 string toString(char c);
 string toString(long i);
+string toString(char const *str);
+string toString(float f);
 
 
 #endif // __STR_H

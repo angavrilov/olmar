@@ -30,7 +30,8 @@ public:
   ASTList(T *elt)                       : list() { prepend(elt); }
 
   // stealing ctor; among other things, since &src->list is assumed to
-  // point at 'this', this class can't have virtual functions
+  // point at 'src', this class can't have virtual functions;
+  // these ctors delete 'src'
   ASTList(ASTList<T> *src)              : list(&src->list) {}
   void steal(ASTList<T> *src)           { deleteAll(); list.steal(&src->list); }
 

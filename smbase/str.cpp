@@ -331,8 +331,21 @@ TOSTRING(int)
 TOSTRING(unsigned)
 TOSTRING(char)
 TOSTRING(long)
+TOSTRING(float)
 
 #undef TOSTRING
+
+// this one is more liberal than 'stringc << null' because it gets
+// used by the PRINT_GENERIC macro in my astgen tool
+string toString(char const *str)
+{
+  if (!str) {
+    return string("(null)");
+  }
+  else {
+    return string(str);
+  }
+}
 
 
 // ------------------ test code --------------------
