@@ -85,7 +85,7 @@ Each statement gives a unique numeric code (e.g. 3), a canonical
 name (e.g. TOK_MINUS), and an optional alias (e.g. "-").  Either the
 name or the alias may appear in the grammar productions, though the
 usual style is to use aliases for tokens that always have the same
-spelling (like "}"), and the name for others (like TOK_NUMBER).
+spelling (like "+"), and the name for others (like TOK_NUMBER).
 
 <p>
 Normally it's expected the tokens will be described in their own
@@ -121,7 +121,7 @@ The terminal functions are explained in the next sections.
 Terminals can have <tt>dup</tt> and <tt>del</tt> functions, just like
 nonterminals.  See <a href="#dup">below</a> for more information.
 
-<h2>3.3 classify <span style="color: red">(advanced)</span></h2>
+<h2>3.3 classify</h2>
 
 <p>
 In some situations, it is convenient to be able to alter the classification
@@ -359,6 +359,13 @@ or, for options that accept an argument:
 <blockquote>
   <tt>option </tt><i>option_name</i> <i>option_argument</i><tt>;</tt>
 </blockquote>
+The <i>option_name</i> is an identifier from among those listed below,
+and <i>option_argument</i> is an integer.
+
+<p>
+Option processing is implemented in 
+<a href="grampar.cc"><tt>grampar.cc</tt></a>,
+function <tt>astParseOptions</tt>.
 The various options are described in the following sections.
 
 <h2>5.1 useGCDefaults</h2>
@@ -422,6 +429,37 @@ inaccessible):
   option unreachable_nonterminals 3;
   option unreachable_terminals 2;
 </pre>
+
+<h2>5.4 allow_continued_nonterminals</h2>
+
+<p>
+By default, Elkhound will complain if there is more than one
+definition of a given nonterminal.  However, if you say
+<pre>
+  option allow_continued_nonterminals;
+</pre>
+then Elkhound will treat input like
+<pre>
+  nonterm(type) N {
+    -&gt; A ;
+  }
+  nonterm(type) N {
+    -&gt; B ;
+  }
+</pre>
+as equivalent to
+<pre>
+  nonterm(type) N {
+    -&gt; A ;
+    -&gt; B ;
+  }
+</pre>
+Note that the nonterminal types, if specified, must be identical.
+
+<p>
+This feature is mostly useful for automatically-generated grammars,
+particularly those created by textually combining elements from
+two or more human-written grammars.
 
 <h1>6. OCaml</h1>
 
@@ -538,7 +576,229 @@ specification, then no resolution is done, and the GLR algorithm will
 split the parse stack at parse time as necessary.
 
 
-<!-- this is TODO ... <h2>7.4 Examples</h2> -->
+<h2>7.4 Example: Arithmetic grammar</h2>
+
+<p>
+The canonical example of using prec/assoc is to give a grammar for
+arithmetic expressions, using an ambiguous grammar (for convenience)
+and prec/assoc to resolve the ambiguities.  The grammar is typically
+(e.g., <a href="examples/arith/arith.gr">arith.gr</a>) something like
+<pre>
+  nonterm Expr {
+    -&gt; Expr "+" Expr ;
+    -&gt; Expr "-" Expr ;
+    -&gt; Expr "*" Expr ;
+    -&gt; Expr "/" Expr ;
+    -&gt; TOK_NUMBER ;
+  }
+</pre>
+with a precedence specification like
+<pre>
+  precedence {
+    left 20 "*" "/";
+    left 10 "+" "-";
+  }
+</pre>
+
+<p>
+Consider parsing the input "1 + 2 * 3".  This should parse like
+"1 + (2 * 3)".  The crucial moment during the parsing algorithm
+comes when the parser sees the "*" in its lookahead.  At that moment, 
+the parse stack looks like
+<pre>
+  Expr(2)                       <-- top of stack (most recently shifted)
+  +
+  Expr(1)                       <-- bottom of stack
+</pre>
+
+<p>
+If the parser were to <em>reduce</em>, via the rule "<tt>Expr -&gt; Expr + Expr</tt>",
+then the stack would become
+<pre>
+  Expr(Expr(1)+Expr(2))         <-- top/bottom of stack
+</pre>
+which means the final parse would be "(1 + 2) * 3", which is wrong.
+
+<p>
+Alternatively, if the parser were to <em>shift</em>, the stack becomes
+<pre>
+  *                             &lt;-- top of stack
+  Expr(2)
+  +
+  Expr(1)                       &lt;-- bottom of stack
+</pre>
+Then after one more shift, we have
+<pre>
+  Expr(3)                       &lt;-- top of stack
+  *
+  Expr(2)
+  +
+  Expr(1)                       &lt;-- bottom of stack
+</pre>
+and the only choice is to reduce via "<tt>Expr -&gt; Expr * Expr</tt>", leading to
+the configuration
+<pre>
+  Expr(Expr(2)*Expr(3))         &lt;-- top of stack
+  +
+  Expr(1)                       &lt;-- bottom of stack
+</pre>
+and one more reduce yields
+<pre>
+  Expr( Expr(1) + Expr(Expr(2)*Expr(3)) )    &lt;-- top/bottom
+</pre>
+which is the desired "1 + (2 * 3)" interpretation.
+
+<p>
+The parsing choice above is a <em>shift/reduce conflict</em>; the parser
+must choose between shifting "*" and reducing via "<tt>Expr -&gt; Expr + Expr</tt>".
+Now, the prec/assoc spec says that "*" has higher precedence than "+",
+and the rule is (by default) given the precedence of the latter.
+Consequently, the shift is chosen, so that the "*" will ultimately
+be reduced before the "+".
+
+<p>
+One can do similar reasoning for the case of "1 + 2 + 3", which should
+parse as "(1 + 2) + 3", and does so because "+" is declared to be left-associative:
+reduces are preferred to shifts (reduce early instead of reducing late).
+
+<h2>7.5 Example: Dangling else</h2>
+
+<p>
+As another example of using prec/assoc to resolve grammar ambiguity,
+we can consider the classic "dangling else" problem.  Many languages,
+such as C, have two rules for the "if" statement:
+<pre>
+  nonterm Stmt {
+    -&gt; "if" "(" Expr ")" Stmt ;
+    -&gt; "if" "(" Expr ")" Stmt "else" Stmt ;
+    ...
+  }
+</pre>
+This grammar is ambiguous; for example, the input
+<pre>
+  if (P)   if (Q)   a=b;   else   c=d;
+</pre>
+could be parsed as
+<pre>
+  if (P) {
+    if (Q)
+      a=b;
+    else        // associated with inner "if"
+      c=d;
+  }
+</pre>
+or as
+<pre>
+  if (P) {
+    if (Q)
+      a=b;
+  }
+  else          // associated with outer "if"
+    c=d;
+</pre>
+
+<p>
+As with all uses of prec/assoc, it is possible to resolve the
+ambiguity by modifying the grammar.  However, in this case, doing so
+means duplicating the entire Stmt nonterm, creating one case for when
+it is the first thing in the then-block of an "if" statement with an
+"else" clause (in which case the version missing an "else" is not
+allowed), and another case for when it is not.  Such savagery to
+the grammar is usually unacceptable.
+
+<p>
+There is an easy fix with prec/assoc, however: simply declare
+"else" to be right-associative, and (explicitly) give both "if" rules
+the precedence of the "else" token:
+<pre>
+  terminals {
+    precedence {
+      right 100 "else";     // precedence number irrelevant
+    }
+  }
+  ...
+  nonterm Stmt {
+    -&gt; "if" "(" Expr ")" Stmt                   precedence("else");
+    -&gt; "if" "(" Expr ")" Stmt "else" Stmt       precedence("else");
+    ...
+  }
+</pre>
+At the crucial moment, the lookahead is "else" and the stack is
+<pre>
+  Stmt(a=b;)                          &lt;-- top
+  ")"
+  Expr(Q)
+  "("
+  "if"
+  ")"
+  Expr(P)
+  "("
+  "if"                                &lt;-- bottom
+</pre>
+The conflict is between shifting "else" and reducing via
+"<tt>Stmt -&gt; if ( Expr ) Stmt</tt>".  Since the precedence of both
+the token and the rule is the same, the associativity direction
+of the token is consulted.  That direction is "right", which means
+to reduce late, i.e. shift.  After shifting "else", then the rest of the input,
+and reducing "c=d;", we have
+<pre>
+  Stmt(c=d;)                          &lt;-- top
+  "else"
+  Stmt(a=b;)
+  ")"
+  Expr(Q)
+  "("
+  "if"
+  ")"
+  Expr(P)
+  "("
+  "if"                                &lt;-- bottom
+</pre>
+Finally, the algorithm reduces via
+"<tt>Stmt -&gt; if ( Expr ) Stmt else Stmt</tt>", yielding
+<pre>
+  If(Q, Stmt(a=b;), Stmt(c=d;))       &lt;-- top
+  ")"
+  Expr(P)
+  "("
+  "if"                                &lt;-- bottom
+</pre>
+and one more reduce yields
+<pre>
+  If(P,   If(Q, Stmt(a=b;), Stmt(c=d;))  )
+</pre>
+which corresponds to binding the "else" to the innermost "if".
+
+<h2>7.6 Further directions</h2>
+
+<p>
+As illustrated in the "dangling else" example, prec/assoc specifications
+need not involve "operators" with a classic "precedence order".  Arguably,
+such cases constitute a hack, wherein the grammar designer takes advantage
+of knowledge of the parsing algorithm in use.  It would perhaps be better
+if there were some kind of parsing-algorithm-neutral specification technique
+that could subsume LR prec/assoc, but be translated into LR prec/assoc
+if that is the algorithm in use.  But I do not know of such a technique.
+(At one point I played with using attribute grammars and planned some
+static analysis to figure out when an attribute grammar's inherited
+attributes could be replaced with an equivalent prec/assoc spec, but it turned
+out to be hard so I abandoned the attempt.)
+
+<p>
+Not every use of prec/assoc is to resolve an actual grammatical
+ambiguity.  It is possible for the grammar to be unambiguous, but
+still have a conflict, in which case a prec/assoc specification
+may be a good way to resolve it, if performance is a concern.
+
+<p>
+I think the best advice is: if you are not very familiar with LR
+parsing, ignore prec/assoc.  Either write an unambiguous grammar, or
+use Elkhound's <tt>merge</tt> feature to do disambiguation; in either
+case, the conflicts only affect performance and so can be ignored.
+If you <em>are</em> familiar with LR parsing, then use your judgment
+as to whether a given situation is right for prec/assoc.  They can
+seem appealing since they yield fast parsers, but it can be difficult 
+to determine the actual language accepted by an LR parser with prec/assoc.
 
 
 <p>
