@@ -1066,7 +1066,8 @@ void FunctionType::addParam(Variable *param)
 }
 
 void FunctionType::addThisParam(Variable *param)
-{                       
+{
+  xassert(param->type->isReference());
   xassert(param->hasFlag(DF_PARAMETER));
   xassert(!isMember());
   params.prepend(param);
